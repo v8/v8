@@ -5275,6 +5275,12 @@ class GraphBuildingNodeProcessor {
                                value->Cast<maglev::Uint32Constant>()->value()));
           break;
 
+        case maglev::Opcode::kIntPtrConstant:
+          builder.AddInput(MachineType::AnyTagged(),
+                           __ NumberConstant(
+                               value->Cast<maglev::IntPtrConstant>()->value()));
+          break;
+
         case maglev::Opcode::kRootConstant:
           builder.AddInput(
               MachineType::AnyTagged(),
