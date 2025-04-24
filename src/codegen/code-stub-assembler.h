@@ -4281,9 +4281,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<JSAny> GetArgumentValue(TorqueStructArguments args,
                                 TNode<IntPtrT> index);
 
-  void SetArgumentValue(TorqueStructArguments args, TNode<IntPtrT> index,
-                        TNode<JSAny> value);
-
   enum class FrameArgumentsArgcType {
     kCountIncludesReceiver,
     kCountExcludesReceiver
@@ -4855,8 +4852,6 @@ class V8_EXPORT_PRIVATE CodeStubArguments {
   TNode<JSAny> GetOptionalArgumentValue(int index) {
     return GetOptionalArgumentValue(assembler_->IntPtrConstant(index));
   }
-
-  void SetArgumentValue(TNode<IntPtrT> index, TNode<JSAny> value);
 
   // Iteration doesn't include the receiver. |first| and |last| are zero-based.
   using ForEachBodyFunction = std::function<void(TNode<JSAny> arg)>;

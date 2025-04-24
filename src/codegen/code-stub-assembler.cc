@@ -17265,12 +17265,6 @@ TNode<JSAny> CodeStubArguments::GetOptionalArgumentValue(
   return result.value();
 }
 
-void CodeStubArguments::SetArgumentValue(TNode<IntPtrT> index,
-                                         TNode<JSAny> value) {
-  TNode<RawPtrT> slot = AtIndexPtr(index);
-  assembler_->StoreFullTaggedNoWriteBarrier(slot, value);
-}
-
 void CodeStubArguments::ForEach(
     const CodeStubAssembler::VariableList& vars,
     const CodeStubArguments::ForEachBodyFunction& body, TNode<IntPtrT> first,
@@ -17860,12 +17854,6 @@ TNode<Map> CodeStubAssembler::CheckEnumCache(TNode<JSReceiver> receiver,
 TNode<JSAny> CodeStubAssembler::GetArgumentValue(TorqueStructArguments args,
                                                  TNode<IntPtrT> index) {
   return CodeStubArguments(this, args).GetOptionalArgumentValue(index);
-}
-
-void CodeStubAssembler::SetArgumentValue(TorqueStructArguments args,
-                                         TNode<IntPtrT> index,
-                                         TNode<JSAny> value) {
-  CodeStubArguments(this, args).SetArgumentValue(index, value);
 }
 
 TorqueStructArguments CodeStubAssembler::GetFrameArguments(
