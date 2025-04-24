@@ -2435,6 +2435,16 @@ ScopeInfoRef SharedFunctionInfoRef::scope_info(JSHeapBroker* broker) const {
   return MakeRefAssumeMemoryFence(broker, object()->scope_info(kAcquireLoad));
 }
 
+int SharedFunctionInfoRef::
+    internal_formal_parameter_count_with_receiver_deprecated() const {
+  return object()->internal_formal_parameter_count_with_receiver();
+}
+
+int SharedFunctionInfoRef::
+    internal_formal_parameter_count_without_receiver_deprecated() const {
+  return object()->internal_formal_parameter_count_without_receiver();
+}
+
 OptionalMapRef JSObjectRef::GetObjectCreateMap(JSHeapBroker* broker) const {
   DirectHandle<Map> map_handle = Cast<Map>(map(broker).object());
   // Note: implemented as an acquire-load.

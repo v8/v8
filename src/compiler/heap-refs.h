@@ -1107,9 +1107,6 @@ class ScopeInfoRef : public HeapObjectRef {
 };
 
 #define BROKER_SFI_FIELDS(V)                               \
-  V(int, internal_formal_parameter_count_with_receiver)    \
-  V(int, internal_formal_parameter_count_without_receiver) \
-  V(bool, IsDontAdaptArguments)                            \
   V(bool, has_simple_parameters)                           \
   V(bool, has_duplicate_parameters)                        \
   V(int, function_map_index)                               \
@@ -1140,6 +1137,13 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   OptionalFunctionTemplateInfoRef function_template_info(
       JSHeapBroker* broker) const;
   ScopeInfoRef scope_info(JSHeapBroker* broker) const;
+
+  // TODO(370343328): The compiler should not rely on the parameter count
+  // stored on the SFI but instead use the parameter count from the
+  // BytecodeArray or JSDispatchTable. Once remaining uses of the field are
+  // gone, these accessors should probably be removed.
+  int internal_formal_parameter_count_with_receiver_deprecated() const;
+  int internal_formal_parameter_count_without_receiver_deprecated() const;
 
 #define DECL_ACCESSOR(type, name) type name() const;
   BROKER_SFI_FIELDS(DECL_ACCESSOR)

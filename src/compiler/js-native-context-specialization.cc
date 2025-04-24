@@ -258,15 +258,17 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionEnter(
   Node* promise = effect =
       graph()->NewNode(javascript()->CreatePromise(), context, effect);
 
-  // Create the JSAsyncFunctionObject based on the SharedFunctionInfo
+  // Create the JSAsyncFunctionObject based on the BytecodeArray
   // extracted from the top-most frame in {frame_state}.
-  SharedFunctionInfoRef shared = MakeRef(
-      broker(),
-      FrameStateInfoOf(frame_state->op()).shared_info().ToHandleChecked());
-  DCHECK(shared.is_compiled());
-  int register_count =
-      shared.internal_formal_parameter_count_without_receiver() +
-      shared.GetBytecodeArray(broker()).register_count();
+  FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
+  Handle<BytecodeArray> bytecode_array =
+      state_info.bytecode_array().ToHandleChecked();
+  DCHECK_EQ(state_info.shared_info()
+                .ToHandleChecked()
+                ->internal_formal_parameter_count_without_receiver(),
+            bytecode_array->parameter_count_without_receiver());
+  int register_count = bytecode_array->parameter_count_without_receiver() +
+                       bytecode_array->register_count();
   MapRef fixed_array_map = broker()->fixed_array_map();
   AllocationBuilder ab(jsgraph(), broker(), effect, control);
   if (!ab.CanAllocateArray(register_count, fixed_array_map)) {

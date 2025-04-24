@@ -2107,8 +2107,9 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     Node* new_target = jsgraph()->UndefinedConstant();
 
+    // TODO(412398354): use the dispatch handle here to avoid a runtime check.
     int formal_count =
-        shared->internal_formal_parameter_count_without_receiver();
+        shared->internal_formal_parameter_count_without_receiver_deprecated();
     if (formal_count > arity) {
       node->RemoveInput(n.FeedbackVectorIndex());
       // Underapplication. Massage the arguments to match the expected number of

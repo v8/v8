@@ -2354,7 +2354,8 @@ FrameState PromiseConstructorFrameState(
     const PromiseCtorFrameStateParams& params, CommonOperatorBuilder* common,
     TFGraph* graph) {
   DCHECK_EQ(1,
-            params.shared.internal_formal_parameter_count_without_receiver());
+            params.shared
+                .internal_formal_parameter_count_without_receiver_deprecated());
   return CreateConstructInvokeStubFrameState(
       params.node_ptr, params.outer_frame_state, params.shared, params.context,
       common, graph);
@@ -4325,7 +4326,7 @@ JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpreadOfCreateArguments(
     }
     formal_parameter_count =
         MakeRef(broker(), shared)
-            .internal_formal_parameter_count_without_receiver();
+            .internal_formal_parameter_count_without_receiver_deprecated();
   }
 
   if (type == CreateArgumentsType::kMappedArguments) {

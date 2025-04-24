@@ -10666,7 +10666,7 @@ ValueNode* MaglevGraphBuilder::BuildCallSelf(
   graph()->set_has_recursive_calls(true);
   DCHECK_EQ(
       compilation_unit_->info()->toplevel_compilation_unit()->parameter_count(),
-      shared.internal_formal_parameter_count_with_receiver());
+      shared.internal_formal_parameter_count_with_receiver_deprecated());
   return AddNewNode<CallSelf>(
       input_count,
       [&](CallSelf* call) {
