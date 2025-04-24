@@ -3956,7 +3956,8 @@ void Isolate::ThreadDataTable::RemoveAllThreads() {
 
 class TracingAccountingAllocator : public AccountingAllocator {
  public:
-  explicit TracingAccountingAllocator(Isolate* isolate) : isolate_(isolate) {}
+  explicit TracingAccountingAllocator(Isolate* isolate)
+      : AccountingAllocator(isolate) {}
   ~TracingAccountingAllocator() = default;
 
  protected:
@@ -4033,8 +4034,8 @@ class TracingAccountingAllocator : public AccountingAllocator {
   void Dump(std::ostringstream& out, bool dump_details) {
     // Note: Neither isolate nor zones are locked, so be careful with accesses
     // as the allocator is potentially used on a concurrent thread.
-    double time = isolate_->time_millis_since_init();
-    out << "{" << "\"isolate\": \"" << reinterpret_cast<void*>(isolate_)
+    double time = isolate()->time_millis_since_init();
+    out << "{" << "\"isolate\": \"" << reinterpret_cast<void*>(isolate())
         << "\", " << "\"time\": " << time << ", ";
     size_t total_segment_bytes_allocated = 0;
     size_t total_zone_allocation_size = 0;
@@ -4075,7 +4076,6 @@ class TracingAccountingAllocator : public AccountingAllocator {
         << "\"freed\": " << total_zone_freed_size << "}";
   }
 
-  Isolate* const isolate_;
   std::atomic<size_t> nesting_depth_{0};
 
   base::Mutex mutex_;
@@ -4550,6 +4550,11 @@ void Isolate::Deinit() {
   // updated anymore.
   DumpAndResetStats();
 
+  // Contains zones that should be released to the page pool before the heap is
+  // torn down.
+  delete ast_string_constants_;
+  ast_string_constants_ = nullptr;
+
   heap_.TearDown();
   isolate_group()->RemoveIsolate(this);
 
@@ -4579,9 +4584,6 @@ void Isolate::Deinit() {
 
   delete interpreter_;
   interpreter_ = nullptr;
-
-  delete ast_string_constants_;
-  ast_string_constants_ = nullptr;
 
   delete logger_;
   logger_ = nullptr;

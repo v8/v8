@@ -2305,6 +2305,9 @@ DEFINE_BOOL(stress_per_context_marking_worklist, false,
 DEFINE_BOOL(stress_incremental_marking, false,
             "force incremental marking for small heaps and run it more often")
 
+DEFINE_BOOL(managed_zone_memory, false,
+            "Manage zone memory in V8 instead of using malloc().")
+
 DEFINE_BOOL(fuzzer_gc_analysis, false,
             "prints number of allocations and enables analysis mode for gc "
             "fuzz testing, e.g. --stress-marking, --stress-scavenge")
