@@ -331,7 +331,6 @@ class SharedFunctionInfo
   // Set the formal parameter count so the function code will be
   // called without using argument adaptor frames.
   inline void DontAdaptArguments();
-  inline bool IsDontAdaptArguments() const;
 
   // Accessors for the data associated with this SFI.
   //

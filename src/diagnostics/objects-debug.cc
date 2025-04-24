@@ -1417,7 +1417,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(LocalIsolate* isolate) {
     CHECK(IsFeedbackMetadata(feedback_metadata()));
   }
 
-  if (HasBytecodeArray() && !IsDontAdaptArguments()) {
+  if (HasBytecodeArray()) {
     CHECK_EQ(GetBytecodeArray(isolate)->parameter_count(),
              internal_formal_parameter_count_with_receiver());
   }

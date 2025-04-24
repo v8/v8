@@ -2703,7 +2703,6 @@ TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
         // be shown in a stack trace.
         if (frames_[i].kind() ==
             TranslatedFrame::kJavaScriptBuiltinContinuation) {
-          DCHECK(frames_[i].shared_info()->IsDontAdaptArguments());
           DCHECK(frames_[i].shared_info()->IsApiFunction());
 
           // The argument count for this special case is always the second

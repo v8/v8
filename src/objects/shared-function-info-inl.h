@@ -528,11 +528,6 @@ void SharedFunctionInfo::DontAdaptArguments() {
   TorqueGeneratedClass::set_formal_parameter_count(kDontAdaptArgumentsSentinel);
 }
 
-bool SharedFunctionInfo::IsDontAdaptArguments() const {
-  return TorqueGeneratedClass::formal_parameter_count() ==
-         kDontAdaptArgumentsSentinel;
-}
-
 DEF_ACQUIRE_GETTER(SharedFunctionInfo, scope_info, Tagged<ScopeInfo>) {
   Tagged<Object> maybe_scope_info = name_or_scope_info(cage_base, kAcquireLoad);
   if (IsScopeInfo(maybe_scope_info, cage_base)) {
