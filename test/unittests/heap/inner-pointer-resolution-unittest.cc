@@ -58,8 +58,8 @@ class InnerPointerResolutionTest
   InnerPointerResolutionTest& operator=(const InnerPointerResolutionTest&) =
       delete;
 
-  Heap* heap() { return isolate()->heap(); }
-  MemoryAllocator* allocator() { return heap()->memory_allocator(); }
+  Heap* heap() const { return isolate()->heap(); }
+  MemoryAllocator* allocator() const { return heap()->memory_allocator(); }
 
   // Create, free and lookup pages, normal or large.
 
@@ -260,13 +260,20 @@ class InnerPointerResolutionTest
       RunTestInside(object, object.size - 1);
     }
     for (auto [id, page] : pages_) {
-      const Address outside_ptr = page->ChunkAddress() + 1;
+      const Address outside_ptr = page->area_start() - 3;
       DCHECK_LE(page->ChunkAddress(), outside_ptr);
       RunTestOutside(outside_ptr);
     }
     RunTestOutside(kNullAddress);
     RunTestOutside(static_cast<Address>(42));
-    RunTestOutside(static_cast<Address>(kZapValue));
+    if (!IsZapPageAllocated()) {
+      RunTestOutside(static_cast<Address>(kZapValue));
+    }
+  }
+
+  bool IsZapPageAllocated() const {
+    return allocator()->LookupChunkContainingAddress(
+               static_cast<Address>(kZapValue)) != nullptr;
   }
 
  private:
