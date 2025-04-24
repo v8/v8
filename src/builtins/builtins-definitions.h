@@ -241,6 +241,7 @@ namespace internal {
   TFC(StringLessThan, CompareNoContext)                                        \
   TFC(StringLessThanOrEqual, CompareNoContext)                                 \
   TFC(StringCompare, CompareNoContext)                                         \
+  IF_WASM(TFC, WasmStringCompare, CompareNoContext)                            \
   TFC(StringSubstring, StringSubstring)                                        \
                                                                                \
   /* OrderedHashTable helpers */                                               \
@@ -1466,6 +1467,7 @@ namespace internal {
                                                                                \
   /* String helpers */                                                         \
   TFS(StringAdd_CheckNone, NeedsContext::kYes, kLeft, kRight)                  \
+  IF_WASM(TFS, WasmStringAdd_CheckNone, NeedsContext::kYes, kLeft, kRight)     \
   TFS(SubString, NeedsContext::kYes, kString, kFrom, kTo)                      \
                                                                                \
   /* Miscellaneous */                                                          \
@@ -2307,6 +2309,7 @@ namespace internal {
   /* ES #sec-string.prototype.touppercase */                                   \
   CPP(StringPrototypeToUpperCaseIntl, kDontAdaptArgumentsSentinel)             \
   TFS(StringToLowerCaseIntl, NeedsContext::kYes, kString)                      \
+  IF_WASM(TFS, WasmStringToLowerCaseIntl, NeedsContext::kYes, kString)         \
                                                                                \
   /* Temporal */                                                               \
   /* Temporal #sec-temporal.calendar.prototype.era */                          \

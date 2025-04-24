@@ -73,7 +73,7 @@ namespace v8::internal::wasm {
   V(ThrowDataViewOutOfBounds)                                                  \
   V(ThrowIndexOfCalledOnNull)                                                  \
   V(ThrowToLowerCaseCalledOnNull)                                              \
-  IF_INTL(V, StringToLowerCaseIntl)                                            \
+  IF_INTL(V, WasmStringToLowerCaseIntl)                                        \
   IF_TSAN(V, TSANRelaxedStore8IgnoreFP)                                        \
   IF_TSAN(V, TSANRelaxedStore8SaveFP)                                          \
   IF_TSAN(V, TSANRelaxedStore16IgnoreFP)                                       \
@@ -133,13 +133,13 @@ namespace v8::internal::wasm {
   V(WasmStringViewIterAdvance)                                                 \
   V(WasmStringViewIterRewind)                                                  \
   V(WasmStringViewIterSlice)                                                   \
-  V(StringCompare)                                                             \
-  V(StringIndexOf)                                                             \
+  V(WasmStringCompare)                                                         \
+  V(WasmStringIndexOf)                                                         \
   V(WasmStringFromCodePoint)                                                   \
   V(WasmStringHash)                                                            \
   V(WasmAnyConvertExtern)                                                      \
   V(WasmStringFromDataSegment)                                                 \
-  V(StringAdd_CheckNone)                                                       \
+  V(WasmStringAdd_CheckNone)                                                   \
   V(DebugPrintFloat64)                                                         \
   V(DebugPrintWordPtr)                                                         \
   V(WasmFastApiCallTypeCheckAndUpdateIC)                                       \

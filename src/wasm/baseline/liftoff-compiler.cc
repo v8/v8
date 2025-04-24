@@ -8553,7 +8553,7 @@ class LiftoffCompiler {
     MaybeEmitNullCheck(decoder, lhs_reg.gp(), pinned, lhs.type);
     VarState lhs_var(kRef, lhs_reg, 0);
 
-    CallBuiltin(Builtin::kStringCompare,
+    CallBuiltin(Builtin::kWasmStringCompare,
                 MakeSig::Returns(kSmiKind).Params(kRef, kRef),
                 {lhs_var, rhs_var}, decoder->position());
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);

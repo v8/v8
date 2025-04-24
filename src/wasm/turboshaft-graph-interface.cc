@@ -1824,7 +1824,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     BuildModifyThreadInWasmFlag(decoder->zone(), false);
 
     V<Smi> result_value =
-        CallBuiltinThroughJumptable<BuiltinCallDescriptor::StringIndexOf>(
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmStringIndexOf>(
             decoder, {string, search, start_smi});
     BuildModifyThreadInWasmFlag(decoder->zone(), true);
 
@@ -1835,7 +1835,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   V<String> CallStringToLowercase(FullDecoder* decoder, V<String> string) {
     BuildModifyThreadInWasmFlag(decoder->zone(), false);
     OpIndex result = CallBuiltinThroughJumptable<
-        BuiltinCallDescriptor::StringToLowerCaseIntl>(
+        BuiltinCallDescriptor::WasmStringToLowerCaseIntl>(
         decoder, __ NoContextConstant(), {string});
     BuildModifyThreadInWasmFlag(decoder->zone(), true);
     return result;
@@ -2358,9 +2358,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       case WKI::kStringCompare: {
         V<String> a_string = ExternRefToString(args[0]);
         V<String> b_string = ExternRefToString(args[1]);
-        result = __ UntagSmi(
-            CallBuiltinThroughJumptable<BuiltinCallDescriptor::StringCompare>(
-                decoder, {a_string, b_string}));
+        result = __ UntagSmi(CallBuiltinThroughJumptable<
+                             BuiltinCallDescriptor::WasmStringCompare>(
+            decoder, {a_string, b_string}));
         decoder->detected_->add_imported_strings();
         break;
       }
@@ -2369,7 +2369,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         V<String> tail_string = ExternRefToString(args[1]);
         V<HeapObject> native_context = instance_cache_.native_context();
         V<String> result_value = CallBuiltinThroughJumptable<
-            BuiltinCallDescriptor::StringAdd_CheckNone>(
+            BuiltinCallDescriptor::WasmStringAdd_CheckNone>(
             decoder, V<Context>::Cast(native_context),
             {head_string, tail_string});
         result = __ AnnotateWasmType(result_value, kWasmRefExternString);
@@ -5255,11 +5255,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void StringConcat(FullDecoder* decoder, const Value& head, const Value& tail,
                     Value* result) {
     V<NativeContext> native_context = instance_cache_.native_context();
-    V<String> result_value =
-        CallBuiltinThroughJumptable<BuiltinCallDescriptor::StringAdd_CheckNone>(
-            decoder, native_context,
-            {V<String>::Cast(NullCheck(head)),
-             V<String>::Cast(NullCheck(tail))});
+    V<String> result_value = CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmStringAdd_CheckNone>(
+        decoder, native_context,
+        {V<String>::Cast(NullCheck(head)), V<String>::Cast(NullCheck(tail))});
     result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
@@ -5559,7 +5558,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     V<String> lhs_val = V<String>::Cast(NullCheck(lhs));
     V<String> rhs_val = V<String>::Cast(NullCheck(rhs));
     result->op = __ UntagSmi(
-        CallBuiltinThroughJumptable<BuiltinCallDescriptor::StringCompare>(
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmStringCompare>(
             decoder, {lhs_val, rhs_val}));
   }
 

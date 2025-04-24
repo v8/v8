@@ -904,22 +904,6 @@ TF_BUILTIN(StringEqual, StringBuiltinsAssembler) {
   GenerateStringEqual(left, right, length);
 }
 
-#if V8_ENABLE_WEBASSEMBLY
-// Duplicate of StringEqual for wasm. The only difference is that this builtin
-// is listed in WASM_BUILTIN_LIST. Builtins in this list are instrumented to
-// check if they are running on a secondary stack and switch back to the central
-// stack before calling a runtime function or a JS builtin if needed.
-TF_BUILTIN(WasmJSStringEqual, StringBuiltinsAssembler) {
-  auto left = Parameter<String>(Descriptor::kLeft);
-  auto right = Parameter<String>(Descriptor::kRight);
-  auto length = UncheckedParameter<IntPtrT>(Descriptor::kLength);
-  // Callers must handle the case where {lhs} and {rhs} refer to the same
-  // String object.
-  CSA_DCHECK(this, TaggedNotEqual(left, right));
-  GenerateStringEqual(left, right, length);
-}
-#endif
-
 TF_BUILTIN(StringLessThan, StringBuiltinsAssembler) {
   auto left = Parameter<String>(Descriptor::kLeft);
   auto right = Parameter<String>(Descriptor::kRight);
@@ -952,6 +936,38 @@ TF_BUILTIN(StringGreaterThanOrEqual, StringBuiltinsAssembler) {
   GenerateStringRelationalComparison(left, right,
                                      StringComparison::kGreaterThanOrEqual);
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+// Duplicate of string builtins for wasm. The only difference is that these
+// builtins are listed in WASM_BUILTIN_LIST. Builtins in this list are
+// instrumented to check if they are running on a secondary stack and switch
+// back to the central stack before calling a runtime function or a JS builtin
+// if needed.
+TF_BUILTIN(WasmJSStringEqual, StringBuiltinsAssembler) {
+  auto left = Parameter<String>(Descriptor::kLeft);
+  auto right = Parameter<String>(Descriptor::kRight);
+  auto length = UncheckedParameter<IntPtrT>(Descriptor::kLength);
+  // Callers must handle the case where {lhs} and {rhs} refer to the same
+  // String object.
+  CSA_DCHECK(this, TaggedNotEqual(left, right));
+  GenerateStringEqual(left, right, length);
+}
+
+TF_BUILTIN(WasmStringAdd_CheckNone, StringBuiltinsAssembler) {
+  auto left = Parameter<String>(Descriptor::kLeft);
+  auto right = Parameter<String>(Descriptor::kRight);
+  TNode<ContextOrEmptyContext> context =
+      UncheckedParameter<ContextOrEmptyContext>(Descriptor::kContext);
+  CSA_DCHECK(this, IsZeroOrContext(context));
+  Return(StringAdd(context, left, right));
+}
+
+TF_BUILTIN(WasmStringCompare, StringBuiltinsAssembler) {
+  auto left = Parameter<String>(Descriptor::kLeft);
+  auto right = Parameter<String>(Descriptor::kRight);
+  GenerateStringRelationalComparison(left, right, StringComparison::kCompare);
+}
+#endif
 
 #ifndef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 
