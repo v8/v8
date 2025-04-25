@@ -1590,8 +1590,8 @@ bool StoreIC::LookupForWrite(LookupIterator* it, DirectHandle<Object> value,
   // Disable ICs for non-JSObjects for now.
   DirectHandle<Object> object = it->GetReceiver();
   if (IsJSProxy(*object)) return true;
-  if (!IsJSObject(*object)) return false;
-  DirectHandle<JSObject> receiver = Cast<JSObject>(object);
+  if (!IsJSObject(*object) && !IsWasmObject(*object)) return false;
+  DirectHandle<JSReceiver> receiver = Cast<JSReceiver>(object);
   DCHECK(!receiver->map()->is_deprecated());
 
   for (;; it->Next()) {
@@ -1599,7 +1599,7 @@ bool StoreIC::LookupForWrite(LookupIterator* it, DirectHandle<Object> value,
       case LookupIterator::TRANSITION:
         UNREACHABLE();
       case LookupIterator::WASM_OBJECT:
-        return false;
+        continue;  // Continue to the prototype, if present.
       case LookupIterator::JSPROXY:
         return true;
       case LookupIterator::INTERCEPTOR: {
@@ -1672,7 +1672,7 @@ bool StoreIC::LookupForWrite(LookupIterator* it, DirectHandle<Object> value,
           // cell got invalidated) and handle these stores correctly.
           return false;
         }
-        receiver = it->GetStoreTarget<JSObject>();
+        receiver = it->GetStoreTarget<JSReceiver>();
         if (it->ExtendingNonExtensible(receiver)) return false;
         it->PrepareTransitionToDataProperty(receiver, value, NONE,
                                             store_origin);
@@ -2021,7 +2021,8 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
 
     case LookupIterator::ACCESSOR: {
       // This is currently guaranteed by checks in StoreIC::Store.
-      DirectHandle<JSObject> receiver = Cast<JSObject>(lookup->GetReceiver());
+      DirectHandle<JSReceiver> receiver =
+          Cast<JSReceiver>(lookup->GetReceiver());
       Handle<JSObject> holder =
           indirect_handle(lookup->GetHolder<JSObject>(), isolate());
       DCHECK(!IsAccessCheckNeeded(*receiver) || lookup->name()->IsPrivate());

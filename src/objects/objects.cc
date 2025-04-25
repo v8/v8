@@ -2302,8 +2302,7 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
       }
 
       case LookupIterator::WASM_OBJECT:
-        RETURN_FAILURE(it->isolate(), kThrowOnError,
-                       NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
+        continue;  // Continue to the prototype, if present.
 
       case LookupIterator::INTERCEPTOR: {
         if (it->HolderIsReceiverOrHiddenPrototype()) {
@@ -2709,6 +2708,10 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it,
   Isolate* isolate = it->isolate();
 
   if (it->ExtendingNonExtensible(receiver)) {
+    if (IsWasmObject(*receiver)) {
+      RETURN_FAILURE(it->isolate(), kThrowOnError,
+                     NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
+    }
     bool is_shared_object = IsAlwaysSharedSpaceJSObject(*receiver);
     RETURN_FAILURE(
         isolate, GetShouldThrow(it->isolate(), should_throw),
