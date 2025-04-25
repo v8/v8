@@ -74,7 +74,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:10a27145cd0770b78745ff536e343bf12c70f6c3',
+  'gn_version': 'git_revision:90478db6b59b9bebf7ca4cf912d860cf868e724c',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -129,9 +129,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0dbb1f35cf03942361fe713d850ce972f6a08276',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5449c3b1a70e2eb04f51d4f54840360b5192ac87',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '954d9cf09b69f9d2cc44bc7fa558e875310b49e4',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '0f32cb9025766951122d4ed19aba87a94ded3f43',
   'buildtools/linux64': {
     'packages': [
       {
@@ -245,7 +245,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c551fe48ca12ac49c5a0d209aa7956d88666280b',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '1fcc527019d786502b02f71b8b764ee674a40953',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -299,7 +299,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'bb79a34585926c20974cd7191b730ac94133a992',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '917609c669e43edc850eeb192a342434a54e1dfd',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '6cc4c9c768689b90b0fdc8c6c3c186589e6798d1',
   'third_party/libunwind/src':
@@ -531,7 +531,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '3c6290c68e08725142c3895b91766787fc5259eb',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '03e88ec76cae47d81daa0120878ed041be49fe51',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'cac286185c38c78d1da0c0dc22d1f40c5d7214e1',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '8ad6d21544b14c7f753852328d71861b363cc512',
   'third_party/abseil-cpp': {
