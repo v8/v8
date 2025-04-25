@@ -1333,7 +1333,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
     Node* value;
     if (v8_flags.script_context_cells && !feedback.immutable()) {
       // We collect feedback only for mutable context slots.
-      value = effect =
+      value = effect = control =
           graph()->NewNode(javascript()->LoadContext(0, feedback.slot_index()),
                            script_context, effect, control);
     } else {
