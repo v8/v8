@@ -3170,6 +3170,24 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
     return MaybeOddball(LoadRegister(0)) || MaybeOddball(GetAccumulator());
   };
 
+  // TODO(victorgomes): Investigate if we can just propagate one of the types
+  // instead.
+  auto GetConversionType = [](CompareOperationHint hint) {
+    switch (hint) {
+      case CompareOperationHint::kNumber:
+        return std::make_pair(NodeType::kNumber,
+                              TaggedToFloat64ConversionType::kOnlyNumber);
+      case CompareOperationHint::kNumberOrBoolean:
+        return std::make_pair(NodeType::kNumberOrBoolean,
+                              TaggedToFloat64ConversionType::kNumberOrBoolean);
+      case CompareOperationHint::kNumberOrOddball:
+        return std::make_pair(NodeType::kNumberOrOddball,
+                              TaggedToFloat64ConversionType::kNumberOrOddball);
+      default:
+        UNREACHABLE();
+    }
+  };
+
   FeedbackNexus nexus = FeedbackNexusForOperand(1);
   switch (nexus.GetCompareOperationFeedback()) {
     case CompareOperationHint::kNone:
@@ -3188,10 +3206,11 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
       return ReduceResult::Done();
     }
     case CompareOperationHint::kNumberOrOddball:
-      // TODO(leszeks): we could support all kNumberOrOddball with
-      // BranchIfFloat64Compare, but we'd need to special case comparing
-      // oddballs with NaN value (e.g. undefined) against themselves.
-      if (MaybeOddballs()) {
+      // Equality and strict equality don't perform ToNumber conversions on
+      // Oddballs.
+      if ((kOperation == Operation::kEqual ||
+           kOperation == Operation::kStrictEqual) &&
+          MaybeOddballs()) {
         break;
       }
       [[fallthrough]];
@@ -3211,20 +3230,8 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
         SetAccumulator(AddNewNode<Int32Compare>({left, right}, kOperation));
         return ReduceResult::Done();
       }
-      // In compare operations, booleans should be converted to Float64 but
-      // non-boolean oddballs shouldn't. Even if the feedback type was
-      // kNumberOrOddball, we'd still pass
-      // TaggedToFloat64ConversionType::kNumberOrBoolean.
-      NodeType allowed_input_type;
-      TaggedToFloat64ConversionType conversion_type;
-      if (nexus.GetCompareOperationFeedback() ==
-          CompareOperationHint::kNumberOrBoolean) {
-        allowed_input_type = NodeType::kNumberOrBoolean;
-        conversion_type = TaggedToFloat64ConversionType::kNumberOrBoolean;
-      } else {
-        allowed_input_type = NodeType::kNumber;
-        conversion_type = TaggedToFloat64ConversionType::kOnlyNumber;
-      }
+      auto [allowed_input_type, conversion_type] =
+          GetConversionType(nexus.GetCompareOperationFeedback());
       left = GetFloat64ForToNumber(left, allowed_input_type, conversion_type);
       right = GetFloat64ForToNumber(right, allowed_input_type, conversion_type);
       if (left->Is<Float64Constant>() && right->Is<Float64Constant>()) {
