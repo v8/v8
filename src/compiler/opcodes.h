@@ -230,6 +230,7 @@
   V(JSAsyncFunctionReject)             \
   V(JSAsyncFunctionResolve)            \
   V(JSCallRuntime)                     \
+  V(JSDetachContextCell)               \
   V(JSForInEnumerate)                  \
   V(JSForInNext)                       \
   V(JSForInPrepare)                    \

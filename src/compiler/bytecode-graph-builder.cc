@@ -1771,6 +1771,7 @@ void BytecodeGraphBuilder::VisitStaContextSlot() {
   Node* context =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   NodeProperties::ReplaceContextInput(node, context);
+  environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitStaCurrentContextSlot() {
@@ -1778,7 +1779,9 @@ void BytecodeGraphBuilder::VisitStaCurrentContextSlot() {
   const Operator* op =
       javascript()->StoreContext(0, bytecode_iterator().GetIndexOperand(0));
   Node* value = environment()->LookupAccumulator();
-  NewNode(op, value);
+  Node* store = NewNode(op, value);
+  USE(store);
+  environment()->RecordAfterState(store, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::BuildLdaLookupSlot(TypeofMode typeof_mode) {

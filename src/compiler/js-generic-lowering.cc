@@ -255,6 +255,13 @@ bool ShouldUseMegamorphicAccessBuiltin(FeedbackSource const& source,
 
 }  // namespace
 
+void JSGenericLowering::LowerJSDetachContextCell(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSDetachContextCell, node->opcode());
+  int index = OpParameter<int>(node->op());
+  node->ReplaceInput(2, jsgraph()->IntPtrConstant(index));
+  ReplaceWithBuiltinCall(node, Builtin::kDetachContextCell);
+}
+
 void JSGenericLowering::LowerJSHasProperty(Node* node) {
   JSHasPropertyNode n(node);
   const PropertyAccess& p = n.Parameters();

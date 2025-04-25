@@ -2171,6 +2171,8 @@ Type Typer::Visitor::TypeJSCallRuntime(Node* node) {
   return Type::Any();
 }
 
+Type Typer::Visitor::TypeJSDetachContextCell(Node* node) { UNREACHABLE(); }
+
 Type Typer::Visitor::TypeJSForInEnumerate(Node* node) {
   return Type::OtherInternal();
 }

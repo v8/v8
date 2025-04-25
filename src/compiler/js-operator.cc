@@ -1108,6 +1108,14 @@ const Operator* JSOperatorBuilder::GeneratorStore(int register_count) {
       register_count);                                  // parameter
 }
 
+const Operator* JSOperatorBuilder::DetachContextCell(int index) {
+  return zone()->New<Operator1<int>>(                      // --
+      IrOpcode::kJSDetachContextCell, Operator::kNoThrow,  // opcode
+      "JSDetachContextCell",                               // name
+      2, 1, 1, 0, 1, 0,                                    // counts
+      index);                                              // parameter
+}
+
 int RegisterCountOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kJSCreateAsyncFunctionObject, op->opcode());
   return OpParameter<int>(op);

@@ -1369,12 +1369,13 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
     if (feedback.immutable()) return NoChange();
     Node* effect = n.effect();
     Node* control = n.control();
+    Node* frame_state = n.frame_state();
     Node* script_context =
         jsgraph()->ConstantNoHole(feedback.script_context(), broker());
     if (v8_flags.script_context_cells) {
       effect = control =
           graph()->NewNode(javascript()->StoreContext(0, feedback.slot_index()),
-                           value, script_context, effect, control);
+                           value, script_context, frame_state, effect, control);
     } else {
       effect = graph()->NewNode(
           javascript()->StoreContextNoCell(0, feedback.slot_index()), value,

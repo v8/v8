@@ -714,6 +714,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(JSAsyncFunctionReject)
       CASE(JSAsyncFunctionResolve)
       CASE(JSCallRuntime)
+      CASE(JSDetachContextCell)
       CASE(JSForInEnumerate)
       CASE(JSForInNext)
       CASE(JSForInPrepare)
