@@ -222,9 +222,10 @@ class ActualScript : public V8DebuggerScript {
   }
 
   String16 buildId() const override {
+    if (!m_buildId.isEmpty()) return m_buildId;
+    v8::Local<v8::debug::Script> script = this->script();
 #if V8_ENABLE_WEBASSEMBLY
     if (m_language == Language::WebAssembly) {
-      v8::Local<v8::debug::Script> script = this->script();
       auto maybe_build_id =
           v8::debug::WasmScript::Cast(*script)->GetModuleBuildId();
       if (maybe_build_id.IsJust()) {
@@ -234,12 +235,20 @@ class ActualScript : public V8DebuggerScript {
           buildIdFormatter.appendUnsignedAsHex(
               static_cast<uint8_t>(buildId[i]));
         }
-        return buildIdFormatter.toString();
+        m_buildId = buildIdFormatter.toString();
       }
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
-    return {};
+    if (m_language == Language::JavaScript) {
+      v8::Local<v8::String> debugId;
+      if (script->DebugId().ToLocal(&debugId)) {
+        m_buildId = toProtocolString(m_isolate, debugId);
+      }
+    }
+    return m_buildId;
   }
+
+  void setBuildId(const String16& buildId) override { m_buildId = buildId; }
 
  private:
   static String16 GetScriptURL(v8::Isolate* isolate,
@@ -316,6 +325,7 @@ class ActualScript : public V8DebuggerScript {
 
   V8DebuggerAgentImpl* m_agent;
   String16 m_sourceMappingURL;
+  mutable String16 m_buildId;
   Language m_language;
   bool m_isLiveEdit = false;
   bool m_isModule = false;

@@ -1948,6 +1948,7 @@ void V8DebuggerAgentImpl::didParseSource(
     String16 scriptSource = script->source(0);
     script->setSourceURL(findSourceURL(scriptSource, false));
     script->setSourceMappingURL(findSourceMapURL(scriptSource, false));
+    script->setBuildId(findDebugId(scriptSource, false));
   }
 
   int contextId = script->executionContextId();

@@ -555,6 +555,14 @@ MaybeLocal<String> Script::SourceMappingURL() const {
   return Utils::ToLocal(i::Cast<i::String>(value));
 }
 
+MaybeLocal<String> Script::DebugId() const {
+  auto script = Utils::OpenDirectHandle(this);
+  i::Isolate* isolate = script->GetIsolate();
+  i::DirectHandle<i::Object> value(script->debug_id(), isolate);
+  if (!IsString(*value)) return MaybeLocal<String>();
+  return Utils::ToLocal(i::Cast<i::String>(value));
+}
+
 MaybeLocal<String> Script::GetSha256Hash() const {
   i::DirectHandle<i::Script> script = Utils::OpenDirectHandle(this);
   i::Isolate* isolate = script->GetIsolate();
