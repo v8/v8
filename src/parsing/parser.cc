@@ -716,7 +716,7 @@ void Parser::ParseProgram(Isolate* isolate, DirectHandle<Script> script,
 
   scanner_.Initialize();
   FunctionLiteral* result = DoParseProgram(isolate, info);
-  HandleSourceURLComments(isolate, script);
+  HandleDebugMagicComments(isolate, script);
   if (result == nullptr) return;
   MaybeProcessSourceRanges(info, result, stack_limit_);
   PostProcessParseResult(isolate, info, result);
@@ -3415,8 +3415,8 @@ void Parser::InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope) {
 // Parser support
 
 template <typename IsolateT>
-void Parser::HandleSourceURLComments(IsolateT* isolate,
-                                     DirectHandle<Script> script) {
+void Parser::HandleDebugMagicComments(IsolateT* isolate,
+                                      DirectHandle<Script> script) {
   DirectHandle<String> source_url = scanner_.SourceUrl(isolate);
   if (!source_url.is_null()) {
     script->set_source_url(*source_url);
@@ -3428,12 +3428,17 @@ void Parser::HandleSourceURLComments(IsolateT* isolate,
       IsUndefined(script->source_mapping_url(isolate), isolate)) {
     script->set_source_mapping_url(*source_mapping_url);
   }
+
+  DirectHandle<String> debug_id = scanner_.DebugId(isolate);
+  if (!debug_id.is_null()) {
+    script->set_debug_id(*debug_id);
+  }
 }
 
-template void Parser::HandleSourceURLComments(Isolate* isolate,
-                                              DirectHandle<Script> script);
-template void Parser::HandleSourceURLComments(LocalIsolate* isolate,
-                                              DirectHandle<Script> script);
+template void Parser::HandleDebugMagicComments(Isolate* isolate,
+                                               DirectHandle<Script> script);
+template void Parser::HandleDebugMagicComments(LocalIsolate* isolate,
+                                               DirectHandle<Script> script);
 
 void Parser::UpdateStatistics(Isolate* isolate, DirectHandle<Script> script) {
   CHECK_NOT_NULL(isolate);
@@ -3534,7 +3539,7 @@ void Parser::ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
   });
   // We need to unpark by now though, to be able to internalize.
   if (flags().is_toplevel()) {
-    HandleSourceURLComments(isolate, script);
+    HandleDebugMagicComments(isolate, script);
   }
   if (result == nullptr) return;
   PostProcessParseResult(isolate, info, result);
