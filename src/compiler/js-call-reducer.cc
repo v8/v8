@@ -4467,7 +4467,6 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   }
 
   DCHECK_EQ(arguments_list->opcode(), IrOpcode::kJSCreateLiteralArray);
-  int new_argument_count;
 
   // Find array length and elements' kind from the feedback's allocation
   // site's boilerplate JSArray.
@@ -4484,13 +4483,15 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   JSArrayRef boilerplate_array = site.boilerplate(broker())->AsJSArray();
   int const array_length =
       boilerplate_array.GetBoilerplateLength(broker()).AsSmi();
+  SBXCHECK_GE(array_length, 0);
 
   // We'll replace the arguments_list input with {array_length} element loads.
-  new_argument_count = argument_count - 1 + array_length;
+  uint32_t new_argument_count =
+      static_cast<uint32_t>(array_length) + argument_count - 1;
 
   // Do not optimize calls with a large number of arguments.
   // Arbitrarily sets the limit to 32 arguments.
-  const int kMaxArityForOptimizedFunctionApply = 32;
+  const uint32_t kMaxArityForOptimizedFunctionApply = 32;
   if (new_argument_count > kMaxArityForOptimizedFunctionApply) {
     return NoChange();
   }
@@ -4546,10 +4547,10 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   }
 
   NodeProperties::ChangeOp(
-      node,
-      javascript()->Call(JSCallNode::ArityForArgc(new_argument_count),
-                         frequency, feedback_source, ConvertReceiverMode::kAny,
-                         speculation_mode, CallFeedbackRelation::kUnrelated));
+      node, javascript()->Call(
+                JSCallNode::ArityForArgc(static_cast<int>(new_argument_count)),
+                frequency, feedback_source, ConvertReceiverMode::kAny,
+                speculation_mode, CallFeedbackRelation::kUnrelated));
   NodeProperties::ReplaceEffectInput(node, effect);
   return Changed(node).FollowedBy(ReduceJSCall(node));
 }
