@@ -17227,8 +17227,9 @@ TNode<RawPtrT> CodeStubArguments::AtIndexPtr(TNode<IntPtrT> index) const {
 }
 
 TNode<JSAny> CodeStubArguments::AtIndex(TNode<IntPtrT> index) const {
-  CSA_DCHECK(assembler_, assembler_->UintPtrOrSmiLessThan(
-                             index, GetLengthWithoutReceiver()));
+  // Defense-in-depth check to prevent out-of-bounds stack access.
+  CSA_SBXCHECK(assembler_, assembler_->UintPtrOrSmiLessThan(
+                               index, GetLengthWithoutReceiver()));
   return assembler_->CAST(assembler_->LoadFullTagged(AtIndexPtr(index)));
 }
 
