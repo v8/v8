@@ -261,7 +261,7 @@ struct is_trivially_copyable {
       // Trivial non-deleted destructor.
       std::is_trivially_destructible<T>::value;
 #else
-  static constexpr bool value = std::is_trivially_copyable<T>::value;
+  static constexpr bool value = std::is_trivially_copyable_v<T>;
 #endif
 };
 #define ASSERT_TRIVIALLY_COPYABLE(T)                         \
@@ -369,14 +369,14 @@ inline uint64_t make_uint64(uint32_t high, uint32_t low) {
 // Return the largest multiple of m which is <= x.
 template <typename T>
 constexpr T RoundDown(T x, intptr_t m) {
-  static_assert(std::is_integral<T>::value);
+  static_assert(std::is_integral_v<T>);
   // m must be a power of two.
   DCHECK(m != 0 && ((m & (m - 1)) == 0));
   return x & static_cast<T>(-m);
 }
 template <intptr_t m, typename T>
 constexpr T RoundDown(T x) {
-  static_assert(std::is_integral<T>::value);
+  static_assert(std::is_integral_v<T>);
   // m must be a power of two.
   static_assert(m != 0 && ((m & (m - 1)) == 0));
   return x & static_cast<T>(-m);
@@ -385,7 +385,7 @@ constexpr T RoundDown(T x) {
 // Return the smallest multiple of m which is >= x.
 template <typename T>
 constexpr T RoundUp(T x, intptr_t m) {
-  static_assert(std::is_integral<T>::value);
+  static_assert(std::is_integral_v<T>);
   DCHECK_GE(x, 0);
   DCHECK_GE(std::numeric_limits<T>::max() - x, m - 1);  // Overflow check.
   return RoundDown<T>(static_cast<T>(x + (m - 1)), m);
@@ -393,7 +393,7 @@ constexpr T RoundUp(T x, intptr_t m) {
 
 template <intptr_t m, typename T>
 constexpr T RoundUp(T x) {
-  static_assert(std::is_integral<T>::value);
+  static_assert(std::is_integral_v<T>);
   DCHECK_GE(x, 0);
   DCHECK_GE(std::numeric_limits<T>::max() - x, m - 1);  // Overflow check.
   return RoundDown<m, T>(static_cast<T>(x + (m - 1)));

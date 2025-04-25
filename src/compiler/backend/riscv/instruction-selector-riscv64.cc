@@ -2280,7 +2280,7 @@ void InstructionSelectorT::VisitF64x2Max(OpIndex node) {
 //     memset(zone_buffer, '\0', length);
 //     MemCopy(zone_buffer, msg.c_str(), length);
 //     using ptrsize_int_t =
-//         std::conditional<kSystemPointerSize == 8, int64_t, int32_t>::type;
+//         std::conditional_t<kSystemPointerSize == 8, int64_t, int32_t>;
 //     InstructionOperand operand = this->sequence()->AddImmediate(
 //         Constant{reinterpret_cast<ptrsize_int_t>(zone_buffer)});
 //     InstructionOperand inputs[2];

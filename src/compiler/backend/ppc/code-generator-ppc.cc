@@ -634,7 +634,7 @@ static inline bool is_wasm_on_be(bool IsWasm) {
 #define ASSEMBLE_ATOMIC_BINOP_BYTE(bin_inst, _type)                          \
   do {                                                                       \
     auto bin_op = [&](Register dst, Register lhs, Register rhs) {            \
-      if (std::is_signed<_type>::value) {                                    \
+      if (std::is_signed_v<_type>) {                                         \
         __ extsb(dst, lhs);                                                  \
         __ bin_inst(dst, dst, rhs);                                          \
       } else {                                                               \
@@ -653,7 +653,7 @@ static inline bool is_wasm_on_be(bool IsWasm) {
     auto bin_op = [&](Register dst, Register lhs, Register rhs) {             \
       Register _lhs = lhs;                                                    \
       MAYBE_REVERSE_IF_WASM(dst, _lhs, reverse_op, scratch, true);            \
-      if (std::is_signed<_type>::value) {                                     \
+      if (std::is_signed_v<_type>) {                                          \
         switch (sizeof(_type)) {                                              \
           case 1:                                                             \
             UNREACHABLE();                                                    \

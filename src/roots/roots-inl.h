@@ -40,12 +40,12 @@ namespace v8 {
 namespace internal {
 
 V8_INLINE constexpr bool operator<(RootIndex lhs, RootIndex rhs) {
-  using type = typename std::underlying_type<RootIndex>::type;
+  using type = std::underlying_type_t<RootIndex>;
   return static_cast<type>(lhs) < static_cast<type>(rhs);
 }
 
 V8_INLINE RootIndex operator++(RootIndex& index) {
-  using type = typename std::underlying_type<RootIndex>::type;
+  using type = std::underlying_type_t<RootIndex>;
   index = static_cast<RootIndex>(static_cast<type>(index) + 1);
   return index;
 }

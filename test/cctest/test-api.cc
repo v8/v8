@@ -28146,7 +28146,7 @@ struct BasicApiChecker {
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
 template <typename Value, typename Impl, typename Ret,
-          typename = std::enable_if_t<!std::is_void<Ret>::value>>
+          typename = std::enable_if_t<!std::is_void_v<Ret>>>
 static v8::AnyCType FastCallbackPatch(v8::AnyCType receiver,
                                       v8::AnyCType argument,
                                       v8::AnyCType options) {
@@ -28156,7 +28156,7 @@ static v8::AnyCType FastCallbackPatch(v8::AnyCType receiver,
   return ret;
 }
 template <typename Value, typename Impl, typename Ret,
-          typename = std::enable_if_t<!std::is_void<Ret>::value>>
+          typename = std::enable_if_t<!std::is_void_v<Ret>>>
 static v8::AnyCType FastCallbackNoOptionsWrapper(v8::AnyCType receiver,
                                                  v8::AnyCType argument) {
   v8::FastApiCallbackOptions options =
@@ -28166,7 +28166,7 @@ static v8::AnyCType FastCallbackNoOptionsWrapper(v8::AnyCType receiver,
   return ret;
 }
 template <typename Value, typename Impl, typename Ret,
-          typename = std::enable_if_t<std::is_void<Ret>::value>>
+          typename = std::enable_if_t<std::is_void_v<Ret>>>
 static void FastCallbackPatch(v8::AnyCType receiver, v8::AnyCType argument,
                               v8::AnyCType options) {
   return Impl::FastCallback(receiver.object_value,
@@ -28174,7 +28174,7 @@ static void FastCallbackPatch(v8::AnyCType receiver, v8::AnyCType argument,
                             *(options.options_value));
 }
 template <typename Value, typename Impl, typename Ret,
-          typename = std::enable_if_t<std::is_void<Ret>::value>>
+          typename = std::enable_if_t<std::is_void_v<Ret>>>
 static void FastCallbackNoOptionsWrapper(v8::AnyCType receiver,
                                          v8::AnyCType argument) {
   v8::FastApiCallbackOptions options =
@@ -28362,7 +28362,7 @@ bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
   return setup_try_catch ? try_catch->HasCaught() : false;
 }
 
-template <typename I, std::enable_if_t<std::is_integral<I>::value, bool> = true>
+template <typename I, std::enable_if_t<std::is_integral_v<I>, bool> = true>
 void CheckEqual(I actual, I expected, std::ostringstream& error_msg) {
   if (actual != expected) {
     error_msg << "Value mismatch (expected: " << expected
@@ -28371,7 +28371,7 @@ void CheckEqual(I actual, I expected, std::ostringstream& error_msg) {
 }
 
 template <typename F,
-          std::enable_if_t<std::is_floating_point<F>::value, bool> = true>
+          std::enable_if_t<std::is_floating_point_v<F>, bool> = true>
 void CheckEqual(F actual, F expected, std::ostringstream& error_msg) {
   if (std::isnan(expected)) {
     if (!std::isnan(actual)) {
@@ -29674,7 +29674,7 @@ struct SeqOneByteStringChecker {
     receiver_ptr->result_ |= ApiCheckerResult::kSlowCalled;
 
     CHECK(info[0]->IsString());
-    if constexpr (std::is_void<Ret>::value) {
+    if constexpr (std::is_void_v<Ret>) {
       // do nothing
     } else if constexpr (std::is_same_v<Ret, void*>) {
       info.GetReturnValue().Set(

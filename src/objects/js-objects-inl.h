@@ -182,8 +182,8 @@ void JSObject::EnsureCanContainElements(Isolate* isolate,
                                         DirectHandle<JSObject> object,
                                         TSlot objects, uint32_t count,
                                         EnsureElementsMode mode) {
-  static_assert(std::is_same<TSlot, FullObjectSlot>::value ||
-                    std::is_same<TSlot, ObjectSlot>::value,
+  static_assert(std::is_same_v<TSlot, FullObjectSlot> ||
+                    std::is_same_v<TSlot, ObjectSlot>,
                 "Only ObjectSlot and FullObjectSlot are expected here");
   ElementsKind current_kind = object->GetElementsKind();
   ElementsKind target_kind = current_kind;

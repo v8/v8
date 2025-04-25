@@ -2654,7 +2654,7 @@ class ValueNode : public Node {
 
   template <typename T>
   RegListBase<T> result_registers() {
-    if constexpr (std::is_same<T, DoubleRegister>::value) {
+    if constexpr (std::is_same_v<T, DoubleRegister>) {
       DCHECK(use_double_register());
       return double_registers_with_result_;
     } else {

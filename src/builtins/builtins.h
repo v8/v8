@@ -73,12 +73,12 @@ V8_INLINE bool IsValidTieringBuiltin(TieringBuiltin builtin) {
 }
 
 V8_INLINE constexpr bool operator<(Builtin a, Builtin b) {
-  using type = typename std::underlying_type<Builtin>::type;
+  using type = std::underlying_type_t<Builtin>;
   return static_cast<type>(a) < static_cast<type>(b);
 }
 
 V8_INLINE Builtin operator++(Builtin& builtin) {
-  using type = typename std::underlying_type<Builtin>::type;
+  using type = std::underlying_type_t<Builtin>;
   return builtin = static_cast<Builtin>(static_cast<type>(builtin) + 1);
 }
 

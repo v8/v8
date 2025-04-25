@@ -619,7 +619,7 @@
   inline void clear_##name();
 
 #define PROTECTED_POINTER_ACCESSORS(holder, name, type, offset)              \
-  static_assert(std::is_base_of<TrustedObject, holder>::value);              \
+  static_assert(std::is_base_of_v<TrustedObject, holder>);                   \
   Tagged<type> holder::name() const {                                        \
     DCHECK(has_##name());                                                    \
     return Cast<type>(ReadProtectedPointerField(offset));                    \
@@ -642,7 +642,7 @@
 
 #define RELEASE_ACQUIRE_PROTECTED_POINTER_ACCESSORS(holder, name, type,      \
                                                     offset)                  \
-  static_assert(std::is_base_of<TrustedObject, holder>::value);              \
+  static_assert(std::is_base_of_v<TrustedObject, holder>);                   \
   Tagged<type> holder::name(AcquireLoadTag tag) const {                      \
     DCHECK(has_##name(tag));                                                 \
     return Cast<type>(ReadProtectedPointerField(offset, tag));               \

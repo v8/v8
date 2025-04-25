@@ -743,8 +743,8 @@ class Graph {
 
   template <class Op, class... Args>
   void Replace(OpIndex replaced, Args... args) {
-    static_assert((std::is_base_of<Operation, Op>::value));
-    static_assert(std::is_trivially_destructible<Op>::value);
+    static_assert((std::is_base_of_v<Operation, Op>));
+    static_assert(std::is_trivially_destructible_v<Op>);
 
     const Operation& old_op = Get(replaced);
     DecrementInputUses(old_op);

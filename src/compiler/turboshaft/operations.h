@@ -1172,11 +1172,11 @@ struct OperationT : Operation {
   }
 
   explicit OperationT(size_t input_count) : Operation(opcode, input_count) {
-    static_assert((std::is_base_of<OperationT, Derived>::value));
+    static_assert((std::is_base_of_v<OperationT, Derived>));
 #if !V8_CC_MSVC
-    static_assert(std::is_trivially_copyable<Derived>::value);
+    static_assert(std::is_trivially_copyable_v<Derived>);
 #endif  // !V8_CC_MSVC
-    static_assert(std::is_trivially_destructible<Derived>::value);
+    static_assert(std::is_trivially_destructible_v<Derived>);
   }
   explicit OperationT(ShadowyOpIndexVectorWrapper inputs)
       : OperationT(inputs.size()) {

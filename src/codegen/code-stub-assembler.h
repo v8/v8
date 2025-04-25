@@ -1254,7 +1254,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   {
     if (IsMapOffsetConstant(reference.offset)) {
       TNode<Map> map = LoadMap(CAST(reference.object));
-      DCHECK((std::is_base_of<T, Map>::value));
+      DCHECK((std::is_base_of_v<T, Map>));
       return ReinterpretCast<T>(map);
     }
 
@@ -1280,7 +1280,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     requires(std::is_convertible_v<TNode<T>, TNode<MaybeObject>>)
   {
     if (IsMapOffsetConstant(reference.offset)) {
-      DCHECK((std::is_base_of<T, Map>::value));
+      DCHECK((std::is_base_of_v<T, Map>));
       return StoreMap(CAST(reference.object), ReinterpretCast<Map>(value));
     }
     MachineRepresentation rep = MachineRepresentationOf<T>::value;
@@ -1827,9 +1827,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       int additional_offset = 0,
       CheckBounds check_bounds = CheckBounds::kAlways) {
     // TODO(v8:9708): Do we want to keep both IntPtrT and UintPtrT variants?
-    static_assert(std::is_same<TIndex, Smi>::value ||
-                      std::is_same<TIndex, UintPtrT>::value ||
-                      std::is_same<TIndex, IntPtrT>::value,
+    static_assert(std::is_same_v<TIndex, Smi> ||
+                      std::is_same_v<TIndex, UintPtrT> ||
+                      std::is_same_v<TIndex, IntPtrT>,
                   "Only Smi, UintPtrT or IntPtrT index is allowed");
     if (NeedsBoundsCheck(check_bounds)) {
       FixedArrayBoundsCheck(array, index, additional_offset);
@@ -1841,9 +1841,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <typename TIndex>
   void StoreFixedArrayElement(TNode<FixedArray> array, TNode<TIndex> index,
                               TNode<Smi> value, int additional_offset = 0) {
-    static_assert(std::is_same<TIndex, Smi>::value ||
-                      std::is_same<TIndex, IntPtrT>::value,
-                  "Only Smi or IntPtrT indeces is allowed");
+    static_assert(
+        std::is_same_v<TIndex, Smi> || std::is_same_v<TIndex, IntPtrT>,
+        "Only Smi or IntPtrT indeces is allowed");
     StoreFixedArrayElement(array, index, TNode<Object>{value},
                            UNSAFE_SKIP_WRITE_BARRIER, additional_offset);
   }
@@ -3382,7 +3382,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void SetNumberOfElements(TNode<Dictionary> dictionary,
                            TNode<Smi> num_elements_smi) {
     // Not supposed to be used for SwissNameDictionary.
-    static_assert(!(std::is_same<Dictionary, SwissNameDictionary>::value));
+    static_assert(!(std::is_same_v<Dictionary, SwissNameDictionary>));
 
     StoreFixedArrayElement(dictionary, Dictionary::kNumberOfElementsIndex,
                            num_elements_smi, SKIP_WRITE_BARRIER);
@@ -3391,7 +3391,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <class Dictionary>
   TNode<Smi> GetNumberOfDeletedElements(TNode<Dictionary> dictionary) {
     // Not supposed to be used for SwissNameDictionary.
-    static_assert(!(std::is_same<Dictionary, SwissNameDictionary>::value));
+    static_assert(!(std::is_same_v<Dictionary, SwissNameDictionary>));
 
     return CAST(LoadFixedArrayElement(
         dictionary, Dictionary::kNumberOfDeletedElementsIndex));
@@ -3401,7 +3401,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void SetNumberOfDeletedElements(TNode<Dictionary> dictionary,
                                   TNode<Smi> num_deleted_smi) {
     // Not supposed to be used for SwissNameDictionary.
-    static_assert(!(std::is_same<Dictionary, SwissNameDictionary>::value));
+    static_assert(!(std::is_same_v<Dictionary, SwissNameDictionary>));
 
     StoreFixedArrayElement(dictionary,
                            Dictionary::kNumberOfDeletedElementsIndex,
@@ -3411,7 +3411,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <class Dictionary>
   TNode<Smi> GetCapacity(TNode<Dictionary> dictionary) {
     // Not supposed to be used for SwissNameDictionary.
-    static_assert(!(std::is_same<Dictionary, SwissNameDictionary>::value));
+    static_assert(!(std::is_same_v<Dictionary, SwissNameDictionary>));
 
     return CAST(
         UnsafeLoadFixedArrayElement(dictionary, Dictionary::kCapacityIndex));

@@ -80,8 +80,8 @@ template <typename THeapObjectSlot>
 CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
     Tagged<Map> map, THeapObjectSlot slot, Tagged<HeapObject> object,
     int object_size, ObjectFields object_fields) {
-  static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
-                    std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
+  static_assert(std::is_same_v<THeapObjectSlot, FullHeapObjectSlot> ||
+                    std::is_same_v<THeapObjectSlot, HeapObjectSlot>,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   DCHECK(heap()->AllowedToBeMigrated(map, object, NEW_SPACE));
   AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
@@ -120,8 +120,8 @@ CopyAndForwardResult Scavenger::PromoteObject(Tagged<Map> map,
                                               Tagged<HeapObject> object,
                                               int object_size,
                                               ObjectFields object_fields) {
-  static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
-                    std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
+  static_assert(std::is_same_v<THeapObjectSlot, FullHeapObjectSlot> ||
+                    std::is_same_v<THeapObjectSlot, HeapObjectSlot>,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   DCHECK_GE(object_size, Heap::kMinObjectSizeInTaggedWords * kTaggedSize);
   AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
@@ -189,8 +189,8 @@ template <typename THeapObjectSlot,
 SlotCallbackResult Scavenger::EvacuateObjectDefault(
     Tagged<Map> map, THeapObjectSlot slot, Tagged<HeapObject> object,
     int object_size, ObjectFields object_fields) {
-  static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
-                    std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
+  static_assert(std::is_same_v<THeapObjectSlot, FullHeapObjectSlot> ||
+                    std::is_same_v<THeapObjectSlot, HeapObjectSlot>,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   SLOW_DCHECK(object->SizeFromMap(map) == object_size);
   CopyAndForwardResult result;
@@ -235,8 +235,8 @@ SlotCallbackResult Scavenger::EvacuateThinString(Tagged<Map> map,
                                                  THeapObjectSlot slot,
                                                  Tagged<ThinString> object,
                                                  int object_size) {
-  static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
-                    std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
+  static_assert(std::is_same_v<THeapObjectSlot, FullHeapObjectSlot> ||
+                    std::is_same_v<THeapObjectSlot, HeapObjectSlot>,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   if (shortcut_strings_) {
     // The ThinString should die after Scavenge, so avoid writing the proper
@@ -260,8 +260,8 @@ template <typename THeapObjectSlot>
 SlotCallbackResult Scavenger::EvacuateShortcutCandidate(
     Tagged<Map> map, THeapObjectSlot slot, Tagged<ConsString> object,
     int object_size) {
-  static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
-                    std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
+  static_assert(std::is_same_v<THeapObjectSlot, FullHeapObjectSlot> ||
+                    std::is_same_v<THeapObjectSlot, HeapObjectSlot>,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   DCHECK(IsShortcutCandidate(map->instance_type()));
 
@@ -315,8 +315,8 @@ template <typename THeapObjectSlot>
 SlotCallbackResult Scavenger::EvacuateObject(THeapObjectSlot slot,
                                              Tagged<Map> map,
                                              Tagged<HeapObject> source) {
-  static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
-                    std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
+  static_assert(std::is_same_v<THeapObjectSlot, FullHeapObjectSlot> ||
+                    std::is_same_v<THeapObjectSlot, HeapObjectSlot>,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   SLOW_DCHECK(Heap::InFromPage(source));
   SLOW_DCHECK(!MapWord::FromMap(map).IsForwardingAddress());
@@ -352,8 +352,8 @@ SlotCallbackResult Scavenger::EvacuateObject(THeapObjectSlot slot,
 template <typename THeapObjectSlot>
 SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
                                              Tagged<HeapObject> object) {
-  static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
-                    std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
+  static_assert(std::is_same_v<THeapObjectSlot, FullHeapObjectSlot> ||
+                    std::is_same_v<THeapObjectSlot, HeapObjectSlot>,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   DCHECK(Heap::InFromPage(object));
 
@@ -406,8 +406,8 @@ SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
 template <typename TSlot>
 SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap, TSlot slot) {
   static_assert(
-      std::is_same<TSlot, FullMaybeObjectSlot>::value ||
-          std::is_same<TSlot, MaybeObjectSlot>::value,
+      std::is_same_v<TSlot, FullMaybeObjectSlot> ||
+          std::is_same_v<TSlot, MaybeObjectSlot>,
       "Only FullMaybeObjectSlot and MaybeObjectSlot are expected here");
   using THeapObjectSlot = typename TSlot::THeapObjectSlot;
   Tagged<MaybeObject> object = *slot;

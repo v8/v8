@@ -4637,9 +4637,9 @@ class Handlers : public HandlersBase {
     Simd128 s = pop<Simd128>(sp, code, wasm_runtime);                          \
     stype ss = s.to_##name();                                                  \
     auto res = ss.val[LANE(lane, ss)];                                         \
-    DCHECK(std::is_signed<decltype(res)>::value);                              \
-    if (std::is_unsigned<extended_type>::value) {                              \
-      using unsigned_type = std::make_unsigned<decltype(res)>::type;           \
+    DCHECK(std::is_signed_v<decltype(res)>);                                   \
+    if (std::is_unsigned_v<extended_type>) {                                   \
+      using unsigned_type = std::make_unsigned_t<decltype(res)>;               \
       push(sp, code, wasm_runtime,                                             \
            static_cast<extended_type>(static_cast<unsigned_type>(res)));       \
     } else {                                                                   \

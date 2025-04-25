@@ -197,7 +197,7 @@ static constexpr const char kExpectedCppStackRootsName[] =
 
 template <typename T>
 constexpr const char* GetExpectedName() {
-  if (std::is_base_of<cppgc::NameProvider, T>::value ||
+  if (std::is_base_of_v<cppgc::NameProvider, T> ||
       cppgc::NameProvider::SupportsCppClassNamesAsObjectNames()) {
     return T::kExpectedName;
   } else {

@@ -96,9 +96,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   inline ObjectSlot RawFieldOfValueAt(InternalIndex entry);
 
   template <typename IsolateT, template <typename> typename HandleType,
-            AllocationType key_allocation =
-                std::is_same<IsolateT, Isolate>::value ? AllocationType::kYoung
-                                                       : AllocationType::kOld>
+            AllocationType key_allocation = std::is_same_v<IsolateT, Isolate>
+                                                ? AllocationType::kYoung
+                                                : AllocationType::kOld>
     requires(std::is_convertible_v<HandleType<Derived>, DirectHandle<Derived>>)
   V8_WARN_UNUSED_RESULT static HandleType<Derived> Add(
       IsolateT* isolate, HandleType<Derived> dictionary, Key key,
@@ -110,9 +110,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   // The number of elements stored is not updated. Use
   // |SetInitialNumberOfElements| to update the number in one go.
   template <typename IsolateT, template <typename> typename HandleType,
-            AllocationType key_allocation =
-                std::is_same<IsolateT, Isolate>::value ? AllocationType::kYoung
-                                                       : AllocationType::kOld>
+            AllocationType key_allocation = std::is_same_v<IsolateT, Isolate>
+                                                ? AllocationType::kYoung
+                                                : AllocationType::kOld>
     requires(std::is_convertible_v<HandleType<Derived>, DirectHandle<Derived>>)
   static void UncheckedAdd(IsolateT* isolate, HandleType<Derived> dictionary,
                            Key key, DirectHandle<Object> value,

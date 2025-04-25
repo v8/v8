@@ -1035,12 +1035,10 @@ class MaglevGraphBuilder {
     static constexpr Opcode op = Node::opcode_of<NodeT>;
     static_assert(Node::participate_in_cse(op));
     using options_result =
-        typename std::invoke_result<decltype(&NodeT::options),
-                                    const NodeT>::type;
-    static_assert(
-        std::is_assignable<options_result, std::tuple<Args...>>::value,
-        "Instruction participating in CSE needs options() returning "
-        "a tuple matching the constructor arguments");
+        std::invoke_result_t<decltype(&NodeT::options), const NodeT>;
+    static_assert(std::is_assignable_v<options_result, std::tuple<Args...>>,
+                  "Instruction participating in CSE needs options() returning "
+                  "a tuple matching the constructor arguments");
     static_assert(IsFixedInputNode<NodeT>());
     static_assert(NodeT::kInputCount <= 3);
 

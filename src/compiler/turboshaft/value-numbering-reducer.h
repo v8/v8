@@ -225,7 +225,7 @@ class ValueNumberingReducer : public Next {
 
   template <class Op>
   Entry* Find(const Op& op, size_t* hash_ret = nullptr) {
-    constexpr bool same_block_only = std::is_same<Op, PhiOp>::value;
+    constexpr bool same_block_only = std::is_same_v<Op, PhiOp>;
     size_t hash = ComputeHash<same_block_only>(op);
     size_t start_index = hash & mask_;
     for (size_t i = start_index;; i = NextEntryIndex(i)) {

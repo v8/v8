@@ -328,7 +328,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   }
   template <class _type>
   void ExtendValue(Register dst, Register value) {
-    if (std::is_signed<_type>::value) {
+    if (std::is_signed_v<_type>) {
       SignedExtend<_type>(dst, value);
     } else {
       ZeroExtend<_type>(dst, value);
@@ -353,7 +353,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
       default:
         UNREACHABLE();
     }
-    if (std::is_signed<_type>::value) {
+    if (std::is_signed_v<_type>) {
       SignedExtend<_type>(output, output);
     }
   }

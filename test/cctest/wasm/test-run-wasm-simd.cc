@@ -50,35 +50,32 @@ namespace {
 using Shuffle = std::array<int8_t, kSimd128Size>;
 
 // For signed integral types, use base::AddWithWraparound.
-template <typename T, typename = typename std::enable_if<
-                          std::is_floating_point<T>::value>::type>
+template <typename T, typename = std::enable_if_t<std::is_floating_point_v<T>>>
 T Add(T a, T b) {
   return a + b;
 }
 
 // For signed integral types, use base::SubWithWraparound.
-template <typename T, typename = typename std::enable_if<
-                          std::is_floating_point<T>::value>::type>
+template <typename T, typename = std::enable_if_t<std::is_floating_point_v<T>>>
 T Sub(T a, T b) {
   return a - b;
 }
 
 // For signed integral types, use base::MulWithWraparound.
-template <typename T, typename = typename std::enable_if<
-                          std::is_floating_point<T>::value>::type>
+template <typename T, typename = std::enable_if_t<std::is_floating_point_v<T>>>
 T Mul(T a, T b) {
   return a * b;
 }
 
 template <typename T>
 T UnsignedMinimum(T a, T b) {
-  using UnsignedT = typename std::make_unsigned<T>::type;
+  using UnsignedT = std::make_unsigned_t<T>;
   return static_cast<UnsignedT>(a) <= static_cast<UnsignedT>(b) ? a : b;
 }
 
 template <typename T>
 T UnsignedMaximum(T a, T b) {
-  using UnsignedT = typename std::make_unsigned<T>::type;
+  using UnsignedT = std::make_unsigned_t<T>;
   return static_cast<UnsignedT>(a) >= static_cast<UnsignedT>(b) ? a : b;
 }
 
@@ -174,37 +171,37 @@ int64_t GreaterEqual(double a, double b) {
 
 template <typename T>
 T UnsignedLess(T a, T b) {
-  using UnsignedT = typename std::make_unsigned<T>::type;
+  using UnsignedT = std::make_unsigned_t<T>;
   return static_cast<UnsignedT>(a) < static_cast<UnsignedT>(b) ? -1 : 0;
 }
 
 template <typename T>
 T UnsignedLessEqual(T a, T b) {
-  using UnsignedT = typename std::make_unsigned<T>::type;
+  using UnsignedT = std::make_unsigned_t<T>;
   return static_cast<UnsignedT>(a) <= static_cast<UnsignedT>(b) ? -1 : 0;
 }
 
 template <typename T>
 T UnsignedGreater(T a, T b) {
-  using UnsignedT = typename std::make_unsigned<T>::type;
+  using UnsignedT = std::make_unsigned_t<T>;
   return static_cast<UnsignedT>(a) > static_cast<UnsignedT>(b) ? -1 : 0;
 }
 
 template <typename T>
 T UnsignedGreaterEqual(T a, T b) {
-  using UnsignedT = typename std::make_unsigned<T>::type;
+  using UnsignedT = std::make_unsigned_t<T>;
   return static_cast<UnsignedT>(a) >= static_cast<UnsignedT>(b) ? -1 : 0;
 }
 
 template <typename T>
 T LogicalShiftLeft(T a, int shift) {
-  using UnsignedT = typename std::make_unsigned<T>::type;
+  using UnsignedT = std::make_unsigned_t<T>;
   return static_cast<UnsignedT>(a) << (shift % (sizeof(T) * 8));
 }
 
 template <typename T>
 T LogicalShiftRight(T a, int shift) {
-  using UnsignedT = typename std::make_unsigned<T>::type;
+  using UnsignedT = std::make_unsigned_t<T>;
   return static_cast<UnsignedT>(a) >> (shift % (sizeof(T) * 8));
 }
 

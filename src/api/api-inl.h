@@ -287,8 +287,8 @@ template <CTypeInfo::Identifier type_info_id, typename T>
 bool CopyAndConvertArrayToCppBuffer(Local<Array> src, T* dst,
                                     uint32_t max_length) {
   static_assert(
-      std::is_same<T, typename i::CTypeInfoTraits<
-                          CTypeInfo(type_info_id).GetType()>::ctype>::value,
+      std::is_same_v<T, typename i::CTypeInfoTraits<
+                            CTypeInfo(type_info_id).GetType()>::ctype>,
       "Type mismatch between the expected CTypeInfo::Type and the destination "
       "array");
 

@@ -2685,19 +2685,19 @@ inline KeyedAccessLoadMode CreateKeyedAccessLoadMode(bool handle_oob,
 
 inline KeyedAccessLoadMode GeneralizeKeyedAccessLoadMode(
     KeyedAccessLoadMode mode1, KeyedAccessLoadMode mode2) {
-  using T = std::underlying_type<KeyedAccessLoadMode>::type;
+  using T = std::underlying_type_t<KeyedAccessLoadMode>;
   return static_cast<KeyedAccessLoadMode>(static_cast<T>(mode1) |
                                           static_cast<T>(mode2));
 }
 
 inline bool LoadModeHandlesOOB(KeyedAccessLoadMode load_mode) {
-  using T = std::underlying_type<KeyedAccessLoadMode>::type;
+  using T = std::underlying_type_t<KeyedAccessLoadMode>;
   return (static_cast<T>(load_mode) &
           static_cast<T>(KeyedAccessLoadMode::kHandleOOB)) != 0;
 }
 
 inline bool LoadModeHandlesHoles(KeyedAccessLoadMode load_mode) {
-  using T = std::underlying_type<KeyedAccessLoadMode>::type;
+  using T = std::underlying_type_t<KeyedAccessLoadMode>;
   return (static_cast<T>(load_mode) &
           static_cast<T>(KeyedAccessLoadMode::kHandleHoles)) != 0;
 }

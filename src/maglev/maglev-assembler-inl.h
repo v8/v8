@@ -54,17 +54,15 @@ struct CopyForDeferredByValue {
 
 // Node pointers are copied by value.
 template <typename T>
-struct CopyForDeferredHelper<
-    T*, typename std::enable_if<std::is_base_of<NodeBase, T>::value>::type>
+struct CopyForDeferredHelper<T*,
+                             std::enable_if_t<std::is_base_of_v<NodeBase, T>>>
     : public CopyForDeferredByValue<T*> {};
 // Arithmetic values and enums are copied by value.
 template <typename T>
-struct CopyForDeferredHelper<
-    T, typename std::enable_if<std::is_arithmetic<T>::value>::type>
+struct CopyForDeferredHelper<T, std::enable_if_t<std::is_arithmetic_v<T>>>
     : public CopyForDeferredByValue<T> {};
 template <typename T>
-struct CopyForDeferredHelper<
-    T, typename std::enable_if<std::is_enum<T>::value>::type>
+struct CopyForDeferredHelper<T, std::enable_if_t<std::is_enum_v<T>>>
     : public CopyForDeferredByValue<T> {};
 // MaglevCompilationInfos are copied by value.
 template <>
@@ -114,8 +112,8 @@ struct CopyForDeferredHelper<FeedbackSlot>
     : public CopyForDeferredByValue<FeedbackSlot> {};
 // Heap Refs are copied by value.
 template <typename T>
-struct CopyForDeferredHelper<T, typename std::enable_if<std::is_base_of<
-                                    compiler::ObjectRef, T>::value>::type>
+struct CopyForDeferredHelper<
+    T, std::enable_if_t<std::is_base_of_v<compiler::ObjectRef, T>>>
     : public CopyForDeferredByValue<T> {};
 
 template <typename T>

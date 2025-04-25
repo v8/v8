@@ -229,7 +229,7 @@ class MemoryOptimizationReducer : public Next {
     if (type == AllocationType::kSharedOld) {
       DCHECK_EQ(isolate_, nullptr);  // Only possible in wasm.
       DCHECK(analyzer_->is_wasm);
-      static_assert(std::is_same<Smi, BuiltinPtr>(), "BuiltinPtr must be Smi");
+      static_assert(std::is_same_v<Smi, BuiltinPtr>, "BuiltinPtr must be Smi");
       OpIndex allocate_builtin = __ NumberConstant(
           static_cast<int>(Builtin::kWasmAllocateInSharedHeap));
       OpIndex allocated =
@@ -299,7 +299,7 @@ class MemoryOptimizationReducer : public Next {
         } else {
           builtin = Builtin::kWasmAllocateInOldGeneration;
         }
-        static_assert(std::is_same<Smi, BuiltinPtr>(),
+        static_assert(std::is_same_v<Smi, BuiltinPtr>,
                       "BuiltinPtr must be Smi");
         allocate_builtin = __ NumberConstant(static_cast<int>(builtin));
       } else {

@@ -163,7 +163,7 @@ class V8_TRIVIAL_ABI BasicMember final : private MemberBase<StorageType>,
   template <typename U, typename PersistentWeaknessPolicy,
             typename PersistentLocationPolicy,
             typename PersistentCheckingPolicy,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
+            typename = std::enable_if_t<std::is_base_of_v<T, U>>>
   V8_INLINE BasicMember(const BasicPersistent<U, PersistentWeaknessPolicy,
                                               PersistentLocationPolicy,
                                               PersistentCheckingPolicy>& p)
@@ -219,7 +219,7 @@ class V8_TRIVIAL_ABI BasicMember final : private MemberBase<StorageType>,
   template <typename U, typename PersistentWeaknessPolicy,
             typename PersistentLocationPolicy,
             typename PersistentCheckingPolicy,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
+            typename = std::enable_if_t<std::is_base_of_v<T, U>>>
   V8_INLINE BasicMember& operator=(
       const BasicPersistent<U, PersistentWeaknessPolicy,
                             PersistentLocationPolicy, PersistentCheckingPolicy>&

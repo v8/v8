@@ -4187,10 +4187,10 @@ void CppClassGenerator::GenerateClass() {
   hdr_ << template_decl() << "\n";
   hdr_ << "class " << gen_name_ << " : public P {\n";
   hdr_ << "  static_assert(\n"
-       << "      std::is_same<" << name_ << ", D>::value,\n"
+       << "      std::is_same_v<" << name_ << ", D>,\n"
        << "      \"Use this class as direct base for " << name_ << ".\");\n";
   hdr_ << "  static_assert(\n"
-       << "      std::is_same<" << super_->name() << ", P>::value,\n"
+       << "      std::is_same_v<" << super_->name() << ", P>,\n"
        << "      \"Pass in " << super_->name()
        << " as second template parameter for " << gen_name_ << ".\");\n\n";
   hdr_ << " public: \n";
@@ -4425,7 +4425,7 @@ void CppClassGenerator::GenerateClassConstructors() {
   hdr_ << "  template <class DAlias = D>\n";
   hdr_ << "  constexpr " << gen_name_ << "() : P() {\n";
   hdr_ << "    static_assert(\n";
-  hdr_ << "        std::is_base_of<" << gen_name_ << ", DAlias>::value,\n";
+  hdr_ << "        std::is_base_of_v<" << gen_name_ << ", DAlias>,\n";
   hdr_ << "        \"class " << gen_name_
        << " should be used as direct base for " << name_ << ".\");\n";
   hdr_ << "  }\n\n";

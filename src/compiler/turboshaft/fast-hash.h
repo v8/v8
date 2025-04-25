@@ -27,7 +27,7 @@ V8_INLINE size_t fast_hash_combine(T const& v, Ts const&... vs);
 template <class T>
 struct fast_hash {
   size_t operator()(const T& v) const {
-    if constexpr (std::is_enum<T>::value) {
+    if constexpr (std::is_enum_v<T>) {
       return static_cast<size_t>(v);
     } else {
       return base::hash<T>()(v);

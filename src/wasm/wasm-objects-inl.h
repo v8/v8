@@ -709,11 +709,11 @@ ElementType WasmObject::FromNumber(Tagged<Object> value) {
 
   } else if (IsHeapNumber(value)) {
     double double_value = Cast<HeapNumber>(value)->value();
-    if (std::is_same<ElementType, double>::value ||
-        std::is_same<ElementType, float>::value) {
+    if (std::is_same_v<ElementType, double> ||
+        std::is_same_v<ElementType, float>) {
       return static_cast<ElementType>(double_value);
     } else {
-      CHECK(std::is_integral<ElementType>::value);
+      CHECK(std::is_integral_v<ElementType>);
       return static_cast<ElementType>(DoubleToInt32(double_value));
     }
   }

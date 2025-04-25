@@ -2764,7 +2764,7 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
 
   MaybeHandle<ScopeInfo> outer_scope;
   if (scope->outer_scope_ != nullptr) {
-    DCHECK((std::is_same<Isolate, v8::internal::Isolate>::value));
+    DCHECK((std::is_same_v<Isolate, v8::internal::Isolate>));
     outer_scope = scope->outer_scope_->scope_info_;
   }
 
