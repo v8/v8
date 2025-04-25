@@ -3522,10 +3522,10 @@ void StoreContextSlotWithWriteBarrier::SetValueLocationConstraints() {
 
 void StoreContextSlotWithWriteBarrier::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kDetachContextCell>::type;
   __ RecordComment("StoreContextSlotWithWriteBarrier");
-  ZoneLabelRef done(masm);
   Label do_normal_store;
-
+  ZoneLabelRef done(masm);
   // TODO(leszeks): Consider making this an arbitrary register and push/popping
   // in the deferred path.
   Register context = WriteBarrierDescriptor::ObjectRegister();
@@ -3533,7 +3533,6 @@ void StoreContextSlotWithWriteBarrier::GenerateCode(
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register scratch = temps.Acquire();
   Register old_value = temps.Acquire();
-
   __ AssertObjectType(context, SCRIPT_CONTEXT_TYPE,
                       AbortReason::kUnexpectedInstanceType);
   __ LoadTaggedField(old_value, context, offset());
@@ -3542,72 +3541,32 @@ void StoreContextSlotWithWriteBarrier::GenerateCode(
   __ CompareMapWithRoot(old_value, RootIndex::kContextCellMap, scratch);
   __ JumpToDeferredIf(
       kEqual,
-      [](MaglevAssembler* masm, Register slot, Register new_value,
+      [](MaglevAssembler* masm, Register context, Register new_value,
          Register scratch, StoreContextSlotWithWriteBarrier* node,
          ZoneLabelRef done) {
-        MaglevAssembler::TemporaryRegisterScope temps(masm);
-        DoubleRegister double_scratch = temps.AcquireDouble();
-        Label try_int32, try_smi, try_const;
-        __ LoadContextCellState(scratch, slot);
-
-        __ CompareInt32AndJumpIf(scratch, ContextCell::kFloat64, kNotEqual,
-                                 &try_int32);
         {
-          Label new_value_is_not_smi;
-          __ JumpIfNotSmi(new_value, &new_value_is_not_smi);
-          __ SmiUntag(scratch, new_value);
-          __ Int32ToDouble(double_scratch, scratch);
-          __ StoreContextCellFloat64Value(slot, double_scratch);
-          __ Jump(*done);
-
-          __ bind(&new_value_is_not_smi);
-          __ CompareMapWithRoot(new_value, RootIndex::kHeapNumberMap, scratch);
-          __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kStoreToConstant,
-                              node);
-          __ LoadHeapNumberValue(double_scratch, new_value);
-          __ StoreContextCellFloat64Value(slot, double_scratch);
-          __ Jump(*done);
+          // Since we compiled without context specialization, we detach the
+          // context cells.
+          RegisterSnapshot snapshot = node->register_snapshot();
+          SaveRegisterStateForCall save_register_state(masm, snapshot);
+          if (new_value == D::GetRegisterParameter(D::kTheContext)) {
+            // Be sure not to clobber new_value.
+            if (context == D::GetRegisterParameter(D::kNewValue)) {
+              __ Move(scratch, new_value);
+              new_value = scratch;
+            } else {
+              __ Move(D::GetRegisterParameter(D::kNewValue), new_value);
+              new_value = D::GetRegisterParameter(D::kNewValue);
+            }
+          }
+          __ CallBuiltin<Builtin::kDetachContextCell>(context, new_value,
+                                                      node->index());
+          save_register_state.DefineSafepointWithLazyDeopt(
+              node->lazy_deopt_info());
         }
-
-        __ bind(&try_int32);
-        {
-          __ CompareInt32AndJumpIf(scratch, ContextCell::kInt32, kNotEqual,
-                                   &try_smi);
-          Label new_value_is_not_smi;
-          __ JumpIfNotSmi(new_value, &new_value_is_not_smi);
-          __ SmiUntag(scratch, new_value);
-          __ StoreContextCellInt32Value(slot, scratch);
-          __ Jump(*done);
-
-          __ bind(&new_value_is_not_smi);
-          __ CompareMapWithRoot(new_value, RootIndex::kHeapNumberMap, scratch);
-          __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kStoreToConstant,
-                              node);
-
-          __ LoadHeapNumberValue(double_scratch, new_value);
-          __ TryTruncateDoubleToInt32(
-              scratch, double_scratch,
-              __ GetDeoptLabel(node, DeoptimizeReason::kStoreToConstant));
-          __ StoreContextCellInt32Value(slot, scratch);
-          __ Jump(*done);
-
-          __ bind(&try_smi);
-        }
-        __ CompareInt32AndJumpIf(scratch, ContextCell::kSmi, kNotEqual,
-                                 &try_const);
-        __ EmitEagerDeoptIfNotSmi(node, new_value,
-                                  DeoptimizeReason::kStoreToConstant);
-        __ StoreContextCellSmiValue(slot, new_value);
-        __ Jump(*done);
-
-        __ bind(&try_const);
-        __ LoadContextCellTaggedValue(scratch, slot);
-        __ CompareTaggedAndJumpIf(
-            scratch, new_value, kNotEqual,
-            __ GetDeoptLabel(node, DeoptimizeReason::kStoreToConstant));
         __ Jump(*done);
       },
-      old_value, new_value, scratch, this, done);
+      context, new_value, scratch, this, done);
 
   __ bind(&do_normal_store);
   __ StoreTaggedFieldWithWriteBarrier(
@@ -3616,7 +3575,6 @@ void StoreContextSlotWithWriteBarrier::GenerateCode(
           ? MaglevAssembler::kValueIsDecompressed
           : MaglevAssembler::kValueIsCompressed,
       MaglevAssembler::kValueCanBeSmi);
-
   __ bind(*done);
 }
 

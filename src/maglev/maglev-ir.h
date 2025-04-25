@@ -8796,7 +8796,7 @@ class StoreContextSlotWithWriteBarrier
 
   static constexpr OpProperties kProperties = OpProperties::CanWrite() |
                                               OpProperties::DeferredCall() |
-                                              OpProperties::EagerDeopt();
+                                              OpProperties::LazyDeopt();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 

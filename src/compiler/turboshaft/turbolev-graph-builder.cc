@@ -3032,60 +3032,10 @@ class GraphBuildingNodeProcessor {
       IF (UNLIKELY(__ TaggedEqual(
               value_map,
               __ HeapConstant(local_factory_->context_cell_map())))) {
-        V<ContextCell> slot = V<ContextCell>::Cast(old_value);
-        V<Word32> slot_state =
-            __ LoadField<Word32>(slot, AccessBuilder::ForContextCellState());
-        GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-        IF (__ Word32Equal(slot_state,
-                           __ Word32Constant(ContextCell::kFloat64))) {
-          ScopedVar<Float64, AssemblerT> number(this);
-          IF (__ IsSmi(new_value)) {
-            number =
-                __ ChangeInt32ToFloat64(__ UntagSmi(V<Smi>::Cast(new_value)));
-          } ELSE {
-            V<i::Map> map = __ LoadMapField(new_value);
-            __ DeoptimizeIfNot(
-                __ TaggedEqual(
-                    map, __ HeapConstant(local_factory_->heap_number_map())),
-                frame_state, DeoptimizeReason::kWrongValue,
-                node->eager_deopt_info()->feedback_to_update());
-            number = __ LoadHeapNumberValue(V<HeapNumber>::Cast(new_value));
-          }
-          __ StoreField(slot, AccessBuilder::ForContextCellFloat64Value(),
-                        number);
-        } ELSE IF (__ Word32Equal(slot_state,
-                                 __ Word32Constant(ContextCell::kInt32))) {
-          ScopedVar<Word32, AssemblerT> number(this);
-          IF (__ IsSmi(new_value)) {
-            number = __ UntagSmi(V<Smi>::Cast(new_value));
-          } ELSE {
-            V<i::Map> map = __ LoadMapField(new_value);
-            __ DeoptimizeIfNot(
-                __ TaggedEqual(
-                    map, __ HeapConstant(local_factory_->heap_number_map())),
-                frame_state, DeoptimizeReason::kWrongValue,
-                node->eager_deopt_info()->feedback_to_update());
-            number = __ ChangeFloat64ToInt32OrDeopt(
-                __ LoadHeapNumberValue(V<HeapNumber>::Cast(new_value)),
-                frame_state, CheckForMinusZeroMode::kCheckForMinusZero,
-                node->eager_deopt_info()->feedback_to_update());
-          }
-          __ StoreField(slot, AccessBuilder::ForContextCellInt32Value(),
-                        number);
-        } ELSE IF (__ Word32Equal(slot_state,
-                                 __ Word32Constant(ContextCell::kSmi))) {
-          __ DeoptimizeIfNot(__ IsSmi(new_value), frame_state,
-                             DeoptimizeReason::kWrongValue,
-                             node->eager_deopt_info()->feedback_to_update());
-          __ StoreField(slot, AccessBuilder::ForContextCellTaggedValue(),
-                        new_value);
-        } ELSE {
-          V<Object> tagged_value = __ LoadField<Object>(
-              slot, AccessBuilder::ForContextCellTaggedValue());
-          __ DeoptimizeIfNot(__ TaggedEqual(new_value, tagged_value),
-                             frame_state, DeoptimizeReason::kWrongValue,
-                             node->eager_deopt_info()->feedback_to_update());
-        }
+        GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
+        __ CallBuiltin_DetachContextCell(isolate_, frame_state, context,
+                                         new_value,
+                                         __ WordPtrConstant(node->index()));
       } ELSE {
         __ Store(context, new_value, StoreOp::Kind::TaggedBase(),
                  MemoryRepresentation::AnyTagged(),

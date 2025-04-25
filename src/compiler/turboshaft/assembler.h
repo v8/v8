@@ -3413,7 +3413,8 @@ class TurboshaftAssemblerOpInterface
     DCHECK(frame_state.valid());
     auto arguments = std::apply(
         [](auto&&... as) {
-          return base::SmallVector<OpIndex, std::tuple_size_v<decltype(args)>>{
+          return base::SmallVector<
+              OpIndex, std::tuple_size_v<typename Descriptor::arguments_t>>{
               std::forward<decltype(as)>(as)...};
         },
         args);
@@ -3705,6 +3706,13 @@ class TurboshaftAssemblerOpInterface
                                      V<JSPrimitive> object) {
     return CallBuiltin<typename BuiltinCallDescriptor::ToObject>(
         isolate, context, {object});
+  }
+  void CallBuiltin_DetachContextCell(Isolate* isolate,
+                                     V<turboshaft::FrameState> frame_state,
+                                     V<Context> context, V<Object> new_value,
+                                     ConstOrV<WordPtr> index) {
+    CallBuiltin<typename BuiltinCallDescriptor::DetachContextCell>(
+        isolate, frame_state, {context, new_value, resolve(index)});
   }
   V<Context> CallBuiltin_FastNewFunctionContextFunction(
       Isolate* isolate, V<turboshaft::FrameState> frame_state,

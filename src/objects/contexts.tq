@@ -314,6 +314,18 @@ builtin StoreContextElementBaseline(
   return Undefined;
 }
 
+builtin DetachContextCell(
+    theContext: Object, newValue: JSAny, i: intptr): Object {
+  // We should only call this builtin if the slot contains a context cell.
+  const c = UnsafeCast<Context>(theContext);
+  const cell = Cast<ContextCell>(c.elements[i]) otherwise unreachable;
+  NotifyContextCellStateWillChange(cell);
+  cell.tagged_value = kZero;
+  c.elements[i] = newValue;
+  cell.state = kContextCellDetached;
+  return Undefined;
+}
+
 namespace runtime {
 extern runtime NotifyContextCellStateWillChange(NoContext, ContextCell): JSAny;
 }  // namespace runtime
