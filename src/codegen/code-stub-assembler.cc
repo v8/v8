@@ -4144,7 +4144,8 @@ TNode<Smi> CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
   Comment("BuildAppendJSArray: ", ElementsKindToString(kind));
   Label pre_bailout(this);
   Label success(this);
-  TVARIABLE(Smi, var_tagged_length, LoadFastJSArrayLength(array));
+  TNode<Smi> orig_tagged_length = LoadFastJSArrayLength(array);
+  TVARIABLE(Smi, var_tagged_length, orig_tagged_length);
   TVARIABLE(BInt, var_length, SmiToBInt(var_tagged_length.value()));
   TVARIABLE(FixedArrayBase, var_elements, LoadElements(array));
 
@@ -4188,7 +4189,7 @@ TNode<Smi> CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
   {
     TNode<Smi> length = ParameterToTagged(var_length.value());
     var_tagged_length = length;
-    TNode<Smi> diff = SmiSub(length, LoadFastJSArrayLength(array));
+    TNode<Smi> diff = SmiSub(length, orig_tagged_length);
     StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
     *arg_index = IntPtrAdd(arg_index->value(), SmiUntag(diff));
     Goto(bailout);
