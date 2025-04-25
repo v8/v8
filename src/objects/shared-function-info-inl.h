@@ -655,7 +655,7 @@ IsCompiledScope::IsCompiledScope(const Tagged<SharedFunctionInfo> shared,
   Tagged<Object> data_obj = shared->GetTrustedData();
   if (Tagged<HeapObject> data; TryCast<HeapObject>(data_obj, &data)) {
     if (Tagged<Code> code; TryCast<Code>(data, &code)) {
-      DCHECK(code->kind() == CodeKind::BASELINE);
+      DCHECK_EQ(code->kind(), CodeKind::BASELINE);
       data = code->bytecode_or_interpreter_data();
     }
     // Unlike GetBytecodeArray, we don't bother checking for DebugInfo here. If

@@ -100,7 +100,11 @@ inline uint16_t Code::parameter_count_without_receiver() const {
 }
 
 inline Tagged<ProtectedFixedArray> Code::deoptimization_data() const {
-  DCHECK(uses_deoptimization_data());
+  // It's important to CHECK that the Code object uses deoptimization data. We
+  // trust optimized code to have deoptimization data here, but the reference to
+  // this code might be corrupted, such that we get type confusion on this field
+  // in cases where we assume that it must be optimized code.
+  SBXCHECK(uses_deoptimization_data());
   return Cast<ProtectedFixedArray>(
       ReadProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset));
 }
@@ -129,7 +133,11 @@ inline bool Code::has_deoptimization_data_or_interpreter_data() const {
 }
 
 Tagged<TrustedObject> Code::bytecode_or_interpreter_data() const {
-  DCHECK_EQ(kind(), CodeKind::BASELINE);
+  // It's important to CHECK that the Code object is baseline code. We trust
+  // baseline code to have bytecode/interpreter data here, but the reference to
+  // this code might be corrupted, such that we get type confusion on this field
+  // in cases where we assume that it must be baseline code.
+  SBXCHECK_EQ(kind(), CodeKind::BASELINE);
   return ReadProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset);
 }
 void Code::set_bytecode_or_interpreter_data(Tagged<TrustedObject> value,
