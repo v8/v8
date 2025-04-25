@@ -134,6 +134,7 @@ void ImplementationVisitor::BeginGeneratedFiles() {
              << SourceFileMap::PathFromV8RootWithoutExtension(source)
              << "-inl.h\"\n\n";
         file << "#include \"torque-generated/class-verifiers.h\"\n";
+        file << "#include \"src/objects/objects-inl.h\"\n\n";
         file << "#include \"src/objects/instance-type-inl.h\"\n\n";
       }
       if (contains_class_asserts.count(source) != 0) {

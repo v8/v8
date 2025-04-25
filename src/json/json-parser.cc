@@ -319,7 +319,7 @@ JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source)
     source_ = String::Flatten(isolate, source);
   }
 
-  if (StringShape(*source_, cage_base).IsExternal()) {
+  if (StringShape(*source_).IsExternal()) {
     chars_ =
         static_cast<const Char*>(Cast<SeqExternalString>(*source_)->GetChars());
     chars_may_relocate_ = false;

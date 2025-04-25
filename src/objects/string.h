@@ -58,10 +58,9 @@ enum InstanceType : uint16_t;
 class StringShape {
  public:
   V8_INLINE explicit StringShape(const Tagged<String> s);
-  V8_INLINE explicit StringShape(const Tagged<String> s,
-                                 PtrComprCageBase cage_base);
   V8_INLINE explicit StringShape(Tagged<Map> s);
-  V8_INLINE explicit StringShape(InstanceType t);
+  V8_INLINE bool IsOneByte() const;
+  V8_INLINE bool IsTwoByte() const;
   V8_INLINE bool IsSequential() const;
   V8_INLINE bool IsExternal() const;
   V8_INLINE bool IsCons() const;
@@ -76,24 +75,42 @@ class StringShape {
   V8_INLINE bool IsSequentialTwoByte() const;
   V8_INLINE bool IsInternalized() const;
   V8_INLINE bool IsShared() const;
-  V8_INLINE StringRepresentationTag representation_tag() const;
   V8_INLINE uint32_t encoding_tag() const;
-  V8_INLINE uint32_t representation_and_encoding_tag() const;
-  V8_INLINE uint32_t representation_encoding_and_shared_tag() const;
 #ifdef DEBUG
-  inline uint32_t type() const { return type_; }
   inline void invalidate() { valid_ = false; }
   inline bool valid() const { return valid_; }
 #else
   inline void invalidate() {}
 #endif
 
+  template <typename TDispatcher>
+  V8_INLINE auto DispatchToSpecificType(Tagged<String> str,
+                                        TDispatcher&& dispatcher) const
+      -> std::common_type_t<
+          decltype(dispatcher(Tagged<SeqOneByteString>{})),
+          decltype(dispatcher(Tagged<SeqTwoByteString>{})),
+          decltype(dispatcher(Tagged<ExternalOneByteString>{})),
+          decltype(dispatcher(Tagged<ExternalTwoByteString>{})),
+          decltype(dispatcher(Tagged<ThinString>{})),
+          decltype(dispatcher(Tagged<ConsString>{})),
+          decltype(dispatcher(Tagged<SlicedString>{}))>;
+
   inline bool operator==(const StringShape& that) const {
+#if V8_STATIC_ROOTS_BOOL
+    return that.map_ == this->map_;
+#else
     return that.type_ == this->type_;
+#endif
   }
 
  private:
-  uint32_t type_;
+#if V8_STATIC_ROOTS_BOOL
+  inline Tagged<Map> map_or_type() const;
+  Tagged<Map> map_;
+#else
+  inline InstanceType map_or_type() const { return type_; }
+  InstanceType type_;
+#endif
 #ifdef DEBUG
   inline void set_valid() { valid_ = true; }
   bool valid_;
@@ -665,21 +682,12 @@ V8_OBJECT class String : public Name {
   // Run different behavior for each concrete string class type, to a
   // dispatcher which is overloaded on that class.
   template <typename TDispatcher>
-  V8_INLINE auto DispatchToSpecificType(TDispatcher&& dispatcher) const
-      // Help out the type deduction in case TDispatcher returns different
-      // types for different strings.
-      -> std::common_type_t<
-          decltype(dispatcher(Tagged<SeqOneByteString>{})),
-          decltype(dispatcher(Tagged<SeqTwoByteString>{})),
-          decltype(dispatcher(Tagged<ExternalOneByteString>{})),
-          decltype(dispatcher(Tagged<ExternalTwoByteString>{})),
-          decltype(dispatcher(Tagged<ThinString>{})),
-          decltype(dispatcher(Tagged<ConsString>{})),
-          decltype(dispatcher(Tagged<SlicedString>{}))>;
+  V8_INLINE auto DispatchToSpecificType(TDispatcher&& dispatcher) const;
 
   // Similar to the above, but using instance type. Since there is no
   // string to cast, the dispatcher has static methods for handling
   // each concrete type.
+  // TODO(leszeks): Remove this, preferring DispatchToSpecificType instead.
   template <typename TDispatcher, typename... TArgs>
   static inline auto DispatchToSpecificTypeWithoutCast(
       InstanceType instance_type, TArgs&&... args);

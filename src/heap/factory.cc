@@ -1014,7 +1014,7 @@ StringTransitionStrategy Factory::ComputeSharingStrategyForString(
   DCHECK_NOT_NULL(shared_map);
   DisallowGarbageCollection no_gc;
   InstanceType instance_type = string->map()->instance_type();
-  if (StringShape(instance_type).IsShared()) {
+  if (InstanceTypeChecker::IsSharedString(instance_type)) {
     return StringTransitionStrategy::kAlreadyTransitioned;
   }
   switch (instance_type) {

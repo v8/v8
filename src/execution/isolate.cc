@@ -5431,6 +5431,8 @@ void Isolate::VerifyStaticRoots() {
                InstanceTypeChecker::IsOneByteString(map->instance_type()));
       CHECK_EQ(InstanceTypeChecker::IsTwoByteString(map),
                InstanceTypeChecker::IsTwoByteString(map->instance_type()));
+      CHECK_EQ(InstanceTypeChecker::IsSharedString(map),
+               InstanceTypeChecker::IsSharedString(map->instance_type()));
     }
   }
 
