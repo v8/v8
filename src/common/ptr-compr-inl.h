@@ -8,9 +8,9 @@
 #include "src/common/ptr-compr.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "include/v8-internal.h"
-#include "src/execution/isolate.h"
-#include "src/execution/local-isolate-inl.h"
+#include "src/common/globals.h"
+#include "src/objects/tagged.h"
+#include "src/utils/utils.h"
 
 #ifdef V8_ENABLE_SANDBOX
 #include "src/sandbox/sandbox.h"
@@ -21,10 +21,11 @@ namespace internal {
 
 #ifdef V8_COMPRESS_POINTERS
 
+// Always return the global/thread local cage base for isolate
 PtrComprCageBase::PtrComprCageBase(const Isolate* isolate)
-    : address_(isolate->cage_base()) {}
+    : address_(V8HeapCompressionScheme::base()) {}
 PtrComprCageBase::PtrComprCageBase(const LocalIsolate* isolate)
-    : address_(isolate->cage_base()) {}
+    : address_(V8HeapCompressionScheme::base()) {}
 
 //
 // V8HeapCompressionSchemeImpl
