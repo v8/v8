@@ -4089,6 +4089,12 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, Register argc_input,
   __ SubS64(sp, central_stack_sp, Operand(kReturnAddressSlotOffset + kPadding));
   __ EnforceStackAlignment();
 
+  // When we switch stack we leave home space allocated on the old stack.
+  // Allocate home space on the central stack to prevent stack corruption.
+  __ li(r0, Operand::Zero());
+  __ StoreU64WithUpdate(
+      r0, MemOperand(sp, -kNumRequiredStackFrameSlots * kSystemPointerSize));
+
   // Update the sp saved in the frame.
   // It will be used to calculate the callee pc during GC.
   // The pc is going to be on the new stack segment, so rewrite it here.
