@@ -4091,6 +4091,7 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, Register argc_input,
   // zLinux ABI requires caller's frame to have sufficient space for callee
   // preserved register save area.
   __ lay(sp, MemOperand(sp, -kNumRequiredStackFrameSlots * kSystemPointerSize));
+  __ StoreU64(MemOperand(sp), Operand::Zero(), r0);
 
   // Update the sp saved in the frame.
   // It will be used to calculate the callee pc during GC.
