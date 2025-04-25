@@ -417,6 +417,8 @@ CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
     return CompareOperationHint::kNumber;
   } else if (Is<CompareOperationFeedback::kNumberOrBoolean>(type_feedback)) {
     return CompareOperationHint::kNumberOrBoolean;
+  } else if (Is<CompareOperationFeedback::kNumberOrOddball>(type_feedback)) {
+    return CompareOperationHint::kNumberOrOddball;
   }
 
   if (Is<CompareOperationFeedback::kInternalizedString>(type_feedback)) {

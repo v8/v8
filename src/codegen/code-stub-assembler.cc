@@ -14648,7 +14648,17 @@ TNode<Boolean> CodeStubAssembler::RelationalComparison(
 
       BIND(&if_right_not_numeric);
       {
-        OverwriteFeedback(var_type_feedback, CompareOperationFeedback::kAny);
+        if (var_type_feedback != nullptr) {
+          // Collect NumberOrOddball if {right} is an Oddball. Otherwise collect
+          // Any feedback.
+          CombineFeedback(
+              var_type_feedback,
+              SelectSmiConstant(
+                  InstanceTypeEqual(right_instance_type, ODDBALL_TYPE),
+                  CompareOperationFeedback::kNumberOrOddball,
+                  CompareOperationFeedback::kAny));
+        }
+
         // Convert {right} to a Numeric; we don't need to perform the
         // dedicated ToPrimitive(right, hint Number) operation, as the
         // ToNumeric(right) will by itself already invoke ToPrimitive with
@@ -14693,7 +14703,17 @@ TNode<Boolean> CodeStubAssembler::RelationalComparison(
 
         BIND(&if_left_not_numeric);
         {
-          OverwriteFeedback(var_type_feedback, CompareOperationFeedback::kAny);
+          if (var_type_feedback != nullptr) {
+            // Collect NumberOrOddball if {left} is an Oddball. Otherwise
+            // collect Any feedback.
+            CombineFeedback(
+                var_type_feedback,
+                SelectSmiConstant(
+                    InstanceTypeEqual(left_instance_type, ODDBALL_TYPE),
+                    CompareOperationFeedback::kNumberOrOddball,
+                    CompareOperationFeedback::kAny));
+          }
+
           // Convert {left} to a Numeric; we don't need to perform the
           // dedicated ToPrimitive(left, hint Number) operation, as the
           // ToNumeric(left) will by itself already invoke ToPrimitive with
@@ -14747,8 +14767,17 @@ TNode<Boolean> CodeStubAssembler::RelationalComparison(
 
           BIND(&if_right_not_numeric);
           {
-            OverwriteFeedback(var_type_feedback,
-                              CompareOperationFeedback::kAny);
+            if (var_type_feedback != nullptr) {
+              // Collect NumberOrOddball if {right} is an Oddball. Otherwise
+              // collect Any feedback.
+              CombineFeedback(
+                  var_type_feedback,
+                  SelectSmiConstant(
+                      InstanceTypeEqual(right_instance_type, ODDBALL_TYPE),
+                      CompareOperationFeedback::kNumberOrOddball,
+                      CompareOperationFeedback::kAny));
+            }
+
             // Convert {right} to a Numeric; we don't need to perform
             // dedicated ToPrimitive(right, hint Number) operation, as the
             // ToNumeric(right) will by itself already invoke ToPrimitive with
