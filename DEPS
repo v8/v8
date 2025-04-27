@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '17c4e8a8a9a3dfd31a76787ee61753753cbbd7c3',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '88030b320338e0706b6b93336c4b35e6bbaf467e',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '0f32cb9025766951122d4ed19aba87a94ded3f43',
   'buildtools/linux64': {
@@ -483,7 +483,7 @@ deps = {
   'tools/rust':
     Var('chromium_url') + '/chromium/src/tools/rust' + '@' + 'fa679ed68ee49fb99a7e924f57e4d2b6444103d6',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'f9b09aab24dafa729519a7fe5e5094b666a9e501',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '926ec544992cad0ac638f3594fe6195ed493ebff',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -529,7 +529,7 @@ deps = {
     'condition': 'not build_with_chromium and host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'a26c752876190c456e44188db38931561bfa7064',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '1e85c01b15363d11fab81c46fe2b5c2179113f70',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '6c4f037a983abf14a4c8bf00e44db73cdf330a97',
   'tools/protoc_wrapper':
