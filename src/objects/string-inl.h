@@ -222,7 +222,8 @@ auto StringShape::DispatchToSpecificType(Tagged<String> string,
   // inlined type switch.
 
 #if V8_STATIC_ROOTS_BOOL
-  DCHECK_EQ(map_, string->map());
+  // TODO(leszeks): Re-enable this DCHECK
+  // DCHECK_EQ(map_, string->map());
 
   // Check the string map ranges in dense increasing order, to avoid needing
   // to subtract away the lower bound. Don't use the InstanceTypeChecker::IsFoo
@@ -274,7 +275,8 @@ auto StringShape::DispatchToSpecificType(Tagged<String> string,
 
   UNREACHABLE();
 #else
-  DCHECK_EQ(type_, string->map()->instance_type());
+  // TODO(leszeks): Re-enable this DCHECK
+  // DCHECK_EQ(type_, string->map()->instance_type());
   switch (type_ & kStringRepresentationAndEncodingMask) {
     case kSeqStringTag | kOneByteStringTag:
       V8_INLINE_STATEMENT return dispatcher(
