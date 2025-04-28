@@ -576,10 +576,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       // =======================================================================
       // === JS Functions ======================================================
       // =======================================================================
-      case ImportCallKind::kJSFunctionArityMatch:
-        DCHECK_EQ(expected_arity, wasm_count);
-        [[fallthrough]];
-      case ImportCallKind::kJSFunctionArityMismatch: {
+      case ImportCallKind::kJSFunction: {
         auto call_descriptor = compiler::Linkage::GetJSCallDescriptor(
             __ graph_zone(), false, pushed_count + 1, CallDescriptor::kNoFlags);
         const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(

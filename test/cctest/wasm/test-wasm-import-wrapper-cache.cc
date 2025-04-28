@@ -35,7 +35,7 @@ TEST(CacheHit) {
   auto module = NewModule(isolate);
   TestSignatures sigs;
 
-  auto kind = ImportCallKind::kJSFunctionArityMatch;
+  auto kind = ImportCallKind::kJSFunction;
   auto sig = sigs.i_i();
   CanonicalTypeIndex type_index =
       GetTypeCanonicalizer()->AddRecursiveGroup(sig);
@@ -71,7 +71,7 @@ TEST(CacheMissSig) {
   TestSignatures sigs;
   WasmCodeRefScope wasm_code_ref_scope;
 
-  auto kind = ImportCallKind::kJSFunctionArityMatch;
+  auto kind = ImportCallKind::kJSFunction;
   auto* sig1 = sigs.i_i();
   int expected_arity1 = static_cast<int>(sig1->parameter_count());
   CanonicalTypeIndex type_index1 =
@@ -102,8 +102,8 @@ TEST(CacheMissKind) {
   TestSignatures sigs;
   WasmCodeRefScope wasm_code_ref_scope;
 
-  auto kind1 = ImportCallKind::kJSFunctionArityMatch;
-  auto kind2 = ImportCallKind::kJSFunctionArityMismatch;
+  auto kind1 = ImportCallKind::kJSFunction;
+  auto kind2 = ImportCallKind::kUseCallBuiltin;
   auto sig = sigs.i_i();
   int expected_arity = static_cast<int>(sig->parameter_count());
   CanonicalTypeIndex type_index =
@@ -130,7 +130,7 @@ TEST(CacheHitMissSig) {
   TestSignatures sigs;
   WasmCodeRefScope wasm_code_ref_scope;
 
-  auto kind = ImportCallKind::kJSFunctionArityMatch;
+  auto kind = ImportCallKind::kJSFunction;
   auto sig1 = sigs.i_i();
   int expected_arity1 = static_cast<int>(sig1->parameter_count());
   CanonicalTypeIndex type_index1 =

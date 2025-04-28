@@ -698,7 +698,7 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
                   ->shared()
                   ->internal_formal_parameter_count_without_receiver(),
               expected_sig->parameter_count());
-    return ImportCallKind::kJSFunctionArityMatch;
+    return ImportCallKind::kJSFunction;
   }
   Isolate* isolate = Isolate::Current();
   if (IsWasmSuspendingObject(*callable_)) {
@@ -768,7 +768,7 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
   if (well_known_status_ == WellKnownImport::kLinkError) {
     return ImportCallKind::kLinkError;
   }
-  // TODO(jkummerow): It would be nice to return {kJSFunctionArityMatch} here
+  // TODO(jkummerow): It would be nice to return {kJSFunction} here
   // whenever {well_known_status_ != kGeneric}, so that the generic wrapper
   // can be used instead of a compiled wrapper; but that requires adding
   // support for calling bound functions to the generic wrapper first.
@@ -783,12 +783,7 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
       return ImportCallKind::kUseCallBuiltin;
     }
 
-    if (shared->internal_formal_parameter_count_without_receiver() ==
-        expected_sig->parameter_count()) {
-      return ImportCallKind::kJSFunctionArityMatch;
-    }
-
-    return ImportCallKind::kJSFunctionArityMismatch;
+    return ImportCallKind::kJSFunction;
   }
   // Unknown case. Use the call builtin.
   return ImportCallKind::kUseCallBuiltin;
@@ -2057,8 +2052,7 @@ bool InstanceBuilder::ProcessImportedFunction(
   }
 
   if (UseGenericWasmToJSWrapper(kind, expected_sig, resolved.suspend())) {
-    DCHECK(kind == ImportCallKind::kJSFunctionArityMatch ||
-           kind == ImportCallKind::kJSFunctionArityMismatch);
+    DCHECK_EQ(ImportCallKind::kJSFunction, kind);
     imported_entry.SetGenericWasmToJs(isolate_, js_receiver, resolved.suspend(),
                                       expected_sig, sig_index);
     return true;
@@ -2073,7 +2067,7 @@ bool InstanceBuilder::ProcessImportedFunction(
   }
 
   int expected_arity = static_cast<int>(expected_sig->parameter_count());
-  if (kind == ImportCallKind::kJSFunctionArityMismatch) {
+  if (kind == ImportCallKind::kJSFunction) {
     auto function = Cast<JSFunction>(js_receiver);
     Tagged<SharedFunctionInfo> shared = function->shared();
     expected_arity = shared->internal_formal_parameter_count_without_receiver();

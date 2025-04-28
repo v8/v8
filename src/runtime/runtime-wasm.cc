@@ -642,33 +642,28 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   if (IsWasmInternalFunction(*origin)) {
     // The tierup for `WasmInternalFunction` is special, as there may not be an
     // instance.
-    size_t expected_arity = sig->parameter_count();
+    int expected_arity = static_cast<int>(sig->parameter_count());
     wasm::ImportCallKind kind;
     if (IsJSFunction(import_data->callable())) {
       Tagged<SharedFunctionInfo> shared =
           Cast<JSFunction>(import_data->callable())->shared();
       expected_arity =
           shared->internal_formal_parameter_count_without_receiver();
-      if (expected_arity == sig->parameter_count()) {
-        kind = wasm::ImportCallKind::kJSFunctionArityMatch;
-      } else {
-        kind = wasm::ImportCallKind::kJSFunctionArityMismatch;
-      }
+      kind = wasm::ImportCallKind::kJSFunction;
     } else {
       kind = wasm::ImportCallKind::kUseCallBuiltin;
     }
     wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
     wasm::CanonicalTypeIndex canonical_sig_index =
         wasm::GetTypeCanonicalizer()->FindIndex_Slow(sig);
-    int arity = static_cast<int>(expected_arity);
     wasm::Suspend suspend = import_data->suspend();
     wasm::WasmCode* wrapper =
-        cache->MaybeGet(kind, canonical_sig_index, arity, suspend);
+        cache->MaybeGet(kind, canonical_sig_index, expected_arity, suspend);
     bool source_positions = false;
     if (!wrapper) {
       wrapper = cache->CompileWasmImportCallWrapper(
-          isolate, kind, sig, canonical_sig_index, source_positions, arity,
-          suspend);
+          isolate, kind, sig, canonical_sig_index, source_positions,
+          expected_arity, suspend);
     }
     Tagged<WasmInternalFunction> internal = Cast<WasmInternalFunction>(*origin);
 
@@ -732,9 +727,8 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   wasm::ImportCallKind kind = resolved.kind();
   callable = resolved.callable();  // Update to ultimate target.
   DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
-  // {expected_arity} should only be used if kind != kJSFunctionArityMismatch.
   int expected_arity = static_cast<int>(sig->parameter_count());
-  if (kind == wasm::ImportCallKind ::kJSFunctionArityMismatch) {
+  if (kind == wasm::ImportCallKind ::kJSFunction) {
     expected_arity = Cast<JSFunction>(callable)
                          ->shared()
                          ->internal_formal_parameter_count_without_receiver();

@@ -667,12 +667,12 @@ void WasmTableObject::UpdateDispatchTable(
     wasm::ImportCallKind kind = resolved.kind();
     DirectHandle<JSReceiver> callable = resolved.callable();
     DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
-    int expected_arity = static_cast<int>(sig->parameter_count());
-    if (kind == wasm::ImportCallKind::kJSFunctionArityMismatch) {
-      expected_arity = Cast<JSFunction>(callable)
-                           ->shared()
-                           ->internal_formal_parameter_count_without_receiver();
-    }
+    int expected_arity =
+        kind == wasm::ImportCallKind::kJSFunction
+            ? Cast<JSFunction>(callable)
+                  ->shared()
+                  ->internal_formal_parameter_count_without_receiver()
+            : static_cast<int>(sig->parameter_count());
     wasm::Suspend suspend = function_data->GetSuspend();
     wasm_code = cache->MaybeGet(kind, sig_id, expected_arity, suspend);
     if (wasm_code) {
@@ -2903,8 +2903,7 @@ void DecodeI64ExceptionValue(DirectHandle<FixedArray> encoded_values,
 bool UseGenericWasmToJSWrapper(wasm::ImportCallKind kind,
                                const wasm::CanonicalSig* sig,
                                wasm::Suspend suspend) {
-  if (kind != wasm::ImportCallKind::kJSFunctionArityMatch &&
-      kind != wasm::ImportCallKind::kJSFunctionArityMismatch) {
+  if (kind != wasm::ImportCallKind::kJSFunction) {
     return false;
   }
   DCHECK(wasm::IsJSCompatibleSignature(sig));
@@ -3318,11 +3317,7 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
       Tagged<SharedFunctionInfo> shared = Cast<JSFunction>(callable)->shared();
       expected_arity =
           shared->internal_formal_parameter_count_without_receiver();
-      if (expected_arity == parameter_count) {
-        kind = wasm::ImportCallKind::kJSFunctionArityMatch;
-      } else {
-        kind = wasm::ImportCallKind::kJSFunctionArityMismatch;
-      }
+      kind = wasm::ImportCallKind::kJSFunction;
     } else {
       kind = wasm::ImportCallKind::kUseCallBuiltin;
     }
