@@ -1916,7 +1916,10 @@ class NodeBase : public ZoneObject {
   template <class Derived, typename... Args>
   static Derived* New(Zone* zone, std::initializer_list<ValueNode*> inputs,
                       Args&&... args) {
-    static_assert(Derived::kProperties.is_conversion());
+    static_assert(Derived::kProperties.is_conversion(),
+                  "This method does not implicitly convert input types. Use "
+                  "MaglevGraphBuilder::AddNewNode instead or NodeBase::New and "
+                  "initialize and convert inputs manually.");
     Derived* node =
         Allocate<Derived>(zone, inputs.size(), std::forward<Args>(args)...);
 
