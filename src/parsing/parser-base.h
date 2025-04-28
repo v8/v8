@@ -5669,7 +5669,8 @@ void ParserBase<Impl>::ParseStatementList(StatementListT* body,
       if (!scope()->HasSimpleParameters()) {
         // TC39 deemed "use strict" directives to be an error when occurring
         // in the body of a function with non-simple parameter list, on
-        // 29/7/2015. https://goo.gl/ueA7Ln
+        // 29/7/2015. See:
+        // https://github.com/tc39/notes/blob/main/meetings/2015-07/july-29.md#conclusionresolution
         impl()->ReportMessageAt(token_loc,
                                 MessageTemplate::kIllegalLanguageModeDirective,
                                 "use strict");
