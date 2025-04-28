@@ -1034,6 +1034,9 @@ class WasmExportedFunction : public JSFunction {
       DirectHandle<WasmInternalFunction> internal_function, int arity,
       DirectHandle<Code> export_wrapper);
 
+  static void MarkAsReceiverIsFirstParam(
+      Isolate* isolate, DirectHandle<WasmExportedFunction> exported_function);
+
   // Returns the generic wrapper, or a cached compiled wrapper, or
   // a freshly-compiled wrapper.
   static DirectHandle<Code> GetWrapper(Isolate* isolate,

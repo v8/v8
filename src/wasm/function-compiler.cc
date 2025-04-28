@@ -193,13 +193,15 @@ void WasmCompilationUnit::CompileWasmFunction(Counters* counters,
 }
 
 JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
-    Isolate* isolate, const CanonicalSig* sig, CanonicalTypeIndex sig_index)
+    Isolate* isolate, const CanonicalSig* sig, CanonicalTypeIndex sig_index,
+    bool receiver_is_first_param)
     : isolate_(isolate),
       sig_(sig),
       sig_index_(sig_index),
-      job_(v8_flags.wasm_jitless
-               ? nullptr
-               : compiler::NewJSToWasmCompilationJob(isolate, sig)) {
+      receiver_is_first_param_(receiver_is_first_param),
+      job_(v8_flags.wasm_jitless ? nullptr
+                                 : compiler::NewJSToWasmCompilationJob(
+                                       isolate, sig, receiver_is_first_param)) {
   if (!v8_flags.wasm_jitless) {
     OptimizedCompilationInfo* info =
         static_cast<compiler::turboshaft::TurboshaftCompilationJob*>(job_.get())
@@ -244,7 +246,7 @@ DirectHandle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
                                       Cast<AbstractCode>(code), name));
   }
   // Install the compiled wrapper in the cache now.
-  WasmExportWrapperCache::Put(isolate_, sig_index_, false /* recv is param*/,
+  WasmExportWrapperCache::Put(isolate_, sig_index_, receiver_is_first_param_,
                               code);
   Counters* counters = isolate_->counters();
   counters->wasm_generated_code_size()->Increment(code->body_size());
@@ -255,9 +257,11 @@ DirectHandle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
 
 // static
 DirectHandle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-    Isolate* isolate, const CanonicalSig* sig, CanonicalTypeIndex sig_index) {
+    Isolate* isolate, const CanonicalSig* sig, CanonicalTypeIndex sig_index,
+    bool receiver_is_first_param) {
   // Run the compilation unit synchronously.
-  JSToWasmWrapperCompilationUnit unit(isolate, sig, sig_index);
+  JSToWasmWrapperCompilationUnit unit(isolate, sig, sig_index,
+                                      receiver_is_first_param);
   unit.Execute();
   return unit.Finalize();
 }

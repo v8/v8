@@ -83,7 +83,8 @@ wasm::WasmCompilationResult CompileWasmJSFastCallWrapper(
 
 // Returns a TurboshaftCompilationJob object for a JS to Wasm wrapper.
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
-    Isolate* isolate, const wasm::CanonicalSig* sig);
+    Isolate* isolate, const wasm::CanonicalSig* sig,
+    bool receiver_is_first_param);
 
 enum CWasmEntryParameters {
   kCodeEntry,

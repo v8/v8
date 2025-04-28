@@ -2164,12 +2164,30 @@ DirectHandle<Code> WasmExportedFunction::GetWrapper(
   }
   // Otherwise compile a wrapper.
   DirectHandle<Code> compiled =
-      wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(isolate, sig,
-                                                                   sig_id);
+      wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
+          isolate, sig, sig_id, receiver_is_first_param);
   // This should have added an entry in the per-isolate cache.
   DCHECK_EQ(compiled->wrapper(), wasm::WasmExportWrapperCache::Get(
                                      isolate, sig_id, receiver_is_first_param));
   return compiled;
+}
+
+// static
+void WasmExportedFunction::MarkAsReceiverIsFirstParam(
+    Isolate* isolate, DirectHandle<WasmExportedFunction> exported_function) {
+  Tagged<WasmExportedFunctionData> data =
+      exported_function->shared()->wasm_exported_function_data();
+  if (data->receiver_is_first_param() != 0) return;
+  data->set_receiver_is_first_param(1);
+  DirectHandle<WasmExportedFunctionData> data_handle(data, isolate);
+  // Reset the wrapper code. If that's a compiled wrapper, it baked in the
+  // bit we just flipped.
+  DirectHandle<Code> wrapper =
+      GetWrapper(isolate, data->sig(), data->sig_index(), true,
+                 data->instance_data()->module());
+  data = {};  // Might be stale due to GC.
+  data_handle->set_wrapper_code(*wrapper);
+  exported_function->UpdateCode(isolate, *wrapper);
 }
 
 void WasmImportData::SetIndexInTableAsCallOrigin(

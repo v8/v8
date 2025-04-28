@@ -2968,8 +2968,10 @@ void WasmExportedFunctionData::WasmExportedFunctionDataPrint(std::ostream& os) {
   WasmFunctionDataPrint(os);
   os << "\n - instance_data: " << Brief(instance_data());
   os << "\n - function_index: " << function_index();
-  os << "\n - signature: " << reinterpret_cast<const void*>(sig());
   os << "\n - wrapper_budget: " << wrapper_budget()->value();
+  os << "\n - canonical_type_index: " << canonical_type_index();
+  os << "\n - receiver_is_first_param: " << receiver_is_first_param();
+  os << "\n - signature: " << reinterpret_cast<const void*>(sig());
   os << "\n";
 }
 

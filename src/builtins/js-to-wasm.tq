@@ -508,7 +508,7 @@ macro HandleF32Params(
 }
 
 macro JSToWasmWrapperHelper(
-    context: NativeContext, _receiver: JSAny, target: JSFunction,
+    context: NativeContext, receiver: JSAny, target: JSFunction,
     arguments: Arguments, promise: constexpr Promise): JSAny {
   const functionData = target.shared_function_info.wasm_exported_function_data;
 
@@ -683,9 +683,16 @@ macro JSToWasmWrapperHelper(
   // JavaScript using `Function.prototype.arguments`.
   let convertedTagged: FixedArray|Smi = Convert<Smi>(0);
 
+  const receiverIsFirstParam: bool =
+      functionData.receiver_is_first_param != SmiConstant(0);
+  const zero: int32 = 0;  // Torque insists. Whatever.
+  const argumentsOffset: int32 = receiverIsFirstParam ? -1 : zero;
+
   let paramTypeIndex: int32 = 0;
-  for (let paramIndex: int32 = 0; paramTypeIndex < paramCount; paramIndex++) {
-    const param = arguments[Convert<intptr>(paramIndex)];
+  for (let paramIndex: int32 = 0; paramIndex < paramCount; paramIndex++) {
+    const param = (receiverIsFirstParam && paramIndex == 0) ?
+        receiver :
+        arguments[Convert<intptr>(paramIndex + argumentsOffset)];
     const paramType = *paramTypes.UncheckedAtIndex(
         Convert<intptr>(paramTypeIndex++));
     if (paramType == kWasmI32Type) {
