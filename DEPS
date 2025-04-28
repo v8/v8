@@ -74,7 +74,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:90478db6b59b9bebf7ca4cf912d860cf868e724c',
+  'gn_version': 'git_revision:85cc21e94af590a267c1c7a47020d9b420f8a033',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -91,7 +91,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '862506deb382f3f8a8fa9689c8d5136a48e9b778',
+  'partition_alloc_version': '2d19fedeb02734e543c21c46b966835ce217ceea',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '88030b320338e0706b6b93336c4b35e6bbaf467e',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0345a25a8624b38c14f600f86a73d9a44a9cd772',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '0f32cb9025766951122d4ed19aba87a94ded3f43',
   'buildtools/linux64': {
@@ -485,7 +485,7 @@ deps = {
   'tools/rust':
     Var('chromium_url') + '/chromium/src/tools/rust' + '@' + 'fa679ed68ee49fb99a7e924f57e4d2b6444103d6',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '926ec544992cad0ac638f3594fe6195ed493ebff',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'e74f6deeac8814c7000803fc83e02e1f79093c6b',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
