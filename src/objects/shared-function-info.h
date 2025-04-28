@@ -363,6 +363,10 @@ class SharedFunctionInfo
   // with an isolate parameter if possible.
   inline Tagged<Object> GetTrustedData() const;
 
+  // Some code may encounter unreachable unusable objects and needs to skip
+  // over them without crashing.
+  inline bool HasUnpublishedTrustedData(IsolateForSandbox isolate) const;
+
  private:
   // For the sandbox, the function's data is split across two fields, with the
   // "trusted" part containing a trusted pointer and the regular/untrusted part
