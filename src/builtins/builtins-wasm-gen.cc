@@ -164,6 +164,32 @@ TF_BUILTIN(WasmToJsWrapperInvalidSig, WasmBuiltinsAssembler) {
   Unreachable();
 }
 
+// Suppose we wanted to generate JavaScript constructor functions that wrap
+// exported Wasm functions as follows:
+//
+//   function MakeConstructor(wasm_instance, name) {
+//     let wasm_func = wasm_instance.exports[name];
+//     return function(...args) {
+//       return wasm_func(...args);
+//     }
+//   }
+//   let Foo = MakeConstructor(...);
+//   let foo = new Foo(1, 2, 3);
+//
+// This builtin models the code that these functions would have: it fetches the
+// target Wasm function from a Context slot and tail-calls to it with the
+// existing arguments on the stack. So when mass-creating such constructors,
+// we don't need to compile any bytecode, we only need to allocate an
+// appropriate Context and use this builtin as the code.
+TF_BUILTIN(WasmConstructorWrapper, WasmBuiltinsAssembler) {
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
+  TNode<Context> context = Parameter<Context>(Descriptor::kContext);
+  static constexpr int kSlot = wasm::kConstructorFunctionContextSlot;
+  TNode<JSFunction> target = CAST(LoadContextElementNoCell(context, kSlot));
+  TailCallBuiltin(Builtin::kCallFunction_ReceiverIsNullOrUndefined, context,
+                  target, argc);
+}
+
 #include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace v8::internal

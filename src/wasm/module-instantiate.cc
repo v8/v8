@@ -794,6 +794,56 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
   return ImportCallKind::kUseCallBuiltin;
 }
 
+class JSPrototypesSetup {
+ private:
+  DirectHandle<String> GetString(WireBytesRef ref) {
+    return WasmModuleObject::ExtractUtf8StringFromModuleBytes(
+        isolate_, wire_bytes_, ref, kInternalize);
+  }
+
+  DirectHandle<JSFunction> MakeConstructor(
+      WireBytesRef name_ref, DirectHandle<JSFunction> wasm_function,
+      DirectHandle<JSPrototype> prototype) {
+    DirectHandle<String> name = GetString(name_ref);
+    DirectHandle<Context> context = isolate_->factory()->NewBuiltinContext(
+        isolate_->native_context(), kConstructorFunctionContextLength);
+    context->SetNoCell(kConstructorFunctionContextSlot, *wasm_function);
+    Builtin code = Builtin::kWasmConstructorWrapper;
+    int length = wasm_function->length();
+    DirectHandle<SharedFunctionInfo> sfi =
+        isolate_->factory()->NewSharedFunctionInfoForBuiltin(name, code, length,
+                                                             kDontAdapt);
+    sfi->set_native(true);
+    sfi->set_language_mode(LanguageMode::kStrict);
+    DirectHandle<JSFunction> constructor =
+        Factory::JSFunctionBuilder{isolate_, sfi, context}
+            .set_map(isolate_->strict_function_with_readonly_prototype_map())
+            .Build();
+    constructor->set_prototype_or_initial_map(*prototype, kReleaseStore);
+    prototype->map()->SetConstructor(*constructor);
+    InstallExport(name, constructor);
+    return constructor;
+  }
+
+  void InstallExport(DirectHandle<String> name, DirectHandle<Object> value) {
+    PropertyDetails details(
+        PropertyKind::kData,
+        static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE),
+        PropertyConstness::kMutable);
+    uint32_t array_index;
+    if (V8_UNLIKELY(name->AsArrayIndex(&array_index))) {
+      JSObject::AddDataElement(isolate_, exports_object_, array_index, value,
+                               details.attributes());
+    } else {
+      JSObject::SetNormalizedProperty(exports_object_, name, value, details);
+    }
+  }
+
+  Isolate* isolate_;
+  base::Vector<const uint8_t> wire_bytes_;
+  DirectHandle<JSObject> exports_object_;
+};
+
 // A helper class to simplify instantiating a module from a module object.
 // It closes over the {Isolate}, the {ErrorThrower}, etc.
 class InstanceBuilder {

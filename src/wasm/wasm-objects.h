@@ -17,7 +17,7 @@
 #include "src/debug/interface-types.h"
 #include "src/heap/heap.h"
 #include "src/objects/backing-store.h"
-#include "src/objects/casting.h"
+#include "src/objects/contexts.h"
 #include "src/objects/foreign.h"
 #include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
@@ -99,6 +99,14 @@ class V8_EXPORT_PRIVATE FunctionTargetAndImplicitArg {
 
 namespace wasm {
 enum class OnResume : int { kContinue, kThrow };
+
+// Generated "constructor" functions (per the Custom Descriptors proposal)
+// store the exported Wasm function they're calling in a context slot.
+// We use the first slot in a context with one slot.
+static constexpr int kConstructorFunctionContextSlot =
+    Context::MIN_CONTEXT_SLOTS;
+static constexpr int kConstructorFunctionContextLength =
+    kConstructorFunctionContextSlot + 1;
 }  // namespace wasm
 
 // A helper for an entry for an imported function, indexed statically.
