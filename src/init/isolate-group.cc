@@ -287,7 +287,7 @@ void IsolateGroup::AddIsolate(Isolate* isolate) {
     main_isolate_ = isolate;
   }
 
-  optimizing_compile_task_executor_->EnsureInitialized();
+  optimizing_compile_task_executor_->EnsureStarted();
 
   if (v8_flags.shared_heap) {
     if (has_shared_space_isolate()) {
@@ -305,6 +305,8 @@ void IsolateGroup::RemoveIsolate(Isolate* isolate) {
 
   if (--isolate_count_ == 0) {
     read_only_artifacts_.reset();
+
+    optimizing_compile_task_executor_->Stop();
 
     // We are removing the last isolate from the group. If this group has a
     // shared heap, the last isolate has to be the shared space isolate.
