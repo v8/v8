@@ -2065,6 +2065,12 @@ class WasmDecoder : public Decoder {
         return false;
       }
       imm.sig = *module_->signature(imm.sig_index);
+      if (imm.sig.parameter_count() > 0) {
+        // Multi-value also allows blocks to return multiple values, but this
+        // is already detected during signature decoding, so we don't need to
+        // check again here.
+        detected_->add_multi_value();
+      }
     } else {
       // Then it's an MVP immediate with 0 parameters and 0-1 returns.
       DCHECK_EQ(0, imm.sig.parameter_count());

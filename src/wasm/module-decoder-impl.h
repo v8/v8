@@ -2554,6 +2554,9 @@ class ModuleDecoderImpl : public Decoder {
     // Parse return types.
     uint32_t return_count =
         consume_count("return count", kV8MaxWasmFunctionReturns);
+    if (return_count > 1) {
+      detected_features_->add_multi_value();
+    }
     // Now that we know the param count and the return count, we can allocate
     // the permanent storage.
     ValueType* sig_storage =
