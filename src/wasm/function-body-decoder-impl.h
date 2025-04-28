@@ -6086,18 +6086,24 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return ParseBrOnCast(opcode, opcode_length);
       }
       case kExprAnyConvertExtern: {
-        Value extern_val = Pop(kWasmExternRef);
-        ValueType intern_type = ValueType::RefMaybeNull(
-            kWasmAnyRef, Nullability(extern_val.type.is_nullable()));
+        const bool is_shared = Peek().type.is_shared();
+        Value extern_val = Pop(
+            IndependentHeapType{GenericKind::kExtern, kNullable, is_shared});
+        ValueType intern_type = IndependentHeapType{
+            GenericKind::kAny, Nullability(extern_val.type.is_nullable()),
+            is_shared};
         Value* intern_val = Push(intern_type);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(UnOp, kExprAnyConvertExtern,
                                            extern_val, intern_val);
         return opcode_length;
       }
       case kExprExternConvertAny: {
-        Value val = Pop(kWasmAnyRef);
-        ValueType extern_type = ValueType::RefMaybeNull(
-            kWasmExternRef, Nullability(val.type.is_nullable()));
+        const bool is_shared = Peek().type.is_shared();
+        Value val =
+            Pop(IndependentHeapType{GenericKind::kAny, kNullable, is_shared});
+        ValueType extern_type =
+            IndependentHeapType{GenericKind::kExtern,
+                                Nullability(val.type.is_nullable()), is_shared};
         Value* extern_val = Push(extern_type);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(UnOp, kExprExternConvertAny, val,
                                            extern_val);
