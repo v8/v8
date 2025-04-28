@@ -1342,14 +1342,44 @@ class MachineOptimizationReducer : public Next {
       }
     }
 
-    // UntagSmi(x) + UntagSmi(x)  =>  (x, false)
-    // (where UntagSmi(x) = x >> 1   with a ShiftOutZeros shift)
     if (kind == Kind::kSignedAdd && left == right) {
       uint16_t amount;
+      // UntagSmi(x) + UntagSmi(x)  =>  (x, false)
+      // (where UntagSmi(x) = x >> 1   with a ShiftOutZeros shift)
       if (V<Word32> x; matcher_.MatchConstantShiftRightArithmeticShiftOutZeros(
                            left, &x, WordRepresentation::Word32(), &amount) &&
                        amount == 1) {
         return __ Tuple(x, __ Word32Constant(0));
+      }
+
+      // t1 = UntagSmi(x)
+      // t2 = t1 bitwise_op k
+      // t2 + t2
+      //   => x bitwise_op (k << 1)
+      // (where UntagSmi(x) = x >> 1  with a ShiftOutZeros shift)
+      WordBinopOp::Kind bitwise_op_kind;
+      if (V<Word32> t1, tk; matcher_.MatchWordBinop<Word32>(
+              left, &t1, &tk, &bitwise_op_kind, WordRepresentation::Word32())) {
+        if (V<Word32> x;
+            matcher_.MatchConstantShiftRightArithmeticShiftOutZeros(
+                t1, &x, WordRepresentation::Word32(), &amount) &&
+            amount == 1) {
+          if (int32_t k; matcher_.MatchIntegralWord32Constant(tk, &k)) {
+            switch (bitwise_op_kind) {
+              case WordBinopOp::Kind::kBitwiseAnd:
+                return __ Tuple(__ Word32BitwiseAnd(x, k << 1),
+                                __ Word32Constant(0));
+              case WordBinopOp::Kind::kBitwiseOr:
+              case WordBinopOp::Kind::kBitwiseXor:
+                return __ Tuple(
+                    __ WordBinop(x, __ Word32Constant(k << 1), bitwise_op_kind,
+                                 WordRepresentation::Word32()),
+                    __ Word32Constant(k >> 31));
+              default:
+                break;
+            }
+          }
+        }
       }
     }
 
