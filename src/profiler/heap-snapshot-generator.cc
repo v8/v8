@@ -964,6 +964,8 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
   } else if (InstanceTypeChecker::IsOddball(instance_type)) {
     Tagged<String> name = Cast<Oddball>(object)->to_string();
     return AddEntry(object, HeapEntry::kHidden, names_->GetName(name));
+  } else if (InstanceTypeChecker::IsCppHeapExternalObject(instance_type)) {
+    return AddEntry(object, HeapEntry::kObject, "system / CppHeapExternal");
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (InstanceTypeChecker::IsWasmObject(instance_type)) {
@@ -1447,6 +1449,8 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry,
     ExtractBytecodeArrayReferences(entry, Cast<BytecodeArray>(obj));
   } else if (IsScopeInfo(obj)) {
     ExtractScopeInfoReferences(entry, Cast<ScopeInfo>(obj));
+  } else if (IsCppHeapExternalObject(obj)) {
+    ExtractCppHeapExternalReferences(entry, Cast<CppHeapExternalObject>(obj));
 #if V8_ENABLE_WEBASSEMBLY
   } else if (IsWasmStruct(obj)) {
     ExtractWasmStructReferences(Cast<WasmStruct>(obj), entry);
@@ -2289,6 +2293,11 @@ void V8HeapExplorer::ExtractInternalReferences(Tagged<JSObject> js_obj,
     Tagged<Object> o = js_obj->GetEmbedderField(i);
     SetInternalReference(entry, i, o, js_obj->GetEmbedderFieldOffset(i));
   }
+}
+
+void V8HeapExplorer::ExtractCppHeapExternalReferences(
+    HeapEntry* entry, Tagged<CppHeapExternalObject> obj) {
+  generator_->GetCppHeapExternalObjects().insert(obj);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -3177,7 +3186,8 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
     v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate_));
     DisallowGarbageCollection no_gc;
     EmbedderGraphImpl graph;
-    snapshot_->profiler()->BuildEmbedderGraph(isolate_, &graph);
+    snapshot_->profiler()->BuildEmbedderGraph(
+        isolate_, &graph, generator_->TakeCppHeapExternalObjects());
     for (const auto& node : graph.nodes()) {
       // Only add embedder nodes as V8 nodes have been added already by the
       // V8HeapExplorer.

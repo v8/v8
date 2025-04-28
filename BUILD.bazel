@@ -2303,6 +2303,7 @@ filegroup(
         "src/profiler/cpu-profiler-inl.h",
         "src/profiler/heap-profiler.cc",
         "src/profiler/heap-profiler.h",
+        "src/profiler/heap-snapshot-common.h",
         "src/profiler/heap-snapshot-generator.cc",
         "src/profiler/heap-snapshot-generator.h",
         "src/profiler/heap-snapshot-generator-inl.h",

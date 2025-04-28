@@ -4171,6 +4171,7 @@ v8_header_set("v8_internal_headers") {
     "src/profiler/cpu-profiler-inl.h",
     "src/profiler/cpu-profiler.h",
     "src/profiler/heap-profiler.h",
+    "src/profiler/heap-snapshot-common.h",
     "src/profiler/heap-snapshot-generator-inl.h",
     "src/profiler/heap-snapshot-generator.h",
     "src/profiler/output-stream-writer.h",

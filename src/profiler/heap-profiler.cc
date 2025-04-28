@@ -6,6 +6,7 @@
 
 #include <fstream>
 #include <optional>
+#include <utility>
 
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
@@ -91,11 +92,23 @@ void HeapProfiler::RemoveBuildEmbedderGraphCallback(
     build_embedder_graph_callbacks_.erase(it);
 }
 
-void HeapProfiler::BuildEmbedderGraph(Isolate* isolate,
-                                      v8::EmbedderGraph* graph) {
+void HeapProfiler::BuildEmbedderGraph(
+    Isolate* isolate, v8::EmbedderGraph* graph,
+    UnorderedCppHeapExternalObjectSet&& cpp_heap_external_objects) {
+  if (internal_build_embedder_graph_callback_.first) {
+    internal_build_embedder_graph_callback_.first(
+        reinterpret_cast<v8::Isolate*>(isolate), graph,
+        internal_build_embedder_graph_callback_.second,
+        std::move(cpp_heap_external_objects));
+  }
   for (const auto& cb : build_embedder_graph_callbacks_) {
     cb.first(reinterpret_cast<v8::Isolate*>(isolate), graph, cb.second);
   }
+}
+
+void HeapProfiler::SetInternalBuildEmbedderGraphCallback(
+    InternalBuildEmbedderGraphCallback callback, void* data) {
+  internal_build_embedder_graph_callback_ = {callback, data};
 }
 
 void HeapProfiler::SetGetDetachednessCallback(
