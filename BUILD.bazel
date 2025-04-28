@@ -3009,6 +3009,8 @@ filegroup(
             "src/wasm/wasm-disassembler-impl.h",
             "src/wasm/wasm-engine.cc",
             "src/wasm/wasm-engine.h",
+            "src/wasm/wasm-export-wrapper-cache.cc",
+            "src/wasm/wasm-export-wrapper-cache.h",
             "src/wasm/wasm-external-refs.cc",
             "src/wasm/wasm-external-refs.h",
             "src/wasm/wasm-features.cc",

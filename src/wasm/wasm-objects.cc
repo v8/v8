@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/wasm/wasm-objects.h"
+
 #if V8_TARGET_OS_LINUX
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -10,8 +12,6 @@
 // after the `#include`.
 #undef MAP_TYPE
 #endif  // V8_TARGET_OS_LINUX
-
-#include "src/wasm/wasm-objects.h"
 
 #include <optional>
 
@@ -37,6 +37,7 @@
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-export-wrapper-cache.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -2120,38 +2121,14 @@ DirectHandle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
   const wasm::CanonicalSig* sig =
       wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_id);
   wasm::TypeCanonicalizer::PrepareForCanonicalTypeId(isolate, sig_id);
-  int wrapper_index = sig_id.index;
 
-  Tagged<MaybeObject> entry =
-      isolate->heap()->js_to_wasm_wrappers()->get(wrapper_index);
+  // For now, we assume traditional behavior where the receiver is ignored.
+  // If the corresponding bit in the WasmExportedFunctionData is flipped later,
+  // we'll have to reset any existing compiled wrapper.
+  bool receiver_is_first_param = false;
 
-  DirectHandle<Code> wrapper_code;
-  // {entry} can be cleared or a weak reference to a ready {CodeWrapper}.
-  if (!entry.IsCleared()) {
-    wrapper_code = direct_handle(
-        Cast<CodeWrapper>(entry.GetHeapObjectAssumeWeak())->code(isolate),
-        isolate);
-#if V8_ENABLE_DRUMBRAKE
-  } else if (v8_flags.wasm_jitless) {
-    wrapper_code = isolate->builtins()->code_handle(
-        Builtin::kGenericJSToWasmInterpreterWrapper);
-#endif  // V8_ENABLE_DRUMBRAKE
-  } else if (CanUseGenericJsToWasmWrapper(module, sig)) {
-    if (v8_flags.stress_wasm_stack_switching) {
-      wrapper_code =
-          isolate->builtins()->code_handle(Builtin::kWasmStressSwitch);
-    } else {
-      wrapper_code =
-          isolate->builtins()->code_handle(Builtin::kJSToWasmWrapper);
-    }
-  } else {
-    // The wrapper does not exist yet; compile it now.
-    wrapper_code = wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-        isolate, sig, sig_id);
-    // This should have added an entry in the per-isolate cache.
-    DCHECK_EQ(MakeWeak(wrapper_code->wrapper()),
-              isolate->heap()->js_to_wasm_wrappers()->get(wrapper_index));
-  }
+  DirectHandle<Code> wrapper_code = WasmExportedFunction::GetWrapper(
+      isolate, sig, sig_id, receiver_is_first_param, module);
   DirectHandle<WasmFuncRef> func_ref{
       Cast<WasmFuncRef>(
           instance_data->func_refs()->get(internal->function_index())),
@@ -2163,6 +2140,36 @@ DirectHandle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
 
   internal->set_external(*result);
   return result;
+}
+
+// static
+DirectHandle<Code> WasmExportedFunction::GetWrapper(
+    Isolate* isolate, const wasm::CanonicalSig* sig,
+    wasm::CanonicalTypeIndex sig_id, bool receiver_is_first_param,
+    const WasmModule* module) {
+#if V8_ENABLE_DRUMBRAKE
+  return isolate->builtins()->code_handle(
+      Builtin::kGenericJSToWasmInterpreterWrapper);
+#endif  // V8_ENABLE_DRUMBRAKE
+  Tagged<CodeWrapper> entry = wasm::WasmExportWrapperCache::Get(
+      isolate, sig_id, receiver_is_first_param);
+  if (!entry.is_null()) {
+    return direct_handle(entry->code(isolate), isolate);
+  }
+  if (wasm::CanUseGenericJsToWasmWrapper(module, sig)) {
+    if (v8_flags.stress_wasm_stack_switching) {
+      return isolate->builtins()->code_handle(Builtin::kWasmStressSwitch);
+    }
+    return isolate->builtins()->code_handle(Builtin::kJSToWasmWrapper);
+  }
+  // Otherwise compile a wrapper.
+  DirectHandle<Code> compiled =
+      wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(isolate, sig,
+                                                                   sig_id);
+  // This should have added an entry in the per-isolate cache.
+  DCHECK_EQ(compiled->wrapper(), wasm::WasmExportWrapperCache::Get(
+                                     isolate, sig_id, receiver_is_first_param));
+  return compiled;
 }
 
 void WasmImportData::SetIndexInTableAsCallOrigin(

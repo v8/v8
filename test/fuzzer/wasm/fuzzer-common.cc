@@ -131,9 +131,8 @@ DirectHandle<WasmModuleObject> CompileReferenceModule(
 
 #if V8_ENABLE_DRUMBRAKE
 void ClearJsToWasmWrappersForTesting(Isolate* isolate) {
-  for (int i = 0; i < isolate->heap()->js_to_wasm_wrappers()->length(); i++) {
-    isolate->heap()->js_to_wasm_wrappers()->set(i, ClearedValue(isolate));
-  }
+  isolate->heap()->SetJSToWasmWrappers(
+      ReadOnlyRoots(isolate).empty_weak_fixed_array());
 }
 
 int ExecuteAgainstReference(Isolate* isolate,

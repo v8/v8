@@ -25,6 +25,7 @@
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-export-wrapper-cache.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "src/wasm/wasm-subtyping.h"
@@ -563,20 +564,18 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
 
   const wasm::WasmModule* module = trusted_data->module();
   const int function_index = function_data->function_index();
+  bool receiver_is_first_param = false;
   const wasm::WasmFunction& function = module->functions[function_index];
   const wasm::CanonicalTypeIndex sig_id =
       module->canonical_sig_id(function.sig_index);
   const wasm::CanonicalSig* sig =
       wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_id);
 
-  Tagged<MaybeObject> maybe_cached_wrapper =
-      isolate->heap()->js_to_wasm_wrappers()->get(sig_id.index);
+  Tagged<CodeWrapper> maybe_cached_wrapper = wasm::WasmExportWrapperCache::Get(
+      isolate, sig_id, receiver_is_first_param);
   Tagged<Code> wrapper_code;
-  DCHECK(maybe_cached_wrapper.IsWeakOrCleared());
-  if (!maybe_cached_wrapper.IsCleared()) {
-    wrapper_code =
-        Cast<CodeWrapper>(maybe_cached_wrapper.GetHeapObjectAssumeWeak())
-            ->code(isolate);
+  if (!maybe_cached_wrapper.is_null()) {
+    wrapper_code = maybe_cached_wrapper->code(isolate);
   } else {
     // Set the context on the isolate and open a handle scope for allocation of
     // new objects. Wrap {trusted_data} in a handle so it survives GCs.
@@ -590,8 +589,9 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
             isolate, sig, sig_id);
 
     // Compilation must have installed the wrapper into the cache.
-    DCHECK_EQ(MakeWeak(new_wrapper_code->wrapper()),
-              isolate->heap()->js_to_wasm_wrappers()->get(sig_id.index));
+    DCHECK_EQ(new_wrapper_code->wrapper(),
+              wasm::WasmExportWrapperCache::Get(isolate, sig_id,
+                                                receiver_is_first_param));
 
     // Reset raw pointers still needed outside the slow path.
     wrapper_code = *new_wrapper_code;

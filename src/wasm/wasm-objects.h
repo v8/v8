@@ -1026,6 +1026,14 @@ class WasmExportedFunction : public JSFunction {
       DirectHandle<WasmInternalFunction> internal_function, int arity,
       DirectHandle<Code> export_wrapper);
 
+  // Returns the generic wrapper, or a cached compiled wrapper, or
+  // a freshly-compiled wrapper.
+  static DirectHandle<Code> GetWrapper(Isolate* isolate,
+                                       const wasm::CanonicalSig* sig,
+                                       wasm::CanonicalTypeIndex sig_id,
+                                       bool receiver_is_first_param,
+                                       const wasm::WasmModule* module);
+
   // Return a null-terminated string with the debug name in the form
   // 'js-to-wasm:<sig>'.
   static std::unique_ptr<char[]> GetDebugName(const wasm::CanonicalSig* sig);
