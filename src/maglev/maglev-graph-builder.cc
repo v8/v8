@@ -5117,6 +5117,10 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
   KnownMapsMerger merger(broker(), zone(), maps);
   merger.IntersectWithKnownNodeAspects(object, known_node_aspects());
 
+  if (IsEmptyNodeType(CombineType(merger.node_type(), GetType(object)))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
+  }
+
   // If the known maps are the subset of the maps to check, we are done.
   if (merger.known_maps_are_subset_of_requested_maps()) {
     // The node type of known_info can get out of sync with the possible maps.
@@ -7197,7 +7201,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
     GenericAccessFunc&& build_generic_access) {
   const bool is_any_store = compiler::IsAnyStore(access_mode);
   const int access_info_count = static_cast<int>(access_infos.size());
-  int number_map_index = -1;
+  int number_map_index_for_smi = -1;
 
   bool needs_migration = false;
   bool has_deprecated_map_without_migration_target =
@@ -7215,9 +7219,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
         KnownMapsMerger merger(broker(), zone(), base::VectorOf(known_maps));
         merger.IntersectWithKnownNodeAspects(lookup_start_object,
                                              known_node_aspects());
-        if (!merger.intersect_set().is_empty()) {
-          DCHECK_EQ(number_map_index, -1);
-          number_map_index = i;
+        if (!merger.intersect_set().is_empty() &&
+            !IsEmptyNodeType(
+                CombineType(GetType(lookup_start_object), NodeType::kSmi))) {
+          DCHECK_EQ(number_map_index_for_smi, -1);
+          number_map_index_for_smi = i;
         }
       }
     }
@@ -7230,7 +7236,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
   std::optional<MaglevSubGraphBuilder::Label> is_number;
   std::optional<MaglevSubGraphBuilder::Label> generic_access;
 
-  if (number_map_index >= 0) {
+  if (number_map_index_for_smi >= 0) {
     is_number.emplace(&sub_graph, 2);
     sub_graph.GotoIfTrue<BranchIfSmi>(&*is_number, {lookup_start_object});
   } else {
@@ -7263,11 +7269,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
                            base::VectorOf(maps), &sub_graph, check_next_map);
     }
     if (map_check_result.IsDoneWithAbort()) {
+      DCHECK_NE(i, number_map_index_for_smi);
       // We know from known possible maps that this branch is not reachable,
       // so don't emit any code for it.
       continue;
     }
-    if (i == number_map_index) {
+    if (i == number_map_index_for_smi) {
       DCHECK(is_number.has_value());
       sub_graph.Goto(&*is_number);
       sub_graph.Bind(&*is_number);
