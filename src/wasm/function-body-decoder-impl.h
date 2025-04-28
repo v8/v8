@@ -2767,6 +2767,7 @@ class WasmDecoder : public Decoder {
                    source_imm.length + target_imm.length;
           }
           case kExprRefI31:
+          case kExprRefI31Shared:
           case kExprI31GetS:
           case kExprI31GetU:
           case kExprAnyConvertExtern:
@@ -5735,7 +5736,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
       case kExprArrayLen: {
         NON_CONST_ONLY
-        Value array_obj = Pop(kWasmArrayRef);
+        const bool is_shared = Peek().type.is_shared();
+        Value array_obj =
+            Pop(IndependentHeapType{GenericKind::kArray, kNullable, is_shared});
         Value* value = Push(kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayLen, array_obj, value);
         return opcode_length;
@@ -5821,16 +5824,27 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         CALL_INTERFACE_IF_OK_AND_REACHABLE(RefI31, input, value);
         return opcode_length;
       }
+      case kExprRefI31Shared: {
+        Value input = Pop(kWasmI32);
+        Value* value =
+            Push(IndependentHeapType{GenericKind::kI31, kNonNullable, true});
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(RefI31, input, value);
+        return opcode_length;
+      }
       case kExprI31GetS: {
         NON_CONST_ONLY
-        Value i31 = Pop(kWasmI31Ref);
+        const bool is_shared = Peek().type.is_shared();
+        Value i31 =
+            Pop(IndependentHeapType{GenericKind::kI31, kNullable, is_shared});
         Value* value = Push(kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(I31GetS, i31, value);
         return opcode_length;
       }
       case kExprI31GetU: {
         NON_CONST_ONLY
-        Value i31 = Pop(kWasmI31Ref);
+        const bool is_shared = Peek().type.is_shared();
+        Value i31 =
+            Pop(IndependentHeapType{GenericKind::kI31, kNullable, is_shared});
         Value* value = Push(kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(I31GetU, i31, value);
         return opcode_length;

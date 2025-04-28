@@ -2816,7 +2816,7 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
     if (null_check_strategy_ == compiler::NullCheckStrategy::kExplicit ||
-        IsSubtypeOf(kWasmRefI31, arg.type, decoder->module_) ||
+        IsSubtypeOf(kWasmRefI31, arg.type.AsNonShared(), decoder->module_) ||
         !arg.type.use_wasm_null()) {
       // Use an explicit null check if
       // (1) we cannot use trap handler or
@@ -7240,7 +7240,7 @@ class LiftoffCompiler {
     Register tmp1 = scratch_null;  // Done with null checks.
 
     // Add Smi check if the source type may store a Smi (i31ref or JS Smi).
-    if (IsSubtypeOf(kWasmRefI31, obj_type, module)) {
+    if (IsSubtypeOf(kWasmRefI31, obj_type.AsNonShared(), module)) {
       __ emit_smi_check(obj_reg, no_match, LiftoffAssembler::kJumpOnSmi,
                         frozen);
     }

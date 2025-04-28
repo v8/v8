@@ -4852,7 +4852,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           1);
     }
     result->op =
-        __ AnnotateWasmType(__ BitcastWordPtrToSmi(result->op), kWasmRefI31);
+        __ AnnotateWasmType(__ BitcastWordPtrToSmi(result->op), result->type);
   }
 
   void I31GetS(FullDecoder* decoder, const Value& input, Value* result) {

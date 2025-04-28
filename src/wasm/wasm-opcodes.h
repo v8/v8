@@ -766,6 +766,7 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const CanonicalSig* sig);
   V(RefI31, 0xfb1c, _, "ref.i31")                                              \
   V(I31GetS, 0xfb1d, _, "i31.get_s")                                           \
   V(I31GetU, 0xfb1e, _, "i31.get_u")                                           \
+  V(RefI31Shared, 0xfb1f, _, "ref.i31_shared")                                 \
   /* Custom Descriptors proposal */                                            \
   V(RefGetDesc, 0xfb22, _, "ref.get_desc")                                     \
   V(RefCastDesc, 0xfb23, _, "ref.cast_desc")                                   \

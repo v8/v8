@@ -93,7 +93,8 @@ class WasmLoweringReducer : public Next {
         // (2) the object might be a Smi or
         // (3) the object might be a JS object.
         if (null_check_strategy_ == NullCheckStrategy::kExplicit ||
-            wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), type, module_) ||
+            wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), type.AsNonShared(),
+                              module_) ||
             !type.use_wasm_null()) {
           __ TrapIf(__ IsNull(object, type), trap_id);
         } else {
@@ -577,8 +578,8 @@ class WasmLoweringReducer : public Next {
     const bool object_can_be_null = config.from.is_nullable();
     const bool null_succeeds = config.to.is_nullable();
     const bool object_can_be_i31 =
-        wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from,
-                          module_) ||
+        wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(),
+                          config.from.AsNonShared(), module_) ||
         config.from.heap_representation() == wasm::HeapType::kExtern;
 
     V<Word32> result;
@@ -650,8 +651,8 @@ class WasmLoweringReducer : public Next {
     const bool object_can_be_null = config.from.is_nullable();
     const bool null_succeeds = config.to.is_nullable();
     const bool object_can_be_i31 =
-        wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from,
-                          module_) ||
+        wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(),
+                          config.from.AsNonShared(), module_) ||
         config.from.heap_representation() == wasm::HeapType::kExtern;
 
     Label<> end_label(&Asm());
@@ -726,8 +727,8 @@ class WasmLoweringReducer : public Next {
     DCHECK(rtt.has_value());
     int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
     bool object_can_be_null = config.from.is_nullable();
-    bool object_can_be_i31 =
-        wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_);
+    bool object_can_be_i31 = wasm::IsSubtypeOf(
+        wasm::kWasmI31Ref.AsNonNull(), config.from.AsNonShared(), module_);
 
     Label<> end_label(&Asm());
     bool is_cast_from_any = config.from.is_reference_to(wasm::HeapType::kAny);
@@ -801,8 +802,8 @@ class WasmLoweringReducer : public Next {
     DCHECK(rtt.has_value());
     int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
     bool object_can_be_null = config.from.is_nullable();
-    bool object_can_be_i31 =
-        wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_);
+    bool object_can_be_i31 = wasm::IsSubtypeOf(
+        wasm::kWasmI31Ref.AsNonNull(), config.from.AsNonShared(), module_);
     bool is_cast_from_any = config.from.is_reference_to(wasm::HeapType::kAny);
 
     Label<Word32> end_label(&Asm());
