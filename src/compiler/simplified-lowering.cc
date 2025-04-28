@@ -2760,8 +2760,7 @@ class RepresentationSelector {
         } else if (lhs_type.Is(Type::Boolean()) &&
                    rhs_type.Is(Type::Boolean())) {
           VisitBinop<T>(node, UseInfo::Bool(), MachineRepresentation::kBit);
-          if (lower<T>())
-            ChangeToPureOp(node, lowering->machine()->Word32Equal());
+          if (lower<T>()) ChangeToPureOp(node, Int32Op(node));
           return;
         }
         // Try to use type feedback.
