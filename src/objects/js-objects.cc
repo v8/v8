@@ -3669,9 +3669,10 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
   for (;; it->Next()) {
     switch (it->state()) {
       case LookupIterator::JSPROXY:
-      case LookupIterator::WASM_OBJECT:
       case LookupIterator::TRANSITION:
         UNREACHABLE();
+      case LookupIterator::WASM_OBJECT:
+        continue;  // {AddDataProperty} will throw if no other case is hit.
 
       case LookupIterator::ACCESS_CHECK:
         if (!it->HasAccess()) {
