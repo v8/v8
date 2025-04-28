@@ -619,6 +619,10 @@ static_assert(sizeof(StackHandlerMarker) == StackHandlerConstants::kSize);
 void Execution::CallWasm(Isolate* isolate, DirectHandle<Code> wrapper_code,
                          WasmCodePointer wasm_call_target,
                          DirectHandle<Object> object_ref, Address packed_args) {
+  // Runtime code must be able to get the "current" isolate from TLS, and this
+  // must equal the isolate we execute in.
+  DCHECK_EQ(isolate, Isolate::TryGetCurrent());
+
   using WasmEntryStub = GeneratedCode<Address(
       Address target, Address object_ref, Address argv, Address c_entry_fp)>;
   WasmEntryStub stub_entry =

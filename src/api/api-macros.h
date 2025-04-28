@@ -42,6 +42,7 @@
 #define ENTER_V8_HELPER_INTERNAL(i_isolate, context, class_name,               \
                                  function_name, HandleScopeClass, do_callback) \
   DCHECK(!i_isolate->is_execution_terminating());                              \
+  DCHECK_EQ(i_isolate, i::Isolate::TryGetCurrent());                           \
   HandleScopeClass handle_scope(i_isolate);                                    \
   CallDepthScope<do_callback> call_depth_scope(i_isolate, context);            \
   API_RCS_SCOPE(i_isolate, class_name, function_name);                         \
