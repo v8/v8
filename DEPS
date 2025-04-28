@@ -246,6 +246,8 @@ deps = {
   },
   'third_party/depot_tools':
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '1fcc527019d786502b02f71b8b764ee674a40953',
+  'third_party/dragonbox/src':
+    Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -548,6 +550,7 @@ include_rules = [
   # Everybody can use some things.
   '+include',
   '+unicode',
+  '+third_party/dragonbox/src/include',
   '+third_party/fast_float/src/include',
   '+third_party/fdlibm',
   '+third_party/fp16/src/include',
