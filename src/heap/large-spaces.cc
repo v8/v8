@@ -407,8 +407,10 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(LocalHeap* local_heap,
 }
 
 size_t NewLargeObjectSpace::Available() const {
-  DCHECK_GE(capacity_, SizeOfObjects());
-  return capacity_ - SizeOfObjects();
+  // Due to resizing of large objects, SizeOfObjects() can become larger than
+  // capacity_.
+  const size_t size_of_objects = SizeOfObjects();
+  return capacity_ > size_of_objects ? capacity_ - size_of_objects : 0;
 }
 
 void NewLargeObjectSpace::Flip() {
