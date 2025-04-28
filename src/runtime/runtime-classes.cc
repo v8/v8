@@ -674,36 +674,28 @@ namespace {
 
 enum class SuperMode { kLoad, kStore };
 
-MaybeDirectHandle<JSReceiver> GetSuperHolder(Isolate* isolate,
-                                             DirectHandle<JSObject> home_object,
-                                             SuperMode mode, PropertyKey* key) {
-  if (IsAccessCheckNeeded(*home_object) &&
-      !isolate->MayAccess(isolate->native_context(), home_object)) {
-    RETURN_ON_EXCEPTION(isolate, isolate->ReportFailedAccessCheck(home_object));
-    UNREACHABLE();
-  }
-
-  PrototypeIterator iter(isolate, home_object);
-  DirectHandle<Object> proto = PrototypeIterator::GetCurrent(iter);
-  if (!IsJSReceiver(*proto)) {
+MaybeDirectHandle<JSReceiver> GetSuperHolder(
+    Isolate* isolate, DirectHandle<Object> home_object_proto, SuperMode mode,
+    PropertyKey* key) {
+  if (!IsJSReceiver(*home_object_proto)) {
     MessageTemplate message =
         mode == SuperMode::kLoad
             ? MessageTemplate::kNonObjectPropertyLoadWithProperty
             : MessageTemplate::kNonObjectPropertyStoreWithProperty;
     DirectHandle<Name> name = key->GetName(isolate);
-    THROW_NEW_ERROR(isolate, NewTypeError(message, proto, name));
+    THROW_NEW_ERROR(isolate, NewTypeError(message, home_object_proto, name));
   }
-  return Cast<JSReceiver>(proto);
+  return Cast<JSReceiver>(home_object_proto);
 }
 
 MaybeDirectHandle<Object> LoadFromSuper(Isolate* isolate,
                                         DirectHandle<JSAny> receiver,
-                                        DirectHandle<JSObject> home_object,
+                                        DirectHandle<Object> home_object_proto,
                                         PropertyKey* key) {
   DirectHandle<JSReceiver> holder;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, holder,
-      GetSuperHolder(isolate, home_object, SuperMode::kLoad, key));
+      GetSuperHolder(isolate, home_object_proto, SuperMode::kLoad, key));
   LookupIterator it(isolate, receiver, *key, holder);
   DirectHandle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, result, Object::GetProperty(&it));
@@ -712,6 +704,17 @@ MaybeDirectHandle<Object> LoadFromSuper(Isolate* isolate,
 
 }  // anonymous namespace
 
+static MaybeDirectHandle<Object> GetHomeObjectPrototype(
+    Isolate* isolate, DirectHandle<JSObject> home_object) {
+  if (IsAccessCheckNeeded(*home_object) &&
+      !isolate->MayAccess(isolate->native_context(), home_object)) {
+    RETURN_ON_EXCEPTION(isolate, isolate->ReportFailedAccessCheck(home_object));
+    UNREACHABLE();
+  }
+  PrototypeIterator iter(isolate, home_object);
+  return PrototypeIterator::GetCurrent(iter);
+}
+
 RUNTIME_FUNCTION(Runtime_LoadFromSuper) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
@@ -719,10 +722,14 @@ RUNTIME_FUNCTION(Runtime_LoadFromSuper) {
   DirectHandle<JSObject> home_object = args.at<JSObject>(1);
   DirectHandle<Name> name = args.at<Name>(2);
 
+  DirectHandle<Object> home_object_proto;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, home_object_proto, GetHomeObjectPrototype(isolate, home_object));
+
   PropertyKey key(isolate, name);
 
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           LoadFromSuper(isolate, receiver, home_object, &key));
+  RETURN_RESULT_OR_FAILURE(
+      isolate, LoadFromSuper(isolate, receiver, home_object_proto, &key));
 }
 
 
@@ -731,22 +738,25 @@ RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
   DCHECK_EQ(3, args.length());
   DirectHandle<JSAny> receiver = args.at<JSAny>(0);
   DirectHandle<JSObject> home_object = args.at<JSObject>(1);
-  // TODO(ishell): To improve performance, consider performing the to-string
-  // conversion of {key} before calling into the runtime.
   DirectHandle<Object> key = args.at(2);
+
+  DirectHandle<Object> home_object_proto;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, home_object_proto, GetHomeObjectPrototype(isolate, home_object));
 
   bool success;
   PropertyKey lookup_key(isolate, key, &success);
   if (!success) return ReadOnlyRoots(isolate).exception();
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, LoadFromSuper(isolate, receiver, home_object, &lookup_key));
+      isolate,
+      LoadFromSuper(isolate, receiver, home_object_proto, &lookup_key));
 }
 
 namespace {
 
 MaybeDirectHandle<Object> StoreToSuper(Isolate* isolate,
-                                       DirectHandle<JSObject> home_object,
+                                       DirectHandle<Object> home_object_proto,
                                        DirectHandle<JSAny> receiver,
                                        PropertyKey* key,
                                        DirectHandle<Object> value,
@@ -754,7 +764,7 @@ MaybeDirectHandle<Object> StoreToSuper(Isolate* isolate,
   DirectHandle<JSReceiver> holder;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, holder,
-      GetSuperHolder(isolate, home_object, SuperMode::kStore, key));
+      GetSuperHolder(isolate, home_object_proto, SuperMode::kStore, key));
   LookupIterator it(isolate, receiver, *key, holder);
   MAYBE_RETURN(Object::SetSuperProperty(&it, value, store_origin),
                MaybeDirectHandle<Object>());
@@ -771,10 +781,14 @@ RUNTIME_FUNCTION(Runtime_StoreToSuper) {
   DirectHandle<Name> name = args.at<Name>(2);
   DirectHandle<Object> value = args.at(3);
 
+  DirectHandle<Object> home_object_proto;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, home_object_proto, GetHomeObjectPrototype(isolate, home_object));
+
   PropertyKey key(isolate, name);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, StoreToSuper(isolate, home_object, receiver, &key, value,
+      isolate, StoreToSuper(isolate, home_object_proto, receiver, &key, value,
                             StoreOrigin::kNamed));
 }
 
@@ -783,18 +797,20 @@ RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper) {
   DCHECK_EQ(4, args.length());
   DirectHandle<JSAny> receiver = args.at<JSAny>(0);
   DirectHandle<JSObject> home_object = args.at<JSObject>(1);
-  // TODO(ishell): To improve performance, consider performing the to-string
-  // conversion of {key} before calling into the runtime.
   DirectHandle<Object> key = args.at(2);
   DirectHandle<Object> value = args.at(3);
+
+  DirectHandle<Object> home_object_proto;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, home_object_proto, GetHomeObjectPrototype(isolate, home_object));
 
   bool success;
   PropertyKey lookup_key(isolate, key, &success);
   if (!success) return ReadOnlyRoots(isolate).exception();
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, StoreToSuper(isolate, home_object, receiver, &lookup_key, value,
-                            StoreOrigin::kMaybeKeyed));
+      isolate, StoreToSuper(isolate, home_object_proto, receiver, &lookup_key,
+                            value, StoreOrigin::kMaybeKeyed));
 }
 
 }  // namespace internal

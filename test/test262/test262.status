@@ -2186,10 +2186,6 @@
   'intl402/Temporal/ZonedDateTime/from/canonicalize-era-codes': [SKIP],
   'language/destructuring/binding/keyed-destructuring-property-reference-target-evaluation-order-with-bindings': [SKIP],
   'language/expressions/delete/super-property-uninitialized-this': [SKIP],
-  'language/expressions/super/prop-expr-getsuperbase-before-topropertykey-getvalue': [SKIP],
-  'language/expressions/super/prop-expr-getsuperbase-before-topropertykey-putvalue': [SKIP],
-  'language/expressions/super/prop-expr-getsuperbase-before-topropertykey-putvalue-compound-assign': [SKIP],
-  'language/expressions/super/prop-expr-getsuperbase-before-topropertykey-putvalue-increment': [SKIP],
 }],
 # End roll-watcher patch
 ####
