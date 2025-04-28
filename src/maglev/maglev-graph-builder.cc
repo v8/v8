@@ -8048,11 +8048,11 @@ ReduceResult MaglevGraphBuilder::VisitAdd_LhsIsStringConstant_Internalize() {
     ValueNode* vector = GetConstant(feedback());
     result =
         BuildCallBuiltin<Builtin::kAddLhsIsStringConstantInternalizeWithVector>(
-            {left, right, slot, vector});
+            {GetTaggedValue(left), GetTaggedValue(right), slot, vector});
   } else {
     result =
         BuildCallBuiltin<Builtin::kAddLhsIsStringConstantInternalizeTrampoline>(
-            {left, right, slot});
+            {GetTaggedValue(left), GetTaggedValue(right), slot});
   }
   SetAccumulator(result);
   return ReduceResult::Done();
