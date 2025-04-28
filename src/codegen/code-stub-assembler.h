@@ -375,6 +375,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Int64T> CountLeadingZeros64(TNode<Word64T> value);
   TNode<Int32T> CountLeadingZeros32(TNode<Word32T> value);
 
+  TNode<Int32T> NumberToMathClz32(TNode<Number> value);
+
   // Round the 32bits payload of the provided word up to the next power of two.
   TNode<IntPtrT> IntPtrRoundUpToPowerOfTwo32(TNode<IntPtrT> value);
   // Select the maximum of the two provided IntPtr values.

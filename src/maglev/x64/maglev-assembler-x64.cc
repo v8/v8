@@ -359,6 +359,10 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   }
 }
 
+void MaglevAssembler::CountLeadingZerosInt32(Register dst, Register src) {
+  Lzcntl(dst, src);
+}
+
 void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
   ZoneLabelRef done(this);
 

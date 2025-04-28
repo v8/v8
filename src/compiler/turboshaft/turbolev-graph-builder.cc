@@ -3912,6 +3912,23 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::Int32CountLeadingZeros* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ Word32CountLeadingZeros(Map(node->input())));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::SmiCountLeadingZeros* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ Word32CountLeadingZeros(__ UntagSmi(Map(node->input()))));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::Float64CountLeadingZeros* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ Word32CountLeadingZeros(
+                     __ JSTruncateFloat64ToWord32(Map(node->input()))));
+    return maglev::ProcessResult::kContinue;
+  }
+
 #define PROCESS_FLOAT64_BINOP(MaglevName, TurboshaftName)               \
   maglev::ProcessResult Process(maglev::Float64##MaglevName* node,      \
                                 const maglev::ProcessingState& state) { \

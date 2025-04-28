@@ -360,6 +360,7 @@ namespace internal {
   TFC(MathCeilContinuation, SingleParameterOnStack)                            \
   TFC(MathFloorContinuation, SingleParameterOnStack)                           \
   TFC(MathRoundContinuation, SingleParameterOnStack)                           \
+  TFC(MathClz32Continuation, SingleParameterOnStack)                           \
                                                                                \
   /* Handlers */                                                               \
   TFH(KeyedLoadIC_PolymorphicName, LoadWithVector)                             \
