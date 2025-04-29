@@ -7748,9 +7748,8 @@ TNode<BoolT> CodeStubAssembler::IsPrototypeTypedArrayPrototype(
 }
 
 void CodeStubAssembler::InvalidateStringWrapperToPrimitiveProtector() {
-  TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = StringWrapperToPrimitiveProtectorConstant();
-  StoreObjectField(cell, PropertyCell::kValueOffset, invalid);
+  CallRuntime(Runtime::kInvalidateProtector, NoContextConstant(), cell);
 }
 
 TNode<BoolT> CodeStubAssembler::IsFastAliasedArgumentsMap(

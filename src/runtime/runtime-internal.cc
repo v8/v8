@@ -789,6 +789,14 @@ RUNTIME_FUNCTION(Runtime_NotifyContextCellStateWillChange) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_InvalidateProtector) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  auto cell = Cast<PropertyCell>(args.at<HeapObject>(0));
+  cell->InvalidateProtector();
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_AddLhsIsStringConstantInternalize) {
   UNREACHABLE();  // Lowered to a builtin call instead.
 }
