@@ -2780,11 +2780,11 @@
 }],  # cet_shadow_stack
 
 ##############################################################################
-['variant == conservative_pinning', {
+['variant == conservative_stack_scanning', {
   'regress/regress-12657': [SKIP],
   'regress/regress-678917': [SKIP],
   'maglev/regress-1407606': [SKIP],
-}],  # variant == conservative_pinning
+}],  # variant == conservative_stack_scanning
 
 ##############################################################################
 ['variant in [jit_fuzzing, jit_fuzzing_maglev]', {
