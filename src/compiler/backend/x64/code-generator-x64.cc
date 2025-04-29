@@ -1344,8 +1344,8 @@ void SetupSimdImmediateInRegister(MacroAssembler* assembler, uint32_t* imms,
 
 void SetupSimd256ImmediateInRegister(MacroAssembler* assembler, uint32_t* imms,
                                      YMMRegister reg, XMMRegister scratch) {
-  bool is_splat = std::all_of(imms, imms + kSimd256Size,
-                              [imms](uint32_t v) { return v == imms[0]; });
+  bool is_splat =
+      std::all_of(imms, imms + 8, [imms](uint32_t v) { return v == imms[0]; });
   if (is_splat) {
     assembler->Move(scratch, imms[0]);
     CpuFeatureScope avx_scope(assembler, AVX2);
