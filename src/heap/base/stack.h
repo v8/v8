@@ -59,11 +59,6 @@ class V8_EXPORT_PRIVATE Stack final {
   // and going to the stack start. Slot values are passed on to `visitor`.
   void IteratePointersUntilMarker(StackVisitor* visitor) const;
 
-  // Word-aligned iteration of the stack, starting at the `stack_marker_`
-  // and going to the given address. Slot values are passed on to `visitor`.
-  void IteratePointersFromAddressUntilMarker(StackVisitor* visitor,
-                                             const void* address) const;
-
   // Iterate just the background stacks, if any.
   void IterateBackgroundStacks(StackVisitor* visitor) const;
 
@@ -213,8 +208,6 @@ class V8_EXPORT_PRIVATE Stack final {
         background_stacks.erase(thread);
     }
   }
-
-  void IteratePointersInSegment(StackVisitor* visitor, Segment segment) const;
 
   Segment current_segment_;
 
