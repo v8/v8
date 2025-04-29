@@ -11096,8 +11096,7 @@ bool MicrotasksScope::IsRunningMicrotasks(Isolate* v8_isolate) {
   return microtask_queue->IsRunningMicrotasks();
 }
 
-String::Utf8Value::Utf8Value(v8::Isolate* v8_isolate, v8::Local<v8::Value> obj,
-                             WriteOptions options)
+String::Utf8Value::Utf8Value(v8::Isolate* v8_isolate, v8::Local<v8::Value> obj)
     : str_(nullptr), length_(0) {
   if (obj.IsEmpty()) return;
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -11109,9 +11108,8 @@ String::Utf8Value::Utf8Value(v8::Isolate* v8_isolate, v8::Local<v8::Value> obj,
   if (!obj->ToString(context).ToLocal(&str)) return;
   length_ = str->Utf8LengthV2(v8_isolate);
   str_ = i::NewArray<char>(length_ + 1);
-  int flags = String::WriteFlags::kNullTerminate;
-  if (options & REPLACE_INVALID_UTF8)
-    flags |= String::WriteFlags::kReplaceInvalidUtf8;
+  int flags = String::WriteFlags::kNullTerminate |
+              String::WriteFlags::kReplaceInvalidUtf8;
   str->WriteUtf8V2(v8_isolate, str_, length_ + 1, flags);
 }
 
