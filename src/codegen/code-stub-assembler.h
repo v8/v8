@@ -3030,6 +3030,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<String> NumberToString(TNode<Number> input);
   TNode<String> NumberToString(TNode<Number> input, Label* bailout);
 
+  TNode<String> TryMatchPreallocatedNumberString(TNode<Int32T> value,
+                                                 Label* bailout);
+
   // Convert a Non-Number object to a Number.
   TNode<Number> NonNumberToNumber(
       TNode<Context> context, TNode<HeapObject> input,
@@ -4783,6 +4786,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void TryPlainPrimitiveNonNumberToNumber(TNode<HeapObject> input,
                                           TVariable<Number>* var_result,
                                           Label* if_bailout);
+
+  // Checks if the value falls into [range_start, range_start+table_size) range
+  // and returns respective root entry [table_start, table_start+table_size).
+  // Otherwise jumps to out_of_range label.
+  // If the label is not provided, CSA_DCHECK is generated to ensure the range.
+  TNode<Object> TryMatchRootRange(TNode<Int32T> value, unsigned range_start,
+                                  RootIndex table_start, unsigned table_size,
+                                  Label* out_of_range);
 
   void DcheckHasValidMap(TNode<HeapObject> object);
 

@@ -1061,6 +1061,19 @@ Handle<String> FactoryBase<Impl>::HeapNumberToString(
 template <typename Impl>
 inline Handle<String> FactoryBase<Impl>::SmiToString(Tagged<Smi> number,
                                                      NumberCacheMode mode) {
+  // LINT.IfChange(CheckPreallocatedNumberStrings)
+  {
+    DCHECK_EQ(kPreallocatedNumberStringTableSize,
+              preallocated_number_string_table()->length());
+    int index = number.value();
+    if (static_cast<unsigned>(index) < kPreallocatedNumberStringTableSize) {
+      return handle(
+          Cast<String>(preallocated_number_string_table()->get(index)),
+          isolate());
+    }
+  }
+  // LINT.ThenChange(/src/codegen/code-stub-assembler.cc:CheckPreallocatedNumberStrings)
+
   int hash = mode == NumberCacheMode::kIgnore
                  ? 0
                  : impl()->NumberToStringCacheHash(number);
@@ -1071,9 +1084,7 @@ inline Handle<String> FactoryBase<Impl>::SmiToString(Tagged<Smi> number,
   }
 
   Handle<String> result;
-  if (number == Smi::zero()) {
-    result = zero_string();
-  } else {
+  {
     char arr[kNumberToStringBufferSize];
     base::Vector<char> buffer(arr, arraysize(arr));
     std::string_view string = IntToStringView(number.value(), buffer);

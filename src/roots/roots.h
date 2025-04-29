@@ -244,6 +244,8 @@ class RootVisitor;
   V(RegisteredSymbolTable, empty_symbol_table, EmptySymbolTable)               \
   /* Hash seed */                                                              \
   V(ByteArray, hash_seed, HashSeed)                                            \
+  V(FixedArray, preallocated_number_string_table,                              \
+    PreallocatedNumberStringTable)                                             \
   IF_WASM(V, HeapObject, wasm_null_padding, WasmNullPadding)                   \
   IF_WASM(V, WasmNull, wasm_null, WasmNull)
 
@@ -516,8 +518,11 @@ enum class RootIndex : uint16_t {
   // Heap::CreateLateReadOnlyJSReceiverMaps.
   kFirstJSReceiverMapRoot = kJSSharedArrayMap,
 
+  kSingleCharacterStringRootsCount =
+      SINGLE_CHARACTER_INTERNALIZED_STRING_LIST_GENERATOR(COUNT_ROOT, n/a),
   kFirstSingleCharacterString = kascii_nul_string,
-  kLastSingleCharacterString = kFirstSingleCharacterString + 0xff,
+  kLastSingleCharacterString =
+      kFirstSingleCharacterString + kSingleCharacterStringRootsCount - 1,
 
   // Use for fast protector update checks
   kFirstNameForProtector = kconstructor_string,
@@ -635,9 +640,8 @@ class RootsTable {
 
   static constexpr RootIndex SingleCharacterStringIndex(int c) {
     DCHECK_GE(c, 0);
-    DCHECK_LE(
-        c, static_cast<unsigned>(RootIndex::kLastSingleCharacterString) -
-               static_cast<unsigned>(RootIndex::kFirstSingleCharacterString));
+    DCHECK_LT(
+        c, static_cast<unsigned>(RootIndex::kSingleCharacterStringRootsCount));
     static_assert(static_cast<int>(RootIndex::kFirstReadOnlyRoot) == 0);
     return static_cast<RootIndex>(
         static_cast<unsigned>(RootIndex::kFirstSingleCharacterString) + c);

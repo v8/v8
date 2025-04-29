@@ -1050,7 +1050,8 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kNativeScopeInfo = 0x5f95;
   static constexpr Tagged_t kShadowRealmScopeInfo = 0x5fad;
   static constexpr Tagged_t kManyClosuresCell = 0x5fc5;
-  static constexpr Tagged_t kWasmNullPadding = 0x5fd5;
+  static constexpr Tagged_t kPreallocatedNumberStringTable = 0x5fd5;
+  static constexpr Tagged_t kWasmNullPadding = 0x670d;
   static constexpr Tagged_t kWasmNull = 0xfffd;
   static constexpr Tagged_t kJSMessageObjectMap = 0x20001;
   static constexpr Tagged_t kExternalMap = 0x20029;
@@ -1064,7 +1065,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kLastAllocatedRoot = 0x20111;
 };
 
-static constexpr std::array<Tagged_t, 1030> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 1031> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kFreeSpaceMap,
     StaticReadOnlyRoot::kOnePointerFillerMap,
     StaticReadOnlyRoot::kTwoPointerFillerMap,
@@ -1234,6 +1235,7 @@ static constexpr std::array<Tagged_t, 1030> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kShadowRealmScopeInfo,
     StaticReadOnlyRoot::kEmptySymbolTable,
     StaticReadOnlyRoot::kHashSeed,
+    StaticReadOnlyRoot::kPreallocatedNumberStringTable,
     StaticReadOnlyRoot::kWasmNullPadding,
     StaticReadOnlyRoot::kWasmNull,
     StaticReadOnlyRoot::kprototype_string,

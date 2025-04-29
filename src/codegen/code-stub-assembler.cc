@@ -8743,16 +8743,16 @@ TNode<String> CodeStubAssembler::StringFromSingleOneByteCharCode(
   CSA_DCHECK(this, Uint32LessThanOrEqual(
                        code, Int32Constant(String::kMaxOneByteCharCode)));
 
-  // Load the string for the {code} directly from the roots table.
-  TNode<UintPtrT> code_index = ChangeUint32ToWord(code);
-  TNode<IntPtrT> single_char_string_table_offset = IntPtrConstant(
-      IsolateData::root_slot_offset(RootIndex::kFirstSingleCharacterString));
+  const int single_char_string_table_size =
+      static_cast<int>(RootIndex::kSingleCharacterStringRootsCount);
 
+  // Load the string for the {code} directly from the roots table.
   // TODO(ishell): consider completely avoiding the load:
-  // entry = roots.single_character_string('\0') +
-  //     SeqOneByteString::SizeFor(1) * code + kHeapObjectTag;
-  TNode<Object> entry = LoadTaggedFromRootRegister(Signed(IntPtrAdd(
-      single_char_string_table_offset, TimesSystemPointerSize(code_index))));
+  // entry = ReadOnlyRoots[table_start] + SeqOneByteString::SizeFor(1) * index;
+  TNode<Object> entry = TryMatchRootRange(
+      UncheckedCast<Int32T>(code), 0, RootIndex::kFirstSingleCharacterString,
+      single_char_string_table_size, nullptr);
+
   return CAST(entry);
 }
 
@@ -9060,22 +9060,59 @@ TNode<Number> CodeStubAssembler::StringToNumber(TNode<String> input) {
   return var_result.value();
 }
 
+TNode<Object> CodeStubAssembler::TryMatchRootRange(TNode<Int32T> value,
+                                                   unsigned range_start,
+                                                   RootIndex table_start,
+                                                   unsigned table_size,
+                                                   Label* out_of_range) {
+  DCHECK_GT(table_size, 0);
+  DCHECK_LT(static_cast<unsigned>(table_start) + table_size,
+            static_cast<unsigned>(RootIndex::kRootListLength));
+
+  if (range_start) {
+    // In case |range_start| is zero the below checks will properly handle
+    // negative values.
+    CSA_DCHECK(this, Int32GreaterThanOrEqual(value, Int32Constant(0)));
+    value = Int32Sub(value, Int32Constant(range_start));
+  }
+
+  if (out_of_range) {
+    GotoIf(Uint32GreaterThanOrEqual(value, Int32Constant(table_size)),
+           out_of_range);
+  } else {
+    CSA_DCHECK(this, Uint32LessThan(value, Int32Constant(table_size)));
+  }
+  // Load respective value from the roots table.
+  TNode<UintPtrT> index = ChangeUint32ToWord(value);
+
+  TNode<Object> entry = LoadTaggedFromRootRegister(Signed(
+      IntPtrAdd(IntPtrConstant(IsolateData::root_slot_offset(table_start)),
+                TimesSystemPointerSize(index))));
+  return entry;
+}
+
+// LINT.IfChange(CheckPreallocatedNumberStrings)
+TNode<String> CodeStubAssembler::TryMatchPreallocatedNumberString(
+    TNode<Int32T> value, Label* bailout) {
+  GotoIf(Uint32GreaterThanOrEqual(
+             value, Int32Constant(kPreallocatedNumberStringTableSize)),
+         bailout);
+
+  TNode<FixedArray> table =
+      CAST(LoadRoot(RootIndex::kPreallocatedNumberStringTable));
+
+  TNode<Object> result =
+      UnsafeLoadFixedArrayElement(table, ChangeInt32ToIntPtr(value));
+
+  return CAST(result);
+}
+// LINT.ThenChange(/src/heap/factory-base.cc:CheckPreallocatedNumberStrings)
+
 TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
                                                 Label* bailout) {
   TVARIABLE(String, result);
   TVARIABLE(Smi, smi_input);
   Label if_smi(this), not_smi(this), if_heap_number(this), done(this, &result);
-
-  // Load the number string cache.
-  TNode<FixedArray> number_string_cache = NumberStringCacheConstant();
-
-  // Make the hash mask from the length of the number string cache. It
-  // contains two elements (number and string) for each cache entry.
-  TNode<Uint32T> number_string_cache_length =
-      LoadAndUntagFixedArrayBaseLengthAsUint32(number_string_cache);
-  TNode<Int32T> one = Int32Constant(1);
-  TNode<Word32T> mask =
-      Int32Sub(Word32Shr(number_string_cache_length, one), one);
 
   GotoIfNot(TaggedIsSmi(input), &if_heap_number);
   smi_input = CAST(input);
@@ -9092,8 +9129,26 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
   BIND(&if_smi);
   {
     Comment("NumberToString - Smi");
+    TNode<Int32T> int32_value = SmiToInt32(smi_input.value());
+
+    Label query_cache(this);
+    result = TryMatchPreallocatedNumberString(int32_value, &query_cache);
+    Goto(&done);
+    BIND(&query_cache);
+
+    // Load the number string cache.
+    TNode<FixedArray> number_string_cache = NumberStringCacheConstant();
+
+    // Make the hash mask from the length of the number string cache. It
+    // contains two elements (number and string) for each cache entry.
+    TNode<Uint32T> number_string_cache_length =
+        LoadAndUntagFixedArrayBaseLengthAsUint32(number_string_cache);
+    TNode<Int32T> one = Int32Constant(1);
+    TNode<Word32T> mask =
+        Int32Sub(Word32Shr(number_string_cache_length, one), one);
+
     // Load the smi key, make sure it matches the smi we're looking for.
-    TNode<Word32T> hash = Word32And(SmiToInt32(smi_input.value()), mask);
+    TNode<Word32T> hash = Word32And(int32_value, mask);
     TNode<IntPtrT> entry_index =
         Signed(ChangeUint32ToWord(Int32Add(hash, hash)));
     TNode<Object> smi_key =
@@ -9120,7 +9175,7 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
       BIND(&store_to_cache);
       {
         // Generate string and update string hash field.
-        result = IntToDecimalString(SmiToInt32(smi_input.value()));
+        result = IntToDecimalString(int32_value);
 
         // Store string into cache.
         StoreFixedArrayElement(number_string_cache, entry_index,
@@ -9135,6 +9190,17 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
 
   BIND(&not_smi);
   {
+    // Load the number string cache.
+    TNode<FixedArray> number_string_cache = NumberStringCacheConstant();
+
+    // Make the hash mask from the length of the number string cache. It
+    // contains two elements (number and string) for each cache entry.
+    TNode<Uint32T> number_string_cache_length =
+        LoadAndUntagFixedArrayBaseLengthAsUint32(number_string_cache);
+    TNode<Int32T> one = Int32Constant(1);
+    TNode<Word32T> mask =
+        Int32Sub(Word32Shr(number_string_cache_length, one), one);
+
     // Make a hash from the two 32-bit values of the double.
     TNode<Int32T> low = LoadObjectField<Int32T>(heap_number_input,
                                                 offsetof(HeapNumber, value_));

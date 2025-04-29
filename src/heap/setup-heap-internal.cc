@@ -1266,6 +1266,36 @@ bool Heap::CreateReadOnlyObjects() {
       factory->NewManyClosuresCell(AllocationType::kReadOnly);
   set_many_closures_cell(*many_closures_cell);
 
+  // Allocate and initialize table for preallocated number strings.
+  {
+    HandleScope handle_scope(isolate());
+    Handle<FixedArray> preallocated_number_string_table =
+        factory->NewFixedArray(kPreallocatedNumberStringTableSize,
+                               AllocationType::kReadOnly);
+
+    char arr[16];
+    base::Vector<char> buffer(arr, arraysize(arr));
+
+    static_assert(kPreallocatedNumberStringTableSize >= 10);
+    for (int i = 0; i < 10; ++i) {
+      RootIndex root_index = RootsTable::SingleCharacterStringIndex('0' + i);
+      Tagged<String> str =
+          Cast<String>(factory->read_only_roots().object_at(root_index));
+      DCHECK(ReadOnlyHeap::Contains(str));
+      preallocated_number_string_table->set(i, str);
+    }
+
+    // This code duplicates FactoryBase::SmiToNumber.
+    for (int i = 10; i < kPreallocatedNumberStringTableSize; ++i) {
+      std::string_view string = IntToStringView(i, buffer);
+      Handle<String> str = factory->InternalizeString(
+          base::OneByteVector(string.data(), string.length()));
+
+      DCHECK(ReadOnlyHeap::Contains(*str));
+      preallocated_number_string_table->set(i, *str);
+    }
+    set_preallocated_number_string_table(*preallocated_number_string_table);
+  }
   // Initialize the wasm null_value.
 
 #ifdef V8_ENABLE_WEBASSEMBLY

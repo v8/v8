@@ -2901,6 +2901,8 @@ constexpr uint64_t kInvalidWasmSignatureHash = ~uint64_t{0};
 
 enum class CallJumpMode { kCall, kTailCall };
 
+constexpr int kPreallocatedNumberStringTableSize = 100;
+
 }  // namespace internal
 
 // Tag dispatching support for atomic loads and stores.
