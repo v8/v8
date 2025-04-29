@@ -2868,6 +2868,12 @@ void WasmSuspendingObject::WasmSuspendingObjectPrint(std::ostream& os) {
   os << "\n";
 }
 
+void WasmContinuationObject::WasmContinuationObjectPrint(std::ostream& os) {
+  PrintHeader(os, "WasmContinuationObject");
+  os << "\n - stack: " << (stack() == nullptr ? -1 : stack()->id());
+  os << "\n";
+}
+
 void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
   IsolateForSandbox isolate = GetIsolateForSandbox(*this);
   JSObjectPrintHeader(os, *this, "WasmInstanceObject");

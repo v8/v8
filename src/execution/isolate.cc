@@ -634,9 +634,7 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
     if (stack->IsActive()) {
       continue;
     }
-    for (StackFrameIterator it(this, stack.get()); !it.done(); it.Advance()) {
-      it.frame()->Iterate(v);
-    }
+    stack->Iterate(v, this);
   }
   StackFrameIterator it(this, thread, StackFrameIterator::FirstStackOnly{});
 #else

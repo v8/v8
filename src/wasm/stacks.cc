@@ -5,6 +5,7 @@
 #include "src/wasm/stacks.h"
 
 #include "src/base/platform/platform.h"
+#include "src/execution/frames.h"
 #include "src/execution/simulator.h"
 #include "src/wasm/wasm-engine.h"
 
@@ -82,6 +83,15 @@ StackMemory::StackSegment::~StackSegment() {
   }
 }
 
+void StackMemory::Iterate(v8::internal::RootVisitor* v, Isolate* isolate) {
+  for (StackFrameIterator it(isolate, this); !it.done(); it.Advance()) {
+    it.frame()->Iterate(v);
+  }
+  v->VisitRootPointer(
+      Root::kStackRoots, nullptr,
+      FullObjectSlot(reinterpret_cast<Address>(&this->current_cont_)));
+}
+
 bool StackMemory::Grow(Address current_fp) {
   DCHECK(owned_);
   if (active_segment_->next_segment_ != nullptr) {
@@ -146,6 +156,11 @@ void StackMemory::Reset() {
   active_segment_ = first_segment_;
   size_ = active_segment_->size_;
   clear_stack_switch_info();
+  current_cont_ = {};
+}
+
+bool StackMemory::IsValidContinuation(Tagged<WasmContinuationObject> cont) {
+  return current_cont_ == cont;
 }
 
 std::unique_ptr<StackMemory> StackPool::GetOrAllocate() {

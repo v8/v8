@@ -1566,6 +1566,20 @@ class WasmSuspendingObject
   TQ_OBJECT_CONSTRUCTORS(WasmSuspendingObject)
 };
 
+// The continuation object is a token used during resume & suspend
+// See: https://github.com/WebAssembly/stack-switching.
+class WasmContinuationObject
+    : public TorqueGeneratedWasmContinuationObject<WasmContinuationObject,
+                                                   HeapObject> {
+ public:
+  using BodyDescriptor = StackedBodyDescriptor<
+      FixedBodyDescriptorFor<WasmContinuationObject>,
+      WithExternalPointer<kStackOffset, kWasmStackMemoryTag>>;
+  DECL_EXTERNAL_POINTER_ACCESSORS(stack, wasm::StackMemory*)
+  DECL_PRINTER(WasmContinuationObject)
+  TQ_OBJECT_CONSTRUCTORS(WasmContinuationObject)
+};
+
 class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
  public:
 #if V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL

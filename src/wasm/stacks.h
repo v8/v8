@@ -12,6 +12,7 @@
 #include <optional>
 
 #include "src/common/globals.h"
+#include "src/objects/visitors.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {
@@ -28,6 +29,7 @@ struct JumpBuffer {
   Address pc;
   void* stack_limit;
   StackMemory* parent = nullptr;
+
   // We track the state below to prevent stack corruptions under the sandbox
   // security model.
   // Assuming that the external pointer to the jump buffer has been corrupted
@@ -78,6 +80,7 @@ class StackMemory {
 #endif
     return memory_limit - kStackBaseSafetyOffset;
   }
+  bool IsValidContinuation(Tagged<WasmContinuationObject> cont);
   JumpBuffer* jmpbuf() { return &jmpbuf_; }
   bool Contains(Address addr) {
     if (!owned_) {
@@ -113,6 +116,8 @@ class StackMemory {
       segment = segment->next_segment_;
     }
   }
+  void Iterate(v8::internal::RootVisitor* v, Isolate* isolate);
+
   Address old_fp() { return active_segment_->old_fp; }
   bool Grow(Address current_fp);
   Address Shrink();
@@ -197,6 +202,7 @@ class StackMemory {
   StackSwitchInfo stack_switch_info_;
   StackSegment* first_segment_ = nullptr;
   StackSegment* active_segment_ = nullptr;
+  Tagged<WasmContinuationObject> current_cont_ = {};
 };
 
 constexpr int kStackSpOffset =

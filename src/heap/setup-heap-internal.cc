@@ -785,6 +785,8 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
             wasm_resume_data)
     IF_WASM(ALLOCATE_MAP, WASM_SUSPENDER_OBJECT_TYPE,
             WasmSuspenderObject::kSize, wasm_suspender_object)
+    IF_WASM(ALLOCATE_MAP, WASM_CONTINUATION_OBJECT_TYPE,
+            WasmContinuationObject::kSize, wasm_continuation_object)
     IF_WASM(ALLOCATE_MAP, WASM_TYPE_INFO_TYPE, kVariableSizeSentinel,
             wasm_type_info)
     IF_WASM(ALLOCATE_MAP, WASM_NULL_TYPE, kVariableSizeSentinel, wasm_null);

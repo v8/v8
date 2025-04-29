@@ -177,6 +177,10 @@ extern class WasmSuspenderObject extends HeapObject {
   reject: JSObject|Undefined;
 }
 
+extern class WasmContinuationObject extends HeapObject {
+  stack: ExternalPointer;
+}
+
 extern class WasmExceptionTag extends Struct {
   // Note that this index is only useful for debugging purposes and it is not
   // unique across modules. The GC however does not allow objects without at
