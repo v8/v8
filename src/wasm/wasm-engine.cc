@@ -1354,9 +1354,9 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
     if (code_to_log.native_module == nullptr) {
       // Wrapper code objects have neither Script nor NativeModule.
       DCHECK_EQ(script_id, -1);
-      continue;
+    } else {
+      native_modules_with_code_to_log.insert(code_to_log.native_module);
     }
-    native_modules_with_code_to_log.insert(code_to_log.native_module);
     for (WasmCode* code : code_to_log.code) {
       // Keep a reference in the {code_ref_scope_for_dead_code} such that the
       // code cannot become dead immediately.
