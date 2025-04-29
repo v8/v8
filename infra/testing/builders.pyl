@@ -333,7 +333,7 @@
     'swarming_dimensions': {
       'os': 'Linux',
       'cpu': 'arm64',
-      'pool': 'chromium.tests',
+      'pool': 'v8.tests',
     },
     'tests': [
       {'name': 'v8testing', 'variant': 'default'},
@@ -343,7 +343,7 @@
     'swarming_dimensions': {
       'os': 'Linux',
       'cpu': 'arm64',
-      'pool': 'chromium.tests',
+      'pool': 'v8.tests',
     },
     'tests': [
       {'name': 'v8testing', 'variant': 'default'},
@@ -2534,7 +2534,7 @@
     'swarming_dimensions': {
       'os': 'Linux',
       'cpu': 'arm64',
-      'pool': 'chromium.tests',
+      'pool': 'v8.tests',
     },
     'tests': [
       {'name': 'v8testing',  'variant': 'default'},
@@ -2544,7 +2544,7 @@
     'swarming_dimensions': {
       'os': 'Linux',
       'cpu': 'arm64',
-      'pool': 'chromium.tests',
+      'pool': 'v8.tests',
     },
     'tests': [
       {'name': 'v8testing', 'variant': 'default'},
