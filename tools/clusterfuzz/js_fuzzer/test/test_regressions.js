@@ -474,11 +474,6 @@ describe('DB tests', () => {
     const source = helpers.loadTestData('regress/db/input/input.js');
     mutateDb.process(source);
     mutateDb.writeIndex();
-    const expressionFile = path.join(tmpOut, 'CallExpression/113f1844.json');
-    const content = fs.readFileSync(expressionFile, 'utf-8');
-    assert.deepEqual(
-        '{"type":"CallExpression","source":"Object.assign(VAR_0, VAR_1)",' +
-        '"path":"regress/db/input/input.js","dependencies":["VAR_0","VAR_1"]}',
-        content);
+    helpers.assertExpectedPath('regress/db/assign_expected', tmpOut);
   });
 });
