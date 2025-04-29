@@ -28,7 +28,9 @@
 #include "src/heap/trusted-range.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/free-space-inl.h"
+#include "src/objects/internal-index.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-collection-inl.h"
 #include "src/sandbox/external-pointer-table.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
@@ -277,12 +279,12 @@ void ShrinkNewSpace(NewSpace* new_space) {
   tracer->StopObservablePause(GarbageCollector::MARK_COMPACTOR,
                               base::TimeTicks::Now());
   if (heap->cpp_heap()) {
-    using namespace cppgc::internal;
-    StatsCollector* stats_collector =
+    cppgc::internal::StatsCollector* stats_collector =
         CppHeap::From(heap->cpp_heap())->stats_collector();
     stats_collector->NotifyMarkingStarted(
-        CollectionType::kMajor, cppgc::Heap::MarkingType::kAtomic,
-        MarkingConfig::IsForcedGC::kNotForced);
+        cppgc::internal::CollectionType::kMajor,
+        cppgc::Heap::MarkingType::kAtomic,
+        cppgc::internal::MarkingConfig::IsForcedGC::kNotForced);
     stats_collector->NotifyMarkingCompleted(0);
     stats_collector->NotifySweepingCompleted(
         cppgc::Heap::SweepingType::kAtomic);
@@ -881,6 +883,171 @@ TEST_F(HeapTest, PrecisePinningFullGCDoesntMoveOldObjectReachableFromHandles) {
   InvokeMajorGC();
 
   CHECK_EQ(number_address, number->address());
+}
+
+TEST_F(
+    HeapTest,
+    ConservativePinningScopeScavnegeDoesntMoveObjectReachableFromStackNoPromotion) {  // NOLINT(whitespace/line_length)
+  if (v8_flags.single_generation) return;
+  if (v8_flags.minor_ms) return;
+  v8_flags.scavenger_conservative_object_pinning = false;
+  v8_flags.scavenger_precise_object_pinning = false;
+  v8_flags.scavenger_promote_quarantined_pages = false;
+  ManualGCScope manual_gc_scope(isolate());
+
+  ConservativePinningScope conservative_pinning_scope;
+
+  IndirectHandle<HeapObject> number =
+      isolate()->factory()->NewHeapNumber<AllocationType::kYoung>(42);
+
+  // The conservative stack visitor will find this on the stack, so `number`
+  // will not move during GCs with stack.
+  Address number_address = number->address();
+
+  CHECK(HeapLayout::InYoungGeneration(*number));
+
+  for (int i = 0; i < 10; i++) {
+    InvokeMinorGC();
+    CHECK(HeapLayout::InYoungGeneration(*number));
+    CHECK_EQ(number_address, number->address());
+  }
+}
+
+TEST_F(HeapTest,
+       ConservativePinningScopeScavengeDoesntMoveObjectReachableFromStack) {
+  if (v8_flags.single_generation) return;
+  if (v8_flags.minor_ms) return;
+  v8_flags.scavenger_conservative_object_pinning = false;
+  v8_flags.scavenger_precise_object_pinning = false;
+  v8_flags.scavenger_promote_quarantined_pages = true;
+  ManualGCScope manual_gc_scope(isolate());
+
+  ConservativePinningScope conservative_pinning_scope;
+
+  IndirectHandle<HeapObject> number =
+      isolate()->factory()->NewHeapNumber<AllocationType::kYoung>(42);
+
+  // The conservative stack visitor will find this on the stack, so `number`
+  // will not move during a GC with stack.
+  Address number_address = number->address();
+
+  CHECK(HeapLayout::InYoungGeneration(*number));
+
+  InvokeMinorGC();
+  CHECK(HeapLayout::InYoungGeneration(*number));
+  CHECK_EQ(number_address, number->address());
+
+  // `number` is already in the intermediate generation. Another GC should
+  // now promote the page to the old generation, again not moving the object.
+  InvokeMinorGC();
+  CHECK(!HeapLayout::InYoungGeneration(*number));
+  CHECK_EQ(number_address, number->address());
+}
+
+TEST_F(HeapTest,
+       ConservativePinningScopeMarkComapctDoesntMoveObjectReachableFromStack) {
+  v8_flags.manual_evacuation_candidates_selection = true;
+  v8_flags.compact_with_stack = true;
+  ManualGCScope manual_gc_scope(isolate());
+
+  ConservativePinningScope conservative_pinning_scope;
+
+  IndirectHandle<HeapObject> number =
+      isolate()->factory()->NewHeapNumber<AllocationType::kOld>(42);
+
+  // The conservative stack visitor will find this on the stack, so `number`
+  // will not move during a GC with stack.
+  Address number_address = number->address();
+
+  for (int i = 0; i < 10; i++) {
+    i::MemoryChunk::FromHeapObject(*number)->SetFlagNonExecutable(
+        i::MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+    InvokeMajorGC();
+    CHECK_EQ(number_address, number->address());
+  }
+}
+
+TEST_F(HeapTest, ScavengerDoesntStrongifyWeakGlobals) {
+  if (v8_flags.single_generation) return;
+  if (v8_flags.minor_ms) return;
+  v8_flags.scavenger_conservative_object_pinning = false;
+  v8_flags.scavenger_precise_object_pinning = false;
+  ManualGCScope manual_gc_scope(isolate());
+  Factory* factory = isolate()->factory();
+  v8::Isolate* iso = reinterpret_cast<v8::Isolate*>(isolate());
+
+  // Make sure weak Globals are not strongified by Scavenger. If this ever
+  // changes the CHECK in this block should fail.
+  v8::Global<v8::String> global;
+  {
+    v8::HandleScope handle_scope(iso);
+    IndirectHandle<String> str =
+        factory->NewStringFromStaticChars("should be reclaimed");
+    global.Reset(iso, Utils::ToLocal(str));
+    global.SetWeak();
+  }
+  CHECK(!global.IsEmpty());
+  InvokeMinorGC();
+  CHECK(global.IsEmpty());
+}
+
+namespace {
+template <typename GCCallback>
+void ConservativePinningScopeScavnegeRetainsObjectReachableFromStack(
+    HeapTest* test, AllocationType allocation_type, GCCallback gc_callback) {
+  v8_flags.scavenger_conservative_object_pinning = false;
+  v8_flags.scavenger_precise_object_pinning = false;
+  v8_flags.scavenger_promote_quarantined_pages = false;
+  ManualGCScope manual_gc_scope(test->isolate());
+  Factory* factory = test->isolate()->factory();
+  v8::Isolate* iso = reinterpret_cast<v8::Isolate*>(test->isolate());
+
+  ConservativePinningScope conservative_pinning_scope;
+
+  // The conservative stack visitor will find this on the stack, so `object`
+  // will not move during GCs with stack.
+  Tagged<String> object;
+  // Use a `Global` to check whether `object` is actually retained. There should
+  // be no other references to it.
+  v8::Global<v8::String> global;
+  {
+    v8::HandleScope handle_scope(iso);
+    IndirectHandle<String> str =
+        factory->NewStringFromStaticChars("test", allocation_type);
+    // Set a weak Global reference to `str` to check that it isn't reclaimed.
+    // Scavenger should not strongify weak Globals.
+    global.Reset(iso, Utils::ToLocal(str));
+    global.SetWeak();
+    object = *str;
+  }
+
+  CHECK(!global.IsEmpty());
+  CHECK(global.IsWeak());
+  gc_callback(object);
+  CHECK(global.IsWeak());
+  CHECK(!global.IsEmpty());
+  // Make sure `object` isn't optimized away.
+  CHECK_EQ(*Utils::OpenDirectHandle(*global.Get(iso)), object);
+}
+}  // namespace
+
+TEST_F(HeapTest,
+       ConservativePinningScopeScavnegeRetainsObjectReachableFromStack) {
+  if (v8_flags.single_generation) return;
+  if (v8_flags.minor_ms) return;
+  ConservativePinningScopeScavnegeRetainsObjectReachableFromStack(
+      this, AllocationType::kYoung, [this](Tagged<String> object) {
+        CHECK(HeapLayout::InYoungGeneration(object));
+        InvokeMinorGC();
+        CHECK(HeapLayout::InYoungGeneration(object));
+      });
+}
+
+TEST_F(HeapTest,
+       ConservativePinningScopeMarkCompactRetainsObjectReachableFromStack) {
+  ConservativePinningScopeScavnegeRetainsObjectReachableFromStack(
+      this, AllocationType::kOld,
+      [this](Tagged<String> object) { InvokeMajorGC(); });
 }
 
 }  // namespace internal

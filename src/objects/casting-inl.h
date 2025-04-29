@@ -32,8 +32,9 @@ bool GCAwareObjectTypeCheck(Tagged<Object> object, const Heap* heap) {
       PtrComprCageBase(heap->isolate()->cage_base()), kRelaxedLoad);
   if ((heap->gc_state() == Heap::SCAVENGE) &&
       HeapLayout::InYoungGeneration(heap_object) &&
-      (v8_flags.scavenger_conservative_object_pinning ||
-       v8_flags.scavenger_precise_object_pinning) &&
+      ((Heap::ConservativeStackScanningModeForMinorGC() !=
+        Heap::StackScanMode::kNone) ||
+       Heap::ShouldUsePrecisePinningForMinorGC()) &&
       map_word.IsForwardingAddress() &&
       HeapLayout::IsSelfForwarded(heap_object)) {
     return true;

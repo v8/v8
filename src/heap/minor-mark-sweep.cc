@@ -696,7 +696,8 @@ void MinorMarkSweepCollector::MarkRootsFromConservativeStack(
 
   MinorMSConservativeStackVisitor stack_visitor(heap_->isolate(), root_visitor);
 
-  heap_->IterateConservativeStackRoots(&stack_visitor);
+  heap_->IterateConservativeStackRoots(&stack_visitor,
+                                       Heap::StackScanMode::kFull);
 }
 
 void MinorMarkSweepCollector::MarkLiveObjects() {

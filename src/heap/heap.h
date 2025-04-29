@@ -23,6 +23,7 @@
 #include "src/base/enum-set.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/platform/platform.h"
 #include "src/base/small-vector.h"
 #include "src/builtins/accessors.h"
 #include "src/common/assert-scope.h"
@@ -187,6 +188,18 @@ enum class GCFlag : uint8_t {
   // --expose-gc) or through DevTools (using LowMemoryNotification).
   kForced = 1 << 1,
   kLastResort = 1 << 2,
+};
+
+// Temporarily enables CSS to conservatively scan the stack starting from the
+// current frame. This scope should not yet be used in production!
+class V8_EXPORT_PRIVATE ConservativePinningScope {
+ public:
+  explicit ConservativePinningScope(
+      const void* stack_address = v8::base::Stack::GetCurrentFrameAddress());
+  ~ConservativePinningScope();
+
+  static bool IsEnabled();
+  static const void* GetStackAddress();
 };
 
 using GCFlags = base::Flags<GCFlag, uint8_t>;
@@ -358,6 +371,33 @@ class Heap final {
   // Copy block of memory from src to dst. Size of block should be aligned
   // by pointer size.
   static inline void CopyBlock(Address dst, Address src, int byte_size);
+
+  enum class StackScanMode { kNone, kFull, kSelective };
+  static StackScanMode ConservativeStackScanningModeForMinorGC() {
+    if (v8_flags.scavenger_conservative_object_pinning) {
+      return StackScanMode::kFull;
+    }
+    if (ConservativePinningScope::IsEnabled()) {
+      return StackScanMode::kSelective;
+    }
+    return StackScanMode::kNone;
+  }
+  static StackScanMode ConservativeStackScanningModeForMajorGC() {
+    if (v8_flags.conservative_stack_scanning) {
+      return StackScanMode::kFull;
+    }
+    if (ConservativePinningScope::IsEnabled()) {
+      return StackScanMode::kSelective;
+    }
+    return StackScanMode::kNone;
+  }
+
+  static bool ShouldUsePrecisePinningForMinorGC() {
+    return v8_flags.scavenger_precise_object_pinning;
+  }
+  static bool ShouldUsePrecisePinningForMajorGC() {
+    return v8_flags.precise_object_pinning;
+  }
 
   EphemeronRememberedSet* ephemeron_remembered_set() {
     return ephemeron_remembered_set_.get();
@@ -1002,7 +1042,8 @@ class Heap final {
   void IterateConservativeStackRoots(
       RootVisitor* root_visitor,
       IterateRootsMode roots_mode = IterateRootsMode::kMainIsolate);
-  void IterateConservativeStackRoots(::heap::base::StackVisitor* stack_visitor);
+  void IterateConservativeStackRoots(::heap::base::StackVisitor* stack_visitor,
+                                     StackScanMode stack_scan_mode);
 
   void IterateRootsForPrecisePinning(RootVisitor* visitor);
 

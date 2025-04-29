@@ -4851,7 +4851,11 @@ void Heap::IterateStackRoots(RootVisitor* v) { isolate_->Iterate(v); }
 
 void Heap::IterateConservativeStackRoots(RootVisitor* root_visitor,
                                          IterateRootsMode roots_mode) {
-  if (!v8_flags.conservative_stack_scanning || !IsGCWithStack()) return;
+  const StackScanMode stack_scan_mode =
+      ConservativeStackScanningModeForMajorGC();
+  DCHECK_IMPLIES(stack_scan_mode == Heap::StackScanMode::kSelective,
+                 IsGCWithStack());
+  if ((stack_scan_mode == StackScanMode::kNone) || !IsGCWithStack()) return;
 
   // In case of a shared GC, we're interested in the main isolate for CSS.
   Isolate* main_isolate = roots_mode == IterateRootsMode::kClientIsolate
@@ -4859,13 +4863,24 @@ void Heap::IterateConservativeStackRoots(RootVisitor* root_visitor,
                               : isolate();
 
   ConservativeStackVisitor stack_visitor(main_isolate, root_visitor);
-  IterateConservativeStackRoots(&stack_visitor);
+
+  IterateConservativeStackRoots(&stack_visitor, stack_scan_mode);
 }
 
 void Heap::IterateConservativeStackRoots(
-    ::heap::base::StackVisitor* stack_visitor) {
+    ::heap::base::StackVisitor* stack_visitor, StackScanMode stack_scan_mode) {
   DCHECK(IsGCWithStack());
+  DCHECK_NE(stack_scan_mode, StackScanMode::kNone);
 
+  if (stack_scan_mode == StackScanMode::kSelective) {
+    DCHECK(IsGCWithMainThreadStack());
+    DCHECK(ConservativePinningScope::IsEnabled());
+    stack().IteratePointersFromAddressUntilMarker(
+        stack_visitor, ConservativePinningScope::GetStackAddress());
+    return;
+  }
+
+  DCHECK_EQ(stack_scan_mode, StackScanMode::kFull);
   if (IsGCWithMainThreadStack()) {
     stack().IteratePointersUntilMarker(stack_visitor);
   }
@@ -7523,6 +7538,30 @@ CodePageMemoryModificationScopeForDebugging::
     ~CodePageMemoryModificationScopeForDebugging() {}
 
 #endif
+
+namespace {
+thread_local const void* conservative_pinning_scope_stack_address_ = nullptr;
+}  // namespace
+
+ConservativePinningScope::ConservativePinningScope(const void* stack_address) {
+  DCHECK_NULL(conservative_pinning_scope_stack_address_);
+  // The stack segment covered by this scope should include the scope itself.
+  DCHECK_LE(this, stack_address);
+  conservative_pinning_scope_stack_address_ = stack_address;
+}
+ConservativePinningScope::~ConservativePinningScope() {
+  DCHECK_NOT_NULL(conservative_pinning_scope_stack_address_);
+  conservative_pinning_scope_stack_address_ = nullptr;
+}
+
+// static
+bool ConservativePinningScope::IsEnabled() {
+  return conservative_pinning_scope_stack_address_ != nullptr;
+}
+// static
+const void* ConservativePinningScope::GetStackAddress() {
+  return conservative_pinning_scope_stack_address_;
+}
 
 #include "src/objects/object-macros-undef.h"
 
