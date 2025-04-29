@@ -173,8 +173,7 @@ DirectHandle<Map> ConstantExpressionInterface::GetRtt(
     error_ = MessageTemplate::kWasmTrapNullDereference;
     return {};
   }
-  return direct_handle(Cast<WasmStruct>(*maybe_obj)->get_described_rtt(),
-                       isolate_);
+  return direct_handle(Cast<WasmStruct>(*maybe_obj)->described_rtt(), isolate_);
 }
 
 void ConstantExpressionInterface::StructNew(FullDecoder* decoder,

@@ -1456,8 +1456,7 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, WasmObject> {
       Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
       wasm::ModuleTypeIndex index, DirectHandle<Map> map,
       DirectHandle<Object> first_field);
-  inline Tagged<Map> get_described_rtt() const;
-  inline void set_described_rtt(Tagged<Map> rtt);
+  DECL_ACCESSORS(described_rtt, Tagged<Map>)
 
   V8_EXPORT_PRIVATE wasm::WasmValue GetFieldValue(uint32_t field_index);
 
