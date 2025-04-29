@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd598bcc0280df98c01f914d574b55f12d3fff4ae',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f89bf9d7ed47aed8619e0a14107fd4af130a48b9',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a3641e22cc52bb810acbd8203d798f30b087fa0e',
   'buildtools/linux64': {
@@ -533,7 +533,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'b1960abf3441818b9cc985f95a57d6e77a74f7b4',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '791c784e19dda1671e7c13bd0abd2a06acd4de78',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '40fdda5b1ba1905372c7f66a21af245aaf739270',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '8ad6d21544b14c7f753852328d71861b363cc512',
   'third_party/abseil-cpp': {
