@@ -383,7 +383,7 @@ class YoungGenerationConservativeStackVisitor
   YoungGenerationConservativeStackVisitor(Isolate* isolate,
                                           RootVisitor* root_visitor)
       : ConservativeStackVisitorBase(isolate, root_visitor), isolate_(isolate) {
-    DCHECK_NE(isolate->heap()->ConservativeStackScanningModeForMinorGC(),
+    DCHECK_NE(Heap::ConservativeStackScanningModeForMinorGC(),
               Heap::StackScanMode::kNone);
     DCHECK(!v8_flags.minor_ms);
     DCHECK(!v8_flags.sticky_mark_bits);
@@ -871,7 +871,7 @@ void ScavengerCollector::CollectGarbage() {
         });
 
     const Heap::StackScanMode stack_scan_mode =
-        heap_->ConservativeStackScanningModeForMinorGC();
+        Heap::ConservativeStackScanningModeForMinorGC();
     DCHECK_IMPLIES(stack_scan_mode == Heap::StackScanMode::kSelective,
                    heap_->IsGCWithStack());
     if ((stack_scan_mode != Heap::StackScanMode::kNone) &&
@@ -899,7 +899,7 @@ void ScavengerCollector::CollectGarbage() {
       }
     }
     const bool is_using_precise_pinning =
-        heap_->ShouldUsePrecisePinningForMinorGC();
+        Heap::ShouldUsePrecisePinningForMinorGC();
     if (is_using_precise_pinning) {
       PreciseObjectPinningVisitor precise_pinning_visitor(
           heap_, main_thread_scavenger, pinned_objects);

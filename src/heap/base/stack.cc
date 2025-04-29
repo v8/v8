@@ -164,8 +164,7 @@ void Stack::IteratePointersUntilMarker(StackVisitor* visitor) const {
 
 void Stack::IteratePointersFromAddressUntilMarker(StackVisitor* visitor,
                                                   const void* address) const {
-  DCHECK_NOT_NULL(address);
-  DCHECK(current_segment_.Contains(address));
+  DCHECK(IsOnCurrentStack(address));
   // Use `address+1` so that `*address` is also scanned.
   Segment segment = {reinterpret_cast<const uintptr_t*>(address) + 1,
                      current_segment_.top};

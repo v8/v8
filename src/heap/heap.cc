@@ -4874,9 +4874,9 @@ void Heap::IterateConservativeStackRoots(
 
   if (stack_scan_mode == StackScanMode::kSelective) {
     DCHECK(IsGCWithMainThreadStack());
-    DCHECK(selective_stack_scan_start_address_.has_value());
+    DCHECK(ConservativePinningScope::IsEnabled());
     stack().IteratePointersFromAddressUntilMarker(
-        stack_visitor, selective_stack_scan_start_address_.value());
+        stack_visitor, ConservativePinningScope::GetStackAddress());
     return;
   }
 
@@ -7539,19 +7539,28 @@ CodePageMemoryModificationScopeForDebugging::
 
 #endif
 
-ConservativePinningScope::ConservativePinningScope(Heap* heap,
-                                                   const void* stack_address)
-    : heap_(heap) {
-  DCHECK(!heap_->selective_stack_scan_start_address_.has_value());
+namespace {
+thread_local const void* conservative_pinning_scope_stack_address_ = nullptr;
+}  // namespace
+
+ConservativePinningScope::ConservativePinningScope(const void* stack_address) {
+  DCHECK_NULL(conservative_pinning_scope_stack_address_);
   // The stack segment covered by this scope should include the scope itself.
-  DCHECK_NOT_NULL(stack_address);
   DCHECK_LE(this, stack_address);
-  DCHECK(::heap::base::Stack::IsOnCurrentStack(stack_address));
-  heap_->selective_stack_scan_start_address_ = stack_address;
+  conservative_pinning_scope_stack_address_ = stack_address;
 }
 ConservativePinningScope::~ConservativePinningScope() {
-  DCHECK(heap_->selective_stack_scan_start_address_.has_value());
-  heap_->selective_stack_scan_start_address_.reset();
+  DCHECK_NOT_NULL(conservative_pinning_scope_stack_address_);
+  conservative_pinning_scope_stack_address_ = nullptr;
+}
+
+// static
+bool ConservativePinningScope::IsEnabled() {
+  return conservative_pinning_scope_stack_address_ != nullptr;
+}
+// static
+const void* ConservativePinningScope::GetStackAddress() {
+  return conservative_pinning_scope_stack_address_;
 }
 
 #include "src/objects/object-macros-undef.h"
