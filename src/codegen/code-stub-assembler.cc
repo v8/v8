@@ -1984,9 +1984,19 @@ TNode<Code> CodeStubAssembler::LoadCodeObjectFromJSDispatchTable(
   TNode<UintPtrT> value = Load<UintPtrT>(table, offset);
   // The LSB is used as marking bit by the js dispatch table, so here we have
   // to set it using a bitwise OR as it may or may not be set.
-  value = UncheckedCast<UintPtrT>(WordOr(
-      WordShr(value, UintPtrConstant(JSDispatchEntry::kObjectPointerShift)),
-      UintPtrConstant(kHeapObjectTag)));
+
+  TNode<UintPtrT> shifted_value;
+  if (JSDispatchEntry::kObjectPointerOffset == 0) {
+    shifted_value =
+        WordShr(value, UintPtrConstant(JSDispatchEntry::kObjectPointerShift));
+  } else {
+    shifted_value = UintPtrAdd(
+        WordShr(value, UintPtrConstant(JSDispatchEntry::kObjectPointerShift)),
+        UintPtrConstant(JSDispatchEntry::kObjectPointerOffset));
+  }
+
+  value = UncheckedCast<UintPtrT>(
+      WordOr(shifted_value, UintPtrConstant(kHeapObjectTag)));
   return CAST(BitcastWordToTagged(value));
 }
 
