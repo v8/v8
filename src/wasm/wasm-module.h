@@ -1047,7 +1047,7 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
 
   // Checks the given reference is contained within the module bytes.
   bool BoundsCheck(WireBytesRef ref) const {
-    uint32_t size = static_cast<uint32_t>(module_bytes_.length());
+    size_t size = module_bytes_.size();
     return ref.offset() <= size && ref.length() <= size - ref.offset();
   }
 
@@ -1060,7 +1060,7 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
   base::Vector<const uint8_t> module_bytes() const { return module_bytes_; }
   const uint8_t* start() const { return module_bytes_.begin(); }
   const uint8_t* end() const { return module_bytes_.end(); }
-  size_t length() const { return module_bytes_.length(); }
+  size_t length() const { return module_bytes_.size(); }
 
  private:
   base::Vector<const uint8_t> module_bytes_;
