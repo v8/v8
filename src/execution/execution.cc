@@ -193,6 +193,8 @@ MaybeDirectHandle<Context> NewScriptContext(
   Tagged<SharedFunctionInfo> sfi = function->shared();
   Handle<Script> script(Cast<Script>(sfi->script()), isolate);
   DirectHandle<ScopeInfo> scope_info(sfi->scope_info(), isolate);
+  // Make sure this is the first time we're running this function.
+  CHECK(IsNativeContext(function->context()));
   DirectHandle<NativeContext> native_context(
       Cast<NativeContext>(function->context()), isolate);
   DirectHandle<JSGlobalObject> global_object(native_context->global_object(),
