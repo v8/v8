@@ -5186,7 +5186,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprF64x2ExtractLane:
         return SimdExtractLane(opcode, kWasmF64, opcode_length);
       case kExprF16x8ExtractLane: {
-        if (!v8_flags.experimental_wasm_fp16) {
+        if (!this->enabled_.has_fp16()) {
           this->DecodeError(
               "invalid simd opcode: 0x%x, "
               "enable with --experimental-wasm-fp16",
@@ -5208,7 +5208,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprF64x2ReplaceLane:
         return SimdReplaceLane(opcode, kWasmF64, opcode_length);
       case kExprF16x8ReplaceLane: {
-        if (!v8_flags.experimental_wasm_fp16) {
+        if (!this->enabled_.has_fp16()) {
           this->DecodeError(
               "invalid simd opcode: 0x%x, "
               "enable with --experimental-wasm-fp16",
@@ -5334,7 +5334,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprF32x4PromoteLowF16x8:
       case kExprF16x8Qfma:
       case kExprF16x8Qfms: {
-        if (!v8_flags.experimental_wasm_fp16) {
+        if (!this->enabled_.has_fp16()) {
           this->DecodeError(
               "invalid simd opcode: 0x%x, "
               "enable with --experimental-wasm-fp16",
@@ -6862,7 +6862,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return opcode_length + imm.length;
       }
       case kExprF32LoadMemF16: {
-        if (!v8_flags.experimental_wasm_fp16) {
+        if (!this->enabled_.has_fp16()) {
           this->DecodeError(
               "invalid numeric opcode: 0x%x, "
               "enable with --experimental-wasm-fp16",
@@ -6872,7 +6872,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return DecodeLoadMem(LoadType::kF32LoadF16, 2);
       }
       case kExprF32StoreMemF16: {
-        if (!v8_flags.experimental_wasm_fp16) {
+        if (!this->enabled_.has_fp16()) {
           this->DecodeError(
               "invalid numeric opcode: 0x%x, "
               "enable with --experimental-wasm-fp16",

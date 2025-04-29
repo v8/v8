@@ -679,7 +679,7 @@ class ModuleDecoderImpl : public Decoder {
   TypeDefinition consume_shared_type(size_t current_type_index) {
     uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
     if (kind == kSharedFlagCode) {
-      if (!v8_flags.experimental_wasm_shared) {
+      if (!enabled_features_.has_shared()) {
         errorf(pc() - 1,
                "unknown type form: %d, enable with --experimental-wasm-shared",
                kind);
@@ -795,7 +795,7 @@ class ModuleDecoderImpl : public Decoder {
             value_type_reader::Populate(&storage[j], module);
             ValueType type = storage[j];
             if (is_shared && !type.is_shared()) {
-              DCHECK(v8_flags.experimental_wasm_shared);
+              DCHECK(enabled_features_.has_shared());
               uint32_t retcount =
                   static_cast<uint32_t>(type_def.function_sig->return_count());
               const char* param_or_return =
@@ -977,8 +977,8 @@ class ModuleDecoderImpl : public Decoder {
           WasmTable* table = &module_->tables.back();
           consume_table_flags(table);
           DCHECK_IMPLIES(table->shared,
-                         v8_flags.experimental_wasm_shared || !ok());
-          if (table->shared && v8_flags.experimental_wasm_shared) {
+                         enabled_features_.has_shared() || !ok());
+          if (table->shared && enabled_features_.has_shared()) {
             module_->has_shared_part = true;
             if (!IsShared(type, module_.get())) {
               errorf(type_position,
@@ -1142,8 +1142,8 @@ class ModuleDecoderImpl : public Decoder {
       table->type = table_type;
 
       consume_table_flags(table);
-      DCHECK_IMPLIES(table->shared, v8_flags.experimental_wasm_shared || !ok());
-      if (table->shared && v8_flags.experimental_wasm_shared) {
+      DCHECK_IMPLIES(table->shared, enabled_features_.has_shared() || !ok());
+      if (table->shared && enabled_features_.has_shared()) {
         module_->has_shared_part = true;
         if (!IsShared(table_type, module_.get())) {
           errorf(
@@ -1226,7 +1226,7 @@ class ModuleDecoderImpl : public Decoder {
       auto [mutability, shared] = consume_global_flags();
       if (failed()) return;
       if (shared && !IsShared(type, module_.get())) {
-        CHECK(v8_flags.experimental_wasm_shared);
+        CHECK(enabled_features_.has_shared());
         errorf(pos, "Shared global %i must have shared type, actual type %s",
                i + imported_globals, type.name().c_str());
         return;
@@ -2196,12 +2196,12 @@ class ModuleDecoderImpl : public Decoder {
         if (!limits.has_maximum()) {
           error(pc() - 1, "shared memory must have a maximum defined");
         }
-        if (v8_flags.experimental_wasm_shared) {
+        if (enabled_features_.has_shared()) {
           error(pc() - 1,
                 "shared memories are not supported with "
                 "--experimental-wasm-shared yet.");
         }
-      } else if (!v8_flags.experimental_wasm_shared) {  // table
+      } else if (!enabled_features_.has_shared()) {  // table
         error(pc() - 1, "invalid table limits flags");
       } else {
         // TODO(42204563): Support shared tables.
@@ -2254,7 +2254,7 @@ class ModuleDecoderImpl : public Decoder {
       if (shared) tracer_->Description(" shared");
       tracer_->Description(mutability ? " mutable" : " immutable");
     }
-    if (shared && !v8_flags.experimental_wasm_shared) {
+    if (shared && !enabled_features_.has_shared()) {
       errorf(pc() - 1, "invalid global flags 0x%x", flags);
       return {false, false};
     }
@@ -2637,7 +2637,7 @@ class ModuleDecoderImpl : public Decoder {
     }
 
     bool is_shared = flag & kSharedFlag;
-    if (is_shared && !v8_flags.experimental_wasm_shared) {
+    if (is_shared && !enabled_features_.has_shared()) {
       errorf(pos, "illegal flag value %u", flag);
       return {};
     }
@@ -2786,7 +2786,7 @@ class ModuleDecoderImpl : public Decoder {
 
     bool is_shared = flag & 0b1000;
 
-    if (V8_UNLIKELY(is_shared && !v8_flags.experimental_wasm_shared)) {
+    if (V8_UNLIKELY(is_shared && !enabled_features_.has_shared())) {
       errorf(pos, "illegal flag value %u.", flag);
       return {};
     }
@@ -2838,7 +2838,7 @@ class ModuleDecoderImpl : public Decoder {
         ValueType::Ref(func->sig_index, module->type(func->sig_index).is_shared,
                        RefTypeKind::kFunction);
     if (V8_LIKELY(expected == kWasmFuncRef &&
-                  !v8_flags.experimental_wasm_shared)) {
+                  !enabled_features_.has_shared())) {
       DCHECK(module->type(func->sig_index).kind == TypeDefinition::kFunction);
       DCHECK(IsSubtypeOf(entry_type, expected, module));
     } else if (V8_UNLIKELY(!IsSubtypeOf(entry_type, expected, module))) {
