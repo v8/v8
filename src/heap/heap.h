@@ -195,11 +195,12 @@ enum class GCFlag : uint8_t {
 class V8_EXPORT_PRIVATE ConservativePinningScope {
  public:
   explicit ConservativePinningScope(
+      Heap* heap,
       const void* stack_address = v8::base::Stack::GetCurrentFrameAddress());
   ~ConservativePinningScope();
 
-  static bool IsEnabled();
-  static const void* GetStackAddress();
+ private:
+  Heap* const heap_;
 };
 
 using GCFlags = base::Flags<GCFlag, uint8_t>;
@@ -373,29 +374,29 @@ class Heap final {
   static inline void CopyBlock(Address dst, Address src, int byte_size);
 
   enum class StackScanMode { kNone, kFull, kSelective };
-  static StackScanMode ConservativeStackScanningModeForMinorGC() {
+  StackScanMode ConservativeStackScanningModeForMinorGC() const {
     if (v8_flags.scavenger_conservative_object_pinning) {
       return StackScanMode::kFull;
     }
-    if (ConservativePinningScope::IsEnabled()) {
+    if (selective_stack_scan_start_address_.has_value()) {
       return StackScanMode::kSelective;
     }
     return StackScanMode::kNone;
   }
-  static StackScanMode ConservativeStackScanningModeForMajorGC() {
+  StackScanMode ConservativeStackScanningModeForMajorGC() const {
     if (v8_flags.conservative_stack_scanning) {
       return StackScanMode::kFull;
     }
-    if (ConservativePinningScope::IsEnabled()) {
+    if (selective_stack_scan_start_address_.has_value()) {
       return StackScanMode::kSelective;
     }
     return StackScanMode::kNone;
   }
 
-  static bool ShouldUsePrecisePinningForMinorGC() {
+  bool ShouldUsePrecisePinningForMinorGC() const {
     return v8_flags.scavenger_precise_object_pinning;
   }
-  static bool ShouldUsePrecisePinningForMajorGC() {
+  bool ShouldUsePrecisePinningForMajorGC() const {
     return v8_flags.precise_object_pinning;
   }
 
@@ -2450,11 +2451,16 @@ class Heap final {
   // actually finished.
   bool is_full_gc_during_loading_ = false;
 
+  // On-stack address used for selective consevative stack scanning. No value
+  // means that selective conservative stack scanning is not enabled.
+  std::optional<const void*> selective_stack_scan_start_address_;
+
   // Classes in "heap" can be friends.
   friend class ActivateMemoryReducerTask;
   friend class AlwaysAllocateScope;
   friend class ArrayBufferCollector;
   friend class ArrayBufferSweeper;
+  friend class ConservativePinningScope;
   friend class ConcurrentMarking;
   friend class ConservativeTracedHandlesMarkingVisitor;
   friend class CppHeap;

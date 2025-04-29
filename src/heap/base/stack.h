@@ -156,13 +156,19 @@ class V8_EXPORT_PRIVATE Stack final {
       unsafe_stack_top = __builtin___get_unsafe_stack_ptr();
 #endif  // V8_USE_SAFE_STACK
     }
+
+#ifdef DEBUG
+    bool Contains(const void* address) const {
+      return (start >= address) && (address >= top);
+    }
+#endif
   };
 
- private:
 #ifdef DEBUG
   static bool IsOnCurrentStack(const void* ptr);
 #endif
 
+ private:
   V8_NOINLINE void TrampolineCallbackHelper(void* argument,
                                             IterateStackCallback callback);
 

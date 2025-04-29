@@ -887,7 +887,7 @@ TEST_F(HeapTest, PrecisePinningFullGCDoesntMoveOldObjectReachableFromHandles) {
 
 TEST_F(
     HeapTest,
-    ConservativePinningScopeScavnegeDoesntMoveObjectReachableFromStackNoPromotion) {  // NOLINT(whitespace/line_length)
+    ConservativePinningScopeScavengeDoesntMoveObjectReachableFromStackNoPromotion) {  // NOLINT(whitespace/line_length)
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
   v8_flags.scavenger_conservative_object_pinning = false;
@@ -895,7 +895,7 @@ TEST_F(
   v8_flags.scavenger_promote_quarantined_pages = false;
   ManualGCScope manual_gc_scope(isolate());
 
-  ConservativePinningScope conservative_pinning_scope;
+  ConservativePinningScope conservative_pinning_scope(isolate()->heap());
 
   IndirectHandle<HeapObject> number =
       isolate()->factory()->NewHeapNumber<AllocationType::kYoung>(42);
@@ -922,7 +922,7 @@ TEST_F(HeapTest,
   v8_flags.scavenger_promote_quarantined_pages = true;
   ManualGCScope manual_gc_scope(isolate());
 
-  ConservativePinningScope conservative_pinning_scope;
+  ConservativePinningScope conservative_pinning_scope(isolate()->heap());
 
   IndirectHandle<HeapObject> number =
       isolate()->factory()->NewHeapNumber<AllocationType::kYoung>(42);
@@ -945,12 +945,12 @@ TEST_F(HeapTest,
 }
 
 TEST_F(HeapTest,
-       ConservativePinningScopeMarkComapctDoesntMoveObjectReachableFromStack) {
+       ConservativePinningScopeMarkCompactDoesntMoveObjectReachableFromStack) {
   v8_flags.manual_evacuation_candidates_selection = true;
   v8_flags.compact_with_stack = true;
   ManualGCScope manual_gc_scope(isolate());
 
-  ConservativePinningScope conservative_pinning_scope;
+  ConservativePinningScope conservative_pinning_scope(isolate()->heap());
 
   IndirectHandle<HeapObject> number =
       isolate()->factory()->NewHeapNumber<AllocationType::kOld>(42);
@@ -993,7 +993,7 @@ TEST_F(HeapTest, ScavengerDoesntStrongifyWeakGlobals) {
 
 namespace {
 template <typename GCCallback>
-void ConservativePinningScopeScavnegeRetainsObjectReachableFromStack(
+void ConservativePinningScopeScavengeRetainsObjectReachableFromStack(
     HeapTest* test, AllocationType allocation_type, GCCallback gc_callback) {
   v8_flags.scavenger_conservative_object_pinning = false;
   v8_flags.scavenger_precise_object_pinning = false;
@@ -1002,7 +1002,7 @@ void ConservativePinningScopeScavnegeRetainsObjectReachableFromStack(
   Factory* factory = test->isolate()->factory();
   v8::Isolate* iso = reinterpret_cast<v8::Isolate*>(test->isolate());
 
-  ConservativePinningScope conservative_pinning_scope;
+  ConservativePinningScope conservative_pinning_scope(test->isolate()->heap());
 
   // The conservative stack visitor will find this on the stack, so `object`
   // will not move during GCs with stack.
@@ -1032,10 +1032,10 @@ void ConservativePinningScopeScavnegeRetainsObjectReachableFromStack(
 }  // namespace
 
 TEST_F(HeapTest,
-       ConservativePinningScopeScavnegeRetainsObjectReachableFromStack) {
+       ConservativePinningScopeScavengeRetainsObjectReachableFromStack) {
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
-  ConservativePinningScopeScavnegeRetainsObjectReachableFromStack(
+  ConservativePinningScopeScavengeRetainsObjectReachableFromStack(
       this, AllocationType::kYoung, [this](Tagged<String> object) {
         CHECK(HeapLayout::InYoungGeneration(object));
         InvokeMinorGC();
@@ -1045,7 +1045,7 @@ TEST_F(HeapTest,
 
 TEST_F(HeapTest,
        ConservativePinningScopeMarkCompactRetainsObjectReachableFromStack) {
-  ConservativePinningScopeScavnegeRetainsObjectReachableFromStack(
+  ConservativePinningScopeScavengeRetainsObjectReachableFromStack(
       this, AllocationType::kOld,
       [this](Tagged<String> object) { InvokeMajorGC(); });
 }

@@ -333,7 +333,8 @@ bool ShouldCompactWithStack(const Heap* heap) {
   if (!v8_flags.compact_with_stack) {
     return false;
   }
-  if (ConservativePinningScope::IsEnabled()) {
+  if (heap->ConservativeStackScanningModeForMajorGC() !=
+      Heap::StackScanMode::kNone) {
     CHECK(heap->IsMainThread());
     CHECK_IMPLIES(heap->isolate()->has_shared_space(),
                   heap->isolate()->is_shared_space_isolate());
@@ -361,7 +362,7 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
 
   // Don't compact shared space when CSS is enabled, since there may be
   // DirectHandles on stacks of client isolates.
-  if ((Heap::ConservativeStackScanningModeForMajorGC() !=
+  if ((heap_->ConservativeStackScanningModeForMajorGC() !=
        Heap::StackScanMode::kFull) &&
       heap_->shared_space()) {
     CollectEvacuationCandidates(heap_->shared_space());
@@ -4907,7 +4908,7 @@ class PrecisePagePinningVisitor final : public RootVisitor {
 };
 
 void MarkCompactCollector::PinPreciseRootsIfNeeded() {
-  if (!Heap::ShouldUsePrecisePinningForMajorGC()) {
+  if (!heap_->ShouldUsePrecisePinningForMajorGC()) {
     return;
   }
 

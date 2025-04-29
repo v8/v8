@@ -32,11 +32,11 @@ bool GCAwareObjectTypeCheck(Tagged<Object> object, const Heap* heap) {
       PtrComprCageBase(heap->isolate()->cage_base()), kRelaxedLoad);
   if ((heap->gc_state() == Heap::SCAVENGE) &&
       HeapLayout::InYoungGeneration(heap_object) &&
-      ((Heap::ConservativeStackScanningModeForMinorGC() !=
+      ((heap->ConservativeStackScanningModeForMinorGC() !=
         Heap::StackScanMode::kNone) ||
-       Heap::ShouldUsePrecisePinningForMinorGC()) &&
+       heap->ShouldUsePrecisePinningForMinorGC()) &&
       map_word.IsForwardingAddress() &&
-      HeapLayout::IsSelfForwarded(heap_object)) {
+      HeapLayout::IsSelfForwarded(heap_object, map_word)) {
     return true;
   }
   // 3) A GC is ongoing, `object` was evacuated, and the new instance is a
