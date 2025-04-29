@@ -262,6 +262,11 @@ class SimpleNameDictionary
   Set(Isolate* isolate, Handle<SimpleNameDictionary> dictionary,
       DirectHandle<Name> key, DirectHandle<Object> value);
 
+  // Exposed for NameDictionaryLookupForwardedString slow path for forwarded
+  // strings.
+  using HashTable<SimpleNameDictionary,
+                  SimpleNameDictionaryShape>::FindInsertionEntry;
+
   static const int kEntryValueIndex = 1;
 };
 

@@ -10566,7 +10566,13 @@ void CodeStubAssembler::NameDictionaryLookupWithForwardIndex(
         mode == kFindInsertionIndex
             ? ER::global_dictionary_find_insertion_entry_forwarded_string()
             : ER::global_dictionary_lookup_forwarded_string();
+  } else if constexpr (std::is_same_v<Dictionary, SimpleNameDictionary>) {
+    func_ref =
+        mode == kFindInsertionIndex
+            ? ER::simple_name_dictionary_find_insertion_entry_forwarded_string()
+            : ER::simple_name_dictionary_lookup_forwarded_string();
   } else {
+    static_assert(std::is_same_v<Dictionary, NameToIndexHashTable>);
     auto ref0 =
         ER::name_to_index_hashtable_find_insertion_entry_forwarded_string();
     auto ref1 = ER::name_to_index_hashtable_lookup_forwarded_string();

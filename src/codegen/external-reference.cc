@@ -1446,6 +1446,12 @@ FUNCTION_REFERENCE(global_dictionary_lookup_forwarded_string,
 FUNCTION_REFERENCE(global_dictionary_find_insertion_entry_forwarded_string,
                    (NameDictionaryLookupForwardedStringWithHandle<
                        GlobalDictionary, kFindInsertionEntry>))
+FUNCTION_REFERENCE(simple_name_dictionary_lookup_forwarded_string,
+                   (NameDictionaryLookupForwardedStringWithHandle<
+                       SimpleNameDictionary, kFindExisting>))
+FUNCTION_REFERENCE(simple_name_dictionary_find_insertion_entry_forwarded_string,
+                   (NameDictionaryLookupForwardedStringWithHandle<
+                       SimpleNameDictionary, kFindInsertionEntry>))
 
 template <typename Dictionary, LookupMode mode>
 static size_t NameDictionaryLookupForwardedString(Isolate* isolate,
