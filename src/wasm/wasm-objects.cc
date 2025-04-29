@@ -2258,6 +2258,21 @@ const wasm::CanonicalStructType* WasmStruct::GcSafeType(Tagged<Map> map) {
   return wasm::GetTypeCanonicalizer()->LookupStruct(type_info->type_index());
 }
 
+DirectHandle<JSObject> WasmStruct::AllocatePrototype(
+    Isolate* isolate, DirectHandle<JSPrototype> parent) {
+  // Follow the example of {CreateClassPrototype} and create a map with no
+  // in-object properties.
+  // TODO(ishell): If we support caching the zero-in-object-properties map,
+  // update this code.
+  DirectHandle<Map> map = Map::Create(isolate, 0);
+  map->set_is_prototype_map(true);
+  Map::SetPrototype(isolate, map, parent);
+  DirectHandle<JSObject> prototype =
+      isolate->factory()->NewJSObjectFromMap(map);
+  isolate->UpdateProtectorsOnSetPrototype(prototype, parent);
+  return prototype;
+}
+
 // Allocates a Wasm Struct that is a descriptor for another type, leaving
 // its fields uninitialized.
 // Descriptor structs have a 1:1 relationship with the internal "RTT" (aka
