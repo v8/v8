@@ -160,7 +160,7 @@ class ManagedZones final {
   }
 
  private:
-  static constexpr size_t kMinZonePageSize = 64 * KB;
+  static constexpr size_t kMinZonePageSize = 512 * KB;
   static constexpr size_t kMinZonePageAlignment = 16 * KB;
 };
 
