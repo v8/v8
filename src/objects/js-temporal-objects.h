@@ -7,7 +7,9 @@
 
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/objects/managed.h"
 #include "src/objects/objects.h"
+#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/Instant.d.hpp"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -39,6 +41,18 @@ namespace internal {
     printf("TBW %s\n", __PRETTY_FUNCTION__); \
     UNIMPLEMENTED();                         \
   }
+
+// For a type wrapping a rust field, add accessors for it
+// including a initialize_with_wrapped_rust_value() that can be used in
+// templates
+#define DECL_ACCESSORS_FOR_RUST_WRAPPER(field, RustType_) \
+  typedef RustType_ RustType;                             \
+  DECL_ACCESSORS(field, Tagged<Managed<RustType_>>)       \
+  inline void initialize_with_wrapped_rust_value(         \
+      Tagged<Managed<RustType_>> handle);
+
+ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::Instant,
+                                        kTemporalInstantTag)
 
 class JSTemporalPlainDate;
 class JSTemporalPlainMonthDay;
@@ -140,47 +154,23 @@ class JSTemporalInstant
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalInstant> Now(
       Isolate* isolate);
 
-  // #sec-temporal.instant.fromepochseconds
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalInstant>
-  FromEpochSeconds(Isolate* isolate, DirectHandle<Object> epoch_seconds);
-
-  // #sec-temporal.instant.fromepochmilliseconds
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalInstant>
-  FromEpochMilliseconds(Isolate* isolate,
-                        DirectHandle<Object> epoch_milliseconds);
-
-  // #sec-temporal.instant.fromepochmicroseconds
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalInstant>
-  FromEpochMicroseconds(Isolate* isolate,
-                        DirectHandle<Object> epoch_microseconds);
-
-  // #sec-temporal.instant.fromepochnanoeconds
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalInstant>
-  FromEpochNanoseconds(Isolate* isolate,
-                       DirectHandle<Object> epoch_nanoseconds);
-
   // #sec-temporal.instant.prototype.round
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalInstant> Round(
       Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
       DirectHandle<Object> round_to);
 
-  // #sec-temporal.instant.from
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalInstant> From(
-      Isolate* isolate, DirectHandle<Object> item);
+  // #sec-temporal.instant.prototype.epochmilliseconds
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Number> EpochMilliseconds(
+      Isolate* isolate, DirectHandle<JSTemporalInstant> instant);
+
+  // #sec-temporal.instant.prototype.epochnanoseconds
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<BigInt> EpochNanoseconds(
+      Isolate* isolate, DirectHandle<JSTemporalInstant> instant);
 
   // #sec-temporal.instant.prototype.tozoneddatetime
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalZonedDateTime>
   ToZonedDateTime(Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
                   DirectHandle<Object> item);
-
-  // #sec-temporal.instant.prototype.tozoneddatetimeiso
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalZonedDateTime>
-  ToZonedDateTimeISO(Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
-                     DirectHandle<Object> item);
-
-  // #sec-temporal.instant.compare
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Smi> Compare(
-      Isolate* isolate, DirectHandle<Object> one, DirectHandle<Object> two);
 
   // #sec-temporal.instant.prototype.equals
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Oddball> Equals(
@@ -220,6 +210,8 @@ class JSTemporalInstant
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalDuration> Since(
       Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
       DirectHandle<Object> other, DirectHandle<Object> options);
+
+  DECL_ACCESSORS_FOR_RUST_WRAPPER(instant, temporal_rs::Instant)
 
   DECL_PRINTER(JSTemporalInstant)
 
@@ -995,11 +987,13 @@ MaybeDirectHandle<JSTemporalTimeZone> CreateTemporalTimeZone(
 
 // #sec-temporal-createtemporalinstant
 V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSTemporalInstant>
-CreateTemporalInstant(Isolate* isolate, DirectHandle<JSFunction> target,
-                      DirectHandle<HeapObject> new_target,
-                      DirectHandle<BigInt> epoch_nanoseconds);
+CreateTemporalInstantWithValidityCheck(Isolate* isolate,
+                                       DirectHandle<JSFunction> target,
+                                       DirectHandle<HeapObject> new_target,
+                                       DirectHandle<BigInt> epoch_nanoseconds);
 V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSTemporalInstant>
-CreateTemporalInstant(Isolate* isolate, DirectHandle<BigInt> epoch_nanoseconds);
+CreateTemporalInstantWithValidityCheck(Isolate* isolate,
+                                       DirectHandle<BigInt> epoch_nanoseconds);
 
 // #sec-temporal-builtintimezonegetplaindatetimefor
 V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSTemporalPlainDateTime>

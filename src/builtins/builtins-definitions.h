@@ -1907,24 +1907,8 @@ namespace internal {
   /* Temporal.Instant */                                                       \
   /* Temporal #sec-temporal.instant */                                         \
   CPP(TemporalInstantConstructor, kDontAdaptArgumentsSentinel)                 \
-  /* Temporal #sec-temporal.instant.from */                                    \
-  CPP(TemporalInstantFrom, kDontAdaptArgumentsSentinel)                        \
-  /* Temporal #sec-temporal.instant.fromepochseconds */                        \
-  CPP(TemporalInstantFromEpochSeconds, kDontAdaptArgumentsSentinel)            \
-  /* Temporal #sec-temporal.instant.fromepochmilliseconds */                   \
-  CPP(TemporalInstantFromEpochMilliseconds, kDontAdaptArgumentsSentinel)       \
-  /* Temporal #sec-temporal.instant.fromepochmicroseconds */                   \
-  CPP(TemporalInstantFromEpochMicroseconds, kDontAdaptArgumentsSentinel)       \
-  /* Temporal #sec-temporal.instant.fromepochnanoseconds */                    \
-  CPP(TemporalInstantFromEpochNanoseconds, kDontAdaptArgumentsSentinel)        \
-  /* Temporal #sec-temporal.instant.compare */                                 \
-  CPP(TemporalInstantCompare, kDontAdaptArgumentsSentinel)                     \
-  /* Temporal #sec-get-temporal.instant.prototype.epochseconds */              \
-  CPP(TemporalInstantPrototypeEpochSeconds, JSParameterCount(0))               \
   /* Temporal #sec-get-temporal.instant.prototype.epochmilliseconds */         \
   CPP(TemporalInstantPrototypeEpochMilliseconds, JSParameterCount(0))          \
-  /* Temporal #sec-get-temporal.instant.prototype.epochmicroseconds */         \
-  CPP(TemporalInstantPrototypeEpochMicroseconds, JSParameterCount(0))          \
   /* Temporal #sec-get-temporal.instant.prototype.epochnanoseconds */          \
   CPP(TemporalInstantPrototypeEpochNanoseconds, JSParameterCount(0))           \
   /* Temporal #sec-temporal.instant.prototype.add */                           \
@@ -1949,8 +1933,6 @@ namespace internal {
   CPP(TemporalInstantPrototypeValueOf, kDontAdaptArgumentsSentinel)            \
   /* Temporal #sec-temporal.instant.prototype.tozoneddatetime */               \
   CPP(TemporalInstantPrototypeToZonedDateTime, kDontAdaptArgumentsSentinel)    \
-  /* Temporal #sec-temporal.instant.prototype.tozoneddatetimeiso */            \
-  CPP(TemporalInstantPrototypeToZonedDateTimeISO, kDontAdaptArgumentsSentinel) \
                                                                                \
   /* Temporal.PlainYearMonth */                                                \
   /* Temporal #sec-temporal.plainyearmonth */                                  \

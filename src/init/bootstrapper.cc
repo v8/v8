@@ -1994,20 +1994,9 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
     // #sec-temporal-instant-objects
     // #sec-temporal.instant
     INSTALL_TEMPORAL_CTOR_AND_PROTOTYPE(Instant, INSTANT, 1)
-    INSTALL_TEMPORAL_FUNC(Instant, from, From, 1)
-    INSTALL_TEMPORAL_FUNC(Instant, compare, Compare, 2)
-    INSTALL_TEMPORAL_FUNC(Instant, fromEpochSeconds, FromEpochSeconds, 1)
-    INSTALL_TEMPORAL_FUNC(Instant, fromEpochMilliseconds, FromEpochMilliseconds,
-                          1)
-    INSTALL_TEMPORAL_FUNC(Instant, fromEpochMicroseconds, FromEpochMicroseconds,
-                          1)
-    INSTALL_TEMPORAL_FUNC(Instant, fromEpochNanoseconds, FromEpochNanoseconds,
-                          1)
 
 #define INSTANT_GETTER_LIST(V)            \
-  V(epochSeconds, EpochSeconds)           \
   V(epochMilliseconds, EpochMilliseconds) \
-  V(epochMicroseconds, EpochMicroseconds) \
   V(epochNanoseconds, EpochNanoseconds)
 
 #define INSTALL_INSTANT_GETTER_FUNC(p, N)                                   \
@@ -2030,7 +2019,6 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
   V(toJSON, ToJSON, 0)                   \
   V(valueOf, ValueOf, 0)                 \
   V(toZonedDateTime, ToZonedDateTime, 1) \
-  V(toZonedDateTimeISO, ToZonedDateTimeISO, 1)
 
 #define INSTALL_INSTANT_FUNC(p, N, min)                             \
   SimpleInstallFunction(isolate, prototype, #p,                     \

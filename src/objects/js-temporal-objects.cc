@@ -23,6 +23,9 @@
 #include "src/objects/string-set.h"
 #include "src/strings/string-builder-inl.h"
 #include "src/temporal/temporal-parser.h"
+#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/I128Nanoseconds.hpp"
+#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/Instant.hpp"
+#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/TemporalUnit.hpp"
 
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
@@ -35,20 +38,8 @@ namespace v8::internal {
 
 namespace {
 
-enum class Unit {
-  kNotPresent,
-  kAuto,
-  kYear,
-  kMonth,
-  kWeek,
-  kDay,
-  kHour,
-  kMinute,
-  kSecond,
-  kMillisecond,
-  kMicrosecond,
-  kNanosecond
-};
+using temporal_rs::TemporalRoundingMode;
+using temporal_rs::TemporalUnit;
 
 /**
  * This header declare the Abstract Operations defined in the
@@ -122,18 +113,6 @@ enum class ShowOverflow { kConstrain, kReject };
 // #sec-temporal-toshowcalendaroption
 enum class ShowCalendar { kAuto, kAlways, kNever };
 
-// sec-temporal-totemporalroundingmode
-enum class RoundingMode {
-  kCeil,
-  kFloor,
-  kExpand,
-  kTrunc,
-  kHalfCeil,
-  kHalfFloor,
-  kHalfExpand,
-  kHalfTrunc,
-  kHalfEven
-};
 // #table-temporal-unsigned-rounding-modes
 enum class UnsignedRoundingMode {
   kInfinity,
@@ -180,27 +159,274 @@ enum class OffsetBehaviour { kOption, kExact, kWall };
           isolate->context()->native_context()->temporal_##name##_function()), \
       isolate)
 
-
-
-
-}  // namespace temporal
-
-
-namespace temporal {
-
-// #sec-temporal-createtemporalinstant
-MaybeDirectHandle<JSTemporalInstant> CreateTemporalInstant(
+// Helper function to construct a JSType that wraps a RustType
+template <typename JSType>
+MaybeDirectHandle<JSType> ConstructRustWrappingType(
     Isolate* isolate, DirectHandle<JSFunction> target,
     DirectHandle<HeapObject> new_target,
-    DirectHandle<BigInt> epoch_nanoseconds) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+    diplomat::result<std::unique_ptr<typename JSType::RustType>,
+                     temporal_rs::TemporalError>&& rust_result) {
+  if (rust_result.is_err()) {
+    auto err = std::move(rust_result).err().value();
+    switch (err.kind) {
+      case temporal_rs::ErrorKind::Type:
+        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+        break;
+      case temporal_rs::ErrorKind::Range:
+        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+        break;
+      case temporal_rs::ErrorKind::Syntax:
+      case temporal_rs::ErrorKind::Assert:
+      case temporal_rs::ErrorKind::Generic:
+      default:
+        // These cases shouldn't happen; the spec doesn't currently trigger
+        // these errors
+        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INTERNAL_ERROR());
+    }
+    return MaybeDirectHandle<JSTemporalInstant>();
+  }
+
+  // Managed requires shared ownership
+  std::shared_ptr<temporal_rs::Instant> rust_shared =
+      std::move(rust_result).ok().value();
+
+  DirectHandle<Managed<temporal_rs::Instant>> managed =
+      Managed<temporal_rs::Instant>::From(isolate, 0, rust_shared);
+
+  ORDINARY_CREATE_FROM_CONSTRUCTOR(object, target, new_target, JSType)
+  object->initialize_with_wrapped_rust_value(*managed);
+  return object;
 }
 
-MaybeDirectHandle<JSTemporalInstant> CreateTemporalInstant(
-    Isolate* isolate, DirectHandle<BigInt> epoch_nanoseconds) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+}  // namespace
+
+// Paired with DECL_ACCESSORS_FOR_RUST_WRAPPER
+// Can be omitted and overridden if needed.
+#define DEFINE_ACCESSORS_FOR_RUST_WRAPPER(field, JSType)  \
+  inline void JSType::initialize_with_wrapped_rust_value( \
+      Tagged<Managed<JSType::RustType>> handle) {         \
+    this->set_##field(handle);                            \
+  }
+
+DEFINE_ACCESSORS_FOR_RUST_WRAPPER(instant, JSTemporalInstant)
+
+namespace temporal {
+// #sec-temporal-gettemporalunitvaluedoption
+// In the spec text, the extraValues is defined as an optional argument of
+// "a List of ECMAScript language values". Most of the caller does not pass in
+// value for extraValues, which is represented by the default
+// TemporalUnit::NotPresent. For the three places in the spec text calling
+// GetTemporalUnit with an extraValues argument:
+// << "day" >> is passed in as in the algorithm of
+//   Temporal.PlainDateTime.prototype.round() and
+//   Temporal.ZonedDateTime.prototype.round();
+// << "auto" >> is passed in as in the algorithm of
+// Temporal.Duration.prototype.round().
+// Therefore we can simply use a Unit of three possible value, the default
+// TemporalUnit::NotPresent, TemporalUnit::Day, and TemporalUnit::Auto to cover
+// all the possible value for extraValues.
+std::optional<TemporalUnit> GetTemporalUnit(
+    Isolate* isolate, DirectHandle<JSReceiver> normalized_options,
+    const char* key, UnitGroup unit_group,
+    std::optional<TemporalUnit> default_value, bool default_is_required,
+    const char* method_name,
+    std::optional<TemporalUnit> extra_values = std::nullopt) {
+  std::vector<const char*> str_values;
+  std::vector<std::optional<TemporalUnit>> enum_values;
+  switch (unit_group) {
+    case UnitGroup::kDate:
+      if (default_value == TemporalUnit::Auto ||
+          extra_values == TemporalUnit::Auto) {
+        str_values = {"year",  "month",  "week",  "day", "auto",
+                      "years", "months", "weeks", "days"};
+        enum_values = {
+            TemporalUnit::Year,  TemporalUnit::Month, TemporalUnit::Week,
+            TemporalUnit::Day,   TemporalUnit::Auto,  TemporalUnit::Year,
+            TemporalUnit::Month, TemporalUnit::Week,  TemporalUnit::Day};
+      } else {
+        DCHECK(default_value == std::nullopt ||
+               default_value == TemporalUnit::Year ||
+               default_value == TemporalUnit::Month ||
+               default_value == TemporalUnit::Week ||
+               default_value == TemporalUnit::Day);
+        str_values = {"year",  "month",  "week",  "day",
+                      "years", "months", "weeks", "days"};
+        enum_values = {TemporalUnit::Year, TemporalUnit::Month,
+                       TemporalUnit::Week, TemporalUnit::Day,
+                       TemporalUnit::Year, TemporalUnit::Month,
+                       TemporalUnit::Week, TemporalUnit::Day};
+      }
+      break;
+    case UnitGroup::kTime:
+      if (default_value == TemporalUnit::Auto ||
+          extra_values == TemporalUnit::Auto) {
+        str_values = {"hour",        "minute",       "second",
+                      "millisecond", "microsecond",  "nanosecond",
+                      "auto",        "hours",        "minutes",
+                      "seconds",     "milliseconds", "microseconds",
+                      "nanoseconds"};
+        enum_values = {TemporalUnit::Hour,        TemporalUnit::Minute,
+                       TemporalUnit::Second,      TemporalUnit::Millisecond,
+                       TemporalUnit::Microsecond, TemporalUnit::Nanosecond,
+                       TemporalUnit::Auto,        TemporalUnit::Hour,
+                       TemporalUnit::Minute,      TemporalUnit::Second,
+                       TemporalUnit::Millisecond, TemporalUnit::Microsecond,
+                       TemporalUnit::Nanosecond};
+      } else if (default_value == TemporalUnit::Day ||
+                 extra_values == TemporalUnit::Day) {
+        str_values = {"hour",        "minute",       "second",
+                      "millisecond", "microsecond",  "nanosecond",
+                      "day",         "hours",        "minutes",
+                      "seconds",     "milliseconds", "microseconds",
+                      "nanoseconds", "days"};
+        enum_values = {TemporalUnit::Hour,        TemporalUnit::Minute,
+                       TemporalUnit::Second,      TemporalUnit::Millisecond,
+                       TemporalUnit::Microsecond, TemporalUnit::Nanosecond,
+                       TemporalUnit::Day,         TemporalUnit::Hour,
+                       TemporalUnit::Minute,      TemporalUnit::Second,
+                       TemporalUnit::Millisecond, TemporalUnit::Microsecond,
+                       TemporalUnit::Nanosecond,  TemporalUnit::Day};
+      } else {
+        DCHECK(default_value == std::nullopt ||
+               default_value == TemporalUnit::Hour ||
+               default_value == TemporalUnit::Minute ||
+               default_value == TemporalUnit::Second ||
+               default_value == TemporalUnit::Millisecond ||
+               default_value == TemporalUnit::Microsecond ||
+               default_value == TemporalUnit::Nanosecond);
+        str_values = {"hour",         "minute",       "second",
+                      "millisecond",  "microsecond",  "nanosecond",
+                      "hours",        "minutes",      "seconds",
+                      "milliseconds", "microseconds", "nanoseconds"};
+        enum_values = {TemporalUnit::Hour,        TemporalUnit::Minute,
+                       TemporalUnit::Second,      TemporalUnit::Millisecond,
+                       TemporalUnit::Microsecond, TemporalUnit::Nanosecond,
+                       TemporalUnit::Hour,        TemporalUnit::Minute,
+                       TemporalUnit::Second,      TemporalUnit::Millisecond,
+                       TemporalUnit::Microsecond, TemporalUnit::Nanosecond};
+      }
+      break;
+    case UnitGroup::kDateTime:
+      if (default_value == TemporalUnit::Auto ||
+          extra_values == TemporalUnit::Auto) {
+        str_values = {"year",         "month",        "week",
+                      "day",          "hour",         "minute",
+                      "second",       "millisecond",  "microsecond",
+                      "nanosecond",   "auto",         "years",
+                      "months",       "weeks",        "days",
+                      "hours",        "minutes",      "seconds",
+                      "milliseconds", "microseconds", "nanoseconds"};
+        enum_values = {TemporalUnit::Year,        TemporalUnit::Month,
+                       TemporalUnit::Week,        TemporalUnit::Day,
+                       TemporalUnit::Hour,        TemporalUnit::Minute,
+                       TemporalUnit::Second,      TemporalUnit::Millisecond,
+                       TemporalUnit::Microsecond, TemporalUnit::Nanosecond,
+                       TemporalUnit::Auto,        TemporalUnit::Year,
+                       TemporalUnit::Month,       TemporalUnit::Week,
+                       TemporalUnit::Day,         TemporalUnit::Hour,
+                       TemporalUnit::Minute,      TemporalUnit::Second,
+                       TemporalUnit::Millisecond, TemporalUnit::Microsecond,
+                       TemporalUnit::Nanosecond};
+      } else {
+        str_values = {
+            "year",        "month",        "week",         "day",
+            "hour",        "minute",       "second",       "millisecond",
+            "microsecond", "nanosecond",   "years",        "months",
+            "weeks",       "days",         "hours",        "minutes",
+            "seconds",     "milliseconds", "microseconds", "nanoseconds"};
+        enum_values = {TemporalUnit::Year,        TemporalUnit::Month,
+                       TemporalUnit::Week,        TemporalUnit::Day,
+                       TemporalUnit::Hour,        TemporalUnit::Minute,
+                       TemporalUnit::Second,      TemporalUnit::Millisecond,
+                       TemporalUnit::Microsecond, TemporalUnit::Nanosecond,
+                       TemporalUnit::Year,        TemporalUnit::Month,
+                       TemporalUnit::Week,        TemporalUnit::Day,
+                       TemporalUnit::Hour,        TemporalUnit::Minute,
+                       TemporalUnit::Second,      TemporalUnit::Millisecond,
+                       TemporalUnit::Microsecond, TemporalUnit::Nanosecond};
+      }
+      break;
+  }
+
+  // 4. If default is required, then
+  if (default_is_required) default_value = std::nullopt;
+  // a. Let defaultValue be undefined.
+  // 5. Else,
+  // a. Let defaultValue be default.
+  // b. If defaultValue is not undefined and singularNames does not contain
+  // defaultValue, then i. Append defaultValue to singularNames.
+
+  // 9. Let value be ? GetOption(normalizedOptions, key, "string",
+  // allowedValues, defaultValue).
+  std::optional<TemporalUnit> value;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, value,
+      GetStringOption<std::optional<TemporalUnit>>(isolate, normalized_options,
+                                                   key, method_name, str_values,
+                                                   enum_values, default_value),
+      std::nullopt);
+
+  // 10. If value is undefined and default is required, throw a RangeError
+  // exception.
+  if (default_is_required && value == std::nullopt) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(
+            MessageTemplate::kValueOutOfRange,
+            isolate->factory()->undefined_value(),
+            isolate->factory()->NewStringFromAsciiChecked(method_name),
+            isolate->factory()->NewStringFromAsciiChecked(key)),
+        std::nullopt);
+  }
+  // 12. Return value.
+
+  return value;
+}
+
+// #sec-temporal-getroundingincrementoption
+Maybe<uint32_t> GetRoundingIncrementOption(
+    Isolate* isolate, DirectHandle<JSReceiver> normalized_options) {
+  double value;
+
+  // 1. Let value be ? Get(options, "roundingIncrement").
+  // 2. If value is undefined, return 1𝔽.
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, value,
+      GetNumberOptionAsDouble(isolate, normalized_options,
+                              isolate->factory()->roundingIncrement_string(),
+                              1.0),
+      Nothing<uint32_t>());
+
+  // 3. Let integerIncrement be ? ToIntegerWithTruncation(value).
+  if (!std::isfinite(value)) {
+    // (ToIntegerWithTruncation) 2. If number is NaN, +∞𝔽 or -∞𝔽, throw a
+    // RangeError exception.
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<uint32_t>());
+  }
+  // (ToIntegerWithTruncation) 3. Return truncate(ℝ(number)).
+  uint32_t integer_increment = std::trunc(value);
+  return Just(integer_increment);
+}
+
+// sec-temporal-getroundingmodeoption
+Maybe<TemporalRoundingMode> GetRoundingModeOption(
+    Isolate* isolate, DirectHandle<JSReceiver> options,
+    TemporalRoundingMode fallback, const char* method_name) {
+  // 1. Return ? GetOption(normalizedOptions, "roundingMode", "string", «
+  // "ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor", "halfExpand",
+  // "halfTrunc", "halfEven" », fallback).
+
+  return GetStringOption<TemporalRoundingMode>(
+      isolate, options, "roundingMode", method_name,
+      {"ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
+       "halfExpand", "halfTrunc", "halfEven"},
+      {TemporalRoundingMode::Ceil, TemporalRoundingMode::Floor,
+       TemporalRoundingMode::Expand, TemporalRoundingMode::Trunc,
+       TemporalRoundingMode::HalfCeil, TemporalRoundingMode::HalfFloor,
+       TemporalRoundingMode::HalfExpand, TemporalRoundingMode::HalfTrunc,
+       TemporalRoundingMode::HalfEven},
+      fallback);
 }
 
 }  // namespace temporal
@@ -1239,49 +1465,73 @@ JSTemporalZonedDateTime::ToPlainDateTime(
   UNIMPLEMENTED();
 }
 
+namespace temporal {
+
+// #sec-temporal-createtemporalinstant, but this also performs the validity
+// check
+MaybeDirectHandle<JSTemporalInstant> CreateTemporalInstantWithValidityCheck(
+    Isolate* isolate, DirectHandle<JSFunction> target,
+    DirectHandle<HeapObject> new_target,
+    DirectHandle<BigInt> epoch_nanoseconds) {
+  TEMPORAL_ENTER_FUNC();
+  if (epoch_nanoseconds->Words64Count() > 2) {
+    // 3. If ! IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
+    // RangeError exception.
+    // Most validation is performed by the Instant ctor.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+  }
+
+  uint64_t words[2] = {0, 0};
+  uint32_t word_count = 2;
+  int sign_bit = 0;
+  epoch_nanoseconds->ToWordsArray64(&sign_bit, &word_count, words);
+
+  if (words[1] > std::numeric_limits<int64_t>::max()) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+  }
+
+  int64_t high = static_cast<int64_t>(words[1]);
+  if (sign_bit == 1) {
+    high = -high;
+  }
+
+  auto ns = temporal_rs::I128Nanoseconds{.high = high, .low = words[0]};
+
+  return ConstructRustWrappingType<JSTemporalInstant>(
+      isolate, target, new_target, temporal_rs::Instant::try_new(ns));
+}
+
+MaybeDirectHandle<JSTemporalInstant> CreateTemporalInstantWithValidityCheck(
+    Isolate* isolate, DirectHandle<BigInt> epoch_nanoseconds) {
+  TEMPORAL_ENTER_FUNC();
+  return CreateTemporalInstantWithValidityCheck(
+      isolate, CONSTRUCTOR(instant), CONSTRUCTOR(instant), epoch_nanoseconds);
+}
+
+}  // namespace temporal
+
 // #sec-temporal.instant
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Constructor(
     Isolate* isolate, DirectHandle<JSFunction> target,
     DirectHandle<HeapObject> new_target,
     DirectHandle<Object> epoch_nanoseconds_obj) {
   TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
-}
+  // 1. If NewTarget is undefined, then
+  if (IsUndefined(*new_target)) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
+                                 isolate->factory()->NewStringFromAsciiChecked(
+                                     "Temporal.Instant")));
+  }
+  // 2. Let epochNanoseconds be ? ToBigInt(epochNanoseconds).
+  DirectHandle<BigInt> epoch_nanoseconds;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, epoch_nanoseconds,
+      BigInt::FromObject(isolate, epoch_nanoseconds_obj));
 
-// #sec-temporal.instant.fromepochseconds
-MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::FromEpochSeconds(
-    Isolate* isolate, DirectHandle<Object> epoch_seconds) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
-}
-
-// #sec-temporal.instant.fromepochmilliseconds
-MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::FromEpochMilliseconds(
-    Isolate* isolate, DirectHandle<Object> epoch_milliseconds) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
-}
-
-// #sec-temporal.instant.fromepochmicroseconds
-MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::FromEpochMicroseconds(
-    Isolate* isolate, DirectHandle<Object> epoch_microseconds) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
-}
-
-// #sec-temporal.instant.fromepochnanoeconds
-MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::FromEpochNanoseconds(
-    Isolate* isolate, DirectHandle<Object> epoch_nanoseconds) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
-}
-
-// #sec-temporal.instant.compare
-MaybeDirectHandle<Smi> JSTemporalInstant::Compare(
-    Isolate* isolate, DirectHandle<Object> one_obj,
-    DirectHandle<Object> two_obj) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  return temporal::CreateTemporalInstantWithValidityCheck(
+      isolate, target, new_target, epoch_nanoseconds);
 }
 
 // #sec-temporal.instant.prototype.equals
@@ -1298,15 +1548,96 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Round(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
     DirectHandle<Object> round_to_obj) {
   TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  const char* method_name = "Temporal.Instant.prototype.round";
+  Factory* factory = isolate->factory();
+  // 1. Let instant be the this value.
+  // 2. Perform ? RequireInternalSlot(instant, [[InitializedTemporalInstant]]).
+  // 3. If roundTo is undefined, then
+  if (IsUndefined(*round_to_obj)) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+  }
+  DirectHandle<JSReceiver> round_to;
+  // 4. If Type(roundTo) is String, then
+  if (IsString(*round_to_obj)) {
+    // TODO(415359720) This could be done more efficiently, if we had better
+    // GetStringOption APIs
+    // a. Let paramString be roundTo.
+    DirectHandle<String> param_string = Cast<String>(round_to_obj);
+    // b. Set roundTo to ! OrdinaryObjectCreate(null).
+    round_to = factory->NewJSObjectWithNullProto();
+    // c. Perform ! CreateDataPropertyOrThrow(roundTo, "smallestUnit",
+    // paramString).
+    CHECK(JSReceiver::CreateDataProperty(isolate, round_to,
+                                         factory->smallestUnit_string(),
+                                         param_string, Just(kThrowOnError))
+              .FromJust());
+  } else {
+    // a. Set roundTo to ? GetOptionsObject(roundTo).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, round_to,
+        GetOptionsObject(isolate, round_to_obj, method_name));
+  }
+
+  // 7. Let roundingIncrement be ? GetRoundingIncrementOption(roundTo).
+  uint32_t rounding_increment;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rounding_increment,
+      temporal::GetRoundingIncrementOption(isolate, round_to),
+      DirectHandle<JSTemporalInstant>());
+
+  // 8. Let roundingMode be ? GetRoundingModeOption(roundTo, half-expand).
+  TemporalRoundingMode rounding_mode;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rounding_mode,
+      temporal::GetRoundingModeOption(
+          isolate, round_to, TemporalRoundingMode::HalfExpand, method_name),
+      DirectHandle<JSTemporalInstant>());
+
+  // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo,
+  // "smallestUnit", time, required
+  std::optional<TemporalUnit> smallest_unit = temporal::GetTemporalUnit(
+      isolate, round_to, "smallestUnit", UnitGroup::kTime, std::nullopt, true,
+      method_name);
+  // GetTemporalUnit returns an optional, not a Maybe, so we can't use
+  // MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE
+  RETURN_VALUE_IF_EXCEPTION(isolate, DirectHandle<JSTemporalInstant>());
+  auto options = temporal_rs::RoundingOptions{.largest_unit = std::nullopt,
+                                              .smallest_unit = smallest_unit,
+                                              .rounding_mode = rounding_mode,
+                                              .increment = rounding_increment};
+
+  auto rounded = handle->instant()->raw()->round(options);
+  return ConstructRustWrappingType<JSTemporalInstant>(
+      isolate, CONSTRUCTOR(instant), CONSTRUCTOR(instant), std::move(rounded));
 }
 
-// #sec-temporal.instant.from
-MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::From(
-    Isolate* isolate, DirectHandle<Object> item) {
+// #sec-temporal.instant.prototype.epochmilliseconds
+MaybeDirectHandle<Number> JSTemporalInstant::EpochMilliseconds(
+    Isolate* isolate, DirectHandle<JSTemporalInstant> handle) {
   TEMPORAL_ENTER_FUNC();
+  int64_t ms = handle->instant()->raw()->epoch_milliseconds();
 
-  UNIMPLEMENTED();
+  return isolate->factory()->NewNumberFromInt64(ms);
+}
+
+// #sec-temporal.instant.prototype.epochnanoseconds
+MaybeDirectHandle<BigInt> JSTemporalInstant::EpochNanoseconds(
+    Isolate* isolate, DirectHandle<JSTemporalInstant> handle) {
+  TEMPORAL_ENTER_FUNC();
+  temporal_rs::I128Nanoseconds ns =
+      handle->instant()->raw()->epoch_nanoseconds();
+  uint64_t words[2];
+  bool sign_bit;
+  if (ns.high < 0) {
+    sign_bit = true;
+    words[1] = static_cast<uint64_t>(-ns.high);
+  } else {
+    sign_bit = false;
+    words[1] = static_cast<uint64_t>(ns.high);
+  }
+  words[0] = ns.low;
+  return BigInt::FromWords64(isolate, sign_bit, 2, words);
 }
 
 // #sec-temporal.instant.prototype.tozoneddatetime
@@ -1338,16 +1669,15 @@ MaybeDirectHandle<String> JSTemporalInstant::ToLocaleString(
 MaybeDirectHandle<String> JSTemporalInstant::ToString(
     Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
     DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
-}
-
-// #sec-temporal.instant.prototype.tozoneddatetimeiso
-MaybeDirectHandle<JSTemporalZonedDateTime>
-JSTemporalInstant::ToZonedDateTimeISO(Isolate* isolate,
-                                      DirectHandle<JSTemporalInstant> handle,
-                                      DirectHandle<Object> item_obj) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  // TODO(42201538) this is an incorrect impl, exists solely so that the
+  // interpreter doesn't keep hitting ToString() unimplementeds temporal_rs has
+  // code for this, but it's missing from the CAPI
+  // (https://github.com/boa-dev/temporal/pull/276)
+  IncrementalStringBuilder builder(isolate);
+  auto ns = instant->instant()->raw()->epoch_milliseconds();
+  builder.AppendInt(static_cast<int>(ns));
+  builder.AppendString("ms since epoch");
+  return builder.Finish().ToHandleChecked();
 }
 
 // #sec-temporal.instant.prototype.add

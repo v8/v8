@@ -93,6 +93,10 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalZonedDateTime)
 
 BOOL_ACCESSORS(JSTemporalTimeZone, flags, is_offset, IsOffsetBit::kShift)
 
+// temporal_rs object getters
+ACCESSORS(JSTemporalInstant, instant, Tagged<Managed<temporal_rs::Instant>>,
+          kInstantOffset)
+
 // Special handling of sign
 TEMPORAL_INLINE_SIGNED_GETTER_SETTER(JSTemporalTimeZone, flags,
                                      offset_milliseconds, -24 * 60 * 60 * 1000,

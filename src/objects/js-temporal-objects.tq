@@ -45,7 +45,7 @@ extern class JSTemporalDuration extends JSObject {
 }
 
 extern class JSTemporalInstant extends JSObject {
-  nanoseconds: BigInt;
+  instant: Foreign;  // Managed<temporal_rs::Instant>
 }
 
 extern class JSTemporalPlainDateTime extends JSObject {

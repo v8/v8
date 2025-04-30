@@ -1041,6 +1041,9 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
       case kDisplayNamesInternalTag:
         name = "system / Managed<DisplayNamesInternal>";
         break;
+      case kTemporalInstantTag:
+        name = "system / Managed<temporal_rs::Instant>";
+        break;
       default:
         DCHECK(!kAnyManagedExternalPointerTagRange.Contains(tag));
     }

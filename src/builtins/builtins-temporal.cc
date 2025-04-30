@@ -536,21 +536,10 @@ TEMPORAL_PROTOTYPE_METHOD1(Duration, ToString, toString)
 
 // Instant
 TEMPORAL_CONSTRUCTOR1(Instant)
-TEMPORAL_METHOD1(Instant, FromEpochSeconds)
-TEMPORAL_METHOD1(Instant, FromEpochMilliseconds)
-TEMPORAL_METHOD1(Instant, FromEpochMicroseconds)
-TEMPORAL_METHOD1(Instant, FromEpochNanoseconds)
-TEMPORAL_METHOD1(Instant, From)
-TEMPORAL_METHOD2(Instant, Compare)
 TEMPORAL_PROTOTYPE_METHOD1(Instant, Equals, equals)
 TEMPORAL_VALUE_OF(Instant)
-TEMPORAL_GET(Instant, EpochNanoseconds, nanoseconds)
-TEMPORAL_GET_NUMBER_AFTER_DIVID(Instant, EpochSeconds, nanoseconds, 1000000000,
-                                epochSeconds)
-TEMPORAL_GET_NUMBER_AFTER_DIVID(Instant, EpochMilliseconds, nanoseconds,
-                                1000000, epochMilliseconds)
-TEMPORAL_GET_BIGINT_AFTER_DIVID(Instant, EpochMicroseconds, nanoseconds, 1000,
-                                epochMicroseconds)
+TEMPORAL_PROTOTYPE_METHOD0(Instant, EpochNanoseconds, epochNanoseconds)
+TEMPORAL_PROTOTYPE_METHOD0(Instant, EpochMilliseconds, epochMilliseconds)
 TEMPORAL_PROTOTYPE_METHOD1(Instant, Add, add)
 TEMPORAL_PROTOTYPE_METHOD1(Instant, Round, round)
 TEMPORAL_PROTOTYPE_METHOD2(Instant, Since, since)
@@ -559,7 +548,6 @@ TEMPORAL_PROTOTYPE_METHOD0(Instant, ToJSON, toJSON)
 TEMPORAL_PROTOTYPE_METHOD2(Instant, ToLocaleString, toLocaleString)
 TEMPORAL_PROTOTYPE_METHOD1(Instant, ToString, toString)
 TEMPORAL_PROTOTYPE_METHOD1(Instant, ToZonedDateTime, toZonedDateTime)
-TEMPORAL_PROTOTYPE_METHOD1(Instant, ToZonedDateTimeISO, toZonedDateTimeISO)
 TEMPORAL_PROTOTYPE_METHOD2(Instant, Until, until)
 
 // TimeZone

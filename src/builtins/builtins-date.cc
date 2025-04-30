@@ -939,7 +939,8 @@ BUILTIN(DatePrototypeToTemporalInstant) {
       isolate, ns,
       BigInt::Multiply(isolate, t, BigInt::FromInt64(isolate, 1000000)));
   // 3. Return ! CreateTemporalInstant(ns).
-  return *temporal::CreateTemporalInstant(isolate, ns).ToHandleChecked();
+  return *temporal::CreateTemporalInstantWithValidityCheck(isolate, ns)
+              .ToHandleChecked();
 }
 #endif  // V8_TEMPORAL_SUPPORT
 

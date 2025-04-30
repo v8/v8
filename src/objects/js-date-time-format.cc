@@ -20,6 +20,7 @@
 #include "src/objects/js-date-time-format-inl.h"
 #ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"
+#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/Instant.hpp"
 #endif  // V8_TEMPORAL_SUPPORT
 #include "src/objects/managed-inl.h"
 #include "src/objects/option-utils.h"
@@ -890,11 +891,7 @@ struct DateTimeValueRecord {
 DateTimeValueRecord TemporalInstantToRecord(
     Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
     PatternKind kind) {
-  double milliseconds =
-      BigInt::Divide(isolate, direct_handle(instant->nanoseconds(), isolate),
-                     BigInt::FromInt64(isolate, 1000000))
-          .ToHandleChecked()
-          ->AsInt64();
+  double milliseconds = instant->instant()->raw()->epoch_milliseconds();
   return {milliseconds, kind};
 }
 Maybe<DateTimeValueRecord> TemporalPlainDateTimeToRecord(
@@ -1050,7 +1047,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalZonedDateTime(
   }
   // 7. Let instant be ! CreateTemporalInstant(zonedDateTime.[[Nanoseconds]]).
   DirectHandle<JSTemporalInstant> instant =
-      temporal::CreateTemporalInstant(
+      temporal::CreateTemporalInstantWithValidityCheck(
           isolate, direct_handle(zoned_date_time->nanoseconds(), isolate))
           .ToHandleChecked();
   // 8. If pattern is null, throw a TypeError exception.
