@@ -573,6 +573,8 @@ class WasmLoweringReducer : public Next {
     }
   }
 
+  // TODO(mliedtke): For WasmTypeCheckAbstract and WasmTypeCastAbstract make
+  // sure that the sharedness matches when casting from (unshared) any.
   V<Word32> ReduceWasmTypeCheckAbstract(V<Object> object,
                                         WasmTypeCheckConfig config) {
     const bool object_can_be_null = config.from.is_nullable();
@@ -591,7 +593,11 @@ class WasmLoweringReducer : public Next {
       if (to_rep == wasm::HeapType::kNone ||
           to_rep == wasm::HeapType::kNoExtern ||
           to_rep == wasm::HeapType::kNoFunc ||
-          to_rep == wasm::HeapType::kNoExn) {
+          to_rep == wasm::HeapType::kNoExn ||
+          to_rep == wasm::HeapType::kNoneShared ||
+          to_rep == wasm::HeapType::kNoExternShared ||
+          to_rep == wasm::HeapType::kNoFuncShared ||
+          to_rep == wasm::HeapType::kNoExnShared) {
         result = __ IsNull(object, config.from);
         break;
       }
@@ -604,13 +610,15 @@ class WasmLoweringReducer : public Next {
                 __ Word32Constant(kResult));
       }
       // i31 is special in that the Smi check is the last thing to do.
-      if (to_rep == wasm::HeapType::kI31) {
+      if (to_rep == wasm::HeapType::kI31 ||
+          to_rep == wasm::HeapType::kI31Shared) {
         // If earlier optimization passes reached the limit of possible graph
         // transformations, we could DCHECK(object_can_be_i31) here.
         result = object_can_be_i31 ? __ IsSmi(object) : __ Word32Constant(0);
         break;
       }
-      if (to_rep == wasm::HeapType::kEq) {
+      if (to_rep == wasm::HeapType::kEq ||
+          to_rep == wasm::HeapType::kEqShared) {
         if (object_can_be_i31) {
           GOTO_IF(UNLIKELY(__ IsSmi(object)), end_label, __ Word32Constant(1));
         }
@@ -621,11 +629,13 @@ class WasmLoweringReducer : public Next {
       if (object_can_be_i31) {
         GOTO_IF(UNLIKELY(__ IsSmi(object)), end_label, __ Word32Constant(0));
       }
-      if (to_rep == wasm::HeapType::kArray) {
+      if (to_rep == wasm::HeapType::kArray ||
+          to_rep == wasm::HeapType::kArrayShared) {
         result = __ HasInstanceType(object, WASM_ARRAY_TYPE);
         break;
       }
-      if (to_rep == wasm::HeapType::kStruct) {
+      if (to_rep == wasm::HeapType::kStruct ||
+          to_rep == wasm::HeapType::kStructShared) {
         result = __ HasInstanceType(object, WASM_STRUCT_TYPE);
         break;
       }
@@ -664,7 +674,11 @@ class WasmLoweringReducer : public Next {
       if (to_rep == wasm::HeapType::kNone ||
           to_rep == wasm::HeapType::kNoExtern ||
           to_rep == wasm::HeapType::kNoFunc ||
-          to_rep == wasm::HeapType::kNoExn) {
+          to_rep == wasm::HeapType::kNoExn ||
+          to_rep == wasm::HeapType::kNoneShared ||
+          to_rep == wasm::HeapType::kNoExternShared ||
+          to_rep == wasm::HeapType::kNoFuncShared ||
+          to_rep == wasm::HeapType::kNoExnShared) {
         __ TrapIfNot(__ IsNull(object, config.from), TrapId::kTrapIllegalCast);
         break;
       }
@@ -675,7 +689,8 @@ class WasmLoweringReducer : public Next {
           !v8_flags.experimental_wasm_skip_null_checks) {
         GOTO_IF(UNLIKELY(__ IsNull(object, config.from)), end_label);
       }
-      if (to_rep == wasm::HeapType::kI31) {
+      if (to_rep == wasm::HeapType::kI31 ||
+          to_rep == wasm::HeapType::kI31Shared) {
         // If earlier optimization passes reached the limit of possible graph
         // transformations, we could DCHECK(object_can_be_i31) here.
         V<Word32> success =
@@ -683,7 +698,8 @@ class WasmLoweringReducer : public Next {
         __ TrapIfNot(success, TrapId::kTrapIllegalCast);
         break;
       }
-      if (to_rep == wasm::HeapType::kEq) {
+      if (to_rep == wasm::HeapType::kEq ||
+          to_rep == wasm::HeapType::kEqShared) {
         if (object_can_be_i31) {
           GOTO_IF(UNLIKELY(__ IsSmi(object)), end_label);
         }
@@ -695,12 +711,14 @@ class WasmLoweringReducer : public Next {
       if (object_can_be_i31) {
         __ TrapIf(__ IsSmi(object), TrapId::kTrapIllegalCast);
       }
-      if (to_rep == wasm::HeapType::kArray) {
+      if (to_rep == wasm::HeapType::kArray ||
+          to_rep == wasm::HeapType::kArrayShared) {
         __ TrapIfNot(__ HasInstanceType(object, WASM_ARRAY_TYPE),
                      TrapId::kTrapIllegalCast);
         break;
       }
-      if (to_rep == wasm::HeapType::kStruct) {
+      if (to_rep == wasm::HeapType::kStruct ||
+          to_rep == wasm::HeapType::kStructShared) {
         __ TrapIfNot(__ HasInstanceType(object, WASM_STRUCT_TYPE),
                      TrapId::kTrapIllegalCast);
         break;

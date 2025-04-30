@@ -7333,15 +7333,19 @@ class LiftoffCompiler {
                        Value* result_val, bool null_succeeds) {
     switch (type.representation()) {
       case HeapType::kEq:
+      case HeapType::kEqShared:
         return AbstractTypeCheck<&LiftoffCompiler::EqCheck>(decoder, obj,
                                                             null_succeeds);
       case HeapType::kI31:
+      case HeapType::kI31Shared:
         return AbstractTypeCheck<&LiftoffCompiler::I31Check>(decoder, obj,
                                                              null_succeeds);
       case HeapType::kStruct:
+      case HeapType::kStructShared:
         return AbstractTypeCheck<&LiftoffCompiler::StructCheck>(decoder, obj,
                                                                 null_succeeds);
       case HeapType::kArray:
+      case HeapType::kArrayShared:
         return AbstractTypeCheck<&LiftoffCompiler::ArrayCheck>(decoder, obj,
                                                                null_succeeds);
       case HeapType::kString:
@@ -7351,9 +7355,14 @@ class LiftoffCompiler {
       case HeapType::kNoExtern:
       case HeapType::kNoFunc:
       case HeapType::kNoExn:
+      case HeapType::kNoneShared:
+      case HeapType::kNoExternShared:
+      case HeapType::kNoFuncShared:
+      case HeapType::kNoExnShared:
         DCHECK(null_succeeds);
         return EmitIsNull(kExprRefIsNull, obj.type);
       case HeapType::kAny:
+      case HeapType::kAnyShared:
         // Any may never need a cast as it is either implicitly convertible or
         // never convertible for any given type.
       default:
@@ -7405,15 +7414,19 @@ class LiftoffCompiler {
                        Value* result_val, bool null_succeeds) {
     switch (type.representation()) {
       case HeapType::kEq:
+      case HeapType::kEqShared:
         return AbstractTypeCast<&LiftoffCompiler::EqCheck>(obj, decoder,
                                                            null_succeeds);
       case HeapType::kI31:
+      case HeapType::kI31Shared:
         return AbstractTypeCast<&LiftoffCompiler::I31Check>(obj, decoder,
                                                             null_succeeds);
       case HeapType::kStruct:
+      case HeapType::kStructShared:
         return AbstractTypeCast<&LiftoffCompiler::StructCheck>(obj, decoder,
                                                                null_succeeds);
       case HeapType::kArray:
+      case HeapType::kArrayShared:
         return AbstractTypeCast<&LiftoffCompiler::ArrayCheck>(obj, decoder,
                                                               null_succeeds);
       case HeapType::kString:
@@ -7423,9 +7436,14 @@ class LiftoffCompiler {
       case HeapType::kNoExtern:
       case HeapType::kNoFunc:
       case HeapType::kNoExn:
+      case HeapType::kNoneShared:
+      case HeapType::kNoExternShared:
+      case HeapType::kNoFuncShared:
+      case HeapType::kNoExnShared:
         DCHECK(null_succeeds);
         return AssertNullTypecheck(decoder, obj, result_val);
       case HeapType::kAny:
+      case HeapType::kAnyShared:
         // Any may never need a cast as it is either implicitly convertible or
         // never convertible for any given type.
       default:
@@ -7535,15 +7553,19 @@ class LiftoffCompiler {
                         bool null_succeeds) {
     switch (type.representation()) {
       case HeapType::kEq:
+      case HeapType::kEqShared:
         return BrOnAbstractType<&LiftoffCompiler::EqCheck>(obj, decoder, depth,
                                                            null_succeeds);
       case HeapType::kI31:
+      case HeapType::kI31Shared:
         return BrOnAbstractType<&LiftoffCompiler::I31Check>(obj, decoder, depth,
                                                             null_succeeds);
       case HeapType::kStruct:
+      case HeapType::kStructShared:
         return BrOnAbstractType<&LiftoffCompiler::StructCheck>(
             obj, decoder, depth, null_succeeds);
       case HeapType::kArray:
+      case HeapType::kArrayShared:
         return BrOnAbstractType<&LiftoffCompiler::ArrayCheck>(
             obj, decoder, depth, null_succeeds);
       case HeapType::kString:
@@ -7553,10 +7575,15 @@ class LiftoffCompiler {
       case HeapType::kNoExtern:
       case HeapType::kNoFunc:
       case HeapType::kNoExn:
+      case HeapType::kNoneShared:
+      case HeapType::kNoExternShared:
+      case HeapType::kNoFuncShared:
+      case HeapType::kNoExnShared:
         DCHECK(null_succeeds);
         return BrOnNull(decoder, obj, depth, /*pass_null_along_branch*/ true,
                         nullptr);
       case HeapType::kAny:
+      case HeapType::kAnyShared:
         // Any may never need a cast as it is either implicitly convertible or
         // never convertible for any given type.
       default:
@@ -7569,15 +7596,19 @@ class LiftoffCompiler {
                             uint32_t depth, bool null_succeeds) {
     switch (type.representation()) {
       case HeapType::kEq:
+      case HeapType::kEqShared:
         return BrOnNonAbstractType<&LiftoffCompiler::EqCheck>(
             obj, decoder, depth, null_succeeds);
       case HeapType::kI31:
+      case HeapType::kI31Shared:
         return BrOnNonAbstractType<&LiftoffCompiler::I31Check>(
             obj, decoder, depth, null_succeeds);
       case HeapType::kStruct:
+      case HeapType::kStructShared:
         return BrOnNonAbstractType<&LiftoffCompiler::StructCheck>(
             obj, decoder, depth, null_succeeds);
       case HeapType::kArray:
+      case HeapType::kArrayShared:
         return BrOnNonAbstractType<&LiftoffCompiler::ArrayCheck>(
             obj, decoder, depth, null_succeeds);
       case HeapType::kString:
@@ -7587,10 +7618,15 @@ class LiftoffCompiler {
       case HeapType::kNoExtern:
       case HeapType::kNoFunc:
       case HeapType::kNoExn:
+      case HeapType::kNoneShared:
+      case HeapType::kNoExternShared:
+      case HeapType::kNoFuncShared:
+      case HeapType::kNoExnShared:
         DCHECK(null_succeeds);
         return BrOnNonNull(decoder, obj, nullptr, depth,
                            /*drop_null_on_fallthrough*/ false);
       case HeapType::kAny:
+      case HeapType::kAnyShared:
         // Any may never need a cast as it is either implicitly convertible or
         // never convertible for any given type.
       default:
@@ -7678,6 +7714,8 @@ class LiftoffCompiler {
                       LiftoffAssembler::kJumpOnNotSmi, frozen);
   }
 
+  // TODO(mliedtke): For EqCheck, StructCheck and ArrayCheck make sure that the
+  // sharedness matches when casting from (unshared) any.
   void EqCheck(TypeCheck& check, const FreezeCacheState& frozen) {
     Label match;
     LoadInstanceType(check, frozen, &match);

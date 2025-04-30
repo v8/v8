@@ -241,6 +241,17 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
       is_shared = true;
     }
     switch (code) {
+      case kNoFuncCode:
+      case kFuncRefCode:
+        if (!VALIDATE(!is_shared)) {
+          DecodeError<ValidationTag>(
+              decoder, pc,
+              "invalid heap type '%s', shared function references are not "
+              "supported",
+              HeapType::from_code(code, is_shared).name().c_str());
+          return {kWasmBottom, 0};
+        }
+        [[fallthrough]];
       case kEqRefCode:
       case kI31RefCode:
       case kStructRefCode:
@@ -248,9 +259,7 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
       case kAnyRefCode:
       case kNoneCode:
       case kNoExternCode:
-      case kNoFuncCode:
       case kExternRefCode:
-      case kFuncRefCode:
         return {HeapType::from_code(code, is_shared), length};
       case kNoExnCode:
       case kExnRefCode:
@@ -267,6 +276,14 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
               decoder, pc,
               "module uses a mix of legacy and new exception handling "
               "instructions");
+          return {kWasmBottom, 0};
+        }
+        if (!VALIDATE(!is_shared)) {
+          DecodeError<ValidationTag>(
+              decoder, pc,
+              "invalid heap type '%s', shared exception references are not "
+              "supported",
+              HeapType::from_code(code, is_shared).name().c_str());
           return {kWasmBottom, 0};
         }
         detected->add_exnref();
@@ -291,6 +308,14 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
               decoder, pc,
               "invalid heap type '%s', enable with "
               "--experimental-wasm-wasmfx",
+              HeapType::from_code(code, is_shared).name().c_str());
+          return {kWasmBottom, 0};
+        }
+        if (!VALIDATE(!is_shared)) {
+          DecodeError<ValidationTag>(
+              decoder, pc,
+              "invalid heap type '%s', shared continuation references are not "
+              "supported",
               HeapType::from_code(code, is_shared).name().c_str());
           return {kWasmBottom, 0};
         }
@@ -5379,7 +5404,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             (expected_type.representation() == HeapType::kNone ||
              expected_type.representation() == HeapType::kNoFunc ||
              expected_type.representation() == HeapType::kNoExtern ||
-             expected_type.representation() == HeapType::kNoExn));
+             expected_type.representation() == HeapType::kNoExn ||
+             expected_type.representation() == HeapType::kNoneShared ||
+             expected_type.representation() == HeapType::kNoFuncShared ||
+             expected_type.representation() == HeapType::kNoExternShared ||
+             expected_type.representation() == HeapType::kNoExnShared));
   }
 
   // Checks if {obj} is a subtype of type, thus checking will always
