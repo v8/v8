@@ -1044,6 +1044,10 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
         IsolateAddressId::kContextAddress, masm->isolate());
     __ Move(cp, context_address);
     __ LoadU64(cp, MemOperand(cp));
+#ifdef DEBUG
+    __ mov(r7, Operand(Context::kNoContext));
+    __ StoreU64(r7, __ ExternalReferenceAsOperand(context_address, no_reg));
+#endif
 
     // Push the function
     __ Push(r4);
