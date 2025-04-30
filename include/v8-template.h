@@ -716,8 +716,8 @@ class V8_EXPORT FunctionTemplate : public Template {
   bool IsLeafTemplateForApiObject(v8::Local<v8::Value> value) const;
 
   /**
-   * Checks if the object can be promoted to read only space, seals it and
-   * prepares for promotion.
+   * Seal the object and mark it for promotion to read only space during
+   * context snapshot creation.
    *
    * This is an experimental feature and may still change significantly.
    */
@@ -1050,6 +1050,14 @@ class V8_EXPORT ObjectTemplate : public Template {
    */
   void SetCodeLike();
   bool IsCodeLike() const;
+
+  /**
+   * Seal the object and mark it for promotion to read only space during
+   * context snapshot creation.
+   *
+   * This is an experimental feature and may still change significantly.
+   */
+  void SealAndPrepareForPromotionToReadOnly();
 
   V8_INLINE static ObjectTemplate* Cast(Data* data);
 

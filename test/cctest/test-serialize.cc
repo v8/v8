@@ -3571,11 +3571,14 @@ void AccessorForSerialization(v8::Local<v8::Name> property,
   info.GetReturnValue().Set(v8_num(2017));
 }
 
+void MessageCallbackForSerialization(Local<Message> message,
+                                     Local<Value> data) {}
+
 SerializerOneByteResource serializable_one_byte_resource("one_byte", 8);
 SerializerTwoByteResource serializable_two_byte_resource(
     AsciiToTwoByteString(u"two_byte 🤓"), 11);
 
-intptr_t original_external_references[] = {
+const intptr_t original_external_references[] = {
     reinterpret_cast<intptr_t>(SerializedCallback),
     reinterpret_cast<intptr_t>(&serialized_static_field),
     reinterpret_cast<intptr_t>(&NamedPropertyGetterForSerialization),
@@ -3583,9 +3586,10 @@ intptr_t original_external_references[] = {
     reinterpret_cast<intptr_t>(&serialized_static_field),  // duplicate entry
     reinterpret_cast<intptr_t>(&serializable_one_byte_resource),
     reinterpret_cast<intptr_t>(&serializable_two_byte_resource),
+    reinterpret_cast<intptr_t>(&MessageCallbackForSerialization),
     0};
 
-intptr_t replaced_external_references[] = {
+const intptr_t replaced_external_references[] = {
     reinterpret_cast<intptr_t>(SerializedCallbackReplacement),
     reinterpret_cast<intptr_t>(&serialized_static_field),
     reinterpret_cast<intptr_t>(&NamedPropertyGetterForSerialization),
@@ -3593,9 +3597,10 @@ intptr_t replaced_external_references[] = {
     reinterpret_cast<intptr_t>(&serialized_static_field),
     reinterpret_cast<intptr_t>(&serializable_one_byte_resource),
     reinterpret_cast<intptr_t>(&serializable_two_byte_resource),
+    reinterpret_cast<intptr_t>(&MessageCallbackForSerialization),
     0};
 
-intptr_t short_external_references[] = {
+const intptr_t short_external_references[] = {
     reinterpret_cast<intptr_t>(SerializedCallbackReplacement),
     reinterpret_cast<intptr_t>(&serialized_static_field), 0};
 
@@ -3605,6 +3610,7 @@ UNINITIALIZED_TEST(SnapshotCreatorExternalReferences) {
   DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
+  uint32_t my_context_embedder_field_index = 0;
   {
     SnapshotCreatorParams testing_params(original_external_references);
     v8::SnapshotCreator creator(testing_params.create_params);
@@ -3612,7 +3618,13 @@ UNINITIALIZED_TEST(SnapshotCreatorExternalReferences) {
     {
       v8::HandleScope handle_scope(isolate);
       v8::Local<v8::Context> context = v8::Context::New(isolate);
+      my_context_embedder_field_index =
+          context->GetNumberOfEmbedderDataFields();
       v8::Context::Scope context_scope(context);
+      v8::Local<v8::External> writable_external =
+          v8::External::New(isolate, &serialized_static_field);
+      context->SetEmbedderData(my_context_embedder_field_index,
+                               writable_external);
       v8::Local<v8::External> external =
           v8::External::New(isolate, &serialized_static_field);
       v8::Local<v8::FunctionTemplate> callback =
@@ -3675,6 +3687,13 @@ UNINITIALIZED_TEST(SnapshotCreatorExternalReferences) {
       auto func = Cast<i::JSFunction>(Utils::OpenHandle(*v8_func));
       Tagged<FunctionTemplateInfo> func_temp = func->shared()->api_func_data();
       CHECK(HeapLayout::InReadOnlySpace(func_temp));
+
+      // Ensure that writable v8::External was NOT promoted to RO space.
+      v8::Local<v8::External> v8_external =
+          context->GetEmbedderData(my_context_embedder_field_index)
+              .As<v8::External>();
+      auto external = Cast<i::HeapObject>(Utils::OpenHandle(*v8_external));
+      CHECK(!HeapLayout::InReadOnlySpace(*external));
     }
     isolate->Dispose();
   }
@@ -4046,7 +4065,8 @@ UNINITIALIZED_TEST(SnapshotCreatorUnknownExternalReferences) {
   FreeCurrentEmbeddedBlob();
 }
 
-UNINITIALIZED_TEST(SnapshotCreatorTemplates) {
+namespace {
+void TestSnapshotCreatorTemplates(bool promote_templates_to_read_only) {
   DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
@@ -4061,14 +4081,25 @@ UNINITIALIZED_TEST(SnapshotCreatorTemplates) {
     v8::Isolate* isolate = creator.GetIsolate();
     {
       v8::HandleScope handle_scope(isolate);
+      CHECK(isolate->AddMessageListener(MessageCallbackForSerialization));
+
       v8::ExtensionConfiguration* no_extension = nullptr;
+      v8::Local<v8::FunctionTemplate> global_template_constructor =
+          v8::FunctionTemplate::New(isolate);
       v8::Local<v8::ObjectTemplate> global_template =
-          v8::ObjectTemplate::New(isolate);
+          v8::ObjectTemplate::New(isolate, global_template_constructor);
       v8::Local<v8::External> external =
           v8::External::New(isolate, &serialized_static_field);
       v8::Local<v8::FunctionTemplate> callback =
           v8::FunctionTemplate::New(isolate, SerializedCallback, external);
       global_template->Set(isolate, "f", callback);
+
+      if (promote_templates_to_read_only) {
+        callback->SealAndPrepareForPromotionToReadOnly();
+        global_template->SealAndPrepareForPromotionToReadOnly();
+        global_template_constructor->SealAndPrepareForPromotionToReadOnly();
+      }
+
       v8::Local<v8::Context> context =
           v8::Context::New(isolate, no_extension, global_template);
       creator.SetDefaultContext(context);
@@ -4131,6 +4162,10 @@ UNINITIALIZED_TEST(SnapshotCreatorTemplates) {
       {
         // Create a new context without a new object template.
         v8::HandleScope handle_scope(isolate);
+        // Ensure that the message listeners ArrayList didn't end up in the RO
+        // space.
+        isolate->RemoveMessageListeners(MessageCallbackForSerialization);
+
         v8::Local<v8::Context> context =
             v8::Context::FromSnapshot(
                 isolate, 0,
@@ -4146,6 +4181,12 @@ UNINITIALIZED_TEST(SnapshotCreatorTemplates) {
             isolate->GetDataFromSnapshotOnce<v8::ObjectTemplate>(1)
                 .ToLocalChecked();
         CHECK(!obj_template.IsEmpty());
+        if (promote_templates_to_read_only) {
+          auto obj_template_info = Utils::OpenHandle(*obj_template);
+          CHECK(obj_template_info->should_promote_to_read_only());
+          CHECK(HeapLayout::InReadOnlySpace(*obj_template_info));
+        }
+
         v8::Local<v8::Object> object =
             obj_template->NewInstance(context).ToLocalChecked();
         CHECK(context->Global()->Set(context, v8_str("o"), object).FromJust());
@@ -4159,6 +4200,11 @@ UNINITIALIZED_TEST(SnapshotCreatorTemplates) {
             isolate->GetDataFromSnapshotOnce<v8::FunctionTemplate>(0)
                 .ToLocalChecked();
         CHECK(!fun_template.IsEmpty());
+        if (promote_templates_to_read_only) {
+          auto fun_template_info = Utils::OpenHandle(*fun_template);
+          CHECK(fun_template_info->should_promote_to_read_only());
+          CHECK(HeapLayout::InReadOnlySpace(*fun_template_info));
+        }
         v8::Local<v8::Function> fun =
             fun_template->GetFunction(context).ToLocalChecked();
         CHECK(context->Global()->Set(context, v8_str("g"), fun).FromJust());
@@ -4223,6 +4269,17 @@ UNINITIALIZED_TEST(SnapshotCreatorTemplates) {
   }
   delete[] blob.data;
   FreeCurrentEmbeddedBlob();
+}
+}  // namespace
+
+UNINITIALIZED_TEST(SnapshotCreatorTemplates) {
+  const bool promote_templates_to_read_only = false;
+  TestSnapshotCreatorTemplates(promote_templates_to_read_only);
+}
+
+UNINITIALIZED_TEST(SnapshotCreatorTemplatesReadOnlyPromotion) {
+  const bool promote_templates_to_read_only = true;
+  TestSnapshotCreatorTemplates(promote_templates_to_read_only);
 }
 
 namespace context_data_test {
