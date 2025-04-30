@@ -7586,7 +7586,9 @@ void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
     }
 
     if (emit_add_lhs_is_string_constant_internalize) {
-      DCHECK(IsStringTypeHint(lhs_type));
+      // Subtle: Stack overflows can cause the AST to be visited only partially.
+      // Visitation is eventually aborted and the resulting bytecode discarded.
+      DCHECK_IMPLIES(!HasStackOverflow(), IsStringTypeHint(lhs_type));
       builder()->SetExpressionPosition(expr);
       builder()->Add_LhsIsStringConstant_Internalize(expr->op(), lhs,
                                                      feedback_index(slot));
