@@ -1528,7 +1528,8 @@ Maybe<base::Vector<const uint8_t>> ValueDeserializer::ReadRawBytes(
 
 Maybe<base::Vector<const base::uc16>> ValueDeserializer::ReadRawTwoBytes(
     size_t size) {
-  if (size > static_cast<size_t>(end_ - position_) ||
+  if (!IsAligned(reinterpret_cast<uintptr_t>(position_), 2) ||
+      size > static_cast<size_t>(end_ - position_) ||
       size % sizeof(base::uc16) != 0) {
     return Nothing<base::Vector<const base::uc16>>();
   }
