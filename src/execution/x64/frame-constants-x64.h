@@ -27,18 +27,16 @@ class EntryFrameConstants : public AllStatic {
   //   1   | stack frame marker  |
   //       |      (ENTRY)        |
   //       |- - - - - - - - - - -|
-  //   2   |       context       |
-  //       |- - - - - - - - - - -|
-  //   3   | callee-saved regs * |
+  //   2   | callee-saved regs * |
   //  ...  |         ...         |
   //       |- - - - - - - - - - -|
-  //   3   |     C entry FP      |
+  //   2   |     C entry FP      |
   //       |- - - - - - - - - - -|
-  //   5   |  fast api call fp   |
+  //   4   |  fast api call fp   |
   //       |- - - - - - - - - - -|
-  //   6   |  fast api call pc   |
+  //   5   |  fast api call pc   |
   //       |- - - - - - - - - - -|
-  //   6   |  outermost marker   |  <-- stack ptr
+  //   5   |  outermost marker   |  <-- stack ptr
   //  -----+---------------------+-----------------------
   //          TOP OF THE STACK     LOWEST ADDRESS
   // * On Windows the callee-saved registers are (in push order):
@@ -56,10 +54,10 @@ class EntryFrameConstants : public AllStatic {
 
   // This is the offset to where JSEntry pushes the current value of
   // Isolate::c_entry_fp onto the stack.
-  // On x64, there are 7 pushq() and 3 Push() calls between setting up rbp and
+  // On x64, there are 7 pushq() and 2 Push() calls between setting up rbp and
   // pushing the c_entry_fp, plus we manually allocate kXMMRegistersBlockSize
   // bytes on the stack.
-  static constexpr int kNextExitFrameFPOffset = -3 * kSystemPointerSize +
+  static constexpr int kNextExitFrameFPOffset = -2 * kSystemPointerSize +
                                                 -7 * kSystemPointerSize -
                                                 kXMMRegistersBlockSize;
 
@@ -69,10 +67,10 @@ class EntryFrameConstants : public AllStatic {
 #else
   // This is the offset to where JSEntry pushes the current value of
   // Isolate::c_entry_fp onto the stack.
-  // On x64, there are 5 pushq() and 3 Push() calls between setting up rbp and
+  // On x64, there are 5 pushq() and 2 Push() calls between setting up rbp and
   // pushing the c_entry_fp.
   static constexpr int kNextExitFrameFPOffset =
-      -3 * kSystemPointerSize + -5 * kSystemPointerSize;
+      -2 * kSystemPointerSize + -5 * kSystemPointerSize;
 #endif
   // This are the offsets to where JSEntry pushes the current values of
   // IsolateData::fast_c_call_caller_fp and IsolateData::fast_c_call_caller_pc.
