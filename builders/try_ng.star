@@ -7,6 +7,7 @@ load("//lib/builders.star", "v8_builder")
 load("//lib/gclient.star", "GCLIENT_VARS")
 load("//lib/lib.star", "CQ")
 load("//lib/reclient.star", "RECLIENT")
+load("//lib/siso.star", "SISO")
 
 def with_cancel(cq_properties):
     result = dict(cq_properties)
@@ -644,6 +645,7 @@ trybot_pair(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
+    use_siso = SISO.CHROMIUM_UNTRUSTED,
 )
 
 trybot_pair(

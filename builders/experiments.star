@@ -6,6 +6,7 @@ load("//lib/builders.star", "v8_builder")
 load("//lib/lib.star", "ci_pair_factory", "in_console", "v8_failure_notifier")
 load("//lib/gclient.star", "GCLIENT_VARS")
 load("//lib/reclient.star", "RECLIENT")
+load("//lib/siso.star", "SISO")
 
 def experiment_builder(**kwargs):
     notify_owners = kwargs.pop("notify_owners", None)
@@ -77,6 +78,7 @@ in_category(
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
+        use_siso = SISO.CHROMIUM_TRUSTED,
         notify_owners = ["choongwoo.han@microsoft.com"],
     ),
 )
