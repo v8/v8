@@ -4,6 +4,7 @@
 
 load("//lib/builders.star", "v8_builder")
 load("//lib/reclient.star", "RECLIENT")
+load("//lib/siso.star", "SISO")
 
 def chromium_builder(name):
     v8_builder(
@@ -15,6 +16,7 @@ def chromium_builder(name):
         properties = {"builder_group": "client.v8.chromium"},
         use_remoteexec = RECLIENT.DEFAULT,
         disable_resultdb_exports = True,
+        use_siso = SISO.CHROMIUM_TRUSTED,
         execution_timeout = 3 * 60 * 60,
     )
 
