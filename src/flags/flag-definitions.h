@@ -743,8 +743,7 @@ DEFINE_BOOL(empty_context_extension_dep, true,
             "Use compilation dependency to avoid dynamic checks for "
             "non-empty context extensions")
 
-DEFINE_BOOL(json_stringify_fast_path, false, "Enable JSON.stringify fast-path")
-DEFINE_WEAK_IMPLICATION(future, json_stringify_fast_path)
+DEFINE_BOOL(json_stringify_fast_path, true, "Enable JSON.stringify fast-path")
 
 // TODO(jgruber): Remove this flag.
 DEFINE_BOOL(cache_property_key_string_adds, true,
