@@ -1687,7 +1687,7 @@ class V8_EXPORT Isolate {
    * If data is specified, it will be passed to the callback when it is called.
    * Otherwise, the exception object will be passed to the callback instead.
    */
-  bool AddMessageListener(MessageCallback that,
+  bool AddMessageListener(MessageCallback callback,
                           Local<Value> data = Local<Value>());
 
   /**
@@ -1701,14 +1701,14 @@ class V8_EXPORT Isolate {
    *
    * A listener can listen for particular error levels by providing a mask.
    */
-  bool AddMessageListenerWithErrorLevel(MessageCallback that,
+  bool AddMessageListenerWithErrorLevel(MessageCallback callback,
                                         int message_levels,
                                         Local<Value> data = Local<Value>());
 
   /**
    * Remove all message listeners from the specified callback function.
    */
-  void RemoveMessageListeners(MessageCallback that);
+  void RemoveMessageListeners(MessageCallback callback);
 
   /** Callback function for reporting failed access checks.*/
   void SetFailedAccessCheckCallbackFunction(FailedAccessCheckCallback);

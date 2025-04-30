@@ -385,6 +385,9 @@ class ExternalPointerSlot
   inline void store(IsolateForSandbox isolate, Address value,
                     ExternalPointerTag tag);
 
+  // Loads tag value from the external pointer table.
+  inline ExternalPointerTag load_tag(IsolateForSandbox isolate);
+
   // ExternalPointerSlot serialization support.
   // These methods can be used to clear an external pointer slot prior to
   // serialization and restore it afterwards. This is useful in cases where the

@@ -257,6 +257,17 @@ void ExternalPointerSlot::store(IsolateForSandbox isolate, Address value,
 #endif  // V8_ENABLE_SANDBOX
 }
 
+ExternalPointerTag ExternalPointerSlot::load_tag(IsolateForSandbox isolate) {
+#ifdef V8_ENABLE_SANDBOX
+  const ExternalPointerTable& table =
+      isolate.GetExternalPointerTableFor(tag_range_);
+  ExternalPointerHandle handle = Relaxed_LoadHandle();
+  return table.GetTag(handle);
+#else
+  return kExternalPointerNullTag;
+#endif  // V8_ENABLE_SANDBOX
+}
+
 ExternalPointerSlot::RawContent
 ExternalPointerSlot::GetAndClearContentForSerialization(
     const DisallowGarbageCollection& no_gc) {

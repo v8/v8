@@ -7491,6 +7491,12 @@ bool FunctionTemplate::IsLeafTemplateForApiObject(
   return self->IsLeafTemplateForApiObject(object);
 }
 
+void ObjectTemplate::SealAndPrepareForPromotionToReadOnly() {
+  auto self = Utils::OpenDirectHandle(this);
+  i::Isolate* i_isolate = self->GetIsolateChecked();
+  i::ObjectTemplateInfo::SealAndPrepareForPromotionToReadOnly(i_isolate, self);
+}
+
 void FunctionTemplate::SealAndPrepareForPromotionToReadOnly() {
   auto self = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = self->GetIsolateChecked();
@@ -10874,11 +10880,11 @@ bool Isolate::IsDead() {
   return i_isolate->IsDead();
 }
 
-bool Isolate::AddMessageListener(MessageCallback that, Local<Value> data) {
-  return AddMessageListenerWithErrorLevel(that, kMessageError, data);
+bool Isolate::AddMessageListener(MessageCallback callback, Local<Value> data) {
+  return AddMessageListenerWithErrorLevel(callback, kMessageError, data);
 }
 
-bool Isolate::AddMessageListenerWithErrorLevel(MessageCallback that,
+bool Isolate::AddMessageListenerWithErrorLevel(MessageCallback callback,
                                                int message_levels,
                                                Local<Value> data) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
@@ -10888,10 +10894,11 @@ bool Isolate::AddMessageListenerWithErrorLevel(MessageCallback that,
       i_isolate->factory()->message_listeners();
   i::DirectHandle<i::FixedArray> listener =
       i_isolate->factory()->NewFixedArray(3);
-  i::DirectHandle<i::Foreign> foreign =
-      i_isolate->factory()->NewForeign<internal::kMessageListenerTag>(
-          FUNCTION_ADDR(that));
-  listener->set(0, *foreign);
+
+  i::DirectHandle<i::Object> callback_obj =
+      FromCData<internal::kMessageListenerTag>(i_isolate, callback);
+
+  listener->set(0, *callback_obj);
   listener->set(1, data.IsEmpty()
                        ? i::ReadOnlyRoots(i_isolate).undefined_value()
                        : *Utils::OpenDirectHandle(*data));
@@ -10901,22 +10908,24 @@ bool Isolate::AddMessageListenerWithErrorLevel(MessageCallback that,
   return true;
 }
 
-void Isolate::RemoveMessageListeners(MessageCallback that) {
+void Isolate::RemoveMessageListeners(MessageCallback callback) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScope scope(i_isolate);
   i::DisallowGarbageCollection no_gc;
   i::Tagged<i::ArrayList> listeners = i_isolate->heap()->message_listeners();
+  i::ReadOnlyRoots roots(i_isolate);
   for (int i = 0; i < listeners->length(); i++) {
-    if (i::IsUndefined(listeners->get(i), i_isolate)) {
+    if (i::IsUndefined(listeners->get(i), roots)) {
       continue;  // skip deleted ones
     }
     i::Tagged<i::FixedArray> listener =
         i::Cast<i::FixedArray>(listeners->get(i));
-    i::Tagged<i::Foreign> callback_obj = i::Cast<i::Foreign>(listener->get(0));
-    if (callback_obj->foreign_address<internal::kMessageListenerTag>() ==
-        FUNCTION_ADDR(that)) {
-      listeners->set(i, i::ReadOnlyRoots(i_isolate).undefined_value());
+    v8::MessageCallback cur_callback =
+        v8::ToCData<v8::MessageCallback, i::kMessageListenerTag>(
+            i_isolate, listener->get(0));
+    if (cur_callback == callback) {
+      listeners->set(i, roots.undefined_value());
     }
   }
 }
