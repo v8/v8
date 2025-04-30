@@ -931,7 +931,7 @@ DEFINE_BOOL(trace_protector_invalidation, false,
 DEFINE_BOOL(decommit_pooled_pages, true,
             "decommit, rather than discard pooled pages")
 DEFINE_BOOL(
-    zero_unused_memory, false,
+    zero_unused_memory, true,
     "Zero unused memory (except for memory which was discarded) on memory "
     "reducing GCs.")
 
