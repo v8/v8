@@ -261,16 +261,50 @@ inline bool StringShape::IsValidFor(Tagged<String> string) const {
 }
 #endif
 
+namespace detail {
+template <typename T>
+struct wrap_optional {
+  using type = std::optional<T>;
+};
+template <typename T>
+struct wrap_optional<std::optional<T>> {
+  using type = T;
+};
+template <>
+struct wrap_optional<std::nullopt_t> {
+  using type = std::nullopt_t;
+};
+
+// Magic common_type where a nullopt type forces the non-nullopt types to be
+// optional<T>.
+template <typename... Ts>
+struct common_type_handle_nullopt {
+  static constexpr bool kHasAnyNullOpt =
+      std::disjunction_v<std::is_same<std::nullopt_t, Ts>...>;
+  using type =
+      std::conditional_t<kHasAnyNullOpt,
+                         // If there is a nullopt, common_type_handle_nullopt is
+                         // std::common_type with optional wrapping.
+                         std::common_type<typename wrap_optional<Ts>::type...>,
+                         // If there is no nullopt, common_type_handle_nullopt
+                         // == std::common_type.
+                         std::common_type<Ts...>>::type;
+};
+}  // namespace detail
+
 template <typename TDispatcher>
 auto StringShape::DispatchToSpecificType(Tagged<String> string,
-                                         TDispatcher&& dispatcher) const
-    -> std::common_type_t<decltype(dispatcher(Tagged<SeqOneByteString>{})),
-                          decltype(dispatcher(Tagged<SeqTwoByteString>{})),
-                          decltype(dispatcher(Tagged<ExternalOneByteString>{})),
-                          decltype(dispatcher(Tagged<ExternalTwoByteString>{})),
-                          decltype(dispatcher(Tagged<ThinString>{})),
-                          decltype(dispatcher(Tagged<ConsString>{})),
-                          decltype(dispatcher(Tagged<SlicedString>{}))> {
+                                         TDispatcher&& dispatcher) const {
+  // Figure out a common return type from the possible dispatcher overloads.
+  using TReturn = typename detail::common_type_handle_nullopt<
+      decltype(dispatcher(Tagged<SeqOneByteString>{})),
+      decltype(dispatcher(Tagged<SeqTwoByteString>{})),
+      decltype(dispatcher(Tagged<ExternalOneByteString>{})),
+      decltype(dispatcher(Tagged<ExternalTwoByteString>{})),
+      decltype(dispatcher(Tagged<ThinString>{})),
+      decltype(dispatcher(Tagged<ConsString>{})),
+      decltype(dispatcher(Tagged<SlicedString>{}))>::type;
+
   // The following code inlines the dispatcher calls with V8_INLINE_STATEMENT.
   // This is so that this behaves, as far as the caller is concerned, like an
   // inlined type switch.
@@ -287,11 +321,11 @@ auto StringShape::DispatchToSpecificType(Tagged<String> string,
   if (map <= StringTypeRange::kSeqString.second) {
     if ((map & InstanceTypeChecker::kStringMapEncodingMask) ==
         InstanceTypeChecker::kOneByteStringMapBit) {
-      V8_INLINE_STATEMENT return dispatcher(
-          UncheckedCast<SeqOneByteString>(string));
+      V8_INLINE_STATEMENT return static_cast<TReturn>(
+          dispatcher(UncheckedCast<SeqOneByteString>(string)));
     } else {
-      V8_INLINE_STATEMENT return dispatcher(
-          UncheckedCast<SeqTwoByteString>(string));
+      V8_INLINE_STATEMENT return static_cast<TReturn>(
+          dispatcher(UncheckedCast<SeqTwoByteString>(string)));
     }
   }
 
@@ -300,56 +334,61 @@ auto StringShape::DispatchToSpecificType(Tagged<String> string,
   if (map <= StringTypeRange::kExternalString.second) {
     if ((map & InstanceTypeChecker::kStringMapEncodingMask) ==
         InstanceTypeChecker::kOneByteStringMapBit) {
-      V8_INLINE_STATEMENT return dispatcher(
-          UncheckedCast<ExternalOneByteString>(string));
+      V8_INLINE_STATEMENT return static_cast<TReturn>(
+          dispatcher(UncheckedCast<ExternalOneByteString>(string)));
     } else {
-      V8_INLINE_STATEMENT return dispatcher(
-          UncheckedCast<ExternalTwoByteString>(string));
+      V8_INLINE_STATEMENT return static_cast<TReturn>(
+          dispatcher(UncheckedCast<ExternalTwoByteString>(string)));
     }
   }
   static_assert(StringTypeRange::kExternalString.second + Map::kSize ==
                 StringTypeRange::kConsString.first);
   if (map <= StringTypeRange::kConsString.second) {
-    V8_INLINE_STATEMENT return dispatcher(UncheckedCast<ConsString>(string));
+    V8_INLINE_STATEMENT return static_cast<TReturn>(
+        dispatcher(UncheckedCast<ConsString>(string)));
   }
 
   static_assert(StringTypeRange::kConsString.second + Map::kSize ==
                 StringTypeRange::kSlicedString.first);
   if (map <= StringTypeRange::kSlicedString.second) {
-    V8_INLINE_STATEMENT return dispatcher(UncheckedCast<SlicedString>(string));
+    V8_INLINE_STATEMENT return static_cast<TReturn>(
+        dispatcher(UncheckedCast<SlicedString>(string)));
   }
 
   static_assert(StringTypeRange::kSlicedString.second + Map::kSize ==
                 StringTypeRange::kThinString.first);
   if (map <= StringTypeRange::kThinString.second) {
-    V8_INLINE_STATEMENT return dispatcher(UncheckedCast<ThinString>(string));
+    V8_INLINE_STATEMENT return static_cast<TReturn>(
+        dispatcher(UncheckedCast<ThinString>(string)));
   }
 
   UNREACHABLE();
 #else
   switch (type_ & kStringRepresentationAndEncodingMask) {
     case kSeqStringTag | kOneByteStringTag:
-      V8_INLINE_STATEMENT return dispatcher(
-          UncheckedCast<SeqOneByteString>(string));
+      V8_INLINE_STATEMENT return static_cast<TReturn>(
+          dispatcher(UncheckedCast<SeqOneByteString>(string)));
     case kSeqStringTag | kTwoByteStringTag:
-      V8_INLINE_STATEMENT return dispatcher(
-          UncheckedCast<SeqTwoByteString>(string));
+      V8_INLINE_STATEMENT return static_cast<TReturn>(
+          dispatcher(UncheckedCast<SeqTwoByteString>(string)));
     case kConsStringTag | kOneByteStringTag:
     case kConsStringTag | kTwoByteStringTag:
-      V8_INLINE_STATEMENT return dispatcher(UncheckedCast<ConsString>(string));
+      V8_INLINE_STATEMENT return static_cast<TReturn>(
+          dispatcher(UncheckedCast<ConsString>(string)));
     case kExternalStringTag | kOneByteStringTag:
-      V8_INLINE_STATEMENT return dispatcher(
-          UncheckedCast<ExternalOneByteString>(string));
+      V8_INLINE_STATEMENT return static_cast<TReturn>(
+          dispatcher(UncheckedCast<ExternalOneByteString>(string)));
     case kExternalStringTag | kTwoByteStringTag:
-      V8_INLINE_STATEMENT return dispatcher(
-          UncheckedCast<ExternalTwoByteString>(string));
+      V8_INLINE_STATEMENT return static_cast<TReturn>(
+          dispatcher(UncheckedCast<ExternalTwoByteString>(string)));
     case kSlicedStringTag | kOneByteStringTag:
     case kSlicedStringTag | kTwoByteStringTag:
-      V8_INLINE_STATEMENT return dispatcher(
-          UncheckedCast<SlicedString>(string));
+      V8_INLINE_STATEMENT return static_cast<TReturn>(
+          dispatcher(UncheckedCast<SlicedString>(string)));
     case kThinStringTag | kOneByteStringTag:
     case kThinStringTag | kTwoByteStringTag:
-      V8_INLINE_STATEMENT return dispatcher(UncheckedCast<ThinString>(string));
+      V8_INLINE_STATEMENT return static_cast<TReturn>(
+          dispatcher(UncheckedCast<ThinString>(string)));
     default:
       UNREACHABLE();
   }
@@ -671,54 +710,39 @@ bool String::IsEqualToImpl(
   Tagged<String> string = this;
   const Char* data = str.data();
   while (true) {
-    int32_t type = string->map()->instance_type();
-    switch (type & kStringRepresentationAndEncodingMask) {
-      case kSeqOneByteStringTag:
-        return CompareCharsEqual(
-            Cast<SeqOneByteString>(string)->GetChars(no_gc, access_guard) +
-                slice_offset,
-            data, len);
-      case kSeqTwoByteStringTag:
-        return CompareCharsEqual(
-            Cast<SeqTwoByteString>(string)->GetChars(no_gc, access_guard) +
-                slice_offset,
-            data, len);
-      case kExternalOneByteStringTag:
-        return CompareCharsEqual(
-            Cast<ExternalOneByteString>(string)->GetChars() + slice_offset,
-            data, len);
-      case kExternalTwoByteStringTag:
-        return CompareCharsEqual(
-            Cast<ExternalTwoByteString>(string)->GetChars() + slice_offset,
-            data, len);
-
-      case kSlicedStringTag | kOneByteStringTag:
-      case kSlicedStringTag | kTwoByteStringTag: {
-        Tagged<SlicedString> slicedString = Cast<SlicedString>(string);
-        slice_offset += slicedString->offset();
-        string = slicedString->parent();
-        continue;
-      }
-
-      case kConsStringTag | kOneByteStringTag:
-      case kConsStringTag | kTwoByteStringTag: {
-        // The ConsString path is more complex and rare, so call out to an
-        // out-of-line handler.
-        // Slices cannot refer to ConsStrings, so there cannot be a non-zero
-        // slice offset here.
-        DCHECK_EQ(slice_offset, 0);
-        return IsConsStringEqualToImpl<Char>(Cast<ConsString>(string), str,
-                                             access_guard);
-      }
-
-      case kThinStringTag | kOneByteStringTag:
-      case kThinStringTag | kTwoByteStringTag:
-        string = Cast<ThinString>(string)->actual();
-        continue;
-
-      default:
-        UNREACHABLE();
-    }
+    auto ret = string->DispatchToSpecificType(base::overloaded{
+        [&](Tagged<SeqOneByteString> s) {
+          return CompareCharsEqual(
+              s->GetChars(no_gc, access_guard) + slice_offset, data, len);
+        },
+        [&](Tagged<SeqTwoByteString> s) {
+          return CompareCharsEqual(
+              s->GetChars(no_gc, access_guard) + slice_offset, data, len);
+        },
+        [&](Tagged<ExternalOneByteString> s) {
+          return CompareCharsEqual(s->GetChars() + slice_offset, data, len);
+        },
+        [&](Tagged<ExternalTwoByteString> s) {
+          return CompareCharsEqual(s->GetChars() + slice_offset, data, len);
+        },
+        [&](Tagged<SlicedString> s) {
+          slice_offset += s->offset();
+          string = s->parent();
+          return std::nullopt;
+        },
+        [&](Tagged<ConsString> s) {
+          // The ConsString path is more complex and rare, so call out to an
+          // out-of-line handler.
+          // Slices cannot refer to ConsStrings, so there cannot be a non-zero
+          // slice offset here.
+          DCHECK_EQ(slice_offset, 0);
+          return IsConsStringEqualToImpl<Char>(s, str, access_guard);
+        },
+        [&](Tagged<ThinString> s) {
+          string = s->actual();
+          return std::nullopt;
+        }});
+    if (ret) return ret.value();
   }
 }
 
@@ -937,20 +961,18 @@ std::optional<String::FlatContent> String::TryGetFlatContentFromDirectString(
 
   return string->DispatchToSpecificType(base::overloaded{
       [&](Tagged<SeqOneByteString> s) {
-        return std::optional(FlatContent(
-            s->GetChars(no_gc, access_guard) + offset, length, no_gc));
+        return FlatContent(s->GetChars(no_gc, access_guard) + offset, length,
+                           no_gc);
       },
       [&](Tagged<SeqTwoByteString> s) {
-        return std::optional(FlatContent(
-            s->GetChars(no_gc, access_guard) + offset, length, no_gc));
+        return FlatContent(s->GetChars(no_gc, access_guard) + offset, length,
+                           no_gc);
       },
       [&](Tagged<ExternalOneByteString> s) {
-        return std::optional(
-            FlatContent(s->GetChars() + offset, length, no_gc));
+        return FlatContent(s->GetChars() + offset, length, no_gc);
       },
       [&](Tagged<ExternalTwoByteString> s) {
-        return std::optional(
-            FlatContent(s->GetChars() + offset, length, no_gc));
+        return FlatContent(s->GetChars() + offset, length, no_gc);
       },
       [&](Tagged<String> s) { return std::nullopt; }});
 }
@@ -1117,23 +1139,23 @@ Tagged<ConsString> String::VisitFlat(
               visitor->VisitOneByteString(
                   s->GetChars(no_gc, access_guard) + slice_offset,
                   length - offset);
-              return std::optional(Tagged<ConsString>());
+              return Tagged<ConsString>();
             },
             [&](Tagged<SeqTwoByteString> s) {
               visitor->VisitTwoByteString(
                   s->GetChars(no_gc, access_guard) + slice_offset,
                   length - offset);
-              return std::optional(Tagged<ConsString>());
+              return Tagged<ConsString>();
             },
             [&](Tagged<ExternalOneByteString> s) {
               visitor->VisitOneByteString(s->GetChars() + slice_offset,
                                           length - offset);
-              return std::optional(Tagged<ConsString>());
+              return Tagged<ConsString>();
             },
             [&](Tagged<ExternalTwoByteString> s) {
               visitor->VisitTwoByteString(s->GetChars() + slice_offset,
                                           length - offset);
-              return std::optional(Tagged<ConsString>());
+              return Tagged<ConsString>();
             },
             [&](Tagged<SlicedString> s) {
               slice_offset += s->offset();
@@ -1144,7 +1166,7 @@ Tagged<ConsString> String::VisitFlat(
               string = s->actual();
               return std::nullopt;
             },
-            [&](Tagged<ConsString> s) { return std::optional(s); }});
+            [&](Tagged<ConsString> s) { return s; }});
     if (ret) return ret.value();
   }
 }

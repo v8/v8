@@ -85,15 +85,7 @@ class StringShape {
 
   template <typename TDispatcher>
   V8_INLINE auto DispatchToSpecificType(Tagged<String> str,
-                                        TDispatcher&& dispatcher) const
-      -> std::common_type_t<
-          decltype(dispatcher(Tagged<SeqOneByteString>{})),
-          decltype(dispatcher(Tagged<SeqTwoByteString>{})),
-          decltype(dispatcher(Tagged<ExternalOneByteString>{})),
-          decltype(dispatcher(Tagged<ExternalTwoByteString>{})),
-          decltype(dispatcher(Tagged<ThinString>{})),
-          decltype(dispatcher(Tagged<ConsString>{})),
-          decltype(dispatcher(Tagged<SlicedString>{}))>;
+                                        TDispatcher&& dispatcher) const;
 
 #ifdef DEBUG
   inline bool IsValidFor(Tagged<String> string) const;
