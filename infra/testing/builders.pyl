@@ -1050,7 +1050,7 @@
   'v8_mac64_asan_rel': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
-      'os': 'Mac-14',
+      'os': 'Mac-15',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 8},
@@ -1059,7 +1059,7 @@
   'v8_mac64_dbg': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
-      'os': 'Mac-14',
+      'os': 'Mac-15',
     },
     'tests': [
       {'name': 'mozilla'},
@@ -1083,7 +1083,7 @@
   'v8_mac64_noopt_dbg': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
-      'os': 'Mac-14',
+      'os': 'Mac-15',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 6},
@@ -1092,7 +1092,7 @@
   'v8_mac64_rel': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
-      'os': 'Mac-14',
+      'os': 'Mac-15',
     },
     'tests': [
       {'name': 'mozilla'},
@@ -2026,7 +2026,7 @@
   'V8 Mac64': {
     'swarming_dimensions': {
       'cpu': 'x86-64',
-      'os': 'Mac-14',
+      'os': 'Mac-15',
     },
     'tests': [
       {'name': 'mozilla'},
@@ -2041,7 +2041,7 @@
   'V8 Mac64 - debug': {
     'swarming_dimensions': {
       'cpu': 'x86-64',
-      'os': 'Mac-14',
+      'os': 'Mac-15',
     },
     'tests': [
       {'name': 'mozilla'},
@@ -2056,7 +2056,7 @@
   'V8 Mac64 ASAN': {
     'swarming_dimensions': {
       'cpu': 'x86-64',
-      'os': 'Mac-14',
+      'os': 'Mac-15',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 10},
