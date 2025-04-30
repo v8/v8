@@ -4862,7 +4862,11 @@ void Heap::IterateStackRoots(RootVisitor* v) { isolate_->Iterate(v); }
 
 void Heap::IterateConservativeStackRoots(RootVisitor* root_visitor,
                                          IterateRootsMode roots_mode) {
-  if (!v8_flags.conservative_stack_scanning || !IsGCWithStack()) return;
+  const StackScanMode stack_scan_mode =
+      ConservativeStackScanningModeForMajorGC();
+  DCHECK_IMPLIES(stack_scan_mode == Heap::StackScanMode::kSelective,
+                 IsGCWithStack());
+  if ((stack_scan_mode == StackScanMode::kNone) || !IsGCWithStack()) return;
 
   // In case of a shared GC, we're interested in the main isolate for CSS.
   Isolate* main_isolate = roots_mode == IterateRootsMode::kClientIsolate
@@ -4870,13 +4874,24 @@ void Heap::IterateConservativeStackRoots(RootVisitor* root_visitor,
                               : isolate();
 
   ConservativeStackVisitor stack_visitor(main_isolate, root_visitor);
-  IterateConservativeStackRoots(&stack_visitor);
+
+  IterateConservativeStackRoots(&stack_visitor, stack_scan_mode);
 }
 
 void Heap::IterateConservativeStackRoots(
-    ::heap::base::StackVisitor* stack_visitor) {
+    ::heap::base::StackVisitor* stack_visitor, StackScanMode stack_scan_mode) {
   DCHECK(IsGCWithStack());
+  DCHECK_NE(stack_scan_mode, StackScanMode::kNone);
 
+  if (stack_scan_mode == StackScanMode::kSelective) {
+    DCHECK(IsGCWithMainThreadStack());
+    DCHECK(selective_stack_scan_start_address_.has_value());
+    stack().IteratePointersFromAddressUntilMarker(
+        stack_visitor, selective_stack_scan_start_address_.value());
+    return;
+  }
+
+  DCHECK_EQ(stack_scan_mode, StackScanMode::kFull);
   if (IsGCWithMainThreadStack()) {
     stack().IteratePointersUntilMarker(stack_visitor);
   }
@@ -7534,6 +7549,21 @@ CodePageMemoryModificationScopeForDebugging::
     ~CodePageMemoryModificationScopeForDebugging() {}
 
 #endif
+
+ConservativePinningScope::ConservativePinningScope(Heap* heap,
+                                                   const void* stack_address)
+    : heap_(heap) {
+  DCHECK(!heap_->selective_stack_scan_start_address_.has_value());
+  // The stack segment covered by this scope should include the scope itself.
+  DCHECK_NOT_NULL(stack_address);
+  DCHECK_LE(this, stack_address);
+  DCHECK(::heap::base::Stack::IsOnCurrentStack(stack_address));
+  heap_->selective_stack_scan_start_address_ = stack_address;
+}
+ConservativePinningScope::~ConservativePinningScope() {
+  DCHECK(heap_->selective_stack_scan_start_address_.has_value());
+  heap_->selective_stack_scan_start_address_.reset();
+}
 
 #include "src/objects/object-macros-undef.h"
 

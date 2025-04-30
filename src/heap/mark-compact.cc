@@ -328,6 +328,32 @@ static void TraceFragmentation(PagedSpace* space) {
          static_cast<double>(free) * 100 / reserved);
 }
 
+namespace {
+bool ShouldCompactWithStack(const Heap* heap) {
+  if (!v8_flags.compact_with_stack) {
+    return false;
+  }
+  if (heap->ConservativeStackScanningModeForMajorGC() !=
+      Heap::StackScanMode::kNone) {
+    CHECK(heap->IsMainThread());
+    CHECK_IMPLIES(heap->isolate()->has_shared_space(),
+                  heap->isolate()->is_shared_space_isolate());
+    return false;
+  }
+  bool should_compact_with_stack = true;
+  if (heap->isolate()->is_shared_space_isolate()) {
+    heap->isolate()->global_safepoint()->IterateClientIsolates(
+        [&should_compact_with_stack](Isolate* client) {
+          if (client->heap()->ConservativeStackScanningModeForMajorGC() !=
+              Heap::StackScanMode::kNone) {
+            should_compact_with_stack = false;
+          }
+        });
+  }
+  return should_compact_with_stack;
+}
+}  // namespace
+
 bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
   DCHECK(!compacting_);
   DCHECK(evacuation_candidates_.empty());
@@ -335,7 +361,7 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
   // Bailouts for completely disabled compaction.
   if (!v8_flags.compact ||
       (mode == StartCompactionMode::kAtomic && heap_->IsGCWithStack() &&
-       !v8_flags.compact_with_stack) ||
+       !ShouldCompactWithStack(heap_)) ||
       (v8_flags.gc_experiment_less_compaction &&
        !heap_->ShouldReduceMemory()) ||
       heap_->isolate()->serializer_enabled()) {
@@ -346,7 +372,9 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
 
   // Don't compact shared space when CSS is enabled, since there may be
   // DirectHandles on stacks of client isolates.
-  if (!v8_flags.conservative_stack_scanning && heap_->shared_space()) {
+  if ((heap_->ConservativeStackScanningModeForMajorGC() !=
+       Heap::StackScanMode::kFull) &&
+      heap_->shared_space()) {
     CollectEvacuationCandidates(heap_->shared_space());
   }
 
@@ -4890,7 +4918,7 @@ class PrecisePagePinningVisitor final : public RootVisitor {
 };
 
 void MarkCompactCollector::PinPreciseRootsIfNeeded() {
-  if (!v8_flags.precise_object_pinning) {
+  if (!heap_->ShouldUsePrecisePinningForMajorGC()) {
     return;
   }
 
@@ -4923,7 +4951,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   // Evacuation of new space pages cannot be aborted, so it needs to run
   // before old space evacuation.
   bool force_page_promotion =
-      heap_->IsGCWithStack() && !v8_flags.compact_with_stack;
+      heap_->IsGCWithStack() && !ShouldCompactWithStack(heap_);
   for (PageMetadata* page : new_space_evacuation_pages_) {
     intptr_t live_bytes_on_page = page->live_bytes();
     DCHECK_LT(0, live_bytes_on_page);
@@ -4944,7 +4972,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   }
 
   if (heap_->IsGCWithStack()) {
-    if (!v8_flags.compact_with_stack) {
+    if (!ShouldCompactWithStack(heap_)) {
       for (PageMetadata* page : old_space_evacuation_pages_) {
         ReportAbortedEvacuationCandidateDueToFlags(page, page->Chunk());
       }
