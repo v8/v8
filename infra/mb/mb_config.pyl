@@ -603,7 +603,7 @@
       'release_bot', 'x64', 'asan', 'lsan', 'symbolized',
       'v8_verify_heap', 'v8_enable_turboshaft_csa'],
     'release_x64_cet_shadow_stack': [
-      'release_bot', 'x64', 'cet_shadow_stack'],
+      'release_bot', 'x64', 'cet_shadow_stack', 'use_siso'],
     'release_x64_cfi': [
       'release_bot', 'x64', 'cfi'],
     'release_x64_cfi_clusterfuzz_turboshaft_csa': [
@@ -1066,6 +1066,10 @@
 
     'use_centipede': {
       'gn_args': 'use_centipede=true optimize_for_fuzzing = true',
+    },
+
+    'use_siso': {
+      'gn_args': 'use_siso=true',
     },
 
     'v8_check_header_includes': {
