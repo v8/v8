@@ -590,7 +590,6 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
       RAB_GSAB_UINT8_ARRAY_MAP_INDEX;
 
   static const int kNoContext = 0;
-  static const int kInvalidContext = 1;
 
   // Direct slot access.
   DECL_ACCESSORS(scope_info, Tagged<ScopeInfo>)

@@ -469,8 +469,7 @@ class FastApiCallLoweringReducer : public Next {
 #if DEBUG
     // Reset the context again after the call, to make sure nobody is using the
     // leftover context in the isolate.
-    __ StoreOffHeap(context_address,
-                    __ WordPtrConstant(Context::kInvalidContext),
+    __ StoreOffHeap(context_address, __ WordPtrConstant(Context::kNoContext),
                     MemoryRepresentation::UintPtr());
 #endif
 

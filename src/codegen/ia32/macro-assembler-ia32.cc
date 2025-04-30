@@ -1250,7 +1250,7 @@ void MacroAssembler::LeaveExitFrame(Register scratch) {
 #ifdef DEBUG
   push(eax);
   mov(ExternalReferenceAsOperand(context_address, eax),
-      Immediate(Context::kInvalidContext));
+      Immediate(Context::kNoContext));
   pop(eax);
 #endif
 }

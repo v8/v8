@@ -467,6 +467,10 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     ExternalReference context_address = ExternalReference::Create(
         IsolateAddressId::kContextAddress, masm->isolate());
     __ mov(esi, __ ExternalReferenceAsOperand(context_address, scratch1));
+#ifdef DEBUG
+    __ mov(__ ExternalReferenceAsOperand(context_address, scratch1),
+           Immediate(Context::kNoContext));
+#endif  // DEBUG
 
     // Load the previous frame pointer (edx) to access C arguments
     __ mov(scratch1, Operand(ebp, 0));

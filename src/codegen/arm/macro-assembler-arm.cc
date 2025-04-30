@@ -1628,7 +1628,7 @@ void MacroAssembler::LeaveExitFrame(Register scratch) {
   ER context_address = ER::Create(IsolateAddressId::kContextAddress, isolate());
   ldr(cp, ExternalReferenceAsOperand(context_address, no_reg));
 #ifdef DEBUG
-  mov(scratch, Operand(Context::kInvalidContext));
+  mov(scratch, Operand(Context::kNoContext));
   str(scratch, ExternalReferenceAsOperand(context_address, no_reg));
 #endif
 

@@ -5679,7 +5679,7 @@ void MacroAssembler::LeaveExitFrame(Register scratch) {
   Ld(cp, ExternalReferenceAsOperand(context_address, no_reg));
 
   if (v8_flags.debug_code) {
-    li(scratch, Operand(Context::kInvalidContext));
+    li(scratch, Operand(Context::kNoContext));
     Sd(scratch, ExternalReferenceAsOperand(context_address, no_reg));
   }
 

@@ -4500,7 +4500,7 @@ void MacroAssembler::LeaveExitFrame() {
   Operand context_operand = ExternalReferenceAsOperand(context_address);
   movq(rsi, context_operand);
 #ifdef DEBUG
-  Move(context_operand, Context::kInvalidContext);
+  Move(context_operand, Context::kNoContext);
 #endif
 
   // Clear the top frame.
