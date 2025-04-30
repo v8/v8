@@ -1650,7 +1650,6 @@
   'built-ins/Temporal/ZonedDateTime/prototype/since/argument-propertybag-calendar-iso-string': [SKIP],
   'built-ins/Temporal/ZonedDateTime/prototype/until/argument-propertybag-calendar-iso-string': [SKIP],
   'built-ins/Temporal/ZonedDateTime/prototype/withCalendar/calendar-iso-string': [SKIP],
-  'built-ins/TypedArray/from/iterated-array-changed-by-tonumber': [FAIL],
   'built-ins/TypedArray/prototype/values/make-in-bounds-after-exhausted': [FAIL],
   'built-ins/TypedArray/prototype/values/make-out-of-bounds-after-exhausted': [FAIL],
   'intl402/Temporal/PlainMonthDay/prototype/toLocaleString/dateStyle': [SKIP],
