@@ -115,6 +115,7 @@
       'V8 Linux - arm64 - sim - MSAN - builder': 'release_simulate_arm64_msan',
       # FYI.
       'V8 iOS - sim - builder': 'release_x64_ios_simulator',
+      'V8 Linux64 - arm64 - ASAN - builder': 'release_arm64_asan',
       'V8 Linux64 - arm64 - builder': 'release_arm64',
       'V8 Linux64 - arm64 - debug builder': 'debug_arm64',
       'V8 Linux64 - arm64 - sim - no pointer compression - builder':
@@ -265,6 +266,7 @@
       'v8_linux_gc_stress_compile_dbg': 'debug_x86_trybot',
       'v8_linux_shared_compile_rel': 'release_x86_shared_verify_heap',
       'v8_linux_vtunejit': 'debug_x86_vtunejit',
+      'v8_linux64_arm64_asan_compile_rel': 'release_arm64_asan',
       'v8_linux64_arm64_compile_dbg': 'debug_arm64_trybot',
       'v8_linux64_arm64_compile_rel': 'release_arm64_trybot',
       'v8_linux64_native_arm64_no_pointer_compression_compile_rel': 'release_arm64_no_pointer_compression_trybot',
@@ -535,6 +537,8 @@
       'release_bot', 'arm', 'hard_float'],
     'release_arm64': [
       'release_bot', 'arm64'],
+    'release_arm64_asan': [
+      'release_bot', 'arm64', 'asan'],
     'release_arm64_no_pointer_compression': [
       'release_bot', 'arm64', 'v8_disable_pointer_compression'],
     'release_arm64_trybot': [
