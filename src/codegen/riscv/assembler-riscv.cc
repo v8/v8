@@ -72,9 +72,9 @@ static unsigned CpuFeaturesImpliedByCompiler() {
   answer |= 1u << ZBS;
 #endif  // def __riscv_zbs
 
-#if (defined _riscv_zicond)
+#if (defined __riscv_zicond)
   answer |= 1u << ZICOND;
-#endif  // def _riscv_zicond
+#endif  // def __riscv_zicond
   return answer;
 }
 
