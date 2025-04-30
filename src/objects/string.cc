@@ -897,8 +897,6 @@ SinkCharT* WriteNonConsToFlat2(Tagged<String> src, StringShape shape,
                                const DisallowGarbageCollection& no_gc) {
   DCHECK(!shape.IsCons());
   DCHECK_LE(src_index + length, src->length());
-  DCHECK_EQ(shape, StringShape{src});
-
   return shape.DispatchToSpecificType(
       src, base::overloaded{
                [&](Tagged<SeqOneByteString> s) {

@@ -95,13 +95,9 @@ class StringShape {
           decltype(dispatcher(Tagged<ConsString>{})),
           decltype(dispatcher(Tagged<SlicedString>{}))>;
 
-  inline bool operator==(const StringShape& that) const {
-#if V8_STATIC_ROOTS_BOOL
-    return that.map_ == this->map_;
-#else
-    return that.type_ == this->type_;
+#ifdef DEBUG
+  inline bool IsValidFor(Tagged<String> string) const;
 #endif
-  }
 
  private:
 #if V8_STATIC_ROOTS_BOOL

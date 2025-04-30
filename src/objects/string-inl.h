@@ -15,6 +15,7 @@
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-utils.h"
+#include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-layout-inl.h"
@@ -22,10 +23,12 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/instance-type-checker.h"
 #include "src/objects/instance-type-inl.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/objects-body-descriptors.h"
 #include "src/objects/smi-inl.h"
 #include "src/objects/string-table-inl.h"
+#include "src/roots/static-roots.h"
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/external-pointer.h"
 #include "src/sandbox/isolate.h"
@@ -207,6 +210,57 @@ bool StringShape::IsShared() const {
   return InstanceTypeChecker::IsSharedString(map_or_type());
 }
 
+#ifdef DEBUG
+inline bool StringShape::IsValidFor(Tagged<String> string) const {
+  Tagged<Map> map = string->map(kAcquireLoad);
+#if V8_STATIC_ROOTS_BOOL
+  if (map_ == map) return true;
+#else
+  InstanceType type = map->instance_type();
+  if (type_ == type) return true;
+#endif
+  if (!v8_flags.shared_string_table) return false;
+
+  // If the shared string table is enabled, we may observe a concurrent
+  // conversion from shared to internalized. Make sure that the two shapes are
+  // compatible.
+#if V8_STATIC_ROOTS_BOOL
+  // Since the two maps are not equal, one must be a shared string and the
+  // other an internalized string, in exactly that combination. All other
+  // properties (sequential vs external, one vs two byte) should be the same.
+  // The following transitions are the only possible ones -- in particular,
+  // shared uncached external strings cannot be internalized in-place.
+  Tagged_t before_map_val = V8HeapCompressionScheme::CompressObject(map_.ptr());
+  Tagged_t after_map_val = V8HeapCompressionScheme::CompressObject(map.ptr());
+  if (before_map_val == StaticReadOnlyRoot::kSharedSeqOneByteStringMap) {
+    return after_map_val == StaticReadOnlyRoot::kInternalizedOneByteStringMap;
+  }
+  if (before_map_val == StaticReadOnlyRoot::kSharedSeqTwoByteStringMap) {
+    return after_map_val == StaticReadOnlyRoot::kInternalizedTwoByteStringMap;
+  }
+  if (before_map_val == StaticReadOnlyRoot::kSharedExternalOneByteStringMap) {
+    return after_map_val ==
+           StaticReadOnlyRoot::kExternalInternalizedOneByteStringMap;
+  }
+  if (before_map_val == StaticReadOnlyRoot::kSharedExternalTwoByteStringMap) {
+    return after_map_val ==
+           StaticReadOnlyRoot::kExternalInternalizedTwoByteStringMap;
+  }
+  return false;
+#else
+  // Since the two types are not equal, one must be a shared string and the
+  // other an internalized string, in exactly that combination. All other
+  // properties (sequential vs external, one vs two byte) should be the same,
+  // so the XOR of the two instance types should be precisely
+  // `kSharedStringTag | kNotInternalizedTag`.
+  static_assert(
+      (INTERNALIZED_ONE_BYTE_STRING_TYPE ^ SHARED_SEQ_ONE_BYTE_STRING_TYPE) ==
+      (kSharedStringTag | kNotInternalizedTag));
+  return (type_ ^ type) == (kSharedStringTag | kNotInternalizedTag);
+#endif
+}
+#endif
+
 template <typename TDispatcher>
 auto StringShape::DispatchToSpecificType(Tagged<String> string,
                                          TDispatcher&& dispatcher) const
@@ -220,11 +274,9 @@ auto StringShape::DispatchToSpecificType(Tagged<String> string,
   // The following code inlines the dispatcher calls with V8_INLINE_STATEMENT.
   // This is so that this behaves, as far as the caller is concerned, like an
   // inlined type switch.
+  DCHECK(IsValidFor(string));
 
 #if V8_STATIC_ROOTS_BOOL
-  // TODO(leszeks): Re-enable this DCHECK
-  // DCHECK_EQ(map_, string->map());
-
   // Check the string map ranges in dense increasing order, to avoid needing
   // to subtract away the lower bound. Don't use the InstanceTypeChecker::IsFoo
   // helpers, because clang doesn't realise it can avoid the subtraction.
@@ -275,8 +327,6 @@ auto StringShape::DispatchToSpecificType(Tagged<String> string,
 
   UNREACHABLE();
 #else
-  // TODO(leszeks): Re-enable this DCHECK
-  // DCHECK_EQ(type_, string->map()->instance_type());
   switch (type_ & kStringRepresentationAndEncodingMask) {
     case kSeqStringTag | kOneByteStringTag:
       V8_INLINE_STATEMENT return dispatcher(
