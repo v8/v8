@@ -226,7 +226,7 @@ def bucket(name, acls, led_config = None):
     if led_config:
         constraints = luci.bucket_constraints(
             service_accounts = led_config.service_accounts,
-            pools = led_config.pools or ["pools/%s" % name],
+            pools = led_config.pools or ["luci.v8.%s" % name],
         )
         bindings = [
             luci.binding(
@@ -252,7 +252,7 @@ bucket(
     acls = waterfall_hp_acls,
     led_config = led_config(
         V8_HP_SERVICE_ACCOUNTS,
-        ["pools/highly-privileged"],
+        ["luci.v8.highly-privileged"],
         ["google/v8-infra-users-highly-privileged@twosync.google.com"],
     ),
 )
