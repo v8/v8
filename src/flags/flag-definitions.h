@@ -2238,7 +2238,7 @@ DEFINE_BOOL_READONLY(verify_heap, false,
                      "verify heap pointers before and after GC")
 #endif
 #if V8_OS_DARWIN
-DEFINE_BOOL(safepoint_bump_qos_class, false,
+DEFINE_BOOL(safepoint_bump_qos_class, true,
             "Bump QOS class for running threads to reach safepoint")
 #endif
 DEFINE_BOOL(memory_reducer_respects_frozen_state, false,
