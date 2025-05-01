@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'bebf04324258b17ff4125fc7e59b575167d3aea3',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd5793d1e366655bfda43b2cce5e7cb00fd9b5404',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6d4e129ac68b4c81d98765068ceb53dbf09e99d2',
   'buildtools/linux64': {
@@ -231,7 +231,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '083971e6b02dd794b3cb84d01033455889be7976',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '1591e813b66e04a5b9d9e8fc5d94e74ef4effaa1',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -245,7 +245,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6bcdcd8a8551b623636850917bf6bf295d310e62',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '49fcbee29e78d9307f37037223dcc99b0bc7df8a',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -307,7 +307,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '81e2cb40a70de2b6978e6d8658891ded9a77f7e3',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'c43b02cfdbd4a75e9ba233f3b5bfd8322e3bf1d8',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'bf95cc5da608540ccddbd22f1866d713eaba3ac8',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -531,7 +531,7 @@ deps = {
     'condition': 'not build_with_chromium and host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '13aadd58594b07968790f04a89f93890acb4d9fe',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '6f9b4e61924021237d474569027cfb8ac7933ee6',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '5ae6e4bfb41f9bf57c91292e40abb4db3469dc67',
   'tools/protoc_wrapper':
