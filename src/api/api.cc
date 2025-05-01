@@ -10378,6 +10378,28 @@ void Isolate::SetContinuationPreservedEmbedderData(Local<Value> data) {
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 }
 
+Local<Data> Isolate::GetContinuationPreservedEmbedderDataV2() {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  return ToApiHandle<Data>(i::direct_handle(
+      i_isolate->isolate_data()->continuation_preserved_embedder_data(),
+      i_isolate));
+#else   // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  return v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+}
+
+void Isolate::SetContinuationPreservedEmbedderDataV2(Local<Data> data) {
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  if (data.IsEmpty()) {
+    data = v8::Undefined(reinterpret_cast<v8::Isolate*>(this));
+  }
+  i_isolate->isolate_data()->set_continuation_preserved_embedder_data(
+      *Utils::OpenDirectHandle(*data));
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+}
+
 void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i::Heap* heap = i_isolate->heap();

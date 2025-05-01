@@ -31181,6 +31181,66 @@ TEST(ContinuationPreservedEmbedderData_Thenable) {
   CHECK(did_thenable_callback_run);
 }
 
+void GetIsolatePreservedContinuationDataV2(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  v8::Local<v8::Data> data =
+      info.GetIsolate()->GetContinuationPreservedEmbedderDataV2();
+  CHECK(data->IsValue());
+  info.GetReturnValue().Set(v8::Local<v8::Value>::Cast(data));
+}
+
+TEST(ContinuationPreservedEmbedderDataV2) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  Local<v8::Promise::Resolver> resolver =
+      v8::Promise::Resolver::New(context.local()).ToLocalChecked();
+
+  isolate->SetContinuationPreservedEmbedderData(v8_str("foo"));
+
+  v8::Local<v8::Function> get_isolate_preserved_data =
+      v8::Function::New(context.local(), GetIsolatePreservedContinuationDataV2,
+                        v8_str("get_isolate_preserved_data"))
+          .ToLocalChecked();
+  Local<v8::Promise> p1 =
+      resolver->GetPromise()
+          ->Then(context.local(), get_isolate_preserved_data)
+          .ToLocalChecked();
+
+  isolate->SetContinuationPreservedEmbedderDataV2(v8::Undefined(isolate));
+
+  resolver->Resolve(context.local(), v8::Undefined(isolate)).FromJust();
+  isolate->PerformMicrotaskCheckpoint();
+
+#if V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  CHECK(v8_str("foo")->SameValue(p1->Result()));
+#else
+  CHECK(p1->Result()->IsUndefined());
+#endif
+}
+
+TEST(ContinuationPreservedEmbedderDataV2_Empty) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::Data> data = isolate->GetContinuationPreservedEmbedderDataV2();
+  CHECK(data->IsValue());
+  CHECK(Local<Value>::Cast(data)->IsNullOrUndefined());
+
+  isolate->SetContinuationPreservedEmbedderDataV2(v8::Local<v8::Data>());
+  data = isolate->GetContinuationPreservedEmbedderDataV2();
+  CHECK(data->IsValue());
+  CHECK(Local<Value>::Cast(data)->IsNullOrUndefined());
+
+  isolate->SetContinuationPreservedEmbedderDataV2(v8::Undefined(isolate));
+  data = isolate->GetContinuationPreservedEmbedderDataV2();
+  CHECK(data->IsValue());
+  CHECK(Local<Value>::Cast(data)->IsNullOrUndefined());
+}
+
 TEST(WrappedFunctionWithClass) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -31413,6 +31473,42 @@ TEST(CppHeapExternal) {
         v8::StackState::kNoHeapPointers);
     i::heap::InvokeMajorGC(heap);
     CHECK(!cpp_object.Get());
+  }
+
+  isolate->Exit();
+  isolate->Dispose();
+}
+
+TEST(ContinuationPreservedEmbedderDataV2_CppHeapExternal) {
+  v8::Isolate::CreateParams create_params = CreateTestParams();
+  create_params.cpp_heap =
+      v8::CppHeap::Create(::v8::internal::V8::GetCurrentPlatform(),
+                          v8::CppHeapCreateParams({}))
+          .release();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  isolate->Enter();
+  v8::CppHeap* cpp_heap = isolate->GetCppHeap();
+
+  {
+    v8::HandleScope scope(isolate);
+    cppgc::Persistent<TestGarbagedCollectedData> cpp_object(
+        cppgc::MakeGarbageCollected<TestGarbagedCollectedData>(
+            cpp_heap->GetAllocationHandle()));
+    v8::Local<v8::CppHeapExternal> external =
+        v8::CppHeapExternal::New<TestGarbagedCollectedData>(
+            isolate, cpp_object.Get(), v8::CppHeapPointerTag::kDefaultTag);
+    isolate->SetContinuationPreservedEmbedderDataV2(external);
+
+    v8::Local<v8::Data> result =
+        isolate->GetContinuationPreservedEmbedderDataV2();
+    CHECK(result->IsCppHeapExternal());
+    TestGarbagedCollectedData* data =
+        v8::Local<v8::CppHeapExternal>::Cast(result)
+            ->Value<TestGarbagedCollectedData>(
+                isolate,
+                v8::CppHeapPointerTagRange(v8::CppHeapPointerTag::kDefaultTag,
+                                           v8::CppHeapPointerTag::kDefaultTag));
+    CHECK_EQ(data, cpp_object.Get());
   }
 
   isolate->Exit();

@@ -3124,8 +3124,13 @@ void Shell::SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& info) {
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 void Shell::GetContinuationPreservedEmbedderData(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  info.GetReturnValue().Set(
-      info.GetIsolate()->GetContinuationPreservedEmbedderData());
+  Local<Data> data = info.GetIsolate()->GetContinuationPreservedEmbedderData();
+  DCHECK(!data.IsEmpty());
+  if (!data->IsValue()) {
+    data = Undefined(info.GetIsolate());
+  }
+  DCHECK(!data.IsEmpty());
+  info.GetReturnValue().Set(Local<Value>::Cast(data));
 }
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 

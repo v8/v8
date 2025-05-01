@@ -952,6 +952,21 @@ class V8_EXPORT Isolate {
   void SetContinuationPreservedEmbedderData(Local<Value> data);
 
   /**
+   * Returns the value set by `SetContinuationPreservedEmbedderDataV2()` or
+   * restored during microtask execution for the currently running continuation,
+   * if any. Returns undefiend if no continuation preserved embedder data was
+   * set.
+   */
+  Local<Data> GetContinuationPreservedEmbedderDataV2();
+
+  /**
+   * Sets a value that will be stored on continuations and restored while the
+   * continuation runs. If `data` is empty, the continuation preserved embedder
+   * data is set to undefined.
+   */
+  void SetContinuationPreservedEmbedderDataV2(Local<Data> data);
+
+  /**
    * Get statistics about the heap memory usage.
    */
   void GetHeapStatistics(HeapStatistics* heap_statistics);
