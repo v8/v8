@@ -461,7 +461,8 @@ declare_args() {
   v8_enable_slow_tracing = is_debug
 
   # Enable jump table switch for built-in.
-  v8_enable_builtin_jump_table_switch = v8_current_cpu == "x64"
+  v8_enable_builtin_jump_table_switch =
+      v8_current_cpu == "x64" || v8_current_cpu == "arm64"
 
   v8_shortcut_strings_in_minor_ms = false
 
