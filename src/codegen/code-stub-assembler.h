@@ -4159,7 +4159,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                               TNode<UintPtrT> index,
                               Label* detached_or_out_of_bounds);
 
-  TNode<IntPtrT> RabGsabElementsKindToElementByteSize(
+  TNode<Uint8T> RabGsabElementsKindToElementByteShift(
       TNode<Int32T> elementsKind);
   TNode<RawPtrT> LoadJSTypedArrayDataPtr(TNode<JSTypedArray> typed_array);
   TNode<JSArrayBuffer> GetTypedArrayBuffer(TNode<Context> context,

@@ -17026,9 +17026,9 @@ TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayLength(
   // byte_length already takes array's offset into account.
   TNode<UintPtrT> byte_length = LoadVariableLengthJSArrayBufferViewByteLength(
       array, buffer, detached_or_out_of_bounds);
-  TNode<IntPtrT> element_size =
-      RabGsabElementsKindToElementByteSize(LoadElementsKind(array));
-  return Unsigned(IntPtrDiv(Signed(byte_length), element_size));
+  TNode<Uint8T> element_shift =
+      RabGsabElementsKindToElementByteShift(LoadElementsKind(array));
+  return WordShr(byte_length, element_shift);
 }
 
 TNode<UintPtrT>
@@ -17182,10 +17182,10 @@ TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayByteLength(
 
   TNode<UintPtrT> length =
       LoadVariableLengthJSTypedArrayLength(array, buffer, &miss);
-  TNode<IntPtrT> element_size =
-      RabGsabElementsKindToElementByteSize(LoadElementsKind(array));
+  TNode<Uint8T> element_shift =
+      RabGsabElementsKindToElementByteShift(LoadElementsKind(array));
   // Conversion to signed is OK since length < JSArrayBuffer::kMaxByteLength.
-  TNode<IntPtrT> byte_length = IntPtrMul(Signed(length), element_size);
+  TNode<IntPtrT> byte_length = WordShl(Signed(length), element_shift);
   result = Unsigned(byte_length);
   Goto(&end);
   BIND(&miss);
@@ -17197,53 +17197,24 @@ TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayByteLength(
   return result.value();
 }
 
-TNode<IntPtrT> CodeStubAssembler::RabGsabElementsKindToElementByteSize(
+TNode<Uint8T> CodeStubAssembler::RabGsabElementsKindToElementByteShift(
     TNode<Int32T> elements_kind) {
-  TVARIABLE(IntPtrT, result);
-  Label elements_8(this), elements_16(this), elements_32(this),
-      elements_64(this), not_found(this), end(this);
-  int32_t elements_kinds[] = {
-      RAB_GSAB_UINT8_ELEMENTS,    RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
-      RAB_GSAB_INT8_ELEMENTS,     RAB_GSAB_UINT16_ELEMENTS,
-      RAB_GSAB_INT16_ELEMENTS,    RAB_GSAB_FLOAT16_ELEMENTS,
-      RAB_GSAB_UINT32_ELEMENTS,   RAB_GSAB_INT32_ELEMENTS,
-      RAB_GSAB_FLOAT32_ELEMENTS,  RAB_GSAB_FLOAT64_ELEMENTS,
-      RAB_GSAB_BIGINT64_ELEMENTS, RAB_GSAB_BIGUINT64_ELEMENTS};
-  Label* elements_kind_labels[] = {&elements_8,  &elements_8,  &elements_8,
-                                   &elements_16, &elements_16, &elements_16,
-                                   &elements_32, &elements_32, &elements_32,
-                                   &elements_64, &elements_64, &elements_64};
-  const size_t kTypedElementsKindCount =
-      LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
-      FIRST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND + 1;
-  DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kinds));
-  DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kind_labels));
-  Switch(elements_kind, &not_found, elements_kinds, elements_kind_labels,
-         kTypedElementsKindCount);
-  BIND(&elements_8);
-  {
-    result = IntPtrConstant(1);
-    Goto(&end);
-  }
-  BIND(&elements_16);
-  {
-    result = IntPtrConstant(2);
-    Goto(&end);
-  }
-  BIND(&elements_32);
-  {
-    result = IntPtrConstant(4);
-    Goto(&end);
-  }
-  BIND(&elements_64);
-  {
-    result = IntPtrConstant(8);
-    Goto(&end);
-  }
-  BIND(&not_found);
-  { Unreachable(); }
+  Label invalid_kind(this, Label::kDeferred), end(this);
+  TNode<Uint32T> index = Unsigned(Int32Sub(
+      elements_kind, Int32Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)));
+  Branch(
+      Uint32GreaterThan(
+          index, Uint32Constant(LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND)),
+      &invalid_kind, &end);
+
+  BIND(&invalid_kind);
+  Unreachable();
+
   BIND(&end);
-  return result.value();
+  TNode<RawPtrT> shift_table = UncheckedCast<RawPtrT>(ExternalConstant(
+      ExternalReference::
+          typed_array_and_rab_gsab_typed_array_elements_kind_shifts()));
+  return Load<Uint8T>(shift_table, ChangeUint32ToWord(index));
 }
 
 TNode<JSArrayBuffer> CodeStubAssembler::GetTypedArrayBuffer(
