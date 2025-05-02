@@ -28,6 +28,7 @@ def experiment_builder(**kwargs):
         properties = properties,
         experiments = experiments,
         disable_resultdb_exports = True,
+        use_siso = SISO.CHROMIUM_TRUSTED,
         **kwargs
     )
 
@@ -78,7 +79,6 @@ in_category(
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
-        use_siso = SISO.CHROMIUM_TRUSTED,
         notify_owners = ["choongwoo.han@microsoft.com"],
     ),
 )
