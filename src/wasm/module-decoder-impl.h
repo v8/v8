@@ -2392,6 +2392,11 @@ class ModuleDecoderImpl : public Decoder {
           bool functype_is_shared = module->type(functype).is_shared;
           ValueType type = ValueType::Ref(functype, functype_is_shared,
                                           RefTypeKind::kFunction);
+          if (V8_UNLIKELY(enabled_features_.has_custom_descriptors())) {
+            // Cannot use AsExactIfProposalEnabled because the decoder features
+            // are not propagated to v8_flags in unit tests.
+            type = type.AsExact();
+          }
           TYPE_CHECK(type)
           if (V8_UNLIKELY(is_shared && !type.is_shared())) {
             error(pc(), "ref.func does not have a shared type");
