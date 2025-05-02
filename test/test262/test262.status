@@ -2642,7 +2642,6 @@
   'built-ins/Temporal/PlainMonthDay/calendar-invalid-iso-string': [FAIL],
   'built-ins/Temporal/PlainYearMonth/calendar-invalid-iso-string': [FAIL],
   'built-ins/Temporal/ZonedDateTime/calendar-invalid-iso-string': [FAIL],
-  'built-ins/TypedArrayConstructors/ctors/typedarray-arg/throw-type-error-before-custom-proto-access': [FAIL],
   'intl402/DateTimeFormat/prototype/format/temporal-objects-formatting': [FAIL],
   'intl402/Temporal/PlainDate/prototype/toLocaleString/options-conflict': [FAIL],
   'intl402/Temporal/PlainMonthDay/from/constrain-to-leap-day': [FAIL],
