@@ -25,11 +25,19 @@ bool SandboxHardwareSupport::InitializeBeforeThreadCreation() {
 
 // static
 bool SandboxHardwareSupport::TryEnable(Address addr, size_t size) {
-  if (pkey_ != base::MemoryProtectionKey::kNoMemoryProtectionKey) {
-    return base::MemoryProtectionKey::SetPermissionsAndKey(
-        {addr, size}, v8::PageAllocator::Permission::kNoAccess, pkey_);
+  if (pkey_ == base::MemoryProtectionKey::kNoMemoryProtectionKey) {
+    return false;
   }
-  return false;
+
+  // If we have a valid PKEY, we expect this to always succeed.
+  CHECK(base::MemoryProtectionKey::SetPermissionsAndKey(
+      {addr, size}, v8::PageAllocator::Permission::kNoAccess, pkey_));
+  return true;
+}
+
+// static
+bool SandboxHardwareSupport::IsEnabled() {
+  return pkey_ != base::MemoryProtectionKey::kNoMemoryProtectionKey;
 }
 
 // static
@@ -81,6 +89,9 @@ bool SandboxHardwareSupport::InitializeBeforeThreadCreation() { return false; }
 bool SandboxHardwareSupport::TryEnable(Address addr, size_t size) {
   return false;
 }
+
+// static
+bool SandboxHardwareSupport::IsEnabled() { return false; }
 
 // static
 void SandboxHardwareSupport::SetDefaultPermissionsForSignalHandler() {}

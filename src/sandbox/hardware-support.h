@@ -25,7 +25,12 @@ class V8_EXPORT_PRIVATE SandboxHardwareSupport {
   // Try to set up hardware permissions to the sandbox address space. If
   // successful, future calls to MaybeBlockAccess will block the current thread
   // from accessing the memory.
+  // This will only fail if InitializeBeforeThreadCreation was unable to
+  // allocate a memory protection key.
   static bool TryEnable(Address addr, size_t size);
+
+  // Returns true if hardware sandboxing is enabled.
+  static bool IsEnabled();
 
   class V8_NODISCARD V8_ALLOW_UNUSED BlockAccessScope {
    public:

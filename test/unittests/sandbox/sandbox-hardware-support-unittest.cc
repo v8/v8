@@ -11,14 +11,31 @@
 namespace v8 {
 namespace internal {
 
+TEST(SandboxHardwareSupportTest, Initialization) {
+  if (!base::MemoryProtectionKey::HasMemoryProtectionKeyAPIs() ||
+      !base::MemoryProtectionKey::TestKeyAllocation())
+    return;
+
+  // If PKEYs are supported at runtime (and V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  // is enabled at compile-time) we expect hardware sandbox support to work.
+  ASSERT_TRUE(SandboxHardwareSupport::InitializeBeforeThreadCreation());
+  base::VirtualAddressSpace vas;
+  Sandbox sandbox;
+  sandbox.Initialize(&vas);
+  ASSERT_TRUE(SandboxHardwareSupport::IsEnabled());
+  sandbox.TearDown();
+}
+
 TEST(SandboxHardwareSupportTest, BlockAccessScope) {
+  // Skip this test if hardware sandboxing support cannot be enabled (likely
+  // because the system doesn't support PKEYs, see the Initialization test).
   if (!SandboxHardwareSupport::InitializeBeforeThreadCreation()) return;
 
   base::VirtualAddressSpace global_vas;
 
   Sandbox sandbox;
   sandbox.Initialize(&global_vas);
-  // TODO(saelo): assert that hardware sandbox support is enabled?
+  ASSERT_TRUE(SandboxHardwareSupport::IsEnabled());
 
   VirtualAddressSpace* sandbox_vas = sandbox.address_space();
   size_t size = sandbox_vas->allocation_granularity();

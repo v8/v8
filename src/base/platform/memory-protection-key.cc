@@ -18,6 +18,7 @@ int pkey_mprotect(void* addr, size_t len, int prot, int pkey) V8_WEAK;
 int pkey_get(int key) V8_WEAK;
 int pkey_set(int, unsigned) V8_WEAK;
 int pkey_alloc(unsigned int, unsigned int) V8_WEAK;
+int pkey_free(int) V8_WEAK;
 
 namespace v8 {
 namespace base {
@@ -43,11 +44,24 @@ int GetProtectionFromMemoryPermission(PageAllocator::Permission permission) {
 
 }  // namespace
 
-bool MemoryProtectionKey::HasMemoryProtectionKeySupport() {
+bool MemoryProtectionKey::HasMemoryProtectionKeyAPIs() {
   if (!pkey_mprotect) return false;
   // If {pkey_mprotect} is available, the others must also be available.
-  CHECK(pkey_get && pkey_set && pkey_alloc);
+  CHECK(pkey_get && pkey_set && pkey_alloc && pkey_free);
 
+  return true;
+}
+
+// static
+bool MemoryProtectionKey::TestKeyAllocation() {
+  if (!HasMemoryProtectionKeyAPIs()) {
+    return false;
+  }
+  int key = AllocateKey();
+  if (key == kNoMemoryProtectionKey) {
+    return false;
+  }
+  FreeKey(key);
   return true;
 }
 
@@ -58,6 +72,12 @@ int MemoryProtectionKey::AllocateKey() {
   }
 
   return pkey_alloc(0, 0);
+}
+
+// static
+void MemoryProtectionKey::FreeKey(int key) {
+  DCHECK_NE(key, kNoMemoryProtectionKey);
+  CHECK_EQ(pkey_free(key), 0);
 }
 
 // static

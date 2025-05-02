@@ -51,12 +51,28 @@ class V8_BASE_EXPORT MemoryProtectionKey {
   static_assert(kDisableWrite == PKEY_DISABLE_WRITE);
 #endif
 
-  // Call exactly once per process to determine if PKU is supported on this
-  // platform and initialize global data structures.
-  static bool HasMemoryProtectionKeySupport();
+  // Determine if the operating systems exposes the memory protection key APIs.
+  //
+  // This is a cheap test to see if the necessary library routines are
+  // available. It does not test whether the CPU and/or the kernel support
+  // PKEYs. For that, use the more expensive TestKeyAllocation() routine.
+  static bool HasMemoryProtectionKeyAPIs();
+
+  // Test whether memory protection keys can be successfully allocated on this
+  // system at runtime, implying that both the CPU and the kernel support PKEYs.
+  // This is a somewhat expensive test as it generally involves two syscalls
+  // (e.g. pkey_alloc and pkey_free on Linux).
+  // Note: as this involves allocating a PKEY, and since there's a limited
+  // number of keys, it will fail if all keys have already been allocated.
+  // Similarly, if this succeeds, it does not guarantee that a PKEY can be
+  // allocated in the future.
+  static bool TestKeyAllocation();
 
   // Allocates a new key. Returns kNoMemoryProtectionKey on error.
   static int AllocateKey();
+
+  // Frees the given key which must have been obtained through AllocateKey.
+  static void FreeKey(int key);
 
   // Associates a memory protection {key} with the given {region}.
   // If {key} is {kNoMemoryProtectionKey} this behaves like "plain"
