@@ -301,8 +301,8 @@
       'v8_linux64_no_sandbox_compile_rel': 'release_x64_no_sandbox',
       'v8_linux64_official_compile_rel': 'official_x64_on_release_branch',
       'v8_linux64_predictable_compile_rel': 'release_x64_predictable',
-      'v8_linux64_pku_compile_dbg': 'debug_x64',
-      'v8_linux64_pku_compile_rel': 'release_x64',
+      'v8_linux64_pku_compile_dbg': 'debug_x64_sandbox_hardware_support',
+      'v8_linux64_pku_compile_rel': 'release_x64_sandbox_hardware_support',
       'v8_linux64_shared_compile_rel': 'release_x64_shared_verify_heap',
       'v8_linux64_single_generation_compile_dbg': 'debug_x64_single_generation',
       'v8_linux64_no_wasm_compile_rel': 'release_x64_webassembly_disabled',
@@ -647,6 +647,8 @@
       'release_bot_reclient', 'x64'],
     'release_x64_no_sandbox': [
       'release_bot', 'x64', 'no_sandbox'],
+    'release_x64_sandbox_hardware_support': [
+      'release_bot', 'x64', 'sandbox_hardware_support'],
     'release_x64_trybot': [
       'release_trybot', 'x64'],
     'release_x64_test_features_gcmole_trybot': [
@@ -725,6 +727,8 @@
       'debug_bot', 'x64', 'perfetto'],
     'debug_x64_no_sandbox': [
       'debug_bot', 'x64', 'no_sandbox'],
+    'debug_x64_sandbox_hardware_support': [
+      'debug_bot', 'x64', 'sandbox_hardware_support'],
     'debug_x64_single_generation': [
       'debug_bot', 'x64', 'v8_enable_single_generation'],
     'debug_x64_sticky_mark_bits': [
@@ -962,6 +966,10 @@
 
     'no_sandbox': {
       'gn_args': 'v8_enable_sandbox=false',
+    },
+
+    'sandbox_hardware_support': {
+      'gn_args': 'v8_enable_sandbox_hardware_support=true',
     },
 
     'non_default_cppgc': {
