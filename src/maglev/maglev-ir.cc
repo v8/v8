@@ -3040,8 +3040,8 @@ void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
   // We ignore little endian argument if type is a byte size.
   if (type_ != ExternalArrayType::kExternalInt8Array) {
     if (is_little_endian_constant()) {
-      if (!V8_TARGET_BIG_ENDIAN_BOOL &&
-          !FromConstantToBool(masm, is_little_endian_input().node())) {
+      if (FromConstantToBool(masm, is_little_endian_input().node()) ==
+          V8_TARGET_BIG_ENDIAN_BOOL) {
         DCHECK_EQ(reg_with_result, result_reg);
         __ ReverseByteOrder(result_reg, element_size);
       }
@@ -3097,8 +3097,8 @@ void StoreSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
   // We ignore little endian argument if type is a byte size.
   if (element_size > 1) {
     if (is_little_endian_constant()) {
-      if (!V8_TARGET_BIG_ENDIAN_BOOL &&
-          !FromConstantToBool(masm, is_little_endian_input().node())) {
+      if (FromConstantToBool(masm, is_little_endian_input().node()) ==
+          V8_TARGET_BIG_ENDIAN_BOOL) {
         __ ReverseByteOrder(value, element_size);
       }
     } else {
@@ -3153,8 +3153,8 @@ void LoadDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
       data_pointer, FieldMemOperand(object, JSDataView::kDataPointerOffset));
 
   if (is_little_endian_constant()) {
-    if (!V8_TARGET_BIG_ENDIAN_BOOL &&
-        FromConstantToBool(masm, is_little_endian_input().node())) {
+    if (FromConstantToBool(masm, is_little_endian_input().node()) !=
+        V8_TARGET_BIG_ENDIAN_BOOL) {
       __ LoadUnalignedFloat64(result_reg, data_pointer, index);
     } else {
       __ LoadUnalignedFloat64AndReverseByteOrder(result_reg, data_pointer,
@@ -3211,8 +3211,8 @@ void StoreDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
       data_pointer, FieldMemOperand(object, JSDataView::kDataPointerOffset));
 
   if (is_little_endian_constant()) {
-    if (!V8_TARGET_BIG_ENDIAN_BOOL &&
-        FromConstantToBool(masm, is_little_endian_input().node())) {
+    if (FromConstantToBool(masm, is_little_endian_input().node()) !=
+        V8_TARGET_BIG_ENDIAN_BOOL) {
       __ StoreUnalignedFloat64(data_pointer, index, value);
     } else {
       __ ReverseByteOrderAndStoreUnalignedFloat64(data_pointer, index, value);
