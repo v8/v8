@@ -191,6 +191,7 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
   if (rtt.is_null()) return;  // Trap (descriptor was null).
 
   DirectHandle<WasmStruct> obj;
+  WriteBarrierMode mode = UPDATE_WRITE_BARRIER;
   if (type.is_descriptor()) {
     DirectHandle<Object> first_field =
         struct_type->first_field_can_be_prototype()
@@ -200,6 +201,7 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
                                                       rtt, first_field);
   } else {
     obj = isolate_->factory()->NewWasmStructUninitialized(struct_type, rtt);
+    mode = SKIP_WRITE_BARRIER;  // Object is in new space.
   }
   DisallowGarbageCollection no_gc;  // Must initialize fields first.
 
@@ -210,8 +212,7 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
           reinterpret_cast<uint8_t*>(obj->RawFieldAddress(offset));
       args[i].runtime_value.Packed(struct_type->field(i)).CopyTo(address);
     } else {
-      TaggedField<Object, WasmStruct::kHeaderSize>::store(
-          *obj, offset, *args[i].runtime_value.to_ref());
+      obj->SetTaggedFieldValue(offset, *args[i].runtime_value.to_ref(), mode);
     }
   }
   result->runtime_value = WasmValue(

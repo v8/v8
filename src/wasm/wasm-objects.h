@@ -1463,6 +1463,8 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, WasmObject> {
       Isolate* isolate, DirectHandle<JSPrototype> parent);
 
   V8_EXPORT_PRIVATE wasm::WasmValue GetFieldValue(uint32_t field_index);
+  inline void SetTaggedFieldValue(int raw_offset, Tagged<Object> value,
+                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_PRINTER(WasmStruct)
 
@@ -1542,6 +1544,9 @@ class WasmDescriptorOptions
   static DirectHandle<WasmDescriptorOptions> New(
       Isolate* isolate, DirectHandle<Object> prototype);
   DECL_PRINTER(WasmDescriptorOptions)
+
+  class BodyDescriptor;
+
   TQ_OBJECT_CONSTRUCTORS(WasmDescriptorOptions)
 };
 
