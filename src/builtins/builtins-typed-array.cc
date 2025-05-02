@@ -540,6 +540,7 @@ simdutf::result ArrayBufferSetFromBase64(
 // https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.frombase64
 BUILTIN(Uint8ArrayFromBase64) {
   HandleScope scope(isolate);
+  isolate->CountUsage(v8::Isolate::kUint8ArrayToFromBase64AndHex);
 
   // 1. If string is not a String, throw a TypeError exception.
   DirectHandle<Object> input = args.atOrUndefined(isolate, 1);
@@ -615,6 +616,7 @@ BUILTIN(Uint8ArrayFromBase64) {
 BUILTIN(Uint8ArrayPrototypeSetFromBase64) {
   HandleScope scope(isolate);
   const char method_name[] = "Uint8Array.prototype.setFromBase64";
+  isolate->CountUsage(v8::Isolate::kUint8ArrayToFromBase64AndHex);
 
   // 1. Let into be the this value.
   // 2. Perform ? ValidateUint8Array(into).
@@ -721,6 +723,7 @@ BUILTIN(Uint8ArrayPrototypeSetFromBase64) {
 BUILTIN(Uint8ArrayPrototypeToBase64) {
   HandleScope scope(isolate);
   const char method_name[] = "Uint8Array.prototype.toBase64";
+  isolate->CountUsage(v8::Isolate::kUint8ArrayToFromBase64AndHex);
 
   // 1. Let O be the this value.
   // 2. Perform ? ValidateUint8Array(O).
@@ -846,6 +849,7 @@ BUILTIN(Uint8ArrayPrototypeToBase64) {
 BUILTIN(Uint8ArrayFromHex) {
   HandleScope scope(isolate);
   const char method_name[] = "Uint8Array.fromHex";
+  isolate->CountUsage(v8::Isolate::kUint8ArrayToFromBase64AndHex);
 
   // 1. If string is not a String, throw a TypeError exception.
   DirectHandle<Object> input = args.atOrUndefined(isolate, 1);
@@ -923,6 +927,7 @@ BUILTIN(Uint8ArrayFromHex) {
 BUILTIN(Uint8ArrayPrototypeSetFromHex) {
   HandleScope scope(isolate);
   const char method_name[] = "Uint8Array.prototypr.setFromHex";
+  isolate->CountUsage(v8::Isolate::kUint8ArrayToFromBase64AndHex);
 
   // 1. Let into be the this value.
   // 2. Perform ? ValidateUint8Array(into).
@@ -1017,6 +1022,7 @@ BUILTIN(Uint8ArrayPrototypeSetFromHex) {
 BUILTIN(Uint8ArrayPrototypeToHex) {
   HandleScope scope(isolate);
   const char method_name[] = "Uint8Array.prototype.toHex";
+  isolate->CountUsage(v8::Isolate::kUint8ArrayToFromBase64AndHex);
 
   //  1. Let O be the this value.
   //  2. Perform ? ValidateUint8Array(O).
