@@ -201,20 +201,39 @@ TEST_F(WasmSubtypingTest, Subtyping) {
   constexpr ValueType numeric_types[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64,
                                          kWasmS128};
   constexpr ValueType ref_types[] = {
-      kWasmFuncRef,     kWasmEqRef,         kWasmStructRef,
-      kWasmArrayRef,    kWasmI31Ref,        kWasmAnyRef,
-      kWasmExternRef,   kWasmNullExternRef, kWasmNullRef,
-      kWasmNullFuncRef, kWasmStringRef,     kWasmStringViewIter,
-      kWasmExnRef,      kWasmNullExnRef,    kWasmRefNullExternString,
-      kWasmContRef,     kWasmNullContRef,
-      refNullS(0),   // struct
-      refS(0),       // struct
-      refNullA(2),   // array
-      refA(2),       // array
-      refNullF(11),  // function
-      refF(11),      // function
-      refNullC(44),  // continuation
-      refC(44)       // continuation
+      kWasmFuncRef,
+      kWasmEqRef,
+      kWasmStructRef,
+      kWasmArrayRef,
+      kWasmI31Ref,
+      kWasmAnyRef,
+      kWasmExternRef,
+      kWasmNullExternRef,
+      kWasmNullRef,
+      kWasmNullFuncRef,
+      kWasmStringRef,
+      kWasmStringViewIter,
+      kWasmExnRef,
+      kWasmNullExnRef,
+      kWasmRefNullExternString,
+      kWasmContRef,
+      kWasmNullContRef,
+      refNullS(0),             // struct
+      refS(0),                 // struct
+      refNullS(0).AsExact(),   // exact struct
+      refS(0).AsExact(),       // exact struct
+      refNullA(2),             // array
+      refA(2),                 // array
+      refNullA(2).AsExact(),   // exact array
+      refA(2).AsExact(),       // exact array
+      refNullF(11),            // function
+      refF(11),                // function
+      refNullF(11).AsExact(),  // exact function
+      refF(11).AsExact(),      // exact function
+      refNullC(44),            // continuation
+      refC(44),                // continuation
+      refNullC(44).AsExact(),  // exact continuation
+      refC(44).AsExact(),      // exact continuation
   };
 
 // Some macros to help managing types and modules.
@@ -274,18 +293,27 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     }
 
     for (ValueType ref_type : ref_types) {
+      ValueType inexact_ref_type = ref_type.AsExact(Exactness::kAnySubtype);
+
+      const bool is_defined_func =
+          inexact_ref_type == refNullF(11) || inexact_ref_type == refF(11);
+      const bool is_defined_struct =
+          inexact_ref_type == refNullS(0) || inexact_ref_type == refS(0);
+      const bool is_defined_array =
+          inexact_ref_type == refNullA(2) || inexact_ref_type == refA(2);
+      const bool is_defined_cont =
+          inexact_ref_type == refNullC(44) || inexact_ref_type == refC(44);
+
       const bool is_extern = ref_type == kWasmExternRef ||
                              ref_type == kWasmNullExternRef ||
                              ref_type == kWasmRefNullExternString;
       const bool is_any_func = ref_type == kWasmFuncRef ||
-                               ref_type == kWasmNullFuncRef ||
-                               ref_type == refNullF(11) || ref_type == refF(11);
+                               ref_type == kWasmNullFuncRef || is_defined_func;
       const bool is_string_view = ref_type == kWasmStringViewIter ||
                                   ref_type == kWasmStringViewWtf8 ||
                                   ref_type == kWasmStringViewWtf16;
       const bool is_any_cont = ref_type == kWasmContRef ||
-                               ref_type == kWasmNullContRef ||
-                               ref_type == refNullC(44) || ref_type == refC(44);
+                               ref_type == kWasmNullContRef || is_defined_cont;
       const bool is_exn =
           ref_type == kWasmExnRef || ref_type == kWasmNullExnRef;
       SCOPED_TRACE("ref_type: " + ref_type.name());
@@ -298,11 +326,11 @@ TEST_F(WasmSubtypingTest, Subtyping) {
       // Struct types are subtypes of structref.
       SUBTYPE_IFF(ref_type, kWasmStructRef,
                   ref_type == kWasmStructRef || ref_type == kWasmNullRef ||
-                      ref_type == refS(0) || ref_type == refNullS(0));
+                      is_defined_struct);
       // Array types are subtypes of arrayref.
       SUBTYPE_IFF(ref_type, kWasmArrayRef,
-                  ref_type == kWasmArrayRef || ref_type == refA(2) ||
-                      ref_type == kWasmNullRef || ref_type == refNullA(2));
+                  ref_type == kWasmArrayRef || ref_type == kWasmNullRef ||
+                      is_defined_array);
       // Functions are subtypes of funcref.
       SUBTYPE_IFF(ref_type, kWasmFuncRef, is_any_func);
       // Each reference type is a subtype of itself.
@@ -312,7 +340,7 @@ TEST_F(WasmSubtypingTest, Subtyping) {
       SUBTYPE_IFF(ref_type, kWasmAnyRef,
                   !is_any_func && !is_extern && !is_string_view && !is_exn &&
                       !is_any_cont);
-      // Only anyref is a subtype of anyref.
+      // Only anyref is a supertype of anyref.
       SUBTYPE_IFF(kWasmAnyRef, ref_type, ref_type == kWasmAnyRef);
       // Only externref and nullexternref are subtypes of externref.
       SUBTYPE_IFF(ref_type, kWasmExternRef, is_extern);
@@ -517,6 +545,7 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     // Reference type vs. itself and anyref.
     for (ValueType type : ref_types) {
       SCOPED_TRACE(type.name());
+      ValueType inexact_type = type.AsExact(Exactness::kAnySubtype);
       if (type == kWasmStringViewIter || type == kWasmStringViewWtf8 ||
           type == kWasmStringViewWtf16) {
         // String views aren't subtypes of any nor supertypes of null.
@@ -524,11 +553,11 @@ TEST_F(WasmSubtypingTest, Subtyping) {
         INTERSECTION(type, kWasmNullRef, kWasmBottom);
 
       } else if (type == kWasmFuncRef || type == kWasmNullFuncRef ||
-                 type == refF(11) || type == refNullF(11) ||
+                 inexact_type == refF(11) || inexact_type == refNullF(11) ||
                  type == kWasmExternRef || type == kWasmNullExternRef ||
                  type == kWasmRefNullExternString || type == kWasmContRef ||
-                 type == kWasmNullContRef || type == refNullC(44) ||
-                 type == refC(44)) {
+                 type == kWasmNullContRef || inexact_type == refNullC(44) ||
+                 inexact_type == refC(44)) {
         // func, cont and extern types don't share the same type hierarchy as
         // anyref.
         INTERSECTION(type, kWasmAnyRef, kWasmBottom);
@@ -546,6 +575,12 @@ TEST_F(WasmSubtypingTest, Subtyping) {
                                             : kWasmBottom);
       }
     }
+
+    // Exact and inexact versions of the same type
+    UNION(refF(11), refF(11).AsExact(), refF(11));
+    INTERSECTION(refF(11), refF(11).AsExact(), refF(11).AsExact());
+    UNION(refNullS(0), refNullS(0).AsExact(), refNullS(0));
+    INTERSECTION(refNullS(0), refNullS(0).AsExact(), refNullS(0).AsExact());
 
     // Abstract types vs abstract types.
     UNION(kWasmEqRef, kWasmStructRef, kWasmEqRef);

@@ -411,7 +411,10 @@ std::optional<bool> IsSubtypeOf_Abstract(ValueTypeBase subtype,
   DCHECK(!subtype.is_numeric() && !supertype.is_numeric());
 
   if (subtype.is_shared() != supertype.is_shared()) return false;
-  if (supertype.is_exact()) {
+  // TODO(jkummerow): Refactor {IsNullSentinel} and use that here.
+  bool subtype_is_none =
+      subtype.is_generic() && IsNullKind(subtype.generic_kind());
+  if (supertype.is_exact() && !subtype_is_none) {
     if (!subtype.is_exact()) return false;
     if (subtype.is_bottom()) return true;
     if (supertype.has_index()) {
@@ -589,6 +592,7 @@ Exactness UnionExactness(ValueType type1, ValueType type2,
     return Exactness::kExact;
   }
   bool same =
+      (type1.ref_index() == type2.ref_index() && module1 == module2) ||
       EquivalentIndices(type1.ref_index(), type2.ref_index(), module1, module2);
   return same ? Exactness::kExact : Exactness::kAnySubtype;
 }
