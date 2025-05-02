@@ -66,19 +66,24 @@ StackMemory::StackMemory(uint8_t* limit, size_t size)
 StackMemory::StackSegment::StackSegment(size_t pages) {
   DCHECK_GE(pages, 1);
   PageAllocator* allocator = GetPlatformPageAllocator();
-  size_ = pages * allocator->AllocatePageSize();
-  limit_ = static_cast<uint8_t*>(
-      allocator->AllocatePages(nullptr, size_, allocator->AllocatePageSize(),
-                               PageAllocator::kReadWrite));
-  if (limit_ == nullptr) {
+  size_t page_size = allocator->AllocatePageSize();
+  size_ = pages * page_size;
+  // Reserve one guard page before and after the stack memory.
+  limit_ = static_cast<uint8_t*>(allocator->AllocatePages(
+      nullptr, size_ + 2 * page_size, allocator->AllocatePageSize(),
+      PageAllocator::kNoAccess));
+  if (limit_ == nullptr || !SetPermissions(allocator, limit_ + page_size, size_,
+                                           PageAllocator::kReadWrite)) {
     V8::FatalProcessOutOfMemory(nullptr,
                                 "StackMemory::StackSegment::StackSegment");
   }
+  limit_ += page_size;
 }
 
 StackMemory::StackSegment::~StackSegment() {
   PageAllocator* allocator = GetPlatformPageAllocator();
-  if (!allocator->DecommitPages(limit_, size_)) {
+  size_t page_size = allocator->AllocatePageSize();
+  if (!allocator->DecommitPages(limit_ - page_size, size_ + 2 * page_size)) {
     V8::FatalProcessOutOfMemory(nullptr, "Decommit stack memory");
   }
 }
