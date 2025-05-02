@@ -4,9 +4,7 @@
 
 #include "src/sandbox/hardware-support.h"
 
-#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 #include "src/base/platform/memory-protection-key.h"
-#endif
 
 namespace v8 {
 namespace internal {
@@ -42,21 +40,21 @@ bool SandboxHardwareSupport::IsEnabled() {
 
 // static
 void SandboxHardwareSupport::SetDefaultPermissionsForSignalHandler() {
-  if (pkey_ != base::MemoryProtectionKey::kNoMemoryProtectionKey) {
-    base::MemoryProtectionKey::SetPermissionsForKey(
-        pkey_, base::MemoryProtectionKey::Permission::kNoRestrictions);
-  }
+  if (!IsEnabled()) return;
+
+  base::MemoryProtectionKey::SetPermissionsForKey(
+      pkey_, base::MemoryProtectionKey::Permission::kNoRestrictions);
 }
 
 // static
 void SandboxHardwareSupport::NotifyReadOnlyPageCreated(
     Address addr, size_t size, PageAllocator::Permission perm) {
-  if (pkey_ != base::MemoryProtectionKey::kNoMemoryProtectionKey) {
-    // Reset the pkey of the read-only page to the default pkey, since some
-    // SBXCHECKs will safely read read-only data from the heap.
-    base::MemoryProtectionKey::SetPermissionsAndKey(
-        {addr, size}, perm, base::MemoryProtectionKey::kDefaultProtectionKey);
-  }
+  if (!IsEnabled()) return;
+
+  // Reset the pkey of the read-only page to the default pkey, since some
+  // SBXCHECKs will safely read read-only data from the heap.
+  CHECK(base::MemoryProtectionKey::SetPermissionsAndKey(
+      {addr, size}, perm, base::MemoryProtectionKey::kDefaultProtectionKey));
 }
 
 // static
