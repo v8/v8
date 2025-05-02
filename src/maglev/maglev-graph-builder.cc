@@ -5911,37 +5911,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
     return EmitUnconditionalDeopt(DeoptimizeReason::kStoreToConstant);
   }
 
-  ValueNode* store_target;
-  if (field_index.is_inobject()) {
-    store_target = receiver;
-  } else {
-    // The field is in the property array, first load it from there.
-    store_target =
-        BuildLoadTaggedField(receiver, JSReceiver::kPropertiesOrHashOffset);
-    if (original_map && original_map->UnusedPropertyFields() == 0) {
-      store_target = BuildExtendPropertiesBackingStore(*original_map, receiver,
-                                                       store_target);
-    }
-  }
-
-  if (field_representation.IsDouble()) {
-    ValueNode* float64_value = GetAccumulator();
-    if (access_info.HasTransitionMap()) {
-      // Allocate the mutable double box owned by the field.
-      ValueNode* value =
-          AddNewNode<Float64ToHeapNumberForField>({float64_value});
-      BuildStoreTaggedField(store_target, value, field_index.offset(),
-                            StoreTaggedMode::kTransitioning);
-      BuildStoreMap(receiver, access_info.transition_map().value(),
-                    StoreMap::Kind::kTransitioning);
-    } else {
-      AddNewNode<StoreDoubleField>({store_target, float64_value},
-                                   field_index.offset());
-    }
-    return ReduceResult::Done();
-  }
-
   ValueNode* value = GetAccumulator();
+  if (IsEmptyNodeType(GetType(value))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongValue);
+  }
+
   if (field_representation.IsSmi()) {
     RETURN_IF_ABORT(GetAccumulatorSmi());
   } else {
@@ -5956,6 +5930,36 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
       }
     }
   }
+
+  ValueNode* store_target;
+  if (field_index.is_inobject()) {
+    store_target = receiver;
+  } else {
+    // The field is in the property array, first load it from there.
+    store_target =
+        BuildLoadTaggedField(receiver, JSReceiver::kPropertiesOrHashOffset);
+    if (original_map && original_map->UnusedPropertyFields() == 0) {
+      store_target = BuildExtendPropertiesBackingStore(*original_map, receiver,
+                                                       store_target);
+    }
+  }
+
+  if (field_representation.IsDouble()) {
+    if (access_info.HasTransitionMap()) {
+      // Allocate the mutable double box owned by the field.
+      ValueNode* heapnumber_value =
+          AddNewNode<Float64ToHeapNumberForField>({value});
+      BuildStoreTaggedField(store_target, heapnumber_value,
+                            field_index.offset(),
+                            StoreTaggedMode::kTransitioning);
+      BuildStoreMap(receiver, access_info.transition_map().value(),
+                    StoreMap::Kind::kTransitioning);
+    } else {
+      AddNewNode<StoreDoubleField>({store_target, value}, field_index.offset());
+    }
+    return ReduceResult::Done();
+  }
+
 
   StoreTaggedMode store_mode = access_info.HasTransitionMap()
                                    ? StoreTaggedMode::kTransitioning
