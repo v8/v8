@@ -1480,6 +1480,9 @@ void RootScavengeVisitor::VisitRootPointers(Root root, const char* description,
 
 void RootScavengeVisitor::ScavengePointer(FullObjectSlot p) {
   Tagged<Object> object = *p;
+#ifdef V8_ENABLE_DIRECT_HANDLE
+  if (object.ptr() == kTaggedNullAddress) return;
+#endif
   DCHECK(!HasWeakHeapObjectTag(object));
   DCHECK(!MapWord::IsPacked(object.ptr()));
   if (HeapLayout::InYoungGeneration(object)) {
