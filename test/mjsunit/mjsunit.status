@@ -2464,10 +2464,11 @@
 }],
 
 ##############################################################################
-# TODO(mliedtke): Support deopts on all platforms.
-['arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != loong64 and arch != mips64el', {
-  # --wasm-deopt implementation experimental and not ported to most
-  # architectures, yet.
+# TODO(ports): Support Wasm deopts on all platforms.
+# If you need to add your architecture here, you will need to disable the
+# wasm_deopt flag by default on your platform as well!
+['arch in [riscv32, riscv64, mips64, ppc64, s390x]', {
+  # --wasm-deopt implementation not ported to all  architectures, yet.
   'wasm/deopt/*': [SKIP],
   'regress/wasm/regress-350779988': [SKIP],
   'regress/wasm/regress-353582136': [SKIP],

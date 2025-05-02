@@ -1774,8 +1774,15 @@ DEFINE_EXPERIMENTAL_FEATURE(
     "Enable direct calls from wasm to fast API functions with bound "
     "call function to pass the the receiver as first parameter")
 
+#if V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64 || \
+    V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_S390X ||     \
+    (V8_TARGET_ARCH_MIPS64 && V8_TARGET_BIG_ENDIAN)
+DEFINE_EXPERIMENTAL_FEATURE(wasm_deopt,
+                            "enable deopts in optimized wasm functions")
+#else
 DEFINE_BOOL(wasm_deopt, true, "enable deopts in optimized wasm functions")
-DEFINE_WEAK_IMPLICATION(future, wasm_deopt)
+#endif
+
 // Deopt only works in combination with feedback.
 DEFINE_NEG_NEG_IMPLICATION(liftoff, wasm_deopt)
 
