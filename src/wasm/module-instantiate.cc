@@ -790,209 +790,10 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
 }
 
 class JSPrototypesSetup {
- public:
-  JSPrototypesSetup(Isolate* isolate, base::Vector<const uint8_t> wire_bytes,
-                    const WasmModule* module, ErrorThrower* thrower,
-                    DirectHandleVector<Object>& sanitized_imports)
-      : isolate_(isolate),
-        wire_bytes_(wire_bytes),
-        module_(module),
-        thrower_(thrower),
-        sanitized_imports_(sanitized_imports),
-        it_(wire_bytes, module->descriptors_section.offset(),
-            module->descriptors_section.end_offset()),
-        max_import_index_(static_cast<uint32_t>(sanitized_imports.size())),
-        max_export_index_(static_cast<uint32_t>(module_->export_table.size())) {
-  }
-
-  void SetInstanceData(DirectHandle<WasmTrustedInstanceData> instance_data) {
-    trusted_instance_data_ = instance_data;
-    exports_object_ = direct_handle(
-        instance_data->instance_object()->exports_object(), isolate_);
-    if (module_->has_shared_part) {
-      shared_instance_data_ =
-          direct_handle(instance_data->shared_part(), isolate_);
-    }
-  }
-
-  void MaterializeDescriptorOptions(MaybeDirectHandle<JSReceiver> ffi) {
-    if (!v8_flags.wasm_explicit_prototypes) return;
-    if (!it_.ok()) return;
-    MaterializeDescriptorOptionsImpl(ffi);
-    if (!it_.ok()) thrower_->CompileFailed(it_.error());
-  }
-
-  // For the "modular" variant of the proposal.
-  // Specified to run right after the "start" function, before instantiation
-  // completes.
-  void ConfigurePrototypes_Modular() {
-    if (!it_.ok()) return;
-    ConfigurePrototypes_Modular_Impl();
-    if (!it_.ok()) thrower_->CompileFailed(it_.error());
-  }
-
  private:
-  using ImportEntry = DescriptorsSectionIterator::ImportEntry;
-  using DeclEntry = DescriptorsSectionIterator::DeclEntry;
-  using ProtoConfig = DescriptorsSectionIterator::ProtoConfig;
-  using Method = DescriptorsSectionIterator::Method;
-
-  ///////////////// Implementation of the public interface. ////////////////////
-
-  void MaterializeDescriptorOptionsImpl(MaybeDirectHandle<JSReceiver> ffi) {
-    WireBytesRef module_name_ref = it_.module_name();
-    DirectHandle<String> module_name = GetString(module_name_ref);
-    size_t num_entries = it_.NumImportAndDeclEntries();
-    uint32_t current_entry_index = 0;
-    DirectHandleVector<JSPrototype> entries(isolate_, num_entries);
-
-    // Import entries subsection.
-    if (it_.has_import_entry()) {
-      // Prepare the "module" sub-object of the imports object.
-      if (ffi.is_null()) {
-        thrower_->TypeError(
-            "Imports argument must be present and must be an object");
-        return;
-      }
-      DirectHandle<JSReceiver> module;
-      if (!GetImportedObject(ffi.ToHandleChecked(), module_name, "module",
-                             &module)) {
-        return;
-      }
-
-      do {
-        ImportEntry import_entry = it_.NextImportEntry();
-        WireBytesRef name = import_entry.name();
-        if (!import_entry.ok()) return;
-        DirectHandle<String> import_name = GetString(name);
-        DirectHandle<JSReceiver> prototype;
-        if (!GetImportedObject(module, import_name, "import", &prototype)) {
-          return;
-        }
-        DirectHandle<WasmDescriptorOptions> descriptor_options =
-            WasmDescriptorOptions::New(isolate_, prototype);
-        entries[current_entry_index++] = prototype;
-        while (import_entry.has_export()) {
-          uint32_t export_index = import_entry.NextExport(max_import_index_);
-          if (!import_entry.ok()) return;
-          sanitized_imports_[export_index] = descriptor_options;
-        }
-      } while (it_.ok() && it_.has_import_entry());
-    }
-
-    // Decl entries subsection.
-    while (it_.ok() && it_.has_decl_entry()) {
-      DeclEntry decl_entry = it_.NextDeclEntry();
-      if (!it_.ok()) return;
-      DirectHandle<JSPrototype> parent = isolate_->initial_object_prototype();
-      if (decl_entry.has_parent()) {
-        uint32_t parent_index = decl_entry.Parent(current_entry_index);
-        if (!it_.ok()) return;
-        parent = entries[parent_index];
-      }
-      DirectHandle<JSObject> prototype =
-          WasmStruct::AllocatePrototype(isolate_, parent);
-      DirectHandle<WasmDescriptorOptions> descriptor_options =
-          WasmDescriptorOptions::New(isolate_, prototype);
-      entries[current_entry_index++] = descriptor_options;
-      while (decl_entry.has_export()) {
-        uint32_t export_index = decl_entry.NextExport(max_import_index_);
-        if (!decl_entry.ok()) return;
-        sanitized_imports_[export_index] = descriptor_options;
-      }
-    }
-  }
-
-  void ConfigurePrototypes_Modular_Impl() {
-    DCHECK(!trusted_instance_data_.is_null());
-    if (!v8_flags.wasm_implicit_prototypes) it_.SkipToProtoConfigs();
-    while (it_.has_proto_config()) {
-      ProtoConfig proto_config = it_.NextProtoConfig(max_import_index_);
-      if (!it_.ok()) return;
-      uint32_t import_index = proto_config.import_index();
-      if (!IsWasmDescriptorOptions(*sanitized_imports_[import_index])) {
-        thrower_->LinkError("import %u must be a descriptor", import_index);
-        return;
-      }
-      DirectHandle<WasmDescriptorOptions> desc =
-          Cast<WasmDescriptorOptions>(sanitized_imports_[import_index]);
-      DirectHandle<JSReceiver> prototype(Cast<JSReceiver>(desc->prototype()),
-                                         isolate_);
-
-      if (proto_config.has_method()) {
-        ToDictionaryMode(prototype, proto_config.estimated_number_of_methods());
-      }
-
-      while (proto_config.has_method()) {
-        Method method = proto_config.NextMethod(max_export_index_);
-        if (!it_.ok()) return;
-        if (!InstallMethodByExportIndex(prototype, method)) return;
-      }
-
-      // Constructor function, if any.
-      if (!proto_config.has_constructor()) continue;
-      auto [constructor_name_ref, constructor_index] =
-          proto_config.Constructor(max_export_index_);
-      if (!it_.ok()) return;
-      DirectHandle<JSFunction> function;
-      if (!GetExportedFunction(constructor_index).ToHandle(&function)) return;
-      DirectHandle<JSFunction> constructor =
-          MakeConstructor(constructor_name_ref, function, prototype);
-
-      // Static methods/accessors on the constructor, if any.
-      if (!proto_config.has_static()) continue;
-      int num_methods = proto_config.estimated_number_of_statics();
-      JSObject::NormalizeProperties(isolate_, constructor,
-                                    KEEP_INOBJECT_PROPERTIES, num_methods,
-                                    "Wasm constructor setup");
-      do {
-        Method staticmethod = proto_config.NextStatic(max_export_index_);
-        if (!it_.ok()) return;
-        if (!InstallMethodByExportIndex(constructor, staticmethod)) return;
-      } while (proto_config.has_static());
-    }
-  }
-
-  ///////////////// Helper functions. //////////////////////////////////////////
-
   DirectHandle<String> GetString(WireBytesRef ref) {
     return WasmModuleObject::ExtractUtf8StringFromModuleBytes(
         isolate_, wire_bytes_, ref, kInternalize);
-  }
-
-  bool GetImportedObject(DirectHandle<JSReceiver> holder,
-                         DirectHandle<String> name,
-                         const char* description_for_error,
-                         DirectHandle<JSReceiver>* out) {
-    DirectHandle<Object> value;
-    if (!Object::GetPropertyOrElement(isolate_, holder, name)
-             .ToHandle(&value) ||
-        !TryCast<JSReceiver>(value, out)) {
-      thrower_->LinkError("%s: %s not found or not an object",
-                          name->ToCString().get(), description_for_error);
-      return false;
-    }
-    return true;
-  }
-
-  // Note: this is only safe to call after {ProcessExports} has run!
-  MaybeDirectHandle<WasmExportedFunction> GetExportedFunction(
-      uint32_t export_index) {
-    const WasmExport& exp = module_->export_table[export_index];
-    if (exp.kind != kExternalFunction) {
-      thrower_->LinkError("export %u must be a function", export_index);
-      return {};
-    }
-    bool shared = module_->function_is_shared(exp.index);
-    Tagged<Object> funcref =
-        (shared ? shared_instance_data_ : trusted_instance_data_)
-            ->func_refs()
-            ->get(exp.index);
-    DCHECK(IsWasmFuncRef(funcref));
-    Tagged<WasmInternalFunction> internal_func =
-        Cast<WasmFuncRef>(funcref)->internal(isolate_);
-    return direct_handle(Cast<WasmExportedFunction>(internal_func->external()),
-                         isolate_);
   }
 
   DirectHandle<JSFunction> MakeConstructor(
@@ -1019,50 +820,6 @@ class JSPrototypesSetup {
     return constructor;
   }
 
-  // Adding multiple properties is more efficient when the prototype
-  // object is in dictionary mode. ICs will transition it back to
-  // "fast" (but slow to modify) properties.
-  void ToDictionaryMode(DirectHandle<JSReceiver> prototype, int num_methods) {
-    if (!IsJSObject(*prototype) || !prototype->HasFastProperties()) return;
-    JSObject::NormalizeProperties(isolate_, Cast<JSObject>(prototype),
-                                  KEEP_INOBJECT_PROPERTIES, num_methods,
-                                  "Wasm prototype setup");
-  }
-
-  bool InstallMethodByExportIndex(DirectHandle<JSReceiver> object,
-                                  const Method& method) {
-    DirectHandle<WasmExportedFunction> function;
-    if (!GetExportedFunction(method.index).ToHandle(&function)) return false;
-    return InstallMethodImpl(object, method, function);
-  }
-  bool InstallMethodImpl(DirectHandle<JSReceiver> object, const Method& method,
-                         DirectHandle<WasmExportedFunction> function) {
-    DirectHandle<String> method_name = GetString(method.name);
-    if (!method.is_static) {
-      WasmExportedFunction::MarkAsReceiverIsFirstParam(isolate_, function);
-    }
-    PropertyDescriptor prop;
-    prop.set_enumerable(false);
-    prop.set_configurable(true);
-    if (method.kind == Method::kMethod) {
-      prop.set_writable(true);
-      prop.set_value(function);
-    } else if (method.kind == Method::kGetter) {
-      prop.set_get(function);
-    } else if (method.kind == Method::kSetter) {
-      prop.set_set(function);
-    } else {
-      UNREACHABLE();  // Ruled out by validation.
-    }
-    if (!JSReceiver::DefineOwnProperty(isolate_, object, method_name, &prop,
-                                       Just(ShouldThrow::kThrowOnError))
-             .FromMaybe(false)) {
-      DCHECK(isolate_->has_exception());
-      return false;
-    }
-    return true;
-  }
-
   void InstallExport(DirectHandle<String> name, DirectHandle<Object> value) {
     PropertyDetails details(
         PropertyKind::kData,
@@ -1079,15 +836,7 @@ class JSPrototypesSetup {
 
   Isolate* isolate_;
   base::Vector<const uint8_t> wire_bytes_;
-  const WasmModule* module_;
-  ErrorThrower* thrower_;
-  DirectHandle<WasmTrustedInstanceData> trusted_instance_data_;
-  DirectHandle<WasmTrustedInstanceData> shared_instance_data_;
   DirectHandle<JSObject> exports_object_;
-  DirectHandleVector<Object>& sanitized_imports_;
-  DescriptorsSectionIterator it_;
-  uint32_t max_import_index_;
-  uint32_t max_export_index_{0};
 };
 
 // A helper class to simplify instantiating a module from a module object.
@@ -1104,11 +853,6 @@ class InstanceBuilder {
   MaybeDirectHandle<WasmInstanceObject> Build();
   // Run the start function, if any.
   bool ExecuteStartFunction();
-  // Populate prototypes (Custom Descriptors proposal, "modular" variant).
-  // Specified to run after the start function.
-  bool ConfigurePrototypes_Modular();
-  // Make the exports object read-only after it is fully set up.
-  void FinalizeExportsObject(MaybeDirectHandle<WasmInstanceObject> instance);
 
  private:
   Isolate* isolate_;
@@ -1128,7 +872,6 @@ class InstanceBuilder {
   DirectHandle<JSFunction> start_function_;
   DirectHandleVector<Object> sanitized_imports_;
   std::vector<WellKnownImport> well_known_imports_;
-  std::optional<JSPrototypesSetup> js_prototypes_setup_;
   // We pass this {Zone} to the temporary {WasmFullDecoder} we allocate during
   // each call to {EvaluateConstantExpression}, and reset it after each such
   // call. This has been found to improve performance a bit over allocating a
@@ -1316,9 +1059,7 @@ MaybeDirectHandle<WasmInstanceObject> InstantiateToInstanceObject(
         native_module->module()->num_declared_functions > 0) {
       WriteOutPGOTask::Schedule(native_module);
     }
-    if (builder.ExecuteStartFunction() &&
-        builder.ConfigurePrototypes_Modular()) {
-      builder.FinalizeExportsObject(instance_object);
+    if (builder.ExecuteStartFunction()) {
       return instance_object;
     }
   }
@@ -1824,9 +1565,6 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase2(
   if (module_->has_shared_part) {
     shared_trusted_data = direct_handle(trusted_data->shared_part(), isolate_);
   }
-  if (js_prototypes_setup_.has_value()) {
-    js_prototypes_setup_->SetInstanceData(trusted_data);
-  }
 
   //--------------------------------------------------------------------------
   // Load element segments into tables.
@@ -2110,27 +1848,6 @@ DirectHandle<JSFunction> CreateFunctionForCompileTimeImport(
   return fun;
 }
 
-bool InstanceBuilder::ConfigurePrototypes_Modular() {
-  if (!v8_flags.wasm_explicit_prototypes) return true;
-  if (!js_prototypes_setup_) return true;
-  js_prototypes_setup_->ConfigurePrototypes_Modular();
-  return !thrower_->error() && !isolate_->has_exception();
-}
-
-void InstanceBuilder::FinalizeExportsObject(
-    MaybeDirectHandle<WasmInstanceObject> instance) {
-  DirectHandle<JSObject> exports_object(
-      instance.ToHandleChecked()->exports_object(), isolate_);
-  // Switch back to fast properties if possible.
-  JSObject::MigrateSlowToFast(exports_object, 0, "WasmExportsObjectFinished");
-
-  if (module_->origin == kWasmOrigin) {
-    CHECK(JSReceiver::SetIntegrityLevel(isolate_, exports_object, FROZEN,
-                                        kDontThrow)
-              .FromMaybe(false));
-  }
-}
-
 void InstanceBuilder::SanitizeImports() {
   NativeModule* native_module = module_object_->native_module();
   base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
@@ -2141,20 +1858,8 @@ void InstanceBuilder::SanitizeImports() {
   const bool has_magic_string_constants =
       native_module->compile_imports().contains(
           CompileTimeImport::kStringConstants);
-  const std::vector<WasmImport>& import_table = module_->import_table;
-  sanitized_imports_.resize(import_table.size());
-
-  if (v8_flags.experimental_wasm_custom_descriptors &&
-      !module_->descriptors_section.is_empty()) {
-    js_prototypes_setup_.emplace(isolate_, wire_bytes, module_, thrower_,
-                                 sanitized_imports_);
-    js_prototypes_setup_->MaterializeDescriptorOptions(ffi_);
-    if (thrower_->error()) return;
-  }
-
-  for (uint32_t index = 0; index < import_table.size(); ++index) {
-    if (!sanitized_imports_[index].is_null()) continue;
-    const WasmImport& import = import_table[index];
+  for (uint32_t index = 0; index < module_->import_table.size(); ++index) {
+    const WasmImport& import = module_->import_table[index];
 
     if (import.kind == kExternalGlobal && has_magic_string_constants &&
         import.module_name.length() == magic_string_constants.size() &&
@@ -2163,7 +1868,7 @@ void InstanceBuilder::SanitizeImports() {
       DirectHandle<String> value =
           WasmModuleObject::ExtractUtf8StringFromModuleBytes(
               isolate_, wire_bytes, import.field_name, kNoInternalize);
-      sanitized_imports_[index] = value;
+      sanitized_imports_.push_back(value);
       continue;
     }
 
@@ -2172,7 +1877,7 @@ void InstanceBuilder::SanitizeImports() {
       if (IsCompileTimeImport(wki)) {
         DirectHandle<JSFunction> fun =
             CreateFunctionForCompileTimeImport(isolate_, wki);
-        sanitized_imports_[index] = fun;
+        sanitized_imports_.push_back(fun);
         continue;
       }
     }
@@ -2200,7 +1905,7 @@ void InstanceBuilder::SanitizeImports() {
       return;
     }
     DirectHandle<Object> value = result.ToHandleChecked();
-    sanitized_imports_[index] = value;
+    sanitized_imports_.push_back(value);
   }
 }
 
@@ -3087,6 +2792,15 @@ void InstanceBuilder::ProcessExports(
       // Add a property to the dictionary.
       JSObject::SetNormalizedProperty(exports_object, name, value, details);
     }
+  }
+
+  // Switch back to fast properties if possible.
+  JSObject::MigrateSlowToFast(exports_object, 0, "WasmExportsObjectFinished");
+
+  if (module_->origin == kWasmOrigin) {
+    CHECK(JSReceiver::SetIntegrityLevel(isolate_, exports_object, FROZEN,
+                                        kDontThrow)
+              .FromMaybe(false));
   }
 }
 
