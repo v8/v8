@@ -7,7 +7,7 @@
 
 #include "src/base/build_config.h"
 
-#if V8_HAS_PKU_JIT_WRITE_PROTECT
+#if V8_HAS_PKU_SUPPORT
 
 #include "include/v8-platform.h"
 #include "src/base/address-region.h"
@@ -55,7 +55,7 @@ class V8_BASE_EXPORT MemoryProtectionKey {
   // platform and initialize global data structures.
   static bool HasMemoryProtectionKeySupport();
 
-  // Allocates a new key. Returns -1 on error.
+  // Allocates a new key. Returns kNoMemoryProtectionKey on error.
   static int AllocateKey();
 
   // Associates a memory protection {key} with the given {region}.
@@ -84,6 +84,6 @@ class V8_BASE_EXPORT MemoryProtectionKey {
 }  // namespace base
 }  // namespace v8
 
-#endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
+#endif  // V8_HAS_PKU_SUPPORT
 
 #endif  // V8_BASE_PLATFORM_MEMORY_PROTECTION_KEY_H_

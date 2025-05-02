@@ -16,7 +16,11 @@ class V8_EXPORT_PRIVATE SandboxHardwareSupport {
   // Allocates a pkey that will be used to optionally block sandbox access. This
   // function should be called once before any threads are created so that new
   // threads inherit access to the new pkey.
-  static void InitializeBeforeThreadCreation();
+  // This function returns true on success, false otherwise. It can generally
+  // fail for one of two reasons:
+  //   1. the current system doesn't support memory protection keys, or
+  //   2. there are no allocatable memory protection keys left.
+  static bool InitializeBeforeThreadCreation();
 
   // Try to set up hardware permissions to the sandbox address space. If
   // successful, future calls to MaybeBlockAccess will block the current thread
@@ -25,7 +29,7 @@ class V8_EXPORT_PRIVATE SandboxHardwareSupport {
 
   class V8_NODISCARD V8_ALLOW_UNUSED BlockAccessScope {
    public:
-#if V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
     explicit BlockAccessScope(int pkey);
     ~BlockAccessScope();
 
@@ -52,7 +56,7 @@ class V8_EXPORT_PRIVATE SandboxHardwareSupport {
   static void SetDefaultPermissionsForSignalHandler();
 
  private:
-#if V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   static int pkey_;
 #endif
 };

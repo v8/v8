@@ -4,17 +4,24 @@
 
 #include "src/sandbox/hardware-support.h"
 
-#if V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 #include "src/base/platform/memory-protection-key.h"
 #endif
 
 namespace v8 {
 namespace internal {
 
-#if V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
 int SandboxHardwareSupport::pkey_ =
     base::MemoryProtectionKey::kNoMemoryProtectionKey;
+
+// static
+bool SandboxHardwareSupport::InitializeBeforeThreadCreation() {
+  DCHECK_EQ(pkey_, base::MemoryProtectionKey::kNoMemoryProtectionKey);
+  pkey_ = base::MemoryProtectionKey::AllocateKey();
+  return pkey_ != base::MemoryProtectionKey::kNoMemoryProtectionKey;
+}
 
 // static
 bool SandboxHardwareSupport::TryEnable(Address addr, size_t size) {
@@ -23,12 +30,6 @@ bool SandboxHardwareSupport::TryEnable(Address addr, size_t size) {
         {addr, size}, v8::PageAllocator::Permission::kNoAccess, pkey_);
   }
   return false;
-}
-
-// static
-void SandboxHardwareSupport::InitializeBeforeThreadCreation() {
-  DCHECK_EQ(pkey_, base::MemoryProtectionKey::kNoMemoryProtectionKey);
-  pkey_ = base::MemoryProtectionKey::AllocateKey();
 }
 
 // static
@@ -74,12 +75,12 @@ SandboxHardwareSupport::BlockAccessScope::~BlockAccessScope() {
 #else  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
 // static
+bool SandboxHardwareSupport::InitializeBeforeThreadCreation() { return false; }
+
+// static
 bool SandboxHardwareSupport::TryEnable(Address addr, size_t size) {
   return false;
 }
-
-// static
-void SandboxHardwareSupport::InitializeBeforeThreadCreation() {}
 
 // static
 void SandboxHardwareSupport::SetDefaultPermissionsForSignalHandler() {}

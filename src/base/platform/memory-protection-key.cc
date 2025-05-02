@@ -4,7 +4,7 @@
 
 #include "src/base/platform/memory-protection-key.h"
 
-#if V8_HAS_PKU_JIT_WRITE_PROTECT
+#if V8_HAS_PKU_SUPPORT
 
 #include <sys/mman.h>  // For {mprotect()} protection macros.
 #undef MAP_TYPE  // Conflicts with MAP_TYPE in Torque-generated instance-types.h
@@ -102,4 +102,4 @@ MemoryProtectionKey::Permission MemoryProtectionKey::GetKeyPermission(int key) {
 }  // namespace base
 }  // namespace v8
 
-#endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
+#endif  // V8_HAS_PKU_SUPPORT
