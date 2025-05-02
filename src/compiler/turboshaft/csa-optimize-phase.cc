@@ -6,19 +6,16 @@
 
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/branch-elimination-reducer.h"
-#include "src/compiler/turboshaft/dead-code-elimination-reducer.h"
 #include "src/compiler/turboshaft/late-escape-analysis-reducer.h"
 #include "src/compiler/turboshaft/late-load-elimination-reducer.h"
-#include "src/compiler/turboshaft/loop-unrolling-reducer.h"
-#include "src/compiler/turboshaft/machine-lowering-reducer-inl.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/memory-optimization-reducer.h"
 #include "src/compiler/turboshaft/pretenuring-propagation-reducer.h"
-#include "src/compiler/turboshaft/required-optimization-reducer.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
-#include "src/compiler/turboshaft/variable-reducer.h"
+#include "src/handles/handles-inl.h"
 #include "src/numbers/conversions-inl.h"
-#include "src/roots/roots-inl.h"
+#include "src/objects/heap-object-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8::internal::compiler::turboshaft {
 
