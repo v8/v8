@@ -190,6 +190,11 @@ TF_BUILTIN(WasmConstructorWrapper, WasmBuiltinsAssembler) {
                   target, argc);
 }
 
+TNode<BoolT> WasmBuiltinsAssembler::InSharedSpace(TNode<HeapObject> object) {
+  TNode<IntPtrT> address = BitcastTaggedToWord(object);
+  return IsPageFlagSet(address, MemoryChunk::kInSharedHeap);
+}
+
 #include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace v8::internal

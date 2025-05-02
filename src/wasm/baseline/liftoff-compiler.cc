@@ -7329,10 +7329,30 @@ class LiftoffCompiler {
     __ PushRegister(kI32, result);
   }
 
+  void CallBuiltinUnsharedTestFromAny(FullDecoder* decoder, Builtin builtin,
+                                      bool null_succeeds) {
+    LiftoffRegister null_succeeds_reg = __ GetUnusedRegister(kGpReg, {});
+    __ LoadConstant(null_succeeds_reg, WasmValue{int32_t{null_succeeds}});
+    CallBuiltin(builtin, MakeSig::Returns(kI32).Params(kRefNull, kI32),
+                {
+                    __ cache_state()->stack_state.end()[-1],
+                    VarState{kI32, null_succeeds_reg, 0},
+                },
+                decoder->position());
+    __ DropValues(1);
+    __ PushRegister(kI32, LiftoffRegister(kReturnRegister0));
+  }
+
   void RefTestAbstract(FullDecoder* decoder, const Value& obj, HeapType type,
                        Value* result_val, bool null_succeeds) {
     switch (type.representation()) {
       case HeapType::kEq:
+        if (v8_flags.experimental_wasm_shared &&
+            obj.type.heap_representation() == wasm::HeapType::kAny) {
+          return CallBuiltinUnsharedTestFromAny(
+              decoder, Builtin::kWasmLiftoffIsEqRefUnshared, null_succeeds);
+        }
+        [[fallthrough]];
       case HeapType::kEqShared:
         return AbstractTypeCheck<&LiftoffCompiler::EqCheck>(decoder, obj,
                                                             null_succeeds);
@@ -7341,10 +7361,22 @@ class LiftoffCompiler {
         return AbstractTypeCheck<&LiftoffCompiler::I31Check>(decoder, obj,
                                                              null_succeeds);
       case HeapType::kStruct:
+        if (v8_flags.experimental_wasm_shared &&
+            obj.type.heap_representation() == wasm::HeapType::kAny) {
+          return CallBuiltinUnsharedTestFromAny(
+              decoder, Builtin::kWasmLiftoffIsStructRefUnshared, null_succeeds);
+        }
+        [[fallthrough]];
       case HeapType::kStructShared:
         return AbstractTypeCheck<&LiftoffCompiler::StructCheck>(decoder, obj,
                                                                 null_succeeds);
       case HeapType::kArray:
+        if (v8_flags.experimental_wasm_shared &&
+            obj.type.heap_representation() == wasm::HeapType::kAny) {
+          return CallBuiltinUnsharedTestFromAny(
+              decoder, Builtin::kWasmLiftoffIsArrayRefUnshared, null_succeeds);
+        }
+        [[fallthrough]];
       case HeapType::kArrayShared:
         return AbstractTypeCheck<&LiftoffCompiler::ArrayCheck>(decoder, obj,
                                                                null_succeeds);
@@ -7410,10 +7442,28 @@ class LiftoffCompiler {
     __ PushRegister(obj.type.kind(), obj_reg);
   }
 
+  void CallBuiltinUnsharedCastFromAny(FullDecoder* decoder, Builtin builtin,
+                                      bool null_succeeds) {
+    LiftoffRegister null_succeeds_reg = __ GetUnusedRegister(kGpReg, {});
+    __ LoadConstant(null_succeeds_reg, WasmValue{int32_t{null_succeeds}});
+    CallBuiltin(builtin, MakeSig::Returns(kI32).Params(kRefNull, kI32),
+                {
+                    __ cache_state()->stack_state.end()[-1],
+                    VarState{kI32, null_succeeds_reg, 0},
+                },
+                decoder->position());
+  }
+
   void RefCastAbstract(FullDecoder* decoder, const Value& obj, HeapType type,
                        Value* result_val, bool null_succeeds) {
     switch (type.representation()) {
       case HeapType::kEq:
+        if (v8_flags.experimental_wasm_shared &&
+            obj.type.heap_representation() == wasm::HeapType::kAny) {
+          return CallBuiltinUnsharedCastFromAny(
+              decoder, Builtin::kWasmLiftoffCastEqRefUnshared, null_succeeds);
+        }
+        [[fallthrough]];
       case HeapType::kEqShared:
         return AbstractTypeCast<&LiftoffCompiler::EqCheck>(obj, decoder,
                                                            null_succeeds);
@@ -7422,10 +7472,24 @@ class LiftoffCompiler {
         return AbstractTypeCast<&LiftoffCompiler::I31Check>(obj, decoder,
                                                             null_succeeds);
       case HeapType::kStruct:
+        if (v8_flags.experimental_wasm_shared &&
+            obj.type.heap_representation() == wasm::HeapType::kAny) {
+          return CallBuiltinUnsharedCastFromAny(
+              decoder, Builtin::kWasmLiftoffCastStructRefUnshared,
+              null_succeeds);
+        }
+        [[fallthrough]];
       case HeapType::kStructShared:
         return AbstractTypeCast<&LiftoffCompiler::StructCheck>(obj, decoder,
                                                                null_succeeds);
       case HeapType::kArray:
+        if (v8_flags.experimental_wasm_shared &&
+            obj.type.heap_representation() == wasm::HeapType::kAny) {
+          return CallBuiltinUnsharedCastFromAny(
+              decoder, Builtin::kWasmLiftoffCastArrayRefUnshared,
+              null_succeeds);
+        }
+        [[fallthrough]];
       case HeapType::kArrayShared:
         return AbstractTypeCast<&LiftoffCompiler::ArrayCheck>(obj, decoder,
                                                               null_succeeds);
@@ -7548,11 +7612,42 @@ class LiftoffCompiler {
     __ bind(&fallthrough);
   }
 
+  void BrOnCastAbstractFromAnyRejectShared(FullDecoder* decoder, uint32_t depth,
+                                           bool null_succeeds, Builtin builtin,
+                                           bool inverted) {
+    // Avoid having sequences of branches do duplicate work.
+    if (depth != decoder->control_depth() - 1) {
+      __ PrepareForBranch(decoder->control_at(depth)->br_merge()->arity, {});
+    }
+
+    LiftoffRegister null_succeeds_reg = __ GetUnusedRegister(kGpReg, {});
+    __ LoadConstant(null_succeeds_reg, WasmValue{int32_t{null_succeeds}});
+    CallBuiltin(builtin, MakeSig::Returns(kI32).Params(kRefNull, kI32),
+                {
+                    __ cache_state()->stack_state.end()[-1],
+                    VarState{kI32, null_succeeds_reg, 0},
+                },
+                decoder->position());
+    FREEZE_STATE(frozen);
+    Label no_match;
+    __ emit_cond_jump(inverted ? kNotZero : kZero, &no_match, kI32,
+                      kReturnRegister0, no_reg, frozen);
+    BrOrRet(decoder, depth);
+    __ bind(&no_match);
+  }
+
   void BrOnCastAbstract(FullDecoder* decoder, const Value& obj, HeapType type,
                         Value* result_on_branch, uint32_t depth,
                         bool null_succeeds) {
     switch (type.representation()) {
       case HeapType::kEq:
+        if (v8_flags.experimental_wasm_shared &&
+            obj.type.heap_representation() == wasm::HeapType::kAny) {
+          return BrOnCastAbstractFromAnyRejectShared(
+              decoder, depth, null_succeeds,
+              Builtin::kWasmLiftoffIsEqRefUnshared, false);
+        }
+        [[fallthrough]];
       case HeapType::kEqShared:
         return BrOnAbstractType<&LiftoffCompiler::EqCheck>(obj, decoder, depth,
                                                            null_succeeds);
@@ -7561,10 +7656,24 @@ class LiftoffCompiler {
         return BrOnAbstractType<&LiftoffCompiler::I31Check>(obj, decoder, depth,
                                                             null_succeeds);
       case HeapType::kStruct:
+        if (v8_flags.experimental_wasm_shared &&
+            obj.type.heap_representation() == wasm::HeapType::kAny) {
+          return BrOnCastAbstractFromAnyRejectShared(
+              decoder, depth, null_succeeds,
+              Builtin::kWasmLiftoffIsStructRefUnshared, false);
+        }
+        [[fallthrough]];
       case HeapType::kStructShared:
         return BrOnAbstractType<&LiftoffCompiler::StructCheck>(
             obj, decoder, depth, null_succeeds);
       case HeapType::kArray:
+        if (v8_flags.experimental_wasm_shared &&
+            obj.type.heap_representation() == wasm::HeapType::kAny) {
+          return BrOnCastAbstractFromAnyRejectShared(
+              decoder, depth, null_succeeds,
+              Builtin::kWasmLiftoffIsArrayRefUnshared, false);
+        }
+        [[fallthrough]];
       case HeapType::kArrayShared:
         return BrOnAbstractType<&LiftoffCompiler::ArrayCheck>(
             obj, decoder, depth, null_succeeds);
@@ -7596,6 +7705,13 @@ class LiftoffCompiler {
                             uint32_t depth, bool null_succeeds) {
     switch (type.representation()) {
       case HeapType::kEq:
+        if (v8_flags.experimental_wasm_shared &&
+            obj.type.heap_representation() == wasm::HeapType::kAny) {
+          return BrOnCastAbstractFromAnyRejectShared(
+              decoder, depth, null_succeeds,
+              Builtin::kWasmLiftoffIsEqRefUnshared, true);
+        }
+        [[fallthrough]];
       case HeapType::kEqShared:
         return BrOnNonAbstractType<&LiftoffCompiler::EqCheck>(
             obj, decoder, depth, null_succeeds);
@@ -7604,10 +7720,24 @@ class LiftoffCompiler {
         return BrOnNonAbstractType<&LiftoffCompiler::I31Check>(
             obj, decoder, depth, null_succeeds);
       case HeapType::kStruct:
+        if (v8_flags.experimental_wasm_shared &&
+            obj.type.heap_representation() == wasm::HeapType::kAny) {
+          return BrOnCastAbstractFromAnyRejectShared(
+              decoder, depth, null_succeeds,
+              Builtin::kWasmLiftoffIsStructRefUnshared, true);
+        }
+        [[fallthrough]];
       case HeapType::kStructShared:
         return BrOnNonAbstractType<&LiftoffCompiler::StructCheck>(
             obj, decoder, depth, null_succeeds);
       case HeapType::kArray:
+        if (v8_flags.experimental_wasm_shared &&
+            obj.type.heap_representation() == wasm::HeapType::kAny) {
+          return BrOnCastAbstractFromAnyRejectShared(
+              decoder, depth, null_succeeds,
+              Builtin::kWasmLiftoffIsArrayRefUnshared, true);
+        }
+        [[fallthrough]];
       case HeapType::kArrayShared:
         return BrOnNonAbstractType<&LiftoffCompiler::ArrayCheck>(
             obj, decoder, depth, null_succeeds);
@@ -7714,8 +7844,6 @@ class LiftoffCompiler {
                       LiftoffAssembler::kJumpOnNotSmi, frozen);
   }
 
-  // TODO(mliedtke): For EqCheck, StructCheck and ArrayCheck make sure that the
-  // sharedness matches when casting from (unshared) any.
   void EqCheck(TypeCheck& check, const FreezeCacheState& frozen) {
     Label match;
     LoadInstanceType(check, frozen, &match);

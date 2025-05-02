@@ -573,6 +573,24 @@ class WasmLoweringReducer : public Next {
     }
   }
 
+  V<Word32> ObjectIsUnshared(V<HeapObject> object) {
+    V<WordPtr> flags = __ LoadPageFlags(object);
+    V<WordPtr> is_shared = __ WordPtrBitwiseAnd(
+        flags, static_cast<uintptr_t>(MemoryChunk::IN_WRITABLE_SHARED_SPACE));
+    return __ WordPtrEqual(is_shared, 0);
+  }
+
+  void RejectSharedWasmObjectsIfUnshared(V<HeapObject> object,
+                                         WasmTypeCheckConfig config,
+                                         Label<Word32>& result_label) {
+    if (!v8_flags.experimental_wasm_shared || config.to.is_shared() ||
+        config.from.heap_representation() != wasm::HeapType::kAny) {
+      return;
+    }
+    GOTO_IF_NOT(LIKELY(ObjectIsUnshared(object)), result_label,
+                __ Word32Constant(0));
+  }
+
   // TODO(mliedtke): For WasmTypeCheckAbstract and WasmTypeCastAbstract make
   // sure that the sharedness matches when casting from (unshared) any.
   V<Word32> ReduceWasmTypeCheckAbstract(V<Object> object,
@@ -622,6 +640,8 @@ class WasmLoweringReducer : public Next {
         if (object_can_be_i31) {
           GOTO_IF(UNLIKELY(__ IsSmi(object)), end_label, __ Word32Constant(1));
         }
+        RejectSharedWasmObjectsIfUnshared(V<HeapObject>::Cast(object), config,
+                                          end_label);
         result = IsDataRefMap(__ LoadMapField(object));
         break;
       }
@@ -631,11 +651,15 @@ class WasmLoweringReducer : public Next {
       }
       if (to_rep == wasm::HeapType::kArray ||
           to_rep == wasm::HeapType::kArrayShared) {
+        RejectSharedWasmObjectsIfUnshared(V<HeapObject>::Cast(object), config,
+                                          end_label);
         result = __ HasInstanceType(object, WASM_ARRAY_TYPE);
         break;
       }
       if (to_rep == wasm::HeapType::kStruct ||
           to_rep == wasm::HeapType::kStructShared) {
+        RejectSharedWasmObjectsIfUnshared(V<HeapObject>::Cast(object), config,
+                                          end_label);
         result = __ HasInstanceType(object, WASM_STRUCT_TYPE);
         break;
       }
@@ -654,6 +678,15 @@ class WasmLoweringReducer : public Next {
     GOTO(end_label, result);
     BIND(end_label, final_result);
     return final_result;
+  }
+
+  void TrapOnSharedWasmObjectsIfUnshared(V<HeapObject> object,
+                                         WasmTypeCheckConfig config) {
+    if (!v8_flags.experimental_wasm_shared || config.to.is_shared() ||
+        config.from.heap_representation() != wasm::HeapType::kAny) {
+      return;
+    }
+    __ TrapIfNot(ObjectIsUnshared(object), TrapId::kTrapIllegalCast);
   }
 
   V<Object> ReduceWasmTypeCastAbstract(V<Object> object,
@@ -703,6 +736,7 @@ class WasmLoweringReducer : public Next {
         if (object_can_be_i31) {
           GOTO_IF(UNLIKELY(__ IsSmi(object)), end_label);
         }
+        TrapOnSharedWasmObjectsIfUnshared(V<HeapObject>::Cast(object), config);
         __ TrapIfNot(IsDataRefMap(__ LoadMapField(object)),
                      TrapId::kTrapIllegalCast);
         break;
@@ -713,12 +747,14 @@ class WasmLoweringReducer : public Next {
       }
       if (to_rep == wasm::HeapType::kArray ||
           to_rep == wasm::HeapType::kArrayShared) {
+        TrapOnSharedWasmObjectsIfUnshared(V<HeapObject>::Cast(object), config);
         __ TrapIfNot(__ HasInstanceType(object, WASM_ARRAY_TYPE),
                      TrapId::kTrapIllegalCast);
         break;
       }
       if (to_rep == wasm::HeapType::kStruct ||
           to_rep == wasm::HeapType::kStructShared) {
+        TrapOnSharedWasmObjectsIfUnshared(V<HeapObject>::Cast(object), config);
         __ TrapIfNot(__ HasInstanceType(object, WASM_STRUCT_TYPE),
                      TrapId::kTrapIllegalCast);
         break;
