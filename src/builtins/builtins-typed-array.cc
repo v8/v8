@@ -518,15 +518,19 @@ simdutf::result ArrayBufferSetFromBase64(
     simdutf::base64_options alphabet,
     simdutf::last_chunk_handling_options last_chunk_handling,
     DirectHandle<JSTypedArray> typed_array, size_t& output_length) {
-  // TODO(rezvan): Add path for typed arrays backed by SharedArrayBuffer
-  if (typed_array->buffer()->is_shared()) {
-    UNIMPLEMENTED();
-  }
   output_length = array_length;
-  simdutf::result simd_result = simdutf::base64_to_binary_safe(
-      reinterpret_cast<const T>(input_vector), input_length,
-      reinterpret_cast<char*>(typed_array->DataPtr()), output_length, alphabet,
-      last_chunk_handling);
+  simdutf::result simd_result;
+  if (typed_array->buffer()->is_shared()) {
+    simd_result = simdutf::atomic_base64_to_binary_safe(
+        reinterpret_cast<const T>(input_vector), input_length,
+        reinterpret_cast<char*>(typed_array->DataPtr()), output_length,
+        alphabet, last_chunk_handling, /*decode_up_to_bad_char*/ true);
+  } else {
+    simd_result = simdutf::base64_to_binary_safe(
+        reinterpret_cast<const T>(input_vector), input_length,
+        reinterpret_cast<char*>(typed_array->DataPtr()), output_length,
+        alphabet, last_chunk_handling, /*decode_up_to_bad_char*/ true);
+  }
 
   return simd_result;
 }
