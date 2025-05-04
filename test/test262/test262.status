@@ -2656,4 +2656,13 @@
 }],
 # end import test262@cba890eef02121251b7f11eb890b0202edf56d6f
 ###
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/Temporal/PlainDate/from/remapping-era': [SKIP],
+  'intl402/Temporal/PlainYearMonth/from/remapping-era': [SKIP],
+}],
+# End roll-watcher patch
+####
 ]
