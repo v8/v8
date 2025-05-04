@@ -604,26 +604,35 @@ V8_INLINE void AtomicZapBlock(Address addr, size_t size_in_bytes) {
   }
 }
 
-void ZapDeadObjectsInRange(Heap* heap, Address dead_start, Address dead_end) {
-  if (dead_end != dead_start) {
-    size_t free_size = static_cast<size_t>(dead_end - dead_start);
-    AtomicZapBlock(dead_start, free_size);
-    WritableFreeSpace free_space =
-        WritableFreeSpace::ForNonExecutableMemory(dead_start, free_size);
-    heap->CreateFillerObjectAtBackground(free_space);
-  }
-}
-
-bool ShouldZapDeadObjectsOnPage() {
-  if (!heap::ShouldZapGarbage() && !v8_flags.track_gc_object_stats) {
+enum class ZappingMode { kNone, kCreateFillers, kCreateFillersAndZap };
+ZappingMode ShouldZapDeadObjectsOnPage() {
+  if (heap::ShouldZapGarbage() || v8_flags.track_gc_object_stats) {
     // We need to zap and create fillers on promoted pages when
     // --track-gc-object-stats is enabled because it expects all dead objects to
     // still be valid objects. Dead object on promoted pages may otherwise
     // contain invalid old-to-new references to pages that are gone or were
     // already reallocated.
-    return false;
+    return ZappingMode::kCreateFillersAndZap;
   }
-  return true;
+  // Conservative stack scanning requires fillers over all dead objects
+  // otherwise a false reference found on stack may result in resurrecting a
+  // dead object.
+  return v8_flags.conservative_stack_scanning ? ZappingMode::kCreateFillers
+                                              : ZappingMode::kNone;
+}
+
+void ZapDeadObjectsInRange(Heap* heap, Address dead_start, Address dead_end,
+                           const ZappingMode zapping_mode) {
+  DCHECK_NE(ZappingMode::kNone, zapping_mode);
+  if (dead_end != dead_start) {
+    size_t free_size = static_cast<size_t>(dead_end - dead_start);
+    if (zapping_mode == ZappingMode::kCreateFillersAndZap) {
+      AtomicZapBlock(dead_start, free_size);
+    }
+    WritableFreeSpace free_space =
+        WritableFreeSpace::ForNonExecutableMemory(dead_start, free_size);
+    heap->CreateFillerObjectAtBackground(free_space);
+  }
 }
 
 }  // namespace
@@ -649,19 +658,21 @@ void Sweeper::LocalSweeper::ParallelIteratePromotedPage(
     } else {
       DCHECK_EQ(OLD_SPACE, page->owner_identity());
       DCHECK(!page->Chunk()->IsEvacuationCandidate());
-      const bool should_zap_dead_objects = ShouldZapDeadObjectsOnPage();
+      const ZappingMode zapping_mode = ShouldZapDeadObjectsOnPage();
       Address dead_start = page->area_start();
       for (auto [object, size] :
            LiveObjectRange(static_cast<PageMetadata*>(page))) {
         record_visitor.Process(object);
-        if (should_zap_dead_objects) {
+        if (zapping_mode != ZappingMode::kNone) {
           Address dead_end = object.address();
-          ZapDeadObjectsInRange(sweeper_->heap_, dead_start, dead_end);
+          ZapDeadObjectsInRange(sweeper_->heap_, dead_start, dead_end,
+                                zapping_mode);
           dead_start = dead_end + size;
         }
       }
-      if (should_zap_dead_objects) {
-        ZapDeadObjectsInRange(sweeper_->heap_, dead_start, page->area_end());
+      if (zapping_mode != ZappingMode::kNone) {
+        ZapDeadObjectsInRange(sweeper_->heap_, dead_start, page->area_end(),
+                              zapping_mode);
       }
     }
     page->ClearLiveness();
@@ -767,14 +778,18 @@ void Sweeper::StartMajorSweeperTasks() {
 namespace {
 
 void ZapDeadObjectsOnPage(Heap* heap, PageMetadata* p) {
+  const ZappingMode zapping_mode = ShouldZapDeadObjectsOnPage();
+  if (zapping_mode == ZappingMode::kNone) {
+    return;
+  }
   Address dead_start = p->area_start();
   // Iterate over the page using the live objects.
   for (auto [object, size] : LiveObjectRange(p)) {
     Address dead_end = object.address();
-    ZapDeadObjectsInRange(heap, dead_start, dead_end);
+    ZapDeadObjectsInRange(heap, dead_start, dead_end, zapping_mode);
     dead_start = dead_end + size;
   }
-  ZapDeadObjectsInRange(heap, dead_start, p->area_end());
+  ZapDeadObjectsInRange(heap, dead_start, p->area_end(), zapping_mode);
 }
 
 void ClearPromotedPages(Heap* heap, std::vector<MutablePageMetadata*> pages) {
@@ -783,7 +798,7 @@ void ClearPromotedPages(Heap* heap, std::vector<MutablePageMetadata*> pages) {
     DCHECK(!page->SweepingDone());
     DCHECK_EQ(PageMetadata::ConcurrentSweepingState::kPendingIteration,
               page->concurrent_sweeping_state());
-    if (!page->Chunk()->IsLargePage() && ShouldZapDeadObjectsOnPage()) {
+    if (!page->Chunk()->IsLargePage()) {
       ZapDeadObjectsOnPage(heap, static_cast<PageMetadata*>(page));
     }
     page->ClearLiveness();
