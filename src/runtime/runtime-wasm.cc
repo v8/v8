@@ -505,27 +505,40 @@ RUNTIME_FUNCTION(Runtime_WasmLiftoffDeoptFinish) {
   size_t deopt_frame_count = Deoptimizer::DeleteForWasm(isolate);
   size_t i = 0;
 
-  // For each liftoff frame, check if the feedback vector is already present.
-  // If it is not, allocate a new feedback vector for it.
+  // For each liftoff frame, replace the smi in the feedback vector slot holding
+  // the declared function index with the actual feedback vector from the
+  // WasmTrustedInstanceData. If it doesn't exist yet, it needs to be allocated
+  // (which is also the reason why this wasn't done by the deoptimizer already.)
   for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
     StackFrame* frame = it.frame();
     if (frame->is_wasm() && WasmFrame::cast(frame)->wasm_code()->is_liftoff()) {
       Address vector_address =
           frame->fp() - WasmLiftoffFrameConstants::kFeedbackVectorOffset;
-      Tagged<Object> vector_or_smi(Memory<intptr_t>(vector_address));
-      if (vector_or_smi.IsSmi()) {
-        int declared_func_index = Cast<Smi>(vector_or_smi).value();
-        Tagged<Object> vector =
-            trusted_instance_data->feedback_vectors()->get(declared_func_index);
-        // The vector can already exist if the same function appears multiple
-        // times in the deopted frames (i.e. it was inlined recursively).
-        if (vector == Smi::zero()) {
-          vector = AllocateFeedbackVector(isolate, trusted_instance_data,
-                                          declared_func_index);
+      Tagged<Object> feedback_slot_value(Memory<intptr_t>(vector_address));
+      CHECK(feedback_slot_value.IsSmi());
+      int declared_func_index = Cast<Smi>(feedback_slot_value).value();
+      Tagged<Object> vector =
+          trusted_instance_data->feedback_vectors()->get(declared_func_index);
+      // If the vector doesn't exist, allocate a new feedback vector. This
+      // happens if the corresponding function wasn't executed in Liftoff yet
+      // for this particular module instantiation.
+      if (vector == Smi::zero()) {
+        if (v8_flags.trace_deopt_verbose) {
+          wasm::WasmCodeRefScope code_ref_scope;
+          const wasm::WasmCode* code =
+              trusted_instance_data->native_module()->GetCode(
+                  declared_func_index);
+          PrintF(
+              "Wasm deoptimization: allocating feedback vector for function %s "
+              "[%d]\n",
+              code ? code->DebugName().c_str() : "<no code object>",
+              declared_func_index);
         }
-        memcpy(reinterpret_cast<void*>(vector_address), &vector,
-               sizeof(intptr_t));
+        vector = AllocateFeedbackVector(isolate, trusted_instance_data,
+                                        declared_func_index);
       }
+      memcpy(reinterpret_cast<void*>(vector_address), &vector,
+             sizeof(intptr_t));
       if (++i == deopt_frame_count) {
         break;  // All deopt frames have been visited.
       }

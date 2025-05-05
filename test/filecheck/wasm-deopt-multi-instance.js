@@ -3,11 +3,14 @@
 // found in the LICENSE file.
 
 // Flags: --wasm-deopt --allow-natives-syntax --no-jit-fuzzing --liftoff
-// Flags: --wasm-inlining-call-indirect
+// Flags: --wasm-inlining-call-indirect --trace-deopt-verbose
 
+d8.file.execute("test/mjsunit/mjsunit.js");
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestCallRef() {
+  // CHECK-LABEL: TestCallRef
+  print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   let calleeSig = builder.addType(makeSig([], [kWasmI32]));
   let mainSig = builder.addType(makeSig([wasmRefType(calleeSig)], [kWasmI32]));
@@ -34,6 +37,9 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(instance2.exports.main));
   }
+  // CHECK: deoptimizing main, function index 1
+  // CHECK: bailout end.
+  // CHECK-NEXT: Wasm deoptimization: allocating feedback vector for function main [1]
   instance2.exports.main(instance.exports.callee_0);
   if (%IsWasmTieringPredictable()) {
     assertFalse(%IsTurboFanFunction(instance2.exports.main));
@@ -46,6 +52,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 })();
 
 (function TestCallIndirect() {
+  // CHECK-LABEL: TestCallIndirect
+  print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   let calleeSig = builder.addType(makeSig([], [kWasmI32]));
   let mainSig = builder.addType(makeSig([kWasmI32], [kWasmI32]));
@@ -82,6 +90,9 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(instance2.exports.main));
   }
+  // CHECK: deoptimizing main, function index 2
+  // CHECK: bailout end.
+  // CHECK-NEXT: Wasm deoptimization: allocating feedback vector for function main [2]
   instance2.exports.main(1);
   if (%IsWasmTieringPredictable()) {
     assertFalse(%IsTurboFanFunction(instance2.exports.main));

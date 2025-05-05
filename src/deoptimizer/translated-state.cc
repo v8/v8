@@ -1434,6 +1434,8 @@ int TranslatedState::CreateNextTranslatedValue(
       intptr_t value = registers->GetRegister(input_reg);
       Address uncompressed_value = DecompressIfNeeded(value);
       if (trace_file != nullptr) {
+        // Need temporary access to in-sandbox memory for printing the object.
+        AllowSandboxAccess temporary_sandbox_access;
         PrintF(trace_file, V8PRIxPTR_FMT " ; %s ", uncompressed_value,
                converter.NameOfCPURegister(input_reg));
         ShortPrint(Tagged<Object>(uncompressed_value), trace_file);
@@ -1640,6 +1642,8 @@ int TranslatedState::CreateNextTranslatedValue(
       intptr_t value = *(reinterpret_cast<intptr_t*>(fp + slot_offset));
       Address uncompressed_value = DecompressIfNeeded(value);
       if (trace_file != nullptr) {
+        // Need temporary access to in-sandbox memory for printing the object.
+        AllowSandboxAccess temporary_sandbox_access;
         PrintF(trace_file, V8PRIxPTR_FMT " ;  [fp %c %3d]  ",
                uncompressed_value, slot_offset < 0 ? '-' : '+',
                std::abs(slot_offset));
