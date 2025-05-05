@@ -4484,6 +4484,17 @@ bool Heap::InSpaceSlow(Address addr, AllocationSpace space) const {
   UNREACHABLE();
 }
 
+bool Heap::CanReferenceHeapObject(Tagged<HeapObject> obj) {
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);
+  // Objects in read-only space are allowed to be used in any isolate.
+  if (chunk->InReadOnlySpace()) return true;
+  Heap* obj_heap = chunk->GetHeap();
+  Heap* expected_heap = chunk->InWritableSharedSpace()
+                            ? isolate()->shared_space_isolate()->heap()
+                            : this;
+  return obj_heap == expected_heap;
+}
+
 bool Heap::IsValidAllocationSpace(AllocationSpace space) {
   switch (space) {
     case NEW_SPACE:

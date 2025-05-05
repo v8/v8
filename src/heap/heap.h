@@ -1190,6 +1190,10 @@ class Heap final {
 
   static inline Heap* FromWritableHeapObject(Tagged<HeapObject> obj);
 
+  // Returns whether this heap can reference a HeapObject. Mostly useful for
+  // DCHECKs.
+  V8_EXPORT_PRIVATE bool CanReferenceHeapObject(Tagged<HeapObject> obj);
+
   // ===========================================================================
   // Object statistics tracking. ===============================================
   // ===========================================================================
