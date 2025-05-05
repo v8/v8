@@ -8378,7 +8378,8 @@ ReduceResult MaglevGraphBuilder::BuildInlineFunction(
     if (v8_flags.maglev_print_feedback) {
       i::Print(*feedback.object(), std::cout);
     }
-  } else if (v8_flags.trace_maglev_graph_building) {
+  } else if (v8_flags.trace_maglev_graph_building ||
+             v8_flags.trace_maglev_inlining) {
     std::cout << "== Inlining " << shared.object() << std::endl;
   }
 
