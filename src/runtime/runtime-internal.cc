@@ -657,12 +657,13 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   }
   return ReadOnlyRoots(isolate).undefined_value();
 #else   // V8_RUNTIME_CALL_STATS
+  // RCS has to be enabled with v8_enable_runtime_call_stats = true.
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kInvalid,
                             isolate->factory()->NewStringFromAsciiChecked(
                                 "Runtime Call"),
                             isolate->factory()->NewStringFromAsciiChecked(
-                                "RCS was disabled at compile-time")));
+                                "RCS was disabled at compile-time.")));
 #endif  // V8_RUNTIME_CALL_STATS
 }
 
