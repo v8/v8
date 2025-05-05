@@ -1258,6 +1258,9 @@ config("features") {
   if (v8_enable_i18n_support) {
     defines += [ "V8_INTL_SUPPORT" ]
   }
+  if (v8_enable_temporal_support) {
+    defines += [ "V8_TEMPORAL_SUPPORT" ]
+  }
   if (v8_enable_local_handle_zapping) {
     defines += [ "ENABLE_LOCAL_HANDLE_ZAPPING" ]
   }
@@ -2117,7 +2120,6 @@ torque_files = [
   "src/objects/js-shadow-realm.tq",
   "src/objects/js-shared-array.tq",
   "src/objects/js-struct.tq",
-  "src/objects/js-temporal-objects.tq",
   "src/objects/js-weak-refs.tq",
   "src/objects/literal-objects.tq",
   "src/objects/map.tq",
@@ -2171,6 +2173,10 @@ if (v8_enable_i18n_support) {
     "src/objects/js-segmenter.tq",
     "src/objects/js-segments.tq",
   ]
+}
+
+if (v8_enable_temporal_support) {
+  torque_files += [ "src/objects/js-temporal-objects.tq" ]
 }
 
 if (v8_enable_webassembly) {
@@ -2310,6 +2316,15 @@ group("v8_maybe_icu") {
   }
 }
 
+group("v8_maybe_temporal") {
+  if (v8_enable_temporal_support) {
+    deps = [
+      "//build/rust/allocator",
+      "//third_party/rust/temporal_capi/v0_0:lib",
+    ]
+  }
+}
+
 group("v8_abseil") {
   public_deps = [ "//third_party/abseil-cpp:absl" ]
 
@@ -2340,6 +2355,7 @@ v8_source_set("torque_generated_initializers") {
     ":generate_bytecode_builtins_list",
     ":run_torque",
     ":v8_base_without_compiler",
+    ":v8_maybe_temporal",
     ":v8_tracing",
   ]
 
@@ -2386,6 +2402,7 @@ v8_source_set("torque_generated_definitions") {
     ":run_torque",
     ":v8_internal_headers",
     ":v8_libbase",
+    ":v8_maybe_temporal",
     ":v8_tracing",
   ]
 
@@ -2842,6 +2859,7 @@ action("v8_dump_build_config") {
     "has_webassembly=$v8_enable_webassembly",
     "has_wasm_interpreter=$v8_enable_drumbrake",
     "i18n=$v8_enable_i18n_support",
+    "temporal=$v8_enable_temporal_support",
     "is_android=$is_android",
     "is_ios=$is_ios",
     "js_shared_memory=$js_shared_memory",
@@ -2896,6 +2914,7 @@ generated_file("v8_generate_features_json") {
     v8_enable_gdbjit = v8_enable_gdbjit
     v8_enable_hugepage = v8_enable_hugepage
     v8_enable_i18n_support = v8_enable_i18n_support
+    v8_enable_temporal_support = v8_enable_temporal_support
     v8_enable_javascript_promise_hooks = v8_enable_javascript_promise_hooks
     v8_enable_lite_mode = v8_enable_lite_mode
     v8_enable_map_packing = v8_enable_map_packing
@@ -2930,6 +2949,7 @@ v8_source_set("v8_snapshot") {
   deps = [
     ":v8_internal_headers",
     ":v8_libbase",
+    ":v8_maybe_temporal",
     ":v8_tracing",
   ]
   public_deps = [
@@ -3035,7 +3055,6 @@ v8_source_set("v8_initializers") {
     "src/builtins/builtins-string-gen.cc",
     "src/builtins/builtins-string-gen.h",
     "src/builtins/builtins-string-tsa.cc",
-    "src/builtins/builtins-temporal-gen.cc",
     "src/builtins/builtins-typed-array-gen.cc",
     "src/builtins/builtins-typed-array-gen.h",
     "src/builtins/builtins-utils-gen.h",
@@ -3091,6 +3110,10 @@ v8_source_set("v8_initializers") {
             [ "src/wasm/interpreter/arm64/interpreter-builtins-arm64.cc" ]
       }
     }
+  }
+
+  if (v8_enable_temporal_support) {
+    sources += [ "src/builtins/builtins-temporal-gen.cc" ]
   }
 
   if (v8_current_cpu == "x86") {
@@ -3158,6 +3181,7 @@ v8_source_set("v8_init") {
   deps = [
     ":v8_base_without_compiler",
     ":v8_initializers",
+    ":v8_maybe_temporal",
     ":v8_tracing",
   ]
 
@@ -4066,8 +4090,7 @@ v8_header_set("v8_internal_headers") {
     "src/objects/js-shared-array.h",
     "src/objects/js-struct-inl.h",
     "src/objects/js-struct.h",
-    "src/objects/js-temporal-objects-inl.h",
-    "src/objects/js-temporal-objects.h",
+    "src/objects/js-temporal-helpers.h",
     "src/objects/js-weak-refs-inl.h",
     "src/objects/js-weak-refs.h",
     "src/objects/keys.h",
@@ -4375,6 +4398,13 @@ v8_header_set("v8_internal_headers") {
 
   if (v8_enable_snapshot_compression) {
     sources += [ "src/snapshot/snapshot-compression.h" ]
+  }
+
+  if (v8_enable_temporal_support) {
+    sources += [
+      "src/objects/js-temporal-objects-inl.h",
+      "src/objects/js-temporal-objects.h",
+    ]
   }
 
   if (v8_use_perfetto) {
@@ -5000,6 +5030,7 @@ v8_header_set("v8_internal_headers") {
     ":v8_abseil",
     ":v8_heap_base_headers",
     ":v8_libbase",
+    ":v8_maybe_temporal",
     "//third_party/simdutf:simdutf",
   ]
 }
@@ -5311,6 +5342,7 @@ v8_source_set("v8_compiler_for_mksnapshot_source_set") {
     ":v8_base_without_compiler",
     ":v8_internal_headers",
     ":v8_libbase",
+    ":v8_maybe_temporal",
     ":v8_shared_internal_headers",
   ]
 
@@ -5349,6 +5381,7 @@ v8_source_set("v8_compiler") {
   deps = [
     ":v8_base_without_compiler",
     ":v8_libbase",
+    ":v8_maybe_temporal",
     ":v8_shared_internal_headers",
   ]
 
@@ -5438,7 +5471,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/builtins/builtins-string.cc",
     "src/builtins/builtins-struct.cc",
     "src/builtins/builtins-symbol.cc",
-    "src/builtins/builtins-temporal.cc",
     "src/builtins/builtins-trace.cc",
     "src/builtins/builtins-typed-array.cc",
     "src/builtins/builtins-weak-refs.cc",
@@ -5693,7 +5725,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/js-segmenter.cc",
     "src/objects/js-segments.cc",
     "src/objects/js-struct.cc",
-    "src/objects/js-temporal-objects.cc",
+    "src/objects/js-temporal-helpers.cc",
     "src/objects/js-weak-refs.cc",
     "src/objects/keys.cc",
     "src/objects/literal-objects.cc",
@@ -5872,6 +5904,13 @@ v8_source_set("v8_base_without_compiler") {
 
   if (v8_enable_snapshot_compression) {
     sources += [ "src/snapshot/snapshot-compression.cc" ]
+  }
+
+  if (v8_enable_temporal_support) {
+    sources += [
+      "src/builtins/builtins-temporal.cc",
+      "src/objects/js-temporal-objects.cc",
+    ]
   }
 
   if (v8_enable_sparkplug) {
@@ -6305,6 +6344,7 @@ v8_source_set("v8_base_without_compiler") {
     ":v8_headers",
     ":v8_heap_base",
     ":v8_libbase",
+    ":v8_maybe_temporal",
     ":v8_shared_internal_headers",
     ":v8_tracing",
     ":v8_version",
@@ -6945,6 +6985,7 @@ v8_source_set("fuzzer_support") {
     ":v8_libplatform",
     ":v8_maybe_icu",
   ]
+  deps = [ ":v8_maybe_temporal" ]
 }
 
 v8_source_set("v8_bigint") {
@@ -7270,6 +7311,7 @@ if (v8_check_header_includes) {
       ":v8_internal_headers",
       ":v8_libbase",
       ":v8_maybe_icu",
+      ":v8_maybe_temporal",
       ":v8_version",
       ":wee8",
       "src/inspector:inspector",
@@ -7395,6 +7437,7 @@ if (current_toolchain == v8_snapshot_toolchain) {
       ":v8_libbase",
       ":v8_libplatform",
       ":v8_maybe_icu",
+      ":v8_maybe_temporal",
       ":v8_shared_internal_headers",
       ":v8_tracing",
       "//build/win:default_exe_manifest",
@@ -8063,6 +8106,7 @@ if (v8_enable_webassembly) {
       ":run_torque",
       ":v8_internal_headers",
       ":v8_libbase",
+      ":v8_maybe_temporal",
       ":v8_shared_internal_headers",
       ":v8_tracing",
     ]
@@ -8090,6 +8134,7 @@ if (v8_enable_webassembly) {
       ":generate_bytecode_builtins_list",
       ":run_torque",
       ":v8_internal_headers",
+      ":v8_maybe_temporal",
       ":v8_tracing",
       ":wasm_test_common",
     ]

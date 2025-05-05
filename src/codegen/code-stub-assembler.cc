@@ -7851,10 +7851,12 @@ TNode<BoolT> CodeStubAssembler::IsStringInstanceType(
   return Int32LessThan(instance_type, Int32Constant(FIRST_NONSTRING_TYPE));
 }
 
+#ifdef V8_TEMPORAL_SUPPORT
 TNode<BoolT> CodeStubAssembler::IsTemporalInstantInstanceType(
     TNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, JS_TEMPORAL_INSTANT_TYPE);
 }
+#endif  // V8_TEMPORAL_SUPPORT
 
 TNode<BoolT> CodeStubAssembler::IsOneByteStringInstanceType(
     TNode<Int32T> instance_type) {

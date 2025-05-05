@@ -71,7 +71,9 @@
 #include "src/objects/js-raw-json.h"
 #include "src/objects/js-shared-array.h"
 #include "src/objects/js-struct.h"
+#ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"
+#endif  // V8_TEMPORAL_SUPPORT
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/property-cell.h"
@@ -1599,6 +1601,8 @@ void InstallError(Isolate* isolate, DirectHandle<JSObject> global,
   }
 }
 
+#ifdef V8_TEMPORAL_SUPPORT
+
 namespace {
 
 Handle<JSObject> InitializeTemporal(Isolate* isolate) {
@@ -2204,6 +2208,8 @@ void LazyInitializeGlobalThisTemporal(
 }
 
 }  // namespace
+
+#endif  // V8_TEMPORAL_SUPPORT
 
 // This is only called if we are not using snapshots.  The equivalent
 // work in the snapshot case is done in HookUpGlobalObject.
@@ -6003,6 +6009,7 @@ void Genesis::InitializeGlobal_regexp_linear_flag() {
 }
 
 void Genesis::InitializeGlobal_harmony_temporal() {
+#ifdef V8_TEMPORAL_SUPPORT
   if (!v8_flags.harmony_temporal) return;
 
   // The Temporal object is set up lazily upon first access.
@@ -6029,6 +6036,7 @@ void Genesis::InitializeGlobal_harmony_temporal() {
     accessor->set_replace_on_access(true);
     JSObject::SetAccessor(date_prototype, name, accessor, DONT_ENUM).Check();
   }
+#endif  // V8_TEMPORAL_SUPPORT
 }
 
 DirectHandle<JSFunction> Genesis::CreateArrayBuffer(

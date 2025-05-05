@@ -1017,51 +1017,6 @@ V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSReceiver> ToTemporalTimeZone(
     Isolate* isolate, DirectHandle<Object> temporal_time_zone_like,
     const char* method_name);
 
-// For Intl.DurationFormat
-
-// #sec-temporal-time-duration-records
-struct TimeDurationRecord {
-  double days;
-  double hours;
-  double minutes;
-  double seconds;
-  double milliseconds;
-  double microseconds;
-  double nanoseconds;
-
-  // #sec-temporal-createtimedurationrecord
-  static Maybe<TimeDurationRecord> Create(Isolate* isolate, double days,
-                                          double hours, double minutes,
-                                          double seconds, double milliseconds,
-                                          double microseconds,
-                                          double nanoseconds);
-};
-
-// #sec-temporal-duration-records
-// Cannot reuse DateDurationRecord here due to duplicate days.
-struct DurationRecord {
-  double years;
-  double months;
-  double weeks;
-  TimeDurationRecord time_duration;
-  // #sec-temporal-createdurationrecord
-  static Maybe<DurationRecord> Create(Isolate* isolate, double years,
-                                      double months, double weeks, double days,
-                                      double hours, double minutes,
-                                      double seconds, double milliseconds,
-                                      double microseconds, double nanoseconds);
-
-  static int32_t Sign(const DurationRecord& dur);
-};
-
-// #sec-temporal-topartialduration
-Maybe<DurationRecord> ToPartialDuration(
-    Isolate* isolate, DirectHandle<Object> temporal_duration_like_obj,
-    const DurationRecord& input);
-
-// #sec-temporal-isvalidduration
-bool IsValidDuration(Isolate* isolate, const DurationRecord& dur);
-
 }  // namespace temporal
 }  // namespace internal
 }  // namespace v8

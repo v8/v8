@@ -191,15 +191,6 @@ namespace internal {
   V(JSSpecialObject)                            \
   V(JSStringIterator)                           \
   V(JSSynchronizationPrimitive)                 \
-  V(JSTemporalDuration)                         \
-  V(JSTemporalInstant)                          \
-  V(JSTemporalPlainDate)                        \
-  V(JSTemporalPlainTime)                        \
-  V(JSTemporalPlainDateTime)                    \
-  V(JSTemporalPlainMonthDay)                    \
-  V(JSTemporalPlainYearMonth)                   \
-  V(JSTemporalTimeZone)                         \
-  V(JSTemporalZonedDateTime)                    \
   V(JSTypedArray)                               \
   V(JSValidIteratorWrapper)                     \
   V(JSWeakCollection)                           \
@@ -316,26 +307,44 @@ namespace internal {
   V(Undetectable)
 
 #ifdef V8_INTL_SUPPORT
-#define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \
-  HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)  \
-  V(JSV8BreakIterator)                    \
-  V(JSCollator)                           \
-  V(JSDateTimeFormat)                     \
-  V(JSDisplayNames)                       \
-  V(JSDurationFormat)                     \
-  V(JSListFormat)                         \
-  V(JSLocale)                             \
-  V(JSNumberFormat)                       \
-  V(JSPluralRules)                        \
-  V(JSRelativeTimeFormat)                 \
-  V(JSSegmentDataObject)                  \
-  V(JSSegmentDataObjectWithIsWordLike)    \
-  V(JSSegmentIterator)                    \
-  V(JSSegmenter)                          \
+#define HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE_AND_INTL(V) \
+  HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)                \
+  V(JSV8BreakIterator)                                  \
+  V(JSCollator)                                         \
+  V(JSDateTimeFormat)                                   \
+  V(JSDisplayNames)                                     \
+  V(JSDurationFormat)                                   \
+  V(JSListFormat)                                       \
+  V(JSLocale)                                           \
+  V(JSNumberFormat)                                     \
+  V(JSPluralRules)                                      \
+  V(JSRelativeTimeFormat)                               \
+  V(JSSegmentDataObject)                                \
+  V(JSSegmentDataObjectWithIsWordLike)                  \
+  V(JSSegmentIterator)                                  \
+  V(JSSegmenter)                                        \
   V(JSSegments)
 #else
-#define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)
+#define HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE_AND_INTL(V) \
+  HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)
 #endif  // V8_INTL_SUPPORT
+
+#ifdef V8_TEMPORAL_SUPPORT
+#define HEAP_OBJECT_ORDINARY_TYPE_LIST(V)         \
+  HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE_AND_INTL(V) \
+  V(JSTemporalDuration)                           \
+  V(JSTemporalInstant)                            \
+  V(JSTemporalPlainDate)                          \
+  V(JSTemporalPlainTime)                          \
+  V(JSTemporalPlainDateTime)                      \
+  V(JSTemporalPlainMonthDay)                      \
+  V(JSTemporalPlainYearMonth)                     \
+  V(JSTemporalTimeZone)                           \
+  V(JSTemporalZonedDateTime)
+#else
+#define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \
+  HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE_AND_INTL(V)
+#endif  // V8_TEMPORAL_SUPPORT
 
 //
 // Trusted Objects.

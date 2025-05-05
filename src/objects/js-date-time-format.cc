@@ -18,7 +18,9 @@
 #include "src/heap/factory.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-date-time-format-inl.h"
+#ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"
+#endif  // V8_TEMPORAL_SUPPORT
 #include "src/objects/managed-inl.h"
 #include "src/objects/option-utils.h"
 #include "unicode/calendar.h"
@@ -800,6 +802,7 @@ namespace {
 
 // #sec-temporal-istemporalobject
 bool IsTemporalObject(DirectHandle<Object> value) {
+#ifdef V8_TEMPORAL_SUPPORT
   // 1. If Type(value) is not Object, then
   if (!IsJSReceiver(*value)) {
     // a. Return false.
@@ -820,10 +823,14 @@ bool IsTemporalObject(DirectHandle<Object> value) {
   }
   // 3. Return true.
   return true;
+#else   // V8_TEMPORAL_SUPPORT
+  return false;
+#endif  // V8_TEMPORAL_SUPPORT
 }
 
 // #sec-temporal-sametemporaltype
 bool SameTemporalType(DirectHandle<Object> x, DirectHandle<Object> y) {
+#ifdef V8_TEMPORAL_SUPPORT
   // 1. If either of ! IsTemporalObject(x) or ! IsTemporalObject(y) is false,
   // return false.
   if (!IsTemporalObject(x)) return false;
@@ -859,6 +866,9 @@ bool SameTemporalType(DirectHandle<Object> x, DirectHandle<Object> y) {
   if (IsJSTemporalInstant(*x) && !IsJSTemporalInstant(*y)) return false;
   // 9. Return true.
   return true;
+#else   // V8_TEMPORAL_SUPPORT
+  return false;
+#endif  // V8_TEMPORAL_SUPPORT
 }
 
 enum class PatternKind {
@@ -876,6 +886,7 @@ struct DateTimeValueRecord {
   PatternKind kind;
 };
 
+#ifdef V8_TEMPORAL_SUPPORT
 DateTimeValueRecord TemporalInstantToRecord(
     Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
     PatternKind kind) {
@@ -1142,6 +1153,8 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalMonthDay(
       PatternKind::kPlainMonthDay, temporal_month_day, method_name);
 }
 
+#endif  // V8_TEMPORAL_SUPPORT
+
 // #sec-temporal-handledatetimeothers
 Maybe<DateTimeValueRecord> HandleDateTimeOthers(
     Isolate* isolate, const icu::SimpleDateFormat& date_time_format,
@@ -1185,6 +1198,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeValue(
     Isolate* isolate, const icu::SimpleDateFormat& date_time_format,
     DirectHandle<String> date_time_format_calendar, DirectHandle<Object> x,
     const char* method_name) {
+#ifdef V8_TEMPORAL_SUPPORT
   if (IsTemporalObject(x)) {
     // a. If x has an [[InitializedTemporalDate]] internal slot, then
     if (IsJSTemporalPlainDate(*x)) {
@@ -1233,7 +1247,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeValue(
         isolate, date_time_format, date_time_format_calendar,
         Cast<JSTemporalZonedDateTime>(x), method_name);
   }
-
+#endif  // V8_TEMPORAL_SUPPORT
   // 2. Return ? HandleDateTimeOthers(dateTimeFormat, x).
   return HandleDateTimeOthers(isolate, date_time_format, x, method_name);
 }

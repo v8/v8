@@ -49,7 +49,9 @@
 #include "src/objects/js-shadow-realm.h"
 #include "src/objects/js-shared-array-inl.h"
 #include "src/objects/js-struct-inl.h"
+#ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"
+#endif  // V8_TEMPORAL_SUPPORT
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/lookup.h"
 #include "src/objects/map-inl.h"
@@ -2581,6 +2583,7 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSAtomicsMutex::kHeaderSize;
     case JS_ATOMICS_CONDITION_TYPE:
       return JSAtomicsCondition::kHeaderSize;
+#ifdef V8_TEMPORAL_SUPPORT
     case JS_TEMPORAL_DURATION_TYPE:
       return JSTemporalDuration::kHeaderSize;
     case JS_TEMPORAL_INSTANT_TYPE:
@@ -2599,6 +2602,7 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSTemporalTimeZone::kHeaderSize;
     case JS_TEMPORAL_ZONED_DATE_TIME_TYPE:
       return JSTemporalZonedDateTime::kHeaderSize;
+#endif  // V8_TEMPORAL_SUPPORT
     case JS_VALID_ITERATOR_WRAPPER_TYPE:
       return JSValidIteratorWrapper::kHeaderSize;
     case JS_WRAPPED_FUNCTION_TYPE:

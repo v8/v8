@@ -25,7 +25,9 @@
 #include "src/objects/js-locale-inl.h"
 #include "src/objects/js-locale.h"
 #include "src/objects/js-number-format-inl.h"
+#ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects.h"
+#endif  // V8_TEMPORAL_SUPPORT
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/option-utils.h"
@@ -2967,9 +2969,11 @@ bool Intl::IsValidTimeZoneName(const icu::TimeZone& tz) {
 
 // Function to support Temporal
 std::string Intl::TimeZoneIdFromIndex(int32_t index) {
+#ifdef V8_TEMPORAL_SUPPORT
   if (index == JSTemporalTimeZone::kUTCTimeZoneIndex) {
     return "UTC";
   }
+#endif  // V8_TEMPORAL_SUPPORT
   std::unique_ptr<icu::StringEnumeration> enumeration(
       icu::TimeZone::createEnumeration());
   int32_t curr = 0;

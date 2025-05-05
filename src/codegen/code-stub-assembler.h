@@ -2885,7 +2885,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsSymbolInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsInternalizedStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsSharedStringInstanceType(TNode<Int32T> instance_type);
+#ifdef V8_TEMPORAL_SUPPORT
   TNode<BoolT> IsTemporalInstantInstanceType(TNode<Int32T> instance_type);
+#endif  // V8_TEMPORAL_SUPPORT
   TNode<BoolT> IsUniqueName(TNode<HeapObject> object);
   TNode<BoolT> IsUniqueNameNoIndex(TNode<HeapObject> object);
   TNode<BoolT> IsUniqueNameNoCachedIndex(TNode<HeapObject> object);

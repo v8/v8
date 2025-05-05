@@ -14,7 +14,9 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-date-time-format.h"
 #endif
+#ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"
+#endif  // V8_TEMPORAL_SUPPORT
 #include "src/objects/objects-inl.h"
 #include "src/strings/string-stream.h"
 
@@ -920,6 +922,7 @@ BUILTIN(DatePrototypeToJson) {
   }
 }
 
+#ifdef V8_TEMPORAL_SUPPORT
 // Temporal #sec-date.prototype.totemporalinstant
 BUILTIN(DatePrototypeToTemporalInstant) {
   HandleScope scope(isolate);
@@ -938,6 +941,7 @@ BUILTIN(DatePrototypeToTemporalInstant) {
   // 3. Return ! CreateTemporalInstant(ns).
   return *temporal::CreateTemporalInstant(isolate, ns).ToHandleChecked();
 }
+#endif  // V8_TEMPORAL_SUPPORT
 
 }  // namespace internal
 }  // namespace v8

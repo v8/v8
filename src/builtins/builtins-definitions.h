@@ -1509,6 +1509,17 @@ namespace internal {
   CPP(CallAsyncModuleFulfilled, JSParameterCount(0))                           \
   CPP(CallAsyncModuleRejected, JSParameterCount(0))                            \
                                                                                \
+  /* "Private" (created but not exposed) Bulitins needed by Temporal */        \
+  TFJ(StringFixedArrayFromIterable, kJSArgcReceiverSlots + 1, kReceiver,       \
+      kIterable)
+
+#define BUILTIN_LIST_BASE(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, ASM) \
+  BUILTIN_LIST_BASE_TIER0(CPP, TFJ, TFC, TFS, TFH, ASM)           \
+  BUILTIN_LIST_BASE_TIER1(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, ASM)
+
+#ifdef V8_TEMPORAL_SUPPORT
+#define BUILTIN_LIST_TEMPORAL(CPP, TFJ)                                        \
+                                                                               \
   /* Temporal */                                                               \
   /* Temporal #sec-temporal.now.timezone */                                    \
   CPP(TemporalNowTimeZone, kDontAdaptArgumentsSentinel)                        \
@@ -2052,15 +2063,36 @@ namespace internal {
   /* Temporal #sec-date.prototype.totemporalinstant */                         \
   CPP(DatePrototypeToTemporalInstant, kDontAdaptArgumentsSentinel)             \
                                                                                \
-  /* "Private" (created but not exposed) Bulitins needed by Temporal */        \
-  TFJ(StringFixedArrayFromIterable, kJSArgcReceiverSlots + 1, kReceiver,       \
-      kIterable)                                                               \
   TFJ(TemporalInstantFixedArrayFromIterable, kJSArgcReceiverSlots + 1,         \
-      kReceiver, kIterable)
-
-#define BUILTIN_LIST_BASE(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, ASM) \
-  BUILTIN_LIST_BASE_TIER0(CPP, TFJ, TFC, TFS, TFH, ASM)           \
-  BUILTIN_LIST_BASE_TIER1(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, ASM)
+      kReceiver, kIterable)                                                    \
+                                                                               \
+  /* Intl */ /* Temporal #sec-get-temporal.plaindate.prototype.era */          \
+  CPP(TemporalPlainDatePrototypeEra,                                           \
+      JSParameterCount(                                                        \
+          0)) /* Temporal #sec-get-temporal.plaindate.prototype.erayear */     \
+  CPP(TemporalPlainDatePrototypeEraYear,                                       \
+      JSParameterCount(                                                        \
+          0)) /* Temporal #sec-get-temporal.plaindatetime.prototype.era */     \
+  CPP(TemporalPlainDateTimePrototypeEra,                                       \
+      JSParameterCount(                                                        \
+          0)) /* Temporal #sec-get-temporal.plaindatetime.prototype.erayear */ \
+  CPP(TemporalPlainDateTimePrototypeEraYear,                                   \
+      JSParameterCount(                                                        \
+          0)) /* Temporal #sec-get-temporal.plainyearmonth.prototype.era */    \
+  CPP(TemporalPlainYearMonthPrototypeEra,                                      \
+      JSParameterCount(                                                        \
+          0)) /* Temporal #sec-get-temporal.plainyearmonth.prototype.erayear   \
+               */                                                              \
+  CPP(TemporalPlainYearMonthPrototypeEraYear,                                  \
+      JSParameterCount(                                                        \
+          0)) /* Temporal #sec-get-temporal.zoneddatetime.prototype.era */     \
+  CPP(TemporalZonedDateTimePrototypeEra,                                       \
+      JSParameterCount(                                                        \
+          0)) /* Temporal #sec-get-temporal.zoneddatetime.prototype.erayear */ \
+  CPP(TemporalZonedDateTimePrototypeEraYear, JSParameterCount(0))
+#else  // V8_TEMPORAL_SUPPORT
+#define BUILTIN_LIST_TEMPORAL(CPP, TFJ)
+#endif  // V8_TEMPORAL_SUPPORT
 
 #ifdef V8_INTL_SUPPORT
 #define BUILTIN_LIST_INTL(CPP, TFJ, TFS)                                       \
@@ -2251,24 +2283,6 @@ namespace internal {
   TFS(StringToLowerCaseIntl, NeedsContext::kYes, kString)                      \
   IF_WASM(TFS, WasmStringToLowerCaseIntl, NeedsContext::kYes, kString)         \
                                                                                \
-  /* Temporal */                                                               \
-  /* Temporal #sec-get-temporal.plaindate.prototype.era */                     \
-  CPP(TemporalPlainDatePrototypeEra, JSParameterCount(0))                      \
-  /* Temporal #sec-get-temporal.plaindate.prototype.erayear */                 \
-  CPP(TemporalPlainDatePrototypeEraYear, JSParameterCount(0))                  \
-  /* Temporal #sec-get-temporal.plaindatetime.prototype.era */                 \
-  CPP(TemporalPlainDateTimePrototypeEra, JSParameterCount(0))                  \
-  /* Temporal #sec-get-temporal.plaindatetime.prototype.erayear */             \
-  CPP(TemporalPlainDateTimePrototypeEraYear, JSParameterCount(0))              \
-  /* Temporal #sec-get-temporal.plainyearmonth.prototype.era */                \
-  CPP(TemporalPlainYearMonthPrototypeEra, JSParameterCount(0))                 \
-  /* Temporal #sec-get-temporal.plainyearmonth.prototype.erayear */            \
-  CPP(TemporalPlainYearMonthPrototypeEraYear, JSParameterCount(0))             \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.era */                 \
-  CPP(TemporalZonedDateTimePrototypeEra, JSParameterCount(0))                  \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.erayear */             \
-  CPP(TemporalZonedDateTimePrototypeEraYear, JSParameterCount(0))              \
-                                                                               \
   CPP(V8BreakIteratorConstructor, kDontAdaptArgumentsSentinel)                 \
   CPP(V8BreakIteratorInternalAdoptText, JSParameterCount(1))                   \
   CPP(V8BreakIteratorInternalBreakType, JSParameterCount(0))                   \
@@ -2303,6 +2317,7 @@ namespace internal {
   BUILTIN_LIST_BASE(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, ASM)       \
   BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC, TFS, TFH, ASM)          \
   BUILTIN_LIST_INTL(CPP, TFJ, TFS)                                \
+  BUILTIN_LIST_TEMPORAL(CPP, TFJ)                                 \
   BUILTIN_LIST_BYTECODE_HANDLERS(BCH)
 
 // See the comment on top of BUILTIN_LIST_BASE_TIER0 for an explanation of
@@ -2314,6 +2329,7 @@ namespace internal {
   BUILTIN_LIST_BASE_TIER1(CPP, TSJ, TFJ, TFC, TFS, TFH, ASM)       \
   BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC, TFS, TFH, ASM)           \
   BUILTIN_LIST_INTL(CPP, TFJ, TFS)                                 \
+  BUILTIN_LIST_TEMPORAL(CPP, TFJ)                                  \
   BUILTIN_LIST_BYTECODE_HANDLERS(BCH)
 
 // The exception thrown in the following builtins are caught

@@ -615,7 +615,6 @@ BUILTIN(TemporalTimeZonePrototypeToString) {
 // #sec-temporal.timezone.from
 BUILTIN(TemporalTimeZoneFrom) { UNIMPLEMENTED(); }
 
-#ifdef V8_INTL_SUPPORT
 // get Temporal.*.prototype.era/eraYear
 TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainDate, Era, era)
 TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainDate, EraYear, eraYear)
@@ -625,6 +624,6 @@ TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainYearMonth, Era, era)
 TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainYearMonth, EraYear, eraYear)
 TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(Era)
 TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(EraYear)
-#endif  // V8_INTL_SUPPORT
+
 }  // namespace internal
 }  // namespace v8

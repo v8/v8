@@ -639,6 +639,7 @@ enum ExternalPointerTag : uint16_t {
   kIcuLocalizedNumberFormatterTag,
   kIcuPluralRulesTag,
   kIcuCollatorTag,
+  kTemporalInstantTag,
   kDisplayNamesInternalTag,
   kD8WorkerTag,
   kD8ModuleEmbedderDataTag,

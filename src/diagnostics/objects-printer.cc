@@ -3221,6 +3221,7 @@ void Script::ScriptPrint(std::ostream& os) {
   os << "\n";
 }
 
+#ifdef V8_TEMPORAL_SUPPORT
 void JSTemporalPlainDate::JSTemporalPlainDatePrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSTemporalPlainDate");
   JSObjectPrintBody(os, *this);
@@ -3265,6 +3266,8 @@ void JSTemporalTimeZone::JSTemporalTimeZonePrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSTemporalTimeZone");
   JSObjectPrintBody(os, *this);
 }
+
+#endif  // V8_TEMPORAL_SUPPORT
 
 void JSRawJson::JSRawJsonPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSRawJson");
