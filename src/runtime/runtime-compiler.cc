@@ -93,6 +93,8 @@ RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
   {
     if (!V8_ENABLE_LEAPTIERING_BOOL || !function->has_feedback_vector()) {
       IsCompiledScope is_compiled_scope(*sfi, isolate);
+      IsBaselineCompiledScope is_baseline_compiled_scope(*sfi, isolate);
+      DCHECK(is_baseline_compiled_scope.is_compiled());
       DCHECK(!function->HasAvailableOptimizedCode(isolate));
       DCHECK(!function->has_feedback_vector());
       JSFunction::CreateAndAttachFeedbackVector(isolate, function,

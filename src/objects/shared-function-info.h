@@ -893,6 +893,22 @@ class V8_NODISCARD IsCompiledScope {
   bool is_compiled_ = false;
 };
 
+// IsBaselineCompiledScope enables a caller to check if a function is baseline
+// compiled, and ensure it remains compiled (i.e., doesn't have it's baseline
+// code flushed) while the scope is retained.
+class V8_NODISCARD IsBaselineCompiledScope {
+ public:
+  inline IsBaselineCompiledScope(const Tagged<SharedFunctionInfo> shared,
+                                 Isolate* isolate);
+  inline IsBaselineCompiledScope() = default;
+
+  inline bool is_compiled() const { return is_compiled_; }
+
+ private:
+  MaybeHandle<Code> retain_code_ = {};
+  bool is_compiled_ = false;
+};
+
 std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v);
 
 }  // namespace v8::internal

@@ -727,6 +727,17 @@ IsCompiledScope::IsCompiledScope(const Tagged<SharedFunctionInfo> shared,
   DCHECK_EQ(shared->is_compiled(), is_compiled());
 }
 
+IsBaselineCompiledScope::IsBaselineCompiledScope(
+    const Tagged<SharedFunctionInfo> shared, Isolate* isolate) {
+  Tagged<Object> data_obj = shared->GetTrustedData();
+  if (IsCode(data_obj)) {
+    Tagged<Code> code = Cast<Code>(data_obj);
+    DCHECK_EQ(code->kind(), CodeKind::BASELINE);
+    retain_code_ = handle(code, isolate);
+    is_compiled_ = true;
+  }
+}
+
 bool SharedFunctionInfo::has_simple_parameters() {
   return scope_info(kAcquireLoad)->HasSimpleParameters();
 }
