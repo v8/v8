@@ -101,6 +101,13 @@ function testForOfLoop() {
   for (var |C|k of |_|a) {}
 |R|}
 
+async function testPromiseForAwaitLoop() {
+  for await (var |C|k of |_|[]) { }
+  for await (var |C|k of |_|[Promise.|C|resolve(1)]) |_|k;
+  var a = |_|[];
+  for await (var |C|k of |_|a) {}
+|R|}
+
 function testForInLoop() {
   var o = |_|{};
   for (var |_|k in |_|o) {}

@@ -377,6 +377,18 @@ break at:
 
 
 
+Running test: testPromiseForAwaitLoop
+break at:
+async function testPromiseForAwaitLoop() {
+  for await (var k of #[]) { }
+  for await (var k of [Promise.resolve(1)]) k;
+
+break at:
+async function testPromiseForAwaitLoop() {
+  for await (var #k of []) { }
+  for await (var k of [Promise.resolve(1)]) k;
+
+
 Running test: testForInLoop
 break at:
 function testForInLoop() {
