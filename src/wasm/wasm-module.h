@@ -101,6 +101,7 @@ struct WasmGlobal {
   bool shared = false;
   bool imported = false;
   bool exported = false;
+  bool initializer_ends_with_struct_new = false;
 };
 
 // Note: An exception tag signature only uses the params portion of a function

@@ -835,9 +835,22 @@ class JSPrototypesSetup {
     if (!it_.ok()) thrower_->CompileFailed(it_.error());
   }
 
+  // For the "direct" variant of the proposal.
+  // Specified to run unobservably (possibly lazily); this initial
+  // implementation runs it eagerly before the "start" function (which is the
+  // earliest point that might observe that it happened).
+  // Note: if we want to run it later, we'll have to split out validation.
+  void ConfigurePrototypes_Direct() {
+    if (!v8_flags.wasm_implicit_prototypes) return;
+    if (!it_.ok()) return;
+    ConfigurePrototypes_Direct_Impl();
+    if (!it_.ok()) thrower_->CompileFailed(it_.error());
+  }
+
  private:
   using ImportEntry = DescriptorsSectionIterator::ImportEntry;
   using DeclEntry = DescriptorsSectionIterator::DeclEntry;
+  using GlobalEntry = DescriptorsSectionIterator::GlobalEntry;
   using ProtoConfig = DescriptorsSectionIterator::ProtoConfig;
   using Method = DescriptorsSectionIterator::Method;
 
@@ -957,6 +970,66 @@ class JSPrototypesSetup {
     }
   }
 
+  void ConfigurePrototypes_Direct_Impl() {
+    DCHECK(!trusted_instance_data_.is_null());
+    if (!v8_flags.wasm_explicit_prototypes) it_.SkipToGlobalEntries();
+    uint32_t max_global_index = static_cast<uint32_t>(module_->globals.size());
+    uint32_t max_function_index =
+        static_cast<uint32_t>(module_->functions.size());
+    while (it_.has_global_entry()) {
+      // Fetch the descriptor from the global and extract its RTT.
+      GlobalEntry global_entry = it_.NextGlobalEntry(max_global_index);
+      if (!it_.ok()) return;
+      Tagged<Map> rtt =
+          GetRttInGlobal(global_entry.global_index(), "installing a prototype");
+      if (rtt.is_null()) return;
+      DirectHandle<Map> described_rtt(rtt, isolate_);
+      DirectHandle<JSPrototype> parent = isolate_->initial_object_prototype();
+      if (global_entry.has_parent()) {
+        uint32_t parent_index = global_entry.Parent();
+        if (!it_.ok()) return;
+        Tagged<Map> parent_rtt =
+            GetRttInGlobal(parent_index, "being a prototype parent");
+        if (parent_rtt.is_null()) return;
+        parent = direct_handle(parent_rtt->prototype(), isolate_);
+      }
+
+      // Allocate, install, and populate the prototype as requested.
+      DirectHandle<JSObject> prototype =
+          WasmStruct::AllocatePrototype(isolate_, parent);
+      Map::SetPrototype(isolate_, described_rtt, prototype);
+
+      if (global_entry.has_method()) {
+        ToDictionaryMode(prototype, global_entry.estimated_number_of_methods());
+      }
+      while (global_entry.has_method()) {
+        Method method = global_entry.NextMethod(max_function_index);
+        if (!it_.ok()) return;
+        if (!InstallMethodByFunctionIndex(prototype, method)) return;
+      }
+
+      // Constructor function, if any.
+      if (!global_entry.has_constructor()) continue;
+      auto [constructor_name_ref, constructor_index] =
+          global_entry.Constructor(max_function_index);
+      if (!it_.ok()) return;
+      DirectHandle<JSFunction> function = GetFunction(constructor_index);
+      DCHECK_EQ(function->length(),
+                module_->functions[constructor_index].sig->parameter_count());
+      DirectHandle<JSFunction> constructor =
+          MakeConstructor(constructor_name_ref, function, prototype);
+
+      // Static methods/accessors on the constructor, if any.
+      if (!global_entry.has_static()) continue;
+      ToDictionaryMode(constructor, global_entry.estimated_number_of_statics());
+      do {
+        Method staticmethod = global_entry.NextStatic(max_function_index);
+        if (!it_.ok()) return;
+        if (!InstallMethodByFunctionIndex(constructor, staticmethod)) return;
+      } while (global_entry.has_static());
+    }
+  }
+
   ///////////////// Helper functions. //////////////////////////////////////////
 
   DirectHandle<String> GetString(WireBytesRef ref) {
@@ -999,6 +1072,38 @@ class JSPrototypesSetup {
                          isolate_);
   }
 
+  DirectHandle<WasmExportedFunction> GetFunction(uint32_t index) {
+    bool shared = module_->function_is_shared(index);
+    DirectHandle<WasmFuncRef> funcref =
+        WasmTrustedInstanceData::GetOrCreateFuncRef(
+            isolate_, shared ? shared_instance_data_ : trusted_instance_data_,
+            index);
+    DirectHandle<WasmInternalFunction> internal_function(
+        funcref->internal(isolate_), isolate_);
+    return Cast<WasmExportedFunction>(
+        WasmInternalFunction::GetOrCreateExternal(internal_function));
+  }
+
+  Tagged<Map> GetRttInGlobal(uint32_t global_index,
+                             const char* description_for_error) {
+    const WasmGlobal& global = module_->globals[global_index];
+    if (!IsDescriptorGlobal(global)) {
+      thrower_->CompileError("global %u has unsuitable type for %s",
+                             global_index, description_for_error);
+      return {};
+    }
+    auto data = global.shared ? shared_instance_data_ : trusted_instance_data_;
+    Tagged<Object> value = data->tagged_globals_buffer()->get(global.offset);
+    return Cast<WasmStruct>(value)->described_rtt();
+  }
+
+  bool IsDescriptorGlobal(const WasmGlobal& global) {
+    return !global.mutability && global.initializer_ends_with_struct_new &&
+           global.type.ref_type_kind() == RefTypeKind::kStruct &&
+           global.type.has_index() &&
+           module_->type(global.type.ref_index()).is_descriptor();
+  }
+
   DirectHandle<JSFunction> MakeConstructor(
       WireBytesRef name_ref, DirectHandle<JSFunction> wasm_function,
       DirectHandle<JSPrototype> prototype) {
@@ -1037,6 +1142,11 @@ class JSPrototypesSetup {
                                   const Method& method) {
     DirectHandle<WasmExportedFunction> function;
     if (!GetExportedFunction(method.index).ToHandle(&function)) return false;
+    return InstallMethodImpl(object, method, function);
+  }
+  bool InstallMethodByFunctionIndex(DirectHandle<JSReceiver> object,
+                                    const Method& method) {
+    DirectHandle<WasmExportedFunction> function = GetFunction(method.index);
     return InstallMethodImpl(object, method, function);
   }
   bool InstallMethodImpl(DirectHandle<JSReceiver> object, const Method& method,
@@ -1828,8 +1938,13 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase2(
   if (module_->has_shared_part) {
     shared_trusted_data = direct_handle(trusted_data->shared_part(), isolate_);
   }
+
+  //--------------------------------------------------------------------------
+  // Install JS prototypes on Custom Descriptors ("direct" design).
+  //--------------------------------------------------------------------------
   if (js_prototypes_setup_.has_value()) {
     js_prototypes_setup_->SetInstanceData(trusted_data);
+    js_prototypes_setup_->ConfigurePrototypes_Direct();
   }
 
   //--------------------------------------------------------------------------

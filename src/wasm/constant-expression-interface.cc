@@ -180,6 +180,12 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
                                             const StructIndexImmediate& imm,
                                             const Value& descriptor,
                                             const Value args[], Value* result) {
+  // Declaratively adding a prototype is only permitted if the initializer
+  // ends with struct.new[_default]. Since no control flow is allowed in
+  // initializers, an 'end' instruction indicates the end of the initializer.
+  int offset_to_next_instr = 2 /* prefix, opcode */ + imm.length;
+  ends_with_struct_new_ = decoder->lookahead(offset_to_next_instr, kExprEnd);
+
   if (!generate_value()) return;
   DirectHandle<WasmTrustedInstanceData> data =
       GetTrustedInstanceDataForTypeIndex(imm.index);
@@ -276,6 +282,12 @@ WasmValue DefaultValueForType(ValueType type, Isolate* isolate,
 void ConstantExpressionInterface::StructNewDefault(
     FullDecoder* decoder, const StructIndexImmediate& imm,
     const Value& descriptor, Value* result) {
+  // Declaratively adding a prototype is only permitted if the initializer
+  // ends with struct.new[_default]. Since no control flow is allowed in
+  // initializers, an 'end' instruction indicates the end of the initializer.
+  int offset_to_next_instr = 2 /* prefix, opcode */ + imm.length;
+  ends_with_struct_new_ = decoder->lookahead(offset_to_next_instr, kExprEnd);
+
   if (!generate_value()) return;
   DirectHandle<WasmTrustedInstanceData> data =
       GetTrustedInstanceDataForTypeIndex(imm.index);
