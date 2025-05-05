@@ -496,6 +496,9 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
     if (current_scope != nullptr) {
       outer_scope->AddInnerScope(current_scope);
     }
+    outer_scope->set_start_position(scope_info->StartPosition());
+    outer_scope->set_end_position(scope_info->EndPosition());
+
     current_scope = outer_scope;
     if (innermost_scope == nullptr) innermost_scope = current_scope;
     scope_info = scope_info->HasOuterScopeInfo() ? scope_info->OuterScopeInfo()

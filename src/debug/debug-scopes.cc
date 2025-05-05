@@ -436,12 +436,7 @@ bool ScopeIterator::HasContext() const {
   //
   // We can detect this by comparing the scope ID of the parsed scope and the
   // runtime scope.
-  // We can skip this check for function scopes, those will have their context
-  // always pushed. Also, there is an oddity where parsing::ParseFunction
-  // produces function scopes with (-1, -1) as the start/end position,
-  // which messes up the unique ID.
-  if (current_scope_ && !current_scope_->is_function_scope() &&
-      NeedsContext() &&
+  if (current_scope_ && NeedsContext() &&
       current_scope_->UniqueIdInScript() !=
           context_->scope_info()->UniqueIdInScript()) {
     return false;
@@ -554,8 +549,7 @@ void ScopeIterator::Next() {
   MaybeCollectAndStoreLocalBlocklists();
   UnwrapEvaluationContext();
 
-  DCHECK_IMPLIES(current_scope_ && !current_scope_->is_function_scope() &&
-                     NeedsAndHasContext(),
+  DCHECK_IMPLIES(current_scope_ && NeedsAndHasContext(),
                  current_scope_->UniqueIdInScript() ==
                      context_->scope_info()->UniqueIdInScript());
 
