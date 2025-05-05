@@ -7487,7 +7487,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         needs_type_or_null_check &&
         !EquivalentTypes(table->type.AsNonNull(),
                          ValueType::Ref(imm.sig_imm.heap_type()),
-                         decoder->module_, decoder->module_);
+                         decoder->module_);
     bool needs_null_check =
         needs_type_or_null_check && table->type.is_nullable();
 

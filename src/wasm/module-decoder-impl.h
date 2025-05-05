@@ -920,8 +920,7 @@ class ModuleDecoderImpl : public Decoder {
         errorf("type %u extends final type %u", i, explicit_super.index);
         return;
       }
-      if (!ValidSubtypeDefinition(ModuleTypeIndex{i}, explicit_super, module,
-                                  module)) {
+      if (!ValidSubtypeDefinition(ModuleTypeIndex{i}, explicit_super, module)) {
         errorf("type %u has invalid explicit supertype %u", i,
                explicit_super.index);
         return;
@@ -986,7 +985,7 @@ class ModuleDecoderImpl : public Decoder {
                          enabled_features_.has_shared() || !ok());
           if (table->shared && enabled_features_.has_shared()) {
             module_->has_shared_part = true;
-            if (!IsShared(type, module_.get())) {
+            if (!type.is_shared()) {
               errorf(type_position,
                      "Shared table %i must have shared element type, actual "
                      "type %s",
@@ -1035,7 +1034,7 @@ class ModuleDecoderImpl : public Decoder {
           ValueType type = consume_value_type(module_.get());
           auto [mutability, shared] = consume_global_flags();
           if (V8_UNLIKELY(failed())) break;
-          if (V8_UNLIKELY(shared && !IsShared(type, module_.get()))) {
+          if (V8_UNLIKELY(shared && !type.is_shared())) {
             error("shared imported global must have shared type");
             break;
           }
@@ -1151,7 +1150,7 @@ class ModuleDecoderImpl : public Decoder {
       DCHECK_IMPLIES(table->shared, enabled_features_.has_shared() || !ok());
       if (table->shared && enabled_features_.has_shared()) {
         module_->has_shared_part = true;
-        if (!IsShared(table_type, module_.get())) {
+        if (!table_type.is_shared()) {
           errorf(
               type_position,
               "Shared table %i must have shared element type, actual type %s",
@@ -1231,7 +1230,7 @@ class ModuleDecoderImpl : public Decoder {
       ValueType type = consume_value_type(module_.get());
       auto [mutability, shared] = consume_global_flags();
       if (failed()) return;
-      if (shared && !IsShared(type, module_.get())) {
+      if (shared && !type.is_shared()) {
         CHECK(enabled_features_.has_shared());
         errorf(pos, "Shared global %i must have shared type, actual type %s",
                i + imported_globals, type.name().c_str());
@@ -2414,8 +2413,7 @@ class ModuleDecoderImpl : public Decoder {
         value_type_reader::Populate(&type, module);
         if (V8_LIKELY(lookahead(1 + length, kExprEnd))) {
           TYPE_CHECK(ValueType::RefNull(type))
-          if (V8_UNLIKELY(is_shared &&
-                          !IsShared(ValueType::RefNull(type), module))) {
+          if (V8_UNLIKELY(is_shared && !type.is_shared())) {
             error(pc(), "ref.null does not have a shared type");
             return {};
           }

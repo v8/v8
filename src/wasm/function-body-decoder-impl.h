@@ -6947,7 +6947,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   V8_INLINE Value* Push(Value value) {
     DCHECK_IMPLIES(this->ok(), value.type != kWasmVoid);
-    if (!VALIDATE(!this->is_shared_ || IsShared(value.type, this->module_))) {
+    if (!VALIDATE(!this->is_shared_ || value.type.is_shared())) {
       this->DecodeError(value.pc(), "%s does not have a shared type",
                         SafeOpcodeNameAt(value.pc()));
       return nullptr;

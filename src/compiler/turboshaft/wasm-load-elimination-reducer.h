@@ -136,8 +136,8 @@ class WasmMemoryContentTable
 
   bool TypesUnrelated(wasm::ModuleTypeIndex type1,
                       wasm::ModuleTypeIndex type2) {
-    return wasm::HeapTypesUnrelated(
-        module_->heap_type(type1), module_->heap_type(type2), module_, module_);
+    return wasm::HeapTypesUnrelated(module_->heap_type(type1),
+                                    module_->heap_type(type2), module_);
   }
 
   void Invalidate(const StructSetOp& set) {

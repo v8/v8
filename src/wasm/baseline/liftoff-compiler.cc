@@ -9002,7 +9002,7 @@ class LiftoffCompiler {
 
     bool needs_type_check = !EquivalentTypes(
         table->type.AsNonNull(), ValueType::Ref(imm.sig_imm.heap_type()),
-        decoder->module_, decoder->module_);
+        decoder->module_);
     bool needs_null_check = table->type.is_nullable();
 
     // We do both the type check and the null check by checking the signature,
