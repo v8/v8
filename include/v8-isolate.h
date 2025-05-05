@@ -636,6 +636,10 @@ class V8_EXPORT Isolate {
     kWasmBranchHinting = 167,
     kWasmMultiValue = 168,
     kUint8ArrayToFromBase64AndHex = 169,
+    kAtomicsPause = 170,
+    kTopLevelAwait = 171,
+    kLogicalAssignment = 172,
+    kNullishCoalescing = 173,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to

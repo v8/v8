@@ -303,6 +303,8 @@ BUILTIN(AtomicsPause) {
   HandleScope scope(isolate);
   DirectHandle<Object> iteration_number = args.atOrUndefined(isolate, 1);
 
+  isolate->CountUsage(v8::Isolate::kAtomicsPause);
+
   // 1. If N is neither undefined nor an integral Number, throw a TypeError
   // exception.
   if (V8_UNLIKELY(!IsUndefined(*iteration_number, isolate) &&
