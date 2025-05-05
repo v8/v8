@@ -3074,7 +3074,8 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
                              feedback_spec());
     LoopScope loop_scope(this, &loop_builder);
     HoleCheckElisionScope elider(this);
-    builder()->SetExpressionAsStatementPosition(stmt->each());
+    builder()->SetExpressionAsStatementPosition(stmt->each(),
+                                                /*is_breakable= */ false);
     loop_builder.BreakIfForInDone(index, cache_length);
     builder()->ForInNext(receiver, index, triple.Truncate(2),
                          feedback_index(slot));
@@ -3085,6 +3086,7 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
       EffectResultScope scope(this);
       // Make sure to preserve the accumulator across the PrepareAssignmentLhs
       // call.
+      builder()->SetExpressionAsStatementPosition(stmt->each());
       AssignmentLhsData lhs_data = PrepareAssignmentLhs(
           stmt->each(), AccumulatorPreservingMode::kPreserve);
       builder()->SetExpressionPosition(stmt->each());
@@ -3164,7 +3166,8 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
           // Call the iterator's .next() method. Break from the loop if the
           // `done` property is truthy, otherwise load the value from the
           // iterator result and append the argument.
-          builder()->SetExpressionAsStatementPosition(stmt->each());
+          builder()->SetExpressionAsStatementPosition(stmt->each(),
+                                                      /* is_breakable */ false);
           BuildIteratorNext(iterator, next_result);
           builder()->LoadNamedProperty(
               next_result, ast_string_constants()->done_string(),
@@ -3184,6 +3187,7 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
               .StoreAccumulatorInRegister(done);
 
           // Assign to the 'each' target.
+          builder()->SetExpressionAsStatementPosition(stmt->each());
           AssignmentLhsData lhs_data = PrepareAssignmentLhs(stmt->each());
           builder()->LoadAccumulatorWithRegister(next_result);
           BuildAssignment(lhs_data, Token::kAssign,

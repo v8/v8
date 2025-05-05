@@ -2697,7 +2697,7 @@ TEST(DebugStepForIn) {
   run_step.set_step_action(StepInto);
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(8, break_point_hit_count);
+  CHECK_EQ(7, break_point_hit_count);
 
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
@@ -2714,7 +2714,7 @@ TEST(DebugStepForIn) {
   run_step.set_step_action(StepInto);
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(10, break_point_hit_count);
+  CHECK_EQ(9, break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);

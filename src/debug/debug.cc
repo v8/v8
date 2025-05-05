@@ -359,6 +359,7 @@ void BreakIterator::Next() {
     if (!first) source_position_iterator_.Advance();
     first = false;
     if (Done()) return;
+    if (!source_position_iterator_.is_breakable()) continue;
     position_ = source_position_iterator_.source_position().ScriptOffset();
     if (source_position_iterator_.is_statement()) {
       statement_position_ = position_;

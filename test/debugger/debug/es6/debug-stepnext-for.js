@@ -122,7 +122,6 @@ function listener(event, exec_state, event_data, data) {
     'E4',
     'e11',
     'E4',
-    'e11',
     // For-in: get enumerable, assign, body, assign, body, ...
     'f12',
     'f7',
@@ -131,8 +130,7 @@ function listener(event, exec_state, event_data, data) {
     'F4',
     'f7',
     'F4',
-    'f7',
-    // For-in-let: get enumerable, next, body, next,  ...
+    // For-in-let: get enumerable, assign, body, assign,  ...
     'g16',
     'g11',
     'G4',
@@ -140,8 +138,7 @@ function listener(event, exec_state, event_data, data) {
     'G4',
     'g11',
     'G4',
-    'g11',
-    // For-of-var: [Symbol.iterator](), next(), body, next(), body, ...
+    // For-of-var: [Symbol.iterator](), assign, body, assign, body, ...
     'h16',
     'h11',
     'H4',
@@ -149,8 +146,7 @@ function listener(event, exec_state, event_data, data) {
     'H4',
     'h11',
     'H4',
-    'h11',
-    // For-of: [Symbol.iterator](), next(), body, next(), body, ...
+    // For-of: [Symbol.iterator](), assign, body, assign, body, ...
     'i12',
     'i7',
     'I4',
@@ -158,8 +154,7 @@ function listener(event, exec_state, event_data, data) {
     'I4',
     'i7',
     'I4',
-    'i7',
-    // For-of-let: [Symbol.iterator](), next(), body, next(), ...
+    // For-of-let: [Symbol.iterator](), assign, body, assign, ...
     'j18',
     'j11',
     'J4',
@@ -167,7 +162,6 @@ function listener(event, exec_state, event_data, data) {
     'J4',
     'j11',
     'J4',
-    'j11',
     // For-var: init, condition, body, next, condition, body, ...
     'k15',
     'k20',
@@ -204,22 +198,20 @@ function listener(event, exec_state, event_data, data) {
     'M4',
     'm26',
     'm20',
-    // For-of, empty: [Symbol.iterator](), next() once
+    // For-of, empty: [Symbol.iterator](), assign once
     'n16',
     'n11',
     // Spread: expression statement
     'o2',
-    // For-await-of: [Symbol.iterator](), next(), body, next(), body, ...
+    // For-await-of: [Symbol.iterator](), assign, body, assign, body, ...
     'p22',
     'p17',
-    'p17',
     'P4',
     'p17',
     'P4',
     'p17',
     'P4',
-    'p17',
-    // For-await-of-let: [Symbol.iterator](), next(), body, next(), body, ...
+    // For-await-of-let: [Symbol.iterator](), assign, body, assign, body, ...
     'q18',
     'q13',
     'Q4',
@@ -227,7 +219,6 @@ function listener(event, exec_state, event_data, data) {
     'Q4',
     'q13',
     'Q4',
-    'q13',
     // Exit.
     'y0',
     'z2',
