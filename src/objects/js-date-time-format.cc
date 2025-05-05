@@ -2316,7 +2316,7 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   if (hour_cycle == HourCycle::kUndefined) {
     auto hc_extension_it = r.extensions.find("hc");
     if (hc_extension_it != r.extensions.end()) {
-      hc = ToHourCycle(hc_extension_it->second.c_str());
+      hc = ToHourCycle(hc_extension_it->second);
     }
   } else {
     hc = hour_cycle;
