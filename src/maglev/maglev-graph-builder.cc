@@ -4479,8 +4479,8 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kNumberToString:
     case Opcode::kUnwrapStringWrapper:
     case Opcode::kUnwrapThinString:
-      return NodeType::kString;
     case Opcode::kStringConcat:
+      return NodeType::kString;
     case Opcode::kCheckedInternalizedString:
       return NodeType::kInternalizedString;
     case Opcode::kToObject:
