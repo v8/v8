@@ -2212,11 +2212,8 @@ class ModuleDecoderImpl : public Decoder {
         if (!limits.has_maximum()) {
           error(pc() - 1, "shared memory must have a maximum defined");
         }
-        if (enabled_features_.has_shared()) {
-          error(pc() - 1,
-                "shared memories are not supported with "
-                "--experimental-wasm-shared yet.");
-        }
+        // TODO(42204563): Implement proper handling of shared memories when
+        // Shared Everything is enabled.
       } else if (!enabled_features_.has_shared()) {  // table
         error(pc() - 1, "invalid table limits flags");
       } else {
