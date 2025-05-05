@@ -63,12 +63,23 @@ void SandboxHardwareSupport::NotifyReadOnlyPageCreated(
 // frame). For that to work correctly, we need to track the activation count in
 // a per-thread global variable.
 thread_local unsigned disallow_sandbox_access_activation_counter_ = 0;
+// AllowSandboxAccess scopes on the other hand cannot be nested. There must be
+// at most a single one active at any point in time. These are supposed to only
+// be used for short sequences of code that's otherwise running with an active
+// DisallowSandboxAccess scope.
+thread_local bool has_active_allow_sandbox_access_scope_ = false;
 
 DisallowSandboxAccess::DisallowSandboxAccess() {
   pkey_ = SandboxHardwareSupport::pkey_;
   if (pkey_ == base::MemoryProtectionKey::kNoMemoryProtectionKey) {
     return;
   }
+
+  // Using a DisallowSandboxAccess inside an AllowSandboxAccess isn't currently
+  // allowed, but we could add support for that in the future if needed.
+  DCHECK_WITH_MSG(!has_active_allow_sandbox_access_scope_,
+                  "DisallowSandboxAccess cannot currently be nested inside an "
+                  "AllowSandboxAccess");
 
   if (disallow_sandbox_access_activation_counter_ == 0) {
     DCHECK_EQ(base::MemoryProtectionKey::GetKeyPermission(pkey_),
@@ -92,6 +103,52 @@ DisallowSandboxAccess::~DisallowSandboxAccess() {
     base::MemoryProtectionKey::SetPermissionsForKey(
         pkey_, base::MemoryProtectionKey::Permission::kNoRestrictions);
   }
+}
+
+AllowSandboxAccess::AllowSandboxAccess() {
+  if (disallow_sandbox_access_activation_counter_ == 0) {
+    // This means that either scope enforcement is disabled due to a lack of
+    // PKEY support on the system or that there is no active
+    // DisallowSandboxAccess. In both cases, we don't need to do anything here
+    // and this scope object is just a no-op.
+    pkey_ = base::MemoryProtectionKey::kNoMemoryProtectionKey;
+    return;
+  }
+
+  DCHECK_WITH_MSG(!has_active_allow_sandbox_access_scope_,
+                  "AllowSandboxAccess scopes cannot be nested");
+  has_active_allow_sandbox_access_scope_ = true;
+
+  pkey_ = SandboxHardwareSupport::pkey_;
+  // We must have an active DisallowSandboxAccess so PKEYs must be supported.
+  DCHECK_NE(pkey_, base::MemoryProtectionKey::kNoMemoryProtectionKey);
+
+  DCHECK_EQ(base::MemoryProtectionKey::GetKeyPermission(pkey_),
+            base::MemoryProtectionKey::Permission::kDisableAccess);
+  base::MemoryProtectionKey::SetPermissionsForKey(
+      pkey_, base::MemoryProtectionKey::Permission::kNoRestrictions);
+}
+
+AllowSandboxAccess::~AllowSandboxAccess() {
+  if (pkey_ == base::MemoryProtectionKey::kNoMemoryProtectionKey) {
+    // There was no DisallowSandboxAccess scope active when this
+    // AllowSandboxAccess scope was created, and we don't expect one to have
+    // been created in the meantime.
+    DCHECK_EQ(disallow_sandbox_access_activation_counter_, 0);
+    return;
+  }
+
+  // There was an active DisallowSandboxAccess scope when this
+  // AllowSandboxAccess scope was created, and we expect it to still be there.
+  DCHECK_GT(disallow_sandbox_access_activation_counter_, 0);
+
+  DCHECK(has_active_allow_sandbox_access_scope_);
+  has_active_allow_sandbox_access_scope_ = false;
+
+  DCHECK_EQ(base::MemoryProtectionKey::GetKeyPermission(pkey_),
+            base::MemoryProtectionKey::Permission::kNoRestrictions);
+  base::MemoryProtectionKey::SetPermissionsForKey(
+      pkey_, base::MemoryProtectionKey::Permission::kDisableAccess);
 }
 #endif  // DEBUG
 

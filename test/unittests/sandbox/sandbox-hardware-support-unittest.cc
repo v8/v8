@@ -49,7 +49,7 @@ TEST(SandboxHardwareSupportTest, DisallowSandboxAccess) {
   EXPECT_NE(ptr, kNullAddress);
   EXPECT_TRUE(sandbox.Contains(ptr));
 
-  int* in_sandbox_ptr = reinterpret_cast<int*>(ptr);
+  volatile int* in_sandbox_ptr = reinterpret_cast<int*>(ptr);
 
   // Accessing in-sandbox memory should be possible.
   int value = *in_sandbox_ptr;
@@ -92,6 +92,68 @@ TEST(SandboxHardwareSupportTest, DisallowSandboxAccess) {
     ASSERT_DEATH_IF_SUPPORTED(value += *in_sandbox_ptr, "");
   }
   value += *in_sandbox_ptr;
+
+  // Mostly just needed to force a use of |value|.
+  EXPECT_EQ(value, 0);
+
+  sandbox.TearDown();
+}
+
+TEST(SandboxHardwareSupportTest, AllowSandboxAccess) {
+  // DisallowSandboxAccess/AllowSandboxAccess is only enforced in DEBUG builds.
+  if (!DEBUG_BOOL) return;
+
+  // Skip this test if hardware sandboxing support cannot be enabled (likely
+  // because the system doesn't support PKEYs, see the Initialization test).
+  if (!SandboxHardwareSupport::InitializeBeforeThreadCreation()) return;
+
+  base::VirtualAddressSpace global_vas;
+
+  Sandbox sandbox;
+  sandbox.Initialize(&global_vas);
+  ASSERT_TRUE(SandboxHardwareSupport::IsEnabled());
+
+  VirtualAddressSpace* sandbox_vas = sandbox.address_space();
+  size_t size = sandbox_vas->allocation_granularity();
+  size_t alignment = sandbox_vas->allocation_granularity();
+  Address ptr =
+      sandbox_vas->AllocatePages(VirtualAddressSpace::kNoHint, size, alignment,
+                                 PagePermissions::kReadWrite);
+  EXPECT_NE(ptr, kNullAddress);
+  EXPECT_TRUE(sandbox.Contains(ptr));
+
+  volatile int* in_sandbox_ptr = reinterpret_cast<int*>(ptr);
+
+  // Accessing in-sandbox memory should be possible.
+  int value = *in_sandbox_ptr;
+
+  // AllowSandboxAccess can be used to temporarily enable sandbox access in the
+  // presence of a DisallowSandboxAccess scope.
+  {
+    DisallowSandboxAccess no_sandbox_access;
+    ASSERT_DEATH_IF_SUPPORTED(value += *in_sandbox_ptr, "");
+    {
+      AllowSandboxAccess temporary_sandbox_access;
+      value += *in_sandbox_ptr;
+    }
+    ASSERT_DEATH_IF_SUPPORTED(value += *in_sandbox_ptr, "");
+  }
+
+  // AllowSandboxAccess scopes cannot be nested. They should only be used for
+  // short sequences of code that read/write some data from/to the sandbox.
+  {
+    DisallowSandboxAccess no_sandbox_access;
+    {
+      AllowSandboxAccess temporary_sandbox_access;
+      {
+        ASSERT_DEATH_IF_SUPPORTED(new AllowSandboxAccess(), "");
+      }
+    }
+  }
+
+  // AllowSandboxAccess scopes can be used even if there is no active
+  // DisallowSandboxAccess, in which case they do nothing.
+  AllowSandboxAccess no_op_sandbox_access;
 
   // Mostly just needed to force a use of |value|.
   EXPECT_EQ(value, 0);

@@ -46,6 +46,7 @@ class V8_EXPORT_PRIVATE SandboxHardwareSupport {
 
  private:
   friend class DisallowSandboxAccess;
+  friend class AllowSandboxAccess;
   static int pkey_;
 };
 #endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
@@ -56,6 +57,10 @@ class V8_EXPORT_PRIVATE SandboxHardwareSupport {
 // In DEBUG builds with sandbox hardware support enabled, this property is
 // enforced at runtime by removing read and write access to the sandbox address
 // space. The only exception are read-only pages, which will still be readable.
+//
+// These scopes can be arbitrarily nested and can be allocated both on the
+// stack and on the heap. Sandbox access will be disallowed as long as at least
+// one scope remains active.
 class V8_NODISCARD V8_ALLOW_UNUSED DisallowSandboxAccess {
  public:
 #if defined(DEBUG) && defined(V8_ENABLE_SANDBOX_HARDWARE_SUPPORT)
@@ -66,6 +71,29 @@ class V8_NODISCARD V8_ALLOW_UNUSED DisallowSandboxAccess {
   // work correctly.
   DisallowSandboxAccess(const DisallowSandboxAccess&) = delete;
   DisallowSandboxAccess& operator=(const DisallowSandboxAccess&) = delete;
+
+ private:
+  int pkey_;
+#endif  // DEBUG && V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+};
+
+// Scope object to grant a temporary exception from a DisallowSandboxAccess.
+// This scope object will re-enable access to in-sandbox memory during its
+// lifetime even if one or more DisallowSandboxAccess scopes are currently
+// active. However, in contrast to DisallowSandboxAccess these scopes cannot be
+// nested and should only be used sparingly and for short durations. It is also
+// currently not possible to have have another DisallowSandboxAccess inside an
+// AllowSandboxAccess scope, although that could be implemented if needed.
+class V8_NODISCARD V8_ALLOW_UNUSED AllowSandboxAccess {
+ public:
+#if defined(DEBUG) && defined(V8_ENABLE_SANDBOX_HARDWARE_SUPPORT)
+  AllowSandboxAccess();
+  ~AllowSandboxAccess();
+
+  // Copying and assigning these scope objects is not allowed as it would not
+  // work correctly.
+  AllowSandboxAccess(const AllowSandboxAccess&) = delete;
+  AllowSandboxAccess& operator=(const AllowSandboxAccess&) = delete;
 
  private:
   int pkey_;
