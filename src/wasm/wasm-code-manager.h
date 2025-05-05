@@ -601,6 +601,15 @@ class WasmCodeAllocator {
 
 class V8_EXPORT_PRIVATE NativeModule final {
  public:
+  class V8_NODISCARD NativeModuleAllocationLockScope {
+   public:
+    explicit NativeModuleAllocationLockScope(NativeModule* module)
+        : lock_(module->allocation_mutex_) {}
+
+   private:
+    base::RecursiveMutexGuard lock_;
+  };
+
   static constexpr ExternalPointerTag kManagedTag = kWasmNativeModuleTag;
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_ARM64 || \

@@ -463,6 +463,10 @@ WellKnownImport CheckForWellKnownImport(
     // if there are concurrent calls to `set_cast_api_signature`, then all calls
     // would store the same signature to the native module.
     if (!native_module->has_fast_api_signature(func_index)) {
+      // We have to use the lock of the NativeModule here because the
+      // `signature_zone` may get accessed by another module instantiation
+      // concurrently.
+      NativeModule::NativeModuleAllocationLockScope lock(native_module);
       native_module->set_fast_api_signature(
           func_index,
           GetFunctionSigForFastApiImport(
