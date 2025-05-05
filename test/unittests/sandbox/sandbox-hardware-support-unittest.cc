@@ -26,7 +26,10 @@ TEST(SandboxHardwareSupportTest, Initialization) {
   sandbox.TearDown();
 }
 
-TEST(SandboxHardwareSupportTest, BlockAccessScope) {
+TEST(SandboxHardwareSupportTest, DisallowSandboxAccess) {
+  // DisallowSandboxAccess is only enforced in DEBUG builds.
+  if (!DEBUG_BOOL) return;
+
   // Skip this test if hardware sandboxing support cannot be enabled (likely
   // because the system doesn't support PKEYs, see the Initialization test).
   if (!SandboxHardwareSupport::InitializeBeforeThreadCreation()) return;
@@ -49,22 +52,49 @@ TEST(SandboxHardwareSupportTest, BlockAccessScope) {
   int* in_sandbox_ptr = reinterpret_cast<int*>(ptr);
 
   // Accessing in-sandbox memory should be possible.
-  EXPECT_EQ(*in_sandbox_ptr, 0);
+  int value = *in_sandbox_ptr;
 
+  // In debug builds, any (read) access to the sandbox address space should
+  // crash while a DisallowSandboxAccess scope is active. This is useful to
+  // ensure that a given piece of code cannot be influenced by (potentially)
+  // attacker-controlled data inside the sandbox.
   {
-    SandboxHardwareSupport::BlockAccessScope no_sandbox_access =
-        SandboxHardwareSupport::MaybeBlockAccess();
-
-    // Any (read) access to the sandbox address space should now crash.
-    // This is useful to ensure that a given piece of code cannot be influenced
-    // by attacker-controlled data inside the sandbox.
-    int value = 0;
-    ASSERT_DEATH_IF_SUPPORTED(value = *in_sandbox_ptr, "");
-    EXPECT_EQ(value, 0);
+    DisallowSandboxAccess no_sandbox_access;
+    ASSERT_DEATH_IF_SUPPORTED(value += *in_sandbox_ptr, "");
+    {
+      // Also test that nesting of DisallowSandboxAccess scopes works correctly.
+      DisallowSandboxAccess nested_no_sandbox_access;
+      ASSERT_DEATH_IF_SUPPORTED(value += *in_sandbox_ptr, "");
+    }
+    ASSERT_DEATH_IF_SUPPORTED(value += *in_sandbox_ptr, "");
   }
-
   // Access should be possible again now.
-  EXPECT_EQ(*in_sandbox_ptr, 0);
+  value += *in_sandbox_ptr;
+
+  // Simple example involving a heap-allocated DisallowSandboxAccess object.
+  DisallowSandboxAccess* heap_no_sandbox_access = new DisallowSandboxAccess;
+  ASSERT_DEATH_IF_SUPPORTED(value += *in_sandbox_ptr, "");
+  delete heap_no_sandbox_access;
+  value += *in_sandbox_ptr;
+
+  // Somewhat more elaborate example that involves a mix of stack- and
+  // heap-allocated DisallowSandboxAccess objects.
+  {
+    DisallowSandboxAccess no_sandbox_access;
+    heap_no_sandbox_access = new DisallowSandboxAccess;
+    ASSERT_DEATH_IF_SUPPORTED(value += *in_sandbox_ptr, "");
+  }
+  // Heap-allocated DisallowSandboxAccess scope is still active.
+  ASSERT_DEATH_IF_SUPPORTED(value += *in_sandbox_ptr, "");
+  {
+    DisallowSandboxAccess no_sandbox_access;
+    delete heap_no_sandbox_access;
+    ASSERT_DEATH_IF_SUPPORTED(value += *in_sandbox_ptr, "");
+  }
+  value += *in_sandbox_ptr;
+
+  // Mostly just needed to force a use of |value|.
+  EXPECT_EQ(value, 0);
 
   sandbox.TearDown();
 }

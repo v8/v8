@@ -57,54 +57,45 @@ void SandboxHardwareSupport::NotifyReadOnlyPageCreated(
       {addr, size}, perm, base::MemoryProtectionKey::kDefaultProtectionKey));
 }
 
-// static
-SandboxHardwareSupport::BlockAccessScope
-SandboxHardwareSupport::MaybeBlockAccess() {
-  return BlockAccessScope(pkey_);
-}
+#ifdef DEBUG
+// DisallowSandboxAccess scopes can be arbitrarily nested and even attached to
+// heap-allocated objects (so their lifetime isn't necessarily tied to a stack
+// frame). For that to work correctly, we need to track the activation count in
+// a per-thread global variable.
+thread_local unsigned disallow_sandbox_access_activation_counter_ = 0;
 
-SandboxHardwareSupport::BlockAccessScope::BlockAccessScope(int pkey)
-    : pkey_(pkey) {
-  if (pkey_ != base::MemoryProtectionKey::kNoMemoryProtectionKey) {
+DisallowSandboxAccess::DisallowSandboxAccess() {
+  pkey_ = SandboxHardwareSupport::pkey_;
+  if (pkey_ == base::MemoryProtectionKey::kNoMemoryProtectionKey) {
+    return;
+  }
+
+  if (disallow_sandbox_access_activation_counter_ == 0) {
+    DCHECK_EQ(base::MemoryProtectionKey::GetKeyPermission(pkey_),
+              base::MemoryProtectionKey::Permission::kNoRestrictions);
     base::MemoryProtectionKey::SetPermissionsForKey(
         pkey_, base::MemoryProtectionKey::Permission::kDisableAccess);
   }
+  disallow_sandbox_access_activation_counter_ += 1;
 }
 
-SandboxHardwareSupport::BlockAccessScope::~BlockAccessScope() {
-  if (pkey_ != base::MemoryProtectionKey::kNoMemoryProtectionKey) {
+DisallowSandboxAccess::~DisallowSandboxAccess() {
+  if (pkey_ == base::MemoryProtectionKey::kNoMemoryProtectionKey) {
+    return;
+  }
+
+  DCHECK_NE(disallow_sandbox_access_activation_counter_, 0);
+  disallow_sandbox_access_activation_counter_ -= 1;
+  if (disallow_sandbox_access_activation_counter_ == 0) {
+    DCHECK_EQ(base::MemoryProtectionKey::GetKeyPermission(pkey_),
+              base::MemoryProtectionKey::Permission::kDisableAccess);
     base::MemoryProtectionKey::SetPermissionsForKey(
         pkey_, base::MemoryProtectionKey::Permission::kNoRestrictions);
   }
 }
+#endif  // DEBUG
 
-#else  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-
-// static
-bool SandboxHardwareSupport::InitializeBeforeThreadCreation() { return false; }
-
-// static
-bool SandboxHardwareSupport::TryEnable(Address addr, size_t size) {
-  return false;
-}
-
-// static
-bool SandboxHardwareSupport::IsEnabled() { return false; }
-
-// static
-void SandboxHardwareSupport::SetDefaultPermissionsForSignalHandler() {}
-
-// static
-void SandboxHardwareSupport::NotifyReadOnlyPageCreated(
-    Address addr, size_t size, PageAllocator::Permission perm) {}
-
-// static
-SandboxHardwareSupport::BlockAccessScope
-SandboxHardwareSupport::MaybeBlockAccess() {
-  return BlockAccessScope();
-}
-
-#endif
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
 }  // namespace internal
 }  // namespace v8

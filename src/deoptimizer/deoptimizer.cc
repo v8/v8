@@ -627,10 +627,13 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
 
 #if V8_ENABLE_WEBASSEMBLY
   if (v8_flags.wasm_deopt && function.is_null()) {
-#if V8_ENABLE_SANDBOX
-    no_heap_access_during_wasm_deopt_ =
-        SandboxHardwareSupport::MaybeBlockAccess();
-#endif
+    if ((false)) {
+      // From now on we should not be accessing any in-sandbox data as all deopt
+      // data is trusted and so stored outside the heap.
+      // TODO(415707239): Remove remaining heap accesses during deoptimization.
+      no_sandbox_access_during_wasm_deopt_.emplace();
+    }
+
     wasm::WasmCode* code =
         wasm::GetWasmCodeManager()->LookupCode(isolate, from);
     compiled_optimized_wasm_code_ = code;

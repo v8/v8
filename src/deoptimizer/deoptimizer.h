@@ -309,11 +309,10 @@ class Deoptimizer : public Malloced {
   std::optional<AccountingAllocator> alloc_;
   std::optional<Zone> zone_;
 #endif
-#if V8_ENABLE_WEBASSEMBLY && V8_ENABLE_SANDBOX
+#if V8_ENABLE_WEBASSEMBLY
   // Wasm deoptimizations should not access the heap at all. All deopt data is
   // stored off-heap.
-  std::optional<SandboxHardwareSupport::BlockAccessScope>
-      no_heap_access_during_wasm_deopt_;
+  std::optional<DisallowSandboxAccess> no_sandbox_access_during_wasm_deopt_;
 #endif
 
   friend class DeoptimizedFrameInfo;

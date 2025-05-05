@@ -444,9 +444,11 @@ ReadOnlyPageMetadata* MemoryAllocator::AllocateReadOnlyPage(
 
   new (chunk_info->chunk) MemoryChunk(metadata->InitialFlags(), metadata);
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   SandboxHardwareSupport::NotifyReadOnlyPageCreated(
       metadata->ChunkAddress(), metadata->size(),
       PageAllocator::Permission::kReadWrite);
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
   return metadata;
 }

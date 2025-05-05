@@ -310,14 +310,18 @@ void ThreadIsolatedAllocator::SetDefaultPermissionsForSignalHandler() {
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   internal::RwxMemoryWriteScope::SetDefaultPermissionsForSignalHandler();
 #endif
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   // TODO(sroettger): this could move to a more generic
   // SecurityHardwareSupport::SetDefaultPermissionsForSignalHandler.
   internal::SandboxHardwareSupport::SetDefaultPermissionsForSignalHandler();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 }
 
 // static
 void SandboxHardwareSupport::InitializeBeforeThreadCreation() {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   internal::SandboxHardwareSupport::InitializeBeforeThreadCreation();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 }
 
 }  // namespace v8

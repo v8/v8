@@ -11,6 +11,8 @@
 namespace v8 {
 namespace internal {
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
 class V8_EXPORT_PRIVATE SandboxHardwareSupport {
  public:
   // Allocates a pkey that will be used to optionally block sandbox access. This
@@ -32,27 +34,9 @@ class V8_EXPORT_PRIVATE SandboxHardwareSupport {
   // Returns true if hardware sandboxing is enabled.
   static bool IsEnabled();
 
-  class V8_NODISCARD V8_ALLOW_UNUSED BlockAccessScope {
-   public:
-#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-    explicit BlockAccessScope(int pkey);
-    ~BlockAccessScope();
-
-   private:
-    int pkey_;
-#else
-    BlockAccessScope() = default;
-#endif
-  };
-
-  // If V8_ENABLE_SANDBOX_HARDWARE_SUPPORT is enabled, this function will
-  // prevent any access (read or write) to all sandbox memory on the current
-  // thread, as long as the returned Scope object is valid. The only exception
-  // are read-only pages, which will still be readable.
-  static BlockAccessScope MaybeBlockAccess();
-
-  // Removes the pkey from read only pages, so that MaybeBlockAccess will still
-  // allow read access.
+  // Removes the pkey from read only pages. We (currently) still allow read
+  // access to read-only pages inside the sandbox even with an active
+  // DisallowSandboxAccess scope.
   static void NotifyReadOnlyPageCreated(
       Address addr, size_t size, PageAllocator::Permission current_permissions);
 
@@ -61,9 +45,31 @@ class V8_EXPORT_PRIVATE SandboxHardwareSupport {
   static void SetDefaultPermissionsForSignalHandler();
 
  private:
-#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  friend class DisallowSandboxAccess;
   static int pkey_;
-#endif
+};
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
+// Scope object to document and enforce that code does not access in-sandbox
+// data. This provides a certain level of guarantees that code cannot be
+// influenced by (possibly) attacker-controlled data inside the sandbox.
+// In DEBUG builds with sandbox hardware support enabled, this property is
+// enforced at runtime by removing read and write access to the sandbox address
+// space. The only exception are read-only pages, which will still be readable.
+class V8_NODISCARD V8_ALLOW_UNUSED DisallowSandboxAccess {
+ public:
+#if defined(DEBUG) && defined(V8_ENABLE_SANDBOX_HARDWARE_SUPPORT)
+  DisallowSandboxAccess();
+  ~DisallowSandboxAccess();
+
+  // Copying and assigning these scope objects is not allowed as it would not
+  // work correctly.
+  DisallowSandboxAccess(const DisallowSandboxAccess&) = delete;
+  DisallowSandboxAccess& operator=(const DisallowSandboxAccess&) = delete;
+
+ private:
+  int pkey_;
+#endif  // DEBUG && V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 };
 
 }  // namespace internal
