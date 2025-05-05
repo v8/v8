@@ -494,6 +494,16 @@ class MaglevGraphBuilder {
       return v8_flags.max_maglev_inlined_bytecode_size_cumulative;
     }
   }
+  int max_inline_depth() {
+    if (is_turbolev()) {
+      // This is just to avoid some corner cases, especially since we allow
+      // recursive inlining.
+      constexpr int kMaxDepthForInlining = 50;
+      return kMaxDepthForInlining;
+    } else {
+      return v8_flags.max_maglev_inline_depth;
+    }
+  }
 
   DeoptFrame* AddInlinedArgumentsToDeoptFrame(DeoptFrame* deopt_frame,
                                               const MaglevCompilationUnit* unit,
