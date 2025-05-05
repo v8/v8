@@ -1707,6 +1707,10 @@ DEFINE_BOOL(stress_wasm_stack_switching, false,
             "with a regular (non-JSPI) export")
 DEFINE_INT(wasm_stack_switching_stack_size, V8_DEFAULT_STACK_SIZE_KB,
            "default size of stacks for wasm stack-switching (in kB)")
+// 1 will be rounded up to the smallest possible initial stack size, which
+// depends on the stack limit margin and the platform's page size.
+DEFINE_VALUE_IMPLICATION(experimental_wasm_growable_stacks,
+                         wasm_stack_switching_stack_size, 1)
 DEFINE_BOOL(liftoff, true,
             "enable Liftoff, the baseline compiler for WebAssembly")
 DEFINE_BOOL(liftoff_only, false,

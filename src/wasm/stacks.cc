@@ -97,8 +97,19 @@ void StackMemory::Iterate(v8::internal::RootVisitor* v, Isolate* isolate) {
       FullObjectSlot(reinterpret_cast<Address>(&this->current_cont_)));
 }
 
-bool StackMemory::Grow(Address current_fp) {
+bool StackMemory::Grow(Address current_fp, size_t min_size) {
   DCHECK(owned_);
+  while (V8_UNLIKELY(active_segment_->next_segment_ != nullptr &&
+                     active_segment_->next_segment_->size_ < min_size)) {
+    // If the next segment is too small to fit the evicted frame, remove it.
+    StackSegment* to_delete = active_segment_->next_segment_;
+    active_segment_->next_segment_ =
+        active_segment_->next_segment_->next_segment_;
+    if (active_segment_->next_segment_ != nullptr) {
+      active_segment_->next_segment_->prev_segment_ = active_segment_;
+    }
+    delete to_delete;
+  }
   if (active_segment_->next_segment_ != nullptr) {
     active_segment_ = active_segment_->next_segment_;
   } else {
@@ -106,15 +117,17 @@ bool StackMemory::Grow(Address current_fp) {
     auto page_size = allocator->AllocatePageSize();
     const size_t size_limit = RoundUp(v8_flags.stack_size * KB, page_size);
     DCHECK_GE(size_limit, size_);
-    size_t room_to_grow = size_limit - size_;
-    size_t new_size = std::min(2 * active_segment_->size_, room_to_grow);
-    if (new_size < page_size) {
-      // We cannot grow less than page size.
+    size_t room_to_grow = RoundDown(size_limit - size_, page_size);
+    min_size = RoundUp(min_size, page_size);
+    if (room_to_grow < min_size) {
       if (v8_flags.trace_wasm_stack_switching) {
         PrintF("Stack #%d reached the grow limit %zu bytes\n", id_, size_limit);
       }
       return false;
     }
+    size_t new_size =
+        std::clamp(2 * active_segment_->size_, min_size, room_to_grow);
+    DCHECK_EQ(new_size % page_size, 0);
     auto new_segment = new StackSegment(new_size / page_size);
     new_segment->prev_segment_ = active_segment_;
     active_segment_->next_segment_ = new_segment;

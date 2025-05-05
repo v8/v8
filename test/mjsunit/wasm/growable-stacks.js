@@ -3,8 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --experimental-wasm-growable-stacks
-// Flags: --expose-gc --wasm-stack-switching-stack-size=4
-// Flags: --wasm-staging --stack-size=400
+// Flags: --expose-gc --wasm-staging --stack-size=400
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -247,4 +246,18 @@ function growAndShrinkTwice(depth, paramType, constFn, addOp, result, heavy = fa
   let instance = builder.instantiate();
   let wrapper = WebAssembly.promising(instance.exports.test);
   assertThrowsAsync(wrapper(), RangeError, /Maximum call stack size exceeded/);
+})();
+
+// Test growing the stack for a frame larger than the next default segment size.
+(function TestVeryLargeFrame() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let main = builder.addFunction("main", kSig_v_v);
+  main.addLocals(kWasmI64, 8000);
+  main.addBody([
+  ]).exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  WebAssembly.promising(wasm.main)();
 })();
