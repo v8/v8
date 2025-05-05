@@ -2145,7 +2145,8 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
 
   DCHECK(!AreAliased(dispatch_handle, eax));
   movd(xmm0, eax);
-  LoadAddress(eax, ExternalReference::js_dispatch_table_address());
+  CHECK(root_array_available());
+  mov(eax, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   mov(destination, Operand(eax, dispatch_handle, times_1,
                            JSDispatchEntry::kEntrypointOffset));
   movd(eax, xmm0);

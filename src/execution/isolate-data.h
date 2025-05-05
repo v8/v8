@@ -150,6 +150,14 @@ struct JSBuiltinDispatchHandleRoot {
   ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)                                   \
   ISOLATE_DATA_FIELDS_SANDBOX(V)                                               \
   V(ApiCallbackThunkArgument, kSystemPointerSize, api_callback_thunk_argument) \
+  /* Because some architectures have a rather small offset in reg+offset  */   \
+  /* addressing this field should be near the start.                      */   \
+  /* Soon leaptiering will be standard, but in the mean time we already   */   \
+  /* include this field so that the isolate layout is not dependent on    */   \
+  /* an internal ifdef.                                                   */   \
+  /* This would otherwise break node, which has a list of external ifdefs */   \
+  /* in its common.gypi file that does not include V8_ENABLE_LEAPTIERING. */   \
+  V(JSDispatchTable, kSystemPointerSize, js_dispatch_table_base)               \
   V(RegexpExecVectorArgument, kSystemPointerSize, regexp_exec_vector_argument) \
   V(ContinuationPreservedEmbedderData, kSystemPointerSize,                     \
     continuation_preserved_embedder_data)                                      \
@@ -194,6 +202,7 @@ struct JSBuiltinDispatchHandleRoot {
   V(BuiltinDispatchTable,                                                 \
     (JSBuiltinDispatchHandleRoot::kTableSize) * sizeof(JSDispatchHandle), \
     builtin_dispatch_table)
+
 #else
 
 #define ISOLATE_DATA_FIELDS_LEAPTIERING(V)
@@ -211,12 +220,12 @@ constexpr uint8_t kNumIsolateFieldIds = 0
 
 enum class IsolateFieldId : uint8_t {
   kUnknown = 0,
-#define FIELD(name, comment, camel) k##camel,
-  EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(FIELD)
-#undef FIELD
-#define FIELD(camel, ...) k##camel,
-      ISOLATE_DATA_FIELDS(FIELD)
-#undef FIELD
+#define ENUM(name, comment, CamelName) k##CamelName,
+  EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(ENUM)
+#undef ENUM
+#define ENUM(CamelName, ...) k##CamelName,
+      ISOLATE_DATA_FIELDS(ENUM)
+#undef ENUM
 };
 
 // This class contains a collection of data accessible from both C++ runtime
@@ -236,6 +245,10 @@ class IsolateData final {
         trusted_cage_base_(group->GetTrustedPtrComprCageBase()),
         code_pointer_table_base_address_(
             group->code_pointer_table()->base_address())
+#endif
+#if V8_ENABLE_LEAPTIERING_BOOL
+        ,
+        js_dispatch_table_base_(group->js_dispatch_table()->base_address())
 #endif
   {
   }
@@ -287,8 +300,8 @@ class IsolateData final {
     return stack_guard_offset() + StackGuard::real_jslimit_offset();
   }
 
-#define V(Offset, Size, Name) \
-  Address Name##_address() const { return reinterpret_cast<Address>(&Name##_); }
+#define V(CamelName, Size, name) \
+  Address name##_address() const { return reinterpret_cast<Address>(&name##_); }
   ISOLATE_DATA_FIELDS(V)
 #undef V
 
@@ -376,8 +389,8 @@ class IsolateData final {
         return -kIsolateRootBias;
       case IsolateFieldId::kJsLimitAddress:
         return IsolateData::jslimit_offset();
-#define CASE(camel, size, name)  \
-  case IsolateFieldId::k##camel: \
+#define CASE(CamelName, size, name)  \
+  case IsolateFieldId::k##CamelName: \
     return IsolateData::name##_offset();
         ISOLATE_DATA_FIELDS(CASE)
 #undef CASE
@@ -510,6 +523,8 @@ class IsolateData final {
   // This is a storage for an additional argument for the Api callback thunk
   // functions, see InvokeAccessorGetterCallback and InvokeFunctionCallback.
   Address api_callback_thunk_argument_ = kNullAddress;
+
+  Address js_dispatch_table_base_ = kNullAddress;
 
   // Storage for an additional (untagged) argument for
   // Runtime::kRegExpExecInternal2, required since runtime functions only

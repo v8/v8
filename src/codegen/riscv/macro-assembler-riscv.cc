@@ -7654,7 +7654,7 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
   DCHECK(!AreAliased(destination, scratch));
   ASM_CODE_COMMENT(this);
   Register index = destination;
-  li(scratch, ExternalReference::js_dispatch_table_address());
+  Ld(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJsDispatchTable));
 #ifdef V8_TARGET_ARCH_RISCV32
   static_assert(kJSDispatchHandleShift == 0);
   SllWord(index, dispatch_handle, kJSDispatchTableEntrySizeLog2);
@@ -7671,7 +7671,7 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
     Register destination, JSDispatchHandle dispatch_handle, Register scratch) {
   DCHECK(!AreAliased(destination, scratch));
   ASM_CODE_COMMENT(this);
-  li(scratch, ExternalReference::js_dispatch_table_address());
+  Ld(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJsDispatchTable));
   // WARNING: This offset calculation is only safe if we have already stored a
   // RelocInfo for the dispatch handle, e.g. in CallJSDispatchEntry, (thus
   // keeping the dispatch entry alive) _and_ because the entrypoints are not
@@ -7692,7 +7692,7 @@ void MacroAssembler::LoadParameterCountFromJSDispatchTable(
   Register index = destination;
   SrlWord(index, dispatch_handle, kJSDispatchHandleShift);
   SllWord(index, index, kJSDispatchTableEntrySizeLog2);
-  li(scratch, ExternalReference::js_dispatch_table_address());
+  Ld(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJsDispatchTable));
   AddWord(scratch, scratch, index);
   static_assert(JSDispatchEntry::kParameterCountMask == 0xffff);
   Lhu(destination, MemOperand(scratch, JSDispatchEntry::kCodeObjectOffset));
@@ -7704,7 +7704,7 @@ void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
   DCHECK(!AreAliased(entrypoint, parameter_count, scratch));
   ASM_CODE_COMMENT(this);
   Register index = parameter_count;
-  li(scratch, ExternalReference::js_dispatch_table_address());
+  Ld(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJsDispatchTable));
   SrlWord(index, dispatch_handle, kJSDispatchHandleShift);
   SllWord(index, index, kJSDispatchTableEntrySizeLog2);
   AddWord(scratch, scratch, index);

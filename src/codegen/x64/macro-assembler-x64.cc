@@ -711,7 +711,9 @@ void MacroAssembler::LoadCodePointerTableBase(Register destination) {
 void MacroAssembler::LoadEntrypointFromJSDispatchTable(
     Register destination, Register dispatch_handle) {
   DCHECK(!AreAliased(destination, dispatch_handle, kScratchRegister));
-  LoadAddress(kScratchRegister, ExternalReference::js_dispatch_table_address());
+  CHECK(root_array_available());
+  movq(kScratchRegister,
+       ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   movq(destination, dispatch_handle);
   shrl(destination, Immediate(kJSDispatchHandleShift));
   shll(destination, Immediate(kJSDispatchTableEntrySizeLog2));
@@ -722,7 +724,9 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
 void MacroAssembler::LoadEntrypointFromJSDispatchTable(
     Register destination, JSDispatchHandle dispatch_handle) {
   DCHECK(!AreAliased(destination, kScratchRegister));
-  LoadAddress(kScratchRegister, ExternalReference::js_dispatch_table_address());
+  CHECK(root_array_available());
+  movq(kScratchRegister,
+       ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   // WARNING: This offset calculation is only safe if we have already stored a
   // RelocInfo for the dispatch handle, e.g. in CallJSDispatchEntry, (thus
   // keeping the dispatch entry alive) _and_ because the entrypoints are not
@@ -738,7 +742,9 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
 void MacroAssembler::LoadParameterCountFromJSDispatchTable(
     Register destination, Register dispatch_handle) {
   DCHECK(!AreAliased(destination, dispatch_handle, kScratchRegister));
-  LoadAddress(kScratchRegister, ExternalReference::js_dispatch_table_address());
+  CHECK(root_array_available());
+  movq(kScratchRegister,
+       ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   movq(destination, dispatch_handle);
   shrl(destination, Immediate(kJSDispatchHandleShift));
   shll(destination, Immediate(kJSDispatchTableEntrySizeLog2));
@@ -751,7 +757,9 @@ void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
     Register entrypoint, Register parameter_count, Register dispatch_handle) {
   DCHECK(!AreAliased(entrypoint, parameter_count, dispatch_handle,
                      kScratchRegister));
-  LoadAddress(kScratchRegister, ExternalReference::js_dispatch_table_address());
+  CHECK(root_array_available());
+  movq(kScratchRegister,
+       ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   Register offset = parameter_count;
   movq(offset, dispatch_handle);
   shrl(offset, Immediate(kJSDispatchHandleShift));
