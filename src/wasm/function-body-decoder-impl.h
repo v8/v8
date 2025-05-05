@@ -4105,7 +4105,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       this->DecodeError(this->pc_ + 1, "cannot create null string view");
       return 0;
     }
-    ValueType type = ValueType::RefNull(imm.type).AsExactIfProposalEnabled();
+    ValueType type = ValueType::RefNull(imm.type);
+    if (type.has_index()) type = type.AsExactIfEnabled(this->enabled_);
     Value* value = Push(type);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(RefNull, type, value);
     return 1 + imm.length;
@@ -4141,7 +4142,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     const TypeDefinition& type_def = this->module_->type(index);
     Value* value =
         Push(ValueType::Ref(index, type_def.is_shared, RefTypeKind::kFunction)
-                 .AsExactIfProposalEnabled());
+                 .AsExactIfEnabled(this->enabled_));
     CALL_INTERFACE_IF_OK_AND_REACHABLE(RefFunc, imm.index, value);
     return 1 + imm.length;
   }
@@ -5444,8 +5445,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         Value descriptor = PopDescriptor(imm.index);
         PoppedArgVector args = PopArgs(imm.struct_type);
-        Value* value =
-            Push(ValueType::Ref(imm.heap_type()).AsExactIfProposalEnabled());
+        Value* value = Push(
+            ValueType::Ref(imm.heap_type()).AsExactIfEnabled(this->enabled_));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StructNew, imm, descriptor,
                                            args.data(), value);
         return opcode_length + imm.length;
@@ -5466,8 +5467,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           }
         }
         Value descriptor = PopDescriptor(imm.index);
-        Value* value =
-            Push(ValueType::Ref(imm.heap_type()).AsExactIfProposalEnabled());
+        Value* value = Push(
+            ValueType::Ref(imm.heap_type()).AsExactIfEnabled(this->enabled_));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StructNewDefault, imm, descriptor,
                                            value);
         return opcode_length + imm.length;
@@ -5538,8 +5539,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         auto [initial_value, length] =
             Pop(imm.array_type->element_type().Unpacked(), kWasmI32);
-        Value* value =
-            Push(ValueType::Ref(imm.heap_type()).AsExactIfProposalEnabled());
+        Value* value = Push(
+            ValueType::Ref(imm.heap_type()).AsExactIfEnabled(this->enabled_));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayNew, imm, length, initial_value,
                                            value);
         return opcode_length + imm.length;
@@ -5555,8 +5556,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           return 0;
         }
         Value length = Pop(kWasmI32);
-        Value* value =
-            Push(ValueType::Ref(imm.heap_type()).AsExactIfProposalEnabled());
+        Value* value = Push(
+            ValueType::Ref(imm.heap_type()).AsExactIfEnabled(this->enabled_));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayNewDefault, imm, length, value);
         return opcode_length + imm.length;
       }
@@ -5582,8 +5583,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
         auto [offset, length] = Pop(kWasmI32, kWasmI32);
 
-        Value* array = Push(
-            ValueType::Ref(array_imm.heap_type()).AsExactIfProposalEnabled());
+        Value* array = Push(ValueType::Ref(array_imm.heap_type())
+                                .AsExactIfEnabled(this->enabled_));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayNewSegment, array_imm,
                                            data_segment, offset, length, array);
         return opcode_length + array_imm.length + data_segment.length;
@@ -5622,8 +5623,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         }
 
         auto [offset, length] = Pop(kWasmI32, kWasmI32);
-        Value* array = Push(
-            ValueType::Ref(array_imm.heap_type()).AsExactIfProposalEnabled());
+        Value* array = Push(ValueType::Ref(array_imm.heap_type())
+                                .AsExactIfEnabled(this->enabled_));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayNewSegment, array_imm,
                                            elem_segment, offset, length, array);
         return opcode_length + array_imm.length + elem_segment.length;
@@ -5841,8 +5842,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                              element_type.Unpacked());
         FunctionSig element_sig(0, elem_count, element_types.data());
         PoppedArgVector elements = PopArgs(&element_sig);
-        Value* result = Push(
-            ValueType::Ref(array_imm.heap_type()).AsExactIfProposalEnabled());
+        Value* result = Push(ValueType::Ref(array_imm.heap_type())
+                                 .AsExactIfEnabled(this->enabled_));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayNewFixed, array_imm, length_imm,
                                            elements.data(), result);
         return opcode_length + array_imm.length + length_imm.length;

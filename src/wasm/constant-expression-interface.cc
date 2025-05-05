@@ -125,7 +125,7 @@ void ConstantExpressionInterface::RefFunc(FullDecoder* decoder,
   CanonicalValueType type =
       CanonicalValueType::Ref(module_->canonical_type_id(sig_index),
                               function_is_shared, RefTypeKind::kFunction)
-          .AsExactIfProposalEnabled();
+          .AsExactIfEnabled(decoder->enabled_);
   DirectHandle<WasmFuncRef> func_ref =
       WasmTrustedInstanceData::GetOrCreateFuncRef(
           isolate_,
@@ -216,8 +216,9 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
     }
   }
   result->runtime_value = WasmValue(
-      obj, decoder->module_->canonical_type(
-               ValueType::Ref(imm.heap_type()).AsExactIfProposalEnabled()));
+      obj,
+      decoder->module_->canonical_type(
+          ValueType::Ref(imm.heap_type()).AsExactIfEnabled(decoder->enabled_)));
 }
 
 void ConstantExpressionInterface::StringConst(FullDecoder* decoder,
@@ -312,8 +313,9 @@ void ConstantExpressionInterface::StructNewDefault(
   }
 
   result->runtime_value = WasmValue(
-      obj, decoder->module_->canonical_type(
-               ValueType::Ref(imm.heap_type()).AsExactIfProposalEnabled()));
+      obj,
+      decoder->module_->canonical_type(
+          ValueType::Ref(imm.heap_type()).AsExactIfEnabled(decoder->enabled_)));
 }
 
 void ConstantExpressionInterface::ArrayNew(FullDecoder* decoder,
@@ -336,7 +338,7 @@ void ConstantExpressionInterface::ArrayNew(FullDecoder* decoder,
                                         length.runtime_value.to_u32(),
                                         initial_value.runtime_value, rtt),
       decoder->module_->canonical_type(
-          ValueType::Ref(imm.heap_type()).AsExactIfProposalEnabled()));
+          ValueType::Ref(imm.heap_type()).AsExactIfEnabled(decoder->enabled_)));
 }
 
 void ConstantExpressionInterface::ArrayNewDefault(
@@ -363,11 +365,12 @@ void ConstantExpressionInterface::ArrayNewFixed(
   for (size_t i = 0; i < length_imm.index; i++) {
     element_values[i] = elements[i].runtime_value;
   }
-  result->runtime_value = WasmValue(
-      isolate_->factory()->NewWasmArrayFromElements(array_imm.array_type,
-                                                    element_values, rtt),
-      decoder->module_->canonical_type(
-          ValueType::Ref(array_imm.heap_type()).AsExactIfProposalEnabled()));
+  result->runtime_value =
+      WasmValue(isolate_->factory()->NewWasmArrayFromElements(
+                    array_imm.array_type, element_values, rtt),
+                decoder->module_->canonical_type(
+                    ValueType::Ref(array_imm.heap_type())
+                        .AsExactIfEnabled(decoder->enabled_)));
 }
 
 // TODO(14034): These expressions are non-constant for now. There are plans to
@@ -397,7 +400,7 @@ void ConstantExpressionInterface::ArrayNewSegment(
   }
   CanonicalValueType element_type = rtt->wasm_type_info()->element_type();
   CanonicalValueType result_type =
-      rtt->wasm_type_info()->type().AsExactIfProposalEnabled();
+      rtt->wasm_type_info()->type().AsExactIfEnabled(decoder->enabled_);
   if (element_type.is_numeric()) {
     const WasmDataSegment& data_segment =
         module_->data_segments[segment_imm.index];

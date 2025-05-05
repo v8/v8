@@ -30,12 +30,6 @@ FOREACH_NUMERIC_VALUE_TYPE(CHECK_MASK)
 // Check correctness of enum conversions.
 static_assert(0 == ToZeroBasedIndex(NumericKind::kI32));
 
-// Some subtyping-related code relies on none-types having the "is_exact" bit.
-#define CHECK_EXACT(kind, ...) \
-  static_assert(IndependentHeapType{GenericKind::k##kind}.is_exact());
-FOREACH_NONE_TYPE(CHECK_EXACT)
-#undef CHECK_EXACT
-
 }  // namespace value_type_impl
 
 static_assert(kWasmBottom.is_bottom());

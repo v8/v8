@@ -425,7 +425,7 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     VALID_SUBTYPE(refC(45), refC(45));
     NOT_VALID_SUBTYPE(refC(45), refC(44));
 
-    INTERSECTION(refF(11), refC(44), kWasmBottom);  // Just checking ...
+    INTERSECTION(refF(11), refC(44), kWasmBottom);
 
     INTERSECTION(refNullC(44), refNullC(45), kWasmNullContRef);
     INTERSECTION(refNullC(44), kWasmContRef, refNullC(44));
@@ -581,6 +581,11 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     INTERSECTION(refF(11), refF(11).AsExact(), refF(11).AsExact());
     UNION(refNullS(0), refNullS(0).AsExact(), refNullS(0));
     INTERSECTION(refNullS(0), refNullS(0).AsExact(), refNullS(0).AsExact());
+    UNION(kWasmNullFuncRef, refF(11).AsExact(), refNullF(11).AsExact());
+    INTERSECTION(kWasmNullFuncRef, refF(11).AsExact(), kWasmBottom);
+    UNION(refF(11).AsExact(), refNullF(11).AsExact(), refNullF(11).AsExact());
+    INTERSECTION(refF(11).AsExact(), refNullF(11).AsExact(),
+                 refF(11).AsExact());
 
     // Abstract types vs abstract types.
     UNION(kWasmEqRef, kWasmStructRef, kWasmEqRef);
@@ -776,6 +781,10 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     UNION_M(refNullS(4), refS(1), refNullS(1), module1);
     INTERSECTION_M(refNullS(4), refS(1), refS(4), module1);
     INTERSECTION_M(refNullS(1), refNullS(4), refNullS(4), module);
+    INTERSECTION(refS(0), refS(1), refS(1));
+    INTERSECTION(refS(0).AsExact(), refS(1), kWasmBottom);
+    INTERSECTION(refS(0), refS(1).AsExact(), refS(1).AsExact());
+    INTERSECTION(refS(0).AsExact(), refS(1).AsExact(), kWasmBottom);
     // Common ancestor.
     UNION_M(refS(4), refS(31), refS(1), module1);
     INTERSECTION(refS(4), refS(31), kWasmBottom);
