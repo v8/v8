@@ -5048,8 +5048,8 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
 
   Register index = destination;
   CHECK(root_array_available());
-  LoadU64(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable,
-                                              scratch));
+  LoadU64(scratch,
+          ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   ShiftRightU64(index, dispatch_handle, Operand(kJSDispatchHandleShift));
   ShiftLeftU64(index, index, Operand(kJSDispatchTableEntrySizeLog2));
   AddS64(scratch, scratch, index);
