@@ -869,6 +869,8 @@ TEST_F(HeapTest, PrecisePinningFullGCDoesntMoveOldObjectReachableFromHandles) {
   v8_flags.manual_evacuation_candidates_selection = true;
   ManualGCScope manual_gc_scope(isolate());
 
+  SimulateFullSpace(isolate()->heap()->old_space());
+
   v8::HandleScope handle_scope(reinterpret_cast<v8::Isolate*>(isolate()));
   IndirectHandle<HeapObject> number =
       isolate()->factory()->NewHeapNumber<AllocationType::kOld>(42);
@@ -949,6 +951,8 @@ TEST_F(HeapTest,
   v8_flags.manual_evacuation_candidates_selection = true;
   v8_flags.compact_with_stack = true;
   ManualGCScope manual_gc_scope(isolate());
+
+  SimulateFullSpace(isolate()->heap()->old_space());
 
   ConservativePinningScope conservative_pinning_scope(isolate()->heap());
 
