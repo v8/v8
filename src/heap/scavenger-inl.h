@@ -22,6 +22,7 @@
 #include "src/objects/objects-body-descriptors-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots-inl.h"
+#include "src/roots/roots-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -168,20 +169,31 @@ SlotCallbackResult Scavenger::RememberedSetEntryNeeded(
 
 bool Scavenger::HandleLargeObject(Tagged<Map> map, Tagged<HeapObject> object,
                                   int object_size, ObjectFields object_fields) {
-  if (MemoryChunk::FromHeapObject(object)->InNewLargeObjectSpace()) {
-    DCHECK_EQ(NEW_LO_SPACE,
-              MutablePageMetadata::FromHeapObject(object)->owner_identity());
-    if (object->relaxed_compare_and_swap_map_word_forwarded(
-            MapWord::FromMap(map), object)) {
-      local_surviving_new_large_objects_.insert({object, map});
-      promoted_size_ += object_size;
-      if (object_fields == ObjectFields::kMaybePointers) {
-        local_promoted_list_.Push({object, map, object_size});
-      }
-    }
-    return true;
+  // Quick check first: A large object is the first (and only) object on a data
+  // page (code pages have a different offset but are never young). This check
+  // avoids the page flag access.
+  if (MemoryChunk::AddressToOffset(object.address()) !=
+      MemoryChunkLayout::ObjectStartOffsetInDataPage()) {
+    return false;
   }
-  return false;
+
+  // Most objects are already filtered out. Use page flags to filter out regular
+  // objects at the beginning of a page.
+  if (!MemoryChunk::FromHeapObject(object)->InNewLargeObjectSpace()) {
+    return false;
+  }
+
+  DCHECK_EQ(NEW_LO_SPACE,
+            MutablePageMetadata::FromHeapObject(object)->owner_identity());
+  if (object->relaxed_compare_and_swap_map_word_forwarded(MapWord::FromMap(map),
+                                                          object)) {
+    local_surviving_new_large_objects_.insert({object, map});
+    promoted_size_ += object_size;
+    if (object_fields == ObjectFields::kMaybePointers) {
+      local_promoted_list_.Push({object, map, object_size});
+    }
+  }
+  return true;
 }
 
 template <typename THeapObjectSlot,

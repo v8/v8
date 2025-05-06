@@ -1077,6 +1077,8 @@ void ScavengerCollector::HandleSurvivingNewLargeObjects() {
     object->set_map_word(map, kRelaxedStore);
 
     LargePageMetadata* page = LargePageMetadata::FromHeapObject(object);
+    SBXCHECK(page->IsLargePage());
+    SBXCHECK_EQ(page->owner_identity(), NEW_LO_SPACE);
     heap_->lo_space()->PromoteNewLargeObject(page);
   }
   surviving_new_large_objects_.clear();
