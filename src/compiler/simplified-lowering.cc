@@ -1799,10 +1799,10 @@ class RepresentationSelector {
   template <Phase T>
   void VisitSpeculativeAdditiveOp(Node* node, Truncation truncation,
                                   SimplifiedLowering* lowering) {
-    if (GetUpperBound(node).Is(Type::Signed32()) ||
-        GetUpperBound(node).Is(Type::Unsigned32()) ||
-        truncation.IsUsedAsWord32()) {
-      if (BothInputsAre(node, type_cache_->kAdditiveSafeIntegerOrMinusZero)) {
+    if (BothInputsAre(node, Type::Signed32())) {
+      if (GetUpperBound(node).Is(Type::Signed32()) ||
+          GetUpperBound(node).Is(Type::Unsigned32()) ||
+          truncation.IsUsedAsWord32()) {
         // => Int32Add/Sub
         VisitBinop<T>(node, UseInfo::TruncatingWord32(),
                       MachineRepresentation::kWord32);
@@ -1810,7 +1810,16 @@ class RepresentationSelector {
         return;
       }
 
-      if (CanSpeculateAdditiveSafeInteger(node)) {
+      // => AdditiveSafeIntegerAdd/Sub
+      VisitBinop<T>(node, UseInfo::CheckedSafeIntAsWord64(FeedbackSource{}),
+                    MachineRepresentation::kWord64,
+                    type_cache_->kAdditiveSafeInteger);
+      if (lower<T>()) ChangeOp(node, AdditiveSafeIntegerOverflowOp(node));
+      return;
+    }
+
+    if (CanSpeculateAdditiveSafeInteger(node)) {
+      if (!truncation.IsUnused() && truncation.IsUsedAsWord32()) {
         // This case handles addition where the result might be truncated to
         // word32. Even if the inputs might be larger than 2^32, we can safely
         // perform 32-bit addition *here* if the inputs are in the additive safe
@@ -1824,7 +1833,7 @@ class RepresentationSelector {
         if (lower<T>()) ChangeToPureOp(node, Int32Op(node));
         return;
       }
-    } else if (CanSpeculateAdditiveSafeInteger(node)) {
+
       // => AdditiveSafeIntegerAdd/Sub
       VisitBinop<T>(node, UseInfo::CheckedSafeIntAsWord64(FeedbackSource{}),
                     MachineRepresentation::kWord64,
