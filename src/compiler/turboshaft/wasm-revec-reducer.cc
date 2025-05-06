@@ -91,7 +91,12 @@ class StoreLoadInfo {
     }
 
     if (const ChangeOp* change_op = index_->TryCast<ChangeOp>()) {
-      DCHECK_EQ(change_op->kind, ChangeOp::Kind::kZeroExtend);
+      if (change_op->kind != ChangeOp::Kind::kZeroExtend) {
+        TRACE("ChangeOp kind not supported for revectorization\n");
+        SetInvalid();
+        return;
+      }
+
       index_ = &graph->Get(change_op->input());
       // If index_ is constant, add the constant to offset_ and set index_ to
       // nullptr
