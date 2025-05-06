@@ -249,6 +249,12 @@ String16 descriptionForRegExp(v8::Isolate* isolate,
   return description.toString();
 }
 
+v8::Local<v8::Function> deepBoundFunction(v8::Local<v8::Function> function) {
+  while (function->GetBoundFunction()->IsFunction())
+    function = function->GetBoundFunction().As<v8::Function>();
+  return function;
+}
+
 // Build a description from an exception using the following pattern:
 //   * The first line is "<name || constructor name>: <message property>". We
 //     use the constructor name if the "name" property is "Error". Most custom
@@ -1587,7 +1593,8 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
           }
           isAccessorProperty = getterMirror || setterMirror;
           if (name != "__proto__" && !getterFunction.IsEmpty() &&
-              getterFunction->ScriptId() == v8::UnboundScript::kNoScriptId &&
+              deepBoundFunction(getterFunction)->ScriptId() ==
+                  v8::UnboundScript::kNoScriptId &&
               !doesAttributeHaveObservableSideEffectOnGet(context, object,
                                                           v8Name)) {
             v8::TryCatch tryCatchFunction(isolate);
