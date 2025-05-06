@@ -526,6 +526,10 @@ class MemoryContentTable
 
     if (all_keys_.size() > kMaxKeys) {
       TRACE(">> Bailing out because too many keys");
+      if (V8_UNLIKELY(v8_flags.trace_turbo_bailouts)) {
+        std::cout
+            << "Bailing out in Late Load Elimination because of kMaxKeys [1]\n";
+      }
       return;
     }
 
@@ -551,6 +555,10 @@ class MemoryContentTable
 
     if (all_keys_.size() > kMaxKeys) {
       TRACE(">> Bailing out because too many keys");
+      if (V8_UNLIKELY(v8_flags.trace_turbo_bailouts)) {
+        std::cout
+            << "Bailing out in Late Load Elimination because of kMaxKeys [2]\n";
+      }
       return;
     }
 

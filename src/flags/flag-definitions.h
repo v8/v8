@@ -1262,6 +1262,7 @@ DEFINE_STRING(trace_turbo_cfg_file, nullptr,
 DEFINE_BOOL(trace_turbo_types, true, "trace TurboFan's types")
 DEFINE_BOOL(trace_turbo_scheduler, false, "trace TurboFan's scheduler")
 DEFINE_BOOL(trace_turbo_reduction, false, "trace TurboFan's various reducers")
+DEFINE_BOOL(trace_turbo_bailouts, false, "trace TurboFan's various bailouts")
 #ifdef V8_ENABLE_SLOW_TRACING
 #define DEFINE_SLOW_TRACING_BOOL DEFINE_BOOL
 #else
