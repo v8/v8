@@ -744,8 +744,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return jsval;
   }
 
-  void BuildJSToWasmWrapper(Node* frame_state = nullptr,
-                            bool set_in_wasm_flag = true) {
+  void BuildJSToWasmWrapper(Node* frame_state, bool set_in_wasm_flag,
+                            bool receiver_is_first_param) {
     const int wasm_param_count =
         static_cast<int>(wrapper_sig_->parameter_count());
 
@@ -787,14 +787,17 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // Prepare Param() nodes. Param() nodes can only be created once,
     // so we need to use the same nodes along all possible transformation paths.
     base::SmallVector<Node*, 16> params(args_count);
-    for (int i = 0; i < wasm_param_count; ++i) params[i + 1] = Param(i + 1);
+    const int param_offset = receiver_is_first_param ? 0 : 1;
+    for (int i = 0; i < wasm_param_count; ++i) {
+      params[i] = Param(i + param_offset);
+    }
 
     auto done = gasm_->MakeLabel(MachineRepresentation::kTagged);
     // Convert JS parameters to wasm numbers using the default transformation
     // and build the call.
     base::SmallVector<Node*, 16> args(args_count);
     for (int i = 0; i < wasm_param_count; ++i) {
-      Node* wasm_param = params[i + 1];
+      Node* wasm_param = params[i];
 
       // For Float32 parameters
       // we set UseInfo::CheckedNumberOrOddballAsFloat64 in
@@ -1110,11 +1113,13 @@ void BuildInlinedJSToWasmWrapper(Zone* zone, MachineGraph* mcgraph,
                                  const wasm::CanonicalSig* signature,
                                  Isolate* isolate,
                                  compiler::SourcePositionTable* spt,
-                                 Node* frame_state, bool set_in_wasm_flag) {
+                                 Node* frame_state, bool set_in_wasm_flag,
+                                 bool receiver_is_first_param) {
   WasmWrapperGraphBuilder builder(zone, mcgraph, signature,
                                   WasmGraphBuilder::kJSFunctionAbiMode, isolate,
                                   spt);
-  builder.BuildJSToWasmWrapper(frame_state, set_in_wasm_flag);
+  builder.BuildJSToWasmWrapper(frame_state, set_in_wasm_flag,
+                               receiver_is_first_param);
 }
 
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(

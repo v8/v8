@@ -509,9 +509,10 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
     // inlining later in Turboshaft.
     bool set_in_wasm_flag = !(inline_result.can_inline_body ||
                               v8_flags.turboshaft_wasm_in_js_inlining);
+    bool receiver_is_first_param = wasm_call_params.receiver_is_first_param();
     BuildInlinedJSToWasmWrapper(graph()->zone(), jsgraph(), sig, isolate(),
                                 source_positions_, continuation_frame_state,
-                                set_in_wasm_flag);
+                                set_in_wasm_flag, receiver_is_first_param);
 
     // Extract the inlinee start/end nodes.
     wrapper_start_node = graph()->start();

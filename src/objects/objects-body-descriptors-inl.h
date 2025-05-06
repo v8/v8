@@ -1209,7 +1209,7 @@ class WasmStruct::BodyDescriptor final : public BodyDescriptorBase {
     const wasm::CanonicalStructType* type = WasmStruct::GcSafeType(map);
     if (type->is_descriptor()) {
       // The associated Map is stored where the first field would otherwise be.
-      DCHECK_NE(type->field_offset(0), 0);
+      DCHECK(type->field_count() == 0 || type->field_offset(0) != 0);
       v->VisitPointer(wasm_struct, wasm_struct->RawField(0));
     }
     for (uint32_t i = 0; i < type->field_count(); i++) {
