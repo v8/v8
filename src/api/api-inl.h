@@ -11,9 +11,11 @@
 #include "include/v8-fast-api-calls.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/microtask-queue.h"
+#include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/logging/runtime-call-stats.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/objects-inl.h"
 
@@ -176,6 +178,11 @@ class V8_NODISCARD CallDepthScope {
 
     if (do_callback) isolate_->FireBeforeCallEnteredCallback();
   }
+  explicit CallDepthScope(i::Isolate* isolate) : isolate_(isolate) {
+    isolate_->thread_local_top()->IncrementCallDepth<do_callback>(this);
+
+    if (do_callback) isolate_->FireBeforeCallEnteredCallback();
+  }
   ~CallDepthScope() {
     i::MicrotaskQueue* microtask_queue =
         i::Cast<i::NativeContext>(isolate_->context())
@@ -203,7 +210,7 @@ class V8_NODISCARD CallDepthScope {
     DCHECK(CheckKeptObjectsClearedAfterMicrotaskCheckpoint(microtask_queue));
 #endif
 
-    isolate_->set_context(*saved_context_);
+    if (!saved_context_.is_null()) isolate_->set_context(*saved_context_);
   }
 
   CallDepthScope(const CallDepthScope&) = delete;
@@ -258,6 +265,115 @@ class V8_NODISCARD InternalEscapableScope : public EscapableHandleScopeBase {
     if (!maybe_value.ToLocal(&value)) return maybe_value;
     return Escape(value);
   }
+};
+
+// Most API methods should use one of the following three classes:
+// EnterV8Scope, EnterV8ScopeNoScriptScope, EnterV8NoScriptNoExceptionScope
+//
+// The latter two assume that no script is executed, and no exceptions are
+// scheduled in addition (respectively). Creating an exception and
+// removing it before returning is ok.
+template <typename HandleScopeClass, bool do_callback>
+class V8_NODISCARD EnterV8InternalScope {
+ public:
+  EnterV8InternalScope(i::Isolate* i_isolate, Local<Context> context,
+                       i::RuntimeCallCounterId rcc_id)
+      : handle_scope_{i_isolate},
+        call_depth_scope_{i_isolate, context},
+#ifdef V8_RUNTIME_CALL_STATS
+        rcs_scope_{i_isolate, rcc_id},
+#endif  // V8_RUNTIME_CALL_STATS
+        vm_state_{i_isolate} {
+    DCHECK(!i_isolate->is_execution_terminating());
+    DCHECK_EQ(i_isolate, i::Isolate::TryGetCurrent());
+  }
+
+  EnterV8InternalScope(i::Isolate* i_isolate, i::RuntimeCallCounterId rcc_id)
+      : handle_scope_{i_isolate},
+        call_depth_scope_{i_isolate},
+#ifdef V8_RUNTIME_CALL_STATS
+        rcs_scope_{i_isolate, rcc_id},
+#endif  // V8_RUNTIME_CALL_STATS
+        vm_state_{i_isolate} {
+    DCHECK(!i_isolate->is_execution_terminating());
+    DCHECK_EQ(i_isolate, i::Isolate::TryGetCurrent());
+  }
+
+  template <typename T>
+    requires requires(Local<T> v, HandleScopeClass hs) { hs.Escape(v); }
+  V8_INLINE Local<T> Escape(Local<T> value) {
+    return handle_scope_.Escape(value);
+  }
+
+ private:
+  HandleScopeClass handle_scope_;
+  CallDepthScope<do_callback> call_depth_scope_;
+#ifdef V8_RUNTIME_CALL_STATS
+  i::RuntimeCallTimerScope rcs_scope_;
+#endif  // V8_RUNTIME_CALL_STATS
+  i::VMState<v8::OTHER> vm_state_;
+};
+
+template <typename HandleScopeClass = i::HandleScope>
+class V8_NODISCARD EnterV8Scope
+    : public EnterV8InternalScope<HandleScopeClass, true> {
+ public:
+  template <typename... Args>
+  explicit EnterV8Scope(Args... args)
+      : EnterV8InternalScope<HandleScopeClass, true>{args...} {}
+};
+
+template <typename HandleScopeClass = i::HandleScope>
+class V8_NODISCARD EnterV8NoScriptScope
+    : public EnterV8InternalScope<HandleScopeClass, false> {
+ public:
+  template <typename... Args>
+  EnterV8NoScriptScope(i::Isolate* i_isolate, Args... args)
+      : EnterV8InternalScope<HandleScopeClass, false>{i_isolate, args...},
+        no_script_scope_{i_isolate} {}
+
+ private:
+  V8_NO_UNIQUE_ADDRESS i::DisallowJavascriptExecutionDebugOnly no_script_scope_;
+};
+
+class V8_NODISCARD EnterV8NoScriptNoExceptionScope {
+ public:
+  explicit EnterV8NoScriptNoExceptionScope(i::Isolate* i_isolate)
+      : vm_state_{i_isolate},
+        no_script_scope_{i_isolate},
+        no_exceptions_scope_{i_isolate} {}
+
+ private:
+  i::VMState<v8::OTHER> vm_state_;
+  V8_NO_UNIQUE_ADDRESS i::DisallowJavascriptExecutionDebugOnly no_script_scope_;
+  V8_NO_UNIQUE_ADDRESS i::DisallowExceptionsDebugOnly no_exceptions_scope_;
+};
+
+class V8_NODISCARD PrepareForExecutionScope
+    : public EnterV8InternalScope<InternalEscapableScope, false> {
+ public:
+  PrepareForExecutionScope(Local<Context> context,
+                           i::RuntimeCallCounterId rcc_id)
+      : PrepareForExecutionScope{
+            reinterpret_cast<i::Isolate*>(context->GetIsolate()), context,
+            rcc_id} {}
+
+  PrepareForExecutionScope(i::Isolate* i_isolate, Local<Context> context,
+                           i::RuntimeCallCounterId rcc_id)
+      : EnterV8InternalScope<InternalEscapableScope,
+                             false>{ClearInternalException(i_isolate), context,
+                                    rcc_id},
+        i_isolate_{i_isolate} {}
+
+  i::Isolate* i_isolate() const { return i_isolate_; }
+
+ private:
+  static i::Isolate* ClearInternalException(i::Isolate* i_isolate) {
+    i_isolate->clear_internal_exception();
+    return i_isolate;
+  }
+
+  i::Isolate* const i_isolate_;
 };
 
 template <typename T>

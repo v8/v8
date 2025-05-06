@@ -828,6 +828,8 @@ class WorkerThreadRuntimeCallStatsScope {
   RuntimeCallStats* Get() const { return nullptr; }
 };
 
+enum class RuntimeCallCounterId { kUnused };
+
 #endif  // RUNTIME_CALL_STATS
 
 }  // namespace internal
