@@ -35,6 +35,7 @@ enum ImmediateMode {
   kLoadStoreImm16,
   kLoadStoreImm32,
   kLoadStoreImm64,
+  kLoadStoreImm128,
   kConditionalCompareImm,
   kNoImmediate
 };
@@ -153,6 +154,8 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT {
         return IsLoadStoreImmediate(value, 2);
       case kLoadStoreImm64:
         return IsLoadStoreImmediate(value, 3);
+      case kLoadStoreImm128:
+        return IsLoadStoreImmediate(value, 4);
       case kNoImmediate:
         return false;
       case kConditionalCompareImm:
@@ -866,7 +869,7 @@ std::tuple<InstructionCode, ImmediateMode> GetStoreOpcodeAndImmediate(
       return {kArm64StrEncodeSandboxedPointer, kLoadStoreImm64};
     case MemoryRepresentation::Simd128():
       CHECK(!paired);
-      return {kArm64StrQ, kNoImmediate};
+      return {kArm64StrQ, kLoadStoreImm128};
     case MemoryRepresentation::Simd256():
       UNREACHABLE();
   }
@@ -1177,7 +1180,7 @@ std::tuple<InstructionCode, ImmediateMode> GetLoadOpcodeAndImmediate(
     case MemoryRepresentation::SandboxedPointer():
       return {kArm64LdrDecodeSandboxedPointer, kLoadStoreImm64};
     case MemoryRepresentation::Simd128():
-      return {kArm64LdrQ, kNoImmediate};
+      return {kArm64LdrQ, kLoadStoreImm128};
     case MemoryRepresentation::Simd256():
       UNREACHABLE();
   }
@@ -1231,7 +1234,7 @@ std::tuple<InstructionCode, ImmediateMode> GetLoadOpcodeAndImmediate(
     case MachineRepresentation::kSandboxedPointer:
       return {kArm64LdrDecodeSandboxedPointer, kLoadStoreImm64};
     case MachineRepresentation::kSimd128:
-      return {kArm64LdrQ, kNoImmediate};
+      return {kArm64LdrQ, kLoadStoreImm128};
     case MachineRepresentation::kSimd256:  // Fall through.
     case MachineRepresentation::kMapWord:  // Fall through.
     case MachineRepresentation::kIndirectPointer:  // Fall through.
