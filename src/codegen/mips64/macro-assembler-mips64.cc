@@ -4937,7 +4937,7 @@ void MacroAssembler::LoadParameterCountFromJSDispatchTable(
 
   // MSARegister index = MSARegister::from_code(destination.code());
   Register index = destination;
-  Ld(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJsDispatchTable));
+  Ld(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   dsrl(index, dispatch_handle, kJSDispatchHandleShift);
   dsll(destination, index, kJSDispatchTableEntrySizeLog2);
   Daddu(scratch, scratch, destination);
@@ -4953,7 +4953,7 @@ void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
 
   // MSARegister index = MSARegister::from_code(parameter_count.code());
   Register index = parameter_count;
-  Ld(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJsDispatchTable));
+  Ld(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   dsrl(index, dispatch_handle, kJSDispatchHandleShift);
   dsll(parameter_count, index, kJSDispatchTableEntrySizeLog2);
   Daddu(scratch, scratch, parameter_count);

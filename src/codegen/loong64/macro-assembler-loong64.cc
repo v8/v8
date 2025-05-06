@@ -419,7 +419,7 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
   ASM_CODE_COMMENT(this);
 
   Register index = destination;
-  Ld_d(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJsDispatchTable));
+  Ld_d(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   srli_d(index, dispatch_handle, kJSDispatchHandleShift);
   slli_d(destination, index, kJSDispatchTableEntrySizeLog2);
   Add_d(scratch, scratch, destination);
@@ -431,7 +431,7 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
   DCHECK(!AreAliased(destination, scratch));
   ASM_CODE_COMMENT(this);
 
-  Ld_d(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJsDispatchTable));
+  Ld_d(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   // WARNING: This offset calculation is only safe if we have already stored a
   // RelocInfo for the dispatch handle, e.g. in CallJSDispatchEntry, (thus
   // keeping the dispatch entry alive) _and_ because the entrypoints are not
@@ -450,7 +450,7 @@ void MacroAssembler::LoadParameterCountFromJSDispatchTable(
   ASM_CODE_COMMENT(this);
 
   Register index = destination;
-  Ld_d(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJsDispatchTable));
+  Ld_d(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   srli_d(index, dispatch_handle, kJSDispatchHandleShift);
   slli_d(destination, index, kJSDispatchTableEntrySizeLog2);
   Add_d(scratch, scratch, destination);
@@ -465,7 +465,7 @@ void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
   ASM_CODE_COMMENT(this);
 
   Register index = parameter_count;
-  Ld_d(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJsDispatchTable));
+  Ld_d(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   srli_d(index, dispatch_handle, kJSDispatchHandleShift);
   slli_d(parameter_count, index, kJSDispatchTableEntrySizeLog2);
   Add_d(scratch, scratch, parameter_count);
