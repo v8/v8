@@ -404,7 +404,7 @@ bool TryGetOptimizedOsrCode(Isolate* isolate, Tagged<FeedbackVector> vector,
                             const interpreter::BytecodeArrayIterator& it,
                             Tagged<Code>* code_out) {
   std::optional<Tagged<Code>> maybe_code =
-      vector->GetOptimizedOsrCode(isolate, it.GetSlotOperand(2));
+      vector->GetOptimizedOsrCode(isolate, {}, it.GetSlotOperand(2));
   if (maybe_code.has_value()) {
     *code_out = maybe_code.value();
     return true;
@@ -412,17 +412,12 @@ bool TryGetOptimizedOsrCode(Isolate* isolate, Tagged<FeedbackVector> vector,
   return false;
 }
 
-// Deoptimize all osr'd loops which is in the same outermost loop with deopt
-// exit. For example:
-//  for (;;) {
-//    for (;;) {
-//    }  // Type a: loop start < OSR backedge < deopt exit
-//    for (;;) {
-//      <- Deopt
-//      for (;;) {
-//      }  // Type b: deopt exit < loop start < OSR backedge
-//    } // Type c: loop start < deopt exit < OSR backedge
-//  }  // The outermost loop
+// Deoptimize all osr'd loops which contain a particular deopt exit.
+// We only deoptimize OSR code if the exit is inside the actual loop. The OSR
+// code might still be affected (if the exit is after the loop, or in the case
+// of turbofan if the exit is before the loop, but reachable through an outer
+// loop). Regardless in both of these two cases, the OSR code is still usable to
+// quickly get out of the loop itself.
 void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate,
                                          Tagged<JSFunction> function,
                                          BytecodeOffset deopt_exit_offset) {
@@ -438,74 +433,40 @@ void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate,
   DCHECK(interpreter::BytecodeArrayIterator::IsValidOffset(
       bytecode_array, deopt_exit_offset.ToInt()));
 
-  interpreter::BytecodeArrayIterator it(bytecode_array,
-                                        deopt_exit_offset.ToInt());
+  interpreter::BytecodeArrayIterator it(bytecode_array);
 
   Tagged<FeedbackVector> vector = function->feedback_vector();
   Tagged<Code> code;
   base::SmallVector<Tagged<Code>, 8> osr_codes;
-  // Visit before the first loop-with-deopt is found
+
+  bool has_maglev_code = false;
+  bool has_turbofan_code = false;
   for (; !it.done(); it.Advance()) {
     // We're only interested in loop ranges.
     if (it.current_bytecode() != interpreter::Bytecode::kJumpLoop) continue;
-    // Is the deopt exit contained in the current loop?
-    if (base::IsInRange(deopt_exit_offset.ToInt(), it.GetJumpTargetOffset(),
-                        it.current_offset())) {
-      break;
-    }
-    // We've reached nesting level 0, i.e. the current JumpLoop concludes a
-    // top-level loop, return as the deopt exit is not in any loop. For example:
-    //  <- Deopt
-    //  for (;;) {
-    //  } // The outermost loop
-    const int loop_nesting_level = it.GetImmediateOperand(1);
-    if (loop_nesting_level == 0) return;
-    if (TryGetOptimizedOsrCode(isolate, vector, it, &code)) {
-      // Collect type b osr'd loops
-      osr_codes.push_back(code);
+    bool has_osr_code = TryGetOptimizedOsrCode(isolate, vector, it, &code);
+    if (has_osr_code) {
+      has_turbofan_code |= code->is_turbofanned();
+      has_maglev_code |= code->is_maglevved();
+      bool exit_in_loop =
+          base::IsInRange(deopt_exit_offset.ToInt(), it.GetJumpTargetOffset(),
+                          it.current_offset());
+      if (exit_in_loop) {
+        osr_codes.push_back(code);
+      }
     }
   }
-  if (it.done()) return;
   for (size_t i = 0, size = osr_codes.size(); i < size; i++) {
-    // Deoptimize type b osr'd loops
     Deoptimizer::DeoptimizeFunction(function, LazyDeoptimizeReason::kEagerDeopt,
                                     osr_codes[i]);
   }
-  // Visit after the first loop-with-deopt is found
-  int last_deopt_in_range_loop_jump_target;
-  for (; !it.done(); it.Advance()) {
-    // We're only interested in loop ranges.
-    if (it.current_bytecode() != interpreter::Bytecode::kJumpLoop) continue;
-    // We've reached a new nesting loop in the case of the deopt exit is in a
-    // loop whose outermost loop was removed. For example:
-    //  for (;;) {
-    //    <- Deopt
-    //  } // The non-outermost loop
-    //  for (;;) {
-    //  } // The outermost loop
-    if (it.GetJumpTargetOffset() > deopt_exit_offset.ToInt()) break;
-    last_deopt_in_range_loop_jump_target = it.GetJumpTargetOffset();
-    if (TryGetOptimizedOsrCode(isolate, vector, it, &code)) {
-      // Deoptimize type c osr'd loops
-      Deoptimizer::DeoptimizeFunction(function,
-                                      LazyDeoptimizeReason::kEagerDeopt, code);
-    }
-    // We've reached nesting level 0, i.e. the current JumpLoop concludes a
-    // top-level loop.
-    const int loop_nesting_level = it.GetImmediateOperand(1);
-    if (loop_nesting_level == 0) break;
+  if (!has_maglev_code) {
+    function->feedback_vector()->set_maybe_has_optimized_osr_code(
+        false, CodeKind::MAGLEV);
   }
-  if (it.done()) return;
-  // Revisit from start of the last deopt in range loop to deopt
-  for (it.SetOffset(last_deopt_in_range_loop_jump_target);
-       it.current_offset() < deopt_exit_offset.ToInt(); it.Advance()) {
-    // We're only interested in loop ranges.
-    if (it.current_bytecode() != interpreter::Bytecode::kJumpLoop) continue;
-    if (TryGetOptimizedOsrCode(isolate, vector, it, &code)) {
-      // Deoptimize type a osr'd loops
-      Deoptimizer::DeoptimizeFunction(function,
-                                      LazyDeoptimizeReason::kEagerDeopt, code);
-    }
+  if (!has_turbofan_code) {
+    function->feedback_vector()->set_maybe_has_optimized_osr_code(
+        false, CodeKind::TURBOFAN_JS);
   }
 }
 

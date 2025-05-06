@@ -276,7 +276,7 @@ void FeedbackVector::set_maybe_has_turbofan_code(bool value) {
 #endif  // V8_ENABLE_LEAPTIERING
 
 std::optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(
-    Isolate* isolate, FeedbackSlot slot) {
+    Isolate* isolate, Handle<BytecodeArray> bytecode, FeedbackSlot slot) {
   Tagged<MaybeObject> maybe_code = Get(isolate, slot);
   if (maybe_code.IsCleared()) return {};
 
@@ -286,10 +286,31 @@ std::optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(
     // Clear the cached Code object if deoptimized.
     // TODO(jgruber): Add tracing.
     Set(slot, ClearedValue(isolate));
+    if (!bytecode.is_null()) {
+      RecomputeOptimizedOsrCodeFlags(isolate, bytecode);
+    }
     return {};
   }
 
   return code;
+}
+
+void FeedbackVector::RecomputeOptimizedOsrCodeFlags(
+    Isolate* isolate, Handle<BytecodeArray> bytecode_array) {
+  interpreter::BytecodeArrayIterator it(bytecode_array);
+
+  bool turbofan = false;
+  bool maglev = false;
+  for (; !it.done(); it.Advance()) {
+    if (it.current_bytecode() != interpreter::Bytecode::kJumpLoop) continue;
+    if (auto code = GetOptimizedOsrCode(isolate, {}, it.GetSlotOperand(2))) {
+      if ((*code)->marked_for_deoptimization()) continue;
+      turbofan |= (*code)->is_turbofanned();
+      maglev |= (*code)->is_maglevved();
+    }
+  }
+  if (!maglev) set_maybe_has_optimized_osr_code(false, CodeKind::MAGLEV);
+  if (!turbofan) set_maybe_has_optimized_osr_code(false, CodeKind::TURBOFAN_JS);
 }
 
 // Conversion from an integer index to either a slot or an ic slot.

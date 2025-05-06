@@ -998,7 +998,8 @@ class OptimizedCodeCache : public AllStatic {
       // Bytecode may be different, so make sure we're at a valid OSR entry.
       SBXCHECK(it.CurrentBytecodeIsValidOSREntry());
       std::optional<Tagged<Code>> maybe_code =
-          feedback_vector->GetOptimizedOsrCode(isolate, it.GetSlotOperand(2));
+          feedback_vector->GetOptimizedOsrCode(isolate, bytecode,
+                                               it.GetSlotOperand(2));
       if (maybe_code.has_value()) code = maybe_code.value();
     } else {
 #ifdef V8_ENABLE_LEAPTIERING
