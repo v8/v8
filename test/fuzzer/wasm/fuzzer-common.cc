@@ -409,6 +409,11 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
       // See https://crbug.com/335082212.
       v8_flags.wasm_inlining_call_indirect = true;
 
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+      // Fuzz revectorization, which is otherwise still considered experimental.
+      v8_flags.experimental_wasm_revectorize = true;
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+
       // Enforce implications from enabling features.
       FlagList::EnforceFlagImplications();
 
