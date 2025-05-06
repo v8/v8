@@ -298,7 +298,7 @@ class EscapeAnalysisTracker : public ZoneObject {
 
  private:
   friend class EscapeAnalysisResult;
-  static constexpr int kTrackingBudget = 600;
+  static constexpr int kTrackingBudget = 1300;
 
   VirtualObject* NewVirtualObject(int size) {
     if (number_of_tracked_bytes_ + size >= kTrackingBudget) {
