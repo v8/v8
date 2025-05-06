@@ -14648,8 +14648,8 @@ void CodeStubAssembler::BigInt64Comparison(Operation op, TNode<Object>& left,
 TNode<Boolean> CodeStubAssembler::RelationalComparison(
     Operation op, TNode<Object> left, TNode<Object> right,
     const LazyNode<Context>& context, TVariable<Smi>* var_type_feedback) {
-  Label return_true(this), return_false(this), do_float_comparison(this),
-      end(this);
+  Label return_true(this), number_vs_undefined(this), return_false(this),
+      do_float_comparison(this), end(this);
   TVARIABLE(Boolean, var_result);
   TVARIABLE(Float64T, var_left_float);
   TVARIABLE(Float64T, var_right_float);
@@ -14684,6 +14684,7 @@ TNode<Boolean> CodeStubAssembler::RelationalComparison(
       GotoIf(TaggedIsSmi(right), &if_right_smi);
       TNode<Map> right_map = LoadMap(CAST(right));
       GotoIf(IsHeapNumberMap(right_map), &if_right_heapnumber);
+      GotoIf(TaggedEqual(right, UndefinedConstant()), &number_vs_undefined);
       TNode<Uint16T> right_instance_type = LoadMapInstanceType(right_map);
       Branch(IsBigIntInstanceType(right_instance_type), &if_right_bigint,
              &if_right_not_numeric);
@@ -14828,6 +14829,7 @@ TNode<Boolean> CodeStubAssembler::RelationalComparison(
               if_right_bigint(this, Label::kDeferred),
               if_right_not_numeric(this, Label::kDeferred);
           GotoIf(TaggedEqual(right_map, left_map), &if_right_heapnumber);
+          GotoIf(TaggedEqual(right, UndefinedConstant()), &number_vs_undefined);
           TNode<Uint16T> right_instance_type = LoadMapInstanceType(right_map);
           Branch(IsBigIntInstanceType(right_instance_type), &if_right_bigint,
                  &if_right_not_numeric);
@@ -15014,21 +15016,39 @@ TNode<Boolean> CodeStubAssembler::RelationalComparison(
             // Collect NumberOrOddball feedback if {left} is an Oddball
             // and {right} is either a HeapNumber or Oddball. Otherwise collect
             // Any feedback.
-            Label collect_any_feedback(this), collect_oddball_feedback(this),
-                collect_feedback_done(this);
+            Label collect_any_feedback(this),
+                collect_oddball_number_feedback(this),
+                collect_oddball_feedback(this), collect_feedback_done(this);
             GotoIfNot(InstanceTypeEqual(left_instance_type, ODDBALL_TYPE),
                       &collect_any_feedback);
 
-            GotoIf(IsHeapNumberMap(right_map), &collect_oddball_feedback);
+            GotoIf(IsHeapNumberMap(right_map),
+                   &collect_oddball_number_feedback);
             TNode<Uint16T> right_instance_type = LoadMapInstanceType(right_map);
             Branch(InstanceTypeEqual(right_instance_type, ODDBALL_TYPE),
                    &collect_oddball_feedback, &collect_any_feedback);
 
-            BIND(&collect_oddball_feedback);
+            BIND(&collect_oddball_number_feedback);
             {
               CombineFeedback(var_type_feedback,
                               CompareOperationFeedback::kNumberOrOddball);
+              // Undefined compared to a number is always false.
+              GotoIf(TaggedEqual(left, UndefinedConstant()), &return_false);
               Goto(&collect_feedback_done);
+            }
+
+            BIND(&collect_oddball_feedback);
+            {
+              CombineFeedback(var_type_feedback,
+                              CompareOperationFeedback::kOddball);
+              // If we know both are oddballs we can shortcut equality checks.
+              if (op == Operation::kEqual || op == Operation::kStrictEqual) {
+                Branch(TaggedEqual(left, right), &return_true, &return_false);
+              } else {
+                GotoIf(TaggedEqual(left, UndefinedConstant()), &return_false);
+                GotoIf(TaggedEqual(right, UndefinedConstant()), &return_false);
+                Goto(&collect_feedback_done);
+              }
             }
 
             BIND(&collect_any_feedback);
@@ -15090,6 +15110,13 @@ TNode<Boolean> CodeStubAssembler::RelationalComparison(
       default:
         UNREACHABLE();
     }
+  }
+
+  BIND(&number_vs_undefined);
+  {
+    CombineFeedback(var_type_feedback,
+                    CompareOperationFeedback::kNumberOrOddball);
+    Goto(&return_false);
   }
 
   BIND(&return_true);
