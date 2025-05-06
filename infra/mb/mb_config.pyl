@@ -80,6 +80,8 @@
       'V8 Linux64 - shared - builder': 'release_x64_shared_verify_heap',
       'V8 Linux64 - verify csa - builder': 'release_x64_verify_csa',
       'V8 Linux64 - no wasm - builder': 'release_x64_webassembly_disabled',
+      'V8 Linux64 - PKU - debug builder': 'debug_x64_sandbox_hardware_support',
+      'V8 Linux64 - PKU - builder': 'release_x64_sandbox_hardware_support',
       # Windows.
       'V8 Win - arm64 - debug builder': 'debug_arm64',
       'V8 Win32 - builder': 'release_x86_minimal_symbols',
