@@ -759,7 +759,7 @@ namespace {
 
 void JSObjectPrintHeader(std::ostream& os, Tagged<JSObject> obj,
                          const char* id) {
-  Isolate* isolate = obj->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   obj->PrintHeader(os, id);
   // Don't call GetElementsKind, its validation code can cause the printer to
   // fail when debugging.

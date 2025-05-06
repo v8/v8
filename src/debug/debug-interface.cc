@@ -123,7 +123,7 @@ Local<String> GetBigIntDescription(Isolate* isolate, Local<BigInt> bigint) {
 Local<String> GetDateDescription(Local<Date> date) {
   auto receiver = Utils::OpenDirectHandle(*date);
   auto jsdate = i::Cast<i::JSDate>(receiver);
-  i::Isolate* i_isolate = jsdate->GetIsolate();
+  i::Isolate* i_isolate = i::Isolate::Current();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   auto buffer = i::ToDateString(jsdate->value(), i_isolate->date_cache(),
                                 i::ToDateStringMode::kLocalDateAndTime);
@@ -134,7 +134,7 @@ Local<String> GetDateDescription(Local<Date> date) {
 
 Local<String> GetFunctionDescription(Local<Function> function) {
   auto receiver = Utils::OpenHandle(*function);
-  auto i_isolate = receiver->GetIsolate();
+  auto i_isolate = i::Isolate::Current();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   if (IsJSBoundFunction(*receiver)) {
     return Utils::ToLocal(i::JSBoundFunction::ToString(
@@ -226,7 +226,7 @@ void ForEachContextLocal(i::Isolate* isolate,
 bool GetPrivateMembers(Local<Context> context, Local<Object> object, int filter,
                        LocalVector<Value>* names_out,
                        LocalVector<Value>* values_out) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  i::Isolate* isolate = i::Isolate::Current();
   API_RCS_SCOPE(isolate, debug, GetPrivateMembers);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
 
@@ -505,7 +505,7 @@ int Script::EndLine() const {
   if (!IsString(script->source())) {
     return script->line_offset();
   }
-  i::Isolate* isolate = script->GetIsolate();
+  i::Isolate* isolate = i::Isolate::Current();
   i::HandleScope scope(isolate);
   i::Script::PositionInfo info;
   i::Script::GetPositionInfo(
@@ -523,7 +523,7 @@ int Script::EndColumn() const {
   if (!IsString(script->source())) {
     return script->column_offset();
   }
-  i::Isolate* isolate = script->GetIsolate();
+  i::Isolate* isolate = i::Isolate::Current();
   i::HandleScope scope(isolate);
   i::Script::PositionInfo info;
   i::Script::GetPositionInfo(
@@ -533,7 +533,7 @@ int Script::EndColumn() const {
 
 MaybeLocal<String> Script::Name() const {
   auto script = Utils::OpenDirectHandle(this);
-  i::Isolate* isolate = script->GetIsolate();
+  i::Isolate* isolate = i::Isolate::Current();
   i::DirectHandle<i::Object> value(script->name(), isolate);
   if (!IsString(*value)) return MaybeLocal<String>();
   return Utils::ToLocal(i::Cast<i::String>(value));
@@ -541,7 +541,7 @@ MaybeLocal<String> Script::Name() const {
 
 MaybeLocal<String> Script::SourceURL() const {
   auto script = Utils::OpenDirectHandle(this);
-  i::Isolate* isolate = script->GetIsolate();
+  i::Isolate* isolate = i::Isolate::Current();
   i::DirectHandle<i::PrimitiveHeapObject> value(script->source_url(), isolate);
   if (!IsString(*value)) return MaybeLocal<String>();
   return Utils::ToLocal(i::Cast<i::String>(value));
@@ -549,7 +549,7 @@ MaybeLocal<String> Script::SourceURL() const {
 
 MaybeLocal<String> Script::SourceMappingURL() const {
   auto script = Utils::OpenDirectHandle(this);
-  i::Isolate* isolate = script->GetIsolate();
+  i::Isolate* isolate = i::Isolate::Current();
   i::DirectHandle<i::Object> value(script->source_mapping_url(), isolate);
   if (!IsString(*value)) return MaybeLocal<String>();
   return Utils::ToLocal(i::Cast<i::String>(value));
@@ -557,7 +557,7 @@ MaybeLocal<String> Script::SourceMappingURL() const {
 
 MaybeLocal<String> Script::DebugId() const {
   auto script = Utils::OpenDirectHandle(this);
-  i::Isolate* isolate = script->GetIsolate();
+  i::Isolate* isolate = i::Isolate::Current();
   i::DirectHandle<i::Object> value(script->debug_id(), isolate);
   if (!IsString(*value)) return MaybeLocal<String>();
   return Utils::ToLocal(i::Cast<i::String>(value));
@@ -565,7 +565,7 @@ MaybeLocal<String> Script::DebugId() const {
 
 MaybeLocal<String> Script::GetSha256Hash() const {
   i::DirectHandle<i::Script> script = Utils::OpenDirectHandle(this);
-  i::Isolate* isolate = script->GetIsolate();
+  i::Isolate* isolate = i::Isolate::Current();
   i::DirectHandle<i::String> value =
       i::Script::GetScriptHash(isolate, script, /* forceForInspector: */ true);
   return Utils::ToLocal(value);
@@ -580,7 +580,7 @@ Maybe<int> Script::ContextId() const {
 
 Local<ScriptSource> Script::Source() const {
   auto script = Utils::OpenDirectHandle(this);
-  i::Isolate* isolate = script->GetIsolate();
+  i::Isolate* isolate = i::Isolate::Current();
 #if V8_ENABLE_WEBASSEMBLY
   if (script->type() == i::Script::Type::kWasm) {
     i::DirectHandle<i::Object> wasm_native_module(
@@ -628,7 +628,7 @@ bool Script::GetPossibleBreakpoints(
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  i::Isolate* isolate = script->GetIsolate();
+  i::Isolate* isolate = i::Isolate::Current();
 
   int start_offset, end_offset;
   if (!GetSourceOffset(start, GetSourceOffsetMode::kClamp).To(&start_offset)) {
@@ -737,7 +737,7 @@ bool Script::SetScriptSource(Local<String> newSource, bool preview,
                              bool allow_top_frame_live_editing,
                              LiveEditResult* result) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
-  i::Isolate* isolate = script->GetIsolate();
+  i::Isolate* isolate = i::Isolate::Current();
   return isolate->debug()->SetScriptSource(
       script, Utils::OpenHandle(*newSource), preview,
       allow_top_frame_live_editing, result);
@@ -746,7 +746,7 @@ bool Script::SetScriptSource(Local<String> newSource, bool preview,
 bool Script::SetBreakpoint(Local<String> condition, Location* location,
                            BreakpointId* id) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
-  i::Isolate* isolate = script->GetIsolate();
+  i::Isolate* isolate = i::Isolate::Current();
   int offset;
   if (!GetSourceOffset(*location).To(&offset)) {
     return false;
@@ -761,7 +761,7 @@ bool Script::SetBreakpoint(Local<String> condition, Location* location,
 
 bool Script::SetInstrumentationBreakpoint(BreakpointId* id) const {
   i::DirectHandle<i::Script> script = Utils::OpenDirectHandle(this);
-  i::Isolate* isolate = script->GetIsolate();
+  i::Isolate* isolate = i::Isolate::Current();
 #if V8_ENABLE_WEBASSEMBLY
   if (script->type() == i::Script::Type::kWasm) {
     isolate->debug()->SetInstrumentationBreakpointForWasmScript(script, id);
@@ -783,7 +783,7 @@ bool Script::SetInstrumentationBreakpoint(BreakpointId* id) const {
 #if V8_ENABLE_WEBASSEMBLY
 void Script::RemoveWasmBreakpoint(BreakpointId id) {
   i::DirectHandle<i::Script> script = Utils::OpenDirectHandle(this);
-  i::Isolate* isolate = script->GetIsolate();
+  i::Isolate* isolate = i::Isolate::Current();
   isolate->debug()->RemoveBreakpointForWasmScript(script, id);
 }
 #endif  //  V8_ENABLE_WEBASSEMBLY
@@ -1092,7 +1092,7 @@ bool WasmValueObject::IsWasmValueObject(Local<Value> that) {
 
 Local<String> WasmValueObject::type() const {
   auto object = i::Cast<i::WasmValueObject>(Utils::OpenDirectHandle(this));
-  i::Isolate* isolate = object->GetIsolate();
+  i::Isolate* isolate = i::Isolate::Current();
   i::DirectHandle<i::String> type(object->type(), isolate);
   return Utils::ToLocal(type);
 }
@@ -1156,7 +1156,7 @@ MaybeLocal<Script> GeneratorObject::Script() {
   auto obj = Utils::OpenDirectHandle(this);
   i::Tagged<i::Object> maybe_script = obj->function()->shared()->script();
   if (!IsScript(maybe_script)) return {};
-  i::Isolate* isolate = obj->GetIsolate();
+  i::Isolate* isolate = i::Isolate::Current();
   i::DirectHandle<i::Script> script(i::Cast<i::Script>(maybe_script), isolate);
   return ToApiHandle<v8::debug::Script>(script);
 }
@@ -1171,7 +1171,7 @@ Location GeneratorObject::SuspendedLocation() {
   CHECK(obj->is_suspended());
   i::Tagged<i::Object> maybe_script = obj->function()->shared()->script();
   if (!IsScript(maybe_script)) return Location();
-  i::Isolate* isolate = obj->GetIsolate();
+  i::Isolate* isolate = i::Isolate::Current();
   i::DirectHandle<i::Script> script(i::Cast<i::Script>(maybe_script), isolate);
   i::Script::PositionInfo info;
   i::SharedFunctionInfo::EnsureSourcePositionsAvailable(
@@ -1193,7 +1193,7 @@ MaybeLocal<Value> CallFunctionOn(Local<Context> context,
                                  Local<Function> function, Local<Value> recv,
                                  base::Vector<Local<Value>> args,
                                  bool throw_on_side_effect) {
-  auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  auto isolate = i::Isolate::Current();
   PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(isolate, context, Value);
   auto self = Utils::OpenHandle(*function);
   auto recv_obj = Utils::OpenHandle(*recv);
@@ -1234,7 +1234,7 @@ MaybeLocal<v8::Value> EvaluateGlobal(v8::Isolate* isolate,
 void GlobalLexicalScopeNames(v8::Local<v8::Context> v8_context,
                              std::vector<v8::Global<v8::String>>* names) {
   auto context = Utils::OpenDirectHandle(*v8_context);
-  i::Isolate* isolate = context->GetIsolate();
+  i::Isolate* isolate = i::Isolate::Current();
   i::DirectHandle<i::ScriptContextTable> table(
       context->native_context()->script_context_table(), isolate);
   for (int i = 0; i < table->length(kAcquireLoad); i++) {
@@ -1265,7 +1265,7 @@ int GetDebuggingId(v8::Local<v8::Function> function) {
   auto callable = v8::Utils::OpenDirectHandle(*function);
   if (!IsJSFunction(*callable)) return i::DebugInfo::kNoDebuggingId;
   auto func = i::Cast<i::JSFunction>(callable);
-  int id = func->GetIsolate()->debug()->GetFunctionDebuggingId(func);
+  int id = i::Isolate::Current()->debug()->GetFunctionDebuggingId(func);
   DCHECK_NE(i::DebugInfo::kNoDebuggingId, id);
   return id;
 }
@@ -1275,7 +1275,7 @@ bool SetFunctionBreakpoint(v8::Local<v8::Function> function,
   auto callable = Utils::OpenDirectHandle(*function);
   if (!IsJSFunction(*callable)) return false;
   auto jsfunction = i::Cast<i::JSFunction>(callable);
-  i::Isolate* isolate = jsfunction->GetIsolate();
+  i::Isolate* isolate = i::Isolate::Current();
   i::DirectHandle<i::String> condition_string =
       condition.IsEmpty()
           ? i::DirectHandle<i::String>(isolate->factory()->empty_string())
@@ -1402,14 +1402,14 @@ EphemeronTable* EphemeronTable::Cast(v8::Value* value) {
 
 Local<Value> AccessorPair::getter() {
   auto accessors = Utils::OpenDirectHandle(this);
-  i::Isolate* isolate = accessors->GetIsolate();
+  i::Isolate* isolate = i::Isolate::Current();
   i::DirectHandle<i::Object> getter(accessors->getter(), isolate);
   return Utils::ToLocal(getter);
 }
 
 Local<Value> AccessorPair::setter() {
   auto accessors = Utils::OpenDirectHandle(this);
-  i::Isolate* isolate = accessors->GetIsolate();
+  i::Isolate* isolate = i::Isolate::Current();
   i::DirectHandle<i::Object> setter(accessors->setter(), isolate);
   return Utils::ToLocal(setter);
 }
@@ -1420,7 +1420,7 @@ bool AccessorPair::IsAccessorPair(Local<Value> that) {
 
 MaybeLocal<Message> GetMessageFromPromise(Local<Promise> p) {
   i::DirectHandle<i::JSPromise> promise = Utils::OpenDirectHandle(*p);
-  i::Isolate* isolate = promise->GetIsolate();
+  i::Isolate* isolate = i::Isolate::Current();
 
   i::DirectHandle<i::Symbol> key =
       isolate->factory()->promise_debug_message_symbol();

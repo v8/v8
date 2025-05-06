@@ -168,7 +168,7 @@ MaybeDirectHandle<JSRegExp> JSRegExp::New(Isolate* isolate,
 MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(
     DirectHandle<JSRegExp> regexp, DirectHandle<String> source,
     DirectHandle<String> flags_string) {
-  Isolate* isolate = regexp->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   std::optional<Flags> flags = JSRegExp::FlagsFromString(isolate, flags_string);
   if (!flags.has_value() ||
       !RegExp::VerifyFlags(JSRegExp::AsRegExpFlags(flags.value()))) {
@@ -329,7 +329,7 @@ MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(DirectHandle<JSRegExp> regexp,
                                                  DirectHandle<String> source,
                                                  Flags flags,
                                                  uint32_t backtrack_limit) {
-  Isolate* isolate = regexp->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   Factory* factory = isolate->factory();
   // If source is the empty string we set it to "(?:)" instead as
   // suggested by ECMA-262, 5th, section 15.10.4.1.

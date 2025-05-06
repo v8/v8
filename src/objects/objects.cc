@@ -1457,7 +1457,7 @@ bool Object::ToInt32(Tagged<Object> obj, int32_t* value) {
 // static
 MaybeDirectHandle<JSPrototype> JSProxy::GetPrototype(
     DirectHandle<JSProxy> proxy) {
-  Isolate* isolate = proxy->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   DirectHandle<String> trap_name = isolate->factory()->getPrototypeOf_string();
 
   STACK_CHECK(isolate, {});
@@ -1650,7 +1650,7 @@ Maybe<bool> Object::SetPropertyWithAccessor(
 
 MaybeHandle<JSAny> Object::GetPropertyWithDefinedGetter(
     DirectHandle<JSAny> receiver, DirectHandle<JSReceiver> getter) {
-  Isolate* isolate = getter->GetIsolate();
+  Isolate* isolate = Isolate::Current();
 
   // Platforms with simulators like arm/arm64 expose a funny issue. If the
   // simulator has a separate JS stack pointer from the C++ stack pointer, it
@@ -1672,7 +1672,7 @@ MaybeHandle<JSAny> Object::GetPropertyWithDefinedGetter(
 Maybe<bool> Object::SetPropertyWithDefinedSetter(
     DirectHandle<JSAny> receiver, DirectHandle<JSReceiver> setter,
     DirectHandle<Object> value, Maybe<ShouldThrow> should_throw) {
-  Isolate* isolate = setter->GetIsolate();
+  Isolate* isolate = Isolate::Current();
 
   DirectHandle<Object> args[] = {value};
   RETURN_ON_EXCEPTION_VALUE(
@@ -1838,7 +1838,7 @@ bool Object::IterationHasObservableEffects(Tagged<Object> obj) {
   auto initial_array_prototype = native_context->initial_array_prototype();
   if (initial_array_prototype != array_proto) return true;
 
-  Isolate* isolate = array->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   // Check that the ArrayPrototype hasn't been modified in a way that would
   // affect iteration.
   if (!Protectors::IsArrayIteratorLookupChainIntact(isolate)) return true;
@@ -2864,7 +2864,7 @@ int AccessorInfo::AppendUnique(Isolate* isolate,
 }
 
 void JSProxy::Revoke(DirectHandle<JSProxy> proxy) {
-  Isolate* isolate = proxy->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   // ES#sec-proxy-revocation-functions
   if (!proxy->IsRevoked()) {
     // 5. Set p.[[ProxyTarget]] to null.
@@ -2877,7 +2877,7 @@ void JSProxy::Revoke(DirectHandle<JSProxy> proxy) {
 
 // static
 Maybe<bool> JSProxy::IsArray(DirectHandle<JSProxy> proxy) {
-  Isolate* isolate = proxy->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   DirectHandle<JSReceiver> object = Cast<JSReceiver>(proxy);
   for (int i = 0; i < JSProxy::kMaxIterationLimit; i++) {
     proxy = Cast<JSProxy>(object);
@@ -2976,7 +2976,7 @@ Maybe<bool> JSProxy::SetProperty(DirectHandle<JSProxy> proxy,
                                  DirectHandle<JSAny> receiver,
                                  Maybe<ShouldThrow> should_throw) {
   DCHECK(!name->IsPrivate());
-  Isolate* isolate = proxy->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   STACK_CHECK(isolate, Nothing<bool>());
   Factory* factory = isolate->factory();
   DirectHandle<String> trap_name = factory->set_string();
@@ -3028,7 +3028,7 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(DirectHandle<JSProxy> proxy,
   DCHECK(!name->IsPrivate());
   ShouldThrow should_throw =
       is_sloppy(language_mode) ? kDontThrow : kThrowOnError;
-  Isolate* isolate = proxy->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   STACK_CHECK(isolate, Nothing<bool>());
   Factory* factory = isolate->factory();
   DirectHandle<String> trap_name = factory->deleteProperty_string();
@@ -3631,7 +3631,7 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
 
 Maybe<bool> JSProxy::PreventExtensions(DirectHandle<JSProxy> proxy,
                                        ShouldThrow should_throw) {
-  Isolate* isolate = proxy->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   STACK_CHECK(isolate, Nothing<bool>());
   Factory* factory = isolate->factory();
   DirectHandle<String> trap_name = factory->preventExtensions_string();
@@ -3676,7 +3676,7 @@ Maybe<bool> JSProxy::PreventExtensions(DirectHandle<JSProxy> proxy,
 }
 
 Maybe<bool> JSProxy::IsExtensible(DirectHandle<JSProxy> proxy) {
-  Isolate* isolate = proxy->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   STACK_CHECK(isolate, Nothing<bool>());
   Factory* factory = isolate->factory();
   DirectHandle<String> trap_name = factory->isExtensible_string();
@@ -4432,7 +4432,7 @@ bool Script::ContainsAsmModule() {
 
 void Script::TraceScriptRundown() {
   DisallowGarbageCollection no_gc;
-  Isolate* isolate = this->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   Tagged<Object> context_value = isolate->native_context()->debug_context_id();
   int contextId = (IsSmi(context_value)) ? Smi::ToInt(context_value) : 0;
   auto value = v8::tracing::TracedValue::Create();
@@ -4461,7 +4461,7 @@ void Script::TraceScriptRundown() {
 
 void Script::TraceScriptRundownSources() {
   DisallowGarbageCollection no_gc;
-  Isolate* isolate = this->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   if (!IsString(this->source())) return;
   Tagged<String> source = Cast<String>(this->source());
   auto script_id = this->id();
@@ -4996,7 +4996,7 @@ bool JSArray::HasReadOnlyLength(DirectHandle<JSArray> array) {
   if (!MayHaveReadOnlyLength(map)) return false;
 
   // Look at the object.
-  Isolate* isolate = array->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   LookupIterator it(isolate, array, isolate->factory()->length_string(), array,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   CHECK_EQ(LookupIterator::ACCESSOR, it.state());
@@ -5047,7 +5047,7 @@ const char* JSPromise::Status(v8::Promise::PromiseState status) {
 // static
 Handle<Object> JSPromise::Fulfill(DirectHandle<JSPromise> promise,
                                   DirectHandle<Object> value) {
-  Isolate* const isolate = promise->GetIsolate();
+  Isolate* const isolate = Isolate::Current();
 
 #ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
   if (isolate->HasContextPromiseHooks()) {
@@ -5099,7 +5099,7 @@ static void MoveMessageToPromise(Isolate* isolate,
 Handle<Object> JSPromise::Reject(DirectHandle<JSPromise> promise,
                                  DirectHandle<Object> reason,
                                  bool debug_event) {
-  Isolate* const isolate = promise->GetIsolate();
+  Isolate* const isolate = Isolate::Current();
   DCHECK(
       !reinterpret_cast<v8::Isolate*>(isolate)->GetCurrentContext().IsEmpty());
 
@@ -5138,7 +5138,7 @@ Handle<Object> JSPromise::Reject(DirectHandle<JSPromise> promise,
 // static
 MaybeHandle<Object> JSPromise::Resolve(DirectHandle<JSPromise> promise,
                                        DirectHandle<Object> resolution_obj) {
-  Isolate* const isolate = promise->GetIsolate();
+  Isolate* const isolate = Isolate::Current();
   DCHECK(
       !reinterpret_cast<v8::Isolate*>(isolate)->GetCurrentContext().IsEmpty());
 
@@ -6384,7 +6384,7 @@ bool JSWeakCollection::Delete(DirectHandle<JSWeakCollection> weak_collection,
 
 DirectHandle<JSArray> JSWeakCollection::GetEntries(
     DirectHandle<JSWeakCollection> holder, int max_entries) {
-  Isolate* isolate = holder->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   DirectHandle<EphemeronHashTable> table(
       Cast<EphemeronHashTable>(holder->table()), isolate);
   if (max_entries == 0 || max_entries > table->NumberOfElements()) {

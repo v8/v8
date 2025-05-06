@@ -241,7 +241,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
                                InitializationFlag* init_flag,
                                VariableMode* variable_mode,
                                bool* is_sloppy_function_name) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::Current();
 
   bool follow_context_chain = (flags & FOLLOW_CONTEXT_CHAIN) != 0;
   bool has_seen_debug_evaluate_context = false;
@@ -761,7 +761,7 @@ static_assert(NativeContext::kSize ==
 void NativeContext::RunPromiseHook(PromiseHookType type,
                                    DirectHandle<JSPromise> promise,
                                    DirectHandle<Object> parent) {
-  Isolate* isolate = promise->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   DCHECK(isolate->HasContextPromiseHooks());
   int contextSlot;
 

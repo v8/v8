@@ -465,7 +465,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
 void Deoptimizer::DeoptimizeFunction(Tagged<JSFunction> function,
                                      LazyDeoptimizeReason reason,
                                      Tagged<Code> code) {
-  Isolate* isolate = function->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");

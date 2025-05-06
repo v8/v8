@@ -517,7 +517,7 @@ MaybeHandle<JSObject> ApiNatives::InstantiateObject(
 
 MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
     DirectHandle<ObjectTemplateInfo> data) {
-  Isolate* isolate = data->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   InvokeScope invoke_scope(isolate);
 
   DirectHandle<FunctionTemplateInfo> constructor(

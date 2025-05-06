@@ -935,7 +935,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     DirectHandle<JSFunction> target;
     Node* target_node;
     Node* receiver_node;
-    Isolate* isolate = callable->GetIsolate();
+    Isolate* isolate = Isolate::Current();
     if (IsJSBoundFunction(*callable)) {
       target = direct_handle(
           Cast<JSFunction>(

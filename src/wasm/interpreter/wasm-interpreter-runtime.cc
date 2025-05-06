@@ -359,7 +359,7 @@ void WasmInterpreterRuntime::InitGlobalAddressCache() {
 // static
 void WasmInterpreterRuntime::UpdateMemoryAddress(
     DirectHandle<WasmInstanceObject> instance) {
-  Isolate* isolate = instance->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   DirectHandle<Tuple2> interpreter_object =
       WasmTrustedInstanceData::GetOrCreateInterpreterObject(instance);
   InterpreterHandle* handle =

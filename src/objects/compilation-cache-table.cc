@@ -46,7 +46,7 @@ void AddToFeedbackCellsMap(DirectHandle<CompilationCacheTable> cache,
                            InternalIndex cache_entry,
                            DirectHandle<Context> native_context,
                            DirectHandle<FeedbackCell> feedback_cell) {
-  Isolate* isolate = native_context->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   DCHECK(IsNativeContext(*native_context));
   static_assert(kLiteralEntryLength == 2);
   DirectHandle<WeakFixedArray> new_literals_map;
@@ -464,7 +464,7 @@ InfoCellPair CompilationCacheTable::LookupEval(
     DirectHandle<NativeContext> native_context, LanguageMode language_mode,
     int position) {
   InfoCellPair empty_result;
-  Isolate* isolate = native_context->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   src = String::Flatten(isolate, src);
 
   EvalCacheKey key(src, outer_info, language_mode, position);
@@ -564,7 +564,7 @@ void CompilationCacheTable::UpdateEval(
     DirectHandle<NativeContext> native_context,
     DirectHandle<FeedbackCell> feedback_cell, LanguageMode language_mode,
     int position) {
-  Isolate* isolate = native_context->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   src = String::Flatten(isolate, src);
 
   EvalCacheKey key(src, outer_info, language_mode, position);
@@ -583,7 +583,7 @@ DirectHandle<CompilationCacheTable> CompilationCacheTable::PutEval(
     DirectHandle<SharedFunctionInfo> value,
     DirectHandle<NativeContext> native_context,
     DirectHandle<FeedbackCell> feedback_cell, int position) {
-  Isolate* isolate = native_context->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   src = String::Flatten(isolate, src);
   EvalCacheKey key(src, outer_info, value->language_mode(), position);
 

@@ -4072,7 +4072,7 @@ class TypedElementsAccessor
                                         Tagged<JSTypedArray> destination,
                                         size_t length, size_t offset) {
     if (IsBigIntTypedArrayElementsKind(Kind)) return false;
-    Isolate* isolate = source->GetIsolate();
+    Isolate* isolate = Isolate::Current();
     DisallowGarbageCollection no_gc;
     DisallowJavascriptExecution no_js(isolate);
 
@@ -4172,7 +4172,7 @@ class TypedElementsAccessor
   static Tagged<Object> CopyElementsHandleSlow(
       DirectHandle<JSAny> source, DirectHandle<JSTypedArray> destination,
       size_t length, size_t offset) {
-    Isolate* isolate = destination->GetIsolate();
+    Isolate* isolate = Isolate::Current();
     // 8. Let k be 0.
     // 9. Repeat, while k < srcLength,
     for (size_t i = 0; i < length; i++) {

@@ -5563,7 +5563,7 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC s2s_Throw(const uint8_t* code, uint32_t* sp,
                                      WasmInterpreterRuntime* wasm_runtime,
                                      int64_t r0, double fp0) {
-    Isolate* isolate = wasm_runtime->GetIsolate();
+    Isolate* isolate = Isolate::Current();
     {
       HandleScope handle_scope(isolate);  // Avoid leaking handles.
 
@@ -6096,7 +6096,7 @@ class Handlers : public HandlersBase {
     Address field_addr = (*struct_obj).ptr() + offset;
     // DrumBrake expects pointer compression.
     Tagged_t ref_tagged = base::ReadUnalignedValue<uint32_t>(field_addr);
-    Isolate* isolate = wasm_runtime->GetIsolate();
+    Isolate* isolate = Isolate::Current();
     Tagged<Object> ref_uncompressed(
         V8HeapCompressionScheme::DecompressTagged(ref_tagged));
     WasmRef ref_handle = handle(ref_uncompressed, isolate);

@@ -263,7 +263,7 @@ void JSObject::EnsureCanContainElements(Isolate* isolate,
 void JSObject::SetMapAndElements(DirectHandle<JSObject> object,
                                  DirectHandle<Map> new_map,
                                  DirectHandle<FixedArrayBase> value) {
-  Isolate* isolate = object->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   JSObject::MigrateToMap(isolate, object, new_map);
   DCHECK((object->map()->has_fast_smi_or_object_elements() ||
           (*value == ReadOnlyRoots(isolate).empty_fixed_array()) ||

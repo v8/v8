@@ -2049,7 +2049,7 @@ WASM_EXPORT auto Global::get() const -> Val {
             store->i_isolate()));
       }
       if (IsWasmNull(*result)) {
-        result = v8_global->GetIsolate()->factory()->null_value();
+        result = i::Isolate::Current()->factory()->null_value();
       }
       return Val(V8RefValueToWasm(store, result));
     }

@@ -646,7 +646,7 @@ DirectHandle<String> JSReceiver::GetConstructorName(
 // static
 MaybeDirectHandle<NativeContext> JSReceiver::GetFunctionRealm(
     DirectHandle<JSReceiver> receiver) {
-  Isolate* isolate = receiver->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   // This is implemented as a loop because it's possible to construct very
   // long chains of bound functions or proxies where a recursive implementation
   // would run out of stack space.
@@ -687,7 +687,7 @@ MaybeDirectHandle<NativeContext> JSReceiver::GetFunctionRealm(
 // static
 MaybeHandle<NativeContext> JSReceiver::GetContextForMicrotask(
     DirectHandle<JSReceiver> receiver) {
-  Isolate* isolate = receiver->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   while (IsJSBoundFunction(*receiver) || IsJSProxy(*receiver)) {
     if (IsJSBoundFunction(*receiver)) {
       receiver = direct_handle(
@@ -868,7 +868,7 @@ Tagged<Smi> JSReceiver::GetOrCreateIdentityHash(Isolate* isolate) {
 void JSReceiver::DeleteNormalizedProperty(DirectHandle<JSReceiver> object,
                                           InternalIndex entry) {
   DCHECK(!object->HasFastProperties());
-  Isolate* isolate = object->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   DCHECK(entry.is_found());
 
   if (IsJSGlobalObject(*object)) {
@@ -2390,7 +2390,7 @@ MaybeHandle<JSObject> JSObject::New(DirectHandle<JSFunction> constructor,
   // - a proxy wrapper around constructor, or
   // - the constructor itself.
   // If called through Reflect.construct, it's guaranteed to be a constructor.
-  Isolate* const isolate = constructor->GetIsolate();
+  Isolate* const isolate = Isolate::Current();
   DCHECK(IsConstructor(*constructor));
   DCHECK(IsConstructor(*new_target));
   DCHECK(!constructor->has_initial_map() ||
@@ -2749,7 +2749,7 @@ void JSObject::SetNormalizedProperty(DirectHandle<JSObject> object,
                                      PropertyDetails details) {
   DCHECK(!object->HasFastProperties());
   DCHECK(IsUniqueName(*name));
-  Isolate* isolate = object->GetIsolate();
+  Isolate* isolate = Isolate::Current();
 
   uint32_t hash = name->hash();
 
@@ -2820,7 +2820,7 @@ void JSObject::SetNormalizedElement(DirectHandle<JSObject> object,
                                     PropertyDetails details) {
   DCHECK_EQ(object->GetElementsKind(), DICTIONARY_ELEMENTS);
 
-  Isolate* isolate = object->GetIsolate();
+  Isolate* isolate = Isolate::Current();
 
   DirectHandle<NumberDictionary> dictionary(
       Cast<NumberDictionary>(object->elements()), isolate);
@@ -3813,7 +3813,7 @@ MaybeDirectHandle<Object> JSObject::SetOwnElementIgnoreAttributes(
     DirectHandle<JSObject> object, size_t index, DirectHandle<Object> value,
     PropertyAttributes attributes) {
   DCHECK(!IsJSTypedArray(*object));
-  Isolate* isolate = object->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   LookupIterator it(isolate, object, index, object, LookupIterator::OWN);
   return DefineOwnPropertyIgnoreAttributes(&it, value, attributes);
 }
@@ -3821,7 +3821,7 @@ MaybeDirectHandle<Object> JSObject::SetOwnElementIgnoreAttributes(
 MaybeDirectHandle<Object> JSObject::DefinePropertyOrElementIgnoreAttributes(
     DirectHandle<JSObject> object, DirectHandle<Name> name,
     DirectHandle<Object> value, PropertyAttributes attributes) {
-  Isolate* isolate = object->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   PropertyKey key(isolate, name);
   LookupIterator it(isolate, object, key, object, LookupIterator::OWN);
   return DefineOwnPropertyIgnoreAttributes(&it, value, attributes);
@@ -3852,7 +3852,7 @@ void JSObject::MigrateSlowToFast(DirectHandle<JSObject> object,
                                  const char* reason) {
   if (object->HasFastProperties()) return;
   DCHECK(!IsJSGlobalObject(*object));
-  Isolate* isolate = object->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   Factory* factory = isolate->factory();
 
   DirectHandle<NameDictionary> dictionary;
@@ -4749,7 +4749,7 @@ MaybeDirectHandle<Object> JSObject::DefineOwnAccessorIgnoreAttributes(
     DirectHandle<JSObject> object, DirectHandle<Name> name,
     DirectHandle<Object> getter, DirectHandle<Object> setter,
     PropertyAttributes attributes) {
-  Isolate* isolate = object->GetIsolate();
+  Isolate* isolate = Isolate::Current();
 
   PropertyKey key(isolate, name);
   LookupIterator it(isolate, object, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
@@ -4791,7 +4791,7 @@ MaybeDirectHandle<Object> JSObject::SetAccessor(DirectHandle<JSObject> object,
                                                 DirectHandle<Name> name,
                                                 DirectHandle<AccessorInfo> info,
                                                 PropertyAttributes attributes) {
-  Isolate* isolate = object->GetIsolate();
+  Isolate* isolate = Isolate::Current();
 
   PropertyKey key(isolate, name);
   LookupIterator it(isolate, object, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
@@ -4937,7 +4937,7 @@ void JSObject::OptimizeAsPrototype(DirectHandle<JSObject> object,
                                    bool enable_setup_mode) {
   DCHECK(IsJSObjectThatCanBeTrackedAsPrototype(*object));
   if (IsJSGlobalObject(*object)) return;
-  Isolate* isolate = object->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   if (object->map()->is_prototype_map()) {
     if (enable_setup_mode && PrototypeBenefitsFromNormalization(*object)) {
       // This is the only way PrototypeBenefitsFromNormalization can be true:
@@ -5568,7 +5568,7 @@ void JSObject::TransitionElementsKind(Isolate* isolate,
 template <typename BackingStore>
 static int HoleyElementsUsage(Tagged<JSObject> object,
                               Tagged<BackingStore> store) {
-  Isolate* isolate = object->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   int limit = IsJSArray(object) ? Smi::ToInt(Cast<JSArray>(object)->length())
                                 : store->length();
   int used = 0;
@@ -5665,7 +5665,7 @@ bool JSGlobalProxy::IsDetached() { return !GetCreationContext().has_value(); }
 
 void JSGlobalObject::InvalidatePropertyCell(DirectHandle<JSGlobalObject> global,
                                             DirectHandle<Name> name) {
-  Isolate* isolate = global->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   // Regardless of whether the property is there or not invalidate
   // Load/StoreGlobalICs that load/store through global object's prototype.
   JSObject::InvalidatePrototypeValidityCell(*global);

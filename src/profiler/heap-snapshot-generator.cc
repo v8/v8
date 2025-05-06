@@ -2171,7 +2171,7 @@ void V8HeapExplorer::ExtractWeakArrayReferences(int header_size,
 
 void V8HeapExplorer::ExtractPropertyReferences(Tagged<JSObject> js_obj,
                                                HeapEntry* entry) {
-  Isolate* isolate = js_obj->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   if (js_obj->HasFastProperties()) {
     Tagged<DescriptorArray> descs =
         js_obj->map()->instance_descriptors(isolate);
