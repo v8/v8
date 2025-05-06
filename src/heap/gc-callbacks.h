@@ -150,11 +150,13 @@ class GCCallbacksInSafepoint final {
 //
 // In every GC happening inside this scope, the GC will invoke the registered
 // GCRootsProvider for all threads. See GCRootsProvider for more details.
-class GCRootsProviderScope final {
+class V8_NODISCARD GCRootsProviderScope final {
  public:
-  GCRootsProviderScope(LocalIsolate* local_isolate, GCRootsProvider* provider);
-  GCRootsProviderScope(LocalHeap* local_heap, GCRootsProvider* provider);
-  ~GCRootsProviderScope();
+  V8_INLINE GCRootsProviderScope(LocalIsolate* local_isolate,
+                                 GCRootsProvider* provider);
+  V8_INLINE GCRootsProviderScope(LocalHeap* local_heap,
+                                 GCRootsProvider* provider);
+  V8_INLINE ~GCRootsProviderScope();
 
   GCRootsProviderScope(GCRootsProviderScope&) = delete;
   GCRootsProviderScope(GCRootsProviderScope&&) = delete;

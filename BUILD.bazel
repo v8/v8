@@ -1718,6 +1718,7 @@ filegroup(
         "src/heap/free-list.h",
         "src/heap/free-list-inl.h",
         "src/heap/gc-callbacks.h",
+        "src/heap/gc-callbacks-inl.h",
         "src/heap/gc-tracer.cc",
         "src/heap/gc-tracer.h",
         "src/heap/gc-tracer-inl.h",
