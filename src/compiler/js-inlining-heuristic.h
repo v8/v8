@@ -57,7 +57,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
   void Finalize() final;
 
   int total_inlined_bytecode_size() const {
-    return total_inlined_bytecode_size_;
+    return total_inlined_bytecode_size_ + total_ignored_bytecode_size_;
   }
 
  private:
@@ -128,6 +128,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
   JSHeapBroker* const broker_;
   OptimizedCompilationInfo* info_;
   int total_inlined_bytecode_size_ = 0;
+  int total_ignored_bytecode_size_ = 0;
   const Mode mode_;
   const int max_inlined_bytecode_size_cumulative_;
   const int max_inlined_bytecode_size_absolute_;

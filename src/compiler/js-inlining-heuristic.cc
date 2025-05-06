@@ -734,6 +734,8 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
     if (reduction.Changed()) {
       if (!ignore_size) {
         total_inlined_bytecode_size_ += candidate.bytecode[0].value().length();
+      } else {
+        total_ignored_bytecode_size_ += candidate.bytecode[0].value().length();
       }
     }
     return reduction;
@@ -803,6 +805,9 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
       if (reduction.Changed()) {
         if (!ignore_size) {
           total_inlined_bytecode_size_ += candidate.bytecode[i]->length();
+        } else {
+          total_ignored_bytecode_size_ +=
+              candidate.bytecode[0].value().length();
         }
         // Killing the call node is not strictly necessary, but it is safer to
         // make sure we do not resurrect the node.
