@@ -183,15 +183,18 @@ in_category(
         first_branch_version = "13.0",
         barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
-    main_multibranch_builder(
+    main_multibranch_builder_pair(
         name = "V8 Linux64 - PKU",
-        parent_builder = "V8 Linux64 - builder",
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        use_remoteexec = RECLIENT.DEFAULT,
+        first_branch_version = "13.8",
         barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
-    main_multibranch_builder(
+    main_multibranch_builder_pair(
         name = "V8 Linux64 - PKU - debug",
-        parent_builder = "V8 Linux64 - debug builder",
-        first_branch_version = "13.2",
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        use_remoteexec = RECLIENT.DEFAULT,
+        first_branch_version = "13.8",
         barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
 )
