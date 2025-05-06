@@ -1509,9 +1509,6 @@ DEFINE_BOOL(turbo_optimize_apply, true, "optimize Function.prototype.apply")
 DEFINE_BOOL(turbo_optimize_math_minmax, true,
             "optimize call math.min/max with double array")
 
-DEFINE_BOOL(turbo_collect_feedback_in_generic_lowering, false,
-            "enable experimental feedback collection in generic lowering.")
-
 DEFINE_BOOL(turboshaft, true, "enable TurboFan's Turboshaft phases for JS")
 
 // Can't use Turbofan without Turboshaft.

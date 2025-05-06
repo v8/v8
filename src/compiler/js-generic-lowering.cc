@@ -124,26 +124,8 @@ void JSGenericLowering::ReplaceUnaryOpWithBuiltinCall(
     Node* node, Builtin builtin_without_feedback,
     Builtin builtin_with_feedback) {
   DCHECK(JSOperator::IsUnaryWithFeedback(node->opcode()));
-  const FeedbackParameter& p = FeedbackParameterOf(node->op());
-  if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
-    Callable callable = Builtins::CallableFor(isolate(), builtin_with_feedback);
-    Node* slot = jsgraph()->UintPtrConstant(p.feedback().slot.ToInt());
-    const CallInterfaceDescriptor& descriptor = callable.descriptor();
-    CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), descriptor, descriptor.GetStackParameterCount(), flags,
-        node->op()->properties());
-    Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
-    static_assert(JSUnaryOpNode::ValueIndex() == 0);
-    static_assert(JSUnaryOpNode::FeedbackVectorIndex() == 1);
-    DCHECK_EQ(node->op()->ValueInputCount(), 2);
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 2, slot);
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  } else {
-    node->RemoveInput(JSUnaryOpNode::FeedbackVectorIndex());
-    ReplaceWithBuiltinCall(node, builtin_without_feedback);
-  }
+  node->RemoveInput(JSUnaryOpNode::FeedbackVectorIndex());
+  ReplaceWithBuiltinCall(node, builtin_without_feedback);
 }
 
 #define DEF_UNARY_LOWERING(Name)                                    \
@@ -161,22 +143,8 @@ void JSGenericLowering::ReplaceBinaryOpWithBuiltinCall(
     Node* node, Builtin builtin_without_feedback,
     Builtin builtin_with_feedback) {
   DCHECK(JSOperator::IsBinaryWithFeedback(node->opcode()));
-  Builtin builtin;
-  const FeedbackParameter& p = FeedbackParameterOf(node->op());
-  if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
-    Node* slot = jsgraph()->UintPtrConstant(p.feedback().slot.ToInt());
-    static_assert(JSBinaryOpNode::LeftIndex() == 0);
-    static_assert(JSBinaryOpNode::RightIndex() == 1);
-    static_assert(JSBinaryOpNode::FeedbackVectorIndex() == 2);
-    DCHECK_EQ(node->op()->ValueInputCount(), 3);
-    node->InsertInput(zone(), 2, slot);
-    builtin = builtin_with_feedback;
-  } else {
-    node->RemoveInput(JSBinaryOpNode::FeedbackVectorIndex());
-    builtin = builtin_without_feedback;
-  }
-
-  ReplaceWithBuiltinCall(node, builtin);
+  node->RemoveInput(JSBinaryOpNode::FeedbackVectorIndex());
+  ReplaceWithBuiltinCall(node, builtin_without_feedback);
 }
 
 #define DEF_BINARY_LOWERING(Name)                                    \
@@ -211,23 +179,9 @@ void JSGenericLowering::LowerJSStrictEqual(Node* node) {
   NodeProperties::ReplaceContextInput(node, jsgraph()->NoContextConstant());
   DCHECK_EQ(node->op()->ControlInputCount(), 1);
   node->RemoveInput(NodeProperties::FirstControlIndex(node));
+  node->RemoveInput(JSStrictEqualNode::FeedbackVectorIndex());
 
-  Builtin builtin;
-  const FeedbackParameter& p = FeedbackParameterOf(node->op());
-  if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
-    Node* slot = jsgraph()->UintPtrConstant(p.feedback().slot.ToInt());
-    static_assert(JSStrictEqualNode::LeftIndex() == 0);
-    static_assert(JSStrictEqualNode::RightIndex() == 1);
-    static_assert(JSStrictEqualNode::FeedbackVectorIndex() == 2);
-    DCHECK_EQ(node->op()->ValueInputCount(), 3);
-    node->InsertInput(zone(), 2, slot);
-    builtin = Builtin::kStrictEqual_WithFeedback;
-  } else {
-    node->RemoveInput(JSStrictEqualNode::FeedbackVectorIndex());
-    builtin = Builtin::kStrictEqual;
-  }
-
-  Callable callable = Builtins::CallableFor(isolate(), builtin);
+  Callable callable = Builtins::CallableFor(isolate(), Builtin::kStrictEqual);
   ReplaceWithBuiltinCall(node, callable, CallDescriptor::kNoFlags,
                          Operator::kEliminatable);
 }

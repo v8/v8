@@ -16,18 +16,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// The nci flag is currently used to experiment with feedback collection in
-// optimized code produced by generic lowering.
-// Considerations:
-// - Should we increment the call count? https://crbug.com/v8/10524
-// - Is feedback already megamorphic in all these cases?
-//
-// TODO(jgruber): Remove once we've made a decision whether to collect feedback
-// unconditionally.
-inline bool CollectFeedbackInGenericLowering() {
-  return v8_flags.turbo_collect_feedback_in_generic_lowering;
-}
-
 enum class StackCheckKind : uint8_t {
   kJSFunctionEntry = 0,
   kJSIterationBody,
