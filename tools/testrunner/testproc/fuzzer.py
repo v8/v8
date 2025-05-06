@@ -64,6 +64,7 @@ EXTRA_FLAGS = [
     (0.1, '--precise-object-pinning'),
     (0.25, '--wasm-staging'),
     (0.1, '--ephemeron-fixpoint-iterations=0'),
+    (0.25, '--experimental-wasm-revectorize'),
 ]
 
 MIN_DEOPT = 1
