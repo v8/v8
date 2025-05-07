@@ -255,6 +255,44 @@ v8::Local<v8::Function> deepBoundFunction(v8::Local<v8::Function> function) {
   return function;
 }
 
+v8::MaybeLocal<v8::Value> getErrorProperty(v8::Local<v8::Context> context,
+                                           v8::Local<v8::Object> object,
+                                           v8::Local<v8::String> name) {
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::TryCatch tryCatch(isolate);
+  v8::MicrotasksScope microtasksScope(context,
+                                      v8::MicrotasksScope::kDoNotRunMicrotasks);
+  v8::Local<v8::Value> descriptor;
+  if (!object->GetOwnPropertyDescriptor(context, name).ToLocal(&descriptor)) {
+    tryCatch.Reset();
+    return object->Get(context, name);
+  }
+  if (!descriptor->IsObject()) return object->Get(context, name);
+
+  v8::Local<v8::Object> descriptorObject = descriptor.As<v8::Object>();
+  v8::Local<v8::Value> getDescriptor;
+  if (!descriptorObject->HasOwnProperty(context, toV8String(isolate, "get"))
+           .FromJust()) {
+    tryCatch.Reset();
+    return object->Get(context, name);
+  }
+  if (!descriptorObject->Get(context, toV8String(isolate, "get"))
+           .ToLocal(&getDescriptor)) {
+    tryCatch.Reset();
+    return object->Get(context, name);
+  }
+
+  if (getDescriptor->IsFunction()) {
+    v8::Local<v8::Function> function = getDescriptor.As<v8::Function>();
+    if (deepBoundFunction(function)->ScriptId() !=
+        v8::UnboundScript::kNoScriptId) {
+      return v8::MaybeLocal<v8::Value>();
+    }
+  }
+
+  return object->Get(context, name);
+}
+
 // Build a description from an exception using the following pattern:
 //   * The first line is "<name || constructor name>: <message property>". We
 //     use the constructor name if the "name" property is "Error". Most custom
@@ -269,7 +307,8 @@ String16 descriptionForError(v8::Local<v8::Context> context,
   String16 name = toProtocolString(isolate, object->GetConstructorName());
   {
     v8::Local<v8::Value> nameValue;
-    if (object->Get(context, toV8String(isolate, "name")).ToLocal(&nameValue) &&
+    if (getErrorProperty(context, object, toV8String(isolate, "name"))
+            .ToLocal(&nameValue) &&
         nameValue->IsString()) {
       v8::Local<v8::String> nameString = nameValue.As<v8::String>();
       if (nameString->Length() > 0 &&
@@ -282,7 +321,7 @@ String16 descriptionForError(v8::Local<v8::Context> context,
   std::optional<String16> stack;
   {
     v8::Local<v8::Value> stackValue;
-    if (object->Get(context, toV8String(isolate, "stack"))
+    if (getErrorProperty(context, object, toV8String(isolate, "stack"))
             .ToLocal(&stackValue) &&
         stackValue->IsString()) {
       String16 stackString =
@@ -297,7 +336,7 @@ String16 descriptionForError(v8::Local<v8::Context> context,
   std::optional<String16> message;
   {
     v8::Local<v8::Value> messageValue;
-    if (object->Get(context, toV8String(isolate, "message"))
+    if (getErrorProperty(context, object, toV8String(isolate, "message"))
             .ToLocal(&messageValue) &&
         messageValue->IsString()) {
       String16 msg = toProtocolStringWithTypeCheck(isolate, messageValue);
