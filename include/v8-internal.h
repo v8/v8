@@ -835,6 +835,9 @@ constexpr bool kAllCodeObjectsLiveInTrustedSpace =
 
 // {obj} must be the raw tagged pointer representation of a HeapObject
 // that's guaranteed to never be in ReadOnlySpace.
+V8_DEPRECATE_SOON(
+    "Use GetCurrentIsolate() instead, which is guaranteed to return the same "
+    "isolate since https://crrev.com/c/6458560.")
 V8_EXPORT internal::Isolate* IsolateFromNeverReadOnlySpaceObject(Address obj);
 
 // Returns if we need to throw when an error occurs. This infers the language
@@ -1278,15 +1281,20 @@ class Internals {
 #endif
   }
 
+  // TODO(396607238): Deprecate this, introduce GetCurrentIsolateForSandbox
+  // instead.
   V8_INLINE static v8::Isolate* GetIsolateForSandbox(Address obj) {
 #ifdef V8_ENABLE_SANDBOX
-    return reinterpret_cast<v8::Isolate*>(
-        internal::IsolateFromNeverReadOnlySpaceObject(obj));
+    return GetCurrentIsolate();
 #else
     // Not used in non-sandbox mode.
     return nullptr;
 #endif
   }
+
+  // Returns v8::Isolate::Current(), but without needing to include the
+  // v8-isolate.h header.
+  V8_EXPORT static v8::Isolate* GetCurrentIsolate();
 
   template <ExternalPointerTagRange tag_range>
   V8_INLINE static Address ReadExternalPointerField(v8::Isolate* isolate,

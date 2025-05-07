@@ -451,8 +451,7 @@ Local<Value> Context::GetEmbedderData(int index) {
   value = I::DecompressTaggedField(embedder_data, static_cast<uint32_t>(value));
 #endif
 
-  auto isolate = reinterpret_cast<v8::Isolate*>(
-      internal::IsolateFromNeverReadOnlySpaceObject(ctx));
+  auto* isolate = I::GetCurrentIsolate();
   return Local<Value>::New(isolate, value);
 #else
   return SlowGetEmbedderData(index);

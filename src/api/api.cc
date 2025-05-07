@@ -563,6 +563,11 @@ void StackAllocated<true>::VerifyOnStack() const {
 
 namespace internal {
 
+// static
+v8::Isolate* Internals::GetCurrentIsolate() {
+  return v8::Isolate::GetCurrent();
+}
+
 void VerifyHandleIsNonEmpty(bool is_empty) {
   Utils::ApiCheck(!is_empty, "v8::ReturnValue",
                   "SetNonEmpty() called with empty handle.");
