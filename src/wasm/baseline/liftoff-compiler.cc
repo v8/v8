@@ -1141,7 +1141,7 @@ class LiftoffCompiler {
       Register param_reg = descriptor.GetRegisterParameter(0);
       __ LoadConstant(LiftoffRegister(param_reg),
                       WasmValue::ForUintPtr(descriptor_->ParameterSlotCount() *
-                                            LiftoffAssembler::kStackSlotSize));
+                                            kSystemPointerSize));
     }
 
     source_position_table_builder_.AddPosition(

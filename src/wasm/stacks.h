@@ -15,6 +15,7 @@
 #include "src/flags/flags.h"
 #include "src/objects/visitors.h"
 #include "src/utils/allocation.h"
+#include "src/wasm/value-type.h"
 
 namespace v8 {
 class Isolate;
@@ -165,7 +166,15 @@ class StackMemory {
 
   static int JSStackLimitMarginKB() {
     if (v8_flags.experimental_wasm_growable_stacks) {
-      return DEBUG_BOOL ? 8 : 4;
+      // The limiting factor for this margin is the stack space used by outgoing
+      // stack parameters in wasm. They can take up to 16KB (1000 simd
+      // parameters, minus register parameters) and are not taken into account
+      // by stack checks.
+      // TODO(42204615): look into changing the stack check to take outgoing
+      // stack parameters into account.
+      static_assert(kMaxValueTypeSize == 16);
+      static_assert(kV8MaxWasmFunctionParams == 1000);
+      return 20;
     } else {
       return DEBUG_BOOL ? 80 : 40;
     }

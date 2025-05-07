@@ -345,7 +345,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     mov(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), ebp);
     add(WasmHandleStackOverflowDescriptor::FrameBaseRegister(),
         Immediate(static_cast<int32_t>(
-            stack_param_slots * kStackSlotSize +
+            stack_param_slots * kSystemPointerSize +
             CommonFrameConstants::kFixedFrameSizeAboveFp)));
     CallBuiltin(Builtin::kWasmHandleStackOverflow);
     safepoint_table_builder->DefineSafepoint(this);

@@ -2369,7 +2369,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   static size_t UsableStackSize() { return v8_flags.sim_stack_size * KB; }
   uintptr_t stack_limit_;
   // Added in Simulator::StackLimit()
-  static const int kAdditionalStackMargin = 4 * KB;
+  static const int kAdditionalStackMargin = 20 * KB;
 
   Decoder<DispatchingDecoderVisitor>* decoder_;
   Decoder<DispatchingDecoderVisitor>* disassembler_decoder_;
