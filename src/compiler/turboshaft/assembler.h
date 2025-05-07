@@ -2963,7 +2963,8 @@ class TurboshaftAssemblerOpInterface
     V<Rep> value = Load(object, kind, rep, access.offset);
 #ifdef V8_ENABLE_SANDBOX
     if (is_sandboxed_external) {
-      value = DecodeExternalPointer(value, access.external_pointer_tag);
+      value = V<Rep>::Cast(DecodeExternalPointer(V<Word32>::Cast(value),
+                                                 access.external_pointer_tag));
     }
     if (access.is_bounded_size_access) {
       DCHECK(!is_sandboxed_external);
@@ -3187,7 +3188,7 @@ class TurboshaftAssemblerOpInterface
     return __ FinishInitialization(std::move(result));
   }
 
-  OpIndex DecodeExternalPointer(OpIndex handle, ExternalPointerTag tag) {
+  V<WordPtr> DecodeExternalPointer(V<Word32> handle, ExternalPointerTag tag) {
     return ReduceIfReachableDecodeExternalPointer(handle, tag);
   }
 

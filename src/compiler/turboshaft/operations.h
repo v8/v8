@@ -2405,9 +2405,9 @@ struct TryChangeOp : FixedArityOperationT<1, TryChangeOp> {
     return InputsRepFactory::SingleRep(from);
   }
 
-  OpIndex input() const { return Base::input(0); }
+  V<Float> input() const { return Base::input<Float>(0); }
 
-  TryChangeOp(OpIndex input, Kind kind, FloatRepresentation from,
+  TryChangeOp(V<Float> input, Kind kind, FloatRepresentation from,
               WordRepresentation to)
       : Base(input), kind(kind), from(from), to(to) {}
 
@@ -3548,9 +3548,9 @@ struct DecodeExternalPointerOp
     return MaybeRepVector<MaybeRegisterRepresentation::Word32()>();
   }
 
-  OpIndex handle() const { return input(0); }
+  V<Word32> handle() const { return input<Word32>(0); }
 
-  DecodeExternalPointerOp(OpIndex handle, ExternalPointerTagRange tag_range)
+  DecodeExternalPointerOp(V<Word32> handle, ExternalPointerTagRange tag_range)
       : Base(handle), tag_range(tag_range) {}
 
   void Validate(const Graph& graph) const { DCHECK(!tag_range.IsEmpty()); }
@@ -3738,9 +3738,9 @@ struct FrameStateOp : OperationT<FrameStateOp> {
     return {};
   }
 
-  OpIndex parent_frame_state() const {
+  V<FrameState> parent_frame_state() const {
     DCHECK(inlined);
-    return input(0);
+    return input<FrameState>(0);
   }
   base::Vector<const OpIndex> state_values() const {
     base::Vector<const OpIndex> result = inputs();

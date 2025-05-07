@@ -400,8 +400,8 @@ class MemoryOptimizationReducer : public Next {
         __ WordPtrAdd(obj_addr, __ IntPtrConstant(kHeapObjectTag)));
   }
 
-  OpIndex REDUCE(DecodeExternalPointer)(OpIndex handle,
-                                        ExternalPointerTagRange tag_range) {
+  V<WordPtr> REDUCE(DecodeExternalPointer)(V<Word32> handle,
+                                           ExternalPointerTagRange tag_range) {
 #ifdef V8_ENABLE_SANDBOX
     // Decode loaded external pointer.
     V<WordPtr> table;
