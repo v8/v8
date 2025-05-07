@@ -1281,8 +1281,9 @@ class Internals {
 #endif
   }
 
-  // TODO(396607238): Deprecate this, introduce GetCurrentIsolateForSandbox
-  // instead.
+  V8_DEPRECATE_SOON(
+      "Use GetCurrentIsolateForSandbox() instead, which is guaranteed to "
+      "return the same isolate since https://crrev.com/c/6458560.")
   V8_INLINE static v8::Isolate* GetIsolateForSandbox(Address obj) {
 #ifdef V8_ENABLE_SANDBOX
     return GetCurrentIsolate();
@@ -1295,6 +1296,15 @@ class Internals {
   // Returns v8::Isolate::Current(), but without needing to include the
   // v8-isolate.h header.
   V8_EXPORT static v8::Isolate* GetCurrentIsolate();
+
+  V8_INLINE static v8::Isolate* GetCurrentIsolateForSandbox() {
+#ifdef V8_ENABLE_SANDBOX
+    return GetCurrentIsolate();
+#else
+    // Not used in non-sandbox mode.
+    return nullptr;
+#endif
+  }
 
   template <ExternalPointerTagRange tag_range>
   V8_INLINE static Address ReadExternalPointerField(v8::Isolate* isolate,

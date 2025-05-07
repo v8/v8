@@ -912,7 +912,7 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
     int offset = I::kJSAPIObjectWithEmbedderSlotsHeaderSize +
                  (I::kEmbedderDataSlotSize * index) +
                  I::kEmbedderDataSlotExternalPointerOffset;
-    Isolate* isolate = I::GetIsolateForSandbox(obj);
+    Isolate* isolate = I::GetCurrentIsolateForSandbox();
     A value =
         I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
             isolate, obj, offset);

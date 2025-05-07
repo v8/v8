@@ -5379,7 +5379,7 @@ void* v8::Object::GetAlignedPointerFromEmbedderDataInCreationContext(
 void* v8::Object::GetAlignedPointerFromEmbedderDataInCreationContext(
     int index) {
   auto self = Utils::OpenDirectHandle(this);
-  i::IsolateForSandbox isolate = GetIsolateForSandbox(*self);
+  i::IsolateForSandbox isolate = i::GetCurrentIsolateForSandbox();
   return GetAlignedPointerFromEmbedderDataInCreationContextImpl(self, isolate,
                                                                 index);
 }
@@ -6250,7 +6250,7 @@ String::ExternalStringResource* String::GetExternalStringResourceSlow() const {
   }
 
   if (i::StringShape(str).IsExternalTwoByte()) {
-    Isolate* isolate = i::Internals::GetIsolateForSandbox(str.ptr());
+    Isolate* isolate = i::Internals::GetCurrentIsolateForSandbox();
     i::Address value =
         i::Internals::ReadExternalPointerField<i::kExternalStringResourceTag>(
             isolate, str.ptr(), i::Internals::kStringResourceOffset);
@@ -6304,7 +6304,7 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBaseSlow(
       static_cast<Encoding>(type & i::Internals::kStringEncodingMask);
   if (i::StringShape(str).IsExternalOneByte() ||
       i::StringShape(str).IsExternalTwoByte()) {
-    Isolate* isolate = i::Internals::GetIsolateForSandbox(string);
+    Isolate* isolate = i::Internals::GetCurrentIsolateForSandbox();
     i::Address value =
         i::Internals::ReadExternalPointerField<i::kExternalStringResourceTag>(
             isolate, string, i::Internals::kStringResourceOffset);
