@@ -1318,8 +1318,6 @@ filegroup(
         "src/api/api-arguments.h",
         "src/api/api-arguments-inl.h",
         "src/api/api-inl.h",
-        "src/api/api-macros.h",
-        "src/api/api-macros-undef.h",
         "src/api/api-natives.cc",
         "src/api/api-natives.h",
         "src/asmjs/asm-js.h",

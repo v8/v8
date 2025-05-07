@@ -3361,8 +3361,6 @@ v8_header_set("v8_internal_headers") {
     "src/api/api-arguments-inl.h",
     "src/api/api-arguments.h",
     "src/api/api-inl.h",
-    "src/api/api-macros-undef.h",
-    "src/api/api-macros.h",
     "src/api/api-natives.h",
     "src/api/api.h",
     "src/ast/ast-function-literal-id-reindexer.h",

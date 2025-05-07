@@ -349,6 +349,19 @@ class V8_NODISCARD EnterV8NoScriptNoExceptionScope {
   V8_NO_UNIQUE_ADDRESS i::DisallowExceptionsDebugOnly no_exceptions_scope_;
 };
 
+// TODO(clemensb): Make this the basis of all the other EnterV8* scopes?
+class V8_NODISCARD EnterV8BasicScope {
+ public:
+  explicit EnterV8BasicScope(i::Isolate* i_isolate) : vm_state_{i_isolate} {
+    // Embedders should never enter V8 after terminating it.
+    DCHECK_IMPLIES(i::v8_flags.strict_termination_checks,
+                   !i_isolate->is_execution_terminating());
+  }
+
+ private:
+  i::VMState<v8::OTHER> vm_state_;
+};
+
 class V8_NODISCARD PrepareForExecutionScope
     : public EnterV8InternalScope<InternalEscapableScope, false> {
  public:
@@ -374,6 +387,42 @@ class V8_NODISCARD PrepareForExecutionScope
   }
 
   i::Isolate* const i_isolate_;
+};
+
+class V8_NODISCARD PrepareForDebugInterfaceExecutionScope {
+ public:
+  PrepareForDebugInterfaceExecutionScope(i::Isolate* i_isolate,
+                                         Local<Context> context)
+      : handle_scope_{i_isolate},
+        call_depth_scope_{i_isolate, context},
+        vm_state_{i_isolate} {
+    DCHECK(!i_isolate->is_execution_terminating());
+    DCHECK_EQ(i_isolate, i::Isolate::TryGetCurrent());
+  }
+
+  template <typename T>
+  V8_INLINE Local<T> Escape(Local<T> value) {
+    return handle_scope_.Escape(value);
+  }
+
+ private:
+  InternalEscapableScope handle_scope_;
+  CallDepthScope<false> call_depth_scope_;
+  i::VMState<v8::OTHER> vm_state_;
+};
+
+class V8_NODISCARD ApiRuntimeCallStatsScope {
+ public:
+#ifdef V8_RUNTIME_CALL_STATS
+  ApiRuntimeCallStatsScope(i::Isolate* i_isolate,
+                           i::RuntimeCallCounterId rcc_id)
+      : rct_scope_{i_isolate, rcc_id} {}
+
+ private:
+  i::RuntimeCallTimerScope rct_scope_;
+#else   // V8_RUNTIME_CALL_STATS
+  constexpr ApiRuntimeCallStatsScope(i::Isolate*, i::RuntimeCallCounterId) {}
+#endif  // V8_RUNTIME_CALL_STATS
 };
 
 template <typename T>
