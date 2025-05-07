@@ -828,12 +828,12 @@ BUILTIN(Uint8ArrayPrototypeToBase64) {
     size_t simd_result_size;
     if (uint8array->buffer()->is_shared()) {
       simd_result_size = simdutf::atomic_binary_to_base64(
-          std::bit_cast<const char*>(uint8array->GetBuffer()->backing_store()),
-          length, reinterpret_cast<char*>(output->GetChars(no_gc)), alphabet);
+          std::bit_cast<const char*>(uint8array->DataPtr()), length,
+          reinterpret_cast<char*>(output->GetChars(no_gc)), alphabet);
     } else {
       simd_result_size = simdutf::binary_to_base64(
-          std::bit_cast<const char*>(uint8array->GetBuffer()->backing_store()),
-          length, reinterpret_cast<char*>(output->GetChars(no_gc)), alphabet);
+          std::bit_cast<const char*>(uint8array->DataPtr()), length,
+          reinterpret_cast<char*>(output->GetChars(no_gc)), alphabet);
     }
     DCHECK_EQ(simd_result_size, output_length);
     USE(simd_result_size);
@@ -1054,9 +1054,6 @@ BUILTIN(Uint8ArrayPrototypeToHex) {
     return *isolate->factory()->empty_string();
   }
 
-  const char* bytes =
-      std::bit_cast<const char*>(uint8array->GetBuffer()->backing_store());
-
   //   4. Let out be the empty String.
   DirectHandle<SeqOneByteString> output;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -1067,8 +1064,8 @@ BUILTIN(Uint8ArrayPrototypeToHex) {
   //    b. Set hex to StringPad(hex, 2, "0", start).
   //    c. Set out to the string-concatenation of out and hex.
   //  6. Return out.
-  return Uint8ArrayToHex(bytes, length, uint8array->buffer()->is_shared(),
-                         output);
+  return Uint8ArrayToHex(std::bit_cast<const char*>(uint8array->DataPtr()),
+                         length, uint8array->buffer()->is_shared(), output);
 }
 
 }  // namespace internal
