@@ -51,19 +51,6 @@ crossbench_cbb_builder(
     "x86-64",
     properties = {"android_sdk": 35},
 )
-crossbench_cbb_builder(
-    "Crossbench Pytype Try",
-    "perf/pytype",
-    "Ubuntu-20",
-    "x86-64",
-    caches = [
-        swarming.cache(
-            name = "crossbench_pytype_cache",
-            path = "pytype",
-        ),
-    ],
-    properties = {"timeout": 1200},
-)
 
 luci.cq_group(
     name = "crossbench-main-cq",
@@ -95,9 +82,6 @@ luci.cq_group(
         ),
         luci.cq_tryjob_verifier(
             builder = "Crossbench End2End Android x64 Try",
-        ),
-        luci.cq_tryjob_verifier(
-            builder = "Crossbench Pytype Try",
         ),
     ],
 )
