@@ -1810,12 +1810,14 @@ class RepresentationSelector {
         return;
       }
 
-      // => AdditiveSafeIntegerAdd/Sub
-      VisitBinop<T>(node, UseInfo::CheckedSafeIntAsWord64(FeedbackSource{}),
-                    MachineRepresentation::kWord64,
-                    type_cache_->kAdditiveSafeInteger);
-      if (lower<T>()) ChangeOp(node, AdditiveSafeIntegerOverflowOp(node));
-      return;
+      if (v8_flags.additive_safe_int_feedback) {
+        // => AdditiveSafeIntegerAdd/Sub
+        VisitBinop<T>(node, UseInfo::CheckedSafeIntAsWord64(FeedbackSource{}),
+                      MachineRepresentation::kWord64,
+                      type_cache_->kAdditiveSafeInteger);
+        if (lower<T>()) ChangeOp(node, AdditiveSafeIntegerOverflowOp(node));
+        return;
+      }
     }
 
     if (CanSpeculateAdditiveSafeInteger(node)) {
