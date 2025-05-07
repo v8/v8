@@ -518,6 +518,9 @@ declare_args() {
 
   # Deinterleaving load support.
   v8_enable_wasm_deinterleaved_mem_ops = false
+
+  # Expose F.p.caller and .arguments as own properties.
+  v8_function_arguments_caller_are_own_props = false
 }
 
 # Derived defaults.
@@ -1462,6 +1465,9 @@ config("features") {
   }
   if (v8_target_is_simulator) {
     defines += [ "USE_SIMULATOR" ]
+  }
+  if (v8_function_arguments_caller_are_own_props) {
+    defines += [ "V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS" ]
   }
 }
 

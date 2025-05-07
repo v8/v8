@@ -3129,6 +3129,12 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
                    base::Vector<uint8_t>::cast(buffer.SubVector(0, length)))
                .ToHandleChecked();
   }
+
+  DirectHandle<NativeContext> context(isolate->native_context());
+  DirectHandle<SharedFunctionInfo> shared =
+      factory->NewSharedFunctionInfoForWasmExportedFunction(name, function_data,
+                                                            arity, kAdapt);
+
   DirectHandle<Map> function_map;
   switch (module->origin) {
     case wasm::kWasmOrigin:
@@ -3139,13 +3145,9 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
       break;
     case wasm::kAsmJsStrictOrigin:
       function_map = isolate->strict_function_map();
+      shared->set_language_mode(LanguageMode::kStrict);
       break;
   }
-
-  DirectHandle<NativeContext> context(isolate->native_context());
-  DirectHandle<SharedFunctionInfo> shared =
-      factory->NewSharedFunctionInfoForWasmExportedFunction(name, function_data,
-                                                            arity, kAdapt);
 
   DirectHandle<JSFunction> js_function =
       Factory::JSFunctionBuilder{isolate, shared, context}

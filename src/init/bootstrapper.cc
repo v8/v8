@@ -899,9 +899,11 @@ void Genesis::CreateStrictModeFunctionMaps(DirectHandle<JSFunction> empty) {
   map = factory->CreateClassFunctionMap(empty);
   native_context()->set_class_function_map(*map);
 
+#ifdef V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
   // Now that the strict mode function map is available, set up the
   // restricted "arguments" and "caller" getters.
   AddRestrictedFunctionProperties(empty);
+#endif  // V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
 }
 
 void Genesis::CreateObjectFunction(DirectHandle<JSFunction> empty_function) {
@@ -2412,6 +2414,16 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
         kAdapt,
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY));
     native_context()->set_function_has_instance(*has_instance);
+
+#ifndef V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
+    // The .arguments and .caller getters are non-standard.
+    SimpleInstallGetterSetter(isolate_, prototype, factory->arguments_string(),
+                              Builtin::kFunctionPrototypeLegacyArgumentsGetter,
+                              Builtin::kFunctionPrototypeLegacyArgumentsSetter);
+    SimpleInstallGetterSetter(isolate_, prototype, factory->caller_string(),
+                              Builtin::kFunctionPrototypeLegacyCallerGetter,
+                              Builtin::kFunctionPrototypeLegacyCallerSetter);
+#endif  // !V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
 
     // Complete setting up function maps.
     {

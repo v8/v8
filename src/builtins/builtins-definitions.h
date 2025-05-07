@@ -706,6 +706,14 @@ namespace internal {
   ASM(FunctionPrototypeCall, JSTrampoline)                                     \
   /* ES6 #sec-function.prototype.tostring */                                   \
   CPP(FunctionPrototypeToString, kDontAdaptArgumentsSentinel)                  \
+  IF_FUNCTION_ARGUMENTS_CALLER_ARE_ON_PROTOTYPE(                               \
+      CPP, FunctionPrototypeLegacyArgumentsGetter, JSParameterCount(0))        \
+  IF_FUNCTION_ARGUMENTS_CALLER_ARE_ON_PROTOTYPE(                               \
+      CPP, FunctionPrototypeLegacyArgumentsSetter, JSParameterCount(1))        \
+  IF_FUNCTION_ARGUMENTS_CALLER_ARE_ON_PROTOTYPE(                               \
+      CPP, FunctionPrototypeLegacyCallerGetter, JSParameterCount(0))           \
+  IF_FUNCTION_ARGUMENTS_CALLER_ARE_ON_PROTOTYPE(                               \
+      CPP, FunctionPrototypeLegacyCallerSetter, JSParameterCount(1))           \
                                                                                \
   /* Belongs to Objects but is a dependency of GeneratorPrototypeResume */     \
   TFS(CreateIterResultObject, NeedsContext::kYes, kValue, kDone)               \
