@@ -944,7 +944,8 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
   const intptr_t marker = Memory<intptr_t>(
       state->fp + CommonFrameConstants::kContextOrFrameTypeOffset);
   switch (lookup_result.value()->kind()) {
-    case CodeKind::BUILTIN: {
+    case CodeKind::BUILTIN:
+    case CodeKind::FOR_TESTING: {
       if (StackFrame::IsTypeMarker(marker)) break;
       return ComputeBuiltinFrameType(lookup_result.value());
     }
@@ -994,7 +995,6 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
       UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
     case CodeKind::BYTECODE_HANDLER:
-    case CodeKind::FOR_TESTING:
     case CodeKind::REGEXP:
     case CodeKind::INTERPRETED_FUNCTION:
       // Fall back to the marker.
@@ -3038,7 +3038,8 @@ FrameSummaries OptimizedJSFrame::Summarize() const {
   // Delegate to JS frame in absence of deoptimization info.
   // TODO(turbofan): Revisit once we support deoptimization across the board.
   DirectHandle<Code> code(LookupCode(), isolate());
-  if (code->kind() == CodeKind::BUILTIN) {
+  if (code->kind() == CodeKind::BUILTIN ||
+      code->kind() == CodeKind::FOR_TESTING) {
     return JavaScriptFrame::Summarize();
   }
 

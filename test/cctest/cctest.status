@@ -882,7 +882,5 @@
   'test-run-wasm-64/RunWasmLiftoff_I64WasmRunner': [SLOW],
   'test-run-wasm-64/RunWasmTurbofan_I64WasmRunner': [SLOW],
   'test-strings/Traverse': [SLOW],
-  # BUG(414753764): a DCHECK failure happens occasionally on Windows.
-  'test-swiss-name-dictionary-csa/DeleteAtBoundaries': [SKIP],
 }],  # variant == conservative_stack_scanning
 ]
