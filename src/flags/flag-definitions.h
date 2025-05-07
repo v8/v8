@@ -1364,6 +1364,9 @@ DEFINE_FLOAT(
     "scale factor of bytecode size used to calculate the inlining budget")
 DEFINE_INT(max_inlined_bytecode_size_small, 27,
            "maximum size of bytecode considered for small function inlining")
+DEFINE_INT(max_inlined_bytecode_size_small_with_heapnum_in_out, 75,
+           "maximum size of bytecode considered for small function inlining, "
+           "when the function call has a HeapNumber as input or output")
 DEFINE_INT(max_optimized_bytecode_size, 60 * KB,
            "maximum bytecode size to "
            "be considered for turbofan optimization; too high values may cause "
