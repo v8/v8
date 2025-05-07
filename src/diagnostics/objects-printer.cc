@@ -1832,7 +1832,7 @@ void FeedbackNexus::Print(std::ostream& os) {
       if (ic_state() == InlineCacheState::MONOMORPHIC) {
         os << "\n   " << Brief(GetFeedback()) << ": ";
         if (GetFeedbackExtra().IsCleared()) {
-          os << " <cleared>\n";
+          os << " [cleared]\n";
           break;
         }
         Tagged<Object> handler = GetFeedbackExtra().GetHeapObjectOrSmi();
@@ -1852,7 +1852,12 @@ void FeedbackNexus::Print(std::ostream& os) {
         }
         for (int i = 0; i < array->length(); i += 2) {
           os << "\n   " << Brief(array->get(i)) << ": ";
-          LoadHandler::PrintHandler(array->get(i + 1).GetHeapObjectOrSmi(), os);
+          if (!array->get(i + 1).IsCleared()) {
+            LoadHandler::PrintHandler(array->get(i + 1).GetHeapObjectOrSmi(),
+                                      os);
+          } else {
+            os << "[cleared]\n";
+          }
         }
       }
       break;
