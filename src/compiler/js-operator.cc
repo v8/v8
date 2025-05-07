@@ -16,6 +16,10 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/template-objects.h"
 
+#if DEBUG && V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/canonical-types.h"
+#endif
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -695,6 +699,22 @@ ForInParameters const& ForInParametersOf(const Operator* op) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
+JSWasmCallParameters::JSWasmCallParameters(
+    const wasm::WasmModule* module, const wasm::CanonicalSig* signature,
+    int function_index, bool receiver_is_first_param,
+    SharedFunctionInfoRef shared_fct_info, wasm::NativeModule* native_module,
+    FeedbackSource const& feedback)
+    : module_(module),
+      signature_(signature),
+      function_index_(function_index),
+      receiver_is_first_param_(receiver_is_first_param),
+      shared_fct_info_(shared_fct_info),
+      native_module_(native_module),
+      feedback_(feedback) {
+  DCHECK_NOT_NULL(module);
+  DCHECK(wasm::GetTypeCanonicalizer()->Contains(signature));
+}
+
 JSWasmCallParameters const& JSWasmCallParametersOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kJSWasmCall, op->opcode());
   return OpParameter<JSWasmCallParameters>(op);

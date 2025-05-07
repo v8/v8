@@ -75,6 +75,10 @@ constexpr ModuleTypeIndex ModuleTypeIndex::Invalid() {
   return ModuleTypeIndex{ModuleTypeIndex::kInvalid};
 }
 
+// Used as the supertype for a type at the top of the type hierarchy.
+constexpr ModuleTypeIndex kNoSuperType = ModuleTypeIndex::Invalid();
+constexpr ModuleTypeIndex kNoType = ModuleTypeIndex::Invalid();
+
 struct CanonicalTypeIndex : public TypeIndex {
   inline static constexpr CanonicalTypeIndex Invalid();
 

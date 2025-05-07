@@ -18,10 +18,6 @@
 #include "src/objects/oddball.h"
 #include "src/runtime/runtime.h"
 
-#if DEBUG && V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/canonical-types.h"
-#endif
-
 namespace v8 {
 namespace internal {
 
@@ -851,17 +847,7 @@ class JSWasmCallParameters {
                                 bool receiver_is_first_param,
                                 SharedFunctionInfoRef shared_fct_info,
                                 wasm::NativeModule* native_module,
-                                FeedbackSource const& feedback)
-      : module_(module),
-        signature_(signature),
-        function_index_(function_index),
-        receiver_is_first_param_(receiver_is_first_param),
-        shared_fct_info_(shared_fct_info),
-        native_module_(native_module),
-        feedback_(feedback) {
-    DCHECK_NOT_NULL(module);
-    DCHECK(wasm::GetTypeCanonicalizer()->Contains(signature));
-  }
+                                FeedbackSource const& feedback);
 
   const wasm::WasmModule* module() const { return module_; }
   const wasm::CanonicalSig* signature() const { return signature_; }
