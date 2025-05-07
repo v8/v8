@@ -186,11 +186,6 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   Candidate candidate = CollectFunctions(node, kMaxCallPolymorphism);
   if (candidate.num_functions == 0) {
     return NoChange();
-  } else if (candidate.num_functions > 1 && !v8_flags.polymorphic_inlining) {
-    TRACE("Not considering call site #"
-          << node->id() << ":" << node->op()->mnemonic()
-          << ", because polymorphic inlining is disabled");
-    return NoChange();
   }
 
   bool can_inline_candidate = false, candidate_is_small = true;

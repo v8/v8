@@ -1369,7 +1369,6 @@ DEFINE_INT(max_optimized_bytecode_size, 60 * KB,
            "be considered for turbofan optimization; too high values may cause "
            "the compiler to hit (release) assertions")
 DEFINE_FLOAT(min_inlining_frequency, 0.15, "minimum frequency for inlining")
-DEFINE_BOOL(polymorphic_inlining, true, "polymorphic inlining")
 DEFINE_BOOL(stress_inline, false,
             "set high thresholds for inlining to inline as much as possible")
 DEFINE_VALUE_IMPLICATION(stress_inline, max_inlined_bytecode_size, 999999)
@@ -1378,7 +1377,6 @@ DEFINE_VALUE_IMPLICATION(stress_inline, max_inlined_bytecode_size_cumulative,
 DEFINE_VALUE_IMPLICATION(stress_inline, max_inlined_bytecode_size_absolute,
                          999999)
 DEFINE_VALUE_IMPLICATION(stress_inline, min_inlining_frequency, 0.)
-DEFINE_IMPLICATION(stress_inline, polymorphic_inlining)
 DEFINE_BOOL(trace_turbo_inlining, false, "trace TurboFan inlining")
 DEFINE_BOOL(turbo_inline_array_builtins, true,
             "inline array builtins in TurboFan code")
