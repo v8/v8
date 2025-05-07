@@ -195,7 +195,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
         first_branch_version = "13.8",
-        barrier = BARRIER.NONE,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
 )
 
