@@ -11,6 +11,7 @@
 #include <limits>
 #include <ostream>
 
+#include "include/cppgc/macros.h"
 #include "include/v8-internal.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/build_config.h"
@@ -349,6 +350,8 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 #else
 #define V8_EXPERIMENTAL_UNDEFINED_DOUBLE_BOOL false
 #endif
+
+#define V8_STACK_ALLOCATED CPPGC_STACK_ALLOCATED
 
 // Superclass for classes only using static method functions.
 // The subclass of AllStatic cannot be instantiated at all.

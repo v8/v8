@@ -3325,6 +3325,7 @@ v8_header_set("v8_shared_internal_headers") {
   ]
 
   deps = [
+    ":cppgc_headers",
     ":v8_headers",
     ":v8_libbase",
   ]

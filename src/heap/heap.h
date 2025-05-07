@@ -193,6 +193,8 @@ enum class GCFlag : uint8_t {
 // Temporarily enables CSS to conservatively scan the stack starting from the
 // current frame. This scope should not yet be used in production!
 class V8_EXPORT_PRIVATE ConservativePinningScope {
+  V8_STACK_ALLOCATED();
+
  public:
   explicit ConservativePinningScope(
       Heap* heap,
