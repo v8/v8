@@ -208,7 +208,7 @@ class MainAllocator {
 
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
   AllocateRaw(int size_in_bytes, AllocationAlignment alignment,
-              AllocationOrigin origin);
+              AllocationOrigin origin, AllocationHint hint);
 
   V8_WARN_UNUSED_RESULT V8_EXPORT_PRIVATE AllocationResult
   AllocateRawForceAlignmentForTesting(int size_in_bytes,

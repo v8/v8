@@ -47,12 +47,13 @@ void LocalFactory::ProcessNewScript(DirectHandle<Script> script,
 
 Tagged<HeapObject> LocalFactory::AllocateRaw(int size,
                                              AllocationType allocation,
-                                             AllocationAlignment alignment) {
+                                             AllocationAlignment alignment,
+                                             AllocationHint hint) {
   DCHECK(allocation == AllocationType::kOld ||
          allocation == AllocationType::kSharedOld ||
          allocation == AllocationType::kTrusted);
   return HeapObject::FromAddress(isolate()->heap()->AllocateRawOrFail(
-      size, allocation, AllocationOrigin::kRuntime, alignment));
+      size, allocation, AllocationOrigin::kRuntime, alignment, hint));
 }
 
 int LocalFactory::NumberToStringCacheHash(Tagged<Smi>) { return 0; }

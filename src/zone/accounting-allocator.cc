@@ -39,7 +39,8 @@ class CompressedZones final {
         ZoneCompression::kReservationAlignment));
 
     VirtualMemory memory(platform_allocator, ZoneCompression::kReservationSize,
-                         hint, ZoneCompression::kReservationAlignment);
+                         v8::PageAllocator::AllocationHint().WithAddress(hint),
+                         ZoneCompression::kReservationAlignment);
     if (memory.IsReserved()) {
       CHECK(
           IsAligned(memory.address(), ZoneCompression::kReservationAlignment));
@@ -86,7 +87,7 @@ class CompressedZones final {
   static base::AllocationResult<void*> AllocateSegment(
       v8::base::BoundedPageAllocator* bounded_page_allocator, size_t bytes) {
     bytes = RoundUp(bytes, CompressedZones::kZonePageSize);
-    void* memory = AllocatePages(bounded_page_allocator, nullptr, bytes,
+    void* memory = AllocatePages(bounded_page_allocator, bytes,
                                  CompressedZones::kZonePageSize,
                                  PageAllocator::kReadWrite);
     return {memory, bytes};
@@ -118,7 +119,8 @@ class ManagedZones final {
     }
 
     v8::PageAllocator* platform_page_allocator = GetPlatformPageAllocator();
-    VirtualMemory memory(platform_page_allocator, bytes, nullptr,
+    VirtualMemory memory(platform_page_allocator, bytes,
+                         v8::PageAllocator::AllocationHint(),
                          kMinZonePageAlignment, v8::PageAllocator::kReadWrite);
     if (V8_UNLIKELY(!memory.IsReserved())) {
       return std::nullopt;

@@ -17,7 +17,8 @@ namespace internal {
 
 AllocationResult MainAllocator::AllocateRaw(int size_in_bytes,
                                             AllocationAlignment alignment,
-                                            AllocationOrigin origin) {
+                                            AllocationOrigin origin,
+                                            AllocationHint hint) {
   size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
 
   DCHECK_EQ(in_gc(), origin == AllocationOrigin::kGC);

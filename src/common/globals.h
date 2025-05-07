@@ -1411,6 +1411,22 @@ inline std::ostream& operator<<(std::ostream& os, AllocationType type) {
   return os << ToString(type);
 }
 
+class AllocationHint final {
+ public:
+  AllocationHint() = default;
+
+  constexpr V8_WARN_UNUSED_RESULT AllocationHint WithMayGrow() const {
+    return AllocationHint(true);
+  }
+
+  bool MayGrow() const { return may_grow_; }
+
+ private:
+  constexpr explicit AllocationHint(bool may_grow) : may_grow_(may_grow) {}
+
+  bool may_grow_ = false;
+};
+
 // Reason for a garbage collection.
 //
 // These values are persisted to logs. Entries should not be renumbered and

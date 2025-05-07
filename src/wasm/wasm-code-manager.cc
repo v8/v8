@@ -2235,7 +2235,9 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size) {
   // When we start exposing Wasm in jitless mode, then the jitless flag
   // will have to determine whether we set kMapAsJittable or not.
   DCHECK(!v8_flags.jitless);
-  VirtualMemory mem(page_allocator, size, reinterpret_cast<void*>(hint),
+  VirtualMemory mem(page_allocator, size,
+                    PageAllocator::AllocationHint().WithAddress(
+                        reinterpret_cast<void*>(hint)),
                     allocate_page_size,
                     PageAllocator::Permission::kNoAccessWillJitLater);
   if (!mem.IsReserved()) {

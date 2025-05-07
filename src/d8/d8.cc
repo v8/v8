@@ -194,7 +194,7 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
     v8::PageAllocator* page_allocator = GetPageAllocator();
     size_t page_size = page_allocator->AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
-    return i::AllocatePages(page_allocator, nullptr, allocated, page_size,
+    return i::AllocatePages(page_allocator, allocated, page_size,
                             PageAllocator::kReadWrite);
   }
 

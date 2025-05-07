@@ -806,7 +806,8 @@ FactoryBase<Impl>::NewOneByteInternalizedStringFromTwoByte(
 template <typename Impl>
 template <typename SeqStringT>
 MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
-    int length, Tagged<Map> map, AllocationType allocation) {
+    int length, Tagged<Map> map, AllocationType allocation,
+    AllocationHint hint) {
   DCHECK(SeqStringT::IsCompatibleMap(map, read_only_roots()));
   DCHECK_IMPLIES(!StringShape(map).IsShared(),
                  RefineAllocationTypeForInPlaceInternalizableString(
@@ -818,8 +819,8 @@ MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
   int size = SeqStringT::SizeFor(length);
   DCHECK_GE(ObjectTraits<SeqStringT>::kMaxSize, size);
 
-  Tagged<SeqStringT> string =
-      Cast<SeqStringT>(AllocateRawWithImmortalMap(size, allocation, map));
+  Tagged<SeqStringT> string = Cast<SeqStringT>(AllocateRawWithImmortalMap(
+      size, allocation, map, AllocationAlignment::kTaggedAligned, hint));
   DisallowGarbageCollection no_gc;
   string->clear_padding_destructively(length);
   string->set_length(length);
@@ -830,20 +831,22 @@ MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
 
 template <typename Impl>
 MaybeHandle<SeqOneByteString> FactoryBase<Impl>::NewRawOneByteString(
-    int length, AllocationType allocation) {
+    int length, AllocationType allocation, AllocationHint hint) {
   Tagged<Map> map = read_only_roots().seq_one_byte_string_map();
   return NewRawStringWithMap<SeqOneByteString>(
       length, map,
-      RefineAllocationTypeForInPlaceInternalizableString(allocation, map));
+      RefineAllocationTypeForInPlaceInternalizableString(allocation, map),
+      hint);
 }
 
 template <typename Impl>
 MaybeHandle<SeqTwoByteString> FactoryBase<Impl>::NewRawTwoByteString(
-    int length, AllocationType allocation) {
+    int length, AllocationType allocation, AllocationHint hint) {
   Tagged<Map> map = read_only_roots().seq_two_byte_string_map();
   return NewRawStringWithMap<SeqTwoByteString>(
       length, map,
-      RefineAllocationTypeForInPlaceInternalizableString(allocation, map));
+      RefineAllocationTypeForInPlaceInternalizableString(allocation, map),
+      hint);
 }
 
 template <typename Impl>
@@ -851,7 +854,7 @@ MaybeHandle<SeqOneByteString> FactoryBase<Impl>::NewRawSharedOneByteString(
     int length) {
   return NewRawStringWithMap<SeqOneByteString>(
       length, read_only_roots().shared_seq_one_byte_string_map(),
-      AllocationType::kSharedOld);
+      AllocationType::kSharedOld, AllocationHint());
 }
 
 template <typename Impl>
@@ -859,7 +862,7 @@ MaybeHandle<SeqTwoByteString> FactoryBase<Impl>::NewRawSharedTwoByteString(
     int length) {
   return NewRawStringWithMap<SeqTwoByteString>(
       length, read_only_roots().shared_seq_two_byte_string_map(),
-      AllocationType::kSharedOld);
+      AllocationType::kSharedOld, AllocationHint());
 }
 
 template <typename Impl>
@@ -1292,21 +1295,23 @@ Tagged<HeapObject> FactoryBase<Impl>::NewWithImmortalMap(
 template <typename Impl>
 Tagged<HeapObject> FactoryBase<Impl>::AllocateRawWithImmortalMap(
     int size, AllocationType allocation, Tagged<Map> map,
-    AllocationAlignment alignment) {
+    AllocationAlignment alignment, AllocationHint hint) {
   // TODO(delphick): Potentially you could also pass an immortal immovable Map
   // from OLD_SPACE here, like external_map or message_object_map, but currently
   // no one does so this check is sufficient.
   DCHECK(ReadOnlyHeap::Contains(map));
-  Tagged<HeapObject> result = AllocateRaw(size, allocation, alignment);
+  Tagged<HeapObject> result = AllocateRaw(size, allocation, alignment, hint);
   DisallowGarbageCollection no_gc;
   result->set_map_after_allocation(isolate(), map, SKIP_WRITE_BARRIER);
   return result;
 }
 
 template <typename Impl>
-Tagged<HeapObject> FactoryBase<Impl>::AllocateRaw(
-    int size, AllocationType allocation, AllocationAlignment alignment) {
-  return impl()->AllocateRaw(size, allocation, alignment);
+Tagged<HeapObject> FactoryBase<Impl>::AllocateRaw(int size,
+                                                  AllocationType allocation,
+                                                  AllocationAlignment alignment,
+                                                  AllocationHint hint) {
+  return impl()->AllocateRaw(size, allocation, alignment, hint);
 }
 
 template <typename Impl>

@@ -58,9 +58,9 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
 
   // ------
   // Customization points for FactoryBase.
-  Tagged<HeapObject> AllocateRaw(
-      int size, AllocationType allocation,
-      AllocationAlignment alignment = kTaggedAligned);
+  Tagged<HeapObject> AllocateRaw(int size, AllocationType allocation,
+                                 AllocationAlignment alignment = kTaggedAligned,
+                                 AllocationHint hint = AllocationHint());
 
   LocalIsolate* isolate() {
     // Downcast to the privately inherited sub-class using c-style casts to

@@ -95,7 +95,8 @@ class MemoryAllocator {
       Executability executable);
 
   V8_EXPORT_PRIVATE LargePageMetadata* AllocateLargePage(
-      LargeObjectSpace* space, size_t object_size, Executability executable);
+      LargeObjectSpace* space, size_t object_size, Executability executable,
+      AllocationHint hint);
 
   bool ResizeLargePage(LargePageMetadata* page, size_t old_object_size,
                        size_t new_object_size);
@@ -250,21 +251,24 @@ class MemoryAllocator {
   // the uninitialized memory region.
   V8_WARN_UNUSED_RESULT std::optional<MemoryChunkAllocationResult>
   AllocateUninitializedChunk(BaseSpace* space, size_t area_size,
-                             Executability executable, PageSize page_size) {
+                             Executability executable, PageSize page_size,
+                             AllocationHint hint) {
     return AllocateUninitializedChunkAt(space, area_size, executable,
-                                        kNullAddress, page_size);
+                                        kNullAddress, page_size, hint);
   }
   V8_WARN_UNUSED_RESULT std::optional<MemoryChunkAllocationResult>
   AllocateUninitializedChunkAt(BaseSpace* space, size_t area_size,
                                Executability executable, Address hint,
-                               PageSize page_size);
+                               PageSize page_size,
+                               AllocationHint allocation_hint);
 
   // Internal raw allocation method that allocates an aligned MemoryChunk and
   // sets the right memory permissions.
   Address AllocateAlignedMemory(size_t chunk_size, size_t area_size,
                                 size_t alignment, AllocationSpace space,
                                 Executability executable, void* hint,
-                                VirtualMemory* controller);
+                                VirtualMemory* controller, PageSize page_size,
+                                AllocationHint allocation_hint);
 
   // Sets memory permissions on executable memory chunks. This entails page
   // header (RW), guard pages (no access) and the object area (code modification
