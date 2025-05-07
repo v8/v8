@@ -135,7 +135,6 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "arm64"},
         properties = {"target_arch": "arm", "target_bits": 64},
         triggered_by = ["v8-trigger"],
-        use_remoteexec = RECLIENT.DEFAULT,
         notify_owners = ["machenbach@chromium.org"],
     ),
     experiment_builder(
