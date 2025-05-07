@@ -11,6 +11,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
+#include "src/builtins/builtins.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
@@ -884,6 +885,24 @@ void FrameStateOp::Validate(const Graph& graph) const {
 void DeoptimizeIfOp::PrintOptions(std::ostream& os) const {
   static_assert(std::tuple_size_v<decltype(options())> == 2);
   os << '[' << (negated ? "negated, " : "") << *parameters << ']';
+}
+
+void CallOp::Validate(const Graph& graph) const {
+#ifdef DEBUG
+  if (frame_state().valid()) {
+    DCHECK(Get(graph, frame_state().value()).Is<FrameStateOp>());
+  }
+
+  if (!graph.has_broker()) return;
+  if (const ConstantOp* target =
+          graph.Get(callee()).TryCast<Opmask::kHeapConstant>()) {
+    if (std::optional<Builtin> builtin =
+            TryGetBuiltinId(target, graph.broker())) {
+      CHECK_IMPLIES(!callee_effects.can_allocate,
+                    !BuiltinCanAllocate(*builtin));
+    }
+  }
+#endif
 }
 
 void DidntThrowOp::Validate(const Graph& graph) const {

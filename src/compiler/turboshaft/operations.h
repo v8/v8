@@ -4133,11 +4133,7 @@ struct CallOp : OperationT<CallOp> {
               base::VectorOf(mapped_arguments), descriptor, Effects());
   }
 
-  void Validate(const Graph& graph) const {
-    if (frame_state().valid()) {
-      DCHECK(Get(graph, frame_state().value()).Is<FrameStateOp>());
-    }
-  }
+  V8_EXPORT_PRIVATE void Validate(const Graph& graph) const;
 
   static CallOp& New(Graph* graph, V<CallTarget> callee,
                      OptionalV<FrameState> frame_state,

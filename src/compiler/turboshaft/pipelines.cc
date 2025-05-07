@@ -7,6 +7,7 @@
 #include "src/compiler/pipeline-data-inl.h"
 #include "src/compiler/turboshaft/csa-branch-elimination-phase.h"
 #include "src/compiler/turboshaft/csa-early-machine-optimization-phase.h"
+#include "src/compiler/turboshaft/csa-effects-computation.h"
 #include "src/compiler/turboshaft/csa-late-escape-analysis-phase.h"
 #include "src/compiler/turboshaft/csa-load-elimination-phase.h"
 #include "src/compiler/turboshaft/csa-memory-optimization-phase.h"
@@ -156,6 +157,13 @@ void BuiltinPipeline::OptimizeBuiltin() {
   CHECK(Run<CsaLoadEliminationPhase>());
   CHECK(Run<CsaLateEscapeAnalysisPhase>());
   CHECK(Run<CsaBranchEliminationPhase>());
+
+  if (data()->isolate()->builtins_effects_analyzer() != nullptr) {
+    // Effect computations has to run before CsaMemoryOptimizationPhase, so that
+    // Allocate aren't lowered to builtin calls.
+    CHECK(Run<CsaEffectsComputationPhase>());
+  }
+
   CHECK(Run<CsaMemoryOptimizationPhase>());
 
   if (v8_flags.turboshaft_enable_debug_features) {

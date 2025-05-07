@@ -13,6 +13,7 @@
 
 #include "src/base/iterator.h"
 #include "src/base/template-utils.h"
+#include "src/builtins/builtins.h"
 #include "src/codegen/machine-type.h"
 
 #ifdef V8_TARGET_ARCH_ARM
@@ -749,6 +750,9 @@ inline void MaglevAssembler::CallBuiltin(Builtin builtin) {
   // Special case allowing calls to DoubleToI, which takes care to preserve all
   // registers and therefore doesn't require special spill handling.
   DCHECK(allow_call() || builtin == Builtin::kDoubleToI);
+
+  DCHECK_IMPLIES(!allow_allocate(), builtin == Builtin::kDoubleToI ||
+                                        !BuiltinCanAllocate(builtin));
 
   // Temporaries have to be reset before calling CallBuiltin, in case it uses
   // temporaries that alias register parameters.

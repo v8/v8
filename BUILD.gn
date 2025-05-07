@@ -846,6 +846,8 @@ assert(
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"
 
+is_DEBUG_defined = v8_enable_debugging_features || v8_dcheck_always_on
+
 ###############################################################################
 # Configurations
 #
@@ -2467,6 +2469,10 @@ template("run_mksnapshot") {
 
     outputs = []
 
+    if (is_DEBUG_defined) {
+      outputs += [ "$target_gen_dir/src/builtins/builtins-effects.cc" ]
+    }
+
     data = []
 
     if (current_os != "zos") {
@@ -2517,6 +2523,14 @@ template("run_mksnapshot") {
       # mksnapshot.cc). We set it here as well for clarity.
       "--no-use-ic",
     ]
+
+    if (is_DEBUG_defined) {
+      args += [
+        "--builtins-effects-src",
+        rebase_path("$target_gen_dir/src/builtins/builtins-effects.cc",
+                    root_build_dir),
+      ]
+    }
 
     if (v8_verify_deterministic_mksnapshot) {
       # Flags that help debugging snapshot determinism.
@@ -2763,7 +2777,6 @@ if (v8_verify_builtins_compatibility) {
 action("v8_dump_build_config") {
   script = "tools/testrunner/utils/dump_build_config.py"
   outputs = [ "$root_out_dir/v8_build_config.json" ]
-  is_DEBUG_defined = v8_enable_debugging_features || v8_dcheck_always_on
   is_full_debug = v8_enable_debugging_features && !v8_optimized_debug
 
   arch = v8_target_cpu
@@ -2932,6 +2945,9 @@ v8_source_set("v8_snapshot") {
     } else {
       sources += [ "$target_gen_dir/embedded.s" ]
     }
+  }
+  if (is_DEBUG_defined) {
+    sources += [ "$target_gen_dir/src/builtins/builtins-effects.cc" ]
   }
 
   configs = [ ":internal_config" ]
@@ -3365,6 +3381,7 @@ v8_header_set("v8_internal_headers") {
     "src/builtins/builtins-constructor.h",
     "src/builtins/builtins-definitions.h",
     "src/builtins/builtins-descriptors.h",
+    "src/builtins/builtins-effects-analyzer.h",
     "src/builtins/builtins-inl.h",
     "src/builtins/builtins-promise.h",
     "src/builtins/builtins-utils-inl.h",
@@ -3576,6 +3593,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/copying-phase.h",
     "src/compiler/turboshaft/csa-branch-elimination-phase.h",
     "src/compiler/turboshaft/csa-early-machine-optimization-phase.h",
+    "src/compiler/turboshaft/csa-effects-computation-phase.h",
     "src/compiler/turboshaft/csa-late-escape-analysis-phase.h",
     "src/compiler/turboshaft/csa-load-elimination-phase.h",
     "src/compiler/turboshaft/csa-memory-optimization-phase.h",
@@ -5095,6 +5113,7 @@ v8_compiler_sources = [
   "src/compiler/turboshaft/copying-phase.cc",
   "src/compiler/turboshaft/csa-branch-elimination-phase.cc",
   "src/compiler/turboshaft/csa-early-machine-optimization-phase.cc",
+  "src/compiler/turboshaft/csa-effects-computation.cc",
   "src/compiler/turboshaft/csa-late-escape-analysis-phase.cc",
   "src/compiler/turboshaft/csa-load-elimination-phase.cc",
   "src/compiler/turboshaft/csa-memory-optimization-phase.cc",
@@ -5397,6 +5416,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/builtins/builtins-dataview.cc",
     "src/builtins/builtins-date.cc",
     "src/builtins/builtins-disposable-stack.cc",
+    "src/builtins/builtins-effects-analyzer.cc",
     "src/builtins/builtins-error.cc",
     "src/builtins/builtins-function.cc",
     "src/builtins/builtins-global.cc",
@@ -7337,6 +7357,7 @@ if (current_toolchain == v8_generator_toolchain) {
 if (current_toolchain == v8_snapshot_toolchain) {
   v8_executable("mksnapshot") {
     sources = [
+      "src/snapshot/builtins-effects-dummy.cc",
       "src/snapshot/embedded/embedded-empty.cc",
       "src/snapshot/embedded/embedded-file-writer.cc",
       "src/snapshot/embedded/embedded-file-writer.h",

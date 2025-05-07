@@ -21,14 +21,12 @@
 namespace v8 {
 namespace internal {
 
-
 RUNTIME_FUNCTION(Runtime_ThrowUnsupportedSuperError) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewReferenceError(MessageTemplate::kUnsupportedSuper));
 }
-
 
 RUNTIME_FUNCTION(Runtime_ThrowConstructorNonCallableError) {
   HandleScope scope(isolate);
@@ -50,7 +48,6 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructorNonCallableError) {
       isolate, NewError(realm_type_error_function,
                         MessageTemplate::kConstructorNonCallable, name));
 }
-
 
 RUNTIME_FUNCTION(Runtime_ThrowStaticPrototypeError) {
   HandleScope scope(isolate);
@@ -731,7 +728,6 @@ RUNTIME_FUNCTION(Runtime_LoadFromSuper) {
   RETURN_RESULT_OR_FAILURE(
       isolate, LoadFromSuper(isolate, receiver, home_object_proto, &key));
 }
-
 
 RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
   HandleScope scope(isolate);

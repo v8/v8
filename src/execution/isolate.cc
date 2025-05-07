@@ -4763,6 +4763,8 @@ Isolate::~Isolate() {
   delete allocator_;
   allocator_ = nullptr;
 
+  DCHECK_NULL(builtins_effects_analyzer_);
+
   // Assert that |default_microtask_queue_| is the last MicrotaskQueue instance.
   DCHECK_IMPLIES(default_microtask_queue_,
                  default_microtask_queue_ == default_microtask_queue_->next());

@@ -22,7 +22,6 @@ RUNTIME_FUNCTION(Runtime_StringToNumber) {
   return *String::ToNumber(isolate, subject);
 }
 
-
 // ES6 18.2.5 parseInt(string, radix) slow path
 RUNTIME_FUNCTION(Runtime_StringParseInt) {
   HandleScope handle_scope(isolate);
@@ -49,7 +48,6 @@ RUNTIME_FUNCTION(Runtime_StringParseInt) {
   double result = StringToInt(isolate, subject, radix32);
   return *isolate->factory()->NewNumber(result);
 }
-
 
 // ES6 18.2.4 parseFloat(string)
 RUNTIME_FUNCTION(Runtime_StringParseFloat) {
@@ -81,7 +79,6 @@ RUNTIME_FUNCTION(Runtime_MaxSmi) {
   return Smi::FromInt(Smi::kMaxValue);
 }
 
-
 RUNTIME_FUNCTION(Runtime_IsSmi) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
@@ -89,13 +86,11 @@ RUNTIME_FUNCTION(Runtime_IsSmi) {
   return isolate->heap()->ToBoolean(IsSmi(obj));
 }
 
-
 RUNTIME_FUNCTION(Runtime_GetHoleNaNUpper) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   return *isolate->factory()->NewNumberFromUint(kHoleNanUpper32);
 }
-
 
 RUNTIME_FUNCTION(Runtime_GetHoleNaNLower) {
   HandleScope scope(isolate);

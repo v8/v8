@@ -383,6 +383,7 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftWasmInJSInlining)        \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize,                                    \
                               TurboshaftCsaEarlyMachineOptimization)          \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftCsaEffectsComputation)   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftCsaLateEscapeAnalysis)   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftCsaLoadElimination)      \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftCsaMemoryOptimization)   \
@@ -601,7 +602,7 @@ enum class RuntimeCallCounterId {
 #define CALL_RUNTIME_COUNTER(name) k##name,
       FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)
 #undef CALL_RUNTIME_COUNTER
-#define CALL_RUNTIME_COUNTER(name, nargs, ressize) kRuntime_##name,
+#define CALL_RUNTIME_COUNTER(name, nargs, ressize, ...) kRuntime_##name,
           FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
 #undef CALL_RUNTIME_COUNTER
 #define CALL_BUILTIN_COUNTER(name, Argc) kBuiltin_##name,

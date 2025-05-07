@@ -2699,6 +2699,7 @@ std::optional<BailoutReason> BuildGraph(
                        js_wasm_calls_sidetable};
 #if DEBUG
   data->graph().SetCreatedFromTurbofan();
+  data->graph().set_broker(data->broker());
 #endif
   return builder.Run();
 }
