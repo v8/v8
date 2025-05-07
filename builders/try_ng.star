@@ -90,7 +90,8 @@ trybot_pair(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "arm64"},
     properties = {"target_arch": "arm", "target_bits": 64},
-    use_siso = SISO.CHROMIUM_UNTRUSTED,
+    use_remoteexec = RECLIENT.NONE,
+    use_siso = SISO.NONE,
 )
 
 trybot_pair(
