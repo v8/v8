@@ -510,17 +510,28 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
 
 // This is called as we come into a loop choice node and some other tricky
 // nodes.  It normalizes the state of the code generator to ensure we can
-// generate generic code.
-void Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
+// generate generic code.  If the mode indicates that we are in a success
+// situation then don't push anything, because the stack is about to be
+// discarded, and also don't update the current position.
+void Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor,
+                  Trace::FlushMode mode) {
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
 
   DCHECK(!is_trivial());
 
-  if (!has_any_actions() && backtrack() == nullptr) {
+  // Normally we don't need to update the current position register if we are
+  // about to stop because we had a successful match, but the global mode
+  // requires the current position register to be updated so it can start the
+  // next match.  TODO(erikcorry): Perhaps it should use capture register 1
+  // instead.
+  bool update_current_position =
+      cp_offset_ != 0 && (mode != kFlushSuccess || assembler->global());
+
+  if (!has_any_actions() && (backtrack() == nullptr || mode == kFlushSuccess)) {
     // Here we just have some deferred cp advances to fix and we are back to
     // a normal situation.  We may also have to forget some information gained
     // through a quick check that was already performed.
-    if (cp_offset_ != 0) assembler->AdvanceCurrentPosition(cp_offset_);
+    if (update_current_position) assembler->AdvanceCurrentPosition(cp_offset_);
     // Create a new trivial state and generate the node with that.
     Trace new_state;
     successor->Emit(compiler, &new_state);
@@ -530,7 +541,7 @@ void Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
   // Generate deferred actions here along with code to undo them again.
   DynamicBitSet affected_registers;
 
-  if (backtrack() != nullptr) {
+  if (backtrack() != nullptr && mode != kFlushSuccess) {
     // Here we have a concrete backtrack location.  These are set up by choice
     // nodes and so they indicate that we have a deferred save of the current
     // position which we may need to emit here.
@@ -544,8 +555,12 @@ void Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
   PerformDeferredActions(assembler, max_register, affected_registers,
                          &registers_to_pop, &registers_to_clear,
                          compiler->zone());
-  if (cp_offset_ != 0) {
-    assembler->AdvanceCurrentPosition(cp_offset_);
+  if (update_current_position) assembler->AdvanceCurrentPosition(cp_offset_);
+
+  if (mode == kFlushSuccess) {
+    Trace new_state;
+    successor->Emit(compiler, &new_state);
+    return;
   }
 
   // Create a new trivial state and generate the node with that.
@@ -599,7 +614,8 @@ void NegativeSubmatchSuccess::Emit(RegExpCompiler* compiler, Trace* trace) {
 
 void EndNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   if (!trace->is_trivial()) {
-    trace->Flush(compiler, this);
+    DCHECK(action_ == ACCEPT);
+    trace->Flush(compiler, this, Trace::kFlushSuccess);
     return;
   }
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
@@ -3532,7 +3548,7 @@ void ActionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
     }
     case POSITIVE_SUBMATCH_SUCCESS: {
       if (!trace->is_trivial()) {
-        trace->Flush(compiler, this);
+        trace->Flush(compiler, this, Trace::kFlushSuccess);
         return;
       }
       assembler->ReadCurrentPositionFromRegister(

@@ -269,7 +269,15 @@ class Trace {
   // and pushing a backtrack location onto the backtrack stack.  Once this is
   // done we can start a new trace or go to one that has already been
   // generated.
-  void Flush(RegExpCompiler* compiler, RegExpNode* successor);
+  enum FlushMode {
+    // Normal flush of the deferred actions, generates code for backtracking.
+    kFlushFull,
+    // Matching has succeeded, so current position and backtrack stack will be
+    // ignored and need not be written.
+    kFlushSuccess
+  };
+  void Flush(RegExpCompiler* compiler, RegExpNode* successor,
+             FlushMode mode = kFlushFull);
   int cp_offset() const { return cp_offset_; }
   // Does any trace in the chain have an action?
   bool has_any_actions() const { return has_any_actions_; }
