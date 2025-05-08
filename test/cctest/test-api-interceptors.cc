@@ -2626,13 +2626,13 @@ void CheckPropertyDefinerCallbackInDefineNamedOwnIC(Local<Context> context,
 THREADED_TEST(PropertyDefinerCallbackInDefineNamedOwnIC) {
   {
     LocalContext env;
-    v8::HandleScope scope(env->GetIsolate());
+    v8::HandleScope scope(env.isolate());
     CheckPropertyDefinerCallbackInDefineNamedOwnIC(env.local(), true);
   }
 
   {
     LocalContext env;
-    v8::HandleScope scope(env->GetIsolate());
+    v8::HandleScope scope(env.isolate());
     CheckPropertyDefinerCallbackInDefineNamedOwnIC(env.local(), false);
   }
 
@@ -2640,7 +2640,7 @@ THREADED_TEST(PropertyDefinerCallbackInDefineNamedOwnIC) {
     i::v8_flags.lazy_feedback_allocation = false;
     i::FlagList::EnforceFlagImplications();
     LocalContext env;
-    v8::HandleScope scope(env->GetIsolate());
+    v8::HandleScope scope(env.isolate());
     CheckPropertyDefinerCallbackInDefineNamedOwnIC(env.local(), true);
   }
 
@@ -2648,7 +2648,7 @@ THREADED_TEST(PropertyDefinerCallbackInDefineNamedOwnIC) {
     i::v8_flags.lazy_feedback_allocation = false;
     i::FlagList::EnforceFlagImplications();
     LocalContext env;
-    v8::HandleScope scope(env->GetIsolate());
+    v8::HandleScope scope(env.isolate());
     CheckPropertyDefinerCallbackInDefineNamedOwnIC(env.local(), false);
   }
 }
@@ -2762,7 +2762,7 @@ THREADED_TEST(IndexedPropertyHandlerGetter) {
 
 THREADED_TEST(PropertyHandlerInPrototype) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
 
   v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
@@ -2818,7 +2818,7 @@ THREADED_TEST(PropertyHandlerInPrototype) {
 
 TEST(PropertyHandlerInPrototypeWithDefine) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
 
   v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
@@ -6513,7 +6513,7 @@ v8::Intercepted CheckReceiver(Local<Name> name,
 
 TEST(Regress609134Interceptor) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   auto fun_templ = v8::FunctionTemplate::New(isolate);
   fun_templ->InstanceTemplate()->SetHandler(
@@ -6565,7 +6565,7 @@ v8::Intercepted Regress42204611_Definer(
 // Regression test for crbug.com/42204611
 THREADED_TEST(Regress42204611) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   std::vector<std::string> calls;

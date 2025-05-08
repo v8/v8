@@ -364,7 +364,7 @@ void TypedArrayTestHelper(i::ExternalArrayType array_type, int64_t low,
   const int kElementCount = 50;
 
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   Local<ArrayBufferType> ab =
@@ -444,7 +444,7 @@ THREADED_TEST(DataView) {
   const int kSize = 50;
 
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 2 + kSize);
@@ -511,7 +511,7 @@ THREADED_TEST(SharedDataView) {
   const int kSize = 50;
 
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   Local<v8::SharedArrayBuffer> ab =
@@ -533,7 +533,7 @@ THREADED_TEST(SharedDataView) {
 #define IS_ARRAY_BUFFER_VIEW_TEST(View)                                     \
   THREADED_TEST(Is##View) {                                                 \
     LocalContext env;                                                       \
-    v8::Isolate* isolate = env->GetIsolate();                               \
+    v8::Isolate* isolate = env.isolate();                                   \
     v8::HandleScope handle_scope(isolate);                                  \
                                                                             \
     Local<Value> result = CompileRun(                                       \
@@ -559,7 +559,7 @@ IS_ARRAY_BUFFER_VIEW_TEST(DataView)
 
 TEST(InternalFieldsOnTypedArray) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> context = env.local();
   Context::Scope context_scope(context);
@@ -573,7 +573,7 @@ TEST(InternalFieldsOnTypedArray) {
 
 TEST(InternalFieldsOnDataView) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> context = env.local();
   Context::Scope context_scope(context);
@@ -587,7 +587,7 @@ TEST(InternalFieldsOnDataView) {
 
 TEST(DetachedArrayBufferViewsPretendOffsetAndLengthAreZero) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> context = env.local();
   Context::Scope context_scope(context);
@@ -638,7 +638,7 @@ TEST(DetachedArrayBufferViewsPretendOffsetAndLengthAreZero) {
 
 TEST(OutOfBoundsArrayBufferViewsPretendOffsetAndLengthAreZero) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> context = env.local();
   Context::Scope context_scope(context);
@@ -690,7 +690,7 @@ TEST(OutOfBoundsArrayBufferViewsPretendOffsetAndLengthAreZero) {
 namespace {
 void TestOnHeapHasBuffer(const char* array_name, size_t elem_size) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   v8::base::ScopedVector<char> source(128);
@@ -722,7 +722,7 @@ void TestOnHeapHasBuffer(const char* array_name, size_t elem_size) {
 
 void TestOffHeapHasBuffer(const char* array_name, size_t elem_size) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   v8::base::ScopedVector<char> source(128);

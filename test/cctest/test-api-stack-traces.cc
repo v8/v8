@@ -422,7 +422,7 @@ static void StackTraceForUncaughtExceptionListener(
 
 TEST(CaptureStackTraceForUncaughtException) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   isolate->AddMessageListener(StackTraceForUncaughtExceptionListener);
   isolate->SetCaptureStackTraceForUncaughtExceptions(true);
@@ -472,7 +472,7 @@ static void StackTraceForUncaughtExceptionAndSettersListener(
 TEST(CaptureStackTraceForUncaughtExceptionAndSetters) {
   report_count = 0;
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::Object> object = v8::Object::New(isolate);
   isolate->AddMessageListener(StackTraceForUncaughtExceptionAndSettersListener,
@@ -538,7 +538,7 @@ static void StackTraceFunctionNameListener(v8::Local<v8::Message> message,
 
 TEST(GetStackTraceContainsFunctionsWithFunctionName) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
 
   CompileRunWithOrigin(functions_with_function_name, "origin");
@@ -568,7 +568,7 @@ static void RethrowStackTraceHandler(v8::Local<v8::Message> message,
 // is first thrown (not where it is rethrown).
 TEST(RethrowStackTrace) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   // We make sure that
   // - the stack trace of the ReferenceError in g() is reported.
@@ -610,7 +610,7 @@ static void RethrowPrimitiveStackTraceHandler(v8::Local<v8::Message> message,
 // Test that we do not recognize identity for primitive exceptions.
 TEST(RethrowPrimitiveStackTrace) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   // We do not capture stack trace for non Error objects on creation time.
   // Instead, we capture the stack trace on last throw.
@@ -643,7 +643,7 @@ static void RethrowExistingStackTraceHandler(v8::Local<v8::Message> message,
 // not where it is thrown.
 TEST(RethrowExistingStackTrace) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   const char* source =
       "var e = new Error();           \n"
@@ -668,7 +668,7 @@ static void RethrowBogusErrorStackTraceHandler(v8::Local<v8::Message> message,
 // and not where it is thrown.
 TEST(RethrowBogusErrorStackTrace) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   const char* source =
       "var e = {__proto__: new Error()} \n"
