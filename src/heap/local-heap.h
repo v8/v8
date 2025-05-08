@@ -401,7 +401,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   std::unique_ptr<MarkingBarrier> marking_barrier_;
 
   GCCallbacksInSafepoint gc_epilogue_callbacks_;
-  GCRootsProvider* roots_provider_ = nullptr;
+  base::SmallVector<GCRootsProvider*, 4> roots_providers_;
 
   HeapAllocator heap_allocator_;
 

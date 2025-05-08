@@ -162,6 +162,9 @@ class V8_NODISCARD GCRootsProviderScope final {
   GCRootsProviderScope(GCRootsProviderScope&&) = delete;
 
  private:
+#if DEBUG
+  GCRootsProvider* provider_;
+#endif
   LocalHeap* local_heap_;
 };
 
