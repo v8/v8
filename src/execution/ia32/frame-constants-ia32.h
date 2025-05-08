@@ -17,7 +17,7 @@ class EntryFrameConstants : public AllStatic {
  public:
   // This is the offset to where JSEntry pushes the current value of
   // Isolate::c_entry_fp onto the stack.
-  static constexpr int kNextExitFrameFPOffset = -5 * kSystemPointerSize;
+  static constexpr int kNextExitFrameFPOffset = -6 * kSystemPointerSize;
 
   // The offsets for storing the FP and PC of fast API calls.
   static constexpr int kNextFastCallFrameFPOffset =

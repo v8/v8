@@ -366,6 +366,9 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
     // Push the stack frame type.
     __ Push(Immediate(StackFrame::TypeToMarker(type)));
+    // Reserve a slot for the context. It is filled after the root register has
+    // been set up.
+    __ AllocateStackSpace(kSystemPointerSize);
     // Save callee-saved registers (X64/X32/Win64 calling conventions).
     __ pushq(r12);
     __ pushq(r13);
@@ -416,11 +419,11 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     // and the code location it refers to.
 #ifdef V8_TARGET_OS_WIN
     static_assert(EntryFrameConstants::kNextExitFrameFPOffset ==
-                  -2 * kSystemPointerSize + -7 * kSystemPointerSize -
+                  -3 * kSystemPointerSize + -7 * kSystemPointerSize -
                       EntryFrameConstants::kXMMRegistersBlockSize);
 #else
     static_assert(EntryFrameConstants::kNextExitFrameFPOffset ==
-                  -2 * kSystemPointerSize + -5 * kSystemPointerSize);
+                  -3 * kSystemPointerSize + -5 * kSystemPointerSize);
 #endif  // V8_TARGET_OS_WIN
     Operand c_entry_fp_operand = masm->ExternalReferenceAsOperand(c_entry_fp);
     __ Push(c_entry_fp_operand);
@@ -442,6 +445,14 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     __ Push(fast_c_call_pc_operand);
     __ Move(fast_c_call_pc_operand, 0);
   }
+
+  // Store the context address in the previously-reserved slot.
+  ExternalReference context_address = ExternalReference::Create(
+      IsolateAddressId::kContextAddress, masm->isolate());
+  __ Load(kScratchRegister, context_address);
+
+  static constexpr int kOffsetToContextSlot = -2 * kSystemPointerSize;
+  __ movq(Operand(rbp, kOffsetToContextSlot), kScratchRegister);
 
   // If this is the outermost JS call, set js_entry_sp value.
   ExternalReference js_entry_sp = ExternalReference::Create(
@@ -535,7 +546,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ popq(r14);
   __ popq(r13);
   __ popq(r12);
-  __ addq(rsp, Immediate(kSystemPointerSize));  // remove markers
+  __ addq(rsp, Immediate(2 * kSystemPointerSize));  // remove markers
 
   // Restore frame pointer and return.
   __ popq(rbp);

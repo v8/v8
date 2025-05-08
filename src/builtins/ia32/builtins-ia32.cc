@@ -334,6 +334,9 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
     // Push marker in two places.
     __ push(Immediate(StackFrame::TypeToMarker(type)));
+    // Reserve a slot for the context. It is filled after the root register has
+    // been set up.
+    __ AllocateStackSpace(kSystemPointerSize);
     // Save callee-saved registers (C calling conventions).
     __ push(edi);
     __ push(esi);
@@ -363,6 +366,13 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
          Immediate(0));
   __ mov(__ ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerPC),
          Immediate(0));
+
+  // Store the context address in the previously-reserved slot.
+  ExternalReference context_address = ExternalReference::Create(
+      IsolateAddressId::kContextAddress, masm->isolate());
+  __ mov(edi, __ ExternalReferenceAsOperand(context_address, edi));
+  static constexpr int kOffsetToContextSlot = -2 * kSystemPointerSize;
+  __ mov(Operand(ebp, kOffsetToContextSlot), edi);
 
   // If this is the outermost JS call, set js_entry_sp value.
   ExternalReference js_entry_sp = ExternalReference::Create(
@@ -422,7 +432,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ pop(ebx);
   __ pop(esi);
   __ pop(edi);
-  __ add(esp, Immediate(kSystemPointerSize));  // remove marker
+  __ add(esp, Immediate(2 * kSystemPointerSize));  // remove markers
 
   // Restore frame pointer and return.
   __ pop(ebp);
