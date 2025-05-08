@@ -2220,10 +2220,13 @@ const ProfileDataFromFile* ValidateProfileData(
     if (v8_flags.abort_on_bad_builtin_profile_data ||
         v8_flags.warn_about_builtin_profile_data) {
       base::EmbeddedVector<char, 256> msg;
-      SNPrintF(msg,
-               "Rejected profile data for %s due to function change. "
-               "Please use tools/builtins-pgo/generate.py to refresh it.",
-               debug_name);
+      SNPrintF(
+          msg,
+          "Rejected profile data for %s due to function change. "
+          "Please use tools/builtins-pgo/generate.py to refresh it, you can "
+          "also try adding `'checkout_pgo_profiles': True` to your .gclient "
+          "file and run `gclient sync` to download the latest PGO profiles.",
+          debug_name);
       if (v8_flags.abort_on_bad_builtin_profile_data) {
         // mksnapshot might fail here because of the following reasons:
         // * builtins were changed since the builtins profile generation,
