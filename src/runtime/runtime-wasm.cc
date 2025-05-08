@@ -550,7 +550,8 @@ RUNTIME_FUNCTION(Runtime_WasmLiftoffDeoptFinish) {
 namespace {
 void ReplaceJSToWasmWrapper(
     Isolate* isolate, Tagged<WasmTrustedInstanceData> trusted_instance_data,
-    int function_index, Tagged<Code> wrapper_code) {
+    int function_index, Tagged<Code> wrapper_code,
+    bool receiver_is_first_param) {
   Tagged<WasmFuncRef> func_ref;
   // Always expect a func_ref. If this fails, we are maybe compiling a wrapper
   // for the start function. This function is only called once, so this should
@@ -560,9 +561,14 @@ void ReplaceJSToWasmWrapper(
   CHECK(func_ref->internal(isolate)->try_get_external(&external_function));
   if (external_function->shared()->HasWasmJSFunctionData()) return;
   CHECK(external_function->shared()->HasWasmExportedFunctionData());
-  external_function->UpdateCode(isolate, wrapper_code);
   Tagged<WasmExportedFunctionData> function_data =
       external_function->shared()->wasm_exported_function_data();
+  if ((function_data->receiver_is_first_param() != 0) !=
+      receiver_is_first_param) {
+    // Different "receiver is first parameter" settings, do nothing.
+    return;
+  }
+  external_function->UpdateCode(isolate, wrapper_code);
   function_data->set_wrapper_code(wrapper_code);
 }
 }  // namespace
@@ -615,7 +621,8 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
   // Replace the wrapper for the function that triggered the tier-up.
   // This is to ensure that the wrapper is replaced, even if the function
   // is implicitly exported and is not part of the export_table.
-  ReplaceJSToWasmWrapper(isolate, trusted_data, function_index, wrapper_code);
+  ReplaceJSToWasmWrapper(isolate, trusted_data, function_index, wrapper_code,
+                         receiver_is_first_param);
 
   // Iterate over all exports to replace eagerly the wrapper for all functions
   // that share the signature of the function that tiered up.
@@ -627,7 +634,8 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
     if (module->canonical_sig_id(exp_function.sig_index) != sig_id) {
       continue;  // Different signature.
     }
-    ReplaceJSToWasmWrapper(isolate, trusted_data, index, wrapper_code);
+    ReplaceJSToWasmWrapper(isolate, trusted_data, index, wrapper_code,
+                           receiver_is_first_param);
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
