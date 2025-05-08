@@ -701,13 +701,11 @@ ForInParameters const& ForInParametersOf(const Operator* op) {
 #if V8_ENABLE_WEBASSEMBLY
 JSWasmCallParameters::JSWasmCallParameters(
     const wasm::WasmModule* module, const wasm::CanonicalSig* signature,
-    int function_index, bool receiver_is_first_param,
-    SharedFunctionInfoRef shared_fct_info, wasm::NativeModule* native_module,
-    FeedbackSource const& feedback)
+    int function_index, SharedFunctionInfoRef shared_fct_info,
+    wasm::NativeModule* native_module, FeedbackSource const& feedback)
     : module_(module),
       signature_(signature),
       function_index_(function_index),
-      receiver_is_first_param_(receiver_is_first_param),
       shared_fct_info_(shared_fct_info),
       native_module_(native_module),
       feedback_(feedback) {
@@ -721,20 +719,17 @@ JSWasmCallParameters const& JSWasmCallParametersOf(const Operator* op) {
 }
 
 std::ostream& operator<<(std::ostream& os, JSWasmCallParameters const& p) {
-  return os << p.module() << ", " << p.signature() << ", "
-            << p.receiver_is_first_param() << ", " << p.feedback();
+  return os << p.module() << ", " << p.signature() << ", " << p.feedback();
 }
 
 size_t hash_value(JSWasmCallParameters const& p) {
   return base::hash_combine(p.module(), p.signature(),
-                            p.receiver_is_first_param(),
                             FeedbackSource::Hash()(p.feedback()));
 }
 
 bool operator==(JSWasmCallParameters const& lhs,
                 JSWasmCallParameters const& rhs) {
   return lhs.module() == rhs.module() && lhs.signature() == rhs.signature() &&
-         lhs.receiver_is_first_param() == rhs.receiver_is_first_param() &&
          lhs.feedback() == rhs.feedback();
 }
 
@@ -971,13 +966,13 @@ const Operator* JSOperatorBuilder::CallRuntime(
 const Operator* JSOperatorBuilder::CallWasm(
     const wasm::WasmModule* wasm_module,
     const wasm::CanonicalSig* wasm_signature, int wasm_function_index,
-    bool receiver_is_first_param, SharedFunctionInfoRef shared_fct_info,
-    wasm::NativeModule* native_module, FeedbackSource const& feedback) {
+    SharedFunctionInfoRef shared_fct_info, wasm::NativeModule* native_module,
+    FeedbackSource const& feedback) {
   // TODO(clemensb): Drop wasm_module.
   DCHECK_EQ(wasm_module, native_module->module());
   JSWasmCallParameters parameters(wasm_module, wasm_signature,
-                                  wasm_function_index, receiver_is_first_param,
-                                  shared_fct_info, native_module, feedback);
+                                  wasm_function_index, shared_fct_info,
+                                  native_module, feedback);
   return zone()->New<Operator1<JSWasmCallParameters>>(
       IrOpcode::kJSWasmCall, Operator::kNoProperties,  // opcode
       "JSWasmCall",                                    // name

@@ -3855,17 +3855,24 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
   // module and function index from the SharedFunctionInfoRef. However, for some
   // reason I may dereference the SharedFunctionInfoRef here but not in
   // JSInliningHeuristic later on.
-  const Operator* op = javascript()->CallWasm(
-      wasm_module, wasm_signature, wasm_function_index, receiver_is_first_param,
-      shared, native_module, p.feedback());
+  const Operator* op =
+      javascript()->CallWasm(wasm_module, wasm_signature, wasm_function_index,
+                             shared, native_module, p.feedback());
 
-  // Remove additional inputs
   size_t actual_arity = n.ArgumentCount();
   DCHECK(JSCallNode::kFeedbackVectorIsLastInput);
   DCHECK_EQ(actual_arity + JSWasmCallNode::kExtraInputCount - 1,
             n.FeedbackVectorIndex());
   size_t expected_arity = wasm_signature->parameter_count();
 
+  // Duplicate the receiver into the first argument slot if requested.
+  if (receiver_is_first_param) {
+    node->InsertInput(graph()->zone(), n.FirstArgumentIndex(),
+                      node->InputAt(n.ReceiverIndex()));
+    actual_arity++;
+  }
+
+  // Remove additional inputs.
   while (actual_arity > expected_arity) {
     int removal_index =
         static_cast<int>(n.FirstArgumentIndex() + expected_arity);
@@ -3874,7 +3881,7 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
     actual_arity--;
   }
 
-  // Add missing inputs
+  // Add missing inputs.
   while (actual_arity < expected_arity) {
     int insertion_index = n.ArgumentIndex(n.ArgumentCount());
     node->InsertInput(graph()->zone(), insertion_index,

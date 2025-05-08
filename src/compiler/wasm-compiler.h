@@ -281,7 +281,7 @@ class WasmGraphBuilder {
 V8_EXPORT_PRIVATE void BuildInlinedJSToWasmWrapper(
     Zone* zone, MachineGraph* mcgraph, const wasm::CanonicalSig* signature,
     Isolate* isolate, compiler::SourcePositionTable* spt, Node* frame_state,
-    bool set_in_wasm_flag, bool receiver_is_first_param);
+    bool set_in_wasm_flag);
 
 AssemblerOptions WasmAssemblerOptions();
 AssemblerOptions WasmStubAssemblerOptions();

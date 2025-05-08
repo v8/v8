@@ -844,7 +844,6 @@ class JSWasmCallParameters {
   explicit JSWasmCallParameters(const wasm::WasmModule* module,
                                 const wasm::CanonicalSig* signature,
                                 int function_index,
-                                bool receiver_is_first_param,
                                 SharedFunctionInfoRef shared_fct_info,
                                 wasm::NativeModule* native_module,
                                 FeedbackSource const& feedback);
@@ -852,7 +851,6 @@ class JSWasmCallParameters {
   const wasm::WasmModule* module() const { return module_; }
   const wasm::CanonicalSig* signature() const { return signature_; }
   int function_index() const { return function_index_; }
-  bool receiver_is_first_param() const { return receiver_is_first_param_; }
   SharedFunctionInfoRef shared_fct_info() const { return shared_fct_info_; }
   wasm::NativeModule* native_module() const { return native_module_; }
   FeedbackSource const& feedback() const { return feedback_; }
@@ -863,7 +861,6 @@ class JSWasmCallParameters {
   const wasm::WasmModule* const module_;
   const wasm::CanonicalSig* const signature_;
   int function_index_;
-  bool receiver_is_first_param_;
   SharedFunctionInfoRef shared_fct_info_;
   wasm::NativeModule* native_module_;
   const FeedbackSource feedback_;
@@ -1003,7 +1000,6 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CallWasm(const wasm::WasmModule* wasm_module,
                            const wasm::CanonicalSig* wasm_signature,
                            int wasm_function_index,
-                           bool receiver_is_first_param,
                            SharedFunctionInfoRef shared_fct_info,
                            wasm::NativeModule* native_module,
                            FeedbackSource const& feedback);
