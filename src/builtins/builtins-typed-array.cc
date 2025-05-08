@@ -933,7 +933,7 @@ BUILTIN(Uint8ArrayFromHex) {
 // https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.prototype.setfromhex
 BUILTIN(Uint8ArrayPrototypeSetFromHex) {
   HandleScope scope(isolate);
-  const char method_name[] = "Uint8Array.prototypr.setFromHex";
+  const char method_name[] = "Uint8Array.prototype.setFromHex";
   isolate->CountUsage(v8::Isolate::kUint8ArrayToFromBase64AndHex);
 
   // 1. Let into be the this value.
