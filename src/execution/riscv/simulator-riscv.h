@@ -1195,7 +1195,7 @@ class Simulator : public SimulatorBase {
 
   uintptr_t stack_limit_;
   // Added in Simulator::StackLimit()
-  static const int kAdditionalStackMargin = 4 * KB;
+  static const int kAdditionalStackMargin = 20 * KB;
 
   bool pc_modified_;
   int64_t icount_;
