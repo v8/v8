@@ -1544,6 +1544,8 @@ class MaglevGraphBuilder {
   ValueNode* GetTrustedConstant(compiler::HeapObjectRef ref,
                                 IndirectPointerTag tag);
 
+  ValueNode* GetConstantSingleCharacterStringFromCode(uint16_t);
+
   ValueNode* GetRegisterInput(Register reg) {
     DCHECK(!graph_->register_inputs().has(reg));
     graph_->register_inputs().set(reg);
@@ -2151,6 +2153,7 @@ class MaglevGraphBuilder {
   V(SetPrototypeHas)                           \
   V(StringConstructor)                         \
   V(StringFromCharCode)                        \
+  V(StringPrototypeCharAt)                     \
   V(StringPrototypeCharCodeAt)                 \
   V(StringPrototypeCodePointAt)                \
   V(StringPrototypeIterator)                   \
@@ -2181,6 +2184,14 @@ class MaglevGraphBuilder {
       const std::optional<InitialCallback>& initial_callback = {},
       const std::optional<ProcessElementCallback>& process_element_callback =
           {});
+
+  // OOB StringAt access behaves differently for elements (needs the elements
+  // protector, positive indices, and returns undefined) and charAt (allows
+  // negative indices, returns empty string).
+  enum class StringAtOOBMode { kElement, kCharAt };
+  MaybeReduceResult TryReduceConstantStringAt(ValueNode* object,
+                                              ValueNode* index,
+                                              StringAtOOBMode oob_mode);
 
   MaybeReduceResult TryReduceGetProto(ValueNode* node);
 
