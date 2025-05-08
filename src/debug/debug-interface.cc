@@ -227,21 +227,14 @@ void ForEachContextLocal(i::Isolate* isolate,
   }
 }
 
-// TODO(clemensb): Another macro? Should we try to avoid this?
-#ifdef V8_RUNTIME_CALL_STATS
-#define RCCId(name) i::RuntimeCallCounterId::name
-#else
-#define RCCId(name) i::RuntimeCallCounterId::kUnused
-#endif
-
 }  // namespace
 
 bool GetPrivateMembers(Local<Context> context, Local<Object> object, int filter,
                        LocalVector<Value>* names_out,
                        LocalVector<Value>* values_out) {
   i::Isolate* isolate = i::Isolate::Current();
-  ApiRuntimeCallStatsScope rcs_scope(isolate,
-                                     RCCId(kAPI_debug_GetPrivateMembers));
+  ApiRuntimeCallStatsScope rcs_scope(
+      isolate, i::RuntimeCallCounterId::kAPI_debug_GetPrivateMembers);
   EnterV8NoScriptNoExceptionScope api_scope(isolate);
 
   bool include_methods =
