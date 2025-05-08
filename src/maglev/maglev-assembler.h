@@ -486,8 +486,6 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void SignExtend32To64Bits(Register dst, Register src);
   inline void NegateInt32(Register val);
 
-  void CountLeadingZerosInt32(Register dst, Register src);
-
   inline void ToUint8Clamped(Register result, DoubleRegister value, Label* min,
                              Label* max, Label* done);
 

@@ -270,9 +270,6 @@ class ExceptionHandlerInfo;
   V(CheckedNumberToUint8Clamped)                    \
   V(Int32ToNumber)                                  \
   V(Uint32ToNumber)                                 \
-  V(Int32CountLeadingZeros)                         \
-  V(SmiCountLeadingZeros)                           \
-  V(Float64CountLeadingZeros)                       \
   V(IntPtrToBoolean)                                \
   V(IntPtrToNumber)                                 \
   V(Float64ToTagged)                                \
@@ -4262,63 +4259,6 @@ class Float64Abs : public FixedInputValueNodeT<1, Float64Abs> {
   static constexpr OpProperties kProperties = OpProperties::Float64();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
-
-  Input& input() { return Node::input(0); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
-
-class Int32CountLeadingZeros
-    : public FixedInputValueNodeT<1, Int32CountLeadingZeros> {
-  using Base = FixedInputValueNodeT<1, Int32CountLeadingZeros>;
-
- public:
-  explicit Int32CountLeadingZeros(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::Int32();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
-
-  Input& input() { return Node::input(0); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
-
-class SmiCountLeadingZeros
-    : public FixedInputValueNodeT<1, SmiCountLeadingZeros> {
-  using Base = FixedInputValueNodeT<1, SmiCountLeadingZeros>;
-
- public:
-  explicit SmiCountLeadingZeros(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::Int32();
-
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
-
-  Input& input() { return Node::input(0); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
-
-class Float64CountLeadingZeros
-    : public FixedInputValueNodeT<1, Float64CountLeadingZeros> {
-  using Base = FixedInputValueNodeT<1, Float64CountLeadingZeros>;
-
- public:
-  static Builtin continuation() { return Builtin::kMathClz32Continuation; }
-
-  explicit Float64CountLeadingZeros(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
-  static constexpr OpProperties kProperties = OpProperties::Int32();
 
   Input& input() { return Node::input(0); }
 

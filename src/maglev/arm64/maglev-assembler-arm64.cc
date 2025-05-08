@@ -540,10 +540,6 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   }
 }
 
-void MaglevAssembler::CountLeadingZerosInt32(Register dst, Register src) {
-  Clz(dst.W(), src.W());
-}
-
 void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
   if (CpuFeatures::IsSupported(JSCVT)) {
     Fjcvtzs(dst.W(), src);
