@@ -86,7 +86,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:27.20250501.3.1',
+  'fuchsia_version': 'version:28.20250508.3.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0f007e912b7889274206070491af0768428a288a',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd9c3040247e3b793c2a053d50fe2376e7596cd95',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '077a66f30fcf281b066fafb6dfc60818c238efb6',
   'buildtools/linux64': {
@@ -231,7 +231,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'e1e4e9d96d2e294ade93aaa7e2359c45d7773733',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '64c31ffa4d735add4a7e7520a52e0e3160216132',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -537,7 +537,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '502dcad5230ec1da544e7720b15d91782f040d9f',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '0f15c850a714790cbaed712503a7fcda24ee1424',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '99e184abf0ade62ce5e6e630bc15206f3cccf075',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
