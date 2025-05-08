@@ -749,6 +749,12 @@ DEFINE_BOOL(json_stringify_fast_path, true, "Enable JSON.stringify fast-path")
 DEFINE_BOOL(cache_property_key_string_adds, true,
             "Enable caching property keys created by concatenating strings")
 
+DEFINE_UINT(smi_string_cache_size, 8192, "Full size of SmiStringCache")
+DEFINE_UINT(double_string_cache_size, 4096, "Full size of DoubleStringCache")
+DEFINE_BOOL(trace_number_string_cache, false,
+            "Print NumberString caches stats on GC and at the end")
+DEFINE_WEAK_IMPLICATION(trace_number_string_cache, native_code_counters)
+
 #ifdef V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT
 DEFINE_BOOL(extensible_ro_snapshot, true,
             "Whether custom embedder snapshots may extend ReadOnlySpace")

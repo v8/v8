@@ -382,7 +382,8 @@ class RootVisitor;
 // These root references can be updated by the mutator.
 #define STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)                                 \
   /* Caches */                                                              \
-  V(FixedArray, number_string_cache, NumberStringCache)                     \
+  V(SmiStringCache, smi_string_cache, SmiStringCache)                       \
+  V(DoubleStringCache, double_string_cache, DoubleStringCache)              \
   /* Lists and dictionaries */                                              \
   V(RegisteredSymbolTable, public_symbol_table, PublicSymbolTable)          \
   V(RegisteredSymbolTable, api_symbol_table, ApiSymbolTable)                \

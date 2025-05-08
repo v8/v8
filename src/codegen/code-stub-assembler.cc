@@ -9125,6 +9125,7 @@ TNode<String> CodeStubAssembler::TryMatchPreallocatedNumberString(
 
 TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
                                                 Label* bailout) {
+  Counters* counters = isolate()->counters();
   TVARIABLE(String, result);
   TVARIABLE(Smi, smi_input);
   Label if_smi(this), not_smi(this), if_heap_number(this), done(this, &result);
@@ -9151,41 +9152,49 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
     Goto(&done);
     BIND(&query_cache);
 
+    IncrementCounter(counters->number_string_cache_smi_probes(), 1);
+
     // Load the number string cache.
-    TNode<FixedArray> number_string_cache = NumberStringCacheConstant();
+    TNode<SmiStringCache> cache = CAST(LoadRoot(RootIndex::kSmiStringCache));
 
     // Make the hash mask from the length of the number string cache. It
     // contains two elements (number and string) for each cache entry.
-    TNode<Uint32T> number_string_cache_length =
-        LoadAndUntagFixedArrayBaseLengthAsUint32(number_string_cache);
+    TNode<Uint32T> cache_length = LoadAndUntagFixedArrayBaseLengthAsUint32(
+        ReinterpretCast<FixedArray>(cache));
     TNode<Int32T> one = Int32Constant(1);
-    TNode<Word32T> mask =
-        Int32Sub(Word32Shr(number_string_cache_length, one), one);
+    TNode<Word32T> mask = Int32Sub(Word32Shr(cache_length, one), one);
 
     // Load the smi key, make sure it matches the smi we're looking for.
     TNode<Word32T> hash = Word32And(int32_value, mask);
     TNode<IntPtrT> entry_index =
         Signed(ChangeUint32ToWord(Int32Add(hash, hash)));
-    TNode<Object> smi_key =
-        UnsafeLoadFixedArrayElement(number_string_cache, entry_index);
+    static_assert(SmiStringCache::kEntryKeyIndex == 0);
+    TNode<Object> smi_key = UnsafeLoadFixedArrayElement(cache, entry_index);
     Label if_smi_cache_missed(this);
+    CSA_DCHECK(this,
+               TaggedNotEqual(smi_input.value(),
+                              SmiConstant(SmiStringCache::kEmptySentinel)));
     GotoIf(TaggedNotEqual(smi_key, smi_input.value()), &if_smi_cache_missed);
 
     // Smi match, return value from cache entry.
-    result = CAST(UnsafeLoadFixedArrayElement(number_string_cache, entry_index,
-                                              kTaggedSize));
+    static_assert(SmiStringCache::kEntryValueIndex == 1);
+    result = CAST(UnsafeLoadFixedArrayElement(cache, entry_index, kTaggedSize));
     Goto(&done);
 
     BIND(&if_smi_cache_missed);
     {
+      IncrementCounter(counters->number_string_cache_smi_misses(), 1);
       Label store_to_cache(this);
 
-      // Bailout when the cache is not full-size.
-      const int kFullCacheSize =
-          isolate()->heap()->MaxNumberToStringCacheSize();
-      Branch(Uint32LessThan(number_string_cache_length,
-                            Uint32Constant(kFullCacheSize)),
-             bailout, &store_to_cache);
+      // Bailout when the cache is not full-size and the entry is occupied.
+      const int kInitialCacheSize =
+          SmiStringCache::kInitialSize * SmiStringCache::kEntrySize;
+      GotoIfNot(Word32Equal(cache_length, Uint32Constant(kInitialCacheSize)),
+                &store_to_cache);
+
+      GotoIf(TaggedEqual(smi_key, SmiConstant(SmiStringCache::kEmptySentinel)),
+             &store_to_cache);
+      Goto(bailout);
 
       BIND(&store_to_cache);
       {
@@ -9193,11 +9202,14 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
         result = IntToDecimalString(int32_value);
 
         // Store string into cache.
-        StoreFixedArrayElement(number_string_cache, entry_index,
-                               smi_input.value());
-        StoreFixedArrayElement(number_string_cache,
-                               IntPtrAdd(entry_index, IntPtrConstant(1)),
-                               result.value());
+        CSA_DCHECK(this,
+                   TaggedNotEqual(smi_input.value(),
+                                  SmiConstant(SmiStringCache::kEmptySentinel)));
+        static_assert(SmiStringCache::kEntryKeyIndex == 0);
+        static_assert(SmiStringCache::kEntryValueIndex == 1);
+        UnsafeStoreFixedArrayElement(cache, entry_index, smi_input.value());
+        UnsafeStoreFixedArrayElement(cache, entry_index, result.value(),
+                                     UPDATE_WRITE_BARRIER, kTaggedSize);
         Goto(&done);
       }
     }
@@ -9205,16 +9217,18 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
 
   BIND(&not_smi);
   {
+    IncrementCounter(counters->number_string_cache_double_probes(), 1);
+
     // Load the number string cache.
-    TNode<FixedArray> number_string_cache = NumberStringCacheConstant();
+    TNode<DoubleStringCache> cache =
+        CAST(LoadRoot(RootIndex::kDoubleStringCache));
 
     // Make the hash mask from the length of the number string cache. It
     // contains two elements (number and string) for each cache entry.
-    TNode<Uint32T> number_string_cache_length =
-        LoadAndUntagFixedArrayBaseLengthAsUint32(number_string_cache);
+    TNode<Uint32T> cache_length = LoadAndUntagFixedArrayBaseLengthAsUint32(
+        ReinterpretCast<FixedArray>(cache));
     TNode<Int32T> one = Int32Constant(1);
-    TNode<Word32T> mask =
-        Int32Sub(Word32Shr(number_string_cache_length, one), one);
+    TNode<Word32T> mask = Int32Sub(Word32Shr(cache_length, one), one);
 
     // Make a hash from the two 32-bit values of the double.
     TNode<Int32T> low = LoadObjectField<Int32T>(heap_number_input,
@@ -9226,24 +9240,30 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
         Signed(ChangeUint32ToWord(Int32Add(hash, hash)));
 
     // Cache entry's key must be a heap number
-    TNode<Object> number_key =
-        UnsafeLoadFixedArrayElement(number_string_cache, entry_index);
-    GotoIf(TaggedIsSmi(number_key), bailout);
-    TNode<HeapObject> number_key_heap_object = CAST(number_key);
-    GotoIfNot(IsHeapNumber(number_key_heap_object), bailout);
+    static_assert(DoubleStringCache::kEntryKeyIndex == 0);
+    TNode<Object> maybe_number_key =
+        UnsafeLoadFixedArrayElement(cache, entry_index);
+
+    Label if_double_cache_missed(this);
+    GotoIf(TaggedIsSmi(maybe_number_key), &if_double_cache_missed);
+    TNode<HeapNumber> number_key = CAST(maybe_number_key);
 
     // Cache entry's key must match the heap number value we're looking for.
-    TNode<Int32T> low_compare = LoadObjectField<Int32T>(
-        number_key_heap_object, offsetof(HeapNumber, value_));
+    TNode<Int32T> low_compare =
+        LoadObjectField<Int32T>(number_key, offsetof(HeapNumber, value_));
     TNode<Int32T> high_compare = LoadObjectField<Int32T>(
-        number_key_heap_object, offsetof(HeapNumber, value_) + kIntSize);
-    GotoIfNot(Word32Equal(low, low_compare), bailout);
-    GotoIfNot(Word32Equal(high, high_compare), bailout);
+        number_key, offsetof(HeapNumber, value_) + kIntSize);
+    GotoIfNot(Word32Equal(low, low_compare), &if_double_cache_missed);
+    GotoIfNot(Word32Equal(high, high_compare), &if_double_cache_missed);
 
     // Heap number match, return value from cache entry.
-    result = CAST(UnsafeLoadFixedArrayElement(number_string_cache, entry_index,
-                                              kTaggedSize));
+    static_assert(DoubleStringCache::kEntryValueIndex == 1);
+    result = CAST(UnsafeLoadFixedArrayElement(cache, entry_index, kTaggedSize));
     Goto(&done);
+
+    BIND(&if_double_cache_missed);
+    IncrementCounter(counters->number_string_cache_double_misses(), 1);
+    Goto(bailout);
   }
   BIND(&done);
   return result.value();

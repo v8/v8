@@ -6658,6 +6658,7 @@ int Shell::Main(int argc, char* argv[]) {
 
   Shell::counter_map_ = new CounterMap();
   if (options.dump_counters || options.dump_counters_nvp ||
+      i::v8_flags.trace_number_string_cache ||
       i::TracingFlags::is_gc_stats_enabled()) {
     create_params.counter_lookup_callback = LookupCounter;
     create_params.create_histogram_callback = CreateHistogram;

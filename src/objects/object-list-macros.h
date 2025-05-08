@@ -293,6 +293,7 @@ namespace internal {
   V(BooleanWrapper)                 \
   V(Callable)                       \
   V(Constructor)                    \
+  V(DoubleStringCache)              \
   V(Filler)                         \
   V(HandlerTable)                   \
   V(JSContextExtensionObject)       \
@@ -301,6 +302,7 @@ namespace internal {
   V(NumberWrapper)                  \
   V(OSROptimizedCodeCache)          \
   V(ScriptWrapper)                  \
+  V(SmiStringCache)                 \
   V(StringWrapper)                  \
   V(SymbolWrapper)                  \
   V(UniqueName)                     \

@@ -1333,6 +1333,9 @@ void FreeCachesOnMemoryPressure(Isolate* isolate) {
   isolate->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
   isolate->ClearSerializerData();
   isolate->compilation_cache()->Clear();
+
+  // TODO(ishell): consider trimming number to string caches to initial size.
+
   if (v8_flags.discard_memory_pool_before_memory_pressure_gcs) {
     IsolateGroup::current()->page_pool()->ReleaseImmediately();
   }
@@ -2683,7 +2686,9 @@ void Heap::MarkCompactPrologue() {
   RegExpResultsCache::Clear(regexp_multiple_cache());
   RegExpResultsCache_MatchGlobalAtom::Clear(this);
 
-  FlushNumberStringCache();
+  // Flush the number to string caches.
+  smi_string_cache()->Clear();
+  double_string_cache()->Clear();
 }
 
 void Heap::Scavenge() {
@@ -3133,15 +3138,6 @@ void Heap::ShrinkOldGenerationAllocationLimitIfNotConfigured() {
         std::min(new_global_allocation_limit, global_allocation_limit());
     SetOldGenerationAndGlobalAllocationLimit(
         new_old_generation_allocation_limit, new_global_allocation_limit);
-  }
-}
-
-void Heap::FlushNumberStringCache() {
-  // Flush the number to string cache.
-  int len = number_string_cache()->length();
-  ReadOnlyRoots roots{isolate()};
-  for (int i = 0; i < len; i++) {
-    number_string_cache()->set(i, roots.undefined_value(), SKIP_WRITE_BARRIER);
   }
 }
 

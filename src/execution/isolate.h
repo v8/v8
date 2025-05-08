@@ -2446,6 +2446,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   std::shared_ptr<v8::TaskRunner> task_runner() const { return task_runner_; }
 
+  void PrintNumberStringCacheStats(const char* comment, bool final_summary);
+
  private:
   explicit Isolate(IsolateGroup* isolate_group);
   ~Isolate();

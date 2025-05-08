@@ -13,7 +13,6 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/heap/factory.h"
-#include "src/heap/heap-inl.h"  // For MaxNumberToStringCacheSize.
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/arguments-inl.h"
@@ -1297,13 +1296,13 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       PropertyFilter filter, Handle<FixedArray> list, uint32_t* nof_indices,
       uint32_t insertion_index = 0) {
     size_t length = Subclass::GetMaxIndex(*object, *backing_store);
-    uint32_t const kMaxStringTableEntries =
-        isolate->heap()->MaxNumberToStringCacheSize();
     for (size_t i = 0; i < length; i++) {
       if (Subclass::HasElementImpl(isolate, *object, i, *backing_store,
                                    filter)) {
         if (convert == GetKeysConversion::kConvertToString) {
-          bool use_cache = i < kMaxStringTableEntries;
+          // Avoid trashing the number to string cache with numbers that
+          // are not likely to be needed.
+          bool use_cache = i < SmiStringCache::kMaxCapacity;
           DirectHandle<String> index_string =
               isolate->factory()->SizeToString(i, use_cache);
           list->set(insertion_index, *index_string);

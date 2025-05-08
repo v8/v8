@@ -3948,17 +3948,6 @@ DirectHandle<InterpreterData> Factory::NewInterpreterData(
   return direct_handle(interpreter_data, isolate());
 }
 
-int Factory::NumberToStringCacheHash(Tagged<Smi> number) {
-  int mask = (number_string_cache()->length() >> 1) - 1;
-  return number.value() & mask;
-}
-
-int Factory::NumberToStringCacheHash(double number) {
-  int mask = (number_string_cache()->length() >> 1) - 1;
-  int64_t bits = base::bit_cast<int64_t>(number);
-  return (static_cast<int>(bits) ^ static_cast<int>(bits >> 32)) & mask;
-}
-
 Handle<String> Factory::SizeToString(size_t value, bool check_cache) {
   Handle<String> result;
   NumberCacheMode cache_mode =

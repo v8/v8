@@ -1035,13 +1035,19 @@ Handle<String> FactoryBase<Impl>::NumberToString(DirectHandle<Object> number,
 template <typename Impl>
 Handle<String> FactoryBase<Impl>::HeapNumberToString(
     DirectHandle<HeapNumber> number, double value, NumberCacheMode mode) {
-  int hash = mode == NumberCacheMode::kIgnore
-                 ? 0
-                 : impl()->NumberToStringCacheHash(value);
+  // LocalFactory does not have access to number string cache, only
+  // main thread Factory does (since it's a mutable root).
+  constexpr bool kCanUseCache = std::is_same_v<Impl, Factory>;
 
-  if (mode == NumberCacheMode::kBoth) {
-    Handle<Object> cached = impl()->NumberToStringCacheGet(*number, hash);
-    if (!IsUndefined(*cached, isolate())) return Cast<String>(cached);
+  InternalIndex entry = InternalIndex::NotFound();
+  if constexpr (kCanUseCache) {
+    if (mode != NumberCacheMode::kIgnore) {
+      entry = DoubleStringCache::GetEntryFor(isolate(), *number);
+    }
+    if (mode == NumberCacheMode::kBoth) {
+      Handle<Object> cached = DoubleStringCache::Get(isolate(), entry, *number);
+      if (!IsUndefined(*cached, isolate())) return Cast<String>(cached);
+    }
   }
 
   Handle<String> result;
@@ -1055,8 +1061,10 @@ Handle<String> FactoryBase<Impl>::HeapNumberToString(
     std::string_view string = DoubleToStringView(value, buffer);
     result = StringViewToString(this, string, mode);
   }
-  if (mode != NumberCacheMode::kIgnore) {
-    impl()->NumberToStringCacheSet(number, hash, result);
+  if constexpr (kCanUseCache) {
+    if (mode != NumberCacheMode::kIgnore) {
+      DoubleStringCache::Set(isolate(), entry, number, result);
+    }
   }
   return result;
 }
@@ -1077,13 +1085,19 @@ inline Handle<String> FactoryBase<Impl>::SmiToString(Tagged<Smi> number,
   }
   // LINT.ThenChange(/src/codegen/code-stub-assembler.cc:CheckPreallocatedNumberStrings)
 
-  int hash = mode == NumberCacheMode::kIgnore
-                 ? 0
-                 : impl()->NumberToStringCacheHash(number);
+  // LocalFactory does not have access to the number_string_cache, only
+  // main thread Factory does (since it's a mutable root).
+  constexpr bool kCanUseCache = std::is_same_v<Impl, Factory>;
 
-  if (mode == NumberCacheMode::kBoth) {
-    Handle<Object> cached = impl()->NumberToStringCacheGet(number, hash);
-    if (!IsUndefined(*cached, isolate())) return Cast<String>(cached);
+  InternalIndex entry = InternalIndex::NotFound();
+  if constexpr (kCanUseCache) {
+    if (mode != NumberCacheMode::kIgnore) {
+      entry = SmiStringCache::GetEntryFor(isolate(), number);
+    }
+    if (mode == NumberCacheMode::kBoth) {
+      Handle<Object> cached = SmiStringCache::Get(isolate(), entry, number);
+      if (!IsUndefined(*cached, isolate())) return Cast<String>(cached);
+    }
   }
 
   Handle<String> result;
@@ -1093,9 +1107,10 @@ inline Handle<String> FactoryBase<Impl>::SmiToString(Tagged<Smi> number,
     std::string_view string = IntToStringView(number.value(), buffer);
     result = StringViewToString(this, string, mode);
   }
-  if (mode != NumberCacheMode::kIgnore) {
-    impl()->NumberToStringCacheSet(direct_handle(number, isolate()), hash,
-                                   result);
+  if constexpr (kCanUseCache) {
+    if (mode != NumberCacheMode::kIgnore) {
+      SmiStringCache::Set(isolate(), entry, number, result);
+    }
   }
 
   // Compute the hash here (rather than letting the caller take care of it) so

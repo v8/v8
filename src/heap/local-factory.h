@@ -43,16 +43,6 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
     UNREACHABLE();
   }
 
-  // The LocalFactory does not have access to the number_string_cache (since
-  // it's a mutable root), but it still needs to define some cache-related
-  // method that are used by FactoryBase. Those method do basically nothing in
-  // the case of the LocalFactory.
-  int NumberToStringCacheHash(Tagged<Smi> number);
-  int NumberToStringCacheHash(double number);
-  void NumberToStringCacheSet(DirectHandle<Object> number, int hash,
-                              DirectHandle<String> js_string);
-  Handle<Object> NumberToStringCacheGet(Tagged<Object> number, int hash);
-
  private:
   friend class FactoryBase<LocalFactory>;
 

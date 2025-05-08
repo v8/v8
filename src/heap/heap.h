@@ -904,6 +904,8 @@ class Heap final {
   V8_INLINE void SetMessageListeners(Tagged<ArrayList> value);
   V8_INLINE void SetFunctionsMarkedForManualOptimization(
       Tagged<Object> bytecode);
+  V8_INLINE void SetSmiStringCache(Tagged<SmiStringCache> cache);
+  V8_INLINE void SetDoubleStringCache(Tagged<DoubleStringCache> cache);
 
 #if V8_ENABLE_WEBASSEMBLY
   V8_INLINE void SetWasmCanonicalRtts(Tagged<WeakFixedArray> rtts);
@@ -1634,9 +1636,6 @@ class Heap final {
     return result;
   }
 
-  // Calculates the nof entries for the full sized number to string cache.
-  inline int MaxNumberToStringCacheSize() const;
-
   // Ensure that we have swept all spaces in such a way that we can iterate
   // over all objects.
   V8_EXPORT_PRIVATE void MakeHeapIterable();
@@ -1749,7 +1748,6 @@ class Heap final {
   };
 
   static const int kInitialEvalCacheSize = 64;
-  static const int kInitialNumberStringCacheSize = 256;
 
   static const int kRememberedUnmappedPages = 128;
 
@@ -1835,9 +1833,6 @@ class Heap final {
 
   // Record statistics after garbage collection.
   void ReportStatisticsAfterGC();
-
-  // Flush the number to string cache.
-  void FlushNumberStringCache();
 
   void ActivateMemoryReducerIfNeededOnMainThread();
 

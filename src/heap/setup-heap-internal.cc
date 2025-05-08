@@ -1391,8 +1391,10 @@ void Heap::CreateInitialMutableObjects() {
   set_api_symbol_table(roots.empty_symbol_table());
   set_api_private_symbol_table(roots.empty_symbol_table());
 
-  set_number_string_cache(*factory->NewFixedArray(
-      kInitialNumberStringCacheSize * 2, AllocationType::kOld));
+  set_smi_string_cache(
+      *SmiStringCache::New(isolate(), SmiStringCache::kInitialSize));
+  set_double_string_cache(
+      *DoubleStringCache::New(isolate(), DoubleStringCache::kInitialSize));
 
   // Unchecked to skip failing checks since required roots are uninitialized.
   set_basic_block_profiling_data(roots.unchecked_empty_array_list());

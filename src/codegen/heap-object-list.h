@@ -20,7 +20,6 @@
   V(MapIteratorProtector, map_iterator_protector, MapIteratorProtector)       \
   V(NoElementsProtector, no_elements_protector, NoElementsProtector)          \
   V(MegaDOMProtector, mega_dom_protector, MegaDOMProtector)                   \
-  V(NumberStringCache, number_string_cache, NumberStringCache)                \
   V(NumberStringNotRegexpLikeProtector,                                       \
     number_string_not_regexp_like_protector,                                  \
     NumberStringNotRegexpLikeProtector)                                       \

@@ -1353,19 +1353,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   MaybeHandle<String> NewStringFromTwoByte(const base::uc16* string, int length,
                                            AllocationType allocation);
 
-  // Functions to get the hash of a number for the number_string_cache.
-  int NumberToStringCacheHash(Tagged<Smi> number);
-  int NumberToStringCacheHash(double number);
-
-  // Attempt to find the number in a small cache.  If we finds it, return
-  // the string representation of the number.  Otherwise return undefined.
-  V8_INLINE Handle<Object> NumberToStringCacheGet(Tagged<Object> number,
-                                                  int hash);
-
-  // Update the cache with a new number-string pair.
-  V8_INLINE void NumberToStringCacheSet(DirectHandle<Object> number, int hash,
-                                        DirectHandle<String> js_string);
-
   // Creates a new JSArray with the given backing storage. Performs no
   // verification of the backing storage because it may not yet be filled.
   Handle<JSArray> NewJSArrayWithUnverifiedElements(

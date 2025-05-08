@@ -389,12 +389,16 @@ namespace internal {
 
 // List of counters that can be incremented from generated code. We need them in
 // a separate list to be able to relocate them.
-#define STATS_COUNTER_NATIVE_CODE_LIST(SC)                         \
-  /* Number of write barriers executed at runtime. */              \
-  SC(write_barriers, V8.WriteBarriers)                             \
-  SC(regexp_entry_native, V8.RegExpEntryNative)                    \
-  SC(megamorphic_stub_cache_probes, V8.MegamorphicStubCacheProbes) \
-  SC(megamorphic_stub_cache_misses, V8.MegamorphicStubCacheMisses)
+#define STATS_COUNTER_NATIVE_CODE_LIST(SC)                                \
+  /* Number of write barriers executed at runtime. */                     \
+  SC(write_barriers, V8.WriteBarriers)                                    \
+  SC(regexp_entry_native, V8.RegExpEntryNative)                           \
+  SC(megamorphic_stub_cache_probes, V8.MegamorphicStubCacheProbes)        \
+  SC(megamorphic_stub_cache_misses, V8.MegamorphicStubCacheMisses)        \
+  SC(number_string_cache_smi_probes, V8.NumberStringCacheSmiProbes)       \
+  SC(number_string_cache_smi_misses, V8.NumberStringCacheSmiMisses)       \
+  SC(number_string_cache_double_probes, V8.NumberStringCacheDoubleProbes) \
+  SC(number_string_cache_double_misses, V8.NumberStringCacheDoubleMisses)
 
 }  // namespace internal
 }  // namespace v8

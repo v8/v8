@@ -153,10 +153,13 @@ TEST(NumberToString) {
   };
   // clang-format on
 
-  const int kFullCacheSize = isolate->heap()->MaxNumberToStringCacheSize();
   const int test_count = arraysize(inputs);
   for (int i = 0; i < test_count; i++) {
-    int cache_length_before_addition = factory->number_string_cache()->length();
+    uint32_t smi_cache_length_before_addition =
+        factory->smi_string_cache()->capacity();
+    uint32_t double_cache_length_before_addition =
+        factory->double_string_cache()->capacity();
+
     Handle<Object> input = factory->NewNumber(inputs[i]);
     DirectHandle<String> expected = factory->NumberToString(input);
 
@@ -164,8 +167,17 @@ TEST(NumberToString) {
     if (IsUndefined(*result, isolate)) {
       // Query may fail if cache was resized, in which case the entry is not
       // added to the cache.
-      CHECK_LT(cache_length_before_addition, kFullCacheSize);
-      CHECK_EQ(factory->number_string_cache()->length(), kFullCacheSize);
+      if (IsSmi(*input)) {
+        CHECK_LE(smi_cache_length_before_addition,
+                 SmiStringCache::kMaxCapacity);
+        CHECK_LT(SmiStringCache::kInitialSize,
+                 factory->smi_string_cache()->capacity());
+      } else {
+        CHECK_LE(double_cache_length_before_addition,
+                 DoubleStringCache::kInitialSize);
+        CHECK_LT(DoubleStringCache::kInitialSize,
+                 factory->double_string_cache()->capacity());
+      }
       expected = factory->NumberToString(input);
       result = ft.Call(input).ToHandleChecked();
     }
