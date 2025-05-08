@@ -20,10 +20,10 @@ namespace base {
 //
 // This class has static methods for the different platform specific
 // functions related to memory protection key support.
-
-// TODO(sroettger): Consider adding this to {base::PageAllocator} (higher-level,
-// exported API) once the API is more stable and we have converged on a better
-// design (e.g., typed class wrapper around int memory protection key).
+//
+// TODO(416209124): Once this has stabilized further, consider moving it into a
+// MemoryProtectionKeyProvider or similar class expsed via the Platform and
+// provided by the Embedder.
 class V8_BASE_EXPORT MemoryProtectionKey {
  public:
   // Sentinel value if there is no PKU support or allocation of a key failed.
@@ -71,6 +71,15 @@ class V8_BASE_EXPORT MemoryProtectionKey {
   // Allocates a new key. Returns kNoMemoryProtectionKey on error.
   static int AllocateKey();
 
+  // Register a memory protection key that was allocated through other means.
+  //
+  // This is currently needed for SetDefaultPermissionsForAllKeysInSignalHandler
+  // to work correctly. In the future, we should obtain a
+  // MemoryProtectionKeyProvider from the embedder so that there is a single
+  // entity in the process responsible for allocating keys. Then this will no
+  // longer be needed. See also https://crbug.com/416209124.
+  static void RegisterExternallyAllocatedKey(int key);
+
   // Frees the given key which must have been obtained through AllocateKey.
   static void FreeKey(int key);
 
@@ -95,6 +104,20 @@ class V8_BASE_EXPORT MemoryProtectionKey {
 
   // Get the permissions of the protection key {key} for the current thread.
   static Permission GetKeyPermission(int key);
+
+  // Set the default permissions for all active keys in a signal handler.
+  //
+  // Signal handlers on some platforms, for example older Linux kernels, run
+  // without access to any non-default pkey. As such, they will crash when
+  // trying to access any memory using another key. To work around that, this
+  // method should be called at the start of a signal handler to restore the
+  // default permissions for all active keys.
+  //
+  // At the moment, the default permission for a key is read-only access
+  // (kDisableWrite). If necessary in the future, we could make that
+  // configurable by passing in the default permissions into AllocateKey and
+  // remembering them alongside the key.
+  static void SetDefaultPermissionsForAllKeysInSignalHandler();
 };
 
 }  // namespace base

@@ -1146,9 +1146,6 @@ class Ticker : public sampler::Sampler {
              perThreadData_->thread_id()) ||
          perThreadData_->thread_state() != nullptr))
       return;
-#if V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
-    i::RwxMemoryWriteScope::SetDefaultPermissionsForSignalHandler();
-#endif
     TickSample sample;
     sample.Init(isolate, state, TickSample::kIncludeCEntryFrame, true);
     profiler_->Insert(&sample);

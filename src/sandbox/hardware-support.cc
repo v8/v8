@@ -39,14 +39,6 @@ bool SandboxHardwareSupport::IsEnabled() {
 }
 
 // static
-void SandboxHardwareSupport::SetDefaultPermissionsForSignalHandler() {
-  if (!IsEnabled()) return;
-
-  base::MemoryProtectionKey::SetPermissionsForKey(
-      pkey_, base::MemoryProtectionKey::Permission::kNoRestrictions);
-}
-
-// static
 void SandboxHardwareSupport::NotifyReadOnlyPageCreated(
     Address addr, size_t size, PageAllocator::Permission perm) {
   if (!IsEnabled()) return;

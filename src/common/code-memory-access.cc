@@ -31,13 +31,6 @@ bool RwxMemoryWriteScope::IsPKUWritable() {
          base::MemoryProtectionKey::kNoRestrictions;
 }
 
-void RwxMemoryWriteScope::SetDefaultPermissionsForSignalHandler() {
-  DCHECK(ThreadIsolation::initialized());
-  if (!RwxMemoryWriteScope::IsSupported()) return;
-  base::MemoryProtectionKey::SetPermissionsForKey(
-      ThreadIsolation::pkey(), base::MemoryProtectionKey::kDisableWrite);
-}
-
 #endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
 
 RwxMemoryWriteScopeForTesting::RwxMemoryWriteScopeForTesting()
@@ -88,7 +81,7 @@ void ThreadIsolation::Initialize(
 
 #ifdef THREAD_SANITIZER
   // TODO(sroettger): with TSAN enabled, we get crashes because
-  // SetDefaultPermissionsForSignalHandler gets called while a
+  // SetDefaultPermissionsForAllKeysInSignalHandler gets called while a
   // RwxMemoryWriteScope is active. It seems that tsan's ProcessPendingSignals
   // doesn't restore the pkru value after executing the signal handler.
   enable = false;
@@ -105,6 +98,13 @@ void ThreadIsolation::Initialize(
     trusted_data_.allocator = thread_isolated_allocator;
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
     trusted_data_.pkey = trusted_data_.allocator->Pkey();
+
+    // We need to inform our MemoryProtectionKey class that there was an
+    // externally-allocated pkey that we will be using. This is necessary for
+    // signal handlers to have access to memory protected with this key. For
+    // more details see https://crbug.com/416209124.
+    base::MemoryProtectionKey::RegisterExternallyAllocatedKey(
+        trusted_data_.pkey);
 #endif
   }
 

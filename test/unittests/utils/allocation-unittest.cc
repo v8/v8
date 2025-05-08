@@ -33,8 +33,8 @@ namespace {
 
 class MemoryAllocationPermissionsTest : public TestWithPlatform {
   static void SignalHandler(int signal, siginfo_t* info, void*) {
-#if V8_HAS_PKU_JIT_WRITE_PROTECT
-    RwxMemoryWriteScope::SetDefaultPermissionsForSignalHandler();
+#if V8_HAS_PKU_SUPPORT
+    base::MemoryProtectionKey::SetDefaultPermissionsForAllKeysInSignalHandler();
 #endif
     siglongjmp(continuation_, 1);
   }

@@ -40,10 +40,6 @@ class V8_EXPORT_PRIVATE SandboxHardwareSupport {
   static void NotifyReadOnlyPageCreated(
       Address addr, size_t size, PageAllocator::Permission current_permissions);
 
-  // This function should only be called by
-  // `ThreadIsolatedAllocator::SetDefaultPermissionsForSignalHandler`.
-  static void SetDefaultPermissionsForSignalHandler();
-
  private:
   friend class DisallowSandboxAccess;
   friend class AllowSandboxAccess;

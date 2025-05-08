@@ -44,6 +44,10 @@ int GetProtectionFromMemoryPermission(PageAllocator::Permission permission) {
 
 }  // namespace
 
+// 16 keys on x64, 8 keys on arm64.
+constexpr int kMaxAvailableKeys = 16;
+std::array<bool, kMaxAvailableKeys> g_active_keys = {false};
+
 bool MemoryProtectionKey::HasMemoryProtectionKeyAPIs() {
   if (!pkey_mprotect) return false;
   // If {pkey_mprotect} is available, the others must also be available.
@@ -71,13 +75,29 @@ int MemoryProtectionKey::AllocateKey() {
     return kNoMemoryProtectionKey;
   }
 
-  return pkey_alloc(0, 0);
+  int key = pkey_alloc(0, kNoRestrictions);
+  if (key != kNoMemoryProtectionKey) {
+    CHECK_LT(key, kMaxAvailableKeys);
+    DCHECK(!g_active_keys[key]);
+    g_active_keys[key] = true;
+  }
+
+  return key;
 }
 
 // static
 void MemoryProtectionKey::FreeKey(int key) {
   DCHECK_NE(key, kNoMemoryProtectionKey);
+  DCHECK(g_active_keys[key]);
   CHECK_EQ(pkey_free(key), 0);
+  g_active_keys[key] = false;
+}
+
+// static
+void MemoryProtectionKey::RegisterExternallyAllocatedKey(int key) {
+  CHECK_LT(key, kMaxAvailableKeys);
+  DCHECK(!g_active_keys[key]);
+  g_active_keys[key] = true;
 }
 
 // static
@@ -117,6 +137,20 @@ MemoryProtectionKey::Permission MemoryProtectionKey::GetKeyPermission(int key) {
   CHECK(permission == kNoRestrictions || permission == kDisableAccess ||
         permission == kDisableWrite);
   return static_cast<Permission>(permission);
+}
+
+// static
+void MemoryProtectionKey::SetDefaultPermissionsForAllKeysInSignalHandler() {
+  // NOTE: This code MUST be async-signal safe
+
+  // As a future optimization, we could compute the register state first (or
+  // even let g_active_keys already resemble the final register state), and
+  // then perform a single WRPKRU instruction.
+  for (int key = 0; key < kMaxAvailableKeys; key++) {
+    if (g_active_keys[key]) {
+      SetPermissionsForKey(key, kDisableWrite);
+    }
+  }
 }
 
 }  // namespace base
