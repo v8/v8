@@ -262,6 +262,7 @@ class Trace {
         fixed_length_loop_state_(other.fixed_length_loop_state_),
         characters_preloaded_(other.characters_preloaded_),
         bound_checked_up_to_(other.bound_checked_up_to_),
+        quick_check_performed_(other.quick_check_performed_),
         next_(&other) {}
 
   // End the trace.  This involves flushing the deferred actions in the trace
