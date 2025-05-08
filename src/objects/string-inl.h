@@ -362,6 +362,9 @@ auto StringShape::DispatchToSpecificType(Tagged<String> string,
         dispatcher(UncheckedCast<ThinString>(string)));
   }
 
+  Isolate::Current()->PushStackTraceAndDie(
+      reinterpret_cast<void*>(string->ptr()),
+      reinterpret_cast<void*>(map_->ptr()));
   UNREACHABLE();
 #else
   switch (type_ & kStringRepresentationAndEncodingMask) {
