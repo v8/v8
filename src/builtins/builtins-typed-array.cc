@@ -662,6 +662,13 @@ BUILTIN(Uint8ArrayPrototypeSetFromBase64) {
                                   method_name)));
   }
 
+  // If the receiver has length of 0, we should return early
+  // with 0 bytes read and 0 bytes write.
+  if (array_length == 0) {
+    return *isolate->factory()->NewJSUint8ArraySetFromResult(
+        handle(Smi::zero(), isolate), handle(Smi::zero(), isolate));
+  }
+
   // 14. Let result be FromBase64(string, alphabet, lastChunkHandling,
   //     byteLength).
   // 15. Let bytes be result.[[Bytes]].
@@ -962,6 +969,13 @@ BUILTIN(Uint8ArrayPrototypeSetFromHex) {
         isolate, NewTypeError(MessageTemplate::kDetachedOperation,
                               isolate->factory()->NewStringFromAsciiChecked(
                                   method_name)));
+  }
+
+  // If the receiver has length of 0, we should return early
+  // with 0 bytes read and 0 bytes write.
+  if (array_length == 0) {
+    return *isolate->factory()->NewJSUint8ArraySetFromResult(
+        handle(Smi::zero(), isolate), handle(Smi::zero(), isolate));
   }
 
   size_t input_length = input_string->length();
