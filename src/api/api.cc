@@ -1967,10 +1967,11 @@ MaybeLocal<Value> Script::Run(Local<Context> context,
       i::Cast<i::Script>(fun->shared()->script())->host_defined_options(),
       i_isolate);
   Local<Value> result;
-  bool has_exception = !ToLocal<Value>(
-      i::Execution::CallScript(i_isolate, fun, receiver, options), &result);
-
-  if (has_exception) return {};
+  if (!ToLocal<Value>(
+          i::Execution::CallScript(i_isolate, fun, receiver, options),
+          &result)) {
+    return {};
+  }
   return api_scope.Escape(result);
 }
 
@@ -2281,10 +2282,10 @@ Maybe<bool> Module::InstantiateModule(Local<Context> context,
   auto i_isolate = i::Isolate::Current();
   EnterV8Scope<> api_scope{i_isolate, context,
                            RCCId(kAPI_Module_InstantiateModule)};
-  bool has_exception =
-      !i::Module::Instantiate(i_isolate, Utils::OpenHandle(this), context,
-                              module_callback, source_callback);
-  if (has_exception) return {};
+  if (!i::Module::Instantiate(i_isolate, Utils::OpenHandle(this), context,
+                              module_callback, source_callback)) {
+    return {};
+  }
   return Just(true);
 }
 
@@ -2304,8 +2305,7 @@ MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
                   "Expected instantiated module");
 
   Local<Value> result;
-  bool has_exception = !ToLocal(i::Module::Evaluate(i_isolate, self), &result);
-  if (has_exception) return {};
+  if (!ToLocal(i::Module::Evaluate(i_isolate, self), &result)) return {};
   return api_scope.Escape(result);
 }
 
@@ -2342,11 +2342,12 @@ Maybe<bool> Module::SetSyntheticModuleExport(Isolate* v8_isolate,
                   "a SyntheticModule");
   EnterV8NoScriptScope<> api_scope{i_isolate, v8_isolate->GetCurrentContext(),
                                    RCCId(kAPI_Module_SetSyntheticModuleExport)};
-  bool has_exception = i::SyntheticModule::SetExport(
-                           i_isolate, i::Cast<i::SyntheticModule>(self),
-                           i_export_name, i_export_value)
-                           .IsNothing();
-  if (has_exception) return {};
+  if (i::SyntheticModule::SetExport(i_isolate,
+                                    i::Cast<i::SyntheticModule>(self),
+                                    i_export_name, i_export_value)
+          .IsNothing()) {
+    return {};
+  }
   return Just(true);
 }
 
@@ -2461,9 +2462,8 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
         i::NOT_NATIVES_CODE, &source->compilation_details);
   }
 
-  bool has_exception = !maybe_function_info.ToHandle(&result);
-  DCHECK_IMPLIES(!has_exception, !i::HeapLayout::InReadOnlySpace(*result));
-  if (has_exception) return {};
+  if (!maybe_function_info.ToHandle(&result)) return {};
+  DCHECK(!i::HeapLayout::InReadOnlySpace(*result));
   return api_scope.Escape(ToApiHandle<UnboundScript>(result));
 }
 
@@ -2686,11 +2686,11 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileStreamedScript");
   i::DirectHandle<i::SharedFunctionInfo> sfi;
-  i::MaybeDirectHandle<i::SharedFunctionInfo> maybe_sfi =
-      CompileStreamedSource(i_isolate, v8_source, full_source_string, origin);
-  bool has_exception = !maybe_sfi.ToHandle(&sfi);
-  if (has_exception) i_isolate->ReportPendingMessages();
-  if (has_exception) return {};
+  if (!CompileStreamedSource(i_isolate, v8_source, full_source_string, origin)
+           .ToHandle(&sfi)) {
+    i_isolate->ReportPendingMessages();
+    return {};
+  }
   Local<UnboundScript> generic = ToApiHandle<UnboundScript>(sfi);
   if (generic.IsEmpty()) return {};
   Local<Script> bound = generic->BindToCurrentContext();
@@ -2708,11 +2708,11 @@ MaybeLocal<Module> ScriptCompiler::CompileModule(
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileStreamedModule");
   i::DirectHandle<i::SharedFunctionInfo> sfi;
-  i::MaybeDirectHandle<i::SharedFunctionInfo> maybe_sfi =
-      CompileStreamedSource(i_isolate, v8_source, full_source_string, origin);
-  bool has_exception = !maybe_sfi.ToHandle(&sfi);
-  if (has_exception) i_isolate->ReportPendingMessages();
-  if (has_exception) return {};
+  if (!CompileStreamedSource(i_isolate, v8_source, full_source_string, origin)
+           .ToHandle(&sfi)) {
+    i_isolate->ReportPendingMessages();
+    return {};
+  }
   return api_scope.Escape(
       ToApiHandle<Module>(i_isolate->factory()->NewSourceTextModule(sfi)));
 }
@@ -2867,13 +2867,12 @@ MaybeLocal<Value> v8::TryCatch::StackTrace(Local<Context> context,
   auto obj = i::Cast<i::JSObject>(i_exception);
   i::DirectHandle<i::String> name = i_isolate->factory()->stack_string();
   Maybe<bool> maybe = i::JSReceiver::HasProperty(i_isolate, obj, name);
-  bool has_exception = maybe.IsNothing();
-  if (has_exception) return {};
-  if (!maybe.FromJust()) return {};
+  if (maybe != Just(true)) return {};
   Local<Value> result;
-  has_exception = !ToLocal<Value>(
-      i::JSReceiver::GetProperty(i_isolate, obj, name), &result);
-  if (has_exception) return {};
+  if (!ToLocal<Value>(i::JSReceiver::GetProperty(i_isolate, obj, name),
+                      &result)) {
+    return {};
+  }
   return api_scope.Escape(result);
 }
 
@@ -3241,8 +3240,7 @@ MaybeLocal<Value> JSON::Parse(Local<Context> context,
           ? i::JsonParser<uint8_t>::Parse(i_isolate, source, undefined)
           : i::JsonParser<uint16_t>::Parse(i_isolate, source, undefined);
   Local<Value> result;
-  bool has_exception = !ToLocal<Value>(maybe, &result);
-  if (has_exception) return {};
+  if (!ToLocal<Value>(maybe, &result)) return {};
   return api_scope.Escape(result);
 }
 
@@ -3263,14 +3261,12 @@ MaybeLocal<String> JSON::Stringify(Local<Context> context,
                                         ? i_isolate->factory()->empty_string()
                                         : Utils::OpenHandle(*gap);
   i::DirectHandle<i::Object> maybe;
-  bool has_exception =
-      !i::JsonStringify(i_isolate, object, replacer, gap_string)
-           .ToHandle(&maybe);
-  if (has_exception) return {};
   Local<String> result;
-  has_exception =
-      !ToLocal<String>(i::Object::ToString(i_isolate, maybe), &result);
-  if (has_exception) return {};
+  if (!i::JsonStringify(i_isolate, object, replacer, gap_string)
+           .ToHandle(&maybe) ||
+      !ToLocal<String>(i::Object::ToString(i_isolate, maybe), &result)) {
+    return {};
+  }
   return api_scope.Escape(result);
 }
 
@@ -3375,10 +3371,7 @@ Maybe<bool> ValueSerializer::WriteValue(Local<Context> context,
   EnterV8Scope<> api_scope{i_isolate, context,
                            RCCId(kAPI_ValueSerializer_WriteValue)};
   auto object = Utils::OpenHandle(*value);
-  Maybe<bool> result = private_->serializer.WriteObject(object);
-  bool has_exception = result.IsNothing();
-  if (has_exception) return {};
-  return result;
+  return private_->serializer.WriteObject(object);
 }
 
 std::pair<uint8_t*, size_t> ValueSerializer::Release() {
@@ -3471,8 +3464,7 @@ Maybe<bool> ValueDeserializer::ReadHeader(Local<Context> context) {
                                    RCCId(kAPI_ValueDeserializer_ReadHeader)};
 
   bool read_header = false;
-  bool has_exception = !private_->deserializer.ReadHeader().To(&read_header);
-  if (has_exception) return {};
+  if (!private_->deserializer.ReadHeader().To(&read_header)) return {};
   DCHECK(read_header);
 
   static const uint32_t kMinimumNonLegacyVersion = 13;
@@ -3506,8 +3498,7 @@ MaybeLocal<Value> ValueDeserializer::ReadValue(Local<Context> context) {
         private_->deserializer.ReadObjectUsingEntireBufferForLegacyFormat();
   }
   Local<Value> value;
-  bool has_exception = !ToLocal(result, &value);
-  if (has_exception) return {};
+  if (!ToLocal(result, &value)) return {};
   return api_scope.Escape(value);
 }
 
@@ -3759,9 +3750,7 @@ MaybeLocal<String> Value::ToString(Local<Context> context) const {
   PrepareForExecutionScope api_scope{context, RCCId(kAPI_Object_ToString)};
   i::Isolate* i_isolate = api_scope.i_isolate();
   Local<String> result;
-  bool has_exception =
-      !ToLocal<String>(i::Object::ToString(i_isolate, obj), &result);
-  if (has_exception) return {};
+  if (!ToLocal<String>(i::Object::ToString(i_isolate, obj), &result)) return {};
   return api_scope.Escape(result);
 }
 
@@ -3785,9 +3774,7 @@ MaybeLocal<Object> Value::ToObject(Local<Context> context) const {
   PrepareForExecutionScope api_scope{context, RCCId(kAPI_Object_ToObject)};
   i::Isolate* i_isolate = api_scope.i_isolate();
   Local<Object> result;
-  bool has_exception =
-      !ToLocal<Object>(i::Object::ToObject(i_isolate, obj), &result);
-  if (has_exception) return {};
+  if (!ToLocal<Object>(i::Object::ToObject(i_isolate, obj), &result)) return {};
   return api_scope.Escape(result);
 }
 
@@ -3797,9 +3784,9 @@ MaybeLocal<BigInt> Value::ToBigInt(Local<Context> context) const {
   PrepareForExecutionScope api_scope{context, RCCId(kAPI_Object_ToBigInt)};
   i::Isolate* i_isolate = api_scope.i_isolate();
   Local<BigInt> result;
-  bool has_exception =
-      !ToLocal<BigInt>(i::BigInt::FromObject(i_isolate, obj), &result);
-  if (has_exception) return {};
+  if (!ToLocal<BigInt>(i::BigInt::FromObject(i_isolate, obj), &result)) {
+    return {};
+  }
   return api_scope.Escape(result);
 }
 
@@ -3814,9 +3801,9 @@ MaybeLocal<Primitive> Value::ToPrimitive(Local<Context> context) const {
   PrepareForExecutionScope api_scope{context, RCCId(kAPI_Object_ToPrimitive)};
   i::Isolate* i_isolate = api_scope.i_isolate();
   Local<Primitive> result;
-  bool has_exception =
-      !ToLocal<Primitive>(i::Object::ToPrimitive(i_isolate, obj), &result);
-  if (has_exception) return {};
+  if (!ToLocal<Primitive>(i::Object::ToPrimitive(i_isolate, obj), &result)) {
+    return {};
+  }
   return api_scope.Escape(result);
 }
 
@@ -3826,9 +3813,9 @@ MaybeLocal<Numeric> Value::ToNumeric(Local<Context> context) const {
   PrepareForExecutionScope api_scope{context, RCCId(kAPI_Object_ToNumeric)};
   i::Isolate* i_isolate = api_scope.i_isolate();
   Local<Numeric> result;
-  bool has_exception =
-      !ToLocal<Numeric>(i::Object::ToNumeric(i_isolate, obj), &result);
-  if (has_exception) return {};
+  if (!ToLocal<Numeric>(i::Object::ToNumeric(i_isolate, obj), &result)) {
+    return {};
+  }
   return api_scope.Escape(result);
 }
 
@@ -3846,9 +3833,7 @@ MaybeLocal<Number> Value::ToNumber(Local<Context> context) const {
   PrepareForExecutionScope api_scope{context, RCCId(kAPI_Object_ToNumber)};
   i::Isolate* i_isolate = api_scope.i_isolate();
   Local<Number> result;
-  bool has_exception =
-      !ToLocal<Number>(i::Object::ToNumber(i_isolate, obj), &result);
-  if (has_exception) return {};
+  if (!ToLocal<Number>(i::Object::ToNumber(i_isolate, obj), &result)) return {};
   return api_scope.Escape(result);
 }
 
@@ -3858,9 +3843,9 @@ MaybeLocal<Integer> Value::ToInteger(Local<Context> context) const {
   PrepareForExecutionScope api_scope{context, RCCId(kAPI_Object_ToInteger)};
   i::Isolate* i_isolate = api_scope.i_isolate();
   Local<Integer> result;
-  bool has_exception =
-      !ToLocal<Integer>(i::Object::ToInteger(i_isolate, obj), &result);
-  if (has_exception) return {};
+  if (!ToLocal<Integer>(i::Object::ToInteger(i_isolate, obj), &result)) {
+    return {};
+  }
   return api_scope.Escape(result);
 }
 
@@ -3870,9 +3855,7 @@ MaybeLocal<Int32> Value::ToInt32(Local<Context> context) const {
   Local<Int32> result;
   PrepareForExecutionScope api_scope{context, RCCId(kAPI_Object_ToInt32)};
   i::Isolate* i_isolate = api_scope.i_isolate();
-  bool has_exception =
-      !ToLocal<Int32>(i::Object::ToInt32(i_isolate, obj), &result);
-  if (has_exception) return {};
+  if (!ToLocal<Int32>(i::Object::ToInt32(i_isolate, obj), &result)) return {};
   return api_scope.Escape(result);
 }
 
@@ -3882,9 +3865,7 @@ MaybeLocal<Uint32> Value::ToUint32(Local<Context> context) const {
   Local<Uint32> result;
   PrepareForExecutionScope api_scope{context, RCCId(kAPI_Object_ToUint32)};
   i::Isolate* i_isolate = api_scope.i_isolate();
-  bool has_exception =
-      !ToLocal<Uint32>(i::Object::ToUint32(i_isolate, obj), &result);
-  if (has_exception) return {};
+  if (!ToLocal<Uint32>(i::Object::ToUint32(i_isolate, obj), &result)) return {};
   return api_scope.Escape(result);
 }
 
@@ -4242,8 +4223,7 @@ Maybe<double> Value::NumberValue(Local<Context> context) const {
   auto i_isolate = i::Isolate::Current();
   EnterV8Scope<> api_scope{i_isolate, context, RCCId(kAPI_Value_NumberValue)};
   i::DirectHandle<i::Number> num;
-  bool has_exception = !i::Object::ToNumber(i_isolate, obj).ToHandle(&num);
-  if (has_exception) return {};
+  if (!i::Object::ToNumber(i_isolate, obj).ToHandle(&num)) return {};
   return Just(i::Object::NumberValue(*num));
 }
 
@@ -4255,8 +4235,7 @@ Maybe<int64_t> Value::IntegerValue(Local<Context> context) const {
   auto i_isolate = i::Isolate::Current();
   EnterV8Scope<> api_scope{i_isolate, context, RCCId(kAPI_Value_IntegerValue)};
   i::DirectHandle<i::Object> num;
-  bool has_exception = !i::Object::ToInteger(i_isolate, obj).ToHandle(&num);
-  if (has_exception) return {};
+  if (!i::Object::ToInteger(i_isolate, obj).ToHandle(&num)) return {};
   return Just(NumberToInt64(*num));
 }
 
@@ -4266,8 +4245,7 @@ Maybe<int32_t> Value::Int32Value(Local<Context> context) const {
   auto i_isolate = i::Isolate::Current();
   EnterV8Scope<> api_scope{i_isolate, context, RCCId(kAPI_Value_Int32Value)};
   i::DirectHandle<i::Object> num;
-  bool has_exception = !i::Object::ToInt32(i_isolate, obj).ToHandle(&num);
-  if (has_exception) return {};
+  if (!i::Object::ToInt32(i_isolate, obj).ToHandle(&num)) return {};
   return Just(IsSmi(*num) ? i::Smi::ToInt(*num)
                           : static_cast<int32_t>(
                                 i::Cast<i::HeapNumber>(*num)->value()));
@@ -4279,8 +4257,7 @@ Maybe<uint32_t> Value::Uint32Value(Local<Context> context) const {
   auto i_isolate = i::Isolate::Current();
   EnterV8Scope<> api_scope{i_isolate, context, RCCId(kAPI_Value_Uint32Value)};
   i::DirectHandle<i::Object> num;
-  bool has_exception = !i::Object::ToUint32(i_isolate, obj).ToHandle(&num);
-  if (has_exception) return {};
+  if (!i::Object::ToUint32(i_isolate, obj).ToHandle(&num)) return {};
   return Just(IsSmi(*num) ? static_cast<uint32_t>(i::Smi::ToInt(*num))
                           : static_cast<uint32_t>(
                                 i::Cast<i::HeapNumber>(*num)->value()));
@@ -4295,9 +4272,7 @@ MaybeLocal<Uint32> Value::ToArrayIndex(Local<Context> context) const {
   PrepareForExecutionScope api_scope{context, RCCId(kAPI_Object_ToArrayIndex)};
   i::Isolate* i_isolate = api_scope.i_isolate();
   i::DirectHandle<i::Object> string_obj;
-  bool has_exception =
-      !i::Object::ToString(i_isolate, self).ToHandle(&string_obj);
-  if (has_exception) return {};
+  if (!i::Object::ToString(i_isolate, self).ToHandle(&string_obj)) return {};
   auto str = i::Cast<i::String>(string_obj);
   uint32_t index;
   if (str->AsArrayIndex(&index)) {
@@ -4317,10 +4292,7 @@ Maybe<bool> Value::Equals(Local<Context> context, Local<Value> that) const {
   EnterV8Scope<> api_scope{i_isolate, context, RCCId(kAPI_Value_Equals)};
   auto self = Utils::OpenDirectHandle(this);
   auto other = Utils::OpenDirectHandle(*that);
-  Maybe<bool> result = i::Object::Equals(i_isolate, self, other);
-  bool has_exception = result.IsNothing();
-  if (has_exception) return {};
-  return result;
+  return i::Object::Equals(i_isolate, self, other);
 }
 
 bool Value::StrictEquals(Local<Value> that) const {
@@ -4356,9 +4328,9 @@ Maybe<bool> Value::InstanceOf(v8::Local<v8::Context> context,
   }
   auto right = Utils::OpenDirectHandle(*object);
   i::DirectHandle<i::Object> result;
-  bool has_exception =
-      !i::Object::InstanceOf(i_isolate, left, right).ToHandle(&result);
-  if (has_exception) return {};
+  if (!i::Object::InstanceOf(i_isolate, left, right).ToHandle(&result)) {
+    return {};
+  }
   return Just(i::IsTrue(*result, i_isolate));
 }
 
@@ -4383,12 +4355,12 @@ Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context,
   auto self = Utils::OpenDirectHandle(this);
   auto key_obj = Utils::OpenDirectHandle(*key);
   auto value_obj = Utils::OpenDirectHandle(*value);
-  bool has_exception =
-      i::Runtime::SetObjectProperty(i_isolate, self, key_obj, value_obj,
+  if (i::Runtime::SetObjectProperty(i_isolate, self, key_obj, value_obj,
                                     i::StoreOrigin::kMaybeKeyed,
                                     Just(i::ShouldThrow::kDontThrow))
-          .is_null();
-  if (has_exception) return {};
+          .is_null()) {
+    return {};
+  }
   return Just(true);
 }
 
@@ -4404,12 +4376,12 @@ Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context,
   if (!receiver.IsEmpty()) {
     receiver_obj = Utils::OpenDirectHandle(*receiver.ToLocalChecked());
   }
-  bool has_exception =
-      i::Runtime::SetObjectProperty(i_isolate, self, key_obj, value_obj,
+  if (i::Runtime::SetObjectProperty(i_isolate, self, key_obj, value_obj,
                                     receiver_obj, i::StoreOrigin::kMaybeKeyed,
                                     Just(i::ShouldThrow::kDontThrow))
-          .is_null();
-  if (has_exception) return {};
+          .is_null()) {
+    return {};
+  }
   return Just(true);
 }
 
@@ -4419,10 +4391,11 @@ Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context, uint32_t index,
   EnterV8Scope<> api_scope{i_isolate, context, RCCId(kAPI_Object_Set)};
   auto self = Utils::OpenDirectHandle(this);
   auto value_obj = Utils::OpenHandle(*value);
-  bool has_exception = i::Object::SetElement(i_isolate, self, index, value_obj,
-                                             i::ShouldThrow::kDontThrow)
-                           .is_null();
-  if (has_exception) return {};
+  if (i::Object::SetElement(i_isolate, self, index, value_obj,
+                            i::ShouldThrow::kDontThrow)
+          .is_null()) {
+    return {};
+  }
   return Just(true);
 }
 
@@ -4438,21 +4411,15 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
   if (i::IsJSObject(*self)) {
     EnterV8NoScriptScope<> api_scope{i_isolate, context,
                                      RCCId(kAPI_Object_CreateDataProperty)};
-    Maybe<bool> result = i::JSObject::CreateDataProperty(
+    return i::JSObject::CreateDataProperty(
         i_isolate, i::Cast<i::JSObject>(self), lookup_key, value_obj,
         Just(i::kDontThrow));
-    bool has_exception = result.IsNothing();
-    if (has_exception) return {};
-    return result;
   }
   // JSProxy or WasmObject or other non-JSObject.
   EnterV8Scope<> api_scope{i_isolate, context,
                            RCCId(kAPI_Object_CreateDataProperty)};
-  Maybe<bool> result = i::JSReceiver::CreateDataProperty(
-      i_isolate, self, lookup_key, value_obj, Just(i::kDontThrow));
-  bool has_exception = result.IsNothing();
-  if (has_exception) return {};
-  return result;
+  return i::JSReceiver::CreateDataProperty(i_isolate, self, lookup_key,
+                                           value_obj, Just(i::kDontThrow));
 }
 
 Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
@@ -4466,21 +4433,15 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
   if (i::IsJSObject(*self)) {
     EnterV8NoScriptScope<> api_scope{i_isolate, context,
                                      RCCId(kAPI_Object_CreateDataProperty)};
-    Maybe<bool> result = i::JSObject::CreateDataProperty(
+    return i::JSObject::CreateDataProperty(
         i_isolate, i::Cast<i::JSObject>(self), lookup_key, value_obj,
         Just(i::kDontThrow));
-    bool has_exception = result.IsNothing();
-    if (has_exception) return {};
-    return result;
   }
   // JSProxy or WasmObject or other non-JSObject.
   EnterV8Scope<> api_scope{i_isolate, context,
                            RCCId(kAPI_Object_CreateDataProperty)};
-  Maybe<bool> result = i::JSReceiver::CreateDataProperty(
-      i_isolate, self, lookup_key, value_obj, Just(i::kDontThrow));
-  bool has_exception = result.IsNothing();
-  if (has_exception) return {};
-  return result;
+  return i::JSReceiver::CreateDataProperty(i_isolate, self, lookup_key,
+                                           value_obj, Just(i::kDontThrow));
 }
 
 struct v8::PropertyDescriptor::PrivateData {
@@ -4598,21 +4559,15 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
     // a script.
     EnterV8NoScriptScope<> api_scope{i_isolate, context,
                                      RCCId(kAPI_Object_DefineOwnProperty)};
-    Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
-        i_isolate, self, key_obj, &desc, Just(i::kDontThrow));
-    bool has_exception = success.IsNothing();
-    if (has_exception) return {};
-    return success;
+    return i::JSReceiver::DefineOwnProperty(i_isolate, self, key_obj, &desc,
+                                            Just(i::kDontThrow));
   }
   // JSProxy or WasmObject or other non-JSObject.
   EnterV8Scope<> api_scope{i_isolate, context,
                            RCCId(kAPI_Object_DefineOwnProperty)};
-  Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
-      i_isolate, self, key_obj, &desc, Just(i::kDontThrow));
   // Even though we said kDontThrow, there might be accessors that do throw.
-  bool has_exception = success.IsNothing();
-  if (has_exception) return {};
-  return success;
+  return i::JSReceiver::DefineOwnProperty(i_isolate, self, key_obj, &desc,
+                                          Just(i::kDontThrow));
 }
 
 Maybe<bool> v8::Object::DefineProperty(v8::Local<v8::Context> context,
@@ -4624,12 +4579,9 @@ Maybe<bool> v8::Object::DefineProperty(v8::Local<v8::Context> context,
   auto self = Utils::OpenDirectHandle(this);
   auto key_obj = Utils::OpenDirectHandle(*key);
 
-  Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
-      i_isolate, self, key_obj, &descriptor.get_private()->desc,
-      Just(i::kDontThrow));
-  bool has_exception = success.IsNothing();
-  if (has_exception) return {};
-  return success;
+  return i::JSReceiver::DefineOwnProperty(i_isolate, self, key_obj,
+                                          &descriptor.get_private()->desc,
+                                          Just(i::kDontThrow));
 }
 
 Maybe<bool> v8::Object::SetPrivate(Local<Context> context, Local<Private> key,
@@ -4643,10 +4595,11 @@ Maybe<bool> v8::Object::SetPrivate(Local<Context> context, Local<Private> key,
   if (i::IsJSObject(*self)) {
     auto js_object = i::Cast<i::JSObject>(self);
     i::LookupIterator it(i_isolate, js_object, key_obj, js_object);
-    bool has_exception = i::JSObject::DefineOwnPropertyIgnoreAttributes(
-                             &it, value_obj, i::DONT_ENUM)
-                             .is_null();
-    if (has_exception) return {};
+    if (i::JSObject::DefineOwnPropertyIgnoreAttributes(&it, value_obj,
+                                                       i::DONT_ENUM)
+            .is_null()) {
+      return {};
+    }
     return Just(true);
   }
   if (i::IsJSProxy(*self)) {
@@ -4670,9 +4623,10 @@ MaybeLocal<Value> v8::Object::Get(Local<v8::Context> context,
   auto self = Utils::OpenDirectHandle(this);
   auto key_obj = Utils::OpenDirectHandle(*key);
   i::DirectHandle<i::Object> result;
-  bool has_exception = !i::Runtime::GetObjectProperty(i_isolate, self, key_obj)
-                            .ToHandle(&result);
-  if (has_exception) return {};
+  if (!i::Runtime::GetObjectProperty(i_isolate, self, key_obj)
+           .ToHandle(&result)) {
+    return {};
+  }
   return api_scope.Escape(Utils::ToLocal(result));
 }
 
@@ -4687,10 +4641,10 @@ MaybeLocal<Value> v8::Object::Get(Local<v8::Context> context, Local<Value> key,
     receiver_obj = Utils::OpenDirectHandle(*receiver.ToLocalChecked());
   }
   i::DirectHandle<i::Object> result;
-  bool has_exception =
-      !i::Runtime::GetObjectProperty(i_isolate, self, key_obj, receiver_obj)
-           .ToHandle(&result);
-  if (has_exception) return {};
+  if (!i::Runtime::GetObjectProperty(i_isolate, self, key_obj, receiver_obj)
+           .ToHandle(&result)) {
+    return {};
+  }
   return api_scope.Escape(Utils::ToLocal(result));
 }
 
@@ -4699,9 +4653,9 @@ MaybeLocal<Value> v8::Object::Get(Local<Context> context, uint32_t index) {
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto self = Utils::OpenDirectHandle(this);
   i::DirectHandle<i::Object> result;
-  bool has_exception =
-      !i::JSReceiver::GetElement(i_isolate, self, index).ToHandle(&result);
-  if (has_exception) return {};
+  if (!i::JSReceiver::GetElement(i_isolate, self, index).ToHandle(&result)) {
+    return {};
+  }
   return api_scope.Escape(Utils::ToLocal(result));
 }
 
@@ -4718,14 +4672,11 @@ Maybe<PropertyAttribute> v8::Object::GetPropertyAttributes(
   auto self = Utils::OpenDirectHandle(this);
   auto key_obj = Utils::OpenDirectHandle(*key);
   if (!i::IsName(*key_obj)) {
-    bool has_exception =
-        !i::Object::ToString(i_isolate, key_obj).ToHandle(&key_obj);
-    if (has_exception) return {};
+    if (!i::Object::ToString(i_isolate, key_obj).ToHandle(&key_obj)) return {};
   }
   auto key_name = i::Cast<i::Name>(key_obj);
   auto result = i::JSReceiver::GetPropertyAttributes(i_isolate, self, key_name);
-  bool has_exception = result.IsNothing();
-  if (has_exception) return {};
+  if (result.IsNothing()) return {};
   if (result.FromJust() == i::ABSENT) {
     return Just(static_cast<PropertyAttribute>(i::NONE));
   }
@@ -4743,8 +4694,7 @@ MaybeLocal<Value> v8::Object::GetOwnPropertyDescriptor(Local<Context> context,
   i::PropertyDescriptor desc;
   Maybe<bool> found =
       i::JSReceiver::GetOwnPropertyDescriptor(i_isolate, obj, key_name, &desc);
-  bool has_exception = found.IsNothing();
-  if (has_exception) return {};
+  if (found.IsNothing()) return {};
   if (!found.FromJust()) {
     return v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
   }
@@ -4788,8 +4738,9 @@ Maybe<bool> SetPrototypeImpl(v8::Object* this_, Local<Context> context,
     auto result =
         i::JSObject::SetPrototype(i_isolate, i::Cast<i::JSObject>(self),
                                   value_obj, from_javascript, i::kDontThrow);
+    // Convert Just(false) to Nothing.
     if (!result.FromJust()) return {};
-    return Just(true);
+    return result;
   }
   if (i::IsJSProxy(*self)) {
     EnterV8Scope<> api_scope{i_isolate, context,
@@ -4800,8 +4751,8 @@ Maybe<bool> SetPrototypeImpl(v8::Object* this_, Local<Context> context,
     auto result =
         i::JSProxy::SetPrototype(i_isolate, i::Cast<i::JSProxy>(self),
                                  value_obj, from_javascript, i::kThrowOnError);
-    bool has_exception = result.IsNothing();
-    if (has_exception) return {};
+    if (result.IsNothing()) return {};
+    // Convert Just(false) to Just(true).
     return Just(true);
   }
   // Wasm object or other kind of special object not supported here.
@@ -4860,8 +4811,7 @@ MaybeLocal<Array> v8::Object::GetPropertyNames(
       i_isolate, static_cast<i::KeyCollectionMode>(mode),
       static_cast<i::PropertyFilter>(property_filter));
   accumulator.set_skip_indices(index_filter == IndexFilter::kSkipIndices);
-  bool has_exception = accumulator.CollectKeys(self, self).IsNothing();
-  if (has_exception) return {};
+  if (accumulator.CollectKeys(self, self).IsNothing()) return {};
   value =
       accumulator.GetKeys(static_cast<i::GetKeysConversion>(key_conversion));
   DCHECK(self->map()->EnumLength() == i::kInvalidEnumCacheSentinel ||
@@ -4890,11 +4840,11 @@ MaybeLocal<String> v8::Object::ObjectProtoToString(Local<Context> context) {
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto self = Utils::OpenDirectHandle(this);
   Local<Value> result;
-  bool has_exception =
-      !ToLocal<Value>(i::Execution::CallBuiltin(
+  if (!ToLocal<Value>(i::Execution::CallBuiltin(
                           i_isolate, i_isolate->object_to_string(), self, {}),
-                      &result);
-  if (has_exception) return {};
+                      &result)) {
+    return {};
+  }
   return api_scope.Escape(Local<String>::Cast(result));
 }
 
@@ -4920,11 +4870,8 @@ Maybe<bool> v8::Object::SetIntegrityLevel(Local<Context> context,
   auto self = Utils::OpenDirectHandle(this);
   i::JSReceiver::IntegrityLevel i_level =
       level == IntegrityLevel::kFrozen ? i::FROZEN : i::SEALED;
-  Maybe<bool> result = i::JSReceiver::SetIntegrityLevel(
-      i_isolate, self, i_level, i::kThrowOnError);
-  bool has_exception = result.IsNothing();
-  if (has_exception) return {};
-  return result;
+  return i::JSReceiver::SetIntegrityLevel(i_isolate, self, i_level,
+                                          i::kThrowOnError);
 }
 
 Maybe<bool> v8::Object::Delete(Local<Context> context, Local<Value> key) {
@@ -4933,22 +4880,16 @@ Maybe<bool> v8::Object::Delete(Local<Context> context, Local<Value> key) {
   auto key_obj = Utils::OpenDirectHandle(*key);
   if (i::IsJSProxy(*self)) {
     EnterV8Scope<> api_scope{i_isolate, context, RCCId(kAPI_Object_Delete)};
-    Maybe<bool> result = i::Runtime::DeleteObjectProperty(
-        i_isolate, self, key_obj, i::LanguageMode::kSloppy);
-    bool has_exception = result.IsNothing();
-    if (has_exception) return {};
-    return result;
+    return i::Runtime::DeleteObjectProperty(i_isolate, self, key_obj,
+                                            i::LanguageMode::kSloppy);
   } else {
     // If it's not a JSProxy, i::Runtime::DeleteObjectProperty should never run
     // a script.
     DCHECK(i::IsJSObject(*self) || i::IsWasmObject(*self));
     EnterV8NoScriptScope<> api_scope{i_isolate, context,
                                      RCCId(kAPI_Object_Delete)};
-    Maybe<bool> result = i::Runtime::DeleteObjectProperty(
-        i_isolate, self, key_obj, i::LanguageMode::kSloppy);
-    bool has_exception = result.IsNothing();
-    if (has_exception) return {};
-    return result;
+    return i::Runtime::DeleteObjectProperty(i_isolate, self, key_obj,
+                                            i::LanguageMode::kSloppy);
   }
 }
 
@@ -4961,11 +4902,8 @@ Maybe<bool> v8::Object::DeletePrivate(Local<Context> context,
                                    RCCId(kAPI_Object_Delete)};
   auto self = Utils::OpenDirectHandle(this);
   auto key_obj = Utils::OpenDirectHandle(*key);
-  Maybe<bool> result = i::Runtime::DeleteObjectProperty(
-      i_isolate, self, key_obj, i::LanguageMode::kSloppy);
-  bool has_exception = result.IsNothing();
-  if (has_exception) return {};
-  return result;
+  return i::Runtime::DeleteObjectProperty(i_isolate, self, key_obj,
+                                          i::LanguageMode::kSloppy);
 }
 
 Maybe<bool> v8::Object::Has(Local<Context> context, Local<Value> key) {
@@ -4973,21 +4911,17 @@ Maybe<bool> v8::Object::Has(Local<Context> context, Local<Value> key) {
   EnterV8Scope<> api_scope{i_isolate, context, RCCId(kAPI_Object_Has)};
   auto self = Utils::OpenDirectHandle(this);
   auto key_obj = Utils::OpenDirectHandle(*key);
-  Maybe<bool> maybe = Nothing<bool>();
   // Check if the given key is an array index.
   uint32_t index = 0;
   if (i::Object::ToArrayIndex(*key_obj, &index)) {
-    maybe = i::JSReceiver::HasElement(i_isolate, self, index);
-  } else {
-    // Convert the key to a name - possibly by calling back into JavaScript.
-    i::DirectHandle<i::Name> name;
-    if (i::Object::ToName(i_isolate, key_obj).ToHandle(&name)) {
-      maybe = i::JSReceiver::HasProperty(i_isolate, self, name);
-    }
+    return i::JSReceiver::HasElement(i_isolate, self, index);
   }
-  bool has_exception = maybe.IsNothing();
-  if (has_exception) return {};
-  return maybe;
+  // Convert the key to a name - possibly by calling back into JavaScript.
+  i::DirectHandle<i::Name> name;
+  if (i::Object::ToName(i_isolate, key_obj).ToHandle(&name)) {
+    return i::JSReceiver::HasProperty(i_isolate, self, name);
+  }
+  return {};
 }
 
 Maybe<bool> v8::Object::HasPrivate(Local<Context> context, Local<Private> key) {
@@ -4998,20 +4932,14 @@ Maybe<bool> v8::Object::Delete(Local<Context> context, uint32_t index) {
   auto i_isolate = i::Isolate::Current();
   EnterV8Scope<> api_scope{i_isolate, context, RCCId(kAPI_Object_Delete)};
   auto self = Utils::OpenDirectHandle(this);
-  Maybe<bool> result = i::JSReceiver::DeleteElement(i_isolate, self, index);
-  bool has_exception = result.IsNothing();
-  if (has_exception) return {};
-  return result;
+  return i::JSReceiver::DeleteElement(i_isolate, self, index);
 }
 
 Maybe<bool> v8::Object::Has(Local<Context> context, uint32_t index) {
   auto i_isolate = i::Isolate::Current();
   EnterV8Scope<> api_scope{i_isolate, context, RCCId(kAPI_Object_Has)};
   auto self = Utils::OpenDirectHandle(this);
-  auto maybe = i::JSReceiver::HasElement(i_isolate, self, index);
-  bool has_exception = maybe.IsNothing();
-  if (has_exception) return {};
-  return maybe;
+  return i::JSReceiver::HasElement(i_isolate, self, index);
 }
 
 template <typename Getter, typename Setter, typename Data>
@@ -5037,10 +4965,10 @@ static Maybe<bool> ObjectSetAccessor(Local<Context> context, Object* self,
 
   i::DirectHandle<i::Name> accessor_name(info->name(), i_isolate);
   i::PropertyAttributes attrs = static_cast<i::PropertyAttributes>(attributes);
-  bool has_exception =
-      !i::JSObject::SetAccessor(obj, accessor_name, info, attrs)
-           .ToHandle(&result);
-  if (has_exception) return {};
+  if (!i::JSObject::SetAccessor(obj, accessor_name, info, attrs)
+           .ToHandle(&result)) {
+    return {};
+  }
   if (i::IsUndefined(*result, i_isolate)) return Just(false);
   if (fast) {
     i::JSObject::MigrateSlowToFast(obj, 0, "APISetAccessor");
@@ -5106,10 +5034,7 @@ Maybe<bool> v8::Object::HasOwnProperty(Local<Context> context,
                            RCCId(kAPI_Object_HasOwnProperty)};
   auto self = Utils::OpenDirectHandle(this);
   auto key_val = Utils::OpenDirectHandle(*key);
-  auto result = i::JSReceiver::HasOwnProperty(i_isolate, self, key_val);
-  bool has_exception = result.IsNothing();
-  if (has_exception) return {};
-  return result;
+  return i::JSReceiver::HasOwnProperty(i_isolate, self, key_val);
 }
 
 Maybe<bool> v8::Object::HasOwnProperty(Local<Context> context, uint32_t index) {
@@ -5117,10 +5042,7 @@ Maybe<bool> v8::Object::HasOwnProperty(Local<Context> context, uint32_t index) {
   EnterV8Scope<> api_scope{i_isolate, context,
                            RCCId(kAPI_Object_HasOwnProperty)};
   auto self = Utils::OpenDirectHandle(this);
-  auto result = i::JSReceiver::HasOwnProperty(i_isolate, self, index);
-  bool has_exception = result.IsNothing();
-  if (has_exception) return {};
-  return result;
+  return i::JSReceiver::HasOwnProperty(i_isolate, self, index);
 }
 
 Maybe<bool> v8::Object::HasRealNamedProperty(Local<Context> context,
@@ -5131,11 +5053,8 @@ Maybe<bool> v8::Object::HasRealNamedProperty(Local<Context> context,
   auto self = Utils::OpenDirectHandle(this);
   if (!IsJSObject(*self)) return Just(false);
   auto key_val = Utils::OpenDirectHandle(*key);
-  auto result = i::JSObject::HasRealNamedProperty(
-      i_isolate, i::Cast<i::JSObject>(self), key_val);
-  bool has_exception = result.IsNothing();
-  if (has_exception) return {};
-  return result;
+  return i::JSObject::HasRealNamedProperty(i_isolate,
+                                           i::Cast<i::JSObject>(self), key_val);
 }
 
 Maybe<bool> v8::Object::HasRealIndexedProperty(Local<Context> context,
@@ -5145,11 +5064,8 @@ Maybe<bool> v8::Object::HasRealIndexedProperty(Local<Context> context,
                                    RCCId(kAPI_Object_HasRealIndexedProperty)};
   auto self = Utils::OpenDirectHandle(this);
   if (!IsJSObject(*self)) return Just(false);
-  auto result = i::JSObject::HasRealElementProperty(
-      i_isolate, i::Cast<i::JSObject>(self), index);
-  bool has_exception = result.IsNothing();
-  if (has_exception) return {};
-  return result;
+  return i::JSObject::HasRealElementProperty(i_isolate,
+                                             i::Cast<i::JSObject>(self), index);
 }
 
 Maybe<bool> v8::Object::HasRealNamedCallbackProperty(Local<Context> context,
@@ -5160,11 +5076,8 @@ Maybe<bool> v8::Object::HasRealNamedCallbackProperty(Local<Context> context,
   auto self = Utils::OpenDirectHandle(this);
   if (!IsJSObject(*self)) return Just(false);
   auto key_val = Utils::OpenDirectHandle(*key);
-  auto result = i::JSObject::HasRealNamedCallbackProperty(
+  return i::JSObject::HasRealNamedCallbackProperty(
       i_isolate, i::Cast<i::JSObject>(self), key_val);
-  bool has_exception = result.IsNothing();
-  if (has_exception) return {};
-  return result;
 }
 
 bool v8::Object::HasNamedLookupInterceptor() const {
@@ -5195,8 +5108,7 @@ MaybeLocal<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
   i::LookupIterator it(i_isolate, self, lookup_key, proto,
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   Local<Value> result;
-  bool has_exception = !ToLocal<Value>(i::Object::GetProperty(&it), &result);
-  if (has_exception) return {};
+  if (!ToLocal<Value>(i::Object::GetProperty(&it), &result)) return {};
   if (!it.IsFound()) return {};
   return api_scope.Escape(result);
 }
@@ -5220,8 +5132,7 @@ v8::Object::GetRealNamedPropertyAttributesInPrototypeChain(
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   Maybe<i::PropertyAttributes> result =
       i::JSReceiver::GetPropertyAttributes(&it);
-  bool has_exception = result.IsNothing();
-  if (has_exception) return {};
+  if (result.IsNothing()) return {};
   if (!it.IsFound()) return {};
   if (result.FromJust() == i::ABSENT) return Just(None);
   return Just(static_cast<PropertyAttribute>(result.FromJust()));
@@ -5238,8 +5149,7 @@ MaybeLocal<Value> v8::Object::GetRealNamedProperty(Local<Context> context,
   i::LookupIterator it(i_isolate, self, lookup_key, self,
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   Local<Value> result;
-  bool has_exception = !ToLocal<Value>(i::Object::GetProperty(&it), &result);
-  if (has_exception) return {};
+  if (!ToLocal<Value>(i::Object::GetProperty(&it), &result)) return {};
   if (!it.IsFound()) return {};
   return api_scope.Escape(result);
 }
@@ -5255,8 +5165,7 @@ Maybe<PropertyAttribute> v8::Object::GetRealNamedPropertyAttributes(
   i::LookupIterator it(i_isolate, self, lookup_key, self,
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   auto result = i::JSReceiver::GetPropertyAttributes(&it);
-  bool has_exception = result.IsNothing();
-  if (has_exception) return {};
+  if (result.IsNothing()) return {};
   if (!it.IsFound()) return {};
   if (result.FromJust() == i::ABSENT) {
     return Just(static_cast<PropertyAttribute>(i::NONE));
@@ -5438,9 +5347,10 @@ MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
   auto recv_obj = Utils::OpenDirectHandle(*recv);
   auto args = PrepareArguments(argc, argv);
   Local<Value> result;
-  bool has_exception = !ToLocal<Value>(
-      i::Execution::Call(i_isolate, self, recv_obj, args), &result);
-  if (has_exception) return {};
+  if (!ToLocal<Value>(i::Execution::Call(i_isolate, self, recv_obj, args),
+                      &result)) {
+    return {};
+  }
   return api_scope.Escape(result);
 }
 
@@ -5456,9 +5366,10 @@ MaybeLocal<Value> Object::CallAsConstructor(Local<Context> context, int argc,
   auto self = Utils::OpenDirectHandle(this);
   auto args = PrepareArguments(argc, argv);
   Local<Value> result;
-  bool has_exception =
-      !ToLocal<Value>(i::Execution::New(i_isolate, self, self, args), &result);
-  if (has_exception) return {};
+  if (!ToLocal<Value>(i::Execution::New(i_isolate, self, self, args),
+                      &result)) {
+    return {};
+  }
   return api_scope.Escape(result);
 }
 
@@ -5509,9 +5420,10 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
   }
   auto args = PrepareArguments(argc, argv);
   Local<Object> result;
-  bool has_exception =
-      !ToLocal<Object>(i::Execution::New(i_isolate, self, self, args), &result);
-  if (has_exception) return {};
+  if (!ToLocal<Object>(i::Execution::New(i_isolate, self, self, args),
+                       &result)) {
+    return {};
+  }
   return api_scope.Escape(result);
 }
 
@@ -5532,9 +5444,10 @@ MaybeLocal<v8::Value> Function::Call(v8::Isolate* isolate,
   auto recv_obj = Utils::OpenDirectHandle(*recv);
   auto args = PrepareArguments(argc, argv);
   Local<Value> result;
-  bool has_exception = !ToLocal<Value>(
-      i::Execution::Call(i_isolate, self, recv_obj, args), &result);
-  if (has_exception) return {};
+  if (!ToLocal<Value>(i::Execution::Call(i_isolate, self, recv_obj, args),
+                      &result)) {
+    return {};
+  }
   return api_scope.Escape(result);
 }
 
@@ -5724,11 +5637,11 @@ MaybeLocal<String> v8::Function::FunctionProtoToString(Local<Context> context) {
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto self = Utils::OpenDirectHandle(this);
   Local<Value> result;
-  bool has_exception =
-      !ToLocal<Value>(i::Execution::CallBuiltin(
+  if (!ToLocal<Value>(i::Execution::CallBuiltin(
                           i_isolate, i_isolate->function_to_string(), self, {}),
-                      &result);
-  if (has_exception) return {};
+                      &result)) {
+    return {};
+  }
   return api_scope.Escape(Local<String>::Cast(result));
 }
 
@@ -7298,9 +7211,7 @@ Maybe<void> Context::DeepFreeze(DeepFreezeDelegate* delegate) {
   EnterV8NoScriptScope<> api_scope{i_isolate, context,
                                    RCCId(kAPI_Context_DeepFreeze)};
   ObjectVisitorDeepFreezer vfreezer(i_isolate, delegate);
-  bool has_exception = !vfreezer.DeepFreeze(env);
-
-  if (has_exception) return {};
+  if (!vfreezer.DeepFreeze(env)) return {};
   return JustVoid();
 }
 
@@ -7510,9 +7421,10 @@ MaybeLocal<v8::Object> ObjectTemplate::NewInstance(Local<Context> context) {
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto self = Utils::OpenDirectHandle(this);
   Local<Object> result;
-  bool has_exception = !ToLocal<Object>(
-      i::ApiNatives::InstantiateObject(i_isolate, self), &result);
-  if (has_exception) return {};
+  if (!ToLocal<Object>(i::ApiNatives::InstantiateObject(i_isolate, self),
+                       &result)) {
+    return {};
+  }
   return api_scope.Escape(result);
 }
 
@@ -7547,11 +7459,11 @@ MaybeLocal<v8::Function> FunctionTemplate::GetFunction(Local<Context> context) {
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto self = Utils::OpenDirectHandle(this);
   Local<Function> result;
-  bool has_exception =
-      !ToLocal<Function>(i::ApiNatives::InstantiateFunction(
+  if (!ToLocal<Function>(i::ApiNatives::InstantiateFunction(
                              i_isolate, i_isolate->native_context(), self),
-                         &result);
-  if (has_exception) return {};
+                         &result)) {
+    return {};
+  }
   return api_scope.Escape(result);
 }
 
@@ -8144,11 +8056,11 @@ MaybeLocal<v8::Value> v8::Date::New(Local<Context> context, double time) {
   PrepareForExecutionScope api_scope{context, RCCId(kAPI_Date_New)};
   i::Isolate* i_isolate = api_scope.i_isolate();
   Local<Value> result;
-  bool has_exception =
-      !ToLocal<Value>(i::JSDate::New(i_isolate->date_function(),
+  if (!ToLocal<Value>(i::JSDate::New(i_isolate->date_function(),
                                      i_isolate->date_function(), time),
-                      &result);
-  if (has_exception) return {};
+                      &result)) {
+    return {};
+  }
   return api_scope.Escape(result);
 }
 
@@ -8159,12 +8071,11 @@ MaybeLocal<Value> v8::Date::Parse(Local<Context> context, Local<String> value) {
   double time = ParseDateTimeString(i_isolate, string);
 
   Local<Value> result;
-  bool has_exception =
-      !ToLocal<Value>(i::JSDate::New(i_isolate->date_function(),
+  if (!ToLocal<Value>(i::JSDate::New(i_isolate->date_function(),
                                      i_isolate->date_function(), time),
-                      &result);
-
-  if (has_exception) return {};
+                      &result)) {
+    return {};
+  }
   return api_scope.Escape(result);
 }
 
@@ -8217,11 +8128,12 @@ MaybeLocal<v8::RegExp> v8::RegExp::New(Local<Context> context,
   PrepareForExecutionScope api_scope{context, RCCId(kAPI_RegExp_New)};
   i::Isolate* i_isolate = api_scope.i_isolate();
   Local<v8::RegExp> result;
-  bool has_exception = !ToLocal<RegExp>(
-      i::JSRegExp::New(i_isolate, Utils::OpenDirectHandle(*pattern),
-                       static_cast<i::JSRegExp::Flags>(flags)),
-      &result);
-  if (has_exception) return {};
+  if (!ToLocal<RegExp>(
+          i::JSRegExp::New(i_isolate, Utils::OpenDirectHandle(*pattern),
+                           static_cast<i::JSRegExp::Flags>(flags)),
+          &result)) {
+    return {};
+  }
   return api_scope.Escape(result);
 }
 
@@ -8237,11 +8149,13 @@ MaybeLocal<v8::RegExp> v8::RegExp::NewWithBacktrackLimit(
   PrepareForExecutionScope api_scope{context, RCCId(kAPI_RegExp_New)};
   i::Isolate* i_isolate = api_scope.i_isolate();
   Local<v8::RegExp> result;
-  bool has_exception = !ToLocal<RegExp>(
-      i::JSRegExp::New(i_isolate, Utils::OpenDirectHandle(*pattern),
-                       static_cast<i::JSRegExp::Flags>(flags), backtrack_limit),
-      &result);
-  if (has_exception) return {};
+  if (!ToLocal<RegExp>(
+          i::JSRegExp::New(i_isolate, Utils::OpenDirectHandle(*pattern),
+                           static_cast<i::JSRegExp::Flags>(flags),
+                           backtrack_limit),
+          &result)) {
+    return {};
+  }
   return api_scope.Escape(result);
 }
 
@@ -8284,12 +8198,12 @@ MaybeLocal<v8::Object> v8::RegExp::Exec(Local<Context> context,
   // Unfortunately, this is currently the only full implementation of
   // RegExp.prototype.exec available in C++.
   Local<v8::Object> result;
-  bool has_exception = !ToLocal<Object>(
-      i::RegExpUtils::RegExpExec(i_isolate, regexp, subject_string,
-                                 i_isolate->factory()->undefined_value()),
-      &result);
-
-  if (has_exception) return {};
+  if (!ToLocal<Object>(
+          i::RegExpUtils::RegExpExec(i_isolate, regexp, subject_string,
+                                     i_isolate->factory()->undefined_value()),
+          &result)) {
+    return {};
+  }
   return api_scope.Escape(result);
 }
 
@@ -8528,9 +8442,9 @@ Maybe<void> v8::Array::Iterate(Local<Context> context,
   EnterV8Scope<> api_scope{isolate, context, RCCId(kAPI_Array_Iterate)};
   for (uint32_t i = 0; i < i::GetLength(*array); ++i) {
     i::DirectHandle<i::Object> element;
-    bool has_exception =
-        !i::JSReceiver::GetElement(isolate, array, i).ToHandle(&element);
-    if (has_exception) return {};
+    if (!i::JSReceiver::GetElement(isolate, array, i).ToHandle(&element)) {
+      return {};
+    }
     using Result = v8::Array::CallbackResult;
     Result result = callback(i, Utils::ToLocal(element), callback_data);
     if (result == Result::kException) return {};
@@ -8604,11 +8518,11 @@ MaybeLocal<Value> Map::Get(Local<Context> context, Local<Value> key) {
   auto self = Utils::OpenDirectHandle(this);
   Local<Value> result;
   i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*key)};
-  bool has_exception =
-      !ToLocal<Value>(i::Execution::CallBuiltin(i_isolate, i_isolate->map_get(),
+  if (!ToLocal<Value>(i::Execution::CallBuiltin(i_isolate, i_isolate->map_get(),
                                                 self, base::VectorOf(args)),
-                      &result);
-  if (has_exception) return {};
+                      &result)) {
+    return {};
+  }
   return api_scope.Escape(result);
 }
 
@@ -8620,11 +8534,11 @@ MaybeLocal<Map> Map::Set(Local<Context> context, Local<Value> key,
   i::DirectHandle<i::Object> result;
   i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*key),
                                        Utils::OpenDirectHandle(*value)};
-  bool has_exception =
-      !i::Execution::CallBuiltin(i_isolate, i_isolate->map_set(), self,
+  if (!i::Execution::CallBuiltin(i_isolate, i_isolate->map_set(), self,
                                  base::VectorOf(args))
-           .ToHandle(&result);
-  if (has_exception) return {};
+           .ToHandle(&result)) {
+    return {};
+  }
   return api_scope.Escape(Local<Map>::Cast(Utils::ToLocal(result)));
 }
 
@@ -8634,11 +8548,11 @@ Maybe<bool> Map::Has(Local<Context> context, Local<Value> key) {
   auto self = Utils::OpenDirectHandle(this);
   i::DirectHandle<i::Object> result;
   i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*key)};
-  bool has_exception =
-      !i::Execution::CallBuiltin(i_isolate, i_isolate->map_has(), self,
+  if (!i::Execution::CallBuiltin(i_isolate, i_isolate->map_has(), self,
                                  base::VectorOf(args))
-           .ToHandle(&result);
-  if (has_exception) return {};
+           .ToHandle(&result)) {
+    return {};
+  }
   return Just(i::IsTrue(*result, i_isolate));
 }
 
@@ -8648,11 +8562,11 @@ Maybe<bool> Map::Delete(Local<Context> context, Local<Value> key) {
   auto self = Utils::OpenDirectHandle(this);
   i::DirectHandle<i::Object> result;
   i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*key)};
-  bool has_exception =
-      !i::Execution::CallBuiltin(i_isolate, i_isolate->map_delete(), self,
+  if (!i::Execution::CallBuiltin(i_isolate, i_isolate->map_delete(), self,
                                  base::VectorOf(args))
-           .ToHandle(&result);
-  if (has_exception) return {};
+           .ToHandle(&result)) {
+    return {};
+  }
   return Just(i::IsTrue(*result, i_isolate));
 }
 
@@ -8741,11 +8655,11 @@ MaybeLocal<Set> Set::Add(Local<Context> context, Local<Value> key) {
   auto self = Utils::OpenDirectHandle(this);
   i::DirectHandle<i::Object> result;
   i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*key)};
-  bool has_exception =
-      !i::Execution::CallBuiltin(i_isolate, i_isolate->set_add(), self,
+  if (!i::Execution::CallBuiltin(i_isolate, i_isolate->set_add(), self,
                                  base::VectorOf(args))
-           .ToHandle(&result);
-  if (has_exception) return {};
+           .ToHandle(&result)) {
+    return {};
+  }
   return api_scope.Escape(Local<Set>::Cast(Utils::ToLocal(result)));
 }
 
@@ -8755,11 +8669,11 @@ Maybe<bool> Set::Has(Local<Context> context, Local<Value> key) {
   auto self = Utils::OpenDirectHandle(this);
   i::DirectHandle<i::Object> result;
   i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*key)};
-  bool has_exception =
-      !i::Execution::CallBuiltin(i_isolate, i_isolate->set_has(), self,
+  if (!i::Execution::CallBuiltin(i_isolate, i_isolate->set_has(), self,
                                  base::VectorOf(args))
-           .ToHandle(&result);
-  if (has_exception) return {};
+           .ToHandle(&result)) {
+    return {};
+  }
   return Just(i::IsTrue(*result, i_isolate));
 }
 
@@ -8769,11 +8683,11 @@ Maybe<bool> Set::Delete(Local<Context> context, Local<Value> key) {
   auto self = Utils::OpenDirectHandle(this);
   i::DirectHandle<i::Object> result;
   i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*key)};
-  bool has_exception =
-      !i::Execution::CallBuiltin(i_isolate, i_isolate->set_delete(), self,
+  if (!i::Execution::CallBuiltin(i_isolate, i_isolate->set_delete(), self,
                                  base::VectorOf(args))
-           .ToHandle(&result);
-  if (has_exception) return {};
+           .ToHandle(&result)) {
+    return {};
+  }
   return Just(i::IsTrue(*result, i_isolate));
 }
 
@@ -8824,13 +8738,14 @@ MaybeLocal<Promise::Resolver> Promise::Resolver::New(Local<Context> context) {
   PrepareForExecutionScope api_scope{context, RCCId(kAPI_Promise_Resolver_New)};
   i::Isolate* i_isolate = api_scope.i_isolate();
   Local<Promise::Resolver> result;
-  bool has_exception = !ToLocal<Promise::Resolver>(
-      i_isolate->factory()->NewJSPromise(), &result);
-  // Also check if promise hooks set an exception.
-  // TODO(clemensb): Should `Factory::NewJSPromise()` return a MaybeHandle
-  // instead?
-  has_exception |= i_isolate->has_exception();
-  if (has_exception) return {};
+  if (!ToLocal<Promise::Resolver>(i_isolate->factory()->NewJSPromise(),
+                                  &result) ||
+      // Also check if promise hooks set an exception.
+      // TODO(clemensb): Should `Factory::NewJSPromise()` return a MaybeHandle
+      // instead?
+      i_isolate->has_exception()) {
+    return {};
+  }
   return api_scope.Escape(result);
 }
 
@@ -8851,9 +8766,10 @@ Maybe<bool> Promise::Resolver::Resolve(Local<Context> context,
     return Just(true);
   }
 
-  bool has_exception =
-      i::JSPromise::Resolve(promise, Utils::OpenDirectHandle(*value)).is_null();
-  if (has_exception) return {};
+  if (i::JSPromise::Resolve(promise, Utils::OpenDirectHandle(*value))
+          .is_null()) {
+    return {};
+  }
   return Just(true);
 }
 
@@ -8869,9 +8785,10 @@ Maybe<bool> Promise::Resolver::Reject(Local<Context> context,
     return Just(true);
   }
 
-  bool has_exception =
-      i::JSPromise::Reject(promise, Utils::OpenDirectHandle(*value)).is_null();
-  if (has_exception) return {};
+  if (i::JSPromise::Reject(promise, Utils::OpenDirectHandle(*value))
+          .is_null()) {
+    return {};
+  }
   return Just(true);
 }
 
@@ -8886,11 +8803,11 @@ MaybeLocal<Promise> Promise::Catch(Local<Context> context,
   // Do not call the built-in Promise.prototype.catch!
   // v8::Promise should not call out to a monkeypatched Promise.prototype.then
   // as the implementation of Promise.prototype.catch does.
-  bool has_exception =
-      !i::Execution::CallBuiltin(i_isolate, i_isolate->promise_then(), self,
+  if (!i::Execution::CallBuiltin(i_isolate, i_isolate->promise_then(), self,
                                  base::VectorOf(args))
-           .ToHandle(&result);
-  if (has_exception) return {};
+           .ToHandle(&result)) {
+    return {};
+  }
   return api_scope.Escape(Local<Promise>::Cast(Utils::ToLocal(result)));
 }
 
@@ -8901,11 +8818,11 @@ MaybeLocal<Promise> Promise::Then(Local<Context> context,
   auto self = Utils::OpenDirectHandle(this);
   i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*handler)};
   i::DirectHandle<i::Object> result;
-  bool has_exception =
-      !i::Execution::CallBuiltin(i_isolate, i_isolate->promise_then(), self,
+  if (!i::Execution::CallBuiltin(i_isolate, i_isolate->promise_then(), self,
                                  base::VectorOf(args))
-           .ToHandle(&result);
-  if (has_exception) return {};
+           .ToHandle(&result)) {
+    return {};
+  }
   return api_scope.Escape(Local<Promise>::Cast(Utils::ToLocal(result)));
 }
 
@@ -8918,11 +8835,11 @@ MaybeLocal<Promise> Promise::Then(Local<Context> context,
   i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*on_fulfilled),
                                        Utils::OpenDirectHandle(*on_rejected)};
   i::DirectHandle<i::Object> result;
-  bool has_exception =
-      !i::Execution::CallBuiltin(i_isolate, i_isolate->promise_then(), self,
+  if (!i::Execution::CallBuiltin(i_isolate, i_isolate->promise_then(), self,
                                  base::VectorOf(args))
-           .ToHandle(&result);
-  if (has_exception) return {};
+           .ToHandle(&result)) {
+    return {};
+  }
   return api_scope.Escape(Local<Promise>::Cast(Utils::ToLocal(result)));
 }
 
@@ -8990,9 +8907,9 @@ MaybeLocal<Proxy> Proxy::New(Local<Context> context, Local<Object> local_target,
   auto target = Utils::OpenDirectHandle(*local_target);
   auto handler = Utils::OpenDirectHandle(*local_handler);
   Local<Proxy> result;
-  bool has_exception =
-      !ToLocal<Proxy>(i::JSProxy::New(i_isolate, target, handler), &result);
-  if (has_exception) return {};
+  if (!ToLocal<Proxy>(i::JSProxy::New(i_isolate, target, handler), &result)) {
+    return {};
+  }
   return api_scope.Escape(result);
 }
 
@@ -9010,8 +8927,9 @@ OwnedBuffer CompiledWasmModule::Serialize() {
   i::wasm::WasmSerializer wasm_serializer(native_module_.get());
   size_t buffer_size = wasm_serializer.GetSerializedNativeModuleSize();
   std::unique_ptr<uint8_t[]> buffer(new uint8_t[buffer_size]);
-  if (!wasm_serializer.SerializeNativeModule({buffer.get(), buffer_size}))
+  if (!wasm_serializer.SerializeNativeModule({buffer.get(), buffer_size})) {
     return {};
+  }
   return {std::move(buffer), buffer_size};
 #else
   UNREACHABLE();
@@ -9084,9 +9002,7 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
         std::move(bytes));
   }
   CHECK_EQ(maybe_compiled.is_null(), i_isolate->has_exception());
-  if (maybe_compiled.is_null()) {
-    return {};
-  }
+  if (maybe_compiled.is_null()) return {};
   return Utils::ToLocal(maybe_compiled.ToHandleChecked());
 #else
   Utils::ApiCheck(false, "WasmModuleObject::Compile",
@@ -9170,17 +9086,10 @@ Maybe<bool> v8::ArrayBuffer::Detach(v8::Local<v8::Value> key) {
   }
   EnterV8NoScriptScope<> api_scope{i_isolate, context,
                                    RCCId(kAPI_ArrayBuffer_Detach)};
-  bool has_exception = false;
-  if (!key.IsEmpty()) {
-    auto i_key = Utils::OpenDirectHandle(*key);
-    constexpr bool kForceForWasmMemory = false;
-    has_exception =
-        i::JSArrayBuffer::Detach(obj, kForceForWasmMemory, i_key).IsNothing();
-  } else {
-    has_exception = i::JSArrayBuffer::Detach(obj).IsNothing();
-  }
-  if (has_exception) return {};
-  return Just(true);
+  if (key.IsEmpty()) return i::JSArrayBuffer::Detach(obj);
+  auto i_key = Utils::OpenDirectHandle(*key);
+  constexpr bool kForceForWasmMemory = false;
+  return i::JSArrayBuffer::Detach(obj, kForceForWasmMemory, i_key);
 }
 
 void v8::ArrayBuffer::Detach() { Detach(Local<Value>()).Check(); }
@@ -9220,18 +9129,14 @@ MaybeLocal<ArrayBuffer> v8::ArrayBuffer::MaybeNew(
                                      RCCId(kAPI_ArrayBuffer_MaybeNew));
   size_t max = i_isolate->array_buffer_allocator()->MaxAllocationSize();
   DCHECK(max <= ArrayBuffer::kMaxByteLength);
-  if (byte_length > max) {
-    return {};
-  }
+  if (byte_length > max) return {};
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   i::MaybeDirectHandle<i::JSArrayBuffer> result =
       i_isolate->factory()->NewJSArrayBufferAndBackingStore(
           byte_length, GetInitializedFlag(initialization_mode));
 
   i::DirectHandle<i::JSArrayBuffer> array_buffer;
-  if (!result.ToHandle(&array_buffer)) {
-    return {};
-  }
+  if (!result.ToHandle(&array_buffer)) return {};
 
   return Utils::ToLocal(array_buffer);
 }
@@ -9399,9 +9304,7 @@ v8::MemorySpan<uint8_t> v8::ArrayBufferView::GetContents(
     v8::MemorySpan<uint8_t> storage) {
   internal::DisallowGarbageCollection no_gc;
   auto self = Utils::OpenDirectHandle(this);
-  if (self->IsDetachedOrOutOfBounds()) {
-    return {};
-  }
+  if (self->IsDetachedOrOutOfBounds()) return {};
   if (internal::IsJSTypedArray(*self)) {
     i::Tagged<i::JSTypedArray> typed_array = i::Cast<i::JSTypedArray>(*self);
     if (typed_array->is_on_heap()) {
@@ -9814,8 +9717,7 @@ MaybeLocal<BigInt> v8::BigInt::NewFromWords(Local<Context> context,
       i_isolate, context, RCCId(kAPI_BigInt_NewFromWords)};
   i::MaybeDirectHandle<i::BigInt> result =
       i::BigInt::FromWords64(i_isolate, sign_bit, word_count, words);
-  bool has_exception = result.is_null();
-  if (has_exception) return {};
+  if (result.is_null()) return {};
   return api_scope.Escape(Utils::ToLocal(result.ToHandleChecked()));
 }
 
@@ -9983,9 +9885,7 @@ v8::Local<v8::Context> Isolate::GetIncumbentContext() {
 v8::MaybeLocal<v8::Data> Isolate::GetCurrentHostDefinedOptions() {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i::DirectHandle<i::Script> script;
-  if (!i_isolate->CurrentReferrerScript().ToHandle(&script)) {
-    return {};
-  }
+  if (!i_isolate->CurrentReferrerScript().ToHandle(&script)) return {};
   return ToApiHandle<Data>(
       i::direct_handle(script->host_defined_options(), i_isolate));
 }
@@ -11406,8 +11306,7 @@ Maybe<bool> Exception::CaptureStackTrace(Local<Context> context,
   auto result = i::ErrorUtils::CaptureStackTrace(i_isolate, js_obj, mode, {});
 
   i::DirectHandle<i::Object> handle;
-  bool has_exception = !result.ToHandle(&handle);
-  if (has_exception) return {};
+  if (!result.ToHandle(&handle)) return {};
   return Just(true);
 }
 
