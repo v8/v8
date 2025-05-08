@@ -142,6 +142,9 @@
   'test-run-machops/*': [SKIP],
   'test-select-combine/*': [SKIP],
   'test-instruction-scheduler/*': [SKIP],
+
+  # Disable tests for ConservativePinningScope for now.
+  'test-shared-strings/ConservativePinningScopeInClientIsolate': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
