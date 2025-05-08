@@ -460,13 +460,12 @@ void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate,
     Deoptimizer::DeoptimizeFunction(function, LazyDeoptimizeReason::kEagerDeopt,
                                     osr_codes[i]);
   }
-  if (!has_maglev_code) {
-    function->feedback_vector()->set_maybe_has_optimized_osr_code(
-        false, CodeKind::MAGLEV);
+  Tagged<FeedbackVector> fbv = function->feedback_vector();
+  if (!has_maglev_code && fbv->maybe_has_maglev_osr_code()) {
+    fbv->set_maybe_has_optimized_osr_code(false, CodeKind::MAGLEV);
   }
-  if (!has_turbofan_code) {
-    function->feedback_vector()->set_maybe_has_optimized_osr_code(
-        false, CodeKind::TURBOFAN_JS);
+  if (!has_turbofan_code && fbv->maybe_has_turbofan_osr_code()) {
+    fbv->set_maybe_has_optimized_osr_code(false, CodeKind::TURBOFAN_JS);
   }
 }
 

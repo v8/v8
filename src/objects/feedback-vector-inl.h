@@ -297,10 +297,9 @@ std::optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(
 
 void FeedbackVector::RecomputeOptimizedOsrCodeFlags(
     Isolate* isolate, Handle<BytecodeArray> bytecode_array) {
-  interpreter::BytecodeArrayIterator it(bytecode_array);
-
   bool turbofan = false;
   bool maglev = false;
+  interpreter::BytecodeArrayIterator it(bytecode_array);
   for (; !it.done(); it.Advance()) {
     if (it.current_bytecode() != interpreter::Bytecode::kJumpLoop) continue;
     if (auto code = GetOptimizedOsrCode(isolate, {}, it.GetSlotOperand(2))) {
@@ -309,8 +308,12 @@ void FeedbackVector::RecomputeOptimizedOsrCodeFlags(
       maglev |= (*code)->is_maglevved();
     }
   }
-  if (!maglev) set_maybe_has_optimized_osr_code(false, CodeKind::MAGLEV);
-  if (!turbofan) set_maybe_has_optimized_osr_code(false, CodeKind::TURBOFAN_JS);
+  if (!maglev && maybe_has_maglev_osr_code()) {
+    set_maybe_has_optimized_osr_code(false, CodeKind::MAGLEV);
+  }
+  if (!turbofan && maybe_has_turbofan_osr_code()) {
+    set_maybe_has_optimized_osr_code(false, CodeKind::TURBOFAN_JS);
+  }
 }
 
 // Conversion from an integer index to either a slot or an ic slot.
