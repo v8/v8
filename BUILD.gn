@@ -2494,7 +2494,7 @@ template("run_mksnapshot") {
 
     outputs = []
 
-    if (is_DEBUG_defined) {
+    if (is_DEBUG_defined && name == "default") {
       outputs += [ "$target_gen_dir/src/builtins/builtins-effects.cc" ]
     }
 
@@ -2549,7 +2549,7 @@ template("run_mksnapshot") {
       "--no-use-ic",
     ]
 
-    if (is_DEBUG_defined) {
+    if (is_DEBUG_defined && name == "default") {
       args += [
         "--builtins-effects-src",
         rebase_path("$target_gen_dir/src/builtins/builtins-effects.cc",
