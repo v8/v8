@@ -360,7 +360,7 @@ class WasmGCTypedOptimizationReducer : public Next {
       return __ StructGet(__ MapToNewGraph(struct_get.object()),
                           struct_get.type, struct_get.type_index,
                           struct_get.field_index, struct_get.is_signed,
-                          kWithoutNullCheck);
+                          kWithoutNullCheck, struct_get.memory_order);
     }
     goto no_change;
   }

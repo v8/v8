@@ -4604,7 +4604,20 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         field.struct_imm.struct_type, field.struct_imm.index,
         field.field_imm.index, is_signed,
         struct_object.type.is_nullable() ? compiler::kWithNullCheck
-                                         : compiler::kWithoutNullCheck);
+                                         : compiler::kWithoutNullCheck,
+        {});
+  }
+
+  void StructAtomicGet(FullDecoder* decoder, const Value& struct_object,
+                       const FieldImmediate& field, bool is_signed,
+                       AtomicMemoryOrder memory_order, Value* result) {
+    result->op = __ StructGet(
+        V<WasmStructNullable>::Cast(struct_object.op),
+        field.struct_imm.struct_type, field.struct_imm.index,
+        field.field_imm.index, is_signed,
+        struct_object.type.is_nullable() ? compiler::kWithNullCheck
+                                         : compiler::kWithoutNullCheck,
+        memory_order);
   }
 
   void StructSet(FullDecoder* decoder, const Value& struct_object,

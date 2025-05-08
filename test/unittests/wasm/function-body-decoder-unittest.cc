@@ -142,8 +142,9 @@ class TestModuleBuilder {
 
   HeapType AddStruct(std::initializer_list<F> fields,
                      ModuleTypeIndex supertype = kNoSuperType) {
-    StructType::Builder type_builder(
-        &mod.signature_zone, static_cast<uint32_t>(fields.size()), false);
+    StructType::Builder type_builder(&mod.signature_zone,
+                                     static_cast<uint32_t>(fields.size()),
+                                     false, false);
     for (F field : fields) {
       type_builder.AddField(field.first, field.second);
     }
@@ -4100,15 +4101,15 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
       &sig_i_r,
       {WASM_STRUCT_GET_S(struct_type_index, field_index, WASM_LOCAL_GET(0))},
       kAppendEnd,
-      "struct.get_s: Immediate field 0 of type 0 has non-packed type i32. Use "
-      "struct.get instead.");
+      "struct.get_s: Field 0 of type 0 has non-packed type i32. Use struct.get "
+      "instead.");
 
   ExpectFailure(
       &sig_i_r,
       {WASM_STRUCT_GET_U(struct_type_index, field_index, WASM_LOCAL_GET(0))},
       kAppendEnd,
-      "struct.get_u: Immediate field 0 of type 0 has non-packed type i32. Use "
-      "struct.get instead.");
+      "struct.get_u: Field 0 of type 0 has non-packed type i32. Use struct.get "
+      "instead.");
 }
 
 TEST_F(FunctionBodyDecoderTest, GCArray) {
@@ -4193,14 +4194,14 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
       &sig_c_r,
       {WASM_ARRAY_GET_S(array_type_index, WASM_LOCAL_GET(0), WASM_I32V(5))},
       kAppendEnd,
-      "array.get_s: Immediate array type 0 has non-packed type funcref. Use "
-      "array.get instead.");
+      "array.get_s: Array type 0 has non-packed type funcref. Use array.get "
+      "instead.");
   ExpectFailure(
       &sig_c_r,
       {WASM_ARRAY_GET_U(array_type_index, WASM_LOCAL_GET(0), WASM_I32V(5))},
       kAppendEnd,
-      "array.get_u: Immediate array type 0 has non-packed type funcref. Use "
-      "array.get instead.");
+      "array.get_u: Array type 0 has non-packed type funcref. Use array.get "
+      "instead.");
 
   /** array.set **/
   ExpectValidates(&sig_v_r,
@@ -4254,7 +4255,7 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
   ExpectFailure(&sig_v_r2,
                 {WASM_ARRAY_SET(immutable_array_type_index, WASM_LOCAL_GET(0),
                                 WASM_I32V(0), WASM_I32V(42))},
-                kAppendEnd, "array.set: immediate array type 2 is immutable");
+                kAppendEnd, "array.set: Array type 2 is immutable");
 }
 
 TEST_F(FunctionBodyDecoderTest, PackedFields) {
@@ -4322,13 +4323,13 @@ TEST_F(FunctionBodyDecoderTest, PackedFields) {
                 {WASM_ARRAY_GET(array_type_index,
                                 WASM_REF_NULL(array_type_index), WASM_I32V(0))},
                 kAppendEnd,
-                "array.get: Immediate array type 0 has packed type i8. Use "
-                "array.get_s or array.get_u instead.");
+                "array.get: Array type 0 has packed type i8. Use array.get_s "
+                "or array.get_u instead.");
   ExpectFailure(sigs.i_v(),
                 {WASM_STRUCT_GET(struct_type_index, field_index,
                                  WASM_REF_NULL(struct_type_index))},
                 kAppendEnd,
-                "struct.get: Immediate field 0 of type 1 has packed type i16. "
+                "struct.get: Field 0 of type 1 has packed type i16. "
                 "Use struct.get_s or struct.get_u instead.");
 }
 

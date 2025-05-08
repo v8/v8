@@ -359,7 +359,7 @@ std::vector<uint8_t> CreateDummyModuleWireBytes(Zone* zone) {
   const bool is_final = true;
   builder.AddRecursiveTypeGroup(0, 2);
   builder.AddArrayType(zone->New<ArrayType>(kWasmF32, true), is_final);
-  StructType::Builder struct_builder(zone, 2, false);
+  StructType::Builder struct_builder(zone, 2, false, false);
   struct_builder.AddField(kWasmI64, false);
   struct_builder.AddField(kWasmExternRef, false);
   builder.AddStructType(struct_builder.Build(), !is_final);

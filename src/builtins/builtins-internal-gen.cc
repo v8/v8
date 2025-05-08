@@ -1389,7 +1389,7 @@ TF_BUILTIN(WasmAllocateInSharedHeap, CodeStubAssembler) {
   CSA_CHECK(this, IsValidPositiveSmi(requested_size));
 
   TNode<Smi> runtime_flags =
-      SmiConstant(Smi::FromInt(AllocateDoubleAlignFlag::encode(false)));
+      SmiConstant(Smi::FromInt(AllocateDoubleAlignFlag::encode(true)));
   TailCallRuntime(Runtime::kAllocateInSharedHeap, NoContextConstant(),
                   SmiFromIntPtr(requested_size), runtime_flags);
 }

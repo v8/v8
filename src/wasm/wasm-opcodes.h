@@ -821,6 +821,9 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const CanonicalSig* sig);
   V(StringEncodeWtf8Array, 0xfbb7, _, "string.encode_wtf8_array")              \
   V(StringNewUtf8ArrayTry, 0xfbb8, _, "string.new_utf8_array_try")
 
+#define FOREACH_ATOMIC_GC_OPCODE(V) /*          Force 80 columns            */ \
+  V(StructAtomicGet, 0xfe5c, _, "struct.atomic.get")
+
 // All opcodes.
 #define FOREACH_OPCODE(V)            \
   FOREACH_CONTROL_OPCODE(V)          \
@@ -836,6 +839,7 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const CanonicalSig* sig);
   FOREACH_ATOMIC_0_OPERAND_OPCODE(V) \
   FOREACH_NUMERIC_OPCODE(V)          \
   FOREACH_GC_OPCODE(V)               \
+  FOREACH_ATOMIC_GC_OPCODE(V)        \
   FOREACH_WASMFX_OPCODE(V)
 
 // All signatures.

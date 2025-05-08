@@ -331,6 +331,8 @@ class Int64LoweringReducer : public Next {
         // remove the corresponding bailout in MachineOptimizationReducer to
         // allow generating them.
         CHECK_EQ(element_scale, 0);
+        // Manually subtract the pointer tag if present.
+        offset -= kind.tagged_base;
         return __ AtomicWord32PairLoad(base, index, offset);
       }
       if (result_rep == RegisterRepresentation::Word64()) {

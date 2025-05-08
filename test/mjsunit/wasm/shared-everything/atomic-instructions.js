@@ -1,0 +1,101 @@
+// Copyright 2025 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Flags: --experimental-wasm-shared
+
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
+
+(function TestAtomicGetInvalidType() {
+  for (let is_shared of [true, false]) {
+    const types = [
+      kWasmF32,
+      kWasmF64,
+      kWasmS128,
+      kWasmI8,
+      kWasmI16,
+      is_shared ? wasmRefNullType(kWasmExternRef).shared() : kWasmExternRef,
+      is_shared ? wasmRefNullType(kWasmNullExternRef).shared()
+               : kWasmNullExternRef,
+    ];
+    for (const [i, type] of types.entries()) {
+      print(
+        `${arguments.callee.name} ${is_shared ? "shared" : "unshared"} ${i}`);
+      let builder = new WasmModuleBuilder();
+      let struct = builder.addStruct({
+        fields: [makeField(type, true)],
+        is_shared,
+      });
+      let consumer_sig = makeSig([wasmRefNullType(struct)], []);
+      builder.addFunction("atomicGet", consumer_sig)
+        .addBody([
+          kExprLocalGet, 0,
+          kAtomicPrefix, kExprStructAtomicGet, kAtomicSeqCst, struct, 0,
+          kExprDrop
+        ])
+        .exportFunc();
+
+      assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
+      /struct\.atomic\.get: Field 0 of type 0 has invalid type/);
+    }
+  }
+})();
+
+(function TestAtomicGet() {
+  for (let is_shared of [true, false]) {
+    print(`${arguments.callee.name} ${is_shared ? "shared" : "unshared"}`);
+    let builder = new WasmModuleBuilder();
+    let struct = builder.addStruct({
+      fields: [
+        // DO NOT REORDER OR INSERT EXTRA FIELDS IN BETWEEN!
+        // The i64 is intentionally "unaligned".
+        makeField(kWasmI32, true),
+        makeField(kWasmI64, true),
+        makeField(wasmRefNullType(kWasmAnyRef).shared(), true)
+      ],
+      is_shared,
+    });
+    let producer_sig = makeSig(
+      [kWasmI32, kWasmI64, wasmRefNullType(kWasmAnyRef).shared()],
+      [wasmRefType(struct)]);
+    builder.addFunction("newStruct", producer_sig)
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kExprLocalGet, 2,
+        kGCPrefix, kExprStructNew, struct])
+      .exportFunc();
+    builder.addFunction("atomicGet32",
+        makeSig([wasmRefNullType(struct)], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kAtomicPrefix, kExprStructAtomicGet, kAtomicSeqCst, struct, 0,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicGet64",
+        makeSig([wasmRefNullType(struct)], [kWasmI64]))
+      .addBody([
+        kExprLocalGet, 0,
+        kAtomicPrefix, kExprStructAtomicGet, kAtomicSeqCst, struct, 1,
+      ])
+      .exportFunc();
+    // TODO(mliedtke): This requires new ISel support in Turbofan and Liftoff.
+    // builder.addFunction("atomicGetRef", makeSig(
+    //     [wasmRefNullType(struct)],
+    //     [wasmRefNullType(kWasmAnyRef).shared()]))
+    //   .addBody([
+    //     kExprLocalGet, 0,
+    //     kAtomicPrefix, kExprStructAtomicGet, kAtomicSeqCst, struct, 2,
+    //   ])
+    //   .exportFunc();
+
+    let wasm = builder.instantiate().exports;
+    let structObj = wasm.newStruct(42, -64n, "test");
+    assertEquals(42, wasm.atomicGet32(structObj));
+    assertEquals(-64n, wasm.atomicGet64(structObj));
+    // assertEquals("test", wasm.atomicGetRef(structObj));
+    assertTraps(kTrapNullDereference, () => wasm.atomicGet32(null));
+    assertTraps(kTrapNullDereference, () => wasm.atomicGet64(null));
+    // assertTraps(kTrapNullDereference, () => wasm.atomicGetRef(null));
+  }
+})();

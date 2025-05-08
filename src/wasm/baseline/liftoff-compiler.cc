@@ -6796,6 +6796,35 @@ class LiftoffCompiler {
     __ PushRegister(unpacked(field_kind), value);
   }
 
+  void StructAtomicGet(FullDecoder* decoder, const Value& struct_obj,
+                       const FieldImmediate& field, bool is_signed,
+                       AtomicMemoryOrder memory_order, Value* result) {
+    const StructType* struct_type = field.struct_imm.struct_type;
+    ValueKind field_kind = struct_type->field(field.field_imm.index).kind();
+    int offset = StructFieldOffset(struct_type, field.field_imm.index);
+    LiftoffRegList pinned;
+    LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
+
+    auto [explicit_check, implicit_check] =
+        null_checks_for_struct_op(struct_obj.type, field.field_imm.index);
+    if (implicit_check) {
+      // TODO(mliedtke): Support implicit null checks for atomic loads.
+      // Note that we can't do implicit null checks for i64 due to WasmNull not
+      // being 8-byte-aligned!
+      implicit_check = false;
+      explicit_check = true;
+    }
+
+    if (explicit_check) {
+      MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_obj.type);
+    }
+    LiftoffRegister value =
+        __ GetUnusedRegister(reg_class_for(field_kind), pinned);
+    LoadAtomicObjectField(decoder, value, obj.gp(), no_reg, offset, field_kind,
+                          is_signed, implicit_check, memory_order, pinned);
+    __ PushRegister(unpacked(field_kind), value);
+  }
+
   void StructSet(FullDecoder* decoder, const Value& struct_obj,
                  const FieldImmediate& field, const Value& field_value) {
     const StructType* struct_type = field.struct_imm.struct_type;
@@ -9439,6 +9468,26 @@ class LiftoffCompiler {
       LoadType load_type = LoadType::ForValueKind(kind, is_signed);
       __ Load(dst, src, offset_reg, offset, load_type,
               trapping ? &protected_load_pc : nullptr);
+    }
+    if (trapping) RegisterProtectedInstruction(decoder, protected_load_pc);
+  }
+
+  void LoadAtomicObjectField(FullDecoder* decoder, LiftoffRegister dst,
+                             Register src, Register offset_reg, int offset,
+                             ValueKind kind, bool is_signed, bool trapping,
+                             AtomicMemoryOrder memory_order,
+                             LiftoffRegList pinned) {
+    uint32_t protected_load_pc = 0;
+    if (is_reference(kind)) {
+      UNIMPLEMENTED();  // TODO(mliedtke): Support and test this.
+    } else {
+      // Primitive kind.
+      LoadType load_type = LoadType::ForValueKind(kind, is_signed);
+      // TODO(mliedtke): Mark load trapping if trapping
+      if (trapping) UNIMPLEMENTED();
+      // TODO(mliedtke): Can we emit something better if the memory order is
+      // acqrel?
+      __ AtomicLoad(dst, src, offset_reg, offset, load_type, pinned, false);
     }
     if (trapping) RegisterProtectedInstruction(decoder, protected_load_pc);
   }

@@ -7056,6 +7056,7 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
   const wasm::StructType* type;
   wasm::ModuleTypeIndex type_index;
   int field_index;
+  std::optional<AtomicMemoryOrder> memory_order;
 
   OpEffects Effects() const {
     OpEffects result =
@@ -7067,20 +7068,28 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
       // This may trap.
       result = result.CanLeaveCurrentFunction();
     }
+    if (memory_order.has_value()) {
+      // Pretending that the op can write prevents reordering.
+      result = result.CanWriteMemory();
+    }
     return result;
   }
 
   StructGetOp(V<WasmStructNullable> object, const wasm::StructType* type,
               wasm::ModuleTypeIndex type_index, int field_index, bool is_signed,
-              CheckForNull null_check)
+              CheckForNull null_check,
+              std::optional<AtomicMemoryOrder> memory_order)
       : Base(object),
         is_signed(is_signed),
         null_check(null_check),
         type(type),
         type_index(type_index),
-        field_index(field_index) {}
+        field_index(field_index),
+        memory_order(memory_order) {}
 
   V<WasmStructNullable> object() const { return input<WasmStructNullable>(0); }
+
+  bool is_atomic() const { return memory_order.has_value(); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return base::VectorOf(&RepresentationFor(type->field(field_index)), 1);
@@ -7097,8 +7106,11 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
   }
 
   auto options() const {
-    return std::tuple{type, type_index, field_index, is_signed, null_check};
+    return std::tuple{type,      type_index, field_index,
+                      is_signed, null_check, memory_order};
   }
+
+  void PrintOptions(std::ostream& os) const;
 };
 
 struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
@@ -9294,6 +9306,8 @@ constexpr size_t input_count(const wasm::ArrayType*) { return 0; }
 constexpr size_t input_count(wasm::ValueType) { return 0; }
 constexpr size_t input_count(WasmTypeCheckConfig) { return 0; }
 constexpr size_t input_count(wasm::ModuleTypeIndex) { return 0; }
+constexpr size_t input_count(std::optional<AtomicMemoryOrder>) { return 0; }
+
 #endif
 
 // All parameters that are OpIndex-like (ie, OpIndex, and OpIndex containers)

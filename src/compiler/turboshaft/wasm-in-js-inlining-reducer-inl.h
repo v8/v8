@@ -791,6 +791,11 @@ class WasmInJsInliningInterface {
                  const FieldImmediate& field, const Value& field_value) {
     Bailout(decoder);
   }
+  void StructAtomicGet(FullDecoder* decoder, const Value& struct_obj,
+                       const FieldImmediate& field, bool is_signed,
+                       AtomicMemoryOrder memory_order, Value* result) {
+    Bailout(decoder);
+  }
   void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate& imm,
                 const Value& length, const Value& initial_value,
                 Value* result) {

@@ -277,7 +277,9 @@ RUNTIME_FUNCTION(Runtime_TrapHandlerThrowWasmError) {
   if (op == wasm::kGCPrefix || op == wasm::kExprRefAsNonNull ||
       op == wasm::kExprCallRef || op == wasm::kExprReturnCallRef ||
       // Calling imported string function with null can trigger a signal.
-      op == wasm::kExprCallFunction || op == wasm::kExprReturnCall) {
+      op == wasm::kExprCallFunction || op == wasm::kExprReturnCall ||
+      // shared-everything atomic instructions.
+      (op == wasm::kAtomicPrefix && wire_bytes.at(pos + 1) >= 0x4F)) {
     message = MessageTemplate::kWasmTrapNullDereference;
 #if DEBUG
   } else {

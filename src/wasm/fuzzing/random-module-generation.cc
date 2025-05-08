@@ -3782,7 +3782,9 @@ class ModuleGen {
                                     kNumDefaultArrayTypes};
         num_fields += builder_->GetStructType(supertype)->field_count();
       }
-      StructType::Builder struct_builder(zone_, num_fields, false);
+      // TODO(403372470): Add support for custom descriptors.
+      // TODO(42204563): Add support for shared structs.
+      StructType::Builder struct_builder(zone_, num_fields, false, false);
 
       // Add all fields from super type.
       uint32_t field_index = 0;
@@ -4540,7 +4542,8 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
       num_fields += builder.GetStructType(supertype)->field_count();
     }
     // TODO(403372470): Add support for custom descriptors.
-    StructType::Builder struct_builder(zone, num_fields, false);
+    // TODO(42204563): Add support for shared structs.
+    StructType::Builder struct_builder(zone, num_fields, false, false);
 
     // Add all fields from super type.
     uint32_t field_index = 0;

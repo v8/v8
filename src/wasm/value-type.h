@@ -1246,6 +1246,8 @@ constexpr IndependentHeapType kWasmBottom{GenericKind::kBottom, kNonNullable};
 // Established reference-type and wasm-gc proposal shorthands.
 constexpr IndependentHeapType kWasmFuncRef{GenericKind::kFunc};
 constexpr IndependentHeapType kWasmAnyRef{GenericKind::kAny};
+constexpr IndependentHeapType kWasmSharedAnyRef{GenericKind::kAny, kNullable,
+                                                true};
 constexpr IndependentHeapType kWasmExternRef{GenericKind::kExtern};
 constexpr IndependentHeapType kWasmRefExtern{GenericKind::kExtern,
                                              kNonNullable};

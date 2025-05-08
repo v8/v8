@@ -20,6 +20,7 @@
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
 #include "src/base/vector.h"
+#include "src/codegen/atomic-memory-order.h"
 #include "src/strings/unicode.h"
 #include "src/utils/bit-vector.h"
 #include "src/wasm/decoder.h"
@@ -840,6 +841,34 @@ struct FieldImmediate {
         length(struct_imm.length + field_imm.length) {}
 };
 
+struct MemoryOrderImmediate {
+  AtomicMemoryOrder order;
+  static constexpr uint32_t length = 1;
+
+  template <typename ValidationTag>
+  MemoryOrderImmediate(Decoder* decoder, const uint8_t* pc,
+                       ValidationTag validate = {}) {
+    const uint8_t raw_order = decoder->read_u8<ValidationTag>(pc);
+    switch (raw_order) {
+      case 0:
+        order = AtomicMemoryOrder::kSeqCst;
+        break;
+      case 1:
+        order = AtomicMemoryOrder::kAcqRel;
+        break;
+      default:
+        // Store the decoded value. This way the disassembler can "restore" the
+        // original (invalid) value.
+        order = static_cast<AtomicMemoryOrder>(raw_order);
+        if (ValidationTag::validate) {
+          DecodeError<ValidationTag>(decoder, pc, "invalid memory ordering %u",
+                                     raw_order);
+        }
+        break;
+    }
+  }
+};
+
 struct CallIndirectImmediate {
   SigIndexImmediate sig_imm;
   TableIndexImmediate table_imm;
@@ -1468,6 +1497,8 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
     const Value& value, const Value& count)                                    \
   F(StructGet, const Value& struct_object, const FieldImmediate& field,        \
     bool is_signed, Value* result)                                             \
+  F(StructAtomicGet, const Value& struct_object, const FieldImmediate& field,  \
+    bool is_signed, AtomicMemoryOrder order, Value* result)                    \
   F(StructSet, const Value& struct_object, const FieldImmediate& field,        \
     const Value& field_value)                                                  \
   F(ArrayGet, const Value& array_obj, const ArrayIndexImmediate& imm,          \
@@ -2678,6 +2709,14 @@ class WasmDecoder : public Decoder {
             // One unused zero-byte.
             return length + 1;
           }
+          case kExprStructAtomicGet: {
+            MemoryOrderImmediate memory_order(decoder, pc + length, validate);
+            (ios.MemoryOrder(memory_order), ...);
+            FieldImmediate field(decoder, pc + length + memory_order.length,
+                                 validate);
+            (ios.Field(field), ...);
+            return length + memory_order.length + field.length;
+          }
           default:
             // This path is only possible if we are validating.
             V8_ASSUME(ValidationTag::validate);
@@ -2869,6 +2908,7 @@ class WasmDecoder : public Decoder {
       FOREACH_ATOMIC_OPCODE(DECLARE_OPCODE_CASE)
       FOREACH_ATOMIC_0_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
       FOREACH_GC_OPCODE(DECLARE_OPCODE_CASE)
+      FOREACH_ATOMIC_GC_OPCODE(DECLARE_OPCODE_CASE)
       FOREACH_ASMJS_COMPAT_OPCODE(DECLARE_OPCODE_CASE)
         UNREACHABLE();
       // clang-format on
@@ -4718,7 +4758,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   DECODE(Atomic) {
-    this->detected_->add_threads();
     auto [full_opcode, opcode_length] =
         this->template read_prefixed_opcode<ValidationTag>(this->pc_,
                                                            "atomic index");
@@ -5482,7 +5521,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             field.struct_imm.struct_type->field(field.field_imm.index);
         if (!VALIDATE(!field_type.is_packed())) {
           this->DecodeError(
-              "struct.get: Immediate field %d of type %d has packed type %s. "
+              "struct.get: Field %d of type %d has packed type %s. "
               "Use struct.get_s or struct.get_u instead.",
               field.field_imm.index, field.struct_imm.index.index,
               field_type.name().c_str());
@@ -5504,8 +5543,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             field.struct_imm.struct_type->field(field.field_imm.index);
         if (!VALIDATE(field_type.is_packed())) {
           this->DecodeError(
-              "%s: Immediate field %d of type %d has non-packed type %s. Use "
-              "struct.get instead.",
+              "%s: Field %d of type %d has non-packed type %s. Use struct.get "
+              "instead.",
               WasmOpcodes::OpcodeName(opcode), field.field_imm.index,
               field.struct_imm.index.index, field_type.name().c_str());
           return 0;
@@ -5718,7 +5757,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         if (!VALIDATE(imm.array_type->element_type().is_packed())) {
           this->DecodeError(
-              "%s: Immediate array type %d has non-packed type %s. Use "
+              "%s: Array type %d has non-packed type %s. Use "
               "array.get instead.",
               WasmOpcodes::OpcodeName(opcode), imm.index.index,
               imm.array_type->element_type().name().c_str());
@@ -5737,7 +5776,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         if (!VALIDATE(!imm.array_type->element_type().is_packed())) {
           this->DecodeError(
-              "array.get: Immediate array type %d has packed type %s. Use "
+              "array.get: Array type %d has packed type %s. Use "
               "array.get_s or array.get_u instead.",
               imm.index.index, imm.array_type->element_type().name().c_str());
           return 0;
@@ -5754,7 +5793,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         ArrayIndexImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         if (!VALIDATE(imm.array_type->mutability())) {
-          this->DecodeError("array.set: immediate array type %d is immutable",
+          this->DecodeError("array.set: Array type %d is immutable",
                             imm.index.index);
           return 0;
         }
@@ -5811,7 +5850,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                       validate);
         if (!this->Validate(this->pc_ + opcode_length, array_imm)) return 0;
         if (!VALIDATE(array_imm.array_type->mutability())) {
-          this->DecodeError("array.init: immediate array type #%d is immutable",
+          this->DecodeError("array.init: Array type #%d is immutable",
                             array_imm.index.index);
           return 0;
         }
@@ -5856,6 +5895,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return opcode_length;
       }
       case kExprRefI31Shared: {
+        CHECK_PROTOTYPE_OPCODE(shared);
         Value input = Pop(kWasmI32);
         Value* value =
             Push(IndependentHeapType{GenericKind::kI31, kNonNullable, true});
@@ -6709,7 +6749,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return 0;
     }
   }
-#undef NON_CONST_ONLY
 
   uint32_t DecodeAtomicOpcode(WasmOpcode opcode, uint32_t opcode_length) {
     // Fast check for out-of-range opcodes (only allow 0xfeXX).
@@ -6722,6 +6761,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     switch (opcode) {
 #define CASE_ATOMIC_STORE_OP(Name, Type)          \
   case kExpr##Name: {                             \
+    this->detected_->add_threads();               \
     memtype = MachineType::Type();                \
     break; /* to generic mem access code below */ \
   }
@@ -6729,12 +6769,14 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 #undef CASE_ATOMIC_STORE_OP
 #define CASE_ATOMIC_OP(Name, Type)                \
   case kExpr##Name: {                             \
+    this->detected_->add_threads();               \
     memtype = MachineType::Type();                \
     break; /* to generic mem access code below */ \
   }
       ATOMIC_OP_LIST(CASE_ATOMIC_OP)
 #undef CASE_ATOMIC_OP
       case kExprAtomicFence: {
+        this->detected_->add_threads();
         uint8_t zero = this->template read_u8<ValidationTag>(
             this->pc_ + opcode_length, "zero");
         if (!VALIDATE(zero == 0)) {
@@ -6744,6 +6786,46 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         }
         CALL_INTERFACE_IF_OK_AND_REACHABLE(AtomicFence);
         return 1 + opcode_length;
+      }
+      case kExprStructAtomicGet: {
+        CHECK_PROTOTYPE_OPCODE(shared);
+        NON_CONST_ONLY
+        MemoryOrderImmediate memory_order(this, this->pc_ + opcode_length,
+                                          validate);
+        if (!this->ok()) return 0;
+        FieldImmediate field(
+            this, this->pc_ + opcode_length + memory_order.length, validate);
+        if (!this->Validate(this->pc_ + opcode_length + memory_order.length,
+                            field)) {
+          return 0;
+        }
+        ValueType field_type =
+            field.struct_imm.struct_type->field(field.field_imm.index);
+        if (!VALIDATE(field_type == kWasmI32 || field_type == kWasmI64 ||
+                      (field_type.is_ref() &&
+                       (IsSubtypeOf(field_type, kWasmAnyRef, this->module_) ||
+                        IsSubtypeOf(field_type, kWasmSharedAnyRef,
+                                    this->module_))))) {
+          this->DecodeError(
+              "struct.atomic.get: Field %d of type %d has invalid type %s ",
+              field.field_imm.index, field.struct_imm.index.index,
+              field_type.name().c_str());
+          return 0;
+        }
+        Value struct_obj =
+            Pop(ValueType::RefNull(field.struct_imm.heap_type()));
+        Value* value = Push(field_type);
+        if (struct_obj.type.is_shared()) {
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(StructAtomicGet, struct_obj, field,
+                                             true, memory_order.order, value);
+        } else {
+          // Emitting atomic operations for unshared types as well would require
+          // aligning all i64 fields in them, potentially regressing memory
+          // usage.
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(StructGet, struct_obj, field, true,
+                                             value);
+        }
+        return opcode_length + memory_order.length + field.length;
       }
       default:
         // This path is only possible if we are validating.
@@ -6777,6 +6859,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     return opcode_length + imm.length;
   }
+
+#undef NON_CONST_ONLY
 
   unsigned DecodeNumericOpcode(WasmOpcode opcode, uint32_t opcode_length) {
     // Fast check for out-of-range opcodes (only allow 0xfcXX).

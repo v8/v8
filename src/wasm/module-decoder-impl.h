@@ -560,9 +560,9 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  TypeDefinition consume_base_type_definition(bool is_descriptor) {
+  TypeDefinition consume_base_type_definition(bool is_descriptor,
+                                              bool is_shared) {
     const bool is_final = true;
-    const bool shared = false;
     uint8_t kind = consume_u8(" kind", tracer_);
     if (tracer_) {
       tracer_->Description(": ");
@@ -576,17 +576,17 @@ class ModuleDecoderImpl : public Decoder {
           return {};
         }
 
-        return {sig, kNoSuperType, is_final, shared};
+        return {sig, kNoSuperType, is_final, is_shared};
       }
       case kWasmStructTypeCode: {
         module_->is_wasm_gc = true;
         const StructType* type =
-            consume_struct(&module_->signature_zone, is_descriptor);
+            consume_struct(&module_->signature_zone, is_descriptor, is_shared);
         if (type == nullptr) {
           CHECK(!ok());
           return {};
         }
-        return {type, kNoSuperType, is_final, shared};
+        return {type, kNoSuperType, is_final, is_shared};
       }
       case kWasmArrayTypeCode: {
         module_->is_wasm_gc = true;
@@ -595,7 +595,7 @@ class ModuleDecoderImpl : public Decoder {
           CHECK(!ok());
           return {};
         }
-        return {type, kNoSuperType, is_final, shared};
+        return {type, kNoSuperType, is_final, is_shared};
       }
       case kWasmContTypeCode: {
         if (!enabled_features_.has_wasmfx()) {
@@ -614,7 +614,7 @@ class ModuleDecoderImpl : public Decoder {
         }
 
         ContType* type = module_->signature_zone.New<ContType>(hp.ref_index());
-        return {type, kNoSuperType, is_final, shared};
+        return {type, kNoSuperType, is_final, is_shared};
       }
       default:
         if (tracer_) tracer_->NextLine();
@@ -623,7 +623,7 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  TypeDefinition consume_described_type(bool is_descriptor) {
+  TypeDefinition consume_described_type(bool is_descriptor, bool is_shared) {
     uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
     if (kind == kWasmDescriptorCode) {
       if (!enabled_features_.has_custom_descriptors()) {
@@ -640,7 +640,8 @@ class ModuleDecoderImpl : public Decoder {
         return {};
       }
       if (tracer_) tracer_->NextLine();
-      TypeDefinition type = consume_base_type_definition(is_descriptor);
+      TypeDefinition type =
+          consume_base_type_definition(is_descriptor, is_shared);
       if (type.kind != TypeDefinition::kStruct) {
         error(pos - 1, "'descriptor' may only be used with structs");
         return {};
@@ -648,11 +649,12 @@ class ModuleDecoderImpl : public Decoder {
       type.descriptor = ModuleTypeIndex{descriptor};
       return type;
     } else {
-      return consume_base_type_definition(is_descriptor);
+      return consume_base_type_definition(is_descriptor, is_shared);
     }
   }
 
-  TypeDefinition consume_describing_type(size_t current_type_index) {
+  TypeDefinition consume_describing_type(size_t current_type_index,
+                                         bool is_shared) {
     uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
     if (kind == kWasmDescribesCode) {
       if (!enabled_features_.has_custom_descriptors()) {
@@ -669,7 +671,7 @@ class ModuleDecoderImpl : public Decoder {
         return {};
       }
       if (tracer_) tracer_->NextLine();
-      TypeDefinition type = consume_described_type(true);
+      TypeDefinition type = consume_described_type(true, is_shared);
       if (type.kind != TypeDefinition::kStruct) {
         error(pos - 1, "'describes' may only be used with structs");
         return {};
@@ -677,7 +679,7 @@ class ModuleDecoderImpl : public Decoder {
       type.describes = ModuleTypeIndex{describes};
       return type;
     } else {
-      return consume_described_type(false);
+      return consume_described_type(false, is_shared);
     }
   }
 
@@ -692,17 +694,17 @@ class ModuleDecoderImpl : public Decoder {
       }
       module_->has_shared_part = true;
       consume_bytes(1, " shared", tracer_);
-      TypeDefinition type = consume_describing_type(current_type_index);
+      TypeDefinition type = consume_describing_type(current_type_index, true);
+      DCHECK(type.is_shared);
       if (type.kind == TypeDefinition::kFunction ||
           type.kind == TypeDefinition::kCont) {
         // TODO(42204563): Support shared functions/continuations.
         error(pc() - 1, "shared functions/continuations are not supported yet");
         return {};
       }
-      type.is_shared = true;
       return type;
     } else {
-      return consume_describing_type(current_type_index);
+      return consume_describing_type(current_type_index, false);
     }
   }
 
@@ -2591,7 +2593,8 @@ class ModuleDecoderImpl : public Decoder {
     return zone->New<FunctionSig>(return_count, param_count, sig_storage);
   }
 
-  const StructType* consume_struct(Zone* zone, bool is_descriptor) {
+  const StructType* consume_struct(Zone* zone, bool is_descriptor,
+                                   bool is_shared) {
     uint32_t field_count =
         consume_count(", field count", kV8MaxWasmStructFields);
     if (failed()) return nullptr;
@@ -2604,8 +2607,8 @@ class ModuleDecoderImpl : public Decoder {
     }
     if (failed()) return nullptr;
     uint32_t* offsets = zone->AllocateArray<uint32_t>(field_count);
-    StructType* result = zone->New<StructType>(field_count, offsets, fields,
-                                               mutabilities, is_descriptor);
+    StructType* result = zone->New<StructType>(
+        field_count, offsets, fields, mutabilities, is_descriptor, is_shared);
     result->InitializeOffsets();
     return result;
   }

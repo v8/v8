@@ -339,7 +339,8 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
     case TypeDefinition::kStruct: {
       const StructType* original_type = type.struct_type;
       CanonicalStructType::Builder builder(&zone_, original_type->field_count(),
-                                           original_type->is_descriptor());
+                                           original_type->is_descriptor(),
+                                           original_type->is_shared());
       for (uint32_t i = 0; i < original_type->field_count(); i++) {
         builder.AddField(CanonicalizeValueType(original_type->field(i)),
                          original_type->mutability(i),

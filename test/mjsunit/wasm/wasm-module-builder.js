@@ -211,6 +211,9 @@ let kSegmentZero = 0;
 
 let kExceptionAttribute = 0;
 
+const kAtomicSeqCst = 0;
+const kAtomicAcqRel = 1;
+
 // Useful signatures
 let kSig_i_i = makeSig([kWasmI32], [kWasmI32]);
 let kSig_l_l = makeSig([kWasmI64], [kWasmI64]);
@@ -716,6 +719,9 @@ let kExprI64AtomicCompareExchange = 0x49
 let kExprI64AtomicCompareExchange8U = 0x4c;
 let kExprI64AtomicCompareExchange16U = 0x4d;
 let kExprI64AtomicCompareExchange32U = 0x4e;
+
+// Atomic GC opcodes (shared-everything-threads).
+const kExprStructAtomicGet = 0x5c;
 
 // Simd opcodes.
 let kExprS128LoadMem = 0x00;

@@ -48,7 +48,8 @@ void DefineStruct(WasmModule* module, std::initializer_list<FieldInit> fields,
                   bool is_final = false, bool is_shared = false,
                   bool in_singleton_rec_group = true) {
   StructType::Builder builder(&module->signature_zone,
-                              static_cast<uint32_t>(fields.size()), false);
+                              static_cast<uint32_t>(fields.size()), false,
+                              false);
   for (FieldInit field : fields) {
     builder.AddField(field.first, field.second);
   }
@@ -496,7 +497,6 @@ TEST_F(WasmSubtypingTest, Subtyping) {
   ValueType kRefFuncShared = Gen(G::kFunc, kNonNullable, kShared);
   ValueType kRefNoFuncShared = Gen(G::kNoFunc, kNonNullable, kShared);
   ValueType kRefNoExternShared = Gen(G::kNoExtern, kNonNullable, kShared);
-  ValueType kRefNullAnyShared = Gen(G::kAny, kNullable, kShared);
   ValueType kRefNullFuncShared = Gen(G::kFunc, kNullable, kShared);
   ValueType kRefNullEqShared = Gen(G::kEq, kNullable, kShared);
   ValueType kRefNullExternShared = Gen(G::kExtern, kNullable, kShared);
@@ -517,7 +517,7 @@ TEST_F(WasmSubtypingTest, Subtyping) {
   SUBTYPE(refF(41, kShared), kRefNullFuncShared);
   SUBTYPE(kRefNullNoFuncShared, refNullF(41, kShared));
   NOT_SUBTYPE(kRefNullNoFuncShared, refF(41, kShared));
-  NOT_SUBTYPE(refF(41, kShared), kRefNullAnyShared);
+  NOT_SUBTYPE(refF(41, kShared), kWasmSharedAnyRef);
   NOT_SUBTYPE(refF(41, kShared), kWasmFuncRef);
   NOT_SUBTYPE(refS(0), kRefStructShared);
   NOT_SUBTYPE(refA(2), kRefArrayShared);

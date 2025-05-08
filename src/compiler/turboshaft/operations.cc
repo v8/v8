@@ -1974,6 +1974,17 @@ void WasmAllocateArrayOp::PrintOptions(std::ostream& os) const {
      << ", is_shared: " << (is_shared ? "true" : "false") << "]";
 }
 
+void StructGetOp::PrintOptions(std::ostream& os) const {
+  os << '[' << type << ", " << type_index << ", " << field_index << ", "
+     << (is_signed ? "signed, " : "") << null_check << ", ";
+  if (memory_order.has_value()) {
+    os << *memory_order;
+  } else {
+    os << "non-atomic";
+  }
+  os << ']';
+}
+
 void ArrayGetOp::PrintOptions(std::ostream& os) const {
   os << '[' << (is_signed ? "signed " : "")
      << (array_type->mutability() ? "" : "immutable ")

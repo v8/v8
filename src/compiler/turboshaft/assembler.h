@@ -4927,9 +4927,10 @@ class TurboshaftAssemblerOpInterface
 
   V<Any> StructGet(V<WasmStructNullable> object, const wasm::StructType* type,
                    wasm::ModuleTypeIndex type_index, int field_index,
-                   bool is_signed, CheckForNull null_check) {
+                   bool is_signed, CheckForNull null_check,
+                   std::optional<AtomicMemoryOrder> memory_order) {
     return ReduceIfReachableStructGet(object, type, type_index, field_index,
-                                      is_signed, null_check);
+                                      is_signed, null_check, memory_order);
   }
 
   void StructSet(V<WasmStructNullable> object, V<Any> value,

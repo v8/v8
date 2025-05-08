@@ -232,9 +232,14 @@ class WasmLoweringReducer : public Next {
   V<Any> REDUCE(StructGet)(V<WasmStructNullable> object,
                            const wasm::StructType* type,
                            wasm::ModuleTypeIndex type_index, int field_index,
-                           bool is_signed, CheckForNull null_check) {
-    auto [explicit_null_check, implicit_null_check] =
-        null_checks_for_struct_op(null_check, field_index);
+                           bool is_signed, CheckForNull null_check,
+                           std::optional<AtomicMemoryOrder> memory_order) {
+    // TODO(mliedtke): Get rid fo the requires_aligned_access by aligning
+    // WasmNull to 8 bytes.
+    bool requires_aligned_access =
+        memory_order.has_value() && type->field(field_index) == wasm::kWasmI64;
+    auto [explicit_null_check, implicit_null_check] = null_checks_for_struct_op(
+        null_check, field_index, requires_aligned_access);
 
     if (explicit_null_check) {
       __ TrapIf(__ IsNull(object, wasm::kWasmAnyRef),
@@ -246,6 +251,11 @@ class WasmLoweringReducer : public Next {
     if (!type->mutability(field_index)) {
       load_kind = load_kind.Immutable();
     }
+    if (memory_order.has_value()) {
+      // TODO(mliedtke): Support acquire release semantics if specified as the
+      // memory order.
+      load_kind = load_kind.Atomic();
+    }
     MemoryRepresentation repr =
         RepresentationFor(type->field(field_index), is_signed);
 
@@ -256,8 +266,10 @@ class WasmLoweringReducer : public Next {
                             const wasm::StructType* type,
                             wasm::ModuleTypeIndex type_index, int field_index,
                             CheckForNull null_check) {
-    auto [explicit_null_check, implicit_null_check] =
-        null_checks_for_struct_op(null_check, field_index);
+    // TODO(mliedtke): Update this once we support struct.atomic.get.
+    const bool requires_aligned_access = false;
+    auto [explicit_null_check, implicit_null_check] = null_checks_for_struct_op(
+        null_check, field_index, requires_aligned_access);
 
     if (explicit_null_check) {
       __ TrapIf(__ IsNull(object, wasm::kWasmAnyRef),
@@ -1017,11 +1029,13 @@ class WasmLoweringReducer : public Next {
   }
 
   std::pair<bool, bool> null_checks_for_struct_op(CheckForNull null_check,
-                                                  int field_index) {
+                                                  int field_index,
+                                                  bool requires_alignment) {
     bool explicit_null_check =
         null_check == kWithNullCheck &&
         (null_check_strategy_ == NullCheckStrategy::kExplicit ||
-         field_index > wasm::kMaxStructFieldIndexForImplicitNullCheck);
+         field_index > wasm::kMaxStructFieldIndexForImplicitNullCheck ||
+         requires_alignment);
     bool implicit_null_check =
         null_check == kWithNullCheck && !explicit_null_check;
     return {explicit_null_check, implicit_null_check};
