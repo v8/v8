@@ -224,21 +224,29 @@ class Utils {
   // direct handles. But the implicit conversion from handles to direct handles
   // combined with the heterogeneous copy constructor for direct handles make
   // this ambiguous.
-  // TODO(42203211): Use C++20 concepts instead of the enable_if trait, when
-  // they are fully supported in V8.
-#define DECLARE_TO_LOCAL(Name)                                             \
-  template <template <typename> typename HandleType, typename T,           \
-            typename = std::enable_if_t<                                   \
-                std::is_convertible_v<HandleType<T>, i::DirectHandle<T>>>> \
-  static inline auto Name(HandleType<T> obj);
+#define DECLARE_TO_LOCAL(Name)                                           \
+  template <template <typename> typename HandleType, typename T>         \
+    requires(std::is_convertible_v<HandleType<T>, i::DirectHandle<T>> && \
+             !std::is_same_v<HandleType<T>, i::DirectHandle<T>>)         \
+  static inline auto Name(HandleType<T> obj) {                           \
+    return Name(i::DirectHandle<T>(obj));                                \
+  }
 
   TO_LOCAL_NAME_LIST(DECLARE_TO_LOCAL)
+#undef DECLARE_TO_LOCAL
+
+#define DECLARE_TO_LOCAL(Name, From, To) \
+  static inline Local<v8::To> Name(i::DirectHandle<i::From> obj);
+
+  TO_LOCAL_LIST(DECLARE_TO_LOCAL)
+#undef DECLARE_TO_LOCAL
 
 #define DECLARE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype) \
   static inline Local<v8::Type##Array> ToLocal##Type##Array(      \
       i::DirectHandle<i::JSTypedArray> obj);
 
   TYPED_ARRAYS(DECLARE_TO_LOCAL_TYPED_ARRAY)
+#undef DECLARE_TO_LOCAL_TYPED_ARRAY
 
 #define DECLARE_OPEN_HANDLE(From, To)                                         \
   static inline i::Handle<i::To> OpenHandle(const From* that,                 \
@@ -249,10 +257,7 @@ class Utils {
       const From* that, bool allow_empty_handle = false);
 
   OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
-
 #undef DECLARE_OPEN_HANDLE
-#undef DECLARE_TO_LOCAL_TYPED_ARRAY
-#undef DECLARE_TO_LOCAL
 
   template <class From, class To>
   static inline Local<To> Convert(i::DirectHandle<From> obj);
@@ -282,12 +287,6 @@ class Utils {
  private:
   V8_NOINLINE V8_PRESERVE_MOST static void ReportApiFailure(
       const char* location, const char* message);
-
-#define DECLARE_TO_LOCAL_PRIVATE(Name, From, To) \
-  static inline Local<v8::To> Name##_helper(i::DirectHandle<i::From> obj);
-
-  TO_LOCAL_LIST(DECLARE_TO_LOCAL_PRIVATE)
-#undef DECLARE_TO_LOCAL_PRIVATE
 };
 
 template <class T>

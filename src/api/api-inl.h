@@ -67,20 +67,14 @@ inline Local<To> Utils::Convert(i::DirectHandle<From> obj) {
 
 // Implementations of ToLocal
 
-#define MAKE_TO_LOCAL(Name)                                                \
-  template <template <typename> typename HandleType, typename T, typename> \
-  inline auto Utils::Name(HandleType<T> obj) {                             \
-    return Utils::Name##_helper(i::DirectHandle<T>(obj));                  \
+#define MAKE_TO_LOCAL(Name, From, To)                              \
+  inline Local<v8::To> Utils::Name(i::DirectHandle<i::From> obj) { \
+    return Convert<i::From, v8::To>(obj);                          \
   }
 
-TO_LOCAL_NAME_LIST(MAKE_TO_LOCAL)
-
-#define MAKE_TO_LOCAL_PRIVATE(Name, From, To)                               \
-  inline Local<v8::To> Utils::Name##_helper(i::DirectHandle<i::From> obj) { \
-    return Convert<i::From, v8::To>(obj);                                   \
-  }
-
-TO_LOCAL_LIST(MAKE_TO_LOCAL_PRIVATE)
+TO_LOCAL_LIST(MAKE_TO_LOCAL)
+#undef MAKE_TO_LOCAL
+#undef TO_LOCAL_LIST
 
 #define MAKE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype) \
   Local<v8::Type##Array> Utils::ToLocal##Type##Array(          \
@@ -90,11 +84,7 @@ TO_LOCAL_LIST(MAKE_TO_LOCAL_PRIVATE)
   }
 
 TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
-
 #undef MAKE_TO_LOCAL_TYPED_ARRAY
-#undef MAKE_TO_LOCAL
-#undef MAKE_TO_LOCAL_PRIVATE
-#undef TO_LOCAL_LIST
 
 // Implementations of OpenHandle
 
