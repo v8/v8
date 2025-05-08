@@ -1029,23 +1029,26 @@ Handle<String> FactoryBase<Impl>::NumberToString(DirectHandle<Object> number,
   if (DoubleToSmiInteger(double_value, &smi_value)) {
     return SmiToString(Smi::FromInt(smi_value), mode);
   }
-  return HeapNumberToString(Cast<HeapNumber>(number), double_value, mode);
+  return DoubleToString(double_value, mode);
 }
 
 template <typename Impl>
-Handle<String> FactoryBase<Impl>::HeapNumberToString(
-    DirectHandle<HeapNumber> number, double value, NumberCacheMode mode) {
+Handle<String> FactoryBase<Impl>::DoubleToString(double value,
+                                                 NumberCacheMode mode) {
   // LocalFactory does not have access to number string cache, only
   // main thread Factory does (since it's a mutable root).
   constexpr bool kCanUseCache = std::is_same_v<Impl, Factory>;
 
   InternalIndex entry = InternalIndex::NotFound();
+  uint64_t value_bits = 0;
   if constexpr (kCanUseCache) {
     if (mode != NumberCacheMode::kIgnore) {
-      entry = DoubleStringCache::GetEntryFor(isolate(), *number);
+      value_bits = base::bit_cast<uint64_t>(value);
+      entry = DoubleStringCache::GetEntryFor(isolate(), value_bits);
     }
     if (mode == NumberCacheMode::kBoth) {
-      Handle<Object> cached = DoubleStringCache::Get(isolate(), entry, *number);
+      Handle<Object> cached =
+          DoubleStringCache::Get(isolate(), entry, value_bits);
       if (!IsUndefined(*cached, isolate())) return Cast<String>(cached);
     }
   }
@@ -1063,7 +1066,7 @@ Handle<String> FactoryBase<Impl>::HeapNumberToString(
   }
   if constexpr (kCanUseCache) {
     if (mode != NumberCacheMode::kIgnore) {
-      DoubleStringCache::Set(isolate(), entry, number, result);
+      DoubleStringCache::Set(isolate(), entry, value_bits, result);
     }
   }
   return result;

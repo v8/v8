@@ -50,6 +50,20 @@ namespace v8::internal {
 
 namespace {
 constexpr char kUnavailableString[] = "unavailable";
+
+void PrintDouble(std::ostream& os, double val) {
+  if (i::IsMinusZero(val)) {
+    os << "-0.0";
+  } else if (val == DoubleToInteger(val) && val >= kMinSafeInteger &&
+             val <= kMaxSafeInteger) {
+    // Print integer HeapNumbers in safe integer range with max precision: as
+    // 9007199254740991.0 instead of 9.0072e+15
+    int64_t i = static_cast<int64_t>(val);
+    os << i << ".0";
+  } else {
+    os << val;
+  }
+}
 }  // namespace
 
 #ifdef OBJECT_PRINT
@@ -255,6 +269,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
       break;
     case HASH_TABLE_TYPE:
       Cast<ObjectHashTable>(*this)->ObjectHashTablePrint(os);
+      break;
+    case DOUBLE_STRING_CACHE_TYPE:
+      Cast<DoubleStringCache>(*this)->DoubleStringCachePrint(os);
       break;
     case NAME_TO_INDEX_HASH_TABLE_TYPE:
       Cast<NameToIndexHashTable>(*this)->NameToIndexHashTablePrint(os);
@@ -1681,6 +1698,20 @@ void FeedbackCell::FeedbackCellPrint(std::ostream& os) {
   }
 
 #endif  // V8_ENABLE_LEAPTIERING
+  os << "\n";
+}
+
+void DoubleStringCache::DoubleStringCachePrint(std::ostream& os) {
+  PrintHeader(os, "DoubleStringCache");
+  os << "\n - capacity: " << capacity();
+  for (InternalIndex entry_index : InternalIndex::Range(capacity())) {
+    auto& entry = entries()[entry_index.as_uint32()];
+    if (entry.value_.load() == kEmptySentinel) continue;
+
+    os << "\n       [" << entry_index.as_uint32() << "]: ";
+    PrintDouble(os, entry.key_.value());
+    os << " - " << Brief(entry.value_.load());
+  }
   os << "\n";
 }
 
@@ -3904,18 +3935,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
 }
 
 void HeapNumber::HeapNumberShortPrint(std::ostream& os) {
-  double val = value();
-  if (i::IsMinusZero(val)) {
-    os << "-0.0";
-  } else if (val == DoubleToInteger(val) && val >= kMinSafeInteger &&
-             val <= kMaxSafeInteger) {
-    // Print integer HeapNumbers in safe integer range with max precision: as
-    // 9007199254740991.0 instead of 9.0072e+15
-    int64_t i = static_cast<int64_t>(val);
-    os << i << ".0";
-  } else {
-    os << val;
-  }
+  PrintDouble(os, value());
 }
 
 // TODO(cbruni): remove once the new maptracer is in place.

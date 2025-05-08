@@ -307,6 +307,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case CODE_WRAPPER_TYPE:
       Cast<CodeWrapper>(*this)->CodeWrapperVerify(isolate);
       break;
+    case DOUBLE_STRING_CACHE_TYPE:
+      Cast<DoubleStringCache>(*this)->DoubleStringCacheVerify(isolate);
+      break;
 
 #define MAKE_TORQUE_CASE(Name, TYPE)          \
   case TYPE:                                  \
@@ -978,6 +981,12 @@ void ContextCell::ContextCellVerify(Isolate* isolate) {
   CHECK(IsDependentCode(dep_code));
   Object::VerifyPointer(isolate, dep_code);
   Object::VerifyPointer(isolate, tagged);
+}
+
+void DoubleStringCache::DoubleStringCacheVerify(Isolate* isolate) {
+  for (auto& e : *this) {
+    Object::VerifyPointer(isolate, e.value_.load());
+  }
 }
 
 void FeedbackMetadata::FeedbackMetadataVerify(Isolate* isolate) {

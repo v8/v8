@@ -131,6 +131,7 @@ class RootVisitor;
   V(Map, regexp_data_map, RegExpDataMap)                                       \
   V(Map, atom_regexp_data_map, AtomRegExpDataMap)                              \
   V(Map, ir_regexp_data_map, IrRegExpDataMap)                                  \
+  V(Map, double_string_cache_map, DoubleStringCacheMap)                        \
   V(Map, simple_number_dictionary_map, SimpleNumberDictionaryMap)              \
   V(Map, simple_name_dictionary_map, SimpleNameDictionaryMap)                  \
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \

@@ -218,6 +218,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case JS_TYPED_ARRAY_TYPE:
       return kVisitJSTypedArray;
 
+    case DOUBLE_STRING_CACHE_TYPE:
+      return kVisitDoubleStringCache;
+
     case SMALL_ORDERED_HASH_MAP_TYPE:
       return kVisitSmallOrderedHashMap;
 

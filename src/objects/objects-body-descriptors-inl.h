@@ -1711,6 +1711,26 @@ class ProtectedWeakFixedArray::BodyDescriptor final
   }
 };
 
+class DoubleStringCache::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    Tagged<DoubleStringCache> host = Cast<DoubleStringCache>(obj);
+    for (int offset = OFFSET_OF_DATA_START(DoubleStringCache);
+         offset < object_size; offset += sizeof(DoubleStringCache::Entry)) {
+      // Visit tagged value of each entry.
+      ObjectSlot slot(host->address() + offset +
+                      offsetof(DoubleStringCache::Entry, value_));
+      v->VisitPointer(host, slot);
+    }
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
+    return UncheckedCast<DoubleStringCache>(raw_object)->AllocatedSize();
+  }
+};
+
 #include "torque-generated/objects-body-descriptors-inl.inc"
 
 }  // namespace internal

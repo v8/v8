@@ -3957,9 +3957,8 @@ Handle<String> Factory::SizeToString(size_t value, bool check_cache) {
     // SmiToString sets the hash when needed, we can return immediately.
     return SmiToString(Smi::FromInt(int32v), cache_mode);
   } else if (value <= kMaxSafeInteger) {
-    // TODO(jkummerow): Refactor the cache to not require Objects as keys.
     double double_value = static_cast<double>(value);
-    result = HeapNumberToString(NewHeapNumber(double_value), value, cache_mode);
+    result = DoubleToString(double_value, cache_mode);
   } else {
     char arr[kNumberToStringBufferSize];
     base::Vector<char> buffer(arr, arraysize(arr));

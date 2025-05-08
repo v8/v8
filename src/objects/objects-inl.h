@@ -646,10 +646,6 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSmiStringCache) {
   return IsFixedArray(obj);
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsDoubleStringCache) {
-  return IsFixedArray(obj);
-}
-
 #define MAKE_STRUCT_PREDICATE(NAME, Name, name)                             \
   bool Is##Name(Tagged<Object> obj) {                                       \
     return IsHeapObject(obj) && Is##Name(Cast<HeapObject>(obj));            \

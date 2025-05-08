@@ -22,6 +22,7 @@ uint32_t SmiStringCache::GetUsedEntriesCount() {
 }
 
 void SmiStringCache::Print(const char* comment) {
+#ifdef OBJECT_PRINT
   StdoutStream os;
   os << comment;
   for (auto entry : InternalIndex::Range(capacity())) {
@@ -32,6 +33,25 @@ void SmiStringCache::Print(const char* comment) {
     }
   }
   os << "\n";
+#endif
+}
+
+uint32_t DoubleStringCache::GetUsedEntriesCount() {
+  uint32_t count = 0;
+  for (auto& entry : *this) {
+    if (entry.value_.load() != kEmptySentinel) {
+      ++count;
+    }
+  }
+  return count;
+}
+
+void DoubleStringCache::Print(const char* comment) {
+#ifdef OBJECT_PRINT
+  StdoutStream os;
+  os << comment << "\n";
+  DoubleStringCachePrint(os);
+#endif
 }
 
 }  // namespace v8::internal

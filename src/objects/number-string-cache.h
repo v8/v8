@@ -30,7 +30,7 @@ V8_OBJECT class SmiStringCache : public FixedArray {
 
   static constexpr int kInitialSize = 128;
 
-  // Maximal allowed length, in number of elements.
+  // Maximal allowed capacity in number of entries.
   static constexpr int kMaxCapacity = FixedArray::kMaxCapacity / kEntrySize;
 
   inline uint32_t capacity() const;
@@ -70,40 +70,88 @@ V8_OBJECT class SmiStringCache : public FixedArray {
   using Super::set;
 } V8_OBJECT_END;
 
-// Used for mapping HeapNumbers to Strings.
-// TODO(ishell): store doubles as raw values.
-V8_OBJECT class DoubleStringCache : public SmiStringCache {
+// Used for mapping raw doubles to Strings.
+V8_OBJECT class DoubleStringCache : public HeapObjectLayout {
  public:
-  using Super = SmiStringCache;
+  V8_OBJECT struct Entry {
+    UnalignedDoubleMember key_;
+    TaggedMember<UnionOf<Smi, String>> value_;
+  } V8_OBJECT_END;
+
+  using Header = HeapObjectLayout;
+
+  // Empty entries are initialized with this sentinel (both key and value).
+  static constexpr Tagged<Smi> kEmptySentinel = Smi::zero();
 
   static constexpr int kInitialSize = 128;
+  static constexpr int kMaxCapacity = TAGGED_SIZE_8_BYTES ? 0x1000 : 0x2000;
 
-  // Returns entry index corresponding to given number.
-  inline InternalIndex GetEntryFor(Tagged<HeapNumber> number) const;
+  inline uint32_t capacity() const { return capacity_; }
+
+  // Clears all entries in the table.
+  inline void Clear();
+
+  // Iterates the table and computes the number of occupied entries.
+  uint32_t GetUsedEntriesCount();
+
+  // Prints contents of the cache with a comment.
+  void Print(const char* comment);
+
+  // Returns entry index corresponding to given bitwise representation of
+  // a double value.
+  inline InternalIndex GetEntryFor(uint64_t number_bits) const;
   static inline InternalIndex GetEntryFor(Isolate* isolate,
-                                          Tagged<HeapNumber> number);
+                                          uint64_t number_bits);
 
-  // Attempt to find the number in a cache. In case of success, returns
-  // the string representation of the number. Otherwise returns undefined.
+  // Attempt to find the number in a cache by given bitwise representation.
+  // In case of success, returns the string representation of the number.
+  // Otherwise returns undefined.
   static inline Handle<Object> Get(Isolate* isolate, InternalIndex entry,
-                                   Tagged<HeapNumber> number);
+                                   uint64_t number_bits);
 
   // Puts <number, string> entry to the cache, potentially overwriting
-  // existing entry.
+  // existing entry. The number is given in bitwise representation.
   static inline void Set(Isolate* isolate, InternalIndex entry,
-                         DirectHandle<HeapNumber> number,
-                         DirectHandle<String> string);
+                         uint64_t number_bits, DirectHandle<String> string);
 
   template <class IsolateT>
   static inline DirectHandle<DoubleStringCache> New(IsolateT* isolate,
                                                     int capacity);
 
+  DECL_PRINTER(DoubleStringCache)
+  DECL_VERIFIER(DoubleStringCache)
+
+  inline int AllocatedSize() const { return SizeFor(this->capacity()); }
+
+  static inline constexpr int SizeFor(int length) {
+    return OBJECT_POINTER_ALIGN(OffsetOfElementAt(length));
+  }
+  static inline constexpr int OffsetOfElementAt(int index) {
+    return sizeof(Header) + kUInt32Size + index * sizeof(Entry);
+  }
+
+  class BodyDescriptor;
+
  private:
-  using Super::Get;
-  using Super::GetEntryFor;
-  using Super::New;
-  using Super::Set;
+  friend class CodeStubAssembler;
+
+  static inline InternalIndex GetEntryFor(uint64_t number_bits,
+                                          uint32_t capacity);
+
+  inline Entry* begin() { return &entries()[0]; }
+  inline const Entry* begin() const { return &entries()[0]; }
+  inline Entry* end() { return &entries()[capacity_]; }
+  inline const Entry* end() const { return &entries()[capacity_]; }
+
+  uint32_t capacity_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif
+  FLEXIBLE_ARRAY_MEMBER(Entry, entries);
 } V8_OBJECT_END;
+
+static_assert(DoubleStringCache::SizeFor(DoubleStringCache::kMaxCapacity) <
+              kMaxRegularHeapObjectSize);
 
 }  // namespace v8::internal
 

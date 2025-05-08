@@ -2081,9 +2081,15 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
         UncheckedCast<WasmDispatchTable>(*this)->capacity());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
-  DCHECK_EQ(instance_type, EMBEDDER_DATA_ARRAY_TYPE);
-  return EmbedderDataArray::SizeFor(
-      UncheckedCast<EmbedderDataArray>(*this)->length());
+  if (instance_type == DOUBLE_STRING_CACHE_TYPE) {
+    return DoubleStringCache::SizeFor(
+        UncheckedCast<DoubleStringCache>(*this)->capacity());
+  }
+  if (instance_type == EMBEDDER_DATA_ARRAY_TYPE) {
+    return EmbedderDataArray::SizeFor(
+        UncheckedCast<EmbedderDataArray>(*this)->length());
+  }
+  UNREACHABLE();
 }
 
 bool HeapObject::NeedsRehashing(PtrComprCageBase cage_base) const {

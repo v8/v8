@@ -359,9 +359,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   V8_WARN_UNUSED_RESULT Handle<String> NumberToString(
       DirectHandle<Object> number,
       NumberCacheMode mode = NumberCacheMode::kBoth);
-  V8_WARN_UNUSED_RESULT Handle<String> HeapNumberToString(
-      DirectHandle<HeapNumber> number, double value,
-      NumberCacheMode mode = NumberCacheMode::kBoth);
+  V8_WARN_UNUSED_RESULT Handle<String> DoubleToString(
+      double value, NumberCacheMode mode = NumberCacheMode::kBoth);
   V8_WARN_UNUSED_RESULT Handle<String> SmiToString(
       Tagged<Smi> number, NumberCacheMode mode = NumberCacheMode::kBoth);
 
@@ -464,6 +463,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   friend class TaggedArrayBase;
   template <class Derived, class Shape, class Super>
   friend class PrimitiveArrayBase;
+  friend class DoubleStringCache;
 };
 
 extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)

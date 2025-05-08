@@ -68,6 +68,7 @@ namespace internal {
   V(ClosureFeedbackCellArray)                 \
   V(Code)                                     \
   V(Context)                                  \
+  V(DoubleStringCache)                        \
   V(ExternalString)                           \
   V(FeedbackMetadata)                         \
   V(FeedbackVector)                           \
@@ -117,6 +118,7 @@ namespace internal {
   V(DependentCode)                              \
   V(DescriptorArray)                            \
   V(DictionaryTemplateInfo)                     \
+  V(DoubleStringCache)                          \
   V(EmbedderDataArray)                          \
   V(EphemeronHashTable)                         \
   V(ExternalOneByteString)                      \
@@ -293,7 +295,6 @@ namespace internal {
   V(BooleanWrapper)                 \
   V(Callable)                       \
   V(Constructor)                    \
-  V(DoubleStringCache)              \
   V(Filler)                         \
   V(HandlerTable)                   \
   V(JSContextExtensionObject)       \

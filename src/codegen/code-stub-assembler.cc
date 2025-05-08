@@ -9123,6 +9123,52 @@ TNode<String> CodeStubAssembler::TryMatchPreallocatedNumberString(
 }
 // LINT.ThenChange(/src/heap/factory-base.cc:CheckPreallocatedNumberStrings)
 
+TNode<IntPtrT> CodeStubAssembler::DoubleStringCacheEntryToOffset(
+    TNode<Word32T> entry) {
+  TNode<IntPtrT> entry_index;
+  if constexpr (sizeof(DoubleStringCache::Entry) == 3 * kTaggedSize) {
+    entry = Int32Add(Int32Add(entry, entry), entry);
+
+  } else {
+    CHECK_EQ(sizeof(DoubleStringCache::Entry), 2 * kTaggedSize);
+    entry = Int32Add(entry, entry);
+  }
+  return Signed(TimesTaggedSize(ChangeUint32ToWord(entry)));
+}
+
+void CodeStubAssembler::GotoIfNotDoubleStringCacheEntryKeyEqual(
+    TNode<DoubleStringCache> cache, TNode<IntPtrT> entry_offset,
+    TNode<Int32T> key_low, TNode<Int32T> key_high, Label* if_not_equal) {
+  const int offset_key = OFFSET_OF_DATA_START(DoubleStringCache) +
+                         offsetof(DoubleStringCache::Entry, key_);
+
+  TNode<Int32T> entry_key_low = LoadObjectField<Int32T>(
+      cache, IntPtrAdd(entry_offset, IntPtrConstant(offset_key)));
+
+  GotoIfNot(Word32Equal(entry_key_low, key_low), if_not_equal);
+
+  TNode<Int32T> entry_key_high = LoadObjectField<Int32T>(
+      cache, IntPtrAdd(entry_offset, IntPtrConstant(offset_key + kIntSize)));
+
+  GotoIfNot(Word32Equal(entry_key_high, key_high), if_not_equal);
+}
+
+TNode<String> CodeStubAssembler::LoadDoubleStringCacheEntryValue(
+    TNode<DoubleStringCache> number_string_cache, TNode<IntPtrT> entry_offset,
+    Label* if_empty_entry) {
+  TNode<IntPtrT> entry_value_offset = IntPtrAdd(
+      entry_offset, IntPtrConstant(OFFSET_OF_DATA_START(DoubleStringCache) +
+                                   offsetof(DoubleStringCache::Entry, value_)));
+
+  TNode<Object> maybe_value =
+      LoadObjectField(number_string_cache, entry_value_offset);
+
+  static_assert(DoubleStringCache::kEmptySentinel.IsSmi());
+  GotoIf(TaggedIsSmi(maybe_value), if_empty_entry);
+
+  return CAST(maybe_value);
+}
+
 TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
                                                 Label* bailout) {
   Counters* counters = isolate()->counters();
@@ -9225,40 +9271,28 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
 
     // Make the hash mask from the length of the number string cache. It
     // contains two elements (number and string) for each cache entry.
-    TNode<Uint32T> cache_length = LoadAndUntagFixedArrayBaseLengthAsUint32(
-        ReinterpretCast<FixedArray>(cache));
-    TNode<Int32T> one = Int32Constant(1);
-    TNode<Word32T> mask = Int32Sub(Word32Shr(cache_length, one), one);
+    TNode<Uint32T> cache_capacity =
+        LoadObjectField<Uint32T>(cache, offsetof(DoubleStringCache, capacity_));
+    TNode<Word32T> mask = Int32Sub(cache_capacity, Int32Constant(1));
 
     // Make a hash from the two 32-bit values of the double.
     TNode<Int32T> low = LoadObjectField<Int32T>(heap_number_input,
                                                 offsetof(HeapNumber, value_));
     TNode<Int32T> high = LoadObjectField<Int32T>(
         heap_number_input, offsetof(HeapNumber, value_) + kIntSize);
-    TNode<Word32T> hash = Word32And(Word32Xor(low, high), mask);
-    TNode<IntPtrT> entry_index =
-        Signed(ChangeUint32ToWord(Int32Add(hash, hash)));
+    TNode<Word32T> entry = Word32And(Word32Xor(low, high), mask);
+    TNode<IntPtrT> entry_offset = DoubleStringCacheEntryToOffset(entry);
 
-    // Cache entry's key must be a heap number
-    static_assert(DoubleStringCache::kEntryKeyIndex == 0);
-    TNode<Object> maybe_number_key =
-        UnsafeLoadFixedArrayElement(cache, entry_index);
-
+    // Cache entry's value must not be the EmptySentinel.
     Label if_double_cache_missed(this);
-    GotoIf(TaggedIsSmi(maybe_number_key), &if_double_cache_missed);
-    TNode<HeapNumber> number_key = CAST(maybe_number_key);
+    result = LoadDoubleStringCacheEntryValue(cache, entry_offset,
+                                             &if_double_cache_missed);
 
     // Cache entry's key must match the heap number value we're looking for.
-    TNode<Int32T> low_compare =
-        LoadObjectField<Int32T>(number_key, offsetof(HeapNumber, value_));
-    TNode<Int32T> high_compare = LoadObjectField<Int32T>(
-        number_key, offsetof(HeapNumber, value_) + kIntSize);
-    GotoIfNot(Word32Equal(low, low_compare), &if_double_cache_missed);
-    GotoIfNot(Word32Equal(high, high_compare), &if_double_cache_missed);
+    GotoIfNotDoubleStringCacheEntryKeyEqual(cache, entry_offset, low, high,
+                                            &if_double_cache_missed);
 
     // Heap number match, return value from cache entry.
-    static_assert(DoubleStringCache::kEntryValueIndex == 1);
-    result = CAST(UnsafeLoadFixedArrayElement(cache, entry_index, kTaggedSize));
     Goto(&done);
 
     BIND(&if_double_cache_missed);

@@ -109,32 +109,35 @@ void SmiStringCache::Clear() {
   MemsetTagged(RawFieldOfFirstElement(), kEmptySentinel, Super::capacity());
 }
 
-// Returns entry index corresponding to given number.
-InternalIndex DoubleStringCache::GetEntryFor(Tagged<HeapNumber> number) const {
-  uint64_t bits = number->value_as_bits();
-  uint32_t hash =
-      static_cast<uint32_t>(bits) ^ static_cast<uint32_t>(bits >> 32);
-  uint32_t mask = capacity() - 1;
+// static
+InternalIndex DoubleStringCache::GetEntryFor(uint64_t number_bits,
+                                             uint32_t capacity) {
+  uint32_t hash = static_cast<uint32_t>(number_bits) ^
+                  static_cast<uint32_t>(number_bits >> 32);
+  uint32_t mask = capacity - 1;
   return InternalIndex{hash & mask};
+}
+
+InternalIndex DoubleStringCache::GetEntryFor(uint64_t number_bits) const {
+  return GetEntryFor(number_bits, capacity());
 }
 
 // static
 InternalIndex DoubleStringCache::GetEntryFor(Isolate* isolate,
-                                             Tagged<HeapNumber> number) {
-  return isolate->factory()->double_string_cache()->GetEntryFor(number);
+                                             uint64_t number_bits) {
+  return isolate->factory()->double_string_cache()->GetEntryFor(number_bits);
 }
 
 // static
-Handle<Object> DoubleStringCache::Get(Isolate* isolate, InternalIndex entry,
-                                      Tagged<HeapNumber> number) {
+Handle<Object> DoubleStringCache::Get(Isolate* isolate,
+                                      InternalIndex entry_index,
+                                      uint64_t number_bits) {
   DisallowGarbageCollection no_gc;
   Factory* factory = isolate->factory();
-  Tagged<DoubleStringCache> cache = *factory->double_string_cache();
-  uint32_t entry_index = entry.as_uint32() * kEntrySize;
+  DirectHandle<DoubleStringCache> cache = factory->double_string_cache();
+  auto& entry = cache->entries()[entry_index.as_uint32()];
 
-  Tagged<Object> key = cache->get(entry_index + kEntryKeyIndex);
-  const bool match = !IsSmi(key) && Cast<HeapNumber>(key)->value_as_bits() ==
-                                        number->value_as_bits();
+  const bool match = entry.key_.value_as_bits() == number_bits;
 
   if (V8_UNLIKELY(v8_flags.native_code_counters)) {
     Counters* counters = isolate->counters();
@@ -145,24 +148,24 @@ Handle<Object> DoubleStringCache::Get(Isolate* isolate, InternalIndex entry,
   }
 
   if (match) {
-    auto string = Cast<String>(cache->get(entry_index + kEntryValueIndex));
+    auto string = Cast<String>(entry.value_.load());
     return handle(string, isolate);
   }
   return factory->undefined_value();
 }
 
 // static
-void DoubleStringCache::Set(Isolate* isolate, InternalIndex entry,
-                            DirectHandle<HeapNumber> number,
-                            DirectHandle<String> string) {
+void DoubleStringCache::Set(Isolate* isolate, InternalIndex entry_index,
+                            uint64_t number_bits, DirectHandle<String> string) {
   DirectHandle<DoubleStringCache> cache =
       isolate->factory()->double_string_cache();
-  DCHECK_EQ(entry, cache->GetEntryFor(*number));
-  uint32_t entry_index = entry.as_uint32() * kEntrySize;
+  DCHECK_EQ(entry_index, cache->GetEntryFor(number_bits));
+
+  auto* entry = &cache->entries()[entry_index.as_uint32()];
 
   // Switch to full-size mode if the entry is already occupied.
   if (cache->capacity() == kInitialSize &&
-      cache->get(entry_index + kEntryKeyIndex) != kEmptySentinel &&
+      entry->value_.load() != kEmptySentinel &&
       !isolate->MemorySaverModeEnabled()) {
     // Allocate full-size cache, recompute the entry and proceed with adding
     // the entry.
@@ -173,20 +176,42 @@ void DoubleStringCache::Set(Isolate* isolate, InternalIndex entry,
     cache = DoubleStringCache::New(isolate, full_size);
     isolate->heap()->SetDoubleStringCache(*cache);
 
-    entry = cache->GetEntryFor(*number);
-    entry_index = entry.as_uint32() * kEntrySize;
+    entry_index = cache->GetEntryFor(number_bits);
+    entry = &cache->entries()[entry_index.as_uint32()];
   }
   DisallowGarbageCollection no_gc;
-  cache->set(entry_index + kEntryKeyIndex, *number);
-  cache->set(entry_index + kEntryValueIndex, *string);
+  entry->key_.set_value_as_bits(number_bits);
+  entry->value_.store(&**cache, *string);
 }
 
 // static
 template <class IsolateT>
 DirectHandle<DoubleStringCache> DoubleStringCache::New(IsolateT* isolate,
                                                        int capacity) {
-  DirectHandle<SmiStringCache> result = SmiStringCache::New(isolate, capacity);
-  return Cast<DoubleStringCache>(result);
+  DCHECK_GE(capacity, kInitialSize);
+  DCHECK_LE(capacity, kMaxCapacity);
+
+  Tagged<DoubleStringCache> xs =
+      UncheckedCast<DoubleStringCache>(isolate->factory()->AllocateRawArray(
+          SizeFor(capacity), AllocationType::kOld));
+
+  ReadOnlyRoots roots{isolate};
+  xs->set_map_after_allocation(isolate, roots.double_string_cache_map(),
+                               SKIP_WRITE_BARRIER);
+  xs->capacity_ = capacity;
+#if TAGGED_SIZE_8_BYTES
+  xs->optional_padding_ = 0;
+#endif
+  xs->Clear();
+
+  return handle(xs, isolate);
+}
+
+void DoubleStringCache::Clear() {
+  static_assert(sizeof(Entry) % kTaggedSize == 0);
+  auto* data = reinterpret_cast<Tagged_t*>(begin());
+  MemsetTagged(data, kEmptySentinel,
+               capacity() * (sizeof(Entry) / kTaggedSize));
 }
 
 }  // namespace v8::internal

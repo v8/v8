@@ -30,6 +30,7 @@
 #include "src/objects/js-objects.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/js-proxy.h"
+#include "src/objects/number-string-cache.h"
 #include "src/objects/objects.h"
 #include "src/objects/oddball.h"
 #include "src/objects/shared-function-info.h"
@@ -4798,6 +4799,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Object> TryMatchRootRange(TNode<Int32T> value, unsigned range_start,
                                   RootIndex table_start, unsigned table_size,
                                   Label* out_of_range);
+
+  // Helpers for DoubleStringCache access.
+  TNode<IntPtrT> DoubleStringCacheEntryToOffset(TNode<Word32T> entry);
+  void GotoIfNotDoubleStringCacheEntryKeyEqual(TNode<DoubleStringCache> cache,
+                                               TNode<IntPtrT> entry_offset,
+                                               TNode<Int32T> key_low,
+                                               TNode<Int32T> key_high,
+                                               Label* if_not_equal);
+  TNode<String> LoadDoubleStringCacheEntryValue(TNode<DoubleStringCache> cache,
+                                                TNode<IntPtrT> entry_offset,
+                                                Label* if_empty_entry);
 
   void DcheckHasValidMap(TNode<HeapObject> object);
 

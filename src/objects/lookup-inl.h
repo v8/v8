@@ -143,8 +143,7 @@ PropertyKey::PropertyKey(Isolate* isolate, double index) {
   } else {
     index_ = LookupIterator::kInvalidIndex;
     name_ = isolate->factory()->InternalizeString(
-        isolate->factory()->HeapNumberToString(
-            isolate->factory()->NewHeapNumber(index), index));
+        isolate->factory()->DoubleToString(index));
   }
 #else
   index_ = static_cast<size_t>(index);

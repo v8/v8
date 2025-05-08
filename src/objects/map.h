@@ -53,6 +53,7 @@ enum InstanceType : uint16_t;
   V(CppHeapExternalObject)            \
   V(DataHandler)                      \
   V(DebugInfo)                        \
+  V(DoubleStringCache)                \
   V(EmbedderDataArray)                \
   V(EphemeronHashTable)               \
   V(ExternalString)                   \
