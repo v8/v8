@@ -22,43 +22,38 @@
 namespace v8 {
 
 template <typename T, internal::ExternalPointerTag tag>
-inline T ToCData(i::Isolate* isolate,
-                 v8::internal::Tagged<v8::internal::Object> obj) {
-  static_assert(sizeof(T) == sizeof(v8::internal::Address));
-  if (obj == v8::internal::Smi::zero()) return nullptr;
+inline T ToCData(i::Isolate* isolate, i::Tagged<i::Object> obj) {
+  static_assert(sizeof(T) == sizeof(i::Address));
+  if (obj == i::Smi::zero()) return nullptr;
   return reinterpret_cast<T>(
-      v8::internal::Cast<v8::internal::Foreign>(obj)->foreign_address<tag>(
-          isolate));
+      i::Cast<i::Foreign>(obj)->foreign_address<tag>(isolate));
 }
 
 template <internal::ExternalPointerTag tag>
-inline v8::internal::Address ToCData(
-    i::Isolate* isolate, v8::internal::Tagged<v8::internal::Object> obj) {
-  if (obj == v8::internal::Smi::zero()) return v8::internal::kNullAddress;
-  return v8::internal::Cast<v8::internal::Foreign>(obj)->foreign_address<tag>(
-      isolate);
+inline i::Address ToCData(i::Isolate* isolate, i::Tagged<i::Object> obj) {
+  if (obj == i::Smi::zero()) return i::kNullAddress;
+  return i::Cast<i::Foreign>(obj)->foreign_address<tag>(isolate);
 }
 
 template <internal::ExternalPointerTag tag, typename T>
-inline v8::internal::DirectHandle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
-    v8::internal::Isolate* isolate, T obj) {
-  static_assert(sizeof(T) == sizeof(v8::internal::Address));
-  if (obj == nullptr) return direct_handle(v8::internal::Smi::zero(), isolate);
-  return isolate->factory()->NewForeign<tag>(
-      reinterpret_cast<v8::internal::Address>(obj));
+inline i::DirectHandle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
+    i::Isolate* isolate, T obj) {
+  static_assert(sizeof(T) == sizeof(i::Address));
+  if (obj == nullptr) return direct_handle(i::Smi::zero(), isolate);
+  return isolate->factory()->NewForeign<tag>(reinterpret_cast<i::Address>(obj));
 }
 
 template <internal::ExternalPointerTag tag>
-inline v8::internal::DirectHandle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
-    v8::internal::Isolate* isolate, v8::internal::Address obj) {
-  if (obj == v8::internal::kNullAddress) {
-    return direct_handle(v8::internal::Smi::zero(), isolate);
+inline i::DirectHandle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
+    i::Isolate* isolate, i::Address obj) {
+  if (obj == i::kNullAddress) {
+    return direct_handle(i::Smi::zero(), isolate);
   }
   return isolate->factory()->NewForeign<tag>(obj);
 }
 
 template <class From, class To>
-inline Local<To> Utils::Convert(v8::internal::DirectHandle<From> obj) {
+inline Local<To> Utils::Convert(i::DirectHandle<From> obj) {
   DCHECK(obj.is_null() || IsSmi(*obj) || !IsTheHole(*obj));
 #ifdef V8_ENABLE_DIRECT_HANDLE
   if (obj.is_null()) return Local<To>();
@@ -75,24 +70,23 @@ inline Local<To> Utils::Convert(v8::internal::DirectHandle<From> obj) {
 #define MAKE_TO_LOCAL(Name)                                                \
   template <template <typename> typename HandleType, typename T, typename> \
   inline auto Utils::Name(HandleType<T> obj) {                             \
-    return Utils::Name##_helper(v8::internal::DirectHandle<T>(obj));       \
+    return Utils::Name##_helper(i::DirectHandle<T>(obj));                  \
   }
 
 TO_LOCAL_NAME_LIST(MAKE_TO_LOCAL)
 
-#define MAKE_TO_LOCAL_PRIVATE(Name, From, To)               \
-  inline Local<v8::To> Utils::Name##_helper(                \
-      v8::internal::DirectHandle<v8::internal::From> obj) { \
-    return Convert<v8::internal::From, v8::To>(obj);        \
+#define MAKE_TO_LOCAL_PRIVATE(Name, From, To)                               \
+  inline Local<v8::To> Utils::Name##_helper(i::DirectHandle<i::From> obj) { \
+    return Convert<i::From, v8::To>(obj);                                   \
   }
 
 TO_LOCAL_LIST(MAKE_TO_LOCAL_PRIVATE)
 
-#define MAKE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype)        \
-  Local<v8::Type##Array> Utils::ToLocal##Type##Array(                 \
-      v8::internal::DirectHandle<v8::internal::JSTypedArray> obj) {   \
-    DCHECK(obj->type() == v8::internal::kExternal##Type##Array);      \
-    return Convert<v8::internal::JSTypedArray, v8::Type##Array>(obj); \
+#define MAKE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype) \
+  Local<v8::Type##Array> Utils::ToLocal##Type##Array(          \
+      i::DirectHandle<i::JSTypedArray> obj) {                  \
+    DCHECK(obj->type() == i::kExternal##Type##Array);          \
+    return Convert<i::JSTypedArray, v8::Type##Array>(obj);     \
   }
 
 TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
@@ -107,31 +101,30 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
 #ifdef V8_ENABLE_DIRECT_HANDLE
 
 #define MAKE_OPEN_HANDLE(From, To)                                           \
-  v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                  \
-      const v8::From* that, bool allow_empty_handle) {                       \
-    DCHECK(allow_empty_handle || !v8::internal::ValueHelper::IsEmpty(that)); \
-    DCHECK(v8::internal::ValueHelper::IsEmpty(that) ||                       \
-           Is##To(v8::internal::Tagged<v8::internal::Object>(                \
-               v8::internal::ValueHelper::ValueAsAddress(that))));           \
-    if (v8::internal::ValueHelper::IsEmpty(that)) {                          \
-      return v8::internal::Handle<v8::internal::To>::null();                 \
+  i::Handle<i::To> Utils::OpenHandle(const v8::From* that,                   \
+                                     bool allow_empty_handle) {              \
+    DCHECK(allow_empty_handle || !i::ValueHelper::IsEmpty(that));            \
+    DCHECK(                                                                  \
+        i::ValueHelper::IsEmpty(that) ||                                     \
+        Is##To(i::Tagged<i::Object>(i::ValueHelper::ValueAsAddress(that)))); \
+    if (i::ValueHelper::IsEmpty(that)) {                                     \
+      return i::Handle<i::To>::null();                                       \
     }                                                                        \
-    return v8::internal::Handle<v8::internal::To>(                           \
-        v8::HandleScope::CreateHandleForCurrentIsolate(                      \
-            v8::internal::ValueHelper::ValueAsAddress(that)));               \
+    return i::Handle<i::To>(v8::HandleScope::CreateHandleForCurrentIsolate(  \
+        i::ValueHelper::ValueAsAddress(that)));                              \
   }                                                                          \
                                                                              \
-  v8::internal::DirectHandle<v8::internal::To> Utils::OpenDirectHandle(      \
-      const v8::From* that, bool allow_empty_handle) {                       \
-    DCHECK(allow_empty_handle || !v8::internal::ValueHelper::IsEmpty(that)); \
-    DCHECK(v8::internal::ValueHelper::IsEmpty(that) ||                       \
-           Is##To(v8::internal::Tagged<v8::internal::Object>(                \
-               v8::internal::ValueHelper::ValueAsAddress(that))));           \
-    return v8::internal::DirectHandle<v8::internal::To>::FromAddress(        \
-        v8::internal::ValueHelper::ValueAsAddress(that));                    \
+  i::DirectHandle<i::To> Utils::OpenDirectHandle(const v8::From* that,       \
+                                                 bool allow_empty_handle) {  \
+    DCHECK(allow_empty_handle || !i::ValueHelper::IsEmpty(that));            \
+    DCHECK(                                                                  \
+        i::ValueHelper::IsEmpty(that) ||                                     \
+        Is##To(i::Tagged<i::Object>(i::ValueHelper::ValueAsAddress(that)))); \
+    return i::DirectHandle<i::To>::FromAddress(                              \
+        i::ValueHelper::ValueAsAddress(that));                               \
   }                                                                          \
                                                                              \
-  v8::internal::IndirectHandle<v8::internal::To> Utils::OpenIndirectHandle(  \
+  i::IndirectHandle<i::To> Utils::OpenIndirectHandle(                        \
       const v8::From* that, bool allow_empty_handle) {                       \
     return Utils::OpenHandle(that, allow_empty_handle);                      \
   }
@@ -139,23 +132,22 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
 #else  // !V8_ENABLE_DIRECT_HANDLE
 
 #define MAKE_OPEN_HANDLE(From, To)                                           \
-  v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                  \
-      const v8::From* that, bool allow_empty_handle) {                       \
-    DCHECK(allow_empty_handle || !v8::internal::ValueHelper::IsEmpty(that)); \
-    DCHECK(v8::internal::ValueHelper::IsEmpty(that) ||                       \
-           Is##To(v8::internal::Tagged<v8::internal::Object>(                \
-               v8::internal::ValueHelper::ValueAsAddress(that))));           \
-    return v8::internal::Handle<v8::internal::To>(                           \
-        reinterpret_cast<v8::internal::Address*>(                            \
-            const_cast<v8::From*>(that)));                                   \
+  i::Handle<i::To> Utils::OpenHandle(const v8::From* that,                   \
+                                     bool allow_empty_handle) {              \
+    DCHECK(allow_empty_handle || !i::ValueHelper::IsEmpty(that));            \
+    DCHECK(                                                                  \
+        i::ValueHelper::IsEmpty(that) ||                                     \
+        Is##To(i::Tagged<i::Object>(i::ValueHelper::ValueAsAddress(that)))); \
+    return i::Handle<i::To>(                                                 \
+        reinterpret_cast<i::Address*>(const_cast<v8::From*>(that)));         \
   }                                                                          \
                                                                              \
-  v8::internal::DirectHandle<v8::internal::To> Utils::OpenDirectHandle(      \
-      const v8::From* that, bool allow_empty_handle) {                       \
+  i::DirectHandle<i::To> Utils::OpenDirectHandle(const v8::From* that,       \
+                                                 bool allow_empty_handle) {  \
     return Utils::OpenHandle(that, allow_empty_handle);                      \
   }                                                                          \
                                                                              \
-  v8::internal::IndirectHandle<v8::internal::To> Utils::OpenIndirectHandle(  \
+  i::IndirectHandle<i::To> Utils::OpenIndirectHandle(                        \
       const v8::From* that, bool allow_empty_handle) {                       \
     return Utils::OpenHandle(that, allow_empty_handle);                      \
   }

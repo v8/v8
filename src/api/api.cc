@@ -3889,7 +3889,7 @@ bool i::ShouldThrowOnError(i::Isolate* i_isolate) {
 void i::Internals::CheckInitializedImpl(v8::Isolate* external_isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(external_isolate);
   Utils::ApiCheck(i_isolate != nullptr && !i_isolate->IsDead(),
-                  "v8::internal::Internals::CheckInitialized",
+                  "i::Internals::CheckInitialized",
                   "Isolate is not initialized or V8 has died");
 }
 
@@ -6509,7 +6509,7 @@ bool TryHandleWebAssemblyTrapWindows(EXCEPTION_POINTERS* exception) {
 
 bool V8::EnableWebAssemblyTrapHandler(bool use_v8_signal_handler) {
 #if V8_ENABLE_WEBASSEMBLY
-  return v8::internal::trap_handler::EnableTrapHandler(use_v8_signal_handler);
+  return i::trap_handler::EnableTrapHandler(use_v8_signal_handler);
 #else
   return false;
 #endif
@@ -6519,7 +6519,7 @@ bool V8::EnableWebAssemblyTrapHandler(bool use_v8_signal_handler) {
 void V8::SetUnhandledExceptionCallback(
     UnhandledExceptionCallback unhandled_exception_callback) {
 #if defined(V8_OS_WIN64)
-  v8::internal::win64_unwindinfo::SetUnhandledExceptionCallback(
+  i::win64_unwindinfo::SetUnhandledExceptionCallback(
       unhandled_exception_callback);
 #else
   // Not implemented, port needed.
@@ -12600,5 +12600,5 @@ TryToCopyAndConvertArrayToCppBuffer<CTypeInfoBuilder<double>::Build().GetId(),
 }  // namespace v8
 
 #ifdef ENABLE_SLOW_DCHECKS
-EXPORT_CONTEXTUAL_VARIABLE(v8::internal::StackAllocatedCheck)
+EXPORT_CONTEXTUAL_VARIABLE(i::StackAllocatedCheck)
 #endif
