@@ -170,10 +170,10 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT {
     return false;
   }
 
-  bool CanBeLoadStoreShiftImmediate(OpIndex node, MachineRepresentation rep) {
+  bool CanBeLoadStoreShiftImmediate(OpIndex node, MemoryRepresentation rep) {
     if (uint64_t constant;
         selector()->MatchUnsignedIntegralConstant(node, &constant) &&
-        constant == static_cast<uint64_t>(ElementSizeLog2Of(rep))) {
+        constant == static_cast<uint64_t>(rep.SizeInBytesLog2())) {
       return true;
     }
     return false;
@@ -475,7 +475,7 @@ bool TryMatchAnyExtend(Arm64OperandGeneratorT* g,
 
 bool TryMatchLoadStoreShift(Arm64OperandGeneratorT* g,
                             InstructionSelectorT* selector,
-                            MachineRepresentation rep, OpIndex node,
+                            MemoryRepresentation rep, OpIndex node,
                             OpIndex index, InstructionOperand* index_op,
                             InstructionOperand* shift_immediate_op) {
   if (!selector->CanCover(node, index)) return false;
@@ -899,7 +899,7 @@ void InstructionSelectorT::VisitAbortCSADcheck(OpIndex node) {
 
 void EmitLoad(InstructionSelectorT* selector, OpIndex node,
               InstructionCode opcode, ImmediateMode immediate_mode,
-              MachineRepresentation rep, OptionalOpIndex output = {}) {
+              MemoryRepresentation rep, OptionalOpIndex output = {}) {
   Arm64OperandGeneratorT g(selector);
   const LoadOp& load = selector->Get(node).Cast<LoadOp>();
 
@@ -1189,72 +1189,13 @@ std::tuple<InstructionCode, ImmediateMode> GetLoadOpcodeAndImmediate(
   }
 }
 
-std::tuple<InstructionCode, ImmediateMode> GetLoadOpcodeAndImmediate(
-    LoadRepresentation load_rep) {
-  switch (load_rep.representation()) {
-    case MachineRepresentation::kFloat16:
-      return {kArm64LdrH, kLoadStoreImm16};
-    case MachineRepresentation::kFloat32:
-      return {kArm64LdrS, kLoadStoreImm32};
-    case MachineRepresentation::kFloat64:
-      return {kArm64LdrD, kLoadStoreImm64};
-    case MachineRepresentation::kBit:  // Fall through.
-    case MachineRepresentation::kWord8:
-      return {load_rep.IsUnsigned()                            ? kArm64Ldrb
-              : load_rep.semantic() == MachineSemantic::kInt32 ? kArm64LdrsbW
-                                                               : kArm64Ldrsb,
-              kLoadStoreImm8};
-    case MachineRepresentation::kWord16:
-      return {load_rep.IsUnsigned()                            ? kArm64Ldrh
-              : load_rep.semantic() == MachineSemantic::kInt32 ? kArm64LdrshW
-                                                               : kArm64Ldrsh,
-              kLoadStoreImm16};
-    case MachineRepresentation::kWord32:
-      return {kArm64LdrW, kLoadStoreImm32};
-    case MachineRepresentation::kCompressedPointer:  // Fall through.
-    case MachineRepresentation::kCompressed:
-#ifdef V8_COMPRESS_POINTERS
-      return {kArm64LdrW, kLoadStoreImm32};
-#else
-      UNREACHABLE();
-#endif
-#ifdef V8_COMPRESS_POINTERS
-    case MachineRepresentation::kTaggedSigned:
-      return {kArm64LdrDecompressTaggedSigned, kLoadStoreImm32};
-    case MachineRepresentation::kTaggedPointer:
-    case MachineRepresentation::kTagged:
-      return {kArm64LdrDecompressTagged, kLoadStoreImm32};
-#else
-    case MachineRepresentation::kTaggedSigned:   // Fall through.
-    case MachineRepresentation::kTaggedPointer:  // Fall through.
-    case MachineRepresentation::kTagged:         // Fall through.
-#endif
-    case MachineRepresentation::kWord64:
-      return {kArm64Ldr, kLoadStoreImm64};
-    case MachineRepresentation::kProtectedPointer:
-      CHECK(V8_ENABLE_SANDBOX_BOOL);
-      return {kArm64LdrDecompressProtected, kNoImmediate};
-    case MachineRepresentation::kSandboxedPointer:
-      return {kArm64LdrDecodeSandboxedPointer, kLoadStoreImm64};
-    case MachineRepresentation::kSimd128:
-      return {kArm64LdrQ, kLoadStoreImm128};
-    case MachineRepresentation::kSimd256:  // Fall through.
-    case MachineRepresentation::kMapWord:  // Fall through.
-    case MachineRepresentation::kIndirectPointer:  // Fall through.
-    case MachineRepresentation::kFloat16RawBits:   // Fall through.
-    case MachineRepresentation::kNone:
-      UNREACHABLE();
-  }
-}
-
 void InstructionSelectorT::VisitLoad(OpIndex node) {
   InstructionCode opcode = kArchNop;
   ImmediateMode immediate_mode = kNoImmediate;
   auto load = this->load_view(node);
-  LoadRepresentation load_rep = load.loaded_rep();
-  MachineRepresentation rep = load_rep.representation();
+  MemoryRepresentation load_rep = load.ts_loaded_rep();
   std::tie(opcode, immediate_mode) =
-      GetLoadOpcodeAndImmediate(load.ts_loaded_rep(), load.ts_result_rep());
+      GetLoadOpcodeAndImmediate(load_rep, load.ts_result_rep());
   bool traps_on_null;
   if (load.is_protected(&traps_on_null)) {
     if (traps_on_null) {
@@ -1263,7 +1204,7 @@ void InstructionSelectorT::VisitLoad(OpIndex node) {
       opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
     }
   }
-  EmitLoad(this, node, opcode, immediate_mode, rep);
+  EmitLoad(this, node, opcode, immediate_mode, load_rep);
 }
 
 void InstructionSelectorT::VisitProtectedLoad(OpIndex node) { VisitLoad(node); }
@@ -1278,6 +1219,7 @@ void InstructionSelectorT::VisitStore(OpIndex node) {
   DCHECK_EQ(store_view.displacement(), 0);
   WriteBarrierKind write_barrier_kind =
       store_view.stored_rep().write_barrier_kind();
+  const MemoryRepresentation store_rep = store_view.ts_stored_rep();
   const MachineRepresentation representation =
       store_view.stored_rep().representation();
 
@@ -1307,7 +1249,7 @@ void InstructionSelectorT::VisitStore(OpIndex node) {
     RecordWriteMode record_write_mode =
         WriteBarrierKindToRecordWriteMode(write_barrier_kind);
     InstructionCode code;
-    if (representation == MachineRepresentation::kIndirectPointer) {
+    if (store_rep == MemoryRepresentation::IndirectPointer()) {
       DCHECK_EQ(write_barrier_kind, kIndirectPointerWriteBarrier);
       // In this case we need to add the IndirectPointerTag as additional input.
       code = kArchStoreIndirectWithWriteBarrier;
@@ -1328,11 +1270,10 @@ void InstructionSelectorT::VisitStore(OpIndex node) {
   InstructionOperand inputs[4];
   size_t input_count = 0;
 
-  MachineRepresentation approx_rep = representation;
   InstructionCode opcode;
   ImmediateMode immediate_mode;
-    std::tie(opcode, immediate_mode) =
-        GetStoreOpcodeAndImmediate(store_view.ts_stored_rep(), false);
+  std::tie(opcode, immediate_mode) =
+      GetStoreOpcodeAndImmediate(store_rep, false);
 
   if (v8_flags.enable_unconditional_write_barriers) {
     if (CanBeTaggedOrCompressedPointer(representation)) {
@@ -1385,7 +1326,7 @@ void InstructionSelectorT::VisitStore(OpIndex node) {
   if (g.CanBeImmediate(index, immediate_mode)) {
     inputs[input_count++] = g.UseImmediate(index);
     opcode |= AddressingModeField::encode(kMode_MRI);
-  } else if (TryMatchLoadStoreShift(&g, this, approx_rep, node, index,
+  } else if (TryMatchLoadStoreShift(&g, this, store_rep, node, index,
                                     &inputs[input_count],
                                     &inputs[input_count + 1])) {
     input_count += 2;
@@ -2961,20 +2902,20 @@ void InstructionSelectorT::VisitChangeInt32ToInt64(OpIndex node) {
   const ChangeOp& change_op = this->Get(node).template Cast<ChangeOp>();
   const Operation& input_op = this->Get(change_op.input());
   if (input_op.Is<LoadOp>() && CanCover(node, change_op.input())) {
+    auto load = this->load_view(change_op.input());
     // Generate sign-extending load.
-    LoadRepresentation load_rep =
-        this->load_view(change_op.input()).loaded_rep();
-    MachineRepresentation rep = load_rep.representation();
+    MemoryRepresentation loaded_rep = load.ts_loaded_rep();
+    MachineRepresentation rep = load.loaded_rep().representation();
     InstructionCode opcode = kArchNop;
     ImmediateMode immediate_mode = kNoImmediate;
     switch (rep) {
       case MachineRepresentation::kBit:  // Fall through.
       case MachineRepresentation::kWord8:
-        opcode = load_rep.IsSigned() ? kArm64Ldrsb : kArm64Ldrb;
+        opcode = loaded_rep.IsSigned() ? kArm64Ldrsb : kArm64Ldrb;
         immediate_mode = kLoadStoreImm8;
         break;
       case MachineRepresentation::kWord16:
-        opcode = load_rep.IsSigned() ? kArm64Ldrsh : kArm64Ldrh;
+        opcode = loaded_rep.IsSigned() ? kArm64Ldrsh : kArm64Ldrh;
         immediate_mode = kLoadStoreImm16;
         break;
       case MachineRepresentation::kWord32:
@@ -2991,7 +2932,7 @@ void InstructionSelectorT::VisitChangeInt32ToInt64(OpIndex node) {
       default:
         UNREACHABLE();
     }
-    EmitLoad(this, change_op.input(), opcode, immediate_mode, rep, node);
+    EmitLoad(this, change_op.input(), opcode, immediate_mode, loaded_rep, node);
     return;
   }
   if ((input_op.Is<Opmask::kWord32ShiftRightArithmetic>() ||

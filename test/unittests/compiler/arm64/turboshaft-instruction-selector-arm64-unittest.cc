@@ -4690,86 +4690,189 @@ TEST_F(TurboshaftInstructionSelectorTest, Word64SarWithChangeInt32ToInt64) {
 namespace {
 
 struct MemoryAccess {
-  MachineType type;
+  MemoryRepresentation memory_rep;
+  RegisterRepresentation result_rep;
   ArchOpcode ldr_opcode;
   ArchOpcode str_opcode;
-  const int32_t immediates[20];
+  std::array<int32_t, 20> immediates;
 };
 
 std::ostream& operator<<(std::ostream& os, const MemoryAccess& memacc) {
-  return os << memacc.type;
+  return os << memacc.memory_rep << ":" << memacc.result_rep;
 }
 
 }  // namespace
 
+static const std::array<int32_t, 20> kLoadStoreImmediates32 = {
+    -256, -255, -3,   -2,   -1,   0,    1,    2,    3,     255,
+    256,  260,  4096, 4100, 8192, 8196, 3276, 3280, 16376, 16380};
+
+static const std::array<int32_t, 20> kLoadStoreImmediates64 = {
+    -256, -255, -3,   -2,   -1,   0,    1,     2,     3,     255,
+    256,  264,  4096, 4104, 8192, 8200, 16384, 16392, 32752, 32760};
+
+// clang-format off
 static const MemoryAccess kMemoryAccesses[] = {
-    {MachineType::Int8(),
+    {MemoryRepresentation::Int8(),
+     RegisterRepresentation::Word32(),
      kArm64LdrsbW,
      kArm64Strb,
      {-256, -255, -3,  -2,   -1,   0,    1,    2,    3,    255,
       256,  257,  258, 1000, 1001, 2121, 2442, 4093, 4094, 4095}},
-    {MachineType::Uint8(),
+    {MemoryRepresentation::Uint8(),
+     RegisterRepresentation::Word32(),
      kArm64Ldrb,
      kArm64Strb,
      {-256, -255, -3,  -2,   -1,   0,    1,    2,    3,    255,
       256,  257,  258, 1000, 1001, 2121, 2442, 4093, 4094, 4095}},
-    {MachineType::Int16(),
+    {MemoryRepresentation::Int16(),
+     RegisterRepresentation::Word32(),
      kArm64LdrshW,
      kArm64Strh,
      {-256, -255, -3,  -2,   -1,   0,    1,    2,    3,    255,
       256,  258,  260, 4096, 4098, 4100, 4242, 6786, 8188, 8190}},
-    {MachineType::Uint16(),
+    {MemoryRepresentation::Uint16(),
+     RegisterRepresentation::Word32(),
      kArm64Ldrh,
      kArm64Strh,
      {-256, -255, -3,  -2,   -1,   0,    1,    2,    3,    255,
       256,  258,  260, 4096, 4098, 4100, 4242, 6786, 8188, 8190}},
-    {MachineType::Int32(),
+    {MemoryRepresentation::Int32(),
+     RegisterRepresentation::Word32(),
      kArm64LdrW,
      kArm64StrW,
-     {-256, -255, -3,   -2,   -1,   0,    1,    2,    3,     255,
-      256,  260,  4096, 4100, 8192, 8196, 3276, 3280, 16376, 16380}},
-    {MachineType::Uint32(),
+     kLoadStoreImmediates32},
+    {MemoryRepresentation::Uint32(),
+     RegisterRepresentation::Word32(),
      kArm64LdrW,
      kArm64StrW,
-     {-256, -255, -3,   -2,   -1,   0,    1,    2,    3,     255,
-      256,  260,  4096, 4100, 8192, 8196, 3276, 3280, 16376, 16380}},
-    {MachineType::Int64(),
+     kLoadStoreImmediates32},
+    {MemoryRepresentation::Int64(),
+     RegisterRepresentation::Word64(),
      kArm64Ldr,
      kArm64Str,
-     {-256, -255, -3,   -2,   -1,   0,    1,     2,     3,     255,
-      256,  264,  4096, 4104, 8192, 8200, 16384, 16392, 32752, 32760}},
-    {MachineType::Uint64(),
+     kLoadStoreImmediates64},
+    {MemoryRepresentation::Uint64(),
+     RegisterRepresentation::Word64(),
      kArm64Ldr,
      kArm64Str,
-     {-256, -255, -3,   -2,   -1,   0,    1,     2,     3,     255,
-      256,  264,  4096, 4104, 8192, 8200, 16384, 16392, 32752, 32760}},
-    {MachineType::Float32(),
+     kLoadStoreImmediates64},
+    {MemoryRepresentation::Float32(),
+     RegisterRepresentation::Float32(),
      kArm64LdrS,
      kArm64StrS,
-     {-256, -255, -3,   -2,   -1,   0,    1,    2,    3,     255,
-      256,  260,  4096, 4100, 8192, 8196, 3276, 3280, 16376, 16380}},
-    {MachineType::Float64(),
+     kLoadStoreImmediates32},
+    {MemoryRepresentation::Float64(),
+     RegisterRepresentation::Float64(),
      kArm64LdrD,
      kArm64StrD,
-     {-256, -255, -3,   -2,   -1,   0,    1,     2,     3,     255,
-      256,  264,  4096, 4104, 8192, 8200, 16384, 16392, 32752, 32760}},
+     kLoadStoreImmediates64},
 #if V8_ENABLE_WEBASSEMBLY
-    {MachineType::Simd128(),
+    {MemoryRepresentation::Simd128(),
+     RegisterRepresentation::Simd128(),
      kArm64LdrQ,
      kArm64StrQ,
      {-256, -255, -3,   -2,   -1,   0,     1,     2,     3,     255,
-      256,  272,  4096, 8192, 8208, 16384, 16400, 32752, 65504, 65520}}
+      256,  272,  4096, 8192, 8208, 16384, 16400, 32752, 65504, 65520}},
 #endif  // V8_ENABLE_WEBASSEMBLY
+    {MemoryRepresentation::SandboxedPointer(),
+     RegisterRepresentation::Word64(),
+     kArm64LdrDecodeSandboxedPointer,
+     kArm64StrEncodeSandboxedPointer,
+     kLoadStoreImmediates64},
 };
+
+static const MemoryAccess kMemoryAccessesTagged[] = {
+#ifdef V8_COMPRESS_POINTERS
+    {MemoryRepresentation::AnyTagged(),
+     RegisterRepresentation::Compressed(),
+     kArm64LdrW,
+     kArm64StrCompressTagged,
+     kLoadStoreImmediates32},
+    {MemoryRepresentation::TaggedPointer(),
+     RegisterRepresentation::Compressed(),
+     kArm64LdrW,
+     kArm64StrCompressTagged,
+     kLoadStoreImmediates32},
+    {MemoryRepresentation::TaggedSigned(),
+     RegisterRepresentation::Compressed(),
+     kArm64LdrW,
+     kArm64StrCompressTagged,
+     kLoadStoreImmediates32},
+    {MemoryRepresentation::AnyTagged(),
+     RegisterRepresentation::Tagged(),
+     kArm64LdrDecompressTagged,
+     kArm64StrCompressTagged,
+     kLoadStoreImmediates32},
+    {MemoryRepresentation::TaggedPointer(),
+     RegisterRepresentation::Tagged(),
+     kArm64LdrDecompressTagged,
+     kArm64StrCompressTagged,
+     kLoadStoreImmediates32},
+    {MemoryRepresentation::TaggedSigned(),
+     RegisterRepresentation::Tagged(),
+     kArm64LdrDecompressTaggedSigned,
+     kArm64StrCompressTagged,
+     kLoadStoreImmediates32},
+#else
+    {MemoryRepresentation::AnyTagged(),
+     RegisterRepresentation::Compressed(),
+     kArm64Ldr,
+     kArm64StrCompressTagged,
+     kLoadStoreImmediates64},
+    {MemoryRepresentation::TaggedPointer(),
+     RegisterRepresentation::Compressed(),
+     kArm64Ldr,
+     kArm64StrCompressTagged,
+     kLoadStoreImmediates64},
+    {MemoryRepresentation::TaggedSigned(),
+     RegisterRepresentation::Compressed(),
+     kArm64Ldr,
+     kArm64StrCompressTagged,
+     kLoadStoreImmediates64},
+    {MemoryRepresentation::AnyTagged(),
+     RegisterRepresentation::Tagged(),
+     kArm64Ldr,
+     kArm64StrCompressTagged,
+     kLoadStoreImmediates64},
+    {MemoryRepresentation::TaggedPointer(),
+     RegisterRepresentation::Tagged(),
+     kArm64Ldr,
+     kArm64StrCompressTagged,
+     kLoadStoreImmediates64},
+    {MemoryRepresentation::TaggedSigned(),
+     RegisterRepresentation::Tagged(),
+     kArm64Ldr,
+     kArm64StrCompressTagged,
+     kLoadStoreImmediates64},
+#endif  // V8_COMPRESS_POINTERS
+    {MemoryRepresentation::AnyUncompressedTagged(),
+     RegisterRepresentation::Tagged(),
+     kArm64Ldr,
+     kArm64Str,
+     kLoadStoreImmediates64},
+    {MemoryRepresentation::UncompressedTaggedPointer(),
+     RegisterRepresentation::Tagged(),
+     kArm64Ldr,
+     kArm64Str,
+     kLoadStoreImmediates64},
+    {MemoryRepresentation::UncompressedTaggedSigned(),
+     RegisterRepresentation::Tagged(),
+     kArm64Ldr,
+     kArm64Str,
+     kLoadStoreImmediates64},
+};
+// clang-format on
 
 using TurboshaftInstructionSelectorMemoryAccessTest =
     TurboshaftInstructionSelectorTestWithParam<MemoryAccess>;
 
 TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, LoadWithParameters) {
   const MemoryAccess memacc = GetParam();
-  StreamBuilder m(this, memacc.type, MachineType::Pointer(),
-                  MachineType::Int64());
-  m.Return(m.Load(memacc.type, m.Parameter(0), m.Parameter(1)));
+  StreamBuilder m(this, memacc.memory_rep.ToMachineType(),
+                  MachineType::Pointer(), MachineType::Int64());
+  m.Return(m.Load(memacc.memory_rep, memacc.result_rep, m.Parameter(0),
+                  m.Parameter(1)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(memacc.ldr_opcode, s[0]->arch_opcode());
@@ -4781,8 +4884,10 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, LoadWithParameters) {
 TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, LoadWithImmediateIndex) {
   const MemoryAccess memacc = GetParam();
   TRACED_FOREACH(int32_t, index, memacc.immediates) {
-    StreamBuilder m(this, memacc.type, MachineType::Pointer());
-    m.Return(m.Load(memacc.type, m.Parameter(0), m.Int64Constant(index)));
+    StreamBuilder m(this, memacc.memory_rep.ToMachineType(),
+                    MachineType::Pointer());
+    m.Return(m.Load(memacc.memory_rep, memacc.result_rep, m.Parameter(0),
+                    m.Int64Constant(index)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(memacc.ldr_opcode, s[0]->arch_opcode());
@@ -4797,9 +4902,9 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, LoadWithImmediateIndex) {
 TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, StoreWithParameters) {
   const MemoryAccess memacc = GetParam();
   StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer(),
-                  MachineType::Int64(), memacc.type);
-  m.Store(memacc.type.representation(), m.Parameter(0), m.Parameter(1),
-          m.Parameter(2), kNoWriteBarrier);
+                  MachineType::Int64(), memacc.memory_rep.ToMachineType());
+  m.Store(memacc.memory_rep, m.Parameter(0), m.Parameter(1), m.Parameter(2),
+          kNoWriteBarrier);
   m.Return(m.Int32Constant(0));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -4813,9 +4918,9 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, StoreWithImmediateIndex) {
   const MemoryAccess memacc = GetParam();
   TRACED_FOREACH(int32_t, index, memacc.immediates) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer(),
-                    memacc.type);
-    m.Store(memacc.type.representation(), m.Parameter(0),
-            m.Int64Constant(index), m.Parameter(1), kNoWriteBarrier);
+                    memacc.memory_rep.ToMachineType());
+    m.Store(memacc.memory_rep, m.Parameter(0), m.Int64Constant(index),
+            m.Parameter(1), kNoWriteBarrier);
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -4832,7 +4937,8 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, StoreZero) {
   const MemoryAccess memacc = GetParam();
   TRACED_FOREACH(int32_t, index, memacc.immediates) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer());
-    MachineRepresentation rep = memacc.type.representation();
+    MachineRepresentation rep =
+        memacc.memory_rep.ToMachineType().representation();
     OpIndex zero;
     switch (rep) {
       case MachineRepresentation::kWord8:
@@ -4841,6 +4947,7 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, StoreZero) {
         zero = m.Word32Constant(0);
         break;
       case MachineRepresentation::kWord64:
+      case MachineRepresentation::kSandboxedPointer:
         zero = m.Int64Constant(0);
         break;
       case MachineRepresentation::kFloat32:
@@ -4856,13 +4963,21 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, StoreZero) {
         break;
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
+      // A tagged pointer cannot be zero.
+      case MachineRepresentation::kTaggedPointer:
+        continue;
+      // TODO(arm64): Match Smi(0) with the zero register.
+      case MachineRepresentation::kTagged:
+      case MachineRepresentation::kTaggedSigned:
+        continue;
       default:
         UNREACHABLE();
     }
-    m.Store(rep, m.Parameter(0), m.Int64Constant(index), zero, kNoWriteBarrier);
+    m.Store(memacc.memory_rep, m.Parameter(0), m.Int64Constant(index), zero,
+            kNoWriteBarrier);
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
-    if (memacc.type == MachineType::Simd128()) {
+    if (rep == MachineRepresentation::kSimd128) {
 #if V8_ENABLE_WEBASSEMBLY
       ASSERT_EQ(2U, s.size());
       EXPECT_EQ(memacc.str_opcode, s[1]->arch_opcode());
@@ -4891,6 +5006,7 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, StoreZero) {
         case MachineRepresentation::kWord16:
         case MachineRepresentation::kWord32:
         case MachineRepresentation::kWord64:
+        case MachineRepresentation::kSandboxedPointer:
           EXPECT_EQ(0, s.ToInt64(s[0]->InputAt(0)));
           break;
         case MachineRepresentation::kFloat32:
@@ -4912,20 +5028,20 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, LoadWithShiftedIndex) {
   TRACED_FORRANGE(int, immediate_shift, 0, 4) {
     // 32 bit shift
     {
-      StreamBuilder m(this, memacc.type, MachineType::Pointer(),
-                      MachineType::Int32());
+      StreamBuilder m(this, memacc.memory_rep.ToMachineType(),
+                      MachineType::Pointer(), MachineType::Int32());
       OpIndex const index =
           m.Word32ShiftLeft(m.Parameter(1), m.Int32Constant(immediate_shift));
-      m.Return(
-          m.Load(memacc.type, m.Parameter(0), m.ChangeUint32ToUint64(index)));
+      m.Return(m.Load(memacc.memory_rep, memacc.result_rep, m.Parameter(0),
+                      m.ChangeUint32ToUint64(index)));
       Stream s = m.Build();
-      if (immediate_shift == ElementSizeLog2Of(memacc.type.representation())) {
+      if (immediate_shift == memacc.memory_rep.SizeInBytesLog2()) {
         ASSERT_EQ(1U, s.size());
         EXPECT_EQ(memacc.ldr_opcode, s[0]->arch_opcode());
         EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
         EXPECT_EQ(3U, s[0]->InputCount());
         EXPECT_EQ(1U, s[0]->OutputCount());
-      } else if (memacc.type == MachineType::Simd128()) {
+      } else if (memacc.memory_rep == MemoryRepresentation::Simd128()) {
         ASSERT_EQ(2U, s.size());
         EXPECT_EQ(memacc.ldr_opcode, s[1]->arch_opcode());
         EXPECT_EQ(kMode_MRR, s[1]->addressing_mode());
@@ -4938,19 +5054,20 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, LoadWithShiftedIndex) {
     }
     // 64 bit shift
     {
-      StreamBuilder m(this, memacc.type, MachineType::Pointer(),
-                      MachineType::Int64());
+      StreamBuilder m(this, memacc.memory_rep.ToMachineType(),
+                      MachineType::Pointer(), MachineType::Int64());
       OpIndex const index =
           m.Word64ShiftLeft(m.Parameter(1), m.Int32Constant(immediate_shift));
-      m.Return(m.Load(memacc.type, m.Parameter(0), index));
+      m.Return(
+          m.Load(memacc.memory_rep, memacc.result_rep, m.Parameter(0), index));
       Stream s = m.Build();
-      if (immediate_shift == ElementSizeLog2Of(memacc.type.representation())) {
+      if (immediate_shift == memacc.memory_rep.SizeInBytesLog2()) {
         ASSERT_EQ(1U, s.size());
         EXPECT_EQ(memacc.ldr_opcode, s[0]->arch_opcode());
         EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
         EXPECT_EQ(3U, s[0]->InputCount());
         EXPECT_EQ(1U, s[0]->OutputCount());
-      } else if (memacc.type == MachineType::Simd128()) {
+      } else if (memacc.memory_rep == MemoryRepresentation::Simd128()) {
         // Make sure we haven't merged the shift into the load instruction.
         ASSERT_EQ(2U, s.size());
         EXPECT_EQ(memacc.ldr_opcode, s[1]->arch_opcode());
@@ -4971,20 +5088,20 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, StoreWithShiftedIndex) {
     // 32 bit shift
     {
       StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer(),
-                      MachineType::Int32(), memacc.type);
+                      MachineType::Int32(), memacc.memory_rep.ToMachineType());
       OpIndex const index =
           m.Word32ShiftLeft(m.Parameter(1), m.Int32Constant(immediate_shift));
-      m.Store(memacc.type.representation(), m.Parameter(0),
-              m.ChangeUint32ToUint64(index), m.Parameter(2), kNoWriteBarrier);
+      m.Store(memacc.memory_rep, m.Parameter(0), m.ChangeUint32ToUint64(index),
+              m.Parameter(2), kNoWriteBarrier);
       m.Return(m.Int32Constant(0));
       Stream s = m.Build();
-      if (immediate_shift == ElementSizeLog2Of(memacc.type.representation())) {
+      if (immediate_shift == memacc.memory_rep.SizeInBytesLog2()) {
         ASSERT_EQ(1U, s.size());
         EXPECT_EQ(memacc.str_opcode, s[0]->arch_opcode());
         EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
         EXPECT_EQ(4U, s[0]->InputCount());
         EXPECT_EQ(0U, s[0]->OutputCount());
-      } else if (memacc.type == MachineType::Simd128()) {
+      } else if (memacc.memory_rep == MemoryRepresentation::Simd128()) {
         ASSERT_EQ(2U, s.size());
         EXPECT_EQ(memacc.str_opcode, s[1]->arch_opcode());
         EXPECT_EQ(kMode_MRR, s[1]->addressing_mode());
@@ -4998,20 +5115,20 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, StoreWithShiftedIndex) {
     // 64 bit shift
     {
       StreamBuilder m(this, MachineType::Int64(), MachineType::Pointer(),
-                      MachineType::Int64(), memacc.type);
+                      MachineType::Int64(), memacc.memory_rep.ToMachineType());
       OpIndex const index =
           m.Word64ShiftLeft(m.Parameter(1), m.Int32Constant(immediate_shift));
-      m.Store(memacc.type.representation(), m.Parameter(0), index,
-              m.Parameter(2), kNoWriteBarrier);
+      m.Store(memacc.memory_rep, m.Parameter(0), index, m.Parameter(2),
+              kNoWriteBarrier);
       m.Return(m.Int64Constant(0));
       Stream s = m.Build();
-      if (immediate_shift == ElementSizeLog2Of(memacc.type.representation())) {
+      if (immediate_shift == memacc.memory_rep.SizeInBytesLog2()) {
         ASSERT_EQ(1U, s.size());
         EXPECT_EQ(memacc.str_opcode, s[0]->arch_opcode());
         EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
         EXPECT_EQ(4U, s[0]->InputCount());
         EXPECT_EQ(0U, s[0]->OutputCount());
-      } else if (memacc.type == MachineType::Simd128()) {
+      } else if (memacc.memory_rep == MemoryRepresentation::Simd128()) {
         ASSERT_EQ(2U, s.size());
         EXPECT_EQ(memacc.str_opcode, s[1]->arch_opcode());
         EXPECT_EQ(kMode_MRR, s[1]->addressing_mode());
@@ -5027,7 +5144,8 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, StoreWithShiftedIndex) {
 
 INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorMemoryAccessTest,
-                         ::testing::ValuesIn(kMemoryAccesses));
+                         (::testing::ValuesIn(kMemoryAccesses),
+                          ::testing::ValuesIn(kMemoryAccessesTagged)));
 
 // This list doesn't contain kIndirectPointerWriteBarrier because only indirect
 // pointer fields can be stored to with that barrier kind.
