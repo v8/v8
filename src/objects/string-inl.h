@@ -28,6 +28,7 @@
 #include "src/objects/objects-body-descriptors.h"
 #include "src/objects/smi-inl.h"
 #include "src/objects/string-table-inl.h"
+#include "src/roots/roots.h"
 #include "src/roots/static-roots.h"
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/external-pointer.h"
@@ -362,8 +363,21 @@ auto StringShape::DispatchToSpecificType(Tagged<String> string,
         dispatcher(UncheckedCast<ThinString>(string)));
   }
 
-  Isolate::Current()->PushParamsAndDie(reinterpret_cast<void*>(string->ptr()),
-                                       reinterpret_cast<void*>(map_->ptr()));
+  [[unlikely]] {
+    thread_local int recursion = 0;
+    if (recursion > 0) {
+      // On a recursive failure, dispatch onto the empty string. This will
+      // likely cause out-of-bounds reads or potentially some other failure, but
+      // this is ok since we're already dying and it prevents stack overflow.
+      return static_cast<TReturn>(dispatcher(
+          UncheckedCast<SeqOneByteString>(GetReadOnlyRoots().empty_string())));
+    }
+    recursion++;
+    Isolate::Current()->PushStackTraceAndDie(
+        reinterpret_cast<void*>(string->ptr()),
+        reinterpret_cast<void*>(map_->ptr()));
+    recursion--;
+  }
   UNREACHABLE();
 #else
   switch (type_ & kStringRepresentationAndEncodingMask) {
