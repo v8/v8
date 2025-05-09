@@ -49,6 +49,7 @@ vars = {
   'download_gcmole': False,
   'download_jsfunfuzz': False,
   'download_prebuilt_bazel': False,
+  'download_prebuilt_arm64_llvm_symbolizer': False,
   'check_v8_header_includes': False,
 
   # By default, download the fuchsia sdk from the public sdk directory.
@@ -665,6 +666,18 @@ hooks = [
                 '--bucket', 'chrome-v8-jsfunfuzz',
                 '-u', '--no_resume',
                 '-s', 'tools/jsfunfuzz/jsfunfuzz.tar.gz.sha1',
+                '--platform=linux*',
+    ],
+  },
+  {
+    'name': 'llvm_symbolizer',
+    'pattern': '.',
+    'condition': 'download_prebuilt_arm64_llvm_symbolizer',
+    'action': [ 'python3',
+                'third_party/depot_tools/download_from_google_storage.py',
+                '--bucket', 'chromium-v8/llvm/arm64',
+                '--no_resume',
+                '-s', 'tools/sanitizers/linux/arm64/llvm-symbolizer.sha1',
                 '--platform=linux*',
     ],
   },

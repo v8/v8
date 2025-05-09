@@ -6864,8 +6864,13 @@ v8_component("v8_libbase") {
   }
 
   if (using_sanitizer && !build_with_chromium) {
-    data_deps +=
-        [ "//build/config/clang:llvm-symbolizer_data($host_toolchain)" ]
+    if (is_linux && target_cpu == "arm64") {
+      # TODO(https://crbug.com/396446140): Switch to the symbolizer from our
+      # bundled toolchain as soon as one is available for linux-arm64.
+      data += [ "tools/sanitizers/linux/arm64/llvm-symbolizer" ]
+    } else {
+      data_deps += [ "//build/config/clang:llvm-symbolizer_data" ]
+    }
   }
 
   if (v8_use_libm_trig_functions) {
