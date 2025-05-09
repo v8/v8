@@ -130,7 +130,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f94ef0c5025b01d7e3fc5b17d5458e89791c89a9',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '477e72087e847579f4dbcc68f278f810b3dbf8c2',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '077a66f30fcf281b066fafb6dfc60818c238efb6',
   'buildtools/linux64': {
@@ -232,7 +232,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '2ec96c97b2155ad4f7711f2298ecf6ec12b59521',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '168822b896c38f7d0079a2483c81f3d5cbc1d933',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -306,9 +306,9 @@ deps = {
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '7ff13dd8c66d5047a3ee1e1ba26ddeb70d3d8740',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '81e2cb40a70de2b6978e6d8658891ded9a77f7e3',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '4acde988c52e6a325e3ce2ac761284f295f2ab39',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'e3e030ec6ee1674bf2195d0cfd0a4bf5fee16537',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '61d7ed30110f97d6842304bc9035ee9cdae6b5e5',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -476,7 +476,7 @@ deps = {
   'third_party/perfetto':
     Var('android_url') + '/platform/external/perfetto.git' + '@' + '40b529923598b739b2892a536a7692eedbed5685',
   'third_party/protobuf':
-    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '19b5cf7b96c2c6e88e13ce2a12bfd7fafebd526f',
+    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '49f482cb4692c28b7f6ceccf7dff335fc04a03b5',
   'third_party/re2/src':
     Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + 'c84a140c93352cdabbfb547c531be34515b12228',
   'third_party/requests': {
