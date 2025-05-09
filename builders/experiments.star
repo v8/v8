@@ -142,7 +142,7 @@ in_category(
         name = "V8 Linux64 - arm64 - ASAN",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"target_arch": "arm", "target_bits": 64},
-        gclient_vars = [GCLIENT_VARS.INSTRUMENTED_LIBRARIES],
+        gclient_vars = [GCLIENT_VARS.LINUX_ARM64_SYMBOLIZER],
         triggered_by = ["v8-trigger"],
         use_remoteexec = RECLIENT.DEFAULT,
         notify_owners = ["machenbach@chromium.org"],

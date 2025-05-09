@@ -90,7 +90,7 @@ trybot_pair(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"target_arch": "arm", "target_bits": 64},
-    gclient_vars = [GCLIENT_VARS.INSTRUMENTED_LIBRARIES],
+    gclient_vars = [GCLIENT_VARS.LINUX_ARM64_SYMBOLIZER],
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
