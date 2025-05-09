@@ -2219,6 +2219,14 @@ RUNTIME_FUNCTION(Runtime_IsEfficiencyModeEnabled) {
   return ReadOnlyRoots(isolate).false_value();
 }
 
+RUNTIME_FUNCTION(Runtime_IsExperimentalUndefinedDoubleEnabled) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  return ReadOnlyRoots(isolate).true_value();
+#else
+  return ReadOnlyRoots(isolate).false_value();
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+}
+
 RUNTIME_FUNCTION(Runtime_SetBatterySaverMode) {
   HandleScope scope(isolate);
   if (args.length() != 1) {

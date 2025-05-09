@@ -788,6 +788,25 @@ void HoleyFloat64ToMaybeNanFloat64::GenerateCode(MaglevAssembler* masm,
   __ CanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
 }
 
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+void HoleyFloat64ToFloat64OrUndefined::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+  set_temporaries_needed(1);
+}
+void HoleyFloat64ToFloat64OrUndefined::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  DoubleRegister value = ToDoubleRegister(input());
+  Label done;
+
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  __ JumpIfNotHoleNan(value, scratch.W(), &done);
+  __ Move(value, UndefinedNan());
+  __ Bind(&done);
+}
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+
 namespace {
 
 enum class ReduceInterruptBudgetType { kLoop, kReturn };

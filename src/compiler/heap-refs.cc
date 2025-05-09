@@ -1139,6 +1139,14 @@ bool MapRef::IsBooleanMap(JSHeapBroker* broker) const {
   return *this == broker->boolean_map();
 }
 
+bool MapRef::IsNullMap(JSHeapBroker* broker) const {
+  return *this == broker->null_map();
+}
+
+bool MapRef::IsUndefinedMap(JSHeapBroker* broker) const {
+  return *this == broker->undefined_map();
+}
+
 bool MapRef::IsThinStringMap() const {
   // The check below only works for string maps.
   DCHECK(IsStringMap());

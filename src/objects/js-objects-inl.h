@@ -193,18 +193,32 @@ void JSObject::EnsureCanContainElements(Isolate* isolate,
     bool is_holey = IsHoleyElementsKind(current_kind);
     if (current_kind == HOLEY_ELEMENTS) return;
     Tagged<Object> the_hole = GetReadOnlyRoots().the_hole_value();
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-    Tagged<Undefined> undefined = GetReadOnlyRoots().undefined_value();
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     for (uint32_t i = 0; i < count; ++i, ++objects) {
       Tagged<Object> current = *objects;
-      if (current == the_hole
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-          || current == undefined
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-      ) {
+      if (current == the_hole) {
         is_holey = true;
         target_kind = GetHoleyElementsKind(target_kind);
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      } else if (IsUndefined(current)) {
+        if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS) {
+          if (IsSmiElementsKind(target_kind)) {
+            target_kind = HOLEY_DOUBLE_ELEMENTS;
+          } else if (target_kind == PACKED_DOUBLE_ELEMENTS) {
+            target_kind = HOLEY_DOUBLE_ELEMENTS;
+          } else {
+            DCHECK(target_kind == PACKED_ELEMENTS ||
+                   target_kind == HOLEY_ELEMENTS ||
+                   target_kind == HOLEY_DOUBLE_ELEMENTS);
+          }
+        } else if (is_holey) {
+          if (IsSmiElementsKind(target_kind)) {
+            target_kind = HOLEY_ELEMENTS;
+            break;
+          }
+        } else {
+          target_kind = PACKED_ELEMENTS;
+        }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
       } else if (!IsSmi(current)) {
         if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS && IsNumber(current)) {
           if (IsSmiElementsKind(target_kind)) {

@@ -927,6 +927,8 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
 #undef DEF_TESTER
 
   bool IsBooleanMap(JSHeapBroker* broker) const;
+  bool IsNullMap(JSHeapBroker* broker) const;
+  bool IsUndefinedMap(JSHeapBroker* broker) const;
 
   HeapObjectRef GetBackPointer(JSHeapBroker* broker) const;
 

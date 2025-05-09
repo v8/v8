@@ -4439,6 +4439,20 @@ class GraphBuildingNodeProcessor {
     SetMap(node, __ Float64SilenceNaN(Map(node->input())));
     return maglev::ProcessResult::kContinue;
   }
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  maglev::ProcessResult Process(maglev::HoleyFloat64ToFloat64OrUndefined* node,
+                                const maglev::ProcessingState& state) {
+    V<Float64> input = Map(node->input());
+
+    ScopedVar<Float64, AssemblerT> result(this, input);
+    IF (__ Float64IsHole(input)) {
+      result = __ Float64Constant(UndefinedNan());
+    }
+
+    SetMap(node, result);
+    return maglev::ProcessResult::kContinue;
+  }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   maglev::ProcessResult Process(maglev::CheckedHoleyFloat64ToFloat64* node,
                                 const maglev::ProcessingState& state) {
     V<Float64> input = Map(node->input());
@@ -5594,7 +5608,7 @@ class GraphBuildingNodeProcessor {
             : ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kHeapNumber;
     return V<Number>::Cast(__ ConvertUntaggedToJSPrimitive(
         input, kind, RegisterRepresentation::Float64(),
-        ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
+        ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kDouble,
         CheckForMinusZeroMode::kCheckForMinusZero));
   }
 
@@ -5623,7 +5637,7 @@ class GraphBuildingNodeProcessor {
             ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::
                 kHeapNumberOrUndefined,
             RegisterRepresentation::Float64(),
-            ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
+            ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kDoubleOrHole,
             CheckForMinusZeroMode::kCheckForMinusZero));
     if (done.has_incoming_jump()) {
       GOTO(done, as_obj);

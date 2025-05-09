@@ -1965,8 +1965,8 @@ constexpr uint32_t kUndefinedNanLower32 = 0xFFFE7FFF;
 constexpr uint32_t kHoleNanUpper32 = 0xFFF7FFFF;
 constexpr uint32_t kHoleNanLower32 = 0xFFF7FFFF;
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-constexpr uint32_t kUndefinedNanUpper32 = 0xFFFFFFFF;
-constexpr uint32_t kUndefinedNanLower32 = 0xFFFFFFFF;
+constexpr uint32_t kUndefinedNanUpper32 = 0xFFF6FFFF;
+constexpr uint32_t kUndefinedNanLower32 = 0xFFF6FFFF;
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 #endif
 
@@ -2911,6 +2911,20 @@ constexpr uint64_t kInvalidWasmSignatureHash = ~uint64_t{0};
 enum class CallJumpMode { kCall, kTailCall };
 
 constexpr int kPreallocatedNumberStringTableSize = 100;
+
+enum class SilenceNanMode {
+  kSilenceUndefined,
+  kPreserveUndefined,
+};
+
+inline std::ostream& operator<<(std::ostream& os, SilenceNanMode mode) {
+  switch (mode) {
+    case SilenceNanMode::kSilenceUndefined:
+      return os << "SilenceUndefined";
+    case SilenceNanMode::kPreserveUndefined:
+      return os << "PreserveUndefined";
+  }
+}
 
 }  // namespace internal
 

@@ -1185,6 +1185,8 @@ std::ostream& operator<<(std::ostream& os, ObjectIsOp::Kind kind) {
       return os << "NonCallable";
     case ObjectIsOp::Kind::kNumber:
       return os << "Number";
+    case ObjectIsOp::Kind::kNumberOrUndefined:
+      return os << "NumberOrUndefined";
     case ObjectIsOp::Kind::kNumberFitsInt32:
       return os << "NumberFitsInt32";
     case ObjectIsOp::Kind::kNumberOrBigInt:
@@ -1287,6 +1289,16 @@ std::ostream& operator<<(
       return os << "Signed";
     case ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kUnsigned:
       return os << "Unsigned";
+    case ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kDouble:
+      return os << "Double";
+    case ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kDoubleOrHole:
+      return os << "DoubleOrHole";
+    case ConvertUntaggedToJSPrimitiveOp::InputInterpretation::
+        kDoubleOrUndefined:
+      return os << "DoubleOrUndefined";
+    case ConvertUntaggedToJSPrimitiveOp::InputInterpretation::
+        kDoubleOrUndefinedOrHole:
+      return os << "DoubleOrUndefinedOrHole";
     case ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kCharCode:
       return os << "CharCode";
     case ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kCodePoint:
@@ -1327,6 +1339,13 @@ std::ostream& operator<<(std::ostream& os,
       return os << "Bit";
     case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64:
       return os << "Float64";
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64OrUndefined:
+      return os << "Float64OrUndefined";
+    case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::
+        kFloat64WithSilencedNaNOrUndefined:
+      return os << "Float64WithSilencedNaNOrUndefined";
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   }
 }
 

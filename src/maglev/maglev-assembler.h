@@ -639,6 +639,11 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void JumpIfByte(Condition cc, Register value, int32_t byte,
                          Label* target, Label::Distance distance = Label::kFar);
 
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  inline void JumpIfNotUndefinedNan(DoubleRegister value, Register scratch,
+                                    Label* target,
+                                    Label::Distance distance = Label::kFar);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   inline void JumpIfHoleNan(DoubleRegister value, Register scratch,
                             Label* target,
                             Label::Distance distance = Label::kFar);

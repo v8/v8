@@ -1503,12 +1503,17 @@ extern macro IsFastSmiElementsKind(ElementsKind): bool;
 extern macro IsHoleyFastElementsKind(ElementsKind): bool;
 
 macro FastHoleyElementsKind(kind: ElementsKind): ElementsKind {
-  if (kind == ElementsKind::PACKED_SMI_ELEMENTS) {
+  if (kind == ElementsKind::PACKED_SMI_ELEMENTS ||
+      kind == ElementsKind::HOLEY_SMI_ELEMENTS) {
     return ElementsKind::HOLEY_SMI_ELEMENTS;
-  } else if (kind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
+  } else if (
+      kind == ElementsKind::PACKED_DOUBLE_ELEMENTS ||
+      kind == ElementsKind::HOLEY_DOUBLE_ELEMENTS) {
     return ElementsKind::HOLEY_DOUBLE_ELEMENTS;
   }
-  dcheck(kind == ElementsKind::PACKED_ELEMENTS);
+  dcheck(
+      kind == ElementsKind::PACKED_ELEMENTS ||
+      kind == ElementsKind::HOLEY_ELEMENTS);
   return ElementsKind::HOLEY_ELEMENTS;
 }
 

@@ -149,7 +149,8 @@ UseInfo CheckedUseInfoAsFloat64FromHint(
   UNREACHABLE();
 }
 
-UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
+UseInfo TruncatingUseInfoFromRepresentation(
+    MachineRepresentation rep, const Type& type_hint = Type::Any()) {
   switch (rep) {
     case MachineRepresentation::kTaggedSigned:
       return UseInfo::TaggedSigned();
@@ -159,6 +160,11 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kMapWord:
       return UseInfo::AnyTagged();
     case MachineRepresentation::kFloat64:
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      if (type_hint.Maybe(Type::Undefined())) {
+        return UseInfo::TruncatingFloat64OrUndefined();
+      }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
       return UseInfo::TruncatingFloat64();
     case MachineRepresentation::kFloat32:
       return UseInfo::Float32();
@@ -508,6 +514,12 @@ class RepresentationSelector {
       case IrOpcode::kCheckNumber:
         new_type = Type::Intersect(op_typer_.CheckNumber(input0_type),
                                    info->restriction_type(), graph_zone());
+        break;
+
+      case IrOpcode::kCheckNumberOrUndefined:
+        new_type =
+            Type::Intersect(op_typer_.CheckNumberOrUndefined(input0_type),
+                            info->restriction_type(), graph_zone());
         break;
 
       case IrOpcode::kCheckNumberFitsInt32:
@@ -3502,9 +3514,17 @@ class RepresentationSelector {
                        MachineRepresentation::kFloat64);
           if (lower<T>()) DeferReplacement(node, node->InputAt(0));
         } else {
-          VisitUnop<T>(node, UseInfo::TruncatingFloat64(),
-                       MachineRepresentation::kFloat64);
-          if (lower<T>()) ChangeOp(node, Float64Op(node));
+          SilenceNanMode mode = SilenceNanModeOf(node->op());
+          if (mode == SilenceNanMode::kPreserveUndefined &&
+              input_type.Maybe(Type::Undefined())) {
+            VisitUnop<T>(node, UseInfo::TruncatingFloat64OrUndefined(),
+                         MachineRepresentation::kFloat64);
+            // We preserve NumberSilenceNaN here and lower in graph builder.
+          } else {
+            VisitUnop<T>(node, UseInfo::TruncatingFloat64(),
+                         MachineRepresentation::kFloat64);
+            if (lower<T>()) ChangeOp(node, Float64Op(node));
+          }
         }
         return;
       }
@@ -3918,6 +3938,28 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kCheckNumberOrUndefined: {
+        Type const input_type = TypeOf(node->InputAt(0));
+        Type const output_type =
+            Type::Intersect(input_type, Type::NumberOrUndefined(), zone());
+        if (input_type.Is(Type::NumberOrUndefined())) {
+          if (truncation.IsUnused()) {
+            VisitUnused<T>(node);
+          } else if (truncation.TruncatesBooleanAndNullAndBigIntToNumber()) {
+            VisitUnop<T>(node,
+                         UseInfo::TruncatingFloat64OrUndefined(
+                             truncation.identify_zeros()),
+                         MachineRepresentation::kFloat64, output_type);
+            if (lower<T>()) DeferReplacement(node, node->InputAt(0));
+          } else {
+            VisitNoop<T>(node, truncation);
+          }
+        } else {
+          VisitUnop<T>(node, UseInfo::AnyTagged(),
+                       MachineRepresentation::kTagged, output_type);
+        }
+        return;
+      }
       case IrOpcode::kCheckNumberFitsInt32: {
         Type const input_type = TypeOf(node->InputAt(0));
         if (input_type.Is(Type::Signed32())) {
@@ -4091,7 +4133,7 @@ class RepresentationSelector {
         ProcessInput<T>(node, 1, UseInfo::Word());                // index
         ProcessInput<T>(node, 2,
                         TruncatingUseInfoFromRepresentation(
-                            element_representation));  // value
+                            element_representation, access.type));  // value
         ProcessRemainingInputs<T>(node, 3);
         SetOutput<T>(node, MachineRepresentation::kNone);
         if (lower<T>()) {
@@ -4567,6 +4609,14 @@ class RepresentationSelector {
             MachineRepresentation::kTagged);
         return;
       }
+      case IrOpcode::kChangeFloat64OrUndefinedOrHoleToTagged: {
+        // TODO(nicohartmann): Consider using truncation.
+        VisitUnop<T>(node,
+                     UseInfo(MachineRepresentation::kFloat64,
+                             Truncation::BooleanAndNullAndBigIntToNumber()),
+                     MachineRepresentation::kTagged);
+        return;
+      }
       case IrOpcode::kCheckNotTaggedHole: {
         VisitUnop<T>(node, UseInfo::AnyTagged(),
                      MachineRepresentation::kTagged);
@@ -4591,6 +4641,10 @@ class RepresentationSelector {
           VisitUnop<T>(node, UseInfo::TruncatingFloat64(),
                        MachineRepresentation::kFloat64);
           if (lower<T>()) DeferReplacement(node, node->InputAt(0));
+        } else if (InputIs(node, Type::NumberOrUndefinedOrHole()) &&
+                   truncation.TruncatesBooleanAndNullAndBigIntToNumber()) {
+          VisitUnop<T>(node, UseInfo::AnyTagged(),
+                       MachineRepresentation::kTagged);
         } else if (InputIs(node, Type::NonInternal())) {
           VisitUnop<T>(node, UseInfo::AnyTagged(),
                        MachineRepresentation::kTagged);

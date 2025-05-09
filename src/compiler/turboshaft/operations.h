@@ -4606,6 +4606,7 @@ struct ObjectIsOp : FixedArityOperationT<1, ObjectIsOp> {
     kInternalizedString,
     kNonCallable,
     kNumber,
+    kNumberOrUndefined,
     kNumberFitsInt32,
     kNumberOrBigInt,
     kReceiver,
@@ -4764,6 +4765,10 @@ struct ConvertUntaggedToJSPrimitiveOp
   enum class InputInterpretation : uint8_t {
     kSigned,
     kUnsigned,
+    kDouble,
+    kDoubleOrHole,
+    kDoubleOrUndefined,
+    kDoubleOrUndefinedOrHole,
     kCharCode,
     kCodePoint,
   };
@@ -4793,7 +4798,14 @@ struct ConvertUntaggedToJSPrimitiveOp
         kind(kind),
         input_rep(input_rep),
         input_interpretation(input_interpretation),
-        minus_zero_mode(minus_zero_mode) {}
+        minus_zero_mode(minus_zero_mode) {
+    DCHECK_EQ(input_rep == RegisterRepresentation::Float64(),
+              (input_interpretation ==
+               any_of(InputInterpretation::kDouble,
+                      InputInterpretation::kDoubleOrHole,
+                      InputInterpretation::kDoubleOrUndefined,
+                      InputInterpretation::kDoubleOrUndefinedOrHole)));
+  }
 
   void Validate(const Graph& graph) const {
     switch (kind) {
@@ -4901,6 +4913,10 @@ struct ConvertJSPrimitiveToUntaggedOp
     kUint32,
     kBit,
     kFloat64,
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    kFloat64OrUndefined,
+    kFloat64WithSilencedNaNOrUndefined,
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   };
   enum class InputAssumptions : uint8_t {
     kBoolean,
@@ -4926,6 +4942,10 @@ struct ConvertJSPrimitiveToUntaggedOp
       case UntaggedKind::kInt64:
         return RepVector<RegisterRepresentation::Word64()>();
       case UntaggedKind::kFloat64:
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      case UntaggedKind::kFloat64OrUndefined:
+      case UntaggedKind::kFloat64WithSilencedNaNOrUndefined:
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
         return RepVector<RegisterRepresentation::Float64()>();
     }
   }

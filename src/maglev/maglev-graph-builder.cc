@@ -1993,6 +1993,10 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(
           // kNumber.
           return alternative.set_float64(
               AddNewNode<CheckedHoleyFloat64ToFloat64>({value}));
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+        case NodeType::kNumberOrUndefined:
+          return AddNewNode<HoleyFloat64ToFloat64OrUndefined>({value});
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
         case NodeType::kNumberOrOddball:
           // NumberOrOddball->Float64 conversions are not exact alternatives,
           // since they lose the information that this is an oddball, so they
@@ -4624,6 +4628,9 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kCheckedNumberOrOddballToHoleyFloat64:
     case Opcode::kCheckedHoleyFloat64ToFloat64:
     case Opcode::kHoleyFloat64ToMaybeNanFloat64:
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    case Opcode::kHoleyFloat64ToFloat64OrUndefined:
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     case Opcode::kHoleyFloat64IsHole:
     case Opcode::kSetPendingMessage:
     case Opcode::kStringAt:
@@ -6793,6 +6800,16 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
 ReduceResult MaglevGraphBuilder::ConvertForStoring(ValueNode* value,
                                                    ElementsKind kind) {
   if (IsDoubleElementsKind(kind)) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    if (kind == ElementsKind::HOLEY_DOUBLE_ELEMENTS) {
+      if (value->value_representation() != ValueRepresentation::kFloat64) {
+        RecordUseReprHintIfPhi(value, UseRepresentation::kHoleyFloat64);
+        return GetFloat64ForToNumber(
+            value, NodeType::kNumberOrUndefined,
+            TaggedToFloat64ConversionType::kOnlyNumber);
+      }
+    }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     // Make sure we do not store signalling NaNs into double arrays.
     // TODO(leszeks): Consider making this a bit on StoreFixedDoubleArrayElement
     // rather than a separate node.

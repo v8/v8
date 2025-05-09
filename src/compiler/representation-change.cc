@@ -37,6 +37,13 @@ const char* Truncation::description() const {
         case kDistinguishZeros:
           return "truncate-oddball&bigint-to-number (distinguish zeros)";
       }
+    case TruncationKind::kBooleanAndNullAndBigIntToNumber:
+      switch (identify_zeros()) {
+        case kIdentifyZeros:
+          return "truncate-boolean&null&bigint-to-number (identify zeros)";
+        case kDistinguishZeros:
+          return "truncate-boolean&null&bigint-to-number (distinguish zeros)";
+      }
     case TruncationKind::kAny:
       switch (identify_zeros()) {
         case kIdentifyZeros:
@@ -110,13 +117,19 @@ bool Truncation::LessGeneral(TruncationKind rep1, TruncationKind rep2) {
       return rep2 == TruncationKind::kWord32 ||
              rep2 == TruncationKind::kWord64 ||
              rep2 == TruncationKind::kOddballAndBigIntToNumber ||
+             rep2 == TruncationKind::kBooleanAndNullAndBigIntToNumber ||
              rep2 == TruncationKind::kAny;
     case TruncationKind::kWord64:
       return rep2 == TruncationKind::kWord64 ||
              rep2 == TruncationKind::kOddballAndBigIntToNumber ||
+             rep2 == TruncationKind::kBooleanAndNullAndBigIntToNumber ||
              rep2 == TruncationKind::kAny;
     case TruncationKind::kOddballAndBigIntToNumber:
       return rep2 == TruncationKind::kOddballAndBigIntToNumber ||
+             rep2 == TruncationKind::kBooleanAndNullAndBigIntToNumber ||
+             rep2 == TruncationKind::kAny;
+    case TruncationKind::kBooleanAndNullAndBigIntToNumber:
+      return rep2 == TruncationKind::kBooleanAndNullAndBigIntToNumber ||
              rep2 == TruncationKind::kAny;
     case TruncationKind::kAny:
       return rep2 == TruncationKind::kAny;
@@ -656,6 +669,11 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
           output_type.Maybe(Type::MinusZero())
               ? CheckForMinusZeroMode::kCheckForMinusZero
               : CheckForMinusZeroMode::kDontCheckForMinusZero);
+    } else if (output_type.Is(Type::NumberOrUndefined())) {
+      op = simplified()->ChangeFloat64OrUndefinedToTagged(
+          output_type.Maybe(Type::MinusZero())
+              ? CheckForMinusZeroMode::kCheckForMinusZero
+              : CheckForMinusZeroMode::kDontCheckForMinusZero);
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kTagged);
@@ -834,6 +852,13 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
            use_info.truncation().TruncatesOddballAndBigIntToNumber())) {
         return jsgraph()->Float64Constant(
             std::numeric_limits<double>::quiet_NaN());
+      } else if (use_info.truncation()
+                     .TruncatesBooleanAndNullAndBigIntToNumber()) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+        return jsgraph()->Float64Constant(UndefinedNan());
+#else
+        UNREACHABLE();
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
       } else {
         DCHECK(use_info.type_check() == TypeCheckKind::kNone ||
                use_info.type_check() == TypeCheckKind::kNumber ||
@@ -864,6 +889,10 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
       // Oddball \ Null) to discover more bugs related to this conversion via
       // crashes.
       op = simplified()->TruncateTaggedToFloat64();
+    } else if (output_type.Is(Type::NumberOrUndefined()) &&
+               use_info.truncation()
+                   .TruncatesBooleanAndNullAndBigIntToNumber()) {
+      op = simplified()->TruncateTaggedToFloat64PreserveUndefined();
     } else if (use_info.type_check() == TypeCheckKind::kNumber ||
                (use_info.type_check() == TypeCheckKind::kNumberOrOddball &&
                 !output_type.Maybe(Type::BooleanOrNullOrNumber()))) {

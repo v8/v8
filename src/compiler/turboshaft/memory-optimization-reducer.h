@@ -38,6 +38,8 @@ inline bool ValueNeedsWriteBarrier(const Graph* graph, const Operation& value,
           RootsTable::IsImmortalImmovable(root_index)) {
         return false;
       }
+    } else if (constant->kind == ConstantOp::Kind::kSmi) {
+      return false;
     }
   } else if (const PhiOp* phi = value.TryCast<PhiOp>()) {
     if (phi->rep == RegisterRepresentation::Tagged()) {

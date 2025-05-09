@@ -691,6 +691,39 @@ OpIndex GraphBuilder::Process(
                  TruncateFloat64ToFloat16RawBits)
       UNARY_CASE(ChangeFloat16RawBitsToFloat64, ChangeFloat16RawBitsToFloat64)
 #undef UNARY_CASE
+
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    case IrOpcode::kNumberSilenceNaN: {
+      DCHECK_EQ(SilenceNanModeOf(node->op()),
+                SilenceNanMode::kPreserveUndefined);
+      V<Float64> input = Map(node->InputAt(0));
+      Operation& input_op = __ output_graph().Get(input);
+      // TODO(nicohartmann): Could do this earlier (e.g.
+      // SimplifiedOperatorReducer).
+      if (const ConstantOp* constant =
+              input_op.TryCast<Opmask::kFloat64Constant>()) {
+        if (constant->float64().is_nan()) {
+          return __ Float64Constant(std::numeric_limits<double>::quiet_NaN());
+        }
+        return __ Float64Constant(constant->float64().get_scalar());
+      }
+      ConvertJSPrimitiveToUntaggedOp* convert_op =
+          input_op.TryCast<ConvertJSPrimitiveToUntaggedOp>();
+      CHECK_NOT_NULL(convert_op);
+      CHECK_EQ(
+          convert_op->kind,
+          ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64OrUndefined);
+      CHECK_EQ(
+          convert_op->input_assumptions,
+          ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball);
+      CHECK_EQ(node->InputAt(0)->UseCount(), 1);
+      // Mutate in-place.
+      convert_op->kind = ConvertJSPrimitiveToUntaggedOp::UntaggedKind::
+          kFloat64WithSilencedNaNOrUndefined;
+      return input;
+    }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+
     case IrOpcode::kTruncateInt64ToInt32:
       return __ TruncateWord64ToWord32(Map(node->InputAt(0)));
     case IrOpcode::kTruncateFloat32ToInt32:
@@ -835,6 +868,8 @@ OpIndex GraphBuilder::Process(
                            HeapObject, WrongInstanceType, {})
       CHECK_OBJECT_IS_CASE(CheckNumber, Number, None, NotANumber,
                            CheckParametersOf(op).feedback())
+      CHECK_OBJECT_IS_CASE(CheckNumberOrUndefined, NumberOrUndefined, None,
+                           NotANumber, CheckParametersOf(op).feedback())
       CHECK_OBJECT_IS_CASE(CheckNumberFitsInt32, NumberFitsInt32, None,
                            NotInt32, CheckParametersOf(op).feedback())
       CHECK_OBJECT_IS_CASE(CheckReceiver, Receiver, HeapObject,
@@ -929,7 +964,7 @@ OpIndex GraphBuilder::Process(
       CONVERT_PRIMITIVE_TO_OBJECT_CASE(ChangeUint64ToTagged, Number, Word64,
                                        Unsigned)
       CONVERT_PRIMITIVE_TO_OBJECT_CASE(ChangeFloat64ToTaggedPointer, HeapNumber,
-                                       Float64, Signed)
+                                       Float64, Double)
       CONVERT_PRIMITIVE_TO_OBJECT_CASE(ChangeInt64ToBigInt, BigInt, Word64,
                                        Signed)
       CONVERT_PRIMITIVE_TO_OBJECT_CASE(ChangeUint64ToBigInt, BigInt, Word64,
@@ -943,14 +978,27 @@ OpIndex GraphBuilder::Process(
       CONVERT_PRIMITIVE_TO_OBJECT_CASE(StringFromSingleCodePoint, String,
                                        Word32, CodePoint)
       CONVERT_PRIMITIVE_TO_OBJECT_CASE(ChangeFloat64HoleToTagged,
-                                       HeapNumberOrUndefined, Float64, Signed)
+                                       HeapNumberOrUndefined, Float64,
+                                       DoubleOrHole)
+      CONVERT_PRIMITIVE_TO_OBJECT_CASE(ChangeFloat64OrUndefinedOrHoleToTagged,
+                                       HeapNumberOrUndefined, Float64,
+                                       DoubleOrUndefinedOrHole)
 
     case IrOpcode::kChangeFloat64ToTagged:
       return __ ConvertUntaggedToJSPrimitive(
           Map(node->InputAt(0)),
           ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kNumber,
           RegisterRepresentation::Float64(),
-          ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
+          ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kDouble,
+          CheckMinusZeroModeOf(node->op()));
+    case IrOpcode::kChangeFloat64OrUndefinedToTagged:
+      return __ ConvertUntaggedToJSPrimitive(
+          Map(node->InputAt(0)),
+          ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::
+              kHeapNumberOrUndefined,
+          RegisterRepresentation::Float64(),
+          ConvertUntaggedToJSPrimitiveOp::InputInterpretation::
+              kDoubleOrUndefined,
           CheckMinusZeroModeOf(node->op()));
 #undef CONVERT_PRIMITIVE_TO_OBJECT_CASE
 
@@ -997,6 +1045,10 @@ OpIndex GraphBuilder::Process(
                                        NumberOrOddball)
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedToFloat64, Float64,
                                        NumberOrOddball)
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      CONVERT_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedToFloat64PreserveUndefined,
+                                       Float64OrUndefined, NumberOrOddball)
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 #undef CONVERT_OBJECT_TO_PRIMITIVE_CASE
 
 #define TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(name, kind, input_assumptions) \

@@ -404,7 +404,11 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
           // don't have to handle this case.
           UNREACHABLE();
         case ValueRepresentation::kHoleyFloat64:
-          return Opcode::kIdentity;
+          // When converting to kHoleyFloat64 representation, we need to turn
+          // those NaN patterns that have a special interpretation in
+          // HoleyFloat64 (e.g. undefined and hole) into the canonical NaN so
+          // that they keep representing NaNs in the new representation.
+          return Opcode::kHoleyFloat64ToMaybeNanFloat64;
 
         case ValueRepresentation::kFloat64:
         case ValueRepresentation::kTagged:
@@ -512,6 +516,11 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
             new_input =
                 GetReplacementForPhiInputConversion<ChangeUint32ToFloat64>(
                     input, phi, input_index);
+            break;
+          }
+          case Opcode::kHoleyFloat64ToMaybeNanFloat64: {
+            new_input = GetReplacementForPhiInputConversion<
+                HoleyFloat64ToMaybeNanFloat64>(input, phi, input_index);
             break;
           }
           case Opcode::kIdentity:
@@ -697,7 +706,8 @@ template <class NodeT>
 ValueNode* MaglevPhiRepresentationSelector::GetReplacementForPhiInputConversion(
     ValueNode* input, Phi* phi, uint32_t input_index) {
   TRACE_UNTAGGING(TRACE_INPUT_LABEL
-                  << ": Replacing old conversion with a ChangeInt32ToFloat64");
+                  << ": Replacing old conversion with a "
+                  << OpcodeToString(NodeBase::opcode_of<NodeT>));
   ValueNode* new_node =
       NodeBase::New<NodeT>(builder_->zone(), {input->input(0).node()});
   return AddNodeAtBlockEnd(new_node, phi->predecessor_at(input_index));

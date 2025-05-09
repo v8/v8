@@ -566,9 +566,6 @@ Handle<Object> FixedDoubleArray::get(Tagged<FixedDoubleArray> array, int index,
 
 void FixedDoubleArray::set(int index, double value) {
   if (std::isnan(value)) {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-    DCHECK(!IsUndefinedNan(value));
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     value = std::numeric_limits<double>::quiet_NaN();
   }
   values()[index].set_value(value);

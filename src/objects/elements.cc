@@ -3286,6 +3286,21 @@ class FastDoubleElementsAccessor
     if (start_from >= length) return Just<int64_t>(-1);
 
     if (!IsNumber(value)) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      if (IsUndefined(value)) {
+        Tagged<FixedDoubleArray> elements =
+            Cast<FixedDoubleArray>(receiver->elements());
+
+        static_assert(FixedDoubleArray::kMaxLength <=
+                      std::numeric_limits<int>::max());
+        for (size_t k = start_from; k < length; ++k) {
+          int k_int = static_cast<int>(k);
+          if (elements->is_undefined(k_int)) {
+            return Just<int64_t>(k);
+          }
+        }
+      }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
       return Just<int64_t>(-1);
     }
     if (IsNaN(value)) {
@@ -4155,7 +4170,11 @@ class TypedElementsAccessor
       Tagged<FixedDoubleArray> source_store =
           Cast<FixedDoubleArray>(source->elements());
       for (size_t i = 0; i < length; i++) {
-        if (source_store->is_the_hole(static_cast<int>(i))) {
+        if (source_store->is_the_hole(static_cast<int>(i))
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+            || source_store->is_undefined(static_cast<int>(i))
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+        ) {
           SetImpl(dest_data + i, FromObject(undefined), destination_shared);
         } else {
           double elem = source_store->get_scalar(static_cast<int>(i));
@@ -5690,6 +5709,20 @@ MaybeDirectHandle<Object> ArrayConstructInitializeElements(
       break;
     }
     case HOLEY_DOUBLE_ELEMENTS:
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    {
+      auto double_elms = Cast<FixedDoubleArray>(elms);
+      for (int entry = 0; entry < number_of_elements; entry++) {
+        Tagged<Object> obj = (*args)[entry];
+        if (Is<Undefined>(obj)) {
+          double_elms->set_undefined(entry);
+        } else {
+          double_elms->set(entry, Object::NumberValue((*args)[entry]));
+        }
+      }
+      break;
+    }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     case PACKED_DOUBLE_ELEMENTS: {
       auto double_elms = Cast<FixedDoubleArray>(elms);
       for (int entry = 0; entry < number_of_elements; entry++) {

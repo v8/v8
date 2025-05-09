@@ -4863,6 +4863,13 @@ void HoleyFloat64ToTagged::GenerateCode(MaglevAssembler* masm,
             __ Jump(*done);
           },
           object, done));
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  Label not_undefined;
+  __ JumpIfNotUndefinedNan(value, ToRegister(result()), &not_undefined);
+  __ LoadRoot(object, RootIndex::kUndefinedValue);
+  __ Jump(*done, Label::kNear);
+  __ bind(&not_undefined);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   __ AllocateHeapNumber(register_snapshot(), object, value);
   __ bind(*done);
 }

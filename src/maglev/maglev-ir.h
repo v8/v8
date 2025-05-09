@@ -48,6 +48,12 @@
 #include "src/utils/utils.h"
 #include "src/zone/zone.h"
 
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#define IF_UD(Macro, ...) Macro(__VA_ARGS__)
+#else
+#define IF_UD(Macro, ...)
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+
 namespace v8 {
 namespace internal {
 
@@ -282,6 +288,7 @@ class ExceptionHandlerInfo;
   V(CheckedNumberOrOddballToHoleyFloat64)           \
   V(CheckedHoleyFloat64ToFloat64)                   \
   V(HoleyFloat64ToMaybeNanFloat64)                  \
+  IF_UD(V, HoleyFloat64ToFloat64OrUndefined)        \
   V(HoleyFloat64IsHole)                             \
   V(LogicalNot)                                     \
   V(SetPendingMessage)                              \
@@ -622,16 +629,17 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
 #define LEAF_NODE_TYPE_LIST(V)       \
   V(Smi, (1 << 0))                   \
   V(HeapNumber, (1 << 1))            \
-  V(NullOrUndefined, (1 << 2))       \
-  V(Boolean, (1 << 3))               \
-  V(Symbol, (1 << 4))                \
-  V(InternalizedString, (1 << 5))    \
-  V(NonInternalizedString, (1 << 6)) \
-  V(StringWrapper, (1 << 7))         \
-  V(JSArray, (1 << 8))               \
-  V(Callable, (1 << 9))              \
-  V(OtherJSReceiver, (1 << 10))      \
-  V(OtherHeapObject, (1 << 11))
+  V(Null, (1 << 2))                  \
+  V(Undefined, (1 << 3))             \
+  V(Boolean, (1 << 4))               \
+  V(Symbol, (1 << 5))                \
+  V(InternalizedString, (1 << 6))    \
+  V(NonInternalizedString, (1 << 7)) \
+  V(StringWrapper, (1 << 8))         \
+  V(JSArray, (1 << 9))               \
+  V(Callable, (1 << 10))             \
+  V(OtherJSReceiver, (1 << 11))      \
+  V(OtherHeapObject, (1 << 12))
 
 #define COUNT(...) +1
 static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
@@ -640,8 +648,10 @@ static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
 #define COMBINED_NODE_TYPE_LIST(V)                                        \
   /* A value which has all the above bits set */                          \
   V(Unknown, ((1 << kNumberOfLeafNodeTypes) - 1))                         \
+  V(NullOrUndefined, kNull | kUndefined)                                  \
   V(Oddball, kNullOrUndefined | kBoolean)                                 \
   V(Number, kSmi | kHeapNumber)                                           \
+  V(NumberOrUndefined, kNumber | kUndefined)                              \
   V(NumberOrBoolean, kNumber | kBoolean)                                  \
   V(NumberOrOddball, kNumber | kOddball)                                  \
   V(String, kNonInternalizedString | kInternalizedString)                 \
@@ -727,8 +737,10 @@ inline bool IsInstanceOfLeafNodeType(compiler::MapRef map, NodeType type,
       return false;
     case NodeType::kHeapNumber:
       return map.IsHeapNumberMap();
-    case NodeType::kNullOrUndefined:
-      return map.IsOddballMap() && !map.IsBooleanMap(broker);
+    case NodeType::kNull:
+      return map.IsNullMap(broker);
+    case NodeType::kUndefined:
+      return map.IsUndefinedMap(broker);
     case NodeType::kBoolean:
       return map.IsBooleanMap(broker);
     case NodeType::kSymbol:
@@ -4499,7 +4511,8 @@ class HoleyFloat64ToMaybeNanFloat64
  public:
   explicit HoleyFloat64ToMaybeNanFloat64(uint64_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties = OpProperties::Float64();
+  static constexpr OpProperties kProperties =
+      OpProperties::Float64() | OpProperties::ConversionNode();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
 
@@ -4510,6 +4523,28 @@ class HoleyFloat64ToMaybeNanFloat64
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
+
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+class HoleyFloat64ToFloat64OrUndefined
+    : public FixedInputValueNodeT<1, HoleyFloat64ToFloat64OrUndefined> {
+  using Base = FixedInputValueNodeT<1, HoleyFloat64ToFloat64OrUndefined>;
+
+ public:
+  explicit HoleyFloat64ToFloat64OrUndefined(uint64_t bitfield)
+      : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::HoleyFloat64();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+
+  Input& input() { return Node::input(0); }
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 class HoleyFloat64IsHole : public FixedInputValueNodeT<1, HoleyFloat64IsHole> {
   using Base = FixedInputValueNodeT<1, HoleyFloat64IsHole>;

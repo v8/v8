@@ -38,6 +38,11 @@ class Truncation final {
   static Truncation Word64() {
     return Truncation(TruncationKind::kWord64, kIdentifyZeros);
   }
+  static Truncation BooleanAndNullAndBigIntToNumber(
+      IdentifyZeros identify_zeros = kDistinguishZeros) {
+    return Truncation(TruncationKind::kBooleanAndNullAndBigIntToNumber,
+                      identify_zeros);
+  }
   static Truncation OddballAndBigIntToNumber(
       IdentifyZeros identify_zeros = kDistinguishZeros) {
     return Truncation(TruncationKind::kOddballAndBigIntToNumber,
@@ -64,6 +69,9 @@ class Truncation final {
   bool IsUsedAsWord64() const {
     DCHECK(Is64());
     return LessGeneral(kind_, TruncationKind::kWord64);
+  }
+  bool TruncatesBooleanAndNullAndBigIntToNumber() const {
+    return LessGeneral(kind_, TruncationKind::kBooleanAndNullAndBigIntToNumber);
   }
   bool TruncatesOddballAndBigIntToNumber() const {
     return LessGeneral(kind_, TruncationKind::kOddballAndBigIntToNumber);
@@ -98,6 +106,7 @@ class Truncation final {
     kWord32,
     kWord64,
     kOddballAndBigIntToNumber,
+    kBooleanAndNullAndBigIntToNumber,
     kAny
   };
 
@@ -256,6 +265,11 @@ class UseInfo {
     DCHECK(Is64());
     return UseInfo(MachineRepresentation::kWord64, Truncation::Any(),
                    TypeCheckKind::kAdditiveSafeInteger, feedback);
+  }
+  static UseInfo TruncatingFloat64OrUndefined(
+      IdentifyZeros identify_zeros = kDistinguishZeros) {
+    return UseInfo(MachineRepresentation::kFloat64,
+                   Truncation::BooleanAndNullAndBigIntToNumber(identify_zeros));
   }
   static UseInfo AnyTagged() {
     return UseInfo(MachineRepresentation::kTagged, Truncation::Any());

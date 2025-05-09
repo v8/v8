@@ -1292,7 +1292,8 @@ bool AllowReadingHoleElement(ElementsKind elements_kind) {
 
 KeyedAccessLoadMode GetNewKeyedLoadMode(Isolate* isolate,
                                         DirectHandle<HeapObject> receiver,
-                                        size_t index, bool is_found) {
+                                        size_t index, bool is_found,
+                                        MaybeDirectHandle<Object> result) {
   DirectHandle<Map> receiver_map(Cast<HeapObject>(receiver)->map(), isolate);
   if (!AllowConvertHoleElementToUndefined(isolate, receiver_map)) {
     return KeyedAccessLoadMode::kInBounds;
@@ -1307,6 +1308,18 @@ KeyedAccessLoadMode GetNewKeyedLoadMode(Isolate* isolate,
 
   // In bound access and did not read a hole.
   if (is_found) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    // We can encode undefined in HOLEY_DOUBLE_ELEMENTS, so we always have to
+    // check for those even if we found a value.
+    if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
+      DirectHandle<Object> result_handle;
+      if (result.ToHandle(&result_handle)) {
+        if (Is<Undefined>(result_handle)) {
+          always_handle_holes = true;
+        }
+      }
+    }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     return always_handle_holes ? KeyedAccessLoadMode::kHandleHoles
                                : KeyedAccessLoadMode::kInBounds;
   }
@@ -1570,7 +1583,7 @@ MaybeDirectHandle<Object> KeyedLoadIC::Load(Handle<JSAny> object,
       IntPtrKeyToSize(maybe_index, Cast<HeapObject>(object), &index)) {
     DirectHandle<HeapObject> receiver = Cast<HeapObject>(object);
     KeyedAccessLoadMode load_mode =
-        GetNewKeyedLoadMode(isolate(), receiver, index, is_found);
+        GetNewKeyedLoadMode(isolate(), receiver, index, is_found, result);
     UpdateLoadElement(receiver, load_mode);
     if (is_vector_set()) {
       TraceIC("LoadIC", key);

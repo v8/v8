@@ -739,6 +739,12 @@ bool IsBooleanMap(Tagged<Map> map) {
   return map == GetReadOnlyRoots().boolean_map();
 }
 
+bool IsNullMap(Tagged<Map> map) { return map == GetReadOnlyRoots().null_map(); }
+
+bool IsUndefinedMap(Tagged<Map> map) {
+  return map == GetReadOnlyRoots().undefined_map();
+}
+
 bool IsNullOrUndefinedMap(Tagged<Map> map) {
   auto roots = GetReadOnlyRoots();
   return map == roots.null_map() || map == roots.undefined_map();

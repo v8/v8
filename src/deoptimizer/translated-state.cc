@@ -661,8 +661,13 @@ Tagged<Object> TranslatedValue::GetRawValue() const {
     }
 
     case kHoleyDouble:
-      if (double_value().is_hole_nan()) {
-        // Hole NaNs that made it to here represent the undefined value.
+      if (double_value().is_hole_nan()
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+          || double_value().is_undefined_nan()
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      ) {
+        // Hole NaNs and undefined NaNs that made it to here represent the
+        // undefined value.
         return ReadOnlyRoots(isolate()).undefined_value();
       }
       // If this is not the hole nan, then this is a normal double value, so
@@ -765,7 +770,7 @@ Handle<Object> TranslatedValue::GetValue() {
       break;
     case TranslatedValue::kDouble:
     // We shouldn't have hole values by now, so treat holey double as normal
-    // double.s
+    // doubles.
     case TranslatedValue::kHoleyDouble:
       number = double_value().get_scalar();
       heap_object = isolate()->factory()->NewHeapNumber(number);
