@@ -88,6 +88,7 @@ class JSCallReducerAssembler : public JSGraphAssembler {
   TNode<Boolean> ReduceStringPrototypeEndsWith(StringRef search_element_string);
   TNode<String> ReduceStringPrototypeCharAt();
   TNode<String> ReduceStringPrototypeCharAt(StringRef s, uint32_t index);
+  TNode<Number> ReduceStringPrototypeCharCodeAt();
   TNode<String> ReduceStringPrototypeSlice();
   TNode<Object> ReduceJSCallMathMinMaxWithArrayLike(Builtin builtin);
 
@@ -1174,12 +1175,36 @@ TNode<String> JSCallReducerAssembler::ReduceStringPrototypeCharAt() {
   TNode<Number> index_smi = CheckSmi(index);
   TNode<Number> length = StringLength(receiver_string);
 
-  TNode<Number> bounded_index = CheckBounds(index_smi, length);
+  // TODO(olivf): Have some feedback on the access to know if the access happens
+  // OOB or not.
+  return SelectIf<String>(NumberLessThan(index_smi, ZeroConstant()))
+      .Then(_ { return EmptyStringConstant(); })
+      .Else(_ {
+        return SelectIf<String>(NumberLessThan(index_smi, length))
+            .Then(_ {
+              return StringFromSingleCharCode(TNode<Number>::UncheckedCast(
+                  StringCharCodeAt(receiver_string,
+                                   TypeGuard(Type::Unsigned32(), index_smi))));
+            })
+            .Else(_ { return EmptyStringConstant(); })
+            .ExpectTrue()
+            .Value();
+      })
+      .ExpectFalse()
+      .Value();
+}
 
-  Node* result = StringCharCodeAt(receiver_string, bounded_index);
-  TNode<String> result_string =
-      StringFromSingleCharCode(TNode<Number>::UncheckedCast(result));
-  return result_string;
+TNode<Number> JSCallReducerAssembler::ReduceStringPrototypeCharCodeAt() {
+  TNode<Object> receiver = ReceiverInput();
+  TNode<Object> index = ArgumentOrZero(0);
+
+  TNode<String> receiver_string = CheckString(receiver);
+  TNode<Number> index_smi = CheckSmi(index);
+  TNode<Number> length = StringLength(receiver_string);
+
+  TNode<Number> bounded_index = CheckBounds(index_smi, length);
+  return TNode<Number>::UncheckedCast(
+      (StringCharCodeAt(receiver_string, bounded_index)));
 }
 
 TNode<String> JSCallReducerAssembler::ReduceStringPrototypeSlice() {
@@ -5067,11 +5092,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtin::kStringPrototypeCharAt:
       return ReduceStringPrototypeCharAt(node);
     case Builtin::kStringPrototypeCharCodeAt:
-      return ReduceStringPrototypeStringAt(simplified()->StringCharCodeAt(),
-                                           node);
+      return ReduceStringPrototypeStringCharCodeAt(node);
     case Builtin::kStringPrototypeCodePointAt:
-      return ReduceStringPrototypeStringAt(simplified()->StringCodePointAt(),
-                                           node);
+      return ReduceStringPrototypeStringCodePointAt(node);
     case Builtin::kStringPrototypeSubstring:
       return ReduceStringPrototypeSubstring(node);
     case Builtin::kStringPrototypeSlice:
@@ -6765,11 +6788,20 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
 }
 
 // ES6 section 21.1.3.2 String.prototype.charCodeAt ( pos )
+Reduction JSCallReducer::ReduceStringPrototypeStringCharCodeAt(Node* node) {
+  JSCallNode n(node);
+  CallParameters const& p = n.Parameters();
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+
+  JSCallReducerAssembler a(this, node);
+  Node* subgraph = a.ReduceStringPrototypeCharCodeAt();
+  return ReplaceWithSubgraph(&a, subgraph);
+}
+
 // ES6 section 21.1.3.3 String.prototype.codePointAt ( pos )
-Reduction JSCallReducer::ReduceStringPrototypeStringAt(
-    const Operator* string_access_operator, Node* node) {
-  DCHECK(string_access_operator->opcode() == IrOpcode::kStringCharCodeAt ||
-         string_access_operator->opcode() == IrOpcode::kStringCodePointAt);
+Reduction JSCallReducer::ReduceStringPrototypeStringCodePointAt(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
@@ -6794,8 +6826,8 @@ Reduction JSCallReducer::ReduceStringPrototypeStringAt(
                                     index, receiver_length, effect, control);
 
   // Return the character from the {receiver} as single character string.
-  Node* value = effect = graph()->NewNode(string_access_operator, receiver,
-                                          index, effect, control);
+  Node* value = effect = graph()->NewNode(simplified()->StringCodePointAt(),
+                                          receiver, index, effect, control);
 
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
