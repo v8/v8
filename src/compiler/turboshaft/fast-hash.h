@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_FAST_HASH_H_
 #define V8_COMPILER_TURBOSHAFT_FAST_HASH_H_
 
+#include <optional>
 #include <tuple>
 
 #include "src/base/hashing.h"
