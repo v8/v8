@@ -241,6 +241,21 @@ class Utils {
   TO_LOCAL_LIST(DECLARE_TO_LOCAL)
 #undef DECLARE_TO_LOCAL
 
+  template <typename T>
+  static inline MaybeLocal<T> ToMaybe(Local<T> value) {
+    return value;
+  }
+
+  template <template <typename> typename HandleType, typename From>
+    requires std::is_convertible_v<HandleType<From>, i::MaybeDirectHandle<From>>
+  static inline auto ToMaybeLocal(HandleType<From> maybe_obj_in)
+      -> decltype(ToMaybe(ToLocal(std::declval<i::DirectHandle<From>>()))) {
+    i::MaybeDirectHandle<From> maybe_obj = maybe_obj_in;
+    i::DirectHandle<From> obj;
+    if (!maybe_obj.ToHandle(&obj)) return {};
+    return ToMaybe(ToLocal(obj));
+  }
+
 #define DECLARE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype) \
   static inline Local<v8::Type##Array> ToLocal##Type##Array(      \
       i::DirectHandle<i::JSTypedArray> obj);
@@ -289,19 +304,28 @@ class Utils {
       const char* location, const char* message);
 };
 
+// Convert DirectHandle to Local w/o type inference or type checks.
+// To get type inference (translating from internal to API types), use
+// Utils::ToLocal.
 template <class T>
 inline v8::Local<T> ToApiHandle(i::DirectHandle<i::Object> obj) {
   return Utils::Convert<i::Object, T>(obj);
 }
 
+// Convert MaybeDirectHandle to MaybeLocal w/o type inference or type checks.
+// To get type inference (translating from internal to API types), use
+// Utils::ToMaybeLocal.
+template <class T>
+inline MaybeLocal<T> ToMaybeLocal(i::MaybeDirectHandle<i::Object> maybe) {
+  i::DirectHandle<i::Object> handle;
+  if (maybe.ToHandle(&handle)) return Utils::Convert<i::Object, T>(handle);
+  return {};
+}
+
+// Same as above, but writes into an output variable and returns bool.
 template <class T>
 inline bool ToLocal(i::MaybeDirectHandle<i::Object> maybe, Local<T>* local) {
-  i::DirectHandle<i::Object> handle;
-  if (maybe.ToHandle(&handle)) {
-    *local = Utils::Convert<i::Object, T>(handle);
-    return true;
-  }
-  return false;
+  return ToMaybeLocal<T>(maybe).ToLocal(local);
 }
 
 namespace internal {

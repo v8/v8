@@ -282,9 +282,13 @@ class V8_NODISCARD EnterV8InternalScope {
   }
 
   template <typename T>
-    requires requires(Local<T> v, HandleScopeClass hs) { hs.Escape(v); }
   V8_INLINE Local<T> Escape(Local<T> value) {
     return handle_scope_.Escape(value);
+  }
+
+  template <typename T>
+  V8_INLINE MaybeLocal<T> EscapeMaybe(MaybeLocal<T> value) {
+    return handle_scope_.EscapeMaybe(value);
   }
 
  private:
