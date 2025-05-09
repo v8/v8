@@ -1605,8 +1605,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void AtomicDecompressTaggedSigned(const Register& destination,
                                     const Register& base, const Register& index,
                                     const Register& temp);
-  void AtomicDecompressTagged(const Register& destination, const Register& base,
-                              const Register& index, const Register& temp);
+  // Returns the pc offset of the atomic load instruction.
+  int AtomicDecompressTagged(const Register& destination, const Register& base,
+                             const Register& index, const Register& temp);
 
   // Restore FP and LR from the values stored in the current frame. This will
   // authenticate the LR when pointer authentication is enabled.

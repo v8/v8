@@ -9479,7 +9479,9 @@ class LiftoffCompiler {
                              LiftoffRegList pinned) {
     uint32_t protected_load_pc = 0;
     if (is_reference(kind)) {
-      UNIMPLEMENTED();  // TODO(mliedtke): Support and test this.
+      __ AtomicLoadTaggedPointer(dst.gp(), src, offset_reg, offset,
+                                 memory_order,
+                                 trapping ? &protected_load_pc : nullptr);
     } else {
       // Primitive kind.
       LoadType load_type = LoadType::ForValueKind(kind, is_signed);

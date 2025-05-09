@@ -45,18 +45,21 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   for (let is_shared of [true, false]) {
     print(`${arguments.callee.name} ${is_shared ? "shared" : "unshared"}`);
     let builder = new WasmModuleBuilder();
+    let anyRefT = is_shared
+      ? wasmRefNullType(kWasmAnyRef).shared()
+      : wasmRefNullType(kWasmAnyRef);
     let struct = builder.addStruct({
       fields: [
         // DO NOT REORDER OR INSERT EXTRA FIELDS IN BETWEEN!
         // The i64 is intentionally "unaligned".
         makeField(kWasmI32, true),
         makeField(kWasmI64, true),
-        makeField(wasmRefNullType(kWasmAnyRef).shared(), true)
+        makeField(anyRefT, true)
       ],
       is_shared,
     });
     let producer_sig = makeSig(
-      [kWasmI32, kWasmI64, wasmRefNullType(kWasmAnyRef).shared()],
+      [kWasmI32, kWasmI64, anyRefT],
       [wasmRefType(struct)]);
     builder.addFunction("newStruct", producer_sig)
       .addBody([
@@ -79,23 +82,34 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         kAtomicPrefix, kExprStructAtomicGet, kAtomicSeqCst, struct, 1,
       ])
       .exportFunc();
-    // TODO(mliedtke): This requires new ISel support in Turbofan and Liftoff.
-    // builder.addFunction("atomicGetRef", makeSig(
-    //     [wasmRefNullType(struct)],
-    //     [wasmRefNullType(kWasmAnyRef).shared()]))
-    //   .addBody([
-    //     kExprLocalGet, 0,
-    //     kAtomicPrefix, kExprStructAtomicGet, kAtomicSeqCst, struct, 2,
-    //   ])
-    //   .exportFunc();
+    builder.addFunction("atomicGetRef", makeSig(
+        [wasmRefNullType(struct)],
+        [anyRefT]))
+      .addBody([
+        kExprLocalGet, 0,
+        kAtomicPrefix, kExprStructAtomicGet, kAtomicSeqCst, struct, 2,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicGetRefRef", makeSig(
+        [wasmRefNullType(struct)],
+        [anyRefT]))
+      .addBody([
+        kExprLocalGet, 0,
+        kAtomicPrefix, kExprStructAtomicGet, kAtomicSeqCst, struct, 2,
+        kGCPrefix, kExprRefCast, struct,
+        kAtomicPrefix, kExprStructAtomicGet, kAtomicSeqCst, struct, 2,
+      ])
+      .exportFunc();
 
     let wasm = builder.instantiate().exports;
     let structObj = wasm.newStruct(42, -64n, "test");
     assertEquals(42, wasm.atomicGet32(structObj));
     assertEquals(-64n, wasm.atomicGet64(structObj));
-    // assertEquals("test", wasm.atomicGetRef(structObj));
+    assertEquals("test", wasm.atomicGetRef(structObj));
+    let structStruct = wasm.newStruct(1, 2n, structObj);
+    assertEquals("test", wasm.atomicGetRefRef(structStruct));
     assertTraps(kTrapNullDereference, () => wasm.atomicGet32(null));
     assertTraps(kTrapNullDereference, () => wasm.atomicGet64(null));
-    // assertTraps(kTrapNullDereference, () => wasm.atomicGetRef(null));
+    assertTraps(kTrapNullDereference, () => wasm.atomicGetRef(null));
   }
 })();
