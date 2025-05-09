@@ -5,11 +5,12 @@
 # These settings enable overwriting variables in V8's DEPS file.
 GCLIENT_VARS = struct(
     CENTIPEDE = {"checkout_centipede_deps": "True"},
+    GCMOLE = {"download_gcmole": "True"},
     INSTRUMENTED_LIBRARIES = {"checkout_instrumented_libraries": "True"},
     ITTAPI = {"checkout_ittapi": "True"},
-    V8_HEADER_INCLUDES = {"check_v8_header_includes": "True"},
-    GCMOLE = {"download_gcmole": "True"},
     JSFUNFUZZ = {"download_jsfunfuzz": "True"},
+    LINUX_ARM64_SYMBOLIZER = {"download_prebuilt_arm64_llvm_symbolizer": "True"},
+    V8_HEADER_INCLUDES = {"check_v8_header_includes": "True"},
 )
 
 def gclient_vars_properties(props):
