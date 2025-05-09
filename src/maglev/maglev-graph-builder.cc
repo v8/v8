@@ -7610,7 +7610,9 @@ ValueNode* MaglevGraphBuilder::GetConstantSingleCharacterStringFromCode(
   }
   return GetConstant(MakeRef(
       broker(),
-      local_isolate()->factory()->LookupSingleCharacterStringFromCode(code)));
+      broker()->CanonicalPersistentHandle(
+          local_isolate()->factory()->LookupSingleCharacterStringFromCode(
+              code))));
 }
 
 ReduceResult MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
