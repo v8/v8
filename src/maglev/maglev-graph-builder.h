@@ -2377,6 +2377,7 @@ class MaglevGraphBuilder {
   ReduceResult BuildCheckHeapObject(ValueNode* object);
   ReduceResult BuildCheckJSReceiver(ValueNode* object);
   ReduceResult BuildCheckJSReceiverOrNullOrUndefined(ValueNode* object);
+  ReduceResult BuildCheckSeqOneByteString(ValueNode* object);
   ReduceResult BuildCheckString(ValueNode* object);
   ReduceResult BuildCheckStringOrStringWrapper(ValueNode* object);
   ReduceResult BuildCheckSymbol(ValueNode* object);
@@ -2581,6 +2582,7 @@ class MaglevGraphBuilder {
 
   MaybeReduceResult TryBuildElementAccessOnString(
       ValueNode* object, ValueNode* index,
+      const compiler::ElementAccessFeedback& access_info,
       compiler::KeyedAccessMode const& keyed_mode);
   MaybeReduceResult TryBuildElementAccessOnTypedArray(
       ValueNode* object, ValueNode* index,

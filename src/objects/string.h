@@ -756,6 +756,7 @@ V8_OBJECT class String : public Name {
   V8_EXPORT_PRIVATE uint32_t
   ComputeAndSetRawHash(const SharedStringAccessGuardIfNeeded&);
 
+ public:
   uint32_t length_;
 } V8_OBJECT_END;
 

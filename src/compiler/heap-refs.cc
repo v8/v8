@@ -1128,9 +1128,9 @@ int ObjectRef::AsSmi() const {
   return Cast<Smi>(*object()).value();
 }
 
-#define DEF_TESTER(Type, ...)                              \
-  bool MapRef::Is##Type##Map() const {                     \
-    return InstanceTypeChecker::Is##Type(instance_type()); \
+#define DEF_TESTER(Type, ...)                        \
+  bool MapRef::Is##Type##Map() const {               \
+    return InstanceTypeChecker::Is##Type(*object()); \
   }
 INSTANCE_TYPE_CHECKERS(DEF_TESTER)
 #undef DEF_TESTER
@@ -1147,10 +1147,12 @@ bool MapRef::IsUndefinedMap(JSHeapBroker* broker) const {
   return *this == broker->undefined_map();
 }
 
+bool MapRef::IsSeqStringMap() const {
+  return InstanceTypeChecker::IsSeqString(*object());
+}
+
 bool MapRef::IsThinStringMap() const {
-  // The check below only works for string maps.
-  DCHECK(IsStringMap());
-  return InstanceTypeChecker::IsThinString(instance_type());
+  return InstanceTypeChecker::IsThinString(*object());
 }
 
 bool MapRef::IsStringWrapperMap() const {
@@ -1158,8 +1160,12 @@ bool MapRef::IsStringWrapperMap() const {
          IsStringWrapperElementsKind(elements_kind());
 }
 
+bool MapRef::IsOneByteStringMap() const {
+  return InstanceTypeChecker::IsOneByteString(*object());
+}
+
 bool MapRef::IsTwoByteStringMap() const {
-  return InstanceTypeChecker::IsTwoByteString(instance_type());
+  return InstanceTypeChecker::IsTwoByteString(*object());
 }
 
 bool MapRef::CanInlineElementAccess() const {

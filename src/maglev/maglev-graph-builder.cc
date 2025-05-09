@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "src/base/bounds.h"
+#include "src/base/container-utils.h"
 #include "src/base/ieee754.h"
 #include "src/base/logging.h"
 #include "src/base/vector.h"
@@ -52,6 +53,7 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/instance-type-inl.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/js-array.h"
 #include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
@@ -4479,14 +4481,23 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
       }
       // TODO(verwaest): Check what we need here.
       return NodeType::kUnknown;
+    case Opcode::kBuiltinStringPrototypeCharCodeOrCodePointAt:
+    case Opcode::kBuiltinSeqOneByteStringCharCodeAt:
+      return NodeType::kNumber;
     case Opcode::kToString:
     case Opcode::kNumberToString:
     case Opcode::kUnwrapStringWrapper:
     case Opcode::kUnwrapThinString:
+    case Opcode::kStringAt:
     case Opcode::kStringConcat:
+    case Opcode::kBuiltinStringFromCharCode:
       return NodeType::kString;
     case Opcode::kCheckedInternalizedString:
       return NodeType::kInternalizedString;
+    case Opcode::kSeqOneByteStringAt:
+      // Seq one-byte StringAt will always return an internalized string from
+      // the single character roots.
+      return NodeType::kSeqInternalizedOneByteString;
     case Opcode::kToObject:
     case Opcode::kCreateObjectLiteral:
     case Opcode::kCreateShallowObjectLiteral:
@@ -4633,7 +4644,6 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     case Opcode::kHoleyFloat64IsHole:
     case Opcode::kSetPendingMessage:
-    case Opcode::kStringAt:
     case Opcode::kStringLength:
     case Opcode::kAllocateElementsArray:
     case Opcode::kUpdateJSArrayLength:
@@ -4692,8 +4702,6 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kGenericNegate:
     case Opcode::kGenericIncrement:
     case Opcode::kGenericDecrement:
-    case Opcode::kBuiltinStringFromCharCode:
-    case Opcode::kBuiltinStringPrototypeCharCodeOrCodePointAt:
     case Opcode::kConsStringMap:
     case Opcode::kMapPrototypeGet:
     case Opcode::kMapPrototypeGetInt32Key:
@@ -4718,6 +4726,10 @@ bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
   if (auto phi = node->TryCast<Phi>()) {
     known_info->CombineType(phi->type());
   }
+  if (NodeTypeIsUnstable(type)) {
+    known_info->set_node_type_is_unstable();
+    known_node_aspects().any_map_for_any_node_is_unstable = true;
+  }
   return false;
 }
 
@@ -4729,6 +4741,10 @@ bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
   if (NodeTypeIs(known_info->type(), type)) return true;
   ensure_new_type(known_info->type());
   known_info->CombineType(type);
+  if (NodeTypeIsUnstable(type)) {
+    known_info->set_node_type_is_unstable();
+    known_node_aspects().any_map_for_any_node_is_unstable = true;
+  }
   return false;
 }
 
@@ -4885,6 +4901,21 @@ ReduceResult MaglevGraphBuilder::BuildCheckHeapObject(ValueNode* object) {
   }
   if (EnsureType(object, NodeType::kAnyHeapObject)) return ReduceResult::Done();
   AddNewNode<CheckHeapObject>({object});
+  return ReduceResult::Done();
+}
+
+ReduceResult MaglevGraphBuilder::BuildCheckSeqOneByteString(ValueNode* object) {
+  NodeType known_type;
+  // Check for the empty type first so that we catch the case where
+  // GetType(object) is already empty.
+  if (IsEmptyNodeType(
+          CombineType(GetType(object), NodeType::kSeqOneByteString))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kNotASeqOneByteString);
+  }
+  if (EnsureType(object, NodeType::kSeqOneByteString, &known_type)) {
+    return ReduceResult::Done();
+  }
+  AddNewNode<CheckSeqOneByteString>({object}, GetCheckType(known_type));
   return ReduceResult::Done();
 }
 
@@ -6242,7 +6273,14 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
       // Check for string maps before checking if we need to do an access
       // check. Primitive strings always get the prototype from the native
       // context they're operated on, so they don't need the access check.
-      RETURN_IF_ABORT(BuildCheckString(lookup_start_object));
+      if (v8_flags.specialize_code_for_one_byte_seq_strings &&
+          base::all_of(maps, [](compiler::MapRef map) {
+            return map.IsSeqStringMap() && map.IsOneByteStringMap();
+          })) {
+        RETURN_IF_ABORT(BuildCheckSeqOneByteString(lookup_start_object));
+      } else {
+        RETURN_IF_ABORT(BuildCheckString(lookup_start_object));
+      }
     } else if (HasOnlyNumberMaps(maps)) {
       RETURN_IF_ABORT(BuildCheckNumber(lookup_start_object));
     } else {
@@ -6344,6 +6382,7 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnString(
     ValueNode* object, ValueNode* index_object,
+    const compiler::ElementAccessFeedback& access_feedback,
     compiler::KeyedAccessMode const& keyed_mode) {
   // Strings are immutable and `in` cannot be used on strings
   if (keyed_mode.access_mode() != compiler::AccessMode::kLoad) {
@@ -6354,11 +6393,28 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnString(
                                            StringAtOOBMode::kElement));
 
   // Ensure that {object} is actually a String.
-  RETURN_IF_ABORT(BuildCheckString(object));
+  bool is_one_byte_seq_string =
+      v8_flags.specialize_code_for_one_byte_seq_strings &&
+      base::all_of(access_feedback.transition_groups(), [](const auto& group) {
+        return base::all_of(group, [](compiler::MapRef map) {
+          return map.IsSeqStringMap() && map.IsOneByteStringMap();
+        });
+      });
+  if (is_one_byte_seq_string) {
+    RETURN_IF_ABORT(BuildCheckSeqOneByteString(object));
+  } else {
+    RETURN_IF_ABORT(BuildCheckString(object));
+  }
 
   ValueNode* length = BuildLoadStringLength(object);
   ValueNode* index = GetInt32ElementIndex(index_object);
-  auto emit_load = [&] { return AddNewNode<StringAt>({object, index}); };
+  auto emit_load = [&]() -> ValueNode* {
+    if (is_one_byte_seq_string) {
+      return AddNewNode<SeqOneByteStringAt>({object, index});
+    } else {
+      return AddNewNode<StringAt>({object, index});
+    }
+  };
 
   if (LoadModeHandlesOOB(keyed_mode.load_mode()) &&
       broker()->dependencies()->DependOnNoElementsProtector()) {
@@ -6989,7 +7045,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccess(
           : feedback;
 
   if (refined_feedback.HasOnlyStringMaps(broker())) {
-    return TryBuildElementAccessOnString(object, index_object, keyed_mode);
+    return TryBuildElementAccessOnString(object, index_object, refined_feedback,
+                                         keyed_mode);
   }
 
   compiler::AccessInfoFactory access_info_factory(broker(), zone());
@@ -9505,7 +9562,16 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharAt(
             AddNewNode<UnsafeInt32ToUint32>({index}),
             AddNewNode<UnsafeInt32ToUint32>({length}));
       },
-      [&]() { return AddNewNode<StringAt>({receiver, index}); },
+      [&]() -> ValueNode* {
+        bool is_seq_one_byte =
+            v8_flags.specialize_code_for_one_byte_seq_strings &&
+            NodeTypeIs(GetType(receiver), NodeType::kSeqOneByteString);
+        if (is_seq_one_byte) {
+          return AddNewNode<SeqOneByteStringAt>({receiver, index});
+        } else {
+          return AddNewNode<StringAt>({receiver, index});
+        }
+      },
       [&]() { return GetRootConstant(RootIndex::kempty_string); });
 }
 
@@ -9542,9 +9608,16 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
   RETURN_IF_ABORT(TryBuildCheckInt32Condition(
       index, length, AssertCondition::kUnsignedLessThan,
       DeoptimizeReason::kOutOfBounds));
-  return AddNewNode<BuiltinStringPrototypeCharCodeOrCodePointAt>(
-      {receiver, index},
-      BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt);
+  bool is_seq_one_byte =
+      v8_flags.specialize_code_for_one_byte_seq_strings &&
+      NodeTypeIs(GetType(receiver), NodeType::kSeqOneByteString);
+  if (is_seq_one_byte) {
+    return AddNewNode<BuiltinSeqOneByteStringCharCodeAt>({receiver, index});
+  } else {
+    return AddNewNode<BuiltinStringPrototypeCharCodeOrCodePointAt>(
+        {receiver, index},
+        BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt);
+  }
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
@@ -9566,9 +9639,18 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
   RETURN_IF_ABORT(TryBuildCheckInt32Condition(
       index, length, AssertCondition::kUnsignedLessThan,
       DeoptimizeReason::kOutOfBounds));
-  return AddNewNode<BuiltinStringPrototypeCharCodeOrCodePointAt>(
-      {receiver, index},
-      BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt);
+  bool is_seq_one_byte =
+      v8_flags.specialize_code_for_one_byte_seq_strings &&
+      NodeTypeIs(GetType(receiver), NodeType::kSeqOneByteString);
+  if (is_seq_one_byte) {
+    // For one-byte strings, codePointAt == charCodeAt, since there are no
+    // surrogate pairs.
+    return AddNewNode<BuiltinSeqOneByteStringCharCodeAt>({receiver, index});
+  } else {
+    return AddNewNode<BuiltinStringPrototypeCharCodeOrCodePointAt>(
+        {receiver, index},
+        BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt);
+  }
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeIterator(

@@ -11,10 +11,13 @@
 #include <algorithm>
 #include <type_traits>
 
+#include "src/base/bits.h"
 #include "src/base/iterator.h"
 #include "src/base/template-utils.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/machine-type.h"
+#include "src/objects/instance-type-inl.h"
+#include "src/objects/instance-type.h"
 
 #ifdef V8_TARGET_ARCH_ARM
 #include "src/maglev/arm/maglev-assembler-arm-inl.h"
@@ -950,6 +953,52 @@ inline void MaglevAssembler::JumpIfStringMap(Register map, Label* target,
 #endif
 }
 
+inline void MaglevAssembler::JumpIfSeqOneByteStringMap(Register map,
+                                                       Label* target,
+                                                       Label::Distance distance,
+                                                       bool jump_if_true) {
+  Label fallthrough;
+  Label* target_if_false = jump_if_true ? &fallthrough : target;
+  Label::Distance distance_if_false = jump_if_true ? Label::kNear : distance;
+
+#if V8_STATIC_ROOTS_BOOL
+  // All string maps are allocated at the start of the read only heap. Thus,
+  // non-strings must have maps with larger (compressed) addresses.
+  static_assert(
+      InstanceTypeChecker::kUniqueMapRangeOfStringType::kSeqString.first == 0);
+
+  CompareInt32AndJumpIf(
+      map, InstanceTypeChecker::kUniqueMapRangeOfStringType::kSeqString.second,
+      kUnsignedGreaterThan, target_if_false, distance_if_false);
+  static_assert(base::bits::CountPopulation(
+                    InstanceTypeChecker::kStringMapEncodingMask) == 1);
+  static_assert(InstanceTypeChecker::kTwoByteStringMapBit ==
+                InstanceTypeChecker::kStringMapEncodingMask);
+  if (jump_if_true) {
+    TestInt32AndJumpIfAllClear(map, InstanceTypeChecker::kStringMapEncodingMask,
+                               target, distance);
+  } else {
+    TestInt32AndJumpIfAnySet(map, InstanceTypeChecker::kStringMapEncodingMask,
+                             target, distance);
+  }
+#else
+#ifdef V8_COMPRESS_POINTERS
+  DecompressTagged(map, map);
+#endif
+  static_assert(FIRST_STRING_TYPE == FIRST_TYPE);
+  TemporaryRegisterScope temps(this);
+  Register instance_type = temps.AcquireScratch();
+  Condition jump_cond = CompareInstanceTypeRange(map, instance_type, FIRST_TYPE,
+                                                 LAST_STRING_TYPE);
+  JumpIf(NegateCondition(jump_cond), target_if_false, distance_if_false);
+  AndInt32(instance_type, kStringRepresentationAndEncodingMask);
+  CompareInt32AndJumpIf(instance_type, kSeqOneByteStringTag,
+                        jump_if_true ? kEqual : kNotEqual, target, distance);
+#endif
+
+  bind(&fallthrough);
+}
+
 inline void MaglevAssembler::JumpIfString(Register heap_object, Label* target,
                                           Label::Distance distance) {
   TemporaryRegisterScope temps(this);
@@ -973,6 +1022,18 @@ inline void MaglevAssembler::JumpIfNotString(Register heap_object,
   LoadMap(scratch, heap_object);
 #endif
   JumpIfStringMap(scratch, target, distance, false);
+}
+
+inline void MaglevAssembler::JumpIfNotSeqOneByteString(
+    Register heap_object, Label* target, Label::Distance distance) {
+  TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+#ifdef V8_COMPRESS_POINTERS
+  LoadCompressedMap(scratch, heap_object);
+#else
+  LoadMap(scratch, heap_object);
+#endif
+  JumpIfSeqOneByteStringMap(scratch, target, distance, false);
 }
 
 inline void MaglevAssembler::CheckJSAnyIsStringAndBranch(

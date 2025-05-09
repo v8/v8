@@ -3593,6 +3593,22 @@ void CheckString::GenerateCode(MaglevAssembler* masm,
                      __ GetDeoptLabel(this, DeoptimizeReason::kNotAString));
 }
 
+void CheckSeqOneByteString::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+}
+void CheckSeqOneByteString::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  if (check_type() == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+  } else {
+    __ EmitEagerDeoptIfSmi(this, object,
+                           DeoptimizeReason::kNotASeqOneByteString);
+  }
+  __ JumpIfNotSeqOneByteString(
+      object, __ GetDeoptLabel(this, DeoptimizeReason::kNotASeqOneByteString));
+}
+
 void CheckStringOrStringWrapper::SetValueLocationConstraints() {
   UseRegister(receiver_input());
   set_temporaries_needed(1);
@@ -4980,6 +4996,25 @@ void StringAt::GenerateCode(MaglevAssembler* masm,
                         MaglevAssembler::CharCodeMaskMode::kValueIsInRange);
 }
 
+void SeqOneByteStringAt::SetValueLocationConstraints() {
+  UseRegister(string_input());
+  UseRegister(index_input());
+  DefineAsRegister(this);
+  set_temporaries_needed(1);
+}
+void SeqOneByteStringAt::GenerateCode(MaglevAssembler* masm,
+                                      const ProcessingState& state) {
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  Register result_string = ToRegister(result());
+  Register string = ToRegister(string_input());
+  Register index = ToRegister(index_input());
+  Register char_code = result_string;
+
+  __ SeqOneByteStringCharCodeAt(char_code, string, index);
+  __ LoadSingleCharacterString(result_string, char_code, scratch);
+}
+
 int BuiltinStringPrototypeCharCodeOrCodePointAt::MaxCallStackArgs() const {
   DCHECK_EQ(Runtime::FunctionForId(Runtime::kStringCharCodeAt)->nargs, 2);
   return 2;
@@ -4992,24 +5027,36 @@ void BuiltinStringPrototypeCharCodeOrCodePointAt::
   // TODO(victorgomes): Add a mode to the register allocator where we ensure
   // input cannot alias with output. We can then remove the second scratch.
   set_temporaries_needed(
-      mode_ == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt ? 2
-                                                                         : 1);
+      mode() == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt ? 2
+                                                                          : 1);
 }
 void BuiltinStringPrototypeCharCodeOrCodePointAt::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register scratch1 = temps.Acquire();
   Register scratch2 = Register::no_reg();
-  if (mode_ == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
+  if (mode() == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
     scratch2 = temps.Acquire();
   }
   Register string = ToRegister(string_input());
   Register index = ToRegister(index_input());
   ZoneLabelRef done(masm);
   RegisterSnapshot save_registers = register_snapshot();
-  __ StringCharCodeOrCodePointAt(mode_, save_registers, ToRegister(result()),
+  __ StringCharCodeOrCodePointAt(mode(), save_registers, ToRegister(result()),
                                  string, index, scratch1, scratch2, *done);
   __ bind(*done);
+}
+
+void BuiltinSeqOneByteStringCharCodeAt::SetValueLocationConstraints() {
+  UseRegister(string_input());
+  UseRegister(index_input());
+  DefineAsRegister(this);
+}
+void BuiltinSeqOneByteStringCharCodeAt::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Register string = ToRegister(string_input());
+  Register index = ToRegister(index_input());
+  __ SeqOneByteStringCharCodeAt(ToRegister(result()), string, index);
 }
 
 void StringLength::SetValueLocationConstraints() {
@@ -7555,7 +7602,7 @@ void AssertInt32::PrintParams(std::ostream& os,
 
 void BuiltinStringPrototypeCharCodeOrCodePointAt::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  switch (mode_) {
+  switch (mode()) {
     case BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt:
       os << "(CharCodeAt)";
       break;

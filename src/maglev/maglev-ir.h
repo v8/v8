@@ -153,9 +153,10 @@ class ExceptionHandlerInfo;
   V(TaggedIndexConstant)            \
   V(TrustedConstant)
 
-#define INLINE_BUILTIN_NODE_LIST(V) \
-  V(BuiltinStringFromCharCode)      \
-  V(BuiltinStringPrototypeCharCodeOrCodePointAt)
+#define INLINE_BUILTIN_NODE_LIST(V)              \
+  V(BuiltinStringFromCharCode)                   \
+  V(BuiltinStringPrototypeCharCodeOrCodePointAt) \
+  V(BuiltinSeqOneByteStringCharCodeAt)
 
 #define TURBOLEV_VALUE_NODE_LIST(V) \
   V(CreateFastArrayElements)        \
@@ -296,6 +297,7 @@ class ExceptionHandlerInfo;
   V(StringEqual)                                    \
   V(StringLength)                                   \
   V(StringConcat)                                   \
+  V(SeqOneByteStringAt)                             \
   V(ConsStringMap)                                  \
   V(UnwrapThinString)                               \
   V(UnwrapStringWrapper)                            \
@@ -352,6 +354,7 @@ class ExceptionHandlerInfo;
   V(CheckNumber)                              \
   V(CheckSmi)                                 \
   V(CheckString)                              \
+  V(CheckSeqOneByteString)                    \
   V(CheckStringOrStringWrapper)               \
   V(CheckSymbol)                              \
   V(CheckValue)                               \
@@ -626,20 +629,22 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
 // TODO(olivf): Rename Unknown to Any.
 
 /* Every object should belong to exactly one of these.*/
-#define LEAF_NODE_TYPE_LIST(V)       \
-  V(Smi, (1 << 0))                   \
-  V(HeapNumber, (1 << 1))            \
-  V(Null, (1 << 2))                  \
-  V(Undefined, (1 << 3))             \
-  V(Boolean, (1 << 4))               \
-  V(Symbol, (1 << 5))                \
-  V(InternalizedString, (1 << 6))    \
-  V(NonInternalizedString, (1 << 7)) \
-  V(StringWrapper, (1 << 8))         \
-  V(JSArray, (1 << 9))               \
-  V(Callable, (1 << 10))             \
-  V(OtherJSReceiver, (1 << 11))      \
-  V(OtherHeapObject, (1 << 12))
+#define LEAF_NODE_TYPE_LIST(V)                 \
+  V(Smi, (1 << 0))                             \
+  V(HeapNumber, (1 << 1))                      \
+  V(Null, (1 << 2))                            \
+  V(Undefined, (1 << 3))                       \
+  V(Boolean, (1 << 4))                         \
+  V(Symbol, (1 << 5))                          \
+  V(OtherInternalizedString, (1 << 6))         \
+  V(OtherNonInternalizedString, (1 << 7))      \
+  V(SeqInternalizedOneByteString, (1 << 8))    \
+  V(SeqNonInternalizedOneByteString, (1 << 9)) \
+  V(StringWrapper, (1 << 10))                  \
+  V(JSArray, (1 << 11))                        \
+  V(Callable, (1 << 12))                       \
+  V(OtherJSReceiver, (1 << 13))                \
+  V(OtherHeapObject, (1 << 14))
 
 #define COUNT(...) +1
 static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
@@ -654,7 +659,15 @@ static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
   V(NumberOrUndefined, kNumber | kUndefined)                              \
   V(NumberOrBoolean, kNumber | kBoolean)                                  \
   V(NumberOrOddball, kNumber | kOddball)                                  \
-  V(String, kNonInternalizedString | kInternalizedString)                 \
+  V(InternalizedString,                                                   \
+    kOtherInternalizedString | kSeqInternalizedOneByteString)             \
+  V(NonInternalizedString,                                                \
+    kOtherNonInternalizedString | kSeqNonInternalizedOneByteString)       \
+  V(SeqOneByteString,                                                     \
+    kSeqInternalizedOneByteString | kSeqNonInternalizedOneByteString)     \
+  V(String, kOtherNonInternalizedString | kOtherInternalizedString |      \
+                kSeqInternalizedOneByteString |                           \
+                kSeqNonInternalizedOneByteString)                         \
   V(StringOrStringWrapper, kString | kStringWrapper)                      \
   V(Name, kString | kSymbol)                                              \
   V(JSReceiver, kJSArray | kCallable | kStringWrapper | kOtherJSReceiver) \
@@ -685,6 +698,83 @@ inline constexpr bool NodeTypeIs(NodeType type, NodeType to_check) {
   int right = static_cast<int>(to_check);
   return (static_cast<int>(type) & (~right)) == 0;
 }
+inline constexpr bool NodeTypeCanBe(NodeType type, NodeType to_check) {
+  int right = static_cast<int>(to_check);
+  return (static_cast<int>(type) & (right)) != 0;
+}
+
+inline constexpr bool NodeTypeIsUnstable(NodeType type) {
+  // Any type that can be a string might be unstable, if the string part of the
+  // type is unstable.
+  if (NodeTypeCanBe(type, NodeType::kString)) {
+    // Extract out the string part of the node type.
+    NodeType string_type = CombineType(type, NodeType::kString);
+    // The generic internalized string type is ok, since it doesn't consider
+    // seqness and internalized strings stay internalized.
+    if (string_type == NodeType::kInternalizedString) return false;
+    // The generic string type is ok, since it defines all strings.
+    if (string_type == NodeType::kString) return false;
+    // Otherwise, a string can get in-place externalized, or in-place converted
+    // to thin if not already internalized, both of which lose seq-ness.
+    // TODO(leszeks): We could probably consider byteness of internalized
+    // strings to be stable, since we can't change byteness with in-place
+    // externalization.
+    return true;
+  }
+  // All other node types are stable.
+  return false;
+}
+// Seq strings are unstable because they could be in-place converted to thin
+// strings.
+static_assert(NodeTypeIsUnstable(NodeType::kSeqOneByteString));
+// Internalized strings are stable because they have to stay internalized.
+static_assert(!NodeTypeIsUnstable(NodeType::kInternalizedString));
+// Seq internalized strings are unstable because they can be in-place
+// externalized.
+static_assert(NodeTypeIsUnstable(NodeType::kSeqInternalizedOneByteString));
+// The generic string type is stable because we've already erased any
+// information about it.
+static_assert(!NodeTypeIsUnstable(NodeType::kString));
+// A type which contains an unstable string should also be unstable.
+static_assert(NodeTypeIsUnstable(IntersectType(NodeType::kNumber,
+                                               NodeType::kSeqOneByteString)));
+// A type which contains a stable string should also be stable.
+static_assert(!NodeTypeIsUnstable(
+    IntersectType(NodeType::kNumber, NodeType::kInternalizedString)));
+
+inline constexpr NodeType MakeTypeStable(NodeType type) {
+  // Strings can be in-place internalized, turned into thin strings, and
+  // in-place externalized, and byteness can change from one->two byte (because
+  // of internalized external strings with two-byte encoding of one-byte data)
+  // or two->one byte (because of internalizing a two-byte slice with one-byte
+  // data). The only invariant that we can preserve is that internalized strings
+  // stay internalized.
+  if (NodeTypeCanBe(type, NodeType::kString)) {
+    if (!NodeTypeCanBe(type, NodeType::kNonInternalizedString)) {
+      // Strings that can't be non-internalized become generic internalized.
+      type = IntersectType(type, NodeType::kInternalizedString);
+    } else {
+      // All other strings become fully generic.
+      type = IntersectType(type, NodeType::kString);
+    }
+  }
+  DCHECK(!NodeTypeIsUnstable(type));
+  return type;
+}
+// Seq strings become normal strings with unspecified byteness when made stable,
+// because they could have been internalized into a two-byte external string.
+static_assert(MakeTypeStable(NodeType::kSeqOneByteString) == NodeType::kString);
+// Generic internalized strings stay as they are.
+static_assert(MakeTypeStable(NodeType::kInternalizedString) ==
+              NodeType::kInternalizedString);
+// Seq internalized strings become generic.
+static_assert(MakeTypeStable(NodeType::kSeqInternalizedOneByteString) ==
+              NodeType::kInternalizedString);
+// Stabilizing a type which is partially an unstable string should generalize
+// the string part of the type
+static_assert(MakeTypeStable(IntersectType(NodeType::kNumber,
+                                           NodeType::kSeqOneByteString)) ==
+              IntersectType(NodeType::kNumber, NodeType::kString));
 
 // Assert that the Unknown type is constructed correctly.
 #define ADD_STATIC_ASSERT(Name, Value) \
@@ -696,7 +786,15 @@ inline NodeType StaticTypeForMap(compiler::MapRef map,
                                  compiler::JSHeapBroker* broker) {
   if (map.IsHeapNumberMap()) return NodeType::kHeapNumber;
   if (map.IsStringMap()) {
-    if (map.IsInternalizedStringMap()) return NodeType::kInternalizedString;
+    if (map.IsInternalizedStringMap()) {
+      if (map.IsSeqStringMap() && map.IsOneByteStringMap()) {
+        return NodeType::kSeqInternalizedOneByteString;
+      }
+      return NodeType::kInternalizedString;
+    }
+    if (map.IsSeqStringMap() && map.IsOneByteStringMap()) {
+      return NodeType::kSeqOneByteString;
+    }
     return NodeType::kString;
   }
   if (map.IsStringWrapperMap()) return NodeType::kStringWrapper;
@@ -745,10 +843,18 @@ inline bool IsInstanceOfLeafNodeType(compiler::MapRef map, NodeType type,
       return map.IsBooleanMap(broker);
     case NodeType::kSymbol:
       return map.IsSymbolMap();
-    case NodeType::kInternalizedString:
-      return map.IsStringMap() && map.IsInternalizedStringMap();
-    case NodeType::kNonInternalizedString:
-      return map.IsStringMap() && !map.IsInternalizedStringMap();
+    case NodeType::kOtherNonInternalizedString:
+      return map.IsStringMap() && !map.IsInternalizedStringMap() &&
+             !(map.IsSeqStringMap() && map.IsOneByteStringMap());
+    case NodeType::kOtherInternalizedString:
+      return map.IsStringMap() && map.IsInternalizedStringMap() &&
+             !(map.IsSeqStringMap() && map.IsOneByteStringMap());
+    case NodeType::kSeqInternalizedOneByteString:
+      return map.IsStringMap() && map.IsInternalizedStringMap() &&
+             map.IsSeqStringMap() && map.IsOneByteStringMap();
+    case NodeType::kSeqNonInternalizedOneByteString:
+      return map.IsStringMap() && !map.IsInternalizedStringMap() &&
+             map.IsSeqStringMap() && map.IsOneByteStringMap();
     case NodeType::kStringWrapper:
       return map.IsStringWrapperMap();
     case NodeType::kJSArray:
@@ -6972,6 +7078,31 @@ class CheckString : public FixedInputNodeT<1, CheckString> {
   using CheckTypeBitField = NextBitField<CheckType, 1>;
 };
 
+class CheckSeqOneByteString : public FixedInputNodeT<1, CheckSeqOneByteString> {
+  using Base = FixedInputNodeT<1, CheckSeqOneByteString>;
+
+ public:
+  explicit CheckSeqOneByteString(uint64_t bitfield, CheckType check_type)
+      : Base(CheckTypeBitField::update(bitfield, check_type)) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  static constexpr int kReceiverIndex = 0;
+  Input& receiver_input() { return input(kReceiverIndex); }
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+  auto options() const { return std::tuple{check_type()}; }
+
+ private:
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
+};
+
 class CheckStringOrStringWrapper
     : public FixedInputNodeT<1, CheckStringOrStringWrapper> {
   using Base = FixedInputNodeT<1, CheckStringOrStringWrapper>;
@@ -7443,7 +7574,7 @@ class BuiltinStringPrototypeCharCodeOrCodePointAt
 
   explicit BuiltinStringPrototypeCharCodeOrCodePointAt(uint64_t bitfield,
                                                        Mode mode)
-      : Base(bitfield), mode_(mode) {}
+      : Base(bitfield | ModeField::encode(mode)) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::CanAllocate() | OpProperties::CanRead() |
@@ -7461,12 +7592,35 @@ class BuiltinStringPrototypeCharCodeOrCodePointAt
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
-  auto options() const { return std::tuple{mode_}; }
+  auto options() const { return std::tuple{mode()}; }
 
-  Mode mode() const { return mode_; }
+  Mode mode() const { return ModeField::decode(bitfield()); }
 
  private:
-  Mode mode_;
+  using ModeField = NextBitField<Mode, 1>;
+};
+
+class BuiltinSeqOneByteStringCharCodeAt
+    : public FixedInputValueNodeT<2, BuiltinSeqOneByteStringCharCodeAt> {
+  using Base = FixedInputValueNodeT<2, BuiltinSeqOneByteStringCharCodeAt>;
+
+ public:
+  explicit BuiltinSeqOneByteStringCharCodeAt(uint64_t bitfield)
+      : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::CanRead() | OpProperties::Int32();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kInt32};
+
+  static constexpr int kStringIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  Input& string_input() { return input(kStringIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class MapPrototypeGet : public FixedInputValueNodeT<2, MapPrototypeGet> {
@@ -9141,6 +9295,26 @@ class StringAt : public FixedInputValueNodeT<2, StringAt> {
   Input& index_input() { return input(kIndexIndex); }
 
   int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class SeqOneByteStringAt : public FixedInputValueNodeT<2, SeqOneByteStringAt> {
+  using Base = FixedInputValueNodeT<2, SeqOneByteStringAt>;
+
+ public:
+  explicit SeqOneByteStringAt(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::CanRead();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kInt32};
+
+  static constexpr int kStringIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  Input& string_input() { return input(kStringIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}

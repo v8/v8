@@ -149,11 +149,11 @@ struct kUniqueMapRangeOfStringType {
 // addresses, and therefore is on/off for all two-byte/one-byte strings. Which
 // of the two has the on-bit depends on the current RO heap layout, so just
 // sniff this by checking an arbitrary one-byte map's value.
-static constexpr int kStringMapEncodingMask =
+static constexpr uint32_t kStringMapEncodingMask =
     1 << base::bits::CountTrailingZerosNonZero(Map::kSize);
-static constexpr int kOneByteStringMapBit =
+static constexpr uint32_t kOneByteStringMapBit =
     StaticReadOnlyRoot::kSeqOneByteStringMap & kStringMapEncodingMask;
-static constexpr int kTwoByteStringMapBit =
+static constexpr uint32_t kTwoByteStringMapBit =
     StaticReadOnlyRoot::kSeqTwoByteStringMap & kStringMapEncodingMask;
 
 inline constexpr std::optional<TaggedAddressRange>

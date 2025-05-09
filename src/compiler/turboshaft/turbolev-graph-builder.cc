@@ -2483,6 +2483,20 @@ class GraphBuildingNodeProcessor {
                        node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckSeqOneByteString* node,
+                                const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    ObjectIsOp::InputAssumptions input_assumptions =
+        node->check_type() == maglev::CheckType::kCheckHeapObject
+            ? ObjectIsOp::InputAssumptions::kNone
+            : ObjectIsOp::InputAssumptions::kHeapObject;
+    // TODO(leszeks): Tighter check.
+    V<Word32> check = __ ObjectIs(Map(node->receiver_input()),
+                                  ObjectIsOp::Kind::kString, input_assumptions);
+    __ DeoptimizeIfNot(check, frame_state, DeoptimizeReason::kNotAString,
+                       node->eager_deopt_info()->feedback_to_update());
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CheckStringOrStringWrapper* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
@@ -2790,6 +2804,16 @@ class GraphBuildingNodeProcessor {
     SetMap(node, __ ConvertCharCodeToString(char_code));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::SeqOneByteStringAt* node,
+                                const maglev::ProcessingState& state) {
+    // TODO(leszeks): Change to seq-one-byte-specialized once
+    // CheckSeqOneByteString checks for seq one-byte.
+    V<Word32> char_code =
+        __ StringCharCodeAt(Map(node->string_input()),
+                            __ ChangeUint32ToUintPtr(Map(node->index_input())));
+    SetMap(node, __ ConvertCharCodeToString(char_code));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CheckedInternalizedString* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
@@ -2828,6 +2852,15 @@ class GraphBuildingNodeProcessor {
                        Map(node->string_input()),
                        __ ChangeUint32ToUintPtr(Map(node->index_input()))));
     }
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::BuiltinSeqOneByteStringCharCodeAt* node,
+                                const maglev::ProcessingState& state) {
+    // TODO(leszeks): Change to seq-one-byte-specialized once
+    // CheckSeqOneByteString checks for seq one-byte.
+    SetMap(node, __ StringCharCodeAt(
+                     Map(node->string_input()),
+                     __ ChangeUint32ToUintPtr(Map(node->index_input()))));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::ToString* node,

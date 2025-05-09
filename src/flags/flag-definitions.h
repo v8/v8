@@ -715,6 +715,10 @@ DEFINE_BOOL(maglev_skip_migration_check_for_polymorphic_access, false,
 DEFINE_WEAK_IMPLICATION(future, flush_baseline_code)
 #endif
 
+DEFINE_BOOL(specialize_code_for_one_byte_seq_strings, false,
+            "Specialize maglev code for feedback with only one-byte sequential "
+            "strings.")
+
 #ifdef V8_TARGET_ARCH_64_BIT
 DEFINE_BOOL(additive_safe_int_feedback, false,
             "Enable the use of AdditiveSafeInteger feedback")

@@ -195,6 +195,7 @@ class NodeInfo {
     if (!any_map_is_unstable_) return;
     possible_maps_.clear();
     possible_maps_are_known_ = false;
+    type_ = MakeTypeStable(type_);
     any_map_is_unstable_ = false;
   }
 
@@ -242,6 +243,11 @@ class NodeInfo {
   }
 
   bool any_map_is_unstable() const { return any_map_is_unstable_; }
+
+  void set_node_type_is_unstable() {
+    // Re-use any_map_is_unstable to signal that the node type is unstable.
+    any_map_is_unstable_ = true;
+  }
 
  private:
   NodeType type_ = NodeType::kUnknown;
