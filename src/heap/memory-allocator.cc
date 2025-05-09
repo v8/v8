@@ -353,10 +353,6 @@ void MemoryAllocator::Free(MemoryAllocator::FreeMode mode,
     case FreeMode::kImmediately:
       PerformFreeMemory(chunk_metadata);
       break;
-    case FreeMode::kPostpone:
-      // Record page to be freed later.
-      queued_pages_to_be_freed_.push_back(chunk_metadata);
-      break;
     case FreeMode::kPool:
       // Ensure that we only ever put pages with their markbits cleared into the
       // pool. This is necessary because `PreFreeMemory` doesn't clear the
@@ -654,13 +650,6 @@ void MemoryAllocator::RecordMemoryChunkDestroyed(const MemoryChunk* chunk) {
     USE(size);
     DCHECK_EQ(1u, size);
   }
-}
-
-void MemoryAllocator::ReleaseQueuedPages() {
-  for (auto* chunk : queued_pages_to_be_freed_) {
-    PerformFreeMemory(chunk);
-  }
-  queued_pages_to_be_freed_.clear();
 }
 
 // static

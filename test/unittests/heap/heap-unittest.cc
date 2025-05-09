@@ -259,7 +259,9 @@ void ShrinkNewSpace(NewSpace* new_space) {
        (paged_new_space->ShouldReleaseEmptyPage());) {
     PageMetadata* page = *it++;
     if (page->allocated_bytes() == 0) {
-      paged_new_space->ReleasePage(page);
+      paged_new_space->paged_space()->RemovePageFromSpace(page);
+      heap->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
+                                     page);
     } else {
       // The number of live bytes should be zero, because at this point we're
       // after a GC.

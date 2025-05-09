@@ -912,10 +912,10 @@ void PagedSpaceForNewSpace::RemovePage(PageMetadata* page) {
   PagedSpaceBase::RemovePage(page);
 }
 
-void PagedSpaceForNewSpace::ReleasePage(PageMetadata* page) {
+void PagedSpaceForNewSpace::RemovePageFromSpace(PageMetadata* page) {
   DCHECK_LE(PageMetadata::kPageSize, current_capacity_);
   current_capacity_ -= PageMetadata::kPageSize;
-  PagedSpaceBase::ReleasePageImpl(page, MemoryAllocator::FreeMode::kPool);
+  PagedSpaceBase::RemovePageFromSpaceImpl(page);
 }
 
 bool PagedSpaceForNewSpace::ShouldReleaseEmptyPage() const {

@@ -372,6 +372,8 @@ class MarkCompactCollector final {
   void UpdatePointersAfterEvacuation();
 
   void ReleaseEvacuationCandidates();
+  void ReleasePage(PagedSpaceBase* space, PageMetadata* page);
+
   // Returns number of aborted pages.
   size_t PostProcessAbortedEvacuationCandidates();
   void ReportAbortedEvacuationCandidateDueToOOM(Address failed_start,
@@ -441,6 +443,10 @@ class MarkCompactCollector final {
       aborted_evacuation_candidates_due_to_oom_;
   std::vector<PageMetadata*> aborted_evacuation_candidates_due_to_flags_;
   std::vector<LargePageMetadata*> promoted_large_pages_;
+
+  // We postpone page freeing until the pointer-update phase is done (updating
+  // slots may happen for dead objects which point to dead memory).
+  std::vector<MutablePageMetadata*> queued_pages_to_be_freed_;
 
   // Map which stores ephemeron pairs for the linear-time algorithm.
   KeyToValues key_to_values_;

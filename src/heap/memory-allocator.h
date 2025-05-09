@@ -58,11 +58,6 @@ class MemoryAllocator {
     // Frees page immediately on the main thread.
     kImmediately,
 
-    // Postpone freeing, until MemoryAllocator::ReleaseQueuedPages() is called.
-    // This is used in the major GC to allow the pointer-update phase to touch
-    // dead memory.
-    kPostpone,
-
     // Pool page.
     kPool,
   };
@@ -210,10 +205,6 @@ class MemoryAllocator {
   // Insert and remove normal and large pages that are owned by this heap.
   void RecordMemoryChunkCreated(const MemoryChunk* chunk);
   void RecordMemoryChunkDestroyed(const MemoryChunk* chunk);
-
-  // We postpone page freeing until the pointer-update phase is done (updating
-  // slots may happen for dead objects which point to dead memory).
-  void ReleaseQueuedPages();
 
   // Returns the number of cached chunks for this isolate.
   V8_EXPORT_PRIVATE size_t GetPooledChunksCount();
@@ -406,7 +397,6 @@ class MemoryAllocator {
 
   std::optional<VirtualMemory> reserved_chunk_at_virtual_memory_limit_;
   PagePool* pool_;
-  std::vector<MutablePageMetadata*> queued_pages_to_be_freed_;
 
 #ifdef DEBUG
   // Data structure to remember allocated executable memory chunks.
