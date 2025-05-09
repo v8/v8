@@ -1961,8 +1961,8 @@ MaybeLocal<Value> Script::Run(Local<Context> context,
   i::DirectHandle<i::Object> options(
       i::Cast<i::Script>(fun->shared()->script())->host_defined_options(),
       i_isolate);
-  return api_scope.EscapeMaybe(Utils::ToMaybeLocal(
-      i::Execution::CallScript(i_isolate, fun, receiver, options)));
+  return api_scope.EscapeMaybe(
+      i::Execution::CallScript(i_isolate, fun, receiver, options));
 }
 
 Local<Value> ScriptOrModule::GetResourceName() {
@@ -2294,8 +2294,7 @@ MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
   Utils::ApiCheck(self->status() >= i::Module::kLinked, "Module::Evaluate",
                   "Expected instantiated module");
 
-  return api_scope.EscapeMaybe(
-      Utils::ToMaybeLocal(i::Module::Evaluate(i_isolate, self)));
+  return api_scope.EscapeMaybe(i::Module::Evaluate(i_isolate, self));
 }
 
 Local<Module> Module::CreateSyntheticModule(
@@ -2856,7 +2855,7 @@ MaybeLocal<Value> v8::TryCatch::StackTrace(Local<Context> context,
   Maybe<bool> maybe = i::JSReceiver::HasProperty(i_isolate, obj, name);
   if (maybe != Just(true)) return {};
   return api_scope.EscapeMaybe(
-      Utils::ToMaybeLocal(i::JSReceiver::GetProperty(i_isolate, obj, name)));
+      i::JSReceiver::GetProperty(i_isolate, obj, name));
 }
 
 MaybeLocal<Value> v8::TryCatch::StackTrace(Local<Context> context) const {
@@ -3222,7 +3221,7 @@ MaybeLocal<Value> JSON::Parse(Local<Context> context,
       source->IsOneByteRepresentation()
           ? i::JsonParser<uint8_t>::Parse(i_isolate, source, undefined)
           : i::JsonParser<uint16_t>::Parse(i_isolate, source, undefined);
-  return api_scope.EscapeMaybe(Utils::ToMaybeLocal(maybe_result));
+  return api_scope.EscapeMaybe(maybe_result);
 }
 
 MaybeLocal<String> JSON::Stringify(Local<Context> context,
@@ -3246,8 +3245,7 @@ MaybeLocal<String> JSON::Stringify(Local<Context> context,
            .ToHandle(&maybe)) {
     return {};
   }
-  return api_scope.EscapeMaybe(
-      Utils::ToMaybeLocal(i::Object::ToString(i_isolate, maybe)));
+  return api_scope.EscapeMaybe(i::Object::ToString(i_isolate, maybe));
 }
 
 // --- V a l u e   S e r i a l i z a t i o n ---
@@ -3474,7 +3472,7 @@ MaybeLocal<Value> ValueDeserializer::ReadValue(Local<Context> context) {
       GetWireFormatVersion() > 0
           ? private_->deserializer.ReadObjectWrapper()
           : private_->deserializer.ReadObjectUsingEntireBufferForLegacyFormat();
-  return api_scope.EscapeMaybe(Utils::ToMaybeLocal(result));
+  return api_scope.EscapeMaybe(result);
 }
 
 void ValueDeserializer::TransferArrayBuffer(uint32_t transfer_id,
@@ -3724,8 +3722,7 @@ MaybeLocal<String> Value::ToString(Local<Context> context) const {
   if (i::IsString(*obj)) return ToApiHandle<String>(obj);
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Object_ToString};
   i::Isolate* i_isolate = api_scope.i_isolate();
-  return api_scope.EscapeMaybe(
-      Utils::ToMaybeLocal(i::Object::ToString(i_isolate, obj)));
+  return api_scope.EscapeMaybe(i::Object::ToString(i_isolate, obj));
 }
 
 MaybeLocal<String> Value::ToDetailString(Local<Context> context) const {
@@ -3747,8 +3744,7 @@ MaybeLocal<Object> Value::ToObject(Local<Context> context) const {
   if (i::IsJSReceiver(*obj)) return ToApiHandle<Object>(obj);
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Object_ToObject};
   i::Isolate* i_isolate = api_scope.i_isolate();
-  return api_scope.EscapeMaybe(
-      Utils::ToMaybeLocal(i::Object::ToObject(i_isolate, obj)));
+  return api_scope.EscapeMaybe(i::Object::ToObject(i_isolate, obj));
 }
 
 MaybeLocal<BigInt> Value::ToBigInt(Local<Context> context) const {
@@ -3756,8 +3752,7 @@ MaybeLocal<BigInt> Value::ToBigInt(Local<Context> context) const {
   if (i::IsBigInt(*obj)) return ToApiHandle<BigInt>(obj);
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Object_ToBigInt};
   i::Isolate* i_isolate = api_scope.i_isolate();
-  return api_scope.EscapeMaybe(
-      Utils::ToMaybeLocal(i::BigInt::FromObject(i_isolate, obj)));
+  return api_scope.EscapeMaybe(i::BigInt::FromObject(i_isolate, obj));
 }
 
 bool Value::BooleanValue(Isolate* v8_isolate) const {
@@ -4576,8 +4571,8 @@ MaybeLocal<Value> v8::Object::Get(Local<v8::Context> context,
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto self = Utils::OpenDirectHandle(this);
   auto key_obj = Utils::OpenDirectHandle(*key);
-  return api_scope.EscapeMaybe(Utils::ToMaybeLocal(
-      i::Runtime::GetObjectProperty(i_isolate, self, key_obj)));
+  return api_scope.EscapeMaybe(
+      i::Runtime::GetObjectProperty(i_isolate, self, key_obj));
 }
 
 MaybeLocal<Value> v8::Object::Get(Local<v8::Context> context, Local<Value> key,
@@ -4590,8 +4585,8 @@ MaybeLocal<Value> v8::Object::Get(Local<v8::Context> context, Local<Value> key,
   if (!receiver.IsEmpty()) {
     receiver_obj = Utils::OpenDirectHandle(*receiver.ToLocalChecked());
   }
-  return api_scope.EscapeMaybe(Utils::ToMaybeLocal(
-      i::Runtime::GetObjectProperty(i_isolate, self, key_obj, receiver_obj)));
+  return api_scope.EscapeMaybe(
+      i::Runtime::GetObjectProperty(i_isolate, self, key_obj, receiver_obj));
 }
 
 MaybeLocal<Value> v8::Object::Get(Local<Context> context, uint32_t index) {
@@ -4599,7 +4594,7 @@ MaybeLocal<Value> v8::Object::Get(Local<Context> context, uint32_t index) {
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto self = Utils::OpenDirectHandle(this);
   return api_scope.EscapeMaybe(
-      Utils::ToMaybeLocal(i::JSReceiver::GetElement(i_isolate, self, index)));
+      i::JSReceiver::GetElement(i_isolate, self, index));
 }
 
 MaybeLocal<Value> v8::Object::GetPrivate(Local<Context> context,
@@ -4782,9 +4777,8 @@ MaybeLocal<String> v8::Object::ObjectProtoToString(Local<Context> context) {
                                      RCCId::kAPI_Object_ObjectProtoToString};
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto self = Utils::OpenDirectHandle(this);
-  return api_scope.EscapeMaybe(
-      MaybeLocal<String>::Cast(Utils::ToMaybeLocal(i::Execution::CallBuiltin(
-          i_isolate, i_isolate->object_to_string(), self, {}))));
+  return api_scope.EscapeMaybe(i::Cast<i::String>(i::Execution::CallBuiltin(
+      i_isolate, i_isolate->object_to_string(), self, {})));
 }
 
 Local<String> v8::Object::GetConstructorName() {
@@ -5559,9 +5553,8 @@ MaybeLocal<String> v8::Function::FunctionProtoToString(Local<Context> context) {
       context, RCCId::kAPI_Function_FunctionProtoToString};
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto self = Utils::OpenDirectHandle(this);
-  return api_scope.EscapeMaybe(
-      MaybeLocal<String>::Cast(Utils::ToMaybeLocal(i::Execution::CallBuiltin(
-          i_isolate, i_isolate->function_to_string(), self, {}))));
+  return api_scope.EscapeMaybe(i::Cast<i::String>(i::Execution::CallBuiltin(
+      i_isolate, i_isolate->function_to_string(), self, {})));
 }
 
 int Name::GetIdentityHash() {
@@ -7340,7 +7333,7 @@ MaybeLocal<v8::Object> ObjectTemplate::NewInstance(Local<Context> context) {
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto self = Utils::OpenDirectHandle(this);
   return api_scope.EscapeMaybe(
-      Utils::ToMaybeLocal(i::ApiNatives::InstantiateObject(i_isolate, self)));
+      i::ApiNatives::InstantiateObject(i_isolate, self));
 }
 
 void v8::ObjectTemplate::CheckCast(Data* that) {
@@ -7373,9 +7366,8 @@ MaybeLocal<v8::Function> FunctionTemplate::GetFunction(Local<Context> context) {
                                      RCCId::kAPI_FunctionTemplate_GetFunction};
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto self = Utils::OpenDirectHandle(this);
-  return api_scope.EscapeMaybe(
-      Utils::ToMaybeLocal(i::ApiNatives::InstantiateFunction(
-          i_isolate, i_isolate->native_context(), self)));
+  return api_scope.EscapeMaybe(i::ApiNatives::InstantiateFunction(
+      i_isolate, i_isolate->native_context(), self));
 }
 
 MaybeLocal<v8::Object> FunctionTemplate::NewRemoteInstance() {
@@ -8028,9 +8020,9 @@ MaybeLocal<v8::RegExp> v8::RegExp::New(Local<Context> context,
                                        Local<String> pattern, Flags flags) {
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_RegExp_New};
   i::Isolate* i_isolate = api_scope.i_isolate();
-  return api_scope.EscapeMaybe(Utils::ToMaybeLocal(
+  return api_scope.EscapeMaybe(
       i::JSRegExp::New(i_isolate, Utils::OpenDirectHandle(*pattern),
-                       static_cast<i::JSRegExp::Flags>(flags))));
+                       static_cast<i::JSRegExp::Flags>(flags)));
 }
 
 MaybeLocal<v8::RegExp> v8::RegExp::NewWithBacktrackLimit(
@@ -8044,9 +8036,9 @@ MaybeLocal<v8::RegExp> v8::RegExp::NewWithBacktrackLimit(
                   "Must set backtrack_limit");
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_RegExp_New};
   i::Isolate* i_isolate = api_scope.i_isolate();
-  return api_scope.EscapeMaybe(Utils::ToMaybeLocal(i::JSRegExp::New(
+  return api_scope.EscapeMaybe(i::JSRegExp::New(
       i_isolate, Utils::OpenDirectHandle(*pattern),
-      static_cast<i::JSRegExp::Flags>(flags), backtrack_limit)));
+      static_cast<i::JSRegExp::Flags>(flags), backtrack_limit));
 }
 
 Local<v8::String> v8::RegExp::GetSource() const {
@@ -8402,8 +8394,8 @@ MaybeLocal<Value> Map::Get(Local<Context> context, Local<Value> key) {
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto self = Utils::OpenDirectHandle(this);
   i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*key)};
-  return api_scope.EscapeMaybe(Utils::ToMaybeLocal(i::Execution::CallBuiltin(
-      i_isolate, i_isolate->map_get(), self, base::VectorOf(args))));
+  return api_scope.EscapeMaybe(i::Execution::CallBuiltin(
+      i_isolate, i_isolate->map_get(), self, base::VectorOf(args)));
 }
 
 MaybeLocal<Map> Map::Set(Local<Context> context, Local<Value> key,
@@ -8413,9 +8405,8 @@ MaybeLocal<Map> Map::Set(Local<Context> context, Local<Value> key,
   auto self = Utils::OpenDirectHandle(this);
   i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*key),
                                        Utils::OpenDirectHandle(*value)};
-  return api_scope.EscapeMaybe(
-      MaybeLocal<Map>::Cast(Utils::ToMaybeLocal(i::Execution::CallBuiltin(
-          i_isolate, i_isolate->map_set(), self, base::VectorOf(args)))));
+  return api_scope.EscapeMaybe(i::Cast<i::JSMap>(i::Execution::CallBuiltin(
+      i_isolate, i_isolate->map_set(), self, base::VectorOf(args))));
 }
 
 Maybe<bool> Map::Has(Local<Context> context, Local<Value> key) {
@@ -8530,9 +8521,8 @@ MaybeLocal<Set> Set::Add(Local<Context> context, Local<Value> key) {
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto self = Utils::OpenDirectHandle(this);
   i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*key)};
-  return api_scope.EscapeMaybe(
-      MaybeLocal<Set>::Cast(Utils::ToMaybeLocal(i::Execution::CallBuiltin(
-          i_isolate, i_isolate->set_add(), self, base::VectorOf(args)))));
+  return api_scope.EscapeMaybe(i::Cast<i::JSSet>(i::Execution::CallBuiltin(
+      i_isolate, i_isolate->set_add(), self, base::VectorOf(args))));
 }
 
 Maybe<bool> Set::Has(Local<Context> context, Local<Value> key) {
@@ -8766,8 +8756,7 @@ MaybeLocal<Proxy> Proxy::New(Local<Context> context, Local<Object> local_target,
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto target = Utils::OpenDirectHandle(*local_target);
   auto handler = Utils::OpenDirectHandle(*local_handler);
-  return api_scope.EscapeMaybe(
-      Utils::ToMaybeLocal(i::JSProxy::New(i_isolate, target, handler)));
+  return api_scope.EscapeMaybe(i::JSProxy::New(i_isolate, target, handler));
 }
 
 CompiledWasmModule::CompiledWasmModule(
@@ -9572,8 +9561,8 @@ MaybeLocal<BigInt> v8::BigInt::NewFromWords(Local<Context> context,
   i::Isolate* i_isolate = i::Isolate::Current();
   EnterV8NoScriptScope<InternalEscapableScope> api_scope{
       i_isolate, context, RCCId::kAPI_BigInt_NewFromWords};
-  return api_scope.EscapeMaybe(Utils::ToMaybeLocal(
-      i::BigInt::FromWords64(i_isolate, sign_bit, word_count, words)));
+  return api_scope.EscapeMaybe(
+      i::BigInt::FromWords64(i_isolate, sign_bit, word_count, words));
 }
 
 uint64_t v8::BigInt::Uint64Value(bool* lossless) const {

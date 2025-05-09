@@ -291,6 +291,14 @@ class V8_NODISCARD EnterV8InternalScope {
     return handle_scope_.EscapeMaybe(value);
   }
 
+  // Same as above, but also converts `MaybeHandle` to `MaybeLocal` with type
+  // inference via `Utils::ToMaybeLocal`.
+  template <typename From>
+    requires requires(From v) { Utils::ToMaybeLocal(v); }
+  V8_INLINE auto EscapeMaybe(From value) {
+    return handle_scope_.EscapeMaybe(Utils::ToMaybeLocal(value));
+  }
+
  private:
   HandleScopeClass handle_scope_;
   CallDepthScope<do_callback> call_depth_scope_;
