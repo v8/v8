@@ -4582,14 +4582,14 @@ EVALUATE(VFI) {
       DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
       for (int i = 0; i < 4; i++) {
         float value = get_simd_register_by_lane<float>(r2, i);
-        float n = ComputeRounding<float>(value, m5);
+        float n = std::isnan(value) ? NAN : ComputeRounding<float>(value, m5);
         set_simd_register_by_lane<float>(r1, i, n);
       }
       break;
     case 3:
       for (int i = 0; i < 2; i++) {
         double value = get_simd_register_by_lane<double>(r2, i);
-        double n = ComputeRounding<double>(value, m5);
+        double n = std::isnan(value) ? NAN : ComputeRounding<double>(value, m5);
         set_simd_register_by_lane<double>(r1, i, n);
       }
       break;
