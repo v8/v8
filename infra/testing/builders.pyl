@@ -863,6 +863,15 @@
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
     ],
   },
+  'v8_linux64_undefined_double_dbg': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-22.04',
+      'cpu': 'x86-64',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 3},
+    ],
+  },
   'v8_linux64_verify_csa_rel': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-22.04',
@@ -1885,6 +1894,15 @@
     ],
   },
   'V8 Linux64 - sticky mark bits - debug': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-22.04',
+      'cpu': 'x86-64',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 3},
+    ],
+  },
+  'V8 Linux64 - undefined double - debug': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-22.04',
       'cpu': 'x86-64',
