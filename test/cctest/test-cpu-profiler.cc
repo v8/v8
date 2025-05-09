@@ -4166,7 +4166,6 @@ TEST(EmbedderStatePropagateNativeContextMove) {
   // If no compaction is performed when a GC with stack is invoked (which
   // happens, e.g., with conservative stack scanning), this test will fail.
   if (!i::v8_flags.compact_with_stack) return;
-  if (i::v8_flags.conservative_stack_scanning) return;
   if (i::v8_flags.precise_object_pinning) return;
 
   i::v8_flags.allow_natives_syntax = true;

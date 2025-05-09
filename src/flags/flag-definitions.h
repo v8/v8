@@ -470,6 +470,7 @@ DEFINE_EXPERIMENTAL_FEATURE(conservative_stack_scanning,
 #endif  // V8_ENABLE_DIRECT_HANDLE
 DEFINE_IMPLICATION(conservative_stack_scanning,
                    scavenger_conservative_object_pinning)
+DEFINE_NEG_IMPLICATION(conservative_stack_scanning, compact_with_stack)
 
 #ifdef V8_ENABLE_DIRECT_HANDLE
 #define V8_ENABLE_DIRECT_HANDLE_BOOL true

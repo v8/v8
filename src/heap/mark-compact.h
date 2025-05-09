@@ -466,8 +466,6 @@ class MarkCompactCollector final {
 
   bool use_background_threads_in_cycle_ = false;
 
-  bool in_conservative_stack_scanning_ = false;
-
   friend class Evacuator;
   friend class RecordMigratedSlotVisitor;
   friend class RootMarkingVisitor;
