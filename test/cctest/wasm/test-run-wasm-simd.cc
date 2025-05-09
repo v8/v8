@@ -6853,6 +6853,122 @@ TEST(RunWasmTurbofan_ChangeIndexFromI32ToI64ExpectFail) {
   }
 }
 
+// Two splat have same constant value, may be revectorized.
+TEST(RunWasmTurbofan_ConstSplatRevec) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+
+  int32_t* memory;
+  auto build_and_check_results = [&memory](WasmRunner<int32_t>& r, int32_t x,
+                                           int32_t y, uint8_t offset,
+                                           enum ExpectedResult expect) {
+    memory = r.builder().AddMemoryElems<int32_t>(12);
+    {
+      TSSimd256VerifyScope ts_scope(
+          r.zone(),
+          TSSimd256VerifyScope::VerifyHaveOpWithKind<
+              compiler::turboshaft::Simd256SplatOp,
+              compiler::turboshaft::Simd256SplatOp::Kind::kI32x8>,
+          expect);
+
+      r.Build(
+          {WASM_SIMD_STORE_MEM(WASM_ZERO, WASM_SIMD_I32x4_SPLAT(WASM_I32V(x))),
+           WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_ZERO,
+                                      WASM_SIMD_I32x4_SPLAT(WASM_I32V(y))),
+           WASM_ONE});
+    }
+    r.Call();
+    for (int i = 0; i < 4; ++i) {
+      CHECK_EQ(x, r.builder().ReadMemory(&memory[i]));
+      CHECK_EQ(y,
+               r.builder().ReadMemory(&memory[i + offset / sizeof(int32_t)]));
+    }
+  };
+
+  {
+    // Splat from same constant(1)
+    WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+    build_and_check_results(r, 1, 1, 16, ExpectedResult::kPass);
+  }
+
+  {
+    // Splat from different constant(0 and 1)
+    WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+    build_and_check_results(r, 0, 1, 16, ExpectedResult::kFail);
+  }
+
+  {
+    // Non-continuous store
+    WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+    build_and_check_results(r, 1, 1, 32, ExpectedResult::kFail);
+  }
+}
+
+// Two Splat from different value, not constant
+TEST(RunWasmTurbofan_I32x4SplatRevecExpectFail) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(8);
+  int32_t param1 = 0;
+  int32_t param2 = 1;
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(),
+        TSSimd256VerifyScope::VerifyHaveOpWithKind<
+            compiler::turboshaft::Simd256SplatOp,
+            compiler::turboshaft::Simd256SplatOp::Kind::kI32x8>,
+        ExpectedResult::kFail);
+
+    r.Build({WASM_SIMD_STORE_MEM(WASM_ZERO,
+                                 WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(param1))),
+             WASM_SIMD_STORE_MEM_OFFSET(
+                 16, WASM_ZERO, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(param2))),
+             WASM_ONE});
+  }
+
+  FOR_INT32_INPUTS(x) {
+    FOR_INT32_INPUTS(y) {
+      r.Call(x, y);
+      for (int i = 0; i < 4; ++i) {
+        CHECK_EQ(x, r.builder().ReadMemory(&memory[i]));
+        CHECK_EQ(y, r.builder().ReadMemory(&memory[i + 4]));
+      }
+    }
+  }
+}
+
+// Can't merge different opcode, I32x4Splat(i32) and S128Const
+TEST(RunWasmTurbofan_DifferentOpcodeRevecExpectFail) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int8_t> r(TestExecutionTier::kTurbofan);
+  int8_t* memory = r.builder().AddMemoryElems<int8_t>(32);
+  int8_t param1 = 0;
+  std::array<uint8_t, kSimd128Size> expected = {0};
+  // Test for generic constant
+  for (int i = 0; i < kSimd128Size; i++) {
+    expected[i] = i;
+  }
+
+  {
+    TSSimd256VerifyScope ts_scope(r.zone(),
+                                  TSSimd256VerifyScope::VerifyHaveAnySimd256Op,
+                                  ExpectedResult::kFail);
+    r.Build({WASM_SIMD_STORE_MEM(WASM_ZERO, WASM_SIMD_CONSTANT(expected)),
+             WASM_SIMD_STORE_MEM_OFFSET(
+                 16, WASM_ZERO, WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(param1))),
+             WASM_ONE});
+  }
+  FOR_INT8_INPUTS(x) {
+    r.Call(x);
+    for (int i = 0; i < kSimd128Size; ++i) {
+      CHECK_EQ(expected[i], r.builder().ReadMemory(&memory[i]));
+      CHECK_EQ(x, r.builder().ReadMemory(&memory[i + 16]));
+    }
+  }
+}
+
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 #undef WASM_SIMD_CHECK_LANE_S
