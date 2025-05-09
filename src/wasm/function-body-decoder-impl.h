@@ -2709,7 +2709,9 @@ class WasmDecoder : public Decoder {
             // One unused zero-byte.
             return length + 1;
           }
-          case kExprStructAtomicGet: {
+          case kExprStructAtomicGet:
+          case kExprStructAtomicGetS:
+          case kExprStructAtomicGetU: {
             MemoryOrderImmediate memory_order(decoder, pc + length, validate);
             (ios.MemoryOrder(memory_order), ...);
             FieldImmediate field(decoder, pc + length + memory_order.length,
@@ -6786,6 +6788,43 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         }
         CALL_INTERFACE_IF_OK_AND_REACHABLE(AtomicFence);
         return 1 + opcode_length;
+      }
+      case kExprStructAtomicGetS:
+      case kExprStructAtomicGetU: {
+        CHECK_PROTOTYPE_OPCODE(shared);
+        NON_CONST_ONLY
+        MemoryOrderImmediate memory_order(this, this->pc_ + opcode_length,
+                                          validate);
+        if (!this->ok()) return 0;
+        FieldImmediate field(
+            this, this->pc_ + opcode_length + memory_order.length, validate);
+        if (!this->Validate(this->pc_ + opcode_length + memory_order.length,
+                            field)) {
+          return 0;
+        }
+        ValueType field_type =
+            field.struct_imm.struct_type->field(field.field_imm.index);
+        if (!VALIDATE(field_type.is_packed())) {
+          this->DecodeError(
+              "%s: Field %d of type %d has non-packed type %s. Use "
+              "struct.atomic.get instead.",
+              WasmOpcodes::OpcodeName(opcode), field.field_imm.index,
+              field.struct_imm.index.index, field_type.name().c_str());
+          return 0;
+        }
+        Value struct_obj =
+            Pop(ValueType::RefNull(field.struct_imm.heap_type()));
+        Value* value = Push(field_type.Unpacked());
+        const bool is_signed = opcode == kExprStructAtomicGetS;
+        if (struct_obj.type.is_shared()) {
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(StructAtomicGet, struct_obj, field,
+                                             is_signed, memory_order.order,
+                                             value);
+        } else {
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(StructGet, struct_obj, field,
+                                             is_signed, value);
+        }
+        return opcode_length + memory_order.length + field.length;
       }
       case kExprStructAtomicGet: {
         CHECK_PROTOTYPE_OPCODE(shared);

@@ -1090,6 +1090,14 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
     case LoadType::kI64Load:
       Ldar(dst.gp().X(), src_reg);
       return;
+    case LoadType::kI32Load8S:
+      Ldarb(dst.gp().W(), src_reg);
+      sxtb(dst.gp().W(), dst.gp().W());
+      return;
+    case LoadType::kI32Load16S:
+      Ldarh(dst.gp().W(), src_reg);
+      sxth(dst.gp().W(), dst.gp().W());
+      return;
     default:
       UNREACHABLE();
   }

@@ -113,3 +113,70 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     assertTraps(kTrapNullDereference, () => wasm.atomicGetRef(null));
   }
 })();
+
+(function TestAtomicGetPacked() {
+  for (let is_shared of [true, false]) {
+    print(`${arguments.callee.name} ${is_shared ? "shared" : "unshared"}`);
+    let builder = new WasmModuleBuilder();
+    let struct = builder.addStruct({
+      fields: [
+        makeField(kWasmI8, true),
+        makeField(kWasmI8, true),
+        makeField(kWasmI16, true),
+        makeField(kWasmI16, true),
+      ],
+      is_shared,
+    });
+    let producer_sig = makeSig([kWasmI32, kWasmI32], [wasmRefType(struct)]);
+    builder.addFunction("newStruct", producer_sig)
+      .addBody([
+        kExprI32Const, 42,
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        ...wasmI32Const(12_345),
+        kGCPrefix, kExprStructNew, struct])
+      .exportFunc();
+    builder.addFunction("atomicGetS8",
+        makeSig([wasmRefNullType(struct)], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kAtomicPrefix, kExprStructAtomicGetS, kAtomicSeqCst, struct, 1,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicGetS16",
+        makeSig([wasmRefNullType(struct)], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kAtomicPrefix, kExprStructAtomicGetS, kAtomicSeqCst, struct, 2,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicGetU8",
+        makeSig([wasmRefNullType(struct)], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kAtomicPrefix, kExprStructAtomicGetU, kAtomicSeqCst, struct, 1,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicGetU16",
+        makeSig([wasmRefNullType(struct)], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kAtomicPrefix, kExprStructAtomicGetU, kAtomicSeqCst, struct, 2,
+      ])
+      .exportFunc();
+
+    let wasm = builder.instantiate().exports;
+    let structPos = wasm.newStruct(12, 3456);
+    assertEquals(12, wasm.atomicGetS8(structPos));
+    assertEquals(12, wasm.atomicGetU8(structPos));
+    assertEquals(3456, wasm.atomicGetS16(structPos));
+    assertEquals(3456, wasm.atomicGetU16(structPos));
+    let structNeg = wasm.newStruct(-12, -3456);
+    assertEquals(-12, wasm.atomicGetS8(structNeg));
+    assertEquals(244, wasm.atomicGetU8(structNeg));
+    assertEquals(-3456, wasm.atomicGetS16(structNeg));
+    assertEquals(62080, wasm.atomicGetU16(structNeg));
+    assertTraps(kTrapNullDereference, () => wasm.atomicGetS8(null));
+    assertTraps(kTrapNullDereference, () => wasm.atomicGetS16(null));
+  }
+})();

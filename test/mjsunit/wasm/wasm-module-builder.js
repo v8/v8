@@ -722,6 +722,8 @@ let kExprI64AtomicCompareExchange32U = 0x4e;
 
 // Atomic GC opcodes (shared-everything-threads).
 const kExprStructAtomicGet = 0x5c;
+const kExprStructAtomicGetS = 0x5d;
+const kExprStructAtomicGetU = 0x5e;
 
 // Simd opcodes.
 let kExprS128LoadMem = 0x00;
