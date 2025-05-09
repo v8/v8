@@ -75,6 +75,14 @@ in_category(
         notify_owners = ["bikineev@chromium.org", "omerkatz@chromium.org"],
     ),
     experiment_builder_pair(
+        name = "V8 Linux64 - undefined double - debug",
+        triggered_by = ["v8-trigger"],
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        use_remoteexec = RECLIENT.DEFAULT,
+        notify_owners = ["nicohartmann@chromium.org"],
+        notifies = ["blamelist"],
+    ),
+    experiment_builder_pair(
         name = "V8 Win64 - CET shadow stack",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},

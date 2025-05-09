@@ -70,6 +70,11 @@ in_category(
         properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan"}},
     ),
     clusterfuzz_builder(
+        name = "V8 Clusterfuzz Linux64 ASAN - undefined double - debug builder",
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan-undefined-double"}},
+    ),
+    clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 ASAN arm64 - debug builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-arm64-asan"}},
