@@ -1171,6 +1171,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Uint8T> LoadUint8Ptr(TNode<RawPtrT> ptr, TNode<IntPtrT> offset);
   TNode<Uint64T> LoadUint64Ptr(TNode<RawPtrT> ptr, TNode<IntPtrT> index);
 
+  template <class Type>
+  void StoreRawArgument(uint32_t index, TNode<Type> value) {
+    DCHECK_LT(index, IsolateData::GetRawArgumentCount());
+    StoreNoWriteBarrier(MachineRepresentationOf<Type>::value,
+                        IsolateField(IsolateFieldId::kRawArguments),
+                        IntPtrConstant(index * kDoubleSize), value);
+  }
+
   // Load a field from an object on the heap.
   template <typename T>
   TNode<T> LoadObjectField(TNode<HeapObject> object, int offset) {
@@ -2989,6 +2997,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   bool IsFastPackedElementsKind(ElementsKind kind) {
     return v8::internal::IsFastPackedElementsKind(kind);
   }
+  bool IsSmiElementsKind(ElementsKind kind) {
+    return v8::internal::IsSmiElementsKind(kind);
+  }
   TNode<BoolT> IsFastOrNonExtensibleOrSealedElementsKind(
       TNode<Int32T> elements_kind);
 
@@ -3003,6 +3014,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsFastSmiElementsKind(TNode<Int32T> elements_kind);
   TNode<BoolT> IsHoleyFastElementsKind(TNode<Int32T> elements_kind);
   TNode<BoolT> IsHoleyFastElementsKindForRead(TNode<Int32T> elements_kind);
+  bool IsHoleyElementsKind(ElementsKind kind) {
+    return v8::internal::IsHoleyElementsKind(kind);
+  }
   TNode<BoolT> IsElementsKindGreaterThan(TNode<Int32T> target_kind,
                                          ElementsKind reference_kind);
   TNode<BoolT> IsElementsKindGreaterThanOrEqual(TNode<Int32T> target_kind,
@@ -3032,6 +3046,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Convert a Number to a String.
   TNode<String> NumberToString(TNode<Number> input);
   TNode<String> NumberToString(TNode<Number> input, Label* bailout);
+
+  // If bailout label is not provided, then it doesn't try to grow the cache.
+  TNode<String> SmiToString(TNode<Smi> input, Label* bailout = nullptr);
+
+  TNode<String> Float64ToString(TNode<Float64T> input);
+  TNode<String> Float64ToString(TNode<Float64T> input, Label* bailout);
 
   TNode<String> TryMatchPreallocatedNumberString(TNode<Int32T> value,
                                                  Label* bailout);

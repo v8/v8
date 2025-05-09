@@ -1025,16 +1025,21 @@ Handle<String> FactoryBase<Impl>::NumberToString(DirectHandle<Object> number,
 
   double double_value = Cast<HeapNumber>(number)->value();
   // Try to canonicalize doubles.
-  int smi_value;
-  if (DoubleToSmiInteger(double_value, &smi_value)) {
-    return SmiToString(Smi::FromInt(smi_value), mode);
-  }
-  return DoubleToString(double_value, mode);
+  return DoubleToString(double_value, true, mode);
 }
 
 template <typename Impl>
 Handle<String> FactoryBase<Impl>::DoubleToString(double value,
+                                                 bool canonicalize,
                                                  NumberCacheMode mode) {
+  if (canonicalize) {
+    // Try to canonicalize doubles.
+    int smi_value;
+    if (DoubleToSmiInteger(value, &smi_value)) {
+      return SmiToString(Smi::FromInt(smi_value), mode);
+    }
+  }
+
   // LocalFactory does not have access to number string cache, only
   // main thread Factory does (since it's a mutable root).
   constexpr bool kCanUseCache = std::is_same_v<Impl, Factory>;

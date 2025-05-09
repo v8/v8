@@ -934,6 +934,8 @@ extern macro StringFromSingleCharCode(char8): String;
 extern macro StringFromSingleCharCode(char16): String;
 
 extern macro NumberToString(Number): String;
+extern macro SmiToString(Smi): String;
+extern macro Float64ToString(float64): String;
 extern macro StringToNumber(String): Number;
 extern transitioning macro NonNumberToNumber(
     implicit context: Context)(JSAnyNotNumber): Number;
@@ -992,7 +994,9 @@ extern macro IsElementsKindInRange(
 
 extern macro IsFastElementsKind(constexpr ElementsKind): constexpr bool;
 extern macro IsFastPackedElementsKind(constexpr ElementsKind): constexpr bool;
+extern macro IsSmiElementsKind(constexpr ElementsKind): constexpr bool;
 extern macro IsDoubleElementsKind(constexpr ElementsKind): constexpr bool;
+extern macro IsHoleyElementsKind(constexpr ElementsKind): constexpr bool;
 
 extern macro GetNonRabGsabElementsKind(ElementsKind): ElementsKind;
 

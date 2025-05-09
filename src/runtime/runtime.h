@@ -333,6 +333,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(IsSmi, 1, 1)                         \
   F(MaxSmi, 0, 1)                        \
   F(NumberToStringSlow, 1, 1)            \
+  F(Float64ToStringSlow, 0, 1)           \
   F(StringParseFloat, 1, 1)              \
   F(StringParseInt, 2, 1)                \
   F(StringToNumber, 1, 1)

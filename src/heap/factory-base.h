@@ -360,7 +360,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       DirectHandle<Object> number,
       NumberCacheMode mode = NumberCacheMode::kBoth);
   V8_WARN_UNUSED_RESULT Handle<String> DoubleToString(
-      double value, NumberCacheMode mode = NumberCacheMode::kBoth);
+      double value, bool canonicalize = true,
+      NumberCacheMode mode = NumberCacheMode::kBoth);
   V8_WARN_UNUSED_RESULT Handle<String> SmiToString(
       Tagged<Smi> number, NumberCacheMode mode = NumberCacheMode::kBoth);
 

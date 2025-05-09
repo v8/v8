@@ -118,6 +118,126 @@ TEST(CallCFunctionWithCallerSavedRegisters) {
   CHECK_EQ(3, Cast<Smi>(*result).value());
 }
 
+TEST(StoreRawArgument) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  Factory* factory = isolate->factory();
+
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
+  CodeStubAssembler m(asm_tester.state());
+
+  const uint32_t kRawArgumentsCount = i::IsolateData::GetRawArgumentCount();
+  // clang-format off
+  uint64_t inputs[] = {
+      0x12345678'9abcdef1u,
+      0xcafebaad'deadd00du,
+  };
+  // clang-format on
+  static_assert(arraysize(inputs) == kRawArgumentsCount);
+
+  enum Mode {
+    kClear,
+    kInputAsFloat64,
+    kInputAsIntPtr,
+    kInputAsInt32,
+    kModesCount
+  };
+
+  {
+    auto mode = m.SmiToInt32(m.Parameter<Smi>(1));
+
+    Label if_clear(&m), if_float64(&m), if_intptr(&m), if_int32(&m),
+        unreachable(&m), done(&m);
+
+    Label* labels[] = {&if_clear, &if_float64, &if_intptr, &if_int32};
+    int32_t modes[] = {kClear, kInputAsFloat64, kInputAsIntPtr, kInputAsInt32};
+    static_assert(kModesCount == arraysize(modes));
+    static_assert(kModesCount == arraysize(labels));
+
+    m.Switch(mode, &unreachable, modes, labels, kModesCount);
+
+    m.BIND(&if_clear);
+    {
+      // Init with 64-bit zeros.
+      for (uint32_t i = 0; i < kRawArgumentsCount; i++) {
+        m.StoreRawArgument<Float64T>(
+            i, m.Float64Constant(base::bit_cast<double>(uint64_t{0})));
+      }
+      m.Goto(&done);
+    }
+    m.BIND(&if_float64);
+    {
+      // Init with input[i] values as Float64T.
+      for (uint32_t i = 0; i < kRawArgumentsCount; i++) {
+        m.StoreRawArgument<Float64T>(
+            i, m.Float64Constant(base::bit_cast<double>(inputs[i])));
+      }
+      m.Goto(&done);
+    }
+    m.BIND(&if_intptr);
+    {
+      // Init with input[i] values as IntPtrT.
+      for (uint32_t i = 0; i < kRawArgumentsCount; i++) {
+        m.StoreRawArgument<IntPtrT>(
+            i, m.IntPtrConstant(static_cast<intptr_t>(inputs[i])));
+      }
+      m.Goto(&done);
+    }
+    m.BIND(&if_int32);
+    {
+      // Init with input[i] values as Int32T.
+      for (uint32_t i = 0; i < kRawArgumentsCount; i++) {
+        m.StoreRawArgument<Int32T>(
+            i, m.Int32Constant(static_cast<int32_t>(inputs[i])));
+      }
+      m.Goto(&done);
+    }
+    m.BIND(&unreachable);
+    {
+      m.Unreachable();
+    }
+    m.BIND(&done);
+    m.Return(m.UndefinedConstant());
+  }
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  for (uint32_t i = 0; i < kRawArgumentsCount; i++) {
+    CHECK_NE(isolate->isolate_data()->GetRawArgument<uint64_t>(i), inputs[i]);
+  }
+
+  // Check clearing with zeros works.
+  ft.Call(factory->NewNumber(kClear)).ToHandleChecked();
+  for (uint32_t i = 0; i < kRawArgumentsCount; i++) {
+    CHECK_EQ(isolate->isolate_data()->GetRawArgument<uint64_t>(i), 0);
+  }
+
+  // Clear and set values as Float64.
+  ft.Call(factory->NewNumber(kClear)).ToHandleChecked();
+  ft.Call(factory->NewNumber(kInputAsFloat64)).ToHandleChecked();
+  for (uint32_t i = 0; i < kRawArgumentsCount; i++) {
+    CHECK_EQ(isolate->isolate_data()->GetRawArgument<uint64_t>(i), inputs[i]);
+    CHECK_EQ(isolate->isolate_data()->GetRawArgument<double>(i),
+             base::bit_cast<double>(inputs[i]));
+  }
+
+  // Clear and set values as IntPtrT.
+  ft.Call(factory->NewNumber(kClear)).ToHandleChecked();
+  ft.Call(factory->NewNumber(kInputAsIntPtr)).ToHandleChecked();
+  for (uint32_t i = 0; i < kRawArgumentsCount; i++) {
+    CHECK_EQ(isolate->isolate_data()->GetRawArgument<intptr_t>(i),
+             static_cast<intptr_t>(inputs[i]));
+  }
+
+  // Clear and set values as Int32T.
+  ft.Call(factory->NewNumber(kClear)).ToHandleChecked();
+  ft.Call(factory->NewNumber(kInputAsInt32)).ToHandleChecked();
+  for (uint32_t i = 0; i < kRawArgumentsCount; i++) {
+    CHECK_EQ(isolate->isolate_data()->GetRawArgument<int32_t>(i),
+             static_cast<int32_t>(inputs[i]));
+  }
+}
+
 TEST(NumberToString) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   Factory* factory = isolate->factory();

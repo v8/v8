@@ -125,11 +125,7 @@ TF_BUILTIN(WasmFloat64ToNumber, WasmBuiltinsAssembler) {
 
 TF_BUILTIN(WasmFloat64ToString, WasmBuiltinsAssembler) {
   TNode<Float64T> val = UncheckedParameter<Float64T>(Descriptor::kValue);
-  // Having to allocate a HeapNumber is a bit unfortunate, but the subsequent
-  // runtime call will have to allocate a string anyway, which probably
-  // dwarfs the cost of one more small allocation here.
-  TNode<Number> tagged = ChangeFloat64ToTagged(val);
-  Return(NumberToString(tagged));
+  Return(Float64ToString(val));
 }
 
 TF_BUILTIN(JSToWasmLazyDeoptContinuation, WasmBuiltinsAssembler) {

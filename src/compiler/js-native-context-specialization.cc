@@ -177,14 +177,9 @@ Reduction JSNativeContextSpecialization::ReduceJSToString(Node* node) {
   // regressions and the stronger optimization should be re-implemented.
   NumberMatcher number_matcher(input);
   if (number_matcher.HasResolvedValue()) {
-    DirectHandle<Object> num_obj =
-        broker()
-            ->local_isolate_or_isolate()
-            ->factory()
-            ->NewNumber<AllocationType::kOld>(number_matcher.ResolvedValue());
     Handle<String> num_str =
-        broker()->local_isolate_or_isolate()->factory()->NumberToString(
-            num_obj);
+        broker()->local_isolate_or_isolate()->factory()->DoubleToString(
+            number_matcher.ResolvedValue());
     Node* reduced = graph()->NewNode(
         common()->HeapConstant(broker()->CanonicalPersistentHandle(num_str)));
 
@@ -202,11 +197,6 @@ Handle<String> JSNativeContextSpecialization::CreateStringConstant(Node* node) {
   DCHECK(IrOpcode::IsConstantOpcode(node->opcode()));
   NumberMatcher number_matcher(node);
   if (number_matcher.HasResolvedValue()) {
-    DirectHandle<Object> num_obj =
-        broker()
-            ->local_isolate_or_isolate()
-            ->factory()
-            ->NewNumber<AllocationType::kOld>(number_matcher.ResolvedValue());
     // Note that we do not store the result of NumberToString in
     // {created_strings_}, because the latter is used to know if strings are
     // safe to be used in the background, but we always have as additional
@@ -214,8 +204,8 @@ Handle<String> JSNativeContextSpecialization::CreateStringConstant(Node* node) {
     // case), and if this node is a kHeapNumber, then we know that we must have
     // created the string, and that there it is safe to read. So, we don't need
     // {created_strings_} in that case.
-    return broker()->local_isolate_or_isolate()->factory()->NumberToString(
-        num_obj);
+    return broker()->local_isolate_or_isolate()->factory()->DoubleToString(
+        number_matcher.ResolvedValue());
   } else {
     HeapObjectMatcher matcher(node);
     if (matcher.HasResolvedValue() && matcher.Ref(broker()).IsString()) {

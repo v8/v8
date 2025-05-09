@@ -169,6 +169,7 @@ struct JSBuiltinDispatchHandleRoot {
     builtin_entry_table)                                                       \
   V(BuiltinTable, Builtins::kBuiltinCount* kSystemPointerSize, builtin_table)  \
   V(ActiveStack, kSystemPointerSize, active_stack)                             \
+  V(RawArguments, 2 * kDoubleSize, raw_arguments)                              \
   ISOLATE_DATA_FIELDS_LEAPTIERING(V)
 
 #ifdef V8_COMPRESS_POINTERS
@@ -353,6 +354,18 @@ class IsolateData final {
         builtin)];
   }
 #endif  // V8_ENABLE_LEAPTIERING_BOOL && !V8_STATIC_DISPATCH_HANDLES_BOOL
+
+  // Accessors for storage of raw arguments for runtime functions.
+  template <typename T>
+    requires(std::is_integral_v<T> || std::is_floating_point_v<T>)
+  T GetRawArgument(uint32_t index) const {
+    static_assert(sizeof(T) <= kDoubleSize);
+    DCHECK_LT(index, GetRawArgumentCount());
+    return *reinterpret_cast<const T*>(&raw_arguments_[index].storage_);
+  }
+  static constexpr uint32_t GetRawArgumentCount() {
+    return arraysize(raw_arguments_);
+  }
 
   bool stack_is_iterable() const {
     DCHECK(stack_is_iterable_ == 0 || stack_is_iterable_ == 1);
@@ -547,6 +560,11 @@ class IsolateData final {
   Address builtin_table_[Builtins::kBuiltinCount] = {};
 
   wasm::StackMemory* active_stack_ = nullptr;
+
+  // Storage for raw values passed from CSA/Torque to runtime functions.
+  struct RawArgument {
+    uint8_t storage_[kDoubleSize];
+  } raw_arguments_[2] = {};
 
 #if V8_ENABLE_LEAPTIERING_BOOL && !V8_STATIC_DISPATCH_HANDLES_BOOL
   // The entries in this array are dispatch handles for builtins with SFI's.

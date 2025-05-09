@@ -73,6 +73,19 @@ RUNTIME_FUNCTION(Runtime_NumberToStringSlow) {
                                              NumberCacheMode::kSetOnly);
 }
 
+RUNTIME_FUNCTION(Runtime_Float64ToStringSlow) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+
+  // Don't try to canonicalize values. CSA::Float64ToString() machinery
+  // does not check the SmiStringCache, so returning values from there
+  // will not put an entry to DoubleStringCache.
+  const bool canonicalize = false;
+  return *isolate->factory()->DoubleToString(
+      isolate->isolate_data()->GetRawArgument<double>(0), canonicalize,
+      NumberCacheMode::kSetOnly);
+}
+
 RUNTIME_FUNCTION(Runtime_MaxSmi) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());

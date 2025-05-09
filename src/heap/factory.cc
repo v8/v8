@@ -3958,7 +3958,9 @@ Handle<String> Factory::SizeToString(size_t value, bool check_cache) {
     return SmiToString(Smi::FromInt(int32v), cache_mode);
   } else if (value <= kMaxSafeInteger) {
     double double_value = static_cast<double>(value);
-    result = DoubleToString(double_value, cache_mode);
+    // The value is already out of Smi range, so canonicalization can't
+    // succeed. Skip it.
+    result = DoubleToString(double_value, false, cache_mode);
   } else {
     char arr[kNumberToStringBufferSize];
     base::Vector<char> buffer(arr, arraysize(arr));
