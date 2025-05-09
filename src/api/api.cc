@@ -3766,7 +3766,8 @@ MaybeLocal<Primitive> Value::ToPrimitive(Local<Context> context) const {
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Object_ToPrimitive};
   i::Isolate* i_isolate = api_scope.i_isolate();
   return api_scope.EscapeMaybe(
-      ToMaybeLocal<Primitive>(i::Object::ToPrimitive(i_isolate, obj)));
+      Utils::ToMaybeLocal(i::Object::ToPrimitive(i_isolate, obj))
+          .As<Primitive>());
 }
 
 MaybeLocal<Numeric> Value::ToNumeric(Local<Context> context) const {
@@ -3775,7 +3776,7 @@ MaybeLocal<Numeric> Value::ToNumeric(Local<Context> context) const {
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Object_ToNumeric};
   i::Isolate* i_isolate = api_scope.i_isolate();
   return api_scope.EscapeMaybe(
-      ToMaybeLocal<Numeric>(i::Object::ToNumeric(i_isolate, obj)));
+      Utils::ToMaybeLocal(i::Object::ToNumeric(i_isolate, obj)).As<Numeric>());
 }
 
 Local<Boolean> Value::ToBoolean(Isolate* v8_isolate) const {
@@ -3792,7 +3793,7 @@ MaybeLocal<Number> Value::ToNumber(Local<Context> context) const {
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Object_ToNumber};
   i::Isolate* i_isolate = api_scope.i_isolate();
   return api_scope.EscapeMaybe(
-      ToMaybeLocal<Number>(i::Object::ToNumber(i_isolate, obj)));
+      Utils::ToMaybeLocal(i::Object::ToNumber(i_isolate, obj)).As<Number>());
 }
 
 MaybeLocal<Integer> Value::ToInteger(Local<Context> context) const {
@@ -3801,7 +3802,7 @@ MaybeLocal<Integer> Value::ToInteger(Local<Context> context) const {
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Object_ToInteger};
   i::Isolate* i_isolate = api_scope.i_isolate();
   return api_scope.EscapeMaybe(
-      ToMaybeLocal<Integer>(i::Object::ToInteger(i_isolate, obj)));
+      Utils::ToMaybeLocal(i::Object::ToInteger(i_isolate, obj)).As<Integer>());
 }
 
 MaybeLocal<Int32> Value::ToInt32(Local<Context> context) const {
@@ -3810,7 +3811,7 @@ MaybeLocal<Int32> Value::ToInt32(Local<Context> context) const {
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Object_ToInt32};
   i::Isolate* i_isolate = api_scope.i_isolate();
   return api_scope.EscapeMaybe(
-      ToMaybeLocal<Int32>(i::Object::ToInt32(i_isolate, obj)));
+      Utils::ToMaybeLocal(i::Object::ToInt32(i_isolate, obj)).As<Int32>());
 }
 
 MaybeLocal<Uint32> Value::ToUint32(Local<Context> context) const {
@@ -3819,7 +3820,7 @@ MaybeLocal<Uint32> Value::ToUint32(Local<Context> context) const {
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Object_ToUint32};
   i::Isolate* i_isolate = api_scope.i_isolate();
   return api_scope.EscapeMaybe(
-      ToMaybeLocal<Uint32>(i::Object::ToUint32(i_isolate, obj)));
+      Utils::ToMaybeLocal(i::Object::ToUint32(i_isolate, obj)).As<Uint32>());
 }
 
 i::Isolate* i::IsolateFromNeverReadOnlySpaceObject(i::Address obj) {
@@ -5040,10 +5041,9 @@ MaybeLocal<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
   i::PropertyKey lookup_key(i_isolate, key_obj);
   i::LookupIterator it(i_isolate, self, lookup_key, proto,
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-  Local<Value> result;
-  if (!ToLocal<Value>(i::Object::GetProperty(&it), &result)) return {};
+  MaybeLocal<Value> result = Utils::ToMaybeLocal(i::Object::GetProperty(&it));
   if (!it.IsFound()) return {};
-  return api_scope.Escape(result);
+  return api_scope.EscapeMaybe(result);
 }
 
 Maybe<PropertyAttribute>
@@ -5081,10 +5081,9 @@ MaybeLocal<Value> v8::Object::GetRealNamedProperty(Local<Context> context,
   i::PropertyKey lookup_key(i_isolate, key_obj);
   i::LookupIterator it(i_isolate, self, lookup_key, self,
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-  Local<Value> result;
-  if (!ToLocal<Value>(i::Object::GetProperty(&it), &result)) return {};
+  MaybeLocal<Value> result = Utils::ToMaybeLocal(i::Object::GetProperty(&it));
   if (!it.IsFound()) return {};
-  return api_scope.Escape(result);
+  return api_scope.EscapeMaybe(result);
 }
 
 Maybe<PropertyAttribute> v8::Object::GetRealNamedPropertyAttributes(
@@ -5280,7 +5279,7 @@ MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
   auto recv_obj = Utils::OpenDirectHandle(*recv);
   auto args = PrepareArguments(argc, argv);
   return api_scope.EscapeMaybe(
-      ToMaybeLocal<Value>(i::Execution::Call(i_isolate, self, recv_obj, args)));
+      Utils::ToMaybeLocal(i::Execution::Call(i_isolate, self, recv_obj, args)));
 }
 
 MaybeLocal<Value> Object::CallAsConstructor(Local<Context> context, int argc,
@@ -5295,7 +5294,7 @@ MaybeLocal<Value> Object::CallAsConstructor(Local<Context> context, int argc,
   auto self = Utils::OpenDirectHandle(this);
   auto args = PrepareArguments(argc, argv);
   return api_scope.EscapeMaybe(
-      ToMaybeLocal<Value>(i::Execution::New(i_isolate, self, self, args)));
+      Utils::ToMaybeLocal(i::Execution::New(i_isolate, self, self, args)));
 }
 
 MaybeLocal<Function> Function::New(Local<Context> context,
@@ -5345,7 +5344,7 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
   }
   auto args = PrepareArguments(argc, argv);
   return api_scope.EscapeMaybe(
-      ToMaybeLocal<Object>(i::Execution::New(i_isolate, self, self, args)));
+      Utils::ToMaybeLocal(i::Execution::New(i_isolate, self, self, args)));
 }
 
 MaybeLocal<v8::Value> Function::Call(v8::Isolate* isolate,
@@ -5365,7 +5364,7 @@ MaybeLocal<v8::Value> Function::Call(v8::Isolate* isolate,
   auto recv_obj = Utils::OpenDirectHandle(*recv);
   auto args = PrepareArguments(argc, argv);
   return api_scope.EscapeMaybe(
-      ToMaybeLocal<Value>(i::Execution::Call(i_isolate, self, recv_obj, args)));
+      Utils::ToMaybeLocal(i::Execution::Call(i_isolate, self, recv_obj, args)));
 }
 
 MaybeLocal<v8::Value> Function::Call(Local<Context> context,
@@ -7958,7 +7957,7 @@ MaybeLocal<v8::Value> v8::Date::New(Local<Context> context, double time) {
   }
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Date_New};
   i::Isolate* i_isolate = api_scope.i_isolate();
-  return api_scope.EscapeMaybe(ToMaybeLocal<Value>(i::JSDate::New(
+  return api_scope.EscapeMaybe(Utils::ToMaybeLocal(i::JSDate::New(
       i_isolate->date_function(), i_isolate->date_function(), time)));
 }
 
@@ -7968,7 +7967,7 @@ MaybeLocal<Value> v8::Date::Parse(Local<Context> context, Local<String> value) {
   auto string = Utils::OpenDirectHandle(*value);
   double time = ParseDateTimeString(i_isolate, string);
 
-  return api_scope.EscapeMaybe(ToMaybeLocal<Value>(i::JSDate::New(
+  return api_scope.EscapeMaybe(Utils::ToMaybeLocal(i::JSDate::New(
       i_isolate->date_function(), i_isolate->date_function(), time)));
 }
 
@@ -8079,9 +8078,17 @@ MaybeLocal<v8::Object> v8::RegExp::Exec(Local<Context> context,
   // mind. It fetches the 'exec' property and then calls it through JSEntry.
   // Unfortunately, this is currently the only full implementation of
   // RegExp.prototype.exec available in C++.
-  return api_scope.EscapeMaybe(ToMaybeLocal<Object>(
-      i::RegExpUtils::RegExpExec(i_isolate, regexp, subject_string,
-                                 i_isolate->factory()->undefined_value())));
+  i::DirectHandle<i::JSAny> result;
+  if (!i::RegExpUtils::RegExpExec(i_isolate, regexp, subject_string,
+                                  i_isolate->factory()->undefined_value())
+           .ToHandle(&result)) {
+    return {};
+  }
+  // RegExp::Exec is documented to return Null on failure, but the return type
+  // is `MaybeLocal<Object>` which cannot legally hold `Null`, thus the unsafe
+  // `Utils::Convert<Object>`.
+  // TODO(jgruber): Fix this.
+  return api_scope.Escape(Utils::Convert<i::JSAny, Object>(result));
 }
 
 Local<v8::Array> v8::Array::New(Isolate* v8_isolate, int length) {
@@ -8599,15 +8606,13 @@ Local<Array> Set::AsArray() const {
 MaybeLocal<Promise::Resolver> Promise::Resolver::New(Local<Context> context) {
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Promise_Resolver_New};
   i::Isolate* i_isolate = api_scope.i_isolate();
-  Local<Promise::Resolver> result;
-  if (!ToLocal<Promise::Resolver>(i_isolate->factory()->NewJSPromise(),
-                                  &result) ||
-      // Also check if promise hooks set an exception.
-      // TODO(clemensb): Should `Factory::NewJSPromise()` return a MaybeHandle
-      // instead?
-      i_isolate->has_exception()) {
-    return {};
-  }
+  Local<Promise::Resolver> result =
+      Utils::ToLocal(Cast<i::JSObject>(i_isolate->factory()->NewJSPromise()))
+          .As<Promise::Resolver>();
+  // Also check if promise hooks set an exception.
+  // TODO(clemensb): Should `Factory::NewJSPromise()` return a MaybeHandle
+  // instead?
+  if (i_isolate->has_exception()) return {};
   return api_scope.Escape(result);
 }
 

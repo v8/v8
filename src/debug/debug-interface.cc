@@ -1212,15 +1212,12 @@ MaybeLocal<Value> CallFunctionOn(Local<Context> context,
   if (throw_on_side_effect) {
     isolate->debug()->StartSideEffectCheckMode();
   }
-  Local<Value> result;
-  bool has_exception = !ToLocal<Value>(
-      i::Execution::Call(isolate, self, recv_obj, {arguments, args.size()}),
-      &result);
+  MaybeLocal<Value> result = Utils::ToMaybeLocal(
+      i::Execution::Call(isolate, self, recv_obj, {arguments, args.size()}));
   if (throw_on_side_effect) {
     isolate->debug()->StopSideEffectCheckMode();
   }
-  if (has_exception) return {};
-  return api_scope.Escape(result);
+  return api_scope.EscapeMaybe(result);
 }
 
 MaybeLocal<v8::Value> EvaluateGlobal(v8::Isolate* isolate,
@@ -1230,13 +1227,9 @@ MaybeLocal<v8::Value> EvaluateGlobal(v8::Isolate* isolate,
   v8::Local<v8::Context> context = Utils::ToLocal(i_isolate->native_context());
   PrepareForDebugInterfaceExecutionScope api_scope(i_isolate, context);
   i::REPLMode repl_mode = repl ? i::REPLMode::kYes : i::REPLMode::kNo;
-  Local<Value> result;
-  bool has_exception = !ToLocal<Value>(
-      i::DebugEvaluate::Global(i_isolate, Utils::OpenHandle(*source), mode,
-                               repl_mode),
-      &result);
-  if (has_exception) return {};
-  return api_scope.Escape(result);
+  MaybeLocal<Value> result = Utils::ToMaybeLocal(i::DebugEvaluate::Global(
+      i_isolate, Utils::OpenHandle(*source), mode, repl_mode));
+  return api_scope.EscapeMaybe(result);
 }
 
 void GlobalLexicalScopeNames(v8::Local<v8::Context> v8_context,

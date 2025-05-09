@@ -95,6 +95,7 @@ class RegisteredExtension {
   V(ToLocal, Name, Name)                                                \
   V(ToLocal, String, String)                                            \
   V(ToLocal, Symbol, Symbol)                                            \
+  V(ToLocal, JSDate, Object)                                            \
   V(ToLocal, JSRegExp, RegExp)                                          \
   V(ToLocal, JSReceiver, Object)                                        \
   V(ToLocal, JSObject, Object)                                          \
@@ -310,22 +311,6 @@ class Utils {
 template <class T>
 inline v8::Local<T> ToApiHandle(i::DirectHandle<i::Object> obj) {
   return Utils::Convert<i::Object, T>(obj);
-}
-
-// Convert MaybeDirectHandle to MaybeLocal w/o type inference or type checks.
-// To get type inference (translating from internal to API types), use
-// Utils::ToMaybeLocal.
-template <class T>
-inline MaybeLocal<T> ToMaybeLocal(i::MaybeDirectHandle<i::Object> maybe) {
-  i::DirectHandle<i::Object> handle;
-  if (maybe.ToHandle(&handle)) return Utils::Convert<i::Object, T>(handle);
-  return {};
-}
-
-// Same as above, but writes into an output variable and returns bool.
-template <class T>
-inline bool ToLocal(i::MaybeDirectHandle<i::Object> maybe, Local<T>* local) {
-  return ToMaybeLocal<T>(maybe).ToLocal(local);
 }
 
 namespace internal {

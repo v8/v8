@@ -19416,6 +19416,7 @@ TEST(RegExp) {
     CHECK(result0->IsArray());
     v8::Local<v8::Object> result1 =
         regexp->Exec(context.local(), v8_str("abd")).ToLocalChecked();
+    // TODO(jgruber): Fix the API; `v8::Null` is not a valid `v8::Object`.
     CHECK(result1->IsNull());
   }
 }

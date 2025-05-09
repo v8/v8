@@ -399,6 +399,11 @@ class V8_NODISCARD PrepareForDebugInterfaceExecutionScope {
     return handle_scope_.Escape(value);
   }
 
+  template <typename T>
+  V8_INLINE MaybeLocal<T> EscapeMaybe(MaybeLocal<T> value) {
+    return handle_scope_.EscapeMaybe(value);
+  }
+
  private:
   InternalEscapableScope handle_scope_;
   CallDepthScope<false> call_depth_scope_;
