@@ -3534,6 +3534,10 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
     return ReduceResult::Done();
   }
 
+  if (IsEmptyNodeType(GetType(value))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongValue);
+  }
+
   compiler::ContextRef context_ref =
       context->Cast<Constant>()->ref().AsContext();
   auto maybe_value = context_ref.get(broker(), index);
