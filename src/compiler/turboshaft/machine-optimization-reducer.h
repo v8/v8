@@ -1367,14 +1367,18 @@ class MachineOptimizationReducer : public Next {
           if (int32_t k; matcher_.MatchIntegralWord32Constant(tk, &k)) {
             switch (bitwise_op_kind) {
               case WordBinopOp::Kind::kBitwiseAnd:
-                return __ Tuple(__ Word32BitwiseAnd(x, k << 1),
-                                __ Word32Constant(0));
               case WordBinopOp::Kind::kBitwiseOr:
               case WordBinopOp::Kind::kBitwiseXor:
-                return __ Tuple(
-                    __ WordBinop(x, __ Word32Constant(k << 1), bitwise_op_kind,
-                                 WordRepresentation::Word32()),
-                    __ Word32Constant(k >> 31));
+                // If the topmost two smi bits are not identical then retagging
+                // the smi would cause an overflow, so we do not optimize that
+                // here.
+                if ((k & 0x20000000) == (k & 0x40000000)) {
+                  return __ Tuple(__ WordBinop(x, __ Word32Constant(k << 1),
+                                               bitwise_op_kind,
+                                               WordRepresentation::Word32()),
+                                  __ Word32Constant(0));
+                }
+                break;
               default:
                 break;
             }
