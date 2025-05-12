@@ -1822,7 +1822,11 @@ class RepresentationSelector {
         return;
       }
 
-      if (v8_flags.additive_safe_int_feedback) {
+      // TODO(victorgomes): Simplify this to a Word64Add. We don't need the
+      // additive safe integer range check, since we know inputs are Integral32.
+      if (v8_flags.additive_safe_int_feedback &&
+          NumberOperationHintOf(node->op()) ==
+              NumberOperationHint::kAdditiveSafeInteger) {
         // => AdditiveSafeIntegerAdd/Sub
         VisitBinop<T>(node, UseInfo::CheckedSafeIntAsWord64(FeedbackSource{}),
                       MachineRepresentation::kWord64,
