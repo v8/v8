@@ -6263,6 +6263,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/codegen/riscv/extension-riscv-f.cc",
       "src/codegen/riscv/extension-riscv-m.cc",
       "src/codegen/riscv/extension-riscv-v.cc",
+      "src/codegen/riscv/extension-riscv-zfh.cc",
       "src/codegen/riscv/extension-riscv-zicond.cc",
       "src/codegen/riscv/extension-riscv-zicsr.cc",
       "src/codegen/riscv/extension-riscv-zifencei.cc",

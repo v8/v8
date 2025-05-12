@@ -13,6 +13,7 @@
 #include "src/codegen/riscv/constant-riscv-i.h"
 #include "src/codegen/riscv/constant-riscv-m.h"
 #include "src/codegen/riscv/constant-riscv-v.h"
+#include "src/codegen/riscv/constant-riscv-zfh.h"
 #include "src/codegen/riscv/constant-riscv-zicsr.h"
 #include "src/codegen/riscv/constant-riscv-zifencei.h"
 namespace v8 {

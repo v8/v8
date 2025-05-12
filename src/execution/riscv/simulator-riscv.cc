@@ -4586,7 +4586,7 @@ void Simulator::DecodeRVRFPType() {
       }
       break;
     }
-    case RO_FMV: {  // RO_FCLASS_S
+    case RO_FMV_X_W: {  // RO_FCLASS_S
       switch (instr_.Funct3Value()) {
         case 0b000: {
           if (instr_.Rs2Value() == 0b00000) {
