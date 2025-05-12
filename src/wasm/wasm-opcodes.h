@@ -824,7 +824,8 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const CanonicalSig* sig);
 #define FOREACH_ATOMIC_GC_OPCODE(V) /*          Force 80 columns            */ \
   V(StructAtomicGet, 0xfe5c, _, "struct.atomic.get")                           \
   V(StructAtomicGetS, 0xfe5d, _, "struct.atomic.get_s")                        \
-  V(StructAtomicGetU, 0xfe5e, _, "struct.atomic.get_u")
+  V(StructAtomicGetU, 0xfe5e, _, "struct.atomic.get_u")                        \
+  V(StructAtomicSet, 0xfe5f, _, "struct.atomic.set")
 
 // All opcodes.
 #define FOREACH_OPCODE(V)            \

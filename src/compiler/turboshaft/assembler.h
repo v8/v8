@@ -4935,9 +4935,10 @@ class TurboshaftAssemblerOpInterface
 
   void StructSet(V<WasmStructNullable> object, V<Any> value,
                  const wasm::StructType* type, wasm::ModuleTypeIndex type_index,
-                 int field_index, CheckForNull null_check) {
+                 int field_index, CheckForNull null_check,
+                 std::optional<AtomicMemoryOrder> memory_order) {
     ReduceIfReachableStructSet(object, value, type, type_index, field_index,
-                               null_check);
+                               null_check, memory_order);
   }
 
   V<Any> ArrayGet(V<WasmArrayNullable> array, V<Word32> index,

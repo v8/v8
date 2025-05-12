@@ -1501,6 +1501,8 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
     bool is_signed, AtomicMemoryOrder order, Value* result)                    \
   F(StructSet, const Value& struct_object, const FieldImmediate& field,        \
     const Value& field_value)                                                  \
+  F(StructAtomicSet, const Value& struct_object, const FieldImmediate& field,  \
+    const Value& field_value, AtomicMemoryOrder order)                         \
   F(ArrayGet, const Value& array_obj, const ArrayIndexImmediate& imm,          \
     const Value& index, bool is_signed, Value* result)                         \
   F(ArraySet, const Value& array_obj, const ArrayIndexImmediate& imm,          \
@@ -2711,7 +2713,8 @@ class WasmDecoder : public Decoder {
           }
           case kExprStructAtomicGet:
           case kExprStructAtomicGetS:
-          case kExprStructAtomicGetU: {
+          case kExprStructAtomicGetU:
+          case kExprStructAtomicSet: {
             MemoryOrderImmediate memory_order(decoder, pc + length, validate);
             (ios.MemoryOrder(memory_order), ...);
             FieldImmediate field(decoder, pc + length + memory_order.length,
@@ -6865,6 +6868,37 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                              value);
         }
         return opcode_length + memory_order.length + field.length;
+      }
+      case kExprStructAtomicSet: {
+        CHECK_PROTOTYPE_OPCODE(shared);
+        NON_CONST_ONLY
+        MemoryOrderImmediate memory_order(this, this->pc_ + opcode_length,
+                                          validate);
+        if (!this->ok()) return 0;
+        FieldImmediate field(
+            this, this->pc_ + opcode_length + memory_order.length, validate);
+        if (!this->Validate(this->pc_ + opcode_length + memory_order.length,
+                            field)) {
+          return 0;
+        }
+        const StructType* struct_type = field.struct_imm.struct_type;
+        if (!VALIDATE(struct_type->mutability(field.field_imm.index))) {
+          this->DecodeError(
+              "struct.atomic.set: Field %d of type %d is immutable.",
+              field.field_imm.index, field.struct_imm.index.index);
+          return 0;
+        }
+        auto [struct_obj, field_value] =
+            Pop(ValueType::RefNull(field.struct_imm.heap_type()),
+                struct_type->field(field.field_imm.index).Unpacked());
+        if (struct_obj.type.is_shared()) {
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(StructAtomicSet, struct_obj, field,
+                                             field_value, memory_order.order);
+        } else {
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(StructSet, struct_obj, field,
+                                             field_value);
+        }
+        return opcode_length + field.length + memory_order.length;
       }
       default:
         // This path is only possible if we are validating.

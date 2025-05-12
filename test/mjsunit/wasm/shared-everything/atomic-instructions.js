@@ -41,7 +41,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   }
 })();
 
-(function TestAtomicGet() {
+(function TestAtomicGetSet() {
   for (let is_shared of [true, false]) {
     print(`${arguments.callee.name} ${is_shared ? "shared" : "unshared"}`);
     let builder = new WasmModuleBuilder();
@@ -100,11 +100,31 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         kAtomicPrefix, kExprStructAtomicGet, kAtomicSeqCst, struct, 2,
       ])
       .exportFunc();
+    builder.addFunction("atomicSet32",
+        makeSig([wasmRefNullType(struct), kWasmI32], []))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprStructAtomicSet, kAtomicSeqCst, struct, 0,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicSet64",
+        makeSig([wasmRefNullType(struct), kWasmI64], []))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprStructAtomicSet, kAtomicSeqCst, struct, 1,
+      ])
+      .exportFunc();
 
     let wasm = builder.instantiate().exports;
     let structObj = wasm.newStruct(42, -64n, "test");
     assertEquals(42, wasm.atomicGet32(structObj));
+    wasm.atomicSet32(structObj, 123);
+    assertEquals(123, wasm.atomicGet32(structObj));
     assertEquals(-64n, wasm.atomicGet64(structObj));
+    wasm.atomicSet64(structObj, 456n);
+    assertEquals(456n, wasm.atomicGet64(structObj));
     assertEquals("test", wasm.atomicGetRef(structObj));
     let structStruct = wasm.newStruct(1, 2n, structObj);
     assertEquals("test", wasm.atomicGetRefRef(structStruct));
@@ -164,6 +184,22 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         kAtomicPrefix, kExprStructAtomicGetU, kAtomicSeqCst, struct, 2,
       ])
       .exportFunc();
+    builder.addFunction("atomicSet8",
+        makeSig([wasmRefNullType(struct), kWasmI32], []))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprStructAtomicSet, kAtomicSeqCst, struct, 1,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicSet16",
+        makeSig([wasmRefNullType(struct), kWasmI32], []))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprStructAtomicSet, kAtomicSeqCst, struct, 2,
+      ])
+      .exportFunc();
 
     let wasm = builder.instantiate().exports;
     let structPos = wasm.newStruct(12, 3456);
@@ -176,6 +212,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     assertEquals(244, wasm.atomicGetU8(structNeg));
     assertEquals(-3456, wasm.atomicGetS16(structNeg));
     assertEquals(62080, wasm.atomicGetU16(structNeg));
+    wasm.atomicSet8(structNeg, -100);
+    wasm.atomicSet16(structNeg, -200);
+    assertEquals(-100, wasm.atomicGetS8(structNeg));
+    assertEquals(-200, wasm.atomicGetS16(structNeg));
     assertTraps(kTrapNullDereference, () => wasm.atomicGetS8(null));
     assertTraps(kTrapNullDereference, () => wasm.atomicGetS16(null));
   }

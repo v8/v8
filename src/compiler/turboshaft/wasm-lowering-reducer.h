@@ -265,7 +265,8 @@ class WasmLoweringReducer : public Next {
   V<None> REDUCE(StructSet)(V<WasmStructNullable> object, V<Any> value,
                             const wasm::StructType* type,
                             wasm::ModuleTypeIndex type_index, int field_index,
-                            CheckForNull null_check) {
+                            CheckForNull null_check,
+                            std::optional<AtomicMemoryOrder> memory_order) {
     // TODO(mliedtke): Update this once we support struct.atomic.get.
     const bool requires_aligned_access = false;
     auto [explicit_null_check, implicit_null_check] = null_checks_for_struct_op(
@@ -279,6 +280,9 @@ class WasmLoweringReducer : public Next {
     StoreOp::Kind store_kind = implicit_null_check
                                    ? StoreOp::Kind::TrapOnNull()
                                    : StoreOp::Kind::TaggedBase();
+    if (memory_order.has_value()) {
+      store_kind = store_kind.Atomic();
+    }
     MemoryRepresentation repr =
         RepresentationFor(type->field(field_index), true);
 

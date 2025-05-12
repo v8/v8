@@ -7140,6 +7140,7 @@ struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
   // lookups later.
   wasm::ModuleTypeIndex type_index;
   int field_index;
+  std::optional<AtomicMemoryOrder> memory_order;
 
   OpEffects Effects() const {
     OpEffects result =
@@ -7156,12 +7157,14 @@ struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
 
   StructSetOp(V<WasmStructNullable> object, V<Any> value,
               const wasm::StructType* type, wasm::ModuleTypeIndex type_index,
-              int field_index, CheckForNull null_check)
+              int field_index, CheckForNull null_check,
+              std::optional<AtomicMemoryOrder> memory_order)
       : Base(object, value),
         null_check(null_check),
         type(type),
         type_index(type_index),
-        field_index(field_index) {}
+        field_index(field_index),
+        memory_order(memory_order) {}
 
   V<WasmStructNullable> object() const { return input<WasmStructNullable>(0); }
   V<Any> value() const { return input(1); }
@@ -7181,8 +7184,10 @@ struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
   }
 
   auto options() const {
-    return std::tuple{type, type_index, field_index, null_check};
+    return std::tuple{type, type_index, field_index, null_check, memory_order};
   }
+
+  void PrintOptions(std::ostream& os) const;
 };
 
 struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {

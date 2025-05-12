@@ -4625,9 +4625,20 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     __ StructSet(V<WasmStructNullable>::Cast(struct_object.op), field_value.op,
                  field.struct_imm.struct_type, field.struct_imm.index,
                  field.field_imm.index,
-                 struct_object.type.is_nullable()
-                     ? compiler::kWithNullCheck
-                     : compiler::kWithoutNullCheck);
+                 struct_object.type.is_nullable() ? compiler::kWithNullCheck
+                                                  : compiler::kWithoutNullCheck,
+                 {});
+  }
+
+  void StructAtomicSet(FullDecoder* decoder, const Value& struct_object,
+                       const FieldImmediate& field, const Value& field_value,
+                       AtomicMemoryOrder memory_order) {
+    __ StructSet(V<WasmStructNullable>::Cast(struct_object.op), field_value.op,
+                 field.struct_imm.struct_type, field.struct_imm.index,
+                 field.field_imm.index,
+                 struct_object.type.is_nullable() ? compiler::kWithNullCheck
+                                                  : compiler::kWithoutNullCheck,
+                 memory_order);
   }
 
   void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate& imm,
@@ -8275,7 +8286,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     for (uint32_t i = 0; i < imm.struct_type->field_count(); ++i) {
       __ StructSet(struct_value, args[i], imm.struct_type, imm.index, i,
-                   compiler::kWithoutNullCheck);
+                   compiler::kWithoutNullCheck, {});
     }
     // If this assert fails then initialization of padding field might be
     // necessary.

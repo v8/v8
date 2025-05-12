@@ -6845,6 +6845,36 @@ class LiftoffCompiler {
                      pinned, field_kind);
   }
 
+  void StructAtomicSet(FullDecoder* decoder, const Value& struct_obj,
+                       const FieldImmediate& field, const Value& field_value,
+                       AtomicMemoryOrder memory_order) {
+    // TODO(mliedtke): Merge this with the StructSet (same question for similar
+    // atomic operations)?
+    const StructType* struct_type = field.struct_imm.struct_type;
+    ValueKind field_kind = struct_type->field(field.field_imm.index).kind();
+    int offset = StructFieldOffset(struct_type, field.field_imm.index);
+    LiftoffRegList pinned;
+    LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
+
+    auto [explicit_check, implicit_check] =
+        null_checks_for_struct_op(struct_obj.type, field.field_imm.index);
+    if (implicit_check) {
+      // TODO(mliedtke): Support implicit null checks for atomic loads.
+      // Note that we can't do implicit null checks for i64 due to WasmNull not
+      // being 8-byte-aligned!
+      implicit_check = false;
+      explicit_check = true;
+    }
+
+    if (explicit_check) {
+      MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_obj.type);
+    }
+
+    StoreAtomicObjectField(decoder, obj.gp(), no_reg, offset, value,
+                           implicit_check, pinned, field_kind, memory_order);
+  }
+
   void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate& imm,
                 bool initial_value_on_stack) {
     FUZZER_HEAVY_INSTRUCTION;
@@ -9509,6 +9539,25 @@ class LiftoffCompiler {
       StoreType store_type = StoreType::ForValueKind(kind);
       __ Store(obj, offset_reg, offset, value, store_type, pinned,
                trapping ? &protected_load_pc : nullptr);
+    }
+    if (trapping) RegisterProtectedInstruction(decoder, protected_load_pc);
+  }
+
+  void StoreAtomicObjectField(
+      FullDecoder* decoder, Register obj, Register offset_reg, int offset,
+      LiftoffRegister value, bool trapping, LiftoffRegList pinned,
+      ValueKind kind, AtomicMemoryOrder memory_order,
+      LiftoffAssembler::SkipWriteBarrier skip_write_barrier =
+          LiftoffAssembler::kNoSkipWriteBarrier) {
+    uint32_t protected_load_pc = 0;
+    if (is_reference(kind)) {
+      UNIMPLEMENTED();
+    } else {
+      // Primitive kind.
+      StoreType store_type = StoreType::ForValueKind(kind);
+      // TODO(mliedtke): Mark load trapping if trapping
+      if (trapping) UNIMPLEMENTED();
+      __ AtomicStore(obj, offset_reg, offset, value, store_type, pinned, false);
     }
     if (trapping) RegisterProtectedInstruction(decoder, protected_load_pc);
   }

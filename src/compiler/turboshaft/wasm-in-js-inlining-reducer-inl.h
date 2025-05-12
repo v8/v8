@@ -796,6 +796,11 @@ class WasmInJsInliningInterface {
                        AtomicMemoryOrder memory_order, Value* result) {
     Bailout(decoder);
   }
+  void StructAtomicSet(FullDecoder* decoder, const Value& struct_object,
+                       const FieldImmediate& field, const Value& field_value,
+                       AtomicMemoryOrder memory_order) {
+    Bailout(decoder);
+  }
   void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate& imm,
                 const Value& length, const Value& initial_value,
                 Value* result) {

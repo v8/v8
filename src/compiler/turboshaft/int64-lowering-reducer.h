@@ -372,6 +372,8 @@ class Int64LoweringReducer : public Next {
         // remove the corresponding bailout in MachineOptimizationReducer to
         // allow generating them.
         CHECK_EQ(element_size_log2, 0);
+        // Manually subtract the pointer tag if present.
+        offset -= kind.tagged_base;
         return __ AtomicWord32PairStore(base, index, low, high, offset);
       }
       // low store
