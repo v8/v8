@@ -19,6 +19,15 @@
 
 namespace v8::internal::wasm {
 
+WasmImportWrapperHandle::WasmImportWrapperHandle(WasmCode* code, Address addr,
+                                                 uint64_t signature_hash)
+    : code_pointer_(
+          GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
+              addr, signature_hash)),
+      code_(code) {
+  if (code) code->IncRef();
+}
+
 WasmImportWrapperHandle::WasmImportWrapperHandle(Address addr,
                                                  uint64_t signature_hash)
     : code_pointer_(

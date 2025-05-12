@@ -783,9 +783,6 @@ class WasmTagObject
 // decrement their refcounts when the WasmDispatchTable is freed.
 class WasmDispatchTableData {
  public:
-  WasmDispatchTableData() = default;
-  ~WasmDispatchTableData();
-
   // This class tracks wrapper entries since it owns the corresponding
   // CodePointerTable entries. This function can be used to check if a given
   // entry points to a wrapper.
@@ -798,24 +795,13 @@ class WasmDispatchTableData {
  private:
   friend class WasmDispatchTable;
 
-  // This class owns the CodePointerTable entries for generic and compiled
-  // wrappers. This function adds an entry for a wrapper. If {compiled_wrapper}
-  // is nullptr, the entry is for the generic wrapper.
-  // The CodePointerTableEntry is reused for the generic and compiled wrapper.
   WasmCodePointer Add(int index, Address call_target,
                       wasm::WasmCode* compiled_wrapper,
                       uint64_t signature_hash);
   void Remove(int index, WasmCodePointer call_target);
 
-  // The {wrappers_} data structure tracks installed wrappers, both generic
-  // ({code} is nullptr) and compiled. It owns the CodePointerTable entry in
-  // {call_target} and manages the {code} lifetime by incrementing and
-  // decrementing the ref count as needed.
-  struct WrapperEntry {
-    WasmCodePointer call_target;
-    wasm::WasmCode* code;  // {nullptr} if this is the generic wrapper.
-  };
-  std::unordered_map<int, WrapperEntry> wrappers_;
+  std::unordered_map<int, std::shared_ptr<wasm::WasmImportWrapperHandle>>
+      wrappers_;
 };
 
 // The dispatch table is referenced from a WasmTableObject and from every

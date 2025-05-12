@@ -2469,7 +2469,7 @@ WasmCodePointer WasmDispatchTableData::WrapperCodePointerForDebugging(
     int index) {
   auto it = wrappers_.find(index);
   CHECK_NE(it, wrappers_.end());
-  return it->second.call_target;
+  return it->second->code_pointer();
 }
 #endif
 
@@ -2477,65 +2477,35 @@ bool WasmDispatchTableData::IsAWrapper(int index) const {
   return wrappers_.contains(index);
 }
 
-WasmDispatchTableData::~WasmDispatchTableData() {
-  if (wrappers_.empty()) return;
-  std::vector<wasm::WasmCode*> codes;
-  for (auto [index, entry] : wrappers_) {
-    wasm::GetProcessWideWasmCodePointerTable()->FreeEntry(entry.call_target);
-    if (entry.code) codes.push_back(entry.code);
-  }
-  wasm::WasmCode::DecrementRefCount(base::VectorOf(codes));
-}
-
 WasmCodePointer WasmDispatchTableData::Add(int index, Address call_target,
                                            wasm::WasmCode* compiled_wrapper,
                                            uint64_t signature_hash) {
-  WasmCodePointer code_pointer;
   auto it = wrappers_.find(index);
   if (it == wrappers_.end()) {
-    code_pointer =
-        wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
-            call_target, signature_hash);
+    std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
+        std::make_shared<wasm::WasmImportWrapperHandle>(
+            compiled_wrapper, call_target, signature_hash);
     auto [wrapper_cache, was_inserted] =
-        wrappers_.emplace(index, WrapperEntry{code_pointer, compiled_wrapper});
+        wrappers_.emplace(index, std::move(wrapper_handle));
     USE(was_inserted);
     DCHECK(was_inserted);
-  } else {
-    auto& [existing_code_pointer, wrapper_code] = it->second;
-    code_pointer = existing_code_pointer;
-    wasm::GetProcessWideWasmCodePointerTable()->UpdateEntrypoint(
-        code_pointer, call_target, signature_hash);
-    DCHECK_NULL(wrapper_code);
-    DCHECK_NOT_NULL(compiled_wrapper);
-    wrapper_code = compiled_wrapper;
-  }
-  if (compiled_wrapper) {
-    compiled_wrapper->IncRef();
-  } else {
-    DCHECK_NULL(wasm::GetWasmImportWrapperCache()->FindWrapper(code_pointer));
+    return wrapper_cache->second->code_pointer();
   }
 
-  return code_pointer;
+  DCHECK_NOT_NULL(compiled_wrapper);
+  std::shared_ptr<wasm::WasmImportWrapperHandle>& wrapper_handle = it->second;
+  wrapper_handle->SetCode(compiled_wrapper);
+  return wrapper_handle->code_pointer();
 }
 
 void WasmDispatchTableData::Remove(int index, WasmCodePointer call_target) {
   if (call_target == wasm::kInvalidWasmCodePointer) return;
 
-  auto entry = wrappers_.find(index);
-  if (entry == wrappers_.end()) {
-    // This is certainly not a wrapper.
-    DCHECK_NULL(wasm::GetWasmImportWrapperCache()->FindWrapper(call_target));
-    return;
-  }
-  auto& [code_pointer, wrapper_code] = entry->second;
-  wasm::GetProcessWideWasmCodePointerTable()->FreeEntry(code_pointer);
-  if (wrapper_code) {
-    // TODO(clemensb): We should speed this up by doing
-    // {WasmCodeRefScope::AddRef} and then {DecRefOnLiveCode}.
-    wasm::WasmCode::DecrementRefCount({&wrapper_code, 1});
-  }
-
-  wrappers_.erase(entry);
+  size_t erased_cnt = wrappers_.erase(index);
+  DCHECK_IMPLIES(
+      erased_cnt == 0,
+      wasm::GetWasmImportWrapperCache()->FindWrapper(call_target) == nullptr);
+  USE(erased_cnt);
 }
 
 void WasmDispatchTable::SetForNonWrapper(

@@ -103,6 +103,8 @@ class WasmImportWrapperCache {
 class WasmImportWrapperHandle {
  public:
   WasmImportWrapperHandle(Address addr, uint64_t signature_hash);
+  WasmImportWrapperHandle(WasmCode* code, Address addr,
+                          uint64_t signature_hash);
   WasmImportWrapperHandle(const WasmImportWrapperHandle&) = delete;
   WasmImportWrapperHandle& operator=(const WasmImportWrapperHandle&) = delete;
 
