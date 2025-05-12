@@ -69,6 +69,7 @@ class VariableMap : public ZoneHashMap {
 
   V8_EXPORT_PRIVATE Variable* Lookup(const AstRawString* name);
   void Remove(Variable* var);
+  void RemoveDynamic();
   void Add(Variable* var);
 
   Zone* zone() const { return allocator().zone(); }
@@ -652,6 +653,11 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
   void ForceDynamicLookup(VariableProxy* proxy);
+
+  void RemoveDynamic() {
+    DCHECK_EQ(scope_type_, EVAL_SCOPE);
+    variables_.RemoveDynamic();
+  }
 
  protected:
   Scope(Zone* zone, ScopeType scope_type);

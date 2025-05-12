@@ -72,6 +72,18 @@ void VariableMap::Remove(Variable* var) {
   ZoneHashMap::Remove(const_cast<AstRawString*>(name), name->Hash());
 }
 
+void VariableMap::RemoveDynamic() {
+  Entry* current = ZoneHashMap::Start();
+  while (current != nullptr) {
+    Variable* var = reinterpret_cast<Variable*>(current->value);
+    if (var->is_dynamic()) {
+      ZoneHashMap::Remove(current);
+      if (current->exists()) continue;
+    }
+    current = ZoneHashMap::Next(current);
+  }
+}
+
 void VariableMap::Add(Variable* var) {
   const AstRawString* name = var->raw_name();
   Entry* p = ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name),
@@ -2108,18 +2120,7 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
     // We found a variable and we are done. (Even if there is an 'eval' in this
     // scope which introduces the same variable again, the resulting variable
     // remains the same.)
-    //
-    // For sloppy eval though, we skip dynamic variable to avoid resolving to a
-    // variable when the variable and proxy are in the same eval execution. The
-    // variable is not available on subsequent lazy executions of functions in
-    // the eval, so this avoids inner functions from looking up different
-    // variables during eager and lazy compilation.
-    //
-    // TODO(leszeks): Maybe we want to restrict this to e.g. lookups of a proxy
-    // living in a different scope to the current one, or some other
-    // optimisation.
-    if (var != nullptr &&
-        !(scope->is_eval_scope() && var->mode() == VariableMode::kDynamic)) {
+    if (var != nullptr) {
       if (mode == kParsedScope && force_context_allocation &&
           !var->is_dynamic()) {
         var->ForceContextAllocation();

@@ -819,6 +819,13 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
     }
     CheckConflictingVarDeclarations(scope);
 
+    // For sloppy eval though, we clear dynamic variables created for toplevel
+    // var to avoid resolving to a variable when the variable and proxy are in
+    // the same eval execution. The variable is not available on subsequent lazy
+    // executions of functions in the eval, so this avoids inner functions from
+    // looking up different variables during eager and lazy compilation.
+    if (flags().is_eval()) outer->RemoveDynamic();
+
     if (flags().parse_restriction() == ONLY_SINGLE_FUNCTION_LITERAL) {
       if (body.length() != 1 || !body.at(0)->IsExpressionStatement() ||
           !body.at(0)
