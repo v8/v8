@@ -887,12 +887,9 @@ StackFrame::Type SafeStackFrameType(StackFrame::Type candidate) {
     case StackFrame::NUMBER_OF_TYPES:
     case StackFrame::TURBOFAN_JS:
     case StackFrame::TURBOFAN_STUB_WITH_CONTEXT:
-#if V8_ENABLE_WEBASSEMBLY
-#if !V8_ENABLE_DRUMBRAKE
+#if V8_ENABLE_WEBASSEMBLY && !V8_ENABLE_DRUMBRAKE
     case StackFrame::C_WASM_ENTRY:
-#endif  // !V8_ENABLE_DRUMBRAKE
-    case StackFrame::WASM_TO_JS_FUNCTION:
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_ENABLE_WEBASSEMBLY && !V8_ENABLE_DRUMBRAKE
       return StackFrame::NATIVE;
   }
   UNREACHABLE();
@@ -981,7 +978,8 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
     case CodeKind::C_WASM_ENTRY:
       return StackFrame::C_WASM_ENTRY;
     case CodeKind::WASM_TO_JS_FUNCTION:
-      return StackFrame::WASM_TO_JS_FUNCTION;
+      // Should have been found by the WasmCode lookup above.
+      UNREACHABLE();
     case CodeKind::WASM_FUNCTION:
     case CodeKind::WASM_TO_CAPI_FUNCTION:
       // These never appear as on-heap Code objects.
@@ -1955,17 +1953,6 @@ void TypedFrame::IterateParamsOfGenericWasmToJSWrapper(RootVisitor* v) const {
   }
 }
 
-void TypedFrame::IterateParamsOfOptimizedWasmToJSWrapper(RootVisitor* v) const {
-  Tagged<GcSafeCode> code = GcSafeLookupCode();
-  if (code->wasm_js_tagged_parameter_count() > 0) {
-    FullObjectSlot tagged_parameter_base(&Memory<Address>(caller_sp()));
-    tagged_parameter_base += code->wasm_js_first_tagged_parameter();
-    FullObjectSlot tagged_parameter_limit =
-        tagged_parameter_base + code->wasm_js_tagged_parameter_count();
-    v->VisitRootPointers(Root::kStackRoots, nullptr, tagged_parameter_base,
-                         tagged_parameter_limit);
-  }
-}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void TypedFrame::Iterate(RootVisitor* v) const {
@@ -1999,11 +1986,10 @@ void TypedFrame::Iterate(RootVisitor* v) const {
 #if V8_ENABLE_WEBASSEMBLY
   bool is_generic_wasm_to_js =
       code->is_builtin() && code->builtin_id() == Builtin::kWasmToJsWrapperCSA;
-  bool is_optimized_wasm_to_js = this->type() == WASM_TO_JS_FUNCTION;
+  // Optimized wasm-to-js frames map to the WasmFrame type.
+  DCHECK_NE(this->type(), WASM_TO_JS);
   if (is_generic_wasm_to_js) {
     IterateParamsOfGenericWasmToJSWrapper(v);
-  } else if (is_optimized_wasm_to_js) {
-    IterateParamsOfOptimizedWasmToJSWrapper(v);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   DCHECK(code->is_turbofanned());
