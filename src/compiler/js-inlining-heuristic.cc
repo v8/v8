@@ -313,7 +313,8 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
 
   // Forcibly inline small functions here. In the case of polymorphic inlining
   // candidate_is_small is set only when all functions are small.
-  if (candidate_is_small) {
+  if (candidate_is_small &&
+      total_ignored_bytecode_size_ < max_inlined_bytecode_size_small_total_) {
     TRACE("Inlining small function(s) at call site #"
           << node->id() << ":" << node->op()->mnemonic());
     return InlineCandidate(candidate, true);
@@ -349,7 +350,8 @@ void JSInliningHeuristic::Finalize() {
     // function could have previously been function calls that now have been
     // inlined and thusly revealed HeapNumbers.
     if (HasHeapNumberInputOrOutput(candidate.node) &&
-        IsSmallWithHeapNumberParam(candidate.own_size)) {
+        IsSmallWithHeapNumberParam(candidate.own_size) &&
+        total_ignored_bytecode_size_ < max_inlined_bytecode_size_small_total_) {
       Reduction const reduction = InlineCandidate(candidate, true);
       if (reduction.Changed()) return;
     }

@@ -43,7 +43,9 @@ class JSInliningHeuristic final : public AdvancedReducer {
         max_inlined_bytecode_size_cumulative_(
             v8_flags.max_inlined_bytecode_size_cumulative),
         max_inlined_bytecode_size_absolute_(
-            v8_flags.max_inlined_bytecode_size_absolute) {
+            v8_flags.max_inlined_bytecode_size_absolute),
+        max_inlined_bytecode_size_small_total_(
+            v8_flags.max_inlined_bytecode_size_small_total) {
     DCHECK_EQ(mode == kWasmWrappersOnly || mode == kWasmFullInlining,
               wasm_module != nullptr && js_wasm_calls_sidetable != nullptr);
   }
@@ -133,6 +135,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
   const Mode mode_;
   const int max_inlined_bytecode_size_cumulative_;
   const int max_inlined_bytecode_size_absolute_;
+  const int max_inlined_bytecode_size_small_total_;
 };
 
 }  // namespace compiler

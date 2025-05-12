@@ -1365,10 +1365,20 @@ DEFINE_BOOL(turbo_inlining, true, "enable inlining in TurboFan")
 DEFINE_BOOL(turbo_elide_frames, true, "enable frame elision in TurboFan")
 DEFINE_INT(max_inlined_bytecode_size, 460,
            "maximum size of bytecode for a single inlining")
+// {max_inlined_bytecode_size_cumulative} and
+// {max_inlined_bytecode_size_absolute} are the inlining limits for the regular
+// case. By being not too high, we ensure that Turbofan compilation doesn't take
+// too long.
+// Still, inlining very small functions is usually very beneficial (removes call
+// overhead, enable better load elimination and escape analysis, removes heap
+// number allocations...), so small functions usually ignore the limits above
+// and use {max_inlined_bytecode_size_small_total} instead.
 DEFINE_INT(max_inlined_bytecode_size_cumulative, 920,
            "maximum cumulative size of bytecode considered for inlining")
 DEFINE_INT(max_inlined_bytecode_size_absolute, 4600,
            "maximum absolute size of bytecode considered for inlining")
+DEFINE_INT(max_inlined_bytecode_size_small_total, 30000,
+           "maximum size of small functions' bytecode that can be inlining")
 DEFINE_FLOAT(
     reserve_inline_budget_scale_factor, 1.2,
     "scale factor of bytecode size used to calculate the inlining budget")
