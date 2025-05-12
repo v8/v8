@@ -1811,7 +1811,7 @@ class RepresentationSelector {
   template <Phase T>
   void VisitSpeculativeAdditiveOp(Node* node, Truncation truncation,
                                   SimplifiedLowering* lowering) {
-    if (BothInputsAre(node, Type::Signed32())) {
+    if (BothInputsAre(node, Type::Integral32OrMinusZero())) {
       if (GetUpperBound(node).Is(Type::Signed32()) ||
           GetUpperBound(node).Is(Type::Unsigned32()) ||
           truncation.IsUsedAsWord32()) {
