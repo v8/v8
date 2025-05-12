@@ -4630,7 +4630,7 @@ class RepresentationSelector {
       }
       case IrOpcode::kConvertTaggedHoleToUndefined: {
         if (InputIs(node, Type::NumberOrHole()) &&
-            truncation.IsUsedAsWord32()) {
+            truncation.IsUsedAsWord32() && !truncation.check_safe_integer()) {
           // Propagate the Word32 truncation.
           VisitUnop<T>(node, UseInfo::TruncatingWord32(),
                        MachineRepresentation::kWord32);
