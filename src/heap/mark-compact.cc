@@ -328,32 +328,6 @@ static void TraceFragmentation(PagedSpace* space) {
          static_cast<double>(free) * 100 / reserved);
 }
 
-namespace {
-bool ShouldCompactWithStack(const Heap* heap) {
-  if (!v8_flags.compact_with_stack) {
-    return false;
-  }
-  if (heap->ConservativeStackScanningModeForMajorGC() !=
-      Heap::StackScanMode::kNone) {
-    CHECK(heap->IsMainThread());
-    CHECK_IMPLIES(heap->isolate()->has_shared_space(),
-                  heap->isolate()->is_shared_space_isolate());
-    return false;
-  }
-  bool should_compact_with_stack = true;
-  if (heap->isolate()->is_shared_space_isolate()) {
-    heap->isolate()->global_safepoint()->IterateClientIsolates(
-        [&should_compact_with_stack](Isolate* client) {
-          if (client->heap()->ConservativeStackScanningModeForMajorGC() !=
-              Heap::StackScanMode::kNone) {
-            should_compact_with_stack = false;
-          }
-        });
-  }
-  return should_compact_with_stack;
-}
-}  // namespace
-
 bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
   DCHECK(!compacting_);
   DCHECK(evacuation_candidates_.empty());
@@ -361,7 +335,7 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
   // Bailouts for completely disabled compaction.
   if (!v8_flags.compact ||
       (mode == StartCompactionMode::kAtomic && heap_->IsGCWithStack() &&
-       !ShouldCompactWithStack(heap_)) ||
+       !v8_flags.compact_with_stack) ||
       (v8_flags.gc_experiment_less_compaction &&
        !heap_->ShouldReduceMemory()) ||
       heap_->isolate()->serializer_enabled()) {
@@ -1904,6 +1878,8 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
 void MarkCompactCollector::MarkRootsFromConservativeStack(
     RootVisitor* root_visitor) {
   TRACE_GC(heap_->tracer(), GCTracer::Scope::CONSERVATIVE_STACK_SCANNING);
+  DCHECK(!in_conservative_stack_scanning_);
+  in_conservative_stack_scanning_ = true;
   heap_->IterateConservativeStackRoots(root_visitor,
                                        Heap::IterateRootsMode::kMainIsolate);
 
@@ -1918,6 +1894,7 @@ void MarkCompactCollector::MarkRootsFromConservativeStack(
               v, Heap::IterateRootsMode::kClientIsolate);
         });
   }
+  in_conservative_stack_scanning_ = false;
 }
 
 void MarkCompactCollector::MarkObjectsFromClientHeaps() {
@@ -4955,7 +4932,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   // Evacuation of new space pages cannot be aborted, so it needs to run
   // before old space evacuation.
   bool force_page_promotion =
-      heap_->IsGCWithStack() && !ShouldCompactWithStack(heap_);
+      heap_->IsGCWithStack() && !v8_flags.compact_with_stack;
   for (PageMetadata* page : new_space_evacuation_pages_) {
     intptr_t live_bytes_on_page = page->live_bytes();
     DCHECK_LT(0, live_bytes_on_page);
@@ -4976,7 +4953,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   }
 
   if (heap_->IsGCWithStack()) {
-    if (!ShouldCompactWithStack(heap_)) {
+    if (!v8_flags.compact_with_stack) {
       for (PageMetadata* page : old_space_evacuation_pages_) {
         ReportAbortedEvacuationCandidateDueToFlags(page, page->Chunk());
       }

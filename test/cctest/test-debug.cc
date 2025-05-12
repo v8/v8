@@ -4322,6 +4322,10 @@ class ArchiveRestoreThread : public v8::base::Thread,
   int break_count_;
 };
 
+// TODO(416640819): This test switches threads using the same isolate while
+// there are still direct handle on the stack of the previous thread. This
+// results in CSS missing references. Re-enable the test once fixed.
+#ifndef V8_ENABLE_DIRECT_HANDLE
 TEST(DebugArchiveRestore) {
   v8::Isolate* isolate = CcTest::isolate();
 
@@ -4339,6 +4343,7 @@ TEST(DebugArchiveRestore) {
   // The isolate must be entered again, before teardown.
   isolate->Enter();
 }
+#endif  // V8_ENABLE_DIRECT_HANDLE
 
 namespace {
 class ThreadJustUsingV8Locker : public v8::base::Thread {
