@@ -8607,7 +8607,7 @@ MaybeLocal<Promise::Resolver> Promise::Resolver::New(Local<Context> context) {
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Promise_Resolver_New};
   i::Isolate* i_isolate = api_scope.i_isolate();
   Local<Promise::Resolver> result =
-      Utils::ToLocal(Cast<i::JSObject>(i_isolate->factory()->NewJSPromise()))
+      Utils::ToLocal(i::Cast<i::JSObject>(i_isolate->factory()->NewJSPromise()))
           .As<Promise::Resolver>();
   // Also check if promise hooks set an exception.
   // TODO(clemensb): Should `Factory::NewJSPromise()` return a MaybeHandle
