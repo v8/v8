@@ -293,6 +293,27 @@ struct common_type_handle_nullopt {
 };
 }  // namespace detail
 
+#if V8_STATIC_ROOTS_BOOL
+namespace {
+V8_NOINLINE V8_PRESERVE_MOST bool TryReportUnreachable(Tagged<String> string,
+                                                       Tagged<Map> map) {
+  thread_local int recursion = 0;
+  if (recursion > 0) {
+    // On a recursive failure, dispatch onto the empty string. This will
+    // likely cause out-of-bounds reads or potentially some other failure, but
+    // this is ok since we're already dying and it prevents stack overflow.
+    return false;
+  }
+  recursion++;
+  Isolate::Current()->PushStackTraceAndDie(
+      reinterpret_cast<void*>(string->ptr()),
+      reinterpret_cast<void*>(map->ptr()));
+  recursion--;
+  UNREACHABLE();
+}
+}  // namespace
+#endif
+
 template <typename TDispatcher>
 auto StringShape::DispatchToSpecificType(Tagged<String> string,
                                          TDispatcher&& dispatcher) const {
@@ -363,20 +384,9 @@ auto StringShape::DispatchToSpecificType(Tagged<String> string,
         dispatcher(UncheckedCast<ThinString>(string)));
   }
 
-  [[unlikely]] {
-    thread_local int recursion = 0;
-    if (recursion > 0) {
-      // On a recursive failure, dispatch onto the empty string. This will
-      // likely cause out-of-bounds reads or potentially some other failure, but
-      // this is ok since we're already dying and it prevents stack overflow.
-      return static_cast<TReturn>(dispatcher(
-          UncheckedCast<SeqOneByteString>(GetReadOnlyRoots().empty_string())));
-    }
-    recursion++;
-    Isolate::Current()->PushStackTraceAndDie(
-        reinterpret_cast<void*>(string->ptr()),
-        reinterpret_cast<void*>(map_->ptr()));
-    recursion--;
+  [[unlikely]] if (!TryReportUnreachable(string, map_)) {
+    return static_cast<TReturn>(dispatcher(
+        UncheckedCast<SeqOneByteString>(GetReadOnlyRoots().empty_string())));
   }
   UNREACHABLE();
 #else
