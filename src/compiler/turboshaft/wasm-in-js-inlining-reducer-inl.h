@@ -819,6 +819,12 @@ class WasmInJsInliningInterface {
                 bool is_signed, Value* result) {
     Bailout(decoder);
   }
+  void ArrayAtomicGet(FullDecoder* decoder, const Value& array_obj,
+                      const ArrayIndexImmediate& imm, const Value& index,
+                      bool is_signed, AtomicMemoryOrder memory_order,
+                      Value* result) {
+    Bailout(decoder);
+  }
   void ArraySet(FullDecoder* decoder, const Value& array_obj,
                 const ArrayIndexImmediate& imm, const Value& index,
                 const Value& value) {

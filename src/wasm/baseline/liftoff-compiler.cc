@@ -7015,6 +7015,34 @@ class LiftoffCompiler {
     __ PushRegister(unpacked(elem_kind), value);
   }
 
+  void ArrayAtomicGet(FullDecoder* decoder, const Value& array_obj,
+                      const ArrayIndexImmediate& imm, const Value& index_val,
+                      bool is_signed, AtomicMemoryOrder memory_order,
+                      Value* result) {
+    LiftoffRegList pinned;
+    LiftoffRegister index = pinned.set(__ PopToModifiableRegister(pinned));
+    LiftoffRegister array = pinned.set(__ PopToRegister(pinned));
+    if (null_check_strategy_ == compiler::NullCheckStrategy::kExplicit) {
+      MaybeEmitNullCheck(decoder, array.gp(), pinned, array_obj.type);
+    }
+    bool implicit_null_check =
+        array_obj.type.is_nullable() &&
+        null_check_strategy_ == compiler::NullCheckStrategy::kTrapHandler;
+    BoundsCheckArray(decoder, implicit_null_check, array, index, pinned);
+    ValueKind elem_kind = imm.array_type->element_type().kind();
+    if (!CheckSupportedType(decoder, elem_kind, "array load")) return;
+    int elem_size_shift = value_kind_size_log2(elem_kind);
+    if (elem_size_shift != 0) {
+      __ emit_i32_shli(index.gp(), index.gp(), elem_size_shift);
+    }
+    LiftoffRegister value =
+        __ GetUnusedRegister(reg_class_for(elem_kind), pinned);
+    LoadAtomicObjectField(decoder, value, array.gp(), index.gp(),
+                          wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize),
+                          elem_kind, is_signed, false, memory_order, pinned);
+    __ PushRegister(unpacked(elem_kind), value);
+  }
+
   void ArraySet(FullDecoder* decoder, const Value& array_obj,
                 const ArrayIndexImmediate& imm, const Value& index_val,
                 const Value& value_val) {

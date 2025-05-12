@@ -986,6 +986,25 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
   index, value, timeout, WASM_ATOMICS_OP(op), alignment, offset
 #define WASM_ATOMICS_FENCE WASM_ATOMICS_OP(kExprAtomicFence), ZERO_OFFSET
 
+#define WASM_STRUCT_ATOMIC_GET(memory_order, typeidx, fieldidx, struct_obj) \
+  struct_obj, WASM_ATOMICS_OP(kExprStructAtomicGet), memory_order,          \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_GET_S(memory_order, typeidx, fieldidx, struct_obj) \
+  struct_obj, WASM_ATOMICS_OP(kExprStructAtomicGetS), memory_order,           \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_GET_U(memory_order, typeidx, fieldidx, struct_obj) \
+  struct_obj, WASM_ATOMICS_OP(kExprStructAtomicGetU), memory_order,           \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_SET(memory_order, typeidx, fieldidx, struct_obj, \
+                               value)                                       \
+  struct_obj, value, WASM_ATOMICS_OP(kExprStructAtomicSet), memory_order,   \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_ARRAY_ATOMIC_GET(memory_order, typeidx, array_obj) \
+  array_obj, WASM_ATOMICS_OP(kExprArrayAtomicGet), memory_order, ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_SET(memory_order, typeidx, array_obj, value)  \
+  array_obj, value, WASM_ATOMICS_OP(kExprArrayAtomicSet), memory_order, \
+      ToByte(typeidx)
+
 //------------------------------------------------------------------------------
 // Sign Extension Operations.
 //------------------------------------------------------------------------------

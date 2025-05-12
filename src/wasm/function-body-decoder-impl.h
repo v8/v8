@@ -1505,6 +1505,9 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
     const Value& field_value, AtomicMemoryOrder order)                         \
   F(ArrayGet, const Value& array_obj, const ArrayIndexImmediate& imm,          \
     const Value& index, bool is_signed, Value* result)                         \
+  F(ArrayAtomicGet, const Value& array_obj, const ArrayIndexImmediate& imm,    \
+    const Value& index, bool is_signed, AtomicMemoryOrder order,               \
+    Value* result)                                                             \
   F(ArraySet, const Value& array_obj, const ArrayIndexImmediate& imm,          \
     const Value& index, const Value& value)                                    \
   F(ArrayLen, const Value& array_obj, Value* result)                           \
@@ -2721,6 +2724,13 @@ class WasmDecoder : public Decoder {
                                  validate);
             (ios.Field(field), ...);
             return length + memory_order.length + field.length;
+          }
+          case kExprArrayAtomicGet: {
+            MemoryOrderImmediate memory_order(decoder, pc + length, validate);
+            (ios.MemoryOrder(memory_order), ...);
+            ArrayIndexImmediate array(decoder, pc + length, validate);
+            (ios.TypeIndex(array), ...);
+            return length + memory_order.length + array.length;
           }
           default:
             // This path is only possible if we are validating.
@@ -6888,6 +6898,19 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               field.field_imm.index, field.struct_imm.index.index);
           return 0;
         }
+        ValueType field_type = struct_type->field(field.field_imm.index);
+        if (!VALIDATE(field_type == kWasmI8 || field_type == kWasmI16 ||
+                      field_type == kWasmI32 || field_type == kWasmI64 ||
+                      (field_type.is_ref() &&
+                       (IsSubtypeOf(field_type, kWasmAnyRef, this->module_) ||
+                        IsSubtypeOf(field_type, kWasmSharedAnyRef,
+                                    this->module_))))) {
+          this->DecodeError(
+              "struct.atomic.set: Field %d of type %d has invalid type %s ",
+              field.field_imm.index, field.struct_imm.index.index,
+              field_type.name().c_str());
+          return 0;
+        }
         auto [struct_obj, field_value] =
             Pop(ValueType::RefNull(field.struct_imm.heap_type()),
                 struct_type->field(field.field_imm.index).Unpacked());
@@ -6899,6 +6922,42 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                              field_value);
         }
         return opcode_length + field.length + memory_order.length;
+      }
+      case kExprArrayAtomicGet: {
+        CHECK_PROTOTYPE_OPCODE(shared);
+        NON_CONST_ONLY
+        MemoryOrderImmediate memory_order(this, this->pc_ + opcode_length,
+                                          validate);
+        if (!this->ok()) return 0;
+        ArrayIndexImmediate imm(
+            this, this->pc_ + memory_order.length + opcode_length, validate);
+        if (!this->Validate(this->pc_ + memory_order.length + opcode_length,
+                            imm)) {
+          return 0;
+        }
+        ValueType element_type = imm.array_type->element_type();
+        if (!VALIDATE(element_type == kWasmI32 || element_type == kWasmI64 ||
+                      (element_type.is_ref() &&
+                       (IsSubtypeOf(element_type, kWasmAnyRef, this->module_) ||
+                        IsSubtypeOf(element_type, kWasmSharedAnyRef,
+                                    this->module_))))) {
+          this->DecodeError(
+              "array.atomic.get: Array %d has invalid element type %s ",
+              imm.index.index, imm.array_type->element_type().name().c_str());
+          return 0;
+        }
+        auto [array_obj, index] =
+            Pop(ValueType::RefNull(imm.heap_type()), kWasmI32);
+        Value* value = Push(imm.array_type->element_type());
+        if (array_obj.type.is_shared()) {
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayAtomicGet, array_obj, imm,
+                                             index, true, memory_order.order,
+                                             value);
+        } else {
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayGet, array_obj, imm, index,
+                                             true, value);
+        }
+        return opcode_length + memory_order.length + imm.length;
       }
       default:
         // This path is only possible if we are validating.

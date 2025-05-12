@@ -6,42 +6,7 @@
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
-(function TestAtomicGetInvalidType() {
-  for (let is_shared of [true, false]) {
-    const types = [
-      kWasmF32,
-      kWasmF64,
-      kWasmS128,
-      kWasmI8,
-      kWasmI16,
-      is_shared ? wasmRefNullType(kWasmExternRef).shared() : kWasmExternRef,
-      is_shared ? wasmRefNullType(kWasmNullExternRef).shared()
-               : kWasmNullExternRef,
-    ];
-    for (const [i, type] of types.entries()) {
-      print(
-        `${arguments.callee.name} ${is_shared ? "shared" : "unshared"} ${i}`);
-      let builder = new WasmModuleBuilder();
-      let struct = builder.addStruct({
-        fields: [makeField(type, true)],
-        is_shared,
-      });
-      let consumer_sig = makeSig([wasmRefNullType(struct)], []);
-      builder.addFunction("atomicGet", consumer_sig)
-        .addBody([
-          kExprLocalGet, 0,
-          kAtomicPrefix, kExprStructAtomicGet, kAtomicSeqCst, struct, 0,
-          kExprDrop
-        ])
-        .exportFunc();
-
-      assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
-      /struct\.atomic\.get: Field 0 of type 0 has invalid type/);
-    }
-  }
-})();
-
-(function TestAtomicGetSet() {
+(function TestAtomicStructGetSet() {
   for (let is_shared of [true, false]) {
     print(`${arguments.callee.name} ${is_shared ? "shared" : "unshared"}`);
     let builder = new WasmModuleBuilder();
@@ -134,7 +99,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   }
 })();
 
-(function TestAtomicGetPacked() {
+(function TestAtomicStructGetPacked() {
   for (let is_shared of [true, false]) {
     print(`${arguments.callee.name} ${is_shared ? "shared" : "unshared"}`);
     let builder = new WasmModuleBuilder();
@@ -218,5 +183,57 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     assertEquals(-200, wasm.atomicGetS16(structNeg));
     assertTraps(kTrapNullDereference, () => wasm.atomicGetS8(null));
     assertTraps(kTrapNullDereference, () => wasm.atomicGetS16(null));
+  }
+})();
+
+(function TestAtomicArrayGetSet() {
+  for (let is_shared of [true, false]) {
+    print(`${arguments.callee.name} ${is_shared ? "shared" : "unshared"}`);
+    let builder = new WasmModuleBuilder();
+    let anyRefT = is_shared
+      ? wasmRefNullType(kWasmAnyRef).shared()
+      : wasmRefNullType(kWasmAnyRef);
+    let array32 =
+      builder.addArray(kWasmI32, true, kNoSuperType, false, is_shared);
+    let array64 =
+      builder.addArray(kWasmI64, true, kNoSuperType, false, is_shared);
+    let arrayRef =
+      builder.addArray(anyRefT, true, kNoSuperType, false, is_shared);
+    builder.addFunction("newArray32", makeSig([kWasmI32, kWasmI32], [anyRefT]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kGCPrefix, kExprArrayNewFixed, array32, 2,
+      ])
+      .exportFunc();
+    builder.addFunction("newArray64", makeSig([kWasmI64, kWasmI64], [anyRefT]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kGCPrefix, kExprArrayNewFixed, array64, 2,
+      ])
+      .exportFunc();
+    builder.addFunction("newArrayRef", makeSig([anyRefT, anyRefT], [anyRefT]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kGCPrefix, kExprArrayNewFixed, arrayRef, 2,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicGet32",
+        makeSig([wasmRefNullType(array32), kWasmI32], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprArrayAtomicGet, kAtomicSeqCst, array32,
+      ])
+      .exportFunc();
+
+    let wasm = builder.instantiate().exports;
+    let array32Obj = wasm.newArray32(42, 43);
+    assertEquals(42, wasm.atomicGet32(array32Obj, 0));
+    assertEquals(43, wasm.atomicGet32(array32Obj, 1));
+    assertTraps(kTrapArrayOutOfBounds, () => wasm.atomicGet32(array32Obj, 2));
+    assertTraps(kTrapNullDereference, () => wasm.atomicGet32(null));
   }
 })();

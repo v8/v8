@@ -295,11 +295,15 @@ class WasmLoweringReducer : public Next {
   }
 
   V<Any> REDUCE(ArrayGet)(V<WasmArrayNullable> array, V<Word32> index,
-                          const wasm::ArrayType* array_type, bool is_signed) {
+                          const wasm::ArrayType* array_type, bool is_signed,
+                          std::optional<AtomicMemoryOrder> memory_order) {
     bool is_mutable = array_type->mutability();
     LoadOp::Kind load_kind = is_mutable
                                  ? LoadOp::Kind::TaggedBase()
                                  : LoadOp::Kind::TaggedBase().Immutable();
+    if (memory_order.has_value()) {
+      load_kind = load_kind.Atomic();
+    }
     return __ Load(array, __ ChangeInt32ToIntPtr(index), load_kind,
                    RepresentationFor(array_type->element_type(), is_signed),
                    WasmArray::kHeaderSize,

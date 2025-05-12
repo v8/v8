@@ -4942,8 +4942,10 @@ class TurboshaftAssemblerOpInterface
   }
 
   V<Any> ArrayGet(V<WasmArrayNullable> array, V<Word32> index,
-                  const wasm::ArrayType* array_type, bool is_signed) {
-    return ReduceIfReachableArrayGet(array, index, array_type, is_signed);
+                  const wasm::ArrayType* array_type, bool is_signed,
+                  std::optional<AtomicMemoryOrder> memory_order) {
+    return ReduceIfReachableArrayGet(array, index, array_type, is_signed,
+                                     memory_order);
   }
 
   void ArraySet(V<WasmArrayNullable> array, V<Word32> index, V<Any> value,

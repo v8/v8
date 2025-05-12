@@ -7193,6 +7193,7 @@ struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
 struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
   bool is_signed;
   const wasm::ArrayType* array_type;
+  std::optional<AtomicMemoryOrder> memory_order;
 
   // ArrayGetOp may never trap as it is always protected by a length check.
   static constexpr OpEffects effects =
@@ -7202,8 +7203,12 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
           .CanReadMemory();
 
   ArrayGetOp(V<WasmArrayNullable> array, V<Word32> index,
-             const wasm::ArrayType* array_type, bool is_signed)
-      : Base(array, index), is_signed(is_signed), array_type(array_type) {}
+             const wasm::ArrayType* array_type, bool is_signed,
+             std::optional<AtomicMemoryOrder> memory_order)
+      : Base(array, index),
+        is_signed(is_signed),
+        array_type(array_type),
+        memory_order(memory_order) {}
 
   V<WasmArrayNullable> array() const { return input<WasmArrayNullable>(0); }
   V<Word32> index() const { return input<Word32>(1); }
@@ -7218,8 +7223,9 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
                           MaybeRegisterRepresentation::Word32()>();
   }
 
-
-  auto options() const { return std::tuple{array_type, is_signed}; }
+  auto options() const {
+    return std::tuple{array_type, is_signed, memory_order};
+  }
   void PrintOptions(std::ostream& os) const;
 };
 

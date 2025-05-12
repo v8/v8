@@ -4662,7 +4662,17 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     auto array_value = V<WasmArrayNullable>::Cast(array_obj.op);
     BoundsCheckArray(array_value, index.op, array_obj.type);
     result->op = __ ArrayGet(array_value, V<Word32>::Cast(index.op),
-                             imm.array_type, is_signed);
+                             imm.array_type, is_signed, {});
+  }
+
+  void ArrayAtomicGet(FullDecoder* decoder, const Value& array_obj,
+                      const ArrayIndexImmediate& imm, const Value& index,
+                      bool is_signed, AtomicMemoryOrder memory_order,
+                      Value* result) {
+    auto array_value = V<WasmArrayNullable>::Cast(array_obj.op);
+    BoundsCheckArray(array_value, index.op, array_obj.type);
+    result->op = __ ArrayGet(array_value, V<Word32>::Cast(index.op),
+                             imm.array_type, is_signed, memory_order);
   }
 
   void ArraySet(FullDecoder* decoder, const Value& array_obj,
@@ -4748,7 +4758,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
           WHILE(__ Word32Constant(1)) {
             V<Any> value = __ ArrayGet(src_array, src_index_loop,
-                                       src_imm.array_type, true);
+                                       src_imm.array_type, true, {});
             __ ArraySet(dst_array, dst_index_loop, value, element_type);
 
             IF_NOT (__ Uint32LessThan(src_index.op, src_index_loop)) BREAK;
@@ -4762,7 +4772,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
           WHILE(__ Word32Constant(1)) {
             V<Any> value = __ ArrayGet(src_array, src_index_loop,
-                                       src_imm.array_type, true);
+                                       src_imm.array_type, true, {});
             __ ArraySet(dst_array, dst_index_loop, value, element_type);
 
             IF_NOT (__ Uint32LessThan(src_index_loop, src_end_index)) BREAK;
