@@ -237,3 +237,84 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     assertTraps(kTrapNullDereference, () => wasm.atomicGet32(null));
   }
 })();
+
+(function TestAtomicArrayGetPacked() {
+  for (let is_shared of [true, false]) {
+    print(`${arguments.callee.name} ${is_shared ? "shared" : "unshared"}`);
+    let builder = new WasmModuleBuilder();
+    let anyRefT = is_shared
+      ? wasmRefNullType(kWasmAnyRef).shared()
+      : wasmRefNullType(kWasmAnyRef);
+    let array8 =
+      builder.addArray(kWasmI8, true, kNoSuperType, false, is_shared);
+    let array16 =
+      builder.addArray(kWasmI16, true, kNoSuperType, false, is_shared);
+    builder.addFunction("newArray8", makeSig([kWasmI32, kWasmI32], [anyRefT]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kGCPrefix, kExprArrayNewFixed, array8, 2,
+      ])
+      .exportFunc();
+    builder.addFunction("newArray16", makeSig([kWasmI32, kWasmI32], [anyRefT]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kGCPrefix, kExprArrayNewFixed, array16, 2,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicGetS8",
+        makeSig([wasmRefNullType(array8), kWasmI32], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprArrayAtomicGetS, kAtomicSeqCst, array8,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicGetU8",
+        makeSig([wasmRefNullType(array8), kWasmI32], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprArrayAtomicGetU, kAtomicSeqCst, array8,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicGetS16",
+        makeSig([wasmRefNullType(array16), kWasmI32], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprArrayAtomicGetS, kAtomicSeqCst, array16,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicGetU16",
+        makeSig([wasmRefNullType(array16), kWasmI32], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprArrayAtomicGetU, kAtomicSeqCst, array16,
+      ])
+      .exportFunc();
+
+    let wasm = builder.instantiate().exports;
+    let array8Obj = wasm.newArray8(42, -55);
+    assertEquals(42, wasm.atomicGetS8(array8Obj, 0));
+    assertEquals(-55, wasm.atomicGetS8(array8Obj, 1));
+    assertEquals(42, wasm.atomicGetU8(array8Obj, 0));
+    assertEquals(201, wasm.atomicGetU8(array8Obj, 1));
+    let array16Obj = wasm.newArray16(4200, -5500);
+    assertEquals(4200, wasm.atomicGetS16(array16Obj, 0));
+    assertEquals(-5500, wasm.atomicGetS16(array16Obj, 1));
+    assertEquals(4200, wasm.atomicGetU16(array16Obj, 0));
+    assertEquals(60_036, wasm.atomicGetU16(array16Obj, 1));
+
+    assertTraps(kTrapArrayOutOfBounds, () => wasm.atomicGetS8(array8Obj, 2));
+    assertTraps(kTrapArrayOutOfBounds, () => wasm.atomicGetU8(array8Obj, 2));
+    assertTraps(kTrapArrayOutOfBounds, () => wasm.atomicGetS16(array16Obj, 2));
+    assertTraps(kTrapArrayOutOfBounds, () => wasm.atomicGetU16(array16Obj, 2));
+    assertTraps(kTrapNullDereference, () => wasm.atomicGetS8(null));
+    assertTraps(kTrapNullDereference, () => wasm.atomicGetU8(null));
+    assertTraps(kTrapNullDereference, () => wasm.atomicGetS16(null));
+    assertTraps(kTrapNullDereference, () => wasm.atomicGetU16(null));
+  }
+})();

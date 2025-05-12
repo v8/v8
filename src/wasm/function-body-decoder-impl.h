@@ -2725,7 +2725,9 @@ class WasmDecoder : public Decoder {
             (ios.Field(field), ...);
             return length + memory_order.length + field.length;
           }
-          case kExprArrayAtomicGet: {
+          case kExprArrayAtomicGet:
+          case kExprArrayAtomicGetS:
+          case kExprArrayAtomicGetU: {
             MemoryOrderImmediate memory_order(decoder, pc + length, validate);
             (ios.MemoryOrder(memory_order), ...);
             ArrayIndexImmediate array(decoder, pc + length, validate);
@@ -6957,6 +6959,35 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayGet, array_obj, imm, index,
                                              true, value);
         }
+        return opcode_length + memory_order.length + imm.length;
+      }
+      case kExprArrayAtomicGetS:
+      case kExprArrayAtomicGetU: {
+        CHECK_PROTOTYPE_OPCODE(shared);
+        NON_CONST_ONLY
+        MemoryOrderImmediate memory_order(this, this->pc_ + opcode_length,
+                                          validate);
+        if (!this->ok()) return 0;
+        ArrayIndexImmediate imm(
+            this, this->pc_ + memory_order.length + opcode_length, validate);
+        if (!this->Validate(this->pc_ + memory_order.length + opcode_length,
+                            imm)) {
+          return 0;
+        }
+        if (!VALIDATE(imm.array_type->element_type().is_packed())) {
+          this->DecodeError(
+              "%s: Array type %d has non-packed type %s. Use "
+              "array.atomic.get instead.",
+              WasmOpcodes::OpcodeName(opcode), imm.index.index,
+              imm.array_type->element_type().name().c_str());
+          return 0;
+        }
+        auto [array_obj, index] =
+            Pop(ValueType::RefNull(imm.heap_type()), kWasmI32);
+        Value* value = Push(imm.array_type->element_type().Unpacked());
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayGet, array_obj, imm, index,
+                                           opcode == kExprArrayAtomicGetS,
+                                           value);
         return opcode_length + memory_order.length + imm.length;
       }
       default:

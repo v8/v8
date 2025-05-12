@@ -6192,6 +6192,27 @@ TEST_P(FunctionBodyDecoderTestAtomicInvalidPacked, Struct) {
       kAppendEnd, "struct.atomic.get_u: Field 0 of type 0 has non-packed type");
 }
 
+TEST_P(FunctionBodyDecoderTestAtomicInvalidPacked, Array) {
+  WASM_FEATURE_SCOPE(shared);
+  ValueType element_type = std::get<0>(GetParam());
+  const bool shared = std::get<1>(GetParam());
+  HeapType array_heaptype = builder.AddArray(element_type, true, shared);
+  ModuleTypeIndex array_type_index = array_heaptype.ref_index();
+  ValueType array_type = ValueType::Ref(array_heaptype);
+
+  const ValueType v_get[] = {element_type.Unpacked(), array_type};
+  const FunctionSig sig_get(1, 1, v_get);
+
+  ExpectFailure(
+      &sig_get,
+      {WASM_ARRAY_ATOMIC_GET_S(0, array_type_index, WASM_LOCAL_GET(0))},
+      kAppendEnd, "array.atomic.get_s: Array type 0 has non-packed type");
+  ExpectFailure(
+      &sig_get,
+      {WASM_ARRAY_ATOMIC_GET_U(0, array_type_index, WASM_LOCAL_GET(0))},
+      kAppendEnd, "array.atomic.get_u: Array type 0 has non-packed type");
+}
+
 #undef B1
 #undef B2
 #undef B3
