@@ -19,6 +19,30 @@
 
 namespace v8::internal::wasm {
 
+WasmImportWrapperHandle::WasmImportWrapperHandle(Address addr,
+                                                 uint64_t signature_hash)
+    : code_pointer_(
+          GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
+              addr, signature_hash)) {}
+
+WasmImportWrapperHandle::~WasmImportWrapperHandle() {
+  WasmCode* wasm_code = code_.load(std::memory_order_relaxed);
+  if (wasm_code) {
+    bool should_free = wasm_code->DecRef();
+    USE(should_free);
+    DCHECK(!should_free);
+  }
+  GetProcessWideWasmCodePointerTable()->FreeEntry(code_pointer_);
+}
+
+void WasmImportWrapperHandle::SetCode(WasmCode* code) {
+  DCHECK(!has_code());
+  code->IncRef();
+  GetProcessWideWasmCodePointerTable()->UpdateEntrypoint(
+      code_pointer_, code->instruction_start(), code->signature_hash());
+  code_.store(code, std::memory_order_relaxed);
+}
+
 WasmCode* WasmImportWrapperCache::ModificationScope::operator[](
     const CacheKey& key) {
   return cache_->entry_map_[key];

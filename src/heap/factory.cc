@@ -90,6 +90,7 @@
 #include "src/wasm/module-decoder-impl.h"
 #include "src/wasm/module-instantiate.h"
 #include "src/wasm/wasm-code-pointer-table-inl.h"
+#include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-value.h"
@@ -1851,13 +1852,19 @@ DirectHandle<WasmFuncRef> Factory::NewWasmFuncRef(
 DirectHandle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
     wasm::CanonicalTypeIndex sig_index, DirectHandle<JSReceiver> callable,
     DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
-    wasm::Suspend suspend, wasm::Promise promise) {
+    wasm::Suspend suspend, wasm::Promise promise,
+    std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle) {
   // TODO(clemensb): Should this be passed instead of looked up here?
   const wasm::CanonicalSig* sig =
       wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_index);
   constexpr bool kShared = false;
   DirectHandle<WasmImportData> import_data = NewWasmImportData(
       callable, suspend, DirectHandle<WasmTrustedInstanceData>(), sig, kShared);
+
+  DirectHandle<WasmInternalFunction> internal = NewWasmInternalFunction(
+      import_data, -1, kShared, wrapper_handle->code_pointer());
+  DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt, kShared);
+  import_data->SetFuncRefAsCallOrigin(*internal);
 
   // Rough guess for a wrapper that may be shared with other users of it.
   constexpr size_t kOffheapDataSizeEstimate = 100;
@@ -1866,13 +1873,9 @@ DirectHandle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
       TrustedManaged<WasmJSFunctionData::OffheapData>::From(
           isolate(), kOffheapDataSizeEstimate,
           std::make_shared<WasmJSFunctionData::OffheapData>(
-              sig->signature_hash()),
+              std::move(wrapper_handle), sig->signature_hash()),
           shared);
 
-  DirectHandle<WasmInternalFunction> internal = NewWasmInternalFunction(
-      import_data, -1, kShared, wasm::kInvalidWasmCodePointer);
-  DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt, kShared);
-  import_data->SetFuncRefAsCallOrigin(*internal);
   Tagged<Map> map = *wasm_js_function_data_map();
   Tagged<WasmJSFunctionData> result =
       Cast<WasmJSFunctionData>(AllocateRawWithImmortalMap(

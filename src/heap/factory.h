@@ -94,6 +94,7 @@ class ArrayType;
 class StructType;
 class ContType;
 struct WasmElemSegment;
+class WasmImportWrapperHandle;
 class WasmValue;
 enum class OnResume : int;
 enum Suspend : int;
@@ -776,7 +777,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<WasmJSFunctionData> NewWasmJSFunctionData(
       wasm::CanonicalTypeIndex sig_index, DirectHandle<JSReceiver> callable,
       DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
-      wasm::Suspend suspend, wasm::Promise promise);
+      wasm::Suspend suspend, wasm::Promise promise,
+      std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle);
   DirectHandle<WasmResumeData> NewWasmResumeData(
       DirectHandle<WasmSuspenderObject> suspender, wasm::OnResume on_resume);
   DirectHandle<WasmSuspenderObject> NewWasmSuspenderObject();

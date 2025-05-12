@@ -3324,8 +3324,11 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
           : isolate->builtins()->code_handle(Builtin::kJSToJSWrapperInvalidSig);
 
   DirectHandle<WasmJSFunctionData> function_data =
-      factory->NewWasmJSFunctionData(sig_id, callable, js_to_js_wrapper_code,
-                                     rtt, suspend, wasm::kNoPromise);
+      factory->NewWasmJSFunctionData(
+          sig_id, callable, js_to_js_wrapper_code, rtt, suspend,
+          wasm::kNoPromise,
+          std::make_shared<wasm::WasmImportWrapperHandle>(
+              kNullAddress, canonical_sig->signature_hash()));
   DirectHandle<WasmInternalFunction> internal_function{
       function_data->internal(), isolate};
 
@@ -3334,14 +3337,15 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
         Builtins::EmbeddedEntryOf(Builtin::kWasmToJsWrapperInvalidSig);
     WasmCodePointer wrapper_code_pointer =
         function_data->offheap_data()->set_generic_wrapper(builtin_entry);
-    internal_function->set_call_target(wrapper_code_pointer);
+    USE(wrapper_code_pointer);
+    DCHECK_EQ(internal_function->call_target(), wrapper_code_pointer);
 #if V8_ENABLE_DRUMBRAKE
   } else if (v8_flags.wasm_jitless) {
     Address builtin_entry =
         Builtins::EmbeddedEntryOf(Builtin::kGenericWasmToJSInterpreterWrapper);
     WasmCodePointer wrapper_code_pointer =
         function_data->offheap_data()->set_generic_wrapper(builtin_entry);
-    internal_function->set_call_target(wrapper_code_pointer);
+    DCHECK_EQ(internal_function->call_target(), wrapper_code_pointer);
 #endif  // V8_ENABLE_DRUMBRAKE
   } else {
     int expected_arity = parameter_count;
@@ -3385,7 +3389,7 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
       Cast<WasmImportData>(internal_function->implicit_arg())
           ->clear_call_origin();
     }
-    internal_function->set_call_target(code_pointer);
+    DCHECK_EQ(internal_function->call_target(), code_pointer);
   }
 
   DirectHandle<String> name = factory->Function_string();
@@ -3405,41 +3409,19 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
   return Cast<WasmJSFunction>(js_function);
 }
 
+WasmCodePointer WasmJSFunctionData::OffheapData::set_generic_wrapper(
+    Address call_target) {
+  WasmCodePointer code_pointer = wrapper_handle_->code_pointer();
+  wasm::GetProcessWideWasmCodePointerTable()->SetEntrypointAndSignature(
+      code_pointer, call_target, signature_hash_);
+  return code_pointer;
+}
+
 WasmCodePointer WasmJSFunctionData::OffheapData::set_compiled_wrapper(
     wasm::WasmCode* wrapper) {
-  DCHECK_NULL(wrapper_);  // We shouldn't overwrite existing wrappers.
-  wrapper_ = wrapper;
-  wrapper->IncRef();
   DCHECK_EQ(wrapper->signature_hash(), signature_hash_);
-  if (wrapper_code_pointer_ == wasm::kInvalidWasmCodePointer) {
-    wrapper_code_pointer_ =
-        wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
-            wrapper->instruction_start(), wrapper->signature_hash());
-  } else {
-    wasm::GetProcessWideWasmCodePointerTable()->UpdateEntrypoint(
-        wrapper_code_pointer_, wrapper->instruction_start(),
-        wrapper->signature_hash());
-  }
-  return wrapper_code_pointer_;
-}
-
-WasmCodePointer WasmJSFunctionData::OffheapData::set_generic_wrapper(
-    Address code_entry) {
-  DCHECK_EQ(wrapper_code_pointer_, wasm::kInvalidWasmCodePointer);
-  wrapper_code_pointer_ =
-      wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
-          code_entry, signature_hash_);
-  return wrapper_code_pointer_;
-}
-
-WasmJSFunctionData::OffheapData::~OffheapData() {
-  if (wrapper_) {
-    wasm::WasmCode::DecrementRefCount({&wrapper_, 1});
-  }
-  if (wrapper_code_pointer_ != wasm::kInvalidWasmCodePointer) {
-    wasm::GetProcessWideWasmCodePointerTable()->FreeEntry(
-        wrapper_code_pointer_);
-  }
+  wrapper_handle_->SetCode(wrapper);
+  return wrapper_handle_->code_pointer();
 }
 
 Tagged<JSReceiver> WasmJSFunctionData::GetCallable() const {

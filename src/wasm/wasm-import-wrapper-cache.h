@@ -100,6 +100,29 @@ class WasmImportWrapperCache {
   std::map<Address, WasmCode*> codes_;
 };
 
+class WasmImportWrapperHandle {
+ public:
+  WasmImportWrapperHandle(Address addr, uint64_t signature_hash);
+  WasmImportWrapperHandle(const WasmImportWrapperHandle&) = delete;
+  WasmImportWrapperHandle& operator=(const WasmImportWrapperHandle&) = delete;
+
+  ~WasmImportWrapperHandle();
+
+  WasmCodePointer code_pointer() const { return code_pointer_; }
+  const WasmCode& code() const {
+    return *code_.load(std::memory_order_relaxed);
+  }
+  bool has_code() const {
+    return code_.load(std::memory_order_relaxed) != nullptr;
+  }
+
+  void SetCode(WasmCode* code);
+
+ private:
+  const WasmCodePointer code_pointer_;
+  std::atomic<WasmCode*> code_ = nullptr;
+};
+
 }  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_WASM_IMPORT_WRAPPER_CACHE_H_

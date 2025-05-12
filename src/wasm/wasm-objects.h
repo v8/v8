@@ -42,6 +42,7 @@ class NativeModule;
 class WasmCode;
 struct WasmFunction;
 struct WasmGlobal;
+class WasmImportWrapperHandle;
 struct WasmModule;
 struct WasmTag;
 using WasmTagSig = FunctionSig;
@@ -1244,17 +1245,20 @@ class WasmJSFunctionData
   // garbage-collected.
   class OffheapData {
    public:
-    explicit OffheapData(uint64_t signature_hash)
-        : signature_hash_(signature_hash) {}
-    ~OffheapData();
+    OffheapData(std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle,
+                uint64_t signature_hash)
+        : wrapper_handle_(wrapper_handle), signature_hash_(signature_hash) {}
 
     // These functions return the CPT entry owned by this class.
     WasmCodePointer set_compiled_wrapper(wasm::WasmCode* wrapper);
     WasmCodePointer set_generic_wrapper(Address call_target);
 
+    std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle() const {
+      return wrapper_handle_;
+    }
+
    private:
-    WasmCodePointer wrapper_code_pointer_ = wasm::kInvalidWasmCodePointer;
-    wasm::WasmCode* wrapper_{nullptr};
+    const std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle_;
     const uint64_t signature_hash_;
   };
 
