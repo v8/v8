@@ -5277,6 +5277,7 @@ void MacroAssembler::DecompressProtected(const Register& destination,
 
 void MacroAssembler::AtomicDecompressTaggedSigned(Register dst,
                                                   const MemOperand& src) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   ASM_CODE_COMMENT(this);
   Ld_wu(dst, src);
   dbar(0);
@@ -5286,12 +5287,15 @@ void MacroAssembler::AtomicDecompressTaggedSigned(Register dst,
   }
 }
 
-void MacroAssembler::AtomicDecompressTagged(Register dst,
-                                            const MemOperand& src) {
+int MacroAssembler::AtomicDecompressTagged(Register dst,
+                                           const MemOperand& src) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   ASM_CODE_COMMENT(this);
   Ld_wu(dst, src);
+  int pc_offset_of_load = pc_offset() - kInstrSize;
   dbar(0);
   Add_d(dst, kPtrComprCageBaseRegister, dst);
+  return pc_offset_of_load;
 }
 
 // Calls an API function. Allocates HandleScope, extracts returned value
