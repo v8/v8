@@ -6891,10 +6891,11 @@ class LiftoffCompiler {
     ValueType elem_type = imm.array_type->element_type();
     ValueKind elem_kind = elem_type.kind();
     int elem_size = value_kind_size(elem_kind);
+    const bool is_shared = decoder->module_->type(imm.index).is_shared;
+
     // Allocate the array.
     {
       LiftoffRegister rtt = RttCanon(decoder, imm.index, {});
-      const bool is_shared = decoder->module_->type(imm.index).is_shared;
       CallBuiltin(is_shared ? Builtin::kWasmAllocateSharedArray_Uninitialized
                             : Builtin::kWasmAllocateArray_Uninitialized,
                   MakeSig::Returns(kRef).Params(kRef, kI32, kI32),
@@ -6923,8 +6924,10 @@ class LiftoffCompiler {
     // Skipping the write barrier is safe as long as:
     // (1) {obj} is freshly allocated, and
     // (2) {obj} is in new-space (not pretenured).
+    // TODO(mliedtke): Only emit write barriers for reference types.
     ArrayFillImpl(decoder, pinned, obj, index, value, length, elem_kind,
-                  LiftoffAssembler::kSkipWriteBarrier);
+                  is_shared ? LiftoffAssembler::kNoSkipWriteBarrier
+                            : LiftoffAssembler::kSkipWriteBarrier);
 
     __ PushRegister(kRef, obj);
   }
@@ -7132,7 +7135,9 @@ class LiftoffCompiler {
       // (2) {array} is in new-space (not pretenured).
       StoreObjectField(decoder, array.gp(), no_reg,
                        wasm::ObjectAccess::ToTagged(offset), element, false,
-                       pinned, elem_kind, LiftoffAssembler::kSkipWriteBarrier);
+                       pinned, elem_kind,
+                       is_shared ? LiftoffAssembler::kNoSkipWriteBarrier
+                                 : LiftoffAssembler::kSkipWriteBarrier);
     }
 
     // Push the array onto the stack.
