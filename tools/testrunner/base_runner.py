@@ -532,7 +532,7 @@ class BaseTestRunner(object):
     if (utils.GuessOS() == 'linux' and self.build_config.arch == 'arm64' and
         not self.build_config.simulator_run):
       external_symbolizer_path = (
-          self.basedir / 'tools' / 'sanitizers' / 'linux' / ' arm64' /
+          self.basedir / 'tools' / 'sanitizers' / 'linux' / 'arm64' /
           'llvm-symbolizer')
     else:
       external_symbolizer_path = (
