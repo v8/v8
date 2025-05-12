@@ -1544,7 +1544,7 @@ class MaglevGraphBuilder {
   ValueNode* GetTrustedConstant(compiler::HeapObjectRef ref,
                                 IndirectPointerTag tag);
 
-  ValueNode* GetConstantSingleCharacterStringFromCode(uint16_t);
+  MaybeReduceResult GetConstantSingleCharacterStringFromCode(uint16_t);
 
   ValueNode* GetRegisterInput(Register reg) {
     DCHECK(!graph_->register_inputs().has(reg));

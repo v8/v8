@@ -7675,18 +7675,13 @@ ValueNode* MaglevGraphBuilder::GetTrustedConstant(compiler::HeapObjectRef ref,
 #endif
 }
 
-ValueNode* MaglevGraphBuilder::GetConstantSingleCharacterStringFromCode(
+MaybeReduceResult MaglevGraphBuilder::GetConstantSingleCharacterStringFromCode(
     uint16_t code) {
-  // Inline the one-byte character case from
-  // LookupSingleCharacterStringFromCode, to avoid unnecessary ref creation.
+  // Only handle the one-byte character case, which accesses roots.
   if (code <= String::kMaxOneByteCharCode) {
     return GetRootConstant(RootsTable::SingleCharacterStringIndex(code));
   }
-  return GetConstant(MakeRef(
-      broker(),
-      broker()->CanonicalPersistentHandle(
-          local_isolate()->factory()->LookupSingleCharacterStringFromCode(
-              code))));
+  return {};
 }
 
 ReduceResult MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
