@@ -745,7 +745,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       wasm::CanonicalValueType type, wasm::CanonicalValueType element_type,
       DirectHandle<Map> opt_parent, bool shared);
   DirectHandle<WasmInternalFunction> NewWasmInternalFunction(
-      DirectHandle<TrustedObject> ref, int function_index, bool shared);
+      DirectHandle<TrustedObject> ref, int function_index, bool shared,
+      WasmCodePointer call_target);
   DirectHandle<WasmFuncRef> NewWasmFuncRef(
       DirectHandle<WasmInternalFunction> internal_function,
       DirectHandle<Map> rtt, bool shared);

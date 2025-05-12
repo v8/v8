@@ -2070,18 +2070,16 @@ DirectHandle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
           trusted_instance_data->managed_object_maps()->get(sig_index.index)),
       isolate};
 
-  DirectHandle<WasmInternalFunction> internal_function =
-      isolate->factory()->NewWasmInternalFunction(implicit_arg, function_index,
-                                                  shared);
-  DirectHandle<WasmFuncRef> func_ref =
-      isolate->factory()->NewWasmFuncRef(internal_function, rtt, shared);
-  trusted_instance_data->func_refs()->set(function_index, *func_ref);
-
   // Reuse the call target of the instance. In case of import wrappers, the
   // wrapper will automatically get tiered up together since it will use the
   // same CPT entry.
-  internal_function->set_call_target(
-      trusted_instance_data->GetCallTarget(function_index));
+  DirectHandle<WasmInternalFunction> internal_function =
+      isolate->factory()->NewWasmInternalFunction(
+          implicit_arg, function_index, shared,
+          trusted_instance_data->GetCallTarget(function_index));
+  DirectHandle<WasmFuncRef> func_ref =
+      isolate->factory()->NewWasmFuncRef(internal_function, rtt, shared);
+  trusted_instance_data->func_refs()->set(function_index, *func_ref);
 
   return func_ref;
 }

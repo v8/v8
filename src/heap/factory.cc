@@ -1811,7 +1811,8 @@ DirectHandle<WasmFastApiCallData> Factory::NewWasmFastApiCallData(
 }
 
 DirectHandle<WasmInternalFunction> Factory::NewWasmInternalFunction(
-    DirectHandle<TrustedObject> implicit_arg, int function_index, bool shared) {
+    DirectHandle<TrustedObject> implicit_arg, int function_index, bool shared,
+    WasmCodePointer call_target) {
   Tagged<WasmInternalFunction> internal =
       Cast<WasmInternalFunction>(AllocateRawWithImmortalMap(
           WasmInternalFunction::kSize,
@@ -1820,7 +1821,7 @@ DirectHandle<WasmInternalFunction> Factory::NewWasmInternalFunction(
   internal->init_self_indirect_pointer(isolate());
   {
     DisallowGarbageCollection no_gc;
-    internal->set_call_target(wasm::kInvalidWasmCodePointer);
+    internal->set_call_target(call_target);
     DCHECK(IsWasmTrustedInstanceData(*implicit_arg) ||
            IsWasmImportData(*implicit_arg));
     internal->set_implicit_arg(*implicit_arg);
@@ -1868,8 +1869,8 @@ DirectHandle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
               sig->signature_hash()),
           shared);
 
-  DirectHandle<WasmInternalFunction> internal =
-      NewWasmInternalFunction(import_data, -1, kShared);
+  DirectHandle<WasmInternalFunction> internal = NewWasmInternalFunction(
+      import_data, -1, kShared, wasm::kInvalidWasmCodePointer);
   DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt, kShared);
   import_data->SetFuncRefAsCallOrigin(*internal);
   Tagged<Map> map = *wasm_js_function_data_map();
@@ -1978,14 +1979,13 @@ DirectHandle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
   DirectHandle<WasmImportData> import_data =
       NewWasmImportData(undefined_value(), wasm::kNoSuspend,
                         DirectHandle<WasmTrustedInstanceData>(), sig, kShared);
-  DirectHandle<WasmInternalFunction> internal =
-      NewWasmInternalFunction(import_data, -1, kShared);
+  DirectHandle<WasmInternalFunction> internal = NewWasmInternalFunction(
+      import_data, -1, kShared,
+      wasm::GetProcessWideWasmCodePointerTable()
+          ->GetOrCreateHandleForNativeFunction(call_target));
   DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt, kShared);
   // We have no generic wrappers for C-API functions, so we don't need to
   // set any call origin on {import_data}.
-  internal->set_call_target(
-      wasm::GetProcessWideWasmCodePointerTable()
-          ->GetOrCreateHandleForNativeFunction(call_target));
   Tagged<Map> map = *wasm_capi_function_data_map();
   Tagged<WasmCapiFunctionData> result =
       Cast<WasmCapiFunctionData>(AllocateRawWithImmortalMap(
