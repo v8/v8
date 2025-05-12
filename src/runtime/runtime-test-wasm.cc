@@ -165,7 +165,7 @@ RUNTIME_FUNCTION(Runtime_CountUnoptimizedWasmToJSWrapper) {
   Tagged<WasmTrustedInstanceData> trusted_data =
       instance_object->trusted_data(isolate);
   Address wrapper_entry =
-      Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
+      Builtins::EmbeddedEntryOf(Builtin::kWasmToJsWrapperAsm);
 
   int result = 0;
   Tagged<WasmDispatchTable> dispatch_table =
@@ -206,7 +206,7 @@ RUNTIME_FUNCTION(Runtime_HasUnoptimizedWasmToJSWrapper) {
   WasmCodePointer call_target = func_data->internal()->call_target();
 
   Address wrapper_entry =
-      Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
+      Builtins::EmbeddedEntryOf(Builtin::kWasmToJsWrapperAsm);
   return isolate->heap()->ToBoolean(
       wasm::GetProcessWideWasmCodePointerTable()->EntrypointEqualTo(
           call_target, wrapper_entry));

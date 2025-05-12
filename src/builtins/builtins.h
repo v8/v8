@@ -240,6 +240,10 @@ class Builtins {
   // builtin_entry_table, initialized earlier via {InitializeIsolateDataTables}.
   static inline Address EntryOf(Builtin builtin, Isolate* isolate);
 
+  // Return the builtin entry inside the embedded data. Only used for Wasm where
+  // we want to use them in isolate-independent context.
+  static Address EmbeddedEntryOf(Builtin builtin);
+
   V8_EXPORT_PRIVATE static Kind KindOf(Builtin builtin);
   static const char* KindNameOf(Builtin builtin);
 

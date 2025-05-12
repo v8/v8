@@ -682,9 +682,9 @@ void WasmTableObject::UpdateDispatchTable(
       // We still don't have a compiled wrapper. Allocate a new import_data
       // so we can store the proper call_origin for later wrapper tier-up.
       DCHECK(call_target ==
-                 Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate) ||
-             call_target == Builtins::EntryOf(
-                                Builtin::kWasmToJsWrapperInvalidSig, isolate));
+                 Builtins::EmbeddedEntryOf(Builtin::kWasmToJsWrapperAsm) ||
+             call_target == Builtins::EmbeddedEntryOf(
+                                Builtin::kWasmToJsWrapperInvalidSig));
       constexpr bool kShared = false;
       import_data = isolate->factory()->NewWasmImportData(
           callable, suspend, MaybeDirectHandle<WasmTrustedInstanceData>{}, sig,
@@ -695,9 +695,9 @@ void WasmTableObject::UpdateDispatchTable(
 
   DCHECK(wasm_code ||
          call_target ==
-             Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate) ||
+             Builtins::EmbeddedEntryOf(Builtin::kWasmToJsWrapperAsm) ||
          call_target ==
-             Builtins::EntryOf(Builtin::kWasmToJsWrapperInvalidSig, isolate));
+             Builtins::EmbeddedEntryOf(Builtin::kWasmToJsWrapperInvalidSig));
   dispatch_table->SetForWrapper(entry_index, *import_data, call_target, sig_id,
                                 signature_hash,
 #if V8_ENABLE_DRUMBRAKE
@@ -1555,10 +1555,10 @@ void ImportedFunctionEntry::SetGenericWasmToJs(
   if (wasm::IsJSCompatibleSignature(sig)) {
     DCHECK(
         UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig, suspend));
-    wrapper_entry = Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
+    wrapper_entry = Builtins::EmbeddedEntryOf(Builtin::kWasmToJsWrapperAsm);
   } else {
     wrapper_entry =
-        Builtins::EntryOf(Builtin::kWasmToJsWrapperInvalidSig, isolate);
+        Builtins::EmbeddedEntryOf(Builtin::kWasmToJsWrapperInvalidSig);
   }
   TRACE_IFT("Import callable 0x%" PRIxPTR "[%d] = {callable=0x%" PRIxPTR
             ", target=0x%" PRIxPTR "}\n",
@@ -3333,14 +3333,14 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
 
   if (!wasm::IsJSCompatibleSignature(canonical_sig)) {
     Address builtin_entry =
-        Builtins::EntryOf(Builtin::kWasmToJsWrapperInvalidSig, isolate);
+        Builtins::EmbeddedEntryOf(Builtin::kWasmToJsWrapperInvalidSig);
     WasmCodePointer wrapper_code_pointer =
         function_data->offheap_data()->set_generic_wrapper(builtin_entry);
     internal_function->set_call_target(wrapper_code_pointer);
 #if V8_ENABLE_DRUMBRAKE
   } else if (v8_flags.wasm_jitless) {
     Address builtin_entry =
-        Builtins::EntryOf(Builtin::kGenericWasmToJSInterpreterWrapper, isolate);
+        Builtins::EmbeddedEntryOf(Builtin::kGenericWasmToJSInterpreterWrapper);
     WasmCodePointer wrapper_code_pointer =
         function_data->offheap_data()->set_generic_wrapper(builtin_entry);
     internal_function->set_call_target(wrapper_code_pointer);
@@ -3370,7 +3370,7 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
           ->clear_call_origin();
     } else if (UseGenericWasmToJSWrapper(kind, canonical_sig, suspend)) {
       Address code_entry =
-          Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
+          Builtins::EmbeddedEntryOf(Builtin::kWasmToJsWrapperAsm);
       code_pointer =
           function_data->offheap_data()->set_generic_wrapper(code_entry);
     } else {
