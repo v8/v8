@@ -1795,17 +1795,13 @@ class RepresentationSelector {
       return false;
     }
     DCHECK_EQ(2, node->op()->ValueInputCount());
-    Node* lhs = node->InputAt(0);
-    auto lhs_restriction_type = GetInfo(lhs)->restriction_type();
-    Node* rhs = node->InputAt(1);
-    auto rhs_restriction_type = GetInfo(rhs)->restriction_type();
     // Only speculate AdditiveSafeInteger if one of the sides are already known
     // to be in the AdditiveSafeInteger range, since the check is relatively
     // expensive.
-    return GetUpperBound(lhs).Is(type_cache_->kAdditiveSafeInteger) ||
-           GetUpperBound(rhs).Is(type_cache_->kAdditiveSafeInteger) ||
-           lhs_restriction_type.Is(type_cache_->kAdditiveSafeInteger) ||
-           rhs_restriction_type.Is(type_cache_->kAdditiveSafeInteger);
+    Type lhs_type = TypeOf(node->InputAt(0));
+    Type rhs_type = TypeOf(node->InputAt(1));
+    return lhs_type.Is(type_cache_->kAdditiveSafeInteger) ||
+           rhs_type.Is(type_cache_->kAdditiveSafeInteger);
   }
 
   template <Phase T>
