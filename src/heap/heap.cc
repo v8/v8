@@ -7558,7 +7558,7 @@ ConservativePinningScope::ConservativePinningScope(Heap* heap,
     // c_entry_fp or the whole stack.
     const Address c_entry_fp = *heap_->isolate()->c_entry_fp_address();
     frame_address = (c_entry_fp == kNullAddress)
-                        ? v8::base::Stack::GetStackStart()
+                        ? static_cast<void*>(v8::base::Stack::GetStackStart())
                         : reinterpret_cast<const void*>(c_entry_fp);
   }
   // The stack segment covered by this scope should include the scope itself.
