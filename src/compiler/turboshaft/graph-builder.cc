@@ -702,7 +702,8 @@ OpIndex GraphBuilder::Process(
       // SimplifiedOperatorReducer).
       if (const ConstantOp* constant =
               input_op.TryCast<Opmask::kFloat64Constant>()) {
-        if (constant->float64().is_nan()) {
+        if (constant->float64().is_nan() &&
+            !constant->float64().is_undefined_nan()) {
           return __ Float64Constant(std::numeric_limits<double>::quiet_NaN());
         }
         return __ Float64Constant(constant->float64().get_scalar());
