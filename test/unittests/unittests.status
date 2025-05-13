@@ -38,13 +38,6 @@
   'LogAllTest.LogAll': [PASS, SLOW, HEAVY],
   'WasmModuleVerifyTest.NGlobals': [PASS, HEAVY],
 
-  # Disable tests for ConservativePinningScope for now.
-  'HeapTest.ConservativePinningScopeScavengeDoesntMoveObjectReachableFromStackNoPromotion': [SKIP],
-  'HeapTest.ConservativePinningScopeScavengeDoesntMoveObjectReachableFromStack': [SKIP],
-  'HeapTest.ConservativePinningScopeMarkCompactDoesntMoveObjectReachableFromStack': [SKIP],
-  'HeapTest.ConservativePinningScopeScavengeRetainsObjectReachableFromStack': [SKIP],
-  'HeapTest.ConservativePinningScopeMarkCompactRetainsObjectReachableFromStack': [SKIP],
-
   # BUG(13660): Flaky test.
   'OS.RemapPages': [SKIP],
 }],  # ALWAYS

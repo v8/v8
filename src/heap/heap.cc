@@ -7547,14 +7547,25 @@ CodePageMemoryModificationScopeForDebugging::
 #endif
 
 ConservativePinningScope::ConservativePinningScope(Heap* heap,
-                                                   const void* stack_address)
+                                                   const void* frame_address)
     : heap_(heap) {
+  DCHECK(::heap::base::Stack::IsOnCurrentStack(this));
   DCHECK(!heap_->selective_stack_scan_start_address_.has_value());
+  if (V8_UNLIKELY(this > frame_address)) {
+    // `frame_address` should be higher than `this`, but we observed that this
+    // may not hold in some cases (e.g. due to missing inlining or unexpected
+    // frame layouts). In such cases, we scan the stack either from the last
+    // c_entry_fp or the whole stack.
+    const Address c_entry_fp = *heap_->isolate()->c_entry_fp_address();
+    frame_address = (c_entry_fp == kNullAddress)
+                        ? v8::base::Stack::GetStackStart()
+                        : reinterpret_cast<const void*>(c_entry_fp);
+  }
   // The stack segment covered by this scope should include the scope itself.
-  DCHECK_NOT_NULL(stack_address);
-  DCHECK_LE(this, stack_address);
-  DCHECK(::heap::base::Stack::IsOnCurrentStack(stack_address));
-  heap_->selective_stack_scan_start_address_ = stack_address;
+  DCHECK_NOT_NULL(frame_address);
+  DCHECK_LE(this, frame_address);
+  DCHECK(::heap::base::Stack::IsOnCurrentStack(frame_address));
+  heap_->selective_stack_scan_start_address_ = frame_address;
 }
 ConservativePinningScope::~ConservativePinningScope() {
   DCHECK(heap_->selective_stack_scan_start_address_.has_value());
