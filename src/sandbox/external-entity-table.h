@@ -54,7 +54,6 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
   static constexpr size_t kSegmentSize = Base::kSegmentSize;
   static constexpr size_t kEntriesPerSegment = Base::kEntriesPerSegment;
   static constexpr size_t kEntrySize = Base::kEntrySize;
-  static constexpr size_t kNumReadOnlySegments = Base::kNumReadOnlySegments;
 
   // A collection of segments in an external entity table.
   //
@@ -246,9 +245,8 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
 
   // Attaches/detaches the given space to the internal read-only segment. Note
   // the lifetime of the underlying segment itself is managed by the table.
-  void AttachSpaceToReadOnlySegments(Space* space);
-  void DetachSpaceFromReadOnlySegments(Space* space);
-  void ZeroInternalNullEntry();
+  void AttachSpaceToReadOnlySegment(Space* space);
+  void DetachSpaceFromReadOnlySegment(Space* space);
 
   // Use this scope to temporarily unseal the read-only segment (i.e. change
   // permissions to RW).
@@ -256,20 +254,19 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
    public:
     explicit UnsealReadOnlySegmentScope(ExternalEntityTable<Entry, size>* table)
         : table_(table) {
-      table_->UnsealReadOnlySegments();
+      table_->UnsealReadOnlySegment();
     }
 
-    ~UnsealReadOnlySegmentScope() { table_->SealReadOnlySegments(); }
+    ~UnsealReadOnlySegmentScope() { table_->SealReadOnlySegment(); }
 
    private:
     ExternalEntityTable<Entry, size>* const table_;
   };
 
  protected:
-  static constexpr uint32_t kInternalReadOnlySegmentsOffset = 0;
+  static constexpr uint32_t kInternalReadOnlySegmentOffset = 0;
   static constexpr uint32_t kInternalNullEntryIndex = 0;
-  static constexpr uint32_t kEndOfReadOnlyIndex =
-      kEntriesPerSegment * kNumReadOnlySegments;
+  static constexpr uint32_t kEndOfInternalReadOnlySegment = kEntriesPerSegment;
 
  private:
   // Required for Isolate::CheckIsolateLayout().
@@ -277,8 +274,8 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
 
   // Helpers to toggle the first segment's permissions between kRead (sealed)
   // and kReadWrite (unsealed).
-  void UnsealReadOnlySegments();
-  void SealReadOnlySegments();
+  void UnsealReadOnlySegment();
+  void SealReadOnlySegment();
 
   // Extends the given space with the given segment.
   void Extend(Space* space, Segment segment, FreelistHead freelist);

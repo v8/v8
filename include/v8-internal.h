@@ -903,13 +903,8 @@ class Internals {
 
   // ExternalPointerTable and TrustedPointerTable layout guarantees.
   static const int kExternalPointerTableBasePointerOffset = 0;
-  static const int kSegmentedTableSegmentPoolSize = 4;
-  static const int kExternalPointerTableSize =
-      4 * kApiSystemPointerSize +
-      kSegmentedTableSegmentPoolSize * sizeof(uint32_t);
-  static const int kTrustedPointerTableSize =
-      4 * kApiSystemPointerSize +
-      kSegmentedTableSegmentPoolSize * sizeof(uint32_t);
+  static const int kExternalPointerTableSize = 2 * kApiSystemPointerSize;
+  static const int kTrustedPointerTableSize = 2 * kApiSystemPointerSize;
   static const int kTrustedPointerTableBasePointerOffset = 0;
 
   // IsolateData layout guarantees.
