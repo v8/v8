@@ -4391,25 +4391,15 @@ void CompilationStateImpl::TierUpAllFunctions() {
   }
 }
 
-WasmCode* CompileImportWrapperForTest(Isolate* isolate,
-                                      NativeModule* native_module,
-                                      ImportCallKind kind,
-                                      const CanonicalSig* sig,
-                                      CanonicalTypeIndex type_index,
-                                      int expected_arity, Suspend suspend) {
-  bool source_positions = is_asmjs_module(native_module->module());
+std::shared_ptr<wasm::WasmImportWrapperHandle> CompileImportWrapperForTest(
+    Isolate* isolate, ImportCallKind kind, const CanonicalSig* sig,
+    CanonicalTypeIndex type_index, int expected_arity, Suspend suspend) {
   if (v8_flags.wasm_jitless) {
-    WasmImportWrapperCache::ModificationScope cache_scope(
-        GetWasmImportWrapperCache());
-    WasmImportWrapperCache::CacheKey key(kind, type_index, expected_arity,
-                                         suspend);
-    DCHECK_NULL(cache_scope[key]);
     return nullptr;
   }
 
-  return GetWasmImportWrapperCache()->CompileWasmImportCallWrapper(
-      isolate, kind, sig, type_index, source_positions, expected_arity,
-      suspend);
+  return GetWasmImportWrapperCache()->GetCompiled(isolate, kind, type_index,
+                                                  expected_arity, suspend, sig);
 }
 
 }  // namespace v8::internal::wasm

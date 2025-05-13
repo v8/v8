@@ -44,17 +44,13 @@ WasmImportWrapperHandle::~WasmImportWrapperHandle() {
   GetProcessWideWasmCodePointerTable()->FreeEntry(code_pointer_);
 }
 
-void WasmImportWrapperHandle::SetCode(WasmCode* code) {
+void WasmImportWrapperHandle::set_code(WasmCode* code) {
+  GetWasmImportWrapperCache()->mutex_.AssertHeld();
+  // We're taking ownership of a WasmCode object that has just been allocated
+  // and should have a refcount of 1.
+  code->DcheckRefCountIsOne();
   DCHECK(!has_code());
-  code->IncRef();
-  GetProcessWideWasmCodePointerTable()->UpdateEntrypoint(
-      code_pointer_, code->instruction_start(), code->signature_hash());
   code_.store(code, std::memory_order_relaxed);
-}
-
-WasmCode* WasmImportWrapperCache::ModificationScope::operator[](
-    const CacheKey& key) {
-  return cache_->entry_map_[key];
 }
 
 // The wrapper cache is shared per-process; but it is initialized on demand, and
@@ -89,8 +85,8 @@ void WasmImportWrapperCache::LazyInitialize(Isolate* triggering_isolate) {
 }
 
 WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
-    const CacheKey& key, WasmCompilationResult result, WasmCode::Kind kind,
-    uint64_t signature_hash) {
+    WasmCompilationResult result, WasmCode::Kind kind, uint64_t signature_hash,
+    std::shared_ptr<wasm::WasmImportWrapperHandle>& maybe_handle) {
   cache_->mutex_.AssertHeld();
   // Equivalent of NativeModule::AddCode().
   const CodeDesc& desc = result.code_desc;
@@ -156,69 +152,26 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
                                 wasm::kNotForDebugging,
                                 signature_hash,
                                 frame_has_feedback_slot};
-  // The refcount of a WasmCode is initialized to 1. For wrappers, we track
-  // all refcounts explicitly, i.e. there will be a call to {IncRef()} that
-  // doesn't distinguish between newly compiled and older cached wrappers.
-  // So at this point, we lower the refcount to zero (reflecting the fact that
-  // there are no references yet), while using a WasmCodeRefScope to make sure
-  // that this doesn't cause the WasmCode to be freed immediately.
-  WasmCodeRefScope::AddRef(code);
-  code->DecRefOnLiveCode();
 
   code->Validate();
-  cache_->entry_map_[key] = code;
+
+  // TODO(sroettger): the WasmCodePointer creation/update should be done above
+  // while the WritableJitAllocation scope is active.
+  if (maybe_handle) {
+    GetProcessWideWasmCodePointerTable()->UpdateEntrypoint(
+        maybe_handle->code_pointer(), code->instruction_start(),
+        signature_hash);
+  } else {
+    maybe_handle = std::make_shared<WasmImportWrapperHandle>(
+        code->instruction_start(), signature_hash);
+  }
+  maybe_handle->set_code(code);
+
   // As an optimization, we assume that wrappers are allocated in increasing
   // memory locations.
   std::map<Address, WasmCode*>& codes = cache_->codes_;
   codes.emplace_hint(codes.end(), code->instruction_start(), code);
   return code;
-}
-
-WasmCode* WasmImportWrapperCache::FindWrapper(WasmCodePointer call_target) {
-  if (call_target == kInvalidWasmCodePointer) return nullptr;
-  base::MutexGuard lock(&mutex_);
-  auto iter = codes_.find(
-      GetProcessWideWasmCodePointerTable()->GetEntrypointWithoutSignatureCheck(
-          call_target));
-  if (iter == codes_.end()) return nullptr;
-  return WasmCodeRefScope::AddRefIfNotDying(iter->second);
-}
-
-WasmCode* WasmImportWrapperCache::CompileWasmImportCallWrapper(
-    Isolate* isolate, ImportCallKind kind, const CanonicalSig* sig,
-    CanonicalTypeIndex sig_index, bool source_positions, int expected_arity,
-    Suspend suspend) {
-  WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
-      kind, sig, source_positions, expected_arity, suspend);
-  WasmCode* wasm_code;
-  {
-    ModificationScope cache_scope(this);
-    CacheKey key(kind, sig_index, expected_arity, suspend);
-    // Now that we have the lock (in the form of the cache_scope), check
-    // again whether another thread has just created the wrapper.
-    wasm_code = cache_scope[key];
-    if (wasm_code) {
-      wasm_code = WasmCodeRefScope::AddRefIfNotDying(wasm_code);
-      if (wasm_code) return wasm_code;
-    }
-
-    wasm_code = cache_scope.AddWrapper(key, std::move(result),
-                                       WasmCode::Kind::kWasmToJsWrapper,
-                                       sig->signature_hash());
-  }
-
-  // To avoid lock order inversion, code printing must happen after the
-  // end of the {cache_scope}.
-  wasm_code->MaybePrint();
-  isolate->counters()->wasm_generated_code_size()->Increment(
-      wasm_code->instructions().length());
-  isolate->counters()->wasm_reloc_size()->Increment(
-      wasm_code->reloc_info().length());
-  if (GetWasmEngine()->LogWrapperCode(wasm_code)) {
-    // Log the code immediately in the current isolate.
-    GetWasmEngine()->LogOutstandingCodesForIsolate(isolate);
-  }
-  return wasm_code;
 }
 
 void WasmImportWrapperCache::LogForIsolate(Isolate* isolate) {
@@ -235,15 +188,11 @@ void WasmImportWrapperCache::Free(std::vector<WasmCode*>& wrappers) {
   std::sort(wrappers.begin(), wrappers.end(), [](WasmCode* a, WasmCode* b) {
     return a->instruction_start() < b->instruction_start();
   });
-  // Possible future optimization: if the size of {wrappers} is very small,
-  // don't allocate the set, use linear scan instead.
-  std::unordered_set<WasmCode*> fastset;
   for (WasmCode* wrapper : wrappers) {
-    fastset.insert(wrapper);
     codes_.erase(wrapper->instruction_start());
   }
   for (auto it = entry_map_.begin(); it != entry_map_.end();) {
-    if (fastset.contains(it->second)) {
+    if (it->second.expired()) {
       it = entry_map_.erase(it);
     } else {
       it++;
@@ -260,15 +209,194 @@ void WasmImportWrapperCache::Free(std::vector<WasmCode*>& wrappers) {
   wrappers.clear();
 }
 
-WasmCode* WasmImportWrapperCache::MaybeGet(ImportCallKind kind,
-                                           CanonicalTypeIndex type_index,
-                                           int expected_arity,
-                                           Suspend suspend) const {
+std::optional<Builtin> WasmImportWrapperCache::BuiltinForWrapper(
+    ImportCallKind kind, const wasm::CanonicalSig* sig, Suspend suspend) {
+  if (kind != ImportCallKind::kJSFunction) return {};
+
+  if (!IsJSCompatibleSignature(sig)) {
+    return Builtin::kWasmToJsWrapperInvalidSig;
+  }
+
+  if (UseGenericWasmToJSWrapper(kind, sig, suspend)) {
+    return Builtin::kWasmToJsWrapperAsm;
+  }
+
+  return {};
+}
+
+std::shared_ptr<WasmImportWrapperHandle> WasmImportWrapperCache::Get(
+    Isolate* isolate, ImportCallKind kind, CanonicalTypeIndex type_index,
+    int expected_arity, Suspend suspend, const wasm::CanonicalSig* sig) {
+  CacheKey cache_key(kind, type_index, expected_arity, suspend);
+
+  {
+    base::MutexGuard lock(&mutex_);
+
+    // If we have an entry already, just return that.
+    auto it = entry_map_.find(cache_key);
+    if (it != entry_map_.end() && !it->second.expired()) {
+      return it->second.lock();
+    }
+
+    // Check if we should use a builtin.
+    std::optional<Builtin> builtin = BuiltinForWrapper(kind, sig, suspend);
+    if (builtin) {
+      Address call_target = Builtins::EmbeddedEntryOf(*builtin);
+      static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
+      std::shared_ptr<WasmImportWrapperHandle> wrapper_handle =
+          std::make_shared<WasmImportWrapperHandle>(call_target,
+                                                    sig->signature_hash());
+      entry_map_[cache_key] = wrapper_handle;
+      return wrapper_handle;
+    }
+  }
+
+  // Fall back to compile a new wrapper.
+  return CompileWrapper(isolate, cache_key, sig, nullptr);
+}
+
+#ifdef DEBUG
+bool WasmImportWrapperCache::IsCompiledWrapper(WasmCodePointer code_pointer) {
+  base::MutexGuard lock(&mutex_);
+  for (auto& [cache_key, weak_handle] : entry_map_) {
+    if (weak_handle.expired()) continue;
+
+    std::shared_ptr<WasmImportWrapperHandle> handle = weak_handle.lock();
+    if (handle->code_pointer() == code_pointer) {
+      return handle->has_code();
+    }
+  }
+  UNREACHABLE();
+}
+#endif
+
+bool WasmImportWrapperCache::HasCodeForTesting(ImportCallKind kind,
+                                               CanonicalTypeIndex type_index,
+                                               int expected_arity,
+                                               Suspend suspend) {
   base::MutexGuard lock(&mutex_);
 
-  auto it = entry_map_.find({kind, type_index, expected_arity, suspend});
-  if (it == entry_map_.end()) return nullptr;
-  return WasmCodeRefScope::AddRefIfNotDying(it->second);
+  CacheKey cache_key(kind, type_index, expected_arity, suspend);
+  auto it = entry_map_.find(cache_key);
+  if (it == entry_map_.end()) return false;
+  auto& code_pointer = it->second;
+  if (code_pointer.expired()) return false;
+  return code_pointer.lock()->has_code();
+}
+
+std::shared_ptr<WasmImportWrapperHandle> WasmImportWrapperCache::GetCompiled(
+    Isolate* isolate, ImportCallKind kind, CanonicalTypeIndex type_index,
+    int expected_arity, Suspend suspend, const CanonicalSig* sig) {
+  CHECK_NE(kind, ImportCallKind::kWasmToJSFastApi);
+  DCHECK(!v8_flags.wasm_jitless);
+
+  CacheKey cache_key{kind, type_index, expected_arity, suspend};
+
+  std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle;
+  {
+    base::MutexGuard lock(&mutex_);
+
+    auto it = entry_map_.find(cache_key);
+    if (it != entry_map_.end() && !it->second.expired()) {
+      wrapper_handle = it->second.lock();
+      if (wrapper_handle->has_code()) {
+        return wrapper_handle;
+      }
+    }
+  }
+
+  return CompileWrapper(isolate, cache_key, sig, wrapper_handle);
+}
+
+std::shared_ptr<WasmImportWrapperHandle> WasmImportWrapperCache::CompileWrapper(
+    Isolate* isolate, const CacheKey& cache_key, const CanonicalSig* sig,
+    std::shared_ptr<WasmImportWrapperHandle> wrapper_handle) {
+  wasm::WasmCompilationResult result;
+  wasm::WasmCode::Kind code_kind;
+  switch (cache_key.kind) {
+    case ImportCallKind::kLinkError:
+    case ImportCallKind::kWasmToWasm:
+    case ImportCallKind::kWasmToJSFastApi:
+      UNREACHABLE();
+    case ImportCallKind::kJSFunction:
+    case ImportCallKind::kUseCallBuiltin:
+    case ImportCallKind::kRuntimeTypeError:
+      result = compiler::CompileWasmImportCallWrapper(
+          cache_key.kind, sig, cache_key.expected_arity, cache_key.suspend);
+      code_kind = WasmCode::Kind::kWasmToJsWrapper;
+      break;
+    case ImportCallKind::kWasmToCapi:
+      result = compiler::CompileWasmCapiCallWrapper(sig);
+      code_kind = wasm::WasmCode::Kind::kWasmToCapiWrapper;
+      break;
+  }
+
+  WasmCode* wasm_code;
+  {
+    wasm::WasmImportWrapperCache::ModificationScope cache_scope(this);
+
+    if (!wrapper_handle) {
+      auto it = entry_map_.find(cache_key);
+      if (it != entry_map_.end() && !it->second.expired()) {
+        wrapper_handle = it->second.lock();
+      }
+    }
+
+    if (wrapper_handle && wrapper_handle->has_code()) {
+      // There was a race and we have code now.
+      return wrapper_handle;
+    }
+
+    bool existing_handle = wrapper_handle != nullptr;
+    wasm_code = cache_scope.AddWrapper(std::move(result), code_kind,
+                                       sig->signature_hash(), wrapper_handle);
+    DCHECK(wrapper_handle != nullptr);
+
+    if (!existing_handle) {
+      entry_map_[cache_key] = wrapper_handle;
+    }
+  }
+
+  // To avoid lock order inversion, code printing must happen after the
+  // end of the {cache_scope}.
+  wasm_code->MaybePrint();
+  if (isolate) {
+    isolate->counters()->wasm_generated_code_size()->Increment(
+        wasm_code->instructions().length());
+    isolate->counters()->wasm_reloc_size()->Increment(
+        wasm_code->reloc_info().length());
+  }
+  if (GetWasmEngine()->LogWrapperCode(wasm_code) && isolate) {
+    // Log the code immediately in the current isolate.
+    GetWasmEngine()->LogOutstandingCodesForIsolate(isolate);
+  }
+
+  return wrapper_handle;
+}
+
+std::shared_ptr<WasmImportWrapperHandle>
+WasmImportWrapperCache::CompileWasmJsFastCallWrapper(
+    DirectHandle<JSReceiver> callable, const wasm::CanonicalSig* sig) {
+  // Note: the wrapper we're about to compile is specific to this
+  // instantiation, so it cannot be shared.
+  WasmCompilationResult result =
+      compiler::CompileWasmJSFastCallWrapper(sig, callable);
+
+  std::shared_ptr<WasmImportWrapperHandle> wrapper_handle;
+  WasmCode* wasm_code;
+  {
+    ModificationScope cache_scope(this);
+    wasm_code = cache_scope.AddWrapper(std::move(result),
+                                       WasmCode::Kind::kWasmToJsWrapper,
+                                       sig->signature_hash(), wrapper_handle);
+    DCHECK(wrapper_handle != nullptr);
+  }
+  // To avoid lock order inversion, code printing must happen after the
+  // end of the {cache_scope}.
+  wasm_code->MaybePrint();
+  // TODO(sroettger): add code logging similar to what {CompileWrapper()} does.
+
+  return wrapper_handle;
 }
 
 WasmCode* WasmImportWrapperCache::Lookup(Address pc) const {

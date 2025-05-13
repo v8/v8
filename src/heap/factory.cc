@@ -1873,7 +1873,7 @@ DirectHandle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
       TrustedManaged<WasmJSFunctionData::OffheapData>::From(
           isolate(), kOffheapDataSizeEstimate,
           std::make_shared<WasmJSFunctionData::OffheapData>(
-              std::move(wrapper_handle), sig->signature_hash()),
+              std::move(wrapper_handle)),
           shared);
 
   Tagged<Map> map = *wasm_js_function_data_map();

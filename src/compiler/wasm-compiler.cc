@@ -1144,7 +1144,7 @@ MachineGraph* CreateCommonMachineGraph(Zone* zone) {
 
 wasm::WasmCompilationResult CompileWasmImportCallWrapper(
     wasm::ImportCallKind kind, const wasm::CanonicalSig* sig,
-    bool source_positions, int expected_arity, wasm::Suspend suspend) {
+    int expected_arity, wasm::Suspend suspend) {
   DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
   DCHECK_NE(wasm::ImportCallKind::kWasmToWasm, kind);
   DCHECK_NE(wasm::ImportCallKind::kWasmToJSFastApi, kind);

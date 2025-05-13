@@ -2312,12 +2312,12 @@ bool InstanceBuilder::ProcessImportedFunction(
     trusted_instance_data->func_refs()->set(
         func_index, Cast<WasmExternalFunction>(*value)->func_ref());
   }
-  auto js_receiver = Cast<JSReceiver>(value);
+  auto callable = Cast<JSReceiver>(value);
   CanonicalTypeIndex sig_index =
       module_->canonical_sig_id(module_->functions[func_index].sig_index);
   const CanonicalSig* expected_sig =
       GetTypeCanonicalizer()->LookupFunctionSignature(sig_index);
-  ResolvedWasmImport resolved(trusted_instance_data, func_index, js_receiver,
+  ResolvedWasmImport resolved(trusted_instance_data, func_index, callable,
                               expected_sig, sig_index, preknown_import);
   if (resolved.well_known_status() != WellKnownImport::kGeneric &&
       v8_flags.trace_wasm_inlining) {
@@ -2326,15 +2326,16 @@ bool InstanceBuilder::ProcessImportedFunction(
   }
   well_known_imports_.push_back(resolved.well_known_status());
   ImportCallKind kind = resolved.kind();
-  js_receiver = resolved.callable();
+  callable = resolved.callable();
   DirectHandle<WasmFunctionData> trusted_function_data =
       resolved.trusted_function_data();
   ImportedFunctionEntry imported_entry(trusted_instance_data, func_index);
   switch (kind) {
     case ImportCallKind::kRuntimeTypeError:
       if (v8_flags.wasm_generic_wrapper) {
-        imported_entry.SetGenericWasmToJs(
-            isolate_, js_receiver, resolved.suspend(), expected_sig, sig_index);
+        imported_entry.SetGenericWasmToJs(isolate_, callable, kind,
+                                          resolved.suspend(), expected_sig,
+                                          sig_index);
         return true;
       }
       // Otherwise fall through to the generic handling below.
@@ -2369,112 +2370,64 @@ bool InstanceBuilder::ProcessImportedFunction(
     case ImportCallKind::kWasmToCapi: {
       int expected_arity = static_cast<int>(expected_sig->parameter_count());
       WasmImportWrapperCache* cache = GetWasmImportWrapperCache();
-      WasmCodeRefScope code_ref_scope;
-      WasmCode* wasm_code =
-          cache->MaybeGet(kind, sig_index, expected_arity, kNoSuspend);
-      if (wasm_code == nullptr) {
-        {
-          WasmImportWrapperCache::ModificationScope cache_scope(cache);
-          WasmCompilationResult result =
-              compiler::CompileWasmCapiCallWrapper(expected_sig);
-          WasmImportWrapperCache::CacheKey key(kind, sig_index, expected_arity,
-                                               kNoSuspend);
-          wasm_code = cache_scope.AddWrapper(key, std::move(result),
-                                             WasmCode::Kind::kWasmToCapiWrapper,
-                                             expected_sig->signature_hash());
-        }
-        // To avoid lock order inversion, code printing must happen after the
-        // end of the {cache_scope}.
-        wasm_code->MaybePrint();
-        isolate_->counters()->wasm_generated_code_size()->Increment(
-            wasm_code->instructions().length());
-        isolate_->counters()->wasm_reloc_size()->Increment(
-            wasm_code->reloc_info().length());
-      }
+      std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
+          cache->GetCompiled(isolate_, kind, sig_index, expected_arity,
+                             kNoSuspend, expected_sig);
 
       // We reuse the SetCompiledWasmToJs infrastructure because it passes the
       // callable to the wrapper, which we need to get the function data.
-      imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, wasm_code,
-                                         kNoSuspend, expected_sig, sig_index);
+      imported_entry.SetCompiledWasmToJs(isolate_, callable,
+                                         std::move(wrapper_handle), kNoSuspend,
+                                         expected_sig, sig_index);
       return true;
     }
 
     case ImportCallKind::kWasmToJSFastApi: {
-      DCHECK(IsJSFunction(*js_receiver) || IsJSBoundFunction(*js_receiver));
-      WasmCodeRefScope code_ref_scope;
-      // Note: the wrapper we're about to compile is specific to this
-      // instantiation, so it cannot be shared. However, its lifetime must
-      // be managed by the WasmImportWrapperCache, so that it can be used
-      // in WasmDispatchTables whose lifetime might exceed that of this
-      // instance's NativeModule.
-      // So the {CacheKey} is a dummy, and we don't look for an existing
-      // wrapper. Key collisions are not a concern because lifetimes are
-      // determined by refcounting.
-      WasmCompilationResult result =
-          compiler::CompileWasmJSFastCallWrapper(expected_sig, js_receiver);
-      WasmCode* wasm_code;
-      {
-        WasmImportWrapperCache::ModificationScope cache_scope(
-            GetWasmImportWrapperCache());
-        WasmImportWrapperCache::CacheKey dummy_key(kind, CanonicalTypeIndex{0},
-                                                   0, kNoSuspend);
-        wasm_code = cache_scope.AddWrapper(dummy_key, std::move(result),
-                                           WasmCode::Kind::kWasmToJsWrapper,
-                                           expected_sig->signature_hash());
-      }
-      // To avoid lock order inversion, code printing must happen after the
-      // end of the {cache_scope}.
-      wasm_code->MaybePrint();
-      imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, wasm_code,
-                                         kNoSuspend, expected_sig, sig_index);
+      DCHECK(IsJSFunction(*callable) || IsJSBoundFunction(*callable));
+
+      std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
+          GetWasmImportWrapperCache()->CompileWasmJsFastCallWrapper(
+              callable, expected_sig);
+
+      imported_entry.SetCompiledWasmToJs(isolate_, callable,
+                                         std::move(wrapper_handle), kNoSuspend,
+                                         expected_sig, sig_index);
       return true;
     }
-
     default:
       break;
   }
 
-  if (UseGenericWasmToJSWrapper(kind, expected_sig, resolved.suspend())) {
-    DCHECK_EQ(ImportCallKind::kJSFunction, kind);
-    imported_entry.SetGenericWasmToJs(isolate_, js_receiver, resolved.suspend(),
-                                      expected_sig, sig_index);
-    return true;
-  }
-
-  if (v8_flags.wasm_jitless) {
-    WasmCode* no_code = nullptr;
-    imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, no_code,
-                                       resolved.suspend(), expected_sig,
-                                       sig_index);
+  // TODO(sroettger): merge SetCompiledWasmToJs and SetGenericWasmToJs to
+  // simplify all the code below.
+  if (UseGenericWasmToJSWrapper(kind, expected_sig, resolved.suspend()) ||
+      v8_flags.wasm_jitless) {
+    DCHECK(kind == ImportCallKind::kJSFunction);
+    imported_entry.SetGenericWasmToJs(
+        isolate_, callable, kind, resolved.suspend(), expected_sig, sig_index);
     return true;
   }
 
   int expected_arity = static_cast<int>(expected_sig->parameter_count());
   if (kind == ImportCallKind::kJSFunction) {
-    auto function = Cast<JSFunction>(js_receiver);
+    auto function = Cast<JSFunction>(callable);
     Tagged<SharedFunctionInfo> shared = function->shared();
     expected_arity = shared->internal_formal_parameter_count_without_receiver();
   }
 
   WasmImportWrapperCache* cache = GetWasmImportWrapperCache();
-  WasmCodeRefScope code_ref_scope;
-  WasmCode* wasm_code =
-      cache->MaybeGet(kind, sig_index, expected_arity, resolved.suspend());
-  if (!wasm_code) {
-    // This should be a very rare fallback case. We expect that the
-    // generic wrapper will be used (see above).
-    bool source_positions = is_asmjs_module(trusted_instance_data->module());
-    wasm_code = cache->CompileWasmImportCallWrapper(
-        isolate_, kind, expected_sig, sig_index, source_positions,
-        expected_arity, resolved.suspend());
-  }
-
-  DCHECK_NOT_NULL(wasm_code);
-  CHECK_EQ(wasm_code->kind(), WasmCode::kWasmToJsWrapper);
+  // This should be a very rare fallback case. We expect that the
+  // generic wrapper will be used (see above).
+  std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
+      cache->GetCompiled(isolate_, kind, sig_index, expected_arity,
+                         resolved.suspend(), expected_sig);
+  DCHECK(wrapper_handle->has_code());
+  CHECK_EQ(wrapper_handle->code().kind(), WasmCode::kWasmToJsWrapper);
   // Wasm to JS wrappers are treated specially in the import table.
-  imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, wasm_code,
-                                     resolved.suspend(), expected_sig,
-                                     sig_index);
+  imported_entry.SetCompiledWasmToJs(
+      isolate_, callable, std::move(wrapper_handle), resolved.suspend(),
+      expected_sig, sig_index);
+
   return true;
 }
 

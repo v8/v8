@@ -680,55 +680,11 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
     wasm::CanonicalTypeIndex canonical_sig_index =
         wasm::GetTypeCanonicalizer()->FindIndex_Slow(sig);
     wasm::Suspend suspend = import_data->suspend();
-    wasm::WasmCode* wrapper =
-        cache->MaybeGet(kind, canonical_sig_index, expected_arity, suspend);
-    bool source_positions = false;
-    if (!wrapper) {
-      wrapper = cache->CompileWasmImportCallWrapper(
-          isolate, kind, sig, canonical_sig_index, source_positions,
-          expected_arity, suspend);
-    }
-    Tagged<WasmInternalFunction> internal = Cast<WasmInternalFunction>(*origin);
-
-    Tagged<JSFunction> existing_external;
-    Tagged<WasmTrustedInstanceData> instance_data;
-    if (internal->try_get_external(&existing_external)) {
-      Tagged<Object> func_data = existing_external->shared()->GetTrustedData();
-      // WasmJSFunctions set their external function at creation.
-      if (IsWasmJSFunctionData(func_data)) {
-        WasmCodePointer code_pointer = Cast<WasmJSFunctionData>(func_data)
-                                           ->offheap_data()
-                                           ->set_compiled_wrapper(wrapper);
-        USE(code_pointer);
-        // We're reusing the CPT entries for the wrapper, so the call target
-        // should stay the same.
-        DCHECK_EQ(code_pointer, internal->call_target());
-        return ReadOnlyRoots(isolate).undefined_value();
-      }
-      // Other functions could have had their external JSFunction created
-      // lazily before.
-      DCHECK(IsWasmExportedFunctionData(func_data));
-      instance_data =
-          Cast<WasmExportedFunctionData>(func_data)->instance_data();
-      // Fall through.
-    } else {
-      // We're tiering up a WasmToJS wrapper, so the function must be an
-      // imported JS function.
-      DCHECK(IsWasmImportData(internal->implicit_arg()));
-      instance_data =
-          Cast<WasmImportData>(internal->implicit_arg())->instance_data();
-    }
-    // For imported JS functions, we don't really care about updating the call
-    // target in the table, but we do need the table to manage the lifetime
-    // of the wrapper we just compiled.
-    Tagged<WasmDispatchTable> table =
-        instance_data->dispatch_table_for_imports();
-    // We're reusing the CPT entries for the wrapper, so the call target should
-    // stay the same.
-    DCHECK_EQ(internal->call_target(),
-              table->offheap_data()->WrapperCodePointerForDebugging(
-                  internal->function_index()));
-    table->InstallCompiledWrapper(internal->function_index(), wrapper);
+    std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
+        cache->GetCompiled(isolate, kind, canonical_sig_index, expected_arity,
+                           suspend, sig);
+    DCHECK_EQ(Cast<WasmInternalFunction>(*origin)->call_target(),
+              wrapper_handle->code_pointer());
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -758,16 +714,11 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   }
 
   wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
-  wasm::WasmCode* wasm_code =
-      cache->MaybeGet(kind, sig_index, expected_arity, suspend);
-  if (!wasm_code) {
-    wasm_code = cache->CompileWasmImportCallWrapper(
-        isolate, kind, sig, sig_index, false, expected_arity, suspend);
-  }
-  // Note: we don't need to decrement any refcounts here, because tier-up
-  // doesn't overwrite an existing compiled wrapper, and the generic wrapper
-  // isn't refcounted.
-  dispatch_table->InstallCompiledWrapper(table_slot, wasm_code);
+  std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
+      cache->GetCompiled(isolate, kind, sig_index, expected_arity, suspend,
+                         sig);
+
+  DCHECK_EQ(dispatch_table->target(table_slot), wrapper_handle->code_pointer());
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
