@@ -149,9 +149,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
       NOOP_UNLESS_DEBUG_CODE;
 
   // Like Assert(), but always enabled.
-  void Check(Condition cond, AbortReason reason);
-
-  // Like Assert(), but always enabled.
   void Check(Condition cc, AbortReason reason, Register rs, Operand rt);
 
   // Same as Check() but expresses that the check is needed for the sandbox.
