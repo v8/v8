@@ -631,6 +631,14 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
       ld(dst.gp(), src_reg, 0);
       sync();
       return;
+    case LoadType::kI32Load8S:
+      lb(dst.gp(), src_reg, 0);
+      sync();
+      return;
+    case LoadType::kI32Load16S:
+      lh(dst.gp(), src_reg, 0);
+      sync();
+      return;
     default:
       UNREACHABLE();
   }
