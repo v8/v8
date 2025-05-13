@@ -776,6 +776,18 @@ void HoleyFloat64ToMaybeNanFloat64::GenerateCode(MaglevAssembler* masm,
 }
 
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+void Float64ToHoleyFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void Float64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  // A Float64 value could contain a NaN with the bit pattern that has a special
+  // interpretation in the HoleyFloat64 representation, so we need to canicalize
+  // those before changing representation.
+  __ VFPCanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
+}
+
 void HoleyFloat64ToFloat64OrUndefined::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);

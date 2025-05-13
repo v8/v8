@@ -289,6 +289,7 @@ class ExceptionHandlerInfo;
   V(CheckedNumberOrOddballToHoleyFloat64)           \
   V(CheckedHoleyFloat64ToFloat64)                   \
   V(HoleyFloat64ToMaybeNanFloat64)                  \
+  IF_UD(V, Float64ToHoleyFloat64)                   \
   IF_UD(V, HoleyFloat64ToFloat64OrUndefined)        \
   V(HoleyFloat64IsHole)                             \
   V(LogicalNot)                                     \
@@ -4617,8 +4618,7 @@ class HoleyFloat64ToMaybeNanFloat64
  public:
   explicit HoleyFloat64ToMaybeNanFloat64(uint64_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties =
-      OpProperties::Float64() | OpProperties::ConversionNode();
+  static constexpr OpProperties kProperties = OpProperties::Float64();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
 
@@ -4631,6 +4631,25 @@ class HoleyFloat64ToMaybeNanFloat64
 };
 
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+class Float64ToHoleyFloat64
+    : public FixedInputValueNodeT<1, Float64ToHoleyFloat64> {
+  using Base = FixedInputValueNodeT<1, Float64ToHoleyFloat64>;
+
+ public:
+  explicit Float64ToHoleyFloat64(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::HoleyFloat64() | OpProperties::ConversionNode();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 class HoleyFloat64ToFloat64OrUndefined
     : public FixedInputValueNodeT<1, HoleyFloat64ToFloat64OrUndefined> {
   using Base = FixedInputValueNodeT<1, HoleyFloat64ToFloat64OrUndefined>;
