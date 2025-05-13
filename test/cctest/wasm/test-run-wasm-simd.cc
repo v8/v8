@@ -5607,6 +5607,31 @@ TEST(RunWasmTurbofan_I32x8Splat) {
   }
 }
 
+TEST(RunWasmTurbofan_I32x8SplatConst) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(8);
+  constexpr int32_t x = 5;
+
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpWithKind<
+                      compiler::turboshaft::Simd256SplatOp,
+                      compiler::turboshaft::Simd256SplatOp::Kind::kI32x8>);
+    r.Build(
+        {WASM_SIMD_STORE_MEM(WASM_ZERO, WASM_SIMD_I32x4_SPLAT(WASM_I32V(x))),
+         WASM_SIMD_STORE_MEM_OFFSET(16, WASM_ZERO,
+                                    WASM_SIMD_I32x4_SPLAT(WASM_I32V(x))),
+         WASM_ONE});
+  }
+
+  r.Call();
+  for (int i = 0; i < 8; ++i) {
+    CHECK_EQ(x, r.builder().ReadMemory(&memory[i]));
+  }
+}
+
 TEST(RunWasmTurbofan_I64x4Splat) {
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;

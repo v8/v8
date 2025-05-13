@@ -7691,6 +7691,7 @@ group("v8_fuzzers") {
       data_deps += [
         ":v8_simple_wasm_compile_all_fuzzer",
         ":v8_simple_wasm_compile_fuzzer",
+        ":v8_simple_wasm_compile_revec_fuzzer",
         ":v8_simple_wasm_compile_simd_fuzzer",
         ":v8_simple_wasm_compile_wasmgc_fuzzer",
         ":v8_simple_wasm_deopt_fuzzer",
@@ -8212,6 +8213,13 @@ if (v8_enable_webassembly) {
       sources = [
         "test/common/wasm/test-signatures.h",
         "test/fuzzer/wasm/compile-simd.cc",
+      ]
+    }
+
+    v8_wasm_fuzzer("wasm_compile_revec_fuzzer") {
+      sources = [
+        "test/common/wasm/test-signatures.h",
+        "test/fuzzer/wasm/compile-revec.cc",
       ]
     }
 
