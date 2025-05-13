@@ -7827,6 +7827,7 @@ void MacroAssembler::DecompressProtected(const Register& destination,
 void MacroAssembler::AtomicDecompressTaggedSigned(Register dst,
                                                   const MemOperand& src,
                                                   Trapper&& trapper) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   ASM_CODE_COMMENT(this);
   Lwu(dst, src, std::forward<Trapper>(trapper));
   sync();
@@ -7839,6 +7840,7 @@ void MacroAssembler::AtomicDecompressTaggedSigned(Register dst,
 
 void MacroAssembler::AtomicDecompressTagged(Register dst, const MemOperand& src,
                                             Trapper&& trapper) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   ASM_CODE_COMMENT(this);
   Lwu(dst, src, std::forward<Trapper>(trapper));
   sync();

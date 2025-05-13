@@ -644,6 +644,30 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
   }
 }
 
+void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
+                                               Register offset_reg,
+                                               int32_t offset_imm,
+                                               AtomicMemoryOrder memory_order,
+                                               uint32_t* protected_load_pc,
+                                               bool needs_shift) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm);
+  uint32_t pc_offset_of_load = 0;
+#if V8_COMPRESS_POINTERS
+  Lw(dst, src_op);
+  pc_offset_of_load = pc_offset() - kInstrSize;
+  sync();
+  DecompressTagged(dst, dst);
+#else
+  LoadWord(dst, src_op);
+  pc_offset_of_load = pc_offset() - kInstrSize;
+  sync();
+#endif
+  if (protected_load_pc != nullptr) {
+    *protected_load_pc = pc_offset_of_load;
+  }
+}
+
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
                                    StoreType type, LiftoffRegList pinned,
