@@ -598,6 +598,10 @@ using InnerPointerResolutionHeapTest =
 TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
   if (v8_flags.single_generation) return;
 
+  // Use predictable mode to prevent shrinking new space and releasing unused
+  // pages, which this test expects will remain allocated.
+  v8_flags.predictable = true;
+
   ManualGCScope manual_gc_scope(isolate());
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
 
