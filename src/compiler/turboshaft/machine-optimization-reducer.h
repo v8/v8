@@ -1369,10 +1369,10 @@ class MachineOptimizationReducer : public Next {
               case WordBinopOp::Kind::kBitwiseAnd:
               case WordBinopOp::Kind::kBitwiseOr:
               case WordBinopOp::Kind::kBitwiseXor:
-                // If the topmost two smi bits are not identical then retagging
-                // the smi would cause an overflow, so we do not optimize that
+                // If the topmost two bits are not identical then retagging
+                // the smi could cause an overflow, so we do not optimize that
                 // here.
-                if ((k & 0x20000000) == (k & 0x40000000)) {
+                if (((k >> 31) & 0b1) == ((k >> 30) & 0b1)) {
                   return __ Tuple(__ WordBinop(x, __ Word32Constant(k << 1),
                                                bitwise_op_kind,
                                                WordRepresentation::Word32()),
