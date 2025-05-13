@@ -9125,12 +9125,16 @@ void CodeStubAssembler::GotoIfNotDoubleStringCacheEntryKeyEqual(
                          offsetof(DoubleStringCache::Entry, key_);
 
   TNode<Int32T> entry_key_low = LoadObjectField<Int32T>(
-      cache, IntPtrAdd(entry_offset, IntPtrConstant(offset_key)));
+      cache,
+      IntPtrAdd(entry_offset,
+                IntPtrConstant(offset_key + kIeeeDoubleMantissaWordOffset)));
 
   GotoIfNot(Word32Equal(entry_key_low, key_low), if_not_equal);
 
   TNode<Int32T> entry_key_high = LoadObjectField<Int32T>(
-      cache, IntPtrAdd(entry_offset, IntPtrConstant(offset_key + kIntSize)));
+      cache,
+      IntPtrAdd(entry_offset,
+                IntPtrConstant(offset_key + kIeeeDoubleExponentWordOffset)));
 
   GotoIfNot(Word32Equal(entry_key_high, key_high), if_not_equal);
 }
