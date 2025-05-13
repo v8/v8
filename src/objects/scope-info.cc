@@ -278,7 +278,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         HasSimpleParametersBit::encode(has_simple_parameters) |
         FunctionKindBits::encode(function_kind) |
         HasOuterScopeInfoBit::encode(has_outer_scope_info) |
-        IsDebugEvaluateScopeBit::encode(scope->is_debug_evaluate_scope()) |
+        IsDebugEvaluateScopeBit::encode(false) |
         ForceContextAllocationBit::encode(
             scope->ForceContextForLanguageMode()) |
         PrivateNameLookupSkipsOuterClassBit::encode(

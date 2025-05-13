@@ -288,6 +288,7 @@ DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
   if (scope_info->SloppyEvalCanExtendVars()) {
     DCHECK(!is_eval_scope());
     sloppy_eval_can_extend_vars_ = true;
+    is_dynamic_scope_ = true;
   }
   if (scope_info->ClassScopeHasPrivateBrand()) {
     DCHECK(IsClassConstructor(function_kind()));
@@ -367,7 +368,7 @@ void Scope::SetDefaults() {
   sloppy_eval_can_extend_vars_ = false;
   scope_nonlinear_ = false;
   is_hidden_ = false;
-  is_debug_evaluate_scope_ = false;
+  is_dynamic_scope_ = scope_type_ == WITH_SCOPE;
 
   inner_scope_calls_eval_ = false;
   force_context_allocation_for_parameters_ = false;
@@ -424,6 +425,10 @@ bool Scope::ContainsAsmModule() const {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+bool Scope::is_debug_evaluate_scope() const {
+  return is_dynamic_scope_ && scope_info_->IsDebugEvaluateScope();
+}
+
 template <typename IsolateT>
 Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
                                     Tagged<ScopeInfo> scope_info,
@@ -441,13 +446,12 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
         outer_scope =
             zone->New<DeclarationScope>(zone, FUNCTION_SCOPE, ast_value_factory,
                                         handle(scope_info, isolate));
-        outer_scope->set_is_debug_evaluate_scope();
+        outer_scope->set_is_dynamic_scope();
       } else {
         // For scope analysis, debug-evaluate is equivalent to a with scope.
         outer_scope = zone->New<Scope>(zone, WITH_SCOPE, ast_value_factory,
                                        handle(scope_info, isolate));
       }
-
     } else if (scope_info->is_script_scope()) {
       // If we reach a script scope, it's the outermost scope. Install the
       // scope info of this script context onto the existing script scope to
@@ -967,6 +971,7 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) {
     new_parent->RecordEvalCall();
     outer_scope_->calls_eval_ = false;
     declaration_scope_->sloppy_eval_can_extend_vars_ = false;
+    declaration_scope_->is_dynamic_scope_ = false;
   }
 }
 
@@ -1362,7 +1367,7 @@ void DeclarationScope::DeserializeReceiver(AstValueFactory* ast_value_factory) {
   }
   DCHECK(has_this_declaration());
   DeclareThis(ast_value_factory);
-  if (is_debug_evaluate_scope()) {
+  if (V8_UNLIKELY(is_debug_evaluate_scope())) {
     receiver_->AllocateTo(VariableLocation::LOOKUP, -1);
   } else {
     receiver_->AllocateTo(VariableLocation::CONTEXT,
@@ -2095,19 +2100,6 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
   }
 
   while (true) {
-    DCHECK_IMPLIES(mode == kParsedScope, !scope->is_debug_evaluate_scope_);
-    // Short-cut: whenever we find a debug-evaluate scope, just look everything
-    // up dynamically. Debug-evaluate doesn't properly create scope info for the
-    // lookups it does. It may not have a valid 'this' declaration, and anything
-    // accessed through debug-evaluate might invalidly resolve to
-    // stack-allocated variables.
-    // TODO(yangguo): Remove once debug-evaluate creates proper ScopeInfo for
-    // the scopes in which it's evaluating.
-    if (mode == kDeserializedScope &&
-        V8_UNLIKELY(scope->is_debug_evaluate_scope_)) {
-      return cache_scope->NonLocal(proxy->raw_name(), VariableMode::kDynamic);
-    }
-
     // Try to find the variable in this scope.
     Variable* var;
     if (mode == kParsedScope) {
@@ -2129,17 +2121,20 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
     }
 
     if (scope->outer_scope_ == outer_scope_end) break;
-
-    DCHECK(!scope->is_script_scope());
-    if (V8_UNLIKELY(scope->is_with_scope())) {
-      return LookupWith(proxy, scope, outer_scope_end, cache_scope,
-                        force_context_allocation);
-    }
-    if (V8_UNLIKELY(
-            scope->is_declaration_scope() &&
-            scope->AsDeclarationScope()->sloppy_eval_can_extend_vars())) {
-      return LookupSloppyEval(proxy, scope, outer_scope_end, cache_scope,
-                              force_context_allocation);
+    if (V8_UNLIKELY(scope->is_dynamic_scope_)) {
+      DCHECK(!scope->is_script_scope());
+      if (scope->is_declaration_scope() &&
+          scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) {
+        return LookupSloppyEval(proxy, scope, outer_scope_end, cache_scope,
+                                force_context_allocation);
+      }
+      if (scope->is_with_scope()) {
+        return LookupWith(proxy, scope, outer_scope_end, cache_scope,
+                          force_context_allocation);
+      }
+      CHECK_EQ(mode, kDeserializedScope);
+      CHECK(scope->is_debug_evaluate_scope());
+      return cache_scope->NonLocal(proxy->raw_name(), VariableMode::kDynamic);
     }
 
     force_context_allocation |= scope->is_function_scope();
