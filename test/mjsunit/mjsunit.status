@@ -302,6 +302,7 @@
   'es6/block-conflicts-sloppy': [PASS, SLOW],
   'es6/block-conflicts': [PASS, SLOW],
   'es6/typedarray-of': [PASS, SLOW],
+  'compiler/inlining-exponential': [PASS, SLOW],
 }],  # mode == debug
 
 ['novfp3', {
@@ -339,6 +340,7 @@
   'wasm/atomics-stress': [SKIP],
   'wasm/atomics64-stress': [SKIP],
   'wasm/atomics-memory64': [SKIP],
+  'compiler/inlining-exponential': [SKIP],
   # Profiler test is flaky on simulators.
   'wasm/log-wasm-to-js-wrapper-callref': [SKIP],
   'wasm/log-wasm-to-js-wrapper-indirect': [SKIP],
