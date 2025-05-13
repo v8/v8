@@ -1444,6 +1444,7 @@ void Heap::CreateInitialMutableObjects() {
   set_array_constructor_protector(*factory->NewProtector());
   set_array_iterator_protector(*factory->NewProtector());
   set_array_species_protector(*factory->NewProtector());
+  set_no_date_time_configuration_change_protector(*factory->NewProtector());
   set_is_concat_spreadable_protector(*factory->NewProtector());
   set_map_iterator_protector(*factory->NewProtector());
   set_no_elements_protector(*factory->NewProtector());

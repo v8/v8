@@ -4981,6 +4981,22 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtin::kDataViewPrototypeSetBigUint64:
       return ReduceDataViewAccess(node, DataViewAccess::kSet,
                                   ExternalArrayType::kExternalBigUint64Array);
+
+    case Builtin::kDatePrototypeGetFullYear:
+      return ReduceDatePrototypeGetField(node, JSDate::kYear);
+    case Builtin::kDatePrototypeGetMonth:
+      return ReduceDatePrototypeGetField(node, JSDate::kMonth);
+    case Builtin::kDatePrototypeGetDate:
+      return ReduceDatePrototypeGetField(node, JSDate::kDay);
+    case Builtin::kDatePrototypeGetDay:
+      return ReduceDatePrototypeGetField(node, JSDate::kWeekday);
+    case Builtin::kDatePrototypeGetHours:
+      return ReduceDatePrototypeGetField(node, JSDate::kHour);
+    case Builtin::kDatePrototypeGetMinutes:
+      return ReduceDatePrototypeGetField(node, JSDate::kMinute);
+    case Builtin::kDatePrototypeGetSeconds:
+      return ReduceDatePrototypeGetField(node, JSDate::kSecond);
+
     case Builtin::kTypedArrayPrototypeByteLength:
       return ReduceArrayBufferViewByteLengthAccessor(node, JS_TYPED_ARRAY_TYPE,
                                                      builtin);
@@ -8662,6 +8678,45 @@ Reduction JSCallReducer::ReduceDatePrototypeGetTime(Node* node) {
                        receiver, effect, control);
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
+}
+
+// https://tc39.es/ecma262/#sec-date.prototype.getdate
+// https://tc39.es/ecma262/#sec-date.prototype.getday
+// https://tc39.es/ecma262/#sec-date.prototype.getfullyear
+// https://tc39.es/ecma262/#sec-date.prototype.gethours
+// https://tc39.es/ecma262/#sec-date.prototype.getminutes
+// https://tc39.es/ecma262/#sec-date.prototype.getmonth
+// https://tc39.es/ecma262/#sec-date.prototype.getseconds
+Reduction JSCallReducer::ReduceDatePrototypeGetField(Node* node,
+                                                     JSDate::FieldIndex field) {
+  DCHECK_LT(field, JSDate::kFirstUncachedField);
+  if (!v8_flags.turbofan_inline_date_accessors) return NoChange();
+
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Effect effect{NodeProperties::GetEffectInput(node)};
+  Control control{NodeProperties::GetControlInput(node)};
+
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps() || !inference.AllOfInstanceTypesAre(JS_DATE_TYPE)) {
+    return NoChange();
+  }
+
+  if (!dependencies()->DependOnNoDateTimeConfigurationChangeProtector()) {
+    return NoChange();
+  }
+
+#define __ gasm.
+  JSGraphAssembler gasm(broker(), jsgraph(), jsgraph()->zone(),
+                        BranchSemantics::kJS);
+  gasm.InitializeEffectControl(effect, control);
+
+  Node* value =
+      __ LoadField<Object>(AccessBuilder::ForJSDateField(field),
+                           TNode<HeapObject>::UncheckedCast(receiver));
+
+  ReplaceWithValue(node, value, gasm.effect(), gasm.control());
+  return Replace(value);
+#undef __
 }
 
 // ES6 section 20.3.3.1 Date.now ( )

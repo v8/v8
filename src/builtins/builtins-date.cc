@@ -34,7 +34,7 @@ Tagged<Object> SetLocalDateValue(Isolate* isolate, DirectHandle<JSDate> date,
       time_val <= DateCache::kMaxTimeBeforeUTCInMs) {
     time_val = isolate->date_cache()->ToUTC(static_cast<int64_t>(time_val));
     if (DateCache::TryTimeClip(&time_val)) {
-      date->SetValue(time_val);
+      date->SetValue(isolate, time_val);
       return *isolate->factory()->NewNumber(time_val);
     }
   }
@@ -45,7 +45,7 @@ Tagged<Object> SetLocalDateValue(Isolate* isolate, DirectHandle<JSDate> date,
 Tagged<Object> SetDateValue(Isolate* isolate, DirectHandle<JSDate> date,
                             double time_val) {
   if (DateCache::TryTimeClip(&time_val)) {
-    date->SetValue(time_val);
+    date->SetValue(isolate, time_val);
     return *isolate->factory()->NewNumber(time_val);
   }
   date->SetNanValue();
@@ -141,7 +141,8 @@ BUILTIN(DateConstructor) {
       time_val = std::numeric_limits<double>::quiet_NaN();
     }
   }
-  RETURN_RESULT_OR_FAILURE(isolate, JSDate::New(target, new_target, time_val));
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           JSDate::New(isolate, target, new_target, time_val));
 }
 
 // ES6 section 20.3.3.1 Date.now ( )
@@ -484,7 +485,7 @@ BUILTIN(DatePrototypeSetTime) {
   // the time, and we don't want to reallocate it.
   double clipped_value = value_double;
   if (DateCache::TryTimeClip(&clipped_value)) {
-    date->SetValue(clipped_value);
+    date->SetValue(isolate, clipped_value);
     // If the clipping didn't change the value (i.e. the value was already an
     // integer), we can reuse the incoming value for the return value.
     // Otherwise, we have to allocate a new value. Make sure to use

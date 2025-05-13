@@ -1222,8 +1222,8 @@ void JSDate::JSDateVerify(Isolate* isolate) {
     CHECK(0 <= weekday && weekday <= 6);
   }
   if (IsSmi(cache_stamp())) {
-    CHECK(Smi::ToInt(cache_stamp()) <=
-          Smi::ToInt(isolate->date_cache()->stamp()));
+    CHECK_LE(Smi::ToInt(cache_stamp()),
+             Smi::ToInt(isolate->date_cache_stamp()));
   }
 }
 

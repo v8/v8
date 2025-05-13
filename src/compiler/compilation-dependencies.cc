@@ -1376,6 +1376,13 @@ bool CompilationDependencies::DependOnNoElementsProtector() {
       MakeRef(broker_, broker_->isolate()->factory()->no_elements_protector()));
 }
 
+bool CompilationDependencies::DependOnNoDateTimeConfigurationChangeProtector() {
+  return DependOnProtector(
+      MakeRef(broker_, broker_->isolate()
+                           ->factory()
+                           ->no_date_time_configuration_change_protector()));
+}
+
 bool CompilationDependencies::DependOnPromiseHookProtector() {
   return DependOnProtector(MakeRef(
       broker_, broker_->isolate()->factory()->promise_hook_protector()));

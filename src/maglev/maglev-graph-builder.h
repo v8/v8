@@ -2108,6 +2108,10 @@ class MaglevGraphBuilder {
                                           ExternalArrayType type,
                                           Function&& getValue);
 
+  MaybeReduceResult TryReduceDatePrototypeGetField(
+      compiler::JSFunctionRef target, CallArguments& args,
+      JSDate::FieldIndex field);
+
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 #define CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V) \
   V(GetContinuationPreservedEmbedderData)            \
@@ -2135,6 +2139,13 @@ class MaglevGraphBuilder {
   V(DataViewPrototypeSetInt32)                 \
   V(DataViewPrototypeGetFloat64)               \
   V(DataViewPrototypeSetFloat64)               \
+  V(DatePrototypeGetFullYear)                  \
+  V(DatePrototypeGetMonth)                     \
+  V(DatePrototypeGetDate)                      \
+  V(DatePrototypeGetDay)                       \
+  V(DatePrototypeGetHours)                     \
+  V(DatePrototypeGetMinutes)                   \
+  V(DatePrototypeGetSeconds)                   \
   V(FunctionPrototypeApply)                    \
   V(FunctionPrototypeCall)                     \
   V(FunctionPrototypeHasInstance)              \

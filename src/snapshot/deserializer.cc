@@ -562,6 +562,8 @@ void Deserializer<Isolate>::PostProcessNewJSReceiver(
                                     : ResizableFlag::kNotResizable;
       buffer->Setup(shared, resizable, bs, main_thread_isolate());
     }
+  } else if (InstanceTypeChecker::IsJSDate(instance_type)) {
+    Cast<JSDate>(*obj)->UpdateFieldsAfterDeserialization(main_thread_isolate());
   }
 }
 

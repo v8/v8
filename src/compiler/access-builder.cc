@@ -647,11 +647,15 @@ FieldAccess AccessBuilder::ForJSDateValue() {
 
 // static
 FieldAccess AccessBuilder::ForJSDateField(JSDate::FieldIndex index) {
-  FieldAccess access = {
-      kTaggedBase,         JSDate::kYearOffset + index * kTaggedSize,
-      MaybeHandle<Name>(), OptionalMapRef(),
-      Type::Number(),      MachineType::AnyTagged(),
-      kFullWriteBarrier,   "JSDateField"};
+  DCHECK_LT(index, JSDate::kFirstUncachedField);
+  FieldAccess access = {kTaggedBase,
+                        JSDate::kYearOffset + index * kTaggedSize,
+                        MaybeHandle<Name>(),
+                        OptionalMapRef(),
+                        TypeCache::Get()->kJSDateFields[index],
+                        MachineType::AnyTagged(),
+                        kFullWriteBarrier,
+                        "JSDateField"};
   return access;
 }
 

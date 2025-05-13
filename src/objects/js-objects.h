@@ -1232,8 +1232,8 @@ class DateCache;
 class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
  public:
   static V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSDate> New(
-      DirectHandle<JSFunction> constructor, DirectHandle<JSReceiver> new_target,
-      double tv);
+      Isolate* isolate, DirectHandle<JSFunction> constructor,
+      DirectHandle<JSReceiver> new_target, double tv);
 
   // Returns the time value (UTC) identifying the current time in milliseconds.
   static int64_t CurrentTimeValue(Isolate* isolate);
@@ -1248,8 +1248,10 @@ class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
   static Address GetField(Isolate* isolate, Address raw_date,
                           Address smi_index);
 
-  void SetValue(double v);
+  void SetValue(Isolate* isolate, double v);
   void SetNanValue();
+
+  void UpdateFieldsAfterDeserialization(Isolate* isolate);
 
   // Dispatched behavior.
   DECL_PRINTER(JSDate)
@@ -1291,7 +1293,8 @@ class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
                              DateCache* date_cache);
 
   // Computes and caches the cacheable fields of the date.
-  inline void SetCachedFields(int64_t local_time_ms, DateCache* date_cache);
+  inline void SetCachedFields(Isolate* isolate, int64_t local_time_ms,
+                              DateCache* date_cache);
 
   TQ_OBJECT_CONSTRUCTORS(JSDate)
 };

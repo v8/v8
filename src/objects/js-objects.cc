@@ -5686,15 +5686,16 @@ void JSGlobalObject::InvalidatePropertyCell(DirectHandle<JSGlobalObject> global,
 }
 
 // static
-MaybeDirectHandle<JSDate> JSDate::New(DirectHandle<JSFunction> constructor,
+MaybeDirectHandle<JSDate> JSDate::New(Isolate* isolate,
+                                      DirectHandle<JSFunction> constructor,
                                       DirectHandle<JSReceiver> new_target,
                                       double tv) {
   DirectHandle<JSDate> result;
   ASSIGN_RETURN_ON_EXCEPTION(
-      constructor->GetIsolate(), result,
+      isolate, result,
       Cast<JSDate>(JSObject::New(constructor, new_target, {})));
   if (DateCache::TryTimeClip(&tv)) {
-    result->SetValue(tv);
+    result->SetValue(isolate, tv);
   } else {
     result->SetNanValue();
   }
@@ -5733,11 +5734,11 @@ Tagged<Object> JSDate::DoGetField(Isolate* isolate, FieldIndex index) {
 
   if (index < kFirstUncachedField) {
     Tagged<Object> stamp = cache_stamp();
-    if (stamp != date_cache->stamp() && IsSmi(stamp)) {
+    if (stamp != isolate->date_cache_stamp() && IsSmi(stamp)) {
       // Since the stamp is not NaN, the value is also not NaN.
       int64_t local_time_ms =
           date_cache->ToLocal(static_cast<int64_t>(value()));
-      SetCachedFields(local_time_ms, date_cache);
+      SetCachedFields(isolate, local_time_ms, date_cache);
     }
     switch (index) {
       case kYear:
@@ -5824,7 +5825,7 @@ Tagged<Object> JSDate::GetUTCField(FieldIndex index, double value,
 }
 
 // static
-void JSDate::SetValue(double value) {
+void JSDate::SetValue(Isolate* isolate, double value) {
 #ifdef DEBUG
   DCHECK(!std::isnan(value));
   double clipped_value = value;
@@ -5832,8 +5833,13 @@ void JSDate::SetValue(double value) {
   DCHECK_EQ(value, clipped_value);
 #endif
   set_value(value);
-  set_cache_stamp(Smi::FromInt(DateCache::kInvalidStamp), SKIP_WRITE_BARRIER);
+
+  DateCache* date_cache = isolate->date_cache();
+  // Since the stamp is not NaN, the value is also not NaN.
+  int64_t local_time_ms = date_cache->ToLocal(static_cast<int64_t>(value));
+  SetCachedFields(isolate, local_time_ms, date_cache);
 }
+
 void JSDate::SetNanValue() {
   set_value(std::numeric_limits<double>::quiet_NaN());
 
@@ -5848,7 +5854,20 @@ void JSDate::SetNanValue() {
   set_weekday(nan, SKIP_WRITE_BARRIER);
 }
 
-void JSDate::SetCachedFields(int64_t local_time_ms, DateCache* date_cache) {
+void JSDate::UpdateFieldsAfterDeserialization(Isolate* isolate) {
+  double time = value();
+  if (std::isnan(time)) {
+    // In this case all the cached fields are set to NaNs, thus no updates
+    // necessary.
+    return;
+  }
+  DateCache* date_cache = isolate->date_cache();
+  int64_t local_time_ms = date_cache->ToLocal(static_cast<int64_t>(time));
+  SetCachedFields(isolate, local_time_ms, date_cache);
+}
+
+void JSDate::SetCachedFields(Isolate* isolate, int64_t local_time_ms,
+                             DateCache* date_cache) {
   int days = DateCache::DaysFromTime(local_time_ms);
   int time_in_day_ms = DateCache::TimeInDay(local_time_ms, days);
   int year, month, day;
@@ -5857,7 +5876,8 @@ void JSDate::SetCachedFields(int64_t local_time_ms, DateCache* date_cache) {
   int hour = time_in_day_ms / (60 * 60 * 1000);
   int min = (time_in_day_ms / (60 * 1000)) % 60;
   int sec = (time_in_day_ms / 1000) % 60;
-  set_cache_stamp(date_cache->stamp());
+  set_cache_stamp(isolate->GetDateCacheStampAndRecordUsage(),
+                  SKIP_WRITE_BARRIER);
   set_year(Smi::FromInt(year), SKIP_WRITE_BARRIER);
   set_month(Smi::FromInt(month), SKIP_WRITE_BARRIER);
   set_day(Smi::FromInt(day), SKIP_WRITE_BARRIER);

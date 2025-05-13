@@ -127,7 +127,9 @@ struct JSBuiltinDispatchHandleRoot {
   V(ExecutionMode, kUInt8Size, execution_mode)                                 \
   V(StackIsIterable, kUInt8Size, stack_is_iterable)                            \
   V(ErrorMessageParam, kUInt8Size, error_message_param)                        \
-  V(TablesAlignmentPadding, 1, tables_alignment_padding)                       \
+  /* This padding aligns next field to kSystemPointerSize bytes. */            \
+  PADDING_FIELD(kSystemPointerSize, V, TablesAlignmentPadding,                 \
+                tables_alignment_padding)                                      \
   V(RegExpStaticResultOffsetsVector, kSystemPointerSize,                       \
     regexp_static_result_offsets_vector)                                       \
   /* Tier 0 tables (small but fast access). */                                 \
@@ -169,6 +171,10 @@ struct JSBuiltinDispatchHandleRoot {
     builtin_entry_table)                                                       \
   V(BuiltinTable, Builtins::kBuiltinCount* kSystemPointerSize, builtin_table)  \
   V(ActiveStack, kSystemPointerSize, active_stack)                             \
+  V(DateCacheStamp, kInt32Size, date_cache_stamp)                              \
+  V(IsDateCacheUsed, kUInt8Size, is_date_cache_used)                           \
+  /* This padding aligns next field to kDoubleSize bytes. */                   \
+  PADDING_FIELD(kDoubleSize, V, RawArgumentsPadding, raw_arguments_padding)    \
   V(RawArguments, 2 * kDoubleSize, raw_arguments)                              \
   ISOLATE_DATA_FIELDS_LEAPTIERING(V)
 
@@ -420,12 +426,11 @@ class IsolateData final {
   // cheaper it is to access them. See also: https://crbug.com/993264.
   // The recommended guideline is to put frequently-accessed fields close to
   // the beginning of IsolateData.
-#define FIELDS(V)                                                      \
-  ISOLATE_DATA_FIELDS(V)                                               \
-  /* This padding aligns IsolateData size by 8 bytes. */               \
-  V(Padding,                                                           \
-    8 + RoundUp<8>(static_cast<int>(kPaddingOffset)) - kPaddingOffset) \
-  /* Total size. */                                                    \
+#define FIELDS(V)                                        \
+  ISOLATE_DATA_FIELDS(V)                                 \
+  /* This padding aligns IsolateData size by 8 bytes. */ \
+  PADDING_FIELD(8, V, TrailingPadding, trailing_padding) \
+  /* Total size. */                                      \
   V(Size, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS_WITH_PURE_NAME(0, FIELDS)
@@ -469,8 +474,8 @@ class IsolateData final {
   uint8_t error_message_param_;
 
   // Ensure the following tables are kSystemPointerSize-byte aligned.
-  static_assert(FIELD_SIZE(kTablesAlignmentPaddingOffset) > 0);
-  uint8_t tables_alignment_padding_[FIELD_SIZE(kTablesAlignmentPaddingOffset)];
+  V8_NO_UNIQUE_ADDRESS uint8_t
+      tables_alignment_padding_[kTablesAlignmentPaddingSize];
 
   // A pointer to the static offsets vector (used to pass results from the
   // irregexp engine to the rest of V8), or nullptr if the static offsets
@@ -561,6 +566,16 @@ class IsolateData final {
 
   wasm::StackMemory* active_stack_ = nullptr;
 
+  // Stamp value which is increased on every
+  // v8::Isolate::DateTimeConfigurationChangeNotification(..).
+  int32_t date_cache_stamp_ = 0;
+  // Boolean value indicating that DateCache is used (i.e. JSDate instances
+  // were created in this Isolate).
+  uint8_t is_date_cache_used_ = false;
+
+  // Padding for aligning raw_arguments_.
+  V8_NO_UNIQUE_ADDRESS uint8_t raw_arguments_padding_[kRawArgumentsPaddingSize];
+
   // Storage for raw values passed from CSA/Torque to runtime functions.
   struct RawArgument {
     uint8_t storage_[kDoubleSize];
@@ -577,10 +592,7 @@ class IsolateData final {
   // following the IsolateData field predictable. This solves the issue with
   // C++ compilers for 32-bit platforms which are not consistent at aligning
   // int64_t fields.
-  // In order to avoid dealing with zero-size arrays the padding size is always
-  // in the range [8, 15).
-  static_assert(kPaddingOffsetEnd + 1 - kPaddingOffset >= 8);
-  char padding_[kPaddingOffsetEnd + 1 - kPaddingOffset];
+  V8_NO_UNIQUE_ADDRESS uint8_t trailing_padding_[kTrailingPaddingSize];
 
   V8_INLINE static void AssertPredictableLayout();
 

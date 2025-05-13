@@ -24,6 +24,8 @@ class Protectors : public AllStatic {
   V(ArraySpeciesLookupChain, ArraySpeciesProtector, array_species_protector)  \
   V(IsConcatSpreadableLookupChain, IsConcatSpreadableProtector,               \
     is_concat_spreadable_protector)                                           \
+  V(NoDateTimeConfigurationChange, NoDateTimeConfigurationChangeProtector,    \
+    no_date_time_configuration_change_protector)                              \
   V(NoElements, NoElementsProtector, no_elements_protector)                   \
                                                                               \
   V(MegaDOM, MegaDOMProtector, mega_dom_protector)                            \

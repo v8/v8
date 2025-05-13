@@ -104,6 +104,7 @@ class V8_EXPORT CompilationDependencies : public ZoneObject {
   bool DependOnArrayIteratorProtector();
   bool DependOnArraySpeciesProtector();
   bool DependOnNoElementsProtector();
+  bool DependOnNoDateTimeConfigurationChangeProtector();
   bool DependOnPromiseHookProtector();
   bool DependOnPromiseSpeciesProtector();
   bool DependOnPromiseThenProtector();

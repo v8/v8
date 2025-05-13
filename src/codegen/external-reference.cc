@@ -555,10 +555,6 @@ FUNCTION_REFERENCE(allocate_and_initialize_young_external_pointer_table_entry,
 
 FUNCTION_REFERENCE(get_date_field_function, JSDate::GetField)
 
-ExternalReference ExternalReference::date_cache_stamp(Isolate* isolate) {
-  return ExternalReference(isolate->date_cache()->stamp_address());
-}
-
 // static
 ExternalReference
 ExternalReference::runtime_function_table_address_for_unittests(

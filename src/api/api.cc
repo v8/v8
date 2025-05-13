@@ -7957,8 +7957,9 @@ MaybeLocal<v8::Value> v8::Date::New(Local<Context> context, double time) {
   }
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Date_New};
   i::Isolate* i_isolate = api_scope.i_isolate();
-  return api_scope.EscapeMaybe(Utils::ToMaybeLocal(i::JSDate::New(
-      i_isolate->date_function(), i_isolate->date_function(), time)));
+  return api_scope.EscapeMaybe(
+      Utils::ToMaybeLocal(i::JSDate::New(i_isolate, i_isolate->date_function(),
+                                         i_isolate->date_function(), time)));
 }
 
 MaybeLocal<Value> v8::Date::Parse(Local<Context> context, Local<String> value) {
@@ -7967,8 +7968,9 @@ MaybeLocal<Value> v8::Date::Parse(Local<Context> context, Local<String> value) {
   auto string = Utils::OpenDirectHandle(*value);
   double time = ParseDateTimeString(i_isolate, string);
 
-  return api_scope.EscapeMaybe(Utils::ToMaybeLocal(i::JSDate::New(
-      i_isolate->date_function(), i_isolate->date_function(), time)));
+  return api_scope.EscapeMaybe(
+      Utils::ToMaybeLocal(i::JSDate::New(i_isolate, i_isolate->date_function(),
+                                         i_isolate->date_function(), time)));
 }
 
 double v8::Date::ValueOf() const {
@@ -10892,6 +10894,7 @@ void v8::Isolate::DateTimeConfigurationChangeNotification(
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   i_isolate->date_cache()->ResetDateCache(
       static_cast<base::TimezoneCache::TimeZoneDetection>(time_zone_detection));
+  i_isolate->IncreaseDateCacheStampAndInvalidateProtector();
 #ifdef V8_INTL_SUPPORT
   i_isolate->clear_cached_icu_object(
       i::Isolate::ICUObjectCacheType::kDefaultSimpleDateFormat);

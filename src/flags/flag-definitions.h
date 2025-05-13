@@ -758,6 +758,14 @@ DEFINE_BOOL(trace_number_string_cache, false,
             "Print NumberString caches stats on GC and at the end")
 DEFINE_WEAK_IMPLICATION(trace_number_string_cache, native_code_counters)
 
+DEFINE_BOOL(maglev_inline_date_accessors, false,
+            "Inline Date accessors by Maglev")
+DEFINE_BOOL(turbofan_inline_date_accessors, false,
+            "Inline Date accessors by TurboFan")
+DEFINE_BOOL(inline_date_accessors, true, "Inline Date accessors")
+DEFINE_WEAK_IMPLICATION(inline_date_accessors, maglev_inline_date_accessors)
+DEFINE_WEAK_IMPLICATION(inline_date_accessors, turbofan_inline_date_accessors)
+
 #ifdef V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT
 DEFINE_BOOL(extensible_ro_snapshot, true,
             "Whether custom embedder snapshots may extend ReadOnlySpace")

@@ -1636,6 +1636,22 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void set_date_cache(DateCache* date_cache);
 
+  // Cache stamp used for invalidating caches in JSDate.
+  // We increment the stamp each time when the timezone information changes.
+  // JSDate objects perform stamp check and invalidate their caches if
+  // their saved stamp is not equal to the current stamp.
+  // See v8::Isolate::DateTimeConfigurationChangeNotification(..).
+  Tagged<Smi> date_cache_stamp() const {
+    return Smi::FromInt(isolate_data()->date_cache_stamp_);
+  }
+  // Returns current date_cache_stamp value and records the fact that the
+  // date cache is used (i.e. there are JSDate instances created).
+  Tagged<Smi> GetDateCacheStampAndRecordUsage() {
+    isolate_data()->is_date_cache_used_ = true;
+    return date_cache_stamp();
+  }
+  void IncreaseDateCacheStampAndInvalidateProtector();
+
 #ifdef V8_INTL_SUPPORT
 
   const std::string& DefaultLocale();

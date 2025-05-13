@@ -240,6 +240,8 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
                                  ExternalArrayType element_type);
 
   Reduction ReduceDatePrototypeGetTime(Node* node);
+  Reduction ReduceDatePrototypeGetField(Node* node, JSDate::FieldIndex field);
+
   Reduction ReduceDateNow(Node* node);
   Reduction ReduceNumberParseInt(Node* node);
 

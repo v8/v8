@@ -1935,7 +1935,8 @@ MaybeDirectHandle<JSDate> ValueDeserializer::ReadJSDate() {
   if (!ReadDouble().To(&value)) return MaybeDirectHandle<JSDate>();
   uint32_t id = next_id_++;
   DirectHandle<JSDate> date;
-  if (!JSDate::New(isolate_->date_function(), isolate_->date_function(), value)
+  if (!JSDate::New(isolate_, isolate_->date_function(),
+                   isolate_->date_function(), value)
            .ToHandle(&date)) {
     return MaybeDirectHandle<JSDate>();
   }

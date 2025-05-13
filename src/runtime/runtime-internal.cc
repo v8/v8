@@ -794,7 +794,7 @@ RUNTIME_FUNCTION(Runtime_InvalidateProtector) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   auto cell = Cast<PropertyCell>(args.at<HeapObject>(0));
-  cell->InvalidateProtector();
+  cell->InvalidateProtector(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

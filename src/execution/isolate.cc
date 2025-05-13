@@ -6235,6 +6235,22 @@ void Isolate::set_date_cache(DateCache* date_cache) {
   date_cache_ = date_cache;
 }
 
+void Isolate::IncreaseDateCacheStampAndInvalidateProtector() {
+  // There's no need to update stamp and invalidate the protector since there
+  // were no JSDate instances created yet and thus such a configuration change
+  // is not observable anyway.
+  if (!isolate_data()->is_date_cache_used_) return;
+
+  if (isolate_data()->date_cache_stamp_ < Smi::kMaxValue) {
+    ++isolate_data()->date_cache_stamp_;
+  } else {
+    isolate_data()->date_cache_stamp_ = 1;
+  }
+
+  heap()->no_date_time_configuration_change_protector()->InvalidateProtector(
+      this);
+}
+
 Isolate::KnownPrototype Isolate::IsArrayOrObjectOrStringPrototype(
     Tagged<JSObject> object) {
   Tagged<Map> metamap = object->map(this)->map(this);

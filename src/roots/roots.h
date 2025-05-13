@@ -338,6 +338,8 @@ class RootVisitor;
   V(PropertyCell, array_species_protector, ArraySpeciesProtector)              \
   V(PropertyCell, typed_array_length_protector, TypedArrayLengthProtector)     \
   V(PropertyCell, typed_array_species_protector, TypedArraySpeciesProtector)   \
+  V(PropertyCell, no_date_time_configuration_change_protector,                 \
+    NoDateTimeConfigurationChangeProtector)                                    \
   V(PropertyCell, promise_species_protector, PromiseSpeciesProtector)          \
   V(PropertyCell, regexp_species_protector, RegExpSpeciesProtector)            \
   V(PropertyCell, string_length_protector, StringLengthProtector)              \

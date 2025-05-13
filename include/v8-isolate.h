@@ -640,6 +640,7 @@ class V8_EXPORT Isolate {
     kTopLevelAwait = 171,
     kLogicalAssignment = 172,
     kNullishCoalescing = 173,
+    kInvalidatedNoDateTimeConfigurationChangeProtector = 174,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to

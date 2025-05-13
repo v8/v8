@@ -9831,6 +9831,114 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeSetFloat64(
       });
 }
 
+namespace {
+bool AllOfInstanceTypesUnsafe(const PossibleMaps& maps,
+                              std::function<bool(InstanceType)> f) {
+  auto instance_type = [f](compiler::MapRef map) {
+    return f(map.instance_type());
+  };
+  return std::all_of(maps.begin(), maps.end(), instance_type);
+}
+bool AllOfInstanceTypesAre(const PossibleMaps& maps, InstanceType type) {
+  CHECK(!InstanceTypeChecker::IsString(type));
+  return AllOfInstanceTypesUnsafe(
+      maps, [type](InstanceType other) { return type == other; });
+}
+}  // namespace
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetField(
+    compiler::JSFunctionRef target, CallArguments& args,
+    JSDate::FieldIndex field_index) {
+  DCHECK_LT(field_index, JSDate::kFirstUncachedField);
+  if (!v8_flags.maglev_inline_date_accessors) return {};
+  if (!CanSpeculateCall()) return {};
+
+  if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  ! Failed to reduce Date.prototype.GetXXX - no receiver"
+                << std::endl;
+    }
+    return {};
+  }
+
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+  const NodeInfo* receiver_info = known_node_aspects().TryGetInfoFor(receiver);
+  // If the map set is not found, then we don't know anything about the map of
+  // the receiver, so bail.
+  if (!receiver_info || !receiver_info->possible_maps_are_known()) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout
+          << "  ! Failed to reduce Date.prototype.GetXXX - unknown receiver map"
+          << std::endl;
+    }
+    return {};
+  }
+
+  const PossibleMaps& possible_receiver_maps = receiver_info->possible_maps();
+  // If the set of possible maps is empty, then there's no possible map for this
+  // receiver, therefore this path is unreachable at runtime. We're unlikely to
+  // ever hit this case, BuildCheckMaps should already unconditionally deopt,
+  // but check it in case another checking operation fails to statically
+  // unconditionally deopt.
+  if (possible_receiver_maps.is_empty()) {
+    // TODO(leszeks): Add an unreachable assert here.
+    return ReduceResult::DoneWithAbort();
+  }
+
+  if (!AllOfInstanceTypesAre(possible_receiver_maps, JS_DATE_TYPE)) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout
+          << "  ! Failed to reduce Date.prototype.GetXXX - wrong receiver maps "
+          << std::endl;
+    }
+    return {};
+  }
+
+  if (!broker()
+           ->dependencies()
+           ->DependOnNoDateTimeConfigurationChangeProtector()) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  ! Failed to reduce Date.prototype.GetXXX - "
+                   "NoDateTimeConfigurationChangeProtector invalidated"
+                << std::endl;
+    }
+    return {};
+  }
+
+  int field_offset = JSDate::kYearOffset + field_index * kTaggedSize;
+  ValueNode* field_value = BuildLoadTaggedField(receiver, field_offset);
+  return field_value;
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetFullYear(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceDatePrototypeGetField(target, args, JSDate::kYear);
+}
+MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetMonth(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceDatePrototypeGetField(target, args, JSDate::kMonth);
+}
+MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetDate(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceDatePrototypeGetField(target, args, JSDate::kDay);
+}
+MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetDay(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceDatePrototypeGetField(target, args, JSDate::kWeekday);
+}
+MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetHours(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceDatePrototypeGetField(target, args, JSDate::kHour);
+}
+MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetMinutes(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceDatePrototypeGetField(target, args, JSDate::kMinute);
+}
+MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetSeconds(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceDatePrototypeGetField(target, args, JSDate::kSecond);
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeCall(
     compiler::JSFunctionRef target, CallArguments& args) {
   // We can't reduce Function#call when there is no receiver function.
@@ -9951,21 +10059,6 @@ MaglevGraphBuilder::BuildJSArrayBuiltinMapSwitchOnElementsKind(
   DCHECK_IMPLIES(!any_successful, !current_block_);
   return any_successful ? ReduceResult::Done() : ReduceResult::DoneWithAbort();
 }
-
-namespace {
-bool AllOfInstanceTypesUnsafe(const PossibleMaps& maps,
-                              std::function<bool(InstanceType)> f) {
-  auto instance_type = [f](compiler::MapRef map) {
-    return f(map.instance_type());
-  };
-  return std::all_of(maps.begin(), maps.end(), instance_type);
-}
-bool AllOfInstanceTypesAre(const PossibleMaps& maps, InstanceType type) {
-  CHECK(!InstanceTypeChecker::IsString(type));
-  return AllOfInstanceTypesUnsafe(
-      maps, [type](InstanceType other) { return type == other; });
-}
-}  // namespace
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceMapPrototypeGet(
     compiler::JSFunctionRef target, CallArguments& args) {

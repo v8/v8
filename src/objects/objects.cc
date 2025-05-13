@@ -6559,12 +6559,10 @@ Handle<PropertyCell> PropertyCell::PrepareForAndSetValue(
 }
 
 // static
-void PropertyCell::InvalidateProtector() {
+void PropertyCell::InvalidateProtector(Isolate* isolate) {
   if (value() != Smi::FromInt(Protectors::kProtectorInvalid)) {
     DCHECK_EQ(value(), Smi::FromInt(Protectors::kProtectorValid));
     set_value(Smi::FromInt(Protectors::kProtectorInvalid), kReleaseStore);
-    // TODO(11527): pass Isolate as an argument.
-    Isolate* isolate = GetIsolateFromWritableObject(*this);
     DependentCode::DeoptimizeDependencyGroups(
         isolate, *this, DependentCode::kPropertyCellChangedGroup);
   }
