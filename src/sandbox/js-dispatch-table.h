@@ -261,7 +261,7 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   }
 #endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
   static bool InReadOnlySegment(JSDispatchHandle handle) {
-    return HandleToIndex(handle) <= kEndOfInternalReadOnlySegment;
+    return HandleToIndex(handle) <= kEndOfReadOnlyIndex;
   }
   static int OffsetOfEntry(JSDispatchHandle handle) {
     return JSDispatchTable::HandleToIndex(handle)
