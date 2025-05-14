@@ -4459,9 +4459,18 @@ void Script::TraceScriptRundown() {
                        Cast<String>(this->source_url())->ToCString().get());
     }
     if (this->HasSourceMappingURLComment()) {
-      value->SetString(
-          "sourceMapUrl",
-          Cast<String>(this->source_mapping_url())->ToCString().get());
+      Tagged<String> sourceMapUrl = Cast<String>(this->source_mapping_url());
+      // Source maps can be huge. Don't ever put a huge data url source map in
+      // the trace. Also omit unusually large regular URLs.
+      constexpr int kMaxSourceMapUrlLength = 2048;
+      if (sourceMapUrl->length() > kMaxSourceMapUrlLength) {
+        // Signal that there is a source map - clients may wish to request it by
+        // other means (such as via CDP) or otherwise warn that a source map was
+        // present but elided.
+        value->SetBoolean("sourceMapUrlElided", true);
+      } else {
+        value->SetString("sourceMapUrl", sourceMapUrl->ToCString().get());
+      }
     }
   }
   if (IsString(this->name())) {
