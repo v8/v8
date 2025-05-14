@@ -122,6 +122,7 @@ static void VisitRR(InstructionSelectorT* selector, ArchOpcode opcode,
                  g.UseRegister(selector->input_at(node, 0)));
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 static void VisitRRI(InstructionSelectorT* selector, ArchOpcode opcode,
                      OpIndex node) {
   UNIMPLEMENTED();
@@ -137,16 +138,17 @@ static void VisitRRIR(InstructionSelectorT* selector, ArchOpcode opcode,
   UNIMPLEMENTED();
 }
 
+static void VisitUniqueRRR(InstructionSelectorT* selector, ArchOpcode opcode,
+                           OpIndex node) {
+  UNIMPLEMENTED();
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 void VisitRRR(InstructionSelectorT* selector, ArchOpcode opcode, OpIndex node) {
   Mips64OperandGeneratorT g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(selector->input_at(node, 0)),
                  g.UseRegister(selector->input_at(node, 1)));
-}
-
-static void VisitUniqueRRR(InstructionSelectorT* selector, ArchOpcode opcode,
-                           OpIndex node) {
-  UNIMPLEMENTED();
 }
 
 void VisitRRRR(InstructionSelectorT* selector, ArchOpcode opcode,
@@ -397,11 +399,13 @@ void EmitLoad(InstructionSelectorT* selector, OpIndex node,
   }
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void InstructionSelectorT::VisitStoreLane(OpIndex node) { UNIMPLEMENTED(); }
 
 void InstructionSelectorT::VisitLoadLane(OpIndex node) { UNIMPLEMENTED(); }
 
 void InstructionSelectorT::VisitLoadTransform(OpIndex node) { UNIMPLEMENTED(); }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void InstructionSelectorT::VisitLoad(OpIndex node) {
   auto load = this->load_view(node);
@@ -2388,6 +2392,8 @@ void InstructionSelectorT::VisitInt64AbsWithOverflow(OpIndex node) {
   UNREACHABLE();
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+
 #define SIMD_TYPE_LIST(V) \
   V(F64x2)                \
   V(F32x4)                \
@@ -2688,11 +2694,7 @@ UNIMPLEMENTED_SIMD_FP16_OP_LIST(SIMD_VISIT_UNIMPL_FP16_OP)
 #undef SIMD_VISIT_UNIMPL_FP16_OP
 #undef UNIMPLEMENTED_SIMD_FP16_OP_LIST
 
-#if V8_ENABLE_WEBASSEMBLY
-
 void InstructionSelectorT::VisitI8x16Shuffle(OpIndex node) { UNIMPLEMENTED(); }
-
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 void InstructionSelectorT::VisitI8x16Swizzle(OpIndex node) { UNIMPLEMENTED(); }
 
@@ -2700,26 +2702,6 @@ void InstructionSelectorT::VisitSetStackPointer(OpIndex node) {
   OperandGenerator g(this);
   auto input = g.UseRegister(this->input_at(node, 0));
   Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
-}
-
-void InstructionSelectorT::VisitSignExtendWord8ToInt32(OpIndex node) {
-  VisitRR(this, kMips64Seb, node);
-}
-
-void InstructionSelectorT::VisitSignExtendWord16ToInt32(OpIndex node) {
-  VisitRR(this, kMips64Seh, node);
-}
-
-void InstructionSelectorT::VisitSignExtendWord8ToInt64(OpIndex node) {
-  VisitRR(this, kMips64Seb, node);
-}
-
-void InstructionSelectorT::VisitSignExtendWord16ToInt64(OpIndex node) {
-  VisitRR(this, kMips64Seh, node);
-}
-
-void InstructionSelectorT::VisitSignExtendWord32ToInt64(OpIndex node) {
-  UNIMPLEMENTED();
 }
 
 void InstructionSelectorT::VisitF32x4Pmin(OpIndex node) {
@@ -2763,6 +2745,28 @@ VISIT_EXTADD_PAIRWISE(I16x8ExtAddPairwiseI8x16U, MSAU8)
 VISIT_EXTADD_PAIRWISE(I32x4ExtAddPairwiseI16x8S, MSAS16)
 VISIT_EXTADD_PAIRWISE(I32x4ExtAddPairwiseI16x8U, MSAU16)
 #undef VISIT_EXTADD_PAIRWISE
+
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+void InstructionSelectorT::VisitSignExtendWord8ToInt32(OpIndex node) {
+  VisitRR(this, kMips64Seb, node);
+}
+
+void InstructionSelectorT::VisitSignExtendWord16ToInt32(OpIndex node) {
+  VisitRR(this, kMips64Seh, node);
+}
+
+void InstructionSelectorT::VisitSignExtendWord8ToInt64(OpIndex node) {
+  VisitRR(this, kMips64Seb, node);
+}
+
+void InstructionSelectorT::VisitSignExtendWord16ToInt64(OpIndex node) {
+  VisitRR(this, kMips64Seh, node);
+}
+
+void InstructionSelectorT::VisitSignExtendWord32ToInt64(OpIndex node) {
+  UNIMPLEMENTED();
+}
 
 void InstructionSelectorT::AddOutputToSelectContinuation(OperandGenerator* g,
                                                          int first_input_index,
