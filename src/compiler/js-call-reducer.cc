@@ -4176,7 +4176,12 @@ bool IsCallWithArrayLikeOrSpread(Node* node) {
 Node* JSCallReducer::ConvertHoleToUndefined(Node* value, ElementsKind kind) {
   DCHECK(IsHoleyElementsKind(kind));
   if (kind == HOLEY_DOUBLE_ELEMENTS) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    return graph()->NewNode(
+        simplified()->ChangeFloat64OrUndefinedOrHoleToTagged(), value);
+#else
     return graph()->NewNode(simplified()->ChangeFloat64HoleToTagged(), value);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   }
   return graph()->NewNode(simplified()->ConvertTaggedHoleToUndefined(), value);
 }
