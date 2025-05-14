@@ -7551,6 +7551,10 @@ ConservativePinningScope::ConservativePinningScope(Heap* heap,
     : heap_(heap) {
   DCHECK(::heap::base::Stack::IsOnCurrentStack(this));
   DCHECK(!heap_->selective_stack_scan_start_address_.has_value());
+#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64 || V8_HOST_ARCH_ARM || \
+    V8_HOST_ARCH_ARM64
+  CHECK_LE(this, frame_address);
+#else
   if (V8_UNLIKELY(this > frame_address)) {
     // `frame_address` should be higher than `this`, but we observed that this
     // may not hold in some cases (e.g. due to missing inlining or unexpected
@@ -7561,6 +7565,8 @@ ConservativePinningScope::ConservativePinningScope(Heap* heap,
                         ? static_cast<void*>(v8::base::Stack::GetStackStart())
                         : reinterpret_cast<const void*>(c_entry_fp);
   }
+#endif  // V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64 || V8_HOST_ARCH_ARM ||
+        // V8_HOST_ARCH_ARM64
   // The stack segment covered by this scope should include the scope itself.
   DCHECK_NOT_NULL(frame_address);
   DCHECK_LE(this, frame_address);
