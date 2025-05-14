@@ -877,7 +877,7 @@ void InstructionSelectorT::VisitWordCompareZero(OpIndex user, OpIndex value,
   const Operation& value_op = Get(value);
   if (CanCover(user, value)) {
     if (const ComparisonOp* comparison = value_op.TryCast<ComparisonOp>()) {
-      switch (comparison->rep.value()) {
+      switch (comparison->rep.MapTaggedToWord().value()) {
         case RegisterRepresentation::Word32():
           cont->OverwriteAndNegateIfEqual(
               GetComparisonFlagCondition(*comparison));
