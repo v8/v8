@@ -601,11 +601,7 @@ enum ExternalPointerTag : uint16_t {
 
   kLastMaybeReadOnlyExternalPointerTag = kLastInterceptorInfoExternalPointerTag,
 
-  kWasmInternalFunctionCallTargetTag,
-  kWasmTypeInfoNativeTypeTag,
-  kWasmExportedFunctionDataSignatureTag,
   kWasmStackMemoryTag,
-  kWasmIndirectFunctionTargetTag,
 
   // Foreigns
   kFirstForeignExternalPointerTag,
