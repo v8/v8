@@ -1282,12 +1282,7 @@ bool IterateElements(Isolate* isolate, DirectHandle<JSReceiver> receiver,
       int fast_length = static_cast<int>(length);
       DCHECK(fast_length <= elements->length());
       FOR_WITH_HANDLE_SCOPE(isolate, int, j = 0, j, j < fast_length, j++, {
-        if (!elements->is_the_hole(j)) {
-          double double_value = elements->get_scalar(j);
-          DirectHandle<Object> element_value =
-              isolate->factory()->NewNumber(double_value);
-          if (!visitor->visit(j, element_value)) return false;
-        } else {
+        if (elements->is_the_hole(j)) {
           Maybe<bool> maybe = JSReceiver::HasElement(isolate, array, j);
           if (maybe.IsNothing()) return false;
           if (maybe.FromJust()) {
@@ -1299,6 +1294,17 @@ bool IterateElements(Isolate* isolate, DirectHandle<JSReceiver> receiver,
                 JSReceiver::GetElement(isolate, array, j), false);
             if (!visitor->visit(j, element_value)) return false;
           }
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+        } else if (elements->is_undefined(j)) {
+          DirectHandle<Object> element_value =
+              isolate->factory()->undefined_value();
+          if (!visitor->visit(j, element_value)) return false;
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+        } else {
+          double double_value = elements->get_scalar(j);
+          DirectHandle<Object> element_value =
+              isolate->factory()->NewNumber(double_value);
+          if (!visitor->visit(j, element_value)) return false;
         }
       });
       break;
