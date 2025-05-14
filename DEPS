@@ -92,7 +92,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': 'f0e2e7a786cda3a52feaff9c7894ebcf68b13fb3',
+  'partition_alloc_version': 'fc79edffac58c4d59925412bf378eaf0f454688e',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -130,7 +130,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e42f899ae75d20881f14e06fd324041312fe6a83',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b7a6c9ea542552087147a24b760be996c90c109d',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '077a66f30fcf281b066fafb6dfc60818c238efb6',
   'buildtools/linux64': {
@@ -232,7 +232,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'fd624be2faba11f03d2cf94e095b86707758f062',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '7a86b384836034b5344ce5b0ff40a639db9c3960',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '14bfda17088cb03d7bc0ba7df6cac2699e051e14',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'a9cc320bf761323906c614f7040cb1dc22fcc858',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -282,7 +282,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + 'f03aafb7516050ea73f617bf969f03eac641aefc',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '8b8ef3ff0d1f7a1739e0d7c3dd46ab37104fcd9a',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '9f79a9597ad9b5394e5c620ebf76824f77ffbde4',
   'third_party/highway/src':
     Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '00fe003dac355b979f36157f9407c7c46448958e',
   'third_party/icu':
