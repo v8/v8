@@ -174,8 +174,13 @@ class JSCallReducerAssembler : public JSGraphAssembler {
   TNode<Object> ConvertHoleToUndefined(TNode<Object> value, ElementsKind kind) {
     DCHECK(IsHoleyElementsKind(kind));
     if (kind == HOLEY_DOUBLE_ELEMENTS) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      return AddNode<Number>(graph()->NewNode(
+          simplified()->ChangeFloat64OrUndefinedOrHoleToTagged(), value));
+#else
       return AddNode<Number>(
           graph()->NewNode(simplified()->ChangeFloat64HoleToTagged(), value));
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     }
     return ConvertTaggedHoleToUndefined(value);
   }
