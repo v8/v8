@@ -8243,10 +8243,16 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
       DirectHandle<FixedDoubleArray> elements(
           Cast<FixedDoubleArray>(array->elements()), isolate);
       FOR_WITH_HANDLE_SCOPE(isolate, uint32_t, i = 0, i, i < length, i++, {
-        DirectHandle<Object> value =
-            elements->is_the_hole(i)
-                ? Handle<Object>(isolate->factory()->undefined_value())
-                : isolate->factory()->NewNumber(elements->get_scalar(i));
+        DirectHandle<Object> value;
+        if (elements->is_the_hole(i)) {
+          value = Handle<Object>(isolate->factory()->undefined_value());
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+        } else if (elements->is_undefined(i)) {
+          value = Handle<Object>(isolate->factory()->undefined_value());
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+        } else {
+          value = isolate->factory()->NewNumber(elements->get_scalar(i));
+        }
         Result result = callback(i, Utils::ToLocal(value), callback_data);
         if (result != Result::kContinue) {
           return static_cast<FastIterateResult>(result);
