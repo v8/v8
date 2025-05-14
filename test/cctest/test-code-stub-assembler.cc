@@ -939,7 +939,7 @@ void TestEntryToIndex() {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   // Test a wide range of entries but staying linear in the first 100 entries.
-  for (int entry = 0; entry < Dictionary::kMaxCapacity;
+  for (uint32_t entry = 0; entry < Dictionary::kMaxCapacity;
        entry = entry * 1.01 + 1) {
     DirectHandle<Object> result =
         ft.Call(handle(Smi::FromInt(entry), isolate)).ToHandleChecked();

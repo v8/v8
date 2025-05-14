@@ -5384,9 +5384,9 @@ Handle<Derived> HashTable<Derived, Shape>::New(
   DCHECK_IMPLIES(capacity_option == USE_CUSTOM_MINIMUM_CAPACITY,
                  base::bits::IsPowerOfTwo(at_least_space_for));
 
-  int capacity = (capacity_option == USE_CUSTOM_MINIMUM_CAPACITY)
-                     ? at_least_space_for
-                     : ComputeCapacity(at_least_space_for);
+  uint32_t capacity = (capacity_option == USE_CUSTOM_MINIMUM_CAPACITY)
+                          ? at_least_space_for
+                          : ComputeCapacity(at_least_space_for);
   if (capacity > HashTable::kMaxCapacity) {
     isolate->FatalProcessOutOfHeapMemory("invalid table size");
   }
@@ -5576,13 +5576,13 @@ bool HashTable<Derived, Shape>::HasSufficientCapacityToAdd(
 
 // static
 template <typename Derived, typename Shape>
-int HashTable<Derived, Shape>::ComputeCapacityWithShrink(
-    int current_capacity, int at_least_room_for) {
+uint32_t HashTable<Derived, Shape>::ComputeCapacityWithShrink(
+    uint32_t current_capacity, uint32_t at_least_room_for) {
   // Shrink to fit the number of elements if only a quarter of the
   // capacity is filled with elements.
   if (at_least_room_for > (current_capacity / 4)) return current_capacity;
   // Recalculate the smaller capacity actually needed.
-  int new_capacity = ComputeCapacity(at_least_room_for);
+  uint32_t new_capacity = ComputeCapacity(at_least_room_for);
   DCHECK_GE(new_capacity, at_least_room_for);
   // Don't go lower than room for {kMinShrinkCapacity} elements.
   if (new_capacity < Derived::kMinShrinkCapacity) return current_capacity;
@@ -5596,7 +5596,7 @@ template <template <typename> typename HandleType>
 HandleType<Derived> HashTable<Derived, Shape>::Shrink(Isolate* isolate,
                                                       HandleType<Derived> table,
                                                       int additional_capacity) {
-  int new_capacity = ComputeCapacityWithShrink(
+  uint32_t new_capacity = ComputeCapacityWithShrink(
       table->Capacity(), table->NumberOfElements() + additional_capacity);
   if (new_capacity == table->Capacity()) return table;
   DCHECK_GE(new_capacity, Derived::kMinShrinkCapacity);
@@ -6144,8 +6144,8 @@ void RehashObjectHashTableAndGCIfNeeded(Isolate* isolate, HandleType<T> table) {
   // If we're out of luck, we didn't get a GC recently, and so rehashing
   // isn't enough to avoid a crash.
   if (!table->HasSufficientCapacityToAdd(1)) {
-    int nof = table->NumberOfElements() + 1;
-    int capacity = T::ComputeCapacity(nof);
+    uint32_t nof = table->NumberOfElements() + 1;
+    uint32_t capacity = T::ComputeCapacity(nof);
     if (capacity > T::kMaxCapacity) {
       for (size_t i = 0; i < 2; ++i) {
         isolate->heap()->CollectAllGarbage(
@@ -6395,7 +6395,7 @@ bool JSWeakCollection::Delete(DirectHandle<JSWeakCollection> weak_collection,
 }
 
 DirectHandle<JSArray> JSWeakCollection::GetEntries(
-    DirectHandle<JSWeakCollection> holder, int max_entries) {
+    DirectHandle<JSWeakCollection> holder, uint32_t max_entries) {
   Isolate* isolate = Isolate::Current();
   DirectHandle<EphemeronHashTable> table(
       Cast<EphemeronHashTable>(holder->table()), isolate);
@@ -6413,8 +6413,8 @@ DirectHandle<JSArray> JSWeakCollection::GetEntries(
   {
     DisallowGarbageCollection no_gc;
     ReadOnlyRoots roots = ReadOnlyRoots(isolate);
-    int count = 0;
-    for (int i = 0;
+    uint32_t count = 0;
+    for (uint32_t i = 0;
          count / values_per_entry < max_entries && i < table->Capacity(); i++) {
       Tagged<Object> key;
       if (table->ToKey(roots, InternalIndex(i), &key)) {
