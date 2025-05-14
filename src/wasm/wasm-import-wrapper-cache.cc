@@ -86,8 +86,9 @@ void WasmImportWrapperCache::LazyInitialize(Isolate* triggering_isolate) {
 
 WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
     WasmCompilationResult result, WasmCode::Kind kind, uint64_t signature_hash,
-    std::shared_ptr<wasm::WasmImportWrapperHandle>& maybe_handle) {
+    std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle) {
   cache_->mutex_.AssertHeld();
+  DCHECK_NOT_NULL(wrapper_handle);
   // Equivalent of NativeModule::AddCode().
   const CodeDesc& desc = result.code_desc;
   base::Vector<uint8_t> code_space =
@@ -125,6 +126,8 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
       DCHECK(!RelocInfo::IsWasmStubCall(it.rinfo()->rmode()));
       it.rinfo()->apply(delta);
     }
+    jit_allocation.UpdateWasmCodePointer(wrapper_handle->code_pointer(),
+                                         signature_hash);
   }
   FlushInstructionCache(code_space.begin(), code_space.size());
   const int frame_slot_count = result.frame_slot_count;
@@ -155,17 +158,7 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
 
   code->Validate();
 
-  // TODO(sroettger): the WasmCodePointer creation/update should be done above
-  // while the WritableJitAllocation scope is active.
-  if (maybe_handle) {
-    GetProcessWideWasmCodePointerTable()->UpdateEntrypoint(
-        maybe_handle->code_pointer(), code->instruction_start(),
-        signature_hash);
-  } else {
-    maybe_handle = std::make_shared<WasmImportWrapperHandle>(
-        code->instruction_start(), signature_hash);
-  }
-  maybe_handle->set_code(code);
+  wrapper_handle->set_code(code);
 
   // As an optimization, we assume that wrappers are allocated in increasing
   // memory locations.
@@ -347,14 +340,14 @@ std::shared_ptr<WasmImportWrapperHandle> WasmImportWrapperCache::CompileWrapper(
       return wrapper_handle;
     }
 
-    bool existing_handle = wrapper_handle != nullptr;
-    wasm_code = cache_scope.AddWrapper(std::move(result), code_kind,
-                                       sig->signature_hash(), wrapper_handle);
-    DCHECK(wrapper_handle != nullptr);
-
-    if (!existing_handle) {
+    if (!wrapper_handle) {
+      wrapper_handle = std::make_shared<WasmImportWrapperHandle>(
+          kNullAddress, sig->signature_hash());
       entry_map_[cache_key] = wrapper_handle;
     }
+
+    wasm_code = cache_scope.AddWrapper(std::move(result), code_kind,
+                                       sig->signature_hash(), wrapper_handle);
   }
 
   // To avoid lock order inversion, code printing must happen after the
@@ -383,14 +376,15 @@ WasmImportWrapperCache::CompileWasmJsFastCallWrapper(
   WasmCompilationResult result =
       compiler::CompileWasmJSFastCallWrapper(sig, callable);
 
-  std::shared_ptr<WasmImportWrapperHandle> wrapper_handle;
+  std::shared_ptr<WasmImportWrapperHandle> wrapper_handle =
+      std::make_shared<WasmImportWrapperHandle>(kNullAddress,
+                                                sig->signature_hash());
   WasmCode* wasm_code;
   {
     ModificationScope cache_scope(this);
     wasm_code = cache_scope.AddWrapper(std::move(result),
                                        WasmCode::Kind::kWasmToJsWrapper,
                                        sig->signature_hash(), wrapper_handle);
-    DCHECK(wrapper_handle != nullptr);
   }
   // To avoid lock order inversion, code printing must happen after the
   // end of the {cache_scope}.

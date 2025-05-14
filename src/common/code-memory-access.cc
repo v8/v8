@@ -666,6 +666,14 @@ WritableJitAllocation WritableJitAllocation::ForInstructionStream(
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 
+void WritableJitAllocation::UpdateWasmCodePointer(WasmCodePointer code_pointer,
+                                                  uint64_t signature_hash) {
+  std::optional<RwxMemoryWriteScope> write_scope =
+      WriteScopeForApiEnforcement();
+  wasm::GetProcessWideWasmCodePointerTable()->UpdateEntrypointUnlocked(
+      code_pointer, address_, signature_hash);
+}
+
 // static
 WritableJumpTablePair ThreadIsolation::LookupJumpTableAllocations(
     Address jump_table_address, size_t jump_table_size,

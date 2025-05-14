@@ -57,7 +57,7 @@ class WasmImportWrapperCache {
     WasmCode* AddWrapper(
         WasmCompilationResult result, WasmCode::Kind kind,
         uint64_t signature_hash,
-        std::shared_ptr<wasm::WasmImportWrapperHandle>& maybe_handle);
+        std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle);
 
    private:
     WasmImportWrapperCache* const cache_;
