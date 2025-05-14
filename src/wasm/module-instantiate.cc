@@ -2331,16 +2331,6 @@ bool InstanceBuilder::ProcessImportedFunction(
       resolved.trusted_function_data();
   ImportedFunctionEntry imported_entry(trusted_instance_data, func_index);
   switch (kind) {
-    case ImportCallKind::kRuntimeTypeError:
-      if (v8_flags.wasm_generic_wrapper) {
-        imported_entry.SetGenericWasmToJs(isolate_, callable, kind,
-                                          resolved.suspend(), expected_sig,
-                                          sig_index);
-        return true;
-      }
-      // Otherwise fall through to the generic handling below.
-      break;
-
     case ImportCallKind::kLinkError:
       thrower_->LinkError(
           "%s: imported function does not match the expected type",
@@ -2367,21 +2357,6 @@ bool InstanceBuilder::ProcessImportedFunction(
       return true;
     }
 
-    case ImportCallKind::kWasmToCapi: {
-      int expected_arity = static_cast<int>(expected_sig->parameter_count());
-      WasmImportWrapperCache* cache = GetWasmImportWrapperCache();
-      std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
-          cache->GetCompiled(isolate_, kind, sig_index, expected_arity,
-                             kNoSuspend, expected_sig);
-
-      // We reuse the SetCompiledWasmToJs infrastructure because it passes the
-      // callable to the wrapper, which we need to get the function data.
-      imported_entry.SetCompiledWasmToJs(isolate_, callable,
-                                         std::move(wrapper_handle), kNoSuspend,
-                                         expected_sig, sig_index);
-      return true;
-    }
-
     case ImportCallKind::kWasmToJSFastApi: {
       DCHECK(IsJSFunction(*callable) || IsJSBoundFunction(*callable));
 
@@ -2389,23 +2364,17 @@ bool InstanceBuilder::ProcessImportedFunction(
           GetWasmImportWrapperCache()->CompileWasmJsFastCallWrapper(
               isolate_, callable, expected_sig);
 
-      imported_entry.SetCompiledWasmToJs(isolate_, callable,
-                                         std::move(wrapper_handle), kNoSuspend,
-                                         expected_sig, sig_index);
+      imported_entry.SetWasmToWrapper(isolate_, callable,
+                                      std::move(wrapper_handle), kNoSuspend,
+                                      expected_sig, sig_index);
       return true;
     }
-    default:
+    case ImportCallKind::kRuntimeTypeError:
+    case ImportCallKind::kJSFunction:
+    case ImportCallKind::kUseCallBuiltin:
+    case ImportCallKind::kWasmToCapi:
+      // These cases are handled below.
       break;
-  }
-
-  // TODO(sroettger): merge SetCompiledWasmToJs and SetGenericWasmToJs to
-  // simplify all the code below.
-  if (UseGenericWasmToJSWrapper(kind, expected_sig, resolved.suspend()) ||
-      v8_flags.wasm_jitless) {
-    DCHECK(kind == ImportCallKind::kJSFunction);
-    imported_entry.SetGenericWasmToJs(
-        isolate_, callable, kind, resolved.suspend(), expected_sig, sig_index);
-    return true;
   }
 
   int expected_arity = static_cast<int>(expected_sig->parameter_count());
@@ -2416,17 +2385,12 @@ bool InstanceBuilder::ProcessImportedFunction(
   }
 
   WasmImportWrapperCache* cache = GetWasmImportWrapperCache();
-  // This should be a very rare fallback case. We expect that the
-  // generic wrapper will be used (see above).
   std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
-      cache->GetCompiled(isolate_, kind, sig_index, expected_arity,
-                         resolved.suspend(), expected_sig);
-  DCHECK(wrapper_handle->has_code());
-  CHECK_EQ(wrapper_handle->code().kind(), WasmCode::kWasmToJsWrapper);
-  // Wasm to JS wrappers are treated specially in the import table.
-  imported_entry.SetCompiledWasmToJs(
-      isolate_, callable, std::move(wrapper_handle), resolved.suspend(),
-      expected_sig, sig_index);
+      cache->Get(isolate_, kind, sig_index, expected_arity, resolved.suspend(),
+                 expected_sig);
+
+  imported_entry.SetWasmToWrapper(isolate_, callable, std::move(wrapper_handle),
+                                  resolved.suspend(), expected_sig, sig_index);
 
   return true;
 }

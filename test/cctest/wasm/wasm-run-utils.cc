@@ -107,8 +107,8 @@ TestingModuleBuilder::TestingModuleBuilder(
             kNoSuspend, sig);
 
     ImportedFunctionEntry(trusted_instance_data_, maybe_import_index)
-        .SetCompiledWasmToJs(isolate_, callable, std::move(wrapper_handle),
-                             resolved.suspend(), sig, sig_index);
+        .SetWasmToWrapper(isolate_, callable, std::move(wrapper_handle),
+                          resolved.suspend(), sig, sig_index);
   }
 }
 

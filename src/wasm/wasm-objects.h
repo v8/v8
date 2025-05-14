@@ -114,7 +114,7 @@ static constexpr int kConstructorFunctionContextLength =
 // The underlying storage in the instance is used by generated code to
 // call imported functions at runtime.
 // Each entry is either:
-//   - Wasm to JS, which has fields
+//   - Wasm to Wrapper, which has fields
 //      - object = a WasmImportData
 //      - target = entrypoint to import wrapper code
 //   - Wasm to Wasm, which has fields
@@ -125,18 +125,6 @@ class ImportedFunctionEntry {
   inline ImportedFunctionEntry(DirectHandle<WasmTrustedInstanceData>,
                                int index);
 
-  // Initialize this entry as a Wasm to JS call. This accepts the isolate as a
-  // parameter since it allocates a WasmImportData.
-  void SetGenericWasmToJs(Isolate*, DirectHandle<JSReceiver> callable,
-                          wasm::ImportCallKind kind, wasm::Suspend suspend,
-                          const wasm::CanonicalSig* sig,
-                          wasm::CanonicalTypeIndex sig_id);
-  V8_EXPORT_PRIVATE void SetCompiledWasmToJs(
-      Isolate*, DirectHandle<JSReceiver> callable,
-      std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle,
-      wasm::Suspend suspend, const wasm::CanonicalSig* sig,
-      wasm::CanonicalTypeIndex sig_id);
-
   // Initialize this entry as a Wasm to Wasm call.
   void SetWasmToWasm(Tagged<WasmTrustedInstanceData> target_instance_object,
                      WasmCodePointer call_target,
@@ -146,6 +134,15 @@ class ImportedFunctionEntry {
                      int exported_function_index
 #endif  // V8_ENABLE_DRUMBRAKE
   );
+
+  // Initialize this entry as a Wasm to non-Wasm call, i.e. anything that needs
+  // an import wrapper. This accepts the isolate as a parameter since it
+  // allocates a WasmImportData.
+  V8_EXPORT_PRIVATE void SetWasmToWrapper(
+      Isolate*, DirectHandle<JSReceiver> callable,
+      std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle,
+      wasm::Suspend suspend, const wasm::CanonicalSig* sig,
+      wasm::CanonicalTypeIndex sig_id);
 
   Tagged<JSReceiver> callable();
   Tagged<Object> maybe_callable();

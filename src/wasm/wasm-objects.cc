@@ -1505,50 +1505,7 @@ FunctionTargetAndImplicitArg::FunctionTargetAndImplicitArg(
   call_target_ = target_instance_data->GetCallTarget(target_func_index);
 }
 
-void ImportedFunctionEntry::SetGenericWasmToJs(
-    Isolate* isolate, DirectHandle<JSReceiver> callable,
-    wasm::ImportCallKind kind, wasm::Suspend suspend,
-    const wasm::CanonicalSig* sig, wasm::CanonicalTypeIndex sig_id) {
-  DCHECK(kind == wasm::ImportCallKind::kJSFunction ||
-         kind == wasm::ImportCallKind::kRuntimeTypeError);
-
-  int expected_arity = static_cast<int>(sig->parameter_count());
-  if (kind == wasm::ImportCallKind::kJSFunction) {
-    CHECK(Is<JSFunction>(callable));
-    expected_arity = Cast<JSFunction>(callable)
-                         ->shared()
-                         ->internal_formal_parameter_count_without_receiver();
-  }
-  wasm::WasmImportWrapperCache* wrapper_cache =
-      wasm::GetWasmImportWrapperCache();
-  std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
-      wrapper_cache->Get(isolate, kind, sig_id, expected_arity, suspend, sig);
-
-  TRACE_IFT("Import callable 0x%" PRIxPTR "[%d] = {callable=0x%" PRIxPTR
-            ", target=0x%" PRIxPTR "}\n",
-            instance_data_->ptr(), index_, callable->ptr(),
-            wasm::GetProcessWideWasmCodePointerTable()->GetEntrypoint(
-                wrapper_handle->code_pointer(), sig->signature_hash()));
-  constexpr bool kShared = false;
-  DirectHandle<WasmImportData> import_data =
-      isolate->factory()->NewWasmImportData(callable, suspend, instance_data_,
-                                            sig, kShared);
-  import_data->SetIndexInTableAsCallOrigin(
-      instance_data_->dispatch_table_for_imports(), index_);
-  DisallowGarbageCollection no_gc;
-
-  instance_data_->dispatch_table_for_imports()->SetForWrapper(
-      index_, *import_data, std::move(wrapper_handle), sig_id,
-#if V8_ENABLE_DRUMBRAKE
-      WasmDispatchTable::kInvalidFunctionIndex,
-#endif  // V8_ENABLE_DRUMBRAKE
-      WasmDispatchTable::kNewEntry);
-#if V8_ENABLE_DRUMBRAKE
-  instance_data_->imported_function_indices()->set(index_, -1);
-#endif  // V8_ENABLE_DRUMBRAKE
-}
-
-void ImportedFunctionEntry::SetCompiledWasmToJs(
+void ImportedFunctionEntry::SetWasmToWrapper(
     Isolate* isolate, DirectHandle<JSReceiver> callable,
     std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle,
     wasm::Suspend suspend, const wasm::CanonicalSig* sig,
@@ -1559,16 +1516,23 @@ void ImportedFunctionEntry::SetCompiledWasmToJs(
             wrapper_handle->has_code()
                 ? nullptr
                 : wrapper_handle->code().instructions().begin());
-  DCHECK(!v8_flags.wasm_jitless);
-  DCHECK(wrapper_handle->code().kind() == wasm::WasmCode::kWasmToJsWrapper ||
-         wrapper_handle->code().kind() == wasm::WasmCode::kWasmToCapiWrapper);
-  DCHECK(wrapper_handle->has_code());
-  DCHECK_EQ(wrapper_handle->code().signature_hash(), sig->signature_hash());
+
+  if (wrapper_handle->has_code()) {
+    DCHECK(wrapper_handle->code().kind() == wasm::WasmCode::kWasmToJsWrapper ||
+           wrapper_handle->code().kind() == wasm::WasmCode::kWasmToCapiWrapper);
+    DCHECK_EQ(wrapper_handle->code().signature_hash(), sig->signature_hash());
+  }
 
   constexpr bool kShared = false;
   DirectHandle<WasmImportData> import_data =
       isolate->factory()->NewWasmImportData(callable, suspend, instance_data_,
                                             sig, kShared);
+
+  if (!wrapper_handle->has_code()) {
+    import_data->SetIndexInTableAsCallOrigin(
+        instance_data_->dispatch_table_for_imports(), index_);
+  }
+
   DisallowGarbageCollection no_gc;
   Tagged<WasmDispatchTable> dispatch_table =
       instance_data_->dispatch_table_for_imports();
