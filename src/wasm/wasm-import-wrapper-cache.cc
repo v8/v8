@@ -376,7 +376,8 @@ std::shared_ptr<WasmImportWrapperHandle> WasmImportWrapperCache::CompileWrapper(
 
 std::shared_ptr<WasmImportWrapperHandle>
 WasmImportWrapperCache::CompileWasmJsFastCallWrapper(
-    DirectHandle<JSReceiver> callable, const wasm::CanonicalSig* sig) {
+    Isolate* isolate, DirectHandle<JSReceiver> callable,
+    const wasm::CanonicalSig* sig) {
   // Note: the wrapper we're about to compile is specific to this
   // instantiation, so it cannot be shared.
   WasmCompilationResult result =
@@ -394,7 +395,14 @@ WasmImportWrapperCache::CompileWasmJsFastCallWrapper(
   // To avoid lock order inversion, code printing must happen after the
   // end of the {cache_scope}.
   wasm_code->MaybePrint();
-  // TODO(sroettger): add code logging similar to what {CompileWrapper()} does.
+  isolate->counters()->wasm_generated_code_size()->Increment(
+      wasm_code->instructions().length());
+  isolate->counters()->wasm_reloc_size()->Increment(
+      wasm_code->reloc_info().length());
+  if (GetWasmEngine()->LogWrapperCode(wasm_code)) {
+    // Log the code immediately in the current isolate.
+    GetWasmEngine()->LogOutstandingCodesForIsolate(isolate);
+  }
 
   return wrapper_handle;
 }

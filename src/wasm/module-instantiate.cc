@@ -2387,7 +2387,7 @@ bool InstanceBuilder::ProcessImportedFunction(
 
       std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
           GetWasmImportWrapperCache()->CompileWasmJsFastCallWrapper(
-              callable, expected_sig);
+              isolate_, callable, expected_sig);
 
       imported_entry.SetCompiledWasmToJs(isolate_, callable,
                                          std::move(wrapper_handle), kNoSuspend,

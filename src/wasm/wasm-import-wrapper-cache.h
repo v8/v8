@@ -82,7 +82,8 @@ class WasmImportWrapperCache {
 
   V8_EXPORT_PRIVATE
   std::shared_ptr<WasmImportWrapperHandle> CompileWasmJsFastCallWrapper(
-      DirectHandle<JSReceiver> callable, const wasm::CanonicalSig* sig);
+      Isolate* isolate, DirectHandle<JSReceiver> callable,
+      const wasm::CanonicalSig* sig);
 
   WasmCode* Lookup(Address pc) const;
 
