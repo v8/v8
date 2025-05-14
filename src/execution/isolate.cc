@@ -6247,7 +6247,8 @@ void Isolate::IncreaseDateCacheStampAndInvalidateProtector() {
     isolate_data()->date_cache_stamp_ = 1;
   }
 
-  Protectors::InvalidateNoDateTimeConfigurationChange(this);
+  heap()->no_date_time_configuration_change_protector()->InvalidateProtector(
+      this);
 }
 
 Isolate::KnownPrototype Isolate::IsArrayOrObjectOrStringPrototype(

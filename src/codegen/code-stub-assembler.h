@@ -2909,7 +2909,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsNumberStringNotRegexpLikeProtectorCellInvalid();
   TNode<BoolT> IsSetIteratorProtectorCellInvalid();
   TNode<BoolT> IsMapIteratorProtectorCellInvalid();
-  TNode<BoolT> IsStringWrapperToPrimitiveProtectorCellInvalid();
   void InvalidateStringWrapperToPrimitiveProtector();
 
   TNode<IntPtrT> LoadMemoryChunkFlags(TNode<HeapObject> object);
