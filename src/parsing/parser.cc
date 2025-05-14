@@ -337,6 +337,7 @@ bool Parser::ShortcutStringLiteralAppendExpression(Expression** x,
   }
   if ((*x)->IsConsStringLiteral()) {
     (*x)->AsLiteral()->AsConsString()->AddString(zone(), y_val);
+    (*x)->clear_parenthesized();
     return true;
   }
   return false;
