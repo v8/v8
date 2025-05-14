@@ -4615,7 +4615,7 @@ void Isolate::Deinit() {
   external_pointer_table().TearDownSpace(
       heap()->young_external_pointer_space());
   external_pointer_table().TearDownSpace(heap()->old_external_pointer_space());
-  external_pointer_table().DetachSpaceFromReadOnlySegment(
+  external_pointer_table().DetachSpaceFromReadOnlySegments(
       heap()->read_only_external_pointer_space());
   external_pointer_table().TearDownSpace(
       heap()->read_only_external_pointer_space());
@@ -5603,7 +5603,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     external_pointer_table().Initialize();
     external_pointer_table().InitializeSpace(
         heap()->read_only_external_pointer_space());
-    external_pointer_table().AttachSpaceToReadOnlySegment(
+    external_pointer_table().AttachSpaceToReadOnlySegments(
         heap()->read_only_external_pointer_space());
     external_pointer_table().InitializeSpace(
         heap()->young_external_pointer_space());

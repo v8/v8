@@ -107,7 +107,7 @@ void JSDispatchTable::SetCodeAndEntrypointNoWriteBarrier(
   DCHECK(!HeapLayout::InYoungGeneration(new_code));
 
   uint32_t index = HandleToIndex(handle);
-  DCHECK_GE(index, kEndOfInternalReadOnlySegment);
+  DCHECK_GE(index, kEndOfReadOnlyIndex);
   CFIMetadataWriteScope write_scope("JSDispatchTable update");
   at(index).SetCodeAndEntrypointPointer(new_code.ptr(), new_entrypoint);
 }
@@ -117,7 +117,7 @@ void JSDispatchTable::SetTieringRequest(JSDispatchHandle handle,
                                         Isolate* isolate) {
   DCHECK(IsValidTieringBuiltin(builtin));
   uint32_t index = HandleToIndex(handle);
-  DCHECK_GE(index, kEndOfInternalReadOnlySegment);
+  DCHECK_GE(index, kEndOfReadOnlyIndex);
   CFIMetadataWriteScope write_scope("JSDispatchTable update");
   at(index).SetEntrypointPointer(
       isolate->builtin_entry_table()[static_cast<uint32_t>(builtin)]);
@@ -125,7 +125,7 @@ void JSDispatchTable::SetTieringRequest(JSDispatchHandle handle,
 
 bool JSDispatchTable::IsTieringRequested(JSDispatchHandle handle) {
   uint32_t index = HandleToIndex(handle);
-  DCHECK_GE(index, kEndOfInternalReadOnlySegment);
+  DCHECK_GE(index, kEndOfReadOnlyIndex);
   Address entrypoint = at(index).GetEntrypoint();
   Address code_entrypoint = at(index).GetCode()->instruction_start();
   return code_entrypoint != entrypoint;
@@ -135,7 +135,7 @@ bool JSDispatchTable::IsTieringRequested(JSDispatchHandle handle,
                                          TieringBuiltin builtin,
                                          Isolate* isolate) {
   uint32_t index = HandleToIndex(handle);
-  DCHECK_GE(index, kEndOfInternalReadOnlySegment);
+  DCHECK_GE(index, kEndOfReadOnlyIndex);
   Address entrypoint = at(index).GetEntrypoint();
   Address code_entrypoint = at(index).GetCode()->instruction_start();
   if (entrypoint == code_entrypoint) return false;
@@ -145,7 +145,7 @@ bool JSDispatchTable::IsTieringRequested(JSDispatchHandle handle,
 
 void JSDispatchTable::ResetTieringRequest(JSDispatchHandle handle) {
   uint32_t index = HandleToIndex(handle);
-  DCHECK_GE(index, kEndOfInternalReadOnlySegment);
+  DCHECK_GE(index, kEndOfReadOnlyIndex);
   CFIMetadataWriteScope write_scope("JSDispatchTable update");
   at(index).SetEntrypointPointer(at(index).GetCode()->instruction_start());
 }
@@ -272,7 +272,7 @@ void JSDispatchTable::Mark(JSDispatchHandle handle) {
   uint32_t index = HandleToIndex(handle);
 
   // The read-only space is immortal and cannot be written to.
-  if (index < kEndOfInternalReadOnlySegment) return;
+  if (index < kEndOfReadOnlyIndex) return;
 
   CFIMetadataWriteScope write_scope("JSDispatchTable write");
   at(index).Mark();
