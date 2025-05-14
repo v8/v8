@@ -999,6 +999,9 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
           op1.Cast<Simd128LoadTransformOp>();
       StoreLoadInfo<Simd128LoadTransformOp> info0(&graph_, &transform_op0);
       StoreLoadInfo<Simd128LoadTransformOp> info1(&graph_, &transform_op1);
+      if (!info0.IsValid() || !info1.IsValid()) {
+        return NewForcePackNode(node_group, ForcePackNode::kGeneral, graph_);
+      }
       auto stride = info1 - info0;
       if (IsLoadSplat(transform_op0)) {
         TRACE("Simd128LoadTransform: LoadSplat\n");
@@ -1042,13 +1045,15 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
       }
       StoreLoadInfo<LoadOp> info0(&graph_, &load0);
       StoreLoadInfo<LoadOp> info1(&graph_, &load1);
-      auto stride = info1 - info0;
-      if (stride.has_value()) {
-        if (const int value = stride.value(); value == kSimd128Size) {
-          // TODO(jiepan) Sort load
-          return NewPackNode(node_group);
-        } else if (value == 0) {
-          return NewForcePackNode(node_group, ForcePackNode::kSplat, graph_);
+      if (info0.IsValid() && info1.IsValid()) {
+        auto stride = info1 - info0;
+        if (stride.has_value()) {
+          if (const int value = stride.value(); value == kSimd128Size) {
+            // TODO(jiepan) Sort load
+            return NewPackNode(node_group);
+          } else if (value == 0) {
+            return NewForcePackNode(node_group, ForcePackNode::kSplat, graph_);
+          }
         }
       }
       return NewForcePackNode(node_group, ForcePackNode::kGeneral, graph_);

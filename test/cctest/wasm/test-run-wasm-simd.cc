@@ -6969,6 +6969,48 @@ TEST(RunWasmTurbofan_DifferentOpcodeRevecExpectFail) {
   }
 }
 
+// Signed overflow in offset + index.
+TEST(RunWasmTurbofan_OffsetAddIndexOverflowRevecExpectFail) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+  uint32_t mem_size =
+      static_cast<uint32_t>(max_mem32_pages() * 0.6 * kWasmPageSize);
+  uint8_t* memory = r.builder().AddMemory(mem_size);
+  // int32_t(index) + 32 will overflow.
+  constexpr uint32_t index = 2147483646;
+  // Avoid OOB.
+  if (index + 48 >= mem_size) {
+    return;
+  }
+
+  {
+    TSSimd256VerifyScope ts_scope(r.zone(),
+                                  TSSimd256VerifyScope::VerifyHaveAnySimd256Op,
+                                  ExpectedResult::kFail);
+
+    uint8_t temp1 = r.AllocateLocal(kWasmS128);
+    uint8_t temp2 = r.AllocateLocal(kWasmS128);
+    r.Build(
+        {WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM_OFFSET(16, WASM_I32V(index))),
+         WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM_OFFSET(32, WASM_I32V(index))),
+         WASM_SIMD_STORE_MEM(
+             WASM_ZERO, WASM_SIMD_UNOP(kExprS128Not, WASM_LOCAL_GET(temp1))),
+         WASM_SIMD_STORE_MEM_OFFSET(
+             16, WASM_ZERO,
+             WASM_SIMD_UNOP(kExprS128Not, WASM_LOCAL_GET(temp2))),
+         WASM_ONE});
+  }
+
+  for (uint32_t i = 0; i < kSimd128Size * 2; ++i) {
+    memory[i + 16 + index] = i;
+  }
+  r.Call();
+  for (uint32_t i = 0; i < kSimd128Size * 2; ++i) {
+    CHECK_EQ(~memory[16 + index + i] & 0xFF, memory[i]);
+  }
+}
+
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 #undef WASM_SIMD_CHECK_LANE_S
