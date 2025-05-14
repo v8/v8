@@ -1386,10 +1386,12 @@ static void TickLines(bool optimize) {
   ProfileNode* func_node = root->FindChild(func_entry);
   CHECK(func_node);
 
-  // Add 10 faked ticks to source line #5.
+  // Add 10 faked ticks to source position #5:1.
   int hit_line = 5;
+  int hit_col = 1;
   int hit_count = 10;
-  for (int i = 0; i < hit_count; i++) func_node->IncrementLineTicks(hit_line);
+  for (int i = 0; i < hit_count; i++)
+    func_node->IncrementLineAndColumnTicks({hit_line, hit_col});
 
   unsigned int line_count = func_node->GetHitLineCount();
   CHECK_EQ(2u, line_count);  // Expect two hit source lines - #1 and #5.
@@ -1397,7 +1399,7 @@ static void TickLines(bool optimize) {
   CHECK(func_node->GetLineTicks(&entries[0], line_count));
   int value = 0;
   for (int i = 0; i < entries.length(); i++)
-    if (entries[i].line == hit_line) {
+    if (entries[i].line == hit_line && entries[i].column == hit_col) {
       value = entries[i].hit_count;
       break;
     }
@@ -3269,8 +3271,8 @@ TEST(SourcePositionTable) {
   CHECK_EQ(SourcePosition::kNotInlined, info.GetInliningId(100));
   CHECK_EQ(no_info, info.GetSourceLineNumber(std::numeric_limits<int>::max()));
 
-  info.SetPosition(10, 1, SourcePosition::kNotInlined);
-  info.SetPosition(20, 2, SourcePosition::kNotInlined);
+  info.SetPosition(10, {1, 0}, SourcePosition::kNotInlined);
+  info.SetPosition(20, {2, 0}, SourcePosition::kNotInlined);
 
   // The only valid return values are 1 or 2 - every pc maps to a line
   // number.
@@ -3290,7 +3292,7 @@ TEST(SourcePositionTable) {
   CHECK_EQ(SourcePosition::kNotInlined, info.GetInliningId(100));
 
   // Test SetPosition behavior.
-  info.SetPosition(25, 3, 0);
+  info.SetPosition(25, {3, 0}, 0);
   CHECK_EQ(2, info.GetSourceLineNumber(21));
   CHECK_EQ(3, info.GetSourceLineNumber(100));
   CHECK_EQ(3, info.GetSourceLineNumber(std::numeric_limits<int>::max()));
@@ -3299,7 +3301,12 @@ TEST(SourcePositionTable) {
   CHECK_EQ(0, info.GetInliningId(100));
 
   // Test that subsequent SetPosition calls with the same pc_offset are ignored.
-  info.SetPosition(25, 4, SourcePosition::kNotInlined);
+  info.SetPosition(25,
+                   {
+                       4,
+                       0,
+                   },
+                   SourcePosition::kNotInlined);
   CHECK_EQ(2, info.GetSourceLineNumber(21));
   CHECK_EQ(3, info.GetSourceLineNumber(100));
   CHECK_EQ(3, info.GetSourceLineNumber(std::numeric_limits<int>::max()));

@@ -11269,13 +11269,13 @@ bool CpuProfileNode::IsScriptSharedCrossOrigin() const {
 }
 
 int CpuProfileNode::GetLineNumber() const {
-  return reinterpret_cast<const i::ProfileNode*>(this)->line_number();
+  return reinterpret_cast<const i::ProfileNode*>(this)->line_and_column().line;
 }
 
 int CpuProfileNode::GetColumnNumber() const {
   return reinterpret_cast<const i::ProfileNode*>(this)
-      ->entry()
-      ->column_number();
+      ->line_and_column()
+      .column;
 }
 
 unsigned int CpuProfileNode::GetHitLineCount() const {

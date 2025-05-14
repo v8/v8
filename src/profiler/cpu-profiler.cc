@@ -240,7 +240,7 @@ void SamplingEventsProcessor::SymbolizeAndAddToProfiles(
   Symbolizer::SymbolizedSample symbolized =
       symbolizer_->SymbolizeTickSample(tick_sample);
   profiles_->AddPathToCurrentProfiles(
-      tick_sample.timestamp, symbolized.stack_trace, symbolized.src_line,
+      tick_sample.timestamp, symbolized.stack_trace, symbolized.src_pos,
       tick_sample.update_stats_, tick_sample.sampling_interval_,
       tick_sample.state, tick_sample.embedder_state,
       reinterpret_cast<Address>(tick_sample.context),
