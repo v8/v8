@@ -41,9 +41,10 @@ class V8_EXPORT_PRIVATE SegmentedTable {
   static constexpr bool kUseContiguousMemory = true;
   static constexpr size_t kReservationSize = size;
   static constexpr size_t kMaxCapacity = kReservationSize / kEntrySize;
-#ifdef V8_TARGET_OS_WIN
+#if defined(V8_TARGET_OS_WIN) || defined(V8_HOST_ARCH_PPC64)
   // On windows the allocation granularity is 64KB and thus we cannot make a
   // segment smaller than that.
+  // PPC64 can utilize a 64KB page size.
   static constexpr bool kUseSegmentPool = false;
   static constexpr size_t kSegmentSize = 64 * KB;
 #else
