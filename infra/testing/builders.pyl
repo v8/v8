@@ -649,14 +649,6 @@
       {'name': 'v8testing', 'shards': 3},
     ],
   },
-  'v8_linux64_no_leaptiering_dbg': {
-    'swarming_dimensions' : {
-      'os': 'Ubuntu-22.04',
-    },
-    'tests': [
-      {'name': 'v8testing', 'shards': 5},
-    ],
-  },
   'v8_linux64_no_shared_cage_dbg': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-22.04',
@@ -1825,14 +1817,6 @@
     },
     'tests': [
       {'name': 'v8testing'},
-    ],
-  },
-  'V8 Linux64 - no leaptiering - debug': {
-    'swarming_dimensions' : {
-      'os': 'Ubuntu-22.04',
-    },
-    'tests': [
-      {'name': 'v8testing', 'shards': 5},
     ],
   },
   'V8 Linux64 - no shared cage - debug': {
