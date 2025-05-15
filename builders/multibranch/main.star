@@ -139,12 +139,6 @@ in_category(
         properties = {"track_build_dependencies": True, "binary_size_tracking": {"category": "linux64_no_wasm", "binary": "d8"}},
         use_remoteexec = RECLIENT.DEFAULT,
     ),
-    main_multibranch_builder_pair(
-        name = "V8 Linux64 - no leaptiering - debug",
-        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        use_remoteexec = RECLIENT.DEFAULT,
-        barrier = BARRIER.TREE_CLOSER,
-    ),
     main_multibranch_builder(
         name = "V8 Linux64 - bazel - builder",
         dimensions = {"host_class": "strong", "os": "Ubuntu-22.04", "cpu": "x86-64"},
