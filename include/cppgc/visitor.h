@@ -369,6 +369,11 @@ class V8_EXPORT Visitor {
     return false;
   }
 
+  /**
+   * Checks whether the visitor is running concurrently to the mutator or not.
+   */
+  virtual bool IsConcurrent() const { return false; }
+
  protected:
   virtual void Visit(const void* self, TraceDescriptor) {}
   virtual void VisitWeak(const void* self, TraceDescriptor, WeakCallback,
