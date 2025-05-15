@@ -47,6 +47,12 @@ class NumFuzzer(base_runner.BaseTestRunner):
                            "tests to create in total")
 
     # Stress gc
+    parser.add_option(
+        "--allocation-offset",
+        default=0,
+        type="int",
+        help="probability [0-10] of adding allocation padding "
+        "to the test")
     parser.add_option("--stress-marking", default=0, type="int",
                       help="probability [0-10] of adding --stress-marking "
                            "flag to the test")
@@ -134,7 +140,8 @@ class NumFuzzer(base_runner.BaseTestRunner):
         'gc_fuzzer':
             bool(
                 max([
-                    self.options.stress_marking, self.options.stress_scavenge,
+                    self.options.allocation_offset, self.options.stress_marking,
+                    self.options.stress_scavenge,
                     self.options.stress_compaction, self.options.stress_gc,
                     self.options.stress_delay_tasks,
                     self.options.stress_stack_size,

@@ -116,6 +116,8 @@ def _drop_contradictory_flags(new_flags, existing_flags):
 
   def contradictory_flag(flag):
     flag_prefix = _flag_prefix(flag)
+    if not flag_prefix.startswith('--'):
+      return False
     return (flag_prefix in existing_flag_prefixes or
             _invert_flag(flag_prefix) in existing_flag_prefixes)
 
@@ -356,6 +358,35 @@ class InterruptBudgetFuzzer(Fuzzer):
       yield [flag1, flag2, flag3, flag4]
 
 
+class AllocationOffsetFuzzer(Fuzzer):
+  """Creates a random number of fake allocations before the actual test."""
+
+  def create_flags_generator(self, rng, test, analysis_value):
+    while True:
+      n_objects = rng.randint(0, 20)
+      n_vars = rng.randint(0, 10)
+      n_proxies = rng.randint(0, 4)
+      array_size = rng.choice([0, rng.randint(1, 100000)])
+
+      flags = []
+
+      def add(content):
+        # Pad with one space so that shell deterministically adds quotations.
+        flags.extend(['-e', f' {content}'])
+
+      if n_objects:
+        add('[];' * n_objects)
+      if n_vars:
+        add(' '.join([f'var __pv_{i};' for i in range(n_vars)]))
+      if n_proxies:
+        add(' '.join([
+            f'var __pp_{i} = new Proxy({{}}, {{}});' for i in range(n_proxies)
+        ]))
+      if array_size:
+        add(f'var __pa = new Array({array_size});')
+
+      yield flags
+
 class StackSizeFuzzer(Fuzzer):
   def create_flags_generator(self, rng, test, analysis_value):
     while True:
@@ -402,6 +433,7 @@ class DeoptFuzzer(Fuzzer):
 
 
 FUZZERS = {
+    'allocation': (None, AllocationOffsetFuzzer),
     'compaction': (None, CompactionFuzzer),
     'delay': (None, TaskDelayFuzzer),
     'deopt': (DeoptAnalyzer, DeoptFuzzer),

@@ -2622,6 +2622,15 @@
       {'name': 'd8testing_random_gc', 'shards': 2},
       {
         'name': 'numfuzz',
+        'suffix': 'allocation',
+        'test_args': [
+          '--total-timeout-sec=2100',
+          '--allocation-offset=1',
+          '--extra-flags=--gc-interval=500',
+        ]
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'marking',
         'test_args': ['--total-timeout-sec=2100', '--stress-marking=1']
       },
@@ -2650,6 +2659,7 @@
         'suffix': 'combined',
         'test_args': [
           '--total-timeout-sec=2100',
+          '--allocation-offset=2',
           '--stress-delay-tasks=4',
           '--stress-deopt=2',
           '--stress-compaction=2',
@@ -2682,6 +2692,15 @@
       {'name': 'd8testing_random_gc', 'shards': 2},
       {
         'name': 'numfuzz',
+        'suffix': 'allocation',
+        'test_args': [
+          '--total-timeout-sec=2100',
+          '--allocation-offset=1',
+          '--extra-flags=--gc-interval=500',
+        ]
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'marking',
         'test_args': ['--total-timeout-sec=2100', '--stress-marking=1']
       },
@@ -2710,6 +2729,7 @@
         'suffix': 'combined',
         'test_args': [
           '--total-timeout-sec=2100',
+          '--allocation-offset=2',
           '--stress-delay-tasks=4',
           '--stress-deopt=2',
           '--stress-compaction=2',
@@ -2742,6 +2762,15 @@
       {'name': 'd8testing_random_gc'},
       {
         'name': 'numfuzz',
+        'suffix': 'allocation',
+        'test_args': [
+          '--total-timeout-sec=2100',
+          '--allocation-offset=1',
+          '--extra-flags=--gc-interval=500',
+        ]
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'marking',
         'test_args': ['--total-timeout-sec=2100', '--stress-marking=1'],
         'shards': 2
@@ -2771,6 +2800,7 @@
         'suffix': 'combined',
         'test_args': [
           '--total-timeout-sec=2100',
+          '--allocation-offset=2',
           '--stress-delay-tasks=4',
           '--stress-deopt=2',
           '--stress-compaction=2',
@@ -2820,6 +2850,15 @@
     'tests': [
       {
         'name': 'numfuzz',
+        'suffix': 'allocation',
+        'test_args': [
+          '--total-timeout-sec=900',
+          '--allocation-offset=1',
+          '--extra-flags=--gc-interval=500',
+        ]
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'marking',
         'test_args': ['--total-timeout-sec=900', '--stress-marking=1']
       },
@@ -2848,6 +2887,7 @@
         'suffix': 'combined',
         'test_args': [
           '--total-timeout-sec=900',
+          '--allocation-offset=2',
           '--stress-delay-tasks=4',
           '--stress-deopt=2',
           '--stress-compaction=2',
@@ -2873,6 +2913,15 @@
     'tests': [
       {
         'name': 'numfuzz',
+        'suffix': 'allocation',
+        'test_args': [
+          '--total-timeout-sec=900',
+          '--allocation-offset=1',
+          '--extra-flags=--gc-interval=500',
+        ]
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'marking',
         'test_args': ['--total-timeout-sec=900', '--stress-marking=1']
       },
@@ -2901,6 +2950,7 @@
         'suffix': 'combined',
         'test_args': [
           '--total-timeout-sec=900',
+          '--allocation-offset=2',
           '--stress-delay-tasks=4',
           '--stress-deopt=2',
           '--stress-compaction=2',
@@ -2924,6 +2974,15 @@
       'os': 'Ubuntu-22.04',
     },
     'tests': [
+      {
+        'name': 'numfuzz',
+        'suffix': 'allocation',
+        'test_args': [
+          '--total-timeout-sec=900',
+          '--allocation-offset=1',
+          '--extra-flags=--gc-interval=500',
+        ]
+      },
       {
         'name': 'numfuzz',
         'suffix': 'marking',
@@ -2954,6 +3013,7 @@
         'suffix': 'combined',
         'test_args': [
           '--total-timeout-sec=900',
+          '--allocation-offset=2',
           '--stress-delay-tasks=4',
           '--stress-deopt=2',
           '--stress-compaction=2',
