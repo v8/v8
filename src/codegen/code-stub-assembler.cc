@@ -7722,6 +7722,14 @@ TNode<BoolT> CodeStubAssembler::IsMapIteratorProtectorCellInvalid() {
   return TaggedEqual(cell_value, invalid);
 }
 
+TNode<BoolT>
+CodeStubAssembler::IsStringWrapperToPrimitiveProtectorCellInvalid() {
+  TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
+  TNode<PropertyCell> cell = StringWrapperToPrimitiveProtectorConstant();
+  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  return TaggedEqual(cell_value, invalid);
+}
+
 TNode<BoolT> CodeStubAssembler::IsPrototypeInitialArrayPrototype(
     TNode<Context> context, TNode<Map> map) {
   const TNode<NativeContext> native_context = LoadNativeContext(context);
@@ -7744,8 +7752,12 @@ TNode<BoolT> CodeStubAssembler::IsPrototypeTypedArrayPrototype(
 }
 
 void CodeStubAssembler::InvalidateStringWrapperToPrimitiveProtector() {
-  TNode<PropertyCell> cell = StringWrapperToPrimitiveProtectorConstant();
-  CallRuntime(Runtime::kInvalidateProtector, NoContextConstant(), cell);
+  Label done(this);
+  GotoIf(IsStringWrapperToPrimitiveProtectorCellInvalid(), &done);
+  CallRuntime(Runtime::kInvalidateStringWrapperToPrimitiveProtector,
+              NoContextConstant());
+  Goto(&done);
+  Bind(&done);
 }
 
 TNode<BoolT> CodeStubAssembler::IsFastAliasedArgumentsMap(

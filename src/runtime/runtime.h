@@ -289,7 +289,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(GetAndResetTurboProfilingData, 0, 1)                   \
   F(GetTemplateObject, 3, 1)                               \
   F(IncrementUseCounter, 1, 1)                             \
-  F(InvalidateProtector, 1, 1)                             \
+  F(InvalidateStringWrapperToPrimitiveProtector, 1, 1)     \
   F(BytecodeBudgetInterrupt_Ignition, 1, 1)                \
   F(BytecodeBudgetInterruptWithStackCheck_Ignition, 1, 1)  \
   F(BytecodeBudgetInterrupt_Sparkplug, 1, 1)               \

@@ -11,6 +11,7 @@
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/messages.h"
+#include "src/execution/protectors-inl.h"
 #include "src/execution/tiering-manager.h"
 #include "src/handles/maybe-handles.h"
 #include "src/logging/counters.h"
@@ -790,11 +791,9 @@ RUNTIME_FUNCTION(Runtime_NotifyContextCellStateWillChange) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_InvalidateProtector) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  auto cell = Cast<PropertyCell>(args.at<HeapObject>(0));
-  cell->InvalidateProtector(isolate);
+RUNTIME_FUNCTION(Runtime_InvalidateStringWrapperToPrimitiveProtector) {
+  DCHECK_EQ(0, args.length());
+  Protectors::InvalidateStringWrapperToPrimitive(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
