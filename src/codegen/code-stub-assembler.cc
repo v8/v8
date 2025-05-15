@@ -833,6 +833,10 @@ TNode<Int32T> CodeStubAssembler::CountLeadingZeros32(TNode<Word32T> value) {
   return Word32Clz(value);
 }
 
+TNode<Int32T> CodeStubAssembler::NumberToMathClz32(TNode<Number> value) {
+  return Word32Clz(TruncateNumberToWord32(value));
+}
+
 template <>
 TNode<Smi> CodeStubAssembler::TaggedToParameter(TNode<Smi> value) {
   return value;

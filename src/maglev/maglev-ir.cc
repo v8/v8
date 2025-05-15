@@ -4917,6 +4917,41 @@ void Float64Abs::SetValueLocationConstraints() {
   DefineSameAsFirst(this);
 }
 
+void Int32CountLeadingZeros::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void Int32CountLeadingZeros::GenerateCode(MaglevAssembler* masm,
+                                          const ProcessingState&) {
+  Register in = ToRegister(input());
+  Register out = ToRegister(result());
+  __ CountLeadingZerosInt32(out, in);
+}
+
+void SmiCountLeadingZeros::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void SmiCountLeadingZeros::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState&) {
+  Register in = ToRegister(input());
+  Register out = ToRegister(result());
+  __ SmiToInt32(out, in);
+  __ CountLeadingZerosInt32(out, out);
+}
+
+void Float64CountLeadingZeros::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void Float64CountLeadingZeros::GenerateCode(MaglevAssembler* masm,
+                                            const ProcessingState& state) {
+  DoubleRegister in = ToDoubleRegister(input());
+  Register out = ToRegister(result());
+  __ TruncateDoubleToInt32(out, in);
+  __ CountLeadingZerosInt32(out, out);
+}
+
 void CheckedSmiTagFloat64::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);

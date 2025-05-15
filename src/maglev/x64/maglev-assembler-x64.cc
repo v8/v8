@@ -391,6 +391,10 @@ void MaglevAssembler::SeqOneByteStringCharCodeAt(Register result,
                                OFFSET_OF_DATA_START(SeqOneByteString)));
 }
 
+void MaglevAssembler::CountLeadingZerosInt32(Register dst, Register src) {
+  Lzcntl(dst, src);
+}
+
 void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
   ZoneLabelRef done(this);
 

@@ -556,6 +556,10 @@ void MaglevAssembler::SeqOneByteStringCharCodeAt(Register result,
   Lbu(result, MemOperand(scratch, 0));
 }
 
+void MaglevAssembler::CountLeadingZerosInt32(Register dst, Register src) {
+  Clz32(dst, src);
+}
+
 void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
   ZoneLabelRef done(this);
   Label* slow_path = MakeDeferredCode(
