@@ -817,17 +817,6 @@ struct OpEffects {
     // hoisted.
     return IsSubsetOf(OpEffects().CanReadMemory());
   }
-  // Operations that can be eliminated via value numbering, which means that if
-  // there are two identical operations where one dominates the other, then the
-  // second can be replaced with the first one. This is safe for deopting or
-  // throwing operations, because the absence of read effects guarantees
-  // deterministic behavior.
-  bool repetition_is_eliminatable() const {
-    return IsSubsetOf(OpEffects()
-                          .CanDependOnChecks()
-                          .CanChangeControlFlow()
-                          .CanAllocateWithoutIdentity());
-  }
   bool can_read_mutable_memory() const {
     return produces.load_heap_memory | produces.load_off_heap_memory;
   }
