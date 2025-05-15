@@ -20,6 +20,8 @@ namespace cppgc {
 
 namespace subtle {
 class HeapConsistency;
+template <typename, typename, typename>
+class TaggedUncompressedMember;
 }  // namespace subtle
 
 class Visitor;
@@ -328,6 +330,8 @@ class V8_TRIVIAL_ABI BasicMember final : private MemberBase<StorageType>,
   V8_INLINE T* GetFromGC() const { return Get(); }
 
   friend class cppgc::subtle::HeapConsistency;
+  template <typename, typename, typename>
+  friend class cppgc::subtle::TaggedUncompressedMember;
   friend class cppgc::Visitor;
   template <typename U>
   friend struct cppgc::TraceTrait;
