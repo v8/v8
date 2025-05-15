@@ -624,6 +624,9 @@ class WeakArrayList
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void Set(int index, Tagged<Smi> value);
 
+  using TorqueGeneratedWeakArrayList<WeakArrayList, HeapObject>::capacity;
+  inline int capacity(RelaxedLoadTag) const;
+
   static constexpr int SizeForCapacity(int capacity) {
     return SizeFor(capacity);
   }

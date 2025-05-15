@@ -395,6 +395,11 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
 
 NEVER_READ_ONLY_SPACE_IMPL(WeakArrayList)
 
+inline int WeakArrayList::capacity(RelaxedLoadTag) const {
+  int value = TaggedField<Smi>::Relaxed_Load(*this, kCapacityOffset).value();
+  return value;
+}
+
 bool FixedArray::is_the_hole(Isolate* isolate, int index) {
   return IsTheHole(get(index), isolate);
 }
@@ -437,7 +442,9 @@ Handle<FixedArray> FixedArray::Resize(Isolate* isolate,
   return ys;
 }
 
-inline int WeakArrayList::AllocatedSize() const { return SizeFor(capacity()); }
+inline int WeakArrayList::AllocatedSize() const {
+  return SizeFor(capacity(kRelaxedLoad));
+}
 
 template <class D, class S, class P>
 bool PrimitiveArrayBase<D, S, P>::IsInBounds(int index) const {

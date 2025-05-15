@@ -2020,8 +2020,7 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
     return UncheckedCast<WeakFixedArray>(*this)->AllocatedSize();
   }
   if (instance_type == WEAK_ARRAY_LIST_TYPE) {
-    return WeakArrayList::SizeForCapacity(
-        UncheckedCast<WeakArrayList>(*this)->capacity());
+    return UncheckedCast<WeakArrayList>(*this)->AllocatedSize();
   }
   if (instance_type == SMALL_ORDERED_HASH_SET_TYPE) {
     return SmallOrderedHashSet::SizeFor(
