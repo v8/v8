@@ -4814,6 +4814,67 @@ TEST(RunWasmTurbofan_LoadStoreExtract2Revec) {
   CHECK_EQ(2.0f, r.Call(0, 32));
 }
 
+TEST(RunWasmTurbofan_ExtractCallParameterRevec) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<float, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  float* memory =
+      r.builder().AddMemoryElems<float>(kWasmPageSize / sizeof(float));
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  uint8_t temp4 = r.AllocateLocal(kWasmS128);
+  uint8_t temp5 = r.AllocateLocal(kWasmF32);
+  uint8_t temp6 = r.AllocateLocal(kWasmF32);
+  constexpr uint8_t offset = 16;
+
+  // Build the callee function.
+  ValueType param_types[2] = {kWasmF32, kWasmS128};
+  FunctionSig sig(1, 1, param_types);
+  WasmFunctionCompiler& t = r.NewFunction(&sig);
+  t.Build({WASM_SIMD_F32x4_EXTRACT_LANE(1, WASM_LOCAL_GET(0))});
+
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpWithKind<
+                      compiler::turboshaft::Simd256BinopOp,
+                      compiler::turboshaft::Simd256BinopOp::Kind::kF32x8Add>);
+    // Add a F32x8 vector by a constant vector and store the result to memory.
+    // Call a wasm function using the Simd128 result in temp3 as a parameter.
+    // Revectorization still succeeds even we omit the lane 0 extract on x64.
+    r.Build(
+        {WASM_LOCAL_SET(temp1, WASM_SIMD_F32x4_SPLAT(WASM_F32(10.0f))),
+         WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+         WASM_LOCAL_SET(temp3,
+                        WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp1),
+                                        WASM_LOCAL_GET(temp2))),
+         WASM_LOCAL_SET(
+             temp2, WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param1))),
+         WASM_LOCAL_SET(temp4,
+                        WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp1),
+                                        WASM_LOCAL_GET(temp2))),
+         WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp3)),
+         WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                    WASM_LOCAL_GET(temp4)),
+         WASM_LOCAL_SET(temp5,
+                        WASM_SIMD_F32x4_EXTRACT_LANE(
+                            1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2)))),
+         WASM_LOCAL_SET(temp6, WASM_SIMD_F32x4_EXTRACT_LANE(
+                                   2, WASM_SIMD_LOAD_MEM_OFFSET(
+                                          offset, WASM_LOCAL_GET(param2)))),
+         WASM_LOCAL_SET(temp5, WASM_BINOP(kExprF32Add, WASM_LOCAL_GET(temp5),
+                                          WASM_LOCAL_GET(temp6))),
+         WASM_BINOP(
+             kExprF32Add, WASM_LOCAL_GET(temp5),
+             WASM_CALL_FUNCTION(t.function_index(), WASM_LOCAL_GET(temp3)))});
+  }
+  r.builder().WriteMemory(&memory[1], 1.0f);
+  r.builder().WriteMemory(&memory[6], 2.0f);
+  CHECK_EQ(34.0f, r.Call(0, 32));
+}
+
 TEST(RunWasmTurbofan_LoadStoreOOBRevec) {
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
@@ -6781,7 +6842,7 @@ TEST(RunWasmTurbofan_I8x32UConvertI16x16) {
                                                                                \
     constexpr uint32_t lanes = kSimd128Size / sizeof(param_type);              \
     auto values = compiler::ValueHelper::GetVector<param_type>();              \
-    float* output = (float*)(memory + lanes);                                  \
+    float* output = reinterpret_cast<float*>(memory + lanes);                  \
     for (uint32_t i = 0; i + lanes <= values.size(); i++) {                    \
       for (uint32_t j = 0; j < lanes; j++) {                                   \
         r.builder().WriteMemory(&memory[j], values[i + j]);                    \
