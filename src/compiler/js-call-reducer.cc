@@ -3852,8 +3852,9 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
   JSCallNode n(node);
   const CallParameters& p = n.Parameters();
 
-  // Avoid deoptimization loops
-  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+  // Avoid deoptimization loops if feedback says we should be conservative.
+  if (p.feedback().IsValid() &&
+      p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
     return NoChange();
   }
 
