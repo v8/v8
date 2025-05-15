@@ -1602,11 +1602,14 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 #endif  // DEBUG
 
     Tagged<Map> map = object->map(cage_base());
-    AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
     AllocationResult allocation;
     if (target_space == OLD_SPACE && ShouldPromoteIntoSharedHeap(map)) {
+      AllocationAlignment alignment =
+          HeapObject::RequiredAlignment(SHARED_SPACE, map);
       allocation = local_allocator_->Allocate(SHARED_SPACE, size, alignment);
     } else {
+      AllocationAlignment alignment =
+          HeapObject::RequiredAlignment(target_space, map);
       allocation = local_allocator_->Allocate(target_space, size, alignment);
     }
     if (allocation.To(target_object)) {
@@ -1707,14 +1710,16 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
   inline AllocationSpace AllocateTargetObject(
       Tagged<HeapObject> old_object, int size,
       Tagged<HeapObject>* target_object) {
-    AllocationAlignment alignment =
-        HeapObject::RequiredAlignment(old_object->map());
     AllocationSpace space_allocated_in = NEW_SPACE;
+    AllocationAlignment alignment =
+        HeapObject::RequiredAlignment(space_allocated_in, old_object->map());
     AllocationResult allocation =
         local_allocator_->Allocate(NEW_SPACE, size, alignment);
     if (allocation.IsFailure()) {
-      allocation = AllocateInOldSpace(size, alignment);
       space_allocated_in = OLD_SPACE;
+      alignment =
+          HeapObject::RequiredAlignment(space_allocated_in, old_object->map());
+      allocation = AllocateInOldSpace(size, alignment);
     }
     bool ok = allocation.To(target_object);
     DCHECK(ok);

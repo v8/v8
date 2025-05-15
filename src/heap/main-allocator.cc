@@ -201,7 +201,7 @@ AllocationResult MainAllocator::AllocateRawSlow(int size_in_bytes,
                     !isolate_heap()->isolate()->InFastCCall());
 
   AllocationResult result =
-      USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned
+      alignment != kTaggedAligned
           ? AllocateRawSlowAligned(size_in_bytes, alignment, origin)
           : AllocateRawSlowUnaligned(size_in_bytes, origin);
   return result;

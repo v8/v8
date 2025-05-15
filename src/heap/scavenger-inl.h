@@ -85,7 +85,7 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
                     std::is_same_v<THeapObjectSlot, HeapObjectSlot>,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   DCHECK(heap()->AllowedToBeMigrated(map, object, NEW_SPACE));
-  AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
+  AllocationAlignment alignment = HeapObject::RequiredAlignment(NEW_SPACE, map);
   AllocationResult allocation =
       allocator_.Allocate(NEW_SPACE, object_size, alignment);
 
@@ -125,10 +125,12 @@ CopyAndForwardResult Scavenger::PromoteObject(Tagged<Map> map,
                     std::is_same_v<THeapObjectSlot, HeapObjectSlot>,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   DCHECK_GE(object_size, Heap::kMinObjectSizeInTaggedWords * kTaggedSize);
-  AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
-  AllocationResult allocation = allocator_.Allocate(
-      promotion_heap_choice == kPromoteIntoLocalHeap ? OLD_SPACE : SHARED_SPACE,
-      object_size, alignment);
+  AllocationSpace target_space =
+      promotion_heap_choice == kPromoteIntoLocalHeap ? OLD_SPACE : SHARED_SPACE;
+  AllocationAlignment alignment =
+      HeapObject::RequiredAlignment(target_space, map);
+  AllocationResult allocation =
+      allocator_.Allocate(target_space, object_size, alignment);
 
   Tagged<HeapObject> target;
   if (allocation.To(&target)) {
@@ -136,10 +138,7 @@ CopyAndForwardResult Scavenger::PromoteObject(Tagged<Map> map,
     const bool self_success =
         MigrateObject(map, object, target, object_size, promotion_heap_choice);
     if (!self_success) {
-      allocator_.FreeLast(promotion_heap_choice == kPromoteIntoLocalHeap
-                              ? OLD_SPACE
-                              : SHARED_SPACE,
-                          target, object_size);
+      allocator_.FreeLast(target_space, target, object_size);
 
       MapWord map_word = object->map_word(kRelaxedLoad);
       UpdateHeapObjectReferenceSlot(slot, map_word.ToForwardingAddress(object));

@@ -1688,29 +1688,53 @@ WriteBarrierMode HeapObject::GetWriteBarrierMode(
 }
 
 // static
-AllocationAlignment HeapObject::RequiredAlignment(Tagged<Map> map) {
+AllocationAlignment HeapObject::RequiredAlignment(AllocationSpace space,
+                                                  Tagged<Map> map) {
+  return RequiredAlignment(
+      IsAnySharedSpace(space) ? kInSharedSpace : kNotInSharedSpace, map);
+}
+
+// static
+AllocationAlignment HeapObject::RequiredAlignment(InSharedSpace in_shared_space,
+                                                  Tagged<Map> map) {
   // TODO(v8:4153): We should think about requiring double alignment
   // in general for ByteArray, since they are used as backing store for typed
   // arrays now.
   // TODO(ishell, v8:8875): Consider using aligned allocations for BigInt.
-  if (USE_ALLOCATION_ALIGNMENT_BOOL) {
+  if (USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL) {
     int instance_type = map->instance_type();
 
-    static_assert(!USE_ALLOCATION_ALIGNMENT_BOOL ||
+    static_assert(!USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL ||
                   (sizeof(FixedDoubleArray::Header) & kDoubleAlignmentMask) ==
                       kTaggedSize);
     if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) return kDoubleAligned;
 
-    static_assert(!USE_ALLOCATION_ALIGNMENT_BOOL ||
+    static_assert(!USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL ||
                   (offsetof(HeapNumber, value_) & kDoubleAlignmentMask) ==
                       kTaggedSize);
     if (instance_type == HEAP_NUMBER_TYPE) return kDoubleUnaligned;
   }
+#if V8_ENABLE_WEBASSEMBLY
+  if (in_shared_space && v8_flags.experimental_wasm_shared) [[unlikely]] {
+    int instance_type = map->instance_type();
+    if ((instance_type == WASM_STRUCT_TYPE ||
+         instance_type == WASM_ARRAY_TYPE)) {
+      // The map of a shared wasm array / struct needs to be in the shared space
+      // as well.
+      DCHECK(HeapLayout::InWritableSharedSpace(map));
+      return kDoubleAligned;
+    }
+  }
+#endif
   return kTaggedAligned;
 }
 
 bool HeapObject::CheckRequiredAlignment(PtrComprCageBase cage_base) const {
-  AllocationAlignment alignment = HeapObject::RequiredAlignment(map(cage_base));
+  const InSharedSpace in_shared_space = HeapLayout::InWritableSharedSpace(*this)
+                                            ? kInSharedSpace
+                                            : kNotInSharedSpace;
+  AllocationAlignment alignment =
+      HeapObject::RequiredAlignment(in_shared_space, map(cage_base));
   CHECK_EQ(0, Heap::GetFillToAlign(address(), alignment));
   return true;
 }

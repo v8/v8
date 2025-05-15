@@ -791,7 +791,6 @@ std::optional<std::pair<Address, Address>> SemiSpaceNewSpace::Allocate(
   if (AddFreshPage()) {
     Address start = allocation_top();
     Address end = to_space_.page_high();
-    DCHECK_EQ(0, Heap::GetFillToAlign(start, alignment));
     IncrementAllocationTop(end);
     return std::pair(start, end);
   }

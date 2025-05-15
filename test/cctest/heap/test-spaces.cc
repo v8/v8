@@ -436,8 +436,9 @@ TEST(OldLargeObjectSpace) {
     // All large objects have the same alignment because they start at the
     // same offset within a page. Fixed double arrays have the most strict
     // alignment requirements.
-    CHECK_EQ(0, Heap::GetFillToAlign(ho.address(),
-                                     HeapObject::RequiredAlignment(map)));
+    CHECK_EQ(0,
+             Heap::GetFillToAlign(ho.address(), HeapObject::RequiredAlignment(
+                                                    lo->identity(), map)));
     DirectHandle<HeapObject> keep_alive(ho, isolate);
   }
   CHECK_LT(0, successful_allocations);
@@ -733,19 +734,19 @@ TEST(ReadOnlySpaceMetrics_AlignedAllocations) {
   int object_size =
       static_cast<int>(MemoryAllocator::GetCommitPageSize() - kApiTaggedSize);
 
-  int alignment = USE_ALLOCATION_ALIGNMENT_BOOL ? kDoubleSize : kTaggedSize;
+  const int kExpectedAlignment = kDoubleSize;
 
   Tagged<HeapObject> object =
       faked_space->AllocateRaw(object_size, kDoubleAligned).ToObjectChecked();
-  CHECK_EQ(object.address() % alignment, 0);
+  CHECK_EQ(object.address() % kExpectedAlignment, 0);
   object =
       faked_space->AllocateRaw(object_size, kDoubleAligned).ToObjectChecked();
-  CHECK_EQ(object.address() % alignment, 0);
+  CHECK_EQ(object.address() % kExpectedAlignment, 0);
 
   // Calculate size of allocations based on area_start.
   Address area_start = faked_space->pages().back()->GetAreaStart();
-  Address top = RoundUp(area_start, alignment) + object_size;
-  top = RoundUp(top, alignment) + object_size;
+  Address top = RoundUp(area_start, kExpectedAlignment) + object_size;
+  top = RoundUp(top, kExpectedAlignment) + object_size;
   size_t expected_size = top - area_start;
 
   faked_space->ShrinkPages();

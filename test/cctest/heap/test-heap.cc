@@ -2328,8 +2328,8 @@ TEST(HeapNumberAlignment) {
   Heap* heap = isolate->heap();
   HandleScope sc(isolate);
 
-  const auto required_alignment =
-      HeapObject::RequiredAlignment(*factory->heap_number_map());
+  const auto required_alignment = HeapObject::RequiredAlignment(
+      kNotInSharedSpace, *factory->heap_number_map());
   const int maximum_misalignment =
       Heap::GetMaximumFillToAlign(required_alignment);
 

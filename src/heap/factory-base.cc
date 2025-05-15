@@ -43,7 +43,9 @@ Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumber() {
   static_assert(sizeof(HeapNumber) <= kMaxRegularHeapObjectSize);
   Tagged<Map> map = read_only_roots().heap_number_map();
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
-      sizeof(HeapNumber), allocation, map, kDoubleUnaligned);
+      sizeof(HeapNumber), allocation, map,
+      USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL ? kDoubleUnaligned
+                                                : kTaggedAligned);
   return handle(Cast<HeapNumber>(result), isolate());
 }
 

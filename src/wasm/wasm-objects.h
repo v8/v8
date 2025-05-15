@@ -854,10 +854,6 @@ class WasmDispatchTable : public ExposedTrustedObject {
   static_assert(IsAligned(kTargetBias, kTaggedSize));
   static_assert(IsAligned(kImplicitArgBias, kTaggedSize));
 
-  // TODO(clemensb): If we ever enable allocation alignment we will need to add
-  // more padding to make the "target" fields system-pointer-size aligned.
-  static_assert(!USE_ALLOCATION_ALIGNMENT_BOOL);
-
   // The total byte size must still fit in an integer.
   static constexpr int kMaxLength = (kMaxInt - kEntriesOffset) / kEntrySize;
 

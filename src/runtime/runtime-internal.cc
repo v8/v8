@@ -502,9 +502,12 @@ RUNTIME_FUNCTION(Runtime_AllocateInSharedHeap) {
   SaveAndClearThreadInWasmFlag clear_wasm_flag(isolate);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  return *isolate->factory()->NewFillerObject(size, alignment,
-                                              AllocationType::kSharedOld,
-                                              AllocationOrigin::kGeneratedCode);
+  Tagged<HeapObject> result = *isolate->factory()->NewFillerObject(
+      size, alignment, AllocationType::kSharedOld,
+      AllocationOrigin::kGeneratedCode);
+  DCHECK(IsAligned(result->address(),
+                   alignment == kDoubleAligned ? kDoubleSize : kTaggedSize));
+  return result;
 }
 
 RUNTIME_FUNCTION(Runtime_AllocateByteArray) {

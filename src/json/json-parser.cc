@@ -638,7 +638,7 @@ class FoldedMutableHeapNumberAllocation {
  public:
   // TODO(leszeks): If allocation alignment is ever enabled, we'll need to add
   // padding fillers between heap numbers.
-  static_assert(!USE_ALLOCATION_ALIGNMENT_BOOL);
+  static_assert(!USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL);
 
   FoldedMutableHeapNumberAllocation(Isolate* isolate, int count) {
     if (count == 0) return;

@@ -1572,7 +1572,7 @@ enum AllocationAlignment {
 // allocation alignment inconsistency is fixed. For now we keep using
 // tagged aligned (not double aligned) access since all our supported platforms
 // allow tagged-aligned access to doubles and full words.
-#define USE_ALLOCATION_ALIGNMENT_BOOL false
+#define USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL false
 
 enum class AccessMode { ATOMIC, NON_ATOMIC };
 
