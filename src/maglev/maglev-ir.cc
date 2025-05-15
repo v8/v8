@@ -828,28 +828,37 @@ AllocationBlock* InlinedAllocation::allocation_block() {
 }
 
 void AllocationBlock::TryPretenure() {
-  DCHECK(v8_flags.maglev_pretenure_store_values);
-
-  if (elided_write_barriers_depend_on_type() ||
-      allocation_type_ == AllocationType::kOld) {
+  if (allocation_type_ == AllocationType::kOld) {
+    return;
+  }
+  if (elided_write_barriers_depend_on_type()) {
     return;
   }
   allocation_type_ = AllocationType::kOld;
-
-  // Recurse over my own inputs
   for (auto alloc : allocation_list_) {
-    alloc->object()->ForEachInput([&](ValueNode* value) {
-      if (auto next_alloc = value->TryCast<InlinedAllocation>()) {
-        next_alloc->allocation_block()->TryPretenure();
-      } else if (auto phi = value->TryCast<Phi>()) {
-        for (int i = 0; i < phi->input_count(); ++i) {
-          if (auto phi_alloc =
-                  phi->input(i).node()->TryCast<InlinedAllocation>()) {
-            phi_alloc->allocation_block()->TryPretenure();
-          }
-        }
+    alloc->object()->ForEachInput(
+        [&](ValueNode* value) { TryPretenure(value); });
+  }
+}
+
+void AllocationBlock::TryPretenure(ValueNode* value) {
+  DCHECK(v8_flags.maglev_pretenure_store_values);
+  DCHECK_EQ(allocation_type_, AllocationType::kOld);
+
+  if (elided_write_barriers_depend_on_type()) {
+    return;
+  }
+
+  if (IsConstantNode(value->opcode())) return;
+  if (auto next_alloc = value->TryCast<InlinedAllocation>()) {
+    next_alloc->allocation_block()->TryPretenure();
+  } else if (auto phi = value->TryCast<Phi>()) {
+    for (int i = 0; i < phi->input_count(); ++i) {
+      auto phi_input = phi->input(i).node();
+      if (auto phi_alloc = phi_input->TryCast<InlinedAllocation>()) {
+        phi_alloc->allocation_block()->TryPretenure();
       }
-    });
+    }
   }
 }
 

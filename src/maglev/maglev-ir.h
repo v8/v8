@@ -6351,7 +6351,7 @@ class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
     size_ += alloc->size();
   }
 
-  void TryPretenure();
+  void TryPretenure(ValueNode* input);
 
   bool elided_write_barriers_depend_on_type() const {
     return elided_write_barriers_depend_on_type_;
@@ -6361,6 +6361,7 @@ class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
   }
 
  private:
+  void TryPretenure();
   AllocationType allocation_type_;
   int size_ = 0;
   bool elided_write_barriers_depend_on_type_ = false;

@@ -5516,9 +5516,7 @@ Node* MaglevGraphBuilder::BuildStoreTaggedField(ValueNode* object,
       if (auto alloc = object->TryCast<InlinedAllocation>()) {
         if (alloc->allocation_block()->allocation_type() ==
             AllocationType::kOld) {
-          if (auto value_alloc = value->TryCast<InlinedAllocation>()) {
-            value_alloc->allocation_block()->TryPretenure();
-          }
+          alloc->allocation_block()->TryPretenure(value);
         }
       }
     }
