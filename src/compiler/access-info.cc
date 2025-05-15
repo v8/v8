@@ -52,6 +52,15 @@ bool CanInlinePropertyAccess(MapRef map, AccessMode access_mode) {
            // TODO(verwaest): Allowlist contexts to which we have access.
            !map.is_access_check_needed();
   }
+#if V8_ENABLE_WEBASSEMBLY
+  if (IsWasmObjectMap(*map.object())) {
+    DCHECK(!map.object()->has_named_interceptor());
+    DCHECK(!map.is_access_check_needed());
+    // Accesses to Wasm objects all go through the prototype chain, but
+    // we can't express that in this helper function.
+    return true;
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
   return false;
 }
 
@@ -728,6 +737,11 @@ bool AccessInfoFactory::TryLoadPropertyDetails(
         *details_out = dict->DetailsAt(*index_out);
       }
     }
+#if V8_ENABLE_WEBASSEMBLY
+  } else if (InstanceTypeChecker::IsWasmObject(map.instance_type())) {
+    DCHECK(index_out->is_not_found());
+    return true;  // Skip to prototypes.
+#endif            // V8_ENABLE_WEBASSEMBLY
   } else {
     Tagged<DescriptorArray> descriptors =
         *map.instance_descriptors(broker()).object();

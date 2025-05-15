@@ -1590,7 +1590,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 
   // Check for the monomorphic cases.
   if (access_infos.size() == 1) {
-    PropertyAccessInfo access_info = access_infos.front();
+    const PropertyAccessInfo& access_info = access_infos.front();
     if (receiver != lookup_start_object) {
       // Super property access. lookup_start_object is a JSReceiver or
       // null. It can't be a number, a string etc. So trying to build the
@@ -2352,7 +2352,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   // Check for the monomorphic case.
   PropertyAccessBuilder access_builder(jsgraph(), broker());
   if (access_infos.size() == 1) {
-    ElementAccessInfo access_info = access_infos.front();
+    const ElementAccessInfo& access_info = access_infos.front();
 
     if (!access_info.transition_sources().empty()) {
       DCHECK_EQ(access_info.lookup_start_object_maps().size(), 1);
@@ -3079,7 +3079,7 @@ JSNativeContextSpecialization::BuildPropertyLoad(
       }
 
     } else {
-      const ZoneVector<MapRef> maps = access_info.lookup_start_object_maps();
+      const ZoneVector<MapRef>& maps = access_info.lookup_start_object_maps();
       DCHECK_EQ(maps.size(), 1);
       value = graph()->NewNode(
           simplified()->TypedArrayLength(maps[0].elements_kind()),

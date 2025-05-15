@@ -4905,6 +4905,7 @@ void JSObject::MakePrototypesFast(DirectHandle<Object> receiver,
                                   WhereToStart where_to_start,
                                   Isolate* isolate) {
   if (!IsJSReceiver(*receiver)) return;
+  if (IsWasmObject(*receiver)) where_to_start = kStartAtPrototype;
   for (PrototypeIterator iter(isolate, Cast<JSReceiver>(receiver),
                               where_to_start);
        !iter.IsAtEnd(); iter.Advance()) {
