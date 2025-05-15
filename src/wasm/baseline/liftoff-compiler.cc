@@ -9576,15 +9576,16 @@ class LiftoffCompiler {
     if (trapping) RegisterProtectedInstruction(decoder, protected_load_pc);
   }
 
-  void StoreAtomicObjectField(
-      FullDecoder* decoder, Register obj, Register offset_reg, int offset,
-      LiftoffRegister value, bool trapping, LiftoffRegList pinned,
-      ValueKind kind, AtomicMemoryOrder memory_order,
-      LiftoffAssembler::SkipWriteBarrier skip_write_barrier =
-          LiftoffAssembler::kNoSkipWriteBarrier) {
+  void StoreAtomicObjectField(FullDecoder* decoder, Register obj,
+                              Register offset_reg, int offset,
+                              LiftoffRegister value, bool trapping,
+                              LiftoffRegList pinned, ValueKind kind,
+                              AtomicMemoryOrder memory_order) {
     uint32_t protected_load_pc = 0;
     if (is_reference(kind)) {
-      UNIMPLEMENTED();
+      __ AtomicStoreTaggedPointer(obj, offset_reg, offset, value.gp(), pinned,
+                                  memory_order,
+                                  trapping ? &protected_load_pc : nullptr);
     } else {
       // Primitive kind.
       StoreType store_type = StoreType::ForValueKind(kind);

@@ -234,7 +234,7 @@ class WasmLoweringReducer : public Next {
                            wasm::ModuleTypeIndex type_index, int field_index,
                            bool is_signed, CheckForNull null_check,
                            std::optional<AtomicMemoryOrder> memory_order) {
-    // TODO(mliedtke): Get rid fo the requires_aligned_access by aligning
+    // TODO(mliedtke): Get rid of the requires_aligned_access by aligning
     // WasmNull to 8 bytes.
     bool requires_aligned_access =
         memory_order.has_value() && type->field(field_index) == wasm::kWasmI64;
@@ -267,8 +267,10 @@ class WasmLoweringReducer : public Next {
                             wasm::ModuleTypeIndex type_index, int field_index,
                             CheckForNull null_check,
                             std::optional<AtomicMemoryOrder> memory_order) {
-    // TODO(mliedtke): Update this once we support struct.atomic.get.
-    const bool requires_aligned_access = false;
+    // TODO(mliedtke): Get rid of the requires_aligned_access by aligning
+    // WasmNull to 8 bytes.
+    bool requires_aligned_access =
+        memory_order.has_value() && type->field(field_index) == wasm::kWasmI64;
     auto [explicit_null_check, implicit_null_check] = null_checks_for_struct_op(
         null_check, field_index, requires_aligned_access);
 

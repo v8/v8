@@ -3750,7 +3750,9 @@ void VisitAtomicStore(InstructionSelectorT* selector, OpIndex node,
     code |= AtomicWidthField::encode(width);
   }
 
-  if (store_params.kind() == MemoryAccessKind::kProtectedByTrapHandler) {
+  if (store.is_store_trap_on_null()) {
+    code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
+  } else if (store_params.kind() == MemoryAccessKind::kProtectedByTrapHandler) {
     code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
 

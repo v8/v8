@@ -1607,6 +1607,7 @@ DEFINE_WEAK_IMPLICATION(future, typed_array_length_loading)
 
 #if V8_ENABLE_WEBASSEMBLY
 DEFINE_IMPLICATION(experimental_wasm_shared, shared_heap)
+DEFINE_IMPLICATION(experimental_wasm_shared, shared_string_table)
 #endif
 
 #ifdef DEBUG

@@ -81,6 +81,14 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         kAtomicPrefix, kExprStructAtomicSet, kAtomicSeqCst, struct, 1,
       ])
       .exportFunc();
+    builder.addFunction("atomicSetRef",
+        makeSig([wasmRefNullType(struct), anyRefT], []))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprStructAtomicSet, kAtomicSeqCst, struct, 2,
+      ])
+      .exportFunc();
 
     let wasm = builder.instantiate().exports;
     let structObj = wasm.newStruct(42, -64n, "test");
@@ -93,9 +101,15 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     assertEquals("test", wasm.atomicGetRef(structObj));
     let structStruct = wasm.newStruct(1, 2n, structObj);
     assertEquals("test", wasm.atomicGetRefRef(structStruct));
+    wasm.atomicSetRef(structObj, "another string");
+    assertEquals("another string", wasm.atomicGetRef(structObj));
+    assertEquals("another string", wasm.atomicGetRefRef(structStruct));
     assertTraps(kTrapNullDereference, () => wasm.atomicGet32(null));
     assertTraps(kTrapNullDereference, () => wasm.atomicGet64(null));
     assertTraps(kTrapNullDereference, () => wasm.atomicGetRef(null));
+    assertTraps(kTrapNullDereference, () => wasm.atomicSet32(null));
+    assertTraps(kTrapNullDereference, () => wasm.atomicSet64(null, 1n));
+    assertTraps(kTrapNullDereference, () => wasm.atomicSetRef(null, "a"));
   }
 })();
 
@@ -183,6 +197,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     assertEquals(-200, wasm.atomicGetS16(structNeg));
     assertTraps(kTrapNullDereference, () => wasm.atomicGetS8(null));
     assertTraps(kTrapNullDereference, () => wasm.atomicGetS16(null));
+    assertTraps(kTrapNullDereference, () => wasm.atomicSet8(null));
+    assertTraps(kTrapNullDereference, () => wasm.atomicSet16(null));
   }
 })();
 

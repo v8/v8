@@ -528,8 +528,15 @@ int EmitStore(MacroAssembler* masm, Operand operand, Register value,
       masm->xchgq(kScratchRegister, operand);
       break;
     case MachineRepresentation::kTagged:
-      store_instr_offset = masm->pc_offset();
-      masm->AtomicStoreTaggedField(operand, value);
+      if (COMPRESS_POINTERS_BOOL) {
+        masm->movl(kScratchRegister, value);
+        store_instr_offset = masm->pc_offset();
+        masm->xchgl(kScratchRegister, operand);
+      } else {
+        masm->movq(kScratchRegister, value);
+        store_instr_offset = masm->pc_offset();
+        masm->xchgq(kScratchRegister, operand);
+      }
       break;
     default:
       UNREACHABLE();

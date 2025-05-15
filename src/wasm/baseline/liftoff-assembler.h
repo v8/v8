@@ -730,6 +730,11 @@ class LiftoffAssembler : public MacroAssembler {
                                  LiftoffRegList pinned,
                                  uint32_t* protected_store_pc = nullptr,
                                  SkipWriteBarrier = kNoSkipWriteBarrier);
+  inline void AtomicStoreTaggedPointer(Register dst_addr, Register offset_reg,
+                                       int32_t offset_imm, Register src,
+                                       LiftoffRegList pinned,
+                                       AtomicMemoryOrder memory_order,
+                                       uint32_t* protected_store_pc = nullptr);
   // Warning: may clobber {dst} on some architectures!
   inline void IncrementSmi(LiftoffRegister dst, int offset);
   inline void Load(LiftoffRegister dst, Register src_addr, Register offset_reg,
