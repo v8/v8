@@ -67,7 +67,7 @@ int SourcePositionTable::GetInliningId(int pc_offset) const {
 const SourcePositionTable::SourcePositionTuple& SourcePositionTable::GetTuple(
     int pc_offset) const {
   if (pc_offsets_to_lines_.empty()) {
-    static SourcePositionTuple kEmptyTuple = {
+    static constexpr SourcePositionTuple kEmptyTuple = {
         -1, v8::CpuProfileNode::kNoLineNumberInfo,
         v8::CpuProfileNode::kNoColumnNumberInfo, SourcePosition::kNotInlined};
     return kEmptyTuple;
