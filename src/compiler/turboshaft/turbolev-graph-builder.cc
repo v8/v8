@@ -2782,10 +2782,6 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     UNREACHABLE();
   }
-  maglev::ProcessResult Process(maglev::UnwrapThinString* node,
-                                const maglev::ProcessingState& state) {
-    UNREACHABLE();
-  }
   maglev::ProcessResult Process(maglev::StringEqual* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ StringEqual(Map(node->lhs()), Map(node->rhs())));

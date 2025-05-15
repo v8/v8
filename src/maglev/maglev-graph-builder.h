@@ -2840,7 +2840,6 @@ class MaglevGraphBuilder {
   template <Operation kOperation>
   ReduceResult VisitBinarySmiOperation();
 
-  ValueNode* BuildUnwrapThinString(ValueNode* input);
   ValueNode* BuildUnwrapStringWrapper(ValueNode* input);
   ReduceResult BuildStringConcat(ValueNode* left, ValueNode* right);
   ValueNode* BuildNewConsStringMap(ValueNode* left, ValueNode* right);

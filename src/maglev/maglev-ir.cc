@@ -5177,34 +5177,6 @@ void UnwrapStringWrapper::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-void UnwrapThinString::SetValueLocationConstraints() {
-  UseRegister(value_input());
-  DefineSameAsFirst(this);
-}
-void UnwrapThinString::GenerateCode(MaglevAssembler* masm,
-                                    const ProcessingState& state) {
-  Register input = ToRegister(value_input());
-  Label ok;
-  {
-    MaglevAssembler::TemporaryRegisterScope temps(masm);
-    Register scratch = temps.AcquireScratch();
-#ifdef V8_STATIC_ROOTS
-    __ LoadCompressedMap(scratch, input);
-    __ JumpIfObjectNotInRange(
-        scratch,
-        InstanceTypeChecker::kUniqueMapRangeOfStringType::kThinString.first,
-        InstanceTypeChecker::kUniqueMapRangeOfStringType::kThinString.second,
-        &ok, Label::kNear);
-#else
-    __ LoadInstanceType(scratch, input);
-    __ TestInt32AndJumpIfAllClear(scratch, kThinStringTagBit, &ok,
-                                  Label::kNear);
-#endif  // V8_STATIC_ROOTS
-  }
-  __ LoadThinStringValue(input, input);
-  __ bind(&ok);
-}
-
 void StringEqual::SetValueLocationConstraints() {
   using D = StringEqualDescriptor;
   UseFixed(lhs(), D::GetRegisterParameter(D::kLeft));

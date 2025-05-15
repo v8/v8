@@ -300,7 +300,6 @@ class ExceptionHandlerInfo;
   V(StringConcat)                                   \
   V(SeqOneByteStringAt)                             \
   V(ConsStringMap)                                  \
-  V(UnwrapThinString)                               \
   V(UnwrapStringWrapper)                            \
   V(ToBoolean)                                      \
   V(ToBooleanLogicalNot)                            \
@@ -9422,25 +9421,6 @@ class UnwrapStringWrapper
 
  public:
   explicit UnwrapStringWrapper(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::TaggedValue();
-
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
-
-  Input& value_input() { return Node::input(0); }
-
-  int MaxCallStackArgs() const { return 0; }
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
-
-class UnwrapThinString : public FixedInputValueNodeT<1, UnwrapThinString> {
-  using Base = FixedInputValueNodeT<1, UnwrapThinString>;
-
- public:
-  explicit UnwrapThinString(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::TaggedValue();
 

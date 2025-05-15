@@ -2766,9 +2766,6 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
     return MaybeReduceResult::Fail();
   }
 
-  left = BuildUnwrapThinString(left);
-  right = BuildUnwrapThinString(right);
-
   ValueNode* left_length = BuildLoadStringLength(left);
   ValueNode* right_length = BuildLoadStringLength(right);
 
@@ -2818,19 +2815,6 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
             },
             [&] { return left; }, [&] { return BuildConsString(); });
       });
-}
-
-// TODO(olivf): It's unclear if this unwrapping actually makes sense or if we
-// should rather let it be unwrapped lazily once we flatten the string.
-ValueNode* MaglevGraphBuilder::BuildUnwrapThinString(ValueNode* input) {
-  DCHECK(NodeTypeIs(GetType(input), NodeType::kString));
-  if (input->Is<UnwrapThinString>()) return input;
-  if (auto obj = input->TryCast<InlinedAllocation>()) {
-    // Generally string types can change in-place. But as long as the object
-    // does not escape we know it is not thin.
-    if (obj->object()->type() == VirtualObject::kConsString) return input;
-  }
-  return AddNewNode<UnwrapThinString>({input});
 }
 
 ValueNode* MaglevGraphBuilder::BuildUnwrapStringWrapper(ValueNode* input) {
@@ -4491,7 +4475,6 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kToString:
     case Opcode::kNumberToString:
     case Opcode::kUnwrapStringWrapper:
-    case Opcode::kUnwrapThinString:
     case Opcode::kStringAt:
     case Opcode::kStringConcat:
     case Opcode::kBuiltinStringFromCharCode:
@@ -7565,12 +7548,6 @@ ValueNode* MaglevGraphBuilder::BuildLoadStringLength(ValueNode* string) {
   if (auto const_string = TryGetConstant(broker(), local_isolate(), string)) {
     if (const_string->IsString()) {
       return GetInt32Constant(const_string->AsString().length());
-    }
-  }
-  if (auto wrapper = string->TryCast<UnwrapThinString>()) {
-    ValueNode* input = wrapper->value_input().node();
-    if (NodeTypeIs(GetType(input), NodeType::kString)) {
-      return BuildLoadStringLength(input);
     }
   }
   if (MaybeReduceResult result = TryFindLoadedProperty(
