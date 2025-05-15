@@ -540,6 +540,41 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   bind(&exit);
 }
 
+void LiftoffAssembler::AtomicStoreTaggedPointer(
+    Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+    LiftoffRegList pinned, AtomicMemoryOrder memory_order,
+    uint32_t* protected_store_pc) {
+  MemOperand dst_op = MemOperand(dst_addr, offset_reg, offset_imm);
+  if (protected_store_pc) *protected_store_pc = pc_offset();
+  lwsync();
+  if (COMPRESS_POINTERS_BOOL) {
+    StoreU32(src, dst_op, r0);
+  } else {
+    StoreU64(src, dst_op, r0);
+  }
+  sync();
+
+  if (v8_flags.disable_write_barriers) return;
+
+  Label exit;
+  // NOTE: to_condition(kZero) is the equality condition (eq)
+  // This line verifies the masked address is equal to dst_addr,
+  // not that it is zero!
+  CheckPageFlag(dst_addr, ip, MemoryChunk::kPointersFromHereAreInterestingMask,
+                to_condition(kZero), &exit);
+  JumpIfSmi(src, &exit);
+  CheckPageFlag(src, ip, MemoryChunk::kPointersToHereAreInterestingMask, eq,
+                &exit);
+  mov(ip, Operand(offset_imm));
+  add(ip, ip, dst_addr);
+  if (offset_reg != no_reg) {
+    add(ip, ip, offset_reg);
+  }
+  CallRecordWriteStubSaveRegisters(dst_addr, ip, SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
+  bind(&exit);
+}
+
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uintptr_t offset_imm,
                             LoadType type, uint32_t* protected_load_pc,
