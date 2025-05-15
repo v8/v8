@@ -1476,17 +1476,33 @@ Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args,
               Tagged<FixedDoubleArray> elements =
                   Cast<FixedDoubleArray>(array->elements());
               for (uint32_t k = 0; k < length; k++) {
-                if (elements->is_the_hole(k)) {
-                  // TODO(jkummerow/verwaest): We could be a bit more clever
-                  // here: Check if there are no elements/getters on the
-                  // prototype chain, and if so, allow creation of a holey
-                  // result array.
-                  // Same thing below (holey smi case).
-                  failure = true;
-                  break;
+                const bool is_hole = elements->is_the_hole(k);
+                if (is_hole
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+                    || elements->is_undefined(k)
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+                ) {
+                  if (Protectors::IsNoElementsIntact(isolate)) {
+                    // If we do not have elements on the prototype chain,
+                    // we can generate a HOLEY_DOUBLE_ELEMENTS.
+                    kind = HOLEY_DOUBLE_ELEMENTS;
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+                    if (is_hole) {
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+                      double_storage->set_the_hole(j);
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+                    } else {
+                      double_storage->set_undefined(j);
+                    }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+                  } else {
+                    failure = true;
+                    break;
+                  }
+                } else {
+                  double double_value = elements->get_scalar(k);
+                  double_storage->set(j, double_value);
                 }
-                double double_value = elements->get_scalar(k);
-                double_storage->set(j, double_value);
                 j++;
               }
               break;
@@ -1498,11 +1514,19 @@ Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args,
               for (uint32_t k = 0; k < length; k++) {
                 Tagged<Object> element = elements->get(k);
                 if (element == the_hole) {
-                  failure = true;
-                  break;
+                  if (Protectors::IsNoElementsIntact(isolate)) {
+                    // If we do not have elements on the prototype chain,
+                    // we can generate a HOLEY_DOUBLE_ELEMENTS.
+                    kind = HOLEY_DOUBLE_ELEMENTS;
+                    double_storage->set_the_hole(j);
+                  } else {
+                    failure = true;
+                    break;
+                  }
+                } else {
+                  int32_t int_value = Smi::ToInt(element);
+                  double_storage->set(j, int_value);
                 }
-                int32_t int_value = Smi::ToInt(element);
-                double_storage->set(j, int_value);
                 j++;
               }
               break;

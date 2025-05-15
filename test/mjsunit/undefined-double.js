@@ -165,3 +165,30 @@ for (var i = 50; i < 55; i++) {
   assertEquals(52, r[52]);
   assertEquals(undefined, r[42]);
 })();
+
+(function ArrayConcatSlowPath() {
+  function foo() {
+    var a = [1, 2, 3];
+    a.foo = "hello world";
+
+    var b = Array(4096).fill(1.1);
+    b[4098] = 1.2;
+    b[4096] = undefined;
+    b[4097] = undefined;
+
+    return a.concat(b);
+  }
+
+  const r = foo();
+  assertEquals(1, r[0]);
+  assertEquals(2, r[1]);
+  assertEquals(3, r[2]);
+  assertEquals(1.1, r[3]);
+  assertEquals(1.1, r[4098]);
+  assertEquals(undefined, r[4099]);
+  assertEquals(undefined, r[4100]);
+  assertEquals(1.2, r[4101]);
+  if(%IsExperimentalUndefinedDoubleEnabled()) {
+    assertTrue(%HasDoubleElements(r));
+  }
+})();
