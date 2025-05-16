@@ -327,7 +327,7 @@ namespace internal {
   TFC(AllocateInOldGeneration, Allocate)                                       \
   IF_WASM(TFC, WasmAllocateInYoungGeneration, Allocate)                        \
   IF_WASM(TFC, WasmAllocateInOldGeneration, Allocate)                          \
-  IF_WASM(TFC, WasmAllocateInSharedHeap, Allocate)                             \
+  IF_WASM(TFC, WasmAllocateInSharedHeap, WasmAllocateShared)                   \
                                                                                \
   TFC(NewHeapNumber, NewHeapNumber)                                            \
                                                                                \

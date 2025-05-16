@@ -2597,8 +2597,8 @@ class GraphBuildingNodeProcessor {
       }
     }
     node->set_size(size);
-    SetMap(node, __ FinishInitialization(
-                     __ Allocate<HeapObject>(size, node->allocation_type())));
+    SetMap(node, __ FinishInitialization(__ Allocate<HeapObject>(
+                     size, node->allocation_type(), kTaggedAligned)));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::InlinedAllocation* node,

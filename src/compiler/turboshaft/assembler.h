@@ -3164,11 +3164,13 @@ class TurboshaftAssemblerOpInterface
   }
 
   template <typename T = HeapObject>
-  Uninitialized<T> Allocate(ConstOrV<WordPtr> size, AllocationType type) {
+  Uninitialized<T> Allocate(ConstOrV<WordPtr> size, AllocationType type,
+                            AllocationAlignment alignment) {
     static_assert(is_subtype_v<T, HeapObject>);
     DCHECK(!in_object_initialization_);
     in_object_initialization_ = true;
-    return Uninitialized<T>{ReduceIfReachableAllocate(resolve(size), type)};
+    return Uninitialized<T>{
+        ReduceIfReachableAllocate(resolve(size), type, alignment)};
   }
 
   template <typename T>
@@ -3181,7 +3183,8 @@ class TurboshaftAssemblerOpInterface
   V<HeapNumber> AllocateHeapNumberWithValue(V<Float64> value,
                                             Factory* factory) {
     auto result = __ template Allocate<HeapNumber>(
-        __ IntPtrConstant(sizeof(HeapNumber)), AllocationType::kYoung);
+        __ IntPtrConstant(sizeof(HeapNumber)), AllocationType::kYoung,
+        kTaggedAligned);
     __ InitializeField(result, AccessBuilder::ForMap(),
                        __ HeapConstant(factory->heap_number_map()));
     __ InitializeField(result, AccessBuilder::ForHeapNumberValue(), value);

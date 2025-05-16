@@ -403,8 +403,8 @@ class FastApiCallLoweringReducer : public Next {
     GOTO_IF(__ WordPtrEqual(pointer, 0), done,
             __ HeapConstant(factory_->null_value()));
 
-    Uninitialized<HeapObject> external =
-        __ Allocate(JSExternalObject::kHeaderSize, AllocationType::kYoung);
+    Uninitialized<HeapObject> external = __ Allocate(
+        JSExternalObject::kHeaderSize, AllocationType::kYoung, kTaggedAligned);
     __ InitializeField(external, AccessBuilder::ForMap(),
                        __ HeapConstant(factory_->external_map()));
     V<FixedArray> empty_fixed_array =

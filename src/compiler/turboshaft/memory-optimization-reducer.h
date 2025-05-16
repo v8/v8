@@ -26,6 +26,11 @@ namespace v8::internal::compiler::turboshaft {
 const TSCallDescriptor* CreateAllocateBuiltinDescriptor(Zone* zone,
                                                         Isolate* isolate);
 
+#if V8_ENABLE_WEBASSEMBLY
+const TSCallDescriptor* CreateAllocateWasmSharedBuiltinDescriptor(
+    Zone* zone, Isolate* isolate);
+#endif
+
 inline bool ValueNeedsWriteBarrier(const Graph* graph, const Operation& value,
                                    Isolate* isolate) {
   if (value.Is<Opmask::kBitcastWordPtrToSmi>()) {
@@ -223,7 +228,8 @@ class MemoryOptimizationReducer : public Next {
     return Next::ReduceInputGraphStore(ig_index, store);
   }
 
-  V<HeapObject> REDUCE(Allocate)(V<WordPtr> size, AllocationType type) {
+  V<HeapObject> REDUCE(Allocate)(V<WordPtr> size, AllocationType type,
+                                 AllocationAlignment alignment) {
     DCHECK_EQ(type, any_of(AllocationType::kYoung, AllocationType::kOld,
                            AllocationType::kSharedOld));
 
@@ -234,12 +240,13 @@ class MemoryOptimizationReducer : public Next {
       static_assert(std::is_same_v<Smi, BuiltinPtr>, "BuiltinPtr must be Smi");
       OpIndex allocate_builtin = __ NumberConstant(
           static_cast<int>(Builtin::kWasmAllocateInSharedHeap));
-      OpIndex allocated =
-          __ Call(allocate_builtin, {size}, AllocateBuiltinDescriptor());
+      OpIndex allocated = __ Call(
+          allocate_builtin, {size, __ SmiConstant(Smi::FromInt(alignment))},
+          AllocateWasmSharedBuiltinDescriptor());
       return allocated;
     }
 #endif
-
+    DCHECK_EQ(alignment, kTaggedAligned);
     if (v8_flags.single_generation && type == AllocationType::kYoung) {
       type = AllocationType::kOld;
     }
@@ -491,6 +498,9 @@ class MemoryOptimizationReducer : public Next {
   std::optional<MemoryAnalyzer> analyzer_;
   Isolate* isolate_ = __ data() -> isolate();
   const TSCallDescriptor* allocate_builtin_descriptor_ = nullptr;
+#if V8_ENABLE_WEBASSEMBLY
+  const TSCallDescriptor* allocate_wasm_shared_builtin_descriptor_ = nullptr;
+#endif
   std::optional<Variable> top_[2];
 
   static_assert(static_cast<int>(AllocationType::kYoung) == 0);
@@ -511,6 +521,16 @@ class MemoryOptimizationReducer : public Next {
     }
     return allocate_builtin_descriptor_;
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  const TSCallDescriptor* AllocateWasmSharedBuiltinDescriptor() {
+    if (allocate_wasm_shared_builtin_descriptor_ == nullptr) {
+      allocate_wasm_shared_builtin_descriptor_ =
+          CreateAllocateWasmSharedBuiltinDescriptor(__ graph_zone(), isolate_);
+    }
+    return allocate_wasm_shared_builtin_descriptor_;
+  }
+#endif
 
   V<WordPtr> GetLimitAddress(AllocationType type) {
     V<WordPtr> limit_address;

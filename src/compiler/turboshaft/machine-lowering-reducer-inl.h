@@ -1754,7 +1754,8 @@ class MachineLoweringReducer : public Next {
 
     // Allocate the resulting ConsString.
     auto string = __ template Allocate<ConsString>(
-        __ IntPtrConstant(sizeof(ConsString)), AllocationType::kYoung);
+        __ IntPtrConstant(sizeof(ConsString)), AllocationType::kYoung,
+        kTaggedAligned);
     __ InitializeField(string, AccessBuilder::ForMap(), map);
     __ InitializeField(string, AccessBuilder::ForNameRawHashField(),
                        __ Word32Constant(Name::kEmptyHashField));
@@ -1804,8 +1805,8 @@ class MachineLoweringReducer : public Next {
                       access.header_size);
 
     // Allocate the result and initialize the header.
-    auto uninitialized_array =
-        __ template Allocate<AnyFixedArray>(size, allocation_type);
+    auto uninitialized_array = __ template Allocate<AnyFixedArray>(
+        size, allocation_type, kTaggedAligned);
     __ InitializeField(uninitialized_array, AccessBuilder::ForMap(),
                        __ HeapConstant(array_map));
     __ InitializeField(uninitialized_array,
@@ -3623,7 +3624,7 @@ class MachineLoweringReducer : public Next {
     // Allocate a new string object.
     Uninitialized<SeqTwoByteString> string =
         __ template Allocate<SeqTwoByteString>(
-            SeqTwoByteString::SizeFor(length), type);
+            SeqTwoByteString::SizeFor(length), type, kTaggedAligned);
     // Set padding to 0.
     __ Initialize(string, __ IntPtrConstant(0),
                   MemoryRepresentation::TaggedSigned(),
@@ -3688,7 +3689,7 @@ class MachineLoweringReducer : public Next {
     V<Map> map = __ HeapConstant(factory_->bigint_map());
     auto bigint = __ template Allocate<FreshlyAllocatedBigInt>(
         __ IntPtrConstant(BigInt::SizeFor(digit.valid() ? 1 : 0)),
-        AllocationType::kYoung);
+        AllocationType::kYoung, kTaggedAligned);
     __ InitializeField(bigint, AccessBuilder::ForMap(), map);
     __ InitializeField(
         bigint, AccessBuilder::ForBigIntBitfield(),

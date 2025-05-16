@@ -363,7 +363,8 @@ class WasmLoweringReducer : public Next {
     Uninitialized<WasmArray> a = __ template Allocate<WasmArray>(
         __ ChangeUint32ToUintPtr(__ Word32Add(
             padded_length, __ Word32Constant(WasmArray::kHeaderSize))),
-        is_shared ? AllocationType::kSharedOld : AllocationType::kYoung);
+        is_shared ? AllocationType::kSharedOld : AllocationType::kYoung,
+        is_shared ? kDoubleUnaligned : kTaggedAligned);
 
     // TODO(14108): The map and empty fixed array initialization should be an
     // immutable store.
@@ -387,7 +388,8 @@ class WasmLoweringReducer : public Next {
                                            bool is_shared) {
     int size = WasmStruct::Size(struct_type);
     Uninitialized<WasmStruct> s = __ template Allocate<WasmStruct>(
-        size, is_shared ? AllocationType::kSharedOld : AllocationType::kYoung);
+        size, is_shared ? AllocationType::kSharedOld : AllocationType::kYoung,
+        is_shared ? kDoubleAligned : kTaggedAligned);
     // Objects allocated into old-space need a write barrier for initialization.
     __ InitializeField(
         s,

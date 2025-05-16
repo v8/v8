@@ -1558,7 +1558,7 @@ inline constexpr bool IsSharedAllocationType(AllocationType kind) {
          kind == AllocationType::kSharedMap;
 }
 
-enum AllocationAlignment {
+enum AllocationAlignment : uint8_t {
   // The allocated address is kTaggedSize aligned (this is default for most of
   // the allocations).
   kTaggedAligned,

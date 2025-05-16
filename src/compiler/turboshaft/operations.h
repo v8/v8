@@ -3490,6 +3490,7 @@ struct StoreOp : OperationT<StoreOp> {
 
 struct AllocateOp : FixedArityOperationT<1, AllocateOp> {
   AllocationType type;
+  AllocationAlignment alignment;
 
   static constexpr OpEffects effects =
       OpEffects()
@@ -3511,11 +3512,20 @@ struct AllocateOp : FixedArityOperationT<1, AllocateOp> {
 
   V<WordPtr> size() const { return input<WordPtr>(0); }
 
-  AllocateOp(V<WordPtr> size, AllocationType type) : Base(size), type(type) {}
+  AllocateOp(V<WordPtr> size, AllocationType type,
+             AllocationAlignment alignment)
+      : Base(size), type(type), alignment(alignment) {}
 
   void PrintOptions(std::ostream& os) const;
 
-  auto options() const { return std::tuple{type}; }
+  auto options() const { return std::tuple{type, alignment}; }
+
+  void Validate(const Graph& graph) const {
+    // Operations with different alignment than kTaggedAligned are currently
+    // only supported for shared old space allocations from wasm.
+    DCHECK_IMPLIES(alignment != kTaggedAligned,
+                   type == AllocationType::kSharedOld);
+  }
 };
 
 struct DecodeExternalPointerOp

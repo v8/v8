@@ -1552,14 +1552,14 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kAllocate: {
       AllocationType allocation = AllocationTypeOf(node->op());
       return __ FinishInitialization(
-          __ Allocate(Map(node->InputAt(0)), allocation));
+          __ Allocate(Map(node->InputAt(0)), allocation, kTaggedAligned));
     }
     // TODO(nicohartmann@): We might not see AllocateRaw here anymore.
     case IrOpcode::kAllocateRaw: {
       Node* size = node->InputAt(0);
       const AllocateParameters& params = AllocateParametersOf(node->op());
       return __ FinishInitialization(
-          __ Allocate(Map(size), params.allocation_type()));
+          __ Allocate(Map(size), params.allocation_type(), kTaggedAligned));
     }
     case IrOpcode::kStoreToObject: {
       Node* object = node->InputAt(0);

@@ -740,8 +740,18 @@ void StoreOp::PrintOptions(std::ostream& os) const {
 }
 
 void AllocateOp::PrintOptions(std::ostream& os) const {
-  os << '[';
-  os << type;
+  os << '[' << type << ", ";
+  switch (alignment) {
+    case kTaggedAligned:
+      os << "tagged aligned";
+      break;
+    case kDoubleAligned:
+      os << "double aligned";
+      break;
+    case kDoubleUnaligned:
+      os << "double unaligned";
+      break;
+  }
   os << ']';
 }
 

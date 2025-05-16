@@ -444,8 +444,7 @@ RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
   // TODO(v8:13070): Align allocations in the builtins that call this.
   int size = ALIGN_TO_ALLOCATION_ALIGNMENT(args.smi_value_at(0));
   int flags = args.smi_value_at(1);
-  AllocationAlignment alignment =
-      AllocateDoubleAlignFlag::decode(flags) ? kDoubleAligned : kTaggedAligned;
+  AllocationAlignment alignment = static_cast<AllocationAlignment>(flags);
   CHECK(IsAligned(size, kTaggedSize));
   CHECK_GT(size, 0);
 
@@ -475,8 +474,7 @@ RUNTIME_FUNCTION(Runtime_AllocateInOldGeneration) {
   // TODO(40192807): Find a better fix, likely by replacing the global flag.
   SaveAndClearThreadInWasmFlag clear_wasm_flag(isolate);
 
-  AllocationAlignment alignment =
-      AllocateDoubleAlignFlag::decode(flags) ? kDoubleAligned : kTaggedAligned;
+  AllocationAlignment alignment = static_cast<AllocationAlignment>(flags);
   CHECK(IsAligned(size, kTaggedSize));
   CHECK_GT(size, 0);
   return *isolate->factory()->NewFillerObject(
@@ -489,8 +487,7 @@ RUNTIME_FUNCTION(Runtime_AllocateInSharedHeap) {
   // TODO(v8:13070): Align allocations in the builtins that call this.
   int size = ALIGN_TO_ALLOCATION_ALIGNMENT(args.smi_value_at(0));
   int flags = args.smi_value_at(1);
-  AllocationAlignment alignment =
-      AllocateDoubleAlignFlag::decode(flags) ? kDoubleAligned : kTaggedAligned;
+  AllocationAlignment alignment = static_cast<AllocationAlignment>(flags);
   CHECK(IsAligned(size, kTaggedSize));
   CHECK_GT(size, 0);
 

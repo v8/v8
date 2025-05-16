@@ -1498,7 +1498,7 @@ TNode<HeapObject> CodeStubAssembler::AllocateRaw(TNode<IntPtrT> size_in_bytes,
     GotoIf(IsRegularHeapObjectSize(size_in_bytes), &next);
 
     TNode<Smi> runtime_flags = SmiConstant(
-        Smi::FromInt(AllocateDoubleAlignFlag::encode(needs_double_alignment)));
+        Smi::FromInt(needs_double_alignment ? kDoubleAligned : kTaggedAligned));
     result =
         CallRuntime(Runtime::kAllocateInYoungGeneration, NoContextConstant(),
                     SmiTag(size_in_bytes), runtime_flags);
@@ -1529,7 +1529,7 @@ TNode<HeapObject> CodeStubAssembler::AllocateRaw(TNode<IntPtrT> size_in_bytes,
   BIND(&runtime_call);
   {
     TNode<Smi> runtime_flags = SmiConstant(
-        Smi::FromInt(AllocateDoubleAlignFlag::encode(needs_double_alignment)));
+        Smi::FromInt(needs_double_alignment ? kDoubleAligned : kTaggedAligned));
     if (flags & AllocationFlag::kPretenured) {
       result =
           CallRuntime(Runtime::kAllocateInOldGeneration, NoContextConstant(),

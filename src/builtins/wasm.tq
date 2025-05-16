@@ -112,8 +112,8 @@ const kMaxPolymorphism:
     constexpr int31 generates 'wasm::kMaxPolymorphism';
 const kFixedFrameSizeAboveFp: constexpr int32
     generates 'CommonFrameConstants::kFixedFrameSizeAboveFp';
-const kAllocateSharedFlags:
-    constexpr int31 generates 'AllocateDoubleAlignFlag::encode(true)';
+const kDoubleAligned: constexpr int31 generates 'kDoubleAligned';
+const kDoubleUnaligned: constexpr int31 generates 'kDoubleUnaligned';
 
 extern macro WasmCrossInstanceCallSymbolConstant(): Symbol;
 
@@ -521,7 +521,7 @@ builtin WasmAllocateSharedStructWithRtt(rtt: Map, instanceSize: int32):
     HeapObject {
   const result: HeapObject = runtime::AllocateInSharedHeap(
       LoadContextFromFrame(), SmiFromInt32(instanceSize),
-      SmiConstant(kAllocateSharedFlags));
+      SmiConstant(kDoubleAligned));
   *UnsafeConstCast(&result.map) = rtt;
   // TODO(ishell): consider removing properties_or_hash field from
   // WasmObjects.
@@ -555,7 +555,7 @@ builtin WasmAllocateSharedArray_Uninitialized(
       Convert<intptr>(kWasmArrayHeaderSize);
   const result: HeapObject = runtime::AllocateInSharedHeap(
       LoadContextFromFrame(), SmiFromIntPtr(instanceSize),
-      SmiConstant(kAllocateSharedFlags));
+      SmiConstant(kDoubleUnaligned));
   *UnsafeConstCast(&result.map) = rtt;
   // TODO(ishell): consider removing properties_or_hash field from WasmObjects.
   %RawDownCast<WasmArray>(result).properties_or_hash = kEmptyFixedArray;

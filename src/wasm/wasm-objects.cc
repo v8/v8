@@ -3610,6 +3610,22 @@ DirectHandle<Object> WasmToJSObject(Isolate* isolate,
   }
 }
 
+// The WasmArray header is not a multiple of 8 bytes. For shared i64 arrays each
+// element needs to be 8 byte aligned for atomic accesses. Therefore shared
+// arrays use the kDoubleUnaligned alignment. If the header size changes to a
+// multiple of 8 bytes, shared arrays should be allocated using kDoubleAligned
+// instead.
+// Note that for 64 bit no-pointer-compression builds, kDoubleUnAligned performs
+// aligned(!) allocations instead, so we manually align the kHeaderSize there.
+// Needed changes in case the header size changes to a multiple of 8:
+// - objects-inl.h: HeapObject::RequiredAlignment
+// - wasm.tq: WasmAllocateSharedArray_Uninitialized
+// LINT.IfChange(WasmArrayUnaligned)
+static_assert(WasmArray::kHeaderSize % kDoubleSize ==
+              (kTaggedSize != kDoubleSize ? 4 : 0));
+// LINT.ThenChange(src/objects/objects-inl.h:WasmArrayUnaligned)
+// LINT.ThenChange(src/builtins/wasm.tq:WasmArrayUnaligned)
+
 }  // namespace wasm
 
 }  // namespace internal
