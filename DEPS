@@ -59,7 +59,7 @@ vars = {
   'checkout_fuchsia_no_hooks': False,
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.177.1.e58c0145-gomaip',
+  'reclient_version': 're_client_version:0.178.0.5ee9d3e8-gomaip',
 
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
@@ -92,7 +92,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '269b4081447bcef3f64ad87116d9c6d8cfcf4645',
+  'partition_alloc_version': '1d9d02e434059dbdb74e10e28ad42fd97c25a85c',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -130,7 +130,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a4e74b4312dafbbb000f24000ab3b57120a5e18d',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f18628c9f6fee34634ca60f390a0717fed48c1d7',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'e9b36e9ffb02b268d194c3f82f89952d09d0c714',
   'buildtools/linux64': {
@@ -232,7 +232,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '2fa93b2332b7a27c3066bef8d7ba9de2a5e1ab2e',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'ffd1c50cbd19e3f0c5de2fd1d20b43adc04b6e85',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -282,7 +282,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + 'f03aafb7516050ea73f617bf969f03eac641aefc',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '9f79a9597ad9b5394e5c620ebf76824f77ffbde4',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '571930618fa96eabcd05b573285edbee9fc13bae',
   'third_party/highway/src':
     Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '00fe003dac355b979f36157f9407c7c46448958e',
   'third_party/icu':
@@ -532,7 +532,7 @@ deps = {
     'condition': 'not build_with_chromium and host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'fbb9ce57675bbc1acc7910c38f88f93b8e1cc2d5',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '4821bf77c8c0b33c5fde3e95c894a455fd22ed8d',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '4e2e7b926a033fc85695da101404f79b7ce2d7a7',
   'tools/protoc_wrapper':
