@@ -130,7 +130,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f18628c9f6fee34634ca60f390a0717fed48c1d7',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f2a9b5fb04dcea4060c73f488e2820d89c045554',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'e9b36e9ffb02b268d194c3f82f89952d09d0c714',
   'buildtools/linux64': {
@@ -232,7 +232,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'ffd1c50cbd19e3f0c5de2fd1d20b43adc04b6e85',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '41104509db3116fd5a5e3af4f8242b59de7adc67',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -486,7 +486,7 @@ deps = {
   'tools/rust':
     Var('chromium_url') + '/chromium/src/tools/rust' + '@' + 'd88ef9e4de74106c16f10b05c74cf101c521f1d4',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'abb422e19250d0f4af409130869e229acc5e36e1',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '789c7ca8cb9ab3d41dc53f16e0b81d6bd5ff0df5',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
