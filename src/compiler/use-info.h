@@ -51,8 +51,9 @@ class Truncation final {
     return Truncation(TruncationKind::kOddballAndBigIntToNumber,
                       identify_zeros);
   }
-  static Truncation Any(IdentifyZeros identify_zeros = kDistinguishZeros) {
-    return Truncation(TruncationKind::kAny, identify_zeros);
+  static Truncation Any(IdentifyZeros identify_zeros = kDistinguishZeros,
+                        bool check_safe_integer = false) {
+    return Truncation(TruncationKind::kAny, identify_zeros, check_safe_integer);
   }
 
   static Truncation Generalize(Truncation t1, Truncation t2) {
@@ -277,7 +278,8 @@ class UseInfo {
   }
   static UseInfo CheckedSafeIntAsWord64(const FeedbackSource& feedback) {
     DCHECK(Is64());
-    return UseInfo(MachineRepresentation::kWord64, Truncation::Any(),
+    return UseInfo(MachineRepresentation::kWord64,
+                   Truncation::Any(kDistinguishZeros, true),
                    TypeCheckKind::kAdditiveSafeInteger, feedback);
   }
   static UseInfo TruncatingFloat64OrUndefined(
