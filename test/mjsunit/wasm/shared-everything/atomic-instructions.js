@@ -244,6 +244,22 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         kAtomicPrefix, kExprArrayAtomicGet, kAtomicSeqCst, array32,
       ])
       .exportFunc();
+    builder.addFunction("atomicGet64",
+        makeSig([wasmRefNullType(array64), kWasmI32], [kWasmI64]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprArrayAtomicGet, kAtomicSeqCst, array64,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicGetRef",
+        makeSig([wasmRefNullType(arrayRef), kWasmI32], [anyRefT]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprArrayAtomicGet, kAtomicSeqCst, arrayRef,
+      ])
+      .exportFunc();
 
     let wasm = builder.instantiate().exports;
     let array32Obj = wasm.newArray32(42, 43);
@@ -251,6 +267,16 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     assertEquals(43, wasm.atomicGet32(array32Obj, 1));
     assertTraps(kTrapArrayOutOfBounds, () => wasm.atomicGet32(array32Obj, 2));
     assertTraps(kTrapNullDereference, () => wasm.atomicGet32(null));
+    let array64Obj = wasm.newArray64(42n, 43n);
+    assertEquals(42n, wasm.atomicGet64(array64Obj, 0));
+    assertEquals(43n, wasm.atomicGet64(array64Obj, 1));
+    assertTraps(kTrapArrayOutOfBounds, () => wasm.atomicGet64(array64Obj, 2));
+    assertTraps(kTrapNullDereference, () => wasm.atomicGet64(null));
+    let arrayRefObj = wasm.newArrayRef("First", "Second");
+    assertEquals("First", wasm.atomicGetRef(arrayRefObj, 0));
+    assertEquals("Second", wasm.atomicGetRef(arrayRefObj, 1));
+    assertTraps(kTrapArrayOutOfBounds, () => wasm.atomicGetRef(arrayRefObj, 2));
+    assertTraps(kTrapNullDereference, () => wasm.atomicGetRef(null));
   }
 })();
 
