@@ -298,8 +298,10 @@ class V8_TRIVIAL_ABI BasicMember final : private MemberBase<StorageType>,
     return *this;
   }
 
-  V8_INLINE const T* GetRawAtomic() const {
-    return static_cast<const T*>(Base::GetRawAtomic());
+  V8_INLINE const void* GetRawAtomic() const { return Base::GetRawAtomic(); }
+
+  V8_INLINE const T* GetAtomic() const {
+    return static_cast<const T*>(GetRawAtomic());
   }
 
   V8_INLINE void InitializingWriteBarrier(T* value) const {
