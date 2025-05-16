@@ -1738,9 +1738,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchDebugBreak:
       __ DebugBreak();
       break;
-    case kArchThrowTerminator:
-      unwinding_info_writer_.MarkBlockWillExit();
-      break;
     case kArchNop:
       // don't emit code for nops.
       break;

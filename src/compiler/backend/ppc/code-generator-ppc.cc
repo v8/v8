@@ -1081,7 +1081,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ DebugBreak();
       break;
     case kArchNop:
-    case kArchThrowTerminator:
       // don't emit code for nops.
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;

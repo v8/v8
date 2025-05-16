@@ -891,10 +891,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ RecordComment(reinterpret_cast<const char*>(i.InputInt32(0)),
                        SourceLocation());
       break;
-    case kArchThrowTerminator:
-      DCHECK_EQ(LeaveCC, i.OutputSBit());
-      unwinding_info_writer_.MarkBlockWillExit();
-      break;
     case kArchNop:
       // don't emit code for nops.
       DCHECK_EQ(LeaveCC, i.OutputSBit());

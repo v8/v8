@@ -2533,11 +2533,6 @@ void InstructionSelectorT::VisitDeoptimize(DeoptimizeReason reason,
   Emit(kArchDeoptimize, 0, nullptr, args.size(), &args.front(), 0, nullptr);
 }
 
-void InstructionSelectorT::VisitThrow(Node* node) {
-  OperandGenerator g(this);
-  Emit(kArchThrowTerminator, g.NoOutput());
-}
-
 void InstructionSelectorT::VisitDebugBreak(OpIndex node) {
   OperandGenerator g(this);
   Emit(kArchDebugBreak, g.NoOutput());

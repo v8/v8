@@ -896,7 +896,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                        SourceLocation());
       break;
     case kArchNop:
-    case kArchThrowTerminator:
       // don't emit code for nops.
       break;
     case kArchDeoptimize: {

@@ -147,7 +147,6 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(ArchAbortCSADcheck)                                                    \
   V(ArchDebugBreak)                                                        \
   V(ArchComment)                                                           \
-  V(ArchThrowTerminator)                                                   \
   V(ArchDeoptimize)                                                        \
   V(ArchRet)                                                               \
   V(ArchFramePointer)                                                      \

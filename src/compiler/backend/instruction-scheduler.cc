@@ -271,7 +271,6 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchBinarySearchSwitch:
     case kArchRet:
     case kArchTableSwitch:
-    case kArchThrowTerminator:
       return kNoOpcodeFlags;
 
     case kArchTruncateDoubleToI:
