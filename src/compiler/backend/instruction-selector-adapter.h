@@ -377,9 +377,9 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     return LoadView(graph_, node).is_protected(&traps_on_null);
   }
 
-#if !(defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32) ||    \
-      defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_PPC64) || \
-      defined(V8_TARGET_ARCH_S390X))
+#if !(defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32) ||  \
+      defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_ARM) || \
+      defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390X))
   int value_input_count(turboshaft::OpIndex node) const {
     return graph_->Get(node).input_count;
   }
