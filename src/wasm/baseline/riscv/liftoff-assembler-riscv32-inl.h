@@ -304,6 +304,14 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   bind(&exit);
 }
 
+void LiftoffAssembler::AtomicStoreTaggedPointer(
+    Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+    LiftoffRegList pinned, AtomicMemoryOrder memory_order,
+    uint32_t* protected_store_pc) {
+  AtomicStore(dst_addr, offset_reg, offset_imm, LiftoffRegister(src),
+              StoreType::kI32Store, pinned, false);
+}
+
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uintptr_t offset_imm,
                             LoadType type, uint32_t* protected_load_pc,

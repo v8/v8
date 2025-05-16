@@ -700,6 +700,37 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
   }
 }
 
+void LiftoffAssembler::AtomicStoreTaggedPointer(
+    Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+    LiftoffRegList pinned, AtomicMemoryOrder memory_order,
+    uint32_t* protected_store_pc) {
+  UseScratchRegisterScope temps(this);
+  Register dst_reg = liftoff::CalculateActualAddress(this, temps, dst_addr,
+                                                     offset_reg, offset_imm);
+  auto trapper = [protected_store_pc](int offset) {
+    if (protected_store_pc) *protected_store_pc = static_cast<uint32_t>(offset);
+  };
+
+  if (COMPRESS_POINTERS_BOOL) {
+    Sw(src, MemOperand(dst_reg, 0), trapper);
+  } else {
+    Sd(src, MemOperand(dst_reg, 0), trapper);
+  }
+  sync();
+  if (v8_flags.disable_write_barriers) return;
+  // The write barrier.
+  Label exit;
+  CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
+                kZero, &exit);
+  JumpIfSmi(src, &exit);
+  CheckPageFlag(src, MemoryChunk::kPointersToHereAreInterestingMask, eq, &exit);
+  Operand offset_op =
+      offset_reg.is_valid() ? Operand(offset_reg) : Operand(offset_imm);
+  CallRecordWriteStubSaveRegisters(dst_addr, offset_op, SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
+  bind(&exit);
+}
+
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
