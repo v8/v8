@@ -150,6 +150,12 @@ class NumFuzzer(base_runner.BaseTestRunner):
     })
     return variables
 
+  def _create_test_config(self):
+    # Multiple stress flags together make tests run much longer.
+    config = super()._create_test_config()
+    config.timeout *= 2
+    return config
+
   def _do_execute(self, tests, args, ctx):
     loader = LoadProc(tests)
     combiner = CombinerProc.create(self.options)

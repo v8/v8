@@ -1660,6 +1660,9 @@
   'regress/regress-524': [PASS, ['asan', SKIP]],
   'wasm/max-wasm-functions': [PASS, ['asan', SKIP]],
   'wasm/user-properties-module': [PASS, ['asan', SKIP]],
+
+  # Too slow.
+  'wasm/futex': [SKIP],
 }],  # 'gc_fuzzer'
 
 ##############################################################################

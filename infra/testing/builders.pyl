@@ -2685,7 +2685,7 @@
     },
     'swarming_task_attrs': {
       'expiration': 13800,
-      'hard_timeout': 4200,
+      'hard_timeout': 4800,
       'priority': 35,
     },
     'tests': [
@@ -2694,7 +2694,7 @@
         'name': 'numfuzz',
         'suffix': 'allocation',
         'test_args': [
-          '--total-timeout-sec=2100',
+          '--total-timeout-sec=4200',
           '--allocation-offset=1',
           '--extra-flags=--gc-interval=500',
         ]
@@ -2702,33 +2702,33 @@
       {
         'name': 'numfuzz',
         'suffix': 'marking',
-        'test_args': ['--total-timeout-sec=2100', '--stress-marking=1']
+        'test_args': ['--total-timeout-sec=4200', '--stress-marking=1']
       },
       {
         'name': 'numfuzz',
         'suffix': 'delay',
-        'test_args': ['--total-timeout-sec=2100', '--stress-delay-tasks=1']
+        'test_args': ['--total-timeout-sec=4200', '--stress-delay-tasks=1']
       },
       {
         'name': 'numfuzz',
         'suffix': 'interrupt',
-        'test_args': ['--total-timeout-sec=2100', '--stress-interrupt-budget=1']
+        'test_args': ['--total-timeout-sec=4200', '--stress-interrupt-budget=1']
       },
       {
         'name': 'numfuzz',
         'suffix': 'threads',
-        'test_args': ['--total-timeout-sec=2100', '--stress-thread-pool-size=1']
+        'test_args': ['--total-timeout-sec=4200', '--stress-thread-pool-size=1']
       },
       {
         'name': 'numfuzz',
         'suffix': 'stack',
-        'test_args': ['--total-timeout-sec=2100', '--stress-stack-size=1']
+        'test_args': ['--total-timeout-sec=4200', '--stress-stack-size=1']
       },
       {
         'name': 'numfuzz',
         'suffix': 'combined',
         'test_args': [
-          '--total-timeout-sec=2100',
+          '--total-timeout-sec=4200',
           '--allocation-offset=2',
           '--stress-delay-tasks=4',
           '--stress-deopt=2',
@@ -2745,7 +2745,7 @@
       {
         'name': 'numfuzz',
         'suffix': 'scavenge',
-        'test_args': ['--total-timeout-sec=2100', '--stress-scavenge=1']
+        'test_args': ['--total-timeout-sec=4200', '--stress-scavenge=1']
       },
     ],
   },
@@ -2755,7 +2755,7 @@
     },
     'swarming_task_attrs': {
       'expiration': 13800,
-      'hard_timeout': 4200,
+      'hard_timeout': 4800,
       'priority': 35,
     },
     'tests': [
@@ -2764,7 +2764,7 @@
         'name': 'numfuzz',
         'suffix': 'allocation',
         'test_args': [
-          '--total-timeout-sec=2100',
+          '--total-timeout-sec=4200',
           '--allocation-offset=1',
           '--extra-flags=--gc-interval=500',
         ]
@@ -2772,34 +2772,34 @@
       {
         'name': 'numfuzz',
         'suffix': 'marking',
-        'test_args': ['--total-timeout-sec=2100', '--stress-marking=1'],
+        'test_args': ['--total-timeout-sec=4200', '--stress-marking=1'],
         'shards': 2
       },
       {
         'name': 'numfuzz',
         'suffix': 'delay',
-        'test_args': ['--total-timeout-sec=2100', '--stress-delay-tasks=1']
+        'test_args': ['--total-timeout-sec=4200', '--stress-delay-tasks=1']
       },
       {
         'name': 'numfuzz',
         'suffix': 'interrupt',
-        'test_args': ['--total-timeout-sec=2100', '--stress-interrupt-budget=1']
+        'test_args': ['--total-timeout-sec=4200', '--stress-interrupt-budget=1']
       },
       {
         'name': 'numfuzz',
         'suffix': 'threads',
-        'test_args': ['--total-timeout-sec=2100', '--stress-thread-pool-size=1']
+        'test_args': ['--total-timeout-sec=4200', '--stress-thread-pool-size=1']
       },
       {
         'name': 'numfuzz',
         'suffix': 'stack',
-        'test_args': ['--total-timeout-sec=2100', '--stress-stack-size=1']
+        'test_args': ['--total-timeout-sec=4200', '--stress-stack-size=1']
       },
       {
         'name': 'numfuzz',
         'suffix': 'combined',
         'test_args': [
-          '--total-timeout-sec=2100',
+          '--total-timeout-sec=4200',
           '--allocation-offset=2',
           '--stress-delay-tasks=4',
           '--stress-deopt=2',
@@ -2816,12 +2816,12 @@
       {
         'name': 'numfuzz',
         'suffix': 'scavenge',
-        'test_args': ['--total-timeout-sec=2100', '--stress-scavenge=1']
+        'test_args': ['--total-timeout-sec=4200', '--stress-scavenge=1']
       },
       {
         'name': 'numfuzz',
         'suffix': 'deopt',
-        'test_args': ['--total-timeout-sec=2100', '--stress-deopt=1'],
+        'test_args': ['--total-timeout-sec=4200', '--stress-deopt=1'],
         'shards': 2
       },
     ],
