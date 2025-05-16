@@ -1249,6 +1249,18 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
         if (base::IsValueInRangeForNumericType<int64_t>(fv)) {
           int64_t const iv = static_cast<int64_t>(fv);
           if (static_cast<double>(iv) == fv) {
+            if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
+              if (iv < kMinAdditiveSafeInteger ||
+                  kMaxAdditiveSafeInteger < iv) {
+                Node* unreachable = InsertUnconditionalDeopt(
+                    use_node, DeoptimizeReason::kNotAdditiveSafeInteger,
+                    use_info.feedback());
+                return jsgraph()->graph()->NewNode(
+                    jsgraph()->common()->DeadValue(
+                        MachineRepresentation::kWord64),
+                    unreachable);
+              }
+            }
             return InsertTypeOverrideForVerifier(NodeProperties::GetType(node),
                                                  jsgraph()->Int64Constant(iv));
           }
