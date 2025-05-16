@@ -3736,16 +3736,16 @@ TEST_F(TurboshaftInstructionSelectorTest, Shuffle32x2Test) {
   }
 }
 
-#if V8_ENABLE_WASM_INTERLEAVED_MEM_OPS
+#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
 TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {
   {
     // Test deinterleaved 64x4 protected load, register index.
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Pointer(),
                     MachineType::Pointer());
-    OpIndex load = m.Simd128LoadDeinterleaveTwo(
+    OpIndex load = m.Simd128LoadPairDeinterleave(
         m.Parameter(0), m.Parameter(1), LoadOp::Kind::Protected(),
-        Simd128LoadDeinterleaveTwoOp::Kind::k64x4);
+        Simd128LoadPairDeinterleaveOp::Kind::k64x4);
     m.Return(m.Simd128Binop(m.Projection(load, 0), m.Projection(load, 1),
                             Simd128BinopOp::Kind::kI64x2Add));
     Stream s = m.Build();
@@ -3753,7 +3753,7 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {
     EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
     EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
-    EXPECT_EQ(kArm64S128LoadTwoMultiple, s[1]->arch_opcode());
+    EXPECT_EQ(kArm64S128LoadPairDeinterleave, s[1]->arch_opcode());
     EXPECT_TRUE(s[1]->InputAt(1)->IsImmediate());
     EXPECT_EQ(0, s.ToInt32(s[1]->InputAt(1)));
     EXPECT_EQ(2U, s[1]->OutputCount());
@@ -3761,9 +3761,9 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {
   {
     // Test deinterleaved 64x4 protected load, immediate index.
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Pointer());
-    OpIndex load = m.Simd128LoadDeinterleaveTwo(
+    OpIndex load = m.Simd128LoadPairDeinterleave(
         m.Parameter(0), m.Int64Constant(8), LoadOp::Kind::Protected(),
-        Simd128LoadDeinterleaveTwoOp::Kind::k64x4);
+        Simd128LoadPairDeinterleaveOp::Kind::k64x4);
     m.Return(m.Simd128Binop(m.Projection(load, 0), m.Projection(load, 1),
                             Simd128BinopOp::Kind::kI64x2Add));
     Stream s = m.Build();
@@ -3772,7 +3772,7 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {
     EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
     EXPECT_EQ(8, s.ToInt32(s[0]->InputAt(1)));
-    EXPECT_EQ(kArm64S128LoadTwoMultiple, s[1]->arch_opcode());
+    EXPECT_EQ(kArm64S128LoadPairDeinterleave, s[1]->arch_opcode());
     EXPECT_TRUE(s[1]->InputAt(1)->IsImmediate());
     EXPECT_EQ(0, s.ToInt32(s[1]->InputAt(1)));
     EXPECT_EQ(2U, s[1]->OutputCount());
@@ -3781,9 +3781,9 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {
     // Test deinterleaved 32x8 protected load, register index.
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Pointer(),
                     MachineType::Pointer());
-    OpIndex load = m.Simd128LoadDeinterleaveTwo(
+    OpIndex load = m.Simd128LoadPairDeinterleave(
         m.Parameter(0), m.Parameter(1), LoadOp::Kind::Protected(),
-        Simd128LoadDeinterleaveTwoOp::Kind::k32x8);
+        Simd128LoadPairDeinterleaveOp::Kind::k32x8);
     m.Return(m.Simd128Binop(m.Projection(load, 0), m.Projection(load, 1),
                             Simd128BinopOp::Kind::kI32x4Mul));
     Stream s = m.Build();
@@ -3791,7 +3791,7 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {
     EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
     EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
-    EXPECT_EQ(kArm64S128LoadTwoMultiple, s[1]->arch_opcode());
+    EXPECT_EQ(kArm64S128LoadPairDeinterleave, s[1]->arch_opcode());
     EXPECT_TRUE(s[1]->InputAt(1)->IsImmediate());
     EXPECT_EQ(0, s.ToInt32(s[1]->InputAt(1)));
     EXPECT_EQ(2U, s[1]->OutputCount());
@@ -3799,9 +3799,9 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {
   {
     // Test deinterleaved 32x8 protected load, immediate index.
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Pointer());
-    OpIndex load = m.Simd128LoadDeinterleaveTwo(
+    OpIndex load = m.Simd128LoadPairDeinterleave(
         m.Parameter(0), m.Int64Constant(4), LoadOp::Kind::Protected(),
-        Simd128LoadDeinterleaveTwoOp::Kind::k32x8);
+        Simd128LoadPairDeinterleaveOp::Kind::k32x8);
     m.Return(m.Simd128Binop(m.Projection(load, 0), m.Projection(load, 1),
                             Simd128BinopOp::Kind::kI32x4Sub));
     Stream s = m.Build();
@@ -3810,7 +3810,7 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {
     EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
     EXPECT_EQ(4, s.ToInt32(s[0]->InputAt(1)));
-    EXPECT_EQ(kArm64S128LoadTwoMultiple, s[1]->arch_opcode());
+    EXPECT_EQ(kArm64S128LoadPairDeinterleave, s[1]->arch_opcode());
     EXPECT_TRUE(s[1]->InputAt(1)->IsImmediate());
     EXPECT_EQ(0, s.ToInt32(s[1]->InputAt(1)));
     EXPECT_EQ(2U, s[1]->OutputCount());
@@ -3819,17 +3819,17 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {
     // Test deinterleaved 16x16 protected load, register index.
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Pointer(),
                     MachineType::Pointer());
-    OpIndex load = m.Simd128LoadDeinterleaveTwo(
+    OpIndex load = m.Simd128LoadPairDeinterleave(
         m.Parameter(0), m.Parameter(1), LoadOp::Kind::Protected(),
-        Simd128LoadDeinterleaveTwoOp::Kind::k16x16);
+        Simd128LoadPairDeinterleaveOp::Kind::k16x16);
     m.Return(m.Simd128Binop(m.Projection(load, 0), m.Projection(load, 1),
-                            Simd128BinopOp::Kind::kSimd128Or));
+                            Simd128BinopOp::Kind::kS128Or));
     Stream s = m.Build();
     ASSERT_EQ(3U, s.size());
     EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
     EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
-    EXPECT_EQ(kArm64S128LoadTwoMultiple, s[1]->arch_opcode());
+    EXPECT_EQ(kArm64S128LoadPairDeinterleave, s[1]->arch_opcode());
     EXPECT_TRUE(s[1]->InputAt(1)->IsImmediate());
     EXPECT_EQ(0, s.ToInt32(s[1]->InputAt(1)));
     EXPECT_EQ(2U, s[1]->OutputCount());
@@ -3837,18 +3837,18 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {
   {
     // Test deinterleaved 16x16 protected load, immediate index.
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Pointer());
-    OpIndex load = m.Simd128LoadDeinterleaveTwo(
+    OpIndex load = m.Simd128LoadPairDeinterleave(
         m.Parameter(0), m.Int64Constant(2), LoadOp::Kind::Protected(),
-        Simd128LoadDeinterleaveTwoOp::Kind::k16x16);
+        Simd128LoadPairDeinterleaveOp::Kind::k16x16);
     m.Return(m.Simd128Binop(m.Projection(load, 0), m.Projection(load, 1),
-                            Simd128BinopOp::Kind::kSimd128Xor));
+                            Simd128BinopOp::Kind::kS128Xor));
     Stream s = m.Build();
     ASSERT_EQ(3U, s.size());
     EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
     EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
     EXPECT_EQ(2, s.ToInt32(s[0]->InputAt(1)));
-    EXPECT_EQ(kArm64S128LoadTwoMultiple, s[1]->arch_opcode());
+    EXPECT_EQ(kArm64S128LoadPairDeinterleave, s[1]->arch_opcode());
     EXPECT_TRUE(s[1]->InputAt(1)->IsImmediate());
     EXPECT_EQ(0, s.ToInt32(s[1]->InputAt(1)));
     EXPECT_EQ(2U, s[1]->OutputCount());
@@ -3857,17 +3857,17 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {
     // Test deinterleaved 8x32 protected load, register index.
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Pointer(),
                     MachineType::Pointer());
-    OpIndex load = m.Simd128LoadDeinterleaveTwo(
+    OpIndex load = m.Simd128LoadPairDeinterleave(
         m.Parameter(0), m.Parameter(1), LoadOp::Kind::Protected(),
-        Simd128LoadDeinterleaveTwoOp::Kind::k8x32);
+        Simd128LoadPairDeinterleaveOp::Kind::k8x32);
     m.Return(m.Simd128Binop(m.Projection(load, 0), m.Projection(load, 1),
-                            Simd128BinopOp::Kind::kSimd128Or));
+                            Simd128BinopOp::Kind::kS128Or));
     Stream s = m.Build();
     ASSERT_EQ(3U, s.size());
     EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
     EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
-    EXPECT_EQ(kArm64S128LoadTwoMultiple, s[1]->arch_opcode());
+    EXPECT_EQ(kArm64S128LoadPairDeinterleave, s[1]->arch_opcode());
     EXPECT_TRUE(s[1]->InputAt(1)->IsImmediate());
     EXPECT_EQ(0, s.ToInt32(s[1]->InputAt(1)));
     EXPECT_EQ(2U, s[1]->OutputCount());
@@ -3875,25 +3875,25 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {
   {
     // Test deinterleaved 8x32 protected load, immediate index.
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Pointer());
-    OpIndex load = m.Simd128LoadDeinterleaveTwo(
+    OpIndex load = m.Simd128LoadPairDeinterleave(
         m.Parameter(0), m.Int64Constant(16), LoadOp::Kind::Protected(),
-        Simd128LoadDeinterleaveTwoOp::Kind::k8x32);
+        Simd128LoadPairDeinterleaveOp::Kind::k8x32);
     m.Return(m.Simd128Binop(m.Projection(load, 0), m.Projection(load, 1),
-                            Simd128BinopOp::Kind::kSimd128Xor));
+                            Simd128BinopOp::Kind::kS128Xor));
     Stream s = m.Build();
     ASSERT_EQ(3U, s.size());
     EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
     EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
     EXPECT_EQ(16, s.ToInt32(s[0]->InputAt(1)));
-    EXPECT_EQ(kArm64S128LoadTwoMultiple, s[1]->arch_opcode());
+    EXPECT_EQ(kArm64S128LoadPairDeinterleave, s[1]->arch_opcode());
     EXPECT_TRUE(s[1]->InputAt(1)->IsImmediate());
     EXPECT_EQ(0, s.ToInt32(s[1]->InputAt(1)));
     EXPECT_EQ(2U, s[1]->OutputCount());
   }
 }
 
-#endif  // V8_ENABLE_INTERLEAVE_MEM_OPS
+#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
 TEST_F(TurboshaftInstructionSelectorTest, Sha3Test) {
   const MachineType type = MachineType::Simd128();
