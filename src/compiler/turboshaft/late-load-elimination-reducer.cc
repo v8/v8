@@ -15,6 +15,16 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+#ifdef DEBUG
+#define TRACE(x)                                    \
+  do {                                              \
+    if (v8_flags.turboshaft_trace_load_elimination) \
+      StdoutStream() << x << std::endl;             \
+  } while (false)
+#else
+#define TRACE(x)
+#endif
+
 void LateLoadEliminationAnalyzer::Run() {
   LoopFinder loop_finder(phase_zone_, &graph_);
   AnalyzerIterator iterator(phase_zone_, graph_, loop_finder);
@@ -367,10 +377,17 @@ void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
     non_aliasing_objects_.Set(value, false);
   }
 
-  // If we just stored a map, invalidate the maps for this base.
+  // If we just stored a map, invalidate all object_maps_.
   if (store.offset == HeapObject::kMapOffset && !store.index().valid()) {
-    if (object_maps_.HasKeyFor(store.base())) {
-      object_maps_.Set(store.base(), MapMaskAndOr{});
+    // TODO(dmercadier): can we only do this for objects that are potentially
+    // aliasing with the `base` (based on their maps and the maps of `base`)?
+    // Also, it might be worth to record a new map if this is actually a map
+    // store.
+    // TODO(dmercadier): do this only if `value` is a Constant with kind
+    // kHeapObject, since all map stores should store a known constant maps.
+    TRACE(">> Wiping all maps\n");
+    for (auto it : object_maps_) {
+      object_maps_.Set(it.second, MapMaskAndOr{});
     }
   }
 }
