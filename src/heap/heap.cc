@@ -1870,6 +1870,8 @@ int Heap::NotifyContextDisposed(bool has_dependent_context) {
     tracer()->ResetSurvivalEvents();
     if (!initial_size_overwritten_) {
       ResetOldGenerationAndGlobalAllocationLimit();
+    } else if (preconfigured_old_generation_size_) {
+      EnsureMinimumRemainingAllocationLimit(initial_old_generation_size_);
     }
     if (memory_reducer_) {
       memory_reducer_->NotifyPossibleGarbage();
@@ -3139,6 +3141,30 @@ void Heap::ShrinkOldGenerationAllocationLimitIfNotConfigured() {
     SetOldGenerationAndGlobalAllocationLimit(
         new_old_generation_allocation_limit, new_global_allocation_limit);
   }
+}
+
+// Increases V8 and global allocation limits (if necessary) such that there is
+// at least |at_least_remaining| of memory left before triggering GCs. When
+// there is more memory available then that, the limits remain as-is.
+void Heap::EnsureMinimumRemainingAllocationLimit(size_t at_least_remaining) {
+  base::MutexGuard guard(old_space()->mutex());
+  size_t new_old_generation_allocation_limit =
+      std::max(OldGenerationConsumedBytes() + at_least_remaining,
+               old_generation_allocation_limit());
+  new_old_generation_allocation_limit =
+      std::max(new_old_generation_allocation_limit, min_old_generation_size());
+  new_old_generation_allocation_limit =
+      std::min(new_old_generation_allocation_limit, max_old_generation_size());
+
+  size_t new_global_allocation_limit = std::max(
+      GlobalConsumedBytes() + GlobalMemorySizeFromV8Size(at_least_remaining),
+      global_allocation_limit());
+  new_global_allocation_limit =
+      std::max(new_global_allocation_limit, min_global_memory_size_);
+  new_global_allocation_limit =
+      std::min(new_global_allocation_limit, max_global_memory_size_);
+  SetOldGenerationAndGlobalAllocationLimit(new_old_generation_allocation_limit,
+                                           new_global_allocation_limit);
 }
 
 namespace {
@@ -5092,9 +5118,15 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
     }
     return std::nullopt;
   }();
+  DCHECK(!preconfigured_old_generation_size_);
   if (initial_old_generation_size.has_value()) {
     initial_size_overwritten_ = true;
     initial_old_generation_size_ = *initial_old_generation_size;
+  } else if (v8_flags.preconfigured_old_space_size > 0) {
+    initial_size_overwritten_ = true;
+    initial_old_generation_size_ =
+        static_cast<size_t>(v8_flags.preconfigured_old_space_size) * MB;
+    preconfigured_old_generation_size_ = true;
   } else {
     initial_old_generation_size_ = kMaxInitialOldGenerationSize;
     if (constraints.initial_old_generation_size_in_bytes() > 0) {
@@ -5106,7 +5138,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
       std::min(initial_old_generation_size_, max_old_generation_size() / 2);
   initial_old_generation_size_ =
       RoundDown<PageMetadata::kPageSize>(initial_old_generation_size_);
-  if (initial_size_overwritten_) {
+  if (initial_size_overwritten_ && !preconfigured_old_generation_size_) {
     // If the embedder pre-configures the initial old generation size,
     // then allow V8 to skip full GCs below that threshold.
     min_old_generation_size_ = initial_old_generation_size_;

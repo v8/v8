@@ -1841,6 +1841,10 @@ class Heap final {
 
   void ShrinkOldGenerationAllocationLimitIfNotConfigured();
 
+  // Extends the allocation limit such that at least |at_least_remaining| unused
+  // memory is left before hitting the allocation limit.
+  void EnsureMinimumRemainingAllocationLimit(size_t at_least_remaining);
+
   double ComputeMutatorUtilization(const char* tag, double mutator_speed,
                                    std::optional<double> gc_speed);
   bool HasLowYoungGenerationAllocationRate();
@@ -2156,6 +2160,11 @@ class Heap final {
 
   // True if initial heap size was provided by the embedder.
   bool initial_size_overwritten_ = false;
+
+  // True if the old space size was preconfigured. This is different from
+  // initial_size_overwritten_ because it is not also minimum and because of
+  // different behavior in NotifyContextDisposed().
+  bool preconfigured_old_generation_size_ = false;
 
   size_t maximum_committed_ = 0;
   size_t old_generation_capacity_after_bootstrap_ = 0;
