@@ -313,9 +313,14 @@ class WasmLoweringReducer : public Next {
   }
 
   V<None> REDUCE(ArraySet)(V<WasmArrayNullable> array, V<Word32> index,
-                           V<Any> value, wasm::ValueType element_type) {
-    __ Store(array, __ ChangeInt32ToIntPtr(index), value,
-             LoadOp::Kind::TaggedBase(), RepresentationFor(element_type, true),
+                           V<Any> value, wasm::ValueType element_type,
+                           std::optional<AtomicMemoryOrder> memory_order) {
+    StoreOp::Kind store_kind = StoreOp::Kind::TaggedBase();
+    if (memory_order.has_value()) {
+      store_kind = store_kind.Atomic();
+    }
+    __ Store(array, __ ChangeInt32ToIntPtr(index), value, store_kind,
+             RepresentationFor(element_type, true),
              element_type.is_reference() ? kFullWriteBarrier : kNoWriteBarrier,
              WasmArray::kHeaderSize, element_type.value_kind_size_log2());
     return {};

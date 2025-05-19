@@ -828,7 +828,8 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const CanonicalSig* sig);
   V(StructAtomicSet, 0xfe5f, _, "struct.atomic.set")                           \
   V(ArrayAtomicGet, 0xfe67, _, "array.atomic.get")                             \
   V(ArrayAtomicGetS, 0xfe68, _, "array.atomic.get_s")                          \
-  V(ArrayAtomicGetU, 0xfe69, _, "array.atomic.get_u")
+  V(ArrayAtomicGetU, 0xfe69, _, "array.atomic.get_u")                          \
+  V(ArrayAtomicSet, 0xfe6a, _, "array.atomic.set")
 
 // All opcodes.
 #define FOREACH_OPCODE(V)            \
