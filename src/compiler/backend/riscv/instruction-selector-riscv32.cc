@@ -125,8 +125,10 @@ void EmitLoad(InstructionSelectorT* selector, OpIndex node,
 void EmitS128Load(InstructionSelectorT* selector, OpIndex node,
                   InstructionCode opcode, VSew sew, Vlmul lmul) {
   RiscvOperandGeneratorT g(selector);
-  OpIndex base = selector->input_at(node, 0);
-  OpIndex index = selector->input_at(node, 1);
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 2);
+  OpIndex base = op.input(0);
+  OpIndex index = op.input(1);
 
   if (g.CanBeImmediate(index, opcode)) {
     selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
@@ -153,12 +155,14 @@ void InstructionSelectorT::VisitStoreLane(OpIndex node) {
   }
 
   RiscvOperandGeneratorT g(this);
-  OpIndex base = this->input_at(node, 0);
-  OpIndex index = this->input_at(node, 1);
+  const Operation& op = this->Get(node);
+  DCHECK_EQ(op.input_count, 3);
+  OpIndex base = op.input(0);
+  OpIndex index = op.input(1);
   InstructionOperand addr_reg = g.TempRegister();
   Emit(kRiscvAdd32, addr_reg, g.UseRegister(base), g.UseRegister(index));
   InstructionOperand inputs[4] = {
-      g.UseRegister(input_at(node, 2)),
+      g.UseRegister(op.input(2)),
       g.UseImmediate(store.lane),
       addr_reg,
       g.TempImmediate(0),
@@ -176,14 +180,15 @@ void InstructionSelectorT::VisitLoadLane(OpIndex node) {
   }
 
   RiscvOperandGeneratorT g(this);
-  OpIndex base = this->input_at(node, 0);
-  OpIndex index = this->input_at(node, 1);
+  const Operation& op = this->Get(node);
+  DCHECK_EQ(op.input_count, 3);
+  OpIndex base = op.input(0);
+  OpIndex index = op.input(1);
   InstructionOperand addr_reg = g.TempRegister();
   Emit(kRiscvAdd32, addr_reg, g.UseRegister(base), g.UseRegister(index));
   opcode |= AddressingModeField::encode(kMode_MRI);
-  Emit(opcode, g.DefineSameAsFirst(node),
-       g.UseRegister(this->input_at(node, 2)), g.UseImmediate(load.lane),
-       addr_reg, g.TempImmediate(0));
+  Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(op.input(2)),
+       g.UseImmediate(load.lane), addr_reg, g.TempImmediate(0));
 }
 
 void InstructionSelectorT::VisitLoad(OpIndex node) {
@@ -378,12 +383,13 @@ void InstructionSelectorT::VisitWord64ReverseBytes(OpIndex node) {
 
 void InstructionSelectorT::VisitWord32ReverseBytes(OpIndex node) {
   RiscvOperandGeneratorT g(this);
+  const Operation& op = this->Get(node);
+  DCHECK_EQ(op.input_count, 1);
   if (CpuFeatures::IsSupported(ZBB)) {
-    Emit(kRiscvRev8, g.DefineAsRegister(node),
-         g.UseRegister(this->input_at(node, 0)));
+    Emit(kRiscvRev8, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
   } else {
     Emit(kRiscvByteSwap32, g.DefineAsRegister(node),
-         g.UseRegister(this->input_at(node, 0)));
+         g.UseRegister(op.input(0)));
   }
 }
 
@@ -393,14 +399,16 @@ void InstructionSelectorT::VisitSimd128ReverseBytes(OpIndex node) {
 
 void InstructionSelectorT::VisitWord32Ctz(OpIndex node) {
   RiscvOperandGeneratorT g(this);
-  Emit(kRiscvCtz, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)));
+  const Operation& op = this->Get(node);
+  DCHECK_EQ(op.input_count, 1);
+  Emit(kRiscvCtz, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
 }
 
 void InstructionSelectorT::VisitWord32Popcnt(OpIndex node) {
   RiscvOperandGeneratorT g(this);
-  Emit(kRiscvCpop, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)));
+  const Operation& op = this->Get(node);
+  DCHECK_EQ(op.input_count, 1);
+  Emit(kRiscvCpop, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
 }
 
 void InstructionSelectorT::VisitInt32Add(OpIndex node) {
@@ -463,14 +471,13 @@ void InstructionSelectorT::VisitChangeUint32ToFloat64(OpIndex node) {
 
 void InstructionSelectorT::VisitTruncateFloat32ToInt32(OpIndex node) {
   RiscvOperandGeneratorT g(this);
-
   const Operation& op = this->Get(node);
+  DCHECK_EQ(op.input_count, 1);
   InstructionCode opcode = kRiscvTruncWS;
   if (op.Is<Opmask::kTruncateFloat32ToInt32OverflowToMin>()) {
     opcode |= MiscField::encode(true);
   }
-  Emit(opcode, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)));
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
 }
 
 void InstructionSelectorT::VisitTruncateFloat32ToUint32(OpIndex node) {
@@ -487,16 +494,18 @@ void InstructionSelectorT::VisitTruncateFloat32ToUint32(OpIndex node) {
 
 void InstructionSelectorT::VisitChangeFloat64ToInt32(OpIndex node) {
   RiscvOperandGeneratorT g(this);
-  OpIndex value = this->input_at(node, 0);
+  DCHECK_EQ(this->Get(node).input_count, 1);
+  OpIndex value = this->Get(node).input(0);
   using Rep = turboshaft::RegisterRepresentation;
   if (CanCover(node, value)) {
     const turboshaft::Operation& op = this->Get(value);
+    DCHECK_EQ(op.input_count, 1);
     if (op.Is<turboshaft::ChangeOp>()) {
       const turboshaft::ChangeOp& change = op.Cast<turboshaft::ChangeOp>();
       if (change.kind == turboshaft::ChangeOp::Kind::kFloatConversion) {
         if (change.from == Rep::Float32() && change.to == Rep::Float64()) {
           Emit(kRiscvTruncWS, g.DefineAsRegister(node),
-               g.UseRegister(this->input_at(value, 0)));
+               g.UseRegister(op.input(0)));
           return;
         }
       }
@@ -564,17 +573,19 @@ void InstructionSelectorT::VisitFloat64Neg(OpIndex node) {
 void InstructionSelectorT::VisitFloat64Ieee754Binop(OpIndex node,
                                                     InstructionCode opcode) {
   RiscvOperandGeneratorT g(this);
-  Emit(opcode, g.DefineAsFixed(node, fa0),
-       g.UseFixed(this->input_at(node, 0), fa0),
-       g.UseFixed(this->input_at(node, 1), fa1))
+  const Operation& op = this->Get(node);
+  DCHECK_EQ(op.input_count, 2);
+  Emit(opcode, g.DefineAsFixed(node, fa0), g.UseFixed(op.input(0), fa0),
+       g.UseFixed(op.input(1), fa1))
       ->MarkAsCall();
 }
 
 void InstructionSelectorT::VisitFloat64Ieee754Unop(OpIndex node,
                                                    InstructionCode opcode) {
   RiscvOperandGeneratorT g(this);
-  Emit(opcode, g.DefineAsFixed(node, fa0),
-       g.UseFixed(this->input_at(node, 0), fa1))
+  const Operation& op = this->Get(node);
+  DCHECK_EQ(op.input_count, 1);
+  Emit(opcode, g.DefineAsFixed(node, fa0), g.UseFixed(op.input(0), fa1))
       ->MarkAsCall();
 }
 
@@ -1210,44 +1221,32 @@ template <unsigned N>
 static void VisitInt32PairBinop(InstructionSelectorT* selector,
                                 InstructionCode pair_opcode,
                                 InstructionCode single_opcode, OpIndex node) {
-  static_assert(N == 3 || N == 4,
-                "Pair operations can only have 3 or 4 inputs");
+  static_assert(N == 4, "Pair operations can only have 4 inputs");
 
   RiscvOperandGeneratorT g(selector);
+  const Word32PairBinopOp& pair_binop = selector->Cast<Word32PairBinopOp>(node);
+
   OptionalOpIndex projection1 = selector->FindProjection(node, 1);
 
   if (projection1.valid()) {
     InstructionOperand outputs[] = {g.DefineAsRegister(node),
                                     g.DefineAsRegister(projection1.value())};
 
-    if constexpr (N == 3) {
-      // We use UseUniqueRegister here to avoid register sharing with the output
-      // register.
-      InstructionOperand inputs[] = {
-          g.UseUniqueRegister(selector->input_at(node, 0)),
-          g.UseUniqueRegister(selector->input_at(node, 1)),
-          g.UseUniqueRegister(selector->input_at(node, 2))};
+    // We use UseUniqueRegister here to avoid register sharing with the output
+    // registers.
+    InstructionOperand inputs[] = {
+        g.UseRegister(pair_binop.left_low()),
+        g.UseUniqueRegister(pair_binop.left_high()),
+        g.UseRegister(pair_binop.right_low()),
+        g.UseUniqueRegister(pair_binop.right_high())};
 
-      selector->Emit(pair_opcode, 2, outputs, N, inputs);
-
-    } else if constexpr (N == 4) {
-      // We use UseUniqueRegister here to avoid register sharing with the output
-      // register.
-      InstructionOperand inputs[] = {
-          g.UseUniqueRegister(selector->input_at(node, 0)),
-          g.UseUniqueRegister(selector->input_at(node, 1)),
-          g.UseUniqueRegister(selector->input_at(node, 2)),
-          g.UseUniqueRegister(selector->input_at(node, 3))};
-
-      selector->Emit(pair_opcode, 2, outputs, N, inputs);
-    }
-
+    selector->Emit(pair_opcode, 2, outputs, 4, inputs);
   } else {
     // The high word of the result is not used, so we emit the standard 32 bit
     // instruction.
     selector->Emit(single_opcode, g.DefineSameAsFirst(node),
-                   g.UseRegister(selector->input_at(node, 0)),
-                   g.UseRegister(selector->input_at(node, 2)));
+                   g.UseRegister(pair_binop.left_low()),
+                   g.UseRegister(pair_binop.right_low()));
   }
 }
 
@@ -1265,8 +1264,10 @@ void InstructionSelectorT::VisitInt32PairMul(OpIndex node) {
 
 void InstructionSelectorT::VisitI64x2SplatI32Pair(OpIndex node) {
   RiscvOperandGeneratorT g(this);
-  InstructionOperand low = g.UseRegister(this->input_at(node, 0));
-  InstructionOperand high = g.UseRegister(this->input_at(node, 1));
+  const Operation& op = this->Get(node);
+  DCHECK_EQ(op.input_count, 2);
+  InstructionOperand low = g.UseRegister(op.input(0));
+  InstructionOperand high = g.UseRegister(op.input(1));
   Emit(kRiscvI64x2SplatI32Pair, g.DefineAsRegister(node), low, high);
 }
 
@@ -1281,7 +1282,9 @@ static void VisitWord32PairShift(InstructionSelectorT* selector,
                                  InstructionCode opcode, OpIndex node) {
   RiscvOperandGeneratorT g(selector);
   InstructionOperand shift_operand;
-  OpIndex shift_by = selector->input_at(node, 2);
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 3);
+  OpIndex shift_by = op.input(2);
   if (g.IsIntegerConstant(shift_by)) {
     shift_operand = g.UseImmediate(shift_by);
   } else {
@@ -1290,9 +1293,9 @@ static void VisitWord32PairShift(InstructionSelectorT* selector,
 
   // We use UseUniqueRegister here to avoid register sharing with the output
   // register.
-  InstructionOperand inputs[] = {
-      g.UseUniqueRegister(selector->input_at(node, 0)),
-      g.UseUniqueRegister(selector->input_at(node, 1)), shift_operand};
+  InstructionOperand inputs[] = {g.UseUniqueRegister(op.input(0)),
+                                 g.UseUniqueRegister(op.input(1)),
+                                 shift_operand};
 
   OptionalOpIndex projection1 = selector->FindProjection(node, 1);
 
@@ -1325,8 +1328,10 @@ void InstructionSelectorT::VisitWord32PairSar(OpIndex node) {
 
 void InstructionSelectorT::VisitWord32AtomicPairLoad(OpIndex node) {
   RiscvOperandGeneratorT g(this);
-  OpIndex base = this->input_at(node, 0);
-  OpIndex index = this->input_at(node, 1);
+  const Operation& op = this->Get(node);
+  DCHECK_EQ(op.input_count, 2);
+  OpIndex base = op.input(0);
+  OpIndex index = op.input(1);
 
   ArchOpcode opcode = kRiscvWord32AtomicPairLoad;
   AddressingMode addressing_mode = kMode_MRI;
@@ -1376,10 +1381,12 @@ void VisitPairAtomicBinop(InstructionSelectorT* selector, OpIndex node,
                           ArchOpcode opcode) {
   using OpIndex = OpIndex;
   RiscvOperandGeneratorT g(selector);
-  OpIndex base = selector->input_at(node, 0);
-  OpIndex index = selector->input_at(node, 1);
-  OpIndex value = selector->input_at(node, 2);
-  OpIndex value_high = selector->input_at(node, 3);
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 4);
+  OpIndex base = op.input(0);
+  OpIndex index = op.input(1);
+  OpIndex value = op.input(2);
+  OpIndex value_high = op.input(3);
 
   AddressingMode addressing_mode = kMode_None;
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
@@ -1434,17 +1441,18 @@ void InstructionSelectorT::VisitWord32AtomicPairExchange(OpIndex node) {
 
 void InstructionSelectorT::VisitWord32AtomicPairCompareExchange(OpIndex node) {
   RiscvOperandGeneratorT g(this);
+  const Operation& op = this->Get(node);
+  DCHECK_EQ(op.input_count, 6);
   // In the Turbofan and the Turboshaft graph the order of expected and value is
   // swapped.
   const size_t expected_offset = 4;
   const size_t value_offset = 2;
-  InstructionOperand inputs[] = {
-      g.UseRegister(this->input_at(node, 0)),
-      g.UseRegister(this->input_at(node, 1)),
-      g.UseFixed(this->input_at(node, expected_offset), a1),
-      g.UseFixed(this->input_at(node, expected_offset + 1), a2),
-      g.UseFixed(this->input_at(node, value_offset), a3),
-      g.UseFixed(this->input_at(node, value_offset + 1), a4)};
+  InstructionOperand inputs[] = {g.UseRegister(op.input(0)),
+                                 g.UseRegister(op.input(1)),
+                                 g.UseFixed(op.input(expected_offset), a1),
+                                 g.UseFixed(op.input(expected_offset + 1), a2),
+                                 g.UseFixed(op.input(value_offset), a3),
+                                 g.UseFixed(op.input(value_offset + 1), a4)};
 
   InstructionCode code = kRiscvWord32AtomicPairCompareExchange |
                          AddressingModeField::encode(kMode_MRI);
@@ -1475,11 +1483,13 @@ void InstructionSelectorT::VisitF64x2Min(OpIndex node) {
   InstructionOperand mask_reg = g.TempFpRegister(v0);
   InstructionOperand temp2 = g.TempFpRegister(kSimd128ScratchReg);
   const int32_t kNaN = 0x7ff80000L, kNaNShift = 32;
-  this->Emit(kRiscvVmfeqVv, temp1, g.UseRegister(this->input_at(node, 0)),
-             g.UseRegister(this->input_at(node, 0)), g.UseImmediate(E64),
+  const Operation& op = this->Get(node);
+  DCHECK_EQ(op.input_count, 2);
+  this->Emit(kRiscvVmfeqVv, temp1, g.UseRegister(op.input(0)),
+             g.UseRegister(op.input(0)), g.UseImmediate(E64),
              g.UseImmediate(m1));
-  this->Emit(kRiscvVmfeqVv, temp2, g.UseRegister(this->input_at(node, 1)),
-             g.UseRegister(this->input_at(node, 1)), g.UseImmediate(E64),
+  this->Emit(kRiscvVmfeqVv, temp2, g.UseRegister(op.input(1)),
+             g.UseRegister(op.input(1)), g.UseImmediate(E64),
              g.UseImmediate(m1));
   this->Emit(kRiscvVandVv, mask_reg, temp2, temp1, g.UseImmediate(E64),
              g.UseImmediate(m1));
@@ -1491,8 +1501,8 @@ void InstructionSelectorT::VisitF64x2Min(OpIndex node) {
              g.UseImmediate(m1));
   this->Emit(kRiscvVsll, temp4, temp3, g.UseImmediate(kNaNShift),
              g.UseImmediate(E64), g.UseImmediate(m1));
-  this->Emit(kRiscvVfminVv, temp5, g.UseRegister(this->input_at(node, 1)),
-             g.UseRegister(this->input_at(node, 0)), g.UseImmediate(E64),
+  this->Emit(kRiscvVfminVv, temp5, g.UseRegister(op.input(1)),
+             g.UseRegister(op.input(0)), g.UseImmediate(E64),
              g.UseImmediate(m1), g.UseImmediate(Mask));
   this->Emit(kRiscvVmv, g.DefineAsRegister(node), temp5, g.UseImmediate(E64),
              g.UseImmediate(m1));
@@ -1504,11 +1514,13 @@ void InstructionSelectorT::VisitF64x2Max(OpIndex node) {
   InstructionOperand mask_reg = g.TempFpRegister(v0);
   InstructionOperand temp2 = g.TempFpRegister(kSimd128ScratchReg);
   const int32_t kNaN = 0x7ff80000L, kNaNShift = 32;
-  this->Emit(kRiscvVmfeqVv, temp1, g.UseRegister(this->input_at(node, 0)),
-             g.UseRegister(this->input_at(node, 0)), g.UseImmediate(E64),
+  const Operation& op = this->Get(node);
+  DCHECK_EQ(op.input_count, 2);
+  this->Emit(kRiscvVmfeqVv, temp1, g.UseRegister(op.input(0)),
+             g.UseRegister(op.input(0)), g.UseImmediate(E64),
              g.UseImmediate(m1));
-  this->Emit(kRiscvVmfeqVv, temp2, g.UseRegister(this->input_at(node, 1)),
-             g.UseRegister(this->input_at(node, 1)), g.UseImmediate(E64),
+  this->Emit(kRiscvVmfeqVv, temp2, g.UseRegister(op.input(1)),
+             g.UseRegister(op.input(1)), g.UseImmediate(E64),
              g.UseImmediate(m1));
   this->Emit(kRiscvVandVv, mask_reg, temp2, temp1, g.UseImmediate(E64),
              g.UseImmediate(m1));
@@ -1520,8 +1532,8 @@ void InstructionSelectorT::VisitF64x2Max(OpIndex node) {
              g.UseImmediate(m1));
   this->Emit(kRiscvVsll, temp4, temp3, g.UseImmediate(kNaNShift),
              g.UseImmediate(E64), g.UseImmediate(m1));
-  this->Emit(kRiscvVfmaxVv, temp5, g.UseRegister(this->input_at(node, 1)),
-             g.UseRegister(this->input_at(node, 0)), g.UseImmediate(E64),
+  this->Emit(kRiscvVfmaxVv, temp5, g.UseRegister(op.input(1)),
+             g.UseRegister(op.input(0)), g.UseImmediate(E64),
              g.UseImmediate(m1), g.UseImmediate(Mask));
   this->Emit(kRiscvVmv, g.DefineAsRegister(node), temp5, g.UseImmediate(E64),
              g.UseImmediate(m1));
