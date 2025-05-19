@@ -29,6 +29,7 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-objects.h"
+#include "src/objects/shared-function-info-inl.h"
 #include "src/objects/struct.h"
 #include "src/regexp/regexp.h"
 #include "src/sandbox/isolate.h"
@@ -2533,7 +2534,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {
   } else {
     os << "<none>";
   }
-  os << "\n - function_literal_id: " << function_literal_id();
+  os << "\n - function_literal_id: " << function_literal_id(kRelaxedLoad);
   os << "\n - unique_id: " << unique_id();
   os << "\n - age: " << age();
   os << "\n";

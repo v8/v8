@@ -21,6 +21,7 @@
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-pipeline-statistics.h"
 #include "src/objects/js-function-inl.h"
+#include "src/objects/shared-function-info-inl.h"
 #include "src/utils/identity-map.h"
 #include "src/utils/locked-queue-inl.h"
 
@@ -245,7 +246,8 @@ uint64_t MaglevCompilationJob::trace_id() const {
   return reinterpret_cast<uint64_t>(this) ^
          reinterpret_cast<uint64_t>(info_.get()) ^
          info_->toplevel_function().address() ^
-         info_->toplevel_function()->shared()->function_literal_id();
+         info_->toplevel_function()->shared()->function_literal_id(
+             kRelaxedLoad);
 }
 
 void MaglevCompilationJob::BeginPhaseKind(const char* name) {

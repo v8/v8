@@ -525,6 +525,7 @@ class SharedFunctionInfo
 
   // [flags] Bit field containing various flags about the function.
   DECL_RELAXED_INT32_ACCESSORS(flags)
+  DECL_RELAXED_INT32_ACCESSORS(function_literal_id)
   DECL_UINT8_ACCESSORS(flags2)
 
   DECL_UINT16_ACCESSORS(age)

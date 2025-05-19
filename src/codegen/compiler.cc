@@ -56,6 +56,7 @@
 #include "src/objects/map.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/objects-body-descriptors-inl.h"
+#include "src/objects/objects.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
 #include "src/parsing/parse-info.h"
@@ -1585,7 +1586,7 @@ Handle<SharedFunctionInfo> GetOrCreateTopLevelSharedFunctionInfo(
   MaybeHandle<SharedFunctionInfo> maybe_shared =
       Script::FindSharedFunctionInfo(script, isolate, parse_info->literal());
   if (Handle<SharedFunctionInfo> shared; maybe_shared.ToHandle(&shared)) {
-    DCHECK_EQ(shared->function_literal_id(),
+    DCHECK_EQ(shared->function_literal_id(kRelaxedLoad),
               parse_info->literal()->function_literal_id());
     *is_compiled_scope = shared->is_compiled_scope(isolate);
     return shared;
@@ -1749,7 +1750,7 @@ BackgroundCompileTask::BackgroundCompileTask(
       compilation_details_(nullptr),
       start_position_(shared_info->StartPosition()),
       end_position_(shared_info->EndPosition()),
-      function_literal_id_(shared_info->function_literal_id()) {
+      function_literal_id_(shared_info->function_literal_id(kRelaxedLoad)) {
   DCHECK(!shared_info->is_toplevel());
   DCHECK(!is_streaming_compilation());
 
@@ -2234,7 +2235,7 @@ class ConstantPoolPointerForwarder {
   void VisitSharedFunctionInfo(Tagged<TArray> constant_pool, int i,
                                Tagged<SharedFunctionInfo> sfi) {
     Tagged<MaybeObject> maybe_old_sfi =
-        old_script_->infos()->get(sfi->function_literal_id());
+        old_script_->infos()->get(sfi->function_literal_id(kRelaxedLoad));
     if (maybe_old_sfi.IsWeak()) {
       constant_pool->set(
           i, Cast<SharedFunctionInfo>(maybe_old_sfi.GetHeapObjectAssumeWeak()));
@@ -2347,7 +2348,7 @@ void VerifyCodeMerge(Isolate* isolate, DirectHandle<Script> script) {
           if (Is<SharedFunctionInfo>(entry)) {
             Tagged<SharedFunctionInfo> inner_sfi =
                 Cast<SharedFunctionInfo>(entry);
-            int id = inner_sfi->function_literal_id();
+            int id = inner_sfi->function_literal_id(kRelaxedLoad);
             CHECK_EQ(MakeWeak(inner_sfi), script->infos()->get(id));
             CHECK_EQ(inner_sfi->script(), *script);
           }
@@ -3285,9 +3286,22 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
   CompilationCache* compilation_cache = isolate->compilation_cache();
   InfoCellPair eval_result = compilation_cache->LookupEval(
       source, outer_info, context, language_mode, eval_cache_position);
-  DirectHandle<FeedbackCell> feedback_cell;
-  if (eval_result.has_feedback_cell()) {
-    feedback_cell = direct_handle(eval_result.feedback_cell(), isolate);
+  if (eval_result.has_js_function()) {
+    DirectHandle<JSFunction> result =
+        direct_handle(eval_result.js_function(), isolate);
+    if (v8_flags.reuse_scope_infos) {
+      CHECK_EQ(result->context()->scope_info(), context->scope_info());
+    }
+    Tagged<FeedbackCell> feedback_cell = result->raw_feedback_cell();
+    FeedbackCell::ClosureCountTransition cell_transition =
+        feedback_cell->IncrementClosureCount(isolate);
+    if (cell_transition == FeedbackCell::kOneToMany &&
+        result->code(isolate)->is_context_specialized()) {
+      result->UpdateCode(isolate,
+                         *BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
+    }
+    result->set_context(*context, kReleaseStore);
+    return result;
   }
 
   DirectHandle<SharedFunctionInfo> shared_info;
@@ -3359,27 +3373,19 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
 
   DirectHandle<JSFunction> result;
   if (eval_result.has_shared()) {
-    if (eval_result.has_feedback_cell()) {
-      result = Factory::JSFunctionBuilder{isolate, shared_info, context}
-                   .set_feedback_cell(feedback_cell)
-                   .set_allocation_type(AllocationType::kYoung)
-                   .Build();
-    } else {
-      result = Factory::JSFunctionBuilder{isolate, shared_info, context}
-                   .set_allocation_type(AllocationType::kYoung)
-                   .Build();
-      // TODO(mythria): I don't think we need this here. PostInstantiation
-      // already initializes feedback cell.
-      JSFunction::InitializeFeedbackCell(isolate, result, &is_compiled_scope,
-                                         true);
-      if (allow_eval_cache) {
-        // Make sure to cache this result.
-        DirectHandle<FeedbackCell> new_feedback_cell(
-            result->raw_feedback_cell(), isolate);
-        compilation_cache->UpdateEval(source, outer_info, context,
-                                      new_feedback_cell, language_mode,
-                                      eval_cache_position);
-      }
+    result = Factory::JSFunctionBuilder{isolate, shared_info, context}
+                 .set_allocation_type(AllocationType::kYoung)
+                 .Build();
+    // TODO(mythria): I don't think we need this here. PostInstantiation
+    // already initializes feedback cell.
+    JSFunction::InitializeFeedbackCell(isolate, result, &is_compiled_scope,
+                                       true);
+    if (allow_eval_cache) {
+      // Make sure to cache this result.
+      DirectHandle<FeedbackCell> new_feedback_cell(result->raw_feedback_cell(),
+                                                   isolate);
+      compilation_cache->UpdateEval(source, outer_info, result, language_mode,
+                                    eval_cache_position);
     }
   } else {
     result = Factory::JSFunctionBuilder{isolate, shared_info, context}
@@ -3390,12 +3396,8 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
     JSFunction::InitializeFeedbackCell(isolate, result, &is_compiled_scope,
                                        true);
     if (allow_eval_cache) {
-      // Add the SharedFunctionInfo and the LiteralsArray to the eval cache if
-      // we didn't retrieve from there.
-      DirectHandle<FeedbackCell> new_feedback_cell(result->raw_feedback_cell(),
-                                                   isolate);
-      compilation_cache->PutEval(source, outer_info, context, shared_info,
-                                 new_feedback_cell, eval_cache_position);
+      compilation_cache->PutEval(source, outer_info, result,
+                                 eval_cache_position);
     }
   }
   CHECK(is_compiled_scope.is_compiled());

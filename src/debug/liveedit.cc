@@ -944,10 +944,12 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     UpdatePositions(isolate, sfi, mapping.second, diffs);
 
     sfi->set_script(*new_script, kReleaseStore);
-    std::vector<uint32_t> source_infos = eval_calls[sfi->function_literal_id()];
-    sfi->set_function_literal_id(mapping.second->function_literal_id());
+    std::vector<uint32_t> source_infos =
+        eval_calls[sfi->function_literal_id(kRelaxedLoad)];
+    sfi->set_function_literal_id(mapping.second->function_literal_id(),
+                                 kRelaxedStore);
     std::vector<uint32_t> target_infos =
-        new_eval_calls[sfi->function_literal_id()];
+        new_eval_calls[sfi->function_literal_id(kRelaxedLoad)];
     new_script->infos()->set(mapping.second->function_literal_id(),
                              MakeWeak(*sfi));
     if (sfi->HasBytecodeArray()) {
@@ -957,7 +959,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
         new_script->infos()->set(target_infos[i], MakeWeak(scope_info));
       }
     }
-    DCHECK_EQ(sfi->function_literal_id(),
+    DCHECK_EQ(sfi->function_literal_id(kRelaxedLoad),
               mapping.second->function_literal_id());
 
     // Save the new start_position -> id mapping, so that we can recover it when
@@ -1075,7 +1077,8 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     for (Tagged<SharedFunctionInfo> sfi = script_it.Next(); !sfi.is_null();
          sfi = script_it.Next()) {
       DCHECK_EQ(sfi->script(), *new_script);
-      DCHECK_EQ(sfi->function_literal_id(), script_it.CurrentIndex());
+      DCHECK_EQ(sfi->function_literal_id(kRelaxedLoad),
+                script_it.CurrentIndex());
       // Don't check the start position of the top-level function, as it can
       // overlap with a function in the script.
       if (sfi->is_toplevel()) {
@@ -1095,9 +1098,10 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
         Tagged<SharedFunctionInfo> inner_sfi =
             Cast<SharedFunctionInfo>(constants->get(i));
         DCHECK_EQ(inner_sfi->script(), *new_script);
-        DCHECK_EQ(inner_sfi, new_script->infos()
-                                 ->get(inner_sfi->function_literal_id())
-                                 .GetHeapObject());
+        DCHECK_EQ(inner_sfi,
+                  new_script->infos()
+                      ->get(inner_sfi->function_literal_id(kRelaxedLoad))
+                      .GetHeapObject());
       }
     }
   }

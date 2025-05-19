@@ -1020,10 +1020,11 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
     CHECK(g->is_compiled(isolate()));
     CHECK(!h->is_compiled(isolate()));
 
-    CHECK_EQ(top_level->shared()->function_literal_id(), kTopLevelId);
-    CHECK_EQ(f->shared()->function_literal_id(), kFId);
-    CHECK_EQ(g->shared()->function_literal_id(), kGId);
-    CHECK_EQ(h->shared()->function_literal_id(), kHId);
+    CHECK_EQ(top_level->shared()->function_literal_id(kRelaxedLoad),
+             kTopLevelId);
+    CHECK_EQ(f->shared()->function_literal_id(kRelaxedLoad), kFId);
+    CHECK_EQ(g->shared()->function_literal_id(kRelaxedLoad), kGId);
+    CHECK_EQ(h->shared()->function_literal_id(kRelaxedLoad), kHId);
 
     // Age everything so that subsequent GCs can pick it up if possible.
     SharedFunctionInfo::EnsureOldForTesting(top_level->shared());
@@ -1124,10 +1125,11 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
     CHECK(g->is_compiled(isolate()));
     CHECK(!h->is_compiled(isolate()));
 
-    CHECK_EQ(top_level->shared()->function_literal_id(), kTopLevelId);
-    CHECK_EQ(f->shared()->function_literal_id(), kFId);
-    CHECK_EQ(g->shared()->function_literal_id(), kGId);
-    CHECK_EQ(h->shared()->function_literal_id(), kHId);
+    CHECK_EQ(top_level->shared()->function_literal_id(kRelaxedLoad),
+             kTopLevelId);
+    CHECK_EQ(f->shared()->function_literal_id(kRelaxedLoad), kFId);
+    CHECK_EQ(g->shared()->function_literal_id(kRelaxedLoad), kGId);
+    CHECK_EQ(h->shared()->function_literal_id(kRelaxedLoad), kHId);
 
     CHECK_EQ(top_level->shared()->script(), *old_script);
     CHECK_EQ(f->shared()->script(), *old_script);
