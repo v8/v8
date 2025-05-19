@@ -3338,31 +3338,36 @@ bool CallsCatchMethod(Isolate* isolate, Handle<BytecodeArray> bytecode_array,
     if (iterator.done()) {
       return false;
     }
-    if (iterator.current_bytecode() == Bytecode::kStaCurrentContextSlotNoCell) {
+    if (iterator.current_bytecode() == Bytecode::kStaCurrentContextSlot ||
+        iterator.current_bytecode() == Bytecode::kStaCurrentContextSlotNoCell) {
       // Step over patterns like:
-      //     StaCurrentContextSlotNoCell [x]
-      //     LdaImmutableCurrentContextSlot [x]
+      //     StaCurrentContextSlot[NoCell] [x]
+      //     LdaImmutableCurrentContextSlot/LdaCurrentContext[NoCell] [x]
       unsigned int slot = iterator.GetIndexOperand(0);
       iterator.Advance();
-      if (!iterator.done() && (iterator.current_bytecode() ==
-                                   Bytecode::kLdaImmutableCurrentContextSlot ||
-                               iterator.current_bytecode() ==
-                                   Bytecode::kLdaCurrentContextSlotNoCell)) {
+      if (!iterator.done() &&
+          (iterator.current_bytecode() ==
+               Bytecode::kLdaImmutableCurrentContextSlot ||
+           iterator.current_bytecode() == Bytecode::kLdaCurrentContextSlot ||
+           iterator.current_bytecode() ==
+               Bytecode::kLdaCurrentContextSlotNoCell)) {
         if (iterator.GetIndexOperand(0) != slot) {
           return false;
         }
         iterator.Advance();
       }
-    } else if (iterator.current_bytecode() == Bytecode::kStaContextSlotNoCell) {
+    } else if (iterator.current_bytecode() == Bytecode::kStaContextSlot ||
+               iterator.current_bytecode() == Bytecode::kStaContextSlotNoCell) {
       // Step over patterns like:
-      //     StaContextSlotNoCell r_x [y] [z]
-      //     LdaContextSlotNoCell r_x [y] [z]
+      //     StaContextSlot[NoCell] r_x [y] [z]
+      //     LdaContextSlot[NoCell] r_x [y] [z]
       int context = iterator.GetRegisterOperand(0).index();
       unsigned int slot = iterator.GetIndexOperand(1);
       unsigned int depth = iterator.GetUnsignedImmediateOperand(2);
       iterator.Advance();
       if (!iterator.done() &&
           (iterator.current_bytecode() == Bytecode::kLdaImmutableContextSlot ||
+           iterator.current_bytecode() == Bytecode::kLdaContextSlot ||
            iterator.current_bytecode() == Bytecode::kLdaContextSlotNoCell)) {
         if (iterator.GetRegisterOperand(0).index() != context ||
             iterator.GetIndexOperand(1) != slot ||

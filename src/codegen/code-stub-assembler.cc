@@ -3526,6 +3526,12 @@ TNode<BoolT> CodeStubAssembler::LoadScopeInfoClassScopeHasPrivateBrand(
   return IsSetWord32<ScopeInfo::ClassScopeHasPrivateBrandBit>(value);
 }
 
+TNode<IntPtrT> CodeStubAssembler::LoadScopeInfoContextLocalCount(
+    TNode<ScopeInfo> scope_info) {
+  return SmiToIntPtr(
+      LoadObjectField<Smi>(scope_info, ScopeInfo::kContextLocalCountOffset));
+}
+
 void CodeStubAssembler::StoreContextElementNoWriteBarrier(
     TNode<Context> context, int slot_index, TNode<Object> value) {
   int offset = Context::SlotOffset(slot_index);

@@ -275,7 +275,8 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
   }
 
   auto maybe_value = concrete.get(broker(), static_cast<int>(access.index()));
-  if (!maybe_value || maybe_value->IsTheHole()) {
+  if (!maybe_value || maybe_value->IsTheHole() ||
+      maybe_value->IsUndefinedContextCell()) {
     return SimplifyJSLoadContext(
         node, jsgraph()->ConstantNoHole(concrete, broker()), depth);
   }
@@ -407,7 +408,8 @@ Reduction JSContextSpecialization::ReduceJSStoreContext(Node* node) {
   }
 
   auto maybe_value = concrete.get(broker(), static_cast<int>(access.index()));
-  if (!maybe_value || maybe_value->IsTheHole()) {
+  if (!maybe_value || maybe_value->IsTheHole() ||
+      maybe_value->IsUndefinedContextCell()) {
     return SimplifyJSStoreContext(
         node, jsgraph()->ConstantNoHole(concrete, broker()), depth);
   }

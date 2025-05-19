@@ -396,9 +396,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     return has_await_using_declaration_;
   }
 
-  bool has_context_cells() const {
-    return v8_flags.script_context_cells && is_script_scope();
-  }
+  bool has_context_cells() const { return has_context_cells_; }
 
   bool is_wrapped_function() const {
     DCHECK_IMPLIES(is_wrapped_function_, is_function_scope());
@@ -856,6 +854,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // If the scope was generated for wrapped function syntax, which will affect
   // its UniqueIdInScript.
   bool is_wrapped_function_ : 1;
+
+  // The context associated with the scope might have context cells.
+  bool has_context_cells_ : 1;
 };
 
 class V8_EXPORT_PRIVATE DeclarationScope : public Scope {

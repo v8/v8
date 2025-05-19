@@ -205,7 +205,7 @@ bool Context::IsScriptContext() const {
 }
 
 inline bool Context::HasContextCells() const {
-  return v8_flags.script_context_cells && IsScriptContext();
+  return scope_info()->HasContextCells();
 }
 
 bool Context::HasSameSecurityTokenAs(Tagged<Context> that) const {

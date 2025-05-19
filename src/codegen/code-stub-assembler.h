@@ -1653,6 +1653,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> LoadScopeInfoHasExtensionField(TNode<ScopeInfo> scope_info);
   TNode<BoolT> LoadScopeInfoClassScopeHasPrivateBrand(
       TNode<ScopeInfo> scope_info);
+  TNode<IntPtrT> LoadScopeInfoContextLocalCount(TNode<ScopeInfo> scope_info);
 
   // Context manipulation:
   void StoreContextElementNoWriteBarrier(TNode<Context> context, int slot_index,
@@ -2945,11 +2946,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     } else {
       return BoolConstant(false);
     }
-  }
-
-  TNode<BoolT> IsScriptContextCellsFlag() {
-    return LoadRuntimeFlag(
-        ExternalReference::address_of_script_context_cells_flag());
   }
 
   // True iff |object| is a Smi or a HeapNumber or a BigInt.

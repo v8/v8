@@ -2562,8 +2562,6 @@ void LoadTaggedFieldForScriptContextSlot::GenerateCode(
   Register value = ToRegister(result());
   Register scratch = temps.Acquire();
   ZoneLabelRef done(masm);
-  __ AssertObjectType(script_context, SCRIPT_CONTEXT_TYPE,
-                      AbortReason::kUnexpectedInstanceType);
 
   // Load value from context.
   __ LoadTaggedField(value, script_context, offset());
@@ -3533,7 +3531,7 @@ void StoreContextSlotWithWriteBarrier::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   using D = CallInterfaceDescriptorFor<Builtin::kDetachContextCell>::type;
   __ RecordComment("StoreContextSlotWithWriteBarrier");
-  Label do_normal_store;
+  ZoneLabelRef do_normal_store(masm);
   ZoneLabelRef done(masm);
   // TODO(leszeks): Consider making this an arbitrary register and push/popping
   // in the deferred path.
@@ -3542,17 +3540,18 @@ void StoreContextSlotWithWriteBarrier::GenerateCode(
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register scratch = temps.Acquire();
   Register old_value = temps.Acquire();
-  __ AssertObjectType(context, SCRIPT_CONTEXT_TYPE,
-                      AbortReason::kUnexpectedInstanceType);
   __ LoadTaggedField(old_value, context, offset());
 
-  __ JumpIfSmi(old_value, &do_normal_store);
+  __ JumpIfSmi(old_value, *do_normal_store);
   __ CompareMapWithRoot(old_value, RootIndex::kContextCellMap, scratch);
   __ JumpToDeferredIf(
       kEqual,
-      [](MaglevAssembler* masm, Register context, Register new_value,
-         Register scratch, StoreContextSlotWithWriteBarrier* node,
+      [](MaglevAssembler* masm, Register context, Register old_value,
+         Register new_value, Register scratch,
+         StoreContextSlotWithWriteBarrier* node, ZoneLabelRef do_normal_store,
          ZoneLabelRef done) {
+        __ JumpIfRoot(old_value, RootIndex::kUndefinedContextCell,
+                      *do_normal_store);
         {
           // Since we compiled without context specialization, we detach the
           // context cells.
@@ -3575,9 +3574,9 @@ void StoreContextSlotWithWriteBarrier::GenerateCode(
         }
         __ Jump(*done);
       },
-      context, new_value, scratch, this, done);
+      context, old_value, new_value, scratch, this, do_normal_store, done);
 
-  __ bind(&do_normal_store);
+  __ bind(*do_normal_store);
   __ StoreTaggedFieldWithWriteBarrier(
       context, offset(), new_value, register_snapshot(),
       new_value_input().node()->decompresses_tagged_result()

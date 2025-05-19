@@ -2335,6 +2335,10 @@ void BytecodeGraphBuilder::VisitCreateFunctionContext() {
   environment()->BindAccumulator(context);
 }
 
+void BytecodeGraphBuilder::VisitCreateFunctionContextWithCells() {
+  VisitCreateFunctionContext();
+}
+
 void BytecodeGraphBuilder::VisitCreateEvalContext() {
   ScopeInfoRef scope_info = MakeRefForConstantForIndexOperand<ScopeInfo>(0);
   uint32_t slots = bytecode_iterator().GetUnsignedImmediateOperand(1);

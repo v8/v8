@@ -901,10 +901,6 @@ ExternalReference ExternalReference::additive_safe_int_feedback_flag() {
 #endif  // V8_TARGET_ARCH_64_BIT
 }
 
-ExternalReference ExternalReference::address_of_script_context_cells_flag() {
-  return ExternalReference(&v8_flags.script_context_cells);
-}
-
 ExternalReference ExternalReference::address_of_load_from_stack_count(
     const char* function_name) {
   return ExternalReference(

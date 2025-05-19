@@ -244,6 +244,7 @@ class RootVisitor;
   V(ScopeInfo, native_scope_info, NativeScopeInfo)                             \
   V(ScopeInfo, shadow_realm_scope_info, ShadowRealmScopeInfo)                  \
   V(RegisteredSymbolTable, empty_symbol_table, EmptySymbolTable)               \
+  V(ContextCell, undefined_context_cell, UndefinedContextCell)                 \
   /* Hash seed */                                                              \
   V(ByteArray, hash_seed, HashSeed)                                            \
   V(FixedArray, preallocated_number_string_table,                              \

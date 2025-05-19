@@ -115,7 +115,6 @@ enum class IsolateFieldId : uint8_t;
     "v8_flags.mock_arraybuffer_allocator")                                     \
   V(address_of_one_half, "LDoubleConstant::one_half")                          \
   V(address_of_runtime_stats_flag, "TracingFlags::runtime_stats")              \
-  V(address_of_script_context_cells_flag, "v8_flags.script_context_cells")     \
   V(address_of_shared_string_table_flag, "v8_flags.shared_string_table")       \
   V(address_of_the_hole_nan, "the_hole_nan")                                   \
   V(address_of_uint32_bias, "uint32_bias")                                     \

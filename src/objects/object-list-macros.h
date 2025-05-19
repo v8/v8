@@ -499,7 +499,8 @@ namespace internal {
   V(StaleRegister, stale_register, StaleRegister)                      \
   V(SelfReferenceMarker, self_reference_marker, SelfReferenceMarker)   \
   V(BasicBlockCountersMarker, basic_block_counters_marker,             \
-    BasicBlockCountersMarker)
+    BasicBlockCountersMarker)                                          \
+  V(UndefinedContextCell, undefined_context_cell, UndefinedContextCell)
 
 #define OBJECT_TYPE_LIST(V) \
   V(Primitive)              \

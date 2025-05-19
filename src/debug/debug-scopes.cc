@@ -1178,7 +1178,7 @@ bool ScopeIterator::SetContextVariableValue(DirectHandle<String> variable_name,
                                             DirectHandle<Object> new_value) {
   int slot_index = context_->scope_info()->ContextSlotIndex(*variable_name);
   if (slot_index < 0) return false;
-  context_->SetNoCell(slot_index, *new_value);
+  Context::Set(context_, slot_index, new_value, isolate_);
   return true;
 }
 

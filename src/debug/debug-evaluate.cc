@@ -478,6 +478,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kCreateBlockContext:
     case Bytecode::kCreateCatchContext:
     case Bytecode::kCreateFunctionContext:
+    case Bytecode::kCreateFunctionContextWithCells:
     case Bytecode::kCreateEvalContext:
     case Bytecode::kCreateWithContext:
     // Literals.

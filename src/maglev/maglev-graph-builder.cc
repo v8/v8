@@ -3435,7 +3435,10 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextSlot(
   compiler::ContextRef context =
       context_node->Cast<Constant>()->ref().AsContext();
   auto maybe_value = context.get(broker(), index);
-  if (!maybe_value || maybe_value->IsTheHole()) return {};
+  if (!maybe_value || maybe_value->IsTheHole() ||
+      maybe_value->IsUndefinedContextCell()) {
+    return {};
+  }
   int offset = Context::OffsetOfElementAt(index);
   if (!maybe_value->IsContextCell()) {
     // No need to check for extended context slots anymore.
@@ -3542,7 +3545,8 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
   compiler::ContextRef context_ref =
       context->Cast<Constant>()->ref().AsContext();
   auto maybe_value = context_ref.get(broker(), index);
-  if (!maybe_value || maybe_value->IsTheHole()) {
+  if (!maybe_value || maybe_value->IsTheHole() ||
+      maybe_value->IsUndefinedContextCell()) {
     *store =
         AddNewNode<StoreContextSlotWithWriteBarrier>({context, value}, index);
     return ReduceResult::Done();
@@ -14177,6 +14181,10 @@ ReduceResult MaglevGraphBuilder::VisitCreateFunctionContext() {
   done(AddNewNode<CreateFunctionContext>({GetContext()}, info, slot_count,
                                          ScopeType::FUNCTION_SCOPE));
   return ReduceResult::Done();
+}
+
+ReduceResult MaglevGraphBuilder::VisitCreateFunctionContextWithCells() {
+  return VisitCreateFunctionContext();
 }
 
 ReduceResult MaglevGraphBuilder::VisitCreateEvalContext() {

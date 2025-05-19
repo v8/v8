@@ -275,6 +275,7 @@ Scope::Scope(Zone* zone, ScopeType scope_type,
       is_block_scope_for_object_literal_ = true;
     }
   }
+  has_context_cells_ = scope_info->HasContextCells();
 }
 
 DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
@@ -386,6 +387,9 @@ void Scope::SetDefaults() {
   has_await_using_declaration_ = false;
 
   is_wrapped_function_ = false;
+
+  has_context_cells_ = (is_script_scope() && v8_flags.script_context_cells) ||
+                       (is_function_scope() && v8_flags.function_context_cells);
 
   num_stack_slots_ = 0;
   num_heap_slots_ = ContextHeaderLength();
@@ -2473,6 +2477,11 @@ void DeclarationScope::AllocateParameterLocals() {
     }
     AllocateParameter(var, i);
   }
+
+  // If we have mapped arguments, do not use context cells.
+  if (has_mapped_arguments) {
+    has_context_cells_ = false;
+  }
 }
 
 void DeclarationScope::AllocateParameter(Variable* var, int index) {
@@ -2635,6 +2644,13 @@ void Scope::AllocateVariablesRecursively() {
     if (scope->num_heap_slots_ == scope->ContextHeaderLength() &&
         !must_have_context) {
       scope->num_heap_slots_ = 0;
+    }
+
+    // If the number of context slots are over the function context threshold,
+    // do not allocate context cells.
+    if (scope->is_function_scope() &&
+        scope->ContextLocalCount() > v8_flags.function_context_cells_max_size) {
+      scope->has_context_cells_ = false;
     }
 
     // Allocation done.
@@ -2942,6 +2958,7 @@ template V8_EXPORT_PRIVATE void DeclarationScope::AllocateScopeInfos(
     ParseInfo* info, DirectHandle<Script> script, LocalIsolate* isolate);
 
 int Scope::ContextLocalCount() const {
+  DCHECK(!is_reparsed());
   if (num_heap_slots() == 0) return 0;
   Variable* function =
       is_function_scope() ? AsDeclarationScope()->function_var() : nullptr;

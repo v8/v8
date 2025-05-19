@@ -1044,16 +1044,17 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kis_concat_spreadable_symbol = 0x5f1d;
   static constexpr Tagged_t kEmptySlowElementDictionary = 0x5f2d;
   static constexpr Tagged_t kEmptySymbolTable = 0x5f51;
-  static constexpr Tagged_t kEmptyOrderedHashMap = 0x5f6d;
-  static constexpr Tagged_t kEmptyOrderedHashSet = 0x5f81;
-  static constexpr Tagged_t kEmptyFeedbackMetadata = 0x5f95;
-  static constexpr Tagged_t kGlobalThisBindingScopeInfo = 0x5fa1;
-  static constexpr Tagged_t kEmptyFunctionScopeInfo = 0x5fc1;
-  static constexpr Tagged_t kNativeScopeInfo = 0x5fe5;
-  static constexpr Tagged_t kShadowRealmScopeInfo = 0x5ffd;
-  static constexpr Tagged_t kManyClosuresCell = 0x6015;
-  static constexpr Tagged_t kPreallocatedNumberStringTable = 0x6025;
-  static constexpr Tagged_t kWasmNullPadding = 0x675d;
+  static constexpr Tagged_t kUndefinedContextCell = 0x5f6d;
+  static constexpr Tagged_t kEmptyOrderedHashMap = 0x5f85;
+  static constexpr Tagged_t kEmptyOrderedHashSet = 0x5f99;
+  static constexpr Tagged_t kEmptyFeedbackMetadata = 0x5fad;
+  static constexpr Tagged_t kGlobalThisBindingScopeInfo = 0x5fb9;
+  static constexpr Tagged_t kEmptyFunctionScopeInfo = 0x5fd9;
+  static constexpr Tagged_t kNativeScopeInfo = 0x5ffd;
+  static constexpr Tagged_t kShadowRealmScopeInfo = 0x6015;
+  static constexpr Tagged_t kManyClosuresCell = 0x602d;
+  static constexpr Tagged_t kPreallocatedNumberStringTable = 0x603d;
+  static constexpr Tagged_t kWasmNullPadding = 0x6775;
   static constexpr Tagged_t kWasmNull = 0xfffd;
   static constexpr Tagged_t kJSMessageObjectMap = 0x20001;
   static constexpr Tagged_t kExternalMap = 0x20029;
@@ -1067,7 +1068,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kLastAllocatedRoot = 0x20111;
 };
 
-static constexpr std::array<Tagged_t, 1033> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 1034> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kFreeSpaceMap,
     StaticReadOnlyRoot::kOnePointerFillerMap,
     StaticReadOnlyRoot::kTwoPointerFillerMap,
@@ -1238,6 +1239,7 @@ static constexpr std::array<Tagged_t, 1033> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kNativeScopeInfo,
     StaticReadOnlyRoot::kShadowRealmScopeInfo,
     StaticReadOnlyRoot::kEmptySymbolTable,
+    StaticReadOnlyRoot::kUndefinedContextCell,
     StaticReadOnlyRoot::kHashSeed,
     StaticReadOnlyRoot::kPreallocatedNumberStringTable,
     StaticReadOnlyRoot::kWasmNullPadding,

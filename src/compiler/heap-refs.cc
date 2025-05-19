@@ -2007,6 +2007,10 @@ HoleType ObjectRef::HoleType() const {
 
 bool ObjectRef::IsNullOrUndefined() const { return IsNull() || IsUndefined(); }
 
+bool ObjectRef::IsUndefinedContextCell() const {
+  return i::IsUndefinedContextCell(*object());
+}
+
 std::optional<bool> ObjectRef::TryGetBooleanValue(JSHeapBroker* broker) const {
   if (data_->should_access_heap()) {
     return Object::BooleanValue(*object(), broker->isolate());

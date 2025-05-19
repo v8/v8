@@ -1230,6 +1230,9 @@ bool Heap::CreateReadOnlyObjects() {
   DCHECK(!empty_symbol_table->HasSufficientCapacityToAdd(1));
   set_empty_symbol_table(*empty_symbol_table);
 
+  set_undefined_context_cell(*factory->NewContextCell(
+      factory->undefined_value(), AllocationType::kReadOnly));
+
   // Allocate the empty OrderedHashMap.
   DirectHandle<OrderedHashMap> empty_ordered_hash_map =
       OrderedHashMap::AllocateEmpty(isolate(), AllocationType::kReadOnly)

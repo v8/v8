@@ -414,6 +414,7 @@ class V8_EXPORT_PRIVATE ObjectRef {
   bool IsHashTableHole() const;
   bool IsPromiseHole() const;
   bool IsNullOrUndefined() const;
+  bool IsUndefinedContextCell() const;
 
   std::optional<bool> TryGetBooleanValue(JSHeapBroker* broker) const;
   Maybe<double> OddballToNumber(JSHeapBroker* broker) const;

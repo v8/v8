@@ -19,7 +19,7 @@
 #include "src/objects/dependent-code.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/module-inl.h"
-#include "src/objects/property-cell.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/string-set-inl.h"
 #include "src/utils/boxed-float.h"
 #include "v8-internal.h"
@@ -566,6 +566,19 @@ void Context::Set(DirectHandle<Context> context, int index,
 
   if (!Is<ContextCell>(old_value)) {
     context->set(index, *new_value);
+    return;
+  }
+
+  if (IsUndefinedContextCell(*old_value, isolate)) {
+    if (IsUndefined(*new_value)) return;
+    if (IsTheHole(*new_value)) {
+      // This can happened in let-variable in function contexts.
+      context->set(index, *new_value);
+      return;
+    }
+    DirectHandle<ContextCell> cell =
+        isolate->factory()->NewContextCell(Cast<JSAny>(new_value));
+    context->set(index, *cell);
     return;
   }
 

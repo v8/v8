@@ -1330,32 +1330,30 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(std::ostream& os) {
   os << '\n';
 }
 
-namespace {
-void PrintContextWithHeader(std::ostream& os, Tagged<Context> context,
-                            const char* type) {
-  context->PrintHeader(os, type);
-  os << "\n - type: " << context->map()->instance_type();
-  os << "\n - scope_info: " << Brief(context->scope_info());
-  os << "\n - previous: " << Brief(context->unchecked_previous());
-  os << "\n - native_context: " << Brief(context->native_context());
-  if (context->scope_info()->HasContextExtensionSlot()) {
-    os << "\n - extension: " << context->extension();
+void Context::PrintContextWithHeader(std::ostream& os, const char* type) {
+  PrintHeader(os, type);
+  os << "\n - type: " << map()->instance_type();
+  os << "\n - scope_info: " << Brief(scope_info());
+  os << "\n - previous: " << Brief(unchecked_previous());
+  os << "\n - native_context: " << Brief(native_context());
+  if (scope_info()->HasContextExtensionSlot()) {
+    os << "\n - extension: " << extension();
   }
-  os << "\n - length: " << context->length();
+  os << "\n - length: " << length();
   os << "\n - elements:";
   PrintFixedArrayElements<Context>(
-      os, context, context->length(),
-      [](Tagged<Context> xs, int i) { return Cast<Object>(xs->GetNoCell(i)); });
+      os, *this, length(), [](Tagged<Context> xs, int i) {
+        return Cast<Object>(xs->get(i, kRelaxedLoad));
+      });
   os << "\n";
 }
-}  // namespace
 
 void Context::ContextPrint(std::ostream& os) {
-  PrintContextWithHeader(os, *this, "Context");
+  PrintContextWithHeader(os, "Context");
 }
 
 void NativeContext::NativeContextPrint(std::ostream& os) {
-  PrintContextWithHeader(os, *this, "NativeContext");
+  PrintContextWithHeader(os, "NativeContext");
   os << " - microtask_queue: " << microtask_queue() << "\n";
 }
 

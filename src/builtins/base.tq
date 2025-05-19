@@ -638,6 +638,7 @@ extern macro ToStringStringConstant(): String;
 extern macro ToStringTagSymbolConstant(): PublicSymbol;
 extern macro TrueConstant(): True;
 extern macro UndefinedConstant(): Undefined;
+extern macro UndefinedContextCellConstant(): ContextCell;
 extern macro ValueOfStringConstant(): String;
 extern macro InvalidDispatchHandleConstant(): DispatchHandle;
 
@@ -655,6 +656,7 @@ const kReturnString: String = ReturnStringConstant();
 const kSizeString: String = SizeStringConstant();
 const kHasString: String = HasStringConstant();
 const kKeysString: String = KeysStringConstant();
+const kUndefinedContextCell: ContextCell = UndefinedContextCellConstant();
 
 const kNaN: NaN = NanConstant();
 const kZero: Zero = %RawDownCast<Zero>(SmiConstant(0));
