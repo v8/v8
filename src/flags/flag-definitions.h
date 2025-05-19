@@ -742,7 +742,7 @@ DEFINE_BOOL(script_context_cells, true,
             "Use context cells in script contexts, ie, const tracking let and "
             "mutable numbers")
 
-DEFINE_BOOL(function_context_cells, false,
+DEFINE_BOOL(function_context_cells, true,
             "Use context cells in function contexts")
 DEFINE_INT(function_context_cells_max_size, 5,
            "Max number of context slots allowed in a function context with "
