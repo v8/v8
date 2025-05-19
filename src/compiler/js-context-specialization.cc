@@ -377,7 +377,7 @@ Reduction JSContextSpecialization::ReduceJSStoreContextNoCell(Node* node) {
 }
 
 Reduction JSContextSpecialization::ReduceJSStoreContext(Node* node) {
-  DCHECK(v8_flags.script_context_cells);
+  DCHECK(v8_flags.script_context_cells || v8_flags.function_context_cells);
   DCHECK_EQ(IrOpcode::kJSStoreContext, node->opcode());
 
   const ContextAccess& access = ContextAccessOf(node->op());

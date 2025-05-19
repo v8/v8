@@ -913,7 +913,7 @@ class ContextCellDependency final : public CompilationDependency {
  public:
   ContextCellDependency(ContextCellRef slot, ContextCell::State state)
       : CompilationDependency(kContextCell), slot_(slot), state_(state) {
-    DCHECK(v8_flags.script_context_cells);
+    DCHECK(v8_flags.script_context_cells || v8_flags.function_context_cells);
   }
 
   bool IsValid(JSHeapBroker* broker) const override {
