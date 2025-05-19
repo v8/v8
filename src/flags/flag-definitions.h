@@ -1898,13 +1898,6 @@ DEFINE_NEG_NEG_IMPLICATION(wasm_bounds_checks, wasm_enforce_bounds_checks)
 DEFINE_BOOL(wasm_math_intrinsics, true,
             "intrinsify some Math imports into wasm")
 
-DEFINE_BOOL(wasm_inlining_call_indirect, true,
-            "enable speculative inlining of Wasm indirect calls")
-DEFINE_WEAK_IMPLICATION(future, wasm_inlining_call_indirect)
-// This doesn't make sense without and requires  the basic inlining machinery,
-// e.g., for allocating feedback vectors, so we automatically enable it.
-DEFINE_IMPLICATION(wasm_inlining_call_indirect, wasm_inlining)
-
 DEFINE_BOOL(wasm_inlining, true,
             "enable inlining of Wasm functions into Wasm functions")
 DEFINE_SIZE_T(wasm_inlining_budget, 5000,
@@ -1922,6 +1915,12 @@ DEFINE_BOOL(wasm_inlining_ignore_call_counts, false,
             "is supposed to be used for fuzzing")
 DEFINE_BOOL(trace_wasm_inlining, false, "trace wasm inlining")
 DEFINE_BOOL(trace_wasm_typer, false, "trace wasm typer")
+DEFINE_BOOL(wasm_inlining_call_indirect, true,
+            "enable speculative inlining of Wasm indirect calls")
+// call_indirect inlining requires the basic inlining machinery, e.g., for
+// allocating feedback vectors, so we should also disable it when inlining is
+// disabled altogether.
+DEFINE_NEG_NEG_IMPLICATION(wasm_inlining, wasm_inlining_call_indirect)
 
 DEFINE_BOOL(wasm_loop_unrolling, true,
             "enable loop unrolling for wasm functions")
