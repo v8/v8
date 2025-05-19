@@ -311,8 +311,10 @@ V8_WARN_UNUSED_RESULT bool TryFastArrayFill(
               .ToHandle(&new_map)) {
         DirectHandle<FixedArrayBase> elements(array->elements(), isolate);
         if (IsDoubleElementsKind(origin_kind) !=
-            IsDoubleElementsKind(target_kind)) {
-          // Reallocate the elements if doubleness doesn't match.
+                IsDoubleElementsKind(target_kind) ||
+            elements->IsCowArray()) {
+          // Reallocate the elements if doubleness doesn't match or the array is
+          // copy-on-write.
           if (IsDoubleElementsKind(target_kind)) {
             elements = isolate->factory()->NewFixedDoubleArray(end);
           } else {
