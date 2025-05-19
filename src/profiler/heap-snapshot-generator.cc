@@ -1044,6 +1044,12 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
       case kTemporalInstantTag:
         name = "system / Managed<temporal_rs::Instant>";
         break;
+      case kD8WorkerTag:
+        name = "system / Managed<d8::Worker>";
+        break;
+      case kD8ModuleEmbedderDataTag:
+        name = "system / Managed<d8::ModuleEmbedderData>";
+        break;
       default:
         DCHECK(!kAnyManagedExternalPointerTagRange.Contains(tag));
     }
@@ -3509,7 +3515,7 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
   writer_->AddString(
         JSON_S("detachedness")
     "],"
-    JSON_S("node_types") ":" JSON_A(
+    JSON_S("node_types") ":["
         JSON_A(
             JSON_S("hidden") ","
             JSON_S("array") ","
@@ -3526,12 +3532,14 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
             JSON_S("symbol") ","
             JSON_S("bigint") ","
             JSON_S("object shape")) ","
-        JSON_S("string") ","
+        JSON_S("string") ",");
+  if (trace_function_count_) writer_->AddString(JSON_S("number") ",");
+  writer_->AddString(
         JSON_S("number") ","
         JSON_S("number") ","
         JSON_S("number") ","
-        JSON_S("number") ","
-        JSON_S("number")) ","
+        JSON_S("number")
+      "],"
     JSON_S("edge_fields") ":" JSON_A(
         JSON_S("type") ","
         JSON_S("name_or_index") ","
