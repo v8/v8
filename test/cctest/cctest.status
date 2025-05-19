@@ -883,4 +883,10 @@
   'test-run-wasm-64/RunWasmTurbofan_I64WasmRunner': [SLOW],
   'test-strings/Traverse': [SLOW],
 }],  # variant == conservative_stack_scanning
+
+# TODO(417972894): Enable these tests once this is resolved.
+['arch == arm64 and not simulator_run', {
+  'test-shared-strings/ConservativePinningScopeInClientIsolate': [SKIP],
+}],  # arch == arm64 and not simulator_run
+
 ]
