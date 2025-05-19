@@ -990,6 +990,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchAtomicStoreWithWriteBarrier: {
+      MacroAssembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
       // Indirect pointer writes must use a different opcode.
       DCHECK_NE(mode, RecordWriteMode::kValueIsIndirectPointer);
@@ -999,7 +1000,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, Operand(offset), value, mode, DetermineStubCallMode());
-      __ AtomicStoreTaggedField(value, MemOperand(object, offset));
+      MemOperand dst_op = MemOperand(object, offset);
+      __ dbar(0);
+      if (COMPRESS_POINTERS_BOOL) {
+        __ St_w(value, dst_op);
+      } else {
+        __ St_d(value, dst_op);
+      }
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr,
+                             __ pc_offset() - kInstrSize);
       // Skip the write barrier if the value is a Smi. However, this is only
       // valid if the value isn't an indirect pointer. Otherwise the value will
       // be a pointer table index, which will always look like a Smi (but

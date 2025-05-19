@@ -799,6 +799,44 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
   }
 }
 
+void LiftoffAssembler::AtomicStoreTaggedPointer(
+    Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+    LiftoffRegList pinned, AtomicMemoryOrder memory_order,
+    uint32_t* protected_store_pc) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
+
+  if (COMPRESS_POINTERS_BOOL) {
+    dbar(0);
+    St_w(src, dst_op);
+  } else {
+    dbar(0);
+    St_d(src, dst_op);
+  }
+  if (protected_store_pc != nullptr) {
+    *protected_store_pc = pc_offset() - kInstrSize;
+  }
+
+  if (v8_flags.disable_write_barriers) return;
+  // The write barrier.
+  Label exit;
+  CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
+                kZero, &exit);
+  JumpIfSmi(src, &exit);
+  CheckPageFlag(src, MemoryChunk::kPointersToHereAreInterestingMask, eq, &exit);
+
+  Operand offset_op = Operand(offset_imm);
+  UseScratchRegisterScope temps(this);
+  if (offset_reg.is_valid()) {
+    Register scratch = temps.Acquire();
+    bstrpick_d(scratch, offset_reg, 31, 0);
+    offset_op = Operand(scratch);
+  }
+  CallRecordWriteStubSaveRegisters(dst_addr, offset_op, SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
+  bind(&exit);
+}
+
 #define ASSEMBLE_ATOMIC_BINOP_EXT(load_linked, store_conditional, size, \
                                   bin_instr, aligned)                   \
   do {                                                                  \

@@ -821,6 +821,14 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
   }
 }
 
+void LiftoffAssembler::AtomicStoreTaggedPointer(
+    Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+    LiftoffRegList pinned, AtomicMemoryOrder memory_order,
+    uint32_t* protected_store_pc) {
+  AtomicStore(dst_addr, offset_reg, offset_imm, LiftoffRegister(src),
+              StoreType::kI32Store, pinned, false);
+}
+
 #define ASSEMBLE_ATOMIC_BINOP(load_linked, store_conditional, bin_instr) \
   do {                                                                   \
     Label binop;                                                         \
