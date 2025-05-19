@@ -1236,7 +1236,7 @@ void InstructionSelectorT::VisitStore(OpIndex node) {
     // OutOfLineRecordWrite uses the index in an add or sub instruction, but we
     // can trust the assembler to generate extra instructions if the index does
     // not fit into add or sub. So here only check the immediate for a store.
-    OpIndex index = this->value(store_view.index());
+    OpIndex index = store_view.index().value();
     if (g.CanBeImmediate(index, COMPRESS_POINTERS_BOOL ? kLoadStoreImm32
                                                        : kLoadStoreImm64)) {
       inputs[input_count++] = g.UseImmediate(index);
@@ -1289,7 +1289,7 @@ void InstructionSelectorT::VisitStore(OpIndex node) {
 
   std::optional<int64_t> constant_index;
   if (store_view.index().valid()) {
-    OpIndex index = this->value(store_view.index());
+    OpIndex index = store_view.index().value();
     constant_index = g.GetOptionalIntegerConstant(index);
   }
   if (external_base.has_value() && constant_index.has_value() &&
@@ -1310,7 +1310,7 @@ void InstructionSelectorT::VisitStore(OpIndex node) {
   }
 
   OpIndex base = store_view.base();
-  OpIndex index = this->value(store_view.index());
+  OpIndex index = store_view.index().value();
 
   inputs[input_count++] = g.UseRegisterOrImmediateZero(store_view.value());
 
@@ -3687,7 +3687,7 @@ void VisitAtomicStore(InstructionSelectorT* selector, OpIndex node,
   Arm64OperandGeneratorT g(selector);
   auto store = selector->store_view(node);
   OpIndex base = store.base();
-  OpIndex index = selector->value(store.index());
+  OpIndex index = store.index().value();
   OpIndex value = store.value();
   DCHECK_EQ(store.displacement(), 0);
 

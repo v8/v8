@@ -764,7 +764,7 @@ void VisitStoreCommon(InstructionSelectorT* selector, OpIndex node,
   ArmOperandGeneratorT g(selector);
   auto store_view = selector->store_view(node);
   OpIndex base = store_view.base();
-  OpIndex index = selector->value(store_view.index());
+  OpIndex index = store_view.index().value();
   OpIndex value = store_view.value();
 
   WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
@@ -944,7 +944,7 @@ void InstructionSelectorT::VisitUnalignedStore(OpIndex node) {
   ArmOperandGeneratorT g(this);
   auto store_view = this->store_view(node);
   OpIndex base = store_view.base();
-  OpIndex index = this->value(store_view.index());
+  OpIndex index = store_view.index().value();
   OpIndex value = store_view.value();
 
   InstructionOperand inputs[4];
