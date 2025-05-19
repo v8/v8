@@ -2132,9 +2132,7 @@ void InstructionSelectorT::VisitCall(OpIndex node, Block* handler) {
   }
 
   FrameStateDescriptor* frame_state_descriptor = nullptr;
-  bool needs_frame_state = false;
   if (call_descriptor->NeedsFrameState()) {
-    needs_frame_state = true;
     frame_state_descriptor =
         GetFrameStateDescriptor(call_op.frame_state().value());
   }
@@ -2207,10 +2205,12 @@ void InstructionSelectorT::VisitCall(OpIndex node, Block* handler) {
         fp_param_count |= 1 << kHasFunctionDescriptorBitShift;
       }
 #endif
-      opcode = needs_frame_state ? kArchCallCFunctionWithFrameState
-                                 : kArchCallCFunction;
-      opcode |= ParamField::encode(gp_param_count) |
-                FPParamField::encode(fp_param_count);
+      // We store the param counts as a separate input because they need too
+      // many bits to be encoded in the opcode.
+      buffer.instruction_args.push_back(
+          g.UseImmediate(ParamField::encode(gp_param_count) |
+                         FPParamField::encode(fp_param_count)));
+      opcode = EncodeCallDescriptorFlags(kArchCallCFunction, flags);
       break;
     }
     case CallDescriptor::kCallCodeObject:
