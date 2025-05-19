@@ -1833,19 +1833,25 @@ class RepresentationSelector {
     }
 
     if (CanSpeculateAdditiveSafeInteger(node)) {
-      if (!truncation.IsUnused() && truncation.IsUsedAsWord32()) {
-        // This case handles addition where the result might be truncated to
-        // word32. Even if the inputs might be larger than 2^32, we can safely
-        // perform 32-bit addition *here* if the inputs are in the additive safe
-        // range. We *must* propagate the CheckedSafeIntTruncatingWord32
-        // information. This is because we need to ensure that we deoptimize if
-        // either input is not an integer, or not in the range.
-        // => Int32Add/Sub
-        VisitBinop<T>(node,
-                      UseInfo::CheckedSafeIntTruncatingWord32(FeedbackSource{}),
-                      MachineRepresentation::kWord32);
-        if (lower<T>()) ChangeToPureOp(node, Int32Op(node));
-        return;
+      if (!TypeOf(node).IsNone()) {
+        // Only eliminate the node if its typing rule can be satisfied, namely
+        // that a safe integer is produced.
+        if (truncation.IsUnused()) return VisitUnused<T>(node);
+
+        if (truncation.IsUsedAsWord32()) {
+          // This case handles addition where the result might be truncated to
+          // word32. Even if the inputs might be larger than 2^32, we can safely
+          // perform 32-bit addition *here* if the inputs are in the additive
+          // safe range. We *must* propagate the CheckedSafeIntTruncatingWord32
+          // information. This is because we need to ensure that we deoptimize
+          // if either input is not an integer, or not in the range.
+          // => Int32Add/Sub
+          VisitBinop<T>(
+              node, UseInfo::CheckedSafeIntTruncatingWord32(FeedbackSource{}),
+              MachineRepresentation::kWord32);
+          if (lower<T>()) ChangeToPureOp(node, Int32Op(node));
+          return;
+        }
       }
 
       // => AdditiveSafeIntegerAdd/Sub
