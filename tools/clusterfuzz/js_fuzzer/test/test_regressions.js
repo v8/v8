@@ -45,23 +45,13 @@ function createFuzzTest(fake_db, settings, inputFiles) {
 }
 
 function execFile(jsFile) {
-  execSync("node " + jsFile, {stdio: ['pipe']});
+  execSync("node --allow-natives-syntax " + jsFile, {stdio: ['pipe']});
 }
 
 describe('Regression tests', () => {
   beforeEach(() => {
     helpers.deterministicRandom(sandbox);
-
-    this.settings = {
-      ADD_VAR_OR_OBJ_MUTATIONS: 0.0,
-      MUTATE_CROSSOVER_INSERT: 0.0,
-      MUTATE_EXPRESSIONS: 0.0,
-      MUTATE_FUNCTION_CALLS: 0.0,
-      MUTATE_NUMBERS: 0.0,
-      MUTATE_VARIABLES: 0.0,
-      engine: 'v8',
-      testing: true,
-    }
+    this.settings = helpers.zeroSettings();
   });
 
   afterEach(() => {
