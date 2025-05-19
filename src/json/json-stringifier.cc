@@ -3397,6 +3397,7 @@ bool FastJsonStringifier<Char>::AppendStringSIMD(
     const size_t char_index = block - chars + index;
     const size_t copy_length = char_index - uncopied_src_index;
     buffer_.Append(chars + uncopied_src_index, copy_length);
+    SBXCHECK_LT(found_char, 0x60);
     AppendCStringUnchecked(
         &JsonEscapeTable[found_char * kJsonEscapeTableEntrySize]);
     uncopied_src_index = char_index + 1;
