@@ -28,6 +28,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/js-disposable-stack-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/js-promise-inl.h"
@@ -1386,6 +1387,9 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry,
       ExtractJSGeneratorObjectReferences(entry, Cast<JSGeneratorObject>(obj));
     } else if (IsJSWeakRef(obj)) {
       ExtractJSWeakRefReferences(entry, Cast<JSWeakRef>(obj));
+    } else if (IsJSDisposableStackBase(obj)) {
+      ExtractJSDisposableStackReferences(entry,
+                                         Cast<JSDisposableStackBase>(obj));
 #if V8_ENABLE_WEBASSEMBLY
     } else if (IsWasmInstanceObject(obj)) {
       ExtractWasmInstanceObjectReferences(Cast<WasmInstanceObject>(obj), entry);
@@ -1674,6 +1678,17 @@ void V8HeapExplorer::ExtractEphemeronHashTableReferences(
           HeapEntry::kEphemeron);
     }
   }
+}
+
+void V8HeapExplorer::ExtractJSDisposableStackReferences(
+    HeapEntry* entry, Tagged<JSDisposableStackBase> disposable_stack) {
+  SetInternalReference(entry, "stack", disposable_stack->stack(),
+                       JSDisposableStackBase::kStackOffset);
+  SetInternalReference(entry, "error", disposable_stack->error(),
+                       JSDisposableStackBase::kErrorOffset);
+  SetInternalReference(entry, "error_message",
+                       disposable_stack->error_message(),
+                       JSDisposableStackBase::kErrorMessageOffset);
 }
 
 // These static arrays are used to prevent excessive code-size in
