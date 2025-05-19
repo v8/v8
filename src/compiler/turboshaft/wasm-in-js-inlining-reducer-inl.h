@@ -830,11 +830,6 @@ class WasmInJsInliningInterface {
                 const Value& value) {
     Bailout(decoder);
   }
-  void ArrayAtomicSet(FullDecoder* decoder, const Value& array_obj,
-                      const ArrayIndexImmediate& imm, const Value& index_val,
-                      const Value& value_val, AtomicMemoryOrder order) {
-    Bailout(decoder);
-  }
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
     Bailout(decoder);
   }

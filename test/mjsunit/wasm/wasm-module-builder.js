@@ -728,7 +728,6 @@ const kExprStructAtomicSet = 0x5f;
 const kExprArrayAtomicGet = 0x67;
 const kExprArrayAtomicGetS = 0x68;
 const kExprArrayAtomicGetU = 0x69;
-const kExprArrayAtomicSet = 0x6a;
 
 // Simd opcodes.
 let kExprS128LoadMem = 0x00;

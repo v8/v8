@@ -2037,16 +2037,6 @@ void ArrayGetOp::PrintOptions(std::ostream& os) const {
   os << ']';
 }
 
-void ArraySetOp::PrintOptions(std::ostream& os) const {
-  os << '[' << element_type << ", ";
-  if (memory_order.has_value()) {
-    os << *memory_order;
-  } else {
-    os << "non-atomic";
-  }
-  os << ']';
-}
-
 #endif  // V8_ENABLE_WEBASSEBMLY
 
 std::string Operation::ToString() const {

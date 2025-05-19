@@ -374,10 +374,7 @@ class Int64LoweringReducer : public Next {
         // TODO(jkummerow): Support non-zero scales in AtomicWord32PairOp, and
         // remove the corresponding bailout in MachineOptimizationReducer to
         // allow generating them.
-        if (element_size_log2 != 0 && index.has_value()) {
-          DCHECK_EQ(element_size_log2, 3);
-          index = __ Word32ShiftLeft(index.value(), element_size_log2);
-        }
+        CHECK_EQ(element_size_log2, 0);
         // Manually subtract the pointer tag if present.
         offset -= kind.tagged_base;
         return __ AtomicWord32PairStore(base, index, low, high, offset);

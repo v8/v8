@@ -6149,17 +6149,10 @@ TEST_P(FunctionBodyDecoderTestAtomicInvalid, Array) {
 
   const ValueType v_get[] = {element_type.Unpacked(), array_type};
   const FunctionSig sig_get(1, 1, v_get);
-  const ValueType v_set[] = {array_type, kWasmI32, element_type.Unpacked()};
-  const FunctionSig sig_set(0, 3, v_set);
 
   ExpectFailure(
       &sig_get, {WASM_ARRAY_ATOMIC_GET(0, array_type_index, WASM_LOCAL_GET(0))},
       kAppendEnd, "array.atomic.get: Array 0 has invalid element type");
-  const bool set_is_valid = element_type == kWasmI8 || element_type == kWasmI16;
-  Validate(set_is_valid, &sig_set,
-           {WASM_ARRAY_ATOMIC_SET(0, array_type_index, WASM_LOCAL_GET(0),
-                                  WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
-           kAppendEnd, "Array type 0 has invalid type");
 }
 
 class FunctionBodyDecoderTestAtomicInvalidPacked

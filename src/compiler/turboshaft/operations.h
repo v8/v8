@@ -7230,7 +7230,6 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
 
 struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
   wasm::ValueType element_type;
-  std::optional<AtomicMemoryOrder> memory_order;
 
   // ArraySetOp may never trap as it is always protected by a length check.
   static constexpr OpEffects effects =
@@ -7240,11 +7239,8 @@ struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
           .CanWriteMemory();
 
   ArraySetOp(V<WasmArrayNullable> array, V<Word32> index, V<Any> value,
-             wasm::ValueType element_type,
-             std::optional<AtomicMemoryOrder> memory_order)
-      : Base(array, index, value),
-        element_type(element_type),
-        memory_order(memory_order) {}
+             wasm::ValueType element_type)
+      : Base(array, index, value), element_type(element_type) {}
 
   V<WasmArrayNullable> array() const { return input<WasmArrayNullable>(0); }
   V<Word32> index() const { return input<Word32>(1); }
@@ -7259,8 +7255,8 @@ struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
                                   RepresentationFor(element_type)});
   }
 
-  auto options() const { return std::tuple{element_type, memory_order}; }
-  void PrintOptions(std::ostream& os) const;
+
+  auto options() const { return std::tuple{element_type}; }
 };
 
 struct ArrayLengthOp : FixedArityOperationT<1, ArrayLengthOp> {

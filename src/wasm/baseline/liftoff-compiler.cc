@@ -7072,33 +7072,6 @@ class LiftoffCompiler {
                      value, false, pinned, elem_kind);
   }
 
-  void ArrayAtomicSet(FullDecoder* decoder, const Value& array_obj,
-                      const ArrayIndexImmediate& imm, const Value& index_val,
-                      const Value& value_val, AtomicMemoryOrder order) {
-    // TODO(mliedtke): Share the implementation with ArraySet?
-    LiftoffRegList pinned;
-    LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
-    DCHECK_EQ(reg_class_for(imm.array_type->element_type().kind()),
-              value.reg_class());
-    LiftoffRegister index = pinned.set(__ PopToModifiableRegister(pinned));
-    LiftoffRegister array = pinned.set(__ PopToRegister(pinned));
-    if (null_check_strategy_ == compiler::NullCheckStrategy::kExplicit) {
-      MaybeEmitNullCheck(decoder, array.gp(), pinned, array_obj.type);
-    }
-    bool implicit_null_check =
-        array_obj.type.is_nullable() &&
-        null_check_strategy_ == compiler::NullCheckStrategy::kTrapHandler;
-    BoundsCheckArray(decoder, implicit_null_check, array, index, pinned);
-    ValueKind elem_kind = imm.array_type->element_type().kind();
-    int elem_size_shift = value_kind_size_log2(elem_kind);
-    if (elem_size_shift != 0) {
-      __ emit_i32_shli(index.gp(), index.gp(), elem_size_shift);
-    }
-    StoreAtomicObjectField(decoder, array.gp(), index.gp(),
-                           wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize),
-                           value, false, pinned, elem_kind, order);
-  }
-
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
     LiftoffRegList pinned;
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
