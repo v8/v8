@@ -7769,9 +7769,9 @@ void MacroAssembler::AtomicStoreTaggedField(Register src, const MemOperand& dst,
   AddWord(scratch, dst.rm(), dst.offset());
   trapper(pc_offset());
   if (COMPRESS_POINTERS_BOOL) {
-    amoswap_w(true, true, zero_reg, src, scratch);
+    amoswap_w(true, true, zero_reg, scratch, src);
   } else {
-    amoswap_d(true, true, zero_reg, src, scratch);
+    amoswap_d(true, true, zero_reg, scratch, src);
   }
 }
 

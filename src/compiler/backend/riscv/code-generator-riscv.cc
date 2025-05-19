@@ -1072,6 +1072,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchAtomicStoreWithWriteBarrier: {
 #ifdef V8_TARGET_ARCH_RISCV64
+      MacroAssembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
       // Indirect pointer writes must use a different opcode.
       DCHECK_NE(mode, RecordWriteMode::kValueIsIndirectPointer);
@@ -1082,7 +1083,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, Operand(offset), value, mode, DetermineStubCallMode());
       __ AddWord(kScratchReg, object, offset);
-      __ AtomicStoreTaggedField(value, MemOperand(kScratchReg, 0));
+      __ AtomicStoreTaggedField(value, MemOperand(kScratchReg, 0), trapper);
       // Skip the write barrier if the value is a Smi. However, this is only
       // valid if the value isn't an indirect pointer. Otherwise the value will
       // be a pointer table index, which will always look like a Smi (but
@@ -2501,13 +2502,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ StoreIndirectPointerField(i.InputOrZeroRegister(0), mem, trapper);
       break;
     }
-    case kRiscvAtomicLoadDecompressTaggedSigned:
+    case kRiscvAtomicLoadDecompressTaggedSigned: {
       __ AtomicDecompressTaggedSigned(i.OutputRegister(), i.MemoryOperand(),
                                       trapper);
       break;
-    case kRiscvAtomicLoadDecompressTagged:
+    }
+    case kRiscvAtomicLoadDecompressTagged: {
       __ AtomicDecompressTagged(i.OutputRegister(), i.MemoryOperand(), trapper);
       break;
+    }
     case kRiscvAtomicStoreCompressTagged: {
       size_t index = 0;
       MemOperand mem = i.MemoryOperand(&index);
