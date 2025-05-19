@@ -1979,8 +1979,18 @@ IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeFilter(
   TNode<Object> this_arg = ArgumentOrUndefined(1);
 
   // The output array is packed (filter doesn't visit holes).
-  const ElementsKind packed_kind = GetPackedElementsKind(kind);
-  TNode<JSArray> a = AllocateEmptyJSArray(packed_kind, native_context);
+  ElementsKind filtered_kind = GetPackedElementsKind(kind);
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  if (kind == ElementsKind::HOLEY_DOUBLE_ELEMENTS) {
+    // Array may contain double-encoded undefineds that may be preserved by
+    // the filter operation, so the output has to be holey, too.
+    // TODO(nicohartmann, 385155404): We can consider starting with a
+    // PACKED_DOUBLE_ELEMENTS and only transition to holey, when we actually
+    // encounter an undefined.
+    filtered_kind = ElementsKind::HOLEY_DOUBLE_ELEMENTS;
+  }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  TNode<JSArray> a = AllocateEmptyJSArray(filtered_kind, native_context);
 
   TNode<Number> original_length = LoadJSArrayLength(receiver, kind);
 
