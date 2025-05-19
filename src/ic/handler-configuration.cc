@@ -385,6 +385,17 @@ void PrintSmiLoadHandler(int raw_handler, std::ostream& os) {
                   LoadHandler::ElementsKindBits::decode(raw_handler));
       }
       break;
+    case LoadHandler::Kind::kElementWithTransition:
+      os << "kElementWithTransition, ";
+      os << "allow out of bounds = "
+         << LoadHandler::AllowOutOfBoundsBits::decode(raw_handler)
+         << ", is JSArray = " << LoadHandler::IsJsArrayBits::decode(raw_handler)
+         << ", alow reading holes = "
+         << LoadHandler::AllowHandlingHole::decode(raw_handler)
+         << ", elements kind = "
+         << ElementsKindToString(
+                LoadHandler::ElementsKindBits::decode(raw_handler));
+      break;
     case LoadHandler::Kind::kIndexedString:
       os << "kIndexedString, allow out of bounds = "
          << LoadHandler::AllowOutOfBoundsBits::decode(raw_handler);
