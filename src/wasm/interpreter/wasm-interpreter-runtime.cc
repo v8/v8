@@ -1820,6 +1820,7 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
       if (instance_object_.is_identical_to(instance_object)) {
         // Call to an import.
         uint32_t func_index = entry.function_index();
+        DCHECK(func_index != IndirectCallValue::kInvalidFunctionIndex);
         table[entry_index] = IndirectCallValue(func_index, entry.sig_id());
       } else {
         // Cross-instance call.

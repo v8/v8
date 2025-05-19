@@ -2377,6 +2377,12 @@ bool InstanceBuilder::ProcessImportedFunction(
       break;
   }
 
+  if (v8_flags.wasm_jitless) {
+    imported_entry.SetWasmToWrapper(isolate_, callable, {}, kNoSuspend,
+                                    expected_sig, sig_index);
+    return true;
+  }
+
   int expected_arity = static_cast<int>(expected_sig->parameter_count());
   if (kind == ImportCallKind::kJSFunction) {
     auto function = Cast<JSFunction>(callable);

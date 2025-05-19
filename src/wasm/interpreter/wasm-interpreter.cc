@@ -449,7 +449,7 @@ WasmInterpreterThread::WasmInterpreterThread(Isolate* isolate)
       current_ref_stack_size_(0),
       execution_timer_(isolate, true) {
   PageAllocator* page_allocator = GetPlatformPageAllocator();
-  stack_mem_ = AllocatePages(page_allocator, nullptr, kMaxStackSize,
+  stack_mem_ = AllocatePages(page_allocator, kMaxStackSize,
                              page_allocator->AllocatePageSize(),
                              PageAllocator::kNoAccess);
   if (!stack_mem_ ||
@@ -7137,7 +7137,6 @@ char const* kInstructionHandlerNames[kInstructionTableSize];
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
 PWasmOp* kInstructionTable[kInstructionTableSize] = {
-
 // 1. Add "small" (compressed) instruction handlers.
 
 #if !V8_DRUMBRAKE_BOUNDS_CHECKS

@@ -596,19 +596,19 @@ void WasmTableObject::UpdateDispatchTable(
                                   target_func_index,
 #endif
                                   WasmDispatchTable::kExistingEntry);
-  } else {
-    CHECK(IsWasmTrustedInstanceData(*implicit_arg));
-    dispatch_table->SetForNonWrapper(
-        entry_index, Cast<WasmTrustedInstanceData>(*implicit_arg),
-        target_instance_data->GetCallTarget(func->func_index), sig_id,
 #if V8_ENABLE_DRUMBRAKE
-        target_func_index,
-#endif
-        WasmDispatchTable::kExistingEntry);
-  }
+  } else if (v8_flags.wasm_jitless) {
+    DCHECK(v8_flags.wasm_jitless);
+    if (IsWasmImportData(*implicit_arg)) {
+      dispatch_table->SetForWrapper(
+          entry_index, Cast<WasmImportData>(*implicit_arg), {}, sig_id,
+          target_func_index, WasmDispatchTable::kExistingEntry);
+    } else {
+      dispatch_table->SetForNonWrapper(
+          entry_index, Cast<WasmTrustedInstanceData>(*implicit_arg), {}, sig_id,
+          target_func_index, WasmDispatchTable::kExistingEntry);
+    }
 
-#if V8_ENABLE_DRUMBRAKE
-  if (v8_flags.wasm_jitless) {
     Tagged<ProtectedWeakFixedArray> uses = dispatch_table->protected_uses();
     int used_length = GetUsedLength(uses);
     for (int i = kReservedSlotOffset; i < used_length; i += 2) {
@@ -621,8 +621,17 @@ void WasmTableObject::UpdateDispatchTable(
             table_index);
       }
     }
-  }
 #endif  // V8_ENABLE_DRUMBRAKE
+  } else {
+    CHECK(IsWasmTrustedInstanceData(*implicit_arg));
+    dispatch_table->SetForNonWrapper(
+        entry_index, Cast<WasmTrustedInstanceData>(*implicit_arg),
+        target_instance_data->GetCallTarget(func->func_index), sig_id,
+#if V8_ENABLE_DRUMBRAKE
+        target_func_index,
+#endif
+        WasmDispatchTable::kExistingEntry);
+  }
 }
 
 // static
@@ -1510,6 +1519,23 @@ void ImportedFunctionEntry::SetWasmToWrapper(
     std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle,
     wasm::Suspend suspend, const wasm::CanonicalSig* sig,
     wasm::CanonicalTypeIndex sig_id) {
+#if V8_ENABLE_DRUMBRAKE
+  if (v8_flags.wasm_jitless) {
+    // Ignores wrapper_handle.
+    DirectHandle<WasmImportData> import_data =
+        isolate->factory()->NewWasmImportData(callable, suspend, instance_data_,
+                                              sig, false /*kShared*/);
+    {
+      DisallowGarbageCollection no_gc;
+      instance_data_->dispatch_table_for_imports()->SetForWrapper(
+          index_, *import_data, {}, sig_id, -1,
+          WasmDispatchTable::kExistingEntry);
+    }
+    instance_data_->imported_function_indices()->set(index_, -1);
+    return;
+  }
+#endif  // V8_ENABLE_DRUMBRAKE
+
   TRACE_IFT("Import callable 0x%" PRIxPTR "[%d] = {callable=0x%" PRIxPTR
             ", target=%p}\n",
             instance_data_->ptr(), index_, callable->ptr(),
@@ -2071,8 +2097,10 @@ DirectHandle<Code> WasmExportedFunction::GetWrapper(
     wasm::CanonicalTypeIndex sig_id, bool receiver_is_first_param,
     const WasmModule* module) {
 #if V8_ENABLE_DRUMBRAKE
-  return isolate->builtins()->code_handle(
-      Builtin::kGenericJSToWasmInterpreterWrapper);
+  if (v8_flags.wasm_jitless) {
+    return isolate->builtins()->code_handle(
+        Builtin::kGenericJSToWasmInterpreterWrapper);
+  }
 #endif  // V8_ENABLE_DRUMBRAKE
   Tagged<CodeWrapper> entry = wasm::WasmExportWrapperCache::Get(
       isolate, sig_id, receiver_is_first_param);
@@ -2425,7 +2453,8 @@ void WasmDispatchTable::SetForNonWrapper(
 #endif  // V8_ENABLE_DRUMBRAKE
     NewOrExistingEntry new_or_existing) {
   if (implicit_arg == Smi::zero()) {
-    DCHECK_EQ(wasm::kInvalidWasmCodePointer, call_target);
+    DCHECK(v8_flags.wasm_jitless ||
+           (wasm::kInvalidWasmCodePointer == call_target));
     Clear(index, new_or_existing);
     return;
   }
@@ -2464,7 +2493,8 @@ void WasmDispatchTable::SetForWrapper(
 #endif  // V8_ENABLE_DRUMBRAKE
     NewOrExistingEntry new_or_existing) {
   DCHECK_NE(implicit_arg, Smi::zero());
-  SBXCHECK(!wrapper_handle->has_code() || !wrapper_handle->code().is_dying());
+  SBXCHECK(v8_flags.wasm_jitless || !wrapper_handle->has_code() ||
+           !wrapper_handle->code().is_dying());
   SBXCHECK_BOUNDS(index, length());
   DCHECK(sig_id.valid());
   const int offset = OffsetOf(index);
@@ -2651,8 +2681,9 @@ DirectHandle<WasmDispatchTable> WasmDispatchTable::Grow(
         if (import_data->call_origin() == *old_table) {
           import_data->set_call_origin(*new_table);
         } else {
-          DCHECK(wasm::GetWasmImportWrapperCache()->IsCompiledWrapper(
-              call_target));
+          DCHECK(v8_flags.wasm_jitless ||
+                 wasm::GetWasmImportWrapperCache()->IsCompiledWrapper(
+                     call_target));
         }
       }
     }
@@ -3217,16 +3248,6 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
     Cast<WasmImportData>(internal_function->implicit_arg())
         ->clear_call_origin();
   }
-
-#if V8_ENABLE_DRUMBRAKE
-  if (v8_flags.wasm_jitless && wasm::IsJSCompatibleSignature(canonical_sig)) {
-    Address builtin_entry =
-        Builtins::EmbeddedEntryOf(Builtin::kGenericWasmToJSInterpreterWrapper);
-    WasmCodePointer wrapper_code_pointer =
-        function_data->offheap_data()->set_generic_wrapper(builtin_entry);
-    internal_function->set_call_target(wrapper_code_pointer);
-  }
-#endif  // V8_ENABLE_DRUMBRAKE
 
   DirectHandle<String> name = factory->Function_string();
   if (IsJSFunction(*callable)) {
