@@ -190,11 +190,13 @@ int ExecuteAgainstReference(Isolate* isolate,
                                 size_t initial_limit) -> size_t {
     OomCallbackData* data = reinterpret_cast<OomCallbackData*>(raw_data);
     data->heap_limit_reached = true;
-    data->isolate->TerminateExecution();
+    // We can not throw an exception directly at this point, so request
+    // termination on the next stack check.
+    data->isolate->stack_guard()->RequestTerminateExecution();
     data->initial_limit = initial_limit;
-    // Return a slightly raised limit, just to make it to the next
-    // interrupt check point, where execution will terminate.
-    return initial_limit * 1.25;
+    // Return a generously raised limit to maximize the chance to make it to the
+    // next interrupt check point, where execution will terminate.
+    return initial_limit * 4;
   };
   isolate->heap()->AddNearHeapLimitCallback(heap_limit_callback,
                                             &oom_callback_data);
