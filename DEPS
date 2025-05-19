@@ -130,9 +130,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '3ae7942f3240e5d5d46a39ab69daa2d07752baa4',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '34988eff976770c637669a3724813b949db6e6e9',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'e9b36e9ffb02b268d194c3f82f89952d09d0c714',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'cd169314af80e77a75eb25e2c0df8798f35bc04a',
   'buildtools/linux64': {
     'packages': [
       {
