@@ -1058,6 +1058,7 @@ template <typename T>
 bool ArrayBufferFromHex(const base::Vector<T>& input_vector, bool is_shared,
                         uint8_t* buffer, size_t output_length) {
   size_t input_length = input_vector.size();
+  USE(input_length);
   DCHECK_LE(output_length, input_length / 2);
 
   // TODO(rezvan): Add relaxed version for simd methods to handle shared array
@@ -1078,7 +1079,7 @@ bool ArrayBufferFromHex(const base::Vector<T>& input_vector, bool is_shared,
 
   size_t index = 0;
   std::optional<uint8_t> result = 0;
-  for (uint32_t i = 0; i < input_length; i += 2) {
+  for (uint32_t i = 0; i < output_length * 2; i += 2) {
     result = HandleRemainingHexValues(input_vector, i);
     if (result.has_value()) {
       if (is_shared) {
