@@ -242,7 +242,7 @@ class Builtins {
 
   // Return the builtin entry inside the embedded data. Only used for Wasm where
   // we want to use them in isolate-independent context.
-  static Address EmbeddedEntryOf(Builtin builtin);
+  V8_EXPORT_PRIVATE static Address EmbeddedEntryOf(Builtin builtin);
 
   V8_EXPORT_PRIVATE static Kind KindOf(Builtin builtin);
   static const char* KindNameOf(Builtin builtin);
