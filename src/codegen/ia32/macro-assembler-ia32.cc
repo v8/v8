@@ -813,21 +813,6 @@ void MacroAssembler::AssertFeedbackVector(Register object, Register scratch) {
 }
 #endif  // V8_ENABLE_DEBUG_CODE
 
-void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
-    Register optimized_code, Register closure, Register value,
-    Register slot_address) {
-  ASM_CODE_COMMENT(this);
-#ifdef V8_ENABLE_LEAPTIERING
-  UNREACHABLE();
-#else
-  // Store the optimized code in the closure.
-  mov(FieldOperand(closure, JSFunction::kCodeOffset), optimized_code);
-  mov(value, optimized_code);  // Write barrier clobbers slot_address below.
-  RecordWriteField(closure, JSFunction::kCodeOffset, value, slot_address,
-                   SaveFPRegsMode::kIgnore, SmiCheck::kOmit);
-#endif  // V8_ENABLE_LEAPTIERING
-}
-
 void MacroAssembler::GenerateTailCallToReturnedCode(
     Runtime::FunctionId function_id) {
   // ----------- S t a t e -------------
@@ -848,7 +833,9 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     push(kJavaScriptCallTargetRegister);
 
     CallRuntime(function_id, 1);
+#ifndef V8_ENABLE_LEAPTIERING
     mov(ecx, eax);
+#endif
 
     // Restore target function, new target and actual argument count.
     pop(kJavaScriptCallArgCountRegister);
@@ -858,10 +845,25 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
   }
 
   static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
+#ifdef V8_ENABLE_LEAPTIERING
+  JumpJSFunction(kJavaScriptCallTargetRegister);
+#else
   JumpCodeObject(ecx);
+#endif
 }
 
 #ifndef V8_ENABLE_LEAPTIERING
+
+void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
+    Register optimized_code, Register closure, Register value,
+    Register slot_address) {
+  ASM_CODE_COMMENT(this);
+  // Store the optimized code in the closure.
+  mov(FieldOperand(closure, JSFunction::kCodeOffset), optimized_code);
+  mov(value, optimized_code);  // Write barrier clobbers slot_address below.
+  RecordWriteField(closure, JSFunction::kCodeOffset, value, slot_address,
+                   SaveFPRegsMode::kIgnore, SmiCheck::kOmit);
+}
 
 // Read off the flags in the feedback vector and check if there
 // is optimized code or a tiering state that needs to be processed.

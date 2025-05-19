@@ -1512,24 +1512,6 @@ void MacroAssembler::AssertFeedbackVector(Register object, Register scratch) {
 }
 #endif  // V8_ENABLE_DEBUG_CODE
 
-void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
-    Register optimized_code, Register closure) {
-  ASM_CODE_COMMENT(this);
-  DCHECK(!AreAliased(optimized_code, closure));
-
-#ifdef V8_ENABLE_LEAPTIERING
-  UNREACHABLE();
-#else
-  // Store code entry in the closure.
-  AssertCode(optimized_code);
-  StoreCodePointerField(optimized_code,
-                        FieldMemOperand(closure, JSFunction::kCodeOffset));
-  RecordWriteField(closure, JSFunction::kCodeOffset, optimized_code,
-                   kLRHasNotBeenSaved, SaveFPRegsMode::kIgnore, SmiCheck::kOmit,
-                   ReadOnlyCheck::kOmit, SlotDescriptor::ForCodePointerSlot());
-#endif  // V8_ENABLE_LEAPTIERING
-}
-
 void MacroAssembler::GenerateTailCallToReturnedCode(
     Runtime::FunctionId function_id) {
   ASM_CODE_COMMENT(this);
@@ -1555,7 +1537,9 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     PushArgument(kJavaScriptCallTargetRegister);
 
     CallRuntime(function_id, 1);
+#ifndef V8_ENABLE_LEAPTIERING
     Mov(x2, x0);
+#endif
 
     // Restore target function, new target, actual argument count, and dispatch
     // handle.
@@ -1565,10 +1549,39 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
   }
 
   static_assert(kJavaScriptCallCodeStartRegister == x2, "ABI mismatch");
+#ifdef V8_ENABLE_LEAPTIERING
+#ifndef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+  Move(kJavaScriptCallDispatchHandleRegister.W(),
+       FieldMemOperand(kJavaScriptCallTargetRegister,
+                       JSFunction::kDispatchHandleOffset));
+#endif
+  // We jump through x17 here because for Branch Identification (BTI) we use
+  // "Call" (`bti c`) rather than "Jump" (`bti j`) landing pads for tail-called
+  // code. See TailCallBuiltin for more information.
+  LoadEntrypointFromJSDispatchTable(x2, kJavaScriptCallDispatchHandleRegister,
+                                    x5);
+  Move(x17, x2);
+  Jump(x17);
+#else
   JumpCodeObject(x2, kJSEntrypointTag);
+#endif
 }
 
 #ifndef V8_ENABLE_LEAPTIERING
+
+void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
+    Register optimized_code, Register closure) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(optimized_code, closure));
+
+  // Store code entry in the closure.
+  AssertCode(optimized_code);
+  StoreCodePointerField(optimized_code,
+                        FieldMemOperand(closure, JSFunction::kCodeOffset));
+  RecordWriteField(closure, JSFunction::kCodeOffset, optimized_code,
+                   kLRHasNotBeenSaved, SaveFPRegsMode::kIgnore, SmiCheck::kOmit,
+                   ReadOnlyCheck::kOmit, SlotDescriptor::ForCodePointerSlot());
+}
 
 // Read off the flags in the feedback vector and check if there
 // is optimized code or a tiering state that needs to be processed.

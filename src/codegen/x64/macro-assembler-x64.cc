@@ -1264,7 +1264,9 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     Push(kJavaScriptCallTargetRegister);
 
     CallRuntime(function_id, 1);
+#ifndef V8_ENABLE_LEAPTIERING
     movq(rcx, rax);
+#endif
 
     // Restore target function, new target, actual argument count, and dispatch
     // handle.
@@ -1276,9 +1278,23 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     Pop(kJavaScriptCallNewTargetRegister);
     Pop(kJavaScriptCallTargetRegister);
   }
+
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
+#ifdef V8_ENABLE_LEAPTIERING
+#ifndef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+  movl(kJavaScriptCallDispatchHandleRegister,
+       FieldOperand(kJavaScriptCallTargetRegister,
+                    JSFunction::kDispatchHandleOffset));
+#endif
+  LoadEntrypointFromJSDispatchTable(rcx, kJavaScriptCallDispatchHandleRegister);
+  DCHECK_EQ(jump_mode, JumpMode::kJump);
+  jmp(rcx);
+#else
   JumpCodeObject(rcx, kJSEntrypointTag, jump_mode);
+#endif
 }
+
+#ifndef V8_ENABLE_LEAPTIERING
 
 void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
     Register optimized_code, Register closure, Register scratch1,
@@ -1287,9 +1303,6 @@ void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
   DCHECK(!AreAliased(optimized_code, closure, scratch1, slot_address));
   DCHECK_EQ(closure, kJSFunctionRegister);
 
-#ifdef V8_ENABLE_LEAPTIERING
-  UNREACHABLE();
-#else
   // Store the optimized code in the closure.
   AssertCode(optimized_code);
   StoreCodePointerField(FieldOperand(closure, JSFunction::kCodeOffset),
@@ -1302,10 +1315,7 @@ void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
   RecordWriteField(closure, JSFunction::kCodeOffset, value, slot_address,
                    SaveFPRegsMode::kIgnore, SmiCheck::kOmit,
                    ReadOnlyCheck::kOmit, SlotDescriptor::ForCodePointerSlot());
-#endif  // V8_ENABLE_LEAPTIERING
 }
-
-#ifndef V8_ENABLE_LEAPTIERING
 
 // Read off the flags in the feedback vector and check if there
 // is optimized code or a tiering state that needs to be processed.

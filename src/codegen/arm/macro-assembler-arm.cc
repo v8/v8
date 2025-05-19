@@ -2094,21 +2094,6 @@ void MacroAssembler::AssertFeedbackVector(Register object, Register scratch) {
 }
 #endif  // V8_ENABLE_DEBUG_CODE
 
-void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
-    Register optimized_code, Register closure) {
-  ASM_CODE_COMMENT(this);
-#ifdef V8_ENABLE_LEAPTIERING
-  UNREACHABLE();
-#else
-  DCHECK(!AreAliased(optimized_code, closure));
-  // Store code entry in the closure.
-  str(optimized_code, FieldMemOperand(closure, JSFunction::kCodeOffset));
-  RecordWriteField(closure, JSFunction::kCodeOffset, optimized_code,
-                   kLRHasNotBeenSaved, SaveFPRegsMode::kIgnore,
-                   SmiCheck::kOmit);
-#endif  // V8_ENABLE_LEAPTIERING
-}
-
 void MacroAssembler::GenerateTailCallToReturnedCode(
     Runtime::FunctionId function_id) {
   // ----------- S t a t e -------------
@@ -2126,7 +2111,9 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
          kJavaScriptCallArgCountRegister, kJavaScriptCallTargetRegister);
 
     CallRuntime(function_id, 1);
+#ifndef V8_ENABLE_LEAPTIERING
     mov(r2, r0);
+#endif
 
     // Restore target function, new target and actual argument count.
     Pop(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
@@ -2134,10 +2121,25 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     SmiUntag(kJavaScriptCallArgCountRegister);
   }
   static_assert(kJavaScriptCallCodeStartRegister == r2, "ABI mismatch");
+#ifdef V8_ENABLE_LEAPTIERING
+  JumpJSFunction(kJavaScriptCallTargetRegister);
+#else
   JumpCodeObject(r2);
+#endif
 }
 
 #ifndef V8_ENABLE_LEAPTIERING
+
+void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
+    Register optimized_code, Register closure) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(optimized_code, closure));
+  // Store code entry in the closure.
+  str(optimized_code, FieldMemOperand(closure, JSFunction::kCodeOffset));
+  RecordWriteField(closure, JSFunction::kCodeOffset, optimized_code,
+                   kLRHasNotBeenSaved, SaveFPRegsMode::kIgnore,
+                   SmiCheck::kOmit);
+}
 
 // Read off the flags in the feedback vector and check if there
 // is optimized code or a tiering state that needs to be processed.
