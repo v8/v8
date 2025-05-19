@@ -1717,7 +1717,6 @@ DirectHandle<WasmDispatchTable> Factory::NewWasmDispatchTable(
   result->set_table_type(table_type);
   for (int i = 0; i < length; ++i) {
     result->Clear(i, WasmDispatchTable::kNewEntry);
-    result->clear_entry_padding(i);
   }
   return direct_handle(result, isolate());
 }

@@ -828,30 +828,27 @@ class WasmDispatchTable : public ExposedTrustedObject {
       kTableTypeOffset + kUInt32Size + kPaddingSize;
 
   // Entries consist of
-  // - target (pointer)
+  // - target (WasmCodePointer == entry in WasmCodePointerTable),
 #if V8_ENABLE_DRUMBRAKE
-  // - function_index (uint32_t) (located in place of target pointer).
+  // - function_index (uint32_t) (located in place of target pointer),
 #endif  // V8_ENABLE_DRUMBRAKE
-  // - implicit_arg (protected pointer, tagged sized)
-  // - sig (int32_t); unused for imports which check the signature statically.
+  // - sig (canonical type index == uint32_t); unused for imports which check
+  //   the signature statically,
+  // - implicit_arg (protected pointer, tagged sized).
   static constexpr size_t kTargetBias = 0;
 #if V8_ENABLE_DRUMBRAKE
   // In jitless mode, reuse the 'target' field storage to hold the (uint32_t)
   // function index.
   static constexpr size_t kFunctionIndexBias = kTargetBias;
 #endif  // V8_ENABLE_DRUMBRAKE
-  static constexpr size_t kImplicitArgBias = kTargetBias + kSystemPointerSize;
-  static constexpr size_t kSigBias = kImplicitArgBias + kTaggedSize;
-  static constexpr size_t kEntryPaddingOffset = kSigBias + kInt32Size;
-  static constexpr size_t kEntryPaddingBytes =
-      kEntryPaddingOffset % kTaggedSize;
-  static_assert(kEntryPaddingBytes == 4 || kEntryPaddingBytes == 0);
-  static constexpr size_t kEntrySize = kEntryPaddingOffset + kEntryPaddingBytes;
+  static_assert(sizeof(WasmCodePointer) == kUInt32Size);
+  static constexpr size_t kSigBias = kTargetBias + kUInt32Size;
+  static constexpr size_t kImplicitArgBias = kSigBias + kUInt32Size;
+  static constexpr size_t kEntrySize = kImplicitArgBias + kTaggedSize;
 
-  // Tagged and system-pointer-sized fields must be tagged-size-aligned.
+  // Tagged fields must be tagged-size-aligned.
   static_assert(IsAligned(kEntriesOffset, kTaggedSize));
   static_assert(IsAligned(kEntrySize, kTaggedSize));
-  static_assert(IsAligned(kTargetBias, kTaggedSize));
   static_assert(IsAligned(kImplicitArgBias, kTaggedSize));
 
   // The total byte size must still fit in an integer.
@@ -866,10 +863,6 @@ class WasmDispatchTable : public ExposedTrustedObject {
     DCHECK_LT(index, kMaxLength);
     return SizeFor(index);
   }
-
-  // Clear uninitialized padding space for deterministic object content.
-  // Depending on the V8 build mode there could be no padding.
-  inline void clear_entry_padding(int index);
 
   // The current length of this dispatch table. This is always <= the capacity.
   inline int length() const;
