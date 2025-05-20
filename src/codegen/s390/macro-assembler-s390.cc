@@ -2120,30 +2120,6 @@ void MacroAssembler::AssertFeedbackVector(Register object) {
 }
 #endif  // V8_ENABLE_DEBUG_CODE
 
-// Optimized code is good, get it into the closure and link the closure
-// into the optimized functions list, then tail call the optimized code.
-void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
-    Register optimized_code, Register closure, Register scratch1,
-    Register slot_address) {
-#ifdef V8_ENABLE_LEAPTIERING
-  UNREACHABLE();
-#else
-  DCHECK(!AreAliased(optimized_code, closure, scratch1, slot_address));
-  DCHECK_EQ(closure, kJSFunctionRegister);
-  DCHECK(!AreAliased(optimized_code, closure));
-  // Store code entry in the closure.
-  StoreTaggedField(optimized_code,
-                   FieldMemOperand(closure, JSFunction::kCodeOffset), r0);
-  // Write barrier clobbers scratch1 below.
-  Register value = scratch1;
-  mov(value, optimized_code);
-
-  RecordWriteField(closure, JSFunction::kCodeOffset, value, slot_address,
-                   kLRHasNotBeenSaved, SaveFPRegsMode::kIgnore,
-                   SmiCheck::kOmit);
-#endif  // V8_ENABLE_LEAPTIERING
-}
-
 void MacroAssembler::GenerateTailCallToReturnedCode(
     Runtime::FunctionId function_id) {
   // ----------- S t a t e -------------
@@ -2161,7 +2137,9 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
          kJavaScriptCallArgCountRegister, kJavaScriptCallTargetRegister);
 
     CallRuntime(function_id, 1);
+#ifndef V8_ENABLE_LEAPTIERING
     mov(r4, r2);
+#endif
 
     // Restore target function, new target and actual argument count.
     Pop(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
@@ -2169,10 +2147,34 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     SmiUntag(kJavaScriptCallArgCountRegister);
   }
   static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
+#ifdef V8_ENABLE_LEAPTIERING
+  JumpJSFunction(kJavaScriptCallTargetRegister);
+#else
   JumpCodeObject(r4);
+#endif
 }
 
 #ifndef V8_ENABLE_LEAPTIERING
+
+// Optimized code is good, get it into the closure and link the closure
+// into the optimized functions list, then tail call the optimized code.
+void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
+    Register optimized_code, Register closure, Register scratch1,
+    Register slot_address) {
+  DCHECK(!AreAliased(optimized_code, closure, scratch1, slot_address));
+  DCHECK_EQ(closure, kJSFunctionRegister);
+  DCHECK(!AreAliased(optimized_code, closure));
+  // Store code entry in the closure.
+  StoreTaggedField(optimized_code,
+                   FieldMemOperand(closure, JSFunction::kCodeOffset), r0);
+  // Write barrier clobbers scratch1 below.
+  Register value = scratch1;
+  mov(value, optimized_code);
+
+  RecordWriteField(closure, JSFunction::kCodeOffset, value, slot_address,
+                   kLRHasNotBeenSaved, SaveFPRegsMode::kIgnore,
+                   SmiCheck::kOmit);
+}
 
 // Read off the flags in the feedback vector and check if there
 // is optimized code or a tiering state that needs to be processed.
