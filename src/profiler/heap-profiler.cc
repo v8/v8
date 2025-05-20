@@ -20,6 +20,7 @@
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
 #include "src/profiler/sampling-heap-profiler.h"
+#include "src/utils/output-stream.h"
 
 namespace v8::internal {
 
@@ -165,22 +166,6 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
   return result;
 }
 
-class FileOutputStream : public v8::OutputStream {
- public:
-  explicit FileOutputStream(const char* filename) : os_(filename) {}
-  ~FileOutputStream() override { os_.close(); }
-
-  WriteResult WriteAsciiChunk(char* data, int size) override {
-    os_.write(data, size);
-    return kContinue;
-  }
-
-  void EndOfStream() override { os_.close(); }
-
- private:
-  std::ofstream os_;
-};
-
 // Precondition: only call this if you have just completed a full GC cycle.
 void HeapProfiler::WriteSnapshotToDiskAfterGC(HeapSnapshotMode snapshot_mode) {
   // We need to set a stack marker for the stack walk performed by the
@@ -195,7 +180,7 @@ void HeapProfiler::WriteSnapshotToDiskAfterGC(HeapSnapshotMode snapshot_mode) {
                                     options.global_object_name_resolver, heap(),
                                     options.stack_state);
     if (!generator.GenerateSnapshotAfterGC()) return;
-    FileOutputStream stream(filename.c_str());
+    i::FileOutputStream stream(filename.c_str());
     HeapSnapshotJSONSerializer serializer(result.get());
     serializer.Serialize(&stream);
     PrintF("Wrote heap snapshot to %s.\n", filename.c_str());
@@ -209,21 +194,6 @@ void HeapProfiler::TakeSnapshotToFile(
   HeapSnapshotJSONSerializer serializer(snapshot);
   serializer.Serialize(&stream);
 }
-
-class StringOutputStream : public v8::OutputStream {
- public:
-  WriteResult WriteAsciiChunk(char* data, int size) override {
-    os_.write(data, size);
-    return kContinue;
-  }
-
-  void EndOfStream() override {}
-
-  std::string str() { return os_.str(); }
-
- private:
-  std::stringstream os_;
-};
 
 std::string HeapProfiler::TakeSnapshotToString(
     const v8::HeapProfiler::HeapSnapshotOptions options) {

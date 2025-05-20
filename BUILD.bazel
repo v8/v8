@@ -2565,6 +2565,8 @@ filegroup(
         "src/utils/locked-queue-inl.h",
         "src/utils/memcopy.cc",
         "src/utils/memcopy.h",
+        "src/utils/output-stream.cc",
+        "src/utils/output-stream.h",
         "src/utils/ostreams.cc",
         "src/utils/ostreams.h",
         "src/utils/scoped-list.h",
