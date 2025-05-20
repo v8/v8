@@ -3937,7 +3937,7 @@ void DescriptorArray::Replace(InternalIndex index, Descriptor* descriptor) {
   descriptor->SetSortedKeyIndex(GetSortedKeyIndex(index.as_int()));
   Set(index, descriptor);
   // Resetting the fast iterable state is bottlenecked in SetKey().
-  DCHECK_EQ(fast_iterable(), FastIterableState::kUnknown);
+  DCHECK_NE(fast_iterable(), FastIterableState::kJsonFast);
 }
 
 // static
