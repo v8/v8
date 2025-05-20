@@ -586,12 +586,14 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
       DecodeWord32<LoadHandler::KindBits>(handler_word);
 
   if (support_elements == kSupportElements) {
-    Label if_element(this), if_indexed_string(this), if_property(this),
-        if_hole(this), unimplemented_elements_kind(this),
+    Label if_element(this), if_transition(this), if_indexed_string(this),
+        if_property(this), if_hole(this), unimplemented_elements_kind(this),
         if_oob(this, Label::kDeferred), try_string_to_array_index(this),
         emit_element_load(this);
     TVARIABLE(IntPtrT, var_intptr_index);
     GotoIf(Word32Equal(handler_kind, LOAD_KIND(kElement)), &if_element);
+    GotoIf(Word32Equal(handler_kind, LOAD_KIND(kElementWithTransition)),
+           &if_transition);
 
     if (access_mode == LoadAccessMode::kHas) {
       CSA_DCHECK(this, Word32NotEqual(handler_kind, LOAD_KIND(kIndexedString)));
@@ -640,6 +642,15 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
                         &var_double_value, &unimplemented_elements_kind,
                         &if_oob, miss, exit_point, access_mode);
       }
+    }
+
+    BIND(&if_transition);
+    {
+      TNode<Uint32T> elements_kind =
+          DecodeWord32<LoadHandler::ElementsKindBits>(handler_word);
+      CallRuntime(Runtime::kTransitionElementsKindWithKind, p->context(),
+                  p->receiver(), SmiFromUint32(elements_kind));
+      Goto(&if_element);
     }
 
     BIND(&unimplemented_elements_kind);
