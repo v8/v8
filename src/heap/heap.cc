@@ -1538,7 +1538,7 @@ void Heap::SetOldGenerationAndGlobalMaximumSize(
 
 void Heap::SetOldGenerationAndGlobalAllocationLimit(
     size_t new_old_generation_allocation_limit,
-    size_t new_global_allocation_limit) {
+    size_t new_global_allocation_limit, const char* reason) {
   CHECK_GE(new_global_allocation_limit, new_old_generation_allocation_limit);
 #if defined(V8_USE_PERFETTO)
   TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
@@ -1554,6 +1554,14 @@ void Heap::SetOldGenerationAndGlobalAllocationLimit(
                                          std::memory_order_relaxed);
   global_allocation_limit_.store(new_global_allocation_limit,
                                  std::memory_order_relaxed);
+  if (v8_flags.trace_gc_nvp) [[unlikely]] {
+    isolate()->PrintWithTimestamp(
+        "action=SetOldGenerationAndGlobalAllocationLimit "
+        "old_generation_allocation_limit=%zu global_allocation_limit=%zu "
+        "reason=%s\n",
+        new_old_generation_allocation_limit, new_global_allocation_limit,
+        reason);
+  }
 }
 
 void Heap::ResetOldGenerationAndGlobalAllocationLimit() {

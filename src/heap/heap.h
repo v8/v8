@@ -1999,7 +1999,8 @@ class Heap final {
   // Sets allocation limits for both old generation and the global heap.
   void SetOldGenerationAndGlobalAllocationLimit(
       size_t new_old_generation_allocation_limit,
-      size_t new_global_allocation_limit);
+      size_t new_global_allocation_limit,
+      const char* reason = __builtin_FUNCTION());
 
   void ResetOldGenerationAndGlobalAllocationLimit();
 
