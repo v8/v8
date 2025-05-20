@@ -718,9 +718,17 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
         static_cast<unsigned>(
             function_template_info_.c_functions(broker()).size()));
 
-    Node* continuation_frame_state = CreateInlinedApiFunctionFrameState(
-        jsgraph(), shared_, target_, ContextInput(), receiver_,
-        FrameStateInput());
+    // TODO(crbug.com/418936518): Support deopt for functions with return value.
+    Node* error_message = jsgraph()->SmiConstant(
+        static_cast<int>(AbortReason::kUnsupportedDeopt));
+    Node* continuation_frame_state =
+        c_function_.signature->ReturnInfo().GetType() == CTypeInfo::Type::kVoid
+            ? CreateInlinedApiFunctionFrameState(jsgraph(), shared_, target_,
+                                                 ContextInput(), receiver_,
+                                                 FrameStateInput())
+            : CreateStubBuiltinContinuationFrameState(
+                  jsgraph(), Builtin::kAbort, ContextInput(), &error_message, 1,
+                  FrameStateInput(), ContinuationFrameStateMode::LAZY);
 
     // Callback data value for fast Api calls. Unlike slow Api calls, the fast
     // variant passes callback data directly.
