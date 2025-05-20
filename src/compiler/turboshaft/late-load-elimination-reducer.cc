@@ -449,13 +449,6 @@ void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
     TRACE(">> Call doesn't write, skipping");
     return;
   }
-  // Note: This does not detect wasm stack checks, but those are detected by the
-  // check just above.
-  if (op.IsStackCheck(graph_, broker_, StackCheckKind::kJSIterationBody)) {
-    // This is a stack check that cannot write heap memory.
-    TRACE(">> Call is loop stack check, skipping");
-    return;
-  }
 
   auto builtin_id = TryGetBuiltinId(callee.TryCast<ConstantOp>(), broker_);
 

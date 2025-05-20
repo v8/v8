@@ -62,33 +62,6 @@ std::optional<Builtin> TryGetBuiltinId(const ConstantOp* target,
   return std::nullopt;
 }
 
-bool CallOp::IsStackCheck(const Graph& graph, JSHeapBroker* broker,
-                          StackCheckKind kind) const {
-  auto builtin_id =
-      TryGetBuiltinId(graph.Get(callee()).TryCast<ConstantOp>(), broker);
-  if (!builtin_id.has_value()) return false;
-  if (*builtin_id != Builtin::kCEntry_Return1_ArgvOnStack_NoBuiltinExit) {
-    return false;
-  }
-  DCHECK_GE(input_count, 4);
-  Runtime::FunctionId builtin = GetBuiltinForStackCheckKind(kind);
-  auto is_this_builtin = [&](int input_index) {
-    if (const ConstantOp* real_callee =
-            graph.Get(input(input_index)).TryCast<ConstantOp>();
-        real_callee != nullptr &&
-        real_callee->kind == ConstantOp::Kind::kExternal &&
-        real_callee->external_reference() ==
-            ExternalReference::Create(builtin)) {
-      return true;
-    }
-    return false;
-  };
-  // The function called by `CEntry_Return1_ArgvOnStack_NoBuiltinExit` is the
-  // 3rd or the 4th argument of the CallOp (depending on the stack check kind),
-  // so we check both of them.
-  return is_this_builtin(2) || is_this_builtin(3);
-}
-
 void CallOp::PrintOptions(std::ostream& os) const {
   os << '[' << *descriptor->descriptor << ']';
 }

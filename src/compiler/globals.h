@@ -23,16 +23,6 @@ enum class StackCheckKind : uint8_t {
   kWasm,
 };
 
-inline Runtime::FunctionId GetBuiltinForStackCheckKind(StackCheckKind kind) {
-  if (kind == StackCheckKind::kJSFunctionEntry) {
-    return Runtime::kStackGuardWithGap;
-  } else if (kind == StackCheckKind::kJSIterationBody) {
-    return Runtime::kHandleNoHeapWritesInterrupts;
-  } else {
-    return Runtime::kStackGuard;
-  }
-}
-
 enum class CanThrow : uint8_t { kNo, kYes };
 enum class LazyDeoptOnThrow : uint8_t { kNo, kYes };
 

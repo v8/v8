@@ -2683,11 +2683,29 @@ OpIndex GraphBuilder::Process(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     case IrOpcode::kJSStackCheck: {
-      DCHECK_EQ(OpParameter<StackCheckKind>(node->op()),
-                StackCheckKind::kJSFunctionEntry);
+      JSStackCheckOp::Kind kind;
+      switch (OpParameter<StackCheckKind>(node->op())) {
+        case StackCheckKind::kJSFunctionEntry:
+          kind = JSStackCheckOp::Kind::kFunctionEntry;
+          break;
+        case StackCheckKind::kJSIterationBody:
+          kind = JSStackCheckOp::Kind::kLoop;
+          break;
+        case StackCheckKind::kCodeStubAssembler:
+          kind = JSStackCheckOp::Kind::kBuiltinEntry;
+          break;
+        case StackCheckKind::kWasm:
+          UNREACHABLE();
+      }
       V<Context> context = Map(node->InputAt(0));
       V<FrameState> frame_state = Map(node->InputAt(1));
-      __ JSFunctionEntryStackCheck(context, frame_state);
+      __ JSStackCheck(context, frame_state, kind);
+      if (NodeProperties::IsExceptionalCall(node)) {
+        // JSStackCheck in Turbofan have control projections (even though they
+        // can't throw, but I think that this is just to have uniform handling
+        // with other JS nodes).
+        __ Goto(Map(block->SuccessorAt(0)));
+      }
       return OpIndex::Invalid();
     }
 
