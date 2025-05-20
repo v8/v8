@@ -21,6 +21,8 @@
 #include "unicode/uchar.h"
 #endif
 
+#include "third_party/simdutf/simdutf.h"
+
 namespace unibrow {
 
 #ifndef V8_INTL_SUPPORT
@@ -232,12 +234,7 @@ uchar Utf8::ValueOfIncrementalFinish(State* state) {
 }
 
 bool Utf8::ValidateEncoding(const uint8_t* bytes, size_t length) {
-  State state = State::kAccept;
-  Utf8IncrementalBuffer throw_away = 0;
-  for (size_t i = 0; i < length && state != State::kReject; i++) {
-    Utf8DfaDecoder::Decode(bytes[i], &state, &throw_away);
-  }
-  return state == State::kAccept;
+  return simdutf::validate_utf8(reinterpret_cast<const char*>(bytes), length);
 }
 
 // static
