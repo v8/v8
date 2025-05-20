@@ -596,6 +596,26 @@ bool Map::TryGetPrototypeInfo(Tagged<PrototypeInfo>* result) const {
   return true;
 }
 
+// static
+bool Map::TryGetValidityCellHolderMap(
+    Tagged<Map> map, Isolate* isolate,
+    Tagged<Map>* out_validity_cell_holder_map) {
+  if (map->is_prototype_map()) {
+    // For prototype maps we can use their validity cell for guarding changes.
+    *out_validity_cell_holder_map = map;
+    return true;
+  }
+  // For non-prototype maps we use prototype's map's validity cell.
+  Tagged<Object> maybe_prototype =
+      map->GetPrototypeChainRootMap(isolate)->prototype();
+
+  if (!IsJSObjectThatCanBeTrackedAsPrototype(maybe_prototype)) {
+    return false;
+  }
+  *out_validity_cell_holder_map = Cast<JSObject>(maybe_prototype)->map();
+  return true;
+}
+
 void Map::set_elements_kind(ElementsKind elements_kind) {
   CHECK_LT(static_cast<int>(elements_kind), kElementsKindCount);
   set_bit_field2(

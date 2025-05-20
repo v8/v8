@@ -3068,7 +3068,7 @@ void JSObject::UpdatePrototypeUserRegistration(DirectHandle<Map> old_map,
       // The new map isn't registered with its prototype yet; reflect this fact
       // in the PrototypeInfo it just inherited from the old map.
       Cast<PrototypeInfo>(new_map->prototype_info())
-          ->set_registry_slot(MemoryChunk::UNREGISTERED);
+          ->set_registry_slot(PrototypeInfo::UNREGISTERED);
     }
     JSObject::LazyRegisterPrototypeUser(new_map, isolate);
   }
@@ -5055,7 +5055,7 @@ void JSObject::LazyRegisterPrototypeUser(DirectHandle<Map> user,
       Map::GetOrCreatePrototypeInfo(user, isolate);
   for (PrototypeIterator iter(isolate, user); !iter.IsAtEnd(); iter.Advance()) {
     // Walk up the prototype chain as far as links haven't been registered yet.
-    if (current_user_info->registry_slot() != MemoryChunk::UNREGISTERED) {
+    if (current_user_info->registry_slot() != PrototypeInfo::UNREGISTERED) {
       break;
     }
     DirectHandle<Object> maybe_proto = PrototypeIterator::GetCurrent(iter);
@@ -5117,7 +5117,7 @@ bool JSObject::UnregisterPrototypeUser(DirectHandle<Map> user,
   DirectHandle<PrototypeInfo> user_info =
       Map::GetOrCreatePrototypeInfo(user, isolate);
   int slot = user_info->registry_slot();
-  if (slot == MemoryChunk::UNREGISTERED) return false;
+  if (slot == PrototypeInfo::UNREGISTERED) return false;
   DCHECK(prototype->map()->is_prototype_map());
   Tagged<Object> maybe_proto_info = prototype->map()->prototype_info();
   // User knows its registry slot, prototype info and user registry must exist.
@@ -5153,12 +5153,17 @@ void InvalidateOnePrototypeValidityCellInternal(Tagged<Map> map) {
     Tagged<Cell> cell = Cast<Cell>(maybe_cell);
     Tagged<Smi> invalid_value = Smi::FromInt(Map::kPrototypeChainInvalid);
     if (cell->value() != invalid_value) {
-      cell->set_value(invalid_value);
+      cell->set_value(invalid_value, SKIP_WRITE_BARRIER);
     }
   }
   Tagged<PrototypeInfo> prototype_info;
   if (map->TryGetPrototypeInfo(&prototype_info)) {
     prototype_info->set_prototype_chain_enum_cache(Smi::zero());
+    // Previously created non-existent data handlers might no longer be valid,
+    // ensure they are re-created if necessary.
+    for (int i = 0; i < PrototypeInfo::kCachedHandlerCount; i++) {
+      prototype_info->set_cached_handler(i, Smi::zero(), SKIP_WRITE_BARRIER);
+    }
   }
 
   // We may inline accesses to constants stored in dictionary mode prototypes in

@@ -211,6 +211,8 @@ V8_OBJECT class LoadHandler final : public DataHandler {
   // Creates a Smi-handler for loading a non-existent property. Works only as
   // a part of prototype chain check.
   static inline Handle<Smi> LoadNonExistent(Isolate* isolate);
+  static Handle<Object> LoadNonExistent(
+      Isolate* isolate, DirectHandle<Map> lookup_start_object_map);
 
   // Creates a Smi-handler for loading an element.
   static inline Handle<Smi> LoadElement(Isolate* isolate,

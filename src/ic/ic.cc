@@ -774,11 +774,8 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
       handler = MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
     } else {
       TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonexistentDH);
-      Handle<Smi> smi_handler = LoadHandler::LoadNonExistent(isolate());
-      handler = MaybeObjectHandle(LoadHandler::LoadFullChain(
-          isolate(), lookup_start_object_map(),
-          MaybeObjectDirectHandle(isolate()->factory()->null_value()),
-          smi_handler));
+      handler = MaybeObjectHandle(
+          LoadHandler::LoadNonExistent(isolate(), lookup_start_object_map()));
     }
   } else if (IsLoadGlobalIC() && lookup->state() == LookupIterator::JSPROXY) {
     // If there is proxy just install the slow stub since we need to call the

@@ -178,8 +178,13 @@ void ImplementationVisitor::BeginDebugMacrosFile() {
   std::ostream& header = debug_macros_h_;
 
   source << "#include \"torque-generated/debug-macros.h\"\n\n";
+  source << "\n";
+  source << "// The following includes are here to provide some constants "
+            "definitions.\n";
   source << "#include \"src/objects/swiss-name-dictionary.h\"\n";
   source << "#include \"src/objects/ordered-hash-table.h\"\n";
+  source << "#include \"src/objects/prototype-info.h\"\n";
+  source << "\n";
   source << "#include \"src/torque/runtime-support.h\"\n";
   source << "#include \"tools/debug_helper/debug-macro-shims.h\"\n";
   source << "#include \"include/v8-internal.h\"\n";

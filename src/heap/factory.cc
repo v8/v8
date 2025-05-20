@@ -369,9 +369,12 @@ DirectHandle<PrototypeInfo> Factory::NewPrototypeInfo() {
                                                  AllocationType::kOld);
   DisallowGarbageCollection no_gc;
   result->set_prototype_users(Smi::zero());
-  result->set_registry_slot(MemoryChunk::UNREGISTERED);
+  result->set_registry_slot(PrototypeInfo::UNREGISTERED);
   result->set_bit_field(0);
   result->set_module_namespace(*undefined_value(), SKIP_WRITE_BARRIER);
+  for (int i = 0; i < PrototypeInfo::kCachedHandlerCount; i++) {
+    result->set_cached_handler(i, Smi::zero(), SKIP_WRITE_BARRIER);
+  }
   return direct_handle(result, isolate());
 }
 

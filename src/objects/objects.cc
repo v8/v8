@@ -6570,7 +6570,8 @@ Handle<PropertyCell> PropertyCell::PrepareForAndSetValue(
 void PropertyCell::InvalidateProtector(Isolate* isolate) {
   if (value() != Smi::FromInt(Protectors::kProtectorInvalid)) {
     DCHECK_EQ(value(), Smi::FromInt(Protectors::kProtectorValid));
-    set_value(Smi::FromInt(Protectors::kProtectorInvalid), kReleaseStore);
+    set_value(Smi::FromInt(Protectors::kProtectorInvalid), kReleaseStore,
+              SKIP_WRITE_BARRIER);
     DependentCode::DeoptimizeDependencyGroups(
         isolate, *this, DependentCode::kPropertyCellChangedGroup);
   }

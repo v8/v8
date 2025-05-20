@@ -2430,38 +2430,41 @@ void Map::SetShouldBeFastPrototypeMap(DirectHandle<Map> map, bool value,
 
 // static
 Handle<UnionOf<Smi, Cell>> Map::GetOrCreatePrototypeChainValidityCell(
-    DirectHandle<Map> map, Isolate* isolate) {
-  DirectHandle<Object> maybe_prototype;
-  if (IsJSGlobalObjectMap(*map)) {
-    DCHECK(map->is_prototype_map());
-    // Global object is prototype of a global proxy and therefore we can
-    // use its validity cell for guarding global object's prototype change.
-    maybe_prototype = isolate->global_object();
-  } else {
-    maybe_prototype = direct_handle(
-        map->GetPrototypeChainRootMap(isolate)->prototype(), isolate);
+    DirectHandle<Map> map, Isolate* isolate,
+    DirectHandle<PrototypeInfo>* out_prototype_info) {
+  DirectHandle<Map> validity_cell_holder_map;
+  {
+    Tagged<Map> holder_map;
+    if (!TryGetValidityCellHolderMap(*map, isolate, &holder_map)) {
+      // Prototype value is not a JSObject.
+      return handle(Map::kPrototypeChainValidSmi, isolate);
+    }
+    validity_cell_holder_map = direct_handle(holder_map, isolate);
   }
-  if (!IsJSObjectThatCanBeTrackedAsPrototype(*maybe_prototype)) {
-    return handle(Map::kPrototypeChainValidSmi, isolate);
-  }
-  auto prototype = Cast<JSObject>(maybe_prototype);
   // Ensure the prototype is registered with its own prototypes so its cell
   // will be invalidated when necessary.
-  JSObject::LazyRegisterPrototypeUser(direct_handle(prototype->map(), isolate),
-                                      isolate);
+  JSObject::LazyRegisterPrototypeUser(validity_cell_holder_map, isolate);
 
-  Tagged<Object> maybe_cell =
-      prototype->map()->prototype_validity_cell(kRelaxedLoad);
-  // Return existing cell if it's still valid.
-  if (IsCell(maybe_cell)) {
-    Tagged<Cell> cell = Cast<Cell>(maybe_cell);
-    if (cell->value() == Map::kPrototypeChainValidSmi) {
-      return handle(cell, isolate);
+  if (out_prototype_info) {
+    *out_prototype_info =
+        Map::GetOrCreatePrototypeInfo(validity_cell_holder_map, isolate);
+  }
+
+  {
+    Tagged<Object> maybe_cell =
+        validity_cell_holder_map->prototype_validity_cell(kRelaxedLoad);
+
+    // Return existing cell if it's still valid.
+    if (IsCell(maybe_cell)) {
+      Tagged<Cell> cell = Cast<Cell>(maybe_cell);
+      if (cell->value() == Map::kPrototypeChainValidSmi) {
+        return handle(cell, isolate);
+      }
     }
   }
   // Otherwise create a new cell.
   Handle<Cell> cell = isolate->factory()->NewCell(Map::kPrototypeChainValidSmi);
-  prototype->map()->set_prototype_validity_cell(*cell, kRelaxedStore);
+  validity_cell_holder_map->set_prototype_validity_cell(*cell, kRelaxedStore);
   return cell;
 }
 

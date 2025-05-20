@@ -2715,6 +2715,11 @@ void PrototypeInfo::PrototypeInfoPrint(std::ostream& os) {
   os << "\n - registry slot: " << registry_slot();
   os << "\n - derived maps: " << Brief(derived_maps());
   os << "\n - should_be_fast_map: " << should_be_fast_map();
+  os << "\n - prototype_chain_enum_cache: "
+     << Brief(prototype_chain_enum_cache());
+  for (int i = 0; i < PrototypeInfo::kCachedHandlerCount; i++) {
+    os << "\n - cached_handler[" << i << "]: " << Brief(cached_handler(i));
+  }
   os << "\n";
 }
 

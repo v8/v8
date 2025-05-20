@@ -518,14 +518,21 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   static void SetShouldBeFastPrototypeMap(DirectHandle<Map> map, bool value,
                                           Isolate* isolate);
 
+  static inline bool TryGetValidityCellHolderMap(
+      Tagged<Map> map, Isolate* isolate,
+      Tagged<Map>* out_validity_cell_holder_map);
+
   // [prototype chain validity cell]: Associated with a prototype object,
   // stored in that object's map, indicates that prototype chains through this
   // object are currently valid. The cell will be invalidated and replaced when
   // the prototype chain changes. When there's nothing to guard (for example,
   // when direct prototype is null or Proxy) this function returns Smi with
   // |kPrototypeChainValid| sentinel value, which is zero.
+  // If |out_prototype_info| is provided then the function sets it to
+  // the PrototypeInfo object that corresponds to validity cell's owner.
   static Handle<UnionOf<Smi, Cell>> GetOrCreatePrototypeChainValidityCell(
-      DirectHandle<Map> map, Isolate* isolate);
+      DirectHandle<Map> map, Isolate* isolate,
+      DirectHandle<PrototypeInfo>* out_prototype_info = nullptr);
   static constexpr int kPrototypeChainValid = 0;
   static constexpr int kPrototypeChainInvalid = 1;
   static constexpr Tagged<Smi> kPrototypeChainValidSmi = Smi::zero();

@@ -702,9 +702,13 @@ void LookupIterator::ApplyTransitionToDataProperty(
       transition->GetBackPointer(isolate_) == receiver->map(isolate_);
 
   if (configuration_ == DEFAULT && !transition->is_dictionary_map() &&
+      !transition->is_prototype_map() &&
       !transition->IsPrototypeValidityCellValid()) {
     // Only LookupIterator instances with DEFAULT (full prototype chain)
     // configuration can produce valid transition handler maps.
+    // Note that it doesn't make sense to prepare a fast property transition
+    // handler for prototype maps because they are not going to be reused
+    // anyway.
     DirectHandle<UnionOf<Smi, Cell>> validity_cell =
         Map::GetOrCreatePrototypeChainValidityCell(transition, isolate());
     transition->set_prototype_validity_cell(*validity_cell, kRelaxedStore);
