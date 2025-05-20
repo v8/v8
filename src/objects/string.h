@@ -532,8 +532,13 @@ V8_OBJECT class String : public Name {
                           uint32_t start, uint32_t length,
                           const SharedStringAccessGuardIfNeeded& access_guard);
 
-  // TODO(jgruber): This is an ongoing performance experiment. Once done, we'll
-  // rename this to something more appropriate.
+  // Note: this WriteToFlat variant is optimized for the common append-to-end
+  // string builder pattern. Unlike the more generic WriteToFlat, it supports
+  // only full string serialization (and *not* substring extraction).
+  //
+  // TODO(jgruber): Rename this and helper functions. Change the signature to
+  // remove src_index and length arguments, which are required to be 0 and
+  // src->length() due to the implementation.
   //
   // `src_index` and `length` always refer to the desired substring within
   // `src`. `dst` is guaranteed to fit `length`, and is written to

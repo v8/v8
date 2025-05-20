@@ -1073,6 +1073,11 @@ void String::WriteToFlat2(SinkCharT* dst, Tagged<ConsString> src,
   DCHECK_EQ(src_index, 0);
   DCHECK_EQ(length, src->length());
 
+#ifdef V8_ENABLE_SANDBOX
+  // See also: https://crbug.com/415407113.
+  DCHECK(Sandbox::current()->Contains(dst));
+#endif  // V8_ENABLE_SANDBOX
+
   // The most common form of cons strings are degenerate unbalanced left-heavy
   // binary trees (i.e. where `second` is a flat string and `first` another
   // cons string). This form is created when building a string by appending
