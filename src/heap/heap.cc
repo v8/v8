@@ -2046,18 +2046,53 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
   }
 }
 
-void Heap::MoveRange(Tagged<HeapObject> dst_object, const ObjectSlot dst_slot,
-                     const ObjectSlot src_slot, int len,
-                     WriteBarrierMode mode) {
-  DCHECK_NE(len, 0);
-  DCHECK_NE(dst_object->map(), ReadOnlyRoots(this).fixed_cow_array_map());
-  const ObjectSlot dst_end(dst_slot + len);
+namespace {
+
+template <typename TSlot, typename AtomicOp, typename NonAtomicOp>
+void CopyOrMoveRangeImpl(Heap* heap, Tagged<HeapObject> dst_object,
+                         const TSlot dst_slot, const TSlot src_slot, int len,
+                         WriteBarrierMode mode, AtomicOp atomic_op,
+                         NonAtomicOp non_atomic_op) {
+  DCHECK_GT(len, 0);
+  DCHECK_NE(dst_object->map(), ReadOnlyRoots(heap).fixed_cow_array_map());
+
+  MemoryChunk* dst_chunk = MemoryChunk::FromHeapObject(dst_object);
+  // Young generation object with marking being off, we can use plain memcopy
+  // without write barriers.
+  if (!dst_chunk->IsFlagSet(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING)) {
+    non_atomic_op(dst_slot, src_slot, len);
+    return;
+  }
+
+  const TSlot dst_end(dst_slot + len);
+  // Falling through here means either old generation object or marking being
+  // on.
+  DCHECK_IMPLIES(heap->sweeper()->IsIteratingPromotedPages(),
+                 v8_flags.minor_ms);
+  if ((heap->incremental_marking()->IsMarking() &&
+       v8_flags.concurrent_marking) ||
+      (v8_flags.minor_ms && heap->sweeper()->IsIteratingPromotedPages())) {
+    atomic_op(dst_slot, dst_end, src_slot, len);
+  } else {
+    non_atomic_op(dst_slot, src_slot, len);
+  }
+  if (mode == SKIP_WRITE_BARRIER) {
+    return;
+  }
+  WriteBarrier::ForRange(heap, dst_object, dst_slot, dst_end);
+}
+
+}  // namespace
+
+template <typename TSlot>
+void Heap::MoveRange(Tagged<HeapObject> dst_object, const TSlot dst_slot,
+                     const TSlot src_slot, int len, WriteBarrierMode mode) {
   // Ensure no range overflow.
-  DCHECK(dst_slot < dst_end);
+  DCHECK(dst_slot < TSlot(dst_slot + len));
   DCHECK(src_slot < src_slot + len);
 
-  if ((v8_flags.concurrent_marking && incremental_marking()->IsMarking()) ||
-      (v8_flags.minor_ms && sweeper()->IsIteratingPromotedPages())) {
+  const auto atomic_callback = [](TSlot dst_slot, TSlot dst_end, TSlot src_slot,
+                                  int len) {
     if (dst_slot < src_slot) {
       // Copy tagged values forward using relaxed load/stores that do not
       // involve value decompression.
@@ -2081,37 +2116,29 @@ void Heap::MoveRange(Tagged<HeapObject> dst_object, const ObjectSlot dst_slot,
         --src;
       }
     }
-  } else {
+  };
+  const auto non_atomic_callback = [](TSlot dst_slot, TSlot src_slot, int len) {
     MemMove(dst_slot.ToVoidPtr(), src_slot.ToVoidPtr(), len * kTaggedSize);
-  }
-  if (mode == SKIP_WRITE_BARRIER) {
-    return;
-  }
-  WriteBarrier::ForRange(this, dst_object, dst_slot, dst_end);
+  };
+  CopyOrMoveRangeImpl(this, dst_object, dst_slot, src_slot, len, mode,
+                      atomic_callback, non_atomic_callback);
 }
 
-// Instantiate Heap::CopyRange().
-template V8_EXPORT_PRIVATE void Heap::CopyRange<ObjectSlot>(
+template V8_EXPORT_PRIVATE void Heap::MoveRange<ObjectSlot>(
     Tagged<HeapObject> dst_object, ObjectSlot dst_slot, ObjectSlot src_slot,
     int len, WriteBarrierMode mode);
-template V8_EXPORT_PRIVATE void Heap::CopyRange<MaybeObjectSlot>(
+template V8_EXPORT_PRIVATE void Heap::MoveRange<MaybeObjectSlot>(
     Tagged<HeapObject> dst_object, MaybeObjectSlot dst_slot,
     MaybeObjectSlot src_slot, int len, WriteBarrierMode mode);
 
 template <typename TSlot>
 void Heap::CopyRange(Tagged<HeapObject> dst_object, const TSlot dst_slot,
                      const TSlot src_slot, int len, WriteBarrierMode mode) {
-  DCHECK_NE(len, 0);
-
-  DCHECK_NE(dst_object->map(), ReadOnlyRoots(this).fixed_cow_array_map());
-  const TSlot dst_end(dst_slot + len);
   // Ensure ranges do not overlap.
-  DCHECK(dst_end <= src_slot || (src_slot + len) <= dst_slot);
+  DCHECK(TSlot(dst_slot + len) <= src_slot || (src_slot + len) <= dst_slot);
 
-  if ((v8_flags.concurrent_marking && incremental_marking()->IsMarking()) ||
-      (v8_flags.minor_ms && sweeper()->IsIteratingPromotedPages())) {
-    // Copy tagged values using relaxed load/stores that do not involve value
-    // decompression.
+  const auto atomic_callback = [](TSlot dst_slot, TSlot dst_end, TSlot src_slot,
+                                  int len) {
     const AtomicSlot atomic_dst_end(dst_end);
     AtomicSlot dst(dst_slot);
     AtomicSlot src(src_slot);
@@ -2120,14 +2147,20 @@ void Heap::CopyRange(Tagged<HeapObject> dst_object, const TSlot dst_slot,
       ++dst;
       ++src;
     }
-  } else {
+  };
+  const auto non_atomic_callback = [](TSlot dst_slot, TSlot src_slot, int len) {
     MemCopy(dst_slot.ToVoidPtr(), src_slot.ToVoidPtr(), len * kTaggedSize);
-  }
-  if (mode == SKIP_WRITE_BARRIER) {
-    return;
-  }
-  WriteBarrier::ForRange(this, dst_object, dst_slot, dst_end);
+  };
+  CopyOrMoveRangeImpl(this, dst_object, dst_slot, src_slot, len, mode,
+                      atomic_callback, non_atomic_callback);
 }
+
+template V8_EXPORT_PRIVATE void Heap::CopyRange<ObjectSlot>(
+    Tagged<HeapObject> dst_object, ObjectSlot dst_slot, ObjectSlot src_slot,
+    int len, WriteBarrierMode mode);
+template V8_EXPORT_PRIVATE void Heap::CopyRange<MaybeObjectSlot>(
+    Tagged<HeapObject> dst_object, MaybeObjectSlot dst_slot,
+    MaybeObjectSlot src_slot, int len, WriteBarrierMode mode);
 
 bool Heap::CollectionRequested() {
   return collection_barrier_->WasGCRequested();

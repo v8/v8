@@ -444,13 +444,14 @@ class Heap final {
   size_t NewSpaceCapacity() const;
   size_t NewSpaceTargetCapacity() const;
 
-  // Move len non-weak tagged elements from src_slot to dst_slot of dst_object.
+  // Move `len` tagged elements from `src_slot` to `dst_slot` of `dst_object`.
   // The source and destination memory ranges can overlap.
+  template <typename TSlot>
   V8_EXPORT_PRIVATE void MoveRange(Tagged<HeapObject> dst_object,
-                                   ObjectSlot dst_slot, ObjectSlot src_slot,
-                                   int len, WriteBarrierMode mode);
+                                   TSlot dst_slot, TSlot src_slot, int len,
+                                   WriteBarrierMode mode);
 
-  // Copy len non-weak tagged elements from src_slot to dst_slot of dst_object.
+  // Copy `len` tagged elements from `src_slot` to `dst_slot` of `dst_object`.
   // The source and destination memory ranges must not overlap.
   template <typename TSlot>
   V8_EXPORT_PRIVATE void CopyRange(Tagged<HeapObject> dst_object,
