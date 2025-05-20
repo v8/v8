@@ -33,6 +33,14 @@ class SweepIdentityNodes {
         node->change_input(i, input.node()->input(0).node());
       }
     }
+    // While visiting the deopt info, the iterator will clear the identity nodes
+    // automatically.
+    if (node->properties().can_lazy_deopt()) {
+      node->lazy_deopt_info()->ForEachInput([&](ValueNode* node) {});
+    }
+    if (node->properties().can_eager_deopt()) {
+      node->eager_deopt_info()->ForEachInput([&](ValueNode* node) {});
+    }
     return ProcessResult::kContinue;
   }
 };
