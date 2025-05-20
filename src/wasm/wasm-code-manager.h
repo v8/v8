@@ -848,10 +848,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
     kRemoveTurbofanCode,
     kRemoveAllCode,
   };
-  // Remove all compiled code based on the `filter` from the {NativeModule},
-  // replace it with {CompileLazy} builtins and return the sizes of the removed
-  // (executable) code and the removed metadata.
-  std::pair<size_t, size_t> RemoveCompiledCode(RemoveFilter filter);
+  // Remove all compiled code based on the `filter` from the {NativeModule} and
+  // replace it with {CompileLazy} builtins.
+  void RemoveCompiledCode(RemoveFilter filter);
 
   // Returns the code size of all Liftoff compiled functions.
   size_t SumLiftoffCodeSizeForTesting() const;

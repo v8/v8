@@ -1962,7 +1962,7 @@ DEFINE_INT(wasm_max_initial_code_space_reservation, 0,
 DEFINE_BOOL(stress_wasm_memory_moving, false,
             "always move non-shared bounds-checked Wasm memory on grow")
 DEFINE_BOOL(flush_liftoff_code, true,
-            "enable flushing liftoff code on memory pressure signal")
+            "enable flushing Liftoff code on memory pressure signal")
 DEFINE_BOOL(stress_branch_hinting, false,
             "stress branch hinting by generating a random hint for each branch "
             "instruction")
