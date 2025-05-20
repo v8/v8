@@ -118,8 +118,9 @@ class Mips64OperandGeneratorT final : public OperandGeneratorT {
 static void VisitRR(InstructionSelectorT* selector, ArchOpcode opcode,
                     OpIndex node) {
   Mips64OperandGeneratorT g(selector);
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(selector->input_at(node, 0)));
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 1);
+  selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -146,9 +147,10 @@ static void VisitUniqueRRR(InstructionSelectorT* selector, ArchOpcode opcode,
 
 void VisitRRR(InstructionSelectorT* selector, ArchOpcode opcode, OpIndex node) {
   Mips64OperandGeneratorT g(selector);
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(selector->input_at(node, 0)),
-                 g.UseRegister(selector->input_at(node, 1)));
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 2);
+  selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+                 g.UseRegister(op.input(1)));
 }
 
 void VisitRRRR(InstructionSelectorT* selector, ArchOpcode opcode,
@@ -159,9 +161,10 @@ void VisitRRRR(InstructionSelectorT* selector, ArchOpcode opcode,
 static void VisitRRO(InstructionSelectorT* selector, ArchOpcode opcode,
                      OpIndex node) {
   Mips64OperandGeneratorT g(selector);
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(selector->input_at(node, 0)),
-                 g.UseOperand(selector->input_at(node, 1), opcode));
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 2);
+  selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+                 g.UseOperand(op.input(1), opcode));
 }
 
 struct ExtendingLoadMatcher {
@@ -327,8 +330,8 @@ void InstructionSelectorT::VisitStackSlot(OpIndex node) {
 
 void InstructionSelectorT::VisitAbortCSADcheck(OpIndex node) {
   Mips64OperandGeneratorT g(this);
-  Emit(kArchAbortCSADcheck, g.NoOutput(),
-       g.UseFixed(this->input_at(node, 0), a0));
+  const AbortCSADcheckOp& op = Cast<AbortCSADcheckOp>(node);
+  Emit(kArchAbortCSADcheck, g.NoOutput(), g.UseFixed(op.message(), a0));
 }
 
 void EmitLoad(InstructionSelectorT* selector, OpIndex node,
@@ -467,7 +470,7 @@ void InstructionSelectorT::VisitStore(OpIndex node) {
   TurboshaftAdapter::StoreView store_view = this->store_view(node);
   DCHECK_EQ(store_view.displacement(), 0);
   OpIndex base = store_view.base();
-  OpIndex index = this->value(store_view.index());
+  OpIndex index = store_view.index().value();
   OpIndex value = store_view.value();
 
   WriteBarrierKind write_barrier_kind =
@@ -834,25 +837,23 @@ void InstructionSelectorT::VisitChangeUint32ToFloat64(OpIndex node) {
 void InstructionSelectorT::VisitTruncateFloat32ToInt32(OpIndex node) {
   Mips64OperandGeneratorT g(this);
 
-  const Operation& op = this->Get(node);
+  const ChangeOp& op = Cast<ChangeOp>(node);
   InstructionCode opcode = kMips64TruncWS;
   opcode |=
       MiscField::encode(op.Is<Opmask::kTruncateFloat32ToInt32OverflowToMin>());
-  Emit(opcode, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)));
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input()));
 }
 
 void InstructionSelectorT::VisitTruncateFloat32ToUint32(OpIndex node) {
   Mips64OperandGeneratorT g(this);
 
-  const Operation& op = this->Get(node);
+  const ChangeOp& op = Cast<ChangeOp>(node);
   InstructionCode opcode = kMips64TruncUwS;
   if (op.Is<Opmask::kTruncateFloat32ToUint32OverflowToMin>()) {
     opcode |= MiscField::encode(true);
   }
 
-  Emit(opcode, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)));
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input()));
 }
 
 void InstructionSelectorT::VisitChangeFloat64ToInt32(OpIndex node) {
@@ -879,12 +880,12 @@ void InstructionSelectorT::VisitTruncateFloat64ToInt64(OpIndex node) {
   Mips64OperandGeneratorT g(this);
 
   InstructionCode opcode = kMips64TruncLD;
-  const Operation& op = this->Get(node);
+  const ChangeOp& op = Cast<ChangeOp>(node);
   if (op.Is<Opmask::kTruncateFloat64ToInt64OverflowToMin>()) {
     opcode |= MiscField::encode(true);
   }
 
-  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input()));
 }
 
 void InstructionSelectorT::VisitTruncateFloat64ToFloat16RawBits(OpIndex node) {
@@ -897,8 +898,9 @@ void InstructionSelectorT::VisitChangeFloat16RawBitsToFloat64(OpIndex node) {
 
 void InstructionSelectorT::VisitTryTruncateFloat32ToInt64(OpIndex node) {
   Mips64OperandGeneratorT g(this);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
 
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -913,8 +915,9 @@ void InstructionSelectorT::VisitTryTruncateFloat32ToInt64(OpIndex node) {
 
 void InstructionSelectorT::VisitTryTruncateFloat64ToInt64(OpIndex node) {
   Mips64OperandGeneratorT g(this);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
 
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -929,8 +932,9 @@ void InstructionSelectorT::VisitTryTruncateFloat64ToInt64(OpIndex node) {
 
 void InstructionSelectorT::VisitTryTruncateFloat32ToUint64(OpIndex node) {
   Mips64OperandGeneratorT g(this);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
 
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -945,8 +949,9 @@ void InstructionSelectorT::VisitTryTruncateFloat32ToUint64(OpIndex node) {
 
 void InstructionSelectorT::VisitTryTruncateFloat64ToUint64(OpIndex node) {
   Mips64OperandGeneratorT g(this);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
 
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -961,8 +966,9 @@ void InstructionSelectorT::VisitTryTruncateFloat64ToUint64(OpIndex node) {
 
 void InstructionSelectorT::VisitTryTruncateFloat64ToInt32(OpIndex node) {
   Mips64OperandGeneratorT g(this);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
 
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -977,8 +983,9 @@ void InstructionSelectorT::VisitTryTruncateFloat64ToInt32(OpIndex node) {
 
 void InstructionSelectorT::VisitTryTruncateFloat64ToUint32(OpIndex node) {
   Mips64OperandGeneratorT g(this);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
 
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -1085,11 +1092,12 @@ void InstructionSelectorT::VisitChangeUint32ToUint64(OpIndex node) {
 
 void InstructionSelectorT::VisitTruncateInt64ToInt32(OpIndex node) {
   Mips64OperandGeneratorT g(this);
-  auto value = input_at(node, 0);
+  OpIndex value = Cast<ChangeOp>(node).input();
   if (CanCover(node, value)) {
     if (Get(value).Is<Opmask::kWord64ShiftRightArithmetic>()) {
-      auto shift_value = input_at(value, 1);
-      if (CanCover(value, input_at(value, 0)) &&
+      const ShiftOp& shift = Cast<ShiftOp>(value);
+      auto shift_value = shift.right();
+      if (CanCover(value, shift.left()) &&
           TryEmitExtendingLoad(this, value, node)) {
         return;
       } else if (int64_t constant;
@@ -1097,8 +1105,8 @@ void InstructionSelectorT::VisitTruncateInt64ToInt32(OpIndex node) {
         if (constant >= 32 && constant <= 63) {
           // After smi untagging no need for truncate. Combine sequence.
           Emit(kMips64Dsar, g.DefineAsRegister(node),
-               g.UseRegister(input_at(value, 0)),
-               g.UseImmediate(input_at(value, 1)));
+               g.UseRegister(shift.left()),
+               g.UseImmediate(static_cast<int32_t>(constant)));
           return;
         }
       }
@@ -1197,9 +1205,10 @@ void InstructionSelectorT::VisitFloat64Div(OpIndex node) {
 
 void InstructionSelectorT::VisitFloat64Mod(OpIndex node) {
   Mips64OperandGeneratorT g(this);
-  Emit(kMips64ModD, g.DefineAsFixed(node, f0),
-       g.UseFixed(this->input_at(node, 0), f12),
-       g.UseFixed(this->input_at(node, 1), f14))
+  const FloatBinopOp& op = Cast<FloatBinopOp>(node);
+
+  Emit(kMips64ModD, g.DefineAsFixed(node, f0), g.UseFixed(op.left(), f12),
+       g.UseFixed(op.right(), f14))
       ->MarkAsCall();
 }
 
@@ -1282,17 +1291,19 @@ void InstructionSelectorT::VisitFloat64Neg(OpIndex node) {
 void InstructionSelectorT::VisitFloat64Ieee754Binop(OpIndex node,
                                                     InstructionCode opcode) {
   Mips64OperandGeneratorT g(this);
-  Emit(opcode, g.DefineAsFixed(node, f0),
-       g.UseFixed(this->input_at(node, 0), f2),
-       g.UseFixed(this->input_at(node, 1), f4))
+  const FloatBinopOp& op = Cast<FloatBinopOp>(node);
+
+  Emit(opcode, g.DefineAsFixed(node, f0), g.UseFixed(op.left(), f2),
+       g.UseFixed(op.right(), f4))
       ->MarkAsCall();
 }
 
 void InstructionSelectorT::VisitFloat64Ieee754Unop(OpIndex node,
                                                    InstructionCode opcode) {
   Mips64OperandGeneratorT g(this);
-  Emit(opcode, g.DefineAsFixed(node, f0),
-       g.UseFixed(this->input_at(node, 0), f12))
+  const FloatUnaryOp& op = Cast<FloatUnaryOp>(node);
+
+  Emit(opcode, g.DefineAsFixed(node, f0), g.UseFixed(op.input(), f12))
       ->MarkAsCall();
 }
 
@@ -1422,7 +1433,7 @@ void InstructionSelectorT::VisitUnalignedStore(OpIndex node) {
   TurboshaftAdapter::StoreView store_view = this->store_view(node);
   DCHECK_EQ(store_view.displacement(), 0);
   OpIndex base = store_view.base();
-  OpIndex index = this->value(store_view.index());
+  OpIndex index = store_view.index().value();
   OpIndex value = store_view.value();
 
   MachineRepresentation rep = store_view.stored_rep().representation();
@@ -1533,9 +1544,10 @@ Instruction* VisitWordCompare(InstructionSelectorT* selector, OpIndex node,
                               InstructionCode opcode, FlagsContinuationT* cont,
                               bool commutative) {
   Mips64OperandGeneratorT g(selector);
-  DCHECK_EQ(selector->value_input_count(node), 2);
-  auto left = selector->input_at(node, 0);
-  auto right = selector->input_at(node, 1);
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 2);
+  auto left = op.input(0);
+  auto right = op.input(1);
 
   // Match immediates on left or right side of comparison.
   if (g.CanBeImmediate(right, opcode)) {
@@ -1601,14 +1613,14 @@ Instruction* VisitWordCompare(InstructionSelectorT* selector, OpIndex node,
 void VisitFullWord32Compare(InstructionSelectorT* selector, OpIndex node,
                             InstructionCode opcode, FlagsContinuationT* cont) {
   Mips64OperandGeneratorT g(selector);
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 2);
   InstructionOperand leftOp = g.TempRegister();
   InstructionOperand rightOp = g.TempRegister();
 
-  selector->Emit(kMips64Dshl, leftOp,
-                 g.UseRegister(selector->input_at(node, 0)),
+  selector->Emit(kMips64Dshl, leftOp, g.UseRegister(op.input(0)),
                  g.TempImmediate(32));
-  selector->Emit(kMips64Dshl, rightOp,
-                 g.UseRegister(selector->input_at(node, 1)),
+  selector->Emit(kMips64Dshl, rightOp, g.UseRegister(op.input(1)),
                  g.TempImmediate(32));
 
   Instruction* instr = VisitCompare(selector, opcode, leftOp, rightOp, cont);
@@ -1699,7 +1711,7 @@ void VisitAtomicStore(InstructionSelectorT* selector, OpIndex node,
   Mips64OperandGeneratorT g(selector);
   auto store = selector->store_view(node);
   OpIndex base = store.base();
-  OpIndex index = selector->value(store.index());
+  OpIndex index = store.index().value();
   OpIndex value = store.value();
   DCHECK_EQ(store.displacement(), 0);
 
@@ -2007,7 +2019,8 @@ void InstructionSelectorT::VisitWordCompareZero(OpIndex user, OpIndex value,
 
 void InstructionSelectorT::VisitSwitch(OpIndex node, const SwitchInfo& sw) {
   Mips64OperandGeneratorT g(this);
-  InstructionOperand value_operand = g.UseRegister(this->input_at(node, 0));
+  const SwitchOp& op = Cast<SwitchOp>(node);
+  InstructionOperand value_operand = g.UseRegister(op.input());
 
   // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
   if (enable_switch_jump_table_ ==
@@ -2700,7 +2713,8 @@ void InstructionSelectorT::VisitI8x16Swizzle(OpIndex node) { UNIMPLEMENTED(); }
 
 void InstructionSelectorT::VisitSetStackPointer(OpIndex node) {
   OperandGenerator g(this);
-  auto input = g.UseRegister(this->input_at(node, 0));
+  const SetStackPointerOp& op = Cast<SetStackPointerOp>(node);
+  auto input = g.UseRegister(op.value());
   Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
 }
 
