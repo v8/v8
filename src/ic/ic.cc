@@ -1367,8 +1367,7 @@ KeyedAccessLoadMode GetUpdatedLoadModeForMap(Isolate* isolate,
 }  // namespace
 
 Handle<Object> KeyedLoadIC::LoadElementHandler(
-    DirectHandle<Map> receiver_map, KeyedAccessLoadMode new_load_mode,
-    MaybeDirectHandle<Map> maybe_transition_target) {
+    DirectHandle<Map> receiver_map, KeyedAccessLoadMode new_load_mode) {
   // Has a getter interceptor, or is any has and has a query interceptor.
   if (receiver_map->has_indexed_interceptor() &&
       (receiver_map->GetIndexedInterceptor()->has_getter() ||
@@ -1421,13 +1420,6 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(
       LoadModeHandlesHoles(new_load_mode),
       AllowReadingHoleElement(elements_kind) &&
           AllowConvertHoleElementToUndefined(isolate(), receiver_map));
-  DirectHandle<Map> transition_target;
-  if (is_js_array && maybe_transition_target.ToHandle(&transition_target)) {
-    DCHECK(IsFastElementsKind(elements_kind));
-    return LoadHandler::TransitionAndLoadElement(
-        isolate(), transition_target->elements_kind(), new_load_mode);
-  }
-
   TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadElementDH);
   return LoadHandler::LoadElement(isolate(), elements_kind, is_js_array,
                                   new_load_mode);
@@ -1442,27 +1434,21 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
       [](const DirectHandle<Map>& map) { return map->is_deprecated(); }));
 
   for (DirectHandle<Map> receiver_map : *receiver_maps) {
+    // Mark all stable receiver maps that have elements kind transition map
+    // among receiver_maps as unstable because the optimizing compilers may
+    // generate an elements kind transition for this kind of receivers.
+    if (receiver_map->is_stable()) {
       Tagged<Map> tmap = receiver_map->FindElementsKindTransitionedMap(
           isolate(),
           MapHandlesSpan(receiver_maps->begin(), receiver_maps->end()),
           ConcurrencyMode::kSynchronous);
       if (!tmap.is_null()) {
-        // Mark all stable receiver maps that have elements kind transition map
-        // among receiver_maps as unstable because the ICs and the optimizing
-        // compilers may perform an elements kind transition for this kind of
-        // receivers.
-        if (receiver_map->is_stable()) {
-          receiver_map->NotifyLeafMapLayoutChange(isolate());
-        }
-        handlers->push_back(MaybeObjectHandle(LoadElementHandler(
-            receiver_map,
-            GetUpdatedLoadModeForMap(isolate(), receiver_map, new_load_mode),
-            handle(tmap, isolate()))));
-      } else {
-        handlers->push_back(MaybeObjectHandle(LoadElementHandler(
-            receiver_map,
-            GetUpdatedLoadModeForMap(isolate(), receiver_map, new_load_mode))));
+        receiver_map->NotifyLeafMapLayoutChange(isolate());
       }
+    }
+    handlers->push_back(MaybeObjectHandle(LoadElementHandler(
+        receiver_map,
+        GetUpdatedLoadModeForMap(isolate(), receiver_map, new_load_mode))));
   }
 }
 

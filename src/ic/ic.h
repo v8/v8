@@ -248,9 +248,8 @@ class KeyedLoadIC : public LoadIC {
  private:
   friend class IC;
 
-  Handle<Object> LoadElementHandler(
-      DirectHandle<Map> receiver_map, KeyedAccessLoadMode new_load_mode,
-      MaybeDirectHandle<Map> maybe_transition_target = {});
+  Handle<Object> LoadElementHandler(DirectHandle<Map> receiver_map,
+                                    KeyedAccessLoadMode new_load_mode);
 
   void LoadElementPolymorphicHandlers(MapHandles* receiver_maps,
                                       MaybeObjectHandles* handlers,
