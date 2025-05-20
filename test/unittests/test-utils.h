@@ -436,8 +436,7 @@ class WithInternalIsolateMixin : public TMixin {
 template <typename TMixin>
 class WithZoneMixin : public TMixin {
  public:
-  explicit WithZoneMixin(bool support_zone_compression = false)
-      : zone_(&allocator_, ZONE_NAME, support_zone_compression) {}
+  WithZoneMixin() : zone_(&allocator_, ZONE_NAME) {}
   WithZoneMixin(const WithZoneMixin&) = delete;
   WithZoneMixin& operator=(const WithZoneMixin&) = delete;
 

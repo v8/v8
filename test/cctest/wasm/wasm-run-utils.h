@@ -351,7 +351,7 @@ class WasmRunnerBase : public InitializedHandleScope {
                  TestExecutionTier execution_tier, int num_params,
                  Isolate* isolate = nullptr)
       : InitializedHandleScope(isolate),
-        zone_(&allocator_, ZONE_NAME, kCompressGraphZone),
+        zone_(&allocator_, ZONE_NAME),
         builder_(&zone_, origin, maybe_import, execution_tier, isolate) {}
 
   // Builds a graph from the given Wasm code and generates the machine

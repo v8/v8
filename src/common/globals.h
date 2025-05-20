@@ -514,16 +514,6 @@ constexpr size_t kReservedCodeRangePages = 0;
 
 static_assert(kSystemPointerSize == (1 << kSystemPointerSizeLog2));
 
-#ifdef V8_COMPRESS_ZONES
-#define COMPRESS_ZONES_BOOL true
-#else
-#define COMPRESS_ZONES_BOOL false
-#endif  // V8_COMPRESS_ZONES
-
-// The flag controls whether zones pointer compression should be enabled for
-// TurboFan graphs or not.
-static constexpr bool kCompressGraphZone = COMPRESS_ZONES_BOOL;
-
 #ifdef V8_COMPRESS_POINTERS
 static_assert(
     kSystemPointerSize == kInt64Size,

@@ -75,7 +75,6 @@ load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression
 # cppgc_enable_slow_api_checks
 # cppgc_enable_verify_heap
 # cppgc_enable_young_generation
-# v8_enable_zone_compression
 # v8_enable_precise_zone_stats
 # v8_enable_swiss_name_dictionary
 # v8_generate_external_defines_header
@@ -2580,7 +2579,6 @@ filegroup(
         "src/utils/version.h",
         "src/zone/accounting-allocator.cc",
         "src/zone/accounting-allocator.h",
-        "src/zone/compressed-zone-ptr.h",
         "src/zone/type-stats.cc",
         "src/zone/type-stats.h",
         "src/zone/zone.cc",
@@ -2588,7 +2586,6 @@ filegroup(
         "src/zone/zone-allocator.h",
         "src/zone/zone-chunk-list.h",
         "src/zone/zone-compact-set.h",
-        "src/zone/zone-compression.h",
         "src/zone/zone-containers.h",
         "src/zone/zone-hashmap.h",
         "src/zone/zone-list.h",

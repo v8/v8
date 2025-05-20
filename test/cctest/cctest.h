@@ -680,7 +680,7 @@ class V8_NODISCARD InitializedHandleScope {
 
 class V8_NODISCARD HandleAndZoneScope : public InitializedHandleScope {
  public:
-  explicit HandleAndZoneScope(bool support_zone_compression = false);
+  HandleAndZoneScope();
   ~HandleAndZoneScope();
 
   // Prefixing the below with main_ reduces a lot of naming clashes.

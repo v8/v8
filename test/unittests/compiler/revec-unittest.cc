@@ -28,8 +28,7 @@ namespace compiler {
 class RevecTest : public TestWithIsolateAndZone {
  public:
   RevecTest()
-      : TestWithIsolateAndZone(kCompressGraphZone),
-        graph_(zone()),
+      : graph_(zone()),
         common_(zone()),
         machine_(zone(), MachineRepresentation::kWord64,
                  MachineOperatorBuilder::Flag::kAllOptionalOps),

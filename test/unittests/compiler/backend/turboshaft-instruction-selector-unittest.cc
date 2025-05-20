@@ -19,8 +19,7 @@
 namespace v8::internal::compiler::turboshaft {
 
 TurboshaftInstructionSelectorTest::TurboshaftInstructionSelectorTest()
-    : TestWithNativeContextAndZone(kCompressGraphZone),
-      rng_(v8_flags.random_seed) {}
+    : rng_(v8_flags.random_seed) {}
 
 TurboshaftInstructionSelectorTest::~TurboshaftInstructionSelectorTest() =
     default;

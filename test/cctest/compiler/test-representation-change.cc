@@ -25,8 +25,7 @@ class RepresentationChangerTester : public HandleAndZoneScope,
                                     public JSHeapBrokerTestBase {
  public:
   explicit RepresentationChangerTester(int num_parameters = 0)
-      : HandleAndZoneScope(kCompressGraphZone),
-        GraphAndBuilders(main_zone()),
+      : GraphAndBuilders(main_zone()),
         JSHeapBrokerTestBase(main_isolate(), main_zone()),
         javascript_(main_zone()),
         jsgraph_(main_isolate(), main_graph_, &main_common_, &javascript_,

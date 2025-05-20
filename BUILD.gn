@@ -339,10 +339,6 @@ declare_args() {
   # Enable allocations during prefinalizer invocations.
   cppgc_allow_allocations_in_prefinalizers = false
 
-  # Enable V8 zone compression experimental feature.
-  # Sets -DV8_COMPRESS_ZONES.
-  v8_enable_zone_compression = ""
-
   # Enable the V8 sandbox.
   # Sets -DV8_ENABLE_SANDBOX.
   v8_enable_sandbox = ""
@@ -614,9 +610,6 @@ if (v8_enable_fast_torque == "") {
 }
 if (v8_enable_concurrent_mksnapshot == "") {
   v8_enable_concurrent_mksnapshot = v8_enable_fast_mksnapshot
-}
-if (v8_enable_zone_compression == "") {
-  v8_enable_zone_compression = false
 }
 if (v8_enable_short_builtin_calls == "") {
   v8_enable_short_builtin_calls =
@@ -1041,9 +1034,6 @@ if (v8_enable_pointer_compression) {
 }
 if (v8_enable_pointer_compression || v8_enable_31bit_smis_on_64bit_arch) {
   enabled_external_v8_defines += [ "V8_31BIT_SMIS_ON_64BIT_ARCH" ]
-}
-if (v8_enable_zone_compression) {
-  enabled_external_v8_defines += [ "V8_COMPRESS_ZONES" ]
 }
 if (v8_enable_sandbox) {
   enabled_external_v8_defines += [ "V8_ENABLE_SANDBOX" ]
@@ -2951,7 +2941,6 @@ generated_file("v8_generate_features_json") {
     v8_enable_v8_checks = v8_enable_v8_checks
     v8_enable_memory_accounting_checks = v8_enable_memory_accounting_checks
     v8_enable_webassembly = v8_enable_webassembly
-    v8_enable_zone_compression = v8_enable_zone_compression
     v8_imminent_deprecation_warnings = v8_imminent_deprecation_warnings
     v8_optimized_debug = v8_optimized_debug
     v8_random_seed = v8_random_seed
@@ -4398,12 +4387,10 @@ v8_header_set("v8_internal_headers") {
     "src/utils/utils.h",
     "src/utils/version.h",
     "src/zone/accounting-allocator.h",
-    "src/zone/compressed-zone-ptr.h",
     "src/zone/type-stats.h",
     "src/zone/zone-allocator.h",
     "src/zone/zone-chunk-list.h",
     "src/zone/zone-compact-set.h",
-    "src/zone/zone-compression.h",
     "src/zone/zone-containers.h",
     "src/zone/zone-hashmap.h",
     "src/zone/zone-list-inl.h",

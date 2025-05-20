@@ -2286,7 +2286,7 @@ CodeAssemblerCompilationJob::CodeAssemblerCompilationJob(
       generator_(generator),
       installer_(installer),
       profile_data_(profile_data),
-      zone_(isolate->allocator(), ZONE_NAME, kCompressGraphZone),
+      zone_(isolate->allocator(), ZONE_NAME),
       zone_stats_(isolate->allocator()),
       code_assembler_state_(isolate, &zone_, get_call_descriptor(&zone_),
                             code_kind, name, builtin),
@@ -2699,7 +2699,7 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
     const char* debug_name, const AssemblerOptions& options,
     SourcePositionTable* source_positions) {
   wasm::WasmEngine* wasm_engine = wasm::GetWasmEngine();
-  Zone zone(wasm_engine->allocator(), ZONE_NAME, kCompressGraphZone);
+  Zone zone(wasm_engine->allocator(), ZONE_NAME);
   WasmCallKind call_kind =
       wrapper_info.code_kind == CodeKind::WASM_TO_JS_FUNCTION
           ? WasmCallKind::kWasmImportWrapper
@@ -2829,7 +2829,7 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
   }
   ZoneStats zone_stats(wasm_engine->allocator());
 
-  Zone graph_zone{wasm_engine->allocator(), ZONE_NAME, kCompressGraphZone};
+  Zone graph_zone{wasm_engine->allocator(), ZONE_NAME};
   OptimizedCompilationInfo info(
       GetDebugName(&graph_zone, env->module,
                    compilation_data.wire_bytes_storage,

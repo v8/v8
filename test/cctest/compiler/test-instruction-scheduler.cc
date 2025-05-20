@@ -28,7 +28,7 @@ InstructionBlocks* CreateSingleBlock(Zone* zone) {
 class InstructionSchedulerTester {
  public:
   InstructionSchedulerTester()
-      : scope_(kCompressGraphZone),
+      : scope_(),
         blocks_(CreateSingleBlock(scope_.main_zone())),
         sequence_(scope_.main_isolate(), scope_.main_zone(), blocks_),
         scheduler_(scope_.main_zone(), &sequence_) {}

@@ -1199,7 +1199,7 @@ wasm::WasmCompilationResult CompileWasmJSFastCallWrapper(
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileWasmJSFastCallWrapper");
 
-  Zone zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME, kCompressGraphZone);
+  Zone zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME);
   SourcePositionTable* source_positions = nullptr;
   MachineGraph* mcgraph = CreateCommonMachineGraph(&zone);
 
@@ -1232,8 +1232,8 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate,
                                const wasm::CanonicalSig* sig) {
   DCHECK(!v8_flags.wasm_jitless);
 
-  std::unique_ptr<Zone> zone = std::make_unique<Zone>(
-      isolate->allocator(), ZONE_NAME, kCompressGraphZone);
+  std::unique_ptr<Zone> zone =
+      std::make_unique<Zone>(isolate->allocator(), ZONE_NAME);
   TFGraph* graph = zone->New<TFGraph>(zone.get());
   CommonOperatorBuilder* common = zone->New<CommonOperatorBuilder>(zone.get());
   MachineOperatorBuilder* machine = zone->New<MachineOperatorBuilder>(
