@@ -311,10 +311,8 @@ trybot_pair(
 
 trybot_pair(
     name = "v8_linux64_single_generation_dbg",
-    cq_properties = CQ.on_files(
-        "test/cctest/heap/.+",
-        "test/unittests/heap/.+",
-    ),
+    cq_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
