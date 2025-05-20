@@ -232,7 +232,13 @@ icu::UnicodeString Intl::ToICUUnicodeString(Isolate* isolate,
   // attacker model) and we therefore need to use an unsigned int here when
   // comparing it against the kShortStringSize.
   uint32_t length = string->length();
-  DCHECK_LE(offset, length);
+  // As the length is untrusted, we should also double-check the offset here.
+  // Technically it's fine for the offset to go out-of-bounds since it will
+  // only cause an OOB read (not write) outside the sandbox, but we still want
+  // to avoid these issues. An alternative would be for this function to
+  // allocate temporary buffers inside the sandbox, then there would be no need
+  // for additional bounds checks here (since we're using 32-bit sizes/offsets).
+  SBXCHECK_LE(offset, length);
   if (flat.IsOneByte() && length <= kShortStringSize) {
     CopyChars(short_string_buffer, flat.ToOneByteVector().begin(), length);
     uchar_buffer = short_string_buffer;
