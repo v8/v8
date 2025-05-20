@@ -3703,7 +3703,8 @@ void VisitAtomicStore(InstructionSelectorT* selector, OpIndex node,
     write_barrier_kind = kFullWriteBarrier;
   }
 
-  InstructionOperand inputs[] = {g.UseRegister(base), g.UseRegister(index),
+  InstructionOperand inputs[] = {g.UseUniqueRegister(base),
+                                 g.UseUniqueRegister(index),
                                  g.UseUniqueRegister(value)};
   InstructionOperand temps[] = {g.TempRegister()};
   InstructionCode code;

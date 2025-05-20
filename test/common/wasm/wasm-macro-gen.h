@@ -1007,8 +1007,8 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define WASM_ARRAY_ATOMIC_GET_U(memory_order, typeidx, array_obj) \
   array_obj, WASM_ATOMICS_OP(kExprArrayAtomicGetU), memory_order, \
       ToByte(typeidx)
-#define WASM_ARRAY_ATOMIC_SET(memory_order, typeidx, array_obj, value)  \
-  array_obj, value, WASM_ATOMICS_OP(kExprArrayAtomicSet), memory_order, \
+#define WASM_ARRAY_ATOMIC_SET(memory_order, typeidx, array_obj, index, value)  \
+  array_obj, index, value, WASM_ATOMICS_OP(kExprArrayAtomicSet), memory_order, \
       ToByte(typeidx)
 
 //------------------------------------------------------------------------------

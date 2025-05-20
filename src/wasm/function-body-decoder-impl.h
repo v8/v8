@@ -1510,6 +1510,8 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
     Value* result)                                                             \
   F(ArraySet, const Value& array_obj, const ArrayIndexImmediate& imm,          \
     const Value& index, const Value& value)                                    \
+  F(ArrayAtomicSet, const Value& array_obj, const ArrayIndexImmediate& imm,    \
+    const Value& index, const Value& value, AtomicMemoryOrder order)           \
   F(ArrayLen, const Value& array_obj, Value* result)                           \
   F(ArrayCopy, const Value& dst, const Value& dst_index, const Value& src,     \
     const Value& src_index, const ArrayIndexImmediate& src_imm,                \
@@ -2727,7 +2729,8 @@ class WasmDecoder : public Decoder {
           }
           case kExprArrayAtomicGet:
           case kExprArrayAtomicGetS:
-          case kExprArrayAtomicGetU: {
+          case kExprArrayAtomicGetU:
+          case kExprArrayAtomicSet: {
             MemoryOrderImmediate memory_order(decoder, pc + length, validate);
             (ios.MemoryOrder(memory_order), ...);
             ArrayIndexImmediate array(decoder, pc + length, validate);
@@ -6988,6 +6991,47 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayGet, array_obj, imm, index,
                                            opcode == kExprArrayAtomicGetS,
                                            value);
+        return opcode_length + memory_order.length + imm.length;
+      }
+      case kExprArrayAtomicSet: {
+        CHECK_PROTOTYPE_OPCODE(shared);
+        NON_CONST_ONLY
+        MemoryOrderImmediate memory_order(this, this->pc_ + opcode_length,
+                                          validate);
+        if (!this->ok()) return 0;
+        ArrayIndexImmediate imm(
+            this, this->pc_ + opcode_length + memory_order.length, validate);
+        if (!this->Validate(this->pc_ + opcode_length + memory_order.length,
+                            imm)) {
+          return 0;
+        }
+        if (!VALIDATE(imm.array_type->mutability())) {
+          this->DecodeError("array.set: Array type %d is immutable",
+                            imm.index.index);
+          return 0;
+        }
+        ValueType element_type = imm.array_type->element_type();
+        if (!VALIDATE(element_type == kWasmI8 || element_type == kWasmI16 ||
+                      element_type == kWasmI32 || element_type == kWasmI64 ||
+                      (element_type.is_ref() &&
+                       (IsSubtypeOf(element_type, kWasmAnyRef, this->module_) ||
+                        IsSubtypeOf(element_type, kWasmSharedAnyRef,
+                                    this->module_))))) {
+          this->DecodeError(
+              "array.atomic.set: Array type %d has invalid type %s ", imm.index,
+              element_type.name().c_str());
+          return 0;
+        }
+        auto [array_obj, index, value] =
+            Pop(ValueType::RefNull(imm.heap_type()), kWasmI32,
+                imm.array_type->element_type().Unpacked());
+        if (imm.heap_type().is_shared()) {
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayAtomicSet, array_obj, imm,
+                                             index, value, memory_order.order);
+        } else {
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(ArraySet, array_obj, imm, index,
+                                             value);
+        }
         return opcode_length + memory_order.length + imm.length;
       }
       default:

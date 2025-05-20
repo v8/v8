@@ -4952,8 +4952,9 @@ class TurboshaftAssemblerOpInterface
   }
 
   void ArraySet(V<WasmArrayNullable> array, V<Word32> index, V<Any> value,
-                wasm::ValueType element_type) {
-    ReduceIfReachableArraySet(array, index, value, element_type);
+                wasm::ValueType element_type,
+                std::optional<AtomicMemoryOrder> memory_order) {
+    ReduceIfReachableArraySet(array, index, value, element_type, memory_order);
   }
 
   V<Word32> ArrayLength(V<WasmArrayNullable> array, CheckForNull null_check) {
