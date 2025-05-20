@@ -383,7 +383,7 @@ void VisitStoreCommon(InstructionSelectorT* selector, OpIndex node,
   PPCOperandGeneratorT g(selector);
   auto store_view = selector->store_view(node);
   OpIndex base = store_view.base();
-  OpIndex offset = selector->value(store_view.index());
+  OpIndex offset = store_view.index().value();
   OpIndex value = store_view.value();
   bool is_atomic = store_view.is_atomic();
 

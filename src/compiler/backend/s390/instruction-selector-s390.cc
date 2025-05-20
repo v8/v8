@@ -256,7 +256,7 @@ class S390OperandGeneratorT final : public OperandGeneratorT {
     if (base.valid()) {
       inputs[(*input_count)++] = UseRegister(base, reg_kind);
       if (index.valid()) {
-        inputs[(*input_count)++] = UseRegister(this->value(index), reg_kind);
+        inputs[(*input_count)++] = UseRegister(index.value(), reg_kind);
         if (displacement != 0) {
           inputs[(*input_count)++] = UseImmediate(
               displacement_mode == kNegativeDisplacement ? -displacement
@@ -277,7 +277,7 @@ class S390OperandGeneratorT final : public OperandGeneratorT {
       }
     } else {
       DCHECK(index.valid());
-      inputs[(*input_count)++] = UseRegister(this->value(index), reg_kind);
+      inputs[(*input_count)++] = UseRegister(index.value(), reg_kind);
       if (displacement != 0) {
         inputs[(*input_count)++] = UseImmediate(
             displacement_mode == kNegativeDisplacement ? -displacement
