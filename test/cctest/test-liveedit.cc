@@ -200,7 +200,7 @@ namespace {
 void PatchFunctions(v8::Local<v8::Context> context, const char* source_a,
                     const char* source_b,
                     v8::debug::LiveEditResult* result = nullptr) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = CcTest::isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   v8::EscapableHandleScope scope(isolate);
   v8::Local<v8::Script> script_a =
@@ -536,7 +536,7 @@ TEST(LiveEditFunctionExpression) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   v8::Local<v8::Context> context = env.local();
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   v8::Local<v8::Script> script =
       v8::Script::Compile(context, v8_str(isolate, original_source))

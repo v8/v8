@@ -14,7 +14,7 @@ void TestArrayBufferViewContents(LocalContext* env, bool should_use_buffer) {
   v8::Local<v8::Object> obj_a = v8::Local<v8::Object>::Cast(
       (*env)
           ->Global()
-          ->Get((*env)->GetIsolate()->GetCurrentContext(), v8_str("a"))
+          ->Get(env->isolate()->GetCurrentContext(), v8_str("a"))
           .ToLocalChecked());
   CHECK(obj_a->IsArrayBufferView());
   v8::Local<v8::ArrayBufferView> array_buffer_view =

@@ -520,7 +520,7 @@ TEST(WeakGlobalUnmodifiedApiHandlesScavenge) {
     HandleScope scope(isolate);
 
     // Create an Api object that is unmodified.
-    Local<v8::Function> function = FunctionTemplate::New(context->GetIsolate())
+    Local<v8::Function> function = FunctionTemplate::New(context.isolate())
                                        ->GetFunction(context.local())
                                        .ToLocalChecked();
     Local<v8::Object> i =
@@ -3572,7 +3572,8 @@ TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
       v8::Utils::OpenDirectHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
-  Handle<FeedbackVector> feedback_vector(f->feedback_vector(), f->GetIsolate());
+  Handle<FeedbackVector> feedback_vector(f->feedback_vector(),
+                                         CcTest::i_isolate());
   FeedbackVectorHelper feedback_helper(feedback_vector);
 
   int expected_slots = 2;
@@ -3592,7 +3593,7 @@ TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
 static void CheckVectorIC(DirectHandle<JSFunction> f, int slot_index,
                           InlineCacheState desired_state) {
   Handle<FeedbackVector> vector =
-      Handle<FeedbackVector>(f->feedback_vector(), f->GetIsolate());
+      Handle<FeedbackVector>(f->feedback_vector(), CcTest::i_isolate());
   FeedbackVectorHelper helper(vector);
   FeedbackSlot slot = helper.slot(slot_index);
   FeedbackNexus nexus(CcTest::i_isolate(), vector, slot);
@@ -3617,7 +3618,8 @@ TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
       v8::Utils::OpenDirectHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
-  DirectHandle<FeedbackVector> vector(f->feedback_vector(), f->GetIsolate());
+  DirectHandle<FeedbackVector> vector(f->feedback_vector(),
+                                      CcTest::i_isolate());
   CHECK(vector->Get(FeedbackSlot(0)).IsWeakOrCleared());
 
   heap::SimulateIncrementalMarking(CcTest::heap());
@@ -4373,7 +4375,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
   IndirectHandle<AllocationSite> site;
   {
     LocalContext context;
-    v8::HandleScope scope(context->GetIsolate());
+    v8::HandleScope scope(CcTest::isolate());
 
     int count = AllocationSitesCount(heap);
     CompileRun(

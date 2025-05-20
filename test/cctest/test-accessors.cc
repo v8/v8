@@ -257,7 +257,7 @@ static void XSetter(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 THREADED_TEST(AccessorIC) {
   LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetNativeDataProperty(v8_str("x0"), XGetter, XSetter);
@@ -318,7 +318,7 @@ static void HandleAllocatingGetter(
 
 THREADED_TEST(HandleScopePop) {
   LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetNativeDataProperty(v8_str("one"), HandleAllocatingGetter<1>);
@@ -375,7 +375,7 @@ END_ALLOW_USE_DEPRECATED()
 
 THREADED_TEST(DirectCall) {
   LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetNativeDataProperty(v8_str("xxx"), CheckAccessorArgsCorrect, nullptr,
@@ -403,7 +403,7 @@ static void EmptyGetter(Local<Name> name,
 
 THREADED_TEST(EmptyResult) {
   LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetNativeDataProperty(v8_str("xxx"), EmptyGetter, nullptr,

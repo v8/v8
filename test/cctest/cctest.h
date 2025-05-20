@@ -351,7 +351,10 @@ class LocalContext {
   v8::Context* operator*() { return operator->(); }
   bool IsReady() { return !context_.IsEmpty(); }
 
-  v8::Isolate* isolate() { return isolate_; }
+  v8::Isolate* isolate() const { return isolate_; }
+  i::Isolate* i_isolate() const {
+    return reinterpret_cast<i::Isolate*>(isolate_);
+  }
   v8::Local<v8::Context> local() const {
     return v8::Local<v8::Context>::New(isolate_, context_);
   }

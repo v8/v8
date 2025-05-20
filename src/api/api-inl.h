@@ -361,9 +361,7 @@ class V8_NODISCARD PrepareForExecutionScope
  public:
   PrepareForExecutionScope(Local<Context> context,
                            i::RuntimeCallCounterId rcc_id)
-      : PrepareForExecutionScope{
-            reinterpret_cast<i::Isolate*>(context->GetIsolate()), context,
-            rcc_id} {}
+      : PrepareForExecutionScope{i::Isolate::Current(), context, rcc_id} {}
 
   PrepareForExecutionScope(i::Isolate* i_isolate, Local<Context> context,
                            i::RuntimeCallCounterId rcc_id)

@@ -873,7 +873,7 @@ THREADED_TEST(InObjectLiteralDefinitionWithInterceptor) {
 
 THREADED_TEST(InterceptorHasOwnProperty) {
   LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
   Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New(isolate);
   Local<v8::ObjectTemplate> instance_templ = fun_templ->InstanceTemplate();
@@ -901,7 +901,7 @@ THREADED_TEST(InterceptorHasOwnProperty) {
 
 THREADED_TEST(InterceptorHasOwnPropertyCausingGC) {
   LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
   Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New(isolate);
   Local<v8::ObjectTemplate> instance_templ = fun_templ->InstanceTemplate();
@@ -3302,7 +3302,7 @@ THREADED_TEST(NoSideEffectPropertyHandler) {
 
 THREADED_TEST(HiddenPropertiesWithInterceptors) {
   LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
 
   interceptor_for_hidden_properties_called = false;
@@ -5106,8 +5106,8 @@ THREADED_TEST(Regress256330) {
   if (!i::v8_flags.turbofan) return;
   i::v8_flags.allow_natives_syntax = true;
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Local<FunctionTemplate> templ = FunctionTemplate::New(context->GetIsolate());
+  v8::HandleScope scope(context.isolate());
+  Local<FunctionTemplate> templ = FunctionTemplate::New(context.isolate());
   AddInterceptor(templ, InterceptorGetter, InterceptorSetter);
   context->Global()
       ->Set(context.local(), v8_str("Bug"),
@@ -5234,8 +5234,8 @@ THREADED_TEST(OptimizedInterceptorFieldWrite) {
 
 THREADED_TEST(Regress149912) {
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Local<FunctionTemplate> templ = FunctionTemplate::New(context->GetIsolate());
+  v8::HandleScope scope(context.isolate());
+  Local<FunctionTemplate> templ = FunctionTemplate::New(context.isolate());
   AddInterceptor(templ, EmptyInterceptorGetter, EmptyInterceptorSetter);
   context->Global()
       ->Set(context.local(), v8_str("Bug"),
@@ -5246,8 +5246,8 @@ THREADED_TEST(Regress149912) {
 
 THREADED_TEST(Regress625155) {
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Local<FunctionTemplate> templ = FunctionTemplate::New(context->GetIsolate());
+  v8::HandleScope scope(context.isolate());
+  Local<FunctionTemplate> templ = FunctionTemplate::New(context.isolate());
   AddInterceptor(templ, EmptyInterceptorGetter, EmptyInterceptorSetter);
   context->Global()
       ->Set(context.local(), v8_str("Bug"),

@@ -513,7 +513,7 @@ THREADED_TEST(GetFrameStack) {
 
 TEST(SmallOrderedHashSetGetObjectProperties) {
   LocalContext context;
-  Isolate* isolate = reinterpret_cast<Isolate*>((*context)->GetIsolate());
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
   HandleScope scope(isolate);

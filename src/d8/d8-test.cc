@@ -26,7 +26,7 @@ namespace {
 
 #define CHECK_SELF_OR_THROW_FAST(return_value)                              \
   if (!self) {                                                              \
-    receiver->GetIsolate()->ThrowError(                                     \
+    v8::Isolate::GetCurrent()->ThrowError(                                  \
         "This method is not defined on objects inheriting from FastCAPI."); \
     return return_value;                                                    \
   }
@@ -280,7 +280,7 @@ class FastCApiObject {
     Local<Array> array = seq_arg.As<Array>();
     uint32_t length = array->Length();
     if (length > 1024) {
-      receiver->GetIsolate()->ThrowError(
+      options.isolate->ThrowError(
           "Invalid length of array, must be between 0 and 1024.");
       return 0;
     }
@@ -289,7 +289,7 @@ class FastCApiObject {
     bool result = TryToCopyAndConvertArrayToCppBuffer<
         CTypeInfoBuilder<Type>::Build().GetId(), Type>(array, buffer, 1024);
     if (!result) {
-      return AddAllSequenceJSArrayHelper(receiver->GetIsolate(), array);
+      return AddAllSequenceJSArrayHelper(options.isolate, array);
     }
     DCHECK_EQ(array->Length(), length);
 
@@ -954,7 +954,7 @@ class FastCApiObject {
     if (i::v8_flags.fuzzing) {
       return true;
     }
-    v8::Isolate* isolate = receiver->GetIsolate();
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
     v8::HandleScope handle_scope(isolate);
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
     v8::Local<v8::String> mem_string =

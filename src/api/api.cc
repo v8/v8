@@ -2472,7 +2472,7 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
   Utils::ApiCheck(
       !source->GetResourceOptions().IsModule(), "v8::ScriptCompiler::Compile",
       "v8::ScriptCompiler::CompileModule must be used to compile modules");
-  auto isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   MaybeLocal<UnboundScript> maybe =
       CompileUnboundInternal(isolate, source, options, no_cache_reason);
   Local<UnboundScript> result;
@@ -5370,7 +5370,7 @@ MaybeLocal<v8::Value> Function::Call(v8::Isolate* isolate,
 MaybeLocal<v8::Value> Function::Call(Local<Context> context,
                                      v8::Local<v8::Value> recv, int argc,
                                      v8::Local<v8::Value> argv[]) {
-  return Call(context->GetIsolate(), context, recv, argc, argv);
+  return Call(v8::Isolate::GetCurrent(), context, recv, argc, argv);
 }
 
 void Function::SetName(v8::Local<v8::String> name) {
@@ -10988,8 +10988,8 @@ std::unique_ptr<MicrotaskQueue> MicrotaskQueue::New(Isolate* v8_isolate,
 
 MicrotasksScope::MicrotasksScope(Local<Context> v8_context,
                                  MicrotasksScope::Type type)
-    : MicrotasksScope(v8_context->GetIsolate(), v8_context->GetMicrotaskQueue(),
-                      type) {}
+    : MicrotasksScope(v8::Isolate::GetCurrent(),
+                      v8_context->GetMicrotaskQueue(), type) {}
 
 MicrotasksScope::MicrotasksScope(Isolate* v8_isolate,
                                  MicrotaskQueue* microtask_queue,
@@ -11415,8 +11415,7 @@ CpuProfilingOptions::CpuProfilingOptions(CpuProfilingMode mode,
       sampling_interval_us_(sampling_interval_us) {
   if (!filter_context.IsEmpty()) {
     Local<Context> local_filter_context = filter_context.ToLocalChecked();
-    filter_context_.Reset(local_filter_context->GetIsolate(),
-                          local_filter_context);
+    filter_context_.Reset(v8::Isolate::GetCurrent(), local_filter_context);
     filter_context_.SetWeak();
   }
 }

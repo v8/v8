@@ -32,7 +32,7 @@ namespace debug {
 
 void SetContextId(Local<Context> context, int id) {
   auto v8_context = Utils::OpenDirectHandle(*context);
-  auto* i_isolate = v8_context->GetIsolate();
+  auto* i_isolate = i::Isolate::Current();
   i::DisallowJavascriptExecutionDebugOnly no_execution(i_isolate);
   i::DisallowExceptionsDebugOnly no_exceptions(i_isolate);
   v8_context->set_debug_context_id(i::Smi::FromInt(id));
@@ -40,7 +40,7 @@ void SetContextId(Local<Context> context, int id) {
 
 int GetContextId(Local<Context> context) {
   auto v8_context = Utils::OpenDirectHandle(*context);
-  auto* i_isolate = v8_context->GetIsolate();
+  auto* i_isolate = i::Isolate::Current();
   i::DisallowJavascriptExecutionDebugOnly no_execution(i_isolate);
   i::DisallowExceptionsDebugOnly no_exceptions(i_isolate);
   i::Tagged<i::Object> value = v8_context->debug_context_id();
@@ -167,8 +167,7 @@ Local<String> GetFunctionDescription(Local<Function> function) {
 #endif  // V8_ENABLE_WEBASSEMBLY
     return Utils::ToLocal(i::JSFunction::ToString(i_isolate, js_function));
   }
-  return Utils::ToLocal(
-      receiver->GetIsolate()->factory()->function_native_code_string());
+  return Utils::ToLocal(i_isolate->factory()->function_native_code_string());
 }
 
 void SetBreakOnNextFunctionCall(Isolate* isolate) {
@@ -1171,7 +1170,7 @@ MaybeLocal<Script> GeneratorObject::Script() {
 
 Local<Function> GeneratorObject::Function() {
   auto obj = Utils::OpenDirectHandle(this);
-  return Utils::ToLocal(direct_handle(obj->function(), obj->GetIsolate()));
+  return Utils::ToLocal(direct_handle(obj->function(), i::Isolate::Current()));
 }
 
 Location GeneratorObject::SuspendedLocation() {
@@ -1454,8 +1453,7 @@ void SetIsolateId(v8::Isolate* v8_isolate, uint64_t id) {
 
 std::unique_ptr<PropertyIterator> PropertyIterator::Create(
     Local<Context> context, Local<Object> object, bool skip_indices) {
-  internal::Isolate* isolate =
-      reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(i::Isolate::Current());
   if (isolate->is_execution_terminating()) {
     return nullptr;
   }

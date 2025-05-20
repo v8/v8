@@ -24,13 +24,13 @@ void CheckElementValue(i::Isolate* isolate, int expected,
 }
 
 template <class ElementType>
-void ObjectWithExternalArrayTestHelper(Local<Context> context,
+void ObjectWithExternalArrayTestHelper(v8::Isolate* v8_isolate,
+                                       Local<Context> context,
                                        v8::Local<v8::TypedArray> obj,
                                        int element_count,
                                        i::ExternalArrayType array_type,
                                        int64_t low, int64_t high) {
   i::DirectHandle<i::JSTypedArray> jsobj = v8::Utils::OpenDirectHandle(*obj);
-  v8::Isolate* v8_isolate = context->GetIsolate();
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   obj->Set(context, v8_str("field"), v8::Int32::New(v8_isolate, 1503))
       .FromJust();
@@ -383,8 +383,8 @@ void TypedArrayTestHelper(i::ExternalArrayType array_type, int64_t low,
     data[i] = static_cast<ElementType>(i);
   }
 
-  ObjectWithExternalArrayTestHelper<ElementType>(env.local(), ta, kElementCount,
-                                                 array_type, low, high);
+  ObjectWithExternalArrayTestHelper<ElementType>(
+      env.isolate(), env.local(), ta, kElementCount, array_type, low, high);
 
   // TODO(v8:11111): Use API functions for testing these, once they're exposed
   // via the API.
