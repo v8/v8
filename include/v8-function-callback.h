@@ -66,12 +66,12 @@ class ReturnValue {
   V8_INLINE void Set(uint16_t i);
   V8_INLINE void Set(uint32_t i);
   V8_INLINE void Set(uint64_t i);
-  // Fast JS primitive setters
+  // Fast JS primitive setters.
   V8_INLINE void SetNull();
   V8_INLINE void SetUndefined();
   V8_INLINE void SetFalse();
   V8_INLINE void SetEmptyString();
-  // Convenience getter for Isolate
+  // Convenience getter for the Isolate.
   V8_INLINE Isolate* GetIsolate() const;
 
   // Pointer setter: Uncompilable to prevent inadvertent misuse.
