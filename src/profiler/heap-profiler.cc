@@ -210,6 +210,30 @@ void HeapProfiler::TakeSnapshotToFile(
   serializer.Serialize(&stream);
 }
 
+class StringOutputStream : public v8::OutputStream {
+ public:
+  WriteResult WriteAsciiChunk(char* data, int size) override {
+    os_.write(data, size);
+    return kContinue;
+  }
+
+  void EndOfStream() override {}
+
+  std::string str() { return os_.str(); }
+
+ private:
+  std::stringstream os_;
+};
+
+std::string HeapProfiler::TakeSnapshotToString(
+    const v8::HeapProfiler::HeapSnapshotOptions options) {
+  HeapSnapshot* snapshot = TakeSnapshot(options);
+  StringOutputStream stream;
+  HeapSnapshotJSONSerializer serializer(snapshot);
+  serializer.Serialize(&stream);
+  return stream.str();
+}
+
 bool HeapProfiler::StartSamplingHeapProfiler(
     uint64_t sample_interval, int stack_depth,
     v8::HeapProfiler::SamplingFlags flags) {

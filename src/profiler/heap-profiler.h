@@ -70,6 +70,8 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   // Just takes a snapshot performing GC as part of the snapshot.
   void TakeSnapshotToFile(const v8::HeapProfiler::HeapSnapshotOptions options,
                           std::string filename);
+  V8_EXPORT_PRIVATE std::string TakeSnapshotToString(
+      const v8::HeapProfiler::HeapSnapshotOptions options);
 
   bool StartSamplingHeapProfiler(uint64_t sample_interval, int stack_depth,
                                  v8::HeapProfiler::SamplingFlags);

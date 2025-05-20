@@ -821,7 +821,10 @@ v8_source_set("v8_unittests_sources") {
     if (!is_win) {
       # TODO(https://crbug.com/40941204): Using jsoncpp doesn't work on
       # Windows.
-      sources += [ "json/json-unittest.cc" ]
+      sources += [
+        "json/json-unittest.cc",
+        "profiler/heap-snapshot-unittest.cc",
+      ]
       deps += [ "//third_party/jsoncpp:jsoncpp" ]
     }
   }
