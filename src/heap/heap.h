@@ -199,9 +199,7 @@ class V8_EXPORT_PRIVATE ConservativePinningScope {
   // `frame_address` is used an initial fast frame address. If it doesn't cover
   // this scope, it will be ignored and replaced with a frame address that does
   // include this scope.
-  explicit ConservativePinningScope(
-      Heap* heap,
-      const void* frame_address = v8::base::Stack::GetCurrentFrameAddress());
+  explicit ConservativePinningScope(Heap* heap);
   ~ConservativePinningScope();
 
  private:

@@ -352,13 +352,4 @@
   'MacroAssemblerTest.TestHardAbort': [SKIP],
 }],  # simulator_run
 
-# TODO(417972894): Enable these tests once this is resolved.
-['arch == arm64 and not simulator_run', {
-  'HeapTest.ConservativePinningScopeScavengeDoesntMoveObjectReachableFromStackNoPromotion': [SKIP],
-  'HeapTest.ConservativePinningScopeScavengeDoesntMoveObjectReachableFromStack': [SKIP],
-  'HeapTest.ConservativePinningScopeMarkCompactDoesntMoveObjectReachableFromStack': [SKIP],
-  'HeapTest.ConservativePinningScopeScavengeRetainsObjectReachableFromStack': [SKIP],
-  'HeapTest.ConservativePinningScopeMarkCompactRetainsObjectReachableFromStack': [SKIP],
-}],  # arch == arm64 and not simulator_run
-
 ]
