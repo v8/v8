@@ -31097,12 +31097,23 @@ TEST(DeepFreezeInstantiatesAccessors2) {
   CHECK(!maybe_success.IsNothing());
 }
 
+namespace {
+
+v8::Local<v8::Value> GetContinuationPreservedEmbedderDataAsValue(
+    v8::Isolate* isolate) {
+  v8::Local<v8::Data> data = isolate->GetContinuationPreservedEmbedderDataV2();
+  CHECK(data->IsValue());
+  return v8::Local<Value>::Cast(data);
+}
+
 void GetIsolatePreservedContinuationData(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   info.GetReturnValue().Set(
-      info.GetIsolate()->GetContinuationPreservedEmbedderData());
+      GetContinuationPreservedEmbedderDataAsValue(info.GetIsolate()));
 }
+
+}  // namespace
 
 TEST(ContinuationPreservedEmbedderData) {
   LocalContext context;
@@ -31112,7 +31123,7 @@ TEST(ContinuationPreservedEmbedderData) {
   Local<v8::Promise::Resolver> resolver =
       v8::Promise::Resolver::New(context.local()).ToLocalChecked();
 
-  isolate->SetContinuationPreservedEmbedderData(v8_str("foo"));
+  isolate->SetContinuationPreservedEmbedderDataV2(v8_str("foo"));
 
   v8::Local<v8::Function> get_isolate_preserved_data =
       v8::Function::New(context.local(), GetIsolatePreservedContinuationData,
@@ -31123,7 +31134,7 @@ TEST(ContinuationPreservedEmbedderData) {
           ->Then(context.local(), get_isolate_preserved_data)
           .ToLocalChecked();
 
-  isolate->SetContinuationPreservedEmbedderData(v8::Undefined(isolate));
+  isolate->SetContinuationPreservedEmbedderDataV2(v8::Undefined(isolate));
 
   resolver->Resolve(context.local(), v8::Undefined(isolate)).FromJust();
   isolate->PerformMicrotaskCheckpoint();
@@ -31150,15 +31161,15 @@ TEST(ContinuationPreservedEmbedderDataClearedAndRestored) {
       resolver->GetPromise()
           ->Then(context.local(), get_isolate_preserved_data)
           .ToLocalChecked();
-  isolate->SetContinuationPreservedEmbedderData(v8_str("foo"));
+  isolate->SetContinuationPreservedEmbedderDataV2(v8_str("foo"));
   resolver->Resolve(context.local(), v8::Undefined(isolate)).FromJust();
   isolate->PerformMicrotaskCheckpoint();
   CHECK(p1->Result()->IsUndefined());
 #if V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
   CHECK(v8_str("foo")->SameValue(
-      isolate->GetContinuationPreservedEmbedderData()));
+      GetContinuationPreservedEmbedderDataAsValue(isolate)));
 #else
-  CHECK(isolate->GetContinuationPreservedEmbedderData()->IsUndefined());
+  CHECK(GetContinuationPreservedEmbedderDataAsValue(isolate)->IsUndefined());
 #endif
 }
 
@@ -31168,9 +31179,9 @@ static void CallbackTaskMicrotask(void* data) {
   v8::Isolate* isolate = static_cast<v8::Isolate*>(data);
 #if V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
   CHECK(v8_str("foo")->SameValue(
-      isolate->GetContinuationPreservedEmbedderData()));
+      GetContinuationPreservedEmbedderDataAsValue(isolate)));
 #else
-  CHECK(isolate->GetContinuationPreservedEmbedderData()->IsUndefined());
+  CHECK(GetContinuationPreservedEmbedderDataAsValue(isolate)->IsUndefined());
 #endif
 }
 
@@ -31179,9 +31190,9 @@ TEST(EnqueMicrotaskContinuationPreservedEmbedderData_CallbackTask) {
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
 
-  isolate->SetContinuationPreservedEmbedderData(v8_str("foo"));
+  isolate->SetContinuationPreservedEmbedderDataV2(v8_str("foo"));
   isolate->EnqueueMicrotask(&CallbackTaskMicrotask, isolate);
-  isolate->SetContinuationPreservedEmbedderData(v8::Undefined(isolate));
+  isolate->SetContinuationPreservedEmbedderDataV2(v8::Undefined(isolate));
 
   isolate->PerformMicrotaskCheckpoint();
   CHECK(did_callback_microtask_run);
@@ -31192,10 +31203,10 @@ static void CallableTaskMicrotask(const v8::FunctionCallbackInfo<Value>& info) {
   did_callable_microtask_run = true;
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
   CHECK(v8_str("foo")->SameValue(
-      info.GetIsolate()->GetContinuationPreservedEmbedderData()));
+      GetContinuationPreservedEmbedderDataAsValue(info.GetIsolate())));
 #else
-  CHECK(
-      info.GetIsolate()->GetContinuationPreservedEmbedderData()->IsUndefined());
+  CHECK(GetContinuationPreservedEmbedderDataAsValue(info.GetIsolate())
+            ->IsUndefined());
 #endif
 }
 
@@ -31204,10 +31215,10 @@ TEST(EnqueMicrotaskContinuationPreservedEmbedderData_CallableTask) {
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
 
-  isolate->SetContinuationPreservedEmbedderData(v8_str("foo"));
+  isolate->SetContinuationPreservedEmbedderDataV2(v8_str("foo"));
   env.isolate()->EnqueueMicrotask(
       Function::New(env.local(), CallableTaskMicrotask).ToLocalChecked());
-  isolate->SetContinuationPreservedEmbedderData(v8::Undefined(isolate));
+  isolate->SetContinuationPreservedEmbedderDataV2(v8::Undefined(isolate));
 
   isolate->PerformMicrotaskCheckpoint();
   CHECK(did_callable_microtask_run);
@@ -31218,10 +31229,10 @@ static void ThenableCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   did_thenable_callback_run = true;
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
   CHECK(v8_str("foo")->SameValue(
-      info.GetIsolate()->GetContinuationPreservedEmbedderData()));
+      GetContinuationPreservedEmbedderDataAsValue(info.GetIsolate())));
 #else
-  CHECK(
-      info.GetIsolate()->GetContinuationPreservedEmbedderData()->IsUndefined());
+  CHECK(GetContinuationPreservedEmbedderDataAsValue(info.GetIsolate())
+            ->IsUndefined());
 #endif
   info.GetReturnValue().Set(true);
 }
@@ -31245,72 +31256,32 @@ TEST(ContinuationPreservedEmbedderData_Thenable) {
   Local<v8::Promise::Resolver> resolver =
       v8::Promise::Resolver::New(env.local()).ToLocalChecked();
 
-  isolate->SetContinuationPreservedEmbedderData(v8_str("foo"));
+  isolate->SetContinuationPreservedEmbedderDataV2(v8_str("foo"));
   resolver->Resolve(env.local(), result).FromJust();
-  isolate->SetContinuationPreservedEmbedderData(v8::Undefined(isolate));
+  isolate->SetContinuationPreservedEmbedderDataV2(v8::Undefined(isolate));
 
   isolate->PerformMicrotaskCheckpoint();
   CHECK(did_thenable_callback_run);
 }
 
-void GetIsolatePreservedContinuationDataV2(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
-  CHECK(i::ValidateCallbackInfo(info));
-  v8::Local<v8::Data> data =
-      info.GetIsolate()->GetContinuationPreservedEmbedderDataV2();
-  CHECK(data->IsValue());
-  info.GetReturnValue().Set(v8::Local<v8::Value>::Cast(data));
-}
-
-TEST(ContinuationPreservedEmbedderDataV2) {
-  LocalContext context;
-  v8::Isolate* isolate = context.isolate();
-  v8::HandleScope scope(isolate);
-
-  Local<v8::Promise::Resolver> resolver =
-      v8::Promise::Resolver::New(context.local()).ToLocalChecked();
-
-  isolate->SetContinuationPreservedEmbedderData(v8_str("foo"));
-
-  v8::Local<v8::Function> get_isolate_preserved_data =
-      v8::Function::New(context.local(), GetIsolatePreservedContinuationDataV2,
-                        v8_str("get_isolate_preserved_data"))
-          .ToLocalChecked();
-  Local<v8::Promise> p1 =
-      resolver->GetPromise()
-          ->Then(context.local(), get_isolate_preserved_data)
-          .ToLocalChecked();
-
-  isolate->SetContinuationPreservedEmbedderDataV2(v8::Undefined(isolate));
-
-  resolver->Resolve(context.local(), v8::Undefined(isolate)).FromJust();
-  isolate->PerformMicrotaskCheckpoint();
-
-#if V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  CHECK(v8_str("foo")->SameValue(p1->Result()));
-#else
-  CHECK(p1->Result()->IsUndefined());
-#endif
-}
-
-TEST(ContinuationPreservedEmbedderDataV2_Empty) {
+TEST(ContinuationPreservedEmbedderData_Empty) {
   LocalContext context;
   v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
 
   v8::Local<v8::Data> data = isolate->GetContinuationPreservedEmbedderDataV2();
   CHECK(data->IsValue());
-  CHECK(Local<Value>::Cast(data)->IsNullOrUndefined());
+  CHECK(Local<Value>::Cast(data)->IsUndefined());
 
   isolate->SetContinuationPreservedEmbedderDataV2(v8::Local<v8::Data>());
   data = isolate->GetContinuationPreservedEmbedderDataV2();
   CHECK(data->IsValue());
-  CHECK(Local<Value>::Cast(data)->IsNullOrUndefined());
+  CHECK(Local<Value>::Cast(data)->IsUndefined());
 
   isolate->SetContinuationPreservedEmbedderDataV2(v8::Undefined(isolate));
   data = isolate->GetContinuationPreservedEmbedderDataV2();
   CHECK(data->IsValue());
-  CHECK(Local<Value>::Cast(data)->IsNullOrUndefined());
+  CHECK(Local<Value>::Cast(data)->IsUndefined());
 }
 
 TEST(WrappedFunctionWithClass) {

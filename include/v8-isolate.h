@@ -955,12 +955,14 @@ class V8_EXPORT Isolate {
    * Returns the value that was set or restored by
    * SetContinuationPreservedEmbedderData(), if any.
    */
+  V8_DEPRECATE_SOON("Use GetContinuationPreservedEmbedderDataV2 instead")
   Local<Value> GetContinuationPreservedEmbedderData();
 
   /**
    * Sets a value that will be stored on continuations and reset while the
    * continuation runs.
    */
+  V8_DEPRECATE_SOON("Use SetContinuationPreservedEmbedderDataV2 instead")
   void SetContinuationPreservedEmbedderData(Local<Value> data);
 
   /**
