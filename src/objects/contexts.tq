@@ -362,10 +362,9 @@ macro TransitionContextCellToUntagged(
 
 macro StoreScriptContextElementImpl(
     c: Context, index: intptr, newValue: Object): void {
-  dcheck(HasContextCells(c));
   const oldValue = c.elements[index];
 
-  if (oldValue == TheHole) {
+  if (oldValue == TheHole && HasContextCells(c)) {
     // Setting the initial value.
     c.elements[index] = AllocateContextCell(newValue);
     return;
