@@ -2687,6 +2687,14 @@ DEFINE_BOOL(expose_inspector_scripts, false,
             "expose injected-script-source.js for debugging")
 
 // execution.cc
+//
+// Note: the value of this flag may not match what is actually available. In
+// particular, on MacOS, so-called "secondary threads" only get 512kB by
+// default - and this is smaller than V8_DEFAULT_STACK_SIZE_KB. See e.g.
+// Blink's V8Initializer::InitializeWorker function for a place where custom
+// thread stack sizes are configured.
+//
+// In other words, be careful about using this process-wide flag.
 DEFINE_INT(stack_size, V8_DEFAULT_STACK_SIZE_KB,
            "default size of stack region v8 is allowed to use (in kBytes)")
 
