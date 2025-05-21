@@ -5855,11 +5855,17 @@ class GraphBuildingNodeProcessor {
                 compact_frame->GetValueOf(owner, maglev_unit);
             DCHECK_NOT_NULL(maglev_value);
 
+            while (maglev_value->Is<maglev::Identity>()) {
+              maglev_value = maglev_value->input(0).node();
+            }
+
             if (const maglev::VirtualObject* vobj =
                     maglev_value->TryCast<maglev::VirtualObject>()) {
               maglev_value = vobj->allocation();
             }
 
+            DCHECK(!maglev_value->Is<maglev::Identity>());
+            DCHECK(!maglev_value->Is<maglev::VirtualObject>());
             V<Any> ts_value = builder_.Map(maglev_value);
             __ SetVariable(var, ts_value);
             builder_.RecordRepresentation(ts_value,
