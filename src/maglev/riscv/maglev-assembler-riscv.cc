@@ -545,7 +545,7 @@ void MaglevAssembler::SeqOneByteStringCharCodeAt(Register result,
     CompareInt32AndAssert(scratch, kSeqOneByteStringTag, kEqual,
                           AbortReason::kUnexpectedValue);
     LoadInt32(scratch, FieldMemOperand(string, offsetof(String, length_)));
-    scope.Include({s8});  // Use s8 to abvoid no enough scrachreg.
+    scope.IncludeScratch({s7});  // Use s7 to avoid no enough scrachreg.
     CompareInt32AndAssert(index, scratch, kUnsignedLessThan,
                           AbortReason::kUnexpectedValue);
   }
