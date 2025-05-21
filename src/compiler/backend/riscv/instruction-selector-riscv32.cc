@@ -255,7 +255,7 @@ void InstructionSelectorT::VisitStore(OpIndex node) {
     InstructionOperand inputs[4];
     size_t input_count = 0;
     inputs[input_count++] = g.UseUniqueRegister(base);
-    inputs[input_count++] = g.UseUniqueRegister(this->value(index));
+    inputs[input_count++] = g.UseUniqueRegister(store_view.index().value());
     inputs[input_count++] = g.UseUniqueRegister(value);
     RecordWriteMode record_write_mode =
         WriteBarrierKindToRecordWriteMode(write_barrier_kind);
@@ -318,21 +318,22 @@ void InstructionSelectorT::VisitStore(OpIndex node) {
     if (this->is_load_root_register(base)) {
       Emit(code | AddressingModeField::encode(kMode_Root), g.NoOutput(),
            g.UseRegisterOrImmediateZero(value),
-           index.has_value() ? g.UseImmediate(this->value(index))
+           index.has_value() ? g.UseImmediate(store_view.index().value())
                              : g.UseImmediate(0));
       return;
     }
 
-    if (index.has_value() && g.CanBeImmediate(this->value(index), code)) {
+    if (index.has_value() &&
+        g.CanBeImmediate(store_view.index().value(), code)) {
       Emit(code | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
            g.UseRegisterOrImmediateZero(value), g.UseRegister(base),
-           index.has_value() ? g.UseImmediate(this->value(index))
+           index.has_value() ? g.UseImmediate(store_view.index().value())
                              : g.UseImmediate(0));
     } else {
       if (index.has_value()) {
         InstructionOperand addr_reg = g.TempRegister();
         Emit(kRiscvAdd32 | AddressingModeField::encode(kMode_None), addr_reg,
-             g.UseRegister(this->value(index)), g.UseRegister(base));
+             g.UseRegister(store_view.index().value()), g.UseRegister(base));
         // Emit desired store opcode, using temp addr_reg.
         Emit(code | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
              g.UseRegisterOrImmediateZero(value), addr_reg, g.TempImmediate(0));
@@ -685,7 +686,7 @@ void InstructionSelectorT::VisitUnalignedStore(OpIndex node) {
   RiscvOperandGeneratorT g(this);
   auto store_view = this->store_view(node);
   OpIndex base = store_view.base();
-  OpIndex index = this->value(store_view.index());
+  OpIndex index = store_view.index().value();
   OpIndex value = store_view.value();
   UnalignedStoreRepresentation store_rep =
       store_view.stored_rep().representation();
@@ -777,7 +778,7 @@ void VisitAtomicStore(InstructionSelectorT* selector, OpIndex node,
   using OpIndex = OpIndex;
   auto store = selector->store_view(node);
   OpIndex base = store.base();
-  OpIndex index = selector->value(store.index());
+  OpIndex index = store.index().value();
   OpIndex value = store.value();
 
   if (g.CanBeImmediate(index, opcode)) {

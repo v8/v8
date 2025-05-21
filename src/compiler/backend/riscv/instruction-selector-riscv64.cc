@@ -420,7 +420,7 @@ void InstructionSelectorT::VisitStore(OpIndex node) {
   StoreView store_view = this->store_view(node);
   DCHECK_EQ(store_view.displacement(), 0);
   OpIndex base = store_view.base();
-  OpIndex index = this->value(store_view.index());
+  OpIndex index = store_view.index().value();
   OpIndex value = store_view.value();
 
   WriteBarrierKind write_barrier_kind =
@@ -1315,7 +1315,7 @@ void InstructionSelectorT::VisitUnalignedStore(OpIndex node) {
   auto store_view = this->store_view(node);
   DCHECK_EQ(store_view.displacement(), 0);
   OpIndex base = store_view.base();
-  OpIndex index = this->value(store_view.index());
+  OpIndex index = store_view.index().value();
   OpIndex value = store_view.value();
 
   MachineRepresentation rep = store_view.stored_rep().representation();
@@ -1593,7 +1593,7 @@ void VisitAtomicStore(InstructionSelectorT* selector, OpIndex node,
   RiscvOperandGeneratorT g(selector);
   auto store = selector->store_view(node);
   OpIndex base = store.base();
-  OpIndex index = selector->value(store.index());
+  OpIndex index = store.index().value();
   OpIndex value = store.value();
   DCHECK_EQ(store.displacement(), 0);
 
