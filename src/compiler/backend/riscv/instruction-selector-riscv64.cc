@@ -1069,6 +1069,7 @@ bool InstructionSelectorT::ZeroExtendsWord32ToWord64NoPhis(OpIndex node) {
       switch (load_rep.representation()) {
         case MachineRepresentation::kWord8:
         case MachineRepresentation::kWord16:
+        case MachineRepresentation::kWord32:
           return true;
         default:
           return false;
