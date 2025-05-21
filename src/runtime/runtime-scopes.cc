@@ -427,7 +427,7 @@ Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
 
     if (index != Context::kNotFound) {
       DCHECK(holder.is_identical_to(context));
-      context->SetNoCell(index, *value);
+      Context::Set(context, index, value, isolate);
       return ReadOnlyRoots(isolate).undefined_value();
     }
 
