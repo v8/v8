@@ -1449,7 +1449,7 @@ void WasmRevecAnalyzer::Run() {
   if (revectorizable_node_.empty()) return;
 
   // Build SIMD usemap
-  use_map_ = phase_zone_->New<SimdUseMap>(graph_, phase_zone_);
+  use_map_ = phase_zone_->New<Simd128UseMap>(graph_, phase_zone_);
   if (!DecideVectorize()) {
     revectorizable_node_.clear();
     revectorizable_intersect_node_.clear();

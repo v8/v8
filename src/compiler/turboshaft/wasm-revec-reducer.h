@@ -653,7 +653,7 @@ class WasmRevecAnalyzer {
   ZoneUnorderedMap<OpIndex, ZoneVector<PackNode*>>
       revectorizable_intersect_node_;
   bool should_reduce_;
-  SimdUseMap* use_map_;
+  Simd128UseMap* use_map_;
 };
 
 template <class Next>
