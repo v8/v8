@@ -15,7 +15,8 @@ from testrunner.testproc import fuzzer
 from testrunner.testproc.combiner import CombinerProc
 from testrunner.testproc.execution import ExecutionProc
 from testrunner.testproc.expectation import ExpectationProc
-from testrunner.testproc.filter import StatusFileFilterProc, NameFilterProc
+from testrunner.testproc.filter import (NameFilterProc, FuzzRareTestFilterProc,
+                                        StatusFileFilterProc)
 from testrunner.testproc.loader import LoadProc
 from testrunner.utils import random_utils
 from testrunner.testproc.rerun import RerunProc
@@ -99,7 +100,12 @@ class NumFuzzer(base_runner.BaseTestRunner):
     # Miscellaneous
     parser.add_option("--variants", default='default',
                       help="Comma-separated list of testing variants")
-
+    parser.add_option(
+        "--skip-rare-tests-prob",
+        default=0.75,
+        type="float",
+        help="probability in [0.0, 1.0] of skipping tests "
+        "marked as RARE")
     return parser
 
 
@@ -167,6 +173,8 @@ class NumFuzzer(base_runner.BaseTestRunner):
         loader,
         NameFilterProc(args) if args else None,
         StatusFileFilterProc(None, None),
+        FuzzRareTestFilterProc(self.options.fuzzer_rng(),
+                               self.options.skip_rare_tests_prob),
         # TODO(majeski): Improve sharding when combiner is present. Maybe select
         # different random seeds for shards instead of splitting tests.
         ShardProc.create(self.options),

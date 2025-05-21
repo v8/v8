@@ -1715,6 +1715,27 @@
   # BUG(v8:13882) Skipped until we have a solution.
   'compiler/osr-literals': [SKIP],
   'compiler/osr-literals-adapted': [SKIP],
+
+  # Slow tests that we only choose randomly on NumFuzz.
+  'compiler/division-by-constant': [FUZZ_RARE, PASS],
+  'compiler/inlining-exponential': [FUZZ_RARE, PASS],
+  'es6/big-weakmap': [FUZZ_RARE, PASS],
+  'harmony/atomics-waitasync-*': [FUZZ_RARE, PASS],
+  'harmony/regexp-property-*': [FUZZ_RARE, PASS],
+  'harmony/sharedarraybuffer-worker-gc-stress': [FUZZ_RARE, PASS],
+  'regress/regress-1000635': [FUZZ_RARE, PASS],
+  'regress/regress-1020031': [FUZZ_RARE, PASS],
+  'regress/regress-crbug-632800': [FUZZ_RARE, PASS],
+  'regress/regress-crbug-854299': [FUZZ_RARE, PASS],
+  'regress/wasm/regress-808848': [FUZZ_RARE, PASS],
+  'shared-memory/*': [FUZZ_RARE, PASS],
+  'typedarray-growablesharedarraybuffer-atomics': [FUZZ_RARE, PASS],
+  'wasm/atomics-memory64': [FUZZ_RARE, PASS],
+  'wasm/futex': [FUZZ_RARE, PASS],
+  'wasm/many-modules': [FUZZ_RARE, PASS],
+  'wasm/max-wasm-functions': [FUZZ_RARE, PASS],
+  'wasm/memory-resizable-buffer-array-*': [FUZZ_RARE, PASS],
+  'wasm/shared-memory*': [FUZZ_RARE, PASS],
 }], # gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
 
 ##############################################################################
