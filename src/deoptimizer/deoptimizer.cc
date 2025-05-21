@@ -1679,9 +1679,9 @@ void Deoptimizer::DoComputeOutputFrames() {
       (compiled_code_->osr_offset().IsNone()
            ? function_->code(isolate()).SafeEquals(compiled_code_)
            : (!osr_early_exit &&
-              DeoptExitIsInsideOsrLoop(isolate(), function_,
-                                       bytecode_offset_in_outermost_frame_,
-                                       compiled_code_->osr_offset())))) {
+              DeoptExitIsInsideOsrLoop(
+                  isolate(), function_, bytecode_offset_in_outermost_frame_,
+                  compiled_code_->osr_offset(), compiled_code_->kind())))) {
     if (v8_flags.profile_guided_optimization &&
         function_->shared()->cached_tiering_decision() !=
             CachedTieringDecision::kDelayMaglev) {
@@ -1726,7 +1726,8 @@ void Deoptimizer::DoComputeOutputFrames() {
 bool Deoptimizer::DeoptExitIsInsideOsrLoop(Isolate* isolate,
                                            Tagged<JSFunction> function,
                                            BytecodeOffset deopt_exit_offset,
-                                           BytecodeOffset osr_offset) {
+                                           BytecodeOffset osr_offset,
+                                           CodeKind code_kind) {
   DisallowGarbageCollection no_gc;
   HandleScope scope(isolate);
   DCHECK(!deopt_exit_offset.IsNone());
@@ -1739,6 +1740,7 @@ bool Deoptimizer::DeoptExitIsInsideOsrLoop(Isolate* isolate,
 
   interpreter::BytecodeArrayIterator it(bytecode_array, osr_offset.ToInt());
   CHECK(it.CurrentBytecodeIsValidOSREntry());
+  const int osr_loop_nesting_level = it.GetImmediateOperand(1);
 
   for (; !it.done(); it.Advance()) {
     const int current_offset = it.current_offset();
@@ -1757,6 +1759,11 @@ bool Deoptimizer::DeoptExitIsInsideOsrLoop(Isolate* isolate,
     // top-level loop.
     const int loop_nesting_level = it.GetImmediateOperand(1);
     if (loop_nesting_level == 0) return false;
+    // Maglev never jumps above the OSR loop.
+    if (code_kind == CodeKind::MAGLEV &&
+        loop_nesting_level < osr_loop_nesting_level) {
+      return false;
+    }
   }
 
   UNREACHABLE();

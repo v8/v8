@@ -544,7 +544,8 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
     DeoptAllOsrLoopsContainingDeoptExit(isolate, *function, deopt_exit_offset);
   } else if (deopt_reason != DeoptimizeReason::kOSREarlyExit &&
              Deoptimizer::DeoptExitIsInsideOsrLoop(
-                 isolate, *function, deopt_exit_offset, osr_offset)) {
+                 isolate, *function, deopt_exit_offset, osr_offset,
+                 (*optimized_code)->kind())) {
     Deoptimizer::DeoptimizeFunction(
         *function, LazyDeoptimizeReason::kEagerDeopt, *optimized_code);
   }

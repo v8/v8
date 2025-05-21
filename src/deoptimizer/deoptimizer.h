@@ -59,7 +59,8 @@ class Deoptimizer : public Malloced {
   static bool DeoptExitIsInsideOsrLoop(Isolate* isolate,
                                        Tagged<JSFunction> function,
                                        BytecodeOffset deopt_exit_offset,
-                                       BytecodeOffset osr_offset);
+                                       BytecodeOffset osr_offset,
+                                       CodeKind code_kind);
   static DeoptInfo GetDeoptInfo(Tagged<Code> code, Address from);
   DeoptInfo GetDeoptInfo() const {
     return Deoptimizer::GetDeoptInfo(compiled_code_, from_);
