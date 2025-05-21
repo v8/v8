@@ -418,7 +418,7 @@ bool TryGetOptimizedOsrCode(Isolate* isolate, Tagged<FeedbackVector> vector,
 // of turbofan if the exit is before the loop, but reachable through an outer
 // loop). Regardless in both of these two cases, the OSR code is still usable to
 // quickly get out of the loop itself.
-void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate,
+bool DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate,
                                          Tagged<JSFunction> function,
                                          BytecodeOffset deopt_exit_offset) {
   DisallowGarbageCollection no_gc;
@@ -426,39 +426,36 @@ void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate,
 
   if (!v8_flags.use_ic ||
       !function->feedback_vector()->maybe_has_optimized_osr_code()) {
-    return;
+    return false;
   }
   Handle<BytecodeArray> bytecode_array(
       function->shared()->GetBytecodeArray(isolate), isolate);
   DCHECK(interpreter::BytecodeArrayIterator::IsValidOffset(
       bytecode_array, deopt_exit_offset.ToInt()));
 
-  interpreter::BytecodeArrayIterator it(bytecode_array);
-
   Tagged<FeedbackVector> vector = function->feedback_vector();
   Tagged<Code> code;
-  base::SmallVector<Tagged<Code>, 8> osr_codes;
 
+  bool any_marked = false;
   bool has_maglev_code = false;
   bool has_turbofan_code = false;
+
+  interpreter::BytecodeArrayIterator it(bytecode_array);
   for (; !it.done(); it.Advance()) {
     // We're only interested in loop ranges.
     if (it.current_bytecode() != interpreter::Bytecode::kJumpLoop) continue;
     bool has_osr_code = TryGetOptimizedOsrCode(isolate, vector, it, &code);
     if (has_osr_code) {
-      has_turbofan_code |= code->is_turbofanned();
-      has_maglev_code |= code->is_maglevved();
-      bool exit_in_loop =
-          base::IsInRange(deopt_exit_offset.ToInt(), it.GetJumpTargetOffset(),
-                          it.current_offset());
-      if (exit_in_loop) {
-        osr_codes.push_back(code);
+      if (base::IsInRange(deopt_exit_offset.ToInt(), it.GetJumpTargetOffset(),
+                          it.current_offset())) {
+        code->SetMarkedForDeoptimization(isolate,
+                                         LazyDeoptimizeReason::kEagerDeopt);
+        any_marked = true;
+      } else {
+        has_turbofan_code |= code->is_turbofanned();
+        has_maglev_code |= code->is_maglevved();
       }
     }
-  }
-  for (size_t i = 0, size = osr_codes.size(); i < size; i++) {
-    Deoptimizer::DeoptimizeFunction(function, LazyDeoptimizeReason::kEagerDeopt,
-                                    osr_codes[i]);
   }
   Tagged<FeedbackVector> fbv = function->feedback_vector();
   if (!has_maglev_code && fbv->maybe_has_maglev_osr_code()) {
@@ -467,6 +464,7 @@ void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate,
   if (!has_turbofan_code && fbv->maybe_has_turbofan_osr_code()) {
     fbv->set_maybe_has_optimized_osr_code(false, CodeKind::TURBOFAN_JS);
   }
+  return any_marked;
 }
 
 }  // namespace
@@ -526,6 +524,9 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
+  DCHECK_NE(deopt_reason, DeoptimizeReason::kOSREarlyExit);
+  DCHECK_NE(deopt_reason, DeoptimizeReason::kPrepareForOnStackReplacement);
+
   // Non-OSR'd code is deoptimized unconditionally. If the deoptimization occurs
   // inside the outermost loop containing a loop that can trigger OSR
   // compilation, we remove the OSR code, it will avoid hit the out of date OSR
@@ -537,17 +538,30 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   // long-running loop; so if the deoptimization occurs outside this loop it is
   // still worth jumping to the OSR'd code on the next run. The reduced cost of
   // the loop should pay for the deoptimization costs.
+
   const BytecodeOffset osr_offset = optimized_code->osr_offset();
+  bool any_marked = false;
+
+  if (osr_offset.IsNone() || Deoptimizer::DeoptExitIsInsideOsrLoop(
+                                 isolate, *function, deopt_exit_offset,
+                                 osr_offset, optimized_code->kind())) {
+    function->ResetTieringRequests();
+    if (!optimized_code->marked_for_deoptimization()) {
+      optimized_code->SetMarkedForDeoptimization(
+          isolate, LazyDeoptimizeReason::kEagerDeopt);
+      any_marked = true;
+    }
+  }
+
   if (osr_offset.IsNone()) {
-    Deoptimizer::DeoptimizeFunction(
-        *function, LazyDeoptimizeReason::kEagerDeopt, *optimized_code);
-    DeoptAllOsrLoopsContainingDeoptExit(isolate, *function, deopt_exit_offset);
-  } else if (deopt_reason != DeoptimizeReason::kOSREarlyExit &&
-             Deoptimizer::DeoptExitIsInsideOsrLoop(
-                 isolate, *function, deopt_exit_offset, osr_offset,
-                 (*optimized_code)->kind())) {
-    Deoptimizer::DeoptimizeFunction(
-        *function, LazyDeoptimizeReason::kEagerDeopt, *optimized_code);
+    if (DeoptAllOsrLoopsContainingDeoptExit(isolate, *function,
+                                            deopt_exit_offset)) {
+      any_marked = true;
+    }
+  }
+
+  if (any_marked) {
+    Deoptimizer::DeoptimizeMarkedCode(isolate);
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
