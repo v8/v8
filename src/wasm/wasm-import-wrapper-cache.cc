@@ -227,8 +227,11 @@ std::shared_ptr<WasmImportWrapperHandle> WasmImportWrapperCache::Get(
 
     // If we have an entry already, just return that.
     auto it = entry_map_.find(cache_key);
-    if (it != entry_map_.end() && !it->second.expired()) {
-      return it->second.lock();
+    if (it != entry_map_.end()) {
+      std::shared_ptr<WasmImportWrapperHandle> handle = it->second.lock();
+      if (handle) {
+        return handle;
+      }
     }
 
     // Check if we should use a builtin.
@@ -252,9 +255,9 @@ std::shared_ptr<WasmImportWrapperHandle> WasmImportWrapperCache::Get(
 bool WasmImportWrapperCache::IsCompiledWrapper(WasmCodePointer code_pointer) {
   base::MutexGuard lock(&mutex_);
   for (auto& [cache_key, weak_handle] : entry_map_) {
-    if (weak_handle.expired()) continue;
-
     std::shared_ptr<WasmImportWrapperHandle> handle = weak_handle.lock();
+    if (!handle) continue;
+
     if (handle->code_pointer() == code_pointer) {
       return handle->has_code();
     }
@@ -272,9 +275,9 @@ bool WasmImportWrapperCache::HasCodeForTesting(ImportCallKind kind,
   CacheKey cache_key(kind, type_index, expected_arity, suspend);
   auto it = entry_map_.find(cache_key);
   if (it == entry_map_.end()) return false;
-  auto& code_pointer = it->second;
-  if (code_pointer.expired()) return false;
-  return code_pointer.lock()->has_code();
+  auto handle = it->second.lock();
+  if (!handle) return false;
+  return handle->has_code();
 }
 
 std::shared_ptr<WasmImportWrapperHandle> WasmImportWrapperCache::GetCompiled(
@@ -290,9 +293,9 @@ std::shared_ptr<WasmImportWrapperHandle> WasmImportWrapperCache::GetCompiled(
     base::MutexGuard lock(&mutex_);
 
     auto it = entry_map_.find(cache_key);
-    if (it != entry_map_.end() && !it->second.expired()) {
+    if (it != entry_map_.end()) {
       wrapper_handle = it->second.lock();
-      if (wrapper_handle->has_code()) {
+      if (wrapper_handle && wrapper_handle->has_code()) {
         return wrapper_handle;
       }
     }
@@ -330,7 +333,7 @@ std::shared_ptr<WasmImportWrapperHandle> WasmImportWrapperCache::CompileWrapper(
 
     if (!wrapper_handle) {
       auto it = entry_map_.find(cache_key);
-      if (it != entry_map_.end() && !it->second.expired()) {
+      if (it != entry_map_.end()) {
         wrapper_handle = it->second.lock();
       }
     }
