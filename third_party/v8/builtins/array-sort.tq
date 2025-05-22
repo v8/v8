@@ -1384,13 +1384,15 @@ transitioning macro CopyWorkArrayToReceiver(
         context, sortState, index, UnsafeCast<JSAny>(workArray.objects[index]));
   }
 
+  const end: Smi = sortState.sortLength;
+  if (index == end) return;
+
   const numberOfUndefinedEnd: Smi =
       sortState.numberOfUndefined + numberOfNonUndefined;
   for (; index < numberOfUndefinedEnd; ++index) {
     storeFn(context, sortState, index, Undefined);
   }
 
-  const end: Smi = sortState.sortLength;
   let deleteFn: builtin(Context, SortState, Smi) => Smi;
   try {
     if (sortState.isResetToGeneric == True) goto Slow;
