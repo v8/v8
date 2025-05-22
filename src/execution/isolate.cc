@@ -2282,10 +2282,18 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
     wasm::StackMemory* active_stack = isolate_data_.active_stack();
     if (active_stack != nullptr) {
       wasm::StackMemory* parent = nullptr;
+      Tagged<HeapObject> suspender = *roots_table().active_suspender();
       while (active_stack != iter.wasm_stack()) {
         parent = active_stack->jmpbuf()->parent;
         SBXCHECK_EQ(parent->jmpbuf()->state, wasm::JumpBuffer::Inactive);
         SwitchStacks(active_stack, parent);
+        // Unconditionally update the active suspender as well. This assumes
+        // that suspenders contain exactly one stack each.
+        // Note: this is only needed for --stress-wasm-stack-switching.
+        // Otherwise the exception should have been caught by the JSPI builtin.
+        // TODO(388533754): Revisit this for core stack-switching when the
+        // suspender can encapsulate multiple stacks.
+        suspender = Tagged<WasmSuspenderObject>::cast(suspender)->parent();
         parent->jmpbuf()->state = wasm::JumpBuffer::Active;
         RetireWasmStack(active_stack);
         active_stack = parent;
@@ -2293,6 +2301,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       if (parent) {
         // We switched at least once, update the active continuation.
         isolate_data_.set_active_stack(active_stack);
+        roots_table().slot(RootIndex::kActiveSuspender).store(suspender);
       }
     }
     // The unwinder is running on the central stack. If the target frame is in a
