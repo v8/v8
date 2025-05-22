@@ -210,8 +210,8 @@ class ExceptionHandlerInfo;
   V(InitialValue)                                   \
   V(LoadTaggedField)                                \
   V(LoadTaggedFieldForProperty)                     \
+  V(LoadTaggedFieldForContextSlotNoCells)           \
   V(LoadTaggedFieldForContextSlot)                  \
-  V(LoadTaggedFieldForScriptContextSlot)            \
   V(LoadDoubleField)                                \
   V(LoadFloat64)                                    \
   V(LoadInt32)                                      \
@@ -8071,23 +8071,23 @@ class LoadTaggedFieldForProperty
   compiler::NameRef name_;
 };
 
-class LoadTaggedFieldForContextSlot
-    : public AbstractLoadTaggedField<LoadTaggedFieldForContextSlot> {
-  using Base = AbstractLoadTaggedField<LoadTaggedFieldForContextSlot>;
+class LoadTaggedFieldForContextSlotNoCells
+    : public AbstractLoadTaggedField<LoadTaggedFieldForContextSlotNoCells> {
+  using Base = AbstractLoadTaggedField<LoadTaggedFieldForContextSlotNoCells>;
 
  public:
-  explicit LoadTaggedFieldForContextSlot(uint64_t bitfield, const int offset)
+  explicit LoadTaggedFieldForContextSlotNoCells(uint64_t bitfield,
+                                                const int offset)
       : Base(bitfield, offset) {}
 };
 
-class LoadTaggedFieldForScriptContextSlot
-    : public FixedInputValueNodeT<1, LoadTaggedFieldForScriptContextSlot> {
-  using Base = FixedInputValueNodeT<1, LoadTaggedFieldForScriptContextSlot>;
+class LoadTaggedFieldForContextSlot
+    : public FixedInputValueNodeT<1, LoadTaggedFieldForContextSlot> {
+  using Base = FixedInputValueNodeT<1, LoadTaggedFieldForContextSlot>;
 
  public:
-  explicit LoadTaggedFieldForScriptContextSlot(uint64_t bitfield,
-                                               const int index)
-      : Base(bitfield), index_(index) {}
+  explicit LoadTaggedFieldForContextSlot(uint64_t bitfield, const int offset)
+      : Base(bitfield), offset_(offset) {}
 
   static constexpr OpProperties kProperties = OpProperties::CanRead() |
                                               OpProperties::CanAllocate() |
@@ -8095,8 +8095,7 @@ class LoadTaggedFieldForScriptContextSlot
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
-  int offset() const { return Context::OffsetOfElementAt(index_); }
-  int index() const { return index_; }
+  int offset() const { return offset_; }
 
   using Base::input;
   static constexpr int kContextIndex = 0;
@@ -8107,12 +8106,12 @@ class LoadTaggedFieldForScriptContextSlot
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
-  auto options() const { return std::tuple{index()}; }
+  auto options() const { return std::tuple{offset()}; }
 
   using Base::decompresses_tagged_result;
 
  private:
-  const int index_;
+  const int offset_;
 };
 
 class LoadDoubleField : public FixedInputValueNodeT<1, LoadDoubleField> {

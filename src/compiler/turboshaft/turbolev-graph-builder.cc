@@ -2940,9 +2940,8 @@ class GraphBuildingNodeProcessor {
 
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(
-      maglev::LoadTaggedFieldForScriptContextSlot* node,
-      const maglev::ProcessingState& state) {
+  maglev::ProcessResult Process(maglev::LoadTaggedFieldForContextSlot* node,
+                                const maglev::ProcessingState& state) {
     V<Context> script_context = V<Context>::Cast(Map(node->context()));
     V<Object> value = __ LoadTaggedField(script_context, node->offset());
     ScopedVar<Object, AssemblerT> result(this, value);

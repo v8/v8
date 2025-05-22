@@ -102,7 +102,7 @@ class LoopOptimizationProcessor {
     return input->owner() != current_block;
   }
 
-  ProcessResult Process(LoadTaggedFieldForContextSlot* ltf,
+  ProcessResult Process(LoadTaggedFieldForContextSlotNoCells* ltf,
                         const ProcessingState& state) {
     DCHECK(loop_effects);
     ValueNode* object = ltf->object_input().node();

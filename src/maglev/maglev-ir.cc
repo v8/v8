@@ -2548,15 +2548,15 @@ void AbstractLoadTaggedField<T>::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void LoadTaggedFieldForScriptContextSlot::SetValueLocationConstraints() {
+void LoadTaggedFieldForContextSlot::SetValueLocationConstraints() {
   UseRegister(context());
   set_temporaries_needed(2);
   set_double_temporaries_needed(1);
   DefineAsRegister(this);
 }
 
-void LoadTaggedFieldForScriptContextSlot::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
+void LoadTaggedFieldForContextSlot::GenerateCode(MaglevAssembler* masm,
+                                                 const ProcessingState& state) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register script_context = ToRegister(context());
   Register value = ToRegister(result());
@@ -2572,7 +2572,7 @@ void LoadTaggedFieldForScriptContextSlot::GenerateCode(
   __ JumpToDeferredIf(
       kEqual,
       [](MaglevAssembler* masm, Register value, Register scratch,
-         LoadTaggedFieldForScriptContextSlot* node, ZoneLabelRef done) {
+         LoadTaggedFieldForContextSlot* node, ZoneLabelRef done) {
         MaglevAssembler::TemporaryRegisterScope temps(masm);
         DoubleRegister double_value = temps.AcquireDouble();
         Label allocate, is_untagged;
@@ -7784,7 +7784,7 @@ void AbstractLoadTaggedField<T>::PrintParams(
   os << ")";
 }
 
-void LoadTaggedFieldForScriptContextSlot::PrintParams(
+void LoadTaggedFieldForContextSlot::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
@@ -8142,7 +8142,7 @@ void MigrateMapIfNeeded::ClearUnstableNodeAspects(
 }
 
 template class AbstractLoadTaggedField<LoadTaggedField>;
-template class AbstractLoadTaggedField<LoadTaggedFieldForContextSlot>;
+template class AbstractLoadTaggedField<LoadTaggedFieldForContextSlotNoCells>;
 template class AbstractLoadTaggedField<LoadTaggedFieldForProperty>;
 
 template class CheckedNumberOrOddballToFloat64OrHoleyFloat64<

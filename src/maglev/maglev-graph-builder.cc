@@ -3441,9 +3441,9 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextSlot(
   }
   int offset = Context::OffsetOfElementAt(index);
   if (!maybe_value->IsContextCell()) {
-    // No need to check for extended context slots anymore.
-    return BuildLoadTaggedField<LoadTaggedFieldForContextSlot>(context_node,
-                                                               offset);
+    // No need to check for context cells anymore.
+    return BuildLoadTaggedField<LoadTaggedFieldForContextSlotNoCells>(
+        context_node, offset);
   }
   compiler::ContextCellRef slot_ref = maybe_value->AsContextCell();
   ContextCell::State state = slot_ref.state();
@@ -3451,8 +3451,8 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextSlot(
     case ContextCell::kConst: {
       auto constant = slot_ref.tagged_value(broker());
       if (!constant.has_value()) {
-        return BuildLoadTaggedField<LoadTaggedFieldForContextSlot>(context_node,
-                                                                   offset);
+        return BuildLoadTaggedField<LoadTaggedFieldForContextSlotNoCells>(
+            context_node, offset);
       }
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
       return GetConstant(*constant);
@@ -3475,8 +3475,8 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextSlot(
           {GetConstant(slot_ref)},
           static_cast<int>(offsetof(ContextCell, double_value_)));
     case ContextCell::kDetached:
-      return BuildLoadTaggedField<LoadTaggedFieldForContextSlot>(context_node,
-                                                                 offset);
+      return BuildLoadTaggedField<LoadTaggedFieldForContextSlotNoCells>(
+          context_node, offset);
   }
   UNREACHABLE();
 }
@@ -3500,16 +3500,17 @@ ValueNode* MaglevGraphBuilder::LoadAndCacheContextSlot(
   }
   known_node_aspects().UpdateMayHaveAliasingContexts(context);
   if (context_mode == ContextMode::kHasContextCells &&
-      v8_flags.script_context_cells && slot_mutability == kMutable) {
+      (v8_flags.script_context_cells || v8_flags.function_context_cells) &&
+      slot_mutability == kMutable) {
     // We collect feedback only for mutable context slots.
     cached_value = TrySpecializeLoadContextSlot(context, index);
     if (cached_value) return cached_value;
-    return cached_value =
-               BuildLoadTaggedField<LoadTaggedFieldForScriptContextSlot>(
-                   context, index);
+    return cached_value = BuildLoadTaggedField<LoadTaggedFieldForContextSlot>(
+               context, offset);
   }
-  return cached_value = BuildLoadTaggedField<LoadTaggedFieldForContextSlot>(
-             context, offset);
+  return cached_value =
+             BuildLoadTaggedField<LoadTaggedFieldForContextSlotNoCells>(context,
+                                                                        offset);
 }
 
 bool MaglevGraphBuilder::ContextMayAlias(
@@ -3611,7 +3612,7 @@ ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
       0);
 
   Node* store = nullptr;
-  if (v8_flags.script_context_cells &&
+  if ((v8_flags.script_context_cells || v8_flags.function_context_cells) &&
       context_mode == ContextMode::kHasContextCells) {
     MaybeReduceResult result =
         TrySpecializeStoreContextSlot(context, index, value, &store);
@@ -4583,8 +4584,8 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kInitialValue:
     case Opcode::kLoadTaggedField:
     case Opcode::kLoadTaggedFieldForProperty:
+    case Opcode::kLoadTaggedFieldForContextSlotNoCells:
     case Opcode::kLoadTaggedFieldForContextSlot:
-    case Opcode::kLoadTaggedFieldForScriptContextSlot:
     case Opcode::kLoadDoubleField:
     case Opcode::kLoadFloat64:
     case Opcode::kLoadInt32:
