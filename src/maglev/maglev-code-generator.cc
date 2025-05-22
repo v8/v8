@@ -620,6 +620,9 @@ class ExceptionHandlerTrampolineBuilder {
       // to Runtime::kThrowFoo?
       DCHECK(!source->allocation().IsRegister());
 
+      // The DeoptInfoVisitor should unwrap identity nodes in frame states.
+      DCHECK(!source->Is<Identity>());
+
       switch (source->properties().value_representation()) {
         case ValueRepresentation::kTagged:
           direct_moves->RecordMove(
