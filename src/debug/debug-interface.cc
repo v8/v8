@@ -1396,10 +1396,6 @@ Local<EphemeronTable> EphemeronTable::New(v8::Isolate* isolate) {
   return ToApiHandle<EphemeronTable>(table);
 }
 
-EphemeronTable* EphemeronTable::Cast(v8::Value* value) {
-  return static_cast<EphemeronTable*>(value);
-}
-
 Local<Value> AccessorPair::getter() {
   auto accessors = Utils::OpenDirectHandle(this);
   i::Isolate* isolate = i::Isolate::Current();
