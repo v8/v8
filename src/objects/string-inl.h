@@ -38,6 +38,7 @@
 #include "src/torque/runtime-macro-shims.h"
 #include "src/torque/runtime-support.h"
 #include "src/utils/utils.h"
+#include "third_party/simdutf/simdutf.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -1210,17 +1211,18 @@ size_t String::Utf8Length(Isolate* isolate, DirectHandle<String> string) {
   DisallowGarbageCollection no_gc;
   FlatContent content = string->GetFlatContent(no_gc);
   DCHECK(content.IsFlat());
-  size_t utf8_length = 0;
   if (content.IsOneByte()) {
-    for (uint8_t c : content.ToOneByteVector()) {
-      utf8_length += unibrow::Utf8::LengthOneByte(c);
-    }
-  } else {
-    uint16_t last_character = unibrow::Utf16::kNoPreviousCharacter;
-    for (uint16_t c : content.ToUC16Vector()) {
-      utf8_length += unibrow::Utf8::Length(c, last_character);
-      last_character = c;
-    }
+    auto vec = content.ToOneByteVector();
+    return simdutf::utf8_length_from_latin1(
+        reinterpret_cast<const char*>(vec.begin()), vec.size());
+  }
+
+  // TODO(419496232): Use simdutf once upstream bug is resolved.
+  size_t utf8_length = 0;
+  uint16_t last_character = unibrow::Utf16::kNoPreviousCharacter;
+  for (uint16_t c : content.ToUC16Vector()) {
+    utf8_length += unibrow::Utf8::Length(c, last_character);
+    last_character = c;
   }
   return utf8_length;
 }
