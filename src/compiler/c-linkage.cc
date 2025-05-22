@@ -93,13 +93,8 @@ namespace {
 #define STACK_SHADOW_WORDS 14
 #endif
 #define PARAM_REGISTERS r3, r4, r5, r6, r7, r8, r9, r10
-#define CALLEE_SAVE_REGISTERS                                                \
-  r14, r15, r16, r17, r18, r19, r20, r21, r22, r23, r24, r25, r26, r27, r28, \
-      r29, r30
-
-#define CALLEE_SAVE_FP_REGISTERS                                             \
-  d14, d15, d16, d17, d18, d19, d20, d21, d22, d23, d24, d25, d26, d27, d28, \
-      d29, d30, d31
+#define CALLEE_SAVE_REGISTERS C_CALL_CALLEE_SAVE_REGISTERS
+#define CALLEE_SAVE_FP_REGISTERS C_CALL_CALLEE_SAVE_FP_REGISTERS
 
 #elif V8_TARGET_ARCH_S390X
 // ===========================================================================
@@ -107,8 +102,8 @@ namespace {
 // ===========================================================================
 #define STACK_SHADOW_WORDS 20
 #define PARAM_REGISTERS r2, r3, r4, r5, r6
-#define CALLEE_SAVE_REGISTERS r6, r7, r8, r9, r10, ip, r13
-#define CALLEE_SAVE_FP_REGISTERS d8, d9, d10, d11, d12, d13, d14, d15
+#define CALLEE_SAVE_REGISTERS C_CALL_CALLEE_SAVE_REGISTERS
+#define CALLEE_SAVE_FP_REGISTERS C_CALL_CALLEE_SAVE_FP_REGISTERS
 
 #elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
 // ===========================================================================

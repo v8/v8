@@ -2698,9 +2698,6 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
     dest = r6;
   }
 #else
-  // Just call directly. The function called cannot cause a GC, or
-  // allow preemption, so the return address in the link register
-  // stays correct.
   Register dest = function;
   if (ABI_CALL_VIA_IP) {
     Move(ip, function);
@@ -2740,15 +2737,7 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
   bind(&get_pc);
   if (return_label) bind(return_label);
 
-  if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
-    // We don't unset the PC; the FP is the source of truth.
-    Register zero_scratch = r0;
-    lghi(zero_scratch, Operand::Zero());
-
-    StoreU64(zero_scratch,
-             ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
-  }
-
+  int before_offset = pc_offset();
   int stack_passed_arguments =
       CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
   int stack_space = kNumRequiredStackFrameSlots + stack_passed_arguments;
@@ -2756,7 +2745,21 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
     // Load the original stack pointer (pre-alignment) from the stack
     LoadU64(sp, MemOperand(sp, stack_space * kSystemPointerSize));
   } else {
-    la(sp, MemOperand(sp, stack_space * kSystemPointerSize));
+    // Using agfi to match the instruction size kMaxSizeOfMoveAfterFastCall.
+    agfi(sp, Operand(stack_space * kSystemPointerSize));
+  }
+  // We assume that the move instruction uses kMaxSizeOfMoveAfterFastCall
+  // bytes. When we patch in the deopt trampoline, we patch it in after the
+  // move instruction, so that the stack has been restored correctly.
+  CHECK_EQ(kMaxSizeOfMoveAfterFastCall, pc_offset() - before_offset);
+
+  if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
+    // We don't unset the PC; the FP is the source of truth.
+    Register zero_scratch = r0;
+    lghi(zero_scratch, Operand::Zero());
+
+    StoreU64(zero_scratch,
+             ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
   }
 
   return call_pc_offset;

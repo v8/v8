@@ -2813,9 +2813,6 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
     Pop(scratch);
   }
 
-  // Just call directly. The function called cannot cause a GC, or
-  // allow preemption, so the return address in the link register
-  // stays correct.
   Register dest = function;
   if (ABI_USES_FUNCTION_DESCRIPTORS && has_function_descriptor) {
     // AIX/PPC64BE Linux uses a function descriptor. When calling C code be
@@ -2830,15 +2827,33 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
     dest = ip;
   }
 
-  Call(dest);
-  int call_pc_offset = pc_offset();
-  int offset_since_start_call = SizeOfCodeGeneratedSince(&start_call);
-  // Here we are going to patch the `addi` instruction above to use the
-  // correct offset.
-  // LoadPC emits two instructions and pc is the address of its second emitted
-  // instruction. Add one more to the offset to point to after the Call.
-  offset_since_start_call += kInstrSize;
-  patch_pc_address(pc_scratch, start_pc_offset, offset_since_start_call);
+  int call_pc_offset;
+  {
+    ConstantPoolUnavailableScope block_const_pool_scope(this);
+    Call(dest);
+    call_pc_offset = pc_offset();
+    int offset_since_start_call = SizeOfCodeGeneratedSince(&start_call);
+    // Here we are going to patch the `addi` instruction above to use the
+    // correct offset.
+    // LoadPC emits two instructions and pc is the address of its second emitted
+    // instruction. Add one more to the offset to point to after the Call.
+    offset_since_start_call += kInstrSize;
+    patch_pc_address(pc_scratch, start_pc_offset, offset_since_start_call);
+
+    int before_offset = pc_offset();
+    int stack_passed_arguments =
+        CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
+    int stack_space = kNumRequiredStackFrameSlots + stack_passed_arguments;
+    if (ActivationFrameAlignment() > kSystemPointerSize) {
+      LoadU64(sp, MemOperand(sp, stack_space * kSystemPointerSize), r0);
+    } else {
+      AddS64(sp, sp, Operand(stack_space * kSystemPointerSize), r0);
+    }
+    // We assume that the move instruction uses kMaxSizeOfMoveAfterFastCall
+    // bytes. When we patch in the deopt trampoline, we patch it in after the
+    // move instruction, so that the stack has been restored correctly.
+    CHECK_EQ(kMaxSizeOfMoveAfterFastCall, pc_offset() - before_offset);
+  }
 
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // We don't unset the PC; the FP is the source of truth.
@@ -2847,16 +2862,6 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
 
     StoreU64(zero_scratch,
              ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
-  }
-
-  // Remove frame bought in PrepareCallCFunction
-  int stack_passed_arguments =
-      CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
-  int stack_space = kNumRequiredStackFrameSlots + stack_passed_arguments;
-  if (ActivationFrameAlignment() > kSystemPointerSize) {
-    LoadU64(sp, MemOperand(sp, stack_space * kSystemPointerSize), r0);
-  } else {
-    AddS64(sp, sp, Operand(stack_space * kSystemPointerSize), r0);
   }
 
   return call_pc_offset;
