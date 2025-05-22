@@ -724,6 +724,7 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   if (scope->is_eval_scope() && is_sloppy(scope->language_mode())) {
     AstNodeFactory factory(info->ast_value_factory(), info->zone());
     scope->HoistSloppyBlockFunctions(&factory);
+    scope->RemoveDynamic();
   }
 
   // We are compiling one of four cases:
