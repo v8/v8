@@ -2123,7 +2123,6 @@ OpIndex GraphBuilder::Process(
       for (int i = 1; i < n.SlowCallArgumentCount(); ++i) {
         slow_call_arguments.push_back(Map(n.SlowCallArgument(i)));
       }
-      OpIndex frame_state = slow_call_arguments.back();
 
       auto convert_fallback_return = [this](Variable value,
                                             CFunctionInfo::Int64Representation
@@ -2306,7 +2305,7 @@ OpIndex GraphBuilder::Process(
           return_type, parameters->c_signature()->GetInt64Representation());
 
       V<Tuple<Word32, Any>> fast_call_result =
-          __ FastApiCall(frame_state, data_argument, context,
+          __ FastApiCall(dominating_frame_state, data_argument, context,
                          base::VectorOf(arguments), parameters, out_reps);
 
       V<Word32> result_state = __ template Projection<0>(fast_call_result);
@@ -2324,7 +2323,8 @@ OpIndex GraphBuilder::Process(
         // primitive types only, so we avoid generating an extra branch here.
 
         V<Object> fallback_result = V<Object>::Cast(__ Call(
-            slow_call_callee, frame_state, base::VectorOf(slow_call_arguments),
+            slow_call_callee, dominating_frame_state,
+            base::VectorOf(slow_call_arguments),
             TSCallDescriptor::Create(params.descriptor(), CanThrow::kYes,
                                      LazyDeoptOnThrow::kNo, __ graph_zone())));
 

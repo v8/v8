@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/codegen/flush-instruction-cache.h"
-#include "src/codegen/macro-assembler.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/isolate-data.h"
 
@@ -26,18 +24,7 @@ const int Deoptimizer::kLazyDeoptExitSize = 2 * kInstrSize;
 const int Deoptimizer::kAdaptShadowStackOffsetToSubtract = 0;
 
 // static
-void Deoptimizer::PatchToJump(Address pc, Address new_pc) {
-  int offset = new_pc - (pc + Instruction::kPcLoadDelta);
-  // We'll overwrite only one instruction of 4-bytes. Give enough
-  // space not to try to grow the buffer.
-  constexpr int kSize = 64;
-
-  Assembler masm(
-      AssemblerOptions{},
-      ExternalAssemblerBuffer(reinterpret_cast<uint8_t*>(pc), kSize));
-  masm.b(offset);
-  FlushInstructionCache(pc, kSize);
-}
+void Deoptimizer::PatchToJump(Address pc, Address new_pc) { UNREACHABLE(); }
 
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {
   const Address start = reinterpret_cast<Address>(simd128_registers_);

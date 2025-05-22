@@ -2874,27 +2874,13 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
     Pop(pc_scratch);
   }
 
-  int call_pc_offset;
-  {
-    BlockConstPoolScope block_const_pool_scope(this);
-    Call(function);
-    call_pc_offset = pc_offset();
-    bind(&get_pc);
-    if (return_label) bind(return_label);
-
-    int before_offset = pc_offset();
-    int stack_passed_arguments =
-        CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
-    if (ActivationFrameAlignment() > kPointerSize) {
-      ldr(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
-    } else {
-      add(sp, sp, Operand(stack_passed_arguments * kPointerSize));
-    }
-    // We assume that the move instruction uses kMaxSizeOfMoveAfterFastCall
-    // bytes. When we patch in the deopt trampoline, we patch it in after the
-    // move instruction, so that the stack has been restored correctly.
-    CHECK_EQ(kMaxSizeOfMoveAfterFastCall, pc_offset() - before_offset);
-  }
+  // Just call directly. The function called cannot cause a GC, or
+  // allow preemption, so the return address in the link register
+  // stays correct.
+  Call(function);
+  int call_pc_offset = pc_offset();
+  bind(&get_pc);
+  if (return_label) bind(return_label);
 
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // We don't unset the PC; the FP is the source of truth.
@@ -2906,6 +2892,14 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
         ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
 
     Pop(zero_scratch);
+  }
+
+  int stack_passed_arguments =
+      CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
+  if (ActivationFrameAlignment() > kPointerSize) {
+    ldr(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
+  } else {
+    add(sp, sp, Operand(stack_passed_arguments * kPointerSize));
   }
 
   return call_pc_offset;

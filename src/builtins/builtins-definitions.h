@@ -57,7 +57,6 @@ namespace internal {
   /* Deoptimization entries. */                                             \
   ASM(DeoptimizationEntry_Eager, DeoptimizationEntry)                       \
   ASM(DeoptimizationEntry_Lazy, DeoptimizationEntry)                        \
-  ASM(DeoptimizationEntry_LazyAfterFastCall, DeoptimizationEntry)           \
                                                                             \
   /* GC write barrier. */                                                   \
   TFC(RecordWriteSaveFP, WriteBarrier)                                      \
@@ -67,7 +66,8 @@ namespace internal {
                                                                             \
   /* TODO(ishell): dummy builtin added here just to keep the Tier0 table */ \
   /* size unmodified to avoid unexpected performance implications. */       \
-  /* It should be removed. */
+  /* It should be removed. */                                               \
+  CPP(DummyBuiltin, kDontAdaptArgumentsSentinel)
 
 #ifdef V8_ENABLE_LEAPTIERING
 

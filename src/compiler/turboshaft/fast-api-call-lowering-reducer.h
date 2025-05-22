@@ -101,7 +101,7 @@ class FastApiCallLoweringReducer : public Next {
       const TSCallDescriptor* call_descriptor = TSCallDescriptor::Create(
           Linkage::GetSimplifiedCDescriptor(__ graph_zone(), builder.Get(),
                                             CallDescriptor::kNeedsFrameState),
-          CanThrow::kYes, LazyDeoptOnThrow::kNo, __ graph_zone());
+          CanThrow::kNo, LazyDeoptOnThrow::kNo, __ graph_zone());
       OpIndex c_call_result = WrapFastCall(call_descriptor, callee, frame_state,
                                            context, base::VectorOf(args));
 

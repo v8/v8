@@ -721,10 +721,6 @@ class VFPRegisters {
 // Relative jumps on ARM can address ±32 MB.
 constexpr size_t kMaxPCRelativeCodeRangeInMB = 32;
 
-// The maximum size of the stack restore after a fast API call that pops the
-// stack parameters of the call off the stack.
-constexpr int kMaxSizeOfMoveAfterFastCall = 4;
-
 }  // namespace internal
 }  // namespace v8
 

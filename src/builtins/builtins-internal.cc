@@ -15,6 +15,9 @@ BUILTIN(Illegal) {
   UNREACHABLE();
 }
 
+// TODO(ishell): remove this unused builtin.
+BUILTIN(DummyBuiltin) { UNREACHABLE(); }
+
 BUILTIN(IllegalInvocationThrower) {
   HandleScope scope(isolate);
   THROW_NEW_ERROR_RETURN_FAILURE(
