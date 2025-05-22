@@ -253,6 +253,17 @@ class V8_EXPORT IsolateGroup {
     return !operator==(other);
   }
 
+#ifdef V8_ENABLE_SANDBOX
+  /**
+   * Whether the sandbox of the isolate group contains a given pointer.
+   * Will always return true if the sandbox is not enabled.
+   */
+  bool SandboxContains(void* pointer) const;
+  VirtualAddressSpace* GetSandboxAddressSpace();
+#else
+  V8_INLINE bool SandboxContains(void* pointer) const { return true; }
+#endif
+
  private:
   friend class Isolate;
   friend class ArrayBuffer::Allocator;

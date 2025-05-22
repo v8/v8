@@ -9066,6 +9066,19 @@ std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStore(
       static_cast<v8::BackingStore*>(backing_store.release()));
 }
 
+#ifdef V8_ENABLE_SANDBOX
+bool v8::IsolateGroup::SandboxContains(void* pointer) const {
+  return isolate_group_->sandbox()->Contains(pointer);
+}
+
+VirtualAddressSpace* v8::IsolateGroup::GetSandboxAddressSpace() {
+  i::Sandbox* sandbox = isolate_group_->sandbox();
+  Utils::ApiCheck(sandbox->is_initialized(), "v8::V8::GetSandboxAddressSpace",
+                  "The sandbox must be initialized first");
+  return sandbox->address_space();
+}
+#endif
+
 std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStore(
     void* data, size_t byte_length, v8::BackingStore::DeleterCallback deleter,
     void* deleter_data) {

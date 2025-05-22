@@ -13535,7 +13535,106 @@ UNINITIALIZED_TEST(TwoIsolateGroups) {
   TestAllocateAndNewForTwoIsolateGroups(create_params_1, create_params_2,
                                         groups[0], groups[1]);
 }
-#endif
+#endif  // defined(V8_COMPRESS_POINTERS) && \
+        // !defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+
+#ifdef V8_ENABLE_SANDBOX
+
+class CustomArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  explicit CustomArrayBufferAllocator(v8::IsolateGroup& group)
+      : group_(group), address_space_(group.GetSandboxAddressSpace()) {}
+
+  void* Allocate(size_t size) {
+    uintptr_t result = address_space_->AllocatePages(
+        0, kSIZE, kALIGN, v8::PagePermissions::kReadWrite);
+    allocated_address_ = reinterpret_cast<void*>(result);
+    return allocated_address_;
+  }
+
+  void* AllocateUninitialized(size_t size) {
+    uintptr_t result = address_space_->AllocatePages(
+        0, kSIZE, kALIGN, v8::PagePermissions::kReadWrite);
+    allocated_address_ = reinterpret_cast<void*>(result);
+    return allocated_address_;
+  }
+
+  void Free(void* p, size_t size) {
+    address_space_->FreePages(reinterpret_cast<uintptr_t>(p), kSIZE);
+  }
+
+  void* allocated_address() const { return allocated_address_; }
+
+ private:
+  static constexpr int kSIZE = 64 << 10;
+  static constexpr int kALIGN = 64 << 10;
+  v8::IsolateGroup group_;
+  v8::VirtualAddressSpace* address_space_;
+  void* allocated_address_ = nullptr;
+};
+
+#else  // def V8_ENABLE_SANDBOX
+
+class CustomArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  explicit CustomArrayBufferAllocator(v8::IsolateGroup& group) {}
+
+  void* Allocate(size_t size) {
+    void* result = malloc(size);
+    allocated_address_ = result;
+    return result;
+  }
+
+  void* AllocateUninitialized(size_t size) {
+    void* result = calloc(size, 1);
+    allocated_address_ = result;
+    return result;
+  }
+
+  void Free(void* p, size_t size) { free(p); }
+
+  void* allocated_address() const { return allocated_address_; }
+
+ private:
+  void* allocated_address_ = nullptr;
+};
+
+#endif  // def V8_ENABLE_SANDBOX
+
+UNINITIALIZED_TEST(SandboxContains) {
+  v8::IsolateGroup group1 = v8::IsolateGroup::GetDefault();
+  v8::IsolateGroup group2 = v8::IsolateGroup::CanCreateNewGroups()
+                                ? v8::IsolateGroup::Create()
+                                : v8::IsolateGroup::GetDefault();
+
+  CustomArrayBufferAllocator allocator1(group1);
+  CustomArrayBufferAllocator allocator2(group2);
+
+  v8::Isolate::CreateParams create_params_1;
+  create_params_1.array_buffer_allocator = &allocator1;
+  v8::Isolate::CreateParams create_params_2;
+  create_params_2.array_buffer_allocator = &allocator2;
+
+  TestAllocateAndNewForTwoIsolateGroups(create_params_1, create_params_2,
+                                        group1, group2);
+
+  constexpr int SIZE = 200;
+
+  void* p1 = allocator1.Allocate(SIZE);
+  void* p2 = allocator2.Allocate(SIZE);
+
+  CHECK_EQ(p1, allocator1.allocated_address());
+  CHECK_EQ(p2, allocator2.allocated_address());
+  CHECK(group1.SandboxContains(p1));
+  CHECK(group2.SandboxContains(p2));
+  if (v8::IsolateGroup::CanCreateNewGroups()) {
+    CHECK(!group1.SandboxContains(p2));
+    CHECK(!group2.SandboxContains(p1));
+  }
+
+  allocator1.Free(p1, SIZE);
+  allocator2.Free(p2, SIZE);
+}
 
 unsigned ApiTestFuzzer::linear_congruential_generator;
 std::vector<std::unique_ptr<ApiTestFuzzer>> ApiTestFuzzer::fuzzers_;
