@@ -826,6 +826,11 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const CanonicalSig* sig);
   V(StructAtomicGetS, 0xfe5d, _, "struct.atomic.get_s")                        \
   V(StructAtomicGetU, 0xfe5e, _, "struct.atomic.get_u")                        \
   V(StructAtomicSet, 0xfe5f, _, "struct.atomic.set")                           \
+  V(StructAtomicAdd, 0xfe60, _, "struct.atomic.rmw.add")                       \
+  V(StructAtomicSub, 0xfe61, _, "struct.atomic.rmw.sub")                       \
+  V(StructAtomicAnd, 0xfe62, _, "struct.atomic.rmw.and")                       \
+  V(StructAtomicOr, 0xfe63, _, "struct.atomic.rmw.or")                         \
+  V(StructAtomicXor, 0xfe64, _, "struct.atomic.rmw.xor")                       \
   V(ArrayAtomicGet, 0xfe67, _, "array.atomic.get")                             \
   V(ArrayAtomicGetS, 0xfe68, _, "array.atomic.get_s")                          \
   V(ArrayAtomicGetU, 0xfe69, _, "array.atomic.get_u")                          \

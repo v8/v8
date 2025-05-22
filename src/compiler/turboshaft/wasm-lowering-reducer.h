@@ -296,6 +296,34 @@ class WasmLoweringReducer : public Next {
     return OpIndex::Invalid();
   }
 
+  V<Word> REDUCE(StructAtomicRMW)(V<WasmStructNullable> object, V<Word> value,
+                                  StructAtomicRMWOp::BinOp bin_op,
+                                  const wasm::StructType* type,
+                                  wasm::ModuleTypeIndex type_index,
+                                  int field_index, CheckForNull null_check,
+                                  AtomicMemoryOrder memory_order) {
+    // TODO(mliedtke): Get rid of the requires_aligned_access by aligning
+    // WasmNull to 8 bytes.
+    bool requires_aligned_access = type->field(field_index) == wasm::kWasmI64;
+    auto [explicit_null_check, implicit_null_check] = null_checks_for_struct_op(
+        null_check, field_index, requires_aligned_access);
+
+    if (explicit_null_check) {
+      __ TrapIf(__ IsNull(object, wasm::kWasmAnyRef),
+                TrapId::kTrapNullDereference);
+    }
+    MemoryRepresentation repr =
+        RepresentationFor(type->field(field_index), false);
+
+    V<WordPtr> offset =
+        __ WordPtrConstant(field_offset(type, field_index) - kHeapObjectTag);
+    return __ AtomicRMW(__ BitcastTaggedToWordPtr(object), offset, value,
+                        bin_op, repr.ToRegisterRepresentation(), repr,
+                        implicit_null_check
+                            ? MemoryAccessKind::kProtectedByTrapHandler
+                            : MemoryAccessKind::kNormal);
+  }
+
   V<Any> REDUCE(ArrayGet)(V<WasmArrayNullable> array, V<Word32> index,
                           const wasm::ArrayType* array_type, bool is_signed,
                           std::optional<AtomicMemoryOrder> memory_order) {

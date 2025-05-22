@@ -6094,15 +6094,18 @@ TEST_F(FunctionBodyDecoderTest, WasmNoWasmFx) {
  * Shared everything threads.
  ******************************************************************************/
 
+using TestAtomicParamT =
+    std::tuple<ValueType, bool /*mutability*/, bool /*shared*/>;
+
 class FunctionBodyDecoderTestAtomicInvalid
     : public FunctionBodyDecoderTestBase<WithDefaultPlatformMixin<
-          ::testing::TestWithParam<std::tuple<ValueType, bool>>>> {};
+          ::testing::TestWithParam<TestAtomicParamT>>> {};
 
 std::string PrintAtomicGetInvalidParams(
-    ::testing::TestParamInfo<std::tuple<ValueType, bool>> info) {
-  ValueType type(std::get<0>(info.param));
-  return std::string(std::get<1>(info.param) ? "shared_" : "unshared_") +
-         type.short_name();
+    ::testing::TestParamInfo<TestAtomicParamT> info) {
+  const auto [element_type, mutability, shared] = info.param;
+  return std::string(mutability ? "mutable_" : "immutable_") +
+         (shared ? "shared_" : "unshared_") + element_type.short_name();
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -6111,15 +6114,14 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(kWasmF32, kWasmF64, kWasmS128, kWasmI8, kWasmI16,
                           IndependentHeapType{GenericKind::kExtern, kNullable,
                                               true}),
-        ::testing::Values(true, false)),
+        ::testing::Values(true, false), ::testing::Values(true, false)),
     PrintAtomicGetInvalidParams);
 
 TEST_P(FunctionBodyDecoderTestAtomicInvalid, Struct) {
   WASM_FEATURE_SCOPE(shared);
-  ValueType element_type = std::get<0>(GetParam());
-  const bool shared = std::get<1>(GetParam());
+  const auto [element_type, mutability, shared] = GetParam();
   HeapType struct_heaptype =
-      builder.AddStruct({F(element_type, true)}, kNoSuperType, shared);
+      builder.AddStruct({F(element_type, mutability)}, kNoSuperType, shared);
   ModuleTypeIndex struct_type_index = struct_heaptype.ref_index();
   ValueType struct_type = ValueType::Ref(struct_heaptype);
 
@@ -6132,18 +6134,27 @@ TEST_P(FunctionBodyDecoderTestAtomicInvalid, Struct) {
       &sig_get,
       {WASM_STRUCT_ATOMIC_GET(0, struct_type_index, 0, WASM_LOCAL_GET(0))},
       kAppendEnd, "struct.atomic.get: Field 0 of type 0 has invalid type");
-  const bool set_is_valid = element_type == kWasmI8 || element_type == kWasmI16;
-  Validate(set_is_valid, &sig_set,
-           {WASM_STRUCT_ATOMIC_SET(0, struct_type_index, 0, WASM_LOCAL_GET(0),
-                                   WASM_LOCAL_GET(1))},
-           kAppendEnd, "struct.atomic.set: Field 0 of type 0 has invalid type");
+  if (mutability) {
+    const bool set_is_valid =
+        element_type == kWasmI8 || element_type == kWasmI16;
+    Validate(set_is_valid, &sig_set,
+             {WASM_STRUCT_ATOMIC_SET(0, struct_type_index, 0, WASM_LOCAL_GET(0),
+                                     WASM_LOCAL_GET(1))},
+             kAppendEnd,
+             "struct.atomic.set: Field 0 of type 0 has invalid type");
+  } else {
+    ExpectFailure(
+        &sig_set,
+        {WASM_STRUCT_ATOMIC_SET(0, struct_type_index, 0, WASM_LOCAL_GET(0),
+                                WASM_LOCAL_GET(1))},
+        kAppendEnd, "struct.atomic.set: Field 0 of type 0 is immutable");
+  }
 }
 
 TEST_P(FunctionBodyDecoderTestAtomicInvalid, Array) {
   WASM_FEATURE_SCOPE(shared);
-  ValueType element_type = std::get<0>(GetParam());
-  const bool shared = std::get<1>(GetParam());
-  HeapType array_heaptype = builder.AddArray(element_type, true, shared);
+  const auto [element_type, mutability, shared] = GetParam();
+  HeapType array_heaptype = builder.AddArray(element_type, mutability, shared);
   ModuleTypeIndex array_type_index = array_heaptype.ref_index();
   ValueType array_type = ValueType::Ref(array_heaptype);
 
@@ -6155,16 +6166,32 @@ TEST_P(FunctionBodyDecoderTestAtomicInvalid, Array) {
   ExpectFailure(
       &sig_get, {WASM_ARRAY_ATOMIC_GET(0, array_type_index, WASM_LOCAL_GET(0))},
       kAppendEnd, "array.atomic.get: Array 0 has invalid element type");
-  const bool set_is_valid = element_type == kWasmI8 || element_type == kWasmI16;
-  Validate(set_is_valid, &sig_set,
-           {WASM_ARRAY_ATOMIC_SET(0, array_type_index, WASM_LOCAL_GET(0),
-                                  WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
-           kAppendEnd, "Array type 0 has invalid type");
+
+  if (mutability) {
+    const bool set_is_valid =
+        element_type == kWasmI8 || element_type == kWasmI16;
+    Validate(set_is_valid, &sig_set,
+             {WASM_ARRAY_ATOMIC_SET(0, array_type_index, WASM_LOCAL_GET(0),
+                                    WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
+             kAppendEnd, "Array type 0 has invalid type");
+  } else {
+    ExpectFailure(&sig_set,
+                  {WASM_ARRAY_ATOMIC_SET(0, array_type_index, WASM_LOCAL_GET(0),
+                                         WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
+                  kAppendEnd, "Array type 0 is immutable");
+  }
 }
 
 class FunctionBodyDecoderTestAtomicInvalidPacked
     : public FunctionBodyDecoderTestBase<WithDefaultPlatformMixin<
           ::testing::TestWithParam<std::tuple<ValueType, bool>>>> {};
+
+std::string PrintAtomicGetPackedInvalidParams(
+    ::testing::TestParamInfo<std::tuple<ValueType, bool>> info) {
+  const auto [element_type, shared] = info.param;
+  return std::string(shared ? "shared_" : "unshared_") +
+         element_type.short_name();
+}
 
 INSTANTIATE_TEST_SUITE_P(
     SharedAtomicsTest, FunctionBodyDecoderTestAtomicInvalidPacked,
@@ -6173,7 +6200,7 @@ INSTANTIATE_TEST_SUITE_P(
                           IndependentHeapType{GenericKind::kExtern, kNullable,
                                               true}),
         ::testing::Values(true, false)),
-    PrintAtomicGetInvalidParams);
+    PrintAtomicGetPackedInvalidParams);
 
 TEST_P(FunctionBodyDecoderTestAtomicInvalidPacked, Struct) {
   WASM_FEATURE_SCOPE(shared);
@@ -6220,6 +6247,53 @@ TEST_P(FunctionBodyDecoderTestAtomicInvalidPacked, Array) {
       kAppendEnd, "array.atomic.get_u: Array type 0 has non-packed type");
 }
 
+class FunctionBodyDecoderTestAtomicRMWInvalid
+    : public FunctionBodyDecoderTestBase<WithDefaultPlatformMixin<
+          ::testing::TestWithParam<TestAtomicParamT>>> {};
+
+INSTANTIATE_TEST_SUITE_P(
+    SharedAtomicsTest, FunctionBodyDecoderTestAtomicRMWInvalid,
+    ::testing::Combine(
+        ::testing::Values(kWasmF32, kWasmF64, kWasmS128, kWasmI8, kWasmI16,
+                          IndependentHeapType{GenericKind::kExtern, kNullable,
+                                              true}),
+        ::testing::Values(true, false), ::testing::Values(true, false)),
+    PrintAtomicGetInvalidParams);
+
+TEST_P(FunctionBodyDecoderTestAtomicRMWInvalid, Struct) {
+  WASM_FEATURE_SCOPE(shared);
+  const auto [element_type, mutability, shared] = GetParam();
+  HeapType struct_heaptype =
+      builder.AddStruct({F(element_type, mutability)}, kNoSuperType, shared);
+  ModuleTypeIndex struct_type_index = struct_heaptype.ref_index();
+  ValueType struct_type = ValueType::Ref(struct_heaptype);
+
+  const ValueType types[] = {element_type, struct_type, element_type};
+  const FunctionSig sig(1, 2, types);
+
+  const char* error_msg = mutability ? "Field 0 of type 0 has invalid type"
+                                     : "Field 0 of type 0 is immutable";
+  ExpectFailure(&sig,
+                {WASM_STRUCT_ATOMIC_ADD(0, struct_type_index, 0,
+                                        WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
+                kAppendEnd, error_msg);
+  ExpectFailure(&sig,
+                {WASM_STRUCT_ATOMIC_SUB(0, struct_type_index, 0,
+                                        WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
+                kAppendEnd, error_msg);
+  ExpectFailure(&sig,
+                {WASM_STRUCT_ATOMIC_AND(0, struct_type_index, 0,
+                                        WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
+                kAppendEnd, error_msg);
+  ExpectFailure(&sig,
+                {WASM_STRUCT_ATOMIC_OR(0, struct_type_index, 0,
+                                       WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
+                kAppendEnd, error_msg);
+  ExpectFailure(&sig,
+                {WASM_STRUCT_ATOMIC_XOR(0, struct_type_index, 0,
+                                        WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
+                kAppendEnd, error_msg);
+}
 #undef B1
 #undef B2
 #undef B3

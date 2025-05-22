@@ -999,6 +999,26 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
                                value)                                       \
   struct_obj, value, WASM_ATOMICS_OP(kExprStructAtomicSet), memory_order,   \
       ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_ADD(memory_order, typeidx, fieldidx, struct_obj, \
+                               value)                                       \
+  struct_obj, value, WASM_ATOMICS_OP(kExprStructAtomicAdd), memory_order,   \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_SUB(memory_order, typeidx, fieldidx, struct_obj, \
+                               value)                                       \
+  struct_obj, value, WASM_ATOMICS_OP(kExprStructAtomicSub), memory_order,   \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_AND(memory_order, typeidx, fieldidx, struct_obj, \
+                               value)                                       \
+  struct_obj, value, WASM_ATOMICS_OP(kExprStructAtomicAnd), memory_order,   \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_OR(memory_order, typeidx, fieldidx, struct_obj, \
+                              value)                                       \
+  struct_obj, value, WASM_ATOMICS_OP(kExprStructAtomicOr), memory_order,   \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_XOR(memory_order, typeidx, fieldidx, struct_obj, \
+                               value)                                       \
+  struct_obj, value, WASM_ATOMICS_OP(kExprStructAtomicXor), memory_order,   \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
 #define WASM_ARRAY_ATOMIC_GET(memory_order, typeidx, array_obj) \
   array_obj, WASM_ATOMICS_OP(kExprArrayAtomicGet), memory_order, ToByte(typeidx)
 #define WASM_ARRAY_ATOMIC_GET_S(memory_order, typeidx, array_obj) \

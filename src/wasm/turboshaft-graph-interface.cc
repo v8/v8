@@ -4641,6 +4641,103 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                  memory_order);
   }
 
+  void StructAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
+                       const Value& struct_object, const FieldImmediate& field,
+                       const Value& field_value, AtomicMemoryOrder memory_order,
+                       Value* result) {
+    if (!field.struct_imm.shared) {
+      // On some architectures atomic operations require aligned accesses while
+      // unshared objects don't have the required alignment. For simplicity we
+      // do the same on all platforms and for all rmw operations (even though
+      // only 64 bit operations should run into alignment problems).
+      // TODO(mliedtke): Reconsider this if atomic operations on unshared
+      // objects remain part of the spec proposal.
+      const StructType* struct_type = field.struct_imm.struct_type;
+      ValueKind field_kind = struct_type->field(field.field_imm.index).kind();
+      V<Any> old_value = __ StructGet(
+          struct_object.op, struct_type, field.struct_imm.index,
+          field.field_imm.index, true,
+          struct_object.type.is_nullable() ? compiler::kWithNullCheck
+                                           : compiler::kWithoutNullCheck,
+          {});
+      result->op = old_value;
+      V<Word> new_value;
+      if (field_kind == ValueKind::kI32) {
+        V<Word32> old = V<Word32>::Cast(old_value);
+        switch (opcode) {
+          case kExprStructAtomicAdd:
+            new_value = __ Word32Add(old, field_value.op);
+            break;
+          case kExprStructAtomicSub:
+            new_value = __ Word32Sub(old, field_value.op);
+            break;
+          case kExprStructAtomicAnd:
+            new_value = __ Word32BitwiseAnd(old, field_value.op);
+            break;
+          case kExprStructAtomicOr:
+            new_value = __ Word32BitwiseOr(old, field_value.op);
+            break;
+          case kExprStructAtomicXor:
+            new_value = __ Word32BitwiseXor(old, field_value.op);
+            break;
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        CHECK_EQ(field_kind, ValueKind::kI64);
+        V<Word64> old = V<Word64>::Cast(old_value);
+        switch (opcode) {
+          case kExprStructAtomicAdd:
+            new_value = __ Word64Add(old, field_value.op);
+            break;
+          case kExprStructAtomicSub:
+            new_value = __ Word64Sub(old, field_value.op);
+            break;
+          case kExprStructAtomicAnd:
+            new_value = __ Word64BitwiseAnd(old, field_value.op);
+            break;
+          case kExprStructAtomicOr:
+            new_value = __ Word64BitwiseOr(old, field_value.op);
+            break;
+          case kExprStructAtomicXor:
+            new_value = __ Word64BitwiseXor(old, field_value.op);
+            break;
+          default:
+            UNREACHABLE();
+        }
+      }
+      DCHECK(new_value.valid());
+      __ StructSet(struct_object.op, new_value, struct_type,
+                   field.struct_imm.index, field.field_imm.index,
+                   compiler::kWithoutNullCheck, {});
+      return;
+    }
+
+    using BinOp = compiler::turboshaft::StructAtomicRMWOp::BinOp;
+    BinOp op = ([](WasmOpcode opcode) -> BinOp {
+      switch (opcode) {
+        case kExprStructAtomicAdd:
+          return BinOp::kAdd;
+        case kExprStructAtomicSub:
+          return BinOp::kSub;
+        case kExprStructAtomicAnd:
+          return BinOp::kAnd;
+        case kExprStructAtomicOr:
+          return BinOp::kOr;
+        case kExprStructAtomicXor:
+          return BinOp::kXor;
+        default:
+          UNIMPLEMENTED();
+      }
+    })(opcode);
+    result->op = __ StructAtomicRMW(
+        struct_object.op, field_value.op, op, field.struct_imm.struct_type,
+        field.struct_imm.index, field.field_imm.index,
+        struct_object.type.is_nullable() ? compiler::kWithNullCheck
+                                         : compiler::kWithoutNullCheck,
+        memory_order);
+  }
+
   void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate& imm,
                 const Value& length, const Value& initial_value,
                 Value* result) {

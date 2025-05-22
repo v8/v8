@@ -139,6 +139,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(WasmTypeAnnotation)                   \
   V(StructGet)                            \
   V(StructSet)                            \
+  V(StructAtomicRMW)                      \
   V(ArrayGet)                             \
   V(ArraySet)                             \
   V(ArrayLength)                          \
@@ -7186,6 +7187,63 @@ struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
   void PrintOptions(std::ostream& os) const;
 };
 
+struct StructAtomicRMWOp : FixedArityOperationT<2, StructAtomicRMWOp> {
+  using BinOp = AtomicRMWOp::BinOp;
+  BinOp bin_op;
+  CheckForNull null_check;
+  const wasm::StructType* type;
+  wasm::ModuleTypeIndex type_index;
+  int field_index;
+  AtomicMemoryOrder memory_order;
+
+  OpEffects Effects() const {
+    OpEffects result =
+        OpEffects()
+            // This should not float above a protective null check.
+            .CanDependOnChecks()
+            .CanReadMemory()
+            .CanWriteMemory();
+    if (null_check == kWithNullCheck) {
+      // This may trap.
+      result = result.CanLeaveCurrentFunction();
+    }
+    return result;
+  }
+
+  StructAtomicRMWOp(V<WasmStructNullable> object, V<Word> value, BinOp bin_op,
+                    const wasm::StructType* type,
+                    wasm::ModuleTypeIndex type_index, int field_index,
+                    CheckForNull null_check, AtomicMemoryOrder memory_order)
+      : Base(object, value),
+        bin_op(bin_op),
+        null_check(null_check),
+        type(type),
+        type_index(type_index),
+        field_index(field_index),
+        memory_order(memory_order) {}
+
+  V<WasmStructNullable> object() const { return input<WasmStructNullable>(0); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return base::VectorOf(&RepresentationFor(type->field(field_index)), 1);
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return InitVectorOf(storage, {RegisterRepresentation::Tagged(),
+                                  RepresentationFor(type->field(field_index))});
+  }
+
+  void Validate(const Graph& graph) const {
+    DCHECK_LT(field_index, type->field_count());
+  }
+
+  auto options() const {
+    return std::tuple{bin_op,      type,       type_index,
+                      field_index, null_check, memory_order};
+  }
+};
+
 struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
   bool is_signed;
   const wasm::ArrayType* array_type;
@@ -9197,6 +9255,8 @@ inline OpEffects Operation::Effects() const {
       return Cast<StructGetOp>().Effects();
     case Opcode::kStructSet:
       return Cast<StructSetOp>().Effects();
+    case Opcode::kStructAtomicRMW:
+      return Cast<StructAtomicRMWOp>().Effects();
     case Opcode::kArrayLength:
       return Cast<ArrayLengthOp>().Effects();
     case Opcode::kSimd128LaneMemory:

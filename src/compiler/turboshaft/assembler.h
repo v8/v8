@@ -4944,6 +4944,17 @@ class TurboshaftAssemblerOpInterface
                                null_check, memory_order);
   }
 
+  V<Word> StructAtomicRMW(V<WasmStructNullable> object, V<Word> value,
+                          StructAtomicRMWOp::BinOp bin_op,
+                          const wasm::StructType* type,
+                          wasm::ModuleTypeIndex type_index, int field_index,
+                          CheckForNull null_check,
+                          AtomicMemoryOrder memory_order) {
+    return ReduceIfReachableStructAtomicRMW(object, value, bin_op, type,
+                                            type_index, field_index, null_check,
+                                            memory_order);
+  }
+
   V<Any> ArrayGet(V<WasmArrayNullable> array, V<Word32> index,
                   const wasm::ArrayType* array_type, bool is_signed,
                   std::optional<AtomicMemoryOrder> memory_order) {

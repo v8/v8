@@ -1503,6 +1503,9 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
     const Value& field_value)                                                  \
   F(StructAtomicSet, const Value& struct_object, const FieldImmediate& field,  \
     const Value& field_value, AtomicMemoryOrder order)                         \
+  F(StructAtomicRMW, WasmOpcode opcode, const Value& struct_object,            \
+    const FieldImmediate& field, const Value& field_value,                     \
+    AtomicMemoryOrder order, Value* result)                                    \
   F(ArrayGet, const Value& array_obj, const ArrayIndexImmediate& imm,          \
     const Value& index, bool is_signed, Value* result)                         \
   F(ArrayAtomicGet, const Value& array_obj, const ArrayIndexImmediate& imm,    \
@@ -2719,7 +2722,12 @@ class WasmDecoder : public Decoder {
           case kExprStructAtomicGet:
           case kExprStructAtomicGetS:
           case kExprStructAtomicGetU:
-          case kExprStructAtomicSet: {
+          case kExprStructAtomicSet:
+          case kExprStructAtomicAdd:
+          case kExprStructAtomicSub:
+          case kExprStructAtomicAnd:
+          case kExprStructAtomicOr:
+          case kExprStructAtomicXor: {
             MemoryOrderImmediate memory_order(decoder, pc + length, validate);
             (ios.MemoryOrder(memory_order), ...);
             FieldImmediate field(decoder, pc + length + memory_order.length,
@@ -6926,6 +6934,47 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           CALL_INTERFACE_IF_OK_AND_REACHABLE(StructSet, struct_obj, field,
                                              field_value);
         }
+        return opcode_length + field.length + memory_order.length;
+      }
+      case kExprStructAtomicAdd:
+      case kExprStructAtomicSub:
+      case kExprStructAtomicAnd:
+      case kExprStructAtomicOr:
+      case kExprStructAtomicXor: {
+        CHECK_PROTOTYPE_OPCODE(shared);
+        NON_CONST_ONLY
+        MemoryOrderImmediate memory_order(this, this->pc_ + opcode_length,
+                                          validate);
+        if (!this->ok()) return 0;
+        FieldImmediate field(
+            this, this->pc_ + opcode_length + memory_order.length, validate);
+        if (!this->Validate(this->pc_ + opcode_length + memory_order.length,
+                            field)) {
+          return 0;
+        }
+        const StructType* struct_type = field.struct_imm.struct_type;
+        if (!VALIDATE(struct_type->mutability(field.field_imm.index))) {
+          this->DecodeError("%s: Field %d of type %d is immutable.",
+                            WasmOpcodes::OpcodeName(opcode),
+                            field.field_imm.index,
+                            field.struct_imm.index.index);
+          return 0;
+        }
+        ValueType field_type = struct_type->field(field.field_imm.index);
+        if (!VALIDATE(field_type == kWasmI32 || field_type == kWasmI64)) {
+          this->DecodeError("%s: Field %d of type %d has invalid type %s ",
+                            WasmOpcodes::OpcodeName(opcode),
+                            field.field_imm.index, field.struct_imm.index.index,
+                            field_type.name().c_str());
+          return 0;
+        }
+        auto [struct_obj, field_value] =
+            Pop(ValueType::RefNull(field.struct_imm.heap_type()),
+                struct_type->field(field.field_imm.index));
+        Value* result = Push(field_type);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(StructAtomicRMW, opcode, struct_obj,
+                                           field, field_value,
+                                           memory_order.order, result);
         return opcode_length + field.length + memory_order.length;
       }
       case kExprArrayAtomicGet: {

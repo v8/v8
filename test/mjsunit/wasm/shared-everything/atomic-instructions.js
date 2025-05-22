@@ -433,3 +433,195 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     assertTraps(kTrapNullDereference, () => wasm.atomicSet16(null, 0, 0));
   }
 })();
+
+(function TestAtomicStructRMW() {
+  for (let is_shared of [true, false]) {
+    print(`${arguments.callee.name} ${is_shared ? "shared" : "unshared"}`);
+    let builder = new WasmModuleBuilder();
+    let struct = builder.addStruct({
+      fields: [makeField(kWasmI32, true), makeField(kWasmI64, true)],
+      is_shared,
+    });
+    let producer_sig = makeSig([kWasmI32, kWasmI64], [wasmRefType(struct)]);
+    builder.addFunction("newStruct", producer_sig)
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kGCPrefix, kExprStructNew, struct])
+      .exportFunc();
+    builder.addFunction("atomicAdd32",
+        makeSig([wasmRefNullType(struct), kWasmI32], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprStructAtomicAdd, kAtomicSeqCst, struct, 0,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicSub32",
+        makeSig([wasmRefNullType(struct), kWasmI32], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprStructAtomicSub, kAtomicSeqCst, struct, 0,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicAnd32",
+        makeSig([wasmRefNullType(struct), kWasmI32], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprStructAtomicAnd, kAtomicSeqCst, struct, 0,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicOr32",
+        makeSig([wasmRefNullType(struct), kWasmI32], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprStructAtomicOr, kAtomicSeqCst, struct, 0,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicXor32",
+        makeSig([wasmRefNullType(struct), kWasmI32], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprStructAtomicXor, kAtomicSeqCst, struct, 0,
+      ])
+      .exportFunc();
+
+      builder.addFunction("atomicAdd64",
+        makeSig([wasmRefNullType(struct), kWasmI64], [kWasmI64]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprStructAtomicAdd, kAtomicSeqCst, struct, 1,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicSub64",
+        makeSig([wasmRefNullType(struct), kWasmI64], [kWasmI64]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprStructAtomicSub, kAtomicSeqCst, struct, 1,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicAnd64",
+        makeSig([wasmRefNullType(struct), kWasmI64], [kWasmI64]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprStructAtomicAnd, kAtomicSeqCst, struct, 1,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicOr64",
+        makeSig([wasmRefNullType(struct), kWasmI64], [kWasmI64]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprStructAtomicOr, kAtomicSeqCst, struct, 1,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicXor64",
+        makeSig([wasmRefNullType(struct), kWasmI64], [kWasmI64]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprStructAtomicXor, kAtomicSeqCst, struct, 1,
+      ])
+      .exportFunc();
+
+    let wasm = builder.instantiate().exports;
+    let structObj = wasm.newStruct(42, -42n);
+    assertEquals(42, wasm.atomicAdd32(structObj, 24));
+    assertEquals(66, wasm.atomicAdd32(structObj, -1));
+    assertEquals(65, wasm.atomicAdd32(structObj, 1));
+    assertEquals(66, wasm.atomicSub32(structObj, 1));
+    assertEquals(65, wasm.atomicSub32(structObj, -10));
+    assertEquals(75, wasm.atomicSub32(structObj, 0));
+
+    assertEquals(-42n, wasm.atomicAdd64(structObj, 24n));
+    assertEquals(-18n, wasm.atomicAdd64(structObj, -1n));
+    assertEquals(-19n, wasm.atomicAdd64(structObj, 1n));
+    assertEquals(-18n, wasm.atomicSub64(structObj, 1n));
+    assertEquals(-19n, wasm.atomicSub64(structObj, -10n));
+    assertEquals(-9n, wasm.atomicSub64(structObj, 0n));
+
+    structObj = wasm.newStruct(0b1101 << 16, 0b1101n << 35n);
+    assertEquals(0b1101 << 16, wasm.atomicAnd32(structObj, 0b1011 << 16));
+    assertEquals(0b1001 << 16, wasm.atomicOr32(structObj, 0b0011 << 16));
+    assertEquals(0b1011 << 16, wasm.atomicXor32(structObj, 0b0110 << 16));
+    assertEquals(0b1101 << 16, wasm.atomicXor32(structObj, 0));
+
+    assertEquals(0b1101n << 35n, wasm.atomicAnd64(structObj, 0b1011n << 35n));
+    assertEquals(0b1001n << 35n, wasm.atomicOr64(structObj, 0b0011n << 35n));
+    assertEquals(0b1011n << 35n, wasm.atomicXor64(structObj, 0b0110n << 35n));
+    assertEquals(0b1101n << 35n, wasm.atomicXor64(structObj, 0n));
+
+    assertTraps(kTrapNullDereference, () => wasm.atomicAdd32(null, 0));
+    assertTraps(kTrapNullDereference, () => wasm.atomicSub32(null, 0));
+    assertTraps(kTrapNullDereference, () => wasm.atomicAnd32(null, 0));
+    assertTraps(kTrapNullDereference, () => wasm.atomicOr32(null, 0));
+    assertTraps(kTrapNullDereference, () => wasm.atomicXor32(null, 0));
+    assertTraps(kTrapNullDereference, () => wasm.atomicAdd64(null, 0n));
+    assertTraps(kTrapNullDereference, () => wasm.atomicSub64(null, 0n));
+    assertTraps(kTrapNullDereference, () => wasm.atomicAnd64(null, 0n));
+    assertTraps(kTrapNullDereference, () => wasm.atomicOr64(null, 0n));
+    assertTraps(kTrapNullDereference, () => wasm.atomicXor64(null, 0n));
+  }
+})();
+
+(function TestLoadEliminationAtomicOperations() {
+  for (let is_shared of [true, false]) {
+    print(`${arguments.callee.name} ${is_shared ? "shared" : "unshared"}`);
+    let builder = new WasmModuleBuilder();
+    let struct = builder.addStruct({
+      fields: [makeField(kWasmI32, true)],
+      is_shared,
+    });
+    let producer_sig = makeSig([kWasmI32], [wasmRefType(struct)]);
+    builder.addFunction("newStruct", producer_sig)
+      .addBody([
+        kExprLocalGet, 0,
+        kGCPrefix, kExprStructNew, struct])
+      .exportFunc();
+    builder.addFunction("atomicSetUpdates",
+        makeSig([wasmRefNullType(struct), kWasmI32], [kWasmI32, kWasmI32]))
+      .addBody([
+        // First non-atomic load.
+        kExprLocalGet, 0,
+        kGCPrefix, kExprStructGet, struct, 0,
+        // Perform atomic set.
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprStructAtomicSet, kAtomicSeqCst, struct, 0,
+        // Second non-atomic load. Must retrieve the value set by the atomic
+        // operation, not the first load.
+        kExprLocalGet, 0,
+        kGCPrefix, kExprStructGet, struct, 0,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicRMWUpdates",
+        makeSig(
+          [wasmRefNullType(struct), kWasmI32], [kWasmI32, kWasmI32, kWasmI32]))
+      .addBody([
+        // First non-atomic load.
+        kExprLocalGet, 0,
+        kGCPrefix, kExprStructGet, struct, 0,
+        // Perform atomic rmw.add.
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprStructAtomicAdd, kAtomicSeqCst, struct, 0,
+        // Second non-atomic load. Must retrieve the value set by the atomic
+        // operation, not the first load.
+        kExprLocalGet, 0,
+        kGCPrefix, kExprStructGet, struct, 0,
+      ])
+      .exportFunc();
+
+    let wasm = builder.instantiate().exports;
+    let structObj = wasm.newStruct(12345);
+    assertEquals([12345, 42], wasm.atomicSetUpdates(structObj, 42));
+    assertEquals([42, 42, 142], wasm.atomicRMWUpdates(structObj, 100));
+  }
+})();

@@ -6153,6 +6153,142 @@ class LiftoffCompiler {
 
   void AtomicFence(FullDecoder* decoder) { __ AtomicFence(); }
 
+  void StructAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
+                       const Value& struct_object, const FieldImmediate& field,
+                       const Value& field_value, AtomicMemoryOrder order,
+                       Value* result) {
+    const StructType* struct_type = field.struct_imm.struct_type;
+    ValueKind field_kind = struct_type->field(field.field_imm.index).kind();
+    int offset = StructFieldOffset(struct_type, field.field_imm.index);
+    LiftoffRegList pinned;
+    LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
+
+    auto [explicit_check, implicit_check] =
+        null_checks_for_struct_op(struct_object.type, field.field_imm.index);
+    if (implicit_check) {
+      // TODO(mliedtke): Support implicit null checks for atomic operations.
+      // Note that we can't do implicit null checks for i64 due to WasmNull not
+      // being 8-byte-aligned!
+      implicit_check = false;
+      explicit_check = true;
+    }
+
+    if (explicit_check) {
+      MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_object.type);
+    }
+
+// Skip the non-atomic implementation special case on ia32 as it is not needed
+// (ia32 doesn't require any alignment for these operation) and there are only
+// painfully few registers available on ia32.
+#if !V8_TARGET_ARCH_IA32
+    if (!field.struct_imm.shared) {
+      // On some architectures atomic operations require aligned accesses while
+      // unshared objects don't have the required alignment. For simplicity we
+      // do the same on all platforms and for all rmw operations (even though
+      // only 64 bit operations should run into alignment problems).
+      // TODO(mliedtke): Reconsider this if atomic operations on unshared
+      // objects remain part of the spec proposal.
+      LiftoffRegister result_reg =
+          pinned.set(__ GetUnusedRegister(reg_class_for(field_kind), pinned));
+      LoadObjectField(decoder, result_reg, obj.gp(), no_reg, offset, field_kind,
+                      false, implicit_check, pinned);
+      LiftoffRegister new_value =
+          pinned.set(__ GetUnusedRegister(reg_class_for(field_kind), pinned));
+
+      if (field_kind == ValueKind::kI32) {
+        switch (opcode) {
+          case kExprStructAtomicAdd:
+            __ emit_i32_add(new_value.gp(), result_reg.gp(), value.gp());
+            break;
+          case kExprStructAtomicSub:
+            __ emit_i32_sub(new_value.gp(), result_reg.gp(), value.gp());
+            break;
+          case kExprStructAtomicAnd:
+            __ emit_i32_and(new_value.gp(), result_reg.gp(), value.gp());
+            break;
+          case kExprStructAtomicOr:
+            __ emit_i32_or(new_value.gp(), result_reg.gp(), value.gp());
+            break;
+          case kExprStructAtomicXor:
+            __ emit_i32_xor(new_value.gp(), result_reg.gp(), value.gp());
+            break;
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        CHECK_EQ(field_kind, ValueKind::kI64);
+        switch (opcode) {
+          case kExprStructAtomicAdd:
+            __ emit_i64_add(new_value, result_reg, value);
+            break;
+          case kExprStructAtomicSub:
+            __ emit_i64_sub(new_value, result_reg, value);
+            break;
+          case kExprStructAtomicAnd:
+            __ emit_i64_and(new_value, result_reg, value);
+            break;
+          case kExprStructAtomicOr:
+            __ emit_i64_or(new_value, result_reg, value);
+            break;
+          case kExprStructAtomicXor:
+            __ emit_i64_xor(new_value, result_reg, value);
+            break;
+          default:
+            UNREACHABLE();
+        }
+      }
+      __ PushRegister(field_kind, result_reg);
+      StoreObjectField(decoder, obj.gp(), no_reg, offset, new_value, false,
+                       pinned, field_kind);
+      return;
+    }
+#endif  // !V8_TARGET_ARCH_IA32
+
+#ifdef V8_TARGET_ARCH_IA32
+    // We have to reuse the value register as the result register so that we
+    // don't run out of registers on ia32. For this we use the value register as
+    // the result register if it has no other uses. Otherwise we allocate a new
+    // register and let go of the value register to get spilled.
+    LiftoffRegister result_reg = value;
+    if (__ cache_state()->is_used(value)) {
+      result_reg =
+          pinned.set(__ GetUnusedRegister(reg_class_for(field_kind), pinned));
+      __ Move(result_reg, value, field_kind);
+      pinned.clear(value);
+      value = result_reg;
+    }
+#else
+    LiftoffRegister result_reg =
+        __ GetUnusedRegister(reg_class_for(field_kind), pinned);
+#endif
+    switch (opcode) {
+      case kExprStructAtomicAdd:
+        __ AtomicAdd(obj.gp(), no_reg, offset, value, result_reg,
+                     StoreType::ForValueKind(field_kind), false);
+        break;
+      case kExprStructAtomicSub:
+        __ AtomicSub(obj.gp(), no_reg, offset, value, result_reg,
+                     StoreType::ForValueKind(field_kind), false);
+        break;
+      case kExprStructAtomicAnd:
+        __ AtomicAnd(obj.gp(), no_reg, offset, value, result_reg,
+                     StoreType::ForValueKind(field_kind), false);
+        break;
+      case kExprStructAtomicOr:
+        __ AtomicOr(obj.gp(), no_reg, offset, value, result_reg,
+                    StoreType::ForValueKind(field_kind), false);
+        break;
+      case kExprStructAtomicXor:
+        __ AtomicXor(obj.gp(), no_reg, offset, value, result_reg,
+                     StoreType::ForValueKind(field_kind), false);
+        break;
+      default:
+        UNREACHABLE();
+    }
+    __ PushRegister(field_kind, result_reg);
+  }
+
   // Pop a VarState and if needed transform it to an intptr.
   // When truncating from u64 to u32, the {*high_word} is updated to contain
   // the ORed combination of all high words.

@@ -140,10 +140,9 @@ class WasmMemoryContentTable
                                     module_->heap_type(type2), module_);
   }
 
-  void Invalidate(const StructSetOp& set) {
+  void Invalidate(int offset, wasm::ModuleTypeIndex type_index) {
     // This is like LateLoadElimination's {InvalidateAtOffset}, but based
     // on Wasm types instead of tracked JS maps.
-    int offset = field_offset(set.type, set.field_index);
     auto offset_keys = offset_keys_.find(offset);
     if (offset_keys == offset_keys_.end()) return;
     for (auto it = offset_keys->second.begin();
@@ -160,7 +159,7 @@ class WasmMemoryContentTable
         continue;
       }
 
-      if (TypesUnrelated(set.type_index, key.data().mem.type_index)) {
+      if (TypesUnrelated(type_index, key.data().mem.type_index)) {
         ++it;
         continue;
       }
@@ -168,6 +167,15 @@ class WasmMemoryContentTable
       it = offset_keys->second.RemoveAt(it);
       Set(key, OpIndex::Invalid());
     }
+  }
+
+  void Invalidate(const StructSetOp& set) {
+    Invalidate(field_offset(set.type, set.field_index), set.type_index);
+  }
+
+  void Invalidate(const StructAtomicRMWOp& rmw_op) {
+    Invalidate(field_offset(rmw_op.type, rmw_op.field_index),
+               rmw_op.type_index);
   }
 
   // Invalidates all Keys that are not known as non-aliasing.
@@ -460,6 +468,10 @@ class WasmLoadEliminationAnalyzer {
   void ProcessCall(OpIndex op_idx, const CallOp& op);
   void ProcessPhi(OpIndex op_idx, const PhiOp& op);
 
+#if V8_ENABLE_WEBASSEMBLY
+  void ProcessAtomicRMW(OpIndex op_idx, const StructAtomicRMWOp& op);
+#endif
+
   void DcheckWordBinop(OpIndex op_idx, const WordBinopOp& binop);
 
   // BeginBlock initializes the various SnapshotTables for {block}, and returns
@@ -592,6 +604,9 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         break;
       case Opcode::kStructSet:
         ProcessStructSet(op_idx, op.Cast<StructSetOp>());
+        break;
+      case Opcode::kStructAtomicRMW:
+        ProcessAtomicRMW(op_idx, op.Cast<StructAtomicRMWOp>());
         break;
       case Opcode::kArrayLength:
         ProcessArrayLength(op_idx, op.Cast<ArrayLengthOp>());
@@ -769,6 +784,11 @@ void WasmLoadEliminationAnalyzer::ProcessStructSet(OpIndex op_idx,
   if (non_aliasing_objects_.HasKeyFor(value)) {
     non_aliasing_objects_.Set(value, false);
   }
+}
+
+void WasmLoadEliminationAnalyzer::ProcessAtomicRMW(
+    OpIndex op_idx, const StructAtomicRMWOp& op) {
+  memory_.Invalidate(op);
 }
 
 void WasmLoadEliminationAnalyzer::ProcessArrayLength(
