@@ -134,7 +134,13 @@ uint32_t String::length(AcquireLoadTag) const {
   return base::AsAtomic32::Acquire_Load(&length_);
 }
 
-void String::set_length(uint32_t value) { length_ = value; }
+void String::set_length(uint32_t value) {
+#ifdef V8_ATOMIC_OBJECT_FIELD_WRITES
+  base::AsAtomic32::Relaxed_Store(&length_, value);
+#else
+  length_ = value;
+#endif
+}
 
 void String::set_length(uint32_t value, ReleaseStoreTag) {
   base::AsAtomic32::Release_Store(&length_, value);
