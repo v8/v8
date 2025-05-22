@@ -173,7 +173,8 @@ class LoopPeelingReducer : public Next {
   PeelingStatus peeling_ = PeelingStatus::kNotPeeling;
   const Block* current_loop_header_ = nullptr;
 
-  LoopFinder loop_finder_{__ phase_zone(), &__ modifiable_input_graph()};
+  LoopFinder loop_finder_{__ phase_zone(), &__ modifiable_input_graph(),
+                          LoopFinder::Config{}};
   JSHeapBroker* broker_ = __ data() -> broker();
 };
 

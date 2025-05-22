@@ -402,7 +402,7 @@ class WasmLoadEliminationAnalyzer {
         predecessor_memory_snapshots_(phase_zone) {}
 
   void Run() {
-    LoopFinder loop_finder(phase_zone_, &graph_);
+    LoopFinder loop_finder(phase_zone_, &graph_, LoopFinder::Config{});
     AnalyzerIterator iterator(phase_zone_, graph_, loop_finder);
 
     bool compute_start_snapshot = true;

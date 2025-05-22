@@ -182,7 +182,8 @@ class V8_EXPORT_PRIVATE LoopUnrollingAnalyzer {
   LoopUnrollingAnalyzer(Zone* phase_zone, Graph* input_graph, bool is_wasm)
       : input_graph_(input_graph),
         matcher_(*input_graph),
-        loop_finder_(phase_zone, input_graph),
+        loop_finder_(phase_zone, input_graph,
+                     {LoopFinder::ConfigFlags::kFindCalls}),
         loop_iteration_count_(phase_zone),
         canonical_loop_matcher_(matcher_),
         is_wasm_(is_wasm),
@@ -205,7 +206,7 @@ class V8_EXPORT_PRIVATE LoopUnrollingAnalyzer {
   bool ShouldPartiallyUnrollLoop(const Block* loop_header) const {
     DCHECK(loop_header->IsLoop());
     LoopFinder::LoopInfo info = loop_finder_.GetLoopInfo(loop_header);
-    return !info.has_inner_loops &&
+    return !info.has_inner_loops && !info.has_any_call &&
            info.op_count < kMaxLoopSizeForPartialUnrolling;
   }
 

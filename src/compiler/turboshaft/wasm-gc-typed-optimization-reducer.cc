@@ -16,7 +16,7 @@ namespace v8::internal::compiler::turboshaft {
   } while (false)
 
 void WasmGCTypeAnalyzer::Run() {
-  LoopFinder loop_finder(phase_zone_, &graph_);
+  LoopFinder loop_finder(phase_zone_, &graph_, LoopFinder::Config{});
   AnalyzerIterator iterator(phase_zone_, graph_, loop_finder);
   while (iterator.HasNext()) {
     const Block& block = *iterator.Next();

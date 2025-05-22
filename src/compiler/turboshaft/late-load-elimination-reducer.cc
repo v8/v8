@@ -34,7 +34,7 @@ std::ostream& operator<<(std::ostream& os, const MemoryAddress& mem) {
 
 void LateLoadEliminationAnalyzer::Run() {
   TRACE("LateLoadElimination: Starting analysis");
-  LoopFinder loop_finder(phase_zone_, &graph_);
+  LoopFinder loop_finder(phase_zone_, &graph_, LoopFinder::Config{});
   AnalyzerIterator iterator(phase_zone_, graph_, loop_finder);
 
   bool compute_start_snapshot = true;
