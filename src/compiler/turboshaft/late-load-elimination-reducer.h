@@ -786,15 +786,14 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
   using Replacement = LoadEliminationReplacement;
 
   void Analyze() {
-    if (is_wasm_ || v8_flags.turboshaft_load_elimination) {
-      DCHECK(AllowHandleDereference::IsAllowed());
+    if (v8_flags.turboshaft_load_elimination) {
       analyzer_.Run();
     }
     Next::Analyze();
   }
 
   OpIndex REDUCE_INPUT_GRAPH(Load)(OpIndex ig_index, const LoadOp& load) {
-    if (is_wasm_ || v8_flags.turboshaft_load_elimination) {
+    if (v8_flags.turboshaft_load_elimination) {
       Replacement replacement = analyzer_.GetReplacement(ig_index);
       if (replacement.IsLoadElimination()) {
         OpIndex replacement_ig_index = replacement.replacement();
@@ -830,7 +829,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
   }
 
   OpIndex REDUCE_INPUT_GRAPH(Change)(OpIndex ig_index, const ChangeOp& change) {
-    if (is_wasm_ || v8_flags.turboshaft_load_elimination) {
+    if (v8_flags.turboshaft_load_elimination) {
       Replacement replacement = analyzer_.GetReplacement(ig_index);
       if (replacement.IsInt32TruncationElimination()) {
         DCHECK(
@@ -843,7 +842,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
 
   OpIndex REDUCE_INPUT_GRAPH(TaggedBitcast)(OpIndex ig_index,
                                             const TaggedBitcastOp& bitcast) {
-    if (is_wasm_ || v8_flags.turboshaft_load_elimination) {
+    if (v8_flags.turboshaft_load_elimination) {
       Replacement replacement = analyzer_.GetReplacement(ig_index);
       if (replacement.IsTaggedBitcastElimination()) {
         return OpIndex::Invalid();
@@ -861,7 +860,6 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
   }
 
  private:
-  const bool is_wasm_ = __ data() -> is_wasm();
   using RawBaseAssumption = LateLoadEliminationAnalyzer::RawBaseAssumption;
   RawBaseAssumption raw_base_assumption_ =
       __ data() -> pipeline_kind() == TurboshaftPipelineKind::kCSA
