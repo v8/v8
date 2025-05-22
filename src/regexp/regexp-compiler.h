@@ -535,7 +535,14 @@ class RegExpCompiler {
   RegExpMacroAssembler* macro_assembler() { return macro_assembler_; }
   EndNode* accept() { return accept_; }
 
-  static const int kMaxRecursion = 100;
+#if defined(V8_TARGET_OS_MACOS)
+  // Looks like MacOS needs a lower recursion limit since "secondary threads"
+  // get a smaller stack by default (512kB vs. 8MB).
+  // See https://crbug.com/408820921.
+  static constexpr int kMaxRecursion = 50;
+#else
+  static constexpr int kMaxRecursion = 100;
+#endif
   inline int recursion_depth() { return recursion_depth_; }
   inline void IncrementRecursionDepth() { recursion_depth_++; }
   inline void DecrementRecursionDepth() { recursion_depth_--; }
