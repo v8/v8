@@ -290,7 +290,7 @@ class ValueNumberingReducer : public Next {
   Entry* Find(const Op& op, size_t* hash_ret = nullptr) {
     bool needs_epoch_check = op.Effects().can_read_mutable_memory();
     constexpr bool same_block_only = std::is_same_v<Op, PhiOp>;
-    size_t hash = ComputeHash<same_block_only>(op);
+    size_t hash = ComputeHash<same_block_only>(op, needs_epoch_check);
     size_t start_index = hash & mask_;
     for (size_t i = start_index;; i = NextEntryIndex(i)) {
       Entry& entry = table_[i];
@@ -387,10 +387,13 @@ class ValueNumberingReducer : public Next {
   }
 
   template <bool same_block_only, class Op>
-  size_t ComputeHash(const Op& op) {
+  size_t ComputeHash(const Op& op, bool needs_epoch_check) {
     size_t hash = op.hash_value();
     if (same_block_only) {
       hash = fast_hash_combine(Asm().current_block()->index(), hash);
+    }
+    if (needs_epoch_check) {
+      hash = fast_hash_combine(current_epoch_, hash);
     }
     if (V8_UNLIKELY(hash == 0)) return 1;
     return hash;
