@@ -1174,6 +1174,7 @@ void InstructionSelectorT::InitializeCallBuffer(
   bool call_code_immediate = (flags & kCallCodeImmediate) != 0;
   bool call_address_immediate = (flags & kCallAddressImmediate) != 0;
   bool call_use_fixed_target_reg = (flags & kCallFixedTargetRegister) != 0;
+  DeoptimizeKind deopt_kind = DeoptimizeKind::kLazy;
   switch (buffer->descriptor->kind()) {
     case CallDescriptor::kCallCodeObject:
       buffer->instruction_args.push_back(
@@ -1184,6 +1185,10 @@ void InstructionSelectorT::InitializeCallBuffer(
               : g.UseRegister(callee));
       break;
     case CallDescriptor::kCallAddress:
+      // TODO(ahaas): Rename kLazyAfterFastCall and similarly called fields on
+      // the isolate to reflect that they are used for every direct call to C++
+      // and not just for fast API calls.
+      deopt_kind = DeoptimizeKind::kLazyAfterFastCall;
       buffer->instruction_args.push_back(
           (call_address_immediate && this->IsExternalConstant(callee))
               ? g.UseImmediate(callee)
@@ -1257,8 +1262,8 @@ void InstructionSelectorT::InitializeCallBuffer(
     }
 
     int const state_id = sequence()->AddDeoptimizationEntry(
-        buffer->frame_state_descriptor, DeoptimizeKind::kLazy,
-        DeoptimizeReason::kUnknown, node.id(), FeedbackSource());
+        buffer->frame_state_descriptor, deopt_kind, DeoptimizeReason::kUnknown,
+        node.id(), FeedbackSource());
     buffer->instruction_args.push_back(g.TempImmediate(state_id));
 
     StateObjectDeduplicator deduplicator(instruction_zone());

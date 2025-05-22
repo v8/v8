@@ -365,8 +365,17 @@ class ActivationsFinder : public ThreadVisitor {
           DCHECK_IMPLIES(code.SafeEquals(topmost_), safe_to_deopt_);
           static_assert(SafepointEntry::kNoTrampolinePC == -1);
           CHECK_GE(trampoline_pc, 0);
-          if (!it.frame()->InFastCCall()) {
-            Address new_pc = code->instruction_start() + trampoline_pc;
+          Address new_pc = code->instruction_start() + trampoline_pc;
+          if (it.frame()->InFastCCall()) {
+            // Fast C calls call directly to C++, so there may not be a return
+            // address on the stack. Instead we patch the code after the call.
+            // For C calls the caller has to pop parameters off the stack. This
+            // has to happen before deoptimization. Therefore we add the offset
+            // here that is needed for popping the arguments.
+            Address pc =
+                *it.frame()->pc_address() + kMaxSizeOfMoveAfterFastCall;
+            Deoptimizer::PatchToJump(pc, new_pc);
+          } else {
             if (v8_flags.cet_compatible) {
               Address pc = *it.frame()->pc_address();
               Deoptimizer::PatchToJump(pc, new_pc);
@@ -582,6 +591,9 @@ const char* Deoptimizer::MessageFor(DeoptimizeKind kind) {
   switch (kind) {
     case DeoptimizeKind::kEager:
       return "deopt-eager";
+    case DeoptimizeKind::kLazyAfterFastCall:
+      return "deopt-lazy-after-fastcall";
+
     case DeoptimizeKind::kLazy:
       return "deopt-lazy";
   }
@@ -775,6 +787,8 @@ Builtin Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind kind) {
   switch (kind) {
     case DeoptimizeKind::kEager:
       return Builtin::kDeoptimizationEntry_Eager;
+    case DeoptimizeKind::kLazyAfterFastCall:
+      return Builtin::kDeoptimizationEntry_LazyAfterFastCall;
     case DeoptimizeKind::kLazy:
       return Builtin::kDeoptimizationEntry_Lazy;
   }

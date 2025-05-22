@@ -862,6 +862,7 @@ constexpr int kNoDeoptimizationId = -1;
 //   code is executed.
 enum class DeoptimizeKind : uint8_t {
   kEager,
+  kLazyAfterFastCall,
   kLazy,
 };
 constexpr DeoptimizeKind kFirstDeoptimizeKind = DeoptimizeKind::kEager;
@@ -877,6 +878,8 @@ constexpr const char* ToString(DeoptimizeKind kind) {
       return "Eager";
     case DeoptimizeKind::kLazy:
       return "Lazy";
+    case DeoptimizeKind::kLazyAfterFastCall:
+      return "LazyAfterfastCall";
   }
 }
 inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {

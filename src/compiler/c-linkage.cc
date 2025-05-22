@@ -19,8 +19,8 @@ namespace {
 // ===========================================================================
 // == ia32 ===================================================================
 // ===========================================================================
-#define CALLEE_SAVE_REGISTERS esi, edi, ebx
-#define CALLEE_SAVE_FP_REGISTERS
+#define CALLEE_SAVE_REGISTERS C_CALL_CALLEE_SAVE_REGISTERS
+#define CALLEE_SAVE_FP_REGISTERS C_CALL_CALLEE_SAVE_FP_REGISTERS
 
 #elif V8_TARGET_ARCH_X64
 // ===========================================================================
@@ -33,17 +33,16 @@ namespace {
 #define PARAM_REGISTERS rcx, rdx, r8, r9
 #define FP_PARAM_REGISTERS xmm0, xmm1, xmm2, xmm3
 #define FP_RETURN_REGISTER xmm0
-#define CALLEE_SAVE_REGISTERS rbx, rdi, rsi, r12, r13, r14, r15
-#define CALLEE_SAVE_FP_REGISTERS \
-  xmm6, xmm7, xmm8, xmm9, xmm10, xmm11, xmm12, xmm13, xmm14, xmm15
+#define CALLEE_SAVE_REGISTERS C_CALL_CALLEE_SAVE_REGISTERS
+#define CALLEE_SAVE_FP_REGISTERS C_CALL_CALLEE_SAVE_FP_REGISTERS
 
 #else  // V8_TARGET_OS_WIN
 // == x64 other ==============================================================
 #define PARAM_REGISTERS rdi, rsi, rdx, rcx, r8, r9
 #define FP_PARAM_REGISTERS xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7
 #define FP_RETURN_REGISTER xmm0
-#define CALLEE_SAVE_REGISTERS rbx, r12, r13, r14, r15
-#define CALLEE_SAVE_FP_REGISTERS
+#define CALLEE_SAVE_REGISTERS C_CALL_CALLEE_SAVE_REGISTERS
+#define CALLEE_SAVE_FP_REGISTERS C_CALL_CALLEE_SAVE_FP_REGISTERS
 #endif  // V8_TARGET_OS_WIN
 
 #elif V8_TARGET_ARCH_ARM
@@ -51,8 +50,8 @@ namespace {
 // == arm ====================================================================
 // ===========================================================================
 #define PARAM_REGISTERS r0, r1, r2, r3
-#define CALLEE_SAVE_REGISTERS r4, r5, r6, r7, r8, r9, r10
-#define CALLEE_SAVE_FP_REGISTERS d8, d9, d10, d11, d12, d13, d14, d15
+#define CALLEE_SAVE_REGISTERS C_CALL_CALLEE_SAVE_REGISTERS
+#define CALLEE_SAVE_FP_REGISTERS C_CALL_CALLEE_SAVE_FP_REGISTERS
 
 #elif V8_TARGET_ARCH_ARM64
 // ===========================================================================
@@ -61,9 +60,8 @@ namespace {
 #define PARAM_REGISTERS x0, x1, x2, x3, x4, x5, x6, x7
 #define FP_PARAM_REGISTERS d0, d1, d2, d3, d4, d5, d6, d7
 #define FP_RETURN_REGISTER d0
-#define CALLEE_SAVE_REGISTERS x19, x20, x21, x22, x23, x24, x25, x26, x27, x28
-
-#define CALLEE_SAVE_FP_REGISTERS d8, d9, d10, d11, d12, d13, d14, d15
+#define CALLEE_SAVE_REGISTERS C_CALL_CALLEE_SAVE_REGISTERS
+#define CALLEE_SAVE_FP_REGISTERS C_CALL_CALLEE_SAVE_FP_REGISTERS
 
 #elif V8_TARGET_ARCH_MIPS64
 // ===========================================================================

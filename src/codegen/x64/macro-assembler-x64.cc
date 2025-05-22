@@ -4651,17 +4651,26 @@ int MacroAssembler::CallCFunction(Register function, int num_arguments,
   bind(&get_pc);
   if (return_location) bind(return_location);
 
+  DCHECK_NE(base::OS::ActivationFrameAlignment(), 0);
+  DCHECK_GE(num_arguments, 0);
+  int argument_slots_on_stack =
+      ArgumentStackSlotsForCFunctionCall(num_arguments);
+  // Restoring the stack pointer has to happen right after the call. The
+  // deoptimizer may overwrite everything after restoring the SP.
+  int before_offset = pc_offset();
+  movq(rsp, Operand(rsp, argument_slots_on_stack * kSystemPointerSize));
+  Nop(kMaxSizeOfMoveAfterFastCall - (pc_offset() - before_offset));
+  // We assume that with the nop padding, the move instruction uses
+  // kMaxSizeOfMoveAfterFastCall bytes. When we patch in the deopt trampoline,
+  // we patch it in after the move instruction, so that the stack has been
+  // restored correctly.
+  CHECK_EQ(kMaxSizeOfMoveAfterFastCall, pc_offset() - before_offset);
+
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // We don't unset the PC; the FP is the source of truth.
     movq(ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP),
          Immediate(0));
   }
-
-  DCHECK_NE(base::OS::ActivationFrameAlignment(), 0);
-  DCHECK_GE(num_arguments, 0);
-  int argument_slots_on_stack =
-      ArgumentStackSlotsForCFunctionCall(num_arguments);
-  movq(rsp, Operand(rsp, argument_slots_on_stack * kSystemPointerSize));
 
   return call_pc_offset;
 }
@@ -4798,8 +4807,10 @@ void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
   // performance tuning which emits a different instruction sequence.
   call(EntryFromBuiltinAsOperand(target));
   DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
-            (kind == DeoptimizeKind::kLazy) ? Deoptimizer::kLazyDeoptExitSize
-                                            : Deoptimizer::kEagerDeoptExitSize);
+            (kind == DeoptimizeKind::kLazy ||
+             kind == DeoptimizeKind::kLazyAfterFastCall)
+                ? Deoptimizer::kLazyDeoptExitSize
+                : Deoptimizer::kEagerDeoptExitSize);
 }
 
 void MacroAssembler::Trap() { int3(); }
