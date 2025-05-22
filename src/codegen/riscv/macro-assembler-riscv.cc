@@ -7321,24 +7321,36 @@ int MacroAssembler::CallCFunctionHelper(
     }
   }
 
-  Call(function);
-  int call_pc_offset = pc_offset();
-  bind(&get_pc);
-  if (return_location) bind(return_location);
+  int call_pc_offset;
+  {
+    BlockPoolsScope block_const_pool_scope(this);
+    Call(function);
+    call_pc_offset = pc_offset();
+    bind(&get_pc);
+    if (return_location) bind(return_location);
+    int before_offset = pc_offset();
+    // Remove frame bought in PrepareCallCFunction
+    int stack_passed_arguments =
+        CalculateStackPassedDWords(num_reg_arguments, num_double_arguments);
+    if (base::OS::ActivationFrameAlignment() > kSystemPointerSize) {
+      LoadWord(sp, MemOperand(sp, stack_passed_arguments * kSystemPointerSize));
+    } else {
+      AddWord(sp, sp, Operand(stack_passed_arguments * kSystemPointerSize));
+    }
+    if (kMaxSizeOfMoveAfterFastCall > pc_offset() - before_offset) {
+      nop();
+    }
+    // We assume that with the nop padding, the move instruction uses
+    // kMaxSizeOfMoveAfterFastCall bytes. When we patch in the deopt trampoline,
+    // we patch it in after the move instruction, so that the stack has been
+    // restored correctly.
+    CHECK_EQ(kMaxSizeOfMoveAfterFastCall, pc_offset() - before_offset);
+  }
 
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // We don't unset the PC; the FP is the source of truth.
     StoreWord(zero_reg,
               ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
-  }
-
-  // Remove frame bought in PrepareCallCFunction
-  int stack_passed_arguments =
-      CalculateStackPassedDWords(num_reg_arguments, num_double_arguments);
-  if (base::OS::ActivationFrameAlignment() > kSystemPointerSize) {
-    LoadWord(sp, MemOperand(sp, stack_passed_arguments * kSystemPointerSize));
-  } else {
-    AddWord(sp, sp, Operand(stack_passed_arguments * kSystemPointerSize));
   }
 
   return call_pc_offset;

@@ -17,6 +17,10 @@
 #include "src/codegen/riscv/constant-riscv-zicsr.h"
 #include "src/codegen/riscv/constant-riscv-zifencei.h"
 namespace v8 {
-namespace internal {}  // namespace internal
+namespace internal {
+// The maximum size of the stack restore after a fast API call that pops the
+// stack parameters of the call off the stack.
+constexpr int kMaxSizeOfMoveAfterFastCall = 2 * kInstrSize;
+}  // namespace internal
 }  // namespace v8
 #endif  // V8_CODEGEN_RISCV_CONSTANTS_RISCV_H_

@@ -113,9 +113,8 @@ namespace {
 #define FP_PARAM_REGISTERS fa0, fa1, fa2, fa3, fa4, fa5, fa6, fa7
 // fp is not part of CALLEE_SAVE_REGISTERS (similar to how MIPS64 or PPC defines
 // it)
-#define CALLEE_SAVE_REGISTERS s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11
-#define CALLEE_SAVE_FP_REGISTERS \
-  fs0, fs1, fs2, fs3, fs4, fs5, fs6, fs7, fs8, fs9, fs10, fs11
+#define CALLEE_SAVE_REGISTERS C_CALL_CALLEE_SAVE_REGISTERS
+#define CALLEE_SAVE_FP_REGISTERS C_CALL_CALLEE_SAVE_FP_REGISTERS
 #else
 // ===========================================================================
 // == unknown ================================================================
