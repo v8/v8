@@ -2323,6 +2323,10 @@ group("v8_maybe_icu") {
 group("v8_maybe_temporal") {
   if (v8_enable_temporal_support) {
     deps = [ "//third_party/rust/temporal_capi/v0_0:lib" ]
+
+    # Only needs to be depended on by targets that wish to use TEMPORAL_CAPI_VERSION_*
+    public_configs =
+        [ "//third_party/rust/temporal_capi:temporal_capi_versioning_defines" ]
   }
 }
 

@@ -25,8 +25,11 @@
 #include "src/temporal/temporal-parser.h"
 #include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/I128Nanoseconds.hpp"
 #include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/Instant.hpp"
+#ifdef TEMPORAL_CAPI_VERSION_0_0_6
 #include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/TemporalUnit.hpp"
-
+#else  // TEMPORAL_CAPI_VERSION_0_0_6
+#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/Unit.hpp"
+#endif  // TEMPORAL_CAPI_VERSION_0_0_6
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-date-time-format.h"
@@ -38,8 +41,13 @@ namespace v8::internal {
 
 namespace {
 
+#ifdef TEMPORAL_CAPI_VERSION_0_0_6
 using temporal_rs::TemporalRoundingMode;
 using temporal_rs::TemporalUnit;
+#else   // TEMPORAL_CAPI_VERSION_0_0_6
+using TemporalRoundingMode = temporal_rs::RoundingMode;
+using TemporalUnit = temporal_rs::Unit;
+#endif  // TEMPORAL_CAPI_VERSION_0_0_6
 
 /**
  * This header declare the Abstract Operations defined in the
