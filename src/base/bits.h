@@ -290,6 +290,16 @@ inline constexpr uint64_t RotateLeft64(uint64_t value, uint64_t shift) {
   return (value << shift) | (value >> ((64 - shift) & 63));
 }
 
+// Clear the LSB of a value using Brian Kernighan's method.
+template <typename T>
+inline constexpr int ClearLsb(T value)
+  requires std::is_integral_v<T>
+{
+  return value & (value - T{1});
+}
+static_assert(ClearLsb(0) == 0);
+static_assert(ClearLsb(0b10010) == 0b10000);
+
 // SignedAddOverflow32(lhs,rhs,val) performs a signed summation of |lhs| and
 // |rhs| and stores the result into the variable pointed to by |val| and
 // returns true if the signed summation resulted in an overflow.

@@ -4506,7 +4506,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kSeqOneByteStringAt:
       // Seq one-byte StringAt will always return an internalized string from
       // the single character roots.
-      return NodeType::kSeqInternalizedOneByteString;
+      return NodeType::kROSeqInternalizedOneByteString;
     case Opcode::kToObject:
     case Opcode::kCreateObjectLiteral:
     case Opcode::kCreateShallowObjectLiteral:

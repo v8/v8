@@ -6,6 +6,7 @@
 #define V8_MAGLEV_MAGLEV_IR_H_
 
 #include <optional>
+#include <type_traits>
 
 #include "src/base/bit-field.h"
 #include "src/base/bits.h"
@@ -632,22 +633,40 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
 // TODO(olivf): Rename Unknown to Any.
 
 /* Every object should belong to exactly one of these.*/
-#define LEAF_NODE_TYPE_LIST(V)                 \
-  V(Smi, (1 << 0))                             \
-  V(HeapNumber, (1 << 1))                      \
-  V(Null, (1 << 2))                            \
-  V(Undefined, (1 << 3))                       \
-  V(Boolean, (1 << 4))                         \
-  V(Symbol, (1 << 5))                          \
-  V(OtherInternalizedString, (1 << 6))         \
-  V(OtherNonInternalizedString, (1 << 7))      \
-  V(SeqInternalizedOneByteString, (1 << 8))    \
-  V(SeqNonInternalizedOneByteString, (1 << 9)) \
-  V(StringWrapper, (1 << 10))                  \
-  V(JSArray, (1 << 11))                        \
-  V(Callable, (1 << 12))                       \
-  V(OtherJSReceiver, (1 << 13))                \
-  V(OtherHeapObject, (1 << 14))
+#define LEAF_NODE_TYPE_LIST(V)                      \
+  V(Smi, (1 << 0))                                  \
+  V(HeapNumber, (1 << 1))                           \
+  V(Null, (1 << 2))                                 \
+  V(Undefined, (1 << 3))                            \
+  V(Boolean, (1 << 4))                              \
+  V(Symbol, (1 << 5))                               \
+  /* String Venn diagram:                        */ \
+  /* ┌String───────────────────────────────────┐ */ \
+  /* │                            OtherString  │ */ \
+  /* │┌InternalizedString───┐                  │ */ \
+  /* ││                     │                  │ */ \
+  /* ││OtherInternalized    │                  │ */ \
+  /* ││String               │                  │ */ \
+  /* │├─────────────────────┼─SeqOneByteString┐│ */ \
+  /* ││                     │                 ││ */ \
+  /* ││OtherSeqInternalized │ OtherSeqOneByte ││ */ \
+  /* ││OneByteString        │ String          ││ */ \
+  /* │├──────────────────┐  │                 ││ */ \
+  /* ││ROSeqInternalized │  │                 ││ */ \
+  /* ││OneByteString     │  │                 ││ */ \
+  /* │└──────────────────┴──┴─────────────────┘│ */ \
+  /* └─────────────────────────────────────────┘ */ \
+  V(ROSeqInternalizedOneByteString, (1 << 6))       \
+  V(OtherSeqInternalizedOneByteString, (1 << 7))    \
+  V(OtherInternalizedString, (1 << 8))              \
+  V(OtherSeqOneByteString, (1 << 9))                \
+  V(OtherString, (1 << 10))                         \
+                                                    \
+  V(StringWrapper, (1 << 11))                       \
+  V(JSArray, (1 << 12))                             \
+  V(Callable, (1 << 13))                            \
+  V(OtherJSReceiver, (1 << 14))                     \
+  V(OtherHeapObject, (1 << 15))
 
 #define COUNT(...) +1
 static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
@@ -662,15 +681,13 @@ static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
   V(NumberOrUndefined, kNumber | kUndefined)                              \
   V(NumberOrBoolean, kNumber | kBoolean)                                  \
   V(NumberOrOddball, kNumber | kOddball)                                  \
-  V(InternalizedString,                                                   \
-    kOtherInternalizedString | kSeqInternalizedOneByteString)             \
-  V(NonInternalizedString,                                                \
-    kOtherNonInternalizedString | kSeqNonInternalizedOneByteString)       \
-  V(SeqOneByteString,                                                     \
-    kSeqInternalizedOneByteString | kSeqNonInternalizedOneByteString)     \
-  V(String, kOtherNonInternalizedString | kOtherInternalizedString |      \
-                kSeqInternalizedOneByteString |                           \
-                kSeqNonInternalizedOneByteString)                         \
+  V(InternalizedString, kROSeqInternalizedOneByteString |                 \
+                            kOtherSeqInternalizedOneByteString |          \
+                            kOtherInternalizedString)                     \
+  V(SeqOneByteString, kROSeqInternalizedOneByteString |                   \
+                          kOtherSeqInternalizedOneByteString |            \
+                          kOtherSeqOneByteString)                         \
+  V(String, kInternalizedString | kSeqOneByteString | kOtherString)       \
   V(StringOrStringWrapper, kString | kStringWrapper)                      \
   V(Name, kString | kSymbol)                                              \
   V(JSReceiver, kJSArray | kCallable | kStringWrapper | kOtherJSReceiver) \
@@ -686,32 +703,60 @@ enum class NodeType : uint32_t {
   NODE_TYPE_LIST(DEFINE_NODE_TYPE)
 #undef DEFINE_NODE_TYPE
 };
+using NodeTypeInt = std::underlying_type_t<NodeType>;
+
+// Some leaf node types only exist to complement other leaf node types in a
+// combined type. We never expect to see these as standalone types.
+inline constexpr bool NodeTypeIsNeverStandalone(NodeType type) {
+  switch (type) {
+    // "Other" string types should be considered internal and never appear as
+    // standalone leaf types.
+    case NodeType::kOtherInternalizedString:
+    case NodeType::kOtherSeqInternalizedOneByteString:
+    case NodeType::kOtherSeqOneByteString:
+    case NodeType::kOtherString:
+      return true;
+    default:
+      return false;
+  }
+}
 
 inline constexpr NodeType EmptyNodeType() { return static_cast<NodeType>(0); }
 
 inline constexpr NodeType CombineType(NodeType left, NodeType right) {
-  return static_cast<NodeType>(static_cast<int>(left) &
-                               static_cast<int>(right));
+  DCHECK(!NodeTypeIsNeverStandalone(left));
+  DCHECK(!NodeTypeIsNeverStandalone(right));
+  return static_cast<NodeType>(static_cast<NodeTypeInt>(left) &
+                               static_cast<NodeTypeInt>(right));
 }
 inline constexpr NodeType IntersectType(NodeType left, NodeType right) {
-  return static_cast<NodeType>(static_cast<int>(left) |
-                               static_cast<int>(right));
+  DCHECK(!NodeTypeIsNeverStandalone(left));
+  DCHECK(!NodeTypeIsNeverStandalone(right));
+  return static_cast<NodeType>(static_cast<NodeTypeInt>(left) |
+                               static_cast<NodeTypeInt>(right));
 }
 inline constexpr bool NodeTypeIs(NodeType type, NodeType to_check) {
-  int right = static_cast<int>(to_check);
-  return (static_cast<int>(type) & (~right)) == 0;
+  DCHECK(!NodeTypeIsNeverStandalone(type));
+  DCHECK(!NodeTypeIsNeverStandalone(to_check));
+  NodeTypeInt right = static_cast<NodeTypeInt>(to_check);
+  return (static_cast<NodeTypeInt>(type) & (~right)) == 0;
 }
 inline constexpr bool NodeTypeCanBe(NodeType type, NodeType to_check) {
-  int right = static_cast<int>(to_check);
-  return (static_cast<int>(type) & (right)) != 0;
+  DCHECK(!NodeTypeIsNeverStandalone(type));
+  DCHECK(!NodeTypeIsNeverStandalone(to_check));
+  NodeTypeInt right = static_cast<NodeTypeInt>(to_check);
+  return (static_cast<NodeTypeInt>(type) & (right)) != 0;
 }
 
 inline constexpr bool NodeTypeIsUnstable(NodeType type) {
+  DCHECK(!NodeTypeIsNeverStandalone(type));
   // Any type that can be a string might be unstable, if the string part of the
   // type is unstable.
   if (NodeTypeCanBe(type, NodeType::kString)) {
     // Extract out the string part of the node type.
     NodeType string_type = CombineType(type, NodeType::kString);
+    // RO-space strings are ok, since they can't change.
+    if (string_type == NodeType::kROSeqInternalizedOneByteString) return false;
     // The generic internalized string type is ok, since it doesn't consider
     // seqness and internalized strings stay internalized.
     if (string_type == NodeType::kInternalizedString) return false;
@@ -732,9 +777,8 @@ inline constexpr bool NodeTypeIsUnstable(NodeType type) {
 static_assert(NodeTypeIsUnstable(NodeType::kSeqOneByteString));
 // Internalized strings are stable because they have to stay internalized.
 static_assert(!NodeTypeIsUnstable(NodeType::kInternalizedString));
-// Seq internalized strings are unstable because they can be in-place
-// externalized.
-static_assert(NodeTypeIsUnstable(NodeType::kSeqInternalizedOneByteString));
+// RO internalized strings are stable because they are read-only.
+static_assert(!NodeTypeIsUnstable(NodeType::kROSeqInternalizedOneByteString));
 // The generic string type is stable because we've already erased any
 // information about it.
 static_assert(!NodeTypeIsUnstable(NodeType::kString));
@@ -746,20 +790,24 @@ static_assert(!NodeTypeIsUnstable(
     IntersectType(NodeType::kNumber, NodeType::kInternalizedString)));
 
 inline constexpr NodeType MakeTypeStable(NodeType type) {
+  DCHECK(!NodeTypeIsNeverStandalone(type));
+  if (!NodeTypeIsUnstable(type)) return type;
   // Strings can be in-place internalized, turned into thin strings, and
   // in-place externalized, and byteness can change from one->two byte (because
   // of internalized external strings with two-byte encoding of one-byte data)
   // or two->one byte (because of internalizing a two-byte slice with one-byte
   // data). The only invariant that we can preserve is that internalized strings
   // stay internalized.
-  if (NodeTypeCanBe(type, NodeType::kString)) {
-    if (!NodeTypeCanBe(type, NodeType::kNonInternalizedString)) {
-      // Strings that can't be non-internalized become generic internalized.
-      type = IntersectType(type, NodeType::kInternalizedString);
-    } else {
-      // All other strings become fully generic.
-      type = IntersectType(type, NodeType::kString);
-    }
+  DCHECK(NodeTypeCanBe(type, NodeType::kString));
+  // Extract out the string part of the node type.
+  NodeType string_type = CombineType(type, NodeType::kString);
+  if (NodeTypeIs(string_type, NodeType::kInternalizedString)) {
+    // Strings that can't be anything but internalized become generic
+    // internalized.
+    type = IntersectType(type, NodeType::kInternalizedString);
+  } else {
+    // All other strings become fully generic.
+    type = IntersectType(type, NodeType::kString);
   }
   DCHECK(!NodeTypeIsUnstable(type));
   return type;
@@ -770,9 +818,9 @@ static_assert(MakeTypeStable(NodeType::kSeqOneByteString) == NodeType::kString);
 // Generic internalized strings stay as they are.
 static_assert(MakeTypeStable(NodeType::kInternalizedString) ==
               NodeType::kInternalizedString);
-// Seq internalized strings become generic.
-static_assert(MakeTypeStable(NodeType::kSeqInternalizedOneByteString) ==
-              NodeType::kInternalizedString);
+// Read-only seq internalized strings become generic.
+static_assert(MakeTypeStable(NodeType::kROSeqInternalizedOneByteString) ==
+              NodeType::kROSeqInternalizedOneByteString);
 // Stabilizing a type which is partially an unstable string should generalize
 // the string part of the type
 static_assert(MakeTypeStable(IntersectType(NodeType::kNumber,
@@ -780,8 +828,9 @@ static_assert(MakeTypeStable(IntersectType(NodeType::kNumber,
               IntersectType(NodeType::kNumber, NodeType::kString));
 
 // Assert that the Unknown type is constructed correctly.
-#define ADD_STATIC_ASSERT(Name, Value) \
-  static_assert(NodeTypeIs(NodeType::k##Name, NodeType::kUnknown));
+#define ADD_STATIC_ASSERT(Name, Value)                          \
+  static_assert(NodeTypeIsNeverStandalone(NodeType::k##Name) || \
+                NodeTypeIs(NodeType::k##Name, NodeType::kUnknown));
 LEAF_NODE_TYPE_LIST(ADD_STATIC_ASSERT)
 #undef ADD_STATIC_ASSERT
 
@@ -790,9 +839,6 @@ inline NodeType StaticTypeForMap(compiler::MapRef map,
   if (map.IsHeapNumberMap()) return NodeType::kHeapNumber;
   if (map.IsStringMap()) {
     if (map.IsInternalizedStringMap()) {
-      if (map.IsSeqStringMap() && map.IsOneByteStringMap()) {
-        return NodeType::kSeqInternalizedOneByteString;
-      }
       return NodeType::kInternalizedString;
     }
     if (map.IsSeqStringMap() && map.IsOneByteStringMap()) {
@@ -828,6 +874,12 @@ inline NodeType StaticTypeForConstant(compiler::JSHeapBroker* broker,
   if (ref.IsSmi()) return NodeType::kSmi;
   NodeType type = StaticTypeForMap(ref.AsHeapObject().map(broker), broker);
   DCHECK(!IsEmptyNodeType(type));
+  if (type == NodeType::kInternalizedString && ref.is_read_only()) {
+    if (ref.AsString().IsSeqString() &&
+        ref.AsString().IsOneByteRepresentation()) {
+      type = NodeType::kROSeqInternalizedOneByteString;
+    }
+  }
   return type;
 }
 
@@ -846,18 +898,20 @@ inline bool IsInstanceOfLeafNodeType(compiler::MapRef map, NodeType type,
       return map.IsBooleanMap(broker);
     case NodeType::kSymbol:
       return map.IsSymbolMap();
-    case NodeType::kOtherNonInternalizedString:
-      return map.IsStringMap() && !map.IsInternalizedStringMap() &&
-             !(map.IsSeqStringMap() && map.IsOneByteStringMap());
+    case NodeType::kOtherString:
+      // This doesn't exclude other string leaf types, which means one should
+      // never test for this node type alone.
+      return map.IsStringMap();
+    case NodeType::kOtherSeqOneByteString:
+      return map.IsSeqStringMap() && map.IsOneByteStringMap();
+    // We can't prove with a map alone that an object is in RO-space, but
+    // these maps will be potential candidates.
+    case NodeType::kROSeqInternalizedOneByteString:
+    case NodeType::kOtherSeqInternalizedOneByteString:
+      return map.IsInternalizedStringMap() && map.IsSeqStringMap() &&
+             map.IsOneByteStringMap();
     case NodeType::kOtherInternalizedString:
-      return map.IsStringMap() && map.IsInternalizedStringMap() &&
-             !(map.IsSeqStringMap() && map.IsOneByteStringMap());
-    case NodeType::kSeqInternalizedOneByteString:
-      return map.IsStringMap() && map.IsInternalizedStringMap() &&
-             map.IsSeqStringMap() && map.IsOneByteStringMap();
-    case NodeType::kSeqNonInternalizedOneByteString:
-      return map.IsStringMap() && !map.IsInternalizedStringMap() &&
-             map.IsSeqStringMap() && map.IsOneByteStringMap();
+      return map.IsInternalizedStringMap();
     case NodeType::kStringWrapper:
       return map.IsStringWrapperMap();
     case NodeType::kJSArray:
@@ -877,23 +931,26 @@ inline bool IsInstanceOfLeafNodeType(compiler::MapRef map, NodeType type,
 
 inline bool IsInstanceOfNodeType(compiler::MapRef map, NodeType type,
                                  compiler::JSHeapBroker* broker) {
-  switch (type) {
-#define CASE(Name, _) case NodeType::k##Name:
-    LEAF_NODE_TYPE_LIST(CASE)
-#undef CASE
-    return IsInstanceOfLeafNodeType(map, type, broker);
-    default:
-      // This is some a composed type.
-#define CASE(Name, _)                                               \
-  if (NodeTypeIs(NodeType::k##Name, type)) {                        \
-    if (IsInstanceOfLeafNodeType(map, NodeType::k##Name, broker)) { \
-      return true;                                                  \
-    }                                                               \
+  DCHECK(!NodeTypeIsNeverStandalone(type));
+
+  // Early return for any heap object.
+  if (NodeTypeIs(NodeType::kAnyHeapObject, type)) {
+    // Unknown types will be handled here too.
+    static_assert(NodeTypeIs(NodeType::kAnyHeapObject, NodeType::kUnknown));
+    return true;
   }
-      LEAF_NODE_TYPE_LIST(CASE)
-#undef CASE
-      return false;
+
+  // Iterate over each leaf type bit in the type bitmask, and check if the map
+  // matches it.
+  NodeTypeInt type_bits = static_cast<NodeTypeInt>(type);
+  while (type_bits != 0) {
+    NodeTypeInt current_bit =
+        1 << base::bits::CountTrailingZerosNonZero(type_bits);
+    NodeType leaf_type = static_cast<NodeType>(current_bit);
+    if (IsInstanceOfLeafNodeType(map, leaf_type, broker)) return true;
+    type_bits = base::bits::ClearLsb(type_bits);
   }
+  return false;
 }
 
 inline std::ostream& operator<<(std::ostream& out, const NodeType& type) {

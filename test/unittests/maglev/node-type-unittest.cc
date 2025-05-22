@@ -33,6 +33,7 @@ TEST_F(MaglevTest, NodeTypeSmokeTests) {
 
 TEST_F(MaglevTest, EmptyTypeIsAnything) {
   for (NodeType a : kAllNodeTypes) {
+    if (NodeTypeIsNeverStandalone(a)) continue;
     CHECK(NodeTypeIs(EmptyNodeType(), a));
   }
 }
@@ -49,6 +50,7 @@ std::unordered_set<NodeType> kMissingEntries{
 // The missing node types must be inhabited.
 TEST_F(MaglevTest, NodeTypeMissingEntriesExist) {
   for (NodeType missing : kMissingEntries) {
+    if (NodeTypeIsNeverStandalone(missing)) continue;
     CHECK(!IsEmptyNodeType(missing));
   }
 }
@@ -62,6 +64,7 @@ TEST_F(MaglevTest, ConstantNodeTypeApproximationIsConsistent) {
     NodeType t = StaticTypeForConstant(broker(), ref);
     CHECK(!IsEmptyNodeType(t));
     for (NodeType a : kAllNodeTypes) {
+      if (NodeTypeIsNeverStandalone(a)) continue;
       bool is_instance = IsInstanceOfNodeType(ref.map(broker()), a, broker());
       bool is_subtype = NodeTypeIs(t, a);
       CHECK_IMPLIES(is_subtype, is_instance);
@@ -79,6 +82,7 @@ TEST_F(MaglevTest, NodeTypeApproximationIsConsistent) {
     compiler::MapRef map_ref = MakeRef(broker(), map);
 
     for (NodeType a : kAllNodeTypes) {
+      if (NodeTypeIsNeverStandalone(a)) continue;
       bool is_instance = IsInstanceOfNodeType(map_ref, a, broker());
       bool is_subtype = NodeTypeIs(StaticTypeForMap(map_ref, broker()), a);
       CHECK_IMPLIES(is_subtype, is_instance);
@@ -96,7 +100,9 @@ TEST_F(MaglevTest, NodeTypeCombineIsConsistent) {
     compiler::MapRef map_ref = MakeRef(broker(), map);
 
     for (NodeType a : kAllNodeTypes) {
+      if (NodeTypeIsNeverStandalone(a)) continue;
       for (NodeType b : kAllNodeTypes) {
+        if (NodeTypeIsNeverStandalone(b)) continue;
         NodeType combined_type = CombineType(a, b);
         bool map_is_a = IsInstanceOfNodeType(map_ref, a, broker());
         bool map_is_b = IsInstanceOfNodeType(map_ref, b, broker());
@@ -119,7 +125,9 @@ TEST_F(MaglevTest, NodeTypeIntersectIsConsistent) {
     compiler::MapRef map_ref = MakeRef(broker(), map);
 
     for (NodeType a : kAllNodeTypes) {
+      if (NodeTypeIsNeverStandalone(a)) continue;
       for (NodeType b : kAllNodeTypes) {
+        if (NodeTypeIsNeverStandalone(b)) continue;
         NodeType join_type = IntersectType(a, b);
         bool map_is_a = IsInstanceOfNodeType(map_ref, a, broker());
         bool map_is_b = IsInstanceOfNodeType(map_ref, b, broker());
@@ -128,6 +136,19 @@ TEST_F(MaglevTest, NodeTypeIntersectIsConsistent) {
         CHECK_IMPLIES(!IsInstanceOfNodeType(map_ref, join_type, broker()),
                       !(map_is_a && map_is_b));
       }
+    }
+  }
+}
+
+// Ensure that we can never get a NodeTypeIsNeverStandalone violation with
+// a CombineType.
+TEST_F(MaglevTest, CombinationsOfCombinedNodeTypesAreAllowed) {
+  for (NodeType a : kAllNodeTypes) {
+    if (NodeTypeIsNeverStandalone(a)) continue;
+    for (NodeType b : kAllNodeTypes) {
+      if (NodeTypeIsNeverStandalone(b)) continue;
+      NodeType combined_type = CombineType(a, b);
+      CHECK(!NodeTypeIsNeverStandalone(combined_type));
     }
   }
 }

@@ -420,6 +420,7 @@ class V8_EXPORT_PRIVATE ObjectRef {
   Maybe<double> OddballToNumber(JSHeapBroker* broker) const;
 
   bool should_access_heap() const;
+  bool is_read_only() const;
 
   ObjectData* data() const;
 
@@ -1179,11 +1180,11 @@ class StringRef : public NameRef {
   std::optional<double> ToNumber(JSHeapBroker* broker);
   std::optional<double> ToInt(JSHeapBroker* broker, int radix);
 
-  bool IsSeqString() const;
+  V8_EXPORT_PRIVATE bool IsSeqString() const;
   bool IsExternalString() const;
 
   bool IsContentAccessible() const;
-  bool IsOneByteRepresentation() const;
+  V8_EXPORT_PRIVATE bool IsOneByteRepresentation() const;
 
  private:
   // With concurrent inlining on, we currently support reading directly

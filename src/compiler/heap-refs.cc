@@ -2043,6 +2043,10 @@ bool ObjectRef::should_access_heap() const {
   return data()->should_access_heap();
 }
 
+bool ObjectRef::is_read_only() const {
+  return data()->kind() == kUnserializedReadOnlyHeapObject;
+}
+
 OptionalObjectRef JSObjectRef::GetOwnConstantElement(
     JSHeapBroker* broker, FixedArrayBaseRef elements_ref, uint32_t index,
     CompilationDependencies* dependencies) const {
