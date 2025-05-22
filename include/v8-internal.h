@@ -994,7 +994,7 @@ class Internals {
   V(TrueValue, 0x71)                      \
   V(FalseValue, 0x55)                     \
   V(EmptyString, 0x49)                    \
-  V(TheHoleValue, 0x761)
+  V(TheHoleValue, 0x7d9)
 
   using Tagged_t = uint32_t;
   struct StaticReadOnlyRoot {

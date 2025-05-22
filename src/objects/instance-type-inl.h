@@ -521,8 +521,22 @@ V8_INLINE constexpr bool IsFreeSpaceOrFiller(InstanceType instance_type) {
   return instance_type == FREE_SPACE_TYPE || instance_type == FILLER_TYPE;
 }
 
-V8_INLINE bool IsFreeSpaceOrFiller(Tagged<Map> map_object) {
-  return IsFreeSpaceOrFiller(map_object->instance_type());
+V8_INLINE bool IsFreeSpaceOrFiller(Tagged<Map> map) {
+#if V8_STATIC_ROOTS_BOOL
+  static_assert(StaticReadOnlyRoot::kFreeSpaceMap + Map::kSize ==
+                StaticReadOnlyRoot::kOnePointerFillerMap);
+  static_assert(StaticReadOnlyRoot::kOnePointerFillerMap + Map::kSize ==
+                StaticReadOnlyRoot::kTwoPointerFillerMap);
+  // Make sure that we can use fast immediate constants on arm64.
+  static_assert(StaticReadOnlyRoot::kTwoPointerFillerMap <=
+                kMaxFastImmediateConstantArm64);
+  return CheckInstanceMapRange(
+      TaggedAddressRange(StaticReadOnlyRoot::kFreeSpaceMap,
+                         StaticReadOnlyRoot::kTwoPointerFillerMap),
+      map);
+#else   // !V8_STATIC_ROOTS_BOOL
+  return IsFreeSpaceOrFiller(map->instance_type());
+#endif  // !V8_STATIC_ROOTS_BOOL
 }
 
 // These JSObject types are wrappers around a set of primitive values

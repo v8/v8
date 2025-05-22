@@ -414,6 +414,11 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     // Keep HeapNumber and BigInt maps together for cheaper numerics checks.
     ALLOCATE_AND_SET_ROOT(Map, heap_number_map, Map::kSize);
     ALLOCATE_AND_SET_ROOT(Map, bigint_map, Map::kSize);
+    // Keep FreeSpace and filler maps together for cheap
+    // `IsFreeSpaceOrFiller()`.
+    ALLOCATE_AND_SET_ROOT(Map, free_space_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(Map, one_pointer_filler_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(Map, two_pointer_filler_map, Map::kSize);
 
 #undef ALLOCATE_AND_SET_ROOT
 
@@ -432,6 +437,12 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
         Context::NUMBER_FUNCTION_INDEX);
     InitializePartialMap(isolate(), bigint_map, meta_map, BIGINT_TYPE,
                          kVariableSizeSentinel);
+    InitializePartialMap(isolate(), free_space_map, meta_map, FREE_SPACE_TYPE,
+                         kVariableSizeSentinel);
+    InitializePartialMap(isolate(), one_pointer_filler_map, meta_map,
+                         FILLER_TYPE, kTaggedSize);
+    InitializePartialMap(isolate(), two_pointer_filler_map, meta_map,
+                         FILLER_TYPE, 2 * kTaggedSize);
 
     for (const StringTypeInit& entry : kStringTypeTable) {
       Tagged<Map> map = UncheckedCast<Map>(roots.object_at(entry.index));
@@ -603,6 +614,9 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
   FinalizePartialMap(roots.bigint_map());
   FinalizePartialMap(roots.hole_map());
   FinalizePartialMap(roots.symbol_map());
+  FinalizePartialMap(roots.free_space_map());
+  FinalizePartialMap(roots.one_pointer_filler_map());
+  FinalizePartialMap(roots.two_pointer_filler_map());
   for (const StructInit& entry : kStructTable) {
     if (!is_important_struct(entry.type)) continue;
     FinalizePartialMap(Cast<Map>(roots.object_at(entry.index)));
@@ -649,7 +663,6 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     ALLOCATE_VARSIZE_MAP(BYTE_ARRAY_TYPE, byte_array)
     ALLOCATE_VARSIZE_MAP(TRUSTED_BYTE_ARRAY_TYPE, trusted_byte_array)
     ALLOCATE_VARSIZE_MAP(BYTECODE_ARRAY_TYPE, bytecode_array)
-    ALLOCATE_VARSIZE_MAP(FREE_SPACE_TYPE, free_space)
     ALLOCATE_VARSIZE_MAP(PROPERTY_ARRAY_TYPE, property_array)
     ALLOCATE_VARSIZE_MAP(SMALL_ORDERED_HASH_MAP_TYPE, small_ordered_hash_map)
     ALLOCATE_VARSIZE_MAP(SMALL_ORDERED_HASH_SET_TYPE, small_ordered_hash_set)
@@ -672,8 +685,6 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     }
 
     ALLOCATE_MAP(PROPERTY_CELL_TYPE, PropertyCell::kSize, global_property_cell)
-    ALLOCATE_MAP(FILLER_TYPE, kTaggedSize, one_pointer_filler)
-    ALLOCATE_MAP(FILLER_TYPE, 2 * kTaggedSize, two_pointer_filler)
 
     // The "no closures" and "one closure" FeedbackCell maps need
     // to be marked unstable because their objects can change maps.
