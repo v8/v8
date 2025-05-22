@@ -1029,6 +1029,9 @@ V8_OBJECT class ConsString : public String {
   Get(uint32_t index,
       const SharedStringAccessGuardIfNeeded& access_guard) const;
 
+  // Prints the entire cons tree.
+  void PrintTree();
+
   // Minimum length for a cons string.
   static const uint32_t kMinLength = 13;
 

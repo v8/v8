@@ -2038,6 +2038,29 @@ uint16_t ConsString::Get(
   UNREACHABLE();
 }
 
+void ConsString::PrintTree() {
+  DisallowGarbageCollection no_gc;
+
+  using stack_elem_t = std::pair<Tagged<String>, int>;
+  std::stack<stack_elem_t> s{{stack_elem_t{this, 0}}};
+
+  while (!s.empty()) {
+    auto elem = s.top();
+    s.pop();
+
+    int depth = elem.second;
+    if (IsConsString(elem.first)) {
+      auto cons = Cast<ConsString>(elem.first);
+      printf("%d %p\n", depth, reinterpret_cast<void*>(cons.ptr()));
+      s.push({cons->second(), depth + 1});
+      s.push({cons->first(), depth + 1});
+    } else {
+      printf("%d ", depth);
+      Print(elem.first);
+    }
+  }
+}
+
 uint16_t ThinString::Get(
     uint32_t index, const SharedStringAccessGuardIfNeeded& access_guard) const {
   return actual()->Get(index, access_guard);
