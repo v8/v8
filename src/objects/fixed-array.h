@@ -587,7 +587,6 @@ V8_OBJECT class ProtectedWeakFixedArray
 class WeakArrayList
     : public TorqueGeneratedWeakArrayList<WeakArrayList, HeapObject> {
  public:
-  NEVER_READ_ONLY_SPACE
   DECL_PRINTER(WeakArrayList)
 
   V8_EXPORT_PRIVATE static Handle<WeakArrayList> AddToEnd(

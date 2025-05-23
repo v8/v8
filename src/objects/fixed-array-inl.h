@@ -393,8 +393,6 @@ constexpr int TaggedArrayBase<D, S, P>::NewCapacityForIndex(int index,
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
 
-NEVER_READ_ONLY_SPACE_IMPL(WeakArrayList)
-
 inline int WeakArrayList::capacity(RelaxedLoadTag) const {
   int value = TaggedField<Smi>::Relaxed_Load(*this, kCapacityOffset).value();
   return value;

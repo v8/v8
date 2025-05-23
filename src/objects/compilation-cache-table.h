@@ -113,8 +113,6 @@ EXTERN_DECLARE_HASH_TABLE(CompilationCacheTable, CompilationCacheShape)
 class CompilationCacheTable
     : public HashTable<CompilationCacheTable, CompilationCacheShape> {
  public:
-  NEVER_READ_ONLY_SPACE
-
   // The 'script' cache contains SharedFunctionInfos. Once a root
   // SharedFunctionInfo has become old enough that its bytecode is flushed, the
   // entry is still present and can be used to get the Script.

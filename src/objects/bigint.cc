@@ -134,11 +134,7 @@ V8_OBJECT class MutableBigInt : public FreshlyAllocatedBigInt {
 
   static_assert(std::is_same_v<bigint::digit_t, BigIntBase::digit_t>,
                 "We must be able to call BigInt library functions");
-
-  NEVER_READ_ONLY_SPACE
 } V8_OBJECT_END;
-
-NEVER_READ_ONLY_SPACE_IMPL(MutableBigInt)
 
 template <>
 struct CastTraits<MutableBigInt> : public CastTraits<BigInt> {};

@@ -1060,8 +1060,6 @@ int Map::InstanceSizeFromSlack(int slack) const {
   return instance_size() - slack * kTaggedSize;
 }
 
-NEVER_READ_ONLY_SPACE_IMPL(NormalizedMapCache)
-
 int NormalizedMapCache::GetIndex(Isolate* isolate, Tagged<Map> map,
                                  Tagged<HeapObject> prototype) {
   DisallowGarbageCollection no_gc;

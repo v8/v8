@@ -1097,7 +1097,6 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 // needs very limited number of distinct normalized maps.
 class NormalizedMapCache : public WeakFixedArray {
  public:
-  NEVER_READ_ONLY_SPACE
   static DirectHandle<NormalizedMapCache> New(Isolate* isolate);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Map> Get(Isolate* isolate,

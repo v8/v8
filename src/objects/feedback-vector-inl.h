@@ -32,9 +32,6 @@ namespace v8::internal {
 TQ_OBJECT_CONSTRUCTORS_IMPL(FeedbackVector)
 OBJECT_CONSTRUCTORS_IMPL(FeedbackMetadata, HeapObject)
 
-NEVER_READ_ONLY_SPACE_IMPL(FeedbackVector)
-NEVER_READ_ONLY_SPACE_IMPL(ClosureFeedbackCellArray)
-
 INT32_ACCESSORS(FeedbackMetadata, slot_count, kSlotCountOffset)
 
 INT32_ACCESSORS(FeedbackMetadata, create_closure_slot_count,

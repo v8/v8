@@ -21,8 +21,6 @@
 
 namespace v8::internal {
 
-NEVER_READ_ONLY_SPACE_IMPL(CompilationCacheTable)
-
 Tagged<Object> CompilationCacheTable::PrimaryValueAt(InternalIndex entry) {
   return get(EntryToIndex(entry) + 1);
 }

@@ -60,8 +60,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSPrimitiveWrapper)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSStringIterator)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSValidIteratorWrapper)
 
-NEVER_READ_ONLY_SPACE_IMPL(JSReceiver)
-
 DEF_GETTER(JSObject, elements, Tagged<FixedArrayBase>) {
   return TaggedField<FixedArrayBase, kElementsOffset>::load(cage_base, *this);
 }

@@ -24,8 +24,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/allocation-site-tq-inl.inc"
 
-NEVER_READ_ONLY_SPACE_IMPL(AllocationSite)
-
 inline Tagged<UnionOf<Smi, JSObject>>
 AllocationSite::transition_info_or_boilerplate() const {
   return transition_info_or_boilerplate_.load();

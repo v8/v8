@@ -86,18 +86,6 @@
   inline void Type::CheckTypeOnCast() { SLOW_DCHECK(Is##Type(*this)); } \
   inline Type::Type(Address ptr) : Super(ptr) { CheckTypeOnCast(); }
 
-#define NEVER_READ_ONLY_SPACE   \
-  inline Heap* GetHeap() const; \
-  inline Isolate* GetIsolate() const;
-
-// TODO(leszeks): Add checks in the factory that we never allocate these
-// objects in RO space.
-#define NEVER_READ_ONLY_SPACE_IMPL(Type)                                   \
-  Heap* Type::GetHeap() const { return GetHeapFromWritableObject(*this); } \
-  Isolate* Type::GetIsolate() const {                                      \
-    return GetIsolateFromWritableObject(*this);                            \
-  }
-
 #define DECL_PRIMITIVE_GETTER(name, type) inline type name() const;
 
 #define DECL_PRIMITIVE_SETTER(name, type) inline void set_##name(type value);

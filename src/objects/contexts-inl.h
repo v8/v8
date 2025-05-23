@@ -57,7 +57,6 @@ Tagged<Context> ScriptContextTable::get(int i, AcquireLoadTag tag) const {
 }
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(Context)
-NEVER_READ_ONLY_SPACE_IMPL(Context)
 
 RELAXED_SMI_ACCESSORS(Context, length, kLengthOffset)
 

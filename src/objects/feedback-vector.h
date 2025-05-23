@@ -290,7 +290,6 @@ class ClosureFeedbackCellArray
       TaggedArrayBase<ClosureFeedbackCellArray, ClosureFeedbackCellArrayShape>;
 
  public:
-  NEVER_READ_ONLY_SPACE
   using Shape = ClosureFeedbackCellArrayShape;
 
   V8_EXPORT_PRIVATE static DirectHandle<ClosureFeedbackCellArray> New(
@@ -310,7 +309,6 @@ class NexusConfig;
 class FeedbackVector
     : public TorqueGeneratedFeedbackVector<FeedbackVector, HeapObject> {
  public:
-  NEVER_READ_ONLY_SPACE
   DEFINE_TORQUE_GENERATED_OSR_STATE()
   DEFINE_TORQUE_GENERATED_FEEDBACK_VECTOR_FLAGS()
 

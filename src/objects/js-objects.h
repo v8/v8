@@ -45,7 +45,6 @@ class Null;
 // JSObject and JSProxy.
 class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
  public:
-  NEVER_READ_ONLY_SPACE
   // Returns true if there is no slow (ie, dictionary) backing store.
   DECL_GETTER(HasFastProperties, bool)
 

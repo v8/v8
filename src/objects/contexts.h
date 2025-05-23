@@ -480,8 +480,6 @@ enum ContextLookupFlags {
 
 class Context : public TorqueGeneratedContext<Context, HeapObject> {
  public:
-  NEVER_READ_ONLY_SPACE
-
   using TorqueGeneratedContext::length;      // Non-atomic.
   using TorqueGeneratedContext::set_length;  // Non-atomic.
   DECL_RELAXED_INT_ACCESSORS(length)
