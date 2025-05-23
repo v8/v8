@@ -766,7 +766,7 @@ void MarkCompactCollector::Prepare() {
 #ifdef DEBUG
   DCHECK(state_ == IDLE);
   state_ = PREPARE_GC;
-#endif
+#endif  // DEBUG
 
   DCHECK(!sweeper_->sweeping_in_progress());
 
@@ -786,9 +786,13 @@ void MarkCompactCollector::Prepare() {
     new_space->GarbageCollectionPrologue();
   }
   if (heap_->use_new_space()) {
-    DCHECK_EQ(
-        heap_->allocator()->new_space_allocator()->top(),
-        heap_->allocator()->new_space_allocator()->original_top_acquire());
+#ifdef DEBUG
+    Address original_top = heap_->allocator()
+                               ->new_space_allocator()
+                               ->GetOriginalTopAndLimit()
+                               .first;
+    DCHECK_EQ(heap_->allocator()->new_space_allocator()->top(), original_top);
+#endif  // DEBUG
   }
 }
 
