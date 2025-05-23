@@ -157,8 +157,10 @@ int ExecuteAgainstReference(Isolate* isolate,
   DirectHandle<WasmInstanceObject> instance_ref;
 
   // Before execution, there should be no dangling nondeterminism registered on
-  // the engine.
+  // the engine, no pending exception, and no termination request.
   DCHECK(!WasmEngine::had_nondeterminism());
+  DCHECK(!isolate->has_exception());
+  DCHECK(!isolate->stack_guard()->CheckTerminateExecution());
 
   // Try to instantiate the reference instance, return if it fails.
   {
@@ -189,6 +191,7 @@ int ExecuteAgainstReference(Isolate* isolate,
   auto heap_limit_callback = [](void* raw_data, size_t current_limit,
                                 size_t initial_limit) -> size_t {
     OomCallbackData* data = reinterpret_cast<OomCallbackData*>(raw_data);
+    if (data->heap_limit_reached) return initial_limit;
     data->heap_limit_reached = true;
     // We can not throw an exception directly at this point, so request
     // termination on the next stack check.
@@ -225,7 +228,7 @@ int ExecuteAgainstReference(Isolate* isolate,
                                                oom_callback_data.initial_limit);
   if (oom_callback_data.heap_limit_reached) {
     execute = false;
-    isolate->CancelTerminateExecution();
+    isolate->stack_guard()->ClearTerminateExecution();
   }
 
 #if V8_ENABLE_DRUMBRAKE
