@@ -179,14 +179,14 @@ Tagged<Object> CallSiteInfo::GetScriptName() const {
   if (auto script = GetScript()) {
     return script.value()->name();
   }
-  return ReadOnlyRoots(GetIsolate()).null_value();
+  return ReadOnlyRoots(Isolate::Current()).null_value();
 }
 
 Tagged<Object> CallSiteInfo::GetScriptNameOrSourceURL() const {
   if (auto script = GetScript()) {
     return script.value()->GetNameOrSourceURL();
   }
-  return ReadOnlyRoots(GetIsolate()).null_value();
+  return ReadOnlyRoots(Isolate::Current()).null_value();
 }
 
 Tagged<Object> CallSiteInfo::GetScriptSource() const {
@@ -195,14 +195,14 @@ Tagged<Object> CallSiteInfo::GetScriptSource() const {
       return script.value()->source();
     }
   }
-  return ReadOnlyRoots(GetIsolate()).null_value();
+  return ReadOnlyRoots(Isolate::Current()).null_value();
 }
 
 Tagged<Object> CallSiteInfo::GetScriptSourceMappingURL() const {
   if (auto script = GetScript()) {
     return script.value()->source_mapping_url();
   }
-  return ReadOnlyRoots(GetIsolate()).null_value();
+  return ReadOnlyRoots(Isolate::Current()).null_value();
 }
 
 // static
@@ -654,7 +654,7 @@ std::optional<Tagged<Script>> CallSiteInfo::GetScript() const {
 #if V8_ENABLE_WEBASSEMBLY
   if (IsWasm()) {
     return GetWasmInstance()
-        ->trusted_data(GetIsolate())
+        ->trusted_data(Isolate::Current())
         ->module_object()
         ->script();
   }

@@ -998,7 +998,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
             ConvertElementsWithCapacity(isolate, object, from_elements,
                                         from_kind, capacity)
                 .ToHandleChecked();
-        JSObject::SetMapAndElements(object, to_map, elements);
+        JSObject::SetMapAndElements(isolate, object, to_map, elements);
       }
       if (v8_flags.trace_elements_transitions) {
         JSObject::PrintElementsTransition(
@@ -1044,7 +1044,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     }
     DirectHandle<Map> new_map =
         JSObject::GetElementsTransitionMap(isolate, object, to_kind);
-    JSObject::SetMapAndElements(object, new_map, elements);
+    JSObject::SetMapAndElements(isolate, object, new_map, elements);
 
     // Transition through the allocation site as well if present.
     JSObject::UpdateAllocationSite(isolate, object, to_kind);

@@ -906,8 +906,8 @@ static i::DirectHandle<i::EmbedderDataArray> EmbedderDataFor(
 
 uint32_t Context::GetNumberOfEmbedderDataFields() {
   auto context = Utils::OpenDirectHandle(this);
-  i::DisallowJavascriptExecutionDebugOnly no_execution(context->GetIsolate());
-  i::DisallowExceptionsDebugOnly no_exceptions(context->GetIsolate());
+  i::DisallowJavascriptExecutionDebugOnly no_execution(i::Isolate::Current());
+  i::DisallowExceptionsDebugOnly no_exceptions(i::Isolate::Current());
   Utils::ApiCheck(i::IsNativeContext(*context),
                   "Context::GetNumberOfEmbedderDataFields",
                   "Not a native context");
@@ -1983,7 +1983,8 @@ Local<Data> ScriptOrModule::HostDefinedOptions() {
 Local<UnboundScript> Script::GetUnboundScript() {
   i::DisallowGarbageCollection no_gc;
   auto obj = Utils::OpenDirectHandle(this);
-  i::DirectHandle<i::SharedFunctionInfo> sfi(obj->shared(), obj->GetIsolate());
+  i::DirectHandle<i::SharedFunctionInfo> sfi(obj->shared(),
+                                             i::Isolate::Current());
   DCHECK(!i::HeapLayout::InReadOnlySpace(*sfi));
   return ToApiHandle<UnboundScript>(sfi);
 }
@@ -2223,8 +2224,8 @@ int Module::ScriptId() const {
   i::Tagged<i::Module> self = *Utils::OpenDirectHandle(this);
   Utils::ApiCheck(i::IsSourceTextModule(self), "v8::Module::ScriptId",
                   "v8::Module::ScriptId must be used on an SourceTextModule");
-  i::DisallowJavascriptExecutionDebugOnly no_execution(self->GetIsolate());
-  i::DisallowExceptionsDebugOnly no_exceptions(self->GetIsolate());
+  i::DisallowJavascriptExecutionDebugOnly no_execution(i::Isolate::Current());
+  i::DisallowExceptionsDebugOnly no_exceptions(i::Isolate::Current());
   return i::Cast<i::SourceTextModule>(self)->GetScript()->id();
 }
 
@@ -2247,22 +2248,22 @@ bool Module::IsGraphAsync() const {
 
 bool Module::IsSourceTextModule() const {
   auto self = Utils::OpenDirectHandle(this);
-  i::DisallowJavascriptExecutionDebugOnly no_execution(self->GetIsolate());
-  i::DisallowExceptionsDebugOnly no_exceptions(self->GetIsolate());
+  i::DisallowJavascriptExecutionDebugOnly no_execution(i::Isolate::Current());
+  i::DisallowExceptionsDebugOnly no_exceptions(i::Isolate::Current());
   return i::IsSourceTextModule(*self);
 }
 
 bool Module::IsSyntheticModule() const {
   auto self = Utils::OpenDirectHandle(this);
-  i::DisallowJavascriptExecutionDebugOnly no_execution(self->GetIsolate());
-  i::DisallowExceptionsDebugOnly no_exceptions(self->GetIsolate());
+  i::DisallowJavascriptExecutionDebugOnly no_execution(i::Isolate::Current());
+  i::DisallowExceptionsDebugOnly no_exceptions(i::Isolate::Current());
   return i::IsSyntheticModule(*self);
 }
 
 int Module::GetIdentityHash() const {
   auto self = Utils::OpenDirectHandle(this);
-  i::DisallowJavascriptExecutionDebugOnly no_execution(self->GetIsolate());
-  i::DisallowExceptionsDebugOnly no_exceptions(self->GetIsolate());
+  i::DisallowJavascriptExecutionDebugOnly no_execution(i::Isolate::Current());
+  i::DisallowExceptionsDebugOnly no_exceptions(i::Isolate::Current());
   return self->hash();
 }
 
@@ -2936,10 +2937,8 @@ void ScriptOrigin::VerifyHostDefinedOptions() const {
 }
 
 v8::Local<Value> Message::GetScriptResourceName() const {
-  i::DisallowJavascriptExecutionDebugOnly no_execution(
-      Utils::OpenDirectHandle(this)->GetIsolate());
-  i::DisallowExceptionsDebugOnly no_exceptions(
-      Utils::OpenDirectHandle(this)->GetIsolate());
+  i::DisallowJavascriptExecutionDebugOnly no_execution(i::Isolate::Current());
+  i::DisallowExceptionsDebugOnly no_exceptions(i::Isolate::Current());
   return GetScriptOrigin().ResourceName();
 }
 
@@ -2983,8 +2982,8 @@ int Message::GetEndPosition() const {
 
 int Message::ErrorLevel() const {
   auto self = Utils::OpenDirectHandle(this);
-  i::DisallowJavascriptExecutionDebugOnly no_execution(self->GetIsolate());
-  i::DisallowExceptionsDebugOnly no_exceptions(self->GetIsolate());
+  i::DisallowJavascriptExecutionDebugOnly no_execution(i::Isolate::Current());
+  i::DisallowExceptionsDebugOnly no_exceptions(i::Isolate::Current());
   return self->error_level();
 }
 
@@ -3692,8 +3691,8 @@ bool Value::IsGeneratorFunction() const {
   auto obj = *Utils::OpenDirectHandle(this);
   if (!IsJSFunction(obj)) return false;
   auto func = i::Cast<i::JSFunction>(obj);
-  i::DisallowJavascriptExecutionDebugOnly no_execution(func->GetIsolate());
-  i::DisallowExceptionsDebugOnly no_exceptions(func->GetIsolate());
+  i::DisallowJavascriptExecutionDebugOnly no_execution(i::Isolate::Current());
+  i::DisallowExceptionsDebugOnly no_exceptions(i::Isolate::Current());
   return i::IsGeneratorFunction(func->shared()->kind());
 }
 
@@ -5116,8 +5115,7 @@ Local<v8::Object> v8::Object::Clone(Isolate* isolate) {
 }
 
 Local<v8::Object> v8::Object::Clone() {
-  auto self = i::Cast<i::JSObject>(Utils::OpenDirectHandle(this));
-  return Clone(reinterpret_cast<v8::Isolate*>(self->GetIsolate()));
+  return Clone(reinterpret_cast<v8::Isolate*>(i::Isolate::Current()));
 }
 
 namespace {
@@ -5186,9 +5184,8 @@ V8_INLINE void* GetAlignedPointerFromEmbedderDataInCreationContextImpl(
 
   // This macro requires a real Isolate while |i_isolate_for_sandbox| might be
   // nullptr if the V8 sandbox is not enabled.
-  i::DisallowJavascriptExecutionDebugOnly no_execution(
-      native_context->GetIsolate());
-  i::DisallowExceptionsDebugOnly no_exceptions(native_context->GetIsolate());
+  i::DisallowJavascriptExecutionDebugOnly no_execution(i::Isolate::Current());
+  i::DisallowExceptionsDebugOnly no_exceptions(i::Isolate::Current());
 
   // TODO(ishell): remove cast once embedder_data slot has a proper type.
   i::Tagged<i::EmbedderDataArray> data =
@@ -5377,8 +5374,8 @@ void Function::SetName(v8::Local<v8::String> name) {
   auto self = Utils::OpenDirectHandle(this);
   if (!IsJSFunction(*self)) return;
   auto func = i::Cast<i::JSFunction>(self);
-  i::DisallowJavascriptExecutionDebugOnly no_execution(func->GetIsolate());
-  i::DisallowExceptionsDebugOnly no_exceptions(func->GetIsolate());
+  i::DisallowJavascriptExecutionDebugOnly no_execution(i::Isolate::Current());
+  i::DisallowExceptionsDebugOnly no_exceptions(i::Isolate::Current());
   func->shared()->SetName(*Utils::OpenDirectHandle(*name));
 }
 
@@ -5402,12 +5399,11 @@ Local<Value> Function::GetName() const {
 
 Local<Value> Function::GetInferredName() const {
   auto self = Utils::OpenDirectHandle(this);
+  i::Isolate* isolate = i::Isolate::Current();
   if (!IsJSFunction(*self)) {
-    return ToApiHandle<Primitive>(
-        self->GetIsolate()->factory()->undefined_value());
+    return ToApiHandle<Primitive>(isolate->factory()->undefined_value());
   }
   auto func = i::Cast<i::JSFunction>(self);
-  i::Isolate* isolate = i::Isolate::Current();
   return Utils::ToLocal(
       i::direct_handle(func->shared()->inferred_name(), isolate));
 }
@@ -5431,8 +5427,8 @@ ScriptOrigin Function::GetScriptOrigin() const {
   auto shared = func->shared();
   if (i::IsScript(shared->script())) {
     i::DirectHandle<i::Script> script(i::Cast<i::Script>(shared->script()),
-                                      func->GetIsolate());
-    return GetScriptOriginForScript(func->GetIsolate(), script);
+                                      i::Isolate::Current());
+    return GetScriptOriginForScript(i::Isolate::Current(), script);
   }
   return v8::ScriptOrigin(Local<Value>());
 }
@@ -5448,7 +5444,7 @@ int Function::GetScriptLineNumber() const {
   auto shared = func->shared();
   if (i::IsScript(shared->script())) {
     i::DirectHandle<i::Script> script(i::Cast<i::Script>(shared->script()),
-                                      func->GetIsolate());
+                                      i::Isolate::Current());
     return i::Script::GetLineNumber(script, shared->StartPosition());
   }
   return kLineOffsetNotFound;
@@ -5463,7 +5459,7 @@ int Function::GetScriptColumnNumber() const {
   auto shared = func->shared();
   if (i::IsScript(shared->script())) {
     i::DirectHandle<i::Script> script(i::Cast<i::Script>(shared->script()),
-                                      func->GetIsolate());
+                                      i::Isolate::Current());
     return i::Script::GetColumnNumber(script, shared->StartPosition());
   }
   return kLineOffsetNotFound;
@@ -5478,7 +5474,7 @@ Location Function::GetScriptLocation() const {
   auto shared = func->shared();
   if (i::IsScript(shared->script())) {
     i::DirectHandle<i::Script> script(i::Cast<i::Script>(shared->script()),
-                                      func->GetIsolate());
+                                      i::Isolate::Current());
     return {i::Script::GetLineNumber(script, shared->StartPosition()),
             i::Script::GetColumnNumber(script, shared->StartPosition())};
   }
@@ -5512,10 +5508,10 @@ Local<v8::Value> Function::GetBoundFunction() const {
   if (i::IsJSBoundFunction(*self)) {
     auto bound_function = i::Cast<i::JSBoundFunction>(self);
     auto bound_target_function = i::direct_handle(
-        bound_function->bound_target_function(), bound_function->GetIsolate());
+        bound_function->bound_target_function(), i::Isolate::Current());
     return Utils::CallableToLocal(bound_target_function);
   }
-  return v8::Undefined(reinterpret_cast<v8::Isolate*>(self->GetIsolate()));
+  return v8::Undefined(reinterpret_cast<v8::Isolate*>(i::Isolate::Current()));
 }
 
 bool Function::Experimental_IsNopFunction() const {
@@ -6270,7 +6266,7 @@ void* v8::Object::SlowGetAlignedPointerFromInternalField(int index) {
   if (!InternalFieldOK(obj, index, location)) return nullptr;
   void* result;
   Utils::ApiCheck(i::EmbedderDataSlot(i::Cast<i::JSObject>(*obj), index)
-                      .ToAlignedPointer(obj->GetIsolate(), &result),
+                      .ToAlignedPointer(i::Isolate::Current(), &result),
                   location, "Unaligned pointer");
   return result;
 }
@@ -6281,9 +6277,10 @@ void v8::Object::SetAlignedPointerInInternalField(int index, void* value) {
   if (!InternalFieldOK(obj, index, location)) return;
 
   i::DisallowGarbageCollection no_gc;
-  Utils::ApiCheck(i::EmbedderDataSlot(i::Cast<i::JSObject>(*obj), index)
-                      .store_aligned_pointer(obj->GetIsolate(), *obj, value),
-                  location, "Unaligned pointer");
+  Utils::ApiCheck(
+      i::EmbedderDataSlot(i::Cast<i::JSObject>(*obj), index)
+          .store_aligned_pointer(i::Isolate::Current(), *obj, value),
+      location, "Unaligned pointer");
   DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
 }
 
@@ -6302,9 +6299,10 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
       return;
     }
     void* value = values[i];
-    Utils::ApiCheck(i::EmbedderDataSlot(js_obj, index)
-                        .store_aligned_pointer(obj->GetIsolate(), *obj, value),
-                    location, "Unaligned pointer");
+    Utils::ApiCheck(
+        i::EmbedderDataSlot(js_obj, index)
+            .store_aligned_pointer(i::Isolate::Current(), *obj, value),
+        location, "Unaligned pointer");
     DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
   }
 }
@@ -7126,10 +7124,7 @@ Maybe<void> Context::DeepFreeze(DeepFreezeDelegate* delegate) {
   return JustVoid();
 }
 
-v8::Isolate* Context::GetIsolate() {
-  return reinterpret_cast<Isolate*>(
-      Utils::OpenDirectHandle(this)->GetIsolate());
-}
+v8::Isolate* Context::GetIsolate() { return Isolate::GetCurrent(); }
 
 v8::MicrotaskQueue* Context::GetMicrotaskQueue() {
   auto env = Utils::OpenDirectHandle(this);
@@ -7164,7 +7159,7 @@ v8::Local<v8::Object> Context::Global() {
   i::DirectHandle<i::JSGlobalProxy> global(context->global_proxy(), i_isolate);
   // TODO(chromium:324812): This should always return the global proxy
   // but can't presently as calls to GetPrototype will return the wrong result.
-  if (global->IsDetachedFrom(context->global_object())) {
+  if (global->IsDetachedFrom(i_isolate, context->global_object())) {
     i::DirectHandle<i::JSObject> result(context->global_object(), i_isolate);
     return Utils::ToLocal(result);
   }
@@ -7196,7 +7191,7 @@ void Context::AllowCodeGenerationFromStrings(bool allow) {
 bool Context::IsCodeGenerationFromStringsAllowed() const {
   auto context = Utils::OpenDirectHandle(this);
   return !IsFalse(context->allow_code_gen_from_strings(),
-                  context->GetIsolate());
+                  i::Isolate::Current());
 }
 
 void Context::SetErrorMessageForCodeGenerationFromStrings(Local<String> error) {
@@ -7406,7 +7401,7 @@ bool FunctionTemplate::HasInstance(v8::Local<v8::Value> value) {
     // If it's a global proxy, then test with the global object. Note that the
     // inner global object may not necessarily be a JSGlobalObject.
     auto jsobj = i::Cast<i::JSObject>(*obj);
-    i::PrototypeIterator iter(jsobj->GetIsolate(), jsobj->map());
+    i::PrototypeIterator iter(i::Isolate::Current(), jsobj->map());
     // The global proxy should always have a prototype, as it is a bug to call
     // this on a detached JSGlobalProxy.
     DCHECK(!iter.IsAtEnd());
@@ -7862,7 +7857,7 @@ Local<v8::Value> v8::NumberObject::New(Isolate* v8_isolate, double value) {
 double v8::NumberObject::ValueOf() const {
   auto obj = Utils::OpenDirectHandle(this);
   auto js_primitive_wrapper = i::Cast<i::JSPrimitiveWrapper>(obj);
-  ApiRuntimeCallStatsScope rcs_scope(js_primitive_wrapper->GetIsolate(),
+  ApiRuntimeCallStatsScope rcs_scope(i::Isolate::Current(),
                                      RCCId::kAPI_NumberObject_NumberValue);
   return i::Object::NumberValue(
       i::Cast<i::Number>(js_primitive_wrapper->value()));
@@ -8728,7 +8723,7 @@ Local<Value> Promise::Result() {
 
 Promise::PromiseState Promise::State() {
   auto promise = Utils::OpenDirectHandle(this);
-  ApiRuntimeCallStatsScope rcs_scope(promise->GetIsolate(),
+  ApiRuntimeCallStatsScope rcs_scope(i::Isolate::Current(),
                                      RCCId::kAPI_Promise_Status);
   auto js_promise = i::Cast<i::JSPromise>(promise);
   return static_cast<PromiseState>(js_promise->status());
@@ -8818,7 +8813,7 @@ CompiledWasmModule WasmModuleObject::GetCompiledModule() {
 #if V8_ENABLE_WEBASSEMBLY
   auto obj = i::Cast<i::WasmModuleObject>(Utils::OpenDirectHandle(this));
   auto url = i::direct_handle(i::Cast<i::String>(obj->script()->name()),
-                              obj->GetIsolate());
+                              i::Isolate::Current());
   size_t length;
   std::unique_ptr<char[]> cstring = url->ToCString(&length);
   return CompiledWasmModule(std::move(obj->shared_native_module()),
@@ -9148,7 +9143,7 @@ Local<ArrayBuffer> v8::ArrayBufferView::Buffer() {
         i::Cast<i::JSArrayBuffer>(data_view->buffer()), i_isolate));
   } else {
     DCHECK(IsJSTypedArray(*obj));
-    return Utils::ToLocal(i::Cast<i::JSTypedArray>(*obj)->GetBuffer());
+    return Utils::ToLocal(i::Cast<i::JSTypedArray>(*obj)->GetBuffer(i_isolate));
   }
 }
 
@@ -9246,8 +9241,7 @@ static_assert(v8::TypedArray::kMaxByteLength == i::JSTypedArray::kMaxByteLength,
 #define TYPED_ARRAY_NEW(Type, type, TYPE, ctype)                            \
   Local<Type##Array> Type##Array::New(Local<ArrayBuffer> array_buffer,      \
                                       size_t byte_offset, size_t length) {  \
-    i::Isolate* i_isolate =                                                 \
-        Utils::OpenDirectHandle(*array_buffer)->GetIsolate();               \
+    i::Isolate* i_isolate = i::Isolate::Current();                          \
     ApiRuntimeCallStatsScope rcs_scope(i_isolate,                           \
                                        RCCId::kAPI_##Type##Array_New);      \
     EnterV8NoScriptNoExceptionScope api_scope(i_isolate);                   \
@@ -9266,8 +9260,7 @@ static_assert(v8::TypedArray::kMaxByteLength == i::JSTypedArray::kMaxByteLength,
   Local<Type##Array> Type##Array::New(                                      \
       Local<SharedArrayBuffer> shared_array_buffer, size_t byte_offset,     \
       size_t length) {                                                      \
-    i::Isolate* i_isolate =                                                 \
-        Utils::OpenDirectHandle(*shared_array_buffer)->GetIsolate();        \
+    i::Isolate* i_isolate = i::Isolate::Current();                          \
     ApiRuntimeCallStatsScope rcs_scope(i_isolate,                           \
                                        RCCId::kAPI_##Type##Array_New);      \
     EnterV8NoScriptNoExceptionScope api_scope(i_isolate);                   \
@@ -9311,8 +9304,7 @@ Local<Float16Array> Float16Array::New(
     size_t length) {
   Utils::ApiCheck(i::v8_flags.js_float16array, "v8::Float16Array::New",
                   "Float16Array is not supported");
-  i::Isolate* i_isolate =
-      Utils::OpenDirectHandle(*shared_array_buffer)->GetIsolate();
+  i::Isolate* i_isolate = i::Isolate::Current();
   ApiRuntimeCallStatsScope rcs_scope(i_isolate, RCCId::kAPI_Float16Array_New);
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   if (!Utils::ApiCheck(

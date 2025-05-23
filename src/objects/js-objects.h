@@ -402,7 +402,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER) = delete;
 
   inline void initialize_elements();
-  static inline void SetMapAndElements(DirectHandle<JSObject> object,
+  static inline void SetMapAndElements(Isolate* isolate,
+                                       DirectHandle<JSObject> object,
                                        DirectHandle<Map> map,
                                        DirectHandle<FixedArrayBase> elements);
   DECL_GETTER(GetElementsKind, ElementsKind)
@@ -1184,7 +1185,8 @@ class JSIteratorResult : public JSObject {
 class JSGlobalProxy
     : public TorqueGeneratedJSGlobalProxy<JSGlobalProxy, JSSpecialObject> {
  public:
-  inline bool IsDetachedFrom(Tagged<JSGlobalObject> global) const;
+  inline bool IsDetachedFrom(Isolate* isolate,
+                             Tagged<JSGlobalObject> global) const;
   V8_EXPORT_PRIVATE bool IsDetached();
 
   static int SizeWithEmbedderFields(int embedder_field_count);
@@ -1205,7 +1207,7 @@ class JSGlobalObject
   static void InvalidatePropertyCell(DirectHandle<JSGlobalObject> object,
                                      DirectHandle<Name> name);
 
-  inline bool IsDetached();
+  inline bool IsDetached(Isolate* isolate);
   inline Tagged<NativeContext> native_context();
 
   // Dispatched behavior.

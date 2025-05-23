@@ -483,7 +483,8 @@ void FreeSpace::FreeSpacePrint(std::ostream& os) {
 
 bool JSObject::PrintProperties(std::ostream& os) {
   if (HasFastProperties()) {
-    Tagged<DescriptorArray> descs = map()->instance_descriptors(GetIsolate());
+    Tagged<DescriptorArray> descs =
+        map()->instance_descriptors(Isolate::Current());
     int nof_inobject_properties = map()->GetInObjectProperties();
     for (InternalIndex i : map()->IterateOwnDescriptors()) {
       os << "\n    ";
@@ -902,7 +903,7 @@ void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {
       os << "\n - source position: ";
       // Can't collect source positions here if not available as that would
       // allocate memory.
-      Isolate* isolate = GetIsolate();
+      Isolate* isolate = Isolate::Current();
       if (fun_info->HasBytecodeArray() &&
           fun_info->GetBytecodeArray(isolate)->HasSourcePositionTable()) {
         os << source_position();
@@ -1809,7 +1810,7 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {
 }
 
 void FeedbackVector::FeedbackSlotPrint(std::ostream& os, FeedbackSlot slot) {
-  FeedbackNexus nexus(GetIsolate(), *this, slot);
+  FeedbackNexus nexus(Isolate::Current(), *this, slot);
   nexus.Print(os);
 }
 
@@ -2368,7 +2369,7 @@ void JSBoundFunction::JSBoundFunctionPrint(std::ostream& os) {
 }
 
 void JSFunction::JSFunctionPrint(std::ostream& os) {
-  Isolate* isolate = GetIsolate();
+  Isolate* isolate = Isolate::Current();
   JSObjectPrintHeader(os, *this, "Function");
   os << "\n - function prototype: ";
   if (has_prototype_slot()) {
@@ -2416,7 +2417,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
       os << "in_progress ";
     }
     IsolateGroup::current()->js_dispatch_table()->PrintCurrentTieringRequest(
-        dispatch_handle(), GetIsolate(), os);
+        dispatch_handle(), Isolate::Current(), os);
   }
 
 #endif  // V8_ENABLE_LEAPTIERING
@@ -3344,15 +3345,15 @@ void JSDateTimeFormat::JSDateTimeFormatPrint(std::ostream& os) {
   os << "\n - icu simple date format: " << Brief(icu_simple_date_format());
   os << "\n - icu date interval format: " << Brief(icu_date_interval_format());
   os << "\n - bound format: " << Brief(bound_format());
-  os << "\n - hour cycle: " << HourCycleAsString(GetIsolate());
+  os << "\n - hour cycle: " << HourCycleAsString(Isolate::Current());
   JSObjectPrintBody(os, *this);
 }
 
 void JSDisplayNames::JSDisplayNamesPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSDisplayNames");
   os << "\n - internal: " << Brief(internal());
-  os << "\n - style: " << StyleAsString(GetIsolate());
-  os << "\n - fallback: " << FallbackAsString(GetIsolate());
+  os << "\n - style: " << StyleAsString(Isolate::Current());
+  os << "\n - fallback: " << FallbackAsString(Isolate::Current());
   JSObjectPrintBody(os, *this);
 }
 
@@ -3368,8 +3369,8 @@ void JSDurationFormat::JSDurationFormatPrint(std::ostream& os) {
 void JSListFormat::JSListFormatPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSListFormat");
   os << "\n - locale: " << Brief(locale());
-  os << "\n - style: " << StyleAsString(GetIsolate());
-  os << "\n - type: " << TypeAsString(GetIsolate());
+  os << "\n - style: " << StyleAsString(Isolate::Current());
+  os << "\n - type: " << TypeAsString(Isolate::Current());
   os << "\n - icu formatter: " << Brief(icu_formatter());
   JSObjectPrintBody(os, *this);
 }
@@ -3391,7 +3392,7 @@ void JSNumberFormat::JSNumberFormatPrint(std::ostream& os) {
 void JSPluralRules::JSPluralRulesPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSPluralRules");
   os << "\n - locale: " << Brief(locale());
-  os << "\n - type: " << TypeAsString(GetIsolate());
+  os << "\n - type: " << TypeAsString(Isolate::Current());
   os << "\n - icu plural rules: " << Brief(icu_plural_rules());
   os << "\n - icu_number_formatter: " << Brief(icu_number_formatter());
   JSObjectPrintBody(os, *this);
@@ -3401,7 +3402,7 @@ void JSRelativeTimeFormat::JSRelativeTimeFormatPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSRelativeTimeFormat");
   os << "\n - locale: " << Brief(locale());
   os << "\n - numberingSystem: " << Brief(numberingSystem());
-  os << "\n - numeric: " << NumericAsString(GetIsolate());
+  os << "\n - numeric: " << NumericAsString(Isolate::Current());
   os << "\n - icu formatter: " << Brief(icu_formatter());
   os << "\n";
 }
@@ -3409,14 +3410,14 @@ void JSRelativeTimeFormat::JSRelativeTimeFormatPrint(std::ostream& os) {
 void JSSegmentIterator::JSSegmentIteratorPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSSegmentIterator");
   os << "\n - icu break iterator: " << Brief(icu_break_iterator());
-  os << "\n - granularity: " << GranularityAsString(GetIsolate());
+  os << "\n - granularity: " << GranularityAsString(Isolate::Current());
   os << "\n";
 }
 
 void JSSegmenter::JSSegmenterPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSSegmenter");
   os << "\n - locale: " << Brief(locale());
-  os << "\n - granularity: " << GranularityAsString(GetIsolate());
+  os << "\n - granularity: " << GranularityAsString(Isolate::Current());
   os << "\n - icu break iterator: " << Brief(icu_break_iterator());
   JSObjectPrintBody(os, *this);
 }
@@ -3425,7 +3426,7 @@ void JSSegments::JSSegmentsPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSSegments");
   os << "\n - icu break iterator: " << Brief(icu_break_iterator());
   os << "\n - unicode string: " << Brief(unicode_string());
-  os << "\n - granularity: " << GranularityAsString(GetIsolate());
+  os << "\n - granularity: " << GranularityAsString(Isolate::Current());
   JSObjectPrintBody(os, *this);
 }
 #endif  // V8_INTL_SUPPORT
@@ -4315,7 +4316,7 @@ void TransitionsAccessor::PrintTransitionTree(
 }
 
 void JSObject::PrintTransitions(std::ostream& os) {
-  TransitionsAccessor ta(GetIsolate(), map());
+  TransitionsAccessor ta(Isolate::Current(), map());
   if (ta.NumberOfTransitions() != 0 || ta.HasPrototypeTransitions()) {
     os << "\n - transitions";
     ta.PrintTransitions(os);

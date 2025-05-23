@@ -213,7 +213,9 @@ bool Context::HasSameSecurityTokenAs(Tagged<Context> that) const {
          that->native_context()->security_token();
 }
 
-bool Context::IsDetached() const { return global_object()->IsDetached(); }
+bool Context::IsDetached(Isolate* isolate) const {
+  return global_object()->IsDetached(isolate);
+}
 
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name)          \
   void Context::set_##name(Tagged<UNPAREN(type)> value) {          \

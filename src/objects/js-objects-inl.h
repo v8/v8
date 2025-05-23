@@ -274,10 +274,10 @@ void JSObject::EnsureCanContainElements(Isolate* isolate,
   }
 }
 
-void JSObject::SetMapAndElements(DirectHandle<JSObject> object,
+void JSObject::SetMapAndElements(Isolate* isolate,
+                                 DirectHandle<JSObject> object,
                                  DirectHandle<Map> new_map,
                                  DirectHandle<FixedArrayBase> value) {
-  Isolate* isolate = Isolate::Current();
   JSObject::MigrateToMap(isolate, object, new_map);
   DCHECK((object->map()->has_fast_smi_or_object_elements() ||
           (*value == ReadOnlyRoots(isolate).empty_fixed_array()) ||
@@ -1000,12 +1000,13 @@ Tagged<NativeContext> JSGlobalObject::native_context() {
   return *GetCreationContext();
 }
 
-bool JSGlobalObject::IsDetached() {
-  return global_proxy()->IsDetachedFrom(*this);
+bool JSGlobalObject::IsDetached(Isolate* isolate) {
+  return global_proxy()->IsDetachedFrom(isolate, *this);
 }
 
-bool JSGlobalProxy::IsDetachedFrom(Tagged<JSGlobalObject> global) const {
-  const PrototypeIterator iter(this->GetIsolate(), Tagged<JSReceiver>(*this));
+bool JSGlobalProxy::IsDetachedFrom(Isolate* isolate,
+                                   Tagged<JSGlobalObject> global) const {
+  const PrototypeIterator iter(isolate, Tagged<JSReceiver>(*this));
   return iter.GetCurrent() != global;
 }
 

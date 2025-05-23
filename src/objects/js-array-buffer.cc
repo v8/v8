@@ -294,8 +294,7 @@ void JSArrayBuffer::YoungMarkExtensionPromoted() {
   }
 }
 
-Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
-  Isolate* isolate = GetIsolate();
+Handle<JSArrayBuffer> JSTypedArray::GetBuffer(Isolate* isolate) {
   DirectHandle<JSTypedArray> self(*this, isolate);
   DCHECK(IsTypedArrayOrRabGsabTypedArrayElementsKind(self->GetElementsKind()));
   Handle<JSArrayBuffer> array_buffer(Cast<JSArrayBuffer>(self->buffer()),

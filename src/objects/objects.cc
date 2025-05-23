@@ -4406,7 +4406,7 @@ bool Script::GetPositionInfo(DirectHandle<Script> script, int position,
   }
 #endif  // DEBUG
 #endif  // V8_ENABLE_WEBASSEMBLY
-  InitLineEnds(script->GetIsolate(), script);
+  InitLineEnds(Isolate::Current(), script);
   return script->GetPositionInfo(position, info, offset_flag);
 }
 
@@ -4432,7 +4432,7 @@ bool Script::IsUserJavaScript() const {
 #if V8_ENABLE_WEBASSEMBLY
 bool Script::ContainsAsmModule() {
   DisallowGarbageCollection no_gc;
-  SharedFunctionInfo::ScriptIterator iter(this->GetIsolate(), *this);
+  SharedFunctionInfo::ScriptIterator iter(Isolate::Current(), *this);
   for (Tagged<SharedFunctionInfo> sfi = iter.Next(); !sfi.is_null();
        sfi = iter.Next()) {
     if (sfi->HasAsmWasmData()) return true;
@@ -4942,7 +4942,8 @@ bool JSArray::SetLengthWouldNormalize(uint32_t new_length) {
   if (!HasFastElements()) return false;
   uint32_t capacity = static_cast<uint32_t>(elements()->length());
   uint32_t new_capacity;
-  return JSArray::SetLengthWouldNormalize(GetHeap(), new_length) &&
+  return JSArray::SetLengthWouldNormalize(Isolate::Current()->heap(),
+                                          new_length) &&
          ShouldConvertToSlowElements(*this, capacity, new_length - 1,
                                      &new_capacity);
 }
@@ -4961,7 +4962,7 @@ AllocationType AllocationSite::GetAllocationType() const {
 
 bool AllocationSite::IsNested() {
   DCHECK(v8_flags.trace_track_allocation_sites);
-  Tagged<Object> current = boilerplate()->GetHeap()->allocation_sites_list();
+  Tagged<Object> current = Isolate::Current()->heap()->allocation_sites_list();
   while (IsAllocationSite(current)) {
     Tagged<AllocationSiteWithWeakNext> current_site =
         Cast<AllocationSiteWithWeakNext>(current);
@@ -6372,11 +6373,10 @@ void JSWeakCollection::Set(DirectHandle<JSWeakCollection> weak_collection,
                            int32_t hash) {
   DCHECK(IsJSReceiver(*key) || IsSymbol(*key));
   Handle<EphemeronHashTable> table(
-      Cast<EphemeronHashTable>(weak_collection->table()),
-      weak_collection->GetIsolate());
+      Cast<EphemeronHashTable>(weak_collection->table()), Isolate::Current());
   DCHECK(table->IsKey(GetReadOnlyRoots(), *key));
-  DirectHandle<EphemeronHashTable> new_table = EphemeronHashTable::Put(
-      weak_collection->GetIsolate(), table, key, value, hash);
+  DirectHandle<EphemeronHashTable> new_table =
+      EphemeronHashTable::Put(Isolate::Current(), table, key, value, hash);
   weak_collection->set_table(*new_table);
   if (*table != *new_table) {
     // Zap the old table since we didn't record slots for its elements.
@@ -6388,12 +6388,11 @@ bool JSWeakCollection::Delete(DirectHandle<JSWeakCollection> weak_collection,
                               DirectHandle<Object> key, int32_t hash) {
   DCHECK(IsJSReceiver(*key) || IsSymbol(*key));
   Handle<EphemeronHashTable> table(
-      Cast<EphemeronHashTable>(weak_collection->table()),
-      weak_collection->GetIsolate());
+      Cast<EphemeronHashTable>(weak_collection->table()), Isolate::Current());
   DCHECK(table->IsKey(GetReadOnlyRoots(), *key));
   bool was_present = false;
   DirectHandle<EphemeronHashTable> new_table = EphemeronHashTable::Remove(
-      weak_collection->GetIsolate(), table, key, &was_present, hash);
+      Isolate::Current(), table, key, &was_present, hash);
   weak_collection->set_table(*new_table);
   if (*table != *new_table) {
     // Zap the old table since we didn't record slots for its elements.
@@ -6636,7 +6635,7 @@ int JSGeneratorObject::code_offset() const {
 int JSGeneratorObject::source_position() const {
   CHECK(is_suspended());
   DCHECK(function()->shared()->HasBytecodeArray());
-  Isolate* isolate = GetIsolate();
+  Isolate* isolate = Isolate::Current();
   DCHECK(function()
              ->shared()
              ->GetBytecodeArray(isolate)

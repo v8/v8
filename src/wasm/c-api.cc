@@ -2357,8 +2357,6 @@ WASM_EXPORT own<Instance> Instance::make(Store* store_abs,
   i::HandleScope handle_scope(isolate);
   CheckAndHandleInterrupts(isolate);
 
-  DCHECK_EQ(module->v8_object()->GetIsolate(), isolate);
-
   if (trap) *trap = nullptr;
   ownvec<ImportType> import_types = module_abs->imports();
   i::DirectHandle<i::JSObject> imports_obj =

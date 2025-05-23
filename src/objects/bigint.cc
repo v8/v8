@@ -306,7 +306,7 @@ void MutableBigInt::Canonicalize(Tagged<MutableBigInt> result) {
   while (new_length > 0 && result->digit(new_length - 1) == 0) new_length--;
   uint32_t to_trim = old_length - new_length;
   if (to_trim != 0) {
-    Heap* heap = result->GetHeap();
+    Heap* heap = Isolate::Current()->heap();
     if (!heap->IsLargeObject(result)) {
       uint32_t old_size =
           ALIGN_TO_ALLOCATION_ALIGNMENT(BigInt::SizeFor(old_length));

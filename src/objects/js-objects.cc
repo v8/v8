@@ -2984,7 +2984,7 @@ void JSObject::PrintElementsTransition(
     OFStream os(file);
     os << "elements transition [" << ElementsKindToString(from_kind) << " -> "
        << ElementsKindToString(to_kind) << "] in ";
-    JavaScriptFrame::PrintTop(object->GetIsolate(), file, false, true);
+    JavaScriptFrame::PrintTop(Isolate::Current(), file, false, true);
     PrintF(file, " for ");
     ShortPrint(*object, file);
     PrintF(file, " from ");
@@ -3002,7 +3002,7 @@ void JSObject::PrintInstanceMigration(FILE* file, Tagged<Map> original_map,
     return;
   }
   PrintF(file, "[migrating]");
-  Isolate* isolate = GetIsolate();
+  Isolate* isolate = Isolate::Current();
   Tagged<DescriptorArray> o = original_map->instance_descriptors(isolate);
   Tagged<DescriptorArray> n = new_map->instance_descriptors(isolate);
   for (InternalIndex i : original_map->IterateOwnDescriptors()) {
@@ -3806,7 +3806,7 @@ MaybeDirectHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     DirectHandle<JSObject> object, DirectHandle<Name> name,
     DirectHandle<Object> value, PropertyAttributes attributes) {
   DCHECK(!IsTheHole(*value));
-  LookupIterator it(object->GetIsolate(), object, name, object,
+  LookupIterator it(Isolate::Current(), object, name, object,
                     LookupIterator::OWN);
   return DefineOwnPropertyIgnoreAttributes(&it, value, attributes);
 }
@@ -4058,7 +4058,7 @@ void JSObject::MigrateSlowToFast(DirectHandle<JSObject> object,
 
 void JSObject::RequireSlowElements(Tagged<NumberDictionary> dictionary) {
   DCHECK_NE(dictionary,
-            ReadOnlyRoots(GetIsolate()).empty_slow_element_dictionary());
+            ReadOnlyRoots(Isolate::Current()).empty_slow_element_dictionary());
   if (dictionary->requires_slow_elements()) return;
   dictionary->set_requires_slow_elements();
   if (map()->is_prototype_map()) {
@@ -4689,7 +4689,7 @@ bool JSObject::HasEnumerableElements() {
       int length = IsJSArray(object)
                        ? Smi::ToInt(Cast<JSArray>(object)->length())
                        : elements->length();
-      Isolate* isolate = GetIsolate();
+      Isolate* isolate = Isolate::Current();
       for (int i = 0; i < length; i++) {
         if (!elements->is_the_hole(isolate, i)) return true;
       }
@@ -4883,7 +4883,8 @@ Tagged<Object> JSObject::SlowReverseLookup(Tagged<Object> value) {
         ->global_dictionary(kAcquireLoad)
         ->SlowReverseLookup(value);
   } else if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-    return property_dictionary_swiss()->SlowReverseLookup(GetIsolate(), value);
+    return property_dictionary_swiss()->SlowReverseLookup(Isolate::Current(),
+                                                          value);
   } else {
     return property_dictionary()->SlowReverseLookup(value);
   }
@@ -4929,7 +4930,7 @@ static bool PrototypeBenefitsFromNormalization(Tagged<JSObject> object) {
   if (!object->HasFastProperties()) return false;
   if (IsJSGlobalProxy(object)) return false;
   // TODO(v8:11248) make bootstrapper create dict mode prototypes, too?
-  if (object->GetIsolate()->bootstrapper()->IsActive()) return false;
+  if (Isolate::Current()->bootstrapper()->IsActive()) return false;
   if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) return true;
   return !object->map()->is_prototype_map() ||
          !object->map()->should_be_fast_prototype_map();
@@ -5925,7 +5926,7 @@ int JSMessageObject::GetLineNumber() const {
   if (start_position() == -1) return Message::kNoLineNumberInfo;
 
   DCHECK(script()->has_line_ends());
-  DirectHandle<Script> the_script(script(), GetIsolate());
+  DirectHandle<Script> the_script(script(), Isolate::Current());
   Script::PositionInfo info;
   if (!script()->GetPositionInfo(start_position(), &info)) {
     return Message::kNoLineNumberInfo;
@@ -5939,7 +5940,7 @@ int JSMessageObject::GetColumnNumber() const {
   if (start_position() == -1) return -1;
 
   DCHECK(script()->has_line_ends());
-  DirectHandle<Script> the_script(script(), GetIsolate());
+  DirectHandle<Script> the_script(script(), Isolate::Current());
   Script::PositionInfo info;
   if (!script()->GetPositionInfo(start_position(), &info)) {
     return -1;
@@ -5954,11 +5955,11 @@ Tagged<String> JSMessageObject::GetSource() const {
     Tagged<Object> source = script_object->source();
     if (IsString(source)) return Cast<String>(source);
   }
-  return ReadOnlyRoots(GetIsolate()).empty_string();
+  return ReadOnlyRoots(Isolate::Current()).empty_string();
 }
 
 DirectHandle<String> JSMessageObject::GetSourceLine() const {
-  Isolate* isolate = GetIsolate();
+  Isolate* isolate = Isolate::Current();
 
 #if V8_ENABLE_WEBASSEMBLY
   if (script()->type() == Script::Type::kWasm) {

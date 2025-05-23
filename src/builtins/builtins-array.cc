@@ -321,7 +321,7 @@ V8_WARN_UNUSED_RESULT bool TryFastArrayFill(
             elements = isolate->factory()->NewFixedArrayWithZeroes(end);
           }
         }
-        JSObject::SetMapAndElements(array, new_map, elements);
+        JSObject::SetMapAndElements(isolate, array, new_map, elements);
         if (IsMoreGeneralElementsKindTransition(origin_kind, target_kind)) {
           // Transition through the allocation site as well if present, but
           // only if this is a forward transition.

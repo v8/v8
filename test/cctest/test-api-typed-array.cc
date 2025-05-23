@@ -710,12 +710,12 @@ void TestOnHeapHasBuffer(const char* array_name, size_t elem_size) {
     // Get the buffer and check its length.
     i::DirectHandle<i::JSTypedArray> i_typed_array =
         v8::Utils::OpenDirectHandle(*typed_array);
-    auto i_array_buffer1 = i_typed_array->GetBuffer();
+    auto i_array_buffer1 = i_typed_array->GetBuffer(env.i_isolate());
     CHECK_EQ(size, i_array_buffer1->byte_length());
     CHECK(typed_array->HasBuffer());
 
     // Should have the same buffer each time.
-    auto i_array_buffer2 = i_typed_array->GetBuffer();
+    auto i_array_buffer2 = i_typed_array->GetBuffer(env.i_isolate());
     CHECK(i_array_buffer1.is_identical_to(i_array_buffer2));
   }
 }
@@ -741,7 +741,7 @@ void TestOffHeapHasBuffer(const char* array_name, size_t elem_size) {
     // Get the buffer and check its length.
     i::DirectHandle<i::JSTypedArray> i_typed_array =
         v8::Utils::OpenDirectHandle(*typed_array);
-    auto i_array_buffer1 = i_typed_array->GetBuffer();
+    auto i_array_buffer1 = i_typed_array->GetBuffer(env.i_isolate());
     CHECK_EQ(length * elem_size, i_array_buffer1->byte_length());
 
     size *= 2;

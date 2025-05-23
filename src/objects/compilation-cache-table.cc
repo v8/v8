@@ -440,7 +440,7 @@ InfoCellPair CompilationCacheTable::LookupEval(
 
 DirectHandle<Object> CompilationCacheTable::LookupRegExp(
     DirectHandle<String> src, JSRegExp::Flags flags) {
-  Isolate* isolate = GetIsolate();
+  Isolate* isolate = Isolate::Current();
   DisallowGarbageCollection no_gc;
   RegExpKey key(isolate, src, flags);
   InternalIndex entry = FindEntry(isolate, &key);

@@ -185,7 +185,7 @@ void MaglevCompilationInfo::set_canonical_handles(
 }
 
 bool MaglevCompilationInfo::is_detached() {
-  return toplevel_function_->context()->IsDetached();
+  return toplevel_function_->context()->IsDetached(Isolate::Current());
 }
 
 std::unique_ptr<CanonicalHandlesMap>

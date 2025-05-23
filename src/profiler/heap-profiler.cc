@@ -359,7 +359,7 @@ void HeapProfiler::QueryObjects(DirectHandle<Context> context,
       for (auto& typed_array : on_heap_typed_arrays) {
         // Convert the on-heap typed array into off-heap typed array, so that
         // its ArrayBuffer becomes valid and can be returned in the result.
-        typed_array->GetBuffer();
+        typed_array->GetBuffer(isolate());
       }
     }
     // We should return accurate information about live objects, so we need to

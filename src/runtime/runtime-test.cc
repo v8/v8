@@ -404,8 +404,7 @@ Tagged<Object> OptimizeFunctionOnNextCall(RuntimeArguments& args,
 bool EnsureCompiledAndFeedbackVector(Isolate* isolate,
                                      DirectHandle<JSFunction> function,
                                      IsCompiledScope* is_compiled_scope) {
-  *is_compiled_scope =
-      function->shared()->is_compiled_scope(function->GetIsolate());
+  *is_compiled_scope = function->shared()->is_compiled_scope(isolate);
 
   // If function isn't compiled, compile it now.
   if (!is_compiled_scope->is_compiled()) {
@@ -1680,12 +1679,12 @@ RUNTIME_FUNCTION(Runtime_PretenureAllocationSite) {
   if (!IsJSObject(arg)) return CrashUnlessFuzzing(isolate);
   Tagged<JSObject> object = Cast<JSObject>(arg);
 
-  Heap* heap = object->GetHeap();
   if (!v8_flags.sticky_mark_bits && !HeapLayout::InYoungGeneration(object)) {
     // Object is not in new space, thus there is no memento and nothing to do.
     return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
   }
 
+  Heap* heap = isolate->heap();
   PretenuringHandler* pretenuring_handler = heap->pretenuring_handler();
   Tagged<AllocationMemento> memento = PretenuringHandler::FindAllocationMemento<
       PretenuringHandler::kForRuntime>(heap, object->map(), object);

@@ -25,7 +25,7 @@ BUILTIN(TypedArrayPrototypeBuffer) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSTypedArray, typed_array,
                  "get %TypedArray%.prototype.buffer");
-  return *typed_array->GetBuffer();
+  return *typed_array->GetBuffer(isolate);
 }
 
 namespace {

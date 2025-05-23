@@ -1284,7 +1284,7 @@ namespace {
 
 void AddProperties(DirectHandle<JSObject> object, Handle<Name> names[],
                    size_t count) {
-  Isolate* isolate = object->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   for (size_t i = 0; i < count; i++) {
     DirectHandle<Object> value(Smi::FromInt(static_cast<int>(42 + i)), isolate);
     JSObject::AddProperty(isolate, object, names[i], value, NONE);
@@ -1307,7 +1307,7 @@ Handle<AccessorPair> CreateAccessorPair(FunctionTester* ft,
 void AddProperties(DirectHandle<JSObject> object, Handle<Name> names[],
                    size_t names_count, Handle<Object> values[],
                    size_t values_count, int seed = 0) {
-  Isolate* isolate = object->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   for (size_t i = 0; i < names_count; i++) {
     DirectHandle<Object> value = values[(seed + i) % values_count];
     if (IsAccessorPair(*value)) {

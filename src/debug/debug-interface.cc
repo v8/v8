@@ -475,11 +475,6 @@ Maybe<MemorySpan<const uint8_t>> ScriptSource::WasmBytecode() const {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-Isolate* Script::GetIsolate() const {
-  return reinterpret_cast<Isolate*>(
-      Utils::OpenDirectHandle(this)->GetIsolate());
-}
-
 ScriptOriginOptions Script::OriginOptions() const {
   return Utils::OpenDirectHandle(this)->origin_options();
 }
@@ -686,9 +681,10 @@ Maybe<int> Script::GetSourceOffset(const Location& location,
     if (line == 0) column -= script->column_offset();
   }
 
-  i::Script::InitLineEnds(script->GetIsolate(), script);
-  auto line_ends = i::Cast<i::FixedArray>(
-      i::direct_handle(script->line_ends(), script->GetIsolate()));
+  i::Isolate* isolate = i::Isolate::Current();
+  i::Script::InitLineEnds(isolate, script);
+  auto line_ends =
+      i::Cast<i::FixedArray>(i::direct_handle(script->line_ends(), isolate));
   if (line < 0) {
     if (mode == GetSourceOffsetMode::kClamp) {
       return Just(0);
@@ -1144,7 +1140,7 @@ ConsoleCallArguments::ConsoleCallArguments(
       length_(info.Length()) {}
 
 ConsoleCallArguments::ConsoleCallArguments(
-    internal::Isolate* isolate, const internal::BuiltinArguments& args)
+    i::Isolate* isolate, const internal::BuiltinArguments& args)
     : isolate_(reinterpret_cast<v8::Isolate*>(isolate)),
       values_(args.length() > 1 ? args.address_of_first_argument() : nullptr),
       length_(args.length() - 1) {}

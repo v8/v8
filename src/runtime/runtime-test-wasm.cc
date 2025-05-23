@@ -518,7 +518,8 @@ RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
   CHECK(!buffer->was_detached());
   CHECK(!wire_bytes->WasDetached());
 
-  DirectHandle<JSArrayBuffer> wire_bytes_buffer = wire_bytes->GetBuffer();
+  DirectHandle<JSArrayBuffer> wire_bytes_buffer =
+      wire_bytes->GetBuffer(isolate);
   base::Vector<const uint8_t> wire_bytes_vec{
       reinterpret_cast<const uint8_t*>(wire_bytes_buffer->backing_store()) +
           wire_bytes->byte_offset(),

@@ -219,7 +219,7 @@ static void LookupForRead(LookupIterator* it, bool is_has_property) {
         // ICs know how to perform access checks on global proxies.
         if (it->GetHolder<JSObject>().is_identical_to(
                 it->isolate()->global_proxy()) &&
-            !it->isolate()->global_object()->IsDetached()) {
+            !it->isolate()->global_object()->IsDetached(it->isolate())) {
           continue;
         }
         return;

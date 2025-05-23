@@ -6774,7 +6774,7 @@ bool Genesis::ConfigureApiObject(
              ->IsTemplateFor(object->map()));
 
   MaybeDirectHandle<JSObject> maybe_obj =
-      ApiNatives::InstantiateObject(object->GetIsolate(), object_template);
+      ApiNatives::InstantiateObject(isolate_, object_template);
   DirectHandle<JSObject> instantiated_template;
   if (!maybe_obj.ToHandle(&instantiated_template)) {
     DCHECK(isolate()->has_exception());
@@ -7057,7 +7057,8 @@ Genesis::Genesis(Isolate* isolate,
       HookUpGlobalProxy(global_proxy);
     }
     DCHECK_EQ(global_proxy->GetCreationContext(), *native_context());
-    DCHECK(!global_proxy->IsDetachedFrom(native_context()->global_object()));
+    DCHECK(!global_proxy->IsDetachedFrom(isolate,
+                                         native_context()->global_object()));
   } else {
     DCHECK(native_context().is_null());
 

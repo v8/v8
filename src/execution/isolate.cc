@@ -2027,7 +2027,7 @@ void ReportBootstrappingException(DirectHandle<Object> exception,
   // builtins, print the actual source here so that line numbers match.
   if (IsString(location->script()->source())) {
     DirectHandle<String> src(Cast<String>(location->script()->source()),
-                             location->script()->GetIsolate());
+                             Isolate::Current());
     PrintF("Failing script:");
     int len = src->length();
     if (len == 0) {

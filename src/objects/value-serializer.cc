@@ -501,7 +501,7 @@ Maybe<bool> ValueSerializer::WriteObject(DirectHandle<Object> object) {
       if (!id_map_.Find(view) && !treat_array_buffer_views_as_host_objects_) {
         DirectHandle<JSArrayBuffer> buffer(
             InstanceTypeChecker::IsJSTypedArray(instance_type)
-                ? Cast<JSTypedArray>(view)->GetBuffer()
+                ? Cast<JSTypedArray>(view)->GetBuffer(isolate_)
                 : direct_handle(Cast<JSArrayBuffer>(view->buffer()), isolate_));
         if (!WriteJSReceiver(buffer).FromMaybe(false)) return Nothing<bool>();
       }

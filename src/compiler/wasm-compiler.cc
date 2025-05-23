@@ -958,13 +958,13 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Tagged<FunctionTemplateInfo> api_func_data = shared->api_func_data();
     const Address c_address = api_func_data->GetCFunction(isolate, 0);
     const v8::CFunctionInfo* c_signature =
-        api_func_data->GetCSignature(target->GetIsolate(), 0);
+        api_func_data->GetCSignature(isolate, 0);
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
     Address c_functions[] = {c_address};
     const v8::CFunctionInfo* const c_signatures[] = {c_signature};
-    target->GetIsolate()->simulator_data()->RegisterFunctionsAndSignatures(
-        c_functions, c_signatures, 1);
+    isolate->simulator_data()->RegisterFunctionsAndSignatures(c_functions,
+                                                              c_signatures, 1);
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
 
     Node* shared_function_info = gasm_->LoadSharedFunctionInfo(target_node);
@@ -980,8 +980,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     FastApiCallFunction c_function{c_address, c_signature};
     Node* old_sp = BuildSwitchToTheCentralStackIfNeeded();
     Node* call = fast_api_call::BuildFastApiCall(
-        target->GetIsolate(), graph(), gasm_.get(), c_function,
-        api_data_argument,
+        isolate, graph(), gasm_.get(), c_function, api_data_argument,
         // Load and convert parameters passed to C function
         [this, c_signature, receiver_node](
             int param_index,

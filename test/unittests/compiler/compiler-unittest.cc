@@ -195,7 +195,7 @@ TEST_F(CompilerTest, UncaughtThrow) {
   const char* source = "throw 42;";
   DirectHandle<JSFunction> fun = Compile(source);
   EXPECT_TRUE(!fun.is_null());
-  Isolate* isolate = fun->GetIsolate();
+  Isolate* isolate = i_isolate();
   DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
   EXPECT_TRUE(Execution::CallScript(isolate, fun, global,
                                     isolate->factory()->empty_fixed_array())
@@ -224,7 +224,7 @@ TEST_F(CompilerC2JSFramesTest, C2JSFrames) {
 
   DirectHandle<JSFunction> fun0 = Compile(source);
   EXPECT_TRUE(!fun0.is_null());
-  Isolate* isolate = fun0->GetIsolate();
+  Isolate* isolate = i_isolate();
 
   // Run the generated code to populate the global object with 'foo'.
   DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
@@ -298,7 +298,7 @@ TEST_F(CompilerTest, FeedbackVectorPreservedAcrossRecompiles) {
 
   // Verify that we gathered feedback.
   DirectHandle<FeedbackVector> feedback_vector(f->feedback_vector(),
-                                               f->GetIsolate());
+                                               i_isolate());
   EXPECT_TRUE(!feedback_vector->is_empty());
   FeedbackSlot slot_for_a(0);
   Tagged<MaybeObject> object = feedback_vector->Get(slot_for_a);

@@ -2144,8 +2144,8 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
   DirectHandle<String> source = args.at<String>(1);
   DirectHandle<String> flags = args.at<String>(2);
 
-  RETURN_FAILURE_ON_EXCEPTION(isolate,
-                              JSRegExp::Initialize(regexp, source, flags));
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate, JSRegExp::Initialize(isolate, regexp, source, flags));
 
   return *regexp;
 }
