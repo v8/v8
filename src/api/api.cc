@@ -10227,7 +10227,7 @@ i::ValueHelper::InternalRepresentationType Isolate::GetDataFromSnapshotOnce(
 Local<Value> Isolate::GetContinuationPreservedEmbedderData() {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  return ToApiHandle<Object>(i::direct_handle(
+  return ToApiHandle<Value>(i::direct_handle(
       i_isolate->isolate_data()->continuation_preserved_embedder_data(),
       i_isolate));
 #else   // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA

@@ -94,7 +94,6 @@ void TypeCheckLocal(V* value) {
     if (std::is_same_v<Object, T> && value->IsString()) return;
     if (std::is_same_v<Object, T> && value->IsUndefined()) return;
     if (std::is_same_v<Uint32, T> && value->IsInt32()) return;
-    if (std::is_same_v<Object, T> && value->IsNumber()) return;
     // Execute the actual check (part of the cast).
     T::Cast(value);
   }
