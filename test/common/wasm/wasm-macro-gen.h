@@ -1019,13 +1019,14 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
                                value)                                       \
   struct_obj, value, WASM_ATOMICS_OP(kExprStructAtomicXor), memory_order,   \
       ToByte(typeidx), static_cast<uint8_t>(fieldidx)
-#define WASM_ARRAY_ATOMIC_GET(memory_order, typeidx, array_obj) \
-  array_obj, WASM_ATOMICS_OP(kExprArrayAtomicGet), memory_order, ToByte(typeidx)
-#define WASM_ARRAY_ATOMIC_GET_S(memory_order, typeidx, array_obj) \
-  array_obj, WASM_ATOMICS_OP(kExprArrayAtomicGetS), memory_order, \
+#define WASM_ARRAY_ATOMIC_GET(memory_order, typeidx, array_obj, index)  \
+  array_obj, index, WASM_ATOMICS_OP(kExprArrayAtomicGet), memory_order, \
       ToByte(typeidx)
-#define WASM_ARRAY_ATOMIC_GET_U(memory_order, typeidx, array_obj) \
-  array_obj, WASM_ATOMICS_OP(kExprArrayAtomicGetU), memory_order, \
+#define WASM_ARRAY_ATOMIC_GET_S(memory_order, typeidx, array_obj, index) \
+  array_obj, index, WASM_ATOMICS_OP(kExprArrayAtomicGetS), memory_order, \
+      ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_GET_U(memory_order, typeidx, array_obj, index) \
+  array_obj, index, WASM_ATOMICS_OP(kExprArrayAtomicGetU), memory_order, \
       ToByte(typeidx)
 #define WASM_ARRAY_ATOMIC_SET(memory_order, typeidx, array_obj, index, value)  \
   array_obj, index, value, WASM_ATOMICS_OP(kExprArrayAtomicSet), memory_order, \
