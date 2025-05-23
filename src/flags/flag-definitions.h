@@ -744,7 +744,10 @@ DEFINE_BOOL(script_context_cells, true,
 
 DEFINE_BOOL(function_context_cells, true,
             "Use context cells in function contexts")
-DEFINE_INT(function_context_cells_max_size, 5,
+// TODO(victorgomes): JS2/UniPoker improves with size >= 3 and
+// SP3/Charts-observable-plot regresses with size >= 5. Investigate the reason
+// of the regression and whether we can increase this threshold.
+DEFINE_INT(function_context_cells_max_size, 3,
            "Max number of context slots allowed in a function context with "
            "context cells")
 
