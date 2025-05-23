@@ -354,6 +354,21 @@ class WasmLoweringReducer : public Next {
     return {};
   }
 
+  V<Word> REDUCE(ArrayAtomicRMW)(V<WasmArrayNullable> array, V<Word32> index,
+                                 V<Word> value, ArrayAtomicRMWOp::BinOp bin_op,
+                                 wasm::ValueType element_type,
+                                 AtomicMemoryOrder memory_order) {
+    MemoryRepresentation repr = RepresentationFor(element_type, false);
+    V<WordPtr> index_scaled = __ WordPtrShiftLeft(
+        __ ChangeInt32ToIntPtr(index), element_type.value_kind_size_log2());
+    V<WordPtr> offset = __ WordPtrAdd(
+        index_scaled,
+        __ WordPtrConstant(WasmArray::kHeaderSize - kHeapObjectTag));
+    return __ AtomicRMW(__ BitcastTaggedToWordPtr(array), offset, value, bin_op,
+                        repr.ToRegisterRepresentation(), repr,
+                        MemoryAccessKind::kNormal);
+  }
+
   V<Word32> REDUCE(ArrayLength)(V<WasmArrayNullable> array,
                                 CheckForNull null_check) {
     bool explicit_null_check =

@@ -4955,6 +4955,14 @@ class TurboshaftAssemblerOpInterface
                                             memory_order);
   }
 
+  V<Word> ArrayAtomicRMW(V<WasmArrayNullable> array, V<Word32> index,
+                         V<Word> value, ArrayAtomicRMWOp::BinOp bin_op,
+                         wasm::ValueType element_type,
+                         AtomicMemoryOrder memory_order) {
+    return ReduceIfReachableArrayAtomicRMW(array, index, value, bin_op,
+                                           element_type, memory_order);
+  }
+
   V<Any> ArrayGet(V<WasmArrayNullable> array, V<Word32> index,
                   const wasm::ArrayType* array_type, bool is_signed,
                   std::optional<AtomicMemoryOrder> memory_order) {

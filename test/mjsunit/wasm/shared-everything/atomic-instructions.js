@@ -625,3 +625,178 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     assertEquals([42, 42, 142], wasm.atomicRMWUpdates(structObj, 100));
   }
 })();
+
+(function TestAtomicArrayRMW() {
+  for (let is_shared of [true, false]) {
+    print(`${arguments.callee.name} ${is_shared ? "shared" : "unshared"}`);
+    let builder = new WasmModuleBuilder();
+    let anyRefT = is_shared
+      ? wasmRefNullType(kWasmAnyRef).shared()
+      : wasmRefNullType(kWasmAnyRef);
+    let array32 =
+      builder.addArray(kWasmI32, true, kNoSuperType, false, is_shared);
+    let array64 =
+      builder.addArray(kWasmI64, true, kNoSuperType, false, is_shared);
+    builder.addFunction("newArray32", makeSig([kWasmI32, kWasmI32], [anyRefT]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kGCPrefix, kExprArrayNewFixed, array32, 2,
+      ])
+      .exportFunc();
+    builder.addFunction("newArray64", makeSig([kWasmI64, kWasmI64], [anyRefT]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kGCPrefix, kExprArrayNewFixed, array64, 2,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicAdd32",
+        makeSig([wasmRefNullType(array32), kWasmI32, kWasmI32], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kExprLocalGet, 2,
+        kAtomicPrefix, kExprArrayAtomicAdd, kAtomicSeqCst, array32,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicSub32",
+        makeSig([wasmRefNullType(array32), kWasmI32, kWasmI32], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kExprLocalGet, 2,
+        kAtomicPrefix, kExprArrayAtomicSub, kAtomicSeqCst, array32,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicAnd32",
+        makeSig([wasmRefNullType(array32), kWasmI32, kWasmI32], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kExprLocalGet, 2,
+        kAtomicPrefix, kExprArrayAtomicAnd, kAtomicSeqCst, array32,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicOr32",
+        makeSig([wasmRefNullType(array32), kWasmI32, kWasmI32], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kExprLocalGet, 2,
+        kAtomicPrefix, kExprArrayAtomicOr, kAtomicSeqCst, array32,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicXor32",
+        makeSig([wasmRefNullType(array32), kWasmI32, kWasmI32], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kExprLocalGet, 2,
+        kAtomicPrefix, kExprArrayAtomicXor, kAtomicSeqCst, array32,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicAdd64",
+        makeSig([wasmRefNullType(array64), kWasmI32, kWasmI64], [kWasmI64]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kExprLocalGet, 2,
+        kAtomicPrefix, kExprArrayAtomicAdd, kAtomicSeqCst, array64,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicSub64",
+        makeSig([wasmRefNullType(array64), kWasmI32, kWasmI64], [kWasmI64]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kExprLocalGet, 2,
+        kAtomicPrefix, kExprArrayAtomicSub, kAtomicSeqCst, array64,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicAnd64",
+        makeSig([wasmRefNullType(array64), kWasmI32, kWasmI64], [kWasmI64]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kExprLocalGet, 2,
+        kAtomicPrefix, kExprArrayAtomicAnd, kAtomicSeqCst, array64,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicOr64",
+        makeSig([wasmRefNullType(array64), kWasmI32, kWasmI64], [kWasmI64]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kExprLocalGet, 2,
+        kAtomicPrefix, kExprArrayAtomicOr, kAtomicSeqCst, array64,
+      ])
+      .exportFunc();
+      builder.addFunction("atomicXor64",
+        makeSig([wasmRefNullType(array64), kWasmI32, kWasmI64], [kWasmI64]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kExprLocalGet, 2,
+        kAtomicPrefix, kExprArrayAtomicXor, kAtomicSeqCst, array64,
+      ])
+      .exportFunc();
+
+    let wasm = builder.instantiate().exports;
+    let array32Obj = wasm.newArray32(42, -42);
+    let array64Obj = wasm.newArray64(42n, -42n);
+
+    assertEquals(42, wasm.atomicAdd32(array32Obj, 0, 24));
+    assertEquals(66, wasm.atomicAdd32(array32Obj, 0, -1));
+    assertEquals(65, wasm.atomicAdd32(array32Obj, 0, 1));
+    assertEquals(-42, wasm.atomicSub32(array32Obj, 1, 1));
+    assertEquals(-43, wasm.atomicSub32(array32Obj, 1, -10));
+    assertEquals(-33, wasm.atomicSub32(array32Obj, 1, 0));
+
+    assertEquals(42n, wasm.atomicAdd64(array64Obj, 0, 24n));
+    assertEquals(66n, wasm.atomicAdd64(array64Obj, 0, -1n));
+    assertEquals(65n, wasm.atomicAdd64(array64Obj, 0, 1n));
+    assertEquals(-42n, wasm.atomicSub64(array64Obj, 1, 1n));
+    assertEquals(-43n, wasm.atomicSub64(array64Obj, 1, -10n));
+    assertEquals(-33n, wasm.atomicSub64(array64Obj, 1, 0n));
+
+    array64Obj = wasm.newArray64(0n, 0b1101n << 35n);
+    array32Obj = wasm.newArray32(0, 0b1101 << 16);
+
+    assertEquals(0b1101 << 16, wasm.atomicAnd32(array32Obj, 1, 0b1011 << 16));
+    assertEquals(0b1001 << 16, wasm.atomicOr32(array32Obj, 1, 0b0011 << 16));
+    assertEquals(0b1011 << 16, wasm.atomicXor32(array32Obj, 1, 0b0110 << 16));
+    assertEquals(0b1101 << 16, wasm.atomicXor32(array32Obj, 1, 0));
+
+    assertEquals(0b1101n << 35n,
+      wasm.atomicAnd64(array64Obj, 1, 0b1011n << 35n));
+    assertEquals(0b1001n << 35n,
+      wasm.atomicOr64(array64Obj, 1, 0b0011n << 35n));
+    assertEquals(0b1011n << 35n,
+      wasm.atomicXor64(array64Obj, 1, 0b0110n << 35n));
+    assertEquals(0b1101n << 35n, wasm.atomicXor64(array64Obj, 1, 0n));
+
+    assertTraps(kTrapNullDereference, () => wasm.atomicAdd32(null, 0, 0));
+    assertTraps(kTrapNullDereference, () => wasm.atomicSub32(null, 0, 0));
+    assertTraps(kTrapNullDereference, () => wasm.atomicAnd32(null, 0, 0));
+    assertTraps(kTrapNullDereference, () => wasm.atomicOr32(null, 0, 0));
+    assertTraps(kTrapNullDereference, () => wasm.atomicXor32(null, 0, 0));
+    assertTraps(kTrapNullDereference, () => wasm.atomicAdd64(null, 0, 0n));
+    assertTraps(kTrapNullDereference, () => wasm.atomicSub64(null, 0, 0n));
+    assertTraps(kTrapNullDereference, () => wasm.atomicAnd64(null, 0, 0n));
+    assertTraps(kTrapNullDereference, () => wasm.atomicOr64(null, 0, 0n));
+    assertTraps(kTrapNullDereference, () => wasm.atomicXor64(null, 0, 0n));
+
+    let trapOob = kTrapArrayOutOfBounds;
+    assertTraps(trapOob, () => wasm.atomicAdd32(array32Obj, 2, 0));
+    assertTraps(trapOob, () => wasm.atomicSub32(array32Obj, 2, 0));
+    assertTraps(trapOob, () => wasm.atomicAnd32(array32Obj, 2, 0));
+    assertTraps(trapOob, () => wasm.atomicOr32(array32Obj, 2, 0));
+    assertTraps(trapOob, () => wasm.atomicXor32(array32Obj, 2, 0));
+    assertTraps(trapOob, () => wasm.atomicAdd64(array64Obj, 2, 0n));
+    assertTraps(trapOob, () => wasm.atomicSub64(array64Obj, 2, 0n));
+    assertTraps(trapOob, () => wasm.atomicAnd64(array64Obj, 2, 0n));
+    assertTraps(trapOob, () => wasm.atomicOr64(array64Obj, 2, 0n));
+    assertTraps(trapOob, () => wasm.atomicXor64(array64Obj, 2, 0n));
+  }
+})();

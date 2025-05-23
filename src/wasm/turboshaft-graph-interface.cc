@@ -4790,6 +4790,97 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                 imm.array_type->element_type(), memory_order);
   }
 
+  void ArrayAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
+                      const Value& array_obj, const ArrayIndexImmediate& imm,
+                      const Value& index, const Value& value,
+                      AtomicMemoryOrder order, Value* result) {
+    if (!array_obj.type.is_shared()) {
+      // On some architectures atomic operations require aligned accesses while
+      // unshared objects don't have the required alignment. For simplicity we
+      // do the same on all platforms and for all rmw operations (even though
+      // only 64 bit operations should run into alignment problems).
+      // TODO(mliedtke): Reconsider this if atomic operations on unshared
+      // objects remain part of the spec proposal.
+      auto array_value = V<WasmArrayNullable>::Cast(array_obj.op);
+      BoundsCheckArray(array_value, index.op, array_obj.type);
+      V<Any> old_value =
+          __ ArrayGet(array_value, index.op, imm.array_type, true, {});
+      result->op = old_value;
+      V<Word> new_value;
+      ValueType element_type = imm.array_type->element_type();
+      if (element_type == kWasmI32) {
+        V<Word32> old = V<Word32>::Cast(old_value);
+        switch (opcode) {
+          case kExprArrayAtomicAdd:
+            new_value = __ Word32Add(old, value.op);
+            break;
+          case kExprArrayAtomicSub:
+            new_value = __ Word32Sub(old, value.op);
+            break;
+          case kExprArrayAtomicAnd:
+            new_value = __ Word32BitwiseAnd(old, value.op);
+            break;
+          case kExprArrayAtomicOr:
+            new_value = __ Word32BitwiseOr(old, value.op);
+            break;
+          case kExprArrayAtomicXor:
+            new_value = __ Word32BitwiseXor(old, value.op);
+            break;
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        CHECK_EQ(element_type, kWasmI64);
+        V<Word64> old = V<Word64>::Cast(old_value);
+        switch (opcode) {
+          case kExprArrayAtomicAdd:
+            new_value = __ Word64Add(old, value.op);
+            break;
+          case kExprArrayAtomicSub:
+            new_value = __ Word64Sub(old, value.op);
+            break;
+          case kExprArrayAtomicAnd:
+            new_value = __ Word64BitwiseAnd(old, value.op);
+            break;
+          case kExprArrayAtomicOr:
+            new_value = __ Word64BitwiseOr(old, value.op);
+            break;
+          case kExprArrayAtomicXor:
+            new_value = __ Word64BitwiseXor(old, value.op);
+            break;
+          default:
+            UNREACHABLE();
+        }
+      }
+      DCHECK(new_value.valid());
+      __ ArraySet(array_value, index.op, new_value,
+                  imm.array_type->element_type(), {});
+      return;
+    }
+
+    using BinOp = compiler::turboshaft::ArrayAtomicRMWOp::BinOp;
+    BinOp op = ([](WasmOpcode opcode) -> BinOp {
+      switch (opcode) {
+        case kExprArrayAtomicAdd:
+          return BinOp::kAdd;
+        case kExprArrayAtomicSub:
+          return BinOp::kSub;
+        case kExprArrayAtomicAnd:
+          return BinOp::kAnd;
+        case kExprArrayAtomicOr:
+          return BinOp::kOr;
+        case kExprArrayAtomicXor:
+          return BinOp::kXor;
+        default:
+          UNIMPLEMENTED();
+      }
+    })(opcode);
+    auto array_value = V<WasmArrayNullable>::Cast(array_obj.op);
+    BoundsCheckArray(array_value, index.op, array_obj.type);
+    result->op = __ ArrayAtomicRMW(array_value, index.op, value.op, op,
+                                   imm.array_type->element_type(), order);
+  }
+
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
     result->op = __ ArrayLength(V<WasmArrayNullable>::Cast(array_obj.op),
                                 array_obj.type.is_nullable()

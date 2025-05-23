@@ -1030,6 +1030,21 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define WASM_ARRAY_ATOMIC_SET(memory_order, typeidx, array_obj, index, value)  \
   array_obj, index, value, WASM_ATOMICS_OP(kExprArrayAtomicSet), memory_order, \
       ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_ADD(memory_order, typeidx, array_obj, index, value)  \
+  array_obj, index, value, WASM_ATOMICS_OP(kExprArrayAtomicAdd), memory_order, \
+      ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_SUB(memory_order, typeidx, array_obj, index, value)  \
+  array_obj, index, value, WASM_ATOMICS_OP(kExprArrayAtomicSub), memory_order, \
+      ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_AND(memory_order, typeidx, array_obj, index, value)  \
+  array_obj, index, value, WASM_ATOMICS_OP(kExprArrayAtomicAnd), memory_order, \
+      ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_OR(memory_order, typeidx, array_obj, index, value)  \
+  array_obj, index, value, WASM_ATOMICS_OP(kExprArrayAtomicOr), memory_order, \
+      ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_XOR(memory_order, typeidx, array_obj, index, value)  \
+  array_obj, index, value, WASM_ATOMICS_OP(kExprArrayAtomicXor), memory_order, \
+      ToByte(typeidx)
 
 //------------------------------------------------------------------------------
 // Sign Extension Operations.

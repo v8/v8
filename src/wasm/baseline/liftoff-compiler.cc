@@ -6289,6 +6289,135 @@ class LiftoffCompiler {
     __ PushRegister(field_kind, result_reg);
   }
 
+  void ArrayAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
+                      const Value& array_obj, const ArrayIndexImmediate& imm,
+                      const Value& index_val, const Value& value_val,
+                      AtomicMemoryOrder order, Value* result) {
+    LiftoffRegList pinned;
+#ifdef V8_TARGET_ARCH_IA32
+    LiftoffRegister value = pinned.set(__ PopToModifiableRegister(pinned));
+#else
+    LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
+#endif
+    LiftoffRegister index = pinned.set(__ PopToModifiableRegister(pinned));
+    LiftoffRegister array = pinned.set(__ PopToRegister(pinned));
+    if (null_check_strategy_ == compiler::NullCheckStrategy::kExplicit) {
+      MaybeEmitNullCheck(decoder, array.gp(), pinned, array_obj.type);
+    }
+    bool implicit_null_check =
+        array_obj.type.is_nullable() &&
+        null_check_strategy_ == compiler::NullCheckStrategy::kTrapHandler;
+    BoundsCheckArray(decoder, implicit_null_check, array, index, pinned);
+    ValueKind elem_kind = imm.array_type->element_type().kind();
+    if (!CheckSupportedType(decoder, elem_kind, "array load")) return;
+    int elem_size_shift = value_kind_size_log2(elem_kind);
+    if (elem_size_shift != 0) {
+      __ emit_i32_shli(index.gp(), index.gp(), elem_size_shift);
+    }
+
+    // Skip the non-atomic implementation special case on ia32 as it is not
+    // needed (ia32 doesn't require any alignment for these operation) and there
+    // are only painfully few registers available on ia32.
+#if !V8_TARGET_ARCH_IA32
+    if (!array_obj.type.is_shared()) {
+      // On some architectures atomic operations require aligned accesses while
+      // unshared objects don't have the required alignment. For simplicity we
+      // do the same on all platforms and for all rmw operations (even though
+      // only 64 bit operations should run into alignment problems).
+      // TODO(mliedtke): Reconsider this if atomic operations on unshared
+      // objects remain part of the spec proposal.
+      LiftoffRegister result_reg =
+          pinned.set(__ GetUnusedRegister(reg_class_for(elem_kind), pinned));
+      LoadObjectField(decoder, result_reg, array.gp(), index.gp(),
+                      wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize),
+                      elem_kind, true, false, pinned);
+      LiftoffRegister new_value =
+          pinned.set(__ GetUnusedRegister(reg_class_for(elem_kind), pinned));
+
+      if (elem_kind == ValueKind::kI32) {
+        switch (opcode) {
+          case kExprArrayAtomicAdd:
+            __ emit_i32_add(new_value.gp(), result_reg.gp(), value.gp());
+            break;
+          case kExprArrayAtomicSub:
+            __ emit_i32_sub(new_value.gp(), result_reg.gp(), value.gp());
+            break;
+          case kExprArrayAtomicAnd:
+            __ emit_i32_and(new_value.gp(), result_reg.gp(), value.gp());
+            break;
+          case kExprArrayAtomicOr:
+            __ emit_i32_or(new_value.gp(), result_reg.gp(), value.gp());
+            break;
+          case kExprArrayAtomicXor:
+            __ emit_i32_xor(new_value.gp(), result_reg.gp(), value.gp());
+            break;
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        CHECK_EQ(elem_kind, ValueKind::kI64);
+        switch (opcode) {
+          case kExprArrayAtomicAdd:
+            __ emit_i64_add(new_value, result_reg, value);
+            break;
+          case kExprArrayAtomicSub:
+            __ emit_i64_sub(new_value, result_reg, value);
+            break;
+          case kExprArrayAtomicAnd:
+            __ emit_i64_and(new_value, result_reg, value);
+            break;
+          case kExprArrayAtomicOr:
+            __ emit_i64_or(new_value, result_reg, value);
+            break;
+          case kExprArrayAtomicXor:
+            __ emit_i64_xor(new_value, result_reg, value);
+            break;
+          default:
+            UNREACHABLE();
+        }
+      }
+      __ PushRegister(elem_kind, result_reg);
+      StoreObjectField(decoder, array.gp(), index.gp(),
+                       wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize),
+                       new_value, false, pinned, elem_kind);
+      return;
+    }
+#endif  // !V8_TARGET_ARCH_IA32
+
+#ifdef V8_TARGET_ARCH_IA32
+    LiftoffRegister result_reg = value;
+#else
+    LiftoffRegister result_reg =
+        __ GetUnusedRegister(reg_class_for(elem_kind), pinned);
+#endif
+    const int offset = wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize);
+    switch (opcode) {
+      case kExprArrayAtomicAdd:
+        __ AtomicAdd(array.gp(), index.gp(), offset, value, result_reg,
+                     StoreType::ForValueKind(elem_kind), false);
+        break;
+      case kExprArrayAtomicSub:
+        __ AtomicSub(array.gp(), index.gp(), offset, value, result_reg,
+                     StoreType::ForValueKind(elem_kind), false);
+        break;
+      case kExprArrayAtomicAnd:
+        __ AtomicAnd(array.gp(), index.gp(), offset, value, result_reg,
+                     StoreType::ForValueKind(elem_kind), false);
+        break;
+      case kExprArrayAtomicOr:
+        __ AtomicOr(array.gp(), index.gp(), offset, value, result_reg,
+                    StoreType::ForValueKind(elem_kind), false);
+        break;
+      case kExprArrayAtomicXor:
+        __ AtomicXor(array.gp(), index.gp(), offset, value, result_reg,
+                     StoreType::ForValueKind(elem_kind), false);
+        break;
+      default:
+        UNREACHABLE();
+    }
+    __ PushRegister(elem_kind, result_reg);
+  }
+
   // Pop a VarState and if needed transform it to an intptr.
   // When truncating from u64 to u32, the {*high_word} is updated to contain
   // the ORed combination of all high words.

@@ -6294,6 +6294,41 @@ TEST_P(FunctionBodyDecoderTestAtomicRMWInvalid, Struct) {
                                         WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
                 kAppendEnd, error_msg);
 }
+
+TEST_P(FunctionBodyDecoderTestAtomicRMWInvalid, Array) {
+  WASM_FEATURE_SCOPE(shared);
+  const auto [element_type, mutability, shared] = GetParam();
+  HeapType array_heaptype = builder.AddArray(element_type, mutability, shared);
+  ModuleTypeIndex array_type_index = array_heaptype.ref_index();
+  ValueType array_type = ValueType::Ref(array_heaptype);
+
+  const ValueType types[] = {element_type.Unpacked(), array_type, kWasmI32,
+                             element_type.Unpacked()};
+  const FunctionSig sig(1, 3, types);
+
+  const char* error_msg = mutability ? "Array type 0 has invalid type"
+                                     : "Array type 0 is immutable";
+  ExpectFailure(&sig,
+                {WASM_ARRAY_ATOMIC_ADD(0, array_type_index, WASM_LOCAL_GET(0),
+                                       WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
+                kAppendEnd, error_msg);
+  ExpectFailure(&sig,
+                {WASM_ARRAY_ATOMIC_SUB(0, array_type_index, WASM_LOCAL_GET(0),
+                                       WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
+                kAppendEnd, error_msg);
+  ExpectFailure(&sig,
+                {WASM_ARRAY_ATOMIC_AND(0, array_type_index, WASM_LOCAL_GET(0),
+                                       WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
+                kAppendEnd, error_msg);
+  ExpectFailure(&sig,
+                {WASM_ARRAY_ATOMIC_OR(0, array_type_index, WASM_LOCAL_GET(0),
+                                      WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
+                kAppendEnd, error_msg);
+  ExpectFailure(&sig,
+                {WASM_ARRAY_ATOMIC_XOR(0, array_type_index, WASM_LOCAL_GET(0),
+                                       WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
+                kAppendEnd, error_msg);
+}
 #undef B1
 #undef B2
 #undef B3

@@ -142,6 +142,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(StructAtomicRMW)                      \
   V(ArrayGet)                             \
   V(ArraySet)                             \
+  V(ArrayAtomicRMW)                       \
   V(ArrayLength)                          \
   V(WasmAllocateArray)                    \
   V(WasmAllocateStruct)                   \
@@ -7318,6 +7319,52 @@ struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
   void PrintOptions(std::ostream& os) const;
 };
 
+struct ArrayAtomicRMWOp : FixedArityOperationT<3, ArrayAtomicRMWOp> {
+  using BinOp = AtomicRMWOp::BinOp;
+  BinOp bin_op;
+  wasm::ValueType element_type;
+  AtomicMemoryOrder memory_order;
+
+  OpEffects Effects() const {
+    return OpEffects()
+        // This should not float above a protective null check.
+        .CanDependOnChecks()
+        .CanReadMemory()
+        .CanWriteMemory();
+  }
+
+  ArrayAtomicRMWOp(V<WasmArrayNullable> array, V<Word32> index, V<Word> value,
+                   BinOp bin_op, wasm::ValueType element_type,
+                   AtomicMemoryOrder memory_order)
+      : Base(array, index, value),
+        bin_op(bin_op),
+        element_type(element_type),
+        memory_order(memory_order) {}
+
+  V<WasmArrayNullable> array() const { return input<WasmArrayNullable>(0); }
+  V<Word32> index() const { return input<Word32>(1); }
+  V<Word> value() const { return input<Word>(2); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return base::VectorOf(&RepresentationFor(element_type), 1);
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return InitVectorOf(storage, {RegisterRepresentation::Tagged(),
+                                  RegisterRepresentation::Word32(),
+                                  RepresentationFor(element_type)});
+  }
+
+  void Validate(const Graph& graph) const {
+    DCHECK(element_type == wasm::kWasmI32 || element_type == wasm::kWasmI64);
+  }
+
+  auto options() const {
+    return std::tuple{bin_op, element_type, memory_order};
+  }
+};
+
 struct ArrayLengthOp : FixedArityOperationT<1, ArrayLengthOp> {
   CheckForNull null_check;
 
@@ -9257,6 +9304,8 @@ inline OpEffects Operation::Effects() const {
       return Cast<StructSetOp>().Effects();
     case Opcode::kStructAtomicRMW:
       return Cast<StructAtomicRMWOp>().Effects();
+    case Opcode::kArrayAtomicRMW:
+      return Cast<ArrayAtomicRMWOp>().Effects();
     case Opcode::kArrayLength:
       return Cast<ArrayLengthOp>().Effects();
     case Opcode::kSimd128LaneMemory:
