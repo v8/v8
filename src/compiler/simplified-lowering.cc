@@ -1836,7 +1836,10 @@ class RepresentationSelector {
       if (!TypeOf(node).IsNone()) {
         // Only eliminate the node if its typing rule can be satisfied, namely
         // that a safe integer is produced.
-        if (truncation.IsUnused()) return VisitUnused<T>(node);
+        if (truncation.IsUnused() &&
+            BothInputsAre(node, type_cache_->kAdditiveSafeIntegerOrMinusZero)) {
+          return VisitUnused<T>(node);
+        }
 
         if (truncation.IsUsedAsWord32()) {
           // This case handles addition where the result might be truncated to
