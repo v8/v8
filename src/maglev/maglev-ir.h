@@ -723,13 +723,13 @@ inline constexpr bool NodeTypeIsNeverStandalone(NodeType type) {
 
 inline constexpr NodeType EmptyNodeType() { return static_cast<NodeType>(0); }
 
-inline constexpr NodeType CombineType(NodeType left, NodeType right) {
+inline constexpr NodeType IntersectType(NodeType left, NodeType right) {
   DCHECK(!NodeTypeIsNeverStandalone(left));
   DCHECK(!NodeTypeIsNeverStandalone(right));
   return static_cast<NodeType>(static_cast<NodeTypeInt>(left) &
                                static_cast<NodeTypeInt>(right));
 }
-inline constexpr NodeType IntersectType(NodeType left, NodeType right) {
+inline constexpr NodeType UnionType(NodeType left, NodeType right) {
   DCHECK(!NodeTypeIsNeverStandalone(left));
   DCHECK(!NodeTypeIsNeverStandalone(right));
   return static_cast<NodeType>(static_cast<NodeTypeInt>(left) |
@@ -754,7 +754,7 @@ inline constexpr bool NodeTypeIsUnstable(NodeType type) {
   // type is unstable.
   if (NodeTypeCanBe(type, NodeType::kString)) {
     // Extract out the string part of the node type.
-    NodeType string_type = CombineType(type, NodeType::kString);
+    NodeType string_type = IntersectType(type, NodeType::kString);
     // RO-space strings are ok, since they can't change.
     if (string_type == NodeType::kROSeqInternalizedOneByteString) return false;
     // The generic internalized string type is ok, since it doesn't consider
@@ -783,11 +783,11 @@ static_assert(!NodeTypeIsUnstable(NodeType::kROSeqInternalizedOneByteString));
 // information about it.
 static_assert(!NodeTypeIsUnstable(NodeType::kString));
 // A type which contains an unstable string should also be unstable.
-static_assert(NodeTypeIsUnstable(IntersectType(NodeType::kNumber,
-                                               NodeType::kSeqOneByteString)));
+static_assert(NodeTypeIsUnstable(UnionType(NodeType::kNumber,
+                                           NodeType::kSeqOneByteString)));
 // A type which contains a stable string should also be stable.
-static_assert(!NodeTypeIsUnstable(
-    IntersectType(NodeType::kNumber, NodeType::kInternalizedString)));
+static_assert(!NodeTypeIsUnstable(UnionType(NodeType::kNumber,
+                                            NodeType::kInternalizedString)));
 
 inline constexpr NodeType MakeTypeStable(NodeType type) {
   DCHECK(!NodeTypeIsNeverStandalone(type));
@@ -800,14 +800,14 @@ inline constexpr NodeType MakeTypeStable(NodeType type) {
   // stay internalized.
   DCHECK(NodeTypeCanBe(type, NodeType::kString));
   // Extract out the string part of the node type.
-  NodeType string_type = CombineType(type, NodeType::kString);
+  NodeType string_type = IntersectType(type, NodeType::kString);
   if (NodeTypeIs(string_type, NodeType::kInternalizedString)) {
     // Strings that can't be anything but internalized become generic
     // internalized.
-    type = IntersectType(type, NodeType::kInternalizedString);
+    type = UnionType(type, NodeType::kInternalizedString);
   } else {
     // All other strings become fully generic.
-    type = IntersectType(type, NodeType::kString);
+    type = UnionType(type, NodeType::kString);
   }
   DCHECK(!NodeTypeIsUnstable(type));
   return type;
@@ -823,9 +823,9 @@ static_assert(MakeTypeStable(NodeType::kROSeqInternalizedOneByteString) ==
               NodeType::kROSeqInternalizedOneByteString);
 // Stabilizing a type which is partially an unstable string should generalize
 // the string part of the type
-static_assert(MakeTypeStable(IntersectType(NodeType::kNumber,
-                                           NodeType::kSeqOneByteString)) ==
-              IntersectType(NodeType::kNumber, NodeType::kString));
+static_assert(MakeTypeStable(UnionType(NodeType::kNumber,
+                                       NodeType::kSeqOneByteString)) ==
+              UnionType(NodeType::kNumber, NodeType::kString));
 
 // Assert that the Unknown type is constructed correctly.
 #define ADD_STATIC_ASSERT(Name, Value)                          \
@@ -9872,7 +9872,7 @@ class Phi : public ValueNodeT<Phi> {
 
   void merge_post_loop_type(NodeType type) {
     DCHECK(!has_key());
-    post_loop_type_ = IntersectType(post_loop_type_, type);
+    post_loop_type_ = UnionType(post_loop_type_, type);
   }
   void set_post_loop_type(NodeType type) {
     DCHECK(!has_key());
@@ -9888,7 +9888,7 @@ class Phi : public ValueNodeT<Phi> {
 
   void merge_type(NodeType type) {
     DCHECK(!has_key());
-    type_ = IntersectType(type_, type);
+    type_ = UnionType(type_, type);
   }
   void set_type(NodeType type) {
     DCHECK(!has_key());

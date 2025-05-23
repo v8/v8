@@ -22,11 +22,11 @@ TEST_F(MaglevTest, NodeTypeSmokeTests) {
   CHECK(NodeTypeIs(NodeType::kNumberOrBoolean, NodeType::kNumberOrOddball));
   CHECK(!NodeTypeIs(NodeType::kNumberOrOddball, NodeType::kNumberOrBoolean));
 
-  CHECK_EQ(CombineType(NodeType::kNumberOrBoolean, NodeType::kNumberOrOddball),
-           NodeType::kNumberOrBoolean);
   CHECK_EQ(
       IntersectType(NodeType::kNumberOrBoolean, NodeType::kNumberOrOddball),
-      NodeType::kNumberOrOddball);
+      NodeType::kNumberOrBoolean);
+  CHECK_EQ(UnionType(NodeType::kNumberOrBoolean, NodeType::kNumberOrOddball),
+           NodeType::kNumberOrOddball);
 
   CHECK(!NodeTypeIs(NodeType::kStringWrapper, NodeType::kName));
 }
@@ -42,9 +42,9 @@ TEST_F(MaglevTest, EmptyTypeIsAnything) {
 // they are not needed often.
 std::unordered_set<NodeType> kMissingEntries{
     // HeapNumberOrOddball
-    CombineType(NodeType::kNumberOrOddball, NodeType::kAnyHeapObject),
+    IntersectType(NodeType::kNumberOrOddball, NodeType::kAnyHeapObject),
     // BooleanOrHeapNumber
-    CombineType(NodeType::kNumberOrBoolean, NodeType::kAnyHeapObject),
+    IntersectType(NodeType::kNumberOrBoolean, NodeType::kAnyHeapObject),
 };
 
 // The missing node types must be inhabited.
@@ -91,31 +91,6 @@ TEST_F(MaglevTest, NodeTypeApproximationIsConsistent) {
   }
 }
 
-// Ensure CombineType is consistent with actual maps.
-TEST_F(MaglevTest, NodeTypeCombineIsConsistent) {
-  for (auto idx = RootIndex::kFirstRoot; idx <= RootIndex::kLastRoot; ++idx) {
-    Tagged<Object> obj = isolate()->roots_table().slot(idx).load(isolate());
-    if (obj.ptr() == kNullAddress || !IsMap(obj)) continue;
-    Tagged<Map> map = Cast<Map>(obj);
-    compiler::MapRef map_ref = MakeRef(broker(), map);
-
-    for (NodeType a : kAllNodeTypes) {
-      if (NodeTypeIsNeverStandalone(a)) continue;
-      for (NodeType b : kAllNodeTypes) {
-        if (NodeTypeIsNeverStandalone(b)) continue;
-        NodeType combined_type = CombineType(a, b);
-        bool map_is_a = IsInstanceOfNodeType(map_ref, a, broker());
-        bool map_is_b = IsInstanceOfNodeType(map_ref, b, broker());
-        bool is_instance =
-            IsInstanceOfNodeType(map_ref, combined_type, broker());
-        CHECK_EQ(is_instance, map_is_a && map_is_b);
-        DCHECK_IMPLIES(IsEmptyNodeType(combined_type), !is_instance);
-        DCHECK_IMPLIES(is_instance, !IsEmptyNodeType(combined_type));
-      }
-    }
-  }
-}
-
 // Ensure IntersectType is consistent with actual maps.
 TEST_F(MaglevTest, NodeTypeIntersectIsConsistent) {
   for (auto idx = RootIndex::kFirstRoot; idx <= RootIndex::kLastRoot; ++idx) {
@@ -128,7 +103,32 @@ TEST_F(MaglevTest, NodeTypeIntersectIsConsistent) {
       if (NodeTypeIsNeverStandalone(a)) continue;
       for (NodeType b : kAllNodeTypes) {
         if (NodeTypeIsNeverStandalone(b)) continue;
-        NodeType join_type = IntersectType(a, b);
+        NodeType combined_type = IntersectType(a, b);
+        bool map_is_a = IsInstanceOfNodeType(map_ref, a, broker());
+        bool map_is_b = IsInstanceOfNodeType(map_ref, b, broker());
+        bool is_instance =
+            IsInstanceOfNodeType(map_ref, combined_type, broker());
+        CHECK_EQ(is_instance, map_is_a && map_is_b);
+        DCHECK_IMPLIES(IsEmptyNodeType(combined_type), !is_instance);
+        DCHECK_IMPLIES(is_instance, !IsEmptyNodeType(combined_type));
+      }
+    }
+  }
+}
+
+// Ensure UnionType is consistent with actual maps.
+TEST_F(MaglevTest, NodeTypeUnionIsConsistent) {
+  for (auto idx = RootIndex::kFirstRoot; idx <= RootIndex::kLastRoot; ++idx) {
+    Tagged<Object> obj = isolate()->roots_table().slot(idx).load(isolate());
+    if (obj.ptr() == kNullAddress || !IsMap(obj)) continue;
+    Tagged<Map> map = Cast<Map>(obj);
+    compiler::MapRef map_ref = MakeRef(broker(), map);
+
+    for (NodeType a : kAllNodeTypes) {
+      if (NodeTypeIsNeverStandalone(a)) continue;
+      for (NodeType b : kAllNodeTypes) {
+        if (NodeTypeIsNeverStandalone(b)) continue;
+        NodeType join_type = UnionType(a, b);
         bool map_is_a = IsInstanceOfNodeType(map_ref, a, broker());
         bool map_is_b = IsInstanceOfNodeType(map_ref, b, broker());
         CHECK_IMPLIES(map_is_a || map_is_b,
@@ -147,7 +147,7 @@ TEST_F(MaglevTest, CombinationsOfCombinedNodeTypesAreAllowed) {
     if (NodeTypeIsNeverStandalone(a)) continue;
     for (NodeType b : kAllNodeTypes) {
       if (NodeTypeIsNeverStandalone(b)) continue;
-      NodeType combined_type = CombineType(a, b);
+      NodeType combined_type = IntersectType(a, b);
       CHECK(!NodeTypeIsNeverStandalone(combined_type));
     }
   }

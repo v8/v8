@@ -1656,7 +1656,7 @@ ValueNode* MaglevGraphBuilder::GetInternalizedString(
   }
 
   if (!NodeTypeIs(old_type, NodeType::kString)) {
-    known_info->CombineType(NodeType::kString);
+    known_info->IntersectType(NodeType::kString);
   }
 
   // This node may unwrap ThinStrings.
@@ -1966,7 +1966,7 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(
   // earlier.
   switch (representation) {
     case ValueRepresentation::kTagged: {
-      auto combined_type = CombineType(allowed_input_type, node_info->type());
+      auto combined_type = IntersectType(allowed_input_type, node_info->type());
       if (!IsEmptyNodeType(node_info->type()) &&
           NodeTypeIs(combined_type, NodeType::kSmi)) {
         // Get the float64 value of a Smi value its int32 representation.
@@ -4735,9 +4735,9 @@ bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
   NodeInfo* known_info = GetOrCreateInfoFor(node);
   if (old_type) *old_type = known_info->type();
   if (NodeTypeIs(known_info->type(), type)) return true;
-  known_info->CombineType(type);
+  known_info->IntersectType(type);
   if (auto phi = node->TryCast<Phi>()) {
-    known_info->CombineType(phi->type());
+    known_info->IntersectType(phi->type());
   }
   if (NodeTypeIsUnstable(type)) {
     known_info->set_node_type_is_unstable();
@@ -4753,7 +4753,7 @@ bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
   NodeInfo* known_info = GetOrCreateInfoFor(node);
   if (NodeTypeIs(known_info->type(), type)) return true;
   ensure_new_type(known_info->type());
-  known_info->CombineType(type);
+  known_info->IntersectType(type);
   if (NodeTypeIsUnstable(type)) {
     known_info->set_node_type_is_unstable();
     known_node_aspects().any_map_for_any_node_is_unstable = true;
@@ -4774,7 +4774,7 @@ void MaglevGraphBuilder::SetKnownValue(ValueNode* node, compiler::ObjectRef ref,
   } else {
     DCHECK(!NodeTypeIs(known_info->type(), NodeType::kAnyHeapObject));
   }
-  known_info->CombineType(new_node_type);
+  known_info->IntersectType(new_node_type);
   known_info->alternative().set_checked_value(GetConstant(ref));
 }
 
@@ -4807,7 +4807,7 @@ NodeType MaglevGraphBuilder::GetType(ValueNode* node) {
   }
   NodeType actual_type = it->second.type();
   if (auto phi = node->TryCast<Phi>()) {
-    actual_type = CombineType(actual_type, phi->type());
+    actual_type = IntersectType(actual_type, phi->type());
   }
 #ifdef DEBUG
   NodeType static_type = StaticTypeForNode(broker(), local_isolate(), node);
@@ -4828,7 +4828,7 @@ bool MaglevGraphBuilder::HaveDisjointTypes(ValueNode* lhs, ValueNode* rhs) {
 
 bool MaglevGraphBuilder::HasDisjointType(ValueNode* lhs, NodeType rhs_type) {
   NodeType lhs_type = GetType(lhs);
-  NodeType meet = CombineType(lhs_type, rhs_type);
+  NodeType meet = IntersectType(lhs_type, rhs_type);
   return IsEmptyNodeType(meet);
 }
 
@@ -4879,7 +4879,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckSmi(ValueNode* object,
   if (CheckStaticType(object, NodeType::kSmi)) return object;
   // Check for the empty type first so that we catch the case where
   // GetType(object) is already empty.
-  if (IsEmptyNodeType(CombineType(GetType(object), NodeType::kSmi))) {
+  if (IsEmptyNodeType(IntersectType(GetType(object), NodeType::kSmi))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kSmi);
   }
   if (EnsureType(object, NodeType::kSmi) && elidable) return object;
@@ -4909,7 +4909,8 @@ ReduceResult MaglevGraphBuilder::BuildCheckSmi(ValueNode* object,
 ReduceResult MaglevGraphBuilder::BuildCheckHeapObject(ValueNode* object) {
   // Check for the empty type first so that we catch the case where
   // GetType(object) is already empty.
-  if (IsEmptyNodeType(CombineType(GetType(object), NodeType::kAnyHeapObject))) {
+  if (IsEmptyNodeType(
+          IntersectType(GetType(object), NodeType::kAnyHeapObject))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kSmi);
   }
   if (EnsureType(object, NodeType::kAnyHeapObject)) return ReduceResult::Done();
@@ -4922,7 +4923,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckSeqOneByteString(ValueNode* object) {
   // Check for the empty type first so that we catch the case where
   // GetType(object) is already empty.
   if (IsEmptyNodeType(
-          CombineType(GetType(object), NodeType::kSeqOneByteString))) {
+          IntersectType(GetType(object), NodeType::kSeqOneByteString))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kNotASeqOneByteString);
   }
   if (EnsureType(object, NodeType::kSeqOneByteString, &known_type)) {
@@ -4936,7 +4937,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckString(ValueNode* object) {
   NodeType known_type;
   // Check for the empty type first so that we catch the case where
   // GetType(object) is already empty.
-  if (IsEmptyNodeType(CombineType(GetType(object), NodeType::kString))) {
+  if (IsEmptyNodeType(IntersectType(GetType(object), NodeType::kString))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kNotAString);
   }
   if (EnsureType(object, NodeType::kString, &known_type)) {
@@ -4952,7 +4953,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckStringOrStringWrapper(
   // Check for the empty type first so that we catch the case where
   // GetType(object) is already empty.
   if (IsEmptyNodeType(
-          CombineType(GetType(object), NodeType::kStringOrStringWrapper))) {
+          IntersectType(GetType(object), NodeType::kStringOrStringWrapper))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kNotAStringOrStringWrapper);
   }
   if (EnsureType(object, NodeType::kStringOrStringWrapper, &known_type))
@@ -4964,7 +4965,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckStringOrStringWrapper(
 ReduceResult MaglevGraphBuilder::BuildCheckNumber(ValueNode* object) {
   // Check for the empty type first so that we catch the case where
   // GetType(object) is already empty.
-  if (IsEmptyNodeType(CombineType(GetType(object), NodeType::kNumber))) {
+  if (IsEmptyNodeType(IntersectType(GetType(object), NodeType::kNumber))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kNotANumber);
   }
   if (EnsureType(object, NodeType::kNumber)) return ReduceResult::Done();
@@ -4976,7 +4977,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckSymbol(ValueNode* object) {
   NodeType known_type;
   // Check for the empty type first so that we catch the case where
   // GetType(object) is already empty.
-  if (IsEmptyNodeType(CombineType(GetType(object), NodeType::kSymbol))) {
+  if (IsEmptyNodeType(IntersectType(GetType(object), NodeType::kSymbol))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kNotASymbol);
   }
   if (EnsureType(object, NodeType::kSymbol, &known_type))
@@ -4989,7 +4990,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckJSReceiver(ValueNode* object) {
   NodeType known_type;
   // Check for the empty type first so that we catch the case where
   // GetType(object) is already empty.
-  if (IsEmptyNodeType(CombineType(GetType(object), NodeType::kJSReceiver))) {
+  if (IsEmptyNodeType(IntersectType(GetType(object), NodeType::kJSReceiver))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kWrongInstanceType);
   }
   if (EnsureType(object, NodeType::kJSReceiver, &known_type))
@@ -5004,8 +5005,8 @@ ReduceResult MaglevGraphBuilder::BuildCheckJSReceiverOrNullOrUndefined(
   NodeType known_type;
   // Check for the empty type first so that we catch the case where
   // GetType(object) is already empty.
-  if (IsEmptyNodeType(CombineType(GetType(object),
-                                  NodeType::kJSReceiverOrNullOrUndefined))) {
+  if (IsEmptyNodeType(IntersectType(GetType(object),
+                                    NodeType::kJSReceiverOrNullOrUndefined))) {
     return EmitUnconditionalDeopt(
         DeoptimizeReason::kNotAJavaScriptObjectOrNullOrUndefined);
   }
@@ -5132,9 +5133,9 @@ class KnownMapsMerger {
     }
     NodeType new_type = StaticTypeForMap(map, broker_);
     if (new_type == NodeType::kHeapNumber) {
-      new_type = IntersectType(new_type, NodeType::kSmi);
+      new_type = UnionType(new_type, NodeType::kSmi);
     }
-    node_type_ = IntersectType(node_type_, new_type);
+    node_type_ = UnionType(node_type_, new_type);
     if (!map.is_stable()) {
       any_map_is_unstable_ = true;
     }
@@ -5175,7 +5176,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
   KnownMapsMerger merger(broker(), zone(), maps);
   merger.IntersectWithKnownNodeAspects(object, known_node_aspects());
 
-  if (IsEmptyNodeType(CombineType(merger.node_type(), GetType(object)))) {
+  if (IsEmptyNodeType(IntersectType(merger.node_type(), GetType(object)))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
   }
 
@@ -5187,7 +5188,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
     // TODO(olivf) Try to combine node_info and possible maps and ensure that
     // narrowing the type also clears impossible possible_maps.
     if (!NodeTypeIs(known_info->type(), merger.node_type())) {
-      known_info->IntersectType(merger.node_type());
+      known_info->UnionType(merger.node_type());
     }
 #ifdef DEBUG
     // Double check that, for every possible map, it's one of the maps we'd
@@ -5861,7 +5862,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadField(
   // Insert stable field information if present.
   if (access_info.field_representation().IsSmi()) {
     NodeInfo* known_info = GetOrCreateInfoFor(value);
-    known_info->CombineType(NodeType::kSmi);
+    known_info->IntersectType(NodeType::kSmi);
   } else if (access_info.field_representation().IsHeapObject()) {
     NodeInfo* known_info = GetOrCreateInfoFor(value);
     if (access_info.field_map().has_value() &&
@@ -5872,7 +5873,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadField(
                                   StaticTypeForMap(map, broker()), broker());
       broker()->dependencies()->DependOnStableMap(map);
     } else {
-      known_info->CombineType(NodeType::kAnyHeapObject);
+      known_info->IntersectType(NodeType::kAnyHeapObject);
     }
   }
   return value;
@@ -5899,7 +5900,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array,
 
   ValueNode* length = BuildLoadTaggedField<LoadTaggedFieldForProperty>(
       js_array, JSArray::kLengthOffset, broker()->length_string());
-  GetOrCreateInfoFor(length)->CombineType(length_type);
+  GetOrCreateInfoFor(length)->IntersectType(length_type);
   RecordKnownProperty(js_array, broker()->length_string(), length, false,
                       compiler::AccessMode::kLoad);
   return length;
@@ -7320,7 +7321,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
                                              known_node_aspects());
         if (!merger.intersect_set().is_empty() &&
             !IsEmptyNodeType(
-                CombineType(GetType(lookup_start_object), NodeType::kSmi))) {
+                IntersectType(GetType(lookup_start_object), NodeType::kSmi))) {
           DCHECK_EQ(number_map_index_for_smi, -1);
           number_map_index_for_smi = i;
         }
@@ -8820,7 +8821,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIsArray(
       }
     }
     if ((has_array_map ^ has_other_map) && !has_proxy_map) {
-      if (has_array_map) node_info->CombineType(NodeType::kJSArray);
+      if (has_array_map) node_info->IntersectType(NodeType::kJSArray);
       return GetBooleanConstant(has_array_map);
     }
   }
