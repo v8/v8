@@ -4940,7 +4940,6 @@ void MacroAssembler::Jump(Register target, Condition cond, Register rs,
   BlockTrampolinePoolScope block_trampoline_pool(this);
   if (cond == cc_always) {
     jr(target);
-    ForceConstantPoolEmissionWithoutJump();
   } else {
     BRANCH_ARGS_CHECK(cond, rs, rt);
     Branch(kInstrSize * 2, NegateCondition(cond), rs, rt);
@@ -5353,9 +5352,6 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
 
 void MacroAssembler::Ret(Condition cond, Register rs, const Operand& rt) {
   Jump(ra, cond, rs, rt);
-  if (cond == al) {
-    ForceConstantPoolEmissionWithoutJump();
-  }
 }
 
 void MacroAssembler::BranchLong(Label* L) {

@@ -720,8 +720,8 @@ void Assembler::bind_to(Label* L, int pos) {
             trampoline_pos = get_trampoline_entry(fixup_pos);
             CHECK_NE(trampoline_pos, kInvalidSlotPos);
           }
-          CHECK((trampoline_pos - fixup_pos) <= kMaxBranchOffset);
           DEBUG_PRINTF("\t\ttrampolining: %d\n", trampoline_pos);
+          CHECK((trampoline_pos - fixup_pos) <= kMaxBranchOffset);
           target_at_put(fixup_pos, trampoline_pos, false);
           fixup_pos = trampoline_pos;
         }
