@@ -118,7 +118,7 @@ frame size: 4
 parameter count: 1
 bytecode array length: 49
 bytecodes: [
-  /*   44 E> */ B(CreateFunctionContextWithCells), U8(0), U8(1),
+  /*   44 E> */ B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(0),
                 B(Ldar), R(this),
                 B(StaCurrentContextSlotNoCell), U8(2),
@@ -171,7 +171,7 @@ bytecodes: [
                 B(Ldar), R(2),
   /*   89 E> */ B(Construct), R(1), R(0), U8(0), U8(0),
                 B(Star1),
-                B(LdaCurrentContextSlot), U8(2),
+                B(LdaCurrentContextSlotNoCell), U8(2),
                 B(ThrowSuperAlreadyCalledIfNotHole),
                 B(Ldar), R(1),
                 B(StaCurrentContextSlotNoCell), U8(2),
@@ -223,7 +223,7 @@ bytecodes: [
                 B(Ldar), R(2),
   /*   88 E> */ B(Construct), R(1), R(0), U8(0), U8(0),
                 B(Star1),
-                B(LdaCurrentContextSlot), U8(2),
+                B(LdaCurrentContextSlotNoCell), U8(2),
                 B(ThrowSuperAlreadyCalledIfNotHole),
                 B(Ldar), R(1),
                 B(StaCurrentContextSlotNoCell), U8(2),
@@ -274,7 +274,7 @@ bytecodes: [
                 B(Ldar), R(2),
   /*   88 E> */ B(Construct), R(1), R(0), U8(0), U8(0),
                 B(Star1),
-                B(LdaCurrentContextSlot), U8(2),
+                B(LdaCurrentContextSlotNoCell), U8(2),
                 B(ThrowSuperAlreadyCalledIfNotHole),
                 B(Ldar), R(1),
                 B(StaCurrentContextSlotNoCell), U8(2),

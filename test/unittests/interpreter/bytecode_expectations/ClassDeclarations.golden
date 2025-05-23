@@ -92,7 +92,7 @@ frame size: 11
 parameter count: 1
 bytecode array length: 76
 bytecodes: [
-  /*   30 E> */ B(CreateFunctionContextWithCells), U8(0), U8(2),
+  /*   30 E> */ B(CreateFunctionContext), U8(0), U8(2),
                 B(PushContext), R(1),
   /*   43 S> */ B(LdaConstant), U8(1),
   /*   43 E> */ B(StaCurrentContextSlotNoCell), U8(2),
@@ -151,10 +151,10 @@ frame size: 7
 parameter count: 1
 bytecode array length: 43
 bytecodes: [
-  /*   30 E> */ B(CreateFunctionContextWithCells), U8(0), U8(1),
+  /*   30 E> */ B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(1),
   /*   46 S> */ B(LdaZero),
-  /*   46 E> */ B(StaCurrentContextSlot), U8(2),
+  /*   46 E> */ B(StaCurrentContextSlotNoCell), U8(2),
                 B(CreateBlockContext), U8(1),
                 B(PushContext), R(2),
                 B(LdaTheHole),
