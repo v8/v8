@@ -8688,8 +8688,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
   // BuildLoopForPeeling might reset the BasicBlockRef in jump_targets_. If this
   // happens, inlined calls within the peeled loop would incorrectly point to
   // the loop's exception handler instead of the original call's.
-  CatchBlockDetails catch_details =
-      GetTryCatchBlockFromInfo(generic_call->exception_handler_info());
+  CatchBlockDetails catch_details = GetTryCatchBlockForNonEagerInlining(
+      generic_call->exception_handler_info());
   catch_details.deopt_frame_distance++;
   float score = call_frequency / bytecode.length();
   MaglevCallSiteInfo* call_site = zone()->New<MaglevCallSiteInfo>(
