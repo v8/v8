@@ -221,7 +221,19 @@ std::optional<BailoutReason> GraphBuilder::Run() {
 
   for (BasicBlock* block : *schedule.rpo_order()) {
     Block* target_block = Map(block);
-    if (!__ Bind(target_block)) continue;
+    if (!__ Bind(target_block)) {
+      // If this used to be a backedge, we need to turn the loop header into a
+      // regular block.
+      if (block->control() == BasicBlock::Control::kGoto) {
+        Block* target = Map(block->SuccessorAt(0));
+        if (target->IsLoop() && target->IsBound()) {
+          DCHECK(block->SuccessorAt(0)->IsLoopHeader());
+          DCHECK_GT(block->rpo_number(), block->SuccessorAt(0)->rpo_number());
+          __ FinalizeLoop(target);
+        }
+      }
+      continue;
+    }
 
     // Since we visit blocks in rpo-order, the new block predecessors are sorted
     // in rpo order too. However, the input schedule does not order
