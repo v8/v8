@@ -8,6 +8,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "include/v8-handle-base.h"
 #include "src/base/hashing.h"
 #include "src/base/macros.h"
 #include "src/base/small-vector.h"
@@ -15,7 +16,6 @@
 #include "src/common/globals.h"
 #include "src/objects/casting.h"
 #include "src/objects/tagged.h"
-#include "v8-handle-base.h"  // NOLINT(build/include_directory)
 
 #ifdef V8_ENABLE_DIRECT_HANDLE
 #include "src/flags/flags.h"

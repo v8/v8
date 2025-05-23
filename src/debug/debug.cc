@@ -2570,17 +2570,16 @@ void Debug::OnException(DirectHandle<Object> exception,
           }
           break;  // Stop at first debuggable function
         }
-      }
 #if V8_ENABLE_WEBASSEMBLY
-      else if (it.frame()->is_wasm()) {
+      } else if (it.frame()->is_wasm()) {
         const WasmFrame* frame = WasmFrame::cast(it.frame());
         if (IsMutedAtWasmLocation(frame->script(), frame->position())) {
           return;
         }
         // Wasm is always subject to debugging
         break;
-      }
 #endif  // V8_ENABLE_WEBASSEMBLY
+      }
     }
 
     if (it.done()) return;  // Do not trigger an event with an empty stack.

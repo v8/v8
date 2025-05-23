@@ -1975,14 +1975,15 @@ bool Object::CanBeHeldWeakly(Tagged<Object> obj) {
     // TODO(v8:12547) Shared structs and arrays should only be able to point
     // to shared values in weak collections. For now, disallow them as weak
     // collection keys.
-    return (!v8_flags.harmony_struct ||
-            (!IsJSSharedStruct(obj) && !IsJSSharedArray(obj)))
 #if V8_ENABLE_WEBASSEMBLY
-           && (!v8_flags.experimental_wasm_shared ||
-               (!((IsWasmStruct(obj) || IsWasmArray(obj)) &&
-                  HeapLayout::InAnySharedSpace(Cast<HeapObject>(obj)))))
+    if (v8_flags.experimental_wasm_shared &&
+        (IsWasmStruct(obj) || IsWasmArray(obj)) &&
+        HeapLayout::InAnySharedSpace(Cast<HeapObject>(obj))) {
+      return false;
+    }
 #endif
-        ;
+    return (!v8_flags.harmony_struct ||
+            (!IsJSSharedStruct(obj) && !IsJSSharedArray(obj)));
   }
   return IsSymbol(obj) && !Cast<Symbol>(obj)->is_in_public_symbol_table();
 }

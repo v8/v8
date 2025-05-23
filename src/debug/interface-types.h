@@ -8,10 +8,10 @@
 #include <cstdint>
 
 #include "include/v8-function-callback.h"
+#include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "v8-isolate.h"
 
 namespace v8 {
 

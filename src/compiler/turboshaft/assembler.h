@@ -14,6 +14,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "include/v8-primitive.h"
 #include "include/v8-source-location.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -58,7 +59,6 @@
 #include "src/objects/swiss-name-dictionary.h"
 #include "src/objects/tagged.h"
 #include "src/objects/turbofan-types.h"
-#include "v8-primitive.h"
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects.h"

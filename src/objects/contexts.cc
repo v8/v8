@@ -8,6 +8,7 @@
 #include <limits>
 #include <optional>
 
+#include "include/v8-internal.h"
 #include "src/ast/modules.h"
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
@@ -22,7 +23,6 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/string-set-inl.h"
 #include "src/utils/boxed-float.h"
-#include "v8-internal.h"
 
 namespace v8::internal {
 
