@@ -138,7 +138,7 @@ CompilationJob::Status MaglevCompilationJob::ExecuteJobImpl(
   LocalIsolateScope scope{info(), local_isolate};
   if (!maglev::MaglevCompiler::Compile(local_isolate, info())) {
     EndPhaseKind();
-    bailout_reason_ = BailoutReason::kGraphBuildingFailed;
+    bailout_reason_ = BailoutReason::kMaglevGraphBuildingFailed;
     return CompilationJob::FAILED;
   }
   EndPhaseKind();

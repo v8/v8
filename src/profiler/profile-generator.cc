@@ -215,7 +215,7 @@ void CodeEntry::FillFunctionInfo(Tagged<SharedFunctionInfo> shared) {
   Tagged<Script> script = Cast<Script>(shared->script());
   set_script_id(script->id());
   set_position(shared->StartPosition());
-  if (shared->optimization_disabled()) {
+  if (shared->all_optimization_disabled()) {
     set_bailout_reason(
         GetBailoutReason(shared->disabled_optimization_reason()));
   }

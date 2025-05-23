@@ -107,7 +107,7 @@ bool CanConsiderForInlining(JSHeapBroker* broker,
   }
 
   SharedFunctionInfo::Inlineability inlineability =
-      shared.GetInlineability(broker);
+      shared.GetInlineability(CodeKind::TURBOFAN_JS, broker);
   if (inlineability != SharedFunctionInfo::kIsInlineable) {
     TRACE("Cannot consider "
           << shared << " for inlining (reason: " << inlineability << ")");
@@ -240,10 +240,11 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
     // candidate could have been disabled meanwhile.
     // JSInliner will check this again and not actually inline the function in
     // this case.
-    CHECK_IMPLIES(candidate.can_inline_function[i],
-                  shared.IsInlineable(broker()) ||
-                      shared.GetInlineability(broker()) ==
-                          SharedFunctionInfo::kHasOptimizationDisabled);
+    CHECK_IMPLIES(
+        candidate.can_inline_function[i],
+        shared.IsInlineable(CodeKind::TURBOFAN_JS, broker()) ||
+            shared.GetInlineability(CodeKind::TURBOFAN_JS, broker()) ==
+                SharedFunctionInfo::kHasOptimizationDisabled);
     // Do not allow direct recursion i.e. f() -> f(). We still allow indirect
     // recursion like f() -> g() -> f(). The indirect recursion is helpful in
     // cases where f() is a small dispatch function that calls the appropriate

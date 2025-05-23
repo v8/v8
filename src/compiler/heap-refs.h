@@ -1139,7 +1139,7 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   BytecodeArrayRef GetBytecodeArray(JSHeapBroker* broker) const;
   bool HasBreakInfo(JSHeapBroker* broker) const;
   SharedFunctionInfo::Inlineability GetInlineability(
-      JSHeapBroker* broker) const;
+      CodeKind code_kind, JSHeapBroker* broker) const;
   OptionalFunctionTemplateInfoRef function_template_info(
       JSHeapBroker* broker) const;
   ScopeInfoRef scope_info(JSHeapBroker* broker) const;
@@ -1155,8 +1155,9 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   BROKER_SFI_FIELDS(DECL_ACCESSOR)
 #undef DECL_ACCESSOR
 
-  bool IsInlineable(JSHeapBroker* broker) const {
-    return GetInlineability(broker) == SharedFunctionInfo::kIsInlineable;
+  bool IsInlineable(CodeKind code_kind, JSHeapBroker* broker) const {
+    return GetInlineability(code_kind, broker) ==
+           SharedFunctionInfo::kIsInlineable;
   }
 };
 

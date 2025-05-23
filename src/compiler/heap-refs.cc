@@ -1768,10 +1768,10 @@ bool SharedFunctionInfoRef::HasBreakInfo(JSHeapBroker* broker) const {
 }
 
 SharedFunctionInfo::Inlineability SharedFunctionInfoRef::GetInlineability(
-    JSHeapBroker* broker) const {
+    CodeKind code_kind, JSHeapBroker* broker) const {
   return broker->IsMainThread()
-             ? object()->GetInlineability(broker->isolate())
-             : object()->GetInlineability(broker->local_isolate());
+             ? object()->GetInlineability(code_kind, broker->isolate())
+             : object()->GetInlineability(code_kind, broker->local_isolate());
 }
 
 ObjectRef FeedbackCellRef::value(JSHeapBroker* broker) const {

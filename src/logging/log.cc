@@ -137,7 +137,7 @@ const char* ComputeMarker(Tagged<SharedFunctionInfo> shared,
       code->builtin_id(cage_base) == Builtin::kInterpreterEntryTrampoline) {
     kind = CodeKind::INTERPRETED_FUNCTION;
   }
-  if (shared->optimization_disabled() &&
+  if (shared->all_optimization_disabled() &&
       kind == CodeKind::INTERPRETED_FUNCTION) {
     return "";
   }

@@ -135,7 +135,7 @@ std::optional<BailoutReason> InstructionSelectorT::SelectInstructions() {
   for (auto i = blocks.rbegin(); i != blocks.rend(); ++i) {
     VisitBlock(*i);
     if (instruction_selection_failed())
-      return BailoutReason::kCodeGenerationFailed;
+      return BailoutReason::kTurbofanCodeGenerationFailed;
   }
 
   // Schedule the selected instructions.

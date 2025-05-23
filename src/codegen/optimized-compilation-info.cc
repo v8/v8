@@ -154,7 +154,9 @@ void OptimizedCompilationInfo::AbortOptimization(BailoutReason reason) {
   if (bailout_reason_ == BailoutReason::kNoReason) {
     bailout_reason_ = reason;
   }
-  set_disable_future_optimization();
+  if (IsTerminalBailoutReasonForTurbofan(reason)) {
+    set_disable_future_optimization();
+  }
 }
 
 void OptimizedCompilationInfo::RetryOptimization(BailoutReason reason) {

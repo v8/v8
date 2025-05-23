@@ -1384,9 +1384,7 @@ MaybeHandle<Code> GetOrCompileOptimized(
     }
   }
 
-  // TODO(v8:7700): Distinguish between Maglev and Turbofan.
-  if (shared->optimization_disabled() &&
-      shared->disabled_optimization_reason() == BailoutReason::kNeverOptimize) {
+  if (shared->optimization_disabled(CodeKind::MAGLEV)) {
     return {};
   }
 
@@ -4388,7 +4386,8 @@ MaybeHandle<Code> Compiler::CompileOptimizedOSR(
   DCHECK(IsOSR(osr_offset));
 
   if (V8_UNLIKELY(isolate->serializer_enabled())) return {};
-  if (V8_UNLIKELY(function->shared()->optimization_disabled())) return {};
+  if (V8_UNLIKELY(function->shared()->optimization_disabled(code_kind)))
+    return {};
 
   // TODO(chromium:1031479): Currently, OSR triggering mechanism is tied to the
   // bytecode array. So, it might be possible to mark closure in one native
@@ -4450,8 +4449,8 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
   // 3) The code may have already been invalidated due to dependency change.
   // 4) InstructionStream generation may have failed.
   if (job->state() == CompilationJob::State::kReadyToFinalize) {
-    if (shared->optimization_disabled()) {
-      job->RetryOptimization(BailoutReason::kOptimizationDisabled);
+    if (shared->optimization_disabled(CodeKind::TURBOFAN_JS)) {
+      job->RetryOptimization(shared->disabled_optimization_reason());
     } else if (job->FinalizeJob(isolate) == CompilationJob::SUCCEEDED) {
       job->RecordCompilationStats(ConcurrencyMode::kConcurrent, isolate);
       job->RecordFunctionCompilation(LogEventListener::CodeTag::kFunction,
@@ -4510,8 +4509,8 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
 
   if (function->ActiveTierIsTurbofan(isolate) && !job->is_osr()) {
     function->SetTieringInProgress(isolate, false, osr_offset);
-    CompilerTracer::TraceAbortedMaglevCompile(
-        isolate, function, BailoutReason::kHigherTierAvailable);
+    CompilerTracer::TraceAbortedMaglevCompile(isolate, function,
+                                              BailoutReason::kCancelled);
     return;
   }
   // Discard code compiled for a discarded native context without finalization.
@@ -4597,7 +4596,7 @@ void Compiler::PostInstantiation(Isolate* isolate,
 #endif  // !V8_ENABLE_LEAPTIERING
 
     if (v8_flags.always_turbofan && shared->allows_lazy_compilation() &&
-        !shared->optimization_disabled() &&
+        !shared->optimization_disabled(CodeKind::TURBOFAN_JS) &&
         !function->HasAvailableOptimizedCode(isolate)) {
       CompilerTracer::TraceMarkForAlwaysOpt(isolate, function);
       JSFunction::EnsureFeedbackVector(isolate, function, is_compiled_scope);

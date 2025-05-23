@@ -322,10 +322,8 @@ bool CanOptimizeFunction(CodeKind target_kind,
     return false;
   }
 
-  if (function->shared()->optimization_disabled() &&
-      function->shared()->disabled_optimization_reason() ==
-          BailoutReason::kNeverOptimize) {
-    return CrashUnlessFuzzingReturnFalse(isolate);
+  if (function->shared()->optimization_disabled(target_kind)) {
+    return false;
   }
 
   if (IsAsmWasmFunction(isolate, *function)) {
@@ -622,10 +620,8 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
 
   // If optimization is disabled for the function, return without marking it for
   // manual optimization
-  if (function->shared()->optimization_disabled() &&
-      function->shared()->disabled_optimization_reason() ==
-          BailoutReason::kNeverOptimize) {
-    return CrashUnlessFuzzing(isolate);
+  if (function->shared()->all_optimization_disabled()) {
+    return ReadOnlyRoots(isolate).undefined_value();
   }
 
   if (IsAsmWasmFunction(isolate, *function)) return CrashUnlessFuzzing(isolate);
@@ -729,9 +725,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     return CrashUnlessFuzzing(isolate);
   }
 
-  if (function->shared()->optimization_disabled() &&
-      function->shared()->disabled_optimization_reason() ==
-          BailoutReason::kNeverOptimize) {
+  if (function->shared()->all_optimization_disabled()) {
     return CrashUnlessFuzzing(isolate);
   }
 

@@ -274,7 +274,7 @@ void JSFunction::RequestOptimization(Isolate* isolate, CodeKind target_kind,
   DCHECK(!ActiveTierIsTurbofan(isolate));
   DCHECK(shared()->HasBytecodeArray());
   DCHECK(shared()->allows_lazy_compilation() ||
-         !shared()->optimization_disabled());
+         !shared()->optimization_disabled(target_kind));
 
   if (IsConcurrent(mode)) {
     if (tiering_in_progress()) {
