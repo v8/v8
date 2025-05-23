@@ -75,13 +75,6 @@ class V8_NODISCARD LocalIsolateScope final {
 
 }  // namespace
 
-Zone* ExportedMaglevCompilationInfo::zone() const { return info_->zone(); }
-
-void ExportedMaglevCompilationInfo::set_canonical_handles(
-    std::unique_ptr<CanonicalHandlesMap>&& canonical_handles) {
-  info_->set_canonical_handles(std::move(canonical_handles));
-}
-
 // static
 std::unique_ptr<MaglevCompilationJob> MaglevCompilationJob::New(
     Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset) {
