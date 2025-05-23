@@ -1639,6 +1639,8 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
             return ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
                 cont, first_token_msg, {});
           }
+          // No more properties to scan, we are done.
+          return true;
         }
         ++idx;
       }
