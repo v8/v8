@@ -906,8 +906,8 @@ static i::DirectHandle<i::EmbedderDataArray> EmbedderDataFor(
 
 uint32_t Context::GetNumberOfEmbedderDataFields() {
   auto context = Utils::OpenDirectHandle(this);
-  i::DisallowJavascriptExecutionDebugOnly no_execution(i::Isolate::Current());
-  i::DisallowExceptionsDebugOnly no_exceptions(i::Isolate::Current());
+  i::DisallowJavascriptExecutionDebugOnly no_execution;
+  i::DisallowExceptionsDebugOnly no_exceptions;
   Utils::ApiCheck(i::IsNativeContext(*context),
                   "Context::GetNumberOfEmbedderDataFields",
                   "Not a native context");
@@ -2224,8 +2224,8 @@ int Module::ScriptId() const {
   i::Tagged<i::Module> self = *Utils::OpenDirectHandle(this);
   Utils::ApiCheck(i::IsSourceTextModule(self), "v8::Module::ScriptId",
                   "v8::Module::ScriptId must be used on an SourceTextModule");
-  i::DisallowJavascriptExecutionDebugOnly no_execution(i::Isolate::Current());
-  i::DisallowExceptionsDebugOnly no_exceptions(i::Isolate::Current());
+  i::DisallowJavascriptExecutionDebugOnly no_execution;
+  i::DisallowExceptionsDebugOnly no_exceptions;
   return i::Cast<i::SourceTextModule>(self)->GetScript()->id();
 }
 
@@ -2248,22 +2248,22 @@ bool Module::IsGraphAsync() const {
 
 bool Module::IsSourceTextModule() const {
   auto self = Utils::OpenDirectHandle(this);
-  i::DisallowJavascriptExecutionDebugOnly no_execution(i::Isolate::Current());
-  i::DisallowExceptionsDebugOnly no_exceptions(i::Isolate::Current());
+  i::DisallowJavascriptExecutionDebugOnly no_execution;
+  i::DisallowExceptionsDebugOnly no_exceptions;
   return i::IsSourceTextModule(*self);
 }
 
 bool Module::IsSyntheticModule() const {
   auto self = Utils::OpenDirectHandle(this);
-  i::DisallowJavascriptExecutionDebugOnly no_execution(i::Isolate::Current());
-  i::DisallowExceptionsDebugOnly no_exceptions(i::Isolate::Current());
+  i::DisallowJavascriptExecutionDebugOnly no_execution;
+  i::DisallowExceptionsDebugOnly no_exceptions;
   return i::IsSyntheticModule(*self);
 }
 
 int Module::GetIdentityHash() const {
   auto self = Utils::OpenDirectHandle(this);
-  i::DisallowJavascriptExecutionDebugOnly no_execution(i::Isolate::Current());
-  i::DisallowExceptionsDebugOnly no_exceptions(i::Isolate::Current());
+  i::DisallowJavascriptExecutionDebugOnly no_execution;
+  i::DisallowExceptionsDebugOnly no_exceptions;
   return self->hash();
 }
 
@@ -2937,8 +2937,8 @@ void ScriptOrigin::VerifyHostDefinedOptions() const {
 }
 
 v8::Local<Value> Message::GetScriptResourceName() const {
-  i::DisallowJavascriptExecutionDebugOnly no_execution(i::Isolate::Current());
-  i::DisallowExceptionsDebugOnly no_exceptions(i::Isolate::Current());
+  i::DisallowJavascriptExecutionDebugOnly no_execution;
+  i::DisallowExceptionsDebugOnly no_exceptions;
   return GetScriptOrigin().ResourceName();
 }
 
@@ -2982,8 +2982,8 @@ int Message::GetEndPosition() const {
 
 int Message::ErrorLevel() const {
   auto self = Utils::OpenDirectHandle(this);
-  i::DisallowJavascriptExecutionDebugOnly no_execution(i::Isolate::Current());
-  i::DisallowExceptionsDebugOnly no_exceptions(i::Isolate::Current());
+  i::DisallowJavascriptExecutionDebugOnly no_execution;
+  i::DisallowExceptionsDebugOnly no_exceptions;
   return self->error_level();
 }
 
@@ -3691,8 +3691,8 @@ bool Value::IsGeneratorFunction() const {
   auto obj = *Utils::OpenDirectHandle(this);
   if (!IsJSFunction(obj)) return false;
   auto func = i::Cast<i::JSFunction>(obj);
-  i::DisallowJavascriptExecutionDebugOnly no_execution(i::Isolate::Current());
-  i::DisallowExceptionsDebugOnly no_exceptions(i::Isolate::Current());
+  i::DisallowJavascriptExecutionDebugOnly no_execution;
+  i::DisallowExceptionsDebugOnly no_exceptions;
   return i::IsGeneratorFunction(func->shared()->kind());
 }
 
@@ -5184,8 +5184,8 @@ V8_INLINE void* GetAlignedPointerFromEmbedderDataInCreationContextImpl(
 
   // This macro requires a real Isolate while |i_isolate_for_sandbox| might be
   // nullptr if the V8 sandbox is not enabled.
-  i::DisallowJavascriptExecutionDebugOnly no_execution(i::Isolate::Current());
-  i::DisallowExceptionsDebugOnly no_exceptions(i::Isolate::Current());
+  i::DisallowJavascriptExecutionDebugOnly no_execution;
+  i::DisallowExceptionsDebugOnly no_exceptions;
 
   // TODO(ishell): remove cast once embedder_data slot has a proper type.
   i::Tagged<i::EmbedderDataArray> data =
@@ -5374,8 +5374,8 @@ void Function::SetName(v8::Local<v8::String> name) {
   auto self = Utils::OpenDirectHandle(this);
   if (!IsJSFunction(*self)) return;
   auto func = i::Cast<i::JSFunction>(self);
-  i::DisallowJavascriptExecutionDebugOnly no_execution(i::Isolate::Current());
-  i::DisallowExceptionsDebugOnly no_exceptions(i::Isolate::Current());
+  i::DisallowJavascriptExecutionDebugOnly no_execution;
+  i::DisallowExceptionsDebugOnly no_exceptions;
   func->shared()->SetName(*Utils::OpenDirectHandle(*name));
 }
 
