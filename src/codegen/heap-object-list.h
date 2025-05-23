@@ -34,8 +34,6 @@
     StringIteratorProtector)                                                  \
   V(StringWrapperToPrimitiveProtector, string_wrapper_to_primitive_protector, \
     StringWrapperToPrimitiveProtector)                                        \
-  V(TypedArrayLengthProtector, typed_array_length_protector,                  \
-    TypedArrayLengthProtector)                                                \
   V(TypedArraySpeciesProtector, typed_array_species_protector,                \
     TypedArraySpeciesProtector)                                               \
   BUILTINS_WITH_SFI_OBJECT_LIST(V)

@@ -1475,7 +1475,6 @@ void Heap::CreateInitialMutableObjects() {
   set_string_length_protector(*factory->NewProtector());
   set_string_wrapper_to_primitive_protector(*factory->NewProtector());
   set_number_string_not_regexp_like_protector(*factory->NewProtector());
-  set_typed_array_length_protector(*factory->NewProtector());
   set_typed_array_species_protector(*factory->NewProtector());
 
   set_serialized_objects(roots.empty_fixed_array());

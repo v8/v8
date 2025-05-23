@@ -6351,18 +6351,9 @@ void Isolate::UpdateNoElementsProtectorOnSetElement(
 void Isolate::UpdateProtectorsOnSetPrototype(
     DirectHandle<JSObject> object, DirectHandle<Object> new_prototype) {
   UpdateNoElementsProtectorOnSetPrototype(object);
-  UpdateTypedArrayLengthLookupChainProtectorOnSetPrototype(object);
   UpdateTypedArraySpeciesLookupChainProtectorOnSetPrototype(object);
   UpdateNumberStringNotRegexpLikeProtectorOnSetPrototype(object);
   UpdateStringWrapperToPrimitiveProtectorOnSetPrototype(object, new_prototype);
-}
-
-void Isolate::UpdateTypedArrayLengthLookupChainProtectorOnSetPrototype(
-    DirectHandle<JSObject> object) {
-  if ((IsJSTypedArrayPrototype(*object) || IsJSTypedArray(*object)) &&
-      Protectors::IsTypedArrayLengthLookupChainIntact(this)) {
-    Protectors::InvalidateTypedArrayLengthLookupChain(this);
-  }
 }
 
 void Isolate::UpdateTypedArraySpeciesLookupChainProtectorOnSetPrototype(

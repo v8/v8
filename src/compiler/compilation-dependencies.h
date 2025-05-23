@@ -112,7 +112,6 @@ class V8_EXPORT CompilationDependencies : public ZoneObject {
   bool DependOnNoProfilingProtector();
   bool DependOnNoUndetectableObjectsProtector();
   bool DependOnStringWrapperToPrimitiveProtector();
-  bool DependOnTypedArrayLengthProtector();
 
   // Record the assumption that {site}'s {ElementsKind} doesn't change.
   void DependOnElementsKind(AllocationSiteRef site);
