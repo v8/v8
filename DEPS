@@ -130,7 +130,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b228bdd41836c0fac86a729ef5ebbe3047999f7b',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '74c1cea4320f6744444fff7ceeff2e6b0370eb2d',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '813bee86eeb7d00fa170b81e221120576a18517a',
   'buildtools/linux64': {
@@ -282,7 +282,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + 'f03aafb7516050ea73f617bf969f03eac641aefc',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '6aa03e6774f8cb70da277c56efb24b44ce29d8d7',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '09ffd0015395354774c059a17d9f5bee36177ff9',
   'third_party/highway/src':
     Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '00fe003dac355b979f36157f9407c7c46448958e',
   'third_party/icu':
@@ -486,7 +486,7 @@ deps = {
   'tools/rust':
     Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '11d67ba3289de6ca73bc441794138a9d8cd9db6b',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '031fe76aaed827e57945cac34fa29b34d4a81f7f',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'f18bafac74bffec1f4e818592b2c7f916864ec91',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
