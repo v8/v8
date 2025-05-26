@@ -1192,7 +1192,7 @@ std::tuple<InstructionCode, ImmediateMode> GetLoadOpcodeAndImmediate(
 void InstructionSelectorT::VisitLoad(OpIndex node) {
   InstructionCode opcode = kArchNop;
   ImmediateMode immediate_mode = kNoImmediate;
-  auto load = this->load_view(node);
+  auto load = load_view(node);
   MemoryRepresentation load_rep = load.ts_loaded_rep();
   std::tie(opcode, immediate_mode) =
       GetLoadOpcodeAndImmediate(load_rep, load.ts_result_rep());
@@ -1215,7 +1215,7 @@ void InstructionSelectorT::VisitStorePair(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitStore(OpIndex node) {
-  TurboshaftAdapter::StoreView store_view = this->store_view(node);
+  StoreView store_view = this->store_view(node);
   DCHECK_EQ(store_view.displacement(), 0);
   WriteBarrierKind write_barrier_kind =
       store_view.stored_rep().write_barrier_kind();
@@ -1314,7 +1314,7 @@ void InstructionSelectorT::VisitStore(OpIndex node) {
 
   inputs[input_count++] = g.UseRegisterOrImmediateZero(store_view.value());
 
-  if (this->is_load_root_register(base)) {
+  if (Is<LoadRootRegisterOp>(base)) {
     inputs[input_count++] = g.UseImmediate(index);
     opcode |= AddressingModeField::encode(kMode_Root);
     Emit(opcode, 0, nullptr, input_count, inputs);
@@ -2902,7 +2902,7 @@ void InstructionSelectorT::VisitChangeInt32ToInt64(OpIndex node) {
   const ChangeOp& change_op = this->Get(node).template Cast<ChangeOp>();
   const Operation& input_op = this->Get(change_op.input());
   if (input_op.Is<LoadOp>() && CanCover(node, change_op.input())) {
-    auto load = this->load_view(change_op.input());
+    auto load = load_view(change_op.input());
     // Generate sign-extending load.
     MemoryRepresentation loaded_rep = load.ts_loaded_rep();
     MachineRepresentation rep = load.loaded_rep().representation();

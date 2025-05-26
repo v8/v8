@@ -22,7 +22,6 @@
 #include "src/codegen/macro-assembler-base.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-codes.h"
-#include "src/compiler/backend/instruction-selector-adapter.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/backend/instruction.h"
@@ -342,13 +341,13 @@ class IA32OperandGeneratorT final : public OperandGeneratorT {
 
   bool CanBeMemoryOperand(InstructionCode opcode, OpIndex node, OpIndex input,
                           int effect_level) {
-    if (!this->IsLoadOrLoadImmutable(input)) return false;
+    if (!selector()->IsLoadOrLoadImmutable(input)) return false;
     if (!selector()->CanCover(node, input)) return false;
     if (effect_level != selector()->GetEffectLevel(input)) {
       return false;
     }
     MachineRepresentation rep =
-        this->load_view(input).loaded_rep().representation();
+        selector()->load_view(input).loaded_rep().representation();
     switch (opcode) {
       case kIA32And:
       case kIA32Or:
@@ -371,7 +370,7 @@ class IA32OperandGeneratorT final : public OperandGeneratorT {
   }
 
   bool CanBeImmediate(OpIndex node) {
-    if (this->IsExternalConstant(node)) return true;
+    if (selector()->IsExternalConstant(node)) return true;
     if (const ConstantOp* constant = Get(node).TryCast<ConstantOp>()) {
       switch (constant->kind) {
         case ConstantOp::Kind::kWord32:
@@ -1004,7 +1003,7 @@ void VisitAtomicExchange(InstructionSelectorT* selector, OpIndex node,
 }
 
 void VisitStoreCommon(InstructionSelectorT* selector,
-                      const TurboshaftAdapter::StoreView& store) {
+                      const InstructionSelectorT::StoreView& store) {
   IA32OperandGeneratorT g(selector);
 
   OpIndex base = store.base();
@@ -2376,7 +2375,7 @@ AtomicMemoryOrder AtomicOrder(InstructionSelectorT* selector, OpIndex node) {
   const Operation& op = selector->Get(node);
   if (op.Is<AtomicWord32PairOp>()) {
     // TODO(nicohartmann): Turboshaft doesn't support configurable memory
-    // orders yet; see also {TurboshaftAdapter::StoreView}.
+    // orders yet; see also {StoreView}.
     return AtomicMemoryOrder::kSeqCst;
   }
   if (const MemoryBarrierOp* barrier = op.TryCast<MemoryBarrierOp>()) {

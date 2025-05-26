@@ -10,7 +10,6 @@
 #include "src/base/logging.h"
 #include "src/codegen/arm/assembler-arm.h"
 #include "src/codegen/machine-type.h"
-#include "src/compiler/backend/instruction-selector-adapter.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/turboshaft/operations.h"
@@ -651,7 +650,7 @@ void InstructionSelectorT::VisitLoadTransform(OpIndex node) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void InstructionSelectorT::VisitLoad(OpIndex node) {
-  TurboshaftAdapter::LoadView load = this->load_view(node);
+  LoadView load = load_view(node);
   LoadRepresentation load_rep = load.loaded_rep();
   ArmOperandGeneratorT g(this);
   OpIndex base = load.base();
@@ -843,7 +842,7 @@ void VisitStoreCommon(InstructionSelectorT* selector, OpIndex node,
       }
     }
 
-    if (selector->is_load_root_register(base)) {
+    if (selector->Is<LoadRootRegisterOp>(base)) {
       int input_count = 2;
       InstructionOperand inputs[2];
       inputs[0] = g.UseRegister(value);
@@ -866,8 +865,7 @@ void VisitStoreCommon(InstructionSelectorT* selector, OpIndex node,
 void InstructionSelectorT::VisitStorePair(OpIndex node) { UNREACHABLE(); }
 
 void InstructionSelectorT::VisitStore(OpIndex node) {
-  VisitStoreCommon(this, node, this->store_view(node).stored_rep(),
-                   std::nullopt);
+  VisitStoreCommon(this, node, store_view(node).stored_rep(), std::nullopt);
 }
 
 void InstructionSelectorT::VisitProtectedStore(OpIndex node) {
@@ -876,7 +874,7 @@ void InstructionSelectorT::VisitProtectedStore(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitUnalignedLoad(OpIndex node) {
-  auto load = this->load_view(node);
+  auto load = load_view(node);
   MachineRepresentation load_rep = load.loaded_rep().representation();
   ArmOperandGeneratorT g(this);
   OpIndex base = load.base();
@@ -2406,7 +2404,7 @@ void InstructionSelectorT::VisitWord32AtomicLoad(OpIndex node) {
   // loads can emit LDR; DMB ISH.
   // https://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html
   ArmOperandGeneratorT g(this);
-  auto load = this->load_view(node);
+  auto load = load_view(node);
   OpIndex base = load.base();
   OpIndex index = load.index();
   ArchOpcode opcode;
@@ -2432,7 +2430,7 @@ void InstructionSelectorT::VisitWord32AtomicLoad(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitWord32AtomicStore(OpIndex node) {
-  auto store = this->store_view(node);
+  auto store = store_view(node);
   AtomicStoreParameters store_params(store.stored_rep().representation(),
                                      store.stored_rep().write_barrier_kind(),
                                      store.memory_order().value(),

@@ -3503,7 +3503,6 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/backend/gap-resolver.h",
     "src/compiler/backend/instruction-codes.h",
     "src/compiler/backend/instruction-scheduler.h",
-    "src/compiler/backend/instruction-selector-adapter.h",
     "src/compiler/backend/instruction-selector-impl.h",
     "src/compiler/backend/instruction-selector.h",
     "src/compiler/backend/instruction.h",

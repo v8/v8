@@ -70,10 +70,11 @@ class SwitchInfoT {
 
 // A helper class for the instruction selector that simplifies construction of
 // Operands. This class implements a base for architecture-specific helpers.
-class OperandGeneratorT : public TurboshaftAdapter {
+class OperandGeneratorT : public turboshaft::OperationMatcher {
  public:
   explicit OperandGeneratorT(InstructionSelectorT* selector)
-      : TurboshaftAdapter(selector->schedule()), selector_(selector) {}
+      : turboshaft::OperationMatcher(*selector->schedule()),
+        selector_(selector) {}
 
   InstructionOperand NoOutput() {
     return InstructionOperand();  // Generates an invalid operand.
@@ -332,7 +333,11 @@ class OperandGeneratorT : public TurboshaftAdapter {
   }
 
   InstructionOperand Label(turboshaft::Block* block) {
-    return sequence()->AddImmediate(Constant(this->rpo_number(block)));
+    return sequence()->AddImmediate(Constant(selector_->rpo_number(block)));
+  }
+
+  turboshaft::Graph* turboshaft_graph() const {
+    return selector()->turboshaft_graph();
   }
 
  protected:
@@ -348,9 +353,7 @@ class OperandGeneratorT : public TurboshaftAdapter {
   Constant ToConstant(turboshaft::OpIndex node) {
     using Kind = turboshaft::ConstantOp::Kind;
     if (const turboshaft::ConstantOp* constant =
-            this->turboshaft_graph()
-                ->Get(node)
-                .template TryCast<turboshaft::ConstantOp>()) {
+            selector_->TryCast<turboshaft::ConstantOp>(node)) {
       switch (constant->kind) {
         case Kind::kWord32:
           return Constant(static_cast<int32_t>(constant->word32()));
@@ -413,7 +416,7 @@ class OperandGeneratorT : public TurboshaftAdapter {
 
   Constant ToNegatedConstant(turboshaft::OpIndex node) {
     const turboshaft::ConstantOp& constant =
-        Get(node).Cast<turboshaft::ConstantOp>();
+        selector()->Cast<turboshaft::ConstantOp>(node);
     switch (constant.kind) {
       case turboshaft::ConstantOp::Kind::kWord32:
         return Constant(-static_cast<int32_t>(constant.word32()));

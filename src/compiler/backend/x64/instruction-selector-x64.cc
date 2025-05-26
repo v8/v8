@@ -16,7 +16,6 @@
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-codes.h"
-#include "src/compiler/backend/instruction-selector-adapter.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/backend/instruction.h"
@@ -547,7 +546,7 @@ class X64OperandGeneratorT final : public OperandGeneratorT {
 
   bool CanBeMemoryOperand(InstructionCode opcode, OpIndex node, OpIndex input,
                           int effect_level) {
-    if (!this->IsLoadOrLoadImmutable(input)) return false;
+    if (!selector()->IsLoadOrLoadImmutable(input)) return false;
     if (!selector()->CanCover(node, input)) return false;
 
     if (effect_level != selector()->GetEffectLevel(input)) {
@@ -555,7 +554,7 @@ class X64OperandGeneratorT final : public OperandGeneratorT {
     }
 
     MachineRepresentation rep =
-        this->load_view(input).loaded_rep().representation();
+        selector()->load_view(input).loaded_rep().representation();
     switch (opcode) {
       case kX64And:
       case kX64Or:
@@ -604,9 +603,7 @@ class X64OperandGeneratorT final : public OperandGeneratorT {
   }
 
   bool IsZeroIntConstant(OpIndex node) const {
-    if (ConstantOp* op = this->turboshaft_graph()
-                             ->Get(node)
-                             .template TryCast<ConstantOp>()) {
+    if (const ConstantOp* op = selector()->TryCast<ConstantOp>(node)) {
       switch (op->kind) {
         case ConstantOp::Kind::kWord32:
           return op->word32() == 0;
@@ -802,7 +799,7 @@ AddressingMode X64OperandGeneratorT::GetEffectiveAddressMemoryOperand(
     }
     return mode;
   }
-  if (m->base.valid() && this->Get(m->base).Is<LoadRootRegisterOp>() &&
+  if (m->base.valid() && selector()->Get(m->base).Is<LoadRootRegisterOp>() &&
       !m->index.valid()) {
     DCHECK_EQ(m->scale, 0);
     DCHECK(ValueFitsIntoImmediate(m->displacement));
@@ -1368,7 +1365,7 @@ void InstructionSelectorT::VisitLoad(OpIndex node, OpIndex value,
       g.GetEffectiveAddressMemoryOperand(value, inputs, &input_count, reg_kind);
   InstructionCode code = opcode | AddressingModeField::encode(mode);
   if (this->is_load(node)) {
-    auto load = this->load_view(node);
+    auto load = load_view(node);
     bool traps_on_null;
     if (load.is_protected(&traps_on_null)) {
       if (traps_on_null) {
@@ -1382,7 +1379,7 @@ void InstructionSelectorT::VisitLoad(OpIndex node, OpIndex value,
 }
 
 void InstructionSelectorT::VisitLoad(OpIndex node) {
-  TurboshaftAdapter::LoadView view = this->load_view(node);
+  LoadView view = load_view(node);
   VisitLoad(node, node,
             GetLoadOpcode(view.ts_loaded_rep(), view.ts_result_rep()));
 }
@@ -1412,7 +1409,7 @@ void VisitAtomicExchange(InstructionSelectorT* selector, OpIndex node,
 }
 
 void VisitStoreCommon(InstructionSelectorT* selector,
-                      const TurboshaftAdapter::StoreView& store) {
+                      const InstructionSelectorT::StoreView& store) {
   X64OperandGeneratorT g(selector);
   OpIndex base = store.base();
   OptionalOpIndex index = store.index();
@@ -1552,11 +1549,11 @@ void VisitStoreCommon(InstructionSelectorT* selector,
 void InstructionSelectorT::VisitStorePair(OpIndex node) { UNREACHABLE(); }
 
 void InstructionSelectorT::VisitStore(OpIndex node) {
-  return VisitStoreCommon(this, this->store_view(node));
+  return VisitStoreCommon(this, store_view(node));
 }
 
 void InstructionSelectorT::VisitProtectedStore(OpIndex node) {
-  return VisitStoreCommon(this, this->store_view(node));
+  return VisitStoreCommon(this, store_view(node));
 }
 
 // Architecture supports unaligned access, therefore VisitLoad is used instead
@@ -1669,9 +1666,8 @@ static void VisitBinop(InstructionSelectorT* selector, OpIndex node,
 // Shared routine for multiple binary operations.
 std::optional<int32_t> GetWord32Constant(
     InstructionSelectorT* selector, OpIndex node,
-    bool allow_implicit_int64_truncation =
-        TurboshaftAdapter::AllowsImplicitWord64ToWord32Truncation) {
-  if (auto* constant = selector->Get(node).TryCast<ConstantOp>()) {
+    bool allow_implicit_int64_truncation = true) {
+  if (const auto* constant = selector->TryCast<ConstantOp>(node)) {
     if (constant->kind == ConstantOp::Kind::kWord32) {
       return constant->word32();
     }
@@ -1694,7 +1690,7 @@ void InstructionSelectorT::VisitWord32And(OpIndex node) {
   V<Word32> left;
   if (MatchWordBinop<Word32>(node, &left, 0xFF)) {
     if (this->is_load(left)) {
-      LoadRepresentation load_rep = this->load_view(left).loaded_rep();
+      LoadRepresentation load_rep = load_view(left).loaded_rep();
       if (load_rep.representation() == MachineRepresentation::kWord8 &&
           load_rep.IsUnsigned()) {
         EmitIdentity(node);
@@ -1705,7 +1701,7 @@ void InstructionSelectorT::VisitWord32And(OpIndex node) {
     return;
   } else if (MatchWordBinop<Word32>(node, &left, 0xFFFF)) {
     if (this->is_load(left)) {
-      LoadRepresentation load_rep = this->load_view(left).loaded_rep();
+      LoadRepresentation load_rep = load_view(left).loaded_rep();
       if ((load_rep.representation() == MachineRepresentation::kWord16 ||
            load_rep.representation() == MachineRepresentation::kWord8) &&
           load_rep.IsUnsigned()) {
@@ -2541,7 +2537,7 @@ void InstructionSelectorT::VisitChangeInt32ToInt64(OpIndex node) {
   X64OperandGeneratorT g(this);
   auto value = op.input();
   if (this->IsLoadOrLoadImmutable(value) && CanCover(node, value)) {
-    LoadRepresentation load_rep = this->load_view(value).loaded_rep();
+    LoadRepresentation load_rep = load_view(value).loaded_rep();
     MachineRepresentation rep = load_rep.representation();
     InstructionCode opcode;
     switch (rep) {
@@ -2740,22 +2736,22 @@ void VisitFloatBinop(InstructionSelectorT* selector, OpIndex node,
           g.GetEffectiveAddressMemoryOperand(right, inputs, &input_count);
       avx_opcode |= AddressingModeField::encode(addressing_mode);
       sse_opcode |= AddressingModeField::encode(addressing_mode);
-        if (g.IsProtectedLoad(right) &&
-            selector->CanCoverProtectedLoad(node, right)) {
-          // In {CanBeMemoryOperand} we have already checked that
-          // CanCover(node, right) succeds, which means that there is no
-          // instruction with Effects required_when_unused or
-          // produces.control_flow between right and node, and that the node has
-          // no other uses. Therefore, we can record the fact that 'right' was
-          // embedded in 'node' and we can later delete the Load instruction.
-          selector->MarkAsProtected(node);
-          avx_opcode |=
-              AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
-          sse_opcode |=
-              AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
-          selector->SetProtectedLoadToRemove(right);
-          trapping_load = right;
-        }
+      if (selector->IsProtectedLoad(right) &&
+          selector->CanCoverProtectedLoad(node, right)) {
+        // In {CanBeMemoryOperand} we have already checked that
+        // CanCover(node, right) succeeds, which means that there is no
+        // instruction with Effects required_when_unused or
+        // produces.control_flow between right and node, and that the node has
+        // no other uses. Therefore, we can record the fact that 'right' was
+        // embedded in 'node' and we can later delete the Load instruction.
+        selector->MarkAsProtected(node);
+        avx_opcode |=
+            AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+        sse_opcode |=
+            AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+        selector->SetProtectedLoadToRemove(right);
+        trapping_load = right;
+      }
     } else {
       inputs[input_count++] = g.UseRegister(left);
       inputs[input_count++] = g.Use(right);
@@ -4044,7 +4040,7 @@ void InstructionSelectorT::VisitMemoryBarrier(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitWord32AtomicLoad(OpIndex node) {
-  LoadRepresentation load_rep = this->load_view(node).loaded_rep();
+  LoadRepresentation load_rep = load_view(node).loaded_rep();
   DCHECK(IsIntegral(load_rep.representation()) ||
          IsAnyTagged(load_rep.representation()) ||
          (COMPRESS_POINTERS_BOOL &&
@@ -4058,7 +4054,7 @@ void InstructionSelectorT::VisitWord32AtomicLoad(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitWord64AtomicLoad(OpIndex node) {
-  LoadRepresentation load_rep = this->load_view(node).loaded_rep();
+  LoadRepresentation load_rep = load_view(node).loaded_rep();
   DCHECK(!load_rep.IsMapWord());
   // The memory order is ignored as both acquire and sequentially consistent
   // loads can emit MOV.
@@ -4067,7 +4063,7 @@ void InstructionSelectorT::VisitWord64AtomicLoad(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitWord32AtomicStore(OpIndex node) {
-  auto store = this->store_view(node);
+  auto store = store_view(node);
   DCHECK_NE(store.stored_rep().representation(),
             MachineRepresentation::kWord64);
   DCHECK_IMPLIES(
@@ -4077,7 +4073,7 @@ void InstructionSelectorT::VisitWord32AtomicStore(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitWord64AtomicStore(OpIndex node) {
-  auto store = this->store_view(node);
+  auto store = store_view(node);
   DCHECK_IMPLIES(
       CanBeTaggedOrCompressedPointer(store.stored_rep().representation()),
       kTaggedSize == 8);
@@ -5212,7 +5208,7 @@ bool TryMatchShufps(const uint8_t* shuffle32x4) {
 }
 
 static bool TryMatchOneInputIsZeros(InstructionSelectorT* selector,
-                                    TurboshaftAdapter::SimdShuffleView& view,
+                                    InstructionSelectorT::SimdShuffleView& view,
                                     uint8_t* shuffle, bool* needs_swap) {
   *needs_swap = false;
   bool input0_is_zero = IsV128ZeroConst(selector, view.input(0));

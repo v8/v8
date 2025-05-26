@@ -3166,7 +3166,6 @@ filegroup(
         "src/compiler/backend/instruction-scheduler.h",
         "src/compiler/backend/instruction-selector.cc",
         "src/compiler/backend/instruction-selector.h",
-        "src/compiler/backend/instruction-selector-adapter.h",
         "src/compiler/backend/instruction-selector-impl.h",
         "src/compiler/backend/jump-threading.cc",
         "src/compiler/backend/jump-threading.h",
