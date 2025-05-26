@@ -1168,18 +1168,20 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessorInHolder(
     Tagged<Object> maybe_accessors = descriptors->GetStrongValue(index);
     if (IsAccessorPair(maybe_accessors)) {
       Tagged<AccessorPair> accessors = Cast<AccessorPair>(maybe_accessors);
-      Tagged<JSFunction> getter =
-          Cast<JSFunction>(accessors->getter(kAcquireLoad));
-      if (getter->shared()->HasBuiltinId() &&
-          getter->shared()->builtin_id() ==
-              Builtin::kTypedArrayPrototypeLength &&
-          broker_->dependencies()->DependOnArrayBufferDetachingProtector()) {
-        dependencies()->DependOnStablePrototypeChain(receiver_map,
-                                                     kStartAtPrototype, holder);
-        // TODO(388844115): If we cannot depend on the detaching protector, add
-        // a different kind of TypedArrayLength operator which checks for
-        // detached before reading the byte_length.
-        return PropertyAccessInfo::TypedArrayLength(zone(), receiver_map);
+      Tagged<Object> maybe_getter = accessors->getter(kAcquireLoad);
+      if (Tagged<JSFunction> getter;
+          TryCast<JSFunction>(maybe_getter, &getter)) {
+        if (getter->shared()->HasBuiltinId() &&
+            getter->shared()->builtin_id() ==
+                Builtin::kTypedArrayPrototypeLength &&
+            broker_->dependencies()->DependOnArrayBufferDetachingProtector()) {
+          dependencies()->DependOnStablePrototypeChain(
+              receiver_map, kStartAtPrototype, holder);
+          // TODO(388844115): If we cannot depend on the detaching protector,
+          // add a different kind of TypedArrayLength operator which checks for
+          // detached before reading the byte_length.
+          return PropertyAccessInfo::TypedArrayLength(zone(), receiver_map);
+        }
       }
     }
   }
