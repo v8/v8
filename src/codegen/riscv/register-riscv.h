@@ -29,7 +29,7 @@ namespace internal {
 // builtin-riscv64
 #define ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(V)  \
              V(a0)  V(a1)  V(a2)  V(a3) \
-             V(a4)  V(a5)  V(a6)  V(a7)  V(t0)  \
+             V(a4)  V(a5)  V(a6)  V(a7)  V(s1) V(s2)  \
              V(t1)  V(t2)  V(t4)  V(s7)  V(s8) V(s9) V(s10)
 
 #ifdef V8_COMPRESS_POINTERS
@@ -299,7 +299,7 @@ constexpr Register kJSFunctionRegister = a1;
 constexpr Register kContextRegister = s7;
 constexpr Register kAllocateSizeRegister = a1;
 constexpr Register kInterpreterAccumulatorRegister = a0;
-constexpr Register kInterpreterBytecodeOffsetRegister = t0;
+constexpr Register kInterpreterBytecodeOffsetRegister = s2;
 constexpr Register kInterpreterBytecodeArrayRegister = t1;
 constexpr Register kInterpreterDispatchTableRegister = t2;
 

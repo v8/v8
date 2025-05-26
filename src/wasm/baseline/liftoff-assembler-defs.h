@@ -123,7 +123,7 @@ constexpr Register kLiftoffFrameSetupFunctionReg = r15;
 // Any change of kLiftoffAssemblerGpCacheRegs also need to update
 // kPushedGpRegs in frame-constants-riscv.h
 constexpr RegList kLiftoffAssemblerGpCacheRegs = {a0, a1, a2, a3, a4, a5,
-                                                  a6, a7, t0, t1, t2, s7};
+                                                  a6, a7, s2, t1, t2, s7};
 
 // Any change of kLiftoffAssemblerGpCacheRegs also need to update
 // kPushedFpRegs in frame-constants-riscv.h
@@ -134,7 +134,7 @@ constexpr DoubleRegList kLiftoffAssemblerFpCacheRegs = {
     fa3, fa4, fa5, fa6, fa7, ft8, ft9, ft10, ft11};
 
 // For the "WasmLiftoffFrameSetup" builtin.
-constexpr Register kLiftoffFrameSetupFunctionReg = t0;
+constexpr Register kLiftoffFrameSetupFunctionReg = s2;
 #else
 
 constexpr RegList kLiftoffAssemblerGpCacheRegs = RegList::FromBits(0xff);

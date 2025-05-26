@@ -831,7 +831,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Address wasm_code = static_cast<Address>(constant.ToInt64());
         __ Jump(wasm_code, constant.rmode());
       } else {
-        __ AddWord(kScratchReg, i.InputOrZeroRegister(0), 0);
+        __ Move(kScratchReg, i.InputOrZeroRegister(0));
         if (arch_opcode == kArchTailCallWasmIndirect) {
           __ CallWasmCodePointer(
               i.InputRegister(0),
