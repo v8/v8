@@ -482,8 +482,10 @@ macro LoadContextElementImpl(c: Context, i: intptr): Object {
   if (cell.state <= kContextCellSmi) {
     return cell.tagged_value;
   } else if (cell.state == kContextCellInt32) {
-    // TODO(victorgomes): maybe this has a smi value, so we don't need to
-    // allocate a heap number.
+    const intValue = Convert<intptr>(cell.int32_value);
+    if (Convert<uintptr>(intValue) <= kSmiMaxValue) {
+      return Convert<Smi>(intValue);
+    }
     return AllocateHeapNumberWithValue(ChangeInt32ToFloat64(cell.int32_value));
   } else {
     dcheck(cell.state == kContextCellFloat64);

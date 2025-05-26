@@ -537,6 +537,9 @@ DirectHandle<Object> Context::Get(DirectHandle<Context> context, int index,
     case ContextCell::kSmi:
       return handle(cell->tagged_value(), isolate);
     case ContextCell::kInt32:
+      if (Smi::IsValid(cell->int32_value())) {
+        return handle(Smi::FromInt(cell->int32_value()), isolate);
+      }
       return isolate->factory()->NewHeapNumber(
           static_cast<double>(cell->int32_value()));
     case ContextCell::kFloat64:

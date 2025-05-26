@@ -2591,6 +2591,7 @@ void LoadTaggedFieldForContextSlot::GenerateCode(MaglevAssembler* masm,
           __ CompareInt32AndJumpIf(scratch, ContextCell::kInt32, kNotEqual,
                                    &check_float64);
           __ LoadContextCellInt32Value(scratch, value);
+          __ SmiTagInt32AndJumpIfSuccess(value, scratch, *done);
           __ Int32ToDouble(double_value, scratch);
           __ Jump(&allocate, Label::kNear);
           __ bind(&check_float64);
