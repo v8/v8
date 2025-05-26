@@ -1418,7 +1418,13 @@ transitioning builtin ArrayTimSort(context: Context, sortState: SortState):
   const isToSorted: constexpr bool = false;
   const numberOfNonUndefined: Smi =
       CompactReceiverElementsIntoWorkArray(isToSorted);
-  ArrayTimSortImpl(context, sortState, numberOfNonUndefined);
+
+  if (numberOfNonUndefined < 8) {
+    // Faster for small arrays.
+    BinaryInsertionSort(0, 0, numberOfNonUndefined);
+  } else {
+    ArrayTimSortImpl(context, sortState, numberOfNonUndefined);
+  }
 
   try {
     // The comparison function or toString might have changed the
