@@ -664,9 +664,10 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
                                                     \
   V(StringWrapper, (1 << 11))                       \
   V(JSArray, (1 << 12))                             \
-  V(Callable, (1 << 13))                            \
-  V(OtherJSReceiver, (1 << 14))                     \
-  V(OtherHeapObject, (1 << 15))
+  V(JSFunction, (1 << 13))                          \
+  V(OtherCallable, (1 << 14))                       \
+  V(OtherHeapObject, (1 << 15))                     \
+  V(OtherJSReceiver, (1 << 16))
 
 #define COUNT(...) +1
 static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
@@ -675,6 +676,7 @@ static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
 #define COMBINED_NODE_TYPE_LIST(V)                                        \
   /* A value which has all the above bits set */                          \
   V(Unknown, ((1 << kNumberOfLeafNodeTypes) - 1))                         \
+  V(Callable, kJSFunction | kOtherCallable)                               \
   V(NullOrUndefined, kNull | kUndefined)                                  \
   V(Oddball, kNullOrUndefined | kBoolean)                                 \
   V(Number, kSmi | kHeapNumber)                                           \
@@ -711,6 +713,7 @@ inline constexpr bool NodeTypeIsNeverStandalone(NodeType type) {
   switch (type) {
     // "Other" string types should be considered internal and never appear as
     // standalone leaf types.
+    case NodeType::kOtherCallable:
     case NodeType::kOtherInternalizedString:
     case NodeType::kOtherSeqInternalizedOneByteString:
     case NodeType::kOtherSeqOneByteString:
@@ -854,6 +857,7 @@ inline NodeType StaticTypeForMap(compiler::MapRef map,
     return NodeType::kNullOrUndefined;
   }
   if (map.IsJSArrayMap()) return NodeType::kJSArray;
+  if (map.IsJSFunctionMap()) return NodeType::kJSFunction;
   if (map.is_callable()) {
     return NodeType::kCallable;
   }
@@ -916,8 +920,12 @@ inline bool IsInstanceOfLeafNodeType(compiler::MapRef map, NodeType type,
       return map.IsStringWrapperMap();
     case NodeType::kJSArray:
       return map.IsJSArrayMap();
+    case NodeType::kJSFunction:
+      return map.IsJSFunctionMap();
     case NodeType::kCallable:
       return map.is_callable();
+    case NodeType::kOtherCallable:
+      return map.is_callable() && !map.IsJSFunctionMap();
     case NodeType::kOtherJSReceiver:
       return map.IsJSReceiverMap() && !map.IsJSArrayMap() &&
              !map.is_callable() && !map.IsStringWrapperMap();

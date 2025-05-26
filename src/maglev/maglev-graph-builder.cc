@@ -4986,6 +4986,20 @@ ReduceResult MaglevGraphBuilder::BuildCheckSymbol(ValueNode* object) {
   return ReduceResult::Done();
 }
 
+ReduceResult MaglevGraphBuilder::BuildCheckJSFunction(ValueNode* object) {
+  NodeType known_type;
+  // Check for the empty type first so that we catch the case where
+  // GetType(object) is already empty.
+  if (IsEmptyNodeType(IntersectType(GetType(object), NodeType::kJSFunction))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongInstanceType);
+  }
+  if (EnsureType(object, NodeType::kJSFunction, &known_type))
+    return ReduceResult::Done();
+  AddNewNode<CheckInstanceType>({object}, GetCheckType(known_type),
+                                FIRST_JS_FUNCTION_TYPE, LAST_JS_FUNCTION_TYPE);
+  return ReduceResult::Done();
+}
+
 ReduceResult MaglevGraphBuilder::BuildCheckJSReceiver(ValueNode* object) {
   NodeType known_type;
   // Check for the empty type first so that we catch the case where
@@ -11573,30 +11587,62 @@ ReduceResult MaglevGraphBuilder::BuildCallWithFeedback(
   DCHECK_EQ(processed_feedback.kind(), compiler::ProcessedFeedback::kCall);
   const compiler::CallFeedback& call_feedback = processed_feedback.AsCall();
 
-  if (call_feedback.target().has_value() &&
-      call_feedback.target()->IsJSFunction()) {
-    CallFeedbackContent content = call_feedback.call_feedback_content();
-    compiler::JSFunctionRef feedback_target =
-        call_feedback.target()->AsJSFunction();
-    if (content == CallFeedbackContent::kReceiver) {
-      compiler::NativeContextRef native_context =
-          broker()->target_native_context();
-      compiler::JSFunctionRef apply_function =
-          native_context.function_prototype_apply(broker());
+  if (call_feedback.target().has_value()) {
+    if (call_feedback.target()->IsJSFunction()) {
+      CallFeedbackContent content = call_feedback.call_feedback_content();
+      compiler::JSFunctionRef feedback_target =
+          call_feedback.target()->AsJSFunction();
+      if (content == CallFeedbackContent::kReceiver) {
+        compiler::NativeContextRef native_context =
+            broker()->target_native_context();
+        compiler::JSFunctionRef apply_function =
+            native_context.function_prototype_apply(broker());
+        RETURN_IF_ABORT(BuildCheckValueByReference(
+            target_node, apply_function, DeoptimizeReason::kWrongCallTarget));
+        PROCESS_AND_RETURN_IF_DONE(
+            TryReduceFunctionPrototypeApplyCallWithReceiver(
+                feedback_target, args, feedback_source),
+            SetAccumulator);
+        feedback_target = apply_function;
+      } else {
+        DCHECK_EQ(CallFeedbackContent::kTarget, content);
+      }
       RETURN_IF_ABORT(BuildCheckValueByReference(
-          target_node, apply_function, DeoptimizeReason::kWrongCallTarget));
-      PROCESS_AND_RETURN_IF_DONE(
-          TryReduceFunctionPrototypeApplyCallWithReceiver(feedback_target, args,
-                                                          feedback_source),
-          SetAccumulator);
-      feedback_target = apply_function;
-    } else {
-      DCHECK_EQ(CallFeedbackContent::kTarget, content);
+          target_node, feedback_target, DeoptimizeReason::kWrongCallTarget));
+    } else if (call_feedback.target()->IsFeedbackCell() &&
+               args.mode() == CallArguments::kDefault) {
+      compiler::FeedbackCellRef feedback_cell =
+          call_feedback.target()->AsFeedbackCell();
+      compiler::OptionalSharedFunctionInfoRef shared =
+          feedback_cell.shared_function_info(broker());
+      if (shared.has_value()) {
+        RETURN_IF_ABORT(BuildCheckJSFunction(target_node));
+        ValueNode* target_feedback_cell =
+            BuildLoadTaggedField(target_node, JSFunction::kFeedbackCellOffset);
+        RETURN_IF_ABORT(
+            BuildCheckValueByReference(target_feedback_cell, feedback_cell,
+                                       DeoptimizeReason::kWrongFeedbackCell));
+        ValueNode* context =
+            BuildLoadTaggedField(target_node, JSFunction::kContextOffset);
+        compiler::ScopeInfoRef scope_info = shared->scope_info(broker());
+        if (scope_info.HasOuterScopeInfo()) {
+          scope_info = scope_info.OuterScopeInfo(broker());
+          CHECK(scope_info.HasContext());
+          graph()->record_scope_info(context, scope_info);
+        }
+        PROCESS_AND_RETURN_IF_DONE(
+            TryBuildCallKnownJSFunction(
+                context, target_node,
+                GetRootConstant(RootIndex::kUndefinedValue),
+#ifdef V8_ENABLE_LEAPTIERING
+                feedback_cell.dispatch_handle(),
+#endif
+                shared.value(), feedback_cell, args, feedback_source),
+            SetAccumulator);
+        UNREACHABLE();
+      }
     }
-    RETURN_IF_ABORT(BuildCheckValueByReference(
-        target_node, feedback_target, DeoptimizeReason::kWrongCallTarget));
   }
-
   PROCESS_AND_RETURN_IF_DONE(ReduceCall(target_node, args, feedback_source),
                              SetAccumulator);
   UNREACHABLE();
