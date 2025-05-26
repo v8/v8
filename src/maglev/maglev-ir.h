@@ -1207,12 +1207,12 @@ class OpProperties {
   }
   constexpr bool is_any_call() const { return is_call() || is_deferred_call(); }
   constexpr bool can_eager_deopt() const {
-    return kAttachedDeoptInfoBits::decode(bitfield_) ==
-           AttachedDeoptInfo::kEager;
+    return static_cast<int>(kAttachedDeoptInfoBits::decode(bitfield_)) &
+           static_cast<int>(AttachedDeoptInfo::kEager);
   }
   constexpr bool can_lazy_deopt() const {
-    return kAttachedDeoptInfoBits::decode(bitfield_) ==
-           AttachedDeoptInfo::kLazy;
+    return static_cast<int>(kAttachedDeoptInfoBits::decode(bitfield_)) &
+           static_cast<int>(AttachedDeoptInfo::kLazy);
   }
   constexpr bool is_deopt_checkpoint() const {
     return kAttachedDeoptInfoBits::decode(bitfield_) ==
@@ -1377,9 +1377,14 @@ class OpProperties {
   }
 
  private:
-  enum class AttachedDeoptInfo { kNone, kEager, kLazy, kCheckpoint };
+  enum class AttachedDeoptInfo {
+    kNone = 0,
+    kEager = 1 << 0,
+    kLazy = 1 << 1,
+    kCheckpoint = 1 << 2
+  };
   using kIsCallBit = base::BitField<bool, 0, 1>;
-  using kAttachedDeoptInfoBits = kIsCallBit::Next<AttachedDeoptInfo, 2>;
+  using kAttachedDeoptInfoBits = kIsCallBit::Next<AttachedDeoptInfo, 3>;
   using kCanThrowBit = kAttachedDeoptInfoBits::Next<bool, 1>;
   using kCanReadBit = kCanThrowBit::Next<bool, 1>;
   using kCanWriteBit = kCanReadBit::Next<bool, 1>;
@@ -2082,10 +2087,9 @@ class NodeBase : public ZoneObject {
   using OpPropertiesField =
       OpcodeField::Next<OpProperties, OpProperties::kSize>;
   using NumTemporariesNeededField = OpPropertiesField::Next<uint8_t, 2>;
-  using NumDoubleTemporariesNeededField =
-      NumTemporariesNeededField::Next<uint8_t, 1>;
-  using InputCountField = NumDoubleTemporariesNeededField::Next<size_t, 17>;
+  using InputCountField = NumTemporariesNeededField::Next<size_t, 17>;
   static_assert(InputCountField::kShift == 32);
+  using NumDoubleTemporariesNeededField = InputCountField::Next<uint8_t, 1>;
 
  protected:
   // Reserved for intermediate superclasses such as ValueNode.
@@ -2240,14 +2244,12 @@ class NodeBase : public ZoneObject {
   EagerDeoptInfo* eager_deopt_info() {
     DCHECK(properties().can_eager_deopt() ||
            properties().is_deopt_checkpoint());
-    DCHECK(!properties().can_lazy_deopt());
-    return reinterpret_cast<EagerDeoptInfo*>(deopt_info_address());
+    return reinterpret_cast<EagerDeoptInfo*>(eager_deopt_info_address());
   }
 
   LazyDeoptInfo* lazy_deopt_info() {
     DCHECK(properties().can_lazy_deopt());
-    DCHECK(!properties().can_eager_deopt());
-    return reinterpret_cast<LazyDeoptInfo*>(deopt_info_address());
+    return reinterpret_cast<LazyDeoptInfo*>(lazy_deopt_info_address());
   }
 
   const RegisterSnapshot& register_snapshot() const {
@@ -2406,13 +2408,6 @@ class NodeBase : public ZoneObject {
  private:
   template <class Derived, typename... Args>
   static Derived* Allocate(Zone* zone, size_t input_count, Args&&... args) {
-    static_assert(
-        !Derived::kProperties.can_eager_deopt() ||
-            !Derived::kProperties.can_lazy_deopt(),
-        "The current deopt info representation, at the end of inputs, requires "
-        "that we cannot have both lazy and eager deopts on a node. If we ever "
-        "need this, we have to update accessors to check node->properties() "
-        "for which deopts are active.");
     constexpr size_t size_before_inputs =
         ExceptionHandlerInfoSize(Derived::kProperties) +
         RegisterSnapshotSize(Derived::kProperties) +
@@ -2463,11 +2458,16 @@ class NodeBase : public ZoneObject {
   }
 
   // Returns the position of deopt info if it exists, otherwise returns
-  // its position as if DeoptInfo size were zero.
-  Address deopt_info_address() const {
-    DCHECK(!properties().can_eager_deopt() || !properties().can_lazy_deopt());
+  // its position as if DeoptInfo size were zero. We first
+  // have an eager deopt info (if any), then a lazy deopt info (if any).
+  Address eager_deopt_info_address() const {
     size_t extra =
         EagerDeoptInfoSize(properties()) + LazyDeoptInfoSize(properties());
+    return last_input_address() - extra;
+  }
+
+  Address lazy_deopt_info_address() const {
+    size_t extra = LazyDeoptInfoSize(properties());
     return last_input_address() - extra;
   }
 
@@ -2475,7 +2475,7 @@ class NodeBase : public ZoneObject {
   // its position as if RegisterSnapshot size were zero.
   Address register_snapshot_address() const {
     size_t extra = RegisterSnapshotSize(properties());
-    return deopt_info_address() - extra;
+    return eager_deopt_info_address() - extra;
   }
 
   // Returns the position of exception handler info if it exists, otherwise
@@ -7868,8 +7868,8 @@ class CreateFastArrayElements
 };
 
 class TransitionAndStoreArrayElement
-    : public FixedInputValueNodeT<3, TransitionAndStoreArrayElement> {
-  using Base = FixedInputValueNodeT<3, TransitionAndStoreArrayElement>;
+    : public FixedInputValueNodeT<4, TransitionAndStoreArrayElement> {
+  using Base = FixedInputValueNodeT<4, TransitionAndStoreArrayElement>;
 
  public:
   explicit TransitionAndStoreArrayElement(uint64_t bitfield,
@@ -7877,15 +7877,17 @@ class TransitionAndStoreArrayElement
                                           const compiler::MapRef& double_map)
       : Base(bitfield), fast_map_(fast_map), double_map_(double_map) {}
 
-  static constexpr OpProperties kProperties =
-      OpProperties::AnySideEffects() | OpProperties::DeferredCall();
+  static constexpr OpProperties kProperties = OpProperties::AnySideEffects() |
+                                              OpProperties::DeferredCall() |
+                                              OpProperties::LazyDeopt();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32,
-      ValueRepresentation::kTagged};
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
   Input& array_input() { return input(0); }
   Input& index_input() { return input(1); }
   Input& value_input() { return input(2); }
+  Input& context() { return input(3); }
 
   compiler::MapRef fast_map() const { return fast_map_; }
   compiler::MapRef double_map() const { return double_map_; }
@@ -11056,8 +11058,8 @@ class ThrowIfNotSuperConstructor
 };
 
 class TransitionElementsKind
-    : public FixedInputValueNodeT<2, TransitionElementsKind> {
-  using Base = FixedInputValueNodeT<2, TransitionElementsKind>;
+    : public FixedInputValueNodeT<3, TransitionElementsKind> {
+  using Base = FixedInputValueNodeT<3, TransitionElementsKind>;
 
  public:
   explicit TransitionElementsKind(
@@ -11068,13 +11070,16 @@ class TransitionElementsKind
         transition_target_(transition_target) {}
 
   // TODO(leszeks): Special case the case where all transitions are fast.
-  static constexpr OpProperties kProperties =
-      OpProperties::AnySideEffects() | OpProperties::DeferredCall();
+  static constexpr OpProperties kProperties = OpProperties::AnySideEffects() |
+                                              OpProperties::DeferredCall() |
+                                              OpProperties::LazyDeopt();
   static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged,
+      ValueRepresentation::kTagged};
 
   Input& object_input() { return input(0); }
   Input& map_input() { return input(1); }
+  Input& context() { return input(2); }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -11094,8 +11099,8 @@ class TransitionElementsKind
 };
 
 class TransitionElementsKindOrCheckMap
-    : public FixedInputNodeT<2, TransitionElementsKindOrCheckMap> {
-  using Base = FixedInputNodeT<2, TransitionElementsKindOrCheckMap>;
+    : public FixedInputNodeT<3, TransitionElementsKindOrCheckMap> {
+  using Base = FixedInputNodeT<3, TransitionElementsKindOrCheckMap>;
 
  public:
   explicit TransitionElementsKindOrCheckMap(
@@ -11106,14 +11111,16 @@ class TransitionElementsKindOrCheckMap
         transition_target_(transition_target) {}
 
   // TODO(leszeks): Special case the case where all transitions are fast.
-  static constexpr OpProperties kProperties = OpProperties::AnySideEffects() |
-                                              OpProperties::DeferredCall() |
-                                              OpProperties::EagerDeopt();
+  static constexpr OpProperties kProperties =
+      OpProperties::AnySideEffects() | OpProperties::DeferredCall() |
+      OpProperties::EagerDeopt() | OpProperties::LazyDeopt();
   static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged,
+      ValueRepresentation::kTagged};
 
   Input& object_input() { return Node::input(0); }
   Input& map_input() { return Node::input(1); }
+  Input& context() { return Node::input(2); }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();

@@ -385,14 +385,13 @@ Node* JSGraphAssembler::StoreElement(ElementAccess const& access, Node* object,
                                   index, value, effect(), control()));
 }
 
-void JSGraphAssembler::TransitionAndStoreElement(MapRef double_map,
-                                                 MapRef fast_map,
-                                                 TNode<HeapObject> object,
-                                                 TNode<Number> index,
-                                                 TNode<Object> value) {
+void JSGraphAssembler::TransitionAndStoreElement(
+    MapRef double_map, MapRef fast_map, TNode<HeapObject> object,
+    TNode<Number> index, TNode<Object> value, TNode<Context> context,
+    Node* frame_state) {
   AddNode(graph()->NewNode(
       simplified()->TransitionAndStoreElement(double_map, fast_map), object,
-      index, value, effect(), control()));
+      index, value, context, frame_state, effect(), control()));
 }
 
 TNode<Number> JSGraphAssembler::StringLength(TNode<String> string) {

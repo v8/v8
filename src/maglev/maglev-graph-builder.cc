@@ -5258,7 +5258,8 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindOrCheckMap(
   NodeInfo* known_info = GetOrCreateInfoFor(heap_object);
 
   AddNewNode<TransitionElementsKindOrCheckMap>(
-      {heap_object, object_map}, transition_sources, transition_target);
+      {heap_object, object_map, GetContext()}, transition_sources,
+      transition_target);
   // After this operation, heap_object's map is transition_target (or we
   // deopted).
   known_info->SetPossibleMaps(
@@ -5323,7 +5324,8 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindAndCompareMaps(
   // (transition_sources union transition_target).
 
   ValueNode* new_map = AddNewNode<TransitionElementsKind>(
-      {heap_object, object_map}, transition_sources, transition_target);
+      {heap_object, object_map, GetContext()}, transition_sources,
+      transition_target);
 
   // TODO(pthier): Support map packing.
   DCHECK(!V8_MAP_PACKING_BOOL);
@@ -9003,7 +9005,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayMap(
                                    &result_array](ValueNode* index_int32,
                                                   ValueNode* element) {
     AddNewNode<TransitionAndStoreArrayElement>(
-        {result_array, index_int32, element}, holey_map, holey_double_map);
+        {result_array, index_int32, element, GetContext()}, holey_map,
+        holey_double_map);
   };
 
   auto get_lazy_deopt_scope = [this, &result_array](

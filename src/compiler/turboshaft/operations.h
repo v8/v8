@@ -6014,7 +6014,7 @@ struct StoreDataViewElementOp
 };
 
 struct TransitionAndStoreArrayElementOp
-    : FixedArityOperationT<3, TransitionAndStoreArrayElementOp> {
+    : FixedArityOperationT<5, TransitionAndStoreArrayElementOp> {
   enum class Kind : uint8_t {
     kElement,
     kNumberElement,
@@ -6032,7 +6032,8 @@ struct TransitionAndStoreArrayElementOp
           .CanReadHeapMemory()
           .CanWriteHeapMemory()
           // We rely on the input type and a valid index.
-          .CanDependOnChecks();
+          .CanDependOnChecks()
+          .CanDeopt();
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -6045,16 +6046,18 @@ struct TransitionAndStoreArrayElementOp
   V<JSArray> array() const { return Base::input<JSArray>(0); }
   V<WordPtr> index() const { return Base::input<WordPtr>(1); }
   V<Any> value() const { return Base::input<Any>(2); }
+  V<Context> context() const { return Base::input<Context>(3); }
+  V<FrameState> frame_state() const { return Base::input<FrameState>(4); }
 
   TransitionAndStoreArrayElementOp(V<JSArray> array, V<WordPtr> index,
-                                   V<Any> value, Kind kind,
+                                   V<Any> value, V<Context> context,
+                                   V<FrameState> frame_state, Kind kind,
                                    MaybeIndirectHandle<Map> fast_map,
                                    MaybeIndirectHandle<Map> double_map)
-      : Base(array, index, value),
+      : Base(array, index, value, context, frame_state),
         kind(kind),
         fast_map(fast_map),
         double_map(double_map) {}
-
 
   RegisterRepresentation value_representation() const {
     switch (kind) {
@@ -6603,10 +6606,10 @@ struct MaybeGrowFastElementsOp
 };
 
 struct TransitionElementsKindOp
-    : FixedArityOperationT<1, TransitionElementsKindOp> {
+    : FixedArityOperationT<3, TransitionElementsKindOp> {
   ElementsTransition transition;
 
-  static constexpr OpEffects effects = OpEffects().CanCallAnything();
+  static constexpr OpEffects effects = OpEffects().CanCallAnything().CanDeopt();
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -6616,15 +6619,16 @@ struct TransitionElementsKindOp
 
   OpIndex object() const { return Base::input(0); }
 
-  TransitionElementsKindOp(OpIndex object, const ElementsTransition& transition)
-      : Base(object), transition(transition) {}
-
+  TransitionElementsKindOp(OpIndex object, V<Context> context,
+                           V<FrameState> frame_state,
+                           const ElementsTransition& transition)
+      : Base(object, context, frame_state), transition(transition) {}
 
   auto options() const { return std::tuple{transition}; }
 };
 
 struct TransitionElementsKindOrCheckMapOp
-    : FixedArityOperationT<3, TransitionElementsKindOrCheckMapOp> {
+    : FixedArityOperationT<5, TransitionElementsKindOrCheckMapOp> {
   ElementsTransitionWithMultipleSources transition;
 
   static constexpr OpEffects effects = OpEffects().CanCallAnything();
@@ -6638,10 +6642,11 @@ struct TransitionElementsKindOrCheckMapOp
   V<HeapObject> object() const { return Base::input<HeapObject>(0); }
 
   TransitionElementsKindOrCheckMapOp(
-      V<HeapObject> object, V<Map> map, V<FrameState> frame_state,
+      V<HeapObject> object, V<Map> map, V<Context> context,
+      V<FrameState> eager_frame_state, V<FrameState> lazy_frame_state,
       const ElementsTransitionWithMultipleSources& transition)
-      : Base(object, map, frame_state), transition(transition) {}
-
+      : Base(object, map, context, eager_frame_state, lazy_frame_state),
+        transition(transition) {}
 
   auto options() const { return std::tuple{transition}; }
 };

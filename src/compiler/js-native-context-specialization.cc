@@ -2264,6 +2264,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   Effect effect{NodeProperties::GetEffectInput(node)};
   Control control{NodeProperties::GetControlInput(node)};
   Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
 
   // TODO(neis): It's odd that we do optimizations below that don't really care
   // about the feedback, but we don't do them when the feedback is megamorphic.
@@ -2361,10 +2362,11 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       ZoneRefSet<Map> sources(access_info.transition_sources().begin(),
                               access_info.transition_sources().end(),
                               graph()->zone());
-      effect = graph()->NewNode(simplified()->TransitionElementsKindOrCheckMap(
-                                    ElementsTransitionWithMultipleSources(
-                                        sources, transition_target)),
-                                receiver, effect, control);
+      effect =
+          graph()->NewNode(simplified()->TransitionElementsKindOrCheckMap(
+                               ElementsTransitionWithMultipleSources(
+                                   sources, transition_target)),
+                           receiver, context, frame_state, effect, control);
     } else {
       // Perform map check on the {receiver}.
       access_builder.BuildCheckMaps(receiver, &effect, control,
@@ -2406,7 +2408,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
                     ? ElementsTransition::kFastTransition
                     : ElementsTransition::kSlowTransition,
                 transition_source, transition_target)),
-            receiver, this_effect, this_control);
+            receiver, context, frame_state, this_effect, this_control);
       }
 
       // Perform map check(s) on {receiver}.

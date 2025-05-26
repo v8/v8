@@ -4186,8 +4186,11 @@ class RepresentationSelector {
         } else {
           ProcessInput<T>(node, 2, UseInfo::AnyTagged());  // value
         }
-
-        ProcessRemainingInputs<T>(node, 3);
+        ProcessInput<T>(node, NodeProperties::FirstFrameStateIndex(node),
+                        UseInfo::AnyTagged());
+        ProcessInput<T>(node, NodeProperties::FirstContextIndex(node),
+                        UseInfo::AnyTagged());
+        ProcessRemainingInputs<T>(node, 5);
         SetOutput<T>(node, MachineRepresentation::kNone);
         return;
       }
@@ -4679,16 +4682,17 @@ class RepresentationSelector {
             node, UseInfo::CheckedHeapObjectAsTaggedPointer(p.feedback()),
             MachineRepresentation::kNone);
       }
-      case IrOpcode::kTransitionElementsKind: {
-        return VisitUnop<T>(
-            node, UseInfo::CheckedHeapObjectAsTaggedPointer(FeedbackSource()),
-            MachineRepresentation::kNone);
-      }
-      case IrOpcode::kTransitionElementsKindOrCheckMap: {
-        return VisitUnop<T>(
-            node, UseInfo::CheckedHeapObjectAsTaggedPointer(FeedbackSource()),
-            MachineRepresentation::kNone);
-      }
+      case IrOpcode::kTransitionElementsKind:
+      case IrOpcode::kTransitionElementsKindOrCheckMap:
+        ProcessInput<T>(
+            node, 0,
+            UseInfo::CheckedHeapObjectAsTaggedPointer(FeedbackSource()));
+        SetOutput<T>(node, MachineRepresentation::kNone, Type::Any());
+        ProcessInput<T>(node, NodeProperties::FirstContextIndex(node),
+                        UseInfo::AnyTagged());
+        ProcessInput<T>(node, NodeProperties::FirstFrameStateIndex(node),
+                        UseInfo::AnyTagged());
+        return;
       case IrOpcode::kCompareMaps:
         return VisitUnop<T>(
             node, UseInfo::CheckedHeapObjectAsTaggedPointer(FeedbackSource()),

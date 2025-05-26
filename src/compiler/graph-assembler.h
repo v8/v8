@@ -1012,7 +1012,8 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
 
   void TransitionAndStoreElement(MapRef double_map, MapRef fast_map,
                                  TNode<HeapObject> object, TNode<Number> index,
-                                 TNode<Object> value);
+                                 TNode<Object> value, TNode<Context> context,
+                                 Node* frame_state);
   TNode<Number> StringLength(TNode<String> string);
   TNode<Boolean> ReferenceEqual(TNode<Object> lhs, TNode<Object> rhs);
   TNode<Number> PlainPrimitiveToNumber(TNode<Object> value);

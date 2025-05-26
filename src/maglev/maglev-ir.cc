@@ -6658,39 +6658,46 @@ void GenerateTransitionElementsKind(
   DCHECK(!compiler::AnyMapIsHeapNumber(transition_sources));
   DCHECK(!IsHeapNumberMap(*transition_target.object()));
 
+  Label* simple_transition = nullptr;
+  Label* complex_transition = nullptr;
+
+  auto make_transition_code = [&](bool is_simple) {
+    Label** deferred = is_simple ? &simple_transition : &complex_transition;
+    if (*deferred == nullptr) {
+      *deferred = __ MakeDeferredCode(
+          [](MaglevAssembler* masm, bool is_simple, Register object,
+             Register map, RegisterSnapshot register_snapshot,
+             LazyDeoptInfo* lazy_deopt_info, compiler::MapRef transition_target,
+             ZoneLabelRef done, std::optional<Register> result_opt) {
+            if (is_simple) {
+              __ MoveTagged(map, transition_target.object());
+              __ StoreTaggedFieldWithWriteBarrier(
+                  object, HeapObject::kMapOffset, map, register_snapshot,
+                  MaglevAssembler::kValueIsCompressed,
+                  MaglevAssembler::kValueCannotBeSmi);
+            } else {
+              SaveRegisterStateForCall save_state(masm, register_snapshot);
+              __ Push(object, transition_target.object());
+              __ Move(kContextRegister, masm->native_context().object());
+              __ CallRuntime(Runtime::kTransitionElementsKind);
+              save_state.DefineSafepointWithLazyDeopt(lazy_deopt_info);
+            }
+            if (result_opt) {
+              __ MoveTagged(*result_opt, transition_target.object());
+            }
+            __ Jump(*done);
+          },
+          is_simple, object, map, node->register_snapshot(),
+          node->lazy_deopt_info(), transition_target, done, result_opt);
+    }
+    return *deferred;
+  };
+
   for (const compiler::MapRef transition_source : transition_sources) {
     bool is_simple = IsSimpleMapChangeTransition(
         transition_source.elements_kind(), transition_target.elements_kind());
-
-    // TODO(leszeks): If there are a lot of transition source maps, move the
-    // source into a register and share the deferred code between maps.
-    __ CompareTaggedAndJumpIf(
-        map, transition_source.object(), kEqual,
-        __ MakeDeferredCode(
-            [](MaglevAssembler* masm, Register object, Register map,
-               RegisterSnapshot register_snapshot,
-               compiler::MapRef transition_target, bool is_simple,
-               ZoneLabelRef done, std::optional<Register> result_opt) {
-              if (is_simple) {
-                __ MoveTagged(map, transition_target.object());
-                __ StoreTaggedFieldWithWriteBarrier(
-                    object, HeapObject::kMapOffset, map, register_snapshot,
-                    MaglevAssembler::kValueIsCompressed,
-                    MaglevAssembler::kValueCannotBeSmi);
-              } else {
-                SaveRegisterStateForCall save_state(masm, register_snapshot);
-                __ Push(object, transition_target.object());
-                __ Move(kContextRegister, masm->native_context().object());
-                __ CallRuntime(Runtime::kTransitionElementsKind);
-                save_state.DefineSafepoint();
-              }
-              if (result_opt) {
-                __ MoveTagged(*result_opt, transition_target.object());
-              }
-              __ Jump(*done);
-            },
-            object, map, node->register_snapshot(), transition_target,
-            is_simple, done, result_opt));
+    __ CompareTaggedAndJumpIf(map, transition_source.object(), kEqual,
+                              make_transition_code(is_simple));
   }
 }
 
@@ -6703,6 +6710,7 @@ int TransitionElementsKind::MaxCallStackArgs() const {
 void TransitionElementsKind::SetValueLocationConstraints() {
   UseRegister(object_input());
   UseRegister(map_input());
+  UseRegister(context());
   DefineAsRegister(this);
 }
 
@@ -6731,6 +6739,7 @@ int TransitionElementsKindOrCheckMap::MaxCallStackArgs() const {
 void TransitionElementsKindOrCheckMap::SetValueLocationConstraints() {
   UseRegister(object_input());
   UseRegister(map_input());
+  UseRegister(context());
 }
 
 void TransitionElementsKindOrCheckMap::GenerateCode(

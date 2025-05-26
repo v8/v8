@@ -2454,23 +2454,21 @@ const Operator* SimplifiedOperatorBuilder::TransitionAndStoreElement(
     MapRef double_map, MapRef fast_map) {
   TransitionAndStoreElementParameters parameters(double_map, fast_map);
   return zone()->New<Operator1<TransitionAndStoreElementParameters>>(
-      IrOpcode::kTransitionAndStoreElement,
-      Operator::kNoDeopt | Operator::kNoThrow, "TransitionAndStoreElement", 3,
-      1, 1, 0, 1, 0, parameters);
+      IrOpcode::kTransitionAndStoreElement, Operator::kNoThrow,
+      "TransitionAndStoreElement", 3, 1, 1, 0, 1, 0, parameters);
 }
 
 const Operator* SimplifiedOperatorBuilder::StoreSignedSmallElement() {
   return zone()->New<Operator>(IrOpcode::kStoreSignedSmallElement,
-                               Operator::kNoDeopt | Operator::kNoThrow,
-                               "StoreSignedSmallElement", 3, 1, 1, 0, 1, 0);
+                               Operator::kNoThrow, "StoreSignedSmallElement", 3,
+                               1, 1, 0, 1, 0);
 }
 
 const Operator* SimplifiedOperatorBuilder::TransitionAndStoreNumberElement(
     MapRef double_map) {
   TransitionAndStoreNumberElementParameters parameters(double_map);
   return zone()->New<Operator1<TransitionAndStoreNumberElementParameters>>(
-      IrOpcode::kTransitionAndStoreNumberElement,
-      Operator::kNoDeopt | Operator::kNoThrow,
+      IrOpcode::kTransitionAndStoreNumberElement, Operator::kNoThrow,
       "TransitionAndStoreNumberElement", 3, 1, 1, 0, 1, 0, parameters);
 }
 
@@ -2478,8 +2476,7 @@ const Operator* SimplifiedOperatorBuilder::TransitionAndStoreNonNumberElement(
     MapRef fast_map, Type value_type) {
   TransitionAndStoreNonNumberElementParameters parameters(fast_map, value_type);
   return zone()->New<Operator1<TransitionAndStoreNonNumberElementParameters>>(
-      IrOpcode::kTransitionAndStoreNonNumberElement,
-      Operator::kNoDeopt | Operator::kNoThrow,
+      IrOpcode::kTransitionAndStoreNonNumberElement, Operator::kNoThrow,
       "TransitionAndStoreNonNumberElement", 3, 1, 1, 0, 1, 0, parameters);
 }
 

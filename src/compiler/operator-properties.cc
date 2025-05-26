@@ -16,7 +16,17 @@ namespace compiler {
 // static
 bool OperatorProperties::HasContextInput(const Operator* op) {
   IrOpcode::Value opcode = static_cast<IrOpcode::Value>(op->opcode());
-  return IrOpcode::IsJsOpcode(opcode);
+  switch (opcode) {
+    case IrOpcode::kTransitionElementsKind:
+    case IrOpcode::kTransitionElementsKindOrCheckMap:
+    case IrOpcode::kTransitionAndStoreElement:
+    case IrOpcode::kTransitionAndStoreNumberElement:
+    case IrOpcode::kTransitionAndStoreNonNumberElement:
+    case IrOpcode::kStoreSignedSmallElement:
+      return true;
+    default:
+      return IrOpcode::IsJsOpcode(opcode);
+  }
 }
 
 // static
@@ -262,6 +272,12 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSRegExpTest:
     case IrOpcode::kJSGetImportMeta:
     case IrOpcode::kJSStoreContext:
+    case IrOpcode::kTransitionElementsKind:
+    case IrOpcode::kTransitionElementsKindOrCheckMap:
+    case IrOpcode::kTransitionAndStoreElement:
+    case IrOpcode::kTransitionAndStoreNumberElement:
+    case IrOpcode::kTransitionAndStoreNonNumberElement:
+    case IrOpcode::kStoreSignedSmallElement:
 
     // Iterator protocol operations
     case IrOpcode::kJSGetIterator:

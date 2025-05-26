@@ -3949,12 +3949,12 @@ class TurboshaftAssemblerOpInterface
     return CallRuntime<typename RuntimeCallDescriptor::TerminateExecution>(
         isolate, frame_state, context, LazyDeoptOnThrow::kNo, {});
   }
-  V<Object> CallRuntime_TransitionElementsKind(Isolate* isolate,
-                                               V<Context> context,
-                                               V<HeapObject> object,
-                                               V<Map> target_map) {
+  V<Object> CallRuntime_TransitionElementsKind(
+      Isolate* isolate, V<turboshaft::FrameState> frame_state,
+      V<Context> context, V<HeapObject> object, V<Map> target_map) {
     return CallRuntime<typename RuntimeCallDescriptor::TransitionElementsKind>(
-        isolate, context, {object, target_map});
+        isolate, frame_state, context, LazyDeoptOnThrow::kNo,
+        {object, target_map});
   }
   V<Object> CallRuntime_TryMigrateInstance(Isolate* isolate, V<Context> context,
                                            V<HeapObject> heap_object) {
@@ -4665,17 +4665,19 @@ class TurboshaftAssemblerOpInterface
   }
 
   void TransitionAndStoreArrayElement(
-      V<JSArray> array, V<WordPtr> index, V<Any> value,
+      V<JSArray> array, V<WordPtr> index, V<Any> value, V<Context> context,
+      V<turboshaft::FrameState> frame_state,
       TransitionAndStoreArrayElementOp::Kind kind, MaybeHandle<Map> fast_map,
       MaybeHandle<Map> double_map) {
-    ReduceIfReachableTransitionAndStoreArrayElement(array, index, value, kind,
-                                                    fast_map, double_map);
+    ReduceIfReachableTransitionAndStoreArrayElement(
+        array, index, value, context, frame_state, kind, fast_map, double_map);
   }
 
   void StoreSignedSmallElement(V<JSArray> array, V<WordPtr> index,
-                               V<Word32> value) {
+                               V<Word32> value, V<Context> context,
+                               V<turboshaft::FrameState> frame_state) {
     TransitionAndStoreArrayElement(
-        array, index, value,
+        array, index, value, context, frame_state,
         TransitionAndStoreArrayElementOp::Kind::kSignedSmallElement, {}, {});
   }
 
@@ -4763,15 +4765,19 @@ class TurboshaftAssemblerOpInterface
         object, elements, index, elements_length, frame_state, mode, feedback);
   }
 
-  void TransitionElementsKind(V<HeapObject> object,
+  void TransitionElementsKind(V<HeapObject> object, V<Context> context,
+                              V<turboshaft::FrameState> frame_state,
                               const ElementsTransition& transition) {
-    ReduceIfReachableTransitionElementsKind(object, transition);
+    ReduceIfReachableTransitionElementsKind(object, context, frame_state,
+                                            transition);
   }
   void TransitionElementsKindOrCheckMap(
-      V<HeapObject> object, V<Map> map, V<turboshaft::FrameState> frame_state,
+      V<HeapObject> object, V<Map> map, V<Context> context,
+      V<turboshaft::FrameState> eager_frame_state,
+      V<turboshaft::FrameState> lazy_frame_state,
       const ElementsTransitionWithMultipleSources& transition) {
-    ReduceIfReachableTransitionElementsKindOrCheckMap(object, map, frame_state,
-                                                      transition);
+    ReduceIfReachableTransitionElementsKindOrCheckMap(
+        object, map, context, eager_frame_state, lazy_frame_state, transition);
   }
 
   OpIndex FindOrderedHashEntry(V<Object> data_structure, OpIndex key,
