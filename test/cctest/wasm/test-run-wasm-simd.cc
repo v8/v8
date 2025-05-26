@@ -7105,24 +7105,16 @@ TEST(RunWasmTurbofan_DifferentOpcodeRevecExpectFail) {
 }
 
 // Signed overflow in offset + index.
-TEST(RunWasmTurbofan_OffsetAddIndexOverflowRevecExpectFail) {
+TEST(RunWasmTurbofan_OffsetAddIndexMayOverflowRevec) {
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
-  WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
-  uint32_t mem_size =
-      static_cast<uint32_t>(max_mem32_pages() * 0.6 * kWasmPageSize);
-  uint8_t* memory = r.builder().AddMemory(mem_size);
-  // int32_t(index) + 32 will overflow.
-  constexpr uint32_t index = 2147483646;
-  // Avoid OOB.
-  if (index + 48 >= mem_size) {
-    return;
-  }
-
-  {
-    TSSimd256VerifyScope ts_scope(r.zone(),
-                                  TSSimd256VerifyScope::VerifyHaveAnySimd256Op,
-                                  ExpectedResult::kFail);
+  uint32_t mem_size = (max_mem32_pages() - 1) * kWasmPageSize;
+  uint8_t* memory;
+  auto build_fn = [mem_size, &memory](WasmRunner<int32_t>& r, uint32_t index,
+                                      enum ExpectedResult expect) {
+    memory = r.builder().AddMemory(mem_size);
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveAnySimd256Op, expect);
 
     uint8_t temp1 = r.AllocateLocal(kWasmS128);
     uint8_t temp2 = r.AllocateLocal(kWasmS128);
@@ -7135,14 +7127,44 @@ TEST(RunWasmTurbofan_OffsetAddIndexOverflowRevecExpectFail) {
              16, WASM_ZERO,
              WASM_SIMD_UNOP(kExprS128Not, WASM_LOCAL_GET(temp2))),
          WASM_ONE});
+  };
+
+  auto init_memory = [&memory](WasmRunner<int32_t>& r, uint32_t index) {
+    for (uint32_t i = 0; i < kSimd128Size * 2; ++i) {
+      memory[i + 16 + index] = i;
+    }
+  };
+
+  auto check_results = [&memory](uint32_t index) {
+    for (uint32_t i = 0; i < kSimd128Size * 2; ++i) {
+      CHECK_EQ(~memory[i + 16 + index] & 0xFF, memory[i]);
+    }
+  };
+
+  {
+    constexpr uint32_t index = std::numeric_limits<int32_t>::max();
+    WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+    build_fn(r, index, ExpectedResult::kPass);
+    if (index < mem_size - 48) {
+      init_memory(r, index);
+      r.Call();
+      check_results(index);
+    } else {
+      CHECK_TRAP(r.Call());
+    }
   }
 
-  for (uint32_t i = 0; i < kSimd128Size * 2; ++i) {
-    memory[i + 16 + index] = i;
-  }
-  r.Call();
-  for (uint32_t i = 0; i < kSimd128Size * 2; ++i) {
-    CHECK_EQ(~memory[16 + index + i] & 0xFF, memory[i]);
+  {
+    constexpr uint32_t index = std::numeric_limits<uint32_t>::max();
+    WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+    build_fn(r, index, ExpectedResult::kFail);
+    if (index < mem_size - 48) {
+      init_memory(r, index);
+      r.Call();
+      check_results(index);
+    } else {
+      CHECK_TRAP(r.Call());
+    }
   }
 }
 

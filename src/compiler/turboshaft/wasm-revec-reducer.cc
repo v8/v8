@@ -54,6 +54,30 @@ std::string GetSimdOpcodeName(Operation const& op) {
   return oss.str();
 }
 
+// Save the result of two uint64_t subtraction.
+class OffsetDiff {
+ public:
+  OffsetDiff(uint64_t offset1, uint64_t offset2) {
+    if (offset1 >= offset2) {
+      abs_diff_ = offset1 - offset2;
+      negative_ = false;
+    } else {
+      abs_diff_ = offset2 - offset1;
+      negative_ = true;
+    }
+  }
+
+  bool operator==(int64_t other) const {
+    return (negative_ == (other < 0)) &&
+           (abs_diff_ == static_cast<uint64_t>(abs(other)));
+  }
+  bool negative() const { return negative_; }
+
+ private:
+  uint64_t abs_diff_;  // abs(a-b)
+  bool negative_;      // sign(a-b)
+};
+
 //  This class is the wrapper for StoreOp/LoadOp, which is helpful to calcualte
 //  the relative offset between two StoreOp/LoadOp.
 template <typename Op,
@@ -102,27 +126,31 @@ class StoreLoadInfo {
       // nullptr
       if (const ConstantOp* const_op = index_->TryCast<ConstantOp>()) {
         DCHECK_EQ(const_op->kind, ConstantOp::Kind::kWord32);
-        int32_t new_offset;
-        if (base::bits::SignedAddOverflow32(
-                static_cast<int32_t>(const_op->word32()),
-                static_cast<int32_t>(offset_), &new_offset)) {
-          // offset is overflow
+        // Exceed uint32 limits.
+        if (offset_ > std::numeric_limits<uint32_t>::max() -
+                          static_cast<uint32_t>(const_op->word32())) {
           SetInvalid();
           return;
         }
-        offset_ = new_offset;
+        offset_ += static_cast<uint32_t>(const_op->word32());
         index_ = nullptr;
       }
     } else {  // memory64
       if (const ConstantOp* const_op = index_->TryCast<ConstantOp>()) {
         DCHECK_EQ(const_op->kind, ConstantOp::Kind::kWord64);
-        offset_ += const_op->word64();
+        // Exceed uint64 limits.
+        if (offset_ > std::numeric_limits<uint64_t>::max() -
+                          static_cast<uint64_t>(const_op->word64())) {
+          SetInvalid();
+          return;
+        }
+        offset_ += static_cast<uint64_t>(const_op->word64());
         index_ = nullptr;
       }
     }
   }
 
-  std::optional<int> operator-(const StoreLoadInfo<Op>& rhs) const {
+  std::optional<OffsetDiff> operator-(const StoreLoadInfo<Op>& rhs) const {
     DCHECK(IsValid() && rhs.IsValid());
     bool calculatable = base_ == rhs.base_ && index_ == rhs.index_;
 
@@ -140,7 +168,7 @@ class StoreLoadInfo {
     }
 
     if (calculatable) {
-      return offset_ - rhs.offset_;
+      return OffsetDiff(offset_, rhs.offset_);
     }
     return {};
   }
@@ -148,7 +176,7 @@ class StoreLoadInfo {
   bool IsValid() const { return op_ != nullptr; }
 
   const Operation* index() const { return index_; }
-  int64_t offset() const { return offset_; }
+  uint64_t offset() const { return offset_; }
   const Op* op() const { return op_; }
 
  private:
@@ -157,7 +185,7 @@ class StoreLoadInfo {
   const Op* op_;
   const Operation* base_ = nullptr;
   const Operation* index_ = nullptr;
-  int64_t offset_;
+  uint64_t offset_;
 };
 
 struct StoreInfoCompare {
@@ -1013,7 +1041,7 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
       } else if (IsLoadExtend(transform_op0)) {
         TRACE("Simd128LoadTransform: LoadExtend\n");
         if (stride.has_value()) {
-          const int value = stride.value();
+          const OffsetDiff value = stride.value();
           if (value == kSimd128Size / 2) {
             return NewPackNode(node_group);
           } else if (value == 0) {
@@ -1048,7 +1076,7 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
       if (info0.IsValid() && info1.IsValid()) {
         auto stride = info1 - info0;
         if (stride.has_value()) {
-          if (const int value = stride.value(); value == kSimd128Size) {
+          if (const OffsetDiff value = stride.value(); value == kSimd128Size) {
             // TODO(jiepan) Sort load
             return NewPackNode(node_group);
           } else if (value == 0) {
@@ -1381,8 +1409,8 @@ void WasmRevecAnalyzer::ProcessBlock(const Block& block) {
       auto diff = info1 - info0;
 
       if (diff.has_value()) {
-        const int value = diff.value();
-        DCHECK_GE(value, 0);
+        const OffsetDiff value = diff.value();
+        DCHECK_EQ(value.negative(), false);
         if (value == kSimd128Size) {
           store_seeds_.push_back(
               {graph_.Index(*info0.op()), graph_.Index(*info1.op())});
