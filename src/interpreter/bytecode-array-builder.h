@@ -376,9 +376,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // Type feedback will be recorded in the |feedback_slot|
   BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg,
                                         int feedback_slot);
-  BytecodeArrayBuilder& Add_LhsIsStringConstant_Internalize(Token::Value binop,
-                                                            Register reg,
-                                                            int feedback_slot);
+  BytecodeArrayBuilder& Add_StringConstant_Internalize(
+      Token::Value binop, Register reg, int feedback_slot,
+      AddStringConstantAndInternalizeVariant as_variant);
   // Same as above, but lhs in the accumulator and rhs in |literal|.
   BytecodeArrayBuilder& BinaryOperationSmiLiteral(Token::Value binop,
                                                   Tagged<Smi> literal,

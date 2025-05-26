@@ -817,9 +817,13 @@ namespace internal {
   TFH(KeyedHasICBaseline, KeyedHasICBaseline)                                  \
   TFH(KeyedHasIC_Megamorphic, KeyedHasICWithVector)                            \
   TFH(AddLhsIsStringConstantInternalizeWithVector,                             \
-      AddLhsIsStringConstantInternalizeWithVector)                             \
+      AddStringConstantInternalizeWithVector)                                  \
   TFH(AddLhsIsStringConstantInternalizeTrampoline,                             \
-      AddLhsIsStringConstantInternalizeTrampoline)                             \
+      AddStringConstantInternalizeTrampoline)                                  \
+  TFH(AddRhsIsStringConstantInternalizeWithVector,                             \
+      AddStringConstantInternalizeWithVector)                                  \
+  TFH(AddRhsIsStringConstantInternalizeTrampoline,                             \
+      AddStringConstantInternalizeTrampoline)                                  \
                                                                                \
   /* IterableToList */                                                         \
   /* ES #sec-iterabletolist */                                                 \
@@ -909,6 +913,8 @@ namespace internal {
   /* used as a property key and thus should be internalized early.        */   \
   TFC(Add_LhsIsStringConstant_Internalize_WithFeedback, BinaryOp_WithFeedback) \
   TFC(Add_LhsIsStringConstant_Internalize_Baseline, BinaryOp_Baseline)         \
+  TFC(Add_RhsIsStringConstant_Internalize_WithFeedback, BinaryOp_WithFeedback) \
+  TFC(Add_RhsIsStringConstant_Internalize_Baseline, BinaryOp_Baseline)         \
                                                                                \
   /* Compare ops with feedback collection */                                   \
   TFC(Equal_Baseline, Compare_Baseline)                                        \

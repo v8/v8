@@ -76,6 +76,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceIncBlockCounter(node);
     case Runtime::kInlineAddLhsIsStringConstantInternalize:
       return ReduceAddLhsIsStringConstantInternalize(node);
+    case Runtime::kInlineAddRhsIsStringConstantInternalize:
+      return ReduceAddRhsIsStringConstantInternalize(node);
     case Runtime::kInlineGetImportMetaObject:
       return ReduceGetImportMetaObject(node);
     default:
@@ -360,6 +362,12 @@ Reduction JSIntrinsicLowering::ReduceIncBlockCounter(Node* node) {
 Reduction JSIntrinsicLowering::ReduceAddLhsIsStringConstantInternalize(
     Node* node) {
   auto builtin = Builtin::kAddLhsIsStringConstantInternalizeWithVector;
+  return Change(node, Builtins::CallableFor(isolate(), builtin), 0);
+}
+
+Reduction JSIntrinsicLowering::ReduceAddRhsIsStringConstantInternalize(
+    Node* node) {
+  auto builtin = Builtin::kAddRhsIsStringConstantInternalizeWithVector;
   return Change(node, Builtins::CallableFor(isolate(), builtin), 0);
 }
 

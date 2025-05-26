@@ -8148,21 +8148,40 @@ ReduceResult MaglevGraphBuilder::VisitDefineKeyedOwnPropertyInLiteral() {
 ReduceResult MaglevGraphBuilder::VisitAdd() {
   return VisitBinaryOperation<Operation::kAdd>();
 }
-ReduceResult MaglevGraphBuilder::VisitAdd_LhsIsStringConstant_Internalize() {
+ReduceResult MaglevGraphBuilder::VisitAdd_StringConstant_Internalize() {
   ValueNode* left = LoadRegister(0);
   ValueNode* right = GetAccumulator();
   FeedbackNexus nexus = FeedbackNexusForOperand(1);
   ValueNode* slot = GetSmiConstant(nexus.slot().ToInt());
+  using ASVariant = AddStringConstantAndInternalizeVariant;
+  uint8_t flags = GetFlag8Operand(2);
+  CHECK(flags == static_cast<uint8_t>(ASVariant::kLhsIsStringConstant) ||
+        flags == static_cast<uint8_t>(ASVariant::kRhsIsStringConstant));
+  const ASVariant as_variant = static_cast<ASVariant>(flags);
+
   ValueNode* result;
   if (is_inline()) {
+    static constexpr auto kTargetL =
+        Builtin::kAddLhsIsStringConstantInternalizeWithVector;
+    static constexpr auto kTargetR =
+        Builtin::kAddRhsIsStringConstantInternalizeWithVector;
     ValueNode* vector = GetConstant(feedback());
     result =
-        BuildCallBuiltin<Builtin::kAddLhsIsStringConstantInternalizeWithVector>(
-            {GetTaggedValue(left), GetTaggedValue(right), slot, vector});
+        as_variant == ASVariant::kLhsIsStringConstant
+            ? BuildCallBuiltin<kTargetL>(
+                  {GetTaggedValue(left), GetTaggedValue(right), slot, vector})
+            : BuildCallBuiltin<kTargetR>(
+                  {GetTaggedValue(left), GetTaggedValue(right), slot, vector});
   } else {
-    result =
-        BuildCallBuiltin<Builtin::kAddLhsIsStringConstantInternalizeTrampoline>(
-            {GetTaggedValue(left), GetTaggedValue(right), slot});
+    static constexpr auto kTargetL =
+        Builtin::kAddLhsIsStringConstantInternalizeTrampoline;
+    static constexpr auto kTargetR =
+        Builtin::kAddRhsIsStringConstantInternalizeTrampoline;
+    result = as_variant == ASVariant::kLhsIsStringConstant
+                 ? BuildCallBuiltin<kTargetL>(
+                       {GetTaggedValue(left), GetTaggedValue(right), slot})
+                 : BuildCallBuiltin<kTargetR>(
+                       {GetTaggedValue(left), GetTaggedValue(right), slot});
   }
   SetAccumulator(result);
   return ReduceResult::Done();
