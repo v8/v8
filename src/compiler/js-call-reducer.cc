@@ -4294,8 +4294,9 @@ bool ShouldUseCallICFeedback(Node* node) {
     // Protect against endless loops here.
     Node* control = NodeProperties::GetControlInput(node);
     if (control->opcode() == IrOpcode::kLoop ||
-        control->opcode() == IrOpcode::kDead)
-      return false;
+        control->opcode() == IrOpcode::kDead) {
+      return true;
+    }
     // Check if {node} is a Phi of nodes which shouldn't
     // use CallIC feedback (not looking through loops).
     int const value_input_count = m.node()->op()->ValueInputCount();
@@ -4658,6 +4659,18 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
   Control control = n.control();
   int arity = p.arity_without_implicit_args();
 
+  auto NoChangeOrSoftDeopt = [&]() {
+    if (p.feedback().IsValid()) {
+      ProcessedFeedback const& feedback =
+          broker()->GetFeedbackForCall(p.feedback());
+      if (feedback.IsInsufficient()) {
+        return ReduceForInsufficientFeedback(
+            node, DeoptimizeReason::kInsufficientTypeFeedbackForCall);
+      }
+    }
+    return NoChange();
+  };
+
   // Try to specialize JSCall {node}s with constant {target}s.
   HeapObjectMatcher m(target);
   if (m.HasResolvedValue()) {
@@ -4670,7 +4683,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
         return NoChange();
       }
 
-      return ReduceJSCall(node, function.shared(broker()));
+      Reduction res = ReduceJSCall(node, function.shared(broker()));
+      if (!res.Changed()) return NoChangeOrSoftDeopt();
+      return res;
     } else if (target_ref.IsJSBoundFunction()) {
       JSBoundFunctionRef function = target_ref.AsJSBoundFunction();
       ObjectRef bound_this = function.bound_this(broker());
@@ -4693,7 +4708,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
         OptionalObjectRef maybe_arg = bound_arguments.TryGet(broker(), i);
         if (!maybe_arg.has_value()) {
           TRACE_BROKER_MISSING(broker(), "bound argument");
-          return NoChange();
+          return NoChangeOrSoftDeopt();
         }
         args.emplace_back(
             jsgraph()->ConstantNoHole(maybe_arg.value(), broker()));
@@ -4727,7 +4742,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
 
     // Don't mess with other {node}s that have a constant {target}.
     // TODO(bmeurer): Also support proxies here.
-    return NoChange();
+    return NoChangeOrSoftDeopt();
   }
 
   // If {target} is the result of a JSCreateClosure operation, we can
@@ -4738,16 +4753,20 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
   if (target->opcode() == IrOpcode::kJSCreateClosure) {
     CreateClosureParameters const& params =
         JSCreateClosureNode{target}.Parameters();
-    return ReduceJSCall(node, params.shared_info());
+    Reduction res = ReduceJSCall(node, params.shared_info());
+    if (!res.Changed()) return NoChangeOrSoftDeopt();
+    return res;
   } else if (target->opcode() == IrOpcode::kCheckClosure) {
     FeedbackCellRef cell = MakeRef(broker(), FeedbackCellOf(target->op()));
     OptionalSharedFunctionInfoRef shared = cell.shared_function_info(broker());
     if (!shared.has_value()) {
       TRACE_BROKER_MISSING(broker(), "Unable to reduce JSCall. FeedbackCell "
                                          << cell << " has no FeedbackVector");
-      return NoChange();
+      return NoChangeOrSoftDeopt();
     }
-    return ReduceJSCall(node, *shared);
+    Reduction res = ReduceJSCall(node, *shared);
+    if (!res.Changed()) return NoChangeOrSoftDeopt();
+    return res;
   }
 
   // If {target} is the result of a JSCreateBoundFunction operation,

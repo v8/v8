@@ -269,10 +269,6 @@ class BytecodeGraphBuilder {
       Node* receiver, FeedbackSlot slot);
   JSTypeHintLowering::LoweringResult TryBuildSimplifiedToNumber(
       Node* input, FeedbackSlot slot);
-  JSTypeHintLowering::LoweringResult TryBuildSimplifiedCall(const Operator* op,
-                                                            Node* const* args,
-                                                            int arg_count,
-                                                            FeedbackSlot slot);
   JSTypeHintLowering::LoweringResult TryBuildSimplifiedConstruct(
       const Operator* op, Node* const* args, int arg_count, FeedbackSlot slot);
   JSTypeHintLowering::LoweringResult TryBuildSimplifiedGetIterator(
@@ -2545,17 +2541,7 @@ void BytecodeGraphBuilder::BuildCall(ConvertReceiverMode receiver_mode,
                          speculation_mode, call_feedback_relation);
   DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
 
-  JSTypeHintLowering::LoweringResult lowering = TryBuildSimplifiedCall(
-      op, args, static_cast<int>(arg_count), feedback.slot);
-  if (lowering.IsExit()) return;
-
-  Node* node = nullptr;
-  if (lowering.IsSideEffectFree()) {
-    node = lowering.value();
-  } else {
-    DCHECK(!lowering.Changed());
-    node = MakeNode(op, static_cast<int>(arg_count), args);
-  }
+  Node* node = MakeNode(op, static_cast<int>(arg_count), args);
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
@@ -2703,17 +2689,8 @@ void BytecodeGraphBuilder::VisitCallWithSpread() {
       speculation_mode);
   DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
 
-  JSTypeHintLowering::LoweringResult lowering = TryBuildSimplifiedCall(
-      op, args, static_cast<int>(arg_count), feedback.slot);
-  if (lowering.IsExit()) return;
-
-  Node* node = nullptr;
-  if (lowering.IsSideEffectFree()) {
-    node = lowering.value();
-  } else {
-    DCHECK(!lowering.Changed());
-    node = MakeNode(op, JSCallWithSpreadNode::ArityForArgc(arg_count), args);
-  }
+  Node* node =
+      MakeNode(op, JSCallWithSpreadNode::ArityForArgc(arg_count), args);
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
@@ -4352,17 +4329,6 @@ BytecodeGraphBuilder::TryBuildSimplifiedToNumber(Node* value,
   JSTypeHintLowering::LoweringResult result =
       type_hint_lowering().ReduceToNumberOperation(value, effect, control,
                                                    slot);
-  ApplyEarlyReduction(result);
-  return result;
-}
-
-JSTypeHintLowering::LoweringResult BytecodeGraphBuilder::TryBuildSimplifiedCall(
-    const Operator* op, Node* const* args, int arg_count, FeedbackSlot slot) {
-  Node* effect = environment()->GetEffectDependency();
-  Node* control = environment()->GetControlDependency();
-  JSTypeHintLowering::LoweringResult result =
-      type_hint_lowering().ReduceCallOperation(op, args, arg_count, effect,
-                                               control, slot);
   ApplyEarlyReduction(result);
   return result;
 }

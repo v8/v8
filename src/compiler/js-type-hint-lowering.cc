@@ -579,19 +579,6 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceToNumberOperation(
   return LoweringResult::NoChange();
 }
 
-JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceCallOperation(
-    const Operator* op, Node* const* args, int arg_count, Node* effect,
-    Node* control, FeedbackSlot slot) const {
-  DCHECK(op->opcode() == IrOpcode::kJSCall ||
-         op->opcode() == IrOpcode::kJSCallWithSpread);
-  if (Node* node = BuildDeoptIfFeedbackIsInsufficient(
-          slot, effect, control,
-          DeoptimizeReason::kInsufficientTypeFeedbackForCall)) {
-    return LoweringResult::Exit(node);
-  }
-  return LoweringResult::NoChange();
-}
-
 JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceConstructOperation(
     const Operator* op, Node* const* args, int arg_count, Node* effect,
     Node* control, FeedbackSlot slot) const {
