@@ -1406,6 +1406,12 @@ bool MergePointInterpreterFrameState::IsUnreachableByForwardEdge() const {
   }
 }
 
+bool MergePointInterpreterFrameState::IsUnreachable() const {
+  if (is_exception_handler()) return false;
+  if (is_resumable_loop()) return false;
+  return IsUnreachableByForwardEdge();
+}
+
 void MergePointInterpreterFrameState::RemovePredecessorAt(int predecessor_id) {
   // Only call this function if we have already process all merge points.
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);

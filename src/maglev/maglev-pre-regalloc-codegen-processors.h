@@ -214,6 +214,7 @@ class LiveRangeAndNextUseProcessor {
     DCHECK(!loop_used_nodes_.empty());
     LoopUsedNodes loop_used_nodes = std::move(loop_used_nodes_.back());
     loop_used_nodes_.pop_back();
+    DCHECK_EQ(loop_used_nodes.header, target);
 
     LoopUsedNodes* outer_loop_used_nodes = GetCurrentLoopUsedNodes();
 

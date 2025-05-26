@@ -190,11 +190,14 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
 
   {
     // Post-hoc optimisation:
+    //   - Remove unreachable blocks
     //   - Dead node marking
     //   - Cleaning up identity nodes
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  "V8.Maglev.DeadCodeMarking");
-    GraphMultiProcessor<AnyUseMarkingProcessor> processor;
+    GraphMultiProcessor<SweepUnreachableBasicBlocks<false>,
+                        AnyUseMarkingProcessor>
+        processor;
     processor.ProcessGraph(graph);
   }
 

@@ -966,6 +966,7 @@ class MergePointInterpreterFrameState {
   }
 
   bool IsUnreachableByForwardEdge() const;
+  bool IsUnreachable() const;
 
   BasicBlockType basic_block_type() const {
     return kBasicBlockTypeBits::decode(bitfield_);

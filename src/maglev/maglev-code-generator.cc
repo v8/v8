@@ -755,6 +755,7 @@ class MaglevCodeGeneratingNodeProcessor {
     size_t ix_deferred = non_deferred_count;
     for (auto block_it = graph->begin(); block_it != graph->end(); ++block_it) {
       BasicBlock* block = *block_it;
+      DCHECK(!block->is_dead());
       if (block->is_deferred()) {
         new_blocks[ix_deferred++] = block;
       } else {

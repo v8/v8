@@ -5,6 +5,7 @@
 #ifndef V8_MAGLEV_MAGLEV_POST_HOC_OPTIMIZATIONS_PROCESSORS_H_
 #define V8_MAGLEV_MAGLEV_POST_HOC_OPTIMIZATIONS_PROCESSORS_H_
 
+#include "absl/container/flat_hash_set.h"
 #include "src/compiler/heap-refs.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph-builder.h"
@@ -198,6 +199,83 @@ template <typename NodeT>
 constexpr bool CanBeStoreToNonEscapedObject() {
   return CanBeStoreToNonEscapedObject(NodeBase::opcode_of<NodeT>);
 }
+
+template <bool kSweepUnreachableExceptionHandlers>
+class SweepUnreachableBasicBlocks {
+ public:
+  void PreProcessGraph(Graph* graph) {}
+
+  template <typename NodeT>
+  ProcessResult Process(NodeT* node, const ProcessingState& state) {
+    return ProcessResult::kContinue;
+  }
+
+  void MarkDead(BasicBlock* block) {
+    block->mark_dead();
+    block->ForEachSuccessor([&](BasicBlock* succ) {
+      if (succ->is_dead()) {
+        return;
+      }
+      auto IsDead = [&](BasicBlock* pred) { return pred->is_dead(); };
+      if (succ->ForAllPredecessors(IsDead)) {
+        MarkDead(succ);
+      } else {
+        DCHECK(succ->has_state());
+        if (succ->is_loop() && succ->backedge_predecessor() == block) {
+          succ->state()->TurnLoopIntoRegularBlock();
+        } else {
+          succ->state()->RemovePredecessorAt(block->predecessor_id());
+        }
+      }
+    });
+  }
+
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    if (block->has_state() && block->state()->IsUnreachable()) {
+      MarkDead(block);
+      found_dead_ = true;
+      return BlockProcessResult::kSkip;
+    }
+    if constexpr (kSweepUnreachableExceptionHandlers) {
+      if (block->is_exception_handler_block()) {
+        if (!reachable_catch_blocks_.count(block->id())) {
+          maybe_dead_catch_blocks_.push_back(block);
+        }
+      }
+      for (auto handler : block->exception_handlers()) {
+        if (!handler->HasExceptionHandler()) continue;
+        if (handler->ShouldLazyDeopt()) continue;
+        BasicBlock* catch_block = handler->catch_block();
+        reachable_catch_blocks_.insert(catch_block->id());
+      }
+    }
+    return BlockProcessResult::kContinue;
+  }
+  BlockProcessResult PostProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
+  void PostPhiProcessing() {}
+
+  void PostProcessGraph(Graph* graph) {
+    if constexpr (kSweepUnreachableExceptionHandlers) {
+      for (BasicBlock* cur : maybe_dead_catch_blocks_) {
+        if (!reachable_catch_blocks_.count(cur->id())) {
+          MarkDead(cur);
+          found_dead_ = true;
+        }
+      }
+    }
+    if (found_dead_) {
+      graph->IterateGraphAndSweepDeadBlocks(
+          [&](BasicBlock* block) { return block->is_dead(); });
+    }
+  }
+
+ private:
+  bool found_dead_ = false;
+  absl::flat_hash_set<BasicBlock::Id> reachable_catch_blocks_;
+  std::vector<BasicBlock*> maybe_dead_catch_blocks_;
+};
 
 class AnyUseMarkingProcessor {
  public:

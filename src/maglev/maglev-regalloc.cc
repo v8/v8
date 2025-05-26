@@ -411,6 +411,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
 
   for (block_it_ = graph_->begin(); block_it_ != graph_->end(); ++block_it_) {
     BasicBlock* block = *block_it_;
+    DCHECK(!block->is_dead());
     current_node_ = nullptr;
 
     // Restore mergepoint state.

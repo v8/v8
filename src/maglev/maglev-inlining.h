@@ -16,6 +16,7 @@
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-builder.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-post-hoc-optimizations-processors.h"
 
 namespace v8::internal::maglev {
 
@@ -283,56 +284,7 @@ class MaglevInliner {
   }
 
   void RemoveUnreachableBlocks() {
-    std::vector<bool> reachable_blocks(graph_->max_block_id(), false);
-    std::vector<BasicBlock*> worklist;
-
-    DCHECK(!graph_->blocks().empty());
-    BasicBlock* initial_bb = graph_->blocks().front();
-    worklist.push_back(initial_bb);
-    reachable_blocks[initial_bb->id()] = true;
-    DCHECK(!initial_bb->is_loop());
-
-    while (!worklist.empty()) {
-      BasicBlock* current = worklist.back();
-      worklist.pop_back();
-
-      for (auto handler : current->exception_handlers()) {
-        if (!handler->HasExceptionHandler()) continue;
-        if (handler->ShouldLazyDeopt()) continue;
-        BasicBlock* catch_block = handler->catch_block();
-        if (!reachable_blocks[catch_block->id()]) {
-          reachable_blocks[catch_block->id()] = true;
-          worklist.push_back(catch_block);
-        }
-      }
-
-      current->ForEachSuccessor([&](BasicBlock* succ) {
-        if (!reachable_blocks[succ->id()]) {
-          reachable_blocks[succ->id()] = true;
-          worklist.push_back(succ);
-        }
-      });
-    }
-
-    // Sweep dead blocks and remove unreachable predecessors.
-    graph_->IterateGraphAndSweepDeadBlocks([&](BasicBlock* bb) {
-      if (!reachable_blocks[bb->id()]) return true;
-      // If block doesn't have a merge state, it has only one predecessor, so
-      // it must be the reachable one.
-      if (!bb->has_state()) return false;
-      if (bb->is_loop() &&
-          !reachable_blocks[bb->backedge_predecessor()->id()]) {
-        // If the backedge predecessor is not reachable, we can turn the loop
-        // into a regular block.
-        bb->state()->TurnLoopIntoRegularBlock();
-      }
-      for (int i = bb->predecessor_count() - 1; i >= 0; i--) {
-        if (!reachable_blocks[bb->predecessor_at(i)->id()]) {
-          bb->state()->RemovePredecessorAt(i);
-        }
-      }
-      return false;
-    });
+    GraphProcessor<SweepUnreachableBasicBlocks<true>>().ProcessGraph(graph_);
   }
 };
 
