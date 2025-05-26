@@ -404,6 +404,8 @@ TEST_F(SharedHeapTest, ConcurrentAllocationInSharedMapSpace) {
 }
 
 TEST_F(SharedHeapNoClientsTest, SharedCollectionWithoutClients) {
+  // Set a "current isolate" so we can access pointer tables etc during GC.
+  ::i::SetCurrentIsolateScope isolate_scope{i_shared_space_isolate()};
   ::v8::internal::InvokeMajorGC(i_shared_space_isolate());
 }
 

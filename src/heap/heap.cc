@@ -1577,6 +1577,7 @@ void Heap::CollectGarbage(AllocationSpace space,
                           GarbageCollectionReason gc_reason,
                           const v8::GCCallbackFlags gc_callback_flags) {
   CHECK(isolate_->IsOnCentralStack());
+  DCHECK_EQ(Isolate::TryGetCurrent(), isolate_);
   DCHECK_EQ(resize_new_space_mode_, ResizeNewSpaceMode::kNone);
 
   if (V8_UNLIKELY(!deserialization_complete_)) {
