@@ -352,4 +352,11 @@
   'MacroAssemblerTest.TestHardAbort': [SKIP],
 }],  # simulator_run
 
+##############################################################################
+['variant == conservative_stack_scanning', {
+  # MergeDeserializedCodeTests rely on precise control over weak object retention.
+  # https://crbug.com/420405281
+  'MergeDeserializedCodeTest.*': [PASS, FAIL]
+}],  # variant == conservative_stack_scanning
+
 ]
