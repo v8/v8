@@ -294,16 +294,12 @@ void Snapshot::ClearReconstructableDataForSerialization(
       }
 #ifdef DEBUG
       if (clear_recompilable_data) {
-#if V8_ENABLE_WEBASSEMBLY
-        DCHECK(fun->shared()->HasWasmExportedFunctionData() ||
-               fun->shared()->HasBuiltinId() ||
-               fun->shared()->IsApiFunction() ||
-               fun->shared()->HasUncompiledDataWithoutPreparseData());
-#else
         DCHECK(fun->shared()->HasBuiltinId() ||
                fun->shared()->IsApiFunction() ||
-               fun->shared()->HasUncompiledDataWithoutPreparseData());
+#if V8_ENABLE_WEBASSEMBLY
+               fun->shared()->HasWasmExportedFunctionData(isolate) ||
 #endif  // V8_ENABLE_WEBASSEMBLY
+               fun->shared()->HasUncompiledDataWithoutPreparseData(isolate));
       }
 #endif  // DEBUG
     }
@@ -330,7 +326,7 @@ void Snapshot::ClearReconstructableDataForSerialization(
         if (fun->shared()->HasAsmWasmData()) {
           FATAL("asm.js functions are not supported in snapshots");
         }
-        if (fun->shared()->HasWasmExportedFunctionData()) {
+        if (fun->shared()->HasWasmExportedFunctionData(isolate)) {
           FATAL(
               "Exported WebAssembly functions are not supported in snapshots");
         }

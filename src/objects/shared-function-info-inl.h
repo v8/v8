@@ -175,21 +175,6 @@ Tagged<T> SharedFunctionInfo::GetTrustedData(IsolateForSandbox isolate) const {
       kTrustedFunctionDataOffset, isolate, kAcquireLoad));
 }
 
-Tagged<Object> SharedFunctionInfo::GetTrustedData() const {
-#ifdef V8_ENABLE_SANDBOX
-  auto trusted_data_slot = RawIndirectPointerField(kTrustedFunctionDataOffset,
-                                                   kUnknownIndirectPointerTag);
-  // This routine is sometimes used for SFI's in read-only space (which never
-  // have trusted data). In that case, GetIsolateForSandbox cannot be used, so
-  // we need to return early in that case, before trying to obtain an Isolate.
-  IndirectPointerHandle handle = trusted_data_slot.Acquire_LoadHandle();
-  if (handle == kNullIndirectPointerHandle) return Smi::zero();
-  return trusted_data_slot.ResolveHandle(handle, GetIsolateForSandbox(*this));
-#else
-  return TaggedField<Object, kTrustedFunctionDataOffset>::Acquire_Load(*this);
-#endif
-}
-
 Tagged<Object> SharedFunctionInfo::GetUntrustedData() const {
   return TaggedField<Object, kUntrustedFunctionDataOffset>::Acquire_Load(*this);
 }
@@ -525,7 +510,7 @@ void SharedFunctionInfo::UpdateFunctionMapIndex() {
 void SharedFunctionInfo::DontAdaptArguments() {
 #if V8_ENABLE_WEBASSEMBLY
   // TODO(leszeks): Revise this DCHECK now that the code field is gone.
-  DCHECK(!HasWasmExportedFunctionData());
+  DCHECK(!HasWasmExportedFunctionData(GetCurrentIsolateForSandbox()));
 #endif  // V8_ENABLE_WEBASSEMBLY
   if (HasBuiltinId()) {
     Builtin builtin = builtin_id();
@@ -660,7 +645,7 @@ RELEASE_ACQUIRE_ACCESSORS_CHECKED2(SharedFunctionInfo, feedback_metadata,
 
 bool SharedFunctionInfo::is_compiled() const {
   return GetUntrustedData() != Smi::FromEnum(Builtin::kCompileLazy) &&
-         !HasUncompiledData();
+         !HasUncompiledData(GetCurrentIsolateForSandbox());
 }
 
 template <typename IsolateT>
@@ -670,7 +655,7 @@ IsCompiledScope SharedFunctionInfo::is_compiled_scope(IsolateT* isolate) const {
 
 IsCompiledScope::IsCompiledScope(const Tagged<SharedFunctionInfo> shared,
                                  Isolate* isolate) {
-  Tagged<Object> data_obj = shared->GetTrustedData();
+  Tagged<Object> data_obj = shared->GetTrustedData(isolate);
   if (Tagged<HeapObject> data; TryCast<HeapObject>(data_obj, &data)) {
     if (Tagged<Code> code; TryCast<Code>(data, &code)) {
       DCHECK_EQ(code->kind(), CodeKind::BASELINE);
@@ -705,7 +690,7 @@ IsCompiledScope::IsCompiledScope(const Tagged<SharedFunctionInfo> shared,
 
 IsCompiledScope::IsCompiledScope(const Tagged<SharedFunctionInfo> shared,
                                  LocalIsolate* isolate) {
-  Tagged<Object> data_obj = shared->GetTrustedData();
+  Tagged<Object> data_obj = shared->GetTrustedData(isolate);
   if (Tagged<HeapObject> data; TryCast<HeapObject>(data_obj, &data)) {
     if (Tagged<Code> code; TryCast<Code>(data, &code)) {
       DCHECK(code->kind() == CodeKind::BASELINE);
@@ -741,7 +726,7 @@ IsCompiledScope::IsCompiledScope(const Tagged<SharedFunctionInfo> shared,
 
 IsBaselineCompiledScope::IsBaselineCompiledScope(
     const Tagged<SharedFunctionInfo> shared, Isolate* isolate) {
-  Tagged<Object> data_obj = shared->GetTrustedData();
+  Tagged<Object> data_obj = shared->GetTrustedData(isolate);
   if (IsCode(data_obj)) {
     Tagged<Code> code = Cast<Code>(data_obj);
     DCHECK_EQ(code->kind(), CodeKind::BASELINE);
@@ -769,7 +754,7 @@ DEF_GETTER(SharedFunctionInfo, api_func_data, Tagged<FunctionTemplateInfo>) {
 }
 
 DEF_GETTER(SharedFunctionInfo, HasBytecodeArray, bool) {
-  Tagged<Object> data = GetTrustedData();
+  Tagged<Object> data = GetTrustedData(GetCurrentIsolateForSandbox());
   // If the SFI has no trusted data, GetTrustedData() will return Smi::zero().
   if (IsSmi(data)) return false;
   InstanceType instance_type =
@@ -830,7 +815,7 @@ void SharedFunctionInfo::SetActiveBytecodeArray(Tagged<BytecodeArray> bytecode,
 
 void SharedFunctionInfo::set_bytecode_array(Tagged<BytecodeArray> bytecode) {
   DCHECK(GetUntrustedData() == Smi::FromEnum(Builtin::kCompileLazy) ||
-         HasUncompiledData());
+         HasUncompiledData(GetCurrentIsolateForSandbox()));
   SetTrustedData(bytecode);
 }
 
@@ -878,7 +863,7 @@ void SharedFunctionInfo::set_interpreter_data(
 }
 
 DEF_GETTER(SharedFunctionInfo, HasBaselineCode, bool) {
-  Tagged<Object> data = GetTrustedData();
+  Tagged<Object> data = GetTrustedData(GetCurrentIsolateForSandbox());
   if (IsCode(data, cage_base)) {
     DCHECK_EQ(Cast<Code>(data)->kind(), CodeKind::BASELINE);
     return true;
@@ -912,20 +897,23 @@ bool SharedFunctionInfo::HasAsmWasmData() const {
   return IsAsmWasmData(GetUntrustedData());
 }
 
-bool SharedFunctionInfo::HasWasmFunctionData() const {
-  return IsWasmFunctionData(GetTrustedData());
+bool SharedFunctionInfo::HasWasmFunctionData(IsolateForSandbox isolate) const {
+  return IsWasmFunctionData(GetTrustedData(isolate));
 }
 
-bool SharedFunctionInfo::HasWasmExportedFunctionData() const {
-  return IsWasmExportedFunctionData(GetTrustedData());
+bool SharedFunctionInfo::HasWasmExportedFunctionData(
+    IsolateForSandbox isolate) const {
+  return IsWasmExportedFunctionData(GetTrustedData(isolate));
 }
 
-bool SharedFunctionInfo::HasWasmJSFunctionData() const {
-  return IsWasmJSFunctionData(GetTrustedData());
+bool SharedFunctionInfo::HasWasmJSFunctionData(
+    IsolateForSandbox isolate) const {
+  return IsWasmJSFunctionData(GetTrustedData(isolate));
 }
 
-bool SharedFunctionInfo::HasWasmCapiFunctionData() const {
-  return IsWasmCapiFunctionData(GetTrustedData());
+bool SharedFunctionInfo::HasWasmCapiFunctionData(
+    IsolateForSandbox isolate) const {
+  return IsWasmCapiFunctionData(GetTrustedData(isolate));
 }
 
 bool SharedFunctionInfo::HasWasmResumeData() const {
@@ -940,20 +928,22 @@ DEF_GETTER(SharedFunctionInfo, asm_wasm_data, Tagged<AsmWasmData>) {
 void SharedFunctionInfo::set_asm_wasm_data(Tagged<AsmWasmData> data,
                                            WriteBarrierMode mode) {
   DCHECK(GetUntrustedData() == Smi::FromEnum(Builtin::kCompileLazy) ||
-         HasUncompiledData() || HasAsmWasmData());
+         HasUncompiledData(GetCurrentIsolateForSandbox()) || HasAsmWasmData());
   SetUntrustedData(data, mode);
 }
 
 DEF_GETTER(SharedFunctionInfo, wasm_function_data, Tagged<WasmFunctionData>) {
-  DCHECK(HasWasmFunctionData());
-  // TODO(saelo): It would be nicer if the caller provided an IsolateForSandbox.
+  // TODO(saelo): It would be nicer if the caller provided an
+  // IsolateForSandbox.
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+  DCHECK(HasWasmFunctionData(isolate));
   return GetTrustedData<WasmFunctionData, kWasmFunctionDataIndirectPointerTag>(
-      GetIsolateForSandbox(*this));
+      isolate);
 }
 
 DEF_GETTER(SharedFunctionInfo, wasm_exported_function_data,
            Tagged<WasmExportedFunctionData>) {
-  DCHECK(HasWasmExportedFunctionData());
+  DCHECK(HasWasmExportedFunctionData(GetCurrentIsolateForSandbox()));
   Tagged<WasmFunctionData> data = wasm_function_data();
   // TODO(saelo): the SBXCHECKs here and below are only needed because our type
   // tags don't currently support type hierarchies.
@@ -963,7 +953,7 @@ DEF_GETTER(SharedFunctionInfo, wasm_exported_function_data,
 
 DEF_GETTER(SharedFunctionInfo, wasm_js_function_data,
            Tagged<WasmJSFunctionData>) {
-  DCHECK(HasWasmJSFunctionData());
+  DCHECK(HasWasmJSFunctionData(GetCurrentIsolateForSandbox()));
   Tagged<WasmFunctionData> data = wasm_function_data();
   SBXCHECK(IsWasmJSFunctionData(data));
   return Cast<WasmJSFunctionData>(data);
@@ -971,7 +961,7 @@ DEF_GETTER(SharedFunctionInfo, wasm_js_function_data,
 
 DEF_GETTER(SharedFunctionInfo, wasm_capi_function_data,
            Tagged<WasmCapiFunctionData>) {
-  DCHECK(HasWasmCapiFunctionData());
+  DCHECK(HasWasmCapiFunctionData(GetCurrentIsolateForSandbox()));
   Tagged<WasmFunctionData> data = wasm_function_data();
   SBXCHECK(IsWasmCapiFunctionData(data));
   return Cast<WasmCapiFunctionData>(data);
@@ -1004,13 +994,13 @@ void SharedFunctionInfo::set_builtin_id(Builtin builtin) {
   SetUntrustedData(Smi::FromInt(static_cast<int>(builtin)), SKIP_WRITE_BARRIER);
 }
 
-bool SharedFunctionInfo::HasUncompiledData() const {
-  return IsUncompiledData(GetTrustedData());
+bool SharedFunctionInfo::HasUncompiledData(IsolateForSandbox isolate) const {
+  return IsUncompiledData(GetTrustedData(isolate));
 }
 
 Tagged<UncompiledData> SharedFunctionInfo::uncompiled_data(
     IsolateForSandbox isolate) const {
-  DCHECK(HasUncompiledData());
+  DCHECK(HasUncompiledData(isolate));
   return GetTrustedData<UncompiledData, kUncompiledDataIndirectPointerTag>(
       isolate);
 }
@@ -1021,14 +1011,15 @@ void SharedFunctionInfo::set_uncompiled_data(
   SetTrustedData(uncompiled_data, mode);
 }
 
-bool SharedFunctionInfo::HasUncompiledDataWithPreparseData() const {
-  return IsUncompiledDataWithPreparseData(GetTrustedData());
+bool SharedFunctionInfo::HasUncompiledDataWithPreparseData(
+    IsolateForSandbox isolate) const {
+  return IsUncompiledDataWithPreparseData(GetTrustedData(isolate));
 }
 
 Tagged<UncompiledDataWithPreparseData>
 SharedFunctionInfo::uncompiled_data_with_preparse_data(
     IsolateForSandbox isolate) const {
-  DCHECK(HasUncompiledDataWithPreparseData());
+  DCHECK(HasUncompiledDataWithPreparseData(isolate));
   Tagged<UncompiledData> data = uncompiled_data(isolate);
   // TODO(saelo): this SBXCHECK is needed because our type tags don't currently
   // support type hierarchies.
@@ -1044,8 +1035,9 @@ void SharedFunctionInfo::set_uncompiled_data_with_preparse_data(
   SetTrustedData(uncompiled_data_with_preparse_data, mode);
 }
 
-bool SharedFunctionInfo::HasUncompiledDataWithoutPreparseData() const {
-  return IsUncompiledDataWithoutPreparseData(GetTrustedData());
+bool SharedFunctionInfo::HasUncompiledDataWithoutPreparseData(
+    IsolateForSandbox isolate) const {
+  return IsUncompiledDataWithoutPreparseData(GetTrustedData(isolate));
 }
 
 void SharedFunctionInfo::ClearUncompiledDataJobPointer(
@@ -1061,7 +1053,7 @@ void SharedFunctionInfo::ClearUncompiledDataJobPointer(
 }
 
 void SharedFunctionInfo::ClearPreparseData(IsolateForSandbox isolate) {
-  DCHECK(HasUncompiledDataWithPreparseData());
+  DCHECK(HasUncompiledDataWithPreparseData(isolate));
   Tagged<UncompiledDataWithPreparseData> data =
       uncompiled_data_with_preparse_data(isolate);
 
@@ -1092,7 +1084,7 @@ void SharedFunctionInfo::ClearPreparseData(IsolateForSandbox isolate) {
                 kReleaseStore);
 
   // Ensure that the clear was successful.
-  DCHECK(HasUncompiledDataWithoutPreparseData());
+  DCHECK(HasUncompiledDataWithoutPreparseData(isolate));
 }
 
 void UncompiledData::InitAfterBytecodeFlush(
@@ -1120,7 +1112,7 @@ bool SharedFunctionInfo::HasInferredName() {
   if (IsScopeInfo(scope_info)) {
     return Cast<ScopeInfo>(scope_info)->HasInferredFunctionName();
   }
-  return HasUncompiledData();
+  return HasUncompiledData(GetCurrentIsolateForSandbox());
 }
 
 DEF_GETTER(SharedFunctionInfo, inferred_name, Tagged<String>) {
@@ -1131,9 +1123,11 @@ DEF_GETTER(SharedFunctionInfo, inferred_name, Tagged<String>) {
       Tagged<Object> name = scope_info->InferredFunctionName();
       if (IsString(name)) return Cast<String>(name);
     }
-  } else if (HasUncompiledData()) {
-    return uncompiled_data(GetIsolateForSandbox(*this))
-        ->inferred_name(cage_base);
+  } else {
+    IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+    if (HasUncompiledData(isolate)) {
+      return uncompiled_data(isolate)->inferred_name(cage_base);
+    }
   }
   return GetReadOnlyRoots().empty_string();
 }
@@ -1148,7 +1142,7 @@ bool SharedFunctionInfo::IsUserJavaScript() const {
 bool SharedFunctionInfo::IsSubjectToDebugging() const {
 #if V8_ENABLE_WEBASSEMBLY
   if (HasAsmWasmData()) return false;
-  if (HasWasmExportedFunctionData()) return false;
+  if (HasWasmExportedFunctionData(GetCurrentIsolateForSandbox())) return false;
 #endif  // V8_ENABLE_WEBASSEMBLY
   return IsUserJavaScript();
 }
@@ -1157,7 +1151,8 @@ bool SharedFunctionInfo::CanDiscardCompiled() const {
 #if V8_ENABLE_WEBASSEMBLY
   if (HasAsmWasmData()) return true;
 #endif  // V8_ENABLE_WEBASSEMBLY
-  return HasBytecodeArray() || HasUncompiledDataWithPreparseData() ||
+  return HasBytecodeArray() ||
+         HasUncompiledDataWithPreparseData(GetCurrentIsolateForSandbox()) ||
          HasBaselineCode();
 }
 

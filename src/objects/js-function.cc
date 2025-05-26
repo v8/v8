@@ -1469,7 +1469,7 @@ DirectHandle<String> JSFunction::ToString(Isolate* isolate,
   // If this function was compiled from asm.js, use the recorded offset
   // information.
 #if V8_ENABLE_WEBASSEMBLY
-  if (shared_info->HasWasmExportedFunctionData()) {
+  if (shared_info->HasWasmExportedFunctionData(isolate)) {
     DirectHandle<WasmExportedFunctionData> function_data(
         shared_info->wasm_exported_function_data(), isolate);
     const wasm::WasmModule* module = function_data->instance_data()->module();

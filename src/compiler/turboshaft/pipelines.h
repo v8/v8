@@ -490,7 +490,7 @@ class V8_EXPORT_PRIVATE Pipeline {
       JsonPrintAllSourceWithPositions(json_of, data_->info(), data_->isolate());
       if (info()->has_bytecode_array()) {
         json_of << ",\n";
-        JsonPrintAllBytecodeSources(json_of, info());
+        JsonPrintAllBytecodeSources(json_of, info(), data_->isolate());
       }
       json_of << "\n}";
     }

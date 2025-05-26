@@ -725,11 +725,11 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
 
       if (inner.bailout == Bailout::BAILOUT_IF_OUTER_SLOPPY &&
           !outer.strict_outer) {
-        CHECK(!shared->HasUncompiledDataWithPreparseData());
+        CHECK(!shared->HasUncompiledDataWithPreparseData(isolate));
         continue;
       }
 
-      CHECK(shared->HasUncompiledDataWithPreparseData());
+      CHECK(shared->HasUncompiledDataWithPreparseData(isolate));
       i::Handle<i::PreparseData> produced_data_on_heap(
           shared->uncompiled_data_with_preparse_data(isolate)->preparse_data(),
           isolate);

@@ -891,7 +891,7 @@ bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
       // Compilation failed presumably because of stack overflow, make sure
       // the shared function info contains uncompiled data for the next
       // compilation attempts.
-      if (!shared_info->HasUncompiledData()) {
+      if (!shared_info->HasUncompiledData(isolate)) {
         SharedFunctionInfo::CreateAndSetUncompiledData(isolate, literal);
       }
       compilation_succeeded = false;
@@ -1995,7 +1995,7 @@ void BackgroundCompileTask::Run(
     }
 
     // Get preparsed scope data from the function literal.
-    if (shared_info->HasUncompiledDataWithPreparseData()) {
+    if (shared_info->HasUncompiledDataWithPreparseData(isolate)) {
       info.set_consumed_preparse_data(ConsumedPreparseData::For(
           isolate,
           handle(shared_info->uncompiled_data_with_preparse_data(isolate)
@@ -2957,7 +2957,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
     return true;
   }
 
-  if (shared_info->HasUncompiledDataWithPreparseData()) {
+  if (shared_info->HasUncompiledDataWithPreparseData(isolate)) {
     parse_info.set_consumed_preparse_data(ConsumedPreparseData::For(
         isolate, handle(shared_info->uncompiled_data_with_preparse_data(isolate)
                             ->preparse_data(),
@@ -4344,7 +4344,7 @@ DirectHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     // any preparsed data. If we produced preparsed data during this compile for
     // this function, replace the uncompiled data with one that includes it.
     if (literal->produced_preparse_data() != nullptr &&
-        existing->HasUncompiledDataWithoutPreparseData()) {
+        existing->HasUncompiledDataWithoutPreparseData(isolate)) {
       DirectHandle<UncompiledData> existing_uncompiled_data(
           existing->uncompiled_data(isolate), isolate);
       DCHECK_EQ(literal->start_position(),

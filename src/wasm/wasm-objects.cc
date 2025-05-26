@@ -2909,7 +2909,8 @@ bool WasmExportedFunction::IsWasmExportedFunction(Tagged<Object> object) {
       code->builtin_id() != Builtin::kWasmStressSwitch) {
     return false;
   }
-  DCHECK(js_function->shared()->HasWasmExportedFunctionData());
+  DCHECK(js_function->shared()->HasWasmExportedFunctionData(
+      GetCurrentIsolateForSandbox()));
   return true;
 }
 
@@ -2921,9 +2922,11 @@ bool WasmCapiFunction::IsWasmCapiFunction(Tagged<Object> object) {
   // if (js_function->code()->kind() != CodeKind::WASM_TO_CAPI_FUNCTION) {
   //   return false;
   // }
-  // DCHECK(js_function->shared()->HasWasmCapiFunctionData());
+  // DCHECK(js_function->shared()->HasWasmCapiFunctionData(
+  //        GetCurrentIsolateForSandbox()));
   // return true;
-  return js_function->shared()->HasWasmCapiFunctionData();
+  return js_function->shared()->HasWasmCapiFunctionData(
+      GetCurrentIsolateForSandbox());
 }
 
 DirectHandle<WasmCapiFunction> WasmCapiFunction::New(
@@ -3075,7 +3078,8 @@ std::unique_ptr<char[]> WasmExportedFunction::GetDebugName(
 bool WasmJSFunction::IsWasmJSFunction(Tagged<Object> object) {
   if (!IsJSFunction(object)) return false;
   Tagged<JSFunction> js_function = Cast<JSFunction>(object);
-  return js_function->shared()->HasWasmJSFunctionData();
+  return js_function->shared()->HasWasmJSFunctionData(
+      GetCurrentIsolateForSandbox());
 }
 
 DirectHandle<Map> CreateStructMap(
@@ -3211,7 +3215,7 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
   wasm::ImportCallKind kind;
   if (IsJSFunction(*callable)) {
     Tagged<SharedFunctionInfo> shared = Cast<JSFunction>(callable)->shared();
-    if (shared->HasWasmFunctionData()) {
+    if (shared->HasWasmFunctionData(isolate)) {
       kind = wasm::ImportCallKind::kUseCallBuiltin;
     } else {
       expected_arity =

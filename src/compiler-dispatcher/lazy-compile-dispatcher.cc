@@ -184,7 +184,7 @@ void LazyCompileDispatcher::Enqueue(
 
 bool LazyCompileDispatcher::IsEnqueued(
     DirectHandle<SharedFunctionInfo> shared) const {
-  if (!shared->HasUncompiledData()) return false;
+  if (!shared->HasUncompiledData(isolate_)) return false;
   Job* job = nullptr;
   Tagged<UncompiledData> data = shared->uncompiled_data(isolate_);
   if (IsUncompiledDataWithPreparseDataAndJob(data)) {
@@ -379,7 +379,7 @@ void LazyCompileDispatcher::AbortAll() {
 
 LazyCompileDispatcher::Job* LazyCompileDispatcher::GetJobFor(
     DirectHandle<SharedFunctionInfo> shared, const base::MutexGuard&) const {
-  if (!shared->HasUncompiledData()) return nullptr;
+  if (!shared->HasUncompiledData(isolate_)) return nullptr;
   Tagged<UncompiledData> data = shared->uncompiled_data(isolate_);
   if (IsUncompiledDataWithPreparseDataAndJob(data)) {
     return reinterpret_cast<Job*>(

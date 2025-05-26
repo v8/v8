@@ -3446,7 +3446,7 @@ bool MarkCompactCollector::ProcessOldBytecodeSFI(
   Isolate* const isolate = heap_->isolate();
 
   const bool bytecode_already_decompiled =
-      flushing_candidate->HasUncompiledData();
+      flushing_candidate->HasUncompiledData(isolate);
   if (!bytecode_already_decompiled) {
     // Check if the bytecode is still live.
     Tagged<BytecodeArray> bytecode =

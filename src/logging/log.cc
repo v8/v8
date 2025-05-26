@@ -2118,7 +2118,7 @@ EnumerateCompiledFunctions(Heap* heap) {
         // WasmFunctionData. They are also unreachable, but since we're walking
         // the entire heap here, we may still find them if no GC has cleaned
         // them up yet.
-        if (sfi->HasWasmFunctionData() &&
+        if (sfi->HasWasmFunctionData(isolate) &&
             sfi->HasUnpublishedTrustedData(isolate)) {
           continue;
         }
@@ -2697,7 +2697,7 @@ void ExistingCodeLogger::LogExistingFunction(
       }
     }
 #if V8_ENABLE_WEBASSEMBLY
-  } else if (shared->HasWasmJSFunctionData()) {
+  } else if (shared->HasWasmJSFunctionData(isolate_)) {
     CALL_CODE_EVENT_HANDLER(
         CodeCreateEvent(CodeTag::kFunction, code, "wasm-to-js"));
 #endif  // V8_ENABLE_WEBASSEMBLY

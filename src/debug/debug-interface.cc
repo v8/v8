@@ -146,7 +146,7 @@ Local<String> GetFunctionDescription(Local<Function> function) {
   if (IsJSFunction(*receiver)) {
     auto js_function = i::Cast<i::JSFunction>(receiver);
 #if V8_ENABLE_WEBASSEMBLY
-    if (js_function->shared()->HasWasmExportedFunctionData()) {
+    if (js_function->shared()->HasWasmExportedFunctionData(i_isolate)) {
       i::DirectHandle<i::WasmExportedFunctionData> function_data(
           js_function->shared()->wasm_exported_function_data(), i_isolate);
       int func_index = function_data->function_index();

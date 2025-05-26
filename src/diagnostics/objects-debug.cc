@@ -1409,15 +1409,15 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(LocalIsolate* isolate) {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  bool is_wasm = HasWasmExportedFunctionData() || HasAsmWasmData() ||
-                 HasWasmJSFunctionData() || HasWasmCapiFunctionData() ||
-                 HasWasmResumeData();
+  bool is_wasm = HasWasmExportedFunctionData(isolate) || HasAsmWasmData() ||
+                 HasWasmJSFunctionData(isolate) ||
+                 HasWasmCapiFunctionData(isolate) || HasWasmResumeData();
 #else
   bool is_wasm = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
   CHECK(is_wasm || IsApiFunction() || HasBytecodeArray() || HasBuiltinId() ||
-        HasUncompiledDataWithPreparseData() ||
-        HasUncompiledDataWithoutPreparseData());
+        HasUncompiledDataWithPreparseData(isolate) ||
+        HasUncompiledDataWithoutPreparseData(isolate));
 
   {
     Tagged<HeapObject> script = this->script(kAcquireLoad);

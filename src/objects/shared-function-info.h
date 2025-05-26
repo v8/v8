@@ -359,10 +359,6 @@ class SharedFunctionInfo
   template <typename T, IndirectPointerTag tag>
   inline Tagged<T> GetTrustedData(IsolateForSandbox isolate) const;
 
-  // Helper function when no Isolate is available. Prefer to use the variant
-  // with an isolate parameter if possible.
-  inline Tagged<Object> GetTrustedData() const;
-
   // Some code may encounter unreachable unusable objects and needs to skip
   // over them without crashing.
   inline bool HasUnpublishedTrustedData(IsolateForSandbox isolate) const;
@@ -425,10 +421,10 @@ class SharedFunctionInfo
 
 #if V8_ENABLE_WEBASSEMBLY
   inline bool HasAsmWasmData() const;
-  inline bool HasWasmFunctionData() const;
-  inline bool HasWasmExportedFunctionData() const;
-  inline bool HasWasmJSFunctionData() const;
-  inline bool HasWasmCapiFunctionData() const;
+  inline bool HasWasmFunctionData(IsolateForSandbox) const;
+  inline bool HasWasmExportedFunctionData(IsolateForSandbox) const;
+  inline bool HasWasmJSFunctionData(IsolateForSandbox) const;
+  inline bool HasWasmCapiFunctionData(IsolateForSandbox) const;
   inline bool HasWasmResumeData() const;
   DECL_ACCESSORS(asm_wasm_data, Tagged<AsmWasmData>)
 
@@ -447,18 +443,20 @@ class SharedFunctionInfo
   inline bool HasBuiltinId() const;
   DECL_PRIMITIVE_ACCESSORS(builtin_id, Builtin)
 
-  inline bool HasUncompiledData() const;
+  inline bool HasUncompiledData(IsolateForSandbox isolate) const;
   inline Tagged<UncompiledData> uncompiled_data(
       IsolateForSandbox isolate) const;
   inline void set_uncompiled_data(Tagged<UncompiledData> data,
                                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline bool HasUncompiledDataWithPreparseData() const;
+  inline bool HasUncompiledDataWithPreparseData(
+      IsolateForSandbox isolate) const;
   inline Tagged<UncompiledDataWithPreparseData>
   uncompiled_data_with_preparse_data(IsolateForSandbox isolate) const;
   inline void set_uncompiled_data_with_preparse_data(
       Tagged<UncompiledDataWithPreparseData> data,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline bool HasUncompiledDataWithoutPreparseData() const;
+  inline bool HasUncompiledDataWithoutPreparseData(
+      IsolateForSandbox isolate) const;
   inline void ClearUncompiledDataJobPointer(IsolateForSandbox isolate);
 
   // Clear out pre-parsed scope data from UncompiledDataWithPreparseData,

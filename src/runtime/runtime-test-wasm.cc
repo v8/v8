@@ -201,7 +201,8 @@ RUNTIME_FUNCTION(Runtime_HasUnoptimizedWasmToJSWrapper) {
   }
   Tagged<JSFunction> function = Cast<JSFunction>(args[0]);
   Tagged<SharedFunctionInfo> sfi = function->shared();
-  if (!sfi->HasWasmFunctionData()) return isolate->heap()->ToBoolean(false);
+  if (!sfi->HasWasmFunctionData(isolate))
+    return isolate->heap()->ToBoolean(false);
   Tagged<WasmFunctionData> func_data = sfi->wasm_function_data();
   WasmCodePointer call_target = func_data->internal()->call_target();
 
