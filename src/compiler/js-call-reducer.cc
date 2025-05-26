@@ -1222,21 +1222,44 @@ TNode<Number> JSCallReducerAssembler::ReduceStringPrototypeCharCodeAt() {
 
 TNode<String> JSCallReducerAssembler::ReduceStringPrototypeSlice() {
   TNode<Object> receiver = ReceiverInput();
-  TNode<Object> start = Argument(0);
-  TNode<Object> end = ArgumentOrUndefined(1);
-
   TNode<String> receiver_string = CheckString(receiver);
-  TNode<Number> start_smi = CheckSmi(start);
 
   TNode<Number> length = StringLength(receiver_string);
 
+  TNode<Object> start = Argument(0);
+  TNode<Object> end = ArgumentOrUndefined(1);
+
+  // Special case str.slice(-1) to str.charAt(str.length - 1).
+  // This will not hit if the start offset is not known to be the -1 constant
+  // during this reduction, nor if the end argument is explicitly rather than
+  // implicitly undefined; hopefully in common cases the code will explicitly
+  // use the -1 literal.
+  if (ArgumentCount() == 1) {
+    NumberMatcher m(start);
+    if (m.Is(-1)) {
+      return SelectIf<String>(
+                 ReferenceEqual(receiver_string, EmptyStringConstant()))
+          .Then(_ { return EmptyStringConstant(); })
+          .Else(_ {
+            return StringFromSingleCharCode(
+                TNode<Number>::UncheckedCast(StringCharCodeAt(
+                    receiver_string,
+                    TypeGuard(Type::Unsigned32(),
+                              NumberAdd(length, TNode<Number>::UncheckedCast(
+                                                    m.node()))))));
+          })
+          .Value();
+    }
+  }
+
+  TNode<Number> start_smi = CheckSmi(start);
   TNode<Number> end_smi = SelectIf<Number>(IsUndefined(end))
                               .Then(_ { return length; })
                               .Else(_ { return CheckSmi(end); })
                               .ExpectFalse()
                               .Value();
 
-  TNode<Number> zero = TNode<Number>::UncheckedCast(ZeroConstant());
+  TNode<Number> zero = ZeroConstant();
   TNode<Number> from_untyped =
       SelectIf<Number>(NumberLessThan(start_smi, zero))
           .Then(_ { return NumberMax(NumberAdd(length, start_smi), zero); })
