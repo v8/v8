@@ -530,7 +530,7 @@
 
 #define EXTERNAL_POINTER_ACCESSORS(holder, name, type, offset, tag)           \
   type holder::name() const {                                                 \
-    i::IsolateForSandbox isolate = GetIsolateForSandbox(*this);               \
+    i::IsolateForSandbox isolate = GetCurrentIsolateForSandbox();             \
     return holder::name(isolate);                                             \
   }                                                                           \
   EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(holder, name, type, offset, \

@@ -873,7 +873,7 @@ DEF_GETTER(SharedFunctionInfo, HasBaselineCode, bool) {
 
 DEF_ACQUIRE_GETTER(SharedFunctionInfo, baseline_code, Tagged<Code>) {
   DCHECK(HasBaselineCode(cage_base));
-  IsolateForSandbox isolate = GetIsolateForSandbox(*this);
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   return GetTrustedData<Code, kCodeIndirectPointerTag>(isolate);
 }
 
