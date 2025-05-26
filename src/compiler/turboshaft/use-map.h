@@ -60,10 +60,11 @@ class Simd128UseMap : public UseMap, public NON_EXPORTED_BASE(ZoneObject) {
 
               if (has_revectorizable_simd128_output(op)) return false;
 
-              // Identify input_reps of ReturnOp (which doesn't track
-              // inputs_rep, except for the Word32 popcount input).
-              if (const ReturnOp* ret_op = op.TryCast<ReturnOp>()) {
-                for (auto input : ret_op->return_values()) {
+              // Identify input_reps of ReturnOp and FrameStateOp (which doesn't
+              // track inputs_rep, except for the Word32 popcount input of
+              // ReturnOp).
+              if (op.TryCast<ReturnOp>() || op.TryCast<FrameStateOp>()) {
+                for (auto input : op.inputs()) {
                   const Operation& input_op = graph.Get(input);
                   if (has_revectorizable_simd128_output(input_op)) return false;
                 }
