@@ -7042,7 +7042,7 @@ void Heap::KeepDuringJob(DirectHandle<HeapObject> target) {
   MaybeHandle<OrderedHashSet> maybe_table =
       OrderedHashSet::Add(isolate(), table, target);
   if (!maybe_table.ToHandle(&table)) {
-    FATAL(
+    FatalProcessOutOfMemory(
         "Fatal JavaScript error: Too many distinct WeakRef objects "
         "created or dereferenced during single event loop turn.");
   }
