@@ -822,7 +822,7 @@ var prettyPrinted;
     // optimization is always disabled, explicitly exit the test with a warning.
     if (opt_status & V8OptimizationStatus.kLiteMode) {
       print("Warning: Test uses assertOptimized in Lite mode, skipping test.");
-      testRunner.quit(0);
+      quit(0);
     }
     // Tests that use assertOptimized() do not make sense if --no-turbofan
     // option is provided. Such tests must add --turbofan to flags comment.

@@ -24,6 +24,9 @@ const SKIPPED_FILES = [
     // Passes JS flags.
     'd8-arguments.js',
 
+    // Basically an infinite loop without quit().
+    'd8-finalization-registry-quit',
+
     // Slow tests or tests that are too large to be used as input.
     /numops-fuzz-part.*.js/,
     'regexp-pcre.js',

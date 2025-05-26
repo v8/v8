@@ -3927,8 +3927,6 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   if (!options.omit_quit) {
     global_template->Set(isolate, "quit", FunctionTemplate::New(isolate, Quit));
   }
-  global_template->Set(isolate, "testRunner",
-                       Shell::CreateTestRunnerTemplate(isolate));
   global_template->Set(isolate, "Realm", Shell::CreateRealmTemplate(isolate));
   global_template->Set(isolate, "performance",
                        Shell::CreatePerformanceTemplate(isolate));
@@ -4007,16 +4005,6 @@ Local<ObjectTemplate> Shell::CreateAsyncHookTemplate(Isolate* isolate) {
       isolate, "triggerAsyncId",
       FunctionTemplate::New(isolate, AsyncHooksTriggerAsyncId));
   return async_hooks_templ;
-}
-
-Local<ObjectTemplate> Shell::CreateTestRunnerTemplate(Isolate* isolate) {
-  Local<ObjectTemplate> test_template = ObjectTemplate::New(isolate);
-  // Reliable access to quit functionality. The "quit" method function
-  // installed on the global object can be hidden with the --omit-quit flag
-  // (e.g. on asan bots).
-  test_template->Set(isolate, "quit", FunctionTemplate::New(isolate, Quit));
-
-  return test_template;
 }
 
 Local<ObjectTemplate> Shell::CreatePerformanceTemplate(Isolate* isolate) {

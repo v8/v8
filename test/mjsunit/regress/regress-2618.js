@@ -31,7 +31,7 @@
 // Can't OSR with always-turbofan or in Lite mode.
 if (isNeverOptimizeLiteMode()) {
   print("Warning: skipping test that requires optimization in Lite mode.");
-  testRunner.quit(0);
+  quit(0);
 }
 assertFalse(isAlwaysOptimize());
 
