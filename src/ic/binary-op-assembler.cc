@@ -398,6 +398,7 @@ BinaryOpAssembler::Generate_AddStringConstantInternalizeWithFeedback(
   //
   //   Instead of: return Internalize(lhs + rhs)
   //   .. we do:   return cache[rhs]  // .. (or lhs) if possible.
+  USE(const_str_operand);
   CSA_DCHECK(this, Word32BinaryNot(TaggedIsSmi(const_str_operand)));
   CSA_DCHECK(this, IsInternalizedStringInstanceType(
                        LoadInstanceType(CAST(const_str_operand))));
