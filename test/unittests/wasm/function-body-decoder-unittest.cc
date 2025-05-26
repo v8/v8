@@ -4,6 +4,8 @@
 
 #include "src/wasm/function-body-decoder.h"
 
+#include <sstream>
+
 #include "src/flags/flags.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/canonical-types.h"
@@ -6375,7 +6377,11 @@ TEST_F(FunctionBodyDecoderTest, MemoryOrder) {
       FunctionSig::Build(zone, {kWasmI32}, {array_i32, kWasmI32, kWasmI32});
 
   for (uint8_t memory_order = 0; memory_order < 3; ++memory_order) {
-    SCOPED_TRACE(std::format("memory_order = {}", int{memory_order}));
+    // TODO(c++20): Replace with std::format once available on all compilers
+    // and build configurations.
+    std::stringstream str;
+    str << "memory_order = " << int{memory_order};
+    SCOPED_TRACE(str.str());
     const bool valid = memory_order < 2;
     // struct.atomic.get
     Validate(valid, sig_struct_load_i32,
