@@ -171,16 +171,15 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   V8_INLINE Address address() const { return reinterpret_cast<Address>(this); }
 
   static constexpr Address BaseAddress(Address a) {
-    // LINT.IfChange(MemoryObjectBaseAddress)
+    // LINT.IfChange
     // If this changes, we also need to update
     // - CodeStubAssembler::MemoryChunkFromAddress
     // - MacroAssembler::MemoryChunkHeaderFromObject
     // - TurboshaftAssemblerOpInterface::MemoryChunkFromAddress
     return a & ~kAlignmentMask;
-    // LINT.ThenChange(src/codegen/code-stub-assembler.cc:MemoryObjectBaseAddress)
-    // LINT.ThenChange(src/codegen/ia32/macro-assembler-ia32.cc:MemoryObjectBaseAddress)
-    // LINT.ThenChange(src/codegen/x64/macro-assembler-x64.cc:MemoryObjectBaseAddress)
-    // LINT.ThenChange(src/compiler/turboshaft/assembler.h:MemoryObjectBaseAddress)
+    // clang-format off
+    // LINT.ThenChange(src/codegen/code-stub-assembler.cc, src/codegen/ia32/macro-assembler-ia32.cc, src/codegen/x64/macro-assembler-x64.cc, src/compiler/turboshaft/assembler.h)
+    // clang-format on
   }
 
   V8_INLINE static MemoryChunk* FromAddress(Address addr) {

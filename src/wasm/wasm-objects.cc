@@ -3658,11 +3658,10 @@ DirectHandle<Object> WasmToJSObject(Isolate* isolate,
 // Needed changes in case the header size changes to a multiple of 8:
 // - objects-inl.h: HeapObject::RequiredAlignment
 // - wasm.tq: WasmAllocateSharedArray_Uninitialized
-// LINT.IfChange(WasmArrayUnaligned)
+// LINT.IfChange
 static_assert(WasmArray::kHeaderSize % kDoubleSize ==
               (kTaggedSize != kDoubleSize ? 4 : 0));
-// LINT.ThenChange(src/objects/objects-inl.h:WasmArrayUnaligned)
-// LINT.ThenChange(src/builtins/wasm.tq:WasmArrayUnaligned)
+// LINT.ThenChange(src/objects/objects-inl.h, src/builtins/wasm.tq)
 
 }  // namespace wasm
 
