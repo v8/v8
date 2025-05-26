@@ -17442,7 +17442,8 @@ TNode<Uint8T> CodeStubAssembler::RabGsabElementsKindToElementByteShift(
       elements_kind, Int32Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)));
   Branch(
       Uint32GreaterThan(
-          index, Uint32Constant(LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND)),
+          index, Uint32Constant(LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
+                                FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)),
       &invalid_kind, &end);
 
   BIND(&invalid_kind);
