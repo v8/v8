@@ -4664,6 +4664,74 @@ CodeStubAssembler::AllocatePropertyDictionaryWithCapacity(
   return TNode<PropertyDictionary>::UncheckedCast(dict);
 }
 
+TNode<SimpleNameDictionary> CodeStubAssembler::AllocateSimpleNameDictionary(
+    int at_least_space_for) {
+  return AllocateSimpleNameDictionary(IntPtrConstant(at_least_space_for));
+}
+
+TNode<SimpleNameDictionary> CodeStubAssembler::AllocateSimpleNameDictionary(
+    TNode<IntPtrT> at_least_space_for, AllocationFlags flags) {
+  CSA_DCHECK(this, UintPtrLessThanOrEqual(
+                       at_least_space_for,
+                       IntPtrConstant(SimpleNameDictionary::kMaxCapacity)));
+  TNode<IntPtrT> capacity = HashTableComputeCapacity(at_least_space_for);
+  return AllocateSimpleNameDictionaryWithCapacity(capacity, flags);
+}
+
+TNode<SimpleNameDictionary>
+CodeStubAssembler::AllocateSimpleNameDictionaryWithCapacity(
+    TNode<IntPtrT> capacity, AllocationFlags flags) {
+  CSA_DCHECK(this, WordIsPowerOfTwo(capacity));
+  CSA_DCHECK(this, IntPtrGreaterThan(capacity, IntPtrConstant(0)));
+  TNode<IntPtrT> length = EntryToIndex<SimpleNameDictionary>(capacity);
+  TNode<IntPtrT> store_size =
+      IntPtrAdd(TimesTaggedSize(length),
+                IntPtrConstant(OFFSET_OF_DATA_START(SimpleNameDictionary)));
+
+  TNode<SimpleNameDictionary> result =
+      UncheckedCast<SimpleNameDictionary>(Allocate(store_size, flags));
+
+  // Initialize FixedArray fields.
+  {
+    DCHECK(
+        RootsTable::IsImmortalImmovable(RootIndex::kSimpleNameDictionaryMap));
+    StoreMapNoWriteBarrier(result, RootIndex::kSimpleNameDictionaryMap);
+    StoreObjectFieldNoWriteBarrier(
+        result, offsetof(SimpleNameDictionary, length_), SmiFromIntPtr(length));
+  }
+
+  // Initialized HashTable fields.
+  {
+    TNode<Smi> zero = SmiConstant(0);
+    StoreFixedArrayElement(result, SimpleNameDictionary::kNumberOfElementsIndex,
+                           zero, SKIP_WRITE_BARRIER);
+    StoreFixedArrayElement(result,
+                           SimpleNameDictionary::kNumberOfDeletedElementsIndex,
+                           zero, SKIP_WRITE_BARRIER);
+    StoreFixedArrayElement(result, SimpleNameDictionary::kCapacityIndex,
+                           SmiTag(capacity), SKIP_WRITE_BARRIER);
+  }
+
+  // Initialize SimpleNameDictionary elements.
+  {
+    TNode<IntPtrT> result_word = BitcastTaggedToWord(result);
+    TNode<IntPtrT> start_address = IntPtrAdd(
+        result_word,
+        IntPtrConstant(SimpleNameDictionary::OffsetOfElementAt(
+                           SimpleNameDictionary::kElementsStartIndex) -
+                       kHeapObjectTag));
+    TNode<IntPtrT> end_address = IntPtrAdd(
+        result_word, IntPtrSub(store_size, IntPtrConstant(kHeapObjectTag)));
+
+    TNode<Undefined> filler = UndefinedConstant();
+    DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kUndefinedValue));
+
+    StoreFieldsNoWriteBarrier(start_address, end_address, filler);
+  }
+
+  return result;
+}
+
 TNode<NameDictionary> CodeStubAssembler::CopyNameDictionary(
     TNode<NameDictionary> dictionary, Label* large_object_fallback) {
   Comment("Copy boilerplate property dict");

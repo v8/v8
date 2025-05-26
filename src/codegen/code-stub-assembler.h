@@ -2073,6 +2073,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<PropertyDictionary> AllocatePropertyDictionaryWithCapacity(
       TNode<IntPtrT> capacity, AllocationFlags = AllocationFlag::kNone);
 
+  TNode<SimpleNameDictionary> AllocateSimpleNameDictionary(
+      int at_least_space_for);
+  TNode<SimpleNameDictionary> AllocateSimpleNameDictionary(
+      TNode<IntPtrT> at_least_space_for,
+      AllocationFlags = AllocationFlag::kNone);
+  TNode<SimpleNameDictionary> AllocateSimpleNameDictionaryWithCapacity(
+      TNode<IntPtrT> capacity, AllocationFlags = AllocationFlag::kNone);
+
   TNode<NameDictionary> CopyNameDictionary(TNode<NameDictionary> dictionary,
                                            Label* large_object_fallback);
 

@@ -424,8 +424,8 @@ BinaryOpAssembler::Generate_AddLhsIsStringConstantInternalizeWithFeedback(
     GotoIf(
         TaggedNotEqual(var_maybe_cache.value(), UninitializedSymbolConstant()),
         &next);
-    // TODO(jgruber): Allocate in CSA.
-    Goto(&slow);
+    var_maybe_cache = AllocateSimpleNameDictionary(1);
+    Goto(&next);
     BIND(&next);
     cache = CAST(var_maybe_cache.value());
   }
