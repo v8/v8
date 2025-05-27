@@ -76,11 +76,11 @@ test("/ab/{0: 1}", reg);
 
 const i8a = new Int8Array([0, 1]);
 i8a["a"] = 2;
-test("Int8Array([0,1]){a: 2}", i8a);
+test("Int8Array[0, 1]{a: 2}", i8a);
 
 const f64a = new Float64Array([0.1, 0.2]);
 f64a["a"] = 0.3;
-test("Float64Array([0.1,0.2]){a: 0.3}", f64a);
+test("Float64Array[0.1, 0.2]{a: 0.3}", f64a);
 
 // Nested objects
 test("Object{0: Object{}}", {0: {}});

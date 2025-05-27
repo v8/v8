@@ -22,11 +22,9 @@ var __hash = 0;
   const map = Array.prototype.map;
   const substring = String.prototype.substring;
   const toString = Object.prototype.toString;
+  const stringify = JSON.stringify;
 
   const wrapped = (inner) => inner ? `{${inner}}` : "";
-
-  // For standard cases use original prettyPrinted from mjsunit.
-  const origPrettyPrinted = prettyPrinted;
 
   // Override prettyPrinted with a version that also recursively prints
   // objects, arrays and object properties with a depth of 4. We don't track
@@ -36,21 +34,31 @@ var __hash = 0;
       return "...";
     }
     switch (typeof value) {
+      case "string":
+        return stringify(value);
+      case "bigint":
+        return String(value) + "n";
+      case "number":
+        if (value === 0 && (1 / value) < 0) return "-0";
+      case "boolean":
+      case "undefined":
+      case "symbol":
+        return String(value);
       case "function":
         return prettyPrintedFunction(value, depth);
       case "object":
         if (value === null) return "null";
-        let typedArray = false;
         if (value instanceof Array) return prettyPrintedArray(value, depth);
         if (value instanceof Set) return prettyPrintedSet(value, depth);
         if (value instanceof Map) return prettyPrintedMap(value, depth);
+        if (value instanceof RegExp) return prettyPrintedRegExp(value, depth);
+
         if (value instanceof Number ||
             value instanceof BigInt ||
             value instanceof String ||
             value instanceof Boolean ||
-            value instanceof Date ||
-            value instanceof RegExp) {
-          return prettyPrintedObjectFallback(value, depth);
+            value instanceof Date) {
+          return prettyWithClass(value, depth);
         }
 
         if (value instanceof Int8Array ||
@@ -64,13 +72,12 @@ var __hash = 0;
             value instanceof Float64Array ||
             value instanceof BigInt64Array ||
             value instanceof BigUint64Array) {
-          return prettyPrintedObjectFallback(value, depth, true);
+          return prettyPrintedTypedArray(value, depth);
         }
 
         return prettyPrintedObject(value, depth);
     }
-    // Fall through to original version for all other types.
-    return origPrettyPrinted(value);
+    return String(value);
   }
 
   function prettyPrintedObjectProperties(object, depth, forArray) {
@@ -107,12 +114,24 @@ var __hash = 0;
 
   function prettyPrintedObject(object, depth) {
     const content = prettyPrintedObjectProperties(object, depth, false);
-    return `${object.constructor.name || "Object"}{${content}}`;
+    return `${object.constructor?.name ?? "Object"}{${content}}`;
   }
 
-  function prettyPrintedObjectFallback(object, depth, array=false) {
-    const props = prettyPrintedObjectProperties(object, depth, array);
-    return `${origPrettyPrinted(object)}${wrapped(props)}`;
+  function prettyWithClass(object, depth) {
+    const props = prettyPrintedObjectProperties(object, depth, false);
+    const name = object.constructor?.name ?? "Object";
+    return `${name}(${prettyPrinted(object.valueOf())})${wrapped(props)}`;
+  }
+
+  function prettyPrintedTypedArray(object, depth) {
+    const props = prettyPrintedObjectProperties(object, depth, true);
+    const name = object.constructor?.name ?? "Object";
+    return `${name}[${object.join(", ")}]${wrapped(props)}`;
+  }
+
+  function prettyPrintedRegExp(object, depth) {
+    const props = prettyPrintedObjectProperties(object, depth, false);
+    return `${object.toString()}${wrapped(props)}`;
   }
 
   function prettyPrintedFunction(fun, depth) {
@@ -155,7 +174,7 @@ var __hash = 0;
     // the hash of the full string.
     if (str.length > 64) {
       const head = substring.call(str, 0, 54);
-      const tail = substring.call(str, str.length - 10, str.length - 1);
+      const tail = substring.call(str, str.length - 9, str.length);
       str = `${head}[...]${tail}`;
     }
 
