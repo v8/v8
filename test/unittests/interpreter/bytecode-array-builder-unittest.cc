@@ -309,9 +309,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .BinaryOperation(Token::kMod, reg, 5)
       .BinaryOperation(Token::kExp, reg, 6);
 
-  using ASVariant = AddStringConstantAndInternalizeVariant;
-  builder.Add_StringConstant_Internalize(Token::kAdd, reg, 1,
-                                         ASVariant::kLhsIsStringConstant);
+  builder.Add_LhsIsStringConstant_Internalize(Token::kAdd, reg, 1);
 
   // Emit bitwise operator invocations
   builder.BinaryOperation(Token::kBitOr, reg, 6)

@@ -7555,32 +7555,15 @@ void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
   // key. In this case, we know it will eventually be internalized and it's
   // better to do so early.
   //
-  // For now, we handle only the specialized situation in which one side is a
-  // string constant.
-  // TODO(jgruber): Generalize. ConsString literals, property-key but no
-  // string-literal, string-literal but no property-key.
-  const bool maybe_emit_specialized_string_add =
+  // For now, we handle only the specialized situation in which lhs is a string
+  // constant.
+  // TODO(jgruber): Generalize. ConsString literals, rhs-as-literal,
+  // property-key but no string-literal, string-literal but no property-key.
+  const bool emit_add_lhs_is_string_constant_internalize =
       expr->op() == Token::kAdd && execution_result()->IsValueAsPropertyKey() &&
+      expr->left()->IsLiteral() && expr->left()->AsLiteral()->IsRawString() &&
       v8_flags.cache_property_key_string_adds;
-  bool emit_add_string_constant_internalize = false;
-  using ASVariant = AddStringConstantAndInternalizeVariant;
-  auto as_variant = ASVariant::kLhsIsStringConstant;
-  if (maybe_emit_specialized_string_add) {
-    // Is lhs a string constant?
-    emit_add_string_constant_internalize =
-        expr->left()->IsLiteral() && expr->left()->AsLiteral()->IsRawString();
-    if (!emit_add_string_constant_internalize) {
-      // Is rhs a string constant?
-      emit_add_string_constant_internalize =
-          expr->right()->IsLiteral() &&
-          expr->right()->AsLiteral()->IsRawString();
-      if (emit_add_string_constant_internalize) {
-        as_variant = ASVariant::kRhsIsStringConstant;
-      }
-    }
-  }
-
-  if (emit_add_string_constant_internalize) {
+  if (emit_add_lhs_is_string_constant_internalize) {
     slot = feedback_spec()->AddStringAddAndInternalizeICSlot();
   } else {
     slot = feedback_spec()->AddBinaryOpICSlot();
@@ -7606,18 +7589,13 @@ void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
       execution_result()->SetResultIsString();
     }
 
-    if (emit_add_string_constant_internalize) {
-      // Subtle: Stack overflows can cause the AST to be visited only
-      // partially. Visitation is eventually aborted and the resulting
-      // bytecode discarded.
-      DCHECK_IMPLIES(
-          !HasStackOverflow(),
-          IsStringTypeHint(as_variant == ASVariant::kLhsIsStringConstant
-                               ? lhs_type
-                               : rhs_type));
+    if (emit_add_lhs_is_string_constant_internalize) {
+      // Subtle: Stack overflows can cause the AST to be visited only partially.
+      // Visitation is eventually aborted and the resulting bytecode discarded.
+      DCHECK_IMPLIES(!HasStackOverflow(), IsStringTypeHint(lhs_type));
       builder()->SetExpressionPosition(expr);
-      builder()->Add_StringConstant_Internalize(
-          expr->op(), lhs, feedback_index(slot), as_variant);
+      builder()->Add_LhsIsStringConstant_Internalize(expr->op(), lhs,
+                                                     feedback_index(slot));
     } else {
       builder()->SetExpressionPosition(expr);
       builder()->BinaryOperation(expr->op(), lhs, feedback_index(slot));

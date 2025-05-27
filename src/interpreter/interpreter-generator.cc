@@ -964,7 +964,7 @@ class InterpreterBinaryOpAssembler : public InterpreterAssembler {
       TNode<UintPtrT> slot, const LazyNode<HeapObject>& maybe_feedback_vector,
       UpdateFeedbackMode update_feedback_mode, bool rhs_known_smi);
 
-  void BinaryOpWithFeedback_WithoutDispatch(BinaryOpGenerator generator) {
+  void BinaryOpWithFeedback(BinaryOpGenerator generator) {
     TNode<Object> lhs = LoadRegisterAtOperandIndex(0);
     TNode<Object> rhs = GetAccumulator();
     TNode<Context> context = GetContext();
@@ -978,10 +978,6 @@ class InterpreterBinaryOpAssembler : public InterpreterAssembler {
         [=] { return context; }, lhs, rhs, slot_index,
         [=] { return maybe_feedback_vector; }, mode, false);
     SetAccumulator(result);
-  }
-
-  void BinaryOpWithFeedback(BinaryOpGenerator generator) {
-    BinaryOpWithFeedback_WithoutDispatch(generator);
     Dispatch();
   }
 
@@ -1010,40 +1006,14 @@ IGNITION_HANDLER(Add, InterpreterBinaryOpAssembler) {
   BinaryOpWithFeedback(&BinaryOpAssembler::Generate_AddWithFeedback);
 }
 
-// Add_StringConstant_Internalize <src>
+// Add_LhsIsConstant_Internalize <src>
 //
 // Add register <src> to accumulator.
-IGNITION_HANDLER(Add_StringConstant_Internalize, InterpreterBinaryOpAssembler) {
-  auto as_variant = UncheckedCast<Int32T>(BytecodeOperandFlag8(2));
-  using ASVariant = AddStringConstantAndInternalizeVariant;
-  auto lhs_is_sc =
-      Int32Constant(static_cast<uint8_t>(ASVariant::kLhsIsStringConstant));
-
-  Label if_lhs_is_string_constant(this), if_rhs_is_string_constant(this),
-      done(this);
-  Branch(Word32Equal(as_variant, lhs_is_sc), &if_lhs_is_string_constant,
-         &if_rhs_is_string_constant);
-
-  BIND(&if_lhs_is_string_constant);
-  CSA_DCHECK(this, Word32Equal(as_variant, lhs_is_sc));
-  BinaryOpWithFeedback_WithoutDispatch(
+IGNITION_HANDLER(Add_LhsIsStringConstant_Internalize,
+                 InterpreterBinaryOpAssembler) {
+  BinaryOpWithFeedback(
       &BinaryOpAssembler::
           Generate_AddLhsIsStringConstantInternalizeWithFeedback);
-  Goto(&done);
-
-  BIND(&if_rhs_is_string_constant);
-#ifdef DEBUG
-  auto rhs_is_sc =
-      Int32Constant(static_cast<uint8_t>(ASVariant::kRhsIsStringConstant));
-  CSA_DCHECK(this, Word32Equal(as_variant, rhs_is_sc));
-#endif  // DEBUG
-  BinaryOpWithFeedback_WithoutDispatch(
-      &BinaryOpAssembler::
-          Generate_AddRhsIsStringConstantInternalizeWithFeedback);
-  Goto(&done);
-
-  BIND(&done);
-  Dispatch();
 }
 
 // Sub <src>

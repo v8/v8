@@ -453,17 +453,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperation(Token::Value op,
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::Add_StringConstant_Internalize(
-    Token::Value op, Register reg, int feedback_slot,
-    AddStringConstantAndInternalizeVariant as_variant) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::Add_LhsIsStringConstant_Internalize(
+    Token::Value op, Register reg, int feedback_slot) {
   DCHECK_EQ(op, Token::kAdd);
-#ifdef DEBUG
-  using ASVariant = AddStringConstantAndInternalizeVariant;
-  DCHECK(as_variant == ASVariant::kLhsIsStringConstant ||
-         as_variant == ASVariant::kRhsIsStringConstant);
-#endif  // DEBUG
-  OutputAdd_StringConstant_Internalize(reg, feedback_slot,
-                                       static_cast<uint8_t>(as_variant));
+  OutputAdd_LhsIsStringConstant_Internalize(reg, feedback_slot);
   return *this;
 }
 

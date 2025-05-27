@@ -2943,12 +2943,7 @@ static constexpr ReleaseStoreTag kReleaseStore;
 static constexpr RelaxedStoreTag kRelaxedStore;
 static constexpr SeqCstAccessTag kSeqCstAccess;
 
-static constexpr int kAdd_StringConstant_Internalize_CacheSlotOffset = 1;
-
-enum class AddStringConstantAndInternalizeVariant : uint8_t {
-  kLhsIsStringConstant = 0,
-  kRhsIsStringConstant = 1,
-};
+static constexpr int kAdd_LhsIsStringConstant_Internalize_CacheSlotOffset = 1;
 
 }  // namespace v8
 
