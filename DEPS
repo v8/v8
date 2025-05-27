@@ -75,7 +75,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:ebc8f16ca7b0d36a3e532ee90896f9eb48e5423b',
+  'gn_version': 'git_revision:a84e399f9999003472192286abc03d752c9cb1f0',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -130,9 +130,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7adbc7e3263f3ab427ba7c5ac7839a69082ff7fb',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '29f8a43aae3335c48380a06aef0de479bd8ab297',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '1fc7350e65e9d7848c083b83aaf67611e74a5654',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c618f33e12ddc6f53c21271e7b44ddef3ec44de3',
   'buildtools/linux64': {
     'packages': [
       {
@@ -538,7 +538,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '502dcad5230ec1da544e7720b15d91782f040d9f',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '2401283880a451e9ea10787920117fb67695abb4',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '0f24203ce860b9b7327acc681128fb61d957adf9',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
