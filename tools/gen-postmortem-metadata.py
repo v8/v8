@@ -511,7 +511,6 @@ extras_accessors = [
     'JSDate, value, Object, kValueOffset',
     'JSRegExp, source, Object, kSourceOffset',
     'JSTypedArray, external_pointer, uintptr_t, kExternalPointerOffset',
-    'JSTypedArray, length, Object, kRawLengthOffset',
     'Map, instance_size_in_words, char, kInstanceSizeInWordsOffset',
     'Map, inobject_properties_start_or_constructor_function_index, char, kInobjectPropertiesStartOrConstructorFunctionIndexOffset',
     'Map, instance_type, uint16_t, kInstanceTypeOffset',

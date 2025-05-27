@@ -3708,7 +3708,6 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(
       map, empty_byte_array(), buffer, byte_offset, byte_length));
   Tagged<JSTypedArray> raw = *typed_array;
   DisallowGarbageCollection no_gc;
-  raw->set_length(length);
   raw->SetOffHeapDataPtr(isolate(), buffer->backing_store(), byte_offset);
   raw->set_is_length_tracking(is_length_tracking);
   raw->set_is_backed_by_rab(is_backed_by_rab);

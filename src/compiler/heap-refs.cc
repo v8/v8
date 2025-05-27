@@ -1822,9 +1822,9 @@ bool JSTypedArrayRef::is_on_heap() const {
   return object()->is_on_heap(kAcquireLoad);
 }
 
-size_t JSTypedArrayRef::length() const {
-  // Immutable after initialization (since this is not used for RAB/GSAB).
-  return object()->length();
+size_t JSTypedArrayRef::length(JSHeapBroker* broker) const {
+  return object()->byte_length() /
+         ElementsKindToByteSize(elements_kind(broker));
 }
 
 size_t JSTypedArrayRef::byte_length() const {

@@ -6626,7 +6626,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadTypedArrayLength(
         if (!const_typed_array.is_on_heap() &&
             !IsRabGsabTypedArrayElementsKind(
                 const_typed_array.elements_kind(broker()))) {
-          size_t length = const_typed_array.length();
+          size_t length = const_typed_array.length(broker());
           static_assert(ArrayBuffer::kMaxByteLength <=
                         std::numeric_limits<intptr_t>::max());
           return GetIntPtrConstant(static_cast<intptr_t>(length));

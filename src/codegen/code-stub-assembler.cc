@@ -17238,12 +17238,11 @@ void CodeStubAssembler::StoreJSArrayBufferViewByteOffset(
 
 TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLength(
     TNode<JSTypedArray> typed_array) {
-  return LoadBoundedSizeFromObject(typed_array, JSTypedArray::kRawLengthOffset);
-}
-
-void CodeStubAssembler::StoreJSTypedArrayLength(TNode<JSTypedArray> typed_array,
-                                                TNode<UintPtrT> value) {
-  StoreBoundedSizeToObject(typed_array, JSTypedArray::kRawLengthOffset, value);
+  TNode<UintPtrT> byte_length = LoadBoundedSizeFromObject(
+      typed_array, JSTypedArray::kRawByteLengthOffset);
+  TNode<Uint8T> element_shift =
+      ElementsKindToElementByteShift(LoadElementsKind(typed_array));
+  return WordShr(byte_length, element_shift);
 }
 
 TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLengthAndCheckDetached(
@@ -17281,7 +17280,7 @@ TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayLength(
   TNode<UintPtrT> byte_length = LoadVariableLengthJSArrayBufferViewByteLength(
       array, buffer, detached_or_out_of_bounds);
   TNode<Uint8T> element_shift =
-      RabGsabElementsKindToElementByteShift(LoadElementsKind(array));
+      ElementsKindToElementByteShift(LoadElementsKind(array));
   return WordShr(byte_length, element_shift);
 }
 
@@ -17437,7 +17436,7 @@ TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayByteLength(
   TNode<UintPtrT> length =
       LoadVariableLengthJSTypedArrayLength(array, buffer, &miss);
   TNode<Uint8T> element_shift =
-      RabGsabElementsKindToElementByteShift(LoadElementsKind(array));
+      ElementsKindToElementByteShift(LoadElementsKind(array));
   // Conversion to signed is OK since length < JSArrayBuffer::kMaxByteLength.
   TNode<IntPtrT> byte_length = WordShl(Signed(length), element_shift);
   result = Unsigned(byte_length);
@@ -17451,7 +17450,7 @@ TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayByteLength(
   return result.value();
 }
 
-TNode<Uint8T> CodeStubAssembler::RabGsabElementsKindToElementByteShift(
+TNode<Uint8T> CodeStubAssembler::ElementsKindToElementByteShift(
     TNode<Int32T> elements_kind) {
   Label invalid_kind(this, Label::kDeferred), end(this);
   TNode<Uint32T> index = Unsigned(Int32Sub(
