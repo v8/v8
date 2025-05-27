@@ -3851,16 +3851,6 @@ void InstructionSelectorT::VisitNode(OpIndex node) {
   }
 }
 
-bool InstructionSelectorT::CanProduceSignalingNaN(Node* node) {
-  // TODO(jarin) Improve the heuristic here.
-  if (node->opcode() == IrOpcode::kFloat64Add ||
-      node->opcode() == IrOpcode::kFloat64Sub ||
-      node->opcode() == IrOpcode::kFloat64Mul) {
-    return false;
-  }
-  return true;
-}
-
 #if V8_TARGET_ARCH_64_BIT
 bool InstructionSelectorT::ZeroExtendsWord32ToWord64(OpIndex node,
                                                      int recursion_depth) {
@@ -3994,7 +3984,7 @@ void InstructionSelectorT::SwapShuffleInputs(SimdShuffleView& view) {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-InstructionSelector InstructionSelector::ForTurboshaft(
+InstructionSelectorT InstructionSelectorT::ForTurboshaft(
     Zone* zone, size_t node_count, Linkage* linkage,
     InstructionSequence* sequence, Graph* graph, Frame* frame,
     EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
@@ -4003,43 +3993,14 @@ InstructionSelector InstructionSelector::ForTurboshaft(
     Features features, EnableScheduling enable_scheduling,
     EnableRootsRelativeAddressing enable_roots_relative_addressing,
     EnableTraceTurboJson trace_turbo) {
-  return InstructionSelector(
-      nullptr,
-      new InstructionSelectorT(
-          zone, node_count, linkage, sequence, graph,
-          &graph->source_positions(), frame, enable_switch_jump_table,
-          tick_counter, broker, max_unoptimized_frame_height,
-          max_pushed_argument_count, source_position_mode, features,
-          enable_scheduling, enable_roots_relative_addressing, trace_turbo));
+  return InstructionSelectorT(
+      zone, node_count, linkage, sequence, graph, &graph->source_positions(),
+      frame, enable_switch_jump_table, tick_counter, broker,
+      max_unoptimized_frame_height, max_pushed_argument_count,
+      source_position_mode, features, enable_scheduling,
+      enable_roots_relative_addressing, trace_turbo);
 }
 
-InstructionSelector::InstructionSelector(std::nullptr_t,
-                                         InstructionSelectorT* turboshaft_impl)
-    : turboshaft_impl_(turboshaft_impl) {}
-
-InstructionSelector::~InstructionSelector() { delete turboshaft_impl_; }
-
-#define DISPATCH_TO_IMPL(...) return turboshaft_impl_->__VA_ARGS__;
-
-std::optional<BailoutReason> InstructionSelector::SelectInstructions() {
-  DISPATCH_TO_IMPL(SelectInstructions())
-}
-
-bool InstructionSelector::IsSupported(CpuFeature feature) const {
-  DISPATCH_TO_IMPL(IsSupported(feature))
-}
-
-const ZoneVector<std::pair<int, int>>& InstructionSelector::instr_origins()
-    const {
-  DISPATCH_TO_IMPL(instr_origins())
-}
-
-const std::map<NodeId, int> InstructionSelector::GetVirtualRegistersForTesting()
-    const {
-  DISPATCH_TO_IMPL(GetVirtualRegistersForTesting());
-}
-
-#undef DISPATCH_TO_IMPL
 #undef VISIT_UNSUPPORTED_OP
 
 }  // namespace compiler

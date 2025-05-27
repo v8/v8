@@ -38,79 +38,12 @@ namespace compiler {
 // Forward declarations.
 class BasicBlock;
 struct CallBufferT;  // TODO(bmeurer): Remove this.
-class InstructionSelectorT;
 class Linkage;
 class OperandGeneratorT;
 class SwitchInfoT;
 struct CaseInfoT;
 class TurbofanStateObjectDeduplicator;
 class TurboshaftStateObjectDeduplicator;
-
-class V8_EXPORT_PRIVATE InstructionSelector final {
- public:
-  enum SourcePositionMode { kCallSourcePositions, kAllSourcePositions };
-  enum EnableScheduling { kDisableScheduling, kEnableScheduling };
-  enum EnableRootsRelativeAddressing {
-    kDisableRootsRelativeAddressing,
-    kEnableRootsRelativeAddressing
-  };
-  enum EnableSwitchJumpTable {
-    kDisableSwitchJumpTable,
-    kEnableSwitchJumpTable
-  };
-  enum EnableTraceTurboJson { kDisableTraceTurboJson, kEnableTraceTurboJson };
-
-  class Features final {
-   public:
-    Features() : bits_(0) {}
-    explicit Features(unsigned bits) : bits_(bits) {}
-    explicit Features(CpuFeature f) : bits_(1u << f) {}
-    Features(CpuFeature f1, CpuFeature f2) : bits_((1u << f1) | (1u << f2)) {}
-
-    bool Contains(CpuFeature f) const { return (bits_ & (1u << f)); }
-
-   private:
-    unsigned bits_;
-  };
-
-  static InstructionSelector ForTurboshaft(
-      Zone* zone, size_t node_count, Linkage* linkage,
-      InstructionSequence* sequence, turboshaft::Graph* schedule, Frame* frame,
-      EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
-      JSHeapBroker* broker, size_t* max_unoptimized_frame_height,
-      size_t* max_pushed_argument_count,
-      SourcePositionMode source_position_mode = kCallSourcePositions,
-      Features features = SupportedFeatures(),
-      EnableScheduling enable_scheduling = v8_flags.turbo_instruction_scheduling
-                                               ? kEnableScheduling
-                                               : kDisableScheduling,
-      EnableRootsRelativeAddressing enable_roots_relative_addressing =
-          kDisableRootsRelativeAddressing,
-      EnableTraceTurboJson trace_turbo = kDisableTraceTurboJson);
-
-  ~InstructionSelector();
-
-  std::optional<BailoutReason> SelectInstructions();
-
-  bool IsSupported(CpuFeature feature) const;
-
-  // Returns the features supported on the target platform.
-  static Features SupportedFeatures() {
-    return Features(CpuFeatures::SupportedFeatures());
-  }
-
-  const ZoneVector<std::pair<int, int>>& instr_origins() const;
-  const std::map<NodeId, int> GetVirtualRegistersForTesting() const;
-
-  static MachineOperatorBuilder::Flags SupportedMachineOperatorFlags();
-  static MachineOperatorBuilder::AlignmentRequirements AlignmentRequirements();
-
- private:
-  InstructionSelector(std::nullptr_t, InstructionSelectorT* turboshaft_impl);
-  InstructionSelector(const InstructionSelector&) = delete;
-  InstructionSelector& operator=(const InstructionSelector&) = delete;
-  InstructionSelectorT* turboshaft_impl_;
-};
 
 // The flags continuation is a way to combine a branch or a materialization
 // of a boolean value with an instruction that sets the flags register.
@@ -456,7 +389,8 @@ struct PushParameterT {
 enum class FrameStateInputKind { kAny, kStackSlot };
 
 // Instruction selection generates an InstructionSequence for a given Schedule.
-class InstructionSelectorT final : public turboshaft::OperationMatcher {
+class V8_EXPORT_PRIVATE InstructionSelectorT final
+    : public turboshaft::OperationMatcher {
  public:
   using OperandGenerator = OperandGeneratorT;
   using PushParameter = PushParameterT;
@@ -467,27 +401,65 @@ class InstructionSelectorT final : public turboshaft::OperationMatcher {
 
   using source_position_table_t =
       turboshaft::GrowingOpIndexSidetable<SourcePosition>;
-  using Features = InstructionSelector::Features;
+
+  enum SourcePositionMode { kCallSourcePositions, kAllSourcePositions };
+  enum EnableScheduling { kDisableScheduling, kEnableScheduling };
+  enum EnableRootsRelativeAddressing {
+    kDisableRootsRelativeAddressing,
+    kEnableRootsRelativeAddressing
+  };
+  enum EnableSwitchJumpTable {
+    kDisableSwitchJumpTable,
+    kEnableSwitchJumpTable
+  };
+  enum EnableTraceTurboJson { kDisableTraceTurboJson, kEnableTraceTurboJson };
+
+  class Features final {
+   public:
+    Features() : bits_(0) {}
+    explicit Features(unsigned bits) : bits_(bits) {}
+    explicit Features(CpuFeature f) : bits_(1u << f) {}
+    Features(CpuFeature f1, CpuFeature f2) : bits_((1u << f1) | (1u << f2)) {}
+
+    bool Contains(CpuFeature f) const { return (bits_ & (1u << f)); }
+
+   private:
+    unsigned bits_;
+  };
+
+  static MachineOperatorBuilder::Flags SupportedMachineOperatorFlags();
+  static MachineOperatorBuilder::AlignmentRequirements AlignmentRequirements();
+
+  static InstructionSelectorT ForTurboshaft(
+      Zone* zone, size_t node_count, Linkage* linkage,
+      InstructionSequence* sequence, turboshaft::Graph* schedule, Frame* frame,
+      EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
+      JSHeapBroker* broker, size_t* max_unoptimized_frame_height,
+      size_t* max_pushed_argument_count,
+      SourcePositionMode source_position_mode = kCallSourcePositions,
+      Features features = SupportedFeatures(),
+      EnableScheduling enable_scheduling = v8_flags.turbo_instruction_scheduling
+                                               ? kEnableScheduling
+                                               : kDisableScheduling,
+      EnableRootsRelativeAddressing enable_roots_relative_addressing =
+          kDisableRootsRelativeAddressing,
+      EnableTraceTurboJson trace_turbo = kDisableTraceTurboJson);
 
   InstructionSelectorT(
       Zone* zone, size_t node_count, Linkage* linkage,
       InstructionSequence* sequence, turboshaft::Graph* schedule,
       source_position_table_t* source_positions, Frame* frame,
-      InstructionSelector::EnableSwitchJumpTable enable_switch_jump_table,
-      TickCounter* tick_counter, JSHeapBroker* broker,
-      size_t* max_unoptimized_frame_height, size_t* max_pushed_argument_count,
-      InstructionSelector::SourcePositionMode source_position_mode =
-          InstructionSelector::kCallSourcePositions,
+      EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
+      JSHeapBroker* broker, size_t* max_unoptimized_frame_height,
+      size_t* max_pushed_argument_count,
+      SourcePositionMode source_position_mode = kCallSourcePositions,
       Features features = SupportedFeatures(),
-      InstructionSelector::EnableScheduling enable_scheduling =
-          v8_flags.turbo_instruction_scheduling
-              ? InstructionSelector::kEnableScheduling
-              : InstructionSelector::kDisableScheduling,
-      InstructionSelector::EnableRootsRelativeAddressing
-          enable_roots_relative_addressing =
-              InstructionSelector::kDisableRootsRelativeAddressing,
-      InstructionSelector::EnableTraceTurboJson trace_turbo =
-          InstructionSelector::kDisableTraceTurboJson);
+      EnableScheduling enable_scheduling = v8_flags.turbo_instruction_scheduling
+                                               ? kEnableScheduling
+                                               : kDisableScheduling,
+      EnableRootsRelativeAddressing enable_roots_relative_addressing =
+          kDisableRootsRelativeAddressing,
+      EnableTraceTurboJson trace_turbo = kDisableTraceTurboJson);
 
   // Visit code for the entire graph with the included schedule.
   std::optional<BailoutReason> SelectInstructions();
@@ -1050,7 +1022,7 @@ class InstructionSelectorT final : public turboshaft::OperationMatcher {
   friend OperandGenerator;
 
   bool UseInstructionScheduling() const {
-    return (enable_scheduling_ == InstructionSelector::kEnableScheduling) &&
+    return (enable_scheduling_ == kEnableScheduling) &&
            InstructionScheduler::SchedulerSupported();
   }
 
@@ -1412,8 +1384,6 @@ class InstructionSelectorT final : public turboshaft::OperationMatcher {
   // Visit the load node with a value and opcode to replace with.
   void VisitLoad(turboshaft::OpIndex node, turboshaft::OpIndex value,
                  InstructionCode opcode);
-  void VisitLoadTransform(Node* node, Node* value, InstructionCode opcode);
-  void VisitFinishRegion(Node* node);
   void VisitParameter(turboshaft::OpIndex node);
   void VisitIfException(turboshaft::OpIndex node);
   void VisitOsrValue(turboshaft::OpIndex node);
@@ -1422,7 +1392,6 @@ class InstructionSelectorT final : public turboshaft::OperationMatcher {
   void VisitConstant(turboshaft::OpIndex node);
   void VisitCall(turboshaft::OpIndex call, turboshaft::Block* handler = {});
   void VisitDeoptimizeIf(turboshaft::OpIndex node);
-  void VisitDynamicCheckMapsWithDeoptUnless(Node* node);
   void VisitTrapIf(turboshaft::OpIndex node);
   void VisitTailCall(turboshaft::OpIndex call);
   void VisitGoto(turboshaft::Block* target);
@@ -1437,7 +1406,6 @@ class InstructionSelectorT final : public turboshaft::OperationMatcher {
   void VisitRetain(turboshaft::OpIndex node);
   void VisitUnreachable(turboshaft::OpIndex node);
   void VisitStaticAssert(turboshaft::OpIndex node);
-  void VisitDeadValue(Node* node);
   void VisitBitcastWord32PairToFloat64(turboshaft::OpIndex node);
 
   void TryPrepareScheduleFirstProjection(turboshaft::OpIndex maybe_projection);
@@ -1464,8 +1432,6 @@ class InstructionSelectorT final : public turboshaft::OperationMatcher {
   // subsequent operations, whether CallCFunction or normal floating-point
   // operations.
   void EmitMoveParamToFPR(turboshaft::OpIndex node, int index);
-
-  bool CanProduceSignalingNaN(Node* node);
 
   void AddOutputToSelectContinuation(OperandGenerator* g, int first_input_index,
                                      turboshaft::OpIndex node);
@@ -1569,8 +1535,6 @@ class InstructionSelectorT final : public turboshaft::OperationMatcher {
                                         ArchOpcode uint16_op,
                                         ArchOpcode uint32_op,
                                         ArchOpcode uint64_op);
-  void VisitWord64AtomicNarrowBinop(Node* node, ArchOpcode uint8_op,
-                                    ArchOpcode uint16_op, ArchOpcode uint32_op);
 
 #if V8_TARGET_ARCH_64_BIT
   bool ZeroExtendsWord32ToWord64(turboshaft::OpIndex node,
@@ -1616,7 +1580,7 @@ class InstructionSelectorT final : public turboshaft::OperationMatcher {
   Linkage* const linkage_;
   InstructionSequence* const sequence_;
   source_position_table_t* const source_positions_;
-  InstructionSelector::SourcePositionMode const source_position_mode_;
+  SourcePositionMode const source_position_mode_;
   Features features_;
   turboshaft::Graph* const schedule_;
   const turboshaft::Block* current_block_;
@@ -1631,10 +1595,9 @@ class InstructionSelectorT final : public turboshaft::OperationMatcher {
   IntVector virtual_registers_;
   IntVector virtual_register_rename_;
   InstructionScheduler* scheduler_;
-  InstructionSelector::EnableScheduling enable_scheduling_;
-  InstructionSelector::EnableRootsRelativeAddressing
-      enable_roots_relative_addressing_;
-  InstructionSelector::EnableSwitchJumpTable enable_switch_jump_table_;
+  EnableScheduling enable_scheduling_;
+  EnableRootsRelativeAddressing enable_roots_relative_addressing_;
+  EnableSwitchJumpTable enable_switch_jump_table_;
   ZoneUnorderedMap<FrameStateInput, CachedStateValues*,
                    typename FrameStateInput::Hash,
                    typename FrameStateInput::Equal>
@@ -1643,7 +1606,7 @@ class InstructionSelectorT final : public turboshaft::OperationMatcher {
   Frame* frame_;
   bool instruction_selection_failed_;
   ZoneVector<std::pair<int, int>> instr_origins_;
-  InstructionSelector::EnableTraceTurboJson trace_turbo_;
+  EnableTraceTurboJson trace_turbo_;
   TickCounter* const tick_counter_;
   // The broker is only used for unparking the LocalHeap for diagnostic printing
   // for failed StaticAsserts.
@@ -1668,6 +1631,9 @@ class InstructionSelectorT final : public turboshaft::OperationMatcher {
   ZoneVector<Upper32BitsState> phi_states_;
 #endif
 };
+
+// TODO(nicohartmann): Remove once InstructionSelectorT is renamed.
+using InstructionSelector = InstructionSelectorT;
 
 }  // namespace compiler
 }  // namespace internal
