@@ -25,7 +25,7 @@ class JSGlobalProxy;
 namespace compiler {
 
 // Forward declarations.
-enum class AccessMode;
+enum class AccessMode : uint8_t;
 class CommonOperatorBuilder;
 class CompilationDependencies;
 class ElementAccessInfo;

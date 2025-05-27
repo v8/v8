@@ -2688,7 +2688,7 @@ enum IsolateAddressId {
   V(TrapArrayTooLarge)             \
   V(TrapStringOffsetOutOfBounds)
 
-enum class KeyedAccessLoadMode {
+enum class KeyedAccessLoadMode : uint8_t {
   kInBounds = 0b00,
   kHandleOOB = 0b01,
   kHandleHoles = 0b10,
@@ -2720,7 +2720,7 @@ inline bool LoadModeHandlesHoles(KeyedAccessLoadMode load_mode) {
           static_cast<T>(KeyedAccessLoadMode::kHandleHoles)) != 0;
 }
 
-enum class KeyedAccessStoreMode {
+enum class KeyedAccessStoreMode : uint8_t {
   kInBounds,
   kGrowAndHandleCOW,
   kIgnoreTypedArrayOOB,

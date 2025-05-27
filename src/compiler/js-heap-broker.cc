@@ -350,28 +350,23 @@ bool KeyedAccessMode::IsStore() const {
 
 KeyedAccessLoadMode KeyedAccessMode::load_mode() const {
   CHECK(IsLoad());
-  return load_store_mode_.load_mode;
+  return load_mode_;
 }
 
 KeyedAccessStoreMode KeyedAccessMode::store_mode() const {
   CHECK(IsStore());
-  return load_store_mode_.store_mode;
+  return store_mode_;
 }
-
-KeyedAccessMode::LoadStoreMode::LoadStoreMode(KeyedAccessLoadMode load_mode)
-    : load_mode(load_mode) {}
-KeyedAccessMode::LoadStoreMode::LoadStoreMode(KeyedAccessStoreMode store_mode)
-    : store_mode(store_mode) {}
 
 KeyedAccessMode::KeyedAccessMode(AccessMode access_mode,
                                  KeyedAccessLoadMode load_mode)
-    : access_mode_(access_mode), load_store_mode_(load_mode) {
+    : access_mode_(access_mode), load_mode_(load_mode) {
   CHECK(!IsStore());
   CHECK(IsLoad());
 }
 KeyedAccessMode::KeyedAccessMode(AccessMode access_mode,
                                  KeyedAccessStoreMode store_mode)
-    : access_mode_(access_mode), load_store_mode_(store_mode) {
+    : access_mode_(access_mode), store_mode_(store_mode) {
   CHECK(!IsLoad());
   CHECK(IsStore());
 }

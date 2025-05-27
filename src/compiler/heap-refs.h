@@ -60,7 +60,13 @@ class PropertyAccessInfo;
 // distinct semantics for private class fields (in which private field
 // accesses must throw when storing a field which does not exist, or
 // adding/defining a field which already exists).
-enum class AccessMode { kLoad, kStore, kStoreInLiteral, kHas, kDefine };
+enum class AccessMode : uint8_t {
+  kLoad,
+  kStore,
+  kStoreInLiteral,
+  kHas,
+  kDefine
+};
 
 inline bool IsAnyStore(AccessMode mode) {
   return mode == AccessMode::kStore || mode == AccessMode::kStoreInLiteral ||
