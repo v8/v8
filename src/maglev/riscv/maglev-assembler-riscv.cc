@@ -527,9 +527,9 @@ void MaglevAssembler::SeqOneByteStringCharCodeAt(Register result,
                                                  Register string,
                                                  Register index) {
   ASM_CODE_COMMENT(this);
-  TemporaryRegisterScope scope(this);
-  Register scratch = scope.AcquireScratch();
   if (v8_flags.debug_code) {
+    TemporaryRegisterScope scope(this);
+    Register scratch = scope.AcquireScratch();
     // Check if {string} is a string.
     AssertNotSmi(string);
     LoadMap(scratch, string);
@@ -542,10 +542,13 @@ void MaglevAssembler::SeqOneByteStringCharCodeAt(Register result,
     CompareInt32AndAssert(scratch, kSeqOneByteStringTag, kEqual,
                           AbortReason::kUnexpectedValue);
     LoadInt32(scratch, FieldMemOperand(string, offsetof(String, length_)));
-    scope.IncludeScratch({s7});  // Use s7 to avoid no enough scrachreg.
+    // Use kMaglevFlagsRegister to avoid no enough scratch reg.
+    scope.IncludeScratch({kMaglevFlagsRegister});
     CompareInt32AndAssert(index, scratch, kUnsignedLessThan,
                           AbortReason::kUnexpectedValue);
   }
+  TemporaryRegisterScope scope(this);
+  Register scratch = scope.AcquireScratch();
   AddWord(scratch, index,
           Operand(OFFSET_OF_DATA_START(SeqOneByteString) - kHeapObjectTag));
   AddWord(scratch, string, Operand(scratch));
