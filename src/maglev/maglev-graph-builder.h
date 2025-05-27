@@ -2555,6 +2555,9 @@ class MaglevGraphBuilder {
                                     NodeType length_type = NodeType::kSmi);
   ValueNode* BuildLoadElements(ValueNode* object);
 
+  ValueNode* BuildLoadJSFunctionFeedbackCell(ValueNode* closure);
+  ValueNode* BuildLoadJSFunctionContext(ValueNode* closure);
+
   MaybeReduceResult TryBuildCheckInt32Condition(
       ValueNode* lhs, ValueNode* rhs, AssertCondition condition,
       DeoptimizeReason reason, bool allow_unconditional_deopt = true);

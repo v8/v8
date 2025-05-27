@@ -4518,7 +4518,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
       return NodeType::kName;
     case Opcode::kFastCreateClosure:
     case Opcode::kCreateClosure:
-      return NodeType::kCallable;
+      return NodeType::kJSFunction;
     case Opcode::kInt32Compare:
     case Opcode::kFloat64Compare:
     case Opcode::kGenericEqual:
@@ -5920,6 +5920,30 @@ ValueNode* MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array,
   RecordKnownProperty(js_array, broker()->length_string(), length, false,
                       compiler::AccessMode::kLoad);
   return length;
+}
+
+ValueNode* MaglevGraphBuilder::BuildLoadJSFunctionFeedbackCell(
+    ValueNode* closure) {
+  DCHECK(NodeTypeIs(GetType(closure), NodeType::kJSFunction));
+  if (auto constant = TryGetConstant(broker(), local_isolate(), closure)) {
+    if (constant->IsJSFunction()) {
+      return GetConstant(constant->AsJSFunction().raw_feedback_cell(broker()));
+    }
+  }
+  if (auto fast_closure = closure->TryCast<FastCreateClosure>()) {
+    return GetConstant(fast_closure->feedback_cell());
+  }
+  return BuildLoadTaggedField(closure, JSFunction::kFeedbackCellOffset);
+}
+
+ValueNode* MaglevGraphBuilder::BuildLoadJSFunctionContext(ValueNode* closure) {
+  DCHECK(NodeTypeIs(GetType(closure), NodeType::kJSFunction));
+  if (auto constant = TryGetConstant(broker(), local_isolate(), closure)) {
+    if (constant->IsJSFunction()) {
+      return GetConstant(constant->AsJSFunction().context(broker()));
+    }
+  }
+  return BuildLoadTaggedField(closure, JSFunction::kContextOffset);
 }
 
 void MaglevGraphBuilder::BuildStoreMap(ValueNode* object, compiler::MapRef map,
@@ -11645,12 +11669,11 @@ ReduceResult MaglevGraphBuilder::BuildCallWithFeedback(
         }
         RETURN_IF_ABORT(BuildCheckJSFunction(target_node));
         ValueNode* target_feedback_cell =
-            BuildLoadTaggedField(target_node, JSFunction::kFeedbackCellOffset);
+            BuildLoadJSFunctionFeedbackCell(target_node);
         RETURN_IF_ABORT(
             BuildCheckValueByReference(target_feedback_cell, feedback_cell,
                                        DeoptimizeReason::kWrongFeedbackCell));
-        ValueNode* context =
-            BuildLoadTaggedField(target_node, JSFunction::kContextOffset);
+        ValueNode* context = BuildLoadJSFunctionContext(target_node);
         compiler::ScopeInfoRef scope_info = shared->scope_info(broker());
         if (scope_info.HasOuterScopeInfo()) {
           scope_info = scope_info.OuterScopeInfo(broker());
