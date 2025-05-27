@@ -2830,6 +2830,7 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
   int call_pc_offset;
   {
     ConstantPoolUnavailableScope block_const_pool_scope(this);
+    BlockTrampolinePoolScope block_trampoline_pool(this);
     Call(dest);
     call_pc_offset = pc_offset();
     int offset_since_start_call = SizeOfCodeGeneratedSince(&start_call);
@@ -2845,7 +2846,8 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
         CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
     int stack_space = kNumRequiredStackFrameSlots + stack_passed_arguments;
     if (ActivationFrameAlignment() > kSystemPointerSize) {
-      LoadU64(sp, MemOperand(sp, stack_space * kSystemPointerSize), r0);
+      // Using prefixed load may emit `nop` which then fails the check below.
+      ld(sp, MemOperand(sp, stack_space * kSystemPointerSize));
     } else {
       AddS64(sp, sp, Operand(stack_space * kSystemPointerSize), r0);
     }
