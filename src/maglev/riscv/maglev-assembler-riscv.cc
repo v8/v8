@@ -472,9 +472,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // {instance_type} is unused from this point, so we can use as scratch.
     Register scratch = instance_type;
 
-    Register scaled_index = scratch;
-    Sll32(scaled_index, index, Operand(1));
-    AddWord(result, string, Operand(scaled_index));
+    CalcScaledAddress(result, string, index, 1);
     Lhu(result, MemOperand(result, OFFSET_OF_DATA_START(SeqTwoByteString) -
                                        kHeapObjectTag));
 
@@ -491,8 +489,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
                              Label::kNear);
 
       Register second_code_point = scratch;
-      Sll32(second_code_point, index, Operand(1));
-      AddWord(second_code_point, string, second_code_point);
+      CalcScaledAddress(second_code_point, string, index, 1);
       Lhu(second_code_point,
           MemOperand(second_code_point,
                      OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag));
