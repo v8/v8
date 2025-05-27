@@ -63,8 +63,8 @@ std::vector<SourcePositionInfo> SourcePosition::InliningStack(
 
 std::vector<SourcePositionInfo> SourcePosition::InliningStack(
     Isolate* isolate, Tagged<Code> code) const {
-  Tagged<DeoptimizationData> deopt_data =
-      Cast<DeoptimizationData>(code->deoptimization_data());
+  Handle<DeoptimizationData> deopt_data(
+      Cast<DeoptimizationData>(code->deoptimization_data()), isolate);
   SourcePosition pos = *this;
   std::vector<SourcePositionInfo> stack;
   while (pos.isInlined()) {
