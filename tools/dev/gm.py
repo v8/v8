@@ -755,6 +755,9 @@ class ArgumentParser(object):
   def parse_arguments(self, argv):
     if len(argv) == 0:
       print_help_and_exit()
+    if len(argv) >= 2 and argv[0] == "args" and os.path.exists(argv[1]):
+      code = _call(f"gn args {argv[1]}")
+      sys.exit(code)
     for argstring in argv:
       self.parse_arg(argstring)
     self.process_global_actions()
