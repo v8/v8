@@ -5,7 +5,6 @@
 #include <optional>
 
 #include "src/base/logging.h"
-#include "src/compiler/backend/instruction-selector-adapter.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/opmasks.h"
@@ -216,14 +215,14 @@ class S390OperandGeneratorT final : public OperandGeneratorT {
 
   bool CanBeMemoryOperand(InstructionCode opcode, OpIndex user, OpIndex input,
                           int effect_level) {
-    if (!this->IsLoadOrLoadImmutable(input)) return false;
+    if (!selector()->IsLoadOrLoadImmutable(input)) return false;
     if (!selector()->CanCover(user, input)) return false;
     if (effect_level != selector()->GetEffectLevel(input)) {
       return false;
     }
 
     MachineRepresentation rep =
-        this->load_view(input).loaded_rep().representation();
+        selector()->load_view(input).loaded_rep().representation();
     switch (opcode) {
       case kS390_Cmp64:
       case kS390_LoadAndTestWord64:
@@ -295,8 +294,7 @@ class S390OperandGeneratorT final : public OperandGeneratorT {
       OperandModes immediate_mode = OperandMode::kInt20Imm) {
     auto m = TryMatchBaseWithScaledIndexAndDisplacement64(selector(), operand);
     DCHECK(m.has_value());
-    if (m->base.valid() &&
-        this->Get(m->base).template Is<LoadRootRegisterOp>() &&
+    if (m->base.valid() && selector()->Get(m->base).Is<LoadRootRegisterOp>() &&
         !m->index.valid()) {
       DCHECK_EQ(m->scale, 0);
       inputs[(*input_count)++] =
@@ -903,7 +901,7 @@ void InstructionSelectorT::VisitLoad(OpIndex node, OpIndex value,
 }
 
 void InstructionSelectorT::VisitLoad(OpIndex node) {
-  TurboshaftAdapter::LoadView view = this->load_view(node);
+  LoadView view = load_view(node);
   VisitLoad(node, node,
             SelectLoadOpcode(view.ts_loaded_rep(), view.ts_result_rep()));
 }
@@ -918,23 +916,23 @@ static void VisitGeneralStore(
     WriteBarrierKind write_barrier_kind = kNoWriteBarrier) {
   S390OperandGeneratorT g(selector);
 
-  auto store_view = selector->store_view(node);
-  DCHECK_EQ(store_view.element_size_log2(), 0);
+  auto store = selector->store_view(node);
+  DCHECK_EQ(store.element_size_log2(), 0);
 
-  OpIndex base = store_view.base();
-  OptionalOpIndex index = store_view.index();
-  OpIndex value = store_view.value();
-  int32_t displacement = store_view.displacement();
+  OpIndex base = store.base();
+  OptionalOpIndex index = store.index();
+  OpIndex value = store.value();
+  int32_t displacement = store.displacement();
 
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
     DCHECK(CanBeTaggedOrCompressedPointer(rep));
     // Uncompressed stores should not happen if we need a write barrier.
-    CHECK((store_view.ts_stored_rep() !=
+    CHECK((store.ts_stored_rep() !=
            MemoryRepresentation::AnyUncompressedTagged()) &&
-          (store_view.ts_stored_rep() !=
+          (store.ts_stored_rep() !=
            MemoryRepresentation::UncompressedTaggedPointer()) &&
-          (store_view.ts_stored_rep() !=
+          (store.ts_stored_rep() !=
            MemoryRepresentation::UncompressedTaggedPointer()));
     AddressingMode addressing_mode;
     InstructionOperand inputs[4];
@@ -956,7 +954,7 @@ static void VisitGeneralStore(
   } else {
     ArchOpcode opcode;
 
-    switch (store_view.ts_stored_rep()) {
+    switch (store.ts_stored_rep()) {
       case MemoryRepresentation::Int8():
       case MemoryRepresentation::Uint8():
         opcode = kS390_StoreWord8;
@@ -1039,7 +1037,7 @@ static void VisitGeneralStore(
 void InstructionSelectorT::VisitStorePair(OpIndex node) { UNREACHABLE(); }
 
 void InstructionSelectorT::VisitStore(OpIndex node) {
-  StoreRepresentation store_rep = this->store_view(node).stored_rep();
+  StoreRepresentation store_rep = store_view(node).stored_rep();
   WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
   MachineRepresentation rep = store_rep.representation();
 
@@ -1342,7 +1340,7 @@ void InstructionSelectorT::VisitWord64ReverseBytes(OpIndex node) {
   OpIndex input = this->Get(node).input(0);
   const Operation& input_op = this->Get(input);
   if (CanCover(node, input) && input_op.Is<LoadOp>()) {
-    auto load = this->load_view(input);
+    auto load = load_view(input);
     LoadRepresentation load_rep = load.loaded_rep();
     if (load_rep.representation() == MachineRepresentation::kWord64) {
       InstructionOperand outputs[] = {g.DefineAsRegister(node)};
@@ -1365,7 +1363,7 @@ void InstructionSelectorT::VisitWord32ReverseBytes(OpIndex node) {
   OpIndex input = this->Get(node).input(0);
   const Operation& input_op = this->Get(input);
   if (CanCover(node, input) && input_op.Is<LoadOp>()) {
-    auto load = this->load_view(input);
+    auto load = load_view(input);
     LoadRepresentation load_rep = load.loaded_rep();
     if (load_rep.representation() == MachineRepresentation::kWord32) {
       InstructionOperand outputs[] = {g.DefineAsRegister(node)};
@@ -1388,7 +1386,7 @@ void InstructionSelectorT::VisitSimd128ReverseBytes(OpIndex node) {
   OpIndex input = this->Get(node).input(0);
   const Operation& input_op = this->Get(input);
   if (CanCover(node, input) && input_op.Is<LoadOp>()) {
-    auto load = this->load_view(input);
+    auto load = load_view(input);
     LoadRepresentation load_rep = load.loaded_rep();
     if (load_rep.representation() == MachineRepresentation::kSimd128) {
       InstructionOperand outputs[] = {g.DefineAsRegister(node)};
@@ -2186,7 +2184,7 @@ void InstructionSelectorT::VisitWordCompareZero(OpIndex user, OpIndex value,
     } else if (value_op.Is<Opmask::kWord32BitwiseAnd>()) {
       return VisitTestUnderMask(this, value, cont);
     } else if (value_op.Is<LoadOp>()) {
-      auto load = this->load_view(value);
+      auto load = load_view(value);
       LoadRepresentation load_rep = load.loaded_rep();
       switch (load_rep.representation()) {
         case MachineRepresentation::kWord32:
@@ -2424,13 +2422,13 @@ void InstructionSelectorT::VisitMemoryBarrier(OpIndex node) {
 bool InstructionSelectorT::IsTailCallAddressImmediate() { return false; }
 
 void InstructionSelectorT::VisitWord32AtomicLoad(OpIndex node) {
-  auto load = this->load_view(node);
+  auto load = load_view(node);
   LoadRepresentation load_rep = load.loaded_rep();
   VisitLoad(node, node, SelectLoadOpcode(load_rep));
 }
 
 void InstructionSelectorT::VisitWord32AtomicStore(OpIndex node) {
-  auto store = this->store_view(node);
+  auto store = store_view(node);
   AtomicStoreParameters store_params(store.stored_rep().representation(),
                                      store.stored_rep().write_barrier_kind(),
                                      store.memory_order().value(),
@@ -2671,13 +2669,13 @@ VISIT_ATOMIC64_BINOP(Xor)
 #undef VISIT_ATOMIC64_BINOP
 
 void InstructionSelectorT::VisitWord64AtomicLoad(OpIndex node) {
-  auto load = this->load_view(node);
+  auto load = load_view(node);
   LoadRepresentation load_rep = load.loaded_rep();
   VisitLoad(node, node, SelectLoadOpcode(load_rep));
 }
 
 void InstructionSelectorT::VisitWord64AtomicStore(OpIndex node) {
-  auto store = this->store_view(node);
+  auto store = store_view(node);
   AtomicStoreParameters store_params(store.stored_rep().representation(),
                                      store.stored_rep().write_barrier_kind(),
                                      store.memory_order().value(),

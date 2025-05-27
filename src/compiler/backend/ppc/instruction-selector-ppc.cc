@@ -339,13 +339,13 @@ ArchOpcode SelectLoadOpcode(LoadRepresentation load_rep, ImmediateMode* mode) {
 static void VisitLoadCommon(InstructionSelectorT* selector, OpIndex node,
                             ImmediateMode mode, InstructionCode opcode) {
   PPCOperandGeneratorT g(selector);
-  auto load_view = selector->load_view(node);
-  OpIndex base = load_view.base();
-  OpIndex offset = load_view.index();
+  auto load = selector->load_view(node);
+  OpIndex base = load.base();
+  OpIndex offset = load.index();
 
-  bool is_atomic = load_view.is_atomic();
+  bool is_atomic = load.is_atomic();
 
-  if (selector->is_load_root_register(base)) {
+  if (selector->Is<LoadRootRegisterOp>(base)) {
     selector->Emit(opcode |= AddressingModeField::encode(kMode_Root),
                    g.DefineAsRegister(node), g.UseRegister(offset),
                    g.UseImmediate(is_atomic));
@@ -365,11 +365,11 @@ static void VisitLoadCommon(InstructionSelectorT* selector, OpIndex node,
 }
 
 void InstructionSelectorT::VisitLoad(OpIndex node) {
-  TurboshaftAdapter::LoadView load_view = this->load_view(node);
+  LoadView load = load_view(node);
   ImmediateMode mode;
-    InstructionCode opcode = SelectLoadOpcode(load_view.ts_loaded_rep(),
-                                              load_view.ts_result_rep(), &mode);
-    VisitLoadCommon(this, node, mode, opcode);
+  InstructionCode opcode =
+      SelectLoadOpcode(load.ts_loaded_rep(), load.ts_result_rep(), &mode);
+  VisitLoadCommon(this, node, mode, opcode);
 }
 
 void InstructionSelectorT::VisitProtectedLoad(OpIndex node) {
@@ -381,11 +381,11 @@ void VisitStoreCommon(InstructionSelectorT* selector, OpIndex node,
                       StoreRepresentation store_rep,
                       std::optional<AtomicMemoryOrder> atomic_order) {
   PPCOperandGeneratorT g(selector);
-  auto store_view = selector->store_view(node);
-  OpIndex base = store_view.base();
-  OpIndex offset = store_view.index().value();
-  OpIndex value = store_view.value();
-  bool is_atomic = store_view.is_atomic();
+  auto store = selector->store_view(node);
+  OpIndex base = store.base();
+  OpIndex offset = store.index().value();
+  OpIndex value = store.value();
+  bool is_atomic = store.is_atomic();
 
   MachineRepresentation rep = store_rep.representation();
   WriteBarrierKind write_barrier_kind = kNoWriteBarrier;
@@ -403,11 +403,11 @@ void VisitStoreCommon(InstructionSelectorT* selector, OpIndex node,
       !v8_flags.disable_write_barriers) {
     DCHECK(CanBeTaggedOrCompressedOrIndirectPointer(rep));
     // Uncompressed stores should not happen if we need a write barrier.
-    CHECK((store_view.ts_stored_rep() !=
+    CHECK((store.ts_stored_rep() !=
            MemoryRepresentation::AnyUncompressedTagged()) &&
-          (store_view.ts_stored_rep() !=
+          (store.ts_stored_rep() !=
            MemoryRepresentation::UncompressedTaggedPointer()) &&
-          (store_view.ts_stored_rep() !=
+          (store.ts_stored_rep() !=
            MemoryRepresentation::UncompressedTaggedPointer()));
     AddressingMode addressing_mode;
     InstructionOperand inputs[4];
@@ -434,7 +434,7 @@ void VisitStoreCommon(InstructionSelectorT* selector, OpIndex node,
       DCHECK_EQ(write_barrier_kind, kIndirectPointerWriteBarrier);
       // In this case we need to add the IndirectPointerTag as additional input.
       code = kArchStoreIndirectWithWriteBarrier;
-      IndirectPointerTag tag = store_view.indirect_pointer_tag();
+      IndirectPointerTag tag = store.indirect_pointer_tag();
       inputs[input_count++] = g.UseImmediate(static_cast<int64_t>(tag));
     } else {
       code = kArchStoreWithWriteBarrier;
@@ -451,7 +451,7 @@ void VisitStoreCommon(InstructionSelectorT* selector, OpIndex node,
     } else {
       mode = kInt16Imm;
     }
-    switch (store_view.ts_stored_rep()) {
+    switch (store.ts_stored_rep()) {
       case MemoryRepresentation::Int8():
       case MemoryRepresentation::Uint8():
         opcode = kPPC_StoreWord8;
@@ -523,7 +523,7 @@ void VisitStoreCommon(InstructionSelectorT* selector, OpIndex node,
         UNREACHABLE();
     }
 
-    if (selector->is_load_root_register(base)) {
+    if (selector->Is<LoadRootRegisterOp>(base)) {
       selector->Emit(opcode | AddressingModeField::encode(kMode_Root),
                      g.NoOutput(), g.UseRegister(offset), g.UseRegister(value),
                      g.UseImmediate(is_atomic));
@@ -546,8 +546,7 @@ void VisitStoreCommon(InstructionSelectorT* selector, OpIndex node,
 void InstructionSelectorT::VisitStorePair(OpIndex node) { UNREACHABLE(); }
 
 void InstructionSelectorT::VisitStore(OpIndex node) {
-  VisitStoreCommon(this, node, this->store_view(node).stored_rep(),
-                   std::nullopt);
+  VisitStoreCommon(this, node, store_view(node).stored_rep(), std::nullopt);
 }
 
 void InstructionSelectorT::VisitProtectedStore(OpIndex node) {
@@ -1076,7 +1075,7 @@ void InstructionSelectorT::VisitWord64ReverseBytes(OpIndex node) {
   OpIndex input = this->Get(node).input(0);
   const Operation& input_op = this->Get(input);
   if (CanCover(node, input) && input_op.Is<LoadOp>()) {
-    auto load = this->load_view(input);
+    auto load = load_view(input);
     LoadRepresentation load_rep = load.loaded_rep();
     if (load_rep.representation() == MachineRepresentation::kWord64) {
       OpIndex base = load.base();
@@ -1098,7 +1097,7 @@ void InstructionSelectorT::VisitWord32ReverseBytes(OpIndex node) {
   OpIndex input = this->Get(node).input(0);
   const Operation& input_op = this->Get(input);
   if (CanCover(node, input) && input_op.Is<LoadOp>()) {
-    auto load = this->load_view(input);
+    auto load = load_view(input);
     LoadRepresentation load_rep = load.loaded_rep();
     if (load_rep.representation() == MachineRepresentation::kWord32) {
       OpIndex base = load.base();
@@ -2072,21 +2071,21 @@ void InstructionSelectorT::VisitMemoryBarrier(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitWord32AtomicLoad(OpIndex node) {
-  auto load_view = this->load_view(node);
+  auto load = load_view(node);
   ImmediateMode mode;
-  InstructionCode opcode = SelectLoadOpcode(load_view.loaded_rep(), &mode);
+  InstructionCode opcode = SelectLoadOpcode(load.loaded_rep(), &mode);
   VisitLoadCommon(this, node, mode, opcode);
 }
 
 void InstructionSelectorT::VisitWord64AtomicLoad(OpIndex node) {
-  auto load_view = this->load_view(node);
+  auto load = load_view(node);
   ImmediateMode mode;
-  InstructionCode opcode = SelectLoadOpcode(load_view.loaded_rep(), &mode);
+  InstructionCode opcode = SelectLoadOpcode(load.loaded_rep(), &mode);
   VisitLoadCommon(this, node, mode, opcode);
 }
 
 void InstructionSelectorT::VisitWord32AtomicStore(OpIndex node) {
-  auto store = this->store_view(node);
+  auto store = store_view(node);
   AtomicStoreParameters store_params(store.stored_rep().representation(),
                                      store.stored_rep().write_barrier_kind(),
                                      store.memory_order().value(),
@@ -2096,7 +2095,7 @@ void InstructionSelectorT::VisitWord32AtomicStore(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitWord64AtomicStore(OpIndex node) {
-  auto store = this->store_view(node);
+  auto store = store_view(node);
   AtomicStoreParameters store_params(store.stored_rep().representation(),
                                      store.stored_rep().write_barrier_kind(),
                                      store.memory_order().value(),
