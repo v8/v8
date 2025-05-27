@@ -11637,7 +11637,12 @@ ReduceResult MaglevGraphBuilder::BuildCallWithFeedback(
           call_feedback.target()->AsFeedbackCell();
       compiler::OptionalSharedFunctionInfoRef shared =
           feedback_cell.shared_function_info(broker());
-      if (shared.has_value()) {
+      if (shared.has_value() && !shared->HasBreakInfo(broker())) {
+        if (IsClassConstructor(shared->kind())) {
+          // If we have a class constructor, we should raise an exception.
+          return BuildCallRuntime(Runtime::kThrowConstructorNonCallableError,
+                                  {target_node});
+        }
         RETURN_IF_ABORT(BuildCheckJSFunction(target_node));
         ValueNode* target_feedback_cell =
             BuildLoadTaggedField(target_node, JSFunction::kFeedbackCellOffset);
