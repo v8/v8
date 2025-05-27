@@ -70,8 +70,8 @@ namespace {
 #define PARAM_REGISTERS a0, a1, a2, a3, a4, a5, a6, a7
 #define FP_PARAM_REGISTERS f12, f13, f14, f15, f16, f17, f18, f19
 #define FP_RETURN_REGISTER f0
-#define CALLEE_SAVE_REGISTERS s0, s1, s2, s3, s4, s5, s6, s7
-#define CALLEE_SAVE_FP_REGISTERS f20, f22, f24, f26, f28, f30
+#define CALLEE_SAVE_REGISTERS C_CALL_CALLEE_SAVE_REGISTERS
+#define CALLEE_SAVE_FP_REGISTERS C_CALL_CALLEE_SAVE_FP_REGISTERS
 
 #elif V8_TARGET_ARCH_LOONG64
 // ===========================================================================
@@ -80,8 +80,8 @@ namespace {
 #define PARAM_REGISTERS a0, a1, a2, a3, a4, a5, a6, a7
 #define FP_PARAM_REGISTERS f0, f1, f2, f3, f4, f5, f6, f7
 #define FP_RETURN_REGISTER f0
-#define CALLEE_SAVE_REGISTERS s0, s1, s2, s3, s4, s5, s6, s7, s8, fp
-#define CALLEE_SAVE_FP_REGISTERS f24, f25, f26, f27, f28, f29, f30, f31
+#define CALLEE_SAVE_REGISTERS C_CALL_CALLEE_SAVE_REGISTERS
+#define CALLEE_SAVE_FP_REGISTERS C_CALL_CALLEE_SAVE_FP_REGISTERS
 
 #elif V8_TARGET_ARCH_PPC64
 // ===========================================================================
