@@ -4921,8 +4921,8 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableWasmTypeCast(object, rtt, config);
   }
 
-  V<Object> AnyConvertExtern(V<Object> input) {
-    return ReduceIfReachableAnyConvertExtern(input);
+  V<Object> AnyConvertExtern(V<Object> input, bool is_shared) {
+    return ReduceIfReachableAnyConvertExtern(input, is_shared);
   }
 
   V<Object> ExternConvertAny(V<Object> input) {

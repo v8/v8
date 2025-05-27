@@ -687,6 +687,19 @@ struct BuiltinCallDescriptor {
         base_effects.CanAllocateWithoutIdentity();
   };
 
+  struct WasmInt32ToSharedHeapNumber
+      : public Descriptor<WasmInt32ToSharedHeapNumber> {
+    static constexpr auto kFunction = Builtin::kWasmInt32ToSharedHeapNumber;
+    using arguments_t = std::tuple<V<Word32>>;
+    using results_t = std::tuple<V<HeapNumber>>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kPure;
+    static constexpr OpEffects kEffects =
+        base_effects.CanAllocateWithoutIdentity();
+  };
+
   struct WasmRefFunc : public Descriptor<WasmRefFunc> {
     static constexpr auto kFunction = Builtin::kWasmRefFunc;
     using arguments_t = std::tuple<V<Word32>, V<Word32>>;

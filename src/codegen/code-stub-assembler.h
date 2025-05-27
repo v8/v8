@@ -2011,6 +2011,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return AllocateHeapNumberWithValue(Float64Constant(value));
   }
 
+  // Allocate a shared HeapNumber with a specific value.
+  TNode<HeapNumber> AllocateSharedHeapNumberWithValue(TNode<Float64T> value);
+
   TNode<ContextCell> AllocateContextCell(TNode<Object> value);
 
   // Allocate a BigInt with {length} digits. Sets the sign bit to {false}.

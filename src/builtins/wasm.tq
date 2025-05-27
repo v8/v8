@@ -108,6 +108,8 @@ macro NumberToUint32(input: Number): uint32 {
 namespace wasm {
 const kAnyType: constexpr int31
     generates 'wasm::kWasmAnyRef.raw_bit_field()';
+const kSharedAnyType: constexpr int31
+    generates 'wasm::kWasmSharedAnyRef.raw_bit_field()';
 const kMaxPolymorphism:
     constexpr int31 generates 'wasm::kMaxPolymorphism';
 const kFixedFrameSizeAboveFp: constexpr int32
@@ -171,6 +173,10 @@ macro LoadMaybeSharedInstanceDataFromFrame(extractSharedData: Smi):
 
 builtin WasmInt32ToHeapNumber(val: int32): HeapNumber {
   return AllocateHeapNumberWithValue(Convert<float64>(val));
+}
+
+builtin WasmInt32ToSharedHeapNumber(val: int32): HeapNumber {
+  return AllocateSharedHeapNumberWithValue(Convert<float64>(val));
 }
 
 builtin WasmFuncRefToJS(
@@ -1579,6 +1585,15 @@ builtin WasmAnyConvertExtern(externObject: JSAny): JSAny {
   tail runtime::WasmJSToWasmObject(
       context, externObject, SmiConstant(kAnyType));
 }
+
+builtin WasmAnyConvertExternShared(externObject: JSAny): JSAny {
+  const trustedData = LoadInstanceDataFromFrame();
+  const context = LoadContextFromInstanceData(trustedData);
+
+  tail runtime::WasmJSToWasmObject(
+      context, externObject, SmiConstant(kSharedAnyType));
+}
+
 
 extern macro CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
     JSReceiver, HeapObject, Context): JSReceiver;

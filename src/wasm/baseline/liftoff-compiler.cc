@@ -2312,7 +2312,9 @@ class LiftoffCompiler {
         return EmitIsNull(opcode, value.type);
       case kExprAnyConvertExtern: {
         VarState input_state = __ cache_state()->stack_state.back();
-        CallBuiltin(Builtin::kWasmAnyConvertExtern,
+        const bool is_shared = value.type.is_shared();
+        CallBuiltin(is_shared ? Builtin::kWasmAnyConvertExternShared
+                              : Builtin::kWasmAnyConvertExtern,
                     MakeSig::Returns(kRefNull).Params(kRefNull), {input_state},
                     decoder->position());
         __ DropValues(1);

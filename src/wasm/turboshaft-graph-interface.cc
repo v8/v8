@@ -7108,7 +7108,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         // as a sentinel for the negation of ref.is_null.
         return __ Word32Equal(__ IsNull(arg, input_type), 0);
       case kExprAnyConvertExtern:
-        return __ AnyConvertExtern(arg);
+        return __ AnyConvertExtern(arg, input_type.is_shared());
       case kExprExternConvertAny:
         return __ ExternConvertAny(arg);
       default:

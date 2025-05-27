@@ -135,7 +135,7 @@ class WasmLoweringReducer : public Next {
     }
   }
 
-  V<Object> REDUCE(AnyConvertExtern)(V<Object> object) {
+  V<Object> REDUCE(AnyConvertExtern)(V<Object> object, bool is_shared) {
     Label<Object> end_label(&Asm());
     Label<> null_label(&Asm());
     Label<> smi_label(&Asm());
@@ -170,8 +170,13 @@ class WasmLoweringReducer : public Next {
       GOTO(end_label, object);
 
       BIND(convert_to_heap_number_label);
-      V<Object> heap_number = __ template WasmCallBuiltinThroughJumptable<
-          BuiltinCallDescriptor::WasmInt32ToHeapNumber>({int_value});
+      V<Object> heap_number =
+          is_shared
+              ? __ template WasmCallBuiltinThroughJumptable<
+                    BuiltinCallDescriptor::WasmInt32ToSharedHeapNumber>(
+                    {int_value})
+              : __ template WasmCallBuiltinThroughJumptable<
+                    BuiltinCallDescriptor::WasmInt32ToHeapNumber>({int_value});
       GOTO(end_label, heap_number);
     }
 

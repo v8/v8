@@ -412,8 +412,10 @@ class WasmGCTypedOptimizationReducer : public Next {
 
   // TODO(14108): This isn't a type optimization and doesn't fit well into this
   // reducer.
-  V<Object> REDUCE(AnyConvertExtern)(V<Object> object) {
-    LABEL_BLOCK(no_change) { return Next::ReduceAnyConvertExtern(object); }
+  V<Object> REDUCE(AnyConvertExtern)(V<Object> object, bool is_shared) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceAnyConvertExtern(object, is_shared);
+    }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     if (object.valid()) {

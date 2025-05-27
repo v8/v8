@@ -1323,6 +1323,7 @@ extern macro IsInteger(JSAny): bool;
 extern macro IsInteger(HeapNumber): bool;
 
 extern macro AllocateHeapNumberWithValue(float64): HeapNumber;
+extern macro AllocateSharedHeapNumberWithValue(float64): HeapNumber;
 extern macro AllocateContextCell(Object): ContextCell;
 extern macro ChangeInt32ToTagged(int32): Number;
 extern macro ChangeUint32ToTagged(uint32): Number;

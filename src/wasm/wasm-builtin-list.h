@@ -24,6 +24,7 @@ namespace v8::internal::wasm {
   V(WasmLiftoffFrameSetup)                                                     \
   V(WasmDebugBreak)                                                            \
   V(WasmInt32ToHeapNumber)                                                     \
+  V(WasmInt32ToSharedHeapNumber)                                               \
   V(WasmFloat64ToString)                                                       \
   V(WasmStringToDouble)                                                        \
   V(WasmIntToString)                                                           \
@@ -138,6 +139,7 @@ namespace v8::internal::wasm {
   V(WasmStringFromCodePoint)                                                   \
   V(WasmStringHash)                                                            \
   V(WasmAnyConvertExtern)                                                      \
+  V(WasmAnyConvertExternShared)                                                \
   V(WasmStringFromDataSegment)                                                 \
   V(WasmStringAdd_CheckNone)                                                   \
   V(DebugPrintFloat64)                                                         \

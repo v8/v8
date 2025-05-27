@@ -4269,6 +4269,9 @@ void CodeStubAssembler::StoreCellValue(TNode<Cell> cell, TNode<Object> value,
 }
 
 TNode<HeapNumber> CodeStubAssembler::AllocateHeapNumber() {
+  // TODO(ishell, v8:8875): This requires double unaligned allocation when
+  // enabling USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL.
+  static_assert(!USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL);
   TNode<HeapObject> result =
       Allocate(sizeof(HeapNumber), AllocationFlag::kNone);
   RootIndex heap_map_index = RootIndex::kHeapNumberMap;
@@ -4279,6 +4282,19 @@ TNode<HeapNumber> CodeStubAssembler::AllocateHeapNumber() {
 TNode<HeapNumber> CodeStubAssembler::AllocateHeapNumberWithValue(
     TNode<Float64T> value) {
   TNode<HeapNumber> result = AllocateHeapNumber();
+  StoreHeapNumberValue(result, value);
+  return result;
+}
+
+TNode<HeapNumber> CodeStubAssembler::AllocateSharedHeapNumberWithValue(
+    TNode<Float64T> value) {
+  TNode<HeapObject> allocation = CallRuntime<HeapObject>(
+      Runtime::kAllocateInSharedHeap, NoContextConstant(),
+      SmiConstant(sizeof(HeapNumber)),
+      SmiConstant(USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL ? kDoubleUnaligned
+                                                            : kTaggedAligned));
+  StoreMapNoWriteBarrier(allocation, RootIndex::kHeapNumberMap);
+  TNode<HeapNumber> result = UncheckedCast<HeapNumber>(allocation);
   StoreHeapNumberValue(result, value);
   return result;
 }
