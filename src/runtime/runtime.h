@@ -313,7 +313,8 @@ constexpr bool CanTriggerGC(T... properties) {
   F(TerminateExecution, 0, 1)                              \
   F(Typeof, 1, 1, RuntimeCallProperty::kCannotTriggerGC)   \
   F(UnwindAndFindExceptionHandler, 0, 1)                   \
-  I(AddLhsIsStringConstantInternalize, 4, 1)
+  I(AddLhsIsStringConstantInternalize, 4, 1)               \
+  I(AddRhsIsStringConstantInternalize, 4, 1)
 
 #define FOR_EACH_INTRINSIC_LITERALS(F, I) \
   F(CreateArrayLiteral, 4, 1)             \
@@ -509,6 +510,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(InternalizeString, 1, 1)                         \
   F(StringAdd, 2, 1)                                 \
   F(StringAdd_LhsIsStringConstant_Internalize, 4, 1) \
+  F(StringAdd_RhsIsStringConstant_Internalize, 4, 1) \
   F(StringBuilderConcat, 3, 1)                       \
   F(StringCharCodeAt, 2, 1)                          \
   F(StringCodePointAt, 2, 1)                         \

@@ -3157,16 +3157,23 @@ void BytecodeGraphBuilder::VisitAdd() {
   BuildBinaryOp(javascript()->Add(feedback));
 }
 
-void BytecodeGraphBuilder::VisitAdd_LhsIsStringConstant_Internalize() {
+void BytecodeGraphBuilder::VisitAdd_StringConstant_Internalize() {
   Node* left =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   Node* right = environment()->LookupAccumulator();
   Node* slot = jsgraph()->SmiConstant(
       bytecode_iterator().GetSlotOperand(kBinaryOperationHintIndex).ToInt());
+  using ASVariant = AddStringConstantAndInternalizeVariant;
+  uint8_t flags = bytecode_iterator().GetFlag8Operand(2);
+  CHECK(flags == static_cast<uint8_t>(ASVariant::kLhsIsStringConstant) ||
+        flags == static_cast<uint8_t>(ASVariant::kRhsIsStringConstant));
+  const ASVariant as_variant = static_cast<ASVariant>(flags);
 
   // Lowered by js-intrinsic-lowering to call a builtin.
-  const Operator* op = javascript()->CallRuntime(
-      Runtime::kInlineAddLhsIsStringConstantInternalize);
+  auto target = as_variant == ASVariant::kLhsIsStringConstant
+                    ? Runtime::kInlineAddLhsIsStringConstantInternalize
+                    : Runtime::kInlineAddRhsIsStringConstantInternalize;
+  const Operator* op = javascript()->CallRuntime(target);
   Node* node = NewNode(op, left, right, slot, feedback_vector_node());
 
   environment()->BindAccumulator(node, Environment::kAttachFrameState);

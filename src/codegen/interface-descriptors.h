@@ -23,8 +23,8 @@ namespace internal {
 
 #define INTERFACE_DESCRIPTOR_LIST(V)                 \
   V(Abort)                                           \
-  V(AddLhsIsStringConstantInternalizeWithVector)     \
-  V(AddLhsIsStringConstantInternalizeTrampoline)     \
+  V(AddStringConstantInternalizeWithVector)          \
+  V(AddStringConstantInternalizeTrampoline)          \
   V(Allocate)                                        \
   V(CallApiCallbackGeneric)                          \
   V(CallApiCallbackOptimized)                        \
@@ -1036,9 +1036,9 @@ class LoadGlobalBaselineDescriptor
   static constexpr auto registers();
 };
 
-class AddLhsIsStringConstantInternalizeWithVectorDescriptor
+class AddStringConstantInternalizeWithVectorDescriptor
     : public StaticCallInterfaceDescriptor<
-          AddLhsIsStringConstantInternalizeWithVectorDescriptor> {
+          AddStringConstantInternalizeWithVectorDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kLeft, kRight, kSlot, kVector)
@@ -1046,19 +1046,19 @@ class AddLhsIsStringConstantInternalizeWithVectorDescriptor
                          MachineType::AnyTagged(),  // kRight
                          MachineType::AnyTagged(),  // kSlot
                          MachineType::AnyTagged())  // kVector
-  DECLARE_DESCRIPTOR(AddLhsIsStringConstantInternalizeWithVectorDescriptor)
+  DECLARE_DESCRIPTOR(AddStringConstantInternalizeWithVectorDescriptor)
 };
 
-class AddLhsIsStringConstantInternalizeTrampolineDescriptor
+class AddStringConstantInternalizeTrampolineDescriptor
     : public StaticCallInterfaceDescriptor<
-          AddLhsIsStringConstantInternalizeTrampolineDescriptor> {
+          AddStringConstantInternalizeTrampolineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kLeft, kRight, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
                          MachineType::AnyTagged(),  // kRight
                          MachineType::AnyTagged())  // kSlot
-  DECLARE_DESCRIPTOR(AddLhsIsStringConstantInternalizeTrampolineDescriptor)
+  DECLARE_DESCRIPTOR(AddStringConstantInternalizeTrampolineDescriptor)
 };
 
 class LookupWithVectorDescriptor

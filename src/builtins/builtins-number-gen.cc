@@ -48,6 +48,8 @@ DEF_BINOP(ShiftRightLogical_WithFeedback,
           Generate_ShiftRightLogicalWithFeedback)
 DEF_BINOP(Add_LhsIsStringConstant_Internalize_WithFeedback,
           Generate_AddLhsIsStringConstantInternalizeWithFeedback)
+DEF_BINOP(Add_RhsIsStringConstant_Internalize_WithFeedback,
+          Generate_AddRhsIsStringConstantInternalizeWithFeedback)
 #undef DEF_BINOP
 
 #define DEF_BINOP(Name, Generator)                                   \
@@ -78,6 +80,8 @@ DEF_BINOP(ShiftRight_Baseline, Generate_ShiftRightWithFeedback)
 DEF_BINOP(ShiftRightLogical_Baseline, Generate_ShiftRightLogicalWithFeedback)
 DEF_BINOP(Add_LhsIsStringConstant_Internalize_Baseline,
           Generate_AddLhsIsStringConstantInternalizeWithFeedback)
+DEF_BINOP(Add_RhsIsStringConstant_Internalize_Baseline,
+          Generate_AddRhsIsStringConstantInternalizeWithFeedback)
 #undef DEF_BINOP
 
 #define DEF_BINOP_RHS_SMI(Name, Generator)                           \
@@ -244,6 +248,35 @@ TF_BUILTIN(AddLhsIsStringConstantInternalizeTrampoline, CodeStubAssembler) {
   BinaryOpAssembler binop_asm(state());
   TNode<Object> result =
       binop_asm.Generate_AddLhsIsStringConstantInternalizeWithFeedback(
+          [&]() { return context; }, left, right, Unsigned(SmiUntag(slot)),
+          [&]() { return LoadFeedbackVectorForStub(); },
+          UpdateFeedbackMode::kGuaranteedFeedback, false);
+  Return(result);
+}
+
+TF_BUILTIN(AddRhsIsStringConstantInternalizeWithVector, CodeStubAssembler) {
+  auto left = Parameter<Object>(Descriptor::kLeft);
+  auto right = Parameter<String>(Descriptor::kRight);
+  auto slot = Parameter<Smi>(Descriptor::kSlot);
+  auto vector = Parameter<HeapObject>(Descriptor::kVector);
+  TNode<Context> context = Parameter<Context>(Descriptor::kContext);
+  BinaryOpAssembler binop_asm(state());
+  TNode<Object> result =
+      binop_asm.Generate_AddRhsIsStringConstantInternalizeWithFeedback(
+          [&]() { return context; }, left, right, Unsigned(SmiUntag(slot)),
+          [&]() { return vector; }, UpdateFeedbackMode::kGuaranteedFeedback,
+          false);
+  Return(result);
+}
+
+TF_BUILTIN(AddRhsIsStringConstantInternalizeTrampoline, CodeStubAssembler) {
+  auto left = Parameter<Object>(Descriptor::kLeft);
+  auto right = Parameter<String>(Descriptor::kRight);
+  auto slot = Parameter<Smi>(Descriptor::kSlot);
+  TNode<Context> context = Parameter<Context>(Descriptor::kContext);
+  BinaryOpAssembler binop_asm(state());
+  TNode<Object> result =
+      binop_asm.Generate_AddRhsIsStringConstantInternalizeWithFeedback(
           [&]() { return context; }, left, right, Unsigned(SmiUntag(slot)),
           [&]() { return LoadFeedbackVectorForStub(); },
           UpdateFeedbackMode::kGuaranteedFeedback, false);

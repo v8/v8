@@ -801,5 +801,9 @@ RUNTIME_FUNCTION(Runtime_AddLhsIsStringConstantInternalize) {
   UNREACHABLE();  // Lowered to a builtin call instead.
 }
 
+RUNTIME_FUNCTION(Runtime_AddRhsIsStringConstantInternalize) {
+  UNREACHABLE();  // Lowered to a builtin call instead.
+}
+
 }  // namespace internal
 }  // namespace v8

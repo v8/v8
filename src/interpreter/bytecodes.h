@@ -206,9 +206,10 @@ namespace interpreter {
     OperandType::kReg, OperandType::kIdx)                                      \
                                                                                \
   /* Specialized binary operators. */                                          \
-  V(Add_LhsIsStringConstant_Internalize,                                       \
-    ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,             \
-    OperandType::kIdx)                                                         \
+  V(Add_StringConstant_Internalize,                                            \
+    ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg /* lhs */,   \
+    OperandType::kIdx /* feedback_slot */,                                     \
+    OperandType::kFlag8 /* AddStringConstantAndInternalizeVariant */)          \
                                                                                \
   /* Binary operators with immediate operands */                               \
   V(AddSmi, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kImm,     \
