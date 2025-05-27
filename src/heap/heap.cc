@@ -4964,34 +4964,31 @@ void Heap::IterateRootsForPrecisePinning(RootVisitor* visitor) {
 
 // static
 size_t Heap::DefaultMinSemiSpaceSize() {
-#if ENABLE_HUGEPAGE
-  static constexpr size_t kMinSemiSpaceSize =
-      kHugePageSize * kPointerMultiplier;
-#else
-  static constexpr size_t kMinSemiSpaceSize = 512 * KB * kPointerMultiplier;
-#endif
-  static_assert(kMinSemiSpaceSize % (1 << kPageSizeBits) == 0);
-
-  return kMinSemiSpaceSize;
+  return RoundUp(512 * KB * kPointerMultiplier, PageMetadata::kPageSize);
 }
 
 // static
 size_t Heap::DefaultMaxSemiSpaceSize() {
-#if ENABLE_HUGEPAGE
-  static constexpr size_t kMaxSemiSpaceCapacityBaseUnit =
-      kHugePageSize * 2 * kPointerMultiplier;
-#else
-  static constexpr size_t kMaxSemiSpaceCapacityBaseUnit =
-      MB * kPointerMultiplier;
-#endif
-  static_assert(kMaxSemiSpaceCapacityBaseUnit % (1 << kPageSizeBits) == 0);
+  if (v8_flags.minor_ms) {
+    static constexpr size_t kMinorMsMaxCapacity = 72 * kPointerMultiplier * MB;
+    return RoundUp(kMinorMsMaxCapacity, PageMetadata::kPageSize);
+  }
 
-  size_t max_semi_space_size =
-      (v8_flags.minor_ms ? v8_flags.minor_ms_max_new_space_capacity_mb
-                         : v8_flags.scavenger_max_new_space_capacity_mb) *
-      kMaxSemiSpaceCapacityBaseUnit;
-  DCHECK_EQ(0, max_semi_space_size % (1 << kPageSizeBits));
-  return max_semi_space_size;
+  // Compute default max semi space size for Scavenger.
+  static constexpr size_t kScavengerDefaultMaxCapacity =
+      32 * kPointerMultiplier * MB;
+  size_t max_semi_space_size = kScavengerDefaultMaxCapacity;
+
+#if defined(ANDROID)
+  if (!v8_flags.high_end_android) {
+    // Note that kPointerMultiplier is always 1 on Android.
+    static constexpr size_t kAndroidNonHighEndMaxCapacity =
+        8 * kPointerMultiplier * MB;
+    max_semi_space_size = kAndroidNonHighEndMaxCapacity;
+  }
+#endif
+
+  return RoundUp(max_semi_space_size, PageMetadata::kPageSize);
 }
 
 // static
@@ -4999,11 +4996,9 @@ size_t Heap::OldGenerationToSemiSpaceRatio() {
   DCHECK(!v8_flags.minor_ms);
   // Compute a ration such that when old gen max capacity is set to the highest
   // supported value, young gen max capacity would also be set to the max.
-  DCHECK_LT(0u, v8_flags.scavenger_max_new_space_capacity_mb);
-  static size_t kMaxOldGenSizeToMaxYoungGenSizeRatio =
-      V8HeapTrait::kMaxSize /
-      (v8_flags.scavenger_max_new_space_capacity_mb * MB);
-  return kMaxOldGenSizeToMaxYoungGenSizeRatio / kPointerMultiplier;
+  const size_t max_semi_space_size = DefaultMaxSemiSpaceSize();
+  DCHECK_GT(max_semi_space_size, 0);
+  return V8HeapTrait::kMaxSize / max_semi_space_size;
 }
 
 // static

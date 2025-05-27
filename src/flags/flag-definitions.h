@@ -495,7 +495,7 @@ DEFINE_IMPLICATION(stress_scavenger_conservative_object_pinning,
 DEFINE_NEG_IMPLICATION(stress_scavenger_conservative_object_pinning,
                        minor_gc_task)
 DEFINE_VALUE_IMPLICATION(stress_scavenger_conservative_object_pinning,
-                         scavenger_max_new_space_capacity_mb, 1u)
+                         max_semi_space_size, size_t{1})
 DEFINE_BOOL(stress_scavenger_conservative_object_pinning_random, false,
             "Enables random stressing of object pinning in Scavenger, such "
             "that each GC would randomly pick a subset of the precise "
@@ -928,22 +928,6 @@ DEFINE_INT(minor_ms_page_promotion_max_lab_threshold, 30,
            "page promotion")
 DEFINE_UINT(minor_ms_max_page_age, 4,
             "max age for a page after which it is force promoted to old space")
-DEFINE_UINT(minor_ms_max_new_space_capacity_mb, 72,
-            "max new space capacity in MBs when using MinorMS. When pointer "
-            "compression is disabled, twice the capacity is used.")
-DEFINE_REQUIREMENT(v8_flags.minor_ms_max_new_space_capacity_mb > 0)
-
-#if defined(ANDROID)
-#define DEFAULT_SCAVENGER_MAX_NEW_SPACE_CAPACITY_MB 8
-#else
-#define DEFAULT_SCAVENGER_MAX_NEW_SPACE_CAPACITY_MB 32
-#endif
-DEFINE_UINT(scavenger_max_new_space_capacity_mb,
-            DEFAULT_SCAVENGER_MAX_NEW_SPACE_CAPACITY_MB,
-            "max new space capacity in MBs when using Scavenger. When pointer "
-            "compression is disabled, twice the capacity is used.")
-DEFINE_REQUIREMENT(v8_flags.scavenger_max_new_space_capacity_mb > 0)
-#undef DEFAULT_SCAVENGER_MAX_NEW_SPACE_CAPACITY_MB
 
 DEFINE_BOOL(trace_page_promotions, false, "trace page promotion decisions")
 DEFINE_BOOL(trace_pretenuring, false,
@@ -962,6 +946,7 @@ DEFINE_BOOL(
     zero_unused_memory, true,
     "Zero unused memory (except for memory which was discarded) on memory "
     "reducing GCs.")
+DEFINE_BOOL(high_end_android, false, "Enables high-end mode for Android.")
 
 #ifdef V8_MINORMS_STRING_SHORTCUTTING
 DEFINE_BOOL(minor_ms_shortcut_strings, false,
