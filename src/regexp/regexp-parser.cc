@@ -279,9 +279,9 @@ RegExpTree* RegExpTextBuilder::PopLastAtom() {
 
 RegExpTree* RegExpTextBuilder::ToRegExp() {
   FlushText();
-  size_t num_alternatives = terms_->size();
-  if (num_alternatives == 0) return zone()->New<RegExpEmpty>();
-  if (num_alternatives == 1) return terms_->back();
+  size_t number_of_terms = terms_->size();
+  if (number_of_terms == 0) return zone()->New<RegExpEmpty>();
+  if (number_of_terms == 1) return terms_->back();
   return zone()->New<RegExpAlternative>(zone()->New<ZoneList<RegExpTree*>>(
       base::VectorOf(terms_->begin(), terms_->size()), zone()));
 }
