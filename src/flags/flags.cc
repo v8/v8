@@ -1145,6 +1145,12 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       // --correctness-fuzzer-suppressions is passed. These flags will be reset
       // to their defaults.
 
+      // https://crbug.com/419424082
+      RESET_WHEN_CORRECTNESS_FUZZING(default_to_experimental_regexp_engine),
+      RESET_WHEN_CORRECTNESS_FUZZING(enable_experimental_regexp_engine),
+      RESET_WHEN_CORRECTNESS_FUZZING(
+          experimental_regexp_engine_capture_group_opt),
+
       // https://crbug.com/369652671
       RESET_WHEN_CORRECTNESS_FUZZING(stress_lazy_compilation),
 
