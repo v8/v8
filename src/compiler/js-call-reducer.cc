@@ -886,9 +886,9 @@ TNode<Object> JSCallReducerAssembler::CopyNode() {
 
 TNode<JSArray> JSCallReducerAssembler::CreateArrayNoThrow(
     TNode<Object> ctor, TNode<Number> size, FrameState frame_state) {
-  return AddNode<JSArray>(
-      graph()->NewNode(javascript()->CreateArray(1, std::nullopt), ctor, ctor,
-                       size, ContextInput(), frame_state, effect(), control()));
+  return AddNode<JSArray>(graph()->NewNode(
+      javascript()->CreateArray(1, std::nullopt, feedback()), ctor, ctor, size,
+      ContextInput(), frame_state, effect(), control()));
 }
 
 TNode<JSArray> JSCallReducerAssembler::AllocateEmptyJSArray(
@@ -2802,16 +2802,20 @@ void JSCallReducer::Finalize() {
 // ES6 section 22.1.1 The Array Constructor
 Reduction JSCallReducer::ReduceArrayConstructor(Node* node) {
   JSCallNode n(node);
-  Node* target = n.target();
   CallParameters const& p = n.Parameters();
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
 
   // Turn the {node} into a {JSCreateArray} call.
+  Node* target = n.target();
   size_t const arity = p.arity_without_implicit_args();
   node->RemoveInput(n.FeedbackVectorIndex());
   NodeProperties::ReplaceValueInput(node, target, 0);
   NodeProperties::ReplaceValueInput(node, target, 1);
-  NodeProperties::ChangeOp(node,
-                           javascript()->CreateArray(arity, std::nullopt));
+  NodeProperties::ChangeOp(
+      node, javascript()->CreateArray(arity, std::nullopt,
+                                      n.Parameters().feedback()));
   return Changed(node);
 }
 
@@ -5487,8 +5491,9 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       node->ReplaceInput(n.NewTargetIndex(), array_function);
       node->RemoveInput(n.FeedbackVectorIndex());
       NodeProperties::ChangeOp(
-          node, javascript()->CreateArray(arity,
-                                          feedback_target->AsAllocationSite()));
+          node,
+          javascript()->CreateArray(arity, feedback_target->AsAllocationSite(),
+                                    FeedbackSource()));
       return Changed(node);
     } else if (feedback_target.has_value() &&
                !HeapObjectMatcher(new_target).HasResolvedValue() &&
@@ -5555,7 +5560,8 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           node->ReplaceInput(n.NewTargetIndex(), new_target);
           node->RemoveInput(n.FeedbackVectorIndex());
           NodeProperties::ChangeOp(
-              node, javascript()->CreateArray(arity, std::nullopt));
+              node,
+              javascript()->CreateArray(arity, std::nullopt, FeedbackSource()));
           return Changed(node);
         }
         case Builtin::kObjectConstructor: {

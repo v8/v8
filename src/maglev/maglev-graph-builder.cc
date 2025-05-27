@@ -12422,7 +12422,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
           array_function);
 
   // Tells whether we are protected by either the {site} or a
-  // protector cell to do certain speculative optimizations.
+  // call speculation bit to do certain speculative optimizations.
   bool can_inline_call = false;
   AllocationType allocation_type = AllocationType::kYoung;
 
@@ -12432,11 +12432,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
         broker()->dependencies()->DependOnPretenureMode(*maybe_allocation_site);
     broker()->dependencies()->DependOnElementsKind(*maybe_allocation_site);
   } else {
-    compiler::PropertyCellRef array_constructor_protector = MakeRef(
-        broker(), local_isolate()->factory()->array_constructor_protector());
-    array_constructor_protector.CacheAsProtector(broker());
-    can_inline_call = array_constructor_protector.value(broker()).AsSmi() ==
-                      Protectors::kProtectorValid;
+    can_inline_call = CanSpeculateCall();
   }
 
   if (args.count() == 0) {

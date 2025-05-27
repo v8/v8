@@ -329,7 +329,6 @@ class RootVisitor;
   /* Canonical empty values */                                                 \
   V(Script, empty_script, EmptyScript)                                         \
   /* Protectors */                                                             \
-  V(PropertyCell, array_constructor_protector, ArrayConstructorProtector)      \
   V(PropertyCell, no_elements_protector, NoElementsProtector)                  \
   V(PropertyCell, mega_dom_protector, MegaDOMProtector)                        \
   V(PropertyCell, no_profiling_protector, NoProfilingProtector)                \

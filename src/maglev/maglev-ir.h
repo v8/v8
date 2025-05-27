@@ -5027,7 +5027,8 @@ class TestInstanceOf : public FixedInputValueNodeT<3, TestInstanceOf> {
   using Base = FixedInputValueNodeT<3, TestInstanceOf>;
 
  public:
-  explicit TestInstanceOf(uint64_t bitfield, compiler::FeedbackSource feedback)
+  explicit TestInstanceOf(uint64_t bitfield,
+                          const compiler::FeedbackSource& feedback)
       : Base(bitfield), feedback_(feedback) {}
 
   // The implementation currently calls runtime.
@@ -5039,7 +5040,7 @@ class TestInstanceOf : public FixedInputValueNodeT<3, TestInstanceOf> {
   Input& context() { return input(0); }
   Input& object() { return input(1); }
   Input& callable() { return input(2); }
-  compiler::FeedbackSource feedback() const { return feedback_; }
+  const compiler::FeedbackSource& feedback() const { return feedback_; }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();

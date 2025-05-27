@@ -407,7 +407,8 @@ CreateArgumentsType const& CreateArgumentsTypeOf(const Operator* op) {
 bool operator==(CreateArrayParameters const& lhs,
                 CreateArrayParameters const& rhs) {
   return lhs.arity() == rhs.arity() &&
-         AddressOrNull(lhs.site_) == AddressOrNull(rhs.site_);
+         AddressOrNull(lhs.site_) == AddressOrNull(rhs.site_) &&
+         lhs.call_feedback() == rhs.call_feedback();
 }
 
 
@@ -418,7 +419,8 @@ bool operator!=(CreateArrayParameters const& lhs,
 
 
 size_t hash_value(CreateArrayParameters const& p) {
-  return base::hash_combine(p.arity(), AddressOrNull(p.site_));
+  return base::hash_combine(p.arity(), AddressOrNull(p.site_),
+                            FeedbackSource::Hash()(p.feedback_));
 }
 
 
@@ -427,6 +429,7 @@ std::ostream& operator<<(std::ostream& os, CreateArrayParameters const& p) {
   if (p.site_.has_value()) {
     os << ", " << Brief(*p.site_->object());
   }
+  os << ", " << p.call_feedback();
   return os;
 }
 
@@ -1332,10 +1335,11 @@ const Operator* JSOperatorBuilder::CreateArguments(CreateArgumentsType type) {
 }
 
 const Operator* JSOperatorBuilder::CreateArray(size_t arity,
-                                               OptionalAllocationSiteRef site) {
+                                               OptionalAllocationSiteRef site,
+                                               const FeedbackSource& feedback) {
   // constructor, new_target, arg1, ..., argN
   int const value_input_count = static_cast<int>(arity) + 2;
-  CreateArrayParameters parameters(arity, site);
+  CreateArrayParameters parameters(arity, site, feedback);
   return zone()->New<Operator1<CreateArrayParameters>>(   // --
       IrOpcode::kJSCreateArray, Operator::kNoProperties,  // opcode
       "JSCreateArray",                                    // name

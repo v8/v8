@@ -568,7 +568,8 @@ class V8_EXPORT Isolate {
     kBreakIteratorTypeWord = 88,
     kBreakIteratorTypeLine = 89,
     kInvalidatedArrayBufferDetachingProtector = 90,
-    kInvalidatedArrayConstructorProtector = 91,
+    kInvalidatedArrayConstructorProtector V8_DEPRECATE_SOON(
+        "The ArrayConstructorProtector has been removed") = 91,
     kInvalidatedArrayIteratorLookupChainProtector = 92,
     kInvalidatedArraySpeciesLookupChainProtector = 93,
     kInvalidatedIsConcatSpreadableLookupChainProtector = 94,

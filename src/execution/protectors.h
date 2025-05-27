@@ -18,7 +18,6 @@ class Protectors : public AllStatic {
 #define DECLARED_PROTECTORS_ON_ISOLATE(V)                                     \
   V(ArrayBufferDetaching, ArrayBufferDetachingProtector,                      \
     array_buffer_detaching_protector)                                         \
-  V(ArrayConstructor, ArrayConstructorProtector, array_constructor_protector) \
   V(ArrayIteratorLookupChain, ArrayIteratorProtector,                         \
     array_iterator_protector)                                                 \
   V(ArraySpeciesLookupChain, ArraySpeciesProtector, array_species_protector)  \
