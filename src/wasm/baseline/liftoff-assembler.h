@@ -1526,6 +1526,11 @@ class LiftoffAssembler : public MacroAssembler {
   inline void set_trap_on_oob_mem64(Register index, uint64_t max_index,
                                     Label* trap_label);
 
+  // Increment a code coverage counter. Counters are per-NativeModule, not
+  // per-Isolate, and this operation is not atomic, therefore it is possible to
+  // have races.
+  inline void emit_inc_i32_at(Address address);
+
   inline void StackCheck(Label* ool_code);
 
   inline void AssertUnreachable(AbortReason reason);

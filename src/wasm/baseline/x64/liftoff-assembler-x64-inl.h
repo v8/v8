@@ -4739,6 +4739,12 @@ void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t max_index,
   j(above_equal, trap_label);
 }
 
+void LiftoffAssembler::emit_inc_i32_at(Address address) {
+  Register counter_addr = kScratchRegister;
+  movq(counter_addr, Immediate64(static_cast<uint64_t>(address)));
+  incl(Operand(counter_addr, 0));
+}
+
 void LiftoffAssembler::StackCheck(Label* ool_code) {
   cmpq(rsp, StackLimitAsOperand(StackLimitKind::kInterruptStackLimit));
   j(below_equal, ool_code);

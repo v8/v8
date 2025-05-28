@@ -4203,6 +4203,16 @@ void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t max_index,
   B(trap_label, kUnsignedGreaterThanEqual);
 }
 
+void LiftoffAssembler::emit_inc_i32_at(Address address) {
+  UseScratchRegisterScope temps(this);
+  Register counter_addr = temps.AcquireX();
+  Register value = temps.AcquireW();
+  Mov(counter_addr.X(), Immediate(static_cast<uint64_t>(address)));
+  Ldr(value, MemOperand(counter_addr.X(), 0));
+  Add(value, value, 1);
+  Str(value, MemOperand(counter_addr.X(), 0));
+}
+
 void LiftoffAssembler::StackCheck(Label* ool_code) {
   UseScratchRegisterScope temps(this);
   Register limit_address = temps.AcquireX();

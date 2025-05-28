@@ -26,12 +26,14 @@
 #include "src/utils/utils.h"
 #include "src/wasm/baseline/liftoff-assembler-inl.h"
 #include "src/wasm/baseline/liftoff-register.h"
+#include "src/wasm/basic-block-calculator.h"
 #include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/memory-tracing.h"
 #include "src/wasm/object-access.h"
 #include "src/wasm/simd-shuffle.h"
+#include "src/wasm/wasm-code-coverage.h"
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
@@ -608,7 +610,8 @@ class LiftoffCompiler {
                   CompilationEnv* env, Zone* zone,
                   std::unique_ptr<AssemblerBuffer> buffer,
                   DebugSideTableBuilder* debug_sidetable_builder,
-                  const LiftoffOptions& options)
+                  const LiftoffOptions& options,
+                  WasmFunctionCoverageData* coverage_data)
       : asm_(zone, std::move(buffer)),
         descriptor_(GetLoweredCallDescriptor(zone, call_descriptor)),
         env_(env),
@@ -639,6 +642,15 @@ class LiftoffCompiler {
         next_breakpoint_ptr_ == next_breakpoint_end_,
         next_breakpoint_ptr_ == nullptr && next_breakpoint_end_ == nullptr);
     DCHECK_IMPLIES(!for_debugging_, debug_sidetable_builder_ == nullptr);
+
+    if (v8_flags.wasm_code_coverage) {
+      DCHECK_EQ(for_debugging_, kForDebugging);
+      DCHECK_NOT_NULL(coverage_data);
+      coverage_code_ranges_ = coverage_data->code_ranges();
+      coverage_current_code_range_ = coverage_code_ranges_.begin();
+      coverage_count_array_addr_ =
+          reinterpret_cast<Address>(coverage_data->counters().data());
+    }
   }
 
   bool did_bailout() const { return bailout_reason_ != kSuccess; }
@@ -1290,6 +1302,11 @@ class LiftoffCompiler {
   V8_NOINLINE void EmitDebuggingInfo(FullDecoder* decoder, WasmOpcode opcode) {
     DCHECK(for_debugging_);
 
+    if (V8_UNLIKELY(v8_flags.wasm_code_coverage && (opcode != kExprLoop))) {
+      // Coverage instrumention for 'loop' instructions is emitted in Loop().
+      EmitCoverageInstrumentationIfReachable(decoder, opcode);
+    }
+
     // Snapshot the value types (from the decoder) here, for potentially
     // building a debug side table entry later. Arguments will have been popped
     // from the stack later (when we need them), and Liftoff does not keep
@@ -1362,6 +1379,25 @@ class LiftoffCompiler {
     }
   }
 
+  void EmitCoverageInstrumentationIfReachable(FullDecoder* decoder,
+                                              WasmOpcode opcode) {
+    if (!decoder->control_at(0)->reachable()) return;
+
+    if (coverage_current_code_range_ == coverage_code_ranges_.end()) return;
+
+    while (coverage_current_code_range_->end < decoder->position()) {
+      ++coverage_current_code_range_;
+    }
+    if (coverage_current_code_range_->start <= decoder->position()) {
+      // Emit code coverage instrumentation.
+      __ emit_inc_i32_at(
+          coverage_count_array_addr_ +
+          (coverage_current_code_range_ - coverage_code_ranges_.begin()) *
+              sizeof(uint32_t));
+      ++coverage_current_code_range_;
+    }
+  }
+
   void NextInstruction(FullDecoder* decoder, WasmOpcode opcode) {
     TraceCacheState(decoder);
     SLOW_DCHECK(__ ValidateCacheState());
@@ -1379,7 +1415,9 @@ class LiftoffCompiler {
 
     // Add a single check, so that the fast path can be inlined while
     // {EmitDebuggingInfo} stays outlined.
-    if (V8_UNLIKELY(for_debugging_)) EmitDebuggingInfo(decoder, opcode);
+    if (V8_UNLIKELY(for_debugging_)) {
+      EmitDebuggingInfo(decoder, opcode);
+    }
   }
 
   void EmitBreakpoint(FullDecoder* decoder) {
@@ -1418,6 +1456,10 @@ class LiftoffCompiler {
     loop->label_state.Split(*__ cache_state());
 
     PushControl(loop);
+
+    if (V8_UNLIKELY(v8_flags.wasm_code_coverage)) {
+      EmitCoverageInstrumentationIfReachable(decoder, kExprLoop);
+    }
 
     if (!dynamic_tiering()) {
       // When the budget-based tiering mechanism is enabled, use that to
@@ -10130,6 +10172,22 @@ class LiftoffCompiler {
   const int* next_breakpoint_ptr_ = nullptr;
   const int* next_breakpoint_end_ = nullptr;
 
+  // A precalculated set of code ranges that define the basic blocks in the
+  // current function. Note that the NativeModule can be deleted during the
+  // compilation, but these code ranges are kept alive via a shared_ptr in the
+  // CompilationEnv.
+  base::Vector<const WasmCodeRange> coverage_code_ranges_;
+
+  // Points to the current WasmCodeRange during compilation, it's used to decide
+  // whether we are in a new basic block and we need to emit coverage
+  // instrumentation.
+  const WasmCodeRange* coverage_current_code_range_ = nullptr;
+
+  // Points to the start of an array of uint32_t counters that represent the
+  // coverage count for each basic block in the function. We emit
+  // instrumentation code to increase the counter with {emit_inc_i32_at}.
+  Address coverage_count_array_addr_ = 0;
+
   // Introduce a dead breakpoint to ensure that the calculation of the return
   // address in OSR is correct.
   int dead_breakpoint_ = 0;
@@ -10226,13 +10284,32 @@ WasmCompilationResult ExecuteLiftoffCompilation(
                  compiler_options.for_debugging == kForDebugging);
   WasmDetectedFeatures unused_detected_features;
 
+  WasmFunctionCoverageData* function_coverage_data = nullptr;
+  if (V8_UNLIKELY(v8_flags.wasm_code_coverage)) {
+    DCHECK_NOT_NULL(env->module_coverage_data);
+    int declared_function_index =
+        compiler_options.func_index - env->module->num_imported_functions;
+    function_coverage_data = env->module_coverage_data->GetFunctionCoverageData(
+        declared_function_index);
+    if (!function_coverage_data) {
+      // There can be a race here, if another thread finds that
+      // GetFunctionCoverageData() returns nullptr, but in that case we would
+      // just waste some time calling ComputeBasicBlocks().
+      BasicBlockCalculator basic_block_calculator(
+          &zone, {func_body.start, static_cast<size_t>(func_body_size)});
+      basic_block_calculator.ComputeBasicBlocks();
+      function_coverage_data = env->module_coverage_data->InstallCoverageData(
+          declared_function_index, basic_block_calculator.GetCodeRanges());
+    }
+  }
+
   WasmFullDecoder<Decoder::NoValidationTag, LiftoffCompiler> decoder(
       &zone, env->module, env->enabled_features,
       compiler_options.detected_features ? compiler_options.detected_features
                                          : &unused_detected_features,
       func_body, call_descriptor, env, &zone,
       NewLiftoffAssemblerBuffer(func_body_size), debug_sidetable_builder.get(),
-      compiler_options);
+      compiler_options, function_coverage_data);
   decoder.Decode();
   LiftoffCompiler* compiler = &decoder.interface();
   if (decoder.failed()) compiler->OnFirstError(&decoder);
@@ -10316,7 +10393,8 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
       LiftoffOptions{}
           .set_func_index(code->index())
           .set_for_debugging(code->for_debugging())
-          .set_breakpoints(breakpoints));
+          .set_breakpoints(breakpoints),
+      nullptr);
   decoder.Decode();
   DCHECK(decoder.ok());
   DCHECK(!decoder.interface().did_bailout());

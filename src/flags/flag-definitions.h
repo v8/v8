@@ -2094,6 +2094,17 @@ DEFINE_BOOL(wasm_allow_mixed_eh_for_testing, false,
 // instructions, and crashes if the module does not compile.
 // So always allow mixing old and new EH for fuzzing.
 DEFINE_IMPLICATION(fuzzing, wasm_allow_mixed_eh_for_testing)
+
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || \
+    defined(V8_TARGET_ARCH_IA32)
+DEFINE_BOOL(wasm_code_coverage, false, "enable Wasm code coverage")
+#else
+DEFINE_BOOL_READONLY(wasm_code_coverage, false, "enable Wasm code coverage")
+#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 ||
+        // V8_TARGET_ARCH_IA32
+DEFINE_NEG_IMPLICATION(wasm_code_coverage, wasm_loop_unrolling)
+DEFINE_NEG_IMPLICATION(wasm_code_coverage, wasm_inlining)
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 DEFINE_INT(stress_sampling_allocation_profiler, 0,

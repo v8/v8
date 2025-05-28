@@ -947,6 +947,9 @@ CompileWithLiftoffAndGetDeoptInfo(wasm::NativeModule* native_module,
                           wire_bytes.begin() + function->code.offset(),
                           wire_bytes.begin() + function->code.end_offset(),
                           is_shared};
+  wasm::ForDebugging for_debugging = v8_flags.wasm_code_coverage
+                                         ? wasm::ForDebugging::kForDebugging
+                                         : wasm::ForDebugging::kNotForDebugging;
   wasm::WasmCompilationResult result = ExecuteLiftoffCompilation(
       &env, body,
       wasm::LiftoffOptions{}
@@ -954,7 +957,8 @@ CompileWithLiftoffAndGetDeoptInfo(wasm::NativeModule* native_module,
           .set_deopt_info_bytecode_offset(deopt_point.ToInt())
           .set_deopt_location_kind(
               is_topmost ? wasm::LocationKindForDeopt::kEagerDeopt
-                         : wasm::LocationKindForDeopt::kInlinedCall));
+                         : wasm::LocationKindForDeopt::kInlinedCall)
+          .set_for_debugging(for_debugging));
 
   // Replace the optimized code with the unoptimized code in the
   // WasmCodeManager as a deopt was reached.

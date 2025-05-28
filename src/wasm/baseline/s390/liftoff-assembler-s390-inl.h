@@ -2821,6 +2821,11 @@ F16_BINOP_LIST(VISIT_F16_BINOP)
 #undef VISIT_F16_BINOP
 #undef F16_BINOP_LIST
 
+void LiftoffAssembler::emit_inc_i32_at(Address address) {
+  // Wasm code coverage not supported on s390 yet.
+  UNREACHABLE();
+}
+
 bool LiftoffAssembler::supports_f16_mem_access() { return false; }
 
 bool LiftoffAssembler::emit_f16x8_extract_lane(LiftoffRegister dst,

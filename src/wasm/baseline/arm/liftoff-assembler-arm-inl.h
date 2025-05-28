@@ -4681,6 +4681,16 @@ bool LiftoffAssembler::emit_f16x8_qfms(LiftoffRegister dst,
 
 bool LiftoffAssembler::supports_f16_mem_access() { return false; }
 
+void LiftoffAssembler::emit_inc_i32_at(Address address) {
+  LiftoffRegList pinned;
+  Register counter_addr = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  Register value = GetUnusedRegister(kGpReg, pinned).gp();
+  mov(counter_addr, Operand(address));
+  ldr(value, MemOperand(counter_addr, 0));
+  add(value, value, Operand(1));
+  str(value, MemOperand(counter_addr, 0));
+}
+
 void LiftoffAssembler::StackCheck(Label* ool_code) {
   UseScratchRegisterScope temps(this);
   Register limit_address = temps.Acquire();

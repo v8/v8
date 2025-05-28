@@ -4926,6 +4926,14 @@ bool LiftoffAssembler::emit_f16x8_qfms(LiftoffRegister dst,
 
 bool LiftoffAssembler::supports_f16_mem_access() { return false; }
 
+void LiftoffAssembler::emit_inc_i32_at(Address address) {
+  Register scratch = eax;
+  push(scratch);
+  mov(scratch, Immediate(address));
+  inc(Operand(scratch, 0));
+  pop(scratch);
+}
+
 void LiftoffAssembler::StackCheck(Label* ool_code) {
   CompareStackLimit(esp, StackLimitKind::kInterruptStackLimit);
   j(below_equal, ool_code);

@@ -117,6 +117,10 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
           options.set_debug_sidetable(&unused_debug_sidetable);
           if (!for_debugging_) options.set_for_debugging(kForDebugging);
         }
+        if (v8_flags.wasm_code_coverage &&
+            options.for_debugging == kNotForDebugging) {
+          options.set_for_debugging(kForDebugging);
+        }
         result = ExecuteLiftoffCompilation(env, func_body, options);
         if (result.succeeded()) break;
       }

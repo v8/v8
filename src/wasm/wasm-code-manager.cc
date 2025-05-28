@@ -40,6 +40,7 @@
 #include "src/wasm/pgo.h"
 #include "src/wasm/std-object-sizes.h"
 #include "src/wasm/wasm-builtin-list.h"
+#include "src/wasm/wasm-code-coverage.h"
 #include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-deopt-data.h"
@@ -1014,6 +1015,11 @@ NativeModule::NativeModule(WasmEnabledFeatures enabled_features,
   if (has_code_space) {
     code_allocator_.InitializeCodeRange(this, initial_region);
     AddCodeSpaceLocked(initial_region);
+  }
+
+  if (v8_flags.wasm_code_coverage && module_) {
+    coverage_data_ = std::make_shared<WasmModuleCoverageData>(
+        module_->num_declared_functions);
   }
 }
 
@@ -2825,7 +2831,7 @@ NamesProvider* NativeModule::GetNamesProvider() {
 }
 
 size_t NativeModule::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(NativeModule, 456);
+  UPDATE_WHEN_CLASS_CHANGES(NativeModule, 472);
   size_t result = sizeof(NativeModule);
   result += module_->EstimateCurrentMemoryConsumption();
 

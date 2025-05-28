@@ -28,6 +28,7 @@
 #include "src/tasks/operations-barrier.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-environment.h"
+#include "src/wasm/wasm-code-coverage.h"
 #include "src/wasm/wasm-code-pointer-table.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
@@ -950,6 +951,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   WasmCodePointer GetCodePointerHandle(int index) const;
 
+  const std::shared_ptr<WasmModuleCoverageData>& coverage_data() const {
+    return coverage_data_;
+  }
+
  private:
   friend class WasmCode;
   friend class WasmCodeAllocator;
@@ -1150,6 +1155,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   std::unique_ptr<std::atomic<Address>[]> fast_api_targets_;
   std::unique_ptr<std::atomic<const MachineSignature*>[]> fast_api_signatures_;
+
+  std::shared_ptr<WasmModuleCoverageData> coverage_data_;
 };
 
 class V8_EXPORT_PRIVATE WasmCodeManager final {

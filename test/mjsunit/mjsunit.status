@@ -1589,6 +1589,11 @@
   'harmony/atomics-waitasync-1thread-wake-up-simple': [SKIP],
   'harmony/atomics-waitasync-worker-shutdown-before-wait-finished-timeout': [SKIP],
   'harmony/atomics-waitasync-worker-shutdown-before-wait-finished-no-timeout': [SKIP],
+
+  # Code coverage tests are not supported in multiple isolates because the
+  # counters are shared across isolates.
+  'wasm/wasm-code-coverage': [SKIP],
+
 }],  # 'isolates'
 
 ##############################################################################

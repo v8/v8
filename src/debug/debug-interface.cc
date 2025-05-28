@@ -1387,6 +1387,13 @@ Coverage Coverage::CollectBestEffort(Isolate* isolate) {
       i::Coverage::CollectBestEffort(reinterpret_cast<i::Isolate*>(isolate)));
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+Coverage Coverage::CollectWasmData(Isolate* isolate) {
+  return Coverage(
+      i::Coverage::CollectWasmData(reinterpret_cast<i::Isolate*>(isolate)));
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 void Coverage::SelectMode(Isolate* isolate, CoverageMode mode) {
   i::Coverage::SelectMode(reinterpret_cast<i::Isolate*>(isolate), mode);
 }

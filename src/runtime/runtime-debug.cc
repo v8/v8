@@ -793,6 +793,62 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
   return *factory->NewJSArrayWithElements(scripts_array, PACKED_ELEMENTS);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+RUNTIME_FUNCTION(Runtime_DebugCollectWasmCoverage) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+
+  // Collect Wasm coverage data.
+  std::unique_ptr<Coverage> coverage = Coverage::CollectWasmData(isolate);
+
+  Factory* factory = isolate->factory();
+  // Turn the returned data structure into JavaScript.
+  // Create an array of scripts.
+  int num_scripts = static_cast<int>(coverage->size());
+  DirectHandle<FixedArray> scripts_array = factory->NewFixedArray(num_scripts);
+  for (int i = 0; i < num_scripts; i++) {
+    HandleScope inner_scope(isolate);
+
+    const CoverageScript& script_data = coverage->at(i);
+    Handle<Script> script = script_data.script;
+    DCHECK_EQ(script->type(), Script::Type::kWasm);
+    const wasm::WasmModule* module = script->wasm_native_module()->module();
+
+    std::vector<CoverageBlock> ranges;
+    int num_functions = static_cast<int>(script_data.functions.size());
+    int code_start =
+        num_functions > 0
+            ? module->functions[module->num_imported_functions].code.offset()
+            : 0;
+    for (int j = 0; j < num_functions; j++) {
+      int function_index = module->num_imported_functions + j;
+      uint32_t function_start_offset =
+          module->functions[function_index].code.offset();
+      const auto& function_data = script_data.functions[j];
+      for (size_t k = 0; k < function_data.blocks.size(); k++) {
+        const auto& block_data = function_data.blocks[k];
+        ranges.emplace_back(
+            function_start_offset - code_start + block_data.start,
+            function_start_offset - code_start + block_data.end,
+            block_data.count);
+      }
+    }
+
+    int num_ranges = static_cast<int>(ranges.size());
+    DirectHandle<FixedArray> ranges_array = factory->NewFixedArray(num_ranges);
+    for (int j = 0; j < num_ranges; j++) {
+      DirectHandle<JSObject> range_object = MakeRangeObject(isolate, ranges[j]);
+      ranges_array->set(j, *range_object);
+    }
+
+    DirectHandle<JSArray> ranges_obj =
+        factory->NewJSArrayWithElements(ranges_array, PACKED_ELEMENTS);
+    scripts_array->set(i, *ranges_obj);
+  }
+  return *factory->NewJSArrayWithElements(scripts_array, PACKED_ELEMENTS);
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 RUNTIME_FUNCTION(Runtime_DebugTogglePreciseCoverage) {
   SealHandleScope shs(isolate);
   bool enable = Cast<Boolean>(args[0])->ToBool(isolate);
