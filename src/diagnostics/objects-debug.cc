@@ -349,6 +349,10 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       Cast<BigIntBase>(*this)->BigIntBaseVerify(isolate);
       break;
 
+    case FREE_SPACE_TYPE:
+      Cast<FreeSpace>(*this)->FreeSpaceVerify(isolate);
+      break;
+
     case JS_CLASS_CONSTRUCTOR_TYPE:
     case JS_PROMISE_CONSTRUCTOR_TYPE:
     case JS_REG_EXP_CONSTRUCTOR_TYPE:
@@ -379,6 +383,14 @@ void HeapObject::VerifyCodePointer(Isolate* isolate, Tagged<Object> p) {
   CHECK(IsValidCodeObject(isolate->heap(), Cast<HeapObject>(p)));
   PtrComprCageBase cage_base(isolate);
   CHECK(IsInstructionStream(Cast<HeapObject>(p), cage_base));
+}
+
+void FreeSpace::FreeSpaceVerify(Isolate* isolate) {
+  CHECK(IsFreeSpace(this));
+  {
+    Tagged<Object> size = size_.Relaxed_Load();
+    CHECK(IsSmi(size));
+  }
 }
 
 void Name::NameVerify(Isolate* isolate) {
