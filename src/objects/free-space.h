@@ -5,7 +5,9 @@
 #ifndef V8_OBJECTS_FREE_SPACE_H_
 #define V8_OBJECTS_FREE_SPACE_H_
 
+#include "src/common/globals.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/smi.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -31,6 +33,9 @@ namespace internal {
 //    scheme.
 class FreeSpace : public HeapObjectLayout {
  public:
+  static constexpr uint32_t kMaxSizeInBytes =
+      uint32_t{Smi::kMaxValue} * kTaggedSize;
+
   // [size]: size of the free space including the header.
   inline int size(RelaxedLoadTag) const;
 
