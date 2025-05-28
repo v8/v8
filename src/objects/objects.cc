@@ -2876,6 +2876,9 @@ int AccessorInfo::AppendUnique(Isolate* isolate,
 
 void JSProxy::Revoke(DirectHandle<JSProxy> proxy) {
   Isolate* isolate = Isolate::Current();
+  // If this fails then some Proxy allocation code path that created
+  // revocable Proxies didn't set the bit correctly.
+  CHECK(JSProxy::IsRevocableBit::decode(proxy->flags()));
   // ES#sec-proxy-revocation-functions
   if (!proxy->IsRevoked()) {
     // 5. Set p.[[ProxyTarget]] to null.
@@ -3108,7 +3111,8 @@ Maybe<bool> JSProxy::CheckDeleteTrap(Isolate* isolate, DirectHandle<Name> name,
 // static
 MaybeDirectHandle<JSProxy> JSProxy::New(Isolate* isolate,
                                         DirectHandle<Object> target,
-                                        DirectHandle<Object> handler) {
+                                        DirectHandle<Object> handler,
+                                        bool revocable) {
   if (!IsJSReceiver(*target)) {
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kProxyNonObject));
   }
@@ -3116,7 +3120,7 @@ MaybeDirectHandle<JSProxy> JSProxy::New(Isolate* isolate,
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kProxyNonObject));
   }
   return isolate->factory()->NewJSProxy(Cast<JSReceiver>(target),
-                                        Cast<JSReceiver>(handler));
+                                        Cast<JSReceiver>(handler), revocable);
 }
 
 Maybe<PropertyAttributes> JSProxy::GetPropertyAttributes(LookupIterator* it) {

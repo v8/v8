@@ -8764,7 +8764,11 @@ MaybeLocal<Proxy> Proxy::New(Local<Context> context, Local<Object> local_target,
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto target = Utils::OpenDirectHandle(*local_target);
   auto handler = Utils::OpenDirectHandle(*local_handler);
-  return api_scope.EscapeMaybe(i::JSProxy::New(i_isolate, target, handler));
+  // The API doesn't distinguish revocable proxies, so we must assume that all
+  // objects created through it are revocable.
+  bool api_proxies_assumed_revocable = true;
+  return api_scope.EscapeMaybe(i::JSProxy::New(i_isolate, target, handler,
+                                               api_proxies_assumed_revocable));
 }
 
 CompiledWasmModule::CompiledWasmModule(

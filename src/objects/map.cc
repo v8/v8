@@ -188,9 +188,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case OBJECT_TEMPLATE_INFO_TYPE:
       return kVisitStruct;
 
-    case JS_PROXY_TYPE:
-      return kVisitStruct;
-
     case SYMBOL_TYPE:
       return kVisitSymbol;
 

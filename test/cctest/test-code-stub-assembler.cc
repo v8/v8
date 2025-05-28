@@ -1508,7 +1508,7 @@ TEST(TryHasOwnProperty) {
   {
     DirectHandle<JSFunction> function =
         factory->NewFunctionForTesting(factory->empty_string());
-    Handle<JSProxy> object = factory->NewJSProxy(function, objects[0]);
+    Handle<JSProxy> object = factory->NewJSProxy(function, objects[0], false);
     CHECK_EQ(JS_PROXY_TYPE, object->map()->instance_type());
     ft.CheckTrue(object, names[0], expect_bailout);
   }
@@ -1717,7 +1717,7 @@ TEST(TryGetOwnProperty) {
   {
     DirectHandle<JSFunction> function =
         factory->NewFunctionForTesting(factory->empty_string());
-    Handle<JSProxy> object = factory->NewJSProxy(function, objects[0]);
+    Handle<JSProxy> object = factory->NewJSProxy(function, objects[0], false);
     CHECK_EQ(JS_PROXY_TYPE, object->map()->instance_type());
     DirectHandle<Object> value = ft.Call(object, names[0]).ToHandleChecked();
     // Proxies are not supported yet.
@@ -1954,7 +1954,7 @@ TEST(TryLookupElement) {
     DirectHandle<JSArray> handler = factory->NewJSArray(0);
     DirectHandle<JSFunction> function =
         factory->NewFunctionForTesting(factory->empty_string());
-    Handle<JSProxy> object = factory->NewJSProxy(function, handler);
+    Handle<JSProxy> object = factory->NewJSProxy(function, handler, false);
     CHECK_EQ(JS_PROXY_TYPE, object->map()->instance_type());
     ft.CheckTrue(object, smi0, expect_bailout);
   }

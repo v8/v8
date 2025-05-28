@@ -879,7 +879,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Allocates a Harmony proxy.
   Handle<JSProxy> NewJSProxy(DirectHandle<JSReceiver> target,
-                             DirectHandle<JSReceiver> handler);
+                             DirectHandle<JSReceiver> handler, bool revocable);
 
   // Reinitialize an JSGlobalProxy based on a constructor.  The object
   // must have the same size as objects allocated using the

@@ -236,11 +236,11 @@ TEST_F(ObjectTest, NoSideEffectsToString) {
       "Error: fisk hest");
   CheckObject(i_isolate(), factory->NewJSObject(i_isolate()->object_function()),
               "#<Object>");
-  CheckObject(
-      i_isolate(),
-      factory->NewJSProxy(factory->NewJSObject(i_isolate()->object_function()),
-                          factory->NewJSObject(i_isolate()->object_function())),
-      "#<Object>");
+  CheckObject(i_isolate(),
+              factory->NewJSProxy(
+                  factory->NewJSObject(i_isolate()->object_function()),
+                  factory->NewJSObject(i_isolate()->object_function()), false),
+              "#<Object>");
 }
 
 TEST_F(ObjectTest, EnumCache) {
