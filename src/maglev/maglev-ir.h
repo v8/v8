@@ -2311,18 +2311,7 @@ class NodeBase : public ZoneObject {
     set_properties(new_properties);
   }
 
-  void OverwriteWithIdentityTo(ValueNode* node) {
-    // OverwriteWith() checks if the node we're overwriting to has the same
-    // input count and the same properties. Here we don't need to do that, since
-    // overwriting with a node with property pure, we only need to check if
-    // there is at least 1 input. Since the first input is always the one
-    // closest to the input_base().
-    DCHECK_GE(input_count(), 1);
-    set_opcode(NodeBase::opcode_of<Identity>);
-    set_properties(OpProperties::Pure());
-    bitfield_ = InputCountField::update(bitfield_, 1);
-    change_input(0, node);
-  }
+  inline void OverwriteWithIdentityTo(ValueNode* node);
 
   auto options() const { return std::tuple{}; }
 
@@ -2633,11 +2622,7 @@ class ValueNode : public Node {
     DCHECK_LT(use_count_, kMaxInt);
     use_count_++;
   }
-  void remove_use() {
-    // Make sure a saturated use count won't drop below zero.
-    DCHECK_GT(use_count_, 0);
-    use_count_--;
-  }
+  inline void remove_use();
   // Avoid revisiting nodes when processing an unused node's inputs, by marking
   // it as visited.
   void mark_unused_inputs_visited() {
@@ -2917,16 +2902,6 @@ inline void NodeBase::set_input(int index, ValueNode* node) {
   DCHECK_EQ(input(index).node(), nullptr);
   node->add_use();
   new (&input(index)) Input(node);
-}
-
-inline void NodeBase::change_input(int index, ValueNode* node) {
-  DCHECK_NE(input(index).node(), nullptr);
-  input(index).node()->remove_use();
-
-#ifdef DEBUG
-  input(index) = Input(nullptr);
-#endif
-  set_input(index, node);
 }
 
 template <>
@@ -6306,6 +6281,9 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
 
   int non_escaping_use_count() const { return non_escaping_use_count_; }
 
+  void RemoveNonEscapingUses(int n = 1) {
+    non_escaping_use_count_ = std::max(non_escaping_use_count_ - n, 0);
+  }
   void AddNonEscapingUses(int n = 1) {
     DCHECK(!HasBeenAnalysed());
     non_escaping_use_count_ += n;
@@ -6330,6 +6308,7 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
   }
   bool HasBeenElided() const {
     DCHECK(HasBeenAnalysed());
+    DCHECK_GE(use_count_, non_escaping_use_count_);
     return escape_analysis_result_ == EscapeAnalysisResult::kElided;
   }
   bool HasEscaped() const {
