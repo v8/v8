@@ -285,25 +285,14 @@ void Accessors::StringLengthGetter(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kStringLengthGetter);
+  USE(isolate);
   DisallowGarbageCollection no_gc;
-  HandleScope scope(isolate);
-
-  // We have a slight impedance mismatch between the external API and the way we
-  // use callbacks internally: Externally, callbacks can only be used with
-  // v8::Object, but internally we have callbacks on entities which are higher
-  // in the hierarchy, in this case for String values.
 
   Tagged<Object> value =
-      *Utils::OpenDirectHandle(*v8::Local<v8::Value>(info.This()));
-  if (!IsString(value)) {
-    // Not a string value. That means that we either got a String wrapper or
-    // a Value with a String wrapper in its prototype chain.
-    value = Cast<JSPrimitiveWrapper>(*Utils::OpenDirectHandle(*info.Holder()))
-                ->value();
-  }
-  Tagged<Object> result = Smi::FromInt(Cast<String>(value)->length());
-  info.GetReturnValue().Set(
-      Utils::ToLocal(DirectHandle<Object>(result, isolate)));
+      Cast<JSPrimitiveWrapper>(*Utils::OpenDirectHandle(*info.Holder()))
+          ->value();
+  int length = Cast<String>(value)->length();
+  info.GetReturnValue().Set(length);
 }
 
 DirectHandle<AccessorInfo> Accessors::MakeStringLengthInfo(Isolate* isolate) {
@@ -371,11 +360,10 @@ void Accessors::FunctionLengthGetter(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionLengthGetter);
-  HandleScope scope(isolate);
+  USE(isolate);
   auto function = Cast<JSFunction>(Utils::OpenDirectHandle(*info.Holder()));
   int length = function->length();
-  DirectHandle<Object> result(Smi::FromInt(length), isolate);
-  info.GetReturnValue().Set(Utils::ToLocal(result));
+  info.GetReturnValue().Set(length);
 }
 
 DirectHandle<AccessorInfo> Accessors::MakeFunctionLengthInfo(Isolate* isolate) {
@@ -754,7 +742,6 @@ void Accessors::BoundFunctionLengthGetter(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kBoundFunctionLengthGetter);
-  HandleScope scope(isolate);
   DirectHandle<JSBoundFunction> function =
       Cast<JSBoundFunction>(Utils::OpenDirectHandle(*info.Holder()));
 
@@ -762,8 +749,7 @@ void Accessors::BoundFunctionLengthGetter(
   if (!JSBoundFunction::GetLength(isolate, function).To(&length)) {
     return;
   }
-  DirectHandle<Object> result(Smi::FromInt(length), isolate);
-  info.GetReturnValue().Set(Utils::ToLocal(result));
+  info.GetReturnValue().Set(length);
 }
 
 DirectHandle<AccessorInfo> Accessors::MakeBoundFunctionLengthInfo(
@@ -804,7 +790,6 @@ void Accessors::WrappedFunctionLengthGetter(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kBoundFunctionLengthGetter);
-  HandleScope scope(isolate);
   auto function =
       Cast<JSWrappedFunction>(Utils::OpenDirectHandle(*info.Holder()));
 
@@ -812,8 +797,7 @@ void Accessors::WrappedFunctionLengthGetter(
   if (!JSWrappedFunction::GetLength(isolate, function).To(&length)) {
     return;
   }
-  DirectHandle<Object> result(Smi::FromInt(length), isolate);
-  info.GetReturnValue().Set(Utils::ToLocal(result));
+  info.GetReturnValue().Set(length);
 }
 
 DirectHandle<AccessorInfo> Accessors::MakeWrappedFunctionLengthInfo(

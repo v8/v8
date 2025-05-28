@@ -347,12 +347,14 @@ class V8_EXPORT_PRIVATE LookupIterator final {
                                                    Configuration configuration,
                                                    DirectHandle<Name> name);
 
+  template <bool is_element>
   static MaybeDirectHandle<JSReceiver> GetRootForNonJSReceiver(
       Isolate* isolate, DirectHandle<JSPrimitive> lookup_start_object,
-      size_t index, Configuration configuration);
+      DirectHandle<Name> name, size_t index, Configuration configuration);
+  template <bool is_element>
   static inline MaybeDirectHandle<JSReceiver> GetRoot(
-      Isolate* isolate, DirectHandle<JSAny> lookup_start_object, size_t index,
-      Configuration configuration);
+      Isolate* isolate, DirectHandle<JSAny> lookup_start_object,
+      DirectHandle<Name> name, size_t index, Configuration configuration);
 
   State NotFound(Tagged<JSReceiver> const holder) const;
 

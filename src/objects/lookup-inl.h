@@ -380,14 +380,16 @@ LookupIterator::Configuration LookupIterator::ComputeConfiguration(
 }
 
 // static
+template <bool is_element>
 MaybeDirectHandle<JSReceiver> LookupIterator::GetRoot(
-    Isolate* isolate, DirectHandle<JSAny> lookup_start_object, size_t index,
-    Configuration configuration) {
+    Isolate* isolate, DirectHandle<JSAny> lookup_start_object,
+    DirectHandle<Name> name, size_t index, Configuration configuration) {
   if (IsJSReceiver(*lookup_start_object, isolate)) {
     return Cast<JSReceiver>(lookup_start_object);
   }
-  return GetRootForNonJSReceiver(
-      isolate, Cast<JSPrimitive>(lookup_start_object), index, configuration);
+  return GetRootForNonJSReceiver<is_element>(
+      isolate, Cast<JSPrimitive>(lookup_start_object), name, index,
+      configuration);
 }
 
 template <class T>
