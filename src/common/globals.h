@@ -1466,10 +1466,10 @@ enum class GarbageCollectionReason : int {
   kMeasureMemory = 24,
   kBackgroundAllocationFailure = 25,
   kFinalizeConcurrentMinorMS = 26,
-  kFinalizeMinorMSForMajorGC = 27,
-  kCppHeapAllocationFailure = 28,
-  kFrozen = 29,
-  kIdleContextDisposal = 30,
+  kCppHeapAllocationFailure = 27,
+  kFrozen = 28,
+  kIdleContextDisposal = 29,
+  kFinalizeMinorMSForMajorGC = 30,
 
   NUM_REASONS,
 };
