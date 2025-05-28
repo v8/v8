@@ -2436,13 +2436,18 @@ MaybeDirectHandle<JSObject> JSObject::ObjectCreate(
   return isolate->factory()->NewFastOrSlowJSObjectFromMap(map);
 }
 
-void JSObject::EnsureWritableFastElements(Isolate* isolate,
-                                          DirectHandle<JSObject> object) {
-  DCHECK(object->HasSmiOrObjectElements() ||
-         object->HasFastStringWrapperElements() ||
-         object->HasAnyNonextensibleElements());
+bool JSArray::HasReadOnlyLengthSlowPath(DirectHandle<JSArray> array) {
+  // Look at the object.
+  Isolate* isolate = Isolate::Current();
+  LookupIterator it(isolate, array, isolate->factory()->length_string(), array,
+                    LookupIterator::OWN_SKIP_INTERCEPTOR);
+  CHECK_EQ(LookupIterator::ACCESSOR, it.state());
+  return it.IsReadOnly();
+}
+
+void JSObject::MakeElementsWritable(Isolate* isolate,
+                                    DirectHandle<JSObject> object) {
   Tagged<FixedArray> raw_elems = Cast<FixedArray>(object->elements());
-  if (raw_elems->map() != ReadOnlyRoots(isolate).fixed_cow_array_map()) return;
   DirectHandle<FixedArray> elems(raw_elems, isolate);
   DirectHandle<FixedArray> writable_elems =
       isolate->factory()->CopyFixedArrayWithMap(

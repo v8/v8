@@ -908,12 +908,24 @@ DEF_GETTER(JSReceiver, property_array, Tagged<PropertyArray>) {
   return Cast<PropertyArray>(prop);
 }
 
+void JSObject::EnsureWritableFastElements(Isolate* isolate,
+                                          DirectHandle<JSObject> object) {
+  DCHECK(object->HasSmiOrObjectElements() ||
+         object->HasFastStringWrapperElements() ||
+         object->HasAnyNonextensibleElements());
+  Tagged<FixedArray> raw_elems = Cast<FixedArray>(object->elements());
+  if (V8_UNLIKELY(raw_elems->map() ==
+                  ReadOnlyRoots(isolate).fixed_cow_array_map())) {
+    MakeElementsWritable(isolate, object);
+  }
+}
+
 std::optional<Tagged<NativeContext>> JSReceiver::GetCreationContext() {
   DisallowGarbageCollection no_gc;
   Tagged<Map> meta_map = map()->map();
   DCHECK(IsMapMap(meta_map));
   Tagged<Object> maybe_native_context = meta_map->native_context_or_null();
-  if (IsNull(maybe_native_context)) return {};
+  if (V8_UNLIKELY(IsNull(maybe_native_context))) return {};
   DCHECK(IsNativeContext(maybe_native_context));
   return Cast<NativeContext>(maybe_native_context);
 }

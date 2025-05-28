@@ -4996,34 +4996,6 @@ const char* AllocationSite::PretenureDecisionName(PretenureDecision decision) {
   }
 }
 
-// static
-bool JSArray::MayHaveReadOnlyLength(Tagged<Map> js_array_map) {
-  DCHECK(IsJSArrayMap(js_array_map));
-  if (js_array_map->is_dictionary_map()) return true;
-
-  // Fast path: "length" is the first fast property of arrays with non
-  // dictionary properties. Since it's not configurable, it's guaranteed to be
-  // the first in the descriptor array.
-  InternalIndex first(0);
-  DCHECK(js_array_map->instance_descriptors()->GetKey(first) ==
-         GetReadOnlyRoots().length_string());
-  return js_array_map->instance_descriptors()->GetDetails(first).IsReadOnly();
-}
-
-bool JSArray::HasReadOnlyLength(DirectHandle<JSArray> array) {
-  Tagged<Map> map = array->map();
-
-  // If map guarantees that there can't be a read-only length, we are done.
-  if (!MayHaveReadOnlyLength(map)) return false;
-
-  // Look at the object.
-  Isolate* isolate = Isolate::Current();
-  LookupIterator it(isolate, array, isolate->factory()->length_string(), array,
-                    LookupIterator::OWN_SKIP_INTERCEPTOR);
-  CHECK_EQ(LookupIterator::ACCESSOR, it.state());
-  return it.IsReadOnly();
-}
-
 bool JSArray::WouldChangeReadOnlyLength(DirectHandle<JSArray> array,
                                         uint32_t index) {
   uint32_t length = 0;

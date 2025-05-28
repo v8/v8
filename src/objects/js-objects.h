@@ -464,8 +464,10 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   DECL_GETTER(element_dictionary, Tagged<NumberDictionary>)
 
   // Requires: HasFastElements().
-  static void EnsureWritableFastElements(Isolate* isolate,
-                                         DirectHandle<JSObject> object);
+  static inline void EnsureWritableFastElements(Isolate* isolate,
+                                                DirectHandle<JSObject> object);
+  V8_NOINLINE V8_PRESERVE_MOST static void MakeElementsWritable(
+      Isolate* isolate, DirectHandle<JSObject> object);
 
   V8_WARN_UNUSED_RESULT static Maybe<InterceptorResult>
   SetPropertyWithInterceptor(LookupIterator* it,

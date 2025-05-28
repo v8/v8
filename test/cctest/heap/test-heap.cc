@@ -6041,7 +6041,7 @@ TEST(Regress598319) {
         DirectHandle<JSArray> js_array =
             isolate->factory()->NewJSArrayWithElements(
                 DirectHandle<FixedArray>(arr.get(), isolate));
-        js_array->GetElementsAccessor()->Shift(isolate, js_array).Check();
+        js_array->GetElementsAccessor()->Shift(isolate, js_array);
       }
       break;
     }

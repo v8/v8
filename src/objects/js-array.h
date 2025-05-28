@@ -42,8 +42,10 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
   // is set to a smi. This matches the set function on FixedArray.
   inline void set_length(Tagged<Smi> length);
 
-  static bool MayHaveReadOnlyLength(Tagged<Map> js_array_map);
-  static bool HasReadOnlyLength(DirectHandle<JSArray> array);
+  static inline bool MayHaveReadOnlyLength(Tagged<Map> js_array_map);
+  static inline bool HasReadOnlyLength(DirectHandle<JSArray> array);
+  V8_NOINLINE V8_PRESERVE_MOST static bool HasReadOnlyLengthSlowPath(
+      DirectHandle<JSArray> array);
   static bool WouldChangeReadOnlyLength(DirectHandle<JSArray> array,
                                         uint32_t index);
 
