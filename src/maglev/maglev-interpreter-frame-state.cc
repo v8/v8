@@ -80,14 +80,8 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
                          merge_loaded_properties);
   DestructivelyIntersect(loaded_context_constants,
                          other.loaded_context_constants);
-  if (may_have_aliasing_contexts() != other.may_have_aliasing_contexts()) {
-    if (may_have_aliasing_contexts() == ContextSlotLoadsAlias::None) {
-      may_have_aliasing_contexts_ = other.may_have_aliasing_contexts_;
-    } else if (other.may_have_aliasing_contexts() !=
-               ContextSlotLoadsAlias::None) {
-      may_have_aliasing_contexts_ = ContextSlotLoadsAlias::Yes;
-    }
-  }
+  may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
+      may_have_aliasing_contexts_, other.may_have_aliasing_contexts());
   DestructivelyIntersect(loaded_context_slots, other.loaded_context_slots);
 }
 
@@ -105,6 +99,50 @@ bool NextInIgnoreList(typename ZoneSet<Key>::const_iterator& ignore,
 
 }  // namespace
 
+void KnownNodeAspects::UpdateMayHaveAliasingContexts(
+    compiler::JSHeapBroker* broker, LocalIsolate* local_isolate,
+    ValueNode* context) {
+  if (context->Is<InitialValue>()) {
+    may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
+        may_have_aliasing_contexts_,
+        ContextSlotLoadsAlias::kOnlyLoadsRelativeToCurrentContext);
+  } else if (context->Is<Constant>()) {
+    may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
+        may_have_aliasing_contexts_,
+        ContextSlotLoadsAlias::kOnlyLoadsRelativeToConstant);
+  } else if (auto load_prev_ctxt =
+                 context->TryCast<LoadTaggedFieldForContextSlotNoCells>()) {
+    auto input = load_prev_ctxt->input(0).node();
+    USE(input);
+    // Note: OSR can leak a context with InitialValue that we are unable to
+    // type.
+    DCHECK(NodeTypeIs(GetNodeType(broker, local_isolate, *this, input),
+                      NodeType::kContext) ||
+           (input->Is<Phi>() &&
+            input->Cast<Phi>()->post_loop_type() == NodeType::kContext) ||
+           input->Is<InitialValue>());
+    DCHECK_EQ(load_prev_ctxt->offset(),
+              Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
+    // TODO(olivf): We would like to remove this, but it currently fails test
+    // maglev/regress/regress-367758074.js.
+    may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
+  } else if (auto load = context->TryCast<LoadTaggedField>()) {
+    // Currently, the only way to leak a context via load tagged field is with
+    // JSFunction or JSGeneratorObject.
+    USE(load);
+    DCHECK(load->offset() == JSFunction::kContextOffset ||
+           load->offset() == JSGeneratorObject::kContextOffset);
+    may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
+  } else {
+    // This DCHECK only shows which kind of nodes can be a context, even if this
+    // DCHECK fails, it is always safe to set aliasing context mode to kYes.
+    DCHECK(context->Is<InlinedAllocation>() ||
+           context->Is<CreateFunctionContext>() || context->Is<CallRuntime>() ||
+           context->Is<GeneratorRestoreRegister>() || context->Is<Phi>());
+    may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
+  }
+}
+
 void KnownNodeAspects::ClearUnstableNodeAspects() {
   if (v8_flags.trace_maglev_graph_building) {
     std::cout << "  ! Clearing unstable node aspects" << std::endl;
@@ -116,7 +154,7 @@ void KnownNodeAspects::ClearUnstableNodeAspects() {
   // clear those.
   loaded_properties.clear();
   loaded_context_slots.clear();
-  may_have_aliasing_contexts_ = KnownNodeAspects::ContextSlotLoadsAlias::None;
+  may_have_aliasing_contexts_ = KnownNodeAspects::ContextSlotLoadsAlias::kNone;
 }
 
 KnownNodeAspects* KnownNodeAspects::CloneForLoopHeader(
@@ -134,7 +172,7 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
       loaded_context_slots(zone),
       available_expressions(zone),
       may_have_aliasing_contexts_(
-          KnownNodeAspects::ContextSlotLoadsAlias::None),
+          KnownNodeAspects::ContextSlotLoadsAlias::kNone),
       effect_epoch_(other.effect_epoch_),
       node_infos(zone) {
   if (!other.any_map_for_any_node_is_unstable) {
@@ -192,7 +230,7 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
     }
     if (!loaded_context_slots.empty()) {
       if (loop_effects->may_have_aliasing_contexts) {
-        may_have_aliasing_contexts_ = ContextSlotLoadsAlias::Yes;
+        may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
       } else {
         may_have_aliasing_contexts_ = other.may_have_aliasing_contexts();
       }
@@ -292,10 +330,10 @@ bool KnownNodeAspects::IsCompatibleWithLoopHeader(
 
   // Analysis state can change with loads.
   if (!loop_header.loaded_context_slots.empty() &&
-      loop_header.may_have_aliasing_contexts() != ContextSlotLoadsAlias::Yes &&
+      loop_header.may_have_aliasing_contexts() != ContextSlotLoadsAlias::kYes &&
       loop_header.may_have_aliasing_contexts() !=
           may_have_aliasing_contexts() &&
-      may_have_aliasing_contexts() != ContextSlotLoadsAlias::None) {
+      may_have_aliasing_contexts() != ContextSlotLoadsAlias::kNone) {
     if (V8_UNLIKELY(v8_flags.trace_maglev_loop_speeling)) {
       std::cout << "KNA after loop has incompatible "
                    "loop_header.may_have_aliasing_contexts\n";

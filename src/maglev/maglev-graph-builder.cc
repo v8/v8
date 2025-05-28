@@ -1088,6 +1088,9 @@ void MaglevGraphBuilder::BuildRegisterFrameInitialization(
   InitializeRegister(interpreter::Register::current_context(), context);
   InitializeRegister(interpreter::Register::function_closure(), closure);
 
+  EnsureType(GetContext(), NodeType::kContext);
+  EnsureType(GetClosure(), NodeType::kJSFunction);
+
   interpreter::Register new_target_or_generator_register =
       bytecode().incoming_new_target_or_generator_register();
 
@@ -3498,7 +3501,8 @@ ValueNode* MaglevGraphBuilder::LoadAndCacheContextSlot(
     }
     return cached_value;
   }
-  known_node_aspects().UpdateMayHaveAliasingContexts(context);
+  known_node_aspects().UpdateMayHaveAliasingContexts(broker(), local_isolate(),
+                                                     context);
   if (context_mode == ContextMode::kHasContextCells &&
       (v8_flags.script_context_cells || v8_flags.function_context_cells) &&
       slot_mutability == kMutable) {
@@ -3633,11 +3637,12 @@ ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
               << PrintNodeLabel(graph_labeller(), context) << "[" << offset
               << "]: " << PrintNode(graph_labeller(), value) << std::endl;
   }
-  known_node_aspects().UpdateMayHaveAliasingContexts(context);
+  known_node_aspects().UpdateMayHaveAliasingContexts(broker(), local_isolate(),
+                                                     context);
   KnownNodeAspects::LoadedContextSlots& loaded_context_slots =
       known_node_aspects().loaded_context_slots;
   if (known_node_aspects().may_have_aliasing_contexts() ==
-      KnownNodeAspects::ContextSlotLoadsAlias::Yes) {
+      KnownNodeAspects::ContextSlotLoadsAlias::kYes) {
     compiler::OptionalScopeInfoRef scope_info =
         graph()->TryGetScopeInfo(context, broker());
     for (auto& cache : loaded_context_slots) {
@@ -3677,7 +3682,7 @@ ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
       }
     }
     if (known_node_aspects().may_have_aliasing_contexts() !=
-        KnownNodeAspects::ContextSlotLoadsAlias::Yes) {
+        KnownNodeAspects::ContextSlotLoadsAlias::kYes) {
       auto last_store = unobserved_context_slot_stores_.find(key);
       if (last_store != unobserved_context_slot_stores_.end()) {
         MarkNodeDead(last_store->second);
@@ -4539,6 +4544,18 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kIntPtrToBoolean:
     case Opcode::kSetPrototypeHas:
       return NodeType::kBoolean;
+    case Opcode::kCreateFunctionContext:
+      return NodeType::kContext;
+    case Opcode::kCallRuntime:
+      switch (node->Cast<CallRuntime>()->function_id()) {
+        case Runtime::kPushBlockContext:
+        case Runtime::kPushCatchContext:
+        case Runtime::kNewFunctionContext:
+          return NodeType::kContext;
+        default:
+          return NodeType::kUnknown;
+      }
+      UNREACHABLE();
       // Not value nodes:
 #define GENERATE_CASE(Name) case Opcode::k##Name:
       CONTROL_NODE_LIST(GENERATE_CASE)
@@ -4557,7 +4574,6 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kCallBuiltin:
     case Opcode::kCallCPPBuiltin:
     case Opcode::kCallForwardVarargs:
-    case Opcode::kCallRuntime:
     case Opcode::kCallWithArrayLike:
     case Opcode::kCallWithSpread:
     case Opcode::kCallKnownApiFunction:
@@ -4569,7 +4585,6 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kConstructWithSpread:
     case Opcode::kConvertReceiver:
     case Opcode::kConvertHoleToUndefined:
-    case Opcode::kCreateFunctionContext:
     case Opcode::kCreateRegExpLiteral:
     case Opcode::kDeleteProperty:
     case Opcode::kEnsureWritableFastElements:
@@ -5943,7 +5958,10 @@ ValueNode* MaglevGraphBuilder::BuildLoadJSFunctionContext(ValueNode* closure) {
       return GetConstant(constant->AsJSFunction().context(broker()));
     }
   }
-  return BuildLoadTaggedField(closure, JSFunction::kContextOffset);
+  ValueNode* context =
+      BuildLoadTaggedField(closure, JSFunction::kContextOffset);
+  EnsureType(context, NodeType::kContext);
+  return context;
 }
 
 void MaglevGraphBuilder::BuildStoreMap(ValueNode* object, compiler::MapRef map,
@@ -7936,6 +7954,7 @@ ValueNode* MaglevGraphBuilder::GetContextAtDepth(ValueNode* context,
   for (size_t i = 0; i < depth; i++) {
     context = LoadAndCacheContextSlot(context, Context::PREVIOUS_INDEX,
                                       kImmutable, ContextMode::kNoContextCells);
+    EnsureType(context, NodeType::kContext);
   }
   return context;
 }
@@ -13641,6 +13660,7 @@ VirtualObject* MaglevGraphBuilder::CreateContext(
     context->set(Context::OffsetOfElementAt(index),
                  GetRootConstant(RootIndex::kUndefinedValue));
   }
+  EnsureType(context, NodeType::kContext);
   return context;
 }
 
@@ -15505,6 +15525,7 @@ ReduceResult MaglevGraphBuilder::VisitSwitchOnGeneratorState() {
                                       StoreTaggedMode::kDefault);
   ValueNode* context =
       BuildLoadTaggedField(generator, JSGeneratorObject::kContextOffset);
+  EnsureType(context, NodeType::kContext);
   graph()->record_scope_info(context, {});
   SetContext(context);
 
@@ -15586,10 +15607,15 @@ ReduceResult MaglevGraphBuilder::VisitResumeGenerator() {
       GetOutLivenessFor(next_offset());
   RootConstant* stale = GetRootConstant(RootIndex::kStaleRegister);
   for (int i = 0; i < registers.register_count(); ++i) {
-    if (liveness->RegisterIsLive(registers[i].index())) {
+    interpreter::Register reg = registers[i];
+    if (liveness->RegisterIsLive(reg.index())) {
       int array_index = parameter_count_without_receiver() + i;
-      StoreRegister(registers[i], AddNewNode<GeneratorRestoreRegister>(
-                                      {array, stale}, array_index));
+      ValueNode* value =
+          AddNewNode<GeneratorRestoreRegister>({array, stale}, array_index);
+      StoreRegister(registers[i], value);
+      if (reg == interpreter::Register::current_context()) {
+        EnsureType(value, NodeType::kContext);
+      }
     }
   }
   SetAccumulator(BuildLoadTaggedField(
