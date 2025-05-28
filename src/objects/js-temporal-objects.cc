@@ -25,11 +25,7 @@
 #include "src/temporal/temporal-parser.h"
 #include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/I128Nanoseconds.hpp"
 #include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/Instant.hpp"
-#ifdef TEMPORAL_CAPI_VERSION_0_0_6
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/TemporalUnit.hpp"
-#else  // TEMPORAL_CAPI_VERSION_0_0_6
 #include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/Unit.hpp"
-#endif  // TEMPORAL_CAPI_VERSION_0_0_6
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-date-time-format.h"
@@ -41,13 +37,7 @@ namespace v8::internal {
 
 namespace {
 
-#ifdef TEMPORAL_CAPI_VERSION_0_0_6
-using temporal_rs::TemporalRoundingMode;
-using temporal_rs::TemporalUnit;
-#else   // TEMPORAL_CAPI_VERSION_0_0_6
-using TemporalRoundingMode = temporal_rs::RoundingMode;
-using TemporalUnit = temporal_rs::Unit;
-#endif  // TEMPORAL_CAPI_VERSION_0_0_6
+using temporal_rs::RoundingMode;
 
 /**
  * This header declare the Abstract Operations defined in the
@@ -134,7 +124,7 @@ enum class Precision { k0, k1, k2, k3, k4, k5, k6, k7, k8, k9, kAuto, kMinute };
 
 enum class MatchBehaviour { kMatchExactly, kMatchMinutes };
 
-// #sec-temporal-gettemporalunit
+// #sec-temporal-GetTemporalUnit
 enum class UnitGroup {
   kDate,
   kTime,
@@ -219,11 +209,11 @@ MaybeDirectHandle<JSType> ConstructRustWrappingType(
 DEFINE_ACCESSORS_FOR_RUST_WRAPPER(instant, JSTemporalInstant)
 
 namespace temporal {
-// #sec-temporal-gettemporalunitvaluedoption
+// #sec-temporal-GetTemporalUnitvaluedoption
 // In the spec text, the extraValues is defined as an optional argument of
 // "a List of ECMAScript language values". Most of the caller does not pass in
 // value for extraValues, which is represented by the default
-// TemporalUnit::NotPresent. For the three places in the spec text calling
+// temporal_rs::Unit::NotPresent. For the three places in the spec text calling
 // GetTemporalUnit with an extraValues argument:
 // << "day" >> is passed in as in the algorithm of
 //   Temporal.PlainDateTime.prototype.round() and
@@ -231,92 +221,96 @@ namespace temporal {
 // << "auto" >> is passed in as in the algorithm of
 // Temporal.Duration.prototype.round().
 // Therefore we can simply use a Unit of three possible value, the default
-// TemporalUnit::NotPresent, TemporalUnit::Day, and TemporalUnit::Auto to cover
-// all the possible value for extraValues.
-std::optional<TemporalUnit> GetTemporalUnit(
+// temporal_rs::Unit::NotPresent, temporal_rs::Unit::Day, and
+// temporal_rs::Unit::Auto to cover all the possible value for extraValues.
+std::optional<temporal_rs::Unit> GetTemporalUnit(
     Isolate* isolate, DirectHandle<JSReceiver> normalized_options,
     const char* key, UnitGroup unit_group,
-    std::optional<TemporalUnit> default_value, bool default_is_required,
+    std::optional<temporal_rs::Unit> default_value, bool default_is_required,
     const char* method_name,
-    std::optional<TemporalUnit> extra_values = std::nullopt) {
+    std::optional<temporal_rs::Unit> extra_values = std::nullopt) {
   std::vector<const char*> str_values;
-  std::vector<std::optional<TemporalUnit>> enum_values;
+  std::vector<std::optional<temporal_rs::Unit>> enum_values;
   switch (unit_group) {
     case UnitGroup::kDate:
-      if (default_value == TemporalUnit::Auto ||
-          extra_values == TemporalUnit::Auto) {
+      if (default_value == temporal_rs::Unit::Auto ||
+          extra_values == temporal_rs::Unit::Auto) {
         str_values = {"year",  "month",  "week",  "day", "auto",
                       "years", "months", "weeks", "days"};
-        enum_values = {
-            TemporalUnit::Year,  TemporalUnit::Month, TemporalUnit::Week,
-            TemporalUnit::Day,   TemporalUnit::Auto,  TemporalUnit::Year,
-            TemporalUnit::Month, TemporalUnit::Week,  TemporalUnit::Day};
+        enum_values = {temporal_rs::Unit::Year,  temporal_rs::Unit::Month,
+                       temporal_rs::Unit::Week,  temporal_rs::Unit::Day,
+                       temporal_rs::Unit::Auto,  temporal_rs::Unit::Year,
+                       temporal_rs::Unit::Month, temporal_rs::Unit::Week,
+                       temporal_rs::Unit::Day};
       } else {
         DCHECK(default_value == std::nullopt ||
-               default_value == TemporalUnit::Year ||
-               default_value == TemporalUnit::Month ||
-               default_value == TemporalUnit::Week ||
-               default_value == TemporalUnit::Day);
+               default_value == temporal_rs::Unit::Year ||
+               default_value == temporal_rs::Unit::Month ||
+               default_value == temporal_rs::Unit::Week ||
+               default_value == temporal_rs::Unit::Day);
         str_values = {"year",  "month",  "week",  "day",
                       "years", "months", "weeks", "days"};
-        enum_values = {TemporalUnit::Year, TemporalUnit::Month,
-                       TemporalUnit::Week, TemporalUnit::Day,
-                       TemporalUnit::Year, TemporalUnit::Month,
-                       TemporalUnit::Week, TemporalUnit::Day};
+        enum_values = {temporal_rs::Unit::Year, temporal_rs::Unit::Month,
+                       temporal_rs::Unit::Week, temporal_rs::Unit::Day,
+                       temporal_rs::Unit::Year, temporal_rs::Unit::Month,
+                       temporal_rs::Unit::Week, temporal_rs::Unit::Day};
       }
       break;
     case UnitGroup::kTime:
-      if (default_value == TemporalUnit::Auto ||
-          extra_values == TemporalUnit::Auto) {
+      if (default_value == temporal_rs::Unit::Auto ||
+          extra_values == temporal_rs::Unit::Auto) {
         str_values = {"hour",        "minute",       "second",
                       "millisecond", "microsecond",  "nanosecond",
                       "auto",        "hours",        "minutes",
                       "seconds",     "milliseconds", "microseconds",
                       "nanoseconds"};
-        enum_values = {TemporalUnit::Hour,        TemporalUnit::Minute,
-                       TemporalUnit::Second,      TemporalUnit::Millisecond,
-                       TemporalUnit::Microsecond, TemporalUnit::Nanosecond,
-                       TemporalUnit::Auto,        TemporalUnit::Hour,
-                       TemporalUnit::Minute,      TemporalUnit::Second,
-                       TemporalUnit::Millisecond, TemporalUnit::Microsecond,
-                       TemporalUnit::Nanosecond};
-      } else if (default_value == TemporalUnit::Day ||
-                 extra_values == TemporalUnit::Day) {
+        enum_values = {
+            temporal_rs::Unit::Hour,        temporal_rs::Unit::Minute,
+            temporal_rs::Unit::Second,      temporal_rs::Unit::Millisecond,
+            temporal_rs::Unit::Microsecond, temporal_rs::Unit::Nanosecond,
+            temporal_rs::Unit::Auto,        temporal_rs::Unit::Hour,
+            temporal_rs::Unit::Minute,      temporal_rs::Unit::Second,
+            temporal_rs::Unit::Millisecond, temporal_rs::Unit::Microsecond,
+            temporal_rs::Unit::Nanosecond};
+      } else if (default_value == temporal_rs::Unit::Day ||
+                 extra_values == temporal_rs::Unit::Day) {
         str_values = {"hour",        "minute",       "second",
                       "millisecond", "microsecond",  "nanosecond",
                       "day",         "hours",        "minutes",
                       "seconds",     "milliseconds", "microseconds",
                       "nanoseconds", "days"};
-        enum_values = {TemporalUnit::Hour,        TemporalUnit::Minute,
-                       TemporalUnit::Second,      TemporalUnit::Millisecond,
-                       TemporalUnit::Microsecond, TemporalUnit::Nanosecond,
-                       TemporalUnit::Day,         TemporalUnit::Hour,
-                       TemporalUnit::Minute,      TemporalUnit::Second,
-                       TemporalUnit::Millisecond, TemporalUnit::Microsecond,
-                       TemporalUnit::Nanosecond,  TemporalUnit::Day};
+        enum_values = {
+            temporal_rs::Unit::Hour,        temporal_rs::Unit::Minute,
+            temporal_rs::Unit::Second,      temporal_rs::Unit::Millisecond,
+            temporal_rs::Unit::Microsecond, temporal_rs::Unit::Nanosecond,
+            temporal_rs::Unit::Day,         temporal_rs::Unit::Hour,
+            temporal_rs::Unit::Minute,      temporal_rs::Unit::Second,
+            temporal_rs::Unit::Millisecond, temporal_rs::Unit::Microsecond,
+            temporal_rs::Unit::Nanosecond,  temporal_rs::Unit::Day};
       } else {
         DCHECK(default_value == std::nullopt ||
-               default_value == TemporalUnit::Hour ||
-               default_value == TemporalUnit::Minute ||
-               default_value == TemporalUnit::Second ||
-               default_value == TemporalUnit::Millisecond ||
-               default_value == TemporalUnit::Microsecond ||
-               default_value == TemporalUnit::Nanosecond);
+               default_value == temporal_rs::Unit::Hour ||
+               default_value == temporal_rs::Unit::Minute ||
+               default_value == temporal_rs::Unit::Second ||
+               default_value == temporal_rs::Unit::Millisecond ||
+               default_value == temporal_rs::Unit::Microsecond ||
+               default_value == temporal_rs::Unit::Nanosecond);
         str_values = {"hour",         "minute",       "second",
                       "millisecond",  "microsecond",  "nanosecond",
                       "hours",        "minutes",      "seconds",
                       "milliseconds", "microseconds", "nanoseconds"};
-        enum_values = {TemporalUnit::Hour,        TemporalUnit::Minute,
-                       TemporalUnit::Second,      TemporalUnit::Millisecond,
-                       TemporalUnit::Microsecond, TemporalUnit::Nanosecond,
-                       TemporalUnit::Hour,        TemporalUnit::Minute,
-                       TemporalUnit::Second,      TemporalUnit::Millisecond,
-                       TemporalUnit::Microsecond, TemporalUnit::Nanosecond};
+        enum_values = {
+            temporal_rs::Unit::Hour,        temporal_rs::Unit::Minute,
+            temporal_rs::Unit::Second,      temporal_rs::Unit::Millisecond,
+            temporal_rs::Unit::Microsecond, temporal_rs::Unit::Nanosecond,
+            temporal_rs::Unit::Hour,        temporal_rs::Unit::Minute,
+            temporal_rs::Unit::Second,      temporal_rs::Unit::Millisecond,
+            temporal_rs::Unit::Microsecond, temporal_rs::Unit::Nanosecond};
       }
       break;
     case UnitGroup::kDateTime:
-      if (default_value == TemporalUnit::Auto ||
-          extra_values == TemporalUnit::Auto) {
+      if (default_value == temporal_rs::Unit::Auto ||
+          extra_values == temporal_rs::Unit::Auto) {
         str_values = {"year",         "month",        "week",
                       "day",          "hour",         "minute",
                       "second",       "millisecond",  "microsecond",
@@ -324,17 +318,18 @@ std::optional<TemporalUnit> GetTemporalUnit(
                       "months",       "weeks",        "days",
                       "hours",        "minutes",      "seconds",
                       "milliseconds", "microseconds", "nanoseconds"};
-        enum_values = {TemporalUnit::Year,        TemporalUnit::Month,
-                       TemporalUnit::Week,        TemporalUnit::Day,
-                       TemporalUnit::Hour,        TemporalUnit::Minute,
-                       TemporalUnit::Second,      TemporalUnit::Millisecond,
-                       TemporalUnit::Microsecond, TemporalUnit::Nanosecond,
-                       TemporalUnit::Auto,        TemporalUnit::Year,
-                       TemporalUnit::Month,       TemporalUnit::Week,
-                       TemporalUnit::Day,         TemporalUnit::Hour,
-                       TemporalUnit::Minute,      TemporalUnit::Second,
-                       TemporalUnit::Millisecond, TemporalUnit::Microsecond,
-                       TemporalUnit::Nanosecond};
+        enum_values = {
+            temporal_rs::Unit::Year,        temporal_rs::Unit::Month,
+            temporal_rs::Unit::Week,        temporal_rs::Unit::Day,
+            temporal_rs::Unit::Hour,        temporal_rs::Unit::Minute,
+            temporal_rs::Unit::Second,      temporal_rs::Unit::Millisecond,
+            temporal_rs::Unit::Microsecond, temporal_rs::Unit::Nanosecond,
+            temporal_rs::Unit::Auto,        temporal_rs::Unit::Year,
+            temporal_rs::Unit::Month,       temporal_rs::Unit::Week,
+            temporal_rs::Unit::Day,         temporal_rs::Unit::Hour,
+            temporal_rs::Unit::Minute,      temporal_rs::Unit::Second,
+            temporal_rs::Unit::Millisecond, temporal_rs::Unit::Microsecond,
+            temporal_rs::Unit::Nanosecond};
       } else {
         str_values = {
             "year",        "month",        "week",         "day",
@@ -342,16 +337,17 @@ std::optional<TemporalUnit> GetTemporalUnit(
             "microsecond", "nanosecond",   "years",        "months",
             "weeks",       "days",         "hours",        "minutes",
             "seconds",     "milliseconds", "microseconds", "nanoseconds"};
-        enum_values = {TemporalUnit::Year,        TemporalUnit::Month,
-                       TemporalUnit::Week,        TemporalUnit::Day,
-                       TemporalUnit::Hour,        TemporalUnit::Minute,
-                       TemporalUnit::Second,      TemporalUnit::Millisecond,
-                       TemporalUnit::Microsecond, TemporalUnit::Nanosecond,
-                       TemporalUnit::Year,        TemporalUnit::Month,
-                       TemporalUnit::Week,        TemporalUnit::Day,
-                       TemporalUnit::Hour,        TemporalUnit::Minute,
-                       TemporalUnit::Second,      TemporalUnit::Millisecond,
-                       TemporalUnit::Microsecond, TemporalUnit::Nanosecond};
+        enum_values = {
+            temporal_rs::Unit::Year,        temporal_rs::Unit::Month,
+            temporal_rs::Unit::Week,        temporal_rs::Unit::Day,
+            temporal_rs::Unit::Hour,        temporal_rs::Unit::Minute,
+            temporal_rs::Unit::Second,      temporal_rs::Unit::Millisecond,
+            temporal_rs::Unit::Microsecond, temporal_rs::Unit::Nanosecond,
+            temporal_rs::Unit::Year,        temporal_rs::Unit::Month,
+            temporal_rs::Unit::Week,        temporal_rs::Unit::Day,
+            temporal_rs::Unit::Hour,        temporal_rs::Unit::Minute,
+            temporal_rs::Unit::Second,      temporal_rs::Unit::Millisecond,
+            temporal_rs::Unit::Microsecond, temporal_rs::Unit::Nanosecond};
       }
       break;
   }
@@ -366,12 +362,12 @@ std::optional<TemporalUnit> GetTemporalUnit(
 
   // 9. Let value be ? GetOption(normalizedOptions, key, "string",
   // allowedValues, defaultValue).
-  std::optional<TemporalUnit> value;
+  std::optional<temporal_rs::Unit> value;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, value,
-      GetStringOption<std::optional<TemporalUnit>>(isolate, normalized_options,
-                                                   key, method_name, str_values,
-                                                   enum_values, default_value),
+      GetStringOption<std::optional<temporal_rs::Unit>>(
+          isolate, normalized_options, key, method_name, str_values,
+          enum_values, default_value),
       std::nullopt);
 
   // 10. If value is undefined and default is required, throw a RangeError
@@ -418,22 +414,22 @@ Maybe<uint32_t> GetRoundingIncrementOption(
 }
 
 // sec-temporal-getroundingmodeoption
-Maybe<TemporalRoundingMode> GetRoundingModeOption(
-    Isolate* isolate, DirectHandle<JSReceiver> options,
-    TemporalRoundingMode fallback, const char* method_name) {
+Maybe<RoundingMode> GetRoundingModeOption(Isolate* isolate,
+                                          DirectHandle<JSReceiver> options,
+                                          RoundingMode fallback,
+                                          const char* method_name) {
   // 1. Return ? GetOption(normalizedOptions, "roundingMode", "string", «
   // "ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor", "halfExpand",
   // "halfTrunc", "halfEven" », fallback).
 
-  return GetStringOption<TemporalRoundingMode>(
+  return GetStringOption<RoundingMode>(
       isolate, options, "roundingMode", method_name,
       {"ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
        "halfExpand", "halfTrunc", "halfEven"},
-      {TemporalRoundingMode::Ceil, TemporalRoundingMode::Floor,
-       TemporalRoundingMode::Expand, TemporalRoundingMode::Trunc,
-       TemporalRoundingMode::HalfCeil, TemporalRoundingMode::HalfFloor,
-       TemporalRoundingMode::HalfExpand, TemporalRoundingMode::HalfTrunc,
-       TemporalRoundingMode::HalfEven},
+      {RoundingMode::Ceil, RoundingMode::Floor, RoundingMode::Expand,
+       RoundingMode::Trunc, RoundingMode::HalfCeil, RoundingMode::HalfFloor,
+       RoundingMode::HalfExpand, RoundingMode::HalfTrunc,
+       RoundingMode::HalfEven},
       fallback);
 }
 
@@ -1595,16 +1591,16 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Round(
       DirectHandle<JSTemporalInstant>());
 
   // 8. Let roundingMode be ? GetRoundingModeOption(roundTo, half-expand).
-  TemporalRoundingMode rounding_mode;
+  RoundingMode rounding_mode;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, rounding_mode,
-      temporal::GetRoundingModeOption(
-          isolate, round_to, TemporalRoundingMode::HalfExpand, method_name),
+      temporal::GetRoundingModeOption(isolate, round_to,
+                                      RoundingMode::HalfExpand, method_name),
       DirectHandle<JSTemporalInstant>());
 
   // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo,
   // "smallestUnit", time, required
-  std::optional<TemporalUnit> smallest_unit = temporal::GetTemporalUnit(
+  std::optional<temporal_rs::Unit> smallest_unit = temporal::GetTemporalUnit(
       isolate, round_to, "smallestUnit", UnitGroup::kTime, std::nullopt, true,
       method_name);
   // GetTemporalUnit returns an optional, not a Maybe, so we can't use
