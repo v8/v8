@@ -315,7 +315,7 @@ void InstructionSelectorT::VisitStore(OpIndex node) {
         UNREACHABLE();
     }
 
-    if (this->is_load_root_register(base)) {
+    if (Is<LoadRootRegisterOp>(base)) {
       Emit(code | AddressingModeField::encode(kMode_Root), g.NoOutput(),
            g.UseRegisterOrImmediateZero(value),
            index.has_value() ? g.UseImmediate(store_view.index().value())

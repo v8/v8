@@ -397,7 +397,7 @@ ArchOpcode GetStoreOpcode(MemoryRepresentation stored_rep) {
 }  // namespace
 
 void InstructionSelectorT::VisitLoad(OpIndex node) {
-  auto load = this->load_view(node);
+  auto load = load_view(node);
   InstructionCode opcode = kArchNop;
   opcode = GetLoadOpcode(load.ts_loaded_rep(), load.ts_result_rep());
   bool traps_on_null;
@@ -461,11 +461,11 @@ void InstructionSelectorT::VisitStore(OpIndex node) {
   InstructionCode code;
     code = GetStoreOpcode(store_view.ts_stored_rep());
 
-  if (this->is_load_root_register(base)) {
-    Emit(code | AddressingModeField::encode(kMode_Root), g.NoOutput(),
-         g.UseRegisterOrImmediateZero(value), g.UseImmediate(index));
-    return;
-  }
+    if (Is<LoadRootRegisterOp>(base)) {
+      Emit(code | AddressingModeField::encode(kMode_Root), g.NoOutput(),
+           g.UseRegisterOrImmediateZero(value), g.UseImmediate(index));
+      return;
+    }
 
   if (store_view.is_store_trap_on_null()) {
     code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
@@ -1016,8 +1016,7 @@ void InstructionSelectorT::VisitChangeInt32ToInt64(OpIndex node) {
   const Operation& input_op = this->Get(change_op.input());
   if (input_op.Is<LoadOp>() && CanCover(node, change_op.input())) {
     // Generate sign-extending load.
-    LoadRepresentation load_rep =
-        this->load_view(change_op.input()).loaded_rep();
+    LoadRepresentation load_rep = load_view(change_op.input()).loaded_rep();
     MachineRepresentation rep = load_rep.representation();
     InstructionCode opcode = kArchNop;
     switch (rep) {
