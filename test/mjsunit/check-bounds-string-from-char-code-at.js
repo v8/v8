@@ -14,7 +14,6 @@ function f(useArrayIndex) {
 
 %PrepareFunctionForOptimization(f);
 f(true);
-f(true);
 
 %OptimizeFunctionOnNextCall(f);
 f(false);
@@ -22,6 +21,12 @@ assertUnoptimized(f);
 
 %PrepareFunctionForOptimization(f);
 f(true);
+
+// Might deopt again with oob support since the argument cannot be converted to an index
+%OptimizeFunctionOnNextCall(f);
+f(false);
+
+%PrepareFunctionForOptimization(f);
 f(true);
 
 %OptimizeFunctionOnNextCall(f);

@@ -2592,7 +2592,11 @@ enum class CachedTieringDecision : int32_t {
   kNormal,
 };
 
-enum class SpeculationMode { kAllowSpeculation, kDisallowSpeculation };
+enum class SpeculationMode {
+  kAllowSpeculation = 0,
+  kDisallowBoundsCheckSpeculation = 1,
+  kDisallowSpeculation = 3
+};
 enum class CallFeedbackContent { kTarget, kReceiver };
 
 inline std::ostream& operator<<(std::ostream& os,
@@ -2600,6 +2604,8 @@ inline std::ostream& operator<<(std::ostream& os,
   switch (speculation_mode) {
     case SpeculationMode::kAllowSpeculation:
       return os << "SpeculationMode::kAllowSpeculation";
+    case SpeculationMode::kDisallowBoundsCheckSpeculation:
+      return os << "SpeculationMode::kDisallowBoundsCheckSpeculation";
     case SpeculationMode::kDisallowSpeculation:
       return os << "SpeculationMode::kDisallowSpeculation";
   }

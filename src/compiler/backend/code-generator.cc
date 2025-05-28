@@ -172,7 +172,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   DeoptimizeReason deoptimization_reason = exit->reason();
   Label* jump_deoptimization_entry_label =
       &jump_deoptimization_entry_labels_[static_cast<int>(deopt_kind)];
-  if (info()->source_positions()) {
+  if (info()->source_positions() ||
+      AlwaysPreserveDeoptReason(deoptimization_reason)) {
     masm()->RecordDeoptReason(deoptimization_reason, exit->node_id(),
                               exit->pos(), deoptimization_id);
   }

@@ -289,9 +289,9 @@ class CallParameters final {
                               feedback_hash(p.feedback_));
   }
 
-  using ArityField = base::BitField<size_t, 0, 27>;
-  using CallFeedbackRelationField = base::BitField<CallFeedbackRelation, 27, 2>;
-  using SpeculationModeField = base::BitField<SpeculationMode, 29, 1>;
+  using ArityField = base::BitField<size_t, 0, 26>;
+  using CallFeedbackRelationField = base::BitField<CallFeedbackRelation, 26, 2>;
+  using SpeculationModeField = base::BitField<SpeculationMode, 28, 2>;
   using ConvertReceiverModeField = base::BitField<ConvertReceiverMode, 30, 2>;
 
   uint32_t const bit_field_;

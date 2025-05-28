@@ -3322,6 +3322,8 @@ class MaglevGraphBuilder {
 
   InterpreterFrameState current_interpreter_frame_;
   compiler::FeedbackSource current_speculation_feedback_;
+  SpeculationMode current_speculation_mode_ =
+      SpeculationMode::kDisallowSpeculation;
 
   ValueNode* inlined_new_target_ = nullptr;
 
@@ -3405,7 +3407,14 @@ class MaglevGraphBuilder {
   }
 
   bool CanSpeculateCall() const {
-    return current_speculation_feedback_.IsValid();
+    return current_speculation_mode_ == SpeculationMode::kAllowSpeculation;
+  }
+
+  bool CanSpeculateCall(
+      std::initializer_list<SpeculationMode> supported_modes) const {
+    return CanSpeculateCall() ||
+           std::find(supported_modes.begin(), supported_modes.end(),
+                     current_speculation_mode_) != supported_modes.end();
   }
 
   inline void MarkNodeDead(Node* node) {

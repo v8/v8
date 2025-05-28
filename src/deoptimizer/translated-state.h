@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "src/common/simd128.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/deoptimizer/frame-translation-builder.h"
 #include "src/objects/deoptimization-data.h"
 #include "src/objects/feedback-vector.h"
@@ -493,7 +494,7 @@ class TranslatedState {
             int actual_argument_count);
 
   void VerifyMaterializedObjects();
-  bool DoUpdateFeedback();
+  bool DoUpdateFeedback(DeoptimizeReason reason);
 
  private:
   friend TranslatedValue;

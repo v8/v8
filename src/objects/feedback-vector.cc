@@ -1098,6 +1098,15 @@ void FeedbackNexus::SetSpeculationMode(SpeculationMode mode) {
               SKIP_WRITE_BARRIER);
 }
 
+void FeedbackNexus::NextSpeculationMode(SpeculationMode mode) {
+  SpeculationMode cur = GetSpeculationMode();
+  if (cur == SpeculationMode::kAllowSpeculation) {
+    SetSpeculationMode(mode);
+  } else {
+    SetSpeculationMode(SpeculationMode::kDisallowSpeculation);
+  }
+}
+
 SpeculationMode FeedbackNexus::GetSpeculationMode() {
   DCHECK(IsCallICKind(kind()));
 

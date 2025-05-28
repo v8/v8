@@ -330,14 +330,20 @@ class V8_NODISCARD MaglevGraphBuilder::SaveCallSpeculationScope {
       : builder_(builder) {
     saved_ = builder_->current_speculation_feedback_;
     // Only set the current speculation feedback if speculation is allowed.
-    if (IsSpeculationAllowed(builder_->broker(), feedback_source)) {
+    SpeculationMode mode =
+        GetSpeculationMode(builder_->broker(), feedback_source);
+    if (mode != SpeculationMode::kDisallowSpeculation) {
       builder->current_speculation_feedback_ = feedback_source;
+      builder_->current_speculation_mode_ = mode;
     } else {
       builder->current_speculation_feedback_ = compiler::FeedbackSource();
+      builder_->current_speculation_mode_ =
+          SpeculationMode::kDisallowSpeculation;
     }
   }
   ~SaveCallSpeculationScope() {
     builder_->current_speculation_feedback_ = saved_;
+    builder_->current_speculation_mode_ = saved_mode_;
   }
 
   const compiler::FeedbackSource& value() { return saved_; }
@@ -345,15 +351,18 @@ class V8_NODISCARD MaglevGraphBuilder::SaveCallSpeculationScope {
  private:
   MaglevGraphBuilder* builder_;
   compiler::FeedbackSource saved_;
+  SpeculationMode saved_mode_;
 
-  static bool IsSpeculationAllowed(compiler::JSHeapBroker* broker,
-                                   compiler::FeedbackSource feedback_source) {
-    if (!feedback_source.IsValid()) return false;
+  static SpeculationMode GetSpeculationMode(
+      compiler::JSHeapBroker* broker,
+      compiler::FeedbackSource feedback_source) {
+    if (!feedback_source.IsValid())
+      return SpeculationMode::kDisallowSpeculation;
     compiler::ProcessedFeedback const& processed_feedback =
         broker->GetFeedbackForCall(feedback_source);
-    if (processed_feedback.IsInsufficient()) return false;
-    return processed_feedback.AsCall().speculation_mode() ==
-           SpeculationMode::kAllowSpeculation;
+    if (processed_feedback.IsInsufficient())
+      return SpeculationMode::kDisallowSpeculation;
+    return processed_feedback.AsCall().speculation_mode();
   }
 };
 
@@ -9591,7 +9600,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstantStringAt(
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharAt(
     compiler::JSFunctionRef target, CallArguments& args) {
-  if (!CanSpeculateCall()) return {};
+  if (!CanSpeculateCall({SpeculationMode::kDisallowBoundsCheckSpeculation})) {
+    return {};
+  }
+
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
   ValueNode* index;
   if (args.count() == 0) {
@@ -9609,33 +9621,46 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharAt(
   RETURN_IF_ABORT(BuildCheckString(receiver));
   // And index is below length.
   ValueNode* length = BuildLoadStringLength(receiver);
-  return Select(
-      [&](auto& builder) {
-        // Do unsafe conversions of length and index into uint32, to do an
-        // unsigned comparison. The index might actually be a negative signed
-        // value, but this "unsafe" cast will still work, converting it into a
-        // large unsigned value which compares greater than the length.
-        return BuildBranchIfUint32Compare(
-            builder, Operation::kLessThan,
-            AddNewNode<UnsafeInt32ToUint32>({index}),
-            AddNewNode<UnsafeInt32ToUint32>({length}));
-      },
-      [&]() -> ValueNode* {
-        bool is_seq_one_byte =
-            v8_flags.specialize_code_for_one_byte_seq_strings &&
-            NodeTypeIs(GetType(receiver), NodeType::kSeqOneByteString);
-        if (is_seq_one_byte) {
-          return AddNewNode<SeqOneByteStringAt>({receiver, index});
-        } else {
-          return AddNewNode<StringAt>({receiver, index});
-        }
-      },
-      [&]() { return GetRootConstant(RootIndex::kempty_string); });
+
+  auto GetCharAt = [&]() -> ValueNode* {
+    bool is_seq_one_byte =
+        v8_flags.specialize_code_for_one_byte_seq_strings &&
+        NodeTypeIs(GetType(receiver), NodeType::kSeqOneByteString);
+    if (is_seq_one_byte) {
+      return AddNewNode<SeqOneByteStringAt>({receiver, index});
+    } else {
+      return AddNewNode<StringAt>({receiver, index});
+    }
+  };
+  if (current_speculation_mode_ ==
+      SpeculationMode::kDisallowBoundsCheckSpeculation) {
+    return Select(
+        [&](auto& builder) {
+          // Do unsafe conversions of length and index into uint32, to do an
+          // unsigned comparison. The index might actually be a negative signed
+          // value, but this "unsafe" cast will still work, converting it into a
+          // large unsigned value which compares greater than the length.
+          return BuildBranchIfUint32Compare(
+              builder, Operation::kLessThan,
+              AddNewNode<UnsafeInt32ToUint32>({index}),
+              AddNewNode<UnsafeInt32ToUint32>({length}));
+        },
+        [&]() -> ValueNode* { return GetCharAt(); },
+        [&]() { return GetRootConstant(RootIndex::kempty_string); });
+  }
+
+  DCHECK_EQ(current_speculation_mode_, SpeculationMode::kAllowSpeculation);
+  RETURN_IF_ABORT(TryBuildCheckInt32Condition(
+      index, length, AssertCondition::kUnsignedLessThan,
+      DeoptimizeReason::kOutOfBounds));
+  return GetCharAt();
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
     compiler::JSFunctionRef target, CallArguments& args) {
-  if (!CanSpeculateCall()) return {};
+  if (!CanSpeculateCall({SpeculationMode::kDisallowBoundsCheckSpeculation})) {
+    return {};
+  }
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
   ValueNode* index;
   if (args.count() == 0) {
@@ -9663,24 +9688,47 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
   RETURN_IF_ABORT(BuildCheckString(receiver));
   // And index is below length.
   ValueNode* length = BuildLoadStringLength(receiver);
+  auto GetCharCodeAt = [&]() -> ValueNode* {
+    bool is_seq_one_byte =
+        v8_flags.specialize_code_for_one_byte_seq_strings &&
+        NodeTypeIs(GetType(receiver), NodeType::kSeqOneByteString);
+    if (is_seq_one_byte) {
+      return AddNewNode<BuiltinSeqOneByteStringCharCodeAt>({receiver, index});
+    } else {
+      return AddNewNode<BuiltinStringPrototypeCharCodeOrCodePointAt>(
+          {receiver, index},
+          BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt);
+    }
+  };
+
+  if (current_speculation_mode_ ==
+      SpeculationMode::kDisallowBoundsCheckSpeculation) {
+    return Select(
+        [&](auto& builder) {
+          // Do unsafe conversions of length and index into uint32, to do an
+          // unsigned comparison. The index might actually be a negative signed
+          // value, but this "unsafe" cast will still work, converting it into a
+          // large unsigned value which compares greater than the length.
+          return BuildBranchIfUint32Compare(
+              builder, Operation::kLessThan,
+              AddNewNode<UnsafeInt32ToUint32>({index}),
+              AddNewNode<UnsafeInt32ToUint32>({length}));
+        },
+        [&]() -> ValueNode* { return GetCharCodeAt(); },
+        [&]() { return GetRootConstant(RootIndex::kNanValue); });
+  }
+
   RETURN_IF_ABORT(TryBuildCheckInt32Condition(
       index, length, AssertCondition::kUnsignedLessThan,
       DeoptimizeReason::kOutOfBounds));
-  bool is_seq_one_byte =
-      v8_flags.specialize_code_for_one_byte_seq_strings &&
-      NodeTypeIs(GetType(receiver), NodeType::kSeqOneByteString);
-  if (is_seq_one_byte) {
-    return AddNewNode<BuiltinSeqOneByteStringCharCodeAt>({receiver, index});
-  } else {
-    return AddNewNode<BuiltinStringPrototypeCharCodeOrCodePointAt>(
-        {receiver, index},
-        BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt);
-  }
+  return GetCharCodeAt();
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
     compiler::JSFunctionRef target, CallArguments& args) {
-  if (!CanSpeculateCall()) return {};
+  if (!CanSpeculateCall({SpeculationMode::kDisallowBoundsCheckSpeculation})) {
+    return {};
+  }
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
   ValueNode* index;
   if (args.count() == 0) {
@@ -9694,21 +9742,43 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
   RETURN_IF_ABORT(BuildCheckString(receiver));
   // And index is below length.
   ValueNode* length = BuildLoadStringLength(receiver);
+
+  auto GetCodePointAt = [&]() -> ValueNode* {
+    bool is_seq_one_byte =
+        v8_flags.specialize_code_for_one_byte_seq_strings &&
+        NodeTypeIs(GetType(receiver), NodeType::kSeqOneByteString);
+    if (is_seq_one_byte) {
+      // For one-byte strings, codePointAt == charCodeAt, since there are no
+      // surrogate pairs.
+      return AddNewNode<BuiltinSeqOneByteStringCharCodeAt>({receiver, index});
+    } else {
+      return AddNewNode<BuiltinStringPrototypeCharCodeOrCodePointAt>(
+          {receiver, index},
+          BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt);
+    }
+  };
+
+  if (current_speculation_mode_ ==
+      SpeculationMode::kDisallowBoundsCheckSpeculation) {
+    return Select(
+        [&](auto& builder) {
+          // Do unsafe conversions of length and index into uint32, to do an
+          // unsigned comparison. The index might actually be a negative signed
+          // value, but this "unsafe" cast will still work, converting it into a
+          // large unsigned value which compares greater than the length.
+          return BuildBranchIfUint32Compare(
+              builder, Operation::kLessThan,
+              AddNewNode<UnsafeInt32ToUint32>({index}),
+              AddNewNode<UnsafeInt32ToUint32>({length}));
+        },
+        [&]() -> ValueNode* { return GetCodePointAt(); },
+        [&]() { return GetRootConstant(RootIndex::kUndefinedValue); });
+  }
+
   RETURN_IF_ABORT(TryBuildCheckInt32Condition(
       index, length, AssertCondition::kUnsignedLessThan,
       DeoptimizeReason::kOutOfBounds));
-  bool is_seq_one_byte =
-      v8_flags.specialize_code_for_one_byte_seq_strings &&
-      NodeTypeIs(GetType(receiver), NodeType::kSeqOneByteString);
-  if (is_seq_one_byte) {
-    // For one-byte strings, codePointAt == charCodeAt, since there are no
-    // surrogate pairs.
-    return AddNewNode<BuiltinSeqOneByteStringCharCodeAt>({receiver, index});
-  } else {
-    return AddNewNode<BuiltinStringPrototypeCharCodeOrCodePointAt>(
-        {receiver, index},
-        BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt);
-  }
+  return GetCodePointAt();
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeIterator(

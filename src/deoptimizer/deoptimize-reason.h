@@ -10,7 +10,15 @@
 namespace v8 {
 namespace internal {
 
+// TODO(olivf, 420433007): We should have a custom BuiltinOutOfBounds reason
+// which is only used when needed for builtin speculation. Currently this is
+// not done since it would mean quite a major refactoring in Turbofan.
+#define DEOPTIMIZE_IN_BUILTIN_REASON_LIST(V) \
+  V(OutOfBounds, "out of bounds",            \
+    SpeculationMode::kDisallowBoundsCheckSpeculation)
+
 #define DEOPTIMIZE_REASON_LIST(V)                                              \
+  DEOPTIMIZE_IN_BUILTIN_REASON_LIST(V)                                         \
   V(ArrayBufferWasDetached, "array buffer was detached")                       \
   V(ArrayLengthChanged, "the array length changed")                            \
   V(BigIntTooBig, "BigInt too big")                                            \
@@ -77,7 +85,6 @@ namespace internal {
   V(NotInt32, "not int32")                                                     \
   V(NotUint32, "not unsigned int32")                                           \
   V(OSREarlyExit, "exit from OSR'd inner loop")                                \
-  V(OutOfBounds, "out of bounds")                                              \
   V(Overflow, "overflow")                                                      \
   V(PrepareForOnStackReplacement, "prepare for on stack replacement (OSR)")    \
   V(Smi, "Smi")                                                                \
@@ -99,7 +106,7 @@ namespace internal {
   V(WrongValue, "wrong value")
 
 enum class DeoptimizeReason : uint8_t {
-#define DEOPTIMIZE_REASON(Name, message) k##Name,
+#define DEOPTIMIZE_REASON(Name, ...) k##Name,
   DEOPTIMIZE_REASON_LIST(DEOPTIMIZE_REASON)
 #undef DEOPTIMIZE_REASON
 };
@@ -133,7 +140,7 @@ enum class LazyDeoptimizeReason : uint8_t {
 
 constexpr DeoptimizeReason kFirstDeoptimizeReason =
     static_cast<DeoptimizeReason>(0);
-#define SUM(_1, _2) +1
+#define SUM(...) +1
 constexpr int kDeoptimizeReasonCount = 0 DEOPTIMIZE_REASON_LIST(SUM);
 #undef SUM
 constexpr DeoptimizeReason kLastDeoptimizeReason =
@@ -155,6 +162,17 @@ constexpr bool IsDeoptimizationWithoutCodeInvalidation(
   // not be invalidated s.t. we may reenter it in the future.
   return reason == DeoptimizeReason::kPrepareForOnStackReplacement ||
          reason == DeoptimizeReason::kOSREarlyExit;
+}
+
+constexpr bool AlwaysPreserveDeoptReason(DeoptimizeReason reason) {
+  switch (reason) {
+#define CASE(name, ...) case DeoptimizeReason::k##name:
+    DEOPTIMIZE_IN_BUILTIN_REASON_LIST(CASE)
+#undef CASE
+    return true;
+    default:
+      return false;
+  }
 }
 
 }  // namespace internal

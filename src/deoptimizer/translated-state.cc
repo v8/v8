@@ -2856,12 +2856,21 @@ void TranslatedState::VerifyMaterializedObjects() {
 #endif
 }
 
-bool TranslatedState::DoUpdateFeedback() {
+bool TranslatedState::DoUpdateFeedback(DeoptimizeReason reason) {
   if (!feedback_vector_handle_.is_null()) {
     CHECK(!feedback_slot_.IsInvalid());
     isolate()->CountUsage(v8::Isolate::kDeoptimizerDisableSpeculation);
     FeedbackNexus nexus(isolate(), feedback_vector_handle_, feedback_slot_);
-    nexus.SetSpeculationMode(SpeculationMode::kDisallowSpeculation);
+    switch (reason) {
+#define CASE(name, _, speculation_mode)          \
+  case DeoptimizeReason::k##name:                \
+    nexus.NextSpeculationMode(speculation_mode); \
+    break;
+      DEOPTIMIZE_IN_BUILTIN_REASON_LIST(CASE)
+#undef CASE
+      default:
+        nexus.SetSpeculationMode(SpeculationMode::kDisallowSpeculation);
+    }
     return true;
   }
   return false;

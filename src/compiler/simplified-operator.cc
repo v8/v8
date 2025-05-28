@@ -1086,7 +1086,7 @@ struct SimplifiedOperatorGlobalCache final {
               "CheckIf", 1, 1, 1, 0, 1, 0,
               CheckIfParameters(kDeoptimizeReason, FeedbackSource())) {}
   };
-#define CHECK_IF(Name, message) \
+#define CHECK_IF(Name, message, ...) \
   CheckIfOperator<DeoptimizeReason::k##Name> kCheckIf##Name;
   DEOPTIMIZE_REASON_LIST(CHECK_IF)
 #undef CHECK_IF
@@ -1782,10 +1782,10 @@ const Operator* SimplifiedOperatorBuilder::CheckIf(
     DeoptimizeReason reason, const FeedbackSource& feedback) {
   if (!feedback.IsValid()) {
     switch (reason) {
-#define CHECK_IF(Name, message)   \
-  case DeoptimizeReason::k##Name: \
+#define CHECK_IF(Name, message, ...) \
+  case DeoptimizeReason::k##Name:    \
     return &cache_.kCheckIf##Name;
-    DEOPTIMIZE_REASON_LIST(CHECK_IF)
+      DEOPTIMIZE_REASON_LIST(CHECK_IF)
 #undef CHECK_IF
     }
   }

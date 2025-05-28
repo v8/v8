@@ -2940,7 +2940,12 @@ void Deoptimizer::MaterializeHeapObjects() {
 
   translated_state_.VerifyMaterializedObjects();
 
-  bool feedback_updated = translated_state_.DoUpdateFeedback();
+  isolate_->materialized_object_store()->Remove(
+      static_cast<Address>(stack_fp_));
+}
+
+void Deoptimizer::ProcessDeoptReason(DeoptimizeReason reason) {
+  bool feedback_updated = translated_state_.DoUpdateFeedback(reason);
   if (verbose_tracing_enabled() && feedback_updated) {
     FILE* file = trace_scope()->file();
     Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo();
@@ -2949,9 +2954,6 @@ void Deoptimizer::MaterializeHeapObjects() {
     info.position.Print(outstr, compiled_code_);
     PrintF(file, ", %s\n", DeoptimizeReasonToString(info.deopt_reason));
   }
-
-  isolate_->materialized_object_store()->Remove(
-      static_cast<Address>(stack_fp_));
 }
 
 void Deoptimizer::QueueValueForMaterialization(
