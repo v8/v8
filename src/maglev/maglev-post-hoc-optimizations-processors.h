@@ -200,10 +200,11 @@ constexpr bool CanBeStoreToNonEscapedObject() {
   return CanBeStoreToNonEscapedObject(NodeBase::opcode_of<NodeT>);
 }
 
-template <bool kSweepUnreachableExceptionHandlers>
 class SweepUnreachableBasicBlocks {
  public:
-  void PreProcessGraph(Graph* graph) {}
+  void PreProcessGraph(Graph* graph) {
+    DCHECK(graph->may_have_unreachable_blocks());
+  }
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
@@ -236,18 +237,16 @@ class SweepUnreachableBasicBlocks {
       found_dead_ = true;
       return BlockProcessResult::kSkip;
     }
-    if constexpr (kSweepUnreachableExceptionHandlers) {
-      if (block->is_exception_handler_block()) {
-        if (!reachable_catch_blocks_.count(block->id())) {
-          maybe_dead_catch_blocks_.push_back(block);
-        }
+    if (block->is_exception_handler_block()) {
+      if (!reachable_catch_blocks_.count(block->id())) {
+        maybe_dead_catch_blocks_.push_back(block);
       }
-      for (auto handler : block->exception_handlers()) {
-        if (!handler->HasExceptionHandler()) continue;
-        if (handler->ShouldLazyDeopt()) continue;
-        BasicBlock* catch_block = handler->catch_block();
-        reachable_catch_blocks_.insert(catch_block->id());
-      }
+    }
+    for (auto handler : block->exception_handlers()) {
+      if (!handler->HasExceptionHandler()) continue;
+      if (handler->ShouldLazyDeopt()) continue;
+      BasicBlock* catch_block = handler->catch_block();
+      reachable_catch_blocks_.insert(catch_block->id());
     }
     return BlockProcessResult::kContinue;
   }
@@ -257,18 +256,17 @@ class SweepUnreachableBasicBlocks {
   void PostPhiProcessing() {}
 
   void PostProcessGraph(Graph* graph) {
-    if constexpr (kSweepUnreachableExceptionHandlers) {
-      for (BasicBlock* cur : maybe_dead_catch_blocks_) {
-        if (!reachable_catch_blocks_.count(cur->id())) {
-          MarkDead(cur);
-          found_dead_ = true;
-        }
+    for (BasicBlock* cur : maybe_dead_catch_blocks_) {
+      if (!reachable_catch_blocks_.count(cur->id())) {
+        MarkDead(cur);
+        found_dead_ = true;
       }
     }
     if (found_dead_) {
       graph->IterateGraphAndSweepDeadBlocks(
           [&](BasicBlock* block) { return block->is_dead(); });
     }
+    graph->set_may_have_unreachable_blocks(false);
   }
 
  private:

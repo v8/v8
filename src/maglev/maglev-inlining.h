@@ -284,7 +284,8 @@ class MaglevInliner {
   }
 
   void RemoveUnreachableBlocks() {
-    GraphProcessor<SweepUnreachableBasicBlocks<true>>().ProcessGraph(graph_);
+    graph_->set_may_have_unreachable_blocks();
+    GraphProcessor<SweepUnreachableBasicBlocks>().ProcessGraph(graph_);
   }
 };
 

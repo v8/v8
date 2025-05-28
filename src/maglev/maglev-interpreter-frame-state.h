@@ -799,7 +799,7 @@ class MergePointInterpreterFrameState {
       const compiler::BytecodeLivenessState* liveness);
 
   static MergePointInterpreterFrameState* NewForLoop(
-      const InterpreterFrameState& start_state,
+      const InterpreterFrameState& start_state, Graph* graph,
       const MaglevCompilationUnit& info, int merge_offset,
       int predecessor_count, const compiler::BytecodeLivenessState* liveness,
       const compiler::LoopInfo* loop_info, bool has_been_peeled = false);
@@ -976,6 +976,7 @@ class MergePointInterpreterFrameState {
     DCHECK_IMPLIES(res, is_loop());
     return res;
   }
+  void set_is_resumable_loop(Graph* graph);
   bool is_loop_with_peeled_iteration() const {
     return kIsLoopWithPeeledIterationBit::decode(bitfield_);
   }

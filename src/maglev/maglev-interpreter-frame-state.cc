@@ -382,10 +382,15 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::New(
   return merge_state;
 }
 
+void MergePointInterpreterFrameState::set_is_resumable_loop(Graph* graph) {
+  graph->set_may_have_unreachable_blocks();
+  bitfield_ = kIsResumableLoopBit::update(bitfield_, true);
+}
+
 // static
 MergePointInterpreterFrameState* MergePointInterpreterFrameState::NewForLoop(
-    const InterpreterFrameState& start_state, const MaglevCompilationUnit& info,
-    int merge_offset, int predecessor_count,
+    const InterpreterFrameState& start_state, Graph* graph,
+    const MaglevCompilationUnit& info, int merge_offset, int predecessor_count,
     const compiler::BytecodeLivenessState* liveness,
     const compiler::LoopInfo* loop_info, bool has_been_peeled) {
   MergePointInterpreterFrameState* state =
@@ -399,7 +404,7 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::NewForLoop(
   if (loop_info->resumable()) {
     state->known_node_aspects_ =
         info.zone()->New<KnownNodeAspects>(info.zone());
-    state->bitfield_ = kIsResumableLoopBit::update(state->bitfield_, true);
+    state->set_is_resumable_loop(graph);
   }
   auto& assignments = loop_info->assignments();
   auto& frame_state = state->frame_state_;
