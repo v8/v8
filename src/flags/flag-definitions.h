@@ -2369,7 +2369,7 @@ DEFINE_BOOL(
     "reclaim otherwise unreachable unmodified wrapper objects when possible")
 DEFINE_BOOL(parallel_reclaim_unmodified_wrappers, true,
             "reclaim wrapper objects in parallel")
-DEFINE_BOOL(discard_memory_pool_before_memory_pressure_gcs, false,
+DEFINE_BOOL(discard_memory_pool_before_memory_pressure_gcs, true,
             "discard the memory pool before invoking the GC on memory pressure "
             "or last resort GCs")
 
