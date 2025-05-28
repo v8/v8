@@ -186,6 +186,10 @@
   'test-api/ExternalArrays': [PASS, SLOW],
   'test-api/Threading*': [SKIP],
   'test-cpu-profiler/MultipleIsolates': [PASS, ['not pointer_compression', SLOW]],
+
+   # https://crbug.com/420743936
+  'test-run-wasm-f16/RunWasmLiftoff_F16x8ConvertI16x8': [PASS, ['all_arm64_features', SKIP]],
+  'test-run-wasm-f16/RunWasmTurbofan_F16x8ConvertI16x8': [PASS, ['all_arm64_features', SKIP]],
 }],  # 'arch == arm64 and simulator_run'
 
 ['arch == arm64 and system == macos and not simulator_run', {
