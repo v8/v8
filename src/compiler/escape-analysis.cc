@@ -632,9 +632,6 @@ bool CheckMapsHelper(EscapeAnalysisTracker::Scope* current, Node* checked,
 
 void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
                 JSGraph* jsgraph) {
-  if (OperatorProperties::HasContextInput(op)) {
-    current->SetEscaped(current->ContextInput());
-  }
   switch (op->opcode()) {
     case IrOpcode::kAllocate: {
       NumberMatcher size(current->ValueInput(0));
@@ -916,6 +913,9 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       for (int i = 0; i < value_input_count; ++i) {
         Node* input = current->ValueInput(i);
         current->SetEscaped(input);
+      }
+      if (OperatorProperties::HasContextInput(op)) {
+        current->SetEscaped(current->ContextInput());
       }
       break;
     }

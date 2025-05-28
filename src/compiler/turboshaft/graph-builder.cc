@@ -1980,8 +1980,6 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kTransitionAndStoreElement:
       __ TransitionAndStoreArrayElement(
           Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)),
-          Map(NodeProperties::GetContextInput(node)),
-          Map(NodeProperties::GetFrameStateInput(node)),
           TransitionAndStoreArrayElementOp::Kind::kElement,
           FastMapParameterOf(node->op()).object(),
           DoubleMapParameterOf(node->op()).object());
@@ -1989,8 +1987,6 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kTransitionAndStoreNumberElement:
       __ TransitionAndStoreArrayElement(
           Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)),
-          Map(NodeProperties::GetContextInput(node)),
-          Map(NodeProperties::GetFrameStateInput(node)),
           TransitionAndStoreArrayElementOp::Kind::kNumberElement, {},
           DoubleMapParameterOf(node->op()).object());
       return OpIndex::Invalid();
@@ -2002,17 +1998,14 @@ OpIndex GraphBuilder::Process(
               : TransitionAndStoreArrayElementOp::Kind::kNonNumberElement;
       __ TransitionAndStoreArrayElement(
           Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)),
-          Map(NodeProperties::GetContextInput(node)),
-          Map(NodeProperties::GetFrameStateInput(node)), kind,
-          FastMapParameterOf(node->op()).object(), {});
+          kind, FastMapParameterOf(node->op()).object(), {});
       return OpIndex::Invalid();
     }
     case IrOpcode::kStoreSignedSmallElement:
       __ StoreSignedSmallElement(Map(node->InputAt(0)), Map(node->InputAt(1)),
-                                 Map(node->InputAt(2)),
-                                 Map(NodeProperties::GetContextInput(node)),
-                                 Map(NodeProperties::GetFrameStateInput(node)));
+                                 Map(node->InputAt(2)));
       return OpIndex::Invalid();
+
     case IrOpcode::kCompareMaps: {
       const ZoneRefSet<v8::internal::Map>& maps =
           CompareMapsParametersOf(node->op());
@@ -2373,8 +2366,6 @@ OpIndex GraphBuilder::Process(
 
     case IrOpcode::kTransitionElementsKind:
       __ TransitionElementsKind(Map(node->InputAt(0)),
-                                Map(NodeProperties::GetContextInput(node)),
-                                Map(NodeProperties::GetFrameStateInput(node)),
                                 ElementsTransitionOf(node->op()));
       return OpIndex::Invalid();
     case IrOpcode::kTransitionElementsKindOrCheckMap: {
@@ -2382,8 +2373,7 @@ OpIndex GraphBuilder::Process(
       V<HeapObject> receiver = Map(node->InputAt(0));
       V<i::Map> map = __ LoadMapField(receiver);
       __ TransitionElementsKindOrCheckMap(
-          receiver, map, Map(NodeProperties::GetContextInput(node)),
-          dominating_frame_state, Map(NodeProperties::GetFrameStateInput(node)),
+          receiver, map, dominating_frame_state,
           ElementsTransitionWithMultipleSourcesOf(node->op()));
       return OpIndex::Invalid();
     }

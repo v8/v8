@@ -1173,7 +1173,8 @@ class MaglevGraphBuilder {
   template <typename NodeT>
   NodeT* AttachExtraInfoAndAddToGraph(NodeT* node) {
     static_assert(NodeT::kProperties.is_deopt_checkpoint() +
-                      NodeT::kProperties.can_eager_deopt() <=
+                      NodeT::kProperties.can_eager_deopt() +
+                      NodeT::kProperties.can_lazy_deopt() <=
                   1);
     AttachDeoptCheckpoint(node);
     AttachEagerDeoptInfo(node);

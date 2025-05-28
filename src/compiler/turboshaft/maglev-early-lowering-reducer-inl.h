@@ -195,22 +195,20 @@ class MaglevEarlyLoweringReducer : public Next {
   }
 
   V<Map> TransitionMultipleElementsKind(
-      V<Object> object, V<Map> map, V<Context> context,
-      V<FrameState> frame_state,
+      V<Object> object, V<Map> map,
       const ZoneVector<compiler::MapRef>& transition_sources,
       const MapRef transition_target) {
     Label<Map> end(this);
 
-    TransitionElementsKind(object, map, context, frame_state,
-                           transition_sources, transition_target, end);
+    TransitionElementsKind(object, map, transition_sources, transition_target,
+                           end);
     GOTO(end, map);
     BIND(end, result);
     return result;
   }
 
   void TransitionElementsKind(
-      V<Object> object, V<Map> map, V<Context> context,
-      V<FrameState> frame_state,
+      V<Object> object, V<Map> map,
       const ZoneVector<compiler::MapRef>& transition_sources,
       const MapRef transition_target, Label<Map>& end) {
     // Turboshaft's TransitionElementsKind operation loads the map everytime, so
@@ -226,9 +224,9 @@ class MaglevEarlyLoweringReducer : public Next {
         if (is_simple) {
           __ StoreField(object, AccessBuilder::ForMap(), target_map);
         } else {
-          __ CallRuntime_TransitionElementsKind(isolate_, frame_state, context,
-                                                V<HeapObject>::Cast(object),
-                                                target_map);
+          __ CallRuntime_TransitionElementsKind(
+              isolate_, __ NoContextConstant(), V<HeapObject>::Cast(object),
+              target_map);
         }
         GOTO(end, target_map);
       }

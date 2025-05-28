@@ -216,8 +216,9 @@ struct RuntimeCallDescriptor {
     using arguments_t = std::tuple<V<HeapObject>, V<Map>>;
     using result_t = V<Object>;
 
-    static constexpr bool kNeedsFrameState = true;
-    static constexpr Operator::Properties kProperties = Operator::kNoThrow;
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr Operator::Properties kProperties =
+        Operator::kNoDeopt | Operator::kNoThrow;
   };
 
   struct TryMigrateInstance : public Descriptor<TryMigrateInstance> {

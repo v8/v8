@@ -22,7 +22,6 @@ RUNTIME_FUNCTION(Runtime_TransitionElementsKind) {
   ElementsKind to_kind = to_map->elements_kind();
   ElementsAccessor::ForKind(to_kind)->TransitionElementsKind(isolate, object,
                                                              to_map);
-  JSObject::UpdateAllocationSite(isolate, object, to_kind);
   return *object;
 }
 

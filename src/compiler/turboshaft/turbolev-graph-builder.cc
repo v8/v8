@@ -2644,11 +2644,10 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::TransitionAndStoreArrayElement* node,
                                 const maglev::ProcessingState& state) {
-    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
     __ TransitionAndStoreArrayElement(
         Map(node->array_input()),
         __ ChangeInt32ToIntPtr(Map(node->index_input())),
-        Map(node->value_input()), Map(node->context()), frame_state,
+        Map(node->value_input()),
         TransitionAndStoreArrayElementOp::Kind::kElement,
         node->fast_map().object(), node->double_map().object());
     return maglev::ProcessResult::kContinue;
@@ -2656,13 +2655,11 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::TransitionElementsKindOrCheckMap* node,
                                 const maglev::ProcessingState& state) {
-    GET_FRAME_STATE_MAYBE_ABORT(eager_frame_state, node->eager_deopt_info());
-    GET_FRAME_STATE_MAYBE_ABORT(lazy_frame_state, node->lazy_deopt_info());
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     ZoneRefSet<i::Map> sources(node->transition_sources().begin(),
                                node->transition_sources().end(), graph_zone());
     __ TransitionElementsKindOrCheckMap(
-        Map(node->object_input()), Map(node->map_input()), Map(node->context()),
-        eager_frame_state, lazy_frame_state,
+        Map(node->object_input()), Map(node->map_input()), frame_state,
         ElementsTransitionWithMultipleSources(
             sources, node->transition_target(),
             node->eager_deopt_info()->feedback_to_update()));
@@ -2670,10 +2667,8 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::TransitionElementsKind* node,
                                 const maglev::ProcessingState& state) {
-    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
     SetMap(node, __ TransitionMultipleElementsKind(
                      Map(node->object_input()), Map(node->map_input()),
-                     Map(node->context()), frame_state,
                      node->transition_sources(), node->transition_target()));
     return maglev::ProcessResult::kContinue;
   }

@@ -1914,15 +1914,7 @@ TNode<JSArray> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeMap(
         native_context.GetInitialJSArrayMap(broker(), HOLEY_DOUBLE_ELEMENTS);
     MapRef holey_map =
         native_context.GetInitialJSArrayMap(broker(), HOLEY_ELEMENTS);
-
-    // TransitionAndStoreElement can lazy deopt this function, and we need to
-    // resume in a state where we have called the callback but not stored the
-    // value yet. MapLoopLazyFrameState contains the correct continuation for
-    // that. This FrameState is fine for an eager deopt despite being a lazy
-    // FrameState.
-    Checkpoint(MapLoopLazyFrameState(frame_state_params, k));
-    TransitionAndStoreElement(holey_double_map, holey_map, a, k, v, context,
-                              NodeProperties::GetFrameStateInput(a));
+    TransitionAndStoreElement(holey_double_map, holey_map, a, k, v);
 
     Goto(&continue_label);
     Bind(&continue_label);

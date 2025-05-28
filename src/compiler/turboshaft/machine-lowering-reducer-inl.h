@@ -2659,9 +2659,9 @@ class MachineLoweringReducer : public Next {
   }
 
   V<None> REDUCE(TransitionAndStoreArrayElement)(
-      V<JSArray> array, V<WordPtr> index, OpIndex value, V<Context> context,
-      V<FrameState> frame_state, TransitionAndStoreArrayElementOp::Kind kind,
-      MaybeHandle<Map> fast_map, MaybeHandle<Map> double_map) {
+      V<JSArray> array, V<WordPtr> index, OpIndex value,
+      TransitionAndStoreArrayElementOp::Kind kind, MaybeHandle<Map> fast_map,
+      MaybeHandle<Map> double_map) {
     V<Map> map = __ LoadMapField(array);
     V<Word32> bitfield2 =
         __ template LoadField<Word32>(map, AccessBuilder::ForMapBitField2());
@@ -2719,14 +2719,13 @@ class MachineLoweringReducer : public Next {
           IF (__ TaggedEqual(value_map,
                              __ HeapConstant(factory_->heap_number_map()))) {
             // {value} is a HeapNumber.
-            TransitionElementsTo(
-                array, HOLEY_SMI_ELEMENTS, HOLEY_DOUBLE_ELEMENTS,
-                double_map.ToHandleChecked(), context, frame_state);
+            TransitionElementsTo(array, HOLEY_SMI_ELEMENTS,
+                                 HOLEY_DOUBLE_ELEMENTS,
+                                 double_map.ToHandleChecked());
             GOTO(do_store, HOLEY_DOUBLE_ELEMENTS);
           } ELSE {
             TransitionElementsTo(array, HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS,
-                                 fast_map.ToHandleChecked(), context,
-                                 frame_state);
+                                 fast_map.ToHandleChecked());
             GOTO(do_store, HOLEY_ELEMENTS);
           }
         }
@@ -2740,8 +2739,7 @@ class MachineLoweringReducer : public Next {
         IF_NOT (UNLIKELY(__ TaggedEqual(
                     value_map, __ HeapConstant(factory_->heap_number_map())))) {
           TransitionElementsTo(array, HOLEY_DOUBLE_ELEMENTS, HOLEY_ELEMENTS,
-                               fast_map.ToHandleChecked(), context,
-                               frame_state);
+                               fast_map.ToHandleChecked());
           GOTO(do_store, HOLEY_ELEMENTS);
         }
 
@@ -2798,8 +2796,7 @@ class MachineLoweringReducer : public Next {
           // Transition {array} from HOLEY_SMI_ELEMENTS to
           // HOLEY_DOUBLE_ELEMENTS.
           TransitionElementsTo(array, HOLEY_SMI_ELEMENTS, HOLEY_DOUBLE_ELEMENTS,
-                               double_map.ToHandleChecked(), context,
-                               frame_state);
+                               double_map.ToHandleChecked());
         } ELSE {
           // We expect that our input array started at HOLEY_SMI_ELEMENTS, and
           // climbs the lattice up to HOLEY_DOUBLE_ELEMENTS. However, loop
@@ -2851,12 +2848,10 @@ class MachineLoweringReducer : public Next {
         IF_NOT (LIKELY(__ Int32LessThan(HOLEY_SMI_ELEMENTS, elements_kind))) {
           // Transition {array} from HOLEY_SMI_ELEMENTS to HOLEY_ELEMENTS.
           TransitionElementsTo(array, HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS,
-                               fast_map.ToHandleChecked(), context,
-                               frame_state);
+                               fast_map.ToHandleChecked());
         } ELSE IF (UNLIKELY(__ Int32LessThan(HOLEY_ELEMENTS, elements_kind))) {
           TransitionElementsTo(array, HOLEY_DOUBLE_ELEMENTS, HOLEY_ELEMENTS,
-                               fast_map.ToHandleChecked(), context,
-                               frame_state);
+                               fast_map.ToHandleChecked());
         }
 
         V<Object> elements = __ template LoadField<Object>(
@@ -3359,8 +3354,6 @@ class MachineLoweringReducer : public Next {
   }
 
   V<None> REDUCE(TransitionElementsKind)(V<HeapObject> object,
-                                         V<Context> context,
-                                         V<FrameState> frame_state,
                                          const ElementsTransition& transition) {
     V<Map> source_map = __ HeapConstant(transition.source().object());
     V<Map> target_map = __ HeapConstant(transition.target().object());
@@ -3377,8 +3370,8 @@ class MachineLoweringReducer : public Next {
           break;
         case ElementsTransition::kSlowTransition:
           // Instance migration, call out to the runtime for {object}.
-          __ CallRuntime_TransitionElementsKind(isolate_, frame_state, context,
-                                                object, target_map);
+          __ CallRuntime_TransitionElementsKind(
+              isolate_, __ NoContextConstant(), object, target_map);
           break;
       }
     }
@@ -3387,8 +3380,7 @@ class MachineLoweringReducer : public Next {
   }
 
   V<None> REDUCE(TransitionElementsKindOrCheckMap)(
-      V<HeapObject> object, V<Map> map, V<Context> context,
-      V<FrameState> eager_frame_state, V<FrameState> lazy_frame_state,
+      V<HeapObject> object, V<Map> map, V<FrameState> frame_state,
       const ElementsTransitionWithMultipleSources& transition) {
     Label<> done(this);
 
@@ -3410,15 +3402,15 @@ class MachineLoweringReducer : public Next {
           __ StoreField(object, AccessBuilder::ForMap(), target_map);
         } else {
           // Instance migration, call out to the runtime for {object}.
-          __ CallRuntime_TransitionElementsKind(isolate_, lazy_frame_state,
-                                                context, object, target_map);
+          __ CallRuntime_TransitionElementsKind(
+              isolate_, __ NoContextConstant(), object, target_map);
         }
         GOTO(done);
       }
     }
     // Successful transitions jumped to `done`. If we didn't jump, we know the
     // map is not the target map.
-    __ Deoptimize(eager_frame_state, DeoptimizeReason::kWrongMap,
+    __ Deoptimize(frame_state, DeoptimizeReason::kWrongMap,
                   transition.feedback());
 
     BIND(done);
@@ -3953,8 +3945,7 @@ class MachineLoweringReducer : public Next {
   }
 
   void TransitionElementsTo(V<JSArray> array, ElementsKind from,
-                            ElementsKind to, Handle<Map> target_map,
-                            V<Context> context, V<FrameState> frame_state) {
+                            ElementsKind to, Handle<Map> target_map) {
     DCHECK(IsMoreGeneralElementsKindTransition(from, to));
     DCHECK(to == HOLEY_ELEMENTS || to == HOLEY_DOUBLE_ELEMENTS);
 
@@ -3963,7 +3954,7 @@ class MachineLoweringReducer : public Next {
                     __ HeapConstant(target_map));
     } else {
       // Instance migration, call out to the runtime for {array}.
-      __ CallRuntime_TransitionElementsKind(isolate_, frame_state, context,
+      __ CallRuntime_TransitionElementsKind(isolate_, __ NoContextConstant(),
                                             array, __ HeapConstant(target_map));
     }
   }
