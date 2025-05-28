@@ -1994,6 +1994,7 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
     // #sec-temporal-instant-objects
     // #sec-temporal.instant
     INSTALL_TEMPORAL_CTOR_AND_PROTOTYPE(Instant, INSTANT, 1)
+    INSTALL_TEMPORAL_FUNC(Instant, from, From, 1)
 
 #define INSTANT_GETTER_LIST(V)            \
   V(epochMilliseconds, EpochMilliseconds) \

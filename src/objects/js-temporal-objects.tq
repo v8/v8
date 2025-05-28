@@ -32,16 +32,7 @@ bitfield struct JSTemporalTimeZoneSubMilliseconds extends uint31 {
 }
 
 extern class JSTemporalDuration extends JSObject {
-  years: Number;
-  months: Number;
-  weeks: Number;
-  days: Number;
-  hours: Number;
-  minutes: Number;
-  seconds: Number;
-  milliseconds: Number;
-  microseconds: Number;
-  nanoseconds: Number;
+  duration: Foreign;  // Managed<temporal_rs::Duration>
 }
 
 extern class JSTemporalInstant extends JSObject {

@@ -51,9 +51,14 @@ namespace internal {
   inline void initialize_with_wrapped_rust_value(         \
       Tagged<Managed<RustType_>> handle);
 
+// When populating this list, consider also adding the field to
+// js-temporal-objects.tq, adding DEFINE_ACCESSORS_FOR_RUST_WRAPPER
+// to js-temporal-objects.cc, and adding an ACCESSORS entry to
+// js-temporal-objects-inl.h
 ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::Instant,
                                         kTemporalInstantTag)
-
+ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::Duration,
+                                        kTemporalDurationTag)
 class JSTemporalPlainDate;
 class JSTemporalPlainMonthDay;
 class JSTemporalPlainYearMonth;
@@ -138,6 +143,8 @@ class JSTemporalDuration
 
   DECL_PRINTER(JSTemporalDuration)
 
+  DECL_ACCESSORS_FOR_RUST_WRAPPER(duration, temporal_rs::Duration)
+
   TQ_OBJECT_CONSTRUCTORS(JSTemporalDuration)
 };
 
@@ -153,6 +160,9 @@ class JSTemporalInstant
   // #sec-temporal.now.instant
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalInstant> Now(
       Isolate* isolate);
+
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalInstant> From(
+      Isolate* isolate, DirectHandle<Object> item);
 
   // #sec-temporal.instant.prototype.round
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalInstant> Round(

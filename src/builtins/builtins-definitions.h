@@ -1913,6 +1913,8 @@ namespace internal {
   /* Temporal.Instant */                                                       \
   /* Temporal #sec-temporal.instant */                                         \
   CPP(TemporalInstantConstructor, kDontAdaptArgumentsSentinel)                 \
+  /* Temporal #sec-temporal.instant.from */                                    \
+  CPP(TemporalInstantFrom, kDontAdaptArgumentsSentinel)                        \
   /* Temporal #sec-get-temporal.instant.prototype.epochmilliseconds */         \
   CPP(TemporalInstantPrototypeEpochMilliseconds, JSParameterCount(0))          \
   /* Temporal #sec-get-temporal.instant.prototype.epochnanoseconds */          \

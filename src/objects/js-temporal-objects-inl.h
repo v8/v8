@@ -14,6 +14,10 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
+// Rust includes to transitively include
+#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/Duration.hpp"
+#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/Instant.hpp"
+
 namespace v8 {
 namespace internal {
 
@@ -96,6 +100,8 @@ BOOL_ACCESSORS(JSTemporalTimeZone, flags, is_offset, IsOffsetBit::kShift)
 // temporal_rs object getters
 ACCESSORS(JSTemporalInstant, instant, Tagged<Managed<temporal_rs::Instant>>,
           kInstantOffset)
+ACCESSORS(JSTemporalDuration, duration, Tagged<Managed<temporal_rs::Duration>>,
+          kDurationOffset)
 
 // Special handling of sign
 TEMPORAL_INLINE_SIGNED_GETTER_SETTER(JSTemporalTimeZone, flags,
