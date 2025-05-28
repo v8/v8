@@ -70,49 +70,20 @@ inline DirectHandle<To> UncheckedCast(DirectHandle<From> value);
 template <typename To, typename From>
 inline MaybeDirectHandle<To> UncheckedCast(MaybeDirectHandle<From> value);
 
+// HasCastImplementation is a concept that checks for the existence of
+// Is<To>(Holder<From>) and UncheckedCast<To>(Holder<From>).
+template <template <typename> class Holder, typename To, typename From>
+concept HasCastImplementation = requires(Holder<From> value) {
+  { Is<To>(value) } -> std::same_as<bool>;
+  { UncheckedCast<To>(value) } -> std::same_as<Holder<To>>;
+};
+
 // `TryCast<T>(value, &out)` casts `value` to a tagged object of type `T` and
 // writes the value to `out`, returning true if the cast succeeded and false if
 // it failed.
-template <typename To, typename From>
-inline bool TryCast(Tagged<From> value, Tagged<To>* out) {
-  if (!Is<To>(value)) return false;
-  *out = UncheckedCast<To>(value);
-  return true;
-}
-template <typename To, typename From>
-inline bool TryCast(IndirectHandle<From> value, IndirectHandle<To>* out) {
-  if (!Is<To>(value)) return false;
-  *out = UncheckedCast<To>(value);
-  return true;
-}
-template <typename To, typename From>
-inline bool TryCast(IndirectHandle<From> value, DirectHandle<To>* out) {
-  if (!Is<To>(value)) return false;
-  *out = UncheckedCast<To>(value);
-  return true;
-}
-template <typename To, typename From>
-inline bool TryCast(DirectHandle<From> value, DirectHandle<To>* out) {
-  if (!Is<To>(value)) return false;
-  *out = UncheckedCast<To>(value);
-  return true;
-}
-template <typename To, typename From>
-inline bool TryCast(MaybeIndirectHandle<From> value,
-                    MaybeIndirectHandle<To>* out) {
-  if (!Is<To>(value)) return false;
-  *out = UncheckedCast<To>(value);
-  return true;
-}
-template <typename To, typename From>
-inline bool TryCast(MaybeIndirectHandle<From> value,
-                    MaybeDirectHandle<To>* out) {
-  if (!Is<To>(value)) return false;
-  *out = UncheckedCast<To>(value);
-  return true;
-}
-template <typename To, typename From>
-inline bool TryCast(MaybeDirectHandle<From> value, MaybeDirectHandle<To>* out) {
+template <typename To, typename From, template <typename> class Holder>
+  requires HasCastImplementation<Holder, To, From>
+inline bool TryCast(Holder<From> value, Holder<To>* out) {
   if (!Is<To>(value)) return false;
   *out = UncheckedCast<To>(value);
   return true;
@@ -146,41 +117,10 @@ Tagged<T> GCSafeCast(Tagged<Object> object, const Heap* heap) {
 
 // `Cast<T>(value)` casts `value` to a tagged object of type `T`, with a debug
 // check that `value` is a tagged object of type `T`.
-template <typename To, typename From>
-inline Tagged<To> Cast(Tagged<From> value, const v8::SourceLocation& loc =
+template <typename To, typename From, template <typename> class Holder>
+  requires HasCastImplementation<Holder, To, From>
+inline Holder<To> Cast(Holder<From> value, const v8::SourceLocation& loc =
                                                INIT_SOURCE_LOCATION_IN_DEBUG) {
-  DCHECK_WITH_MSG_AND_LOC(Is<To>(value),
-                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
-  return UncheckedCast<To>(value);
-}
-template <typename To, typename From>
-inline IndirectHandle<To> Cast(
-    IndirectHandle<From> value,
-    const v8::SourceLocation& loc = INIT_SOURCE_LOCATION_IN_DEBUG) {
-  DCHECK_WITH_MSG_AND_LOC(Is<To>(value),
-                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
-  return UncheckedCast<To>(value);
-}
-template <typename To, typename From>
-inline DirectHandle<To> Cast(
-    DirectHandle<From> value,
-    const v8::SourceLocation& loc = INIT_SOURCE_LOCATION_IN_DEBUG) {
-  DCHECK_WITH_MSG_AND_LOC(Is<To>(value),
-                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
-  return UncheckedCast<To>(value);
-}
-template <typename To, typename From>
-inline MaybeIndirectHandle<To> Cast(
-    MaybeIndirectHandle<From> value,
-    const v8::SourceLocation& loc = INIT_SOURCE_LOCATION_IN_DEBUG) {
-  DCHECK_WITH_MSG_AND_LOC(Is<To>(value),
-                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
-  return UncheckedCast<To>(value);
-}
-template <typename To, typename From>
-inline MaybeDirectHandle<To> Cast(
-    MaybeDirectHandle<From> value,
-    const v8::SourceLocation& loc = INIT_SOURCE_LOCATION_IN_DEBUG) {
   DCHECK_WITH_MSG_AND_LOC(Is<To>(value),
                           V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
   return UncheckedCast<To>(value);
@@ -189,19 +129,23 @@ inline MaybeDirectHandle<To> Cast(
 // TODO(leszeks): Figure out a way to make these cast to actual pointers rather
 // than Tagged.
 template <typename To, typename From>
+  requires std::is_base_of_v<HeapObjectLayout, From>
 inline Tagged<To> UncheckedCast(const From* value) {
   return UncheckedCast<To>(Tagged(value));
 }
 template <typename To, typename From>
+  requires std::is_base_of_v<HeapObjectLayout, From>
 inline Tagged<To> Cast(const From* value, const v8::SourceLocation& loc =
                                               INIT_SOURCE_LOCATION_IN_DEBUG) {
   return Cast<To>(Tagged(value), loc);
 }
 template <typename To, typename From>
+  requires(std::is_base_of_v<HeapObject, From>)
 inline Tagged<To> UncheckedCast(From value) {
   return UncheckedCast<To>(Tagged(value));
 }
 template <typename To, typename From>
+  requires(std::is_base_of_v<HeapObject, From>)
 inline Tagged<To> Cast(
     From value, const v8::SourceLocation& loc = INIT_SOURCE_LOCATION_IN_DEBUG) {
   return Cast<To>(Tagged(value), loc);
