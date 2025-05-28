@@ -2064,6 +2064,11 @@ bool SupportedOperations::IsUnalignedStoreSupported(MemoryRepresentation repr) {
       repr.ToMachineType().representation());
 }
 
+// static
+bool SupportedOperations::HasFullUnalignedSupport() {
+  return InstructionSelector::AlignmentRequirements().HasFullUnalignedSupport();
+}
+
 void CheckExceptionOp::Validate(const Graph& graph) const {
   DCHECK_NE(didnt_throw_block, catch_block);
   // `CheckException` should follow right after the throwing operation.

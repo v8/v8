@@ -1346,6 +1346,7 @@ class V8_EXPORT_PRIVATE SupportedOperations {
   static void Initialize();
   static bool IsUnalignedLoadSupported(MemoryRepresentation repr);
   static bool IsUnalignedStoreSupported(MemoryRepresentation repr);
+  static bool HasFullUnalignedSupport();
   SUPPORTED_OPERATIONS_LIST(DECLARE_GETTER)
 
  private:

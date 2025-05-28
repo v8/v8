@@ -4320,20 +4320,125 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     __ TrapIfNot(result, TrapId::kTrapMemOutOfBounds);
   }
 
+  void InlineMemCopy(const WasmMemory* dst_memory, const WasmMemory* src_memory,
+                     V<WordPtr> dst_offset, V<WordPtr> src_offset,
+                     V<WordPtr> size_op, int32_t bytes_to_copy) {
+    if (dst_memory->index == src_memory->index) {
+      // Bounds check the read and write from the same memory.
+      V<WordPtr> mem_size = MemSize(src_memory->index);
+      V<WordPtr> offset_limit = __ WordPtrSub(mem_size, size_op);
+      __ TrapIfNot(__ Word32BitwiseAnd(
+                       __ Word32BitwiseAnd(
+                           __ UintPtrLessThanOrEqual(src_offset, offset_limit),
+                           __ UintPtrLessThanOrEqual(dst_offset, offset_limit)),
+                       __ UintPtrLessThanOrEqual(size_op, mem_size)),
+                   TrapId::kTrapMemOutOfBounds);
+    } else {
+      // Insert bounds checks for src and dst memories.
+      auto BoundsCheck = [this](const WasmMemory* memory, V<WordPtr> offset,
+                                V<WordPtr> size_op) {
+        V<WordPtr> mem_size = MemSize(memory->index);
+        V<WordPtr> offset_limit = __ WordPtrSub(mem_size, size_op);
+        __ TrapIfNot(__ Word32BitwiseAnd(
+                         __ UintPtrLessThanOrEqual(size_op, mem_size),
+                         __ UintPtrLessThanOrEqual(offset, offset_limit)),
+                     TrapId::kTrapMemOutOfBounds);
+      };
+      BoundsCheck(src_memory, src_offset, size_op);
+      BoundsCheck(dst_memory, dst_offset, size_op);
+    }
+
+    // We've performed the bounds check above.
+    constexpr auto strategy = compiler::BoundsCheckResult::kDynamicallyChecked;
+
+    // Calculate the effective addresses of src and dst.
+    V<WordPtr> src_mem_start = MemStart(src_memory->index);
+    V<WordPtr> dst_mem_start = MemStart(dst_memory->index);
+    V<WordPtr> src_base = __ WordPtrAdd(src_mem_start, src_offset);
+    V<WordPtr> dst_base = __ WordPtrAdd(dst_mem_start, dst_offset);
+
+    // Try to use the largest types first for the transfer.
+    constexpr std::array memory_reps = {
+        MemoryRepresentation::Simd128(), MemoryRepresentation::Uint64(),
+        MemoryRepresentation::Uint32(),  MemoryRepresentation::Uint16(),
+        MemoryRepresentation::Uint8(),
+    };
+
+    // Load all of the data into registers.
+    base::SmallVector<OpIndex, 16> loads;
+    int32_t load_bytes_remaining = bytes_to_copy;
+    int32_t load_offset = 0;
+    for (MemoryRepresentation mem_rep : memory_reps) {
+      RegisterRepresentation result_rep = mem_rep.ToRegisterRepresentation();
+      LoadOp::Kind load_kind = GetMemoryAccessKind(mem_rep, strategy);
+      DCHECK_EQ(load_kind, LoadOp::Kind::RawAligned().NotLoadEliminable());
+      uint8_t bytes_per_load = mem_rep.SizeInBytes();
+      unsigned num_loads = load_bytes_remaining / mem_rep.SizeInBytes();
+      for (unsigned i = 0; i < num_loads; ++i) {
+        loads.push_back(__ Load(src_base, OpIndex::Invalid(), load_kind,
+                                mem_rep, result_rep, load_offset));
+        load_offset += bytes_per_load;
+        load_bytes_remaining -= bytes_per_load;
+      }
+    }
+
+    // Copy to the destination.
+    int32_t store_bytes_remaining = bytes_to_copy;
+    int32_t store_offset = 0;
+    unsigned store_index = 0;
+    for (MemoryRepresentation mem_rep : memory_reps) {
+      StoreOp::Kind store_kind = GetMemoryAccessKind(mem_rep, strategy);
+      DCHECK_EQ(store_kind, StoreOp::Kind::RawAligned().NotLoadEliminable());
+      uint8_t bytes_per_store = mem_rep.SizeInBytes();
+      unsigned num_stores = store_bytes_remaining / mem_rep.SizeInBytes();
+      for (unsigned i = 0; i < num_stores; ++i) {
+        __ Store(dst_base, OpIndex::Invalid(), loads[store_index], store_kind,
+                 mem_rep, compiler::kNoWriteBarrier, store_offset);
+        ++store_index;
+        store_offset += bytes_per_store;
+        store_bytes_remaining -= bytes_per_store;
+      }
+    }
+    DCHECK_EQ(load_bytes_remaining, 0);
+    DCHECK_EQ(store_bytes_remaining, 0);
+    DCHECK_EQ(load_offset, store_offset);
+    DCHECK_EQ(store_index, loads.size());
+  }
+
   void MemoryCopy(FullDecoder* decoder, const MemoryCopyImmediate& imm,
                   const Value& dst, const Value& src, const Value& size) {
     const WasmMemory* dst_memory = imm.memory_dst.memory;
     const WasmMemory* src_memory = imm.memory_src.memory;
-    V<WordPtr> dst_uintptr =
+    V<WordPtr> dst_offset =
         MemoryAddressToUintPtrOrOOBTrap(dst_memory->address_type, dst.op);
-    V<WordPtr> src_uintptr =
+    V<WordPtr> src_offset =
         MemoryAddressToUintPtrOrOOBTrap(src_memory->address_type, src.op);
     AddressType min_address_type =
         dst_memory->is_memory64() && src_memory->is_memory64()
             ? AddressType::kI64
             : AddressType::kI32;
-    V<WordPtr> size_uintptr =
+    V<WordPtr> size_op =
         MemoryAddressToUintPtrOrOOBTrap(min_address_type, size.op);
+
+    // If we're copying a small, constant, number of bytes then perform the
+    // copy inline instead of making a call. Only do this when unaligned
+    // accesses are supported and only when we have 64-bit support, otherwise
+    // the register pressure will likely be too high.
+#ifdef V8_TARGET_ARCH_64_BIT
+    if (v8_flags.wasm_memcpy_inlining) {
+      static constexpr uint32_t kMaxInlineBytes = 112;
+      if (SupportedOperations::HasFullUnalignedSupport()) {
+        auto const_size =
+            __ output_graph().Get(size.op).template TryCast<ConstantOp>();
+        if (const_size && const_size->integral() <= kMaxInlineBytes) {
+          InlineMemCopy(dst_memory, src_memory, dst_offset, src_offset, size_op,
+                        static_cast<int32_t>(const_size->integral()));
+          return;
+        }
+      }
+    }
+#endif  // V8_TARGET_ARCH_64_BIT
+
     auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
                    .Params(MachineType::Pointer(), MachineType::Uint32(),
                            MachineType::Uint32(), MachineType::UintPtr(),
@@ -4343,8 +4448,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         CallC(&sig, ExternalReference::wasm_memory_copy(),
               {__ BitcastHeapObjectToWordPtr(trusted_instance_data(false)),
                __ Word32Constant(imm.memory_dst.index),
-               __ Word32Constant(imm.memory_src.index), dst_uintptr,
-               src_uintptr, size_uintptr});
+               __ Word32Constant(imm.memory_src.index), dst_offset, src_offset,
+               size_op});
     __ TrapIfNot(result, TrapId::kTrapMemOutOfBounds);
   }
 
