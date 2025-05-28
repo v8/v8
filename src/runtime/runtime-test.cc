@@ -1541,9 +1541,11 @@ RUNTIME_FUNCTION(Runtime_AbortCSADcheck) {
     base::OS::PrintError("The following harmless failure was encountered: %s\n",
                          message->ToCString().get());
   } else {
-    base::OS::PrintError("abort: CSA_DCHECK failed: %s\n",
-                         message->ToCString().get());
-    isolate->PrintStack(stderr);
+    std::unique_ptr<char[]> message_str = message->ToCString();
+    base::OS::PrintError("abort: CSA_DCHECK failed: %s\n\n", message_str.get());
+
+    isolate->PushStackTraceAndDie(reinterpret_cast<void*>(message->ptr()),
+                                  message_str.get());
   }
   base::OS::Abort();
   UNREACHABLE();
