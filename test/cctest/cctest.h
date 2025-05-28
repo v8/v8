@@ -731,6 +731,8 @@ class TestPlatform : public v8::Platform {
   bool IdleTasksEnabled(v8::Isolate* isolate) override;
   v8::TracingController* GetTracingController() override;
 
+  v8::ThreadIsolatedAllocator* GetThreadIsolatedAllocator() override;
+
  protected:
   TestPlatform() = default;
 };

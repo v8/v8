@@ -882,6 +882,9 @@ DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, function_context_cells)
 
 DEFINE_BOOL(memory_protection_keys, true,
             "protect code memory with PKU if available")
+DEFINE_BOOL(force_memory_protection_keys, false,
+            "fail if memory protection key support is not available")
+DEFINE_IMPLICATION(force_memory_protection_keys, memory_protection_keys)
 
 DEFINE_BOOL(assert_types, false,
             "generate runtime type assertions to test the typer")

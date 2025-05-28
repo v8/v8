@@ -460,6 +460,10 @@ v8::TracingController* TestPlatform::GetTracingController() {
   return CcTest::default_platform()->GetTracingController();
 }
 
+v8::ThreadIsolatedAllocator* TestPlatform::GetThreadIsolatedAllocator() {
+  return CcTest::default_platform()->GetThreadIsolatedAllocator();
+}
+
 namespace {
 
 class ShutdownTask final : public v8::Task {
