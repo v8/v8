@@ -467,7 +467,7 @@ void InstructionSelectorT::VisitStorePair(OpIndex node) { UNREACHABLE(); }
 
 void InstructionSelectorT::VisitStore(OpIndex node) {
   Mips64OperandGeneratorT g(this);
-  TurboshaftAdapter::StoreView store_view = this->store_view(node);
+  StoreView store_view = this->store_view(node);
   DCHECK_EQ(store_view.displacement(), 0);
   OpIndex base = store_view.base();
   OpIndex index = store_view.index().value();
@@ -539,7 +539,7 @@ void InstructionSelectorT::VisitStore(OpIndex node) {
         UNREACHABLE();
     }
 
-    if (this->is_load_root_register(base)) {
+    if (Is<LoadRootRegisterOp>(base)) {
       // This will only work if {index} is a constant.
       Emit(opcode | AddressingModeField::encode(kMode_Root), g.NoOutput(),
            g.UseImmediate(index), g.UseRegisterOrImmediateZero(value));
@@ -1430,7 +1430,7 @@ void InstructionSelectorT::VisitUnalignedLoad(OpIndex node) {
 
 void InstructionSelectorT::VisitUnalignedStore(OpIndex node) {
   Mips64OperandGeneratorT g(this);
-  TurboshaftAdapter::StoreView store_view = this->store_view(node);
+  StoreView store_view = this->store_view(node);
   DCHECK_EQ(store_view.displacement(), 0);
   OpIndex base = store_view.base();
   OpIndex index = store_view.index().value();
