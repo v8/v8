@@ -1026,6 +1026,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   // For KeyedLoad and KeyedStore ICs.
   IcCheckType GetKeyType() const;
   Tagged<Name> GetName() const;
+  bool IsOneMapManyNames() const;
 
   // For Call ICs.
   int GetCallCount();

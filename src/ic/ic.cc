@@ -607,6 +607,29 @@ bool IC::UpdateMegaDOMIC(const MaybeObjectDirectHandle& handler,
   return true;
 }
 
+bool IC::UpdateOneMapManyNamesIC(DirectHandle<Name> new_name) {
+#if V8_ENABLE_WEBASSEMBLY
+  if (state() != MONOMORPHIC) return false;
+  if (!IsKeyedLoadIC() && !IsKeyedStoreIC()) return false;
+  // For JS objects, using the generic stub is faster. Wasm objects benefit
+  // from collecting a map that the optimizing compiler can use.
+  Tagged<Map> old_map = nexus()->GetFirstMap();
+  if (old_map.is_null() || !IsWasmObjectMap(old_map)) return false;
+  if (old_map != *lookup_start_object_map()) return false;
+  Tagged<Name> old_name = nexus()->GetName();
+  if (old_name.is_null()) return false;     // Saw indexed access before.
+  if (old_name == *new_name) return false;  // Something else is wrong.
+  DirectHandle<Smi> generic = IsKeyedLoadIC()
+                                  ? LoadHandler::LoadGeneric(isolate())
+                                  : StoreHandler::StoreGeneric(isolate());
+  ConfigureVectorState(DirectHandle<Name>(), lookup_start_object_map(),
+                       generic);
+  return true;
+#else
+  return false;
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
+
 bool IC::UpdatePolymorphicIC(DirectHandle<Name> name,
                              const MaybeObjectDirectHandle& handler) {
   DCHECK(IsHandler(*handler));
@@ -744,6 +767,7 @@ void IC::SetCache(DirectHandle<Name> name, const MaybeObjectHandle& handler) {
         UpdateMonomorphicIC(handler, name);
         break;
       }
+      if (UpdateOneMapManyNamesIC(name)) break;
       [[fallthrough]];
     case POLYMORPHIC:
       if (UpdatePolymorphicIC(name, handler)) break;
@@ -2399,6 +2423,12 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
       return StoreHandler::StoreProxy(isolate());
     }
 
+#if V8_ENABLE_WEBASSEMBLY
+    if (IsWasmObjectMap(*receiver_map)) {
+      set_slow_stub_reason("wasm object");
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
     // Wasm objects or other kind of special objects go through the slow stub.
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_SlowStub);
     return StoreHandler::StoreSlow(isolate(), store_mode);
@@ -2610,12 +2640,6 @@ MaybeDirectHandle<Object> KeyedStoreIC::Store(Handle<JSAny> object,
       set_slow_stub_reason("map in array prototype");
       use_ic = false;
     }
-#if V8_ENABLE_WEBASSEMBLY
-    if (IsWasmObjectMap(heap_object->map())) {
-      set_slow_stub_reason("wasm object");
-      use_ic = false;
-    }
-#endif
   }
 
   Handle<Map> old_receiver_map;

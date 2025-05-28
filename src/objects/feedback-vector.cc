@@ -1376,6 +1376,17 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
   return mode;
 }
 
+bool FeedbackNexus::IsOneMapManyNames() const {
+  auto pair = GetFeedbackPair();
+  Tagged<HeapObject> heap_object;
+  if (!pair.first.GetHeapObjectIfWeak(&heap_object)) return false;
+  if (!IsMap(heap_object)) return false;
+  if (!IsSmi(pair.second)) return false;
+  Tagged<Smi> handler = pair.second.ToSmi();
+  return handler == LoadHandler::LoadGeneric() ||
+         handler == StoreHandler::StoreGeneric();
+}
+
 IcCheckType FeedbackNexus::GetKeyType() const {
   DCHECK(IsKeyedStoreICKind(kind()) || IsKeyedLoadICKind(kind()) ||
          IsStoreInArrayLiteralICKind(kind()) || IsKeyedHasICKind(kind()) ||
@@ -1385,6 +1396,9 @@ IcCheckType FeedbackNexus::GetKeyType() const {
   Tagged<MaybeObject> feedback = pair.first;
   if (feedback == MegamorphicSentinel()) {
     return static_cast<IcCheckType>(Smi::ToInt(Cast<Smi>(pair.second)));
+  }
+  if (IsOneMapManyNames()) {
+    return IcCheckType::kProperty;
   }
   Tagged<MaybeObject> maybe_name =
       IsDefineKeyedOwnPropertyInLiteralKind(kind()) ||

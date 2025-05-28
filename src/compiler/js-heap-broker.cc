@@ -522,6 +522,10 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
   } else if (nexus.GetKeyType() == IcCheckType::kElement && !maps.empty()) {
     return ProcessFeedbackMapsForElementAccess(
         maps, KeyedAccessMode::FromNexus(nexus), kind);
+  } else if (nexus.IsOneMapManyNames() && maps.size() == 1) {
+    // TODO(jkummerow): Implement support.
+    return *zone()->New<ElementAccessFeedback>(
+        zone(), KeyedAccessMode::FromNexus(nexus), kind);
   } else {
     // No actionable feedback.
     DCHECK(maps.empty());

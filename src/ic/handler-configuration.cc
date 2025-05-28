@@ -577,6 +577,9 @@ void PrintSmiStoreHandler(int raw_handler, std::ostream& os) {
       os << "kSlow, keyed access store mode = " << keyed_access_store_mode;
       break;
     }
+    case StoreHandler::Kind::kGeneric:
+      os << "kGeneric";
+      break;
     case StoreHandler::Kind::kProxy:
       os << "kProxy";
       break;

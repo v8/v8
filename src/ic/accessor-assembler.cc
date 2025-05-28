@@ -770,7 +770,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
       global(this, Label::kDeferred), module_export(this, Label::kDeferred),
       proxy(this, Label::kDeferred),
       native_data_property(this, Label::kDeferred),
-      api_getter(this, Label::kDeferred);
+      api_getter(this, Label::kDeferred), generic(this, Label::kDeferred);
 
   GotoIf(Word32Equal(handler_kind, LOAD_KIND(kField)), &field);
 
@@ -795,8 +795,10 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
 
   GotoIf(Word32Equal(handler_kind, LOAD_KIND(kProxy)), &proxy);
 
-  Branch(Word32Equal(handler_kind, LOAD_KIND(kModuleExport)), &module_export,
-         &interceptor);
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kModuleExport)), &module_export);
+
+  Branch(Word32Equal(handler_kind, LOAD_KIND(kInterceptor)), &interceptor,
+         &generic);
 
   BIND(&field);
   {
@@ -962,6 +964,14 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
                                     p->lookup_start_object(), p->name(),
                                     p->receiver());
     }
+  }
+
+  BIND(&generic);
+  {
+    Comment("load_generic");
+    exit_point->ReturnCallBuiltin(Builtin::kKeyedLoadIC_Megamorphic,
+                                  p->context(), p->receiver(), p->name(),
+                                  p->slot(), p->vector());
   }
 
   BIND(&module_export);
@@ -1361,7 +1371,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
   Branch(TaggedIsSmi(handler), &if_smi_handler, &if_nonsmi_handler);
 
-  Label if_slow(this);
+  Label if_slow(this), if_generic(this);
 
   // |handler| is a Smi, encoding what to do. See SmiHandler methods
   // for the encoding format.
@@ -1379,7 +1389,8 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     ASSERT_CONSECUTIVE(kNormal, kInterceptor)
     ASSERT_CONSECUTIVE(kInterceptor, kSlow)
     ASSERT_CONSECUTIVE(kSlow, kProxy)
-    ASSERT_CONSECUTIVE(kProxy, kKindsNumber)
+    ASSERT_CONSECUTIVE(kProxy, kGeneric)
+    ASSERT_CONSECUTIVE(kGeneric, kKindsNumber)
 #undef ASSERT_CONSECUTIVE
 
     TNode<Uint32T> handler_kind =
@@ -1389,6 +1400,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     GotoIf(Word32Equal(handler_kind, STORE_KIND(kInterceptor)),
            &if_interceptor);
     GotoIf(Word32Equal(handler_kind, STORE_KIND(kSlow)), &if_slow);
+    GotoIf(Word32Equal(handler_kind, STORE_KIND(kGeneric)), &if_generic);
     CSA_DCHECK(this, Word32Equal(handler_kind, STORE_KIND(kNormal)));
     TNode<PropertyDictionary> properties =
         CAST(LoadSlowProperties(CAST(holder)));
@@ -1481,6 +1493,14 @@ void AccessorAssembler::HandleStoreICHandlerCase(
         }
         TailCallRuntime(id, p->context(), p->value(), p->receiver(), p->name());
       }
+    }
+
+    BIND(&if_generic);
+    {
+      Comment("store_generic");
+      TailCallBuiltin(Builtin::kKeyedStoreIC_Megamorphic, p->context(),
+                      p->receiver(), p->name(), p->value(), p->slot(),
+                      p->vector());
     }
   }
 

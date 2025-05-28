@@ -47,6 +47,14 @@ Handle<Smi> LoadHandler::LoadSlow(Isolate* isolate) {
   return handle(Smi::FromInt(config), isolate);
 }
 
+Handle<Smi> LoadHandler::LoadGeneric(Isolate* isolate) {
+  return handle(LoadGeneric(), isolate);
+}
+
+Tagged<Smi> LoadHandler::LoadGeneric() {
+  return Smi::FromInt(KindBits::encode(Kind::kGeneric));
+}
+
 Handle<Smi> LoadHandler::LoadField(Isolate* isolate, FieldIndex field_index) {
   int config = KindBits::encode(Kind::kField) |
                IsInobjectBits::encode(field_index.is_inobject()) |
@@ -218,6 +226,14 @@ Handle<Smi> StoreHandler::StoreSlow(Isolate* isolate,
   int config = KindBits::encode(Kind::kSlow) |
                KeyedAccessStoreModeBits::encode(store_mode);
   return handle(Smi::FromInt(config), isolate);
+}
+
+Handle<Smi> StoreHandler::StoreGeneric(Isolate* isolate) {
+  return handle(StoreGeneric(), isolate);
+}
+
+Tagged<Smi> StoreHandler::StoreGeneric() {
+  return Smi::FromInt(KindBits::encode(Kind::kGeneric));
 }
 
 Handle<Smi> StoreHandler::StoreProxy(Isolate* isolate) {
