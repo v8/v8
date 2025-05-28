@@ -51,7 +51,6 @@ FEATURE_FLAGS = {
     'Temporal': '--harmony-temporal',
     'array-find-from-last': '--harmony-array-find-last',
     'ShadowRealm': '--harmony-shadow-realm',
-    'regexp-v-flag': '--harmony-regexp-unicode-sets',
     'String.prototype.isWellFormed': '--harmony-string-is-well-formed',
     'String.prototype.toWellFormed': '--harmony-string-is-well-formed',
     'json-parse-with-source': '--harmony-json-parse-with-source',
