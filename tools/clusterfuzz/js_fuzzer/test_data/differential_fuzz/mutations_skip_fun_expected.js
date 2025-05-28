@@ -1,4 +1,4 @@
-// Copyright 2020 the V8 project authors. All rights reserved.
+// Copyright 2025 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,19 +22,16 @@ for (let __v_1 = 0; __v_1 < 3; __v_1 += 1) {
 }
 function foo() {
   let __v_4 = 0;
-  __prettyPrintExtra(__v_4);
   return __v_4;
 }
 %OptimizeFunctionOnNextCall(foo);
 __prettyPrintExtra(foo());
 __prettyPrintExtra(function () {
   let __v_5 = 0;
-  __prettyPrintExtra(__v_5);
   return __v_5;
 }(0));
 __prettyPrintExtra((__v_6 => {
   let __v_7 = __v_6;
-  __prettyPrintExtra(__v_7);
   return __v_7;
 })(0));
 {
@@ -72,7 +69,6 @@ while (true) {
   function __f_1(__v_15) {
     if (false) {
       let __v_16 = 0;
-      __prettyPrintExtra(__v_16);
       uninteresting;
       throw 'error';
     }

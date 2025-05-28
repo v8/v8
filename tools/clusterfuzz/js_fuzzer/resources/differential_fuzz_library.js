@@ -212,9 +212,11 @@ var __hash = 0;
     }
 
     print(str);
+    return value;
   };
 
   __prettyPrintExtra = function (value) {
     __prettyPrint(value, true);
+    return value;
   }
 })();
