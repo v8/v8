@@ -673,9 +673,7 @@ Local<Value> PropertyCallbackInfo<T>::Data() const {
 
 template <typename T>
 Local<Object> PropertyCallbackInfo<T>::This() const {
-  // TODO(419454582): This needs to return `Local<Value>`, see
-  // test/mjsunit/regress/regress-1062422.js.
-  return Local<Value>::FromSlot(&args_[kThisIndex]).UnsafeAs<Object>();
+  return Local<Object>::FromSlot(&args_[kThisIndex]);
 }
 
 template <typename T>
