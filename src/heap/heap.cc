@@ -3207,6 +3207,9 @@ void Heap::EnsureMinimumRemainingAllocationLimit(size_t at_least_remaining) {
       std::min(new_global_allocation_limit, max_global_memory_size_);
   SetOldGenerationAndGlobalAllocationLimit(new_old_generation_allocation_limit,
                                            new_global_allocation_limit);
+  // Reset using_initial_limit() to prevent the sweeper from overwriting this
+  // limit right after this operation.
+  set_using_initial_limit(true);
 }
 
 namespace {
