@@ -18,11 +18,39 @@ var __hash = 0;
 
 (function() {
   const charCodeAt = String.prototype.charCodeAt;
+  const dateValueOf = Date.prototype.valueOf;
+  const filter = Array.prototype.filter;
+  const from = Array.from;
+  const funToString = Function.prototype.toString
+  const isInteger = Number.isInteger;
   const join = Array.prototype.join;
+  const objectKeys = Object.keys;
   const map = Array.prototype.map;
+  const regExpToString = RegExp.prototype.toString;
   const substring = String.prototype.substring;
-  const toString = Object.prototype.toString;
   const stringify = JSON.stringify;
+  const safeValueOf = Object.prototype.valueOf;
+  const safeArray = Array;
+  const safeBigInt = BigInt;
+  const safeBoolean = Boolean;
+  const safeDate = Date;
+  const safeMap = Map;
+  const safeNumber = Number
+  const safeRegExp = RegExp;
+  const safeSet = Set;
+  const safeString = String;
+
+  const safeInt8Array = Int8Array;
+  const safeUint8Array = Uint8Array;
+  const safeUint8ClampedArray = Uint8ClampedArray;
+  const safeInt16Array = Int16Array;
+  const safeUint16Array = Uint16Array;
+  const safeInt32Array = Int32Array;
+  const safeUint32Array = Uint32Array;
+  const safeFloat32Array = Float32Array;
+  const safeFloat64Array = Float64Array;
+  const safeBigInt64Array = BigInt64Array;
+  const safeBigUint64Array = BigUint64Array;
 
   const wrapped = (inner) => inner ? `{${inner}}` : "";
 
@@ -37,52 +65,52 @@ var __hash = 0;
       case "string":
         return stringify(value);
       case "bigint":
-        return String(value) + "n";
+        return safeString(value) + "n";
       case "number":
         if (value === 0 && (1 / value) < 0) return "-0";
       case "boolean":
       case "undefined":
       case "symbol":
-        return String(value);
+        return safeString(value);
       case "function":
         return prettyPrintedFunction(value, depth);
       case "object":
         if (value === null) return "null";
-        if (value instanceof Array) return prettyPrintedArray(value, depth);
-        if (value instanceof Set) return prettyPrintedSet(value, depth);
-        if (value instanceof Map) return prettyPrintedMap(value, depth);
-        if (value instanceof RegExp) return prettyPrintedRegExp(value, depth);
+        if (value instanceof safeArray) return prettyPrintedArray(value, depth);
+        if (value instanceof safeSet) return prettyPrintedSet(value, depth);
+        if (value instanceof safeMap) return prettyPrintedMap(value, depth);
+        if (value instanceof safeRegExp) return prettyPrintedRegExp(value, depth);
+        if (value instanceof safeDate) return prettyPrintedDate(value, depth);
 
-        if (value instanceof Number ||
-            value instanceof BigInt ||
-            value instanceof String ||
-            value instanceof Boolean ||
-            value instanceof Date) {
+        if (value instanceof safeNumber ||
+            value instanceof safeBigInt ||
+            value instanceof safeString ||
+            value instanceof safeBoolean) {
           return prettyWithClass(value, depth);
         }
 
-        if (value instanceof Int8Array ||
-            value instanceof Uint8Array ||
-            value instanceof Uint8ClampedArray ||
-            value instanceof Int16Array ||
-            value instanceof Uint16Array ||
-            value instanceof Int32Array ||
-            value instanceof Uint32Array ||
-            value instanceof Float32Array ||
-            value instanceof Float64Array ||
-            value instanceof BigInt64Array ||
-            value instanceof BigUint64Array) {
+        if (value instanceof safeInt8Array ||
+            value instanceof safeUint8Array ||
+            value instanceof safeUint8ClampedArray ||
+            value instanceof safeInt16Array ||
+            value instanceof safeUint16Array ||
+            value instanceof safeInt32Array ||
+            value instanceof safeUint32Array ||
+            value instanceof safeFloat32Array ||
+            value instanceof safeFloat64Array ||
+            value instanceof safeBigInt64Array ||
+            value instanceof safeBigUint64Array) {
           return prettyPrintedTypedArray(value, depth);
         }
 
         return prettyPrintedObject(value, depth);
     }
-    return String(value);
+    return safeString(value);
   }
 
   function prettyPrintedObjectProperties(object, depth, forArray) {
-    let keys = Object.keys(object);
-    if (forArray) keys = keys.filter((n) => !Number.isInteger(Number(n)));
+    let keys = objectKeys(object);
+    if (forArray) keys = filter.call(keys, (n) => !isInteger(safeNumber(n)));
     const prettyValues = map.call(keys, (key) => {
       return `${key}: ${prettyPrinted(object[key], depth - 1)}`;
     });
@@ -99,7 +127,7 @@ var __hash = 0;
   }
 
   function prettyPrintedSet(set, depth) {
-    const result = prettyPrintedArray(Array.from(set), depth);
+    const result = prettyPrintedArray(from(set), depth);
     const props = prettyPrintedObjectProperties(set, depth, false);
     return `Set${result}${wrapped(props)}`;
   }
@@ -107,7 +135,7 @@ var __hash = 0;
   function prettyPrintedMap(map, depth) {
     // Array.from creates an array of arrays (i.e. of tuples). Add depth +1
     // here since we print through 2 levels of array.
-    const result = prettyPrintedArray(Array.from(map), depth + 1, false);
+    const result = prettyPrintedArray(from(map), depth + 1, false);
     const props = prettyPrintedObjectProperties(map, depth, false);
     return `Map{${result}}${wrapped(props)}`;
   }
@@ -120,23 +148,28 @@ var __hash = 0;
   function prettyWithClass(object, depth) {
     const props = prettyPrintedObjectProperties(object, depth, false);
     const name = object.constructor?.name ?? "Object";
-    return `${name}(${prettyPrinted(object.valueOf())})${wrapped(props)}`;
+    return `${name}(${safeValueOf.call(object)})${wrapped(props)}`;
+  }
+
+  function prettyPrintedDate(object, depth) {
+    const props = prettyPrintedObjectProperties(object, depth, false);
+    return `Date(${dateValueOf.call(object)})${wrapped(props)}`;
   }
 
   function prettyPrintedTypedArray(object, depth) {
     const props = prettyPrintedObjectProperties(object, depth, true);
     const name = object.constructor?.name ?? "Object";
-    return `${name}[${object.join(", ")}]${wrapped(props)}`;
+    return `${name}[${join.call(object, ", ")}]${wrapped(props)}`;
   }
 
   function prettyPrintedRegExp(object, depth) {
     const props = prettyPrintedObjectProperties(object, depth, false);
-    return `${object.toString()}${wrapped(props)}`;
+    return `${regExpToString.call(object)}${wrapped(props)}`;
   }
 
   function prettyPrintedFunction(fun, depth) {
     const props = prettyPrintedObjectProperties(fun, depth, false);
-    return `Fun{${fun.toString()}}${wrapped(props)}`;
+    return `Fun{${funToString.call(fun)}}${wrapped(props)}`;
   }
 
   // Helper for calculating a hash code of a string.

@@ -56,11 +56,11 @@ test("Number(1){0: 1}", num);
 
 const big = Object(1n);
 big[0] = 1n;
-test("BigInt(1n){0: 1n}", big);
+test("BigInt(1){0: 1n}", big);
 
 const str = Object("1");
-str[0] = "1";
-test('String("1"){0: "1"}', str);
+str[1] = "2";
+test('String(1){0: "1", 1: "2"}', str);
 
 const bool = Object(true);
 bool[0] = false;
@@ -91,9 +91,9 @@ test("Object{0: [Object{}], 1: [Object{}]}", {0: [{}], 1: [{}]});
 // Depth limit
 test("[[[[...]]]]", [[[[[]]]]]);
 test("Object{0: Object{0: Object{0: Object{0: ...}}}}",
-   {0: {0: {0: {0: {}}}}});
+     {0: {0: {0: {0: {}}}}});
 test("Object{0: Object{0: Object{0: Object{0: ...}}, 1: [0, 1, [..., ...]]}}",
-   {0: {0: {0: {0: {}}}, 1: [0, 1, [0, 1]]}});
+     {0: {0: {0: {0: {}}}, 1: [0, 1, [0, 1]]}});
 
 // Functions
 const fun = (a) => a + 1;
@@ -152,3 +152,96 @@ test("[0]{a: [0]{a: [0]{a: [...]{a: ...}}}}", arr4);
 const arr5 = [];
 arr5[0] = {0: arr5};
 test("[Object{0: [Object{0: ...}]}]", arr5);
+
+// Messing with the original objects should still print them.
+const everything = [
+  "foo",
+  {1: 2},
+  (a) => a + 1,
+  Object(1),
+  Object(1n),
+  Object("foo"),
+  Object(false),
+  new Date(1748006413000),
+  new Array([0]),
+  new Set([0]),
+  new Map([[0, 1]]),
+  new RegExp("a"),
+  new Int8Array([0]),
+  new Uint8Array([0]),
+  new Uint8ClampedArray([0]),
+  new Int16Array([0]),
+  new Uint16Array([0]),
+  new Int32Array([0]),
+  new Uint32Array([0]),
+  new Float32Array([0]),
+  new Float64Array([0]),
+  new BigInt64Array([0n]),
+  new BigUint64Array([0n]),
+];
+everything["prop"] = 42;
+
+// Mess with everything.
+Array.from++;
+Array.prototype.filter++;
+Array.prototype.join++;
+Array.prototype.map++;
+Int8Array.prototype.join++;
+Number.isInteger++;
+Number.prototype.valueOf++;
+Object.keys++;
+JSON.stringify++;
+RegExp.prototype.toString++;
+String.prototype.charCodeAt++;
+String.prototype.substring++;
+
+Object++;
+BigInt++;
+Number++;
+String++;
+Boolean++;
+Date++;
+RegExp++;
+Array++;
+Set++;
+Map++;
+Int8Array++;
+Uint8Array++;
+Uint8ClampedArray++;
+Int16Array++;
+Uint16Array++;
+Int32Array++;
+Uint32Array++;
+Float32Array++;
+Float64Array++;
+BigInt64Array++;
+BigUint64Array++;
+
+// This doesn't work before all the others.
+Function.prototype.toString++;
+
+test('[' +
+       '"foo", ' +
+       'Object{1: 2}, ' +
+       'Fun{(a) => a + 1}, ' +
+       'Number(1), ' +
+       'BigInt(1), ' +
+       'String(foo){0: "f", 1: "o", 2: "o"}, ' +
+       'Boolean(false), ' +
+       'Date(1748006413000), ' +
+       '[[0]], ' +
+       'Set[0], ' +
+       'Map{[[0, 1]]}, ' +
+       '/a/, ' +
+       'Int8Array[0], ' +
+       'Uint8Array[0], ' +
+       'Uint8ClampedArray[0], ' +
+       'Int16Array[0], ' +
+       'Uint16Array[0], ' +
+       'Int32Array[0], ' +
+       'Uint32Array[0], ' +
+       'Float32Array[0], ' +
+       'Float64Array[0], ' +
+       'BigInt64Array[0], ' +
+       'BigUint64Array[0]' +
+     ']{prop: 42}', everything);
