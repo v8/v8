@@ -130,7 +130,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '2b7d244908ea9760bc176a41653fdf37d22003e0',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '328089ed5e079ebaf53676c3d8cfc0c37f1a86d6',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c618f33e12ddc6f53c21271e7b44ddef3ec44de3',
   'buildtools/linux64': {
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '321bb9ac2011a4a3a25f82dd5bdd4864103d03f0',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e68bbfc57229f6c1e366f456b92f25a7a2473c37',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -306,7 +306,7 @@ deps = {
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '241ef367ab2d135197377a82da5f7aee49a082f8',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '8575f4ae4fcf8892938bd9766cf1a5c90a0ed04e',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'e3eb847e517898924d0ae70ff4266b97908b8b7b',
   'third_party/llvm-libc/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '4bdcf29a5e010ef57cbc04d4a3e3b3e1efa2c972',
   'third_party/llvm-build/Release+Asserts': {
@@ -486,7 +486,7 @@ deps = {
   'tools/rust':
     Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '11d67ba3289de6ca73bc441794138a9d8cd9db6b',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'a7799c6381e93d213eb58cd777aacc488a6a3d04',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'f60efd8442b9f24eeb8573a319b1751fca954c58',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
