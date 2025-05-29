@@ -72,10 +72,8 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalPlainDateTime)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalPlainMonthDay)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalPlainTime)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalPlainYearMonth)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalTimeZone)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalZonedDateTime)
 
-BOOL_ACCESSORS(JSTemporalTimeZone, flags, is_offset, IsOffsetBit::kShift)
 
 // temporal_rs object getters
 ACCESSORS(JSTemporalInstant, instant, Tagged<Managed<temporal_rs::Instant>>,
@@ -92,20 +90,6 @@ ACCESSORS(JSTemporalPlainTime, time, Tagged<Managed<temporal_rs::PlainTime>>,
           kTimeOffset)
 ACCESSORS(JSTemporalPlainYearMonth, year_month,
           Tagged<Managed<temporal_rs::PlainYearMonth>>, kYearMonthOffset)
-
-// Special handling of sign
-TEMPORAL_INLINE_SIGNED_GETTER_SETTER(JSTemporalTimeZone, flags,
-                                     offset_milliseconds, -24 * 60 * 60 * 1000,
-                                     24 * 60 * 60 * 1000,
-                                     OffsetMillisecondsOrTimeZoneIndex)
-
-TEMPORAL_INLINE_SIGNED_GETTER_SETTER(JSTemporalTimeZone, details,
-                                     offset_sub_milliseconds, -1000000, 1000000,
-                                     OffsetSubMilliseconds)
-
-BIT_FIELD_ACCESSORS(JSTemporalTimeZone, flags,
-                    offset_milliseconds_or_time_zone_index,
-                    JSTemporalTimeZone::OffsetMillisecondsOrTimeZoneIndexBits)
 
 }  // namespace internal
 }  // namespace v8

@@ -3308,11 +3308,6 @@ void JSTemporalPlainMonthDay::JSTemporalPlainMonthDayPrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
-void JSTemporalTimeZone::JSTemporalTimeZonePrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSTemporalTimeZone");
-  JSObjectPrintBody(os, *this);
-}
-
 #endif  // V8_TEMPORAL_SUPPORT
 
 void JSRawJson::JSRawJsonPrint(std::ostream& os) {

@@ -1636,7 +1636,6 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
     // Note: There are NO Temporal.Now.plainTime
     // See https://github.com/tc39/proposal-temporal/issues/1540
 #define NOW_LIST(V)                        \
-  V(timeZone, TimeZone, 0)                 \
   V(instant, Instant, 0)                   \
   V(plainDateTime, PlainDateTime, 1)       \
   V(plainDateTimeISO, PlainDateTimeISO, 0) \
@@ -2122,37 +2121,6 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
 #undef PLAIN_MONTH_DAY_FUNC_LIST
 #undef INSTALL_PLAIN_MONTH_DAY_FUNC
   }
-  {  // -- T i m e Z o n e
-    // #sec-temporal-timezone-objects
-    // #sec-temporal.timezone
-    INSTALL_TEMPORAL_CTOR_AND_PROTOTYPE(TimeZone, TIME_ZONE, 1)
-    INSTALL_TEMPORAL_FUNC(TimeZone, from, From, 1)
-
-    // #sec-get-temporal.timezone.prototype.id
-    SimpleInstallGetter(isolate, prototype, isolate->factory()->id_string(),
-                        Builtin::kTemporalTimeZonePrototypeId, kAdapt);
-
-#define TIME_ZONE_FUNC_LIST(V)                           \
-  V(getOffsetNanosecondsFor, GetOffsetNanosecondsFor, 1) \
-  V(getOffsetStringFor, GetOffsetStringFor, 1)           \
-  V(getPlainDateTimeFor, GetPlainDateTimeFor, 1)         \
-  V(getInstantFor, GetInstantFor, 1)                     \
-  V(getPossibleInstantsFor, GetPossibleInstantsFor, 1)   \
-  V(getNextTransition, GetNextTransition, 1)             \
-  V(getPreviousTransition, GetPreviousTransition, 1)     \
-  V(toString, ToString, 0)                               \
-  V(toJSON, ToJSON, 0)
-
-#define INSTALL_TIME_ZONE_FUNC(p, N, min)                            \
-  SimpleInstallFunction(isolate, prototype, #p,                      \
-                        Builtin::kTemporalTimeZonePrototype##N, min, \
-                        kDontAdapt);
-    TIME_ZONE_FUNC_LIST(INSTALL_TIME_ZONE_FUNC)
-#undef TIME_ZONE_FUNC_LIST
-#undef INSTALL_TIME_ZONE_FUNC
-  }
-#undef INSTALL_TEMPORAL_CTOR_AND_PROTOTYPE
-#undef INSTALL_TEMPORAL_FUNC
 
   // The StringListFromIterable functions is created but not
   // exposed, as it is used internally by CalendarFields.

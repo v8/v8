@@ -2976,7 +2976,9 @@ bool Intl::IsValidTimeZoneName(const icu::TimeZone& tz) {
 // Function to support Temporal
 std::string Intl::TimeZoneIdFromIndex(int32_t index) {
 #ifdef V8_TEMPORAL_SUPPORT
-  if (index == JSTemporalTimeZone::kUTCTimeZoneIndex) {
+  // UTC index is 0
+  // TODO(b/401065166) Potentially store constant somewhere
+  if (index == 0) {
     return "UTC";
   }
 #endif  // V8_TEMPORAL_SUPPORT

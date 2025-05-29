@@ -716,10 +716,6 @@ MaybeDirectHandle<JSTemporalPlainDateTime> CreateTemporalDateTime(
     Isolate* isolate, const DateTimeRecord& date_time) {
   UNIMPLEMENTED();
 }
-MaybeDirectHandle<JSTemporalTimeZone> CreateTemporalTimeZone(
-    Isolate* isolate, DirectHandle<String> identifier) {
-  UNIMPLEMENTED();
-}
 
 // #sec-temporal-totemporalduration
 MaybeDirectHandle<JSTemporalDuration> ToTemporalDuration(
@@ -1084,98 +1080,6 @@ MaybeDirectHandle<String> JSTemporalDuration::ToString(
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(output);
   return builder.Finish().ToHandleChecked();
-}
-
-// #sec-temporal.timezone
-MaybeDirectHandle<JSTemporalTimeZone> JSTemporalTimeZone::Constructor(
-    Isolate* isolate, DirectHandle<JSFunction> target,
-    DirectHandle<HeapObject> new_target, DirectHandle<Object> identifier_obj) {
-  UNIMPLEMENTED();
-}
-
-// #sec-temporal.now.timezone
-MaybeDirectHandle<JSTemporalTimeZone> JSTemporalTimeZone::Now(
-    Isolate* isolate) {
-  UNIMPLEMENTED();
-}
-
-// #sec-temporal.timezone.prototype.getinstantfor
-MaybeDirectHandle<JSTemporalInstant> JSTemporalTimeZone::GetInstantFor(
-    Isolate* isolate, DirectHandle<JSTemporalTimeZone> time_zone,
-    DirectHandle<Object> date_time_obj, DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
-}
-
-// #sec-temporal.timezone.prototype.getplaindatetimefor
-MaybeDirectHandle<JSTemporalPlainDateTime>
-JSTemporalTimeZone::GetPlainDateTimeFor(
-    Isolate* isolate, DirectHandle<JSTemporalTimeZone> time_zone,
-    DirectHandle<Object> instant_obj, DirectHandle<Object> calendar_like) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
-}
-
-// #sec-temporal.timezone.prototype.getnexttransition
-MaybeDirectHandle<Object> JSTemporalTimeZone::GetNextTransition(
-    Isolate* isolate, DirectHandle<JSTemporalTimeZone> time_zone,
-    DirectHandle<Object> starting_point_obj) {
-  UNIMPLEMENTED();
-}
-// #sec-temporal.timezone.prototype.getprevioustransition
-MaybeDirectHandle<Object> JSTemporalTimeZone::GetPreviousTransition(
-    Isolate* isolate, DirectHandle<JSTemporalTimeZone> time_zone,
-    DirectHandle<Object> starting_point_obj) {
-  UNIMPLEMENTED();
-}
-
-// #sec-temporal.timezone.prototype.getpossibleinstantsfor
-MaybeDirectHandle<JSArray> JSTemporalTimeZone::GetPossibleInstantsFor(
-    Isolate* isolate, DirectHandle<JSTemporalTimeZone> time_zone,
-    DirectHandle<Object> date_time_obj) {
-  UNIMPLEMENTED();
-}
-
-// #sec-temporal.timezone.prototype.getoffsetnanosecondsfor
-MaybeDirectHandle<Object> JSTemporalTimeZone::GetOffsetNanosecondsFor(
-    Isolate* isolate, DirectHandle<JSTemporalTimeZone> time_zone,
-    DirectHandle<Object> instant_obj) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
-}
-
-// #sec-temporal.timezone.prototype.getoffsetstringfor
-MaybeDirectHandle<String> JSTemporalTimeZone::GetOffsetStringFor(
-    Isolate* isolate, DirectHandle<JSTemporalTimeZone> time_zone,
-    DirectHandle<Object> instant_obj) {
-  UNIMPLEMENTED();
-}
-
-// #sec-temporal.timezone.prototype.tostring
-MaybeDirectHandle<Object> JSTemporalTimeZone::ToString(
-    Isolate* isolate, DirectHandle<JSTemporalTimeZone> time_zone,
-    const char* method_name) {
-  UNIMPLEMENTED();
-}
-
-int32_t JSTemporalTimeZone::time_zone_index() const {
-  DCHECK(is_offset() == false);
-  return offset_milliseconds_or_time_zone_index();
-}
-
-int64_t JSTemporalTimeZone::offset_nanoseconds() const {
-  TEMPORAL_ENTER_FUNC();
-  DCHECK(is_offset());
-  return static_cast<int64_t>(offset_milliseconds()) * 1000000 +
-         static_cast<int64_t>(offset_sub_milliseconds());
-}
-
-void JSTemporalTimeZone::set_offset_nanoseconds(int64_t ns) {
-  this->set_offset_milliseconds(static_cast<int32_t>(ns / 1000000));
-  this->set_offset_sub_milliseconds(static_cast<int32_t>(ns % 1000000));
-}
-
-MaybeDirectHandle<String> JSTemporalTimeZone::id(Isolate* isolate) const {
-  UNIMPLEMENTED();
 }
 
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Constructor(

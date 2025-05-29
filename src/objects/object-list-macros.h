@@ -342,7 +342,6 @@ namespace internal {
   V(JSTemporalPlainDateTime)                      \
   V(JSTemporalPlainMonthDay)                      \
   V(JSTemporalPlainYearMonth)                     \
-  V(JSTemporalTimeZone)                           \
   V(JSTemporalZonedDateTime)
 #else
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \

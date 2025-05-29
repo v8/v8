@@ -210,7 +210,6 @@ namespace internal {
   }
 
 // Now
-TEMPORAL_NOW0(TimeZone)
 TEMPORAL_NOW0(Instant)
 TEMPORAL_NOW2(PlainDateTime)
 TEMPORAL_NOW_ISO1(PlainDateTime)
@@ -637,59 +636,6 @@ TEMPORAL_PROTOTYPE_METHOD2(Instant, ToLocaleString, toLocaleString)
 TEMPORAL_PROTOTYPE_METHOD1(Instant, ToString, toString)
 TEMPORAL_PROTOTYPE_METHOD1(Instant, ToZonedDateTime, toZonedDateTime)
 TEMPORAL_PROTOTYPE_METHOD2(Instant, Until, until)
-
-// TimeZone
-TEMPORAL_CONSTRUCTOR1(TimeZone)
-TEMPORAL_PROTOTYPE_METHOD2(TimeZone, GetInstantFor, getInstantFor)
-TEMPORAL_PROTOTYPE_METHOD1(TimeZone, GetNextTransition, getNextTransition)
-TEMPORAL_PROTOTYPE_METHOD1(TimeZone, GetOffsetNanosecondsFor,
-                           getOffsetNanosecondsFor)
-TEMPORAL_PROTOTYPE_METHOD1(TimeZone, GetOffsetStringFor, getOffsetStringFor)
-TEMPORAL_PROTOTYPE_METHOD2(TimeZone, GetPlainDateTimeFor, getPlainDateTimeFor)
-TEMPORAL_PROTOTYPE_METHOD1(TimeZone, GetPossibleInstantsFor,
-                           getPossibleInstantFor)
-TEMPORAL_PROTOTYPE_METHOD1(TimeZone, GetPreviousTransition,
-                           getPreviousTransition)
-
-// #sec-get-temporal.timezone.prototype.id
-BUILTIN(TemporalTimeZonePrototypeId) {
-  HandleScope scope(isolate);
-  // 1. Let timeZone be the this value.
-  // 2. Perform ? RequireInternalSlot(timeZone,
-  // [[InitializedTemporalTimeZone]]).
-  CHECK_RECEIVER(JSTemporalTimeZone, time_zone,
-                 "Temporal.TimeZone.prototype.id");
-  // 3. Return ? ToString(timeZone).
-  RETURN_RESULT_OR_FAILURE(isolate, Object::ToString(isolate, time_zone));
-}
-
-// #sec-temporal.timezone.prototype.tojson
-BUILTIN(TemporalTimeZonePrototypeToJSON) {
-  HandleScope scope(isolate);
-  // 1. Let timeZone be the this value.
-  // 2. Perform ? RequireInternalSlot(timeZone,
-  // [[InitializedTemporalTimeZone]]).
-  CHECK_RECEIVER(JSTemporalTimeZone, time_zone,
-                 "Temporal.TimeZone.prototype.toJSON");
-  // 3. Return ? ToString(timeZone).
-  RETURN_RESULT_OR_FAILURE(isolate, Object::ToString(isolate, time_zone));
-}
-
-// #sec-temporal.timezone.prototype.tostring
-BUILTIN(TemporalTimeZonePrototypeToString) {
-  HandleScope scope(isolate);
-  const char* method_name = "Temporal.TimeZone.prototype.toString";
-  // 1. Let timeZone be the this value.
-  // 2. Perform ? RequireInternalSlot(timeZone,
-  // [[InitializedTemporalTimeZone]]).
-  CHECK_RECEIVER(JSTemporalTimeZone, time_zone, method_name);
-  // 3. Return timeZone.[[Identifier]].
-  RETURN_RESULT_OR_FAILURE(
-      isolate, JSTemporalTimeZone::ToString(isolate, time_zone, method_name));
-}
-
-// #sec-temporal.timezone.from
-BUILTIN(TemporalTimeZoneFrom) { UNIMPLEMENTED(); }
 
 // get Temporal.*.prototype.era/eraYear
 TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(Era)

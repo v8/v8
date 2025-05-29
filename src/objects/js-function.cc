@@ -1058,7 +1058,6 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_TEMPORAL_PLAIN_MONTH_DAY_TYPE:
     case JS_TEMPORAL_PLAIN_TIME_TYPE:
     case JS_TEMPORAL_PLAIN_YEAR_MONTH_TYPE:
-    case JS_TEMPORAL_TIME_ZONE_TYPE:
     case JS_TEMPORAL_ZONED_DATE_TIME_TYPE:
 #endif
     case JS_WEAK_MAP_TYPE:

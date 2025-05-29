@@ -727,85 +727,6 @@ class JSTemporalPlainYearMonth
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainYearMonth)
 };
 
-class JSTemporalTimeZone
-    : public TorqueGeneratedJSTemporalTimeZone<JSTemporalTimeZone, JSObject> {
- public:
-  // #sec-temporal.now.timezone
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalTimeZone> Now(
-      Isolate* isolate);
-
-  // #sec-temporal.timezone
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalTimeZone>
-  Constructor(Isolate* isolate, DirectHandle<JSFunction> target,
-              DirectHandle<HeapObject> new_target,
-              DirectHandle<Object> identifier);
-
-  // #sec-temporal.timezone.prototype.getinstantfor
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalInstant>
-  GetInstantFor(Isolate* isolate, DirectHandle<JSTemporalTimeZone> time_zone,
-                DirectHandle<Object> dateTime, DirectHandle<Object> options);
-
-  // #sec-temporal.timezone.prototype.getplaindatetimefor
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainDateTime>
-  GetPlainDateTimeFor(Isolate* isolate,
-                      DirectHandle<JSTemporalTimeZone> time_zone,
-                      DirectHandle<Object> instance,
-                      DirectHandle<Object> calendar_like);
-
-  // #sec-temporal.timezone.prototype.getnexttransition
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object> GetNextTransition(
-      Isolate* isolate, DirectHandle<JSTemporalTimeZone> time_zone,
-      DirectHandle<Object> starting_point);
-
-  // #sec-temporal.timezone.prototype.getprevioustransition
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object> GetPreviousTransition(
-      Isolate* isolate, DirectHandle<JSTemporalTimeZone> time_zone,
-      DirectHandle<Object> starting_point);
-
-  // #sec-temporal.timezone.prototype.getpossibleinstantsfor
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSArray>
-  GetPossibleInstantsFor(Isolate* isolate,
-                         DirectHandle<JSTemporalTimeZone> time_zone,
-                         DirectHandle<Object> date_time);
-
-  // #sec-temporal.timezone.prototype.getoffsetnanosecondsfor
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object>
-  GetOffsetNanosecondsFor(Isolate* isolate,
-                          DirectHandle<JSTemporalTimeZone> time_zone,
-                          DirectHandle<Object> instance);
-
-  // #sec-temporal.timezone.prototype.getoffsetstringfor
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> GetOffsetStringFor(
-      Isolate* isolate, DirectHandle<JSTemporalTimeZone> time_zone,
-      DirectHandle<Object> instance);
-
-  // #sec-temporal.timezone.prototype.tostring
-  static MaybeDirectHandle<Object> ToString(
-      Isolate* isolate, DirectHandle<JSTemporalTimeZone> time_zone,
-      const char* method_name);
-
-  DECL_PRINTER(JSTemporalTimeZone)
-
-  DEFINE_TORQUE_GENERATED_JS_TEMPORAL_TIME_ZONE_FLAGS()
-  DEFINE_TORQUE_GENERATED_JS_TEMPORAL_TIME_ZONE_SUB_MILLISECONDS()
-
-  DECL_BOOLEAN_ACCESSORS(is_offset)
-  DECL_INT_ACCESSORS(offset_milliseconds_or_time_zone_index)
-
-  DECLARE_TEMPORAL_INLINE_GETTER_SETTER(offset_milliseconds)
-  DECLARE_TEMPORAL_INLINE_GETTER_SETTER(offset_sub_milliseconds)
-
-  int32_t time_zone_index() const;
-  static constexpr int32_t kUTCTimeZoneIndex = 0;
-
-  int64_t offset_nanoseconds() const;
-  void set_offset_nanoseconds(int64_t offset_nanoseconds);
-
-  MaybeDirectHandle<String> id(Isolate* isolate) const;
-
-  TQ_OBJECT_CONSTRUCTORS(JSTemporalTimeZone)
-};
-
 class JSTemporalZonedDateTime
     : public TorqueGeneratedJSTemporalZonedDateTime<JSTemporalZonedDateTime,
                                                     JSObject> {
@@ -988,10 +909,6 @@ struct DateTimeRecord {
 // #sec-temporal-createtemporaldatetime
 V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSTemporalPlainDateTime>
 CreateTemporalDateTime(Isolate* isolate, const DateTimeRecord& date_time);
-
-// #sec-temporal-createtemporaltimezone
-MaybeDirectHandle<JSTemporalTimeZone> CreateTemporalTimeZone(
-    Isolate* isolate, DirectHandle<String> identifier);
 
 // #sec-temporal-createtemporalinstant
 V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSTemporalInstant>
