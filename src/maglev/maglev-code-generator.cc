@@ -1557,7 +1557,7 @@ class MaglevFrameTranslationBuilder {
   void BuildDeoptFrameSingleValue(const ValueNode* value,
                                   const InputLocation*& input_location,
                                   const VirtualObjectList& virtual_objects) {
-    if (value->Is<Identity>()) {
+    while (value->Is<Identity>()) {
       value = value->input(0).node();
     }
     DCHECK(!value->Is<VirtualObject>());

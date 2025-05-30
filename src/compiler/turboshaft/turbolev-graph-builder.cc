@@ -5196,6 +5196,9 @@ class GraphBuildingNodeProcessor {
   void AddDeoptInput(FrameStateData::Builder& builder,
                      const maglev::VirtualObjectList& virtual_objects,
                      const maglev::ValueNode* node) {
+    while (node->Is<maglev::Identity>()) {
+      node = node->input(0).node();
+    }
     if (const maglev::InlinedAllocation* alloc =
             node->TryCast<maglev::InlinedAllocation>()) {
       DCHECK(alloc->HasBeenAnalysed());
@@ -5204,15 +5207,6 @@ class GraphBuildingNodeProcessor {
                               virtual_objects.FindAllocatedWith(alloc));
         return;
       }
-    }
-    if (const maglev::Identity* ident_obj = node->TryCast<maglev::Identity>()) {
-      // The value_representation of Identity nodes is always Tagged rather than
-      // the actual value_representation of their input. We thus bypass identity
-      // nodes manually here to get to correct value_representation and thus the
-      // correct MachineType.
-      node = ident_obj->input(0).node();
-      // Identity nodes should not have Identity as input.
-      DCHECK(!node->Is<maglev::Identity>());
     }
     builder.AddInput(MachineTypeFor(node->value_representation()), Map(node));
   }
