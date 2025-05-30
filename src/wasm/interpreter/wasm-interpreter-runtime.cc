@@ -290,17 +290,16 @@ class IndirectFunctionTableEntry {
 
 IndirectFunctionTableEntry::IndirectFunctionTableEntry(
     DirectHandle<WasmInstanceObject> instance, int table_index, int entry_index)
-    : table_(
-          table_index != 0
-              ? direct_handle(Cast<WasmDispatchTable>(
-                                  instance->trusted_data(instance->GetIsolate())
-                                      ->dispatch_tables()
-                                      ->get(table_index)),
-                              instance->GetIsolate())
-              : direct_handle(Cast<WasmDispatchTable>(
-                                  instance->trusted_data(instance->GetIsolate())
-                                      ->dispatch_table0()),
-                              instance->GetIsolate())),
+    : table_(table_index != 0
+                 ? direct_handle(Cast<WasmDispatchTable>(
+                                     instance->trusted_data(Isolate::Current())
+                                         ->dispatch_tables()
+                                         ->get(table_index)),
+                                 Isolate::Current())
+                 : direct_handle(Cast<WasmDispatchTable>(
+                                     instance->trusted_data(Isolate::Current())
+                                         ->dispatch_table0()),
+                                 Isolate::Current())),
       index_(entry_index) {
   DCHECK_GE(entry_index, 0);
   DCHECK_LT(entry_index, table_->length());
@@ -444,8 +443,8 @@ void WasmInterpreterRuntime::TableInit(const uint8_t*& current_code,
 
   std::optional<MessageTemplate> msg_template =
       WasmTrustedInstanceData::InitTableEntries(
-          instance_object_->GetIsolate(), trusted_data, trusted_data,
-          table_index, element_segment_index, dst, src, size);
+          Isolate::Current(), trusted_data, trusted_data, table_index,
+          element_segment_index, dst, src, size);
   // See WasmInstanceObject::InitTableEntries.
   if (msg_template == MessageTemplate::kWasmTrapTableOutOfBounds) {
     SetTrap(TrapReason::kTrapTableOutOfBounds, current_code);
