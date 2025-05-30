@@ -1513,11 +1513,7 @@ namespace internal {
                                                                                \
   /* CallAsyncModule* are spec anonymyous functions */                         \
   CPP(CallAsyncModuleFulfilled, JSParameterCount(0))                           \
-  CPP(CallAsyncModuleRejected, JSParameterCount(0))                            \
-                                                                               \
-  /* "Private" (created but not exposed) Bulitins needed by Temporal */        \
-  TFJ(StringFixedArrayFromIterable, kJSArgcReceiverSlots + 1, kReceiver,       \
-      kIterable)
+  CPP(CallAsyncModuleRejected, JSParameterCount(0))
 
 #define BUILTIN_LIST_BASE(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, ASM) \
   BUILTIN_LIST_BASE_TIER0(CPP, TFJ, TFC, TFS, TFH, ASM)           \
@@ -2020,8 +2016,6 @@ namespace internal {
   /* Temporal #sec-date.prototype.totemporalinstant */                         \
   CPP(DatePrototypeToTemporalInstant, kDontAdaptArgumentsSentinel)             \
                                                                                \
-  TFJ(TemporalInstantFixedArrayFromIterable, kJSArgcReceiverSlots + 1,         \
-      kReceiver, kIterable)                                                    \
                                                                                \
   /* Intl */ /* Temporal #sec-get-temporal.plaindate.prototype.era */          \
   CPP(TemporalPlainDatePrototypeEra,                                           \

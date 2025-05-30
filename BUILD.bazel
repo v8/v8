@@ -3710,8 +3710,6 @@ filegroup(
         "src/builtins/builtins-string-gen.cc",
         "src/builtins/builtins-string-gen.h",
         "src/builtins/builtins-string-tsa.cc",
-        # Temporal is currently gn-only
-        # "src/builtins/builtins-temporal-gen.cc",
         "src/builtins/builtins-typed-array-gen.cc",
         "src/builtins/builtins-typed-array-gen.h",
         "src/builtins/builtins-utils-gen.h",

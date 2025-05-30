@@ -2122,27 +2122,6 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
 #undef INSTALL_PLAIN_MONTH_DAY_FUNC
   }
 
-  // The StringListFromIterable functions is created but not
-  // exposed, as it is used internally by CalendarFields.
-  {
-    DirectHandle<JSFunction> func =
-        SimpleCreateFunction(isolate,
-                             isolate->factory()->InternalizeUtf8String(
-                                 "StringFixedArrayFromIterable"),
-                             Builtin::kStringFixedArrayFromIterable, 1, kAdapt);
-    native_context->set_string_fixed_array_from_iterable(*func);
-  }
-  // The TemporalInsantFixedArrayFromIterable functions is created but not
-  // exposed, as it is used internally by GetPossibleInstantsFor.
-  {
-    DirectHandle<JSFunction> func = SimpleCreateFunction(
-        isolate,
-        isolate->factory()->InternalizeUtf8String(
-            "TemporalInstantFixedArrayFromIterable"),
-        Builtin::kTemporalInstantFixedArrayFromIterable, 1, kAdapt);
-    native_context->set_temporal_instant_fixed_array_from_iterable(*func);
-  }
-
   native_context->set_temporal_object(*temporal);
   return temporal;
 }

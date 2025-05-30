@@ -3117,10 +3117,6 @@ v8_source_set("v8_initializers") {
     }
   }
 
-  if (v8_enable_temporal_support) {
-    sources += [ "src/builtins/builtins-temporal-gen.cc" ]
-  }
-
   if (v8_current_cpu == "x86") {
     sources += [
       ### gcmole(ia32) ###
