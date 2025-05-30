@@ -388,8 +388,8 @@ void HeapObject::VerifyCodePointer(Isolate* isolate, Tagged<Object> p) {
 void FreeSpace::FreeSpaceVerify(Isolate* isolate) {
   CHECK(IsFreeSpace(this));
   {
-    Tagged<Object> size = size_.Relaxed_Load();
-    CHECK(IsSmi(size));
+    Tagged<Object> size_in_tagged = size_in_tagged_.Relaxed_Load();
+    CHECK(IsSmi(size_in_tagged));
   }
 }
 

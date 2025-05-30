@@ -51,11 +51,10 @@ class FreeSpace : public HeapObjectLayout {
 
  private:
   friend class Heap;
-  friend class compiler::AccessBuilder;
 
   inline bool IsValid() const;
 
-  TaggedMember<Smi> size_;
+  TaggedMember<Smi> size_in_tagged_;
 #ifdef V8_EXTERNAL_CODE_SPACE
   TaggedMember<Smi> next_;
 #else

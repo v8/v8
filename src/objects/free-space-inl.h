@@ -20,14 +20,18 @@ namespace v8 {
 namespace internal {
 
 int FreeSpace::size(RelaxedLoadTag) const {
-  return size_.Relaxed_Load().value();
+  return size_in_tagged_.Relaxed_Load().value() * kTaggedSize;
 }
 
 // static
 inline void FreeSpace::SetSize(const WritableFreeSpace& writable_free_space,
                                int size, RelaxedStoreTag tag) {
-  writable_free_space.WriteHeaderSlot<Smi, offsetof(FreeSpace, size_)>(
-      Smi::FromInt(size), tag);
+  // For size <= 2 * kTaggedSize, we expect to use one/two pointer filler maps.
+  DCHECK_GT(size, 2 * kTaggedSize);
+  DCHECK_EQ(size % kTaggedSize, 0);
+  writable_free_space
+      .WriteHeaderSlot<Smi, offsetof(FreeSpace, size_in_tagged_)>(
+          Smi::FromInt(size / kTaggedSize), tag);
 }
 
 int FreeSpace::Size() { return size(kRelaxedLoad); }

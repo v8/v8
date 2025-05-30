@@ -897,15 +897,6 @@ FieldAccess AccessBuilder::ForNameRawHashField() {
 }
 
 // static
-FieldAccess AccessBuilder::ForFreeSpaceSize() {
-  FieldAccess access = {kTaggedBase,         offsetof(FreeSpace, size_),
-                        MaybeHandle<Name>(), OptionalMapRef(),
-                        Type::SignedSmall(), MachineType::TaggedSigned(),
-                        kNoWriteBarrier};
-  return access;
-}
-
-// static
 FieldAccess AccessBuilder::ForStringLength() {
   FieldAccess access = {kTaggedBase,
                         offsetof(String, length_),
