@@ -26,7 +26,7 @@ class MaglevInliner {
       : compilation_info_(compilation_info), graph_(graph) {}
 
   void Run(bool is_tracing_maglev_graphs_enabled) {
-    if (graph_->inlined_functions().empty()) return;
+    if (graph_->inlineable_calls().empty()) return;
 
     while (true) {
       if (graph_->total_inlined_bytecode_size() >
