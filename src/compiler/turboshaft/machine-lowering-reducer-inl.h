@@ -498,6 +498,31 @@ class MachineLoweringReducer : public Next {
         return result;
       }
 
+      case ObjectIsOp::Kind::kStringOrOddball: {
+        Label<Word32> done(this);
+
+        // Check for Smi if necessary.
+        if (NeedsHeapObjectCheck(input_assumptions)) {
+          GOTO_IF(__ IsSmi(input), done, 0);
+        }
+
+        V<Map> map = __ LoadMapField(input);
+        V<Word32> instance_type = __ LoadInstanceTypeField(map);
+        GOTO_IF(__ Word32Equal(instance_type, ODDBALL_TYPE), done, 1);
+
+#if V8_STATIC_ROOTS_BOOL
+        GOTO(done,
+             __ Uint32LessThanOrEqual(
+                 __ TruncateWordPtrToWord32(__ BitcastHeapObjectToWordPtr(map)),
+                 __ Word32Constant(InstanceTypeChecker::kStringMapUpperBound)));
+#else
+        GOTO(done, __ Uint32LessThan(instance_type, FIRST_NONSTRING_TYPE));
+#endif  // V8_STATIC_ROOTS_BOOL
+
+        BIND(done, result);
+        return result;
+      }
+
 #if V8_STATIC_ROOTS_BOOL
       case ObjectIsOp::Kind::kString: {
         Label<Word32> done(this);
@@ -2542,17 +2567,7 @@ class MachineLoweringReducer : public Next {
         GOTO_IF(__ TaggedEqual(left, right), done,
                 __ HeapConstant(factory_->true_value()));
 
-        V<Word32> left_length = __ template LoadField<Word32>(
-            left, AccessBuilder::ForStringLength());
-        V<Word32> right_length = __ template LoadField<Word32>(
-            right, AccessBuilder::ForStringLength());
-        IF (__ Word32Equal(left_length, right_length)) {
-          GOTO(done,
-               __ CallBuiltin_StringEqual(isolate_, left, right,
-                                          __ ChangeInt32ToIntPtr(left_length)));
-        } ELSE {
-          GOTO(done, __ HeapConstant(factory_->false_value()));
-        }
+        GenerateStringEqualBuiltinCall(left, right, &done);
 
         BIND(done, result);
         return result;
@@ -2561,6 +2576,49 @@ class MachineLoweringReducer : public Next {
         return __ CallBuiltin_StringLessThan(isolate_, left, right);
       case StringComparisonOp::Kind::kLessThanOrEqual:
         return __ CallBuiltin_StringLessThanOrEqual(isolate_, left, right);
+    }
+  }
+
+  V<Boolean> REDUCE(StringOrOddballStrictEqual)(V<HeapObject> left,
+                                                V<HeapObject> right) {
+    Label<Boolean> done(this);
+
+    GOTO_IF(__ TaggedEqual(left, right), done,
+            __ HeapConstant(factory_->true_value()));
+
+    // This code is only used for strict equality. If either left or right
+    // is not a string, then they must be non-equal (they cannot be the
+    // same oddball, since that was checked above).
+
+    V<Map> left_map = __ LoadMapField(left);
+    V<Word32> left_instance_type = __ LoadInstanceTypeField(left_map);
+    GOTO_IF(__ Word32Equal(left_instance_type, ODDBALL_TYPE), done,
+            __ HeapConstant(factory_->false_value()));
+
+    V<Map> right_map = __ LoadMapField(right);
+    V<Word32> right_instance_type = __ LoadInstanceTypeField(right_map);
+    GOTO_IF(__ Word32Equal(right_instance_type, ODDBALL_TYPE), done,
+            __ HeapConstant(factory_->false_value()));
+
+    GenerateStringEqualBuiltinCall(V<String>::Cast(left),
+                                   V<String>::Cast(right), &done);
+
+    BIND(done, result);
+    return result;
+  }
+
+  void GenerateStringEqualBuiltinCall(V<String> left, V<String> right,
+                                      Label<Boolean>* done) {
+    V<Word32> left_length =
+        __ template LoadField<Word32>(left, AccessBuilder::ForStringLength());
+    V<Word32> right_length =
+        __ template LoadField<Word32>(right, AccessBuilder::ForStringLength());
+    IF (__ Word32Equal(left_length, right_length)) {
+      GOTO(*done,
+           __ CallBuiltin_StringEqual(isolate_, left, right,
+                                      __ ChangeInt32ToIntPtr(left_length)));
+    } ELSE {
+      GOTO(*done, __ HeapConstant(factory_->false_value()));
     }
   }
 

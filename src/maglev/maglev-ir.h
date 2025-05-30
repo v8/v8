@@ -360,6 +360,7 @@ class ExceptionHandlerInfo;
   V(CheckString)                              \
   V(CheckSeqOneByteString)                    \
   V(CheckStringOrStringWrapper)               \
+  V(CheckStringOrOddball)                     \
   V(CheckSymbol)                              \
   V(CheckValue)                               \
   V(CheckValueEqualsInt32)                    \
@@ -691,6 +692,7 @@ static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
                           kOtherSeqOneByteString)                         \
   V(String, kInternalizedString | kSeqOneByteString | kOtherString)       \
   V(StringOrStringWrapper, kString | kStringWrapper)                      \
+  V(StringOrOddball, kString | kOddball)                                  \
   V(Name, kString | kSymbol)                                              \
   V(JSReceiver, kJSArray | kCallable | kStringWrapper | kOtherJSReceiver) \
   V(JSReceiverOrNullOrUndefined, kJSReceiver | kNullOrUndefined)          \
@@ -4931,11 +4933,16 @@ class ToBooleanLogicalNot
   using CheckTypeBitField = NextBitField<CheckType, 1>;
 };
 
+// With StringEqualInputs::kStringsOrOddballs StringEqual allows non-string
+// objects which are then compared with pointer equality (they will never be
+// equal to a String and they're equal to each other if the pointers are equal).
+enum class StringEqualInputs { kOnlyStrings, kStringsOrOddballs };
 class StringEqual : public FixedInputValueNodeT<2, StringEqual> {
   using Base = FixedInputValueNodeT<2, StringEqual>;
 
  public:
-  explicit StringEqual(uint64_t bitfield) : Base(bitfield) {}
+  explicit StringEqual(uint64_t bitfield, StringEqualInputs inputs)
+      : Base(bitfield), inputs_(inputs) {}
   static constexpr OpProperties kProperties = OpProperties::Call() |
                                               OpProperties::LazyDeopt() |
                                               OpProperties::CanAllocate();
@@ -4950,6 +4957,12 @@ class StringEqual : public FixedInputValueNodeT<2, StringEqual> {
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+  StringEqualInputs inputs() const { return inputs_; }
+  auto options() const { return std::tuple(inputs_); }
+
+ private:
+  StringEqualInputs inputs_;
 };
 
 class TaggedEqual : public FixedInputValueNodeT<2, TaggedEqual> {
@@ -7233,6 +7246,31 @@ class CheckStringOrStringWrapper
 
  public:
   explicit CheckStringOrStringWrapper(uint64_t bitfield, CheckType check_type)
+      : Base(CheckTypeBitField::update(bitfield, check_type)) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  static constexpr int kReceiverIndex = 0;
+  Input& receiver_input() { return input(kReceiverIndex); }
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+  auto options() const { return std::tuple{check_type()}; }
+
+ private:
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
+};
+
+class CheckStringOrOddball : public FixedInputNodeT<1, CheckStringOrOddball> {
+  using Base = FixedInputNodeT<1, CheckStringOrOddball>;
+
+ public:
+  explicit CheckStringOrOddball(uint64_t bitfield, CheckType check_type)
       : Base(CheckTypeBitField::update(bitfield, check_type)) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();

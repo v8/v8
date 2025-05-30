@@ -79,6 +79,7 @@ class JSBinopReduction final {
       case CompareOperationHint::kBigInt64:
       case CompareOperationHint::kReceiver:
       case CompareOperationHint::kReceiverOrNullOrUndefined:
+      case CompareOperationHint::kStringOrOddball:
       case CompareOperationHint::kInternalizedString:
         break;
     }
@@ -98,6 +99,7 @@ class JSBinopReduction final {
       case CompareOperationHint::kSymbol:
       case CompareOperationHint::kReceiver:
       case CompareOperationHint::kReceiverOrNullOrUndefined:
+      case CompareOperationHint::kStringOrOddball:
       case CompareOperationHint::kInternalizedString:
         return false;
       case CompareOperationHint::kBigInt:

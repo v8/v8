@@ -2512,6 +2512,21 @@ class GraphBuildingNodeProcessor {
                        node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckStringOrOddball* node,
+                                const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    ObjectIsOp::InputAssumptions input_assumptions =
+        node->check_type() == maglev::CheckType::kCheckHeapObject
+            ? ObjectIsOp::InputAssumptions::kNone
+            : ObjectIsOp::InputAssumptions::kHeapObject;
+    V<Word32> check =
+        __ ObjectIs(Map(node->receiver_input()),
+                    ObjectIsOp::Kind::kStringOrOddball, input_assumptions);
+    __ DeoptimizeIfNot(check, frame_state,
+                       DeoptimizeReason::kNotAStringOrOddball,
+                       node->eager_deopt_info()->feedback_to_update());
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CheckSymbol* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
@@ -2784,7 +2799,15 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::StringEqual* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node, __ StringEqual(Map(node->lhs()), Map(node->rhs())));
+    if (node->inputs() == maglev::StringEqualInputs::kStringsOrOddballs) {
+      // TODO(marja): Can we get rid of the StringOrOddballStrictEqual operator,
+      // by handling the oddballs somewhere and delegating strings to
+      // StringEqual?
+      SetMap(node,
+             __ StringOrOddballStrictEqual(Map(node->lhs()), Map(node->rhs())));
+    } else {
+      SetMap(node, __ StringEqual(Map(node->lhs()), Map(node->rhs())));
+    }
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::StringLength* node,

@@ -2342,6 +2342,7 @@ class CompareOperationFeedback {
 
     kInternalizedString = kInternalizedStringFlag,
     kString = kInternalizedString | kOtherStringFlag,
+    kStringOrOddball = kString | kOddball,
 
     kReceiver = kReceiverFlag,
     kReceiverOrNullOrUndefined = kReceiver | kNullOrUndefined,

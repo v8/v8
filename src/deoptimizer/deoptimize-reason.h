@@ -78,6 +78,7 @@ namespace internal {
   V(NotASeqOneByteString, "not a sequential one-byte String")                  \
   V(NotAStringOrStringWrapper, "not a String or a string wrapper")             \
   V(NotAStringWrapper, "not a string wrapper")                                 \
+  V(NotAStringOrOddball, "not a String or oddball")                            \
   V(NotASymbol, "not a Symbol")                                                \
   V(NotAdditiveSafeInteger, "not AdditiveSafeInteger")                         \
   V(NotAnArrayIndex, "not an array index")                                     \

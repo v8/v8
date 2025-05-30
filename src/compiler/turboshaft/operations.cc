@@ -1185,6 +1185,8 @@ std::ostream& operator<<(std::ostream& os, ObjectIsOp::Kind kind) {
       return os << "String";
     case ObjectIsOp::Kind::kStringOrStringWrapper:
       return os << "StringOrStringWrapper";
+    case ObjectIsOp::Kind::kStringOrOddball:
+      return os << "StringOrOddball";
     case ObjectIsOp::Kind::kSymbol:
       return os << "Symbol";
     case ObjectIsOp::Kind::kUndetectable:

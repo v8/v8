@@ -4603,8 +4603,10 @@ class TurboshaftAssemblerOpInterface
                               StringComparisonOp::Kind kind) {
     return ReduceIfReachableStringComparison(left, right, kind);
   }
-  V<Boolean> StringEqual(V<String> left, V<String> right) {
-    return StringComparison(left, right, StringComparisonOp::Kind::kEqual);
+  V<Boolean> StringEqual(
+      V<String> left, V<String> right,
+      StringComparisonOp::Kind kind = StringComparisonOp::Kind::kEqual) {
+    return StringComparison(left, right, kind);
   }
   V<Boolean> StringLessThan(V<String> left, V<String> right) {
     return StringComparison(left, right, StringComparisonOp::Kind::kLessThan);
@@ -4612,6 +4614,9 @@ class TurboshaftAssemblerOpInterface
   V<Boolean> StringLessThanOrEqual(V<String> left, V<String> right) {
     return StringComparison(left, right,
                             StringComparisonOp::Kind::kLessThanOrEqual);
+  }
+  V<Boolean> StringOrOddballStrictEqual(V<String> left, V<String> right) {
+    return ReduceIfReachableStringOrOddballStrictEqual(left, right);
   }
 
   V<Smi> ArgumentsLength() {

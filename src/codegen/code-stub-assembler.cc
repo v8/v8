@@ -15447,7 +15447,7 @@ void CodeStubAssembler::GenerateEqual_Same(TNode<Object> value, Label* if_equal,
       {
         CSA_DCHECK(this, IsNullOrUndefined(value_heapobject));
         CombineFeedback(var_type_feedback,
-                        CompareOperationFeedback::kReceiverOrNullOrUndefined);
+                        CompareOperationFeedback::kNullOrUndefined);
         Goto(if_equal);
       }
     }
@@ -16072,6 +16072,13 @@ TNode<Boolean> CodeStubAssembler::StrictEqual(
 
         BIND(&if_rhsisnotsmi);
         {
+          TNode<Map> rhs_map;
+          TNode<Uint16T> rhs_instance_type;
+          if (var_type_feedback != nullptr) {
+            rhs_map = LoadMap(CAST(rhs));
+            rhs_instance_type = LoadMapInstanceType(rhs_map);
+          }
+
           // Load the instance type of {lhs}.
           TNode<Uint16T> lhs_instance_type = LoadMapInstanceType(lhs_map);
 
@@ -16082,8 +16089,10 @@ TNode<Boolean> CodeStubAssembler::StrictEqual(
 
           BIND(&if_lhsisstring);
           {
-            // Load the instance type of {rhs}.
-            TNode<Uint16T> rhs_instance_type = LoadInstanceType(CAST(rhs));
+            if (var_type_feedback == nullptr) {
+              // The instance type was not loaded before, so load it now.
+              rhs_instance_type = LoadInstanceType(CAST(rhs));
+            }
 
             // Check if {rhs} is also a String.
             Label if_rhsisstring(this, Label::kDeferred),
@@ -16104,7 +16113,15 @@ TNode<Boolean> CodeStubAssembler::StrictEqual(
             }
 
             BIND(&if_rhsisnotstring);
-            Goto(&if_not_equivalent_types);
+            {
+              if (var_type_feedback != nullptr) {
+                GotoIfNot(IsOddballInstanceType(rhs_instance_type),
+                          &if_not_equivalent_types);
+                OverwriteFeedback(var_type_feedback,
+                                  CompareOperationFeedback::kStringOrOddball);
+              }
+              Goto(&if_notequal);
+            }
           }
 
           BIND(&if_lhsisnotstring);
@@ -16116,8 +16133,10 @@ TNode<Boolean> CodeStubAssembler::StrictEqual(
 
             BIND(&if_lhsisbigint);
             {
-              // Load the instance type of {rhs}.
-              TNode<Uint16T> rhs_instance_type = LoadInstanceType(CAST(rhs));
+              if (var_type_feedback == nullptr) {
+                // The instance type was not loaded before, so load it now.
+                rhs_instance_type = LoadInstanceType(CAST(rhs));
+              }
 
               // Check if {rhs} is also a BigInt.
               Label if_rhsisbigint(this, Label::kDeferred),
@@ -16152,15 +16171,10 @@ TNode<Boolean> CodeStubAssembler::StrictEqual(
 
             BIND(&if_lhsisnotbigint);
             if (var_type_feedback != nullptr) {
-              // Load the instance type of {rhs}.
-              TNode<Map> rhs_map = LoadMap(CAST(rhs));
-              TNode<Uint16T> rhs_instance_type = LoadMapInstanceType(rhs_map);
-
               Label if_lhsissymbol(this), if_lhsisreceiver(this),
                   if_lhsisoddball(this);
               GotoIf(IsJSReceiverInstanceType(lhs_instance_type),
                      &if_lhsisreceiver);
-              GotoIf(IsBooleanMap(lhs_map), &if_not_equivalent_types);
               GotoIf(IsOddballInstanceType(lhs_instance_type),
                      &if_lhsisoddball);
               Branch(IsSymbolInstanceType(lhs_instance_type), &if_lhsissymbol,
@@ -16182,19 +16196,32 @@ TNode<Boolean> CodeStubAssembler::StrictEqual(
 
               BIND(&if_lhsisoddball);
               {
-                  static_assert(LAST_PRIMITIVE_HEAP_OBJECT_TYPE ==
-                                ODDBALL_TYPE);
-                  GotoIf(Int32LessThan(rhs_instance_type,
-                                       Int32Constant(ODDBALL_TYPE)),
-                         &if_not_equivalent_types);
+                Label if_rhsisstring(this);
+                GotoIf(IsStringInstanceType(rhs_instance_type),
+                       &if_rhsisstring);
+                // The code below only applies to null and undefined, so jump
+                // away if we have a boolean.
+                GotoIf(IsBooleanMap(lhs_map), &if_not_equivalent_types);
 
-                  // TODO(marja): This is wrong, since null == true will be
-                  // detected as ReceiverOrNullOrUndefined, but true is not
-                  // receiver or null or undefined.
-                  OverwriteFeedback(
-                      var_type_feedback,
-                      CompareOperationFeedback::kReceiverOrNullOrUndefined);
+                static_assert(LAST_PRIMITIVE_HEAP_OBJECT_TYPE == ODDBALL_TYPE);
+                GotoIf(Int32LessThan(rhs_instance_type,
+                                     Int32Constant(ODDBALL_TYPE)),
+                       &if_not_equivalent_types);
+
+                // TODO(marja): This is wrong, since null == true will be
+                // detected as ReceiverOrNullOrUndefined, but true is not
+                // receiver or null or undefined.
+                OverwriteFeedback(
+                    var_type_feedback,
+                    CompareOperationFeedback::kReceiverOrNullOrUndefined);
+                Goto(&if_notequal);
+
+                BIND(&if_rhsisstring);
+                {
+                  OverwriteFeedback(var_type_feedback,
+                                    CompareOperationFeedback::kStringOrOddball);
                   Goto(&if_notequal);
+                }
               }
 
               BIND(&if_lhsissymbol);

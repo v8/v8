@@ -2401,6 +2401,7 @@ class MaglevGraphBuilder {
   ReduceResult BuildCheckSeqOneByteString(ValueNode* object);
   ReduceResult BuildCheckString(ValueNode* object);
   ReduceResult BuildCheckStringOrStringWrapper(ValueNode* object);
+  ReduceResult BuildCheckStringOrOddball(ValueNode* object);
   ReduceResult BuildCheckSymbol(ValueNode* object);
   ReduceResult BuildCheckMaps(
       ValueNode* object, base::Vector<const compiler::MapRef> maps,

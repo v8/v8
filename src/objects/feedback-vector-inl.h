@@ -446,6 +446,11 @@ CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
     return CompareOperationHint::kInternalizedString;
   } else if (Is<CompareOperationFeedback::kString>(type_feedback)) {
     return CompareOperationHint::kString;
+  } else if (Is<CompareOperationFeedback::kStringOrOddball>(type_feedback) &&
+             !Is<CompareOperationFeedback::kOddball>(type_feedback)) {
+    // Don't return the StringOrOddball feedback for pure oddball comparisons,
+    // that would be too confusing.
+    return CompareOperationHint::kStringOrOddball;
   }
 
   if (Is<CompareOperationFeedback::kReceiver>(type_feedback)) {

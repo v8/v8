@@ -3302,9 +3302,11 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
       ValueNode* tagged_right = GetTaggedValue(right);
       switch (kOperation) {
         case Operation::kEqual:
-        case Operation::kStrictEqual:
-          result = AddNewNode<StringEqual>({tagged_left, tagged_right});
+        case Operation::kStrictEqual: {
+          result = AddNewNode<StringEqual>({tagged_left, tagged_right},
+                                           StringEqualInputs::kOnlyStrings);
           break;
+        }
         case Operation::kLessThan:
           result = BuildCallBuiltin<Builtin::kStringLessThan>(
               {tagged_left, tagged_right});
@@ -3325,6 +3327,27 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
 
       SetAccumulator(result);
       return ReduceResult::Done();
+    }
+    case CompareOperationHint::kStringOrOddball: {
+      if (kOperation == Operation::kStrictEqual) {
+        ValueNode* left = LoadRegister(0);
+        ValueNode* right = GetAccumulator();
+        RETURN_IF_ABORT(BuildCheckStringOrOddball(left));
+        RETURN_IF_ABORT(BuildCheckStringOrOddball(right));
+
+        if (TryConstantFoldEqual(left, right)) return ReduceResult::Done();
+
+        // TODO(marja): If one of the sides is constant, we can generate better
+        // code (e.g., don't need to check its type at run time).
+
+        ValueNode* tagged_left = GetTaggedValue(left);
+        ValueNode* tagged_right = GetTaggedValue(right);
+        ValueNode* result = AddNewNode<StringEqual>(
+            {tagged_left, tagged_right}, StringEqualInputs::kStringsOrOddballs);
+        SetAccumulator(result);
+        return ReduceResult::Done();
+      }
+      break;
     }
     case CompareOperationHint::kAny:
     case CompareOperationHint::kBigInt64:
@@ -4968,6 +4991,21 @@ ReduceResult MaglevGraphBuilder::BuildCheckStringOrStringWrapper(
   if (EnsureType(object, NodeType::kStringOrStringWrapper, &known_type))
     return ReduceResult::Done();
   AddNewNode<CheckStringOrStringWrapper>({object}, GetCheckType(known_type));
+  return ReduceResult::Done();
+}
+
+ReduceResult MaglevGraphBuilder::BuildCheckStringOrOddball(ValueNode* object) {
+  NodeType known_type;
+  // Check for the empty type first so that we catch the case where
+  // GetType(object) is already empty.
+  if (IsEmptyNodeType(
+          IntersectType(GetType(object), NodeType::kStringOrOddball))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kNotAStringOrOddball);
+  }
+  if (EnsureType(object, NodeType::kStringOrOddball, &known_type)) {
+    return ReduceResult::Done();
+  }
+  AddNewNode<CheckStringOrOddball>({object}, GetCheckType(known_type));
   return ReduceResult::Done();
 }
 

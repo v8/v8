@@ -278,6 +278,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(StringFromCodePointAt)                      \
   V(StringIndexOf)                              \
   V(StringLength)                               \
+  V(StringOrOddballStrictEqual)                 \
   V(TypedArrayLength)                           \
   V(StringSubstring)                            \
   V(NewConsString)                              \
@@ -4613,6 +4614,7 @@ struct ObjectIsOp : FixedArityOperationT<1, ObjectIsOp> {
     kSmi,
     kString,
     kStringOrStringWrapper,
+    kStringOrOddball,
     kSymbol,
     kUndetectable,
   };
@@ -5751,6 +5753,32 @@ struct StringComparisonOp : FixedArityOperationT<2, StringComparisonOp> {
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            StringComparisonOp::Kind kind);
+
+struct StringOrOddballStrictEqualOp
+    : FixedArityOperationT<2, StringOrOddballStrictEqualOp> {
+  static constexpr OpEffects effects =
+      // String content is immutable, so the operation is pure.
+      OpEffects()
+          // We rely on the input being strings or oddballs.
+          .CanDependOnChecks();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
+                          MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  V<HeapObject> left() const { return Base::input<HeapObject>(0); }
+  V<HeapObject> right() const { return Base::input<HeapObject>(1); }
+
+  StringOrOddballStrictEqualOp(V<HeapObject> left, V<HeapObject> right)
+      : Base(left, right) {}
+
+  auto options() const { return std::tuple{}; }
+};
 
 struct ArgumentsLengthOp : FixedArityOperationT<0, ArgumentsLengthOp> {
   enum class Kind : uint8_t {
