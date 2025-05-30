@@ -1743,8 +1743,24 @@ void InstructionSelector::VisitStackPointerGreaterThan(
                        temp_count, temps, cont);
 }
 
+bool IsWord32Binop(const Operation& op) {
+  if (op.Is<WordBinopOp>()) {
+    const WordBinopOp& binop = op.Cast<WordBinopOp>();
+    switch (binop.kind) {
+      case WordBinopOp::Kind::kBitwiseAnd:
+        if (binop.rep.value() == WordRepresentation::Enum::kWord32) {
+          return true;
+        }
+        break;
+      default:
+        return false;
+    }
+  }
+  return false;
+}
+
 void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
-                                               FlagsContinuation* cont) {
+                                                FlagsContinuation* cont) {
   // Try to combine with comparisons against 0 by simply inverting the branch.
   while (const ComparisonOp* equal =
              this->TryCast<Opmask::kWord32Equal>(value)) {
@@ -1855,15 +1871,16 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
   // 0.
   const ComparisonOp* comparison = this->Get(user).TryCast<ComparisonOp>();
 #ifdef V8_COMPRESS_POINTERS
-  if (comparison &&
-      comparison->rep.value() == RegisterRepresentation::Word64()) {
+  if ((comparison &&
+       comparison->rep.value() == RegisterRepresentation::Word64()) ||
+      IsWord32Binop(value_op)) {
     return EmitWordCompareZero(this, value, cont);
   } else {
     return EmitWord32CompareZero(this, value, cont);
   }
 #else
   if (comparison &&
-      comparison->rep.value() == RegisterRepresentation::Word32()) {
+       comparison->rep.value() == RegisterRepresentation::Word32()) {
     return EmitWord32CompareZero(this, value, cont);
   } else {
     return EmitWordCompareZero(this, value, cont);
@@ -2340,8 +2357,8 @@ void InstructionSelector::VisitF64x2Max(OpIndex node) {
 }
 
 //
-// void InstructionSelector::Comment(const std::string msg){
-//     RiscvOperandGenerator g(this);
+// void InstructionSelectorT::Comment(const std::string msg){
+//     RiscvOperandGeneratorT g(this);
 //     if (!v8_flags.code_comments) return;
 //     int64_t length = msg.length() + 1;
 //     char* zone_buffer =
