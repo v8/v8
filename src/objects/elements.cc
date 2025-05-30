@@ -4336,24 +4336,42 @@ struct CopyBetweenBackingStoresImpl {
   }
 };
 
+namespace {
+template <ElementsKind DestKind, typename DestElementType,
+          ElementsKind SourceKind>
+void CopyFromFloat16BackingStore(uint16_t* source_data_ptr,
+                                 DestElementType* dest_data_ptr, size_t length,
+                                 IsSharedBuffer is_shared) {
+  for (; length > 0; --length, ++source_data_ptr, ++dest_data_ptr) {
+    // We use scalar accessors to avoid boxing/unboxing, so there are no
+    // allocations.
+    uint16_t source_elem = TypedElementsAccessor<SourceKind, uint16_t>::GetImpl(
+        source_data_ptr, is_shared);
+    DestElementType dest_elem;
+    if constexpr (IsFloat16TypedArrayElementsKind(DestKind)) {
+      // There is the reasonable expectations that copying to the same kind of
+      // TypedArray does not change the bit pattern of the data. For float16,
+      // round tripping fp16->fp32->fp16 with the software emulation can change
+      // NaN patterns.
+      dest_elem = source_elem;
+    } else {
+      dest_elem = TypedElementsAccessor<DestKind, DestElementType>::FromScalar(
+          fp16_ieee_to_fp32_value(source_elem));
+    }
+
+    TypedElementsAccessor<DestKind, DestElementType>::SetImpl(
+        dest_data_ptr, dest_elem, is_shared);
+  }
+}
+}  // namespace
+
 template <ElementsKind Kind, typename ElementType>
 struct CopyBetweenBackingStoresImpl<Kind, ElementType, FLOAT16_ELEMENTS,
                                     uint16_t> {
   static void Copy(uint16_t* source_data_ptr, ElementType* dest_data_ptr,
                    size_t length, IsSharedBuffer is_shared) {
-    for (; length > 0; --length, ++source_data_ptr, ++dest_data_ptr) {
-      // We use scalar accessors to avoid boxing/unboxing, so there are no
-      // allocations.
-      uint16_t source_elem =
-          TypedElementsAccessor<FLOAT16_ELEMENTS, uint16_t>::GetImpl(
-              source_data_ptr, is_shared);
-      ElementType dest_elem =
-          TypedElementsAccessor<Kind, ElementType>::FromScalar(
-              fp16_ieee_to_fp32_value(source_elem));
-
-      TypedElementsAccessor<Kind, ElementType>::SetImpl(dest_data_ptr,
-                                                        dest_elem, is_shared);
-    }
+    CopyFromFloat16BackingStore<Kind, ElementType, FLOAT16_ELEMENTS>(
+        source_data_ptr, dest_data_ptr, length, is_shared);
   }
 };
 
@@ -4362,19 +4380,8 @@ struct CopyBetweenBackingStoresImpl<Kind, ElementType,
                                     RAB_GSAB_FLOAT16_ELEMENTS, uint16_t> {
   static void Copy(uint16_t* source_data_ptr, ElementType* dest_data_ptr,
                    size_t length, IsSharedBuffer is_shared) {
-    for (; length > 0; --length, ++source_data_ptr, ++dest_data_ptr) {
-      // We use scalar accessors to avoid boxing/unboxing, so there are no
-      // allocations.
-      uint16_t source_elem =
-          TypedElementsAccessor<RAB_GSAB_FLOAT16_ELEMENTS, uint16_t>::GetImpl(
-              source_data_ptr, is_shared);
-      ElementType dest_elem =
-          TypedElementsAccessor<Kind, ElementType>::FromScalar(
-              fp16_ieee_to_fp32_value(source_elem));
-
-      TypedElementsAccessor<Kind, ElementType>::SetImpl(dest_data_ptr,
-                                                        dest_elem, is_shared);
-    }
+    CopyFromFloat16BackingStore<Kind, ElementType, RAB_GSAB_FLOAT16_ELEMENTS>(
+        source_data_ptr, dest_data_ptr, length, is_shared);
   }
 };
 
