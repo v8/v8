@@ -2377,6 +2377,10 @@ Type Typer::Visitor::TypeStringLessThanOrEqual(Node* node) {
   return Type::Boolean();
 }
 
+Type Typer::Visitor::TypeStringOrOddballStrictEqual(Node* node) {
+  return Type::Boolean();
+}
+
 Type Typer::Visitor::StringFromSingleCharCodeTyper(Type type, Typer* t) {
   return Type::String();
 }
@@ -2483,6 +2487,11 @@ Type Typer::Visitor::TypeCheckString(Node* node) {
 Type Typer::Visitor::TypeCheckStringOrStringWrapper(Node* node) {
   Type arg = Operand(node, 0);
   return Type::Intersect(arg, Type::StringOrStringWrapper(), zone());
+}
+
+Type Typer::Visitor::TypeCheckStringOrOddball(Node* node) {
+  Type arg = Operand(node, 0);
+  return Type::Intersect(arg, Type::StringOrOddball(), zone());
 }
 
 Type Typer::Visitor::TypeCheckSymbol(Node* node) {

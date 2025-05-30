@@ -342,6 +342,7 @@
   V(StringEqual)                         \
   V(StringLessThan)                      \
   V(StringLessThanOrEqual)               \
+  V(StringOrOddballStrictEqual)          \
   V(BigIntEqual)                         \
   V(BigIntLessThan)                      \
   V(BigIntLessThanOrEqual)               \
@@ -475,6 +476,7 @@
   V(CheckSmi)                               \
   V(CheckString)                            \
   V(CheckStringOrStringWrapper)             \
+  V(CheckStringOrOddball)                   \
   V(CheckSymbol)                            \
   V(CheckTurboshaftTypeOf)                  \
   V(CompareMaps)                            \

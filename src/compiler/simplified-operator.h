@@ -956,6 +956,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StringEqual();
   const Operator* StringLessThan();
   const Operator* StringLessThanOrEqual();
+  const Operator* StringOrOddballStrictEqual();
   const Operator* StringCharCodeAt();
   const Operator* StringCodePointAt();
   const Operator* StringFromSingleCharCode();
@@ -1041,6 +1042,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckSmi(const FeedbackSource& feedback);
   const Operator* CheckString(const FeedbackSource& feedback);
   const Operator* CheckStringOrStringWrapper(const FeedbackSource& feedback);
+  const Operator* CheckStringOrOddball(const FeedbackSource& feedback);
   const Operator* CheckSymbol();
 
   const Operator* CheckedFloat64ToInt32(CheckForMinusZeroMode,

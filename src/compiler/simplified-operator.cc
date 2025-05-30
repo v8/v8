@@ -932,6 +932,7 @@ bool operator==(AssertNotNullParameters const& lhs,
   V(StringEqual, Operator::kCommutative, 2, 0)                               \
   V(StringLessThan, Operator::kNoProperties, 2, 0)                           \
   V(StringLessThanOrEqual, Operator::kNoProperties, 2, 0)                    \
+  V(StringOrOddballStrictEqual, Operator::kCommutative, 2, 0)                \
   V(ToBoolean, Operator::kNoProperties, 1, 0)                                \
   V(NewConsString, Operator::kNoProperties, 3, 0)                            \
   V(Unsigned32Divide, Operator::kNoProperties, 2, 0)
@@ -991,6 +992,7 @@ bool operator==(AssertNotNullParameters const& lhs,
   V(CheckSmi, 1, 1)                      \
   V(CheckString, 1, 1)                   \
   V(CheckStringOrStringWrapper, 1, 1)    \
+  V(CheckStringOrOddball, 1, 1)          \
   V(CheckBigInt, 1, 1)                   \
   V(CheckedBigIntToBigInt64, 1, 1)       \
   V(CheckedInt32ToTaggedSigned, 1, 1)    \

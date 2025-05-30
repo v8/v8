@@ -895,6 +895,9 @@ OpIndex GraphBuilder::Process(
       CHECK_OBJECT_IS_CASE(CheckStringOrStringWrapper, StringOrStringWrapper,
                            HeapObject, NotAStringOrStringWrapper,
                            CheckParametersOf(op).feedback())
+      CHECK_OBJECT_IS_CASE(CheckStringOrOddball, StringOrOddball, HeapObject,
+                           NotAStringOrOddball,
+                           CheckParametersOf(op).feedback())
       CHECK_OBJECT_IS_CASE(CheckSymbol, Symbol, HeapObject, NotASymbol, {})
       CHECK_OBJECT_IS_CASE(CheckBigInt, BigInt, None, NotABigInt,
                            CheckParametersOf(op).feedback())
@@ -1948,6 +1951,9 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kStringLessThanOrEqual:
       return __ StringLessThanOrEqual(Map(node->InputAt(0)),
                                       Map(node->InputAt(1)));
+    case IrOpcode::kStringOrOddballStrictEqual:
+      return __ StringOrOddballStrictEqual(Map(node->InputAt(0)),
+                                           Map(node->InputAt(1)));
 
     case IrOpcode::kArgumentsLength:
       return __ ArgumentsLength();
