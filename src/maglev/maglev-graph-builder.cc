@@ -11729,17 +11729,17 @@ ReduceResult MaglevGraphBuilder::BuildCallWithFeedback(
       compiler::OptionalSharedFunctionInfoRef shared =
           feedback_cell.shared_function_info(broker());
       if (shared.has_value() && !shared->HasBreakInfo(broker())) {
-        if (IsClassConstructor(shared->kind())) {
-          // If we have a class constructor, we should raise an exception.
-          return BuildCallRuntime(Runtime::kThrowConstructorNonCallableError,
-                                  {target_node});
-        }
         RETURN_IF_ABORT(BuildCheckJSFunction(target_node));
         ValueNode* target_feedback_cell =
             BuildLoadJSFunctionFeedbackCell(target_node);
         RETURN_IF_ABORT(
             BuildCheckValueByReference(target_feedback_cell, feedback_cell,
                                        DeoptimizeReason::kWrongFeedbackCell));
+        if (IsClassConstructor(shared->kind())) {
+          // If we have a class constructor, we should raise an exception.
+          return BuildCallRuntime(Runtime::kThrowConstructorNonCallableError,
+                                  {target_node});
+        }
         ValueNode* context = BuildLoadJSFunctionContext(target_node);
         compiler::ScopeInfoRef scope_info = shared->scope_info(broker());
         if (scope_info.HasOuterScopeInfo()) {
