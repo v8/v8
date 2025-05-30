@@ -1251,7 +1251,8 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
           if (static_cast<double>(iv) == fv) {
             if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
               if (iv < kMinAdditiveSafeInteger ||
-                  kMaxAdditiveSafeInteger < iv) {
+                  kMaxAdditiveSafeInteger < iv ||
+                  (iv == 0 && std::signbit(fv))) {
                 Node* unreachable = InsertUnconditionalDeopt(
                     use_node, DeoptimizeReason::kNotAdditiveSafeInteger,
                     use_info.feedback());
