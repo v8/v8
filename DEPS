@@ -130,9 +130,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '183b23e72b1985bfcdb71619ee74d7b955a75ece',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '58386af516bb7fb45762f86fc010367d21eb0a99',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c618f33e12ddc6f53c21271e7b44ddef3ec44de3',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd3255c075f765f82a602eea8bfca2a650de59849',
   'buildtools/linux64': {
     'packages': [
       {
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'bba26d14be0a9bf9914ac5a12f01995dd7527823',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '68f0a29a64d354aefcdb1f9eb2a636b21fe96d91',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -534,7 +534,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'a1f2fe223f55b6ec6dd3c20796727604ed5ec74a',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'a8d02857f16c23dc4f8bdc190af911a40d611d82',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '35fb4ec87ed55fdc1d865b392c0e18a288f9f018',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '502dcad5230ec1da544e7720b15d91782f040d9f',
   'third_party/abseil-cpp': {
