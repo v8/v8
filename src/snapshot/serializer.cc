@@ -289,7 +289,7 @@ void Serializer::PutRoot(RootIndex root) {
   // Assert that the first 32 root array items are a conscious choice. They are
   // chosen so that the most common ones can be encoded more efficiently.
   static_assert(static_cast<int>(RootIndex::kArgumentsMarker) ==
-                kRootArrayConstantsCount - 1);
+                kRootArrayConstantsCount);
 
   // TODO(ulan): Check that it works with young large objects.
   if (root_index < kRootArrayConstantsCount &&

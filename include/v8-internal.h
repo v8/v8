@@ -1020,12 +1020,12 @@ class Internals {
 
 #endif  // V8_STATIC_ROOTS_BOOL
 
-  static const int kUndefinedValueRootIndex = 4;
-  static const int kTheHoleValueRootIndex = 5;
-  static const int kNullValueRootIndex = 6;
-  static const int kTrueValueRootIndex = 7;
-  static const int kFalseValueRootIndex = 8;
-  static const int kEmptyStringRootIndex = 9;
+  static const int kUndefinedValueRootIndex = 0;
+  static const int kTheHoleValueRootIndex = 1;
+  static const int kNullValueRootIndex = 2;
+  static const int kTrueValueRootIndex = 3;
+  static const int kFalseValueRootIndex = 4;
+  static const int kEmptyStringRootIndex = 5;
 
   static const int kNodeClassIdOffset = 1 * kApiSystemPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiSystemPointerSize + 3;

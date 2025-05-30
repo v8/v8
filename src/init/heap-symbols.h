@@ -156,17 +156,17 @@
 // Internalized strings to be allocated early on the read only heap and early in
 // the roots table. Used to give this string a RootIndex < 32.
 #define EXTRA_IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(V, _) \
-  V(_, empty_string, "")
+  V(_, empty_string, "")                                         \
+  V(_, prototype_string, "prototype")                            \
+  V(_, name_string, "name")                                      \
+  V(_, length_string, "length")
 
 // Internalized strings to be allocated early on the read only heap
 #define IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(V, _) \
-  V(_, prototype_string, "prototype")                      \
-  V(_, name_string, "name")                                \
   V(_, enumerable_string, "enumerable")                    \
   V(_, configurable_string, "configurable")                \
   V(_, value_string, "value")                              \
-  V(_, writable_string, "writable")                        \
-  V(_, length_string, "length")
+  V(_, writable_string, "writable")
 
 // Generated with the following Python script:
 // ```
