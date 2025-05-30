@@ -255,6 +255,9 @@
   # TODO(thibaudm): Register allocation struggles with the function in this
   # test, which has the maximum allowed number of parameters.
   'regress/regress-crbug-724153': [SLOW],
+
+  # BUG(https://crbug.com/420932895): Very slow in many configurations.
+  'random-bit-correlations': [PASS, ['mode == debug or simulator_run', SKIP]],
 }],  # ALWAYS
 
 ################################################################################
@@ -2284,6 +2287,12 @@
   'interrupt-budget-override': [SKIP],
   'never-optimize': [SKIP],
 }],  # variant == maglev
+
+##############################################################################
+['variant != default', {
+  # BUG(https://crbug.com/420932895): Very slow in many configurations.
+  'random-bit-correlations': [SKIP],
+}],  # variant != default
 
 ##############################################################################
 ['no_simd_hardware == True', {

@@ -60,6 +60,9 @@ const SKIPPED_FILES = [
 
     // Tests for differential-fuzzing internals are not useful to re-fuzz.
     /foozzie.*\.js/,
+
+    // Leads to very slow samples.
+    'random-bit-correlations',
 ];
 
 const SKIPPED_DIRECTORIES = [
