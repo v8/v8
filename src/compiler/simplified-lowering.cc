@@ -2004,6 +2004,7 @@ class RepresentationSelector {
     Type const index_type = TypeOf(node->InputAt(0));
     Type const length_type = TypeOf(node->InputAt(1));
 
+    const bool allow_64_bit = (p.flags() & CheckBoundsFlag::kAllow64BitBounds);
     // Conversions, if requested and needed, will be handled by the
     // representation changer, not by the lower-level Checked*Bounds operators.
     CheckBoundsFlags new_flags =
@@ -2036,13 +2037,29 @@ class RepresentationSelector {
                    simplified()->CheckedUint32Bounds(feedback, new_flags));
         }
       } else if (p.flags() & CheckBoundsFlag::kConvertStringAndMinusZero) {
-        VisitBinop<T>(node, UseInfo::CheckedTaggedAsArrayIndex(feedback),
-                      UseInfo::Word(), MachineType::PointerRepresentation());
-        if (lower<T>()) {
-          if (jsgraph_->machine()->Is64()) {
-            ChangeOp(node,
-                     simplified()->CheckedUint64Bounds(feedback, new_flags));
-          } else {
+        if (jsgraph_->machine()->Is64()) {
+          const auto index_use = UseInfo::CheckedTaggedAsArrayIndex(feedback);
+          const auto bound_use =
+              allow_64_bit ? UseInfo::Word64() : UseInfo::TruncatingWord32();
+          VisitBinop<T>(node, index_use, bound_use,
+                        MachineRepresentation::kWord64);
+          if (lower<T>()) {
+            if (allow_64_bit) {
+              ChangeOp(node,
+                       simplified()->CheckedUint64Bounds(feedback, new_flags));
+            } else {
+              Node* bound = node->InputAt(1);
+              Node* zero_extended = graph()->NewNode(
+                  lowering->machine()->ChangeUint32ToUint64(), bound);
+              node->ReplaceInput(1, zero_extended);
+              ChangeOp(node,
+                       simplified()->CheckedUint64Bounds(feedback, new_flags));
+            }
+          }
+        } else {
+          VisitBinop<T>(node, UseInfo::CheckedTaggedAsArrayIndex(feedback),
+                        UseInfo::Word(), MachineType::PointerRepresentation());
+          if (lower<T>()) {
             ChangeOp(node,
                      simplified()->CheckedUint32Bounds(feedback, new_flags));
           }
@@ -2058,6 +2075,7 @@ class RepresentationSelector {
       }
     } else {
       CHECK(length_type.Is(type_cache_->kPositiveSafeInteger));
+      CHECK(allow_64_bit);
       IdentifyZeros zero_handling =
           (p.flags() & CheckBoundsFlag::kConvertStringAndMinusZero)
               ? kIdentifyZeros

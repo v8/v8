@@ -223,7 +223,8 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = true;
     static constexpr Operator::Properties kProperties =
         Operator::kNoThrow | Operator::kNoDeopt;
-    static constexpr OpEffects kEffects = base_effects.RequiredWhenUnused();
+    static constexpr OpEffects kEffects =
+        base_effects.RequiredWhenUnused().CanAllocate();
   };
   using DebugPrintFloat64 = DebugPrint<Builtin::kDebugPrintFloat64, Float64>;
   using DebugPrintWordPtr = DebugPrint<Builtin::kDebugPrintWordPtr, WordPtr>;

@@ -6792,8 +6792,11 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
     // an exploitation technique that abuses typer mismatches.
     if (v8_flags.turbo_typer_hardening) {
       index = etrue = graph()->NewNode(
-          simplified()->CheckBounds(p.feedback(),
-                                    CheckBoundsFlag::kAbortOnOutOfBounds),
+          simplified()->CheckBounds(
+              p.feedback(), CheckBoundsFlag::kAbortOnOutOfBounds |
+                                (IsTypedArrayElementsKind(elements_kind)
+                                     ? CheckBoundsFlag::kAllow64BitBounds
+                                     : CheckBoundsFlag(0))),
           index, length, etrue, if_true);
     }
 
@@ -8616,8 +8619,10 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
 
     // Check that the {offset} is within range of the {length}.
     Node* byte_length = jsgraph()->ConstantNoHole(length - (element_size - 1));
-    offset = effect = graph()->NewNode(simplified()->CheckBounds(p.feedback()),
-                                       offset, byte_length, effect, control);
+    offset = effect =
+        graph()->NewNode(simplified()->CheckBounds(
+                             p.feedback(), CheckBoundsFlag::kAllow64BitBounds),
+                         offset, byte_length, effect, control);
   } else {
     // We only deal with DataViews here that have Smi [[ByteLength]]s.
     Node* byte_length = effect =
@@ -8638,8 +8643,10 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
     }
 
     // Check that the {offset} is within range of the {byte_length}.
-    offset = effect = graph()->NewNode(simplified()->CheckBounds(p.feedback()),
-                                       offset, byte_length, effect, control);
+    offset = effect =
+        graph()->NewNode(simplified()->CheckBounds(
+                             p.feedback(), CheckBoundsFlag::kAllow64BitBounds),
+                         offset, byte_length, effect, control);
   }
 
   // Coerce {is_little_endian} to boolean.
