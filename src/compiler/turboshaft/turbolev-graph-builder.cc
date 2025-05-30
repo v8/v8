@@ -2983,16 +2983,21 @@ class GraphBuildingNodeProcessor {
           result = __ LoadField<Object>(
               slot, AccessBuilder::ForContextCellTaggedValue());
         } ELSE {
-          ScopedVar<Float64, AssemblerT> number(this);
           IF (__ Word32Equal(slot_state,
                              __ Word32Constant(ContextCell::kInt32))) {
-            number = __ ChangeInt32ToFloat64(__ LoadField<Word32>(
-                slot, AccessBuilder::ForContextCellInt32Value()));
+            result = V<Number>::Cast(__ ConvertUntaggedToJSPrimitive(
+                __ LoadField<Word32>(slot,
+                                     AccessBuilder::ForContextCellInt32Value()),
+                ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kNumber,
+                RegisterRepresentation::Word32(),
+                ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
+                CheckForMinusZeroMode::kDontCheckForMinusZero));
           } ELSE {
-            number = __ LoadField<Float64>(
-                slot, AccessBuilder::ForContextCellFloat64Value());
+            result = __ AllocateHeapNumberWithValue(
+                __ LoadField<Float64>(
+                    slot, AccessBuilder::ForContextCellFloat64Value()),
+                isolate_->factory());
           }
-          result = __ AllocateHeapNumberWithValue(number, isolate_->factory());
         }
       }
     }
