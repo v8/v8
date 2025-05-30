@@ -75,7 +75,6 @@ class StringShape {
   V8_INLINE bool IsSequentialTwoByte() const;
   V8_INLINE bool IsInternalized() const;
   V8_INLINE bool IsShared() const;
-  V8_INLINE uint32_t encoding_tag() const;
 #ifdef DEBUG
   inline void invalidate() { valid_ = false; }
   inline bool valid() const { return valid_; }

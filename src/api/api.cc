@@ -40,6 +40,7 @@
 #include "src/base/platform/memory.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
+#include "src/base/template-utils.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/base/vector.h"
 #include "src/builtins/accessors.h"
@@ -11111,22 +11112,38 @@ String::Value::~Value() { i::DeleteArray(str_); }
 String::ValueView::ValueView(v8::Isolate* v8_isolate,
                              v8::Local<v8::String> str) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i::HandleScope scope(i_isolate);
   i::DirectHandle<i::String> i_str = Utils::OpenDirectHandle(*str);
-  i::DirectHandle<i::String> i_flat_str = i::String::Flatten(i_isolate, i_str);
 
-  flat_str_ = Utils::ToLocal(i_flat_str);
-
-  i::DisallowGarbageCollectionInRelease* no_gc =
-      new (no_gc_debug_scope_) i::DisallowGarbageCollectionInRelease();
-  i::String::FlatContent flat_content = i_flat_str->GetFlatContent(*no_gc);
-  DCHECK(flat_content.IsFlat());
-  is_one_byte_ = flat_content.IsOneByte();
-  length_ = flat_content.length();
-  if (is_one_byte_) {
-    data8_ = flat_content.ToOneByteVector().data();
+  // If the underlying string is flat, we can access its content directly.
+  // Otherwise, we need to create a handle scope to flatten the string.
+  if (i_str->IsFlat()) {
+    i::DisallowGarbageCollectionInRelease* no_gc =
+        new (no_gc_debug_scope_) i::DisallowGarbageCollectionInRelease();
+    i::String::FlatContent flat_content = i_str->GetFlatContent(*no_gc);
+    flat_str_ = str;
+    is_one_byte_ = flat_content.IsOneByte();
+    length_ = flat_content.length();
+    if (is_one_byte_) {
+      data8_ = flat_content.ToOneByteVector().data();
+    } else {
+      data16_ = flat_content.ToUC16Vector().data();
+    }
   } else {
-    data16_ = flat_content.ToUC16Vector().data();
+    i::HandleScope scope(i_isolate);
+    i::DirectHandle<i::String> i_flat_str =
+        i::String::Flatten(i_isolate, i_str);
+    flat_str_ = Utils::ToLocal(i_flat_str);
+    i::DisallowGarbageCollectionInRelease* no_gc =
+        new (no_gc_debug_scope_) i::DisallowGarbageCollectionInRelease();
+    i::String::FlatContent flat_content = i_flat_str->GetFlatContent(*no_gc);
+    DCHECK(flat_content.IsFlat());
+    is_one_byte_ = flat_content.IsOneByte();
+    length_ = flat_content.length();
+    if (is_one_byte_) {
+      data8_ = flat_content.ToOneByteVector().data();
+    } else {
+      data16_ = flat_content.ToUC16Vector().data();
+    }
   }
 }
 
