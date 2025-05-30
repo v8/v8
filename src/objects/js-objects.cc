@@ -101,6 +101,7 @@ Maybe<bool> JSReceiver::HasProperty(LookupIterator* it) {
   for (;; it->Next()) {
     switch (it->state()) {
       case LookupIterator::TRANSITION:
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
         UNREACHABLE();
       case LookupIterator::JSPROXY:
         return JSProxy::HasProperty(it->isolate(), it->GetHolder<JSProxy>(),
@@ -161,6 +162,7 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it,
     switch (it->state()) {
       case LookupIterator::INTERCEPTOR:
       case LookupIterator::TRANSITION:
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
         UNREACHABLE();
       case LookupIterator::ACCESS_CHECK:
         // Support calling this method without an active context, but refuse
@@ -216,6 +218,7 @@ Maybe<bool> JSReceiver::CheckPrivateNameStore(LookupIterator* it,
       case LookupIterator::JSPROXY:
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
       case LookupIterator::ACCESSOR:
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
         UNREACHABLE();
       case LookupIterator::ACCESS_CHECK:
         if (!it->HasAccess()) {
@@ -711,6 +714,7 @@ Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
   for (;; it->Next()) {
     switch (it->state()) {
       case LookupIterator::TRANSITION:
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
         UNREACHABLE();
       case LookupIterator::JSPROXY:
         return JSProxy::GetPropertyAttributes(it);
@@ -934,6 +938,7 @@ Maybe<bool> JSReceiver::DeleteProperty(LookupIterator* it,
     switch (it->state()) {
       case LookupIterator::JSPROXY:
       case LookupIterator::TRANSITION:
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
         UNREACHABLE();
       case LookupIterator::WASM_OBJECT:
         RETURN_FAILURE(isolate, kThrowOnError,
@@ -1801,6 +1806,7 @@ Maybe<bool> JSReceiver::AddPrivateField(LookupIterator* it,
     case LookupIterator::INTERCEPTOR:
     case LookupIterator::ACCESSOR:
     case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
+    case LookupIterator::STRING_LOOKUP_START_OBJECT:
       UNREACHABLE();
 
     case LookupIterator::ACCESS_CHECK: {
@@ -3675,6 +3681,7 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
     switch (it->state()) {
       case LookupIterator::JSPROXY:
       case LookupIterator::TRANSITION:
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
         UNREACHABLE();
       case LookupIterator::WASM_OBJECT:
         continue;  // {AddDataProperty} will throw if no other case is hit.

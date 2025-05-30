@@ -1303,6 +1303,8 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
         return it->isolate()->factory()->undefined_value();
       case LookupIterator::DATA:
         return it->GetDataValue();
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
+        return it->GetStringPropertyValue();
       case LookupIterator::NOT_FOUND:
         if (it->IsPrivateName()) {
           auto private_symbol = Cast<Symbol>(it->name());
@@ -2433,6 +2435,9 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
       case LookupIterator::TRANSITION:
         *found = false;
         return Nothing<bool>();
+
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
+        return WriteToReadOnlyProperty(it, value, should_throw);
     }
     UNREACHABLE();
   }
@@ -2523,6 +2528,9 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it,
         return RedefineIncompatibleProperty(isolate, it->GetName(), value,
                                             should_throw);
 
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
+        UNREACHABLE();
+
       case LookupIterator::DATA: {
         if (own_lookup.IsReadOnly()) {
           return WriteToReadOnlyProperty(&own_lookup, value, should_throw);
@@ -2593,7 +2601,9 @@ Maybe<bool> Object::WriteToReadOnlyProperty(
     LookupIterator* it, DirectHandle<Object> value,
     Maybe<ShouldThrow> maybe_should_throw) {
   ShouldThrow should_throw = GetShouldThrow(it->isolate(), maybe_should_throw);
-  if (it->IsFound() && !it->HolderIsReceiver()) {
+  if (it->IsFound() &&
+      it->state() != LookupIterator::STRING_LOOKUP_START_OBJECT &&
+      !it->HolderIsReceiver()) {
     // "Override mistake" attempted, record a use count to track this per
     // v8:8175
     v8::Isolate::UseCounterFeature feature =

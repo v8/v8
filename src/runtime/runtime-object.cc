@@ -248,9 +248,19 @@ RUNTIME_FUNCTION(Runtime_HasOwnConstDataProperty) {
       case LookupIterator::DATA:
         return isolate->heap()->ToBoolean(it.constness() ==
                                           PropertyConstness::kConst);
-      default:
+      case LookupIterator::INTERCEPTOR:
+      case LookupIterator::TRANSITION:
+      case LookupIterator::ACCESS_CHECK:
+      case LookupIterator::JSPROXY:
+      case LookupIterator::WASM_OBJECT:
+      case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
+      case LookupIterator::ACCESSOR:
         return ReadOnlyRoots(isolate).undefined_value();
+
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
+        UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   return ReadOnlyRoots(isolate).undefined_value();

@@ -28,33 +28,45 @@ namespace v8::internal {
 
 template <bool is_element>
 void LookupIterator::Start() {
-  // GetRoot might allocate if lookup_start_object_ is a string.
-  MaybeDirectHandle<JSReceiver> maybe_holder = GetRoot<is_element>(
-      isolate_, lookup_start_object_, name_, index_, configuration_);
-  if (!maybe_holder.ToHandle(&holder_)) {
-    // This is an attempt to perform an own property lookup on a non-JSReceiver
-    // that doesn't have any properties.
-    DCHECK(!IsJSReceiver(*lookup_start_object_));
-    DCHECK(!check_prototype_chain());
-    has_property_ = false;
-    state_ = NOT_FOUND;
-    return;
+  DisallowGarbageCollection no_gc;
+  if (V8_LIKELY(IsJSReceiver(*lookup_start_object_, isolate_))) {
+    holder_ = Cast<JSReceiver>(lookup_start_object_);
+
+  } else {
+    // Strings are the only non-JSReceiver objects with properties (only
+    // elements and 'length') directly on the wrapper. Inline the lookup
+    // implementation here.
+    if (IsString(*lookup_start_object_, isolate_) &&
+        ((!is_element && *name_ == ReadOnlyRoots(isolate_).length_string()) ||
+         (is_element &&
+          index_ < static_cast<size_t>(
+                       Cast<String>(*lookup_start_object_)->length())))) {
+      has_property_ = true;
+      state_ = STRING_LOOKUP_START_OBJECT;
+      return;
+    }
+    if (!check_prototype_chain()) {
+      // This is an attempt to perform an own property lookup on a
+      // non-JSReceiver that doesn't have any properties.
+      DCHECK(!IsJSReceiver(*lookup_start_object_));
+      has_property_ = false;
+      state_ = NOT_FOUND;
+      return;
+    }
+    holder_ = direct_handle(GetRootForNonJSReceiver(), isolate_);
   }
 
-  {
-    DisallowGarbageCollection no_gc;
+  // This is a regular JSReceiver lookup.
+  has_property_ = false;
+  state_ = NOT_FOUND;
 
-    has_property_ = false;
-    state_ = NOT_FOUND;
+  Tagged<JSReceiver> holder = *holder_;
+  Tagged<Map> map = holder->map(isolate_);
 
-    Tagged<JSReceiver> holder = *holder_;
-    Tagged<Map> map = holder->map(isolate_);
+  state_ = LookupInHolder<is_element>(map, holder);
+  if (IsFound()) return;
 
-    state_ = LookupInHolder<is_element>(map, holder);
-    if (IsFound()) return;
-
-    NextInternal<is_element>(map, holder);
-  }
+  NextInternal<is_element>(map, holder);
 }
 
 template void LookupIterator::Start<true>();
@@ -142,40 +154,17 @@ void LookupIterator::RecheckTypedArrayBounds() {
   state_ = DATA;
 }
 
-// static
-template <bool is_element>
-MaybeDirectHandle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
-    Isolate* isolate, DirectHandle<JSPrimitive> lookup_start_object,
-    DirectHandle<Name> name, size_t index, Configuration configuration) {
-  // Strings are the only non-JSReceiver objects with properties (only elements
-  // and 'length') directly on the wrapper. Hence we can skip generating
-  // the wrapper for all other cases.
-  bool own_property_lookup = (configuration & kPrototypeChain) == 0;
-  if (IsString(*lookup_start_object, isolate)) {
-    if (own_property_lookup ||
-        (!is_element && *name == ReadOnlyRoots(isolate).length_string()) ||
-        (is_element &&
-         index < static_cast<size_t>(
-                     Cast<String>(*lookup_start_object)->length()))) {
-      // TODO(verwaest): Speed this up. Perhaps use a cached wrapper on the
-      // native context, ensuring that we don't leak it into JS?
-      DirectHandle<JSFunction> constructor = isolate->string_function();
-      DirectHandle<JSObject> result =
-          isolate->factory()->NewJSObject(constructor);
-      Cast<JSPrimitiveWrapper>(result)->set_value(*lookup_start_object);
-      return result;
-    }
-  } else if (own_property_lookup) {
-    // Signal that the lookup will not find anything.
-    return {};
-  }
-  DirectHandle<HeapObject> root(
-      Object::GetPrototypeChainRootMap(*lookup_start_object, isolate)
-          ->prototype(isolate),
-      isolate);
-  if (IsNull(*root, isolate)) {
-    isolate->PushStackTraceAndDie(
-        reinterpret_cast<void*>((*lookup_start_object).ptr()));
+Tagged<JSReceiver> LookupIterator::GetRootForNonJSReceiver() const {
+  // Own property lookup case is handled before calling this method.
+  DCHECK(check_prototype_chain());
+
+  Tagged<HeapObject> root =
+      Object::GetPrototypeChainRootMap(*lookup_start_object_, isolate_)
+          ->prototype(isolate_);
+
+  if (IsNull(root, isolate_)) {
+    isolate_->PushStackTraceAndDie(
+        reinterpret_cast<void*>((*lookup_start_object_).ptr()));
   }
   return Cast<JSReceiver>(root);
 }
@@ -906,6 +895,7 @@ void LookupIterator::TransitionToAccessorPair(DirectHandle<Object> pair,
 }
 
 bool LookupIterator::HolderIsReceiver() const {
+  DCHECK_NE(state_, STRING_LOOKUP_START_OBJECT);
   DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY ||
          state_ == TYPED_ARRAY_INDEX_NOT_FOUND);
   // Optimization that only works if configuration_ is not mutable.
@@ -914,6 +904,7 @@ bool LookupIterator::HolderIsReceiver() const {
 }
 
 bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
+  DCHECK_NE(state_, STRING_LOOKUP_START_OBJECT);
   DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY);
   // Optimization that only works if configuration_ is not mutable.
   if (!check_prototype_chain()) return true;
@@ -926,6 +917,7 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
 DirectHandle<Object> LookupIterator::FetchValue(
     AllocationPolicy allocation_policy) const {
   Tagged<Object> result;
+  DCHECK_NE(state_, STRING_LOOKUP_START_OBJECT);
   DCHECK(!IsWasmObject(*holder_));
   if (IsElement(*holder_)) {
     DirectHandle<JSObject> holder = GetHolder<JSObject>();
@@ -1065,6 +1057,23 @@ DirectHandle<PropertyCell> LookupIterator::GetPropertyCell() const {
 DirectHandle<Object> LookupIterator::GetAccessors() const {
   DCHECK_EQ(ACCESSOR, state_);
   return FetchValue();
+}
+
+Handle<Object> LookupIterator::GetStringPropertyValue(
+    AllocationPolicy allocation_policy) const {
+  DCHECK_EQ(state_, STRING_LOOKUP_START_OBJECT);
+  if (IsElement()) {
+    DirectHandle<String> string = Cast<String>(lookup_start_object_);
+    // The state guarantees that it's an access within bounds.
+    DCHECK_LT(index_, string->length());
+    return isolate_->factory()->LookupSingleCharacterStringFromCode(
+        String::Flatten(isolate_, string)->Get(static_cast<uint32_t>(index_)));
+  }
+  // The state guarantees that it's a lookup of "length" property.
+  DCHECK_EQ(*name_, ReadOnlyRoots(isolate_).length_string());
+  uint32_t length = Cast<String>(*lookup_start_object_)->length();
+  static_assert(String::kMaxLength < Smi::kMaxValue);
+  return handle(Smi::FromInt(length), isolate_);
 }
 
 Handle<Object> LookupIterator::GetDataValue(
@@ -1329,6 +1338,7 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
     case TYPED_ARRAY_INDEX_NOT_FOUND:
     case JSPROXY:
     case TRANSITION:
+    case STRING_LOOKUP_START_OBJECT:
       UNREACHABLE();
   }
   UNREACHABLE();

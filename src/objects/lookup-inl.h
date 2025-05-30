@@ -238,6 +238,7 @@ DirectHandle<Name> PropertyKey::GetName(Isolate* isolate) {
 }
 
 DirectHandle<Name> LookupIterator::name() const {
+  DCHECK_IMPLIES(holder_.is_null(), !IsElement());
   DCHECK_IMPLIES(!holder_.is_null(), !IsElement(*holder_));
   return name_;
 }
@@ -281,6 +282,9 @@ DirectHandle<PropertyCell> LookupIterator::transition_cell() const {
 template <class T>
 DirectHandle<T> LookupIterator::GetHolder() const {
   DCHECK(IsFound());
+  // Holder is not initialized in this state and one should use
+  // lookup_start_object() instead.
+  DCHECK_NE(state_, STRING_LOOKUP_START_OBJECT);
   return Cast<T>(holder_);
 }
 
@@ -377,19 +381,6 @@ LookupIterator::Configuration LookupIterator::ComputeConfiguration(
     Isolate* isolate, Configuration configuration, DirectHandle<Name> name) {
   return (!name.is_null() && name->IsPrivate()) ? OWN_SKIP_INTERCEPTOR
                                                 : configuration;
-}
-
-// static
-template <bool is_element>
-MaybeDirectHandle<JSReceiver> LookupIterator::GetRoot(
-    Isolate* isolate, DirectHandle<JSAny> lookup_start_object,
-    DirectHandle<Name> name, size_t index, Configuration configuration) {
-  if (IsJSReceiver(*lookup_start_object, isolate)) {
-    return Cast<JSReceiver>(lookup_start_object);
-  }
-  return GetRootForNonJSReceiver<is_element>(
-      isolate, Cast<JSPrimitive>(lookup_start_object), name, index,
-      configuration);
 }
 
 template <class T>

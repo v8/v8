@@ -226,6 +226,7 @@ static void LookupForRead(LookupIterator* it, bool is_has_property) {
       case LookupIterator::ACCESSOR:
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
       case LookupIterator::DATA:
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
       case LookupIterator::NOT_FOUND:
         return;
     }
@@ -821,10 +822,9 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
       }
     }
     handler = ComputeHandler(lookup);
-    auto holder = lookup->GetHolder<Object>();
-    CHECK(*holder == *(lookup->lookup_start_object()) ||
-          LoadHandler::CanHandleHolderNotLookupStart(*handler.object()) ||
-          IsJSPrimitiveWrapper(*holder));
+    CHECK(lookup->state() == LookupIterator::STRING_LOOKUP_START_OBJECT ||
+          *lookup->GetHolder<Object>() == *(lookup->lookup_start_object()) ||
+          LoadHandler::CanHandleHolderNotLookupStart(*handler.object()));
   }
   // Can't use {lookup->name()} because the LookupIterator might be in
   // "elements" mode for keys that are strings representing integers above
@@ -1145,6 +1145,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
     case LookupIterator::ACCESS_CHECK:
     case LookupIterator::NOT_FOUND:
     case LookupIterator::TRANSITION:
+    case LookupIterator::STRING_LOOKUP_START_OBJECT:
       UNREACHABLE();
   }
 
@@ -1696,6 +1697,9 @@ bool StoreIC::LookupForWrite(LookupIterator* it, DirectHandle<Object> value,
                                             store_origin);
         return it->IsCacheableTransition();
       }
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
+        UNREACHABLE();
+
       case LookupIterator::NOT_FOUND:
         // If we are in StoreGlobal then check if we should throw on
         // non-existent properties.
@@ -1824,6 +1828,7 @@ Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
         case LookupIterator::INTERCEPTOR:
         case LookupIterator::ACCESSOR:
         case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
+        case LookupIterator::STRING_LOOKUP_START_OBJECT:
           UNREACHABLE();
         case LookupIterator::ACCESS_CHECK: {
           DCHECK(!IsAccessCheckNeeded(*it->GetHolder<JSObject>()));
@@ -1842,6 +1847,8 @@ Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
     case LookupIterator::INTERCEPTOR:
     case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
       break;
+    case LookupIterator::STRING_LOOKUP_START_OBJECT:
+      UNREACHABLE();
   }
 
   // We need to restart to handle interceptors properly.
@@ -2259,6 +2266,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
     case LookupIterator::ACCESS_CHECK:
     case LookupIterator::NOT_FOUND:
     case LookupIterator::WASM_OBJECT:
+    case LookupIterator::STRING_LOOKUP_START_OBJECT:
       UNREACHABLE();
   }
   return MaybeObjectHandle();
@@ -3869,15 +3877,25 @@ bool MaybeCanCloneObjectForObjectAssign(DirectHandle<JSReceiver> source,
     LookupIterator it(isolate, target, key);
     switch (it.state()) {
       case LookupIterator::NOT_FOUND:
-        break;
+        continue;
       case LookupIterator::DATA:
         if (it.property_attributes() & PropertyAttributes::READ_ONLY) {
           return false;
         }
-        break;
-      default:
+        continue;
+
+      case LookupIterator::INTERCEPTOR:
+      case LookupIterator::TRANSITION:
+      case LookupIterator::ACCESS_CHECK:
+      case LookupIterator::JSPROXY:
+      case LookupIterator::WASM_OBJECT:
+      case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
+      case LookupIterator::ACCESSOR:
         return false;
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
+        UNREACHABLE();
     }
+    UNREACHABLE();
   }
   return true;
 }
