@@ -6,6 +6,7 @@ load("//lib/builders.star", "v8_builder")
 load("//lib/gclient.star", "GCLIENT_VARS")
 load("//lib/lib.star", "BARRIER", "greedy_batching_of_1", "in_console")
 load("//lib/reclient.star", "RECLIENT")
+load("//lib/siso.star", "SISO")
 
 def clusterfuzz_builder(properties = None, barrier = BARRIER.TREE_CLOSER, default_target = "v8_clusterfuzz", **kwargs):
     properties = dict(properties or {})
@@ -18,6 +19,7 @@ def clusterfuzz_builder(properties = None, barrier = BARRIER.TREE_CLOSER, defaul
         triggered_by = ["v8-trigger"],
         triggering_policy = greedy_batching_of_1,
         use_remoteexec = RECLIENT.DEFAULT,
+        use_siso = SISO.CHROMIUM_TRUSTED,
         experiments = {"v8.resultdb": 100},
         **kwargs
     )

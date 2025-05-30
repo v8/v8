@@ -21,5 +21,6 @@ SISO = struct(
     # For better performance on CQ, let siso calculate the jobs based
     # on CPUs.
     CHROMIUM_UNTRUSTED = siso_properties("rbe-chromium-untrusted", -1),
+    CHROMIUM_UNTRUSTED_J500 = siso_properties("rbe-chromium-untrusted", 500),
     NONE = {},
 )

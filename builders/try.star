@@ -145,6 +145,7 @@ try_builder(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"host_class": "default", "os": "Ubuntu-22.04", "cpu": "x86-64"},
     execution_timeout = 10800,
+    use_siso = SISO.NONE,
 )
 
 try_builder(
@@ -230,7 +231,6 @@ try_builder(
     execution_timeout = 4400,
     build_numbers = True,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
-    use_siso = SISO.CHROMIUM_UNTRUSTED,
     disable_resultdb_exports = True,
 )
 
@@ -242,8 +242,7 @@ try_builder(
     execution_timeout = 4200,
     build_numbers = True,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
-    reclient_jobs = RECLIENT_JOBS.J500,
-    use_siso = SISO.CHROMIUM_UNTRUSTED,
+    use_siso = SISO.CHROMIUM_UNTRUSTED_J500,
     disable_resultdb_exports = True,
 )
 

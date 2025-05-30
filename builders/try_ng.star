@@ -66,6 +66,7 @@ def trybot_pair(
         experiments = experiments,
         description = description,
         disable_resultdb_exports = disable_resultdb_exports,
+        use_siso = SISO.CHROMIUM_UNTRUSTED,
         **kwargs
     )
 
@@ -650,7 +651,6 @@ trybot_pair(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
-    use_siso = SISO.CHROMIUM_UNTRUSTED,
 )
 
 trybot_pair(

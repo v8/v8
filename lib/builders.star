@@ -129,6 +129,7 @@ def multibranch_builder(**kwargs):
         if triggered_by_gitiles:
             args.setdefault("triggered_by", []).append(branch.poller_name)
             args["use_remoteexec"] = args.get("use_remoteexec", RECLIENT.DEFAULT)
+            args["use_siso"] = args.get("use_siso", SISO.CHROMIUM_TRUSTED)
         args["priority"] = branch.priority
 
         if branch.bucket == "ci":
@@ -172,6 +173,9 @@ def try_builder(
     # All unspecified branch trybots are per default optional.
     if (cq_properties != CQ.NONE and cq_branch_properties == CQ.NONE):
         cq_branch_properties = CQ.OPTIONAL
+    use_siso = kwargs.pop("use_siso", None)
+    if not use_siso:
+        use_siso = SISO.CHROMIUM_UNTRUSTED
     v8_builder(
         name = name,
         bucket = bucket,
@@ -179,6 +183,7 @@ def try_builder(
         cq_branch_properties = cq_branch_properties,
         in_list = console or "tryserver",
         disable_resultdb_exports = disable_resultdb_exports,
+        use_siso = use_siso,
         **kwargs
     )
 
