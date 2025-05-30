@@ -723,7 +723,7 @@ void TestEraseTrivial() {
   SmallVector<int, capacity> v{make_int_list<size, 1>()};
   const size_t real_capacity = v.capacity();
 
-  v.erase(v.begin() + pos);
+  v.erase(v.begin() + pos, v.end());
   EXPECT_EQ(pos, v.size());
   EXPECT_EQ(real_capacity, v.capacity());
   for (int i = 0; i < ipos; ++i) EXPECT_EQ(i + 1, v[i]);
@@ -744,6 +744,78 @@ TEST(SmallVectorTest, EraseTrivial) {
   TestEraseTrivial<0, 7, 0>();
   TestEraseTrivial<0, 7, 4>();
   TestEraseTrivial<0, 7, 7>();
+}
+
+namespace {
+template <size_t capacity, size_t size, size_t pos>
+void TestEraseOneTrivial() {
+  constexpr int ipos = static_cast<int>(pos);
+  static_assert(pos <= size);
+  SmallVector<int, capacity> v{make_int_list<size, 1>()};
+  const size_t real_capacity = v.capacity();
+
+  int* p = v.erase(v.begin() + pos);
+  EXPECT_EQ(size - 1, v.size());
+  EXPECT_EQ(real_capacity, v.capacity());
+  EXPECT_EQ(v.begin() + pos, p);
+  if (p < v.end()) EXPECT_EQ(ipos + 2, *p);
+  for (int i = 0; i < ipos; ++i) EXPECT_EQ(i + 1, v[i]);
+  for (int i = ipos; i < static_cast<int>(v.size()); ++i) {
+    EXPECT_EQ(i + 2, v[i]);
+  }
+}
+}  // anonymous namespace
+
+TEST(SmallVectorTest, EraseOneTrivial) {
+  TestEraseOneTrivial<10, 7, 0>();
+  TestEraseOneTrivial<10, 7, 4>();
+  TestEraseOneTrivial<10, 7, 6>();
+  TestEraseOneTrivial<10, 10, 0>();
+  TestEraseOneTrivial<10, 10, 4>();
+  TestEraseOneTrivial<10, 10, 7>();
+  TestEraseOneTrivial<10, 17, 0>();
+  TestEraseOneTrivial<10, 17, 13>();
+  TestEraseOneTrivial<10, 17, 16>();
+  TestEraseOneTrivial<0, 7, 0>();
+  TestEraseOneTrivial<0, 7, 4>();
+  TestEraseOneTrivial<0, 7, 6>();
+}
+
+namespace {
+template <size_t capacity, size_t size, size_t pos, size_t dist>
+void TestEraseRangeTrivial() {
+  constexpr int ipos = static_cast<int>(pos);
+  constexpr int idist = static_cast<int>(dist);
+  static_assert(pos <= size);
+  SmallVector<int, capacity> v{make_int_list<size, 1>()};
+  const size_t real_capacity = v.capacity();
+
+  int* p = v.erase(v.begin() + pos, v.begin() + pos + idist);
+  EXPECT_EQ(size - dist, v.size());
+  EXPECT_EQ(real_capacity, v.capacity());
+  EXPECT_EQ(v.begin() + pos, p);
+  if (p < v.end()) EXPECT_EQ(ipos + idist + 1, *p);
+  for (int i = 0; i < ipos; ++i) EXPECT_EQ(i + 1, v[i]);
+  for (int i = ipos; i < static_cast<int>(v.size()); ++i) {
+    EXPECT_EQ(i + 1 + idist, v[i]);
+  }
+}
+}  // anonymous namespace
+
+TEST(SmallVectorTest, EraseRangeTrivial) {
+  TestEraseRangeTrivial<10, 7, 0, 2>();
+  TestEraseRangeTrivial<10, 7, 4, 3>();
+  TestEraseRangeTrivial<10, 7, 7, 0>();
+  TestEraseRangeTrivial<10, 10, 0, 6>();
+  TestEraseRangeTrivial<10, 10, 4, 6>();
+  TestEraseRangeTrivial<10, 10, 7, 1>();
+  TestEraseRangeTrivial<10, 17, 0, 17>();
+  TestEraseRangeTrivial<10, 17, 13, 2>();
+  TestEraseRangeTrivial<10, 17, 17, 0>();
+  TestEraseRangeTrivial<0, 0, 0, 0>();
+  TestEraseRangeTrivial<0, 7, 0, 3>();
+  TestEraseRangeTrivial<0, 7, 4, 3>();
+  TestEraseRangeTrivial<0, 7, 7, 0>();
 }
 
 namespace {
@@ -1991,7 +2063,7 @@ void TestEraseNonTrivial() {
   ElementType::ResetCounters();
 
   {
-    v.erase(v.begin() + pos);
+    v.erase(v.begin() + pos, v.end());
     EXPECT_EQ(pos, v.size());
     EXPECT_EQ(real_capacity, v.capacity());
     for (int i = 0; i < ipos; ++i) EXPECT_EQ(i + 1, v[i].value());

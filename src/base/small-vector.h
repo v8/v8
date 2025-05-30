@@ -230,13 +230,17 @@ class SmallVector {
     return insert(pos, values.begin(), values.end());
   }
 
-  void erase(T* erase_start) {
+  T* erase(T* erase_start, T* erase_end) {
     DCHECK_GE(erase_start, begin_);
-    DCHECK_LE(erase_start, end_);
-    ptrdiff_t count = end_ - erase_start;
-    end_ = erase_start;
-    std::destroy_n(end_, count);
+    DCHECK_LE(erase_start, erase_end);
+    DCHECK_LE(erase_end, end_);
+    T* new_end = std::move(erase_end, end_, erase_start);
+    std::destroy_n(new_end, std::distance(new_end, end_));
+    end_ = new_end;
+    return erase_start;
   }
+
+  T* erase(T* pos) { return erase(pos, pos + 1); }
 
   void resize(size_t new_size) {
     if (new_size > capacity()) Grow(new_size);

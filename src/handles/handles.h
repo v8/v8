@@ -1107,7 +1107,9 @@ class DirectHandleSmallVector {
     return iterator(backing_.insert(pos.base(), init.begin(), init.end()));
   }
 
-  void erase(iterator erase_start) { backing_.erase(erase_start.base()); }
+  void erase(iterator erase_start) {
+    backing_.erase(erase_start.base(), backing_.end());
+  }
   void resize(size_t new_size) { backing_.resize(new_size); }
   void resize(size_t new_size, const_reference initial_value) {
     backing_.resize(new_size, initial_value);
