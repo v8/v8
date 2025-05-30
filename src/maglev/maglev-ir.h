@@ -663,12 +663,13 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
   V(OtherSeqOneByteString, (1 << 9))                \
   V(OtherString, (1 << 10))                         \
                                                     \
-  V(StringWrapper, (1 << 11))                       \
-  V(JSArray, (1 << 12))                             \
-  V(JSFunction, (1 << 13))                          \
-  V(OtherCallable, (1 << 14))                       \
-  V(OtherHeapObject, (1 << 15))                     \
-  V(OtherJSReceiver, (1 << 16))
+  V(Context, (1 << 11))                             \
+  V(StringWrapper, (1 << 12))                       \
+  V(JSArray, (1 << 13))                             \
+  V(JSFunction, (1 << 14))                          \
+  V(OtherCallable, (1 << 15))                       \
+  V(OtherHeapObject, (1 << 16))                     \
+  V(OtherJSReceiver, (1 << 17))
 
 #define COUNT(...) +1
 static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
@@ -858,6 +859,7 @@ inline NodeType StaticTypeForMap(compiler::MapRef map,
     // Oddball but not a Boolean.
     return NodeType::kNullOrUndefined;
   }
+  if (map.IsContextMap()) return NodeType::kContext;
   if (map.IsJSArrayMap()) return NodeType::kJSArray;
   if (map.IsJSFunctionMap()) return NodeType::kJSFunction;
   if (map.is_callable()) {
@@ -920,6 +922,8 @@ inline bool IsInstanceOfLeafNodeType(compiler::MapRef map, NodeType type,
       return map.IsInternalizedStringMap();
     case NodeType::kStringWrapper:
       return map.IsStringWrapperMap();
+    case NodeType::kContext:
+      return map.IsContextMap();
     case NodeType::kJSArray:
       return map.IsJSArrayMap();
     case NodeType::kJSFunction:
@@ -933,7 +937,8 @@ inline bool IsInstanceOfLeafNodeType(compiler::MapRef map, NodeType type,
              !map.is_callable() && !map.IsStringWrapperMap();
     case NodeType::kOtherHeapObject:
       return !map.IsHeapNumberMap() && !map.IsOddballMap() &&
-             !map.IsSymbolMap() && !map.IsStringMap() && !map.IsJSReceiverMap();
+             !map.IsContextMap() && !map.IsSymbolMap() && !map.IsStringMap() &&
+             !map.IsJSReceiverMap();
     default:
       UNREACHABLE();
   }
@@ -9896,6 +9901,7 @@ class Phi : public ValueNodeT<Phi> {
     return same_loop_uses_repr_hint_;
   }
 
+  NodeType post_loop_type() const { return post_loop_type_; }
   void merge_post_loop_type(NodeType type) {
     DCHECK(!has_key());
     post_loop_type_ = UnionType(post_loop_type_, type);

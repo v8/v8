@@ -436,37 +436,25 @@ struct KnownNodeAspects {
   // Unconditionally valid across side-effecting calls.
   ZoneMap<std::tuple<ValueNode*, int>, ValueNode*> loaded_context_constants;
   enum class ContextSlotLoadsAlias : uint8_t {
-    Invalid,
-    None,
-    OnlyLoadsRelativeToCurrentContext,
-    OnlyLoadsRelativeToConstant,
-    Yes,
+    kNone,
+    kOnlyLoadsRelativeToCurrentContext,
+    kOnlyLoadsRelativeToConstant,
+    kYes,
   };
   ContextSlotLoadsAlias may_have_aliasing_contexts() const {
-    DCHECK_NE(may_have_aliasing_contexts_, ContextSlotLoadsAlias::Invalid);
     return may_have_aliasing_contexts_;
   }
-  void UpdateMayHaveAliasingContexts(ValueNode* context) {
-    if (context->Is<InitialValue>()) {
-      if (may_have_aliasing_contexts() == ContextSlotLoadsAlias::None) {
-        may_have_aliasing_contexts_ =
-            ContextSlotLoadsAlias::OnlyLoadsRelativeToCurrentContext;
-      } else if (may_have_aliasing_contexts() !=
-                 ContextSlotLoadsAlias::OnlyLoadsRelativeToCurrentContext) {
-        may_have_aliasing_contexts_ = ContextSlotLoadsAlias::Yes;
-      }
-    } else if (context->Is<Constant>()) {
-      if (may_have_aliasing_contexts() == ContextSlotLoadsAlias::None) {
-        may_have_aliasing_contexts_ =
-            ContextSlotLoadsAlias::OnlyLoadsRelativeToConstant;
-      } else if (may_have_aliasing_contexts() !=
-                 ContextSlotLoadsAlias::OnlyLoadsRelativeToConstant) {
-        may_have_aliasing_contexts_ = ContextSlotLoadsAlias::Yes;
-      }
-    } else if (!context->Is<LoadTaggedField>()) {
-      may_have_aliasing_contexts_ = ContextSlotLoadsAlias::Yes;
-    }
+  static ContextSlotLoadsAlias ContextSlotLoadsAliasMerge(
+      ContextSlotLoadsAlias m1, ContextSlotLoadsAlias m2) {
+    if (m1 == m2) return m1;
+    if (m1 == ContextSlotLoadsAlias::kNone) return m2;
+    if (m2 == ContextSlotLoadsAlias::kNone) return m1;
+    return ContextSlotLoadsAlias::kYes;
   }
+  void UpdateMayHaveAliasingContexts(compiler::JSHeapBroker* broker,
+                                     LocalIsolate* local_isolate,
+                                     ValueNode* context);
+
   // Flushed after side-effecting calls.
   using LoadedContextSlotsKey = std::tuple<ValueNode*, int>;
   using LoadedContextSlots = ZoneMap<LoadedContextSlotsKey, ValueNode*>;
@@ -493,13 +481,12 @@ struct KnownNodeAspects {
         loaded_context_constants(zone),
         loaded_context_slots(zone),
         available_expressions(zone),
-        may_have_aliasing_contexts_(ContextSlotLoadsAlias::None),
+        may_have_aliasing_contexts_(ContextSlotLoadsAlias::kNone),
         effect_epoch_(0),
         node_infos(zone) {}
 
  private:
-  ContextSlotLoadsAlias may_have_aliasing_contexts_ =
-      ContextSlotLoadsAlias::Invalid;
+  ContextSlotLoadsAlias may_have_aliasing_contexts_;
   uint32_t effect_epoch_;
 
   NodeInfos node_infos;
