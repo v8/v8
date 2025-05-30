@@ -54,13 +54,12 @@ MaybeHandle<JSSegmenter> JSSegmenter::New(Isolate* isolate,
 
   // 11. Let r be ResolveLocale(%Segmenter%.[[AvailableLocales]],
   // requestedLocales, opt, %Segmenter%.[[RelevantExtensionKeys]]).
-  Maybe<Intl::ResolvedLocale> maybe_resolve_locale =
-      Intl::ResolveLocale(isolate, JSSegmenter::GetAvailableLocales(),
-                          requested_locales, matcher, {});
-  if (maybe_resolve_locale.IsNothing()) {
+  Intl::ResolvedLocale r;
+  if (!Intl::ResolveLocale(isolate, JSSegmenter::GetAvailableLocales(),
+                           requested_locales, matcher, {})
+           .To(&r)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
-  Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
   // 12. Set segmenter.[[Locale]] to the value of r.[[locale]].
   DirectHandle<String> locale_str =
