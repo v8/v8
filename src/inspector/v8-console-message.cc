@@ -220,6 +220,9 @@ void V8ConsoleMessage::setLocation(const String16& url, unsigned lineNumber,
   m_columnNumber = columnNumber;
   m_stackTrace = std::move(stackTrace);
   m_scriptId = scriptId;
+  if (!m_scriptId && m_stackTrace && !m_stackTrace->frames().empty()) {
+    m_scriptId = m_stackTrace->frames()[0].scriptId;
+  }
 }
 
 void V8ConsoleMessage::reportToFrontend(
@@ -317,13 +320,23 @@ void V8ConsoleMessage::reportToFrontend(protocol::Runtime::Frontend* frontend,
   v8::debug::PostponeInterruptsScope no_interrupts(inspector->isolate());
 
   if (m_origin == V8MessageOrigin::kException) {
-    std::unique_ptr<protocol::Runtime::RemoteObject> exception =
-        wrapException(session, generatePreview);
     if (!inspector->hasConsoleMessageStorage(contextGroupId)) return;
+    v8::HandleScope scope(inspector->isolate());
+    auto maybeScriptOrigin =
+        v8::debug::GetScriptOrigin(inspector->isolate(), m_scriptId);
+    const bool isSharedCrossOrigin =
+        maybeScriptOrigin ? maybeScriptOrigin->Options().IsSharedCrossOrigin()
+                          : false;
+    std::unique_ptr<protocol::Runtime::RemoteObject> exception =
+        isSharedCrossOrigin ? wrapException(session, generatePreview) : nullptr;
+    const bool includeException = isSharedCrossOrigin && exception;
     std::unique_ptr<protocol::Runtime::ExceptionDetails> exceptionDetails =
         protocol::Runtime::ExceptionDetails::create()
             .setExceptionId(m_exceptionId)
-            .setText(exception ? m_message : m_detailedMessage)
+            .setText(includeException
+                         ? m_message
+                         : (m_detailedMessage.length() ? m_detailedMessage
+                                                       : m_message))
             .setLineNumber(m_lineNumber ? m_lineNumber - 1 : 0)
             .setColumnNumber(m_columnNumber ? m_columnNumber - 1 : 0)
             .build();
@@ -335,7 +348,9 @@ void V8ConsoleMessage::reportToFrontend(protocol::Runtime::Frontend* frontend,
           m_stackTrace->buildInspectorObjectImpl(inspector->debugger()));
     }
     if (m_contextId) exceptionDetails->setExecutionContextId(m_contextId);
-    if (exception) exceptionDetails->setException(std::move(exception));
+    if (includeException) {
+      exceptionDetails->setException(std::move(exception));
+    }
     std::unique_ptr<protocol::DictionaryValue> data =
         getAssociatedExceptionData(inspector, session);
     if (data) exceptionDetails->setExceptionMetaData(std::move(data));

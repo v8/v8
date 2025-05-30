@@ -1005,6 +1005,40 @@ void GetLoadedScripts(Isolate* v8_isolate,
   }
 }
 
+std::optional<v8::ScriptOrigin> GetScriptOrigin(Isolate* v8_isolate,
+                                                int script_id) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  EnterV8NoScriptNoExceptionScope api_scope(isolate);
+  {
+    i::DisallowGarbageCollection no_gc;
+    i::Script::Iterator iterator(isolate);
+    for (i::Tagged<i::Script> script = iterator.Next(); !script.is_null();
+         script = iterator.Next()) {
+      if (script->id() == script_id) {
+        i::DirectHandle<i::Object> scriptName(script->GetNameOrSourceURL(),
+                                              isolate);
+        i::DirectHandle<i::Object> source_map_url(script->source_mapping_url(),
+                                                  isolate);
+        i::DirectHandle<i::Object> host_defined_options(
+            script->host_defined_options(), isolate);
+        ScriptOriginOptions options(script->origin_options());
+        bool is_wasm = false;
+#if V8_ENABLE_WEBASSEMBLY
+        is_wasm = script->type() == i::Script::Type::kWasm;
+#endif  // V8_ENABLE_WEBASSEMBLY
+        v8::ScriptOrigin origin(
+            Utils::ToLocal(scriptName), script->line_offset(),
+            script->column_offset(), options.IsSharedCrossOrigin(),
+            script->id(), Utils::ToLocal(source_map_url), options.IsOpaque(),
+            is_wasm, options.IsModule(), Utils::ToLocal(host_defined_options));
+        return origin;
+      }
+    }
+  }
+
+  return std::nullopt;
+}
+
 MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* v8_isolate,
                                                  Local<String> source) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
