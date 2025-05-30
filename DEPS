@@ -59,7 +59,7 @@ vars = {
   'checkout_fuchsia_no_hooks': False,
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.178.0.5ee9d3e8-gomaip',
+  'reclient_version': 're_client_version:0.179.0.28341fc7-gomaip',
 
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
@@ -87,12 +87,12 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:28.20250522.3.1',
+  'fuchsia_version': 'version:28.20250528.4.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': 'a160ae6759caac1e19e3bf51b3660b649a9aba2e',
+  'partition_alloc_version': '3ae30e4cf9d6f59ba825dcc96af9940ab35bf27b',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -130,7 +130,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ed4f7924f2c2ca15280fc71e6cc35cfdf5836f44',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '183b23e72b1985bfcdb71619ee74d7b955a75ece',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c618f33e12ddc6f53c21271e7b44ddef3ec44de3',
   'buildtools/linux64': {
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c9fe205c6677257b8d332737562d9146432d5a6e',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'bba26d14be0a9bf9914ac5a12f01995dd7527823',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -486,7 +486,7 @@ deps = {
   'tools/rust':
     Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '11d67ba3289de6ca73bc441794138a9d8cd9db6b',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '2e7dde49ec71417bf4ce4dbcc3b3147c3a7448a6',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '1ac9263916b2412b763b2b6388501149907c5fcd',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
