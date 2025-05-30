@@ -3166,6 +3166,7 @@ DEFINE_BOOL(print_feature_flags_json, false,
             "Print JS and Wasm feature flags grouped by in-progress, staged, "
             "and shipped")
 
+// Slow histograms are also enabled via --dump-counters in d8.
 DEFINE_BOOL(slow_histograms, false,
             "Enable slow histograms with more overhead.")
 
