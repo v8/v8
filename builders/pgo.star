@@ -5,6 +5,7 @@
 load("//lib/builders.star", "v8_builder")
 load("//lib/reclient.star", "RECLIENT")
 load("//lib/service-accounts.star", "V8_PGO_ACCOUNT")
+load("//lib/siso.star", "SISO")
 
 v8_builder(
     name = "PGO Builder",
@@ -28,6 +29,7 @@ def pgo_compilator(name, os):
             "builder_group": "client.v8",
         },
         use_remoteexec = RECLIENT.DEFAULT,
+        use_siso = SISO.CHROMIUM_TRUSTED,
         in_list = "pgo",
     )
 
