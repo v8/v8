@@ -1204,20 +1204,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ MulOverflow32(i.OutputRegister(), i.InputOrZeroRegister(0),
                        i.InputOperand(1), kScratchReg);
       break;
+    case kRiscvAddOvfWord:
+      __ AddOverflowWord(i.OutputRegister(), i.InputOrZeroRegister(0),
+                         i.InputOperand(1), kScratchReg);
+      break;
+    case kRiscvSubOvfWord:
+      __ SubOverflowWord(i.OutputRegister(), i.InputOrZeroRegister(0),
+                         i.InputOperand(1), kScratchReg);
+      break;
 #if V8_TARGET_ARCH_RISCV64
     case kRiscvAdd64:
       __ AddWord(i.OutputRegister(), i.InputOrZeroRegister(0),
                  i.InputOperand(1));
       break;
-    case kRiscvAddOvf64:
-      __ AddOverflow64(i.OutputRegister(), i.InputOrZeroRegister(0),
+    case kRiscvAddOvf32:
+      __ AddOverflow32(i.OutputRegister(), i.InputOrZeroRegister(0),
                        i.InputOperand(1), kScratchReg);
       break;
     case kRiscvSub64:
       __ Sub64(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
       break;
-    case kRiscvSubOvf64:
-      __ SubOverflow64(i.OutputRegister(), i.InputOrZeroRegister(0),
+    case kRiscvSubOvf32:
+      __ SubOverflow32(i.OutputRegister(), i.InputOrZeroRegister(0),
                        i.InputOperand(1), kScratchReg);
       break;
     case kRiscvMulHigh32:
@@ -1288,14 +1296,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputOperand(1));
       break;
 #elif V8_TARGET_ARCH_RISCV32
-    case kRiscvAddOvf:
-      __ AddOverflow(i.OutputRegister(), i.InputOrZeroRegister(0),
-                     i.InputOperand(1), kScratchReg);
-      break;
-    case kRiscvSubOvf:
-      __ SubOverflow(i.OutputRegister(), i.InputOrZeroRegister(0),
-                     i.InputOperand(1), kScratchReg);
-      break;
     case kRiscvMulHigh32:
       __ Mulh(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
       break;
@@ -3868,11 +3868,13 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
     __ Sra64(kScratchReg, i.OutputRegister(), 32);
     __ Sra32(kScratchReg2, i.OutputRegister(), 31);
     __ Branch(tlabel, cc, kScratchReg2, Operand(kScratchReg));
-  } else if (instr->arch_opcode() == kRiscvAddOvf64 ||
-             instr->arch_opcode() == kRiscvSubOvf64) {
+  } else if (instr->arch_opcode() == kRiscvAddOvf32 ||
+             instr->arch_opcode() == kRiscvSubOvf32 ||
+             instr->arch_opcode() == kRiscvAddOvfWord ||
+             instr->arch_opcode() == kRiscvSubOvfWord) {
 #elif V8_TARGET_ARCH_RISCV32
-  } else if (instr->arch_opcode() == kRiscvAddOvf ||
-             instr->arch_opcode() == kRiscvSubOvf) {
+  } else if (instr->arch_opcode() == kRiscvAddOvfWord ||
+             instr->arch_opcode() == kRiscvSubOvfWord) {
 #endif
     switch (condition) {
       // Overflow occurs if overflow register is negative
@@ -4068,11 +4070,13 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     if (cc == eq)  // Toggle result for not overflow.
       __ Xor(result, result, 1);
     return;
-  } else if (instr->arch_opcode() == kRiscvAddOvf64 ||
-             instr->arch_opcode() == kRiscvSubOvf64) {
+  } else if (instr->arch_opcode() == kRiscvAddOvf32 ||
+             instr->arch_opcode() == kRiscvSubOvf32 ||
+             instr->arch_opcode() == kRiscvAddOvfWord ||
+             instr->arch_opcode() == kRiscvSubOvfWord) {
 #elif V8_TARGET_ARCH_RISCV32
-  } else if (instr->arch_opcode() == kRiscvAddOvf ||
-             instr->arch_opcode() == kRiscvSubOvf) {
+  } else if (instr->arch_opcode() == kRiscvAddOvfWord ||
+             instr->arch_opcode() == kRiscvSubOvfWord) {
 #endif
     // Overflow occurs if overflow register is negative
     __ Slt(result, kScratchReg, zero_reg);
@@ -4741,6 +4745,23 @@ void CodeGenerator::SetPendingMove(MoveOperands* move) {
   }
 }
 
+namespace {
+bool Is32BitOperand(InstructionOperand* operand) {
+  DCHECK(operand->IsStackSlot() || operand->IsRegister());
+  MachineRepresentation mr = LocationOperand::cast(operand)->representation();
+  return mr == MachineRepresentation::kWord32 ||
+         mr == MachineRepresentation::kCompressed ||
+         mr == MachineRepresentation::kCompressedPointer;
+}
+
+// When we need only 32 bits, move only 32 bits, otherwise the destination
+// register' upper 32 bits may contain dirty data.
+bool Use32BitMove(InstructionOperand* source, InstructionOperand* destination) {
+  return Is32BitOperand(source) && Is32BitOperand(destination);
+}
+
+}  // namespace
+
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {
   RiscvOperandConverter g(this, nullptr);
@@ -4758,7 +4779,11 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     DCHECK(destination->IsRegister() || destination->IsStackSlot());
     MemOperand src = g.ToMemOperand(source);
     if (destination->IsRegister()) {
-      __ LoadWord(g.ToRegister(destination), src);
+      if (Use32BitMove(source, destination)) {
+        __ Lw(g.ToRegister(destination), src);
+      } else {
+        __ LoadWord(g.ToRegister(destination), src);
+      }
     } else {
       Register temp = kScratchReg;
       __ LoadWord(temp, src);

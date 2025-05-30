@@ -1820,12 +1820,28 @@ void InstructionSelectorT::VisitWordCompareZero(OpIndex user, OpIndex value,
           switch (binop->kind) {
             case OverflowCheckedBinopOp::Kind::kSignedAdd:
               cont->OverwriteAndNegateIfEqual(kOverflow);
-              return VisitBinop<Int32BinopMatcher>(
-                  this, node, is64 ? kRiscvAddOvf64 : kRiscvAdd64, cont);
+              if (is64) {
+                return VisitBinop<Int32BinopMatcher>(this, node,
+                                                     kRiscvAddOvfWord, cont);
+              } else {  // If enable COMPRESS_POINTERS, smi will zero extend to
+                        // 64 bit, kRiscvAdd64 can't process smi overflow.
+                return VisitBinop<Int32BinopMatcher>(
+                    this, node,
+                    COMPRESS_POINTERS_BOOL ? kRiscvAddOvf32 : kRiscvAdd64,
+                    cont);
+              }
             case OverflowCheckedBinopOp::Kind::kSignedSub:
               cont->OverwriteAndNegateIfEqual(kOverflow);
-              return VisitBinop<Int32BinopMatcher>(
-                  this, node, is64 ? kRiscvSubOvf64 : kRiscvSub64, cont);
+              if (is64) {
+                return VisitBinop<Int32BinopMatcher>(this, node,
+                                                     kRiscvSubOvfWord, cont);
+              } else {  // If enable COMPRESS_POINTERS, smi will zero extend to
+                        // 64 bit, kRiscvSub64 can't process smi overflow.
+                return VisitBinop<Int32BinopMatcher>(
+                    this, node,
+                    COMPRESS_POINTERS_BOOL ? kRiscvSubOvf32 : kRiscvSub64,
+                    cont);
+              }
             case OverflowCheckedBinopOp::Kind::kSignedMul:
               cont->OverwriteAndNegateIfEqual(kOverflow);
               return VisitBinop<Int32BinopMatcher>(
@@ -1919,7 +1935,11 @@ void InstructionSelectorT::VisitInt32AddWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid() && IsUsed(ovf.value())) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
-    return VisitBinop<Int32BinopMatcher>(this, node, kRiscvAdd64, &cont);
+    // If enable COMPRESS_POINTERS, smi will zero extend to
+    // 64 bit, kRiscvAdd64 can't process smi overflow.
+    return VisitBinop<Int32BinopMatcher>(
+        this, node, COMPRESS_POINTERS_BOOL ? kRiscvAddOvf32 : kRiscvAdd64,
+        &cont);
   }
   FlagsContinuation cont;
   VisitBinop<Int32BinopMatcher>(this, node, kRiscvAdd64, &cont);
@@ -1929,7 +1949,11 @@ void InstructionSelectorT::VisitInt32SubWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid()) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
-    return VisitBinop<Int32BinopMatcher>(this, node, kRiscvSub64, &cont);
+    // If enable COMPRESS_POINTERS, smi will zero extend to
+    // 64 bit, kRiscvSub64 can't process smi overflow.
+    return VisitBinop<Int32BinopMatcher>(
+        this, node, COMPRESS_POINTERS_BOOL ? kRiscvSubOvf32 : kRiscvSub64,
+        &cont);
   }
   FlagsContinuation cont;
   VisitBinop<Int32BinopMatcher>(this, node, kRiscvSub64, &cont);
@@ -1949,20 +1973,20 @@ void InstructionSelectorT::VisitInt64AddWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid()) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
-    return VisitBinop<Int64BinopMatcher>(this, node, kRiscvAddOvf64, &cont);
+    return VisitBinop<Int64BinopMatcher>(this, node, kRiscvAddOvfWord, &cont);
   }
   FlagsContinuation cont;
-  VisitBinop<Int64BinopMatcher>(this, node, kRiscvAddOvf64, &cont);
+  VisitBinop<Int64BinopMatcher>(this, node, kRiscvAddOvfWord, &cont);
 }
 
 void InstructionSelectorT::VisitInt64SubWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid()) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
-    return VisitBinop<Int64BinopMatcher>(this, node, kRiscvSubOvf64, &cont);
+    return VisitBinop<Int64BinopMatcher>(this, node, kRiscvSubOvfWord, &cont);
   }
   FlagsContinuation cont;
-  VisitBinop<Int64BinopMatcher>(this, node, kRiscvSubOvf64, &cont);
+  VisitBinop<Int64BinopMatcher>(this, node, kRiscvSubOvfWord, &cont);
 }
 
 void InstructionSelectorT::VisitInt64MulWithOverflow(OpIndex node) {

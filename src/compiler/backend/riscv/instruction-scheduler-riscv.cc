@@ -16,6 +16,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
   switch (instr->arch_opcode()) {
     case kRiscvEnableDebugTrace:
     case kRiscvDisableDebugTrace:
+    case kRiscvAddOvfWord:
+    case kRiscvSubOvfWord:
 #if V8_TARGET_ARCH_RISCV64
     case kRiscvAdd32:
     case kRiscvBitcastDL:
@@ -28,7 +30,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvMulHigh64:
     case kRiscvMulHighU64:
     case kRiscvAdd64:
-    case kRiscvAddOvf64:
+    case kRiscvAddOvf32:
     case kRiscvClz64:
     case kRiscvDiv64:
     case kRiscvDivU64:
@@ -43,7 +45,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvShl64:
     case kRiscvShr64:
     case kRiscvSub64:
-    case kRiscvSubOvf64:
+    case kRiscvSubOvf32:
     case kRiscvFloat64RoundDown:
     case kRiscvFloat64RoundTiesEven:
     case kRiscvFloat64RoundTruncate:
@@ -66,8 +68,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvShlPair:
     case kRiscvShrPair:
     case kRiscvSarPair:
-    case kRiscvAddOvf:
-    case kRiscvSubOvf:
     case kRiscvSub32:
 #endif
     case kRiscvSh1add:
@@ -1158,17 +1158,17 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kIeee754Float64Tanh:
       return PrepareCallCFunctionLatency() + MovToFloatParametersLatency() +
              CallCFunctionLatency() + MovFromFloatResultLatency();
+    case kRiscvAddOvfWord:
+      return AddOverflow64Latency();
+    case kRiscvSubOvfWord:
+      return SubOverflow64Latency();
 #if V8_TARGET_ARCH_RISCV64
     case kRiscvAdd32:
     case kRiscvAdd64:
       return Add64Latency(instr->InputAt(1)->IsRegister());
-    case kRiscvAddOvf64:
-      return AddOverflow64Latency();
     case kRiscvSub32:
     case kRiscvSub64:
       return Sub64Latency(instr->InputAt(1)->IsRegister());
-    case kRiscvSubOvf64:
-      return SubOverflow64Latency();
     case kRiscvMulHigh64:
       return Mulh64Latency();
     case kRiscvMul64:
@@ -1190,12 +1190,8 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
 #elif V8_TARGET_ARCH_RISCV32
     case kRiscvAdd32:
       return Add64Latency(instr->InputAt(1)->IsRegister());
-    case kRiscvAddOvf:
-      return AddOverflow64Latency();
     case kRiscvSub32:
       return Sub64Latency(instr->InputAt(1)->IsRegister());
-    case kRiscvSubOvf:
-      return SubOverflow64Latency();
 #endif
     case kRiscvMul32:
       return Mul32Latency();

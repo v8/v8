@@ -935,12 +935,12 @@ void InstructionSelectorT::VisitWordCompareZero(OpIndex user, OpIndex value,
             switch (binop->kind) {
               case OverflowCheckedBinopOp::Kind::kSignedAdd:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop<Int32BinopMatcher>(this, node, kRiscvAddOvf,
-                                                     cont);
+                return VisitBinop<Int32BinopMatcher>(this, node,
+                                                     kRiscvAddOvfWord, cont);
               case OverflowCheckedBinopOp::Kind::kSignedSub:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop<Int32BinopMatcher>(this, node, kRiscvSubOvf,
-                                                     cont);
+                return VisitBinop<Int32BinopMatcher>(this, node,
+                                                     kRiscvSubOvfWord, cont);
               case OverflowCheckedBinopOp::Kind::kSignedMul:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitBinop<Int32BinopMatcher>(this, node, kRiscvMulOvf32,
@@ -997,20 +997,20 @@ void InstructionSelectorT::VisitInt32AddWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid() && IsUsed(ovf.value())) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
-    return VisitBinop<Int32BinopMatcher>(this, node, kRiscvAddOvf, &cont);
+    return VisitBinop<Int32BinopMatcher>(this, node, kRiscvAddOvfWord, &cont);
   }
   FlagsContinuation cont;
-  VisitBinop<Int32BinopMatcher>(this, node, kRiscvAddOvf, &cont);
+  VisitBinop<Int32BinopMatcher>(this, node, kRiscvAddOvfWord, &cont);
 }
 
 void InstructionSelectorT::VisitInt32SubWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid() && IsUsed(ovf.value())) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
-    return VisitBinop<Int32BinopMatcher>(this, node, kRiscvSubOvf, &cont);
+    return VisitBinop<Int32BinopMatcher>(this, node, kRiscvSubOvfWord, &cont);
   }
   FlagsContinuation cont;
-  VisitBinop<Int32BinopMatcher>(this, node, kRiscvSubOvf, &cont);
+  VisitBinop<Int32BinopMatcher>(this, node, kRiscvSubOvfWord, &cont);
 }
 
 void InstructionSelectorT::VisitInt32MulWithOverflow(OpIndex node) {

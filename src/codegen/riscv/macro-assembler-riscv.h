@@ -1079,35 +1079,35 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   }
   void LoadFPRImmediate(FPURegister dst, uint32_t src);
   void LoadFPRImmediate(FPURegister dst, uint64_t src);
+  // AddOverflowWord sets overflow register to a negative value if
+  // overflow occurred, otherwise it is zero or positive
+  void AddOverflowWord(Register dst, Register left, const Operand& right,
+                       Register overflow);
+  // SubOverflowWord sets overflow register to a negative value if
+  // overflow occurred, otherwise it is zero or positive
+  void SubOverflowWord(Register dst, Register left, const Operand& right,
+                       Register overflow);
 #if V8_TARGET_ARCH_RISCV64
-  // AddOverflow64 sets overflow register to a negative value if
-  // overflow occured, otherwise it is zero or positive
-  void AddOverflow64(Register dst, Register left, const Operand& right,
+  // AddOverflow32 sets overflow register to a negative value if
+  // overflow occurred, otherwise it is zero or positive
+  void AddOverflow32(Register dst, Register left, const Operand& right,
                      Register overflow);
-  // SubOverflow64 sets overflow register to a negative value if
-  // overflow occured, otherwise it is zero or positive
-  void SubOverflow64(Register dst, Register left, const Operand& right,
+  // SubOverflow32 sets overflow register to a negative value if
+  // overflow occurred, otherwise it is zero or positive
+  void SubOverflow32(Register dst, Register left, const Operand& right,
                      Register overflow);
   // MIPS-style 32-bit unsigned mulh
   void Mulhu32(Register dst, Register left, const Operand& right,
                Register left_zero, Register right_zero);
 #elif V8_TARGET_ARCH_RISCV32
-  // AddOverflow sets overflow register to a negative value if
-  // overflow occured, otherwise it is zero or positive
-  void AddOverflow(Register dst, Register left, const Operand& right,
-                   Register overflow);
-  // SubOverflow sets overflow register to a negative value if
-  // overflow occured, otherwise it is zero or positive
-  void SubOverflow(Register dst, Register left, const Operand& right,
-                   Register overflow);
   // MIPS-style 32-bit unsigned mulh
   void Mulhu(Register dst, Register left, const Operand& right,
              Register left_zero, Register right_zero);
 #endif
-  // MulOverflow32 sets overflow register to zero if no overflow occured
+  // MulOverflow32 sets overflow register to zero if no overflow occurred
   void MulOverflow32(Register dst, Register left, const Operand& right,
                      Register overflow, bool sign_extend_inputs = true);
-  // MulOverflow64 sets overflow register to zero if no overflow occured
+  // MulOverflow64 sets overflow register to zero if no overflow occurred
   void MulOverflow64(Register dst, Register left, const Operand& right,
                      Register overflow);
   // Number of instructions needed for calculation of switch table entry address
@@ -1985,7 +1985,7 @@ void MacroAssembler::GenerateSwitchTable(Register index, size_t case_count,
   NOP();
   static constexpr int mask = kInstrSize - 1;
   int aligned_label_area_size =
-      int(case_count) * kUIntptrSize + kSystemPointerSize;
+      static_cast<int>(case_count) * kUIntptrSize + kSystemPointerSize;
   int instructions_per_label_area =
       ((aligned_label_area_size + mask) & ~mask) >> kInstrSizeLog2;
   BlockTrampolinePoolFor(instructions_per_label_area);
