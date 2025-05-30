@@ -156,6 +156,9 @@ V8_WARN_UNUSED_RESULT Maybe<uint64_t> GetRelativeIndex(
     MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, provided_relative_index,
                                            Object::IntegerValue(isolate, index),
                                            Nothing<uint64_t>());
+    if (std::abs(provided_relative_index) > length) {
+      return Just(provided_relative_index < 0 ? 0 : length);
+    }
     relative_index = static_cast<int64_t>(provided_relative_index);
   }
 
