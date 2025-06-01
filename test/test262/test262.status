@@ -1268,10 +1268,20 @@
   'intl402/PluralRules/constructor-option-read-order': [SKIP],
   'intl402/PluralRules/constructor-options-throwing-getters': [SKIP],
   'intl402/PluralRules/default-options-object-prototype': [SKIP],
-  'intl402/PluralRules/prototype/constructor/notation': [SKIP],
+  'intl402/PluralRules/notation': [SKIP],
   'intl402/PluralRules/prototype/resolvedOptions/order': [SKIP],
   'intl402/PluralRules/prototype/resolvedOptions/properties': [SKIP],
   'intl402/PluralRules/prototype/select/notation': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/TypedArray/prototype/with/negative-index-resize-to-in-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/with/negative-index-resize-to-out-of-bounds': [SKIP],
+  'built-ins/Uint8Array/prototype/setFromHex/throws-when-string-length-is-odd': [SKIP],
 }],
 # End roll-watcher patch
 ####
