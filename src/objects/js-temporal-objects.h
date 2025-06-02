@@ -10,11 +10,6 @@
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
 #include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/Instant.d.hpp"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/PlainDate.d.hpp"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/PlainDateTime.d.hpp"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/PlainMonthDay.d.hpp"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/PlainTime.d.hpp"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/PlainYearMonth.d.hpp"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -64,16 +59,6 @@ ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::Instant,
                                         kTemporalInstantTag)
 ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::Duration,
                                         kTemporalDurationTag)
-ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::PlainDate,
-                                        kTemporalPlainDateTag)
-ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::PlainDateTime,
-                                        kTemporalPlainDateTimeTag)
-ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::PlainMonthDay,
-                                        kTemporalPlainMonthDayTag)
-ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::PlainTime,
-                                        kTemporalPlainTimeTag)
-ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::PlainYearMonth,
-                                        kTemporalPlainYearMonthTag)
 class JSTemporalPlainDate;
 class JSTemporalPlainMonthDay;
 class JSTemporalPlainYearMonth;
@@ -347,7 +332,9 @@ class JSTemporalPlainDate
 
   DECL_PRINTER(JSTemporalPlainDate)
 
-  DECL_ACCESSORS_FOR_RUST_WRAPPER(date, temporal_rs::PlainDate)
+  DEFINE_TORQUE_GENERATED_JS_TEMPORAL_YEAR_MONTH_DAY()
+
+  DECLARE_TEMPORAL_DATE_INLINE_GETTER_SETTER()
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainDate)
 };
@@ -483,7 +470,13 @@ class JSTemporalPlainDateTime
 
   DECL_PRINTER(JSTemporalPlainDateTime)
 
-  DECL_ACCESSORS_FOR_RUST_WRAPPER(date_time, temporal_rs::PlainDateTime)
+  DEFINE_TORQUE_GENERATED_JS_TEMPORAL_YEAR_MONTH_DAY()
+  DEFINE_TORQUE_GENERATED_JS_TEMPORAL_HOUR_MINUTE_SECOND()
+  DEFINE_TORQUE_GENERATED_JS_TEMPORAL_SECOND_PARTS()
+
+  DECLARE_TEMPORAL_DATE_INLINE_GETTER_SETTER()
+  DECLARE_TEMPORAL_TIME_INLINE_GETTER_SETTER()
+
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainDateTime)
 };
 
@@ -540,7 +533,9 @@ class JSTemporalPlainMonthDay
 
   DECL_PRINTER(JSTemporalPlainMonthDay)
 
-  DECL_ACCESSORS_FOR_RUST_WRAPPER(month_day, temporal_rs::PlainMonthDay)
+  DEFINE_TORQUE_GENERATED_JS_TEMPORAL_YEAR_MONTH_DAY()
+
+  DECLARE_TEMPORAL_DATE_INLINE_GETTER_SETTER()
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainMonthDay)
 };
@@ -637,7 +632,11 @@ class JSTemporalPlainTime
 
   DECL_PRINTER(JSTemporalPlainTime)
 
-  DECL_ACCESSORS_FOR_RUST_WRAPPER(time, temporal_rs::PlainTime)
+  DEFINE_TORQUE_GENERATED_JS_TEMPORAL_HOUR_MINUTE_SECOND()
+  DEFINE_TORQUE_GENERATED_JS_TEMPORAL_SECOND_PARTS()
+
+  DECLARE_TEMPORAL_TIME_INLINE_GETTER_SETTER()
+
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainTime)
 };
 
@@ -723,7 +722,10 @@ class JSTemporalPlainYearMonth
 
   DECL_PRINTER(JSTemporalPlainYearMonth)
 
-  DECL_ACCESSORS_FOR_RUST_WRAPPER(year_month, temporal_rs::PlainYearMonth)
+  DEFINE_TORQUE_GENERATED_JS_TEMPORAL_YEAR_MONTH_DAY()
+
+  DECLARE_TEMPORAL_DATE_INLINE_GETTER_SETTER()
+
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainYearMonth)
 };
 
