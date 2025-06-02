@@ -425,7 +425,7 @@ void ProfilerListener::AttachDeoptInlinedFrames(DirectHandle<Code> code,
     }
     if (info->rmode() == RelocInfo::DEOPT_ID) {
       if (deopt_id != static_cast<int>(info->data())) continue;
-      DCHECK(last_position.IsKnown());
+      if (!last_position.IsKnown()) continue;
 
       // SourcePosition::InliningStack allocates a handle for the SFI of each
       // frame. These don't escape this function, but quickly add up. This
