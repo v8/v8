@@ -112,7 +112,6 @@
       'V8 Linux64 TSAN - builder': 'release_x64_tsan',
       'V8 Linux64 TSAN - debug builder': 'debug_x64_tsan_minimal_symbols',
       'V8 Linux64 TSAN - no-concurrent-marking - builder': 'release_x64_tsan_no_cm',
-      'V8 Linux - arm64 - sim - CFI - builder': 'release_simulate_arm64_cfi',
       'V8 Linux - arm64 - sim - MSAN - builder': 'release_simulate_arm64_msan',
       # FYI.
       'V8 iOS - sim - builder': 'release_x64_ios_simulator',
@@ -360,7 +359,6 @@
       'v8_linux_arm_armv8a_rel': 'release_simulate_arm_trybot',
       'v8_linux_arm_armv8a_dbg': 'debug_simulate_arm',
       'v8_linux_arm64_compile_rel': 'release_simulate_arm64_gcmole_trybot',
-      'v8_linux_arm64_cfi_compile_rel' : 'release_simulate_arm64_cfi',
       'v8_linux_arm64_compile_dbg': 'debug_simulate_arm64',
       'v8_linux_arm64_gc_stress_compile_dbg': 'debug_simulate_arm64',
       'v8_linux_mips64el_compile_rel': 'release_simulate_mips64el',
@@ -484,8 +482,6 @@
       'release_trybot', 'simulate_arm', 'v8_enable_lite_mode'],
     'release_simulate_arm_trybot': [
       'release_trybot', 'simulate_arm'],
-    'release_simulate_arm64_cfi': [
-      'release_bot', 'simulate_arm64', 'v8_control_flow_integrity'],
     'release_simulate_arm64_gcmole': [
       'release_bot', 'simulate_arm64', 'gcmole'],
     'release_simulate_arm64_gcmole_trybot': [
@@ -1100,10 +1096,6 @@
     'v8_correctness_fuzzer': {
       'mixins': ['v8_enable_test_features'],
       'gn_args': 'v8_correctness_fuzzer=true v8_multi_arch_build=true',
-    },
-
-    'v8_control_flow_integrity' : {
-      'gn_args': 'v8_control_flow_integrity=true',
     },
 
     'v8_disable_runtime_call_stats': {
