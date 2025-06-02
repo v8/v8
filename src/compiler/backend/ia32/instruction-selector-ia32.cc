@@ -1037,7 +1037,7 @@ void VisitStoreCommon(InstructionSelectorT* selector,
     inputs[input_count++] = g.UseUniqueRegister(value);
     RecordWriteMode record_write_mode =
         WriteBarrierKindToRecordWriteMode(write_barrier_kind);
-    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
+    InstructionOperand temps[] = {g.TempRegister()};
     size_t const temp_count = arraysize(temps);
     InstructionCode code = is_seqcst ? kArchAtomicStoreWithWriteBarrier
                                      : kArchStoreWithWriteBarrier;

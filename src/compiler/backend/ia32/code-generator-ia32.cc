@@ -293,43 +293,42 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, Operand operand,
-                       Register value, Register scratch0, Register scratch1,
-                       RecordWriteMode mode, StubCallMode stub_mode)
+                       Register value, Register scratch, RecordWriteMode mode,
+                       StubCallMode stub_mode)
       : OutOfLineCode(gen),
         object_(object),
         operand_(operand),
         value_(value),
-        scratch0_(scratch0),
-        scratch1_(scratch1),
+        scratch_(scratch),
         mode_(mode),
 #if V8_ENABLE_WEBASSEMBLY
         stub_mode_(stub_mode),
 #endif  // V8_ENABLE_WEBASSEMBLY
         zone_(gen->zone()) {
-    DCHECK(!AreAliased(object, scratch0, scratch1));
-    DCHECK(!AreAliased(value, scratch0, scratch1));
+    DCHECK(!AreAliased(object, scratch));
+    DCHECK(!AreAliased(value, scratch));
   }
 
   void Generate() final {
-    __ CheckPageFlag(value_, scratch0_,
+    __ CheckPageFlag(value_, scratch_,
                      MemoryChunk::kPointersToHereAreInterestingMask, zero,
                      exit());
-    __ lea(scratch1_, operand_);
+    __ lea(scratch_, operand_);
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
     if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
-      __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
+      __ CallEphemeronKeyBarrier(object_, scratch_, save_fp_mode);
 #if V8_ENABLE_WEBASSEMBLY
     } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       // A direct call to a wasm runtime stub defined in this module.
       // Just encode the stub index. This will be patched when the code
       // is added to the native module and copied into wasm code space.
-      __ CallRecordWriteStubSaveRegisters(object_, scratch1_, save_fp_mode,
+      __ CallRecordWriteStubSaveRegisters(object_, scratch_, save_fp_mode,
                                           StubCallMode::kCallWasmRuntimeStub);
 #endif  // V8_ENABLE_WEBASSEMBLY
     } else {
-      __ CallRecordWriteStubSaveRegisters(object_, scratch1_, save_fp_mode);
+      __ CallRecordWriteStubSaveRegisters(object_, scratch_, save_fp_mode);
     }
   }
 
@@ -337,8 +336,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Register const object_;
   Operand const operand_;
   Register const value_;
-  Register const scratch0_;
-  Register const scratch1_;
+  Register const scratch_;
   RecordWriteMode const mode_;
 #if V8_ENABLE_WEBASSEMBLY
   StubCallMode const stub_mode_;
@@ -993,8 +991,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       Register value = i.InputRegister(index);
-      Register scratch0 = i.TempRegister(0);
-      Register scratch1 = i.TempRegister(1);
+      Register scratch = i.TempRegister(0);
 
       if (v8_flags.debug_code) {
         // Checking that |value| is not a cleared weakref: our write barrier
@@ -1003,19 +1000,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Check(not_equal, AbortReason::kOperandIsCleared);
       }
 
-      auto ool = zone()->New<OutOfLineRecordWrite>(this, object, operand, value,
-                                                   scratch0, scratch1, mode,
-                                                   DetermineStubCallMode());
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, operand, value, scratch, mode, DetermineStubCallMode());
       if (arch_opcode == kArchStoreWithWriteBarrier) {
         __ mov(operand, value);
       } else {
-        __ mov(scratch0, value);
-        __ xchg(scratch0, operand);
+        __ mov(scratch, value);
+        __ xchg(scratch, operand);
       }
       if (mode > RecordWriteMode::kValueIsPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
-      __ CheckPageFlag(object, scratch0,
+      __ CheckPageFlag(object, scratch,
                        MemoryChunk::kPointersFromHereAreInterestingMask,
                        not_zero, ool->entry());
       __ bind(ool->exit());
