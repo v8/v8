@@ -460,19 +460,22 @@ size_t JSTypedArray::GetVariableByteLengthOrOutOfBounds(
   DCHECK(!WasDetached());
   size_t own_byte_offset = byte_offset();
   if (is_length_tracking()) {
+    size_t own_element_size = element_size();
     if (is_backed_by_rab()) {
       size_t buffer_byte_length = buffer()->byte_length();
       if (own_byte_offset > buffer_byte_length) {
         out_of_bounds = true;
         return 0;
       }
-      return (buffer_byte_length - own_byte_offset);
+      // Round down to the nearest multiple of element size.
+      return RoundDown(buffer_byte_length - own_byte_offset, own_element_size);
     }
     // GSAB-backed TypedArrays can't be out of bounds.
     size_t buffer_byte_length =
         buffer()->GetBackingStore()->byte_length(std::memory_order_seq_cst);
     SBXCHECK(own_byte_offset <= buffer_byte_length);
-    return buffer_byte_length - own_byte_offset;
+    // Round down to the nearest multiple of element size.
+    return RoundDown(buffer_byte_length - own_byte_offset, own_element_size);
   }
   DCHECK(is_backed_by_rab());
   size_t own_byte_length = byte_length();
