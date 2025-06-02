@@ -481,35 +481,19 @@ MessageTemplate ToMessageTemplate(simdutf::error_code error) {
 }
 
 template <typename T>
-Maybe<simdutf::result> ArrayBufferFromBase64(
-    Isolate* isolate, T input_vector, size_t input_length,
-    simdutf::base64_options alphabet,
+std::unique_ptr<char[]> ArrayBufferFromBase64(
+    T input_vector, size_t input_length, simdutf::base64_options alphabet,
     simdutf::last_chunk_handling_options last_chunk_handling,
-    DirectHandle<JSArrayBuffer>& buffer, size_t& output_length) {
-  const char method_name[] = "Uint8Array.fromBase64";
-
+    simdutf::result& simd_result, size_t& output_length) {
   output_length = simdutf::maximal_binary_length_from_base64(
       reinterpret_cast<const T>(input_vector), input_length);
   std::unique_ptr<char[]> output = std::make_unique<char[]>(output_length);
-  simdutf::result simd_result = simdutf::base64_to_binary_safe(
+  simd_result = simdutf::base64_to_binary_safe(
       reinterpret_cast<const T>(input_vector), input_length, output.get(),
-      output_length, alphabet, last_chunk_handling);
+      output_length, alphabet, last_chunk_handling,
+      /*decode_up_to_bad_char*/ true);
 
-  {
-    AllowGarbageCollection gc;
-    MaybeDirectHandle<JSArrayBuffer> result_buffer =
-        isolate->factory()->NewJSArrayBufferAndBackingStore(
-            output_length, InitializedFlag::kUninitialized);
-    if (!result_buffer.ToHandle(&buffer)) {
-      isolate->Throw(*isolate->factory()->NewRangeError(
-          MessageTemplate::kOutOfMemory,
-          isolate->factory()->NewStringFromAsciiChecked(method_name)));
-      return Nothing<simdutf::result>();
-    }
-
-    memcpy(buffer->backing_store(), output.get(), output_length);
-  }
-  return Just<simdutf::result>(simd_result);
+  return output;
 }
 
 template <typename T>
@@ -541,6 +525,7 @@ simdutf::result ArrayBufferSetFromBase64(
 BUILTIN(Uint8ArrayFromBase64) {
   HandleScope scope(isolate);
   isolate->CountUsage(v8::Isolate::kUint8ArrayToFromBase64AndHex);
+  const char method_name[] = "Uint8Array.fromBase64";
 
   // 1. If string is not a String, throw a TypeError exception.
   DirectHandle<Object> input = args.atOrUndefined(isolate, 1);
@@ -564,9 +549,10 @@ BUILTIN(Uint8ArrayFromBase64) {
 
   // 9. Let result be ? FromBase64(string, alphabet, lastChunkHandling).
   size_t input_length;
-  size_t output_length;
+  size_t output_length = 0;
   simdutf::result simd_result;
   DirectHandle<JSArrayBuffer> buffer;
+  std::unique_ptr<char[]> output;
   {
     DisallowGarbageCollection no_gc;
     String::FlatContent input_content = input_string->GetFlatContent(no_gc);
@@ -574,23 +560,29 @@ BUILTIN(Uint8ArrayFromBase64) {
       const unsigned char* input_vector =
           input_content.ToOneByteVector().data();
       input_length = input_content.ToOneByteVector().size();
-      MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, simd_result,
-          ArrayBufferFromBase64(isolate,
-                                reinterpret_cast<const char*>(input_vector),
-                                input_length, options_pair.first,
-                                options_pair.second, buffer, output_length));
+      output = ArrayBufferFromBase64(
+          reinterpret_cast<const char*>(input_vector), input_length,
+          options_pair.first, options_pair.second, simd_result, output_length);
     } else {
       const base::uc16* input_vector = input_content.ToUC16Vector().data();
       input_length = input_content.ToUC16Vector().size();
-      MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, simd_result,
-          ArrayBufferFromBase64(isolate,
-                                reinterpret_cast<const char16_t*>(input_vector),
-                                input_length, options_pair.first,
-                                options_pair.second, buffer, output_length));
+      output = ArrayBufferFromBase64(
+          reinterpret_cast<const char16_t*>(input_vector), input_length,
+          options_pair.first, options_pair.second, simd_result, output_length);
     }
   }
+
+  MaybeDirectHandle<JSArrayBuffer> result_buffer =
+      isolate->factory()->NewJSArrayBufferAndBackingStore(
+          output_length, InitializedFlag::kUninitialized);
+  if (!result_buffer.ToHandle(&buffer)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kOutOfMemory,
+                               isolate->factory()->NewStringFromAsciiChecked(
+                                   method_name)));
+  }
+
+  memcpy(buffer->backing_store(), output.get(), output_length);
 
   // 10. If result.[[Error]] is not none, then
   //    a. Throw result.[[Error]].
