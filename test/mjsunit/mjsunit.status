@@ -72,6 +72,9 @@
   'wasm/shared-memory-worker-gc': [PASS, SLOW],
   'wasm/shared-memory-worker-gc-stress': [PASS, SLOW],
 
+  # Requires throwing exception due to stack overflow.
+  'maglev/regress-421228426': [PASS, SLOW, ['mode == debug', SKIP]],
+
   # https://crbug.com/1129854
   'tools/log': ['arch == arm or arch == arm64', SKIP],
 
