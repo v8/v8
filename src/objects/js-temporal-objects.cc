@@ -334,6 +334,15 @@ Maybe<temporal_rs::Precision> GetTemporalFractionalSecondDigitsOption(
 }
 
 // #sec-temporal-GetTemporalUnitvaluedoption
+//
+// Utility function for getting Unit options off of an object
+//
+// Temporal distinguishes between unset units and Auto, even when
+// "default_is_required=false", so we return a Maybe<optional>, with the outer
+// Maybe signaling error states, and the inner optional signaling absence, which
+// can directly be consumed by temporal_rs
+//
+// # extraValues
 // In the spec text, the extraValues is defined as an optional argument of
 // "a List of ECMAScript language values". Most of the caller does not pass in
 // value for extraValues, which is represented by the default
@@ -347,12 +356,11 @@ Maybe<temporal_rs::Precision> GetTemporalFractionalSecondDigitsOption(
 // Therefore we can simply use a Unit of three possible value, the default
 // Unit::NotPresent, Unit::Day, and
 // Unit::Auto to cover all the possible value for extraValues.
-Maybe<Unit> GetTemporalUnit(Isolate* isolate,
-                            DirectHandle<JSReceiver> normalized_options,
-                            const char* key, UnitGroup unit_group,
-                            std::optional<Unit> default_value,
-                            bool default_is_required, const char* method_name,
-                            std::optional<Unit> extra_values = std::nullopt) {
+Maybe<std::optional<Unit>> GetTemporalUnit(
+    Isolate* isolate, DirectHandle<JSReceiver> normalized_options,
+    const char* key, UnitGroup unit_group, std::optional<Unit> default_value,
+    bool default_is_required, const char* method_name,
+    std::optional<Unit> extra_values = std::nullopt) {
   std::vector<const char*> str_values;
   std::vector<std::optional<Unit>> enum_values;
   switch (unit_group) {
@@ -462,7 +470,7 @@ Maybe<Unit> GetTemporalUnit(Isolate* isolate,
       GetStringOption<std::optional<Unit>>(isolate, normalized_options, key,
                                            method_name, str_values, enum_values,
                                            default_value),
-      Nothing<Unit>());
+      Nothing<std::optional<Unit>>());
 
   // 10. If value is undefined and default is required, throw a RangeError
   // exception.
@@ -474,11 +482,14 @@ Maybe<Unit> GetTemporalUnit(Isolate* isolate,
             isolate->factory()->undefined_value(),
             isolate->factory()->NewStringFromAsciiChecked(method_name),
             isolate->factory()->NewStringFromAsciiChecked(key)),
-        Nothing<Unit>());
+        Nothing<std::optional<Unit>>());
   }
   // 12. Return value.
-
-  return Just(value.value());
+  if (value.has_value()) {
+    return Just<std::optional<Unit>>((Unit)value.value());
+  } else {
+    return Just<std::optional<Unit>>(std::nullopt);
+  }
 }
 
 // #sec-temporal-getroundingincrementoption
@@ -542,7 +553,7 @@ Maybe<temporal_rs::DifferenceSettings> GetDifferenceSettingsWithoutChecks(
 
   // 2. Let largestUnit be ?GetTemporalUnitValuedOption(options, "largestUnit",
   // unitGroup, auto).
-  Unit largest_unit;
+  std::optional<Unit> largest_unit;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, largest_unit,
       GetTemporalUnit(isolate, options, "largestUnit", unit_group, Unit::Auto,
@@ -571,7 +582,7 @@ Maybe<temporal_rs::DifferenceSettings> GetDifferenceSettingsWithoutChecks(
 
   // 7. Let smallestUnit be ?GetTemporalUnitValuedOption(options,
   // "smallestUnit", unitGroup, fallbackSmallestUnit).
-  Unit smallest_unit;
+  std::optional<Unit> smallest_unit;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, largest_unit,
       GetTemporalUnit(isolate, options, "smallestUnit", unit_group,
@@ -1052,7 +1063,7 @@ MaybeDirectHandle<String> JSTemporalDuration::ToString(
   // 7. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions,
   // "smallestUnit", time, unset).
 
-  Unit smallest_unit;
+  std::optional<Unit> smallest_unit;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, smallest_unit,
       temporal::GetTemporalUnit(isolate, options, "smallestUnit",
@@ -2058,7 +2069,7 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Round(
 
   // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo,
   // "smallestUnit", time, required
-  Unit smallest_unit;
+  std::optional<Unit> smallest_unit;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, smallest_unit,
       temporal::GetTemporalUnit(isolate, round_to, "smallestUnit",
@@ -2161,7 +2172,7 @@ MaybeDirectHandle<String> JSTemporalInstant::ToString(
 
   // 7. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions,
   // "smallestUnit", time, unset).
-  Unit smallest_unit;
+  std::optional<Unit> smallest_unit;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, smallest_unit,
       temporal::GetTemporalUnit(isolate, options, "smallestUnit",
