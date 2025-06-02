@@ -112,9 +112,11 @@ Maybe<JSDateTimeFormat::HourCycle> GetHourCycle(
     Isolate* isolate, DirectHandle<JSReceiver> options,
     const char* method_name) {
   return GetStringOption<JSDateTimeFormat::HourCycle>(
-      isolate, options, "hourCycle", method_name, {"h11", "h12", "h23", "h24"},
-      {JSDateTimeFormat::HourCycle::kH11, JSDateTimeFormat::HourCycle::kH12,
-       JSDateTimeFormat::HourCycle::kH23, JSDateTimeFormat::HourCycle::kH24},
+      isolate, options, "hourCycle", method_name,
+      std::array{"h11", "h12", "h23", "h24"},
+      std::array{
+          JSDateTimeFormat::HourCycle::kH11, JSDateTimeFormat::HourCycle::kH12,
+          JSDateTimeFormat::HourCycle::kH23, JSDateTimeFormat::HourCycle::kH24},
       JSDateTimeFormat::HourCycle::kUndefined);
 }
 
@@ -2010,11 +2012,10 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
 
   std::unique_ptr<char[]> calendar_str = nullptr;
   std::unique_ptr<char[]> numbering_system_str = nullptr;
-  const std::vector<const char*> empty_values = {};
   // 6. Let calendar be ? GetOption(options, "calendar",
   //    "string", undefined, undefined).
   Maybe<bool> maybe_calendar = GetStringOption(
-      isolate, options, "calendar", empty_values, service, &calendar_str);
+      isolate, options, "calendar", std::span<char*>(), service, &calendar_str);
   MAYBE_RETURN(maybe_calendar, {});
   if (maybe_calendar.FromJust() && calendar_str != nullptr) {
     icu::Locale default_locale;
@@ -2241,8 +2242,10 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   //     «  "basic", "best fit" », "best fit").
   Maybe<FormatMatcherOption> maybe_format_matcher =
       GetStringOption<FormatMatcherOption>(
-          isolate, options, "formatMatcher", service, {"best fit", "basic"},
-          {FormatMatcherOption::kBestFit, FormatMatcherOption::kBasic},
+          isolate, options, "formatMatcher", service,
+          std::array{"best fit", "basic"},
+          std::array{FormatMatcherOption::kBestFit,
+                     FormatMatcherOption::kBasic},
           FormatMatcherOption::kBestFit);
   MAYBE_RETURN(maybe_format_matcher, {});
   // TODO(ftang): uncomment the following line and handle format_matcher.
@@ -2252,9 +2255,9 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   // "full", "long", "medium", "short" », undefined).
   Maybe<DateTimeStyle> maybe_date_style = GetStringOption<DateTimeStyle>(
       isolate, options, "dateStyle", service,
-      {"full", "long", "medium", "short"},
-      {DateTimeStyle::kFull, DateTimeStyle::kLong, DateTimeStyle::kMedium,
-       DateTimeStyle::kShort},
+      std::array{"full", "long", "medium", "short"},
+      std::array{DateTimeStyle::kFull, DateTimeStyle::kLong,
+                 DateTimeStyle::kMedium, DateTimeStyle::kShort},
       DateTimeStyle::kUndefined);
   MAYBE_RETURN(maybe_date_style, {});
   // 33. Set dateTimeFormat.[[DateStyle]] to dateStyle.
@@ -2264,9 +2267,9 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   // "full", "long", "medium", "short" »).
   Maybe<DateTimeStyle> maybe_time_style = GetStringOption<DateTimeStyle>(
       isolate, options, "timeStyle", service,
-      {"full", "long", "medium", "short"},
-      {DateTimeStyle::kFull, DateTimeStyle::kLong, DateTimeStyle::kMedium,
-       DateTimeStyle::kShort},
+      std::array{"full", "long", "medium", "short"},
+      std::array{DateTimeStyle::kFull, DateTimeStyle::kLong,
+                 DateTimeStyle::kMedium, DateTimeStyle::kShort},
       DateTimeStyle::kUndefined);
   MAYBE_RETURN(maybe_time_style, {});
 

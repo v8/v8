@@ -366,95 +366,113 @@ Maybe<std::optional<Unit>> GetTemporalUnit(
     const char* key, UnitGroup unit_group, std::optional<Unit> default_value,
     bool default_is_required, const char* method_name,
     std::optional<Unit> extra_values = std::nullopt) {
-  std::vector<const char*> str_values;
-  std::vector<std::optional<Unit>> enum_values;
+  std::span<const char* const> str_values;
+  std::span<const std::optional<Unit::Value>> enum_values;
   switch (unit_group) {
     case UnitGroup::kDate:
       if (default_value == Unit::Auto || extra_values == Unit::Auto) {
-        str_values = {"year",  "month",  "week",  "day", "auto",
-                      "years", "months", "weeks", "days"};
-        enum_values = {Unit::Year,  Unit::Month, Unit::Week,
-                       Unit::Day,   Unit::Auto,  Unit::Year,
-                       Unit::Month, Unit::Week,  Unit::Day};
+        static auto strs = std::array{"year",  "month",  "week",  "day", "auto",
+                                      "years", "months", "weeks", "days"};
+        static auto enums = std::to_array<const std::optional<Unit::Value>>(
+            {Unit::Year, Unit::Month, Unit::Week, Unit::Day, Unit::Auto,
+             Unit::Year, Unit::Month, Unit::Week, Unit::Day});
+        str_values = strs;
+        enum_values = enums;
       } else {
         DCHECK(default_value == std::nullopt || default_value == Unit::Year ||
                default_value == Unit::Month || default_value == Unit::Week ||
                default_value == Unit::Day);
-        str_values = {"year",  "month",  "week",  "day",
-                      "years", "months", "weeks", "days"};
-        enum_values = {Unit::Year, Unit::Month, Unit::Week, Unit::Day,
-                       Unit::Year, Unit::Month, Unit::Week, Unit::Day};
+        static auto strs = std::array{"year",  "month",  "week",  "day",
+                                      "years", "months", "weeks", "days"};
+        static auto enums = std::to_array<const std::optional<Unit::Value>>(
+            {Unit::Year, Unit::Month, Unit::Week, Unit::Day, Unit::Year,
+             Unit::Month, Unit::Week, Unit::Day});
+        str_values = strs;
+        enum_values = enums;
       }
       break;
     case UnitGroup::kTime:
       if (default_value == Unit::Auto || extra_values == Unit::Auto) {
-        str_values = {"hour",        "minute",       "second",
-                      "millisecond", "microsecond",  "nanosecond",
-                      "auto",        "hours",        "minutes",
-                      "seconds",     "milliseconds", "microseconds",
-                      "nanoseconds"};
-        enum_values = {Unit::Hour,        Unit::Minute,      Unit::Second,
-                       Unit::Millisecond, Unit::Microsecond, Unit::Nanosecond,
-                       Unit::Auto,        Unit::Hour,        Unit::Minute,
-                       Unit::Second,      Unit::Millisecond, Unit::Microsecond,
-                       Unit::Nanosecond};
+        static auto strs = std::array{
+            "hour",        "minute",     "second",       "millisecond",
+            "microsecond", "nanosecond", "auto",         "hours",
+            "minutes",     "seconds",    "milliseconds", "microseconds",
+            "nanoseconds"};
+        static auto enums = std::to_array<const std::optional<Unit::Value>>(
+            {Unit::Hour, Unit::Minute, Unit::Second, Unit::Millisecond,
+             Unit::Microsecond, Unit::Nanosecond, Unit::Auto, Unit::Hour,
+             Unit::Minute, Unit::Second, Unit::Millisecond, Unit::Microsecond,
+             Unit::Nanosecond});
+        str_values = strs;
+        enum_values = enums;
       } else if (default_value == Unit::Day || extra_values == Unit::Day) {
-        str_values = {"hour",        "minute",       "second",
-                      "millisecond", "microsecond",  "nanosecond",
-                      "day",         "hours",        "minutes",
-                      "seconds",     "milliseconds", "microseconds",
-                      "nanoseconds", "days"};
-        enum_values = {Unit::Hour,        Unit::Minute,      Unit::Second,
-                       Unit::Millisecond, Unit::Microsecond, Unit::Nanosecond,
-                       Unit::Day,         Unit::Hour,        Unit::Minute,
-                       Unit::Second,      Unit::Millisecond, Unit::Microsecond,
-                       Unit::Nanosecond,  Unit::Day};
+        static auto strs = std::array{
+            "hour",        "minute",     "second",       "millisecond",
+            "microsecond", "nanosecond", "day",          "hours",
+            "minutes",     "seconds",    "milliseconds", "microseconds",
+            "nanoseconds", "days"};
+        static auto enums = std::to_array<const std::optional<Unit::Value>>(
+            {Unit::Hour, Unit::Minute, Unit::Second, Unit::Millisecond,
+             Unit::Microsecond, Unit::Nanosecond, Unit::Day, Unit::Hour,
+             Unit::Minute, Unit::Second, Unit::Millisecond, Unit::Microsecond,
+             Unit::Nanosecond, Unit::Day});
+        str_values = strs;
+        enum_values = enums;
       } else {
         DCHECK(default_value == std::nullopt || default_value == Unit::Hour ||
                default_value == Unit::Minute || default_value == Unit::Second ||
                default_value == Unit::Millisecond ||
                default_value == Unit::Microsecond ||
                default_value == Unit::Nanosecond);
-        str_values = {"hour",         "minute",       "second",
-                      "millisecond",  "microsecond",  "nanosecond",
-                      "hours",        "minutes",      "seconds",
-                      "milliseconds", "microseconds", "nanoseconds"};
-        enum_values = {Unit::Hour,        Unit::Minute,      Unit::Second,
-                       Unit::Millisecond, Unit::Microsecond, Unit::Nanosecond,
-                       Unit::Hour,        Unit::Minute,      Unit::Second,
-                       Unit::Millisecond, Unit::Microsecond, Unit::Nanosecond};
+        static auto strs = std::array{
+            "hour",        "minute",       "second",       "millisecond",
+            "microsecond", "nanosecond",   "hours",        "minutes",
+            "seconds",     "milliseconds", "microseconds", "nanoseconds"};
+        static auto enums = std::to_array<const std::optional<Unit::Value>>(
+            {Unit::Hour, Unit::Minute, Unit::Second, Unit::Millisecond,
+             Unit::Microsecond, Unit::Nanosecond, Unit::Hour, Unit::Minute,
+             Unit::Second, Unit::Millisecond, Unit::Microsecond,
+             Unit::Nanosecond});
+        str_values = strs;
+        enum_values = enums;
       }
       break;
     case UnitGroup::kDateTime:
       if (default_value == Unit::Auto || extra_values == Unit::Auto) {
-        str_values = {"year",         "month",        "week",
-                      "day",          "hour",         "minute",
-                      "second",       "millisecond",  "microsecond",
-                      "nanosecond",   "auto",         "years",
-                      "months",       "weeks",        "days",
-                      "hours",        "minutes",      "seconds",
-                      "milliseconds", "microseconds", "nanoseconds"};
-        enum_values = {Unit::Year,        Unit::Month,       Unit::Week,
-                       Unit::Day,         Unit::Hour,        Unit::Minute,
-                       Unit::Second,      Unit::Millisecond, Unit::Microsecond,
-                       Unit::Nanosecond,  Unit::Auto,        Unit::Year,
-                       Unit::Month,       Unit::Week,        Unit::Day,
-                       Unit::Hour,        Unit::Minute,      Unit::Second,
-                       Unit::Millisecond, Unit::Microsecond, Unit::Nanosecond};
+        static auto strs = std::array{
+            "year",        "month",      "week",         "day",
+            "hour",        "minute",     "second",       "millisecond",
+            "microsecond", "nanosecond", "auto",         "years",
+            "months",      "weeks",      "days",         "hours",
+            "minutes",     "seconds",    "milliseconds", "microseconds",
+            "nanoseconds"};
+        static auto enums = std::to_array<const std::optional<Unit::Value>>(
+            {Unit::Year,        Unit::Month,       Unit::Week,
+             Unit::Day,         Unit::Hour,        Unit::Minute,
+             Unit::Second,      Unit::Millisecond, Unit::Microsecond,
+             Unit::Nanosecond,  Unit::Auto,        Unit::Year,
+             Unit::Month,       Unit::Week,        Unit::Day,
+             Unit::Hour,        Unit::Minute,      Unit::Second,
+             Unit::Millisecond, Unit::Microsecond, Unit::Nanosecond});
+        str_values = strs;
+        enum_values = enums;
       } else {
-        str_values = {
+        static auto strs = std::array{
             "year",        "month",        "week",         "day",
             "hour",        "minute",       "second",       "millisecond",
             "microsecond", "nanosecond",   "years",        "months",
             "weeks",       "days",         "hours",        "minutes",
             "seconds",     "milliseconds", "microseconds", "nanoseconds"};
-        enum_values = {Unit::Year,        Unit::Month,       Unit::Week,
-                       Unit::Day,         Unit::Hour,        Unit::Minute,
-                       Unit::Second,      Unit::Millisecond, Unit::Microsecond,
-                       Unit::Nanosecond,  Unit::Year,        Unit::Month,
-                       Unit::Week,        Unit::Day,         Unit::Hour,
-                       Unit::Minute,      Unit::Second,      Unit::Millisecond,
-                       Unit::Microsecond, Unit::Nanosecond};
+        static auto enums = std::to_array<const std::optional<Unit::Value>>(
+            {Unit::Year,        Unit::Month,       Unit::Week,
+             Unit::Day,         Unit::Hour,        Unit::Minute,
+             Unit::Second,      Unit::Millisecond, Unit::Microsecond,
+             Unit::Nanosecond,  Unit::Year,        Unit::Month,
+             Unit::Week,        Unit::Day,         Unit::Hour,
+             Unit::Minute,      Unit::Second,      Unit::Millisecond,
+             Unit::Microsecond, Unit::Nanosecond});
+        str_values = strs;
+        enum_values = enums;
       }
       break;
   }
@@ -469,12 +487,12 @@ Maybe<std::optional<Unit>> GetTemporalUnit(
 
   // 9. Let value be ? GetOption(normalizedOptions, key, "string",
   // allowedValues, defaultValue).
-  std::optional<Unit> value;
+  std::optional<Unit::Value> value;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, value,
-      GetStringOption<std::optional<Unit>>(isolate, normalized_options, key,
-                                           method_name, str_values, enum_values,
-                                           default_value),
+      GetStringOption<std::optional<Unit::Value>>(isolate, normalized_options,
+                                                  key, method_name, str_values,
+                                                  enum_values, default_value),
       Nothing<std::optional<Unit>>());
 
   // 10. If value is undefined and default is required, throw a RangeError
@@ -532,15 +550,16 @@ Maybe<RoundingMode> GetRoundingModeOption(Isolate* isolate,
   // "ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor", "halfExpand",
   // "halfTrunc", "halfEven" », fallback).
 
-  return GetStringOption<RoundingMode>(
-      isolate, options, "roundingMode", method_name,
-      {"ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
-       "halfExpand", "halfTrunc", "halfEven"},
+  static const auto values = std::to_array<RoundingMode>(
       {RoundingMode::Ceil, RoundingMode::Floor, RoundingMode::Expand,
        RoundingMode::Trunc, RoundingMode::HalfCeil, RoundingMode::HalfFloor,
        RoundingMode::HalfExpand, RoundingMode::HalfTrunc,
-       RoundingMode::HalfEven},
-      fallback);
+       RoundingMode::HalfEven});
+  return GetStringOption<RoundingMode>(
+      isolate, options, "roundingMode", method_name,
+      std::array{"ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
+                 "halfExpand", "halfTrunc", "halfEven"},
+      values, fallback);
 }
 
 // #sec-temporal-getdifferencesettings

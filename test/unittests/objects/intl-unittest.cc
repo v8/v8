@@ -149,7 +149,7 @@ TEST_F(IntlTest, GetStringOption) {
     // No value found
     std::unique_ptr<char[]> result = nullptr;
     Maybe<bool> found =
-        GetStringOption(i_isolate(), options, "foo", std::vector<const char*>{},
+        GetStringOption(i_isolate(), options, "foo", std::span<const char*>(),
                         "service", &result);
     CHECK(!found.FromJust());
     CHECK_NULL(result);
@@ -167,7 +167,7 @@ TEST_F(IntlTest, GetStringOption) {
     // Value found
     std::unique_ptr<char[]> result = nullptr;
     Maybe<bool> found =
-        GetStringOption(i_isolate(), options, "foo", std::vector<const char*>{},
+        GetStringOption(i_isolate(), options, "foo", std::span<const char*>(),
                         "service", &result);
     CHECK(found.FromJust());
     CHECK_NOT_NULL(result);
@@ -177,9 +177,8 @@ TEST_F(IntlTest, GetStringOption) {
   {
     // No expected value in values array
     std::unique_ptr<char[]> result = nullptr;
-    Maybe<bool> found =
-        GetStringOption(i_isolate(), options, "foo",
-                        std::vector<const char*>{"bar"}, "service", &result);
+    Maybe<bool> found = GetStringOption(i_isolate(), options, "foo",
+                                        std::array{"bar"}, "service", &result);
     CHECK(i_isolate()->has_exception());
     CHECK(found.IsNothing());
     CHECK_NULL(result);
@@ -189,9 +188,8 @@ TEST_F(IntlTest, GetStringOption) {
   {
     // Expected value in values array
     std::unique_ptr<char[]> result = nullptr;
-    Maybe<bool> found =
-        GetStringOption(i_isolate(), options, "foo",
-                        std::vector<const char*>{"42"}, "service", &result);
+    Maybe<bool> found = GetStringOption(i_isolate(), options, "foo",
+                                        std::array{"42"}, "service", &result);
     CHECK(found.FromJust());
     CHECK_NOT_NULL(result);
     CHECK_EQ(0, strcmp("42", result.get()));

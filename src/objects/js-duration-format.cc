@@ -87,8 +87,8 @@ Maybe<DurationUnitOptions> GetDurationUnitOptions(
     Isolate* isolate, Unit unit, const char* unit_string,
     const char* display_field, DirectHandle<JSReceiver> options,
     JSDurationFormat::Style base_style,
-    const std::vector<const char*>& value_strings,
-    const std::vector<JSDurationFormat::FieldStyle>& value_enums,
+    const std::span<const char* const> value_strings,
+    const std::span<const JSDurationFormat::FieldStyle> value_enums,
     JSDurationFormat::FieldStyle digital_base,
     JSDurationFormat::FieldStyle prev_style) {
   const char* method_name = "Intl.DurationFormat";
@@ -170,9 +170,10 @@ Maybe<DurationUnitOptions> GetDurationUnitOptions(
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, display,
       GetStringOption<JSDurationFormat::Display>(
-          isolate, options, display_field, method_name, {"auto", "always"},
-          {JSDurationFormat::Display::kAuto,
-           JSDurationFormat::Display::kAlways},
+          isolate, options, display_field, method_name,
+          std::array{"auto", "always"},
+          std::array{JSDurationFormat::Display::kAuto,
+                     JSDurationFormat::Display::kAlways},
           display_default),
       Nothing<DurationUnitOptions>());
   // 7. If display is "always" and style is "fractional", then
@@ -324,11 +325,11 @@ MaybeDirectHandle<JSDurationFormat> JSDurationFormat::New(
   Style style;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, style,
-      GetStringOption<Style>(
-          isolate, options, "style", method_name,
-          {"long", "short", "narrow", "digital"},
-          {Style::kLong, Style::kShort, Style::kNarrow, Style::kDigital},
-          Style::kShort),
+      GetStringOption<Style>(isolate, options, "style", method_name,
+                             std::array{"long", "short", "narrow", "digital"},
+                             std::array{Style::kLong, Style::kShort,
+                                        Style::kNarrow, Style::kDigital},
+                             Style::kShort),
       DirectHandle<JSDurationFormat>());
 
   // 14. Set durationFormat.[[Style]] to style.

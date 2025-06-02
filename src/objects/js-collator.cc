@@ -47,8 +47,9 @@ Maybe<CaseFirst> GetCaseFirst(Isolate* isolate,
                               DirectHandle<JSReceiver> options,
                               const char* method_name) {
   return GetStringOption<CaseFirst>(
-      isolate, options, "caseFirst", method_name, {"upper", "lower", "false"},
-      {CaseFirst::kUpper, CaseFirst::kLower, CaseFirst::kFalse},
+      isolate, options, "caseFirst", method_name,
+      std::array{"upper", "lower", "false"},
+      std::array{CaseFirst::kUpper, CaseFirst::kLower, CaseFirst::kFalse},
       CaseFirst::kUndefined);
 }
 
@@ -296,8 +297,8 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
   // 4. Let usage be ? GetOption(options, "usage", "string", « "sort",
   // "search" », "sort").
   Maybe<Usage> maybe_usage = GetStringOption<Usage>(
-      isolate, options, "usage", service, {"sort", "search"},
-      {Usage::SORT, Usage::SEARCH}, Usage::SORT);
+      isolate, options, "usage", service, std::array{"sort", "search"},
+      std::array{Usage::SORT, Usage::SEARCH}, Usage::SORT);
   MAYBE_RETURN(maybe_usage, MaybeHandle<JSCollator>());
   Usage usage = maybe_usage.FromJust();
 
@@ -312,9 +313,9 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
   // x. Let _collation_ be ? GetOption(_options_, *"collation"*, *"string"*,
   // *undefined*, *undefined*).
   std::unique_ptr<char[]> collation_str = nullptr;
-  const std::vector<const char*> empty_values = {};
-  Maybe<bool> maybe_collation = GetStringOption(
-      isolate, options, "collation", empty_values, service, &collation_str);
+  Maybe<bool> maybe_collation =
+      GetStringOption(isolate, options, "collation", std::span<const char*>(),
+                      service, &collation_str);
   MAYBE_RETURN(maybe_collation, MaybeHandle<JSCollator>());
   // x. If _collation_ is not *undefined*, then
   if (maybe_collation.FromJust() && collation_str != nullptr) {
@@ -479,12 +480,12 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
 
   // 24. Let sensitivity be ? GetOption(options, "sensitivity",
   // "string", « "base", "accent", "case", "variant" », undefined).
-  Maybe<Sensitivity> maybe_sensitivity =
-      GetStringOption<Sensitivity>(isolate, options, "sensitivity", service,
-                                   {"base", "accent", "case", "variant"},
-                                   {Sensitivity::kBase, Sensitivity::kAccent,
-                                    Sensitivity::kCase, Sensitivity::kVariant},
-                                   Sensitivity::kUndefined);
+  Maybe<Sensitivity> maybe_sensitivity = GetStringOption<Sensitivity>(
+      isolate, options, "sensitivity", service,
+      std::array{"base", "accent", "case", "variant"},
+      std::array{Sensitivity::kBase, Sensitivity::kAccent, Sensitivity::kCase,
+                 Sensitivity::kVariant},
+      Sensitivity::kUndefined);
   MAYBE_RETURN(maybe_sensitivity, MaybeHandle<JSCollator>());
   Sensitivity sensitivity = maybe_sensitivity.FromJust();
 

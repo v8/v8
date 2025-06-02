@@ -69,8 +69,9 @@ MaybeDirectHandle<JSSegmenter> JSSegmenter::New(
   // "grapheme", "word", "sentence" », "grapheme").
   Maybe<Granularity> maybe_granularity = GetStringOption<Granularity>(
       isolate, options, "granularity", service,
-      {"grapheme", "word", "sentence"},
-      {Granularity::GRAPHEME, Granularity::WORD, Granularity::SENTENCE},
+      std::array{"grapheme", "word", "sentence"},
+      std::array{Granularity::GRAPHEME, Granularity::WORD,
+                 Granularity::SENTENCE},
       Granularity::GRAPHEME);
   MAYBE_RETURN(maybe_granularity, MaybeDirectHandle<JSSegmenter>());
   Granularity granularity_enum = maybe_granularity.FromJust();

@@ -40,7 +40,7 @@ namespace {
 struct OptionData {
   const char* name;
   const char* key;
-  const std::vector<const char*>* possible_values;
+  const std::span<const char* const> possible_values;
   bool is_bool_value;
 };
 struct ValueAndType {
@@ -54,19 +54,17 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
                                     icu::LocaleBuilder* builder) {
   DCHECK(isolate);
 
-  const std::vector<const char*> hour_cycle_values = {"h11", "h12", "h23",
-                                                      "h24"};
-  const std::vector<const char*> case_first_values = {"upper", "lower",
-                                                      "false"};
-  const std::vector<const char*> empty_values = {};
+  static const auto hour_cycle_values = std::array{"h11", "h12", "h23", "h24"};
+  static const auto case_first_values = std::array{"upper", "lower", "false"};
+  const auto empty_values = std::span<char*>();
   const std::array<OptionData, 7> kOptionToUnicodeTagMap = {
-      {{"calendar", "ca", &empty_values, false},
-       {"collation", "co", &empty_values, false},
-       {"firstDayOfWeek", "fw", &empty_values, false},
-       {"hourCycle", "hc", &hour_cycle_values, false},
-       {"caseFirst", "kf", &case_first_values, false},
-       {"numeric", "kn", &empty_values, true},
-       {"numberingSystem", "nu", &empty_values, false}}};
+      {{"calendar", "ca", empty_values, false},
+       {"collation", "co", empty_values, false},
+       {"firstDayOfWeek", "fw", empty_values, false},
+       {"hourCycle", "hc", hour_cycle_values, false},
+       {"caseFirst", "kf", case_first_values, false},
+       {"numeric", "kn", empty_values, true},
+       {"numberingSystem", "nu", empty_values, false}}};
 
   // TODO(cira): Pass in values as per the spec to make this to be
   // spec compliant.
@@ -79,7 +77,7 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
             ? GetBoolOption(isolate, options, option_to_bcp47.name, "locale",
                             &value_bool)
             : GetStringOption(isolate, options, option_to_bcp47.name,
-                              *(option_to_bcp47.possible_values), "locale",
+                              option_to_bcp47.possible_values, "locale",
                               &value_str);
     MAYBE_RETURN(maybe_found, Nothing<bool>());
 
@@ -293,10 +291,9 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
 
   // 3. Let language be ? GetOption(options, "language", "string", undefined,
   // undefined).
-  const std::vector<const char*> empty_values = {};
   std::unique_ptr<char[]> language_str = nullptr;
   Maybe<bool> maybe_language =
-      GetStringOption(isolate, options, "language", empty_values,
+      GetStringOption(isolate, options, "language", std::span<const char*>(),
                       "ApplyOptionsToTag", &language_str);
   MAYBE_RETURN(maybe_language, Nothing<bool>());
   // 4. If language is not undefined, then
@@ -314,7 +311,7 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
   // undefined).
   std::unique_ptr<char[]> script_str = nullptr;
   Maybe<bool> maybe_script =
-      GetStringOption(isolate, options, "script", empty_values,
+      GetStringOption(isolate, options, "script", std::span<const char*>(),
                       "ApplyOptionsToTag", &script_str);
   MAYBE_RETURN(maybe_script, Nothing<bool>());
   // 6. If script is not undefined, then
@@ -331,7 +328,7 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
   // undefined).
   std::unique_ptr<char[]> region_str = nullptr;
   Maybe<bool> maybe_region =
-      GetStringOption(isolate, options, "region", empty_values,
+      GetStringOption(isolate, options, "region", std::span<const char*>(),
                       "ApplyOptionsToTag", &region_str);
   MAYBE_RETURN(maybe_region, Nothing<bool>());
   // 8. If region is not undefined, then

@@ -1653,12 +1653,13 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   // "halfTrunc", "halfEven" », "halfExpand").
   Maybe<RoundingMode> maybe_rounding_mode = GetStringOption<RoundingMode>(
       isolate, options, "roundingMode", service,
-      {"ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
-       "halfExpand", "halfTrunc", "halfEven"},
-      {RoundingMode::kCeil, RoundingMode::kFloor, RoundingMode::kExpand,
-       RoundingMode::kTrunc, RoundingMode::kHalfCeil, RoundingMode::kHalfFloor,
-       RoundingMode::kHalfExpand, RoundingMode::kHalfTrunc,
-       RoundingMode::kHalfEven},
+      std::array{"ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
+                 "halfExpand", "halfTrunc", "halfEven"},
+      std::array{RoundingMode::kCeil, RoundingMode::kFloor,
+                 RoundingMode::kExpand, RoundingMode::kTrunc,
+                 RoundingMode::kHalfCeil, RoundingMode::kHalfFloor,
+                 RoundingMode::kHalfExpand, RoundingMode::kHalfTrunc,
+                 RoundingMode::kHalfEven},
       RoundingMode::kHalfExpand);
   MAYBE_RETURN(maybe_rounding_mode, Nothing<NumberFormatDigitOptions>());
   digit_options.rounding_mode = maybe_rounding_mode.FromJust();
@@ -1669,9 +1670,9 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   Maybe<RoundingPriority> maybe_rounding_priority =
       GetStringOption<RoundingPriority>(
           isolate, options, "roundingPriority", service,
-          {"auto", "morePrecision", "lessPrecision"},
-          {RoundingPriority::kAuto, RoundingPriority::kMorePrecision,
-           RoundingPriority::kLessPrecision},
+          std::array{"auto", "morePrecision", "lessPrecision"},
+          std::array{RoundingPriority::kAuto, RoundingPriority::kMorePrecision,
+                     RoundingPriority::kLessPrecision},
           RoundingPriority::kAuto);
   MAYBE_RETURN(maybe_rounding_priority, Nothing<NumberFormatDigitOptions>());
   digit_options.rounding_priority = maybe_rounding_priority.FromJust();
@@ -1681,8 +1682,9 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   Maybe<TrailingZeroDisplay> maybe_trailing_zero_display =
       GetStringOption<TrailingZeroDisplay>(
           isolate, options, "trailingZeroDisplay", service,
-          {"auto", "stripIfInteger"},
-          {TrailingZeroDisplay::kAuto, TrailingZeroDisplay::kStripIfInteger},
+          std::array{"auto", "stripIfInteger"},
+          std::array{TrailingZeroDisplay::kAuto,
+                     TrailingZeroDisplay::kStripIfInteger},
           TrailingZeroDisplay::kAuto);
   MAYBE_RETURN(maybe_trailing_zero_display,
                Nothing<NumberFormatDigitOptions>());
@@ -2772,8 +2774,9 @@ Maybe<Intl::MatcherOption> Intl::GetLocaleMatcher(
     Isolate* isolate, DirectHandle<JSReceiver> options,
     const char* method_name) {
   return GetStringOption<Intl::MatcherOption>(
-      isolate, options, "localeMatcher", method_name, {"best fit", "lookup"},
-      {Intl::MatcherOption::kBestFit, Intl::MatcherOption::kLookup},
+      isolate, options, "localeMatcher", method_name,
+      std::array{"best fit", "lookup"},
+      std::array{Intl::MatcherOption::kBestFit, Intl::MatcherOption::kLookup},
       Intl::MatcherOption::kBestFit);
 }
 
@@ -2781,9 +2784,8 @@ Maybe<bool> Intl::GetNumberingSystem(Isolate* isolate,
                                      DirectHandle<JSReceiver> options,
                                      const char* method_name,
                                      std::unique_ptr<char[]>* result) {
-  const std::vector<const char*> empty_values = {};
   Maybe<bool> maybe = GetStringOption(isolate, options, "numberingSystem",
-                                      empty_values, method_name, result);
+                                      std::span<char*>{}, method_name, result);
   MAYBE_RETURN(maybe, Nothing<bool>());
   if (maybe.FromJust() && *result != nullptr) {
     if (!IsWellFormedNumberingSystem(result->get())) {
