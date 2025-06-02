@@ -104,10 +104,32 @@ class MaglevInliner {
       std::cout << "  non-eager inlining " << shared << std::endl;
     }
 
-    // Truncate the basic block and remove the generic call node.
+    // Check if the catch block might become unreachable, ie, the call is the
+    // only instance of a throwable node in this block to the same catch block.
+    ExceptionHandlerInfo* call_exception_handler_info =
+        call_node->exception_handler_info();
+    bool catch_block_might_be_unreachable = false;
+    if (call_exception_handler_info->HasExceptionHandler() &&
+        !call_exception_handler_info->ShouldLazyDeopt()) {
+      BasicBlock* catch_block = call_exception_handler_info->catch_block();
+      catch_block_might_be_unreachable = true;
+      for (ExceptionHandlerInfo* info : call_block->exception_handlers()) {
+        if (info != call_exception_handler_info &&
+            info->HasExceptionHandler() && !info->ShouldLazyDeopt() &&
+            info->catch_block() == catch_block) {
+          catch_block_might_be_unreachable = false;
+          break;
+        }
+      }
+    }
+
+    // Remove exception handler info from call block.
     ExceptionHandlerInfo::List rem_handlers_in_call_block;
-    call_block->exception_handlers().TruncateAt(
-        &rem_handlers_in_call_block, call_node->exception_handler_info());
+    call_block->exception_handlers().TruncateAt(&rem_handlers_in_call_block,
+                                                call_exception_handler_info);
+    rem_handlers_in_call_block.DropHead();
+
+    // Truncate the basic block and remove the generic call node.
     ZoneVector<Node*> rem_nodes_in_call_block =
         call_block->Split(call_node, zone());
 
@@ -193,6 +215,15 @@ class MaglevInliner {
 #endif  // DEBUG
     }
     call_node->OverwriteWithIdentityTo(returned_value);
+
+    // Remove unreachable catch block if no throwable nodes were added during
+    // inlining.
+    // TODO(victorgomes): Improve this: track if we didnt indeed add a throwable
+    // node.
+    if (catch_block_might_be_unreachable) {
+      RemoveUnreachableBlocks();
+    }
+
     return ReduceResult::Done();
   }
 
