@@ -458,6 +458,8 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
       }
     }
 
+    CHECK(local_weak_objects.current_ephemerons_local.IsLocalEmpty());
+
     local_marking_worklists.Publish();
     local_weak_objects.Publish();
     base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
