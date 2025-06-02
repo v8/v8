@@ -248,11 +248,6 @@ MaybeDirectHandle<JSType> ConstructRustWrappingType(
 
 DEFINE_ACCESSORS_FOR_RUST_WRAPPER(instant, JSTemporalInstant)
 DEFINE_ACCESSORS_FOR_RUST_WRAPPER(duration, JSTemporalDuration)
-DEFINE_ACCESSORS_FOR_RUST_WRAPPER(date, JSTemporalPlainDate)
-DEFINE_ACCESSORS_FOR_RUST_WRAPPER(date_time, JSTemporalPlainDateTime)
-DEFINE_ACCESSORS_FOR_RUST_WRAPPER(month_day, JSTemporalPlainMonthDay)
-DEFINE_ACCESSORS_FOR_RUST_WRAPPER(time, JSTemporalPlainTime)
-DEFINE_ACCESSORS_FOR_RUST_WRAPPER(year_month, JSTemporalPlainYearMonth)
 
 namespace temporal {
 

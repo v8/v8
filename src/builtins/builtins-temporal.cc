@@ -150,38 +150,16 @@ namespace internal {
 // name of the getter on the rust side (ideally the same as `field`). cvt is
 // conversion code that converts `value` into the final returned JS Handle (use
 // one of the macros below)
-#define TEMPORAL_GET_RUST(T, rust_field, METHOD, js_field, rust_getter, cvt) \
+#define TEMPORAL_GET_RUST(T, rust_field, METHOD, field, rust_getter, cvt)    \
   BUILTIN(Temporal##T##Prototype##METHOD) {                                  \
     HandleScope scope(isolate);                                              \
-    CHECK_RECEIVER(JSTemporal##T, obj,                                       \
-                   "Temporal." #T ".prototype." #js_field);                  \
+    CHECK_RECEIVER(JSTemporal##T, obj, "Temporal." #T ".prototype." #field); \
     auto value = obj->rust_field()->raw()->rust_getter();                    \
-    cvt                                                                      \
+    return std::move(cvt);                                                   \
   }
 
-#define CONVERT_INTEGER64 return *isolate->factory()->NewNumberFromInt64(value);
-#define CONVERT_SMI return Smi::FromInt(value);
-#define CONVERT_BOOLEAN return *isolate->factory()->ToBoolean(value);
-#define CONVERT_DOUBLE return *isolate->factory()->NewNumber(value);
-#define CONVERT_ASCII_STRING \
-  return *isolate->factory()->NewStringFromAsciiChecked(value);
-
-// converts nullopt to undefined
-#define CONVERT_NULLABLE_INTEGER                          \
-  if (value.has_value()) {                                \
-    return *isolate->factory()->NewNumber(value.value()); \
-  } else {                                                \
-    return *isolate->factory()->undefined_value();        \
-  }
-
-// temporal_rs returns errors in a couple spots where it should return
-// `undefined`
-#define CONVERT_FALLIBLE_INTEGER_AS_NULLABLE                              \
-  if (value.is_ok()) {                                                    \
-    return *isolate->factory()->NewNumber(std::move(value).ok().value()); \
-  } else {                                                                \
-    return *isolate->factory()->undefined_value();                        \
-  }
+#define CONVERT_INTEGER *isolate->factory()->NewNumberFromInt64(value)
+#define CONVERT_DOUBLE *isolate->factory()->NewNumber(value)
 
 #define TEMPORAL_GET_NUMBER_AFTER_DIVID(T, M, field, scale, name)        \
   BUILTIN(Temporal##T##Prototype##M) {                                   \
@@ -209,6 +187,12 @@ namespace internal {
                        BigInt::FromUint64(isolate, scale)));             \
   }
 
+#define TEMPORAL_GET_BY_FORWARD_CALENDAR(T, METHOD, name) \
+  BUILTIN(Temporal##T##Prototype##METHOD) { UNIMPLEMENTED(); }
+
+#define TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(T, METHOD, name) \
+  BUILTIN(Temporal##T##Prototype##METHOD) { UNIMPLEMENTED(); }
+
 // Now
 TEMPORAL_NOW0(Instant)
 TEMPORAL_NOW2(PlainDateTime)
@@ -235,31 +219,18 @@ BUILTIN(TemporalPlainDateConstructor) {
 }
 TEMPORAL_METHOD2(PlainDate, From)
 TEMPORAL_METHOD2(PlainDate, Compare)
-TEMPORAL_GET_RUST(PlainDate, date, Year, year, year, CONVERT_INTEGER64)
-TEMPORAL_GET_RUST(PlainDate, date, Era, era, era, CONVERT_ASCII_STRING)
-TEMPORAL_GET_RUST(PlainDate, date, EraYear, eraYear, era_year,
-                  CONVERT_NULLABLE_INTEGER)
-TEMPORAL_GET_RUST(PlainDate, date, Month, month, month, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDate, date, Day, day, day, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDate, date, MonthCode, monthCode, month_code,
-                  CONVERT_ASCII_STRING)
-TEMPORAL_GET_RUST(PlainDate, date, DayOfWeek, dayOfWeek, day_of_week,
-                  CONVERT_FALLIBLE_INTEGER_AS_NULLABLE)
-TEMPORAL_GET_RUST(PlainDate, date, DayOfYear, dayOfYear, day_of_year,
-                  CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDate, date, WeekOfYear, weekOfYear, week_of_year,
-                  CONVERT_NULLABLE_INTEGER)
-TEMPORAL_GET_RUST(PlainDate, date, DaysInWeek, daysInWeek, days_in_week,
-                  CONVERT_FALLIBLE_INTEGER_AS_NULLABLE)
-TEMPORAL_GET_RUST(PlainDate, date, DaysInMonth, daysInMonth, days_in_month,
-                  CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDate, date, DaysInYear, daysInYear, days_in_year,
-                  CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDate, date, MonthsInYear, monthsInYear, months_in_year,
-                  CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDate, date, InLeapYear, inLeapYear, in_leap_year,
-                  CONVERT_BOOLEAN)
-
+TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainDate, Year, year)
+TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainDate, Month, month)
+TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainDate, MonthCode, monthCode)
+TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainDate, Day, day)
+TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDate, DayOfWeek, dayOfWeek)
+TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDate, DayOfYear, dayOfYear)
+TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDate, WeekOfYear, weekOfYear)
+TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDate, DaysInWeek, daysInWeek)
+TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDate, DaysInMonth, daysInMonth)
+TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDate, DaysInYear, daysInYear)
+TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDate, MonthsInYear, monthsInYear)
+TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDate, InLeapYear, inLeapYear)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDate, ToPlainYearMonth, toPlainYearMonth)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDate, ToPlainMonthDay, toPlainMonthDay)
 TEMPORAL_PROTOTYPE_METHOD2(PlainDate, Add, add)
@@ -289,16 +260,12 @@ BUILTIN(TemporalPlainTimeConstructor) {
                                args.atOrUndefined(isolate, 5),    // microsecond
                                args.atOrUndefined(isolate, 6)));  // nanosecond
 }
-
-TEMPORAL_GET_RUST(PlainTime, time, Hour, hour, hour, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainTime, time, Minute, minute, minute, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainTime, time, Second, second, second, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainTime, time, Millisecond, millisecond, millisecond,
-                  CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainTime, time, Microsecond, microsecond, microsecond,
-                  CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainTime, time, Nanosecond, nanosecond, nanosecond,
-                  CONVERT_SMI)
+TEMPORAL_GET_SMI(PlainTime, Hour, iso_hour)
+TEMPORAL_GET_SMI(PlainTime, Minute, iso_minute)
+TEMPORAL_GET_SMI(PlainTime, Second, iso_second)
+TEMPORAL_GET_SMI(PlainTime, Millisecond, iso_millisecond)
+TEMPORAL_GET_SMI(PlainTime, Microsecond, iso_microsecond)
+TEMPORAL_GET_SMI(PlainTime, Nanosecond, iso_nanosecond)
 TEMPORAL_METHOD2(PlainTime, From)
 TEMPORAL_PROTOTYPE_METHOD1(PlainTime, ToZonedDateTime, toZonedDateTime)
 TEMPORAL_METHOD2(PlainTime, Compare)
@@ -333,44 +300,26 @@ BUILTIN(TemporalPlainDateTimeConstructor) {
                    args.atOrUndefined(isolate, 9),     // nanosecond
                    args.atOrUndefined(isolate, 10)));  // calendar_like
 }
-
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Year, year, year, CONVERT_INTEGER64)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Era, era, era, CONVERT_ASCII_STRING)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, EraYear, eraYear, era_year,
-                  CONVERT_NULLABLE_INTEGER)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Month, month, month, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Day, day, day, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, MonthCode, monthCode, month_code,
-                  CONVERT_ASCII_STRING)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, DayOfWeek, dayOfWeek, day_of_week,
-                  CONVERT_FALLIBLE_INTEGER_AS_NULLABLE)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, DayOfYear, dayOfYear, day_of_year,
-                  CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, WeekOfYear, weekOfYear,
-                  week_of_year, CONVERT_NULLABLE_INTEGER)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, DaysInWeek, daysInWeek,
-                  days_in_week, CONVERT_FALLIBLE_INTEGER_AS_NULLABLE)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, DaysInMonth, daysInMonth,
-                  days_in_month, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, DaysInYear, daysInYear,
-                  days_in_year, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, MonthsInYear, monthsInYear,
-                  months_in_year, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, InLeapYear, inLeapYear,
-                  in_leap_year, CONVERT_BOOLEAN)
-
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Hour, hour, hour, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Minute, minute, minute, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Second, second, second, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Millisecond, millisecond,
-                  millisecond, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Microsecond, microsecond,
-                  microsecond, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Nanosecond, nanosecond, nanosecond,
-                  CONVERT_SMI)
-
+TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainDateTime, Year, year)
+TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainDateTime, Month, month)
+TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainDateTime, MonthCode, monthCode)
+TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainDateTime, Day, day)
+TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDateTime, DayOfWeek, dayOfWeek)
+TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDateTime, DayOfYear, dayOfYear)
+TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDateTime, WeekOfYear, weekOfYear)
+TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDateTime, DaysInWeek, daysInWeek)
+TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDateTime, DaysInMonth, daysInMonth)
+TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDateTime, DaysInYear, daysInYear)
+TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDateTime, MonthsInYear,
+                                       monthsInYear)
+TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDateTime, InLeapYear, inLeapYear)
 TEMPORAL_PROTOTYPE_METHOD1(PlainDateTime, WithPlainTime, withPlainTime)
-
+TEMPORAL_GET_SMI(PlainDateTime, Hour, iso_hour)
+TEMPORAL_GET_SMI(PlainDateTime, Minute, iso_minute)
+TEMPORAL_GET_SMI(PlainDateTime, Second, iso_second)
+TEMPORAL_GET_SMI(PlainDateTime, Millisecond, iso_millisecond)
+TEMPORAL_GET_SMI(PlainDateTime, Microsecond, iso_microsecond)
+TEMPORAL_GET_SMI(PlainDateTime, Nanosecond, iso_nanosecond)
 TEMPORAL_METHOD2(PlainDateTime, From)
 TEMPORAL_METHOD2(PlainDateTime, Compare)
 TEMPORAL_PROTOTYPE_METHOD1(PlainDateTime, Equals, equals)
@@ -403,24 +352,14 @@ BUILTIN(TemporalPlainYearMonthConstructor) {
                    args.atOrUndefined(isolate, 3),    // calendar_like
                    args.atOrUndefined(isolate, 4)));  // reference_iso_day
 }
-TEMPORAL_GET_RUST(PlainYearMonth, year_month, Year, year, year,
-                  CONVERT_INTEGER64)
-TEMPORAL_GET_RUST(PlainYearMonth, year_month, Era, era, era,
-                  CONVERT_ASCII_STRING)
-TEMPORAL_GET_RUST(PlainYearMonth, year_month, EraYear, eraYear, era_year,
-                  CONVERT_NULLABLE_INTEGER)
-TEMPORAL_GET_RUST(PlainYearMonth, year_month, Month, month, month, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainYearMonth, year_month, MonthCode, monthCode, month_code,
-                  CONVERT_ASCII_STRING)
-TEMPORAL_GET_RUST(PlainYearMonth, year_month, DaysInMonth, daysInMonth,
-                  days_in_month, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainYearMonth, year_month, DaysInYear, daysInYear,
-                  days_in_year, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainYearMonth, year_month, MonthsInYear, monthsInYear,
-                  months_in_year, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainYearMonth, year_month, InLeapYear, inLeapYear,
-                  in_leap_year, CONVERT_BOOLEAN)
-
+TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainYearMonth, Year, year)
+TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainYearMonth, Month, month)
+TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainYearMonth, MonthCode, monthCode)
+TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainYearMonth, DaysInYear, daysInYear)
+TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainYearMonth, DaysInMonth, daysInMonth)
+TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainYearMonth, MonthsInYear,
+                                       monthsInYear)
+TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainYearMonth, InLeapYear, inLeapYear)
 TEMPORAL_METHOD2(PlainYearMonth, From)
 TEMPORAL_METHOD2(PlainYearMonth, Compare)
 TEMPORAL_PROTOTYPE_METHOD2(PlainYearMonth, Add, add)
@@ -447,9 +386,8 @@ BUILTIN(TemporalPlainMonthDayConstructor) {
                    args.atOrUndefined(isolate, 3),    // calendar_like
                    args.atOrUndefined(isolate, 4)));  // reference_iso_year
 }
-TEMPORAL_GET_RUST(PlainMonthDay, month_day, Day, day, iso_day, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainMonthDay, month_day, MonthCode, monthCode, month_code,
-                  CONVERT_ASCII_STRING)
+TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainMonthDay, MonthCode, monthCode)
+TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainMonthDay, Day, day)
 TEMPORAL_METHOD2(PlainMonthDay, From)
 TEMPORAL_PROTOTYPE_METHOD1(PlainMonthDay, Equals, equals)
 TEMPORAL_PROTOTYPE_METHOD2(PlainMonthDay, With, with)
@@ -587,17 +525,17 @@ BUILTIN(TemporalDurationCompare) {
                                         args.atOrUndefined(isolate, 3)));
 }
 TEMPORAL_METHOD1(Duration, From)
-TEMPORAL_GET_RUST(Duration, duration, Years, years, years, CONVERT_INTEGER64)
-TEMPORAL_GET_RUST(Duration, duration, Months, months, months, CONVERT_INTEGER64)
-TEMPORAL_GET_RUST(Duration, duration, Weeks, weeks, weeks, CONVERT_INTEGER64)
-TEMPORAL_GET_RUST(Duration, duration, Days, days, days, CONVERT_INTEGER64)
-TEMPORAL_GET_RUST(Duration, duration, Hours, hours, hours, CONVERT_INTEGER64)
+TEMPORAL_GET_RUST(Duration, duration, Years, years, years, CONVERT_INTEGER)
+TEMPORAL_GET_RUST(Duration, duration, Months, months, months, CONVERT_INTEGER)
+TEMPORAL_GET_RUST(Duration, duration, Weeks, weeks, weeks, CONVERT_INTEGER)
+TEMPORAL_GET_RUST(Duration, duration, Days, days, days, CONVERT_INTEGER)
+TEMPORAL_GET_RUST(Duration, duration, Hours, hours, hours, CONVERT_INTEGER)
 TEMPORAL_GET_RUST(Duration, duration, Minutes, minutes, minutes,
-                  CONVERT_INTEGER64)
+                  CONVERT_INTEGER)
 TEMPORAL_GET_RUST(Duration, duration, Seconds, seconds, seconds,
-                  CONVERT_INTEGER64)
+                  CONVERT_INTEGER)
 TEMPORAL_GET_RUST(Duration, duration, Milliseconds, milliseconds, milliseconds,
-                  CONVERT_INTEGER64)
+                  CONVERT_INTEGER)
 // In theory the Duration may have millisecond values that are out of range for
 // a float (but in range for a BigInt). Spec asks these functions to be
 // converted to a Number so we can just produce Infinity when we are out of
@@ -638,6 +576,12 @@ TEMPORAL_PROTOTYPE_METHOD1(Instant, ToZonedDateTime, toZonedDateTime)
 TEMPORAL_PROTOTYPE_METHOD2(Instant, Until, until)
 
 // get Temporal.*.prototype.era/eraYear
+TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainDate, Era, era)
+TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainDate, EraYear, eraYear)
+TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainDateTime, Era, era)
+TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainDateTime, EraYear, eraYear)
+TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainYearMonth, Era, era)
+TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainYearMonth, EraYear, eraYear)
 TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(Era)
 TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(EraYear)
 
