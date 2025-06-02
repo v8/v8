@@ -865,17 +865,20 @@ struct GraphBuilderPhase {
 
     JSHeapBroker* broker = data->broker();
     UnparkedScopeIfNeeded scope(broker);
-    JSFunctionRef closure = MakeRef(broker, data->info()->closure());
+    SharedFunctionInfoRef sfi_ref =
+        MakeRef(broker, data->info()->closure()->shared());
+    FeedbackCellRef feedback_cell_ref =
+        MakeRef(broker, data->info()->closure()->raw_feedback_cell());
     BytecodeArrayRef bytecode = MakeRef(broker, data->info()->bytecode_array());
     CallFrequency frequency(1.0f);
-    BuildGraphFromBytecode(
-        broker, temp_zone, closure.shared(broker), bytecode,
-        closure.raw_feedback_cell(broker), data->info()->osr_offset(),
-        data->jsgraph(), frequency, data->source_positions(),
-        data->node_origins(), SourcePosition::kNotInlined,
-        data->info()->code_kind(), flags, &data->info()->tick_counter(),
-        ObserveNodeInfo{data->observe_node_manager(),
-                        data->info()->node_observer()});
+    BuildGraphFromBytecode(broker, temp_zone, sfi_ref, bytecode,
+                           feedback_cell_ref, data->info()->osr_offset(),
+                           data->jsgraph(), frequency, data->source_positions(),
+                           data->node_origins(), SourcePosition::kNotInlined,
+                           data->info()->code_kind(), flags,
+                           &data->info()->tick_counter(),
+                           ObserveNodeInfo{data->observe_node_manager(),
+                                           data->info()->node_observer()});
 
     // We need to be certain that the parameter count reported by our output
     // Code object matches what the code we compile expects. Otherwise, this

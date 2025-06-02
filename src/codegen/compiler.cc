@@ -3295,8 +3295,7 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
         feedback_cell->IncrementClosureCount(isolate);
     if (cell_transition == FeedbackCell::kOneToMany &&
         result->code(isolate)->is_context_specialized()) {
-      result->UpdateCode(isolate,
-                         *BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
+      result->UpdateCode(isolate, *BUILTIN_CODE(isolate, CompileLazy));
     }
     result->set_context(*context, kReleaseStore);
     return result;
