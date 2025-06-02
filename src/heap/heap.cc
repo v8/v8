@@ -1384,13 +1384,23 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
     const size_t roots_before = num_roots();
     current_gc_flags_ = gc_flags;
-    CollectGarbage(OLD_SPACE, gc_reason, kNoGCCallbackFlags);
+    CollectGarbage(OLD_SPACE, gc_reason, kNoGCCallbackFlags,
+                   PerformHeapLimitCheck::kNo);
     DCHECK_EQ(GCFlags(GCFlag::kNoFlags), current_gc_flags_);
+
+    // As long as we are at or above the heap limit, we need another GC to
+    // survive CheckHeapLimitReached() after the loop.
+    if (ReachedHeapLimit()) {
+      continue;
+    }
+
     if ((roots_before == num_roots()) &&
         ((attempt + 1) >= kMinNumberOfAttempts)) {
       break;
     }
   }
+
+  CheckHeapLimitReached();
 
   EagerlyFreeExternalMemoryAndWasmCode();
 
@@ -1575,7 +1585,8 @@ void Heap::ResetOldGenerationAndGlobalAllocationLimit() {
 
 void Heap::CollectGarbage(AllocationSpace space,
                           GarbageCollectionReason gc_reason,
-                          const v8::GCCallbackFlags gc_callback_flags) {
+                          const v8::GCCallbackFlags gc_callback_flags,
+                          PerformHeapLimitCheck perform_heap_limit_check) {
   CHECK(isolate_->IsOnCentralStack());
   DCHECK_EQ(Isolate::TryGetCurrent(), isolate_);
   DCHECK_EQ(resize_new_space_mode_, ResizeNewSpaceMode::kNone);
@@ -1777,18 +1788,26 @@ void Heap::CollectGarbage(AllocationSpace space,
     }
   }
 
-  if (!CanExpandOldGeneration(0)) {
+  if (perform_heap_limit_check == PerformHeapLimitCheck::kYes) {
+    CheckHeapLimitReached();
+  }
+
+  if (collector == GarbageCollector::MARK_COMPACTOR) {
+    current_gc_flags_ = GCFlag::kNoFlags;
+  }
+}
+
+bool Heap::ReachedHeapLimit() { return !CanExpandOldGeneration(0); }
+
+void Heap::CheckHeapLimitReached() {
+  if (ReachedHeapLimit()) {
     InvokeNearHeapLimitCallback();
-    if (!CanExpandOldGeneration(0)) {
+    if (ReachedHeapLimit()) {
       if (v8_flags.heap_snapshot_on_oom) {
         heap_profiler()->WriteSnapshotToDiskAfterGC();
       }
       FatalProcessOutOfMemory("Reached heap limit");
     }
-  }
-
-  if (collector == GarbageCollector::MARK_COMPACTOR) {
-    current_gc_flags_ = GCFlag::kNoFlags;
   }
 }
 
