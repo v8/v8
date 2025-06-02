@@ -17,11 +17,6 @@
 // Rust includes to transitively include
 #include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/Duration.hpp"
 #include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/Instant.hpp"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/PlainDate.hpp"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/PlainDateTime.hpp"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/PlainMonthDay.hpp"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/PlainTime.hpp"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/PlainYearMonth.hpp"
 
 namespace v8 {
 namespace internal {
@@ -65,6 +60,31 @@ namespace internal {
     return v;                                                                 \
   }
 
+#define TEMPORAL_DATE_INLINE_GETTER_SETTER(T, data)                        \
+  TEMPORAL_INLINE_SIGNED_GETTER_SETTER(T, data, iso_year, -271821, 275760, \
+                                       IsoYear)                            \
+  TEMPORAL_INLINE_GETTER_SETTER(T, data, iso_month, 1, 12, IsoMonth)       \
+  TEMPORAL_INLINE_GETTER_SETTER(T, data, iso_day, 1, 31, IsoDay)
+
+#define TEMPORAL_TIME_INLINE_GETTER_SETTER(T, data1, data2)             \
+  TEMPORAL_INLINE_GETTER_SETTER(T, data1, iso_hour, 0, 23, IsoHour)     \
+  TEMPORAL_INLINE_GETTER_SETTER(T, data1, iso_minute, 0, 59, IsoMinute) \
+  TEMPORAL_INLINE_GETTER_SETTER(T, data1, iso_second, 0, 59, IsoSecond) \
+  TEMPORAL_INLINE_GETTER_SETTER(T, data2, iso_millisecond, 0, 999,      \
+                                IsoMillisecond)                         \
+  TEMPORAL_INLINE_GETTER_SETTER(T, data2, iso_microsecond, 0, 999,      \
+                                IsoMicrosecond)                         \
+  TEMPORAL_INLINE_GETTER_SETTER(T, data2, iso_nanosecond, 0, 999, IsoNanosecond)
+
+TEMPORAL_DATE_INLINE_GETTER_SETTER(JSTemporalPlainDate, year_month_day)
+TEMPORAL_DATE_INLINE_GETTER_SETTER(JSTemporalPlainDateTime, year_month_day)
+TEMPORAL_TIME_INLINE_GETTER_SETTER(JSTemporalPlainDateTime, hour_minute_second,
+                                   second_parts)
+TEMPORAL_DATE_INLINE_GETTER_SETTER(JSTemporalPlainMonthDay, year_month_day)
+TEMPORAL_TIME_INLINE_GETTER_SETTER(JSTemporalPlainTime, hour_minute_second,
+                                   second_parts)
+TEMPORAL_DATE_INLINE_GETTER_SETTER(JSTemporalPlainYearMonth, year_month_day)
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalDuration)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalInstant)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalPlainDate)
@@ -80,16 +100,6 @@ ACCESSORS(JSTemporalInstant, instant, Tagged<Managed<temporal_rs::Instant>>,
           kInstantOffset)
 ACCESSORS(JSTemporalDuration, duration, Tagged<Managed<temporal_rs::Duration>>,
           kDurationOffset)
-ACCESSORS(JSTemporalPlainDate, date, Tagged<Managed<temporal_rs::PlainDate>>,
-          kDateOffset)
-ACCESSORS(JSTemporalPlainDateTime, date_time,
-          Tagged<Managed<temporal_rs::PlainDateTime>>, kDateTimeOffset)
-ACCESSORS(JSTemporalPlainMonthDay, month_day,
-          Tagged<Managed<temporal_rs::PlainMonthDay>>, kMonthDayOffset)
-ACCESSORS(JSTemporalPlainTime, time, Tagged<Managed<temporal_rs::PlainTime>>,
-          kTimeOffset)
-ACCESSORS(JSTemporalPlainYearMonth, year_month,
-          Tagged<Managed<temporal_rs::PlainYearMonth>>, kYearMonthOffset)
 
 }  // namespace internal
 }  // namespace v8
