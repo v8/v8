@@ -111,7 +111,7 @@ class JSCallReducerAssembler : public JSGraphAssembler {
   TNode<Smi> CheckSmi(TNode<Object> value);
   TNode<Number> CheckNumber(TNode<Object> value);
   TNode<String> CheckString(TNode<Object> value);
-  TNode<Number> CheckBounds(TNode<Number> value, TNode<Number> limit,
+  TNode<Number> CheckBounds(TNode<Object> value, TNode<Number> limit,
                             CheckBoundsFlags flags = {});
 
   // Common operators.
@@ -803,7 +803,7 @@ TNode<String> JSCallReducerAssembler::CheckString(TNode<Object> value) {
                                           value, effect(), control()));
 }
 
-TNode<Number> JSCallReducerAssembler::CheckBounds(TNode<Number> value,
+TNode<Number> JSCallReducerAssembler::CheckBounds(TNode<Object> value,
                                                   TNode<Number> limit,
                                                   CheckBoundsFlags flags) {
   return AddNode<Number>(
@@ -1187,10 +1187,10 @@ TNode<String> JSCallReducerAssembler::ReduceStringPrototypeCharAt(
   TNode<Object> index = ArgumentOrZero(0);
 
   TNode<String> receiver_string = CheckString(receiver);
-  TNode<Number> index_smi = CheckSmi(index);
   TNode<Number> length = StringLength(receiver_string);
 
   if (speculation_mode == SpeculationMode::kDisallowBoundsCheckSpeculation) {
+    TNode<Number> index_smi = CheckSmi(index);
     return SelectIf<String>(NumberLessThan(index_smi, ZeroConstant()))
         .Then(_ { return EmptyStringConstant(); })
         .Else(_ {
@@ -1210,7 +1210,7 @@ TNode<String> JSCallReducerAssembler::ReduceStringPrototypeCharAt(
   }
 
   DCHECK_EQ(speculation_mode, SpeculationMode::kAllowSpeculation);
-  TNode<Number> bounded_index = CheckBounds(index_smi, length);
+  TNode<Number> bounded_index = CheckBounds(index, length);
   return StringFromSingleCharCode(TNode<Number>::UncheckedCast(
       StringCharCodeAt(receiver_string, bounded_index)));
 }
@@ -1221,10 +1221,10 @@ TNode<Number> JSCallReducerAssembler::ReduceStringPrototypeCharCodeAt(
   TNode<Object> index = ArgumentOrZero(0);
 
   TNode<String> receiver_string = CheckString(receiver);
-  TNode<Number> index_smi = CheckSmi(index);
   TNode<Number> length = StringLength(receiver_string);
 
   if (speculation_mode == SpeculationMode::kDisallowBoundsCheckSpeculation) {
+    TNode<Number> index_smi = CheckSmi(index);
     return SelectIf<Number>(NumberLessThan(index_smi, ZeroConstant()))
         .Then(_ { return NaNConstant(); })
         .Else(_ {
@@ -1242,7 +1242,7 @@ TNode<Number> JSCallReducerAssembler::ReduceStringPrototypeCharCodeAt(
   }
   DCHECK_EQ(speculation_mode, SpeculationMode::kAllowSpeculation);
 
-  TNode<Number> bounded_index = CheckBounds(index_smi, length);
+  TNode<Number> bounded_index = CheckBounds(index, length);
   return TNode<Number>::UncheckedCast(
       (StringCharCodeAt(receiver_string, bounded_index)));
 }
