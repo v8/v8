@@ -92,11 +92,6 @@ in_category(
 in_category(
     "CFI",
     main_multibranch_builder_pair(
-        name = "V8 Linux - arm64 - sim - CFI",
-        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        use_remoteexec = RECLIENT.DEFAULT,
-    ),
-    main_multibranch_builder_pair(
         name = "V8 Linux64 - cfi",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,

@@ -448,13 +448,6 @@ trybot_pair(
 )
 
 trybot_pair(
-    name = "v8_linux_arm64_cfi_rel",
-    cq_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
-)
-
-trybot_pair(
     name = "v8_linux_arm_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
