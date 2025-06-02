@@ -112,7 +112,12 @@ CallKnownJSFunction::CallKnownJSFunction(
 
 void NodeBase::change_input(int index, ValueNode* node) {
   DCHECK_NE(input(index).node(), nullptr);
-  input(index).node()->remove_use();
+  // After the AnyUseMarkingProcessor the use count can be -1.
+  if (input(index).node()->is_used()) {
+    input(index).node()->remove_use();
+  } else {
+    DCHECK_EQ(input(index).node()->use_count(), -1);
+  }
 
 #ifdef DEBUG
   input(index) = Input(nullptr);
