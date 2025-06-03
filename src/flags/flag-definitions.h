@@ -1429,8 +1429,7 @@ DEFINE_NEG_VALUE_IMPLICATION(use_osr, maglev_osr, false)
 DEFINE_NEG_VALUE_IMPLICATION(turbofan, osr_from_maglev, false)
 DEFINE_BOOL(concurrent_osr, true, "enable concurrent OSR")
 
-DEFINE_INT(maglev_allocation_folding, 1, "maglev allocation folding level")
-DEFINE_WEAK_VALUE_IMPLICATION(maglev_future, maglev_allocation_folding, 2)
+DEFINE_INT(maglev_allocation_folding, 2, "maglev allocation folding level")
 DEFINE_BOOL(maglev_escape_analysis, true,
             "avoid inlined allocation of objects that cannot escape")
 DEFINE_BOOL(trace_maglev_escape_analysis, false, "trace maglev escape analysis")
