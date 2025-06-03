@@ -1314,7 +1314,7 @@ class Internals {
 #endif
   }
 
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use GetCurrentIsolateForSandbox() instead, which is guaranteed to "
       "return the same isolate since https://crrev.com/c/6458560.")
   V8_INLINE static v8::Isolate* GetIsolateForSandbox(Address obj) {
