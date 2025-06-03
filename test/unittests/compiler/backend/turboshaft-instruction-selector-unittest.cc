@@ -62,7 +62,9 @@ TurboshaftInstructionSelectorTest::StreamBuilder::Build(
       InstructionSelector::kEnableSwitchJumpTable, &tick_counter, nullptr,
       &max_unoptimized_frame_height, &max_pushed_argument_count,
       source_position_mode, features, InstructionSelector::kDisableScheduling,
-      InstructionSelector::kEnableRootsRelativeAddressing);
+      InstructionSelector::kEnableRootsRelativeAddressing,
+      InstructionSelector::kDisableTraceTurboJson,
+      InstructionSelector::kNoDeterministicNan);
 
   selector.SelectInstructions();
 

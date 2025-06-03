@@ -58,7 +58,8 @@ InstructionSelectorT::InstructionSelectorT(
     Features features, InstructionSelector::EnableScheduling enable_scheduling,
     InstructionSelector::EnableRootsRelativeAddressing
         enable_roots_relative_addressing,
-    InstructionSelector::EnableTraceTurboJson trace_turbo)
+    InstructionSelector::EnableTraceTurboJson trace_turbo,
+    InstructionSelector::EnsureDeterministicNan ensure_deterministic_nan)
     : OperationMatcher(*schedule),
       zone_(zone),
       linkage_(linkage),
@@ -87,6 +88,7 @@ InstructionSelectorT::InstructionSelectorT(
       instruction_selection_failed_(false),
       instr_origins_(sequence->zone()),
       trace_turbo_(trace_turbo),
+      ensure_deterministic_nan_(ensure_deterministic_nan),
       tick_counter_(tick_counter),
       broker_(broker),
       max_unoptimized_frame_height_(max_unoptimized_frame_height),
@@ -1409,7 +1411,9 @@ bool InstructionSelectorT::IsCommutative(turboshaft::OpIndex node) const {
     return turboshaft::OverflowCheckedBinopOp::IsCommutative(
         overflow_binop->kind);
   } else if (const auto float_binop = op.TryCast<turboshaft::FloatBinopOp>()) {
-    return turboshaft::FloatBinopOp::IsCommutative(float_binop->kind);
+    return ensure_deterministic_nan_ ==
+               InstructionSelector::kNoDeterministicNan &&
+           turboshaft::FloatBinopOp::IsCommutative(float_binop->kind);
   } else if (const auto comparison = op.TryCast<turboshaft::ComparisonOp>()) {
     return turboshaft::ComparisonOp::IsCommutative(comparison->kind);
   }
@@ -3992,13 +3996,14 @@ InstructionSelectorT InstructionSelectorT::ForTurboshaft(
     size_t* max_pushed_argument_count, SourcePositionMode source_position_mode,
     Features features, EnableScheduling enable_scheduling,
     EnableRootsRelativeAddressing enable_roots_relative_addressing,
-    EnableTraceTurboJson trace_turbo) {
+    EnableTraceTurboJson trace_turbo,
+    EnsureDeterministicNan ensure_deterministic_nan) {
   return InstructionSelectorT(
       zone, node_count, linkage, sequence, graph, &graph->source_positions(),
       frame, enable_switch_jump_table, tick_counter, broker,
       max_unoptimized_frame_height, max_pushed_argument_count,
       source_position_mode, features, enable_scheduling,
-      enable_roots_relative_addressing, trace_turbo);
+      enable_roots_relative_addressing, trace_turbo, ensure_deterministic_nan);
 }
 
 #undef VISIT_UNSUPPORTED_OP

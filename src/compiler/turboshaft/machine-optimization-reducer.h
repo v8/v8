@@ -390,7 +390,7 @@ class MachineOptimizationReducer : public Next {
     }
     if (float f32_k; rep == FloatRepresentation::Float32() &&
                      matcher_.MatchFloat32Constant(input, &f32_k)) {
-      if (std::isnan(f32_k) && !signalling_nan_possible) {
+      if (std::isnan(f32_k) && !ensure_deterministic_nan) {
         return __ Float32Constant(std::numeric_limits<float>::quiet_NaN());
       }
       switch (kind) {
@@ -454,7 +454,7 @@ class MachineOptimizationReducer : public Next {
       }
     } else if (double f64_k; rep == FloatRepresentation::Float64() &&
                              matcher_.MatchFloat64Constant(input, &f64_k)) {
-      if (std::isnan(f64_k) && !signalling_nan_possible) {
+      if (std::isnan(f64_k) && !ensure_deterministic_nan) {
         return __ Float64Constant(std::numeric_limits<double>::quiet_NaN());
       }
       switch (kind) {
@@ -579,14 +579,16 @@ class MachineOptimizationReducer : public Next {
 
     // Place constant on the right for commutative operators.
     if (FloatBinopOp::IsCommutative(kind) && matcher_.Is<ConstantOp>(lhs) &&
-        !matcher_.Is<ConstantOp>(rhs)) {
+        !matcher_.Is<ConstantOp>(rhs) && !ensure_deterministic_nan) {
       return ReduceFloatBinop(rhs, lhs, kind, rep);
     }
 
     // constant folding
-    if (float k1, k2; rep == FloatRepresentation::Float32() &&
-                      matcher_.MatchFloat32Constant(lhs, &k1) &&
-                      matcher_.MatchFloat32Constant(rhs, &k2)) {
+    if (float k1, k2;
+        rep == FloatRepresentation::Float32() &&
+        matcher_.MatchFloat32Constant(lhs, &k1) &&
+        matcher_.MatchFloat32Constant(rhs, &k2) &&
+        (!ensure_deterministic_nan || (!std::isnan(k1) && !std::isnan(k2)))) {
       switch (kind) {
         case Kind::kAdd:
           return __ Float32Constant(k1 + k2);
@@ -608,9 +610,11 @@ class MachineOptimizationReducer : public Next {
           UNREACHABLE();
       }
     }
-    if (double k1, k2; rep == FloatRepresentation::Float64() &&
-                       matcher_.MatchFloat64Constant(lhs, &k1) &&
-                       matcher_.MatchFloat64Constant(rhs, &k2)) {
+    if (double k1, k2;
+        rep == FloatRepresentation::Float64() &&
+        matcher_.MatchFloat64Constant(lhs, &k1) &&
+        matcher_.MatchFloat64Constant(rhs, &k2) &&
+        (!ensure_deterministic_nan || (!std::isnan(k1) && !std::isnan(k2)))) {
       switch (kind) {
         case Kind::kAdd:
           return __ Float64Constant(k1 + k2);
@@ -633,12 +637,32 @@ class MachineOptimizationReducer : public Next {
       }
     }
 
-    // lhs <op> NaN  =>  NaN
-    if (matcher_.MatchNaN(rhs) ||
-        (matcher_.MatchNaN(lhs) && kind != Kind::kPower)) {
-      // Return a quiet NaN since Wasm operations could have signalling NaN as
-      // input but not as output.
-      return __ FloatConstant(std::numeric_limits<double>::quiet_NaN(), rep);
+    // All NaN folding is disabled for Wasm; architectures disagree on which
+    // input to take in case both are NaN, sometimes it even depends on the
+    // exact NaN which one is propagated as the result.
+    // Even though the Wasm spec allows propagating any NaN input, we want
+    // determinism here for differential fuzzing across compilers.
+    if (!ensure_deterministic_nan) {
+      // NaN <op> rhs  =>  NaN (except for Kind::kPower).
+      // lhs <op> NaN  =>  NaN.
+      if (i::Float32 nan;
+          (matcher_.MatchFloat32Constant(lhs, &nan) && nan.is_nan() &&
+           kind != Kind::kPower) ||
+          (matcher_.MatchFloat32Constant(rhs, &nan) && nan.is_nan())) {
+        // Return a quiet NaN since Wasm operations could have signalling NaN as
+        // input but not as output.
+        return __ Float32Constant(std::numeric_limits<float>::quiet_NaN());
+      }
+
+      // Same for float64.
+      if (i::Float64 nan;
+          (matcher_.MatchFloat64Constant(lhs, &nan) && nan.is_nan() &&
+           kind != Kind::kPower) ||
+          (matcher_.MatchFloat64Constant(rhs, &nan) && nan.is_nan())) {
+        // Return a quiet NaN since Wasm operations could have signalling NaN as
+        // input but not as output.
+        return __ Float64Constant(std::numeric_limits<double>::quiet_NaN());
+      }
     }
 
     if (matcher_.Is<ConstantOp>(rhs)) {
@@ -652,6 +676,8 @@ class MachineOptimizationReducer : public Next {
           return __ FloatAdd(lhs, lhs, rep);
         }
         // lhs * -1  =>  -lhs
+        // Note: FloatNegate does not set the quiet bit so we cannot use this if
+        // signalling nans can happen.
         if (!signalling_nan_possible && matcher_.MatchFloat(rhs, -1.0)) {
           return __ FloatNegate(lhs, rep);
         }
@@ -663,6 +689,8 @@ class MachineOptimizationReducer : public Next {
           return lhs;
         }
         // lhs / -1  =>  -lhs
+        // Note: FloatNegate does not set the quiet bit so we cannot use this if
+        // signalling nans can happen.
         if (!signalling_nan_possible && matcher_.MatchFloat(rhs, -1.0)) {
           return __ FloatNegate(lhs, rep);
         }
@@ -2885,9 +2913,13 @@ class MachineOptimizationReducer : public Next {
   JSHeapBroker* broker = __ data() -> broker();
   const OperationMatcher& matcher_ = __ matcher();
 #if V8_ENABLE_WEBASSEMBLY
+  // Note: `signalling_nan_possible` and `ensure_deterministic_nan` are always
+  // the same value; we introduce both to better express intent at use sites.
   const bool signalling_nan_possible = __ data() -> is_wasm();
+  const bool ensure_deterministic_nan = signalling_nan_possible;
 #else
   static constexpr bool signalling_nan_possible = false;
+  static constexpr bool ensure_deterministic_nan = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
 };
 

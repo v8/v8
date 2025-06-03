@@ -137,12 +137,118 @@ WASM_EXEC_TEST(Int32Add_multi_if) {
   RunInt32AddTest(execution_tier, code, sizeof(code));
 }
 
-WASM_EXEC_TEST(Float32Add) {
-  WasmRunner<int32_t> r(execution_tier);
-  // int(11.5f + 44.5f)
-  r.Build(
-      {WASM_I32_SCONVERT_F32(WASM_F32_ADD(WASM_F32(11.5f), WASM_F32(44.5f)))});
-  CHECK_EQ(56, r.Call());
+WASM_EXEC_TEST(Float32Add_Consts) {
+  FOR_FLOAT32_INPUTS(i) {
+    FOR_FLOAT32_INPUTS(j) {
+      WasmRunner<float> r(execution_tier);
+      r.Build({WASM_F32_ADD(WASM_F32(i), WASM_F32(j))});
+      CHECK_FLOAT_EQ(i + j, r.Call());
+    }
+  }
+}
+
+WASM_EXEC_TEST(Float32Add_Params) {
+  WasmRunner<float, float, float> r(execution_tier);
+  r.Build({WASM_F32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
+
+  FOR_FLOAT32_INPUTS(i) {
+    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ(i + j, r.Call(i, j)); }
+  }
+}
+
+WASM_EXEC_TEST(Float32Add_Const_Param) {
+  FOR_FLOAT32_INPUTS(i) {
+    WasmRunner<float, float> r(execution_tier);
+    r.Build({WASM_F32_ADD(WASM_F32(i), WASM_LOCAL_GET(0))});
+
+    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ(i + j, r.Call(j)); }
+  }
+}
+
+WASM_EXEC_TEST(Float32Add_Param_Const) {
+  FOR_FLOAT32_INPUTS(j) {
+    WasmRunner<float, float> r(execution_tier);
+    r.Build({WASM_F32_ADD(WASM_LOCAL_GET(0), WASM_F32(j))});
+
+    FOR_FLOAT32_INPUTS(i) { CHECK_FLOAT_EQ(i + j, r.Call(i)); }
+  }
+}
+
+namespace {
+// Compute the expected result of a float binop.
+// The Wasm spec is pretty relaxed on this, but we want a deterministic result,
+// in particular to be able to do differential fuzzing across tiers.
+Float32 f32_binop_result(
+    Float32 lhs, Float32 rhs,
+    const std::function<float(float, float)>& result_for_non_nan) {
+#ifdef V8_TARGET_ARCH_ARM64
+  // On arm64, any signalling NaN "wins" (but is made quiet).
+  if (rhs.is_nan() && !rhs.is_quiet_nan()) return rhs.to_quiet_nan();
+#endif
+  if (lhs.is_nan()) return lhs.to_quiet_nan();
+  if (rhs.is_nan()) return rhs.to_quiet_nan();
+  return Float32{result_for_non_nan(lhs.get_scalar(), rhs.get_scalar())};
+}
+}  // anonymous namespace
+
+WASM_EXEC_TEST(Float32Add_I32_Consts) {
+  FOR_UINT32_INPUTS(i) {
+    FOR_UINT32_INPUTS(j) {
+      WasmRunner<uint32_t> r(execution_tier);
+      r.Build({WASM_I32_REINTERPRET_F32(
+          WASM_F32_ADD(WASM_F32_REINTERPRET_I32(WASM_I32V(i)),
+                       WASM_F32_REINTERPRET_I32(WASM_I32V(j))))});
+      Float32 expected =
+          f32_binop_result(Float32::FromBits(i), Float32::FromBits(j),
+                           [](float lhs, float rhs) { return lhs + rhs; });
+      CHECK_EQ(expected.get_bits(), r.Call());
+    }
+  }
+}
+
+WASM_EXEC_TEST(Float32Add_I32_Params) {
+  WasmRunner<uint32_t, uint32_t, uint32_t> r(execution_tier);
+  r.Build({WASM_I32_REINTERPRET_F32(
+      WASM_F32_ADD(WASM_F32_REINTERPRET_I32(WASM_LOCAL_GET(0)),
+                   WASM_F32_REINTERPRET_I32(WASM_LOCAL_GET(1))))});
+  FOR_UINT32_INPUTS(i) {
+    FOR_UINT32_INPUTS(j) {
+      Float32 expected =
+          f32_binop_result(Float32::FromBits(i), Float32::FromBits(j),
+                           [](float lhs, float rhs) { return lhs + rhs; });
+      CHECK_EQ(expected.get_bits(), r.Call(i, j));
+    }
+  }
+}
+
+WASM_EXEC_TEST(Float32Add_I32_Const_Param) {
+  FOR_UINT32_INPUTS(i) {
+    WasmRunner<uint32_t, uint32_t> r(execution_tier);
+    r.Build({WASM_I32_REINTERPRET_F32(
+        WASM_F32_ADD(WASM_F32_REINTERPRET_I32(WASM_I32V(i)),
+                     WASM_F32_REINTERPRET_I32(WASM_LOCAL_GET(0))))});
+    FOR_UINT32_INPUTS(j) {
+      Float32 expected =
+          f32_binop_result(Float32::FromBits(i), Float32::FromBits(j),
+                           [](float lhs, float rhs) { return lhs + rhs; });
+      CHECK_EQ(expected.get_bits(), r.Call(j));
+    }
+  }
+}
+
+WASM_EXEC_TEST(Float32Add_I32_Param_Const) {
+  FOR_UINT32_INPUTS(j) {
+    WasmRunner<uint32_t, uint32_t> r(execution_tier);
+    r.Build({WASM_I32_REINTERPRET_F32(
+        WASM_F32_ADD(WASM_F32_REINTERPRET_I32(WASM_LOCAL_GET(0)),
+                     WASM_F32_REINTERPRET_I32(WASM_I32V(j))))});
+    FOR_UINT32_INPUTS(i) {
+      Float32 expected =
+          f32_binop_result(Float32::FromBits(i), Float32::FromBits(j),
+                           [](float lhs, float rhs) { return lhs + rhs; });
+      CHECK_EQ(expected.get_bits(), r.Call(i));
+    }
+  }
 }
 
 WASM_EXEC_TEST(Float64Add) {

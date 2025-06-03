@@ -413,6 +413,7 @@ class V8_EXPORT_PRIVATE InstructionSelectorT final
     kEnableSwitchJumpTable
   };
   enum EnableTraceTurboJson { kDisableTraceTurboJson, kEnableTraceTurboJson };
+  enum EnsureDeterministicNan { kNoDeterministicNan, kEnsureDeterministicNan };
 
   class Features final {
    public:
@@ -436,14 +437,11 @@ class V8_EXPORT_PRIVATE InstructionSelectorT final
       EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
       JSHeapBroker* broker, size_t* max_unoptimized_frame_height,
       size_t* max_pushed_argument_count,
-      SourcePositionMode source_position_mode = kCallSourcePositions,
-      Features features = SupportedFeatures(),
-      EnableScheduling enable_scheduling = v8_flags.turbo_instruction_scheduling
-                                               ? kEnableScheduling
-                                               : kDisableScheduling,
-      EnableRootsRelativeAddressing enable_roots_relative_addressing =
-          kDisableRootsRelativeAddressing,
-      EnableTraceTurboJson trace_turbo = kDisableTraceTurboJson);
+      SourcePositionMode source_position_mode, Features features,
+      EnableScheduling enable_scheduling,
+      EnableRootsRelativeAddressing enable_roots_relative_addressing,
+      EnableTraceTurboJson trace_turbo,
+      EnsureDeterministicNan ensure_deterministic_nan);
 
   InstructionSelectorT(
       Zone* zone, size_t node_count, Linkage* linkage,
@@ -452,14 +450,11 @@ class V8_EXPORT_PRIVATE InstructionSelectorT final
       EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
       JSHeapBroker* broker, size_t* max_unoptimized_frame_height,
       size_t* max_pushed_argument_count,
-      SourcePositionMode source_position_mode = kCallSourcePositions,
-      Features features = SupportedFeatures(),
-      EnableScheduling enable_scheduling = v8_flags.turbo_instruction_scheduling
-                                               ? kEnableScheduling
-                                               : kDisableScheduling,
-      EnableRootsRelativeAddressing enable_roots_relative_addressing =
-          kDisableRootsRelativeAddressing,
-      EnableTraceTurboJson trace_turbo = kDisableTraceTurboJson);
+      SourcePositionMode source_position_mode, Features features,
+      EnableScheduling enable_scheduling,
+      EnableRootsRelativeAddressing enable_roots_relative_addressing,
+      EnableTraceTurboJson trace_turbo,
+      EnsureDeterministicNan ensure_deterministic_nan);
 
   // Visit code for the entire graph with the included schedule.
   std::optional<BailoutReason> SelectInstructions();
@@ -757,7 +752,7 @@ class V8_EXPORT_PRIVATE InstructionSelectorT final
            || op.Is<turboshaft::Simd256LoadTransformOp>()
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 #endif
-        ;
+        ;  // NOLINT(whitespace/semicolon)
   }
 
   class LoadView {
@@ -1607,6 +1602,7 @@ class V8_EXPORT_PRIVATE InstructionSelectorT final
   bool instruction_selection_failed_;
   ZoneVector<std::pair<int, int>> instr_origins_;
   EnableTraceTurboJson trace_turbo_;
+  EnsureDeterministicNan ensure_deterministic_nan_;
   TickCounter* const tick_counter_;
   // The broker is only used for unparking the LocalHeap for diagnostic printing
   // for failed StaticAsserts.
