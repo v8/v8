@@ -823,11 +823,14 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
       }
 
       if (IsDefiningStore(access_mode)) {
-        if (details.attributes() != PropertyAttributes::NONE) {
+        if (details.attributes() != PropertyAttributes::NONE ||
+            details.kind() != PropertyKind::kData) {
           // We should store the property with WEC attributes, but that's not
           // the attributes of the property that we found. We just bail out and
           // let the runtime figure out what to do (which probably requires
           // changing the object's map).
+          // Same for accessor case - we must reconfigure property to a data
+          // property.
           return Invalid();
         }
       }
