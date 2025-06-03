@@ -301,7 +301,10 @@ class MaglevInliner {
   void RemovePredecessorFollowing(ControlNode* control,
                                   BasicBlock* call_block) {
     BasicBlock::ForEachSuccessorFollowing(control, [&](BasicBlock* succ) {
-      if (!succ->has_state()) return;
+      if (!succ->has_state()) {
+        succ->set_predecessor(nullptr);
+        return;
+      }
       if (succ->is_loop() && succ->backedge_predecessor() == call_block) {
         succ->state()->TurnLoopIntoRegularBlock();
         return;

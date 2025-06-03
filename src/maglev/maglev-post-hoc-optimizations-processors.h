@@ -204,6 +204,7 @@ class SweepUnreachableBasicBlocks {
  public:
   void PreProcessGraph(Graph* graph) {
     DCHECK(graph->may_have_unreachable_blocks());
+    entry_ = *graph->begin();
   }
 
   template <typename NodeT>
@@ -232,7 +233,8 @@ class SweepUnreachableBasicBlocks {
   }
 
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
-    if (block->has_state() && block->state()->IsUnreachable()) {
+    if (block->has_state() ? block->state()->IsUnreachable()
+                           : (!block->predecessor() && block != entry_)) {
       MarkDead(block);
       found_dead_ = true;
       return BlockProcessResult::kSkip;
@@ -270,6 +272,7 @@ class SweepUnreachableBasicBlocks {
   }
 
  private:
+  BasicBlock* entry_;
   bool found_dead_ = false;
   absl::flat_hash_set<BasicBlock::Id> reachable_catch_blocks_;
   std::vector<BasicBlock*> maybe_dead_catch_blocks_;
