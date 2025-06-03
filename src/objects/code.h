@@ -116,6 +116,9 @@ class Code : public ExposedTrustedObject {
 
   DECL_PRIMITIVE_ACCESSORS(can_have_weak_objects, bool)
   DECL_PRIMITIVE_GETTER(marked_for_deoptimization, bool)
+#if V8_ENABLE_GEARBOX
+  DECL_PRIMITIVE_ACCESSORS(is_gearbox_placeholder_builtin, bool)
+#endif  // V8_ENABLE_GEARBOX
 
   DECL_PRIMITIVE_ACCESSORS(metadata_size, int)
   // [handler_table_offset]: The offset where the exception handler table
@@ -315,6 +318,18 @@ class Code : public ExposedTrustedObject {
   static inline bool IsWeakObjectInDeoptimizationLiteralArray(
       Tagged<Object> object);
 
+#if V8_ENABLE_GEARBOX
+  // These helper methods copy necessary contents from src builtin (gearbox
+  // variants or kIllegal) code object to dst (gearbox placeholder) code object,
+  // which helps v8 to find correct instruction/meta data addresses.
+  static void CopyFieldsWithGearboxForSerialization(Tagged<Code> dst,
+                                                    Tagged<Code> src,
+                                                    Isolate* isolate);
+  static void CopyFieldsWithGearboxForDeserialization(Tagged<Code> dst,
+                                                      Tagged<Code> src,
+                                                      Isolate* isolate);
+#endif  // V8_ENABLE_GEARBOX
+
   // This function should be called only from GC.
   void ClearEmbeddedObjectsAndJSDispatchHandles(Heap* heap);
 
@@ -437,11 +452,18 @@ class Code : public ExposedTrustedObject {
 
   class BodyDescriptor;
 
+#if V8_ENABLE_GEARBOX
+#define WITH_GEARBOX_FLAG(V, _) V(IsGearboxPlaceholderField, bool, 1, _)
+#else
+#define WITH_GEARBOX_FLAG(V, _)
+#endif  // V8_ENABLE_GEARBOX
+
   // Flags layout.
 #define FLAGS_BIT_FIELDS(V, _)                \
   V(KindField, CodeKind, 4, _)                \
   V(IsTurbofannedField, bool, 1, _)           \
   V(IsContextSpecializedField, bool, 1, _)    \
+  WITH_GEARBOX_FLAG(V, _)                     \
   V(MarkedForDeoptimizationField, bool, 1, _) \
   V(EmbeddedObjectsClearedField, bool, 1, _)  \
   V(CanHaveWeakObjectsField, bool, 1, _)

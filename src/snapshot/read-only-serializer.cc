@@ -97,12 +97,34 @@ class ObjectPreProcessor final {
             kFunctionTemplateInfoCallbackTag),
         o->callback(isolate_));  // Pass the non-redirected value.
   }
+#if V8_ENABLE_GEARBOX
+  V8_INLINE void ResetGearboxPlaceholderBuiltin(Tagged<Code> code) {
+    // In order to ensure predictable state of placeholder builtins Code
+    // objects after serialization we replace their fields with the contents
+    // of kIllegal builtin.
+    if (code->is_gearbox_placeholder_builtin()) {
+      Builtin variant_builtin_id = code->builtin_id();
+      Builtin placeholder_builtin_id =
+          Builtins::GetGearboxPlaceholderFromVariant(variant_builtin_id);
+      DCHECK_EQ(
+          isolate_->builtins()->code(placeholder_builtin_id)->builtin_id(),
+          code->builtin_id());
+      Tagged<Code> src = isolate_->builtins()->code(Builtin::kIllegal);
+      Code::CopyFieldsWithGearboxForSerialization(code, src, isolate_);
+      // We should use the placeholder id instead of kIllegal.
+      code->set_builtin_id(placeholder_builtin_id);
+    }
+  }
+#endif
   void PreProcessCode(Tagged<Code> o) {
     o->ClearInstructionStartForSerialization(isolate_);
     CHECK(!o->has_source_position_table_or_bytecode_offset_table());
     CHECK(!o->has_deoptimization_data_or_interpreter_data());
 #ifdef V8_ENABLE_LEAPTIERING
     CHECK_EQ(o->js_dispatch_handle(), kNullJSDispatchHandle);
+#endif
+#if V8_ENABLE_GEARBOX
+    ResetGearboxPlaceholderBuiltin(o);
 #endif
   }
 

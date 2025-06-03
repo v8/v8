@@ -442,6 +442,21 @@ inline bool Code::is_context_specialized() const {
   return IsContextSpecializedField::decode(flags(kRelaxedLoad));
 }
 
+#if V8_ENABLE_GEARBOX
+inline bool Code::is_gearbox_placeholder_builtin() const {
+  return IsGearboxPlaceholderField::decode(flags(kRelaxedLoad));
+}
+
+void Code::set_is_gearbox_placeholder_builtin(bool flag) {
+  // We should only invoke the setter when we serializing the placeholder object
+  // in mksnapshot.
+  DCHECK_IMPLIES(flag, Builtins::IsGearboxPlaceholder(builtin_id()));
+  int32_t previous = flags(kRelaxedLoad);
+  int32_t updated = IsGearboxPlaceholderField::update(previous, flag);
+  set_flags(updated, kRelaxedStore);
+}
+#endif  // V8_ENABLE_GEARBOX
+
 inline bool Code::is_turbofanned() const {
   return IsTurbofannedField::decode(flags(kRelaxedLoad));
 }

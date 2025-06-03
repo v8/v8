@@ -2977,7 +2977,13 @@ DirectHandle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(
       off_heap_entry,
   };
 
-  return NewCode(new_code_options);
+  Handle<Code> new_code = NewCode(new_code_options);
+#if V8_ENABLE_GEARBOX
+  if (Builtins::IsGearboxPlaceholder(new_code->builtin_id())) {
+    new_code->set_is_gearbox_placeholder_builtin(true);
+  }
+#endif  // V8_ENABLE_GEARBOX
+  return new_code;
 }
 
 DirectHandle<BytecodeArray> Factory::CopyBytecodeArray(

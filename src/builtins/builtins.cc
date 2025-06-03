@@ -389,8 +389,12 @@ void Builtins::InitializeIsolateDataTables(Isolate* isolate) {
   for (Builtin i = Builtins::kFirst; i <= Builtins::kLast; ++i) {
     DCHECK(Builtins::IsBuiltinId(isolate->builtins()->code(i)->builtin_id()));
     DCHECK(!isolate->builtins()->code(i)->has_instruction_stream());
+    Builtin builtin_id = i;
+#if V8_ENABLE_GEARBOX
+    builtin_id = isolate->builtins()->code(i)->builtin_id();
+#endif  // V8_ENABLE_GEARBOX
     isolate_data->builtin_entry_table()[ToInt(i)] =
-        embedded_data.InstructionStartOf(i);
+        embedded_data.InstructionStartOf(builtin_id);
   }
 
   // T0 tables.

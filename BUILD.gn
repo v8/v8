@@ -234,6 +234,11 @@ declare_args() {
   #    in step 3 or 4.
   v8_builtins_profiling_log_file = "default"
 
+  # Enable gearbox (instruction set extension) for builtins, the gearbox
+  # feature only supports x64 arch yet.
+  # Sets -DV8_BUILTINS_GEARBOX
+  v8_enable_builtins_gearbox = false
+
   # Enables various testing features.
   v8_enable_test_features = ""
 
@@ -1337,6 +1342,17 @@ config("features") {
   }
   if (v8_enable_fuzztest) {
     defines += [ "V8_ENABLE_FUZZTEST" ]
+  }
+
+  # TODO(Wenqin): Gearbox is not compatible with builtin PGO builds yet, try to
+  # support it later.
+  # TODO(Wenqin): Gearbox didn't work when didn't enable pointer compression,
+  # it's related to the deserializer, when pointer compression is disable, it
+  # will not call PostProcessCode method, which is the bottleneck for Gearbox
+  # try to fix it later.
+  if (v8_builtins_profiling_log_file == "" && v8_enable_pointer_compression &&
+      v8_enable_builtins_gearbox && v8_current_cpu == "x64") {
+    defines += [ "V8_BUILTINS_GEARBOX" ]
   }
   if (v8_enable_short_builtin_calls) {
     defines += [ "V8_SHORT_BUILTIN_CALLS" ]
@@ -2680,7 +2696,10 @@ template("run_mksnapshot") {
       }
     }
 
-    if (v8_enable_concurrent_mksnapshot) {
+    # TODO(Wenqin): We have to set the CPU feature when we are compiling ISX
+    # builtins, therefore it may make TSAN failed when we enable concurrent
+    # mksnapshot, try to make the CPU feature as thread local later.
+    if (v8_enable_concurrent_mksnapshot && !v8_enable_builtins_gearbox) {
       args += [
         "--concurrent-builtin-generation",
 

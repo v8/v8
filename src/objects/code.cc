@@ -339,5 +339,34 @@ void Code::TraceMarkForDeoptimization(Isolate* isolate,
   Deoptimizer::TraceMarkForDeoptimization(isolate, *this, reason);
 }
 
+#if V8_ENABLE_GEARBOX
+void Code::CopyFieldsWithGearboxForSerialization(Tagged<Code> dst,
+                                                 Tagged<Code> src,
+                                                 Isolate* isolate) {
+  Builtin src_id = src->builtin_id();
+  DCHECK(dst->is_gearbox_placeholder_builtin());
+  DCHECK(Builtins::IsISXVariant(src_id) || Builtins::IsGenericVariant(src_id) ||
+         src_id == Builtin::kIllegal);
+  dst->set_builtin_id(src_id);
+  dst->set_instruction_size(src->instruction_size());
+  dst->set_metadata_size(src->metadata_size());
+  dst->set_handler_table_offset(src->handler_table_offset());
+  dst->set_jump_table_info_offset(src->jump_table_info_offset());
+  dst->set_unwinding_info_offset(src->unwinding_info_offset());
+  dst->set_parameter_count(src->parameter_count());
+  dst->set_code_comments_offset(src->code_comments_offset());
+  dst->set_constant_pool_offset(src->constant_pool_offset());
+}
+
+void Code::CopyFieldsWithGearboxForDeserialization(Tagged<Code> dst,
+                                                   Tagged<Code> src,
+                                                   Isolate* isolate) {
+  CopyFieldsWithGearboxForSerialization(dst, src, isolate);
+  // We only set instruction_start field when we're doing deserialization,
+  // because in the serialization it was already be cleaned.
+  dst->SetInstructionStartForOffHeapBuiltin(isolate, src->instruction_start());
+}
+#endif  // V8_ENABLE_GEARBOX
+
 }  // namespace internal
 }  // namespace v8
