@@ -4543,6 +4543,17 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   DCHECK_IMPLIES(speculation_mode == SpeculationMode::kAllowSpeculation,
                  feedback_source.IsValid());
 
+  // Let's not add instructions to the graph (like e.g., CheckIfConstructor
+  // does) if the resulting call might be dead.
+  if (feedback_source.IsValid()) {
+    ProcessedFeedback const& call_feedback =
+        broker()->GetFeedbackForCall(feedback_source);
+    if (call_feedback.IsInsufficient()) {
+      return ReduceForInsufficientFeedback(
+          node, DeoptimizeReason::kInsufficientTypeFeedbackForCall);
+    }
+  }
+
   Node* arguments_list =
       NodeProperties::GetValueInput(node, arraylike_or_spread_index);
 
@@ -5956,7 +5967,11 @@ Reduction JSCallReducer::ReduceReturnReceiver(Node* node) {
 Reduction JSCallReducer::ReduceForInsufficientFeedback(
     Node* node, DeoptimizeReason reason) {
   DCHECK(node->opcode() == IrOpcode::kJSCall ||
-         node->opcode() == IrOpcode::kJSConstruct);
+         node->opcode() == IrOpcode::kJSCallWithSpread ||
+         node->opcode() == IrOpcode::kJSCallWithArrayLike ||
+         node->opcode() == IrOpcode::kJSConstruct ||
+         node->opcode() == IrOpcode::kJSConstructWithSpread ||
+         node->opcode() == IrOpcode::kJSConstructWithArrayLike);
   if (!(flags() & kBailoutOnUninitialized)) return NoChange();
 
   Node* effect = NodeProperties::GetEffectInput(node);
