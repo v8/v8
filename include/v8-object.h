@@ -851,12 +851,12 @@ class V8_EXPORT Object : public Value {
   /**
    * Return the isolate to which the Object belongs to.
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use Isolate::GetCurrent() instead, which is guaranteed to return the "
       "same isolate since https://crrev.com/c/6458560.")
   Isolate* GetIsolate();
 
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use Isolate::GetCurrent() instead, which is guaranteed to return the "
       "same isolate since https://crrev.com/c/6458560.")
   V8_INLINE static Isolate* GetIsolate(const TracedReference<Object>& handle) {
