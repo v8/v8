@@ -153,7 +153,8 @@ void KnownNodeAspects::UpdateMayHaveAliasingContexts(
     // to type.
     DCHECK(NodeTypeIs(GetNodeType(broker, local_isolate, *this, input),
                       NodeType::kContext) ||
-           input->Is<Phi>() || input->Is<InitialValue>());
+           input->Is<GeneratorRestoreRegister>() || input->Is<Phi>() ||
+           input->Is<InitialValue>());
     SLOW_DCHECK_IMPLIES(
         input->Is<Phi>(),
         CheckAllPhiInputsAreContextType(broker, local_isolate, *this, input));
