@@ -80,6 +80,62 @@ class Graph final : public ZoneObject {
 
   void set_blocks(ZoneVector<BasicBlock*> blocks) { blocks_ = blocks; }
 
+  inline void RemoveUnreachableBlocks() {
+    DCHECK(may_have_unreachable_blocks());
+
+    std::vector<bool> reachable_blocks(max_block_id(), false);
+    std::vector<BasicBlock*> worklist;
+
+    DCHECK(!blocks().empty());
+    BasicBlock* initial_bb = blocks().front();
+    worklist.push_back(initial_bb);
+    reachable_blocks[initial_bb->id()] = true;
+    DCHECK(!initial_bb->is_loop());
+
+    while (!worklist.empty()) {
+      BasicBlock* current = worklist.back();
+      worklist.pop_back();
+
+      for (auto handler : current->exception_handlers()) {
+        if (!handler->HasExceptionHandler()) continue;
+        if (handler->ShouldLazyDeopt()) continue;
+        BasicBlock* catch_block = handler->catch_block();
+        if (!reachable_blocks[catch_block->id()]) {
+          reachable_blocks[catch_block->id()] = true;
+          worklist.push_back(catch_block);
+        }
+      }
+      current->ForEachSuccessor([&](BasicBlock* succ) {
+        if (!reachable_blocks[succ->id()]) {
+          reachable_blocks[succ->id()] = true;
+          worklist.push_back(succ);
+        }
+      });
+    }
+
+    // Sweep dead blocks and remove unreachable predecessors.
+    IterateGraphAndSweepDeadBlocks([&](BasicBlock* bb) {
+      if (!reachable_blocks[bb->id()]) return true;
+      // If block doesn't have a merge state, it has only one predecessor, so
+      // it must be the reachable one.
+      if (!bb->has_state()) return false;
+      if (bb->is_loop() &&
+          !reachable_blocks[bb->backedge_predecessor()->id()]) {
+        // If the backedge predecessor is not reachable, we can turn the loop
+        // into a regular block.
+        bb->state()->TurnLoopIntoRegularBlock();
+      }
+      for (int i = bb->predecessor_count() - 1; i >= 0; i--) {
+        if (!reachable_blocks[bb->predecessor_at(i)->id()]) {
+          bb->state()->RemovePredecessorAt(i);
+        }
+      }
+      return false;
+    });
+
+    set_may_have_unreachable_blocks(false);
+  }
+
   template <typename Function>
   void IterateGraphAndSweepDeadBlocks(Function&& is_dead) {
     auto current = blocks_.begin();
