@@ -1459,9 +1459,10 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
     MapHandles* receiver_maps, MaybeObjectHandles* handlers,
     KeyedAccessLoadMode new_load_mode) {
   // Filter out deprecated maps to ensure their instances get migrated.
-  receiver_maps->erase(std::remove_if(
+  auto new_end = std::remove_if(
       receiver_maps->begin(), receiver_maps->end(),
-      [](const DirectHandle<Map>& map) { return map->is_deprecated(); }));
+      [](const DirectHandle<Map>& map) { return map->is_deprecated(); });
+  receiver_maps->erase(new_end, receiver_maps->end());
 
   for (DirectHandle<Map> receiver_map : *receiver_maps) {
       Tagged<Map> tmap = receiver_map->FindElementsKindTransitionedMap(
