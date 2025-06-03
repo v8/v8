@@ -548,8 +548,7 @@ void InstructionSelectorT::VisitSwitch(OpIndex node, const SwitchInfo& sw) {
   InstructionOperand value_operand = g.UseRegister(op.input(0));
 
   // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
-  if (enable_switch_jump_table_ ==
-      InstructionSelector::kEnableSwitchJumpTable) {
+  if (enable_switch_jump_table_) {
     static const size_t kMaxTableSwitchValueRange = 2 << 16;
     size_t table_space_cost = 10 + 2 * sw.value_range();
     size_t table_time_cost = 3;

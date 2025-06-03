@@ -110,7 +110,7 @@ InstructionSelectorT::InstructionSelectorT(
   continuation_inputs_.reserve(5);
   continuation_outputs_.reserve(2);
 
-  if (trace_turbo_ == InstructionSelector::kEnableTraceTurboJson) {
+  if (trace_turbo_) {
     instr_origins_.assign(node_count, {-1, 0});
   }
 }
@@ -593,10 +593,7 @@ bool InstructionSelectorT::CanAddressRelativeToRootsRegister(
   //    through the root register, i.e. are root-relative addresses to arbitrary
   //    addresses guaranteed not to change between code generation and
   //    execution?
-  const bool all_root_relative_offsets_are_constant =
-      (enable_roots_relative_addressing_ ==
-       InstructionSelector::kEnableRootsRelativeAddressing);
-  if (all_root_relative_offsets_are_constant) return true;
+  if (enable_roots_relative_addressing_) return true;
 
   // 3. IsAddressableThroughRootRegister: Is the target address guaranteed to
   //    have a fixed root-relative offset? If so, we can ignore 2.
@@ -1411,8 +1408,7 @@ bool InstructionSelectorT::IsCommutative(turboshaft::OpIndex node) const {
     return turboshaft::OverflowCheckedBinopOp::IsCommutative(
         overflow_binop->kind);
   } else if (const auto float_binop = op.TryCast<turboshaft::FloatBinopOp>()) {
-    return ensure_deterministic_nan_ ==
-               InstructionSelector::kNoDeterministicNan &&
+    return !ensure_deterministic_nan_ &&
            turboshaft::FloatBinopOp::IsCommutative(float_binop->kind);
   } else if (const auto comparison = op.TryCast<turboshaft::ComparisonOp>()) {
     return turboshaft::ComparisonOp::IsCommutative(comparison->kind);
@@ -1524,7 +1520,7 @@ void InstructionSelectorT::VisitBlock(const Block* block) {
       VisitNode(node);
       if (!FinishEmittedInstructions(node, current_node_end)) return;
     }
-    if (trace_turbo_ == InstructionSelector::kEnableTraceTurboJson) {
+    if (trace_turbo_) {
       instr_origins_[node.id()] = {current_num_instructions(),
                                    current_node_end};
     }
@@ -2683,7 +2679,7 @@ void InstructionSelectorT::VisitControl(const Block* block) {
     }
   }
 
-  if (trace_turbo_ == InstructionSelector::kEnableTraceTurboJson) {
+  if (trace_turbo_) {
     DCHECK(node.valid());
     int instruction_start = static_cast<int>(instructions_.size());
     instr_origins_[node.id()] = {instruction_start, instruction_end};

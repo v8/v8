@@ -403,17 +403,26 @@ class V8_EXPORT_PRIVATE InstructionSelectorT final
       turboshaft::GrowingOpIndexSidetable<SourcePosition>;
 
   enum SourcePositionMode { kCallSourcePositions, kAllSourcePositions };
-  enum EnableScheduling { kDisableScheduling, kEnableScheduling };
-  enum EnableRootsRelativeAddressing {
-    kDisableRootsRelativeAddressing,
-    kEnableRootsRelativeAddressing
+  enum EnableScheduling : bool {
+    kDisableScheduling = false,
+    kEnableScheduling = true
   };
-  enum EnableSwitchJumpTable {
-    kDisableSwitchJumpTable,
-    kEnableSwitchJumpTable
+  enum EnableRootsRelativeAddressing : bool {
+    kDisableRootsRelativeAddressing = false,
+    kEnableRootsRelativeAddressing = true
   };
-  enum EnableTraceTurboJson { kDisableTraceTurboJson, kEnableTraceTurboJson };
-  enum EnsureDeterministicNan { kNoDeterministicNan, kEnsureDeterministicNan };
+  enum EnableSwitchJumpTable : bool {
+    kDisableSwitchJumpTable = false,
+    kEnableSwitchJumpTable = true
+  };
+  enum EnableTraceTurboJson : bool {
+    kDisableTraceTurboJson = false,
+    kEnableTraceTurboJson = true
+  };
+  enum EnsureDeterministicNan : bool {
+    kNoDeterministicNan = false,
+    kEnsureDeterministicNan = true
+  };
 
   class Features final {
    public:
@@ -1017,8 +1026,7 @@ class V8_EXPORT_PRIVATE InstructionSelectorT final
   friend OperandGenerator;
 
   bool UseInstructionScheduling() const {
-    return (enable_scheduling_ == kEnableScheduling) &&
-           InstructionScheduler::SchedulerSupported();
+    return enable_scheduling_ && InstructionScheduler::SchedulerSupported();
   }
 
   void AppendDeoptimizeArguments(InstructionOperandVector* args,
