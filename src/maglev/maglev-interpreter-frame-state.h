@@ -486,6 +486,9 @@ struct KnownNodeAspects {
         node_infos(zone) {}
 
  private:
+  // This field indicates if the current state of loaded_context_slots might
+  // contain contexts aliases. If that is the case, then we need to be more
+  // conservative about updating the state on stores.
   ContextSlotLoadsAlias may_have_aliasing_contexts_;
   uint32_t effect_epoch_;
 
