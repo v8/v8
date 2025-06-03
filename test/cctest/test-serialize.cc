@@ -4569,9 +4569,11 @@ UNINITIALIZED_TEST(SerializeContextData) {
   FreeCurrentEmbeddedBlob();
 }
 
-class DummyWrappable : public cppgc::GarbageCollected<DummyWrappable> {
+class DummyWrappable : public v8::Object::Wrappable {
  public:
-  void Trace(cppgc::Visitor*) const {}
+  void Trace(cppgc::Visitor* visitor) const override {
+    v8::Object::Wrappable::Trace(visitor);
+  }
 
   bool is_special = false;
 };

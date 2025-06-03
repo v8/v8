@@ -5,6 +5,8 @@
 #ifndef INCLUDE_V8_OBJECT_H_
 #define INCLUDE_V8_OBJECT_H_
 
+#include "cppgc/garbage-collected.h"
+#include "cppgc/name-provider.h"
 #include "v8-internal.h"           // NOLINT(build/include_directory)
 #include "v8-local-handle.h"       // NOLINT(build/include_directory)
 #include "v8-maybe.h"              // NOLINT(build/include_directory)
@@ -548,6 +550,29 @@ class V8_EXPORT Object : public Value {
   void SetAlignedPointerInInternalFields(int argc, int indices[],
                                          void* values[]);
 
+  // Type information for a Wrappable object that got wrapped with
+  // `v8::Object::Wrap()`.
+  struct WrapperTypeInfo {
+    const int16_t type_id;
+  };
+
+  // v8::Object::Wrappable serves as the base class for all C++ objects that can
+  // be wrapped by a JavaScript object using `v8::Object::Wrap()`.
+  //
+  // Note that v8::Object::Wrappable` inherits from `NameProvider` and provides
+  // `GetWrapperTypeInfo` to allow subclasses to have smaller object sizes.
+  class Wrappable : public cppgc::GarbageCollected<Wrappable>,
+                    public cppgc::NameProvider {
+   public:
+    virtual const WrapperTypeInfo* GetWrapperTypeInfo() const {
+      return nullptr;
+    }
+
+    const char* GetHumanReadableName() const override { return "internal"; }
+
+    virtual void Trace(cppgc::Visitor* visitor) const {}
+  };
+
   /**
    * Unwraps a JS wrapper object.
    *
@@ -591,26 +616,54 @@ class V8_EXPORT Object : public Value {
    * \param wrappable The C++ object instance that is wrapped by the JS object.
    */
   template <CppHeapPointerTag tag>
+  V8_DEPRECATE_SOON("Use `Wrap` with `Wrappable* wrappable` instead")
+  static V8_INLINE
+      void Wrap(v8::Isolate* isolate, const v8::Local<v8::Object>& wrapper,
+                void* wrappable);
+  template <CppHeapPointerTag tag>
+  V8_DEPRECATE_SOON("Use `Wrap` with `Wrappable* wrappable` instead")
+  static V8_INLINE
+      void Wrap(v8::Isolate* isolate, const PersistentBase<Object>& wrapper,
+                void* wrappable);
+  template <CppHeapPointerTag tag>
+  V8_DEPRECATE_SOON("Use `Wrap` with `Wrappable* wrappable` instead")
+  static V8_INLINE
+      void Wrap(v8::Isolate* isolate,
+                const BasicTracedReference<Object>& wrapper, void* wrappable);
+  V8_DEPRECATE_SOON("Use `Wrap` with `Wrappable* wrappable` instead")
   static V8_INLINE void Wrap(v8::Isolate* isolate,
                              const v8::Local<v8::Object>& wrapper,
-                             void* wrappable);
+                             void* wrappable, CppHeapPointerTag tag);
+  V8_DEPRECATE_SOON("Use `Wrap` with `Wrappable* wrappable` instead")
+  static V8_INLINE void Wrap(v8::Isolate* isolate,
+                             const PersistentBase<Object>& wrapper,
+                             void* wrappable, CppHeapPointerTag tag);
+  V8_DEPRECATE_SOON("Use `Wrap` with `Wrappable* wrappable` instead")
+  static V8_INLINE void Wrap(v8::Isolate* isolate,
+                             const BasicTracedReference<Object>& wrapper,
+                             void* wrappable, CppHeapPointerTag tag);
+
+  template <CppHeapPointerTag tag>
+  static V8_INLINE void Wrap(v8::Isolate* isolate,
+                             const v8::Local<v8::Object>& wrapper,
+                             Wrappable* wrappable);
   template <CppHeapPointerTag tag>
   static V8_INLINE void Wrap(v8::Isolate* isolate,
                              const PersistentBase<Object>& wrapper,
-                             void* wrappable);
+                             Wrappable* wrappable);
   template <CppHeapPointerTag tag>
   static V8_INLINE void Wrap(v8::Isolate* isolate,
                              const BasicTracedReference<Object>& wrapper,
-                             void* wrappable);
+                             Wrappable* wrappable);
   static V8_INLINE void Wrap(v8::Isolate* isolate,
                              const v8::Local<v8::Object>& wrapper,
-                             void* wrappable, CppHeapPointerTag tag);
+                             Wrappable* wrappable, CppHeapPointerTag tag);
   static V8_INLINE void Wrap(v8::Isolate* isolate,
                              const PersistentBase<Object>& wrapper,
-                             void* wrappable, CppHeapPointerTag tag);
+                             Wrappable* wrappable, CppHeapPointerTag tag);
   static V8_INLINE void Wrap(v8::Isolate* isolate,
                              const BasicTracedReference<Object>& wrapper,
-                             void* wrappable, CppHeapPointerTag tag);
+                             Wrappable* wrappable, CppHeapPointerTag tag);
 
   /**
    * HasOwnProperty() is like JavaScript's
@@ -1059,6 +1112,57 @@ void Object::Wrap(v8::Isolate* isolate, const PersistentBase<Object>& wrapper,
 void Object::Wrap(v8::Isolate* isolate,
                   const BasicTracedReference<Object>& wrapper, void* wrappable,
                   CppHeapPointerTag tag) {
+  auto obj =
+      internal::ValueHelper::ValueAsAddress(wrapper.template value<Object>());
+  Wrap(isolate, obj, tag, wrappable);
+}
+
+// static
+template <CppHeapPointerTag tag>
+void Object::Wrap(v8::Isolate* isolate, const v8::Local<v8::Object>& wrapper,
+                  v8::Object::Wrappable* wrappable) {
+  auto obj = internal::ValueHelper::ValueAsAddress(*wrapper);
+  Wrap(isolate, obj, tag, wrappable);
+}
+
+// static
+template <CppHeapPointerTag tag>
+void Object::Wrap(v8::Isolate* isolate, const PersistentBase<Object>& wrapper,
+                  v8::Object::Wrappable* wrappable) {
+  auto obj =
+      internal::ValueHelper::ValueAsAddress(wrapper.template value<Object>());
+  Wrap(isolate, obj, tag, wrappable);
+}
+
+// static
+template <CppHeapPointerTag tag>
+void Object::Wrap(v8::Isolate* isolate,
+                  const BasicTracedReference<Object>& wrapper,
+                  v8::Object::Wrappable* wrappable) {
+  auto obj =
+      internal::ValueHelper::ValueAsAddress(wrapper.template value<Object>());
+  Wrap(isolate, obj, tag, wrappable);
+}
+
+// static
+void Object::Wrap(v8::Isolate* isolate, const v8::Local<v8::Object>& wrapper,
+                  v8::Object::Wrappable* wrappable, CppHeapPointerTag tag) {
+  auto obj = internal::ValueHelper::ValueAsAddress(*wrapper);
+  Wrap(isolate, obj, tag, wrappable);
+}
+
+// static
+void Object::Wrap(v8::Isolate* isolate, const PersistentBase<Object>& wrapper,
+                  v8::Object::Wrappable* wrappable, CppHeapPointerTag tag) {
+  auto obj =
+      internal::ValueHelper::ValueAsAddress(wrapper.template value<Object>());
+  Wrap(isolate, obj, tag, wrappable);
+}
+
+// static
+void Object::Wrap(v8::Isolate* isolate,
+                  const BasicTracedReference<Object>& wrapper,
+                  v8::Object::Wrappable* wrappable, CppHeapPointerTag tag) {
   auto obj =
       internal::ValueHelper::ValueAsAddress(wrapper.template value<Object>());
   Wrap(isolate, obj, tag, wrappable);
