@@ -1102,6 +1102,15 @@ inline void MaglevAssembler::BranchOnObjectType(
          false_distance, fallthrough_when_false);
 }
 
+inline void MaglevAssembler::JumpIfObjectType(Register heap_object,
+                                              InstanceType type, Label* target,
+                                              Label::Distance distance) {
+  TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  IsObjectType(heap_object, scratch, scratch, type);
+  JumpIf(kEqual, target, distance);
+}
+
 inline void MaglevAssembler::JumpIfObjectTypeInRange(Register heap_object,
                                                      InstanceType lower_limit,
                                                      InstanceType higher_limit,
