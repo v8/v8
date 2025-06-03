@@ -100,7 +100,7 @@ BUILTIN(AsyncDisposeFromSyncDispose) {
   } else {
     Tagged<Object> exception = isolate->exception();
     if (!isolate->is_catchable_by_javascript(exception)) {
-      return {};
+      return ReadOnlyRoots(isolate).exception();
     }
     //        d. IfAbruptRejectPromise(result, promiseCapability).
     isolate->clear_internal_exception();

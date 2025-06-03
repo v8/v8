@@ -2337,6 +2337,8 @@ MaybeLocal<Context> Shell::CreateRealm(
   DCHECK(i::ValidateCallbackInfo(info));
   const char* kGlobalHandleLabel = "d8::realm";
   Isolate* isolate = info.GetIsolate();
+  if (isolate->IsExecutionTerminating()) return MaybeLocal<Context>();
+
   TryCatch try_catch(isolate);
   PerIsolateData* data = PerIsolateData::Get(isolate);
   if (index < 0) {
