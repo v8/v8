@@ -12,7 +12,7 @@
 #include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
-#include "src/ic/handler-configuration.h"
+#include "src/ic/handler-configuration-inl.h"
 #include "src/ic/ic.h"
 #include "src/ic/keyed-store-generic.h"
 #include "src/ic/stub-cache.h"
@@ -4371,8 +4371,16 @@ void AccessorAssembler::GenerateLoadIC_Megamorphic() {
   TVARIABLE(MaybeObject, var_handler);
   Label if_handler(this, &var_handler), miss(this, Label::kDeferred);
 
-  CSA_DCHECK(this, TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot),
-                               MegamorphicSymbolConstant()));
+  CSA_DCHECK(
+      this,
+      Word32Or(
+          // Either the IC is in regular megamorphic state...
+          TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot),
+                      MegamorphicSymbolConstant()),
+          // ...or it's monomorphic but using the slow handler. Compilers are
+          // free to approximate this by using the generic stub for everything.
+          TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize),
+                      SmiConstant(*LoadHandler::LoadSlow(isolate())))));
 
   TryProbeStubCache(isolate()->load_stub_cache(), receiver, CAST(name),
                     &if_handler, &var_handler, &miss);

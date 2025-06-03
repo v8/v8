@@ -711,11 +711,13 @@ Tagged<Map> Map::FindRootMap(PtrComprCageBase cage_base) const {
   while (true) {
     Tagged<Map> parent;
     if (!result->TryGetBackPointer(cage_base, &parent)) {
-      // Initial map must not contain descriptors in the descriptors array
-      // that do not belong to the map.
-      DCHECK_LE(result->NumberOfOwnDescriptors(),
-                result->instance_descriptors(cage_base, kRelaxedLoad)
-                    ->number_of_descriptors());
+#if DEBUG
+      if (IsJSObjectMap(result)) {
+        DCHECK_LE(result->NumberOfOwnDescriptors(),
+                  result->instance_descriptors(cage_base, kRelaxedLoad)
+                      ->number_of_descriptors());
+      }
+#endif
       return result;
     }
     result = parent;
