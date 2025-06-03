@@ -106,17 +106,26 @@ bool CheckAllPhiInputsAreContextType(compiler::JSHeapBroker* broker,
   CHECK(phi->Is<Phi>());
   for (Input& input : *phi) {
     if (!input.node()) continue;
+    if (NodeTypeIs(
+            GetNodeType(broker, local_isolate, node_aspects, input.node()),
+            NodeType::kContext)) {
+      continue;
+    }
+    // OSR values can leak a context with InitialValue that we are unable to
+    // type.
+    if (input.node()->Is<InitialValue>()) continue;
+    if (phi->Cast<Phi>()->owner() == interpreter::Register::current_context()) {
+      // We are unable to type loop phis holding the context from resumable
+      // loops, since they start with an empty KNA.
+      // Instead here, we just check if the phi makes sense,
+      return true;
+    }
     if (input.node()->Is<Phi>()) {
       CheckAllPhiInputsAreContextType(broker, local_isolate, node_aspects,
                                       input.node());
       continue;
     }
-    // Note: OSR values can leak a context with InitialValue that we are unable
-    // to type.
-    CHECK(NodeTypeIs(
-              GetNodeType(broker, local_isolate, node_aspects, input.node()),
-              NodeType::kContext) ||
-          input.node()->Is<InitialValue>());
+    return false;
   }
   return true;
 }
