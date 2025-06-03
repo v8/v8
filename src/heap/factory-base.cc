@@ -1442,7 +1442,7 @@ JSDispatchHandle FactoryBase<Impl>::NewJSDispatchHandle(
     uint16_t parameter_count, DirectHandle<Code> code,
     JSDispatchTable::Space* space) {
   JSDispatchTable* jdt = isolate()->isolate_group()->js_dispatch_table();
-  auto Allocate = [&](AllocationType _) {
+  auto Allocate = [&]() {
     return jdt->TryAllocateAndInitializeEntry(space, parameter_count, *code);
   };
   // Dispatch entries are only freed on major GCs.

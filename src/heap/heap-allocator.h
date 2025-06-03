@@ -6,6 +6,7 @@
 #define V8_HEAP_HEAP_ALLOCATOR_H_
 
 #include <optional>
+#include <type_traits>
 
 #include "include/v8config.h"
 #include "src/base/macros.h"
@@ -18,7 +19,6 @@ namespace internal {
 
 class AllocationObserver;
 class CodeLargeObjectSpace;
-class Heap;
 class LocalHeap;
 class LinearAllocationArea;
 class MainAllocator;
@@ -139,9 +139,9 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
     return &shared_space_allocator_.value();
   }
 
-  template <typename Function>
+  template <typename AllocateFunction>
   V8_WARN_UNUSED_RESULT V8_INLINE auto CustomAllocateWithRetryOrFail(
-      Function&& Allocate, AllocationType allocation);
+      AllocateFunction&& Allocate, AllocationType allocation);
 
  private:
   V8_INLINE PagedSpace* code_space() const;
@@ -160,32 +160,46 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
       int size_in_bytes, AllocationType allocation, AllocationOrigin origin,
       AllocationAlignment alignment, AllocationHint hint);
 
-  template <typename AllocateFunction, typename RetryFunction>
-  V8_WARN_UNUSED_RESULT inline auto AllocateRawWithRetryOrFailSlowPath(
-      AllocateFunction&& Allocate, RetryFunction&& RetryAllocate,
-      AllocationType allocation);
+  template <typename AllocateFunction>
+  V8_WARN_UNUSED_RESULT inline std::invoke_result_t<AllocateFunction>
+  AllocateRawWithRetryOrFailSlowPath(AllocateFunction&& Allocate,
+                                     AllocationType allocation);
 
   V8_WARN_UNUSED_RESULT AllocationResult AllocateRawWithRetryOrFailSlowPath(
       int size, AllocationType allocation, AllocationOrigin origin,
       AllocationAlignment alignment, AllocationHint hint);
 
-  template <typename AllocateFunction, typename RetryFunction>
-  V8_WARN_UNUSED_RESULT inline auto AllocateRawWithLightRetrySlowPath(
-      AllocateFunction&& Allocate, RetryFunction&& RetryAllocate,
-      AllocationType allocation);
+  template <typename AllocateFunction>
+  V8_WARN_UNUSED_RESULT inline std::invoke_result_t<AllocateFunction>
+  AllocateRawWithLightRetrySlowPath(AllocateFunction&& Allocate,
+                                    AllocationType allocation);
 
   V8_WARN_UNUSED_RESULT AllocationResult AllocateRawWithLightRetrySlowPath(
       int size, AllocationType allocation, AllocationOrigin origin,
       AllocationAlignment alignment, AllocationHint hint);
 
-  void CollectGarbage(AllocationType allocation);
+  void CollectGarbage(AllocationType allocation,
+                      PerformHeapLimitCheck perform_heap_limit_check =
+                          PerformHeapLimitCheck::kYes);
   void CollectAllAvailableGarbage(AllocationType allocation);
 
-  V8_WARN_UNUSED_RESULT AllocationResult RetryAllocateRaw(
-      int size_in_bytes, AllocationType allocation, AllocationOrigin origin,
-      AllocationAlignment alignment, AllocationHint hint);
+  // Performs a GC and retries the allocation in a loop. The caller of this
+  // method needs to perform the heap limit check.
+  template <typename AllocateFunction>
+  V8_WARN_UNUSED_RESULT std::invoke_result_t<AllocateFunction>
+  CollectGarbageAndRetryAllocation(AllocateFunction&& Allocate,
+                                   AllocationType allocation);
+
+  // Performs the allocation but also sets additional flags to mark the
+  // allocation as a "retry" of a failed allocation to make the allocation more
+  // likely to succeed.
+  template <typename AllocateFunction>
+  V8_WARN_UNUSED_RESULT std::invoke_result_t<AllocateFunction> RetryAllocation(
+      AllocateFunction&& Allocate);
 
   bool ReachedAllocationTimeout();
+
+  Heap* heap_for_allocation(AllocationType allocation);
 
 #ifdef DEBUG
   void IncrementObjectCounters();

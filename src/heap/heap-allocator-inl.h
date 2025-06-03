@@ -248,34 +248,51 @@ HeapAllocator::AllocateRawWith(int size, AllocationType allocation,
   return HeapObject();
 }
 
-template <typename AllocateFunction, typename RetryFunction>
-V8_WARN_UNUSED_RESULT auto HeapAllocator::AllocateRawWithLightRetrySlowPath(
-    AllocateFunction&& Allocate, RetryFunction&& RetryAllocate,
-    AllocationType allocation) {
-  if (auto result = Allocate(allocation)) [[likely]] {
+template <typename AllocateFunction>
+V8_WARN_UNUSED_RESULT std::invoke_result_t<AllocateFunction>
+HeapAllocator::AllocateRawWithLightRetrySlowPath(AllocateFunction&& Allocate,
+                                                 AllocationType allocation) {
+  DCHECK_NE(AllocationType::kYoung, allocation);
+
+  if (auto result = Allocate()) [[likely]] {
     return result;
   }
 
-  // Two GCs before returning failure.
-  CollectGarbage(allocation);
-  if (auto result = RetryAllocate(allocation)) {
+  if (auto result = CollectGarbageAndRetryAllocation(Allocate, allocation)) {
     return result;
   }
-  CollectGarbage(allocation);
-  return RetryAllocate(allocation);
+
+  heap_for_allocation(allocation)->CheckHeapLimitReached();
+
+  return {};
 }
 
-template <typename AllocateFunction, typename RetryFunction>
-auto HeapAllocator::AllocateRawWithRetryOrFailSlowPath(
-    AllocateFunction&& Allocate, RetryFunction&& RetryAllocate,
-    AllocationType allocation) {
-  if (auto result = AllocateRawWithLightRetrySlowPath(Allocate, RetryAllocate,
-                                                      allocation)) {
+template <typename AllocateFunction>
+std::invoke_result_t<AllocateFunction>
+HeapAllocator::AllocateRawWithRetryOrFailSlowPath(AllocateFunction&& Allocate,
+                                                  AllocationType allocation) {
+  if (auto result = Allocate()) [[likely]] {
     return result;
   }
 
+  if (auto result = CollectGarbageAndRetryAllocation(Allocate, allocation)) {
+    return result;
+  }
+
+  // In the case of young allocations, the GCs above were minor GCs. Try "light"
+  // full GCs before performing the last-resort GCs.
+  if (allocation == AllocationType::kYoung) {
+    if (auto result =
+            CollectGarbageAndRetryAllocation(Allocate, AllocationType::kOld)) {
+      return result;
+    }
+  }
+
+  // Perform last resort GC. This call will clear more caches and perform more
+  // GCs. It will also enforce the heap limit if still violated.
   CollectAllAvailableGarbage(allocation);
-  if (auto result = RetryAllocate(allocation)) {
+
+  if (auto result = RetryAllocation(Allocate)) {
     return result;
   }
 
@@ -283,10 +300,49 @@ auto HeapAllocator::AllocateRawWithRetryOrFailSlowPath(
                               V8::kHeapOOM);
 }
 
-template <typename Function>
+template <typename AllocateFunction>
+std::invoke_result_t<AllocateFunction>
+HeapAllocator::CollectGarbageAndRetryAllocation(AllocateFunction&& Allocate,
+                                                AllocationType allocation) {
+  const auto perform_heap_limit_check = v8_flags.late_heap_limit_check
+                                            ? PerformHeapLimitCheck::kNo
+                                            : PerformHeapLimitCheck::kYes;
+
+  for (int i = 0; i < 2; i++) {
+    // Skip the heap limit check in the GC if enabled. The heap limit needs to
+    // be enforced by the caller.
+    CollectGarbage(allocation, perform_heap_limit_check);
+
+    // As long as we are at or above the heap limit, we definitely need another
+    // GC.
+    if (heap_for_allocation(allocation)->ReachedHeapLimit()) {
+      continue;
+    }
+
+    if (auto result = RetryAllocation(Allocate)) {
+      return result;
+    }
+  }
+
+  return {};
+}
+
+template <typename AllocateFunction>
+std::invoke_result_t<AllocateFunction> HeapAllocator::RetryAllocation(
+    AllocateFunction&& Allocate) {
+  // Initially flags on the LocalHeap are always disabled. They are only
+  // active while this method is running.
+  DCHECK(!local_heap_->IsRetryOfFailedAllocation());
+  local_heap_->SetRetryOfFailedAllocation(true);
+  auto result = Allocate();
+  local_heap_->SetRetryOfFailedAllocation(false);
+  return result;
+}
+
+template <typename AllocateFunction>
 V8_WARN_UNUSED_RESULT auto HeapAllocator::CustomAllocateWithRetryOrFail(
-    Function&& Allocate, AllocationType allocation) {
-  return *AllocateRawWithRetryOrFailSlowPath(Allocate, Allocate, allocation);
+    AllocateFunction&& Allocate, AllocationType allocation) {
+  return *AllocateRawWithRetryOrFailSlowPath(Allocate, allocation);
 }
 
 }  // namespace internal

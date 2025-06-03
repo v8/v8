@@ -1417,6 +1417,8 @@ inline std::ostream& operator<<(std::ostream& os, AllocationType type) {
   return os << ToString(type);
 }
 
+enum class PerformHeapLimitCheck { kYes, kNo };
+
 class AllocationHint final {
  public:
   AllocationHint() = default;

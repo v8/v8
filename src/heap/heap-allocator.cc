@@ -7,6 +7,7 @@
 #include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
+#include "src/heap/allocation-result.h"
 #include "src/heap/heap-allocator-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/large-page-metadata.h"
@@ -116,17 +117,15 @@ constexpr AllocationSpace AllocationTypeToGCSpace(AllocationType type) {
 AllocationResult HeapAllocator::AllocateRawWithLightRetrySlowPath(
     int size, AllocationType allocation, AllocationOrigin origin,
     AllocationAlignment alignment, AllocationHint hint) {
-  auto Allocate = [&](AllocationType allocation) {
+  auto Allocate = [&]() {
     return AllocateRaw(size, allocation, origin, alignment, hint);
   };
-  auto RetryAllocate = [&](AllocationType allocation) {
-    return RetryAllocateRaw(size, allocation, origin, alignment, hint);
-  };
 
-  return AllocateRawWithLightRetrySlowPath(Allocate, RetryAllocate, allocation);
+  return AllocateRawWithLightRetrySlowPath(Allocate, allocation);
 }
 
-void HeapAllocator::CollectGarbage(AllocationType allocation) {
+void HeapAllocator::CollectGarbage(
+    AllocationType allocation, PerformHeapLimitCheck perform_heap_limit_check) {
   if (IsSharedAllocationType(allocation)) {
     heap_->CollectGarbageShared(local_heap_,
                                 GarbageCollectionReason::kAllocationFailure);
@@ -134,7 +133,8 @@ void HeapAllocator::CollectGarbage(AllocationType allocation) {
     // On the main thread we can directly start the GC.
     AllocationSpace space_to_gc = AllocationTypeToGCSpace(allocation);
     heap_->CollectGarbage(space_to_gc,
-                          GarbageCollectionReason::kAllocationFailure);
+                          GarbageCollectionReason::kAllocationFailure,
+                          kNoGCCallbackFlags, perform_heap_limit_check);
   } else {
     // Request GC from main thread.
     heap_->CollectGarbageFromAnyThread(local_heap_);
@@ -144,14 +144,10 @@ void HeapAllocator::CollectGarbage(AllocationType allocation) {
 AllocationResult HeapAllocator::AllocateRawWithRetryOrFailSlowPath(
     int size, AllocationType allocation, AllocationOrigin origin,
     AllocationAlignment alignment, AllocationHint hint) {
-  auto Allocate = [&](AllocationType allocation) {
+  auto Allocate = [&]() {
     return AllocateRaw(size, allocation, origin, alignment, hint);
   };
-  auto RetryAllocate = [&](AllocationType allocation) {
-    return RetryAllocateRaw(size, allocation, origin, alignment, hint);
-  };
-  return AllocateRawWithRetryOrFailSlowPath(Allocate, RetryAllocate,
-                                            allocation);
+  return AllocateRawWithRetryOrFailSlowPath(Allocate, allocation);
 }
 
 void HeapAllocator::CollectAllAvailableGarbage(AllocationType allocation) {
@@ -165,21 +161,6 @@ void HeapAllocator::CollectAllAvailableGarbage(AllocationType allocation) {
     // Request GC from main thread.
     heap_->CollectGarbageFromAnyThread(local_heap_);
   }
-}
-
-AllocationResult HeapAllocator::RetryAllocateRaw(int size_in_bytes,
-                                                 AllocationType allocation,
-                                                 AllocationOrigin origin,
-                                                 AllocationAlignment alignment,
-                                                 AllocationHint hint) {
-  // Initially flags on the LocalHeap are always disabled. They are only
-  // active while this method is running.
-  DCHECK(!local_heap_->IsRetryOfFailedAllocation());
-  local_heap_->SetRetryOfFailedAllocation(true);
-  AllocationResult result =
-      AllocateRaw(size_in_bytes, allocation, origin, alignment, hint);
-  local_heap_->SetRetryOfFailedAllocation(false);
-  return result;
 }
 
 bool HeapAllocator::TryResizeLargeObject(Tagged<HeapObject> object,
@@ -444,6 +425,14 @@ bool HeapAllocator::ReachedAllocationTimeout() {
 }
 
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
+
+Heap* HeapAllocator::heap_for_allocation(AllocationType allocation) {
+  if (IsSharedAllocationType(allocation)) {
+    return heap_->isolate()->shared_space_isolate()->heap();
+  } else {
+    return heap_;
+  }
+}
 
 }  // namespace internal
 }  // namespace v8

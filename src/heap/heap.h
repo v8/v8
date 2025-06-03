@@ -213,8 +213,6 @@ class Heap final {
  public:
   enum class HeapGrowingMode { kSlow, kConservative, kMinimal, kDefault };
 
-  enum class PerformHeapLimitCheck { kYes, kNo };
-
   enum HeapState {
     NOT_IN_GC,
     SCAVENGE,
