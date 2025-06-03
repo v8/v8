@@ -4358,11 +4358,17 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     V<WordPtr> dst_base = __ WordPtrAdd(dst_mem_start, dst_offset);
 
     // Try to use the largest types first for the transfer.
-    constexpr std::array memory_reps = {
-        MemoryRepresentation::Simd128(), MemoryRepresentation::Uint64(),
-        MemoryRepresentation::Uint32(),  MemoryRepresentation::Uint16(),
-        MemoryRepresentation::Uint8(),
-    };
+    base::SmallVector<MemoryRepresentation, 5> memory_reps;
+    if (CpuFeatures::SupportsWasmSimd128()) {
+      memory_reps = base::SmallVector<MemoryRepresentation, 5>(
+          {MemoryRepresentation::Simd128(), MemoryRepresentation::Uint64(),
+           MemoryRepresentation::Uint32(), MemoryRepresentation::Uint16(),
+           MemoryRepresentation::Uint8()});
+    } else {
+      memory_reps = base::SmallVector<MemoryRepresentation, 5>(
+          {MemoryRepresentation::Uint64(), MemoryRepresentation::Uint32(),
+           MemoryRepresentation::Uint16(), MemoryRepresentation::Uint8()});
+    }
 
     // Load all of the data into registers.
     base::SmallVector<OpIndex, 16> loads;
