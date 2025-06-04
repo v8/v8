@@ -4,6 +4,7 @@
 
 load("//lib/bucket-defaults.star", "bucket_defaults")
 load("//lib/builders.star", "v8_builder")
+load("//lib/reclient.star", "RECLIENT")
 load(
     "//lib/service-accounts.star",
     "V8_AUTOROLL_ACCOUNT",

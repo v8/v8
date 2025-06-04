@@ -6,6 +6,7 @@ load("//lib/bucket-defaults.star", "bucket_defaults")
 load("//lib/description.star", "to_html")
 load("//lib/gclient.star", "gclient_vars_properties")
 load("//lib/lib.star", "BARRIER", "CQ", "add_barrier_properties", "bq_exports", "branch_descriptors", "fix_args", "resolve_parent_triggering", "skip_builder")
+load("//lib/reclient.star", "RECLIENT", "reclient_properties")
 load("//lib/siso.star", "SISO")
 
 def v8_basic_builder(defaults, **kwargs):
@@ -36,6 +37,13 @@ def v8_basic_builder(defaults, **kwargs):
     # Should be replaced by the description below at some point.
     properties["__builder_name__"] = kwargs["name"]
 
+    scandeps_server = kwargs.get("dimensions", {}).get("os", "").lower() == "mac"
+    properties.update(reclient_properties(
+        kwargs.pop("use_remoteexec", None),
+        kwargs.pop("reclient_jobs", None),
+        kwargs["name"],
+        scandeps_server,
+    ))
     properties.update(kwargs.pop("use_siso", SISO.NONE))
     properties.update(gclient_vars_properties(kwargs.pop("gclient_vars", [])))
 
@@ -120,6 +128,7 @@ def multibranch_builder(**kwargs):
         first_branch_version = args.pop("first_branch_version", None)
         if triggered_by_gitiles:
             args.setdefault("triggered_by", []).append(branch.poller_name)
+            args["use_remoteexec"] = args.get("use_remoteexec", RECLIENT.DEFAULT)
             args["use_siso"] = args.get("use_siso", SISO.CHROMIUM_TRUSTED)
         args["priority"] = branch.priority
 
