@@ -4,7 +4,6 @@
 
 load("//lib/builders.star", "v8_builder")
 load("//lib/lib.star", "BARRIER", "in_console")
-load("//lib/reclient.star", "RECLIENT")
 load("//lib/siso.star", "SISO")
 
 def integration_builder(use_siso = SISO.CHROMIUM_TRUSTED, **kwargs):
@@ -26,7 +25,6 @@ in_category(
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         execution_timeout = 3600 * 4,
         properties = {"builder_group": "client.v8.fyi"},
-        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs"],
     ),
     integration_builder(
@@ -37,7 +35,6 @@ in_category(
         dimensions = {"os": "Mac", "cpu": "x86-64"},
         execution_timeout = 3600 * 3,
         properties = {"builder_group": "client.v8.fyi"},
-        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs"],
     ),
     integration_builder(
@@ -52,7 +49,6 @@ in_category(
         executable = "recipe:chromium_integration",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.fyi"},
-        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs", "infra-failure"],
     ),
     integration_builder(
@@ -66,7 +62,6 @@ in_category(
         executable = "recipe:chromium_integration",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.fyi"},
-        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs"],
     ),
     integration_builder(
@@ -76,7 +71,6 @@ in_category(
         executable = "recipe:chromium_integration",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.fyi"},
-        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs"],
     ),
 )
@@ -90,7 +84,6 @@ in_category(
         executable = "recipe:chromium",
         dimensions = {"host_class": "large_disk", "os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.fyi"},
-        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["v8-infra-cc"],
     ),
     integration_builder(
@@ -101,7 +94,6 @@ in_category(
         dimensions = {"host_class": "large_disk", "os": "Ubuntu-22.04", "cpu": "x86-64"},
         execution_timeout = 3600 * 5,
         properties = {"builder_group": "client.v8.fyi"},
-        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["v8-infra-cc"],
     ),
 )
@@ -116,7 +108,6 @@ in_category(
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         execution_timeout = 3600 * 3,
         properties = {"builder_group": "client.v8.fyi"},
-        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["v8-infra-cc"],
     ),
     integration_builder(
@@ -127,7 +118,6 @@ in_category(
         dimensions = {"os": "Mac", "cpu": "x86-64"},
         execution_timeout = 3600 * 3,
         properties = {"builder_group": "client.v8.fyi"},
-        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["v8-infra-cc"],
     ),
     integration_builder(
@@ -138,7 +128,6 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         execution_timeout = 3600 * 3,
         properties = {"builder_group": "client.v8.fyi"},
-        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["v8-infra-cc"],
         barrier = BARRIER.LKGR_ONLY,
     ),
@@ -150,7 +139,6 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         execution_timeout = 3600 * 3,
         properties = {"builder_group": "client.v8.fyi"},
-        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["v8-infra-cc"],
     ),
     integration_builder(
@@ -161,7 +149,6 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         execution_timeout = 3600 * 3,
         properties = {"builder_group": "client.v8.fyi"},
-        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["v8-infra-cc"],
     ),
 )
@@ -175,7 +162,6 @@ in_category(
         executable = "recipe:v8/node_integration_ng",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"v8_tot": True, "builder_group": "client.v8.fyi"},
-        use_remoteexec = RECLIENT.DEFAULT,
         use_siso = SISO.NONE,
         notifies = ["sheriffs"],
     ),
