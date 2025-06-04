@@ -130,9 +130,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '9d1a4700d6c106bc0d15ce3c587a1cd81644737d',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '9af3967898bed82c52971f283274fd40977d466a',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '176c77f623da9d73ee4471e9187f13c510ab159c',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '28a691412172807f828b614c3697dfa789a20c58',
   'buildtools/linux64': {
     'packages': [
       {
@@ -232,7 +232,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '7a3de773a3e3b43171eaba9a1265dd5dedaba40f',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'd200280fa4f382606e1b2ce901348c6beb51cef7',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '57dfc366b76154719ccddf31d27ffc9a10242b9c',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'a55a42f55b59e70daaab2bcc414d0567d7dd375d',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -302,7 +302,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '536618d78ce83ad4b5b0da7633f8d37b6cfea720',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '275cada5def65e98632189b1585026fe4a437d77',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'aca866473883626b4622bf7354b2723fabeb0d19',
   'third_party/libunwind/src':
