@@ -7,10 +7,10 @@ load("//lib/lib.star", "BARRIER", "in_console")
 load("//lib/reclient.star", "RECLIENT")
 load("//lib/siso.star", "SISO")
 
-def integration_builder(use_siso = SISO.CHROMIUM_TRUSTED, **kwargs):
+def integration_builder(**kwargs):
     return v8_builder(
         disable_resultdb_exports = True,
-        use_siso = use_siso,
+        use_siso = SISO.CHROMIUM_TRUSTED,
         **kwargs
     )
 
@@ -176,7 +176,6 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"v8_tot": True, "builder_group": "client.v8.fyi"},
         use_remoteexec = RECLIENT.DEFAULT,
-        use_siso = SISO.NONE,
         notifies = ["sheriffs"],
     ),
 )
