@@ -14,7 +14,7 @@
 #if V8_OS_LINUX
 #include <linux/auxvec.h>  // AT_HWCAP
 #endif
-#if V8_GLIBC_PREREQ(2, 16) || V8_OS_ANDROID
+#if V8_OS_LINUX
 #include <sys/auxv.h>  // getauxval()
 #endif
 #if V8_OS_QNX
@@ -199,7 +199,7 @@ static V8_INLINE void __cpuidex(int cpu_info[4], int info_type,
 static std::tuple<uint64_t, uint64_t> ReadELFHWCaps() {
   uint64_t hwcap = 0;
   uint64_t hwcap2 = 0;
-#if (V8_GLIBC_PREREQ(2, 16) || V8_OS_ANDROID) && defined(AT_HWCAP)
+#if V8_OS_LINUX && defined(AT_HWCAP)
   hwcap = static_cast<uint64_t>(getauxval(AT_HWCAP));
 #if defined(AT_HWCAP2)
   hwcap2 = static_cast<uint64_t>(getauxval(AT_HWCAP2));
