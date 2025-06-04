@@ -8935,8 +8935,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   using InliningIdField = PositionField::Next<uint8_t, kInliningIdFieldSize>;
 
   OpIndex WasmPositionToOpIndex(WasmCodePosition position, int inlining_id) {
-    return OpIndex::FromOffset(PositionField::encode(position) |
-                               InliningIdField::encode(inlining_id));
+    return OpIndex::FromOffset(
+        PositionField::encode(position) | InliningIdField::encode(inlining_id),
+        graph_generation_bit_);
   }
 
   SourcePosition OpIndexToSourcePosition(OpIndex index) {
@@ -9112,6 +9113,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   std::optional<bool> deopts_enabled_;
   OptionalV<FrameState> parent_frame_state_;
+#ifdef DEBUG
+  const int graph_generation_bit_ = __ output_graph().generation_mod2();
+#else
+  const int graph_generation_bit_ = 0;
+#endif
 };
 
 V8_EXPORT_PRIVATE void BuildTSGraph(
