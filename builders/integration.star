@@ -53,8 +53,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.fyi"},
         use_remoteexec = RECLIENT.DEFAULT,
-        notifies = ["sheriffs", "blink tree closer", "infra-failure"],
-        barrier = BARRIER.LKGR_ONLY,
+        notifies = ["sheriffs", "infra-failure"],
     ),
     integration_builder(
         name = "V8 Blink Linux Debug",
