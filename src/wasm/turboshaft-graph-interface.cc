@@ -4431,7 +4431,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     // accesses are supported and only when we have 64-bit support, otherwise
     // the register pressure will likely be too high.
 #ifdef V8_TARGET_ARCH_64_BIT
-    if (v8_flags.wasm_memcpy_inlining) {
+    DCHECK_IMPLIES(!size.op.valid(), __ generating_unreachable_operations());
+    if ((v8_flags.wasm_memcpy_inlining) &&
+        !__ generating_unreachable_operations()) {
       static constexpr uint32_t kMaxInlineBytes = 112;
       if (SupportedOperations::HasFullUnalignedSupport()) {
         auto const_size =
