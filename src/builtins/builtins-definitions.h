@@ -1586,8 +1586,6 @@ namespace internal {
   CPP(TemporalPlainDatePrototypeToPlainYearMonth, kDontAdaptArgumentsSentinel) \
   /* Temporal #sec-temporal.plaindate.prototype.toplainmonthday */             \
   CPP(TemporalPlainDatePrototypeToPlainMonthDay, kDontAdaptArgumentsSentinel)  \
-  /* Temporal #sec-temporal.plaindate.prototype.getisofields */                \
-  CPP(TemporalPlainDatePrototypeGetISOFields, kDontAdaptArgumentsSentinel)     \
   /* Temporal #sec-temporal.plaindate.prototype.add */                         \
   CPP(TemporalPlainDatePrototypeAdd, kDontAdaptArgumentsSentinel)              \
   /* Temporal #sec-temporal.plaindate.prototype.substract */                   \
@@ -1646,12 +1644,6 @@ namespace internal {
   CPP(TemporalPlainTimePrototypeRound, kDontAdaptArgumentsSentinel)            \
   /* Temporal #sec-temporal.plaintime.prototype.equals */                      \
   CPP(TemporalPlainTimePrototypeEquals, kDontAdaptArgumentsSentinel)           \
-  /* Temporal #sec-temporal.plaintime.prototype.toplaindatetime */             \
-  CPP(TemporalPlainTimePrototypeToPlainDateTime, kDontAdaptArgumentsSentinel)  \
-  /* Temporal #sec-temporal.plaintime.prototype.tozoneddatetime */             \
-  CPP(TemporalPlainTimePrototypeToZonedDateTime, kDontAdaptArgumentsSentinel)  \
-  /* Temporal #sec-temporal.plaintime.prototype.getisofields */                \
-  CPP(TemporalPlainTimePrototypeGetISOFields, kDontAdaptArgumentsSentinel)     \
   /* Temporal #sec-temporal.plaintime.prototype.tostring */                    \
   CPP(TemporalPlainTimePrototypeToString, kDontAdaptArgumentsSentinel)         \
   /* Temporal #sec-temporal.plaindtimeprototype.tojson */                      \
@@ -1746,8 +1738,6 @@ namespace internal {
       kDontAdaptArgumentsSentinel)                                             \
   /* Temporal #sec-temporal.plaindatetime.prototype.toplaintime */             \
   CPP(TemporalPlainDateTimePrototypeToPlainTime, kDontAdaptArgumentsSentinel)  \
-  /* Temporal #sec-temporal.plaindatetime.prototype.getisofields */            \
-  CPP(TemporalPlainDateTimePrototypeGetISOFields, kDontAdaptArgumentsSentinel) \
                                                                                \
   /* Temporal.ZonedDateTime */                                                 \
   /* Temporal #sec-temporal.zoneddatetime */                                   \
@@ -1856,8 +1846,6 @@ namespace internal {
   /* Temporal #sec-temporal.zoneddatetime.prototype.toplainmonthday */         \
   CPP(TemporalZonedDateTimePrototypeToPlainMonthDay,                           \
       kDontAdaptArgumentsSentinel)                                             \
-  /* Temporal #sec-temporal.zoneddatetime.prototype.getisofields */            \
-  CPP(TemporalZonedDateTimePrototypeGetISOFields, kDontAdaptArgumentsSentinel) \
                                                                                \
   /* Temporal.Duration */                                                      \
   /* Temporal #sec-temporal.duration */                                        \
@@ -1989,9 +1977,6 @@ namespace internal {
   CPP(TemporalPlainYearMonthPrototypeValueOf, kDontAdaptArgumentsSentinel)     \
   /* Temporal #sec-temporal.plainyearmonth.prototype.toplaindate */            \
   CPP(TemporalPlainYearMonthPrototypeToPlainDate, kDontAdaptArgumentsSentinel) \
-  /* Temporal #sec-temporal.plainyearmonth.prototype.getisofields */           \
-  CPP(TemporalPlainYearMonthPrototypeGetISOFields,                             \
-      kDontAdaptArgumentsSentinel)                                             \
                                                                                \
   /* Temporal.PlainMonthDay */                                                 \
   /* Temporal #sec-temporal.plainmonthday */                                   \
@@ -2019,8 +2004,6 @@ namespace internal {
   CPP(TemporalPlainMonthDayPrototypeValueOf, kDontAdaptArgumentsSentinel)      \
   /* Temporal #sec-temporal.plainmonthday.prototype.toplaindate */             \
   CPP(TemporalPlainMonthDayPrototypeToPlainDate, kDontAdaptArgumentsSentinel)  \
-  /* Temporal #sec-temporal.plainmonthday.prototype.getisofields */            \
-  CPP(TemporalPlainMonthDayPrototypeGetISOFields, kDontAdaptArgumentsSentinel) \
                                                                                \
   /* Temporal #sec-date.prototype.totemporalinstant */                         \
   CPP(DatePrototypeToTemporalInstant, kDontAdaptArgumentsSentinel)             \

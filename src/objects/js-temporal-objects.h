@@ -302,10 +302,6 @@ class JSTemporalPlainDate
       Isolate* isolate, DirectHandle<JSTemporalPlainDate> plain_date,
       DirectHandle<Object> other, DirectHandle<Object> options);
 
-  // #sec-temporal.plaindate.prototype.getisofields
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSReceiver> GetISOFields(
-      Isolate* isolate, DirectHandle<JSTemporalPlainDate> plain_date);
-
   // #sec-temporal.plaindate.prototype.toplainyearmonth
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainYearMonth>
   ToPlainYearMonth(Isolate* isolate,
@@ -602,16 +598,6 @@ class JSTemporalPlainTime
       Isolate* isolate, DirectHandle<JSTemporalPlainTime> plain_time,
       DirectHandle<Object> round_to);
 
-  // #sec-temporal.plaintime.prototype.getisofields
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSReceiver> GetISOFields(
-      Isolate* isolate, DirectHandle<JSTemporalPlainTime> plain_time);
-
-  // #sec-temporal.plaintime.prototype.toplaindatetime
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainDateTime>
-  ToPlainDateTime(Isolate* isolate,
-                  DirectHandle<JSTemporalPlainTime> plain_time,
-                  DirectHandle<Object> temporal_date);
-
   // #sec-temporal.plaintime.prototype.with
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainTime> With(
       Isolate* isolate, DirectHandle<JSTemporalPlainTime> plain_time,
@@ -678,10 +664,6 @@ class JSTemporalPlainYearMonth
   ToPlainDate(Isolate* isolate,
               DirectHandle<JSTemporalPlainYearMonth> year_month,
               DirectHandle<Object> item);
-
-  // #sec-temporal.plainyearmonth.prototype.getisofields
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSReceiver> GetISOFields(
-      Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month);
 
   // #sec-temporal.plainyearmonth.prototype.add
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainYearMonth> Add(
@@ -810,10 +792,6 @@ class JSTemporalZonedDateTime
            DirectHandle<Object> temporal_duration_like,
            DirectHandle<Object> options);
 
-  // #sec-temporal.zoneddatetime.prototype.getisofields
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSReceiver> GetISOFields(
-      Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time);
-
   // #sec-temporal.zoneddatetime.prototype.toplainyearmonth
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainYearMonth>
   ToPlainYearMonth(Isolate* isolate,
@@ -885,30 +863,6 @@ class JSTemporalZonedDateTime
 };
 
 namespace temporal {
-
-struct DateRecord {
-  int32_t year;
-  int32_t month;
-  int32_t day;
-};
-
-struct TimeRecord {
-  int32_t hour;
-  int32_t minute;
-  int32_t second;
-  int32_t millisecond;
-  int32_t microsecond;
-  int32_t nanosecond;
-};
-
-struct DateTimeRecord {
-  DateRecord date;
-  TimeRecord time;
-};
-
-// #sec-temporal-createtemporaldatetime
-V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSTemporalPlainDateTime>
-CreateTemporalDateTime(Isolate* isolate, const DateTimeRecord& date_time);
 
 // #sec-temporal-createtemporalinstant
 V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSTemporalInstant>
