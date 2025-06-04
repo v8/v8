@@ -2190,11 +2190,45 @@ bool Heap::CollectionRequested() {
   return collection_barrier_->WasGCRequested();
 }
 
+void Heap::CollectGarbageWithRetry(AllocationSpace space, GCFlags gc_flags,
+                                   GarbageCollectionReason gc_reason,
+                                   const GCCallbackFlags gc_callback_flags) {
+  const auto perform_heap_limit_check = v8_flags.late_heap_limit_check
+                                            ? PerformHeapLimitCheck::kNo
+                                            : PerformHeapLimitCheck::kYes;
+
+  if (space == NEW_SPACE) {
+    DCHECK_EQ(GCFlags(), gc_flags);
+
+    for (int i = 0; i < 2; i++) {
+      CollectGarbage(NEW_SPACE, gc_reason, gc_callback_flags,
+                     perform_heap_limit_check);
+
+      if (!ReachedHeapLimit()) {
+        return;
+      }
+    }
+  }
+
+  for (int i = 0; i < 2; i++) {
+    current_gc_flags_ = gc_flags;
+    CollectGarbage(OLD_SPACE, gc_reason, gc_callback_flags,
+                   perform_heap_limit_check);
+    DCHECK_EQ(GCFlags(), current_gc_flags_);
+
+    if (!ReachedHeapLimit()) {
+      return;
+    }
+  }
+
+  CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
+}
+
 void Heap::CollectGarbageForBackground(LocalHeap* local_heap) {
   CHECK(local_heap->is_main_thread());
-  CollectAllGarbage(current_gc_flags_,
-                    GarbageCollectionReason::kBackgroundAllocationFailure,
-                    current_gc_callback_flags_);
+  CollectGarbageWithRetry(OLD_SPACE, current_gc_flags_,
+                          GarbageCollectionReason::kBackgroundAllocationFailure,
+                          current_gc_callback_flags_);
 }
 
 void Heap::CheckCollectionRequested() {
