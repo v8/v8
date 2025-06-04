@@ -71,7 +71,7 @@ def v8_basic_builder(defaults, **kwargs):
     rdb_export_disabled = kwargs.pop("disable_resultdb_exports", False)
     resultdb_bq_table_prefix = defaults.get("resultdb_bq_table_prefix")
     kwargs["resultdb_settings"] = resultdb.settings(
-        enable = False,
+        enable = True,
         bq_exports = bq_exports(rdb_export_disabled, resultdb_bq_table_prefix),
     )
 
