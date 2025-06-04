@@ -21,6 +21,11 @@ namespace internal {
 // The maximum size of the stack restore after a fast API call that pops the
 // stack parameters of the call off the stack.
 constexpr int kMaxSizeOfMoveAfterFastCall = 2 * kInstrSize;
+
+constexpr int64_t kDQuietNanBit = 51;
+constexpr int64_t kDQuietNanMask = 0x1LL << kDQuietNanBit;
+constexpr int64_t kSQuietNanBit = 22;
+constexpr int64_t kSQuietNanMask = 0x1LL << kSQuietNanBit;
 }  // namespace internal
 }  // namespace v8
 #endif  // V8_CODEGEN_RISCV_CONSTANTS_RISCV_H_
