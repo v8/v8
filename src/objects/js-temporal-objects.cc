@@ -134,6 +134,50 @@ RetVal HandleStringEncodings(
   }
 }
 
+// Internal helper function, prefer RUST_ASSIGN_RETURN_ON_EXCEPTION_VALUE
+// We cannot return a Maybe here because Maybe does not work well with move
+// semantics.
+template <typename ContainedValue>
+std::optional<ContainedValue> ExtractRustResult(
+    Isolate* isolate, TemporalResult<ContainedValue>&& rust_result) {
+  if (rust_result.is_err()) {
+    auto err = std::move(rust_result).err().value();
+    switch (err.kind) {
+      case temporal_rs::ErrorKind::Type:
+        THROW_NEW_ERROR_RETURN_VALUE(
+            isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(), std::nullopt);
+        break;
+      case temporal_rs::ErrorKind::Range:
+        THROW_NEW_ERROR_RETURN_VALUE(
+            isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), std::nullopt);
+        break;
+      case temporal_rs::ErrorKind::Syntax:
+      case temporal_rs::ErrorKind::Assert:
+      case temporal_rs::ErrorKind::Generic:
+      default:
+        // These cases shouldn't happen; the spec doesn't currently trigger
+        // these errors
+        THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INTERNAL_ERROR(),
+                                     std::nullopt);
+    }
+    return std::nullopt;
+  }
+  return std::move(rust_result).ok();
+}
+
+// Similar to MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE except it operates on
+// diplomat::result
+//
+// Set output_value to the name of the variable to write the output to
+// (output_value cannot be predeclared since not all types have a default state)
+#define RUST_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, output_value,    \
+                                              rust_result, error_value) \
+  auto __output_result__ = ExtractRustResult(isolate, rust_result);     \
+  if (!__output_result__.has_value()) {                                 \
+    return error_value;                                                 \
+  }                                                                     \
+  auto output_value = std::move(__output_result__).value();
+
 // Helper function to construct a JSType that wraps a RustType (infallible)
 template <typename JSType>
 MaybeDirectHandle<JSType> ConstructRustWrappingType(
@@ -158,28 +202,11 @@ MaybeDirectHandle<JSType> ConstructRustWrappingType(
     Isolate* isolate, DirectHandle<JSFunction> target,
     DirectHandle<HeapObject> new_target,
     TemporalResult<std::unique_ptr<typename JSType::RustType>>&& rust_result) {
-  if (rust_result.is_err()) {
-    auto err = std::move(rust_result).err().value();
-    switch (err.kind) {
-      case temporal_rs::ErrorKind::Type:
-        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
-        break;
-      case temporal_rs::ErrorKind::Range:
-        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
-        break;
-      case temporal_rs::ErrorKind::Syntax:
-      case temporal_rs::ErrorKind::Assert:
-      case temporal_rs::ErrorKind::Generic:
-      default:
-        // These cases shouldn't happen; the spec doesn't currently trigger
-        // these errors
-        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INTERNAL_ERROR());
-    }
-    return MaybeDirectHandle<JSType>();
-  }
+  RUST_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rust_value, std::move(rust_result), MaybeDirectHandle<JSType>());
 
   return ConstructRustWrappingType<JSType>(isolate, target, new_target,
-                                           std::move(rust_result).ok().value());
+                                           std::move(rust_value));
 }
 
 }  // namespace
@@ -620,6 +647,23 @@ Maybe<temporal_rs::DifferenceSettings> GetDifferenceSettingsWithoutChecks(
                                               .increment = rounding_increment});
 }
 
+// #sec-temporal-gettemporalshowcalendarnameoption
+Maybe<temporal_rs::DisplayCalendar> GetTemporalShowCalendarNameOption(
+    Isolate* isolate, DirectHandle<JSReceiver> options,
+    const char* method_name) {
+  // 1. Return ? GetOption(normalizedOptions, "calendarName", « String », «
+  // "auto", "always", "never" », "auto").
+  return GetStringOption<temporal_rs::DisplayCalendar>(
+      isolate, options, "calendarName", method_name,
+      std::array{"auto", "always", "never", "critical"},
+      std::to_array<temporal_rs::DisplayCalendar>(
+          {temporal_rs::DisplayCalendar::Auto,
+           temporal_rs::DisplayCalendar::Always,
+           temporal_rs::DisplayCalendar::Never,
+           temporal_rs::DisplayCalendar::Critical}),
+      temporal_rs::DisplayCalendar::Auto);
+}
+
 constexpr temporal_rs::ToStringRoundingOptions kToStringAuto =
     temporal_rs::ToStringRoundingOptions{
         .precision = temporal_rs::Precision{.is_minute = false,
@@ -636,8 +680,9 @@ MaybeDirectHandle<String> TemporalDurationToString(
     const temporal_rs::ToStringRoundingOptions&& options) {
   // This is currently inefficient, can be improved after
   // https://github.com/rust-diplomat/diplomat/issues/866 is fixed
-  auto output = duration->duration()->raw()->to_string(options).ok().value();
-
+  RUST_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, output, duration->duration()->raw()->to_string(options),
+      MaybeDirectHandle<String>());
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(output);
   return builder.Finish().ToHandleChecked();
@@ -650,12 +695,45 @@ MaybeDirectHandle<String> TemporalInstantToString(
     const temporal_rs::ToStringRoundingOptions&& options) {
   // This is currently inefficient, can be improved after
   // https://github.com/rust-diplomat/diplomat/issues/866 is fixed
-  auto output = instant->instant()
-                    ->raw()
-                    ->to_ixdtf_string_with_compiled_data(time_zone, options)
-                    .ok()
-                    .value();
+  RUST_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, output,
+      instant->instant()->raw()->to_ixdtf_string_with_compiled_data(time_zone,
+                                                                    options),
+      MaybeDirectHandle<String>());
 
+  IncrementalStringBuilder builder(isolate);
+  builder.AppendString(output);
+  return builder.Finish().ToHandleChecked();
+}
+
+// #sec-temporal-temporaldatetostring
+MaybeDirectHandle<String> TemporalDateToString(
+    Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
+    temporal_rs::DisplayCalendar show_calendar) {
+  // This is currently inefficient, can be improved after
+  // https://github.com/rust-diplomat/diplomat/issues/866 is fixed
+  auto output = temporal_date->date()->raw()->to_ixdtf_string(show_calendar);
+
+  IncrementalStringBuilder builder(isolate);
+  builder.AppendString(output);
+  return builder.Finish().ToHandleChecked();
+}
+
+// #sec-temporal-isodatetimetostring
+// This automatically operates on the ISO date time within the
+// JSTemporalPlainDateTime, you do not need to perform any conversions to
+// extract it
+MaybeDirectHandle<String> ISODateTimeToString(
+    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> temporal_date_time,
+    const temporal_rs::ToStringRoundingOptions&& options,
+    temporal_rs::DisplayCalendar show_calendar) {
+  // This is currently inefficient, can be improved after
+  // https://github.com/rust-diplomat/diplomat/issues/866 is fixed
+  RUST_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, output,
+      temporal_date_time->date_time()->raw()->to_ixdtf_string(
+          std::move(options), show_calendar),
+      MaybeDirectHandle<String>());
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(output);
   return builder.Finish().ToHandleChecked();
@@ -667,8 +745,9 @@ MaybeDirectHandle<String> TimeRecordToString(
     const temporal_rs::ToStringRoundingOptions&& options) {
   // This is currently inefficient, can be improved after
   // https://github.com/rust-diplomat/diplomat/issues/866 is fixed
-  auto output = time->time()->raw()->to_ixdtf_string(options).ok().value();
-
+  RUST_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, output, time->time()->raw()->to_ixdtf_string(options),
+      MaybeDirectHandle<String>());
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(output);
   return builder.Finish().ToHandleChecked();
@@ -1523,20 +1602,36 @@ MaybeDirectHandle<Oddball> JSTemporalPlainDate::Equals(
 MaybeDirectHandle<JSTemporalPlainYearMonth>
 JSTemporalPlainDate::ToPlainYearMonth(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date) {
-  UNIMPLEMENTED();
+  return ConstructRustWrappingType<JSTemporalPlainYearMonth>(
+      isolate, CONSTRUCTOR(plain_year_month), CONSTRUCTOR(plain_year_month),
+      temporal_date->date()->raw()->to_plain_year_month());
 }
 
 // #sec-temporal.plaindate.prototype.toplainmonthday
 MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainDate::ToPlainMonthDay(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date) {
-  UNIMPLEMENTED();
+  return ConstructRustWrappingType<JSTemporalPlainMonthDay>(
+      isolate, CONSTRUCTOR(plain_year_month), CONSTRUCTOR(plain_year_month),
+      temporal_date->date()->raw()->to_plain_month_day());
 }
 
 // #sec-temporal.plaindate.prototype.toplaindatetime
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDate::ToPlainDateTime(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> temporal_time_obj) {
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.PlainDate.toPlainDateTime";
+  const temporal_rs::PlainTime* maybe_time = nullptr;
+  DirectHandle<JSTemporalPlainTime> time;
+  if (!IsUndefined(*temporal_time_obj)) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, time,
+        temporal::ToTemporalTime(isolate, temporal_time_obj, std::nullopt,
+                                 method_name));
+    maybe_time = time->time()->raw();
+  }
+  return ConstructRustWrappingType<JSTemporalPlainDateTime>(
+      isolate, CONSTRUCTOR(plain_date_time), CONSTRUCTOR(plain_date_time),
+      temporal_date->date()->raw()->to_plain_date_time(maybe_time));
 }
 
 // #sec-temporal.plaindate.prototype.with
@@ -1609,21 +1704,39 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::From(
 // #sec-temporal.plaindate.prototype.tojson
 MaybeDirectHandle<String> JSTemporalPlainDate::ToJSON(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date) {
-  UNIMPLEMENTED();
+  return temporal::TemporalDateToString(isolate, temporal_date,
+                                        temporal_rs::DisplayCalendar::Auto);
 }
 
 // #sec-temporal.plaindate.prototype.tostring
 MaybeDirectHandle<String> JSTemporalPlainDate::ToString(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
-    DirectHandle<Object> options) {
-  UNIMPLEMENTED();
+    DirectHandle<Object> options_obj) {
+  const char method_name[] = "Temporal.PlainDate.prototype.toString";
+
+  // 3. Let resolvedOptions be ?GetOptionsObject(options).
+  DirectHandle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name));
+
+  // 4. Let showCalendar be ?GetTemporalShowCalendarNameOption(resolvedOptions).
+  temporal_rs::DisplayCalendar show_calendar;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, show_calendar,
+      temporal::GetTemporalShowCalendarNameOption(isolate, options,
+                                                  method_name),
+      DirectHandle<String>());
+
+  // 5. Return TemporalDateToString(temporalDate, showCalendar).
+  return temporal::TemporalDateToString(isolate, temporal_date, show_calendar);
 }
 
 // #sup-temporal.plaindate.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalPlainDate::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
-  UNIMPLEMENTED();
+  return temporal::TemporalDateToString(isolate, temporal_date,
+                                        temporal_rs::DisplayCalendar::Auto);
 }
 
 // #sec-temporal-createtemporaldatetime
@@ -1710,21 +1823,73 @@ JSTemporalPlainDateTime::WithPlainDate(
 // #sec-temporal.plaindatetime.prototype.tojson
 MaybeDirectHandle<String> JSTemporalPlainDateTime::ToJSON(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time) {
-  UNIMPLEMENTED();
+  return temporal::ISODateTimeToString(isolate, date_time,
+                                       std::move(temporal::kToStringAuto),
+                                       temporal_rs::DisplayCalendar::Auto);
 }
 
 // #sec-temporal.plaindatetime.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalPlainDateTime::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
-  UNIMPLEMENTED();
+  return temporal::ISODateTimeToString(isolate, date_time,
+                                       std::move(temporal::kToStringAuto),
+                                       temporal_rs::DisplayCalendar::Auto);
 }
 
 // #sec-temporal.plaindatetime.prototype.tostring
 MaybeDirectHandle<String> JSTemporalPlainDateTime::ToString(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.DateTime.prototype.toString";
+
+  // 3. Let resolvedOptions be ?GetOptionsObject(options).
+  DirectHandle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name));
+
+  // 5. Let showCalendar be ?GetTemporalShowCalendarNameOption(resolvedOptions).
+  temporal_rs::DisplayCalendar show_calendar;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, show_calendar,
+      temporal::GetTemporalShowCalendarNameOption(isolate, options,
+                                                  method_name),
+      DirectHandle<String>());
+
+  // 5. Let digits be ?GetTemporalFractionalSecondDigitsOption(resolvedOptions).
+  temporal_rs::Precision digits;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, digits,
+      temporal::GetTemporalFractionalSecondDigitsOption(isolate, options,
+                                                        method_name),
+      DirectHandle<String>());
+
+  // 6. Let roundingMode be ? GetRoundingModeOption(resolvedOptions, trunc).
+  RoundingMode rounding_mode;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rounding_mode,
+      temporal::GetRoundingModeOption(isolate, options, RoundingMode::Trunc,
+                                      method_name),
+      DirectHandle<String>());
+
+  // 7. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions,
+  // "smallestUnit", time, unset).
+  std::optional<Unit> smallest_unit;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, smallest_unit,
+      temporal::GetTemporalUnit(isolate, options, "smallestUnit",
+                                UnitGroup::kTime, std::nullopt, false,
+                                method_name),
+      DirectHandle<String>());
+
+  // Rest of the steps handled in Rust
+  auto rust_options = temporal_rs::ToStringRoundingOptions{
+      .precision = digits,
+      .smallest_unit = smallest_unit,
+      .rounding_mode = rounding_mode,
+  };
+  return temporal::ISODateTimeToString(isolate, date_time,
+                                       std::move(rust_options), show_calendar);
 }
 
 // #sec-temporal.now.plaindatetime
