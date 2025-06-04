@@ -1783,7 +1783,9 @@ void InstructionSelector::VisitBitcastSmiToWord(OpIndex node) {
   // move is then truncating or extending). As a temporary work-around until the
   // register allocator is fixed, we use Emit(kArchNop) in DEBUG mode to silence
   // the register allocator verifier.
-#ifdef DEBUG
+  // Loong64 port needs this gap move to sign-extend the Smis in 64-bit
+  // registers.
+#if defined(DEBUG) || defined(V8_TARGET_ARCH_LOONG64)
   OperandGenerator g(this);
   Emit(kArchNop, g.DefineSameAsFirst(node),
        g.Use(this->Get(node).Cast<TaggedBitcastOp>().input()));
