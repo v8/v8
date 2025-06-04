@@ -7185,7 +7185,8 @@ EVALUATE(AEBR) {
   DECODE_RRE_INSTRUCTION(r1, r2);
   float fr1_val = get_fpr<float>(r1);
   float fr2_val = get_fpr<float>(r2);
-  fr1_val += fr2_val;
+  fr1_val = FPProcessNaNBinop<float, Float32, uint32_t>(
+      fr1_val, fr2_val, [](float lhs, float rhs) { return lhs + rhs; });
   set_fpr(r1, fr1_val);
   SetS390ConditionCode<float>(fr1_val, 0);
 
@@ -7197,7 +7198,8 @@ EVALUATE(SEBR) {
   DECODE_RRE_INSTRUCTION(r1, r2);
   float fr1_val = get_fpr<float>(r1);
   float fr2_val = get_fpr<float>(r2);
-  fr1_val -= fr2_val;
+  fr1_val = FPProcessNaNBinop<float, Float32, uint32_t>(
+      fr1_val, fr2_val, [](float lhs, float rhs) { return lhs - rhs; });
   set_fpr(r1, fr1_val);
   SetS390ConditionCode<float>(fr1_val, 0);
 
@@ -7314,7 +7316,8 @@ EVALUATE(MEEBR) {
   DECODE_RRE_INSTRUCTION(r1, r2);
   float fr1_val = get_fpr<float>(r1);
   float fr2_val = get_fpr<float>(r2);
-  fr1_val *= fr2_val;
+  fr1_val = FPProcessNaNBinop<float, Float32, uint32_t>(
+      fr1_val, fr2_val, [](float lhs, float rhs) { return lhs * rhs; });
   set_fpr(r1, fr1_val);
   return length;
 }
