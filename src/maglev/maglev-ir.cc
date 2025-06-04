@@ -853,10 +853,12 @@ void AllocationBlock::TryPretenure(ValueNode* value) {
   if (auto next_alloc = value->TryCast<InlinedAllocation>()) {
     next_alloc->allocation_block()->TryPretenure();
   } else if (auto phi = value->TryCast<Phi>()) {
-    for (int i = 0; i < phi->input_count(); ++i) {
-      auto phi_input = phi->input(i).node();
-      if (auto phi_alloc = phi_input->TryCast<InlinedAllocation>()) {
-        phi_alloc->allocation_block()->TryPretenure();
+    if (!phi->is_loop_phi() || !phi->is_unmerged_loop_phi()) {
+      for (int i = 0; i < phi->input_count(); ++i) {
+        auto phi_input = phi->input(i).node();
+        if (auto phi_alloc = phi_input->TryCast<InlinedAllocation>()) {
+          phi_alloc->allocation_block()->TryPretenure();
+        }
       }
     }
   }
