@@ -5,6 +5,7 @@
 load("//lib/builders.star", "v8_builder")
 load("//lib/lib.star", "greedy_batching_of_1", "in_console")
 load("//lib/reclient.star", "RECLIENT")
+load("//lib/siso.star", "SISO")
 
 in_category = in_console("official")
 
@@ -19,6 +20,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 32, "target_arch": "arm"},
         use_remoteexec = RECLIENT.DEFAULT,
+        use_siso = SISO.CHROMIUM_TRUSTED,
     ),
     v8_builder(
         name = "V8 Official Arm64",
@@ -29,6 +31,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64, "target_arch": "arm"},
         use_remoteexec = RECLIENT.DEFAULT,
+        use_siso = SISO.CHROMIUM_TRUSTED,
     ),
     v8_builder(
         name = "V8 Official Android Arm32",
@@ -39,6 +42,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.official", "target_bits": 32, "build_config": "Release", "target_platform": "android", "target_arch": "arm"},
         use_remoteexec = RECLIENT.DEFAULT,
+        use_siso = SISO.CHROMIUM_TRUSTED,
     ),
     v8_builder(
         name = "V8 Official Android Arm64",
@@ -49,6 +53,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.official", "target_bits": 64, "build_config": "Release", "target_platform": "android", "target_arch": "arm"},
         use_remoteexec = RECLIENT.DEFAULT,
+        use_siso = SISO.CHROMIUM_TRUSTED,
     ),
     v8_builder(
         name = "V8 Official Linux32",
@@ -59,6 +64,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 32},
         use_remoteexec = RECLIENT.DEFAULT,
+        use_siso = SISO.CHROMIUM_TRUSTED,
     ),
     v8_builder(
         name = "V8 Official Linux32 Debug",
@@ -69,6 +75,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 32},
         use_remoteexec = RECLIENT.DEFAULT,
+        use_siso = SISO.CHROMIUM_TRUSTED,
     ),
     v8_builder(
         name = "V8 Official Linux64",
@@ -79,6 +86,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64},
         use_remoteexec = RECLIENT.DEFAULT,
+        use_siso = SISO.CHROMIUM_TRUSTED,
     ),
     v8_builder(
         name = "V8 Official Linux64 Debug",
@@ -89,6 +97,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64},
         use_remoteexec = RECLIENT.DEFAULT,
+        use_siso = SISO.CHROMIUM_TRUSTED,
     ),
 )
 
@@ -103,6 +112,7 @@ in_category(
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 32},
         use_remoteexec = RECLIENT.DEFAULT,
+        use_siso = SISO.CHROMIUM_TRUSTED,
     ),
     v8_builder(
         name = "V8 Official Win32 Debug",
@@ -113,6 +123,7 @@ in_category(
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 32},
         use_remoteexec = RECLIENT.DEFAULT,
+        use_siso = SISO.CHROMIUM_TRUSTED,
     ),
     v8_builder(
         name = "V8 Official Win64",
@@ -123,6 +134,7 @@ in_category(
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64},
         use_remoteexec = RECLIENT.DEFAULT,
+        use_siso = SISO.CHROMIUM_TRUSTED,
     ),
     v8_builder(
         name = "V8 Official Win64 Debug",
@@ -133,6 +145,7 @@ in_category(
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64},
         use_remoteexec = RECLIENT.DEFAULT,
+        use_siso = SISO.CHROMIUM_TRUSTED,
     ),
 )
 in_category(
@@ -146,6 +159,7 @@ in_category(
         dimensions = {"os": "Mac", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64},
         use_remoteexec = RECLIENT.DEFAULT,
+        use_siso = SISO.CHROMIUM_TRUSTED,
     ),
     v8_builder(
         name = "V8 Official Mac64 Debug",
@@ -156,6 +170,7 @@ in_category(
         dimensions = {"os": "Mac", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64},
         use_remoteexec = RECLIENT.DEFAULT,
+        use_siso = SISO.CHROMIUM_TRUSTED,
     ),
     v8_builder(
         name = "V8 Official Mac ARM64",
@@ -166,6 +181,7 @@ in_category(
         dimensions = {"os": "Mac", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64, "target_arch": "arm"},
         use_remoteexec = RECLIENT.DEFAULT,
+        use_siso = SISO.CHROMIUM_TRUSTED,
     ),
     v8_builder(
         name = "V8 Official Mac ARM64 Debug",
@@ -176,5 +192,6 @@ in_category(
         dimensions = {"os": "Mac", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64, "target_arch": "arm"},
         use_remoteexec = RECLIENT.DEFAULT,
+        use_siso = SISO.CHROMIUM_TRUSTED,
     ),
 )
