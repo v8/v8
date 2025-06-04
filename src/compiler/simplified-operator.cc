@@ -985,27 +985,28 @@ bool operator==(AssertNotNullParameters const& lhs,
   V(CheckedInt64Div, 2, 1)                \
   V(CheckedInt64Mod, 2, 1)
 
-#define CHECKED_WITH_FEEDBACK_OP_LIST(V) \
-  V(CheckNumber, 1, 1)                   \
-  V(CheckNumberFitsInt32, 1, 1)          \
-  V(CheckNumberOrUndefined, 1, 1)        \
-  V(CheckSmi, 1, 1)                      \
-  V(CheckString, 1, 1)                   \
-  V(CheckStringOrStringWrapper, 1, 1)    \
-  V(CheckStringOrOddball, 1, 1)          \
-  V(CheckBigInt, 1, 1)                   \
-  V(CheckedBigIntToBigInt64, 1, 1)       \
-  V(CheckedInt32ToTaggedSigned, 1, 1)    \
-  V(CheckedInt64ToInt32, 1, 1)           \
-  V(CheckedInt64ToTaggedSigned, 1, 1)    \
-  V(CheckedTaggedToArrayIndex, 1, 1)     \
-  V(CheckedTaggedSignedToInt32, 1, 1)    \
-  V(CheckedTaggedToTaggedPointer, 1, 1)  \
-  V(CheckedTaggedToTaggedSigned, 1, 1)   \
-  V(CheckedUint32ToInt32, 1, 1)          \
-  V(CheckedUint32ToTaggedSigned, 1, 1)   \
-  V(CheckedUint64ToInt32, 1, 1)          \
-  V(CheckedUint64ToInt64, 1, 1)          \
+#define CHECKED_WITH_FEEDBACK_OP_LIST(V)     \
+  V(CheckNumber, 1, 1)                       \
+  V(CheckNumberFitsInt32, 1, 1)              \
+  V(CheckNumberOrUndefined, 1, 1)            \
+  V(CheckSmi, 1, 1)                          \
+  V(CheckString, 1, 1)                       \
+  V(CheckStringOrStringWrapper, 1, 1)        \
+  V(CheckStringOrOddball, 1, 1)              \
+  V(CheckBigInt, 1, 1)                       \
+  V(CheckedBigIntToBigInt64, 1, 1)           \
+  V(CheckedInt32ToTaggedSigned, 1, 1)        \
+  V(CheckedInt64ToInt32, 1, 1)               \
+  V(CheckedInt64ToTaggedSigned, 1, 1)        \
+  V(CheckedInt64ToAdditiveSafeInteger, 1, 1) \
+  V(CheckedTaggedToArrayIndex, 1, 1)         \
+  V(CheckedTaggedSignedToInt32, 1, 1)        \
+  V(CheckedTaggedToTaggedPointer, 1, 1)      \
+  V(CheckedTaggedToTaggedSigned, 1, 1)       \
+  V(CheckedUint32ToInt32, 1, 1)              \
+  V(CheckedUint32ToTaggedSigned, 1, 1)       \
+  V(CheckedUint64ToInt32, 1, 1)              \
+  V(CheckedUint64ToInt64, 1, 1)              \
   V(CheckedUint64ToTaggedSigned, 1, 1)
 
 #define CHECKED_BOUNDS_OP_LIST(V) \

@@ -1065,6 +1065,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckedInt64Mod();
   const Operator* CheckedInt32ToTaggedSigned(const FeedbackSource& feedback);
   const Operator* CheckedInt64ToInt32(const FeedbackSource& feedback);
+  const Operator* CheckedInt64ToAdditiveSafeInteger(
+      const FeedbackSource& feedback);
   const Operator* CheckedInt64ToTaggedSigned(const FeedbackSource& feedback);
   const Operator* CheckedTaggedSignedToInt32(const FeedbackSource& feedback);
   const Operator* CheckedTaggedToFloat64(CheckTaggedInputMode,

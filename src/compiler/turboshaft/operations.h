@@ -2298,6 +2298,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
   enum class Kind : uint8_t {
     kUint32ToInt32,
     kInt64ToInt32,
+    kInt64ToAdditiveSafeInteger,
     kUint64ToInt32,
     kUint64ToInt64,
     kFloat64ToInt32,
@@ -2320,6 +2321,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
       case Kind::kFloat64ToUint32:
         return RepVector<RegisterRepresentation::Word32()>();
       case Kind::kUint64ToInt64:
+      case Kind::kInt64ToAdditiveSafeInteger:
       case Kind::kFloat64ToAdditiveSafeInteger:
       case Kind::kFloat64ToInt64:
         return RepVector<RegisterRepresentation::Word64()>();
@@ -2334,6 +2336,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
       case Kind::kUint32ToInt32:
         return MaybeRepVector<MaybeRegisterRepresentation::Word32()>();
       case Kind::kInt64ToInt32:
+      case Kind::kInt64ToAdditiveSafeInteger:
       case Kind::kUint64ToInt32:
       case Kind::kUint64ToInt64:
         return MaybeRepVector<MaybeRegisterRepresentation::Word64()>();

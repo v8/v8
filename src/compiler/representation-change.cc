@@ -223,7 +223,8 @@ Node* RepresentationChanger::GetRepresentationFor(
       // this behavior is disabled only for TypeCheckKind::kBigInt, but should
       // be fixed for all other type checks.
       (output_rep != MachineRepresentation::kWord32 &&
-       !TypeCheckIsBigInt(use_info.type_check()))) {
+       (use_info.type_check() != TypeCheckKind::kAdditiveSafeInteger &&
+        !TypeCheckIsBigInt(use_info.type_check())))) {
     if (use_info.representation() == output_rep) {
       // Representations are the same. That's a no-op.
       return node;
@@ -1437,23 +1438,34 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
                        MachineRepresentation::kWord64);
     }
   } else if (output_rep == MachineRepresentation::kWord64) {
-    DCHECK(TypeCheckIsBigInt(use_info.type_check()));
-    if (output_type.Is(Type::UnsignedBigInt64()) &&
-        use_info.type_check() == TypeCheckKind::kBigInt64) {
-      op = simplified()->CheckedUint64ToInt64(use_info.feedback());
-    } else if ((output_type.Is(Type::BigInt()) &&
-                use_info.type_check() == TypeCheckKind::kBigInt) ||
-               (output_type.Is(Type::SignedBigInt64()) &&
-                use_info.type_check() == TypeCheckKind::kBigInt64)) {
-      return node;
+    if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
+      if (output_type.Is(cache_->kAdditiveSafeInteger)) {
+        return node;
+      } else {
+        op = simplified()->CheckedInt64ToAdditiveSafeInteger(
+            use_info.feedback());
+      }
+    } else if (TypeCheckIsBigInt(use_info.type_check())) {
+      if (output_type.Is(Type::UnsignedBigInt64()) &&
+          use_info.type_check() == TypeCheckKind::kBigInt64) {
+        op = simplified()->CheckedUint64ToInt64(use_info.feedback());
+      } else if ((output_type.Is(Type::BigInt()) &&
+                  use_info.type_check() == TypeCheckKind::kBigInt) ||
+                 (output_type.Is(Type::SignedBigInt64()) &&
+                  use_info.type_check() == TypeCheckKind::kBigInt64)) {
+        return node;
+      } else {
+        DCHECK(output_type != Type::BigInt() ||
+               use_info.type_check() != TypeCheckKind::kBigInt64);
+        Node* unreachable = InsertUnconditionalDeopt(
+            use_node, DeoptimizeReason::kNotABigInt, use_info.feedback());
+        return jsgraph()->graph()->NewNode(
+            jsgraph()->common()->DeadValue(MachineRepresentation::kWord64),
+            unreachable);
+      }
     } else {
-      DCHECK(output_type != Type::BigInt() ||
-             use_info.type_check() != TypeCheckKind::kBigInt64);
-      Node* unreachable = InsertUnconditionalDeopt(
-          use_node, DeoptimizeReason::kNotABigInt, use_info.feedback());
-      return jsgraph()->graph()->NewNode(
-          jsgraph()->common()->DeadValue(MachineRepresentation::kWord64),
-          unreachable);
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kWord64);
     }
   } else if (output_rep == MachineRepresentation::kSandboxedPointer) {
     if (output_type.Is(Type::SandboxedPointer())) {

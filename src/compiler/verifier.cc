@@ -1627,6 +1627,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckedInt32Mul:
     case IrOpcode::kCheckedInt32ToTaggedSigned:
     case IrOpcode::kCheckedInt64ToInt32:
+    case IrOpcode::kCheckedInt64ToAdditiveSafeInteger:
     case IrOpcode::kCheckedInt64ToTaggedSigned:
     case IrOpcode::kCheckedUint32Bounds:
     case IrOpcode::kCheckedUint32ToInt32:

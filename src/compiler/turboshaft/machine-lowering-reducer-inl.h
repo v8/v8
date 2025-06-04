@@ -88,6 +88,19 @@ class MachineLoweringReducer : public Next {
             DeoptimizeReason::kLostPrecision, feedback);
         return i32;
       }
+      case ChangeOrDeoptOp::Kind::kInt64ToAdditiveSafeInteger: {
+        V<Word64> i64_input = V<Word64>::Cast(input);
+        // Check the value actually fits in AdditiveSafeInteger.
+        // (value - kMinAdditiveSafeInteger) >> 52 == 0.
+        V<Word32> check_is_zero =
+            __ Word64Equal(__ Word64ShiftRightArithmetic(
+                               __ Word64Sub(i64_input, kMinAdditiveSafeInteger),
+                               kAdditiveSafeIntegerBitLength),
+                           0);
+        __ DeoptimizeIfNot(check_is_zero, frame_state,
+                           DeoptimizeReason::kNotAdditiveSafeInteger, feedback);
+        return i64_input;
+      }
       case ChangeOrDeoptOp::Kind::kUint64ToInt32: {
         V<Word64> i64_input = V<Word64>::Cast(input);
         __ DeoptimizeIfNot(

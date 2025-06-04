@@ -392,6 +392,8 @@ std::ostream& operator<<(std::ostream& os, ChangeOrDeoptOp::Kind kind) {
       return os << "Uint32ToInt32";
     case ChangeOrDeoptOp::Kind::kInt64ToInt32:
       return os << "Int64ToInt32";
+    case ChangeOrDeoptOp::Kind::kInt64ToAdditiveSafeInteger:
+      return os << "Int64ToAdditiveSafeInteger";
     case ChangeOrDeoptOp::Kind::kUint64ToInt32:
       return os << "Uint64ToInt32";
     case ChangeOrDeoptOp::Kind::kUint64ToInt64:

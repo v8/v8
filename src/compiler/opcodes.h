@@ -307,6 +307,7 @@
   V(CheckedInt64Mod)                     \
   V(CheckedInt32ToTaggedSigned)          \
   V(CheckedInt64ToInt32)                 \
+  V(CheckedInt64ToAdditiveSafeInteger)   \
   V(CheckedInt64ToTaggedSigned)          \
   V(CheckedUint32Bounds)                 \
   V(CheckedUint32ToInt32)                \
