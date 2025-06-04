@@ -10,6 +10,7 @@
     {"app_args": "--harmony-struct", "app_name": "d8", "probability": 0.1},
     {"app_args": "--jit-fuzzing", "app_name": "d8", "probability": 0.25},
     {"app_args": "--jitless", "app_name": "d8", "probability": 0.1, "contradicts": ["--maglev-future", "--stress-concurrent-inlining", "--stress-concurrent-inlining-attach-code", "--stress-maglev"]},
+    {"app_args": "--experimental-fuzzing", "app_name": "d8", "probability": 0.5},
     {"app_args": "--js-staging", "app_name": "d8", "probability": 0.5},
     {"app_args": "--maglev-future", "app_name": "d8", "probability": 0.05, "contradicts": ["--jitless"]},
     {"app_args": "--minor-ms", "app_name": "d8", "probability": 0.1},

@@ -525,6 +525,14 @@ DEFINE_BOOL_READONLY(local_off_stack_check,
                      V8_ENABLE_LOCAL_OFF_STACK_CHECK_BOOL,
                      "check for off-stack allocation of v8::Local")
 
+// This flag implies experimental features for our fuzzers without needing to
+// stage them yet. Once sufficiently stable, they should be moved to
+// --future, --wasm-staging or a similar flag that indicates its readiness
+// for staging.
+DEFINE_BOOL(experimental_fuzzing, false,
+            "Implies all experimental pre-staged features that can already be "
+            "fuzzed but are not ready for staging yet.")
+
 #ifdef V8_ENABLE_FUTURE
 #define FUTURE_BOOL true
 #else
@@ -1848,6 +1856,7 @@ DEFINE_SIZE_T(wasm_deopts_per_function_limit, 10,
 // Experimental wasm features imply --experimental and get the " (experimental)"
 // suffix.
 FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(DECL_EXPERIMENTAL_WASM_FLAG)
+FOREACH_WASM_PRE_STAGING_FEATURE_FLAG(DECL_EXPERIMENTAL_WASM_FLAG)
 // Staging and shipped features do not imply --experimental.
 FOREACH_WASM_STAGING_FEATURE_FLAG(DECL_WASM_FLAG)
 FOREACH_WASM_SHIPPED_FEATURE_FLAG(DECL_WASM_FLAG)
@@ -1880,6 +1889,11 @@ DEFINE_BOOL(wasm_explicit_prototypes, true,
 DEFINE_BOOL(wasm_implicit_prototypes, true,
             "enable support for engine-created 'invisible' JS Prototypes "
             "(only with --experimental-wasm-custom-descriptors)")
+
+#define WASM_PRE_STAGING_IMPLICATION(feat, desc, val) \
+  DEFINE_IMPLICATION(experimental_fuzzing, experimental_wasm_##feat)
+FOREACH_WASM_PRE_STAGING_FEATURE_FLAG(WASM_PRE_STAGING_IMPLICATION)
+#undef WASM_PRE_STAGING_IMPLICATION
 
 DEFINE_BOOL(wasm_staging, false, "enable staged wasm features")
 

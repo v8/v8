@@ -439,10 +439,12 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
   struct EnableExperimentalWasmFeatures {
     explicit EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
       // Enable all staged features.
-#define ENABLE_STAGED_FEATURES(feat, ...) \
+#define ENABLE_PRE_STAGED_AND_STAGED_FEATURES(feat, ...) \
   v8_flags.experimental_wasm_##feat = true;
-      FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
-#undef ENABLE_STAGED_FEATURES
+      FOREACH_WASM_PRE_STAGING_FEATURE_FLAG(
+          ENABLE_PRE_STAGED_AND_STAGED_FEATURES)
+      FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_PRE_STAGED_AND_STAGED_FEATURES)
+#undef ENABLE_PRE_STAGED_AND_STAGED_FEATURES
 
       // Enable non-staged experimental features or other experimental flags
       // that we also want to fuzz, e.g., new optimizations.

@@ -209,7 +209,8 @@ void ConfigureFlags(v8::Isolate* isolate) {
       // background jobs finishing at random times.
       v8_flags.wasm_sync_tier_up = true;
       // Enable the experimental features we want to fuzz. (Note that
-      // EnableExperimentalWasmFeatures only enables staged features.)
+      // EnableExperimentalWasmFeatures only enables pre-staged and staged
+      // features.)
       v8_flags.wasm_deopt = true;
       v8_flags.wasm_inlining_call_indirect = true;
       // Make inlining more aggressive.

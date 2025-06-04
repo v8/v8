@@ -1210,7 +1210,7 @@ class MjsunitModuleDis {
             "that can be\n"
             "// found in the LICENSE file.\n"
             "\n"
-            "// Flags: --wasm-staging"
+            "// Flags: --experimental-fuzzing --wasm-staging"
          << extra_flags
          << "\n\n"
             "d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');\n"
