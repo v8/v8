@@ -66,7 +66,6 @@ struct TimeDurationRecord {
 };
 
 // #sec-temporal-duration-records
-// Cannot reuse DateDurationRecord here due to duplicate days.
 struct DurationRecord {
   double years;
   double months;
