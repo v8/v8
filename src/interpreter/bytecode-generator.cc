@@ -1590,8 +1590,15 @@ void BytecodeGenerator::AllocateDeferredConstants(IsolateT* isolate,
   }
 
   for (std::pair<Call*, Scope*> call : eval_calls_) {
-    script->infos()->set(call.first->eval_scope_info_index(),
-                         MakeWeak(*call.second->scope_info()));
+    Tagged<ScopeInfo> current;
+    int index = call.first->eval_scope_info_index();
+    if (script->infos()->get(index).GetHeapObjectIfWeak(&current) &&
+        v8_flags.reuse_scope_infos) {
+      CHECK_EQ(current, *call.second->scope_info());
+    } else {
+      script->infos()->set(call.first->eval_scope_info_index(),
+                           MakeWeak(*call.second->scope_info()));
+    }
   }
 
   // Build object literal constant properties
