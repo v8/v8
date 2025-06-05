@@ -4,7 +4,11 @@
 
 #include "src/heap/page-pool.h"
 
+#include <algorithm>
+
+#include "src/base/platform/mutex.h"
 #include "src/execution/isolate.h"
+#include "src/heap/large-page-metadata.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/tasks/cancelable-task.h"
@@ -80,7 +84,7 @@ bool PagePool::PoolImpl<PoolEntry>::MoveLocalToShared(
 }
 
 template <typename PoolEntry>
-void PagePool::PoolImpl<PoolEntry>::ClearShared() {
+void PagePool::PoolImpl<PoolEntry>::ReleaseShared() {
   std::vector<std::pair<InternalTime, std::vector<PoolEntry>>> entries_to_free;
   {
     base::MutexGuard guard(&mutex_);
@@ -91,7 +95,7 @@ void PagePool::PoolImpl<PoolEntry>::ClearShared() {
 }
 
 template <typename PoolEntry>
-void PagePool::PoolImpl<PoolEntry>::ClearLocal() {
+void PagePool::PoolImpl<PoolEntry>::ReleaseLocal() {
   std::vector<std::vector<PoolEntry>> entries_to_free;
   {
     base::MutexGuard page_guard(&mutex_);
@@ -104,7 +108,7 @@ void PagePool::PoolImpl<PoolEntry>::ClearLocal() {
 }
 
 template <typename PoolEntry>
-void PagePool::PoolImpl<PoolEntry>::ClearLocal(Isolate* isolate) {
+void PagePool::PoolImpl<PoolEntry>::ReleaseLocal(Isolate* isolate) {
   std::vector<PoolEntry> entries_to_free;
   {
     base::MutexGuard page_guard(&mutex_);
@@ -168,6 +172,104 @@ size_t PagePool::PoolImpl<PoolEntry>::ReleaseUpTo(InternalTime release_time) {
   return freed;
 }
 
+bool PagePool::LargePagePoolImpl::Add(std::vector<LargePageMetadata*>& pages,
+                                      InternalTime time) {
+  bool added_to_pool = false;
+  base::MutexGuard guard(&mutex_);
+  DCHECK_EQ(total_size_, ComputeTotalSize());
+
+  const size_t max_total_size = v8_flags.max_large_page_pool_size * MB;
+
+  std::erase_if(pages, [this, &added_to_pool, time,
+                        max_total_size](LargePageMetadata* page) {
+    if (total_size_ + page->size() > max_total_size) {
+      return false;
+    }
+
+    total_size_ += page->size();
+    pages_.emplace_back(time,
+                        LargePageMemory(page, [](LargePageMetadata* metadata) {
+                          MemoryAllocator::DeleteMemoryChunk(metadata);
+                        }));
+    added_to_pool = true;
+    return true;
+  });
+
+  DCHECK_EQ(total_size_, ComputeTotalSize());
+  return added_to_pool;
+}
+
+LargePageMetadata* PagePool::LargePagePoolImpl::Remove(size_t chunk_size) {
+  base::MutexGuard guard(&mutex_);
+  auto selected = pages_.end();
+  DCHECK_EQ(total_size_, ComputeTotalSize());
+
+  // Best-fit: Select smallest large page large with a size of at least
+  // |chunk_size|. In case the page is larger than necessary, the next full GC
+  // will trim down its size.
+  for (auto it = pages_.begin(); it != pages_.end(); it++) {
+    const size_t page_size = it->second->size();
+    if (page_size < chunk_size) continue;
+    if (selected == pages_.end() || page_size < selected->second->size()) {
+      selected = it;
+    }
+  }
+
+  if (selected == pages_.end()) {
+    return nullptr;
+  }
+
+  LargePageMetadata* result = selected->second.release();
+  total_size_ -= result->size();
+  pages_.erase(selected);
+  DCHECK_EQ(total_size_, ComputeTotalSize());
+  return result;
+}
+
+void PagePool::LargePagePoolImpl::ReleaseAll() {
+  std::vector<std::pair<InternalTime, LargePageMemory>> pages_to_free;
+
+  {
+    base::MutexGuard guard(&mutex_);
+    pages_to_free = std::move(pages_);
+    total_size_ = 0;
+  }
+
+  // Entries will be freed automatically here.
+}
+
+size_t PagePool::LargePagePoolImpl::ReleaseUpTo(InternalTime release_time) {
+  std::vector<LargePageMemory> entries_to_free;
+  size_t freed = 0;
+  {
+    base::MutexGuard guard(&mutex_);
+    std::erase_if(pages_, [this, &entries_to_free, release_time](auto& entry) {
+      if (entry.first <= release_time) {
+        total_size_ -= entry.second->size();
+        entries_to_free.push_back(std::move(entry.second));
+        return true;
+      }
+      return false;
+    });
+
+    DCHECK_EQ(total_size_, ComputeTotalSize());
+  }
+  // Entries will be freed automatically here.
+  return freed;
+}
+
+size_t PagePool::LargePagePoolImpl::ComputeTotalSize() const {
+  size_t result = 0;
+
+  for (auto& entry : pages_) {
+    result += entry.second->size();
+  }
+
+  return result;
+}
+
+void PagePool::LargePagePoolImpl::TearDown() { CHECK(pages_.empty()); }
+
 PagePool::~PagePool() = default;
 
 class PagePool::ReleasePooledChunksTask final : public CancelableTask {
@@ -214,27 +316,34 @@ void PagePool::ReleaseOnTearDown(Isolate* isolate) {
     if (!isolate->isolate_group()->FindAnotherIsolateLocked(isolate,
                                                             schedule_task)) {
       // No other isolate could be found. Release pooled pages right away.
-      page_pool_.ClearShared();
-      zone_pool_.ClearShared();
+      page_pool_.ReleaseShared();
+      zone_pool_.ReleaseShared();
     }
   }
+
+  large_pool_.ReleaseAll();
 }
 
 void PagePool::ReleaseImmediately(Isolate* isolate) {
-  page_pool_.ClearLocal(isolate);
-  zone_pool_.ClearLocal(isolate);
+  page_pool_.ReleaseLocal(isolate);
+  zone_pool_.ReleaseLocal(isolate);
+  large_pool_.ReleaseAll();
 }
 
 void PagePool::ReleaseImmediately() {
-  page_pool_.ClearLocal();
-  page_pool_.ClearShared();
-  zone_pool_.ClearLocal();
-  page_pool_.ClearShared();
+  page_pool_.ReleaseLocal();
+  page_pool_.ReleaseShared();
+  zone_pool_.ReleaseLocal();
+  page_pool_.ReleaseShared();
+  large_pool_.ReleaseAll();
 }
+
+void PagePool::ReleaseLargeImmediately() { large_pool_.ReleaseAll(); }
 
 void PagePool::TearDown() {
   page_pool_.TearDown();
   zone_pool_.TearDown();
+  large_pool_.TearDown();
 }
 
 void PagePool::ReleaseUpTo(Isolate* isolate_for_printing,
@@ -265,7 +374,8 @@ void PagePool::Add(Isolate* isolate, MutablePageMetadata* chunk) {
   DCHECK(!chunk->Chunk()->IsLargePage());
   DCHECK(!chunk->Chunk()->IsTrusted());
   DCHECK_NE(chunk->Chunk()->executable(), EXECUTABLE);
-  chunk->ReleaseAllAllocatedMemory();
+  // Ensure that ReleaseAllAllocatedMemory() was called on the page.
+  DCHECK(!chunk->ContainsAnySlots());
   page_pool_.PutLocal(isolate,
                       PageMemory(chunk, [](MutablePageMetadata* metadata) {
                         MemoryAllocator::DeleteMemoryChunk(metadata);
@@ -279,6 +389,45 @@ MutablePageMetadata* PagePool::Remove(Isolate* isolate) {
     return result.value().release();
   }
   return nullptr;
+}
+
+class PagePool::ReleasePooledLargeChunksTask final : public CancelableTask {
+ public:
+  ReleasePooledLargeChunksTask(Isolate* isolate, PagePool* pool,
+                               InternalTime time)
+      : CancelableTask(isolate), pool_(pool), time_(time) {}
+
+  ~ReleasePooledLargeChunksTask() override = default;
+  ReleasePooledLargeChunksTask(const ReleasePooledLargeChunksTask&) = delete;
+  ReleasePooledLargeChunksTask& operator=(const ReleasePooledLargeChunksTask&) =
+      delete;
+
+ private:
+  // v8::internal::CancelableTask overrides.
+  void RunInternal() override { pool_->large_pool_.ReleaseUpTo(time_); }
+
+  PagePool* pool_;
+  InternalTime time_;
+};
+
+void PagePool::AddLarge(Isolate* isolate,
+                        std::vector<LargePageMetadata*>& pages) {
+  const InternalTime time = next_time_.fetch_add(1, std::memory_order_relaxed);
+  const bool added_to_pool = large_pool_.Add(pages, time);
+  const int timeout = v8_flags.large_page_pool_timeout;
+  if (added_to_pool && timeout > 0) {
+    const base::TimeDelta large_page_release_task_delay =
+        base::TimeDelta::FromSeconds(timeout);
+    auto task =
+        std::make_unique<ReleasePooledLargeChunksTask>(isolate, this, time);
+    V8::GetCurrentPlatform()->PostDelayedTaskOnWorkerThread(
+        TaskPriority::kBestEffort, std::move(task),
+        large_page_release_task_delay.InSecondsF());
+  }
+}
+
+LargePageMetadata* PagePool::RemoveLarge(Isolate* isolate, size_t chunk_size) {
+  return large_pool_.Remove(chunk_size);
 }
 
 void PagePool::AddZoneReservation(Isolate* isolate,

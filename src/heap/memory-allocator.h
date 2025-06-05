@@ -105,6 +105,7 @@ class MemoryAllocator {
   V8_EXPORT_PRIVATE void Free(MemoryAllocator::FreeMode mode,
                               MutablePageMetadata* chunk);
   void FreeReadOnlyPage(ReadOnlyPageMetadata* chunk);
+  void FreeLargePagesPooled(std::vector<LargePageMetadata*> pages);
 
   // Returns allocated spaces in bytes.
   size_t Size() const { return size_; }
@@ -284,6 +285,9 @@ class MemoryAllocator {
   // support pools for NOT_EXECUTABLE pages of size MemoryChunk::kPageSize.
   std::optional<MemoryChunkAllocationResult> AllocateUninitializedPageFromPool(
       Space* space);
+
+  std::optional<MemoryChunkAllocationResult>
+  TryAllocateUninitializedLargePageFromPool(Space* space, size_t chunk_size);
 
   // Initializes pages in a chunk. Returns the first page address.
   // This function and GetChunkId() are provided for the mark-compact

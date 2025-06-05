@@ -432,14 +432,22 @@ void NewLargeObjectSpace::FreeDeadObjects(
   DCHECK(!heap()->incremental_marking()->IsMarking());
   size_t surviving_object_size = 0;
   PtrComprCageBase cage_base(heap()->isolate());
+  std::vector<LargePageMetadata*> pages_to_pool;
+  if (v8_flags.large_page_pool) {
+    pages_to_pool.reserve(memory_chunk_list().size());
+  }
   for (auto it = begin(); it != end();) {
     LargePageMetadata* page = *it;
     it++;
     Tagged<HeapObject> object = page->GetObject();
     if (is_dead(object)) {
       RemovePage(page);
-      heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
-                                       page);
+      if (v8_flags.large_page_pool) {
+        pages_to_pool.push_back(page);
+      } else {
+        heap()->memory_allocator()->Free(
+            MemoryAllocator::FreeMode::kImmediately, page);
+      }
     } else {
       surviving_object_size += static_cast<size_t>(object->Size(cage_base));
     }
@@ -447,6 +455,10 @@ void NewLargeObjectSpace::FreeDeadObjects(
   // Right-trimming does not update the objects_size_ counter. We are lazily
   // updating it after every GC.
   objects_size_ = surviving_object_size;
+
+  if (v8_flags.large_page_pool && !pages_to_pool.empty()) {
+    heap()->memory_allocator()->FreeLargePagesPooled(std::move(pages_to_pool));
+  }
 }
 
 void NewLargeObjectSpace::SetCapacity(size_t capacity) {

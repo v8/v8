@@ -338,8 +338,6 @@ void MemoryAllocator::PerformFreeMemory(MutablePageMetadata* chunk_metadata) {
   DCHECK(chunk_metadata->Chunk()->IsFlagSet(MemoryChunk::PRE_FREED));
   DCHECK(!chunk_metadata->Chunk()->InReadOnlySpace());
 
-  chunk_metadata->ReleaseAllAllocatedMemory();
-
   DeleteMemoryChunk(chunk_metadata);
 }
 
@@ -348,6 +346,7 @@ void MemoryAllocator::Free(MemoryAllocator::FreeMode mode,
   MemoryChunk* chunk = chunk_metadata->Chunk();
   RecordMemoryChunkDestroyed(chunk);
   PreFreeMemory(chunk_metadata);
+  chunk_metadata->ReleaseAllAllocatedMemory();
 
   switch (mode) {
     case FreeMode::kImmediately:
@@ -365,6 +364,26 @@ void MemoryAllocator::Free(MemoryAllocator::FreeMode mode,
       // The chunks added to this queue will be cached until memory reducing GC.
       pool()->Add(isolate_, chunk_metadata);
       break;
+  }
+}
+
+void MemoryAllocator::FreeLargePagesPooled(
+    std::vector<LargePageMetadata*> large_pages) {
+  for (LargePageMetadata* page : large_pages) {
+    MemoryChunk* chunk = page->Chunk();
+    RecordMemoryChunkDestroyed(chunk);
+    PreFreeMemory(page);
+    page->ReleaseAllAllocatedMemory();
+  }
+
+  // Try to add all large pages to the page pool. Large pages successfully added
+  // to the pool will be removed from the vector.
+  pool()->AddLarge(isolate_, large_pages);
+
+  // Pages remaining in the vector couldn't be added to the large page pool.
+  // Free those immediately now.
+  for (LargePageMetadata* page : large_pages) {
+    MemoryAllocator::DeleteMemoryChunk(page);
   }
 }
 
@@ -461,13 +480,27 @@ MemoryAllocator::RemapSharedPage(
   return shared_memory->RemapTo(reinterpret_cast<void*>(new_address));
 }
 
+namespace {
+bool IsPagePoolSupportedForLargeSpace(LargeObjectSpace* space) {
+  const AllocationSpace identity = space->identity();
+  return identity == NEW_LO_SPACE || identity == LO_SPACE;
+}
+}  // namespace
+
 LargePageMetadata* MemoryAllocator::AllocateLargePage(LargeObjectSpace* space,
                                                       size_t object_size,
                                                       Executability executable,
                                                       AllocationHint hint) {
-  std::optional<MemoryChunkAllocationResult> chunk_info =
-      AllocateUninitializedChunk(space, object_size, executable,
-                                 PageSize::kLarge, hint);
+  std::optional<MemoryChunkAllocationResult> chunk_info;
+
+  if (IsPagePoolSupportedForLargeSpace(space)) {
+    chunk_info = TryAllocateUninitializedLargePageFromPool(space, object_size);
+  }
+
+  if (!chunk_info) {
+    chunk_info = AllocateUninitializedChunk(space, object_size, executable,
+                                            PageSize::kLarge, hint);
+  }
 
   if (!chunk_info) return nullptr;
 
@@ -551,6 +584,33 @@ MemoryAllocator::AllocateUninitializedPageFromPool(Space* space) {
   // Pooled pages are always regular data pages.
   DCHECK_NE(CODE_SPACE, space->identity());
   DCHECK_NE(TRUSTED_SPACE, space->identity());
+  VirtualMemory reservation(data_page_allocator(), start, size);
+  if (heap::ShouldZapGarbage()) {
+    heap::ZapBlock(start, size, kZapValue);
+  }
+  size_ += size;
+  UpdateAllocatedSpaceLimits(start, start + size,
+                             Executability::NOT_EXECUTABLE);
+  return MemoryChunkAllocationResult{
+      chunk_metadata->Chunk(), chunk_metadata, size, area_start, area_end,
+      std::move(reservation),
+  };
+}
+
+std::optional<MemoryAllocator::MemoryChunkAllocationResult>
+MemoryAllocator::TryAllocateUninitializedLargePageFromPool(Space* space,
+                                                           size_t object_size) {
+  const size_t object_start_offset =
+      MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(space->identity());
+  // Select a pooled large page which can store |object_size| bytes. In case the
+  // page is larger than necessary, the next full GC will trim down its size.
+  MemoryChunkMetadata* chunk_metadata =
+      pool()->RemoveLarge(isolate_, object_start_offset + object_size);
+  if (chunk_metadata == nullptr) return {};
+  const Address start = chunk_metadata->ChunkAddress();
+  const size_t size = chunk_metadata->size();
+  const Address area_start = start + object_start_offset;
+  const Address area_end = start + size;
   VirtualMemory reservation(data_page_allocator(), start, size);
   if (heap::ShouldZapGarbage()) {
     heap::ZapBlock(start, size, kZapValue);

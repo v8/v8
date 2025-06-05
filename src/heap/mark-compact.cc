@@ -6121,6 +6121,13 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
   PtrComprCageBase cage_base(heap_->isolate());
   size_t surviving_object_size = 0;
   const bool postpone_freeing = ShouldPostponeFreeingEmptyPages(space);
+  const bool add_to_pool =
+      v8_flags.large_page_pool && space->identity() == NEW_LO_SPACE;
+  DCHECK_IMPLIES(add_to_pool, !postpone_freeing);
+  std::vector<LargePageMetadata*> pages_to_pool;
+  if (add_to_pool) {
+    pages_to_pool.reserve(space->memory_chunk_list().size());
+  }
   for (auto it = space->begin(); it != space->end();) {
     LargePageMetadata* current = *(it++);
     DCHECK(!current->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
@@ -6130,6 +6137,8 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
       space->RemovePage(current);
       if (postpone_freeing) {
         queued_pages_to_be_freed_.push_back(current);
+      } else if (add_to_pool) {
+        pages_to_pool.push_back(current);
       } else {
         heap_->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
                                         current);
@@ -6144,6 +6153,10 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
     surviving_object_size += static_cast<size_t>(object->Size(cage_base));
   }
   space->set_objects_size(surviving_object_size);
+
+  if (add_to_pool && !pages_to_pool.empty()) {
+    heap()->memory_allocator()->FreeLargePagesPooled(std::move(pages_to_pool));
+  }
 }
 
 void MarkCompactCollector::Sweep() {

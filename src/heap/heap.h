@@ -1908,7 +1908,7 @@ class Heap final {
   // some reporting/verification activities when compiled with DEBUG set.
   void GarbageCollectionPrologue(GarbageCollectionReason gc_reason,
                                  const v8::GCCallbackFlags gc_callback_flags);
-  void GarbageCollectionPrologueInSafepoint();
+  void GarbageCollectionPrologueInSafepoint(GarbageCollector collector);
   void GarbageCollectionEpilogue(GarbageCollector collector);
   void GarbageCollectionEpilogueInSafepoint(GarbageCollector collector);
 

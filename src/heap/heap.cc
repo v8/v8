@@ -985,10 +985,14 @@ void Heap::GarbageCollectionPrologue(
 #endif  // DEBUG
 }
 
-void Heap::GarbageCollectionPrologueInSafepoint() {
+void Heap::GarbageCollectionPrologueInSafepoint(GarbageCollector collector) {
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_PROLOGUE_SAFEPOINT);
   gc_count_++;
   new_space_allocation_counter_ = NewSpaceAllocationCounter();
+  if (v8_flags.large_page_pool_timeout == 0 &&
+      collector == GarbageCollector::MARK_COMPACTOR) {
+    memory_allocator()->pool()->ReleaseLargeImmediately();
+  }
 }
 
 size_t Heap::NewSpaceAllocationCounter() const {
@@ -2349,7 +2353,7 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
 
   tracer()->StartInSafepoint(atomic_pause_start_time);
 
-  GarbageCollectionPrologueInSafepoint();
+  GarbageCollectionPrologueInSafepoint(collector);
 
   PerformHeapVerification();
 

@@ -13,6 +13,7 @@ namespace v8 {
 namespace internal {
 
 class Isolate;
+class LargePageMetadata;
 class MutablePageMetadata;
 
 // Pool keeps pages allocated and accessible until explicitly flushed.
@@ -36,6 +37,9 @@ class PagePool final {
   //   (3) Steal from another isolate.
   MutablePageMetadata* Remove(Isolate* isolate);
 
+  void AddLarge(Isolate* isolate, std::vector<LargePageMetadata*>& pages);
+  LargePageMetadata* RemoveLarge(Isolate* isolate, size_t chunk_size);
+
   // Adds a zone reservation to the pool.
   void AddZoneReservation(Isolate* isolate, VirtualMemory zone_reservation);
 
@@ -53,8 +57,14 @@ class PagePool final {
   // Releases pooled pages of all isolates.
   void ReleaseImmediately();
 
+  // Releases large poold pages immediately.
+  void ReleaseLargeImmediately();
+
   // Tear down this page pool. Frees all pooled pages immediately.
   void TearDown();
+
+  // Notifies the pool that a GC is going to start.
+  void GarbageCollectionPrologue(Isolate* isolate, GarbageCollector collector);
 
   // Returns the number of pages in the local pool for the given isolate.
   size_t GetCount(Isolate* isolate) const;
@@ -67,10 +77,15 @@ class PagePool final {
 
  private:
   class ReleasePooledChunksTask;
+  class ReleasePooledLargeChunksTask;
 
-  // Simple wrapper to be able to free the page via destructors.
+  // Simple wrapper to be able to free the regular page via destructors.
   using PageMemory = std::unique_ptr<MutablePageMetadata,
                                      std::function<void(MutablePageMetadata*)>>;
+  // Simple wrapper to be able to free the large page via destructors.
+  using LargePageMemory =
+      std::unique_ptr<LargePageMetadata,
+                      std::function<void(LargePageMetadata*)>>;
 
   template <typename PoolEntry>
   class PoolImpl final {
@@ -82,9 +97,9 @@ class PagePool final {
     void PutLocal(Isolate* isolate, PoolEntry entry);
     std::optional<PoolEntry> Get(Isolate* isolate);
     bool MoveLocalToShared(Isolate* isolate, InternalTime release_time);
-    void ClearShared();
-    void ClearLocal();
-    void ClearLocal(Isolate* isolate);
+    void ReleaseShared();
+    void ReleaseLocal();
+    void ReleaseLocal(Isolate* isolate);
     size_t ReleaseUpTo(InternalTime release_time);
 
     void TearDown();
@@ -101,8 +116,28 @@ class PagePool final {
     mutable base::Mutex mutex_;
   };
 
+  class LargePagePoolImpl final {
+   public:
+    ~LargePagePoolImpl() { DCHECK(pages_.empty()); }
+
+    bool Add(std::vector<LargePageMetadata*>& pages, InternalTime time);
+    LargePageMetadata* Remove(size_t chunk_size);
+    void ReleaseAll();
+    size_t ReleaseUpTo(InternalTime release_time);
+
+    void TearDown();
+    size_t ComputeTotalSize() const;
+
+   private:
+    base::Mutex mutex_;
+    std::vector<std::pair<InternalTime, LargePageMemory>> pages_;
+    size_t total_size_ = 0;
+  };
+
   PoolImpl<PageMemory> page_pool_;
   PoolImpl<VirtualMemory> zone_pool_;
+
+  LargePagePoolImpl large_pool_;
 
   // Released shared pool pages at least as old as `release_time`. Returns the
   // number of freed pages.
