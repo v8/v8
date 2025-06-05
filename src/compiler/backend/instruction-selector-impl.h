@@ -29,7 +29,6 @@ inline bool operator<(const CaseInfo& l, const CaseInfo& r) {
 // Helper struct containing data about a table or lookup switch.
 class SwitchInfo {
  public:
-  using CaseInfo = CaseInfo;
   SwitchInfo(ZoneVector<CaseInfo> const& cases, int32_t min_value,
              int32_t max_value, turboshaft::Block* default_branch)
       : cases_(cases),
