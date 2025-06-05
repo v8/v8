@@ -1735,11 +1735,12 @@ const Operator* CommonOperatorBuilder::Chained(const Operator* op) {
                                op->ValueOutputCount(), 1, 0);
 }
 
-const Operator* CommonOperatorBuilder::DeadValue(MachineRepresentation rep) {
+const Operator* CommonOperatorBuilder::DeadValue(MachineRepresentation rep,
+                                                 int value_input_count) {
   return zone()->New<Operator1<MachineRepresentation>>(  // --
       IrOpcode::kDeadValue, Operator::kPure,             // opcode
       "DeadValue",                                       // name
-      1, 0, 0, 1, 0, 0,                                  // counts
+      value_input_count, 0, 0, 1, 0, 0,                  // counts
       rep);                                              // parameter
 }
 

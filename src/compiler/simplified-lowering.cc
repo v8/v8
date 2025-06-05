@@ -2495,10 +2495,11 @@ class RepresentationSelector {
             // If one of the node's inputs produces a None-type, we don't need
             // to lower the node.
             if (TypeOf(input).IsNone()) {
-              DeferReplacement(
-                  node, graph()->NewNode(common()->DeadValue(
-                                             GetInfo(node)->representation()),
-                                         input));
+              DisconnectFromEffectAndControl(node);
+              node->TrimInputCount(node->op()->ValueInputCount());
+              ChangeOp(node,
+                       common()->DeadValue(GetInfo(node)->representation(),
+                                           node->op()->ValueInputCount()));
               return;
             }
           }

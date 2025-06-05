@@ -559,7 +559,8 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* Chained(const Operator* op);
 
   const Operator* Dead();
-  const Operator* DeadValue(MachineRepresentation rep);
+  const Operator* DeadValue(MachineRepresentation rep,
+                            int value_input_count = 1);
   const Operator* Unreachable();
   const Operator* StaticAssert(const char* source);
   // SLVerifierHint is used only during SimplifiedLowering. It may be introduced
