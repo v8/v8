@@ -113,7 +113,10 @@ bool CheckAllPhiInputsAreContextType(compiler::JSHeapBroker* broker,
     }
     // OSR values can leak a context with InitialValue that we are unable to
     // type.
-    if (input.node()->Is<InitialValue>()) continue;
+    if (input.node()->Is<InitialValue>() ||
+        input.node()->Is<GeneratorRestoreRegister>()) {
+      continue;
+    }
     if (phi->Cast<Phi>()->owner() == interpreter::Register::current_context()) {
       // We are unable to type loop phis holding the context from resumable
       // loops, since they start with an empty KNA.
