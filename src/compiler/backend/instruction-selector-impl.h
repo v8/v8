@@ -15,23 +15,23 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-struct CaseInfoT {
+struct CaseInfo {
   int32_t value;  // The case value.
   int32_t order;  // The order for lowering to comparisons (less means earlier).
   turboshaft::Block*
       branch;  // The basic blocks corresponding to the case value.
 };
 
-inline bool operator<(const CaseInfoT& l, const CaseInfoT& r) {
+inline bool operator<(const CaseInfo& l, const CaseInfo& r) {
   return l.order < r.order;
 }
 
 // Helper struct containing data about a table or lookup switch.
-class SwitchInfoT {
+class SwitchInfo {
  public:
-  using CaseInfo = CaseInfoT;
-  SwitchInfoT(ZoneVector<CaseInfo> const& cases, int32_t min_value,
-              int32_t max_value, turboshaft::Block* default_branch)
+  using CaseInfo = CaseInfo;
+  SwitchInfo(ZoneVector<CaseInfo> const& cases, int32_t min_value,
+             int32_t max_value, turboshaft::Block* default_branch)
       : cases_(cases),
         min_value_(min_value),
         max_value_(max_value),
@@ -70,9 +70,9 @@ class SwitchInfoT {
 
 // A helper class for the instruction selector that simplifies construction of
 // Operands. This class implements a base for architecture-specific helpers.
-class OperandGeneratorT : public turboshaft::OperationMatcher {
+class OperandGenerator : public turboshaft::OperationMatcher {
  public:
-  explicit OperandGeneratorT(InstructionSelectorT* selector)
+  explicit OperandGenerator(InstructionSelector* selector)
       : turboshaft::OperationMatcher(*selector->schedule()),
         selector_(selector) {}
 
@@ -341,7 +341,7 @@ class OperandGeneratorT : public turboshaft::OperationMatcher {
   }
 
  protected:
-  InstructionSelectorT* selector() const { return selector_; }
+  InstructionSelector* selector() const { return selector_; }
   InstructionSequence* sequence() const { return selector()->sequence(); }
   Zone* zone() const { return selector()->instruction_zone(); }
 
@@ -486,7 +486,7 @@ class OperandGeneratorT : public turboshaft::OperationMatcher {
                               location.AsRegister(), virtual_register);
   }
 
-  InstructionSelectorT* selector_;
+  InstructionSelector* selector_;
 };
 
 }  // namespace compiler

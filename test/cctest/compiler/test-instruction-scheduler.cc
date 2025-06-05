@@ -12,8 +12,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-using FlagsContinuation = FlagsContinuationT;
-
 // Create InstructionBlocks with a single block.
 InstructionBlocks* CreateSingleBlock(Zone* zone) {
   InstructionBlock* block = zone->New<InstructionBlock>(

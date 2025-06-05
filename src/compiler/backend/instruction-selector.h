@@ -37,11 +37,11 @@ namespace compiler {
 
 // Forward declarations.
 class BasicBlock;
-struct CallBufferT;  // TODO(bmeurer): Remove this.
+struct CallBuffer;  // TODO(bmeurer): Remove this.
 class Linkage;
-class OperandGeneratorT;
-class SwitchInfoT;
-struct CaseInfoT;
+class OperandGenerator;
+class SwitchInfo;
+struct CaseInfo;
 class TurbofanStateObjectDeduplicator;
 class TurboshaftStateObjectDeduplicator;
 
@@ -50,7 +50,7 @@ class TurboshaftStateObjectDeduplicator;
 // The whole instruction is treated as a unit by the register allocator, and
 // thus no spills or moves can be introduced between the flags-setting
 // instruction and the branch or set it should be combined with.
-class FlagsContinuationT final {
+class FlagsContinuation final {
  public:
   struct ConditionalCompare {
     InstructionCode code;
@@ -64,78 +64,77 @@ class FlagsContinuationT final {
   static constexpr size_t kMaxCompareChainSize = 4;
   using compare_chain_t = std::array<ConditionalCompare, kMaxCompareChainSize>;
 
-  FlagsContinuationT() : mode_(kFlags_none) {}
+  FlagsContinuation() : mode_(kFlags_none) {}
 
   // Creates a new flags continuation from the given condition and true/false
   // blocks.
-  static FlagsContinuationT ForBranch(FlagsCondition condition,
-                                      turboshaft::Block* true_block,
-                                      turboshaft::Block* false_block) {
-    return FlagsContinuationT(kFlags_branch, condition, true_block,
-                              false_block);
+  static FlagsContinuation ForBranch(FlagsCondition condition,
+                                     turboshaft::Block* true_block,
+                                     turboshaft::Block* false_block) {
+    return FlagsContinuation(kFlags_branch, condition, true_block, false_block);
   }
 
-  static FlagsContinuationT ForHintedBranch(FlagsCondition condition,
-                                            turboshaft::Block* true_block,
-                                            turboshaft::Block* false_block,
-                                            BranchHint hint) {
-    return FlagsContinuationT(kFlags_branch, condition, true_block, false_block,
-                              hint);
+  static FlagsContinuation ForHintedBranch(FlagsCondition condition,
+                                           turboshaft::Block* true_block,
+                                           turboshaft::Block* false_block,
+                                           BranchHint hint) {
+    return FlagsContinuation(kFlags_branch, condition, true_block, false_block,
+                             hint);
   }
 
   // Creates a new flags continuation from the given conditional compare chain
   // and true/false blocks.
-  static FlagsContinuationT ForConditionalBranch(
+  static FlagsContinuation ForConditionalBranch(
       compare_chain_t& compares, uint32_t num_conditional_compares,
       FlagsCondition branch_condition, turboshaft::Block* true_block,
       turboshaft::Block* false_block) {
-    return FlagsContinuationT(compares, num_conditional_compares,
-                              branch_condition, true_block, false_block);
+    return FlagsContinuation(compares, num_conditional_compares,
+                             branch_condition, true_block, false_block);
   }
 
   // Creates a new flags continuation for an eager deoptimization exit.
-  static FlagsContinuationT ForDeoptimize(FlagsCondition condition,
-                                          DeoptimizeReason reason,
-                                          uint32_t node_id,
-                                          FeedbackSource const& feedback,
-                                          turboshaft::OpIndex frame_state) {
-    return FlagsContinuationT(kFlags_deoptimize, condition, reason, node_id,
-                              feedback, frame_state);
+  static FlagsContinuation ForDeoptimize(FlagsCondition condition,
+                                         DeoptimizeReason reason,
+                                         uint32_t node_id,
+                                         FeedbackSource const& feedback,
+                                         turboshaft::OpIndex frame_state) {
+    return FlagsContinuation(kFlags_deoptimize, condition, reason, node_id,
+                             feedback, frame_state);
   }
-  static FlagsContinuationT ForDeoptimizeForTesting(
+  static FlagsContinuation ForDeoptimizeForTesting(
       FlagsCondition condition, DeoptimizeReason reason, uint32_t node_id,
       FeedbackSource const& feedback, turboshaft::OpIndex frame_state) {
     // test-instruction-scheduler.cc passes a dummy Node* as frame_state.
     // Contents don't matter as long as it's not nullptr.
-    return FlagsContinuationT(kFlags_deoptimize, condition, reason, node_id,
-                              feedback, frame_state);
+    return FlagsContinuation(kFlags_deoptimize, condition, reason, node_id,
+                             feedback, frame_state);
   }
 
   // Creates a new flags continuation for a boolean value.
-  static FlagsContinuationT ForSet(FlagsCondition condition,
-                                   turboshaft::OpIndex result) {
-    return FlagsContinuationT(condition, result);
+  static FlagsContinuation ForSet(FlagsCondition condition,
+                                  turboshaft::OpIndex result) {
+    return FlagsContinuation(condition, result);
   }
 
   // Creates a new flags continuation for a conditional boolean value.
-  static FlagsContinuationT ForConditionalSet(compare_chain_t& compares,
-                                              uint32_t num_conditional_compares,
-                                              FlagsCondition set_condition,
-                                              turboshaft::OpIndex result) {
-    return FlagsContinuationT(compares, num_conditional_compares, set_condition,
-                              result);
+  static FlagsContinuation ForConditionalSet(compare_chain_t& compares,
+                                             uint32_t num_conditional_compares,
+                                             FlagsCondition set_condition,
+                                             turboshaft::OpIndex result) {
+    return FlagsContinuation(compares, num_conditional_compares, set_condition,
+                             result);
   }
 
   // Creates a new flags continuation for a wasm trap.
-  static FlagsContinuationT ForTrap(FlagsCondition condition, TrapId trap_id) {
-    return FlagsContinuationT(condition, trap_id);
+  static FlagsContinuation ForTrap(FlagsCondition condition, TrapId trap_id) {
+    return FlagsContinuation(condition, trap_id);
   }
 
-  static FlagsContinuationT ForSelect(FlagsCondition condition,
-                                      turboshaft::OpIndex result,
-                                      turboshaft::OpIndex true_value,
-                                      turboshaft::OpIndex false_value) {
-    return FlagsContinuationT(condition, result, true_value, false_value);
+  static FlagsContinuation ForSelect(FlagsCondition condition,
+                                     turboshaft::OpIndex result,
+                                     turboshaft::OpIndex true_value,
+                                     turboshaft::OpIndex false_value) {
+    return FlagsContinuation(condition, result, true_value, false_value);
   }
 
   bool IsNone() const { return mode_ == kFlags_none; }
@@ -264,9 +263,9 @@ class FlagsContinuationT final {
   }
 
  private:
-  FlagsContinuationT(FlagsMode mode, FlagsCondition condition,
-                     turboshaft::Block* true_block,
-                     turboshaft::Block* false_block)
+  FlagsContinuation(FlagsMode mode, FlagsCondition condition,
+                    turboshaft::Block* true_block,
+                    turboshaft::Block* false_block)
       : mode_(mode),
         condition_(condition),
         true_block_(true_block),
@@ -276,9 +275,9 @@ class FlagsContinuationT final {
     DCHECK_NOT_NULL(false_block);
   }
 
-  FlagsContinuationT(FlagsMode mode, FlagsCondition condition,
-                     turboshaft::Block* true_block,
-                     turboshaft::Block* false_block, BranchHint hint)
+  FlagsContinuation(FlagsMode mode, FlagsCondition condition,
+                    turboshaft::Block* true_block,
+                    turboshaft::Block* false_block, BranchHint hint)
       : mode_(mode),
         condition_(condition),
         true_block_(true_block),
@@ -289,11 +288,11 @@ class FlagsContinuationT final {
     DCHECK_NOT_NULL(false_block);
   }
 
-  FlagsContinuationT(compare_chain_t& compares,
-                     uint32_t num_conditional_compares,
-                     FlagsCondition branch_condition,
-                     turboshaft::Block* true_block,
-                     turboshaft::Block* false_block)
+  FlagsContinuation(compare_chain_t& compares,
+                    uint32_t num_conditional_compares,
+                    FlagsCondition branch_condition,
+                    turboshaft::Block* true_block,
+                    turboshaft::Block* false_block)
       : mode_(kFlags_conditional_branch),
         condition_(compares.front().compare_condition),
         final_condition_(branch_condition),
@@ -305,10 +304,10 @@ class FlagsContinuationT final {
     DCHECK_NOT_NULL(false_block);
   }
 
-  FlagsContinuationT(FlagsMode mode, FlagsCondition condition,
-                     DeoptimizeReason reason, uint32_t node_id,
-                     FeedbackSource const& feedback,
-                     turboshaft::OpIndex frame_state)
+  FlagsContinuation(FlagsMode mode, FlagsCondition condition,
+                    DeoptimizeReason reason, uint32_t node_id,
+                    FeedbackSource const& feedback,
+                    turboshaft::OpIndex frame_state)
       : mode_(mode),
         condition_(condition),
         reason_(reason),
@@ -319,16 +318,16 @@ class FlagsContinuationT final {
     DCHECK(frame_state.valid());
   }
 
-  FlagsContinuationT(FlagsCondition condition, turboshaft::OpIndex result)
+  FlagsContinuation(FlagsCondition condition, turboshaft::OpIndex result)
       : mode_(kFlags_set),
         condition_(condition),
         frame_state_or_result_(result) {
     DCHECK(result.valid());
   }
 
-  FlagsContinuationT(compare_chain_t& compares,
-                     uint32_t num_conditional_compares,
-                     FlagsCondition set_condition, turboshaft::OpIndex result)
+  FlagsContinuation(compare_chain_t& compares,
+                    uint32_t num_conditional_compares,
+                    FlagsCondition set_condition, turboshaft::OpIndex result)
       : mode_(kFlags_conditional_set),
         condition_(compares.front().compare_condition),
         final_condition_(set_condition),
@@ -338,12 +337,12 @@ class FlagsContinuationT final {
     DCHECK(result.valid());
   }
 
-  FlagsContinuationT(FlagsCondition condition, TrapId trap_id)
+  FlagsContinuation(FlagsCondition condition, TrapId trap_id)
       : mode_(kFlags_trap), condition_(condition), trap_id_(trap_id) {}
 
-  FlagsContinuationT(FlagsCondition condition, turboshaft::OpIndex result,
-                     turboshaft::OpIndex true_value,
-                     turboshaft::OpIndex false_value)
+  FlagsContinuation(FlagsCondition condition, turboshaft::OpIndex result,
+                    turboshaft::OpIndex true_value,
+                    turboshaft::OpIndex false_value)
       : mode_(kFlags_select),
         condition_(condition),
         frame_state_or_result_(result),
@@ -377,9 +376,9 @@ class FlagsContinuationT final {
 
 // This struct connects nodes of parameters which are going to be pushed on the
 // call stack with their parameter index in the call descriptor of the callee.
-struct PushParameterT {
-  PushParameterT(turboshaft::OpIndex n = {},
-                 LinkageLocation l = LinkageLocation::ForAnyRegister())
+struct PushParameter {
+  PushParameter(turboshaft::OpIndex n = {},
+                LinkageLocation l = LinkageLocation::ForAnyRegister())
       : node(n), location(l) {}
 
   turboshaft::OpIndex node;
@@ -389,16 +388,9 @@ struct PushParameterT {
 enum class FrameStateInputKind { kAny, kStackSlot };
 
 // Instruction selection generates an InstructionSequence for a given Schedule.
-class V8_EXPORT_PRIVATE InstructionSelectorT final
+class V8_EXPORT_PRIVATE InstructionSelector final
     : public turboshaft::OperationMatcher {
  public:
-  using OperandGenerator = OperandGeneratorT;
-  using PushParameter = PushParameterT;
-  using CallBuffer = CallBufferT;
-  using FlagsContinuation = FlagsContinuationT;
-  using SwitchInfo = SwitchInfoT;
-  using CaseInfo = CaseInfoT;
-
   using source_position_table_t =
       turboshaft::GrowingOpIndexSidetable<SourcePosition>;
 
@@ -440,7 +432,7 @@ class V8_EXPORT_PRIVATE InstructionSelectorT final
   static MachineOperatorBuilder::Flags SupportedMachineOperatorFlags();
   static MachineOperatorBuilder::AlignmentRequirements AlignmentRequirements();
 
-  static InstructionSelectorT ForTurboshaft(
+  static InstructionSelector ForTurboshaft(
       Zone* zone, size_t node_count, Linkage* linkage,
       InstructionSequence* sequence, turboshaft::Graph* schedule, Frame* frame,
       EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
@@ -452,7 +444,7 @@ class V8_EXPORT_PRIVATE InstructionSelectorT final
       EnableTraceTurboJson trace_turbo,
       EnsureDeterministicNan ensure_deterministic_nan);
 
-  InstructionSelectorT(
+  InstructionSelector(
       Zone* zone, size_t node_count, Linkage* linkage,
       InstructionSequence* sequence, turboshaft::Graph* schedule,
       source_position_table_t* source_positions, Frame* frame,
@@ -1635,9 +1627,6 @@ class V8_EXPORT_PRIVATE InstructionSelectorT final
   ZoneVector<Upper32BitsState> phi_states_;
 #endif
 };
-
-// TODO(nicohartmann): Remove once InstructionSelectorT is renamed.
-using InstructionSelector = InstructionSelectorT;
 
 }  // namespace compiler
 }  // namespace internal
