@@ -5,7 +5,6 @@
 load("//lib/builders.star", "main_multibranch_builder", "multibranch_builder")
 load("//lib/gclient.star", "GCLIENT_VARS")
 load("//lib/lib.star", "BARRIER", "ci_pair_factory", "in_branch_console")
-load("//lib/reclient.star", "RECLIENT")
 
 in_category = in_branch_console("memory")
 main_multibranch_builder_pair = ci_pair_factory(main_multibranch_builder)
@@ -15,7 +14,6 @@ in_category(
     main_multibranch_builder_pair(
         name = "V8 Linux64 ASAN",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        use_remoteexec = RECLIENT.DEFAULT,
         barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder_pair(
@@ -27,7 +25,6 @@ in_category(
     main_multibranch_builder_pair(
         name = "V8 Win64 ASAN",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-        use_remoteexec = RECLIENT.DEFAULT,
         barrier = BARRIER.NONE,
         disable_resultdb_exports = True,
     ),
@@ -39,7 +36,6 @@ in_category(
         name = "V8 Linux - arm64 - sim - MSAN",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         gclient_vars = [GCLIENT_VARS.INSTRUMENTED_LIBRARIES],
-        use_remoteexec = RECLIENT.DEFAULT,
         barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
 )
@@ -49,7 +45,6 @@ in_category(
     main_multibranch_builder(
         name = "V8 Linux64 TSAN - builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        use_remoteexec = RECLIENT.DEFAULT,
         barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder(
@@ -60,7 +55,6 @@ in_category(
     main_multibranch_builder_pair(
         name = "V8 Linux64 TSAN - debug",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["TSAN debug failures"],
         first_branch_version = "11.2",
     ),
@@ -85,7 +79,6 @@ in_category(
     main_multibranch_builder_pair(
         name = "V8 Linux64 UBSan",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        use_remoteexec = RECLIENT.DEFAULT,
     ),
 )
 
@@ -94,6 +87,5 @@ in_category(
     main_multibranch_builder_pair(
         name = "V8 Linux64 - cfi",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        use_remoteexec = RECLIENT.DEFAULT,
     ),
 )

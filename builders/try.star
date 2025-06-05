@@ -5,7 +5,6 @@
 load("//lib/builders.star", "presubmit_builder", "try_builder", "v8_builder")
 load("//lib/gclient.star", "GCLIENT_VARS")
 load("//lib/lib.star", "CQ")
-load("//lib/reclient.star", "RECLIENT", "RECLIENT_JOBS")
 load("//lib/siso.star", "SISO")
 
 presubmit_builder(
@@ -22,7 +21,6 @@ try_builder(
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"target_platform": "android", "target_arch": "arm"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -31,7 +29,6 @@ try_builder(
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"target_platform": "android", "target_arch": "arm", "default_targets": ["verify_deterministic_mksnapshot"]},
     always_isolate_targets = ["snapshot_set"],
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -39,7 +36,6 @@ try_builder(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"target_platform": "android", "target_arch": "arm"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -47,7 +43,6 @@ try_builder(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"default_targets": ["d8"], "target_platform": "android", "target_arch": "arm"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -55,7 +50,6 @@ try_builder(
     cq_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"target_platform": "fuchsia"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -78,7 +72,6 @@ try_builder(
             name = "osx_sdk",
         ),
     ],
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -100,7 +93,6 @@ try_builder(
         "coverage": "llvm",
     },
     execution_timeout = 7200,
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -112,7 +104,6 @@ try_builder(
         "gclient_vars": {"checkout_clang_coverage_tools": "True"},
         "coverage": "llvm",
     },
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -120,7 +111,6 @@ try_builder(
     cq_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"target_arch": "arm", "target_bits": 64},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -128,7 +118,6 @@ try_builder(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"default_targets": ["verify_all_builtins_hashes"]},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -137,7 +126,6 @@ try_builder(
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"default_targets": ["verify_deterministic_mksnapshot"]},
     always_isolate_targets = ["snapshot_set"],
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -154,7 +142,6 @@ try_builder(
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -162,7 +149,6 @@ try_builder(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -170,14 +156,12 @@ try_builder(
     cq_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"target_arch": "arm", "target_bits": 64},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
     name = "v8_linux64_asan_centipede_compile_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
     gclient_vars = [GCLIENT_VARS.CENTIPEDE],
     properties = {"default_targets": ["v8_fuzztests"]},
 )
@@ -186,7 +170,6 @@ try_builder(
     name = "v8_linux64_asan_centipede_compile_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
     gclient_vars = [GCLIENT_VARS.CENTIPEDE],
     properties = {"default_targets": ["v8_fuzztests"]},
 )
@@ -195,7 +178,6 @@ try_builder(
     name = "v8_linux64_asan_sandbox_testing_compile_rel",
     cq_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
     properties = {"default_targets": ["v8_clusterfuzz"]},
 )
 
@@ -203,7 +185,6 @@ try_builder(
     name = "v8_linux64_asan_undefined_double_compile_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
     properties = {"default_targets": ["v8_clusterfuzz"]},
 )
 
@@ -212,7 +193,6 @@ try_builder(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -220,7 +200,6 @@ try_builder(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -230,7 +209,6 @@ try_builder(
     dimensions = {"host_class": "chromium", "os": "Ubuntu-22.04", "cpu": "x86-64"},
     execution_timeout = 4400,
     build_numbers = True,
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
     disable_resultdb_exports = True,
 )
 
@@ -241,7 +219,6 @@ try_builder(
     dimensions = {"host_class": "chromium", "os": "Ubuntu-22.04", "cpu": "x86-64"},
     execution_timeout = 4200,
     build_numbers = True,
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
     use_siso = SISO.CHROMIUM_UNTRUSTED_J500,
     disable_resultdb_exports = True,
 )
@@ -250,7 +227,6 @@ try_builder(
     name = "v8_linux_mips64el_compile_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -258,14 +234,12 @@ try_builder(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
     name = "v8_linux_shared_compile_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -273,7 +247,6 @@ try_builder(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"default_targets": ["compare_torque_runs"]},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -281,7 +254,6 @@ try_builder(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     gclient_vars = [GCLIENT_VARS.ITTAPI],
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -296,7 +268,6 @@ try_builder(
     cq_properties = CQ.OPTIONAL,
     cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"host_class": "default", "os": "Windows-10", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -326,7 +297,6 @@ try_builder(
     cq_branch_properties = CQ.OPTIONAL,
     executable = "recipe:v8/compilator",
     properties = {"default_targets": ["d8_pgo"]},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
     dimensions = {"os": "Ubuntu-22.04"},
 )
 
@@ -336,7 +306,6 @@ try_builder(
     cq_branch_properties = CQ.OPTIONAL,
     executable = "recipe:v8/compilator",
     properties = {"default_targets": ["d8_pgo"]},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
     dimensions = {"os": "Ubuntu-22.04"},
 )
 
@@ -346,7 +315,6 @@ try_builder(
     cq_branch_properties = CQ.OPTIONAL,
     executable = "recipe:v8/compilator",
     properties = {"default_targets": ["d8_pgo"]},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
     dimensions = {"os": "Windows-10"},
 )
 
@@ -356,6 +324,5 @@ try_builder(
     cq_branch_properties = CQ.OPTIONAL,
     executable = "recipe:v8/compilator",
     properties = {"default_targets": ["d8_pgo"]},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
     dimensions = {"os": "Windows-10"},
 )

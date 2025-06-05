@@ -6,7 +6,6 @@ load("//lib/bucket-defaults.star", "bucket_defaults")
 load("//lib/builders.star", "v8_builder")
 load("//lib/gclient.star", "GCLIENT_VARS")
 load("//lib/lib.star", "CQ")
-load("//lib/reclient.star", "RECLIENT")
 load("//lib/siso.star", "SISO")
 
 def with_cancel(cq_properties):
@@ -75,7 +74,6 @@ trybot_pair(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"target_platform": "android", "target_arch": "arm"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -83,7 +81,6 @@ trybot_pair(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"target_platform": "android", "target_arch": "arm"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -92,7 +89,6 @@ trybot_pair(
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"target_arch": "arm", "target_bits": 64},
     gclient_vars = [GCLIENT_VARS.LINUX_ARM64_SYMBOLIZER],
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -100,7 +96,6 @@ trybot_pair(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"target_arch": "arm", "target_bits": 64},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -108,14 +103,12 @@ trybot_pair(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"target_arch": "arm", "target_bits": 64},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux64_arm64_no_pointer_compression_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -123,21 +116,18 @@ trybot_pair(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux64_cfi_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux64_cppgc_non_default_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -145,7 +135,6 @@ trybot_pair(
     cq_properties = CQ.OPTIONAL,
     cq_compile_only_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -153,7 +142,6 @@ trybot_pair(
     cq_properties = CQ.OPTIONAL,
     cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -161,7 +149,6 @@ trybot_pair(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -169,7 +156,6 @@ trybot_pair(
     cq_properties = CQ.OPTIONAL,
     cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -180,49 +166,42 @@ trybot_pair(
     ),
     cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux64_dict_tracking_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux64_disable_runtime_call_stats_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux64_gc_stress_custom_snapshot_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux64_gc_stress_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux64_fuzzilli_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux64_fyi_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -237,7 +216,6 @@ trybot_pair(
     name = "v8_linux64_lower_limits_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -245,7 +223,6 @@ trybot_pair(
     cq_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"gclient_vars": {"checkout_instrumented_libraries": "True"}},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -253,14 +230,12 @@ trybot_pair(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux64_official_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
     build_timeout = 3600,
 )
 
@@ -268,21 +243,18 @@ trybot_pair(
     name = "v8_linux64_perfetto_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux64_pku_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux64_pku_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -290,7 +262,6 @@ trybot_pair(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -298,7 +269,6 @@ trybot_pair(
     cq_properties = CQ.OPTIONAL,
     cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -306,7 +276,6 @@ trybot_pair(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
     properties = {"default_targets": ["v8_clusterfuzz"]},
 )
 
@@ -315,7 +284,6 @@ trybot_pair(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -323,7 +291,6 @@ trybot_pair(
     cq_properties = CQ.OPTIONAL,
     cq_compile_only_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -332,7 +299,6 @@ trybot_pair(
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     gclient_vars = [GCLIENT_VARS.GCMOLE],
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -340,49 +306,42 @@ trybot_pair(
     cq_properties = CQ.OPTIONAL,
     cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux_riscv32_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux64_riscv64_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux64_riscv64_pointer_compression_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux64_loong64_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux64_tsan_rel",
     cq_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux64_tsan_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -392,28 +351,24 @@ trybot_pair(
         "src/compiler/heap-refs.(h|cc)",
     ),
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux64_tsan_isolates_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux64_ubsan_rel",
     cq_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux64_undefined_double_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -421,21 +376,18 @@ trybot_pair(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux_arm64_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux_arm64_gc_stress_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -444,21 +396,18 @@ trybot_pair(
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     gclient_vars = [GCLIENT_VARS.GCMOLE],
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux_arm_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux_arm_lite_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -467,42 +416,36 @@ trybot_pair(
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     gclient_vars = [GCLIENT_VARS.GCMOLE],
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux_full_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux_gc_stress_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux_nodcheck_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux_noi18n_rel",
     cq_properties = CQ.on_files(".*intl.*", ".*test262.*"),
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -511,7 +454,6 @@ trybot_pair(
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     gclient_vars = [GCLIENT_VARS.GCMOLE],
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -524,14 +466,12 @@ trybot_pair(
         "src/wasm/baseline/x64/liftoff-assembler-x64.h",
     ),
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_linux_verify_csa_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -539,7 +479,6 @@ trybot_pair(
     total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -550,7 +489,6 @@ trybot_pair(
     # (i.e. M100).
     cq_compile_only_properties = CQ.EXP_100_PERCENT,
     dimensions = {"os": "Mac", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -558,7 +496,6 @@ trybot_pair(
     total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -567,7 +504,6 @@ trybot_pair(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Mac", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -575,7 +511,6 @@ trybot_pair(
     total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac", "cpu": "arm64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -584,7 +519,6 @@ trybot_pair(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Mac", "cpu": "arm64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -592,7 +526,6 @@ trybot_pair(
     total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac", "cpu": "arm64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -600,7 +533,6 @@ trybot_pair(
     total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac", "cpu": "arm64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -608,56 +540,48 @@ trybot_pair(
     total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac", "cpu": "arm64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_numfuzz_asan_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_numfuzz_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_numfuzz_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_numfuzz_tsan_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_win64_cet_shadow_stack_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_win64_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_win64_drumbrake_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -665,7 +589,6 @@ trybot_pair(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     total_timeout = 7200,
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -674,7 +597,6 @@ trybot_pair(
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     total_timeout = 7200,
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -683,19 +605,16 @@ trybot_pair(
     cq_compile_only_properties = CQ.BLOCK,
     cq_branch_compile_only_properties = CQ.BLOCK,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_win_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_win64_asan_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
