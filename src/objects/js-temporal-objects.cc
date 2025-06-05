@@ -280,7 +280,7 @@ Maybe<temporal_rs::ArithmeticOverflow> ToTemporalOverflowHandleUndefined(
   // "reject" », "constrain").
   return GetStringOption<temporal_rs::ArithmeticOverflow>(
       isolate, Cast<JSReceiver>(options), "overflow", method_name,
-      std::array{"constrain", "reject"},
+      std::to_array<const std::string_view>({"constrain", "reject"}),
       std::to_array<temporal_rs::ArithmeticOverflow>(
           {temporal_rs::ArithmeticOverflow::Constrain,
            temporal_rs::ArithmeticOverflow::Reject}),
@@ -379,13 +379,14 @@ Maybe<std::optional<Unit>> GetTemporalUnit(
     const char* key, UnitGroup unit_group, std::optional<Unit> default_value,
     bool default_is_required, const char* method_name,
     std::optional<Unit> extra_values = std::nullopt) {
-  std::span<const char* const> str_values;
+  std::span<const std::string_view> str_values;
   std::span<const std::optional<Unit::Value>> enum_values;
   switch (unit_group) {
     case UnitGroup::kDate:
       if (default_value == Unit::Auto || extra_values == Unit::Auto) {
-        static auto strs = std::array{"year",  "month",  "week",  "day", "auto",
-                                      "years", "months", "weeks", "days"};
+        static auto strs = std::to_array<const std::string_view>(
+            {"year", "month", "week", "day", "auto", "years", "months", "weeks",
+             "days"});
         static auto enums = std::to_array<const std::optional<Unit::Value>>(
             {Unit::Year, Unit::Month, Unit::Week, Unit::Day, Unit::Auto,
              Unit::Year, Unit::Month, Unit::Week, Unit::Day});
@@ -395,8 +396,9 @@ Maybe<std::optional<Unit>> GetTemporalUnit(
         DCHECK(default_value == std::nullopt || default_value == Unit::Year ||
                default_value == Unit::Month || default_value == Unit::Week ||
                default_value == Unit::Day);
-        static auto strs = std::array{"year",  "month",  "week",  "day",
-                                      "years", "months", "weeks", "days"};
+        static auto strs = std::to_array<const std::string_view>(
+            {"year", "month", "week", "day", "years", "months", "weeks",
+             "days"});
         static auto enums = std::to_array<const std::optional<Unit::Value>>(
             {Unit::Year, Unit::Month, Unit::Week, Unit::Day, Unit::Year,
              Unit::Month, Unit::Week, Unit::Day});
@@ -406,11 +408,10 @@ Maybe<std::optional<Unit>> GetTemporalUnit(
       break;
     case UnitGroup::kTime:
       if (default_value == Unit::Auto || extra_values == Unit::Auto) {
-        static auto strs = std::array{
-            "hour",        "minute",     "second",       "millisecond",
-            "microsecond", "nanosecond", "auto",         "hours",
-            "minutes",     "seconds",    "milliseconds", "microseconds",
-            "nanoseconds"};
+        static auto strs = std::to_array<const std::string_view>(
+            {"hour", "minute", "second", "millisecond", "microsecond",
+             "nanosecond", "auto", "hours", "minutes", "seconds",
+             "milliseconds", "microseconds", "nanoseconds"});
         static auto enums = std::to_array<const std::optional<Unit::Value>>(
             {Unit::Hour, Unit::Minute, Unit::Second, Unit::Millisecond,
              Unit::Microsecond, Unit::Nanosecond, Unit::Auto, Unit::Hour,
@@ -419,11 +420,10 @@ Maybe<std::optional<Unit>> GetTemporalUnit(
         str_values = strs;
         enum_values = enums;
       } else if (default_value == Unit::Day || extra_values == Unit::Day) {
-        static auto strs = std::array{
-            "hour",        "minute",     "second",       "millisecond",
-            "microsecond", "nanosecond", "day",          "hours",
-            "minutes",     "seconds",    "milliseconds", "microseconds",
-            "nanoseconds", "days"};
+        static auto strs = std::to_array<const std::string_view>(
+            {"hour", "minute", "second", "millisecond", "microsecond",
+             "nanosecond", "day", "hours", "minutes", "seconds", "milliseconds",
+             "microseconds", "nanoseconds", "days"});
         static auto enums = std::to_array<const std::optional<Unit::Value>>(
             {Unit::Hour, Unit::Minute, Unit::Second, Unit::Millisecond,
              Unit::Microsecond, Unit::Nanosecond, Unit::Day, Unit::Hour,
@@ -437,10 +437,10 @@ Maybe<std::optional<Unit>> GetTemporalUnit(
                default_value == Unit::Millisecond ||
                default_value == Unit::Microsecond ||
                default_value == Unit::Nanosecond);
-        static auto strs = std::array{
-            "hour",        "minute",       "second",       "millisecond",
-            "microsecond", "nanosecond",   "hours",        "minutes",
-            "seconds",     "milliseconds", "microseconds", "nanoseconds"};
+        static auto strs = std::to_array<const std::string_view>(
+            {"hour", "minute", "second", "millisecond", "microsecond",
+             "nanosecond", "hours", "minutes", "seconds", "milliseconds",
+             "microseconds", "nanoseconds"});
         static auto enums = std::to_array<const std::optional<Unit::Value>>(
             {Unit::Hour, Unit::Minute, Unit::Second, Unit::Millisecond,
              Unit::Microsecond, Unit::Nanosecond, Unit::Hour, Unit::Minute,
@@ -452,13 +452,13 @@ Maybe<std::optional<Unit>> GetTemporalUnit(
       break;
     case UnitGroup::kDateTime:
       if (default_value == Unit::Auto || extra_values == Unit::Auto) {
-        static auto strs = std::array{
-            "year",        "month",      "week",         "day",
-            "hour",        "minute",     "second",       "millisecond",
-            "microsecond", "nanosecond", "auto",         "years",
-            "months",      "weeks",      "days",         "hours",
-            "minutes",     "seconds",    "milliseconds", "microseconds",
-            "nanoseconds"};
+        static auto strs = std::to_array<const std::string_view>(
+            {"year",        "month",      "week",         "day",
+             "hour",        "minute",     "second",       "millisecond",
+             "microsecond", "nanosecond", "auto",         "years",
+             "months",      "weeks",      "days",         "hours",
+             "minutes",     "seconds",    "milliseconds", "microseconds",
+             "nanoseconds"});
         static auto enums = std::to_array<const std::optional<Unit::Value>>(
             {Unit::Year,        Unit::Month,       Unit::Week,
              Unit::Day,         Unit::Hour,        Unit::Minute,
@@ -470,12 +470,12 @@ Maybe<std::optional<Unit>> GetTemporalUnit(
         str_values = strs;
         enum_values = enums;
       } else {
-        static auto strs = std::array{
-            "year",        "month",        "week",         "day",
-            "hour",        "minute",       "second",       "millisecond",
-            "microsecond", "nanosecond",   "years",        "months",
-            "weeks",       "days",         "hours",        "minutes",
-            "seconds",     "milliseconds", "microseconds", "nanoseconds"};
+        static auto strs = std::to_array<const std::string_view>(
+            {"year",        "month",        "week",         "day",
+             "hour",        "minute",       "second",       "millisecond",
+             "microsecond", "nanosecond",   "years",        "months",
+             "weeks",       "days",         "hours",        "minutes",
+             "seconds",     "milliseconds", "microseconds", "nanoseconds"});
         static auto enums = std::to_array<const std::optional<Unit::Value>>(
             {Unit::Year,        Unit::Month,       Unit::Week,
              Unit::Day,         Unit::Hour,        Unit::Minute,
@@ -576,8 +576,9 @@ Maybe<RoundingMode> GetRoundingModeOption(Isolate* isolate,
        RoundingMode::HalfEven});
   return GetStringOption<RoundingMode>(
       isolate, options, "roundingMode", method_name,
-      std::array{"ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
-                 "halfExpand", "halfTrunc", "halfEven"},
+      std::to_array<const std::string_view>(
+          {"ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
+           "halfExpand", "halfTrunc", "halfEven"}),
       values, fallback);
 }
 
@@ -649,7 +650,8 @@ Maybe<temporal_rs::DisplayCalendar> GetTemporalShowCalendarNameOption(
   // "auto", "always", "never" », "auto").
   return GetStringOption<temporal_rs::DisplayCalendar>(
       isolate, options, "calendarName", method_name,
-      std::array{"auto", "always", "never", "critical"},
+      std::to_array<const std::string_view>(
+          {"auto", "always", "never", "critical"}),
       std::to_array<temporal_rs::DisplayCalendar>(
           {temporal_rs::DisplayCalendar::Auto,
            temporal_rs::DisplayCalendar::Always,

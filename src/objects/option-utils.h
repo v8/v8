@@ -38,7 +38,7 @@ V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSReceiver> CoerceOptionsToObject(
 // printing the error message.
 V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Maybe<bool> GetStringOption(
     Isolate* isolate, DirectHandle<JSReceiver> options, const char* property,
-    const std::span<const char* const> values, const char* method_name,
+    const std::span<const std::string_view> values, const char* method_name,
     std::unique_ptr<char[]>* result);
 
 // A helper template to get string from option into a enum.
@@ -48,7 +48,7 @@ V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Maybe<bool> GetStringOption(
 template <typename T>
 V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOption(
     Isolate* isolate, DirectHandle<JSReceiver> options, const char* name,
-    const char* method_name, const std::span<const char* const> str_values,
+    const char* method_name, const std::span<const std::string_view> str_values,
     const std::span<const T> enum_values, T default_value) {
   DCHECK_EQ(str_values.size(), enum_values.size());
   std::unique_ptr<char[]> cstr;
@@ -58,7 +58,7 @@ V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOption(
   if (found.FromJust()) {
     DCHECK_NOT_NULL(cstr.get());
     for (size_t i = 0; i < str_values.size(); i++) {
-      if (strcmp(cstr.get(), str_values[i]) == 0) {
+      if (str_values[i] == std::string_view(cstr.get())) {
         return Just(enum_values[i]);
       }
     }
@@ -74,7 +74,7 @@ V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOption(
 template <typename T>
 V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOrBooleanOption(
     Isolate* isolate, DirectHandle<JSReceiver> options, const char* property,
-    const char* method, const std::span<const char* const> str_values,
+    const char* method, const std::span<const std::string_view> str_values,
     const std::span<const T> enum_values, T true_value, T false_value,
     T fallback_value) {
   DCHECK_EQ(str_values.size(), enum_values.size());
@@ -119,17 +119,17 @@ V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOrBooleanOption(
   {
     DisallowGarbageCollection no_gc;
     const String::FlatContent& flat = value_str->GetFlatContent(no_gc);
-    int32_t length = value_str->length();
+    size_t length = value_str->length();
     for (size_t i = 0; i < str_values.size(); i++) {
-      if (static_cast<int32_t>(strlen(str_values[i])) == length) {
+      if (static_cast<int32_t>(str_values[i].size() == length)) {
         if (flat.IsOneByte()) {
-          if (CompareCharsEqual(str_values[i], flat.ToOneByteVector().begin(),
-                                length)) {
+          if (CompareCharsEqual(str_values[i].data(),
+                                flat.ToOneByteVector().begin(), length)) {
             return Just(enum_values[i]);
           }
         } else {
-          if (CompareCharsEqual(str_values[i], flat.ToUC16Vector().begin(),
-                                length)) {
+          if (CompareCharsEqual(str_values[i].data(),
+                                flat.ToUC16Vector().begin(), length)) {
             return Just(enum_values[i]);
           }
         }

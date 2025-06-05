@@ -59,12 +59,14 @@ struct DurationUnitOptions {
   JSDurationFormat::Display display;
 };
 
-const std::initializer_list<const char*> kLongShortNarrowStrings = {
-    "long", "short", "narrow"};
-const std::initializer_list<const char*> kLongShortNarrowNumericStrings = {
-    "long", "short", "narrow", "numeric"};
-const std::initializer_list<const char*> kLongShortNarrowNumeric2DigitStrings =
-    {"long", "short", "narrow", "numeric", "2-digit"};
+const auto kLongShortNarrowStrings =
+    std::to_array<const std::string_view>({"long", "short", "narrow"});
+const auto kLongShortNarrowNumericStrings =
+    std::to_array<const std::string_view>(
+        {"long", "short", "narrow", "numeric"});
+const auto kLongShortNarrowNumeric2DigitStrings =
+    std::to_array<const std::string_view>(
+        {"long", "short", "narrow", "numeric", "2-digit"});
 
 const std::initializer_list<JSDurationFormat::FieldStyle>
     kLongShortNarrowEnums = {JSDurationFormat::FieldStyle::kLong,
@@ -87,7 +89,7 @@ Maybe<DurationUnitOptions> GetDurationUnitOptions(
     Isolate* isolate, Unit unit, const char* unit_string,
     const char* display_field, DirectHandle<JSReceiver> options,
     JSDurationFormat::Style base_style,
-    const std::span<const char* const> value_strings,
+    const std::span<const std::string_view> value_strings,
     const std::span<const JSDurationFormat::FieldStyle> value_enums,
     JSDurationFormat::FieldStyle digital_base,
     JSDurationFormat::FieldStyle prev_style) {
@@ -171,7 +173,7 @@ Maybe<DurationUnitOptions> GetDurationUnitOptions(
       isolate, display,
       GetStringOption<JSDurationFormat::Display>(
           isolate, options, display_field, method_name,
-          std::array{"auto", "always"},
+          std::to_array<const std::string_view>({"auto", "always"}),
           std::array{JSDurationFormat::Display::kAuto,
                      JSDurationFormat::Display::kAlways},
           display_default),
@@ -325,7 +327,8 @@ MaybeDirectHandle<JSDurationFormat> JSDurationFormat::New(
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, style,
       GetStringOption<Style>(isolate, options, "style", method_name,
-                             std::array{"long", "short", "narrow", "digital"},
+                             std::to_array<const std::string_view>(
+                                 {"long", "short", "narrow", "digital"}),
                              std::array{Style::kLong, Style::kShort,
                                         Style::kNarrow, Style::kDigital},
                              Style::kShort),

@@ -40,7 +40,7 @@ namespace {
 struct OptionData {
   const char* name;
   const char* key;
-  const std::span<const char* const> possible_values;
+  const std::span<const std::string_view> possible_values;
   bool is_bool_value;
 };
 struct ValueAndType {
@@ -54,9 +54,11 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
                                     icu::LocaleBuilder* builder) {
   DCHECK(isolate);
 
-  static const auto hour_cycle_values = std::array{"h11", "h12", "h23", "h24"};
-  static const auto case_first_values = std::array{"upper", "lower", "false"};
-  const auto empty_values = std::span<char*>();
+  static const auto hour_cycle_values =
+      std::to_array<const std::string_view>({"h11", "h12", "h23", "h24"});
+  static const auto case_first_values =
+      std::to_array<const std::string_view>({"upper", "lower", "false"});
+  const auto empty_values = std::span<std::string_view>();
   const std::array<OptionData, 7> kOptionToUnicodeTagMap = {
       {{"calendar", "ca", empty_values, false},
        {"collation", "co", empty_values, false},
@@ -292,9 +294,9 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
   // 3. Let language be ? GetOption(options, "language", "string", undefined,
   // undefined).
   std::unique_ptr<char[]> language_str = nullptr;
-  Maybe<bool> maybe_language =
-      GetStringOption(isolate, options, "language", std::span<const char*>(),
-                      "ApplyOptionsToTag", &language_str);
+  Maybe<bool> maybe_language = GetStringOption(
+      isolate, options, "language", std::span<std::string_view>(),
+      "ApplyOptionsToTag", &language_str);
   MAYBE_RETURN(maybe_language, Nothing<bool>());
   // 4. If language is not undefined, then
   if (maybe_language.FromJust()) {
@@ -311,7 +313,7 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
   // undefined).
   std::unique_ptr<char[]> script_str = nullptr;
   Maybe<bool> maybe_script =
-      GetStringOption(isolate, options, "script", std::span<const char*>(),
+      GetStringOption(isolate, options, "script", std::span<std::string_view>(),
                       "ApplyOptionsToTag", &script_str);
   MAYBE_RETURN(maybe_script, Nothing<bool>());
   // 6. If script is not undefined, then
@@ -328,7 +330,7 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
   // undefined).
   std::unique_ptr<char[]> region_str = nullptr;
   Maybe<bool> maybe_region =
-      GetStringOption(isolate, options, "region", std::span<const char*>(),
+      GetStringOption(isolate, options, "region", std::span<std::string_view>(),
                       "ApplyOptionsToTag", &region_str);
   MAYBE_RETURN(maybe_region, Nothing<bool>());
   // 8. If region is not undefined, then

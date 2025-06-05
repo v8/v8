@@ -1653,8 +1653,9 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   // "halfTrunc", "halfEven" », "halfExpand").
   Maybe<RoundingMode> maybe_rounding_mode = GetStringOption<RoundingMode>(
       isolate, options, "roundingMode", service,
-      std::array{"ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
-                 "halfExpand", "halfTrunc", "halfEven"},
+      std::to_array<const std::string_view>(
+          {"ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
+           "halfExpand", "halfTrunc", "halfEven"}),
       std::array{RoundingMode::kCeil, RoundingMode::kFloor,
                  RoundingMode::kExpand, RoundingMode::kTrunc,
                  RoundingMode::kHalfCeil, RoundingMode::kHalfFloor,
@@ -1670,7 +1671,8 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   Maybe<RoundingPriority> maybe_rounding_priority =
       GetStringOption<RoundingPriority>(
           isolate, options, "roundingPriority", service,
-          std::array{"auto", "morePrecision", "lessPrecision"},
+          std::to_array<const std::string_view>(
+              {"auto", "morePrecision", "lessPrecision"}),
           std::array{RoundingPriority::kAuto, RoundingPriority::kMorePrecision,
                      RoundingPriority::kLessPrecision},
           RoundingPriority::kAuto);
@@ -1682,7 +1684,7 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   Maybe<TrailingZeroDisplay> maybe_trailing_zero_display =
       GetStringOption<TrailingZeroDisplay>(
           isolate, options, "trailingZeroDisplay", service,
-          std::array{"auto", "stripIfInteger"},
+          std::to_array<const std::string_view>({"auto", "stripIfInteger"}),
           std::array{TrailingZeroDisplay::kAuto,
                      TrailingZeroDisplay::kStripIfInteger},
           TrailingZeroDisplay::kAuto);
@@ -2775,7 +2777,7 @@ Maybe<Intl::MatcherOption> Intl::GetLocaleMatcher(
     const char* method_name) {
   return GetStringOption<Intl::MatcherOption>(
       isolate, options, "localeMatcher", method_name,
-      std::array{"best fit", "lookup"},
+      std::to_array<const std::string_view>({"best fit", "lookup"}),
       std::array{Intl::MatcherOption::kBestFit, Intl::MatcherOption::kLookup},
       Intl::MatcherOption::kBestFit);
 }
@@ -2784,8 +2786,9 @@ Maybe<bool> Intl::GetNumberingSystem(Isolate* isolate,
                                      DirectHandle<JSReceiver> options,
                                      const char* method_name,
                                      std::unique_ptr<char[]>* result) {
-  Maybe<bool> maybe = GetStringOption(isolate, options, "numberingSystem",
-                                      std::span<char*>{}, method_name, result);
+  Maybe<bool> maybe =
+      GetStringOption(isolate, options, "numberingSystem",
+                      std::span<std::string_view>(), method_name, result);
   MAYBE_RETURN(maybe, Nothing<bool>());
   if (maybe.FromJust() && *result != nullptr) {
     if (!IsWellFormedNumberingSystem(result->get())) {

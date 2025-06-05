@@ -101,7 +101,8 @@ MaybeDirectHandle<JSListFormat> JSListFormat::New(
   //    "disjunction", "unit"», "conjunction").
   Maybe<Type> maybe_type = GetStringOption<Type>(
       isolate, options, "type", service,
-      std::array{"conjunction", "disjunction", "unit"},
+      std::to_array<const std::string_view>(
+          {"conjunction", "disjunction", "unit"}),
       std::array{Type::CONJUNCTION, Type::DISJUNCTION, Type::UNIT},
       Type::CONJUNCTION);
   MAYBE_RETURN(maybe_type, MaybeDirectHandle<JSListFormat>());
@@ -110,7 +111,8 @@ MaybeDirectHandle<JSListFormat> JSListFormat::New(
   // 14. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
   Maybe<Style> maybe_style = GetStringOption<Style>(
-      isolate, options, "style", service, std::array{"long", "short", "narrow"},
+      isolate, options, "style", service,
+      std::to_array<const std::string_view>({"long", "short", "narrow"}),
       std::array{Style::LONG, Style::SHORT, Style::NARROW}, Style::LONG);
   MAYBE_RETURN(maybe_style, MaybeDirectHandle<JSListFormat>());
   Style style_enum = maybe_style.FromJust();

@@ -113,7 +113,7 @@ Maybe<JSDateTimeFormat::HourCycle> GetHourCycle(
     const char* method_name) {
   return GetStringOption<JSDateTimeFormat::HourCycle>(
       isolate, options, "hourCycle", method_name,
-      std::array{"h11", "h12", "h23", "h24"},
+      std::to_array<const std::string_view>({"h11", "h12", "h23", "h24"}),
       std::array{
           JSDateTimeFormat::HourCycle::kH11, JSDateTimeFormat::HourCycle::kH12,
           JSDateTimeFormat::HourCycle::kH23, JSDateTimeFormat::HourCycle::kH24},
@@ -148,7 +148,7 @@ class PatternItem {
  public:
   PatternItem(int32_t shift, const std::string property,
               std::vector<PatternMap> pairs,
-              std::vector<const char*> allowed_values)
+              std::span<const std::string_view> allowed_values)
       : bitShift(shift),
         property(std::move(property)),
         pairs(std::move(pairs)),
@@ -160,15 +160,17 @@ class PatternItem {
   // It is important for the pattern in the pairs from longer one to shorter one
   // if the longer one contains substring of an shorter one.
   std::vector<PatternMap> pairs;
-  std::vector<const char*> allowed_values;
+  std::span<const std::string_view> allowed_values;
 };
+static const auto k2DigitNumeric =
+    std::to_array<std::string_view>({"2-digit", "numeric"});
 
 static std::vector<PatternItem> BuildPatternItems() {
-  const std::vector<const char*> kLongShort = {"long", "short"};
-  const std::vector<const char*> kNarrowLongShort = {"narrow", "long", "short"};
-  const std::vector<const char*> k2DigitNumeric = {"2-digit", "numeric"};
-  const std::vector<const char*> kNarrowLongShort2DigitNumeric = {
-      "narrow", "long", "short", "2-digit", "numeric"};
+  static const auto kNarrowLongShort =
+      std::to_array<std::string_view>({"narrow", "long", "short"});
+  static const auto kNarrowLongShort2DigitNumeric =
+      std::to_array<std::string_view>(
+          {"narrow", "long", "short", "2-digit", "numeric"});
   std::vector<PatternItem> items = {
       PatternItem(Weekday::kShift, "weekday",
                   {{"EEEEE", "narrow"},
@@ -224,9 +226,9 @@ static std::vector<PatternItem> BuildPatternItems() {
                               {{"ss", "2-digit"}, {"s", "numeric"}},
                               k2DigitNumeric));
 
-  const std::vector<const char*> kTimezone = {"long",        "short",
-                                              "longOffset",  "shortOffset",
-                                              "longGeneric", "shortGeneric"};
+  static const auto kTimezone = std::to_array<std::string_view>(
+      {"long", "short", "longOffset", "shortOffset", "longGeneric",
+       "shortGeneric"});
   items.push_back(PatternItem(TimeZoneName::kShift, "timeZoneName",
                               {{"zzzz", "long"},
                                {"z", "short"},
@@ -258,7 +260,7 @@ class PatternData {
  public:
   PatternData(int32_t shift, const std::string property,
               std::vector<PatternMap> pairs,
-              std::vector<const char*> allowed_values)
+              std::span<const std::string_view> allowed_values)
       : bitShift(shift),
         property(std::move(property)),
         allowed_values(allowed_values) {
@@ -271,7 +273,7 @@ class PatternData {
   int32_t bitShift;
   const std::string property;
   std::map<const std::string, const std::string> map;
-  std::vector<const char*> allowed_values;
+  std::span<const std::string_view> allowed_values;
 };
 
 const std::vector<PatternData> CreateCommonData(const PatternData& hour_data) {
@@ -289,9 +291,9 @@ const std::vector<PatternData> CreateCommonData(const PatternData& hour_data) {
 
 const std::vector<PatternData> CreateData(const char* digit2,
                                           const char* numeric) {
-  return CreateCommonData(PatternData(
-      Hour::kShift, "hour", {{digit2, "2-digit"}, {numeric, "numeric"}},
-      {"2-digit", "numeric"}));
+  return CreateCommonData(
+      PatternData(Hour::kShift, "hour",
+                  {{digit2, "2-digit"}, {numeric, "numeric"}}, k2DigitNumeric));
 }
 
 // According to "Date Field Symbol Table" in
@@ -2014,8 +2016,9 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   std::unique_ptr<char[]> numbering_system_str = nullptr;
   // 6. Let calendar be ? GetOption(options, "calendar",
   //    "string", undefined, undefined).
-  Maybe<bool> maybe_calendar = GetStringOption(
-      isolate, options, "calendar", std::span<char*>(), service, &calendar_str);
+  Maybe<bool> maybe_calendar =
+      GetStringOption(isolate, options, "calendar",
+                      std::span<std::string_view>(), service, &calendar_str);
   MAYBE_RETURN(maybe_calendar, {});
   if (maybe_calendar.FromJust() && calendar_str != nullptr) {
     icu::Locale default_locale;
@@ -2242,7 +2245,7 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   Maybe<FormatMatcherOption> maybe_format_matcher =
       GetStringOption<FormatMatcherOption>(
           isolate, options, "formatMatcher", service,
-          std::array{"best fit", "basic"},
+          std::to_array<const std::string_view>({"best fit", "basic"}),
           std::array{FormatMatcherOption::kBestFit,
                      FormatMatcherOption::kBasic},
           FormatMatcherOption::kBestFit);
@@ -2254,7 +2257,8 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   // "full", "long", "medium", "short" », undefined).
   Maybe<DateTimeStyle> maybe_date_style = GetStringOption<DateTimeStyle>(
       isolate, options, "dateStyle", service,
-      std::array{"full", "long", "medium", "short"},
+      std::to_array<const std::string_view>(
+          {"full", "long", "medium", "short"}),
       std::array{DateTimeStyle::kFull, DateTimeStyle::kLong,
                  DateTimeStyle::kMedium, DateTimeStyle::kShort},
       DateTimeStyle::kUndefined);
@@ -2266,7 +2270,8 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   // "full", "long", "medium", "short" »).
   Maybe<DateTimeStyle> maybe_time_style = GetStringOption<DateTimeStyle>(
       isolate, options, "timeStyle", service,
-      std::array{"full", "long", "medium", "short"},
+      std::to_array<const std::string_view>(
+          {"full", "long", "medium", "short"}),
       std::array{DateTimeStyle::kFull, DateTimeStyle::kLong,
                  DateTimeStyle::kMedium, DateTimeStyle::kShort},
       DateTimeStyle::kUndefined);

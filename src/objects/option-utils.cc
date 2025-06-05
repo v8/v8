@@ -44,7 +44,7 @@ MaybeDirectHandle<JSReceiver> CoerceOptionsToObject(
 
 Maybe<bool> GetStringOption(Isolate* isolate, DirectHandle<JSReceiver> options,
                             const char* property,
-                            const std::span<const char* const> values,
+                            const std::span<const std::string_view> values,
                             const char* method_name,
                             std::unique_ptr<char[]>* result) {
   DirectHandle<String> property_str =
@@ -72,7 +72,7 @@ Maybe<bool> GetStringOption(Isolate* isolate, DirectHandle<JSReceiver> options,
     // 2. d. i. If values does not contain an element equal to value,
     // throw a RangeError exception.
     for (const auto& val : values) {
-      if (strcmp(val, value_cstr.get()) == 0) {
+      if (val == std::string_view(value_cstr.get())) {
         // 2. e. return value
         *result = std::move(value_cstr);
         return Just(true);
