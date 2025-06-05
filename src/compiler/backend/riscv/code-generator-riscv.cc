@@ -1507,8 +1507,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     } break;
     case kRiscvAddS:
       // TODO(plind): add special case: combine mult & add.
-      __ fadd_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                i.InputDoubleRegister(1));
+      __ FaddS(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               i.InputDoubleRegister(1));
       break;
     case kRiscvSubS:
       __ fsub_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),

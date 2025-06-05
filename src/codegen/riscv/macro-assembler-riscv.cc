@@ -3712,6 +3712,27 @@ void MacroAssembler::Round_d(VRegister vdst, VRegister vsrc, Register scratch,
   RoundHelper<double>(vdst, vsrc, scratch, v_scratch, RNE, false);
 }
 
+void MacroAssembler::FaddS(FPURegister dst, FPURegister lhs, FPURegister rhs) {
+  li(kScratchReg2, Operand(kSQuietNanMask));
+  feq_s(kScratchReg, lhs, lhs);
+  Label not_nan1, not_nan2, done;
+  BranchShort(&not_nan1, ne, kScratchReg, Operand(zero_reg));
+  fmv_x_w(kScratchReg, lhs);
+  Or(kScratchReg, kScratchReg, Operand(kScratchReg2));
+  fmv_w_x(dst, kScratchReg);
+  Branch(&done);
+  bind(&not_nan1);
+  feq_s(kScratchReg, rhs, rhs);
+  BranchShort(&not_nan2, ne, kScratchReg, Operand(zero_reg));
+  fmv_x_w(kScratchReg, rhs);
+  Or(kScratchReg, kScratchReg, Operand(kScratchReg2));
+  fmv_w_x(dst, kScratchReg);
+  Branch(&done);
+  bind(&not_nan2);
+  fadd_s(dst, lhs, rhs);
+  bind(&done);
+}
+
 #if V8_TARGET_ARCH_RISCV64
 void MacroAssembler::Floor_d_d(FPURegister dst, FPURegister src,
                                FPURegister fpu_scratch) {

@@ -1224,6 +1224,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                VRegister v_scratch);
   void Round_d(VRegister dst, VRegister src, Register scratch,
                VRegister v_scratch);
+
+  void FaddS(FPURegister dst, FPURegister lhs, FPURegister rhs);
   // -------------------------------------------------------------------------
   // Smi utilities.
 
