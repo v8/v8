@@ -134,6 +134,10 @@ transient type FastJSArrayWithNoCustomIteration extends FastJSArray;
 transient type FastJSArrayForReadWithNoCustomIteration extends
     FastJSArrayForRead;
 
+// A HeapObject with a JSArray map, no named properties except "length" and
+// unmodified initial Array.prototype.
+transient type JSArrayForFastToString extends JSArray;
+
 extern macro AllocateJSArray(
     constexpr ElementsKind, Map, intptr, Smi,
     constexpr AllocationFlag): JSArray;

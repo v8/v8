@@ -579,6 +579,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kArrayPrototypeFlat:
     case Builtin::kArrayPrototypeFlatMap:
     case Builtin::kArrayPrototypeJoin:
+    case Builtin::kArrayPrototypeJoinImpl:
     case Builtin::kArrayPrototypeKeys:
     case Builtin::kArrayPrototypeLastIndexOf:
     case Builtin::kArrayPrototypeSlice:
@@ -1260,6 +1261,7 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kJoinStackPush:
       switch (caller) {
         case Builtin::kArrayPrototypeJoin:
+        case Builtin::kArrayPrototypeJoinImpl:
         case Builtin::kArrayPrototypeToLocaleString:
         case Builtin::kTypedArrayPrototypeJoin:
         case Builtin::kTypedArrayPrototypeToLocaleString:

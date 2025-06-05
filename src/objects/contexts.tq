@@ -150,6 +150,8 @@ extern enum ContextSlot extends intptr constexpr 'Context::Field' {
   VALID_ITERATOR_WRAPPER_MAP_INDEX: Slot<NativeContext, Map>,
   JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX: Slot<NativeContext, Map>,
   JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX: Slot<NativeContext, Map>,
+  INITIAL_ARRAY_PROTOTYPE_INDEX: Slot<NativeContext, JSObject>,
+  INITIAL_ARRAY_PROTOTYPE_VALIDITY_CELL_INDEX: Slot<NativeContext, Cell>,
   JS_MAP_MAP_INDEX: Slot<NativeContext, Map>,
   JS_SET_MAP_INDEX: Slot<NativeContext, Map>,
   MATH_RANDOM_CACHE_INDEX: Slot<NativeContext, FixedDoubleArray>,

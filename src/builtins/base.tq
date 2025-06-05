@@ -1459,6 +1459,10 @@ macro OutOfBounds<T: type, X: type>(index: T, length: X): bool {
       Convert<uintptr>(Convert<intptr>(length)));
 }
 
+const kPrototypeChainValid:
+    constexpr int31 generates 'Map::kPrototypeChainValid';
+
+extern macro IsJSArrayMap(Map): bool;
 extern macro IsPrototypeInitialArrayPrototype(
     implicit context: Context)(Map): bool;
 extern macro IsNoElementsProtectorCellInvalid(): bool;

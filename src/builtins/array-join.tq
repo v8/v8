@@ -754,6 +754,16 @@ transitioning javascript builtin ArrayPrototypeJoin(
 
   if (len == 0) return kEmptyString;
 
+  return ArrayPrototypeJoinImpl(o, len, separator);
+}
+
+transitioning builtin ArrayPrototypeJoinImpl(
+    implicit context: Context)(o: JSReceiver, len: Number,
+    separator: String): JSAny {
+  // These cases must be handled by the caller.
+  dcheck(len != 0);
+  dcheck(len <= kMaxArrayLength);
+
   try {
     const castResult = CastFastJSArrayForRead(o) otherwise NotFastJSArray;
     const fastO = castResult.object;
@@ -783,6 +793,30 @@ transitioning javascript builtin ArrayPrototypeJoin(
   }
   return CycleProtectedArrayJoin<JSArray>(
       false, o, len, separator, Undefined, Undefined);
+}
+
+// Shortcut implementation for JSArray.toString() when JSArray is known to not
+// have "toString" or "join" properties and prototype chain is unmodified.
+transitioning macro ArrayPrototypeToString_Inline(
+    implicit context: Context)(array: JSArrayForFastToString): String {
+  // 1. Let O be ? ToObject(this value).
+  // 2. Let len be ? ToLength(? Get(O, "length")).
+  const len: Number = array.length;
+
+  if (len == 0) return kEmptyString;
+
+  // Only handle valid array lengths. Although the spec allows larger
+  // values, this matches historical V8 behavior.
+  if (len > kMaxArrayLength) {
+    ThrowTypeError(MessageTemplate::kInvalidArrayLength);
+  }
+
+  // 3. If separator is undefined, let sep be the single-element String ",".
+  // 4. Else, let sep be ? ToString(separator).
+  const separator = ',';
+
+  const result = ArrayPrototypeJoinImpl(array, len, separator);
+  return Cast<String>(result) otherwise unreachable;
 }
 
 // https://tc39.github.io/ecma262/#sec-array.prototype.tolocalestring

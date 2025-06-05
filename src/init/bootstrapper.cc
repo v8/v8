@@ -2558,6 +2558,11 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
 
     DirectHandle<Map> map(proto->map(), isolate_);
     Map::SetShouldBeFastPrototypeMap(map, true, isolate_);
+
+    auto validity_cell =
+        Cast<Cell>(Map::GetOrCreatePrototypeChainValidityCell(map, isolate()));
+
+    native_context()->set_initial_array_prototype_validity_cell(*validity_cell);
   }
 
   {  // --- A r r a y I t e r a t o r ---
@@ -3381,10 +3386,6 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     DirectHandle<RegExpMatchInfo> last_match_info =
         RegExpMatchInfo::New(isolate(), RegExpMatchInfo::kMinCapacity);
     native_context()->set_regexp_last_match_info(*last_match_info);
-
-    // Install the species protector cell.
-    DirectHandle<PropertyCell> cell = factory->NewProtector();
-    native_context()->set_regexp_species_protector(*cell);
 
     DCHECK(regexp_fun->HasFastProperties());
   }
