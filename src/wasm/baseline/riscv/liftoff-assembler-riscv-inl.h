@@ -2610,6 +2610,16 @@ bool LiftoffAssembler::emit_f16x8_qfms(LiftoffRegister dst,
   return false;
 }
 
+void LiftoffAssembler::emit_inc_i32_at(Address address) {
+  UseScratchRegisterScope temps(this);
+  Register counter_addr = temps.Acquire();
+  Register value = temps.Acquire();
+  li(counter_addr, Operand(static_cast<uint64_t>(address)));
+  LoadWord(value, MemOperand(counter_addr, 0));
+  AddWord(value, value, Operand(1));
+  StoreWord(value, MemOperand(counter_addr, 0));
+}
+
 }  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_BASELINE_RISCV_LIFTOFF_ASSEMBLER_RISCV_INL_H_

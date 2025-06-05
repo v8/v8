@@ -2096,7 +2096,8 @@ DEFINE_BOOL(wasm_allow_mixed_eh_for_testing, false,
 DEFINE_IMPLICATION(fuzzing, wasm_allow_mixed_eh_for_testing)
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || \
-    defined(V8_TARGET_ARCH_IA32)
+    defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_RISCV64) ||  \
+    defined(V8_TARGET_ARCH_RISCV32)
 DEFINE_BOOL(wasm_code_coverage, false, "enable Wasm code coverage")
 #else
 DEFINE_BOOL_READONLY(wasm_code_coverage, false, "enable Wasm code coverage")
