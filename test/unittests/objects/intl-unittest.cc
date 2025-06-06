@@ -172,9 +172,8 @@ TEST_F(IntlTest, GetStringOption) {
                         std::span<std::string_view>(), "service", &result);
 
     CHECK(found.FromJust());
-    auto cstr = result->ToCString();
-    CHECK_NOT_NULL(cstr);
-    CHECK_EQ(0, strcmp("42", cstr.get()));
+    std::string s = result->ToStdString();
+    CHECK_EQ(s, "42");
   }
 
   {
@@ -196,9 +195,8 @@ TEST_F(IntlTest, GetStringOption) {
         i_isolate(), options, "foo",
         std::to_array<const std::string_view>({"42"}), "service", &result);
     CHECK(found.FromJust());
-    auto cstr = result->ToCString();
-    CHECK_NOT_NULL(cstr);
-    CHECK_EQ(0, strcmp("42", cstr.get()));
+    auto s = result->ToStdString();
+    CHECK_EQ(s, "42");
   }
 }
 

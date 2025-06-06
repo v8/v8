@@ -323,7 +323,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
   std::string collation_stdstr;
   // x. If _collation_ is not *undefined*, then
   if (maybe_collation.FromJust()) {
-    collation_stdstr = collation_str->ToCString().get();
+    collation_stdstr = collation_str->ToStdString();
     // 1. If _collation_ does not match the Unicode Locale Identifier `type`
     // nonterminal, throw a *RangeError* exception.
     if (!JSLocale::Is38AlphaNumList(collation_stdstr)) {

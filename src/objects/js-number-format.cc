@@ -1184,7 +1184,7 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
 
   // 6. If currency is not undefined, then
   if (found_currency.FromJust()) {
-    currency = currency_str->ToCString().get();
+    currency = currency_str->ToStdString();
     // 6. a. If the result of IsWellFormedCurrencyCode(currency) is false,
     // throw a RangeError exception.
     if (!IsWellFormedCurrencyCode(currency)) {
@@ -1236,8 +1236,7 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   std::pair<icu::MeasureUnit, icu::MeasureUnit> unit_pair;
   // 11. If unit is not undefined, then
   if (found_unit.FromJust()) {
-    auto unit_cstr = unit_str->ToCString();
-    std::string_view unit_stdstr = unit_cstr.get();
+    std::string unit_stdstr = unit_str->ToStdString();
     // 11.a If the result of IsWellFormedUnitIdentifier(unit) is false, throw a
     // RangeError exception.
     Maybe<std::pair<icu::MeasureUnit, icu::MeasureUnit>> maybe_wellformed_unit =
@@ -1511,8 +1510,8 @@ icu::number::FormattedNumber FormatDecimalString(
         reinterpret_cast<const char*>(flat.ToOneByteVector().begin());
     return number_format.formatDecimal({char_buffer, length}, status);
   }
-  return number_format.formatDecimal({string->ToCString().get(), length},
-                                     status);
+  auto converted = string->ToStdString();
+  return number_format.formatDecimal(converted, status);
 }
 
 }  // namespace
@@ -1571,9 +1570,9 @@ Maybe<icu::number::FormattedNumber> IcuFormatNumber(
         // The value will be "123456789" only in ASCII range, but encoded
         // in two bytes string.
         // ICU accepts UTF8 string, so if the source is two-byte encoded,
-        // copy into a UTF8 string via ToCString.
-        formatted = number_format.formatDecimal(
-            {string->ToCString().get(), length}, status);
+        // copy into a UTF8 string via ToStdString.
+        auto std_string = string->ToStdString();
+        formatted = number_format.formatDecimal(std_string, status);
       }
     } else {
       double number = IsNaN(*numeric_obj)
@@ -1806,7 +1805,8 @@ Maybe<icu::Formattable> IntlMathematicalValue::ToFormattable(
           status);
       if (U_SUCCESS(status)) return Just(result);
     } else {
-      icu::Formattable result({string->ToCString().get(), length}, status);
+      auto converted = string->ToStdString();
+      icu::Formattable result(converted, status);
       if (U_SUCCESS(status)) return Just(result);
     }
   }
@@ -2117,12 +2117,12 @@ JSNumberFormat::GetRangeFormatter(
     const icu::number::LocalizedNumberFormatter& number_formatter) {
   UErrorCode status = U_ZERO_ERROR;
   UParseError perror;
+  auto locale_str = locale->ToStdString();
   icu::number::LocalizedNumberRangeFormatter range_formatter =
       icu::number::UnlocalizedNumberRangeFormatter()
           .numberFormatterBoth(icu::number::NumberFormatter::forSkeleton(
               number_formatter.toSkeleton(status), perror, status))
-          .locale(
-              icu::Locale::forLanguageTag(locale->ToCString().get(), status));
+          .locale(icu::Locale::forLanguageTag(locale_str, status));
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate, NewTypeError(MessageTemplate::kIcuError),

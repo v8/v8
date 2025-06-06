@@ -1532,8 +1532,8 @@ std::unique_ptr<icu::TimeZone> JSDateTimeFormat::CreateTimeZone(
         icu::TimeZone::createTimeZone(offsetTimeZone->c_str()));
     return tz;
   }
-  std::unique_ptr<char[]> time_zone = time_zone_string->ToCString();
-  std::string canonicalized = CanonicalizeTimeZoneID(time_zone.get());
+  std::string time_zone = time_zone_string->ToStdString();
+  std::string canonicalized = CanonicalizeTimeZoneID(time_zone);
   if (canonicalized.empty()) return std::unique_ptr<icu::TimeZone>();
   std::unique_ptr<icu::TimeZone> tz(
       icu::TimeZone::createTimeZone(canonicalized.c_str()));
@@ -2025,7 +2025,7 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   // Unfortunately needs to be a std::string because of Intl::IsValidCalendar
   std::string calendar_stdstr;
   if (maybe_calendar.FromJust()) {
-    calendar_stdstr = calendar_str->ToCString().get();
+    calendar_stdstr = calendar_str->ToStdString();
     icu::Locale default_locale;
     if (!Intl::IsWellFormedCalendar(calendar_stdstr)) {
       THROW_NEW_ERROR(isolate,
@@ -2227,15 +2227,13 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
                         item.allowed_values, service, &input);
     MAYBE_RETURN(maybe_get_option, {});
     if (maybe_get_option.FromJust()) {
-      auto cstring = input->ToCString();
-      std::string_view view = cstring.get();
+      std::string input_str = input->ToStdString();
       // Record which fields are not undefined into explicit_format_components.
       if (item.property == "hour") {
         has_hour_option = true;
       }
-      DCHECK_NOT_NULL(cstring.get());
       // iii. Set opt.[[<prop>]] to value.
-      skeleton += item.map.find(view)->second;
+      skeleton += item.map.find(input_str)->second;
       // e. If value is not undefined, then
       // i. Set hasExplicitFormatComponents to true.
       explicit_format_components |= 1 << static_cast<int32_t>(item.bitShift);

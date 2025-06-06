@@ -87,13 +87,13 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
     // this spec compliant.
     if (!maybe_found.FromJust()) continue;
 
-    std::unique_ptr<char[]> value_cstr;
+    std::string value_stdstr;
 
     const char* type = nullptr;
 
     if (!value_str.is_null()) {
-      value_cstr = value_str->ToCString();
-      type = value_cstr.get();
+      value_stdstr = value_str->ToStdString();
+      type = value_stdstr.data();
     }
 
     if (strcmp(option_to_bcp47.key, "fw") == 0) {
@@ -307,8 +307,7 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
 
   // 4. If language is not undefined, then
   if (maybe_language.FromJust()) {
-    auto language_cstr = language_str->ToCString();
-    std::string_view language_stdstr = language_cstr.get();
+    std::string language_stdstr = language_str->ToStdString();
     builder->setLanguage(language_stdstr);
     builder->build(status);
     // a. If language does not match the unicode_language_subtag production,
@@ -327,8 +326,7 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
   MAYBE_RETURN(maybe_script, Nothing<bool>());
   // 6. If script is not undefined, then
   if (maybe_script.FromJust()) {
-    auto script_cstr = script_str->ToCString();
-    std::string_view script_stdstr = script_cstr.get();
+    std::string script_stdstr = script_str->ToStdString();
     builder->setScript(script_stdstr);
     builder->build(status);
     // a. If script does not match the unicode_script_subtag production, throw
@@ -346,8 +344,7 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
   MAYBE_RETURN(maybe_region, Nothing<bool>());
   // 8. If region is not undefined, then
   if (maybe_region.FromJust()) {
-    auto region_cstr = region_str->ToCString();
-    std::string_view region_stdstr = region_cstr.get();
+    std::string region_stdstr = region_str->ToStdString();
     // a. If region does not match the region production, throw a RangeError
     // exception.
     builder->setRegion(region_stdstr);

@@ -309,8 +309,7 @@ DirectHandle<String> UnitAsString(Isolate* isolate,
 
 bool GetURelativeDateTimeUnit(DirectHandle<String> unit,
                               URelativeDateTimeUnit* unit_enum) {
-  auto unit_cstr = unit->ToCString();
-  std::string_view unit_str = unit_cstr.get();
+  std::string unit_str = unit->ToStdString();
   if (unit_str == "second" || unit_str == "seconds") {
     *unit_enum = UDAT_REL_UNIT_SECOND;
   } else if (unit_str == "minute" || unit_str == "minutes") {

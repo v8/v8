@@ -725,7 +725,7 @@ Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
                                  NewTypeError(MessageTemplate::kLanguageID),
                                  Nothing<std::string>());
   }
-  std::string locale(locale_str->ToCString().get());
+  std::string locale = locale_str->ToStdString();
   return Intl::ValidateAndCanonicalizeUnicodeLocaleId(isolate, locale);
 }
 
@@ -2792,7 +2792,7 @@ Maybe<bool> Intl::GetNumberingSystem(Isolate* isolate,
                       std::span<std::string_view>(), method_name, &output);
   MAYBE_RETURN(maybe, Nothing<bool>());
   if (maybe.FromJust()) {
-    result = std::move(output->ToCString().get());
+    result = output->ToStdString();
     if (!IsWellFormedNumberingSystem(result)) {
       THROW_NEW_ERROR_RETURN_VALUE(
           isolate,
@@ -2949,28 +2949,6 @@ bool IsUnicodeStringValidTimeZoneName(const icu::UnicodeString& id) {
          canonical != icu::UnicodeString("Etc/Unknown", -1, US_INV);
 }
 }  // namespace
-
-MaybeHandle<String> Intl::CanonicalizeTimeZoneName(
-    Isolate* isolate, DirectHandle<String> identifier) {
-  UErrorCode status = U_ZERO_ERROR;
-  std::string time_zone =
-      JSDateTimeFormat::CanonicalizeTimeZoneID(identifier->ToCString().get());
-  icu::UnicodeString time_zone_ustring =
-      icu::UnicodeString(time_zone.c_str(), -1, US_INV);
-  icu::UnicodeString canonical;
-  icu::TimeZone::getCanonicalID(time_zone_ustring, canonical, status);
-  CHECK(U_SUCCESS(status));
-
-  return JSDateTimeFormat::TimeZoneIdToString(isolate, canonical);
-}
-
-bool Intl::IsValidTimeZoneName(Isolate* isolate, DirectHandle<String> id) {
-  std::string time_zone =
-      JSDateTimeFormat::CanonicalizeTimeZoneID(id->ToCString().get());
-  icu::UnicodeString time_zone_ustring =
-      icu::UnicodeString(time_zone.c_str(), -1, US_INV);
-  return IsUnicodeStringValidTimeZoneName(time_zone_ustring);
-}
 
 bool Intl::IsValidTimeZoneName(const icu::TimeZone& tz) {
   icu::UnicodeString id;
