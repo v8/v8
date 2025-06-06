@@ -2355,6 +2355,9 @@ TEST(HeapNumberAlignment) {
 }
 
 TEST(TestSizeOfObjectsVsHeapObjectIteratorPrecision) {
+  if (v8_flags.stress_concurrent_allocation) {
+    return;
+  }
   CcTest::InitializeVM();
   // Disable LAB, such that calculations with SizeOfObjects() and object size
   // are correct.
