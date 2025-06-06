@@ -4526,13 +4526,15 @@ void RunExtMulRevecTest(WasmOpcode opcode_low, WasmOpcode opcode_high,
                 "extended integer multiplication");
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
       TestExecutionTier::kTurbofan);
-  uint32_t count = 4 * kSimd128Size / sizeof(S);
+  uint32_t count = 6 * kSimd128Size / sizeof(S);
   S* memory = r.builder().AddMemoryElems<S>(count);
   // Build fn perform extmul on two 128 bit vectors a and b, store the result in
   // c:
   //   simd128 *a,*b,*c;
   //   *c = *a op_low *b;
   //   *(c+1) = *a op_high *b;
+  //   *(c+3) = *a op_high *b;
+  //   *(c+2) = *a op_low *b;
   uint8_t param1 = 0;
   uint8_t param2 = 1;
   uint8_t param3 = 2;
@@ -4540,6 +4542,8 @@ void RunExtMulRevecTest(WasmOpcode opcode_low, WasmOpcode opcode_high,
   uint8_t temp2 = r.AllocateLocal(kWasmS128);
   uint8_t temp3 = r.AllocateLocal(kWasmS128);
   uint8_t temp4 = r.AllocateLocal(kWasmS128);
+  uint8_t temp5 = r.AllocateLocal(kWasmS128);
+  uint8_t temp6 = r.AllocateLocal(kWasmS128);
   constexpr uint8_t offset = 16;
 
   {
@@ -4555,9 +4559,18 @@ void RunExtMulRevecTest(WasmOpcode opcode_low, WasmOpcode opcode_high,
         WASM_LOCAL_SET(temp4,
                        WASM_SIMD_BINOP(opcode_high, WASM_LOCAL_GET(temp1),
                                        WASM_LOCAL_GET(temp2))),
+        WASM_LOCAL_SET(temp5,
+                       WASM_SIMD_BINOP(opcode_high, WASM_LOCAL_GET(temp1),
+                                       WASM_LOCAL_GET(temp2))),
+        WASM_LOCAL_SET(temp6, WASM_SIMD_BINOP(opcode_low, WASM_LOCAL_GET(temp1),
+                                              WASM_LOCAL_GET(temp2))),
         WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param3), WASM_LOCAL_GET(temp3)),
         WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param3),
                                    WASM_LOCAL_GET(temp4)),
+        WASM_SIMD_STORE_MEM_OFFSET(3 * offset, WASM_LOCAL_GET(param3),
+                                   WASM_LOCAL_GET(temp5)),
+        WASM_SIMD_STORE_MEM_OFFSET(2 * offset, WASM_LOCAL_GET(param3),
+                                   WASM_LOCAL_GET(temp6)),
         WASM_ONE);
   }
 
@@ -4570,9 +4583,10 @@ void RunExtMulRevecTest(WasmOpcode opcode_low, WasmOpcode opcode_high,
       }
       r.Call(0, 16, 32);
       T expected = expected_op(x, y);
-      T* output = reinterpret_cast<T*>(memory + lanes * 2);
+      T* output = reinterpret_cast<T*>(memory + 2 * lanes);
       for (uint32_t i = 0; i < lanes; i++) {
         CHECK_EQ(expected, output[i]);
+        CHECK_EQ(expected, output[i + lanes]);
       }
     }
   }

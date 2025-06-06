@@ -1815,7 +1815,7 @@ void RunIntSignExtensionRevecTest(WasmOpcode opcode_low, WasmOpcode opcode_high,
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t> r(TestExecutionTier::kTurbofan);
   WideIntType* memory =
-      r.builder().AddMemoryElems<WideIntType>(32 / sizeof(WideIntType));
+      r.builder().AddMemoryElems<WideIntType>(64 / sizeof(WideIntType));
   uint8_t param1 = 0;
   uint8_t temp = r.AllocateLocal(kWasmS128);
   constexpr uint8_t offset = 16;
@@ -1831,12 +1831,18 @@ void RunIntSignExtensionRevecTest(WasmOpcode opcode_low, WasmOpcode opcode_high,
         WASM_SIMD_STORE_MEM_OFFSET(
             offset, WASM_ZERO,
             WASM_SIMD_UNOP(opcode_high, WASM_LOCAL_GET(temp))),
+        WASM_SIMD_STORE_MEM_OFFSET(
+            3 * offset, WASM_ZERO,
+            WASM_SIMD_UNOP(opcode_high, WASM_LOCAL_GET(temp))),
+        WASM_SIMD_STORE_MEM_OFFSET(
+            2 * offset, WASM_ZERO,
+            WASM_SIMD_UNOP(opcode_low, WASM_LOCAL_GET(temp))),
         WASM_ONE);
   }
   for (NarrowIntType x : compiler::ValueHelper::GetVector<NarrowIntType>()) {
     CHECK_EQ(1, r.Call(x));
     auto expected_value = static_cast<WideIntType>(x);
-    for (int i = 0; i < static_cast<int>(32 / sizeof(WideIntType)); i++) {
+    for (int i = 0; i < static_cast<int>(64 / sizeof(WideIntType)); i++) {
       CHECK_EQ(expected_value, memory[i]);
     }
   }
