@@ -92,7 +92,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': 'e3668842ccb3173913161900ec731508f0655604',
+  'partition_alloc_version': 'a585fc502ffa23ddce3412973eba2fe677325f02',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -130,7 +130,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '74fd4e41fce17cc834a3ab3f4d8b3d8f2165bab2',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b099513389330f431503bafc6f685c01eb72d44f',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '64b9f65d16a4de27d1d3e7d880ddc983f281151f',
   'buildtools/linux64': {
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '749b3f1960ffd7575f6e7d5ecf1e90d6b9db673a',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'd255a8d41e7a2fdc6b50fee69e70014f875d47ef',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -282,7 +282,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + 'f03aafb7516050ea73f617bf969f03eac641aefc',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'e9092b12dc3cf617d47578f13a1f64285cfa5b2f',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '7e2c425db2c2e024b2807bfe6d386f4ff068d0d6',
   'third_party/highway/src':
     Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '00fe003dac355b979f36157f9407c7c46448958e',
   'third_party/icu':
