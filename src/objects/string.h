@@ -404,6 +404,10 @@ V8_OBJECT class String : public Name {
   template <EqualityType kEqType = EqualityType::kWholeString, typename Char>
   inline bool IsEqualTo(base::Vector<const Char> str, Isolate* isolate) const;
 
+  // Convenience method for the above using std::string_view instead
+  template <EqualityType kEqType = EqualityType::kWholeString>
+  inline bool IsEqualTo(std::string_view str, Isolate* isolate) const;
+
   // Check if this string matches the given vector of characters, either as a
   // whole string or just a prefix.
   //

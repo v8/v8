@@ -706,6 +706,12 @@ bool String::IsEqualTo(base::Vector<const Char> str, Isolate* isolate) const {
                                 SharedStringAccessGuardIfNeeded::NotNeeded());
 }
 
+template <String::EqualityType kEqType>
+bool String::IsEqualTo(std::string_view str, Isolate* isolate) const {
+  return IsEqualTo<kEqType>(base::Vector<const char>(str.data(), str.size()),
+                            isolate);
+}
+
 template <String::EqualityType kEqType, typename Char>
 bool String::IsEqualTo(base::Vector<const Char> str) const {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(this));
