@@ -134,26 +134,28 @@ void ClearJsToWasmWrappersForTesting(Isolate* isolate) {
   isolate->heap()->SetJSToWasmWrappers(
       ReadOnlyRoots(isolate).empty_weak_fixed_array());
 }
-
-int ExecuteAgainstReference(Isolate* isolate,
-                            DirectHandle<WasmModuleObject> module_object,
-                            int32_t max_executed_instructions,
-                            bool is_wasm_jitless) {
-#else   // V8_ENABLE_DRUMBRAKE
-int ExecuteAgainstReference(Isolate* isolate,
-                            DirectHandle<WasmModuleObject> module_object,
-                            int32_t max_executed_instructions) {
 #endif  // V8_ENABLE_DRUMBRAKE
-  // We do not instantiate the module if there is a start function, because a
-  // start function can contain an infinite loop which we cannot handle.
-  if (module_object->module()->start_function_index >= 0) return -1;
+
+struct ReferenceExecutionResult {
+  int result = -1;
+  std::unique_ptr<const char[]> exception;
+  bool should_execute_non_reference = false;
+};
+
+ReferenceExecutionResult ExecuteReferenceRun(
+    Isolate* isolate, base::Vector<const uint8_t> wire_bytes,
+    int exported_main_function_index, int32_t max_executed_instructions) {
+  // The reference module uses a special compilation mode of Liftoff for
+  // termination and nondeterminism detected, and that would be undone by
+  // flushing that code.
+  FlagScope<bool> no_liftoff_code_flushing(&v8_flags.flush_liftoff_code, false);
 
   int32_t max_steps = max_executed_instructions;
 
   HandleScope handle_scope(isolate);  // Avoid leaking handles.
   Zone reference_module_zone(isolate->allocator(), "wasm reference module");
-  DirectHandle<WasmModuleObject> module_ref = CompileReferenceModule(
-      isolate, module_object->native_module()->wire_bytes(), &max_steps);
+  DirectHandle<WasmModuleObject> module_ref =
+      CompileReferenceModule(isolate, wire_bytes, &max_steps);
   DirectHandle<WasmInstanceObject> instance_ref;
 
   // Before execution, there should be no dangling nondeterminism registered on
@@ -171,16 +173,14 @@ int ExecuteAgainstReference(Isolate* isolate,
              .ToHandle(&instance_ref)) {
       isolate->clear_exception();
       thrower.Reset();  // Ignore errors.
-      return -1;
+      return {};
     }
   }
 
-  // Get the "main" exported function. Do nothing if it does not exist.
+  // Get the "main" exported function. We checked before that this exists.
   DirectHandle<WasmExportedFunction> main_function;
-  if (!testing::GetExportedFunction(isolate, instance_ref, "main")
-           .ToHandle(&main_function)) {
-    return -1;
-  }
+  CHECK(testing::GetExportedFunction(isolate, instance_ref, "main")
+            .ToHandle(&main_function));
 
   struct OomCallbackData {
     Isolate* isolate;
@@ -206,15 +206,16 @@ int ExecuteAgainstReference(Isolate* isolate,
 
   Tagged<WasmExportedFunctionData> func_data =
       main_function->shared()->wasm_exported_function_data();
+  DCHECK_EQ(exported_main_function_index, func_data->function_index());
   const FunctionSig* sig = func_data->instance_data()
                                ->module()
                                ->functions[func_data->function_index()]
                                .sig;
-  auto compiled_args = testing::MakeDefaultArguments(isolate, sig);
-  std::unique_ptr<const char[]> exception_ref;
+  DirectHandleVector<Object> compiled_args =
+      testing::MakeDefaultArguments(isolate, sig);
+  std::unique_ptr<const char[]> exception;
   int32_t result_ref = testing::CallWasmFunctionForTesting(
-      isolate, instance_ref, "main", base::VectorOf(compiled_args),
-      &exception_ref);
+      isolate, instance_ref, "main", base::VectorOf(compiled_args), &exception);
   bool execute = true;
   // Reached max steps, do not try to execute the test module as it might
   // never terminate.
@@ -231,6 +232,60 @@ int ExecuteAgainstReference(Isolate* isolate,
     isolate->stack_guard()->ClearTerminateExecution();
   }
 
+  if (exception) {
+    if (strcmp(exception.get(),
+               "RangeError: Maximum call stack size exceeded") == 0) {
+      // There was a stack overflow, which may happen nondeterministically. We
+      // cannot guarantee the behavior of the test module, and in particular it
+      // may not terminate.
+      execute = false;
+    }
+  }
+
+  if (!execute) {
+    // Before discarding the module, see if Turbofan runs into any DCHECKs.
+    TierUpAllForTesting(isolate, instance_ref->trusted_data(isolate));
+    return {};
+  }
+
+  return {result_ref, std::move(exception), true};
+}
+
+int FindExportedMainFunction(const WasmModule* module,
+                             base::Vector<const uint8_t> wire_bytes) {
+  constexpr base::Vector<const char> kMainName = base::StaticCharVector("main");
+  for (const WasmExport& exp : module->export_table) {
+    if (exp.kind != ImportExportKindCode::kExternalFunction) continue;
+    base::Vector<const uint8_t> name =
+        wire_bytes.SubVector(exp.name.offset(), exp.name.end_offset());
+    if (base::Vector<const char>::cast(name) != kMainName) continue;
+    return exp.index;
+  }
+  return -1;
+}
+
+int ExecuteAgainstReference(Isolate* isolate,
+                            DirectHandle<WasmModuleObject> module_object,
+                            int32_t max_executed_instructions
+#if V8_ENABLE_DRUMBRAKE
+                            ,
+                            bool is_wasm_jitless
+#endif  // V8_ENABLE_DRUMBRAKE
+) {
+  const WasmModule* module = module_object->module();
+  const base::Vector<const uint8_t> wire_bytes =
+      module_object->native_module()->wire_bytes();
+  int exported_main = FindExportedMainFunction(module, wire_bytes);
+  if (exported_main < 0) return -1;
+
+  // We do not instantiate the module if there is a start function, because a
+  // start function can contain an infinite loop which we cannot handle.
+  if (module->start_function_index >= 0) return -1;
+
+  ReferenceExecutionResult ref_result = ExecuteReferenceRun(
+      isolate, wire_bytes, exported_main, max_executed_instructions);
+  if (!ref_result.should_execute_non_reference) return -1;
+
 #if V8_ENABLE_DRUMBRAKE
   if (is_wasm_jitless) {
     v8::internal::v8_flags.jitless = true;
@@ -240,7 +295,6 @@ int ExecuteAgainstReference(Isolate* isolate,
     ClearJsToWasmWrappersForTesting(isolate);
 
     // Compiled WasmCode objects should be cleared before running drumbrake.
-    module_ref = Handle<WasmModuleObject>::null();
     isolate->heap()->CollectAllGarbage(GCFlag::kNoFlags,
                                        i::GarbageCollectionReason::kTesting);
 
@@ -255,21 +309,6 @@ int ExecuteAgainstReference(Isolate* isolate,
     if (decoder.DecodeModule(/*validate_functions=*/true).failed()) return -1;
   }
 #endif  // V8_ENABLE_DRUMBRAKE
-
-  if (exception_ref) {
-    if (strcmp(exception_ref.get(),
-               "RangeError: Maximum call stack size exceeded") == 0) {
-      // There was a stack overflow, which may happen nondeterministically. We
-      // cannot guarantee the behavior of the test module, and in particular it
-      // may not terminate.
-      execute = false;
-    }
-  }
-  if (!execute) {
-    // Before discarding the module, see if Turbofan runs into any DCHECKs.
-    TierUpAllForTesting(isolate, instance_ref->trusted_data(isolate));
-    return -1;
-  }
 
   // Instantiate a fresh instance for the actual (non-ref) execution.
   DirectHandle<WasmInstanceObject> instance;
@@ -295,6 +334,9 @@ int ExecuteAgainstReference(Isolate* isolate,
   }
 
   std::unique_ptr<const char[]> exception;
+  const FunctionSig* sig = module->functions[exported_main].sig;
+  DirectHandleVector<Object> compiled_args =
+      testing::MakeDefaultArguments(isolate, sig);
   int32_t result = testing::CallWasmFunctionForTesting(
       isolate, instance, "main", base::VectorOf(compiled_args), &exception);
 
@@ -304,14 +346,14 @@ int ExecuteAgainstReference(Isolate* isolate,
   // terminate. If this happens often enough we should do something about this.
   if (WasmEngine::clear_nondeterminism()) return -1;
 
-  if ((exception_ref != nullptr) != (exception != nullptr)) {
+  if ((ref_result.exception != nullptr) != (exception != nullptr)) {
     FATAL("Exception mismatch! Expected: <%s>; got: <%s>",
-          exception_ref ? exception_ref.get() : "<no exception>",
+          ref_result.exception ? ref_result.exception.get() : "<no exception>",
           exception ? exception.get() : "<no exception>");
   }
 
   if (!exception) {
-    CHECK_EQ(result_ref, result);
+    CHECK_EQ(ref_result.result, result);
   }
 
   return 0;
