@@ -141,6 +141,7 @@
 
   # Slow tests.
   'array-functions-prototype-misc': [PASS, SLOW],
+  'array-tostring-stack-overflow': [PASS, SLOW, ['arch != x64', SKIP]],
   'asm/embenchen/*': [PASS, SLOW, NO_VARIANTS],
   'asm/poppler/*': [PASS, SLOW, NO_VARIANTS],
   'compiler/deopt-pretenure': [PASS, SLOW],

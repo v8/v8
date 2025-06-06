@@ -888,6 +888,8 @@ extern macro CodeStubAssembler::AddToDictionary(
 extern macro AllocateOrderedHashSet(): OrderedHashSet;
 extern macro AllocateOrderedHashMap(): OrderedHashMap;
 
+extern macro PerformStackCheck(Context): void;
+
 extern builtin ToObject(Context, JSAny): JSReceiver;
 extern macro ToObject_Inline(Context, JSAny): JSReceiver;
 extern macro IsUndefined(Object): bool;

@@ -791,6 +791,8 @@ transitioning builtin ArrayPrototypeJoinImpl(
   } label NotFastJSArray {
     // Fall through.
   }
+  // TODO(ishell): perform stack checks rarely.
+  PerformStackCheck(context);
   return CycleProtectedArrayJoin<JSArray>(
       false, o, len, separator, Undefined, Undefined);
 }
