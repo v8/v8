@@ -134,22 +134,26 @@ RetVal HandleStringEncodings(
   }
 }
 
-// Internal helper function, prefer RUST_ASSIGN_RETURN_ON_EXCEPTION_VALUE
-// We cannot return a Maybe here because Maybe does not work well with move
-// semantics.
+// Take a Rust Result and turn it into a Maybe, suitable for use
+// with error handling macros.
+//
+// Note that a lot of the types returned by Rust code prefer
+// move semantics, try using MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE
 template <typename ContainedValue>
-std::optional<ContainedValue> ExtractRustResult(
+Maybe<ContainedValue> ExtractRustResult(
     Isolate* isolate, TemporalResult<ContainedValue>&& rust_result) {
   if (rust_result.is_err()) {
     auto err = std::move(rust_result).err().value();
     switch (err.kind) {
       case temporal_rs::ErrorKind::Type:
-        THROW_NEW_ERROR_RETURN_VALUE(
-            isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(), std::nullopt);
+        THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                     NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                                     Nothing<ContainedValue>());
         break;
       case temporal_rs::ErrorKind::Range:
-        THROW_NEW_ERROR_RETURN_VALUE(
-            isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), std::nullopt);
+        THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                     NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                     Nothing<ContainedValue>());
         break;
       case temporal_rs::ErrorKind::Syntax:
       case temporal_rs::ErrorKind::Assert:
@@ -158,25 +162,12 @@ std::optional<ContainedValue> ExtractRustResult(
         // These cases shouldn't happen; the spec doesn't currently trigger
         // these errors
         THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INTERNAL_ERROR(),
-                                     std::nullopt);
+                                     Nothing<ContainedValue>());
     }
-    return std::nullopt;
+    return Nothing<ContainedValue>();
   }
-  return std::move(rust_result).ok();
+  return Just(std::move(rust_result).ok().value());
 }
-
-// Similar to MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE except it operates on
-// diplomat::result
-//
-// Set output_value to the name of the variable to write the output to
-// (output_value cannot be predeclared since not all types have a default state)
-#define RUST_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, output_value,    \
-                                              rust_result, error_value) \
-  auto __output_result__ = ExtractRustResult(isolate, rust_result);     \
-  if (!__output_result__.has_value()) {                                 \
-    return error_value;                                                 \
-  }                                                                     \
-  auto output_value = std::move(__output_result__).value();
 
 // Helper function to construct a JSType that wraps a RustType (infallible)
 template <typename JSType>
@@ -202,8 +193,11 @@ MaybeDirectHandle<JSType> ConstructRustWrappingType(
     Isolate* isolate, DirectHandle<JSFunction> target,
     DirectHandle<HeapObject> new_target,
     TemporalResult<std::unique_ptr<typename JSType::RustType>>&& rust_result) {
-  RUST_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, rust_value, std::move(rust_result), MaybeDirectHandle<JSType>());
+  std::unique_ptr<typename JSType::RustType> rust_value = nullptr;
+
+  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rust_value, ExtractRustResult(isolate, std::move(rust_result)),
+      MaybeDirectHandle<JSType>());
 
   return ConstructRustWrappingType<JSType>(isolate, target, new_target,
                                            std::move(rust_value));
@@ -678,10 +672,13 @@ constexpr temporal_rs::ToStringRoundingOptions kToStringAuto =
 MaybeDirectHandle<String> TemporalDurationToString(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     const temporal_rs::ToStringRoundingOptions&& options) {
+  std::string output;
   // This is currently inefficient, can be improved after
   // https://github.com/rust-diplomat/diplomat/issues/866 is fixed
-  RUST_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, output, duration->duration()->raw()->to_string(options),
+  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      isolate, output,
+      ExtractRustResult(isolate,
+                        duration->duration()->raw()->to_string(options)),
       MaybeDirectHandle<String>());
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(output);
@@ -693,12 +690,15 @@ MaybeDirectHandle<String> TemporalInstantToString(
     Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
     const temporal_rs::TimeZone* time_zone,
     const temporal_rs::ToStringRoundingOptions&& options) {
+  std::string output;
   // This is currently inefficient, can be improved after
   // https://github.com/rust-diplomat/diplomat/issues/866 is fixed
-  RUST_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
       isolate, output,
-      instant->instant()->raw()->to_ixdtf_string_with_compiled_data(time_zone,
-                                                                    options),
+      ExtractRustResult(
+          isolate,
+          instant->instant()->raw()->to_ixdtf_string_with_compiled_data(
+              time_zone, options)),
       MaybeDirectHandle<String>());
 
   IncrementalStringBuilder builder(isolate);
@@ -727,12 +727,14 @@ MaybeDirectHandle<String> ISODateTimeToString(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> temporal_date_time,
     const temporal_rs::ToStringRoundingOptions&& options,
     temporal_rs::DisplayCalendar show_calendar) {
+  std::string output;
   // This is currently inefficient, can be improved after
   // https://github.com/rust-diplomat/diplomat/issues/866 is fixed
-  RUST_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
       isolate, output,
-      temporal_date_time->date_time()->raw()->to_ixdtf_string(
-          std::move(options), show_calendar),
+      ExtractRustResult(isolate,
+                        temporal_date_time->date_time()->raw()->to_ixdtf_string(
+                            std::move(options), show_calendar)),
       MaybeDirectHandle<String>());
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(output);
@@ -743,10 +745,12 @@ MaybeDirectHandle<String> ISODateTimeToString(
 MaybeDirectHandle<String> TimeRecordToString(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> time,
     const temporal_rs::ToStringRoundingOptions&& options) {
+  std::string output;
   // This is currently inefficient, can be improved after
   // https://github.com/rust-diplomat/diplomat/issues/866 is fixed
-  RUST_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, output, time->time()->raw()->to_ixdtf_string(options),
+  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      isolate, output,
+      ExtractRustResult(isolate, time->time()->raw()->to_ixdtf_string(options)),
       MaybeDirectHandle<String>());
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(output);

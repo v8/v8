@@ -446,6 +446,16 @@ class WaiterQueueNode;
     }                                                                     \
   } while (false)
 
+// Like MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE, but moves out of the call
+// instead of performing copy-assignment
+#define MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
+  do {                                                                  \
+    if (!(call).MoveTo(&dst)) {                                         \
+      DCHECK((isolate)->has_exception());                               \
+      return value;                                                     \
+    }                                                                   \
+  } while (false)
+
 #define MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, dst, call) \
   do {                                                               \
     Isolate* __isolate__ = (isolate);                                \

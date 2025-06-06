@@ -60,6 +60,16 @@ class Maybe : public cppgc::internal::ConditionalStackAllocatedBase<T> {
   }
 
   /**
+   * Converts this Maybe<> to a value of type T, moving out of it. If this
+   * Maybe<> is nothing (empty), |false| is returned and |out| is left
+   * untouched.
+   */
+  V8_WARN_UNUSED_RESULT V8_INLINE bool MoveTo(T* out) && {
+    if (V8_LIKELY(IsJust())) *out = std::move(value_);
+    return IsJust();
+  }
+
+  /**
    * Converts this Maybe<> to a value of type T. If this Maybe<> is
    * nothing (empty), V8 will crash the process.
    */
