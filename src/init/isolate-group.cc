@@ -40,9 +40,17 @@ class IsolateGroupAccessScope final {
   explicit IsolateGroupAccessScope(IsolateGroup* group)
       : previous_(IsolateGroup::current()) {
     IsolateGroup::set_current(group);
+    Sandbox::set_current(group->sandbox());
   }
 
-  ~IsolateGroupAccessScope() { IsolateGroup::set_current(previous_); }
+  ~IsolateGroupAccessScope() {
+    IsolateGroup::set_current(previous_);
+    if (previous_) {
+      Sandbox::set_current(previous_->sandbox());
+    } else {
+      Sandbox::set_current(nullptr);
+    }
+  }
 
  private:
   IsolateGroup* previous_;
