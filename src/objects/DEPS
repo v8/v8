@@ -1,5 +1,6 @@
 include_rules = [
-  "+third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0"
+  # See `include_dirs` from Chromium's `//third_party/rust/temporal_capi`.
+  "+temporal_rs"
 ]
 
 specific_include_rules = {

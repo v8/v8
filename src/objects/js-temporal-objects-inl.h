@@ -15,13 +15,13 @@
 #include "src/objects/object-macros.h"
 
 // Rust includes to transitively include
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/Duration.hpp"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/Instant.hpp"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/PlainDate.hpp"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/PlainDateTime.hpp"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/PlainMonthDay.hpp"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/PlainTime.hpp"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/PlainYearMonth.hpp"
+#include "temporal_rs/Duration.hpp"
+#include "temporal_rs/Instant.hpp"
+#include "temporal_rs/PlainDate.hpp"
+#include "temporal_rs/PlainDateTime.hpp"
+#include "temporal_rs/PlainMonthDay.hpp"
+#include "temporal_rs/PlainTime.hpp"
+#include "temporal_rs/PlainYearMonth.hpp"
 
 namespace v8 {
 namespace internal {

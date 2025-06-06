@@ -9,12 +9,12 @@
 #include "src/heap/factory.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/Instant.d.hpp"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/PlainDate.d.hpp"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/PlainDateTime.d.hpp"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/PlainMonthDay.d.hpp"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/PlainTime.d.hpp"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/PlainYearMonth.d.hpp"
+#include "temporal_rs/Instant.d.hpp"
+#include "temporal_rs/PlainDate.d.hpp"
+#include "temporal_rs/PlainDateTime.d.hpp"
+#include "temporal_rs/PlainMonthDay.d.hpp"
+#include "temporal_rs/PlainTime.d.hpp"
+#include "temporal_rs/PlainYearMonth.d.hpp"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
