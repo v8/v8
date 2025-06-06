@@ -6,10 +6,10 @@ load("//lib/builders.star", "v8_builder")
 load("//lib/lib.star", "BARRIER", "in_console")
 load("//lib/siso.star", "SISO")
 
-def integration_builder(**kwargs):
+def integration_builder(use_siso = SISO.CHROMIUM_TRUSTED, **kwargs):
     return v8_builder(
         disable_resultdb_exports = True,
-        use_siso = SISO.CHROMIUM_TRUSTED,
+        use_siso = use_siso,
         **kwargs
     )
 
@@ -161,7 +161,15 @@ in_category(
         triggered_by = ["v8-trigger"],
         executable = "recipe:v8/node_integration_ng",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"v8_tot": True, "builder_group": "client.v8.fyi"},
+        properties = {
+            "v8_tot": True,
+            "builder_group": "client.v8.fyi",
+            "$build/reclient": {
+                "instance": "rbe-chromium-trusted",
+                "metrics_project": "chromium-reclient-metrics",
+            },
+        },
+        use_siso = SISO.NONE,
         notifies = ["sheriffs"],
     ),
 )
