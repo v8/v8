@@ -3531,8 +3531,7 @@ void InstructionSelector::VisitNode(OpIndex node) {
           case AtomicRMWOp::BinOp::kCompareExchange:
             return VisitWord32AtomicCompareExchange(node);
         }
-      } else {
-        DCHECK_EQ(atomic_op.in_out_rep, Rep::Word64());
+      } else if (atomic_op.in_out_rep == Rep::Word64()) {
         switch (atomic_op.bin_op) {
           case AtomicRMWOp::BinOp::kAdd:
             return VisitWord64AtomicAdd(node);
@@ -3549,6 +3548,10 @@ void InstructionSelector::VisitNode(OpIndex node) {
           case AtomicRMWOp::BinOp::kCompareExchange:
             return VisitWord64AtomicCompareExchange(node);
         }
+      } else {
+        CHECK_EQ(atomic_op.in_out_rep, Rep::Tagged());
+        CHECK_EQ(atomic_op.bin_op, AtomicRMWOp::BinOp::kExchange);
+        return VisitTaggedAtomicExchange(node);
       }
       UNREACHABLE();
     }

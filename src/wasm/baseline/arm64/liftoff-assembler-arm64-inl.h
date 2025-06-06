@@ -1174,6 +1174,8 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
                 kZero, &exit);
   JumpIfSmi(src, &exit);
   CheckPageFlag(src, MemoryChunk::kPointersToHereAreInterestingMask, eq, &exit);
+  // TODO(mliedtke): It would be great to reuse this calculation from the
+  // liftoff::CalculateActualAddress above.
   Operand offset_op = offset_reg.is_valid() ? Operand(offset_reg.W(), UXTW)
                                             : Operand(offset_imm);
   if (offset_reg.is_valid() && offset_imm) {
@@ -1233,6 +1235,65 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                                       bool /* i64_offset */) {
   liftoff::AtomicBinop(this, dst_addr, offset_reg, offset_imm, value, result,
                        type, liftoff::Binop::kExchange);
+}
+
+void LiftoffAssembler::AtomicExchangeTaggedPointer(
+    Register dst_addr, Register offset_reg, uintptr_t offset_imm,
+    LiftoffRegister value, LiftoffRegister result, LiftoffRegList pinned) {
+  // Perform the atomic exchange.
+  {
+    UseScratchRegisterScope temps(this);
+    Register actual_addr = liftoff::CalculateActualAddress(
+        this, temps, dst_addr, offset_reg, offset_imm);
+    if (CpuFeatures::IsSupported(LSE)) {
+      CpuFeatureScope scope(this, LSE);
+      if constexpr (COMPRESS_POINTERS_BOOL) {
+        swpal(value.gp().W(), result.gp().W(), MemOperand(actual_addr));
+        add(result.gp().X(), result.gp().X(), kPtrComprCageBaseRegister);
+      } else {
+        swpal(value.gp(), result.gp(), MemOperand(actual_addr));
+      }
+    } else {
+      DCHECK_NE(value, result);
+      Label retry;
+      Bind(&retry);
+      UseScratchRegisterScope temps(this);
+      Register store_result = temps.AcquireW();
+      if constexpr (COMPRESS_POINTERS_BOOL) {
+        ldaxr(result.gp().W(), actual_addr);
+        stlxr(store_result.W(), value.gp().W(), actual_addr);
+      } else {
+        ldaxr(result.gp().X(), actual_addr);
+        stlxr(store_result.W(), value.gp().X(), actual_addr);
+      }
+      Cbnz(store_result.W(), &retry);
+      if constexpr (COMPRESS_POINTERS_BOOL) {
+        add(result.gp().X(), result.gp().X(), kPtrComprCageBaseRegister);
+      }
+    }
+  }
+
+  if (v8_flags.disable_write_barriers) return;
+  // Emit the write barrier.
+  Label exit;
+  CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
+                kZero, &exit);
+  JumpIfSmi(value.gp(), &exit);
+  CheckPageFlag(value.gp(), MemoryChunk::kPointersToHereAreInterestingMask, eq,
+                &exit);
+  // TODO(mliedtke): It would be great to reuse this calculation from the
+  // liftoff::CalculateActualAddress above.
+  UseScratchRegisterScope temps(this);
+  Operand offset_op = offset_reg.is_valid() ? Operand(offset_reg.W(), UXTW)
+                                            : Operand(offset_imm);
+  if (offset_reg.is_valid() && offset_imm) {
+    Register effective_offset = temps.AcquireX();
+    Add(effective_offset.W(), offset_reg.W(), offset_imm);
+    offset_op = effective_offset;
+  }
+  CallRecordWriteStubSaveRegisters(dst_addr, offset_op, SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
+  bind(&exit);
 }
 
 void LiftoffAssembler::AtomicCompareExchange(

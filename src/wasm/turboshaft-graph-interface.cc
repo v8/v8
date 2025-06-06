@@ -4793,11 +4793,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           case kExprStructAtomicXor:
             new_value = __ Word32BitwiseXor(old, field_value.op);
             break;
+          case kExprStructAtomicExchange:
+            new_value = field_value.op;
+            break;
           default:
             UNREACHABLE();
         }
-      } else {
-        CHECK_EQ(field_kind, ValueKind::kI64);
+      } else if (field_kind == ValueKind::kI64) {
         V<Word64> old = V<Word64>::Cast(old_value);
         switch (opcode) {
           case kExprStructAtomicAdd:
@@ -4815,9 +4817,16 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           case kExprStructAtomicXor:
             new_value = __ Word64BitwiseXor(old, field_value.op);
             break;
+          case kExprStructAtomicExchange:
+            new_value = field_value.op;
+            break;
           default:
             UNREACHABLE();
         }
+      } else {
+        CHECK(is_reference(field_kind));
+        CHECK_EQ(opcode, kExprStructAtomicExchange);
+        new_value = field_value.op;
       }
       DCHECK(new_value.valid());
       __ StructSet(struct_object.op, new_value, struct_type,
@@ -4839,6 +4848,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           return BinOp::kOr;
         case kExprStructAtomicXor:
           return BinOp::kXor;
+        case kExprStructAtomicExchange:
+          return BinOp::kExchange;
         default:
           UNIMPLEMENTED();
       }
@@ -4939,11 +4950,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           case kExprArrayAtomicXor:
             new_value = __ Word32BitwiseXor(old, value.op);
             break;
+          case kExprArrayAtomicExchange:
+            new_value = value.op;
+            break;
           default:
             UNREACHABLE();
         }
-      } else {
-        CHECK_EQ(element_type, kWasmI64);
+      } else if (element_type == kWasmI64) {
         V<Word64> old = V<Word64>::Cast(old_value);
         switch (opcode) {
           case kExprArrayAtomicAdd:
@@ -4961,9 +4974,16 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           case kExprArrayAtomicXor:
             new_value = __ Word64BitwiseXor(old, value.op);
             break;
+          case kExprArrayAtomicExchange:
+            new_value = value.op;
+            break;
           default:
             UNREACHABLE();
         }
+      } else {
+        CHECK(element_type.is_reference());
+        CHECK_EQ(opcode, kExprArrayAtomicExchange);
+        new_value = value.op;
       }
       DCHECK(new_value.valid());
       __ ArraySet(array_value, index.op, new_value,
@@ -4984,6 +5004,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           return BinOp::kOr;
         case kExprArrayAtomicXor:
           return BinOp::kXor;
+        case kExprArrayAtomicExchange:
+          return BinOp::kExchange;
         default:
           UNIMPLEMENTED();
       }

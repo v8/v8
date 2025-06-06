@@ -6989,6 +6989,46 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ xchgl(i.InputRegister(0), i.MemoryOperand(1));
       break;
     }
+    case kAtomicExchangeWithWriteBarrier: {
+      DCHECK_EQ(AtomicWidthField::decode(opcode), COMPRESS_POINTERS_BOOL
+                                                      ? AtomicWidth::kWord32
+                                                      : AtomicWidth::kWord64);
+      // Perform exchange.
+      Register scratch0 = i.TempRegister(0);
+      Register scratch1 = i.TempRegister(1);
+      Register object = i.InputRegister(1);
+      Register written_value = i.TempRegister(2);
+      if constexpr (COMPRESS_POINTERS_BOOL) {
+        __ movl(written_value, i.InputRegister(0));
+        RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+        __ xchgl(i.InputRegister(0), i.MemoryOperand(1));
+      } else {
+        __ movq(written_value, i.InputRegister(0));
+        RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+        __ xchgq(i.InputRegister(0), i.MemoryOperand(1));
+      }
+      // Decompress pointer.
+      if constexpr (COMPRESS_POINTERS_BOOL) {
+        __ addq(i.InputRegister(0), kPtrComprCageBaseRegister);
+      }
+      // Emit write barrier.
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, i.MemoryOperand(1), written_value, scratch0, scratch1,
+          RecordWriteMode::kValueIsAny, DetermineStubCallMode());
+      __ JumpIfSmi(written_value, ool->exit());
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
+      __ CheckPageFlag(object, scratch0, MemoryChunk::kIncrementalMarking,
+                       not_zero, ool->stub_call());
+      __ CheckMarkBit(object, scratch0, scratch1, carry, ool->entry());
+#else   // !V8_ENABLE_STICKY_MARK_BITS_BOOL
+      static_assert(WriteBarrier::kUninterestingPagesCanBeSkipped);
+      __ CheckPageFlag(object, scratch0,
+                       MemoryChunk::kPointersFromHereAreInterestingMask,
+                       not_zero, ool->entry());
+#endif  // !V8_ENABLE_STICKY_MARK_BITS_BOOL
+      __ bind(ool->exit());
+      break;
+    }
     case kAtomicCompareExchangeInt8: {
       DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32);
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());

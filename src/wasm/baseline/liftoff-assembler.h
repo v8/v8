@@ -725,6 +725,8 @@ class LiftoffAssembler : public MacroAssembler {
     kSkipWriteBarrier = true,
     kNoSkipWriteBarrier = false
   };
+  inline void EmitWriteBarrier(Register target_object, Operand store_location,
+                               Register stored_value, LiftoffRegList pinned);
   inline void StoreTaggedPointer(Register dst_addr, Register offset_reg,
                                  int32_t offset_imm, Register src,
                                  LiftoffRegList pinned,
@@ -783,6 +785,9 @@ class LiftoffAssembler : public MacroAssembler {
                              uintptr_t offset_imm, LiftoffRegister value,
                              LiftoffRegister result, StoreType type,
                              bool i64_offset);
+  inline void AtomicExchangeTaggedPointer(
+      Register dst_addr, Register offset_reg, uintptr_t offset_imm,
+      LiftoffRegister value, LiftoffRegister result, LiftoffRegList pinned);
 
   inline void AtomicCompareExchange(Register dst_addr, Register offset_reg,
                                     uintptr_t offset_imm,

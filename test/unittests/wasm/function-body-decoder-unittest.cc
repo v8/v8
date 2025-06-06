@@ -6260,9 +6260,10 @@ class FunctionBodyDecoderTestAtomicRMWInvalid
 INSTANTIATE_TEST_SUITE_P(
     SharedAtomicsTest, FunctionBodyDecoderTestAtomicRMWInvalid,
     ::testing::Combine(
-        ::testing::Values(kWasmF32, kWasmF64, kWasmS128, kWasmI8, kWasmI16,
-                          IndependentHeapType{GenericKind::kExtern, kNullable,
-                                              true}),
+        ::testing::Values(
+            kWasmF32, kWasmF64, kWasmS128, kWasmI8, kWasmI16,
+            IndependentHeapType{GenericKind::kExtern, kNullable, true},
+            IndependentHeapType{GenericKind::kEq, kNonNullable, true}),
         ::testing::Values(true, false), ::testing::Values(true, false)),
     PrintAtomicGetInvalidParams);
 
@@ -6300,6 +6301,12 @@ TEST_P(FunctionBodyDecoderTestAtomicRMWInvalid, Struct) {
                 {WASM_STRUCT_ATOMIC_XOR(0, struct_type_index, 0,
                                         WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
                 kAppendEnd, error_msg);
+  const bool exchange_valid =
+      element_type.AsNonShared() == kWasmEqRef.AsNonNull() && mutability;
+  Validate(exchange_valid, sig,
+           {WASM_STRUCT_ATOMIC_EXCHANGE(0, struct_type_index, 0,
+                                        WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
+           kAppendEnd, error_msg);
 }
 
 TEST_P(FunctionBodyDecoderTestAtomicRMWInvalid, Array) {
@@ -6336,6 +6343,12 @@ TEST_P(FunctionBodyDecoderTestAtomicRMWInvalid, Array) {
                 {WASM_ARRAY_ATOMIC_XOR(0, array_type_index, WASM_LOCAL_GET(0),
                                        WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
                 kAppendEnd, error_msg);
+  const bool exchange_valid =
+      element_type.AsNonShared() == kWasmEqRef.AsNonNull() && mutability;
+  Validate(exchange_valid, sig,
+           {WASM_ARRAY_ATOMIC_EXCHANGE(0, array_type_index, WASM_LOCAL_GET(0),
+                                       WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
+           kAppendEnd, error_msg);
 }
 
 TEST_F(FunctionBodyDecoderTest, MemoryOrder) {

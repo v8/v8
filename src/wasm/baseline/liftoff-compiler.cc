@@ -6237,8 +6237,10 @@ class LiftoffCompiler {
           pinned.set(__ GetUnusedRegister(reg_class_for(field_kind), pinned));
       LoadObjectField(decoder, result_reg, obj.gp(), no_reg, offset, field_kind,
                       false, implicit_check, pinned);
-      LiftoffRegister new_value =
-          pinned.set(__ GetUnusedRegister(reg_class_for(field_kind), pinned));
+      LiftoffRegister new_value = opcode == kExprStructAtomicExchange
+                                      ? value
+                                      : pinned.set(__ GetUnusedRegister(
+                                            reg_class_for(field_kind), pinned));
 
       if (field_kind == ValueKind::kI32) {
         switch (opcode) {
@@ -6257,11 +6259,12 @@ class LiftoffCompiler {
           case kExprStructAtomicXor:
             __ emit_i32_xor(new_value.gp(), result_reg.gp(), value.gp());
             break;
+          case kExprStructAtomicExchange:
+            break;
           default:
             UNREACHABLE();
         }
-      } else {
-        CHECK_EQ(field_kind, ValueKind::kI64);
+      } else if (field_kind == ValueKind::kI64) {
         switch (opcode) {
           case kExprStructAtomicAdd:
             __ emit_i64_add(new_value, result_reg, value);
@@ -6278,9 +6281,15 @@ class LiftoffCompiler {
           case kExprStructAtomicXor:
             __ emit_i64_xor(new_value, result_reg, value);
             break;
+          case kExprStructAtomicExchange:
+            break;
           default:
             UNREACHABLE();
         }
+      } else {
+        CHECK(is_reference(field_kind));
+        CHECK_EQ(opcode, kExprStructAtomicExchange);
+        // Nothing to be done here.
       }
       __ PushRegister(field_kind, result_reg);
       StoreObjectField(decoder, obj.gp(), no_reg, offset, new_value, false,
@@ -6290,21 +6299,28 @@ class LiftoffCompiler {
 #endif  // !V8_TARGET_ARCH_IA32
 
 #ifdef V8_TARGET_ARCH_IA32
-    // We have to reuse the value register as the result register so that we
-    // don't run out of registers on ia32. For this we use the value register as
-    // the result register if it has no other uses. Otherwise we allocate a new
-    // register and let go of the value register to get spilled.
+    // The tagged atomic exchange needs the value register for the write
+    // barrier.
     LiftoffRegister result_reg = value;
-    if (__ cache_state()->is_used(value)) {
+    if (opcode != kExprStructAtomicExchange || !is_reference(field_kind)) {
+      // We have to reuse the value register as the result register so that we
+      // don't run out of registers on ia32. For this we use the value register
+      // as the result register if it has no other uses. Otherwise we allocate a
+      // new register and let go of the value register to get spilled.
+      if (__ cache_state()->is_used(value)) {
+        result_reg =
+            pinned.set(__ GetUnusedRegister(reg_class_for(field_kind), pinned));
+        __ Move(result_reg, value, field_kind);
+        pinned.clear(value);
+        value = result_reg;
+      }
+    } else {
       result_reg =
           pinned.set(__ GetUnusedRegister(reg_class_for(field_kind), pinned));
-      __ Move(result_reg, value, field_kind);
-      pinned.clear(value);
-      value = result_reg;
     }
 #else
     LiftoffRegister result_reg =
-        __ GetUnusedRegister(reg_class_for(field_kind), pinned);
+        pinned.set(__ GetUnusedRegister(reg_class_for(field_kind), pinned));
 #endif
     switch (opcode) {
       case kExprStructAtomicAdd:
@@ -6326,6 +6342,15 @@ class LiftoffCompiler {
       case kExprStructAtomicXor:
         __ AtomicXor(obj.gp(), no_reg, offset, value, result_reg,
                      StoreType::ForValueKind(field_kind), false);
+        break;
+      case kExprStructAtomicExchange:
+        if (is_reference(field_kind)) {
+          __ AtomicExchangeTaggedPointer(obj.gp(), no_reg, offset, value,
+                                         result_reg, pinned);
+          break;
+        }
+        __ AtomicExchange(obj.gp(), no_reg, offset, value, result_reg,
+                          StoreType::ForValueKind(field_kind), false);
         break;
       default:
         UNREACHABLE();
@@ -6375,8 +6400,10 @@ class LiftoffCompiler {
       LoadObjectField(decoder, result_reg, array.gp(), index.gp(),
                       wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize),
                       elem_kind, true, false, pinned);
-      LiftoffRegister new_value =
-          pinned.set(__ GetUnusedRegister(reg_class_for(elem_kind), pinned));
+      LiftoffRegister new_value = opcode == kExprArrayAtomicExchange
+                                      ? value
+                                      : pinned.set(__ GetUnusedRegister(
+                                            reg_class_for(elem_kind), pinned));
 
       if (elem_kind == ValueKind::kI32) {
         switch (opcode) {
@@ -6395,11 +6422,12 @@ class LiftoffCompiler {
           case kExprArrayAtomicXor:
             __ emit_i32_xor(new_value.gp(), result_reg.gp(), value.gp());
             break;
+          case kExprArrayAtomicExchange:
+            break;
           default:
             UNREACHABLE();
         }
-      } else {
-        CHECK_EQ(elem_kind, ValueKind::kI64);
+      } else if (elem_kind == ValueKind::kI64) {
         switch (opcode) {
           case kExprArrayAtomicAdd:
             __ emit_i64_add(new_value, result_reg, value);
@@ -6416,9 +6444,15 @@ class LiftoffCompiler {
           case kExprArrayAtomicXor:
             __ emit_i64_xor(new_value, result_reg, value);
             break;
+          case kExprArrayAtomicExchange:
+            break;
           default:
             UNREACHABLE();
         }
+      } else {
+        CHECK(is_reference(elem_kind));
+        CHECK_EQ(opcode, kExprArrayAtomicExchange);
+        // Nothing to be done here.
       }
       __ PushRegister(elem_kind, result_reg);
       StoreObjectField(decoder, array.gp(), index.gp(),
@@ -6429,10 +6463,17 @@ class LiftoffCompiler {
 #endif  // !V8_TARGET_ARCH_IA32
 
 #ifdef V8_TARGET_ARCH_IA32
-    LiftoffRegister result_reg = value;
+    // The tagged atomic exchange needs the value register for the write
+    // barrier.
+    const bool preserve_value_reg =
+        opcode == kExprArrayAtomicExchange && is_reference(elem_kind);
+    LiftoffRegister result_reg =
+        preserve_value_reg
+            ? pinned.set(__ GetUnusedRegister(reg_class_for(elem_kind), pinned))
+            : value;
 #else
     LiftoffRegister result_reg =
-        __ GetUnusedRegister(reg_class_for(elem_kind), pinned);
+        pinned.set(__ GetUnusedRegister(reg_class_for(elem_kind), pinned));
 #endif
     const int offset = wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize);
     switch (opcode) {
@@ -6455,6 +6496,15 @@ class LiftoffCompiler {
       case kExprArrayAtomicXor:
         __ AtomicXor(array.gp(), index.gp(), offset, value, result_reg,
                      StoreType::ForValueKind(elem_kind), false);
+        break;
+      case kExprArrayAtomicExchange:
+        if (is_reference(elem_kind)) {
+          __ AtomicExchangeTaggedPointer(array.gp(), index.gp(), offset, value,
+                                         result_reg, pinned);
+          break;
+        }
+        __ AtomicExchange(array.gp(), index.gp(), offset, value, result_reg,
+                          StoreType::ForValueKind(elem_kind), false);
         break;
       default:
         UNREACHABLE();

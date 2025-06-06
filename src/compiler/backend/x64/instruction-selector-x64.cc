@@ -1399,13 +1399,20 @@ void VisitAtomicExchange(InstructionSelector* selector, OpIndex node,
       g.UseUniqueRegister(atomic_op.value()),
       g.UseUniqueRegister(atomic_op.base()),
       g.GetEffectiveIndexOperand(atomic_op.index(), &addressing_mode)};
+  base::SmallVector<InstructionOperand, 3> temps;
+  if (opcode == kAtomicExchangeWithWriteBarrier) {
+    temps.push_back(g.TempRegister());
+    temps.push_back(g.TempRegister());
+    temps.push_back(g.TempRegister());
+  }
   InstructionOperand outputs[] = {g.DefineSameAsFirst(node)};
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
     code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
-  selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs);
+  selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+                 temps.size(), temps.data());
 }
 
 void VisitStoreCommon(InstructionSelector* selector,
@@ -4114,6 +4121,14 @@ void InstructionSelector::VisitWord64AtomicExchange(OpIndex node) {
     UNREACHABLE();
   }
   VisitAtomicExchange(this, node, opcode, AtomicWidth::kWord64,
+                      atomic_op.memory_access_kind);
+}
+
+void InstructionSelector::VisitTaggedAtomicExchange(OpIndex node) {
+  const AtomicRMWOp& atomic_op = Cast<AtomicRMWOp>(node);
+  AtomicWidth width =
+      COMPRESS_POINTERS_BOOL ? AtomicWidth::kWord32 : AtomicWidth::kWord64;
+  VisitAtomicExchange(this, node, kAtomicExchangeWithWriteBarrier, width,
                       atomic_op.memory_access_kind);
 }
 

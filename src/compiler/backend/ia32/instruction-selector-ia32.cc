@@ -993,13 +993,19 @@ void VisitAtomicExchange(InstructionSelector* selector, OpIndex node,
   InstructionOperand inputs[] = {
       value_operand, g.UseUniqueRegister(op.base()),
       g.GetEffectiveIndexOperand(op.index(), &addressing_mode)};
+  base::SmallVector<InstructionOperand, 2> temps;
+  if (opcode == kAtomicExchangeWithWriteBarrier) {
+    temps.push_back(g.TempRegister());
+    temps.push_back(g.TempRegister());
+  }
   InstructionOperand outputs[] = {
       (rep == MachineRepresentation::kWord8)
           // Using DefineSameAsFirst requires the register to be unallocated.
           ? g.DefineAsFixed(node, edx)
           : g.DefineSameAsFirst(node)};
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
-  selector->Emit(code, 1, outputs, arraysize(inputs), inputs);
+  selector->Emit(code, 1, outputs, arraysize(inputs), inputs, temps.size(),
+                 temps.data());
 }
 
 void VisitStoreCommon(InstructionSelector* selector,
@@ -2437,6 +2443,11 @@ void InstructionSelector::VisitWord32AtomicExchange(OpIndex node) {
     UNREACHABLE();
   }
   VisitAtomicExchange(this, node, opcode, type.representation());
+}
+
+void InstructionSelector::VisitTaggedAtomicExchange(OpIndex node) {
+  VisitAtomicExchange(this, node, kAtomicExchangeWithWriteBarrier,
+                      MachineRepresentation::kTagged);
 }
 
 void InstructionSelector::VisitWord32AtomicCompareExchange(OpIndex node) {

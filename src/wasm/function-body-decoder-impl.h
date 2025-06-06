@@ -2731,7 +2731,8 @@ class WasmDecoder : public Decoder {
           case kExprStructAtomicSub:
           case kExprStructAtomicAnd:
           case kExprStructAtomicOr:
-          case kExprStructAtomicXor: {
+          case kExprStructAtomicXor:
+          case kExprStructAtomicExchange: {
             MemoryOrderImmediate memory_order(decoder, pc + length, validate);
             (ios.MemoryOrder(memory_order), ...);
             FieldImmediate field(decoder, pc + length + memory_order.length,
@@ -2747,7 +2748,8 @@ class WasmDecoder : public Decoder {
           case kExprArrayAtomicSub:
           case kExprArrayAtomicAnd:
           case kExprArrayAtomicOr:
-          case kExprArrayAtomicXor: {
+          case kExprArrayAtomicXor:
+          case kExprArrayAtomicExchange: {
             MemoryOrderImmediate memory_order(decoder, pc + length, validate);
             (ios.MemoryOrder(memory_order), ...);
             ArrayIndexImmediate array(decoder, pc + length, validate);
@@ -6950,7 +6952,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprStructAtomicSub:
       case kExprStructAtomicAnd:
       case kExprStructAtomicOr:
-      case kExprStructAtomicXor: {
+      case kExprStructAtomicXor:
+      case kExprStructAtomicExchange: {
         CHECK_PROTOTYPE_OPCODE(shared);
         NON_CONST_ONLY
         MemoryOrderImmediate memory_order(this, this->pc_ + opcode_length,
@@ -6971,7 +6974,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           return 0;
         }
         ValueType field_type = struct_type->field(field.field_imm.index);
-        if (!VALIDATE(field_type == kWasmI32 || field_type == kWasmI64)) {
+        if (!VALIDATE(field_type == kWasmI32 || field_type == kWasmI64 ||
+                      (opcode == kExprStructAtomicExchange &&
+                       IsSubtypeOf(field_type.AsNonShared(), kWasmAnyRef,
+                                   this->module_)))) {
           this->DecodeError("%s: Field %d of type %d has invalid type %s ",
                             WasmOpcodes::OpcodeName(opcode),
                             field.field_imm.index, field.struct_imm.index.index,
@@ -7097,7 +7103,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprArrayAtomicSub:
       case kExprArrayAtomicAnd:
       case kExprArrayAtomicOr:
-      case kExprArrayAtomicXor: {
+      case kExprArrayAtomicXor:
+      case kExprArrayAtomicExchange: {
         CHECK_PROTOTYPE_OPCODE(shared);
         NON_CONST_ONLY
         MemoryOrderImmediate memory_order(this, this->pc_ + opcode_length,
@@ -7115,7 +7122,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           return 0;
         }
         ValueType element_type = imm.array_type->element_type();
-        if (!VALIDATE(element_type == kWasmI32 || element_type == kWasmI64)) {
+        if (!VALIDATE(element_type == kWasmI32 || element_type == kWasmI64 ||
+                      (opcode == kExprArrayAtomicExchange &&
+                       IsSubtypeOf(element_type.AsNonShared(), kWasmAnyRef,
+                                   this->module_)))) {
           this->DecodeError("%s: Array type %d has invalid type %s ",
                             WasmOpcodes::OpcodeName(opcode), imm.index,
                             element_type.name().c_str());

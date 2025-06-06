@@ -1019,6 +1019,10 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
                                value)                                       \
   struct_obj, value, WASM_ATOMICS_OP(kExprStructAtomicXor), memory_order,   \
       ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_EXCHANGE(memory_order, typeidx, fieldidx,           \
+                                    struct_obj, value)                         \
+  struct_obj, value, WASM_ATOMICS_OP(kExprStructAtomicExchange), memory_order, \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
 #define WASM_ARRAY_ATOMIC_GET(memory_order, typeidx, array_obj, index)  \
   array_obj, index, WASM_ATOMICS_OP(kExprArrayAtomicGet), memory_order, \
       ToByte(typeidx)
@@ -1046,6 +1050,10 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define WASM_ARRAY_ATOMIC_XOR(memory_order, typeidx, array_obj, index, value)  \
   array_obj, index, value, WASM_ATOMICS_OP(kExprArrayAtomicXor), memory_order, \
       ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_EXCHANGE(memory_order, typeidx, array_obj, index, \
+                                   value)                                   \
+  array_obj, index, value, WASM_ATOMICS_OP(kExprArrayAtomicExchange),       \
+      memory_order, ToByte(typeidx)
 
 //------------------------------------------------------------------------------
 // Sign Extension Operations.

@@ -530,6 +530,29 @@ void LiftoffAssembler::LoadCodeEntrypointViaCodePointer(Register dst,
 }
 #endif
 
+void LiftoffAssembler::EmitWriteBarrier(Register target_object,
+                                        Operand store_location,
+                                        Register stored_value,
+                                        LiftoffRegList pinned) {
+  // None of the code below uses the {kScratchRegister} (in particular the
+  // {CallRecordWriteStubSaveRegisters} just emits a near call). Hence we can
+  // use it as scratch register here.
+  Label exit;
+  CheckPageFlag(target_object, kScratchRegister,
+                MemoryChunk::kPointersFromHereAreInterestingMask, zero, &exit,
+                Label::kNear);
+  JumpIfSmi(stored_value, &exit, Label::kNear);
+  CheckPageFlag(stored_value, kScratchRegister,
+                MemoryChunk::kPointersToHereAreInterestingMask, zero, &exit,
+                Label::kNear);
+  leaq(kScratchRegister, store_location);
+
+  CallRecordWriteStubSaveRegisters(target_object, kScratchRegister,
+                                   SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
+  bind(&exit);
+}
+
 void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
                                           int32_t offset_imm, Register src,
@@ -543,24 +566,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   StoreTaggedField(dst_op, src);
 
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;
-
-  // None of the code below uses the {kScratchRegister} (in particular the
-  // {CallRecordWriteStubSaveRegisters} just emits a near call). Hence we can
-  // use it as scratch register here.
-  Label exit;
-  CheckPageFlag(dst_addr, kScratchRegister,
-                MemoryChunk::kPointersFromHereAreInterestingMask, zero, &exit,
-                Label::kNear);
-  JumpIfSmi(src, &exit, Label::kNear);
-  CheckPageFlag(src, kScratchRegister,
-                MemoryChunk::kPointersToHereAreInterestingMask, zero, &exit,
-                Label::kNear);
-  leaq(kScratchRegister, dst_op);
-
-  CallRecordWriteStubSaveRegisters(dst_addr, kScratchRegister,
-                                   SaveFPRegsMode::kSave,
-                                   StubCallMode::kCallWasmRuntimeStub);
-  bind(&exit);
+  EmitWriteBarrier(dst_addr, dst_op, src, pinned);
 }
 
 void LiftoffAssembler::AtomicStoreTaggedPointer(
@@ -960,6 +966,24 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
     default:
       UNREACHABLE();
   }
+}
+
+void LiftoffAssembler::AtomicExchangeTaggedPointer(
+    Register dst_addr, Register offset_reg, uintptr_t offset_imm,
+    LiftoffRegister value, LiftoffRegister result, LiftoffRegList pinned) {
+  if (offset_reg != no_reg) AssertZeroExtended(offset_reg);
+  DCHECK(!cache_state()->is_used(result));
+  movq(result.gp(), value.gp());
+  Operand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
+  if constexpr (COMPRESS_POINTERS_BOOL) {
+    xchgl(result.gp(), dst_op);
+    addq(result.gp(), kPtrComprCageBaseRegister);
+  } else {
+    xchgq(result.gp(), dst_op);
+  }
+
+  if (v8_flags.disable_write_barriers) return;
+  EmitWriteBarrier(dst_addr, dst_op, value.gp(), pinned);
 }
 
 void LiftoffAssembler::AtomicCompareExchange(

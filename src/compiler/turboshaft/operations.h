@@ -7275,6 +7275,10 @@ struct StructAtomicRMWOp : FixedArityOperationT<2, StructAtomicRMWOp> {
 
   void Validate(const Graph& graph) const {
     DCHECK_LT(field_index, type->field_count());
+    DCHECK(type->field(field_index) == wasm::kWasmI32 ||
+           type->field(field_index) == wasm::kWasmI64 ||
+           (type->field(field_index).is_reference() &&
+            bin_op == BinOp::kExchange));
   }
 
   auto options() const {
@@ -7395,7 +7399,8 @@ struct ArrayAtomicRMWOp : FixedArityOperationT<3, ArrayAtomicRMWOp> {
   }
 
   void Validate(const Graph& graph) const {
-    DCHECK(element_type == wasm::kWasmI32 || element_type == wasm::kWasmI64);
+    DCHECK(element_type == wasm::kWasmI32 || element_type == wasm::kWasmI64 ||
+           (element_type.is_reference() && bin_op == BinOp::kExchange));
   }
 
   auto options() const {
