@@ -718,6 +718,7 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
         static_cast<unsigned>(
             function_template_info_.c_functions(broker()).size()));
 
+    // LINT.IfChange
     // TODO(crbug.com/418936518): Support deopt for functions with return value.
     Node* error_message = jsgraph()->SmiConstant(
         static_cast<int>(AbortReason::kUnsupportedDeopt));
@@ -729,6 +730,11 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
             : CreateStubBuiltinContinuationFrameState(
                   jsgraph(), Builtin::kAbort, ContextInput(), &error_message, 1,
                   FrameStateInput(), ContinuationFrameStateMode::LAZY);
+    // The `DeoptimizationEntry_LazyAfterFastCall` builtin currently sets the
+    // return value unconditionally to `undefined`. If a continuation builtin is
+    // set up here, then the entry builtin should not overwrite the return
+    // value.
+    // LINT.ThenChange(/src/builtins/x64/builtins-x64.cc:DeoptAfterFastCallSetReturnValue)
 
     // Callback data value for fast Api calls. Unlike slow Api calls, the fast
     // variant passes callback data directly.
