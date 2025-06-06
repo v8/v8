@@ -1268,9 +1268,7 @@ class MachineLoweringReducer : public Next {
         }
       }
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-      case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64OrUndefined:
-      case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::
-          kFloat64WithSilencedNaNOrUndefined: {
+      case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kHoleyFloat64: {
         DCHECK_EQ(
             input_assumptions,
             ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball);
@@ -1284,6 +1282,10 @@ class MachineLoweringReducer : public Next {
           GOTO_IF(
               __ TaggedEqual(map, __ HeapConstant(factory_->undefined_map())),
               done, UndefinedNan());
+          IF (UNLIKELY(
+                  __ TaggedEqual(map, __ HeapConstant(factory_->hole_map())))) {
+            __ Unreachable();
+          }
 
           V<Float64> value = __ template LoadField<Float64>(
               object, AccessBuilder::ForHeapNumberOrOddballOrHoleValue());
@@ -1400,6 +1402,38 @@ class MachineLoweringReducer : public Next {
         BIND(done, result);
         return result;
       }
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      // TODO(nicohartmann): Consider merging this into
+      // ConvertHeapObjectToFloat64OrDeopt.
+      case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kHoleyFloat64: {
+        DCHECK_EQ(from_kind, ConvertJSPrimitiveToUntaggedOrDeoptOp::
+                                 JSPrimitiveKind::kNumberOrOddball);
+        Label<Float64> done(this);
+
+        IF (LIKELY(__ ObjectIsSmi(object))) {
+          GOTO(done,
+               __ ChangeInt32ToFloat64(__ UntagSmi(V<Smi>::Cast(object))));
+        } ELSE {
+          V<Map> map = __ LoadMapField(V<HeapObject>::Cast(object));
+          GOTO_IF(
+              __ TaggedEqual(map, __ HeapConstant(factory_->undefined_map())),
+              done, UndefinedNan());
+          IF (UNLIKELY(
+                  __ TaggedEqual(map, __ HeapConstant(factory_->hole_map())))) {
+            __ Unreachable();
+          }
+
+          V<Float64> value = ConvertHeapObjectToFloat64OrDeopt(
+              object, frame_state, from_kind, feedback, map);
+          V<Float64> silenced_value = __ Float64SilenceNaN(value);
+          GOTO(done, silenced_value);
+        }
+
+        BIND(done, result);
+        return result;
+      }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+
       case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kArrayIndex: {
         DCHECK_EQ(from_kind, ConvertJSPrimitiveToUntaggedOrDeoptOp::
                                  JSPrimitiveKind::kNumberOrString);
@@ -3803,8 +3837,10 @@ class MachineLoweringReducer : public Next {
   V<Float64> ConvertHeapObjectToFloat64OrDeopt(
       V<Object> heap_object, V<FrameState> frame_state,
       ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind input_kind,
-      const FeedbackSource& feedback) {
-    V<Map> map = __ LoadMapField(heap_object);
+      const FeedbackSource& feedback,
+      OptionalV<Map> loaded_map = OptionalV<Map>::Nullopt()) {
+    V<Map> map = loaded_map.value_or_invalid();
+    if (!map.valid()) map = __ LoadMapField(heap_object);
     switch (input_kind) {
       case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kSmi:
       case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::

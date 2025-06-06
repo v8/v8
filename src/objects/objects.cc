@@ -319,13 +319,7 @@ typename HandleType<Number>::MaybeType Object::ConvertToNumber(
     Isolate* isolate, HandleType<Object> input) {
   while (true) {
     if (IsNumber(*input)) {
-      auto number = Cast<Number>(input);
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-      DCHECK_IMPLIES(
-          IsHeapNumber(*number),
-          Cast<HeapNumber>(number)->value_as_bits() != kUndefinedNanInt64);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-      return number;
+      return Cast<Number>(input);
     }
     if (IsString(*input)) {
       return String::ToNumber(isolate, Cast<String>(input));

@@ -1655,6 +1655,10 @@ class MaglevGraphBuilder {
   std::optional<double> TryGetFloat64Constant(
       ValueNode* value, TaggedToFloat64ConversionType conversion_type);
 
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  std::optional<double> TryGetHoleyFloat64Constant(ValueNode* value);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+
   // Get a Float64 representation node whose value is equivalent to the given
   // node.
   //
@@ -1664,6 +1668,8 @@ class MaglevGraphBuilder {
   ValueNode* GetFloat64(interpreter::Register reg) {
     return GetFloat64(current_interpreter_frame_.get(reg));
   }
+
+  ValueNode* GetHoleyFloat64(ValueNode* value, bool convert_hole_to_undefined);
 
   // Get a Float64 representation node whose value is the result of ToNumber on
   // the given node. Only trivial ToNumber is allowed -- values that are already

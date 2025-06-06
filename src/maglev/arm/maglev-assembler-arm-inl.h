@@ -940,6 +940,10 @@ void MaglevAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
   b(cc, target);
 }
 
+void MaglevAssembler::Float64SilenceNan(DoubleRegister value) {
+  VFPCanonicalizeNaN(value, value);
+}
+
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 void MaglevAssembler::JumpIfNotUndefinedNan(DoubleRegister value,
                                             Register scratch, Label* target,

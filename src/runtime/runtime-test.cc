@@ -1401,12 +1401,22 @@ RUNTIME_FUNCTION(Runtime_DebugPrintFloat) {
   if (!IsSmi(args[4]) || (Cast<Smi>(args[4]).value() == fileno(stderr))) {
     StderrStream os;
     std::streamsize precision = os.precision();
-    os << std::setprecision(20) << base::bit_cast<double>(value) << std::endl;
+    const double d = base::bit_cast<double>(value);
+    os << std::setprecision(20) << d;
+    if (std::isnan(d)) {
+      os << " (0x" << std::hex << value << std::dec << ")";
+    }
+    os << std::endl;
     os.precision(precision);
   } else {
     StdoutStream os;
     std::streamsize precision = os.precision();
-    os << std::setprecision(20) << base::bit_cast<double>(value) << std::endl;
+    const double d = base::bit_cast<double>(value);
+    os << std::setprecision(20) << d;
+    if (std::isnan(d)) {
+      os << " (0x" << std::hex << value << std::dec << ")";
+    }
+    os << std::endl;
     os.precision(precision);
   }
   return ReadOnlyRoots(isolate).undefined_value();

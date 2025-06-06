@@ -1015,6 +1015,14 @@ bool Heap::CreateImportantReadOnlyObjects() {
 
   set_nan_value(*factory->NewHeapNumber<AllocationType::kReadOnly>(
       std::numeric_limits<double>::quiet_NaN()));
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  set_undefined_nan_value(
+      *factory->NewHeapNumberFromBits<AllocationType::kReadOnly>(
+          kUndefinedNanInt64));
+#else
+  set_undefined_nan_value(*factory->NewHeapNumber<AllocationType::kReadOnly>(
+      std::numeric_limits<double>::quiet_NaN()));
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   set_hole_nan_value(*factory->NewHeapNumberFromBits<AllocationType::kReadOnly>(
       kHoleNanInt64));
   set_infinity_value(
@@ -1120,7 +1128,8 @@ bool Heap::CreateReadOnlyObjects() {
 
   // Finish initializing oddballs after creating the string table.
   Oddball::Initialize(isolate(), factory->undefined_value(), "undefined",
-                      factory->nan_value(), "undefined", Oddball::kUndefined);
+                      factory->undefined_nan_value(), "undefined",
+                      Oddball::kUndefined);
 
   // Initialize the null_value.
   Oddball::Initialize(isolate(), factory->null_value(), "null",

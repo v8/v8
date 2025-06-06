@@ -32,6 +32,7 @@ class RootVisitor;
 #define STRONG_READ_ONLY_HEAP_NUMBER_ROOT_LIST(V)         \
   /* Special numbers */                                   \
   V(HeapNumber, nan_value, NanValue)                      \
+  V(HeapNumber, undefined_nan_value, UndefinedNanValue)   \
   V(HeapNumber, hole_nan_value, HoleNanValue)             \
   V(HeapNumber, infinity_value, InfinityValue)            \
   V(HeapNumber, minus_zero_value, MinusZeroValue)         \

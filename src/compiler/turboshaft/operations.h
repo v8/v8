@@ -4918,8 +4918,7 @@ struct ConvertJSPrimitiveToUntaggedOp
     kBit,
     kFloat64,
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-    kFloat64OrUndefined,
-    kFloat64WithSilencedNaNOrUndefined,
+    kHoleyFloat64,
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   };
   enum class InputAssumptions : uint8_t {
@@ -4947,8 +4946,7 @@ struct ConvertJSPrimitiveToUntaggedOp
         return RepVector<RegisterRepresentation::Word64()>();
       case UntaggedKind::kFloat64:
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-      case UntaggedKind::kFloat64OrUndefined:
-      case UntaggedKind::kFloat64WithSilencedNaNOrUndefined:
+      case UntaggedKind::kHoleyFloat64:
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
         return RepVector<RegisterRepresentation::Float64()>();
     }
@@ -4980,6 +4978,9 @@ struct ConvertJSPrimitiveToUntaggedOrDeoptOp
     kAdditiveSafeInteger,
     kInt64,
     kFloat64,
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    kHoleyFloat64,
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     kArrayIndex,
   };
   enum class JSPrimitiveKind : uint8_t {
@@ -5006,6 +5007,9 @@ struct ConvertJSPrimitiveToUntaggedOrDeoptOp
       case UntaggedKind::kInt64:
         return RepVector<RegisterRepresentation::Word64()>();
       case UntaggedKind::kFloat64:
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      case UntaggedKind::kHoleyFloat64:
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
         return RepVector<RegisterRepresentation::Float64()>();
       case UntaggedKind::kArrayIndex:
         return Is64() ? RepVector<RegisterRepresentation::Word64()>()

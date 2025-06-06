@@ -1535,7 +1535,8 @@ void Oddball::OddballVerify(Isolate* isolate) {
   CHECK(IsSmi(number) || IsHeapNumber(number));
   if (IsHeapObject(number)) {
     CHECK(number == ReadOnlyRoots(heap).nan_value() ||
-          number == ReadOnlyRoots(heap).hole_nan_value());
+          number == ReadOnlyRoots(heap).hole_nan_value() ||
+          number == ReadOnlyRoots(heap).undefined_nan_value());
   } else {
     CHECK(IsSmi(number));
     int value = Smi::ToInt(number);

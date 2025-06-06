@@ -723,16 +723,12 @@ OpIndex GraphBuilder::Process(
       ConvertJSPrimitiveToUntaggedOp* convert_op =
           input_op.TryCast<ConvertJSPrimitiveToUntaggedOp>();
       CHECK_NOT_NULL(convert_op);
-      CHECK_EQ(
-          convert_op->kind,
-          ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64OrUndefined);
+      CHECK_EQ(convert_op->kind,
+               ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kHoleyFloat64);
       CHECK_EQ(
           convert_op->input_assumptions,
           ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball);
       CHECK_EQ(node->InputAt(0)->UseCount(), 1);
-      // Mutate in-place.
-      convert_op->kind = ConvertJSPrimitiveToUntaggedOp::UntaggedKind::
-          kFloat64WithSilencedNaNOrUndefined;
       return input;
     }
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
@@ -1063,7 +1059,7 @@ OpIndex GraphBuilder::Process(
                                        NumberOrOddball)
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedToFloat64PreserveUndefined,
-                                       Float64OrUndefined, NumberOrOddball)
+                                       HoleyFloat64, NumberOrOddball)
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 #undef CONVERT_OBJECT_TO_PRIMITIVE_CASE
 

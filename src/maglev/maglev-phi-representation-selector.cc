@@ -582,8 +582,7 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
                 input_index,
                 AddNodeAtBlockEnd(
                     NodeBase::New<CheckedNumberOrOddballToHoleyFloat64>(
-                        builder_->zone(), {input_phi},
-                        TaggedToFloat64ConversionType::kNumberOrOddball),
+                        builder_->zone(), {input_phi}),
                     phi->predecessor_at(input_index), deopt_frame));
             break;
           }

@@ -292,6 +292,7 @@ bool RootToBoolean(RootIndex index) {
     case RootIndex::kNullValue:
     case RootIndex::kUndefinedValue:
     case RootIndex::kNanValue:
+    case RootIndex::kUndefinedNanValue:
     case RootIndex::kHoleNanValue:
     case RootIndex::kMinusZeroValue:
     case RootIndex::kempty_string:
@@ -1774,6 +1775,33 @@ void CheckedNumberOrOddballToFloat64OrHoleyFloat64<
   TryUnboxNumberOrOddball(masm, ToDoubleRegister(result()), value,
                           conversion_type(),
                           __ GetDeoptLabel(this, deoptimize_reason()));
+}
+
+void CheckedNumberOrOddballToHoleyFloat64::SetValueLocationConstraints() {
+  UseAndClobberRegister(input());
+  DefineAsRegister(this);
+}
+void CheckedNumberOrOddballToHoleyFloat64::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Register src = ToRegister(input());
+  DoubleRegister dst = ToDoubleRegister(result());
+  Label* fail = __ GetDeoptLabel(this, deoptimize_reason());
+
+  Label is_not_smi, done;
+  // Check if Smi.
+  __ JumpIfNotSmi(src, &is_not_smi, Label::kNear);
+  // If Smi, convert to Float64.
+  __ SmiToInt32(src);
+  __ Int32ToDouble(dst, src);
+  __ Jump(&done);
+  __ bind(&is_not_smi);
+  JumpToFailIfNotHeapNumberOrOddball(
+      masm, src, TaggedToFloat64ConversionType::kNumberOrOddball, fail);
+  __ LoadHeapNumberOrOddballValue(dst, src);
+  __ JumpIfNotObjectType(src, InstanceType::HEAP_NUMBER_TYPE, &done,
+                         Label::kNear);
+  __ Float64SilenceNan(dst);
+  __ bind(&done);
 }
 
 void UncheckedNumberOrOddballToFloat64::SetValueLocationConstraints() {

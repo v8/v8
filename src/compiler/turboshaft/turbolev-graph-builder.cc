@@ -4297,12 +4297,7 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
-  template <typename NumberToFloat64Op>
-    requires(std::is_same_v<NumberToFloat64Op,
-                            maglev::CheckedNumberOrOddballToFloat64> ||
-             std::is_same_v<NumberToFloat64Op,
-                            maglev::CheckedNumberOrOddballToHoleyFloat64>)
-  maglev::ProcessResult Process(NumberToFloat64Op* node,
+  maglev::ProcessResult Process(maglev::CheckedNumberOrOddballToFloat64* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind kind;
@@ -4325,6 +4320,25 @@ class GraphBuildingNodeProcessor {
                ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kFloat64,
                CheckForMinusZeroMode::kCheckForMinusZero,
                node->eager_deopt_info()->feedback_to_update()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(
+      maglev::CheckedNumberOrOddballToHoleyFloat64* node,
+      const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    SetMap(
+        node,
+        __ ConvertJSPrimitiveToUntaggedOrDeopt(
+            Map(node->input()), frame_state,
+            ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
+                kNumberOrOddball,
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+            ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kHoleyFloat64,
+#else
+            ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kFloat64,
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+            CheckForMinusZeroMode::kCheckForMinusZero,
+            node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::UncheckedNumberOrOddballToFloat64* node,
@@ -4515,7 +4529,7 @@ class GraphBuildingNodeProcessor {
     SetMap(node, __ Float64SilenceNaN(Map(node->input())));
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::HoleyFloat64ToFloat64OrUndefined* node,
+  maglev::ProcessResult Process(maglev::ConvertHoleNanToUndefinedNan* node,
                                 const maglev::ProcessingState& state) {
     V<Float64> input = Map(node->input());
 
@@ -5712,7 +5726,12 @@ class GraphBuildingNodeProcessor {
             ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::
                 kHeapNumberOrUndefined,
             RegisterRepresentation::Float64(),
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+            ConvertUntaggedToJSPrimitiveOp::InputInterpretation::
+                kDoubleOrUndefinedOrHole,
+#else
             ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kDoubleOrHole,
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
             CheckForMinusZeroMode::kCheckForMinusZero));
     if (done.has_incoming_jump()) {
       GOTO(done, as_obj);

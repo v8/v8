@@ -788,13 +788,13 @@ void Float64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
   __ VFPCanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
 }
 
-void HoleyFloat64ToFloat64OrUndefined::SetValueLocationConstraints() {
+void ConvertHoleNanToUndefinedNan::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
   set_temporaries_needed(1);
 }
-void HoleyFloat64ToFloat64OrUndefined::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
+void ConvertHoleNanToUndefinedNan::GenerateCode(MaglevAssembler* masm,
+                                                const ProcessingState& state) {
   DoubleRegister value = ToDoubleRegister(input());
   Label done;
 

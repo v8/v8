@@ -1034,6 +1034,11 @@ void MaglevAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
   j(cc, target, distance);
 }
 
+void MaglevAssembler::Float64SilenceNan(DoubleRegister value) {
+  Xorpd(kScratchDoubleReg, kScratchDoubleReg);
+  Subsd(value, kScratchDoubleReg);
+}
+
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 void MaglevAssembler::JumpIfNotUndefinedNan(DoubleRegister value,
                                             Register scratch, Label* target,

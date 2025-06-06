@@ -294,7 +294,7 @@ class ExceptionHandlerInfo;
   V(CheckedHoleyFloat64ToFloat64)                   \
   V(HoleyFloat64ToMaybeNanFloat64)                  \
   IF_UD(V, Float64ToHoleyFloat64)                   \
-  IF_UD(V, HoleyFloat64ToFloat64OrUndefined)        \
+  IF_UD(V, ConvertHoleNanToUndefinedNan)            \
   V(HoleyFloat64IsHole)                             \
   V(LogicalNot)                                     \
   V(SetPendingMessage)                              \
@@ -682,7 +682,6 @@ static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
   V(NullOrUndefined, kNull | kUndefined)                                  \
   V(Oddball, kNullOrUndefined | kBoolean)                                 \
   V(Number, kSmi | kHeapNumber)                                           \
-  V(NumberOrUndefined, kNumber | kUndefined)                              \
   V(NumberOrBoolean, kNumber | kBoolean)                                  \
   V(NumberOrOddball, kNumber | kOddball)                                  \
   V(InternalizedString, kROSeqInternalizedOneByteString |                 \
@@ -4632,16 +4631,28 @@ class CheckedNumberOrOddballToFloat64
 };
 
 class CheckedNumberOrOddballToHoleyFloat64
-    : public CheckedNumberOrOddballToFloat64OrHoleyFloat64<
-          CheckedNumberOrOddballToHoleyFloat64,
-          ValueRepresentation::kHoleyFloat64> {
-  using Base = CheckedNumberOrOddballToFloat64OrHoleyFloat64<
-      CheckedNumberOrOddballToHoleyFloat64, ValueRepresentation::kHoleyFloat64>;
+    : public FixedInputValueNodeT<1, CheckedNumberOrOddballToHoleyFloat64> {
+  using Base = FixedInputValueNodeT<1, CheckedNumberOrOddballToHoleyFloat64>;
 
  public:
-  explicit CheckedNumberOrOddballToHoleyFloat64(
-      uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
-      : Base(bitfield, conversion_type) {}
+  explicit CheckedNumberOrOddballToHoleyFloat64(uint64_t bitfield)
+      : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
+                                              OpProperties::HoleyFloat64() |
+                                              OpProperties::ConversionNode();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  Input& input() { return Node::input(0); }
+
+  DeoptimizeReason deoptimize_reason() const {
+    return DeoptimizeReason::kNotANumberOrOddball;
+  }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class CheckedNumberToInt32
@@ -4756,13 +4767,12 @@ class Float64ToHoleyFloat64
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-class HoleyFloat64ToFloat64OrUndefined
-    : public FixedInputValueNodeT<1, HoleyFloat64ToFloat64OrUndefined> {
-  using Base = FixedInputValueNodeT<1, HoleyFloat64ToFloat64OrUndefined>;
+class ConvertHoleNanToUndefinedNan
+    : public FixedInputValueNodeT<1, ConvertHoleNanToUndefinedNan> {
+  using Base = FixedInputValueNodeT<1, ConvertHoleNanToUndefinedNan>;
 
  public:
-  explicit HoleyFloat64ToFloat64OrUndefined(uint64_t bitfield)
-      : Base(bitfield) {}
+  explicit ConvertHoleNanToUndefinedNan(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::HoleyFloat64();
   static constexpr

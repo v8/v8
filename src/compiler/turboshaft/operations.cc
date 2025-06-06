@@ -1328,11 +1328,8 @@ std::ostream& operator<<(std::ostream& os,
     case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64:
       return os << "Float64";
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-    case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64OrUndefined:
-      return os << "Float64OrUndefined";
-    case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::
-        kFloat64WithSilencedNaNOrUndefined:
-      return os << "Float64WithSilencedNaNOrUndefined";
+    case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kHoleyFloat64:
+      return os << "HoleyFloat64";
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   }
 }
@@ -1365,6 +1362,10 @@ std::ostream& operator<<(
       return os << "Int64";
     case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kFloat64:
       return os << "Float64";
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kHoleyFloat64:
+      return os << "HoleyFloat64";
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kArrayIndex:
       return os << "ArrayIndex";
   }

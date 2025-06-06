@@ -19,6 +19,7 @@
 #include "src/base/flags.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/numbers/double.h"
 #include "src/base/strong-alias.h"
 
 #define V8_INFINITY std::numeric_limits<double>::infinity()
@@ -1976,20 +1977,16 @@ constexpr uint64_t kHoleNanInt64 =
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 constexpr uint64_t kUndefinedNanInt64 =
     (static_cast<uint64_t>(kUndefinedNanUpper32) << 32) | kUndefinedNanLower32;
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 // TODO(nicohartmann): Use proper constants.
-inline bool IsUndefinedNan(double d) {
-  uint64_t b;
-  std::memcpy(&b, &d, sizeof(double));
-  return b == kUndefinedNanInt64;
+inline constexpr bool IsUndefinedNan(double d) {
+  return base::double_to_uint64(d) == kUndefinedNanInt64;
 }
-inline double UndefinedNan() {
-  uint64_t b = kUndefinedNanInt64;
-  double d;
-  std::memcpy(&d, &b, sizeof(double));
-  return d;
+inline constexpr double UndefinedNan() {
+  return base::uint64_to_double(kUndefinedNanInt64);
+}
+inline constexpr double HoleNan() {
+  return base::uint64_to_double(kHoleNanInt64);
 }
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 

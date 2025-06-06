@@ -1901,6 +1901,21 @@ ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value,
   UNREACHABLE();
 }
 
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+std::optional<double> MaglevGraphBuilder::TryGetHoleyFloat64Constant(
+    ValueNode* value) {
+  if (value->opcode() == Opcode::kRootConstant) {
+    Tagged<Object> root_object =
+        local_isolate_->root(value->Cast<RootConstant>()->index());
+    if (IsOddball(root_object)) {
+      return Cast<Oddball>(root_object)->to_number_raw();
+    }
+  }
+  return TryGetFloat64Constant(value,
+                               TaggedToFloat64ConversionType::kNumberOrOddball);
+}
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+
 std::optional<double> MaglevGraphBuilder::TryGetFloat64Constant(
     ValueNode* value, TaggedToFloat64ConversionType conversion_type) {
   switch (value->opcode()) {
@@ -1928,6 +1943,14 @@ std::optional<double> MaglevGraphBuilder::TryGetFloat64Constant(
       }
       if (conversion_type == TaggedToFloat64ConversionType::kNumberOrOddball &&
           IsOddball(root_object)) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+        if (IsUndefined(root_object)) {
+          // We use the undefined nan and silence it to produce the same result
+          // as a computation from non-constants would.
+          auto ud = Float64::FromBits(kUndefinedNanInt64);
+          return ud.to_quiet_nan().get_scalar();
+        }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
         return Cast<Oddball>(root_object)->to_number_raw();
       }
       if (IsHeapNumber(root_object)) {
@@ -1949,6 +1972,46 @@ ValueNode* MaglevGraphBuilder::GetFloat64(ValueNode* value) {
   return GetFloat64ForToNumber(value, NodeType::kNumber,
                                TaggedToFloat64ConversionType::kOnlyNumber);
 }
+
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+ValueNode* MaglevGraphBuilder::GetHoleyFloat64(ValueNode* value,
+                                               bool convert_hole_to_undefined) {
+  ValueRepresentation representation =
+      value->properties().value_representation();
+  if (representation == ValueRepresentation::kHoleyFloat64 &&
+      !convert_hole_to_undefined) {
+    return value;
+  }
+
+  // Process constants first to avoid allocating NodeInfo for them.
+  if (auto cst = TryGetHoleyFloat64Constant(value)) {
+    return GetFloat64Constant(cst.value());
+  }
+
+  NodeInfo* node_info = GetOrCreateInfoFor(value);
+
+  if (representation == ValueRepresentation::kFloat64) {
+    // We need to silence NaNs, because we start interpreting some bit patterns
+    // differently.
+    return AddNewNode<HoleyFloat64ToMaybeNanFloat64>({value});
+  } else if (representation == ValueRepresentation::kHoleyFloat64) {
+    DCHECK(convert_hole_to_undefined);
+    if (!IsEmptyNodeType(node_info->type()) &&
+        NodeTypeIs(node_info->type(), NodeType::kNumberOrBoolean)) {
+      // We don't have holes, so we don't need to convert anything.
+      return value;
+    }
+    return AddNewNode<ConvertHoleNanToUndefinedNan>({value});
+  } else if (representation == ValueRepresentation::kTagged) {
+    return AddNewNode<CheckedNumberOrOddballToHoleyFloat64>({value});
+  } else if (representation == ValueRepresentation::kInt32) {
+    auto& alternative = node_info->alternative();
+    return alternative.set_float64(AddNewNode<ChangeInt32ToFloat64>({value}));
+  }
+
+  UNREACHABLE();
+}
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(
     ValueNode* value, NodeType allowed_input_type,
@@ -2024,10 +2087,6 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(
           // kNumber.
           return alternative.set_float64(
               AddNewNode<CheckedHoleyFloat64ToFloat64>({value}));
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-        case NodeType::kNumberOrUndefined:
-          return AddNewNode<HoleyFloat64ToFloat64OrUndefined>({value});
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
         case NodeType::kNumberOrOddball:
           // NumberOrOddball->Float64 conversions are not exact alternatives,
           // since they lose the information that this is an oddball, so they
@@ -4702,7 +4761,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kHoleyFloat64ToMaybeNanFloat64:
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     case Opcode::kFloat64ToHoleyFloat64:
-    case Opcode::kHoleyFloat64ToFloat64OrUndefined:
+    case Opcode::kConvertHoleNanToUndefinedNan:
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     case Opcode::kHoleyFloat64IsHole:
     case Opcode::kSetPendingMessage:
@@ -6978,12 +7037,9 @@ ReduceResult MaglevGraphBuilder::ConvertForStoring(ValueNode* value,
   if (IsDoubleElementsKind(kind)) {
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     if (kind == ElementsKind::HOLEY_DOUBLE_ELEMENTS) {
-      if (value->value_representation() != ValueRepresentation::kFloat64) {
         RecordUseReprHintIfPhi(value, UseRepresentation::kHoleyFloat64);
-        return GetFloat64ForToNumber(
-            value, NodeType::kNumberOrUndefined,
-            TaggedToFloat64ConversionType::kOnlyNumber);
-      }
+        const bool convert_hole_to_undefined = true;
+        return GetHoleyFloat64(value, convert_hole_to_undefined);
     }
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     // Make sure we do not store signalling NaNs into double arrays.
@@ -10013,11 +10069,17 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeSetFloat64(
     compiler::JSFunctionRef target, CallArguments& args) {
   return TryBuildStoreDataView<StoreDoubleDataViewElement>(
       args, ExternalArrayType::kExternalFloat64Array, [&](ValueNode* value) {
-        return value ? GetHoleyFloat64ForToNumber(
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+        // Produce the same bit pattern we would get through computation.
+        auto ud = Float64::FromBits(kUndefinedNanInt64);
+        const double silenced_nan = ud.to_quiet_nan().get_scalar();
+#else
+        const double silenced_nan = std::numeric_limits<double>::quiet_NaN();
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+        return value ? GetFloat64ForToNumber(
                            value, NodeType::kNumberOrOddball,
                            TaggedToFloat64ConversionType::kNumberOrOddball)
-                     : GetFloat64Constant(
-                           std::numeric_limits<double>::quiet_NaN());
+                     : GetFloat64Constant(silenced_nan);
       });
 }
 
