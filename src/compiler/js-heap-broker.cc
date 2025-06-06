@@ -316,23 +316,30 @@ OptionalObjectRef GlobalAccessFeedback::GetConstantHint(
 
 KeyedAccessMode KeyedAccessMode::FromNexus(FeedbackNexus const& nexus) {
   FeedbackSlotKind kind = nexus.kind();
+  constexpr bool kStringKeysUnsupported = false;
   if (IsKeyedLoadICKind(kind)) {
-    return KeyedAccessMode(AccessMode::kLoad, nexus.GetKeyedAccessLoadMode());
+    bool string_keys = nexus.GetKeyType() == IcCheckType::kProperty;
+    return KeyedAccessMode(AccessMode::kLoad, nexus.GetKeyedAccessLoadMode(),
+                           string_keys);
   }
   if (IsKeyedHasICKind(kind)) {
-    return KeyedAccessMode(AccessMode::kHas, nexus.GetKeyedAccessLoadMode());
+    return KeyedAccessMode(AccessMode::kHas, nexus.GetKeyedAccessLoadMode(),
+                           kStringKeysUnsupported);
   }
   if (IsDefineKeyedOwnICKind(kind)) {
-    return KeyedAccessMode(AccessMode::kDefine,
-                           nexus.GetKeyedAccessStoreMode());
+    return KeyedAccessMode(AccessMode::kDefine, nexus.GetKeyedAccessStoreMode(),
+                           kStringKeysUnsupported);
   }
   if (IsKeyedStoreICKind(kind)) {
-    return KeyedAccessMode(AccessMode::kStore, nexus.GetKeyedAccessStoreMode());
+    bool string_keys = nexus.GetKeyType() == IcCheckType::kProperty;
+    return KeyedAccessMode(AccessMode::kStore, nexus.GetKeyedAccessStoreMode(),
+                           string_keys);
   }
   if (IsStoreInArrayLiteralICKind(kind) ||
       IsDefineKeyedOwnPropertyInLiteralKind(kind)) {
     return KeyedAccessMode(AccessMode::kStoreInLiteral,
-                           nexus.GetKeyedAccessStoreMode());
+                           nexus.GetKeyedAccessStoreMode(),
+                           kStringKeysUnsupported);
   }
   UNREACHABLE();
 }
@@ -359,14 +366,20 @@ KeyedAccessStoreMode KeyedAccessMode::store_mode() const {
 }
 
 KeyedAccessMode::KeyedAccessMode(AccessMode access_mode,
-                                 KeyedAccessLoadMode load_mode)
-    : access_mode_(access_mode), load_mode_(load_mode) {
+                                 KeyedAccessLoadMode load_mode,
+                                 bool string_keys)
+    : access_mode_(access_mode),
+      load_mode_(load_mode),
+      string_keys_(string_keys) {
   CHECK(!IsStore());
   CHECK(IsLoad());
 }
 KeyedAccessMode::KeyedAccessMode(AccessMode access_mode,
-                                 KeyedAccessStoreMode store_mode)
-    : access_mode_(access_mode), store_mode_(store_mode) {
+                                 KeyedAccessStoreMode store_mode,
+                                 bool string_keys)
+    : access_mode_(access_mode),
+      store_mode_(store_mode),
+      string_keys_(string_keys) {
   CHECK(!IsLoad());
   CHECK(IsStore());
 }
@@ -523,9 +536,8 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
     return ProcessFeedbackMapsForElementAccess(
         maps, KeyedAccessMode::FromNexus(nexus), kind);
   } else if (nexus.IsOneMapManyNames() && maps.size() == 1) {
-    // TODO(jkummerow): Implement support.
-    return *zone()->New<ElementAccessFeedback>(
-        zone(), KeyedAccessMode::FromNexus(nexus), kind);
+    return ProcessFeedbackMapsForKeyedPropertyAccess(
+        maps, KeyedAccessMode::FromNexus(nexus), kind);
   } else {
     // No actionable feedback.
     DCHECK(maps.empty());
@@ -823,10 +835,23 @@ ProcessedFeedback const& JSHeapBroker::GetFeedbackForGlobalAccess(
   return feedback;
 }
 
+ElementAccessFeedback const&
+JSHeapBroker::ProcessFeedbackMapsForKeyedPropertyAccess(
+    ZoneVector<MapRef>& maps, KeyedAccessMode const& keyed_mode,
+    FeedbackSlotKind slot_kind) {
+  DCHECK_EQ(maps.size(), 1);
+  DCHECK(keyed_mode.string_keys());
+  ElementAccessFeedback* result =
+      zone()->New<ElementAccessFeedback>(zone(), keyed_mode, slot_kind);
+  result->AddGroup(ElementAccessFeedback::TransitionGroup(1, maps[0], zone()));
+  return *result;
+}
+
 ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
     ZoneVector<MapRef>& maps, KeyedAccessMode const& keyed_mode,
     FeedbackSlotKind slot_kind) {
   DCHECK(!maps.empty());
+  DCHECK(!keyed_mode.string_keys());
 
   // Collect possible transition targets.
   MapHandles possible_transition_targets(isolate());

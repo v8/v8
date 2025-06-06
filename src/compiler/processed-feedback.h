@@ -108,6 +108,10 @@ class KeyedAccessMode {
   bool IsStore() const;
   KeyedAccessLoadMode load_mode() const;
   KeyedAccessStoreMode store_mode() const;
+  // This is a hint indicating that the keyed IC was not in "elements mode".
+  // There may well be keys of any kind (string, integer, string representation
+  // of an integer, or "JSAny", really) that will need to be handled.
+  bool string_keys() const { return string_keys_; }
 
  private:
   AccessMode const access_mode_;
@@ -115,9 +119,12 @@ class KeyedAccessMode {
     KeyedAccessLoadMode load_mode_;    // If IsLoad().
     KeyedAccessStoreMode store_mode_;  // If IsStore().
   };
+  bool string_keys_;
 
-  KeyedAccessMode(AccessMode access_mode, KeyedAccessLoadMode load_mode);
-  KeyedAccessMode(AccessMode access_mode, KeyedAccessStoreMode store_mode);
+  KeyedAccessMode(AccessMode access_mode, KeyedAccessLoadMode load_mode,
+                  bool string_keys);
+  KeyedAccessMode(AccessMode access_mode, KeyedAccessStoreMode store_mode,
+                  bool string_keys);
 };
 
 class ElementAccessFeedback : public ProcessedFeedback {

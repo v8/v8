@@ -189,15 +189,23 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                       const FeedbackSource& feedback);
 
   // Construct the appropriate subgraph for element access.
-  ValueEffectControl BuildElementAccess(Node* receiver, Node* index,
-                                        Node* value, Node* effect,
-                                        Node* control, Node* context,
-                                        ElementAccessInfo const& access_info,
-                                        KeyedAccessMode const& keyed_mode);
+  ValueEffectControl BuildElementAccess(
+      Node* receiver, Node* index, Node* value, Node* effect, Node* control,
+      Node* context, ElementAccessInfo const& access_info,
+      LanguageMode language_mode, KeyedAccessMode const& keyed_mode,
+      ZoneVector<Node*>* if_exceptions, Node* frame_state);
   ValueEffectControl BuildElementAccessForTypedArrayOrRabGsabTypedArray(
       Node* receiver, Node* index, Node* value, Node* effect, Node* control,
       Node* context, ElementsKind elements_kind,
       KeyedAccessMode const& keyed_mode);
+
+#if V8_ENABLE_WEBASSEMBLY
+  ValueEffectControl BuildPrototypeProxyElementAccess(
+      Node* receiver, Node* index, Node* value, Node* effect, Node* control,
+      Node* context, ElementAccessInfo const& access_info,
+      LanguageMode language_mode, KeyedAccessMode const& keyed_mode,
+      ZoneVector<Node*>* if_exceptions, Node* frame_state);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Construct appropriate subgraph to load from a String.
   Node* BuildIndexedStringLoad(Node* receiver, Node* index, Node* length,

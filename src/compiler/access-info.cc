@@ -105,6 +105,18 @@ ElementAccessInfo::ElementAccessInfo(
   CHECK(!lookup_start_object_maps.empty());
 }
 
+ElementAccessInfo::ElementAccessInfo(MapRef map, ObjectRef accessor,
+                                     ObjectRef target, bool string_keys,
+                                     Zone* zone)
+    : elements_kind_(map.elements_kind()),
+      string_keys_(string_keys),
+      lookup_start_object_maps_({map}, zone),
+      transition_sources_(zone),
+      accessor_(accessor),
+      target_(target) {
+  DCHECK(is_proxy_on_prototype());
+}
+
 // static
 PropertyAccessInfo PropertyAccessInfo::Invalid(Zone* zone) {
   return PropertyAccessInfo(zone);
@@ -393,10 +405,147 @@ ConstFieldInfo PropertyAccessInfo::GetConstFieldInfo() const {
 AccessInfoFactory::AccessInfoFactory(JSHeapBroker* broker, Zone* zone)
     : broker_(broker), type_cache_(TypeCache::Get()), zone_(zone) {}
 
+bool AccessInfoFactory::ObjectMayHaveElements(JSObjectRef obj,
+                                              MapRef map) const {
+  if (IsCustomElementsReceiverInstanceType(map.instance_type())) return true;
+  // Ruled out by non-"custom elements" receiver type:
+  DCHECK(!map.has_indexed_interceptor());
+  if (map.is_extensible()) return true;
+  // When the map is not extensible (as we just checked), an empty elements
+  // array will always remain empty.
+  OptionalFixedArrayBaseRef elements = obj.elements(broker(), kRelaxedLoad);
+  if (!elements.has_value()) return true;
+  return (elements.value() != broker()->empty_fixed_array() &&
+          elements.value() != broker()->empty_slow_element_dictionary());
+}
+
+bool AccessInfoFactory::ObjectMayHaveOwnProperties(JSObjectRef obj,
+                                                   MapRef map) const {
+  if (IsSpecialReceiverInstanceType(map.instance_type())) return true;
+  // Ruled out by non-"special" receiver type:
+  DCHECK(!map.has_named_interceptor());
+  if (map.is_extensible()) return true;
+  // When the map is not extensible (as we just checked), an empty property
+  // backing store will always remain empty.
+  if (map.is_dictionary_map()) {
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+      Tagged<SwissNameDictionary> dict =
+          obj.object()->property_dictionary_swiss();
+      return dict->NumberOfElements() > 0;
+    } else {
+      Tagged<NameDictionary> dict = obj.object()->property_dictionary();
+      return dict->NumberOfElements() > 0;
+    }
+  } else {
+    return map.NumberOfOwnDescriptors() > 0;
+  }
+}
+
 std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
     MapRef map, AccessMode access_mode) const {
-  if (!map.CanInlineElementAccess()) return {};
-  return ElementAccessInfo({{map}, zone()}, map.elements_kind(), zone());
+  if (map.CanInlineElementAccess()) {
+    return ElementAccessInfo({{map}, zone()}, map.elements_kind(), zone());
+  }
+#if V8_ENABLE_WEBASSEMBLY
+  if (map.IsWasmObjectMap() &&
+      (access_mode == AccessMode::kLoad || access_mode == AccessMode::kStore)) {
+    // See if there is a Proxy on the prototype chain that will handle
+    // element accesses.
+    HeapObjectRef prototype = map.prototype(broker());
+    bool prototypes_may_have_properties = false;
+    while (true) {
+      if (prototype.IsNull()) return {};
+      MapRef proto_map = prototype.map(broker());
+      if (proto_map.is_access_check_needed()) return {};
+      if (proto_map.IsJSObjectMap()) {
+        // Any regular prototypes on the chain must be guaranteed not to have
+        // or later acquire any elements. We need to require this for both
+        // indexed and named mode.
+        if (ObjectMayHaveElements(prototype.AsJSObject(), proto_map)) return {};
+        // If the Proxy trap we'll find later (see reads of
+        // {prototypes_may_have_properties}) supports named properties, we'll
+        // need to know whether prototypes contained any named properties.
+        prototypes_may_have_properties =
+            prototypes_may_have_properties ||
+            ObjectMayHaveOwnProperties(prototype.AsJSObject(), proto_map);
+        // This prototype is okay. Continue walking the chain.
+        prototype = proto_map.prototype(broker());
+        continue;
+      }
+      if (proto_map.IsJSProxyMap()) {
+        JSProxyRef proxy = prototype.AsJSProxy();
+        if (proxy.is_revocable()) return {};
+
+        // Check the "handler". We do this first because the specific trap
+        // function we find determines what to require from the "target".
+        OptionalObjectRef maybe_handler = proxy.GetHandler(broker());
+        if (!maybe_handler.has_value()) return {};
+        if (!maybe_handler->IsJSObject()) return {};
+        JSObjectRef handler = maybe_handler.value().AsJSObject();
+        MapRef handler_map = handler.map(broker());
+        // We could implement support for dictionary-mode handlers, but it's
+        // probably not worth it.
+        if (handler_map.is_dictionary_map()) return {};
+        NameRef trap_name = access_mode == AccessMode::kLoad
+                                ? broker()->get_string()
+                                : broker()->set_string();
+        PropertyAccessInfo trap_info = broker()->GetPropertyAccessInfo(
+            handler_map, trap_name, AccessMode::kLoad);
+        if (!trap_info.IsFastDataConstant()) return {};
+        Representation repr = trap_info.field_representation();
+        if (!repr.IsHeapObject() && !repr.IsTagged()) return {};
+        OptionalObjectRef trap = handler.GetOwnFastConstantDataProperty(
+            broker(), repr, trap_info.field_index(), dependencies());
+        if (!trap.has_value()) return {};
+        ObjectRef trap_value = trap.value();
+
+        // Check that the trap is a Wasm function. We require that for spec
+        // compliance reasons: the JS-to-Wasm value conversion of parameters
+        // hides the fact that we're not emitting toString conversion operations
+        // for the property keys, which is in particular helpful when the
+        // Wasm function wants integer indices anyway.
+        if (!trap_value.IsHeapObject()) return {};
+        // Support for other callables is not implemented.
+        if (!trap_value.AsHeapObject().IsJSFunction()) return {};
+
+        SharedFunctionInfoRef sfi = trap_value.AsJSFunction().shared(broker());
+        Tagged<Object> trusted_data =
+            sfi.object()->GetTrustedData(broker()->local_isolate_or_isolate());
+        if (!IsWasmExportedFunctionData(trusted_data)) return {};
+        Tagged<WasmExportedFunctionData> wasm_data =
+            Cast<WasmExportedFunctionData>(trusted_data);
+        // Supporting receiver-is-first-param mode would require passing
+        // the Proxy's handler to the eventual building of the Call node.
+        if (wasm_data->receiver_is_first_param()) return {};
+        const wasm::CanonicalSig* wasm_signature = wasm_data->sig();
+        if (wasm_signature->parameter_count() < 2) return {};
+        wasm::CanonicalValueType key_type = wasm_signature->GetParam(1);
+
+        // Check the "target".
+        OptionalObjectRef maybe_target = proxy.GetTarget(broker());
+        if (!maybe_target.has_value()) return {};
+        if (!maybe_target->IsJSObject()) return {};
+        JSObjectRef target = maybe_target.value().AsJSObject();
+        MapRef target_map = target.map(broker());
+        if (ObjectMayHaveElements(target, target_map)) return {};
+        if (key_type == wasm::kWasmExternRef) {
+          if (prototypes_may_have_properties) return {};
+          if (ObjectMayHaveOwnProperties(target, target_map)) return {};
+        } else if (key_type != wasm::kWasmI32) {
+          return {};
+        }
+        if (!target_map.prototype(broker()).IsNull()) return {};
+
+        // Finally: all good!
+        bool string_keys = key_type == wasm::kWasmExternRef;
+        return ElementAccessInfo(map, trap_value, target, string_keys, zone());
+      }
+      // Nothing else can occur on prototype chains.
+      UNREACHABLE();
+    }
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+  return {};
 }
 
 bool AccessInfoFactory::ComputeElementAccessInfos(

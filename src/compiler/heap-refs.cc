@@ -285,6 +285,13 @@ class JSObjectData : public JSReceiverData {
       : JSReceiverData(broker, storage, object, kind) {}
 };
 
+class JSProxyData : public JSReceiverData {
+ public:
+  JSProxyData(JSHeapBroker* broker, ObjectData** storage,
+              IndirectHandle<JSProxy> object, ObjectDataKind kind)
+      : JSReceiverData(broker, storage, object, kind) {}
+};
+
 namespace {
 
 // Separate function for racy HeapNumber value read, so that we can explicitly
@@ -1630,6 +1637,7 @@ HEAP_ACCESSOR_B(Map, bit_field3, NumberOfOwnDescriptors,
                 Map::Bits3::NumberOfOwnDescriptorsBits)
 HEAP_ACCESSOR_B(Map, bit_field3, is_migration_target,
                 Map::Bits3::IsMigrationTargetBit)
+BIMODAL_ACCESSOR_B(Map, bit_field3, is_extensible, Map::Bits3::IsExtensibleBit)
 BIMODAL_ACCESSOR_B(Map, bit_field3, construction_counter,
                    Map::Bits3::ConstructionCounterBits)
 HEAP_ACCESSOR_B(Map, bit_field, has_prototype_slot,
@@ -1638,6 +1646,8 @@ HEAP_ACCESSOR_B(Map, bit_field, is_access_check_needed,
                 Map::Bits1::IsAccessCheckNeededBit)
 HEAP_ACCESSOR_B(Map, bit_field, is_callable, Map::Bits1::IsCallableBit)
 HEAP_ACCESSOR_B(Map, bit_field, has_indexed_interceptor,
+                Map::Bits1::HasIndexedInterceptorBit)
+HEAP_ACCESSOR_B(Map, bit_field, has_named_interceptor,
                 Map::Bits1::HasIndexedInterceptorBit)
 HEAP_ACCESSOR_B(Map, bit_field, is_constructor, Map::Bits1::IsConstructorBit)
 HEAP_ACCESSOR_B(Map, bit_field, is_undetectable, Map::Bits1::IsUndetectableBit)
@@ -2046,6 +2056,16 @@ bool ObjectRef::should_access_heap() const {
 bool ObjectRef::is_read_only() const {
   return data()->kind() == kUnserializedReadOnlyHeapObject;
 }
+
+// TODO(leszeks): Could/should these use the BIMODAL_ACCESSORS macro?
+OptionalObjectRef JSProxyRef::GetTarget(JSHeapBroker* broker) const {
+  return TryMakeRef(broker, object()->target());
+}
+OptionalObjectRef JSProxyRef::GetHandler(JSHeapBroker* broker) const {
+  return TryMakeRef(broker, object()->handler());
+}
+
+HEAP_ACCESSOR_B(JSProxy, flags, is_revocable, JSProxy::IsRevocableBit)
 
 OptionalObjectRef JSObjectRef::GetOwnConstantElement(
     JSHeapBroker* broker, FixedArrayBaseRef elements_ref, uint32_t index,

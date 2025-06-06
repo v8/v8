@@ -1377,14 +1377,21 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
 }
 
 bool FeedbackNexus::IsOneMapManyNames() const {
+  // "1 map, many names" mode is currently only used for Wasm maps, and
+  // {IsWasmObjectMap} is currently only defined for Wasm-enabled builds.
+#if V8_ENABLE_WEBASSEMBLY
   auto pair = GetFeedbackPair();
   Tagged<HeapObject> heap_object;
   if (!pair.first.GetHeapObjectIfWeak(&heap_object)) return false;
   if (!IsMap(heap_object)) return false;
+  if (!IsWasmObjectMap(Cast<Map>(heap_object))) return false;
   if (!IsSmi(pair.second)) return false;
   Tagged<Smi> handler = pair.second.ToSmi();
   return handler == LoadHandler::LoadGeneric() ||
          handler == StoreHandler::StoreGeneric();
+#else
+  return false;
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 IcCheckType FeedbackNexus::GetKeyType() const {

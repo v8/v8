@@ -2416,15 +2416,6 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
 Handle<Object> KeyedStoreIC::StoreElementHandler(
     DirectHandle<Map> receiver_map, KeyedAccessStoreMode store_mode,
     MaybeDirectHandle<UnionOf<Smi, Cell>> prev_validity_cell) {
-  // The only case when could keep using non-slow element store handler for
-  // a fast array with potentially read-only elements is when it's an
-  // initializing store to array literal.
-  DCHECK_IMPLIES(
-      !receiver_map->has_dictionary_elements() &&
-          receiver_map->ShouldCheckForReadOnlyElementsInPrototypeChain(
-              isolate()),
-      IsStoreInArrayLiteralIC());
-
   if (!IsJSObjectMap(*receiver_map)) {
     // DefineKeyedOwnIC, which is used to define computed fields in instances,
     // should handled by the slow stub below instead of the proxy stub.
@@ -2442,6 +2433,15 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_SlowStub);
     return StoreHandler::StoreSlow(isolate(), store_mode);
   }
+
+  // The only case when could keep using non-slow element store handler for
+  // a fast array with potentially read-only elements is when it's an
+  // initializing store to array literal.
+  DCHECK_IMPLIES(
+      !receiver_map->has_dictionary_elements() &&
+          receiver_map->ShouldCheckForReadOnlyElementsInPrototypeChain(
+              isolate()),
+      IsStoreInArrayLiteralIC());
 
   // TODO(ishell): move to StoreHandler::StoreElement().
   Handle<Code> code;
@@ -2700,6 +2700,15 @@ MaybeDirectHandle<Object> KeyedStoreIC::Store(Handle<JSAny> object,
       } else if (key_is_valid_index) {
         if (old_receiver_map->is_abandoned_prototype_map()) {
           set_slow_stub_reason("receiver with prototype map");
+#if V8_ENABLE_WEBASSEMBLY
+        } else if (IsWasmObjectMap(*old_receiver_map)) {
+          // Handle object types for which we don't need to check for
+          // read-only prototype elements because we'll use the slow handler
+          // anyway.
+          DirectHandle<HeapObject> receiver = Cast<HeapObject>(object);
+          UpdateStoreElement(old_receiver_map, store_mode,
+                             handle(receiver->map(), isolate()));
+#endif  // V8_ENABLE_WEBASSEMBLY
         } else if (old_receiver_map->has_dictionary_elements() ||
                    !old_receiver_map
                         ->ShouldCheckForReadOnlyElementsInPrototypeChain(

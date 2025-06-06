@@ -20,29 +20,35 @@ builder.endRecGroup();
 
 let kStringTest = builder.addImport('wasm:js-string', 'test', kSig_i_r);
 
-let $g_desc0 = builder.addGlobal(wasmRefType($desc0).exact(), false, false, [
-  kGCPrefix, kExprStructNewDefault, $desc0,
-]);
-let $g_desc1 = builder.addGlobal(wasmRefType($desc0).exact(), false, false, [
-  kGCPrefix, kExprStructNewDefault, $desc0,
-]);
-let $g_desc2 = builder.addGlobal(wasmRefType($desc0).exact(), false, false, [
-  kGCPrefix, kExprStructNewDefault, $desc0,
-]);
-
 let $make_t = builder.addType(makeSig([kWasmI32], [kWasmAnyRef]));
-let make_body = (desc) => [
-  kExprGlobalGet, desc.index,
-  kGCPrefix, kExprStructNew, $obj0,
-]
-let $make0 = builder.addFunction("WasmP", $make_t).addBody(make_body($g_desc0));
-let $make1 = builder.addFunction("WasmP", $make_t).addBody(make_body($g_desc1));
-let $make2 = builder.addFunction("WasmP", $make_t).addBody(make_body($g_desc2));
+
+// We'll set up several descriptor/constructor pairs with different prototypes:
+// 0: all good.
+// 1: Proxy traps can't get inlined due to existence of prototype method.
+// 2: "set" trap returns {false}.
+// 3: Proxy trap can't get inlined due to elements on the prototype chain.
+const kNumDescriptors = 4;
+const kFuncIndexOffset = 1;  // Because of {kStringTest}.
+function MakeDescriptorAndConstructor(index) {
+  let global =
+      builder.addGlobal(wasmRefType($desc0).exact(), false, false, [
+          kGCPrefix, kExprStructNewDefault, $desc0]);
+  assertEquals(global.index, index);
+  let body = [
+    kExprGlobalGet, index,
+    kGCPrefix, kExprStructNew, $obj0,
+  ];
+  let func = builder.addFunction("WasmP", $make_t).addBody(body);
+  assertEquals(func.index, index + kFuncIndexOffset);
+}
+for (let i = 0; i < kNumDescriptors; i++) MakeDescriptorAndConstructor(i);
 
 let $foo = builder.addFunction("foo", kSig_i_v).addBody([kExprI32Const, 42]);
 
 let e_3 = new Array(3).fill(kWasmExternRef);
 let e_4 = new Array(4).fill(kWasmExternRef);
+let eie = [kWasmExternRef, kWasmI32, kWasmExternRef];
+let eiee = [kWasmExternRef, kWasmI32, kWasmExternRef, kWasmExternRef];
 builder.addFunction("getp", makeSig(e_3, [kWasmI32])).exportFunc().addBody([
   kExprLocalGet, 1,
   kExprCallFunction, kStringTest,
@@ -54,29 +60,34 @@ builder.addFunction("setp", makeSig(e_4, [kWasmI32])).exportFunc().addBody([
 builder.addFunction("setf", makeSig(e_4, [kWasmI32])).exportFunc().addBody([
   kExprI32Const, 0,
 ]);
+builder.addFunction("geti", makeSig(eie, [kWasmI32])).exportFunc().addBody([
+  kExprI32Const, 11,
+]);
+builder.addFunction("seti", makeSig(eiee, [kWasmI32])).exportFunc().addBody([
+  kExprI32Const, 1,
+]);
+
 
 let global_entries = [
-  3,  // number of entries
-
-  $g_desc0.index,  // global index
-  0,  // no parent
-  0,  // no methods
-  1, ...StringToArray("W0"), $make0.index,  // constructor
-  0,  // no statics
-
-  $g_desc1.index,  // global index
-  0,  // no parent
-  1,  // number of methods
-  1, ...StringToArray("foo"), $foo.index,  // 1=getter
-  1, ...StringToArray("W1"), $make1.index,  // constructor
-  0,  // no statics
-
-  $g_desc2.index,  // global index
-  0,  // no parent
-  0,  // no methods
-  1, ...StringToArray("W2"), $make2.index,  // constructor
-  0,  // no statics
+  kNumDescriptors,  // number of entries
 ];
+function ConfigurePrototype(index, methods) {
+  global_entries.push(...[
+    index,  // global index
+    0,  // no parent
+    methods.length,
+  ]);
+  for (let m of methods) global_entries.push(...m);
+  global_entries.push(...[
+    1, ...StringToArray(`W${index}`), index + kFuncIndexOffset,  // constructor
+    0,  // no statics
+  ]);
+}
+ConfigurePrototype(0, []);
+ConfigurePrototype(1, [[1, ...StringToArray("foo"), $foo.index]]);  // 1=getter
+ConfigurePrototype(2, []);
+ConfigurePrototype(3, []);
+
 builder.addCustomSection("experimental-descriptors", [
   0,  // version
   0,  // module name
@@ -94,6 +105,7 @@ Object.setPrototypeOf(
       set: wasm.setp,
     })));
 Object.freeze(wasm.W0.prototype);
+
 Object.setPrototypeOf(
     wasm.W1.prototype,
     new Proxy(Object.freeze(Object.create(null)), Object.freeze({
@@ -101,6 +113,7 @@ Object.setPrototypeOf(
       set: wasm.setf,  // can't get inlined due to prototype getter {foo}.
     })));
 Object.freeze(wasm.W1.prototype);
+
 Object.setPrototypeOf(
     wasm.W2.prototype,
     new Proxy(Object.freeze(Object.create(null)), Object.freeze({
@@ -109,9 +122,19 @@ Object.setPrototypeOf(
     })));
 Object.freeze(wasm.W2.prototype);
 
+wasm.W3.prototype[0] = 42;
+Object.setPrototypeOf(
+    wasm.W3.prototype,
+    new Proxy(Object.freeze(Object.create(null)), Object.freeze({
+      get: wasm.geti,
+      set: wasm.seti,
+    })));
+Object.freeze(wasm.W3.prototype);
+
 let w0 = new wasm.W0();
 let w1 = new wasm.W1();
 let w2 = new wasm.W2();
+let w3 = new wasm.W3();
 
 class Test {
   constructor(body, expected, inner = null) {
@@ -181,6 +204,23 @@ let tests = [
     }
     return "didn't throw";
   }, "threw"),
+
+  new Test(function PrototypeElements() {
+    "use strict";
+    if (w3[0] !== 42) return `element 0 was wrong: ${w3[0]}`;
+    if (w3[10] !== 11) return `element 10 was wrong: ${w3[10]}`;
+    try {
+      w3[10] = 0;  // Proxy trap, does not throw.
+    } catch(e) {
+      return "threw but shouldn't have"
+    }
+    try {
+      w3[0] = 0;  // Read-only prototype element, throws.
+    } catch(e) {
+      return "threw as expected";
+    }
+    return "didn't throw";
+  }, "threw as expected"),
 ];
 
 for (let test of tests) {

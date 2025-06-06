@@ -7171,6 +7171,10 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnJSArrayOrJSObject(
   if (!IsFastElementsKind(access_info.elements_kind())) {
     return {};
   }
+  if (access_info.is_proxy_on_prototype()) {
+    // TODO(jkummerow): Implement support.
+    return {};
+  }
   switch (keyed_mode.access_mode()) {
     case compiler::AccessMode::kLoad:
       return TryBuildElementLoadOnJSArrayOrJSObject(

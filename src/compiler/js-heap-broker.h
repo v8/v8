@@ -211,6 +211,9 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ElementAccessFeedback const& ProcessFeedbackMapsForElementAccess(
       ZoneVector<MapRef>& maps, KeyedAccessMode const& keyed_mode,
       FeedbackSlotKind slot_kind);
+  ElementAccessFeedback const& ProcessFeedbackMapsForKeyedPropertyAccess(
+      ZoneVector<MapRef>& maps, KeyedAccessMode const& keyed_mode,
+      FeedbackSlotKind slot_kind);
 
   // Binary, comparison and for-in hints can be fully expressed via
   // an enum. Insufficient feedback is signaled by <Hint enum>::kNone.

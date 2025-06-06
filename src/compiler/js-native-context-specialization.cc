@@ -2264,6 +2264,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   Effect effect{NodeProperties::GetEffectInput(node)};
   Control control{NodeProperties::GetControlInput(node)};
   Node* context = NodeProperties::GetContextInput(node);
+  FrameState frame_state{NodeProperties::GetFrameStateInput(node)};
 
   // TODO(neis): It's odd that we do optimizations below that don't really care
   // about the feedback, but we don't do them when the feedback is megamorphic.
@@ -2271,6 +2272,11 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
 
   ElementAccessFeedback const& refined_feedback =
       TryRefineElementAccessFeedback(feedback, receiver, effect);
+  LanguageMode language_mode = LanguageMode::kSloppy;
+  // Only stores (via Proxy) care about strict mode.
+  if (node->opcode() == IrOpcode::kJSSetKeyedProperty) {
+    language_mode = JSSetKeyedPropertyNode(node).Parameters().language_mode();
+  }
 
   AccessMode access_mode = refined_feedback.keyed_mode().access_mode();
   if ((access_mode == AccessMode::kLoad || access_mode == AccessMode::kHas) &&
@@ -2321,6 +2327,10 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         // need to guard against changes to that below).
         if ((IsHoleyOrDictionaryElementsKind(receiver_map.elements_kind()) ||
              StoreModeCanGrow(feedback.keyed_mode().store_mode())) &&
+#if V8_ENABLE_WEBASSEMBLY
+            !(receiver_map.IsWasmObjectMap() &&
+              access_info.is_proxy_on_prototype()) &&
+#endif  // V8_ENABLE_WEBASSEMBLY
             !receiver_map.PrototypesElementsDoNotHaveAccessorsOrThrow(
                 broker(), &prototype_maps)) {
           return NoChange();
@@ -2349,6 +2359,14 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     }
   }
 
+  // Collect call nodes to rewire exception edges.
+  ZoneVector<Node*> if_exception_nodes(zone());
+  ZoneVector<Node*>* if_exceptions = nullptr;
+  Node* if_exception = nullptr;
+  if (NodeProperties::IsExceptionalCall(node, &if_exception)) {
+    if_exceptions = &if_exception_nodes;
+  }
+
   // Check for the monomorphic case.
   PropertyAccessBuilder access_builder(jsgraph(), broker());
   if (access_infos.size() == 1) {
@@ -2372,9 +2390,9 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     }
 
     // Access the actual element.
-    ValueEffectControl continuation =
-        BuildElementAccess(receiver, index, value, effect, control, context,
-                           access_info, feedback.keyed_mode());
+    ValueEffectControl continuation = BuildElementAccess(
+        receiver, index, value, effect, control, context, access_info,
+        language_mode, feedback.keyed_mode(), if_exceptions, frame_state);
     value = continuation.value();
     effect = continuation.effect();
     control = continuation.control();
@@ -2436,9 +2454,10 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       }
 
       // Access the actual element.
-      ValueEffectControl continuation = BuildElementAccess(
-          this_receiver, this_index, this_value, this_effect, this_control,
-          context, access_info, feedback.keyed_mode());
+      ValueEffectControl continuation =
+          BuildElementAccess(this_receiver, this_index, this_value, this_effect,
+                             this_control, context, access_info, language_mode,
+                             feedback.keyed_mode(), if_exceptions, frame_state);
       values.push_back(continuation.value());
       effects.push_back(continuation.effect());
       controls.push_back(continuation.control());
@@ -2465,6 +2484,23 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       effect = graph()->NewNode(common()->EffectPhi(control_count),
                                 control_count + 1, &effects.front());
     }
+  }
+
+  // Properly rewire IfException edges if {node} is inside a try-block.
+  if (!if_exception_nodes.empty()) {
+    DCHECK_NOT_NULL(if_exception);
+    DCHECK_EQ(if_exceptions, &if_exception_nodes);
+    int const if_exception_count = static_cast<int>(if_exceptions->size());
+    Node* merge = graph()->NewNode(common()->Merge(if_exception_count),
+                                   if_exception_count, &if_exceptions->front());
+    if_exceptions->push_back(merge);
+    Node* ephi =
+        graph()->NewNode(common()->EffectPhi(if_exception_count),
+                         if_exception_count + 1, &if_exceptions->front());
+    Node* phi = graph()->NewNode(
+        common()->Phi(MachineRepresentation::kTagged, if_exception_count),
+        if_exception_count + 1, &if_exceptions->front());
+    ReplaceWithValue(if_exception, phi, ephi, merge);
   }
 
   ReplaceWithValue(node, value, effect, control);
@@ -3392,11 +3428,103 @@ Reduction JSNativeContextSpecialization::ReduceJSToObject(Node* node) {
   return Replace(receiver);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+JSNativeContextSpecialization::ValueEffectControl
+JSNativeContextSpecialization::BuildPrototypeProxyElementAccess(
+    Node* receiver, Node* index, Node* value, Node* effect, Node* control,
+    Node* context, ElementAccessInfo const& access_info,
+    LanguageMode language_mode, KeyedAccessMode const& keyed_mode,
+    ZoneVector<Node*>* if_exceptions, Node* frame_state) {
+  Node* call_target =
+      jsgraph()->ConstantNoHole(access_info.accessor().value(), broker());
+  Node* proxy_target =
+      jsgraph()->ConstantNoHole(access_info.target().value(), broker());
+  Node* feedback = jsgraph()->UndefinedConstant();
+  // We can use a dummy receiver so long as we only support Wasm functions
+  // that disregard the call's receiver anyway.
+  DCHECK(!Cast<WasmExportedFunctionData>(
+              Cast<JSFunction>(access_info.accessor().value().object())
+                  ->shared()
+                  ->GetTrustedData(isolate()))
+              ->receiver_is_first_param());
+  Node* call_receiver = jsgraph()->UndefinedConstant();
+  ConvertReceiverMode receiver_mode = ConvertReceiverMode::kNullOrUndefined;
+  // If the Wasm function takes the index as an {externref}, it can observe
+  // its type, so for spec compliance we must ensure that it shows up as a
+  // string. We could consider emitting a toString conversion, but deopting
+  // is probably good enough in practice.
+  if (access_info.string_keys()) {
+    index = effect = graph()->NewNode(
+        simplified()->CheckString(FeedbackSource()), index, effect, control);
+  }
+  Node* call = nullptr;
+  if (keyed_mode.access_mode() == AccessMode::kLoad) {
+    value = effect = control = graph()->NewNode(
+        jsgraph()->javascript()->Call(JSCallNode::ArityForArgc(3),
+                                      CallFrequency(), FeedbackSource(),
+                                      receiver_mode),
+        call_target, call_receiver,
+        // Parameters of the "get" trap: target, name, original receiver.
+        proxy_target, index, receiver,
+        // TF "internal" parameters:
+        feedback, context, frame_state, effect, control);
+  } else {
+    DCHECK_EQ(keyed_mode.access_mode(), AccessMode::kStore);
+    call = effect = control = graph()->NewNode(
+        jsgraph()->javascript()->Call(JSCallNode::ArityForArgc(4),
+                                      CallFrequency(), FeedbackSource(),
+                                      receiver_mode),
+        call_target, call_receiver,
+        // Parameters of the "set" trap: target, name, value, original receiver.
+        proxy_target, index, value, receiver,
+        // TF "internal" parameters:
+        feedback, context, frame_state, effect, control);
+  }
+  if (if_exceptions != nullptr) {
+    if_exceptions->push_back(
+        graph()->NewNode(common()->IfException(), effect, control));
+    control = graph()->NewNode(common()->IfSuccess(), control);
+  }
+  if (keyed_mode.access_mode() == AccessMode::kStore &&
+      language_mode == LanguageMode::kStrict) {
+    // In strict mode we have to throw if the trap returned a false-ish value:
+    //     if (ToBoolean(trap_result) == false) { throw; }
+    DCHECK_NOT_NULL(call);
+    Node* to_bool = graph()->NewNode(simplified()->ToBoolean(), call);
+    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), to_bool,
+                                   jsgraph()->FalseConstant());
+    Node* branch =
+        graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+    {
+      control = graph()->NewNode(common()->IfTrue(), branch);
+      Node* call_runtime = graph()->NewNode(
+          javascript()->CallRuntime(Runtime::kThrowTypeError, 3),
+          jsgraph()->ConstantNoHole(
+              static_cast<int>(MessageTemplate::kProxyTrapReturnedFalsishFor)),
+          jsgraph()->HeapConstantNoHole(factory()->set_string()), index,
+          context, frame_state, effect, control);
+      if (if_exceptions != nullptr) {
+        if_exceptions->push_back(graph()->NewNode(common()->IfException(),
+                                                  call_runtime, call_runtime));
+        control = graph()->NewNode(common()->IfSuccess(), call_runtime);
+      }
+      Node* throw_node =
+          graph()->NewNode(common()->Throw(), call_runtime, control);
+      MergeControlToEnd(graph(), common(), throw_node);
+    }
+
+    control = graph()->NewNode(common()->IfFalse(), branch);
+  }
+  return {value, effect, control};
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 JSNativeContextSpecialization::ValueEffectControl
 JSNativeContextSpecialization::BuildElementAccess(
     Node* receiver, Node* index, Node* value, Node* effect, Node* control,
     Node* context, ElementAccessInfo const& access_info,
-    KeyedAccessMode const& keyed_mode) {
+    LanguageMode language_mode, KeyedAccessMode const& keyed_mode,
+    ZoneVector<Node*>* if_exceptions, Node* frame_state) {
   // TODO(bmeurer): We currently specialize based on elements kind. We should
   // also be able to properly support strings and other JSObjects here.
   ElementsKind elements_kind = access_info.elements_kind();
@@ -3409,6 +3537,15 @@ JSNativeContextSpecialization::BuildElementAccess(
         receiver, index, value, effect, control, context, elements_kind,
         keyed_mode);
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (receiver_maps.size() == 1 && receiver_maps.front().IsWasmObjectMap() &&
+      access_info.is_proxy_on_prototype()) {
+    return BuildPrototypeProxyElementAccess(
+        receiver, index, value, effect, control, context, access_info,
+        language_mode, keyed_mode, if_exceptions, frame_state);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Load the elements for the {receiver}.
   Node* elements = effect = graph()->NewNode(
