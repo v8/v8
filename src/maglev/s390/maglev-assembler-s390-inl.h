@@ -988,6 +988,10 @@ void MaglevAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
   b(to_condition(cc), target);
 }
 
+void MaglevAssembler::Float64SilenceNan(DoubleRegister value) {
+  CanonicalizeNaN(value, value);
+}
+
 void MaglevAssembler::JumpIfHoleNan(DoubleRegister value, Register scratch,
                                     Label* target, Label::Distance distance) {
   // TODO(leszeks): Right now this only accepts Zone-allocated target labels.
