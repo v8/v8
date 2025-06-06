@@ -357,8 +357,8 @@ void PerfettoLogger::CodeCreateEvent(CodeTag tag,
 #if V8_ENABLE_WEBASSEMBLY
 void PerfettoLogger::CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
                                      wasm::WasmName name,
-                                     const char* source_url, int code_offset,
-                                     int script_id) {
+                                     std::string_view source_url,
+                                     int code_offset, int script_id) {
   DisallowGarbageCollection no_gc;
 
   CodeDataSource::Trace(

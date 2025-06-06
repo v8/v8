@@ -502,7 +502,7 @@ constexpr char AsyncInstantiateCompileResultResolver::kGlobalImportsHandle[];
 std::string ToString(const char* name) { return std::string(name); }
 
 std::string ToString(const i::DirectHandle<i::String> name) {
-  return std::string("Property '") + name->ToCString().get() + "'";
+  return std::string("Property '") + name->ToStdString() + "'";
 }
 
 // Web IDL: '[EnforceRange] unsigned long'

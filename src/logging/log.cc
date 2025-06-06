@@ -310,7 +310,7 @@ void CodeEventLogger::CodeCreateEvent(CodeTag tag,
 #if V8_ENABLE_WEBASSEMBLY
 void CodeEventLogger::CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
                                       wasm::WasmName name,
-                                      const char* source_url,
+                                      std::string_view source_url,
                                       int /*code_offset*/, int /*script_id*/) {
   DCHECK(is_listening_to_code_events());
   name_buffer_->Init(tag);
@@ -607,7 +607,7 @@ void ExternalLogEventListener::CodeCreateEvent(
 void ExternalLogEventListener::CodeCreateEvent(CodeTag tag,
                                                const wasm::WasmCode* code,
                                                wasm::WasmName name,
-                                               const char* source_url,
+                                               std::string_view source_url,
                                                int code_offset, int script_id) {
   // TODO(mmarchini): handle later
 }
@@ -1602,7 +1602,7 @@ void V8FileLogger::CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
 #if V8_ENABLE_WEBASSEMBLY
 void V8FileLogger::CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
                                    wasm::WasmName name,
-                                   const char* /*source_url*/,
+                                   std::string_view /*source_url*/,
                                    int /*code_offset*/, int /*script_id*/) {
   if (!is_listening_to_code_events()) return;
   if (!v8_flags.log_code) return;
