@@ -718,14 +718,8 @@ std::unique_ptr<char[]> String::ToCString(uint32_t offset, uint32_t length,
   StringCharacterStream stream(this, offset);
 
   // First, compute the required size of the output buffer.
-  size_t utf8_bytes = 0;
-  uint32_t remaining_chars = length;
-  uint16_t last = unibrow::Utf16::kNoPreviousCharacter;
-  while (stream.HasMore() && remaining_chars-- != 0) {
-    uint16_t character = stream.GetNext();
-    utf8_bytes += unibrow::Utf8::Length(character, last);
-    last = character;
-  }
+  size_t utf8_bytes = stream.CountUtf8Bytes(length);
+
   if (length_return) {
     *length_return = utf8_bytes;
   }
@@ -736,37 +730,32 @@ std::unique_ptr<char[]> String::ToCString(uint32_t offset, uint32_t length,
 
   // Third, encode the string into the output buffer.
   stream.Reset(this, offset);
-  size_t pos = 0;
-  remaining_chars = length;
-  last = unibrow::Utf16::kNoPreviousCharacter;
-  while (stream.HasMore() && remaining_chars-- != 0) {
-    uint16_t character = stream.GetNext();
-    if (character == 0) {
-      character = ' ';
-    }
+  size_t pos = stream.WriteUtf8Bytes(length, result, utf8_bytes);
 
-    // Ensure that there's sufficient space for this character and the null
-    // terminator. This should normally always be the case, unless there is
-    // in-sandbox memory corruption.
-    // Alternatively, we could also over-allocate the output buffer by three
-    // bytes (the maximum we can write OOB) or consider allocating it inside
-    // the sandbox, but it's not clear if that would be worth the effort as the
-    // performance overhead of this check appears to be negligible in practice.
-    SBXCHECK_LE(unibrow::Utf8::Length(character, last) + 1, capacity - pos);
-
-    pos += unibrow::Utf8::Encode(result + pos, character, last);
-
-    last = character;
-  }
-
+  // Add an explicit null terminator
   DCHECK_LT(pos, capacity);
-  result[pos++] = 0;
+  result[pos] = 0;
 
   return std::unique_ptr<char[]>(result);
 }
 
 std::unique_ptr<char[]> String::ToCString(size_t* length_return) {
   return ToCString(0, length(), length_return);
+}
+
+std::string String::ToStdString() {
+  uint32_t length = this->length();
+
+  StringCharacterStream stream(this, 0);
+  size_t utf8_bytes = stream.CountUtf8Bytes(length);
+
+  std::string result;
+  result.resize(utf8_bytes);
+
+  stream.Reset(this, 0);
+  stream.WriteUtf8Bytes(length, result.data(), utf8_bytes);
+
+  return result;
 }
 
 // static

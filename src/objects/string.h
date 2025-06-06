@@ -444,6 +444,9 @@ V8_OBJECT class String : public Name {
   V8_EXPORT_PRIVATE std::unique_ptr<char[]> ToCString(
       size_t* length_output = nullptr);
 
+  // Return a UTF8 representation of this string as a std::string
+  V8_EXPORT_PRIVATE std::string ToStdString();
+
   // Externalization.
   template <typename T>
   bool MarkForExternalizationDuringGC(Isolate* isolate, T* resource);
