@@ -917,11 +917,10 @@ class BranchTableIterator {
     pc_ += length;
     return result;
   }
-  // length, including the length of the {BranchTableImmediate}, but not the
-  // opcode. This consumes the table entries, so it is invalid to call next()
-  // before or after this method.
-  uint32_t length() {
-    while (has_next()) next();
+  // Length, including the length of the {BranchTableImmediate}, but not the
+  // opcode. Must be called after consuming the table entries.
+  uint32_t length() const {
+    DCHECK(!has_next());
     return static_cast<uint32_t>(pc_ - start_);
   }
   const uint8_t* pc() const { return pc_; }
@@ -975,11 +974,10 @@ class TryTableIterator {
     return CatchCase{static_cast<CatchKind>(kind), maybe_tag, br_imm};
   }
 
-  // length, including the length of the {TryTableImmediate}, but not the
-  // opcode. This consumes the table entries, so it is invalid to call next()
-  // before or after this method.
-  uint32_t length() {
-    while (has_next()) next();
+  // Length, including the length of the {TryTableImmediate}, but not the
+  // opcode. Must be called after consumingthe table entries.
+  uint32_t length() const {
+    DCHECK(!has_next());
     return static_cast<uint32_t>(pc_ - start_);
   }
   const uint8_t* pc() const { return pc_; }
@@ -1036,11 +1034,10 @@ class EffectHandlerTableIterator {
     return HandlerCase{static_cast<SwitchKind>(kind), tag, maybe_depth};
   }
 
-  // length, including the length of the {EffectHandlerTableImmediate}, but not
-  // the opcode. This consumes the table entries, so it is invalid to call
-  // next() before or after this method.
-  uint32_t length() {
-    while (has_next()) next();
+  // Length, including the length of the {EffectHandlerTableImmediate}, but not
+  // the opcode. Must be called after consuming the table entries.
+  uint32_t length() const {
+    DCHECK(!has_next());
     return static_cast<uint32_t>(pc_ - start_);
   }
   const uint8_t* pc() const { return pc_; }
@@ -2393,6 +2390,7 @@ class WasmDecoder : public Decoder {
         BranchTableImmediate imm(decoder, pc + 1, validate);
         (ios.BranchTable(imm), ...);
         BranchTableIterator<ValidationTag> iterator(decoder, imm);
+        while (iterator.has_next()) iterator.next();
         return 1 + iterator.length();
       }
       case kExprTryTable: {
@@ -2404,6 +2402,7 @@ class WasmDecoder : public Decoder {
                                         validate);
         (ios.TryTable(try_table_imm), ...);
         TryTableIterator<ValidationTag> iterator(decoder, try_table_imm);
+        while (iterator.has_next()) iterator.next();
         return 1 + block_type_imm.length + iterator.length();
       }
       case kExprThrow:
@@ -2441,6 +2440,7 @@ class WasmDecoder : public Decoder {
         (ios.EffectHandlerTable(handler_table), ...);
         EffectHandlerTableIterator<ValidationTag> iterator(decoder,
                                                            handler_table);
+        while (iterator.has_next()) iterator.next();
         return 1 + src.length + iterator.length();
       }
       case kExprResumeThrow: {
@@ -2453,6 +2453,7 @@ class WasmDecoder : public Decoder {
         (ios.EffectHandlerTable(handler_table), ...);
         EffectHandlerTableIterator<ValidationTag> iterator(decoder,
                                                            handler_table);
+        while (iterator.has_next()) iterator.next();
         return 1 + src.length + event.length + iterator.length();
       }
       case kExprSwitch: {
@@ -3747,8 +3748,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       try_block->catch_cases[i] = catch_case;
       ++i;
     }
+    uint32_t try_table_length = try_table_iterator.length();
     CALL_INTERFACE_IF_OK_AND_REACHABLE(TryTable, try_block);
-    return 1 + block_imm.length + try_table_iterator.length();
+    return 1 + block_imm.length + try_table_length;
   }
 
   DECODE(ThrowRef) {

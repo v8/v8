@@ -4731,6 +4731,7 @@ class BranchTableIteratorTest : public TestWithZone {
     Decoder decoder(start, end);
     BranchTableImmediate operand(&decoder, start + 1, Decoder::kFullValidation);
     BranchTableIterator<Decoder::FullValidationTag> iterator(&decoder, operand);
+    while (iterator.has_next()) iterator.next();
     EXPECT_EQ(end - start - 1u, iterator.length());
     EXPECT_OK(decoder);
   }
@@ -4738,6 +4739,7 @@ class BranchTableIteratorTest : public TestWithZone {
     Decoder decoder(start, end);
     BranchTableImmediate operand(&decoder, start + 1, Decoder::kFullValidation);
     BranchTableIterator<Decoder::FullValidationTag> iterator(&decoder, operand);
+    while (iterator.has_next()) iterator.next();
     iterator.length();
     EXPECT_FALSE(decoder.ok());
   }
