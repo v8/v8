@@ -147,12 +147,13 @@ TEST_F(IntlTest, GetStringOption) {
       i_isolate()->factory()->NewJSObjectWithNullProto();
   {
     // No value found
-    std::unique_ptr<char[]> result = nullptr;
+    DirectHandle<String> result;
     Maybe<bool> found =
         GetStringOption(i_isolate(), options, "foo",
                         std::span<std::string_view>(), "service", &result);
+
     CHECK(!found.FromJust());
-    CHECK_NULL(result);
+    CHECK(result.is_null());
   }
 
   DirectHandle<String> key =
@@ -165,36 +166,39 @@ TEST_F(IntlTest, GetStringOption) {
 
   {
     // Value found
-    std::unique_ptr<char[]> result = nullptr;
+    DirectHandle<String> result;
     Maybe<bool> found =
         GetStringOption(i_isolate(), options, "foo",
                         std::span<std::string_view>(), "service", &result);
+
     CHECK(found.FromJust());
-    CHECK_NOT_NULL(result);
-    CHECK_EQ(0, strcmp("42", result.get()));
+    auto cstr = result->ToCString();
+    CHECK_NOT_NULL(cstr);
+    CHECK_EQ(0, strcmp("42", cstr.get()));
   }
 
   {
     // No expected value in values array
-    std::unique_ptr<char[]> result = nullptr;
+    DirectHandle<String> result;
     Maybe<bool> found = GetStringOption(
         i_isolate(), options, "foo",
         std::to_array<const std::string_view>({"bar"}), "service", &result);
     CHECK(i_isolate()->has_exception());
     CHECK(found.IsNothing());
-    CHECK_NULL(result);
+    CHECK(result.is_null());
     i_isolate()->clear_exception();
   }
 
   {
     // Expected value in values array
-    std::unique_ptr<char[]> result = nullptr;
+    DirectHandle<String> result;
     Maybe<bool> found = GetStringOption(
         i_isolate(), options, "foo",
         std::to_array<const std::string_view>({"42"}), "service", &result);
     CHECK(found.FromJust());
-    CHECK_NOT_NULL(result);
-    CHECK_EQ(0, strcmp("42", result.get()));
+    auto cstr = result->ToCString();
+    CHECK_NOT_NULL(cstr);
+    CHECK_EQ(0, strcmp("42", cstr.get()));
   }
 }
 

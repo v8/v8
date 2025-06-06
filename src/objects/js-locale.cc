@@ -72,7 +72,7 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
   // spec compliant.
 
   for (const auto& option_to_bcp47 : kOptionToUnicodeTagMap) {
-    std::unique_ptr<char[]> value_str = nullptr;
+    DirectHandle<String> value_str;
     bool value_bool = false;
     Maybe<bool> maybe_found =
         option_to_bcp47.is_bool_value
@@ -87,7 +87,15 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
     // this spec compliant.
     if (!maybe_found.FromJust()) continue;
 
-    const char* type = value_str.get();
+    std::unique_ptr<char[]> value_cstr;
+
+    const char* type = nullptr;
+
+    if (!value_str.is_null()) {
+      value_cstr = value_str->ToCString();
+      type = value_cstr.get();
+    }
+
     if (strcmp(option_to_bcp47.key, "fw") == 0) {
       const std::array<ValueAndType, 8> kFirstDayValuesAndTypes = {
           {{"0", "sun"},
@@ -99,15 +107,13 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
            {"6", "sat"},
            {"7", "sun"}}};
       for (const auto& value_to_type : kFirstDayValuesAndTypes) {
-        if (std::strcmp(type, value_to_type.value) == 0) {
+        if (strcmp(type, value_to_type.value) == 0) {
           type = value_to_type.type;
           break;
         }
       }
     } else if (option_to_bcp47.is_bool_value) {
-      value_str = value_bool ? isolate->factory()->true_string()->ToCString()
-                             : isolate->factory()->false_string()->ToCString();
-      type = value_str.get();
+      type = value_bool ? "true" : "false";
     }
     DCHECK_NOT_NULL(type);
 
@@ -293,53 +299,60 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
 
   // 3. Let language be ? GetOption(options, "language", "string", undefined,
   // undefined).
-  std::unique_ptr<char[]> language_str = nullptr;
+  DirectHandle<String> language_str;
   Maybe<bool> maybe_language = GetStringOption(
       isolate, options, "language", std::span<std::string_view>(),
       "ApplyOptionsToTag", &language_str);
   MAYBE_RETURN(maybe_language, Nothing<bool>());
+
   // 4. If language is not undefined, then
   if (maybe_language.FromJust()) {
-    builder->setLanguage(language_str.get());
+    auto language_cstr = language_str->ToCString();
+    std::string_view language_stdstr = language_cstr.get();
+    builder->setLanguage(language_stdstr);
     builder->build(status);
     // a. If language does not match the unicode_language_subtag production,
     //    throw a RangeError exception.
-    if (U_FAILURE(status) || language_str[0] == '\0' ||
-        IsAlpha(language_str.get(), 4, 4)) {
+    if (U_FAILURE(status) || language_stdstr.empty() ||
+        IsAlpha(language_stdstr, 4, 4)) {
       return Just(false);
     }
   }
   // 5. Let script be ? GetOption(options, "script", "string", undefined,
   // undefined).
-  std::unique_ptr<char[]> script_str = nullptr;
+  DirectHandle<String> script_str;
   Maybe<bool> maybe_script =
       GetStringOption(isolate, options, "script", std::span<std::string_view>(),
                       "ApplyOptionsToTag", &script_str);
   MAYBE_RETURN(maybe_script, Nothing<bool>());
   // 6. If script is not undefined, then
   if (maybe_script.FromJust()) {
-    builder->setScript(script_str.get());
+    auto script_cstr = script_str->ToCString();
+    std::string_view script_stdstr = script_cstr.get();
+    builder->setScript(script_stdstr);
     builder->build(status);
     // a. If script does not match the unicode_script_subtag production, throw
     //    a RangeError exception.
-    if (U_FAILURE(status) || script_str[0] == '\0') {
+    if (U_FAILURE(status) || script_stdstr.empty()) {
       return Just(false);
     }
   }
   // 7. Let region be ? GetOption(options, "region", "string", undefined,
   // undefined).
-  std::unique_ptr<char[]> region_str = nullptr;
+  DirectHandle<String> region_str;
   Maybe<bool> maybe_region =
       GetStringOption(isolate, options, "region", std::span<std::string_view>(),
                       "ApplyOptionsToTag", &region_str);
   MAYBE_RETURN(maybe_region, Nothing<bool>());
   // 8. If region is not undefined, then
   if (maybe_region.FromJust()) {
+    auto region_cstr = region_str->ToCString();
+    std::string_view region_stdstr = region_cstr.get();
     // a. If region does not match the region production, throw a RangeError
     // exception.
-    builder->setRegion(region_str.get());
+    builder->setRegion(region_stdstr);
     builder->build(status);
-    if (U_FAILURE(status) || region_str[0] == '\0') {
+    if (U_FAILURE(status) || region_stdstr.empty()) {
       return Just(false);
     }
   }

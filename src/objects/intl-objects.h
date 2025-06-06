@@ -300,7 +300,7 @@ class Intl {
   // Shared function to read the "numberingSystem" option.
   V8_WARN_UNUSED_RESULT static Maybe<bool> GetNumberingSystem(
       Isolate* isolate, DirectHandle<JSReceiver> options,
-      const char* method_name, std::unique_ptr<char[]>* result);
+      const char* method_name, std::string& result);
 
   // Check the calendar is valid or not for that locale.
   static bool IsValidCalendar(const icu::Locale& locale,
@@ -314,10 +314,10 @@ class Intl {
   static bool IsValidNumberingSystem(const std::string& value);
 
   // Check the calendar is well formed.
-  static bool IsWellFormedCalendar(const std::string& value);
+  static bool IsWellFormedCalendar(std::string_view value);
 
   // Check the currency is well formed.
-  static bool IsWellFormedCurrency(const std::string& value);
+  static bool IsWellFormedCurrency(std::string_view value);
 
   struct ResolvedLocale {
     std::string locale;

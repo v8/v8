@@ -313,22 +313,24 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
 
   // x. Let _collation_ be ? GetOption(_options_, *"collation"*, *"string"*,
   // *undefined*, *undefined*).
-  std::unique_ptr<char[]> collation_str = nullptr;
+  DirectHandle<String> collation_str;
   Maybe<bool> maybe_collation =
       GetStringOption(isolate, options, "collation",
                       std::span<std::string_view>(), service, &collation_str);
   MAYBE_RETURN(maybe_collation, MaybeHandle<JSCollator>());
+
+  // Unfortunately needs to be a std::string because of Intl::IsValidCollation
+  std::string collation_stdstr;
   // x. If _collation_ is not *undefined*, then
-  if (maybe_collation.FromJust() && collation_str != nullptr) {
+  if (maybe_collation.FromJust()) {
+    collation_stdstr = collation_str->ToCString().get();
     // 1. If _collation_ does not match the Unicode Locale Identifier `type`
     // nonterminal, throw a *RangeError* exception.
-    if (!JSLocale::Is38AlphaNumList(collation_str.get())) {
+    if (!JSLocale::Is38AlphaNumList(collation_stdstr)) {
       THROW_NEW_ERROR_RETURN_VALUE(
           isolate,
           NewRangeError(MessageTemplate::kInvalid,
-                        isolate->factory()->collation_string(),
-                        isolate->factory()->NewStringFromAsciiChecked(
-                            collation_str.get())),
+                        isolate->factory()->collation_string(), collation_str),
           MaybeHandle<JSCollator>());
     }
   }
@@ -376,10 +378,10 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
 
   // 19. Let collation be r.[[co]].
   UErrorCode status = U_ZERO_ERROR;
-  if (collation_str != nullptr) {
+  if (maybe_collation.FromJust()) {
     auto co_extension_it = r.extensions.find("co");
     if (co_extension_it != r.extensions.end() &&
-        co_extension_it->second != collation_str.get()) {
+        co_extension_it->second != collation_stdstr) {
       icu_locale.setUnicodeKeywordValue("co", nullptr, status);
       DCHECK(U_SUCCESS(status));
     }
@@ -406,9 +408,9 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
     icu_locale.setUnicodeKeywordValue("co", "search", set_status);
     DCHECK(U_SUCCESS(set_status));
   } else {
-    if (collation_str != nullptr &&
-        Intl::IsValidCollation(icu_locale, collation_str.get())) {
-      icu_locale.setUnicodeKeywordValue("co", collation_str.get(), status);
+    if (maybe_collation.FromJust() &&
+        Intl::IsValidCollation(icu_locale, collation_stdstr)) {
+      icu_locale.setUnicodeKeywordValue("co", collation_stdstr, status);
       DCHECK(U_SUCCESS(status));
     }
   }

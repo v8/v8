@@ -39,7 +39,7 @@ V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSReceiver> CoerceOptionsToObject(
 V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Maybe<bool> GetStringOption(
     Isolate* isolate, DirectHandle<JSReceiver> options, const char* property,
     const std::span<const std::string_view> values, const char* method_name,
-    std::unique_ptr<char[]>* result);
+    DirectHandle<String>* result);
 
 // A helper template to get string from option into a enum.
 // The enum in the enum_values is the corresponding value to the strings
@@ -51,14 +51,13 @@ V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOption(
     const char* method_name, const std::span<const std::string_view> str_values,
     const std::span<const T> enum_values, T default_value) {
   DCHECK_EQ(str_values.size(), enum_values.size());
-  std::unique_ptr<char[]> cstr;
-  Maybe<bool> found =
-      GetStringOption(isolate, options, name, str_values, method_name, &cstr);
+  DirectHandle<String> found_string;
+  Maybe<bool> found = GetStringOption(isolate, options, name, str_values,
+                                      method_name, &found_string);
   MAYBE_RETURN(found, Nothing<T>());
   if (found.FromJust()) {
-    DCHECK_NOT_NULL(cstr.get());
     for (size_t i = 0; i < str_values.size(); i++) {
-      if (str_values[i] == std::string_view(cstr.get())) {
+      if (found_string->IsEqualTo(str_values[i], isolate)) {
         return Just(enum_values[i]);
       }
     }
@@ -115,27 +114,12 @@ V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOrBooleanOption(
   // 8. If values does not contain an element equal to _value_, throw a
   // *RangeError* exception.
   // 9. Return value.
-  value_str = String::Flatten(isolate, value_str);
-  {
-    DisallowGarbageCollection no_gc;
-    const String::FlatContent& flat = value_str->GetFlatContent(no_gc);
-    size_t length = value_str->length();
-    for (size_t i = 0; i < str_values.size(); i++) {
-      if (static_cast<int32_t>(str_values[i].size() == length)) {
-        if (flat.IsOneByte()) {
-          if (CompareCharsEqual(str_values[i].data(),
-                                flat.ToOneByteVector().begin(), length)) {
-            return Just(enum_values[i]);
-          }
-        } else {
-          if (CompareCharsEqual(str_values[i].data(),
-                                flat.ToUC16Vector().begin(), length)) {
-            return Just(enum_values[i]);
-          }
-        }
-      }
+  for (size_t i = 0; i < str_values.size(); i++) {
+    if (value_str->IsEqualTo(str_values[i], isolate)) {
+      return Just(enum_values[i]);
     }
-  }  // end of no_gc
+  }
+
   THROW_NEW_ERROR_RETURN_VALUE(
       isolate,
       NewRangeError(MessageTemplate::kValueOutOfRange, value,

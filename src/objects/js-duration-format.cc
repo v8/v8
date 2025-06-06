@@ -279,12 +279,12 @@ MaybeDirectHandle<JSDurationFormat> JSDurationFormat::New(
   // nonterminal, throw a RangeError exception.
   // Note: The matching test and throw in Step 7-a is throw inside
   // Intl::GetNumberingSystem.
-  std::unique_ptr<char[]> numbering_system_str = nullptr;
+  std::string numbering_system_str;
   bool get;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, get,
       Intl::GetNumberingSystem(isolate, options, method_name,
-                               &numbering_system_str),
+                               numbering_system_str),
       DirectHandle<JSDurationFormat>());
 
   // 8. Let opt be the Record { [[localeMatcher]]: matcher, [[nu]]:
@@ -304,18 +304,17 @@ MaybeDirectHandle<JSDurationFormat> JSDurationFormat::New(
   UErrorCode status = U_ZERO_ERROR;
   // 11. Set durationFormat.[[Locale]] to locale.
   // 12. Set durationFormat.[[NumberingSystem]] to r.[[nu]].
-  if (numbering_system_str != nullptr) {
+  if (get) {
     auto nu_extension_it = r.extensions.find("nu");
     if (nu_extension_it != r.extensions.end() &&
-        nu_extension_it->second != numbering_system_str.get()) {
+        nu_extension_it->second != numbering_system_str) {
       r_locale.setUnicodeKeywordValue("nu", nullptr, status);
       DCHECK(U_SUCCESS(status));
     }
   }
   icu::Locale icu_locale = r_locale;
-  if (numbering_system_str != nullptr &&
-      Intl::IsValidNumberingSystem(numbering_system_str.get())) {
-    r_locale.setUnicodeKeywordValue("nu", numbering_system_str.get(), status);
+  if (get && Intl::IsValidNumberingSystem(numbering_system_str)) {
+    r_locale.setUnicodeKeywordValue("nu", numbering_system_str, status);
     DCHECK(U_SUCCESS(status));
   }
   std::string numbering_system = Intl::GetNumberingSystem(r_locale);

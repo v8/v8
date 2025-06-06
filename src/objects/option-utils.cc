@@ -46,7 +46,7 @@ Maybe<bool> GetStringOption(Isolate* isolate, DirectHandle<JSReceiver> options,
                             const char* property,
                             const std::span<const std::string_view> values,
                             const char* method_name,
-                            std::unique_ptr<char[]>* result) {
+                            DirectHandle<String>* result) {
   DirectHandle<String> property_str =
       isolate->factory()->NewStringFromAsciiChecked(property);
 
@@ -65,16 +65,15 @@ Maybe<bool> GetStringOption(Isolate* isolate, DirectHandle<JSReceiver> options,
   DirectHandle<String> value_str;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, value_str, Object::ToString(isolate, value), Nothing<bool>());
-  std::unique_ptr<char[]> value_cstr = value_str->ToCString();
 
   // 2. d. if values is not undefined, then
   if (!values.empty()) {
     // 2. d. i. If values does not contain an element equal to value,
     // throw a RangeError exception.
     for (const auto& val : values) {
-      if (val == std::string_view(value_cstr.get())) {
+      if (value_str->IsEqualTo(val, isolate)) {
         // 2. e. return value
-        *result = std::move(value_cstr);
+        *result = value_str;
         return Just(true);
       }
     }
@@ -89,7 +88,7 @@ Maybe<bool> GetStringOption(Isolate* isolate, DirectHandle<JSReceiver> options,
   }
 
   // 2. e. return value
-  *result = std::move(value_cstr);
+  *result = value_str;
   return Just(true);
 }
 

@@ -272,7 +272,9 @@ class PatternData {
 
   int32_t bitShift;
   const std::string property;
-  std::map<const std::string, const std::string> map;
+  // std::less<> is a transparent comparator which allows us to compare
+  // against std::string_views
+  std::map<const std::string, const std::string, std::less<>> map;
   std::span<const std::string_view> allowed_values;
 };
 
@@ -2012,28 +2014,30 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   MAYBE_RETURN(maybe_locale_matcher, {});
   Intl::MatcherOption locale_matcher = maybe_locale_matcher.FromJust();
 
-  std::unique_ptr<char[]> calendar_str = nullptr;
-  std::unique_ptr<char[]> numbering_system_str = nullptr;
+  DirectHandle<String> calendar_str;
+  std::string numbering_system_str;
   // 6. Let calendar be ? GetOption(options, "calendar",
   //    "string", undefined, undefined).
   Maybe<bool> maybe_calendar =
       GetStringOption(isolate, options, "calendar",
                       std::span<std::string_view>(), service, &calendar_str);
   MAYBE_RETURN(maybe_calendar, {});
-  if (maybe_calendar.FromJust() && calendar_str != nullptr) {
+  // Unfortunately needs to be a std::string because of Intl::IsValidCalendar
+  std::string calendar_stdstr;
+  if (maybe_calendar.FromJust()) {
+    calendar_stdstr = calendar_str->ToCString().get();
     icu::Locale default_locale;
-    if (!Intl::IsWellFormedCalendar(calendar_str.get())) {
-      THROW_NEW_ERROR(
-          isolate, NewRangeError(
-                       MessageTemplate::kInvalid, factory->calendar_string(),
-                       factory->NewStringFromAsciiChecked(calendar_str.get())));
+    if (!Intl::IsWellFormedCalendar(calendar_stdstr)) {
+      THROW_NEW_ERROR(isolate,
+                      NewRangeError(MessageTemplate::kInvalid,
+                                    factory->calendar_string(), calendar_str));
     }
   }
 
   // 8. Let numberingSystem be ? GetOption(options, "numberingSystem",
   //    "string", undefined, undefined).
-  Maybe<bool> maybe_numberingSystem = Intl::GetNumberingSystem(
-      isolate, options, service, &numbering_system_str);
+  Maybe<bool> maybe_numberingSystem =
+      Intl::GetNumberingSystem(isolate, options, service, numbering_system_str);
   MAYBE_RETURN(maybe_numberingSystem, {});
 
   // 6. Let hour12 be ? GetOption(options, "hour12", "boolean", undefined,
@@ -2077,18 +2081,18 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   DCHECK(!icu_locale.isBogus());
 
   UErrorCode status = U_ZERO_ERROR;
-  if (calendar_str != nullptr) {
+  if (maybe_calendar.FromJust()) {
     auto ca_extension_it = r.extensions.find("ca");
     if (ca_extension_it != r.extensions.end() &&
-        ca_extension_it->second != calendar_str.get()) {
+        ca_extension_it->second != calendar_stdstr) {
       icu_locale.setUnicodeKeywordValue("ca", nullptr, status);
       DCHECK(U_SUCCESS(status));
     }
   }
-  if (numbering_system_str != nullptr) {
+  if (maybe_numberingSystem.FromJust()) {
     auto nu_extension_it = r.extensions.find("nu");
     if (nu_extension_it != r.extensions.end() &&
-        nu_extension_it->second != numbering_system_str.get()) {
+        nu_extension_it->second != numbering_system_str) {
       icu_locale.setUnicodeKeywordValue("nu", nullptr, status);
       DCHECK(U_SUCCESS(status));
     }
@@ -2098,15 +2102,15 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   // by option.
   icu::Locale resolved_locale(icu_locale);
 
-  if (calendar_str != nullptr &&
-      Intl::IsValidCalendar(icu_locale, calendar_str.get())) {
-    icu_locale.setUnicodeKeywordValue("ca", calendar_str.get(), status);
+  if (maybe_calendar.FromJust() &&
+      Intl::IsValidCalendar(icu_locale, calendar_stdstr)) {
+    icu_locale.setUnicodeKeywordValue("ca", calendar_stdstr, status);
     DCHECK(U_SUCCESS(status));
   }
 
-  if (numbering_system_str != nullptr &&
-      Intl::IsValidNumberingSystem(numbering_system_str.get())) {
-    icu_locale.setUnicodeKeywordValue("nu", numbering_system_str.get(), status);
+  if (maybe_numberingSystem.FromJust() &&
+      Intl::IsValidNumberingSystem(numbering_system_str)) {
+    icu_locale.setUnicodeKeywordValue("nu", numbering_system_str, status);
     DCHECK(U_SUCCESS(status));
   }
 
@@ -2214,7 +2218,7 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
         skeleton += "S";
       }
     }
-    std::unique_ptr<char[]> input;
+    DirectHandle<String> input;
     // i. Let prop be the name given in the Property column of the row.
     // ii. Let value be ? GetOption(options, prop, "string", « the strings
     // given in the Values column of the row », undefined).
@@ -2223,13 +2227,15 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
                         item.allowed_values, service, &input);
     MAYBE_RETURN(maybe_get_option, {});
     if (maybe_get_option.FromJust()) {
+      auto cstring = input->ToCString();
+      std::string_view view = cstring.get();
       // Record which fields are not undefined into explicit_format_components.
       if (item.property == "hour") {
         has_hour_option = true;
       }
-      DCHECK_NOT_NULL(input.get());
+      DCHECK_NOT_NULL(cstring.get());
       // iii. Set opt.[[<prop>]] to value.
-      skeleton += item.map.find(input.get())->second;
+      skeleton += item.map.find(view)->second;
       // e. If value is not undefined, then
       // i. Set hasExplicitFormatComponents to true.
       explicit_format_components |= 1 << static_cast<int32_t>(item.bitShift);

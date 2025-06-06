@@ -2401,12 +2401,12 @@ bool Intl::IsValidCollation(const icu::Locale& locale,
   return IsValidExtension<icu::Collator>(locale, "collation", value);
 }
 
-bool Intl::IsWellFormedCalendar(const std::string& value) {
+bool Intl::IsWellFormedCalendar(std::string_view value) {
   return JSLocale::Is38AlphaNumList(value);
 }
 
 // ecma402/#sec-iswellformedcurrencycode
-bool Intl::IsWellFormedCurrency(const std::string& currency) {
+bool Intl::IsWellFormedCurrency(std::string_view currency) {
   return JSLocale::Is3Alpha(currency);
 }
 
@@ -2785,19 +2785,19 @@ Maybe<Intl::MatcherOption> Intl::GetLocaleMatcher(
 Maybe<bool> Intl::GetNumberingSystem(Isolate* isolate,
                                      DirectHandle<JSReceiver> options,
                                      const char* method_name,
-                                     std::unique_ptr<char[]>* result) {
+                                     std::string& result) {
+  DirectHandle<String> output;
   Maybe<bool> maybe =
       GetStringOption(isolate, options, "numberingSystem",
-                      std::span<std::string_view>(), method_name, result);
+                      std::span<std::string_view>(), method_name, &output);
   MAYBE_RETURN(maybe, Nothing<bool>());
-  if (maybe.FromJust() && *result != nullptr) {
-    if (!IsWellFormedNumberingSystem(result->get())) {
+  if (maybe.FromJust()) {
+    result = std::move(output->ToCString().get());
+    if (!IsWellFormedNumberingSystem(result)) {
       THROW_NEW_ERROR_RETURN_VALUE(
           isolate,
-          NewRangeError(
-              MessageTemplate::kInvalid,
-              isolate->factory()->numberingSystem_string(),
-              isolate->factory()->NewStringFromAsciiChecked(result->get())),
+          NewRangeError(MessageTemplate::kInvalid,
+                        isolate->factory()->numberingSystem_string(), output),
           Nothing<bool>());
     }
     return Just(true);
