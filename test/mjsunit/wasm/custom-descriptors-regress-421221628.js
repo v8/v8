@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --noconcurrent-osr
+// Flags: --allow-natives-syntax --noconcurrent-osr --turbolev
+// Flags: --nolazy-feedback-allocation
 
 function f6(a10) {
     const v11 = %WasmStruct();
@@ -20,3 +21,19 @@ function outer() {
 }
 %PrepareFunctionForOptimization(outer);
 outer();
+
+// Regression test for issue 422320283, which was very similar:
+
+function f0() {
+  const v3 = %WasmStruct();
+  function f5(v3, a6) {
+    v3[a6];
+  }
+  f5(v3, "a");
+  f5(v3, "b");
+}
+%PrepareFunctionForOptimization(f0);
+f0();
+f0();
+%OptimizeFunctionOnNextCall(f0);
+f0();

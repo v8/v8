@@ -4374,13 +4374,18 @@ void AccessorAssembler::GenerateLoadIC_Megamorphic() {
   CSA_DCHECK(
       this,
       Word32Or(
-          // Either the IC is in regular megamorphic state...
-          TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot),
-                      MegamorphicSymbolConstant()),
-          // ...or it's monomorphic but using the slow handler. Compilers are
-          // free to approximate this by using the generic stub for everything.
+          Word32Or(
+              // Either the IC is in regular megamorphic state...
+              TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot),
+                          MegamorphicSymbolConstant()),
+              // ...or it's monomorphic but using a slow handler. Compilers are
+              // free to approximate this by using the generic stub for
+              // everything.
+              TaggedEqual(
+                  LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize),
+                  SmiConstant(*LoadHandler::LoadSlow(isolate())))),
           TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize),
-                      SmiConstant(*LoadHandler::LoadSlow(isolate())))));
+                      SmiConstant(LoadHandler::LoadGeneric()))));
 
   TryProbeStubCache(isolate()->load_stub_cache(), receiver, CAST(name),
                     &if_handler, &var_handler, &miss);
