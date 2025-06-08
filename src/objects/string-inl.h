@@ -11,7 +11,7 @@
 #include <optional>
 #include <type_traits>
 
-#include "src/base/template-utils.h"
+#include "absl/functional/overload.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-utils.h"
@@ -749,7 +749,7 @@ bool String::IsEqualToImpl(
   Tagged<String> string = this;
   const Char* data = str.data();
   while (true) {
-    auto ret = string->DispatchToSpecificType(base::overloaded{
+    auto ret = string->DispatchToSpecificType(absl::Overload{
         [&](Tagged<SeqOneByteString> s) {
           return CompareCharsEqual(
               s->GetChars(no_gc, access_guard) + slice_offset, data, len);
@@ -998,7 +998,7 @@ std::optional<String::FlatContent> String::TryGetFlatContentFromDirectString(
     const SharedStringAccessGuardIfNeeded& access_guard) {
   DCHECK_LE(offset + length, string->length());
 
-  return string->DispatchToSpecificType(base::overloaded{
+  return string->DispatchToSpecificType(absl::Overload{
       [&](Tagged<SeqOneByteString> s) {
         return FlatContent(s->GetChars(no_gc, access_guard) + offset, length,
                            no_gc);
@@ -1173,7 +1173,7 @@ Tagged<ConsString> String::VisitFlat(
   DCHECK_LE(offset, length);
   while (true) {
     std::optional<Tagged<ConsString>> ret =
-        string->DispatchToSpecificType(base::overloaded{
+        string->DispatchToSpecificType(absl::Overload{
             [&](Tagged<SeqOneByteString> s) {
               visitor->VisitOneByteString(
                   s->GetChars(no_gc, access_guard) + slice_offset,

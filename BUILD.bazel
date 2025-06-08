@@ -4361,7 +4361,11 @@ v8_library(
         ":v8_shared_internal_headers",
     ],
     copts = ["-Wno-implicit-fallthrough"],
-    deps = ["@abseil-cpp//absl/synchronization", "@abseil-cpp//absl/time"],
+    deps = [
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/functional:overload",
+    ],
 )
 
 cc_library(
@@ -4439,6 +4443,7 @@ v8_library(
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/functional:overload",
         "@highway//:hwy",
     ],
 )

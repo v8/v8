@@ -6,6 +6,7 @@
 
 #include <string_view>
 
+#include "absl/functional/overload.h"
 #include "hwy/highway.h"
 #include "src/base/strings.h"
 #include "src/common/assert-scope.h"
@@ -557,15 +558,15 @@ bool DoNotEscape(const SrcChar* chars, size_t length,
 
 bool IsFastKey(Tagged<String> key, const DisallowGarbageCollection& no_gc) {
   return key->DispatchToSpecificType(
-      base::overloaded{[&](Tagged<SeqOneByteString> str) {
-                         const uint8_t* chars = str->GetChars(no_gc);
-                         return DoNotEscape(chars, str->length(), no_gc);
-                       },
-                       [&](Tagged<ExternalOneByteString> str) {
-                         const uint8_t* chars = str->GetChars();
-                         return DoNotEscape(chars, str->length(), no_gc);
-                       },
-                       [&](Tagged<String> str) { return false; }});
+      absl::Overload{[&](Tagged<SeqOneByteString> str) {
+                       const uint8_t* chars = str->GetChars(no_gc);
+                       return DoNotEscape(chars, str->length(), no_gc);
+                     },
+                     [&](Tagged<ExternalOneByteString> str) {
+                       const uint8_t* chars = str->GetChars();
+                       return DoNotEscape(chars, str->length(), no_gc);
+                     },
+                     [&](Tagged<String> str) { return false; }});
 }
 
 bool CanFastSerializeJSArray(Isolate* isolate, Tagged<JSArray> object) {
@@ -2682,7 +2683,7 @@ FastJsonStringifier<Char>::SerializeJSPrimitiveWrapper(
     Tagged<String> string = Cast<String>(raw);
     while (true) {
       FastJsonStringifierResult result =
-          string->DispatchToSpecificType(base::overloaded{
+          string->DispatchToSpecificType(absl::Overload{
               [&](Tagged<SeqOneByteString> str) {
                 return SerializeString<SeqOneByteString>(str, no_gc);
               },

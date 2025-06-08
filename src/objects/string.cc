@@ -4,8 +4,8 @@
 
 #include "src/objects/string.h"
 
+#include "absl/functional/overload.h"
 #include "src/base/small-vector.h"
-#include "src/base/template-utils.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-utils.h"
@@ -790,7 +790,7 @@ void String::WriteToFlat(Tagged<String> source, SinkCharT* sink, uint32_t start,
     DCHECK_LT(start, source->length());
     DCHECK_LE(start + length, source->length());
 
-    if (source->DispatchToSpecificType(base::overloaded{
+    if (source->DispatchToSpecificType(absl::Overload{
             [&](Tagged<SeqOneByteString> str) {
               CopyChars(sink, str->GetChars(no_gc, access_guard) + start,
                         length);
@@ -898,7 +898,7 @@ SinkCharT* WriteNonConsToFlat2(Tagged<String> src, StringShape shape,
   DCHECK(!shape.IsCons());
   DCHECK_LE(src_index + length, src->length());
   return shape.DispatchToSpecificType(
-      src, base::overloaded{
+      src, absl::Overload{
                [&](Tagged<SeqOneByteString> s) {
                  CopyChars(dst, s->GetChars(no_gc, aguard) + src_index, length);
                  return dst + length;
@@ -2253,7 +2253,7 @@ const uint8_t* String::AddressOfCharacterAt(
   CHECK_LE(start_index, subject->length());
 
   return shape.DispatchToSpecificType(
-      subject, base::overloaded{
+      subject, absl::Overload{
                    [&](Tagged<SeqOneByteString> s) {
                      return reinterpret_cast<const uint8_t*>(
                          s->GetChars(no_gc) + start_index);
