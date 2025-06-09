@@ -1453,6 +1453,16 @@ void MaglevAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
   MacroAssembler::Branch(target, cc, value, Operand(byte), distance);
 }
 
+void MaglevAssembler::Float64SilenceNan(DoubleRegister value) {
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  Register scratch2 = temps.AcquireScratch();
+  li(scratch, Operand(kDQuietNanMask));
+  fmv_x_d(scratch2, value);
+  Or(scratch2, scratch2, Operand(scratch));
+  fmv_d_x(value, scratch2);
+}
+
 void MaglevAssembler::JumpIfHoleNan(DoubleRegister value, Register scratch,
                                     Label* target, Label::Distance distance) {
   // TODO(leszeks): Right now this only accepts Zone-allocated target labels.
