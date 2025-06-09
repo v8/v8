@@ -2183,15 +2183,22 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Constructor(
         temporal::ToIntegerWithTruncation(isolate, nanosecond_obj),
         DirectHandle<JSTemporalPlainTime>());
   }
+#ifdef TEMPORAL_CAPI_VERSION_0_0_9
+  auto rust_object = temporal_rs::PlainTime::try_new(
+      static_cast<uint8_t>(hour), static_cast<uint8_t>(minute),
+      static_cast<uint8_t>(second), static_cast<uint16_t>(millisecond),
+      static_cast<uint16_t>(microsecond), static_cast<uint16_t>(nanosecond));
+#else
+  auto rust_object = temporal_rs::PlainTime::try_create(
+      static_cast<uint8_t>(hour), static_cast<uint8_t>(minute),
+      static_cast<uint8_t>(second), static_cast<uint16_t>(millisecond),
+      static_cast<uint16_t>(microsecond), static_cast<uint16_t>(nanosecond));
+#endif
   // TODO(manishearth) these casts should be checked for being in range
   // https://github.com/boa-dev/temporal/issues/334
   return ConstructRustWrappingType<JSTemporalPlainTime>(
       isolate, CONSTRUCTOR(plain_time), CONSTRUCTOR(plain_time),
-      temporal_rs::PlainTime::try_create(
-          static_cast<uint8_t>(hour), static_cast<uint8_t>(minute),
-          static_cast<uint8_t>(second), static_cast<uint16_t>(millisecond),
-          static_cast<uint16_t>(microsecond),
-          static_cast<uint16_t>(nanosecond)));
+      std::move(rust_object));
 }
 
 // #sec-temporal.plaintime.compare
