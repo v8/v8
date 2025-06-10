@@ -4,6 +4,7 @@
 
 #include "src/objects/js-temporal-objects.h"
 
+#include <algorithm>
 #include <optional>
 #include <set>
 
@@ -259,6 +260,99 @@ Maybe<double> ToIntegerWithTruncation(Isolate* isolate,
 
   // 3. Return truncate(number).
   return Just(number);
+}
+
+bool IsValidTime(double hour, double minute, double second, double millisecond,
+                 double microsecond, double nanosecond) {
+  // 1. If hour < 0 or hour > 23, then
+  // a. Return false.
+  if (hour < 0 || hour > 23) {
+    return false;
+  }
+  // 2. If minute < 0 or minute > 59, then
+  // a. Return false.
+  if (minute < 0 || minute > 59) {
+    return false;
+  }
+  // 3. If second < 0 or second > 59, then
+  // a. Return false.
+  if (second < 0 || second > 59) {
+    return false;
+  }
+  // 4. If millisecond < 0 or millisecond > 999, then
+  // a. Return false.
+
+  if (millisecond < 0 || millisecond > 999) {
+    return false;
+  }
+  // 5. If microsecond < 0 or microsecond > 999, then
+  // a. Return false.
+  if (microsecond < 0 || microsecond > 999) {
+    return false;
+  }
+  // 6. If nanosecond < 0 or nanosecond > 999, then
+  // a. Return false.
+  if (nanosecond < 0 || nanosecond > 999) {
+    return false;
+  }
+  // 7. Return true.
+  return true;
+}
+
+// #sec-temporal-isodaysinmonth
+int8_t ISODaysInMonth(int64_t year, uint8_t month) {
+  switch (month) {
+    // 1. If month is 1, 3, 5, 7, 8, 10, or 12, return 31.
+    case 1:
+    case 3:
+    case 5:
+    case 7:
+    case 8:
+    case 10:
+    case 12:
+      return 31;
+    // 4. Return 28 + MathematicalInLeapYear(EpochTimeForYear(year)).
+    case 2:
+      if (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) {
+        return 29;
+      } else {
+        return 28;
+      }
+    // 2. If month is 4, 6, 9, or 11, return 30.
+    default:
+      return 30;
+  }
+}
+
+// #sec-temporal-isvalidisodate
+bool IsValidIsoDate(double year, double month, double day) {
+  // 1. If month < 1 or month > 12, then
+  if (month < 1 || month > 12) {
+    // a. Return false.
+    return false;
+  }
+
+  // This check is technically needed later when we check if things are in the
+  // Temporal range, but we do it now to ensure we can safely cast to int32_t
+  // before passing to Rust See https://github.com/boa-dev/temporal/issues/334.
+  if (year < std::numeric_limits<int32_t>::min() ||
+      year > std::numeric_limits<int32_t>::max()) {
+    return false;
+  }
+
+  // IsValidIsoDate does not care about years that are "out of Temporal range",
+  // that gets handled later.
+  int64_t year_int = static_cast<int32_t>(year);
+  uint8_t month_int = static_cast<uint8_t>(month);
+  // 2. Let daysInMonth be ISODaysInMonth(year, month).
+  // 3. If day < 1 or day > daysInMonth, then
+  if (day < 1 || day > ISODaysInMonth(year_int, month_int)) {
+    // a. Return false.
+    return false;
+  }
+
+  // 4. Return true.
+  return true;
 }
 
 // ====== Options getters ======
@@ -526,6 +620,26 @@ Maybe<std::optional<Unit>> GetTemporalUnit(
   } else {
     return Just<std::optional<Unit>>(std::nullopt);
   }
+}
+
+// #sec-temporal-canonicalizecalendar
+Maybe<temporal_rs::AnyCalendarKind> CanonicalizeCalendar(
+    Isolate* isolate, DirectHandle<String> calendar) {
+  std::string s = calendar->ToStdString();
+  // 2. If calendars does not contain the ASCII-lowercase of id, throw a
+  // RangeError exception.
+  std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+
+  auto cal = temporal_rs::AnyCalendarKind::get_for_str(s);
+
+  if (!cal.has_value()) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 Nothing<temporal_rs::AnyCalendarKind>());
+  }
+  // Other steps unnecessary, we're not storing these as -u- values but rather
+  // as enums.
+  return Just(cal.value());
 }
 
 // #sec-temporal-getroundingincrementoption
@@ -815,6 +929,36 @@ Maybe<std::optional<int64_t>> GetSingleDurationField(
 
     return Just(std::optional(static_cast<int64_t>(field)));
   }
+}
+
+Maybe<std::unique_ptr<temporal_rs::TimeZone>> ToTemporalTimeZoneIdentifier(
+    Isolate* isolate, DirectHandle<Object> tz_like) {
+  // 1. If temporalTimeZoneLike is an Object, then
+  // a. If temporalTimeZoneLike has an [[InitializedTemporalZonedDateTime]]
+  // internal slot, then
+  if (IsJSTemporalZonedDateTime(*tz_like)) {
+    // i. Return temporalTimeZoneLike.[[TimeZone]].
+    // TODO(manishearth) we don't currently have a nice way to clone timezones
+    // See https://github.com/boa-dev/temporal/pull/344 and
+    // https://github.com/boa-dev/temporal/issues/330.
+
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+        Nothing<std::unique_ptr<temporal_rs::TimeZone>>());
+  }
+  // 2. If temporalTimeZoneLike is not a String, throw a TypeError exception.
+  if (!IsString(*tz_like)) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+        Nothing<std::unique_ptr<temporal_rs::TimeZone>>());
+  }
+
+  DirectHandle<String> str = Cast<String>(tz_like);
+
+  auto std_str = str->ToStdString();
+
+  return ExtractRustResult(isolate,
+                           temporal_rs::TimeZone::try_from_str(std_str));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-totemporalpartialdurationrecord
@@ -1586,7 +1730,61 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Constructor(
     DirectHandle<HeapObject> new_target, DirectHandle<Object> iso_year_obj,
     DirectHandle<Object> iso_month_obj, DirectHandle<Object> iso_day_obj,
     DirectHandle<Object> calendar_like) {
-  UNIMPLEMENTED();
+  // 1. If NewTarget is undefined, then
+  if (IsUndefined(*new_target)) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
+                                 isolate->factory()->NewStringFromAsciiChecked(
+                                     "Temporal.PlainDate")));
+  }
+  // 2. Let y be ? ToIntegerWithTruncation(isoYear).
+  double y = 0;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, y, temporal::ToIntegerWithTruncation(isolate, iso_year_obj),
+      kNullMaybeHandle);
+  // 3. Let m be ? ToIntegerWithTruncation(isoMonth).
+  double m = 0;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, m, temporal::ToIntegerWithTruncation(isolate, iso_month_obj),
+      kNullMaybeHandle);
+  // 4. Let d be ? ToIntegerWithTruncation(isoDay).
+  double d = 0;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, d, temporal::ToIntegerWithTruncation(isolate, iso_day_obj),
+      kNullMaybeHandle);
+
+  // 5. If calendar is undefined, set calendar to "iso8601".
+  temporal_rs::AnyCalendarKind calendar = temporal_rs::AnyCalendarKind::Iso;
+
+  if (!IsUndefined(*calendar_like)) {
+    // 6. If calendar is not a String, throw a TypeError exception.
+    if (!IsString(*calendar_like)) {
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    }
+
+    // 7. Set calendar to ?CanonicalizeCalendar(calendar).
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, calendar,
+        temporal::CanonicalizeCalendar(isolate, Cast<String>(calendar_like)),
+        kNullMaybeHandle);
+  }
+  // 8. If IsValidISODate(y, m, d) is false, throw a RangeError exception.
+  if (!temporal::IsValidIsoDate(y, m, d)) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+  }
+
+  // Rest of the steps handled in Rust
+
+  // These static_casts are fine to perform since IsValid* will have constrained
+  // these values to range already.
+  // https://github.com/boa-dev/temporal/issues/334 for moving this logic into
+  // the Rust code.
+  auto rust_object = temporal_rs::PlainDate::try_new(
+      static_cast<int32_t>(y), static_cast<uint8_t>(m), static_cast<uint8_t>(d),
+      calendar);
+  return ConstructRustWrappingType<JSTemporalPlainDate>(
+      isolate, target, new_target, std::move(rust_object));
 }
 
 // #sec-temporal.plaindate.compare
@@ -1754,7 +1952,122 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Constructor(
     DirectHandle<Object> second_obj, DirectHandle<Object> millisecond_obj,
     DirectHandle<Object> microsecond_obj, DirectHandle<Object> nanosecond_obj,
     DirectHandle<Object> calendar_like) {
-  UNIMPLEMENTED();
+  // 1. If NewTarget is undefined, then
+  if (IsUndefined(*new_target)) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
+                                 isolate->factory()->NewStringFromAsciiChecked(
+                                     "Temporal.PlainDateTime")));
+  }
+  // 2. Set isoYear to ?ToIntegerWithTruncation(isoYear).
+  double y = 0;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, y, temporal::ToIntegerWithTruncation(isolate, iso_year_obj),
+      kNullMaybeHandle);
+  // 3. Set isoMonth to ?ToIntegerWithTruncation(isoMonth).
+  double m = 0;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, m, temporal::ToIntegerWithTruncation(isolate, iso_month_obj),
+      kNullMaybeHandle);
+  // 4. Set isoDay to ?ToIntegerWithTruncation(isoDay).
+  double d = 0;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, d, temporal::ToIntegerWithTruncation(isolate, iso_day_obj),
+      kNullMaybeHandle);
+
+  // 5. If hour is undefined, set hour to 0; else set hour to ?
+  // ToIntegerWithTruncation(hour).
+  double hour = 0;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, hour, temporal::ToIntegerWithTruncation(isolate, hour_obj),
+      kNullMaybeHandle);
+  // 6. If minute is undefined, set minute to 0; else set minute to ?
+  // ToIntegerWithTruncation(minute).
+  double minute = 0;
+  if (!IsUndefined(*minute_obj)) {
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, minute, temporal::ToIntegerWithTruncation(isolate, minute_obj),
+        kNullMaybeHandle);
+  }
+  // 7. If second is undefined, set second to 0; else set second to ?
+  // ToIntegerWithTruncation(second).
+  double second = 0;
+  if (!IsUndefined(*second_obj)) {
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, second, temporal::ToIntegerWithTruncation(isolate, second_obj),
+        kNullMaybeHandle);
+  }
+  // 8. If millisecond is undefined, set millisecond to 0; else set millisecond
+  // to ? ToIntegerWithTruncation(millisecond).
+  double millisecond = 0;
+  if (!IsUndefined(*millisecond_obj)) {
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, millisecond,
+        temporal::ToIntegerWithTruncation(isolate, millisecond_obj),
+        kNullMaybeHandle);
+  }
+  // 9. If microsecond is undefined, set microsecond to 0; else set microsecond
+  // to ? ToIntegerWithTruncation(microsecond).
+
+  double microsecond = 0;
+  if (!IsUndefined(*microsecond_obj)) {
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, microsecond,
+        temporal::ToIntegerWithTruncation(isolate, microsecond_obj),
+        kNullMaybeHandle);
+  }
+  // 10. If nanosecond is undefined, set nanosecond to 0; else set nanosecond to
+  // ? ToIntegerWithTruncation(nanosecond).
+  double nanosecond = 0;
+  if (!IsUndefined(*nanosecond_obj)) {
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, nanosecond,
+        temporal::ToIntegerWithTruncation(isolate, nanosecond_obj),
+        kNullMaybeHandle);
+  }
+
+  // 11. If calendar is undefined, set calendar to "iso8601".
+  temporal_rs::AnyCalendarKind calendar = temporal_rs::AnyCalendarKind::Iso;
+
+  if (!IsUndefined(*calendar_like)) {
+    // 12. If calendar is not a String, throw a TypeError exception.
+    if (!IsString(*calendar_like)) {
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    }
+
+    // 13. Set calendar to ?CanonicalizeCalendar(calendar).
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, calendar,
+        temporal::CanonicalizeCalendar(isolate, Cast<String>(calendar_like)),
+        kNullMaybeHandle);
+  }
+  // 14. If IsValidISODate(isoYear, isoMonth, isoDay) is false, throw a
+  // RangeError exception.
+  if (!temporal::IsValidIsoDate(y, m, d)) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+  }
+  // 16. If IsValidTime(hour, minute, second, millisecond, microsecond,
+  // nanosecond) is false, throw a RangeError exception.
+  if (!temporal::IsValidTime(hour, minute, second, millisecond, microsecond,
+                             nanosecond)) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+  }
+
+  // Rest of the steps handled in Rust.
+
+  // These static_casts are fine to perform since IsValid* will have constrained
+  // these values to range already.
+  // https://github.com/boa-dev/temporal/issues/334 for moving this logic into
+  // the Rust code.
+  auto rust_object = temporal_rs::PlainDateTime::try_new(
+      static_cast<int32_t>(y), static_cast<uint8_t>(m), static_cast<uint8_t>(d),
+      static_cast<uint8_t>(hour), static_cast<uint8_t>(minute),
+      static_cast<uint8_t>(second), static_cast<uint16_t>(millisecond),
+      static_cast<uint16_t>(microsecond), static_cast<uint16_t>(nanosecond),
+      calendar);
+  return ConstructRustWrappingType<JSTemporalPlainDateTime>(
+      isolate, target, new_target, std::move(rust_object));
 }
 
 // #sec-temporal.plaindatetime.from
@@ -1968,7 +2281,69 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::Constructor(
     DirectHandle<HeapObject> new_target, DirectHandle<Object> iso_month_obj,
     DirectHandle<Object> iso_day_obj, DirectHandle<Object> calendar_like,
     DirectHandle<Object> reference_iso_year_obj) {
-  UNIMPLEMENTED();
+  // 1. If NewTarget is undefined, then
+  if (IsUndefined(*new_target)) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
+                                 isolate->factory()->NewStringFromAsciiChecked(
+                                     "Temporal.PlainYearMonth")));
+  }
+
+  // 2. If referenceISOYear is undefined, then
+  // a. Set referenceISOYear to 1𝔽.
+  double reference_iso_year = 1972.0;
+
+  // 3. Let m be ? ToIntegerWithTruncation(isoMonth).
+  double m = 0;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, m, temporal::ToIntegerWithTruncation(isolate, iso_month_obj),
+      kNullMaybeHandle);
+  // 4. Let d be ? ToIntegerWithTruncation(isoYear).
+  double d = 0;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, d, temporal::ToIntegerWithTruncation(isolate, iso_day_obj),
+      kNullMaybeHandle);
+
+  // 5. If calendar is undefined, set calendar to "iso8601".
+  temporal_rs::AnyCalendarKind calendar = temporal_rs::AnyCalendarKind::Iso;
+
+  if (!IsUndefined(*calendar_like)) {
+    // 6. If calendar is not a String, throw a TypeError exception.
+    if (!IsString(*calendar_like)) {
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    }
+
+    // 7. Set calendar to ?CanonicalizeCalendar(calendar).
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, calendar,
+        temporal::CanonicalizeCalendar(isolate, Cast<String>(calendar_like)),
+        kNullMaybeHandle);
+  }
+
+  if (!IsUndefined(*reference_iso_year_obj)) {
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, reference_iso_year,
+        temporal::ToIntegerWithTruncation(isolate, reference_iso_year_obj),
+        kNullMaybeHandle);
+  }
+
+  // 9. If IsValidISODate(ref, m, d) is false, throw a RangeError exception.
+  if (!temporal::IsValidIsoDate(reference_iso_year, m, d)) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+  }
+  // Rest of the steps handled in Rust.
+
+  // These static_casts are fine to perform since IsValid* will have constrained
+  // these values to range already.
+  // https://github.com/boa-dev/temporal/issues/334 for moving this logic into
+  // the Rust code.
+  auto rust_object = temporal_rs::PlainMonthDay::try_new_with_overflow(
+      static_cast<uint8_t>(m), static_cast<uint8_t>(d), calendar,
+      temporal_rs::ArithmeticOverflow::Reject,
+      static_cast<int32_t>(reference_iso_year));
+  return ConstructRustWrappingType<JSTemporalPlainMonthDay>(
+      isolate, target, new_target, std::move(rust_object));
 }
 
 // #sec-temporal.plainmonthday.from
@@ -2032,7 +2407,69 @@ JSTemporalPlainYearMonth::Constructor(
     DirectHandle<HeapObject> new_target, DirectHandle<Object> iso_year_obj,
     DirectHandle<Object> iso_month_obj, DirectHandle<Object> calendar_like,
     DirectHandle<Object> reference_iso_day_obj) {
-  UNIMPLEMENTED();
+  // 1. If NewTarget is undefined, then
+  if (IsUndefined(*new_target)) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
+                                 isolate->factory()->NewStringFromAsciiChecked(
+                                     "Temporal.PlainYearMonth")));
+  }
+
+  // 2. If referenceISODay is undefined, then
+  // a. Set referenceISODay to 1𝔽.
+  double reference_iso_day = 1.0;
+
+  // 3. Let y be ? ToIntegerWithTruncation(isoYear).
+  double y = 0;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, y, temporal::ToIntegerWithTruncation(isolate, iso_year_obj),
+      kNullMaybeHandle);
+  // 4. Let m be ? ToIntegerWithTruncation(isoMonth).
+  double m = 0;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, m, temporal::ToIntegerWithTruncation(isolate, iso_month_obj),
+      kNullMaybeHandle);
+
+  // 5. If calendar is undefined, set calendar to "iso8601".
+  temporal_rs::AnyCalendarKind calendar = temporal_rs::AnyCalendarKind::Iso;
+
+  if (!IsUndefined(*calendar_like)) {
+    // 6. If calendar is not a String, throw a TypeError exception.
+    if (!IsString(*calendar_like)) {
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    }
+
+    // 7. Set calendar to ?CanonicalizeCalendar(calendar).
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, calendar,
+        temporal::CanonicalizeCalendar(isolate, Cast<String>(calendar_like)),
+        kNullMaybeHandle);
+  }
+
+  if (!IsUndefined(*reference_iso_day_obj)) {
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, reference_iso_day,
+        temporal::ToIntegerWithTruncation(isolate, reference_iso_day_obj),
+        kNullMaybeHandle);
+  }
+
+  // 9. If IsValidISODate(y, m, ref) is false, throw a RangeError exception.
+  if (!temporal::IsValidIsoDate(y, m, reference_iso_day)) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+  }
+  // Rest of the steps handled in Rust.
+
+  // These static_casts are fine to perform since IsValid* will have constrained
+  // these values to range already.
+  // https://github.com/boa-dev/temporal/issues/334 for moving this logic into
+  // the Rust code.
+  auto rust_object = temporal_rs::PlainYearMonth::try_new_with_overflow(
+      static_cast<int32_t>(y), static_cast<uint8_t>(m),
+      static_cast<uint8_t>(reference_iso_day), calendar,
+      temporal_rs::ArithmeticOverflow::Reject);
+  return ConstructRustWrappingType<JSTemporalPlainYearMonth>(
+      isolate, target, new_target, std::move(rust_object));
 }
 
 // #sec-temporal.plainyearmonth.from
@@ -2130,13 +2567,21 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Constructor(
     DirectHandle<Object> minute_obj, DirectHandle<Object> second_obj,
     DirectHandle<Object> millisecond_obj, DirectHandle<Object> microsecond_obj,
     DirectHandle<Object> nanosecond_obj) {
+  // 1. If NewTarget is undefined, then
+  if (IsUndefined(*new_target)) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
+                                 isolate->factory()->NewStringFromAsciiChecked(
+                                     "Temporal.PlainTime")));
+  }
   // 2. If hour is undefined, set hour to 0; else set hour to ?
   // ToIntegerWithTruncation(hour).
   double hour = 0;
   if (!IsUndefined(*hour_obj)) {
     MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, hour, temporal::ToIntegerWithTruncation(isolate, hour_obj),
-        DirectHandle<JSTemporalPlainTime>());
+        kNullMaybeHandle);
   }
   // 3. If minute is undefined, set minute to 0; else set minute to ?
   // ToIntegerWithTruncation(minute).
@@ -2144,7 +2589,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Constructor(
   if (!IsUndefined(*minute_obj)) {
     MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, minute, temporal::ToIntegerWithTruncation(isolate, minute_obj),
-        DirectHandle<JSTemporalPlainTime>());
+        kNullMaybeHandle);
   }
   // 4. If second is undefined, set second to 0; else set second to ?
   // ToIntegerWithTruncation(second).
@@ -2152,7 +2597,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Constructor(
   if (!IsUndefined(*second_obj)) {
     MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, second, temporal::ToIntegerWithTruncation(isolate, second_obj),
-        DirectHandle<JSTemporalPlainTime>());
+        kNullMaybeHandle);
   }
   // 5. If millisecond is undefined, set millisecond to 0; else set millisecond
   // to ? ToIntegerWithTruncation(millisecond).
@@ -2161,7 +2606,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Constructor(
     MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, millisecond,
         temporal::ToIntegerWithTruncation(isolate, millisecond_obj),
-        DirectHandle<JSTemporalPlainTime>());
+        kNullMaybeHandle);
   }
   // 6. If microsecond is undefined, set microsecond to 0; else set microsecond
   // to ? ToIntegerWithTruncation(microsecond).
@@ -2171,7 +2616,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Constructor(
     MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, microsecond,
         temporal::ToIntegerWithTruncation(isolate, microsecond_obj),
-        DirectHandle<JSTemporalPlainTime>());
+        kNullMaybeHandle);
   }
   // 7. If nanosecond is undefined, set nanosecond to 0; else set nanosecond to
   // ? ToIntegerWithTruncation(nanosecond).
@@ -2181,14 +2626,26 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Constructor(
     MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, nanosecond,
         temporal::ToIntegerWithTruncation(isolate, nanosecond_obj),
-        DirectHandle<JSTemporalPlainTime>());
+        kNullMaybeHandle);
   }
+
+  // 8. If IsValidTime(hour, minute, second, millisecond, microsecond,
+  // nanosecond) is false, throw a RangeError exception.
+  if (!temporal::IsValidTime(hour, minute, second, millisecond, microsecond,
+                             nanosecond)) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+  }
+
+  // Rest of the steps handled in Rust
+
+  // These static_casts are fine to perform since IsValid* will have constrained
+  // these values to range already.
+  // https://github.com/boa-dev/temporal/issues/334 for moving this logic into
+  // the Rust code
   auto rust_object = temporal_rs::PlainTime::try_new(
       static_cast<uint8_t>(hour), static_cast<uint8_t>(minute),
       static_cast<uint8_t>(second), static_cast<uint16_t>(millisecond),
       static_cast<uint16_t>(microsecond), static_cast<uint16_t>(nanosecond));
-  // TODO(manishearth) these casts should be checked for being in range
-  // https://github.com/boa-dev/temporal/issues/334
   return ConstructRustWrappingType<JSTemporalPlainTime>(
       isolate, CONSTRUCTOR(plain_time), CONSTRUCTOR(plain_time),
       std::move(rust_object));
@@ -2897,9 +3354,22 @@ MaybeDirectHandle<String> JSTemporalInstant::ToString(
   }
 
   // 9. Let timeZone be ? Get(resolvedOptions, "timeZone").
+  DirectHandle<Object> time_zone;
+  //  Let val be ? Get(temporalDurationLike, fieldName).
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, time_zone,
+      JSReceiver::GetProperty(isolate, options,
+                              isolate->factory()->timeZone_string()),
+      DirectHandle<String>());
+  std::unique_ptr<temporal_rs::TimeZone> rust_time_zone;
   // 10. If timeZone is not undefined, then
-  // a. Set timeZone to ? ToTemporalTimeZoneIdentifier(timeZone).
-  // TODO(manishearth): timezone stuff (waiting on a temporal_rs release)
+  if (!IsUndefined(*time_zone)) {
+    // a. Set timeZone to ? ToTemporalTimeZoneIdentifier(timeZone).
+    MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+        isolate, rust_time_zone,
+        temporal::ToTemporalTimeZoneIdentifier(isolate, time_zone),
+        DirectHandle<String>());
+  }
 
   auto rust_options = temporal_rs::ToStringRoundingOptions{
       .precision = digits,
@@ -2907,8 +3377,8 @@ MaybeDirectHandle<String> JSTemporalInstant::ToString(
       .rounding_mode = rounding_mode,
   };
 
-  return temporal::TemporalInstantToString(isolate, instant, nullptr,
-                                           std::move(rust_options));
+  return temporal::TemporalInstantToString(
+      isolate, instant, rust_time_zone.get(), std::move(rust_options));
 }
 
 // #sec-temporal.instant.prototype.add
