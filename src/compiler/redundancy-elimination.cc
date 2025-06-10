@@ -4,6 +4,7 @@
 
 #include "src/compiler/redundancy-elimination.h"
 
+#include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
@@ -43,6 +44,7 @@ Reduction RedundancyElimination::Reduce(Node* node) {
     case IrOpcode::kCheckString:
     case IrOpcode::kCheckStringOrStringWrapper:
     case IrOpcode::kCheckSymbol:
+    case IrOpcode::kTypeGuard:
     // These are not really check nodes, but behave the same in that they can be
     // folded together if repeated with identical inputs.
     case IrOpcode::kStringCharCodeAt:
@@ -234,6 +236,16 @@ Subsumption CheckSubsumes(Node const* a, Node const* b,
         case IrOpcode::kCheckBigInt:
         case IrOpcode::kCheckedBigIntToBigInt64:
           break;
+        case IrOpcode::kTypeGuard: {
+          Type at = TypeGuardTypeOf(a->op());
+          Type bt = TypeGuardTypeOf(b->op());
+          // {a}.type has to be narrower than (or equal to) {b}.type for
+          // {b}.type to be a redundant check.
+          if (!at.Is(bt)) {
+            return Subsumption::None();
+          }
+          break;
+        }
         case IrOpcode::kCheckedInt32ToTaggedSigned:
         case IrOpcode::kCheckedInt64ToInt32:
         case IrOpcode::kCheckedInt64ToAdditiveSafeInteger:
