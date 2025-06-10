@@ -50,19 +50,20 @@ double MemoryController<Trait>::MaxGrowingFactor(size_t max_heap_size) {
 
   // If we are on a device with lots of memory, we allow a high heap
   // growing factor.
-  if (max_heap_size >= Trait::kMaxSize) {
+  if (max_heap_size >= Heap::DefaulMaxHeapSize()) {
     return kHighFactor;
   }
 
-  size_t max_size = std::max({max_heap_size, Trait::kMinSize});
+  size_t max_size = std::max({max_heap_size, Heap::DefaulMinHeapSize()});
 
-  DCHECK_GE(max_size, Trait::kMinSize);
-  DCHECK_LT(max_size, Trait::kMaxSize);
+  DCHECK_GE(max_size, Heap::DefaulMinHeapSize());
+  DCHECK_LT(max_size, Heap::DefaulMaxHeapSize());
 
   // On smaller devices we linearly scale the factor: C+(D-C)*(X-A)/(B-A)
-  double factor = kMinSmallFactor + (kMaxSmallFactor - kMinSmallFactor) *
-                                        (max_size - Trait::kMinSize) /
-                                        (Trait::kMaxSize - Trait::kMinSize);
+  double factor = kMinSmallFactor +
+                  (kMaxSmallFactor - kMinSmallFactor) *
+                      (max_size - Heap::DefaulMinHeapSize()) /
+                      (Heap::DefaulMaxHeapSize() - Heap::DefaulMinHeapSize());
   return factor;
 }
 

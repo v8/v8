@@ -208,7 +208,7 @@ size_t Heap::MaxReserved() const {
 
 size_t Heap::YoungGenerationSizeFromOldGenerationSize(size_t old_generation) {
   // Compute the semi space size and cap it.
-  bool is_low_memory = old_generation <= kOldGenerationLowMemory;
+  bool is_low_memory = old_generation <= Heap::OldGenerationLowMemory();
   size_t semi_space;
   if (v8_flags.minor_ms && !is_low_memory) {
     semi_space = DefaultMaxSemiSpaceSize();
@@ -227,12 +227,13 @@ size_t Heap::HeapSizeFromPhysicalMemory(uint64_t physical_memory) {
   // Compute the old generation size and cap it.
   uint64_t old_generation = physical_memory /
                             kPhysicalMemoryToOldGenerationRatio *
-                            kHeapLimitMultiplier;
+                            HeapLimitMultiplier();
   old_generation =
       std::min(old_generation,
-               static_cast<uint64_t>(MaxOldGenerationSize(physical_memory)));
+               static_cast<uint64_t>(
+                   MaxOldGenerationSizeFromPhysicalMemory(physical_memory)));
   old_generation =
-      std::max({old_generation, static_cast<uint64_t>(V8HeapTrait::kMinSize)});
+      std::max({old_generation, static_cast<uint64_t>(DefaulMinHeapSize())});
   old_generation = RoundUp(old_generation, PageMetadata::kPageSize);
 
   size_t young_generation = YoungGenerationSizeFromOldGenerationSize(
@@ -285,8 +286,8 @@ size_t Heap::AllocatorLimitOnMaxOldGenerationSize() {
 #endif
 }
 
-size_t Heap::MaxOldGenerationSize(uint64_t physical_memory) {
-  size_t max_size = V8HeapTrait::kMaxSize;
+size_t Heap::MaxOldGenerationSizeFromPhysicalMemory(uint64_t physical_memory) {
+  size_t max_size = DefaulMaxHeapSize();
   // Increase the heap size from 2GB to 4GB for 64-bit systems with physical
   // memory at least 16GB. The threshold is set to 15GB to accommodate for some
   // memory being reserved by the hardware.
@@ -5027,6 +5028,30 @@ void Heap::IterateRootsForPrecisePinning(RootVisitor* visitor) {
 }
 
 // static
+size_t Heap::HeapLimitMultiplier() {
+#if V8_OS_ANDROID
+  // Don't apply pointer multiplier on Android since it has no swap space and
+  // should instead adapt it's heap size based on available physical memory.
+  return 1;
+#else
+  // The heap limit needs to be computed based on the system pointer size
+  // because we want a pointer-compressed heap to have larger limit than
+  // an ordinary 32-bit which that is constrained by 2GB virtual address space.
+  return kSystemPointerSize / 4;
+#endif
+}
+
+// static
+size_t Heap::DefaultInitialOldGenerationSize() {
+  return 256 * MB * HeapLimitMultiplier();
+}
+
+// static
+size_t Heap::OldGenerationLowMemory() {
+  return 128 * MB * HeapLimitMultiplier();
+}
+
+// static
 size_t Heap::DefaultMinSemiSpaceSize() {
   return RoundUp(512 * KB * kPointerMultiplier, PageMetadata::kPageSize);
 }
@@ -5056,20 +5081,27 @@ size_t Heap::DefaultMaxSemiSpaceSize() {
 }
 
 // static
+size_t Heap::DefaulMinHeapSize() { return 128u * HeapLimitMultiplier() * MB; }
+
+// static
+size_t Heap::DefaulMaxHeapSize() { return 1024u * HeapLimitMultiplier() * MB; }
+
+// static
 size_t Heap::OldGenerationToSemiSpaceRatio() {
   DCHECK(!v8_flags.minor_ms);
   // Compute a ration such that when old gen max capacity is set to the highest
   // supported value, young gen max capacity would also be set to the max.
   const size_t max_semi_space_size = DefaultMaxSemiSpaceSize();
   DCHECK_GT(max_semi_space_size, 0);
-  return V8HeapTrait::kMaxSize / max_semi_space_size;
+  return DefaulMaxHeapSize() / max_semi_space_size;
 }
 
 // static
 size_t Heap::OldGenerationToSemiSpaceRatioLowMemory() {
-  static constexpr size_t kOldGenerationToSemiSpaceRatioLowMemory =
-      256 * kHeapLimitMultiplier / kPointerMultiplier;
-  return kOldGenerationToSemiSpaceRatioLowMemory / (v8_flags.minor_ms ? 2 : 1);
+  static const size_t old_generation_to_semi_space_ratio_low_memory =
+      256 * HeapLimitMultiplier() / kPointerMultiplier;
+  return old_generation_to_semi_space_ratio_low_memory /
+         (v8_flags.minor_ms ? 2 : 1);
 }
 
 void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
@@ -5224,7 +5256,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
         static_cast<size_t>(v8_flags.preconfigured_old_space_size) * MB;
     preconfigured_old_generation_size_ = true;
   } else {
-    initial_old_generation_size_ = kMaxInitialOldGenerationSize;
+    initial_old_generation_size_ = DefaultInitialOldGenerationSize();
     if (constraints.initial_old_generation_size_in_bytes() > 0) {
       initial_old_generation_size_ =
           constraints.initial_old_generation_size_in_bytes();

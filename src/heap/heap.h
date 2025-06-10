@@ -311,22 +311,12 @@ class Heap final {
   // Don't apply pointer multiplier on Android since it has no swap space and
   // should instead adapt it's heap size based on available physical memory.
   static const int kPointerMultiplier = 1;
-  static const int kHeapLimitMultiplier = 1;
 #else
   static const int kPointerMultiplier = kTaggedSize / 4;
-  // The heap limit needs to be computed based on the system pointer size
-  // because we want a pointer-compressed heap to have larger limit than
-  // an ordinary 32-bit which that is constrained by 2GB virtual address space.
-  static const int kHeapLimitMultiplier = kSystemPointerSize / 4;
 #endif
-
-  static const size_t kMaxInitialOldGenerationSize =
-      256 * MB * kHeapLimitMultiplier;
 
   // These constants control heap configuration based on the physical memory.
   static constexpr size_t kPhysicalMemoryToOldGenerationRatio = 4;
-  static constexpr size_t kOldGenerationLowMemory =
-      128 * MB * kHeapLimitMultiplier;
   static constexpr size_t kNewLargeObjectSpaceToSemiSpaceRatio = 1;
 
   static const int kTraceRingBufferSize = 512;
@@ -335,11 +325,19 @@ class Heap final {
   // The minimum size of a HeapObject on the heap.
   static const int kMinObjectSizeInTaggedWords = 2;
 
+  V8_EXPORT_PRIVATE static size_t DefaultInitialOldGenerationSize();
+  V8_EXPORT_PRIVATE static size_t OldGenerationLowMemory();
+
+  V8_EXPORT_PRIVATE static size_t HeapLimitMultiplier();
+
   static size_t DefaultMinSemiSpaceSize();
   V8_EXPORT_PRIVATE static size_t DefaultMaxSemiSpaceSize();
   // Young generation size is the same for compressed heaps and 32-bit heaps.
   static size_t OldGenerationToSemiSpaceRatio();
   static size_t OldGenerationToSemiSpaceRatioLowMemory();
+
+  V8_EXPORT_PRIVATE static size_t DefaulMinHeapSize();
+  V8_EXPORT_PRIVATE static size_t DefaulMaxHeapSize();
 
   // Calculates the maximum amount of filler that could be required by the
   // given alignment.
@@ -1311,7 +1309,7 @@ class Heap final {
       size_t young_generation_size);
   V8_EXPORT_PRIVATE static size_t MinYoungGenerationSize();
   V8_EXPORT_PRIVATE static size_t MinOldGenerationSize();
-  V8_EXPORT_PRIVATE static size_t MaxOldGenerationSize(
+  V8_EXPORT_PRIVATE static size_t MaxOldGenerationSizeFromPhysicalMemory(
       uint64_t physical_memory);
 
   // Returns the capacity of the heap in bytes w/o growing. Heap grows when
