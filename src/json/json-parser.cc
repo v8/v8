@@ -1539,10 +1539,8 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
       if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
     } while (Check(JsonToken::COMMA));
   } else {
-    const uint16_t nof_descriptors = descriptors->number_of_descriptors();
-    DCHECK_GT(nof_descriptors, 0);
+    DCHECK_GT(descriptors->number_of_descriptors(), 0);
     InternalIndex idx{0};
-    InternalIndex descriptors_end = InternalIndex{nof_descriptors};
     do {
       ExpectNext(JsonToken::STRING, first_token_msg);
       first_token_msg =
@@ -1644,9 +1642,10 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
         }
         ++idx;
       }
-    } while (idx < descriptors_end && Check(JsonToken::COMMA));
+    } while (idx < InternalIndex(descriptors->number_of_descriptors()) &&
+             Check(JsonToken::COMMA));
     if constexpr (fast_iterable_state == FastIterableState::kUnknown) {
-      if (idx == descriptors_end) {
+      if (idx == InternalIndex(descriptors->number_of_descriptors())) {
         descriptors->set_fast_iterable_if(FastIterableState::kJsonFast,
                                           FastIterableState::kUnknown);
       }
