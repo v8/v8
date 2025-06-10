@@ -429,6 +429,11 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
     GotoIf(Word32Equal(elements_kind, Int32Constant(DICTIONARY_ELEMENTS)),
            &default_label);
 
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    if (IsDoubleElementsKind(elements_kind)) {
+      GotoIf(IsUndefined(arg), &double_push);
+    }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     GotoIfNotNumber(arg, &object_push);
     Goto(&double_push);
   }
