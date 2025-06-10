@@ -346,6 +346,7 @@ namespace internal {
   /* Number of times the cache contained a reusable Script but not */          \
   /* the root SharedFunctionInfo. */                                           \
   SC(compilation_cache_partial_hits, V8.CompilationCachePartialHits)           \
+  SC(deopts, V8.Deopts)                                                        \
   SC(objs_since_last_young, V8.ObjsSinceLastYoung)                             \
   SC(objs_since_last_full, V8.ObjsSinceLastFull)                               \
   SC(gc_compactor_caused_by_request, V8.GCCompactorCausedByRequest)            \
