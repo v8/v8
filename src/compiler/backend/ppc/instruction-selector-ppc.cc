@@ -2186,6 +2186,28 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
   selector->Emit(code, output_count, outputs, input_count, inputs);
 }
 
+void InstructionSelector::VisitTaggedAtomicExchange(OpIndex node) {
+  PPCOperandGenerator g(this);
+  const AtomicRMWOp& atomic_op = Cast<AtomicRMWOp>(node);
+  OpIndex base = atomic_op.base();
+  OpIndex index = atomic_op.index();
+  OpIndex value = atomic_op.value();
+
+  AddressingMode addressing_mode = kMode_MRR;
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  inputs[input_count++] = g.UseUniqueRegister(index);
+  inputs[input_count++] = g.UseUniqueRegister(value);
+  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
+  size_t const temp_count = arraysize(temps);
+  InstructionOperand outputs[1];
+  outputs[0] = g.UseUniqueRegister(node);
+  InstructionCode code = kAtomicExchangeWithWriteBarrier |
+                         AddressingModeField::encode(addressing_mode);
+  Emit(code, 1, outputs, input_count, inputs, temp_count, temps);
+}
+
 void InstructionSelector::VisitWord32AtomicCompareExchange(OpIndex node) {
   ArchOpcode opcode;
     const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();

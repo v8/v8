@@ -967,6 +967,61 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
   }
 }
 
+void LiftoffAssembler::AtomicExchangeTaggedPointer(
+    Register dst_addr, Register offset_reg, uintptr_t offset_imm,
+    LiftoffRegister value, LiftoffRegister result, LiftoffRegList pinned) {
+  Register offset = r0;
+  if (offset_imm != 0) {
+    mov(offset, Operand(offset_imm));
+    if (offset_reg != no_reg) add(offset, offset, offset_reg);
+    mr(ip, offset);
+    offset = ip;
+  } else if (offset_reg != no_reg) {
+    offset = offset_reg;
+  }
+  MemOperand dst = MemOperand(offset, dst_addr);
+  if constexpr (COMPRESS_POINTERS_BOOL) {
+    if (is_be) {
+      Register scratch = GetRegisterThatIsNotOneOf(value.gp(), result.gp());
+      push(scratch);
+      ByteReverseU32(r0, value.gp(), scratch);
+      pop(scratch);
+      MacroAssembler::AtomicExchange<uint32_t>(dst, r0, result.gp());
+      ByteReverseU32(result.gp(), result.gp(), ip);
+    } else {
+      MacroAssembler::AtomicExchange<uint32_t>(dst, value.gp(), result.gp());
+    }
+  } else {
+    if (is_be) {
+      ByteReverseU64(r0, value.gp());
+      MacroAssembler::AtomicExchange<uint64_t>(dst, r0, result.gp());
+      ByteReverseU64(result.gp(), result.gp());
+    } else {
+      MacroAssembler::AtomicExchange<uint64_t>(dst, value.gp(), result.gp());
+    }
+  }
+  if constexpr (COMPRESS_POINTERS_BOOL) {
+    AddS64(result.gp(), result.gp(), kPtrComprCageBaseRegister);
+  }
+
+  if (v8_flags.disable_write_barriers) return;
+  // Emit the write barrier.
+  Label exit;
+  CheckPageFlag(dst_addr, ip, MemoryChunk::kPointersFromHereAreInterestingMask,
+                to_condition(kZero), &exit);
+  JumpIfSmi(value.gp(), &exit);
+  CheckPageFlag(value.gp(), ip, MemoryChunk::kPointersToHereAreInterestingMask,
+                eq, &exit);
+  mov(ip, Operand(offset_imm));
+  add(ip, ip, dst_addr);
+  if (offset_reg != no_reg) {
+    add(ip, ip, offset_reg);
+  }
+  CallRecordWriteStubSaveRegisters(dst_addr, ip, SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
+  bind(&exit);
+}
+
 void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,

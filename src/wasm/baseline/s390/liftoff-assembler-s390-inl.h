@@ -1252,6 +1252,70 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
   }
 }
 
+void LiftoffAssembler::AtomicExchangeTaggedPointer(
+    Register dst_addr, Register offset_reg, uintptr_t offset_imm,
+    LiftoffRegister value, LiftoffRegister result, LiftoffRegList pinned) {
+  if (!is_int20(offset_imm)) {
+    if (offset_reg != no_reg) {
+      mov(r0, Operand(offset_imm));
+      AddS64(r0, offset_reg);
+      mov(ip, r0);
+    } else {
+      mov(ip, Operand(offset_imm));
+    }
+    offset_reg = ip;
+    offset_imm = 0;
+  }
+  MemOperand dst_op =
+      MemOperand(dst_addr, offset_reg == no_reg ? r0 : offset_reg, offset_imm);
+  lay(ip, dst_op);
+
+  if constexpr (COMPRESS_POINTERS_BOOL) {
+#ifdef V8_TARGET_BIG_ENDIAN
+    lrvr(r1, value.gp());
+#else
+    LoadU32(r1, value.gp());
+#endif
+    Label do_cs;
+    bind(&do_cs);
+    cs(result.gp(), r1, MemOperand(ip));
+    bne(&do_cs, Label::kNear);
+#ifdef V8_TARGET_BIG_ENDIAN
+    lrvr(result.gp(), result.gp());
+#endif
+    LoadU32(result.gp(), result.gp());
+  } else {
+#ifdef V8_TARGET_BIG_ENDIAN
+    lrvgr(r1, value.gp());
+#else
+    mov(r1, value.gp());
+#endif
+    Label do_cs;
+    bind(&do_cs);
+    csg(result.gp(), r1, MemOperand(ip));
+    bne(&do_cs, Label::kNear);
+#ifdef V8_TARGET_BIG_ENDIAN
+    lrvgr(result.gp(), result.gp());
+#endif
+  }
+  if constexpr (COMPRESS_POINTERS_BOOL) {
+    AddS64(result.gp(), result.gp(), kPtrComprCageBaseRegister);
+  }
+
+  if (v8_flags.disable_write_barriers) return;
+  // Emit the write barrier.
+  Label exit;
+  CheckPageFlag(dst_addr, r1, MemoryChunk::kPointersFromHereAreInterestingMask,
+                to_condition(kZero), &exit);
+  JumpIfSmi(value.gp(), &exit);
+  CheckPageFlag(value.gp(), r1, MemoryChunk::kPointersToHereAreInterestingMask,
+                eq, &exit);
+  lay(r1, dst_op);
+  CallRecordWriteStubSaveRegisters(dst_addr, r1, SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
+  bind(&exit);
+}
+
 void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,

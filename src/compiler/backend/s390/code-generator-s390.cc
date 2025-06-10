@@ -2466,6 +2466,58 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kAtomicExchangeWithWriteBarrier: {
+      MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1));
+      Register value = i.InputRegister(2);
+      Register scratch0 = i.TempRegister(0);
+      Register scratch1 = i.TempRegister(1);
+      Register output = i.OutputRegister();
+      bool reverse_bytes = is_wasm_on_be(info());
+      Label do_cs;
+      Register value_ = value;
+      __ lay(r1, operand);
+      if constexpr (COMPRESS_POINTERS_BOOL) {
+        if (reverse_bytes) {
+          value_ = ip;
+          __ lrvr(value_, value);
+        }
+        __ LoadU32(output, MemOperand(r1));
+        __ bind(&do_cs);
+        __ cs(output, value_, MemOperand(r1));
+        __ bne(&do_cs, Label::kNear);
+        if (reverse_bytes) {
+          __ lrvr(output, output);
+          __ LoadU32(output, output);
+        }
+        __ AddS64(i.OutputRegister(), i.OutputRegister(),
+                  kPtrComprCageBaseRegister);
+      } else {
+        if (reverse_bytes) {
+          value_ = ip;
+          __ lrvgr(value_, value);
+        }
+        __ lg(output, MemOperand(r1));
+        __ bind(&do_cs);
+        __ csg(output, value_, MemOperand(r1));
+        __ bne(&do_cs, Label::kNear);
+        if (reverse_bytes) {
+          __ lrvgr(output, output);
+        }
+      }
+      if (v8_flags.disable_write_barriers) break;
+      // Emit the write barrier.
+      Register object = i.InputRegister(0);
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, operand, value, scratch0, scratch1,
+          RecordWriteMode::kValueIsAny, DetermineStubCallMode(),
+          &unwinding_info_writer_);
+      __ JumpIfSmi(value, ool->exit());
+      __ CheckPageFlag(object, scratch0,
+                       MemoryChunk::kPointersFromHereAreInterestingMask, ne,
+                       ool->entry());
+      __ bind(ool->exit());
+      break;
+    }
     case kAtomicCompareExchangeInt8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_BYTE(LoadS8);
       break;
