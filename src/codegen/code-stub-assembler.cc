@@ -4204,6 +4204,38 @@ TNode<Smi> CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
   return var_tagged_length.value();
 }
 
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+void CodeStubAssembler::TryStoreArrayElement(ElementsKind kind, Label* bailout,
+                                             TNode<FixedArrayBase> elements,
+                                             TNode<BInt> index,
+                                             TNode<Object> value) {
+  if (IsSmiElementsKind(kind)) {
+    GotoIf(TaggedIsNotSmi(value), bailout);
+    StoreElement(elements, kind, index, value);
+  } else if (kind == HOLEY_DOUBLE_ELEMENTS) {
+    Label done(this);
+    Label undefined(this);
+    GotoIf(IsUndefined(value), &undefined);
+    GotoIfNotNumber(value, bailout);
+
+    StoreElement(elements, kind, index, ChangeNumberToFloat64(CAST(value)));
+    Goto(&done);
+
+    BIND(&undefined);
+    {
+      StoreFixedDoubleArrayUndefined(
+          TNode<FixedDoubleArray>::UncheckedCast(elements), index);
+      Goto(&done);
+    }
+    BIND(&done);
+  } else if (kind == PACKED_DOUBLE_ELEMENTS) {
+    GotoIfNotNumber(value, bailout);
+    StoreElement(elements, kind, index, ChangeNumberToFloat64(CAST(value)));
+  } else {
+    StoreElement(elements, kind, index, value);
+  }
+}
+#else
 void CodeStubAssembler::TryStoreArrayElement(ElementsKind kind, Label* bailout,
                                              TNode<FixedArrayBase> elements,
                                              TNode<BInt> index,
@@ -4220,6 +4252,7 @@ void CodeStubAssembler::TryStoreArrayElement(ElementsKind kind, Label* bailout,
     StoreElement(elements, kind, index, value);
   }
 }
+#endif
 
 void CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
                                            TNode<JSArray> array,
@@ -17040,6 +17073,18 @@ void CodeStubAssembler::GotoIfNotNumber(TNode<Object> input,
   Branch(IsHeapNumber(CAST(input)), &is_number, is_not_number);
   BIND(&is_number);
 }
+
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+void CodeStubAssembler::GotoIfNotNumberOrUndefined(
+    TNode<Object> input, Label* is_not_number_or_undefined) {
+  Label is_number_or_undefined(this);
+  GotoIf(TaggedIsSmi(input), &is_number_or_undefined);
+  GotoIf(IsHeapNumber(CAST(input)), &is_number_or_undefined);
+  Branch(IsUndefined(input), &is_number_or_undefined,
+         is_not_number_or_undefined);
+  BIND(&is_number_or_undefined);
+}
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 void CodeStubAssembler::GotoIfNumber(TNode<Object> input, Label* is_number) {
   GotoIf(TaggedIsSmi(input), is_number);
