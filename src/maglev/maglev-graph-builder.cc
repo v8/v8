@@ -7518,7 +7518,26 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
         {lookup_start_object_map, lookup_start_object});
   }
 
+  int start_offset = iterator_.current_offset();
+  SourcePositionTableIterator::IndexAndPositionState
+      start_source_position_iterator_state =
+          source_position_iterator_.GetState();
+  std::optional<ContinuationOffsets> continuation;
+  if (!is_any_store && !in_peeled_iteration()) {
+    // TODO(marja): enable continuations inside peeled iterations. Predecessor
+    // tracking (decremented_predecessor_offsets_ etc) needs to be adapted to
+    // make that work.
+    continuation = FindContinuationForPolymorphicPropertyLoad();
+  }
+
   for (int i = 0; i < access_info_count; i++) {
+    // Reset the state before generating the next polymorphic arm, in case
+    // FindContinuationForPolymorphicPropertyLoad or a continuation in the
+    // previous arm changed it.
+    iterator_.SetOffset(start_offset);
+    source_position_iterator_.RestoreState(
+        start_source_position_iterator_state);
+
     compiler::PropertyAccessInfo const& access_info = access_infos[i];
     std::optional<MaglevSubGraphBuilder::Label> check_next_map;
     MaybeReduceResult map_check_result;
@@ -7536,6 +7555,14 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
       DCHECK_NE(i, number_map_index_for_smi);
       // We know from known possible maps that this branch is not reachable,
       // so don't emit any code for it.
+      if (continuation) {
+        // Also don't generate any code for the continuation, just advance
+        // through it.
+        while (iterator_.current_offset() < continuation->last_continuation) {
+          iterator_.Advance();
+          UpdateSourceAndBytecodePosition(iterator_.current_offset());
+        }
+      }
       continue;
     }
     if (i == number_map_index_for_smi) {
@@ -7555,7 +7582,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
 
     switch (result.kind()) {
       case MaybeReduceResult::kDoneWithValue:
-      case MaybeReduceResult::kDoneWithoutValue:
+      case MaybeReduceResult::kDoneWithoutValue: {
         DCHECK_EQ(result.HasValue(), !is_any_store);
         if (!done.has_value()) {
           // We initialize the label {done} lazily on the first possible path.
@@ -7574,11 +7601,49 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
           }
         }
 
+#ifdef DEBUG
+        int predecessor_count_for_offset_after_continuation =
+            continuation ? predecessor_count_[continuation->after_continuation]
+                         : 0;
+#endif
         if (!is_any_store) {
-          sub_graph.set(*ret_val, result.value());
+          if (continuation) {
+            // Generate code for further bytecodes inside the polymorphic
+            // branch.
+
+            // First save the result of the property load in the accumulator.
+            SetAccumulator(result.value());
+
+            BuildContinuationForPolymorphicPropertyLoad(*continuation);
+
+            // The continuation stored its value into the accumulator. Take that
+            // value as our value.
+            sub_graph.set(*ret_val,
+                          current_interpreter_frame_.get(
+                              interpreter::Register::virtual_accumulator()));
+          } else {
+            sub_graph.set(*ret_val, result.value());
+          }
         }
-        sub_graph.Goto(&*done);
+        if (current_block_) {
+          sub_graph.Goto(&*done);
+#ifdef DEBUG
+          if (continuation) {
+            DCHECK_EQ(predecessor_count_[continuation->after_continuation],
+                      predecessor_count_for_offset_after_continuation);
+          }
+#endif
+        } else {
+          // The continuation is dead. Marking it dead decreased the predecessor
+          // count of continuation->after_continuation. Correct for that.
+#ifdef DEBUG
+          DCHECK_EQ(predecessor_count_[continuation->after_continuation],
+                    predecessor_count_for_offset_after_continuation - 1);
+#endif
+          ++predecessor_count_[continuation->after_continuation];
+        }
         break;
+      }
       case MaybeReduceResult::kDoneWithAbort:
         break;
       case MaybeReduceResult::kFail:
@@ -7604,20 +7669,113 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
     MaybeReduceResult generic_result = build_generic_access();
     DCHECK(generic_result.IsDone());
     DCHECK_EQ(generic_result.IsDoneWithValue(), !is_any_store);
-    if (!done.has_value()) {
-      return is_any_store ? ReduceResult::Done() : generic_result.value();
-    }
-    if (!is_any_store) {
-      sub_graph.set(*ret_val, generic_result.value());
+
+    if (continuation) {
+      DCHECK(!is_any_store);
+      SetAccumulator(generic_result.value());
+      BuildContinuationForPolymorphicPropertyLoad(*continuation);
+      if (!done.has_value()) {
+        return current_interpreter_frame_.get(
+            interpreter::Register::virtual_accumulator());
+      }
+      sub_graph.set(*ret_val,
+                    current_interpreter_frame_.get(
+                        interpreter::Register::virtual_accumulator()));
+    } else {
+      if (!done.has_value()) {
+        return is_any_store ? ReduceResult::Done() : generic_result.value();
+      }
+      if (!is_any_store) {
+        sub_graph.set(*ret_val, generic_result.value());
+      }
     }
     sub_graph.Goto(&*done);
   }
 
   if (done.has_value()) {
+    if (continuation) {
+      DCHECK_EQ(iterator_.current_offset(), continuation->last_continuation);
+    }
     RETURN_IF_ABORT(sub_graph.TrimPredecessorsAndBind(&*done));
     return is_any_store ? ReduceResult::Done() : sub_graph.get(*ret_val);
   } else {
+    iterator_.SetOffset(start_offset);
+    source_position_iterator_.RestoreState(
+        start_source_position_iterator_state);
     return ReduceResult::DoneWithAbort();
+  }
+}
+
+std::optional<MaglevGraphBuilder::ContinuationOffsets>
+MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoad() {
+  if (!v8_flags.maglev_poly_calls) {
+    return {};
+  }
+
+  DCHECK(iterator_.current_bytecode() ==
+             interpreter::Bytecode::kGetNamedProperty ||
+         iterator_.current_bytecode() ==
+             interpreter::Bytecode::kGetNamedPropertyFromSuper);
+  if (iterator_.current_bytecode() !=
+      interpreter::Bytecode::kGetNamedProperty) {
+    return {};
+  }
+
+  int last_continuation = 0;
+  int after_continuation = 0;
+  interpreter::Register loaded_property_register =
+      interpreter::Register::virtual_accumulator();
+
+  // For now, we only generate the continuation for this pattern:
+  // GeNamedProperty ...
+  // Sta-REG
+  // CallProperty REG ...
+
+  iterator_.Advance();
+  switch (iterator_.current_bytecode()) {
+#define CASE(Name, ...)                                                       \
+  case interpreter::Bytecode::k##Name:                                        \
+    loaded_property_register =                                                \
+        interpreter::Register::FromShortStar(interpreter::Bytecode::k##Name); \
+    break;
+
+    SHORT_STAR_BYTECODE_LIST(CASE)
+#undef CASE
+    default:
+      return {};
+  }
+
+  iterator_.Advance();
+  switch (iterator_.current_bytecode()) {
+#define CASE(Name, ...)                                                \
+  case interpreter::Bytecode::k##Name:                                 \
+    if (iterator_.GetRegisterOperand(0) == loaded_property_register) { \
+      last_continuation = iterator_.current_offset();                  \
+      after_continuation = iterator_.next_offset();                    \
+    }                                                                  \
+    break;
+
+    CALL_PROPERTY_BYTECODES(CASE)
+#undef CASE
+
+    default:
+      return {};
+  }
+  return ContinuationOffsets{last_continuation, after_continuation};
+
+  // TODO(marja): Add other possible continuations.
+
+  // Restriction: the bytecodes which can end the continuation must write
+  // their result in the accumulator.
+  // TODO(marja): Remove this restriction. To do that, VisitGetNamedProperty
+  // can't assume it should call SetAccumulator after TryBuildLoadNamedProperty.
+}
+
+void MaglevGraphBuilder::BuildContinuationForPolymorphicPropertyLoad(
+    const ContinuationOffsets& continuation) {
+  while (iterator_.current_offset() < continuation.last_continuation) {
+    iterator_.Advance();
+    VisitSingleBytecode();
   }
 }
 

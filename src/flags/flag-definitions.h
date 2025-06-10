@@ -596,6 +596,7 @@ DEFINE_BOOL(maglev_cons_string_elision, true,
 DEFINE_BOOL(maglev_pretenure_store_values, true,
             "Recursively pretenure values which are stored into pretenured "
             "allocation sites.")
+DEFINE_BOOL(maglev_poly_calls, false, "Support (inlining) polymorphic calls")
 DEFINE_EXPERIMENTAL_FEATURE(maglev_licm, "loop invariant code motion")
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_speculative_hoist_phi_untagging)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inline_api_calls)

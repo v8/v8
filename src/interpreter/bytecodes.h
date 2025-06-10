@@ -39,6 +39,17 @@ namespace interpreter {
   V(Star1, ImplicitRegisterUse::kReadAccumulatorWriteShortStar)  \
   V(Star0, ImplicitRegisterUse::kReadAccumulatorWriteShortStar)
 
+#define CALL_PROPERTY_BYTECODES(V)                                            \
+  V(CallProperty, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,  \
+    OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)         \
+  V(CallProperty0, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg, \
+    OperandType::kReg, OperandType::kIdx)                                     \
+  V(CallProperty1, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg, \
+    OperandType::kReg, OperandType::kReg, OperandType::kIdx)                  \
+  V(CallProperty2, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg, \
+    OperandType::kReg, OperandType::kReg, OperandType::kReg,                  \
+    OperandType::kIdx)
+
 // The list of bytecodes which have unique handlers (no other bytecode is
 // executed using identical code).
 // Format is V(<bytecode>, <implicit_register_use>, <operands>).
@@ -261,15 +272,7 @@ namespace interpreter {
   V(CallAnyReceiver, ImplicitRegisterUse::kWriteAccumulator,                   \
     OperandType::kReg, OperandType::kRegList, OperandType::kRegCount,          \
     OperandType::kIdx)                                                         \
-  V(CallProperty, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,   \
-    OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
-  V(CallProperty0, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,  \
-    OperandType::kReg, OperandType::kIdx)                                      \
-  V(CallProperty1, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,  \
-    OperandType::kReg, OperandType::kReg, OperandType::kIdx)                   \
-  V(CallProperty2, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,  \
-    OperandType::kReg, OperandType::kReg, OperandType::kReg,                   \
-    OperandType::kIdx)                                                         \
+  CALL_PROPERTY_BYTECODES(V)                                                   \
   V(CallUndefinedReceiver, ImplicitRegisterUse::kWriteAccumulator,             \
     OperandType::kReg, OperandType::kRegList, OperandType::kRegCount,          \
     OperandType::kIdx)                                                         \

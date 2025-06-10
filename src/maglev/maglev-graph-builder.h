@@ -2651,6 +2651,15 @@ class MaglevGraphBuilder {
       const ZoneVector<compiler::PropertyAccessInfo>& access_infos,
       GenericAccessFunc&& build_generic_access);
 
+  struct ContinuationOffsets {
+    int last_continuation;
+    int after_continuation;
+  };
+  std::optional<ContinuationOffsets>
+  FindContinuationForPolymorphicPropertyLoad();
+  void BuildContinuationForPolymorphicPropertyLoad(
+      const ContinuationOffsets& offsets);
+
   // Load elimination -- when loading or storing a simple property without
   // side effects, record its value, and allow that value to be reused on
   // subsequent loads.
