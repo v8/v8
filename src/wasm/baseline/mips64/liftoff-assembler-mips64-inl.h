@@ -3854,8 +3854,13 @@ bool LiftoffAssembler::emit_f16x8_qfms(LiftoffRegister dst,
 bool LiftoffAssembler::supports_f16_mem_access() { return false; }
 
 void LiftoffAssembler::emit_inc_i32_at(Address address) {
-  // Wasm code coverage not supported on mips64 yet.
-  UNREACHABLE();
+  UseScratchRegisterScope temps(this);
+  Register counter_addr = temps.Acquire();
+  Register value = temps.Acquire();
+  li(counter_addr, Operand(static_cast<uint64_t>(address)));
+  Lw(value, MemOperand(counter_addr, 0));
+  Daddu(value, value, Operand(1));
+  Sw(value, MemOperand(counter_addr, 0));
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code) {

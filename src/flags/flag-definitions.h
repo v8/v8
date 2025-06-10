@@ -2095,9 +2095,10 @@ DEFINE_BOOL(wasm_allow_mixed_eh_for_testing, false,
 // So always allow mixing old and new EH for fuzzing.
 DEFINE_IMPLICATION(fuzzing, wasm_allow_mixed_eh_for_testing)
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || \
-    defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_RISCV64) ||  \
-    defined(V8_TARGET_ARCH_RISCV32)
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 ||   \
+    defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_RISCV64) ||    \
+    defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_LOONG64) || \
+    defined(V8_TARGET_ARCH_MIPS64)
 DEFINE_BOOL(wasm_code_coverage, false, "enable Wasm code coverage")
 #else
 DEFINE_BOOL_READONLY(wasm_code_coverage, false, "enable Wasm code coverage")
