@@ -5231,7 +5231,7 @@ class GraphBuildingNodeProcessor {
       // simply NumberConstant), because they could be mutable HeapNumber
       // fields, in which case we don't want GVN to merge them.
       constexpr int kNumberOfField = 2;  // map + value
-      builder.AddDematerializedObject(deduplicator_.CreateFreshId().id,
+      builder.AddDematerializedObject(deduplicator_.CreateUnduplicatableId().id,
                                       kNumberOfField);
       builder.AddInput(MachineType::AnyTagged(),
                        __ HeapConstant(local_factory_->heap_number_map()));
@@ -5383,28 +5383,28 @@ class GraphBuildingNodeProcessor {
       bool duplicated;
     };
     DuplicatedId GetDuplicatedId(const maglev::VirtualObject* object) {
+      DCHECK_NOT_NULL(object);
       // TODO(dmercadier): do better than a linear search here.
       for (uint32_t idx = 0; idx < object_ids_.size(); idx++) {
         if (object_ids_[idx] == object) {
           return {idx, true};
         }
       }
-      object_ids_.push_back(object);
-      return {next_id_++, false};
+      return CreateFreshId(object);
     }
 
-    DuplicatedId CreateFreshId() { return {next_id_++, false}; }
+    DuplicatedId CreateUnduplicatableId() { return CreateFreshId(nullptr); }
 
-    void Reset() {
-      object_ids_.clear();
-      next_id_ = 0;
-    }
-
-    static const uint32_t kNotDuplicated = -1;
+    void Reset() { object_ids_.clear(); }
 
    private:
+    DuplicatedId CreateFreshId(const maglev::VirtualObject* object) {
+      uint32_t next_id = static_cast<uint32_t>(object_ids_.size());
+      object_ids_.push_back(object);
+      return {next_id, false};
+    }
+
     std::vector<const maglev::VirtualObject*> object_ids_;
-    uint32_t next_id_ = 0;
   };
 
   OutputFrameStateCombine ComputeCombine(maglev::InterpretedDeoptFrame& frame,
