@@ -1842,7 +1842,7 @@ class RepresentationSelector {
         return VisitUnused<T>(node);
       }
 
-      if (truncation.IsUsedAsWord32()) {
+      if (truncation.IsUsedAsWord32() && !TypeOf(node).IsNone()) {
         // This case handles addition where the result might be truncated to
         // word32. Even if the inputs might be larger than 2^32, we can safely
         // perform 32-bit addition *here* if the inputs are in the additive
