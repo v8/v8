@@ -1111,7 +1111,8 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
              output_rep == MachineRepresentation::kWord16) {
     DCHECK_EQ(MachineRepresentation::kWord32, use_info.representation());
     DCHECK(use_info.type_check() == TypeCheckKind::kSignedSmall ||
-           use_info.type_check() == TypeCheckKind::kSigned32);
+           use_info.type_check() == TypeCheckKind::kSigned32 ||
+           use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger);
     return node;
   } else if (output_rep == MachineRepresentation::kWord64) {
     if (output_type.Is(Type::Signed32()) ||
