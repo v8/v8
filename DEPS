@@ -75,7 +75,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:8ea3af9118a65387fe4d8428db6f59c5927dd55a',
+  'gn_version': 'git_revision:899572b32b8bb610cfeeefd162d9aefb46e29d97',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -132,7 +132,7 @@ deps = {
   'build':
     Var('chromium_url') + '/chromium/src/build.git' + '@' + 'af5fc163a6c35215eb72935baf8994d6d496f892',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '164f8abf679ac1924e689effca1f66db14554a2e',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '5585f637a98d71ee3e09c51f39e201d8c7ea81d1',
   'buildtools/linux64': {
     'packages': [
       {
@@ -282,7 +282,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + 'f03aafb7516050ea73f617bf969f03eac641aefc',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '28e9d1f26771c6517c3b4be10254887673c94018',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'fd15f51d57f983c5f3f609bb39fd77f6dbdc391a',
   'third_party/highway/src':
     Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '00fe003dac355b979f36157f9407c7c46448958e',
   'third_party/icu':
@@ -306,7 +306,7 @@ deps = {
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'aca866473883626b4622bf7354b2723fabeb0d19',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'e3eb847e517898924d0ae70ff4266b97908b8b7b',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '79e514564f579ffb30b17a18a6285cbfa2fa6e19',
   'third_party/llvm-libc/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '2be4a578cb2136558bc0070ffd38e0b1bafb34e9',
   'third_party/llvm-build/Release+Asserts': {
@@ -534,11 +534,11 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '470d3a2ee4ef721688ce6961bc865a99fcb64070',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'e5a4eb1c722794da7aefb35adb4787e53be74535',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '03b01d3183ed7e70eacf82f2b6cc3496b6ae45aa',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '502dcad5230ec1da544e7720b15d91782f040d9f',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '2b011cd0e9f1f5c273f29b8fb8656fa97a40cbc8',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '46e997c93154c7aa2f66ec7925a0b47059c0f14c',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
