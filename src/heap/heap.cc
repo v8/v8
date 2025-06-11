@@ -298,7 +298,7 @@ size_t Heap::MaxOldGenerationSizeFromPhysicalMemory(uint64_t physical_memory) {
     // Pixel 9 Pro). However, a large fraction of their memory is not usable,
     // and there is no disk swap, so heaps are still smaller than on desktop for
     // now.
-    DCHECK_EQ(max_size / GB, 1u);
+    DCHECK_EQ(max_size / GB, v8_flags.high_end_android ? 2u : 1u);
 #else
     DCHECK_EQ(max_size / GB, 2u);
 #endif
@@ -5032,13 +5032,15 @@ size_t Heap::HeapLimitMultiplier() {
 #if V8_OS_ANDROID
   // Don't apply pointer multiplier on Android since it has no swap space and
   // should instead adapt it's heap size based on available physical memory.
-  return 1;
-#else
+  if (!v8_flags.high_end_android) {
+    return 1;
+  }
+#endif
+
   // The heap limit needs to be computed based on the system pointer size
   // because we want a pointer-compressed heap to have larger limit than
   // an ordinary 32-bit which that is constrained by 2GB virtual address space.
   return kSystemPointerSize / 4;
-#endif
 }
 
 // static
