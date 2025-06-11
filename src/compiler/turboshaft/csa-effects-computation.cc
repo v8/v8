@@ -7,6 +7,7 @@
 #include "src/builtins/builtins-effects-analyzer.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/external-reference.h"
+#include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/opmasks.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/heap-object-inl.h"
@@ -14,29 +15,11 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-namespace {
-
-bool IsCEntryBuiltin(Builtin builtin) {
-  switch (builtin) {
-    case Builtin::kCEntry_Return1_ArgvInRegister_NoBuiltinExit:
-    case Builtin::kCEntry_Return1_ArgvOnStack_BuiltinExit:
-    case Builtin::kCEntry_Return1_ArgvOnStack_NoBuiltinExit:
-    case Builtin::kCEntry_Return2_ArgvInRegister_NoBuiltinExit:
-    case Builtin::kCEntry_Return2_ArgvOnStack_BuiltinExit:
-    case Builtin::kCEntry_Return2_ArgvOnStack_NoBuiltinExit:
-    case Builtin::kWasmCEntry:
-      return true;
-    default:
-      return false;
-  }
-}
-
-}  // namespace
-
 // Just a wrapper around calls to unify CallOp and TailCallOp.
 struct CallView {
   V<CallTarget> target;
   base::Vector<const OpIndex> arguments;
+  const TSCallDescriptor* descriptor;
 
   explicit CallView(const Operation& op) {
     switch (op.opcode) {
@@ -44,12 +27,14 @@ struct CallView {
         const CallOp& call = op.Cast<CallOp>();
         this->target = call.callee();
         this->arguments = call.arguments();
+        this->descriptor = call.descriptor;
         return;
       }
       case Opcode::kTailCall: {
         const TailCallOp& call = op.Cast<TailCallOp>();
         this->target = call.callee();
         this->arguments = call.arguments();
+        this->descriptor = call.descriptor;
         return;
       }
 
@@ -73,33 +58,6 @@ std::optional<Builtin> TryGetBuiltin(V<Any> node, Graph& graph) {
   return {};
 }
 
-bool AnalyzeRuntimeCall(V<Any> node, BuiltinAllocateEffect* can_allocate,
-                        Graph& graph) {
-  if (const ConstantOp* cst =
-          graph.Get(node).TryCast<Opmask::kExternalConstant>()) {
-    ExternalReference reference = cst->external_reference();
-    CHECK(!reference.IsIsolateFieldId());
-
-#ifdef USE_SIMULATOR
-    const Runtime::Function* fn = Runtime::FunctionForEntry(
-        ExternalReference::UnwrapRedirection(reference.address()));
-#else
-    const Runtime::Function* fn =
-        Runtime::FunctionForEntry(reference.address());
-#endif
-
-    if (Runtime::kCanTriggerGC[fn->function_id]) {
-      *can_allocate = BuiltinAllocateEffect::kYes;
-      return true;
-    } else {
-      // Not updating {can_allocate}, since other calls could make it become
-      // true.
-      return true;
-    }
-  }
-  return false;
-}
-
 void AnalyzeCall(CallView call, std::unordered_set<Builtin>& called_builtins,
                  BuiltinAllocateEffect* can_allocate, Graph& graph,
                  Builtin current_builtin) {
@@ -114,23 +72,19 @@ void AnalyzeCall(CallView call, std::unordered_set<Builtin>& called_builtins,
     if (*builtin == current_builtin) {
       // Recursive call, no need to record anything.
       return;
-    } else if (IsCEntryBuiltin(*builtin)) {
-      // The builtin that is being called is the 3rd argument from the end
-      // (it's followed by argc and context).
-      // TODO(dmercadier): The builtin that's being called is not always the 3rd
-      // argument from the end, like for instance in
-      // AdaptorWithBuiltinExitFrame0. We have 3 choices to figure out which
-      // builtin is really being called: 1) look at the call descriptor here,
-      // mirroring what instruction-selector.cc does (this is assuming that the
-      // ISEL does indeed know what the target is, but it's possible that it
-      // doesn't and just put whatever in whichever register), 2) lower Runtime
-      // calls only later in the pipeline and 3) preserve the "target" part of
-      // runtime calls on the side.
-      CHECK_GE(call.arguments.size(), 2);
-      V<Any> actual_callee = call.arguments[call.arguments.size() - 3];
-      if (AnalyzeRuntimeCall(actual_callee, can_allocate, graph)) {
-        return;
+    } else if (std::optional<Runtime::FunctionId> runtime_function_id =
+                   call.descriptor->descriptor->runtime_function_id()) {
+      // We special case Abort, which can allocate, but always result from
+      // something unexpected already having happened, and never resumes
+      // execution afterwards. This could lead to the GC seeing uninitialized
+      // memory, which is unfortunate, but it's better this way rather than
+      // having over-conservative effects because we try to terminate execution
+      // cleanly through Abort rather than just segfaulting abruptly.
+      if (Runtime::kCanTriggerGC[runtime_function_id.value()] &&
+          runtime_function_id.value() != Runtime::kAbort) {
+        *can_allocate = BuiltinAllocateEffect::kYes;
       }
+      return;
     } else {
       called_builtins.insert(*builtin);
       *can_allocate = BuiltinAllocateEffect::kMaybeWithBuiltinCall;

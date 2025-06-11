@@ -1400,7 +1400,7 @@ OpIndex GraphBuilder::Process(
     }
 
     case IrOpcode::kCall: {
-      auto call_descriptor = CallDescriptorOf(op);
+      const CallDescriptor* call_descriptor = CallDescriptorOf(op);
       const JSWasmCallParameters* wasm_call_parameters = nullptr;
 #if V8_ENABLE_WEBASSEMBLY
       if (call_descriptor->IsAnyWasmFunctionCall() &&

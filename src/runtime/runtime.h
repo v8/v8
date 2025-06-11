@@ -537,7 +537,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(SymbolIsPrivate, 1, 1)
 
 #define FOR_EACH_INTRINSIC_TEST(F, I)                                    \
-  F(Abort, 1, 1, RuntimeCallProperty::kCannotTriggerGC)                  \
+  F(Abort, 1, 1)                                                         \
   F(AbortCSADcheck, 1, 1)                                                \
   F(AbortJS, 1, 1)                                                       \
   F(ActiveTierIsIgnition, 1, 1)                                          \

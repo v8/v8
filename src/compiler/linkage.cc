@@ -440,8 +440,10 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
   DCHECK_IMPLIES(lazy_deopt_on_throw == LazyDeoptOnThrow::kYes,
                  flags & CallDescriptor::kNeedsFrameState);
 
-  return GetCEntryStubCallDescriptor(zone, return_count, js_parameter_count,
-                                     debug_name, properties, flags);
+  CallDescriptor* descriptor = GetCEntryStubCallDescriptor(
+      zone, return_count, js_parameter_count, debug_name, properties, flags);
+  descriptor->runtime_function_id_ = function_id;
+  return descriptor;
 }
 
 CallDescriptor* Linkage::GetCEntryStubCallDescriptor(
