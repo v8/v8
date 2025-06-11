@@ -553,9 +553,14 @@ class ValueTypeBase {
 
   /****************************** Pretty-printing *****************************/
   constexpr char short_name() const {
-    DCHECK(!is_sentinel());  // Caller's responsibility.
     if (is_ref()) {
       return is_nullable() ? 'n' : 'r';
+    }
+    if (is_sentinel()) {
+      if (is_void()) return 'v';
+      if (is_top()) return '\\';
+      if (is_bottom()) return '*';
+      // Otherwise fall through to the DCHECK in {numeric_kind()}.
     }
     constexpr const char kNumericShortName[] = {
 #define SHORT_NAME(kind, log2, code, mtype, shortName, ...) shortName,

@@ -32,6 +32,7 @@ static_assert(0 == ToZeroBasedIndex(NumericKind::kI32));
 
 }  // namespace value_type_impl
 
+static_assert(kWasmVoid.is_void());
 static_assert(kWasmBottom.is_bottom());
 static_assert(kWasmTop.is_top());
 
