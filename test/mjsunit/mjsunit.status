@@ -2611,12 +2611,6 @@
 }],  # 'not js_shared_memory'
 
 ##############################################################################
-['arch == arm and variant == always_sparkplug_and_stress_regexp_jit', {
-  # crbug.com/422947546
-  'maglev/yes-deopt-deprecated-map': [SKIP],
-}], # variant == always_sparkplug_and_stress_regexp_jit
-
-##############################################################################
 ['variant == always_sparkplug or variant == always_sparkplug_and_stress_regexp_jit', {
   # Tests that rely on turbofan
   'wasm/bigint-opt': [SKIP],

@@ -5288,7 +5288,8 @@ class KnownMapsMerger {
 ReduceResult MaglevGraphBuilder::BuildCheckMaps(
     ValueNode* object, base::Vector<const compiler::MapRef> maps,
     std::optional<ValueNode*> map,
-    bool has_deprecated_map_without_migration_target) {
+    bool has_deprecated_map_without_migration_target,
+    bool migration_done_outside) {
   // TODO(verwaest): Support other objects with possible known stable maps as
   // well.
   if (compiler::OptionalHeapObjectRef constant = TryGetConstant(object)) {
@@ -5349,10 +5350,11 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
   // {maps} \intersect {known_maps}, we can emit CheckNotMaps instead.
 
   // Emit checks.
-  if (merger.emit_check_with_migration()) {
+  if (merger.emit_check_with_migration() && !migration_done_outside) {
     AddNewNode<CheckMapsWithMigration>({object}, merger.intersect_set(),
                                        GetCheckType(known_info->type()));
-  } else if (has_deprecated_map_without_migration_target) {
+  } else if (has_deprecated_map_without_migration_target &&
+             !migration_done_outside) {
     AddNewNode<CheckMapsWithMigrationAndDeopt>(
         {object}, merger.intersect_set(), GetCheckType(known_info->type()));
   } else if (map) {
@@ -7513,10 +7515,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
   ValueNode* lookup_start_object_map =
       BuildLoadTaggedField(lookup_start_object, HeapObject::kMapOffset);
 
-  if (needs_migration &&
-      !v8_flags.maglev_skip_migration_check_for_polymorphic_access) {
+  if (needs_migration) {
     // TODO(marja, v8:7700): Try migrating only if all comparisons failed.
-    // TODO(marja, v8:7700): Investigate making polymoprhic map comparison (with
+    // TODO(marja, v8:7700): Investigate making polymorphic map comparison (with
     // migration) a control node (like switch).
     lookup_start_object_map = AddNewNode<MigrateMapIfNeeded>(
         {lookup_start_object_map, lookup_start_object});
@@ -7547,9 +7548,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
     MaybeReduceResult map_check_result;
     const auto& maps = access_info.lookup_start_object_maps();
     if (i == access_info_count - 1) {
-      map_check_result =
-          BuildCheckMaps(lookup_start_object, base::VectorOf(maps), {},
-                         has_deprecated_map_without_migration_target);
+      map_check_result = BuildCheckMaps(
+          lookup_start_object, base::VectorOf(maps), {},
+          has_deprecated_map_without_migration_target, needs_migration);
     } else {
       map_check_result =
           BuildCompareMaps(lookup_start_object, lookup_start_object_map,
