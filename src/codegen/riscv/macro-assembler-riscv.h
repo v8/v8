@@ -1455,7 +1455,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     Register scratch = temps.Acquire();
     AddWord(scratch, dst.rm(), dst.offset());
     trapper(pc_offset());
-    amoswap_w(true, true, zero_reg, src, scratch);
+    amoswap_w(true, true, zero_reg, scratch, src);
   }
 #endif
 

@@ -2226,6 +2226,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_STORE_INTEGER(Sw);
       break;
 #if V8_TARGET_ARCH_RISCV32
+    case kAtomicExchangeWithWriteBarrier: {
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(Ll, Sc);
+      Register object = i.InputRegister(0);
+      Register offset = i.InputRegister(1);
+      Register value = i.InputRegister(2);
+      RecordWriteMode mode = RecordWriteMode::kValueIsAny;
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, Operand(offset), value, mode, DetermineStubCallMode());
+      __ JumpIfSmi(value, ool->exit());
+      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
+                       ne, ool->entry());
+      __ bind(ool->exit());
+      break;
+    }
     case kRiscvWord32AtomicPairLoad: {
       FrameScope scope(masm(), StackFrame::MANUAL);
       __ AddWord(a0, i.InputRegister(0), i.InputRegister(1));
@@ -2333,6 +2347,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvWord64AtomicExchangeUint64:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(Lld, Scd);
       break;
+    case kAtomicExchangeWithWriteBarrier: {
+      if constexpr (COMPRESS_POINTERS_BOOL) {
+        ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(Ll, Sc);
+        __ AddWord(i.OutputRegister(), i.OutputRegister(),
+                   kPtrComprCageBaseRegister);
+      } else {
+        ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(Lld, Scd);
+      }
+      if (v8_flags.disable_write_barriers) break;
+      // Emit the write barrier.
+      Register object = i.InputRegister(0);
+      Register offset = i.InputRegister(1);
+      Register value = i.InputRegister(2);
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, Operand(offset), value, RecordWriteMode::kValueIsAny,
+          DetermineStubCallMode());
+      __ JumpIfSmi(value, ool->exit());
+      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
+                       ne, ool->entry());
+      __ bind(ool->exit());
+      break;
+    }
 #endif
     case kAtomicCompareExchangeInt8:
       DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32);

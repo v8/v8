@@ -2164,6 +2164,14 @@ void InstructionSelector::VisitWord64AtomicExchange(OpIndex node) {
                       atomic_op.memory_access_kind);
 }
 
+void InstructionSelector::VisitTaggedAtomicExchange(OpIndex node) {
+  const AtomicRMWOp& atomic_op = Cast<AtomicRMWOp>(node);
+  AtomicWidth width =
+      COMPRESS_POINTERS_BOOL ? AtomicWidth::kWord32 : AtomicWidth::kWord64;
+  VisitAtomicExchange(this, node, kAtomicExchangeWithWriteBarrier, width,
+                      atomic_op.memory_access_kind);
+}
+
 void InstructionSelector::VisitWord32AtomicCompareExchange(OpIndex node) {
   const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
   ArchOpcode opcode;

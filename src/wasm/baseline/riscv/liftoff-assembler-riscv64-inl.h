@@ -785,6 +785,44 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                        type, liftoff::Binop::kExchange);
 }
 
+void LiftoffAssembler::AtomicExchangeTaggedPointer(
+    Register dst_addr, Register offset_reg, uintptr_t offset_imm,
+    LiftoffRegister value, LiftoffRegister result, LiftoffRegList pinned) {
+  {
+    UseScratchRegisterScope temps(this);
+    Register actual_addr = liftoff::CalculateActualAddress(
+        this, temps, dst_addr, offset_reg, offset_imm);
+
+    if constexpr (COMPRESS_POINTERS_BOOL) {
+      amoswap_w(true, true, result.gp(), actual_addr, value.gp());
+      AddWord(result.gp(), result.gp(), kPtrComprCageBaseRegister);
+    } else {
+      amoswap_d(true, true, result.gp(), actual_addr, value.gp());
+    }
+  }
+  if (v8_flags.disable_write_barriers) return;
+  // Emit the write barrier.
+  Label exit;
+  CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
+                kZero, &exit);
+  JumpIfSmi(value.gp(), &exit);
+  CheckPageFlag(value.gp(), MemoryChunk::kPointersToHereAreInterestingMask, eq,
+                &exit);
+  // TODO(mliedtke): It would be great to reuse this calculation from the
+  // liftoff::CalculateActualAddress above.
+  Operand offset_op =
+      offset_reg.is_valid() ? Operand(offset_reg) : Operand(offset_imm);
+  UseScratchRegisterScope temps(this);
+  if (offset_reg.is_valid() && offset_imm) {
+    Register effective_offset = temps.Acquire();
+    AddWord(effective_offset, offset_reg, Operand(offset_imm));
+    offset_op = Operand(effective_offset);
+  }
+  CallRecordWriteStubSaveRegisters(dst_addr, offset_op, SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
+  bind(&exit);
+}
+
 #define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(load_linked,       \
                                                  store_conditional) \
   do {                                                              \

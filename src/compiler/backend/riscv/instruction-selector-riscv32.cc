@@ -955,6 +955,23 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
   EmitWordCompareZero(this, value, cont);
 }
 
+void InstructionSelector::VisitTaggedAtomicExchange(OpIndex node) {
+  RiscvOperandGenerator g(this);
+  ArchOpcode opcode = kAtomicExchangeWithWriteBarrier;
+  const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
+  AddressingMode addressing_mode = kMode_MRI;
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseUniqueRegister(atomic_op.base());
+  inputs[input_count++] = g.UseUniqueRegister(atomic_op.index());
+  inputs[input_count++] = g.UseUniqueRegister(atomic_op.value());
+  InstructionOperand outputs[1];
+  outputs[0] = g.DefineAsRegister(node);
+  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  Emit(code, 1, outputs, input_count, inputs, arraysize(temps), temps);
+}
+
 void InstructionSelector::VisitWord32Equal(OpIndex node) {
   const Operation& equal = Get(node);
   DCHECK(equal.Is<ComparisonOp>());
@@ -1275,25 +1292,25 @@ void InstructionSelector::VisitI64x2ReplaceLaneI32Pair(OpIndex node) {
   UNREACHABLE();
 }
 
+namespace {
 // Shared routine for multiple shift operations.
-
-static void VisitWord32PairShift(InstructionSelector* selector,
-                                 InstructionCode opcode, OpIndex node) {
+void VisitWord32PairShift(InstructionSelector* selector, InstructionCode opcode,
+                          OpIndex node) {
   RiscvOperandGenerator g(selector);
+  const Word32PairBinopOp& pair_binop = selector->Cast<Word32PairBinopOp>(node);
+  // We use g.UseUniqueRegister here to guarantee that there is
+  // no register aliasing of input registers with output registers.
   InstructionOperand shift_operand;
-  const Operation& op = selector->Get(node);
-  DCHECK_EQ(op.input_count, 3);
-  OpIndex shift_by = op.input(2);
-  if (g.IsIntegerConstant(shift_by)) {
+  OpIndex shift_by = pair_binop.right_low();
+  int64_t unused;
+  if (selector->MatchSignedIntegralConstant(shift_by, &unused)) {
     shift_operand = g.UseImmediate(shift_by);
   } else {
     shift_operand = g.UseUniqueRegister(shift_by);
   }
 
-  // We use UseUniqueRegister here to avoid register sharing with the output
-  // register.
-  InstructionOperand inputs[] = {g.UseUniqueRegister(op.input(0)),
-                                 g.UseUniqueRegister(op.input(1)),
+  InstructionOperand inputs[] = {g.UseUniqueRegister(pair_binop.left_low()),
+                                 g.UseUniqueRegister(pair_binop.left_high()),
                                  shift_operand};
 
   OptionalOpIndex projection1 = selector->FindProjection(node, 1);
@@ -1312,6 +1329,7 @@ static void VisitWord32PairShift(InstructionSelector* selector,
 
   selector->Emit(opcode, output_count, outputs, 3, inputs, temp_count, temps);
 }
+}  // namespace
 
 void InstructionSelector::VisitWord32PairShl(OpIndex node) {
   VisitWord32PairShift(this, kRiscvShlPair, node);
