@@ -4436,7 +4436,7 @@ void WriteWasmLcovData(v8::Isolate* isolate, const char* file) {
     i::wasm::NativeModule* native_module = wasm_script->wasm_native_module();
     const i::wasm::WasmModule* wasm_module = native_module->module();
 
-    constexpr int kMaxDisasmFileNameSize = 32;
+    constexpr int kMaxDisasmFileNameSize = 33;
     char disasm_file_name[kMaxDisasmFileNameSize];
     snprintf(disasm_file_name, kMaxDisasmFileNameSize, "wasm-%zu.disasm",
              i_script);
