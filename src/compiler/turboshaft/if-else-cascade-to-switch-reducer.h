@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_TURBOSHAFT_STRUCTURAL_OPTIMIZATION_REDUCER_H_
-#define V8_COMPILER_TURBOSHAFT_STRUCTURAL_OPTIMIZATION_REDUCER_H_
+#ifndef V8_COMPILER_TURBOSHAFT_IF_ELSE_CASCADE_TO_SWITCH_REDUCER_H_
+#define V8_COMPILER_TURBOSHAFT_IF_ELSE_CASCADE_TO_SWITCH_REDUCER_H_
 
 #include <cstdio>
 
@@ -12,11 +12,7 @@
 #include "src/compiler/turboshaft/opmasks.h"
 #include "src/zone/zone.h"
 
-// The StructuralOptimizationReducer reducer is suitable for changing the
-// graph in a way that doesn't reduce individual operations, rather changes
-// the structure of the graph.
-//
-// We currently support a reduction which transforms if-else cascades
+// The IfElseCascadeToSwitchReducer transforms if-else cascades
 // that check if a given value is equal to a 32-bit constant from a given set
 // into a switch with cases corresponding to the constants in the set.
 //
@@ -67,21 +63,22 @@
 //
 
 // TODO(mslekova): Introduce a flag and move to a common graph place.
-// #define TRACE_REDUCTIONS
-#ifdef TRACE_REDUCTIONS
-#define TRACE(str, ...) \
-  { PrintF(str, ##__VA_ARGS__); }
-#else  // TRACE_REDUCTIONS
+#ifdef DEBUG
+#define TRACE(str, ...)                              \
+  do {                                               \
+    if (v8_flags.turboshaft_trace_if_else_to_switch) \
+      PrintF(str, ##__VA_ARGS__);                    \
+  } while (false)
+#else
 #define TRACE(str, ...)
-
-#endif  // TRACE_REDUCTIONS
+#endif
 
 namespace v8::internal::compiler::turboshaft {
 
 template <class Next>
-class StructuralOptimizationReducer : public Next {
+class IfElseCascadeToSwitchReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE(StructuralOptimization)
+  TURBOSHAFT_REDUCER_BOILERPLATE(IfElseCascadeToSwitch)
 
   OpIndex ReduceInputGraphBranch(OpIndex input_index, const BranchOp& branch) {
     LABEL_BLOCK(no_change) {
@@ -316,4 +313,4 @@ class StructuralOptimizationReducer : public Next {
 
 #undef TRACE
 
-#endif  // V8_COMPILER_TURBOSHAFT_STRUCTURAL_OPTIMIZATION_REDUCER_H_
+#endif  // V8_COMPILER_TURBOSHAFT_IF_ELSE_CASCADE_TO_SWITCH_REDUCER_H_

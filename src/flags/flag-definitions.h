@@ -1636,6 +1636,8 @@ DEFINE_BOOL(turboshaft_trace_peeling, false,
             "trace Turboshaft's loop peeling reducer")
 DEFINE_BOOL(turboshaft_trace_load_elimination, false,
             "trace Turboshaft's late load elimination")
+DEFINE_BOOL(turboshaft_trace_if_else_to_switch, false,
+            "trace Turboshaft's if-else to switch reducer")
 #else
 DEFINE_BOOL_READONLY(turboshaft_trace_reduction, false,
                      "trace individual Turboshaft reduction steps")
@@ -1645,6 +1647,8 @@ DEFINE_BOOL_READONLY(turboshaft_trace_intermediate_reductions, false,
                      "trace intermediate Turboshaft reduction steps")
 DEFINE_BOOL_READONLY(turboshaft_trace_load_elimination, false,
                      "trace Turboshaft's late load elimination")
+DEFINE_BOOL_READONLY(turboshaft_trace_if_else_to_switch, false,
+                     "trace Turboshaft's if-else to switch reducer")
 #endif  // DEBUG
 
 DEFINE_BOOL(profile_guided_optimization, true, "profile guided optimization")
