@@ -1171,9 +1171,9 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   DCHECK_GE(max_pages, old_pages);
   if (pages > max_pages - old_pages) return -1;
 
-  const bool must_grow_in_place = old_buffer->is_shared() ||
-                                  backing_store->has_guard_regions() ||
-                                  backing_store->is_resizable_by_js();
+  const bool must_grow_in_place =
+      old_buffer->is_shared() || backing_store->has_guard_regions() ||
+      backing_store->is_resizable_by_js() || pages == 0;
   const bool try_grow_in_place =
       must_grow_in_place || !v8_flags.stress_wasm_memory_moving;
 
@@ -1231,8 +1231,8 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   }
   DCHECK(!memory_object->array_buffer()->is_resizable_by_js());
 
-  // Trying to grow in-place without actually growing must always succeed.
-  DCHECK_IMPLIES(try_grow_in_place, old_pages < new_pages);
+  // We should only try growing by copying if we actually grow.
+  DCHECK_LT(old_pages, new_pages);
 
   // Try allocating a new backing store and copying.
   // To avoid overall quadratic complexity of many small grow operations, we
