@@ -235,7 +235,11 @@ std::vector<uint8_t> InspectorIsolateData::DisconnectSession(
     int session_id, TaskRunner* context_task_runner) {
   v8::SealHandleScope seal_handle_scope(isolate());
   auto it = sessions_.find(session_id);
-  CHECK(it != sessions_.end());
+  if (it == sessions_.end()) {
+    CHECK(v8_flags.fuzzing);
+    return {};
+  }
+
   context_group_by_session_.erase(it->second.get());
   std::vector<uint8_t> result = it->second->state();
   sessions_.erase(it);
