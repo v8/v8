@@ -1798,19 +1798,27 @@ void VisitAtomicExchange(InstructionSelector* selector, OpIndex node,
 
   AddressingMode addressing_mode = kMode_MRI;
   InstructionOperand inputs[3];
-  size_t input_count = 0;
-  inputs[input_count++] = g.UseUniqueRegister(base);
-  inputs[input_count++] = g.UseUniqueRegister(index);
-  inputs[input_count++] = g.UseUniqueRegister(value);
+  if (opcode == kAtomicExchangeWithWriteBarrier) {
+    // All inputs registers need to be non-aliasing with the temp registers as
+    // the original inputs are still needed when emitting the write barrier.
+    inputs[0] = g.UseUniqueRegister(base);
+    inputs[1] = g.UseUniqueRegister(index);
+    inputs[2] = g.UseUniqueRegister(value);
+  } else {
+    inputs[0] = g.UseRegister(base);
+    inputs[1] = g.UseRegister(index);
+    inputs[2] = g.UseUniqueRegister(value);
+  }
   InstructionOperand outputs[1];
   outputs[0] = g.UseUniqueRegister(node);
-  InstructionOperand temp[3];
-  temp[0] = g.TempRegister();
-  temp[1] = g.TempRegister();
-  temp[2] = g.TempRegister();
+  InstructionOperand temps[3];
+  temps[0] = g.TempRegister();
+  temps[1] = g.TempRegister();
+  temps[2] = g.TempRegister();
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
-  selector->Emit(code, 1, outputs, input_count, inputs, 3, temp);
+  selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+                 arraysize(temps), temps);
 }
 
 void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
@@ -2289,6 +2297,12 @@ void InstructionSelector::VisitWord64AtomicExchange(OpIndex node) {
     UNREACHABLE();
   }
   VisitAtomicExchange(this, node, opcode, AtomicWidth::kWord64);
+}
+
+void InstructionSelector::VisitTaggedAtomicExchange(OpIndex node) {
+  AtomicWidth width =
+      COMPRESS_POINTERS_BOOL ? AtomicWidth::kWord32 : AtomicWidth::kWord64;
+  VisitAtomicExchange(this, node, kAtomicExchangeWithWriteBarrier, width);
 }
 
 void InstructionSelector::VisitWord32AtomicCompareExchange(OpIndex node) {

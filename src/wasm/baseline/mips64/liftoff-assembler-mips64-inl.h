@@ -977,6 +977,46 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
       UNREACHABLE();
   }
 }
+
+void LiftoffAssembler::AtomicExchangeTaggedPointer(
+    Register dst_addr, Register offset_reg, uintptr_t offset_imm,
+    LiftoffRegister value, LiftoffRegister result, LiftoffRegList pinned) {
+  // Perform the atomic exchange.
+  {
+    LiftoffRegList pinned{dst_addr, value, result};
+    if (offset_reg != no_reg) pinned.set(offset_reg);
+    Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+    Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+    MemOperand dst_op =
+        liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm, false);
+    Daddu(temp0, dst_op.rm(), dst_op.offset());
+    if constexpr (COMPRESS_POINTERS_BOOL) {
+      UNREACHABLE();
+    } else {
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(Lld, Scd);
+    }
+  }
+
+  if (v8_flags.disable_write_barriers) return;
+  // Emit the write barrier.
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Label exit;
+  CheckPageFlag(dst_addr, scratch,
+                MemoryChunk::kPointersFromHereAreInterestingMask, kZero, &exit);
+  JumpIfSmi(value.gp(), &exit);
+  CheckPageFlag(value.gp(), scratch,
+                MemoryChunk::kPointersToHereAreInterestingMask, eq, &exit);
+
+  if (offset_reg.is_valid()) {
+    Dext(scratch, offset_reg, 0, 32);
+  } else {
+    li(scratch, offset_imm);
+  }
+  CallRecordWriteStubSaveRegisters(dst_addr, scratch, SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
+  bind(&exit);
+}
 #undef ASSEMBLE_ATOMIC_EXCHANGE_INTEGER
 #undef ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT
 
