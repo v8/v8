@@ -1642,10 +1642,10 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
         }
         ++idx;
       }
-    } while (idx < InternalIndex(descriptors->number_of_all_descriptors()) &&
+    } while (idx < InternalIndex(descriptors->number_of_descriptors()) &&
              Check(JsonToken::COMMA));
     if constexpr (fast_iterable_state == FastIterableState::kUnknown) {
-      if (idx == InternalIndex(descriptors->number_of_all_descriptors())) {
+      if (idx == InternalIndex(descriptors->number_of_descriptors())) {
         descriptors->set_fast_iterable_if(FastIterableState::kJsonFast,
                                           FastIterableState::kUnknown);
       }
