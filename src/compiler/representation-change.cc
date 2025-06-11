@@ -1002,13 +1002,17 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       op = machine()->ChangeFloat64ToUint32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
       if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
-        op = simplified()->CheckedFloat64ToAdditiveSafeInteger(
-            output_type.Maybe(Type::MinusZero())
-                ? use_info.minus_zero_check()
-                : CheckForMinusZeroMode::kDontCheckForMinusZero,
-            use_info.feedback());
-        node = InsertConversion(node, op, use_node);
-        op = machine()->TruncateInt64ToInt32();
+        if (output_type.Is(cache_->kAdditiveSafeInteger)) {
+          op = machine()->TruncateFloat64ToWord32();
+        } else {
+          op = simplified()->CheckedFloat64ToAdditiveSafeInteger(
+              output_type.Maybe(Type::MinusZero())
+                  ? use_info.minus_zero_check()
+                  : CheckForMinusZeroMode::kDontCheckForMinusZero,
+              use_info.feedback());
+          node = InsertConversion(node, op, use_node);
+          op = machine()->TruncateInt64ToInt32();
+        }
       } else {
         op = machine()->TruncateFloat64ToWord32();
       }
@@ -1032,13 +1036,17 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       op = machine()->ChangeFloat64ToUint32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
       if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
-        op = simplified()->CheckedFloat64ToAdditiveSafeInteger(
-            output_type.Maybe(Type::MinusZero())
-                ? use_info.minus_zero_check()
-                : CheckForMinusZeroMode::kDontCheckForMinusZero,
-            use_info.feedback());
-        node = InsertConversion(node, op, use_node);
-        op = machine()->TruncateInt64ToInt32();
+        if (output_type.Is(cache_->kAdditiveSafeInteger)) {
+          op = machine()->TruncateFloat64ToWord32();
+        } else {
+          op = simplified()->CheckedFloat64ToAdditiveSafeInteger(
+              output_type.Maybe(Type::MinusZero())
+                  ? use_info.minus_zero_check()
+                  : CheckForMinusZeroMode::kDontCheckForMinusZero,
+              use_info.feedback());
+          node = InsertConversion(node, op, use_node);
+          op = machine()->TruncateInt64ToInt32();
+        }
       } else {
         op = machine()->TruncateFloat64ToWord32();
       }
@@ -1068,7 +1076,14 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       op = simplified()->CheckedTruncateTaggedToWord32(
           CheckTaggedInputMode::kAdditiveSafeInteger, use_info.feedback());
     } else if (use_info.truncation().IsUsedAsWord32()) {
-      if (output_type.Is(Type::NumberOrOddballOrHole())) {
+      if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
+        if (output_type.Is(cache_->kAdditiveSafeInteger)) {
+          op = simplified()->TruncateTaggedToWord32();
+        } else {
+          op = simplified()->CheckedTruncateTaggedToWord32(
+              CheckTaggedInputMode::kAdditiveSafeInteger, use_info.feedback());
+        }
+      } else if (output_type.Is(Type::NumberOrOddballOrHole())) {
         op = simplified()->TruncateTaggedToWord32();
       } else if (use_info.type_check() == TypeCheckKind::kNumber) {
         op = simplified()->CheckedTruncateTaggedToWord32(
@@ -1327,6 +1342,14 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
       CHECK_IMPLIES(output_type.Maybe(Type::MinusZero()),
                     use_info.truncation().IdentifiesZeroAndMinusZero());
       op = machine()->ChangeInt32ToInt64();
+    } else if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
+      // If it is a word representation, but not word32 type, then it is not an
+      // integer.
+      Node* unreachable = InsertUnconditionalDeopt(
+          use_node, DeoptimizeReason::kNotAdditiveSafeInteger,
+          use_info.feedback());
+      return jsgraph()->graph()->NewNode(
+          jsgraph()->common()->DeadValue(output_rep), unreachable);
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kWord64);
@@ -1416,9 +1439,19 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
                                              use_node, use_info);
     op = simplified()->TruncateBigIntToWord64();
   } else if (CanBeTaggedPointer(output_rep)) {
-    if (output_type.Is(cache_->kDoubleRepresentableInt64) ||
-        (output_type.Is(cache_->kDoubleRepresentableInt64OrMinusZero) &&
-         use_info.truncation().IdentifiesZeroAndMinusZero())) {
+    if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
+      if (output_type.Is(cache_->kAdditiveSafeInteger)) {
+        op = simplified()->ChangeTaggedToInt64();
+      } else {
+        op = simplified()->CheckedTaggedToAdditiveSafeInteger(
+            output_type.Maybe(Type::MinusZero())
+                ? use_info.minus_zero_check()
+                : CheckForMinusZeroMode::kDontCheckForMinusZero,
+            use_info.feedback());
+      }
+    } else if (output_type.Is(cache_->kDoubleRepresentableInt64) ||
+               (output_type.Is(cache_->kDoubleRepresentableInt64OrMinusZero) &&
+                use_info.truncation().IdentifiesZeroAndMinusZero())) {
       op = simplified()->ChangeTaggedToInt64();
     } else if (use_info.type_check() == TypeCheckKind::kSigned64) {
       op = simplified()->CheckedTaggedToInt64(
@@ -1428,12 +1461,6 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
           use_info.feedback());
     } else if (use_info.type_check() == TypeCheckKind::kArrayIndex) {
       op = simplified()->CheckedTaggedToArrayIndex(use_info.feedback());
-    } else if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
-      op = simplified()->CheckedTaggedToAdditiveSafeInteger(
-          output_type.Maybe(Type::MinusZero())
-              ? use_info.minus_zero_check()
-              : CheckForMinusZeroMode::kDontCheckForMinusZero,
-          use_info.feedback());
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kWord64);
