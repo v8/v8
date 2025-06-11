@@ -1064,7 +1064,7 @@ bool IsAbsolutePath(const std::string& path) {
 #if defined(V8_OS_WIN)
   // This is an incorrect approximation, but should
   // work for all our test-running cases.
-  return path.find(':') != std::string::npos;
+  return path.find(":/") == 1 || path.find(":\\") == 1;
 #else
   return path[0] == '/';
 #endif
@@ -1087,6 +1087,7 @@ std::string GetWorkingDirectory() {
 
 // Returns the directory part of path, without the trailing '/'.
 std::string DirName(const std::string& path) {
+  if (path.starts_with(kDataURLPrefix)) return GetWorkingDirectory();
   DCHECK(IsAbsolutePath(path));
   size_t last_slash = path.find_last_of('/');
   DCHECK(last_slash != std::string::npos);
@@ -1098,6 +1099,7 @@ std::string DirName(const std::string& path) {
 // and replacing backslashes with slashes).
 std::string NormalizePath(const std::string& path,
                           const std::string& dir_name) {
+  DCHECK(!path.starts_with(kDataURLPrefix));
   std::string absolute_path;
   if (IsAbsolutePath(path)) {
     absolute_path = path;
@@ -1110,21 +1112,40 @@ std::string NormalizePath(const std::string& path,
   std::string segment;
   while (std::getline(segment_stream, segment, '/')) {
     if (segment == "..") {
+#if defined(V8_OS_WIN)
+      if (segments.size() > 1) segments.pop_back();
+#else
       if (!segments.empty()) segments.pop_back();
-    } else if (segment != ".") {
+#endif
+    } else if (segment != "" && segment != ".") {
       segments.push_back(segment);
     }
   }
   // Join path segments.
   std::ostringstream os;
+#if defined(V8_OS_WIN)
+  // The drive letter should be present in an absolute path.
+  DCHECK(!segments.empty());
+  DCHECK_EQ(2UL, segments[0].size());
+  DCHECK_EQ(':', segments[0][1]);
+  os << segments[0] << "/";
+  if (segments.size() > 2) {
+    std::copy(segments.begin() + 1, segments.end() - 1,
+              std::ostream_iterator<std::string>(os, "/"));
+    os << *segments.rbegin();
+  } else if (segments.size() == 2) {
+    os << segments[1];
+  }
+#else
+  os << "/";
   if (segments.size() > 1) {
     std::copy(segments.begin(), segments.end() - 1,
               std::ostream_iterator<std::string>(os, "/"));
     os << *segments.rbegin();
-  } else {
-    os << "/";
-    if (!segments.empty()) os << segments[0];
+  } else if (segments.size() == 1) {
+    os << segments[0];
   }
+#endif
   return os.str();
 }
 
@@ -1132,10 +1153,12 @@ std::string NormalizePath(const std::string& path,
 // normalization (eliding references to the current directory
 // and replacing backslashes with slashes).
 //
-// If specifier is a data url, returns it unchanged.
+// If specifier is a data URL or a regular URL, it is returned unchanged.
 std::string NormalizeModuleSpecifier(const std::string& specifier,
                                      const std::string& dir_name) {
-  if (specifier.starts_with(kDataURLPrefix)) return specifier;
+  if (specifier.starts_with(kDataURLPrefix) ||
+      specifier.starts_with("http://") || specifier.starts_with("https://"))
+    return specifier;
   return NormalizePath(specifier, dir_name);
 }
 
@@ -1185,7 +1208,6 @@ MaybeLocal<Object> ResolveModuleSourceCallback(
   ModuleType module_type =
       ModuleEmbedderData::ModuleTypeFromImportSpecifierAndAttributes(
           context, stl_specifier, import_attributes, true);
-
   return module_data->GetModuleSource(
       std::make_pair(absolute_path, module_type));
 }
@@ -1197,11 +1219,24 @@ MaybeLocal<Object> Shell::FetchModuleSource(Local<Module> referrer,
                                             const std::string& module_specifier,
                                             ModuleType module_type) {
   Isolate* isolate = Isolate::GetCurrent();
-  DCHECK(IsAbsolutePath(module_specifier));
-  auto file = ReadFileData(isolate, module_specifier.c_str());
-
   std::shared_ptr<ModuleEmbedderData> module_data =
       GetModuleDataFromContext(context);
+
+  // Loading modules is only allowed for local absolute paths.
+  if (!IsAbsolutePath(module_specifier)) {
+    std::string msg =
+        "d8: Reading module from " + module_specifier + " is not supported.";
+    if (!referrer.IsEmpty()) {
+      std::string referrer_specifier =
+          module_data->GetModuleSpecifier(referrer);
+      msg += "\n    imported by " + referrer_specifier;
+    }
+    ThrowError(isolate,
+               v8::String::NewFromUtf8(isolate, msg.c_str()).ToLocalChecked());
+    return MaybeLocal<Object>();
+  }
+
+  auto file = ReadFileData(isolate, module_specifier.c_str());
   if (!file) {
     std::string msg = "d8: Error reading module from " + module_specifier;
     if (!referrer.IsEmpty()) {
@@ -1251,13 +1286,13 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
                                           const std::string& module_specifier,
                                           ModuleType module_type) {
   Isolate* isolate = Isolate::GetCurrent();
-  const bool is_data_url = module_specifier.starts_with(kDataURLPrefix);
+  std::shared_ptr<ModuleEmbedderData> module_data =
+      GetModuleDataFromContext(context);
   MaybeLocal<String> source_text;
-  if (is_data_url) {
+  if (module_specifier.starts_with(kDataURLPrefix)) {
     source_text = String::NewFromUtf8(
         isolate, module_specifier.c_str() + strlen(kDataURLPrefix));
-  } else {
-    DCHECK(IsAbsolutePath(module_specifier));
+  } else if (IsAbsolutePath(module_specifier)) {
     source_text = ReadFile(isolate, module_specifier.c_str(), false);
     if (source_text.IsEmpty() && options.fuzzy_module_file_extensions) {
       std::string fallback_file_name = module_specifier + ".js";
@@ -1267,10 +1302,20 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
         source_text = ReadFile(isolate, fallback_file_name.c_str());
       }
     }
+  } else {
+    // Loading modules is only allowed for local absolute paths.
+    std::string msg =
+        "d8: Reading module from " + module_specifier + " is not supported.";
+    if (!referrer.IsEmpty()) {
+      std::string referrer_specifier =
+          module_data->GetModuleSpecifier(referrer);
+      msg += "\n    imported by " + referrer_specifier;
+    }
+    ThrowError(isolate,
+               v8::String::NewFromUtf8(isolate, msg.c_str()).ToLocalChecked());
+    return MaybeLocal<Module>();
   }
 
-  std::shared_ptr<ModuleEmbedderData> module_data =
-      GetModuleDataFromContext(context);
   if (source_text.IsEmpty()) {
     std::string msg = "d8: Error reading module from " + module_specifier;
     if (!referrer.IsEmpty()) {
@@ -1328,9 +1373,6 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
             .insert(std::make_pair(Global<Module>(isolate, module),
                                    module_specifier))
             .second);
-
-  // data URLs don't support further imports, so we're done.
-  if (is_data_url) return module;
 
   std::string dir_name = DirName(module_specifier);
 
