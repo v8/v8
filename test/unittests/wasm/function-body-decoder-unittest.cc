@@ -6107,16 +6107,23 @@ class FunctionBodyDecoderTestAtomicInvalid
 std::string PrintAtomicGetInvalidParams(
     ::testing::TestParamInfo<TestAtomicParamT> info) {
   const auto [element_type, mutability, shared] = info.param;
+  std::string elem_type_name = element_type.is_reference()
+                                   ? element_type.generic_heaptype_name()
+                                   : element_type.name();
+  std::replace(elem_type_name.begin(), elem_type_name.end(), ' ', '_');
   return std::string(mutability ? "mutable_" : "immutable_") +
-         (shared ? "shared_" : "unshared_") + element_type.short_name();
+         (shared ? "shared_" : "unshared_") + elem_type_name;
 }
 
 INSTANTIATE_TEST_SUITE_P(
     SharedAtomicsTest, FunctionBodyDecoderTestAtomicInvalid,
     ::testing::Combine(
-        ::testing::Values(kWasmF32, kWasmF64, kWasmS128, kWasmI8, kWasmI16,
-                          IndependentHeapType{GenericKind::kExtern, kNullable,
-                                              true}),
+        ::testing::Values(
+            kWasmF32, kWasmF64, kWasmS128, kWasmI8, kWasmI16,
+            IndependentHeapType{GenericKind::kExtern, kNullable, true},
+            IndependentHeapType{GenericKind::kFunc, kNullable, true},
+            IndependentHeapType{GenericKind::kNoCont, kNullable, true},
+            IndependentHeapType{GenericKind::kExn, kNonNullable, true}),
         ::testing::Values(true, false), ::testing::Values(true, false)),
     PrintAtomicGetInvalidParams);
 
@@ -6194,16 +6201,24 @@ class FunctionBodyDecoderTestAtomicInvalidPacked
 std::string PrintAtomicGetPackedInvalidParams(
     ::testing::TestParamInfo<std::tuple<ValueType, bool>> info) {
   const auto [element_type, shared] = info.param;
-  return std::string(shared ? "shared_" : "unshared_") +
-         element_type.short_name();
+  std::string elem_type_name = element_type.is_reference()
+                                   ? element_type.generic_heaptype_name()
+                                   : element_type.name();
+  std::replace(elem_type_name.begin(), elem_type_name.end(), ' ', '_');
+  return (shared ? "shared_" : "unshared_") + elem_type_name;
 }
 
 INSTANTIATE_TEST_SUITE_P(
     SharedAtomicsTest, FunctionBodyDecoderTestAtomicInvalidPacked,
     ::testing::Combine(
-        ::testing::Values(kWasmF32, kWasmF64, kWasmS128, kWasmI32, kWasmI64,
-                          IndependentHeapType{GenericKind::kExtern, kNullable,
-                                              true}),
+        ::testing::Values(
+            kWasmF32, kWasmF64, kWasmS128, kWasmI32, kWasmI64,
+            IndependentHeapType{GenericKind::kAny, kNullable, true},
+            IndependentHeapType{GenericKind::kExtern, kNullable, true},
+            IndependentHeapType{GenericKind::kFunc, kNullable, true},
+            IndependentHeapType{GenericKind::kNoCont, kNullable, true},
+            IndependentHeapType{GenericKind::kExn, kNonNullable, true},
+            IndependentHeapType{GenericKind::kI31, kNullable, true}),
         ::testing::Values(true, false)),
     PrintAtomicGetPackedInvalidParams);
 
@@ -6263,7 +6278,12 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(
             kWasmF32, kWasmF64, kWasmS128, kWasmI8, kWasmI16,
             IndependentHeapType{GenericKind::kExtern, kNullable, true},
-            IndependentHeapType{GenericKind::kEq, kNonNullable, true}),
+            IndependentHeapType{GenericKind::kEq, kNonNullable, true},
+            IndependentHeapType{GenericKind::kAny, kNullable, true},
+            IndependentHeapType{GenericKind::kFunc, kNullable, true},
+            IndependentHeapType{GenericKind::kNoCont, kNullable, true},
+            IndependentHeapType{GenericKind::kExn, kNullable, true},
+            IndependentHeapType{GenericKind::kI31, kNullable, true}),
         ::testing::Values(true, false), ::testing::Values(true, false)),
     PrintAtomicGetInvalidParams);
 
@@ -6276,8 +6296,11 @@ TEST_P(FunctionBodyDecoderTestAtomicRMWInvalid, Struct) {
   ValueType struct_type = ValueType::Ref(struct_heaptype);
   Zone* zone = &builder.module()->signature_zone;
 
-  FunctionSig* sig =
-      FunctionSig::Build(zone, {element_type}, {struct_type, element_type});
+  const FunctionSig* sig = FunctionSig::Build(
+      zone, {element_type.Unpacked()}, {struct_type, element_type.Unpacked()});
+  const FunctionSig* sig_cmpxchg = FunctionSig::Build(
+      zone, {element_type.Unpacked()},
+      {struct_type, element_type.Unpacked(), element_type.Unpacked()});
 
   const char* error_msg = mutability ? "Field 0 of type 0 has invalid type"
                                      : "Field 0 of type 0 is immutable";
@@ -6302,10 +6325,19 @@ TEST_P(FunctionBodyDecoderTestAtomicRMWInvalid, Struct) {
                                         WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
                 kAppendEnd, error_msg);
   const bool exchange_valid =
-      element_type.AsNonShared() == kWasmEqRef.AsNonNull() && mutability;
+      IsSubtypeOf(element_type.AsNonShared(), kWasmAnyRef, builder.module()) &&
+      mutability;
   Validate(exchange_valid, sig,
            {WASM_STRUCT_ATOMIC_EXCHANGE(0, struct_type_index, 0,
                                         WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
+           kAppendEnd, error_msg);
+  const bool compare_exchange_valid =
+      IsSubtypeOf(element_type.AsNonShared(), kWasmEqRef, builder.module()) &&
+      mutability;
+  Validate(compare_exchange_valid, sig_cmpxchg,
+           {WASM_STRUCT_ATOMIC_COMPARE_EXCHANGE(
+               0, struct_type_index, 0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
+               WASM_LOCAL_GET(2))},
            kAppendEnd, error_msg);
 }
 
@@ -6317,9 +6349,12 @@ TEST_P(FunctionBodyDecoderTestAtomicRMWInvalid, Array) {
   ValueType array_type = ValueType::Ref(array_heaptype);
   Zone* zone = &builder.module()->signature_zone;
 
-  FunctionSig* sig =
+  const FunctionSig* sig =
       FunctionSig::Build(zone, {element_type.Unpacked()},
                          {array_type, kWasmI32, element_type.Unpacked()});
+  const FunctionSig* sig_cmpxchg = FunctionSig::Build(
+      zone, {element_type.Unpacked()},
+      {array_type, kWasmI32, element_type.Unpacked(), element_type.Unpacked()});
 
   const char* error_msg = mutability ? "Array type 0 has invalid type"
                                      : "Array type 0 is immutable";
@@ -6344,10 +6379,19 @@ TEST_P(FunctionBodyDecoderTestAtomicRMWInvalid, Array) {
                                        WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
                 kAppendEnd, error_msg);
   const bool exchange_valid =
-      element_type.AsNonShared() == kWasmEqRef.AsNonNull() && mutability;
+      IsSubtypeOf(element_type.AsNonShared(), kWasmAnyRef, builder.module()) &&
+      mutability;
   Validate(exchange_valid, sig,
            {WASM_ARRAY_ATOMIC_EXCHANGE(0, array_type_index, WASM_LOCAL_GET(0),
                                        WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
+           kAppendEnd, error_msg);
+  const bool compare_exchange_valid =
+      IsSubtypeOf(element_type.AsNonShared(), kWasmEqRef, builder.module()) &&
+      mutability;
+  Validate(compare_exchange_valid, sig_cmpxchg,
+           {WASM_ARRAY_ATOMIC_COMPARE_EXCHANGE(
+               0, array_type_index, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
+               WASM_LOCAL_GET(2), WASM_LOCAL_GET(3))},
            kAppendEnd, error_msg);
 }
 

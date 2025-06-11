@@ -832,6 +832,7 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const CanonicalSig* sig);
   V(StructAtomicOr, 0xfe63, _, "struct.atomic.rmw.or")                         \
   V(StructAtomicXor, 0xfe64, _, "struct.atomic.rmw.xor")                       \
   V(StructAtomicExchange, 0xfe65, _, "struct.atomic.rmw.xchg")                 \
+  V(StructAtomicCompareExchange, 0xfe66, _, "struct.atomic.rmw.cmpxchg")       \
   V(ArrayAtomicGet, 0xfe67, _, "array.atomic.get")                             \
   V(ArrayAtomicGetS, 0xfe68, _, "array.atomic.get_s")                          \
   V(ArrayAtomicGetU, 0xfe69, _, "array.atomic.get_u")                          \
@@ -841,7 +842,8 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const CanonicalSig* sig);
   V(ArrayAtomicAnd, 0xfe6d, _, "array.atomic.rmw.and")                         \
   V(ArrayAtomicOr, 0xfe6e, _, "array.atomic.rmw.or")                           \
   V(ArrayAtomicXor, 0xfe6f, _, "array.atomic.rmw.xor")                         \
-  V(ArrayAtomicExchange, 0xfe70, _, "array.atomic.rmw.xchg")
+  V(ArrayAtomicExchange, 0xfe70, _, "array.atomic.rmw.xchg")                   \
+  V(ArrayAtomicCompareExchange, 0xfe71, _, "array.atomic.rmw.cmpxchg")
 
 // All opcodes.
 #define FOREACH_OPCODE(V)            \

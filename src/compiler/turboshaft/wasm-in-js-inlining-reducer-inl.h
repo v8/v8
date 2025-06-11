@@ -731,10 +731,29 @@ class WasmInJsInliningInterface {
     Bailout(decoder);
   }
 
+  void StructAtomicCompareExchange(FullDecoder* decoder, WasmOpcode opcode,
+                                   const Value& struct_object,
+                                   const FieldImmediate& field,
+                                   const Value& expected_value,
+                                   const Value& new_value,
+                                   AtomicMemoryOrder order, Value* result) {
+    Bailout(decoder);
+  }
+
   void ArrayAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
                       const Value& array_obj, const ArrayIndexImmediate& imm,
                       const Value& index, const Value& value,
                       AtomicMemoryOrder order, Value* result) {
+    Bailout(decoder);
+  }
+
+  void ArrayAtomicCompareExchange(FullDecoder* decoder, WasmOpcode opcode,
+                                  const Value& array_obj,
+                                  const ArrayIndexImmediate& imm,
+                                  const Value& index,
+                                  const Value& expected_value,
+                                  const Value& new_value,
+                                  AtomicMemoryOrder order, Value* result) {
     Bailout(decoder);
   }
 

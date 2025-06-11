@@ -4949,23 +4949,25 @@ class TurboshaftAssemblerOpInterface
                                null_check, memory_order);
   }
 
-  V<Word> StructAtomicRMW(V<WasmStructNullable> object, V<Word> value,
-                          StructAtomicRMWOp::BinOp bin_op,
-                          const wasm::StructType* type,
-                          wasm::ModuleTypeIndex type_index, int field_index,
-                          CheckForNull null_check,
-                          AtomicMemoryOrder memory_order) {
-    return ReduceIfReachableStructAtomicRMW(object, value, bin_op, type,
-                                            type_index, field_index, null_check,
-                                            memory_order);
+  V<Any> StructAtomicRMW(V<WasmStructNullable> object, V<Any> value,
+                         OptionalV<Any> expected,
+                         StructAtomicRMWOp::BinOp bin_op,
+                         const wasm::StructType* type,
+                         wasm::ModuleTypeIndex type_index, int field_index,
+                         CheckForNull null_check,
+                         AtomicMemoryOrder memory_order) {
+    return ReduceIfReachableStructAtomicRMW(object, value, expected, bin_op,
+                                            type, type_index, field_index,
+                                            null_check, memory_order);
   }
 
-  V<Word> ArrayAtomicRMW(V<WasmArrayNullable> array, V<Word32> index,
-                         V<Word> value, ArrayAtomicRMWOp::BinOp bin_op,
-                         wasm::ValueType element_type,
-                         AtomicMemoryOrder memory_order) {
-    return ReduceIfReachableArrayAtomicRMW(array, index, value, bin_op,
-                                           element_type, memory_order);
+  V<Any> ArrayAtomicRMW(V<WasmArrayNullable> array, V<Word32> index,
+                        V<Any> value, OptionalV<Any> expected,
+                        ArrayAtomicRMWOp::BinOp bin_op,
+                        wasm::ValueType element_type,
+                        AtomicMemoryOrder memory_order) {
+    return ReduceIfReachableArrayAtomicRMW(array, index, value, expected,
+                                           bin_op, element_type, memory_order);
   }
 
   V<Any> ArrayGet(V<WasmArrayNullable> array, V<Word32> index,

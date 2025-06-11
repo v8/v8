@@ -301,7 +301,8 @@ class WasmLoweringReducer : public Next {
     return OpIndex::Invalid();
   }
 
-  V<Word> REDUCE(StructAtomicRMW)(V<WasmStructNullable> object, V<Word> value,
+  V<Word> REDUCE(StructAtomicRMW)(V<WasmStructNullable> object, OpIndex value,
+                                  OptionalOpIndex expected,
                                   StructAtomicRMWOp::BinOp bin_op,
                                   const wasm::StructType* type,
                                   wasm::ModuleTypeIndex type_index,
@@ -322,11 +323,17 @@ class WasmLoweringReducer : public Next {
 
     V<WordPtr> offset =
         __ WordPtrConstant(field_offset(type, field_index) - kHeapObjectTag);
-    return __ AtomicRMW(__ BitcastTaggedToWordPtr(object), offset, value,
-                        bin_op, repr.ToRegisterRepresentation(), repr,
-                        implicit_null_check
-                            ? MemoryAccessKind::kProtectedByTrapHandler
-                            : MemoryAccessKind::kNormal);
+    MemoryAccessKind kind = implicit_null_check
+                                ? MemoryAccessKind::kProtectedByTrapHandler
+                                : MemoryAccessKind::kNormal;
+    if (bin_op == StructAtomicRMWOp::BinOp::kCompareExchange) {
+      return __ AtomicCompareExchange(
+          __ BitcastTaggedToWordPtr(object), offset, expected.value(), value,
+          repr.ToRegisterRepresentation(), repr, kind);
+    } else {
+      return __ AtomicRMW(__ BitcastTaggedToWordPtr(object), offset, value,
+                          bin_op, repr.ToRegisterRepresentation(), repr, kind);
+    }
   }
 
   V<Any> REDUCE(ArrayGet)(V<WasmArrayNullable> array, V<Word32> index,
@@ -359,8 +366,9 @@ class WasmLoweringReducer : public Next {
     return {};
   }
 
-  V<Word> REDUCE(ArrayAtomicRMW)(V<WasmArrayNullable> array, V<Word32> index,
-                                 V<Word> value, ArrayAtomicRMWOp::BinOp bin_op,
+  OpIndex REDUCE(ArrayAtomicRMW)(V<WasmArrayNullable> array, V<Word32> index,
+                                 OpIndex value, OptionalOpIndex expected,
+                                 ArrayAtomicRMWOp::BinOp bin_op,
                                  wasm::ValueType element_type,
                                  AtomicMemoryOrder memory_order) {
     MemoryRepresentation repr = RepresentationFor(element_type, false);
@@ -369,9 +377,15 @@ class WasmLoweringReducer : public Next {
     V<WordPtr> offset = __ WordPtrAdd(
         index_scaled,
         __ WordPtrConstant(WasmArray::kHeaderSize - kHeapObjectTag));
-    return __ AtomicRMW(__ BitcastTaggedToWordPtr(array), offset, value, bin_op,
-                        repr.ToRegisterRepresentation(), repr,
-                        MemoryAccessKind::kNormal);
+    if (bin_op == StructAtomicRMWOp::BinOp::kCompareExchange) {
+      return __ AtomicCompareExchange(
+          __ BitcastTaggedToWordPtr(array), offset, expected.value(), value,
+          repr.ToRegisterRepresentation(), repr, MemoryAccessKind::kNormal);
+    } else {
+      return __ AtomicRMW(__ BitcastTaggedToWordPtr(array), offset, value,
+                          bin_op, repr.ToRegisterRepresentation(), repr,
+                          MemoryAccessKind::kNormal);
+    }
   }
 
   V<Word32> REDUCE(ArrayLength)(V<WasmArrayNullable> array,

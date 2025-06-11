@@ -6358,6 +6358,100 @@ class LiftoffCompiler {
     __ PushRegister(field_kind, result_reg);
   }
 
+  void StructAtomicCompareExchange(FullDecoder* decoder, WasmOpcode opcode,
+                                   const Value& struct_object,
+                                   const FieldImmediate& field,
+                                   const Value& expected_val,
+                                   const Value& new_val,
+                                   AtomicMemoryOrder order, Value* result) {
+    const StructType* struct_type = field.struct_imm.struct_type;
+    ValueKind field_kind = struct_type->field(field.field_imm.index).kind();
+    int offset = StructFieldOffset(struct_type, field.field_imm.index);
+    auto [explicit_check, implicit_check] =
+        null_checks_for_struct_op(struct_object.type, field.field_imm.index);
+
+#if V8_TARGET_ARCH_IA32
+    DCHECK(!implicit_check);  // No trap handler on 32-bit.
+    // Instead of first popping all inputs into registers, emit an early null
+    // check on ia32 (as the null check requires yet another register which
+    // isn't available otherwise.)
+    if (explicit_check) {
+      LiftoffRegList pinned;
+      LiftoffRegister obj = pinned.set(__ PeekToRegister(2, pinned));
+      MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_object.type);
+    }
+
+    LiftoffRegList pinned;
+    LiftoffRegister new_value = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister expected_value = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
+
+    LiftoffRegister result_reg = expected_value;
+    if (__ cache_state()->is_used(result_reg)) {
+      __ SpillRegister(result_reg);
+    }
+#else   // V8_TARGET_ARCH_IA32
+
+    LiftoffRegList pinned;
+    LiftoffRegister new_value = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister expected_value = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
+
+    if (implicit_check) {
+      // TODO(mliedtke): Support implicit null checks for atomic operations.
+      // Note that we can't do implicit null checks for i64 due to WasmNull not
+      // being 8-byte-aligned!
+      implicit_check = false;
+      explicit_check = true;
+    }
+
+    if (explicit_check) {
+      MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_object.type);
+    }
+
+    // Special implementation for unshared objects which don't guarantee aligned
+    // i64 values.
+    if (!field.struct_imm.shared && field_kind == ValueKind::kI64) {
+      LiftoffRegister result_reg =
+          pinned.set(__ GetUnusedRegister(reg_class_for(field_kind), pinned));
+      LoadObjectField(decoder, result_reg, obj.gp(), no_reg, offset, field_kind,
+                      false, implicit_check, pinned);
+      {
+        Label end;
+        FREEZE_STATE(frozen);
+        if constexpr (Is64()) {
+          __ emit_cond_jump(kNotEqual, &end, field_kind, result_reg.gp(),
+                            expected_value.gp(), frozen);
+        } else {
+          DCHECK(result_reg.is_gp_pair());
+          DCHECK(expected_value.is_gp_pair());
+          __ emit_cond_jump(kNotEqual, &end, kI32, result_reg.high_gp(),
+                            expected_value.high_gp(), frozen);
+          __ emit_cond_jump(kNotEqual, &end, kI32, result_reg.low_gp(),
+                            expected_value.low_gp(), frozen);
+        }
+        StoreObjectField(decoder, obj.gp(), no_reg, offset, new_value, false,
+                         pinned, field_kind);
+        __ bind(&end);
+      }
+      __ PushRegister(field_kind, result_reg);
+      return;
+    }
+
+    LiftoffRegister result_reg =
+        pinned.set(__ GetUnusedRegister(reg_class_for(field_kind), pinned));
+#endif  // V8_TARGET_ARCH_IA32
+
+    if (is_reference(field_kind)) {
+      UNIMPLEMENTED();
+    } else {
+      __ AtomicCompareExchange(obj.gp(), no_reg, offset, expected_value,
+                               new_value, result_reg,
+                               StoreType::ForValueKind(field_kind), false);
+      __ PushRegister(field_kind, result_reg);
+    }
+  }
+
   void ArrayAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
                       const Value& array_obj, const ArrayIndexImmediate& imm,
                       const Value& index_val, const Value& value_val,
@@ -6510,6 +6604,129 @@ class LiftoffCompiler {
         UNREACHABLE();
     }
     __ PushRegister(elem_kind, result_reg);
+  }
+
+  void ArrayAtomicCompareExchange(FullDecoder* decoder, WasmOpcode opcode,
+                                  const Value& array_obj,
+                                  const ArrayIndexImmediate& imm,
+                                  const Value& index_val,
+                                  const Value& expected_val,
+                                  const Value& new_val, AtomicMemoryOrder order,
+                                  Value* result) {
+#if V8_TARGET_ARCH_IA32
+    // This is an ia32-specific implementation that tries to use as few
+    // registers as possible, so that it works with i64 values lowered to
+    // register pairs.
+    LiftoffRegList pinned;
+    std::optional<LiftoffRegister> array =
+        pinned.set(__ PeekToRegister(3, pinned));
+    DCHECK_EQ(null_check_strategy_, compiler::NullCheckStrategy::kExplicit);
+    MaybeEmitNullCheck(decoder, array->gp(), pinned, array_obj.type);
+
+    std::optional<LiftoffRegister> index =
+        pinned.set(__ PeekToRegister(2, pinned));
+
+    const bool implicit_null_check = false;
+    BoundsCheckArray(decoder, implicit_null_check, *array, *index, pinned);
+    ValueKind elem_kind = imm.array_type->element_type().kind();
+    if (!CheckSupportedType(decoder, elem_kind, "array load")) return;
+
+    // As we don't have `PeekToModifiableRegister`, simply allocate a new
+    // register for the array + index  and then "free" the array and
+    // index registers.
+    LiftoffRegister mem_location =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    int elem_size_shift = value_kind_size_log2(elem_kind);
+    if (elem_size_shift != 0) {
+      __ emit_i32_shli(mem_location.gp(), index->gp(), elem_size_shift);
+      __ emit_i32_add(mem_location.gp(), mem_location.gp(), array->gp());
+    } else {
+      __ emit_i32_add(mem_location.gp(), array->gp(), index->gp());
+    }
+    pinned.clear(*array);
+    pinned.clear(*index);
+    array = {};
+    index = {};
+
+    LiftoffRegister new_value = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister expected_value =
+        pinned.set(__ PopToModifiableRegister(pinned));
+    __ DropValues(2);  // index, array.
+
+    LiftoffRegister result_reg = expected_value;
+    const int offset = wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize);
+    if (is_reference(elem_kind)) {
+      UNIMPLEMENTED();
+    } else {
+      __ AtomicCompareExchange(mem_location.gp(), no_reg, offset,
+                               expected_value, new_value, result_reg,
+                               StoreType::ForValueKind(elem_kind), false);
+    }
+    __ PushRegister(elem_kind, result_reg);
+#else
+    LiftoffRegList pinned;
+    LiftoffRegister new_value = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister expected_value = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister index = pinned.set(__ PopToModifiableRegister(pinned));
+    LiftoffRegister array = pinned.set(__ PopToRegister(pinned));
+    if (null_check_strategy_ == compiler::NullCheckStrategy::kExplicit) {
+      MaybeEmitNullCheck(decoder, array.gp(), pinned, array_obj.type);
+    }
+    bool implicit_null_check =
+        array_obj.type.is_nullable() &&
+        null_check_strategy_ == compiler::NullCheckStrategy::kTrapHandler;
+    BoundsCheckArray(decoder, implicit_null_check, array, index, pinned);
+    ValueKind elem_kind = imm.array_type->element_type().kind();
+    if (!CheckSupportedType(decoder, elem_kind, "array load")) return;
+    int elem_size_shift = value_kind_size_log2(elem_kind);
+    if (elem_size_shift != 0) {
+      __ emit_i32_shli(index.gp(), index.gp(), elem_size_shift);
+    }
+
+    // Special implementation for unshared objects which don't guarantee aligned
+    // i64 values.
+    if (!array_obj.type.is_shared() && elem_kind == ValueKind::kI64) {
+      LiftoffRegister result_reg =
+          pinned.set(__ GetUnusedRegister(reg_class_for(elem_kind), pinned));
+      LoadObjectField(decoder, result_reg, array.gp(), index.gp(),
+                      wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize),
+                      elem_kind, true, false, pinned);
+      {
+        Label end;
+        FREEZE_STATE(frozen);
+        if constexpr (Is64()) {
+          __ emit_cond_jump(kNotEqual, &end, elem_kind, result_reg.gp(),
+                            expected_value.gp(), frozen);
+        } else {
+          DCHECK(result_reg.is_gp_pair());
+          DCHECK(expected_value.is_gp_pair());
+          __ emit_cond_jump(kNotEqual, &end, kI32, result_reg.high_gp(),
+                            expected_value.high_gp(), frozen);
+          __ emit_cond_jump(kNotEqual, &end, kI32, result_reg.low_gp(),
+                            expected_value.low_gp(), frozen);
+        }
+        StoreObjectField(decoder, array.gp(), index.gp(),
+                         wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize),
+                         new_value, false, pinned, elem_kind);
+        __ bind(&end);
+      }
+      __ PushRegister(elem_kind, result_reg);
+      return;
+    }
+
+    LiftoffRegister result_reg =
+        pinned.set(__ GetUnusedRegister(reg_class_for(elem_kind), pinned));
+    const int offset = wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize);
+    if (is_reference(elem_kind)) {
+      UNIMPLEMENTED();
+    } else {
+      Register offset_reg = index.gp();
+      __ AtomicCompareExchange(array.gp(), offset_reg, offset, expected_value,
+                               new_value, result_reg,
+                               StoreType::ForValueKind(elem_kind), false);
+    }
+    __ PushRegister(elem_kind, result_reg);
+#endif
   }
 
   // Pop a VarState and if needed transform it to an intptr.
