@@ -3563,7 +3563,12 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int frb = instr->RBValue();
       double fra_val = get_double_from_d_register(fra);
       double frb_val = get_double_from_d_register(frb);
-      double frt_val = fra_val - frb_val;
+      double frt_val;
+      if (std::isinf(fra_val) && std::isinf(frb_val) && (fra_val == frb_val)) {
+        frt_val = std::numeric_limits<double>::quiet_NaN();
+      } else {
+        frt_val = fra_val - frb_val;
+      }
       set_d_register_from_double(frt, frt_val);
       return;
     }
@@ -3573,7 +3578,12 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int frb = instr->RBValue();
       double fra_val = get_double_from_d_register(fra);
       double frb_val = get_double_from_d_register(frb);
-      double frt_val = fra_val + frb_val;
+      double frt_val;
+      if (std::isinf(fra_val) && std::isinf(frb_val) && (fra_val != frb_val)) {
+        frt_val = std::numeric_limits<double>::quiet_NaN();
+      } else {
+        frt_val = fra_val + frb_val;
+      }
       set_d_register_from_double(frt, frt_val);
       return;
     }

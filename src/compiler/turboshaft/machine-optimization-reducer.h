@@ -175,6 +175,16 @@ struct BitfieldCheck {
   }
 };
 
+template <typename T>
+bool CanFoldFloatConstants(bool ensure_deterministic_nan, T k1, T k2) {
+  if (!ensure_deterministic_nan) return true;
+  // Operations involving NaN values have platform specific results.
+  return (!std::isnan(k1) && !std::isnan(k2)) &&
+         // Operations involving +Inf and -Inf values have platform specific
+         // results.
+         (!(std::isinf(k1) && std::isinf(k2) && k1 != k2));
+}
+
 }  // namespace detail
 
 template <class Next>
@@ -588,7 +598,7 @@ class MachineOptimizationReducer : public Next {
         rep == FloatRepresentation::Float32() &&
         matcher_.MatchFloat32Constant(lhs, &k1) &&
         matcher_.MatchFloat32Constant(rhs, &k2) &&
-        (!ensure_deterministic_nan || (!std::isnan(k1) && !std::isnan(k2)))) {
+        detail::CanFoldFloatConstants(ensure_deterministic_nan, k1, k2)) {
       switch (kind) {
         case Kind::kAdd:
           return __ Float32Constant(k1 + k2);
@@ -614,7 +624,7 @@ class MachineOptimizationReducer : public Next {
         rep == FloatRepresentation::Float64() &&
         matcher_.MatchFloat64Constant(lhs, &k1) &&
         matcher_.MatchFloat64Constant(rhs, &k2) &&
-        (!ensure_deterministic_nan || (!std::isnan(k1) && !std::isnan(k2)))) {
+        detail::CanFoldFloatConstants(ensure_deterministic_nan, k1, k2)) {
       switch (kind) {
         case Kind::kAdd:
           return __ Float64Constant(k1 + k2);

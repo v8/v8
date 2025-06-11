@@ -7186,7 +7186,11 @@ EVALUATE(AEBR) {
   float fr1_val = get_fpr<float>(r1);
   float fr2_val = get_fpr<float>(r2);
   fr1_val = FPProcessNaNBinop<float, Float32, uint32_t>(
-      fr1_val, fr2_val, [](float lhs, float rhs) { return lhs + rhs; });
+      fr1_val, fr2_val, [](float lhs, float rhs) {
+        if (std::isinf(lhs) && std::isinf(rhs) && (lhs != rhs))
+          return std::numeric_limits<float>::quiet_NaN();
+        return lhs + rhs;
+      });
   set_fpr(r1, fr1_val);
   SetS390ConditionCode<float>(fr1_val, 0);
 
@@ -7199,7 +7203,11 @@ EVALUATE(SEBR) {
   float fr1_val = get_fpr<float>(r1);
   float fr2_val = get_fpr<float>(r2);
   fr1_val = FPProcessNaNBinop<float, Float32, uint32_t>(
-      fr1_val, fr2_val, [](float lhs, float rhs) { return lhs - rhs; });
+      fr1_val, fr2_val, [](float lhs, float rhs) {
+        if (std::isinf(lhs) && std::isinf(rhs) && (lhs == rhs))
+          return std::numeric_limits<float>::quiet_NaN();
+        return lhs - rhs;
+      });
   set_fpr(r1, fr1_val);
   SetS390ConditionCode<float>(fr1_val, 0);
 

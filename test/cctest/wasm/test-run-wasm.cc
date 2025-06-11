@@ -188,7 +188,20 @@ Float32 f32_binop_result(
 #endif
   if (lhs.is_nan()) return lhs.to_quiet_nan();
   if (rhs.is_nan()) return rhs.to_quiet_nan();
-  return Float32{result_for_non_nan(lhs.get_scalar(), rhs.get_scalar())};
+  // Don't use the Float32(float) constructor directly because the value could
+  // be a NaN and Float32(float) has a DCHECK for catching it.
+  return Float32::FromBits(base::bit_cast<uint32_t>(
+      result_for_non_nan(lhs.get_scalar(), rhs.get_scalar())));
+}
+
+float f32_binop_add(float lhs, float rhs) {
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_PPC64) || \
+    defined(V8_TARGET_ARCH_S390X)
+  // On these platforms inf + -inf returns the default NaN.
+  if (std::isinf(lhs) && std::isinf(rhs) && (lhs != rhs))
+    return std::numeric_limits<float>::quiet_NaN();
+#endif
+  return lhs + rhs;
 }
 }  // anonymous namespace
 
@@ -199,9 +212,9 @@ WASM_EXEC_TEST(Float32Add_I32_Consts) {
       r.Build({WASM_I32_REINTERPRET_F32(
           WASM_F32_ADD(WASM_F32_REINTERPRET_I32(WASM_I32V(i)),
                        WASM_F32_REINTERPRET_I32(WASM_I32V(j))))});
-      Float32 expected =
-          f32_binop_result(Float32::FromBits(i), Float32::FromBits(j),
-                           [](float lhs, float rhs) { return lhs + rhs; });
+      Float32 expected = f32_binop_result(
+          Float32::FromBits(i), Float32::FromBits(j),
+          [](float lhs, float rhs) { return f32_binop_add(lhs, rhs); });
       CHECK_EQ(expected.get_bits(), r.Call());
     }
   }
@@ -214,9 +227,9 @@ WASM_EXEC_TEST(Float32Add_I32_Params) {
                    WASM_F32_REINTERPRET_I32(WASM_LOCAL_GET(1))))});
   FOR_UINT32_INPUTS(i) {
     FOR_UINT32_INPUTS(j) {
-      Float32 expected =
-          f32_binop_result(Float32::FromBits(i), Float32::FromBits(j),
-                           [](float lhs, float rhs) { return lhs + rhs; });
+      Float32 expected = f32_binop_result(
+          Float32::FromBits(i), Float32::FromBits(j),
+          [](float lhs, float rhs) { return f32_binop_add(lhs, rhs); });
       CHECK_EQ(expected.get_bits(), r.Call(i, j));
     }
   }
@@ -229,9 +242,9 @@ WASM_EXEC_TEST(Float32Add_I32_Const_Param) {
         WASM_F32_ADD(WASM_F32_REINTERPRET_I32(WASM_I32V(i)),
                      WASM_F32_REINTERPRET_I32(WASM_LOCAL_GET(0))))});
     FOR_UINT32_INPUTS(j) {
-      Float32 expected =
-          f32_binop_result(Float32::FromBits(i), Float32::FromBits(j),
-                           [](float lhs, float rhs) { return lhs + rhs; });
+      Float32 expected = f32_binop_result(
+          Float32::FromBits(i), Float32::FromBits(j),
+          [](float lhs, float rhs) { return f32_binop_add(lhs, rhs); });
       CHECK_EQ(expected.get_bits(), r.Call(j));
     }
   }
@@ -244,9 +257,9 @@ WASM_EXEC_TEST(Float32Add_I32_Param_Const) {
         WASM_F32_ADD(WASM_F32_REINTERPRET_I32(WASM_LOCAL_GET(0)),
                      WASM_F32_REINTERPRET_I32(WASM_I32V(j))))});
     FOR_UINT32_INPUTS(i) {
-      Float32 expected =
-          f32_binop_result(Float32::FromBits(i), Float32::FromBits(j),
-                           [](float lhs, float rhs) { return lhs + rhs; });
+      Float32 expected = f32_binop_result(
+          Float32::FromBits(i), Float32::FromBits(j),
+          [](float lhs, float rhs) { return f32_binop_add(lhs, rhs); });
       CHECK_EQ(expected.get_bits(), r.Call(i));
     }
   }
