@@ -111,6 +111,8 @@ namespace internal {
   V(kUnexpectedInstanceType, "Unexpected instance type encountered")           \
   V(kTurboshaftTypeAssertionFailed,                                            \
     "A type assertion failed in Turboshaft-generated code")                    \
+  V(kTurboshaftLoadEliminationError,                                           \
+    "Turboshaft's load elimination wrongly eliminated a Load")                 \
   V(kMetadataAreaStartDoesNotMatch,                                            \
     "The metadata doesn't belong to the chunk")                                \
   V(kExternalPointerTagMismatch,                                               \

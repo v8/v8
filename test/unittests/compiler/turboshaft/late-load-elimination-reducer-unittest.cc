@@ -13,12 +13,19 @@
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
+#include "src/flags/flags.h"
 #include "test/common/flag-utils.h"
 #include "test/unittests/compiler/turboshaft/reducer-test.h"
 
 namespace v8::internal::compiler::turboshaft {
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
+
+#ifdef DEBUG
+#define LATE_LOAD_ELIM_VERIFY v8_flags.turboshaft_verify_load_elimination
+#else
+#define LATE_LOAD_ELIM_VERIFY false
+#endif
 
 // Use like this:
 // V<...> C(my_var) = ...
@@ -140,7 +147,9 @@ TEST_F(LateLoadEliminationReducerTest,
   ASSERT_FALSE(test.GetCapture("truncate").IsEmpty());
 
   // The other load has been eliminated.
-  ASSERT_TRUE(test.GetCapture("other_load").IsEmpty());
+  if (!LATE_LOAD_ELIM_VERIFY) {
+    ASSERT_TRUE(test.GetCapture("other_load").IsEmpty());
+  }
 
   // The select's input is the first load.
   const SelectOp* result = test.GetCapturedAs<SelectOp>("result");
@@ -190,7 +199,9 @@ TEST_F(LateLoadEliminationReducerTest,
   ASSERT_TRUE(test.GetCapture("other_truncate").IsEmpty());
 
   // The other load should have been eliminated.
-  ASSERT_TRUE(test.GetCapture("other_load").IsEmpty());
+  if (!LATE_LOAD_ELIM_VERIFY) {
+    ASSERT_TRUE(test.GetCapture("other_load").IsEmpty());
+  }
 
   // The select uses the load as condition and the second input directly.
   const SelectOp* result = test.GetCapturedAs<SelectOp>("result");
@@ -242,7 +253,9 @@ TEST_F(LateLoadEliminationReducerTest,
   ASSERT_EQ(other_load, &test.graph().Get(bitcast.input()));
 
   // The load has been eliminated.
-  ASSERT_TRUE(test.GetCapture("load").IsEmpty());
+  if (!LATE_LOAD_ELIM_VERIFY) {
+    ASSERT_TRUE(test.GetCapture("load").IsEmpty());
+  }
 
   // The select's input is unchanged.
   const SelectOp* result = test.GetCapturedAs<SelectOp>("result");
@@ -293,7 +306,9 @@ TEST_F(LateLoadEliminationReducerTest,
   ASSERT_TRUE(test.GetCapture("other_truncate").IsEmpty());
 
   // The load has been eliminated.
-  ASSERT_TRUE(test.GetCapture("load").IsEmpty());
+  if (!LATE_LOAD_ELIM_VERIFY) {
+    ASSERT_TRUE(test.GetCapture("load").IsEmpty());
+  }
 
   // The select uses the other load as condition and the second input directly.
   const SelectOp* result = test.GetCapturedAs<SelectOp>("result");

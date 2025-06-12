@@ -143,37 +143,6 @@ class BranchHintingStresser {
 
 }  // namespace
 
-// TODO(14108): Annotate runtime functions as not having side effects
-// where appropriate.
-OpIndex WasmGraphBuilderBase::CallRuntime(
-    Zone* zone, Runtime::FunctionId f,
-    std::initializer_list<const OpIndex> args, V<Context> context) {
-  const Runtime::Function* fun = Runtime::FunctionForId(f);
-  OpIndex isolate_root = __ LoadRootRegister();
-  DCHECK_EQ(1, fun->result_size);
-  int builtin_slot_offset =
-      IsolateData::BuiltinSlotOffset(Builtin::kWasmCEntry);
-  OpIndex centry_stub =
-      __ Load(isolate_root, LoadOp::Kind::RawAligned(),
-              MemoryRepresentation::UintPtr(), builtin_slot_offset);
-  // CallRuntime is always called with 0 or 1 argument, so a vector of size 4
-  // always suffices.
-  SmallZoneVector<OpIndex, 4> centry_args(zone);
-  for (OpIndex arg : args) centry_args.emplace_back(arg);
-  centry_args.emplace_back(__ ExternalConstant(ExternalReference::Create(f)));
-  centry_args.emplace_back(__ Word32Constant(fun->nargs));
-  centry_args.emplace_back(context);
-  const CallDescriptor* call_descriptor =
-      compiler::Linkage::GetRuntimeCallDescriptor(
-          __ graph_zone(), f, fun->nargs, Operator::kNoProperties,
-          CallDescriptor::kNoFlags);
-  const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-      call_descriptor, compiler::CanThrow::kYes,
-      compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
-  return __ Call(centry_stub, OpIndex::Invalid(), base::VectorOf(centry_args),
-                 ts_call_descriptor);
-}
-
 OpIndex WasmGraphBuilderBase::GetBuiltinPointerTarget(Builtin builtin) {
   static_assert(std::is_same_v<Smi, BuiltinPtr>, "BuiltinPtr must be Smi");
   return __ SmiConstant(Smi::FromInt(static_cast<int>(builtin)));
@@ -301,7 +270,8 @@ void WasmGraphBuilderBase::BuildModifyThreadInWasmFlagHelper(
       OpIndex message_id = __ TaggedIndexConstant(static_cast<int32_t>(
           new_value ? AbortReason::kUnexpectedThreadInWasmSet
                     : AbortReason::kUnexpectedThreadInWasmUnset));
-      CallRuntime(zone, Runtime::kAbort, {message_id}, __ NoContextConstant());
+      __ WasmCallRuntime(zone, Runtime::kAbort, {message_id},
+                         __ NoContextConstant());
       __ Unreachable();
     }
   }
@@ -620,8 +590,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                                         WASM_TRUSTED_INSTANCE_DATA_TYPE))) {
         OpIndex message_id = __ TaggedIndexConstant(
             static_cast<int32_t>(AbortReason::kUnexpectedInstanceType));
-        CallRuntime(decoder->zone(), Runtime::kAbort, {message_id},
-                    __ NoContextConstant());
+        __ WasmCallRuntime(decoder->zone(), Runtime::kAbort, {message_id},
+                           __ NoContextConstant());
         __ Unreachable();
       }
     }
@@ -633,8 +603,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     if (v8_flags.trace_wasm) {
       __ SetCurrentOrigin(
           WasmPositionToOpIndex(decoder->position(), inlining_id_));
-      CallRuntime(decoder->zone(), Runtime::kWasmTraceEnter, {},
-                  __ NoContextConstant());
+      __ WasmCallRuntime(decoder->zone(), Runtime::kWasmTraceEnter, {},
+                         __ NoContextConstant());
     }
 
     auto branch_hints_it = decoder->module_->branch_hints.find(func_index_);
@@ -1082,8 +1052,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             MemoryRepresentation::FromMachineType(return_type.machine_type()),
             compiler::kNoWriteBarrier);
       }
-      CallRuntime(decoder->zone(), Runtime::kWasmTraceExit, {info},
-                  __ NoContextConstant());
+      __ WasmCallRuntime(decoder->zone(), Runtime::kWasmTraceExit, {info},
+                         __ NoContextConstant());
     }
     if (mode_ == kRegular || mode_ == kInlinedTailCall) {
       __ Return(__ Word32Constant(0), base::VectorOf(return_values),
@@ -2015,7 +1985,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
     // Case: growable SharedArrayBuffers, LT.
     ELSE {
-      V<Object> gsab_length_tagged = CallRuntime(
+      V<Object> gsab_length_tagged = __ WasmCallRuntime(
           decoder->zone(), Runtime::kGrowableSharedArrayBufferByteLength,
           {buffer}, __ NoContextConstant());
       V<WordPtr> gsab_length = ChangeTaggedNumberToIntPtr(gsab_length_tagged);
@@ -7891,8 +7861,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     __ Store(info, rep_as_int, StoreOp::Kind::RawAligned(),
              MemoryRepresentation::Uint8(), compiler::kNoWriteBarrier,
              offsetof(MemoryTracingInfo, mem_rep));
-    CallRuntime(decoder->zone(), Runtime::kWasmTraceMemory, {info},
-                __ NoContextConstant());
+    __ WasmCallRuntime(decoder->zone(), Runtime::kWasmTraceMemory, {info},
+                       __ NoContextConstant());
   }
 
   void StackCheck(WasmStackCheckOp::Kind kind, FullDecoder* decoder) {

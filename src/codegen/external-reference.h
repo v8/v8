@@ -614,7 +614,7 @@ class ExternalReference {
          const CFunctionInfo* const* c_signatures, unsigned num_functions);
   static ExternalReference Create(const Runtime::Function* f);
   static ExternalReference Create(IsolateAddressId id, Isolate* isolate);
-  static ExternalReference Create(Runtime::FunctionId id);
+  static V8_EXPORT_PRIVATE ExternalReference Create(Runtime::FunctionId id);
   static ExternalReference Create(IsolateFieldId id);
   static V8_EXPORT_PRIVATE ExternalReference
   Create(Address address, Type type = ExternalReference::BUILTIN_CALL);

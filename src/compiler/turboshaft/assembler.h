@@ -4052,6 +4052,39 @@ class TurboshaftAssemblerOpInterface
         {object, prototype});
   }
 
+#if V8_ENABLE_WEBASSEMBLY
+  // TODO(14108): Annotate runtime functions as not having side effects
+  // where appropriate.
+  OpIndex WasmCallRuntime(Zone* zone, Runtime::FunctionId f,
+                          std::initializer_list<const OpIndex> args,
+                          V<Context> context) {
+    const Runtime::Function* fun = Runtime::FunctionForId(f);
+    OpIndex isolate_root = __ LoadRootRegister();
+    DCHECK_EQ(1, fun->result_size);
+    int builtin_slot_offset =
+        IsolateData::BuiltinSlotOffset(Builtin::kWasmCEntry);
+    OpIndex centry_stub =
+        __ Load(isolate_root, LoadOp::Kind::RawAligned(),
+                MemoryRepresentation::UintPtr(), builtin_slot_offset);
+    // CallRuntime is always called with 0 or 1 argument, so a vector of size 4
+    // always suffices.
+    SmallZoneVector<OpIndex, 4> centry_args(zone);
+    for (OpIndex arg : args) centry_args.emplace_back(arg);
+    centry_args.emplace_back(__ ExternalConstant(ExternalReference::Create(f)));
+    centry_args.emplace_back(__ Word32Constant(fun->nargs));
+    centry_args.emplace_back(context);
+    const CallDescriptor* call_descriptor =
+        compiler::Linkage::GetRuntimeCallDescriptor(
+            __ graph_zone(), f, fun->nargs, Operator::kNoProperties,
+            CallDescriptor::kNoFlags);
+    const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
+        call_descriptor, compiler::CanThrow::kYes,
+        compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
+    return __ Call(centry_stub, OpIndex::Invalid(), base::VectorOf(centry_args),
+                   ts_call_descriptor);
+  }
+#endif
+
   void TailCall(V<CallTarget> callee, base::Vector<const OpIndex> arguments,
                 const TSCallDescriptor* descriptor) {
     ReduceIfReachableTailCall(callee, arguments, descriptor);

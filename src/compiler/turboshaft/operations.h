@@ -2107,11 +2107,11 @@ struct ComparisonOp : FixedArityOperationT<2, ComparisonOp> {
 
   void Validate(const Graph& graph) const {
     if (kind == Kind::kEqual) {
-      DCHECK(rep == any_of(RegisterRepresentation::Word32(),
-                           RegisterRepresentation::Word64(),
-                           RegisterRepresentation::Float32(),
-                           RegisterRepresentation::Float64(),
-                           RegisterRepresentation::Tagged()));
+      DCHECK_EQ(rep, any_of(RegisterRepresentation::Word32(),
+                            RegisterRepresentation::Word64(),
+                            RegisterRepresentation::Float32(),
+                            RegisterRepresentation::Float64(),
+                            RegisterRepresentation::Tagged()));
 
       RegisterRepresentation input_rep = rep;
 #ifdef V8_COMPRESS_POINTERS

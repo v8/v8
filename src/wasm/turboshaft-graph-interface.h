@@ -96,10 +96,6 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
   template <typename T>
   using ConstOrV = compiler::turboshaft::ConstOrV<T>;
 
-  OpIndex CallRuntime(Zone* zone, Runtime::FunctionId f,
-                      std::initializer_list<const OpIndex> args,
-                      V<Context> context);
-
   OpIndex GetBuiltinPointerTarget(Builtin builtin);
   V<WordPtr> GetTargetForBuiltinCall(Builtin builtin, StubCallMode stub_mode);
   V<BigInt> BuildChangeInt64ToBigInt(V<Word64> input, StubCallMode stub_mode);

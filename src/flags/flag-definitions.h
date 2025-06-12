@@ -1621,6 +1621,8 @@ DEFINE_IMPLICATION(experimental_wasm_shared, shared_string_table)
 
 #ifdef DEBUG
 
+DEFINE_BOOL(turboshaft_verify_load_elimination, false,
+            "insert runtime checks to verify Late Load Elimination")
 DEFINE_UINT64(turboshaft_opt_bisect_limit, std::numeric_limits<uint64_t>::max(),
               "stop applying optional optimizations after a specified number "
               "of steps, useful for bisecting optimization bugs")
