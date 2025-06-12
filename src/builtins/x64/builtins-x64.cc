@@ -4071,9 +4071,15 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   // Check that the fixed register isn't one that is already in use.
   DCHECK(slot_address == rbx || slot_address == r8);
   __ LoadRootRelative(active_suspender, IsolateData::active_suspender_offset());
+  // TODO(350324877): we shouldn't exit sandboxed mode here. We can either:
+  //   * call a (unsandboxed) runtime function/builtin
+  //   * run this entire builtin in unsandboxed mode, or
+  //   * find a way to avoid this write entirely.
+  __ ExitSandbox();
   __ StoreTaggedField(
       FieldOperand(suspender, WasmSuspenderObject::kParentOffset),
       active_suspender);
+  __ EnterSandbox();
   __ RecordWriteField(suspender, WasmSuspenderObject::kParentOffset,
                       active_suspender, slot_address, SaveFPRegsMode::kIgnore);
   __ StoreRootRelative(IsolateData::active_suspender_offset(), suspender);

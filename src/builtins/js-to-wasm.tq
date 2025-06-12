@@ -10,6 +10,7 @@ extern runtime WasmGenericWasmToJSObject(Context, Object): JSAny;
 extern runtime TierUpJSToWasmWrapper(NoContext, WasmExportedFunctionData):
     JSAny;
 extern runtime WasmAllocateSuspender(Context): JSAny;
+extern runtime ClearWasmSuspenderResumeField(Context, JSAny): JSAny;
 }  // namespace runtime
 
 namespace wasm {
@@ -746,7 +747,7 @@ macro JSToWasmWrapperHelper(
       // In case we have a non-JSPI test where an import returns a Promise,
       // we don't want the import to try and suspend the wasm stack. Clear the
       // "resume" field as a way to signal this to the import.
-      UnsafeCast<WasmSuspenderObject>(suspender).resume = Undefined;
+      runtime::ClearWasmSuspenderResumeField(context, suspender);
     }
   }
   // TODO(ahaas): Ideally we would enter a `DisallowGarbageCollection` scope

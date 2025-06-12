@@ -1363,6 +1363,19 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   return *suspender;
 }
 
+// Helper function needed for the stress stack switching mode.
+// This is a runtime function to avoid writing trusted space memory from
+// generated code.
+RUNTIME_FUNCTION(Runtime_ClearWasmSuspenderResumeField) {
+  // Should only be used in stress stack switching mode.
+  CHECK(v8_flags.stress_wasm_stack_switching);
+
+  DCHECK_EQ(1, args.length());
+  Tagged<WasmSuspenderObject> suspender = Cast<WasmSuspenderObject>(args[0]);
+  suspender->set_resume(ReadOnlyRoots(isolate).undefined_value());
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 #define RETURN_RESULT_OR_TRAP(call)                                            \
   do {                                                                         \
     DirectHandle<Object> result;                                               \
