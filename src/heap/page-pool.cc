@@ -412,9 +412,14 @@ void PagePool::AddLarge(Isolate* isolate,
         base::TimeDelta::FromSeconds(timeout);
     auto task =
         std::make_unique<ReleasePooledLargeChunksTask>(isolate, this, time);
-    V8::GetCurrentPlatform()->PostDelayedTaskOnWorkerThread(
-        TaskPriority::kBestEffort, std::move(task),
-        large_page_release_task_delay.InSecondsF());
+    if (v8_flags.single_threaded) {
+      isolate->task_runner()->PostDelayedTask(
+          std::move(task), large_page_release_task_delay.InSecondsF());
+    } else {
+      V8::GetCurrentPlatform()->PostDelayedTaskOnWorkerThread(
+          TaskPriority::kBestEffort, std::move(task),
+          large_page_release_task_delay.InSecondsF());
+    }
   }
 }
 
