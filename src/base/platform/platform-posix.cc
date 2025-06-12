@@ -10,6 +10,7 @@
 #include <limits.h>
 #include <pthread.h>
 
+#include "src/base/fpu.h"
 #include "src/base/logging.h"
 #if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)
 #include <pthread_np.h>  // for pthread_set_name_np
@@ -1226,6 +1227,10 @@ static void SetThreadName(const char* name) {
 }
 
 static void* ThreadEntry(void* arg) {
+  // Reset denormals state to default, in case we picked up a non-default one
+  // with the posix clone() call.
+  base::FPU::SetFlushDenormals(false);
+
   Thread* thread = reinterpret_cast<Thread*>(arg);
   // We take the lock here to make sure that pthread_create finished first since
   // we don't know which thread will run first (the original thread or the new

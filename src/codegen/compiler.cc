@@ -12,6 +12,7 @@
 #include "src/asmjs/asm-js.h"
 #include "src/ast/prettyprinter.h"
 #include "src/ast/scopes.h"
+#include "src/base/fpu.h"
 #include "src/base/logging.h"
 #include "src/base/platform/time.h"
 #include "src/baseline/baseline.h"
@@ -1931,6 +1932,9 @@ bool BackgroundCompileTask::is_streaming_compilation() const {
 }
 
 void BackgroundCompileTask::Run() {
+  base::FlushDenormalsScope flush_denormals_scope(
+      isolate_for_local_isolate_->flush_denormals());
+
   DCHECK_NE(ThreadId::Current(), isolate_for_local_isolate_->thread_id());
   LocalIsolate isolate(isolate_for_local_isolate_, ThreadKind::kBackground);
   UnparkedScope unparked_scope(&isolate);
