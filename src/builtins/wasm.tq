@@ -933,9 +933,6 @@ extern macro LoadPointerFromRootRegister(intptr): RawPtr;
 const kThreadInWasmFlagAddressOffset: constexpr intptr
     generates 'Isolate::thread_in_wasm_flag_address_offset()';
 
-const kActiveSuspenderOffset: constexpr intptr
-    generates 'IsolateData::root_slot_offset(RootIndex::kActiveSuspender)';
-
 macro ModifyThreadInWasmFlag(newValue: int32): void {
   const threadInWasmFlagAddress =
       LoadPointerFromRootRegister(kThreadInWasmFlagAddressOffset);

@@ -1273,9 +1273,12 @@ class WasmCapiFunctionData
 class WasmResumeData
     : public TorqueGeneratedWasmResumeData<WasmResumeData, HeapObject> {
  public:
-  using BodyDescriptor =
-      FlexibleBodyDescriptor<WasmResumeData::kStartOfStrongFieldsOffset>;
+  using BodyDescriptor = StackedBodyDescriptor<
+      FlexibleBodyDescriptor<WasmResumeData::kStartOfStrongFieldsOffset>,
+      WithStrongTrustedPointer<kTrustedSuspenderOffset,
+                               kWasmSuspenderIndirectPointerTag>>;
   DECL_PRINTER(WasmResumeData)
+  DECL_TRUSTED_POINTER_ACCESSORS(trusted_suspender, WasmSuspenderObject)
   TQ_OBJECT_CONSTRUCTORS(WasmResumeData)
 };
 
@@ -1524,13 +1527,16 @@ class WasmDescriptorOptions
 // promises. See: https://github.com/WebAssembly/js-promise-integration.
 class WasmSuspenderObject
     : public TorqueGeneratedWasmSuspenderObject<WasmSuspenderObject,
-                                                HeapObject> {
+                                                ExposedTrustedObject> {
  public:
   using BodyDescriptor = StackedBodyDescriptor<
-      FixedBodyDescriptorFor<WasmSuspenderObject>,
-      WithExternalPointer<kStackOffset, kWasmStackMemoryTag>>;
+      FixedExposedTrustedObjectBodyDescriptor<WasmSuspenderObject,
+                                              kWasmSuspenderIndirectPointerTag>,
+      WithExternalPointer<kStackOffset, kWasmStackMemoryTag>,
+      WithProtectedPointer<kParentOffset>>;
   enum State : int { kInactive = 0, kActive, kSuspended };
   DECL_EXTERNAL_POINTER_ACCESSORS(stack, wasm::StackMemory*)
+  DECL_PROTECTED_POINTER_ACCESSORS(parent, WasmSuspenderObject)
   DECL_PRINTER(WasmSuspenderObject)
   TQ_OBJECT_CONSTRUCTORS(WasmSuspenderObject)
 };

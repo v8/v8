@@ -1175,8 +1175,12 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     OpIndex promise = __ Call(promise_resolve, OpIndex::Invalid(),
                               base::VectorOf(resolve_args), resolve_call_desc);
 
-    OpIndex suspender = LOAD_ROOT(ActiveSuspender);
-    IF (__ TaggedEqual(suspender, LOAD_ROOT(UndefinedValue))) {
+    OpIndex suspender =
+        __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned(),
+                MemoryRepresentation::AnyUncompressedTagged(),
+                IsolateData::active_suspender_offset());
+
+    IF (__ TaggedEqual(suspender, __ SmiConstant(Smi::zero()))) {
       V<Smi> error = __ SmiConstant(Smi::FromInt(
           static_cast<int32_t>(MessageTemplate::kWasmSuspendError)));
       CallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError, {error},

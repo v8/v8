@@ -165,13 +165,13 @@ extern class WasmCapiFunctionData extends WasmFunctionData {
 }
 
 extern class WasmResumeData extends HeapObject {
-  suspender: WasmSuspenderObject;
+  trusted_suspender: TrustedPointer<WasmSuspenderObject>;
   on_resume: Smi;  // See wasm::OnResume enum.
 }
 
-extern class WasmSuspenderObject extends HeapObject {
+extern class WasmSuspenderObject extends ExposedTrustedObject {
   stack: ExternalPointer;
-  parent: WasmSuspenderObject|Undefined;
+  parent: ProtectedPointer<WasmSuspenderObject>;
   promise: JSPromise;
   resume: JSObject|Undefined;
   reject: JSObject|Undefined;

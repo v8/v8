@@ -636,6 +636,8 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
   v->VisitRootPointer(
       Root::kStackRoots, nullptr,
       FullObjectSlot(continuation_preserved_embedder_data_address()));
+  v->VisitRootPointer(Root::kStackRoots, nullptr,
+                      FullObjectSlot(&isolate_data()->active_suspender_));
 
   // Iterate over pointers on native execution stack.
 #if V8_ENABLE_WEBASSEMBLY
@@ -839,7 +841,8 @@ MaybeDirectHandle<WasmSuspenderObject> TryGetWasmSuspender(
     // the JSGeneratorObject for the async function.
     Tagged<SharedFunctionInfo> shared = Cast<JSFunction>(handler)->shared();
     if (shared->HasWasmResumeData()) {
-      return direct_handle(shared->wasm_resume_data()->suspender(), isolate);
+      return direct_handle(
+          shared->wasm_resume_data()->trusted_suspender(isolate), isolate);
     }
   }
   return MaybeDirectHandle<WasmSuspenderObject>();
@@ -2293,7 +2296,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
     wasm::StackMemory* active_stack = isolate_data_.active_stack();
     if (active_stack != nullptr) {
       wasm::StackMemory* parent = nullptr;
-      Tagged<HeapObject> suspender = *roots_table().active_suspender();
+      Tagged<Object> maybe_suspender = isolate_data()->active_suspender();
       while (active_stack != iter.wasm_stack()) {
         parent = active_stack->jmpbuf()->parent;
         SBXCHECK_EQ(parent->jmpbuf()->state, wasm::JumpBuffer::Inactive);
@@ -2304,7 +2307,12 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         // Otherwise the exception should have been caught by the JSPI builtin.
         // TODO(388533754): Revisit this for core stack-switching when the
         // suspender can encapsulate multiple stacks.
-        suspender = Tagged<WasmSuspenderObject>::cast(suspender)->parent();
+        auto suspender = Tagged<WasmSuspenderObject>::cast(maybe_suspender);
+        if (suspender->has_parent()) {
+          maybe_suspender = suspender->parent();
+        } else {
+          maybe_suspender = Smi::zero();
+        }
         parent->jmpbuf()->state = wasm::JumpBuffer::Active;
         RetireWasmStack(active_stack);
         active_stack = parent;
@@ -2312,7 +2320,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       if (parent) {
         // We switched at least once, update the active continuation.
         isolate_data_.set_active_stack(active_stack);
-        roots_table().slot(RootIndex::kActiveSuspender).store(suspender);
+        isolate_data()->set_active_suspender(maybe_suspender);
       }
     }
     // The unwinder is running on the central stack. If the target frame is in a

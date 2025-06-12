@@ -1901,7 +1901,7 @@ DirectHandle<WasmResumeData> Factory::NewWasmResumeData(
       Cast<WasmResumeData>(AllocateRawWithImmortalMap(
           map->instance_size(), AllocationType::kOld, map));
   DisallowGarbageCollection no_gc;
-  result->set_suspender(*suspender);
+  result->set_trusted_suspender(*suspender);
   result->set_on_resume(static_cast<int>(on_resume));
   return direct_handle(result, isolate());
 }
@@ -1911,11 +1911,12 @@ DirectHandle<WasmSuspenderObject> Factory::NewWasmSuspenderObject() {
   Tagged<Map> map = *wasm_suspender_object_map();
   Tagged<WasmSuspenderObject> obj =
       Cast<WasmSuspenderObject>(AllocateRawWithImmortalMap(
-          map->instance_size(), AllocationType::kOld, map));
+          map->instance_size(), AllocationType::kTrusted, map));
   auto suspender = handle(obj, isolate());
   // Ensure that all properties are initialized before the allocation below.
+  suspender->init_self_indirect_pointer(isolate());
   suspender->init_stack(IsolateForSandbox(isolate()), nullptr);
-  suspender->set_parent(*undefined_value());
+  suspender->clear_parent();
   suspender->set_promise(*promise);
   suspender->set_resume(*undefined_value());
   suspender->set_reject(*undefined_value());

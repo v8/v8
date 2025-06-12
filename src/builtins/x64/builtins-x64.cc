@@ -29,6 +29,7 @@
 #include "src/objects/js-generator.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
+#include "src/sandbox/indirect-pointer-tag.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/baseline/liftoff-assembler-defs.h"
@@ -3541,11 +3542,11 @@ void GetContextFromImplicitArg(MacroAssembler* masm, Register data) {
 
 void RestoreParentSuspender(MacroAssembler* masm, Register tmp1) {
   Register suspender = tmp1;
-  __ LoadRoot(suspender, RootIndex::kActiveSuspender);
-  __ LoadTaggedField(
+  __ LoadRootRelative(suspender, IsolateData::active_suspender_offset());
+  __ LoadProtectedPointerField(
       suspender, FieldOperand(suspender, WasmSuspenderObject::kParentOffset));
   __ CompareRoot(suspender, RootIndex::kUndefinedValue);
-  __ movq(masm->RootAsOperand(RootIndex::kActiveSuspender), suspender);
+  __ StoreRootRelative(IsolateData::active_suspender_offset(), suspender);
 }
 
 void ResetStackSwitchFrameStackSlots(MacroAssembler* masm) {
@@ -3622,7 +3623,7 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, Register tmp1,
   Register return_value = desc.GetRegisterParameter(1);
   if (mode == wasm::kPromise) {
     __ movq(return_value, kReturnRegister0);
-    __ LoadRoot(promise, RootIndex::kActiveSuspender);
+    __ LoadRootRelative(promise, IsolateData::active_suspender_offset());
     __ LoadTaggedField(
         promise, FieldOperand(promise, WasmSuspenderObject::kPromiseOffset));
   }
@@ -3668,7 +3669,7 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
   Register reason = desc.GetRegisterParameter(1);
   Register debug_event = desc.GetRegisterParameter(2);
   __ movq(reason, kReturnRegister0);
-  __ LoadRoot(promise, RootIndex::kActiveSuspender);
+  __ LoadRootRelative(promise, IsolateData::active_suspender_offset());
   __ LoadTaggedField(
       promise, FieldOperand(promise, WasmSuspenderObject::kPromiseOffset));
   __ movq(kContextRegister,
@@ -3987,9 +3988,9 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   __ Move(caller, MemOperand(suspender_stack, wasm::kStackParentOffset));
   __ StoreRootRelative(IsolateData::active_stack_offset(), caller);
   Register parent = rdx;
-  __ LoadTaggedField(
+  __ LoadProtectedPointerField(
       parent, FieldOperand(suspender, WasmSuspenderObject::kParentOffset));
-  __ movq(masm->RootAsOperand(RootIndex::kActiveSuspender), parent);
+  __ StoreRootRelative(IsolateData::active_suspender_offset(), parent);
   parent = no_reg;
   // live: [suspender:rax, stack:rbx, caller:rcx]
 
@@ -4046,8 +4047,10 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   // The write barrier uses a fixed register for the host object (rdi). The next
   // barrier is on the suspender, so load it in rdi directly.
   Register suspender = rdi;
-  __ LoadTaggedField(
-      suspender, FieldOperand(resume_data, WasmResumeData::kSuspenderOffset));
+  __ LoadTrustedPointerField(
+      suspender,
+      FieldOperand(resume_data, WasmResumeData::kTrustedSuspenderOffset),
+      kWasmSuspenderIndirectPointerTag, kScratchRegister);
   closure = no_reg;
   sfi = no_reg;
 
@@ -4068,13 +4071,13 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   Register slot_address = WriteBarrierDescriptor::SlotAddressRegister();
   // Check that the fixed register isn't one that is already in use.
   DCHECK(slot_address == rbx || slot_address == r8);
-  __ LoadRoot(active_suspender, RootIndex::kActiveSuspender);
+  __ LoadRootRelative(active_suspender, IsolateData::active_suspender_offset());
   __ StoreTaggedField(
       FieldOperand(suspender, WasmSuspenderObject::kParentOffset),
       active_suspender);
   __ RecordWriteField(suspender, WasmSuspenderObject::kParentOffset,
                       active_suspender, slot_address, SaveFPRegsMode::kIgnore);
-  __ movq(masm->RootAsOperand(RootIndex::kActiveSuspender), suspender);
+  __ StoreRootRelative(IsolateData::active_suspender_offset(), suspender);
 
   Register target_stack = suspender;
   __ LoadExternalPointerField(

@@ -3402,11 +3402,11 @@ void GetContextFromImplicitArg(MacroAssembler* masm, Register data,
 
 void RestoreParentSuspender(MacroAssembler* masm, Register tmp1) {
   Register suspender = tmp1;
-  __ LoadRoot(suspender, RootIndex::kActiveSuspender);
+  __ LoadRootRelative(suspender, IsolateData::active_suspender_offset());
   __ Move(suspender,
           FieldOperand(suspender, WasmSuspenderObject::kParentOffset));
   __ CompareRoot(suspender, RootIndex::kUndefinedValue);
-  __ mov(masm->RootAsOperand(RootIndex::kActiveSuspender), suspender);
+  __ StoreRootRelative(IsolateData::active_suspender_offset(), suspender);
 }
 
 void ResetStackSwitchFrameStackSlots(MacroAssembler* masm) {
@@ -3501,7 +3501,7 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, Register tmp,
 
   if (mode == wasm::kPromise) {
     __ mov(return_value, kReturnRegister0);
-    __ LoadRoot(promise, RootIndex::kActiveSuspender);
+    __ LoadRootRelative(promise, IsolateData::active_suspender_offset());
     __ Move(promise,
             FieldOperand(promise, WasmSuspenderObject::kPromiseOffset));
   }
@@ -3547,7 +3547,7 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
 
   __ mov(reason, kReturnRegister0);
 
-  __ LoadRoot(promise, RootIndex::kActiveSuspender);
+  __ LoadRootRelative(promise, IsolateData::active_suspender_offset());
   __ Move(promise, FieldOperand(promise, WasmSuspenderObject::kPromiseOffset));
 
   __ mov(kContextRegister,
@@ -3874,7 +3874,7 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   __ StoreRootRelative(IsolateData::active_stack_offset(), caller);
   Register parent = edi;
   __ Move(parent, FieldOperand(suspender, WasmSuspenderObject::kParentOffset));
-  __ mov(masm->RootAsOperand(RootIndex::kActiveSuspender), parent);
+  __ StoreRootRelative(IsolateData::active_suspender_offset(), parent);
   parent = no_reg;
 
   // -------------------------------------------
@@ -3924,7 +3924,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   // barrier is on the suspender, so load it in edi directly.
   Register suspender = edi;
   __ Move(suspender,
-          FieldOperand(function_data, WasmResumeData::kSuspenderOffset));
+          FieldOperand(function_data, WasmResumeData::kTrustedSuspenderOffset));
   closure = no_reg;
   sfi = no_reg;
 
@@ -3948,12 +3948,12 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   // Check that the fixed register isn't one that is already in use.
   DCHECK(!AreAliased(slot_address, suspender, active_suspender));
 
-  __ LoadRoot(active_suspender, RootIndex::kActiveSuspender);
+  __ LoadRootRelative(active_suspender, IsolateData::active_suspender_offset());
   __ mov(FieldOperand(suspender, WasmSuspenderObject::kParentOffset),
          active_suspender);
   __ RecordWriteField(suspender, WasmSuspenderObject::kParentOffset,
                       active_suspender, slot_address, SaveFPRegsMode::kIgnore);
-  __ mov(masm->RootAsOperand(RootIndex::kActiveSuspender), suspender);
+  __ StoreRootRelative(IsolateData::active_suspender_offset(), suspender);
 
   active_suspender = no_reg;
 

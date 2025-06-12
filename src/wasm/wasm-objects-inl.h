@@ -580,6 +580,13 @@ TRUSTED_POINTER_ACCESSORS(WasmTableObject, trusted_dispatch_table,
                           WasmDispatchTable, kTrustedDispatchTableOffset,
                           kWasmDispatchTableIndirectPointerTag)
 
+TRUSTED_POINTER_ACCESSORS(WasmResumeData, trusted_suspender,
+                          WasmSuspenderObject, kTrustedSuspenderOffset,
+                          kWasmSuspenderIndirectPointerTag)
+
+PROTECTED_POINTER_ACCESSORS(WasmSuspenderObject, parent, WasmSuspenderObject,
+                            kParentOffset)
+
 wasm::ValueType WasmTableObject::type(const wasm::WasmModule* module) {
   wasm::ValueType type = unsafe_type();
   SBXCHECK(!type.has_index() || module->has_type(type.ref_index()));

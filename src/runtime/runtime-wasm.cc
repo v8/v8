@@ -1343,12 +1343,12 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   isolate->isolate_data()->set_active_stack(target_stack.get());
 
   // Update the suspender state.
-  FullObjectSlot active_suspender_slot =
-      isolate->roots_table().slot(RootIndex::kActiveSuspender);
-  suspender->set_parent(
-      Cast<UnionOf<Undefined, WasmSuspenderObject>>(*active_suspender_slot));
+  if (!isolate->isolate_data()->active_suspender().IsSmi()) {
+    suspender->set_parent(
+        Cast<WasmSuspenderObject>(isolate->isolate_data()->active_suspender()));
+  }
   suspender->set_stack(isolate, target_stack.get());
-  active_suspender_slot.store(*suspender);
+  isolate->isolate_data()->set_active_suspender(*suspender);
 
   target_stack->set_index(isolate->wasm_stacks().size());
   isolate->wasm_stacks().emplace_back(std::move(target_stack));
