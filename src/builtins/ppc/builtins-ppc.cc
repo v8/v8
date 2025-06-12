@@ -3283,15 +3283,11 @@ void ReloadParentStack(MacroAssembler* masm, Register return_reg,
 
 void RestoreParentSuspender(MacroAssembler* masm, Register tmp1) {
   Register suspender = tmp1;
-  __ LoadRoot(suspender, RootIndex::kActiveSuspender);
+  __ LoadRootRelative(suspender, IsolateData::active_suspender_offset());
   __ LoadTaggedField(
       suspender, FieldMemOperand(suspender, WasmSuspenderObject::kParentOffset),
       r0);
-
-  int32_t active_suspender_offset =
-      MacroAssembler::RootRegisterOffsetForRootIndex(
-          RootIndex::kActiveSuspender);
-  __ StoreU64(suspender, MemOperand(kRootRegister, active_suspender_offset));
+  __ StoreRootRelative(IsolateData::active_suspender_offset(), suspender);
 }
 
 void ResetStackSwitchFrameStackSlots(MacroAssembler* masm) {
@@ -3527,10 +3523,7 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   __ LoadTaggedField(
       parent, FieldMemOperand(suspender, WasmSuspenderObject::kParentOffset),
       r0);
-  int32_t active_suspender_offset =
-      MacroAssembler::RootRegisterOffsetForRootIndex(
-          RootIndex::kActiveSuspender);
-  __ StoreU64(parent, MemOperand(kRootRegister, active_suspender_offset));
+  __ StoreRootRelative(IsolateData::active_suspender_offset(), parent);
   regs.ResetExcept(suspender, caller, stack);
 
   // -------------------------------------------
@@ -3593,7 +3586,8 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
       FieldMemOperand(sfi, SharedFunctionInfo::kUntrustedFunctionDataOffset),
       r0);
   __ LoadTaggedField(
-      suspender, FieldMemOperand(resume_data, WasmResumeData::kSuspenderOffset),
+      suspender,
+      FieldMemOperand(resume_data, WasmResumeData::kTrustedSuspenderOffset),
       r0);
   regs.ResetExcept(suspender);
 
@@ -3612,17 +3606,14 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   // Set the suspender and stack parents and update the roots
   // -------------------------------------------
   DEFINE_REG(active_suspender);
-  __ LoadRoot(active_suspender, RootIndex::kActiveSuspender);
+  __ LoadRootRelative(active_suspender, IsolateData::active_suspender_offset());
   __ StoreTaggedField(
       active_suspender,
       FieldMemOperand(suspender, WasmSuspenderObject::kParentOffset), r0);
   __ RecordWriteField(suspender, WasmSuspenderObject::kParentOffset,
                       active_suspender, ip, kLRHasBeenSaved,
                       SaveFPRegsMode::kIgnore);
-  int32_t active_suspender_offset =
-      MacroAssembler::RootRegisterOffsetForRootIndex(
-          RootIndex::kActiveSuspender);
-  __ StoreU64(suspender, MemOperand(kRootRegister, active_suspender_offset));
+  __ StoreRootRelative(IsolateData::active_suspender_offset(), suspender);
 
   // Next line we are going to load a field from suspender, but we have to use
   // the same register for target_continuation to use it in RecordWriteField.
@@ -3769,7 +3760,7 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, RegisterAllocator& regs,
   DEFINE_SCOPED(tmp3);
   if (mode == wasm::kPromise) {
     __ Move(return_value, kReturnRegister0);
-    __ LoadRoot(promise, RootIndex::kActiveSuspender);
+    __ LoadRootRelative(promise, IsolateData::active_suspender_offset());
     __ LoadTaggedField(
         promise, FieldMemOperand(promise, WasmSuspenderObject::kPromiseOffset),
         r0);
@@ -3819,7 +3810,7 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
   // The exception becomes the parameter of the RejectPromise builtin, and the
   // promise is the return value of this wrapper.
   __ Move(reason, kReturnRegister0);
-  __ LoadRoot(promise, RootIndex::kActiveSuspender);
+  __ LoadRootRelative(promise, IsolateData::active_suspender_offset());
   __ LoadTaggedField(
       promise, FieldMemOperand(promise, WasmSuspenderObject::kPromiseOffset),
       r0);
