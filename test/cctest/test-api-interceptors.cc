@@ -5571,7 +5571,7 @@ void CheckMessage(v8::TryCatch& try_catch, const char* expected_message) {
 v8::Intercepted PETNamedQuery(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Integer>& info) {
   if (GetPETConfig(info)->query_should_throw) {
-    info.GetIsolate()->ThrowError(v8_str("Named query failed."));
+    info.GetIsolate()->ThrowError("Named query failed.");
   } else {
     info.GetReturnValue().Set(v8::None);
   }
@@ -5580,7 +5580,7 @@ v8::Intercepted PETNamedQuery(
 v8::Intercepted PETNamedGetter(Local<Name> name,
                                const v8::PropertyCallbackInfo<Value>& info) {
   if (GetPETConfig(info)->getter_should_throw) {
-    info.GetIsolate()->ThrowError(v8_str("Named getter failed."));
+    info.GetIsolate()->ThrowError("Named getter failed.");
   } else {
     info.GetReturnValue().Set(153);
   }
@@ -5588,24 +5588,24 @@ v8::Intercepted PETNamedGetter(Local<Name> name,
 }
 v8::Intercepted PETNamedSetter(Local<Name> name, Local<Value> value,
                                const v8::PropertyCallbackInfo<void>& info) {
-  info.GetIsolate()->ThrowError(v8_str("Named setter failed."));
+  info.GetIsolate()->ThrowError("Named setter failed.");
   return v8::Intercepted::kYes;
 }
 v8::Intercepted PETNamedDeleter(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Boolean>& info) {
-  info.GetIsolate()->ThrowError(v8_str("Named deleter failed."));
+  info.GetIsolate()->ThrowError("Named deleter failed.");
   return v8::Intercepted::kYes;
 }
 v8::Intercepted PETNamedDefiner(Local<Name> name,
                                 const v8::PropertyDescriptor& desc,
                                 const v8::PropertyCallbackInfo<void>& info) {
-  info.GetIsolate()->ThrowError(v8_str("Named definer failed."));
+  info.GetIsolate()->ThrowError("Named definer failed.");
   return v8::Intercepted::kYes;
 }
 v8::Intercepted PETNamedDescriptor(
     Local<Name> property, const v8::PropertyCallbackInfo<Value>& info) {
   if (GetPETConfig(info)->descriptor_should_throw) {
-    info.GetIsolate()->ThrowError(v8_str("Named descriptor failed."));
+    info.GetIsolate()->ThrowError("Named descriptor failed.");
   } else {
     v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::Object> descriptor = v8::Object::New(isolate);
@@ -5627,7 +5627,7 @@ v8::Intercepted PETNamedDescriptor(
 v8::Intercepted PETIndexedQuery(
     uint32_t index, const v8::PropertyCallbackInfo<v8::Integer>& info) {
   if (GetPETConfig(info)->query_should_throw) {
-    info.GetIsolate()->ThrowError(v8_str("Indexed query failed."));
+    info.GetIsolate()->ThrowError("Indexed query failed.");
   } else {
     info.GetReturnValue().Set(v8::None);
   }
@@ -5636,7 +5636,7 @@ v8::Intercepted PETIndexedQuery(
 v8::Intercepted PETIndexedGetter(uint32_t index,
                                  const v8::PropertyCallbackInfo<Value>& info) {
   if (GetPETConfig(info)->getter_should_throw) {
-    info.GetIsolate()->ThrowError(v8_str("Indexed getter failed."));
+    info.GetIsolate()->ThrowError("Indexed getter failed.");
   } else {
     info.GetReturnValue().Set(153);
   }
@@ -5644,24 +5644,24 @@ v8::Intercepted PETIndexedGetter(uint32_t index,
 }
 v8::Intercepted PETIndexedSetter(uint32_t index, Local<Value> value,
                                  const v8::PropertyCallbackInfo<void>& info) {
-  info.GetIsolate()->ThrowError(v8_str("Indexed setter failed."));
+  info.GetIsolate()->ThrowError("Indexed setter failed.");
   return v8::Intercepted::kYes;
 }
 v8::Intercepted PETIndexedDeleter(
     uint32_t index, const v8::PropertyCallbackInfo<v8::Boolean>& info) {
-  info.GetIsolate()->ThrowError(v8_str("Indexed deleter failed."));
+  info.GetIsolate()->ThrowError("Indexed deleter failed.");
   return v8::Intercepted::kYes;
 }
 v8::Intercepted PETIndexedDefiner(uint32_t index,
                                   const v8::PropertyDescriptor& desc,
                                   const v8::PropertyCallbackInfo<void>& info) {
-  info.GetIsolate()->ThrowError(v8_str("Indexed definer failed."));
+  info.GetIsolate()->ThrowError("Indexed definer failed.");
   return v8::Intercepted::kYes;
 }
 v8::Intercepted PETIndexedDescriptor(
     uint32_t index, const v8::PropertyCallbackInfo<Value>& info) {
   if (GetPETConfig(info)->descriptor_should_throw) {
-    info.GetIsolate()->ThrowError(v8_str("Indexed descriptor failed."));
+    info.GetIsolate()->ThrowError("Indexed descriptor failed.");
   } else {
     v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::Object> descriptor = v8::Object::New(isolate);

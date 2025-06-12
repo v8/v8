@@ -6397,15 +6397,13 @@ v8::Persistent<v8::Message> message_from_rethrow_callback_;
 }
 
 void RethrowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  {
-    v8::TryCatch try_catch(info.GetIsolate());
-    info.GetIsolate()->ThrowError(v8_str("Error"));
-    CHECK(try_catch.HasCaught());
-    CHECK(!try_catch.Message().IsEmpty());
-    message_from_rethrow_callback_.Reset(info.GetIsolate(),
-                                         try_catch.Message());
-    try_catch.ReThrow();
-  }
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::TryCatch try_catch(isolate);
+  isolate->ThrowError("Error");
+  CHECK(try_catch.HasCaught());
+  CHECK(!try_catch.Message().IsEmpty());
+  message_from_rethrow_callback_.Reset(isolate, try_catch.Message());
+  try_catch.ReThrow();
 }
 
 class ClearPendingMessageOnExceptionDelegate : public v8::debug::DebugDelegate {
