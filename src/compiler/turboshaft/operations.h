@@ -4664,6 +4664,9 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(
 
 enum class NumericKind : uint8_t {
   kFloat64Hole,
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  kFloat64Undefined,
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   kFinite,
   kInteger,
   kSafeInteger,

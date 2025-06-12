@@ -2120,6 +2120,11 @@ class TurboshaftAssemblerOpInterface
   V<Word32> Float64IsHole(V<Float64> input) {
     return Float64Is(input, NumericKind::kFloat64Hole);
   }
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  V<Word32> Float64IsUndefined(V<Float64> input) {
+    return Float64Is(input, NumericKind::kFloat64Undefined);
+  }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   // Float64IsSmi returns true if {input} is an integer in smi range.
   V<Word32> Float64IsSmi(V<Float64> input) {
     return Float64Is(input, NumericKind::kSmi);

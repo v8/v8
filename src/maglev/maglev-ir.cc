@@ -7279,6 +7279,40 @@ void BranchIfFloat64ToBooleanTrue::GenerateCode(MaglevAssembler* masm,
                              state.next_block(), if_false());
 }
 
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+void BranchIfFloat64IsUndefinedOrHole::SetValueLocationConstraints() {
+  UseRegister(condition_input());
+  set_temporaries_needed(1);
+}
+void BranchIfFloat64IsUndefinedOrHole::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  DoubleRegister input = ToDoubleRegister(condition_input());
+  // See MaglevAssembler::Branch.
+  bool fallthrough_when_true = if_true() == state.next_block();
+  bool fallthrough_when_false = if_false() == state.next_block();
+  if (fallthrough_when_false && fallthrough_when_true) {
+    // If both paths are a fallthrough, do nothing.
+    DCHECK_EQ(if_true(), if_false());
+    return;
+  }
+  // TODO(nicohartmann): Consider providing a combined JumpIfUndefinedOrHoleNan.
+  // Jump over the false block if true, otherwise fall through into it.
+  __ JumpIfUndefinedNan(input, scratch, if_true()->label(), Label::kFar);
+  if (fallthrough_when_false) {
+    __ JumpIfHoleNan(input, scratch, if_true()->label(), Label::kFar);
+  } else {
+    // Jump to the false block if true.
+    __ JumpIfNotHoleNan(input, scratch, if_false()->label(), Label::kFar);
+    // Jump to the true block if it's not the next block.
+    if (!fallthrough_when_true) {
+      __ Jump(if_true()->label(), Label::kFar);
+    }
+  }
+}
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+
 void BranchIfFloat64IsHole::SetValueLocationConstraints() {
   UseRegister(condition_input());
   set_temporaries_needed(1);

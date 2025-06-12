@@ -1040,6 +1040,29 @@ void MaglevAssembler::Float64SilenceNan(DoubleRegister value) {
 }
 
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+void MaglevAssembler::JumpIfUndefinedNan(DoubleRegister value, Register scratch,
+                                         Label* target,
+                                         Label::Distance distance) {
+  // TODO(leszeks): Right now this only accepts Zone-allocated target labels.
+  // This works because all callsites are jumping to either a deopt, deferred
+  // code, or a basic block. If we ever need to jump to an on-stack label, we
+  // have to add support for it here change the caller to pass a ZoneLabelRef.
+  DCHECK(compilation_info()->zone()->Contains(target));
+  ZoneLabelRef is_undefined = ZoneLabelRef::UnsafeFromLabelPointer(target);
+  ZoneLabelRef is_not_undefined(this);
+  Ucomisd(value, value);
+  JumpIf(ConditionForNaN(),
+         MakeDeferredCode(
+             [](MaglevAssembler* masm, DoubleRegister value, Register scratch,
+                ZoneLabelRef is_undefined, ZoneLabelRef is_not_undefined) {
+               masm->Pextrd(scratch, value, 1);
+               masm->CompareInt32AndJumpIf(scratch, kUndefinedNanUpper32,
+                                           kEqual, *is_undefined);
+               masm->Jump(*is_not_undefined);
+             },
+             value, scratch, is_undefined, is_not_undefined));
+  bind(*is_not_undefined);
+}
 void MaglevAssembler::JumpIfNotUndefinedNan(DoubleRegister value,
                                             Register scratch, Label* target,
                                             Label::Distance distance) {
@@ -1068,6 +1091,8 @@ void MaglevAssembler::JumpIfHoleNan(DoubleRegister value, Register scratch,
                masm->CompareInt32AndJumpIf(scratch, kHoleNanUpper32, kEqual,
                                            *is_hole);
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+               // TODO(nicohartmann): This should be replaced with
+               // JumpIfUndefinedNan.
                masm->CompareInt32AndJumpIf(scratch, kUndefinedNanUpper32,
                                            kEqual, *is_hole);
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE

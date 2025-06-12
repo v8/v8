@@ -15114,7 +15114,11 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfRootConstant(
   if (node->properties().value_representation() ==
       ValueRepresentation::kHoleyFloat64) {
     if (root_index == RootIndex::kUndefinedValue) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      return builder.Build<BranchIfFloat64IsUndefinedOrHole>({node});
+#else
       return builder.Build<BranchIfFloat64IsHole>({node});
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     }
     return builder.AlwaysFalse();
   }

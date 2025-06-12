@@ -3689,6 +3689,17 @@ class GraphBuildingNodeProcessor {
     __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
     return maglev::ProcessResult::kContinue;
   }
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  maglev::ProcessResult Process(maglev::BranchIfFloat64IsUndefinedOrHole* node,
+                                const maglev::ProcessingState& state) {
+    V<Float64> input = Map(node->condition_input());
+    V<Word32> undefined_condition = __ Float64IsUndefined(input);
+    __ GotoIf(undefined_condition, Map(node->if_true()));
+    V<Word32> hole_condition = __ Float64IsHole(Map(node->condition_input()));
+    __ Branch(hole_condition, Map(node->if_true()), Map(node->if_false()));
+    return maglev::ProcessResult::kContinue;
+  }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   maglev::ProcessResult Process(maglev::BranchIfReferenceEqual* node,
                                 const maglev::ProcessingState& state) {
     V<Word32> condition =

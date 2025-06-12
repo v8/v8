@@ -405,21 +405,22 @@ class ExceptionHandlerInfo;
   NON_VALUE_NODE_LIST(V) \
   VALUE_NODE_LIST(V)
 
-#define BRANCH_CONTROL_NODE_LIST(V) \
-  V(BranchIfSmi)                    \
-  V(BranchIfRootConstant)           \
-  V(BranchIfToBooleanTrue)          \
-  V(BranchIfInt32ToBooleanTrue)     \
-  V(BranchIfIntPtrToBooleanTrue)    \
-  V(BranchIfFloat64ToBooleanTrue)   \
-  V(BranchIfFloat64IsHole)          \
-  V(BranchIfReferenceEqual)         \
-  V(BranchIfInt32Compare)           \
-  V(BranchIfUint32Compare)          \
-  V(BranchIfFloat64Compare)         \
-  V(BranchIfUndefinedOrNull)        \
-  V(BranchIfUndetectable)           \
-  V(BranchIfJSReceiver)             \
+#define BRANCH_CONTROL_NODE_LIST(V)          \
+  V(BranchIfSmi)                             \
+  V(BranchIfRootConstant)                    \
+  V(BranchIfToBooleanTrue)                   \
+  V(BranchIfInt32ToBooleanTrue)              \
+  V(BranchIfIntPtrToBooleanTrue)             \
+  V(BranchIfFloat64ToBooleanTrue)            \
+  V(BranchIfFloat64IsHole)                   \
+  IF_UD(V, BranchIfFloat64IsUndefinedOrHole) \
+  V(BranchIfReferenceEqual)                  \
+  V(BranchIfInt32Compare)                    \
+  V(BranchIfUint32Compare)                   \
+  V(BranchIfFloat64Compare)                  \
+  V(BranchIfUndefinedOrNull)                 \
+  V(BranchIfUndetectable)                    \
+  V(BranchIfJSReceiver)                      \
   V(BranchIfTypeOf)
 
 #define CONDITIONAL_CONTROL_NODE_LIST(V) \
@@ -11659,6 +11660,28 @@ class BranchIfFloat64ToBooleanTrue
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
+
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+class BranchIfFloat64IsUndefinedOrHole
+    : public BranchControlNodeT<1, BranchIfFloat64IsUndefinedOrHole> {
+  using Base = BranchControlNodeT<1, BranchIfFloat64IsUndefinedOrHole>;
+
+ public:
+  explicit BranchIfFloat64IsUndefinedOrHole(uint64_t bitfield,
+                                            BasicBlockRef* if_true_refs,
+                                            BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs) {}
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+
+  Input& condition_input() { return input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 class BranchIfFloat64IsHole
     : public BranchControlNodeT<1, BranchIfFloat64IsHole> {

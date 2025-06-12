@@ -1212,6 +1212,10 @@ std::ostream& operator<<(std::ostream& os, NumericKind kind) {
   switch (kind) {
     case NumericKind::kFloat64Hole:
       return os << "Float64Hole";
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    case NumericKind::kFloat64Undefined:
+      return os << "Float64Undefined";
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     case NumericKind::kFinite:
       return os << "Finite";
     case NumericKind::kInteger:
