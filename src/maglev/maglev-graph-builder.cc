@@ -7726,8 +7726,6 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoad() {
     return {};
   }
 
-  int last_continuation = 0;
-  int after_continuation = 0;
   interpreter::Register loaded_property_register =
       interpreter::Register::virtual_accumulator();
 
@@ -7755,8 +7753,8 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoad() {
 #define CASE(Name, ...)                                                \
   case interpreter::Bytecode::k##Name:                                 \
     if (iterator_.GetRegisterOperand(0) == loaded_property_register) { \
-      last_continuation = iterator_.current_offset();                  \
-      after_continuation = iterator_.next_offset();                    \
+      return ContinuationOffsets{iterator_.current_offset(),           \
+                                 iterator_.next_offset()};             \
     }                                                                  \
     break;
 
@@ -7764,9 +7762,9 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoad() {
 #undef CASE
 
     default:
-      return {};
+      break;
   }
-  return ContinuationOffsets{last_continuation, after_continuation};
+  return {};
 
   // TODO(marja): Add other possible continuations.
 
