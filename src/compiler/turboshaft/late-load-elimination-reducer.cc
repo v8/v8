@@ -432,10 +432,14 @@ void LateLoadEliminationAnalyzer::ProcessAtomicRMW(OpIndex op_idx,
 #if V8_ENABLE_WEBASSEMBLY
   TRACE("> ProcessAtomicRMW(" << op_idx << ")");
   // With shared-everything-treads atomic rmw operations are also used for heap
-  // operations. TODO(mliedtke): We might want to add the information whether
-  // such an operation is on-heap or off-heap?
-  // This would also allow us to get rid of the BitcastTaggedToWordPtr.
-  if (!v8_flags.experimental_wasm_shared) return;
+  // operations. If the atomic operation is not operating on linear memory, we
+  // need to invalidate it. TODO(mliedtke): Only invalidate the potentially
+  // aliasing information.
+  if (!v8_flags.experimental_wasm_shared ||
+      store.base_rep == RegisterRepresentation::WordPtr()) {
+    TRACE(">> Skipping operation on linear memory");
+    return;
+  }
   TRACE(">> Invalidating whole maybe-aliasing memory");
   memory_.InvalidateMaybeAliasing();
 #endif

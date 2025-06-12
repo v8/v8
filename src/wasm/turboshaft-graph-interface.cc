@@ -353,7 +353,8 @@ void WasmGraphBuilderBase::BuildSetNewStackLimit(V<WordPtr> old_limit,
   __ AtomicCompareExchange(
       __ IsolateField(IsolateFieldId::kJsLimitAddress), __ UintPtrConstant(0),
       old_limit, new_limit, RegisterRepresentation::WordPtr(),
-      MemoryRepresentation::UintPtr(), compiler::MemoryAccessKind::kNormal);
+      MemoryRepresentation::UintPtr(), compiler::MemoryAccessKind::kNormal,
+      RegisterRepresentation::WordPtr());
   __ Store(__ LoadRootRegister(), new_limit, StoreOp::Kind::RawAligned(),
            MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
            IsolateData::real_jslimit_offset());
@@ -4230,12 +4231,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       if (info.bin_op == Binop::kCompareExchange) {
         result->op = __ AtomicCompareExchange(
             MemBuffer(imm.memory->index, imm.offset), index, args[1].op,
-            args[2].op, info.in_out_rep, info.memory_rep, access_kind);
+            args[2].op, info.in_out_rep, info.memory_rep, access_kind,
+            RegisterRepresentation::WordPtr());
         return;
       }
       result->op = __ AtomicRMW(MemBuffer(imm.memory->index, imm.offset), index,
                                 args[1].op, info.bin_op, info.in_out_rep,
-                                info.memory_rep, access_kind);
+                                info.memory_rep, access_kind,
+                                RegisterRepresentation::WordPtr());
       return;
     }
     if (info.op_type == kStore) {

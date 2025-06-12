@@ -2563,7 +2563,7 @@ OpIndex GraphBuilder::Process(
     return __ AtomicRMW(base, offset, value, AtomicRMWOp::BinOp::k##binop, \
                         RegisterRepresentation::Word##size(),              \
                         MemoryRepresentation::FromMachineType(p.type()),   \
-                        p.kind());
+                        p.kind(), RegisterRepresentation::WordPtr());
         BINOP(Add, 32)
         BINOP(Sub, 32)
         BINOP(And, 32)
@@ -2580,11 +2580,13 @@ OpIndex GraphBuilder::Process(
         case IrOpcode::kWord32AtomicCompareExchange:
           return __ AtomicCompareExchange(
               base, offset, expected, value, RegisterRepresentation::Word32(),
-              MemoryRepresentation::FromMachineType(p.type()), p.kind());
+              MemoryRepresentation::FromMachineType(p.type()), p.kind(),
+              RegisterRepresentation::WordPtr());
         case IrOpcode::kWord64AtomicCompareExchange:
           return __ AtomicCompareExchange(
               base, offset, expected, value, RegisterRepresentation::Word64(),
-              MemoryRepresentation::FromMachineType(p.type()), p.kind());
+              MemoryRepresentation::FromMachineType(p.type()), p.kind(),
+              RegisterRepresentation::WordPtr());
         default:
           UNREACHABLE();
       }

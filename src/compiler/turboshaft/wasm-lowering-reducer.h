@@ -327,12 +327,13 @@ class WasmLoweringReducer : public Next {
                                 ? MemoryAccessKind::kProtectedByTrapHandler
                                 : MemoryAccessKind::kNormal;
     if (bin_op == StructAtomicRMWOp::BinOp::kCompareExchange) {
-      return __ AtomicCompareExchange(
-          __ BitcastTaggedToWordPtr(object), offset, expected.value(), value,
-          repr.ToRegisterRepresentation(), repr, kind);
+      return __ AtomicCompareExchange(object, offset, expected.value(), value,
+                                      repr.ToRegisterRepresentation(), repr,
+                                      kind, RegisterRepresentation::Tagged());
     } else {
-      return __ AtomicRMW(__ BitcastTaggedToWordPtr(object), offset, value,
-                          bin_op, repr.ToRegisterRepresentation(), repr, kind);
+      return __ AtomicRMW(object, offset, value, bin_op,
+                          repr.ToRegisterRepresentation(), repr, kind,
+                          RegisterRepresentation::Tagged());
     }
   }
 
@@ -378,13 +379,14 @@ class WasmLoweringReducer : public Next {
         index_scaled,
         __ WordPtrConstant(WasmArray::kHeaderSize - kHeapObjectTag));
     if (bin_op == StructAtomicRMWOp::BinOp::kCompareExchange) {
-      return __ AtomicCompareExchange(
-          __ BitcastTaggedToWordPtr(array), offset, expected.value(), value,
-          repr.ToRegisterRepresentation(), repr, MemoryAccessKind::kNormal);
+      return __ AtomicCompareExchange(array, offset, expected.value(), value,
+                                      repr.ToRegisterRepresentation(), repr,
+                                      MemoryAccessKind::kNormal,
+                                      RegisterRepresentation::Tagged());
     } else {
-      return __ AtomicRMW(__ BitcastTaggedToWordPtr(array), offset, value,
-                          bin_op, repr.ToRegisterRepresentation(), repr,
-                          MemoryAccessKind::kNormal);
+      return __ AtomicRMW(
+          array, offset, value, bin_op, repr.ToRegisterRepresentation(), repr,
+          MemoryAccessKind::kNormal, RegisterRepresentation::Tagged());
     }
   }
 

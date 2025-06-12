@@ -654,7 +654,7 @@ void AtomicRMWOp::PrintInputs(std::ostream& os,
 
 void AtomicRMWOp::PrintOptions(std::ostream& os) const {
   os << '[' << "binop: " << bin_op << ", in_out_rep: " << in_out_rep
-     << ", memory_rep: " << memory_rep << ']';
+     << ", memory_rep: " << memory_rep << ", base_rep: " << base_rep << ']';
 }
 
 void AtomicWord32PairOp::PrintInputs(std::ostream& os,
