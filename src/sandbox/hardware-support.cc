@@ -6,6 +6,7 @@
 
 #include "src/base/platform/memory-protection-key.h"
 #include "src/base/platform/platform.h"
+#include "src/flags/flags.h"
 
 namespace v8 {
 namespace internal {
@@ -22,48 +23,9 @@ uint32_t SandboxHardwareSupport::sandboxed_mode_pkey_mask_ = 0;
 
 // static
 bool SandboxHardwareSupport::TryActivateBeforeThreadCreation() {
-  DCHECK(!IsActive());
-
-  if (!base::MemoryProtectionKey::HasMemoryProtectionKeyAPIs()) {
-    return false;
-  }
-
-  sandbox_pkey_ = base::MemoryProtectionKey::AllocateKey();
-  if (sandbox_pkey_ == base::MemoryProtectionKey::kNoMemoryProtectionKey) {
-    return false;
-  }
-
-  // Ideally, this would be the default protection key.
-  // See the comment at the declaration of these keys for more information
-  // about why that currently isn't the case.
-  out_of_sandbox_pkey_ = base::MemoryProtectionKey::AllocateKey();
-  if (out_of_sandbox_pkey_ ==
-      base::MemoryProtectionKey::kNoMemoryProtectionKey) {
-    base::MemoryProtectionKey::FreeKey(sandbox_pkey_);
-    sandbox_pkey_ = base::MemoryProtectionKey::kNoMemoryProtectionKey;
-    return false;
-  }
-
-  extension_pkey_ = base::MemoryProtectionKey::AllocateKey();
-  if (extension_pkey_ == base::MemoryProtectionKey::kNoMemoryProtectionKey) {
-    base::MemoryProtectionKey::FreeKey(sandbox_pkey_);
-    base::MemoryProtectionKey::FreeKey(out_of_sandbox_pkey_);
-    sandbox_pkey_ = base::MemoryProtectionKey::kNoMemoryProtectionKey;
-    out_of_sandbox_pkey_ = base::MemoryProtectionKey::kNoMemoryProtectionKey;
-    return false;
-  }
-
-  // Compute the PKEY mask for entering sandboxed execution mode. For that, we
-  // simply need to remove write access for the out-of-sandbox pkey.
-  sandboxed_mode_pkey_mask_ =
-      base::MemoryProtectionKey::ComputeRegisterMaskForPermissionSwitch(
-          out_of_sandbox_pkey_,
-          base::MemoryProtectionKey::Permission::kDisableWrite);
-  // We use zero to indicate that sandbox hardware support is inactive.
-  CHECK_NE(sandboxed_mode_pkey_mask_, 0);
-
-  CHECK(IsActive());
-  return true;
+  bool success = TryActivate();
+  CHECK_IMPLIES(v8_flags.force_memory_protection_keys, success);
+  return success;
 }
 
 // static
@@ -148,6 +110,52 @@ bool SandboxHardwareSupport::CurrentSandboxingModeIs(
     CodeSandboxingMode expected_mode) {
   if (!IsActive()) return true;
   return CurrentSandboxingMode() == expected_mode;
+}
+
+// static
+bool SandboxHardwareSupport::TryActivate() {
+  DCHECK(!IsActive());
+
+  if (!base::MemoryProtectionKey::HasMemoryProtectionKeyAPIs()) {
+    return false;
+  }
+
+  sandbox_pkey_ = base::MemoryProtectionKey::AllocateKey();
+  if (sandbox_pkey_ == base::MemoryProtectionKey::kNoMemoryProtectionKey) {
+    return false;
+  }
+
+  // Ideally, this would be the default protection key.
+  // See the comment at the declaration of these keys for more information
+  // about why that currently isn't the case.
+  out_of_sandbox_pkey_ = base::MemoryProtectionKey::AllocateKey();
+  if (out_of_sandbox_pkey_ ==
+      base::MemoryProtectionKey::kNoMemoryProtectionKey) {
+    base::MemoryProtectionKey::FreeKey(sandbox_pkey_);
+    sandbox_pkey_ = base::MemoryProtectionKey::kNoMemoryProtectionKey;
+    return false;
+  }
+
+  extension_pkey_ = base::MemoryProtectionKey::AllocateKey();
+  if (extension_pkey_ == base::MemoryProtectionKey::kNoMemoryProtectionKey) {
+    base::MemoryProtectionKey::FreeKey(sandbox_pkey_);
+    base::MemoryProtectionKey::FreeKey(out_of_sandbox_pkey_);
+    sandbox_pkey_ = base::MemoryProtectionKey::kNoMemoryProtectionKey;
+    out_of_sandbox_pkey_ = base::MemoryProtectionKey::kNoMemoryProtectionKey;
+    return false;
+  }
+
+  // Compute the PKEY mask for entering sandboxed execution mode. For that, we
+  // simply need to remove write access for the out-of-sandbox pkey.
+  sandboxed_mode_pkey_mask_ =
+      base::MemoryProtectionKey::ComputeRegisterMaskForPermissionSwitch(
+          out_of_sandbox_pkey_,
+          base::MemoryProtectionKey::Permission::kDisableWrite);
+  // We use zero to indicate that sandbox hardware support is inactive.
+  CHECK_NE(sandboxed_mode_pkey_mask_, 0);
+
+  CHECK(IsActive());
+  return true;
 }
 
 #ifdef DEBUG

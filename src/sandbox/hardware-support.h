@@ -96,6 +96,8 @@ class V8_EXPORT_PRIVATE SandboxHardwareSupport {
   friend class DisallowSandboxAccess;
   friend class AllowSandboxAccess;
 
+  static bool TryActivate();
+
   // This PKEY is used for all (writable) memory inside the sandbox. It can be
   // used for two different purposes:
   //
