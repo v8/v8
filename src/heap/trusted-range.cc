@@ -69,6 +69,11 @@ bool TrustedRange::InitReservation(size_t requested) {
                                            PageAllocator::kNoAccess));
   }
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  // Sandboxed code should never write to trusted memory.
+  SandboxHardwareSupport::RegisterOutOfSandboxMemory(base(), size());
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
   return success;
 }
 
