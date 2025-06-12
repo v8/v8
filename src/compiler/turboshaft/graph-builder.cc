@@ -261,6 +261,16 @@ std::optional<BailoutReason> GraphBuilder::Run() {
         }
       }
     }
+
+    // Provisionally store the incoming frame state here as the block's final
+    // frame state, such that the successor blocks can still compute their
+    // dominating_frame_state even if this block terminates prematurely due to
+    // `Unreachable` or `DeadValue`. In this block contains a new Checkpoint, we
+    // will overwrite this block's `final_frame_state` after visiting all
+    // operations.
+    block_mapping[block->rpo_number()].final_frame_state =
+        dominating_frame_state;
+
     std::optional<BailoutReason> bailout = std::nullopt;
     for (Node* node : *block->nodes()) {
       if (V8_UNLIKELY(node->InputCount() >=
