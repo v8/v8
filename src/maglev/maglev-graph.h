@@ -9,7 +9,10 @@
 
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/heap-refs.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/maglev/maglev-basic-block.h"
+#include "src/maglev/maglev-compilation-info.h"
+#include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-ir.h"
 
 namespace v8 {
@@ -24,33 +27,32 @@ struct MaglevCallSiteInfo;
 
 class Graph final : public ZoneObject {
  public:
-  static Graph* New(Zone* zone, bool is_osr) {
-    return zone->New<Graph>(zone, is_osr);
+  static Graph* New(MaglevCompilationInfo* info) {
+    return info->zone()->New<Graph>(info);
   }
 
   // Shouldn't be used directly; public so that Zone::New can access it.
-  Graph(Zone* zone, bool is_osr)
-      : blocks_(zone),
-        root_(zone),
-        osr_values_(zone),
-        smi_(zone),
-        tagged_index_(zone),
-        int32_(zone),
-        uint32_(zone),
-        intptr_(zone),
-        float_(zone),
-        external_references_(zone),
-        parameters_(zone),
-        inlineable_calls_(zone),
-        allocations_escape_map_(zone),
-        allocations_elide_map_(zone),
+  explicit Graph(MaglevCompilationInfo* info)
+      : compilation_info_(info),
+        blocks_(zone()),
+        osr_values_(zone()),
+        root_constants_(zone()),
+        smi_constants_(zone()),
+        tagged_index_constants_(zone()),
+        int32_constants_(zone()),
+        uint32_constants_(zone()),
+        intptr_constants_(zone()),
+        float64_constants_(zone()),
+        parameters_(zone()),
+        inlineable_calls_(zone()),
+        allocations_escape_map_(zone()),
+        allocations_elide_map_(zone()),
         register_inputs_(),
-        constants_(zone),
-        trusted_constants_(zone),
-        inlined_functions_(zone),
-        node_buffer_(zone),
-        is_osr_(is_osr),
-        scope_infos_(zone) {
+        constants_(zone()),
+        trusted_constants_(zone()),
+        inlined_functions_(zone()),
+        node_buffer_(zone()),
+        scope_infos_(zone()) {
     node_buffer_.reserve(32);
   }
 
@@ -80,82 +82,7 @@ class Graph final : public ZoneObject {
 
   void set_blocks(ZoneVector<BasicBlock*> blocks) { blocks_ = blocks; }
 
-  inline void RemoveUnreachableBlocks() {
-    DCHECK(may_have_unreachable_blocks());
-
-    std::vector<bool> reachable_blocks(max_block_id(), false);
-    std::vector<BasicBlock*> worklist;
-
-    DCHECK(!blocks().empty());
-    BasicBlock* initial_bb = blocks().front();
-    worklist.push_back(initial_bb);
-    reachable_blocks[initial_bb->id()] = true;
-    DCHECK(!initial_bb->is_loop());
-
-    while (!worklist.empty()) {
-      BasicBlock* current = worklist.back();
-      worklist.pop_back();
-
-      for (auto handler : current->exception_handlers()) {
-        if (!handler->HasExceptionHandler()) continue;
-        if (handler->ShouldLazyDeopt()) continue;
-        BasicBlock* catch_block = handler->catch_block();
-        if (!reachable_blocks[catch_block->id()]) {
-          reachable_blocks[catch_block->id()] = true;
-          worklist.push_back(catch_block);
-        }
-      }
-      current->ForEachSuccessor([&](BasicBlock* succ) {
-        if (!reachable_blocks[succ->id()]) {
-          reachable_blocks[succ->id()] = true;
-          worklist.push_back(succ);
-        }
-      });
-    }
-
-    // Sweep dead blocks and remove unreachable predecessors.
-    IterateGraphAndSweepDeadBlocks([&](BasicBlock* bb) {
-      if (!reachable_blocks[bb->id()]) return true;
-      // If block doesn't have a merge state, it has only one predecessor, so
-      // it must be the reachable one.
-      if (!bb->has_state()) return false;
-      if (bb->is_loop() &&
-          !reachable_blocks[bb->backedge_predecessor()->id()]) {
-        // If the backedge predecessor is not reachable, we can turn the loop
-        // into a regular block.
-        bb->state()->TurnLoopIntoRegularBlock();
-      }
-      for (int i = bb->predecessor_count() - 1; i >= 0; i--) {
-        if (!reachable_blocks[bb->predecessor_at(i)->id()]) {
-          bb->state()->RemovePredecessorAt(i);
-        }
-      }
-      return false;
-    });
-
-    set_may_have_unreachable_blocks(false);
-  }
-
-  template <typename Function>
-  void IterateGraphAndSweepDeadBlocks(Function&& is_dead) {
-    auto current = blocks_.begin();
-    auto last_non_dead = current;
-    while (current != blocks_.end()) {
-      if (is_dead(*current)) {
-        (*current)->mark_dead();
-      } else {
-        if (current != last_non_dead) {
-          // Move current to last non dead position.
-          *last_non_dead = *current;
-        }
-        ++last_non_dead;
-      }
-      ++current;
-    }
-    if (current != last_non_dead) {
-      blocks_.resize(blocks_.size() - (current - last_non_dead));
-    }
-  }
+  inline void RemoveUnreachableBlocks();
 
   uint32_t tagged_stack_slots() const { return tagged_stack_slots_; }
   uint32_t untagged_stack_slots() const { return untagged_stack_slots_; }
@@ -194,17 +121,24 @@ class Graph final : public ZoneObject {
     total_peeled_bytecode_size_ += size;
   }
 
-  ZoneMap<RootIndex, RootConstant*>& root() { return root_; }
-  ZoneVector<InitialValue*>& osr_values() { return osr_values_; }
-  ZoneMap<int, SmiConstant*>& smi() { return smi_; }
-  ZoneMap<int, TaggedIndexConstant*>& tagged_index() { return tagged_index_; }
-  ZoneMap<int32_t, Int32Constant*>& int32() { return int32_; }
-  ZoneMap<uint32_t, Uint32Constant*>& uint32() { return uint32_; }
-  ZoneMap<intptr_t, IntPtrConstant*>& intptr() { return intptr_; }
-  ZoneMap<uint64_t, Float64Constant*>& float64() { return float_; }
-  ZoneMap<Address, ExternalConstant*>& external_references() {
-    return external_references_;
+  compiler::ZoneRefMap<compiler::HeapObjectRef, Constant*>& constants() {
+    return constants_;
   }
+  ZoneMap<RootIndex, RootConstant*>& root() { return root_constants_; }
+  ZoneMap<int, SmiConstant*>& smi() { return smi_constants_; }
+  ZoneMap<int, TaggedIndexConstant*>& tagged_index() {
+    return tagged_index_constants_;
+  }
+  ZoneMap<int32_t, Int32Constant*>& int32() { return int32_constants_; }
+  ZoneMap<uint32_t, Uint32Constant*>& uint32() { return uint32_constants_; }
+  ZoneMap<intptr_t, IntPtrConstant*>& intptr() { return intptr_constants_; }
+  ZoneMap<uint64_t, Float64Constant*>& float64() { return float64_constants_; }
+  compiler::ZoneRefMap<compiler::HeapObjectRef, TrustedConstant*>&
+  trusted_constants() {
+    return trusted_constants_;
+  }
+
+  ZoneVector<InitialValue*>& osr_values() { return osr_values_; }
   ZoneVector<InitialValue*>& parameters() { return parameters_; }
 
   ZoneVector<MaglevCallSiteInfo*>& inlineable_calls() {
@@ -228,14 +162,6 @@ class Graph final : public ZoneObject {
   }
 
   RegList& register_inputs() { return register_inputs_; }
-  compiler::ZoneRefMap<compiler::ObjectRef, Constant*>& constants() {
-    return constants_;
-  }
-
-  compiler::ZoneRefMap<compiler::HeapObjectRef, TrustedConstant*>&
-  trusted_constants() {
-    return trusted_constants_;
-  }
 
   ZoneVector<OptimizedCompilationInfo::InlinedFunctionHolder>&
   inlined_functions() {
@@ -244,7 +170,9 @@ class Graph final : public ZoneObject {
   bool has_recursive_calls() const { return has_recursive_calls_; }
   void set_has_recursive_calls(bool value) { has_recursive_calls_ = value; }
 
-  bool is_osr() const { return is_osr_; }
+  bool is_osr() const {
+    return compilation_info_->toplevel_compilation_unit()->is_osr();
+  }
   uint32_t min_maglev_stackslots_for_unoptimized_frame_size() {
     DCHECK(is_osr());
     if (osr_values().size() == 0) {
@@ -264,17 +192,149 @@ class Graph final : public ZoneObject {
     return may_have_unreachable_blocks_;
   }
 
+  // Resolve the scope info of a context value.
+  // An empty result means we don't statically know the context's scope.
+  inline compiler::OptionalScopeInfoRef TryGetScopeInfo(ValueNode* context);
+
+  void record_scope_info(ValueNode* context,
+                         compiler::OptionalScopeInfoRef scope_info) {
+    scope_infos_[context] = scope_info;
+  }
+
+  SmiConstant* GetSmiConstant(int constant) {
+    DCHECK(Smi::IsValid(constant));
+    return GetOrAddNewConstantNode(smi_constants_, constant);
+  }
+
+  TaggedIndexConstant* GetTaggedIndexConstant(int constant) {
+    DCHECK(TaggedIndex::IsValid(constant));
+    return GetOrAddNewConstantNode(tagged_index_constants_, constant);
+  }
+
+  Int32Constant* GetInt32Constant(int32_t constant) {
+    return GetOrAddNewConstantNode(int32_constants_, constant);
+  }
+
+  IntPtrConstant* GetIntPtrConstant(intptr_t constant) {
+    return GetOrAddNewConstantNode(intptr_constants_, constant);
+  }
+
+  Uint32Constant* GetUint32Constant(uint32_t constant) {
+    return GetOrAddNewConstantNode(uint32_constants_, constant);
+  }
+
+  Float64Constant* GetFloat64Constant(double constant) {
+    return GetFloat64Constant(
+        Float64::FromBits(base::double_to_uint64(constant)));
+  }
+
+  Float64Constant* GetFloat64Constant(Float64 constant) {
+    return GetOrAddNewConstantNode(float64_constants_, constant.get_bits());
+  }
+
+  RootConstant* GetRootConstant(RootIndex index) {
+    return GetOrAddNewConstantNode(root_constants_, index);
+  }
+
+  RootConstant* GetBooleanConstant(bool value) {
+    return GetRootConstant(value ? RootIndex::kTrueValue
+                                 : RootIndex::kFalseValue);
+  }
+
+  inline ValueNode* GetConstant(compiler::ObjectRef ref);
+
+  inline ValueNode* GetTrustedConstant(compiler::HeapObjectRef ref,
+                                       IndirectPointerTag tag);
+
+  Zone* zone() const { return compilation_info_->zone(); }
+  compiler::JSHeapBroker* broker() const { return compilation_info_->broker(); }
+
+  BasicBlock::Id max_block_id() const { return max_block_id_; }
+
+  bool has_graph_labeller() const {
+    return compilation_info_->has_graph_labeller();
+  }
+  MaglevGraphLabeller* graph_labeller() const {
+    return compilation_info_->graph_labeller();
+  }
+
+ private:
+  MaglevCompilationInfo* compilation_info_;
+  uint32_t tagged_stack_slots_ = kMaxUInt32;
+  uint32_t untagged_stack_slots_ = kMaxUInt32;
+  uint32_t max_call_stack_args_ = kMaxUInt32;
+  uint32_t max_deopted_stack_size_ = kMaxUInt32;
+  ZoneVector<BasicBlock*> blocks_;
+  ZoneVector<InitialValue*> osr_values_;
+  ZoneMap<RootIndex, RootConstant*> root_constants_;
+  ZoneMap<int, SmiConstant*> smi_constants_;
+  ZoneMap<int, TaggedIndexConstant*> tagged_index_constants_;
+  ZoneMap<int32_t, Int32Constant*> int32_constants_;
+  ZoneMap<uint32_t, Uint32Constant*> uint32_constants_;
+  ZoneMap<intptr_t, IntPtrConstant*> intptr_constants_;
+  // Use the bits of the float as the key.
+  ZoneMap<uint64_t, Float64Constant*> float64_constants_;
+  ZoneVector<InitialValue*> parameters_;
+  ZoneVector<MaglevCallSiteInfo*> inlineable_calls_;
+  ZoneMap<InlinedAllocation*, SmallAllocationVector> allocations_escape_map_;
+  ZoneMap<InlinedAllocation*, SmallAllocationVector> allocations_elide_map_;
+  RegList register_inputs_;
+  compiler::ZoneRefMap<compiler::HeapObjectRef, Constant*> constants_;
+  compiler::ZoneRefMap<compiler::HeapObjectRef, TrustedConstant*>
+      trusted_constants_;
+  ZoneVector<OptimizedCompilationInfo::InlinedFunctionHolder>
+      inlined_functions_;
+  ZoneVector<Node*> node_buffer_;
+
+  bool has_recursive_calls_ = false;
+  int total_inlined_bytecode_size_ = 0;
+  int total_peeled_bytecode_size_ = 0;
+  uint32_t object_ids_ = 0;
+  bool has_resumable_generator_ = false;
+  bool may_have_unreachable_blocks_ = false;
+  ZoneUnorderedMap<ValueNode*, compiler::OptionalScopeInfoRef> scope_infos_;
+  BasicBlock::Id max_block_id_ = 0;
+  std::unique_ptr<MaglevGraphLabeller> graph_labeller_ = {};
+
+  template <typename NodeT, typename... Args>
+  NodeT* CreateNewConstantNode(Args&&... args) const {
+    static_assert(IsConstantNode(Node::opcode_of<NodeT>));
+    NodeT* node = NodeBase::New<NodeT>(zone(), std::forward<Args>(args)...);
+    static_assert(!NodeT::kProperties.can_eager_deopt());
+    static_assert(!NodeT::kProperties.can_lazy_deopt());
+    static_assert(!NodeT::kProperties.can_throw());
+    static_assert(!NodeT::kProperties.can_write());
+    if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  " << node << "  "
+                << PrintNodeLabel(graph_labeller(), node) << ": "
+                << PrintNode(graph_labeller(), node) << std::endl;
+    }
+    return node;
+  }
+
+  template <typename NodeT, typename T>
+  NodeT* GetOrAddNewConstantNode(ZoneMap<T, NodeT*>& container, T constant) {
+    auto it = container.find(constant);
+    if (it == container.end()) {
+      NodeT* node = CreateNewConstantNode<NodeT>(0, constant);
+      container.emplace(constant, node);
+      return node;
+    }
+    return it->second;
+  }
+
   compiler::OptionalScopeInfoRef TryGetScopeInfoForContextLoad(
-      ValueNode* context, int offset, compiler::JSHeapBroker* broker) {
-    compiler::OptionalScopeInfoRef cur = TryGetScopeInfo(context, broker);
+      ValueNode* context, int offset) {
+    compiler::OptionalScopeInfoRef cur = TryGetScopeInfo(context);
     if (offset == Context::OffsetOfElementAt(Context::EXTENSION_INDEX)) {
       return cur;
     }
     CHECK_EQ(offset, Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
     if (cur.has_value()) {
-      cur = (*cur).OuterScopeInfo(broker);
+      cur = (*cur).OuterScopeInfo(broker());
       while (!cur->HasContext() && cur->HasOuterScopeInfo()) {
-        cur = cur->OuterScopeInfo(broker);
+        cur = cur->OuterScopeInfo(broker());
       }
       if (cur->HasContext()) {
         return cur;
@@ -283,91 +343,153 @@ class Graph final : public ZoneObject {
     return {};
   }
 
-  // Resolve the scope info of a context value.
-  // An empty result means we don't statically know the context's scope.
-  compiler::OptionalScopeInfoRef TryGetScopeInfo(
-      ValueNode* context, compiler::JSHeapBroker* broker) {
-    auto it = scope_infos_.find(context);
-    if (it != scope_infos_.end()) {
-      return it->second;
+  template <typename Function>
+  void IterateGraphAndSweepDeadBlocks(Function&& is_dead) {
+    auto current = blocks_.begin();
+    auto last_non_dead = current;
+    while (current != blocks_.end()) {
+      if (is_dead(*current)) {
+        (*current)->mark_dead();
+      } else {
+        if (current != last_non_dead) {
+          // Move current to last non dead position.
+          *last_non_dead = *current;
+        }
+        ++last_non_dead;
+      }
+      ++current;
     }
-    compiler::OptionalScopeInfoRef res;
-    if (auto context_const = context->TryCast<Constant>()) {
-      res = context_const->object().AsContext().scope_info(broker);
-      DCHECK(res->HasContext());
-    } else if (auto load =
-                   context->TryCast<LoadTaggedFieldForContextSlotNoCells>()) {
-      compiler::OptionalScopeInfoRef cur = TryGetScopeInfoForContextLoad(
-          load->input(0).node(), load->offset(), broker);
-      if (cur.has_value()) res = cur;
-    } else if (auto load_script =
-                   context->TryCast<LoadTaggedFieldForContextSlot>()) {
-      compiler::OptionalScopeInfoRef cur = TryGetScopeInfoForContextLoad(
-          load_script->input(0).node(), load_script->offset(), broker);
-      if (cur.has_value()) res = cur;
-    } else if (context->Is<InitialValue>()) {
-      // We should only fail to keep track of initial contexts originating from
-      // the OSR prequel.
-      // TODO(olivf): Keep track of contexts when analyzing OSR Prequel.
-      DCHECK(is_osr());
-    } else {
-      // Any context created within a function must be registered in
-      // graph()->scope_infos(). Initial contexts must be registered before
-      // BuildBody. We don't track context in generators (yet) and around eval
-      // the bytecode compiler creates contexts by calling
-      // Runtime::kNewFunctionInfo directly.
-      DCHECK(context->Is<Phi>() || context->Is<GeneratorRestoreRegister>() ||
-             context->Is<RegisterInput>() || context->Is<CallRuntime>());
+    if (current != last_non_dead) {
+      blocks_.resize(blocks_.size() - (current - last_non_dead));
     }
-    return scope_infos_[context] = res;
   }
-
-  void record_scope_info(ValueNode* context,
-                         compiler::OptionalScopeInfoRef scope_info) {
-    scope_infos_[context] = scope_info;
-  }
-
-  Zone* zone() const { return blocks_.zone(); }
-
-  BasicBlock::Id max_block_id() const { return max_block_id_; }
-
- private:
-  uint32_t tagged_stack_slots_ = kMaxUInt32;
-  uint32_t untagged_stack_slots_ = kMaxUInt32;
-  uint32_t max_call_stack_args_ = kMaxUInt32;
-  uint32_t max_deopted_stack_size_ = kMaxUInt32;
-  ZoneVector<BasicBlock*> blocks_;
-  ZoneMap<RootIndex, RootConstant*> root_;
-  ZoneVector<InitialValue*> osr_values_;
-  ZoneMap<int, SmiConstant*> smi_;
-  ZoneMap<int, TaggedIndexConstant*> tagged_index_;
-  ZoneMap<int32_t, Int32Constant*> int32_;
-  ZoneMap<uint32_t, Uint32Constant*> uint32_;
-  ZoneMap<intptr_t, IntPtrConstant*> intptr_;
-  // Use the bits of the float as the key.
-  ZoneMap<uint64_t, Float64Constant*> float_;
-  ZoneMap<Address, ExternalConstant*> external_references_;
-  ZoneVector<InitialValue*> parameters_;
-  ZoneVector<MaglevCallSiteInfo*> inlineable_calls_;
-  ZoneMap<InlinedAllocation*, SmallAllocationVector> allocations_escape_map_;
-  ZoneMap<InlinedAllocation*, SmallAllocationVector> allocations_elide_map_;
-  RegList register_inputs_;
-  compiler::ZoneRefMap<compiler::ObjectRef, Constant*> constants_;
-  compiler::ZoneRefMap<compiler::HeapObjectRef, TrustedConstant*>
-      trusted_constants_;
-  ZoneVector<OptimizedCompilationInfo::InlinedFunctionHolder>
-      inlined_functions_;
-  ZoneVector<Node*> node_buffer_;
-  bool has_recursive_calls_ = false;
-  int total_inlined_bytecode_size_ = 0;
-  int total_peeled_bytecode_size_ = 0;
-  bool is_osr_ = false;
-  uint32_t object_ids_ = 0;
-  bool has_resumable_generator_ = false;
-  bool may_have_unreachable_blocks_ = false;
-  ZoneUnorderedMap<ValueNode*, compiler::OptionalScopeInfoRef> scope_infos_;
-  BasicBlock::Id max_block_id_ = 0;
 };
+
+compiler::OptionalScopeInfoRef Graph::TryGetScopeInfo(ValueNode* context) {
+  auto it = scope_infos_.find(context);
+  if (it != scope_infos_.end()) {
+    return it->second;
+  }
+  compiler::OptionalScopeInfoRef res;
+  if (auto context_const = context->TryCast<Constant>()) {
+    res = context_const->object().AsContext().scope_info(broker());
+    DCHECK(res->HasContext());
+  } else if (auto load =
+                 context->TryCast<LoadTaggedFieldForContextSlotNoCells>()) {
+    compiler::OptionalScopeInfoRef cur =
+        TryGetScopeInfoForContextLoad(load->input(0).node(), load->offset());
+    if (cur.has_value()) res = cur;
+  } else if (auto load_script =
+                 context->TryCast<LoadTaggedFieldForContextSlot>()) {
+    compiler::OptionalScopeInfoRef cur = TryGetScopeInfoForContextLoad(
+        load_script->input(0).node(), load_script->offset());
+    if (cur.has_value()) res = cur;
+  } else if (context->Is<InitialValue>()) {
+    // We should only fail to keep track of initial contexts originating from
+    // the OSR prequel.
+    // TODO(olivf): Keep track of contexts when analyzing OSR Prequel.
+    DCHECK(is_osr());
+  } else {
+    // Any context created within a function must be registered in
+    // graph()->scope_infos(). Initial contexts must be registered before
+    // BuildBody. We don't track context in generators (yet) and around eval
+    // the bytecode compiler creates contexts by calling
+    // Runtime::kNewFunctionInfo directly.
+    DCHECK(context->Is<Phi>() || context->Is<GeneratorRestoreRegister>() ||
+           context->Is<RegisterInput>() || context->Is<CallRuntime>());
+  }
+  return scope_infos_[context] = res;
+}
+
+void Graph::RemoveUnreachableBlocks() {
+  DCHECK(may_have_unreachable_blocks());
+
+  std::vector<bool> reachable_blocks(max_block_id(), false);
+  std::vector<BasicBlock*> worklist;
+
+  DCHECK(!blocks().empty());
+  BasicBlock* initial_bb = blocks().front();
+  worklist.push_back(initial_bb);
+  reachable_blocks[initial_bb->id()] = true;
+  DCHECK(!initial_bb->is_loop());
+
+  while (!worklist.empty()) {
+    BasicBlock* current = worklist.back();
+    worklist.pop_back();
+
+    for (auto handler : current->exception_handlers()) {
+      if (!handler->HasExceptionHandler()) continue;
+      if (handler->ShouldLazyDeopt()) continue;
+      BasicBlock* catch_block = handler->catch_block();
+      if (!reachable_blocks[catch_block->id()]) {
+        reachable_blocks[catch_block->id()] = true;
+        worklist.push_back(catch_block);
+      }
+    }
+    current->ForEachSuccessor([&](BasicBlock* succ) {
+      if (!reachable_blocks[succ->id()]) {
+        reachable_blocks[succ->id()] = true;
+        worklist.push_back(succ);
+      }
+    });
+  }
+
+  // Sweep dead blocks and remove unreachable predecessors.
+  IterateGraphAndSweepDeadBlocks([&](BasicBlock* bb) {
+    if (!reachable_blocks[bb->id()]) return true;
+    // If block doesn't have a merge state, it has only one predecessor, so
+    // it must be the reachable one.
+    if (!bb->has_state()) return false;
+    if (bb->is_loop() && !reachable_blocks[bb->backedge_predecessor()->id()]) {
+      // If the backedge predecessor is not reachable, we can turn the loop
+      // into a regular block.
+      bb->state()->TurnLoopIntoRegularBlock();
+    }
+    for (int i = bb->predecessor_count() - 1; i >= 0; i--) {
+      if (!reachable_blocks[bb->predecessor_at(i)->id()]) {
+        bb->state()->RemovePredecessorAt(i);
+      }
+    }
+    return false;
+  });
+
+  set_may_have_unreachable_blocks(false);
+}
+
+ValueNode* Graph::GetConstant(compiler::ObjectRef ref) {
+  if (ref.IsSmi()) {
+    return GetSmiConstant(ref.AsSmi());
+  }
+  compiler::HeapObjectRef constant = ref.AsHeapObject();
+
+  if (IsThinString(*constant.object())) {
+    constant = MakeRefAssumeMemoryFence(
+        broker(), Cast<ThinString>(*constant.object())->actual());
+  }
+
+  auto root_index = broker()->FindRootIndex(constant);
+  if (root_index.has_value()) {
+    return GetRootConstant(*root_index);
+  }
+
+  return GetOrAddNewConstantNode(constants_, ref.AsHeapObject());
+}
+
+ValueNode* Graph::GetTrustedConstant(compiler::HeapObjectRef ref,
+                                     IndirectPointerTag tag) {
+#ifdef V8_ENABLE_SANDBOX
+  auto it = trusted_constants_.find(ref);
+  if (it == trusted_constants_.end()) {
+    TrustedConstant* node = CreateNewConstantNode<TrustedConstant>(0, ref, tag);
+    trusted_constants_.emplace(ref, node);
+    return node;
+  }
+  SBXCHECK_EQ(it->second->tag(), tag);
+  return it->second;
+#else
+  return GetConstant(ref);
+#endif
+}
 
 }  // namespace maglev
 }  // namespace internal

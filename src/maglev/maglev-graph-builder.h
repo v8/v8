@@ -320,73 +320,38 @@ class MaglevGraphBuilder {
   }
 
   SmiConstant* GetSmiConstant(int constant) const {
-    DCHECK(Smi::IsValid(constant));
-    auto it = graph_->smi().find(constant);
-    if (it == graph_->smi().end()) {
-      SmiConstant* node =
-          CreateNewConstantNode<SmiConstant>(0, Smi::FromInt(constant));
-      graph_->smi().emplace(constant, node);
-      return node;
-    }
-    return it->second;
+    return graph()->GetSmiConstant(constant);
   }
-
   TaggedIndexConstant* GetTaggedIndexConstant(int constant) {
-    DCHECK(TaggedIndex::IsValid(constant));
-    auto it = graph_->tagged_index().find(constant);
-    if (it == graph_->tagged_index().end()) {
-      TaggedIndexConstant* node = CreateNewConstantNode<TaggedIndexConstant>(
-          0, TaggedIndex::FromIntptr(constant));
-      graph_->tagged_index().emplace(constant, node);
-      return node;
-    }
-    return it->second;
+    return graph()->GetTaggedIndexConstant(constant);
   }
-
   Int32Constant* GetInt32Constant(int32_t constant) {
-    auto it = graph_->int32().find(constant);
-    if (it == graph_->int32().end()) {
-      Int32Constant* node = CreateNewConstantNode<Int32Constant>(0, constant);
-      graph_->int32().emplace(constant, node);
-      return node;
-    }
-    return it->second;
+    return graph()->GetInt32Constant(constant);
   }
-
   IntPtrConstant* GetIntPtrConstant(intptr_t constant) {
-    auto it = graph_->intptr().find(constant);
-    if (it == graph_->intptr().end()) {
-      IntPtrConstant* node = CreateNewConstantNode<IntPtrConstant>(0, constant);
-      graph_->intptr().emplace(constant, node);
-      return node;
-    }
-    return it->second;
+    return graph()->GetIntPtrConstant(constant);
   }
-
   Uint32Constant* GetUint32Constant(int constant) {
-    auto it = graph_->uint32().find(constant);
-    if (it == graph_->uint32().end()) {
-      Uint32Constant* node = CreateNewConstantNode<Uint32Constant>(0, constant);
-      graph_->uint32().emplace(constant, node);
-      return node;
-    }
-    return it->second;
+    return graph()->GetUint32Constant(constant);
   }
-
   Float64Constant* GetFloat64Constant(double constant) {
-    return GetFloat64Constant(
-        Float64::FromBits(base::double_to_uint64(constant)));
+    return graph()->GetFloat64Constant(constant);
   }
-
   Float64Constant* GetFloat64Constant(Float64 constant) {
-    auto it = graph_->float64().find(constant.get_bits());
-    if (it == graph_->float64().end()) {
-      Float64Constant* node =
-          CreateNewConstantNode<Float64Constant>(0, constant);
-      graph_->float64().emplace(constant.get_bits(), node);
-      return node;
-    }
-    return it->second;
+    return graph()->GetFloat64Constant(constant);
+  }
+  RootConstant* GetRootConstant(RootIndex index) {
+    return graph()->GetRootConstant(index);
+  }
+  RootConstant* GetBooleanConstant(bool value) {
+    return graph()->GetBooleanConstant(value);
+  }
+  ValueNode* GetConstant(compiler::ObjectRef ref) {
+    return graph()->GetConstant(ref);
+  }
+  ValueNode* GetTrustedConstant(compiler::HeapObjectRef ref,
+                                IndirectPointerTag tag) {
+    return graph()->GetTrustedConstant(ref, tag);
   }
 
   ValueNode* GetNumberConstant(double constant);
@@ -407,11 +372,10 @@ class MaglevGraphBuilder {
   compiler::JSHeapBroker* broker() const { return broker_; }
   LocalIsolate* local_isolate() const { return local_isolate_; }
 
-  bool has_graph_labeller() const {
-    return compilation_unit_->has_graph_labeller();
-  }
+  bool has_graph_labeller() const { return graph_->has_graph_labeller(); }
   MaglevGraphLabeller* graph_labeller() const {
-    return compilation_unit_->graph_labeller();
+    if (graph_->has_graph_labeller()) return graph_->graph_labeller();
+    return nullptr;
   }
 
   // True when this graph builder is building the subgraph of an inlined
@@ -853,8 +817,7 @@ class MaglevGraphBuilder {
   void PrintVirtualObjects() {
     if (!v8_flags.trace_maglev_graph_building) return;
     current_interpreter_frame_.virtual_objects().Print(
-        std::cout, "* VOs (Interpreter Frame State): ",
-        compilation_unit()->graph_labeller());
+        std::cout, "* VOs (Interpreter Frame State): ", graph_labeller());
   }
 
   void VisitSingleBytecode() {
@@ -1463,7 +1426,7 @@ class MaglevGraphBuilder {
     Handle<String> string_handle =
         local_isolate()->factory()->NewStringFromAsciiChecked(
             str, AllocationType::kOld);
-    ValueNode* string_node = GetConstant(MakeRefAssumeMemoryFence(
+    ValueNode* string_node = graph()->GetConstant(MakeRefAssumeMemoryFence(
         broker(), broker()->CanonicalPersistentHandle(string_handle)));
     CHECK(BuildCallRuntime(Runtime::kGlobalPrint, {string_node}).IsDone());
   }
@@ -1478,7 +1441,7 @@ class MaglevGraphBuilder {
   }
 
   ValueNode* GetFeedbackCell() {
-    return GetConstant(
+    return graph()->GetConstant(
         compilation_unit_->GetTopLevelCompilationUnit()->feedback_cell());
   }
 
@@ -1520,37 +1483,6 @@ class MaglevGraphBuilder {
                       Cast<T>(iterator_.GetConstantForIndexOperand(
                           operand_index, local_isolate()))));
   }
-
-  ExternalConstant* GetExternalConstant(ExternalReference reference) {
-    auto it = graph_->external_references().find(reference.address());
-    if (it == graph_->external_references().end()) {
-      ExternalConstant* node =
-          CreateNewConstantNode<ExternalConstant>(0, reference);
-      graph_->external_references().emplace(reference.address(), node);
-      return node;
-    }
-    return it->second;
-  }
-
-  RootConstant* GetRootConstant(RootIndex index) {
-    auto it = graph_->root().find(index);
-    if (it == graph_->root().end()) {
-      RootConstant* node = CreateNewConstantNode<RootConstant>(0, index);
-      graph_->root().emplace(index, node);
-      return node;
-    }
-    return it->second;
-  }
-
-  RootConstant* GetBooleanConstant(bool value) {
-    return GetRootConstant(value ? RootIndex::kTrueValue
-                                 : RootIndex::kFalseValue);
-  }
-
-  ValueNode* GetConstant(compiler::ObjectRef ref);
-
-  ValueNode* GetTrustedConstant(compiler::HeapObjectRef ref,
-                                IndirectPointerTag tag);
 
   MaybeReduceResult GetConstantSingleCharacterStringFromCode(uint16_t);
 
@@ -1790,7 +1722,7 @@ class MaglevGraphBuilder {
     DCHECK(interpreter::Bytecodes::ClobbersAccumulator(
         iterator_.current_bytecode()));
     current_interpreter_frame_.set_accumulator(
-        GetRootConstant(RootIndex::kOptimizedOut));
+        graph()->GetRootConstant(RootIndex::kOptimizedOut));
   }
 
   ValueNode* GetSecondValue(ValueNode* result) {

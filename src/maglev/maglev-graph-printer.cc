@@ -1045,10 +1045,9 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
   return ProcessResult::kContinue;
 }
 
-void PrintGraph(std::ostream& os, MaglevCompilationInfo* compilation_info,
-                Graph* const graph) {
+void PrintGraph(std::ostream& os, Graph* const graph) {
   GraphProcessor<MaglevPrintingVisitor, /*visit_identity_nodes*/ true> printer(
-      compilation_info->graph_labeller(), os);
+      graph->graph_labeller(), os);
   printer.ProcessGraph(graph);
 }
 

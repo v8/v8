@@ -57,38 +57,7 @@ class MaglevPrintingVisitor {
   MaglevGraphLabeller::Provenance existing_provenance_;
 };
 
-void PrintGraph(std::ostream& os, MaglevCompilationInfo* compilation_info,
-                Graph* const graph);
-
-class PrintNode {
- public:
-  PrintNode(MaglevGraphLabeller* graph_labeller, const NodeBase* node,
-            bool skip_targets = false)
-      : graph_labeller_(graph_labeller),
-        node_(node),
-        skip_targets_(skip_targets) {}
-
-  void Print(std::ostream& os) const;
-
- private:
-  MaglevGraphLabeller* graph_labeller_;
-  const NodeBase* node_;
-  // This is used when tracing graph building, since targets might not exist
-  // yet.
-  const bool skip_targets_;
-};
-
-class PrintNodeLabel {
- public:
-  PrintNodeLabel(MaglevGraphLabeller* graph_labeller, const NodeBase* node)
-      : graph_labeller_(graph_labeller), node_(node) {}
-
-  void Print(std::ostream& os) const;
-
- private:
-  MaglevGraphLabeller* graph_labeller_;
-  const NodeBase* node_;
-};
+void PrintGraph(std::ostream& os, Graph* const graph);
 
 #else
 
@@ -123,34 +92,9 @@ class MaglevPrintingVisitor {
 };
 
 inline void PrintGraph(std::ostream& os,
-                       MaglevCompilationInfo* compilation_info,
                        Graph* const graph) {}
 
-class PrintNode {
- public:
-  PrintNode(MaglevGraphLabeller* graph_labeller, const NodeBase* node,
-            bool skip_targets = false) {}
-  void Print(std::ostream& os) const {}
-};
-
-class PrintNodeLabel {
- public:
-  PrintNodeLabel(MaglevGraphLabeller* graph_labeller, const NodeBase* node) {}
-  void Print(std::ostream& os) const {}
-};
-
 #endif  // V8_ENABLE_MAGLEV_GRAPH_PRINTER
-
-inline std::ostream& operator<<(std::ostream& os, const PrintNode& printer) {
-  printer.Print(os);
-  return os;
-}
-
-inline std::ostream& operator<<(std::ostream& os,
-                                const PrintNodeLabel& printer) {
-  printer.Print(os);
-  return os;
-}
 
 }  // namespace maglev
 }  // namespace internal

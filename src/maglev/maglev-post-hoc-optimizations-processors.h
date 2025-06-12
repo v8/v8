@@ -50,10 +50,10 @@ class SweepIdentityNodes {
 // Currently mainly loop invariant code motion.
 class LoopOptimizationProcessor {
  public:
-  explicit LoopOptimizationProcessor(MaglevGraphBuilder* builder)
-      : zone(builder->zone()) {
+  explicit LoopOptimizationProcessor(MaglevCompilationInfo* info)
+      : zone(info->zone()) {
     was_deoptimized =
-        builder->compilation_unit()->feedback().was_once_deoptimized();
+        info->toplevel_compilation_unit()->feedback().was_once_deoptimized();
   }
 
   void PreProcessGraph(Graph* graph) {}
@@ -330,13 +330,11 @@ class AnyUseMarkingProcessor {
 
 class DeadNodeSweepingProcessor {
  public:
-  explicit DeadNodeSweepingProcessor(MaglevCompilationInfo* compilation_info) {
-    if (V8_UNLIKELY(compilation_info->has_graph_labeller())) {
-      labeller_ = compilation_info->graph_labeller();
+  void PreProcessGraph(Graph* graph) {
+    if (graph->has_graph_labeller()) {
+      labeller_ = graph->graph_labeller();
     }
   }
-
-  void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
   void PostProcessBasicBlock(BasicBlock* block) {}
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {

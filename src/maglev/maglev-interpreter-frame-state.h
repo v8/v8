@@ -914,17 +914,16 @@ class MergePointInterpreterFrameState {
     frame_state_.set_virtual_objects(vos);
   }
 
-  void PrintVirtualObjects(const MaglevCompilationUnit& info,
+  void PrintVirtualObjects(MaglevGraphLabeller* labeller,
                            VirtualObjectList from_ifs,
                            const char* prelude = nullptr) {
     if (!v8_flags.trace_maglev_graph_building) return;
     if (prelude) {
       std::cout << prelude << std::endl;
     }
-    from_ifs.Print(std::cout,
-                   "* VOs (Interpreter Frame State): ", info.graph_labeller());
+    from_ifs.Print(std::cout, "* VOs (Interpreter Frame State): ", labeller);
     frame_state_.virtual_objects().Print(
-        std::cout, "* VOs (Merge Frame State): ", info.graph_labeller());
+        std::cout, "* VOs (Merge Frame State): ", labeller);
   }
 
   bool is_loop() const {
@@ -1156,7 +1155,7 @@ void InterpreterFrameState::CopyFrom(const MaglevCompilationUnit& info,
   DCHECK_IMPLIES(preserve_known_node_aspects, zone);
   if (v8_flags.trace_maglev_graph_building) {
     std::cout << "- Copying frame state from merge @" << &state << std::endl;
-    state.PrintVirtualObjects(info, virtual_objects());
+    state.PrintVirtualObjects(info.graph_labeller(), virtual_objects());
   }
   virtual_objects_.Snapshot();
   state.frame_state().ForEachValue(

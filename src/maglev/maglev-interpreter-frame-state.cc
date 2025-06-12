@@ -590,13 +590,12 @@ MergePointInterpreterFrameState::MergePointInterpreterFrameState(
                     frame_state_.size(info))) {}
 
 namespace {
-void PrintBeforeMerge(const MaglevCompilationUnit& compilation_unit,
-                      ValueNode* current_value, ValueNode* unmerged_value,
-                      interpreter::Register reg, KnownNodeAspects* kna) {
+void PrintBeforeMerge(MaglevGraphLabeller* labeller, ValueNode* current_value,
+                      ValueNode* unmerged_value, interpreter::Register reg,
+                      KnownNodeAspects* kna) {
   if (!v8_flags.trace_maglev_graph_building) return;
   std::cout << "  " << reg.ToString() << ": "
-            << PrintNodeLabel(compilation_unit.graph_labeller(), current_value)
-            << "<";
+            << PrintNodeLabel(labeller, current_value) << "<";
   if (kna) {
     if (auto cur_info = kna->TryGetInfoFor(current_value)) {
       std::cout << cur_info->type();
@@ -605,9 +604,7 @@ void PrintBeforeMerge(const MaglevCompilationUnit& compilation_unit,
       }
     }
   }
-  std::cout << "> <- "
-            << PrintNodeLabel(compilation_unit.graph_labeller(), unmerged_value)
-            << "<";
+  std::cout << "> <- " << PrintNodeLabel(labeller, unmerged_value) << "<";
   if (kna) {
     if (auto in_info = kna->TryGetInfoFor(unmerged_value)) {
       std::cout << in_info->type();
@@ -618,14 +615,11 @@ void PrintBeforeMerge(const MaglevCompilationUnit& compilation_unit,
   }
   std::cout << ">";
 }
-void PrintAfterMerge(const MaglevCompilationUnit& compilation_unit,
-                     ValueNode* merged_value, KnownNodeAspects* kna) {
+void PrintAfterMerge(MaglevGraphLabeller* labeller, ValueNode* merged_value,
+                     KnownNodeAspects* kna) {
   if (!v8_flags.trace_maglev_graph_building) return;
-  std::cout << " => "
-            << PrintNodeLabel(compilation_unit.graph_labeller(), merged_value)
-            << ": "
-            << PrintNode(compilation_unit.graph_labeller(), merged_value)
-            << "<";
+  std::cout << " => " << PrintNodeLabel(labeller, merged_value) << ": "
+            << PrintNode(labeller, merged_value) << "<";
 
   if (kna) {
     if (auto out_info = kna->TryGetInfoFor(merged_value)) {
@@ -653,12 +647,12 @@ void MergePointInterpreterFrameState::MergePhis(
   int i = 0;
   frame_state_.ForEachValue(
       compilation_unit, [&](ValueNode*& value, interpreter::Register reg) {
-        PrintBeforeMerge(compilation_unit, value, unmerged.get(reg), reg,
-                         known_node_aspects_);
+        PrintBeforeMerge(builder->graph_labeller(), value, unmerged.get(reg),
+                         reg, known_node_aspects_);
         value = MergeValue(builder, reg, *unmerged.known_node_aspects(), value,
                            unmerged.get(reg), &per_predecessor_alternatives_[i],
                            optimistic_loop_phis);
-        PrintAfterMerge(compilation_unit, value, known_node_aspects_);
+        PrintAfterMerge(builder->graph_labeller(), value, known_node_aspects_);
         ++i;
       });
 }
@@ -675,11 +669,9 @@ void MergePointInterpreterFrameState::MergeVirtualObject(
 
   if (v8_flags.trace_maglev_graph_building) {
     std::cout << " - Merging VOS: "
-              << PrintNodeLabel(builder->compilation_unit()->graph_labeller(),
-                                merged)
+              << PrintNodeLabel(builder->graph_labeller(), merged)
               << "(merged) and "
-              << PrintNodeLabel(builder->compilation_unit()->graph_labeller(),
-                                unmerged)
+              << PrintNodeLabel(builder->graph_labeller(), unmerged)
               << "(unmerged)" << std::endl;
   }
 
@@ -707,7 +699,8 @@ void MergePointInterpreterFrameState::MergeVirtualObjects(
 
   frame_state_.virtual_objects().Snapshot();
 
-  PrintVirtualObjects(compilation_unit, unmerged_vos, "VOs before merge:");
+  PrintVirtualObjects(builder->graph_labeller(), unmerged_vos,
+                      "VOs before merge:");
 
   SmallZoneMap<InlinedAllocation*, VirtualObject*, 10> unmerged_map(
       builder->zone());
@@ -759,7 +752,8 @@ void MergePointInterpreterFrameState::MergeVirtualObjects(
     }
   }
 
-  PrintVirtualObjects(compilation_unit, unmerged_vos, "VOs after merge:");
+  PrintVirtualObjects(builder->graph_labeller(), unmerged_vos,
+                      "VOs after merge:");
 }
 
 void MergePointInterpreterFrameState::InitializeLoop(
@@ -845,11 +839,11 @@ void MergePointInterpreterFrameState::MergeLoop(
   }
   frame_state_.ForEachValue(
       compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
-        PrintBeforeMerge(compilation_unit, value, loop_end_state.get(reg), reg,
-                         known_node_aspects_);
+        PrintBeforeMerge(builder->graph_labeller(), value,
+                         loop_end_state.get(reg), reg, known_node_aspects_);
         MergeLoopValue(builder, reg, *loop_end_state.known_node_aspects(),
                        value, loop_end_state.get(reg));
-        PrintAfterMerge(compilation_unit, value, known_node_aspects_);
+        PrintAfterMerge(builder->graph_labeller(), value, known_node_aspects_);
       });
   predecessors_so_far_++;
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);
@@ -934,11 +928,11 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
 
   frame_state_.ForEachValue(
       compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
-        PrintBeforeMerge(compilation_unit, value, loop_end_state.get(reg), reg,
-                         known_node_aspects_);
+        PrintBeforeMerge(builder->graph_labeller(), value,
+                         loop_end_state.get(reg), reg, known_node_aspects_);
         MergeLoopValue(builder, reg, *loop_end_state.known_node_aspects(),
                        value, loop_end_state.get(reg));
-        PrintAfterMerge(compilation_unit, value, known_node_aspects_);
+        PrintAfterMerge(builder->graph_labeller(), value, known_node_aspects_);
       });
   predecessors_so_far_++;
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);
@@ -975,7 +969,7 @@ void MergePointInterpreterFrameState::MergeThrow(
 
   if (v8_flags.trace_maglev_graph_building) {
     std::cout << "- Merging into exception handler @" << this << std::endl;
-    PrintVirtualObjects(*handler_unit, virtual_objects);
+    PrintVirtualObjects(builder->graph_labeller(), virtual_objects);
   }
 
   if (known_node_aspects_ == nullptr) {
@@ -991,19 +985,19 @@ void MergePointInterpreterFrameState::MergeThrow(
 
   frame_state_.ForEachParameter(
       *handler_unit, [&](ValueNode*& value, interpreter::Register reg) {
-        PrintBeforeMerge(*handler_unit, value, builder_frame.get(reg), reg,
-                         known_node_aspects_);
+        PrintBeforeMerge(builder->graph_labeller(), value,
+                         builder_frame.get(reg), reg, known_node_aspects_);
         value = MergeValue(builder, reg, known_node_aspects, value,
                            builder_frame.get(reg), nullptr);
-        PrintAfterMerge(*handler_unit, value, known_node_aspects_);
+        PrintAfterMerge(builder->graph_labeller(), value, known_node_aspects_);
       });
   frame_state_.ForEachLocal(
       *handler_unit, [&](ValueNode*& value, interpreter::Register reg) {
-        PrintBeforeMerge(*handler_unit, value, builder_frame.get(reg), reg,
-                         known_node_aspects_);
+        PrintBeforeMerge(builder->graph_labeller(), value,
+                         builder_frame.get(reg), reg, known_node_aspects_);
         value = MergeValue(builder, reg, known_node_aspects, value,
                            builder_frame.get(reg), nullptr);
-        PrintAfterMerge(*handler_unit, value, known_node_aspects_);
+        PrintAfterMerge(builder->graph_labeller(), value, known_node_aspects_);
       });
 
   // Pick out the context value from the incoming registers.
@@ -1011,13 +1005,13 @@ void MergePointInterpreterFrameState::MergeThrow(
   // the identity for generator-restored context. If generator value restores
   // were handled differently, we could avoid emitting a Phi here.
   ValueNode*& context = frame_state_.context(*handler_unit);
-  PrintBeforeMerge(*handler_unit, context,
+  PrintBeforeMerge(builder->graph_labeller(), context,
                    builder_frame.get(catch_block_context_register_),
                    catch_block_context_register_, known_node_aspects_);
   context = MergeValue(
       builder, catch_block_context_register_, known_node_aspects, context,
       builder_frame.get(catch_block_context_register_), nullptr);
-  PrintAfterMerge(*handler_unit, context, known_node_aspects_);
+  PrintAfterMerge(builder->graph_labeller(), context, known_node_aspects_);
 
   predecessors_so_far_++;
 }
@@ -1035,7 +1029,7 @@ ValueNode* FromInt32ToTagged(const MaglevGraphBuilder* builder,
   if (value->Is<Int32Constant>()) {
     int32_t constant = value->Cast<Int32Constant>()->value();
     if (Smi::IsValid(constant)) {
-      return builder->GetSmiConstant(constant);
+      return builder->graph()->GetSmiConstant(constant);
     }
   }
 

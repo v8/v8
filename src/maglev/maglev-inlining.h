@@ -16,14 +16,12 @@
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-builder.h"
 #include "src/maglev/maglev-ir.h"
-#include "src/maglev/maglev-post-hoc-optimizations-processors.h"
 
 namespace v8::internal::maglev {
 
 class MaglevInliner {
  public:
-  MaglevInliner(MaglevCompilationInfo* compilation_info, Graph* graph)
-      : compilation_info_(compilation_info), graph_(graph) {}
+  explicit MaglevInliner(Graph* graph) : graph_(graph) {}
 
   void Run(bool is_tracing_maglev_graphs_enabled) {
     if (graph_->inlineable_calls().empty()) return;
@@ -46,7 +44,7 @@ class MaglevInliner {
         std::cout << "\nAfter inlining "
                   << call_site->generic_call_node->shared_function_info()
                   << std::endl;
-        PrintGraph(std::cout, compilation_info_, graph_);
+        PrintGraph(std::cout, graph_);
       }
     }
 
@@ -54,16 +52,15 @@ class MaglevInliner {
     if (is_tracing_maglev_graphs_enabled && v8_flags.print_maglev_graphs &&
         !v8_flags.trace_maglev_inlining_verbose) {
       std::cout << "\nAfter inlining" << std::endl;
-      PrintGraph(std::cout, compilation_info_, graph_);
+      PrintGraph(std::cout, graph_);
     }
   }
 
  private:
-  MaglevCompilationInfo* compilation_info_;
   Graph* graph_;
 
-  compiler::JSHeapBroker* broker() const { return compilation_info_->broker(); }
-  Zone* zone() const { return compilation_info_->zone(); }
+  compiler::JSHeapBroker* broker() const { return graph_->broker(); }
+  Zone* zone() const { return graph_->zone(); }
 
   MaglevCallSiteInfo* ChooseNextCallSite() {
     auto it =

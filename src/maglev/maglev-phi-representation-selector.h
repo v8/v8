@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "src/base/small-vector.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph-builder.h"
@@ -26,16 +27,19 @@ class MaglevPhiRepresentationSelector {
   using Snapshot = SnapshotTable<ValueNode*>::Snapshot;
 
  public:
-  explicit MaglevPhiRepresentationSelector(MaglevGraphBuilder* builder)
-      : builder_(builder),
-        phi_taggings_(builder->zone()),
-        predecessors_(builder->zone()),
-        new_nodes_at_start_(builder->zone()) {}
+  explicit MaglevPhiRepresentationSelector(LocalIsolate* local_isolate,
+                                           Graph* graph)
+      : local_isolate_(local_isolate),
+        graph_(graph),
+        phi_taggings_(zone()),
+        predecessors_(zone()),
+        new_nodes_at_start_(zone()) {}
 
   void PreProcessGraph(Graph* graph) {
     if (v8_flags.trace_maglev_phi_untagging) {
       StdoutStream{} << "\nMaglevPhiRepresentationSelector\n";
     }
+    graph_ = graph;
   }
   void PostProcessGraph(Graph* graph) {
     if (v8_flags.trace_maglev_phi_untagging) {
@@ -199,12 +203,15 @@ class MaglevPhiRepresentationSelector {
   void PreparePhiTaggings(BasicBlock* old_block, const BasicBlock* new_block);
 
   MaglevGraphLabeller* graph_labeller() const {
-    return builder_->graph_labeller();
+    return graph_->graph_labeller();
   }
 
   bool CanHoistUntaggingTo(BasicBlock* block);
 
-  MaglevGraphBuilder* builder_ = nullptr;
+  Zone* zone() const { return graph_->zone(); }
+
+  LocalIsolate* local_isolate_;
+  Graph* graph_;
   BasicBlock* current_block_ = nullptr;
 
   // {phi_taggings_} is a SnapshotTable containing mappings from untagged Phis

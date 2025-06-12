@@ -881,10 +881,6 @@ DirectHandle<Object> ValueNode::Reify(LocalIsolate* isolate) const {
   }
 }
 
-DirectHandle<Object> ExternalConstant::DoReify(LocalIsolate* isolate) const {
-  UNREACHABLE();
-}
-
 DirectHandle<Object> SmiConstant::DoReify(LocalIsolate* isolate) const {
   return direct_handle(value_, isolate);
 }
@@ -995,10 +991,6 @@ void ValueNode::DoLoadToRegister(MaglevAssembler* masm, DoubleRegister reg) {
       reg, masm->GetStackSlot(compiler::AllocatedOperand::cast(spill_slot())));
 }
 
-void ExternalConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
-  __ Move(reg, reference());
-}
-
 void SmiConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
   __ Move(reg, value());
 }
@@ -1050,10 +1042,6 @@ void TrustedConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
 TURBOLEV_VALUE_NODE_LIST(TURBOLEV_UNREACHABLE_NODE)
 TURBOLEV_NON_VALUE_NODE_LIST(TURBOLEV_UNREACHABLE_NODE)
 #undef TURBOLEV_UNREACHABLE_NODE
-
-void ExternalConstant::SetValueLocationConstraints() { DefineAsConstant(this); }
-void ExternalConstant::GenerateCode(MaglevAssembler* masm,
-                                    const ProcessingState& state) {}
 
 void SmiConstant::SetValueLocationConstraints() { DefineAsConstant(this); }
 void SmiConstant::GenerateCode(MaglevAssembler* masm,
@@ -7535,11 +7523,6 @@ void HandleNoHeapWritesInterrupt::GenerateCode(MaglevAssembler* masm,
 // ---
 // Print params
 // ---
-
-void ExternalConstant::PrintParams(std::ostream& os,
-                                   MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << reference() << ")";
-}
 
 void SmiConstant::PrintParams(std::ostream& os,
                               MaglevGraphLabeller* graph_labeller) const {

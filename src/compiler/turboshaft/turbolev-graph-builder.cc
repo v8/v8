@@ -4867,10 +4867,6 @@ class GraphBuildingNodeProcessor {
   }
 
   // Nodes unused by maglev but still existing.
-  maglev::ProcessResult Process(maglev::ExternalConstant*,
-                                const maglev::ProcessingState&) {
-    UNREACHABLE();
-  }
   maglev::ProcessResult Process(maglev::CallCPPBuiltin*,
                                 const maglev::ProcessingState&) {
     UNREACHABLE();
@@ -5349,7 +5345,6 @@ class GraphBuildingNodeProcessor {
           break;
 
         case maglev::Opcode::kTaggedIndexConstant:
-        case maglev::Opcode::kExternalConstant:
         default:
           UNREACHABLE();
       }
@@ -6245,12 +6240,11 @@ void PrintBytecode(PipelineData& data,
 }
 
 void PrintMaglevGraph(PipelineData& data,
-                      maglev::MaglevCompilationInfo* compilation_info,
                       maglev::Graph* maglev_graph, const char* msg) {
   CodeTracer* code_tracer = data.GetCodeTracer();
   CodeTracer::StreamScope tracing_scope(code_tracer);
   tracing_scope.stream() << "\n----- " << msg << " -----" << std::endl;
-  maglev::PrintGraph(tracing_scope.stream(), compilation_info, maglev_graph);
+  maglev::PrintGraph(tracing_scope.stream(), maglev_graph);
 }
 
 // TODO(dmercadier, nicohartmann): consider doing some of these optimizations on
@@ -6261,11 +6255,13 @@ void PrintMaglevGraph(PipelineData& data,
 // analysis...).
 void RunMaglevOptimizations(PipelineData* data,
                             maglev::MaglevCompilationInfo* compilation_info,
-                            maglev::MaglevGraphBuilder& maglev_graph_builder,
                             maglev::Graph* maglev_graph) {
+  JSHeapBroker* broker = data->broker();
+  LocalIsolate* local_isolate = broker->local_isolate_or_isolate();
+
   // Non-eager inlining.
   if (v8_flags.turbolev_non_eager_inlining) {
-    maglev::MaglevInliner inliner(compilation_info, maglev_graph);
+    maglev::MaglevInliner inliner(maglev_graph);
     inliner.Run(data->info()->trace_turbo_graph());
 
     maglev::GraphProcessor<maglev::SweepIdentityNodes,
@@ -6277,13 +6273,12 @@ void RunMaglevOptimizations(PipelineData* data,
   // Phi untagging.
   {
     maglev::GraphProcessor<maglev::MaglevPhiRepresentationSelector> processor(
-        &maglev_graph_builder);
+        local_isolate, maglev_graph);
     processor.ProcessGraph(maglev_graph);
   }
 
   if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
-    PrintMaglevGraph(*data, compilation_info, maglev_graph,
-                     "After phi untagging");
+    PrintMaglevGraph(*data, maglev_graph, "After phi untagging");
   }
 
   // Escape analysis.
@@ -6301,13 +6296,12 @@ void RunMaglevOptimizations(PipelineData* data,
   // Dead nodes elimination (which, amongst other things, cleans up the left
   // overs of escape analysis).
   {
-    maglev::GraphMultiProcessor<maglev::DeadNodeSweepingProcessor> processor(
-        maglev::DeadNodeSweepingProcessor{compilation_info});
+    maglev::GraphMultiProcessor<maglev::DeadNodeSweepingProcessor> processor;
     processor.ProcessGraph(maglev_graph);
   }
 
   if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
-    PrintMaglevGraph(*data, compilation_info, maglev_graph,
+    PrintMaglevGraph(*data, maglev_graph,
                      "After escape analysis and dead node sweeping");
   }
 }
@@ -6336,8 +6330,7 @@ std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(PipelineData* data,
   }
 
   LocalIsolate* local_isolate = broker->local_isolate_or_isolate();
-  maglev::Graph* maglev_graph =
-      maglev::Graph::New(temp_zone, data->info()->is_osr());
+  maglev::Graph* maglev_graph = maglev::Graph::New(compilation_info.get());
 
   // We always create a MaglevGraphLabeller in order to record source positions.
   compilation_info->set_graph_labeller(new maglev::MaglevGraphLabeller());
@@ -6348,12 +6341,10 @@ std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(PipelineData* data,
   maglev_graph_builder.Build();
 
   if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
-    PrintMaglevGraph(*data, compilation_info.get(), maglev_graph,
-                     "After graph building");
+    PrintMaglevGraph(*data, maglev_graph, "After graph building");
   }
 
-  RunMaglevOptimizations(data, compilation_info.get(), maglev_graph_builder,
-                         maglev_graph);
+  RunMaglevOptimizations(data, compilation_info.get(), maglev_graph);
 
   // TODO(nicohartmann): Should we have source positions here?
   data->InitializeGraphComponent(nullptr);

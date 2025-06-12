@@ -144,7 +144,6 @@ class ExceptionHandlerInfo;
 
 #define CONSTANT_VALUE_NODE_LIST(V) \
   V(Constant)                       \
-  V(ExternalConstant)               \
   V(Float64Constant)                \
   V(Int32Constant)                  \
   V(Uint32Constant)                 \
@@ -3950,6 +3949,9 @@ class Float64Constant : public FixedInputValueNodeT<0, Float64Constant> {
   explicit Float64Constant(uint64_t bitfield, Float64 value)
       : Base(bitfield), value_(value) {}
 
+  explicit Float64Constant(uint64_t bitfield, uint64_t bitpattern)
+      : Base(bitfield), value_(Float64::FromBits(bitpattern)) {}
+
   static constexpr OpProperties kProperties = OpProperties::Float64();
 
   Float64 value() const { return value_; }
@@ -5516,8 +5518,10 @@ class SmiConstant : public FixedInputValueNodeT<0, SmiConstant> {
  public:
   using OutputRegister = Register;
 
-  explicit SmiConstant(uint64_t bitfield, Tagged<Smi> value)
-      : Base(bitfield), value_(value) {}
+  explicit SmiConstant(uint64_t bitfield, int32_t value)
+      : Base(bitfield), value_(Smi::FromInt(value)) {
+    DCHECK(Smi::IsValid(value));
+  }
 
   Tagged<Smi> value() const { return value_; }
 
@@ -5543,8 +5547,10 @@ class TaggedIndexConstant
  public:
   using OutputRegister = Register;
 
-  explicit TaggedIndexConstant(uint64_t bitfield, Tagged<TaggedIndex> value)
-      : Base(bitfield), value_(value) {}
+  explicit TaggedIndexConstant(uint64_t bitfield, int value)
+      : Base(bitfield), value_(TaggedIndex::FromIntptr(value)) {
+    DCHECK(TaggedIndex::IsValid(value));
+  }
 
   Tagged<TaggedIndex> value() const { return value_; }
 
@@ -5559,34 +5565,6 @@ class TaggedIndexConstant
 
  private:
   const Tagged<TaggedIndex> value_;
-};
-
-class ExternalConstant : public FixedInputValueNodeT<0, ExternalConstant> {
-  using Base = FixedInputValueNodeT<0, ExternalConstant>;
-
- public:
-  using OutputRegister = Register;
-
-  explicit ExternalConstant(uint64_t bitfield,
-                            const ExternalReference& reference)
-      : Base(bitfield), reference_(reference) {}
-
-  static constexpr OpProperties kProperties =
-      OpProperties::Pure() | OpProperties::ExternalReference();
-
-  ExternalReference reference() const { return reference_; }
-
-  bool ToBoolean(LocalIsolate* local_isolate) const { UNREACHABLE(); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
-
-  void DoLoadToRegister(MaglevAssembler*, OutputRegister);
-  DirectHandle<Object> DoReify(LocalIsolate* isolate) const;
-
- private:
-  const ExternalReference reference_;
 };
 
 class Constant : public FixedInputValueNodeT<0, Constant> {

@@ -60,9 +60,7 @@ namespace maglev {
 bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                              MaglevCompilationInfo* compilation_info) {
   compiler::CurrentHeapBrokerScope current_broker(compilation_info->broker());
-  Graph* graph =
-      Graph::New(compilation_info->zone(),
-                 compilation_info->toplevel_compilation_unit()->is_osr());
+  Graph* graph = Graph::New(compilation_info);
 
   bool is_tracing_enabled = false;
   {
@@ -98,17 +96,16 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       }
     }
 
-    MaglevGraphBuilder graph_builder(
-        local_isolate, compilation_info->toplevel_compilation_unit(), graph);
-
     {
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.Maglev.GraphBuilding");
+      MaglevGraphBuilder graph_builder(
+          local_isolate, compilation_info->toplevel_compilation_unit(), graph);
       graph_builder.Build();
 
       if (is_tracing_enabled && v8_flags.print_maglev_graphs) {
         std::cout << "\nAfter graph building" << std::endl;
-        PrintGraph(std::cout, compilation_info, graph);
+        PrintGraph(std::cout, graph);
       }
     }
 
@@ -124,7 +121,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.Maglev.Inlining");
 
-      MaglevInliner inliner(compilation_info, graph);
+      MaglevInliner inliner(graph);
       inliner.Run(is_tracing_enabled);
 
       // TODO(victorgomes): We need to remove all identity nodes before
@@ -148,12 +145,12 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                    "V8.Maglev.LoopOptimizations");
 
       GraphProcessor<LoopOptimizationProcessor> loop_optimizations(
-          &graph_builder);
+          compilation_info);
       loop_optimizations.ProcessGraph(graph);
 
       if (is_tracing_enabled && v8_flags.print_maglev_graphs) {
         std::cout << "\nAfter loop optimizations" << std::endl;
-        PrintGraph(std::cout, compilation_info, graph);
+        PrintGraph(std::cout, graph);
       }
     }
 
@@ -170,12 +167,12 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                    "V8.Maglev.PhiUntagging");
 
       GraphProcessor<MaglevPhiRepresentationSelector> representation_selector(
-          &graph_builder);
+          local_isolate, graph);
       representation_selector.ProcessGraph(graph);
 
       if (is_tracing_enabled && v8_flags.print_maglev_graphs) {
         std::cout << "\nAfter Phi untagging" << std::endl;
-        PrintGraph(std::cout, compilation_info, graph);
+        PrintGraph(std::cout, graph);
       }
     }
   }
@@ -205,7 +202,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
   if (is_tracing_enabled && v8_flags.print_maglev_graphs) {
     UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());
     std::cout << "After use marking" << std::endl;
-    PrintGraph(std::cout, compilation_info, graph);
+    PrintGraph(std::cout, graph);
   }
 
 #ifdef DEBUG
@@ -232,8 +229,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                           ValueLocationConstraintProcessor,
                           MaxCallDepthProcessor, LiveRangeAndNextUseProcessor,
                           DecompressedUseMarkingProcessor>
-          processor(DeadNodeSweepingProcessor{compilation_info},
-                    LiveRangeAndNextUseProcessor{compilation_info, graph,
+          processor(LiveRangeAndNextUseProcessor{compilation_info, graph,
                                                  &regalloc_info});
       processor.ProcessGraph(graph);
     }
@@ -241,7 +237,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
     if (is_tracing_enabled && v8_flags.print_maglev_graphs) {
       UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());
       std::cout << "After register allocation pre-processing" << std::endl;
-      PrintGraph(std::cout, compilation_info, graph);
+      PrintGraph(std::cout, graph);
     }
 
     {
@@ -255,7 +251,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
         (v8_flags.print_maglev_graph || v8_flags.print_maglev_graphs)) {
       UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());
       std::cout << "After register allocation" << std::endl;
-      PrintGraph(std::cout, compilation_info, graph);
+      PrintGraph(std::cout, graph);
     }
   }
 

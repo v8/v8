@@ -3620,7 +3620,7 @@ bool MaglevGraphBuilder::ContextMayAlias(
   if (!scope_info.has_value()) {
     return true;
   }
-  auto other = graph()->TryGetScopeInfo(context, broker());
+  auto other = graph()->TryGetScopeInfo(context);
   if (!other.has_value()) {
     return true;
   }
@@ -3740,7 +3740,7 @@ ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
   if (known_node_aspects().may_have_aliasing_contexts() ==
       KnownNodeAspects::ContextSlotLoadsAlias::kYes) {
     compiler::OptionalScopeInfoRef scope_info =
-        graph()->TryGetScopeInfo(context, broker());
+        graph()->TryGetScopeInfo(context);
     for (auto& cache : loaded_context_slots) {
       if (std::get<int>(cache.first) == offset &&
           std::get<ValueNode*>(cache.first) != context) {
@@ -4375,7 +4375,7 @@ ReduceResult MaglevGraphBuilder::VisitLdaLookupContextSlot() {
 
 bool MaglevGraphBuilder::CheckContextExtensions(size_t depth) {
   compiler::OptionalScopeInfoRef maybe_scope_info =
-      graph()->TryGetScopeInfo(GetContext(), broker());
+      graph()->TryGetScopeInfo(GetContext());
   if (!maybe_scope_info.has_value()) return false;
   compiler::ScopeInfoRef scope_info = maybe_scope_info.value();
   for (uint32_t d = 0; d < depth; d++) {
@@ -4770,7 +4770,6 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kUpdateJSArrayLength:
     case Opcode::kVirtualObject:
     case Opcode::kGetContinuationPreservedEmbedderData:
-    case Opcode::kExternalConstant:
     case Opcode::kFloat64Constant:
     case Opcode::kInt32Constant:
     case Opcode::kUint32Constant:
@@ -7961,45 +7960,6 @@ ReduceResult MaglevGraphBuilder::VisitGetNamedProperty() {
   SetAccumulator(
       AddNewNode<LoadNamedGeneric>({context, object}, name, feedback_source));
   return ReduceResult::Done();
-}
-
-ValueNode* MaglevGraphBuilder::GetConstant(compiler::ObjectRef ref) {
-  if (ref.IsSmi()) return GetSmiConstant(ref.AsSmi());
-  compiler::HeapObjectRef constant = ref.AsHeapObject();
-
-  if (IsThinString(*constant.object())) {
-    constant = MakeRefAssumeMemoryFence(
-        broker(), Cast<ThinString>(*constant.object())->actual());
-  }
-
-  auto root_index = broker()->FindRootIndex(constant);
-  if (root_index.has_value()) {
-    return GetRootConstant(*root_index);
-  }
-
-  auto it = graph_->constants().find(constant);
-  if (it == graph_->constants().end()) {
-    Constant* node = CreateNewConstantNode<Constant>(0, constant);
-    graph_->constants().emplace(constant, node);
-    return node;
-  }
-  return it->second;
-}
-
-ValueNode* MaglevGraphBuilder::GetTrustedConstant(compiler::HeapObjectRef ref,
-                                                  IndirectPointerTag tag) {
-#ifdef V8_ENABLE_SANDBOX
-  auto it = graph_->trusted_constants().find(ref);
-  if (it == graph_->trusted_constants().end()) {
-    TrustedConstant* node = CreateNewConstantNode<TrustedConstant>(0, ref, tag);
-    graph_->trusted_constants().emplace(ref, node);
-    return node;
-  }
-  SBXCHECK_EQ(it->second->tag(), tag);
-  return it->second;
-#else
-  return GetConstant(ref);
-#endif
 }
 
 MaybeReduceResult MaglevGraphBuilder::GetConstantSingleCharacterStringFromCode(
