@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_TURBOSHAFT_MAGLEV_EARLY_LOWERING_REDUCER_INL_H_
-#define V8_COMPILER_TURBOSHAFT_MAGLEV_EARLY_LOWERING_REDUCER_INL_H_
+#ifndef V8_COMPILER_TURBOSHAFT_TURBOLEV_EARLY_LOWERING_REDUCER_INL_H_
+#define V8_COMPILER_TURBOSHAFT_TURBOLEV_EARLY_LOWERING_REDUCER_INL_H_
 
 #include <optional>
 
@@ -21,16 +21,16 @@ namespace v8::internal::compiler::turboshaft {
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 template <class Next>
-class MaglevEarlyLoweringReducer : public Next {
+class TurbolevEarlyLoweringReducer : public Next {
   // This Reducer provides some helpers that are used during
-  // MaglevGraphBuildingPhase to lower some Maglev operators. Depending on what
-  // we decide going forward (regarding SimplifiedLowering for instance), we
-  // could introduce new Simplified or JS operations instead of using these
+  // TurbolevGraphBuildingPhase to lower some Maglev operators. Depending on
+  // what we decide going forward (regarding SimplifiedLowering for instance),
+  // we could introduce new Simplified or JS operations instead of using these
   // helpers to lower, and turn the helpers into regular REDUCE methods in the
   // new simplified lowering or in MachineLoweringReducer.
 
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE(MaglevEarlyLowering)
+  TURBOSHAFT_REDUCER_BOILERPLATE(TurbolevEarlyLowering)
 
   void CheckInstanceType(V<Object> input, V<FrameState> frame_state,
                          const FeedbackSource& feedback,
@@ -440,4 +440,4 @@ class MaglevEarlyLoweringReducer : public Next {
 
 }  // namespace v8::internal::compiler::turboshaft
 
-#endif  // V8_COMPILER_TURBOSHAFT_MAGLEV_EARLY_LOWERING_REDUCER_INL_H_
+#endif  // V8_COMPILER_TURBOSHAFT_TURBOLEV_EARLY_LOWERING_REDUCER_INL_H_
