@@ -7717,10 +7717,6 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoad() {
     return {};
   }
 
-  DCHECK(iterator_.current_bytecode() ==
-             interpreter::Bytecode::kGetNamedProperty ||
-         iterator_.current_bytecode() ==
-             interpreter::Bytecode::kGetNamedPropertyFromSuper);
   if (iterator_.current_bytecode() !=
       interpreter::Bytecode::kGetNamedProperty) {
     return {};
