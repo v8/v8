@@ -10,6 +10,7 @@
 #include "src/base/threaded-list.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/bytecode-liveness-map.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-ir.h"
@@ -327,25 +328,125 @@ struct KnownNodeAspects {
   const NodeInfo* TryGetInfoFor(ValueNode* node) const {
     return const_cast<KnownNodeAspects*>(this)->TryGetInfoFor(node);
   }
+
   NodeInfo* TryGetInfoFor(ValueNode* node) {
     auto info_it = FindInfo(node);
     if (!IsValid(info_it)) return nullptr;
     return &info_it->second;
   }
-  NodeInfo* GetOrCreateInfoFor(ValueNode* node, compiler::JSHeapBroker* broker,
-                               LocalIsolate* isolate) {
+
+  NodeInfo* GetOrCreateInfoFor(compiler::JSHeapBroker* broker,
+                               ValueNode* node) {
     auto info_it = FindInfo(node);
     if (IsValid(info_it)) return &info_it->second;
     auto res = &node_infos.emplace(node, NodeInfo()).first->second;
-    res->IntersectType(StaticTypeForNode(broker, isolate, node));
+    res->IntersectType(node->GetStaticType(broker));
     return res;
   }
 
-  NodeType NodeTypeFor(ValueNode* node) const {
-    if (auto info = TryGetInfoFor(node)) {
-      return info->type();
+  NodeType GetType(compiler::JSHeapBroker* broker, ValueNode* node) const {
+    // We first check the KnownNodeAspects in order to return the most precise
+    // type possible.
+    auto info = TryGetInfoFor(node);
+    if (info == nullptr) {
+      // If this node has no NodeInfo (or not known type in its NodeInfo), we
+      // fall back to its static type.
+      return node->GetStaticType(broker);
+    }
+    NodeType actual_type = info->type();
+    if (auto phi = node->TryCast<Phi>()) {
+      actual_type = IntersectType(actual_type, phi->type());
+    }
+#ifdef DEBUG
+    NodeType static_type = node->GetStaticType(broker);
+    if (!NodeTypeIs(actual_type, static_type)) {
+      // In case we needed a numerical alternative of a smi value, the type
+      // must generalize. In all other cases the node info type should reflect
+      // the actual type.
+      DCHECK(static_type == NodeType::kSmi &&
+             actual_type == NodeType::kNumber &&
+             !TryGetInfoFor(node)->alternative().has_none());
+    }
+#endif  // DEBUG
+    return actual_type;
+  }
+
+  bool CheckType(compiler::JSHeapBroker* broker, ValueNode* node, NodeType type,
+                 NodeType* current_type) {
+    NodeType static_type = node->GetStaticType(broker);
+    if (current_type) *current_type = static_type;
+    if (NodeTypeIs(static_type, type)) return true;
+    auto it = FindInfo(node);
+    if (!IsValid(it)) return false;
+    if (current_type) *current_type = it->second.type();
+    return NodeTypeIs(it->second.type(), type);
+  }
+
+  NodeType CheckTypes(compiler::JSHeapBroker* broker, ValueNode* node,
+                      std::initializer_list<NodeType> types) {
+    auto it = FindInfo(node);
+    bool has_kna = IsValid(it);
+    for (NodeType type : types) {
+      if (node->StaticTypeIs(broker, type)) return type;
+      if (has_kna) {
+        if (NodeTypeIs(it->second.type(), type)) return type;
+      }
     }
     return NodeType::kUnknown;
+  }
+
+  bool MayBeNullOrUndefined(compiler::JSHeapBroker* broker, ValueNode* node) {
+    NodeType static_type = node->GetStaticType(broker);
+    if (!NodeTypeMayBeNullOrUndefined(static_type)) return false;
+    auto it = FindInfo(node);
+    if (!IsValid(it)) return true;
+    return NodeTypeMayBeNullOrUndefined(it->second.type());
+  }
+
+  bool EnsureType(compiler::JSHeapBroker* broker, ValueNode* node,
+                  NodeType type, NodeType* old_type) {
+    NodeType static_type = node->GetStaticType(broker);
+    if (old_type) *old_type = static_type;
+    if (NodeTypeIs(static_type, type)) return true;
+    NodeInfo* known_info = GetOrCreateInfoFor(broker, node);
+    if (old_type) *old_type = known_info->type();
+    if (NodeTypeIs(known_info->type(), type)) return true;
+    known_info->IntersectType(type);
+    if (auto phi = node->TryCast<Phi>()) {
+      known_info->IntersectType(phi->type());
+    }
+    if (NodeTypeIsUnstable(type)) {
+      known_info->set_node_type_is_unstable();
+      any_map_for_any_node_is_unstable = true;
+    }
+    return false;
+  }
+
+  template <typename Function>
+  bool EnsureType(compiler::JSHeapBroker* broker, ValueNode* node,
+                  NodeType type, Function ensure_new_type) {
+    if (node->StaticTypeIs(broker, type)) return true;
+    NodeInfo* known_info = GetOrCreateInfoFor(broker, node);
+    if (NodeTypeIs(known_info->type(), type)) return true;
+    ensure_new_type(known_info->type());
+    known_info->IntersectType(type);
+    if (NodeTypeIsUnstable(type)) {
+      known_info->set_node_type_is_unstable();
+      any_map_for_any_node_is_unstable = true;
+    }
+    return false;
+  }
+
+  // Returns true if we statically know that {lhs} and {rhs} have disjoint
+  // types.
+  bool HaveDisjointTypes(compiler::JSHeapBroker* broker, ValueNode* lhs,
+                         ValueNode* rhs) {
+    return HasDisjointType(broker, lhs, GetType(broker, rhs));
+  }
+
+  bool HasDisjointType(compiler::JSHeapBroker* broker, ValueNode* lhs,
+                       NodeType rhs_type) {
+    return IsEmptyNodeType(IntersectType(GetType(broker, lhs), rhs_type));
   }
 
   void Merge(const KnownNodeAspects& other, Zone* zone);

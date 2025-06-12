@@ -6267,9 +6267,6 @@ void PrintMaglevGraph(PipelineData& data,
 void RunMaglevOptimizations(PipelineData* data,
                             maglev::MaglevCompilationInfo* compilation_info,
                             maglev::Graph* maglev_graph) {
-  JSHeapBroker* broker = data->broker();
-  LocalIsolate* local_isolate = broker->local_isolate_or_isolate();
-
   // Non-eager inlining.
   if (v8_flags.turbolev_non_eager_inlining) {
     maglev::MaglevInliner inliner(maglev_graph);
@@ -6284,7 +6281,7 @@ void RunMaglevOptimizations(PipelineData* data,
   // Phi untagging.
   {
     maglev::GraphProcessor<maglev::MaglevPhiRepresentationSelector> processor(
-        local_isolate, maglev_graph);
+        maglev_graph);
     processor.ProcessGraph(maglev_graph);
   }
 

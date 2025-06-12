@@ -2780,6 +2780,15 @@ class ValueNode : public Node {
     }
   }
 
+  compiler::OptionalHeapObjectRef TryGetConstant(
+      compiler::JSHeapBroker* broker);
+
+  NodeType GetStaticType(compiler::JSHeapBroker* broker);
+
+  bool StaticTypeIs(compiler::JSHeapBroker* broker, NodeType type) {
+    return NodeTypeIs(GetStaticType(broker), type);
+  }
+
   void InitializeRegisterData() {
     if (use_double_register()) {
       double_registers_with_result_ = kEmptyDoubleRegList;
@@ -11883,9 +11892,6 @@ inline void NodeBase::ForAllInputsInRegallocAssignmentOrder(Function&& f) {
   iterate_inputs(InputAllocationPolicy::kArbitraryRegister);
   iterate_inputs(InputAllocationPolicy::kAny);
 }
-
-NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
-                           LocalIsolate* isolate, ValueNode* node);
 
 }  // namespace maglev
 }  // namespace internal

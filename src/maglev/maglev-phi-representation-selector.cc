@@ -155,8 +155,7 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
       if (node->is_loop_phi() && !node->is_backedge_offset(i)) {
         BasicBlock* pred = node->merge_state()->predecessor_at(i);
         if (CanHoistUntaggingTo(pred)) {
-          auto static_type =
-              StaticTypeForNode(graph_->broker(), local_isolate_, input);
+          auto static_type = input->GetStaticType(graph_->broker());
           if (NodeTypeIs(static_type, NodeType::kSmi)) {
             input_reprs.Add(ValueRepresentation::kInt32);
             hoist_untagging[i] = HoistType::kLoopEntryUnchecked;
@@ -645,9 +644,8 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
       switch (repr) {
         case ValueRepresentation::kInt32:
           if (!deopt_frame) {
-            DCHECK(NodeTypeIs(
-                StaticTypeForNode(graph_->broker(), local_isolate_, input),
-                NodeType::kSmi));
+            DCHECK(NodeTypeIs(input->GetStaticType(graph_->broker()),
+                              NodeType::kSmi));
             untagged = AddNodeAtBlockEnd(
                 NodeBase::New<UnsafeSmiUntag>(zone(), {input}), block);
 
@@ -666,9 +664,8 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
         case ValueRepresentation::kFloat64:
         case ValueRepresentation::kHoleyFloat64:
           if (!deopt_frame) {
-            DCHECK(NodeTypeIs(
-                StaticTypeForNode(graph_->broker(), local_isolate_, input),
-                NodeType::kNumber));
+            DCHECK(NodeTypeIs(input->GetStaticType(graph_->broker()),
+                              NodeType::kNumber));
             untagged = AddNodeAtBlockEnd(
                 NodeBase::New<UncheckedNumberOrOddballToFloat64>(
                     zone(), {input},

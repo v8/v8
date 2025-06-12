@@ -500,6 +500,329 @@ void ValueNode::SetConstantLocation() {
           .virtual_register());
 }
 
+compiler::OptionalHeapObjectRef ValueNode::TryGetConstant(
+    compiler::JSHeapBroker* broker) {
+  if (Constant* c = TryCast<Constant>()) {
+    return c->object();
+  }
+  if (RootConstant* c = TryCast<RootConstant>()) {
+    return MakeRef(broker, broker->local_isolate()->root_handle(c->index()))
+        .AsHeapObject();
+  }
+  return {};
+}
+
+NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
+  switch (properties().value_representation()) {
+    case ValueRepresentation::kInt32:
+    case ValueRepresentation::kUint32:
+    case ValueRepresentation::kFloat64:
+    case ValueRepresentation::kIntPtr:
+      return NodeType::kNumber;
+    case ValueRepresentation::kHoleyFloat64:
+      return NodeType::kNumberOrOddball;
+    case ValueRepresentation::kTagged:
+      break;
+  }
+  switch (opcode()) {
+    case Opcode::kPhi:
+      return Cast<Phi>()->type();
+    case Opcode::kCheckedSmiTagInt32:
+    case Opcode::kCheckedSmiTagUint32:
+    case Opcode::kCheckedSmiTagIntPtr:
+    case Opcode::kCheckedSmiTagFloat64:
+    case Opcode::kUnsafeSmiTagInt32:
+    case Opcode::kUnsafeSmiTagUint32:
+    case Opcode::kUnsafeSmiTagIntPtr:
+    case Opcode::kSmiConstant:
+      return NodeType::kSmi;
+    case Opcode::kInt32ToNumber:
+    case Opcode::kUint32ToNumber:
+    case Opcode::kIntPtrToNumber:
+    case Opcode::kFloat64ToTagged:
+      return NodeType::kNumber;
+    case Opcode::kHoleyFloat64ToTagged:
+      return NodeType::kNumberOrOddball;
+    case Opcode::kAllocationBlock:
+    case Opcode::kInlinedAllocation: {
+      auto obj = Cast<InlinedAllocation>()->object();
+      if (obj->has_static_map()) {
+        return StaticTypeForMap(obj->map(), broker);
+      } else {
+        switch (obj->type()) {
+          case VirtualObject::kConsString:
+            return NodeType::kString;
+          case VirtualObject::kDefault:
+          case VirtualObject::kHeapNumber:
+          case VirtualObject::kFixedDoubleArray:
+            UNREACHABLE();
+        }
+      }
+    }
+    case Opcode::kRootConstant: {
+      RootConstant* constant = Cast<RootConstant>();
+      switch (constant->index()) {
+        case RootIndex::kTrueValue:
+        case RootIndex::kFalseValue:
+          return NodeType::kBoolean;
+        case RootIndex::kUndefinedValue:
+        case RootIndex::kNullValue:
+          return NodeType::kOddball;
+        default:
+          break;
+      }
+      [[fallthrough]];
+    }
+    case Opcode::kConstant: {
+      compiler::HeapObjectRef ref = TryGetConstant(broker).value();
+      return StaticTypeForConstant(broker, ref);
+    }
+    case Opcode::kToNumberOrNumeric:
+      if (Cast<ToNumberOrNumeric>()->mode() == Object::Conversion::kToNumber) {
+        return NodeType::kNumber;
+      }
+      // TODO(verwaest): Check what we need here.
+      return NodeType::kUnknown;
+    case Opcode::kBuiltinStringPrototypeCharCodeOrCodePointAt:
+    case Opcode::kBuiltinSeqOneByteStringCharCodeAt:
+      return NodeType::kNumber;
+    case Opcode::kToString:
+    case Opcode::kNumberToString:
+    case Opcode::kUnwrapStringWrapper:
+    case Opcode::kStringAt:
+    case Opcode::kStringConcat:
+    case Opcode::kBuiltinStringFromCharCode:
+      return NodeType::kString;
+    case Opcode::kCheckedInternalizedString:
+      return NodeType::kInternalizedString;
+    case Opcode::kSeqOneByteStringAt:
+      // Seq one-byte StringAt will always return an internalized string from
+      // the single character roots.
+      return NodeType::kROSeqInternalizedOneByteString;
+    case Opcode::kToObject:
+    case Opcode::kCreateObjectLiteral:
+    case Opcode::kCreateShallowObjectLiteral:
+      return NodeType::kJSReceiver;
+    case Opcode::kCreateArrayLiteral:
+    case Opcode::kCreateShallowArrayLiteral:
+      return NodeType::kJSArray;
+    case Opcode::kToName:
+      return NodeType::kName;
+    case Opcode::kFastCreateClosure:
+    case Opcode::kCreateClosure:
+      return NodeType::kJSFunction;
+    case Opcode::kInt32Compare:
+    case Opcode::kFloat64Compare:
+    case Opcode::kGenericEqual:
+    case Opcode::kGenericStrictEqual:
+    case Opcode::kGenericLessThan:
+    case Opcode::kGenericLessThanOrEqual:
+    case Opcode::kGenericGreaterThan:
+    case Opcode::kGenericGreaterThanOrEqual:
+    case Opcode::kLogicalNot:
+    case Opcode::kStringEqual:
+    case Opcode::kTaggedEqual:
+    case Opcode::kTaggedNotEqual:
+    case Opcode::kTestInstanceOf:
+    case Opcode::kTestTypeOf:
+    case Opcode::kTestUndetectable:
+    case Opcode::kToBoolean:
+    case Opcode::kToBooleanLogicalNot:
+    case Opcode::kIntPtrToBoolean:
+    case Opcode::kSetPrototypeHas:
+      return NodeType::kBoolean;
+    case Opcode::kCreateFunctionContext:
+      return NodeType::kContext;
+    case Opcode::kCallRuntime:
+      switch (Cast<CallRuntime>()->function_id()) {
+        case Runtime::kPushBlockContext:
+        case Runtime::kPushCatchContext:
+        case Runtime::kNewFunctionContext:
+          return NodeType::kContext;
+        default:
+          return NodeType::kUnknown;
+      }
+      UNREACHABLE();
+      // Not value nodes:
+#define GENERATE_CASE(Name) case Opcode::k##Name:
+      CONTROL_NODE_LIST(GENERATE_CASE)
+      NON_VALUE_NODE_LIST(GENERATE_CASE)
+#undef GENERATE_CASE
+      UNREACHABLE();
+    case Opcode::kCreateFastArrayElements:
+    case Opcode::kTransitionElementsKind:
+    // Unsorted value nodes. TODO(maglev): See which of these should return
+    // something else than kUnknown.
+    case Opcode::kIdentity:
+    case Opcode::kArgumentsElements:
+    case Opcode::kArgumentsLength:
+    case Opcode::kRestLength:
+    case Opcode::kCall:
+    case Opcode::kCallBuiltin:
+    case Opcode::kCallCPPBuiltin:
+    case Opcode::kCallForwardVarargs:
+    case Opcode::kCallWithArrayLike:
+    case Opcode::kCallWithSpread:
+    case Opcode::kCallKnownApiFunction:
+    case Opcode::kCallKnownJSFunction:
+    case Opcode::kCallSelf:
+    case Opcode::kConstruct:
+    case Opcode::kCheckConstructResult:
+    case Opcode::kCheckDerivedConstructResult:
+    case Opcode::kConstructWithSpread:
+    case Opcode::kConvertReceiver:
+    case Opcode::kConvertHoleToUndefined:
+    case Opcode::kCreateRegExpLiteral:
+    case Opcode::kDeleteProperty:
+    case Opcode::kEnsureWritableFastElements:
+    case Opcode::kExtendPropertiesBackingStore:
+    case Opcode::kForInPrepare:
+    case Opcode::kForInNext:
+    case Opcode::kGeneratorRestoreRegister:
+    case Opcode::kGetIterator:
+    case Opcode::kGetSecondReturnedValue:
+    case Opcode::kGetTemplateObject:
+    case Opcode::kHasInPrototypeChain:
+    case Opcode::kInitialValue:
+    case Opcode::kLoadTaggedField:
+    case Opcode::kLoadTaggedFieldForProperty:
+    case Opcode::kLoadTaggedFieldForContextSlotNoCells:
+    case Opcode::kLoadTaggedFieldForContextSlot:
+    case Opcode::kLoadDoubleField:
+    case Opcode::kLoadFloat64:
+    case Opcode::kLoadInt32:
+    case Opcode::kLoadTaggedFieldByFieldIndex:
+    case Opcode::kLoadFixedArrayElement:
+    case Opcode::kLoadFixedDoubleArrayElement:
+    case Opcode::kLoadHoleyFixedDoubleArrayElement:
+    case Opcode::kLoadHoleyFixedDoubleArrayElementCheckedNotHole:
+    case Opcode::kLoadSignedIntDataViewElement:
+    case Opcode::kLoadDoubleDataViewElement:
+    case Opcode::kLoadTypedArrayLength:
+    case Opcode::kLoadSignedIntTypedArrayElement:
+    case Opcode::kLoadUnsignedIntTypedArrayElement:
+    case Opcode::kLoadDoubleTypedArrayElement:
+    case Opcode::kLoadSignedIntConstantTypedArrayElement:
+    case Opcode::kLoadUnsignedIntConstantTypedArrayElement:
+    case Opcode::kLoadDoubleConstantTypedArrayElement:
+    case Opcode::kLoadEnumCacheLength:
+    case Opcode::kLoadGlobal:
+    case Opcode::kLoadNamedGeneric:
+    case Opcode::kLoadNamedFromSuperGeneric:
+    case Opcode::kMaybeGrowFastElements:
+    case Opcode::kMigrateMapIfNeeded:
+    case Opcode::kSetNamedGeneric:
+    case Opcode::kDefineNamedOwnGeneric:
+    case Opcode::kStoreInArrayLiteralGeneric:
+    case Opcode::kStoreGlobal:
+    case Opcode::kGetKeyedGeneric:
+    case Opcode::kSetKeyedGeneric:
+    case Opcode::kDefineKeyedOwnGeneric:
+    case Opcode::kRegisterInput:
+    case Opcode::kCheckedSmiSizedInt32:
+    case Opcode::kCheckedSmiUntag:
+    case Opcode::kUnsafeSmiUntag:
+    case Opcode::kCheckedObjectToIndex:
+    case Opcode::kCheckedTruncateNumberOrOddballToInt32:
+    case Opcode::kCheckedInt32ToUint32:
+    case Opcode::kCheckedIntPtrToUint32:
+    case Opcode::kUnsafeInt32ToUint32:
+    case Opcode::kCheckedUint32ToInt32:
+    case Opcode::kCheckedIntPtrToInt32:
+    case Opcode::kChangeInt32ToFloat64:
+    case Opcode::kChangeUint32ToFloat64:
+    case Opcode::kChangeIntPtrToFloat64:
+    case Opcode::kCheckedTruncateFloat64ToInt32:
+    case Opcode::kCheckedTruncateFloat64ToUint32:
+    case Opcode::kTruncateNumberOrOddballToInt32:
+    case Opcode::kCheckedNumberToInt32:
+    case Opcode::kTruncateUint32ToInt32:
+    case Opcode::kTruncateFloat64ToInt32:
+    case Opcode::kUnsafeTruncateUint32ToInt32:
+    case Opcode::kUnsafeTruncateFloat64ToInt32:
+    case Opcode::kInt32ToUint8Clamped:
+    case Opcode::kUint32ToUint8Clamped:
+    case Opcode::kFloat64ToUint8Clamped:
+    case Opcode::kCheckedNumberToUint8Clamped:
+    case Opcode::kFloat64ToHeapNumberForField:
+    case Opcode::kCheckedNumberOrOddballToFloat64:
+    case Opcode::kUncheckedNumberOrOddballToFloat64:
+    case Opcode::kCheckedNumberOrOddballToHoleyFloat64:
+    case Opcode::kCheckedHoleyFloat64ToFloat64:
+    case Opcode::kHoleyFloat64ToMaybeNanFloat64:
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    case Opcode::kFloat64ToHoleyFloat64:
+    case Opcode::kConvertHoleNanToUndefinedNan:
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    case Opcode::kHoleyFloat64IsHole:
+    case Opcode::kSetPendingMessage:
+    case Opcode::kStringLength:
+    case Opcode::kAllocateElementsArray:
+    case Opcode::kUpdateJSArrayLength:
+    case Opcode::kVirtualObject:
+    case Opcode::kGetContinuationPreservedEmbedderData:
+    case Opcode::kFloat64Constant:
+    case Opcode::kInt32Constant:
+    case Opcode::kUint32Constant:
+    case Opcode::kIntPtrConstant:
+    case Opcode::kTaggedIndexConstant:
+    case Opcode::kTrustedConstant:
+    case Opcode::kInt32AbsWithOverflow:
+    case Opcode::kInt32AddWithOverflow:
+    case Opcode::kInt32SubtractWithOverflow:
+    case Opcode::kInt32MultiplyWithOverflow:
+    case Opcode::kInt32DivideWithOverflow:
+    case Opcode::kInt32ModulusWithOverflow:
+    case Opcode::kInt32BitwiseAnd:
+    case Opcode::kInt32BitwiseOr:
+    case Opcode::kInt32BitwiseXor:
+    case Opcode::kInt32ShiftLeft:
+    case Opcode::kInt32ShiftRight:
+    case Opcode::kInt32ShiftRightLogical:
+    case Opcode::kInt32BitwiseNot:
+    case Opcode::kInt32NegateWithOverflow:
+    case Opcode::kInt32IncrementWithOverflow:
+    case Opcode::kInt32DecrementWithOverflow:
+    case Opcode::kInt32ToBoolean:
+    case Opcode::kFloat64Abs:
+    case Opcode::kFloat64Add:
+    case Opcode::kFloat64Subtract:
+    case Opcode::kFloat64Multiply:
+    case Opcode::kFloat64Divide:
+    case Opcode::kFloat64Exponentiate:
+    case Opcode::kFloat64Modulus:
+    case Opcode::kFloat64Negate:
+    case Opcode::kFloat64Round:
+    case Opcode::kFloat64ToBoolean:
+    case Opcode::kFloat64Ieee754Unary:
+    case Opcode::kInt32CountLeadingZeros:
+    case Opcode::kSmiCountLeadingZeros:
+    case Opcode::kFloat64CountLeadingZeros:
+    case Opcode::kCheckedSmiIncrement:
+    case Opcode::kCheckedSmiDecrement:
+    case Opcode::kGenericAdd:
+    case Opcode::kGenericSubtract:
+    case Opcode::kGenericMultiply:
+    case Opcode::kGenericDivide:
+    case Opcode::kGenericModulus:
+    case Opcode::kGenericExponentiate:
+    case Opcode::kGenericBitwiseAnd:
+    case Opcode::kGenericBitwiseOr:
+    case Opcode::kGenericBitwiseXor:
+    case Opcode::kGenericShiftLeft:
+    case Opcode::kGenericShiftRight:
+    case Opcode::kGenericShiftRightLogical:
+    case Opcode::kGenericBitwiseNot:
+    case Opcode::kGenericNegate:
+    case Opcode::kGenericIncrement:
+    case Opcode::kGenericDecrement:
+    case Opcode::kConsStringMap:
+    case Opcode::kMapPrototypeGet:
+    case Opcode::kMapPrototypeGetInt32Key:
+      return NodeType::kUnknown;
+  }
+}
+
 ExternalReference Float64Ieee754Unary::ieee_function_ref() const {
   switch (ieee_function_) {
 #define CASE(MathName, ExtName, EnumName) \

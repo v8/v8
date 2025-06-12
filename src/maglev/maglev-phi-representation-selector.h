@@ -27,10 +27,8 @@ class MaglevPhiRepresentationSelector {
   using Snapshot = SnapshotTable<ValueNode*>::Snapshot;
 
  public:
-  explicit MaglevPhiRepresentationSelector(LocalIsolate* local_isolate,
-                                           Graph* graph)
-      : local_isolate_(local_isolate),
-        graph_(graph),
+  explicit MaglevPhiRepresentationSelector(Graph* graph)
+      : graph_(graph),
         phi_taggings_(zone()),
         predecessors_(zone()),
         new_nodes_at_start_(zone()) {}
@@ -210,7 +208,6 @@ class MaglevPhiRepresentationSelector {
 
   Zone* zone() const { return graph_->zone(); }
 
-  LocalIsolate* local_isolate_;
   Graph* graph_;
   BasicBlock* current_block_ = nullptr;
 

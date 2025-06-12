@@ -172,9 +172,6 @@ inline ReduceResult MaybeReduceResult::Checked() { return ReduceResult(*this); }
 
 enum class UseReprHintRecording { kRecord, kDoNotRecord };
 
-NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
-                           LocalIsolate* isolate, ValueNode* node);
-
 struct CatchBlockDetails {
   BasicBlockRef* ref = nullptr;
   bool exception_handler_was_used = false;
@@ -356,9 +353,6 @@ class MaglevGraphBuilder {
 
   ValueNode* GetNumberConstant(double constant);
 
-  static compiler::OptionalHeapObjectRef TryGetConstant(
-      compiler::JSHeapBroker* broker, LocalIsolate* isolate, ValueNode* node);
-
   Graph* graph() const { return graph_; }
   Zone* zone() const { return compilation_unit_->zone(); }
   MaglevCompilationUnit* compilation_unit() const { return compilation_unit_; }
@@ -531,24 +525,34 @@ class MaglevGraphBuilder {
   class CallSpeculationScope;
   class SaveCallSpeculationScope;
 
-  bool CheckStaticType(ValueNode* node, NodeType type, NodeType* old = nullptr);
-  bool CheckType(ValueNode* node, NodeType type, NodeType* old = nullptr);
-  NodeType CheckTypes(ValueNode* node, std::initializer_list<NodeType> types);
-  bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr);
-  NodeType GetType(ValueNode* node);
-  NodeInfo* GetOrCreateInfoFor(ValueNode* node) {
-    return known_node_aspects().GetOrCreateInfoFor(node, broker(),
-                                                   local_isolate());
+  bool CheckType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
+    return known_node_aspects().CheckType(broker(), node, type, old);
   }
-
+  NodeType CheckTypes(ValueNode* node, std::initializer_list<NodeType> types) {
+    return known_node_aspects().CheckTypes(broker(), node, types);
+  }
+  bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
+    return known_node_aspects().EnsureType(broker(), node, type, old);
+  }
+  template <typename Function>
+  bool EnsureType(ValueNode* node, NodeType type, Function ensure_new_type) {
+    return known_node_aspects().EnsureType<Function>(broker(), node, type,
+                                                     ensure_new_type);
+  }
+  NodeType GetType(ValueNode* node) {
+    return known_node_aspects().GetType(broker(), node);
+  }
+  NodeInfo* GetOrCreateInfoFor(ValueNode* node) {
+    return known_node_aspects().GetOrCreateInfoFor(broker(), node);
+  }
   // Returns true if we statically know that {lhs} and {rhs} have disjoint
   // types.
-  bool HaveDisjointTypes(ValueNode* lhs, ValueNode* rhs);
-  bool HasDisjointType(ValueNode* lhs, NodeType rhs_type);
-
-  template <typename Function>
-  bool EnsureType(ValueNode* node, NodeType type, Function ensure_new_type);
-  bool MayBeNullOrUndefined(ValueNode* node);
+  bool HaveDisjointTypes(ValueNode* lhs, ValueNode* rhs) {
+    return known_node_aspects().HaveDisjointTypes(broker(), lhs, rhs);
+  }
+  bool HasDisjointType(ValueNode* lhs, NodeType rhs_type) {
+    return known_node_aspects().HasDisjointType(broker(), lhs, rhs_type);
+  }
 
   void SetKnownValue(ValueNode* node, compiler::ObjectRef constant,
                      NodeType new_node_type);

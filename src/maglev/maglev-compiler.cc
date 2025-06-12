@@ -167,7 +167,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                    "V8.Maglev.PhiUntagging");
 
       GraphProcessor<MaglevPhiRepresentationSelector> representation_selector(
-          local_isolate, graph);
+          graph);
       representation_selector.ProcessGraph(graph);
 
       if (is_tracing_enabled && v8_flags.print_maglev_graphs) {

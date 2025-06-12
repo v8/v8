@@ -2708,8 +2708,7 @@ ValueNode* MaglevGraphBuilder::BuildNewConsStringMap(ValueNode* left,
   // If both are non-two byte maps, then the result is the
   // kConsOneByteStringMap.
   auto GetIsTwoByteAndMap = [&](ValueNode* input) -> Result {
-    if (auto maybe_constant =
-            TryGetConstant(broker(), local_isolate(), input)) {
+    if (auto maybe_constant = input->TryGetConstant(broker())) {
       bool two_byte = maybe_constant->map(broker()).IsTwoByteStringMap();
       return {true, two_byte,
               GetRootConstant(two_byte ? RootIndex::kConsTwoByteStringMap
@@ -2722,7 +2721,7 @@ ValueNode* MaglevGraphBuilder::BuildNewConsStringMap(ValueNode* left,
         VirtualObject* cons = input->Cast<InlinedAllocation>()->object();
         if (cons->type() == VirtualObject::kConsString) {
           ValueNode* map = cons->cons_string().map;
-          if (auto cons_map = TryGetConstant(broker(), local_isolate(), map)) {
+          if (auto cons_map = map->TryGetConstant(broker())) {
             return {true, cons_map->AsMap().IsTwoByteStringMap(), map};
           }
           return {false, false, map};
@@ -2782,7 +2781,7 @@ ValueNode* MaglevGraphBuilder::BuildNewConsStringMap(ValueNode* left,
 
 size_t MaglevGraphBuilder::StringLengthStaticLowerBound(ValueNode* string,
                                                         int max_depth) {
-  if (auto maybe_constant = TryGetConstant(broker(), local_isolate(), string)) {
+  if (auto maybe_constant = string->TryGetConstant(broker())) {
     if (maybe_constant->IsString()) {
       return maybe_constant->AsString().length();
     }
@@ -3058,21 +3057,9 @@ bool OperationValue(type left, type right) {
   }
 }
 
-// static
-compiler::OptionalHeapObjectRef MaglevGraphBuilder::TryGetConstant(
-    compiler::JSHeapBroker* broker, LocalIsolate* isolate, ValueNode* node) {
-  if (Constant* c = node->TryCast<Constant>()) {
-    return c->object();
-  }
-  if (RootConstant* c = node->TryCast<RootConstant>()) {
-    return MakeRef(broker, isolate->root_handle(c->index())).AsHeapObject();
-  }
-  return {};
-}
-
 compiler::OptionalHeapObjectRef MaglevGraphBuilder::TryGetConstant(
     ValueNode* node, ValueNode** constant_node) {
-  if (auto result = TryGetConstant(broker(), local_isolate(), node)) {
+  if (auto result = node->TryGetConstant(broker())) {
     if (constant_node) *constant_node = node;
     return result;
   }
@@ -4518,359 +4505,6 @@ ReduceResult MaglevGraphBuilder::VisitStaLookupSlot() {
   return ReduceResult::Done();
 }
 
-NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
-                           LocalIsolate* isolate, ValueNode* node) {
-  switch (node->properties().value_representation()) {
-    case ValueRepresentation::kInt32:
-    case ValueRepresentation::kUint32:
-    case ValueRepresentation::kFloat64:
-    case ValueRepresentation::kIntPtr:
-      return NodeType::kNumber;
-    case ValueRepresentation::kHoleyFloat64:
-      return NodeType::kNumberOrOddball;
-    case ValueRepresentation::kTagged:
-      break;
-  }
-  switch (node->opcode()) {
-    case Opcode::kPhi:
-      return node->Cast<Phi>()->type();
-    case Opcode::kCheckedSmiTagInt32:
-    case Opcode::kCheckedSmiTagUint32:
-    case Opcode::kCheckedSmiTagIntPtr:
-    case Opcode::kCheckedSmiTagFloat64:
-    case Opcode::kUnsafeSmiTagInt32:
-    case Opcode::kUnsafeSmiTagUint32:
-    case Opcode::kUnsafeSmiTagIntPtr:
-    case Opcode::kSmiConstant:
-      return NodeType::kSmi;
-    case Opcode::kInt32ToNumber:
-    case Opcode::kUint32ToNumber:
-    case Opcode::kIntPtrToNumber:
-    case Opcode::kFloat64ToTagged:
-      return NodeType::kNumber;
-    case Opcode::kHoleyFloat64ToTagged:
-      return NodeType::kNumberOrOddball;
-    case Opcode::kAllocationBlock:
-    case Opcode::kInlinedAllocation: {
-      auto obj = node->Cast<InlinedAllocation>()->object();
-      if (obj->has_static_map()) {
-        return StaticTypeForMap(obj->map(), broker);
-      } else {
-        switch (obj->type()) {
-          case VirtualObject::kConsString:
-            return NodeType::kString;
-          case VirtualObject::kDefault:
-          case VirtualObject::kHeapNumber:
-          case VirtualObject::kFixedDoubleArray:
-            UNREACHABLE();
-        }
-      }
-    }
-    case Opcode::kRootConstant: {
-      RootConstant* constant = node->Cast<RootConstant>();
-      switch (constant->index()) {
-        case RootIndex::kTrueValue:
-        case RootIndex::kFalseValue:
-          return NodeType::kBoolean;
-        case RootIndex::kUndefinedValue:
-        case RootIndex::kNullValue:
-          return NodeType::kOddball;
-        default:
-          break;
-      }
-      [[fallthrough]];
-    }
-    case Opcode::kConstant: {
-      compiler::HeapObjectRef ref =
-          MaglevGraphBuilder::TryGetConstant(broker, isolate, node).value();
-      return StaticTypeForConstant(broker, ref);
-    }
-    case Opcode::kToNumberOrNumeric:
-      if (node->Cast<ToNumberOrNumeric>()->mode() ==
-          Object::Conversion::kToNumber) {
-        return NodeType::kNumber;
-      }
-      // TODO(verwaest): Check what we need here.
-      return NodeType::kUnknown;
-    case Opcode::kBuiltinStringPrototypeCharCodeOrCodePointAt:
-    case Opcode::kBuiltinSeqOneByteStringCharCodeAt:
-      return NodeType::kNumber;
-    case Opcode::kToString:
-    case Opcode::kNumberToString:
-    case Opcode::kUnwrapStringWrapper:
-    case Opcode::kStringAt:
-    case Opcode::kStringConcat:
-    case Opcode::kBuiltinStringFromCharCode:
-      return NodeType::kString;
-    case Opcode::kCheckedInternalizedString:
-      return NodeType::kInternalizedString;
-    case Opcode::kSeqOneByteStringAt:
-      // Seq one-byte StringAt will always return an internalized string from
-      // the single character roots.
-      return NodeType::kROSeqInternalizedOneByteString;
-    case Opcode::kToObject:
-    case Opcode::kCreateObjectLiteral:
-    case Opcode::kCreateShallowObjectLiteral:
-      return NodeType::kJSReceiver;
-    case Opcode::kCreateArrayLiteral:
-    case Opcode::kCreateShallowArrayLiteral:
-      return NodeType::kJSArray;
-    case Opcode::kToName:
-      return NodeType::kName;
-    case Opcode::kFastCreateClosure:
-    case Opcode::kCreateClosure:
-      return NodeType::kJSFunction;
-    case Opcode::kInt32Compare:
-    case Opcode::kFloat64Compare:
-    case Opcode::kGenericEqual:
-    case Opcode::kGenericStrictEqual:
-    case Opcode::kGenericLessThan:
-    case Opcode::kGenericLessThanOrEqual:
-    case Opcode::kGenericGreaterThan:
-    case Opcode::kGenericGreaterThanOrEqual:
-    case Opcode::kLogicalNot:
-    case Opcode::kStringEqual:
-    case Opcode::kTaggedEqual:
-    case Opcode::kTaggedNotEqual:
-    case Opcode::kTestInstanceOf:
-    case Opcode::kTestTypeOf:
-    case Opcode::kTestUndetectable:
-    case Opcode::kToBoolean:
-    case Opcode::kToBooleanLogicalNot:
-    case Opcode::kIntPtrToBoolean:
-    case Opcode::kSetPrototypeHas:
-      return NodeType::kBoolean;
-    case Opcode::kCreateFunctionContext:
-      return NodeType::kContext;
-    case Opcode::kCallRuntime:
-      switch (node->Cast<CallRuntime>()->function_id()) {
-        case Runtime::kPushBlockContext:
-        case Runtime::kPushCatchContext:
-        case Runtime::kNewFunctionContext:
-          return NodeType::kContext;
-        default:
-          return NodeType::kUnknown;
-      }
-      UNREACHABLE();
-      // Not value nodes:
-#define GENERATE_CASE(Name) case Opcode::k##Name:
-      CONTROL_NODE_LIST(GENERATE_CASE)
-      NON_VALUE_NODE_LIST(GENERATE_CASE)
-#undef GENERATE_CASE
-      UNREACHABLE();
-    case Opcode::kCreateFastArrayElements:
-    case Opcode::kTransitionElementsKind:
-    // Unsorted value nodes. TODO(maglev): See which of these should return
-    // something else than kUnknown.
-    case Opcode::kIdentity:
-    case Opcode::kArgumentsElements:
-    case Opcode::kArgumentsLength:
-    case Opcode::kRestLength:
-    case Opcode::kCall:
-    case Opcode::kCallBuiltin:
-    case Opcode::kCallCPPBuiltin:
-    case Opcode::kCallForwardVarargs:
-    case Opcode::kCallWithArrayLike:
-    case Opcode::kCallWithSpread:
-    case Opcode::kCallKnownApiFunction:
-    case Opcode::kCallKnownJSFunction:
-    case Opcode::kCallSelf:
-    case Opcode::kConstruct:
-    case Opcode::kCheckConstructResult:
-    case Opcode::kCheckDerivedConstructResult:
-    case Opcode::kConstructWithSpread:
-    case Opcode::kConvertReceiver:
-    case Opcode::kConvertHoleToUndefined:
-    case Opcode::kCreateRegExpLiteral:
-    case Opcode::kDeleteProperty:
-    case Opcode::kEnsureWritableFastElements:
-    case Opcode::kExtendPropertiesBackingStore:
-    case Opcode::kForInPrepare:
-    case Opcode::kForInNext:
-    case Opcode::kGeneratorRestoreRegister:
-    case Opcode::kGetIterator:
-    case Opcode::kGetSecondReturnedValue:
-    case Opcode::kGetTemplateObject:
-    case Opcode::kHasInPrototypeChain:
-    case Opcode::kInitialValue:
-    case Opcode::kLoadTaggedField:
-    case Opcode::kLoadTaggedFieldForProperty:
-    case Opcode::kLoadTaggedFieldForContextSlotNoCells:
-    case Opcode::kLoadTaggedFieldForContextSlot:
-    case Opcode::kLoadDoubleField:
-    case Opcode::kLoadFloat64:
-    case Opcode::kLoadInt32:
-    case Opcode::kLoadTaggedFieldByFieldIndex:
-    case Opcode::kLoadFixedArrayElement:
-    case Opcode::kLoadFixedDoubleArrayElement:
-    case Opcode::kLoadHoleyFixedDoubleArrayElement:
-    case Opcode::kLoadHoleyFixedDoubleArrayElementCheckedNotHole:
-    case Opcode::kLoadSignedIntDataViewElement:
-    case Opcode::kLoadDoubleDataViewElement:
-    case Opcode::kLoadTypedArrayLength:
-    case Opcode::kLoadSignedIntTypedArrayElement:
-    case Opcode::kLoadUnsignedIntTypedArrayElement:
-    case Opcode::kLoadDoubleTypedArrayElement:
-    case Opcode::kLoadSignedIntConstantTypedArrayElement:
-    case Opcode::kLoadUnsignedIntConstantTypedArrayElement:
-    case Opcode::kLoadDoubleConstantTypedArrayElement:
-    case Opcode::kLoadEnumCacheLength:
-    case Opcode::kLoadGlobal:
-    case Opcode::kLoadNamedGeneric:
-    case Opcode::kLoadNamedFromSuperGeneric:
-    case Opcode::kMaybeGrowFastElements:
-    case Opcode::kMigrateMapIfNeeded:
-    case Opcode::kSetNamedGeneric:
-    case Opcode::kDefineNamedOwnGeneric:
-    case Opcode::kStoreInArrayLiteralGeneric:
-    case Opcode::kStoreGlobal:
-    case Opcode::kGetKeyedGeneric:
-    case Opcode::kSetKeyedGeneric:
-    case Opcode::kDefineKeyedOwnGeneric:
-    case Opcode::kRegisterInput:
-    case Opcode::kCheckedSmiSizedInt32:
-    case Opcode::kCheckedSmiUntag:
-    case Opcode::kUnsafeSmiUntag:
-    case Opcode::kCheckedObjectToIndex:
-    case Opcode::kCheckedTruncateNumberOrOddballToInt32:
-    case Opcode::kCheckedInt32ToUint32:
-    case Opcode::kCheckedIntPtrToUint32:
-    case Opcode::kUnsafeInt32ToUint32:
-    case Opcode::kCheckedUint32ToInt32:
-    case Opcode::kCheckedIntPtrToInt32:
-    case Opcode::kChangeInt32ToFloat64:
-    case Opcode::kChangeUint32ToFloat64:
-    case Opcode::kChangeIntPtrToFloat64:
-    case Opcode::kCheckedTruncateFloat64ToInt32:
-    case Opcode::kCheckedTruncateFloat64ToUint32:
-    case Opcode::kTruncateNumberOrOddballToInt32:
-    case Opcode::kCheckedNumberToInt32:
-    case Opcode::kTruncateUint32ToInt32:
-    case Opcode::kTruncateFloat64ToInt32:
-    case Opcode::kUnsafeTruncateUint32ToInt32:
-    case Opcode::kUnsafeTruncateFloat64ToInt32:
-    case Opcode::kInt32ToUint8Clamped:
-    case Opcode::kUint32ToUint8Clamped:
-    case Opcode::kFloat64ToUint8Clamped:
-    case Opcode::kCheckedNumberToUint8Clamped:
-    case Opcode::kFloat64ToHeapNumberForField:
-    case Opcode::kCheckedNumberOrOddballToFloat64:
-    case Opcode::kUncheckedNumberOrOddballToFloat64:
-    case Opcode::kCheckedNumberOrOddballToHoleyFloat64:
-    case Opcode::kCheckedHoleyFloat64ToFloat64:
-    case Opcode::kHoleyFloat64ToMaybeNanFloat64:
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-    case Opcode::kFloat64ToHoleyFloat64:
-    case Opcode::kConvertHoleNanToUndefinedNan:
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-    case Opcode::kHoleyFloat64IsHole:
-    case Opcode::kSetPendingMessage:
-    case Opcode::kStringLength:
-    case Opcode::kAllocateElementsArray:
-    case Opcode::kUpdateJSArrayLength:
-    case Opcode::kVirtualObject:
-    case Opcode::kGetContinuationPreservedEmbedderData:
-    case Opcode::kFloat64Constant:
-    case Opcode::kInt32Constant:
-    case Opcode::kUint32Constant:
-    case Opcode::kIntPtrConstant:
-    case Opcode::kTaggedIndexConstant:
-    case Opcode::kTrustedConstant:
-    case Opcode::kInt32AbsWithOverflow:
-    case Opcode::kInt32AddWithOverflow:
-    case Opcode::kInt32SubtractWithOverflow:
-    case Opcode::kInt32MultiplyWithOverflow:
-    case Opcode::kInt32DivideWithOverflow:
-    case Opcode::kInt32ModulusWithOverflow:
-    case Opcode::kInt32BitwiseAnd:
-    case Opcode::kInt32BitwiseOr:
-    case Opcode::kInt32BitwiseXor:
-    case Opcode::kInt32ShiftLeft:
-    case Opcode::kInt32ShiftRight:
-    case Opcode::kInt32ShiftRightLogical:
-    case Opcode::kInt32BitwiseNot:
-    case Opcode::kInt32NegateWithOverflow:
-    case Opcode::kInt32IncrementWithOverflow:
-    case Opcode::kInt32DecrementWithOverflow:
-    case Opcode::kInt32ToBoolean:
-    case Opcode::kFloat64Abs:
-    case Opcode::kFloat64Add:
-    case Opcode::kFloat64Subtract:
-    case Opcode::kFloat64Multiply:
-    case Opcode::kFloat64Divide:
-    case Opcode::kFloat64Exponentiate:
-    case Opcode::kFloat64Modulus:
-    case Opcode::kFloat64Negate:
-    case Opcode::kFloat64Round:
-    case Opcode::kFloat64ToBoolean:
-    case Opcode::kFloat64Ieee754Unary:
-    case Opcode::kInt32CountLeadingZeros:
-    case Opcode::kSmiCountLeadingZeros:
-    case Opcode::kFloat64CountLeadingZeros:
-    case Opcode::kCheckedSmiIncrement:
-    case Opcode::kCheckedSmiDecrement:
-    case Opcode::kGenericAdd:
-    case Opcode::kGenericSubtract:
-    case Opcode::kGenericMultiply:
-    case Opcode::kGenericDivide:
-    case Opcode::kGenericModulus:
-    case Opcode::kGenericExponentiate:
-    case Opcode::kGenericBitwiseAnd:
-    case Opcode::kGenericBitwiseOr:
-    case Opcode::kGenericBitwiseXor:
-    case Opcode::kGenericShiftLeft:
-    case Opcode::kGenericShiftRight:
-    case Opcode::kGenericShiftRightLogical:
-    case Opcode::kGenericBitwiseNot:
-    case Opcode::kGenericNegate:
-    case Opcode::kGenericIncrement:
-    case Opcode::kGenericDecrement:
-    case Opcode::kConsStringMap:
-    case Opcode::kMapPrototypeGet:
-    case Opcode::kMapPrototypeGetInt32Key:
-      return NodeType::kUnknown;
-  }
-}
-
-bool MaglevGraphBuilder::CheckStaticType(ValueNode* node, NodeType type,
-                                         NodeType* current_type) {
-  NodeType static_type = StaticTypeForNode(broker(), local_isolate(), node);
-  if (current_type) *current_type = static_type;
-  return NodeTypeIs(static_type, type);
-}
-
-bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
-                                    NodeType* old_type) {
-  if (CheckStaticType(node, type, old_type)) return true;
-  NodeInfo* known_info = GetOrCreateInfoFor(node);
-  if (old_type) *old_type = known_info->type();
-  if (NodeTypeIs(known_info->type(), type)) return true;
-  known_info->IntersectType(type);
-  if (auto phi = node->TryCast<Phi>()) {
-    known_info->IntersectType(phi->type());
-  }
-  if (NodeTypeIsUnstable(type)) {
-    known_info->set_node_type_is_unstable();
-    known_node_aspects().any_map_for_any_node_is_unstable = true;
-  }
-  return false;
-}
-
-template <typename Function>
-bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
-                                    Function ensure_new_type) {
-  if (CheckStaticType(node, type)) return true;
-  NodeInfo* known_info = GetOrCreateInfoFor(node);
-  if (NodeTypeIs(known_info->type(), type)) return true;
-  ensure_new_type(known_info->type());
-  known_info->IntersectType(type);
-  if (NodeTypeIsUnstable(type)) {
-    known_info->set_node_type_is_unstable();
-    known_node_aspects().any_map_for_any_node_is_unstable = true;
-  }
-  return false;
-}
-
 void MaglevGraphBuilder::SetKnownValue(ValueNode* node, compiler::ObjectRef ref,
                                        NodeType new_node_type) {
   DCHECK(!node->Is<Constant>());
@@ -4886,68 +4520,6 @@ void MaglevGraphBuilder::SetKnownValue(ValueNode* node, compiler::ObjectRef ref,
   }
   known_info->IntersectType(new_node_type);
   known_info->alternative().set_checked_value(GetConstant(ref));
-}
-
-NodeType MaglevGraphBuilder::CheckTypes(ValueNode* node,
-                                        std::initializer_list<NodeType> types) {
-  auto it = known_node_aspects().FindInfo(node);
-  bool has_kna = known_node_aspects().IsValid(it);
-  for (NodeType type : types) {
-    if (CheckStaticType(node, type)) return type;
-    if (has_kna) {
-      if (NodeTypeIs(it->second.type(), type)) return type;
-    }
-  }
-  return NodeType::kUnknown;
-}
-
-bool MaglevGraphBuilder::CheckType(ValueNode* node, NodeType type,
-                                   NodeType* current_type) {
-  if (CheckStaticType(node, type, current_type)) return true;
-  auto it = known_node_aspects().FindInfo(node);
-  if (!known_node_aspects().IsValid(it)) return false;
-  if (current_type) *current_type = it->second.type();
-  return NodeTypeIs(it->second.type(), type);
-}
-
-NodeType MaglevGraphBuilder::GetType(ValueNode* node) {
-  auto it = known_node_aspects().FindInfo(node);
-  if (!known_node_aspects().IsValid(it)) {
-    return StaticTypeForNode(broker(), local_isolate(), node);
-  }
-  NodeType actual_type = it->second.type();
-  if (auto phi = node->TryCast<Phi>()) {
-    actual_type = IntersectType(actual_type, phi->type());
-  }
-#ifdef DEBUG
-  NodeType static_type = StaticTypeForNode(broker(), local_isolate(), node);
-  if (!NodeTypeIs(actual_type, static_type)) {
-    // In case we needed a numerical alternative of a smi value, the type
-    // must generalize. In all other cases the node info type should reflect the
-    // actual type.
-    DCHECK(static_type == NodeType::kSmi && actual_type == NodeType::kNumber &&
-           !known_node_aspects().TryGetInfoFor(node)->alternative().has_none());
-  }
-#endif  // DEBUG
-  return actual_type;
-}
-
-bool MaglevGraphBuilder::HaveDisjointTypes(ValueNode* lhs, ValueNode* rhs) {
-  return HasDisjointType(lhs, GetType(rhs));
-}
-
-bool MaglevGraphBuilder::HasDisjointType(ValueNode* lhs, NodeType rhs_type) {
-  NodeType lhs_type = GetType(lhs);
-  NodeType meet = IntersectType(lhs_type, rhs_type);
-  return IsEmptyNodeType(meet);
-}
-
-bool MaglevGraphBuilder::MayBeNullOrUndefined(ValueNode* node) {
-  NodeType static_type = StaticTypeForNode(broker(), local_isolate(), node);
-  if (!NodeTypeMayBeNullOrUndefined(static_type)) return false;
-  auto it = known_node_aspects().FindInfo(node);
-  if (!known_node_aspects().IsValid(it)) return true;
-  return NodeTypeMayBeNullOrUndefined(it->second.type());
 }
 
 ValueNode* MaglevGraphBuilder::BuildSmiUntag(ValueNode* node) {
@@ -4986,7 +4558,7 @@ ValueNode* MaglevGraphBuilder::BuildNumberOrOddballToFloat64(
 
 ReduceResult MaglevGraphBuilder::BuildCheckSmi(ValueNode* object,
                                                bool elidable) {
-  if (CheckStaticType(object, NodeType::kSmi)) return object;
+  if (object->StaticTypeIs(broker(), NodeType::kSmi)) return object;
   // Check for the empty type first so that we catch the case where
   // GetType(object) is already empty.
   if (IsEmptyNodeType(IntersectType(GetType(object), NodeType::kSmi))) {
@@ -5210,8 +4782,7 @@ class KnownMapsMerger {
   void UpdateKnownNodeAspects(ValueNode* object,
                               KnownNodeAspects& known_node_aspects) {
     // Update known maps.
-    auto node_info = known_node_aspects.GetOrCreateInfoFor(
-        object, broker_, broker_->local_isolate());
+    auto node_info = known_node_aspects.GetOrCreateInfoFor(broker_, object);
     node_info->SetPossibleMaps(intersect_set_, any_map_is_unstable_, node_type_,
                                broker_);
     // Make sure known_node_aspects.any_map_for_any_node_is_unstable is updated
@@ -6050,7 +5621,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array,
 ValueNode* MaglevGraphBuilder::BuildLoadJSFunctionFeedbackCell(
     ValueNode* closure) {
   DCHECK(NodeTypeIs(GetType(closure), NodeType::kJSFunction));
-  if (auto constant = TryGetConstant(broker(), local_isolate(), closure)) {
+  if (auto constant = closure->TryGetConstant(broker())) {
     if (constant->IsJSFunction()) {
       return GetConstant(constant->AsJSFunction().raw_feedback_cell(broker()));
     }
@@ -6063,7 +5634,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadJSFunctionFeedbackCell(
 
 ValueNode* MaglevGraphBuilder::BuildLoadJSFunctionContext(ValueNode* closure) {
   DCHECK(NodeTypeIs(GetType(closure), NodeType::kJSFunction));
-  if (auto constant = TryGetConstant(broker(), local_isolate(), closure)) {
+  if (auto constant = closure->TryGetConstant(broker())) {
     if (constant->IsJSFunction()) {
       return GetConstant(constant->AsJSFunction().context(broker()));
     }
@@ -6740,7 +6311,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadTypedArrayLength(
   bool is_variable_length = IsRabGsabTypedArrayElementsKind(elements_kind);
 
   if (!is_variable_length) {
-    if (auto const_object = TryGetConstant(broker(), local_isolate(), object)) {
+    if (auto const_object = object->TryGetConstant(broker())) {
       // TODO(marja): Add TryGetConstant<JSTypedArray>().
       if (const_object->IsJSTypedArray()) {
         auto const_typed_array = const_object->AsJSTypedArray();
@@ -7889,7 +7460,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadStringLength(ValueNode* string) {
       return vo_string->object()->string_length();
     }
   }
-  if (auto const_string = TryGetConstant(broker(), local_isolate(), string)) {
+  if (auto const_string = string->TryGetConstant(broker())) {
     if (const_string->IsString()) {
       return GetInt32Constant(const_string->AsString().length());
     }
@@ -11918,7 +11489,7 @@ MaglevGraphBuilder::TryReduceFunctionPrototypeApplyCallWithReceiver(
                            CallArguments::kWithArrayLike);
     return ReduceCallWithArrayLike(function, new_args, feedback_source);
   };
-  if (!MayBeNullOrUndefined(args[1])) {
+  if (!known_node_aspects().MayBeNullOrUndefined(broker(), args[1])) {
     return build_call_with_array_like();
   }
   return SelectReduction(

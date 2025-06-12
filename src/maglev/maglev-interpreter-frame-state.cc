@@ -23,23 +23,6 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-namespace {
-
-NodeType GetNodeType(compiler::JSHeapBroker* broker, LocalIsolate* isolate,
-                     const KnownNodeAspects& aspects, ValueNode* node) {
-  // We first check the KnownNodeAspects in order to return the most precise
-  // type possible.
-  NodeType type = aspects.NodeTypeFor(node);
-  if (type != NodeType::kUnknown) {
-    return type;
-  }
-  // If this node has no NodeInfo (or not known type in its NodeInfo), we fall
-  // back to its static type.
-  return StaticTypeForNode(broker, isolate, node);
-}
-
-}  // namespace
-
 void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
   bool any_merged_map_is_unstable = false;
   DestructivelyIntersect(node_infos, other.node_infos,
@@ -106,9 +89,8 @@ bool CheckAllPhiInputsAreContextType(compiler::JSHeapBroker* broker,
   for (Input& input : *phi) {
     if (!input.node()) continue;
     if (phi->is_loop_phi() && &phi->backedge_input() == &input) continue;
-    if (NodeTypeIs(
-            GetNodeType(broker, local_isolate, node_aspects, input.node()),
-            NodeType::kContext)) {
+    if (NodeTypeIs(node_aspects.GetType(broker, input.node()),
+                   NodeType::kContext)) {
       continue;
     }
     // OSR values can leak a context with InitialValue that we are unable to
@@ -162,14 +144,12 @@ void KnownNodeAspects::UpdateMayHaveAliasingContexts(
       may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
           may_have_aliasing_contexts_,
           ContextSlotLoadsAlias::kOnlyLoadsRelativeToConstant);
-      DCHECK(NodeTypeIs(GetNodeType(broker, local_isolate, *this, context),
-                        NodeType::kContext));
+      DCHECK(NodeTypeIs(GetType(broker, context), NodeType::kContext));
       break;
     case Opcode::kCreateFunctionContext:
     case Opcode::kInlinedAllocation:
       // These can be precisely tracked.
-      DCHECK(NodeTypeIs(GetNodeType(broker, local_isolate, *this, context),
-                        NodeType::kContext));
+      DCHECK(NodeTypeIs(GetType(broker, context), NodeType::kContext));
       break;
     case Opcode::kLoadTaggedField: {
       LoadTaggedField* load = context->Cast<LoadTaggedField>();
@@ -179,13 +159,11 @@ void KnownNodeAspects::UpdateMayHaveAliasingContexts(
       DCHECK(load->offset() == JSFunction::kContextOffset ||
              load->offset() == JSGeneratorObject::kContextOffset);
       may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
-      DCHECK(NodeTypeIs(GetNodeType(broker, local_isolate, *this, context),
-                        NodeType::kContext));
+      DCHECK(NodeTypeIs(GetType(broker, context), NodeType::kContext));
       break;
     }
     case Opcode::kCallRuntime:
-      DCHECK(NodeTypeIs(GetNodeType(broker, local_isolate, *this, context),
-                        NodeType::kContext));
+      DCHECK(NodeTypeIs(GetType(broker, context), NodeType::kContext));
       may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
       break;
     case Opcode::kGeneratorRestoreRegister:
@@ -897,12 +875,10 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
     Phi* phi = value->Cast<Phi>();
     if (!phi->is_loop_phi()) return;
     if (phi->merge_state() != this) return;
-    NodeType old_type = GetNodeType(builder->broker(), builder->local_isolate(),
-                                    *known_node_aspects_, phi);
+    NodeType old_type = known_node_aspects_->GetType(builder->broker(), phi);
     if (old_type != NodeType::kUnknown) {
-      NodeType new_type = GetNodeType(
-          builder->broker(), builder->local_isolate(),
-          *loop_end_state.known_node_aspects(), loop_end_state.get(reg));
+      NodeType new_type = loop_end_state.known_node_aspects()->GetType(
+          builder->broker(), loop_end_state.get(reg));
       if (!NodeTypeIs(new_type, old_type)) {
         if (v8_flags.trace_maglev_loop_speeling) {
           std::cout << "Cannot merge " << new_type << " into " << old_type
@@ -1233,8 +1209,7 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
     }
 
     NodeType unmerged_type =
-        GetNodeType(builder->broker(), builder->local_isolate(),
-                    unmerged_aspects, unmerged);
+        unmerged_aspects.GetType(builder->broker(), unmerged);
     if (result->is_loop_phi()) {
       UpdateLoopPhiType(result, unmerged_type);
     } else {
@@ -1302,8 +1277,7 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
     }
   }
 
-  NodeType merged_type =
-      StaticTypeForNode(builder->broker(), builder->local_isolate(), merged);
+  NodeType merged_type = merged->GetStaticType(builder->broker());
 
   bool is_tagged = merged->properties().value_representation() ==
                    ValueRepresentation::kTagged;
@@ -1326,11 +1300,11 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
   }
   DCHECK_EQ(i, predecessors_so_far_);
 
-  // Note: it's better to call GetNodeType on {unmerged} before updating it with
+  // Note: it's better to call GetType on {unmerged} before updating it with
   // EnsureTagged, since untagged nodes have a higher chance of having a
   // StaticType.
-  NodeType unmerged_type = GetNodeType(
-      builder->broker(), builder->local_isolate(), unmerged_aspects, unmerged);
+  NodeType unmerged_type =
+      unmerged_aspects.GetType(builder->broker(), unmerged);
   unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                           predecessors_[predecessors_so_far_]);
   result->set_input(predecessors_so_far_, unmerged);
@@ -1356,8 +1330,7 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
   Phi* result = merged->TryCast<Phi>();
   if (result != nullptr && result->merge_state() == this) {
     NodeType unmerged_type =
-        GetNodeType(builder->broker(), builder->local_isolate(),
-                    unmerged_aspects, unmerged);
+        unmerged_aspects.GetType(builder->broker(), unmerged);
     unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                             predecessors_[predecessors_so_far_]);
     for (uint32_t i = predecessors_so_far_; i < predecessor_count_; i++) {
@@ -1404,8 +1377,7 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
     }
   }
 
-  NodeType merged_type =
-      StaticTypeForNode(builder->broker(), builder->local_isolate(), merged);
+  NodeType merged_type = merged->GetStaticType(builder->broker());
 
   // We must have seen the same value so far.
   DCHECK_NOT_NULL(known_node_aspects_);
@@ -1415,8 +1387,8 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
     result->set_input(i, tagged_merged);
   }
 
-  NodeType unmerged_type = GetNodeType(
-      builder->broker(), builder->local_isolate(), unmerged_aspects, unmerged);
+  NodeType unmerged_type =
+      unmerged_aspects.GetType(builder->broker(), unmerged);
   unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                           predecessors_[predecessors_so_far_]);
   for (uint32_t i = predecessors_so_far_; i < predecessor_count_; i++) {
@@ -1439,8 +1411,7 @@ void MergePointInterpreterFrameState::MergeLoopValue(
     return;
   }
   DCHECK_EQ(result->owner(), owner);
-  NodeType type = GetNodeType(builder->broker(), builder->local_isolate(),
-                              unmerged_aspects, unmerged);
+  NodeType type = unmerged_aspects.GetType(builder->broker(), unmerged);
   unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                           predecessors_[predecessors_so_far_]);
   result->set_input(predecessor_count_ - 1, unmerged);
