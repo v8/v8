@@ -601,6 +601,7 @@
   V(_, byte_offset_string, "byteOffset")                                      \
   V(_, CompileError_string, "CompileError")                                   \
   V(_, calendar_string, "calendar")                                           \
+  V(_, calendarId_string, "calendarId")                                       \
   V(_, callee_string, "callee")                                               \
   V(_, caller_string, "caller")                                               \
   V(_, cause_string, "cause")                                                 \
@@ -647,10 +648,8 @@
   V(_, Error_string, "Error")                                                 \
   V(_, EvalError_string, "EvalError")                                         \
   V(_, element_string, "element")                                             \
-  V(_, epochMicroseconds_string, "epochMicroseconds")                         \
   V(_, epochMilliseconds_string, "epochMilliseconds")                         \
   V(_, epochNanoseconds_string, "epochNanoseconds")                           \
-  V(_, epochSeconds_string, "epochSeconds")                                   \
   V(_, era_string, "era")                                                     \
   V(_, eraYear_string, "eraYear")                                             \
   V(_, error_string, "error")                                                 \
@@ -679,6 +678,7 @@
   V(_, getOwnPropertyDescriptor_string, "getOwnPropertyDescriptor")           \
   V(_, getPossibleInstantsFor_string, "getPossibleInstantsFor")               \
   V(_, getPrototypeOf_string, "getPrototypeOf")                               \
+  V(_, getTimeZoneTransition_string, "getTimeZoneTransition")                 \
   V(_, global_string, "global")                                               \
   V(_, globalThis_string, "globalThis")                                       \
   V(_, groups_string, "groups")                                               \

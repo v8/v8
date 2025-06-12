@@ -2660,6 +2660,13 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::With(
   UNIMPLEMENTED();
 }
 
+// #sec-temporal.plaindate.prototype.withcalendar
+MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::WithCalendar(
+    Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
+    DirectHandle<Object> calendar_id) {
+  UNIMPLEMENTED();
+}
+
 // #sec-temporal.plaindate.prototype.tozoneddatetime
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalPlainDate::ToZonedDateTime(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
@@ -2939,6 +2946,14 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::With(
   UNIMPLEMENTED();
 }
 
+// #sec-temporal.plaindatetime.prototype.withcalendar
+MaybeDirectHandle<JSTemporalPlainDateTime>
+JSTemporalPlainDateTime::WithCalendar(
+    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> temporal_date,
+    DirectHandle<Object> calendar_id) {
+  UNIMPLEMENTED();
+}
+
 // #sec-temporal.plaindatetime.prototype.withplaintime
 MaybeDirectHandle<JSTemporalPlainDateTime>
 JSTemporalPlainDateTime::WithPlainTime(
@@ -2967,15 +2982,6 @@ JSTemporalPlainDateTime::ToZonedDateTime(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> temporal_time_zone_like,
     DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
-}
-
-
-// #sec-temporal.plaindatetime.prototype.withplaindate
-MaybeDirectHandle<JSTemporalPlainDateTime>
-JSTemporalPlainDateTime::WithPlainDate(
-    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
-    DirectHandle<Object> temporal_date_like) {
   UNIMPLEMENTED();
 }
 
@@ -3742,13 +3748,11 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::With(
   UNIMPLEMENTED();
 }
 
-
-// #sec-temporal.zoneddatetime.prototype.withplaindate
+// #sec-temporal.zoneddatetime.prototype.withcalendar
 MaybeDirectHandle<JSTemporalZonedDateTime>
-JSTemporalZonedDateTime::WithPlainDate(
-    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
-    DirectHandle<Object> plain_date_like) {
-  TEMPORAL_ENTER_FUNC();
+JSTemporalZonedDateTime::WithCalendar(
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> temporal_date,
+    DirectHandle<Object> calendar_id) {
   UNIMPLEMENTED();
 }
 
@@ -3767,21 +3771,6 @@ JSTemporalZonedDateTime::WithTimeZone(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> time_zone_like) {
   TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
-}
-
-
-// #sec-temporal.zoneddatetime.prototype.toplainyearmonth
-MaybeDirectHandle<JSTemporalPlainYearMonth>
-JSTemporalZonedDateTime::ToPlainYearMonth(
-    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  UNIMPLEMENTED();
-}
-
-// #sec-temporal.zoneddatetime.prototype.toplainmonthday
-MaybeDirectHandle<JSTemporalPlainMonthDay>
-JSTemporalZonedDateTime::ToPlainMonthDay(
-    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   UNIMPLEMENTED();
 }
 
@@ -3902,6 +3891,14 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::StartOfDay(
   TEMPORAL_ENTER_FUNC();
   UNIMPLEMENTED();
 }
+// #sec-temporal.zoneddatetime.prototype.gettimezonetransition
+MaybeDirectHandle<JSTemporalZonedDateTime>
+JSTemporalZonedDateTime::GetTimeZoneTransition(
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
+    DirectHandle<Object> direction_param) {
+  TEMPORAL_ENTER_FUNC();
+  UNIMPLEMENTED();
+}
 
 // #sec-temporal.zoneddatetime.prototype.toinstant
 MaybeDirectHandle<JSTemporalInstant> JSTemporalZonedDateTime::ToInstant(
@@ -4009,6 +4006,25 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::From(
       temporal::ToTemporalInstant(isolate, item, method_name));
 
   return item_instant;
+}
+
+// #sec-temporal.instant.fromepochmilliseconds
+MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::FromEpochMilliseconds(
+    Isolate* isolate, DirectHandle<Object> item) {
+  UNIMPLEMENTED();
+}
+
+// #sec-temporal.instant.fromepochnanoseconds
+MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::FromEpochNanoseconds(
+    Isolate* isolate, DirectHandle<Object> item) {
+  UNIMPLEMENTED();
+}
+
+// #sec-temporal.instant.compare
+MaybeDirectHandle<Smi> JSTemporalInstant::Compare(
+    Isolate* isolate, DirectHandle<Object> one_obj,
+    DirectHandle<Object> two_obj) {
+  UNIMPLEMENTED();
 }
 
 // #sec-temporal.instant.prototype.equals
@@ -4132,14 +4148,14 @@ MaybeDirectHandle<BigInt> JSTemporalInstant::EpochNanoseconds(
 }
 
 // #sec-temporal.instant.prototype.tozoneddatetime
-MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalInstant::ToZonedDateTime(
-    Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
-    DirectHandle<Object> item_obj) {
+MaybeDirectHandle<JSTemporalZonedDateTime>
+JSTemporalInstant::ToZonedDateTimeISO(Isolate* isolate,
+                                      DirectHandle<JSTemporalInstant> handle,
+                                      DirectHandle<Object> item_obj) {
   TEMPORAL_ENTER_FUNC();
 
   UNIMPLEMENTED();
 }
-
 
 // #sec-temporal.instant.prototype.tojson
 MaybeDirectHandle<String> JSTemporalInstant::ToJSON(
@@ -4298,6 +4314,13 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalInstant::Since(
       isolate, temporal::DifferenceOperation::kSince, handle, other_obj,
       options, method_name);
 }
+
+// #sec-temporal.now.timezoneid
+V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> JSTemporalNowTimeZoneId(
+    Isolate* isolate) {
+  UNIMPLEMENTED();
+}
+
 namespace temporal {
 
 // A simple convenient function to avoid the need to unnecessarily exposing

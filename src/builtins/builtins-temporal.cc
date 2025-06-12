@@ -10,24 +10,10 @@
 namespace v8 {
 namespace internal {
 
-#define TO_BE_IMPLEMENTED(id)   \
-  BUILTIN_NO_RCS(id) {          \
-    HandleScope scope(isolate); \
-    UNIMPLEMENTED();            \
-  }
-
-#define TEMPORAL_NOW0(T)                                            \
-  BUILTIN(TemporalNow##T) {                                         \
-    HandleScope scope(isolate);                                     \
-    RETURN_RESULT_OR_FAILURE(isolate, JSTemporal##T::Now(isolate)); \
-  }
-
-#define TEMPORAL_NOW2(T)                                                     \
-  BUILTIN(TemporalNow##T) {                                                  \
-    HandleScope scope(isolate);                                              \
-    RETURN_RESULT_OR_FAILURE(                                                \
-        isolate, JSTemporal##T::Now(isolate, args.atOrUndefined(isolate, 1), \
-                                    args.atOrUndefined(isolate, 2)));        \
+#define TEMPORAL_NOW0(METHOD, cpp)                   \
+  BUILTIN(TemporalNow##METHOD) {                     \
+    HandleScope scope(isolate);                      \
+    RETURN_RESULT_OR_FAILURE(isolate, cpp(isolate)); \
   }
 
 #define TEMPORAL_NOW_ISO1(T)                                             \
@@ -99,6 +85,15 @@ namespace internal {
         isolate,                                                        \
         JSTemporal##T ::METHOD(isolate, args.atOrUndefined(isolate, 1), \
                                args.atOrUndefined(isolate, 2)));        \
+  }
+#define TEMPORAL_METHOD3(T, METHOD)                                     \
+  BUILTIN(Temporal##T##METHOD) {                                        \
+    HandleScope scope(isolate);                                         \
+    RETURN_RESULT_OR_FAILURE(                                           \
+        isolate,                                                        \
+        JSTemporal##T ::METHOD(isolate, args.atOrUndefined(isolate, 1), \
+                               args.atOrUndefined(isolate, 2),          \
+                               args.atOrUndefined(isolate, 3)));        \
   }
 
 #define TEMPORAL_VALUE_OF(T)                                                 \
@@ -178,16 +173,11 @@ namespace internal {
   }
 
 // Now
-TEMPORAL_NOW0(Instant)
-TEMPORAL_NOW2(PlainDateTime)
+TEMPORAL_NOW0(Instant, JSTemporalInstant::Now)
+TEMPORAL_NOW0(TimeZoneId, JSTemporalNowTimeZoneId)
 TEMPORAL_NOW_ISO1(PlainDateTime)
-TEMPORAL_NOW2(PlainDate)
 TEMPORAL_NOW_ISO1(PlainDate)
-
-// There is NO Temporal.now.plainTime
-// See https://github.com/tc39/proposal-temporal/issues/1540
 TEMPORAL_NOW_ISO1(PlainTime)
-TEMPORAL_NOW2(ZonedDateTime)
 TEMPORAL_NOW_ISO1(ZonedDateTime)
 
 // PlainDate
@@ -203,19 +193,24 @@ BUILTIN(TemporalPlainDateConstructor) {
 }
 TEMPORAL_METHOD2(PlainDate, From)
 TEMPORAL_METHOD2(PlainDate, Compare)
-TEMPORAL_GET_RUST(PlainDate, date, Year, year, year, CONVERT_INTEGER64)
+
+TEMPORAL_GET_RUST(PlainDate, date, CalendarId, calendarId,
+                  calendar().identifier, CONVERT_ASCII_STRING)
 TEMPORAL_GET_RUST(PlainDate, date, Era, era, era, CONVERT_ASCII_STRING)
 TEMPORAL_GET_RUST(PlainDate, date, EraYear, eraYear, era_year,
                   CONVERT_NULLABLE_INTEGER)
+TEMPORAL_GET_RUST(PlainDate, date, Year, year, year, CONVERT_INTEGER64)
 TEMPORAL_GET_RUST(PlainDate, date, Month, month, month, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDate, date, Day, day, day, CONVERT_SMI)
 TEMPORAL_GET_RUST(PlainDate, date, MonthCode, monthCode, month_code,
                   CONVERT_ASCII_STRING)
+TEMPORAL_GET_RUST(PlainDate, date, Day, day, day, CONVERT_SMI)
 TEMPORAL_GET_RUST(PlainDate, date, DayOfWeek, dayOfWeek, day_of_week,
                   CONVERT_FALLIBLE_INTEGER_AS_NULLABLE)
 TEMPORAL_GET_RUST(PlainDate, date, DayOfYear, dayOfYear, day_of_year,
                   CONVERT_SMI)
 TEMPORAL_GET_RUST(PlainDate, date, WeekOfYear, weekOfYear, week_of_year,
+                  CONVERT_NULLABLE_INTEGER)
+TEMPORAL_GET_RUST(PlainDate, date, YearOfWeek, YearOfWeek, year_of_week,
                   CONVERT_NULLABLE_INTEGER)
 TEMPORAL_GET_RUST(PlainDate, date, DaysInWeek, daysInWeek, days_in_week,
                   CONVERT_FALLIBLE_INTEGER_AS_NULLABLE)
@@ -233,15 +228,16 @@ TEMPORAL_PROTOTYPE_METHOD0(PlainDate, ToPlainMonthDay, toPlainMonthDay)
 TEMPORAL_PROTOTYPE_METHOD2(PlainDate, Add, add)
 TEMPORAL_PROTOTYPE_METHOD2(PlainDate, Subtract, subtract)
 TEMPORAL_PROTOTYPE_METHOD2(PlainDate, With, with)
-TEMPORAL_PROTOTYPE_METHOD2(PlainDate, Since, since)
+TEMPORAL_PROTOTYPE_METHOD1(PlainDate, WithCalendar, withCalendar)
 TEMPORAL_PROTOTYPE_METHOD2(PlainDate, Until, until)
+TEMPORAL_PROTOTYPE_METHOD2(PlainDate, Since, since)
+TEMPORAL_PROTOTYPE_METHOD1(PlainDate, Equals, equals)
 TEMPORAL_PROTOTYPE_METHOD1(PlainDate, ToPlainDateTime, toPlainDateTime)
 TEMPORAL_PROTOTYPE_METHOD1(PlainDate, ToZonedDateTime, toZonedDateTime)
-TEMPORAL_PROTOTYPE_METHOD1(PlainDate, Equals, equals)
-TEMPORAL_VALUE_OF(PlainDate)
-TEMPORAL_PROTOTYPE_METHOD0(PlainDate, ToJSON, toJSON)
-TEMPORAL_PROTOTYPE_METHOD2(PlainDate, ToLocaleString, toLocaleString)
 TEMPORAL_PROTOTYPE_METHOD1(PlainDate, ToString, toString)
+TEMPORAL_PROTOTYPE_METHOD2(PlainDate, ToLocaleString, toLocaleString)
+TEMPORAL_PROTOTYPE_METHOD0(PlainDate, ToJSON, toJSON)
+TEMPORAL_VALUE_OF(PlainDate)
 
 // PlainTime
 BUILTIN(TemporalPlainTimeConstructor) {
@@ -257,6 +253,9 @@ BUILTIN(TemporalPlainTimeConstructor) {
                                args.atOrUndefined(isolate, 6)));  // nanosecond
 }
 
+TEMPORAL_METHOD2(PlainTime, From)
+TEMPORAL_METHOD2(PlainTime, Compare)
+
 TEMPORAL_GET_RUST(PlainTime, time, Hour, hour, hour, CONVERT_SMI)
 TEMPORAL_GET_RUST(PlainTime, time, Minute, minute, minute, CONVERT_SMI)
 TEMPORAL_GET_RUST(PlainTime, time, Second, second, second, CONVERT_SMI)
@@ -266,18 +265,17 @@ TEMPORAL_GET_RUST(PlainTime, time, Microsecond, microsecond, microsecond,
                   CONVERT_SMI)
 TEMPORAL_GET_RUST(PlainTime, time, Nanosecond, nanosecond, nanosecond,
                   CONVERT_SMI)
-TEMPORAL_METHOD2(PlainTime, From)
-TEMPORAL_METHOD2(PlainTime, Compare)
-TEMPORAL_PROTOTYPE_METHOD1(PlainTime, Equals, equals)
+
 TEMPORAL_PROTOTYPE_METHOD1(PlainTime, Add, add)
 TEMPORAL_PROTOTYPE_METHOD1(PlainTime, Subtract, subtract)
-TEMPORAL_PROTOTYPE_METHOD1(PlainTime, Round, round)
-TEMPORAL_PROTOTYPE_METHOD2(PlainTime, Since, since)
-TEMPORAL_PROTOTYPE_METHOD0(PlainTime, ToJSON, toJSON)
-TEMPORAL_PROTOTYPE_METHOD2(PlainTime, ToLocaleString, toLocaleString)
-TEMPORAL_PROTOTYPE_METHOD1(PlainTime, ToString, toString)
-TEMPORAL_PROTOTYPE_METHOD2(PlainTime, Until, until)
 TEMPORAL_PROTOTYPE_METHOD2(PlainTime, With, with)
+TEMPORAL_PROTOTYPE_METHOD2(PlainTime, Until, until)
+TEMPORAL_PROTOTYPE_METHOD2(PlainTime, Since, since)
+TEMPORAL_PROTOTYPE_METHOD1(PlainTime, Round, round)
+TEMPORAL_PROTOTYPE_METHOD1(PlainTime, Equals, equals)
+TEMPORAL_PROTOTYPE_METHOD1(PlainTime, ToString, toString)
+TEMPORAL_PROTOTYPE_METHOD2(PlainTime, ToLocaleString, toLocaleString)
+TEMPORAL_PROTOTYPE_METHOD0(PlainTime, ToJSON, toJSON)
 TEMPORAL_VALUE_OF(PlainTime)
 
 // PlainDateTime
@@ -298,20 +296,36 @@ BUILTIN(TemporalPlainDateTimeConstructor) {
                    args.atOrUndefined(isolate, 10)));  // calendar_like
 }
 
+TEMPORAL_METHOD2(PlainDateTime, From)
+TEMPORAL_METHOD2(PlainDateTime, Compare)
+
+TEMPORAL_GET_RUST(PlainDateTime, date_time, CalendarId, calendarId,
+                  calendar().identifier, CONVERT_ASCII_STRING)
 TEMPORAL_GET_RUST(PlainDateTime, date_time, Year, year, year, CONVERT_INTEGER64)
 TEMPORAL_GET_RUST(PlainDateTime, date_time, Era, era, era, CONVERT_ASCII_STRING)
 TEMPORAL_GET_RUST(PlainDateTime, date_time, EraYear, eraYear, era_year,
                   CONVERT_NULLABLE_INTEGER)
 TEMPORAL_GET_RUST(PlainDateTime, date_time, Month, month, month, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Day, day, day, CONVERT_SMI)
 TEMPORAL_GET_RUST(PlainDateTime, date_time, MonthCode, monthCode, month_code,
                   CONVERT_ASCII_STRING)
+TEMPORAL_GET_RUST(PlainDateTime, date_time, Day, day, day, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDateTime, date_time, Hour, hour, hour, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDateTime, date_time, Minute, minute, minute, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDateTime, date_time, Second, second, second, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDateTime, date_time, Millisecond, millisecond,
+                  millisecond, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDateTime, date_time, Microsecond, microsecond,
+                  microsecond, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDateTime, date_time, Nanosecond, nanosecond, nanosecond,
+                  CONVERT_SMI)
 TEMPORAL_GET_RUST(PlainDateTime, date_time, DayOfWeek, dayOfWeek, day_of_week,
                   CONVERT_FALLIBLE_INTEGER_AS_NULLABLE)
 TEMPORAL_GET_RUST(PlainDateTime, date_time, DayOfYear, dayOfYear, day_of_year,
                   CONVERT_SMI)
 TEMPORAL_GET_RUST(PlainDateTime, date_time, WeekOfYear, weekOfYear,
                   week_of_year, CONVERT_NULLABLE_INTEGER)
+TEMPORAL_GET_RUST(PlainDateTime, date_time, YearOfWeek, YearOfWeek,
+                  year_of_week, CONVERT_NULLABLE_INTEGER)
 TEMPORAL_GET_RUST(PlainDateTime, date_time, DaysInWeek, daysInWeek,
                   days_in_week, CONVERT_FALLIBLE_INTEGER_AS_NULLABLE)
 TEMPORAL_GET_RUST(PlainDateTime, date_time, DaysInMonth, daysInMonth,
@@ -323,37 +337,23 @@ TEMPORAL_GET_RUST(PlainDateTime, date_time, MonthsInYear, monthsInYear,
 TEMPORAL_GET_RUST(PlainDateTime, date_time, InLeapYear, inLeapYear,
                   in_leap_year, CONVERT_BOOLEAN)
 
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Hour, hour, hour, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Minute, minute, minute, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Second, second, second, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Millisecond, millisecond,
-                  millisecond, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Microsecond, microsecond,
-                  microsecond, CONVERT_SMI)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Nanosecond, nanosecond, nanosecond,
-                  CONVERT_SMI)
 
-TEMPORAL_PROTOTYPE_METHOD1(PlainDateTime, WithPlainTime, withPlainTime)
-
-TEMPORAL_METHOD2(PlainDateTime, From)
-TEMPORAL_METHOD2(PlainDateTime, Compare)
-TEMPORAL_PROTOTYPE_METHOD1(PlainDateTime, Equals, equals)
-TEMPORAL_PROTOTYPE_METHOD0(PlainDateTime, ToPlainYearMonth, toPlainYearMonth)
-TEMPORAL_PROTOTYPE_METHOD0(PlainDateTime, ToPlainMonthDay, toPlainMonthDay)
-TEMPORAL_PROTOTYPE_METHOD2(PlainDateTime, ToZonedDateTime, toZonedDateTime)
-TEMPORAL_PROTOTYPE_METHOD1(PlainDateTime, WithPlainDate, withPlainDate)
 TEMPORAL_PROTOTYPE_METHOD2(PlainDateTime, With, with)
+TEMPORAL_PROTOTYPE_METHOD1(PlainDateTime, WithPlainTime, withPlainTime)
+TEMPORAL_PROTOTYPE_METHOD1(PlainDateTime, WithCalendar, withCalendar)
 TEMPORAL_PROTOTYPE_METHOD2(PlainDateTime, Add, add)
-TEMPORAL_PROTOTYPE_METHOD1(PlainDateTime, Round, round)
-TEMPORAL_PROTOTYPE_METHOD2(PlainDateTime, Since, since)
 TEMPORAL_PROTOTYPE_METHOD2(PlainDateTime, Subtract, subtract)
+TEMPORAL_PROTOTYPE_METHOD2(PlainDateTime, Until, until)
+TEMPORAL_PROTOTYPE_METHOD2(PlainDateTime, Since, since)
+TEMPORAL_PROTOTYPE_METHOD1(PlainDateTime, Round, round)
+TEMPORAL_PROTOTYPE_METHOD1(PlainDateTime, Equals, equals)
+TEMPORAL_PROTOTYPE_METHOD1(PlainDateTime, ToString, toString)
+TEMPORAL_PROTOTYPE_METHOD2(PlainDateTime, ToLocaleString, toLocaleString)
+TEMPORAL_PROTOTYPE_METHOD0(PlainDateTime, ToJSON, toJSON)
+TEMPORAL_VALUE_OF(PlainDateTime)
+TEMPORAL_PROTOTYPE_METHOD2(PlainDateTime, ToZonedDateTime, toZonedDateTime)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDateTime, ToPlainDate, toPlainDate)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDateTime, ToPlainTime, toPlainTime)
-TEMPORAL_PROTOTYPE_METHOD0(PlainDateTime, ToJSON, toJSON)
-TEMPORAL_PROTOTYPE_METHOD2(PlainDateTime, ToLocaleString, toLocaleString)
-TEMPORAL_PROTOTYPE_METHOD1(PlainDateTime, ToString, toString)
-TEMPORAL_PROTOTYPE_METHOD2(PlainDateTime, Until, until)
-TEMPORAL_VALUE_OF(PlainDateTime)
 
 // PlainYearMonth
 BUILTIN(TemporalPlainYearMonthConstructor) {
@@ -366,6 +366,12 @@ BUILTIN(TemporalPlainYearMonthConstructor) {
                    args.atOrUndefined(isolate, 3),    // calendar_like
                    args.atOrUndefined(isolate, 4)));  // reference_iso_day
 }
+
+TEMPORAL_METHOD2(PlainYearMonth, From)
+TEMPORAL_METHOD2(PlainYearMonth, Compare)
+
+TEMPORAL_GET_RUST(PlainYearMonth, year_month, CalendarId, calendarId,
+                  calendar().identifier, CONVERT_ASCII_STRING)
 TEMPORAL_GET_RUST(PlainYearMonth, year_month, Year, year, year,
                   CONVERT_INTEGER64)
 TEMPORAL_GET_RUST(PlainYearMonth, year_month, Era, era, era,
@@ -384,19 +390,17 @@ TEMPORAL_GET_RUST(PlainYearMonth, year_month, MonthsInYear, monthsInYear,
 TEMPORAL_GET_RUST(PlainYearMonth, year_month, InLeapYear, inLeapYear,
                   in_leap_year, CONVERT_BOOLEAN)
 
-TEMPORAL_METHOD2(PlainYearMonth, From)
-TEMPORAL_METHOD2(PlainYearMonth, Compare)
+TEMPORAL_PROTOTYPE_METHOD2(PlainYearMonth, With, with)
 TEMPORAL_PROTOTYPE_METHOD2(PlainYearMonth, Add, add)
 TEMPORAL_PROTOTYPE_METHOD2(PlainYearMonth, Subtract, subtract)
-TEMPORAL_PROTOTYPE_METHOD1(PlainYearMonth, Equals, equals)
-TEMPORAL_PROTOTYPE_METHOD2(PlainYearMonth, With, with)
-TEMPORAL_PROTOTYPE_METHOD1(PlainYearMonth, ToPlainDate, toPlainDate)
-TEMPORAL_VALUE_OF(PlainYearMonth)
+TEMPORAL_PROTOTYPE_METHOD2(PlainYearMonth, Until, until)
 TEMPORAL_PROTOTYPE_METHOD2(PlainYearMonth, Since, since)
+TEMPORAL_PROTOTYPE_METHOD1(PlainYearMonth, Equals, equals)
+TEMPORAL_PROTOTYPE_METHOD1(PlainYearMonth, ToString, toString)
 TEMPORAL_PROTOTYPE_METHOD2(PlainYearMonth, ToLocaleString, toLocaleString)
 TEMPORAL_PROTOTYPE_METHOD0(PlainYearMonth, ToJSON, toJSON)
-TEMPORAL_PROTOTYPE_METHOD1(PlainYearMonth, ToString, toString)
-TEMPORAL_PROTOTYPE_METHOD2(PlainYearMonth, Until, until)
+TEMPORAL_VALUE_OF(PlainYearMonth)
+TEMPORAL_PROTOTYPE_METHOD1(PlainYearMonth, ToPlainDate, toPlainDate)
 
 // PlainMonthDay
 BUILTIN(TemporalPlainMonthDayConstructor) {
@@ -409,17 +413,22 @@ BUILTIN(TemporalPlainMonthDayConstructor) {
                    args.atOrUndefined(isolate, 3),    // calendar_like
                    args.atOrUndefined(isolate, 4)));  // reference_iso_year
 }
+
+TEMPORAL_METHOD2(PlainMonthDay, From)
+
+TEMPORAL_GET_RUST(PlainMonthDay, month_day, CalendarId, calendarId,
+                  calendar().identifier, CONVERT_ASCII_STRING)
 TEMPORAL_GET_RUST(PlainMonthDay, month_day, Day, day, iso_day, CONVERT_SMI)
 TEMPORAL_GET_RUST(PlainMonthDay, month_day, MonthCode, monthCode, month_code,
                   CONVERT_ASCII_STRING)
-TEMPORAL_METHOD2(PlainMonthDay, From)
-TEMPORAL_PROTOTYPE_METHOD1(PlainMonthDay, Equals, equals)
+
 TEMPORAL_PROTOTYPE_METHOD2(PlainMonthDay, With, with)
-TEMPORAL_PROTOTYPE_METHOD1(PlainMonthDay, ToPlainDate, toPlainDate)
-TEMPORAL_VALUE_OF(PlainMonthDay)
+TEMPORAL_PROTOTYPE_METHOD1(PlainMonthDay, Equals, equals)
+TEMPORAL_PROTOTYPE_METHOD1(PlainMonthDay, ToString, toString)
 TEMPORAL_PROTOTYPE_METHOD0(PlainMonthDay, ToJSON, toJSON)
 TEMPORAL_PROTOTYPE_METHOD2(PlainMonthDay, ToLocaleString, toLocaleString)
-TEMPORAL_PROTOTYPE_METHOD1(PlainMonthDay, ToString, toString)
+TEMPORAL_VALUE_OF(PlainMonthDay)
+TEMPORAL_PROTOTYPE_METHOD1(PlainMonthDay, ToPlainDate, toPlainDate)
 
 // ZonedDateTime
 
@@ -433,6 +442,12 @@ BUILTIN(TemporalZonedDateTimeConstructor) {
                    args.atOrUndefined(isolate, 3)));  // calendar_like
 }
 
+TEMPORAL_METHOD2(ZonedDateTime, From)
+TEMPORAL_METHOD2(ZonedDateTime, Compare)
+
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, CalendarId, calendarId,
+                  calendar().identifier, CONVERT_ASCII_STRING)
+TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, TimeZoneId, time_zone)
 TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Year, year, year,
                   CONVERT_INTEGER64)
 TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Era, era, era,
@@ -441,26 +456,9 @@ TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, EraYear, eraYear, era_year,
                   CONVERT_NULLABLE_INTEGER)
 TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Month, month, month,
                   CONVERT_SMI)
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Day, day, day, CONVERT_SMI)
 TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, MonthCode, monthCode,
                   month_code, CONVERT_ASCII_STRING)
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DayOfWeek, dayOfWeek,
-                  day_of_week, CONVERT_FALLIBLE_INTEGER_AS_NULLABLE)
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DayOfYear, dayOfYear,
-                  day_of_year, CONVERT_SMI)
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, WeekOfYear, weekOfYear,
-                  week_of_year, CONVERT_NULLABLE_INTEGER)
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DaysInWeek, daysInWeek,
-                  days_in_week, CONVERT_FALLIBLE_INTEGER_AS_NULLABLE)
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DaysInMonth, daysInMonth,
-                  days_in_month, CONVERT_SMI)
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DaysInYear, daysInYear,
-                  days_in_year, CONVERT_SMI)
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, MonthsInYear, monthsInYear,
-                  months_in_year, CONVERT_SMI)
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, InLeapYear, inLeapYear,
-                  in_leap_year, CONVERT_BOOLEAN)
-
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Day, day, day, CONVERT_SMI)
 TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Hour, hour, hour, CONVERT_SMI)
 TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Minute, minute, minute,
                   CONVERT_SMI)
@@ -472,41 +470,52 @@ TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Microsecond, microsecond,
                   microsecond, CONVERT_SMI)
 TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Nanosecond, nanosecond,
                   nanosecond, CONVERT_SMI)
-
 TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, EpochMilliseconds,
                   epochMilliseconds, epoch_milliseconds, CONVERT_DOUBLE)
-
+TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, EpochNanoseconds, nanoseconds)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DayOfWeek, dayOfWeek,
+                  day_of_week, CONVERT_FALLIBLE_INTEGER_AS_NULLABLE)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DayOfYear, dayOfYear,
+                  day_of_year, CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, WeekOfYear, weekOfYear,
+                  week_of_year, CONVERT_NULLABLE_INTEGER)
 TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, YearOfWeek, YearOfWeek,
                   year_of_week, CONVERT_NULLABLE_INTEGER)
-
-TEMPORAL_METHOD2(ZonedDateTime, From)
-TEMPORAL_METHOD2(ZonedDateTime, Compare)
-TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, TimeZoneId, time_zone)
-TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, EpochNanoseconds, nanoseconds)
-TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, Equals, equals)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, HoursInDay, hoursInDay)
-TEMPORAL_PROTOTYPE_METHOD2(ZonedDateTime, With, with)
-TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, WithPlainDate, withPlainDate)
-TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, WithPlainTime, withPlainTime)
-TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, WithTimeZone, withTimeZone)
-TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, ToPlainYearMonth, toPlainYearMonth)
-TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, ToPlainMonthDay, toPlainMonthDay)
-TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, Round, round)
-TEMPORAL_PROTOTYPE_METHOD2(ZonedDateTime, Add, add)
-TEMPORAL_PROTOTYPE_METHOD2(ZonedDateTime, Subtract, subtract)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DaysInWeek, daysInWeek,
+                  days_in_week, CONVERT_FALLIBLE_INTEGER_AS_NULLABLE)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DaysInMonth, daysInMonth,
+                  days_in_month, CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DaysInYear, daysInYear,
+                  days_in_year, CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, MonthsInYear, monthsInYear,
+                  months_in_year, CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, InLeapYear, inLeapYear,
+                  in_leap_year, CONVERT_BOOLEAN)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, OffsetNanoseconds, offsetNanoseconds)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, Offset, offset)
+
+TEMPORAL_PROTOTYPE_METHOD2(ZonedDateTime, With, with)
+TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, WithPlainTime, withPlainTime)
+TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, WithTimeZone, withTimeZone)
+TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, WithCalendar, withCalendar)
+TEMPORAL_PROTOTYPE_METHOD2(ZonedDateTime, Add, add)
+TEMPORAL_PROTOTYPE_METHOD2(ZonedDateTime, Subtract, subtract)
 TEMPORAL_PROTOTYPE_METHOD2(ZonedDateTime, Since, since)
-TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, StartOfDay, startOfDay)
-TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, ToInstant, toInstant)
+TEMPORAL_PROTOTYPE_METHOD2(ZonedDateTime, Until, until)
+TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, Round, round)
+TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, Equals, equals)
+TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, ToString, toString)
+TEMPORAL_PROTOTYPE_METHOD2(ZonedDateTime, ToLocaleString, toLocaleString)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, ToJSON, toJSON)
+TEMPORAL_VALUE_OF(ZonedDateTime)
+TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, StartOfDay, startOfDay)
+TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, GetTimeZoneTransition,
+                           getTimeZoneTransition)
+TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, ToInstant, toInstant)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, ToPlainDate, toPlainDate)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, ToPlainTime, toPlainTime)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, ToPlainDateTime, toPlainDateTime)
-TEMPORAL_PROTOTYPE_METHOD2(ZonedDateTime, ToLocaleString, toLocaleString)
-TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, ToString, toString)
-TEMPORAL_PROTOTYPE_METHOD2(ZonedDateTime, Until, until)
-TEMPORAL_VALUE_OF(ZonedDateTime)
 
 // Duration
 BUILTIN(TemporalDurationConstructor) {
@@ -526,14 +535,9 @@ BUILTIN(TemporalDurationConstructor) {
                    args.atOrUndefined(isolate, 10)));  // nanoseconds
 }
 
-BUILTIN(TemporalDurationCompare) {
-  HandleScope scope(isolate);
-  RETURN_RESULT_OR_FAILURE(isolate, JSTemporalDuration::Compare(
-                                        isolate, args.atOrUndefined(isolate, 1),
-                                        args.atOrUndefined(isolate, 2),
-                                        args.atOrUndefined(isolate, 3)));
-}
 TEMPORAL_METHOD1(Duration, From)
+TEMPORAL_METHOD3(Duration, Compare)
+
 TEMPORAL_GET_RUST(Duration, duration, Years, years, years, CONVERT_INTEGER64)
 TEMPORAL_GET_RUST(Duration, duration, Months, months, months, CONVERT_INTEGER64)
 TEMPORAL_GET_RUST(Duration, duration, Weeks, weeks, weeks, CONVERT_INTEGER64)
@@ -553,36 +557,40 @@ TEMPORAL_GET_RUST(Duration, duration, Microseconds, microseconds, microseconds,
                   CONVERT_DOUBLE)
 TEMPORAL_GET_RUST(Duration, duration, Nanoseconds, nanoseconds, nanoseconds,
                   CONVERT_DOUBLE)
-TEMPORAL_PROTOTYPE_METHOD1(Duration, Round, round)
-TEMPORAL_PROTOTYPE_METHOD1(Duration, Total, total)
-TEMPORAL_PROTOTYPE_METHOD1(Duration, With, with)
+
 TEMPORAL_PROTOTYPE_METHOD0(Duration, Sign, sign)
 TEMPORAL_PROTOTYPE_METHOD0(Duration, Blank, blank)
+TEMPORAL_PROTOTYPE_METHOD1(Duration, With, with)
 TEMPORAL_PROTOTYPE_METHOD0(Duration, Negated, negated)
 TEMPORAL_PROTOTYPE_METHOD0(Duration, Abs, abs)
 TEMPORAL_PROTOTYPE_METHOD2(Duration, Add, add)
 TEMPORAL_PROTOTYPE_METHOD2(Duration, Subtract, subtract)
-TEMPORAL_VALUE_OF(Duration)
+TEMPORAL_PROTOTYPE_METHOD1(Duration, Round, round)
+TEMPORAL_PROTOTYPE_METHOD1(Duration, Total, total)
+TEMPORAL_PROTOTYPE_METHOD1(Duration, ToString, toString)
 TEMPORAL_PROTOTYPE_METHOD0(Duration, ToJSON, toJSON)
 TEMPORAL_PROTOTYPE_METHOD2(Duration, ToLocaleString, toLocaleString)
-TEMPORAL_PROTOTYPE_METHOD1(Duration, ToString, toString)
+TEMPORAL_VALUE_OF(Duration)
 
 // Instant
 TEMPORAL_CONSTRUCTOR1(Instant)
-TEMPORAL_PROTOTYPE_METHOD1(Instant, Equals, equals)
-TEMPORAL_VALUE_OF(Instant)
 TEMPORAL_METHOD1(Instant, From)
+TEMPORAL_METHOD1(Instant, FromEpochMilliseconds)
+TEMPORAL_METHOD1(Instant, FromEpochNanoseconds)
+TEMPORAL_METHOD2(Instant, Compare)
 TEMPORAL_PROTOTYPE_METHOD0(Instant, EpochNanoseconds, epochNanoseconds)
 TEMPORAL_PROTOTYPE_METHOD0(Instant, EpochMilliseconds, epochMilliseconds)
 TEMPORAL_PROTOTYPE_METHOD1(Instant, Add, add)
-TEMPORAL_PROTOTYPE_METHOD1(Instant, Round, round)
-TEMPORAL_PROTOTYPE_METHOD2(Instant, Since, since)
 TEMPORAL_PROTOTYPE_METHOD1(Instant, Subtract, subtract)
-TEMPORAL_PROTOTYPE_METHOD0(Instant, ToJSON, toJSON)
-TEMPORAL_PROTOTYPE_METHOD2(Instant, ToLocaleString, toLocaleString)
-TEMPORAL_PROTOTYPE_METHOD1(Instant, ToString, toString)
-TEMPORAL_PROTOTYPE_METHOD1(Instant, ToZonedDateTime, toZonedDateTime)
 TEMPORAL_PROTOTYPE_METHOD2(Instant, Until, until)
+TEMPORAL_PROTOTYPE_METHOD2(Instant, Since, since)
+TEMPORAL_PROTOTYPE_METHOD1(Instant, Round, round)
+TEMPORAL_PROTOTYPE_METHOD1(Instant, Equals, equals)
+TEMPORAL_PROTOTYPE_METHOD1(Instant, ToString, toString)
+TEMPORAL_PROTOTYPE_METHOD2(Instant, ToLocaleString, toLocaleString)
+TEMPORAL_PROTOTYPE_METHOD0(Instant, ToJSON, toJSON)
+TEMPORAL_VALUE_OF(Instant)
+TEMPORAL_PROTOTYPE_METHOD1(Instant, ToZonedDateTimeISO, toZonedDateTimeISO)
 
 }  // namespace internal
 }  // namespace v8
