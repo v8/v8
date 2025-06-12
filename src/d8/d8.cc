@@ -4326,6 +4326,17 @@ void Shell::InitializeMainThreadCounters(Isolate* isolate) {
   if (i::v8_flags.map_counters[0] != '\0') {
     MapCounters(isolate, i::v8_flags.map_counters);
   }
+  InitializeDefaultCounters(isolate);
+}
+
+void Shell::InitializeDefaultCounters(Isolate* v8_isolate) {
+  if (!options.dump_counters && !options.dump_counters_nvp) return;
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  auto counters = i_isolate->counters();
+  // Force-initialize common counters that are used in our benchmarks
+  // and thus should always be printed if --dump-counters is used.
+  counters->deopts()->Get();
+  counters->maps_created()->Get();
 }
 
 void Shell::Initialize(Isolate* isolate, D8Console* console,

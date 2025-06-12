@@ -552,6 +552,7 @@ class Shell : public i::AllStatic {
   static MaybeLocal<Context> CreateEvaluationContext(Isolate* isolate);
   static int RunMain(Isolate* isolate, bool last_run);
   static int Main(int argc, char* argv[]);
+  static void InitializeDefaultCounters(Isolate* isolate);
   static void Exit(int exit_code);
   static void OnExit(Isolate* isolate, bool dispose);
   static void DumpCounters();
