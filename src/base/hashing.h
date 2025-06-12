@@ -100,6 +100,10 @@ V8_INLINE size_t hash_combine(size_t seed, size_t hash) {
   return seed;
 }
 
+#if V8_HASHES_COLLIDE
+constexpr int kCollidingHash = 1234;
+#endif  // V8_HASHES_COLLIDE
+
 // base::Hasher makes it easier to combine multiple fields into one hash and
 // avoids the ambiguity of the different {hash_combine} methods.
 class Hasher {

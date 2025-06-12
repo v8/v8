@@ -60,6 +60,9 @@ class WasmExportWrapperCache : public AllStatic {
     // We expect most signatures to get only one wrapper, so putting the
     // {receiver_is_first_param} bit at the top should give good distribution
     // of hash values.
+    // Note: "hash" is a bit of a misnomer here; we require this value to
+    // fully represent the identity of the cached value. See {FirstProbe} for
+    // the step where collisions can and do happen.
     static_assert(kMaxCanonicalTypes < (1u << 20));
     return ((receiver_is_first_param ? 1 : 0) << 20) | sig_index.index;
   }
@@ -70,6 +73,9 @@ class WasmExportWrapperCache : public AllStatic {
   }
 
   static InternalIndex FirstProbe(uint32_t hash, uint32_t capacity) {
+#if V8_HASHES_COLLIDE
+    if (v8_flags.hashes_collide) hash = base::kCollidingHash;
+#endif  // V8_HASHES_COLLIDE
     // {New()} ensures that {capacity} is always a power of two.
     return InternalIndex(hash & (capacity - 1));
   }

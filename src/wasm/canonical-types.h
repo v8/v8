@@ -295,7 +295,12 @@ class TypeCanonicalizer {
       }
     }
 
-    size_t hash() const { return hasher.hash(); }
+    size_t hash() const {
+#if V8_HASHES_COLLIDE
+      if (v8_flags.hashes_collide) return base::kCollidingHash;
+#endif  // V8_HASHES_COLLIDE
+      return hasher.hash();
+    }
   };
 
   // Support for equality checking of recursion groups, where type indexes have

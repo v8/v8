@@ -2877,6 +2877,11 @@ DEFINE_INT(random_seed, 0,
 DEFINE_INT(fuzzer_random_seed, 0,
            "Default seed for initializing fuzzer random generator "
            "(0, the default, means to use v8's random number generator seed).")
+#if V8_HASHES_COLLIDE
+DEFINE_BOOL(hashes_collide, false,
+            "Create more hash collisions by making certain hash functions "
+            "always return the same constant")
+#endif  // V8_HASHES_COLLIDE
 DEFINE_BOOL(trace_rail, false, "trace RAIL mode")
 DEFINE_BOOL(print_all_exceptions, false,
             "print exception object and stack trace on each thrown exception")
