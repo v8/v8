@@ -1380,6 +1380,7 @@ bool FeedbackNexus::IsOneMapManyNames() const {
   // "1 map, many names" mode is currently only used for Wasm maps, and
   // {IsWasmObjectMap} is currently only defined for Wasm-enabled builds.
 #if V8_ENABLE_WEBASSEMBLY
+  if (!IsKeyedLoadICKind(kind()) && !IsKeyedStoreICKind(kind())) return false;
   auto pair = GetFeedbackPair();
   Tagged<HeapObject> heap_object;
   if (!pair.first.GetHeapObjectIfWeak(&heap_object)) return false;

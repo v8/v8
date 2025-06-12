@@ -37,3 +37,15 @@ f0();
 f0();
 %OptimizeFunctionOnNextCall(f0);
 f0();
+
+// Issue 424245314: KeyedHasIC should not misclassify its feedback.
+
+function f4() {
+    const v9 = %WasmArray();
+    return 8 in v9;
+}
+%PrepareFunctionForOptimization(f4);
+f4();
+f4();
+%OptimizeFunctionOnNextCall(f4);
+f4();
