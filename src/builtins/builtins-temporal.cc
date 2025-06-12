@@ -113,38 +113,6 @@ namespace internal {
                                   ".prototype.compare for comparison.")));   \
   }
 
-#define TEMPORAL_GET_SMI(T, METHOD, field)                   \
-  BUILTIN(Temporal##T##Prototype##METHOD) {                  \
-    HandleScope scope(isolate);                              \
-    CHECK_RECEIVER(JSTemporal##T, obj,                       \
-                   "get Temporal." #T ".prototype." #field); \
-    return Smi::FromInt(obj->field());                       \
-  }
-
-#define TEMPORAL_METHOD1(T, METHOD)                                       \
-  BUILTIN(Temporal##T##METHOD) {                                          \
-    HandleScope scope(isolate);                                           \
-    RETURN_RESULT_OR_FAILURE(                                             \
-        isolate,                                                          \
-        JSTemporal##T ::METHOD(isolate, args.atOrUndefined(isolate, 1))); \
-  }
-
-#define TEMPORAL_METHOD2(T, METHOD)                                     \
-  BUILTIN(Temporal##T##METHOD) {                                        \
-    HandleScope scope(isolate);                                         \
-    RETURN_RESULT_OR_FAILURE(                                           \
-        isolate,                                                        \
-        JSTemporal##T ::METHOD(isolate, args.atOrUndefined(isolate, 1), \
-                               args.atOrUndefined(isolate, 2)));        \
-  }
-
-#define TEMPORAL_GET(T, METHOD, field)                                       \
-  BUILTIN(Temporal##T##Prototype##METHOD) {                                  \
-    HandleScope scope(isolate);                                              \
-    CHECK_RECEIVER(JSTemporal##T, obj, "Temporal." #T ".prototype." #field); \
-    return obj->field();                                                     \
-  }
-
 // Like TEMPORAL_GET, but gets from an underlying Rust function
 // rust_field is the name of the field with the Rust type. rust_getter is the
 // name of the getter on the rust side (ideally the same as `field`). cvt is
@@ -455,39 +423,6 @@ TEMPORAL_PROTOTYPE_METHOD1(PlainMonthDay, ToString, toString)
 
 // ZonedDateTime
 
-#define TEMPORAL_ZONED_DATE_TIME_GET_PREPARE(M)                              \
-  HandleScope scope(isolate);                                                \
-  const char* method_name = "get Temporal.ZonedDateTime.prototype." #M;      \
-  /* 1. Let zonedDateTime be the this value. */                              \
-  /* 2. Perform ? RequireInternalSlot(zonedDateTime, */                      \
-  /* [[InitializedTemporalZonedDateTime]]). */                               \
-  CHECK_RECEIVER(JSTemporalZonedDateTime, zoned_date_time, method_name);     \
-  /* 3. Let timeZone be zonedDateTime.[[TimeZone]]. */                       \
-  DirectHandle<JSReceiver> time_zone(zoned_date_time->time_zone(), isolate); \
-  /* 4. Let instant be ?                                   */                \
-  /* CreateTemporalInstant(zonedDateTime.[[Nanoseconds]]). */                \
-  DirectHandle<JSTemporalInstant> instant;                                   \
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                                        \
-      isolate, instant,                                                      \
-      temporal::CreateTemporalInstant(                                       \
-          isolate, direct_handle(zoned_date_time->nanoseconds(), isolate))); \
-  /* 5. Let calendar be zonedDateTime.[[Calendar]]. */                       \
-  DirectHandle<JSReceiver> calendar(zoned_date_time->calendar(), isolate);   \
-  /* 6. Let temporalDateTime be ?                 */                         \
-  /* BuiltinTimeZoneGetPlainDateTimeFor(timeZone, */                         \
-  /* instant, calendar). */                                                  \
-  DirectHandle<JSTemporalPlainDateTime> temporal_date_time;                  \
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                                        \
-      isolate, temporal_date_time,                                           \
-      temporal::BuiltinTimeZoneGetPlainDateTimeFor(                          \
-          isolate, time_zone, instant, calendar, method_name));
-
-#define TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(M) \
-  BUILTIN(TemporalZonedDateTimePrototype##M) { UNIMPLEMENTED(); }
-
-#define TEMPORAL_ZONED_DATE_TIME_GET_INT_BY_FORWARD_TIME_ZONE(M, field) \
-  BUILTIN(TemporalZonedDateTimePrototype##M) { UNIMPLEMENTED(); }
-
 BUILTIN(TemporalZonedDateTimeConstructor) {
   HandleScope scope(isolate);
   RETURN_RESULT_OR_FAILURE(
@@ -497,37 +432,57 @@ BUILTIN(TemporalZonedDateTimeConstructor) {
                    args.atOrUndefined(isolate, 2),    // time_zone_like
                    args.atOrUndefined(isolate, 3)));  // calendar_like
 }
+
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Year, year, year,
+                  CONVERT_INTEGER64)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Era, era, era,
+                  CONVERT_ASCII_STRING)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, EraYear, eraYear, era_year,
+                  CONVERT_NULLABLE_INTEGER)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Month, month, month,
+                  CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Day, day, day, CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, MonthCode, monthCode,
+                  month_code, CONVERT_ASCII_STRING)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DayOfWeek, dayOfWeek,
+                  day_of_week, CONVERT_FALLIBLE_INTEGER_AS_NULLABLE)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DayOfYear, dayOfYear,
+                  day_of_year, CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, WeekOfYear, weekOfYear,
+                  week_of_year, CONVERT_NULLABLE_INTEGER)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DaysInWeek, daysInWeek,
+                  days_in_week, CONVERT_FALLIBLE_INTEGER_AS_NULLABLE)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DaysInMonth, daysInMonth,
+                  days_in_month, CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DaysInYear, daysInYear,
+                  days_in_year, CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, MonthsInYear, monthsInYear,
+                  months_in_year, CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, InLeapYear, inLeapYear,
+                  in_leap_year, CONVERT_BOOLEAN)
+
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Hour, hour, hour, CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Minute, minute, minute,
+                  CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Second, second, second,
+                  CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Millisecond, millisecond,
+                  millisecond, CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Microsecond, microsecond,
+                  microsecond, CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Nanosecond, nanosecond,
+                  nanosecond, CONVERT_SMI)
+
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, EpochMilliseconds,
+                  epochMilliseconds, epoch_milliseconds, CONVERT_DOUBLE)
+
+TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, YearOfWeek, YearOfWeek,
+                  year_of_week, CONVERT_NULLABLE_INTEGER)
+
 TEMPORAL_METHOD2(ZonedDateTime, From)
 TEMPORAL_METHOD2(ZonedDateTime, Compare)
-TEMPORAL_GET(ZonedDateTime, TimeZone, time_zone)
-TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(Year)
-TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(Month)
-TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(MonthCode)
-TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(Day)
-TEMPORAL_GET(ZonedDateTime, EpochNanoseconds, nanoseconds)
-TEMPORAL_GET_NUMBER_AFTER_DIVID(ZonedDateTime, EpochSeconds, nanoseconds,
-                                1000000000, epochSeconds)
-TEMPORAL_GET_NUMBER_AFTER_DIVID(ZonedDateTime, EpochMilliseconds, nanoseconds,
-                                1000000, epochMilliseconds)
-TEMPORAL_GET_BIGINT_AFTER_DIVID(ZonedDateTime, EpochMicroseconds, nanoseconds,
-                                1000, epochMicroseconds)
-TEMPORAL_ZONED_DATE_TIME_GET_INT_BY_FORWARD_TIME_ZONE(Hour, iso_hour)
-TEMPORAL_ZONED_DATE_TIME_GET_INT_BY_FORWARD_TIME_ZONE(Minute, iso_minute)
-TEMPORAL_ZONED_DATE_TIME_GET_INT_BY_FORWARD_TIME_ZONE(Second, iso_second)
-TEMPORAL_ZONED_DATE_TIME_GET_INT_BY_FORWARD_TIME_ZONE(Millisecond,
-                                                      iso_millisecond)
-TEMPORAL_ZONED_DATE_TIME_GET_INT_BY_FORWARD_TIME_ZONE(Microsecond,
-                                                      iso_microsecond)
-TEMPORAL_ZONED_DATE_TIME_GET_INT_BY_FORWARD_TIME_ZONE(Nanosecond,
-                                                      iso_nanosecond)
-TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(DayOfWeek)
-TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(DayOfYear)
-TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(WeekOfYear)
-TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(DaysInWeek)
-TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(DaysInMonth)
-TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(DaysInYear)
-TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(MonthsInYear)
-TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(InLeapYear)
+TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, TimeZoneId, time_zone)
+TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, EpochNanoseconds, nanoseconds)
 TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, Equals, equals)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, HoursInDay, hoursInDay)
 TEMPORAL_PROTOTYPE_METHOD2(ZonedDateTime, With, with)
@@ -628,10 +583,6 @@ TEMPORAL_PROTOTYPE_METHOD2(Instant, ToLocaleString, toLocaleString)
 TEMPORAL_PROTOTYPE_METHOD1(Instant, ToString, toString)
 TEMPORAL_PROTOTYPE_METHOD1(Instant, ToZonedDateTime, toZonedDateTime)
 TEMPORAL_PROTOTYPE_METHOD2(Instant, Until, until)
-
-// get Temporal.*.prototype.era/eraYear
-TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(Era)
-TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(EraYear)
 
 }  // namespace internal
 }  // namespace v8

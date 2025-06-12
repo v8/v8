@@ -1865,7 +1865,7 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
 
 #define ZONED_DATE_TIME_GETTER_LIST(V)    \
   ZONED_DATE_TIME_GETTER_LIST_INTL(V)     \
-  V(timeZone, TimeZone)                   \
+  V(timeZoneId, TimeZoneId)               \
   V(year, Year)                           \
   V(month, Month)                         \
   V(monthCode, MonthCode)                 \
@@ -1876,13 +1876,12 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
   V(millisecond, Millisecond)             \
   V(microsecond, Microsecond)             \
   V(nanosecond, Nanosecond)               \
-  V(epochSeconds, EpochSeconds)           \
   V(epochMilliseconds, EpochMilliseconds) \
-  V(epochMicroseconds, EpochMicroseconds) \
   V(epochNanoseconds, EpochNanoseconds)   \
   V(dayOfWeek, DayOfWeek)                 \
   V(dayOfYear, DayOfYear)                 \
   V(weekOfYear, WeekOfYear)               \
+  V(yearOfWeek, YearOfWeek)               \
   V(hoursInDay, HoursInDay)               \
   V(daysInWeek, DaysInWeek)               \
   V(daysInMonth, DaysInMonth)             \

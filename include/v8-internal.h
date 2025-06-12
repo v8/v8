@@ -642,6 +642,7 @@ enum ExternalPointerTag : uint16_t {
   kTemporalPlainDateTimeTag,
   kTemporalPlainYearMonthTag,
   kTemporalPlainMonthDayTag,
+  kTemporalZonedDateTimeTag,
   kDisplayNamesInternalTag,
   kD8WorkerTag,
   kD8ModuleEmbedderDataTag,

@@ -4,29 +4,6 @@
 
 #include 'src/objects/js-temporal-objects.h'
 
-
-bitfield struct JSTemporalYearMonthDay extends uint31 {
-  iso_year: int32: 20 bit;
-  iso_month: int32: 4 bit;
-  iso_day: int32: 5 bit;
-}
-
-bitfield struct JSTemporalHourMinuteSecond extends uint31 {
-  iso_hour: int32: 5 bit;
-  iso_minute: int32: 6 bit;
-  iso_second: int32: 6 bit;
-}
-
-bitfield struct JSTemporalSecondParts extends uint31 {
-  iso_millisecond: int32: 10 bit;
-  iso_microsecond: int32: 10 bit;
-  iso_nanosecond: int32: 10 bit;
-}
-
-bitfield struct JSTemporalTimeZoneSubMilliseconds extends uint31 {
-  offset_sub_milliseconds: int32: 21 bit;
-}
-
 extern class JSTemporalDuration extends JSObject {
   duration: Foreign;  // Managed<temporal_rs::Duration>
 }
@@ -55,9 +32,6 @@ extern class JSTemporalPlainYearMonth extends JSObject {
   year_month: Foreign;  // Managed<temporal_rs::PlainDate>
 }
 
-
 extern class JSTemporalZonedDateTime extends JSObject {
-  nanoseconds: BigInt;
-  time_zone: JSReceiver;
-  calendar: JSReceiver;
+  zoned_date_time: Foreign;  // Managed<temporal_rs::ZonedDateTime>
 }

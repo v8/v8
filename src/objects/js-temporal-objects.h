@@ -24,29 +24,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-temporal-objects-tq.inc"
 
-#define DECLARE_TEMPORAL_INLINE_GETTER_SETTER(field) \
-  inline void set_##field(int32_t field);            \
-  inline int32_t field() const;
-
-#define DECLARE_TEMPORAL_TIME_INLINE_GETTER_SETTER()     \
-  DECLARE_TEMPORAL_INLINE_GETTER_SETTER(iso_hour)        \
-  DECLARE_TEMPORAL_INLINE_GETTER_SETTER(iso_minute)      \
-  DECLARE_TEMPORAL_INLINE_GETTER_SETTER(iso_second)      \
-  DECLARE_TEMPORAL_INLINE_GETTER_SETTER(iso_millisecond) \
-  DECLARE_TEMPORAL_INLINE_GETTER_SETTER(iso_microsecond) \
-  DECLARE_TEMPORAL_INLINE_GETTER_SETTER(iso_nanosecond)
-
-#define DECLARE_TEMPORAL_DATE_INLINE_GETTER_SETTER() \
-  DECLARE_TEMPORAL_INLINE_GETTER_SETTER(iso_year)    \
-  DECLARE_TEMPORAL_INLINE_GETTER_SETTER(iso_month)   \
-  DECLARE_TEMPORAL_INLINE_GETTER_SETTER(iso_day)
-
-#define TEMPORAL_UNIMPLEMENTED(T)            \
-  {                                          \
-    printf("TBW %s\n", __PRETTY_FUNCTION__); \
-    UNIMPLEMENTED();                         \
-  }
-
 // For a type wrapping a rust field, add accessors for it
 // including a initialize_with_wrapped_rust_value() that can be used in
 // templates
@@ -74,6 +51,8 @@ ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::PlainTime,
                                         kTemporalPlainTimeTag)
 ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::PlainYearMonth,
                                         kTemporalPlainYearMonthTag)
+ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::ZonedDateTime,
+                                        kTemporalZonedDateTimeTag)
 class JSTemporalPlainDate;
 class JSTemporalPlainMonthDay;
 class JSTemporalPlainYearMonth;
@@ -811,11 +790,19 @@ class JSTemporalZonedDateTime
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalZonedDateTime>
   NowISO(Isolate* isolate, DirectHandle<Object> temporal_time_zone_like);
 
-  // #sec-get-temporal.zoneddatetime.prototype.offsetnanoseconds
+  // #sec-temporal.zoneddatetime.prototype.epochnanoseconds
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<BigInt> EpochNanoseconds(
+      Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> instant);
+
+  // #sec-temporal.zoneddatetime.prototype.timezoneid
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> TimeZoneId(
+      Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time);
+
+  // #sec-temporal.zoneddatetime.prototype.offsetnanoseconds
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object> OffsetNanoseconds(
       Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time);
 
-  // #sec-get-temporal.zoneddatetime.prototype.offset
+  // #sec-temporal.zoneddatetime.prototype.offset
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> Offset(
       Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time);
 
@@ -858,6 +845,8 @@ class JSTemporalZonedDateTime
       DirectHandle<Object> options);
 
   DECL_PRINTER(JSTemporalZonedDateTime)
+
+  DECL_ACCESSORS_FOR_RUST_WRAPPER(zoned_date_time, temporal_rs::ZonedDateTime)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalZonedDateTime)
 };

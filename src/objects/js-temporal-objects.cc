@@ -221,6 +221,7 @@ DEFINE_ACCESSORS_FOR_RUST_WRAPPER(date_time, JSTemporalPlainDateTime)
 DEFINE_ACCESSORS_FOR_RUST_WRAPPER(month_day, JSTemporalPlainMonthDay)
 DEFINE_ACCESSORS_FOR_RUST_WRAPPER(time, JSTemporalPlainTime)
 DEFINE_ACCESSORS_FOR_RUST_WRAPPER(year_month, JSTemporalPlainYearMonth)
+DEFINE_ACCESSORS_FOR_RUST_WRAPPER(zoned_date_time, JSTemporalZonedDateTime)
 
 namespace temporal {
 
@@ -3869,6 +3870,20 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Now(Isolate* isolate) {
 
 // #sec-get-temporal.zoneddatetime.prototype.offsetnanoseconds
 MaybeDirectHandle<Object> JSTemporalZonedDateTime::OffsetNanoseconds(
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
+  TEMPORAL_ENTER_FUNC();
+  UNIMPLEMENTED();
+}
+
+// #sec-get-temporal.zoneddatetime.prototype.epochnanoseconds
+MaybeDirectHandle<BigInt> JSTemporalZonedDateTime::EpochNanoseconds(
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
+  TEMPORAL_ENTER_FUNC();
+  UNIMPLEMENTED();
+}
+
+// #sec-get-temporal.zoneddatetime.prototype.timezoneid
+MaybeDirectHandle<String> JSTemporalZonedDateTime::TimeZoneId(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
   UNIMPLEMENTED();

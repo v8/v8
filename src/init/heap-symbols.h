@@ -848,6 +848,7 @@
   V(_, throw_string, "throw")                                                 \
   V(_, timed_out_string, "timed-out")                                         \
   V(_, timeZone_string, "timeZone")                                           \
+  V(_, timeZoneId_string, "timeZoneId")                                       \
   V(_, toJSON_string, "toJSON")                                               \
   V(_, toString_string, "toString")                                           \
   V(_, true_string, "true")                                                   \
@@ -876,7 +877,8 @@
   V(_, written_string, "written")                                             \
   V(_, yearMonthFromFields_string, "yearMonthFromFields")                     \
   V(_, year_string, "year")                                                   \
-  V(_, years_string, "years")
+  V(_, years_string, "years")                                                 \
+  V(_, yearOfWeek_string, "yearOfWeek")
 
 #define INTERNALIZED_STRING_LIST_GENERATOR(V, _)           \
   EXTRA_IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(V, _) \

@@ -1746,8 +1746,8 @@ namespace internal {
   CPP(TemporalZonedDateTimeFrom, kDontAdaptArgumentsSentinel)                  \
   /* Temporal #sec-temporal.zoneddatetime.compare */                           \
   CPP(TemporalZonedDateTimeCompare, kDontAdaptArgumentsSentinel)               \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.timezone */            \
-  CPP(TemporalZonedDateTimePrototypeTimeZone, JSParameterCount(0))             \
+  /* Temporal #sec-get-temporal.zoneddatetime.prototype.timezoneid */          \
+  CPP(TemporalZonedDateTimePrototypeTimeZoneId, JSParameterCount(0))           \
   /* Temporal #sec-get-temporal.zoneddatetime.prototype.year */                \
   CPP(TemporalZonedDateTimePrototypeYear, JSParameterCount(0))                 \
   /* Temporal #sec-get-temporal.zoneddatetime.prototype.month */               \
@@ -1768,12 +1768,8 @@ namespace internal {
   CPP(TemporalZonedDateTimePrototypeMicrosecond, JSParameterCount(0))          \
   /* Temporal #sec-get-temporal.zoneddatetime.prototype.nanosecond */          \
   CPP(TemporalZonedDateTimePrototypeNanosecond, JSParameterCount(0))           \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.epochsecond */         \
-  CPP(TemporalZonedDateTimePrototypeEpochSeconds, JSParameterCount(0))         \
   /* Temporal #sec-get-temporal.zoneddatetime.prototype.epochmilliseconds */   \
   CPP(TemporalZonedDateTimePrototypeEpochMilliseconds, JSParameterCount(0))    \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.epochmicroseconds */   \
-  CPP(TemporalZonedDateTimePrototypeEpochMicroseconds, JSParameterCount(0))    \
   /* Temporal #sec-get-temporal.zoneddatetime.prototype.epochnanoseconds */    \
   CPP(TemporalZonedDateTimePrototypeEpochNanoseconds, JSParameterCount(0))     \
   /* Temporal #sec-get-temporal.zoneddatetime.prototype.dayofweek */           \
@@ -1782,6 +1778,8 @@ namespace internal {
   CPP(TemporalZonedDateTimePrototypeDayOfYear, JSParameterCount(0))            \
   /* Temporal #sec-get-temporal.zoneddatetime.prototype.weekofyear */          \
   CPP(TemporalZonedDateTimePrototypeWeekOfYear, JSParameterCount(0))           \
+  /* Temporal #sec-get-temporal.zoneddatetime.prototype.yearofweek */          \
+  CPP(TemporalZonedDateTimePrototypeYearOfWeek, JSParameterCount(0))           \
   /* Temporal #sec-get-temporal.zoneddatetime.prototype.hoursinday */          \
   CPP(TemporalZonedDateTimePrototypeHoursInDay, JSParameterCount(0))           \
   /* Temporal #sec-get-temporal.zoneddatetime.prototype.daysinweek */          \
@@ -2007,7 +2005,6 @@ namespace internal {
                                                                                \
   /* Temporal #sec-date.prototype.totemporalinstant */                         \
   CPP(DatePrototypeToTemporalInstant, kDontAdaptArgumentsSentinel)             \
-                                                                               \
                                                                                \
   /* Intl */ /* Temporal #sec-get-temporal.plaindate.prototype.era */          \
   CPP(TemporalPlainDatePrototypeEra,                                           \
