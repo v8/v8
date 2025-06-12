@@ -2385,6 +2385,7 @@ DEFINE_BOOL(stress_per_context_marking_worklist, false,
 DEFINE_BOOL(stress_incremental_marking, false,
             "force incremental marking for small heaps and run it more often")
 DEFINE_BOOL(large_page_pool, false, "Add large pages to the page pool")
+DEFINE_WEAK_IMPLICATION(future, large_page_pool)
 DEFINE_SIZE_T(max_large_page_pool_size, 32,
               "Maximum size of pooled large pages in MB.")
 DEFINE_INT(large_page_pool_timeout, 3,
