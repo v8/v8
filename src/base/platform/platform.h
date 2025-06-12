@@ -163,6 +163,11 @@ class V8_BASE_EXPORT OS {
   // Check whether CET shadow stack is enabled.
   static bool IsHardwareEnforcedShadowStacksEnabled();
 
+  // Ensure that an alternative stack is available for signal handlers on the
+  // current thread on platforms that support this. If necessary, this function
+  // will allocate memory for an alternative stack and register it with the OS.
+  static void EnsureAlternativeSignalStackIsAvailableForCurrentThread();
+
   // Returns the accumulated user time for thread. This routine
   // can be used for profiling. The implementation should
   // strive for high-precision timer resolution, preferable

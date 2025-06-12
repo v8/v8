@@ -105,6 +105,16 @@ class V8_BASE_EXPORT MemoryProtectionKey {
   // Get the permissions of the protection key {key} for the current thread.
   static Permission GetKeyPermission(int key);
 
+  // Compute the register mask for switching the permissions of the given key.
+  //
+  // The returned mask indicates which bit(s) of the memory protection key CPU
+  // register (e.g. the PKRU register on x86) must be set to set the given
+  // permissions on the given key.
+  //
+  // This is mostly useful for generating code that switches key permissions.
+  static uint32_t ComputeRegisterMaskForPermissionSwitch(
+      int key, Permission permissions);
+
   // Set the default permissions for all active keys in a signal handler.
   //
   // Signal handlers on some platforms, for example older Linux kernels, run

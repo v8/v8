@@ -1327,6 +1327,20 @@ void Assembler::lfence() {
   emit(0xE8);
 }
 
+void Assembler::rdpkru() {
+  EnsureSpace ensure_space(this);
+  emit(0x0F);
+  emit(0x01);
+  emit(0xEE);
+}
+
+void Assembler::wrpkru() {
+  EnsureSpace ensure_space(this);
+  emit(0x0F);
+  emit(0x01);
+  emit(0xEF);
+}
+
 void Assembler::cpuid() {
   EnsureSpace ensure_space(this);
   emit(0x0F);

@@ -478,6 +478,130 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   }
 }
 
+void MacroAssembler::EnterSandbox() {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  pushq(rax);
+  pushq(rbx);
+  pushq(rcx);
+  pushq(rdx);
+
+  xorq(rcx, rcx);
+  xorq(rdx, rdx);
+
+  // TODO(350324877): it would be nicer if we could use an IsolateFieldId here.
+  // However, that isn't currently possible since these routines are also used
+  // in code that doesn't have the root register available. In the future, we
+  // might anyway want to refactor this mechanism to instead use dedicated
+  // trampoline builtins for entering/exiting sandboxed execution mode. Then we
+  // could consider generating the code for that trampoline at runtime, at
+  // which point we would no longer need an external reference at all.
+  LoadAddress(rbx, ExternalReference::sandboxed_mode_pkey_mask_address());
+  movl(rbx, Operand(rbx, 0));
+
+  if (v8_flags.debug_code) {
+    // Check that we are not in sandboxed mode.
+    // If sandbox hardware support is not active, the mask will be all zeroes
+    // and so this test will also pass.
+    rdpkru();
+    andl(rax, rbx);
+    Assert(zero, AbortReason::kUnexpectedSandboxMode);
+  }
+
+  // PKEY permissions bits:
+  //   00: kNoRestrictions
+  //   01: kDisableAccess
+  //   10: kDisableWrite
+  rdpkru();
+  // Set the bit from the pkey mask, thereby restricting access to the
+  // out-of-sandbox pkey.
+  orl(rax, rbx);
+  wrpkru();
+
+  popq(rdx);
+  popq(rcx);
+  popq(rbx);
+  popq(rax);
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+}
+
+void MacroAssembler::ExitSandbox() {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  pushq(rax);
+  pushq(rbx);
+  pushq(rcx);
+  pushq(rdx);
+
+  xorq(rcx, rcx);
+  xorq(rdx, rdx);
+
+  LoadAddress(rbx, ExternalReference::sandboxed_mode_pkey_mask_address());
+  movl(rbx, Operand(rbx, 0));
+
+  if (v8_flags.debug_code) {
+    // Check that we are in sandboxed mode.
+    // If sandbox hardware support is not active, the mask will be all zeroes
+    // and so we need to handle this here.
+    Label hardware_support_not_active;
+    testl(rbx, rbx);
+    j(zero, &hardware_support_not_active);
+    rdpkru();
+    andl(rax, rbx);
+    Assert(not_zero, AbortReason::kUnexpectedSandboxMode);
+    bind(&hardware_support_not_active);
+  }
+
+  // PKEY permissions bits:
+  //   00: kNoRestrictions
+  //   01: kDisableAccess
+  //   10: kDisableWrite
+  rdpkru();
+  // Clear the bit from the pkey mask, thereby restoring full access to the
+  // out-of-sandbox pkey.
+  notl(rbx);
+  andl(rax, rbx);
+  wrpkru();
+
+  popq(rdx);
+  popq(rcx);
+  popq(rbx);
+  popq(rax);
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+}
+
+void MacroAssembler::AssertInSandboxedExecutionMode() {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  if (v8_flags.debug_code) {
+    pushq(rax);
+    pushq(rbx);
+    pushq(rcx);
+    pushq(rdx);
+
+    xorq(rcx, rcx);
+    xorq(rdx, rdx);
+
+    LoadAddress(rbx, ExternalReference::sandboxed_mode_pkey_mask_address());
+    movl(rbx, Operand(rbx, 0));
+
+    // If sandbox hardware support is not active, the mask will be all zeroes
+    // and so we need to handle this here.
+    Label hardware_support_not_active;
+    testl(rbx, rbx);
+    j(zero, &hardware_support_not_active);
+
+    rdpkru();
+    andl(rax, rbx);
+    Assert(not_zero, AbortReason::kUnexpectedSandboxMode);
+
+    bind(&hardware_support_not_active);
+
+    popq(rdx);
+    popq(rcx);
+    popq(rbx);
+    popq(rax);
+  }
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+}
+
 void MacroAssembler::EncodeSandboxedPointer(Register value) {
   ASM_CODE_COMMENT(this);
 #ifdef V8_ENABLE_SANDBOX

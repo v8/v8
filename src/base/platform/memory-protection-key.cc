@@ -140,6 +140,20 @@ MemoryProtectionKey::Permission MemoryProtectionKey::GetKeyPermission(int key) {
 }
 
 // static
+uint32_t MemoryProtectionKey::ComputeRegisterMaskForPermissionSwitch(
+    int key, Permission permissions) {
+  DCHECK_NE(permissions, kNoRestrictions);
+
+#if defined(V8_TARGET_ARCH_X64)
+  constexpr int kBitsPerKey = 2;
+  return permissions << (key * kBitsPerKey);
+#else
+  // Currently we only support x86 memory protection keys here.
+  FATAL("Unsupported architecture");
+#endif
+}
+
+// static
 void MemoryProtectionKey::SetDefaultPermissionsForAllKeysInSignalHandler() {
   // NOTE: This code MUST be async-signal safe
 

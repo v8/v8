@@ -735,17 +735,7 @@ void InstallCrashFilter() {
   // Note that the alternate stack is currently only registered for the main
   // thread. Stack pointer corruption or stack overflows on background threads
   // may therefore still cause the signal handler to crash.
-  VirtualAddressSpace* vas = GetPlatformVirtualAddressSpace();
-  Address alternate_stack =
-      vas->AllocatePages(VirtualAddressSpace::kNoHint, SIGSTKSZ,
-                         vas->page_size(), PagePermissions::kReadWrite);
-  CHECK_NE(alternate_stack, kNullAddress);
-  stack_t signalstack = {
-      .ss_sp = reinterpret_cast<void*>(alternate_stack),
-      .ss_flags = 0,
-      .ss_size = static_cast<size_t>(SIGSTKSZ),
-  };
-  CHECK_EQ(sigaltstack(&signalstack, nullptr), 0);
+  base::OS::EnsureAlternativeSignalStackIsAvailableForCurrentThread();
 
   struct sigaction action;
   memset(&action, 0, sizeof(action));

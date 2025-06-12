@@ -178,7 +178,7 @@ void Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
 #endif  // V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
 
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-  SandboxHardwareSupport::TryEnable(base(), size());
+  SandboxHardwareSupport::RegisterSandboxMemory(base(), size());
 #endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
   DCHECK(initialized_);

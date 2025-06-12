@@ -308,7 +308,7 @@ double Platform::SystemClockTimeMillis() {
 // static
 void SandboxHardwareSupport::InitializeBeforeThreadCreation() {
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-  internal::SandboxHardwareSupport::InitializeBeforeThreadCreation();
+  internal::SandboxHardwareSupport::TryActivateBeforeThreadCreation();
 #endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 }
 

@@ -305,6 +305,15 @@ ExternalReference ExternalReference::sandbox_end_address() {
   return ExternalReference(Sandbox::current()->end_address());
 }
 
+ExternalReference ExternalReference::sandboxed_mode_pkey_mask_address() {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  return ExternalReference(
+      SandboxHardwareSupport::sandboxed_mode_pkey_mask_address());
+#else
+  return ExternalReference(kNullAddress);
+#endif
+}
+
 ExternalReference ExternalReference::empty_backing_store_buffer() {
   return ExternalReference(
       Sandbox::current()->constants().empty_backing_store_buffer_address());

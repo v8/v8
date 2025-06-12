@@ -4287,6 +4287,7 @@ v8_header_set("v8_internal_headers") {
     "src/sandbox/code-pointer-table-inl.h",
     "src/sandbox/code-pointer-table.h",
     "src/sandbox/code-pointer.h",
+    "src/sandbox/code-sandboxing-mode.h",
     "src/sandbox/compactible-external-entity-table-inl.h",
     "src/sandbox/compactible-external-entity-table.h",
     "src/sandbox/cppheap-pointer-inl.h",

@@ -7,6 +7,7 @@
 
 #include "include/v8-platform.h"
 #include "src/common/globals.h"
+#include "src/sandbox/code-sandboxing-mode.h"
 
 namespace v8 {
 namespace internal {
@@ -15,37 +16,142 @@ namespace internal {
 
 class V8_EXPORT_PRIVATE SandboxHardwareSupport {
  public:
-  // Allocates a pkey that will be used to optionally block sandbox access. This
-  // function should be called once before any threads are created so that new
-  // threads inherit access to the new pkey.
+  // Try to active hardware sandboxing support. This will attempt to allocate
+  // the memory protection keys needed for sandbox hardware support.
+  //
+  // This function should be called once before any threads are created so that
+  // new threads inherit access to the new pkeys.
+  //
   // This function returns true on success, false otherwise. It can generally
   // fail for one of two reasons:
   //   1. the current system doesn't support memory protection keys, or
   //   2. there are no allocatable memory protection keys left.
-  static bool InitializeBeforeThreadCreation();
+  static bool TryActivateBeforeThreadCreation();
 
-  // Try to set up hardware permissions to the sandbox address space. If
-  // successful, future calls to MaybeBlockAccess will block the current thread
-  // from accessing the memory.
-  // This will only fail if InitializeBeforeThreadCreation was unable to
-  // allocate a memory protection key.
-  static bool TryEnable(Address addr, size_t size);
+  // Returns true if sandbox hardware support is active.
+  //
+  // This will return true iff TryActivateBeforeThreadCreation() was called
+  // before and succeeded in allocating the memory protection keys.
+  static bool IsActive();
 
-  // Returns true if hardware sandboxing is enabled.
-  static bool IsEnabled();
+  // Register the memory for the sandbox.
+  //
+  // This will set up the memory protection keys for the sandbox address space.
+  static void RegisterSandboxMemory(Address addr, size_t size);
 
-  // Removes the pkey from read only pages. We (currently) still allow read
-  // access to read-only pages inside the sandbox even with an active
-  // DisallowSandboxAccess scope.
-  static void NotifyReadOnlyPageCreated(
+  // Register memory outside of the sandbox.
+  //
+  // When in sandboxed execution mode, memory outside of the sandbox cannot be
+  // written to. For now, all such memory needs to be registered through this
+  // method, which will assign the proper memory protection key to it. Once we
+  // always use the default pkey as out_of_sandbox_pkey_, this method will no
+  // longer be required.
+  static void RegisterOutOfSandboxMemory(Address addr, size_t size);
+
+  // Make additional out-of-sandbox memory accessible to sandboxed code.
+  //
+  // Any use of this function should be considered to be a temporary exception
+  // and be accompanied with a comment describing how and when to get rid of it
+  // (ideally linking to a bug). Eventually, for hardware sandbox support to
+  // become robust, there should be no remaining uses of this function, and
+  // this therefore also serves as documentation where code should be
+  // refactored to not require out-of-sandbox writes from sandboxed code.
+  static void RegisterUnsafeSandboxExtensionMemory(Address addr, size_t size);
+
+  // Register read-only memory inside the sandbox.
+  // Currently read-only in-sandbox memory is still accessible even with an
+  // active DisallowSandboxAccess scope, and this function configures the
+  // memory protection keys accordingly.
+  static void RegisterReadOnlyMemoryInsideSandbox(
       Address addr, size_t size, PageAllocator::Permission current_permissions);
+
+  // Enter and exit sandboxed execution mode for the current thread.
+  //
+  // When in sandboxed execution mode, out-of-sandbox memory is no longer
+  // writable by the current thread (with the exception of "extension" memory
+  // registered via RegisterUnsafeSandboxExtensionMemory). This is achieved by
+  // removing write access for the out-of-sandbox key.
+  static void EnterSandboxedExecutionModeForCurrentThread();
+  static void ExitSandboxedExecutionModeForCurrentThread();
+
+  // Returns the sandboxing mode of the current thread.
+  //
+  // If sandbox hardware support is not active, this will always return
+  // CodeSandboxingMode::kUnsandboxed.
+  static CodeSandboxingMode CurrentSandboxingMode();
+
+  // Returns whether the current sandboxing mode matches the given mode.
+  //
+  // If sandbox hardware support is not active, this will always return true.
+  // As such, this method can be used in for example DCHECKs without having to
+  // first check if sandbox hardware support is active.
+  static bool CurrentSandboxingModeIs(CodeSandboxingMode expected_mode);
+
+  // For use in generated code.
+  static Address sandboxed_mode_pkey_mask_address() {
+    return reinterpret_cast<Address>(&sandboxed_mode_pkey_mask_);
+  }
 
  private:
   friend class DisallowSandboxAccess;
   friend class AllowSandboxAccess;
-  static int pkey_;
+
+  // This PKEY is used for all (writable) memory inside the sandbox. It can be
+  // used for two different purposes:
+  //
+  // 1. To allow write access to in-sandbox memory while removing write access
+  //    to out-of-sandbox memory when executing sandboxed code.
+  //
+  // 2. To remove read access from in-sandbox memory in privileged code. This
+  //    can be used to get a certain level of guarantees that code cannot be
+  //    influenced by attacker-controlled data. See MaybeBlockAccess().
+  //
+  static int sandbox_pkey_;
+
+  // This PKEY is used for out-of-sandbox memory, which must not be writable
+  // when executing sandboxed code.
+  //
+  // Ideally, this would simply be the default pkey (key 0) to guarantee that
+  // all out-of-sandbox memory is inaccessible. However, this is somewhat
+  // complicated to get to work, so for now this is a "regular" pkey pwith
+  // which out-of-sandbox memory must manually be tagged.
+  static int out_of_sandbox_pkey_;
+
+  // This PKEY is used for out-of-sandbox memory that must still be writable
+  // even to sandboxed code.
+  //
+  // Ideally, at some point in the future this key will no longer be needed
+  // because sandboxed code should not need to write any out-of-sandbox memory.
+  static int extension_pkey_;
+
+  // The mask to apply to the pkru register to enter sandboxed execution mode.
+  //
+  // This is used for the implementation of EnterSandbox and ExitSandbox in
+  // generated code. When hardware sandbox support is not active, this mask
+  // will simply be zero in which case the EnterSandbox and ExitSandbox
+  // routines (in generated code) become nops.
+  static uint32_t sandboxed_mode_pkey_mask_;
 };
 #endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
+// Enter sandboxed execution mode.
+//
+// If hardware sandbox support is active, this will disallow write access to
+// non-sandbox memory for the current thread until ExitSandbox() is called.
+inline void EnterSandbox() {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  SandboxHardwareSupport::EnterSandboxedExecutionModeForCurrentThread();
+#endif
+}
+
+// Exit sandboxed execution mode.
+//
+// This will re-enable write access to out-of-sandbox memory.
+inline void ExitSandbox() {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  SandboxHardwareSupport::ExitSandboxedExecutionModeForCurrentThread();
+#endif
+}
 
 // Scope object to document and enforce that code does not access in-sandbox
 // data. This provides a certain level of guarantees that code cannot be

@@ -504,6 +504,8 @@ enum class IsolateFieldId : uint8_t;
 #define EXTERNAL_REFERENCE_LIST_SANDBOX(V)                               \
   V(sandbox_base_address, "Sandbox::base()")                             \
   V(sandbox_end_address, "Sandbox::end()")                               \
+  V(sandboxed_mode_pkey_mask_address,                                    \
+    "SandboxHardwareSupport::sandboxed_mode_pkey_mask()")                \
   V(empty_backing_store_buffer, "EmptyBackingStoreBuffer()")             \
   V(memory_chunk_metadata_table_address, "MemoryChunkMetadata::Table()") \
   V(global_code_pointer_table_base_address,                              \

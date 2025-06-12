@@ -2448,6 +2448,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void lfence();
   void pause();
 
+  // Pkey support.
+  // Registers rcx and rdx must be zero, rax is the input/output value.
+  void rdpkru();
+  void wrpkru();
+
   // Check the code size generated from label to here.
   int SizeOfCodeGeneratedSince(Label* label) {
     return pc_offset() - label->pos();

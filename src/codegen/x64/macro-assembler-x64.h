@@ -772,6 +772,15 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // ---------------------------------------------------------------------------
   // V8 Sandbox support
 
+  // Enter/exit sandboxed execution mode for the current thread.
+  //
+  // When in sandboxed mode, and if hardware sandboxing support is active,
+  // out-of-sandbox memory cannot be written to (but can be read from). See
+  // SandboxHardwareSupport for more details.
+  void EnterSandbox();
+  void ExitSandbox();
+  void AssertInSandboxedExecutionMode();
+
   // Transform a SandboxedPointer from/to its encoded form, which is used when
   // the pointer is stored on the heap and ensures that the pointer will always
   // point into the sandbox.

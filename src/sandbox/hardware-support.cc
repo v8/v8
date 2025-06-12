@@ -5,48 +5,149 @@
 #include "src/sandbox/hardware-support.h"
 
 #include "src/base/platform/memory-protection-key.h"
+#include "src/base/platform/platform.h"
 
 namespace v8 {
 namespace internal {
 
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
-int SandboxHardwareSupport::pkey_ =
+int SandboxHardwareSupport::sandbox_pkey_ =
     base::MemoryProtectionKey::kNoMemoryProtectionKey;
+int SandboxHardwareSupport::out_of_sandbox_pkey_ =
+    base::MemoryProtectionKey::kNoMemoryProtectionKey;
+int SandboxHardwareSupport::extension_pkey_ =
+    base::MemoryProtectionKey::kNoMemoryProtectionKey;
+uint32_t SandboxHardwareSupport::sandboxed_mode_pkey_mask_ = 0;
 
 // static
-bool SandboxHardwareSupport::InitializeBeforeThreadCreation() {
-  DCHECK_EQ(pkey_, base::MemoryProtectionKey::kNoMemoryProtectionKey);
-  pkey_ = base::MemoryProtectionKey::AllocateKey();
-  return pkey_ != base::MemoryProtectionKey::kNoMemoryProtectionKey;
-}
+bool SandboxHardwareSupport::TryActivateBeforeThreadCreation() {
+  DCHECK(!IsActive());
 
-// static
-bool SandboxHardwareSupport::TryEnable(Address addr, size_t size) {
-  if (pkey_ == base::MemoryProtectionKey::kNoMemoryProtectionKey) {
+  if (!base::MemoryProtectionKey::HasMemoryProtectionKeyAPIs()) {
     return false;
   }
 
-  // If we have a valid PKEY, we expect this to always succeed.
-  CHECK(base::MemoryProtectionKey::SetPermissionsAndKey(
-      {addr, size}, v8::PageAllocator::Permission::kNoAccess, pkey_));
+  sandbox_pkey_ = base::MemoryProtectionKey::AllocateKey();
+  if (sandbox_pkey_ == base::MemoryProtectionKey::kNoMemoryProtectionKey) {
+    return false;
+  }
+
+  // Ideally, this would be the default protection key.
+  // See the comment at the declaration of these keys for more information
+  // about why that currently isn't the case.
+  out_of_sandbox_pkey_ = base::MemoryProtectionKey::AllocateKey();
+  if (out_of_sandbox_pkey_ ==
+      base::MemoryProtectionKey::kNoMemoryProtectionKey) {
+    base::MemoryProtectionKey::FreeKey(sandbox_pkey_);
+    sandbox_pkey_ = base::MemoryProtectionKey::kNoMemoryProtectionKey;
+    return false;
+  }
+
+  extension_pkey_ = base::MemoryProtectionKey::AllocateKey();
+  if (extension_pkey_ == base::MemoryProtectionKey::kNoMemoryProtectionKey) {
+    base::MemoryProtectionKey::FreeKey(sandbox_pkey_);
+    base::MemoryProtectionKey::FreeKey(out_of_sandbox_pkey_);
+    sandbox_pkey_ = base::MemoryProtectionKey::kNoMemoryProtectionKey;
+    out_of_sandbox_pkey_ = base::MemoryProtectionKey::kNoMemoryProtectionKey;
+    return false;
+  }
+
+  // Compute the PKEY mask for entering sandboxed execution mode. For that, we
+  // simply need to remove write access for the out-of-sandbox pkey.
+  sandboxed_mode_pkey_mask_ =
+      base::MemoryProtectionKey::ComputeRegisterMaskForPermissionSwitch(
+          out_of_sandbox_pkey_,
+          base::MemoryProtectionKey::Permission::kDisableWrite);
+  // We use zero to indicate that sandbox hardware support is inactive.
+  CHECK_NE(sandboxed_mode_pkey_mask_, 0);
+
+  CHECK(IsActive());
   return true;
 }
 
 // static
-bool SandboxHardwareSupport::IsEnabled() {
-  return pkey_ != base::MemoryProtectionKey::kNoMemoryProtectionKey;
+bool SandboxHardwareSupport::IsActive() {
+  return sandbox_pkey_ != base::MemoryProtectionKey::kNoMemoryProtectionKey;
 }
 
 // static
-void SandboxHardwareSupport::NotifyReadOnlyPageCreated(
+void SandboxHardwareSupport::RegisterSandboxMemory(Address addr, size_t size) {
+  if (!IsActive()) return;
+
+  CHECK(base::MemoryProtectionKey::SetPermissionsAndKey(
+      {addr, size}, v8::PageAllocator::Permission::kNoAccess, sandbox_pkey_));
+}
+
+void SandboxHardwareSupport::RegisterOutOfSandboxMemory(Address addr,
+                                                        size_t size) {
+  if (!IsActive()) return;
+
+  CHECK(base::MemoryProtectionKey::SetPermissionsAndKey(
+      {addr, size}, v8::PageAllocator::Permission::kReadWrite,
+      out_of_sandbox_pkey_));
+}
+
+void SandboxHardwareSupport::RegisterUnsafeSandboxExtensionMemory(Address addr,
+                                                                  size_t size) {
+  if (!IsActive()) return;
+
+  CHECK(base::MemoryProtectionKey::SetPermissionsAndKey(
+      {addr, size}, v8::PageAllocator::Permission::kReadWrite,
+      extension_pkey_));
+}
+
+// static
+void SandboxHardwareSupport::RegisterReadOnlyMemoryInsideSandbox(
     Address addr, size_t size, PageAllocator::Permission perm) {
-  if (!IsEnabled()) return;
+  if (!IsActive()) return;
 
   // Reset the pkey of the read-only page to the default pkey, since some
   // SBXCHECKs will safely read read-only data from the heap.
   CHECK(base::MemoryProtectionKey::SetPermissionsAndKey(
       {addr, size}, perm, base::MemoryProtectionKey::kDefaultProtectionKey));
+}
+
+// static
+void SandboxHardwareSupport::EnterSandboxedExecutionModeForCurrentThread() {
+  if (!IsActive()) return;
+
+  DCHECK_EQ(CurrentSandboxingMode(), CodeSandboxingMode::kUnsandboxed);
+  base::MemoryProtectionKey::SetPermissionsForKey(
+      out_of_sandbox_pkey_,
+      base::MemoryProtectionKey::Permission::kDisableWrite);
+}
+
+// static
+void SandboxHardwareSupport::ExitSandboxedExecutionModeForCurrentThread() {
+  if (!IsActive()) return;
+
+  DCHECK_EQ(CurrentSandboxingMode(), CodeSandboxingMode::kSandboxed);
+  base::MemoryProtectionKey::SetPermissionsForKey(
+      out_of_sandbox_pkey_,
+      base::MemoryProtectionKey::Permission::kNoRestrictions);
+}
+
+// static
+CodeSandboxingMode SandboxHardwareSupport::CurrentSandboxingMode() {
+  if (!IsActive()) return CodeSandboxingMode::kUnsandboxed;
+
+  auto key_permissions =
+      base::MemoryProtectionKey::GetKeyPermission(out_of_sandbox_pkey_);
+  if (key_permissions == base::MemoryProtectionKey::Permission::kDisableWrite) {
+    return CodeSandboxingMode::kSandboxed;
+  } else {
+    DCHECK_EQ(key_permissions,
+              base::MemoryProtectionKey::Permission::kNoRestrictions);
+    return CodeSandboxingMode::kUnsandboxed;
+  }
+}
+
+// static
+bool SandboxHardwareSupport::CurrentSandboxingModeIs(
+    CodeSandboxingMode expected_mode) {
+  if (!IsActive()) return true;
+  return CurrentSandboxingMode() == expected_mode;
 }
 
 #ifdef DEBUG
@@ -62,7 +163,7 @@ thread_local unsigned disallow_sandbox_access_activation_counter_ = 0;
 thread_local bool has_active_allow_sandbox_access_scope_ = false;
 
 DisallowSandboxAccess::DisallowSandboxAccess() {
-  pkey_ = SandboxHardwareSupport::pkey_;
+  pkey_ = SandboxHardwareSupport::sandbox_pkey_;
   if (pkey_ == base::MemoryProtectionKey::kNoMemoryProtectionKey) {
     return;
   }
@@ -111,7 +212,7 @@ AllowSandboxAccess::AllowSandboxAccess() {
                   "AllowSandboxAccess scopes cannot be nested");
   has_active_allow_sandbox_access_scope_ = true;
 
-  pkey_ = SandboxHardwareSupport::pkey_;
+  pkey_ = SandboxHardwareSupport::sandbox_pkey_;
   // We must have an active DisallowSandboxAccess so PKEYs must be supported.
   DCHECK_NE(pkey_, base::MemoryProtectionKey::kNoMemoryProtectionKey);
 
