@@ -21,7 +21,7 @@
 
 #else  // !THREAD_SANITIZER
 
-#if defined(V8_CC_MSVC)
+#if defined(V8_CC_MSVC) && !defined(__clang__)
 // MSVC does not support inline assembly via __asm__ and provides compiler
 // intrinsics instead. Check if there is a usable intrinsic.
 //
