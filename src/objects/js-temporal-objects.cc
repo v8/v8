@@ -262,6 +262,67 @@ Maybe<double> ToIntegerWithTruncation(Isolate* isolate,
   return Just(number);
 }
 
+// #sec-temporal-topositiveintegerwithtruncation
+Maybe<double> ToPositiveIntegerWithTruncation(Isolate* isolate,
+                                              DirectHandle<Object> argument) {
+  // 1. Let integer be ?ToIntegerWithTruncation(argument).
+  double integer;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, integer, ToIntegerWithTruncation(isolate, argument),
+      Nothing<double>());
+  // 2. If integer is ≤ 0, throw a RangeError exception
+  if (integer <= 0) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<double>());
+  }
+
+  // 3. Return integer.
+  return Just(integer);
+}
+// temporal_rs currently accepts integer types in cases where
+// the spec uses a double (and bounds-checks later). This helper
+// allows safely converting objects to some known integer type.
+//
+// TODO(manishearth) This helper should be removed when it is unnecessary.
+// Tracked in https://github.com/boa-dev/temporal/issues/334
+template <typename IntegerType>
+Maybe<IntegerType> ToIntegerTypeWithTruncation(Isolate* isolate,
+                                               DirectHandle<Object> argument) {
+  double d;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, d, ToIntegerWithTruncation(isolate, argument),
+      Nothing<IntegerType>());
+  if (d < std::numeric_limits<IntegerType>::min() ||
+      d > std::numeric_limits<IntegerType>::max()) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 Nothing<IntegerType>());
+  }
+
+  return Just(static_cast<IntegerType>(d));
+}
+
+// Same as ToIntegerTypeWithTruncation but for ToPositiveIntegerWithTruncation
+//
+// TODO(manishearth) This helper should be removed when it is unnecessary.
+// Tracked in https://github.com/boa-dev/temporal/issues/334
+template <typename IntegerType>
+Maybe<IntegerType> ToPositiveIntegerTypeWithTruncation(
+    Isolate* isolate, DirectHandle<Object> argument) {
+  double d;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, d, ToPositiveIntegerWithTruncation(isolate, argument),
+      Nothing<IntegerType>());
+  if (d < std::numeric_limits<IntegerType>::min() ||
+      d > std::numeric_limits<IntegerType>::max()) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 Nothing<IntegerType>());
+  }
+
+  return Just(static_cast<IntegerType>(d));
+}
+
 bool IsValidTime(double hour, double minute, double second, double millisecond,
                  double microsecond, double nanosecond) {
   // 1. If hour < 0 or hour > 23, then
@@ -300,7 +361,7 @@ bool IsValidTime(double hour, double minute, double second, double millisecond,
 }
 
 // #sec-temporal-isodaysinmonth
-int8_t ISODaysInMonth(int64_t year, uint8_t month) {
+int8_t ISODaysInMonth(int32_t year, uint8_t month) {
   switch (month) {
     // 1. If month is 1, 3, 5, 7, 8, 10, or 12, return 31.
     case 1:
@@ -342,7 +403,7 @@ bool IsValidIsoDate(double year, double month, double day) {
 
   // IsValidIsoDate does not care about years that are "out of Temporal range",
   // that gets handled later.
-  int64_t year_int = static_cast<int32_t>(year);
+  int32_t year_int = static_cast<int32_t>(year);
   uint8_t month_int = static_cast<uint8_t>(month);
   // 2. Let daysInMonth be ISODaysInMonth(year, month).
   // 3. If day < 1 or day > daysInMonth, then
@@ -356,6 +417,79 @@ bool IsValidIsoDate(double year, double month, double day) {
 }
 
 // ====== Options getters ======
+
+// #sec-temporal-tomonthcode
+Maybe<std::string> ToMonthCode(Isolate* isolate,
+                               DirectHandle<Object> argument) {
+  // 1. Let monthCode be ?ToPrimitive(argument, string).
+  DirectHandle<Object> mc_prim;
+  if (IsJSReceiver(*argument)) {
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, mc_prim,
+        JSReceiver::ToPrimitive(isolate, Cast<JSReceiver>(argument),
+                                ToPrimitiveHint::kString),
+        Nothing<std::string>());
+  } else {
+    mc_prim = argument;
+  }
+
+  // 2. If monthCode is not a String, throw a TypeError exception.
+  if (!IsString(*mc_prim)) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                                 Nothing<std::string>());
+  }
+
+  auto month_code = Cast<String>(*mc_prim)->ToStdString();
+
+  // 3. If the length of monthCode is not 3 or 4, throw a RangeError exception.
+  if (month_code.size() != 3 && month_code.size() != 4) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 Nothing<std::string>());
+  }
+
+  // 4. If the first code unit of monthCode is not 0x004D (LATIN CAPITAL LETTER
+  // M), throw a RangeError exception.
+  if (month_code[0] != 'M') {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 Nothing<std::string>());
+  }
+  // 5. If the second code unit of monthCode is not in the inclusive interval
+  // from 0x0030 (DIGIT ZERO) to 0x0039 (DIGIT NINE), throw a RangeError
+  // exception.
+  if (month_code[1] < '0' || month_code[1] > '9') {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 Nothing<std::string>());
+  }
+  // 6. If the third code unit of monthCode is not in the inclusive interval
+  // from 0x0030 (DIGIT ZERO) to 0x0039 (DIGIT NINE), throw a RangeError
+  // exception.
+  if (month_code[2] < '0' || month_code[2] > '9') {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 Nothing<std::string>());
+  }
+  // 7. If the length of monthCode is 4 and the fourth code unit of monthCode is
+  // not 0x004C (LATIN CAPITAL LETTER L), throw a RangeError exception.
+  if (month_code.size() == 4 && month_code[3] != 'L') {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 Nothing<std::string>());
+  }
+  // 8. Let monthCodeDigits be the substring of monthCode from 1 to 3.
+  // 9. Let monthCodeInteger be ℝ(StringToNumber(monthCodeDigits)).
+  // 10. If monthCodeInteger is 0 and the length of monthCode is not 4, throw a
+  // RangeError exception.
+  if (month_code[1] == '0' && month_code[2] == '0' && month_code.size() != 4) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 Nothing<std::string>());
+  }
+  // 11. Return monthCode.
+  return Just(month_code);
+}
 
 // #sec-temporal-totemporaloverflow
 // Also handles the undefined check from GetOptionsObject
@@ -774,6 +908,105 @@ Maybe<temporal_rs::DisplayCalendar> GetTemporalShowCalendarNameOption(
       temporal_rs::DisplayCalendar::Auto);
 }
 
+// convenience method for getting the "calendar" field off of a Temporal object
+std::optional<temporal_rs::AnyCalendarKind> ExtractCalendarFrom(
+    Isolate* isolate, Tagged<HeapObject> calendar_like) {
+  InstanceType instance_type = calendar_like->map(isolate)->instance_type();
+  // a. If temporalCalendarLike has an [[InitializedTemporalDate]],
+  // [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]],
+  // [[InitializedTemporalYearMonth]], or [[InitializedTemporalZonedDateTime]]
+  // internal slot, then
+  //
+  // i. Return temporalCalendarLike.[[Calendar]].
+  if (InstanceTypeChecker::IsJSTemporalPlainDate(instance_type)) {
+    return Cast<JSTemporalPlainDate>(*calendar_like)
+        ->date()
+        ->raw()
+        ->calendar()
+        .kind();
+  } else if (InstanceTypeChecker::IsJSTemporalPlainDateTime(instance_type)) {
+    return Cast<JSTemporalPlainDateTime>(*calendar_like)
+        ->date_time()
+        ->raw()
+        ->calendar()
+        .kind();
+  } else if (InstanceTypeChecker::IsJSTemporalPlainMonthDay(instance_type)) {
+    return Cast<JSTemporalPlainMonthDay>(*calendar_like)
+        ->month_day()
+        ->raw()
+        ->calendar()
+        .kind();
+  } else if (InstanceTypeChecker::IsJSTemporalPlainYearMonth(instance_type)) {
+    return Cast<JSTemporalPlainYearMonth>(*calendar_like)
+        ->year_month()
+        ->raw()
+        ->calendar()
+        .kind();
+  } else if (IsJSTemporalZonedDateTime(*calendar_like)) {
+    UNIMPLEMENTED();
+  }
+  return std::nullopt;
+}
+// https://tc39.es/proposal-temporal/#sec-temporal-gettemporalcalendarslotvaluewithisodefault
+Maybe<temporal_rs::AnyCalendarKind> ToTemporalCalendarIdentifier(
+    Isolate* isolate, DirectHandle<Object> calendar_like) {
+  // 1. If temporalCalendarLike is an Object, then
+  if (IsHeapObject(*calendar_like)) {
+    // a. If temporalCalendarLike has an [[InitializedTemporalDate]],
+    // [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]],
+    // [[InitializedTemporalYearMonth]], or [[InitializedTemporalZonedDateTime]]
+    // internal slot, then
+    //
+    //  i. Return temporalCalendarLike.[[Calendar]].
+    auto cal_field =
+        ExtractCalendarFrom(isolate, Cast<HeapObject>(*calendar_like));
+    if (cal_field.has_value()) {
+      return Just(cal_field.value());
+    }
+  }
+
+  // 2. If temporalCalendarLike is not a String, throw a TypeError exception.
+  if (!IsString(*calendar_like)) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                                 Nothing<temporal_rs::AnyCalendarKind>());
+  }
+  // 3. Let identifier be ?ParseTemporalCalendarString(temporalCalendarLike).
+  // 4. Return ?CanonicalizeCalendar(identifier).
+  // (CanonicalizeCalendar here takes a string)
+  return temporal::CanonicalizeCalendar(isolate, Cast<String>(calendar_like));
+}
+// https://tc39.es/proposal-temporal/#sec-temporal-gettemporalcalendarslotvaluewithisodefault
+Maybe<temporal_rs::AnyCalendarKind> GetTemporalCalendarIdentifierWithISODefault(
+    Isolate* isolate, DirectHandle<JSReceiver> options) {
+  // 1. If item has an [[InitializedTemporalDate]],
+  // [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]],
+  // [[InitializedTemporalYearMonth]], or [[InitializedTemporalZonedDateTime]]
+  // internal slot, then
+  //
+  // a. Return item.[[Calendar]].
+  if (IsHeapObject(*options)) {
+    auto cal_field = ExtractCalendarFrom(isolate, Cast<HeapObject>(*options));
+    if (cal_field.has_value()) {
+      return Just(cal_field.value());
+    }
+  }
+  // 2. Let calendarLike be ?Get(item, "calendar").
+  DirectHandle<Object> calendar;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, calendar,
+      JSReceiver::GetProperty(isolate, options,
+                              isolate->factory()->calendar_string()),
+      Nothing<temporal_rs::AnyCalendarKind>());
+
+  // 3. If calendarLike is undefined, then
+  if (IsUndefined(*calendar)) {
+    // a. Return "iso8601".
+    return Just(
+        temporal_rs::AnyCalendarKind(temporal_rs::AnyCalendarKind::Iso));
+  }
+  return ToTemporalCalendarIdentifier(isolate, calendar);
+}
+
 constexpr temporal_rs::ToStringRoundingOptions kToStringAuto =
     temporal_rs::ToStringRoundingOptions{
         .precision = temporal_rs::Precision{.is_minute = false,
@@ -904,6 +1137,36 @@ temporal_rs::PartialTime GetTimeRecord(
     DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   UNIMPLEMENTED();
 }
+temporal_rs::PartialDate GetDateRecord(
+    DirectHandle<JSTemporalPlainDate> plain_date) {
+  auto rust_object = plain_date->date()->raw();
+  return temporal_rs::PartialDate{
+      .year = rust_object->year(),
+      .month = rust_object->month(),
+      .month_code = "",
+      .day = rust_object->day(),
+      .era = "",
+      .era_year = std::nullopt,
+      .calendar = rust_object->calendar().kind(),
+  };
+}
+temporal_rs::PartialDate GetDateRecord(
+    DirectHandle<JSTemporalPlainDateTime> date_time) {
+  auto rust_object = date_time->date_time()->raw();
+  return temporal_rs::PartialDate{
+      .year = rust_object->year(),
+      .month = rust_object->month(),
+      .month_code = "",
+      .day = rust_object->day(),
+      .era = "",
+      .era_year = std::nullopt,
+      .calendar = rust_object->calendar().kind(),
+  };
+}
+temporal_rs::PartialDate GetDateRecord(
+    DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
+  UNIMPLEMENTED();
+}
 
 // Helper for ToTemporalPartialDurationRecord
 // Maybe<std::optional> since the Maybe handles errors and the optional handles
@@ -929,6 +1192,48 @@ Maybe<std::optional<int64_t>> GetSingleDurationField(
 
     return Just(std::optional(static_cast<int64_t>(field)));
   }
+}
+
+// Doesn't actually return a string, parses it and stores it parsed.
+// #sec-temporal-tooffsetstring
+Maybe<std::unique_ptr<temporal_rs::TimeZone>> ToOffset(
+    Isolate* isolate, DirectHandle<Object> argument) {
+  // 1. Let offset be ?ToPrimitive(argument, string).
+  DirectHandle<Object> offset_prim;
+  if (IsJSReceiver(*argument)) {
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, offset_prim,
+        JSReceiver::ToPrimitive(isolate, Cast<JSReceiver>(argument),
+                                ToPrimitiveHint::kString),
+        Nothing<std::unique_ptr<temporal_rs::TimeZone>>());
+  } else {
+    offset_prim = argument;
+  }
+
+  // 2. If offset is not a String, throw a TypeError exception.
+  if (!IsString(*offset_prim)) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+        Nothing<std::unique_ptr<temporal_rs::TimeZone>>());
+  }
+
+  // 3. Perform ?ParseDateTimeUTCOffset(offset).
+  auto offset = Cast<String>(*offset_prim)->ToStdString();
+
+  // Currently TimeZone::try_from_str parses identifiers and UTC offsets
+  // at once. We check to ensure that this is UTC offset-like (not
+  // identifier-like) before handing off to Rust.
+  // TODO(manishearth) clean up after
+  // https://github.com/boa-dev/temporal/pull/348 lands.
+
+  if (offset.size() == 0 || (offset[0] != '+' && offset[0] != '-')) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+        Nothing<std::unique_ptr<temporal_rs::TimeZone>>());
+  }
+
+  return ExtractRustResult(isolate,
+                           temporal_rs::TimeZone::try_from_str(offset));
 }
 
 Maybe<std::unique_ptr<temporal_rs::TimeZone>> ToTemporalTimeZoneIdentifier(
@@ -1157,6 +1462,352 @@ Maybe<temporal_rs::PartialTime> ToTemporalTimeRecord(
   return Just(result);
 }
 
+constexpr temporal_rs::PartialDate kNullPartialDate = temporal_rs::PartialDate{
+    .year = std::nullopt,
+    .month = std::nullopt,
+    .month_code = "",
+    .day = std::nullopt,
+    .era = "",
+    .era_year = std::nullopt,
+    .calendar = temporal_rs::AnyCalendarKind::Iso,
+};
+constexpr temporal_rs::PartialTime kNullPartialTime = temporal_rs::PartialTime{
+    .hour = std::nullopt,
+    .minute = std::nullopt,
+    .second = std::nullopt,
+    .millisecond = std::nullopt,
+    .microsecond = std::nullopt,
+    .nanosecond = std::nullopt,
+};
+
+// Returned by PrepareCalendarFields
+struct CombinedRecord {
+  temporal_rs::PartialDate date;
+  temporal_rs::PartialTime time;
+  std::optional<std::unique_ptr<temporal_rs::TimeZone>> offset;
+  std::optional<std::unique_ptr<temporal_rs::TimeZone>> time_zone;
+};
+
+// An object that "owns" values borrowed in CombinedRecord,
+// to be passed in to PrepareCalendarFields by a caller that
+// can make it live longer than the returned CombinedRecord
+struct CombinedRecordOwnership {
+  std::string era;
+  std::string month_code;
+};
+
+enum class CalendarFieldsFlag : uint8_t {
+  kDay = 1 << 0,
+  // Month and MonthCode
+  kMonthFields = 1 << 1,
+  // year, era, eraYear
+  kYearFields = 1 << 2,
+  // hour, minute, second, millisecond, microsecont, nanosecond
+  kTimeFields = 1 << 3,
+  kOffset = 1 << 4,
+  kTimeZone = 1 << 5,
+};
+using CalendarFieldsFlags = base::Flags<CalendarFieldsFlag>;
+
+enum class RequiredFields {
+  kNone,
+  kPartial,
+  kTimeZone,
+};
+
+// A single run of the PrepareCalendarFields iteration (Step 9, substeps a-c,
+// NOT d) Returns whether or not the field was found. Does not handle the case
+// when the field is not found.
+template <typename OutType>
+Maybe<bool> GetSingleCalendarField(
+    Isolate* isolate, DirectHandle<JSReceiver> fields,
+    DirectHandle<String> field_name, bool& any, OutType& output,
+    Maybe<OutType> (*conversion_func)(Isolate*, DirectHandle<Object>)) {
+  // b. Let value be ?Get(fields, property).
+  DirectHandle<Object> value;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, value, JSReceiver::GetProperty(isolate, fields, field_name),
+      Nothing<bool>());
+
+  // c. If value is not undefined, then
+  if (!IsUndefined(*value)) {
+    // i. Set any to true.
+    any = true;
+    // ii. Let Conversion be the Conversion value of the same row.
+    // (perform conversion)
+    // ix. Set result's field whose name is given in the Field Name column of
+    // the same row to value.
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, output, conversion_func(isolate, value), Nothing<bool>());
+    return Just(true);
+  }
+
+  return Just(false);
+}
+// Same as above but for DirectHandles
+template <typename OutType>
+Maybe<bool> GetSingleCalendarField(
+    Isolate* isolate, DirectHandle<JSReceiver> fields,
+    DirectHandle<String> field_name, bool& any, DirectHandle<OutType>& output,
+    MaybeDirectHandle<OutType> (*conversion_func)(Isolate*,
+                                                  DirectHandle<Object>)) {
+  // b. Let value be ?Get(fields, property).
+  DirectHandle<Object> value;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, value, JSReceiver::GetProperty(isolate, fields, field_name),
+      Nothing<bool>());
+
+  // c. If value is not undefined, then
+  if (!IsUndefined(*value)) {
+    // i. Set any to true.
+    any = true;
+    // ii. Let Conversion be the Conversion value of the same row.
+    // (perform conversion)
+    // ix. Set result's field whose name is given in the Field Name column of
+    // the same row to value.
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, output, conversion_func(isolate, value), Nothing<bool>());
+    return Just(true);
+  }
+
+  return Just(false);
+}
+
+// Only for use in PrepareCalendarFields
+#define GET_SINGLE_INTEGRAL_FIELD(field, fieldString, output_obj, IntType,    \
+                                  conversion_func)                            \
+  IntType field = 0;                                                          \
+  found = 0;                                                                  \
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(                                     \
+      isolate, found,                                                         \
+      GetSingleCalendarField(isolate, fields,                                 \
+                             isolate->factory()->fieldString##_string(), any, \
+                             field, conversion_func),                         \
+      Nothing<CombinedRecord>());                                             \
+  if (found) {                                                                \
+    output_obj.field = field;                                                 \
+  }
+
+// #sec-temporal-preparecalendarfields
+Maybe<CombinedRecord> PrepareCalendarFields(Isolate* isolate,
+                                            temporal_rs::AnyCalendarKind kind,
+                                            DirectHandle<JSReceiver> fields,
+                                            CalendarFieldsFlags which_fields,
+                                            RequiredFields required_fields,
+                                            CombinedRecordOwnership& anchor) {
+  // 1. Assert: If requiredFieldNames is a List, requiredFieldNames contains
+  // zero or one of each of the elements of calendarFieldNames and
+  // nonCalendarFieldNames.
+  // 2. Let fieldNames be the list-concatenation of calendarFieldNames and
+  // nonCalendarFieldNames.
+  // 3. Let extraFieldNames be CalendarExtraFields(calendar,
+  // calendarFieldNames).
+  // Currently al
+  // 4. Set fieldNames to the list-concatenation of fieldNames and
+  // extraFieldNames.
+  // 5. Assert: fieldNames contains no duplicate elements.
+
+  // All steps handled by RequiredFields/CalendarFieldsFlag being enums, and
+  // CalendarExtraFields is handled by calendarUsesEras below.
+
+  // Currently all calendars have a "default" era, except for iso
+  // This may change: https://tc39.es/proposal-intl-era-monthcode/
+  bool calendarUsesEras = kind != temporal_rs::AnyCalendarKind::Iso;
+
+  // 6. Let result be a Calendar Fields Record with all fields equal to unset.
+  CombinedRecord result = CombinedRecord{
+      .date = kNullPartialDate,
+      .time = kNullPartialTime,
+      .offset = std::nullopt,
+      .time_zone = std::nullopt,
+  };
+
+  // This is not explicitly specced, but CombinedRecord contains the calendar
+  // kind unlike the spec, and no caller of PrepareCalendarFields does anything
+  // other than pair `fields` with `calendar` when passing to subsequent
+  // algorithms.
+  result.date.calendar = kind;
+
+  // 7. Let any be false.
+  bool any = false;
+
+  // 8. Let sortedPropertyNames be a List whose elements are the values in the
+  // Property Key column of Table 19 corresponding to the elements of
+  // fieldNames, sorted according to lexicographic code unit order. (handled by
+  // sorting)
+
+  // 9. For each property name property of sortedPropertyNames, do
+  //  a. Let key be the value in the Enumeration Key column of Table 19
+  //  corresponding to the row whose Property Key value is property.
+  //
+  //  b. Let value be ?Get(fields, property).
+  //
+  //  c. If value is not undefined, then
+  //   i. Set any to true.
+  //   ii. Let Conversion be the Conversion value of the same row.
+  //   iii. If Conversion is to-integer-with-truncation, then
+  //     1. Set value to ? ToIntegerWithTruncation(value).
+  //     2. Set value to 𝔽(value).
+  //   iv. Else if Conversion is to-positive-integer-with-truncation, then
+  //     1. Set value to ? ToPositiveIntegerWithTruncation(value).
+  //     2. Set value to 𝔽(value).
+  //   v. Else if Conversion is to-string, then
+  //     1. Set value to ? ToString(value).
+  //   vi. Else if Conversion is to-temporal-time-zone-identifier, then
+  //     1. Set value to ? ToTemporalTimeZoneIdentifier(value).
+  //   vii. Else if Conversion is to-month-code, then
+  //     1. Set value to ? ToMonthCode(value).
+  //   viii. Else,
+  //     1. Assert: Conversion is to-offset-string.
+  //     2. Set value to ? ToOffsetString(value).
+  //   ix. Set result's field whose name is given in the Field Name column of
+  //   the same row to value.
+  //  d. Else if requiredFieldNames is a List, then
+  //   i. If requiredFieldNames contains key, then
+  //     1. Throw a TypeError exception.
+  //   ii. Set result's field whose name is given in the Field Name column of
+  //   the same row to the corresponding Default value of the same row.
+
+  // Lexicographic order of fields:
+  // day, era, eraYear, hour, microsecond, millisecond, minute, month,
+  // monthCode, nanosecond, offset, second, timeZone, year
+
+  bool found = 0;
+  // == day ==
+  if (which_fields & CalendarFieldsFlag::kDay) {
+    GET_SINGLE_INTEGRAL_FIELD(day, day, result.date, uint8_t,
+                              ToPositiveIntegerTypeWithTruncation<uint8_t>);
+  }
+
+  // == era, eraYear ==
+  if (calendarUsesEras && (which_fields & CalendarFieldsFlag::kYearFields)) {
+    found = 0;
+    DirectHandle<String> era_string;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, found,
+        GetSingleCalendarField(isolate, fields,
+                               isolate->factory()->era_string(), any,
+                               era_string, Object::ToString),
+        Nothing<CombinedRecord>());
+
+    if (found) {
+      anchor.era = era_string->ToStdString();
+      result.date.era = anchor.era;
+    }
+
+    GET_SINGLE_INTEGRAL_FIELD(era_year, eraYear, result.date, int32_t,
+                              ToIntegerTypeWithTruncation<int32_t>);
+  }
+  // == hour, microsecond, millisecond, minute ==
+  if (which_fields & CalendarFieldsFlag::kTimeFields) {
+    GET_SINGLE_INTEGRAL_FIELD(hour, hour, result.time, uint8_t,
+                              ToPositiveIntegerTypeWithTruncation<uint8_t>);
+
+    GET_SINGLE_INTEGRAL_FIELD(microsecond, microsecond, result.time, uint16_t,
+                              ToPositiveIntegerTypeWithTruncation<uint16_t>);
+
+    GET_SINGLE_INTEGRAL_FIELD(millisecond, millisecond, result.time, uint16_t,
+                              ToPositiveIntegerTypeWithTruncation<uint16_t>);
+    GET_SINGLE_INTEGRAL_FIELD(minute, minute, result.time, uint8_t,
+                              ToPositiveIntegerTypeWithTruncation<uint8_t>);
+  }
+
+  // == month, monthCode ==
+  if (which_fields & CalendarFieldsFlag::kMonthFields) {
+    GET_SINGLE_INTEGRAL_FIELD(day, day, result.date, uint8_t,
+                              ToPositiveIntegerTypeWithTruncation<uint8_t>);
+    found = 0;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, found,
+        GetSingleCalendarField(isolate, fields,
+                               isolate->factory()->monthCode_string(), any,
+                               anchor.month_code, ToMonthCode),
+        Nothing<CombinedRecord>());
+    if (found) {
+      result.date.month_code = anchor.month_code;
+    }
+  }
+
+  // == nanosecond ==
+  if (which_fields & CalendarFieldsFlag::kTimeFields) {
+    GET_SINGLE_INTEGRAL_FIELD(nanosecond, nanosecond, result.time, uint16_t,
+                              ToPositiveIntegerTypeWithTruncation<uint16_t>);
+  }
+
+  // == offset ==
+  if (which_fields & CalendarFieldsFlag::kOffset) {
+    // b. Let value be ?Get(fields, property).
+    DirectHandle<Object> value;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, value,
+        JSReceiver::GetProperty(isolate, fields,
+                                isolate->factory()->offset_string()),
+        Nothing<CombinedRecord>());
+
+    // c. If value is not undefined, then
+    if (!IsUndefined(*value)) {
+      // i. Set any to true.
+      any = true;
+      std::unique_ptr<temporal_rs::TimeZone> tz;
+      // ii. Let Conversion be the Conversion value of the same row.
+      // (perform conversion)
+      // ix. Set result's field whose name is given in the Field Name column of
+      // the same row to value.
+      MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+          isolate, tz, ToOffset(isolate, value), Nothing<CombinedRecord>());
+      result.offset = std::move(tz);
+    }
+  }
+
+  // == second ==
+  if (which_fields & CalendarFieldsFlag::kTimeFields) {
+    GET_SINGLE_INTEGRAL_FIELD(second, second, result.time, uint8_t,
+                              ToPositiveIntegerTypeWithTruncation<uint8_t>);
+  }
+
+  // == time_zone ==
+  if (which_fields & CalendarFieldsFlag::kTimeZone) {
+    // b. Let value be ?Get(fields, property).
+    DirectHandle<Object> value;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, value,
+        JSReceiver::GetProperty(isolate, fields,
+                                isolate->factory()->timeZone_string()),
+        Nothing<CombinedRecord>());
+
+    // c. If value is not undefined, then
+    if (!IsUndefined(*value)) {
+      // i. Set any to true.
+      any = true;
+      std::unique_ptr<temporal_rs::TimeZone> tz;
+      // ii. Let Conversion be the Conversion value of the same row.
+      // (perform conversion)
+      // ix. Set result's field whose name is given in the Field Name column of
+      // the same row to value.
+      MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+          isolate, tz, ToOffset(isolate, value), Nothing<CombinedRecord>());
+      result.time_zone = std::move(tz);
+      // i. If requiredFieldNames contains key, then
+    } else if (required_fields == RequiredFields::kTimeZone) {
+      // 1. Throw a TypeError exception.
+    }
+  }
+  // == year ==
+  if (which_fields & CalendarFieldsFlag::kYearFields) {
+    GET_SINGLE_INTEGRAL_FIELD(year, year, result.date, int32_t,
+                              ToPositiveIntegerTypeWithTruncation<int32_t>);
+  }
+
+  // 10. If requiredFieldNames is partial and any is false, then
+  if (required_fields == RequiredFields::kPartial && !any) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                                 Nothing<CombinedRecord>());
+  }
+
+  return Just(std::move(result));
+}
+
 // ====== Construction operations ======
 
 // #sec-temporal-totemporalduration
@@ -1286,27 +1937,29 @@ MaybeDirectHandle<JSTemporalPlainTime> ToTemporalTime(
     std::optional<temporal_rs::ArithmeticOverflow> overflow,
     const char* method_name) {
   TEMPORAL_ENTER_FUNC();
+
+  // This error is eventually thrown by step 3; we perform a check early
+  // so that we can optimize with InstanceType.
+  if (!IsHeapObject(*item)) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+  }
+  InstanceType instance_type =
+      Cast<HeapObject>(*item)->map(isolate)->instance_type();
+
   // 2. If item is an Object, then
-  if (IsJSReceiver(*item)) {
-    auto record = temporal_rs::PartialTime{
-        .hour = std::nullopt,
-        .minute = std::nullopt,
-        .second = std::nullopt,
-        .millisecond = std::nullopt,
-        .microsecond = std::nullopt,
-        .nanosecond = std::nullopt,
-    };
+  if (InstanceTypeChecker::IsJSReceiver(instance_type)) {
+    auto record = kNullPartialTime;
     // a. If item has an [[InitializedTemporalTime]] internal slot, then
-    if (IsJSTemporalPlainTime(*item)) {
+    if (InstanceTypeChecker::IsJSTemporalPlainTime(instance_type)) {
       // iii. Return !CreateTemporalTime(item.[[Time]]).
       record = GetTimeRecord(Cast<JSTemporalPlainTime>(item));
       // b. If item has an [[InitializedTemporalDateTime]] internal slot, then
-    } else if (IsJSTemporalPlainDateTime(*item)) {
+    } else if (InstanceTypeChecker::IsJSTemporalPlainDateTime(instance_type)) {
       // iii. Return ! CreateTemporalTime(item.[[ISODateTime]].[[Time]]).
       record = GetTimeRecord(Cast<JSTemporalPlainDateTime>(item));
       // c. If item has an [[InitializedTemporalZonedDateTime]] internal slot,
       // then
-    } else if (IsJSTemporalZonedDateTime(*item)) {
+    } else if (InstanceTypeChecker::IsJSTemporalZonedDateTime(instance_type)) {
       // i. Let isoDateTime be GetISODateTimeFor(item.[[TimeZone]],
       // item.[[EpochNanoseconds]]).
       record = GetTimeRecord(Cast<JSTemporalZonedDateTime>(item));
@@ -1329,7 +1982,7 @@ MaybeDirectHandle<JSTemporalPlainTime> ToTemporalTime(
 
   } else {
     // a. If item is not a String, throw a TypeError exception.
-    if (!IsString(*item)) {
+    if (!InstanceTypeChecker::IsString(instance_type)) {
       THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
     }
     DirectHandle<String> str = Cast<String>(item);
@@ -1349,6 +2002,109 @@ MaybeDirectHandle<JSTemporalPlainTime> ToTemporalTime(
 
     return ConstructRustWrappingType<JSTemporalPlainTime>(
         isolate, CONSTRUCTOR(plain_time), CONSTRUCTOR(plain_time),
+        std::move(rust_result));
+  }
+}
+
+// #sec-temporal-totemporaldate
+// Note this skips the options-parsing steps and instead asks the caller to pass
+// it in
+MaybeDirectHandle<JSTemporalPlainDate> ToTemporalDate(
+    Isolate* isolate, DirectHandle<Object> item,
+    std::optional<temporal_rs::ArithmeticOverflow> overflow,
+    const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+
+  // This error is eventually thrown by step 3; we perform a check early
+  // so that we can optimize with InstanceType.
+  if (!IsHeapObject(*item)) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+  }
+  InstanceType instance_type =
+      Cast<HeapObject>(*item)->map(isolate)->instance_type();
+  // 2. If item is an Object, then
+  if (InstanceTypeChecker::IsJSReceiver(instance_type)) {
+    auto record = kNullPartialDate;
+    // a. If item has an [[InitializedTemporalDate]] internal slot, then
+    if (InstanceTypeChecker::IsJSTemporalPlainDate(instance_type)) {
+      // iii. Return !CreateTemporalDate(item.[[Date]], item.[[Calendar]]).
+      record = GetDateRecord(Cast<JSTemporalPlainDate>(item));
+      // b. If item has an [[InitializedTemporalZonedDateTime]] internal slot,
+      // then
+    } else if (InstanceTypeChecker::IsJSTemporalZonedDateTime(instance_type)) {
+      // i. Let isoDateTime be GetISODateTimeFor(item.[[TimeZone]],
+      // item.[[EpochNanoseconds]]).
+      //
+      // iv. Return !CreateTemporalDate(isoDateTime.[[ISODate]],
+      // item.[[Calendar]]).
+      record = GetDateRecord(Cast<JSTemporalZonedDateTime>(item));
+      // c. If item has an [[InitializedTemporalDateTime]] internal slot, then
+    } else if (InstanceTypeChecker::IsJSTemporalPlainDateTime(instance_type)) {
+      // iii. Return !CreateTemporalDate(item.[[ISODateTime]].[[ISODate]],
+      // item.[[Calendar]]).
+      record = GetDateRecord(Cast<JSTemporalPlainDate>(item));
+    } else {
+      // d. Let calendar be ?GetTemporalCalendarIdentifierWithISODefault(item).
+      temporal_rs::AnyCalendarKind kind = temporal_rs::AnyCalendarKind::Iso;
+      DirectHandle<JSReceiver> item_recvr = Cast<JSReceiver>(item);
+      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, kind,
+          temporal::GetTemporalCalendarIdentifierWithISODefault(isolate,
+                                                                item_recvr),
+          DirectHandle<JSTemporalPlainDate>());
+
+      // e. Let fields be ?PrepareCalendarFields(calendar, item, « year, month,
+      // month-code, day», «», «»).
+      CombinedRecordOwnership owners;
+      CombinedRecord fields = CombinedRecord{
+          .date = kNullPartialDate,
+          .time = kNullPartialTime,
+          .offset = std::nullopt,
+          .time_zone = std::nullopt,
+      };
+      CalendarFieldsFlags which =
+          CalendarFieldsFlags(CalendarFieldsFlag::kYearFields) |
+          CalendarFieldsFlags(CalendarFieldsFlag::kMonthFields) |
+          CalendarFieldsFlags(CalendarFieldsFlag::kDay);
+
+      MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+          isolate, fields,
+          PrepareCalendarFields(isolate, kind, item_recvr, which,
+                                RequiredFields::kNone, owners),
+          DirectHandle<JSTemporalPlainDate>());
+      return ConstructRustWrappingType<JSTemporalPlainDate>(
+          isolate, CONSTRUCTOR(plain_date), CONSTRUCTOR(plain_date),
+          temporal_rs::PlainDate::from_partial(fields.date, overflow));
+    }
+
+    return ConstructRustWrappingType<JSTemporalPlainDate>(
+        isolate, CONSTRUCTOR(plain_date), CONSTRUCTOR(plain_date),
+        temporal_rs::PlainDate::from_partial(record, overflow));
+    // 3. Else,
+  } else {
+    // a. If item is not a String, throw a TypeError exception.
+    if (!InstanceTypeChecker::IsString(instance_type)) {
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    }
+    DirectHandle<String> str = Cast<String>(item);
+    DirectHandle<JSTemporalPlainDate> result;
+
+    // Rest of the steps handled in Rust
+
+    auto rust_result =
+        HandleStringEncodings<TemporalAllocatedResult<temporal_rs::PlainDate>>(
+            isolate, str,
+            [](std::string_view view)
+                -> TemporalAllocatedResult<temporal_rs::PlainDate> {
+              return temporal_rs::PlainDate::from_utf8(view);
+            },
+            [](std::u16string_view view)
+                -> TemporalAllocatedResult<temporal_rs::PlainDate> {
+              return temporal_rs::PlainDate::from_utf16(view);
+            });
+
+    return ConstructRustWrappingType<JSTemporalPlainDate>(
+        isolate, CONSTRUCTOR(plain_date), CONSTRUCTOR(plain_date),
         std::move(rust_result));
   }
 }
@@ -1432,6 +2188,42 @@ MaybeDirectHandle<JSTemporalDuration> DifferenceTemporalPlainTime(
       isolate, CONSTRUCTOR(duration), CONSTRUCTOR(duration), std::move(diff));
 }
 
+// #sec-temporal-differencetemporalplaindate
+MaybeDirectHandle<JSTemporalDuration> DifferenceTemporalPlainDate(
+    Isolate* isolate, DifferenceOperation operation,
+    DirectHandle<JSTemporalPlainDate> handle, DirectHandle<Object> other_obj,
+    DirectHandle<Object> options, const char* method_name) {
+  // 1. Set other to ?ToTemporalDate(other).
+  DirectHandle<JSTemporalPlainDate> other;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, other,
+      temporal::ToTemporalDate(isolate, other_obj, std::nullopt, method_name));
+
+  auto settings = temporal_rs::DifferenceSettings{.largest_unit = std::nullopt,
+                                                  .smallest_unit = std::nullopt,
+                                                  .rounding_mode = std::nullopt,
+                                                  .increment = std::nullopt};
+
+  // 2. Let resolvedOptions be ? GetOptionsObject(options).
+  // 3. Let settings be ? GetDifferenceSettings(operation, resolvedOptions,
+  // date, « », day, day).
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, settings,
+      temporal::GetDifferenceSettingsWithoutChecks(
+          isolate, options, UnitGroup::kDate, Unit::Day, method_name),
+      DirectHandle<JSTemporalDuration>());
+
+  // Remaining steps handled by temporal_rs
+  // operation negation (step 6) is also handled in temporal_rs
+  auto this_rust = handle->date()->raw();
+  auto other_rust = other->date()->raw();
+
+  auto diff = operation == kUntil ? this_rust->until(*other_rust, settings)
+                                  : this_rust->since(*other_rust, settings);
+
+  return ConstructRustWrappingType<JSTemporalDuration>(
+      isolate, CONSTRUCTOR(duration), CONSTRUCTOR(duration), std::move(diff));
+}
 }  // namespace temporal
 
 // #sec-temporal.duration
@@ -1791,14 +2583,35 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Constructor(
 MaybeDirectHandle<Smi> JSTemporalPlainDate::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj) {
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.PlainDate.compare";
+  DirectHandle<JSTemporalPlainDate> one;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, one,
+      temporal::ToTemporalDate(isolate, one_obj, std::nullopt, method_name));
+  DirectHandle<JSTemporalPlainDate> two;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, two,
+      temporal::ToTemporalDate(isolate, two_obj, std::nullopt, method_name));
+
+  return direct_handle(Smi::FromInt(temporal_rs::PlainDate::compare(
+                           *one->date()->raw(), *two->date()->raw())),
+                       isolate);
 }
 
 // #sec-temporal.plaindate.prototype.equals
 MaybeDirectHandle<Oddball> JSTemporalPlainDate::Equals(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> other_obj) {
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.PlainDate.prototype.equals";
+
+  DirectHandle<JSTemporalPlainDate> other;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, other,
+      temporal::ToTemporalDate(isolate, other_obj, std::nullopt, method_name));
+
+  auto equals = temporal_date->date()->raw()->equals(*other->date()->raw());
+
+  return isolate->factory()->ToBoolean(equals);
 }
 
 
@@ -1874,7 +2687,11 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDate::Until(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
   TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.PlainDate.prototype.until";
+
+  return temporal::DifferenceTemporalPlainDate(
+      isolate, temporal::DifferenceOperation::kUntil, handle, other, options,
+      method_name);
 }
 
 // #sec-temporal.plaindate.prototype.since
@@ -1882,7 +2699,11 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDate::Since(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
   TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.PlainDate.prototype.since";
+
+  return temporal::DifferenceTemporalPlainDate(
+      isolate, temporal::DifferenceOperation::kSince, handle, other, options,
+      method_name);
 }
 
 // #sec-temporal.now.plaindate
@@ -1900,9 +2721,27 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::NowISO(
 
 // #sec-temporal.plaindate.from
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::From(
-    Isolate* isolate, DirectHandle<Object> item,
+    Isolate* isolate, DirectHandle<Object> item_obj,
     DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.PlainDate.from";
+  DirectHandle<JSTemporalPlainDate> item;
+
+  // Options parsing hoisted out of ToTemporalTime
+  // https://github.com/tc39/proposal-temporal/issues/3116
+  temporal_rs::ArithmeticOverflow overflow;
+  // (ToTemporalDate) i. Let resolvedOptions be ?GetOptionsObject(options).
+  // (ToTemporalDate) ii. Perform ?GetTemporalOverflowOption(resolvedOptions).
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow,
+      temporal::ToTemporalOverflowHandleUndefined(isolate, options_obj,
+                                                  method_name),
+      DirectHandle<JSTemporalPlainDate>());
+
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, item,
+      temporal::ToTemporalDate(isolate, item_obj, overflow, method_name));
+
+  return item;
 }
 
 // #sec-temporal.plaindate.prototype.tojson
