@@ -54,8 +54,6 @@ class PagePool final {
 
   // Releases the pooled pages of a specific isolate immediately.
   V8_EXPORT_PRIVATE void ReleaseImmediately(Isolate* isolate);
-  // Releases pooled pages of all isolates.
-  void ReleaseImmediately();
 
   // Releases large poold pages immediately.
   void ReleaseLargeImmediately();

@@ -330,14 +330,6 @@ void PagePool::ReleaseImmediately(Isolate* isolate) {
   large_pool_.ReleaseAll();
 }
 
-void PagePool::ReleaseImmediately() {
-  page_pool_.ReleaseLocal();
-  page_pool_.ReleaseShared();
-  zone_pool_.ReleaseLocal();
-  page_pool_.ReleaseShared();
-  large_pool_.ReleaseAll();
-}
-
 void PagePool::ReleaseLargeImmediately() { large_pool_.ReleaseAll(); }
 
 void PagePool::TearDown() {

@@ -1342,7 +1342,7 @@ void FreeCachesOnMemoryPressure(Isolate* isolate) {
   // TODO(ishell): consider trimming number to string caches to initial size.
 
   if (v8_flags.discard_memory_pool_before_memory_pressure_gcs) {
-    IsolateGroup::current()->page_pool()->ReleaseImmediately();
+    IsolateGroup::current()->page_pool()->ReleaseImmediately(isolate);
   }
 }
 
