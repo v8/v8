@@ -181,7 +181,8 @@ namespace {
 Float32 f32_binop_result(
     Float32 lhs, Float32 rhs,
     const std::function<float(float, float)>& result_for_non_nan) {
-#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_S390X)
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_S390X) || \
+    defined(V8_TARGET_ARCH_LOONG64)
   // On these platforms any signalling NaN "wins" (but is made quiet).
   if (lhs.is_nan() && !lhs.is_quiet_nan()) return lhs.to_quiet_nan();
   if (rhs.is_nan() && !rhs.is_quiet_nan()) return rhs.to_quiet_nan();
@@ -196,7 +197,7 @@ Float32 f32_binop_result(
 
 float f32_binop_add(float lhs, float rhs) {
 #if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_PPC64) || \
-    defined(V8_TARGET_ARCH_S390X)
+    defined(V8_TARGET_ARCH_S390X) || defined(V8_TARGET_ARCH_LOONG64)
   // On these platforms inf + -inf returns the default NaN.
   if (std::isinf(lhs) && std::isinf(rhs) && (lhs != rhs))
     return std::numeric_limits<float>::quiet_NaN();
