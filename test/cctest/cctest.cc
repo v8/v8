@@ -111,6 +111,7 @@ CcTest::CcTest(TestFunction* callback, const char* file, const char* name,
 }
 
 void CcTest::Run(const char* snapshot_directory) {
+  // TODO(350324877): Investigate enabling sandbox hardware support here.
   v8::V8::InitializeICUDefaultLocation(snapshot_directory);
   std::unique_ptr<v8::Platform> underlying_default_platform(
       v8::platform::NewDefaultPlatform());

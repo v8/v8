@@ -658,8 +658,8 @@ void Execution::CallWasm(Isolate* isolate, DirectHandle<Code> wrapper_code,
     static_assert(compiler::CWasmEntryParameters::kArgumentsBuffer == 2);
     static_assert(compiler::CWasmEntryParameters::kCEntryFp == 3);
     Address result =
-        stub_entry.Call(wasm_call_target.value(), (*object_ref).ptr(),
-                        packed_args, saved_c_entry_fp);
+        stub_entry.CallSandboxed(wasm_call_target.value(), (*object_ref).ptr(),
+                                 packed_args, saved_c_entry_fp);
     if (result != kNullAddress) isolate->set_exception(Tagged<Object>(result));
   }
 

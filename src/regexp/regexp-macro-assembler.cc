@@ -442,9 +442,9 @@ int NativeRegExpMacroAssembler::Execute(
           int call_origin, Isolate* isolate, Address regexp_data);
 
   auto fn = GeneratedCode<RegexpMatcherSig>::FromCode(isolate, code);
-  int result =
-      fn.Call(input.ptr(), start_offset, input_start, input_end, output,
-              output_size, call_origin, isolate, regexp_data.ptr());
+  int result = fn.CallSandboxed(input.ptr(), start_offset, input_start,
+                                input_end, output, output_size, call_origin,
+                                isolate, regexp_data.ptr());
   DCHECK_GE(result, SMALLEST_REGEXP_RESULT);
 
   if (result == EXCEPTION && !isolate->has_exception()) {

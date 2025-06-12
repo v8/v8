@@ -540,6 +540,32 @@ CodeEntrypointTag Builtins::EntrypointTagFor(Builtin builtin) {
 }
 
 // static
+CodeSandboxingMode Builtins::SandboxingModeOf(Builtin builtin) {
+  Kind kind = Builtins::KindOf(builtin);
+  switch (kind) {
+    case CPP:
+      // CPP builtins are invoked in sandboxed execution mode, but the CEntry
+      // trampoline will exit sandboxed mode before calling the actual C++ code.
+      // TODO(422994386): investigate running the C++ code in sandboxed mode.
+      return CodeSandboxingMode::kSandboxed;
+    case TSJ:
+    case TFJ:
+      // All builtins with JS linkage run sandboxed.
+      return CodeSandboxingMode::kSandboxed;
+    case TFH:
+    case BCH:
+      // Bytecode handlers and inline caches run sandboxed.
+      return CodeSandboxingMode::kSandboxed;
+    case TFS:
+      return CodeSandboxingMode::kSandboxed;
+    case TSC:
+    case TFC:
+    case ASM:
+      return CallInterfaceDescriptorFor(builtin).sandboxing_mode();
+  }
+}
+
+// static
 bool Builtins::AllowDynamicFunction(
     Isolate* isolate, DirectHandle<JSFunction> target,
     DirectHandle<JSObject> target_global_proxy) {

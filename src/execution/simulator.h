@@ -214,6 +214,11 @@ class GeneratedCode {
   }
 #endif  // USE_SIMULATOR
 
+  DISABLE_CFI_ICALL Return CallSandboxed(Args... args) {
+    EnterSandboxScope sandboxed;
+    return Call(args...);
+  }
+
  private:
   friend class GeneratedCode<Return(Args...)>;
   Isolate* isolate_;

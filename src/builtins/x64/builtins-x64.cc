@@ -469,6 +469,11 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ Push(Immediate(StackFrame::INNER_JSENTRY_FRAME));
   __ bind(&cont);
 
+  // This builtins transitions into sandboxed execution mode.
+  // TODO(350324877): here we don't need to preserve rax/rcx/rdx, so we could
+  // optimize EnterSandbox to not push/pop any registers.
+  __ EnterSandbox();
+
   // Jump to a faked try block that does the invoke, with a faked catch
   // block that sets the exception.
   __ jmp(&invoke);
@@ -498,6 +503,9 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ PopStackHandler();
 
   __ bind(&exit);
+  // TODO(350324877): here we only need to preserve rax, so we could optimize
+  // EnterSandbox to only push/pop that register.
+  __ ExitSandbox();
   // Check if the current stack frame is marked as the outermost JS frame.
   __ Pop(rbx);
   __ cmpq(rbx, Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
@@ -1111,6 +1119,8 @@ void ResetFeedbackVectorOsrUrgency(MacroAssembler* masm,
 void Builtins::Generate_InterpreterEntryTrampoline(
     MacroAssembler* masm, InterpreterEntryTrampolineMode mode) {
   Register closure = rdi;
+
+  __ AssertInSandboxedExecutionMode();
 
   // Get the bytecode array from the function object and load it into
   // kInterpreterBytecodeArrayRegister.
@@ -1758,6 +1768,8 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
 }
 
 static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
+  __ AssertInSandboxedExecutionMode();
+
   // Set the return address to the correct point in the interpreter entry
   // trampoline.
   Label builtin_trampoline, trampoline_loaded;
@@ -4228,6 +4240,18 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   using ER = ExternalReference;
 
+  // TODO(422994386): At the moment, all C++ code expects to run unsandboxed.
+  // In the future, we should be able to also run C++ builtins and runtime
+  // functions in sandboxed execution mode. At that point, we'll either need a
+  // dedicated CEntry variants for switching out of sandboxed execution mode or
+  // we'll need to perform the mode switch at the start of the CPP function.
+  // The latter is only possible if we do not want/need to eventually require
+  // going through dedicated trampoline builtins for switching the sandboxing
+  // mode, so that needs to be taken into account.
+  __ ExitSandbox();
+  // This builtins transitions out of sandboxed execution mode.
+  __ SetSandboxingModeForCurrentBuiltin(CodeSandboxingMode::kUnsandboxed);
+
   // rax: number of arguments including receiver
   // rbx: pointer to C function  (C callee-saved)
   // rbp: frame pointer of calling JS frame (restored after C call)
@@ -4358,6 +4382,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ leaq(rsp, Operand(kArgvRegister, kReceiverOnStackSize));
     __ PushReturnAddressFrom(rcx);
   }
+  __ EnterSandbox();
   __ ret(0);
 
   // Handling of exception.
@@ -4392,6 +4417,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
                    num_frames_above_pending_handler_address));
   __ IncsspqIfSupported(rcx, kScratchRegister);
 #endif  // V8_ENABLE_CET_SHADOW_STACK
+
+  __ EnterSandbox();
 
   // Retrieve the handler context, SP and FP.
   __ movq(rsi,
@@ -4833,6 +4860,10 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
                                   DeoptimizeKind deopt_kind) {
   Isolate* isolate = masm->isolate();
 
+  __ ExitSandbox();
+  // This builtins transitions out of sandboxed execution mode.
+  __ SetSandboxingModeForCurrentBuiltin(CodeSandboxingMode::kUnsandboxed);
+
   // Save all xmm (simd / double) registers, they will later be copied to the
   // deoptimizer's FrameDescription.
   static constexpr int kXmmRegsSize = kSimd128Size * XMMRegister::kNumRegisters;
@@ -5023,6 +5054,8 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
 
   __ movb(__ ExternalReferenceAsOperand(IsolateFieldId::kStackIsIterable),
           Immediate(1));
+
+  __ EnterSandbox();
 
   // Return to the continuation point.
   __ ret(0);

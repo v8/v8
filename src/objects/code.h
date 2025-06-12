@@ -94,6 +94,9 @@ class Code : public ExposedTrustedObject {
 
   inline CodeEntrypointTag entrypoint_tag() const;
 
+  // The sandboxing mode that this code expects to run in.
+  inline CodeSandboxingMode sandboxing_mode() const;
+
   inline void SetInstructionStreamAndInstructionStart(
       IsolateForSandbox isolate, Tagged<InstructionStream> code,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);

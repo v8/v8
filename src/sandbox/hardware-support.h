@@ -153,6 +153,26 @@ inline void ExitSandbox() {
 #endif
 }
 
+// Scope object to enter sandboxed execution mode during its lifetime.
+class V8_NODISCARD V8_ALLOW_UNUSED EnterSandboxScope {
+ public:
+  EnterSandboxScope() { EnterSandbox(); }
+  ~EnterSandboxScope() { ExitSandbox(); }
+
+  EnterSandboxScope(const EnterSandboxScope&) = delete;
+  EnterSandboxScope& operator=(const EnterSandboxScope&) = delete;
+};
+
+// Scope object to exit sandboxed execution mode during its lifetime.
+class V8_NODISCARD V8_ALLOW_UNUSED ExitSandboxScope {
+ public:
+  ExitSandboxScope() { ExitSandbox(); }
+  ~ExitSandboxScope() { EnterSandbox(); }
+
+  ExitSandboxScope(const ExitSandboxScope&) = delete;
+  ExitSandboxScope& operator=(const ExitSandboxScope&) = delete;
+};
+
 // Scope object to document and enforce that code does not access in-sandbox
 // data. This provides a certain level of guarantees that code cannot be
 // influenced by (possibly) attacker-controlled data inside the sandbox.

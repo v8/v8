@@ -544,6 +544,10 @@ void MaglevAssembler::Prologue(Graph* graph) {
 
   CodeEntry();
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  AssertInSandboxedExecutionMode();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
   BailoutIfDeoptimized(rbx);
 
   if (graph->has_recursive_calls()) {

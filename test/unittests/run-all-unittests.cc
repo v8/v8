@@ -53,6 +53,7 @@ int main(int argc, char** argv) {
 
   testing::InitGoogleMock(&argc, argv);
   testing::AddGlobalTestEnvironment(new CppGCEnvironment);
+  // TODO(350324877): Investigate enabling sandbox hardware support here.
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::V8::InitializeExternalStartupData(argv[0]);
   v8::V8::InitializeICUDefaultLocation(argv[0]);

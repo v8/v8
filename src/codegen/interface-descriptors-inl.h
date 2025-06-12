@@ -125,7 +125,8 @@ void StaticCallInterfaceDescriptor<DerivedDescriptor>::Initialize(
   DCHECK_GE(return_double_registers.size(), DerivedDescriptor::kReturnCount);
   data->InitializeRegisters(
       DerivedDescriptor::flags(), DerivedDescriptor::kEntrypointTag,
-      DerivedDescriptor::kReturnCount, DerivedDescriptor::GetParameterCount(),
+      DerivedDescriptor::kSandboxingMode, DerivedDescriptor::kReturnCount,
+      DerivedDescriptor::GetParameterCount(),
       DerivedDescriptor::kStackArgumentOrder,
       DerivedDescriptor::GetRegisterParameterCount(), registers.data(),
       double_registers.data(), return_registers.data(),
@@ -533,6 +534,9 @@ OnStackReplacementDescriptor::ExpectedParameterCountRegister() {
 
 // static
 constexpr auto VoidDescriptor::registers() { return RegisterArray(); }
+
+// static
+constexpr auto JSEntryDescriptor::registers() { return RegisterArray(); }
 
 // static
 constexpr auto AllocateDescriptor::registers() {

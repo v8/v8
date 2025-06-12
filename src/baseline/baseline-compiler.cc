@@ -321,6 +321,10 @@ void BaselineCompiler::GenerateCode() {
   DCHECK_EQ(__ pc_offset(), 0);
   __ CodeEntry();
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  __ AssertInSandboxedExecutionMode();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
   {
     RCS_BASELINE_SCOPE(Visit);
     Prologue();

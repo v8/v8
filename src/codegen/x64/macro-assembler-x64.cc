@@ -602,6 +602,29 @@ void MacroAssembler::AssertInSandboxedExecutionMode() {
 #endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 }
 
+void MacroAssembler::SwitchSandboxingModeTo(CodeSandboxingMode mode) {
+  switch (mode) {
+    case CodeSandboxingMode::kSandboxed:
+      return EnterSandbox();
+    case CodeSandboxingMode::kUnsandboxed:
+      return ExitSandbox();
+  }
+}
+
+void MacroAssembler::SwitchSandboxingModeBeforeCallIfNeeded(
+    CodeSandboxingMode target_sandboxing_mode) {
+  if (sandboxing_mode() != target_sandboxing_mode) {
+    SwitchSandboxingModeTo(target_sandboxing_mode);
+  }
+}
+
+void MacroAssembler::SwitchSandboxingModeAfterCallIfNeeded(
+    CodeSandboxingMode target_sandboxing_mode) {
+  if (sandboxing_mode() != target_sandboxing_mode) {
+    SwitchSandboxingModeTo(sandboxing_mode());
+  }
+}
+
 void MacroAssembler::EncodeSandboxedPointer(Register value) {
   ASM_CODE_COMMENT(this);
 #ifdef V8_ENABLE_SANDBOX
@@ -1138,12 +1161,12 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
     CheckPageFlag(value,
                   value,  // Used as scratch.
                   MemoryChunk::kPointersToHereAreInterestingMask, zero, &done,
-                  Label::kNear);
+                  Label::kFar);
 
     CheckPageFlag(object,
                   value,  // Used as scratch.
                   MemoryChunk::kPointersFromHereAreInterestingMask, zero, &done,
-                  Label::kNear);
+                  Label::kFar);
 #endif  // !V8_ENABLE_STICKY_MARK_BITS_BOOL
   }
 
@@ -3276,6 +3299,7 @@ void MacroAssembler::Jump(Address destination, RelocInfo::Mode rmode,
 }
 
 void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
+  DCHECK_EQ(sandboxing_mode(), code_object->sandboxing_mode());
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code_object));
   Builtin builtin = Builtin::kNoBuiltinId;
@@ -3289,6 +3313,7 @@ void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
 
 void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
                           Condition cc) {
+  DCHECK_EQ(sandboxing_mode(), code_object->sandboxing_mode());
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code_object));
   Builtin builtin = Builtin::kNoBuiltinId;
@@ -3301,11 +3326,13 @@ void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
 }
 
 void MacroAssembler::Call(ExternalReference ext) {
+  // TODO(saelo): can we DCHECK that the sandboxing mode is correct here?
   LoadAddress(kScratchRegister, ext);
   call(kScratchRegister);
 }
 
 void MacroAssembler::Call(Operand op) {
+  // TODO(saelo): can we DCHECK that the sandboxing mode is correct here?
   if (!CpuFeatures::IsSupported(INTEL_ATOM)) {
     call(op);
   } else {
@@ -3320,6 +3347,7 @@ void MacroAssembler::Call(Address destination, RelocInfo::Mode rmode) {
 }
 
 void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
+  DCHECK_EQ(sandboxing_mode(), code_object->sandboxing_mode());
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code_object));
   Builtin builtin = Builtin::kNoBuiltinId;
@@ -3355,11 +3383,16 @@ Operand MacroAssembler::EntryFromBuiltinIndexAsOperand(Register builtin_index) {
 }
 
 void MacroAssembler::CallBuiltinByIndex(Register builtin_index) {
+  // TODO(saelo): can we DCHECK that the sandboxing mode is correct here?
   Call(EntryFromBuiltinIndexAsOperand(builtin_index));
 }
 
 void MacroAssembler::CallBuiltin(Builtin builtin) {
   ASM_CODE_COMMENT_STRING(this, CommentForOffHeapTrampoline("call", builtin));
+
+  // Check if this builtin call transitions out of sandboxed execution mode.
+  SwitchSandboxingModeBeforeCallIfNeeded(Builtins::SandboxingModeOf(builtin));
+
   switch (options().builtin_call_jump_mode) {
     case BuiltinCallJumpMode::kAbsolute:
       Call(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET);
@@ -3376,9 +3409,14 @@ void MacroAssembler::CallBuiltin(Builtin builtin) {
       break;
     }
   }
+
+  SwitchSandboxingModeAfterCallIfNeeded(Builtins::SandboxingModeOf(builtin));
 }
 
 void MacroAssembler::TailCallBuiltin(Builtin builtin) {
+  // We cannot (currently) switch the sandboxing mode on tail calls.
+  DCHECK_EQ(sandboxing_mode(), Builtins::SandboxingModeOf(builtin));
+
   ASM_CODE_COMMENT_STRING(this,
                           CommentForOffHeapTrampoline("tail call", builtin));
   switch (options().builtin_call_jump_mode) {
@@ -3400,6 +3438,9 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin) {
 }
 
 void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cc) {
+  // We cannot (currently) switch the sandboxing mode on tail calls.
+  DCHECK_EQ(sandboxing_mode(), Builtins::SandboxingModeOf(builtin));
+
   ASM_CODE_COMMENT_STRING(this,
                           CommentForOffHeapTrampoline("tail call", builtin));
   switch (options().builtin_call_jump_mode) {
@@ -4743,12 +4784,13 @@ int MacroAssembler::CallCFunction(ExternalReference function, int num_arguments,
   // CallCFunction method called below.
   LoadAddress(rax, function);
   return CallCFunction(rax, num_arguments, set_isolate_data_slots,
-                       return_location);
+                       return_location, CodeSandboxingMode::kUnsandboxed);
 }
 
 int MacroAssembler::CallCFunction(Register function, int num_arguments,
                                   SetIsolateDataSlots set_isolate_data_slots,
-                                  Label* return_location) {
+                                  Label* return_location,
+                                  CodeSandboxingMode target_sandboxing_mode) {
   ASM_CODE_COMMENT(this);
   DCHECK_LE(num_arguments, kMaxCParameters);
   DCHECK(has_frame());
@@ -4756,6 +4798,8 @@ int MacroAssembler::CallCFunction(Register function, int num_arguments,
   if (v8_flags.debug_code) {
     CheckStackAlignment();
   }
+
+  SwitchSandboxingModeBeforeCallIfNeeded(target_sandboxing_mode);
 
   // Save the frame pointer and PC so that the stack layout remains iterable,
   // even without an ExitFrame which normally exists between JS and C frames.
@@ -4796,6 +4840,8 @@ int MacroAssembler::CallCFunction(Register function, int num_arguments,
     movq(ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP),
          Immediate(0));
   }
+
+  SwitchSandboxingModeAfterCallIfNeeded(target_sandboxing_mode);
 
   return call_pc_offset;
 }
@@ -5000,6 +5046,9 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     __ addl(level_mem_op, Immediate(1));
   }
 
+  DCHECK_EQ(__ sandboxing_mode(), CodeSandboxingMode::kSandboxed);
+  __ ExitSandbox();
+
   Label profiler_or_side_effects_check_enabled, done_api_call;
   if (with_profiling) {
     __ RecordComment("Check if profiler or side effects check is enabled");
@@ -5041,6 +5090,8 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     __ movq(argc_reg, *argc_operand);
   }
   __ LeaveExitFrame();
+
+  __ EnterSandbox();
 
   {
     ASM_CODE_COMMENT_STRING(masm,

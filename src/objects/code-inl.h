@@ -864,6 +864,15 @@ CodeEntrypointTag Code::entrypoint_tag() const {
   }
 }
 
+CodeSandboxingMode Code::sandboxing_mode() const {
+  if (is_builtin()) {
+    return Builtins::SandboxingModeOf(builtin_id());
+  } else {
+    // All runtime-generated code should run sandboxed.
+    return CodeSandboxingMode::kSandboxed;
+  }
+}
+
 void Code::SetInstructionStreamAndInstructionStart(
     IsolateForSandbox isolate, Tagged<InstructionStream> code,
     WriteBarrierMode mode) {

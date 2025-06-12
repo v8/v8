@@ -1676,10 +1676,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         pc_offset = __ CallCFunction(ref, num_gp_parameters + num_fp_parameters,
                                      set_isolate_data_slots, &return_location);
       } else {
+        // When the input is a register, we assume here that the target is
+        // always code that should be run in sandboxed execution mode (for
+        // example because we're calling runtime-generated code). This is
+        // currently for example used for calling compiled regexp code. If this
+        // assumption ever turns out to be wrong, we could for example
+        // introduce dedicated opcodes for calling a register and switching the
+        // sandboxing mode.
         Register func = i.InputRegister(0);
-        pc_offset =
-            __ CallCFunction(func, num_gp_parameters + num_fp_parameters,
-                             set_isolate_data_slots, &return_location);
+        pc_offset = __ CallCFunction(
+            func, num_gp_parameters + num_fp_parameters, set_isolate_data_slots,
+            &return_location, CodeSandboxingMode::kSandboxed);
       }
 
       RecordSafepoint(instr->reference_map(), pc_offset);

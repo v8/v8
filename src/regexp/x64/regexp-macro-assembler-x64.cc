@@ -909,6 +909,10 @@ DirectHandle<HeapObject> RegExpMacroAssemblerX64::GetCode(
   // physical frame is generated.
   FrameScope scope(&masm_, StackFrame::MANUAL);
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  __ AssertInSandboxedExecutionMode();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
   // Actually emit code to start a new stack frame. This pushes the frame type
   // marker into the stack slot at kFrameTypeOffset.
   static_assert(kFrameTypeOffset == -1 * kSystemPointerSize);

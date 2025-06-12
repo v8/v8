@@ -228,6 +228,15 @@ void CodeGenerator::AssembleCode() {
 
   masm()->CodeEntry();
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  // TODO(saelo): should there also be a info->IsJS()?
+  if (v8_flags.debug_code &&
+      (call_descriptor->IsJSFunctionCall() || info->IsWasm())) {
+    masm()->RecordComment("-- Prologue: check sandboxing mode --");
+    masm()->AssertInSandboxedExecutionMode();
+  }
+#endif
+
   // Check that {kJavaScriptCallCodeStartRegister} has been set correctly.
   if (v8_flags.debug_code && info->called_with_code_start_register()) {
     masm()->RecordComment("-- Prologue: check code start register --");
