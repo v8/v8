@@ -1791,7 +1791,7 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
     DCHECK(CanBeTaggedPointer(rep));
-    DCHECK_EQ(kTaggedSize, 8);
+    DCHECK_EQ(AtomicWidthSize(width), kTaggedSize);
 
     RecordWriteMode record_write_mode =
         WriteBarrierKindToRecordWriteMode(write_barrier_kind);
