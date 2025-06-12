@@ -516,10 +516,11 @@ macro JSToWasmWrapperHelper(
   const switchStack =
       promise == Promise::kPromise || promise == Promise::kStressSwitch;
   if constexpr (!switchStack) {
-    const budget: Smi =
-        UnsafeCast<Smi>(functionData.wrapper_budget.value) - SmiConstant(1);
+    let budget: Smi = UnsafeCast<Smi>(functionData.wrapper_budget.value);
+    dcheck(budget > 0);
+    budget -= 1;
     functionData.wrapper_budget.value = budget;
-    if (budget == SmiConstant(0)) {
+    if (budget == 0) {
       runtime::TierUpJSToWasmWrapper(kNoContext, functionData);
     }
   }

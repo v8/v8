@@ -51,7 +51,8 @@ extern class WasmImportData extends TrustedObject {
       ProtectedPointer<WasmInternalFunction|WasmDispatchTable>;
   native_context: NativeContext;
   callable: JSReceiver|Undefined;
-  wrapper_budget: Smi;
+  // Contains a Smi; boxed so that generated code can update the value.
+  wrapper_budget: Cell;
   // The signature is needed for the generic wasm-to-js wrapper.
   sig: RawFunctionSigPtr;
   // See BitFields defined in the C++ class for details.

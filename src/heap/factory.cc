@@ -1772,6 +1772,8 @@ DirectHandle<WasmImportData> Factory::NewWasmImportData(
     DirectHandle<HeapObject> callable, wasm::Suspend suspend,
     MaybeDirectHandle<WasmTrustedInstanceData> instance_data,
     const wasm::CanonicalSig* sig, bool shared) {
+  DirectHandle<Cell> wrapper_budget_cell =
+      NewCell(Smi::FromInt(v8_flags.wasm_wrapper_tiering_budget));
   Tagged<Map> map = *wasm_import_data_map();
   auto result = Cast<WasmImportData>(AllocateRawWithImmortalMap(
       map->instance_size(),
@@ -1785,7 +1787,7 @@ DirectHandle<WasmImportData> Factory::NewWasmImportData(
   } else {
     result->set_instance_data(*instance_data.ToHandleChecked());
   }
-  result->set_wrapper_budget(v8_flags.wasm_wrapper_tiering_budget);
+  result->set_wrapper_budget(*wrapper_budget_cell);
   result->clear_call_origin();
   result->set_sig(sig);
 #if TAGGED_SIZE_8_BYTES

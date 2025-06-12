@@ -63,9 +63,11 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
 
   ModifyThreadInWasmFlag(0);
   // Trigger a wrapper tier-up when this function got called often enough.
-  dcheck(data.wrapper_budget > 0);
-  data.wrapper_budget = data.wrapper_budget - 1;
-  if (data.wrapper_budget == 0) {
+  let budget: Smi = UnsafeCast<Smi>(data.wrapper_budget.value);
+  dcheck(budget > 0);
+  budget -= 1;
+  data.wrapper_budget.value = budget;
+  if (budget == 0) {
     runtime::TierUpWasmToJSWrapper(kNoContext, data);
   }
 

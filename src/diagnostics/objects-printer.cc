@@ -3063,7 +3063,7 @@ void WasmImportData::WasmImportDataPrint(std::ostream& os) {
     os << "<empty>";
   }
   os << "\n - suspend: " << static_cast<int>(suspend());
-  os << "\n - wrapper_budget: " << wrapper_budget();
+  os << "\n - wrapper_budget: " << wrapper_budget()->value();
   if (has_call_origin()) {
     os << "\n - call_origin: " << Brief(call_origin());
   }
