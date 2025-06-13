@@ -1494,7 +1494,7 @@ struct CombinedRecord {
 // can make it live longer than the returned CombinedRecord
 struct CombinedRecordOwnership {
   std::string era;
-  std::string month_code;
+  std::string monthCode;
 };
 
 enum class CalendarFieldsFlag : uint8_t {
@@ -1538,7 +1538,7 @@ Maybe<bool> GetSingleCalendarField(
     // (perform conversion)
     // ix. Set result's field whose name is given in the Field Name column of
     // the same row to value.
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
         isolate, output, conversion_func(isolate, value), Nothing<bool>());
     return Just(true);
   }
@@ -1574,20 +1574,71 @@ Maybe<bool> GetSingleCalendarField(
   return Just(false);
 }
 
-// Only for use in PrepareCalendarFields
-#define GET_SINGLE_INTEGRAL_FIELD(field, fieldString, output_obj, IntType,    \
-                                  conversion_func)                            \
-  IntType field = 0;                                                          \
-  found = 0;                                                                  \
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(                                     \
-      isolate, found,                                                         \
-      GetSingleCalendarField(isolate, fields,                                 \
-                             isolate->factory()->fieldString##_string(), any, \
-                             field, conversion_func),                         \
-      Nothing<CombinedRecord>());                                             \
-  if (found) {                                                                \
-    output_obj.field = field;                                                 \
+// Setters take `resultField` (a field expression of CombinedRecords)
+// and `field` (a variable holding a value, and the name of the property),
+// and set resultField to field, performing additional work if necessary.
+#define SIMPLE_SETTER(resultField, field) resultField = field;
+#define MOVING_SETTER(resultField, field) resultField = std::move(field);
+#define ANCHORED_STRING_SETTER(resultField, field) \
+  anchor.era = field->ToStdString();               \
+  resultField = anchor.era;
+
+// Conditions take a boolean expression and wrap it with additional checks
+#define SIMPLE_CONDITION(cond) cond
+#define ERA_CONDITION(cond) calendarUsesEras && (cond)
+
+#define NOOP_REQUIRED_CHECK
+#define TIMEZONE_REQUIRED_CHECK                                         \
+  if (!found && required_fields == RequiredFields::kTimeZone) {         \
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,                               \
+                                 NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(), \
+                                 Nothing<CombinedRecord>());            \
   }
+
+// https://tc39.es/proposal-temporal/#sec-temporal-calendar-fields-records
+// V(CalendarFieldsFlags, propertyName, resultField, Type, Conversion,
+// CONDITION, SETTER, REQUIRED_CHECK, AssignOrMove)
+#define CALENDAR_FIELDS(V)                                                     \
+  V(kDay, day, result.date.day, uint8_t,                                       \
+    ToPositiveIntegerTypeWithTruncation<uint8_t>, SIMPLE_CONDITION,            \
+    SIMPLE_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)                                \
+  V(kYearFields, era, result.date.era, DirectHandle<String>, Object::ToString, \
+    ERA_CONDITION, ANCHORED_STRING_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)        \
+  V(kYearFields, eraYear, result.date.era_year, int32_t,                       \
+    ToIntegerTypeWithTruncation<int32_t>, ERA_CONDITION, SIMPLE_SETTER,        \
+    NOOP_REQUIRED_CHECK, ASSIGN)                                               \
+  V(kTimeFields, hour, result.time.hour, uint8_t,                              \
+    ToPositiveIntegerTypeWithTruncation<uint8_t>, SIMPLE_CONDITION,            \
+    SIMPLE_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)                                \
+  V(kTimeFields, microsecond, result.time.microsecond, uint16_t,               \
+    ToPositiveIntegerTypeWithTruncation<uint16_t>, SIMPLE_CONDITION,           \
+    SIMPLE_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)                                \
+  V(kTimeFields, millisecond, result.time.millisecond, uint16_t,               \
+    ToPositiveIntegerTypeWithTruncation<uint16_t>, SIMPLE_CONDITION,           \
+    SIMPLE_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)                                \
+  V(kTimeFields, minute, result.time.minute, uint8_t,                          \
+    ToPositiveIntegerTypeWithTruncation<uint8_t>, SIMPLE_CONDITION,            \
+    SIMPLE_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)                                \
+  V(kMonthFields, month, result.date.month, uint8_t,                           \
+    ToPositiveIntegerTypeWithTruncation<uint8_t>, SIMPLE_CONDITION,            \
+    SIMPLE_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)                                \
+  V(kMonthFields, monthCode, result.date.month_code, DirectHandle<String>,     \
+    Object::ToString, SIMPLE_CONDITION, ANCHORED_STRING_SETTER,                \
+    NOOP_REQUIRED_CHECK, ASSIGN)                                               \
+  V(kTimeFields, nanosecond, result.time.nanosecond, uint16_t,                 \
+    ToPositiveIntegerTypeWithTruncation<uint16_t>, SIMPLE_CONDITION,           \
+    SIMPLE_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)                                \
+  V(kOffset, offset, result.offset, std::unique_ptr<temporal_rs::TimeZone>,    \
+    ToOffset, SIMPLE_CONDITION, MOVING_SETTER, NOOP_REQUIRED_CHECK, MOVE)      \
+  V(kTimeFields, second, result.time.second, uint8_t,                          \
+    ToPositiveIntegerTypeWithTruncation<uint8_t>, SIMPLE_CONDITION,            \
+    SIMPLE_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)                                \
+  V(kTimeZone, timeZone, result.time_zone,                                     \
+    std::unique_ptr<temporal_rs::TimeZone>, ToTemporalTimeZoneIdentifier,      \
+    SIMPLE_CONDITION, MOVING_SETTER, NOOP_REQUIRED_CHECK, MOVE)                \
+  V(kYearFields, year, result.date.year, int32_t,                              \
+    ToIntegerTypeWithTruncation<int32_t>, SIMPLE_CONDITION, SIMPLE_SETTER,     \
+    TIMEZONE_REQUIRED_CHECK, ASSIGN)
 
 // #sec-temporal-preparecalendarfields
 Maybe<CombinedRecord> PrepareCalendarFields(Isolate* isolate,
@@ -1669,135 +1720,27 @@ Maybe<CombinedRecord> PrepareCalendarFields(Isolate* isolate,
   //   ii. Set result's field whose name is given in the Field Name column of
   //   the same row to the corresponding Default value of the same row.
 
-  // Lexicographic order of fields:
-  // day, era, eraYear, hour, microsecond, millisecond, minute, month,
-  // monthCode, nanosecond, offset, second, timeZone, year
-
-  bool found = 0;
-  // == day ==
-  if (which_fields & CalendarFieldsFlag::kDay) {
-    GET_SINGLE_INTEGRAL_FIELD(day, day, result.date, uint8_t,
-                              ToPositiveIntegerTypeWithTruncation<uint8_t>);
+#define GET_SINGLE_CALENDAR_FIELD(fieldsFlag, propertyName, resultField, Type, \
+                                  Conversion, CONDITION, SETTER,               \
+                                  REQUIRED_CHECK, AssignOrMove)                \
+  if (CONDITION(which_fields & CalendarFieldsFlag::fieldsFlag)) {              \
+    Type propertyName;                                                         \
+    bool found = 0;                                                            \
+    MAYBE_##AssignOrMove##_RETURN_ON_EXCEPTION_VALUE(                          \
+        isolate, found,                                                        \
+        GetSingleCalendarField(isolate, fields,                                \
+                               isolate->factory()->propertyName##_string(),    \
+                               any, propertyName, Conversion),                 \
+        Nothing<CombinedRecord>());                                            \
+    if (found) {                                                               \
+      SETTER(resultField, propertyName);                                       \
+    }                                                                          \
+    REQUIRED_CHECK                                                             \
   }
 
-  // == era, eraYear ==
-  if (calendarUsesEras && (which_fields & CalendarFieldsFlag::kYearFields)) {
-    found = 0;
-    DirectHandle<String> era_string;
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, found,
-        GetSingleCalendarField(isolate, fields,
-                               isolate->factory()->era_string(), any,
-                               era_string, Object::ToString),
-        Nothing<CombinedRecord>());
+  CALENDAR_FIELDS(GET_SINGLE_CALENDAR_FIELD);
 
-    if (found) {
-      anchor.era = era_string->ToStdString();
-      result.date.era = anchor.era;
-    }
-
-    GET_SINGLE_INTEGRAL_FIELD(era_year, eraYear, result.date, int32_t,
-                              ToIntegerTypeWithTruncation<int32_t>);
-  }
-  // == hour, microsecond, millisecond, minute ==
-  if (which_fields & CalendarFieldsFlag::kTimeFields) {
-    GET_SINGLE_INTEGRAL_FIELD(hour, hour, result.time, uint8_t,
-                              ToPositiveIntegerTypeWithTruncation<uint8_t>);
-
-    GET_SINGLE_INTEGRAL_FIELD(microsecond, microsecond, result.time, uint16_t,
-                              ToPositiveIntegerTypeWithTruncation<uint16_t>);
-
-    GET_SINGLE_INTEGRAL_FIELD(millisecond, millisecond, result.time, uint16_t,
-                              ToPositiveIntegerTypeWithTruncation<uint16_t>);
-    GET_SINGLE_INTEGRAL_FIELD(minute, minute, result.time, uint8_t,
-                              ToPositiveIntegerTypeWithTruncation<uint8_t>);
-  }
-
-  // == month, monthCode ==
-  if (which_fields & CalendarFieldsFlag::kMonthFields) {
-    GET_SINGLE_INTEGRAL_FIELD(day, day, result.date, uint8_t,
-                              ToPositiveIntegerTypeWithTruncation<uint8_t>);
-    found = 0;
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, found,
-        GetSingleCalendarField(isolate, fields,
-                               isolate->factory()->monthCode_string(), any,
-                               anchor.month_code, ToMonthCode),
-        Nothing<CombinedRecord>());
-    if (found) {
-      result.date.month_code = anchor.month_code;
-    }
-  }
-
-  // == nanosecond ==
-  if (which_fields & CalendarFieldsFlag::kTimeFields) {
-    GET_SINGLE_INTEGRAL_FIELD(nanosecond, nanosecond, result.time, uint16_t,
-                              ToPositiveIntegerTypeWithTruncation<uint16_t>);
-  }
-
-  // == offset ==
-  if (which_fields & CalendarFieldsFlag::kOffset) {
-    // b. Let value be ?Get(fields, property).
-    DirectHandle<Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, value,
-        JSReceiver::GetProperty(isolate, fields,
-                                isolate->factory()->offset_string()),
-        Nothing<CombinedRecord>());
-
-    // c. If value is not undefined, then
-    if (!IsUndefined(*value)) {
-      // i. Set any to true.
-      any = true;
-      std::unique_ptr<temporal_rs::TimeZone> tz;
-      // ii. Let Conversion be the Conversion value of the same row.
-      // (perform conversion)
-      // ix. Set result's field whose name is given in the Field Name column of
-      // the same row to value.
-      MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
-          isolate, tz, ToOffset(isolate, value), Nothing<CombinedRecord>());
-      result.offset = std::move(tz);
-    }
-  }
-
-  // == second ==
-  if (which_fields & CalendarFieldsFlag::kTimeFields) {
-    GET_SINGLE_INTEGRAL_FIELD(second, second, result.time, uint8_t,
-                              ToPositiveIntegerTypeWithTruncation<uint8_t>);
-  }
-
-  // == time_zone ==
-  if (which_fields & CalendarFieldsFlag::kTimeZone) {
-    // b. Let value be ?Get(fields, property).
-    DirectHandle<Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, value,
-        JSReceiver::GetProperty(isolate, fields,
-                                isolate->factory()->timeZone_string()),
-        Nothing<CombinedRecord>());
-
-    // c. If value is not undefined, then
-    if (!IsUndefined(*value)) {
-      // i. Set any to true.
-      any = true;
-      std::unique_ptr<temporal_rs::TimeZone> tz;
-      // ii. Let Conversion be the Conversion value of the same row.
-      // (perform conversion)
-      // ix. Set result's field whose name is given in the Field Name column of
-      // the same row to value.
-      MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
-          isolate, tz, ToOffset(isolate, value), Nothing<CombinedRecord>());
-      result.time_zone = std::move(tz);
-      // i. If requiredFieldNames contains key, then
-    } else if (required_fields == RequiredFields::kTimeZone) {
-      // 1. Throw a TypeError exception.
-    }
-  }
-  // == year ==
-  if (which_fields & CalendarFieldsFlag::kYearFields) {
-    GET_SINGLE_INTEGRAL_FIELD(year, year, result.date, int32_t,
-                              ToPositiveIntegerTypeWithTruncation<int32_t>);
-  }
+#undef GET_SINGLE_CALENDAR_FIELD
 
   // 10. If requiredFieldNames is partial and any is false, then
   if (required_fields == RequiredFields::kPartial && !any) {
@@ -1808,6 +1751,15 @@ Maybe<CombinedRecord> PrepareCalendarFields(Isolate* isolate,
 
   return Just(std::move(result));
 }
+
+#undef SIMPLE_SETTER
+#undef MOVING_SETTER
+#undef ANCHORED_STRING_SETTER
+#undef SIMPLE_CONDITION
+#undef ERA_CONDITION
+#undef NOOP_REQUIRED_CHECK
+#undef TIMEZONE_REQUIRED_CHECK
+#undef CALENDAR_FIELDS
 
 // ====== Construction operations ======
 
