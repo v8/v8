@@ -5,11 +5,7 @@
 #ifndef V8_MAGLEV_MAGLEV_GRAPH_H_
 #define V8_MAGLEV_MAGLEV_GRAPH_H_
 
-#include <vector>
-
-#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/heap-refs.h"
-#include "src/compiler/js-heap-broker.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph-labeller.h"
@@ -82,7 +78,7 @@ class Graph final : public ZoneObject {
 
   void set_blocks(ZoneVector<BasicBlock*> blocks) { blocks_ = blocks; }
 
-  inline void RemoveUnreachableBlocks();
+  void RemoveUnreachableBlocks();
 
   uint32_t tagged_stack_slots() const { return tagged_stack_slots_; }
   uint32_t untagged_stack_slots() const { return untagged_stack_slots_; }
@@ -194,7 +190,7 @@ class Graph final : public ZoneObject {
 
   // Resolve the scope info of a context value.
   // An empty result means we don't statically know the context's scope.
-  inline compiler::OptionalScopeInfoRef TryGetScopeInfo(ValueNode* context);
+  compiler::OptionalScopeInfoRef TryGetScopeInfo(ValueNode* context);
 
   void record_scope_info(ValueNode* context,
                          compiler::OptionalScopeInfoRef scope_info) {
@@ -241,10 +237,10 @@ class Graph final : public ZoneObject {
                                  : RootIndex::kFalseValue);
   }
 
-  inline ValueNode* GetConstant(compiler::ObjectRef ref);
+  ValueNode* GetConstant(compiler::ObjectRef ref);
 
-  inline ValueNode* GetTrustedConstant(compiler::HeapObjectRef ref,
-                                       IndirectPointerTag tag);
+  ValueNode* GetTrustedConstant(compiler::HeapObjectRef ref,
+                                IndirectPointerTag tag);
 
   Zone* zone() const { return compilation_info_->zone(); }
   compiler::JSHeapBroker* broker() const { return compilation_info_->broker(); }
@@ -325,171 +321,11 @@ class Graph final : public ZoneObject {
   }
 
   compiler::OptionalScopeInfoRef TryGetScopeInfoForContextLoad(
-      ValueNode* context, int offset) {
-    compiler::OptionalScopeInfoRef cur = TryGetScopeInfo(context);
-    if (offset == Context::OffsetOfElementAt(Context::EXTENSION_INDEX)) {
-      return cur;
-    }
-    CHECK_EQ(offset, Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
-    if (cur.has_value()) {
-      cur = (*cur).OuterScopeInfo(broker());
-      while (!cur->HasContext() && cur->HasOuterScopeInfo()) {
-        cur = cur->OuterScopeInfo(broker());
-      }
-      if (cur->HasContext()) {
-        return cur;
-      }
-    }
-    return {};
-  }
+      ValueNode* context, int offset);
 
   template <typename Function>
-  void IterateGraphAndSweepDeadBlocks(Function&& is_dead) {
-    auto current = blocks_.begin();
-    auto last_non_dead = current;
-    while (current != blocks_.end()) {
-      if (is_dead(*current)) {
-        (*current)->mark_dead();
-      } else {
-        if (current != last_non_dead) {
-          // Move current to last non dead position.
-          *last_non_dead = *current;
-        }
-        ++last_non_dead;
-      }
-      ++current;
-    }
-    if (current != last_non_dead) {
-      blocks_.resize(blocks_.size() - (current - last_non_dead));
-    }
-  }
+  void IterateGraphAndSweepDeadBlocks(Function&& is_dead);
 };
-
-compiler::OptionalScopeInfoRef Graph::TryGetScopeInfo(ValueNode* context) {
-  auto it = scope_infos_.find(context);
-  if (it != scope_infos_.end()) {
-    return it->second;
-  }
-  compiler::OptionalScopeInfoRef res;
-  if (auto context_const = context->TryCast<Constant>()) {
-    res = context_const->object().AsContext().scope_info(broker());
-    DCHECK(res->HasContext());
-  } else if (auto load =
-                 context->TryCast<LoadTaggedFieldForContextSlotNoCells>()) {
-    compiler::OptionalScopeInfoRef cur =
-        TryGetScopeInfoForContextLoad(load->input(0).node(), load->offset());
-    if (cur.has_value()) res = cur;
-  } else if (auto load_script =
-                 context->TryCast<LoadTaggedFieldForContextSlot>()) {
-    compiler::OptionalScopeInfoRef cur = TryGetScopeInfoForContextLoad(
-        load_script->input(0).node(), load_script->offset());
-    if (cur.has_value()) res = cur;
-  } else if (context->Is<InitialValue>()) {
-    // We should only fail to keep track of initial contexts originating from
-    // the OSR prequel.
-    // TODO(olivf): Keep track of contexts when analyzing OSR Prequel.
-    DCHECK(is_osr());
-  } else {
-    // Any context created within a function must be registered in
-    // graph()->scope_infos(). Initial contexts must be registered before
-    // BuildBody. We don't track context in generators (yet) and around eval
-    // the bytecode compiler creates contexts by calling
-    // Runtime::kNewFunctionInfo directly.
-    DCHECK(context->Is<Phi>() || context->Is<GeneratorRestoreRegister>() ||
-           context->Is<RegisterInput>() || context->Is<CallRuntime>());
-  }
-  return scope_infos_[context] = res;
-}
-
-void Graph::RemoveUnreachableBlocks() {
-  DCHECK(may_have_unreachable_blocks());
-
-  std::vector<bool> reachable_blocks(max_block_id(), false);
-  std::vector<BasicBlock*> worklist;
-
-  DCHECK(!blocks().empty());
-  BasicBlock* initial_bb = blocks().front();
-  worklist.push_back(initial_bb);
-  reachable_blocks[initial_bb->id()] = true;
-  DCHECK(!initial_bb->is_loop());
-
-  while (!worklist.empty()) {
-    BasicBlock* current = worklist.back();
-    worklist.pop_back();
-
-    for (auto handler : current->exception_handlers()) {
-      if (!handler->HasExceptionHandler()) continue;
-      if (handler->ShouldLazyDeopt()) continue;
-      BasicBlock* catch_block = handler->catch_block();
-      if (!reachable_blocks[catch_block->id()]) {
-        reachable_blocks[catch_block->id()] = true;
-        worklist.push_back(catch_block);
-      }
-    }
-    current->ForEachSuccessor([&](BasicBlock* succ) {
-      if (!reachable_blocks[succ->id()]) {
-        reachable_blocks[succ->id()] = true;
-        worklist.push_back(succ);
-      }
-    });
-  }
-
-  // Sweep dead blocks and remove unreachable predecessors.
-  IterateGraphAndSweepDeadBlocks([&](BasicBlock* bb) {
-    if (!reachable_blocks[bb->id()]) return true;
-    // If block doesn't have a merge state, it has only one predecessor, so
-    // it must be the reachable one.
-    if (!bb->has_state()) return false;
-    if (bb->is_loop() && !reachable_blocks[bb->backedge_predecessor()->id()]) {
-      // If the backedge predecessor is not reachable, we can turn the loop
-      // into a regular block.
-      bb->state()->TurnLoopIntoRegularBlock();
-    }
-    for (int i = bb->predecessor_count() - 1; i >= 0; i--) {
-      if (!reachable_blocks[bb->predecessor_at(i)->id()]) {
-        bb->state()->RemovePredecessorAt(i);
-      }
-    }
-    return false;
-  });
-
-  set_may_have_unreachable_blocks(false);
-}
-
-ValueNode* Graph::GetConstant(compiler::ObjectRef ref) {
-  if (ref.IsSmi()) {
-    return GetSmiConstant(ref.AsSmi());
-  }
-  compiler::HeapObjectRef constant = ref.AsHeapObject();
-
-  if (IsThinString(*constant.object())) {
-    constant = MakeRefAssumeMemoryFence(
-        broker(), Cast<ThinString>(*constant.object())->actual());
-  }
-
-  auto root_index = broker()->FindRootIndex(constant);
-  if (root_index.has_value()) {
-    return GetRootConstant(*root_index);
-  }
-
-  return GetOrAddNewConstantNode(constants_, ref.AsHeapObject());
-}
-
-ValueNode* Graph::GetTrustedConstant(compiler::HeapObjectRef ref,
-                                     IndirectPointerTag tag) {
-#ifdef V8_ENABLE_SANDBOX
-  auto it = trusted_constants_.find(ref);
-  if (it == trusted_constants_.end()) {
-    TrustedConstant* node = CreateNewConstantNode<TrustedConstant>(0, ref, tag);
-    trusted_constants_.emplace(ref, node);
-    return node;
-  }
-  SBXCHECK_EQ(it->second->tag(), tag);
-  return it->second;
-#else
-  return GetConstant(ref);
-#endif
-}
 
 }  // namespace maglev
 }  // namespace internal
