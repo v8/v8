@@ -10,6 +10,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
 #include "src/objects/backing-store.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/templates.h"
 #include "src/sandbox/sandbox.h"
@@ -802,11 +803,16 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
     types["CONS_ONE_BYTE_STRING_TYPE"] = CONS_ONE_BYTE_STRING_TYPE;
     types["SHARED_FUNCTION_INFO_TYPE"] = SHARED_FUNCTION_INFO_TYPE;
     types["SCRIPT_TYPE"] = SCRIPT_TYPE;
+    types["JS_PROMISE_TYPE"] = JS_PROMISE_TYPE;
+    types["PROMISE_REACTION"] = PROMISE_REACTION_TYPE;
+    types["JS_FUNCTION"] = JS_FUNCTION_TYPE;
+    types["SHARED_FUNCTION_INFO"] = SHARED_FUNCTION_INFO_TYPE;
 #ifdef V8_ENABLE_WEBASSEMBLY
     types["WASM_MODULE_OBJECT_TYPE"] = WASM_MODULE_OBJECT_TYPE;
     types["WASM_INSTANCE_OBJECT_TYPE"] = WASM_INSTANCE_OBJECT_TYPE;
     types["WASM_FUNC_REF_TYPE"] = WASM_FUNC_REF_TYPE;
     types["WASM_TABLE_OBJECT_TYPE"] = WASM_TABLE_OBJECT_TYPE;
+    types["WASM_RESUME_DATA"] = WASM_RESUME_DATA_TYPE;
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return types;
@@ -858,6 +864,14 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         SharedFunctionInfo::kFormalParameterCountOffset;
     fields[SCRIPT_TYPE]["wasm_managed_native_module"] =
         Script::kEvalFromPositionOffset;
+    fields[JS_PROMISE_TYPE]["reactions_or_result"] =
+        JSPromise::kReactionsOrResultOffset;
+    fields[PROMISE_REACTION_TYPE]["fulfill_handler"] =
+        PromiseReaction::kFulfillHandlerOffset;
+    fields[JS_FUNCTION_TYPE]["shared_function_info"] =
+        JSFunction::kSharedFunctionInfoOffset;
+    fields[SHARED_FUNCTION_INFO_TYPE]["function_data"] =
+        SharedFunctionInfo::kUntrustedFunctionDataOffset;
 #ifdef V8_ENABLE_WEBASSEMBLY
     fields[WASM_MODULE_OBJECT_TYPE]["managed_native_module"] =
         WasmModuleObject::kManagedNativeModuleOffset;
@@ -873,6 +887,8 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         WasmTableObject::kMaximumLengthOffset;
     fields[WASM_TABLE_OBJECT_TYPE]["raw_type"] =
         WasmTableObject::kRawTypeOffset;
+    fields[WASM_RESUME_DATA_TYPE]["trusted_suspender"] =
+        WasmResumeData::kTrustedSuspenderOffset;
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return fields;
