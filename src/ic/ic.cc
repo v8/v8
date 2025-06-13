@@ -2485,7 +2485,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
     validity_cell =
         Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
   }
-  if (IsSmi(*validity_cell)) {
+  if (*validity_cell == Map::kNoValidityCellSentinel) {
     // There's no prototype validity cell to check, so we can just use the stub.
     return code;
   }
@@ -3609,9 +3609,9 @@ Tagged<Object> GetCloneTargetMap(Isolate* isolate, DirectHandle<Map> source_map,
           DCHECK_EQ(*override_map, isolate->object_function()->initial_map());
           Tagged<Object> validity_cell = transitions.GetSideStepTransition(
               SideStepTransition::Kind::kObjectAssignValidityCell);
-          is_valid = validity_cell.IsHeapObject() &&
-                     Cast<Cell>(validity_cell)->value().ToSmi().value() ==
-                         Map::kPrototypeChainValid;
+          is_valid =
+              validity_cell.IsHeapObject() &&
+              Cast<Cell>(validity_cell)->value() == Map::kPrototypeChainValid;
         }
       }
       if (V8_LIKELY(is_valid)) {

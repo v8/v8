@@ -2773,7 +2773,7 @@ void JSObject::SetNormalizedProperty(DirectHandle<JSObject> object,
 
     if (entry.is_not_found()) {
       DCHECK_IMPLIES(global_obj->map()->is_prototype_map(),
-                     Map::IsPrototypeChainInvalidated(global_obj->map()));
+                     !global_obj->map()->IsPrototypeValidityCellValid());
       auto cell_type = IsUndefined(*value, roots) ? PropertyCellType::kUndefined
                                                   : PropertyCellType::kConstant;
       details = details.set_cell_type(cell_type);
@@ -2793,7 +2793,7 @@ void JSObject::SetNormalizedProperty(DirectHandle<JSObject> object,
       InternalIndex entry = dictionary->FindEntry(isolate, *name);
       if (entry.is_not_found()) {
         DCHECK_IMPLIES(object->map()->is_prototype_map(),
-                       Map::IsPrototypeChainInvalidated(object->map()));
+                       !object->map()->IsPrototypeValidityCellValid());
         dictionary =
             SwissNameDictionary::Add(isolate, dictionary, name, value, details);
         object->SetProperties(*dictionary);
@@ -2807,7 +2807,7 @@ void JSObject::SetNormalizedProperty(DirectHandle<JSObject> object,
       InternalIndex entry = dictionary->FindEntry(isolate, name);
       if (entry.is_not_found()) {
         DCHECK_IMPLIES(object->map()->is_prototype_map(),
-                       Map::IsPrototypeChainInvalidated(object->map()));
+                       !object->map()->IsPrototypeValidityCellValid());
         dictionary =
             NameDictionary::Add(isolate, dictionary, name, value, details);
         object->SetProperties(*dictionary);
@@ -3317,7 +3317,7 @@ void MigrateFastToSlow(Isolate* isolate, DirectHandle<JSObject> object,
   DCHECK(!IsJSGlobalProxy(*object, isolate));
 
   DCHECK_IMPLIES(new_map->is_prototype_map(),
-                 Map::IsPrototypeChainInvalidated(*new_map));
+                 !new_map->IsPrototypeValidityCellValid());
 
   HandleScope scope(isolate);
   DirectHandle<Map> map(object->map(isolate), isolate);
@@ -5159,12 +5159,11 @@ void InvalidateOnePrototypeValidityCellInternal(Tagged<Map> map) {
            reinterpret_cast<void*>(map.ptr()));
   }
   Tagged<Object> maybe_cell = map->prototype_validity_cell(kRelaxedLoad);
-  if (IsCell(maybe_cell)) {
+  if (maybe_cell != Map::kNoValidityCellSentinel) {
     // Just set the value; the cell will be replaced lazily.
     Tagged<Cell> cell = Cast<Cell>(maybe_cell);
-    Tagged<Smi> invalid_value = Smi::FromInt(Map::kPrototypeChainInvalid);
-    if (cell->value() != invalid_value) {
-      cell->set_value(invalid_value, SKIP_WRITE_BARRIER);
+    if (cell->value() != Map::kPrototypeChainInvalid) {
+      cell->set_value(Map::kPrototypeChainInvalid, SKIP_WRITE_BARRIER);
     }
   }
   Tagged<PrototypeInfo> prototype_info;

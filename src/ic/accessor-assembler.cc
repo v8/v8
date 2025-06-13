@@ -1933,9 +1933,9 @@ void AccessorAssembler::StoreJSSharedStructField(
 void AccessorAssembler::CheckPrototypeValidityCell(
     TNode<Object> maybe_validity_cell, Label* miss) {
   Label done(this);
-  GotoIf(
-      TaggedEqual(maybe_validity_cell, SmiConstant(Map::kPrototypeChainValid)),
-      &done);
+  GotoIf(TaggedEqual(maybe_validity_cell,
+                     SmiConstant(Map::kNoValidityCellSentinel)),
+         &done);
   CSA_DCHECK(this, TaggedIsNotSmi(maybe_validity_cell));
 
   TNode<Object> cell_value =

@@ -525,18 +525,21 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // stored in that object's map, indicates that prototype chains through this
   // object are currently valid. The cell will be invalidated and replaced when
   // the prototype chain changes. When there's nothing to guard (for example,
-  // when direct prototype is null or Proxy) this function returns Smi with
-  // |kPrototypeChainValid| sentinel value, which is zero.
+  // when direct prototype is null or Proxy) this function returns Smi
+  // |kNoValidityCellSentinel| value.
   // If |out_prototype_info| is provided then the function sets it to
   // the PrototypeInfo object that corresponds to validity cell's owner.
   static Handle<UnionOf<Smi, Cell>> GetOrCreatePrototypeChainValidityCell(
       DirectHandle<Map> map, Isolate* isolate,
       DirectHandle<PrototypeInfo>* out_prototype_info = nullptr);
-  static constexpr int kPrototypeChainValid = 0;
-  static constexpr int kPrototypeChainInvalid = 1;
-  static constexpr Tagged<Smi> kPrototypeChainValidSmi = Smi::zero();
 
-  static bool IsPrototypeChainInvalidated(Tagged<Map> map);
+  static constexpr Tagged<Smi> kPrototypeChainValid = Smi::FromInt(0);
+  static constexpr Tagged<Smi> kPrototypeChainInvalid = Smi::FromInt(1);
+
+  // This sentinel is used in IC data handlers instead of actual validity cell
+  // when there's nothing to guard against (when direct prototype is null or
+  // Proxy).
+  static constexpr Tagged<Smi> kNoValidityCellSentinel = Smi::zero();
 
   // Return the map of the root of object's prototype chain.
   Tagged<Map> GetPrototypeChainRootMap(Isolate* isolate) const;

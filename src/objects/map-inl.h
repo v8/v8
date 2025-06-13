@@ -920,13 +920,11 @@ ACCESSORS_CHECKED(Map, wasm_type_info, Tagged<WasmTypeInfo>,
 
 bool Map::IsPrototypeValidityCellValid() const {
   Tagged<Object> validity_cell = prototype_validity_cell(kRelaxedLoad);
-  if (IsSmi(validity_cell)) {
+  if (validity_cell == Map::kNoValidityCellSentinel) {
     // Smi validity cells should always be considered valid.
-    DCHECK_EQ(Cast<Smi>(validity_cell).value(), Map::kPrototypeChainValid);
     return true;
   }
-  Tagged<Smi> cell_value = Cast<Smi>(Cast<Cell>(validity_cell)->value());
-  return cell_value == Smi::FromInt(Map::kPrototypeChainValid);
+  return Cast<Cell>(validity_cell)->value() == Map::kPrototypeChainValid;
 }
 
 bool Map::BelongsToSameNativeContextAs(Tagged<Map> other_map) const {

@@ -4057,7 +4057,7 @@ void Map::MapPrint(std::ostream& os) {
   } else {
     os << "\n - back pointer: " << Brief(GetBackPointer());
   }
-  os << "\n - prototype_validity cell: "
+  os << "\n - prototype_validity_cell: "
      << Brief(prototype_validity_cell(kRelaxedLoad));
   os << "\n - instance descriptors " << (owns_descriptors() ? "(own) " : "")
      << "#" << NumberOfOwnDescriptors() << ": "

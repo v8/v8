@@ -1462,7 +1462,7 @@ macro OutOfBounds<T: type, X: type>(index: T, length: X): bool {
 }
 
 const kPrototypeChainValid:
-    constexpr int31 generates 'Map::kPrototypeChainValid';
+    constexpr Smi generates 'Map::kPrototypeChainValid';
 
 extern macro IsJSArrayMap(Map): bool;
 extern macro IsPrototypeInitialArrayPrototype(

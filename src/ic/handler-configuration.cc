@@ -151,7 +151,7 @@ Handle<Object> LoadHandler::LoadFullChain(
   DirectHandle<UnionOf<Smi, Cell>> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(lookup_start_object_map,
                                                  isolate);
-  if (IsSmi(*validity_cell)) {
+  if (*validity_cell == Map::kNoValidityCellSentinel) {
     DCHECK_EQ(1, data_size);
     // Lookup on lookup start object isn't supported in case of a simple smi
     // handler.
@@ -185,7 +185,7 @@ Handle<Object> LoadHandler::LoadNonExistent(
   // Try to fetch cached handler if it was already created.
   int handler_index;
 
-  if (IsSmi(*validity_cell)) {
+  if (*validity_cell == Map::kNoValidityCellSentinel) {
     DCHECK_EQ(1, data_size);
     // Lookup on lookup start object isn't supported in case of a simple smi
     // handler.
