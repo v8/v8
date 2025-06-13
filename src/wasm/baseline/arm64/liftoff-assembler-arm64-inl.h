@@ -1300,13 +1300,10 @@ void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     StoreType type, bool /* i64_offset */) {
-  LiftoffRegList pinned{dst_addr, expected, new_value};
-  if (offset_reg != no_reg) pinned.set(offset_reg);
-
-  Register result_reg = result.gp();
-  if (pinned.has(result)) {
-    result_reg = GetUnusedRegister(kGpReg, pinned).gp();
-  }
+  // The result register may not alias with any of the inputs as the CAS
+  // instruction overwrites it in the loop.
+  DCHECK(!LiftoffRegList(dst_addr, expected, new_value).has(result));
+  DCHECK(offset_reg == no_reg || offset_reg != result.gp());
 
   UseScratchRegisterScope temps(this);
 
@@ -1355,27 +1352,27 @@ void LiftoffAssembler::AtomicCompareExchange(
     switch (type.value()) {
       case StoreType::kI64Store8:
       case StoreType::kI32Store8:
-        ldaxrb(result_reg.W(), actual_addr);
+        ldaxrb(result.gp().W(), actual_addr);
         Cmp(result.gp().W(), Operand(expected.gp().W(), UXTB));
         B(ne, &done);
         stlxrb(store_result.W(), new_value.gp().W(), actual_addr);
         break;
       case StoreType::kI64Store16:
       case StoreType::kI32Store16:
-        ldaxrh(result_reg.W(), actual_addr);
+        ldaxrh(result.gp().W(), actual_addr);
         Cmp(result.gp().W(), Operand(expected.gp().W(), UXTH));
         B(ne, &done);
         stlxrh(store_result.W(), new_value.gp().W(), actual_addr);
         break;
       case StoreType::kI64Store32:
       case StoreType::kI32Store:
-        ldaxr(result_reg.W(), actual_addr);
+        ldaxr(result.gp().W(), actual_addr);
         Cmp(result.gp().W(), Operand(expected.gp().W(), UXTW));
         B(ne, &done);
         stlxr(store_result.W(), new_value.gp().W(), actual_addr);
         break;
       case StoreType::kI64Store:
-        ldaxr(result_reg.X(), actual_addr);
+        ldaxr(result.gp().X(), actual_addr);
         Cmp(result.gp().X(), Operand(expected.gp().X(), UXTX));
         B(ne, &done);
         stlxr(store_result.W(), new_value.gp().X(), actual_addr);
@@ -1386,10 +1383,6 @@ void LiftoffAssembler::AtomicCompareExchange(
 
     Cbnz(store_result.W(), &retry);
     Bind(&done);
-  }
-
-  if (result_reg != result.gp()) {
-    mov(result.gp(), result_reg);
   }
 }
 
