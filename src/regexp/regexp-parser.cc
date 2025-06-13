@@ -1645,7 +1645,7 @@ bool RegExpParserImpl<CharT>::CreateNamedCaptureAtIndex(
         DCHECK_NOT_NULL(named_capture_indices);
         DCHECK(!named_capture_indices->is_empty());
         for (int named_index : *named_capture_indices) {
-          if (named_index < non_participating_capture_group_interval.first ||
+          if (named_index <= non_participating_capture_group_interval.first ||
               named_index > non_participating_capture_group_interval.second) {
             ReportError(RegExpError::kDuplicateCaptureGroupName);
             return false;
