@@ -275,6 +275,8 @@ void OS::Initialize(AbortMode abort_mode, const char* const gc_fake_mmap) {
 bool OS::IsHardwareEnforcedShadowStacksEnabled() { return false; }
 
 void OS::EnsureAlternativeSignalStackIsAvailableForCurrentThread() {
+// sigaltstack() is forbidden on tvOS and its usage causes build errors.
+#if !V8_OS_TVOS
   stack_t ss, old_ss;
   memset(&ss, 0, sizeof(stack_t));
   memset(&old_ss, 0, sizeof(stack_t));
@@ -307,6 +309,7 @@ void OS::EnsureAlternativeSignalStackIsAvailableForCurrentThread() {
   if (sigaltstack(&ss, nullptr) == -1) {
     FATAL("sigaltstack failed with error %d: %s", errno, strerror(errno));
   }
+#endif
 }
 
 int OS::ActivationFrameAlignment() {
