@@ -84,6 +84,9 @@ constexpr unsigned CpuFeaturesFromCompiler() {
 #if defined(__ARM_FEATURE_HBC)
   features |= 1u << HBC;
 #endif
+#if defined(__ARM_FEATURE_MOPS)
+  features |= 1u << MOPS;
+#endif
   return features;
 }
 
@@ -147,6 +150,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   }
   if (cpu.has_cssc()) {
     runtime |= 1u << CSSC;
+  }
+  if (cpu.has_mops()) {
+    runtime |= 1u << MOPS;
   }
 
   // Use the best of the features found by CPU detection and those inferred from
@@ -2498,6 +2504,29 @@ void Assembler::mov(const VRegister& vd, int vd_index, const VRegister& vn,
 
 void Assembler::mvn(const Register& rd, const Operand& operand) {
   orn(rd, AppropriateZeroRegFor(rd), operand);
+}
+
+void Assembler::cpy(MemCpyOp op, const Register& rd, const Register& rs,
+                    const Register& rn) {
+  Emit(op | Rd(rd) | Rs(rs) | Rn(rn));
+}
+
+// Copy prologue
+void Assembler::cpyp(const Register& rd, const Register& rs,
+                     const Register& rn) {
+  cpy(CPYP, rd, rs, rn);
+}
+
+// Copy main
+void Assembler::cpym(const Register& rd, const Register& rs,
+                     const Register& rn) {
+  cpy(CPYM, rd, rs, rn);
+}
+
+// Copy epilogue
+void Assembler::cpye(const Register& rd, const Register& rs,
+                     const Register& rn) {
+  cpy(CPYE, rd, rs, rn);
 }
 
 void Assembler::mrs(const Register& rt, SystemRegister sysreg) {

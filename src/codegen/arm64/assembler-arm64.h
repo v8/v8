@@ -1576,6 +1576,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     MoveWide(rd, imm, shift, MOVZ);
   }
 
+  // MOPS instructions
+  void cpy(MemCpyOp op, const Register& rd, const Register& rs,
+           const Register& rn);
+  void cpyp(const Register& rd, const Register& rs, const Register& rn);
+  void cpym(const Register& rd, const Register& rs, const Register& rn);
+  void cpye(const Register& rd, const Register& rs, const Register& rn);
+
   // Misc instructions.
   // Monitor debug-mode breakpoint.
   void brk(int code);

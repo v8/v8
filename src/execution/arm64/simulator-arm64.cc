@@ -6617,6 +6617,97 @@ void Simulator::VisitNEONPerm(Instruction* instr) {
   }
 }
 
+void Simulator::VisitCpyP(Instruction* instr) {
+  MOPSPHelper(instr);
+
+  int d = instr->Rd();
+  int n = instr->Rn();
+  int s = instr->Rs();
+
+  // Determine copy direction. For cases in which direction is implementation
+  // defined, use forward.
+  bool is_backwards = false;
+  uint64_t xs = xreg(s);
+  uint64_t xd = xreg(d);
+  uint64_t xn = xreg(n);
+
+  // Ignore the top byte of addresses for comparisons. We can use xn as is,
+  // as it should have zero in bits 63:55.
+  uint64_t xs_tbi = unsigned_bitextract_64(55, 0, xs);
+  uint64_t xd_tbi = unsigned_bitextract_64(55, 0, xd);
+  DCHECK_EQ(unsigned_bitextract_64(63, 55, xn), 0);
+  if ((xs_tbi < xd_tbi) && ((xs_tbi + xn) > xd_tbi)) {
+    is_backwards = true;
+    set_xreg(s, xs + xn);
+    set_xreg(d, xd + xn);
+  }
+
+  // "option B" implementation.
+  nzcv().SetN(is_backwards ? 1 : 0);
+  LogSystemRegister(NZCV);
+}
+
+void Simulator::VisitCpyM(Instruction* instr) {
+  DCHECK(instr->IsConsistentMOPSTriplet());
+  DCHECK(instr->IsMOPSMainOf(last_instr()));
+
+  int d = instr->Rd();
+  int n = instr->Rn();
+  int s = instr->Rs();
+
+  uint64_t xd = xreg(d);
+  uint64_t xn = xreg(n);
+  uint64_t xs = xreg(s);
+  bool is_backwards = nzcv().N();
+
+  int step = 1;
+  if (is_backwards) {
+    step = -1;
+    xs--;
+    xd--;
+  }
+
+  while (xn--) {
+    uint8_t temp = MemoryRead<uint8_t>(xs);
+    MemoryWrite<uint8_t>(xd, temp);
+    xs += step;
+    xd += step;
+  }
+
+  if (is_backwards) {
+    xs++;
+    xd++;
+  }
+
+  set_xreg(d, xd);
+  set_xreg(n, 0);
+  set_xreg(s, xs);
+}
+
+void Simulator::VisitCpyE(Instruction* instr) {
+  USE(instr);
+  DCHECK(instr->IsConsistentMOPSTriplet());
+  DCHECK(instr->IsMOPSEpilogueOf(last_instr()));
+  // This implementation does nothing in the epilogue; all copying is completed
+  // in the "main" part.
+}
+
+void Simulator::VisitCpy(Instruction* instr) {
+  switch (instr->Mask(CpyMask)) {
+    default:
+      UNREACHABLE();
+    case CPYP:
+      VisitCpyP(instr);
+      break;
+    case CPYM:
+      VisitCpyM(instr);
+      break;
+    case CPYE:
+      VisitCpyE(instr);
+      break;
+  }
+}
+
 void Simulator::DoSwitchStackLimit(Instruction* instr) {
   const int64_t stack_limit = xreg(16);
   // stack_limit represents js limit and adjusted by extra runaway gap.

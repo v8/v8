@@ -1112,6 +1112,15 @@ void InstructionSelector::VisitLoadTransform(OpIndex node) {
   Emit(opcode, 1, outputs, 2, inputs);
 }
 
+void InstructionSelector::VisitMemoryCopy(OpIndex node) {
+  DCHECK(CpuFeatures::IsSupported(MOPS));
+  Arm64OperandGenerator g(this);
+  const auto& memcpy = this->Get(node).Cast<MemoryCopyOp>();
+
+  Emit(kArm64Cpy, g.NoOutput(), g.UseRegister(memcpy.dst_base()),
+       g.UseRegister(memcpy.src_base()), g.UseRegister(memcpy.num_bytes()));
+}
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 std::tuple<InstructionCode, ImmediateMode> GetLoadOpcodeAndImmediate(

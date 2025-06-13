@@ -784,6 +784,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
     pc_modified_ = true;
   }
   Instruction* pc() { return pc_; }
+  Instruction* last_instr() { return last_instr_; }
 
   void increment_pc() {
     if (!pc_modified_) {
@@ -910,12 +911,53 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
     }
   }
 
+  // MOPS
+  void VisitCpyP(Instruction* instr);
+  void VisitCpyM(Instruction* instr);
+  void VisitCpyE(Instruction* instr);
+  void MOPSPHelper(Instruction* instr) {
+    DCHECK(instr->IsConsistentMOPSTriplet());
+
+    int d = instr->Rd();
+    int n = instr->Rn();
+    int s = instr->Rs();
+
+    // Aliased registers and xzr are disallowed for Xd and Xn.
+    if ((d == n) || (d == s) || (n == s) || (d == 31) || (n == 31)) {
+      VisitUnallocated(instr);
+    }
+
+    // Additionally, Xs may not be xzr for cpy.
+    if (s == 31) {
+      VisitUnallocated(instr);
+    }
+
+    // Bits 31 and 30 must be zero.
+    if (instr->Bits(31, 30) != 0) {
+      VisitUnallocated(instr);
+    }
+
+    // Saturate copy count.
+    uint64_t xn = xreg(n);
+    constexpr int saturation_bits = 55;
+    if ((xn >> saturation_bits) != 0) {
+      xn = (UINT64_C(1) << saturation_bits) - 1;
+      set_xreg(n, xn);
+    }
+
+    nzcv().SetN(0);
+    nzcv().SetZ(0);
+    nzcv().SetC(1);  // Indicates "option B" implementation.
+    nzcv().SetV(0);
+  }
+
   void ExecuteInstruction() {
     DCHECK(IsAligned(reinterpret_cast<uintptr_t>(pc_), kInstrSize));
     CheckBType();
     ResetBType();
     CheckBreakNext();
     Decode(pc_);
+    last_instr_ = pc_;
     increment_pc();
     LogAllWrittenRegisters();
     CheckBreakpoints();
@@ -2378,6 +2420,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   // automatically incremented.
   bool pc_modified_;
   Instruction* pc_;
+  Instruction* last_instr_ = nullptr;
 
   // Branch type register, used for branch target identification.
   BType btype_;

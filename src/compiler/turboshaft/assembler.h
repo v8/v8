@@ -3206,6 +3206,11 @@ class TurboshaftAssemblerOpInterface
   void WasmStackCheck(WasmStackCheckOp::Kind kind) {
     ReduceIfReachableWasmStackCheck(kind);
   }
+
+  void MemoryCopy(V<WordPtr> dst_base, V<WordPtr> src_base,
+                  V<WordPtr> num_bytes) {
+    ReduceIfReachableMemoryCopy(dst_base, src_base, num_bytes);
+  }
 #endif
 
   void JSStackCheck(V<Context> context,

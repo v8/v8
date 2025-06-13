@@ -1951,6 +1951,8 @@ IF_WASM(VISIT_UNSUPPORTED_OP, F64x2AddReduce)
 IF_WASM(VISIT_UNSUPPORTED_OP, I8x2Shuffle)
 IF_WASM(VISIT_UNSUPPORTED_OP, I8x4Shuffle)
 IF_WASM(VISIT_UNSUPPORTED_OP, I8x8Shuffle)
+
+IF_WASM(VISIT_UNSUPPORTED_OP, MemoryCopy)
 #endif  // !V8_TARGET_ARCH_ARM64
 
 void InstructionSelector::VisitParameter(OpIndex node) {
@@ -3841,6 +3843,9 @@ void InstructionSelector::VisitNode(OpIndex node) {
     case Opcode::kSetStackPointer:
       this->frame_->set_invalidates_sp();
       return VisitSetStackPointer(node);
+
+    case Opcode::kMemoryCopy:
+      return VisitMemoryCopy(node);
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 #define UNREACHABLE_CASE(op) case Opcode::k##op:

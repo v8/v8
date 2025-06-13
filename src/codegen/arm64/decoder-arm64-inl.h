@@ -85,6 +85,7 @@ void Decoder<V>::Decode(Instruction* instr) {
       //      Load/store register pair pre-index.
       //      Load/store register unsigned immediate.
       //      Advanced SIMD.
+      //      MOPS cpy.
       case 0x8:
       case 0x9:
       case 0xC:
@@ -337,7 +338,11 @@ void Decoder<V>::DecodeLoadStore(Instruction* instr) {
       }
     } else {
       if (instr->Bit(29) == 0) {
-        V::VisitUnallocated(instr);
+        if (instr->Mask(CpyFixed) == CpyFixed && instr->Bits(23, 22) != 0x3) {
+          V::VisitCpy(instr);
+        } else {
+          V::VisitUnallocated(instr);
+        }
       } else {
         if ((instr->Mask(0x84C00000) == 0x80C00000) ||
             (instr->Mask(0x44800000) == 0x44800000) ||

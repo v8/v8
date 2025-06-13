@@ -191,6 +191,7 @@ static V8_INLINE void __cpuidex(int cpu_info[4], int info_type,
  */
 #define HWCAP2_MTE (1 << 18)
 #define HWCAP2_CSSC (1UL << 34)
+#define HWCAP2_MOPS (1UL << 43)
 #define HWCAP2_HBC (1UL << 44)
 #endif  // V8_HOST_ARCH_ARM64
 
@@ -452,6 +453,7 @@ CPU::CPU()
       has_fp16_(false),
       has_hbc_(false),
       has_cssc_(false),
+      has_mops_(false),
       is_fp64_mode_(false),
       has_non_stop_time_stamp_counter_(false),
       is_running_in_vm_(false),
@@ -842,6 +844,7 @@ CPU::CPU()
   has_cssc_ = (hwcaps2 & HWCAP2_CSSC) != 0;
   has_mte_ = (hwcaps2 & HWCAP2_MTE) != 0;
   has_hbc_ = (hwcaps2 & HWCAP2_HBC) != 0;
+  has_mops_ = (hwcaps2 & HWCAP2_MOPS) != 0;
   if (hwcaps != 0) {
     has_jscvt_ = (hwcaps & HWCAP_JSCVT) != 0;
     has_dot_prod_ = (hwcaps & HWCAP_ASIMDDP) != 0;

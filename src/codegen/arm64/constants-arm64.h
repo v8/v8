@@ -765,6 +765,15 @@ constexpr ConditionalBranchOp ConditionalBranchConsistentFixed = 0x54000010;
 constexpr ConditionalBranchOp BC_cond =
     ConditionalBranchConsistentFixed | 0x00000000;
 
+// MOPS
+using MemCpyOp = uint32_t;
+constexpr MemCpyOp CpyFixed = 0x1D000400;
+constexpr MemCpyOp CpyFMask = 0x1D000400;
+constexpr MemCpyOp CpyMask = CpyFMask | 0x00C00000;
+constexpr MemCpyOp CPYP = CpyFixed | 0x00000000;
+constexpr MemCpyOp CPYM = CpyFixed | 0x00400000;
+constexpr MemCpyOp CPYE = CpyFixed | 0x00800000;
+
 // System.
 // System instruction encoding is complicated because some instructions use op
 // and CR fields to encode parameters. To handle this cleanly, the system

@@ -60,6 +60,8 @@ enum CpuFeature {
   HBC,
   // Common short sequence compression instructions
   CSSC,
+  // Standardization of memory operations
+  MOPS,
 
 #elif V8_TARGET_ARCH_MIPS64
   FPU,

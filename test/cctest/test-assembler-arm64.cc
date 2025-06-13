@@ -16567,6 +16567,97 @@ TEST(cssc_ctz) {
   }
 }
 
+TEST(mops_cpy) {
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(MOPS);
+
+  const uint8_t kBufferLength = 16;
+  uint8_t buf[kBufferLength];
+  uintptr_t buf_addr = reinterpret_cast<uintptr_t>(buf);
+
+  for (unsigned i = 0; i < kBufferLength; i++) {
+    buf[i] = i;
+  }
+
+  START();
+  __ Mov(x0, buf_addr);
+
+  // Copy first eight bytes into second eight.
+  __ Mov(x1, x0);     // src = &buf[0]
+  __ Add(x2, x0, 8);  // dst = &buf[8]
+  __ Mov(x3, 8);      // count = 8
+  __ cpyp(x2, x1, x3);
+  __ cpym(x2, x1, x3);
+  __ cpye(x2, x1, x3);
+  __ Ldp(x10, x11, MemOperand(x0));
+  __ Mrs(x20, NZCV);
+
+  // Copy first eight bytes to overlapping offset, forcing backwards copy.
+  __ Mov(x4, x0);     // src = &buf[0]
+  __ Add(x5, x0, 4);  // dst = &buf[4]
+  __ Mov(x6, 8);      // count = 8
+  __ Cpy(x5, x4, x6);
+  __ Ldp(x12, x13, MemOperand(x0));
+  __ Mrs(x21, NZCV);
+
+  // Copy last eight bytes to overlapping offset, forcing forwards copy.
+  __ Add(x7, x0, 8);  // src = &buf[8]
+  __ Add(x8, x0, 6);  // dst = &buf[6]
+  __ Mov(x9, 8);      // count = 8
+  __ Cpy(x8, x7, x9);
+  __ Ldp(x14, x15, MemOperand(x0));
+  __ Mrs(x22, NZCV);
+  END();
+
+  if (CAN_RUN()) {
+    // Permitted results:
+    //                        NZCV    Xs/Xd               Xn
+    //  Option A (forwards) : ....    ends of buffers     0
+    //  Option A (backwards): ....    starts of buffers   0
+    //  Option B (forwards) : ..C.    ends of buffers     0
+    //  Option B (backwards): N.C.    starts of buffers   0
+
+    std::array allowed_backwards_flags = {NoFlag, NCFlag};
+    std::array allowed_forwards_flags = {NoFlag, CFlag};
+
+    RUN();
+    // IMPLEMENTATION DEFINED direction
+    if (static_cast<uintptr_t>(core.xreg(2)) > buf_addr) {
+      // Forwards
+      CHECK_EQUAL_64(buf_addr + 8, x1);
+      CHECK_EQUAL_64(buf_addr + 16, x2);
+      CHECK(Equal64(allowed_forwards_flags[0], &core, x20) ||
+            Equal64(allowed_forwards_flags[1], &core, x20));
+    } else {
+      // Backwards
+      CHECK_EQUAL_64(buf_addr, x1);
+      CHECK_EQUAL_64(buf_addr + 8, x2);
+      CHECK(Equal64(allowed_backwards_flags[0], &core, x20) ||
+            Equal64(allowed_backwards_flags[1], &core, x20));
+    }
+    CHECK_EQUAL_64(0, x3);  // Xn
+    CHECK_EQUAL_64(0x0706'0504'0302'0100, x10);
+    CHECK_EQUAL_64(0x0706'0504'0302'0100, x11);
+
+    CHECK_EQUAL_64(buf_addr, x4);      // Xs
+    CHECK_EQUAL_64(buf_addr + 4, x5);  // Xd
+    CHECK_EQUAL_64(0, x6);             // Xn
+    CHECK_EQUAL_64(0x0302'0100'0302'0100, x12);
+    CHECK_EQUAL_64(0x0706'0504'0706'0504, x13);
+    CHECK(Equal64(allowed_backwards_flags[0], &core, x21) ||
+          Equal64(allowed_backwards_flags[1], &core, x21));
+
+    CHECK_EQUAL_64(buf_addr + 16, x7);  // Xs
+    CHECK_EQUAL_64(buf_addr + 14, x8);  // Xd
+    CHECK_EQUAL_64(0, x9);              // Xn
+    CHECK_EQUAL_64(0x0504'0100'0302'0100, x14);
+    CHECK_EQUAL_64(0x0706'0706'0504'0706, x15);
+    CHECK(Equal64(allowed_forwards_flags[0], &core, x22) ||
+          Equal64(allowed_forwards_flags[1], &core, x22));
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
 

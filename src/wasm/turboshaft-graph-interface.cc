@@ -4323,9 +4323,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     __ TrapIfNot(result, TrapId::kTrapMemOutOfBounds);
   }
 
-  void InlineMemCopy(const WasmMemory* dst_memory, const WasmMemory* src_memory,
-                     V<WordPtr> dst_offset, V<WordPtr> src_offset,
-                     V<WordPtr> size_op, int32_t bytes_to_copy) {
+  void MemCopyBoundsCheck(const WasmMemory* dst_memory,
+                          const WasmMemory* src_memory, V<WordPtr> dst_offset,
+                          V<WordPtr> src_offset, V<WordPtr> size_op) {
     if (dst_memory->index == src_memory->index) {
       // Bounds check the read and write from the same memory.
       V<WordPtr> mem_size = MemSize(src_memory->index);
@@ -4350,7 +4350,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       BoundsCheck(src_memory, src_offset, size_op);
       BoundsCheck(dst_memory, dst_offset, size_op);
     }
+  }
 
+  void InlineMemCopy(const WasmMemory* dst_memory, const WasmMemory* src_memory,
+                     V<WordPtr> dst_offset, V<WordPtr> src_offset,
+                     V<WordPtr> size_op, int32_t bytes_to_copy) {
+    MemCopyBoundsCheck(dst_memory, src_memory, dst_offset, src_offset, size_op);
     // We've performed the bounds check above.
     constexpr auto strategy = compiler::BoundsCheckResult::kDynamicallyChecked;
 
@@ -4449,6 +4454,20 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       }
     }
 #endif  // V8_TARGET_ARCH_64_BIT
+
+#if V8_TARGET_ARCH_ARM64
+    if (CpuFeatures::IsSupported(MOPS)) {
+      MemCopyBoundsCheck(dst_memory, src_memory, dst_offset, src_offset,
+                         size_op);
+      // Calculate the effective addresses of src and dst.
+      V<WordPtr> src_mem_start = MemStart(src_memory->index);
+      V<WordPtr> dst_mem_start = MemStart(dst_memory->index);
+      V<WordPtr> src_base = __ WordPtrAdd(src_mem_start, src_offset);
+      V<WordPtr> dst_base = __ WordPtrAdd(dst_mem_start, dst_offset);
+      __ MemoryCopy(dst_base, src_base, size_op);
+      return;
+    }
+#endif  // V8_TARGET_ARCH_ARM64
 
     auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
                    .Params(MachineType::Pointer(), MachineType::Uint32(),

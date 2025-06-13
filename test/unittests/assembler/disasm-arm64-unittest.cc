@@ -5140,6 +5140,18 @@ TEST_F(DisasmArm64Test, neon_shift_immediate) {
   CLEANUP();
 }
 
+TEST_F(DisasmArm64Test, mops) {
+  SET_UP_MASM();
+  CpuFeatureScope feature_scope(assm, MOPS,
+                                CpuFeatureScope::kDontCheckSupported);
+
+  COMPARE(cpyp(x0, x30, x28), "cpyp [x0]!, [lr]!, x28!");
+  COMPARE(cpym(x1, x10, x23), "cpym [x1]!, [x10]!, x23!");
+  COMPARE(cpye(x14, x15, x19), "cpye [x14]!, [x15]!, x19!");
+
+  CLEANUP();
+}
+
 TEST_F(DisasmArm64Test, cssc) {
   SET_UP_MASM();
 
