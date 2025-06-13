@@ -3405,7 +3405,6 @@ void RestoreParentSuspender(MacroAssembler* masm, Register tmp1) {
   __ LoadRootRelative(suspender, IsolateData::active_suspender_offset());
   __ Move(suspender,
           FieldOperand(suspender, WasmSuspenderObject::kParentOffset));
-  __ CompareRoot(suspender, RootIndex::kUndefinedValue);
   __ StoreRootRelative(IsolateData::active_suspender_offset(), suspender);
 }
 
