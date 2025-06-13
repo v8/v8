@@ -216,6 +216,78 @@ void CheckFloat64SameValue::GenerateCode(MaglevAssembler* masm,
   }
 }
 
+void Int32Add::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+void Int32Add::GenerateCode(MaglevAssembler* masm,
+                            const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  Register out = ToRegister(result());
+  __ AddS32(out, left, right);
+  __ LoadS32(out, out);
+}
+
+void Int32Subtract::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+void Int32Subtract::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  Register out = ToRegister(result());
+  __ SubS32(out, left, right);
+  __ LoadS32(out, out);
+}
+
+void Int32Multiply::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+void Int32Multiply::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  Register out = ToRegister(result());
+
+  // TODO(leszeks): peephole optimise multiplication by a constant.
+  __ MulS32(out, left, right);
+  __ LoadS32(out, out);
+}
+
+void Int32Divide::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+void Int32Divide::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  Register out = ToRegister(result());
+
+  // TODO(leszeks): peephole optimise division by a constant.
+
+  Label done, is_zero;
+  __ CmpU32(right, Operand(0));
+  __ beq(&is_zero);
+
+  __ DivS32(out, left, right);
+  __ LoadS32(out, out);
+  __ b(&done);
+
+  __ bind(&is_zero);
+  __ Move(out, 0);
+
+  __ bind(&done);
+}
+
 void Int32AddWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
