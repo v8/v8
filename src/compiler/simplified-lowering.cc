@@ -5243,14 +5243,21 @@ void RepresentationSelector::VisitInputs<LOWER>(Node* node) {
 
 template <>
 void RepresentationSelector::InsertUnreachableIfNecessary<LOWER>(Node* node) {
+  Node* control = nullptr;
+  if (node->op()->ControlOutputCount() > 0) {
+    control = NodeProperties::FindSuccessfulControlProjection(node);
+  } else if (node->op()->ControlInputCount() > 0) {
+    control = NodeProperties::GetControlInput(node, 0);
+  } else {
+    // Without a control edge, we cannot insert an unreachable node.
+    return;
+  }
+
   // If the node is effectful and it produces an impossible value, then we
   // insert Unreachable node after it.
   if (node->op()->ValueOutputCount() > 0 &&
       node->op()->EffectOutputCount() > 0 &&
       node->opcode() != IrOpcode::kUnreachable && TypeOf(node).IsNone()) {
-    Node* control = (node->op()->ControlOutputCount() == 0)
-                        ? NodeProperties::GetControlInput(node, 0)
-                        : NodeProperties::FindSuccessfulControlProjection(node);
 
     Node* unreachable =
         graph()->NewNode(common()->Unreachable(), node, control);
