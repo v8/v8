@@ -106,6 +106,10 @@ class ExceptionHandlerInfo;
 
 #define INT32_OPERATIONS_NODE_LIST(V) \
   V(Int32AbsWithOverflow)             \
+  V(Int32Add)                         \
+  V(Int32Subtract)                    \
+  V(Int32Multiply)                    \
+  V(Int32Divide)                      \
   V(Int32AddWithOverflow)             \
   V(Int32SubtractWithOverflow)        \
   V(Int32MultiplyWithOverflow)        \
@@ -516,10 +520,12 @@ constexpr bool IsCommutativeNode(Opcode opcode) {
     case Opcode::kFloat64Add:
     case Opcode::kFloat64Multiply:
     case Opcode::kGenericStrictEqual:
+    case Opcode::kInt32Add:
     case Opcode::kInt32AddWithOverflow:
     case Opcode::kInt32BitwiseAnd:
     case Opcode::kInt32BitwiseOr:
     case Opcode::kInt32BitwiseXor:
+    case Opcode::kInt32Multiply:
     case Opcode::kInt32MultiplyWithOverflow:
     case Opcode::kStringEqual:
     case Opcode::kTaggedEqual:
@@ -3216,6 +3222,10 @@ class Int32BinaryNode : public FixedInputValueNodeT<2, Derived> {
 
 #define DEF_INT32_BINARY_NODE(Name) \
   DEF_OPERATION_NODE(Int32##Name, Int32BinaryNode, Name)
+DEF_INT32_BINARY_NODE(Add)
+DEF_INT32_BINARY_NODE(Subtract)
+DEF_INT32_BINARY_NODE(Multiply)
+DEF_INT32_BINARY_NODE(Divide)
 DEF_INT32_BINARY_NODE(BitwiseAnd)
 DEF_INT32_BINARY_NODE(BitwiseOr)
 DEF_INT32_BINARY_NODE(BitwiseXor)

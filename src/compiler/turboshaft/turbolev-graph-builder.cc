@@ -3925,6 +3925,37 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::Int32Add* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node,
+           __ Word32Add(Map(node->left_input()), Map(node->right_input())));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::Int32Subtract* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node,
+           __ Word32Sub(Map(node->left_input()), Map(node->right_input())));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::Int32Multiply* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node,
+           __ Word32Mul(Map(node->left_input()), Map(node->right_input())));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::Int32Divide* node,
+                                const maglev::ProcessingState& state) {
+    V<Word32> lhs = Map(node->left_input());
+    V<Word32> rhs = Map(node->right_input());
+    ScopedVar<Word32, AssemblerT> result(this);
+    IF (UNLIKELY(__ Word32Equal(rhs, 0))) {
+      result = __ Word32Constant(0);
+    } ELSE {
+      result = __ Int32Div(lhs, rhs);
+    }
+    SetMap(node, result);
+    return maglev::ProcessResult::kContinue;
+  }
 #define PROCESS_BINOP_WITH_OVERFLOW(MaglevName, TurboshaftName,                \
                                     minus_zero_mode)                           \
   maglev::ProcessResult Process(maglev::Int32##MaglevName##WithOverflow* node, \
@@ -6276,6 +6307,16 @@ void RunMaglevOptimizations(PipelineData* data,
                            /* visit_identity_nodes */ true>
         sweep;
     sweep.ProcessGraph(maglev_graph);
+  }
+
+  // Truncation pass.
+  if (v8_flags.maglev_truncation) {
+    maglev::GraphProcessor<maglev::TruncationProcessor> processor(maglev_graph);
+    processor.ProcessGraph(maglev_graph);
+  }
+
+  if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
+    PrintMaglevGraph(*data, maglev_graph, "After truncation");
   }
 
   // Phi untagging.

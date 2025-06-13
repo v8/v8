@@ -72,7 +72,8 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
         v8_flags.trace_maglev_graph_building ||
         v8_flags.trace_maglev_escape_analysis ||
         v8_flags.trace_maglev_phi_untagging || v8_flags.trace_maglev_regalloc ||
-        v8_flags.trace_maglev_object_tracking) {
+        v8_flags.trace_maglev_object_tracking ||
+        v8_flags.trace_maglev_truncation) {
       is_tracing_enabled = compilation_info->toplevel_compilation_unit()
                                ->shared_function_info()
                                .object()
@@ -140,6 +141,29 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
     }
 #endif
 
+    // TODO(victorgomes): Add a enable/disable feature to graph processors, so
+    // that we can compile passes that can be disabled by flags.
+    if (v8_flags.maglev_truncation) {
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                   "V8.Maglev.Truncation");
+
+      GraphProcessor<TruncationProcessor> truncate(graph);
+      truncate.ProcessGraph(graph);
+
+      if (is_tracing_enabled && v8_flags.print_maglev_graphs) {
+        std::cout << "\nAfter truncation" << std::endl;
+        PrintGraph(std::cout, graph);
+      }
+    }
+
+#ifdef DEBUG
+    {
+      GraphProcessor<MaglevGraphVerifier, /* visit_identity_nodes */ true>
+          verifier(compilation_info);
+      verifier.ProcessGraph(graph);
+    }
+#endif
+
     if (v8_flags.maglev_licm) {
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.Maglev.LoopOptimizations");
@@ -175,7 +199,6 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
         PrintGraph(std::cout, graph);
       }
     }
-  }
 
 #ifdef DEBUG
   {
@@ -184,6 +207,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
     verifier.ProcessGraph(graph);
   }
 #endif
+  }
 
   {
     // Post-hoc optimisation:

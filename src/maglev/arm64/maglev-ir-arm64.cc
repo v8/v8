@@ -4,6 +4,7 @@
 
 #include "src/base/logging.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
+#include "src/codegen/arm64/constants-arm64.h"
 #include "src/codegen/arm64/register-arm64.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/maglev/arm64/maglev-assembler-arm64-inl.h"
@@ -237,6 +238,92 @@ void CheckFloat64SameValue::GenerateCode(MaglevAssembler* masm,
     __ Move(double_scratch, value());
     __ CompareFloat64AndJumpIf(double_scratch, target, kNotEqual, fail, fail);
   }
+}
+void Int32Add::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  if (TryGetAddImmediateInt32ConstantInput(this, kRightIndex)) {
+    UseAny(right_input());
+  } else {
+    UseRegister(right_input());
+  }
+  DefineAsRegister(this);
+}
+
+void Int32Add::GenerateCode(MaglevAssembler* masm,
+                            const ProcessingState& state) {
+  Register left = ToRegister(left_input()).W();
+  Register out = ToRegister(result()).W();
+  if (!right_input().operand().IsRegister()) {
+    auto right_const = TryGetInt32ConstantInput(kRightIndex);
+    DCHECK(right_const);
+    __ Add(out, left, *right_const);
+  } else {
+    Register right = ToRegister(right_input()).W();
+    __ Add(out, left, right);
+  }
+}
+
+void Int32Subtract::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  if (TryGetAddImmediateInt32ConstantInput(this, kRightIndex)) {
+    UseAny(right_input());
+  } else {
+    UseRegister(right_input());
+  }
+  DefineAsRegister(this);
+}
+void Int32Subtract::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  Register left = ToRegister(left_input()).W();
+  Register out = ToRegister(result()).W();
+  if (!right_input().operand().IsRegister()) {
+    auto right_const = TryGetInt32ConstantInput(kRightIndex);
+    DCHECK(right_const);
+    __ Sub(out, left, *right_const);
+  } else {
+    Register right = ToRegister(right_input()).W();
+    __ Sub(out, left, right);
+  }
+}
+
+void Int32Multiply::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+void Int32Multiply::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  Register left = ToRegister(left_input()).W();
+  Register right = ToRegister(right_input()).W();
+  Register out = ToRegister(result()).W();
+
+  // TODO(leszeks): peephole optimise multiplication by a constant.
+  __ Smull(out, left, right);
+}
+
+void Int32Divide::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+void Int32Divide::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  Register left = ToRegister(left_input()).W();
+  Register right = ToRegister(right_input()).W();
+  Register out = ToRegister(result()).W();
+
+  // TODO(leszeks): peephole optimise division by a constant.
+
+  Label done, is_zero;
+  __ CompareAndBranch(right, Immediate(0), eq, &is_zero);
+
+  __ Sdiv(out, left, right);
+  __ B(&done);
+
+  __ Bind(&is_zero);
+  __ Move(out, 0);
+
+  __ Bind(&done);
 }
 
 void Int32AddWithOverflow::SetValueLocationConstraints() {

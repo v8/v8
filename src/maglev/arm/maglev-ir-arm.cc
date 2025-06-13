@@ -197,6 +197,92 @@ void CheckFloat64SameValue::GenerateCode(MaglevAssembler* masm,
   }
 }
 
+void Int32Add::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+void Int32Add::GenerateCode(MaglevAssembler* masm,
+                            const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  Register out = ToRegister(result());
+  __ add(out, left, right, LeaveCC);
+}
+
+void Int32Subtract::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+void Int32Subtract::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  Register out = ToRegister(result());
+  __ sub(out, left, right, LeaveCC);
+}
+
+void Int32Multiply::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+void Int32Multiply::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  Register out = ToRegister(result());
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register scratch = temps.AcquireScratch();
+
+  // TODO(leszeks): peephole optimise multiplication by a constant.
+  __ smull(out, scratch, left, right);
+}
+
+void Int32Divide::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+void Int32Divide::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  Register out = ToRegister(result());
+
+  // TODO(leszeks): peephole optimise division by a constant.
+
+  Label done, is_zero;
+  __ cmp(right, Operand(0));
+  __ b(eq, &is_zero);
+
+  if (CpuFeatures::IsSupported(SUDIV)) {
+    CpuFeatureScope scope(masm, SUDIV);
+    __ sdiv(out, left, right);
+  } else {
+    UseScratchRegisterScope temps(masm);
+    LowDwVfpRegister double_right = temps.AcquireLowD();
+    SwVfpRegister tmp = double_right.low();
+    DwVfpRegister double_left = temps.AcquireD();
+    DwVfpRegister double_res = double_left;
+    __ vmov(tmp, left);
+    __ vcvt_f64_s32(double_left, tmp);
+    __ vmov(tmp, right);
+    __ vcvt_f64_s32(double_right, tmp);
+    __ vdiv(double_res, double_left, double_right);
+    __ vcvt_s32_f64(tmp, double_res);
+    __ vmov(out, tmp);
+  }
+  __ b(&done);
+
+  __ bind(&is_zero);
+  __ Move(out, 0);
+
+  __ bind(&done);
+}
+
 void Int32AddWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());

@@ -195,6 +195,99 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
   }
 }
 
+void Int32Add::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  if (TryGetInt32ConstantInput(kRightIndex)) {
+    UseAny(right_input());
+  } else {
+    UseRegister(right_input());
+  }
+  DefineSameAsFirst(this);
+}
+
+void Int32Add::GenerateCode(MaglevAssembler* masm,
+                            const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  if (!right_input().operand().IsRegister()) {
+    auto right_const = TryGetInt32ConstantInput(kRightIndex);
+    DCHECK(right_const);
+    __ addl(left, Immediate(*right_const));
+  } else {
+    Register right = ToRegister(right_input());
+    __ addl(left, right);
+  }
+}
+
+void Int32Subtract::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  if (TryGetInt32ConstantInput(kRightIndex)) {
+    UseAny(right_input());
+  } else {
+    UseRegister(right_input());
+  }
+  DefineSameAsFirst(this);
+}
+
+void Int32Subtract::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  if (!right_input().operand().IsRegister()) {
+    auto right_const = TryGetInt32ConstantInput(kRightIndex);
+    DCHECK(right_const);
+    __ subl(left, Immediate(*right_const));
+  } else {
+    Register right = ToRegister(right_input());
+    __ subl(left, right);
+  }
+}
+
+void Int32Multiply::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineSameAsFirst(this);
+}
+
+void Int32Multiply::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  Register result = ToRegister(this->result());
+  Register right = ToRegister(right_input());
+  DCHECK_EQ(result, ToRegister(left_input()));
+  __ imull(result, right);
+}
+
+void Int32Divide::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsFixed(this, rax);
+  // rax,rdx are clobbered by idiv.
+  RequireSpecificTemporary(rax);
+  RequireSpecificTemporary(rdx);
+}
+
+void Int32Divide::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+
+  // TODO(leszeks): peephole optimise division by a constant.
+
+  Label done, is_zero;
+  // Truncated value for anything divided by 0 is 0.
+  __ testl(right, right);
+  __ j(equal, &is_zero);
+
+  __ movl(rax, left);
+  __ cdq();  // Sign extend eax into edx.
+  __ idivl(right);
+  __ jmp(&done);
+
+  __ bind(&is_zero);
+  __ xorl(rax, rax);
+  __ jmp(&done);
+
+  __ bind(&done);
+}
+
 void Int32AddWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
   if (TryGetInt32ConstantInput(kRightIndex)) {
