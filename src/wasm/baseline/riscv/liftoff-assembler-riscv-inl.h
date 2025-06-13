@@ -346,28 +346,6 @@ void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
     instruction(dst, lhs, rhs);                                              \
   }
 
-#define FP32_BINOP(name, instruction)                                        \
-  void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
-                                     DoubleRegister rhs) {                   \
-    li(kScratchReg2, Operand(kSQuietNanMask));                               \
-    feq_s(kScratchReg, lhs, lhs);                                            \
-    Label not_nan1, not_nan2, done;                                          \
-    BranchShort(&not_nan1, ne, kScratchReg, Operand(zero_reg));              \
-    fmv_x_w(kScratchReg, lhs);                                               \
-    Or(kScratchReg, kScratchReg, Operand(kScratchReg2));                     \
-    fmv_w_x(dst, kScratchReg);                                               \
-    Branch(&done);                                                           \
-    bind(&not_nan1);                                                         \
-    feq_s(kScratchReg, rhs, rhs);                                            \
-    BranchShort(&not_nan2, ne, kScratchReg, Operand(zero_reg));              \
-    fmv_x_w(kScratchReg, rhs);                                               \
-    Or(kScratchReg, kScratchReg, Operand(kScratchReg2));                     \
-    fmv_w_x(dst, kScratchReg);                                               \
-    Branch(&done);                                                           \
-    bind(&not_nan2);                                                         \
-    instruction(dst, lhs, rhs);                                              \
-    bind(&done);                                                             \
-  }
 
 #define FP_UNOP(name, instruction)                                             \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
@@ -379,7 +357,7 @@ void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
     return true;                                                               \
   }
 
-FP32_BINOP(f32_add, fadd_s)
+FP_BINOP(f32_add, fadd_s)
 FP_BINOP(f32_sub, fsub_s)
 FP_BINOP(f32_mul, fmul_s)
 FP_BINOP(f32_div, fdiv_s)

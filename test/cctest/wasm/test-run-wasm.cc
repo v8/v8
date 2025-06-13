@@ -186,6 +186,10 @@ Float32 f32_binop_result(
   // On these platforms any signalling NaN "wins" (but is made quiet).
   if (lhs.is_nan() && !lhs.is_quiet_nan()) return lhs.to_quiet_nan();
   if (rhs.is_nan() && !rhs.is_quiet_nan()) return rhs.to_quiet_nan();
+#elif defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_RISCV32)
+  // On Riscv platforms the result is a canonical NaN if either operand is a
+  // NaN.
+  if (lhs.is_nan() || rhs.is_nan()) return Float32::FromBits(0x7FC00000);
 #endif
   if (lhs.is_nan()) return lhs.to_quiet_nan();
   if (rhs.is_nan()) return rhs.to_quiet_nan();
@@ -196,8 +200,9 @@ Float32 f32_binop_result(
 }
 
 float f32_binop_add(float lhs, float rhs) {
-#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_PPC64) || \
-    defined(V8_TARGET_ARCH_S390X) || defined(V8_TARGET_ARCH_LOONG64)
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_PPC64) ||   \
+    defined(V8_TARGET_ARCH_S390X) || defined(V8_TARGET_ARCH_LOONG64) || \
+    defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_RISCV32)
   // On these platforms inf + -inf returns the default NaN.
   if (std::isinf(lhs) && std::isinf(rhs) && (lhs != rhs))
     return std::numeric_limits<float>::quiet_NaN();
