@@ -23,6 +23,12 @@ class SmallVector {
  public:
   static constexpr size_t kInlineSize = kSize;
   using value_type = T;
+  using reference = T&;
+  using const_reference = const T&;
+  using iterator = T*;
+  using const_iterator = const T*;
+  using difference_type = std::ptrdiff_t;
+  using size_type = std::size_t;
 
   SmallVector() = default;
   explicit SmallVector(const Allocator& allocator) : allocator_(allocator) {}

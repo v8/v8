@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <array>
 #include <initializer_list>
+#include <stack>
 #include <vector>
 
 #include "testing/gmock-support.h"
@@ -2358,6 +2359,24 @@ TEST(SmallVectorTest, NoAssign) {
   TestNoAssign<10, 17>();
   TestNoAssign<0, 0>();
   TestNoAssign<0, 7>();
+}
+
+TEST(SmallVectorTest, Stack) {
+  std::stack<int, SmallVector<int, 2>> stack;
+  EXPECT_EQ(0U, stack.size());
+  stack.push(1);
+  stack.push(2);
+  EXPECT_EQ(2U, stack.size());
+  // This will now trigger SmallVector to allocate external storage.
+  stack.push(3);
+  EXPECT_EQ(3U, stack.size());
+  EXPECT_EQ(3, stack.top());
+  stack.pop();
+  EXPECT_EQ(2, stack.top());
+  stack.pop();
+  EXPECT_EQ(1, stack.top());
+  stack.pop();
+  EXPECT_EQ(0U, stack.size());
 }
 
 }  // namespace v8::base
