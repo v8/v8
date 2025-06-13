@@ -924,7 +924,7 @@ bool Map::IsPrototypeValidityCellValid() const {
     // Smi validity cells should always be considered valid.
     return true;
   }
-  return Cast<Cell>(validity_cell)->value() == Map::kPrototypeChainValid;
+  return Cast<Cell>(validity_cell)->value() != Map::kPrototypeChainInvalid;
 }
 
 bool Map::BelongsToSameNativeContextAs(Tagged<Map> other_map) const {

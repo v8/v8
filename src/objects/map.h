@@ -533,8 +533,9 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
       DirectHandle<Map> map, Isolate* isolate,
       DirectHandle<PrototypeInfo>* out_prototype_info = nullptr);
 
-  static constexpr Tagged<Smi> kPrototypeChainValid = Smi::FromInt(0);
-  static constexpr Tagged<Smi> kPrototypeChainInvalid = Smi::FromInt(1);
+  // Invalid state for prototype validity cell. Everything else is considered
+  // as valid state.
+  static constexpr Tagged<Smi> kPrototypeChainInvalid = Smi::FromInt(0);
 
   // This sentinel is used in IC data handlers instead of actual validity cell
   // when there's nothing to guard against (when direct prototype is null or

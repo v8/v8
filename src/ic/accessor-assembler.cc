@@ -1940,8 +1940,8 @@ void AccessorAssembler::CheckPrototypeValidityCell(
 
   TNode<Object> cell_value =
       LoadObjectField(CAST(maybe_validity_cell), Cell::kValueOffset);
-  Branch(TaggedEqual(cell_value, SmiConstant(Map::kPrototypeChainValid)), &done,
-         miss);
+  Branch(TaggedEqual(cell_value, SmiConstant(Map::kPrototypeChainInvalid)),
+         miss, &done);
 
   BIND(&done);
 }

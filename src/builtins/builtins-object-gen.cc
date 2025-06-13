@@ -561,9 +561,9 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
               SideStepTransition::Kind::kObjectAssignValidityCell)));
       TNode<Cell> validity_cell = CAST(
           GetHeapObjectAssumeWeak(maybe_validity_cell, &runtime_map_lookup));
-      GotoIfNot(TaggedEqual(LoadCellValue(validity_cell),
-                            SmiConstant(Map::kPrototypeChainValid)),
-                &runtime_map_lookup);
+      GotoIf(TaggedEqual(LoadCellValue(validity_cell),
+                         SmiConstant(Map::kPrototypeChainInvalid)),
+             &runtime_map_lookup);
       clone_map = target_map;
     }
     Goto(&continue_fast_path);
