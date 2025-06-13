@@ -46,7 +46,8 @@ class V8_EXPORT_PRIVATE MemoryController : public AllStatic {
                                      Heap::HeapGrowingMode growing_mode);
 
  private:
-  static double MaxGrowingFactor(size_t max_heap_size);
+  static double MaxGrowingFactor(uint64_t physical_memory,
+                                 size_t max_heap_size);
   static double DynamicGrowingFactor(std::optional<double> gc_speed,
                                      double mutator_speed, double max_factor);
 

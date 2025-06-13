@@ -154,6 +154,10 @@ class V8_EXPORT ResourceConstraints {
     initial_young_generation_size_ = initial_size;
   }
 
+  uint64_t physical_memory_size_in_bytes() const {
+    return physical_memory_size_;
+  }
+
  private:
   static constexpr size_t kMB = 1048576u;
   size_t code_range_size_ = 0;
@@ -161,6 +165,7 @@ class V8_EXPORT ResourceConstraints {
   size_t max_young_generation_size_ = 0;
   size_t initial_old_generation_size_ = 0;
   size_t initial_young_generation_size_ = 0;
+  uint64_t physical_memory_size_ = 0;
   uint32_t* stack_limit_ = nullptr;
 };
 

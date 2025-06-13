@@ -2677,18 +2677,22 @@ TEST(ShortBuiltinCallsThreshold) {
 
   // If the physical memory is < kPhysicalMemoryThreshold then the old space
   // size must be below the kShortBuiltinCallsOldSpaceThreshold.
-  heap_size = Heap::HeapSizeFromPhysicalMemory(kPhysicalMemoryThreshold - MB);
-  i::Heap::GenerationSizesFromHeapSize(heap_size, &young, &old);
+  const uint64_t physical_memory = kPhysicalMemoryThreshold - MB;
+  heap_size = Heap::HeapSizeFromPhysicalMemory(physical_memory);
+  i::Heap::GenerationSizesFromHeapSize(physical_memory, heap_size, &young,
+                                       &old);
   CHECK_LT(old, kShortBuiltinCallsOldSpaceSizeThreshold);
 
   // If the physical memory is >= kPhysicalMemoryThreshold then the old space
   // size must be below the kShortBuiltinCallsOldSpaceThreshold.
   heap_size = Heap::HeapSizeFromPhysicalMemory(kPhysicalMemoryThreshold);
-  i::Heap::GenerationSizesFromHeapSize(heap_size, &young, &old);
+  i::Heap::GenerationSizesFromHeapSize(physical_memory, heap_size, &young,
+                                       &old);
   CHECK_GE(old, kShortBuiltinCallsOldSpaceSizeThreshold);
 
   heap_size = Heap::HeapSizeFromPhysicalMemory(kPhysicalMemoryThreshold + MB);
-  i::Heap::GenerationSizesFromHeapSize(heap_size, &young, &old);
+  i::Heap::GenerationSizesFromHeapSize(physical_memory, heap_size, &young,
+                                       &old);
   CHECK_GE(old, kShortBuiltinCallsOldSpaceSizeThreshold);
 }
 #endif  // !defined(V8_OS_ANDROID)

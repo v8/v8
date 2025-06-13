@@ -15,7 +15,8 @@ template <typename Trait>
 double MemoryController<Trait>::GrowingFactor(
     Heap* heap, size_t max_heap_size, std::optional<double> gc_speed,
     double mutator_speed, Heap::HeapGrowingMode growing_mode) {
-  const double max_factor = MaxGrowingFactor(max_heap_size);
+  const double max_factor =
+      MaxGrowingFactor(heap->physical_memory(), max_heap_size);
   double factor = DynamicGrowingFactor(gc_speed, mutator_speed, max_factor);
   switch (growing_mode) {
     case Heap::HeapGrowingMode::kConservative:
@@ -43,27 +44,30 @@ double MemoryController<Trait>::GrowingFactor(
 }
 
 template <typename Trait>
-double MemoryController<Trait>::MaxGrowingFactor(size_t max_heap_size) {
+double MemoryController<Trait>::MaxGrowingFactor(uint64_t physical_memory,
+                                                 size_t max_heap_size) {
   constexpr double kMinSmallFactor = 1.3;
   constexpr double kMaxSmallFactor = 2.0;
   constexpr double kHighFactor = 4.0;
 
   // If we are on a device with lots of memory, we allow a high heap
   // growing factor.
-  if (max_heap_size >= Heap::DefaulMaxHeapSize()) {
+  if (max_heap_size >= Heap::DefaulMaxHeapSize(physical_memory)) {
     return kHighFactor;
   }
 
-  size_t max_size = std::max({max_heap_size, Heap::DefaulMinHeapSize()});
+  size_t max_size =
+      std::max({max_heap_size, Heap::DefaulMinHeapSize(physical_memory)});
 
-  DCHECK_GE(max_size, Heap::DefaulMinHeapSize());
-  DCHECK_LT(max_size, Heap::DefaulMaxHeapSize());
+  DCHECK_GE(max_size, Heap::DefaulMinHeapSize(physical_memory));
+  DCHECK_LT(max_size, Heap::DefaulMaxHeapSize(physical_memory));
 
   // On smaller devices we linearly scale the factor: C+(D-C)*(X-A)/(B-A)
   double factor = kMinSmallFactor +
                   (kMaxSmallFactor - kMinSmallFactor) *
-                      (max_size - Heap::DefaulMinHeapSize()) /
-                      (Heap::DefaulMaxHeapSize() - Heap::DefaulMinHeapSize());
+                      (max_size - Heap::DefaulMinHeapSize(physical_memory)) /
+                      (Heap::DefaulMaxHeapSize(physical_memory) -
+                       Heap::DefaulMinHeapSize(physical_memory));
   return factor;
 }
 

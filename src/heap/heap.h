@@ -325,19 +325,26 @@ class Heap final {
   // The minimum size of a HeapObject on the heap.
   static const int kMinObjectSizeInTaggedWords = 2;
 
-  V8_EXPORT_PRIVATE static size_t DefaultInitialOldGenerationSize();
-  V8_EXPORT_PRIVATE static size_t OldGenerationLowMemory();
+  V8_EXPORT_PRIVATE static size_t DefaultInitialOldGenerationSize(
+      uint64_t physical_memory);
+  V8_EXPORT_PRIVATE static size_t OldGenerationLowMemory(
+      uint64_t physical_memory);
 
-  V8_EXPORT_PRIVATE static size_t HeapLimitMultiplier();
+#if V8_OS_ANDROID
+  V8_EXPORT_PRIVATE static bool IsHighEndAndroid(uint64_t physical_memory);
+#endif
+  V8_EXPORT_PRIVATE static size_t HeapLimitMultiplier(uint64_t physical_memory);
 
   static size_t DefaultMinSemiSpaceSize();
-  V8_EXPORT_PRIVATE static size_t DefaultMaxSemiSpaceSize();
+  V8_EXPORT_PRIVATE static size_t DefaultMaxSemiSpaceSize(
+      uint64_t physical_memory);
   // Young generation size is the same for compressed heaps and 32-bit heaps.
-  static size_t OldGenerationToSemiSpaceRatio();
-  static size_t OldGenerationToSemiSpaceRatioLowMemory();
+  static size_t OldGenerationToSemiSpaceRatio(uint64_t physical_memory);
+  static size_t OldGenerationToSemiSpaceRatioLowMemory(
+      uint64_t physical_memory);
 
-  V8_EXPORT_PRIVATE static size_t DefaulMinHeapSize();
-  V8_EXPORT_PRIVATE static size_t DefaulMaxHeapSize();
+  V8_EXPORT_PRIVATE static size_t DefaulMinHeapSize(uint64_t physical_memory);
+  V8_EXPORT_PRIVATE static size_t DefaulMaxHeapSize(uint64_t physical_memory);
 
   // Calculates the maximum amount of filler that could be required by the
   // given alignment.
@@ -1294,15 +1301,16 @@ class Heap final {
   size_t MaxOldGenerationSize() { return max_old_generation_size(); }
 
   // Limit on the max old generation size imposed by the underlying allocator.
-  V8_EXPORT_PRIVATE static size_t AllocatorLimitOnMaxOldGenerationSize();
+  V8_EXPORT_PRIVATE static size_t AllocatorLimitOnMaxOldGenerationSize(
+      uint64_t physical_memory);
 
   V8_EXPORT_PRIVATE static size_t HeapSizeFromPhysicalMemory(
       uint64_t physical_memory);
   V8_EXPORT_PRIVATE static void GenerationSizesFromHeapSize(
-      size_t heap_size, size_t* young_generation_size,
+      uint64_t physical_memory, size_t heap_size, size_t* young_generation_size,
       size_t* old_generation_size);
   V8_EXPORT_PRIVATE static size_t YoungGenerationSizeFromOldGenerationSize(
-      size_t old_generation_size);
+      uint64_t physical_memory, size_t old_generation_size);
   V8_EXPORT_PRIVATE static size_t YoungGenerationSizeFromSemiSpaceSize(
       size_t semi_space_size);
   V8_EXPORT_PRIVATE static size_t SemiSpaceSizeFromYoungGenerationSize(
@@ -1311,6 +1319,12 @@ class Heap final {
   V8_EXPORT_PRIVATE static size_t MinOldGenerationSize();
   V8_EXPORT_PRIVATE static size_t MaxOldGenerationSizeFromPhysicalMemory(
       uint64_t physical_memory);
+
+  uint64_t physical_memory() const {
+    // Prevent access before its initialization in ConfigureHeap().
+    DCHECK(configured_);
+    return physical_memory_;
+  }
 
   // Returns the capacity of the heap in bytes w/o growing. Heap grows when
   // more spaces are needed until it reaches the limit.
@@ -2478,6 +2492,10 @@ class Heap final {
   // On-stack address used for selective consevative stack scanning. No value
   // means that selective conservative stack scanning is not enabled.
   std::optional<const void*> selective_stack_scan_start_address_;
+
+  // The amount of physical memory on the device passed in by the embedder. If
+  // no value was provided this will be 0.
+  uint64_t physical_memory_;
 
   // Classes in "heap" can be friends.
   friend class ActivateMemoryReducerTask;

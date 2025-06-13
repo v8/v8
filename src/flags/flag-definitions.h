@@ -956,7 +956,11 @@ DEFINE_BOOL(
     zero_unused_memory, true,
     "Zero unused memory (except for memory which was discarded) on memory "
     "reducing GCs.")
-DEFINE_BOOL(high_end_android, false, "Enables high-end mode for Android.")
+DEFINE_BOOL(high_end_android, false,
+            "Enables high-end mode unconditionally for Android.")
+DEFINE_UINT(high_end_android_physical_memory_threshold, UINT_MAX,
+            "Enables high-end mode for devices with more than X GB of physical "
+            "memory (if X greater than 0).")
 
 #ifdef V8_MINORMS_STRING_SHORTCUTTING
 DEFINE_BOOL(minor_ms_shortcut_strings, false,

@@ -42,46 +42,53 @@ namespace internal {
 using HeapTest = TestWithHeapInternalsAndContext;
 
 TEST(Heap, YoungGenerationSizeFromOldGenerationSize) {
+  const uint64_t physical_memory = 0;
   const size_t pm = i::Heap::kPointerMultiplier;
-  const size_t hlm = i::Heap::HeapLimitMultiplier();
-  const size_t max_heap_size = i::Heap::DefaulMaxHeapSize();
+  const size_t hlm = i::Heap::HeapLimitMultiplier(physical_memory);
+  const size_t max_heap_size = i::Heap::DefaulMaxHeapSize(physical_memory);
 
   // Low memory
   ASSERT_EQ((v8_flags.minor_ms ? 4 : 3) * 512u * pm * KB,
-            i::Heap::YoungGenerationSizeFromOldGenerationSize(128u * hlm * MB));
+            i::Heap::YoungGenerationSizeFromOldGenerationSize(physical_memory,
+                                                              128u * hlm * MB));
   // High memory
-  ASSERT_EQ(
-      (i::Heap::DefaultMaxSemiSpaceSize() / 4) *
-          (v8_flags.minor_ms ? (2 * 4) : 3),
-      i::Heap::YoungGenerationSizeFromOldGenerationSize(max_heap_size / 4));
-  ASSERT_EQ(
-      (i::Heap::DefaultMaxSemiSpaceSize() / 2) *
-          (v8_flags.minor_ms ? (2 * 2) : 3),
-      i::Heap::YoungGenerationSizeFromOldGenerationSize(max_heap_size / 2));
-  ASSERT_EQ(i::Heap::DefaultMaxSemiSpaceSize() * (v8_flags.minor_ms ? 2 : 3),
-            i::Heap::YoungGenerationSizeFromOldGenerationSize(max_heap_size));
+  ASSERT_EQ((i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 4) *
+                (v8_flags.minor_ms ? (2 * 4) : 3),
+            i::Heap::YoungGenerationSizeFromOldGenerationSize(
+                physical_memory, max_heap_size / 4));
+  ASSERT_EQ((i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 2) *
+                (v8_flags.minor_ms ? (2 * 2) : 3),
+            i::Heap::YoungGenerationSizeFromOldGenerationSize(
+                physical_memory, max_heap_size / 2));
+  ASSERT_EQ(i::Heap::DefaultMaxSemiSpaceSize(physical_memory) *
+                (v8_flags.minor_ms ? 2 : 3),
+            i::Heap::YoungGenerationSizeFromOldGenerationSize(physical_memory,
+                                                              max_heap_size));
 }
 
 TEST(Heap, GenerationSizesFromHeapSize) {
+  const uint64_t physical_memory = 0;
   const size_t pm = i::Heap::kPointerMultiplier;
-  const size_t hlm = i::Heap::HeapLimitMultiplier();
-  const size_t max_heap_size = i::Heap::DefaulMaxHeapSize();
+  const size_t hlm = i::Heap::HeapLimitMultiplier(physical_memory);
+  const size_t max_heap_size = i::Heap::DefaulMaxHeapSize(physical_memory);
 
   size_t old, young;
 
   // Low memory
-  i::Heap::GenerationSizesFromHeapSize(1 * KB, &young, &old);
+  i::Heap::GenerationSizesFromHeapSize(physical_memory, 1 * KB, &young, &old);
   ASSERT_EQ(0u, old);
   ASSERT_EQ(0u, young);
 
   // On tiny heap max semi space capacity is set to the default capacity which
   // MinorMS does not double.
   i::Heap::GenerationSizesFromHeapSize(
-      1 * KB + (v8_flags.minor_ms ? 2 : 3) * 512u * pm * KB, &young, &old);
+      physical_memory, 1 * KB + (v8_flags.minor_ms ? 2 : 3) * 512u * pm * KB,
+      &young, &old);
   ASSERT_EQ(1u * KB, old);
   ASSERT_EQ((v8_flags.minor_ms ? 2 : 3) * 512u * pm * KB, young);
 
   i::Heap::GenerationSizesFromHeapSize(
+      physical_memory,
       128 * hlm * MB + (v8_flags.minor_ms ? 4 : 3) * 512 * pm * KB, &young,
       &old);
   ASSERT_EQ(128u * hlm * MB, old);
@@ -89,36 +96,43 @@ TEST(Heap, GenerationSizesFromHeapSize) {
 
   // High memory
   i::Heap::GenerationSizesFromHeapSize(
-      max_heap_size / 4 + (i::Heap::DefaultMaxSemiSpaceSize() / 4) *
-                              (v8_flags.minor_ms ? (2 * 4) : 3),
+      physical_memory,
+      max_heap_size / 4 +
+          (i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 4) *
+              (v8_flags.minor_ms ? (2 * 4) : 3),
       &young, &old);
   ASSERT_EQ(max_heap_size / 4, old);
-  ASSERT_EQ((i::Heap::DefaultMaxSemiSpaceSize() / 4) *
+  ASSERT_EQ((i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 4) *
                 (v8_flags.minor_ms ? (2 * 4) : 3),
             young);
 
   i::Heap::GenerationSizesFromHeapSize(
-      max_heap_size / 2 + (i::Heap::DefaultMaxSemiSpaceSize() / 2) *
-                              (v8_flags.minor_ms ? (2 * 2) : 3),
+      physical_memory,
+      max_heap_size / 2 +
+          (i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 2) *
+              (v8_flags.minor_ms ? (2 * 2) : 3),
       &young, &old);
   ASSERT_EQ(max_heap_size / 2, old);
-  ASSERT_EQ((i::Heap::DefaultMaxSemiSpaceSize() / 2) *
+  ASSERT_EQ((i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 2) *
                 (v8_flags.minor_ms ? (2 * 2) : 3),
             young);
 
   i::Heap::GenerationSizesFromHeapSize(
-      max_heap_size +
-          i::Heap::DefaultMaxSemiSpaceSize() * (v8_flags.minor_ms ? 2 : 3),
+      physical_memory,
+      max_heap_size + i::Heap::DefaultMaxSemiSpaceSize(physical_memory) *
+                          (v8_flags.minor_ms ? 2 : 3),
       &young, &old);
   ASSERT_EQ(max_heap_size, old);
-  ASSERT_EQ(i::Heap::DefaultMaxSemiSpaceSize() * (v8_flags.minor_ms ? 2 : 3),
+  ASSERT_EQ(i::Heap::DefaultMaxSemiSpaceSize(physical_memory) *
+                (v8_flags.minor_ms ? 2 : 3),
             young);
 }
 
 TEST(Heap, HeapSizeFromPhysicalMemory) {
+  const uint64_t physical_memory = 0;
   const size_t pm = i::Heap::kPointerMultiplier;
-  const size_t hlm = i::Heap::HeapLimitMultiplier();
-  const size_t max_heap_size = i::Heap::DefaulMaxHeapSize();
+  const size_t hlm = i::Heap::HeapLimitMultiplier(physical_memory);
+  const size_t max_heap_size = i::Heap::DefaulMaxHeapSize(physical_memory);
 
   // The expected value is old_generation_size + semi_space_multiplier *
   // semi_space_size.
@@ -129,19 +143,21 @@ TEST(Heap, HeapSizeFromPhysicalMemory) {
   ASSERT_EQ(128 * hlm * MB + (v8_flags.minor_ms ? 4 : 3) * 512 * pm * KB,
             i::Heap::HeapSizeFromPhysicalMemory(512u * MB));
   // High memory
-  ASSERT_EQ(max_heap_size / 4 + (i::Heap::DefaultMaxSemiSpaceSize() / 4) *
-                                    (v8_flags.minor_ms ? (2 * 4) : 3),
+  ASSERT_EQ(max_heap_size / 4 +
+                (i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 4) *
+                    (v8_flags.minor_ms ? (2 * 4) : 3),
             i::Heap::HeapSizeFromPhysicalMemory(1u * GB));
-  ASSERT_EQ(max_heap_size / 2 + (i::Heap::DefaultMaxSemiSpaceSize() / 2) *
-                                    (v8_flags.minor_ms ? (2 * 2) : 3),
+  ASSERT_EQ(max_heap_size / 2 +
+                (i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 2) *
+                    (v8_flags.minor_ms ? (2 * 2) : 3),
             i::Heap::HeapSizeFromPhysicalMemory(2u * GB));
   ASSERT_EQ(
-      max_heap_size +
-          i::Heap::DefaultMaxSemiSpaceSize() * (v8_flags.minor_ms ? 2 : 3),
+      max_heap_size + i::Heap::DefaultMaxSemiSpaceSize(physical_memory) *
+                          (v8_flags.minor_ms ? 2 : 3),
       i::Heap::HeapSizeFromPhysicalMemory(static_cast<uint64_t>(4u) * GB));
   ASSERT_EQ(
-      max_heap_size +
-          i::Heap::DefaultMaxSemiSpaceSize() * (v8_flags.minor_ms ? 2 : 3),
+      max_heap_size + i::Heap::DefaultMaxSemiSpaceSize(physical_memory) *
+                          (v8_flags.minor_ms ? 2 : 3),
       i::Heap::HeapSizeFromPhysicalMemory(static_cast<uint64_t>(8u) * GB));
 }
 
