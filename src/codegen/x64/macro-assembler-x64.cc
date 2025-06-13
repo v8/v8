@@ -2632,6 +2632,38 @@ void MacroAssembler::I32x8TruncF32x8U(YMMRegister dst, YMMRegister src,
   vpaddd(dst, dst, scratch2);
 }
 
+void MacroAssembler::Negpd(YMMRegister dst, YMMRegister src,
+                           YMMRegister scratch) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2));
+  CpuFeatureScope avx2_scope(this, AVX2);
+  if (dst == src) {
+    vpcmpeqq(scratch, scratch, scratch);
+    vpsllq(scratch, scratch, uint8_t{63});
+    vpxor(dst, dst, scratch);
+  } else {
+    vpcmpeqq(dst, dst, dst);
+    vpsllq(dst, dst, uint8_t{63});
+    vpxor(dst, dst, src);
+  }
+}
+
+void MacroAssembler::Negps(YMMRegister dst, YMMRegister src,
+                           YMMRegister scratch) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2));
+  CpuFeatureScope avx2_scope(this, AVX2);
+  if (dst == src) {
+    vpcmpeqd(scratch, scratch, scratch);
+    vpslld(scratch, scratch, uint8_t{31});
+    vpxor(dst, dst, scratch);
+  } else {
+    vpcmpeqd(dst, dst, dst);
+    vpslld(dst, dst, uint8_t{31});
+    vpxor(dst, dst, src);
+  }
+}
+
 void MacroAssembler::SmiTag(Register reg) {
   static_assert(kSmiTag == 0);
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());

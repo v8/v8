@@ -60,6 +60,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
     : public SharedMacroAssembler<MacroAssembler> {
  public:
   using SharedMacroAssembler<MacroAssembler>::SharedMacroAssembler;
+  using SharedMacroAssembler<MacroAssembler>::Negps;
+  using SharedMacroAssembler<MacroAssembler>::Negpd;
 
   void PushReturnAddressFrom(Register src) { pushq(src); }
   void PopReturnAddressTo(Register dst) { popq(dst); }
@@ -308,6 +310,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   void I32x8TruncF32x8U(YMMRegister dst, YMMRegister src, YMMRegister scratch1,
                         YMMRegister scratch2);
+
+  void Negpd(YMMRegister dst, YMMRegister src, YMMRegister scratch);
+  void Negps(YMMRegister dst, YMMRegister src, YMMRegister scratch);
 
   // ---------------------------------------------------------------------------
   // Conversions between tagged smi values and non-tagged integer values.
