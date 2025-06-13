@@ -1837,15 +1837,16 @@ bool Isolate::MayAccess(DirectHandle<NativeContext> accessing_context,
     DisallowGarbageCollection no_gc;
 
     if (IsJSGlobalProxy(*receiver)) {
-      std::optional<Tagged<Object>> receiver_context =
+      std::optional<Tagged<NativeContext>> receiver_context =
           Cast<JSGlobalProxy>(*receiver)->GetCreationContext();
       if (!receiver_context) return false;
 
       if (*receiver_context == *accessing_context) return true;
 
-      if (Cast<Context>(*receiver_context)->security_token() ==
-          accessing_context->security_token())
+      if ((*receiver_context)->security_token() ==
+          accessing_context->security_token()) {
         return true;
+      }
     }
   }
 

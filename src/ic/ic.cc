@@ -217,11 +217,7 @@ static void LookupForRead(LookupIterator* it, bool is_has_property) {
       }
       case LookupIterator::ACCESS_CHECK:
         // ICs know how to perform access checks on global proxies.
-        if (it->GetHolder<JSObject>().is_identical_to(
-                it->isolate()->global_proxy()) &&
-            !it->isolate()->global_object()->IsDetached(it->isolate())) {
-          continue;
-        }
+        if (!IsAccessCheckNeeded(*it->GetHolder<JSObject>())) continue;
         return;
       case LookupIterator::ACCESSOR:
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
@@ -1662,8 +1658,9 @@ bool StoreIC::LookupForWrite(LookupIterator* it, DirectHandle<Object> value,
         continue;
       }
       case LookupIterator::ACCESS_CHECK:
-        if (IsAccessCheckNeeded(*it->GetHolder<JSObject>())) return false;
-        continue;
+        // ICs know how to perform access checks on global proxies.
+        if (!IsAccessCheckNeeded(*it->GetHolder<JSObject>())) continue;
+        return false;
       case LookupIterator::ACCESSOR:
         return !it->IsReadOnly();
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:

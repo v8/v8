@@ -2460,9 +2460,12 @@ Handle<UnionOf<Smi, Cell>> Map::GetOrCreatePrototypeChainValidityCell(
   }
   // Otherwise create a new cell.
   Handle<Cell> cell = isolate->factory()->NewCell();
-  // Set cleared weak reference as a valid state in order to ensure that
-  // we migrated the code to use |maybe_value| accessors for validity cells.
-  cell->set_maybe_value(ClearedValue(PtrComprCageBase{isolate}));
+  {
+    Tagged<Map> meta_map = validity_cell_holder_map->map();
+    DCHECK(IsMapMap(meta_map));
+    Tagged<NativeContext> native_context = meta_map->native_context();
+    cell->set_maybe_value(MakeWeak(native_context));
+  }
   validity_cell_holder_map->set_prototype_validity_cell(*cell, kRelaxedStore);
   return cell;
 }
