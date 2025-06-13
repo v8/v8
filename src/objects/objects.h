@@ -861,6 +861,9 @@ class FixedBodyDescriptor;
 template <int start_offset>
 class FlexibleBodyDescriptor;
 
+template <int start_offset, int end_offset, int size>
+class FixedWeakBodyDescriptor;
+
 template <int start_offset>
 class FlexibleWeakBodyDescriptor;
 

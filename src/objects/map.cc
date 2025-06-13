@@ -2453,14 +2453,16 @@ Handle<UnionOf<Smi, Cell>> Map::GetOrCreatePrototypeChainValidityCell(
     // Return existing cell if it's still valid.
     if (maybe_cell != Map::kNoValidityCellSentinel) {
       Tagged<Cell> cell = Cast<Cell>(maybe_cell);
-      if (cell->value() != Map::kPrototypeChainInvalid) {
+      if (cell->maybe_value() != Map::kPrototypeChainInvalid) {
         return handle(cell, isolate);
       }
     }
   }
   // Otherwise create a new cell.
   Handle<Cell> cell = isolate->factory()->NewCell();
-  DCHECK_NE(cell->value(), Map::kPrototypeChainInvalid);
+  // Set cleared weak reference as a valid state in order to ensure that
+  // we migrated the code to use |maybe_value| accessors for validity cells.
+  cell->set_maybe_value(ClearedValue(PtrComprCageBase{isolate}));
   validity_cell_holder_map->set_prototype_validity_cell(*cell, kRelaxedStore);
   return cell;
 }

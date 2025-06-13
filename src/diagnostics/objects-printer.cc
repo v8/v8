@@ -3892,7 +3892,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       os << "<Cell value= ";
       HeapStringAllocator allocator;
       StringStream accumulator(&allocator);
-      ShortPrint(Cast<Cell>(*this)->value(), &accumulator);
+      ShortPrint(Cast<Cell>(*this)->maybe_value(), &accumulator);
       os << accumulator.ToCString().get();
       os << '>';
       break;

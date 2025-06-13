@@ -679,8 +679,8 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
       if (!alloc.To(&obj)) return false;
       obj->set_map_after_allocation(isolate(), roots.cell_map(),
                                     SKIP_WRITE_BARRIER);
-      Cast<Cell>(obj)->set_value(Map::kPrototypeChainInvalid,
-                                 SKIP_WRITE_BARRIER);
+      Cast<Cell>(obj)->set_maybe_value(Map::kPrototypeChainInvalid,
+                                       SKIP_WRITE_BARRIER);
       set_invalid_prototype_validity_cell(Cast<Cell>(obj));
     }
 

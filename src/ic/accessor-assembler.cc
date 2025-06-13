@@ -1938,8 +1938,7 @@ void AccessorAssembler::CheckPrototypeValidityCell(
          &done);
   CSA_DCHECK(this, TaggedIsNotSmi(maybe_validity_cell));
 
-  TNode<Object> cell_value =
-      LoadObjectField(CAST(maybe_validity_cell), Cell::kValueOffset);
+  TNode<MaybeObject> cell_value = LoadCellMaybeValue(CAST(maybe_validity_cell));
   Branch(TaggedEqual(cell_value, SmiConstant(Map::kPrototypeChainInvalid)),
          miss, &done);
 

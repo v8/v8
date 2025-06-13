@@ -4287,7 +4287,7 @@ TNode<Cell> CodeStubAssembler::AllocateCellWithValue(TNode<Object> value,
 }
 
 TNode<Object> CodeStubAssembler::LoadCellValue(TNode<Cell> cell) {
-  return LoadObjectField(cell, Cell::kValueOffset);
+  return CAST(LoadCellMaybeValue(cell));
 }
 
 void CodeStubAssembler::StoreCellValue(TNode<Cell> cell, TNode<Object> value,

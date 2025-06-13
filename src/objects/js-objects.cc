@@ -5162,8 +5162,8 @@ void InvalidateOnePrototypeValidityCellInternal(Tagged<Map> map) {
   if (maybe_cell != Map::kNoValidityCellSentinel) {
     // Just set the value; the cell will be replaced lazily.
     Tagged<Cell> cell = Cast<Cell>(maybe_cell);
-    if (cell->value() != Map::kPrototypeChainInvalid) {
-      cell->set_value(Map::kPrototypeChainInvalid, SKIP_WRITE_BARRIER);
+    if (cell->maybe_value() != Map::kPrototypeChainInvalid) {
+      cell->set_maybe_value(Map::kPrototypeChainInvalid, SKIP_WRITE_BARRIER);
     }
   }
   Tagged<PrototypeInfo> prototype_info;

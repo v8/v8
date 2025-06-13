@@ -1984,7 +1984,18 @@ void V8HeapExplorer::ExtractInstructionStreamReferences(
 
 void V8HeapExplorer::ExtractCellReferences(HeapEntry* entry,
                                            Tagged<Cell> cell) {
-  SetInternalReference(entry, "value", cell->value(), Cell::kValueOffset);
+  Tagged<MaybeObject> maybe_value = cell->maybe_value();
+  Tagged<HeapObject> heap_object;
+  HeapObjectReferenceType reference_type;
+  if (maybe_value.GetHeapObject(&heap_object, &reference_type)) {
+    if (reference_type == HeapObjectReferenceType::WEAK) {
+      SetWeakReference(entry, "value", heap_object, Cell::kMaybeValueOffset);
+    } else {
+      DCHECK_EQ(reference_type, HeapObjectReferenceType::STRONG);
+      SetInternalReference(entry, "value", heap_object,
+                           Cell::kMaybeValueOffset);
+    }
+  }
 }
 
 void V8HeapExplorer::ExtractFeedbackCellReferences(

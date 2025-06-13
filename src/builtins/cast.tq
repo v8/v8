@@ -665,7 +665,8 @@ Cast<JSArrayForFastToString>(
   // Verify that the initial array prototype is not modified.
   const validityCell = *NativeContextSlot(
       nativeContext, ContextSlot::INITIAL_ARRAY_PROTOTYPE_VALIDITY_CELL_INDEX);
-  if (TaggedEqual(validityCell.value, SmiConstant(kPrototypeChainInvalid))) {
+  if (TaggedEqual(
+          validityCell.maybe_value, SmiConstant(kPrototypeChainInvalid))) {
     goto CastError;
   }
 
@@ -935,25 +936,26 @@ macro Is<A : type extends Object, B : type extends Object>(
   return true;
 }
 
+macro Is<A : type extends Object>(
+    implicit context: Context)(o: MaybeObject): bool {
+  Cast<A>(o) otherwise return false;
+  return true;
+}
+
 macro UnsafeCast<A : type extends Object>(
     implicit context: Context)(o: Object): A {
   dcheck(Is<A>(o));
   return %RawDownCast<A>(o);
 }
 
+macro UnsafeCast<A : type extends Object>(
+    implicit context: Context)(o: MaybeObject): A {
+  dcheck(Is<A>(o));
+  return %RawDownCast<A>(o);
+}
+
 macro UnsafeConstCast<T: type>(r: const &T):&T {
   return %RawDownCast<&T>(r);
-}
-
-UnsafeCast<RegExpMatchInfo>(
-    implicit context: Context)(o: Object): RegExpMatchInfo {
-  dcheck(Is<RegExpMatchInfo>(o));
-  return %RawDownCast<RegExpMatchInfo>(o);
-}
-
-UnsafeCast<ArrayList>(implicit context: Context)(o: Object): ArrayList {
-  dcheck(Is<ArrayList>(o));
-  return %RawDownCast<ArrayList>(o);
 }
 
 macro UnsafeCast<A : type extends WeakHeapObject>(o: A|Object): A {
