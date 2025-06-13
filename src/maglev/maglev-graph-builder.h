@@ -721,6 +721,11 @@ class MaglevGraphBuilder {
     return merge_states_[offset] != nullptr;
   }
 
+  bool IsOffsetAMergePointOrLoopHeapder(int offset) {
+    return IsOffsetAMergePoint(offset) ||
+           bytecode_analysis().IsLoopHeader(offset);
+  }
+
   ValueNode* GetContextAtDepth(ValueNode* context, size_t depth);
   bool CheckContextExtensions(size_t depth);
 

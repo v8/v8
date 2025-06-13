@@ -7301,6 +7301,10 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoad() {
   // CallProperty REG ...
 
   iterator_.Advance();
+  if (IsOffsetAMergePointOrLoopHeapder(iterator_.current_offset())) {
+    return {};
+  }
+
   switch (iterator_.current_bytecode()) {
 #define CASE(Name, ...)                                                       \
   case interpreter::Bytecode::k##Name:                                        \
@@ -7315,6 +7319,10 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoad() {
   }
 
   iterator_.Advance();
+  if (IsOffsetAMergePointOrLoopHeapder(iterator_.current_offset())) {
+    return {};
+  }
+
   switch (iterator_.current_bytecode()) {
 #define CASE(Name, ...)                                                \
   case interpreter::Bytecode::k##Name:                                 \
