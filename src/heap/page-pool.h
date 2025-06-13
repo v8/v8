@@ -34,7 +34,6 @@ class PagePool final {
   // Tries to get page from the pool. Order of priority for pools:
   //   (1) Local pool for the isolate.
   //   (2) Shared pool.
-  //   (3) Steal from another isolate.
   MutablePageMetadata* Remove(Isolate* isolate);
 
   void AddLarge(Isolate* isolate, std::vector<LargePageMetadata*>& pages);
