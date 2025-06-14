@@ -75,7 +75,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:899572b32b8bb610cfeeefd162d9aefb46e29d97',
+  'gn_version': 'git_revision:54169531ed6da64425ad6e8e9535945c8f6220d0',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -232,7 +232,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '3936da5884d45fc16ecbd3d939c4709fe3ebbd3e',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '9e57472d991ef17726931163fb943277e372421e',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -308,7 +308,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '5bbf35ae6801f579c523893176789774c0726e22',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '1f64d055dbb79dfcef1a63588341d171f327cd73',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'ff75100b45027c70e17770cb80e720193b742c76',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
