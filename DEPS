@@ -258,7 +258,7 @@ deps = {
     'condition': 'checkout_fuchsia',
   },
   'third_party/simdutf':
-    Var('chromium_url') + '/chromium/src/third_party/simdutf' + '@' + '9d3e4d7c1afb30ed528443d73afab23f22443434',
+    Var('chromium_url') + '/chromium/src/third_party/simdutf' + '@' + '19643c4d1b57b557e215fe7d277e0f921c1d1f46',
   # Exists for rolling the Fuchsia SDK. Check out of the SDK should always
   # rely on the hook running |update_sdk.py| script below.
   'third_party/fuchsia-sdk/sdk': {
@@ -282,7 +282,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + '76189983a9ff94b0d8eeabbe2f43021212c86d8f',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '1aeec48a1dda87f179d76b5f4f30db91c9ab7239',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '35b75a2cba6ef72b7ce2b6b94b05c54ca07df866',
   'third_party/highway/src':
     Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '00fe003dac355b979f36157f9407c7c46448958e',
   'third_party/icu':
