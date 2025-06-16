@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/heap/trusted-range.h"
 #include "src/sandbox/hardware-support.h"
 #include "src/sandbox/sandbox.h"
 #include "test/unittests/test-utils.h"
@@ -25,6 +26,17 @@ TEST(SandboxHardwareSupportTest, Initialization) {
   ASSERT_TRUE(SandboxHardwareSupport::IsActive());
   sandbox.TearDown();
 }
+
+// The ASSERT_DEATH_IF_SUPPORTED macro is somewhat complicated and for example
+// performs heap allocations. As such, we cannot run that macro while in
+// sandboxed mode. Instead, we have to enter (and exit) sandboxed mode as part
+// of the operation performed within ASSERT_DEATH_IF_SUPPORTED.
+#define RUN_SANDBOXED(stmt) \
+  {                         \
+    EnterSandbox();         \
+    stmt;                   \
+    ExitSandbox();          \
+  }
 
 TEST(SandboxHardwareSupportTest, SimpleSandboxedCPPCode) {
   // Skip this test if hardware sandboxing support cannot be enabled (likely
@@ -61,21 +73,41 @@ TEST(SandboxHardwareSupportTest, SimpleSandboxedCPPCode) {
       reinterpret_cast<int*>(page_outside_sandbox);
   volatile int* in_sandbox_ptr = reinterpret_cast<int*>(page_in_sandbox);
 
-  // The ASSERT_DEATH_IF_SUPPORTED macro is somewhat complicated and for
-  // example performs heap allocations. As such, we cannot run that macro while
-  // in sandboxed mode. Instead, we have to enter (and exit) sandboxed mode as
-  // part of the operation performed within ASSERT_DEATH_IF_SUPPORTED.
-#define RUN_SANDBOXED(stmt) \
-  {                         \
-    EnterSandbox();         \
-    stmt;                   \
-    ExitSandbox();          \
-  }
-
   // Out-of-sandbox memory cannot be written to in sandboxed mode.
   ASSERT_DEATH_IF_SUPPORTED(RUN_SANDBOXED(*out_of_sandbox_ptr = 42), "");
   // In-sandbox memory on the other hand can be written to.
   RUN_SANDBOXED(*in_sandbox_ptr = 43);
+}
+
+TEST(SandboxHardwareSupportTest, SandboxedCodeNoWriteAccessToTrustedSpace) {
+  // Skip this test if hardware sandboxing support cannot be enabled (likely
+  // because the system doesn't support PKEYs, see the Initialization test).
+  if (!SandboxHardwareSupport::TryActivateBeforeThreadCreation()) return;
+
+  // TODO(saelo): we should instead use the TestWithPlatform mixin for this
+  // test, but currently we still need to manually activate sandbox hardware
+  // support before that. Once sandbox hardware support has matured further, we
+  // should be able to activate it as part of V8's initialization, and then we
+  // can switch to the TestWithPlatform mixin here.
+  auto platform = v8::platform::NewDefaultPlatform(
+      0, v8::platform::IdleTaskSupport::kEnabled);
+  i::V8::InitializePlatformForTesting(platform.get());
+
+  auto trusted_range =
+      TrustedRange::EnsureProcessWideTrustedRange(kMinimumTrustedRangeSize);
+  auto trusted_space_allocator = trusted_range->page_allocator();
+  size_t size = trusted_space_allocator->AllocatePageSize();
+  void* page_in_trusted_space = trusted_space_allocator->AllocatePages(
+      nullptr, size, size, PageAllocator::kReadWrite);
+  CHECK_NE(page_in_trusted_space, nullptr);
+
+  volatile int* trusted_space_ptr =
+      reinterpret_cast<int*>(page_in_trusted_space);
+
+  // Trusted space memory can be written to from (normal) C++ code...
+  *trusted_space_ptr = 42;
+  // ... but not from sandboxed code.
+  ASSERT_DEATH_IF_SUPPORTED(RUN_SANDBOXED(*trusted_space_ptr = 43), "");
 }
 
 TEST(SandboxHardwareSupportTest, DisallowSandboxAccess) {
