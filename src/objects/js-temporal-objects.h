@@ -112,7 +112,7 @@ class JSTemporalDuration
       DirectHandle<Object> round_to_obj);
 
   // #sec-temporal.duration.prototype.total
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object> Total(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Number> Total(
       Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
       DirectHandle<Object> total_of);
 

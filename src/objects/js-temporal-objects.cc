@@ -1599,6 +1599,12 @@ enum class CalendarFieldsFlag : uint8_t {
 };
 using CalendarFieldsFlags = base::Flags<CalendarFieldsFlag>;
 
+DEFINE_OPERATORS_FOR_FLAGS(CalendarFieldsFlags)
+
+constexpr CalendarFieldsFlags kAllDateFlags = CalendarFieldsFlag::kDay |
+                                              CalendarFieldsFlag::kMonthFields |
+                                              CalendarFieldsFlag::kYearFields;
+
 enum class RequiredFields {
   kNone,
   kPartial,
@@ -1953,7 +1959,6 @@ MaybeDirectHandle<JSTemporalInstant> ToTemporalInstant(
 
   DirectHandle<String> item_string = Cast<String>(item_prim);
 
-  DirectHandle<JSTemporalInstant> result;
 
   auto rust_result =
       HandleStringEncodings<TemporalAllocatedResult<temporal_rs::Instant>>(
@@ -2031,7 +2036,6 @@ MaybeDirectHandle<JSTemporalPlainTime> ToTemporalTime(
       THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
     }
     DirectHandle<String> str = Cast<String>(item);
-    DirectHandle<JSTemporalPlainTime> result;
 
     auto rust_result =
         HandleStringEncodings<TemporalAllocatedResult<temporal_rs::PlainTime>>(
@@ -2109,14 +2113,10 @@ MaybeDirectHandle<JSTemporalPlainDate> ToTemporalDate(
           .offset = std::nullopt,
           .time_zone = std::nullopt,
       };
-      CalendarFieldsFlags which =
-          CalendarFieldsFlags(CalendarFieldsFlag::kYearFields) |
-          CalendarFieldsFlags(CalendarFieldsFlag::kMonthFields) |
-          CalendarFieldsFlags(CalendarFieldsFlag::kDay);
 
       MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
           isolate, fields,
-          PrepareCalendarFields(isolate, kind, item_recvr, which,
+          PrepareCalendarFields(isolate, kind, item_recvr, kAllDateFlags,
                                 RequiredFields::kNone, owners),
           DirectHandle<JSTemporalPlainDate>());
       return ConstructRustWrappingType<JSTemporalPlainDate>(
@@ -2134,7 +2134,6 @@ MaybeDirectHandle<JSTemporalPlainDate> ToTemporalDate(
       THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
     }
     DirectHandle<String> str = Cast<String>(item);
-    DirectHandle<JSTemporalPlainDate> result;
 
     // Rest of the steps handled in Rust
 
@@ -2215,14 +2214,11 @@ MaybeDirectHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
           .offset = std::nullopt,
           .time_zone = std::nullopt,
       };
-      CalendarFieldsFlags which =
-          CalendarFieldsFlags(CalendarFieldsFlag::kYearFields) |
-          CalendarFieldsFlags(CalendarFieldsFlag::kMonthFields) |
-          CalendarFieldsFlags(CalendarFieldsFlag::kDay) |
-          CalendarFieldsFlags(CalendarFieldsFlag::kTimeFields);
+      using enum CalendarFieldsFlag;
       MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
           isolate, fields,
-          PrepareCalendarFields(isolate, kind, item_recvr, which,
+          PrepareCalendarFields(isolate, kind, item_recvr,
+                                kAllDateFlags | kTimeFields,
                                 RequiredFields::kNone, owners),
           kNullMaybeHandle);
       record.date = fields.date;
@@ -2239,7 +2235,6 @@ MaybeDirectHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
       THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
     }
     DirectHandle<String> str = Cast<String>(item);
-    DirectHandle<JSTemporalPlainDate> result;
 
     // Rest of the steps handled in Rust
 
@@ -2312,13 +2307,13 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
           .offset = std::nullopt,
           .time_zone = std::nullopt,
       };
-      CalendarFieldsFlags which =
-          CalendarFieldsFlags(CalendarFieldsFlag::kYearFields) |
-          CalendarFieldsFlags(CalendarFieldsFlag::kMonthFields);
+
+      using enum CalendarFieldsFlag;
 
       MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
           isolate, fields,
-          PrepareCalendarFields(isolate, kind, item_recvr, which,
+          PrepareCalendarFields(isolate, kind, item_recvr,
+                                kYearFields | kMonthFields,
                                 RequiredFields::kNone, owners),
           kNullMaybeHandle);
 
@@ -2347,7 +2342,6 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
       THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
     }
     DirectHandle<String> str = Cast<String>(item);
-    DirectHandle<JSTemporalPlainDate> result;
 
     // Rest of the steps handled in Rust
 
@@ -2430,17 +2424,13 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
           .offset = std::nullopt,
           .time_zone = std::nullopt,
       };
-      CalendarFieldsFlags which =
-          CalendarFieldsFlags(CalendarFieldsFlag::kYearFields) |
-          CalendarFieldsFlags(CalendarFieldsFlag::kMonthFields) |
-          CalendarFieldsFlags(CalendarFieldsFlag::kDay) |
-          CalendarFieldsFlags(CalendarFieldsFlag::kTimeFields) |
-          CalendarFieldsFlags(CalendarFieldsFlag::kOffset) |
-          CalendarFieldsFlags(CalendarFieldsFlag::kTimeZone);
+      using enum CalendarFieldsFlag;
       MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
           isolate, fields,
-          PrepareCalendarFields(isolate, kind, item_recvr, which,
-                                RequiredFields::kTimeZone, owners),
+          PrepareCalendarFields(
+              isolate, kind, item_recvr,
+              kAllDateFlags | kTimeFields | kOffset | kTimeZone,
+              RequiredFields::kTimeZone, owners),
           kNullMaybeHandle);
 
       auto record = temporal_rs::PartialZonedDateTime{
@@ -2468,7 +2458,6 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
       THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
     }
     DirectHandle<String> str = Cast<String>(item);
-    DirectHandle<JSTemporalPlainDate> result;
 
     // Default value from GetTemporalDisambiguationOption
     auto disambiguation_defaulted =
@@ -2553,13 +2542,13 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
           .offset = std::nullopt,
           .time_zone = std::nullopt,
       };
-      CalendarFieldsFlags which =
-          CalendarFieldsFlags(CalendarFieldsFlag::kYearFields) |
-          CalendarFieldsFlags(CalendarFieldsFlag::kMonthFields);
+
+      using enum CalendarFieldsFlag;
 
       MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
           isolate, fields,
-          PrepareCalendarFields(isolate, kind, item_recvr, which,
+          PrepareCalendarFields(isolate, kind, item_recvr,
+                                kYearFields | kMonthFields,
                                 RequiredFields::kNone, owners),
           kNullMaybeHandle);
 
@@ -2608,6 +2597,264 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
     return ConstructRustWrappingType<JSTemporalPlainMonthDay>(
         isolate, CONSTRUCTOR(plain_month_day), CONSTRUCTOR(plain_month_day),
         std::move(rust_result));
+  }
+}
+
+// A class that wraps a PlainDate or a ZonedDateTime that allows
+// them to be either owned in a unique_ptr or borrowed.
+//
+// Setters should only be called once (this is not a safety
+// invariant, but the spec should not be setting things multiple
+// times)
+class OwnedRelativeTo {
+ public:
+  OwnedRelativeTo()
+      : date_(std::nullopt),
+        zoned_(std::nullopt),
+        date_ptr_(nullptr),
+        zoned_ptr_(nullptr) {}
+
+  // These methods are not constructors so that they can be explicitly invoked,
+  // to avoid e.g. passing in an owned type as a pointer.
+  static OwnedRelativeTo Owned(std::unique_ptr<temporal_rs::PlainDate>&& val) {
+    OwnedRelativeTo ret;
+    ret.date_ = std::move(val);
+    ret.date_ptr_ = val.get();
+    return ret;
+  }
+  static OwnedRelativeTo Owned(
+      std::unique_ptr<temporal_rs::ZonedDateTime>&& val) {
+    OwnedRelativeTo ret;
+    ret.zoned_ = std::move(val);
+    ret.zoned_ptr_ = val.get();
+    return ret;
+  }
+
+  static OwnedRelativeTo Borrowed(temporal_rs::PlainDate const* val) {
+    OwnedRelativeTo ret;
+    ret.date_ptr_ = val;
+    return ret;
+  }
+
+  static OwnedRelativeTo Borrowed(temporal_rs::ZonedDateTime const* val) {
+    OwnedRelativeTo ret;
+    ret.zoned_ptr_ = val;
+    return ret;
+  }
+  temporal_rs::RelativeTo ToRust() const {
+    return temporal_rs::RelativeTo{
+        .date = date_ptr_,
+        .zoned = zoned_ptr_,
+    };
+  }
+
+ private:
+  std::optional<std::unique_ptr<temporal_rs::PlainDate>> date_;
+  std::optional<std::unique_ptr<temporal_rs::ZonedDateTime>> zoned_;
+
+  temporal_rs::PlainDate const* date_ptr_;
+  temporal_rs::ZonedDateTime const* zoned_ptr_;
+};
+
+// https://tc39.es/proposal-temporal/#sec-temporal-gettemporalrelativetooption
+// Also handles the undefined case from GetOptionsObject
+Maybe<OwnedRelativeTo> GetTemporalRelativeToOptionHandleUndefined(
+    Isolate* isolate, DirectHandle<Object> options) {
+  OwnedRelativeTo ret;
+
+  // Default is empty
+  if (IsUndefined(*options)) {
+    return Just(OwnedRelativeTo());
+  }
+
+  if (!IsJSReceiver(*options)) {
+    // (GetOptionsObject) 3. Throw a TypeError exception.
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                                 Nothing<OwnedRelativeTo>());
+  }
+
+  // 1. Let value be ?Get(options, "relativeTo").
+  DirectHandle<Object> value;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, value,
+      JSReceiver::GetProperty(isolate, Cast<JSReceiver>(options),
+                              isolate->factory()->relativeTo_string()),
+      Nothing<OwnedRelativeTo>());
+
+  // 2. If value is undefined, return the Record { [[PlainRelativeTo]]:
+  // undefined, [[ZonedRelativeTo]]: undefined }.
+  if (IsUndefined(*value)) {
+    return Just(OwnedRelativeTo());
+  }
+
+  // 3. Let offsetBehaviour be option.
+  // 4. Let matchBehaviour be match-exactly.
+
+  // This error is eventually thrown by step 6a; we perform a check early
+  // so that we can optimize with InstanceType. Step 5-6 are unobservable
+  // in this case.
+  if (!IsHeapObject(*value)) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                                 {});
+  }
+  InstanceType instance_type =
+      Cast<HeapObject>(*value)->map(isolate)->instance_type();
+
+  // 5. If value is an Object, then
+  if (InstanceTypeChecker::IsJSReceiver(instance_type)) {
+    // a. If value has an [[InitializedTemporalZonedDateTime]] internal slot,
+    // then
+    if (InstanceTypeChecker::IsJSTemporalZonedDateTime(instance_type)) {
+      // i. Return the Record { [[PlainRelativeTo]]: undefined,
+      // [[ZonedRelativeTo]]: value }.
+      return Just(OwnedRelativeTo::Borrowed(
+          Cast<JSTemporalZonedDateTime>(value)->zoned_date_time()->raw()));
+    }
+
+    // b. If value has an [[InitializedTemporalDate]] internal slot, then
+    if (InstanceTypeChecker::IsJSTemporalPlainDate(instance_type)) {
+      // i. Return the Record { [[PlainRelativeTo]]: value, [[ZonedRelativeTo]]:
+      // undefined }.
+      return Just(OwnedRelativeTo::Borrowed(
+          Cast<JSTemporalPlainDate>(value)->date()->raw()));
+    }
+
+    // c. If value has an [[InitializedTemporalDateTime]] internal slot, then
+    if (InstanceTypeChecker::IsJSTemporalPlainDateTime(instance_type)) {
+      // i. Let plainDate be
+      // !CreateTemporalDate(value.[[ISODateTime]].[[ISODate]],
+      // value.[[Calendar]]).
+      auto date_record = GetDateRecord(Cast<JSTemporalPlainDate>(value));
+      std::unique_ptr<temporal_rs::PlainDate> plain_date = nullptr;
+
+      MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+          isolate, plain_date,
+          ExtractRustResult(isolate, temporal_rs::PlainDate::from_partial(
+                                         date_record, std::nullopt)),
+          {});
+      // ii. Return the Record { [[PlainRelativeTo]]: plainDate,
+      // [[ZonedRelativeTo]]: undefined }.
+      return Just(OwnedRelativeTo::Owned(std::move(plain_date)));
+    }
+    // d. Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(value).
+    temporal_rs::AnyCalendarKind kind = temporal_rs::AnyCalendarKind::Iso;
+    auto value_recvr = Cast<JSReceiver>(value);
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, kind,
+        temporal::GetTemporalCalendarIdentifierWithISODefault(isolate,
+                                                              value_recvr),
+        {});
+    // e. Let fields be ? PrepareCalendarFields(calendar, value, « year, month,
+    // month-code, day », « hour, minute, second, millisecond, microsecond,
+    // nanosecond, offset, time-zone », «»).
+    CombinedRecordOwnership owners;
+    CombinedRecord fields = CombinedRecord{
+        .date = kNullPartialDate,
+        .time = kNullPartialTime,
+        .offset = std::nullopt,
+        .time_zone = std::nullopt,
+    };
+
+    using enum CalendarFieldsFlag;
+    MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+        isolate, fields,
+        PrepareCalendarFields(isolate, kind, value_recvr,
+                              kAllDateFlags | kTimeFields | kOffset | kTimeZone,
+                              RequiredFields::kNone, owners),
+        {});
+
+    // f. Let result be ? InterpretTemporalDateTimeFields(calendar, fields,
+    // constrain).
+    auto overflow = temporal_rs::ArithmeticOverflow::Constrain;
+
+    // (handled by the Constrain argument further down)
+
+    auto record = temporal_rs::PartialZonedDateTime{
+        .date = kNullPartialDate,
+        .time = kNullPartialTime,
+        .offset = std::nullopt,
+        .timezone = nullptr,
+    };
+
+    // g. Let timeZone be fields.[[TimeZone]].
+    if (fields.time_zone.has_value()) {
+      record.timezone = fields.time_zone.value().get();
+    }
+    // h. Let offsetString be fields.[[OffsetString]].
+    if (fields.offset.has_value()) {
+      record.offset = fields.offset.value();
+    }
+    // j. Let isoDate be result.[[ISODate]].
+    record.date = fields.date;
+    // k. Let time be result.[[Time]].
+    record.time = fields.time;
+
+    // We use different construction methods for ZonedDateTime in these two
+    // branches, so we've pulled steps 10-12 into this branch
+
+    // 10. Let epochNanoseconds be ? InterpretISODateTimeOffset(isoDate, time,
+    // offsetBehaviour, offsetNs, timeZone, compatible, reject, matchBehaviour).
+
+    // 11. Let zonedRelativeTo be !
+    // CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
+
+    std::unique_ptr<temporal_rs::ZonedDateTime> zoned_relative_to;
+    MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+        isolate, zoned_relative_to,
+        ExtractRustResult(
+            isolate,
+            temporal_rs::ZonedDateTime::from_partial(
+                record, overflow, temporal_rs::Disambiguation::Compatible,
+                temporal_rs::OffsetDisambiguation::Reject)),
+        {});
+    // 12. Return the Record { [[PlainRelativeTo]]: undefined,
+    // [[ZonedRelativeTo]]: zonedRelativeTo }.
+    return Just(OwnedRelativeTo::Owned(std::move(zoned_relative_to)));
+
+    // 6. Else,
+  } else {
+    // a. If value is not a String, throw a TypeError exception.
+    if (!InstanceTypeChecker::IsString(instance_type)) {
+      THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                   NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(), {});
+    }
+
+    DirectHandle<String> str = Cast<String>(value);
+
+    // 10. Let epochNanoseconds be ? InterpretISODateTimeOffset(isoDate, time,
+    // offsetBehaviour, offsetNs, timeZone, compatible, reject, matchBehaviour).
+
+    // 11. Let zonedRelativeTo be !
+    // CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
+
+    auto disambiguation = temporal_rs::Disambiguation::Compatible;
+    auto offset = temporal_rs::OffsetDisambiguation::Reject;
+
+    // Rest of the steps handled in Rust
+
+    auto rust_result = HandleStringEncodings<
+        TemporalAllocatedResult<temporal_rs::ZonedDateTime>>(
+        isolate, str,
+        [&disambiguation, &offset](std::string_view view)
+            -> TemporalAllocatedResult<temporal_rs::ZonedDateTime> {
+          return temporal_rs::ZonedDateTime::from_utf8(view, disambiguation,
+                                                       offset);
+        },
+        [&disambiguation, &offset](std::u16string_view view)
+            -> TemporalAllocatedResult<temporal_rs::ZonedDateTime> {
+          return temporal_rs::ZonedDateTime::from_utf16(view, disambiguation,
+                                                        offset);
+        });
+
+    std::unique_ptr<temporal_rs::ZonedDateTime> zoned_relative_to;
+
+    MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+        isolate, zoned_relative_to,
+        ExtractRustResult(isolate, std::move(rust_result)), {});
+
+    // 12. Return the Record { [[PlainRelativeTo]]: undefined,
+    // [[ZonedRelativeTo]]: zonedRelativeTo }.
+    return Just(OwnedRelativeTo::Owned(std::move(zoned_relative_to)));
   }
 }
 
@@ -2916,7 +3163,33 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Constructor(
 MaybeDirectHandle<Smi> JSTemporalDuration::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj, DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.Duration.compare";
+  DirectHandle<JSTemporalDuration> one;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, one,
+      temporal::ToTemporalDuration(isolate, one_obj, method_name));
+  DirectHandle<JSTemporalDuration> two;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, two,
+      temporal::ToTemporalDuration(isolate, two_obj, method_name));
+
+  temporal::OwnedRelativeTo relative_to;
+
+  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      isolate, relative_to,
+      temporal::GetTemporalRelativeToOptionHandleUndefined(isolate,
+                                                           options_obj),
+      kNullMaybeHandle);
+
+  int8_t comparison = 0;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, comparison,
+      ExtractRustResult(isolate,
+                        one->duration()->raw()->compare(*two->duration()->raw(),
+                                                        relative_to.ToRust())),
+      kNullMaybeHandle);
+
+  return direct_handle(Smi::FromInt(comparison), isolate);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.duration.from
@@ -2935,10 +3208,81 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Round(
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.total
-MaybeDirectHandle<Object> JSTemporalDuration::Total(
+// #sec-temporal.duration.prototype.total
+MaybeDirectHandle<Number> JSTemporalDuration::Total(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     DirectHandle<Object> total_of_obj) {
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.Duration.prototype.total";
+  // 1. Let duration be the this value.
+  // 2. Perform ? RequireInternalSlot(duration,
+  // [[InitializedTemporalDuration]]).
+
+  // (handled by type system)
+
+  // 3. If totalOf is undefined, throw a TypeError exception.
+  if (IsUndefined(*total_of_obj)) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+  }
+
+  DirectHandle<JSReceiver> total_of;
+  auto factory = isolate->factory();
+
+  // 4. If totalOf is a String, then
+  if (IsString(*total_of_obj)) {
+    // a. Let paramString be totalOf.
+    DirectHandle<String> param_string = Cast<String>(total_of_obj);
+    // b. Set totalOf to ! OrdinaryObjectCreate(null).
+    total_of = factory->NewJSObjectWithNullProto();
+    // c. Perform ! CreateDataPropertyOrThrow(total_of, "unit", paramString).
+    CHECK(JSReceiver::CreateDataProperty(isolate, total_of,
+                                         factory->unit_string(), param_string,
+                                         Just(kThrowOnError))
+              .FromJust());
+    // 5. Else,
+  } else {
+    // a. Set totalOf to ? GetOptionsObject(totalOf).
+    // We have already checked for undefined, we can hoist the JSReceiver
+    // check out and just cast
+    if (!IsJSReceiver(*total_of_obj)) {
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    }
+    total_of = Cast<JSReceiver>(total_of_obj);
+  }
+
+  // 6. NOTE (...)
+
+  // 7. Let relativeToRecord be ? GetTemporalRelativeToOption(totalOf).
+  // 8. Let zonedRelativeTo be relativeToRecord.[[ZonedRelativeTo]].
+  // 9. Let plainRelativeTo be relativeToRecord.[[PlainRelativeTo]].
+
+  temporal::OwnedRelativeTo relative_to;
+
+  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      isolate, relative_to,
+      temporal::GetTemporalRelativeToOptionHandleUndefined(isolate,
+                                                           total_of_obj),
+      kNullMaybeHandle);
+
+  // 10. Let unit be ? GetTemporalUnitValuedOption(totalOf, "unit", datetime,
+  // required).
+  std::optional<Unit> unit;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, unit,
+      temporal::GetTemporalUnit(isolate, total_of, "unit", UnitGroup::kDateTime,
+                                std::nullopt, true, method_name),
+      kNullMaybeHandle);
+  // We set required to true.
+  DCHECK(unit.has_value());
+
+  // Remaining steps handled in Rust
+  double ret;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, ret,
+      ExtractRustResult(isolate, duration->duration()->raw()->total(
+                                     unit.value(), relative_to.ToRust())),
+      kNullMaybeHandle);
+
+  return factory->NewNumber(ret);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.with
