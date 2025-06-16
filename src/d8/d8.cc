@@ -4401,6 +4401,8 @@ void Shell::InitializeDefaultCounters(Isolate* v8_isolate) {
 
 void Shell::Initialize(Isolate* isolate, D8Console* console,
                        bool isOnMainThread) {
+  if (!options.can_block) isolate->SetAllowAtomicsWait(false);
+
   isolate->SetPromiseRejectCallback(PromiseRejectCallback);
   isolate->SetWasmAsyncResolvePromiseCallback(
       D8WasmAsyncResolvePromiseCallback);
@@ -6043,6 +6045,8 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (FlagWithArgMatches("--thread-pool-size", &flag_value, argc, argv,
                                   &i)) {
       options.thread_pool_size = atoi(flag_value);
+    } else if (FlagMatches("--no-can-block", &argv[i])) {
+      options.can_block = false;
     } else if (FlagMatches("--stress-delay-tasks", &argv[i])) {
       // Delay execution of tasks by 0-100ms randomly (based on --random-seed).
       options.stress_delay_tasks = true;

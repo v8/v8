@@ -435,7 +435,7 @@ class ShellOptions {
     T value_;
     bool specified_ = false;
   };
-
+  DisallowReassignment<bool> can_block = {"can_block", true};
   DisallowReassignment<const char*> d8_path = {"d8-path", ""};
   DisallowReassignment<bool> fuzzilli_coverage_statistics = {
       "fuzzilli-coverage-statistics", false};

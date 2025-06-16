@@ -462,10 +462,6 @@
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
-  #
-  # Test262 needs to expose CanBlock.
-  'built-ins/Atomics/wait/bigint/cannot-suspend-throws': [SKIP],
-  'built-ins/Atomics/wait/cannot-suspend-throws': [SKIP],
   # Flaky.
   'built-ins/Atomics/wait/undefined-index-defaults-to-zero': [SKIP],
 
