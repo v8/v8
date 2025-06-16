@@ -2099,6 +2099,59 @@ THREADED_TEST(Number) {
   CHECK_EQ(PI, pi_obj->NumberValue(env.local()).FromJust());
 }
 
+THREADED_TEST(Ints) {
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  Local<v8::Number> zero8u = v8::Number::New(isolate, uint8_t{0});
+  CHECK_EQ(0, zero8u->NumberValue(env.local()).FromJust());
+  Local<v8::Number> zero8 = v8::Number::New(isolate, int8_t{0});
+  CHECK_EQ(0, zero8->NumberValue(env.local()).FromJust());
+  Local<v8::Number> max8u = v8::Number::New(isolate, uint8_t{0xff});
+  CHECK_EQ(0xff, max8u->NumberValue(env.local()).FromJust());
+  Local<v8::Number> max8 = v8::Number::New(isolate, int8_t{0x7f});
+  CHECK_EQ(0x7f, max8->NumberValue(env.local()).FromJust());
+
+  Local<v8::Number> zero16u = v8::Number::New(isolate, uint16_t{0});
+  CHECK_EQ(0, zero16u->NumberValue(env.local()).FromJust());
+  Local<v8::Number> zero16 = v8::Number::New(isolate, int16_t{0});
+  CHECK_EQ(0, zero16->NumberValue(env.local()).FromJust());
+  Local<v8::Number> max16u = v8::Number::New(isolate, uint16_t{0xffff});
+  CHECK_EQ(0xffff, max16u->NumberValue(env.local()).FromJust());
+  Local<v8::Number> max16 = v8::Number::New(isolate, int16_t{0x7fff});
+  CHECK_EQ(0x7fff, max16->NumberValue(env.local()).FromJust());
+
+  Local<v8::Number> zero32u = v8::Number::New(isolate, uint32_t{0});
+  CHECK_EQ(0, zero32u->NumberValue(env.local()).FromJust());
+  Local<v8::Number> zero32 = v8::Number::New(isolate, int32_t{0});
+  CHECK_EQ(0, zero32->NumberValue(env.local()).FromJust());
+  Local<v8::Number> max32u = v8::Number::New(isolate, uint32_t{0xffffffff});
+  CHECK_EQ(0xffffffff, max32u->NumberValue(env.local()).FromJust());
+  Local<v8::Number> max32 = v8::Number::New(isolate, int32_t{0x7fffffff});
+  CHECK_EQ(0x7fffffff, max32->NumberValue(env.local()).FromJust());
+
+  Local<v8::Number> zero64u = v8::Number::New(isolate, uint64_t{0});
+  CHECK_EQ(0, zero64u->NumberValue(env.local()).FromJust());
+  Local<v8::Number> zero64 = v8::Number::New(isolate, int64_t{0});
+  CHECK_EQ(0, zero64->NumberValue(env.local()).FromJust());
+  // This works only because the double round-trip is lossless for this
+  // 40 bit number.
+  Local<v8::Number> big64u = v8::Number::New(isolate, uint64_t{0xffffffffffLL});
+  CHECK_EQ(0xffffffffffLL, big64u->NumberValue(env.local()).FromJust());
+  Local<v8::Number> big64 = v8::Number::New(isolate, int64_t{0x7fffffffffLL});
+  CHECK_EQ(0x7fffffffffLL, big64->NumberValue(env.local()).FromJust());
+
+  Local<v8::Number> zero_double = v8::Number::New(isolate, double{0});
+  CHECK_EQ(0.0, zero_double->NumberValue(env.local()).FromJust());
+  Local<v8::Number> pi_double = v8::Number::New(isolate, double{3.14});
+  CHECK_EQ(double{3.14}, pi_double->NumberValue(env.local()).FromJust());
+
+  Local<v8::Number> zero_float = v8::Number::New(isolate, float{0});
+  CHECK_EQ(0.0, zero_float->NumberValue(env.local()).FromJust());
+  Local<v8::Number> pi_float = v8::Number::New(isolate, float{3.14});
+  CHECK_EQ(float{3.14}, pi_float->NumberValue(env.local()).FromJust());
+}
 
 THREADED_TEST(ToNumber) {
   LocalContext env;

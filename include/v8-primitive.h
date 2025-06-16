@@ -849,6 +849,19 @@ class V8_EXPORT Number : public Numeric {
  public:
   double Value() const;
   static Local<Number> New(Isolate* isolate, double value);
+  template <typename Int>
+    requires(std::is_integral<Int>::value && !std::is_same<Int, bool>::value &&
+             std::is_signed_v<Int> && sizeof(Int) <= sizeof(int32_t))
+  V8_INLINE static Local<Number> New(Isolate* isolate, Int value) {
+    return NewFromInt32(isolate, value);
+  }
+  template <typename UInt>
+    requires(std::is_integral<UInt>::value &&
+             !std::is_same<UInt, bool>::value && std::is_unsigned_v<UInt> &&
+             sizeof(UInt) <= sizeof(uint32_t))
+  V8_INLINE static Local<Number> New(Isolate* isolate, UInt value) {
+    return NewFromUint32(isolate, value);
+  }
   V8_INLINE static Number* Cast(v8::Data* data) {
 #ifdef V8_ENABLE_CHECKS
     CheckCast(data);
@@ -858,6 +871,8 @@ class V8_EXPORT Number : public Numeric {
 
  private:
   Number();
+  static Local<Number> NewFromInt32(Isolate* isolate, int32_t value);
+  static Local<Number> NewFromUint32(Isolate* isolate, uint32_t value);
   static void CheckCast(v8::Data* that);
 };
 
