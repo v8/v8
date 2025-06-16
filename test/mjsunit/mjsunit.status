@@ -1943,6 +1943,13 @@
   # Manipulating addresses in in tools/system-analyzer/processor.mjs can cause
   # computation errors due to unsafe integers (v8:13440)
   'tools/processor': [PASS, ['component_build', SKIP]],
+  # triggers OOM condition
+  'huge-typedarrays': [SKIP],
+  'es6/typedarray-construct-by-array-like': [SKIP],
+  'es6/typedarray-construct-by-array-like-prototype-element-added': [SKIP],
+  'regress/regress-324028': [SKIP],
+  'regress/regress-crbug-1029658': [SKIP],
+  'regress/regress-crbug-650933': [SKIP],
 }],  # 'system == aix'
 
 ##############################################################################
