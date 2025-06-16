@@ -54,9 +54,8 @@ Node* JSGraph::ConstantNoHole(ObjectRef ref, JSHeapBroker* broker) {
   CHECK(ref.IsSmi() || ref.IsHeapNumber() ||
         ref.AsHeapObject().GetHeapObjectType(broker).hole_type() ==
             HoleType::kNone);
-  if (IsThinString(*ref.object())) {
-    ref = MakeRefAssumeMemoryFence(broker,
-                                   Cast<ThinString>(*ref.object())->actual());
+  if (ref.IsString()) {
+    ref = ref.AsString().UnpackIfThin(broker);
   }
   return Constant(ref, broker);
 }

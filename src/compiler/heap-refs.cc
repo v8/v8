@@ -1482,6 +1482,15 @@ std::optional<double> StringRef::ToInt(JSHeapBroker* broker, int radix) {
   return TryStringToInt(broker->local_isolate(), object(), radix);
 }
 
+StringRef StringRef::UnpackIfThin(JSHeapBroker* broker) {
+  IndirectHandle<String> obj = object();
+  if (InstanceTypeChecker::IsThinString(obj->map(kAcquireLoad))) {
+    // String::MakeThin sets the map with ReleaseStore after storing actual().
+    return MakeRefAssumeMemoryFence(broker, Cast<ThinString>(obj)->actual());
+  }
+  return *this;
+}
+
 int ArrayBoilerplateDescriptionRef::constants_elements_length() const {
   return object()->constant_elements()->length();
 }

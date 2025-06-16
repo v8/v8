@@ -1190,6 +1190,9 @@ class StringRef : public NameRef {
   // to use LookupIterator in a thread-safe way.
   OptionalObjectRef GetCharAsStringOrUndefined(JSHeapBroker* broker,
                                                uint32_t index) const;
+  // Returns ThinString::actual() if the current (uncached) map is a ThinString
+  // map, a self reference for all other strings.
+  StringRef UnpackIfThin(JSHeapBroker* broker);
 
   // When concurrently accessing non-read-only non-supported strings, we return
   // std::nullopt for these methods.

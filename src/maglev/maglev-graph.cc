@@ -147,9 +147,8 @@ ValueNode* Graph::GetConstant(compiler::ObjectRef ref) {
   }
   compiler::HeapObjectRef constant = ref.AsHeapObject();
 
-  if (IsThinString(*constant.object())) {
-    constant = MakeRefAssumeMemoryFence(
-        broker(), Cast<ThinString>(*constant.object())->actual());
+  if (constant.IsString()) {
+    constant = constant.AsString().UnpackIfThin(broker());
   }
 
   auto root_index = broker()->FindRootIndex(constant);
