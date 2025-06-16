@@ -291,6 +291,11 @@ class PagePool::ReleasePooledChunksTask final : public CancelableTask {
 };
 
 void PagePool::ReleaseOnTearDown(Isolate* isolate) {
+  if (!v8_flags.memory_pool_share_memory_on_teardown) {
+    ReleaseImmediately(isolate);
+    return;
+  }
+
   const InternalTime time = next_time_.fetch_add(1, std::memory_order_relaxed);
 
   const bool shared_page_pool_populate =

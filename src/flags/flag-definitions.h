@@ -2391,13 +2391,19 @@ DEFINE_BOOL(stress_per_context_marking_worklist, false,
             "Use per-context worklist for marking")
 DEFINE_BOOL(stress_incremental_marking, false,
             "force incremental marking for small heaps and run it more often")
+
+DEFINE_BOOL(
+    memory_pool_share_memory_on_teardown, true,
+    "Share memory on Isolate teardown using other Isolate's task runners")
+DEFINE_BOOL(memory_pool_release_before_memory_pressure_gcs, true,
+            "discard the memory pool before invoking the GC on memory pressure "
+            "or last resort GCs")
 DEFINE_BOOL(large_page_pool, false, "Add large pages to the page pool")
 DEFINE_WEAK_IMPLICATION(future, large_page_pool)
 DEFINE_SIZE_T(max_large_page_pool_size, 32,
               "Maximum size of pooled large pages in MB.")
 DEFINE_INT(large_page_pool_timeout, 3,
            "Release pooled large pages after X seconds.")
-
 DEFINE_BOOL(managed_zone_memory, false,
             "Manage zone memory in V8 instead of using malloc().")
 
@@ -2417,9 +2423,6 @@ DEFINE_BOOL(
     "reclaim otherwise unreachable unmodified wrapper objects when possible")
 DEFINE_BOOL(parallel_reclaim_unmodified_wrappers, true,
             "reclaim wrapper objects in parallel")
-DEFINE_BOOL(discard_memory_pool_before_memory_pressure_gcs, true,
-            "discard the memory pool before invoking the GC on memory pressure "
-            "or last resort GCs")
 
 // These flags will be removed after experiments. Do not rely on them.
 DEFINE_BOOL(gc_experiment_less_compaction, false,
