@@ -72,7 +72,7 @@ void ExternalEntityTable<Entry, size>::Initialize() {
             kInternalReadOnlySegmentsOffset);
 
   if constexpr (Base::kUseSegmentPool) {
-    this->FillSegmentsPool(false);
+    Base::FillSegmentsPool(false);
   }
 }
 

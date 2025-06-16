@@ -71,13 +71,12 @@ class V8_EXPORT_PRIVATE SegmentedTable {
   // segments of this size. Segments can then be allocated and freed using the
   // AllocateAndInitializeSegment() and FreeTableSegment() routines.
   static constexpr size_t kSegmentPoolSize = 4;
+  static constexpr uint32_t kSegmentPoolFreeEntry =
+      std::numeric_limits<uint32_t>::max();
   static constexpr size_t kEntriesPerSegment = kSegmentSize / kEntrySize;
   static constexpr size_t kAlignment =
       kSegmentSize * (kUseSegmentPool ? kSegmentPoolSize : 1);
-  // These need to be identical such that the first normal segment starts at a
-  // normal segment pool offset.
-  static constexpr size_t kNumReadOnlySegments =
-      (kUseSegmentPool ? kSegmentPoolSize : 1);
+  static constexpr size_t kNumReadOnlySegments = 64 * KB / kSegmentSize;
 
   // Struct representing a segment of the table.
   struct Segment {
