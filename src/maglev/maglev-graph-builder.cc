@@ -10768,14 +10768,16 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathClz32(
     }
     return {};
   }
+
   DCHECK_EQ(arg_repr, ValueRepresentation::kTagged);
-  if (CheckType(arg, NodeType::kSmi)) {
-    return AddNewNode<SmiCountLeadingZeros>({arg});
+  if (CheckType(arg, NodeType::kNumber)) {
+    return AddNewNode<TaggedCountLeadingZeros>({arg});
   }
 
   if (!CanSpeculateCall()) {
     return {};
   }
+
   DeoptFrameScope continuation_scope(this,
                                      Float64CountLeadingZeros::continuation());
   ToNumberOrNumeric* conversion =

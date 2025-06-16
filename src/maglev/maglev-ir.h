@@ -282,7 +282,7 @@ class ExceptionHandlerInfo;
   V(Int32ToNumber)                                  \
   V(Uint32ToNumber)                                 \
   V(Int32CountLeadingZeros)                         \
-  V(SmiCountLeadingZeros)                           \
+  V(TaggedCountLeadingZeros)                        \
   V(Float64CountLeadingZeros)                       \
   V(IntPtrToBoolean)                                \
   V(IntPtrToNumber)                                 \
@@ -4474,12 +4474,12 @@ class Int32CountLeadingZeros
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-class SmiCountLeadingZeros
-    : public FixedInputValueNodeT<1, SmiCountLeadingZeros> {
-  using Base = FixedInputValueNodeT<1, SmiCountLeadingZeros>;
+class TaggedCountLeadingZeros
+    : public FixedInputValueNodeT<1, TaggedCountLeadingZeros> {
+  using Base = FixedInputValueNodeT<1, TaggedCountLeadingZeros>;
 
  public:
-  explicit SmiCountLeadingZeros(uint64_t bitfield) : Base(bitfield) {}
+  explicit TaggedCountLeadingZeros(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::Int32();
 
