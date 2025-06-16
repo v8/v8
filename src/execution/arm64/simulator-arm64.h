@@ -1619,6 +1619,8 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
                                   int lane_size_in_bits) const;
   sim_uint128_t Lsl128(sim_uint128_t x, unsigned shift) const;
   sim_uint128_t Eor128(sim_uint128_t x, sim_uint128_t y) const;
+  void SimulateSignedMinMax(const Instruction* instr);
+  void SimulateUnsignedMinMax(const Instruction* instr);
 
   void ld1(VectorFormat vform, LogicVRegister dst, uint64_t addr);
   void ld1(VectorFormat vform, LogicVRegister dst, int index, uint64_t addr);

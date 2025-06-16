@@ -1347,6 +1347,32 @@ void Assembler::ctz(const Register& rd, const Register& rn) {
   Emit(0x5ac01800 | SF(rd) | Rd(rd) | Rn(rn));
 }
 
+#define MINMAX(V)                        \
+  V(smax, 0x11c00000, 0x1ac06000, true)  \
+  V(smin, 0x11c80000, 0x1ac06800, true)  \
+  V(umax, 0x11c40000, 0x1ac06400, false) \
+  V(umin, 0x11cc0000, 0x1ac06c00, false)
+
+#define DEFINE_ASM_FUNC(FN, IMMOP, REGOP, SIGNED)                          \
+  void Assembler::FN(const Register& rd, const Register& rn,               \
+                     const Operand& op) {                                  \
+    DCHECK(IsEnabled(CSSC));                                               \
+    DCHECK(rd.IsSameSizeAndType(rn));                                      \
+    Instr i = SF(rd) | Rd(rd) | Rn(rn);                                    \
+    if (op.IsImmediate()) {                                                \
+      int64_t imm = op.ImmediateValue();                                   \
+      i |= SIGNED ? ImmField<17, 10>(imm) : ImmUnsignedField<17, 10>(imm); \
+      Emit(IMMOP | i);                                                     \
+    } else {                                                               \
+      DCHECK(op.IsPlainRegister());                                        \
+      DCHECK(op.reg().IsSameSizeAndType(rd));                              \
+      Emit(REGOP | i | Rm(op.reg()));                                      \
+    }                                                                      \
+  }
+MINMAX(DEFINE_ASM_FUNC)
+#undef DEFINE_ASM_FUNC
+#undef MINMAX
+
 void Assembler::pacib1716() { Emit(PACIB1716); }
 void Assembler::autib1716() { Emit(AUTIB1716); }
 void Assembler::pacibsp() { Emit(PACIBSP); }

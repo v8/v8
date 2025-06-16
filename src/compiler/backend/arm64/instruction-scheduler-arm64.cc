@@ -91,6 +91,14 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Rbit32:
     case kArm64Rev:
     case kArm64Rev32:
+    case kArm64Smax32:
+    case kArm64Smax64:
+    case kArm64Smin32:
+    case kArm64Smin64:
+    case kArm64Umax32:
+    case kArm64Umax64:
+    case kArm64Umin32:
+    case kArm64Umin64:
     case kArm64Float16RoundDown:
     case kArm64Float16RoundTiesEven:
     case kArm64Float16RoundTruncate:

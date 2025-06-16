@@ -19,6 +19,7 @@ namespace internal {
   V(PCRelAddressing)                    \
   V(AddSubImmediate)                    \
   V(LogicalImmediate)                   \
+  V(MinMaxImmediate)                    \
   V(MoveWideImmediate)                  \
   V(Bitfield)                           \
   V(Extract)                            \
@@ -161,10 +162,10 @@ class Decoder : public V {
   // On entry, instruction bits 27:24 = 0x0.
   void DecodePCRelAddressing(Instruction* instr);
 
-  // Decode the add/subtract immediate instruction, and call the corresponding
-  // visitors.
+  // Decode the data processing immediate instruction, and call the
+  // corresponding visitors.
   // On entry, instruction bits 27:24 = 0x1.
-  void DecodeAddSubImmediate(Instruction* instr);
+  void DecodeDataProcessingImmediate(Instruction* instr);
 
   // Decode the branch, system command, and exception generation parts of
   // the instruction tree, and call the corresponding visitors.

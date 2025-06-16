@@ -270,6 +270,27 @@ void DisassemblingDecoder::VisitLogicalImmediate(Instruction* instr) {
   Format(instr, mnemonic, form);
 }
 
+void DisassemblingDecoder::VisitMinMaxImmediate(Instruction* instr) {
+  const char* mnemonic = "";
+  const char* form = "'Rd, 'Rn, 'IMinMax";
+
+  switch (instr->Mask(MinMaxImmediateMask)) {
+#define FORMAT(A, B) \
+  case A##_w_imm:    \
+  case A##_x_imm:    \
+    mnemonic = B;    \
+    break;
+    FORMAT(SMAX, "smax");
+    FORMAT(UMAX, "umax");
+    FORMAT(SMIN, "smin");
+    FORMAT(UMIN, "umin");
+#undef FORMAT
+    default:
+      UNREACHABLE();
+  }
+  Format(instr, mnemonic, form);
+}
+
 bool DisassemblingDecoder::IsMovzMovnImm(unsigned reg_size, uint64_t value) {
   DCHECK((reg_size == kXRegSizeInBits) ||
          ((reg_size == kWRegSizeInBits) && (value <= 0xFFFFFFFF)));
@@ -660,6 +681,10 @@ void DisassemblingDecoder::VisitDataProcessing2Source(Instruction* instr) {
     FORMAT(LSRV, "lsr");
     FORMAT(ASRV, "asr");
     FORMAT(RORV, "ror");
+    FORMAT(SMAX, "smax");
+    FORMAT(UMAX, "umax");
+    FORMAT(SMIN, "smin");
+    FORMAT(UMIN, "umin");
 #undef FORMAT
     default:
       form = "(DataProcessing2Source)";
@@ -4065,7 +4090,13 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
   DCHECK_EQ(format[0], 'I');
 
   switch (format[1]) {
-    case 'M': {  // IMoveImm or IMoveLSL.
+    case 'M': {  // IMinMax, IMoveImm, or IMoveLSL.
+      if (format[2] == 'i') {
+        int32_t imm = instr->Bit(18) == 1 ? instr->Bits(17, 10)
+                                          : instr->SignedBits(17, 10);
+        AppendToOutput("#%" PRId32, imm);
+        return 7;
+      }
       if (format[5] == 'I' || format[5] == 'N') {
         uint64_t imm = static_cast<uint64_t>(instr->ImmMoveWide())
                        << (16 * instr->ShiftMoveWide());

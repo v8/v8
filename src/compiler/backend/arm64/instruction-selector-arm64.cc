@@ -37,6 +37,8 @@ enum ImmediateMode {
   kLoadStoreImm64,
   kLoadStoreImm128,
   kConditionalCompareImm,
+  kImm8,   // signed 8-bit immediate
+  kUImm8,  // unsigned 8-bit immediate
   kNoImmediate
 };
 
@@ -166,6 +168,10 @@ class Arm64OperandGenerator final : public OperandGenerator {
         // All possible shifts can be encoded by discarding bits which have no
         // effect.
         return true;
+      case kImm8:
+        return is_int8(value);
+      case kUImm8:
+        return is_uint8(value);
     }
     return false;
   }
@@ -3395,6 +3401,91 @@ void VisitWordCompare(InstructionSelector* selector, OpIndex node,
                g.UseOperand(right, immediate_mode), cont);
 }
 
+static bool TryEmitMaxMin(InstructionSelector* selector,
+                          FlagsContinuation* cont, RegisterRepresentation rep,
+                          OpIndex lhs, OpIndex rhs) {
+  if (!CpuFeatures::IsSupported(CSSC) || !cont->IsSelect()) {
+    return false;
+  }
+
+  const FlagsCondition cond = cont->condition();
+  const OpIndex false_value = cont->false_value();
+  const OpIndex true_value = cont->true_value();
+
+  // Try to match one of:
+  //
+  // Select(Cmp(x, y), x, y)
+  // Select(Cmp(x, y), y, x)
+  //
+  // where Cmp is either >, >=, <, or <=, covering all 32-/64-bit
+  // signed/unsigned variants
+  if ((lhs != false_value || rhs != true_value) &&
+      (lhs != true_value || rhs != false_value)) {
+    return false;
+  }
+
+  bool is_signed = false;
+  const bool lhs_is_true_value = lhs == true_value;
+  ArchOpcode opcode = kArchNop;
+
+  switch (cond) {
+    case kSignedGreaterThan:
+    case kSignedGreaterThanOrEqual:
+      is_signed = true;
+      opcode = lhs_is_true_value ? kArm64Smax64 : kArm64Smin64;
+      break;
+    case kSignedLessThan:
+    case kSignedLessThanOrEqual:
+      is_signed = true;
+      opcode = lhs_is_true_value ? kArm64Smin64 : kArm64Smax64;
+      break;
+    case kUnsignedGreaterThan:
+    case kUnsignedGreaterThanOrEqual:
+      opcode = lhs_is_true_value ? kArm64Umax64 : kArm64Umin64;
+      break;
+    case kUnsignedLessThan:
+    case kUnsignedLessThanOrEqual:
+      opcode = lhs_is_true_value ? kArm64Umin64 : kArm64Umax64;
+      break;
+    default:
+      return false;
+  }
+
+  if (rep == RegisterRepresentation::Word32()) {
+    switch (opcode) {
+      case kArm64Smax64:
+        opcode = kArm64Smax32;
+        break;
+      case kArm64Smin64:
+        opcode = kArm64Smin32;
+        break;
+      case kArm64Umax64:
+        opcode = kArm64Umax32;
+        break;
+      case kArm64Umin64:
+        opcode = kArm64Umin32;
+        break;
+      default:
+        UNREACHABLE();
+    }
+  } else {
+    DCHECK_EQ(rep, RegisterRepresentation::Word64());
+  }
+
+  Arm64OperandGenerator g(selector);
+
+  if (!g.IsIntegerConstant(rhs)) {
+    std::swap(lhs, rhs);
+  }
+
+  InstructionOperand inputs[2] = {
+      g.UseRegister(lhs), g.UseOperand(rhs, is_signed ? kImm8 : kUImm8)};
+  InstructionOperand output = g.DefineAsRegister(cont->result());
+
+  selector->Emit(opcode, 1, &output, 2, inputs);
+  return true;
+}
+
 void VisitWord32Compare(InstructionSelector* selector, OpIndex node,
                         FlagsContinuation* cont) {
   const Operation& compare = selector->Get(node);
@@ -3450,7 +3541,11 @@ void VisitWord32Compare(InstructionSelector* selector, OpIndex node,
                      cont);
       return;
     }
+  } else if (TryEmitMaxMin(selector, cont, RegisterRepresentation::Word32(),
+                           lhs, rhs)) {
+    return;
   }
+
   VisitBinop(selector, node, RegisterRepresentation::Word32(), opcode,
              immediate_mode, cont);
 }
@@ -3896,6 +3991,9 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
               return VisitWordCompare(this, comparison->left(), kArm64Tst, cont,
                                       kLogical64Imm);
             }
+          } else if (TryEmitMaxMin(this, cont, RegisterRepresentation::Word64(),
+                                   comparison->left(), comparison->right())) {
+            return;
           }
           return VisitWordCompare(this, value, kArm64Cmp, cont, kArithmeticImm);
 

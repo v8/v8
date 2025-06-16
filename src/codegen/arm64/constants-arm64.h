@@ -605,6 +605,20 @@ constexpr AddSubWithCarryOp SBCS_w = AddSubWithCarryFixed | SUBS;
 constexpr AddSubWithCarryOp SBCS_x =
     AddSubWithCarryFixed | SUBS | SixtyFourBits;
 
+// Min/max immediate.
+using MinMaxImmediateOp = uint32_t;
+constexpr MinMaxImmediateOp MinMaxImmediateFixed = 0x11C00000;
+constexpr MinMaxImmediateOp MinMaxImmediateFMask = 0x7FF00000;
+constexpr MinMaxImmediateOp MinMaxImmediateMask = 0xFFFC0000;
+constexpr MinMaxImmediateOp SMAX_w_imm = MinMaxImmediateFixed;
+constexpr MinMaxImmediateOp SMAX_x_imm = SMAX_w_imm | SixtyFourBits;
+constexpr MinMaxImmediateOp UMAX_w_imm = MinMaxImmediateFixed | 0x00040000;
+constexpr MinMaxImmediateOp UMAX_x_imm = UMAX_w_imm | SixtyFourBits;
+constexpr MinMaxImmediateOp SMIN_w_imm = MinMaxImmediateFixed | 0x00080000;
+constexpr MinMaxImmediateOp SMIN_x_imm = SMIN_w_imm | SixtyFourBits;
+constexpr MinMaxImmediateOp UMIN_w_imm = MinMaxImmediateFixed | 0x000C0000;
+constexpr MinMaxImmediateOp UMIN_x_imm = UMIN_w_imm | SixtyFourBits;
+
 // Logical (immediate and shifted register).
 using LogicalOp = uint32_t;
 constexpr LogicalOp LogicalOpMask = 0x60200000;
@@ -1268,6 +1282,18 @@ constexpr DataProcessing2SourceOp CRC32CW =
     DataProcessing2SourceFixed | 0x00005800;
 constexpr DataProcessing2SourceOp CRC32CX =
     DataProcessing2SourceFixed | SixtyFourBits | 0x00005C00;
+constexpr DataProcessing2SourceOp SMAX_w =
+    DataProcessing2SourceFixed | 0x0006000;
+constexpr DataProcessing2SourceOp SMAX_x = SMAX_w | SixtyFourBits;
+constexpr DataProcessing2SourceOp UMAX_w =
+    DataProcessing2SourceFixed | 0x0006400;
+constexpr DataProcessing2SourceOp UMAX_x = UMAX_w | SixtyFourBits;
+constexpr DataProcessing2SourceOp SMIN_w =
+    DataProcessing2SourceFixed | 0x0006800;
+constexpr DataProcessing2SourceOp SMIN_x = SMIN_w | SixtyFourBits;
+constexpr DataProcessing2SourceOp UMIN_w =
+    DataProcessing2SourceFixed | 0x0006C00;
+constexpr DataProcessing2SourceOp UMIN_x = UMIN_w | SixtyFourBits;
 
 // Data processing 3 source.
 using DataProcessing3SourceOp = uint32_t;

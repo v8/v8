@@ -16658,6 +16658,105 @@ TEST(mops_cpy) {
   }
 }
 
+using MinMaxOp = void (MacroAssembler::*)(const Register&, const Register&,
+                                          const Operand&);
+
+static void MinMaxHelper(MinMaxOp op, bool is_signed, uint64_t a, uint64_t b,
+                         uint32_t wexp, uint64_t xexp) {
+  SETUP();
+  SETUP_FEATURE(CSSC);
+  START();
+
+  __ Mov(x0, a);
+  __ Mov(x1, b);
+  if ((is_signed && is_int8(b)) || (!is_signed && is_uint8(b))) {
+    (masm.*op)(w10, w0, b);
+    (masm.*op)(x11, x0, b);
+  } else {
+    (masm.*op)(w10, w0, w1);
+    (masm.*op)(x11, x0, x1);
+  }
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_64(wexp, x10);
+    CHECK_EQUAL_64(xexp, x11);
+  }
+}
+
+TEST(cssc_umin) {
+  MinMaxOp op = &MacroAssembler::Umin;
+  uint32_t s32min = 0x8000'0000;
+  uint32_t s32max = 0x7fff'ffff;
+  uint64_t s64min = 0x8000'0000'0000'0000;
+  uint64_t s64max = 0x7fff'ffff'ffff'ffff;
+
+  INIT_V8();
+  MinMaxHelper(op, false, 0, 0, 0, 0);
+  MinMaxHelper(op, false, 128, 255, 128, 128);
+  MinMaxHelper(op, false, 0, 0xffff'ffff'ffff'ffff, 0, 0);
+  MinMaxHelper(op, false, s32max, s32min, s32max, s32max);
+  MinMaxHelper(op, false, s32min, s32max, s32max, s32max);
+  MinMaxHelper(op, false, s64max, s32min, s32min, s32min);
+  MinMaxHelper(op, false, s64min, s64max, 0, s64max);
+}
+
+TEST(cssc_umax) {
+  MinMaxOp op = &MacroAssembler::Umax;
+  uint32_t s32min = 0x8000'0000;
+  uint32_t s32max = 0x7fff'ffff;
+  uint64_t s64min = 0x8000'0000'0000'0000;
+  uint64_t s64max = 0x7fff'ffff'ffff'ffff;
+
+  INIT_V8();
+  MinMaxHelper(op, false, 0, 0, 0, 0);
+  MinMaxHelper(op, false, 128, 255, 255, 255);
+  MinMaxHelper(op, false, 0, 0xffff'ffff'ffff'ffff, 0xffff'ffff,
+               0xffff'ffff'ffff'ffff);
+  MinMaxHelper(op, false, s32max, s32min, s32min, s32min);
+  MinMaxHelper(op, false, s32min, s32max, s32min, s32min);
+  MinMaxHelper(op, false, s64max, s32min, 0xffff'ffff, s64max);
+  MinMaxHelper(op, false, s64min, s64max, 0xffff'ffff, s64min);
+}
+
+TEST(cssc_smin) {
+  MinMaxOp op = &MacroAssembler::Smin;
+  uint32_t s32min = 0x8000'0000;
+  uint32_t s32max = 0x7fff'ffff;
+  uint64_t s64min = 0x8000'0000'0000'0000;
+  uint64_t s64max = 0x7fff'ffff'ffff'ffff;
+
+  INIT_V8();
+  MinMaxHelper(op, true, 0, 0, 0, 0);
+  MinMaxHelper(op, true, 128, 255, 128, 128);
+  MinMaxHelper(op, true, 0, 0xffff'ffff'ffff'ffff, 0xffff'ffff,
+               0xffff'ffff'ffff'ffff);
+  MinMaxHelper(op, true, s32max, s32min, s32min, s32max);
+  MinMaxHelper(op, true, s32min, s32max, s32min, s32max);
+  MinMaxHelper(op, true, s64max, s32min, s32min, s32min);
+  MinMaxHelper(op, true, s64min, s64max, 0xffff'ffff, s64min);
+}
+
+TEST(cssc_smax) {
+  MinMaxOp op = &MacroAssembler::Smax;
+  uint32_t s32min = 0x8000'0000;
+  uint32_t s32max = 0x7fff'ffff;
+  uint64_t s64min = 0x8000'0000'0000'0000;
+  uint64_t s64max = 0x7fff'ffff'ffff'ffff;
+
+  INIT_V8();
+  MinMaxHelper(op, true, 0, 0, 0, 0);
+  MinMaxHelper(op, true, 128, 255, 255, 255);
+  MinMaxHelper(op, true, 0, 0xffff'ffff'ffff'ffff, 0, 0);
+  MinMaxHelper(op, true, s32max, s32min, s32max, s32min);
+  MinMaxHelper(op, true, s32min, s32max, s32max, s32min);
+  MinMaxHelper(op, true, s64max, s32min, 0xffff'ffff, s64max);
+  MinMaxHelper(op, true, s64min, s64max, 0, s64max);
+}
+
 }  // namespace internal
 }  // namespace v8
 

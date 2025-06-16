@@ -99,6 +99,7 @@ class Operand {
   inline Operand(T t, RelocInfo::Mode rmode);
 
   inline bool IsImmediate() const;
+  inline bool IsPlainRegister() const;
   inline bool IsShiftedRegister() const;
   inline bool IsExtendedRegister() const;
   inline bool IsZero() const;
@@ -827,6 +828,18 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Count Trailing Zeros.
   void ctz(const Register& rd, const Register& rn);
+
+  // Signed Maximum.
+  void smax(const Register& rd, const Register& rn, const Operand& op);
+
+  // Signed Minimum.
+  void smin(const Register& rd, const Register& rn, const Operand& op);
+
+  // Unsigned Maximum.
+  void umax(const Register& rd, const Register& rn, const Operand& op);
+
+  // Unsigned Minimum.
+  void umin(const Register& rd, const Register& rn, const Operand& op);
 
   // Pointer Authentication InstructionStream for Instruction address, using key
   // B, with address in x17 and modifier in x16 [Armv8.3].
@@ -3403,6 +3416,25 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     return ConstantPool::kApproxDistToPool64;
   }
 #endif
+
+  // Generic immediate encoding.
+  template <int hibit, int lobit>
+  static Instr ImmField(int64_t imm) {
+    DCHECK((hibit >= lobit) && (lobit >= 0));
+    static_assert(hibit < (sizeof(Instr) * kBitsPerByte));
+    int fieldsize = hibit - lobit + 1;
+    DCHECK(is_intn(imm, fieldsize));
+    return static_cast<Instr>(truncate_to_intn(imm, fieldsize) << lobit);
+  }
+
+  // For unsigned immediate encoding.
+  template <int hibit, int lobit>
+  static Instr ImmUnsignedField(uint64_t imm) {
+    static_assert((hibit >= lobit) && (lobit >= 0));
+    static_assert(hibit < (sizeof(Instr) * kBitsPerByte));
+    DCHECK(is_uintn(imm, hibit - lobit + 1));
+    return static_cast<Instr>(imm << lobit);
+  }
 
  protected:
   const AssemblerZone zone_;

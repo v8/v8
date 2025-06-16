@@ -1216,6 +1216,114 @@ sim_uint128_t Simulator::Eor128(sim_uint128_t x, sim_uint128_t y) const {
   return std::make_pair(x.first ^ y.first, x.second ^ y.second);
 }
 
+void Simulator::SimulateSignedMinMax(const Instruction* instr) {
+  int32_t wn = wreg(instr->Rn());
+  int32_t wm = wreg(instr->Rm());
+  int64_t xn = xreg(instr->Rn());
+  int64_t xm = xreg(instr->Rm());
+  int32_t imm = instr->SignedBits(17, 10);
+  unsigned dst = instr->Rd();
+
+  if (instr->Mask(MinMaxImmediateFMask) == MinMaxImmediateFixed) {
+    DCHECK_EQ(instr->Bit(18), 0);
+    wm = imm;
+
+    if (instr->SixtyFourBits() == 1) {
+      xm = imm;
+    }
+
+    switch (instr->Mask(MinMaxImmediateMask)) {
+      case SMAX_w_imm:
+        set_wreg(dst, std::max(wn, wm));
+        break;
+      case SMAX_x_imm:
+        set_xreg(dst, std::max(xn, xm));
+        break;
+      case SMIN_w_imm:
+        set_wreg(dst, std::min(wn, wm));
+        break;
+      case SMIN_x_imm:
+        set_xreg(dst, std::min(xn, xm));
+        break;
+      default:
+        UNREACHABLE();
+    }
+  } else {
+    DCHECK_EQ(instr->Mask(DataProcessing2SourceFMask),
+              DataProcessing2SourceFixed);
+    DCHECK_EQ(instr->Bit(10), 0);
+
+    switch (instr->Mask(DataProcessing2SourceMask)) {
+      case SMAX_w:
+        set_wreg(dst, std::max(wn, wm));
+        break;
+      case SMAX_x:
+        set_xreg(dst, std::max(xn, xm));
+        break;
+      case SMIN_w:
+        set_wreg(dst, std::min(wn, wm));
+        break;
+      case SMIN_x:
+        set_xreg(dst, std::min(xn, xm));
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+}
+
+void Simulator::SimulateUnsignedMinMax(const Instruction* instr) {
+  uint64_t xn = xreg(instr->Rn());
+  uint64_t xm = xreg(instr->Rm());
+  uint32_t imm = instr->Bits(17, 10);
+  unsigned dst = instr->Rd();
+
+  if (instr->Mask(MinMaxImmediateFMask) == MinMaxImmediateFixed) {
+    DCHECK_EQ(instr->Bit(18), 1);
+    xm = imm;
+
+    switch (instr->Mask(MinMaxImmediateMask)) {
+      case UMAX_w_imm:
+        xn = static_cast<uint32_t>(xn);
+        [[fallthrough]];
+      case UMAX_x_imm:
+        set_xreg(dst, std::max(xn, xm));
+        break;
+      case UMIN_w_imm:
+        xn = static_cast<uint32_t>(xn);
+        [[fallthrough]];
+      case UMIN_x_imm:
+        set_xreg(dst, std::min(xn, xm));
+        break;
+      default:
+        UNREACHABLE();
+    }
+  } else {
+    DCHECK_EQ(instr->Mask(DataProcessing2SourceFMask),
+              DataProcessing2SourceFixed);
+    DCHECK_EQ(instr->Bit(10), 1);
+
+    switch (instr->Mask(DataProcessing2SourceMask)) {
+      case UMAX_w:
+        xm = static_cast<uint32_t>(xm);
+        xn = static_cast<uint32_t>(xn);
+        [[fallthrough]];
+      case UMAX_x:
+        set_xreg(dst, std::max(xn, xm));
+        break;
+      case UMIN_w:
+        xm = static_cast<uint32_t>(xm);
+        xn = static_cast<uint32_t>(xn);
+        [[fallthrough]];
+      case UMIN_x:
+        set_xreg(dst, std::min(xn, xm));
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+}
+
 template <typename T>
 T Simulator::ShiftOperand(T value, Shift shift_type, unsigned amount) {
   using unsignedT = std::make_unsigned_t<T>;
@@ -2009,6 +2117,14 @@ void Simulator::VisitLogicalImmediate(Instruction* instr) {
     LogicalHelper(instr, static_cast<uint64_t>(instr->ImmLogical()));
   } else {
     LogicalHelper(instr, static_cast<uint32_t>(instr->ImmLogical()));
+  }
+}
+
+void Simulator::VisitMinMaxImmediate(Instruction* instr) {
+  if (instr->Bit(18) == 1) {
+    SimulateUnsignedMinMax(instr);
+  } else {
+    SimulateSignedMinMax(instr);
   }
 }
 
@@ -3167,6 +3283,18 @@ void Simulator::DataProcessing2Source(Instruction* instr) {
     case RORV_x:
       shift_op = ROR;
       break;
+    case SMAX_w:
+    case SMAX_x:
+    case SMIN_w:
+    case SMIN_x:
+      SimulateSignedMinMax(instr);
+      return;
+    case UMAX_w:
+    case UMAX_x:
+    case UMIN_w:
+    case UMIN_x:
+      SimulateUnsignedMinMax(instr);
+      return;
     default:
       UNIMPLEMENTED();
   }

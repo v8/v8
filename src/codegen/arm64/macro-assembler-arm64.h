@@ -1259,6 +1259,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   inline void Abs(const Register& rd, const Register& rn);
   inline void Cnt(const Register& rd, const Register& rn);
   inline void Ctz(const Register& rd, const Register& rn);
+  inline void Smax(const Register& rd, const Register& rn,
+                   const Operand& operand);
+  inline void Smin(const Register& rd, const Register& rn,
+                   const Operand& operand);
+  inline void Umax(const Register& rd, const Register& rn,
+                   const Operand& operand);
+  inline void Umin(const Register& rd, const Register& rn,
+                   const Operand& operand);
 
   // Poke 'src' onto the stack. The offset is in bytes. The stack pointer must
   // be 16 byte aligned.

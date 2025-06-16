@@ -1564,6 +1564,33 @@ void MacroAssembler::TestAndBranchIfAllClear(const Register& reg,
   }
 }
 
+#define MINMAX(V)         \
+  V(Smax, smax, is_int8)  \
+  V(Smin, smin, is_int8)  \
+  V(Umax, umax, is_uint8) \
+  V(Umin, umin, is_uint8)
+
+#define DEFINE_MASM_FUNC(MASM, ASM, RANGE)                          \
+  void MacroAssembler::MASM(const Register& rd, const Register& rn, \
+                            const Operand& op) {                    \
+    DCHECK(allow_macro_instructions());                             \
+    DCHECK(!rd.IsZero());                                           \
+    if (op.IsImmediate()) {                                         \
+      int64_t imm = op.ImmediateValue();                            \
+      if (!RANGE(imm)) {                                            \
+        UseScratchRegisterScope temps(this);                        \
+        Register temp = temps.AcquireSameSizeAs(rd);                \
+        Mov(temp, imm);                                             \
+        MASM(rd, rn, temp);                                         \
+        return;                                                     \
+      }                                                             \
+    }                                                               \
+    ASM(rd, rn, op);                                                \
+  }
+MINMAX(DEFINE_MASM_FUNC)
+#undef DEFINE_MASM_FUNC
+#undef MINMAX
+
 }  // namespace internal
 }  // namespace v8
 

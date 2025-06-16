@@ -7632,4 +7632,246 @@ INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          ::testing::ValuesIn(SIMDConstAndTests));
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+TEST_F(TurboshaftInstructionSelectorTest, MaxMin) {
+  if (!CpuFeatures::IsSupported(CSSC)) {
+    return;
+  }
+
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                    MachineType::Int32());
+    const OpIndex p0 = m.Parameter(0);
+    const OpIndex p1 = m.Parameter(1);
+
+    m.Return(m.Word32Select(m.Int32GreaterThan(p0, p1), p0, p1));
+
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Smax32, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_TRUE((s.ToVreg(s[0]->InputAt(0)) == s.ToVreg(p0) &&
+                 s.ToVreg(s[0]->InputAt(1)) == s.ToVreg(p1)) ||
+                (s.ToVreg(s[0]->InputAt(0)) == s.ToVreg(p1) &&
+                 s.ToVreg(s[0]->InputAt(1)) == s.ToVreg(p0)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
+                    MachineType::Int64());
+    const OpIndex p0 = m.Parameter(0);
+    const OpIndex p1 = m.Parameter(1);
+
+    m.Return(m.Word64Select(m.Int64GreaterThanOrEqual(p0, p1), p1, p0));
+
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Smin64, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_TRUE((s.ToVreg(s[0]->InputAt(0)) == s.ToVreg(p0) &&
+                 s.ToVreg(s[0]->InputAt(1)) == s.ToVreg(p1)) ||
+                (s.ToVreg(s[0]->InputAt(0)) == s.ToVreg(p1) &&
+                 s.ToVreg(s[0]->InputAt(1)) == s.ToVreg(p0)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                    MachineType::Int32());
+    const OpIndex p0 = m.Parameter(0);
+    const OpIndex p1 = m.Parameter(1);
+
+    m.Return(m.Word32Select(m.Int32LessThan(p1, p0), p1, p0));
+
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Smin32, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_TRUE((s.ToVreg(s[0]->InputAt(0)) == s.ToVreg(p0) &&
+                 s.ToVreg(s[0]->InputAt(1)) == s.ToVreg(p1)) ||
+                (s.ToVreg(s[0]->InputAt(0)) == s.ToVreg(p1) &&
+                 s.ToVreg(s[0]->InputAt(1)) == s.ToVreg(p0)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
+                    MachineType::Int64());
+    const OpIndex p0 = m.Parameter(0);
+    const OpIndex p1 = m.Parameter(1);
+
+    m.Return(m.Word64Select(m.Int64LessThanOrEqual(p1, p0), p0, p1));
+
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Smax64, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_TRUE((s.ToVreg(s[0]->InputAt(0)) == s.ToVreg(p0) &&
+                 s.ToVreg(s[0]->InputAt(1)) == s.ToVreg(p1)) ||
+                (s.ToVreg(s[0]->InputAt(0)) == s.ToVreg(p1) &&
+                 s.ToVreg(s[0]->InputAt(1)) == s.ToVreg(p0)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                    MachineType::Int32());
+    const OpIndex p0 = m.Parameter(0);
+    const OpIndex p1 = m.Parameter(1);
+
+    m.Return(m.Word32Select(m.Uint32GreaterThanOrEqual(p0, p1), p1, p0));
+
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Umin32, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_TRUE((s.ToVreg(s[0]->InputAt(0)) == s.ToVreg(p0) &&
+                 s.ToVreg(s[0]->InputAt(1)) == s.ToVreg(p1)) ||
+                (s.ToVreg(s[0]->InputAt(0)) == s.ToVreg(p1) &&
+                 s.ToVreg(s[0]->InputAt(1)) == s.ToVreg(p0)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
+                    MachineType::Int64());
+    const OpIndex p0 = m.Parameter(0);
+    const OpIndex p1 = m.Parameter(1);
+
+    m.Return(m.Word64Select(m.Uint64GreaterThan(p0, p1), p0, p1));
+
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Umax64, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_TRUE((s.ToVreg(s[0]->InputAt(0)) == s.ToVreg(p0) &&
+                 s.ToVreg(s[0]->InputAt(1)) == s.ToVreg(p1)) ||
+                (s.ToVreg(s[0]->InputAt(0)) == s.ToVreg(p1) &&
+                 s.ToVreg(s[0]->InputAt(1)) == s.ToVreg(p0)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                    MachineType::Int32());
+    const OpIndex p0 = m.Parameter(0);
+    const OpIndex p1 = m.Parameter(1);
+
+    m.Return(m.Word32Select(m.Uint32LessThanOrEqual(p1, p0), p0, p1));
+
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Umax32, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_TRUE((s.ToVreg(s[0]->InputAt(0)) == s.ToVreg(p0) &&
+                 s.ToVreg(s[0]->InputAt(1)) == s.ToVreg(p1)) ||
+                (s.ToVreg(s[0]->InputAt(0)) == s.ToVreg(p1) &&
+                 s.ToVreg(s[0]->InputAt(1)) == s.ToVreg(p0)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
+                    MachineType::Int64());
+    const OpIndex p0 = m.Parameter(0);
+    const OpIndex p1 = m.Parameter(1);
+
+    m.Return(m.Word64Select(m.Uint64LessThan(p1, p0), p1, p0));
+
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Umin64, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_TRUE((s.ToVreg(s[0]->InputAt(0)) == s.ToVreg(p0) &&
+                 s.ToVreg(s[0]->InputAt(1)) == s.ToVreg(p1)) ||
+                (s.ToVreg(s[0]->InputAt(0)) == s.ToVreg(p1) &&
+                 s.ToVreg(s[0]->InputAt(1)) == s.ToVreg(p0)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    const int32_t c = -1;
+    const OpIndex c0 = m.Int32Constant(c);
+    const OpIndex p0 = m.Parameter(0);
+
+    m.Return(m.Word32Select(m.Int32GreaterThan(p0, c0), p0, c0));
+
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Smax32, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(c, s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
+    const int64_t c = 0;
+    const OpIndex c0 = m.Int64Constant(c);
+    const OpIndex p0 = m.Parameter(0);
+
+    m.Return(m.Word64Select(m.Int64LessThanOrEqual(p0, c0), c0, p0));
+
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Smax64, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(c, s.ToInt64(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    const int32_t c = 13;
+    const OpIndex c0 = m.Int32Constant(c);
+    const OpIndex p0 = m.Parameter(0);
+
+    m.Return(m.Word32Select(m.Uint32GreaterThanOrEqual(c0, p0), p0, c0));
+
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Umin32, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(c, s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
+    const int64_t c = 42;
+    const OpIndex c0 = m.Int64Constant(c);
+    const OpIndex p0 = m.Parameter(0);
+
+    m.Return(m.Word64Select(m.Uint64LessThan(c0, p0), c0, p0));
+
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Umin64, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(c, s.ToInt64(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
 }  // namespace v8::internal::compiler::turboshaft
