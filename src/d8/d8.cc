@@ -395,9 +395,13 @@ void ThrowError(Isolate* isolate, const char (&message)[N]) {
   isolate->ThrowError(message);
 }
 
-void ThrowError(Isolate* isolate, Local<String> message) {
+void ThrowError(Isolate* isolate, std::string_view message) {
   if (isolate->IsExecutionTerminating()) return;
-  isolate->ThrowError(message);
+  Local<String> exception =
+      String::NewFromUtf8(
+          isolate, std::string(message.substr(0, String::kMaxLength)).c_str())
+          .ToLocalChecked();
+  isolate->ThrowError(exception);
 }
 
 void ThrowException(Isolate* isolate, Local<Value> exception) {
@@ -1224,28 +1228,28 @@ MaybeLocal<Object> Shell::FetchModuleSource(Local<Module> referrer,
 
   // Loading modules is only allowed for local absolute paths.
   if (!IsAbsolutePath(module_specifier)) {
-    std::string msg =
-        "d8: Reading module from " + module_specifier + " is not supported.";
+    std::ostringstream msg;
+    msg << "d8: Reading module from " << module_specifier
+        << " is not supported.";
     if (!referrer.IsEmpty()) {
       std::string referrer_specifier =
           module_data->GetModuleSpecifier(referrer);
-      msg += "\n    imported by " + referrer_specifier;
+      msg << "\n    imported by " << referrer_specifier;
     }
-    ThrowError(isolate,
-               v8::String::NewFromUtf8(isolate, msg.c_str()).ToLocalChecked());
+    ThrowError(isolate, msg.view());
     return MaybeLocal<Object>();
   }
 
   auto file = ReadFileData(isolate, module_specifier.c_str());
   if (!file) {
-    std::string msg = "d8: Error reading module from " + module_specifier;
+    std::ostringstream msg;
+    msg << "d8: Error reading module from " << module_specifier;
     if (!referrer.IsEmpty()) {
       std::string referrer_specifier =
           module_data->GetModuleSpecifier(referrer);
-      msg += "\n    imported by " + referrer_specifier;
+      msg << "\n    imported by " + referrer_specifier;
     }
-    ThrowError(isolate,
-               v8::String::NewFromUtf8(isolate, msg.c_str()).ToLocalChecked());
+    ThrowError(isolate, msg.view());
     return MaybeLocal<Object>();
   }
 
@@ -1304,27 +1308,27 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
     }
   } else {
     // Loading modules is only allowed for local absolute paths.
-    std::string msg =
-        "d8: Reading module from " + module_specifier + " is not supported.";
+    std::ostringstream msg;
+    msg << "d8: Reading module from " << module_specifier
+        << " is not supported.";
     if (!referrer.IsEmpty()) {
       std::string referrer_specifier =
           module_data->GetModuleSpecifier(referrer);
-      msg += "\n    imported by " + referrer_specifier;
+      msg << "\n    imported by " << referrer_specifier;
     }
-    ThrowError(isolate,
-               v8::String::NewFromUtf8(isolate, msg.c_str()).ToLocalChecked());
+    ThrowError(isolate, msg.view());
     return MaybeLocal<Module>();
   }
 
   if (source_text.IsEmpty()) {
-    std::string msg = "d8: Error reading module from " + module_specifier;
+    std::ostringstream msg;
+    msg << "d8: Error reading module from " << module_specifier;
     if (!referrer.IsEmpty()) {
       std::string referrer_specifier =
           module_data->GetModuleSpecifier(referrer);
-      msg += "\n    imported by " + referrer_specifier;
+      msg << "\n    imported by " + referrer_specifier;
     }
-    ThrowError(isolate,
-               v8::String::NewFromUtf8(isolate, msg.c_str()).ToLocalChecked());
+    ThrowError(isolate, msg.view());
     return MaybeLocal<Module>();
   }
 
@@ -2103,15 +2107,15 @@ int PerIsolateData::RealmFind(Local<Context> context) {
 
 int PerIsolateData::RealmIndexOrThrow(
     const v8::FunctionCallbackInfo<v8::Value>& info, int arg_offset) {
+  Isolate* isolate = info.GetIsolate();
   if (info.Length() < arg_offset || !info[arg_offset]->IsNumber()) {
-    ThrowError(info.GetIsolate(), "Invalid argument");
+    ThrowError(isolate, "Invalid argument");
     return -1;
   }
-  int index = info[arg_offset]
-                  ->Int32Value(info.GetIsolate()->GetCurrentContext())
-                  .FromMaybe(-1);
+  int index =
+      info[arg_offset]->Int32Value(isolate->GetCurrentContext()).FromMaybe(-1);
   if (index < 0 || index >= realm_count_ || realms_[index].IsEmpty()) {
-    ThrowError(info.GetIsolate(), "Invalid realm index");
+    ThrowError(isolate, "Invalid realm index");
     return -1;
   }
   return index;
@@ -2182,7 +2186,6 @@ void Shell::PerformanceMark(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Local<String> name = info[0].As<String>();
 
   double timestamp = GetTimestamp();
-
   Local<Object> performance_entry = Object::New(isolate);
   performance_entry
       ->DefineOwnProperty(context,
@@ -2213,8 +2216,6 @@ void Shell::PerformanceMark(const v8::FunctionCallbackInfo<v8::Value>& info) {
 #endif
 }
 
-// performance.measure() records and returns a PerformanceEntry with a duration
-// since a given mark, or since zero.
 void Shell::PerformanceMeasure(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
@@ -2260,7 +2261,6 @@ void Shell::PerformanceMeasure(
   }
 
   double end_timestamp = GetTimestamp();
-
   if (options.trace_enabled) {
     size_t hash = base::hash_combine(name->GetIdentityHash(), start_timestamp,
                                      end_timestamp);
@@ -2321,10 +2321,9 @@ void Shell::PerformanceMeasureMemory(
   }
   Local<v8::Promise::Resolver> promise_resolver =
       v8::Promise::Resolver::New(context).ToLocalChecked();
-  info.GetIsolate()->MeasureMemory(
-      v8::MeasureMemoryDelegate::Default(isolate, context, promise_resolver,
-                                         mode),
-      v8::MeasureMemoryExecution::kEager);
+  isolate->MeasureMemory(v8::MeasureMemoryDelegate::Default(
+                             isolate, context, promise_resolver, mode),
+                         v8::MeasureMemoryExecution::kEager);
   info.GetReturnValue().Set(promise_resolver->GetPromise());
 }
 
@@ -2344,7 +2343,7 @@ void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   if (info.Length() < 1 || !info[0]->IsObject()) {
-    ThrowError(info.GetIsolate(), "Invalid argument");
+    ThrowError(isolate, "Invalid argument");
     return;
   }
   Local<Object> object =
@@ -2356,7 +2355,7 @@ void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
   Local<Context> creation_context;
   if (!object->GetCreationContext(isolate).ToLocal(&creation_context)) {
-    ThrowError(info.GetIsolate(), "object doesn't have creation context");
+    ThrowError(isolate, "object doesn't have creation context");
     return;
   }
   int index = data->RealmFind(creation_context);
@@ -2368,7 +2367,8 @@ void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& info) {
 // (Note that properties of global objects cannot be read/written cross-realm.)
 void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
-  PerIsolateData* data = PerIsolateData::Get(info.GetIsolate());
+  Isolate* isolate = info.GetIsolate();
+  PerIsolateData* data = PerIsolateData::Get(isolate);
   int index = data->RealmIndexOrThrow(info, 0);
   if (index == -1) return;
   // TODO(chromium:324812): Ideally Context::Global should never return raw
@@ -2377,10 +2377,10 @@ void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // following is a workaround till we fix Context::Global so we don't leak
   // global objects.
   Local<Object> global =
-      Local<Context>::New(info.GetIsolate(), data->realms_[index])->Global();
+      Local<Context>::New(isolate, data->realms_[index])->Global();
   i::DirectHandle<i::Object> i_global = Utils::OpenDirectHandle(*global);
   if (IsJSGlobalObject(*i_global)) {
-    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     i::DirectHandle<i::JSObject> i_global_proxy(
         i::Cast<i::JSGlobalObject>(i_global)->global_proxy(), i_isolate);
     global = Utils::ToLocal(i_global_proxy);
@@ -2465,7 +2465,7 @@ void Shell::RealmNavigate(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (index == -1) return;
   if (index == 0 || index == data->realm_current_ ||
       index == data->realm_switch_) {
-    ThrowError(info.GetIsolate(), "Invalid realm index");
+    ThrowError(isolate, "Invalid realm index");
     return;
   }
 
@@ -2495,7 +2495,7 @@ void Shell::RealmDetachGlobal(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (index == -1) return;
   if (index == 0 || index == data->realm_current_ ||
       index == data->realm_switch_) {
-    ThrowError(info.GetIsolate(), "Invalid realm index");
+    ThrowError(isolate, "Invalid realm index");
     return;
   }
 
@@ -2513,7 +2513,7 @@ void Shell::RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (index == -1) return;
   if (index == 0 || index == data->realm_current_ ||
       index == data->realm_switch_) {
-    ThrowError(info.GetIsolate(), "Invalid realm index");
+    ThrowError(isolate, "Invalid realm index");
     return;
   }
   DisposeRealm(info, index);
@@ -2938,27 +2938,27 @@ void Shell::TriggerOnProfileEndListener(Isolate* isolate, std::string profile) {
 
 void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& info,
                  int first_arg_index = 0) {
+  Isolate* isolate = info.GetIsolate();
   for (int i = first_arg_index; i < info.Length(); i++) {
-    HandleScope handle_scope(info.GetIsolate());
+    HandleScope handle_scope(isolate);
     if (i != first_arg_index) {
       fprintf(file, " ");
     }
 
     // Explicitly catch potential exceptions in toString().
-    v8::TryCatch try_catch(info.GetIsolate());
+    v8::TryCatch try_catch(isolate);
     Local<Value> arg = info[i];
     Local<String> str_obj;
 
     if (arg->IsSymbol()) {
-      arg = arg.As<Symbol>()->Description(info.GetIsolate());
+      arg = arg.As<Symbol>()->Description(isolate);
     }
-    if (!arg->ToString(info.GetIsolate()->GetCurrentContext())
-             .ToLocal(&str_obj)) {
+    if (!arg->ToString(isolate->GetCurrentContext()).ToLocal(&str_obj)) {
       try_catch.ReThrow();
       return;
     }
 
-    v8::String::Utf8Value str(info.GetIsolate(), str_obj);
+    v8::String::Utf8Value str(isolate, str_obj);
     size_t n = fwrite(*str, sizeof(**str), str.length(), file);
     if (n != str.length()) {
       printf("Error in fwrite\n");
@@ -2998,9 +2998,10 @@ void Shell::WriteStdout(const v8::FunctionCallbackInfo<v8::Value>& info) {
 // separated by space.
 void Shell::WriteFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
-  String::Utf8Value file_name(info.GetIsolate(), info[0]);
+  Isolate* isolate = info.GetIsolate();
+  String::Utf8Value file_name(isolate, info[0]);
   if (*file_name == nullptr) {
-    ThrowError(info.GetIsolate(), "Error converting filename to string");
+    ThrowError(isolate, "Error converting filename to string");
     return;
   }
   FILE* file;
@@ -3008,7 +3009,7 @@ void Shell::WriteFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
       (info[1]->IsArrayBuffer() || info[1]->IsArrayBufferView())) {
     file = base::Fopen(*file_name, "wb");
     if (file == nullptr) {
-      ThrowError(info.GetIsolate(), "Error opening file");
+      ThrowError(isolate, "Error opening file");
       return;
     }
 
@@ -3029,7 +3030,7 @@ void Shell::WriteFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
   } else {
     file = base::Fopen(*file_name, "w");
     if (file == nullptr) {
-      ThrowError(info.GetIsolate(), "Error opening file");
+      ThrowError(isolate, "Error opening file");
       return;
     }
     WriteToFile(file, info, 1);
@@ -3039,31 +3040,33 @@ void Shell::WriteFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void Shell::ReadFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
-  String::Utf8Value file_name(info.GetIsolate(), info[0]);
+  Isolate* isolate = info.GetIsolate();
+  String::Utf8Value file_name(isolate, info[0]);
   if (*file_name == nullptr) {
-    ThrowError(info.GetIsolate(), "Error converting filename to string");
+    ThrowError(isolate, "Error converting filename to string");
     return;
   }
   if (info.Length() == 2) {
-    String::Utf8Value format(info.GetIsolate(), info[1]);
+    String::Utf8Value format(isolate, info[1]);
     if (*format && std::strcmp(*format, "binary") == 0) {
       ReadBuffer(info);
       return;
     }
   }
   Local<String> source;
-  if (!ReadFile(info.GetIsolate(), *file_name).ToLocal(&source)) return;
+  if (!ReadFile(isolate, *file_name).ToLocal(&source)) return;
   info.GetReturnValue().Set(source);
 }
 
 #if V8_TARGET_OS_LINUX && V8_ENABLE_WEBASSEMBLY
 void Shell::CreateWasmMemoryMapDescriptor(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  Isolate* isolate = info.GetIsolate();
   CHECK(i::v8_flags.experimental_wasm_memory_control);
   DCHECK(i::ValidateCallbackInfo(info));
-  String::Utf8Value file_name(info.GetIsolate(), info[0]);
+  String::Utf8Value file_name(isolate, info[0]);
   if (*file_name == nullptr) {
-    ThrowError(info.GetIsolate(), "Error converting filename to string");
+    ThrowError(isolate, "Error converting filename to string");
     return;
   }
 
@@ -3071,8 +3074,7 @@ void Shell::CreateWasmMemoryMapDescriptor(
 
   WasmMemoryMapDescriptor::WasmFileDescriptor wasm_fd =
       static_cast<WasmMemoryMapDescriptor::WasmFileDescriptor>(file_descriptor);
-  info.GetReturnValue().Set(
-      v8::WasmMemoryMapDescriptor::New(info.GetIsolate(), wasm_fd));
+  info.GetReturnValue().Set(v8::WasmMemoryMapDescriptor::New(isolate, wasm_fd));
 }
 #endif  // V8_TARGET_OS_LINUX
 
@@ -3125,22 +3127,18 @@ void Shell::ExecuteFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
     if (*file_name == nullptr) {
       std::ostringstream oss;
       oss << "Cannot convert file[" << i << "] name to string.";
-      ThrowError(
-          isolate,
-          String::NewFromUtf8(isolate, oss.str().c_str()).ToLocalChecked());
+      ThrowError(isolate, oss.view());
       return;
     }
     Local<String> source;
     if (!ReadFile(isolate, *file_name).ToLocal(&source)) return;
     if (!ExecuteString(
-            info.GetIsolate(), source,
+            isolate, source,
             String::NewFromUtf8(isolate, *file_name).ToLocalChecked(),
             options.quiet_load ? kNoReportExceptions : kReportExceptions)) {
       std::ostringstream oss;
       oss << "Error executing file: \"" << *file_name << '"';
-      ThrowError(
-          isolate,
-          String::NewFromUtf8(isolate, oss.str().c_str()).ToLocalChecked());
+      ThrowError(isolate, oss.view());
       return;
     }
   }
@@ -3184,11 +3182,11 @@ void Shell::SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& info) {
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 void Shell::GetContinuationPreservedEmbedderData(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  Local<Data> data =
-      info.GetIsolate()->GetContinuationPreservedEmbedderDataV2();
+  Isolate* isolate = info.GetIsolate();
+  Local<Data> data = isolate->GetContinuationPreservedEmbedderDataV2();
   DCHECK(!data.IsEmpty());
   if (!data->IsValue()) {
-    data = Undefined(info.GetIsolate());
+    data = Undefined(isolate);
   }
   DCHECK(!data.IsEmpty());
   info.GetReturnValue().Set(Local<Value>::Cast(data));
@@ -3633,10 +3631,9 @@ void Shell::WorkerTerminateAndWait(
 }
 
 void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* info) {
-  int exit_code = (*info)[0]
-                      ->Int32Value(info->GetIsolate()->GetCurrentContext())
-                      .FromMaybe(0);
   Isolate* isolate = info->GetIsolate();
+  int exit_code =
+      (*info)[0]->Int32Value(isolate->GetCurrentContext()).FromMaybe(0);
   ResetOnProfileEndListener(isolate);
 
   // As we exit the process anyway, we do not dispose the platform and other
@@ -3684,7 +3681,7 @@ void Shell::TerminateNow(const v8::FunctionCallbackInfo<v8::Value>& info) {
   auto v8_isolate = info.GetIsolate();
   if (!v8_isolate->IsExecutionTerminating()) {
     // Force a termination exception for immediate termination.
-    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
     i_isolate->TerminateExecution();
   }
 }
@@ -3816,9 +3813,6 @@ void Shell::MapCounters(v8::Isolate* isolate, const char* name) {
     base::OS::ExitProcess(1);
   }
   counters_ = static_cast<CounterCollection*>(memory);
-  isolate->SetCounterFunction(LookupCounter);
-  isolate->SetCreateHistogramFunction(CreateHistogram);
-  isolate->SetAddHistogramSampleFunction(AddHistogramSample);
 }
 
 Counter* Shell::GetCounter(const char* name, bool is_histogram) {
@@ -4324,16 +4318,24 @@ void Shell::PromiseRejectCallback(v8::PromiseRejectMessage data) {
   isolate_data->AddUnhandledPromise(promise, message, exception);
 }
 
+void Shell::InitializeMainThreadCounters(Isolate* isolate) {
+  {
+    base::MutexGuard mutex_guard(&counter_mutex_);
+    counter_map_->clear();
+  }
+  if (i::v8_flags.map_counters[0] != '\0') {
+    MapCounters(isolate, i::v8_flags.map_counters);
+  }
+}
+
 void Shell::Initialize(Isolate* isolate, D8Console* console,
                        bool isOnMainThread) {
   isolate->SetPromiseRejectCallback(PromiseRejectCallback);
   isolate->SetWasmAsyncResolvePromiseCallback(
       D8WasmAsyncResolvePromiseCallback);
   if (isOnMainThread) {
-    // Set up counters
-    if (i::v8_flags.map_counters[0] != '\0') {
-      MapCounters(isolate, i::v8_flags.map_counters);
-    }
+    InitializeMainThreadCounters(isolate);
+
     // Disable default message reporting.
     isolate->AddMessageListenerWithErrorLevel(
         PrintMessageCallback,
@@ -4906,10 +4908,7 @@ std::unique_ptr<base::OS::MemoryMappedFile> Shell::ReadFileData(
     if (should_throw) {
       std::ostringstream oss;
       oss << "Error loading file: " << name;
-      ThrowError(isolate,
-                 v8::String::NewFromUtf8(
-                     isolate, oss.str().substr(0, String::kMaxLength).c_str())
-                     .ToLocalChecked());
+      ThrowError(isolate, oss.view());
     }
     return nullptr;
   }
@@ -6838,7 +6837,8 @@ int Shell::Main(int argc, char* argv[]) {
   Shell::counter_map_ = new CounterMap();
   if (options.dump_counters || options.dump_counters_nvp ||
       i::v8_flags.trace_number_string_cache ||
-      i::TracingFlags::is_gc_stats_enabled()) {
+      i::TracingFlags::is_gc_stats_enabled() ||
+      i::v8_flags.map_counters[0] != '\0') {
     create_params.counter_lookup_callback = LookupCounter;
     create_params.create_histogram_callback = CreateHistogram;
     create_params.add_histogram_sample_callback = AddHistogramSample;

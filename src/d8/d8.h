@@ -781,6 +781,7 @@ class Shell : public i::AllStatic {
 
   static void Initialize(Isolate* isolate, D8Console* console,
                          bool isOnMainThread = true);
+  static void InitializeMainThreadCounters(Isolate* isolate);
 
   static void PromiseRejectCallback(v8::PromiseRejectMessage reject_message);
 
