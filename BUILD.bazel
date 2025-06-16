@@ -3502,6 +3502,7 @@ filegroup(
         "src/compiler/turboshaft/utils.h",
         "src/compiler/turboshaft/value-numbering-reducer.h",
         "src/compiler/turboshaft/variable-reducer.h",
+        "src/compiler/turboshaft/wasm-code-coverage-reducer.h",
         "src/compiler/turboshaft/wasm-js-lowering-reducer.h",
         "src/compiler/turboshaft/zone-with-name.h",
         "src/compiler/type-cache.cc",

@@ -164,6 +164,7 @@ class TypeInferenceAnalysis {
         case Opcode::kDebugPrint:
 #if V8_ENABLE_WEBASSEMBLY
         case Opcode::kGlobalSet:
+        case Opcode::kWasmIncCoverageCounter:
         case Opcode::kTrapIf:
 #endif
         case Opcode::kCheckException:

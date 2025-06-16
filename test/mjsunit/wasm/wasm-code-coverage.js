@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --wasm-code-coverage --wasm-staging
-// Flags: --liftoff --no-wasm-tier-up
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -11,17 +10,11 @@ function DoCoverageResultsMatchExpectations(result, expectation) {
   if (result.length != expectation.length) return false;
 
   for (let i = 0; i < result.length; i++) {
-    if ((result[i].start != expectation[i].start) ||
-      (result[i].end != expectation[i].end)) {
+    if (result[i].start != expectation[i].start ||
+      result[i].end != expectation[i].end ||
+      result[i].count != expectation[i].count) {
       return false;
     }
-
-    if ((i == result.length - 1) && (result[i].start == result[i].end)) {
-      // Ignore differences in the counters for the final 'end' instruction.
-    } else
-      if (result[i].count != expectation[i].count) {
-        return false;
-      }
   }
 
   return true;
@@ -391,7 +384,6 @@ function testCoverageWithLoop() {
   instance = builder.instantiate({});
   assertEquals(39916800, instance.exports.factorial(11));
 }
-
 TestCoverage(
   "test coverage with loop", testCoverageWithLoop.toString(),
   [{ "start": 0, "end": 8, "count": 1 },
@@ -654,6 +646,7 @@ function testCoverageWithNewEH() {
   instance = builder.instantiate({});
   assertEquals(23, instance.exports.main(0));
   assertEquals(42, instance.exports.main(1));
+  return instance.exports.main;
 }
 TestCoverage(
   "test coverage with new exception handling",
@@ -710,7 +703,7 @@ function testCoverageWithComplexCode() {
             kExprI32Ne,               // 46
             kExprBrIf, 0,             // 47
 //--------------------------------------------------
-            ...wasmI32Const(1),       // 49     1 - 5
+            ...wasmI32Const(1),       // 49     1
             kExprDrop,                // 51
           kExprEnd,                   // 52
 //--------------------------------------------------
@@ -718,9 +711,9 @@ function testCoverageWithComplexCode() {
           kExprDrop,                  // 55
         kExprEnd,                     // 56
 //--------------------------------------------------
-        ...wasmI32Const(1),           // 57     1 - 0
+        ...wasmI32Const(1),           // 57     1
         kExprDrop,                    // 59
-      kExprElse,                      // 60     1 - 2
+      kExprElse,                      // 60     1
 //--------------------------------------------------
         ...wasmI32Const(1),           // 61
         ...wasmI32Const(2),           // 63
@@ -750,7 +743,7 @@ TestCoverage(
   { "start": 53, "end": 56, "count": 1 },
   { "start": 57, "end": 60, "count": 1 },
   { "start": 61, "end": 67, "count": 1 },
-  { "start": 68, "end": 68, "count": 1 }]
+  { "start": 68, "end": 68, "count": 2 }]
 );
 
 function testCoverageWithSequenceOfBlocks() {
@@ -813,21 +806,21 @@ function testCoverageWithMultipleFunctionsAndImportedFunctions() {
   // Function 1
   builder.addFunction("square", kSig_i_i)
     .addBody([
-//-------------------------------
-      kExprLocalGet, 0,      // 1
-      kExprLocalGet, 0,      // 3
-      kExprI32Mul,           // 5
-    ]);                      // 6
-//-------------------------------
+//--------------------------------
+      kExprLocalGet, 0,      //  1
+      kExprLocalGet, 0,      //  3
+      kExprI32Mul,           //  5
+    ]);                      //  6
+//--------------------------------
 
   builder.addFunction("main", kSig_i_i)
     .addBody([
-//-------------------------------
-      kExprLocalGet, 0,      // 1
-      kExprCallFunction, 1,  // 3
-//-------------------------------
-    ])                       // 5
-//-------------------------------
+//--------------------------------
+      kExprLocalGet, 0,      //  9
+      kExprCallFunction, 1,  // 11
+//--------------------------------
+    ])                       // 13
+//--------------------------------
     .exportAs("main");
 
   instance = builder.instantiate({ o: { fn: function() {} } });

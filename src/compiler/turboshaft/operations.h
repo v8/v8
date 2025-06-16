@@ -124,6 +124,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 // WasmLoweringPhase.
 #define TURBOSHAFT_WASM_OPERATION_LIST(V) \
   V(WasmStackCheck)                       \
+  V(WasmIncCoverageCounter)               \
   V(GlobalGet)                            \
   V(GlobalSet)                            \
   V(RootConstant)                         \
@@ -6807,6 +6808,27 @@ struct GlobalGetOp : FixedArityOperationT<1, GlobalGetOp> {
 
 
   auto options() const { return std::tuple{global}; }
+};
+
+struct WasmIncCoverageCounterOp
+    : FixedArityOperationT<0, WasmIncCoverageCounterOp> {
+  Address counter_addr;
+
+  static constexpr OpEffects effects =
+      OpEffects().CanReadOffHeapMemory().CanWriteOffHeapMemory();
+
+  explicit WasmIncCoverageCounterOp(Address counter_addr)
+      : Base(), counter_addr(counter_addr) {}
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return {};
+  }
+
+  auto options() const { return std::tuple{counter_addr}; }
+  void PrintOptions(std::ostream& os) const;
 };
 
 struct GlobalSetOp : FixedArityOperationT<2, GlobalSetOp> {

@@ -452,7 +452,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       Zone* zone, CompilationEnv* env, Assembler& assembler,
       std::unique_ptr<AssumptionsJournal>* assumptions,
       ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
-      bool shared, const WireBytesStorage* wire_bytes)
+      bool shared, const WireBytesStorage* wire_bytes,
+      WasmFunctionCoverageData* coverage_data)
       : WasmGraphBuilderBase(zone, assembler),
         mode_(kRegular),
         block_phis_(zone),
@@ -469,6 +470,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         is_inlined_tail_call_(false) {
     DCHECK_NOT_NULL(env_);
     DCHECK_NOT_NULL(env_->module);
+
+    if (v8_flags.wasm_code_coverage) {
+      coverage_instrumentation_ =
+          std::make_unique<WasmCoverageInstrumentation<FullDecoder>>(
+              coverage_data);
+    }
   }
 
   // For inlined functions.
@@ -501,6 +508,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     DCHECK_NE(mode_, kRegular);
     DCHECK_EQ(return_block == nullptr, mode == kInlinedTailCall);
     DCHECK_EQ(catch_block != nullptr, mode == kInlinedWithCatch);
+
+    DCHECK(!v8_flags.wasm_code_coverage);
   }
 
   void StartFunction(FullDecoder* decoder) {
@@ -649,9 +658,21 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void OnFirstError(FullDecoder*) {}
 
-  void NextInstruction(FullDecoder* decoder, WasmOpcode) {
+  void EmitCoverageInstrumentationIfReachable(FullDecoder* decoder,
+                                              WasmOpcode opcode) {
+    coverage_instrumentation_->EmitCoverageInstrumentationIfReachable(
+        decoder, opcode, [this](Address counter_addr) {
+          __ WasmIncCoverageCounter(counter_addr);
+        });
+  }
+
+  void NextInstruction(FullDecoder* decoder, WasmOpcode opcode) {
     __ SetCurrentOrigin(
         WasmPositionToOpIndex(decoder->position(), inlining_id_));
+
+    if (V8_UNLIKELY(v8_flags.wasm_code_coverage && (opcode != kExprLoop))) {
+      EmitCoverageInstrumentationIfReachable(decoder, opcode);
+    }
   }
 
   // ******** Control Flow ********
@@ -704,6 +725,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     TSBlock* loop_merge = NewBlockWithPhis(decoder, &block->start_merge);
     block->merge_block = loop_merge;
     block->false_or_loop_or_catch_block = loop;
+
+    if (V8_UNLIKELY(v8_flags.wasm_code_coverage)) {
+      EmitCoverageInstrumentationIfReachable(decoder, kExprLoop);
+    }
   }
 
   void If(FullDecoder* decoder, const Value& cond, Control* if_block) {
@@ -9303,6 +9328,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 #else
   const int graph_generation_bit_ = 0;
 #endif
+
+  // Manages code coverage instrumentation.
+  std::unique_ptr<WasmCoverageInstrumentation<FullDecoder>>
+      coverage_instrumentation_;
 };
 
 V8_EXPORT_PRIVATE void BuildTSGraph(
@@ -9310,7 +9339,8 @@ V8_EXPORT_PRIVATE void BuildTSGraph(
     CompilationEnv* env, WasmDetectedFeatures* detected, Graph& graph,
     const FunctionBody& func_body, const WireBytesStorage* wire_bytes,
     std::unique_ptr<AssumptionsJournal>* assumptions,
-    ZoneVector<WasmInliningPosition>* inlining_positions, int func_index) {
+    ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
+    WasmFunctionCoverageData* coverage_data) {
   DCHECK(env->module->function_was_validated(func_index));
   Zone zone(allocator, ZONE_NAME);
   WasmGraphBuilderBase::Assembler assembler(data, graph, graph, &zone);
@@ -9318,7 +9348,7 @@ V8_EXPORT_PRIVATE void BuildTSGraph(
                   TurboshaftGraphBuildingInterface>
       decoder(&zone, env->module, env->enabled_features, detected, func_body,
               &zone, env, assembler, assumptions, inlining_positions,
-              func_index, func_body.is_shared, wire_bytes);
+              func_index, func_body.is_shared, wire_bytes, coverage_data);
   decoder.Decode();
   // The function was already validated, so graph building must always succeed.
   DCHECK(decoder.ok());

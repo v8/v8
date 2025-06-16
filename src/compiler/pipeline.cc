@@ -124,10 +124,12 @@
 #include "src/compiler/wasm-gc-operator-reducer.h"
 #include "src/compiler/wasm-load-elimination.h"
 #include "src/compiler/wasm-typer.h"
+#include "src/wasm/basic-block-calculator.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/turboshaft-graph-interface.h"
 #include "src/wasm/wasm-builtin-list.h"
+#include "src/wasm/wasm-code-coverage.h"
 #include "src/wasm/wasm-disassembler.h"
 #include "src/wasm/wasm-engine.h"
 
@@ -2887,6 +2889,27 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
   Zone inlining_positions_zone(wasm_engine->allocator(), ZONE_NAME);
   ZoneVector<WasmInliningPosition> inlining_positions(&inlining_positions_zone);
 
+  wasm::WasmFunctionCoverageData* function_coverage_data = nullptr;
+  if (V8_UNLIKELY(v8_flags.wasm_code_coverage)) {
+    DCHECK_NOT_NULL(env->module_coverage_data);
+    int declared_function_index =
+        wasm::declared_function_index(env->module, compilation_data.func_index);
+    function_coverage_data = env->module_coverage_data->GetFunctionCoverageData(
+        declared_function_index);
+    if (!function_coverage_data) {
+      // There can be a race here, if another thread finds that
+      // GetFunctionCoverageData() returns nullptr, but in that case we would
+      // just waste some time calling ComputeBasicBlocks().
+      size_t func_body_size =
+          compilation_data.func_body.end - compilation_data.func_body.start;
+      wasm::BasicBlockCalculator basic_block_calculator(
+          &graph_zone, {compilation_data.func_body.start, func_body_size});
+      basic_block_calculator.ComputeBasicBlocks();
+      function_coverage_data = env->module_coverage_data->InstallCoverageData(
+          declared_function_index, basic_block_calculator.GetCodeRanges());
+    }
+  }
+
   turboshaft::PipelineData turboshaft_data(
       &zone_stats, turboshaft::TurboshaftPipelineKind::kWasm, nullptr, &info,
       options);
@@ -2907,7 +2930,7 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
                      turboshaft_data.graph(), compilation_data.func_body,
                      compilation_data.wire_bytes_storage,
                      &compilation_data.assumptions, &inlining_positions,
-                     compilation_data.func_index);
+                     compilation_data.func_index, function_coverage_data);
   CodeTracer* code_tracer = nullptr;
   if (turboshaft_data.info()->trace_turbo_graph()) {
     // NOTE: We must not call `GetCodeTracer` if tracing is not enabled,

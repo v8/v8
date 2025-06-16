@@ -663,6 +663,7 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kWasmStackCheck:
       case Opcode::kSimd128LaneMemory:
       case Opcode::kGlobalSet:
+      case Opcode::kWasmIncCoverageCounter:
       case Opcode::kParameter:
       case Opcode::kSetStackPointer:
         // We explicitly break for those operations that have can_write effects

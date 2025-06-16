@@ -5224,6 +5224,10 @@ class TurboshaftAssemblerOpInterface
   void SetStackPointer(V<WordPtr> value) {
     ReduceIfReachableSetStackPointer(value);
   }
+
+  V<None> WasmIncCoverageCounter(Address counter_addr) {
+    return ReduceIfReachableWasmIncCoverageCounter(counter_addr);
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
