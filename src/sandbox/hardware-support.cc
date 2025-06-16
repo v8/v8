@@ -41,13 +41,12 @@ void SandboxHardwareSupport::RegisterSandboxMemory(Address addr, size_t size) {
       {addr, size}, v8::PageAllocator::Permission::kNoAccess, sandbox_pkey_));
 }
 
-void SandboxHardwareSupport::RegisterOutOfSandboxMemory(Address addr,
-                                                        size_t size) {
+void SandboxHardwareSupport::RegisterOutOfSandboxMemory(
+    Address addr, size_t size, PageAllocator::Permission page_permission) {
   if (!IsActive()) return;
 
   CHECK(base::MemoryProtectionKey::SetPermissionsAndKey(
-      {addr, size}, v8::PageAllocator::Permission::kReadWrite,
-      out_of_sandbox_pkey_));
+      {addr, size}, page_permission, out_of_sandbox_pkey_));
 }
 
 void SandboxHardwareSupport::RegisterUnsafeSandboxExtensionMemory(Address addr,

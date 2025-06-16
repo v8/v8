@@ -44,8 +44,8 @@ TEST(SandboxHardwareSupportTest, SimpleSandboxedCPPCode) {
       global_vas.AllocatePages(VirtualAddressSpace::kNoHint, size, alignment,
                                PagePermissions::kReadWrite);
   EXPECT_NE(page_outside_sandbox, kNullAddress);
-  SandboxHardwareSupport::RegisterOutOfSandboxMemory(page_outside_sandbox,
-                                                     size);
+  SandboxHardwareSupport::RegisterOutOfSandboxMemory(page_outside_sandbox, size,
+                                                     PageAllocator::kReadWrite);
 
   VirtualAddressSpace* sandbox_vas = sandbox.address_space();
   Address page_in_sandbox =
