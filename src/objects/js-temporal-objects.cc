@@ -500,7 +500,7 @@ Maybe<temporal_rs::ArithmeticOverflow> ToTemporalOverflowHandleUndefined(
   if (IsUndefined(*options))
     return Just(temporal_rs::ArithmeticOverflow(
         temporal_rs::ArithmeticOverflow::Constrain));
-  if (IsJSReceiver(*options)) {
+  if (!IsJSReceiver(*options)) {
     // (GetOptionsObject) 3. Throw a TypeError exception.
     THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
                                  Nothing<temporal_rs::ArithmeticOverflow>());
@@ -514,6 +514,66 @@ Maybe<temporal_rs::ArithmeticOverflow> ToTemporalOverflowHandleUndefined(
           {temporal_rs::ArithmeticOverflow::Constrain,
            temporal_rs::ArithmeticOverflow::Reject}),
       temporal_rs::ArithmeticOverflow::Constrain);
+}
+
+// #sec-temporal-gettemporaldisambiguationoption
+// Also handles the undefined check from GetOptionsObject
+Maybe<temporal_rs::Disambiguation>
+GetTemporalDisambiguationOptionHandleUndefined(Isolate* isolate,
+                                               DirectHandle<Object> options,
+                                               const char* method_name) {
+  // Default is "compatible"
+  if (IsUndefined(*options)) {
+    return Just(
+        temporal_rs::Disambiguation(temporal_rs::Disambiguation::Reject));
+  }
+  if (!IsJSReceiver(*options)) {
+    // (GetOptionsObject) 3. Throw a TypeError exception.
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                                 Nothing<temporal_rs::Disambiguation>());
+  }
+  // 1. Let stringValue be ?GetOption(options, "disambiguation", string, «
+  // "compatible", "earlier", "later", "reject" », "compatible").
+  return GetStringOption<temporal_rs::Disambiguation>(
+      isolate, Cast<JSReceiver>(options), "overflow", method_name,
+      std::to_array<const std::string_view>(
+          {"compatible", "earlier", "later", "reject"}),
+      std::to_array<temporal_rs::Disambiguation>({
+          temporal_rs::Disambiguation::Compatible,
+          temporal_rs::Disambiguation::Earlier,
+          temporal_rs::Disambiguation::Later,
+          temporal_rs::Disambiguation::Reject,
+      }),
+      temporal_rs::Disambiguation::Compatible);
+}
+
+// #sec-temporal-gettemporaloffsetoption
+// Also handles the undefined check from GetOptionsObject
+Maybe<temporal_rs::OffsetDisambiguation> GetTemporalOffsetOptionHandleUndefined(
+    Isolate* isolate, DirectHandle<Object> options,
+    temporal_rs::OffsetDisambiguation fallback, const char* method_name) {
+  // Default is fallback
+  if (IsUndefined(*options)) {
+    return Just(fallback);
+  }
+  if (!IsJSReceiver(*options)) {
+    // (GetOptionsObject) 3. Throw a TypeError exception.
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                                 Nothing<temporal_rs::OffsetDisambiguation>());
+  }
+  // 5. Let stringValue be ? GetOption(options, "offset", string, « "prefer",
+  // "use", "ignore", "reject" », stringFallback).
+  return GetStringOption<temporal_rs::OffsetDisambiguation>(
+      isolate, Cast<JSReceiver>(options), "overflow", method_name,
+      std::to_array<const std::string_view>(
+          {"prefer", "use", "ignore", "reject"}),
+      std::to_array<temporal_rs::OffsetDisambiguation>({
+          temporal_rs::OffsetDisambiguation::Prefer,
+          temporal_rs::OffsetDisambiguation::Use,
+          temporal_rs::OffsetDisambiguation::Ignore,
+          temporal_rs::OffsetDisambiguation::Reject,
+      }),
+      fallback);
 }
 
 // #sec-temporal-gettemporalfractionalseconddigitsoption
@@ -1238,10 +1298,9 @@ Maybe<std::optional<int64_t>> GetSingleDurationField(
   }
 }
 
-// Doesn't actually return a string, parses it and stores it parsed.
 // #sec-temporal-tooffsetstring
-Maybe<std::unique_ptr<temporal_rs::TimeZone>> ToOffset(
-    Isolate* isolate, DirectHandle<Object> argument) {
+Maybe<std::string> ToOffsetString(Isolate* isolate,
+                                  DirectHandle<Object> argument) {
   // 1. Let offset be ?ToPrimitive(argument, string).
   DirectHandle<Object> offset_prim;
   if (IsJSReceiver(*argument)) {
@@ -1249,16 +1308,15 @@ Maybe<std::unique_ptr<temporal_rs::TimeZone>> ToOffset(
         isolate, offset_prim,
         JSReceiver::ToPrimitive(isolate, Cast<JSReceiver>(argument),
                                 ToPrimitiveHint::kString),
-        Nothing<std::unique_ptr<temporal_rs::TimeZone>>());
+        Nothing<std::string>());
   } else {
     offset_prim = argument;
   }
 
   // 2. If offset is not a String, throw a TypeError exception.
   if (!IsString(*offset_prim)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-        Nothing<std::unique_ptr<temporal_rs::TimeZone>>());
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                                 {});
   }
 
   // 3. Perform ?ParseDateTimeUTCOffset(offset).
@@ -1271,13 +1329,20 @@ Maybe<std::unique_ptr<temporal_rs::TimeZone>> ToOffset(
   // https://github.com/boa-dev/temporal/pull/348 lands.
 
   if (offset.size() == 0 || (offset[0] != '+' && offset[0] != '-')) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-        Nothing<std::unique_ptr<temporal_rs::TimeZone>>());
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 {});
   }
 
-  return ExtractRustResult(isolate,
-                           temporal_rs::TimeZone::try_from_str(offset));
+  // TODO(manishearth) this has a minor unnecessary cost of allocating a
+  // TimeZone, but it can be obviated once
+  // https://github.com/boa-dev/temporal/issues/330 is fixed.
+  MAYBE_RETURN_ON_EXCEPTION_VALUE(
+      isolate,
+      ExtractRustResult(isolate, temporal_rs::TimeZone::try_from_str(offset)),
+      Nothing<std::string>());
+
+  return Just(std::move(offset));
 }
 
 Maybe<std::unique_ptr<temporal_rs::TimeZone>> ToTemporalTimeZoneIdentifier(
@@ -1510,7 +1575,7 @@ Maybe<temporal_rs::PartialTime> ToTemporalTimeRecord(
 struct CombinedRecord {
   temporal_rs::PartialDate date;
   temporal_rs::PartialTime time;
-  std::optional<std::unique_ptr<temporal_rs::TimeZone>> offset;
+  std::optional<std::string> offset;
   std::optional<std::unique_ptr<temporal_rs::TimeZone>> time_zone;
 };
 
@@ -1653,8 +1718,8 @@ Maybe<bool> GetSingleCalendarField(
   V(kTimeFields, nanosecond, result.time.nanosecond, uint16_t,                 \
     ToPositiveIntegerTypeWithTruncation<uint16_t>, SIMPLE_CONDITION,           \
     SIMPLE_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)                                \
-  V(kOffset, offset, result.offset, std::unique_ptr<temporal_rs::TimeZone>,    \
-    ToOffset, SIMPLE_CONDITION, MOVING_SETTER, NOOP_REQUIRED_CHECK, MOVE)      \
+  V(kOffset, offset, result.offset, std::string, ToOffsetString,               \
+    SIMPLE_CONDITION, MOVING_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)              \
   V(kTimeFields, second, result.time.second, uint8_t,                          \
     ToPositiveIntegerTypeWithTruncation<uint8_t>, SIMPLE_CONDITION,            \
     SIMPLE_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)                                \
@@ -2301,6 +2366,135 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
 
     return ConstructRustWrappingType<JSTemporalPlainYearMonth>(
         isolate, CONSTRUCTOR(plain_year_month), CONSTRUCTOR(plain_year_month),
+        std::move(rust_result));
+  }
+}
+
+// #sec-temporal-totemporalzoneddatetime
+// Note this skips the options-parsing steps and instead asks the caller to pass
+// it in
+MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
+    Isolate* isolate, DirectHandle<Object> item,
+    std::optional<temporal_rs::Disambiguation> disambiguation,
+    std::optional<temporal_rs::OffsetDisambiguation> offset_option,
+    std::optional<temporal_rs::ArithmeticOverflow> overflow,
+    const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+  // 1. If options is not present, set options to undefined.
+  // (handled by caller)
+
+  // This error is eventually thrown by step 3; we perform a check early
+  // so that we can optimize with InstanceType. Step 1 and 2 are unobservable.
+  if (!IsHeapObject(*item)) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+  }
+  InstanceType instance_type =
+      Cast<HeapObject>(*item)->map(isolate)->instance_type();
+
+  // 2. Let offsetBehaviour be option.
+  // 3. Let matchBehaviour be match-exactly.
+  // (handled in Rust)
+
+  // 4. If item is an Object, then
+  if (InstanceTypeChecker::IsJSReceiver(instance_type)) {
+    // a. If item has an [[InitializedTemporalZonedDateTime]] internal slot,
+    // then
+    if (InstanceTypeChecker::IsJSTemporalZonedDateTime(instance_type)) {
+      auto cast = Cast<JSTemporalZonedDateTime>(item);
+      auto rust_object = cast->zoned_date_time()->raw();
+
+      // vi. Return !CreateTemporalZonedDateTime(item.[[EpochNanoseconds]],
+      // item.[[TimeZone]], item.[[Calendar]]).
+      return ConstructRustWrappingType<JSTemporalZonedDateTime>(
+          isolate, CONSTRUCTOR(zoned_date_time), CONSTRUCTOR(zoned_date_time),
+          temporal_rs::ZonedDateTime::try_new(rust_object->epoch_nanoseconds(),
+                                              rust_object->calendar().kind(),
+                                              rust_object->timezone()));
+
+    } else {
+      // b. Let calendar be ?GetTemporalCalendarIdentifierWithISODefault(item).
+      temporal_rs::AnyCalendarKind kind = temporal_rs::AnyCalendarKind::Iso;
+      DirectHandle<JSReceiver> item_recvr = Cast<JSReceiver>(item);
+      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, kind,
+          temporal::GetTemporalCalendarIdentifierWithISODefault(isolate,
+                                                                item_recvr),
+          kNullMaybeHandle);
+
+      // e. c. Let fields be ? PrepareCalendarFields(calendar, item, « year,
+      // month, month-code, day», « hour, minute, second, millisecond,
+      // microsecond, nanosecond, offset, time-zone», « time-zone»).
+      CombinedRecordOwnership owners;
+      CombinedRecord fields = CombinedRecord{
+          .date = kNullPartialDate,
+          .time = kNullPartialTime,
+          .offset = std::nullopt,
+          .time_zone = std::nullopt,
+      };
+      CalendarFieldsFlags which =
+          CalendarFieldsFlags(CalendarFieldsFlag::kYearFields) |
+          CalendarFieldsFlags(CalendarFieldsFlag::kMonthFields) |
+          CalendarFieldsFlags(CalendarFieldsFlag::kDay) |
+          CalendarFieldsFlags(CalendarFieldsFlag::kTimeFields) |
+          CalendarFieldsFlags(CalendarFieldsFlag::kOffset) |
+          CalendarFieldsFlags(CalendarFieldsFlag::kTimeZone);
+      MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+          isolate, fields,
+          PrepareCalendarFields(isolate, kind, item_recvr, which,
+                                RequiredFields::kTimeZone, owners),
+          kNullMaybeHandle);
+
+      auto record = temporal_rs::PartialZonedDateTime{
+          .date = fields.date,
+          .time = fields.time,
+          .offset = std::nullopt,
+          .timezone = nullptr,
+      };
+      if (fields.time_zone.has_value()) {
+        record.timezone = fields.time_zone.value().get();
+      }
+      if (fields.offset.has_value()) {
+        record.offset = fields.offset.value();
+      }
+
+      return ConstructRustWrappingType<JSTemporalZonedDateTime>(
+          isolate, CONSTRUCTOR(zoned_date_time), CONSTRUCTOR(zoned_date_time),
+          temporal_rs::ZonedDateTime::from_partial(
+              record, overflow, disambiguation, offset_option));
+    }
+
+  } else {
+    // 3. If item is not a String, throw a TypeError exception.
+    if (!InstanceTypeChecker::IsString(instance_type)) {
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    }
+    DirectHandle<String> str = Cast<String>(item);
+    DirectHandle<JSTemporalPlainDate> result;
+
+    // Default value from GetTemporalDisambiguationOption
+    auto disambiguation_defaulted =
+        disambiguation.value_or(temporal_rs::Disambiguation::Compatible);
+    auto offset_defaulted =
+        offset_option.value_or(temporal_rs::OffsetDisambiguation::Reject);
+
+    // Rest of the steps handled in Rust
+
+    auto rust_result = HandleStringEncodings<
+        TemporalAllocatedResult<temporal_rs::ZonedDateTime>>(
+        isolate, str,
+        [&disambiguation_defaulted, &offset_defaulted](std::string_view view)
+            -> TemporalAllocatedResult<temporal_rs::ZonedDateTime> {
+          return temporal_rs::ZonedDateTime::from_utf8(
+              view, disambiguation_defaulted, offset_defaulted);
+        },
+        [&disambiguation_defaulted, &offset_defaulted](std::u16string_view view)
+            -> TemporalAllocatedResult<temporal_rs::ZonedDateTime> {
+          return temporal_rs::ZonedDateTime::from_utf16(
+              view, disambiguation_defaulted, offset_defaulted);
+        });
+
+    return ConstructRustWrappingType<JSTemporalZonedDateTime>(
+        isolate, CONSTRUCTOR(zoned_date_time), CONSTRUCTOR(zoned_date_time),
         std::move(rust_result));
   }
 }
@@ -3673,7 +3867,7 @@ MaybeDirectHandle<Oddball> JSTemporalPlainMonthDay::Equals(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, other,
       temporal::ToTemporalMonthDay(isolate, other_obj, std::nullopt,
-                                    method_name));
+                                   method_name));
 
   auto equals =
       month_day->month_day()->raw()->equals(*other->month_day()->raw());
@@ -3811,7 +4005,8 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::From(
                                                   method_name),
       DirectHandle<JSTemporalPlainYearMonth>());
 
-  return temporal::ToTemporalYearMonth(isolate, item_obj, overflow, method_name);
+  return temporal::ToTemporalYearMonth(isolate, item_obj, overflow,
+                                       method_name);
 }
 
 // #sec-temporal.plainyearmonth.compare
@@ -4238,9 +4433,45 @@ MaybeDirectHandle<Object> JSTemporalZonedDateTime::HoursInDay(
 
 // #sec-temporal.zoneddatetime.from
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::From(
-    Isolate* isolate, DirectHandle<Object> item,
+    Isolate* isolate, DirectHandle<Object> item_obj,
     DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.ZonedDateTime.from";
+  DirectHandle<JSTemporalPlainDateTime> item;
+
+  // Options parsing hoisted out of ToTemporalZonedDateTime
+  // https://github.com/tc39/proposal-temporal/issues/3116
+  temporal_rs::Disambiguation disambiguation;
+  temporal_rs::OffsetDisambiguation offset_option;
+  temporal_rs::ArithmeticOverflow overflow;
+  // (ToTemporalZonedDateTime) g. Let resolvedOptions be
+  // ?GetOptionsObject(options).
+  //
+  // (ToTemporalZonedDateTime) h. Let disambiguation be
+  // ?GetTemporalDisambiguationOption(resolvedOptions).
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, disambiguation,
+      temporal::GetTemporalDisambiguationOptionHandleUndefined(
+          isolate, options_obj, method_name),
+      kNullMaybeHandle);
+
+  // (ToTemporalZonedDateTime) i. Let offsetOption be
+  // ?GetTemporalOffsetOption(resolvedOptions, reject).
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, offset_option,
+      temporal::GetTemporalOffsetOptionHandleUndefined(
+          isolate, options_obj, temporal_rs::OffsetDisambiguation::Reject,
+          method_name),
+      kNullMaybeHandle);
+  // (ToTemporalZonedDateTime) ii. Perform
+  // ?GetTemporalOverflowOption(resolvedOptions).
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow,
+      temporal::ToTemporalOverflowHandleUndefined(isolate, options_obj,
+                                                  method_name),
+      kNullMaybeHandle);
+
+  return temporal::ToTemporalZonedDateTime(
+      isolate, item_obj, disambiguation, offset_option, overflow, method_name);
 }
 
 // #sec-temporal.zoneddatetime.compare
@@ -4248,14 +4479,28 @@ MaybeDirectHandle<Smi> JSTemporalZonedDateTime::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj) {
   TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.ZonedDateTime.compare";
+  DirectHandle<JSTemporalZonedDateTime> one;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, one,
+                             temporal::ToTemporalZonedDateTime(
+                                 isolate, one_obj, std::nullopt, std::nullopt,
+                                 std::nullopt, method_name));
+  DirectHandle<JSTemporalZonedDateTime> two;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, two,
+                             temporal::ToTemporalZonedDateTime(
+                                 isolate, two_obj, std::nullopt, std::nullopt,
+                                 std::nullopt, method_name));
+
+  return direct_handle(
+      Smi::FromInt(one->zoned_date_time()->raw()->compare_instant(
+          *two->zoned_date_time()->raw())),
+      isolate);
 }
 
 // #sec-temporal.zoneddatetime.prototype.equals
 MaybeDirectHandle<Oddball> JSTemporalZonedDateTime::Equals(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> other_obj) {
-  TEMPORAL_ENTER_FUNC();
   UNIMPLEMENTED();
 }
 
