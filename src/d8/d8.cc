@@ -1368,17 +1368,19 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
     UNREACHABLE();
   }
 
-  CHECK(
-      module_data->module_map
-          .insert(std::make_pair(std::make_pair(module_specifier, module_type),
-                                 Global<Module>(isolate, module)))
-          .second);
-  CHECK(module_data->module_to_specifier_map
-            .insert(std::make_pair(Global<Module>(isolate, module),
-                                   module_specifier))
-            .second);
+  auto module_map_inserted = module_data->module_map.insert(
+      std::make_pair(std::make_pair(module_specifier, module_type),
+                     Global<Module>(isolate, module)));
+  CHECK(module_map_inserted.second);
+
+  auto module_to_specifier_map_inserted =
+      module_data->module_to_specifier_map.insert(
+          std::make_pair(Global<Module>(isolate, module), module_specifier));
+  CHECK(module_to_specifier_map_inserted.second);
 
   std::string dir_name = DirName(module_specifier);
+
+  MaybeLocal<Module> result(module);
 
   Local<FixedArray> module_requests = module->GetModuleRequests();
   for (int i = 0, length = module_requests->Length(); i < length; ++i) {
@@ -1395,7 +1397,8 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
 
     if (request_module_type == ModuleType::kInvalid) {
       ThrowError(isolate, "Invalid module type was asserted");
-      return MaybeLocal<Module>();
+      result = {};
+      break;
     }
 
     if (module_request->GetPhase() == ModuleImportPhase::kSource) {
@@ -1407,7 +1410,8 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
       if (FetchModuleSource(module, context, normalized_specifier,
                             request_module_type)
               .IsEmpty()) {
-        return MaybeLocal<Module>();
+        result = {};
+        break;
       }
     } else {
       if (module_data->module_map.count(
@@ -1418,12 +1422,19 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
       if (FetchModuleTree(module, context, normalized_specifier,
                           request_module_type)
               .IsEmpty()) {
-        return MaybeLocal<Module>();
+        result = {};
+        break;
       }
     }
   }
 
-  return module;
+  if (result.IsEmpty()) {
+    module_data->module_map.erase(module_map_inserted.first);
+    module_data->module_to_specifier_map.erase(
+        module_to_specifier_map_inserted.first);
+  }
+
+  return result;
 }
 
 MaybeLocal<Value> Shell::JSONModuleEvaluationSteps(Local<Context> context,
