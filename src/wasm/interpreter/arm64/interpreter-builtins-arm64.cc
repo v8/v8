@@ -1681,7 +1681,8 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
           RelocInfo::CODE_TARGET);
   __ Ldr(packed_args, MemOperand(fp, kPackedArrayOffset));
   __ Ldr(current_result_offset, MemOperand(fp, kCurrentResultOffset));
-  __ Str(kFPReturnRegister0, MemOperand(packed_args, current_result_offset));
+  __ Str(kFPReturnRegister0.S(),
+         MemOperand(packed_args, current_result_offset));
   __ Add(current_result_offset, current_result_offset,
          Immediate(sizeof(float)));
   __ jmp(&return_done);
@@ -1698,10 +1699,9 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
 
   __ bind(&return_kWasmRef);
   __ Ldr(packed_args, MemOperand(fp, kPackedArrayOffset));
-  __ Str(return_reg,
-         MemOperand(packed_args, result_index, LSL, kSystemPointerSizeLog2));
+  __ Str(return_reg, MemOperand(packed_args, current_result_offset));
   __ Add(current_result_offset, current_result_offset,
-         Immediate(sizeof(double)));
+         Immediate(sizeof(kSystemPointerSize)));
 
   // A result converted.
   __ bind(&return_done);
