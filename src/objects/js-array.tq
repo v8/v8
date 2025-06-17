@@ -287,7 +287,7 @@ struct FastJSArrayWitness {
     dcheck(this.arrayIsPushable);
     if (this.hasDoubles) {
       BuildAppendJSArray(
-          ElementsKind::HOLEY_DOUBLE_ELEMENTS, this.unstable, value)
+          ElementsKind::PACKED_DOUBLE_ELEMENTS, this.unstable, value)
           otherwise Failed;
     } else if (this.hasSmis) {
       BuildAppendJSArray(ElementsKind::HOLEY_SMI_ELEMENTS, this.unstable, value)

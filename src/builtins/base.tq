@@ -2073,7 +2073,10 @@ transitioning builtin FastCreateDataProperty(
       if (IsFastSmiElementsKind(kind)) {
         BuildAppendJSArray(ElementsKind::HOLEY_SMI_ELEMENTS, array, value)
             otherwise Slow;
-      } else if (IsDoubleElementsKind(kind)) {
+      } else if (kind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
+        BuildAppendJSArray(ElementsKind::PACKED_DOUBLE_ELEMENTS, array, value)
+            otherwise Slow;
+      } else if (kind == ElementsKind::HOLEY_DOUBLE_ELEMENTS) {
         BuildAppendJSArray(ElementsKind::HOLEY_DOUBLE_ELEMENTS, array, value)
             otherwise Slow;
       } else {

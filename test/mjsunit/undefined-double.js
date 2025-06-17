@@ -192,3 +192,30 @@ for (var i = 50; i < 55; i++) {
     assertTrue(%HasDoubleElements(r));
   }
 })();
+
+(function ArrayPrototypeWith() {
+  function foo() {
+    let a = [-2.2,,4.4];
+    let b = a.with(1);
+    Math.min(b);
+    return b;
+  }
+
+  %PrepareFunctionForOptimization(foo);
+  let r = foo();
+  assertArrayEquals([-2.2, undefined, 4.4], r);
+  if(%IsExperimentalUndefinedDoubleEnabled()) {
+    assertTrue(%HasDoubleElements(r));
+    assertTrue(%HasHoleyElements(r));
+  }
+  for(let i = 0; i < 5; ++i) {
+    %OptimizeFunctionOnNextCall(foo);
+    r = foo();
+    assertArrayEquals([-2.2, undefined, 4.4], r);
+    if(%IsExperimentalUndefinedDoubleEnabled()) {
+      assertTrue(%HasDoubleElements(r));
+      assertTrue(%HasHoleyElements(r));
+    }
+    if(i > 0) assertOptimized(foo);
+  }
+})();
