@@ -1460,7 +1460,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                        compiler::EnforceBoundsCheck::kCanOmitBoundsCheck,
                        compiler::AlignmentCheck::kNo);
 
-    V<WordPtr> mem_start = MemStart(imm.memory->index);
+    V<WordPtr> mem_start = MemStart(imm.mem_index);
 
     LoadOp::Kind load_kind = GetMemoryAccessKind(repr, strategy);
 
@@ -1487,9 +1487,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
 
     if (v8_flags.trace_wasm_memory) {
-      // TODO(14259): Implement memory tracing for multiple memories.
-      CHECK_EQ(0, imm.memory->index);
-      TraceMemoryOperation(decoder, false, repr, final_index, imm.offset);
+      TraceMemoryOperation(decoder, false, imm.mem_index, repr, final_index,
+                           imm.offset);
     }
 
     result->op = load;
@@ -1560,7 +1559,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         load_kind, transform_kind, 0);
 
     if (v8_flags.trace_wasm_memory) {
-      TraceMemoryOperation(decoder, false, repr, final_index, imm.offset);
+      TraceMemoryOperation(decoder, false, imm.mem_index, repr, final_index,
+                           imm.offset);
     }
 
     result->op = load;
@@ -1607,7 +1607,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         0);
 
     if (v8_flags.trace_wasm_memory) {
-      TraceMemoryOperation(decoder, false, repr, final_index, imm.offset);
+      TraceMemoryOperation(decoder, false, imm.mem_index, repr, final_index,
+                           imm.offset);
     }
 
     result->op = load;
@@ -1634,7 +1635,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         BoundsCheckMem(imm.memory, repr, index.op, imm.offset,
                        enforce_bounds_check, compiler::AlignmentCheck::kNo);
 
-    V<WordPtr> mem_start = MemStart(imm.memory->index);
+    V<WordPtr> mem_start = MemStart(imm.mem_index);
 
     StoreOp::Kind store_kind = GetMemoryAccessKind(repr, strategy);
 
@@ -1661,9 +1662,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
              compiler::kNoWriteBarrier, offset);
 
     if (v8_flags.trace_wasm_memory) {
-      // TODO(14259): Implement memory tracing for multiple memories.
-      CHECK_EQ(0, imm.memory->index);
-      TraceMemoryOperation(decoder, true, repr, final_index, imm.offset);
+      TraceMemoryOperation(decoder, true, imm.mem_index, repr, final_index,
+                           imm.offset);
     }
   }
 
@@ -1714,7 +1714,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                          laneidx, 0);
 
     if (v8_flags.trace_wasm_memory) {
-      TraceMemoryOperation(decoder, true, repr, final_index, imm.offset);
+      TraceMemoryOperation(decoder, true, imm.mem_index, repr, final_index,
+                           imm.offset);
     }
   }
 
@@ -4044,7 +4045,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     if (opcode == kExprI32AtomicWait) {
       result->op =
           CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmI32AtomicWait>(
-              decoder, {__ Word32Constant(imm.memory->index), effective_offset,
+              decoder, {__ Word32Constant(imm.mem_index), effective_offset,
                         expected, bigint_timeout});
       return;
     }
@@ -4052,7 +4053,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     V<BigInt> bigint_expected = BuildChangeInt64ToBigInt(expected, kStubMode);
     result->op =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmI64AtomicWait>(
-            decoder, {__ Word32Constant(imm.memory->index), effective_offset,
+            decoder, {__ Word32Constant(imm.mem_index), effective_offset,
                       bigint_expected, bigint_timeout});
   }
 
@@ -4200,15 +4201,15 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     if (info.op_type == kBinop) {
       if (info.bin_op == Binop::kCompareExchange) {
         result->op = __ AtomicCompareExchange(
-            MemBuffer(imm.memory->index, imm.offset), index, args[1].op,
-            args[2].op, info.in_out_rep, info.memory_rep, access_kind,
+            MemBuffer(imm.mem_index, imm.offset), index, args[1].op, args[2].op,
+            info.in_out_rep, info.memory_rep, access_kind,
             RegisterRepresentation::WordPtr());
         return;
       }
-      result->op = __ AtomicRMW(MemBuffer(imm.memory->index, imm.offset), index,
-                                args[1].op, info.bin_op, info.in_out_rep,
-                                info.memory_rep, access_kind,
-                                RegisterRepresentation::WordPtr());
+      result->op =
+          __ AtomicRMW(MemBuffer(imm.mem_index, imm.offset), index, args[1].op,
+                       info.bin_op, info.in_out_rep, info.memory_rep,
+                       access_kind, RegisterRepresentation::WordPtr());
       return;
     }
     if (info.op_type == kStore) {
@@ -4227,7 +4228,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       value = BuildChangeEndiannessStore(
           value, info.memory_rep.ToMachineType().representation(), wasm_type);
 #endif
-      __ Store(MemBuffer(imm.memory->index, imm.offset), index, value,
+      __ Store(MemBuffer(imm.mem_index, imm.offset), index, value,
                access_kind == MemoryAccessKind::kProtectedByTrapHandler
                    ? LoadOp::Kind::Protected().Atomic()
                    : LoadOp::Kind::RawAligned().Atomic(),
@@ -4249,7 +4250,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
 #endif
     result->op =
-        __ Load(MemBuffer(imm.memory->index, imm.offset), index,
+        __ Load(MemBuffer(imm.mem_index, imm.offset), index,
                 access_kind == MemoryAccessKind::kProtectedByTrapHandler
                     ? LoadOp::Kind::Protected().Atomic()
                     : LoadOp::Kind::RawAligned().Atomic(),
@@ -7925,14 +7926,21 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   void TraceMemoryOperation(FullDecoder* decoder, bool is_store,
-                            MemoryRepresentation repr, V<WordPtr> index,
-                            uintptr_t offset) {
-    int kAlign = 4;  // Ensure that the LSB is 0, like a Smi.
+                            uint32_t mem_index, MemoryRepresentation repr,
+                            V<WordPtr> index, uintptr_t offset) {
+    constexpr int kAlign = alignof(MemoryTracingInfo);
+    // A side benefit of the alignment is that the last bit is 0, so when we
+    // pass {info} to the runtime function in a stack slot, it looks like a
+    // tagged value (Smi), as runtime function parameters need to.
+    static_assert(kAlign >= 2 && ((kAlign & 1) == 0));
     V<WordPtr> info = __ StackSlot(sizeof(MemoryTracingInfo), kAlign);
     V<WordPtr> effective_offset = __ WordPtrAdd(index, offset);
     __ Store(info, effective_offset, StoreOp::Kind::RawAligned(),
              MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
              offsetof(MemoryTracingInfo, offset));
+    __ Store(info, __ Word32Constant(mem_index), StoreOp::Kind::RawAligned(),
+             MemoryRepresentation::Uint32(), compiler::kNoWriteBarrier,
+             offsetof(MemoryTracingInfo, mem_index));
     __ Store(info, __ Word32Constant(is_store ? 1 : 0),
              StoreOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
              compiler::kNoWriteBarrier, offsetof(MemoryTracingInfo, is_store));
