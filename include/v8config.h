@@ -805,7 +805,8 @@ V8 shared library set USING_V8_SHARED.
 #else  // V8_OS_WIN
 
 // Setup for Linux shared library export.
-#if V8_HAS_ATTRIBUTE_VISIBILITY && (defined(BUILDING_V8_SHARED) || USING_V8_SHARED)
+#if (V8_HAS_ATTRIBUTE_VISIBILITY && \
+     (defined(BUILDING_V8_SHARED) || USING_V8_SHARED))
 # define V8_EXPORT __attribute__((visibility("default")))
 #else
 # define V8_EXPORT
@@ -953,8 +954,10 @@ V8 shared library set USING_V8_SHARED.
 #if (V8_TARGET_ARCH_MIPS64 && !(V8_HOST_ARCH_X64 || V8_HOST_ARCH_MIPS64))
 #error Target architecture mips64 is only supported on mips64 and x64 host
 #endif
-#if (V8_TARGET_ARCH_RISCV64 && !(V8_HOST_ARCH_X64 || V8_HOST_ARCH_RISCV64))
-#error Target architecture riscv64 is only supported on riscv64 and x64 host
+#if (V8_TARGET_ARCH_RISCV64 && \
+     !(V8_HOST_ARCH_X64 || V8_HOST_ARCH_ARM64 || V8_HOST_ARCH_RISCV64))
+#error Target architecture riscv64 is only supported on riscv64, x64, and \
+arm64 host
 #endif
 #if (V8_TARGET_ARCH_RISCV32 && !(V8_HOST_ARCH_IA32 || V8_HOST_ARCH_RISCV32))
 #error Target architecture riscv32 is only supported on riscv32 and ia32 host
