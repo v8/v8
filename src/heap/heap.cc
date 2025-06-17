@@ -1609,6 +1609,11 @@ void Heap::CollectGarbage(AllocationSpace space,
                           const v8::GCCallbackFlags gc_callback_flags,
                           PerformHeapLimitCheck perform_heap_limit_check) {
   CHECK(isolate_->IsOnCentralStack());
+  // Any handles that are created during GC (eg during API callbacks)
+  // should be in a fresh handle scope that is torn down before the GC
+  // terminates. We don't really want new handles to appear during GC,
+  // but some APIs require it - they should at least be short lived.
+  SealHandleScope scope(isolate_);
   DCHECK_EQ(Isolate::TryGetCurrent(), isolate_);
   DCHECK_EQ(resize_new_space_mode_, ResizeNewSpaceMode::kNone);
 
