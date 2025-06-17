@@ -80,43 +80,6 @@ bool NextInIgnoreList(typename ZoneSet<Key>::const_iterator& ignore,
   return ignore != ignore_end && *ignore == cur;
 }
 
-#ifdef DEBUG
-
-bool CheckAllPhiInputsAreContextType(compiler::JSHeapBroker* broker,
-                                     LocalIsolate* local_isolate,
-                                     const KnownNodeAspects& node_aspects,
-                                     Phi* phi) {
-  for (Input& input : *phi) {
-    if (!input.node()) continue;
-    if (phi->is_loop_phi() && &phi->backedge_input() == &input) continue;
-    if (NodeTypeIs(node_aspects.GetType(broker, input.node()),
-                   NodeType::kContext)) {
-      continue;
-    }
-    // OSR values can leak a context with InitialValue that we are unable to
-    // type.
-    if (input.node()->Is<InitialValue>() ||
-        input.node()->Is<GeneratorRestoreRegister>()) {
-      continue;
-    }
-    if (phi->Cast<Phi>()->owner() == interpreter::Register::current_context()) {
-      // We are unable to type loop phis holding the context from resumable
-      // loops, since they start with an empty KNA.
-      // Instead here, we just check if the phi makes sense,
-      return true;
-    }
-    if (auto next_phi = input.node()->TryCast<Phi>()) {
-      CheckAllPhiInputsAreContextType(broker, local_isolate, node_aspects,
-                                      next_phi);
-      continue;
-    }
-    return false;
-  }
-  return true;
-}
-
-#endif  // DEBUG
-
 }  // namespace
 
 void KnownNodeAspects::UpdateMayHaveAliasingContexts(
@@ -170,8 +133,6 @@ void KnownNodeAspects::UpdateMayHaveAliasingContexts(
       may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
       break;
     case Opcode::kPhi:
-      SLOW_DCHECK(CheckAllPhiInputsAreContextType(broker, local_isolate, *this,
-                                                  context->Cast<Phi>()));
       may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
       break;
     default:
