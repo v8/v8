@@ -28,6 +28,11 @@ class ExposedTrustedObject;
 class ObjectVisitor;
 class WritableFreeSpace;
 
+// A safe HeapObject size is a uint32_t that's guaranteed to yield in OOB within
+// the sandbox. The alias exists to force appropriate conversions at the
+// callsites when V8 cannot enable stricter compiler flags in general.
+using SafeHeapObjectSize = base::StrongAlias<class HeapObjectSizeTag, uint32_t>;
+
 V8_OBJECT class HeapObjectLayout {
  public:
   HeapObjectLayout() = delete;
@@ -94,6 +99,7 @@ V8_OBJECT class HeapObjectLayout {
   // Useful when the map pointer field is used for other purposes.
   // GC internal.
   V8_EXPORT_PRIVATE int SizeFromMap(Tagged<Map> map) const;
+  V8_EXPORT_PRIVATE SafeHeapObjectSize SafeSizeFromMap(Tagged<Map> map) const;
 
   // Return the write barrier mode for this. Callers of this function
   // must be able to present a reference to an DisallowGarbageCollection
@@ -238,6 +244,7 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // Useful when the map pointer field is used for other purposes.
   // GC internal.
   V8_EXPORT_PRIVATE int SizeFromMap(Tagged<Map> map) const;
+  V8_EXPORT_PRIVATE SafeHeapObjectSize SafeSizeFromMap(Tagged<Map> map) const;
 
   template <class T>
   inline T ReadField(size_t offset) const

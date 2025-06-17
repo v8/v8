@@ -294,6 +294,11 @@ void Heap::CopyBlock(Address dst, Address src, int byte_size) {
   CopyTagged(dst, src, static_cast<size_t>(byte_size / kTaggedSize));
 }
 
+void Heap::CopyBlock(Address dst, Address src, size_t byte_size) {
+  DCHECK(IsAligned(byte_size, kTaggedSize));
+  CopyTagged(dst, src, byte_size / kTaggedSize);
+}
+
 bool Heap::IsPendingAllocationInternal(Tagged<HeapObject> object) {
   DCHECK(deserialization_complete());
 

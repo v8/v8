@@ -117,6 +117,15 @@ size_t HeapVisitor<ConcreteVisitor>::Visit(Tagged<Map> map,
 template <typename ConcreteVisitor>
 size_t HeapVisitor<ConcreteVisitor>::Visit(Tagged<Map> map,
                                            Tagged<HeapObject> object,
+                                           SafeHeapObjectSize object_size)
+  requires(ConcreteVisitor::UsePrecomputedObjectSize())
+{
+  return Visit(map, object, MaybeObjectSize(object_size));
+}
+
+template <typename ConcreteVisitor>
+size_t HeapVisitor<ConcreteVisitor>::Visit(Tagged<Map> map,
+                                           Tagged<HeapObject> object,
                                            MaybeObjectSize maybe_object_size) {
   if constexpr (ConcreteVisitor::UsePrecomputedObjectSize()) {
     DCHECK_EQ(maybe_object_size.AssumeSize(), object->SizeFromMap(map));

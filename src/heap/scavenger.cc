@@ -507,10 +507,9 @@ class ObjectPinningVisitorBase : public RootVisitor {
         [object_address](ScavengerCollector::PinnedObjectEntry& entry) {
           return entry.address != object_address;
         }));
-    int object_size = object->SizeFromMap(map_word.ToMap());
-    DCHECK_LT(0, object_size);
-    pinned_objects_.push_back(
-        {object_address, map_word, static_cast<size_t>(object_size)});
+    const auto object_size = object->SafeSizeFromMap(map_word.ToMap());
+    DCHECK_LT(0, object_size.value());
+    pinned_objects_.push_back({object_address, map_word, object_size});
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
     if (!chunk->IsQuarantined()) {
       chunk->SetFlagNonExecutable(MemoryChunk::IS_QUARANTINED);
@@ -630,7 +629,7 @@ void RestorePinnedObjects(
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
     DCHECK(chunk->IsQuarantined());
     if (!chunk->IsFlagSet(MemoryChunk::WILL_BE_PROMOTED)) {
-      quarantined_objects_size += object_size;
+      quarantined_objects_size += object_size.value();
     }
   }
   new_space.SetQuarantinedSize(quarantined_objects_size);
@@ -707,7 +706,7 @@ void ScavengerCollector::QuarantinedPageSweeper::JobTask::Run(
                           [entry](auto& object_and_size) {
                             return object_and_size.first == entry.address;
                           }));
-      objects_for_page.emplace_back(entry.address, entry.size);
+      objects_for_page.emplace_back(entry.address, entry.size.value());
     }
     // Initialize the iterator.
     next_page_iterator_ = pinned_object_per_page_.begin();
@@ -1144,8 +1143,9 @@ Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
   DCHECK(!heap->incremental_marking()->IsMarking());
 }
 
-void Scavenger::IterateAndScavengePromotedObject(Tagged<HeapObject> target,
-                                                 Tagged<Map> map, int size) {
+void Scavenger::IterateAndScavengePromotedObject(
+    Tagged<HeapObject> target, Tagged<Map> map,
+    SafeHeapObjectSize object_size) {
   // We are not collecting slots on new space objects during mutation thus we
   // have to scan for pointers to evacuation candidates when we promote
   // objects. But we should not record any slots in non-black objects. Grey
@@ -1155,7 +1155,7 @@ void Scavenger::IterateAndScavengePromotedObject(Tagged<HeapObject> target,
   IterateAndScavengePromotedObjectsVisitor visitor(this);
 
   // Iterate all outgoing pointers including map word.
-  visitor.Visit(map, target, size);
+  visitor.Visit(map, target, object_size);
 
   if (IsJSArrayBufferMap(map)) {
     DCHECK(!MemoryChunk::FromHeapObject(target)->IsLargePage());
@@ -1419,7 +1419,7 @@ void Scavenger::CheckOldToNewSlotForSharedTyped(
 
 bool Scavenger::PromoteIfLargeObject(Tagged<HeapObject> object) {
   Tagged<Map> map = object->map();
-  return HandleLargeObject(map, object, object->SizeFromMap(map),
+  return HandleLargeObject(map, object, object->SafeSizeFromMap(map),
                            Map::ObjectFieldsFrom(map->visitor_id()));
 }
 
@@ -1428,7 +1428,7 @@ void Scavenger::PinAndPushObject(MemoryChunk* chunk, Tagged<HeapObject> object,
   DCHECK(chunk->Metadata()->Contains(object->address()));
   DCHECK_EQ(map_word, object->map_word(kRelaxedLoad));
   Tagged<Map> map = map_word.ToMap();
-  int object_size = object->SizeFromMap(map);
+  const auto object_size = object->SafeSizeFromMap(map);
   PretenuringHandler::UpdateAllocationSite(heap_, map, object, object_size,
                                            &local_pretenuring_feedback_);
   object->set_map_word_forwarded(object, kRelaxedStore);
@@ -1442,23 +1442,24 @@ void Scavenger::PinAndPushObject(MemoryChunk* chunk, Tagged<HeapObject> object,
 }
 
 void Scavenger::PushPinnedObject(Tagged<HeapObject> object, Tagged<Map> map,
-                                 int object_size) {
+                                 SafeHeapObjectSize object_size) {
   DCHECK(HeapLayout::IsSelfForwarded(object));
   DCHECK(!MemoryChunk::FromHeapObject(object)->IsFlagSet(
       MemoryChunk::WILL_BE_PROMOTED));
-  DCHECK_EQ(object_size, object->SizeFromMap(map));
+  DCHECK_EQ(object_size.value(), object->SafeSizeFromMap(map).value());
   local_pinned_list_.Push(ObjectAndMap(object, map));
-  copied_size_ += object_size;
+  copied_size_ += object_size.value();
 }
 
 void Scavenger::PushPinnedPromotedObject(Tagged<HeapObject> object,
-                                         Tagged<Map> map, int object_size) {
+                                         Tagged<Map> map,
+                                         SafeHeapObjectSize object_size) {
   DCHECK(HeapLayout::IsSelfForwarded(object));
   DCHECK(MemoryChunk::FromHeapObject(object)->IsFlagSet(
       MemoryChunk::WILL_BE_PROMOTED));
-  DCHECK_EQ(object_size, object->SizeFromMap(map));
+  DCHECK_EQ(object_size.value(), object->SafeSizeFromMap(map).value());
   local_promoted_list_.Push({object, map, object_size});
-  promoted_size_ += object_size;
+  promoted_size_ += object_size.value();
 }
 
 void Scavenger::VisitPinnedObjects() {

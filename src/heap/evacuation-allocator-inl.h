@@ -40,6 +40,14 @@ AllocationResult EvacuationAllocator::Allocate(AllocationSpace space,
   }
 }
 
+AllocationResult EvacuationAllocator::Allocate(AllocationSpace space,
+                                               SafeHeapObjectSize object_size,
+                                               AllocationAlignment alignment) {
+  // TODO(425150995): We should have uint versions for allocation to avoid
+  // introducing OOBs via sign-extended ints along the way.
+  return Allocate(space, object_size.value(), alignment);
+}
+
 }  // namespace internal
 }  // namespace v8
 

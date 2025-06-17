@@ -29,6 +29,10 @@ class MaybeObjectSize final {
     DCHECK_GT(size, 0);
   }
 
+  explicit MaybeObjectSize(SafeHeapObjectSize size) : raw_size_(size.value()) {
+    DCHECK_GT(size.value(), 0);
+  }
+
   MaybeObjectSize() : raw_size_(0) {}
 
   size_t AssumeSize() const {
@@ -207,6 +211,9 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
 
   V8_INLINE size_t Visit(Tagged<Map> map, Tagged<HeapObject> object,
                          int object_size)
+    requires(ConcreteVisitor::UsePrecomputedObjectSize());
+  V8_INLINE size_t Visit(Tagged<Map> map, Tagged<HeapObject> object,
+                         SafeHeapObjectSize object_size)
     requires(ConcreteVisitor::UsePrecomputedObjectSize());
 
  protected:

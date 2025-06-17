@@ -47,7 +47,8 @@ void Scavenger::SynchronizePageAccess(Tagged<MaybeObject> object) const {
 }
 
 bool Scavenger::MigrateObject(Tagged<Map> map, Tagged<HeapObject> source,
-                              Tagged<HeapObject> target, int size,
+                              Tagged<HeapObject> target,
+                              SafeHeapObjectSize size,
                               PromotionHeapChoice promotion_heap_choice) {
   // This CAS can be relaxed because we do not access the object body if the
   // object was already copied by another thread. We only access the page header
@@ -65,10 +66,13 @@ bool Scavenger::MigrateObject(Tagged<Map> map, Tagged<HeapObject> source,
   // memory ordering for the CAS above.
   target->set_map_word(map, kRelaxedStore);
   heap()->CopyBlock(target.address() + kTaggedSize,
-                    source.address() + kTaggedSize, size - kTaggedSize);
+                    source.address() + kTaggedSize,
+                    static_cast<size_t>(size.value() - kTaggedSize));
 
   if (V8_UNLIKELY(is_logging_)) {
-    heap()->OnMoveEvent(source, target, size);
+    // TODO(425150995): We should have uint versions for allocation to avoid
+    // introducing OOBs via sign-extended ints along the way.
+    heap()->OnMoveEvent(source, target, size.value());
   }
 
   PretenuringHandler::UpdateAllocationSite(heap_, map, source, size,
@@ -80,7 +84,7 @@ bool Scavenger::MigrateObject(Tagged<Map> map, Tagged<HeapObject> source,
 template <typename THeapObjectSlot>
 CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
     Tagged<Map> map, THeapObjectSlot slot, Tagged<HeapObject> object,
-    int object_size, ObjectFields object_fields) {
+    SafeHeapObjectSize object_size, ObjectFields object_fields) {
   static_assert(std::is_same_v<THeapObjectSlot, FullHeapObjectSlot> ||
                     std::is_same_v<THeapObjectSlot, HeapObjectSlot>,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
@@ -108,7 +112,7 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
     if (object_fields == ObjectFields::kMaybePointers) {
       local_copied_list_.Push(target);
     }
-    copied_size_ += object_size;
+    copied_size_ += object_size.value();
     return CopyAndForwardResult::SUCCESS_YOUNG_GENERATION;
   }
   return CopyAndForwardResult::FAILURE;
@@ -119,12 +123,13 @@ template <typename THeapObjectSlot,
 CopyAndForwardResult Scavenger::PromoteObject(Tagged<Map> map,
                                               THeapObjectSlot slot,
                                               Tagged<HeapObject> object,
-                                              int object_size,
+                                              SafeHeapObjectSize object_size,
                                               ObjectFields object_fields) {
   static_assert(std::is_same_v<THeapObjectSlot, FullHeapObjectSlot> ||
                     std::is_same_v<THeapObjectSlot, HeapObjectSlot>,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
-  DCHECK_GE(object_size, Heap::kMinObjectSizeInTaggedWords * kTaggedSize);
+  DCHECK_GE(object_size.value(),
+            Heap::kMinObjectSizeInTaggedWords * kTaggedSize);
   AllocationSpace target_space =
       promotion_heap_choice == kPromoteIntoLocalHeap ? OLD_SPACE : SHARED_SPACE;
   AllocationAlignment alignment =
@@ -153,7 +158,7 @@ CopyAndForwardResult Scavenger::PromoteObject(Tagged<Map> map,
     if (object_fields == ObjectFields::kMaybePointers) {
       local_promoted_list_.Push({target, map, object_size});
     }
-    promoted_size_ += object_size;
+    promoted_size_ += object_size.value();
     return CopyAndForwardResult::SUCCESS_OLD_GENERATION;
   }
   return CopyAndForwardResult::FAILURE;
@@ -167,7 +172,8 @@ SlotCallbackResult Scavenger::RememberedSetEntryNeeded(
 }
 
 bool Scavenger::HandleLargeObject(Tagged<Map> map, Tagged<HeapObject> object,
-                                  int object_size, ObjectFields object_fields) {
+                                  SafeHeapObjectSize object_size,
+                                  ObjectFields object_fields) {
   // Quick check first: A large object is the first (and only) object on a data
   // page (code pages have a different offset but are never young). This check
   // avoids the page flag access.
@@ -187,7 +193,7 @@ bool Scavenger::HandleLargeObject(Tagged<Map> map, Tagged<HeapObject> object,
   if (object->relaxed_compare_and_swap_map_word_forwarded(MapWord::FromMap(map),
                                                           object)) {
     local_surviving_new_large_objects_.insert({object, map});
-    promoted_size_ += object_size;
+    promoted_size_ += object_size.value();
     if (object_fields == ObjectFields::kMaybePointers) {
       local_promoted_list_.Push({object, map, object_size});
     }
@@ -199,18 +205,18 @@ template <typename THeapObjectSlot,
           Scavenger::PromotionHeapChoice promotion_heap_choice>
 SlotCallbackResult Scavenger::EvacuateObjectDefault(
     Tagged<Map> map, THeapObjectSlot slot, Tagged<HeapObject> object,
-    int object_size, ObjectFields object_fields) {
+    SafeHeapObjectSize object_size, ObjectFields object_fields) {
   static_assert(std::is_same_v<THeapObjectSlot, FullHeapObjectSlot> ||
                     std::is_same_v<THeapObjectSlot, HeapObjectSlot>,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
-  SLOW_DCHECK(object->SizeFromMap(map) == object_size);
+  SLOW_DCHECK(object->SafeSizeFromMap(map).value() == object_size.value());
   CopyAndForwardResult result;
 
   if (HandleLargeObject(map, object, object_size, object_fields)) {
     return REMOVE_SLOT;
   }
 
-  SLOW_DCHECK(static_cast<size_t>(object_size) <=
+  SLOW_DCHECK(static_cast<size_t>(object_size.value()) <=
               MemoryChunkLayout::AllocatableMemoryInDataPage());
 
   if (!heap()->semi_space_new_space()->ShouldBePromoted(object.address())) {
@@ -242,10 +248,9 @@ SlotCallbackResult Scavenger::EvacuateObjectDefault(
 }
 
 template <typename THeapObjectSlot>
-SlotCallbackResult Scavenger::EvacuateThinString(Tagged<Map> map,
-                                                 THeapObjectSlot slot,
-                                                 Tagged<ThinString> object,
-                                                 int object_size) {
+SlotCallbackResult Scavenger::EvacuateThinString(
+    Tagged<Map> map, THeapObjectSlot slot, Tagged<ThinString> object,
+    SafeHeapObjectSize object_size) {
   static_assert(std::is_same_v<THeapObjectSlot, FullHeapObjectSlot> ||
                     std::is_same_v<THeapObjectSlot, HeapObjectSlot>,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
@@ -270,7 +275,7 @@ SlotCallbackResult Scavenger::EvacuateThinString(Tagged<Map> map,
 template <typename THeapObjectSlot>
 SlotCallbackResult Scavenger::EvacuateShortcutCandidate(
     Tagged<Map> map, THeapObjectSlot slot, Tagged<ConsString> object,
-    int object_size) {
+    SafeHeapObjectSize object_size) {
   static_assert(std::is_same_v<THeapObjectSlot, FullHeapObjectSlot> ||
                     std::is_same_v<THeapObjectSlot, HeapObjectSlot>,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
@@ -298,7 +303,7 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(
     }
     Tagged<Map> first_map = first_word.ToMap();
     SlotCallbackResult result = EvacuateObjectDefault(
-        first_map, slot, first, first->SizeFromMap(first_map),
+        first_map, slot, first, first->SafeSizeFromMap(first_map),
         Map::ObjectFieldsFrom(first_map->visitor_id()));
     object->set_map_word_forwarded(slot.ToHeapObject(), kRelaxedStore);
     return result;
@@ -312,7 +317,7 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(
 template <typename THeapObjectSlot>
 SlotCallbackResult Scavenger::EvacuateInPlaceInternalizableString(
     Tagged<Map> map, THeapObjectSlot slot, Tagged<String> object,
-    int object_size, ObjectFields object_fields) {
+    SafeHeapObjectSize object_size, ObjectFields object_fields) {
   DCHECK(String::IsInPlaceInternalizable(map->instance_type()));
   DCHECK_EQ(object_fields, Map::ObjectFieldsFrom(map->visitor_id()));
   if (shared_string_table_) {
@@ -331,7 +336,7 @@ SlotCallbackResult Scavenger::EvacuateObject(THeapObjectSlot slot,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   SLOW_DCHECK(Heap::InFromPage(source));
   SLOW_DCHECK(!MapWord::FromMap(map).IsForwardingAddress());
-  int size = source->SizeFromMap(map);
+  const auto size = source->SafeSizeFromMap(map);
   // Cannot use ::cast() below because that would add checks in debug mode
   // that require re-reading the map.
   VisitorId visitor_id = map->visitor_id();
@@ -580,7 +585,7 @@ size_t ScavengeVisitor::VisitEphemeronHashTable(
     VisitPointer(table, value_slot);
   }
 
-  return table->SizeFromMap(map);
+  return table->SafeSizeFromMap(map).value();
 }
 
 }  // namespace internal

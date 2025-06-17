@@ -1940,6 +1940,10 @@ int HeapObjectLayout::SizeFromMap(Tagged<Map> map) const {
   return Tagged<HeapObject>(this)->SizeFromMap(map);
 }
 
+SafeHeapObjectSize HeapObjectLayout::SafeSizeFromMap(Tagged<Map> map) const {
+  return Tagged<HeapObject>(this)->SafeSizeFromMap(map);
+}
+
 int HeapObject::SizeFromMap(Tagged<Map> map) const {
   int instance_size = map->instance_size();
   if (instance_size != kVariableSizeSentinel) return instance_size;
@@ -2091,6 +2095,14 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
         UncheckedCast<EmbedderDataArray>(*this)->length());
   }
   UNREACHABLE();
+}
+
+SafeHeapObjectSize HeapObject::SafeSizeFromMap(Tagged<Map> map) const {
+  const int unsafe_size = SizeFromMap(map);
+  // The uint32_t cast may convert a negative number into any index within 4G.
+  // Subsequently converting this size to other unsigned sizes is safe as
+  // there's just extensions with zeros.
+  return SafeHeapObjectSize(static_cast<uint32_t>(unsafe_size));
 }
 
 bool HeapObject::NeedsRehashing(PtrComprCageBase cage_base) const {

@@ -51,6 +51,17 @@ void PretenuringHandler::UpdateAllocationSite(
 }
 
 // static
+void PretenuringHandler::UpdateAllocationSite(
+    Heap* heap, Tagged<Map> map, Tagged<HeapObject> object,
+    SafeHeapObjectSize object_size,
+    PretenuringFeedbackMap* pretenuring_feedback) {
+  // TODO(425150995): We should have uint versions for allocation to avoid
+  // introducing OOBs via sign-extended ints along the way.
+  UpdateAllocationSite(heap, map, object, object_size.value(),
+                       pretenuring_feedback);
+}
+
+// static
 template <PretenuringHandler::FindMementoMode mode>
 Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
     Heap* heap, Tagged<Map> map, Tagged<HeapObject> object) {
