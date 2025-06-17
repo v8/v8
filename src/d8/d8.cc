@@ -2177,15 +2177,21 @@ void Shell::PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void Shell::PerformanceMark(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
+  PerIsolateData* data = PerIsolateData::Get(isolate);
   Local<Context> context = isolate->GetCurrentContext();
 
   if (info.Length() < 1 || !info[0]->IsString()) {
-    ThrowError(info.GetIsolate(), "Invalid 'name' argument");
+    ThrowError(isolate, "Invalid 'name' argument");
     return;
   }
   Local<String> name = info[0].As<String>();
-
   double timestamp = GetTimestamp();
+
+  {
+    String::Utf8Value utf8_name(isolate, name);
+    data->performance_mark_map_[*utf8_name] = timestamp;
+  }
+
   Local<Object> performance_entry = Object::New(isolate);
   performance_entry
       ->DefineOwnProperty(context,
@@ -2216,6 +2222,24 @@ void Shell::PerformanceMark(const v8::FunctionCallbackInfo<v8::Value>& info) {
 #endif
 }
 
+bool Shell::LookupPerformanceMark(Isolate* isolate, v8::Local<String> name,
+                                  double* result) {
+  String::Utf8Value utf8_name(isolate, name);
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  if ((data->performance_mark_map_).find(*utf8_name) !=
+      (data->performance_mark_map_).end()) {
+    *result = (data->performance_mark_map_)[*utf8_name];
+    return true;
+  }
+  std::ostringstream msg;
+  msg << "Invalid performance.mark \"";
+  msg << (*utf8_name) << "\" does not exist";
+  ThrowError(isolate, msg.str());
+  return false;
+}
+
+// performance.measure() records and returns a PerformanceEntry with a duration
+// since a given mark, or since zero.
 void Shell::PerformanceMeasure(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
@@ -2223,25 +2247,48 @@ void Shell::PerformanceMeasure(
   Local<Context> context = isolate->GetCurrentContext();
 
   if (info.Length() < 1 || !info[0]->IsString()) {
-    ThrowError(info.GetIsolate(), "Invalid 'name' argument");
+    ThrowError(isolate, "Invalid 'name' argument");
     return;
   }
-  v8::Local<String> name = info[0].As<String>();
 
+  v8::Local<String> name = info[0].As<String>();
   double start_timestamp = 0;
-  if (info.Length() >= 2) {
+  double end_timestamp = GetTimestamp();
+
 #ifdef V8_OS_LINUX
-    if (options.scope_linux_perf_to_mark_measure) {
-      SendPerfControlCommand("disable");
-    }
+  if (options.scope_linux_perf_to_mark_measure) {
+    SendPerfControlCommand("disable");
+  }
 #endif
 
-    Local<Value> start_mark = info[1].As<Value>();
-    if (!start_mark->IsObject()) {
-      ThrowError(info.GetIsolate(),
-                 "Invalid 'startMark' argument: Not an Object");
+  Local<Value> start_mark = info[1].As<Value>();
+  if (start_mark->IsString()) {
+    if (!LookupPerformanceMark(isolate, start_mark.As<String>(),
+                               &start_timestamp)) {
       return;
     }
+    if (info.Length() == 3) {
+      Local<Value> end_mark = info[2].As<Value>();
+      if (!end_mark->IsString()) {
+        ThrowError(isolate, "Expect string as end mark.");
+        return;
+      } else if (!LookupPerformanceMark(isolate, end_mark.As<String>(),
+                                        &end_timestamp)) {
+        return;
+      }
+    }
+  } else if (start_mark->IsUndefined()) {
+    // Just use the default start_timestamp = 0;
+  } else if (!start_mark->IsObject()) {
+    ThrowError(isolate, "Invalid 'startMark' argument: Not an Object");
+    return;
+  } else if (info.Length() > 2) {
+    ThrowError(isolate, "Too many arguments");
+    return;
+  } else {
+    // Legacy d8 behavior, not spec-compliant, because we expect a
+    // PerformanceMark-like object here, not the measureOptions argument
+    // as per the spec.
     Local<Value> start_time_field;
     if (!start_mark.As<Object>()
              ->Get(context, String::NewFromUtf8Literal(isolate, "startTime"))
@@ -2249,18 +2296,13 @@ void Shell::PerformanceMeasure(
       return;
     }
     if (!start_time_field->IsNumber()) {
-      ThrowError(info.GetIsolate(),
+      ThrowError(isolate,
                  "Invalid 'startMark' argument: No numeric 'startTime' field");
       return;
     }
     start_timestamp = start_time_field.As<Number>()->Value();
   }
-  if (info.Length() > 2) {
-    ThrowError(info.GetIsolate(), "Too many arguments");
-    return;
-  }
 
-  double end_timestamp = GetTimestamp();
   if (options.trace_enabled) {
     size_t hash = base::hash_combine(name->GetIdentityHash(), start_timestamp,
                                      end_timestamp);
