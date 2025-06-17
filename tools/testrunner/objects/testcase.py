@@ -621,7 +621,8 @@ class TestCase(object):
       for resource in self._get_resources_for_file(next_resource):
         # Only add files that exist on disc. The pattens we check for give some
         # false positives otherwise.
-        if resource not in result and resource.exists():
+        if (resource not in result and resource.exists() and
+            not resource.is_dir()):
           to_check.append(resource)
     return sorted(list(result))
 

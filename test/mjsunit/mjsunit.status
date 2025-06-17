@@ -1528,9 +1528,6 @@
   # Segfault, probably due to an uncaught stack overflow.
   # See chromium:419744840.
   'regress/regress-408820921': [SKIP],
-  # Importing a directory URL.
-  # See https://crbug.com/424836763
-  'regress/regress-crbug-422706696': [SKIP],
 }],  # 'system == android'
 
 ##############################################################################
