@@ -271,21 +271,38 @@ void Int32Divide::GenerateCode(MaglevAssembler* masm,
   Register left = ToRegister(left_input());
   Register right = ToRegister(right_input());
   Register out = ToRegister(result());
+  ZoneLabelRef do_division(masm), done(masm);
 
   // TODO(leszeks): peephole optimise division by a constant.
 
-  Label done, is_zero;
-  __ CmpU32(right, Operand(0));
-  __ beq(&is_zero);
+  __ CmpS32(right, Operand(0));
+  __ JumpToDeferredIf(
+      le,
+      [](MaglevAssembler* masm, ZoneLabelRef do_division, ZoneLabelRef done,
+         Register right, Register left, Register out) {
+        Label right_is_neg;
+        // Truncated value of anything divided by 0 is 0.
+        __ bne(&right_is_neg);
+        __ mov(out, Operand::Zero());
+        __ b(*done);
 
+        // Return -left if right = -1.
+        // This avoids a hardware exception if left = INT32_MIN.
+        // Int32Divide returns a truncated value and according to
+        // ecma262#sec-toint32, the truncated value of INT32_MIN
+        // is INT32_MIN.
+        __ bind(&right_is_neg);
+        __ CmpS32(right, Operand(-1));
+        __ bne(*do_division);
+        __ lcr(out, left);
+        __ b(*done);
+      },
+      do_division, done, right, left, out);
+
+  __ bind(*do_division);
   __ DivS32(out, left, right);
+  __ bind(*done);
   __ LoadS32(out, out);
-  __ b(&done);
-
-  __ bind(&is_zero);
-  __ Move(out, 0);
-
-  __ bind(&done);
 }
 
 void Int32AddWithOverflow::SetValueLocationConstraints() {
