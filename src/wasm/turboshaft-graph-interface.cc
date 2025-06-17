@@ -4410,7 +4410,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     // the register pressure will likely be too high.
 #ifdef V8_TARGET_ARCH_64_BIT
     DCHECK_IMPLIES(!size.op.valid(), __ generating_unreachable_operations());
-    if ((v8_flags.wasm_memcpy_inlining) &&
+    if ((v8_flags.wasm_bulkmem_inlining) &&
         !__ generating_unreachable_operations()) {
       static constexpr uint32_t kMaxInlineBytes = 112;
       if (SupportedOperations::HasFullUnalignedSupport()) {
@@ -4453,22 +4453,102 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     __ TrapIfNot(result, TrapId::kTrapMemOutOfBounds);
   }
 
+  void InlineMemFill(const WasmMemory* memory, V<WordPtr> offset,
+                     const V<Word32> value, V<WordPtr> size_op,
+                     int32_t bytes_to_copy) {
+    // Bounds check the write to memory.
+    V<WordPtr> mem_size = MemSize(memory->index);
+    V<WordPtr> offset_limit = __ WordPtrSub(mem_size, size_op);
+    __ TrapIfNot(
+        __ Word32BitwiseAnd(__ UintPtrLessThanOrEqual(offset, offset_limit),
+                            __ UintPtrLessThanOrEqual(size_op, mem_size)),
+        TrapId::kTrapMemOutOfBounds);
+
+    // We've performed the bounds check above.
+    constexpr auto strategy = compiler::BoundsCheckResult::kDynamicallyChecked;
+
+    // Calculate the effective address of dst.
+    V<WordPtr> mem_start = MemStart(memory->index);
+    V<WordPtr> dst_base = __ WordPtrAdd(mem_start, offset);
+
+    // Build the value to store in both a simd register and scalar.
+    OpIndex scalar_val = __ Word32BitwiseAnd(value, 0xFF);
+    scalar_val =
+        __ Word32BitwiseOr(__ Word32ShiftLeft(scalar_val, 8), scalar_val);
+    scalar_val =
+        __ Word32BitwiseOr(__ Word32ShiftLeft(scalar_val, 16), scalar_val);
+
+    OpIndex simd_val =
+        CpuFeatures::SupportsWasmSimd128()
+            ? __ Simd128Splat(
+                  value, compiler::turboshaft::Simd128SplatOp::Kind::kI8x16)
+            : OpIndex::Invalid();
+
+    // Use Simd128 if possible and for the vast bulk of the work.
+    base::SmallVector<MemoryRepresentation, 4> memory_reps;
+    if (CpuFeatures::SupportsWasmSimd128()) {
+      memory_reps = base::SmallVector<MemoryRepresentation, 4>(
+          {MemoryRepresentation::Simd128(), MemoryRepresentation::Uint32(),
+           MemoryRepresentation::Uint16(), MemoryRepresentation::Uint8()});
+    } else {
+      memory_reps = base::SmallVector<MemoryRepresentation, 4>(
+          {MemoryRepresentation::Uint32(), MemoryRepresentation::Uint16(),
+           MemoryRepresentation::Uint8()});
+    }
+
+    // Write to the destination.
+    int32_t store_bytes_remaining = bytes_to_copy;
+    int32_t store_offset = 0;
+    for (MemoryRepresentation mem_rep : memory_reps) {
+      StoreOp::Kind store_kind = GetMemoryAccessKind(mem_rep, strategy);
+      DCHECK_EQ(store_kind, StoreOp::Kind::RawAligned().NotLoadEliminable());
+      uint8_t bytes_per_store = mem_rep.SizeInBytes();
+      unsigned num_stores = store_bytes_remaining / mem_rep.SizeInBytes();
+      OpIndex val_to_store =
+          bytes_per_store == kSimd128Size ? simd_val : scalar_val;
+
+      for (unsigned i = 0; i < num_stores; ++i) {
+        __ Store(dst_base, OpIndex::Invalid(), val_to_store, store_kind,
+                 mem_rep, compiler::kNoWriteBarrier, store_offset);
+        store_offset += bytes_per_store;
+        store_bytes_remaining -= bytes_per_store;
+      }
+    }
+    DCHECK_EQ(store_bytes_remaining, 0);
+    DCHECK_EQ(store_offset, bytes_to_copy);
+  }
+
   void MemoryFill(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                   const Value& dst, const Value& value, const Value& size) {
     AddressType address_type = imm.memory->address_type;
-    V<WordPtr> dst_uintptr =
+    V<WordPtr> dst_offset =
         MemoryAddressToUintPtrOrOOBTrap(address_type, dst.op);
-    V<WordPtr> size_uintptr =
-        MemoryAddressToUintPtrOrOOBTrap(address_type, size.op);
+    V<WordPtr> size_op = MemoryAddressToUintPtrOrOOBTrap(address_type, size.op);
+
+    DCHECK_IMPLIES(!size.op.valid(), __ generating_unreachable_operations());
+    if ((v8_flags.wasm_bulkmem_inlining) &&
+        !__ generating_unreachable_operations()) {
+      static constexpr uint32_t kMaxInlineBytes = 144;
+      if (SupportedOperations::HasFullUnalignedSupport()) {
+        auto const_size =
+            __ output_graph().Get(size.op).template TryCast<ConstantOp>();
+        if (const_size && const_size->integral() <= kMaxInlineBytes) {
+          InlineMemFill(imm.memory, dst_offset, value.op, size_op,
+                        static_cast<int32_t>(const_size->integral()));
+          return;
+        }
+      }
+    }
+
     auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
                    .Params(MachineType::Pointer(), MachineType::Uint32(),
                            MachineType::UintPtr(), MachineType::Uint8(),
                            MachineType::UintPtr());
     // TODO(14616): Fix sharedness.
-    V<Word32> result = CallC(
-        &sig, ExternalReference::wasm_memory_fill(),
-        {__ BitcastHeapObjectToWordPtr(trusted_instance_data(false)),
-         __ Word32Constant(imm.index), dst_uintptr, value.op, size_uintptr});
+    V<Word32> result =
+        CallC(&sig, ExternalReference::wasm_memory_fill(),
+              {__ BitcastHeapObjectToWordPtr(trusted_instance_data(false)),
+               __ Word32Constant(imm.index), dst_offset, value.op, size_op});
 
     __ TrapIfNot(result, TrapId::kTrapMemOutOfBounds);
   }

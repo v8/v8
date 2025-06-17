@@ -1943,8 +1943,8 @@ DEFINE_BOOL(wasm_inlining_call_indirect, true,
 // disabled altogether.
 DEFINE_NEG_NEG_IMPLICATION(wasm_inlining, wasm_inlining_call_indirect)
 
-DEFINE_BOOL(wasm_memcpy_inlining, true,
-            "enable inline code generation for small memory.copy operations")
+DEFINE_BOOL(wasm_bulkmem_inlining, true,
+            "enable inline code generation for small bulk memory operations")
 DEFINE_BOOL(wasm_loop_unrolling, true,
             "enable loop unrolling for wasm functions")
 DEFINE_BOOL(wasm_loop_peeling, true, "enable loop peeling for wasm functions")
