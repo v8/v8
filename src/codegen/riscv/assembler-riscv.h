@@ -627,7 +627,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   friend class VectorUnit;
   class VectorUnit {
    public:
-    inline int32_t sew() const { return 2 ^ (sew_ + 3); }
+    inline int32_t sew() const { return 1 << (sew_ + 3); }
 
     inline int32_t vlmax() const {
       if ((lmul_ & 0b100) != 0) {
