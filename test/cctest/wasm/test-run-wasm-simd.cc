@@ -6885,7 +6885,6 @@ TEST(RunWasmTurbofan_ForcePackLoadZero) {
 
                WASM_SIMD_STORE_MEM_OFFSET(24, WASM_ZERO, WASM_LOCAL_GET(temp2)),
                WASM_SIMD_STORE_MEM_OFFSET(8, WASM_ZERO, WASM_LOCAL_GET(temp1)),
-
                WASM_ONE});
     }
 
@@ -6907,6 +6906,139 @@ TEST(RunWasmTurbofan_ForcePackLoadZero) {
         CHECK_EQ(memory[8], expected_padding);
       }
     }
+  }
+}
+
+TEST(RunWasmTurbofan_ForcePackInputWithSideEffect) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  int8_t* memory = r.builder().AddMemoryElems<int8_t>(48);
+  r.builder().SetMemoryShared();
+
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmI32);
+  uint8_t temp4 = r.AllocateLocal(kWasmS128);
+  uint8_t temp5 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(),
+        TSSimd256VerifyScope::VerifyHaveOpcode<
+            compiler::turboshaft::Opcode::kSimdPack128To256>,
+        ExpectedResult::kFail);
+
+    // Use I16x8SConvertI8x16Low for the force packing and test revectorization
+    // failed due to side effect in the input tree.
+    r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+             WASM_LOCAL_SET(
+                 temp2,
+                 WASM_SIMD_UNOP(
+                     kExprI16x8Abs,
+                     WASM_SIMD_UNOP(kExprI16x8Neg,
+                                    WASM_SIMD_UNOP(kExprI16x8SConvertI8x16Low,
+                                                   WASM_LOCAL_GET(temp1))))),
+
+             WASM_LOCAL_SET(
+                 temp3, WASM_ATOMICS_LOAD_OP(kExprI32AtomicLoad,
+                                             WASM_I32V_3(kWasmPageSize),
+                                             MachineRepresentation::kWord32)),
+             WASM_LOCAL_SET(temp4, WASM_SIMD_SHIFT_OP(kExprI32x4ShrU,
+                                                      WASM_LOCAL_GET(temp1),
+                                                      WASM_LOCAL_GET(temp3))),
+             WASM_LOCAL_SET(
+                 temp5,
+                 WASM_SIMD_UNOP(
+                     kExprI16x8Abs,
+                     WASM_SIMD_UNOP(kExprI16x8Neg,
+                                    WASM_SIMD_UNOP(kExprI16x8SConvertI8x16Low,
+                                                   WASM_LOCAL_GET(temp4))))),
+             WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp2)),
+             WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                        WASM_LOCAL_GET(temp5)),
+             WASM_ONE});
+  }
+
+  FOR_INT8_INPUTS(x) {
+    for (int i = 0; i < 16; i++) {
+      r.builder().WriteMemory(&memory[i], x);
+    }
+    CHECK_TRAP(r.Call(0, 16));
+  }
+}
+
+TEST(RunWasmTurbofan_ForcePackWithForcePackedInputs) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+
+  WasmRunner<int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(4);
+  uint8_t param1 = 0;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  uint8_t temp4 = r.AllocateLocal(kWasmS128);
+
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimdPack128To256>);
+
+    // Force-pack temp4 with a I32x4ConvertI16x8Low node and reduced by
+    // I32x4Add. Build another SLP tree that will force-pack two
+    // I32x4SConvertI16x8Low nodes, one of which will use temp4 as an input.
+    r.Build(
+        {WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_SPLAT(WASM_I32V(1))),
+         WASM_LOCAL_SET(
+             temp2, WASM_SIMD_UNOP(
+                        kExprI32x4Neg,
+                        WASM_SIMD_UNOP(
+                            kExprS128Not,
+                            WASM_SIMD_UNOP(
+                                kExprI32x4Abs,
+                                WASM_SIMD_UNOP(
+                                    kExprI32x4Neg,
+                                    WASM_SIMD_UNOP(kExprI32x4SConvertI16x8Low,
+                                                   WASM_LOCAL_GET(temp1))))))),
+         WASM_LOCAL_SET(temp3, WASM_SIMD_I16x8_SPLAT(WASM_I32V(2))),
+         WASM_LOCAL_SET(temp4, WASM_SIMD_UNOP(kExprI32x4SConvertI16x8Low,
+                                              WASM_LOCAL_GET(temp1))),
+         WASM_LOCAL_SET(
+             temp3, WASM_SIMD_BINOP(kExprI32x4Add, WASM_LOCAL_GET(temp4),
+                                    WASM_SIMD_UNOP(kExprI32x4SConvertI16x8Low,
+                                                   WASM_LOCAL_GET(temp3)))),
+         WASM_LOCAL_SET(
+             temp4, WASM_SIMD_UNOP(
+                        kExprI32x4Neg,
+                        WASM_SIMD_UNOP(
+                            kExprS128Not,
+                            WASM_SIMD_UNOP(
+                                kExprI32x4Abs,
+                                WASM_SIMD_UNOP(
+                                    kExprI32x4Neg,
+                                    WASM_SIMD_UNOP(kExprI32x4SConvertI16x8Low,
+                                                   WASM_LOCAL_GET(temp4))))))),
+         WASM_LOCAL_SET(
+             temp3, WASM_SIMD_BINOP(
+                        kExprI32x4Add,
+                        WASM_SIMD_BINOP(kExprI32x4Add, WASM_LOCAL_GET(temp2),
+                                        WASM_LOCAL_GET(temp4)),
+                        WASM_LOCAL_GET(temp3))),
+         WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param1), WASM_LOCAL_GET(temp3)),
+         WASM_ONE});
+  }
+
+  r.Call(0);
+  auto func = [](int32_t a) { return -(~std::abs(-a)); };
+  int32_t expected_signed[2] = {func(1) + func(1) + (1 + 2),
+                                func(1) + func(0) + (1 + 2)};
+  for (int i = 0; i < 4; i++) {
+    CHECK_EQ(expected_signed[i % 2], memory[i]);
   }
 }
 

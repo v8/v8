@@ -291,7 +291,28 @@ void SLPTree::Print(const char* info) {
           node_to_intersect_packnodes_);
 }
 
+bool SLPTree::HasReorderInput(const NodeGroup& node_group) {
+  // The force-packing nodes can be reordered as input in other SLPTree, but not
+  // the current one.
+  if (analyzer_->HasReorderInput(node_group[0]) ||
+      analyzer_->HasReorderInput(node_group[1])) {
+    return true;
+  }
+
+  return false;
+}
+
 bool SLPTree::HasInputDependencies(const NodeGroup& node_group) {
+  // When reduce force-packing nodes, some of the inputs need to be reduced
+  // earlier. It's possible that these inputs are force-packing nodes themselves
+  // which breaks the assumption that node with smaller index in ForcePackNode
+  // will be visited earlier. Since such pattern is rare in real-life, we will
+  // not allow the reordering inputs to be force-packed.
+  if (HasReorderInput(node_group)) {
+    TRACE("NodeGroup has force-pack inputs.\n");
+    return true;
+  }
+
   DCHECK_EQ(node_group.size(), 2);
   if (node_group[0] == node_group[1]) return false;
   OpIndex start, end;
@@ -304,6 +325,8 @@ bool SLPTree::HasInputDependencies(const NodeGroup& node_group) {
   }
   // Do BFS from the end node and see if there is a path to the start node.
   ZoneQueue<OpIndex> to_visit(phase_zone_);
+  ZoneUnorderedSet<OpIndex>& inputs_set = analyzer_->GetSharedOpIndexSet();
+  DCHECK(inputs_set.empty());
   to_visit.push(end);
   while (!to_visit.empty()) {
     OpIndex to_visit_node = to_visit.front();
@@ -313,12 +336,24 @@ bool SLPTree::HasInputDependencies(const NodeGroup& node_group) {
       if (input == start) {
         return true;
       } else if (input > start) {
+        // Check side effect from input to start's previous node to simplify
+        // reducing of force-packing nodes.
+        OpIndex start_prev = graph().PreviousIndex(start);
+        DCHECK(start_prev.valid());
+        if (!IsSideEffectFree(start_prev, input)) {
+          return true;
+        }
+
         // We should ensure that there is no back edge.
         DCHECK_LT(input, to_visit_node);
         to_visit.push(input);
+        inputs_set.insert(input);
       }
     }
   }
+
+  reorder_inputs_.merge(inputs_set);
+  inputs_set.clear();
   return false;
 }
 
@@ -338,6 +373,7 @@ PackNode* SLPTree::NewForcePackNode(const NodeGroup& node_group,
                                     const Graph& graph) {
   // Currently we only support force packing two nodes.
   DCHECK_EQ(node_group.size(), 2);
+
   // We should guarantee that the one node in the NodeGroup does not rely on the
   // result of the other. Because it is costly to force pack such candidates.
   // For example, we have four nodes {A, B, C, D} which are connected by input
@@ -817,13 +853,31 @@ bool SLPTree::TryMatchExtendIntToF32x4(const NodeGroup& node_group,
   return true;
 }
 
+OpEffects RefineEffects(Operation& op) {
+  OpEffects effects = op.Effects();
+  const WordBinopOp* word_binop = op.template TryCast<WordBinopOp>();
+  if (word_binop &&
+      (word_binop->kind == WordBinopOp::Kind::kAdd ||
+       word_binop->kind == WordBinopOp::Kind::kMul ||
+       word_binop->kind == WordBinopOp::Kind::kSignedMulOverflownBits ||
+       word_binop->kind == WordBinopOp::Kind::kUnsignedMulOverflownBits ||
+       word_binop->kind == WordBinopOp::Kind::kBitwiseAnd ||
+       word_binop->kind == WordBinopOp::Kind::kBitwiseOr ||
+       word_binop->kind == WordBinopOp::Kind::kBitwiseXor ||
+       word_binop->kind == WordBinopOp::Kind::kSub)) {
+    // WordBinop consumes control flow effect to avoid division by 0.
+    effects.consumes.control_flow = false;
+  }
+  return effects;
+}
+
 bool SLPTree::IsSideEffectFree(OpIndex first, OpIndex second) {
   DCHECK_LE(first.offset(), second.offset());
   if (first == second) return true;
-  OpEffects effects = graph().Get(second).Effects();
+  const OpEffects effects = RefineEffects(graph().Get(second));
   OpIndex prev_node = graph().PreviousIndex(second);
   while (prev_node != first) {
-    OpEffects prev_effects = graph().Get(prev_node).Effects();
+    const OpEffects prev_effects = RefineEffects(graph().Get(prev_node));
     if ((graph().Get(second).IsProtectedLoad() &&
          graph().Get(prev_node).IsProtectedLoad())
             ? CannotSwapProtectedLoads(prev_effects, effects)
@@ -1359,6 +1413,7 @@ void WasmRevecAnalyzer::MergeSLPTree(SLPTree& slp_tree) {
   }
 
   revectorizable_node_.merge(slp_tree.GetNodeMapping());
+  reorder_inputs_.merge(slp_tree.GetReorderInputs());
 }
 
 bool WasmRevecAnalyzer::IsSupportedReduceSeed(const Operation& op) {
@@ -1481,6 +1536,7 @@ void WasmRevecAnalyzer::Run() {
   if (!DecideVectorize()) {
     revectorizable_node_.clear();
     revectorizable_intersect_node_.clear();
+    reorder_inputs_.clear();
   } else {
     should_reduce_ = true;
     Print("Decide to vectorize");

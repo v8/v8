@@ -497,6 +497,7 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
   ZoneUnorderedMap<OpIndex, ZoneVector<PackNode*>>& GetIntersectNodeMapping() {
     return node_to_intersect_packnodes_;
   }
+  ZoneUnorderedSet<OpIndex>& GetReorderInputs() { return reorder_inputs_; }
 
   void Print(const char* info);
 
@@ -568,6 +569,7 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
   bool IsEqual(const OpIndex node0, const OpIndex node1);
   // Check if the nodes in the node_group depend on the result of each other.
   bool HasInputDependencies(const NodeGroup& node_group);
+  bool HasReorderInput(const NodeGroup& node_group);
 
   Graph& graph() const { return graph_; }
   Zone* zone() const { return phase_zone_; }
@@ -580,6 +582,7 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
   ZoneUnorderedMap<OpIndex, PackNode*> node_to_packnode_;
   // Maps a node to multiple IntersectPackNodes.
   ZoneUnorderedMap<OpIndex, ZoneVector<PackNode*>> node_to_intersect_packnodes_;
+  ZoneUnorderedSet<OpIndex> reorder_inputs_{phase_zone_};
   static constexpr size_t RecursionMaxDepth = 1000;
 };
 
@@ -637,6 +640,10 @@ class WasmRevecAnalyzer {
     return use_map_->uses(node);
   }
 
+  bool HasReorderInput(OpIndex node) { return reorder_inputs_.contains(node); }
+
+  ZoneUnorderedSet<OpIndex>& GetSharedOpIndexSet() { return shared_set_; }
+
  private:
   bool IsSupportedReduceSeed(const Operation& op);
   void ProcessBlock(const Block& block);
@@ -654,6 +661,9 @@ class WasmRevecAnalyzer {
       revectorizable_intersect_node_;
   bool should_reduce_;
   Simd128UseMap* use_map_;
+  ZoneUnorderedSet<OpIndex> reorder_inputs_{phase_zone_};
+  // Used as a local hash-set, always clear before use.
+  ZoneUnorderedSet<OpIndex> shared_set_{phase_zone_};
 };
 
 template <class Next>
@@ -1153,13 +1163,14 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
     // bigger than the cur_index. The traversal is done in a DFS manner
     // to make sure all inputs are emitted before the use.
     const Block* current_input_block = Asm().current_input_block();
-    std::stack<OpIndex> inputs;
-    ZoneUnorderedSet<OpIndex> visited(Asm().phase_zone());
-    inputs.push(op_index);
+    std::stack<OpIndex, base::SmallVector<OpIndex, 8>> inputs;
+    ZoneUnorderedSet<OpIndex>& visited = analyzer_.GetSharedOpIndexSet();
+    DCHECK(visited.empty());
 
+    inputs.push(op_index);
     while (!inputs.empty()) {
       OpIndex idx = inputs.top();
-      if (visited.find(idx) != visited.end()) {
+      if (visited.contains(idx)) {
         inputs.pop();
         continue;
       }
@@ -1167,7 +1178,7 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
       const Operation& op = __ input_graph().Get(idx);
       bool has_unvisited_inputs = false;
       for (OpIndex input : op.inputs()) {
-        if (input > cur_index && visited.find(input) == visited.end()) {
+        if (input > cur_index && !visited.contains(input)) {
           inputs.push(input);
           has_unvisited_inputs = true;
         }
@@ -1184,12 +1195,14 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
         Asm().template VisitOpAndUpdateMapping<false>(idx, current_input_block);
       }
     }
+
+    visited.clear();
   }
 
   template <typename Op, typename Continuation>
   void ReduceForceOrIntersectPackNode(PackNode* pnode, const OpIndex ig_index,
                                       OpIndex* og_index) {
-    std::array<OpIndex, 2> v;
+    std::array<OpIndex, 2> og_inputs;
     DCHECK_EQ(pnode->nodes().size(), 2);
     // The operation order in pnode is determined by the store or reduce
     // seed when build the SLPTree. It is not quaranteed to align with
@@ -1200,30 +1213,30 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
     for (int i = 0; i < static_cast<int>(pnode->nodes().size()); i++) {
       OpIndex cur_index = pnode->nodes()[i];
       if ((*og_index).valid() && cur_index == ig_index) {
-        v[i] = *og_index;
+        og_inputs[i] = *og_index;
       } else {
         // The current index maybe already reduced by the IntersectPackNode.
-        v[i] = __ template MapToNewGraph<true>(cur_index);
+        og_inputs[i] = __ template MapToNewGraph<true>(cur_index);
       }
 
-      if (v[i].valid()) continue;
+      if (og_inputs[i].valid()) continue;
 
       if (cur_index != ig_index) {
         ReduceInputsOfOp(ig_index, cur_index);
       }
       const Op& op = Asm().input_graph().Get(cur_index).template Cast<Op>();
-      v[i] = Continuation{this}.ReduceInputGraph(cur_index, op);
+      og_inputs[i] = Continuation{this}.ReduceInputGraph(cur_index, op);
 
       if (cur_index == ig_index) {
-        *og_index = v[i];
+        *og_index = og_inputs[i];
       } else {
         // We have to create the mapping as cur_index may exist in other
         // IntersectPackNode and reduce again.
-        __ CreateOldToNewMapping(cur_index, v[i]);
+        __ CreateOldToNewMapping(cur_index, og_inputs[i]);
       }
     }
 
-    OpIndex revec_index = __ SimdPack128To256(v[0], v[1]);
+    OpIndex revec_index = __ SimdPack128To256(og_inputs[0], og_inputs[1]);
     pnode->SetRevectorizedNode(revec_index);
   }
 
