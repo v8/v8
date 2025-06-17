@@ -3945,11 +3945,21 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::Int32Divide* node,
                                 const maglev::ProcessingState& state) {
+    // TODO(victorgomes): Since ARM and X64 treat this differently, maybe
+    // Turbolev should lowered this div much later.
     V<Word32> lhs = Map(node->left_input());
     V<Word32> rhs = Map(node->right_input());
     ScopedVar<Word32, AssemblerT> result(this);
     IF (UNLIKELY(__ Word32Equal(rhs, 0))) {
+      // Truncated value of anything divided by 0 is 0.
       result = __ Word32Constant(0);
+    } ELSE IF (UNLIKELY(__ Word32Equal(rhs, -1))) {
+      // Return -left if right = -1.
+      // This avoids a hardware exception if left = INT32_MIN.
+      // Int32Divide returns a truncated value and according to
+      // ecma262#sec-toint32, the truncated value of INT32_MIN
+      // is INT32_MIN.
+      result = __ Word32Sub(0, lhs);
     } ELSE {
       result = __ Int32Div(lhs, rhs);
     }

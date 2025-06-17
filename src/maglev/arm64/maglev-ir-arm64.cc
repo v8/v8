@@ -314,16 +314,10 @@ void Int32Divide::GenerateCode(MaglevAssembler* masm,
 
   // TODO(leszeks): peephole optimise division by a constant.
 
-  Label done, is_zero;
-  __ CompareAndBranch(right, Immediate(0), eq, &is_zero);
-
+  // On ARM, integer division does not trap on overflow or division by zero.
+  // - Division by zero returns 0.
+  // - Signed overflow (INT_MIN / -1) returns INT_MIN.
   __ Sdiv(out, left, right);
-  __ B(&done);
-
-  __ Bind(&is_zero);
-  __ Move(out, 0);
-
-  __ Bind(&done);
 }
 
 void Int32AddWithOverflow::SetValueLocationConstraints() {

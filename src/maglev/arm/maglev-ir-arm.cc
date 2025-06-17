@@ -254,19 +254,44 @@ void Int32Divide::GenerateCode(MaglevAssembler* masm,
 
   // TODO(leszeks): peephole optimise division by a constant.
 
-  Label done, is_zero;
-  __ cmp(right, Operand(0));
-  __ b(eq, &is_zero);
-
   if (CpuFeatures::IsSupported(SUDIV)) {
     CpuFeatureScope scope(masm, SUDIV);
+    // On ARM, integer division does not trap on overflow or division by zero.
+    // - Division by zero returns 0.
+    // - Signed overflow (INT_MIN / -1) returns INT_MIN.
     __ sdiv(out, left, right);
   } else {
+    ZoneLabelRef do_division(masm), done(masm);
+    __ cmp(right, Operand(0));
+    __ JumpToDeferredIf(
+        le,
+        [](MaglevAssembler* masm, ZoneLabelRef do_division, ZoneLabelRef done,
+           Register left, Register right, Register out) {
+          Label right_is_neg;
+          // Truncated value of anything divided by 0 is 0.
+          __ b(ne, &right_is_neg);
+          __ Move(out, 0);
+          __ b(*done);
+
+          // Return -left if right = -1.
+          // This avoids a hardware exception if left = INT32_MIN.
+          // Int32Divide returns a truncated value and according to
+          // ecma262#sec-toint32, the truncated value of INT32_MIN
+          // is INT32_MIN.
+          __ bind(&right_is_neg);
+          __ cmp(right, Operand(-1));
+          __ b(ne, *do_division);
+          __ rsb(out, left, Operand(0));
+          __ b(*done);
+        },
+        do_division, done, left, right, out);
+
     UseScratchRegisterScope temps(masm);
     LowDwVfpRegister double_right = temps.AcquireLowD();
     SwVfpRegister tmp = double_right.low();
     DwVfpRegister double_left = temps.AcquireD();
     DwVfpRegister double_res = double_left;
+    __ bind(*do_division);
     __ vmov(tmp, left);
     __ vcvt_f64_s32(double_left, tmp);
     __ vmov(tmp, right);
@@ -274,13 +299,9 @@ void Int32Divide::GenerateCode(MaglevAssembler* masm,
     __ vdiv(double_res, double_left, double_right);
     __ vcvt_s32_f64(tmp, double_res);
     __ vmov(out, tmp);
+
+    __ bind(*done);
   }
-  __ b(&done);
-
-  __ bind(&is_zero);
-  __ Move(out, 0);
-
-  __ bind(&done);
 }
 
 void Int32AddWithOverflow::SetValueLocationConstraints() {

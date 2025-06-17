@@ -9,6 +9,7 @@
 #include "src/codegen/x64/register-x64.h"
 #include "src/common/globals.h"
 #include "src/maglev/maglev-assembler-inl.h"
+#include "src/maglev/maglev-assembler.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir-inl.h"
@@ -268,24 +269,40 @@ void Int32Divide::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
   Register left = ToRegister(left_input());
   Register right = ToRegister(right_input());
+  ZoneLabelRef do_division(masm), done(masm);
 
   // TODO(leszeks): peephole optimise division by a constant.
 
-  Label done, is_zero;
-  // Truncated value for anything divided by 0 is 0.
-  __ testl(right, right);
-  __ j(equal, &is_zero);
-
   __ movl(rax, left);
+  __ testl(right, right);
+  __ JumpToDeferredIf(
+      less_equal,
+      [](MaglevAssembler* masm, ZoneLabelRef do_division, ZoneLabelRef done,
+         Register right) {
+        Label right_is_neg;
+        // Truncated value of anything divided by 0 is 0.
+        __ j(not_equal, &right_is_neg);
+        __ xorl(rax, rax);
+        __ jmp(*done);
+
+        // Return -left if right = -1.
+        // This avoids a hardware exception if left = INT32_MIN.
+        // Int32Divide returns a truncated value and according to
+        // ecma262#sec-toint32, the truncated value of INT32_MIN
+        // is INT32_MIN.
+        __ bind(&right_is_neg);
+        __ cmpl(right, Immediate(-1));
+        __ j(not_equal, *do_division);
+        __ negl(rax);
+        __ jmp(*done);
+      },
+      do_division, done, right);
+
+  __ bind(*do_division);
   __ cdq();  // Sign extend eax into edx.
   __ idivl(right);
-  __ jmp(&done);
 
-  __ bind(&is_zero);
-  __ xorl(rax, rax);
-  __ jmp(&done);
-
-  __ bind(&done);
+  __ bind(*done);
 }
 
 void Int32AddWithOverflow::SetValueLocationConstraints() {
