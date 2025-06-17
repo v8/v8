@@ -250,7 +250,7 @@ class PropertyCallbackInfo {
    *
    * \note For security reasons, do not pass the object back into the runtime.
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "V8 will stop providing access to hidden prototype (i.e. "
       "JSGlobalObject). Use HolderV2() instead. \n"
       "DO NOT try to workaround this by accessing JSGlobalObject via "
