@@ -5403,6 +5403,7 @@ std::optional<ArchOpcode> TryMapCanonicalShuffleToArch(
   constexpr static auto arch_shuffles = std::to_array<CanonicalToArch>({
       {CanonicalShuffle::kS64x2Even, kArm64S64x2UnzipLeft},
       {CanonicalShuffle::kS64x2Odd, kArm64S64x2UnzipRight},
+      {CanonicalShuffle::kS64x2Reverse, kArm64S64x2Reverse},
       {CanonicalShuffle::kS64x2ReverseBytes, kArm64S8x8Reverse},
       {CanonicalShuffle::kS32x4Even, kArm64S32x4UnzipLeft},
       {CanonicalShuffle::kS32x4Odd, kArm64S32x4UnzipRight},
@@ -5542,15 +5543,21 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
     return;
   }
   std::array<uint8_t, 2> shuffle64x2;
+  int index = 0;
   if (wasm::SimdShuffle::TryMatch64x2Shuffle(shuffle.data(),
                                              shuffle64x2.data())) {
-    Emit(kArm64S64x2Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
-         g.UseRegister(input1),
-         g.UseImmediate(wasm::SimdShuffle::Pack2Lanes(shuffle64x2)));
+    if (wasm::SimdShuffle::TryMatchSplat<2>(shuffle.data(), &index)) {
+      DCHECK_GT(2, index);
+      Emit(kArm64S128Dup, g.DefineAsRegister(node), g.UseRegister(input0),
+           g.UseImmediate(2), g.UseImmediate(index % 2));
+    } else {
+      Emit(kArm64S64x2Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
+           g.UseRegister(input1),
+           g.UseImmediate(wasm::SimdShuffle::Pack2Lanes(shuffle64x2)));
+    }
     return;
   }
   uint8_t shuffle32x4[4];
-  int index = 0;
   uint8_t from = 0;
   uint8_t to = 0;
   if (wasm::SimdShuffle::TryMatch32x4Shuffle(shuffle.data(), shuffle32x4)) {

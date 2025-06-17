@@ -3102,6 +3102,32 @@ TEST_P(TurboshaftInstructionSelectorSimdF64x2MulWithDupTest, MulWithDup) {
   }
 }
 
+INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
+                         TurboshaftInstructionSelectorSimdF64x2MulWithDupTest,
+                         ::testing::ValuesIn(kSIMDF64x2MulDuplInstructions));
+
+TEST_F(TurboshaftInstructionSelectorTest, SimdF64x2MulWithDupNegativeTest) {
+  const MachineType type = MachineType::Simd128();
+  // Check that optimization does not match when the shuffle is not a f64x2.dup.
+  const uint8_t mask[kSimd128Size] = {0};
+  {
+    StreamBuilder m(this, type, type, type, type);
+    OpIndex shuffle = m.Simd128Shuffle(m.Parameter(0), m.Parameter(1),
+                                       Simd128ShuffleOp::Kind::kI8x16, mask);
+    m.Return(m.F64x2Mul(m.Parameter(2), shuffle));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    // The shuffle is an i8x16.dup of lane 0.
+    EXPECT_EQ(kArm64S128Dup, s[0]->arch_opcode());
+    EXPECT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(kArm64FMul, s[1]->arch_opcode());
+    EXPECT_EQ(64, LaneSizeField::decode(s[1]->opcode()));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(2U, s[1]->InputCount());
+    EXPECT_EQ(1U, s[1]->OutputCount());
+  }
+}
+
 TEST_F(TurboshaftInstructionSelectorTest, CanonicalShuffleTest) {
   using ShuffleMap =
       std::unordered_map<ArchOpcode, const std::array<uint8_t, kSimd128Size>>;
@@ -3310,31 +3336,99 @@ TEST_F(TurboshaftInstructionSelectorTest, UnzipShuffle64x2Test) {
   }
 }
 
-INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
-                         TurboshaftInstructionSelectorSimdF64x2MulWithDupTest,
-                         ::testing::ValuesIn(kSIMDF64x2MulDuplInstructions));
-
-TEST_F(TurboshaftInstructionSelectorTest, SimdF64x2MulWithDupNegativeTest) {
+TEST_F(TurboshaftInstructionSelectorTest, ReverseShuffle64x2Test) {
   const MachineType type = MachineType::Simd128();
-  // Check that optimization does not match when the shuffle is not a f64x2.dup.
-  const uint8_t mask[kSimd128Size] = {0};
   {
-    StreamBuilder m(this, type, type, type, type);
-    OpIndex shuffle = m.Simd128Shuffle(m.Parameter(0), m.Parameter(1),
-                                       Simd128ShuffleOp::Kind::kI8x16, mask);
-    m.Return(m.F64x2Mul(m.Parameter(2), shuffle));
+    const uint8_t shuffle[] = {8, 9, 10, 11, 12, 13, 14, 15,
+                               0, 1, 2,  3,  4,  5,  6,  7};
+    StreamBuilder m(this, type, type, type);
+    m.Return(m.Simd128Shuffle(m.Parameter(0), m.Parameter(1),
+                              Simd128ShuffleOp::Kind::kI8x16, shuffle));
     Stream s = m.Build();
-    ASSERT_EQ(2U, s.size());
-    // The shuffle is an i8x16.dup of lane 0.
-    EXPECT_EQ(kArm64S128Dup, s[0]->arch_opcode());
-    EXPECT_EQ(3U, s[0]->InputCount());
-    EXPECT_EQ(kArm64FMul, s[1]->arch_opcode());
-    EXPECT_EQ(64, LaneSizeField::decode(s[1]->opcode()));
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64S64x2Reverse, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(1)));
     EXPECT_EQ(1U, s[0]->OutputCount());
-    EXPECT_EQ(2U, s[1]->InputCount());
-    EXPECT_EQ(1U, s[1]->OutputCount());
+  }
+  {
+    const uint8_t shuffle[] = {24, 25, 26, 27, 28, 29, 30, 31,
+                               16, 17, 18, 19, 20, 21, 22, 23};
+    StreamBuilder m(this, type, type, type);
+    m.Return(m.Simd128Shuffle(m.Parameter(0), m.Parameter(1),
+                              Simd128ShuffleOp::Kind::kI8x16, shuffle));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64S64x2Reverse, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
   }
 }
+
+namespace {
+
+struct SIMDDupInst {
+  const uint8_t shuffle[16];
+  int32_t lane;
+  int shuffle_input_index;
+};
+
+std::ostream& operator<<(std::ostream& os, const SIMDDupInst& inst) {
+  return os << "kArm64S128Dup { lane" << inst.lane << ", input "
+            << inst.shuffle_input_index << " }";
+}
+
+}  // namespace
+
+const SIMDDupInst kSIMDS64x2DupInstructions[] = {
+    {
+        {0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
+        0,
+        0,
+    },
+    {
+        {8, 9, 10, 11, 12, 13, 14, 15, 8, 9, 10, 11, 12, 13, 14, 15},
+        1,
+        0,
+    },
+    {
+        {16, 17, 18, 19, 20, 21, 22, 23, 16, 17, 18, 19, 20, 21, 22, 23},
+        0,
+        1,
+    },
+    {
+        {24, 25, 26, 27, 28, 29, 30, 31, 24, 25, 26, 27, 28, 29, 30, 31},
+        1,
+        1,
+    }};
+
+using TurboshaftInstructionSelectorSimdS64x2DupTest =
+    TurboshaftInstructionSelectorTestWithParam<SIMDDupInst>;
+
+TEST_P(TurboshaftInstructionSelectorSimdS64x2DupTest, SimdS64x2Dup) {
+  const SIMDDupInst param = GetParam();
+  const MachineType type = MachineType::Simd128();
+  {
+    StreamBuilder m(this, type, type, type);
+    m.Return(m.Simd128Shuffle(m.Parameter(0), m.Parameter(1),
+                              Simd128ShuffleOp::Kind::kI8x16, param.shuffle));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64S128Dup, s[0]->arch_opcode());
+    EXPECT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(param.lane, s.ToInt32(s[0]->InputAt(2)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(m.Parameter(param.shuffle_input_index)),
+              s.ToVreg(s[0]->InputAt(0)));
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
+                         TurboshaftInstructionSelectorSimdS64x2DupTest,
+                         ::testing::ValuesIn(kSIMDS64x2DupInstructions));
 
 TEST_F(TurboshaftInstructionSelectorTest, OneLaneSwizzle32x4Test) {
   const MachineType type = MachineType::Simd128();
