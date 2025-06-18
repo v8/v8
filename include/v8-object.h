@@ -665,6 +665,19 @@ class V8_EXPORT Object : public Value {
                              const BasicTracedReference<Object>& wrapper,
                              Wrappable* wrappable, CppHeapPointerTag tag);
 
+  // Version of Wrap() function for v8::Context::Global() objects.
+  // Unlike the functions above it wraps both JSGlobalProxy and its hidden
+  // prototype (JSGlobalObject or remote object).
+  static void WrapGlobal(v8::Isolate* isolate,
+                         const v8::Local<v8::Object>& wrapper,
+                         Wrappable* wrappable, CppHeapPointerTag tag);
+
+  // Checks that wrappables set on JSGlobalProxy and its hidden prototype are
+  // the same.
+  static bool CheckGlobalWrappable(v8::Isolate* isolate,
+                                   const v8::Local<v8::Object>& wrapper,
+                                   CppHeapPointerTagRange tag_range);
+
   /**
    * HasOwnProperty() is like JavaScript's
    * Object.prototype.hasOwnProperty().

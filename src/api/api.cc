@@ -6328,6 +6328,69 @@ void v8::Object::Wrap(v8::Isolate* isolate, i::Address wrapper_obj,
                            tag);
 }
 
+namespace {
+
+// Checks that given prototype is a valid hidden prototype of JSGlobalProxy.
+// It must be either JSGlobalObject or remote object.
+void CheckPrototypeIsGlobalObjectOrRemoteObject(
+    i::Tagged<i::JSPrototype> prototype) {
+  CHECK(i::IsJSSpecialObject(prototype));
+  auto prototype_obj = i::Cast<i::JSSpecialObject>(prototype);
+  CHECK(i::IsJSGlobalObject(prototype_obj) ||
+        i::IsNull(prototype_obj->map()->map()->native_context_or_null()));
+}
+
+}  // namespace
+
+// static
+void v8::Object::WrapGlobal(v8::Isolate* isolate,
+                            const v8::Local<v8::Object>& wrapper,
+                            Wrappable* wrappable, CppHeapPointerTag tag) {
+  auto global_proxy = i::Cast<i::JSObject>(
+      i::Tagged<i::Object>(internal::ValueHelper::ValueAsAddress(*wrapper)));
+  CHECK(i::IsJSGlobalProxy(global_proxy));
+
+  auto prototype = global_proxy->map()->prototype();
+  CheckPrototypeIsGlobalObjectOrRemoteObject(prototype);
+
+  i::CppHeapObjectWrapper(global_proxy)
+      .SetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate), wrappable,
+                           tag);
+  i::CppHeapObjectWrapper(i::Cast<i::JSObject>(prototype))
+      .SetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate), wrappable,
+                           tag);
+}
+
+// static
+bool v8::Object::CheckGlobalWrappable(v8::Isolate* isolate,
+                                      const v8::Local<v8::Object>& wrapper,
+                                      CppHeapPointerTagRange tag_range) {
+  auto global_proxy = i::Cast<i::JSObject>(
+      i::Tagged<i::Object>(internal::ValueHelper::ValueAsAddress(*wrapper)));
+  Utils::ApiCheck(i::IsJSGlobalProxy(global_proxy),
+                  "v8::Object::CheckGlobalWrappable",
+                  "Bad object provided, expecting JSGlobalProxy");
+
+  auto prototype = global_proxy->map()->prototype();
+  CheckPrototypeIsGlobalObjectOrRemoteObject(prototype);
+
+  void* global_proxy_wrappable =
+      i::CppHeapObjectWrapper(global_proxy)
+          .GetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate),
+                               tag_range);
+
+  void* hidden_prototype_wrappable =
+      i::CppHeapObjectWrapper(i::Cast<i::JSObject>(prototype))
+          .GetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate),
+                               tag_range);
+
+  Utils::ApiCheck(
+      global_proxy_wrappable == hidden_prototype_wrappable,
+      "v8::Object::CheckGlobalWrappable",
+      "Global object's wrappable is not equal hidden prototype's wrappable");
+  return true;
+}
+
 // --- E n v i r o n m e n t ---
 
 void v8::V8::InitializePlatform(Platform* platform) {
