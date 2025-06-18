@@ -37,9 +37,136 @@ class LateLoadEliminationReducerTest : public ReducerTest {
       : ReducerTest(),
         flag_load_elimination_(&v8_flags.turboshaft_load_elimination, true) {}
 
+  void StoreToObject(
+      TestInstance& Asm, V<HeapObject> object, V<WordPtr> offset, V<Any> value,
+      MemoryRepresentation memory_rep,
+      WriteBarrierKind write_barrier_kind = WriteBarrierKind::kNoWriteBarrier,
+      bool initializing_transitioning = false) {
+    __ Store(object, offset, value, StoreOp::Kind::TaggedBase(), memory_rep,
+             write_barrier_kind, kHeapObjectTag, initializing_transitioning);
+  }
+
+  template <typename T = Any>
+  V<T> LoadFromObject(TestInstance& Asm, V<HeapObject> object,
+                      V<WordPtr> offset, MemoryRepresentation memory_rep) {
+    return __ Load(object, offset, LoadOp::Kind::TaggedBase(), memory_rep,
+                   kHeapObjectTag);
+  }
+
+  template <typename T>
+  TestInstance CreateSimpleStoreLoadTest(MemoryRepresentation store_rep,
+                                         MemoryRepresentation load_rep) {
+    std::initializer_list<RegisterRepresentation> parameter_types{
+        RegisterRepresentation::Tagged(), v_traits<T>::rep};
+    return CreateFromGraph(base::VectorOf(parameter_types), [&](auto& Asm) {
+      V<HeapObject> object = V<HeapObject>::Cast(Asm.GetParameter(0));
+      V<WordPtr> offset = __ WordPtrConstant(5);
+      V<T> C(value) = Asm.template GetParameter<T>(1);
+
+      StoreToObject(Asm, object, offset, value, store_rep);
+      V<Word32> C(load) = LoadFromObject<Word32>(Asm, object, offset, load_rep);
+
+      __ Return(load);
+    });
+  }
+
  private:
   const FlagScope<bool> flag_load_elimination_;
 };
+
+TEST_F(LateLoadEliminationReducerTest, Store_Int32_Load_Int32) {
+  auto test = CreateSimpleStoreLoadTest<Word32>(MemoryRepresentation::Int32(),
+                                                MemoryRepresentation::Int32());
+
+  test.Run<LateLoadEliminationReducer>();
+
+  const ReturnOp* ret = test.graph()
+                            .Get(test.graph().LastOperation())
+                            .template TryCast<ReturnOp>();
+  ASSERT_NE(nullptr, ret);
+  ASSERT_EQ(1U, ret->return_values().size());
+  OpIndex ret_val = ret->return_values()[0];
+
+  ASSERT_TRUE(test.GetCapture("value").Is(ret_val));
+  ASSERT_TRUE(test.GetCapture("load").IsEmpty());
+}
+
+TEST_F(LateLoadEliminationReducerTest, Store_Int64_Load_Int64) {
+  auto test = CreateSimpleStoreLoadTest<Word64>(MemoryRepresentation::Int64(),
+                                                MemoryRepresentation::Int64());
+
+  test.Run<LateLoadEliminationReducer>();
+
+  const ReturnOp* ret = test.graph()
+                            .Get(test.graph().LastOperation())
+                            .template TryCast<ReturnOp>();
+  ASSERT_NE(nullptr, ret);
+  ASSERT_EQ(1U, ret->return_values().size());
+  OpIndex ret_val = ret->return_values()[0];
+
+  ASSERT_TRUE(test.GetCapture("value").Is(ret_val));
+  ASSERT_TRUE(test.GetCapture("load").IsEmpty());
+}
+
+// TODO(nicohartmann): This needs to be supported by LLE.
+#if 0
+TEST_F(LateLoadEliminationReducerTest, Store_Int64_Load_Int32) {
+  auto test = CreateSimpleStoreLoadTest<Word64>(MemoryRepresentation::Int64(),
+                                                MemoryRepresentation::Int32());
+
+  test.Run<LateLoadEliminationReducer>();
+
+  const ReturnOp* ret = test.graph()
+                            .Get(test.graph().LastOperation())
+                            .template TryCast<ReturnOp>();
+  ASSERT_NE(nullptr, ret);
+  ASSERT_EQ(1U, ret->return_values().size());
+
+  const Operation& ret_val_op = test.graph().Get(ret->return_values()[0]);
+  ASSERT_TRUE(ret_val_op.Is<Opmask::kTruncateWord64ToWord32>());
+
+  ASSERT_TRUE(test.GetCapture("value").Is(ret_val_op.input(0)));
+  ASSERT_TRUE(test.GetCapture("load").IsEmpty());
+}
+
+TEST_F(LateLoadEliminationReducerTest, Store_Int16_Load_Int16) {
+  auto test = CreateSimpleStoreLoadTest<Word32>(MemoryRepresentation::Int16(),
+                                                MemoryRepresentation::Int16());
+
+  test.Run<LateLoadEliminationReducer>();
+
+  const ReturnOp* ret = test.graph()
+                            .Get(test.graph().LastOperation())
+                            .template TryCast<ReturnOp>();
+  ASSERT_NE(nullptr, ret);
+  ASSERT_EQ(1U, ret->return_values().size());
+
+  const Operation& ret_val_op = test.graph().Get(ret->return_values()[0]);
+  ASSERT_TRUE(ret_val_op.Is<Opmask::kWord32ShiftRightArithmetic>());
+
+  ASSERT_TRUE(test.GetCapture("value").Is(ret_val_op.input(0)));
+  ASSERT_TRUE(test.GetCapture("load").IsEmpty());
+}
+
+TEST_F(LateLoadEliminationReducerTest, Store_Int16_Load_Uint8) {
+  auto test = CreateSimpleStoreLoadTest<Word32>(MemoryRepresentation::Int16(),
+                                                MemoryRepresentation::Uint8());
+
+  test.Run<LateLoadEliminationReducer>();
+
+  const ReturnOp* ret = test.graph()
+                            .Get(test.graph().LastOperation())
+                            .template TryCast<ReturnOp>();
+  ASSERT_NE(nullptr, ret);
+  ASSERT_EQ(1U, ret->return_values().size());
+
+  const Operation& ret_val_op = test.graph().Get(ret->return_values()[0]);
+  ASSERT_TRUE(ret_val_op.Is<Opmask::kWord32BitwiseAnd>());
+
+  ASSERT_TRUE(test.GetCapture("value").Is(ret_val_op.input(0)));
+  ASSERT_TRUE(test.GetCapture("load").IsEmpty());
+}
+#endif
 
 /* TruncateInt64ToInt32(
  *     BitcastTaggedToWordPtrForTagAndSmiBits(
