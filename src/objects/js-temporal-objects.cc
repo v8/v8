@@ -1698,11 +1698,60 @@ Maybe<temporal_rs::PartialTime> ToTemporalTimeRecord(
 
 // Returned by PrepareCalendarFields
 struct CombinedRecord {
-  temporal_rs::PartialDate date;
-  temporal_rs::PartialTime time;
+  temporal_rs::PartialDate date = kNullPartialDate;
+  temporal_rs::PartialTime time = kNullPartialTime;
   std::optional<std::string> offset;
   std::optional<std::unique_ptr<temporal_rs::TimeZone>> time_zone;
+
+  // For use in generic contexts
+  template <typename Ret>
+  Ret To() &&;
 };
+
+template <>
+temporal_rs::PartialDate CombinedRecord::To() && {
+  DCHECK(!offset.has_value() && !time_zone.has_value());
+  DCHECK(!time.hour.has_value() && !time.minute.has_value() &&
+         !time.second.has_value() && !time.millisecond.has_value() &&
+         !time.microsecond.has_value() && !time.nanosecond.has_value());
+  return std::move(date);
+}
+template <>
+temporal_rs::PartialTime CombinedRecord::To() && {
+  DCHECK(!offset.has_value() && !time_zone.has_value());
+  DCHECK(!date.year.has_value() && !date.month.has_value() &&
+         date.month_code == "" && !date.day.has_value() && date.era == "" &&
+         !date.era_year.has_value() &&
+         date.calendar == temporal_rs::AnyCalendarKind::Iso);
+
+  return std::move(time);
+}
+
+template <>
+temporal_rs::PartialDateTime CombinedRecord::To() && {
+  DCHECK(!offset.has_value() && !time_zone.has_value());
+  return temporal_rs::PartialDateTime{
+      .date = std::move(date),
+      .time = std::move(time),
+  };
+}
+
+template <>
+temporal_rs::PartialZonedDateTime CombinedRecord::To() && {
+  auto record = temporal_rs::PartialZonedDateTime{
+      .date = std::move(date),
+      .time = std::move(time),
+      .offset = std::nullopt,
+      .timezone = nullptr,
+  };
+  if (time_zone.has_value()) {
+    record.timezone = time_zone.value().get();
+  }
+  if (offset.has_value()) {
+    record.offset = offset.value();
+  }
+  return record;
+}
 
 // An object that "owns" values borrowed in CombinedRecord,
 // to be passed in to PrepareCalendarFields by a caller that
@@ -1888,12 +1937,7 @@ Maybe<CombinedRecord> PrepareCalendarFields(Isolate* isolate,
   bool calendarUsesEras = kind != temporal_rs::AnyCalendarKind::Iso;
 
   // 6. Let result be a Calendar Fields Record with all fields equal to unset.
-  CombinedRecord result = CombinedRecord{
-      .date = kNullPartialDate,
-      .time = kNullPartialTime,
-      .offset = std::nullopt,
-      .time_zone = std::nullopt,
-  };
+  CombinedRecord result;
 
   // This is not explicitly specced, but CombinedRecord contains the calendar
   // kind unlike the spec, and no caller of PrepareCalendarFields does anything
@@ -2335,12 +2379,7 @@ MaybeDirectHandle<JSTemporalPlainDate> ToTemporalDate(
       // e. Let fields be ?PrepareCalendarFields(calendar, item, « year, month,
       // month-code, day», «», «»).
       CombinedRecordOwnership owners;
-      CombinedRecord fields = CombinedRecord{
-          .date = kNullPartialDate,
-          .time = kNullPartialTime,
-          .offset = std::nullopt,
-          .time_zone = std::nullopt,
-      };
+      CombinedRecord fields;
 
       MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
           isolate, fields,
@@ -2361,7 +2400,7 @@ MaybeDirectHandle<JSTemporalPlainDate> ToTemporalDate(
     }
     DirectHandle<String> str = Cast<String>(item);
 
-    // Rest of the steps handled in Rust
+    // Rest of the steps handled in Rust.
 
     auto rust_result =
         HandleStringEncodings<TemporalAllocatedResult<temporal_rs::PlainDate>>(
@@ -2433,12 +2472,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
       // month-code, day», « hour, minute, second, millisecond, microsecond,
       // nanosecond», «»).
       CombinedRecordOwnership owners;
-      CombinedRecord fields = CombinedRecord{
-          .date = kNullPartialDate,
-          .time = kNullPartialTime,
-          .offset = std::nullopt,
-          .time_zone = std::nullopt,
-      };
+      CombinedRecord fields;
       using enum CalendarFieldsFlag;
       MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
           isolate, fields,
@@ -2446,8 +2480,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
                                 kAllDateFlags | kTimeFields,
                                 RequiredFields::kNone, owners),
           kNullMaybeHandle);
-      record.date = fields.date;
-      record.time = fields.time;
+      record = std::move(fields).To<temporal_rs::PartialDateTime>();
     }
 
     return ConstructRustWrappingType<JSTemporalPlainDateTime>(
@@ -2524,12 +2557,8 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
       // c. Let fields be ?PrepareCalendarFields(calendar, item, « year, month,
       // month-code», «», «»).
       CombinedRecordOwnership owners;
-      CombinedRecord fields = CombinedRecord{
-          .date = kNullPartialDate,
-          .time = kNullPartialTime,
-          .offset = std::nullopt,
-          .time_zone = std::nullopt,
-      };
+      CombinedRecord fields;
+      ;
 
       using enum CalendarFieldsFlag;
 
@@ -2640,12 +2669,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
       // month, month-code, day», « hour, minute, second, millisecond,
       // microsecond, nanosecond, offset, time-zone», « time-zone»).
       CombinedRecordOwnership owners;
-      CombinedRecord fields = CombinedRecord{
-          .date = kNullPartialDate,
-          .time = kNullPartialTime,
-          .offset = std::nullopt,
-          .time_zone = std::nullopt,
-      };
+      CombinedRecord fields;
       using enum CalendarFieldsFlag;
       MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
           isolate, fields,
@@ -2655,22 +2679,11 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
               RequiredFields::kTimeZone, owners),
           kNullMaybeHandle);
 
-      auto record = temporal_rs::PartialZonedDateTime{
-          .date = fields.date,
-          .time = fields.time,
-          .offset = std::nullopt,
-          .timezone = nullptr,
-      };
-      if (fields.time_zone.has_value()) {
-        record.timezone = fields.time_zone.value().get();
-      }
-      if (fields.offset.has_value()) {
-        record.offset = fields.offset.value();
-      }
-
       return ConstructRustWrappingType<JSTemporalZonedDateTime>(
-          isolate, temporal_rs::ZonedDateTime::from_partial(
-                       record, overflow, disambiguation, offset_option));
+          isolate,
+          temporal_rs::ZonedDateTime::from_partial(
+              std::move(fields).To<temporal_rs::PartialZonedDateTime>(),
+              overflow, disambiguation, offset_option));
     }
 
   } else {
@@ -2680,13 +2693,13 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
     }
     DirectHandle<String> str = Cast<String>(item);
 
-    // Default value from GetTemporalDisambiguationOption
+    // Default value from GetTemporalDisambiguationOption.
     auto disambiguation_defaulted =
         disambiguation.value_or(temporal_rs::Disambiguation::Compatible);
     auto offset_defaulted =
         offset_option.value_or(temporal_rs::OffsetDisambiguation::Reject);
 
-    // Rest of the steps handled in Rust
+    // Rest of the steps handled in Rust.
 
     auto rust_result = HandleStringEncodings<
         TemporalAllocatedResult<temporal_rs::ZonedDateTime>>(
@@ -2756,12 +2769,7 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
       // c. Let fields be ?PrepareCalendarFields(calendar, item, « year, month,
       // month-code, day», «», «»).
       CombinedRecordOwnership owners;
-      CombinedRecord fields = CombinedRecord{
-          .date = kNullPartialDate,
-          .time = kNullPartialTime,
-          .offset = std::nullopt,
-          .time_zone = std::nullopt,
-      };
+      CombinedRecord fields;
 
       using enum CalendarFieldsFlag;
 
@@ -3012,12 +3020,7 @@ Maybe<OwnedRelativeTo> GetTemporalRelativeToOptionHandleUndefined(
     // month-code, day », « hour, minute, second, millisecond, microsecond,
     // nanosecond, offset, time-zone », «»).
     CombinedRecordOwnership owners;
-    CombinedRecord fields = CombinedRecord{
-        .date = kNullPartialDate,
-        .time = kNullPartialTime,
-        .offset = std::nullopt,
-        .time_zone = std::nullopt,
-    };
+    CombinedRecord fields;
 
     using enum CalendarFieldsFlag;
     MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
@@ -3235,6 +3238,139 @@ MaybeDirectHandle<JSType> AddDurationToGeneric(
 
   return ConstructRustWrappingType<JSType>(isolate, std::move(added));
 }
+// ====== .with() methods ======
+
+// Helper for GenericWith: extract relevant options from options_obj, call
+// .with() on Rust type.
+//
+// Steps 8 and later from
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.with
+template <typename JSType, typename PartialType>
+MaybeDirectHandle<JSType> GenericWithHelper(
+    Isolate* isolate, const typename JSType::RustType& rust_object,
+    CombinedRecord&& fields, DirectHandle<Object> options_obj,
+    const char* method_name) {
+  // 8. Let resolvedOptions be ? GetOptionsObject(options).
+  // 9. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+  temporal_rs::ArithmeticOverflow overflow;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow,
+      ToTemporalOverflowHandleUndefined(isolate, options_obj, method_name), {});
+
+  // Rest handled by Rust.
+  return ConstructRustWrappingType<JSType>(
+      isolate, rust_object.with(std::move(fields).To<PartialType>(), overflow));
+}
+
+// ZonedDateTime needs to extract extra options
+//
+// Steps 19 and later in
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.with
+template <>
+MaybeDirectHandle<JSTemporalZonedDateTime>
+GenericWithHelper<JSTemporalZonedDateTime, temporal_rs::PartialZonedDateTime>(
+    Isolate* isolate, const typename temporal_rs::ZonedDateTime& rust_object,
+    CombinedRecord&& fields, DirectHandle<Object> options_obj,
+    const char* method_name) {
+  // 19. Let resolvedOptions be ? GetOptionsObject(options).
+
+  // (Not explicitly needed since we use HandleUndefined methods)
+
+  temporal_rs::Disambiguation disambiguation;
+  temporal_rs::OffsetDisambiguation offset_option;
+  temporal_rs::ArithmeticOverflow overflow;
+
+  // 20. Let disambiguation be
+  // ? GetTemporalDisambiguationOption(resolvedOptions).
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, disambiguation,
+      temporal::GetTemporalDisambiguationOptionHandleUndefined(
+          isolate, options_obj, method_name),
+      kNullMaybeHandle);
+  // 21. Let offset be ? GetTemporalOffsetOption(resolvedOptions, prefer).
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, offset_option,
+      temporal::GetTemporalOffsetOptionHandleUndefined(
+          isolate, options_obj, temporal_rs::OffsetDisambiguation::Prefer,
+          method_name),
+      kNullMaybeHandle);
+  // 22. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow,
+      ToTemporalOverflowHandleUndefined(isolate, options_obj, method_name), {});
+
+  // Rest handled by Rust.
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(
+      isolate, rust_object.with(
+                   std::move(fields).To<temporal_rs::PartialZonedDateTime>(),
+                   disambiguation, offset_option, overflow));
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.with
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.with
+// https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.with
+// https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.with
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.with
+//
+// The function has comments for PlainDate, but the non-Rust-side code for the
+// others is identical.
+template <typename JSType, typename PartialType>
+MaybeDirectHandle<JSType> GenericWith(Isolate* isolate,
+                                      DirectHandle<JSType> this_obj,
+                                      DirectHandle<Object> temporal_like_obj,
+                                      DirectHandle<Object> options_obj,
+                                      CalendarFieldsFlags flags,
+                                      const char* method_name) {
+  // 1. Let temporalDate be the this value.
+  // 2. Perform ? RequireInternalSlot(temporalDate,
+  // [[InitializedTemporalDate]]).
+
+  // (handled by type system)
+
+  // 3. If ? IsPartialTemporalObject(temporalDateLike) is false, throw a
+  // TypeError exception.
+
+  bool is_partial = false;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, is_partial, IsPartialTemporalObject(isolate, temporal_like_obj),
+      kNullMaybeHandle);
+  if (!is_partial) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+  }
+  // IsPartialTemporalObject only returns true for valid JSReceivers.
+  auto options_recvr = Cast<JSReceiver>(temporal_like_obj);
+
+  auto& rust_object = this_obj->wrapped_rust();
+  // 4. Let calendar be temporalDate.[[Calendar]].
+  auto kind = rust_object.calendar().kind();
+
+  // 5. Let fields be ISODateToFields(calendar, temporalDate.[[ISODate]], date).
+
+  // (handled in Rust code, not observable)
+
+  // 6. Let partialDate be ? PrepareCalendarFields(calendar, temporalDateLike, «
+  // year, month, month-code, day », « », partial).
+
+  CombinedRecordOwnership owners;
+  CombinedRecord fields;
+
+  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      isolate, fields,
+      PrepareCalendarFields(isolate, kind, options_recvr, flags,
+                            RequiredFields::kPartial, owners),
+      kNullMaybeHandle);
+
+  // 7. Set fields to CalendarMergeFields(calendar, fields, partialDate).
+
+  // (handled in Rust code, not observable)
+
+  // Fetching options handled by GenericWithHelper.
+  // Remaining steps handled by Rust code called by GenericWithHelper.
+
+  return GenericWithHelper<JSType, PartialType>(
+      isolate, rust_object, std::move(fields), options_obj, method_name);
+}
+
 }  // namespace temporal
 
 // https://tc39.es/proposal-temporal/#sec-temporal.duration
@@ -3761,7 +3897,10 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::With(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> temporal_date_like_obj,
     DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.PlainDate.prototype.with";
+  return temporal::GenericWith<JSTemporalPlainDate, temporal_rs::PartialDate>(
+      isolate, temporal_date, temporal_date_like_obj, options_obj,
+      temporal::kAllDateFlags, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.withcalendar
@@ -4097,7 +4236,14 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::With(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> temporal_date_time_like_obj,
     DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.PlainDateTime.prototype.with";
+
+  using enum temporal::CalendarFieldsFlag;
+
+  return temporal::GenericWith<JSTemporalPlainDateTime,
+                               temporal_rs::PartialDateTime>(
+      isolate, date_time, temporal_date_time_like_obj, options_obj,
+      temporal::kAllDateFlags | kTimeFields, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.withcalendar
@@ -4397,7 +4543,14 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::With(
     Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> temporal_month_day,
     DirectHandle<Object> temporal_month_day_like_obj,
     DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.PlainYearMonth.prototype.with";
+
+  using enum temporal::CalendarFieldsFlag;
+
+  return temporal::GenericWith<JSTemporalPlainMonthDay,
+                               temporal_rs::PartialDate>(
+      isolate, temporal_month_day, temporal_month_day_like_obj, options_obj,
+      kDay | kMonthFields, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.toplaindate
@@ -4642,7 +4795,14 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::With(
     DirectHandle<JSTemporalPlainYearMonth> temporal_year_month,
     DirectHandle<Object> temporal_year_month_like_obj,
     DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.PlainYearMonth.prototype.with";
+
+  using enum temporal::CalendarFieldsFlag;
+
+  return temporal::GenericWith<JSTemporalPlainYearMonth,
+                               temporal_rs::PartialDate>(
+      isolate, temporal_year_month, temporal_year_month_like_obj, options_obj,
+      kYearFields | kMonthFields, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.toplaindate
@@ -5206,8 +5366,14 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::With(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> temporal_zoned_date_time_like_obj,
     DirectHandle<Object> options_obj) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.ZonedDateTime.prototype.with";
+
+  using enum temporal::CalendarFieldsFlag;
+
+  return temporal::GenericWith<JSTemporalZonedDateTime,
+                               temporal_rs::PartialZonedDateTime>(
+      isolate, zoned_date_time, temporal_zoned_date_time_like_obj, options_obj,
+      temporal::kAllDateFlags | kTimeFields | kOffset, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.withcalendar
