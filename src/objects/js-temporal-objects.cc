@@ -3207,6 +3207,54 @@ MaybeDirectHandle<JSTemporalDuration> DifferenceTemporalPlainYearMonth(
                                                        std::move(diff));
 }
 
+// ====== Add operations ======
+
+// Wrapping Rust-side ::add and ::subtract methods
+// OverflowArgument is generic since some of these
+// methods take std::optional.
+template <typename RustType, typename OverflowArgument>
+using BinaryOperation = TemporalAllocatedResult<RustType> (RustType::*)(
+    const temporal_rs::Duration&, OverflowArgument) const;
+
+// https://tc39.es/proposal-temporal/#sec-temporal-adddurationtodate
+// https://tc39.es/proposal-temporal/#sec-temporal-adddurationtodatetime
+// https://tc39.es/proposal-temporal/#sec-temporal-adddurationtoyearmonth
+// https://tc39.es/proposal-temporal/#sec-temporal-adddurationtozoneddatetime
+template <typename JSType, typename OverflowArgument =
+                               std::optional<temporal_rs::ArithmeticOverflow>>
+MaybeDirectHandle<JSType> AddDurationToGeneric(
+    Isolate* isolate,
+    BinaryOperation<typename JSType::RustType, OverflowArgument> operation,
+    DirectHandle<JSType> temporal_js_type,
+    DirectHandle<Object> temporal_duration_like,
+    DirectHandle<Object> options_obj, const char* method_name) {
+  // 1. Let duration be ? ToTemporalDuration(temporalDurationLike).
+  DirectHandle<JSTemporalDuration> other_duration;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, other_duration,
+                             temporal::ToTemporalDuration(
+                                 isolate, temporal_duration_like, method_name));
+
+  // 2. If operation is subtract, set duration to
+  // CreateNegatedTemporalDuration(duration).
+
+  // (handled by Rust, we should not double-negate)
+
+  // 3. Let resolvedOptions be ?GetOptionsObject(options).
+  // 4. Let overflow be ?GetTemporalOverflowOption(resolvedOptions).
+  temporal_rs::ArithmeticOverflow overflow;
+
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow,
+      temporal::ToTemporalOverflowHandleUndefined(isolate, options_obj,
+                                                  method_name),
+      kNullMaybeHandle);
+
+  // Remaining steps handled in Rust.
+  auto added = (temporal_js_type->wrapped_rust().*operation)(
+      *other_duration->duration()->raw(), overflow);
+
+  return ConstructRustWrappingType<JSType>(isolate, std::move(added));
+}
 }  // namespace temporal
 
 // https://tc39.es/proposal-temporal/#sec-temporal.duration
@@ -3751,7 +3799,13 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Add(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> temporal_duration_like,
     DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
+  TEMPORAL_ENTER_FUNC();
+  const char method_name[] = "Temporal.PlainDate.prototype.add";
+  // 3. Return ? AddDurationToDate(add, temporalDate, temporalDurationLike,
+  // options).
+  return temporal::AddDurationToGeneric(isolate, &temporal_rs::PlainDate::add,
+                                        temporal_date, temporal_duration_like,
+                                        options_obj, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.subtract
@@ -3759,7 +3813,13 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> temporal_duration_like,
     DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
+  TEMPORAL_ENTER_FUNC();
+  const char method_name[] = "Temporal.PlainDate.prototype.subtract";
+  // 3. Return ? AddDurationToDate(subtract, temporalDate, temporalDurationLike,
+  // options).
+  return temporal::AddDurationToGeneric<JSTemporalPlainDate>(
+      isolate, &temporal_rs::PlainDate::subtract, temporal_date,
+      temporal_duration_like, options_obj, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.until
@@ -4187,14 +4247,26 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Round(
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Add(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
-  UNIMPLEMENTED();
+  TEMPORAL_ENTER_FUNC();
+  const char method_name[] = "Temporal.PlainDateTime.prototype.add";
+  // 3. Return ? AddDurationToDateTime(add, temporalDate, temporalDurationLike,
+  // options).
+  return temporal::AddDurationToGeneric(
+      isolate, &temporal_rs::PlainDateTime::add, date_time,
+      temporal_duration_like, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.subtract
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
-  UNIMPLEMENTED();
+  TEMPORAL_ENTER_FUNC();
+  const char method_name[] = "Temporal.PlainDateTime.prototype.subtract";
+  // 3. Return ? AddDurationToDateTime(subtract, temporalDate,
+  // temporalDurationLike, options).
+  return temporal::AddDurationToGeneric(
+      isolate, &temporal_rs::PlainDateTime::subtract, date_time,
+      temporal_duration_like, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.until
@@ -4519,14 +4591,26 @@ MaybeDirectHandle<Oddball> JSTemporalPlainYearMonth::Equals(
 MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::Add(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
-  UNIMPLEMENTED();
+  TEMPORAL_ENTER_FUNC();
+  const char method_name[] = "Temporal.PlainYearMonth.prototype.add";
+  // 3. Return ? AddDurationToYearMonth(add, temporalDate, temporalDurationLike,
+  // options).
+  return temporal::AddDurationToGeneric(
+      isolate, &temporal_rs::PlainYearMonth::add, year_month,
+      temporal_duration_like, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.subtract
 MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
-  UNIMPLEMENTED();
+  TEMPORAL_ENTER_FUNC();
+  const char method_name[] = "Temporal.PlainYearMonth.prototype.subtract";
+  // 3. Return ? AddDurationToYearMonth(subtract, temporalDate,
+  // temporalDurationLike, options).
+  return temporal::AddDurationToGeneric(
+      isolate, &temporal_rs::PlainYearMonth::subtract, year_month,
+      temporal_duration_like, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.until
@@ -5055,14 +5139,24 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Add(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
   TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.ZonedDateTime.prototype.add";
+  // 3. Return ? AddDurationToZonedDateTime(add, temporalDate,
+  // temporalDurationLike, options).
+  return temporal::AddDurationToGeneric(
+      isolate, &temporal_rs::ZonedDateTime::add, zoned_date_time,
+      temporal_duration_like, options, method_name);
 }
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.subtract
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
   TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.ZonedDateTime.prototype.subtract";
+  // 3. Return ? AddDurationToZonedDateTime(subtract, temporalDate,
+  // temporalDurationLike, options).
+  return temporal::AddDurationToGeneric(
+      isolate, &temporal_rs::ZonedDateTime::subtract, zoned_date_time,
+      temporal_duration_like, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.until
