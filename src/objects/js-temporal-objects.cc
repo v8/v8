@@ -4807,7 +4807,18 @@ MaybeDirectHandle<Smi> JSTemporalPlainTime::Compare(
 MaybeDirectHandle<Oddball> JSTemporalPlainTime::Equals(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     DirectHandle<Object> other_obj) {
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.PlainTime.prototype.equals";
+
+  // 3. Set other to ? ToTemporalTime(other).
+  DirectHandle<JSTemporalPlainTime> other;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, other,
+      temporal::ToTemporalTime(isolate, other_obj, std::nullopt, method_name));
+
+  // Rest of the steps handled in Rust
+  auto equals = temporal_time->time()->raw()->equals(*other->time()->raw());
+
+  return isolate->factory()->ToBoolean(equals);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.round
@@ -4822,7 +4833,43 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::With(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     DirectHandle<Object> temporal_time_like_obj,
     DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.PlainTime.prototype.with";
+
+  // 3. If ? IsPartialTemporalObject(temporalTimeLike) is false, throw a
+  // TypeError exception.
+  bool is_partial = false;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, is_partial,
+      temporal::IsPartialTemporalObject(isolate, temporal_time_like_obj), {});
+
+  if (!is_partial) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+  }
+
+  // 4. Let partialTime be ? ToTemporalTimeRecord(temporalTimeLike, partial).
+  temporal_rs::PartialTime partial_time = temporal::kNullPartialTime;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, partial_time,
+      temporal::ToTemporalTimeRecord(isolate,
+                                     Cast<JSObject>(temporal_time_like_obj),
+                                     method_name, kPartial),
+      {});
+
+  // Intervening steps handled by Rust, but are not externally observable
+
+  // 17. Let resolvedOptions be ? GetOptionsObject(options).
+  // 18. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+
+  temporal_rs::ArithmeticOverflow overflow;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow,
+      temporal::ToTemporalOverflowHandleUndefined(isolate, options_obj,
+                                                  method_name),
+      {});
+
+  // Handled by Rust
+  return ConstructRustWrappingType<JSTemporalPlainTime>(
+      isolate, temporal_time->time()->raw()->with(partial_time, overflow));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.now.plaintimeiso
