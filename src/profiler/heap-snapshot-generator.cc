@@ -1130,6 +1130,10 @@ const char* V8HeapExplorer::GetSystemEntryName(Tagged<HeapObject> object) {
     STRING_TYPE_LIST(MAKE_STRING_CASE)
 #undef MAKE_STRING_CASE
   }
+
+  // Avoid undefined behavior for enum values not handled by the exhaustive
+  // switch, since they're read from inside the sandbox.
+  SBXCHECK(false);
 }
 
 HeapEntry::Type V8HeapExplorer::GetSystemEntryType(Tagged<HeapObject> object) {
