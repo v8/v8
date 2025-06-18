@@ -3003,22 +3003,24 @@ void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_stack,
 }
 
 // Updates the stack limit and central stack info, and validates the switch.
-void SwitchStacks(MacroAssembler* masm, Register old_stack, bool return_switch,
+void SwitchStacks(MacroAssembler* masm, ExternalReference fn,
+                  Register old_stack, Register maybe_suspender,
                   const std::initializer_list<Register> keep) {
-  using ER = ExternalReference;
-
   for (auto reg : keep) {
     __ Push(reg);
   }
 
   {
-    __ PrepareCallCFunction(2);
+    int num_args = maybe_suspender.is_valid() ? 3 : 2;
+    __ PrepareCallCFunction(num_args);
     FrameScope scope(masm, StackFrame::MANUAL);
-    // Move {old_stack} first in case it aliases kCArgRegs[0].
+    if (maybe_suspender.is_valid()) {
+      __ Move(kCArgRegs[2], maybe_suspender);
+      DCHECK_NE(kCArgRegs[2], old_stack);
+    }
     __ Move(kCArgRegs[1], old_stack);
     __ Move(kCArgRegs[0], ExternalReference::isolate_address(masm->isolate()));
-    __ CallCFunction(
-        return_switch ? ER::wasm_return_switch() : ER::wasm_switch_stacks(), 2);
+    __ CallCFunction(fn, num_args);
   }
 
   for (auto it = std::rbegin(keep); it != std::rend(keep); ++it) {
@@ -3048,8 +3050,8 @@ void ReloadParentStack(MacroAssembler* masm, Register return_reg,
   __ StoreRootRelative(IsolateData::active_stack_offset(), parent);
 
   // Switch stack!
-  SwitchStacks(masm, active_stack, true,
-               {return_reg, return_value, context, parent});
+  SwitchStacks(masm, ExternalReference::wasm_return_stack(), active_stack,
+               no_reg, {return_reg, return_value, context, parent});
   LoadJumpBuffer(masm, parent, false, tmp3, wasm::JumpBuffer::Inactive);
 }
 
@@ -3299,7 +3301,8 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   // -------------------------------------------
   // Load jump buffer.
   // -------------------------------------------
-  SwitchStacks(masm, stack, false, {caller, suspender});
+  SwitchStacks(masm, ExternalReference::wasm_start_or_suspend_stack(), stack,
+               no_reg, {caller, suspender});
   FREE_REG(stack);
   __ LoadTaggedField(
       kReturnRegister0,
@@ -3370,30 +3373,15 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
                    wasm::JumpBuffer::Inactive);
 
   // -------------------------------------------
-  // Set the suspender and stack parents and update the roots
+  // Call the C function.
   // -------------------------------------------
-  DEFINE_REG(active_suspender);
-  __ LoadRootRelative(active_suspender, IsolateData::active_suspender_offset());
-  __ StoreTaggedField(
-      active_suspender,
-      FieldMemOperand(suspender, WasmSuspenderObject::kParentOffset));
-  __ RecordWriteField(suspender, WasmSuspenderObject::kParentOffset,
-                      active_suspender, kLRHasBeenSaved,
-                      SaveFPRegsMode::kIgnore);
-  __ StoreRootRelative(IsolateData::active_suspender_offset(), suspender);
-
-  // Next line we are going to load a field from suspender, but we have to use
-  // the same register for target_continuation to use it in RecordWriteField.
-  // So, free suspender here to use pinned reg, but load from it next line.
-  FREE_REG(suspender);
   DEFINE_REG(target_stack);
-  suspender = target_stack;
   __ ldr(target_stack,
          FieldMemOperand(suspender, WasmSuspenderObject::kStackOffset));
-  suspender = no_reg;
 
   __ StoreRootRelative(IsolateData::active_stack_offset(), target_stack);
-  SwitchStacks(masm, active_stack, false, {target_stack});
+  SwitchStacks(masm, ExternalReference::wasm_resume_stack(), active_stack,
+               suspender, {target_stack});
   regs.ResetExcept(target_stack);
 
   // -------------------------------------------
@@ -3458,7 +3446,8 @@ void SwitchToAllocatedStack(MacroAssembler* masm, RegisterAllocator& regs,
   __ ldr(parent_stack, MemOperand(target_stack, wasm::kStackParentOffset));
 
   FillJumpBuffer(masm, parent_stack, suspend, scratch);
-  SwitchStacks(masm, parent_stack, false, {wasm_instance, wrapper_buffer});
+  SwitchStacks(masm, ExternalReference::wasm_start_or_suspend_stack(),
+               parent_stack, no_reg, {wasm_instance, wrapper_buffer});
 
   FREE_REG(parent_stack);
   // Save the old stack's fp in x9, and use it to access the parameters in

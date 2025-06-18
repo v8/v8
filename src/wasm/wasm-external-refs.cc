@@ -983,11 +983,25 @@ double flat_string_to_f64(Address string_address) {
                             std::numeric_limits<double>::quiet_NaN());
 }
 
-void switch_stacks(Isolate* isolate, wasm::StackMemory* from) {
+void start_or_suspend_stack(Isolate* isolate, wasm::StackMemory* from) {
   isolate->SwitchStacks(from, isolate->isolate_data()->active_stack());
 }
 
-void return_switch(Isolate* isolate, wasm::StackMemory* from) {
+void resume_stack(Isolate* isolate, wasm::StackMemory* from,
+                  Address suspender_raw) {
+  Tagged<Object> suspender_obj(suspender_raw);
+  auto suspender = Tagged<WasmSuspenderObject>::cast(suspender_obj);
+  Tagged<Object> active_suspender = isolate->isolate_data()->active_suspender();
+  if (active_suspender == Smi::zero()) {
+    suspender->clear_parent();
+  } else {
+    suspender->set_parent(Tagged<WasmSuspenderObject>::cast(active_suspender));
+  }
+  isolate->isolate_data()->set_active_suspender(suspender);
+  isolate->SwitchStacks(from, isolate->isolate_data()->active_stack());
+}
+
+void return_stack(Isolate* isolate, wasm::StackMemory* from) {
   isolate->SwitchStacks(from, isolate->isolate_data()->active_stack());
   isolate->RetireWasmStack(from);
 }

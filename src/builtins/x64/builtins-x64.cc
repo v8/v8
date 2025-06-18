@@ -3483,20 +3483,26 @@ void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_stack,
 }
 
 // Updates the stack limit and central stack info, and validates the switch.
-void SwitchStacks(MacroAssembler* masm, Register old_stack, bool return_switch,
+void SwitchStacks(MacroAssembler* masm, ExternalReference fn,
+                  Register old_stack, Register maybe_suspender,
                   const std::initializer_list<Register> keep) {
-  using ER = ExternalReference;
   for (auto reg : keep) {
     __ Push(reg);
   }
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    // Move {old_stack} first in case it aliases kCArgRegs[0].
+    DCHECK(old_stack.is_valid());
+    int num_args = 2;
+    DCHECK_NE(kCArgRegs[0], old_stack);
     __ Move(kCArgRegs[1], old_stack);
+    if (maybe_suspender.is_valid()) {
+      num_args++;
+      DCHECK_NE(kCArgRegs[1], maybe_suspender);
+      __ Move(kCArgRegs[2], maybe_suspender);
+    }
     __ Move(kCArgRegs[0], ExternalReference::isolate_address());
-    __ PrepareCallCFunction(2);
-    __ CallCFunction(
-        return_switch ? ER::wasm_return_switch() : ER::wasm_switch_stacks(), 2);
+    __ PrepareCallCFunction(num_args);
+    __ CallCFunction(fn, num_args);
   }
   for (auto it = std::rbegin(keep); it != std::rend(keep); ++it) {
     __ Pop(*it);
@@ -3517,8 +3523,8 @@ void ReloadParentStack(MacroAssembler* masm, Register promise,
   __ Move(parent, MemOperand(active_stack, wasm::kStackParentOffset));
   __ StoreRootRelative(IsolateData::active_stack_offset(), parent);
   // Switch stack!
-  SwitchStacks(masm, active_stack, true,
-               {promise, return_value, context, parent});
+  SwitchStacks(masm, ExternalReference::wasm_return_stack(), active_stack,
+               no_reg, {promise, return_value, context, parent});
   LoadJumpBuffer(masm, parent, false, wasm::JumpBuffer::Inactive);
 }
 
@@ -3565,7 +3571,8 @@ void SwitchToAllocatedStack(MacroAssembler* masm, Register wasm_instance,
   __ LoadRootRelative(parent_stack, IsolateData::active_stack_offset());
   __ Move(parent_stack, MemOperand(parent_stack, wasm::kStackParentOffset));
   FillJumpBuffer(masm, parent_stack, suspend);
-  SwitchStacks(masm, parent_stack, false,
+  SwitchStacks(masm, ExternalReference::wasm_start_or_suspend_stack(),
+               parent_stack, no_reg,
                {kWasmImplicitArgRegister, wrapper_buffer});
   parent_stack = no_reg;
   Register target_stack = scratch;
@@ -3996,7 +4003,8 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   // -------------------------------------------
   // Load jump buffer.
   // -------------------------------------------
-  SwitchStacks(masm, stack, false, {caller, suspender});
+  SwitchStacks(masm, ExternalReference::wasm_start_or_suspend_stack(), stack,
+               no_reg, {caller, suspender});
   __ LoadTaggedField(
       kReturnRegister0,
       FieldOperand(suspender, WasmSuspenderObject::kPromiseOffset));
@@ -4043,9 +4051,9 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   __ LoadTaggedField(
       resume_data,
       FieldOperand(sfi, SharedFunctionInfo::kUntrustedFunctionDataOffset));
-  // The write barrier uses a fixed register for the host object (rdi). The next
-  // barrier is on the suspender, so load it in rdi directly.
-  Register suspender = rdi;
+  // Already move the suspender in the correct argument register for the C call.
+  Register suspender = kCArgRegs[2];
+  DCHECK(!AreAliased(suspender, resume_data));
   __ LoadTrustedPointerField(
       suspender,
       FieldOperand(resume_data, WasmResumeData::kTrustedSuspenderOffset),
@@ -4064,34 +4072,16 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
                    wasm::JumpBuffer::Inactive);
 
   // -------------------------------------------
-  // Set the suspender and stack parents and update the roots
+  // Call the C function.
   // -------------------------------------------
-  Register active_suspender = rcx;
-  Register slot_address = WriteBarrierDescriptor::SlotAddressRegister();
-  // Check that the fixed register isn't one that is already in use.
-  DCHECK(slot_address == rbx || slot_address == r8);
-  __ LoadRootRelative(active_suspender, IsolateData::active_suspender_offset());
-  // TODO(350324877): we shouldn't exit sandboxed mode here. We can either:
-  //   * call a (unsandboxed) runtime function/builtin
-  //   * run this entire builtin in unsandboxed mode, or
-  //   * find a way to avoid this write entirely.
-  __ ExitSandbox();
-  __ StoreTaggedField(
-      FieldOperand(suspender, WasmSuspenderObject::kParentOffset),
-      active_suspender);
-  __ EnterSandbox();
-  __ RecordWriteField(suspender, WasmSuspenderObject::kParentOffset,
-                      active_suspender, slot_address, SaveFPRegsMode::kIgnore);
-  __ StoreRootRelative(IsolateData::active_suspender_offset(), suspender);
-
-  Register target_stack = suspender;
+  Register target_stack = rbx;
   __ LoadExternalPointerField(
       target_stack, FieldOperand(suspender, WasmSuspenderObject::kStackOffset),
       kWasmStackMemoryTag, kScratchRegister);
-  suspender = no_reg;
   __ StoreRootRelative(IsolateData::active_stack_offset(), target_stack);
-
-  SwitchStacks(masm, active_stack, false, {target_stack});
+  SwitchStacks(masm, ExternalReference::wasm_resume_stack(), active_stack,
+               suspender, {target_stack});
+  suspender = no_reg;
 
   // -------------------------------------------
   // Load state from target jmpbuf (longjmp).
