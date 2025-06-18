@@ -2096,6 +2096,24 @@ transitioning builtin FastCreateDataProperty(
         const elements = Cast<FixedArray>(array.elements) otherwise unreachable;
         elements[index] = smiValue;
       } else if (IsDoubleElementsKind(kind)) {
+        @if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) {
+          const doubleElements = Cast<FixedDoubleArray>(array.elements)
+              otherwise unreachable;
+          if (kind == ElementsKind::HOLEY_DOUBLE_ELEMENTS) {
+            typeswitch (value) {
+              case (n: Number): {
+                doubleElements[index] = n;
+              }
+              case (Undefined): {
+                StoreFixedDoubleArrayUndefined(doubleElements, SmiUntag(index));
+              }
+              case (JSAny): {
+                goto Slow;
+              }
+            }
+            return Undefined;
+          }
+        }
         const numberValue = Cast<Number>(value) otherwise Slow;
         const doubleElements = Cast<FixedDoubleArray>(array.elements)
             otherwise unreachable;
