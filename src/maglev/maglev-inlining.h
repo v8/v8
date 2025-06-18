@@ -6,6 +6,7 @@
 #define V8_MAGLEV_MAGLEV_INLINING_H_
 
 #include <algorithm>
+#include <utility>
 
 #include "src/base/logging.h"
 #include "src/compiler/heap-refs.h"
@@ -240,19 +241,6 @@ class MaglevInliner {
     return saved_bb;
   }
 
-  template <class Node, typename... Args>
-  ValueNode* AddNodeAtBlockEnd(MaglevGraphBuilder& builder,
-                               std::initializer_list<ValueNode*> inputs,
-                               Args&&... args) {
-    ValueNode* node =
-        NodeBase::New<Node>(zone(), inputs, std::forward<Args>(args)...);
-    DCHECK(!node->properties().can_eager_deopt());
-    DCHECK(!node->properties().can_lazy_deopt());
-    builder.node_buffer().push_back(node);
-    RegisterNode(builder, node);
-    return node;
-  }
-
   void RegisterNode(MaglevGraphBuilder& builder, Node* node) {
     if (builder.has_graph_labeller()) {
       builder.graph_labeller()->RegisterNode(node);
@@ -263,18 +251,17 @@ class MaglevInliner {
     // TODO(victorgomes): Use KNA to create better conversion nodes?
     switch (node->value_representation()) {
       case ValueRepresentation::kInt32:
-        return AddNodeAtBlockEnd<Int32ToNumber>(builder, {node});
+        return builder.reducer().AddNewNode<Int32ToNumber>({node});
       case ValueRepresentation::kUint32:
-        return AddNodeAtBlockEnd<Uint32ToNumber>(builder, {node});
+        return builder.reducer().AddNewNode<Uint32ToNumber>({node});
       case ValueRepresentation::kFloat64:
-        return AddNodeAtBlockEnd<Float64ToTagged>(
-            builder, {node}, Float64ToTagged::ConversionMode::kForceHeapNumber);
+        return builder.reducer().AddNewNode<Float64ToTagged>(
+            {node}, Float64ToTagged::ConversionMode::kForceHeapNumber);
       case ValueRepresentation::kHoleyFloat64:
-        return AddNodeAtBlockEnd<HoleyFloat64ToTagged>(
-            builder, {node},
-            HoleyFloat64ToTagged::ConversionMode::kForceHeapNumber);
+        return builder.reducer().AddNewNode<HoleyFloat64ToTagged>(
+            {node}, HoleyFloat64ToTagged::ConversionMode::kForceHeapNumber);
       case ValueRepresentation::kIntPtr:
-        return AddNodeAtBlockEnd<IntPtrToNumber>(builder, {node});
+        return builder.reducer().AddNewNode<IntPtrToNumber>({node});
       case ValueRepresentation::kTagged:
         return node;
     }
