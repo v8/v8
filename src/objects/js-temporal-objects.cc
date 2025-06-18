@@ -207,10 +207,13 @@ MaybeDirectHandle<JSType> ConstructRustWrappingType(
 
 // Paired with DECL_ACCESSORS_FOR_RUST_WRAPPER
 // Can be omitted and overridden if needed.
-#define DEFINE_ACCESSORS_FOR_RUST_WRAPPER(field, JSType)  \
-  inline void JSType::initialize_with_wrapped_rust_value( \
-      Tagged<Managed<JSType::RustType>> handle) {         \
-    this->set_##field(handle);                            \
+#define DEFINE_ACCESSORS_FOR_RUST_WRAPPER(field, JSType)        \
+  inline void JSType::initialize_with_wrapped_rust_value(       \
+      Tagged<Managed<JSType::RustType>> handle) {               \
+    this->set_##field(handle);                                  \
+  }                                                             \
+  inline const JSType::RustType& JSType::wrapped_rust() const { \
+    return *this->field()->raw();                               \
   }
 
 DEFINE_ACCESSORS_FOR_RUST_WRAPPER(instant, JSTemporalInstant)

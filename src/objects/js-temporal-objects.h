@@ -31,7 +31,8 @@ namespace internal {
   typedef RustType_ RustType;                             \
   DECL_ACCESSORS(field, Tagged<Managed<RustType_>>)       \
   inline void initialize_with_wrapped_rust_value(         \
-      Tagged<Managed<RustType_>> handle);
+      Tagged<Managed<RustType_>> handle);                 \
+  inline const RustType_& wrapped_rust() const;
 
 // When populating this list, consider also adding the field to
 // js-temporal-objects.tq, adding DEFINE_ACCESSORS_FOR_RUST_WRAPPER
