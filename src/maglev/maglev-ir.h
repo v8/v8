@@ -111,6 +111,7 @@ class ExceptionHandlerInfo;
   V(Int32Add)                         \
   V(Int32Subtract)                    \
   V(Int32Multiply)                    \
+  V(Int32MultiplyOverflownBits)       \
   V(Int32Divide)                      \
   V(Int32AddWithOverflow)             \
   V(Int32SubtractWithOverflow)        \
@@ -529,6 +530,7 @@ constexpr bool IsCommutativeNode(Opcode opcode) {
     case Opcode::kInt32BitwiseOr:
     case Opcode::kInt32BitwiseXor:
     case Opcode::kInt32Multiply:
+    case Opcode::kInt32MultiplyOverflownBits:
     case Opcode::kInt32MultiplyWithOverflow:
     case Opcode::kStringEqual:
     case Opcode::kTaggedEqual:
@@ -3235,6 +3237,27 @@ DEF_INT32_BINARY_NODE(BitwiseXor)
 DEF_INT32_BINARY_NODE(ShiftLeft)
 DEF_INT32_BINARY_NODE(ShiftRight)
 #undef DEF_INT32_BINARY_NODE
+
+class Int32MultiplyOverflownBits
+    : public FixedInputValueNodeT<2, Int32MultiplyOverflownBits> {
+  using Base = FixedInputValueNodeT<2, Int32MultiplyOverflownBits>;
+
+ public:
+  explicit Int32MultiplyOverflownBits(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Int32();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kInt32, ValueRepresentation::kInt32};
+
+  static constexpr int kLeftIndex = 0;
+  static constexpr int kRightIndex = 1;
+  Input& left_input() { return Node::input(kLeftIndex); }
+  Input& right_input() { return Node::input(kRightIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
 
 class Int32BitwiseNot : public FixedInputValueNodeT<1, Int32BitwiseNot> {
   using Base = FixedInputValueNodeT<1, Int32BitwiseNot>;

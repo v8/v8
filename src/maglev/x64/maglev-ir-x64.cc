@@ -244,16 +244,51 @@ void Int32Subtract::GenerateCode(MaglevAssembler* masm,
 
 void Int32Multiply::SetValueLocationConstraints() {
   UseRegister(left_input());
-  UseRegister(right_input());
-  DefineSameAsFirst(this);
+  if (TryGetInt32ConstantInput(kRightIndex)) {
+    UseAny(right_input());
+    DefineAsRegister(this);
+  } else {
+    UseRegister(right_input());
+    DefineSameAsFirst(this);
+  }
 }
 
 void Int32Multiply::GenerateCode(MaglevAssembler* masm,
                                  const ProcessingState& state) {
+  Register left = ToRegister(left_input());
   Register result = ToRegister(this->result());
-  Register right = ToRegister(right_input());
-  DCHECK_EQ(result, ToRegister(left_input()));
-  __ imull(result, right);
+  if (auto right_const = TryGetInt32ConstantInput(kRightIndex)) {
+    __ imull(result, left, Immediate(*right_const));
+  } else {
+    Register right = ToRegister(right_input());
+    DCHECK_EQ(result, left);
+    __ imull(left, right);
+  }
+}
+
+void Int32MultiplyOverflownBits::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  // TODO(victorgomes): Ideally we would like to have UseFixedAndClobber(rax),
+  // but we don't support that yet.
+  if (TryGetInt32ConstantInput(kRightIndex)) {
+    UseAny(right_input());
+  } else {
+    UseRegister(right_input());
+  }
+  DefineAsFixed(this, rdx);  // imull returns high bits in rdx.
+  RequireSpecificTemporary(rax);
+}
+
+void Int32MultiplyOverflownBits::GenerateCode(MaglevAssembler* masm,
+                                              const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  DCHECK_EQ(ToRegister(result()), rdx);
+  if (auto right_const = TryGetInt32ConstantInput(kRightIndex)) {
+    __ movl(rax, Immediate(*right_const));
+  } else {
+    __ movl(rax, ToRegister(right_input()));
+  }
+  __ imull(left);
 }
 
 void Int32Divide::SetValueLocationConstraints() {

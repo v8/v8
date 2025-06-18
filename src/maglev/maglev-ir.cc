@@ -772,6 +772,7 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kInt32Add:
     case Opcode::kInt32Subtract:
     case Opcode::kInt32Multiply:
+    case Opcode::kInt32MultiplyOverflownBits:
     case Opcode::kInt32Divide:
     case Opcode::kInt32AbsWithOverflow:
     case Opcode::kInt32AddWithOverflow:

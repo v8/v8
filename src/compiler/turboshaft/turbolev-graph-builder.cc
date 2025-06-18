@@ -3966,6 +3966,12 @@ class GraphBuildingNodeProcessor {
     SetMap(node, result);
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::Int32MultiplyOverflownBits* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ Int32MulOverflownBits(Map(node->left_input()),
+                                          Map(node->right_input())));
+    return maglev::ProcessResult::kContinue;
+  }
 #define PROCESS_BINOP_WITH_OVERFLOW(MaglevName, TurboshaftName,                \
                                     minus_zero_mode)                           \
   maglev::ProcessResult Process(maglev::Int32##MaglevName##WithOverflow* node, \

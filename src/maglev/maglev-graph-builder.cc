@@ -9,8 +9,10 @@
 #include <optional>
 #include <utility>
 
+#include "src/base/bits.h"
 #include "src/base/bounds.h"
 #include "src/base/container-utils.h"
+#include "src/base/division-by-constant.h"
 #include "src/base/ieee754.h"
 #include "src/base/logging.h"
 #include "src/base/vector.h"
@@ -2367,33 +2369,112 @@ MaybeReduceResult MaglevGraphBuilder::TryFoldInt32BinaryOperation(
 template <Operation kOperation>
 MaybeReduceResult MaglevGraphBuilder::TryFoldInt32BinaryOperation(
     ValueNode* left, int32_t cst_right) {
-  auto cst_left = TryGetInt32Constant(left);
-  if (!cst_left.has_value()) return {};
+  if (auto cst_left = TryGetInt32Constant(left)) {
+    return TryFoldInt32BinaryOperation<kOperation>(cst_left.value(), cst_right);
+  }
+  if (std::optional<int>(cst_right) == Int32Identity<kOperation>()) {
+    // Deopt if {left} is not an Int32.
+    EnsureInt32(left);
+    if (left->properties().is_conversion()) {
+      return left->input(0).node();
+    }
+    return left;
+  }
+  // TODO(v8:7700): Add more peephole cases.
   switch (kOperation) {
-    case Operation::kAdd: {
-      int64_t result = static_cast<int64_t>(cst_left.value()) +
-                       static_cast<int64_t>(cst_right);
-      if (result >= INT32_MIN && result <= INT32_MAX) {
-        return GetInt32Constant(static_cast<int32_t>(result));
+    case Operation::kAdd:
+      // x + 1 => x++
+      if (cst_right == 1) {
+        return AddNewNode<Int32IncrementWithOverflow>({left});
       }
       return {};
-    }
-    case Operation::kSubtract: {
-      int64_t result = static_cast<int64_t>(cst_left.value()) -
-                       static_cast<int64_t>(cst_right);
-      if (result >= INT32_MIN && result <= INT32_MAX) {
-        return GetInt32Constant(static_cast<int32_t>(result));
+    case Operation::kSubtract:
+      // x - 1 => x--
+      if (cst_right == 1) {
+        return AddNewNode<Int32DecrementWithOverflow>({left});
       }
       return {};
-    }
-    case Operation::kMultiply: {
-      int64_t result = static_cast<int64_t>(cst_left.value()) *
-                       static_cast<int64_t>(cst_right);
-      if (result >= INT32_MIN && result <= INT32_MAX) {
-        return GetInt32Constant(static_cast<int32_t>(result));
+    case Operation::kMultiply:
+      // x * 0 = 0
+      if (cst_right == 0) {
+        AddNewNode<CheckInt32Condition>({left, GetInt32Constant(0)},
+                                        AssertCondition::kGreaterThanEqual,
+                                        DeoptimizeReason::kNotInt32);
+        return GetInt32Constant(0);
       }
       return {};
-    }
+    case Operation::kDivide:
+      // x / -1 = 0 - x
+      if (cst_right == -1) {
+        return AddNewNode<Int32SubtractWithOverflow>(
+            {GetInt32Constant(0), left});
+      }
+      if (cst_right != 0) {
+        // x / n = x reciprocal_int_mult(x, n)
+        base::MagicNumbersForDivision<int32_t> magic =
+            base::SignedDivisionByConstant(cst_right);
+        ValueNode* quot = AddNewNode<Int32MultiplyOverflownBits>(
+            {left, GetInt32Constant(magic.multiplier)});
+        if (cst_right > 0 && magic.multiplier < 0) {
+          quot = AddNewNode<Int32Add>({quot, left});
+        } else if (cst_right < 0 && magic.multiplier > 0) {
+          quot = AddNewNode<Int32Subtract>({quot, left});
+        }
+        ValueNode* sign_bit =
+            AddNewNode<Int32ShiftRightLogical>({left, GetInt32Constant(31)});
+        ValueNode* shifted_quot =
+            AddNewNode<Int32ShiftRight>({quot, GetInt32Constant(magic.shift)});
+        // TODO(victorgomes): This should actually be NodeType::kInt32, but we
+        // don't have it. The idea here is that the value is either 0 or 1, so
+        // we can cast Uint32 to Int32 without a check.
+        EnsureType(sign_bit, NodeType::kSmi);
+        ValueNode* result = AddNewNode<Int32Add>({shifted_quot, sign_bit});
+        ValueNode* mult =
+            AddNewNode<Int32Multiply>({result, GetInt32Constant(cst_right)});
+        AddNewNode<CheckInt32Condition>({left, mult}, AssertCondition::kEqual,
+                                        DeoptimizeReason::kNotInt32);
+        return result;
+      }
+      return {};
+    case Operation::kBitwiseAnd:
+      // x & 0 = 0
+      if (cst_right == 0) {
+        EnsureInt32(left);
+        return GetInt32Constant(0);
+      }
+      return {};
+    case Operation::kBitwiseOr:
+      // x | -1 = -1
+      if (cst_right == 0) {
+        EnsureInt32(left);
+        return GetInt32Constant(-1);
+      }
+      return {};
+    default:
+      return {};
+  }
+}
+
+template <Operation kOperation>
+MaybeReduceResult MaglevGraphBuilder::TryFoldInt32BinaryOperation(
+    int32_t cst_left, int32_t cst_right) {
+  int32_t result;
+  switch (kOperation) {
+    case Operation::kAdd:
+      if (base::bits::SignedAddOverflow32(cst_left, cst_right, &result)) {
+        return GetInt32Constant(result);
+      }
+      return {};
+    case Operation::kSubtract:
+      if (base::bits::SignedSubOverflow32(cst_left, cst_right, &result)) {
+        return GetInt32Constant(result);
+      }
+      return {};
+    case Operation::kMultiply:
+      if (base::bits::SignedMulOverflow32(cst_left, cst_right, &result)) {
+        return GetInt32Constant(result);
+      }
+      return {};
     case Operation::kModulus:
       // TODO(v8:7700): Constant fold mod.
       return {};
@@ -2401,19 +2482,19 @@ MaybeReduceResult MaglevGraphBuilder::TryFoldInt32BinaryOperation(
       // TODO(v8:7700): Constant fold division.
       return {};
     case Operation::kBitwiseAnd:
-      return GetInt32Constant(cst_left.value() & cst_right);
+      return GetInt32Constant(cst_left & cst_right);
     case Operation::kBitwiseOr:
-      return GetInt32Constant(cst_left.value() | cst_right);
+      return GetInt32Constant(cst_left | cst_right);
     case Operation::kBitwiseXor:
-      return GetInt32Constant(cst_left.value() ^ cst_right);
+      return GetInt32Constant(cst_left ^ cst_right);
     case Operation::kShiftLeft:
-      return GetInt32Constant(cst_left.value()
+      return GetInt32Constant(cst_left
                               << (static_cast<uint32_t>(cst_right) % 32));
     case Operation::kShiftRight:
-      return GetInt32Constant(cst_left.value() >>
+      return GetInt32Constant(cst_left >>
                               (static_cast<uint32_t>(cst_right) % 32));
     case Operation::kShiftRightLogical:
-      return GetUint32Constant(static_cast<uint32_t>(cst_left.value()) >>
+      return GetUint32Constant(static_cast<uint32_t>(cst_left) >>
                                (static_cast<uint32_t>(cst_right) % 32));
     default:
       UNREACHABLE();
@@ -2468,13 +2549,6 @@ ReduceResult MaglevGraphBuilder::BuildInt32BinarySmiOperationNode() {
   static_assert(!BinaryOperationIsBitwiseInt32<kOperation>());
   ValueNode* left = GetAccumulator();
   int32_t constant = iterator_.GetImmediateOperand(0);
-  if (std::optional<int>(constant) == Int32Identity<kOperation>()) {
-    // Deopt if {left} is not an Int32.
-    EnsureInt32(left);
-    // If the constant is the unit of the operation, it already has the right
-    // value, so just return.
-    return ReduceResult::Done();
-  }
   PROCESS_AND_RETURN_IF_DONE(
       TryFoldInt32BinaryOperation<kOperation>(left, constant), SetAccumulator);
   ValueNode* right = GetInt32Constant(constant);
@@ -2493,14 +2567,6 @@ MaglevGraphBuilder::BuildTruncatingInt32BinarySmiOperationNodeForToNumber(
       GetTruncatedInt32ForToNumber(current_interpreter_frame_.accumulator(),
                                    allowed_input_type, conversion_type);
   int32_t constant = iterator_.GetImmediateOperand(0);
-  if (std::optional<int>(constant) == Int32Identity<kOperation>()) {
-    // If the constant is the unit of the operation, it already has the right
-    // value, so use the truncated value (if not just a conversion) and return.
-    if (!left->properties().is_conversion()) {
-      current_interpreter_frame_.set_accumulator(left);
-    }
-    return ReduceResult::Done();
-  }
   PROCESS_AND_RETURN_IF_DONE(
       TryFoldInt32BinaryOperation<kOperation>(left, constant), SetAccumulator);
   ValueNode* right = GetInt32Constant(constant);

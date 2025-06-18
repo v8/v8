@@ -241,6 +241,24 @@ void Int32Multiply::GenerateCode(MaglevAssembler* masm,
   __ smull(out, scratch, left, right);
 }
 
+void Int32MultiplyOverflownBits::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+void Int32MultiplyOverflownBits::GenerateCode(MaglevAssembler* masm,
+                                              const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  Register out = ToRegister(result());
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register scratch = temps.AcquireScratch();
+
+  // TODO(leszeks): peephole optimise multiplication by a constant.
+  __ smull(scratch, out, left, right);
+}
+
 void Int32Divide::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());

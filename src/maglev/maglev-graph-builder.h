@@ -2760,6 +2760,8 @@ class MaglevGraphBuilder {
   template <Operation kOperation>
   MaybeReduceResult TryFoldInt32BinaryOperation(ValueNode* left,
                                                 int32_t cst_right);
+  template <Operation kOperation>
+  MaybeReduceResult TryFoldInt32BinaryOperation(int32_t left, int32_t right);
 
   template <Operation kOperation>
   ReduceResult BuildInt32UnaryOperationNode();
