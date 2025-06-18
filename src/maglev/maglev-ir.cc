@@ -753,8 +753,10 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     case Opcode::kFloat64ToHoleyFloat64:
     case Opcode::kConvertHoleNanToUndefinedNan:
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    case Opcode::kHoleyFloat64IsUndefinedOrHole:
+#else
     case Opcode::kHoleyFloat64IsHole:
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     case Opcode::kSetPendingMessage:
     case Opcode::kStringLength:
     case Opcode::kAllocateElementsArray:
@@ -7689,6 +7691,32 @@ void BranchIfFloat64IsHole::GenerateCode(MaglevAssembler* masm,
   }
 }
 
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+
+void HoleyFloat64IsUndefinedOrHole::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+  set_temporaries_needed(1);
+}
+void HoleyFloat64IsUndefinedOrHole::GenerateCode(MaglevAssembler* masm,
+                                                 const ProcessingState& state) {
+  ZoneLabelRef if_undefined_or_hole(masm);
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  DoubleRegister value = ToDoubleRegister(input());
+  Label done;
+  // TODO(nicohartmann): Consider using a combined JumpIfUndefinedOrHoleNan.
+  __ JumpIfUndefinedNan(value, scratch, *if_undefined_or_hole, Label::kNear);
+  __ JumpIfHoleNan(value, scratch, *if_undefined_or_hole, Label::kNear);
+  __ LoadRoot(ToRegister(result()), RootIndex::kFalseValue);
+  __ Jump(&done);
+  __ bind(*if_undefined_or_hole);
+  __ LoadRoot(ToRegister(result()), RootIndex::kTrueValue);
+  __ bind(&done);
+}
+
+#else
+
 void HoleyFloat64IsHole::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
@@ -7707,6 +7735,8 @@ void HoleyFloat64IsHole::GenerateCode(MaglevAssembler* masm,
   __ LoadRoot(ToRegister(result()), RootIndex::kFalseValue);
   __ bind(&done);
 }
+
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 void BranchIfFloat64Compare::SetValueLocationConstraints() {
   UseRegister(left_input());

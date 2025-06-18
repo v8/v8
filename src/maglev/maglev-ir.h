@@ -51,8 +51,10 @@
 
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 #define IF_UD(Macro, ...) Macro(__VA_ARGS__)
+#define IF_NOT_UD(Macro, ...)
 #else
 #define IF_UD(Macro, ...)
+#define IF_NOT_UD(Macro, ...) Macro(__VA_ARGS__)
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 namespace v8 {
@@ -298,7 +300,8 @@ class ExceptionHandlerInfo;
   V(HoleyFloat64ToMaybeNanFloat64)                  \
   IF_UD(V, Float64ToHoleyFloat64)                   \
   IF_UD(V, ConvertHoleNanToUndefinedNan)            \
-  V(HoleyFloat64IsHole)                             \
+  IF_UD(V, HoleyFloat64IsUndefinedOrHole)           \
+  IF_NOT_UD(V, HoleyFloat64IsHole)                  \
   V(LogicalNot)                                     \
   V(SetPendingMessage)                              \
   V(StringAt)                                       \
@@ -4807,7 +4810,25 @@ class ConvertHoleNanToUndefinedNan
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+
+class HoleyFloat64IsUndefinedOrHole
+    : public FixedInputValueNodeT<1, HoleyFloat64IsUndefinedOrHole> {
+  using Base = FixedInputValueNodeT<1, HoleyFloat64IsUndefinedOrHole>;
+
+ public:
+  explicit HoleyFloat64IsUndefinedOrHole(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+#else
 
 class HoleyFloat64IsHole : public FixedInputValueNodeT<1, HoleyFloat64IsHole> {
   using Base = FixedInputValueNodeT<1, HoleyFloat64IsHole>;
@@ -4824,6 +4845,8 @@ class HoleyFloat64IsHole : public FixedInputValueNodeT<1, HoleyFloat64IsHole> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
+
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 class TruncateNumberOrOddballToInt32
     : public FixedInputValueNodeT<1, TruncateNumberOrOddballToInt32> {

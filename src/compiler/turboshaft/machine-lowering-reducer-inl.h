@@ -688,6 +688,18 @@ class MachineLoweringReducer : public Next {
         BIND(done, result);
         return result;
       }
+      case NumericKind::kFloat64UndefinedOrHole: {
+        Label<Word32> done(this);
+        // First check whether {value} is a NaN at all...
+        GOTO_IF(LIKELY(__ Float64Equal(value, value)), done, 0);
+        // ...and only if {value} is a NaN, perform the expensive bit
+        // check. See http://crbug.com/v8/8264 for details.
+        V<Word32> hi = __ Float64ExtractHighWord32(value);
+        GOTO_IF(__ Word32Equal(hi, kUndefinedNanUpper32), done, 1);
+        GOTO(done, __ Word32Equal(hi, kHoleNanUpper32));
+        BIND(done, result);
+        return result;
+      }
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
       case NumericKind::kFinite: {
         V<Float64> diff = __ Float64Sub(value, value);
@@ -792,6 +804,7 @@ class MachineLoweringReducer : public Next {
       case NumericKind::kFloat64Hole:
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
       case NumericKind::kFloat64Undefined:
+      case NumericKind::kFloat64UndefinedOrHole:
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
         // ObjectIsFloat64Hole is not used, but can be implemented when needed.
         UNREACHABLE();

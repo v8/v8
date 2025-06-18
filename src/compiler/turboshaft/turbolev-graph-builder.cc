@@ -4367,11 +4367,20 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  maglev::ProcessResult Process(maglev::HoleyFloat64IsUndefinedOrHole* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, ConvertWord32ToJSBool(
+                     __ Float64IsUndefinedOrHole(Map(node->input()))));
+    return maglev::ProcessResult::kContinue;
+  }
+#else
   maglev::ProcessResult Process(maglev::HoleyFloat64IsHole* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, ConvertWord32ToJSBool(__ Float64IsHole(Map(node->input()))));
     return maglev::ProcessResult::kContinue;
   }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
   maglev::ProcessResult Process(maglev::CheckedNumberOrOddballToFloat64* node,
                                 const maglev::ProcessingState& state) {

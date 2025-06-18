@@ -3162,7 +3162,11 @@ bool MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
       holey_float = right;
     }
     if (holey_float) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      SetAccumulator(AddNewNode<HoleyFloat64IsUndefinedOrHole>({holey_float}));
+#else
       SetAccumulator(AddNewNode<HoleyFloat64IsHole>({holey_float}));
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
       return true;
     }
   }
@@ -3947,7 +3951,11 @@ ReduceResult MaglevGraphBuilder::VisitTestReferenceEqual() {
 ValueNode* MaglevGraphBuilder::BuildTestUndetectable(ValueNode* value) {
   if (value->properties().value_representation() ==
       ValueRepresentation::kHoleyFloat64) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    return AddNewNode<HoleyFloat64IsUndefinedOrHole>({value});
+#else
     return AddNewNode<HoleyFloat64IsHole>({value});
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   } else if (value->properties().value_representation() !=
              ValueRepresentation::kTagged) {
     return GetBooleanConstant(false);
@@ -4000,9 +4008,16 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfUndetectable(
         default:
           return builder.AlwaysFalse();
       }
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    case Opcode::kHoleyFloat64IsUndefinedOrHole:
+      return BuildBranchIfFloat64IsUndefinedOrHole(
+          builder,
+          result->Cast<HoleyFloat64IsUndefinedOrHole>()->input().node());
+#else
     case Opcode::kHoleyFloat64IsHole:
       return BuildBranchIfFloat64IsHole(
           builder, result->Cast<HoleyFloat64IsHole>()->input().node());
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     case Opcode::kTestUndetectable:
       return builder.Build<BranchIfUndetectable>(
           {result->Cast<TestUndetectable>()->value().node()},
@@ -14782,9 +14797,15 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfRootConstant(
       return builder.Build<BranchIfUndetectable>(
           {node->Cast<TestUndetectable>()->value().node()},
           node->Cast<TestUndetectable>()->check_type());
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    case Opcode::kHoleyFloat64IsUndefinedOrHole:
+      return builder.Build<BranchIfFloat64IsUndefinedOrHole>(
+          {node->Cast<HoleyFloat64IsUndefinedOrHole>()->input().node()});
+#else
     case Opcode::kHoleyFloat64IsHole:
       return builder.Build<BranchIfFloat64IsHole>(
           {node->Cast<HoleyFloat64IsHole>()->input().node()});
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     default:
       return builder.Build<BranchIfRootConstant>({node}, RootIndex::kTrueValue);
   }
@@ -14943,6 +14964,15 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfFloat64IsHole(
   // TODO(victorgomes): Optimize.
   return builder.Build<BranchIfFloat64IsHole>({node});
 }
+
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+MaglevGraphBuilder::BranchResult
+MaglevGraphBuilder::BuildBranchIfFloat64IsUndefinedOrHole(
+    BranchBuilder& builder, ValueNode* node) {
+  // TODO(victorgomes): Optimize.
+  return builder.Build<BranchIfFloat64IsUndefinedOrHole>({node});
+}
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 ReduceResult MaglevGraphBuilder::VisitJumpIfToBooleanTrue() {
   auto branch_builder = CreateBranchBuilder(BranchType::kBranchIfTrue);

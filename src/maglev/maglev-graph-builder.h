@@ -2996,6 +2996,10 @@ class MaglevGraphBuilder {
                                                  ValueNode* node);
   BranchResult BuildBranchIfFloat64IsHole(BranchBuilder& builder,
                                           ValueNode* node);
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  BranchResult BuildBranchIfFloat64IsUndefinedOrHole(BranchBuilder& builder,
+                                                     ValueNode* node);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   BranchResult BuildBranchIfReferenceEqual(BranchBuilder& builder,
                                            ValueNode* lhs, ValueNode* rhs);
   BranchResult BuildBranchIfInt32Compare(BranchBuilder& builder, Operation op,

@@ -1221,6 +1221,8 @@ std::ostream& operator<<(std::ostream& os, NumericKind kind) {
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     case NumericKind::kFloat64Undefined:
       return os << "Float64Undefined";
+    case NumericKind::kFloat64UndefinedOrHole:
+      return os << "Float64UndefinedOrHole";
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     case NumericKind::kFinite:
       return os << "Finite";
