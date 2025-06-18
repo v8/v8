@@ -567,6 +567,9 @@ void LateLoadEliminationAnalyzer::InvalidateIfAlias(OpIndex op_idx) {
     // TODO(dmercadier): this is more conservative that we'd like, since only a
     // few functions use .arguments. Using a native-context-specific protector
     // for .arguments might allow to avoid invalidating frame states' content.
+    // Actually, FrameStates should know if they are inlined or not, and they
+    // should know what their inputs are (ie, locals, parameters, etc.). So, we
+    // should be able to inspect FrameStates and invalidate only Parameters.
     for (OpIndex input : frame_state->inputs()) {
       InvalidateIfAlias(input);
     }
