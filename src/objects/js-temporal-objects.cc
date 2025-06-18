@@ -59,14 +59,13 @@ using temporal::TimeDurationRecord;
 
 // Options
 
-
-// #sec-temporal-totemporaldisambiguation
+// https://tc39.es/proposal-temporal/#sec-temporal-totemporaldisambiguation
 enum class Disambiguation { kCompatible, kEarlier, kLater, kReject };
 
-// #sec-temporal-toshowcalendaroption
+// https://tc39.es/proposal-temporal/#sec-temporal-toshowcalendaroption
 enum class ShowCalendar { kAuto, kAlways, kNever };
 
-// #table-temporal-unsigned-rounding-modes
+// https://tc39.es/proposal-temporal/#table-temporal-unsigned-rounding-modes
 enum class UnsignedRoundingMode {
   kInfinity,
   kZero,
@@ -75,14 +74,14 @@ enum class UnsignedRoundingMode {
   kHalfEven
 };
 
-// #sec-temporal-GetTemporalUnit
+// https://tc39.es/proposal-temporal/#sec-temporal-GetTemporalUnit
 enum class UnitGroup {
   kDate,
   kTime,
   kDateTime,
 };
 
-// #sec-temporal-totemporaltimerecord
+// https://tc39.es/proposal-temporal/#sec-temporal-totemporaltimerecord
 enum Completeness {
   kComplete,
   kPartial,
@@ -227,7 +226,7 @@ namespace temporal {
 
 // ====== Numeric conversions ======
 
-// #sec-temporal-tointegerifintegral
+// https://tc39.es/proposal-temporal/#sec-temporal-tointegerifintegral
 Maybe<double> ToIntegerIfIntegral(Isolate* isolate,
                                   DirectHandle<Object> argument) {
   // 1. Let number be ? ToNumber(argument).
@@ -245,7 +244,7 @@ Maybe<double> ToIntegerIfIntegral(Isolate* isolate,
   return Just(number_double);
 }
 
-// #sec-temporal-tointegerwithtruncation
+// https://tc39.es/proposal-temporal/#sec-temporal-tointegerwithtruncation
 Maybe<double> ToIntegerWithTruncation(Isolate* isolate,
                                       DirectHandle<Object> argument) {
   // 1. Let number be ? ToNumber(argument).
@@ -263,7 +262,7 @@ Maybe<double> ToIntegerWithTruncation(Isolate* isolate,
   return Just(number);
 }
 
-// #sec-temporal-topositiveintegerwithtruncation
+// https://tc39.es/proposal-temporal/#sec-temporal-topositiveintegerwithtruncation
 Maybe<double> ToPositiveIntegerWithTruncation(Isolate* isolate,
                                               DirectHandle<Object> argument) {
   // 1. Let integer be ?ToIntegerWithTruncation(argument).
@@ -361,7 +360,7 @@ bool IsValidTime(double hour, double minute, double second, double millisecond,
   return true;
 }
 
-// #sec-temporal-isodaysinmonth
+// https://tc39.es/proposal-temporal/#sec-temporal-isodaysinmonth
 int8_t ISODaysInMonth(int32_t year, uint8_t month) {
   switch (month) {
     // 1. If month is 1, 3, 5, 7, 8, 10, or 12, return 31.
@@ -386,7 +385,7 @@ int8_t ISODaysInMonth(int32_t year, uint8_t month) {
   }
 }
 
-// #sec-temporal-isvalidisodate
+// https://tc39.es/proposal-temporal/#sec-temporal-isvalidisodate
 bool IsValidIsoDate(double year, double month, double day) {
   // 1. If month < 1 or month > 12, then
   if (month < 1 || month > 12) {
@@ -419,7 +418,7 @@ bool IsValidIsoDate(double year, double month, double day) {
 
 // ====== Options getters ======
 
-// #sec-temporal-tomonthcode
+// https://tc39.es/proposal-temporal/#sec-temporal-tomonthcode
 Maybe<std::string> ToMonthCode(Isolate* isolate,
                                DirectHandle<Object> argument) {
   // 1. Let monthCode be ?ToPrimitive(argument, string).
@@ -492,7 +491,7 @@ Maybe<std::string> ToMonthCode(Isolate* isolate,
   return Just(month_code);
 }
 
-// #sec-temporal-totemporaloverflow
+// https://tc39.es/proposal-temporal/#sec-temporal-totemporaloverflow
 // Also handles the undefined check from GetOptionsObject
 Maybe<temporal_rs::ArithmeticOverflow> ToTemporalOverflowHandleUndefined(
     Isolate* isolate, DirectHandle<Object> options, const char* method_name) {
@@ -516,7 +515,7 @@ Maybe<temporal_rs::ArithmeticOverflow> ToTemporalOverflowHandleUndefined(
       temporal_rs::ArithmeticOverflow::Constrain);
 }
 
-// #sec-temporal-gettemporaldisambiguationoption
+// https://tc39.es/proposal-temporal/#sec-temporal-gettemporaldisambiguationoption
 // Also handles the undefined check from GetOptionsObject
 Maybe<temporal_rs::Disambiguation>
 GetTemporalDisambiguationOptionHandleUndefined(Isolate* isolate,
@@ -547,7 +546,7 @@ GetTemporalDisambiguationOptionHandleUndefined(Isolate* isolate,
       temporal_rs::Disambiguation::Compatible);
 }
 
-// #sec-temporal-gettemporaloffsetoption
+// https://tc39.es/proposal-temporal/#sec-temporal-gettemporaloffsetoption
 // Also handles the undefined check from GetOptionsObject
 Maybe<temporal_rs::OffsetDisambiguation> GetTemporalOffsetOptionHandleUndefined(
     Isolate* isolate, DirectHandle<Object> options,
@@ -576,7 +575,7 @@ Maybe<temporal_rs::OffsetDisambiguation> GetTemporalOffsetOptionHandleUndefined(
       fallback);
 }
 
-// #sec-temporal-gettemporalfractionalseconddigitsoption
+// https://tc39.es/proposal-temporal/#sec-temporal-gettemporalfractionalseconddigitsoption
 Maybe<temporal_rs::Precision> GetTemporalFractionalSecondDigitsOption(
     Isolate* isolate, DirectHandle<JSReceiver> normalized_options,
     const char* method_name) {
@@ -640,7 +639,7 @@ Maybe<temporal_rs::Precision> GetTemporalFractionalSecondDigitsOption(
       temporal_rs::Precision{.is_minute = false, .precision = digit_count});
 }
 
-// #sec-temporal-GetTemporalUnitvaluedoption
+// https://tc39.es/proposal-temporal/#sec-temporal-GetTemporalUnitvaluedoption
 //
 // Utility function for getting Unit options off of an object
 //
@@ -817,7 +816,7 @@ Maybe<std::optional<Unit>> GetTemporalUnit(
   }
 }
 
-// #sec-temporal-canonicalizecalendar
+// https://tc39.es/proposal-temporal/#sec-temporal-canonicalizecalendar
 Maybe<temporal_rs::AnyCalendarKind> CanonicalizeCalendar(
     Isolate* isolate, DirectHandle<String> calendar) {
   std::string s = calendar->ToStdString();
@@ -837,7 +836,7 @@ Maybe<temporal_rs::AnyCalendarKind> CanonicalizeCalendar(
   return Just(cal.value());
 }
 
-// #sec-temporal-getroundingincrementoption
+// https://tc39.es/proposal-temporal/#sec-temporal-getroundingincrementoption
 Maybe<uint32_t> GetRoundingIncrementOption(
     Isolate* isolate, DirectHandle<JSReceiver> normalized_options) {
   DirectHandle<Object> value;
@@ -891,7 +890,7 @@ Maybe<RoundingMode> GetRoundingModeOption(Isolate* isolate,
       values, fallback);
 }
 
-// #sec-temporal-getdifferencesettings
+// https://tc39.es/proposal-temporal/#sec-temporal-getdifferencesettings
 //
 // This does not perform any validity checks, it only does the minimum needed
 // to construct a DifferenceSettings object. temporal_rs handles the rest
@@ -951,7 +950,7 @@ Maybe<temporal_rs::DifferenceSettings> GetDifferenceSettingsWithoutChecks(
                                               .increment = rounding_increment});
 }
 
-// #sec-temporal-gettemporalshowcalendarnameoption
+// https://tc39.es/proposal-temporal/#sec-temporal-gettemporalshowcalendarnameoption
 Maybe<temporal_rs::DisplayCalendar> GetTemporalShowCalendarNameOption(
     Isolate* isolate, DirectHandle<JSReceiver> options,
     const char* method_name) {
@@ -1078,7 +1077,7 @@ constexpr temporal_rs::ToStringRoundingOptions kToStringAuto =
 
 // ====== Stringification operations ======
 
-// #sec-temporal-temporaldurationtostring
+// https://tc39.es/proposal-temporal/#sec-temporal-temporaldurationtostring
 MaybeDirectHandle<String> TemporalDurationToString(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     const temporal_rs::ToStringRoundingOptions&& options) {
@@ -1095,7 +1094,7 @@ MaybeDirectHandle<String> TemporalDurationToString(
   return builder.Finish().ToHandleChecked();
 }
 
-// #sec-temporal-temporalinstanttostring
+// https://tc39.es/proposal-temporal/#sec-temporal-temporalinstanttostring
 MaybeDirectHandle<String> TemporalInstantToString(
     Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
     const temporal_rs::TimeZone* time_zone,
@@ -1116,7 +1115,7 @@ MaybeDirectHandle<String> TemporalInstantToString(
   return builder.Finish().ToHandleChecked();
 }
 
-// #sec-temporal-temporaldatetostring
+// https://tc39.es/proposal-temporal/#sec-temporal-temporaldatetostring
 MaybeDirectHandle<String> TemporalDateToString(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     temporal_rs::DisplayCalendar show_calendar) {
@@ -1129,7 +1128,7 @@ MaybeDirectHandle<String> TemporalDateToString(
   return builder.Finish().ToHandleChecked();
 }
 
-// #sec-temporal-isodatetimetostring
+// https://tc39.es/proposal-temporal/#sec-temporal-isodatetimetostring
 // This automatically operates on the ISO date time within the
 // JSTemporalPlainDateTime, you do not need to perform any conversions to
 // extract it
@@ -1151,7 +1150,7 @@ MaybeDirectHandle<String> ISODateTimeToString(
   return builder.Finish().ToHandleChecked();
 }
 
-// #sec-temporal-timerecordtostring
+// https://tc39.es/proposal-temporal/#sec-temporal-timerecordtostring
 MaybeDirectHandle<String> TimeRecordToString(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> time,
     const temporal_rs::ToStringRoundingOptions&& options) {
@@ -1298,7 +1297,7 @@ Maybe<std::optional<int64_t>> GetSingleDurationField(
   }
 }
 
-// #sec-temporal-tooffsetstring
+// https://tc39.es/proposal-temporal/#sec-temporal-tooffsetstring
 Maybe<std::string> ToOffsetString(Isolate* isolate,
                                   DirectHandle<Object> argument) {
   // 1. Let offset be ?ToPrimitive(argument, string).
@@ -1500,7 +1499,7 @@ Maybe<std::optional<IntegerType>> GetSingleTimeRecordField(
   }
 }
 
-// #sec-temporal-totemporaltimerecord
+// https://tc39.es/proposal-temporal/#sec-temporal-totemporaltimerecord
 Maybe<temporal_rs::PartialTime> ToTemporalTimeRecord(
     Isolate* isolate, DirectHandle<JSReceiver> time_like,
     const char* method_name, Completeness completeness = kComplete) {
@@ -1730,7 +1729,7 @@ Maybe<bool> GetSingleCalendarField(
     ToIntegerTypeWithTruncation<int32_t>, SIMPLE_CONDITION, SIMPLE_SETTER,     \
     TIMEZONE_REQUIRED_CHECK, ASSIGN)
 
-// #sec-temporal-preparecalendarfields
+// https://tc39.es/proposal-temporal/#sec-temporal-preparecalendarfields
 Maybe<CombinedRecord> PrepareCalendarFields(Isolate* isolate,
                                             temporal_rs::AnyCalendarKind kind,
                                             DirectHandle<JSReceiver> fields,
@@ -1853,7 +1852,7 @@ Maybe<CombinedRecord> PrepareCalendarFields(Isolate* isolate,
 
 // ====== Construction operations ======
 
-// #sec-temporal-totemporalduration
+// https://tc39.es/proposal-temporal/#sec-temporal-totemporalduration
 MaybeDirectHandle<JSTemporalDuration> ToTemporalDuration(
     Isolate* isolate, DirectHandle<Object> item, const char* method_name) {
   TEMPORAL_ENTER_FUNC();
@@ -1921,7 +1920,7 @@ MaybeDirectHandle<JSTemporalDuration> ToTemporalDuration(
       temporal_rs::Duration::from_partial_duration(partial));
 }
 
-// #sec-temporal-totemporalinstant
+// https://tc39.es/proposal-temporal/#sec-temporal-totemporalinstant
 MaybeDirectHandle<JSTemporalInstant> ToTemporalInstant(
     Isolate* isolate, DirectHandle<Object> item, const char* method_name) {
   TEMPORAL_ENTER_FUNC();
@@ -1972,7 +1971,7 @@ MaybeDirectHandle<JSTemporalInstant> ToTemporalInstant(
       std::move(rust_result));
 }
 
-// #sec-temporal-totemporaltime
+// https://tc39.es/proposal-temporal/#sec-temporal-totemporaltime
 // Note this skips the options-parsing steps and instead asks the caller to pass
 // it in
 MaybeDirectHandle<JSTemporalPlainTime> ToTemporalTime(
@@ -2052,7 +2051,7 @@ MaybeDirectHandle<JSTemporalPlainTime> ToTemporalTime(
   }
 }
 
-// #sec-temporal-totemporaldate
+// https://tc39.es/proposal-temporal/#sec-temporal-totemporaldate
 // Note this skips the options-parsing steps and instead asks the caller to pass
 // it in
 MaybeDirectHandle<JSTemporalPlainDate> ToTemporalDate(
@@ -2157,7 +2156,7 @@ MaybeDirectHandle<JSTemporalPlainDate> ToTemporalDate(
   }
 }
 
-// #sec-temporal-totemporaldatetime
+// https://tc39.es/proposal-temporal/#sec-temporal-totemporaldatetime
 // Note this skips the options-parsing steps and instead asks the caller to pass
 // it in
 MaybeDirectHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
@@ -2262,7 +2261,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
   }
 }
 
-// #sec-temporal-totemporalyearmonth
+// https://tc39.es/proposal-temporal/#sec-temporal-totemporalyearmonth
 // Note this skips the options-parsing steps and instead asks the caller to pass
 // it in
 MaybeDirectHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
@@ -2370,7 +2369,7 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
   }
 }
 
-// #sec-temporal-totemporalzoneddatetime
+// https://tc39.es/proposal-temporal/#sec-temporal-totemporalzoneddatetime
 // Note this skips the options-parsing steps and instead asks the caller to pass
 // it in
 MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
@@ -2499,7 +2498,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
   }
 }
 
-// #sec-temporal-totemporalmonthday
+// https://tc39.es/proposal-temporal/#sec-temporal-totemporalmonthday
 // Note this skips the options-parsing steps and instead asks the caller to pass
 // it in
 MaybeDirectHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
@@ -2691,7 +2690,7 @@ MaybeDirectHandle<JSTemporalDuration> DifferenceTemporalPlainTime(
       isolate, CONSTRUCTOR(duration), CONSTRUCTOR(duration), std::move(diff));
 }
 
-// #sec-temporal-differencetemporalplaindate
+// https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplaindate
 MaybeDirectHandle<JSTemporalDuration> DifferenceTemporalPlainDate(
     Isolate* isolate, DifferenceOperation operation,
     DirectHandle<JSTemporalPlainDate> handle, DirectHandle<Object> other_obj,
@@ -2735,7 +2734,7 @@ MaybeDirectHandle<JSTemporalDuration> DifferenceTemporalPlainDate(
       isolate, CONSTRUCTOR(duration), CONSTRUCTOR(duration), std::move(diff));
 }
 
-// #sec-temporal-differencetemporalplaindatetime
+// https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplaindatetime
 MaybeDirectHandle<JSTemporalDuration> DifferenceTemporalPlainDateTime(
     Isolate* isolate, DifferenceOperation operation,
     DirectHandle<JSTemporalPlainDateTime> handle,
@@ -2782,7 +2781,7 @@ MaybeDirectHandle<JSTemporalDuration> DifferenceTemporalPlainDateTime(
       isolate, CONSTRUCTOR(duration), CONSTRUCTOR(duration), std::move(diff));
 }
 
-// #sec-temporal-differencetemporalplainyearmonth
+// https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplainyearmonth
 MaybeDirectHandle<JSTemporalDuration> DifferenceTemporalPlainYearMonth(
     Isolate* isolate, DifferenceOperation operation,
     DirectHandle<JSTemporalPlainYearMonth> handle,
@@ -2829,7 +2828,7 @@ MaybeDirectHandle<JSTemporalDuration> DifferenceTemporalPlainYearMonth(
 
 }  // namespace temporal
 
-// #sec-temporal.duration
+// https://tc39.es/proposal-temporal/#sec-temporal.duration
 MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Constructor(
     Isolate* isolate, DirectHandle<JSFunction> target,
     DirectHandle<HeapObject> new_target, DirectHandle<Object> years,
@@ -2913,14 +2912,14 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Constructor(
       temporal_rs::Duration::create(y, mo, w, d, h, m, s, ms, mis, ms));
 }
 
-// #sec-temporal.duration.compare
+// https://tc39.es/proposal-temporal/#sec-temporal.duration.compare
 MaybeDirectHandle<Smi> JSTemporalDuration::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj, DirectHandle<Object> options_obj) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.duration.from
+// https://tc39.es/proposal-temporal/#sec-temporal.duration.from
 MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::From(
     Isolate* isolate, DirectHandle<Object> item) {
   const char method_name[] = "Temporal.Duration.from";
@@ -2928,21 +2927,21 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::From(
   return temporal::ToTemporalDuration(isolate, item, method_name);
 }
 
-// #sec-temporal.duration.prototype.round
+// https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.round
 MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Round(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     DirectHandle<Object> round_to_obj) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.duration.prototype.total
+// https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.total
 MaybeDirectHandle<Object> JSTemporalDuration::Total(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     DirectHandle<Object> total_of_obj) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.duration.prototype.with
+// https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.with
 MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::With(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     DirectHandle<Object> temporal_duration_like) {
@@ -2990,21 +2989,21 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::With(
       temporal_rs::Duration::from_partial_duration(partial));
 }
 
-// #sec-get-temporal.duration.prototype.sign
+// https://tc39.es/proposal-temporal/#sec-get-temporal.duration.prototype.sign
 MaybeDirectHandle<Smi> JSTemporalDuration::Sign(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration) {
   auto sign = duration->duration()->raw()->sign();
   return direct_handle(Smi::FromInt((temporal_rs::Sign::Value)sign), isolate);
 }
 
-// #sec-get-temporal.duration.prototype.blank
+// https://tc39.es/proposal-temporal/#sec-get-temporal.duration.prototype.blank
 MaybeDirectHandle<Oddball> JSTemporalDuration::Blank(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration) {
   return isolate->factory()->ToBoolean(duration->duration()->raw()->sign() ==
                                        temporal_rs::Sign::Zero);
 }
 
-// #sec-temporal.duration.prototype.negated
+// https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.negated
 MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Negated(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration) {
   return ConstructRustWrappingType<JSTemporalDuration>(
@@ -3012,7 +3011,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Negated(
       duration->duration()->raw()->negated());
 }
 
-// #sec-temporal.duration.prototype.abs
+// https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.abs
 MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Abs(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration) {
   return ConstructRustWrappingType<JSTemporalDuration>(
@@ -3020,7 +3019,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Abs(
       duration->duration()->raw()->abs());
 }
 
-// #sec-temporal.duration.prototype.add
+// https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.add
 MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Add(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     DirectHandle<Object> other, DirectHandle<Object> options) {
@@ -3037,7 +3036,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Add(
       isolate, CONSTRUCTOR(duration), CONSTRUCTOR(duration), std::move(result));
 }
 
-// #sec-temporal.duration.prototype.subtract
+// https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.subtract
 MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     DirectHandle<Object> other, DirectHandle<Object> options) {
@@ -3054,14 +3053,14 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Subtract(
       isolate, CONSTRUCTOR(duration), CONSTRUCTOR(duration), std::move(result));
 }
 
-// #sec-temporal.duration.prototype.tojson
+// https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.tojson
 MaybeDirectHandle<String> JSTemporalDuration::ToJSON(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration) {
   return temporal::TemporalDurationToString(isolate, duration,
                                             std::move(temporal::kToStringAuto));
 }
 
-// #sec-temporal.duration.prototype.tolocalestring
+// https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalDuration::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
@@ -3069,7 +3068,7 @@ MaybeDirectHandle<String> JSTemporalDuration::ToLocaleString(
                                             std::move(temporal::kToStringAuto));
 }
 
-// #sec-temporal.duration.prototype.tostring
+// https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.tostring
 MaybeDirectHandle<String> JSTemporalDuration::ToString(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     DirectHandle<Object> options_obj) {
@@ -3182,7 +3181,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Constructor(
       isolate, target, new_target, std::move(rust_object));
 }
 
-// #sec-temporal.plaindate.compare
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindate.compare
 MaybeDirectHandle<Smi> JSTemporalPlainDate::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj) {
@@ -3201,7 +3200,7 @@ MaybeDirectHandle<Smi> JSTemporalPlainDate::Compare(
                        isolate);
 }
 
-// #sec-temporal.plaindate.prototype.equals
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.equals
 MaybeDirectHandle<Oddball> JSTemporalPlainDate::Equals(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> other_obj) {
@@ -3217,8 +3216,7 @@ MaybeDirectHandle<Oddball> JSTemporalPlainDate::Equals(
   return isolate->factory()->ToBoolean(equals);
 }
 
-
-// #sec-temporal.plaindate.prototype.toplainyearmonth
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.toplainyearmonth
 MaybeDirectHandle<JSTemporalPlainYearMonth>
 JSTemporalPlainDate::ToPlainYearMonth(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date) {
@@ -3227,7 +3225,7 @@ JSTemporalPlainDate::ToPlainYearMonth(
       temporal_date->date()->raw()->to_plain_year_month());
 }
 
-// #sec-temporal.plaindate.prototype.toplainmonthday
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.toplainmonthday
 MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainDate::ToPlainMonthDay(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date) {
   return ConstructRustWrappingType<JSTemporalPlainMonthDay>(
@@ -3235,7 +3233,7 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainDate::ToPlainMonthDay(
       temporal_date->date()->raw()->to_plain_month_day());
 }
 
-// #sec-temporal.plaindate.prototype.toplaindatetime
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.toplaindatetime
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDate::ToPlainDateTime(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> temporal_time_obj) {
@@ -3254,7 +3252,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDate::ToPlainDateTime(
       temporal_date->date()->raw()->to_plain_date_time(maybe_time));
 }
 
-// #sec-temporal.plaindate.prototype.with
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.with
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::With(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> temporal_date_like_obj,
@@ -3262,21 +3260,21 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::With(
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plaindate.prototype.withcalendar
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.withcalendar
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::WithCalendar(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> calendar_id) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plaindate.prototype.tozoneddatetime
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.tozoneddatetime
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalPlainDate::ToZonedDateTime(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> item_obj) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plaindate.prototype.add
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.add
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Add(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> temporal_duration_like,
@@ -3284,7 +3282,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Add(
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plaindate.prototype.subtract
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.subtract
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> temporal_duration_like,
@@ -3292,7 +3290,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Subtract(
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plaindate.prototype.until
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.until
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDate::Until(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
@@ -3304,7 +3302,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDate::Until(
       method_name);
 }
 
-// #sec-temporal.plaindate.prototype.since
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.since
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDate::Since(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
@@ -3316,20 +3314,20 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDate::Since(
       method_name);
 }
 
-// #sec-temporal.now.plaindate
+// https://tc39.es/proposal-temporal/#sec-temporal.now.plaindate
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Now(
     Isolate* isolate, DirectHandle<Object> calendar_like,
     DirectHandle<Object> temporal_time_zone_like) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.now.plaindateiso
+// https://tc39.es/proposal-temporal/#sec-temporal.now.plaindateiso
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::NowISO(
     Isolate* isolate, DirectHandle<Object> temporal_time_zone_like) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plaindate.from
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindate.from
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::From(
     Isolate* isolate, DirectHandle<Object> item_obj,
     DirectHandle<Object> options_obj) {
@@ -3350,14 +3348,14 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::From(
   return temporal::ToTemporalDate(isolate, item_obj, overflow, method_name);
 }
 
-// #sec-temporal.plaindate.prototype.tojson
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.tojson
 MaybeDirectHandle<String> JSTemporalPlainDate::ToJSON(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date) {
   return temporal::TemporalDateToString(isolate, temporal_date,
                                         temporal_rs::DisplayCalendar::Auto);
 }
 
-// #sec-temporal.plaindate.prototype.tostring
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.tostring
 MaybeDirectHandle<String> JSTemporalPlainDate::ToString(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> options_obj) {
@@ -3380,7 +3378,7 @@ MaybeDirectHandle<String> JSTemporalPlainDate::ToString(
   return temporal::TemporalDateToString(isolate, temporal_date, show_calendar);
 }
 
-// #sup-temporal.plaindate.prototype.tolocalestring
+// https://tc39.es/proposal-temporal/#sup-temporal.plaindate.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalPlainDate::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
@@ -3388,7 +3386,7 @@ MaybeDirectHandle<String> JSTemporalPlainDate::ToLocaleString(
                                         temporal_rs::DisplayCalendar::Auto);
 }
 
-// #sec-temporal-createtemporaldatetime
+// https://tc39.es/proposal-temporal/#sec-temporal-createtemporaldatetime
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Constructor(
     Isolate* isolate, DirectHandle<JSFunction> target,
     DirectHandle<HeapObject> new_target, DirectHandle<Object> iso_year_obj,
@@ -3515,7 +3513,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Constructor(
       isolate, target, new_target, std::move(rust_object));
 }
 
-// #sec-temporal.plaindatetime.from
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.from
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::From(
     Isolate* isolate, DirectHandle<Object> item_obj,
     DirectHandle<Object> options_obj) {
@@ -3537,7 +3535,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::From(
   return temporal::ToTemporalDateTime(isolate, item_obj, overflow, method_name);
 }
 
-// #sec-temporal.plaindatetime.compare
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.compare
 MaybeDirectHandle<Smi> JSTemporalPlainDateTime::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj) {
@@ -3556,7 +3554,7 @@ MaybeDirectHandle<Smi> JSTemporalPlainDateTime::Compare(
                        isolate);
 }
 
-// #sec-temporal.plaindatetime.prototype.equals
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.equals
 MaybeDirectHandle<Oddball> JSTemporalPlainDateTime::Equals(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> other_obj) {
@@ -3574,7 +3572,7 @@ MaybeDirectHandle<Oddball> JSTemporalPlainDateTime::Equals(
   return isolate->factory()->ToBoolean(equals);
 }
 
-// #sec-temporal.plaindatetime.prototype.with
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.with
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::With(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> temporal_date_time_like_obj,
@@ -3582,7 +3580,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::With(
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plaindatetime.prototype.withcalendar
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.withcalendar
 MaybeDirectHandle<JSTemporalPlainDateTime>
 JSTemporalPlainDateTime::WithCalendar(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> temporal_date,
@@ -3590,7 +3588,7 @@ JSTemporalPlainDateTime::WithCalendar(
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plaindatetime.prototype.withplaintime
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.withplaintime
 MaybeDirectHandle<JSTemporalPlainDateTime>
 JSTemporalPlainDateTime::WithPlainTime(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
@@ -3598,21 +3596,21 @@ JSTemporalPlainDateTime::WithPlainTime(
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plaindatetime.prototype.toplainyearmonth
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.toplainyearmonth
 MaybeDirectHandle<JSTemporalPlainYearMonth>
 JSTemporalPlainDateTime::ToPlainYearMonth(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plaindatetime.prototype.toplainmonthday
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.toplainmonthday
 MaybeDirectHandle<JSTemporalPlainMonthDay>
 JSTemporalPlainDateTime::ToPlainMonthDay(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plaindatetime.prototype.tozoneddatetime
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tozoneddatetime
 MaybeDirectHandle<JSTemporalZonedDateTime>
 JSTemporalPlainDateTime::ToZonedDateTime(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
@@ -3621,7 +3619,7 @@ JSTemporalPlainDateTime::ToZonedDateTime(
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plaindatetime.prototype.tojson
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tojson
 MaybeDirectHandle<String> JSTemporalPlainDateTime::ToJSON(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time) {
   return temporal::ISODateTimeToString(isolate, date_time,
@@ -3629,7 +3627,7 @@ MaybeDirectHandle<String> JSTemporalPlainDateTime::ToJSON(
                                        temporal_rs::DisplayCalendar::Auto);
 }
 
-// #sec-temporal.plaindatetime.prototype.tolocalestring
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalPlainDateTime::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
@@ -3638,7 +3636,7 @@ MaybeDirectHandle<String> JSTemporalPlainDateTime::ToLocaleString(
                                        temporal_rs::DisplayCalendar::Auto);
 }
 
-// #sec-temporal.plaindatetime.prototype.tostring
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tostring
 MaybeDirectHandle<String> JSTemporalPlainDateTime::ToString(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> options_obj) {
@@ -3693,43 +3691,41 @@ MaybeDirectHandle<String> JSTemporalPlainDateTime::ToString(
                                        std::move(rust_options), show_calendar);
 }
 
-// #sec-temporal.now.plaindatetime
+// https://tc39.es/proposal-temporal/#sec-temporal.now.plaindatetime
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Now(
     Isolate* isolate, DirectHandle<Object> calendar_like,
     DirectHandle<Object> temporal_time_zone_like) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.now.plaindatetimeiso
+// https://tc39.es/proposal-temporal/#sec-temporal.now.plaindatetimeiso
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::NowISO(
     Isolate* isolate, DirectHandle<Object> temporal_time_zone_like) {
   UNIMPLEMENTED();
 }
 
-
-// #sec-temporal.plaindatetime.prototype.round
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.round
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Round(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> round_to_obj) {
   UNIMPLEMENTED();
 }
 
-
-// #sec-temporal.plaindatetime.prototype.add
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.add
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Add(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plaindatetime.prototype.subtract
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.subtract
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plaindatetime.prototype.until
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.until
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDateTime::Until(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
@@ -3741,7 +3737,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDateTime::Until(
       method_name);
 }
 
-// #sec-temporal.plaindatetime.prototype.since
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.since
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDateTime::Since(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
@@ -3753,19 +3749,19 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDateTime::Since(
       method_name);
 }
 
-// #sec-temporal.plaindatetime.prototype.toplaindate
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.toplaindate
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDateTime::ToPlainDate(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plaindatetime.prototype.toplaintime
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.toplaintime
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainDateTime::ToPlainTime(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plainmonthday
+// https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday
 MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::Constructor(
     Isolate* isolate, DirectHandle<JSFunction> target,
     DirectHandle<HeapObject> new_target, DirectHandle<Object> iso_month_obj,
@@ -3836,7 +3832,7 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::Constructor(
       isolate, target, new_target, std::move(rust_object));
 }
 
-// #sec-temporal.plainmonthday.from
+// https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.from
 MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::From(
     Isolate* isolate, DirectHandle<Object> item_obj,
     DirectHandle<Object> options_obj) {
@@ -3857,7 +3853,7 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::From(
   return temporal::ToTemporalMonthDay(isolate, item_obj, overflow, method_name);
 }
 
-// #sec-temporal.plainyearmonth.prototype.equals
+// https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.equals
 MaybeDirectHandle<Oddball> JSTemporalPlainMonthDay::Equals(
     Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day,
     DirectHandle<Object> other_obj) {
@@ -3875,7 +3871,7 @@ MaybeDirectHandle<Oddball> JSTemporalPlainMonthDay::Equals(
   return isolate->factory()->ToBoolean(equals);
 }
 
-// #sec-temporal.plainmonthday.prototype.with
+// https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.with
 MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::With(
     Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> temporal_month_day,
     DirectHandle<Object> temporal_month_day_like_obj,
@@ -3883,33 +3879,33 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::With(
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plainmonthday.prototype.toplaindate
+// https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.toplaindate
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainMonthDay::ToPlainDate(
     Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day,
     DirectHandle<Object> item_obj) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plainmonthday.prototype.getisofields
+// https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.getisofields
 MaybeDirectHandle<JSReceiver> JSTemporalPlainMonthDay::GetISOFields(
     Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plainmonthday.prototype.tojson
+// https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.tojson
 MaybeDirectHandle<String> JSTemporalPlainMonthDay::ToJSON(
     Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plainmonthday.prototype.tostring
+// https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.tostring
 MaybeDirectHandle<String> JSTemporalPlainMonthDay::ToString(
     Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day,
     DirectHandle<Object> options) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plainmonthday.prototype.tolocalestring
+// https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalPlainMonthDay::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
@@ -3987,7 +3983,7 @@ JSTemporalPlainYearMonth::Constructor(
       isolate, target, new_target, std::move(rust_object));
 }
 
-// #sec-temporal.plainyearmonth.from
+// https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.from
 MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::From(
     Isolate* isolate, DirectHandle<Object> item_obj,
     DirectHandle<Object> options_obj) {
@@ -4009,7 +4005,7 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::From(
                                        method_name);
 }
 
-// #sec-temporal.plainyearmonth.compare
+// https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.compare
 MaybeDirectHandle<Smi> JSTemporalPlainYearMonth::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj) {
@@ -4029,7 +4025,7 @@ MaybeDirectHandle<Smi> JSTemporalPlainYearMonth::Compare(
       isolate);
 }
 
-// #sec-temporal.plainyearmonth.prototype.equals
+// https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.equals
 MaybeDirectHandle<Oddball> JSTemporalPlainYearMonth::Equals(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
     DirectHandle<Object> other_obj) {
@@ -4047,22 +4043,21 @@ MaybeDirectHandle<Oddball> JSTemporalPlainYearMonth::Equals(
   return isolate->factory()->ToBoolean(equals);
 }
 
-
-// #sec-temporal.plainyearmonth.prototype.add
+// https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.add
 MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::Add(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plainyearmonth.prototype.subtract
+// https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.subtract
 MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plainyearmonth.prototype.until
+// https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.until
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainYearMonth::Until(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
@@ -4074,7 +4069,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainYearMonth::Until(
       method_name);
 }
 
-// #sec-temporal.plainyearmonth.prototype.since
+// https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.since
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainYearMonth::Since(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
@@ -4086,7 +4081,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainYearMonth::Since(
       method_name);
 }
 
-// #sec-temporal.plainyearmonth.prototype.with
+// https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.with
 MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::With(
     Isolate* isolate,
     DirectHandle<JSTemporalPlainYearMonth> temporal_year_month,
@@ -4095,34 +4090,34 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::With(
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plainyearmonth.prototype.toplaindate
+// https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.toplaindate
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainYearMonth::ToPlainDate(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
     DirectHandle<Object> item_obj) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plainyearmonth.prototype.tojson
+// https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tojson
 MaybeDirectHandle<String> JSTemporalPlainYearMonth::ToJSON(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plainyearmonth.prototype.tostring
+// https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tostring
 MaybeDirectHandle<String> JSTemporalPlainYearMonth::ToString(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
     DirectHandle<Object> options) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plainyearmonth.prototype.tolocalestring
+// https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalPlainYearMonth::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal-plaintime-constructor
+// https://tc39.es/proposal-temporal/#sec-temporal-plaintime-constructor
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Constructor(
     Isolate* isolate, DirectHandle<JSFunction> target,
     DirectHandle<HeapObject> new_target, DirectHandle<Object> hour_obj,
@@ -4213,7 +4208,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Constructor(
       std::move(rust_object));
 }
 
-// #sec-temporal.plaintime.compare
+// https://tc39.es/proposal-temporal/#sec-temporal.plaintime.compare
 MaybeDirectHandle<Smi> JSTemporalPlainTime::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj) {
@@ -4232,21 +4227,21 @@ MaybeDirectHandle<Smi> JSTemporalPlainTime::Compare(
                        isolate);
 }
 
-// #sec-temporal.plaintime.prototype.equals
+// https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.equals
 MaybeDirectHandle<Oddball> JSTemporalPlainTime::Equals(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     DirectHandle<Object> other_obj) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plaintime.prototype.round
+// https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.round
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Round(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     DirectHandle<Object> round_to_obj) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plaintime.prototype.with
+// https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.with
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::With(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     DirectHandle<Object> temporal_time_like_obj,
@@ -4254,13 +4249,13 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::With(
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.now.plaintimeiso
+// https://tc39.es/proposal-temporal/#sec-temporal.now.plaintimeiso
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::NowISO(
     Isolate* isolate, DirectHandle<Object> temporal_time_zone_like) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.plaintime.from
+// https://tc39.es/proposal-temporal/#sec-temporal.plaintime.from
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::From(
     Isolate* isolate, DirectHandle<Object> item_obj,
     DirectHandle<Object> options_obj) {
@@ -4285,7 +4280,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::From(
   return item;
 }
 
-// #sec-temporal.plaintime.prototype.add
+// https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.add
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Add(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     DirectHandle<Object> temporal_duration_like) {
@@ -4305,7 +4300,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Add(
       std::move(added));
 }
 
-// #sec-temporal.plaintime.prototype.subtract
+// https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.subtract
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     DirectHandle<Object> temporal_duration_like) {
@@ -4325,7 +4320,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Subtract(
       std::move(subtracted));
 }
 
-// #sec-temporal.plaintime.prototype.until
+// https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.until
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainTime::Until(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
@@ -4337,7 +4332,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainTime::Until(
       method_name);
 }
 
-// #sec-temporal.plaintime.prototype.since
+// https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.since
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainTime::Since(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
@@ -4349,15 +4344,14 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainTime::Since(
       method_name);
 }
 
-
-// #sec-temporal.plaintime.prototype.tojson
+// https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.tojson
 MaybeDirectHandle<String> JSTemporalPlainTime::ToJSON(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time) {
   return temporal::TimeRecordToString(isolate, temporal_time,
                                       std::move(temporal::kToStringAuto));
 }
 
-// #sup-temporal.plaintime.prototype.tolocalestring
+// https://tc39.es/proposal-temporal/#sup-temporal.plaintime.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalPlainTime::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
@@ -4365,7 +4359,7 @@ MaybeDirectHandle<String> JSTemporalPlainTime::ToLocaleString(
                                       std::move(temporal::kToStringAuto));
 }
 
-// #sec-temporal.plaintime.prototype.tostring
+// https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.tostring
 MaybeDirectHandle<String> JSTemporalPlainTime::ToString(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     DirectHandle<Object> options_obj) {
@@ -4415,7 +4409,7 @@ MaybeDirectHandle<String> JSTemporalPlainTime::ToString(
                                       std::move(rust_options));
 }
 
-// #sec-temporal.zoneddatetime
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
     Isolate* isolate, DirectHandle<JSFunction> target,
     DirectHandle<HeapObject> new_target,
@@ -4424,14 +4418,14 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
   UNIMPLEMENTED();
 }
 
-// #sec-get-temporal.zoneddatetime.prototype.hoursinday
+// https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.hoursinday
 MaybeDirectHandle<Object> JSTemporalZonedDateTime::HoursInDay(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.zoneddatetime.from
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.from
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::From(
     Isolate* isolate, DirectHandle<Object> item_obj,
     DirectHandle<Object> options_obj) {
@@ -4474,7 +4468,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::From(
       isolate, item_obj, disambiguation, offset_option, overflow, method_name);
 }
 
-// #sec-temporal.zoneddatetime.compare
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.compare
 MaybeDirectHandle<Smi> JSTemporalZonedDateTime::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj) {
@@ -4497,15 +4491,14 @@ MaybeDirectHandle<Smi> JSTemporalZonedDateTime::Compare(
       isolate);
 }
 
-// #sec-temporal.zoneddatetime.prototype.equals
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.equals
 MaybeDirectHandle<Oddball> JSTemporalZonedDateTime::Equals(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> other_obj) {
   UNIMPLEMENTED();
 }
 
-
-// #sec-temporal.zoneddatetime.prototype.with
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.with
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::With(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> temporal_zoned_date_time_like_obj,
@@ -4514,7 +4507,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::With(
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.zoneddatetime.prototype.withcalendar
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.withcalendar
 MaybeDirectHandle<JSTemporalZonedDateTime>
 JSTemporalZonedDateTime::WithCalendar(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> temporal_date,
@@ -4522,7 +4515,7 @@ JSTemporalZonedDateTime::WithCalendar(
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.zoneddatetime.prototype.withplaintime
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.withplaintime
 MaybeDirectHandle<JSTemporalZonedDateTime>
 JSTemporalZonedDateTime::WithPlainTime(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
@@ -4531,7 +4524,7 @@ JSTemporalZonedDateTime::WithPlainTime(
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.zoneddatetime.prototype.withtimezone
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.withtimezone
 MaybeDirectHandle<JSTemporalZonedDateTime>
 JSTemporalZonedDateTime::WithTimeZone(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
@@ -4540,57 +4533,56 @@ JSTemporalZonedDateTime::WithTimeZone(
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.zoneddatetime.prototype.tojson
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tojson
 MaybeDirectHandle<String> JSTemporalZonedDateTime::ToJSON(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.zoneddatetime.prototype.tolocalestring
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalZonedDateTime::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.zoneddatetime.prototype.tostring
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tostring
 MaybeDirectHandle<String> JSTemporalZonedDateTime::ToString(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> options_obj) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.now.zoneddatetime
+// https://tc39.es/proposal-temporal/#sec-temporal.now.zoneddatetime
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Now(
     Isolate* isolate, DirectHandle<Object> calendar_like,
     DirectHandle<Object> temporal_time_zone_like) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.now.zoneddatetimeiso
+// https://tc39.es/proposal-temporal/#sec-temporal.now.zoneddatetimeiso
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::NowISO(
     Isolate* isolate, DirectHandle<Object> temporal_time_zone_like) {
   TEMPORAL_ENTER_FUNC();
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.zoneddatetime.prototype.round
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.round
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Round(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> round_to_obj) {
   UNIMPLEMENTED();
 }
 
-
-// #sec-temporal.zoneddatetime.prototype.add
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.add
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Add(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
   TEMPORAL_ENTER_FUNC();
   UNIMPLEMENTED();
 }
-// #sec-temporal.zoneddatetime.prototype.subtract
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.subtract
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
@@ -4598,9 +4590,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Subtract(
   UNIMPLEMENTED();
 }
 
-
-
-// #sec-temporal.zoneddatetime.prototype.until
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.until
 MaybeDirectHandle<JSTemporalDuration> JSTemporalZonedDateTime::Until(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
@@ -4608,7 +4598,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalZonedDateTime::Until(
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.zoneddatetime.prototype.since
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.since
 MaybeDirectHandle<JSTemporalDuration> JSTemporalZonedDateTime::Since(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
@@ -4616,48 +4606,47 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalZonedDateTime::Since(
   UNIMPLEMENTED();
 }
 
-
-// #sec-temporal.now.instant
+// https://tc39.es/proposal-temporal/#sec-temporal.now.instant
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Now(Isolate* isolate) {
   TEMPORAL_ENTER_FUNC();
   UNIMPLEMENTED();
 }
 
-// #sec-get-temporal.zoneddatetime.prototype.offsetnanoseconds
+// https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.offsetnanoseconds
 MaybeDirectHandle<Object> JSTemporalZonedDateTime::OffsetNanoseconds(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
   UNIMPLEMENTED();
 }
 
-// #sec-get-temporal.zoneddatetime.prototype.epochnanoseconds
+// https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.epochnanoseconds
 MaybeDirectHandle<BigInt> JSTemporalZonedDateTime::EpochNanoseconds(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
   UNIMPLEMENTED();
 }
 
-// #sec-get-temporal.zoneddatetime.prototype.timezoneid
+// https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.timezoneid
 MaybeDirectHandle<String> JSTemporalZonedDateTime::TimeZoneId(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
   UNIMPLEMENTED();
 }
 
-// #sec-get-temporal.zoneddatetime.prototype.offset
+// https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.offset
 MaybeDirectHandle<String> JSTemporalZonedDateTime::Offset(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.zoneddatetime.prototype.startofday
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.startofday
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::StartOfDay(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
   UNIMPLEMENTED();
 }
-// #sec-temporal.zoneddatetime.prototype.gettimezonetransition
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.gettimezonetransition
 MaybeDirectHandle<JSTemporalZonedDateTime>
 JSTemporalZonedDateTime::GetTimeZoneTransition(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
@@ -4666,27 +4655,26 @@ JSTemporalZonedDateTime::GetTimeZoneTransition(
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.zoneddatetime.prototype.toinstant
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toinstant
 MaybeDirectHandle<JSTemporalInstant> JSTemporalZonedDateTime::ToInstant(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
   UNIMPLEMENTED();
 }
 
-
-// #sec-temporal.zoneddatetime.prototype.toplaindate
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toplaindate
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalZonedDateTime::ToPlainDate(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.zoneddatetime.prototype.toplaintime
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toplaintime
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalZonedDateTime::ToPlainTime(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.zoneddatetime.prototype.toplaindatetime
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toplaindatetime
 MaybeDirectHandle<JSTemporalPlainDateTime>
 JSTemporalZonedDateTime::ToPlainDateTime(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
@@ -4695,8 +4683,8 @@ JSTemporalZonedDateTime::ToPlainDateTime(
 
 namespace temporal {
 
-// #sec-temporal-createtemporalinstant, but this also performs the validity
-// check
+// https://tc39.es/proposal-temporal/#sec-temporal-createtemporalinstant, but
+// this also performs the validity check
 MaybeDirectHandle<JSTemporalInstant> CreateTemporalInstantWithValidityCheck(
     Isolate* isolate, DirectHandle<JSFunction> target,
     DirectHandle<HeapObject> new_target,
@@ -4738,7 +4726,7 @@ MaybeDirectHandle<JSTemporalInstant> CreateTemporalInstantWithValidityCheck(
 
 }  // namespace temporal
 
-// #sec-temporal.instant
+// https://tc39.es/proposal-temporal/#sec-temporal.instant
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Constructor(
     Isolate* isolate, DirectHandle<JSFunction> target,
     DirectHandle<HeapObject> new_target,
@@ -4762,7 +4750,7 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Constructor(
       isolate, target, new_target, epoch_nanoseconds);
 }
 
-// #sec-temporal.instant.from
+// https://tc39.es/proposal-temporal/#sec-temporal.instant.from
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::From(
     Isolate* isolate, DirectHandle<Object> item) {
   const char method_name[] = "Temporal.Instant.from";
@@ -4774,26 +4762,26 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::From(
   return item_instant;
 }
 
-// #sec-temporal.instant.fromepochmilliseconds
+// https://tc39.es/proposal-temporal/#sec-temporal.instant.fromepochmilliseconds
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::FromEpochMilliseconds(
     Isolate* isolate, DirectHandle<Object> item) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.instant.fromepochnanoseconds
+// https://tc39.es/proposal-temporal/#sec-temporal.instant.fromepochnanoseconds
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::FromEpochNanoseconds(
     Isolate* isolate, DirectHandle<Object> item) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.instant.compare
+// https://tc39.es/proposal-temporal/#sec-temporal.instant.compare
 MaybeDirectHandle<Smi> JSTemporalInstant::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj) {
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.instant.prototype.equals
+// https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.equals
 MaybeDirectHandle<Oddball> JSTemporalInstant::Equals(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
     DirectHandle<Object> other_obj) {
@@ -4814,7 +4802,7 @@ MaybeDirectHandle<Oddball> JSTemporalInstant::Equals(
                                        this_ns.low == other_ns.low);
 }
 
-// #sec-temporal.instant.prototype.round
+// https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.round
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Round(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
     DirectHandle<Object> round_to_obj) {
@@ -4885,7 +4873,7 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Round(
       isolate, CONSTRUCTOR(instant), CONSTRUCTOR(instant), std::move(rounded));
 }
 
-// #sec-temporal.instant.prototype.epochmilliseconds
+// https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.epochmilliseconds
 MaybeDirectHandle<Number> JSTemporalInstant::EpochMilliseconds(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle) {
   TEMPORAL_ENTER_FUNC();
@@ -4894,7 +4882,7 @@ MaybeDirectHandle<Number> JSTemporalInstant::EpochMilliseconds(
   return isolate->factory()->NewNumberFromInt64(ms);
 }
 
-// #sec-temporal.instant.prototype.epochnanoseconds
+// https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.epochnanoseconds
 MaybeDirectHandle<BigInt> JSTemporalInstant::EpochNanoseconds(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle) {
   TEMPORAL_ENTER_FUNC();
@@ -4913,7 +4901,7 @@ MaybeDirectHandle<BigInt> JSTemporalInstant::EpochNanoseconds(
   return BigInt::FromWords64(isolate, sign_bit, 2, words);
 }
 
-// #sec-temporal.instant.prototype.tozoneddatetime
+// https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tozoneddatetime
 MaybeDirectHandle<JSTemporalZonedDateTime>
 JSTemporalInstant::ToZonedDateTimeISO(Isolate* isolate,
                                       DirectHandle<JSTemporalInstant> handle,
@@ -4923,7 +4911,7 @@ JSTemporalInstant::ToZonedDateTimeISO(Isolate* isolate,
   UNIMPLEMENTED();
 }
 
-// #sec-temporal.instant.prototype.tojson
+// https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tojson
 MaybeDirectHandle<String> JSTemporalInstant::ToJSON(
     Isolate* isolate, DirectHandle<JSTemporalInstant> instant) {
   TEMPORAL_ENTER_FUNC();
@@ -4932,7 +4920,7 @@ MaybeDirectHandle<String> JSTemporalInstant::ToJSON(
                                            std::move(temporal::kToStringAuto));
 }
 
-// #sec-temporal.instant.prototype.tolocalestring
+// https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalInstant::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
@@ -4940,7 +4928,7 @@ MaybeDirectHandle<String> JSTemporalInstant::ToLocaleString(
                                            std::move(temporal::kToStringAuto));
 }
 
-// #sec-temporal.instant.prototype.tostring
+// https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tostring
 MaybeDirectHandle<String> JSTemporalInstant::ToString(
     Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
     DirectHandle<Object> options_obj) {
@@ -5017,7 +5005,7 @@ MaybeDirectHandle<String> JSTemporalInstant::ToString(
       isolate, instant, rust_time_zone.get(), std::move(rust_options));
 }
 
-// #sec-temporal.instant.prototype.add
+// https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.add
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Add(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
     DirectHandle<Object> temporal_duration_like) {
@@ -5036,7 +5024,7 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Add(
       isolate, CONSTRUCTOR(instant), CONSTRUCTOR(instant), std::move(added));
 }
 
-// #sec-temporal.instant.prototype.subtract
+// https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.subtract
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
     DirectHandle<Object> temporal_duration_like) {
@@ -5057,7 +5045,7 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Subtract(
       std::move(subtracted));
 }
 
-// #sec-temporal.instant.prototype.until
+// https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.until
 MaybeDirectHandle<JSTemporalDuration> JSTemporalInstant::Until(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
     DirectHandle<Object> other_obj, DirectHandle<Object> options) {
@@ -5069,7 +5057,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalInstant::Until(
       options, method_name);
 }
 
-// #sec-temporal.instant.prototype.since
+// https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.since
 MaybeDirectHandle<JSTemporalDuration> JSTemporalInstant::Since(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
     DirectHandle<Object> other_obj, DirectHandle<Object> options) {
@@ -5081,7 +5069,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalInstant::Since(
       options, method_name);
 }
 
-// #sec-temporal.now.timezoneid
+// https://tc39.es/proposal-temporal/#sec-temporal.now.timezoneid
 V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> JSTemporalNowTimeZoneId(
     Isolate* isolate) {
   UNIMPLEMENTED();
