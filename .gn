@@ -28,7 +28,7 @@ default_args = {
   # Disable js dependencies like the closure compiler.
   enable_js_protobuf = false
 
-  # Disable rust dependencies.
+  # Enable rust dependencies.
   enable_rust = true
 
   # Needed only for std::atomic_ref<T> for large Ts http://crbug.com/402171653
