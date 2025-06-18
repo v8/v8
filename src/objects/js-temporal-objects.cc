@@ -3034,7 +3034,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Add(
   auto result =
       duration->duration()->raw()->add(*other_duration->duration()->raw());
   return ConstructRustWrappingType<JSTemporalDuration>(
-      isolate, CONSTRUCTOR(instant), CONSTRUCTOR(instant), std::move(result));
+      isolate, CONSTRUCTOR(duration), CONSTRUCTOR(duration), std::move(result));
 }
 
 // #sec-temporal.duration.prototype.subtract
@@ -3051,7 +3051,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Subtract(
   auto result =
       duration->duration()->raw()->subtract(*other_duration->duration()->raw());
   return ConstructRustWrappingType<JSTemporalDuration>(
-      isolate, CONSTRUCTOR(instant), CONSTRUCTOR(instant), std::move(result));
+      isolate, CONSTRUCTOR(duration), CONSTRUCTOR(duration), std::move(result));
 }
 
 // #sec-temporal.duration.prototype.tojson
