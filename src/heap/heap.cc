@@ -5543,8 +5543,17 @@ bool Heap::ShouldOptimizeForLoadTime() const {
 // - or the incremental marking is not in progress and we cannot start it.
 bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
                                                      AllocationOrigin origin) {
-  if (always_allocate() || OldGenerationSpaceAvailable() > 0) return true;
-  // We reached the old generation allocation limit.
+  if (always_allocate()) {
+    return true;
+  }
+  // Under external_memory_accounted_in_global_limit, we also consider the
+  // global limit.
+  if (OldGenerationSpaceAvailable() > 0 &&
+      (!v8_flags.external_memory_accounted_in_global_limit ||
+       GlobalMemoryAvailable() > 0)) {
+    return true;
+  }
+  // We reached the old generation or global allocation limit.
 
   // Allocations in the GC should always succeed if possible.
   if (origin == AllocationOrigin::kGC) return true;
