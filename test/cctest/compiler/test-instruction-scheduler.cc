@@ -8,9 +8,7 @@
 #include "src/compiler/backend/instruction.h"
 #include "test/cctest/cctest.h"
 
-namespace v8 {
-namespace internal {
-namespace compiler {
+namespace v8::internal::compiler {
 
 // Create InstructionBlocks with a single block.
 InstructionBlocks* CreateSingleBlock(Zone* zone) {
@@ -67,19 +65,14 @@ class InstructionSchedulerTester {
   InstructionScheduler scheduler_;
 };
 
-// TODO(391750831, nicohartmann): Currently broken with Turboshaft backend.
-// Needs to be ported.
-#if 0
 TEST(DeoptInMiddleOfBasicBlock) {
   InstructionSchedulerTester tester;
   Zone* zone = tester.zone();
 
   tester.StartBlock();
   InstructionCode jmp_opcode = kArchJmp;
-  Node* dummy_frame_state = Node::New(zone, 0, nullptr, 0, nullptr, false);
   FlagsContinuation cont = FlagsContinuation::ForDeoptimizeForTesting(
-      kEqual, DeoptimizeReason::kUnknown, dummy_frame_state->id(),
-      FeedbackSource{}, dummy_frame_state);
+      kEqual, DeoptimizeReason::kUnknown, 0, FeedbackSource{});
   jmp_opcode = cont.Encode(jmp_opcode);
   Instruction* jmp_inst = Instruction::New(zone, jmp_opcode);
   tester.CheckIsDeopt(jmp_inst);
@@ -107,8 +100,5 @@ TEST(DeoptInMiddleOfBasicBlock) {
   // Schedule block.
   tester.EndBlock();
 }
-#endif
 
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::compiler

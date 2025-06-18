@@ -141,7 +141,6 @@
   'test-run-load-store/*': [SKIP],
   'test-run-machops/*': [SKIP],
   'test-select-combine/*': [SKIP],
-  'test-instruction-scheduler/*': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################

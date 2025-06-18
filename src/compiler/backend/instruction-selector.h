@@ -93,21 +93,22 @@ class FlagsContinuation final {
   }
 
   // Creates a new flags continuation for an eager deoptimization exit.
-  static FlagsContinuation ForDeoptimize(FlagsCondition condition,
-                                         DeoptimizeReason reason,
-                                         uint32_t node_id,
-                                         FeedbackSource const& feedback,
-                                         turboshaft::OpIndex frame_state) {
+  static FlagsContinuation ForDeoptimize(
+      FlagsCondition condition, DeoptimizeReason reason, uint32_t node_id,
+      FeedbackSource const& feedback,
+      turboshaft::V<turboshaft::FrameState> frame_state) {
+    DCHECK(frame_state.valid());
     return FlagsContinuation(kFlags_deoptimize, condition, reason, node_id,
                              feedback, frame_state);
   }
   static FlagsContinuation ForDeoptimizeForTesting(
       FlagsCondition condition, DeoptimizeReason reason, uint32_t node_id,
-      FeedbackSource const& feedback, turboshaft::OpIndex frame_state) {
-    // test-instruction-scheduler.cc passes a dummy Node* as frame_state.
-    // Contents don't matter as long as it's not nullptr.
+      FeedbackSource const& feedback,
+      turboshaft::OptionalV<turboshaft::FrameState> frame_state = {}) {
+    // Tests (e.g. test-instruction-scheduler.cc) may not pass a valid
+    // frame_state as that doesn't matter for the test.
     return FlagsContinuation(kFlags_deoptimize, condition, reason, node_id,
-                             feedback, frame_state);
+                             feedback, frame_state.value_or_invalid());
   }
 
   // Creates a new flags continuation for a boolean value.
@@ -315,7 +316,8 @@ class FlagsContinuation final {
         feedback_(feedback),
         frame_state_or_result_(frame_state) {
     DCHECK(mode == kFlags_deoptimize);
-    DCHECK(frame_state.valid());
+    // NOTE: Tests might use this constructor with an invalid frame_state, which
+    // is okay because it's never actually accessed.
   }
 
   FlagsContinuation(FlagsCondition condition, turboshaft::OpIndex result)
