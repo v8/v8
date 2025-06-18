@@ -1566,6 +1566,65 @@ Maybe<std::optional<IntegerType>> GetSingleTimeRecordField(
   }
 }
 
+// https://tc39.es/proposal-temporal/#sec-temporal-ispartialtemporalobject
+Maybe<bool> IsPartialTemporalObject(Isolate* isolate,
+                                    DirectHandle<Object> value) {
+  // 1. If value is not an Object, return false.
+  if (!IsHeapObject(*value)) {
+    return Just(false);
+  }
+  InstanceType instance_type =
+      Cast<HeapObject>(*value)->map(isolate)->instance_type();
+
+  if (!InstanceTypeChecker::IsJSReceiver(instance_type)) {
+    return Just(false);
+  }
+
+  auto value_recvr = Cast<JSReceiver>(value);
+
+  // 2. If value has an [[InitializedTemporalDate]],
+  // [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]],
+  // [[InitializedTemporalTime]], [[InitializedTemporalYearMonth]], or
+  // [[InitializedTemporalZonedDateTime]] internal slot, return false.
+  if (InstanceTypeChecker::IsJSTemporalPlainDate(instance_type) ||
+          InstanceTypeChecker::IsJSTemporalPlainDateTime(instance_type),
+      InstanceTypeChecker::IsJSTemporalPlainMonthDay(instance_type) ||
+          InstanceTypeChecker::IsJSTemporalPlainTime(instance_type) ||
+          InstanceTypeChecker::IsJSTemporalPlainYearMonth(instance_type) ||
+          InstanceTypeChecker::IsJSTemporalZonedDateTime(instance_type)) {
+    return Just(false);
+  }
+
+  // 3. Let calendarProperty be ? Get(value, "calendar").
+  DirectHandle<Object> cal;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, cal,
+      JSReceiver::GetProperty(isolate, value_recvr,
+                              isolate->factory()->calendar_string()),
+      {});
+
+  // 4. If calendarProperty is not undefined, return false.
+  if (!IsUndefined(*cal)) {
+    return Just(false);
+  }
+
+  // 5. Let timeZoneProperty be ? Get(value, "timeZone").
+  DirectHandle<Object> tz;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, tz,
+      JSReceiver::GetProperty(isolate, value_recvr,
+                              isolate->factory()->timeZone_string()),
+      {});
+
+  // 6. If timeZoneProperty is not undefined, return false.
+  if (!IsUndefined(*tz)) {
+    return Just(false);
+  }
+
+  // 7. return true
+  return Just(true);
+}
+
 // https://tc39.es/proposal-temporal/#sec-temporal-totemporaltimerecord
 Maybe<temporal_rs::PartialTime> ToTemporalTimeRecord(
     Isolate* isolate, DirectHandle<JSReceiver> time_like,
