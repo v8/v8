@@ -3037,7 +3037,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
                    DCHECK(code->kind() == CodeKind::FOR_TESTING ||
                           code->kind() == CodeKind::BASELINE ||
                           code->kind() == CodeKind::MAGLEV ||
-                          code->kind() == CodeKind::TURBOFAN_JS);
+                          code->kind() == CodeKind::TURBOFAN_JS ||
+                          code->is_interpreter_trampoline_builtin());
                    entry.SetCodeAndEntrypointPointer(
                        compile_lazy.ptr(), compile_lazy->instruction_start());
                  }
