@@ -1491,10 +1491,11 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 
 void Assembler::BlockTrampolinePoolFor(int instructions) {
   DEBUG_PRINTF("\tBlockTrampolinePoolFor %d", instructions);
-  CheckTrampolinePoolQuick(instructions);
+  int margin = instructions * kInstrSize;
+  CheckTrampolinePoolQuick(margin);
   DEBUG_PRINTF("\tpc_offset %d,BlockTrampolinePoolBefore %d\n", pc_offset(),
-               pc_offset() + instructions * kInstrSize);
-  BlockTrampolinePoolBefore(pc_offset() + instructions * kInstrSize);
+               pc_offset() + margin);
+  BlockTrampolinePoolBefore(pc_offset() + margin);
 }
 
 void Assembler::CheckTrampolinePool() {

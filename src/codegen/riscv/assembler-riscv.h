@@ -470,7 +470,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     explicit BlockTrampolinePoolScope(Assembler* assem, int margin = 0)
         : assem_(assem) {
       if (margin > 0) {
-        assem_->CheckTrampolinePoolQuick(margin / kInstrSize);
+        assem_->CheckTrampolinePoolQuick(margin);
       }
       assem_->StartBlockTrampolinePool();
     }
@@ -614,10 +614,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     return constpool_.RecordEntry(data, rmode);
   }
 
-  void CheckTrampolinePoolQuick(int extra_instructions = 0) {
+  void CheckTrampolinePoolQuick(int margin = 0) {
     DEBUG_PRINTF("\tCheckTrampolinePoolQuick pc_offset:%d %d\n", pc_offset(),
-                 next_buffer_check_ - extra_instructions * kInstrSize);
-    if (pc_offset() >= next_buffer_check_ - extra_instructions * kInstrSize) {
+                 next_buffer_check_ - margin);
+    if (pc_offset() >= next_buffer_check_ - margin) {
       CheckTrampolinePool();
     }
   }
@@ -752,7 +752,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     DEBUG_PRINTF("\ttrampoline_pool_blocked_nesting:%d\n",
                  trampoline_pool_blocked_nesting_);
     if (trampoline_pool_blocked_nesting_ == 0) {
-      CheckTrampolinePoolQuick(1);
+      CheckTrampolinePoolQuick(1 * kInstrSize);
     }
   }
 

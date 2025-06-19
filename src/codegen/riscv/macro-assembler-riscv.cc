@@ -4775,7 +4775,7 @@ bool MacroAssembler::BranchShortHelper(int32_t offset, Label* L, Condition cond,
     }
   }
 
-  CheckTrampolinePoolQuick(1);
+  CheckTrampolinePoolQuick(1 * kInstrSize);
   return true;
 }
 
