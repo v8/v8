@@ -45,6 +45,7 @@
 #include "src/maglev/maglev-phi-representation-selector.h"
 #include "src/maglev/maglev-post-hoc-optimizations-processors.h"
 #include "src/maglev/maglev-pre-regalloc-codegen-processors.h"
+#include "src/maglev/maglev-reducer-inl.h"
 #include "src/maglev/maglev-regalloc-data.h"
 #include "src/maglev/maglev-regalloc.h"
 #include "src/objects/code-inl.h"
