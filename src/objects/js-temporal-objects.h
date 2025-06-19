@@ -145,6 +145,7 @@ class JSTemporalDuration
   DECL_PRINTER(JSTemporalDuration)
 
   DECL_CTOR_HELPER()
+  static constexpr bool kTypeContainsCalendar = false;
   DECL_ACCESSORS_FOR_RUST_WRAPPER(duration, temporal_rs::Duration)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalDuration)
@@ -232,6 +233,7 @@ class JSTemporalInstant
       DirectHandle<Object> other, DirectHandle<Object> options);
 
   DECL_CTOR_HELPER()
+  static constexpr bool kTypeContainsCalendar = false;
   DECL_ACCESSORS_FOR_RUST_WRAPPER(instant, temporal_rs::Instant)
 
   DECL_PRINTER(JSTemporalInstant)
@@ -339,6 +341,7 @@ class JSTemporalPlainDate
 
   DECL_PRINTER(JSTemporalPlainDate)
   DECL_CTOR_HELPER()
+  static constexpr bool kTypeContainsCalendar = true;
   DECL_ACCESSORS_FOR_RUST_WRAPPER(date, temporal_rs::PlainDate)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainDate)
@@ -469,6 +472,7 @@ class JSTemporalPlainDateTime
   DECL_PRINTER(JSTemporalPlainDateTime)
 
   DECL_CTOR_HELPER()
+  static constexpr bool kTypeContainsCalendar = true;
   DECL_ACCESSORS_FOR_RUST_WRAPPER(date_time, temporal_rs::PlainDateTime)
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainDateTime)
 };
@@ -527,6 +531,7 @@ class JSTemporalPlainMonthDay
   DECL_PRINTER(JSTemporalPlainMonthDay)
 
   DECL_CTOR_HELPER()
+  static constexpr bool kTypeContainsCalendar = true;
   DECL_ACCESSORS_FOR_RUST_WRAPPER(month_day, temporal_rs::PlainMonthDay)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainMonthDay)
@@ -615,6 +620,7 @@ class JSTemporalPlainTime
   DECL_PRINTER(JSTemporalPlainTime)
 
   DECL_CTOR_HELPER()
+  static constexpr bool kTypeContainsCalendar = false;
   DECL_ACCESSORS_FOR_RUST_WRAPPER(time, temporal_rs::PlainTime)
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainTime)
 };
@@ -698,6 +704,7 @@ class JSTemporalPlainYearMonth
   DECL_PRINTER(JSTemporalPlainYearMonth)
 
   DECL_CTOR_HELPER()
+  static constexpr bool kTypeContainsCalendar = true;
   DECL_ACCESSORS_FOR_RUST_WRAPPER(year_month, temporal_rs::PlainYearMonth)
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainYearMonth)
 };
@@ -850,6 +857,7 @@ class JSTemporalZonedDateTime
   DECL_PRINTER(JSTemporalZonedDateTime)
 
   DECL_CTOR_HELPER()
+  static constexpr bool kTypeContainsCalendar = true;
   DECL_ACCESSORS_FOR_RUST_WRAPPER(zoned_date_time, temporal_rs::ZonedDateTime)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalZonedDateTime)

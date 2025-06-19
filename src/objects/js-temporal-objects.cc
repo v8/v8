@@ -2734,6 +2734,51 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
   }
 }
 
+// For calling ToTemporalFoo in generic contexts.
+// Note that this ignores any options other than `overflow`.
+template <typename JSType>
+MaybeDirectHandle<JSType> ToTemporalGeneric(
+    Isolate* isolate, DirectHandle<Object> item,
+    std::optional<temporal_rs::ArithmeticOverflow> overflow,
+    const char* method_name);
+
+#define DEFINE_TO_TEMPORAL_GENERIC(Type)                           \
+  template <>                                                      \
+  MaybeDirectHandle<JSTemporalPlain##Type>                         \
+  ToTemporalGeneric<JSTemporalPlain##Type>(                        \
+      Isolate * isolate, DirectHandle<Object> item,                \
+      std::optional<temporal_rs::ArithmeticOverflow> overflow,     \
+      const char* method_name) {                                   \
+    return ToTemporal##Type(isolate, item, overflow, method_name); \
+  }
+
+DEFINE_TO_TEMPORAL_GENERIC(Time)
+DEFINE_TO_TEMPORAL_GENERIC(Date)
+DEFINE_TO_TEMPORAL_GENERIC(DateTime)
+DEFINE_TO_TEMPORAL_GENERIC(YearMonth)
+DEFINE_TO_TEMPORAL_GENERIC(MonthDay)
+
+#undef DEFINE_TO_TEMPORAL_GENERIC
+
+// These two have a different number of arguments
+template <>
+MaybeDirectHandle<JSTemporalInstant> ToTemporalGeneric<JSTemporalInstant>(
+    Isolate* isolate, DirectHandle<Object> item,
+    std::optional<temporal_rs::ArithmeticOverflow> overflow,
+    const char* method_name) {
+  return ToTemporalInstant(isolate, item, method_name);
+}
+
+template <>
+MaybeDirectHandle<JSTemporalZonedDateTime>
+ToTemporalGeneric<JSTemporalZonedDateTime>(
+    Isolate* isolate, DirectHandle<Object> item,
+    std::optional<temporal_rs::ArithmeticOverflow> overflow,
+    const char* method_name) {
+  return ToTemporalZonedDateTime(isolate, item, std::nullopt, std::nullopt,
+                                 overflow, method_name);
+}
+
 // A class that wraps a PlainDate or a ZonedDateTime that allows
 // them to be either owned in a unique_ptr or borrowed.
 //
@@ -2994,106 +3039,48 @@ Maybe<OwnedRelativeTo> GetTemporalRelativeToOptionHandleUndefined(
 
 // ====== Difference operations ======
 
-enum DifferenceOperation {
-  kSince,
-  kUntil,
-};
+template <typename RustType>
+using DifferenceOperation = TemporalAllocatedResult<temporal_rs::Duration> (
+    RustType::*)(const RustType&, temporal_rs::DifferenceSettings) const;
 
-MaybeDirectHandle<JSTemporalDuration> DifferenceTemporalInstant(
-    Isolate* isolate, DifferenceOperation operation,
-    DirectHandle<JSTemporalInstant> handle, DirectHandle<Object> other_obj,
-    DirectHandle<Object> options, const char* method_name) {
-  // 1. Set other to ?ToTemporalInstant(other).
-  DirectHandle<JSTemporalInstant> other;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, other,
-      temporal::ToTemporalInstant(isolate, other_obj, method_name));
-
-  auto settings = temporal_rs::DifferenceSettings{.largest_unit = std::nullopt,
-                                                  .smallest_unit = std::nullopt,
-                                                  .rounding_mode = std::nullopt,
-                                                  .increment = std::nullopt};
-
-  // 2. Let resolvedOptions be ? GetOptionsObject(options).
-  // 3. Let settings be ? GetDifferenceSettings(operation, resolvedOptions,
-  // time, « », nanosecond, second).
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, settings,
-      temporal::GetDifferenceSettingsWithoutChecks(
-          isolate, options, UnitGroup::kTime, Unit::Nanosecond, method_name),
-      DirectHandle<JSTemporalDuration>());
-
-  // Remaining steps handled by temporal_rs
-  // operation negation (step 6) is also handled in temporal_rs
-  auto this_rust = handle->instant()->raw();
-  auto other_rust = other->instant()->raw();
-
-  auto diff = operation == kUntil ? this_rust->until(*other_rust, settings)
-                                  : this_rust->since(*other_rust, settings);
-
-  return ConstructRustWrappingType<JSTemporalDuration>(isolate,
-                                                       std::move(diff));
-}
-
-MaybeDirectHandle<JSTemporalDuration> DifferenceTemporalPlainTime(
-    Isolate* isolate, DifferenceOperation operation,
-    DirectHandle<JSTemporalPlainTime> handle, DirectHandle<Object> other_obj,
-    DirectHandle<Object> options, const char* method_name) {
-  // 1. Set other to ?ToTemporalInstant(other).
-  DirectHandle<JSTemporalPlainTime> other;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, other,
-      temporal::ToTemporalTime(isolate, other_obj, std::nullopt, method_name));
-
-  auto settings = temporal_rs::DifferenceSettings{.largest_unit = std::nullopt,
-                                                  .smallest_unit = std::nullopt,
-                                                  .rounding_mode = std::nullopt,
-                                                  .increment = std::nullopt};
-
-  // 2. Let resolvedOptions be ? GetOptionsObject(options).
-  // 3. Let settings be ? GetDifferenceSettings(operation, resolvedOptions,
-  // time, « », nanosecond, second).
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, settings,
-      temporal::GetDifferenceSettingsWithoutChecks(
-          isolate, options, UnitGroup::kTime, Unit::Nanosecond, method_name),
-      DirectHandle<JSTemporalDuration>());
-
-  // Remaining steps handled by temporal_rs
-  // operation negation (step 6) is also handled in temporal_rs
-  auto this_rust = handle->time()->raw();
-  auto other_rust = other->time()->raw();
-
-  auto diff = operation == kUntil ? this_rust->until(*other_rust, settings)
-                                  : this_rust->since(*other_rust, settings);
-
-  return ConstructRustWrappingType<JSTemporalDuration>(isolate,
-                                                       std::move(diff));
-}
-
+// Generic function for all DifferenceTemporalFoo operations
+//
+// https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalinstant
 // https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplaindate
-MaybeDirectHandle<JSTemporalDuration> DifferenceTemporalPlainDate(
-    Isolate* isolate, DifferenceOperation operation,
-    DirectHandle<JSTemporalPlainDate> handle, DirectHandle<Object> other_obj,
-    DirectHandle<Object> options, const char* method_name) {
+// https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplaindatetime
+// https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplainyearmonth
+// https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalzoneddatetime
+template <typename JSType>
+MaybeDirectHandle<JSTemporalDuration> GenericDifferenceTemporal(
+    Isolate* isolate, DifferenceOperation<typename JSType::RustType> operation,
+    UnitGroup group, Unit fallback_smallest_unit, DirectHandle<JSType> handle,
+    DirectHandle<Object> other_obj, DirectHandle<Object> options,
+    const char* method_name) {
+  // Steps are written for PlainDate, but are similar for other types
+
   // 1. Set other to ?ToTemporalDate(other).
-  DirectHandle<JSTemporalPlainDate> other;
+  DirectHandle<JSType> other;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, other,
-      temporal::ToTemporalDate(isolate, other_obj, std::nullopt, method_name));
+      temporal::ToTemporalGeneric<JSType>(isolate, other_obj, std::nullopt,
+                                          method_name));
 
   auto settings = temporal_rs::DifferenceSettings{.largest_unit = std::nullopt,
                                                   .smallest_unit = std::nullopt,
                                                   .rounding_mode = std::nullopt,
                                                   .increment = std::nullopt};
 
-  auto this_rust = handle->date()->raw();
-  auto other_rust = other->date()->raw();
+  auto& this_rust = handle->wrapped_rust();
+  auto& other_rust = other->wrapped_rust();
 
-  // 2. If CalendarEquals(temporalDate.[[Calendar]], other.[[Calendar]]) is
-  // false, throw a RangeError exception.
-  if (this_rust->calendar().kind() != other_rust->calendar().kind()) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+  // This step only exists for calendared types (everything other than PlainTime
+  // and Instant)
+  if constexpr (JSType::kTypeContainsCalendar) {
+    // 2. If CalendarEquals(temporalDate.[[Calendar]], other.[[Calendar]]) is
+    // false, throw a RangeError exception.
+    if (this_rust.calendar().kind() != other_rust.calendar().kind()) {
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    }
   }
 
   // 3. Let resolvedOptions be ?GetOptionsObject(options).
@@ -3102,106 +3089,14 @@ MaybeDirectHandle<JSTemporalDuration> DifferenceTemporalPlainDate(
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, settings,
       temporal::GetDifferenceSettingsWithoutChecks(
-          isolate, options, UnitGroup::kDate, Unit::Day, method_name),
+          isolate, options, group, fallback_smallest_unit, method_name),
       DirectHandle<JSTemporalDuration>());
 
   // Remaining steps handled by temporal_rs
-  // operation negation (step 6) is also handled in temporal_rs
+  // operation negation (step 6) is also handled in temporal_rs, we should not
+  // negate again here.
 
-  auto diff = operation == kUntil ? this_rust->until(*other_rust, settings)
-                                  : this_rust->since(*other_rust, settings);
-
-  return ConstructRustWrappingType<JSTemporalDuration>(isolate,
-                                                       std::move(diff));
-}
-
-// https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplaindatetime
-MaybeDirectHandle<JSTemporalDuration> DifferenceTemporalPlainDateTime(
-    Isolate* isolate, DifferenceOperation operation,
-    DirectHandle<JSTemporalPlainDateTime> handle,
-    DirectHandle<Object> other_obj, DirectHandle<Object> options,
-    const char* method_name) {
-  // 1. Set other to ?ToTemporalDate(other).
-  DirectHandle<JSTemporalPlainDateTime> other;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, other,
-      temporal::ToTemporalDateTime(isolate, other_obj, std::nullopt,
-                                   method_name));
-
-  auto settings = temporal_rs::DifferenceSettings{.largest_unit = std::nullopt,
-                                                  .smallest_unit = std::nullopt,
-                                                  .rounding_mode = std::nullopt,
-                                                  .increment = std::nullopt};
-
-  auto this_rust = handle->date_time()->raw();
-  auto other_rust = other->date_time()->raw();
-
-  // 2. If CalendarEquals(dateTime.[[Calendar]], other.[[Calendar]]) is false,
-  // throw a RangeError exception.
-  if (this_rust->calendar().kind() != other_rust->calendar().kind()) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
-  }
-
-  // 3. Let resolvedOptions be ? GetOptionsObject(options).
-  // 4. Let settings be ? GetDifferenceSettings(operation, resolvedOptions,
-  // date, « », day, day).
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, settings,
-      temporal::GetDifferenceSettingsWithoutChecks(
-          isolate, options, UnitGroup::kDateTime, Unit::Nanosecond,
-          method_name),
-      kNullMaybeHandle);
-
-  // Remaining steps handled by temporal_rs
-  // operation negation (step 6) is also handled in temporal_rs
-
-  auto diff = operation == kUntil ? this_rust->until(*other_rust, settings)
-                                  : this_rust->since(*other_rust, settings);
-
-  return ConstructRustWrappingType<JSTemporalDuration>(isolate,
-                                                       std::move(diff));
-}
-
-// https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplainyearmonth
-MaybeDirectHandle<JSTemporalDuration> DifferenceTemporalPlainYearMonth(
-    Isolate* isolate, DifferenceOperation operation,
-    DirectHandle<JSTemporalPlainYearMonth> handle,
-    DirectHandle<Object> other_obj, DirectHandle<Object> options,
-    const char* method_name) {
-  // 1. Set other to ?ToTemporalYearMonth(other).
-  DirectHandle<JSTemporalPlainYearMonth> other;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, other,
-      temporal::ToTemporalYearMonth(isolate, other_obj, std::nullopt,
-                                    method_name));
-
-  auto settings = temporal_rs::DifferenceSettings{.largest_unit = std::nullopt,
-                                                  .smallest_unit = std::nullopt,
-                                                  .rounding_mode = std::nullopt,
-                                                  .increment = std::nullopt};
-
-  auto this_rust = handle->year_month()->raw();
-  auto other_rust = other->year_month()->raw();
-  // 2. Let calendar be yearMonth.[[Calendar]].
-  // 3. If CalendarEquals(temporalDate.[[Calendar]], other.[[Calendar]]) is
-  // false, throw a RangeError exception.
-  if (this_rust->calendar().kind() != other_rust->calendar().kind()) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
-  }
-  // 4. Let resolvedOptions be ? GetOptionsObject(options).
-  // 5. Let settings be ? GetDifferenceSettings(operation, resolvedOptions,
-  // date, « », day, day).
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, settings,
-      temporal::GetDifferenceSettingsWithoutChecks(
-          isolate, options, UnitGroup::kDate, Unit::Day, method_name),
-      DirectHandle<JSTemporalDuration>());
-
-  // Remaining steps handled by temporal_rs
-  // operation negation (step 6) is also handled in temporal_rs
-
-  auto diff = operation == kUntil ? this_rust->until(*other_rust, settings)
-                                  : this_rust->since(*other_rust, settings);
+  auto diff = (this_rust.*operation)(other_rust, settings);
 
   return ConstructRustWrappingType<JSTemporalDuration>(isolate,
                                                        std::move(diff));
@@ -3829,9 +3724,9 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDate::Until(
   TEMPORAL_ENTER_FUNC();
   const char method_name[] = "Temporal.PlainDate.prototype.until";
 
-  return temporal::DifferenceTemporalPlainDate(
-      isolate, temporal::DifferenceOperation::kUntil, handle, other, options,
-      method_name);
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::PlainDate::until, UnitGroup::kDate, Unit::Day,
+      handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.since
@@ -3841,9 +3736,9 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDate::Since(
   TEMPORAL_ENTER_FUNC();
   const char method_name[] = "Temporal.PlainDate.prototype.since";
 
-  return temporal::DifferenceTemporalPlainDate(
-      isolate, temporal::DifferenceOperation::kSince, handle, other, options,
-      method_name);
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::PlainDate::since, UnitGroup::kDate, Unit::Day,
+      handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.now.plaindateiso
@@ -4276,9 +4171,9 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDateTime::Until(
   TEMPORAL_ENTER_FUNC();
   const char method_name[] = "Temporal.PlainDateTime.prototype.until";
 
-  return temporal::DifferenceTemporalPlainDateTime(
-      isolate, temporal::DifferenceOperation::kUntil, handle, other, options,
-      method_name);
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::PlainDateTime::until, UnitGroup::kDateTime,
+      Unit::Nanosecond, handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.since
@@ -4288,9 +4183,9 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDateTime::Since(
   TEMPORAL_ENTER_FUNC();
   const char method_name[] = "Temporal.PlainDateTime.prototype.since";
 
-  return temporal::DifferenceTemporalPlainDateTime(
-      isolate, temporal::DifferenceOperation::kSince, handle, other, options,
-      method_name);
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::PlainDateTime::since, UnitGroup::kDateTime,
+      Unit::Nanosecond, handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.toplaindate
@@ -4620,9 +4515,9 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainYearMonth::Until(
   TEMPORAL_ENTER_FUNC();
   const char method_name[] = "Temporal.PlainYearMonth.prototype.until";
 
-  return temporal::DifferenceTemporalPlainYearMonth(
-      isolate, temporal::DifferenceOperation::kUntil, handle, other, options,
-      method_name);
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::PlainYearMonth::until, UnitGroup::kDate, Unit::Day,
+      handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.since
@@ -4632,9 +4527,9 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainYearMonth::Since(
   TEMPORAL_ENTER_FUNC();
   const char method_name[] = "Temporal.PlainYearMonth.prototype.since";
 
-  return temporal::DifferenceTemporalPlainYearMonth(
-      isolate, temporal::DifferenceOperation::kSince, handle, other, options,
-      method_name);
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::PlainYearMonth::since, UnitGroup::kDate, Unit::Day,
+      handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.with
@@ -4887,9 +4782,9 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainTime::Until(
   TEMPORAL_ENTER_FUNC();
   const char method_name[] = "Temporal.PlainTime.prototype.until";
 
-  return temporal::DifferenceTemporalPlainTime(
-      isolate, temporal::DifferenceOperation::kUntil, handle, other, options,
-      method_name);
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::PlainTime::until, UnitGroup::kTime,
+      Unit::Nanosecond, handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.since
@@ -4899,9 +4794,9 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainTime::Since(
   TEMPORAL_ENTER_FUNC();
   const char method_name[] = "Temporal.PlainTime.prototype.since";
 
-  return temporal::DifferenceTemporalPlainTime(
-      isolate, temporal::DifferenceOperation::kSince, handle, other, options,
-      method_name);
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::PlainTime::since, UnitGroup::kTime,
+      Unit::Nanosecond, handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.tojson
@@ -5163,16 +5058,22 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Subtract(
 MaybeDirectHandle<JSTemporalDuration> JSTemporalZonedDateTime::Until(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
+  const char method_name[] = "Temporal.ZonedDateTime.prototype.since";
   TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::ZonedDateTime::until, UnitGroup::kDateTime,
+      Unit::Nanosecond, handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.since
 MaybeDirectHandle<JSTemporalDuration> JSTemporalZonedDateTime::Since(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
+  const char method_name[] = "Temporal.ZonedDateTime.prototype.since";
   TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::ZonedDateTime::since, UnitGroup::kDateTime,
+      Unit::Nanosecond, handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.now.instant
@@ -5612,25 +5513,25 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Subtract(
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.until
 MaybeDirectHandle<JSTemporalDuration> JSTemporalInstant::Until(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
-    DirectHandle<Object> other_obj, DirectHandle<Object> options) {
+    DirectHandle<Object> other, DirectHandle<Object> options) {
   TEMPORAL_ENTER_FUNC();
   const char method_name[] = "Temporal.Instant.prototype.until";
 
-  return temporal::DifferenceTemporalInstant(
-      isolate, temporal::DifferenceOperation::kUntil, handle, other_obj,
-      options, method_name);
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::Instant::until, UnitGroup::kTime, Unit::Nanosecond,
+      handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.since
 MaybeDirectHandle<JSTemporalDuration> JSTemporalInstant::Since(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
-    DirectHandle<Object> other_obj, DirectHandle<Object> options) {
+    DirectHandle<Object> other, DirectHandle<Object> options) {
   TEMPORAL_ENTER_FUNC();
   const char method_name[] = "Temporal.Instant.prototype.since";
 
-  return temporal::DifferenceTemporalInstant(
-      isolate, temporal::DifferenceOperation::kSince, handle, other_obj,
-      options, method_name);
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::Instant::since, UnitGroup::kTime, Unit::Nanosecond,
+      handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.now.timezoneid
