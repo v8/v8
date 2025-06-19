@@ -753,7 +753,8 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
                                   LoadType type, LiftoffRegList /* pinned */,
-                                  bool i64_offset) {
+                                  bool i64_offset,
+                                  Endianness /* endianness */) {
   Load(dst, src_addr, offset_reg, offset_imm, type, nullptr, true, i64_offset);
   lwsync();
 }
@@ -761,7 +762,8 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
                                    StoreType type, LiftoffRegList pinned,
-                                   bool i64_offset) {
+                                   bool i64_offset,
+                                   Endianness /* endianness */) {
   lwsync();
   Store(dst_addr, offset_reg, offset_imm, src, type, pinned, nullptr, true,
         i64_offset);
@@ -866,35 +868,35 @@ constexpr bool is_be = false;
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 bool i64_offset) {
+                                 bool i64_offset, Endianness /* endianness */) {
   ATOMIC_OP(add);
 }
 
 void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 bool i64_offset) {
+                                 bool i64_offset, Endianness /* endianness */) {
   ATOMIC_OP(sub);
 }
 
 void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 bool i64_offset) {
+                                 bool i64_offset, Endianness /* endianness */) {
   ATOMIC_OP(and_);
 }
 
 void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
                                 uintptr_t offset_imm, LiftoffRegister value,
                                 LiftoffRegister result, StoreType type,
-                                bool i64_offset) {
+                                bool i64_offset, Endianness /* endianness */) {
   ATOMIC_OP(orx);
 }
 
 void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 bool i64_offset) {
+                                 bool i64_offset, Endianness /* endianness */) {
   ATOMIC_OP(xor_);
 }
 
@@ -902,7 +904,8 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                                       uintptr_t offset_imm,
                                       LiftoffRegister value,
                                       LiftoffRegister result, StoreType type,
-                                      bool i64_offset) {
+                                      bool i64_offset,
+                                      Endianness /* endianness */) {
   if (!i64_offset && offset_reg != no_reg) {
     ZeroExtWord32(ip, offset_reg);
     offset_reg = ip;
@@ -981,24 +984,9 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
   }
   MemOperand dst = MemOperand(offset, dst_addr);
   if constexpr (COMPRESS_POINTERS_BOOL) {
-    if (is_be) {
-      Register scratch = GetRegisterThatIsNotOneOf(value.gp(), result.gp());
-      push(scratch);
-      ByteReverseU32(r0, value.gp(), scratch);
-      pop(scratch);
-      MacroAssembler::AtomicExchange<uint32_t>(dst, r0, result.gp());
-      ByteReverseU32(result.gp(), result.gp(), ip);
-    } else {
       MacroAssembler::AtomicExchange<uint32_t>(dst, value.gp(), result.gp());
-    }
   } else {
-    if (is_be) {
-      ByteReverseU64(r0, value.gp());
-      MacroAssembler::AtomicExchange<uint64_t>(dst, r0, result.gp());
-      ByteReverseU64(result.gp(), result.gp());
-    } else {
       MacroAssembler::AtomicExchange<uint64_t>(dst, value.gp(), result.gp());
-    }
   }
   if constexpr (COMPRESS_POINTERS_BOOL) {
     AddS64(result.gp(), result.gp(), kPtrComprCageBaseRegister);

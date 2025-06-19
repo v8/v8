@@ -5771,12 +5771,12 @@ class LiftoffCompiler {
     }
   }
 
-  void AtomicBinop(FullDecoder* decoder, StoreType type,
-                   const MemoryAccessImmediate& imm,
-                   void (LiftoffAssembler::*emit_fn)(Register, Register,
-                                                     uintptr_t, LiftoffRegister,
-                                                     LiftoffRegister, StoreType,
-                                                     bool)) {
+  void AtomicBinop(
+      FullDecoder* decoder, StoreType type, const MemoryAccessImmediate& imm,
+      void (LiftoffAssembler::*emit_fn)(Register, Register, uintptr_t,
+                                        LiftoffRegister, LiftoffRegister,
+                                        StoreType, bool,
+                                        LiftoffAssembler::Endianness)) {
     ValueKind result_kind = type.value_type().kind();
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
@@ -5817,7 +5817,8 @@ class LiftoffCompiler {
     }
 
     Register addr = pinned.set(GetMemoryStart(imm.mem_index, pinned));
-    (asm_.*emit_fn)(addr, index, offset, value, result, type, i64_offset);
+    (asm_.*emit_fn)(addr, index, offset, value, result, type, i64_offset,
+                    LiftoffAssembler::kLittle);
     __ PushRegister(result_kind, result);
   }
 
@@ -6307,23 +6308,28 @@ class LiftoffCompiler {
     switch (opcode) {
       case kExprStructAtomicAdd:
         __ AtomicAdd(obj.gp(), no_reg, offset, value, result_reg,
-                     StoreType::ForValueKind(field_kind), false);
+                     StoreType::ForValueKind(field_kind), false,
+                     LiftoffAssembler::kNative);
         break;
       case kExprStructAtomicSub:
         __ AtomicSub(obj.gp(), no_reg, offset, value, result_reg,
-                     StoreType::ForValueKind(field_kind), false);
+                     StoreType::ForValueKind(field_kind), false,
+                     LiftoffAssembler::kNative);
         break;
       case kExprStructAtomicAnd:
         __ AtomicAnd(obj.gp(), no_reg, offset, value, result_reg,
-                     StoreType::ForValueKind(field_kind), false);
+                     StoreType::ForValueKind(field_kind), false,
+                     LiftoffAssembler::kNative);
         break;
       case kExprStructAtomicOr:
         __ AtomicOr(obj.gp(), no_reg, offset, value, result_reg,
-                    StoreType::ForValueKind(field_kind), false);
+                    StoreType::ForValueKind(field_kind), false,
+                    LiftoffAssembler::kNative);
         break;
       case kExprStructAtomicXor:
         __ AtomicXor(obj.gp(), no_reg, offset, value, result_reg,
-                     StoreType::ForValueKind(field_kind), false);
+                     StoreType::ForValueKind(field_kind), false,
+                     LiftoffAssembler::kNative);
         break;
       case kExprStructAtomicExchange:
         if (is_reference(field_kind)) {
@@ -6332,7 +6338,8 @@ class LiftoffCompiler {
           break;
         }
         __ AtomicExchange(obj.gp(), no_reg, offset, value, result_reg,
-                          StoreType::ForValueKind(field_kind), false);
+                          StoreType::ForValueKind(field_kind), false,
+                          LiftoffAssembler::kNative);
         break;
       default:
         UNREACHABLE();
@@ -6555,23 +6562,28 @@ class LiftoffCompiler {
     switch (opcode) {
       case kExprArrayAtomicAdd:
         __ AtomicAdd(array.gp(), index.gp(), offset, value, result_reg,
-                     StoreType::ForValueKind(elem_kind), false);
+                     StoreType::ForValueKind(elem_kind), false,
+                     LiftoffAssembler::kNative);
         break;
       case kExprArrayAtomicSub:
         __ AtomicSub(array.gp(), index.gp(), offset, value, result_reg,
-                     StoreType::ForValueKind(elem_kind), false);
+                     StoreType::ForValueKind(elem_kind), false,
+                     LiftoffAssembler::kNative);
         break;
       case kExprArrayAtomicAnd:
         __ AtomicAnd(array.gp(), index.gp(), offset, value, result_reg,
-                     StoreType::ForValueKind(elem_kind), false);
+                     StoreType::ForValueKind(elem_kind), false,
+                     LiftoffAssembler::kNative);
         break;
       case kExprArrayAtomicOr:
         __ AtomicOr(array.gp(), index.gp(), offset, value, result_reg,
-                    StoreType::ForValueKind(elem_kind), false);
+                    StoreType::ForValueKind(elem_kind), false,
+                    LiftoffAssembler::kNative);
         break;
       case kExprArrayAtomicXor:
         __ AtomicXor(array.gp(), index.gp(), offset, value, result_reg,
-                     StoreType::ForValueKind(elem_kind), false);
+                     StoreType::ForValueKind(elem_kind), false,
+                     LiftoffAssembler::kNative);
         break;
       case kExprArrayAtomicExchange:
         if (is_reference(elem_kind)) {
@@ -6580,7 +6592,8 @@ class LiftoffCompiler {
           break;
         }
         __ AtomicExchange(array.gp(), index.gp(), offset, value, result_reg,
-                          StoreType::ForValueKind(elem_kind), false);
+                          StoreType::ForValueKind(elem_kind), false,
+                          LiftoffAssembler::kNative);
         break;
       default:
         UNREACHABLE();
@@ -10139,7 +10152,8 @@ class LiftoffCompiler {
       if (trapping) UNIMPLEMENTED();
       // TODO(mliedtke): Can we emit something better if the memory order is
       // acqrel?
-      __ AtomicLoad(dst, src, offset_reg, offset, load_type, pinned, false);
+      __ AtomicLoad(dst, src, offset_reg, offset, load_type, pinned, false,
+                    LiftoffAssembler::kNative);
     }
     if (trapping) RegisterProtectedInstruction(decoder, protected_load_pc);
   }
@@ -10178,7 +10192,8 @@ class LiftoffCompiler {
       StoreType store_type = StoreType::ForValueKind(kind);
       // TODO(mliedtke): Mark load trapping if trapping
       if (trapping) UNIMPLEMENTED();
-      __ AtomicStore(obj, offset_reg, offset, value, store_type, pinned, false);
+      __ AtomicStore(obj, offset_reg, offset, value, store_type, pinned, false,
+                     LiftoffAssembler::kNative);
     }
     if (trapping) RegisterProtectedInstruction(decoder, protected_load_pc);
   }

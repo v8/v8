@@ -580,7 +580,8 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
                                   LoadType type, LiftoffRegList /* pinned */,
-                                  bool i64_offset) {
+                                  bool i64_offset,
+                                  Endianness /* endianness */) {
   Load(dst, src_addr, offset_reg, offset_imm, type, nullptr, true, i64_offset);
 }
 
@@ -691,7 +692,8 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
                                    StoreType type, LiftoffRegList /* pinned */,
-                                   bool i64_offset) {
+                                   bool i64_offset,
+                                   Endianness /* endianness */) {
   if (offset_reg != no_reg && !i64_offset) AssertZeroExtended(offset_reg);
   Operand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
   Register src_reg = src.gp();
@@ -723,7 +725,7 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 bool i64_offset) {
+                                 bool i64_offset, Endianness /* endianness */) {
   if (offset_reg != no_reg && !i64_offset) AssertZeroExtended(offset_reg);
   DCHECK(!cache_state()->is_used(result));
   if (cache_state()->is_used(value)) {
@@ -767,7 +769,7 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 bool i64_offset) {
+                                 bool i64_offset, Endianness /* endianness */) {
   if (offset_reg != no_reg && !i64_offset) AssertZeroExtended(offset_reg);
   LiftoffRegList dont_overwrite =
       cache_state()->used_registers | LiftoffRegList{dst_addr};
@@ -903,7 +905,7 @@ inline void AtomicBinop(LiftoffAssembler* lasm,
 void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 bool i64_offset) {
+                                 bool i64_offset, Endianness /* endianness */) {
   liftoff::AtomicBinop(this, &Assembler::andl, &Assembler::andq, dst_addr,
                        offset_reg, offset_imm, value, result, type, i64_offset);
 }
@@ -911,7 +913,7 @@ void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
                                 uintptr_t offset_imm, LiftoffRegister value,
                                 LiftoffRegister result, StoreType type,
-                                bool i64_offset) {
+                                bool i64_offset, Endianness /* endianness */) {
   liftoff::AtomicBinop(this, &Assembler::orl, &Assembler::orq, dst_addr,
                        offset_reg, offset_imm, value, result, type, i64_offset);
 }
@@ -919,7 +921,7 @@ void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 bool i64_offset) {
+                                 bool i64_offset, Endianness /* endianness */) {
   liftoff::AtomicBinop(this, &Assembler::xorl, &Assembler::xorq, dst_addr,
                        offset_reg, offset_imm, value, result, type, i64_offset);
 }
@@ -928,7 +930,8 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                                       uintptr_t offset_imm,
                                       LiftoffRegister value,
                                       LiftoffRegister result, StoreType type,
-                                      bool i64_offset) {
+                                      bool i64_offset,
+                                      Endianness /* endianness */) {
   if (offset_reg != no_reg && !i64_offset) AssertZeroExtended(offset_reg);
   DCHECK(!cache_state()->is_used(result));
   if (cache_state()->is_used(value)) {

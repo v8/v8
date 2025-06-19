@@ -739,8 +739,9 @@ static inline bool is_wasm_on_be(OptimizedCompilationInfo* info) {
     size_t index = 2;                                                     \
     AddressingMode mode = kMode_None;                                     \
     MemOperand op = i.MemoryOperand(&mode, &index);                       \
+    bool is_on_heap = MiscField::decode(instr->opcode());                 \
     __ lay(addr, op);                                                     \
-    if (is_wasm_on_be(info())) {                                          \
+    if (is_wasm_on_be(info()) && !is_on_heap) {                           \
       Register temp2 =                                                    \
           GetRegisterThatIsNotOneOf(output, old_value, new_value);        \
       Register temp3 =                                                    \
@@ -761,78 +762,83 @@ static inline bool is_wasm_on_be(OptimizedCompilationInfo* info) {
     __ load_and_ext(output, output);                                      \
   } while (false)
 
-#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_WORD()         \
-  do {                                                  \
-    Register new_val = i.InputRegister(1);              \
-    Register output = i.OutputRegister();               \
-    Register addr = kScratchReg;                        \
-    size_t index = 2;                                   \
-    AddressingMode mode = kMode_None;                   \
-    MemOperand op = i.MemoryOperand(&mode, &index);     \
-    __ lay(addr, op);                                   \
-    if (is_wasm_on_be(info())) {                        \
-      __ lrvr(r0, output);                              \
-      __ lrvr(r1, new_val);                             \
-      __ CmpAndSwap(r0, r1, MemOperand(addr));          \
-      __ lrvr(output, r0);                              \
-    } else {                                            \
-      __ CmpAndSwap(output, new_val, MemOperand(addr)); \
-    }                                                   \
-    __ LoadU32(output, output);                         \
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_WORD()           \
+  do {                                                    \
+    Register new_val = i.InputRegister(1);                \
+    Register output = i.OutputRegister();                 \
+    Register addr = kScratchReg;                          \
+    size_t index = 2;                                     \
+    AddressingMode mode = kMode_None;                     \
+    MemOperand op = i.MemoryOperand(&mode, &index);       \
+    bool is_on_heap = MiscField::decode(instr->opcode()); \
+    __ lay(addr, op);                                     \
+    if (is_wasm_on_be(info()) && !is_on_heap) {           \
+      __ lrvr(r0, output);                                \
+      __ lrvr(r1, new_val);                               \
+      __ CmpAndSwap(r0, r1, MemOperand(addr));            \
+      __ lrvr(output, r0);                                \
+    } else {                                              \
+      __ CmpAndSwap(output, new_val, MemOperand(addr));   \
+    }                                                     \
+    __ LoadU32(output, output);                           \
   } while (false)
 
-#define ASSEMBLE_ATOMIC_BINOP_WORD(load_and_op, op)    \
-  do {                                                 \
-    Register value = i.InputRegister(2);               \
-    Register result = i.OutputRegister(0);             \
-    Register addr = r1;                                \
-    AddressingMode mode = kMode_None;                  \
-    MemOperand op = i.MemoryOperand(&mode);            \
-    __ lay(addr, op);                                  \
-    if (is_wasm_on_be(info())) {                       \
-      Label do_cs;                                     \
-      __ bind(&do_cs);                                 \
-      __ LoadU32(r0, MemOperand(addr));                \
-      __ lrvr(ip, r0);                                 \
-      __ op(ip, ip, value);                            \
-      __ lrvr(ip, ip);                                 \
-      __ CmpAndSwap(r0, ip, MemOperand(addr));         \
-      __ bne(&do_cs, Label::kNear);                    \
-      __ lrvr(result, r0);                             \
-    } else {                                           \
-      __ load_and_op(result, value, MemOperand(addr)); \
-    }                                                  \
-    __ LoadU32(result, result);                        \
+#define ASSEMBLE_ATOMIC_BINOP_WORD(load_and_op, op)       \
+  do {                                                    \
+    Register value = i.InputRegister(2);                  \
+    Register result = i.OutputRegister(0);                \
+    Register addr = r1;                                   \
+    AddressingMode mode = kMode_None;                     \
+    MemOperand op = i.MemoryOperand(&mode);               \
+    bool is_on_heap = MiscField::decode(instr->opcode()); \
+    __ lay(addr, op);                                     \
+    if (is_wasm_on_be(info()) && !is_on_heap) {           \
+      Label do_cs;                                        \
+      __ bind(&do_cs);                                    \
+      __ LoadU32(r0, MemOperand(addr));                   \
+      __ lrvr(ip, r0);                                    \
+      __ op(ip, ip, value);                               \
+      __ lrvr(ip, ip);                                    \
+      __ CmpAndSwap(r0, ip, MemOperand(addr));            \
+      __ bne(&do_cs, Label::kNear);                       \
+      __ lrvr(result, r0);                                \
+    } else {                                              \
+      __ load_and_op(result, value, MemOperand(addr));    \
+    }                                                     \
+    __ LoadU32(result, result);                           \
   } while (false)
 
-#define ASSEMBLE_ATOMIC_BINOP_WORD64(load_and_op, op) \
-  do {                                                \
-    Register value = i.InputRegister(2);              \
-    Register result = i.OutputRegister(0);            \
-    Register addr = r1;                               \
-    AddressingMode mode = kMode_None;                 \
-    MemOperand op = i.MemoryOperand(&mode);           \
-    __ lay(addr, op);                                 \
-    if (is_wasm_on_be(info())) {                      \
-      Label do_cs;                                    \
-      __ bind(&do_cs);                                \
-      __ LoadU64(r0, MemOperand(addr));               \
-      __ lrvgr(ip, r0);                               \
-      __ op(ip, ip, value);                           \
-      __ lrvgr(ip, ip);                               \
-      __ CmpAndSwap64(r0, ip, MemOperand(addr));      \
-      __ bne(&do_cs, Label::kNear);                   \
-      __ lrvgr(result, r0);                           \
-      break;                                          \
-    }                                                 \
-    __ load_and_op(result, value, MemOperand(addr));  \
+#define ASSEMBLE_ATOMIC_BINOP_WORD64(load_and_op, op)     \
+  do {                                                    \
+    Register value = i.InputRegister(2);                  \
+    Register result = i.OutputRegister(0);                \
+    Register addr = r1;                                   \
+    AddressingMode mode = kMode_None;                     \
+    MemOperand op = i.MemoryOperand(&mode);               \
+    bool is_on_heap = MiscField::decode(instr->opcode()); \
+    __ lay(addr, op);                                     \
+    if (is_wasm_on_be(info()) && !is_on_heap) {           \
+      Label do_cs;                                        \
+      __ bind(&do_cs);                                    \
+      __ LoadU64(r0, MemOperand(addr));                   \
+      __ lrvgr(ip, r0);                                   \
+      __ op(ip, ip, value);                               \
+      __ lrvgr(ip, ip);                                   \
+      __ CmpAndSwap64(r0, ip, MemOperand(addr));          \
+      __ bne(&do_cs, Label::kNear);                       \
+      __ lrvgr(result, r0);                               \
+      break;                                              \
+    }                                                     \
+    __ load_and_op(result, value, MemOperand(addr));      \
   } while (false)
 
 #define ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end,             \
                       maybe_reverse_bytes)                                    \
   do {                                                                        \
     /* At the moment this is only true when dealing with 2-byte values.*/     \
-    bool reverse_bytes = maybe_reverse_bytes && is_wasm_on_be(info());        \
+    bool is_on_heap = MiscField::decode(instr->opcode());                     \
+    bool reverse_bytes =                                                      \
+        maybe_reverse_bytes && is_wasm_on_be(info()) && !is_on_heap;          \
     USE(reverse_bytes);                                                       \
     Label do_cs;                                                              \
     __ LoadU32(prev, MemOperand(addr, offset));                               \
@@ -971,8 +977,9 @@ static inline bool is_wasm_on_be(OptimizedCompilationInfo* info) {
     size_t index = 2;                                     \
     AddressingMode mode = kMode_None;                     \
     MemOperand op = i.MemoryOperand(&mode, &index);       \
+    bool is_on_heap = MiscField::decode(instr->opcode()); \
     __ lay(addr, op);                                     \
-    if (is_wasm_on_be(info())) {                          \
+    if (is_wasm_on_be(info()) && !is_on_heap) {           \
       __ lrvgr(r0, output);                               \
       __ lrvgr(r1, new_val);                              \
       __ CmpAndSwap64(r0, r1, MemOperand(addr));          \
@@ -2423,7 +2430,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
       Register output = i.OutputRegister();
-      bool reverse_bytes = is_wasm_on_be(info());
+      bool is_on_heap = MiscField::decode(instr->opcode());
+      bool reverse_bytes = is_wasm_on_be(info()) && !is_on_heap;
       __ la(r1, MemOperand(base, index));
       Register value_ = value;
       if (reverse_bytes) {
@@ -2448,8 +2456,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
       Register output = i.OutputRegister();
+      bool is_on_heap = MiscField::decode(instr->opcode());
       Label do_cs;
-      bool reverse_bytes = is_wasm_on_be(info());
+      bool reverse_bytes = is_wasm_on_be(info()) && !is_on_heap;
       __ lay(r1, MemOperand(base, index));
       Register value_ = value;
       if (reverse_bytes) {
@@ -2472,37 +2481,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register scratch0 = i.TempRegister(0);
       Register scratch1 = i.TempRegister(1);
       Register output = i.OutputRegister();
-      bool reverse_bytes = is_wasm_on_be(info());
       Label do_cs;
       Register value_ = value;
       __ lay(r1, operand);
       if constexpr (COMPRESS_POINTERS_BOOL) {
-        if (reverse_bytes) {
-          value_ = ip;
-          __ lrvr(value_, value);
-        }
         __ LoadU32(output, MemOperand(r1));
         __ bind(&do_cs);
         __ cs(output, value_, MemOperand(r1));
         __ bne(&do_cs, Label::kNear);
-        if (reverse_bytes) {
-          __ lrvr(output, output);
-          __ LoadU32(output, output);
-        }
         __ AddS64(i.OutputRegister(), i.OutputRegister(),
                   kPtrComprCageBaseRegister);
       } else {
-        if (reverse_bytes) {
-          value_ = ip;
-          __ lrvgr(value_, value);
-        }
         __ lg(output, MemOperand(r1));
         __ bind(&do_cs);
         __ csg(output, value_, MemOperand(r1));
         __ bne(&do_cs, Label::kNear);
-        if (reverse_bytes) {
-          __ lrvgr(output, output);
-        }
       }
       if (v8_flags.disable_write_barriers) break;
       // Emit the write barrier.
@@ -2552,8 +2545,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   case kAtomic##op##Int16:                                                   \
     ASSEMBLE_ATOMIC_BINOP_HALFWORD(inst, [&]() {                             \
       intptr_t shift_right = static_cast<intptr_t>(shift_amount);            \
+      bool is_on_heap = MiscField::decode(instr->opcode());                  \
       __ srlk(result, prev, Operand(shift_right));                           \
-      if (is_wasm_on_be(info())) {                                           \
+      if (is_wasm_on_be(info()) && !is_on_heap) {                            \
         __ lrvr(result, result);                                             \
         __ ShiftRightS32(result, result, Operand(16));                       \
       }                                                                      \
@@ -2563,10 +2557,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   case kAtomic##op##Uint16:                                                  \
     ASSEMBLE_ATOMIC_BINOP_HALFWORD(inst, [&]() {                             \
       int rotate_left = shift_amount == 0 ? 0 : 64 - shift_amount;           \
+      bool is_on_heap = MiscField::decode(instr->opcode());                  \
       __ RotateInsertSelectBits(result, prev, Operand(48), Operand(63),      \
                                 Operand(static_cast<intptr_t>(rotate_left)), \
                                 true);                                       \
-      if (is_wasm_on_be(info())) {                                           \
+      if (is_wasm_on_be(info()) && !is_on_heap) {                            \
         __ lrvr(result, result);                                             \
         __ ShiftRightU32(result, result, Operand(16));                       \
       }                                                                      \
@@ -2613,7 +2608,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
       Register output = i.OutputRegister();
-      bool reverse_bytes = is_wasm_on_be(info());
+      bool is_on_heap = MiscField::decode(instr->opcode());
+      bool reverse_bytes = is_wasm_on_be(info()) && !is_on_heap;
       Label do_cs;
       Register value_ = value;
       __ la(r1, MemOperand(base, index));

@@ -726,6 +726,7 @@ class LiftoffAssembler : public MacroAssembler {
     kSkipWriteBarrier = true,
     kNoSkipWriteBarrier = false
   };
+  enum Endianness { kNative, kLittle };
   inline void EmitWriteBarrier(Register target_object, Operand store_location,
                                Register stored_value, LiftoffRegList pinned);
   inline void StoreTaggedPointer(Register dst_addr, Register offset_reg,
@@ -752,40 +753,42 @@ class LiftoffAssembler : public MacroAssembler {
                     bool is_store_mem = false, bool i64_offset = false);
   inline void AtomicLoad(LiftoffRegister dst, Register src_addr,
                          Register offset_reg, uintptr_t offset_imm,
-                         LoadType type, LiftoffRegList pinned, bool i64_offset);
+                         LoadType type, LiftoffRegList pinned, bool i64_offset,
+                         Endianness endianness = kLittle);
   inline void AtomicStore(Register dst_addr, Register offset_reg,
                           uintptr_t offset_imm, LiftoffRegister src,
                           StoreType type, LiftoffRegList pinned,
-                          bool i64_offset);
+                          bool i64_offset, Endianness endianness = kLittle);
 
   inline void AtomicAdd(Register dst_addr, Register offset_reg,
                         uintptr_t offset_imm, LiftoffRegister value,
-                        LiftoffRegister result, StoreType type,
-                        bool i64_offset);
+                        LiftoffRegister result, StoreType type, bool i64_offset,
+                        Endianness endianness = kLittle);
 
   inline void AtomicSub(Register dst_addr, Register offset_reg,
                         uintptr_t offset_imm, LiftoffRegister value,
-                        LiftoffRegister result, StoreType type,
-                        bool i64_offset);
+                        LiftoffRegister result, StoreType type, bool i64_offset,
+                        Endianness endianness = kLittle);
 
   inline void AtomicAnd(Register dst_addr, Register offset_reg,
                         uintptr_t offset_imm, LiftoffRegister value,
-                        LiftoffRegister result, StoreType type,
-                        bool i64_offset);
+                        LiftoffRegister result, StoreType type, bool i64_offset,
+                        Endianness endianness = kLittle);
 
   inline void AtomicOr(Register dst_addr, Register offset_reg,
                        uintptr_t offset_imm, LiftoffRegister value,
-                       LiftoffRegister result, StoreType type, bool i64_offset);
+                       LiftoffRegister result, StoreType type, bool i64_offset,
+                       Endianness endianness = kLittle);
 
   inline void AtomicXor(Register dst_addr, Register offset_reg,
                         uintptr_t offset_imm, LiftoffRegister value,
-                        LiftoffRegister result, StoreType type,
-                        bool i64_offset);
+                        LiftoffRegister result, StoreType type, bool i64_offset,
+                        Endianness endianness = kLittle);
 
   inline void AtomicExchange(Register dst_addr, Register offset_reg,
                              uintptr_t offset_imm, LiftoffRegister value,
                              LiftoffRegister result, StoreType type,
-                             bool i64_offset);
+                             bool i64_offset, Endianness endianness = kLittle);
   inline void AtomicExchangeTaggedPointer(
       Register dst_addr, Register offset_reg, uintptr_t offset_imm,
       LiftoffRegister value, LiftoffRegister result, LiftoffRegList pinned);

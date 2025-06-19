@@ -2433,7 +2433,8 @@ void InstructionSelector::VisitWord32AtomicStore(OpIndex node) {
 }
 
 void VisitAtomicExchange(InstructionSelector* selector, OpIndex node,
-                         ArchOpcode opcode, AtomicWidth width) {
+                         ArchOpcode opcode, AtomicWidth width,
+                         RegisterRepresentation base_rep) {
   S390OperandGenerator g(selector);
   const AtomicRMWOp& atomic_op = selector->Cast<AtomicRMWOp>(node);
   OpIndex base = atomic_op.base();
@@ -2448,8 +2449,9 @@ void VisitAtomicExchange(InstructionSelector* selector, OpIndex node,
   inputs[input_count++] = g.UseUniqueRegister(value);
   InstructionOperand outputs[1];
   outputs[0] = g.DefineAsRegister(node);
-  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
-                         AtomicWidthField::encode(width);
+  InstructionCode code =
+      opcode | AddressingModeField::encode(addressing_mode) |
+      MiscField::encode(base_rep == RegisterRepresentation::Tagged());
   selector->Emit(code, 1, outputs, input_count, inputs);
 }
 
@@ -2470,7 +2472,8 @@ void InstructionSelector::VisitWord32AtomicExchange(OpIndex node) {
   } else {
     UNREACHABLE();
   }
-  VisitAtomicExchange(this, node, opcode, AtomicWidth::kWord32);
+  VisitAtomicExchange(this, node, opcode, AtomicWidth::kWord32,
+                      atomic_op.base_rep);
 }
 
 void InstructionSelector::VisitWord64AtomicExchange(OpIndex node) {
@@ -2487,11 +2490,13 @@ void InstructionSelector::VisitWord64AtomicExchange(OpIndex node) {
   } else {
     UNREACHABLE();
   }
-  VisitAtomicExchange(this, node, opcode, AtomicWidth::kWord64);
+  VisitAtomicExchange(this, node, opcode, AtomicWidth::kWord64,
+                      atomic_op.base_rep);
 }
 
 void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
-                                ArchOpcode opcode, AtomicWidth width) {
+                                ArchOpcode opcode, AtomicWidth width,
+                                RegisterRepresentation base_rep) {
   S390OperandGenerator g(selector);
   const AtomicRMWOp& atomic_op = selector->Cast<AtomicRMWOp>(node);
   OpIndex base = atomic_op.base();
@@ -2518,8 +2523,9 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
   size_t output_count = 0;
   outputs[output_count++] = g.DefineSameAsFirst(node);
 
-  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
-                         AtomicWidthField::encode(width);
+  InstructionCode code =
+      opcode | AddressingModeField::encode(addressing_mode) |
+      MiscField::encode(base_rep == RegisterRepresentation::Tagged());
   selector->Emit(code, output_count, outputs, input_count, inputs);
 }
 
@@ -2562,7 +2568,8 @@ void InstructionSelector::VisitWord32AtomicCompareExchange(OpIndex node) {
   } else {
     UNREACHABLE();
   }
-  VisitAtomicCompareExchange(this, node, opcode, AtomicWidth::kWord32);
+  VisitAtomicCompareExchange(this, node, opcode, AtomicWidth::kWord32,
+                             atomic_op.base_rep);
 }
 
 void InstructionSelector::VisitWord64AtomicCompareExchange(OpIndex node) {
@@ -2579,11 +2586,13 @@ void InstructionSelector::VisitWord64AtomicCompareExchange(OpIndex node) {
   } else {
     UNREACHABLE();
   }
-  VisitAtomicCompareExchange(this, node, opcode, AtomicWidth::kWord64);
+  VisitAtomicCompareExchange(this, node, opcode, AtomicWidth::kWord64,
+                             atomic_op.base_rep);
 }
 
 void VisitAtomicBinop(InstructionSelector* selector, OpIndex node,
-                      ArchOpcode opcode, AtomicWidth width) {
+                      ArchOpcode opcode, AtomicWidth width,
+                      RegisterRepresentation base_rep) {
   S390OperandGenerator g(selector);
   const AtomicRMWOp& atomic_op = selector->Cast<AtomicRMWOp>(node);
   OpIndex base = atomic_op.base();
@@ -2613,8 +2622,9 @@ void VisitAtomicBinop(InstructionSelector* selector, OpIndex node,
   size_t temp_count = 0;
   temps[temp_count++] = g.TempRegister();
 
-  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
-                         AtomicWidthField::encode(width);
+  InstructionCode code =
+      opcode | AddressingModeField::encode(addressing_mode) |
+      MiscField::encode(base_rep == RegisterRepresentation::Tagged());
   selector->Emit(code, output_count, outputs, input_count, inputs, temp_count,
                  temps);
 }
@@ -2638,7 +2648,8 @@ void InstructionSelector::VisitWord32AtomicBinaryOperation(
     } else {
       UNREACHABLE();
     }
-  VisitAtomicBinop(this, node, opcode, AtomicWidth::kWord32);
+    VisitAtomicBinop(this, node, opcode, AtomicWidth::kWord32,
+                     atomic_op.base_rep);
 }
 
 #define VISIT_ATOMIC_BINOP(op)                                           \
@@ -2670,7 +2681,8 @@ void InstructionSelector::VisitWord64AtomicBinaryOperation(
     } else {
       UNREACHABLE();
     }
-  VisitAtomicBinop(this, node, opcode, AtomicWidth::kWord64);
+    VisitAtomicBinop(this, node, opcode, AtomicWidth::kWord64,
+                     atomic_op.base_rep);
 }
 
 #define VISIT_ATOMIC64_BINOP(op)                                               \
