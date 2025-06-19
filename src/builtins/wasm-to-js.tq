@@ -229,10 +229,10 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
       let toRef = locationAllocator.GetGPSlot();
       typeswitch (retVal) {
         case (smiVal: Smi): {
-          *toRef = Convert<intptr>(Unsigned(SmiToInt32(smiVal)));
+          *toRef = Convert<intptr>(SmiToInt32(smiVal));
         }
         case (heapVal: JSAnyNotSmi): {
-          *toRef = Convert<intptr>(Unsigned(WasmTaggedNonSmiToInt32(heapVal)));
+          *toRef = Convert<intptr>(WasmTaggedNonSmiToInt32(heapVal));
         }
       }
     } else if (retType == kWasmF32Type) {
