@@ -1756,7 +1756,13 @@ void PublishDetectedFeatures(WasmDetectedFeatures detected_features,
   auto check_use_counter = [](WasmDetectedFeature feat) constexpr -> bool {
     // Some features intentionally do not have a use counter.
     constexpr WasmDetectedFeature kIntentionallyNoUseCounter[] = {
-        WasmDetectedFeature::stringref,  // Deprecated / unlikely to ship.
+        // Deprecated / unlikely to ship.
+        WasmDetectedFeature::stringref,
+        // Growable stacks is not a language feature but an internal
+        // optimization.
+        // We could detect stack growth events but it's unclear how we would use
+        // the data, and it could affect performance.
+        WasmDetectedFeature::growable_stacks,
     };
     for (auto no_use_counter_feature : kIntentionallyNoUseCounter) {
       if (feat == no_use_counter_feature) return true;

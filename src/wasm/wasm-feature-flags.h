@@ -60,9 +60,6 @@
   /* V8 side owner: irezvov */                                                 \
   V(fp16, "fp16", false)                                                       \
                                                                                \
-  /* V8 side owner: irezvov */                                                 \
-  V(growable_stacks, "growable stacks for jspi", false)                        \
-                                                                               \
   /* Memory Control proposal */                                                \
   /* https://github.com/WebAssembly/memory-control */                          \
   /* V8 side owner: ahaas */                                                   \
@@ -107,7 +104,10 @@
   /* Imported Strings TextEncoder/TextDecoder post-MVP extension. */           \
   /* No upstream repo yet. */                                                  \
   /* V8 side owner: jkummerow */                                               \
-  V(imported_strings_utf8, "imported strings (utf8 features)", false)
+  V(imported_strings_utf8, "imported strings (utf8 features)", false)          \
+                                                                               \
+  /* V8 side owner: thibaudm */                                                \
+  V(growable_stacks, "growable stacks for jspi", false)
 
 // #############################################################################
 // Shipped features (enabled by default). Remove the feature flag once they hit
