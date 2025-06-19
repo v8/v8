@@ -206,7 +206,7 @@ uint32_t RelocInfo::wasm_call_tag() const {
   if (Assembler::IsAuipc(instr) && Assembler::IsJalr(instr1)) {
     DCHECK(reinterpret_cast<Instruction*>(pc_)->RdValue() ==
            reinterpret_cast<Instruction*>(pc_ + 4)->Rs1Value());
-    return Assembler::BrachlongOffset(instr, instr1);
+    return Assembler::BranchLongOffset(instr, instr1);
   } else {
     return static_cast<uint32_t>(
         Assembler::target_address_at(pc_, constant_pool_));
@@ -435,7 +435,7 @@ int Assembler::target_at(int pos, bool is_internal) {
       Instr instr_auipc = instr;
       Instr instr_I = instr_at(pos + 4);
       DCHECK(IsJalr(instr_I) || IsAddi(instr_I));
-      int32_t offset = BrachlongOffset(instr_auipc, instr_I);
+      int32_t offset = BranchLongOffset(instr_auipc, instr_I);
       if (offset == kEndOfJumpChain) return kEndOfChain;
       return offset + pos;
     }
@@ -598,8 +598,8 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
 
         instr_I = SetLo12Offset(Lo12, instr_I);
         instr_at_put(pos + 4, instr_I);
-        DCHECK_EQ(offset, BrachlongOffset(Assembler::instr_at(pos),
-                                          Assembler::instr_at(pos + 4)));
+        DCHECK_EQ(offset, BranchLongOffset(Assembler::instr_at(pos),
+                                           Assembler::instr_at(pos + 4)));
       }
     } break;
     case LUI: {
@@ -792,7 +792,7 @@ int Assembler::BranchOffset(Instr instr) {
   return imm13;
 }
 
-int Assembler::BrachlongOffset(Instr auipc, Instr instr_I) {
+int Assembler::BranchLongOffset(Instr auipc, Instr instr_I) {
   DCHECK(reinterpret_cast<Instruction*>(&instr_I)->InstructionType() ==
          InstructionBase::kIType);
   DCHECK(IsAuipc(auipc));
@@ -804,7 +804,7 @@ int Assembler::BrachlongOffset(Instr auipc, Instr instr_I) {
   return offset;
 }
 
-int Assembler::PatchBranchlongOffset(Address pc, Instr instr_auipc,
+int Assembler::PatchBranchLongOffset(Address pc, Instr instr_auipc,
                                      Instr instr_jalr, int32_t offset,
                                      WritableJitAllocation* jit_allocation) {
   DCHECK(IsAuipc(instr_auipc));
@@ -815,8 +815,8 @@ int Assembler::PatchBranchlongOffset(Address pc, Instr instr_auipc,
   instr_at_put(pc, SetHi20Offset(Hi20, instr_auipc), jit_allocation);
   instr_at_put(pc + kInstrSize, SetLo12Offset(Lo12, instr_jalr),
                jit_allocation);
-  DCHECK(offset ==
-         BrachlongOffset(Assembler::instr_at(pc), Assembler::instr_at(pc + 4)));
+  DCHECK(offset == BranchLongOffset(Assembler::instr_at(pc),
+                                    Assembler::instr_at(pc + 4)));
   return 2;
 }
 
@@ -1390,9 +1390,9 @@ void Assembler::RelocateRelativeReference(
          RelocInfo::IsNearBuiltinEntry(rmode));
   if (IsAuipc(instr) && IsJalr(instr1)) {
     int32_t imm;
-    imm = BrachlongOffset(instr, instr1);
+    imm = BranchLongOffset(instr, instr1);
     imm -= pc_delta;
-    PatchBranchlongOffset(pc, instr, instr1, imm, jit_allocation);
+    PatchBranchLongOffset(pc, instr, instr1, imm, jit_allocation);
     return;
   } else {
     UNREACHABLE();
@@ -1588,7 +1588,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
       Instr instr = instr_at(pc);
       Instr instr1 = instr_at(pc + 1 * kInstrSize);
       DCHECK(is_int32(imm + 0x800));
-      int num = PatchBranchlongOffset(pc, instr, instr1, (int32_t)imm,
+      int num = PatchBranchLongOffset(pc, instr, instr1, (int32_t)imm,
                                       jit_allocation);
       if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
         FlushInstructionCache(pc, num * kInstrSize);

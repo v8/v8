@@ -161,7 +161,7 @@ void SetWasmCalleeTag(WritableRelocInfo* rinfo, uint32_t tag) {
     Instr jalr = reinterpret_cast<Instruction*>(rinfo->pc() + 1 * kInstrSize)
                      ->InstructionBits();
     DCHECK(is_int32(tag + 0x800));
-    Assembler::PatchBranchlongOffset(rinfo->pc(), auipc, jalr, (int32_t)tag,
+    Assembler::PatchBranchLongOffset(rinfo->pc(), auipc, jalr, (int32_t)tag,
                                      nullptr);
   } else {
     Assembler::set_target_address_at(rinfo->pc(), rinfo->constant_pool(),
@@ -198,7 +198,7 @@ uint32_t GetWasmCalleeTag(RelocInfo* rinfo) {
     Instr auipc = instr->InstructionBits();
     Instr jalr = reinterpret_cast<Instruction*>(rinfo->pc() + 1 * kInstrSize)
                      ->InstructionBits();
-    return Assembler::BrachlongOffset(auipc, jalr);
+    return Assembler::BranchLongOffset(auipc, jalr);
   } else {
     return static_cast<uint32_t>(rinfo->target_address());
   }

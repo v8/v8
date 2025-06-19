@@ -182,7 +182,7 @@ Handle<HeapObject> Assembler::embedded_object_handle_at(Address pc) {
   Instr instr2 = Assembler::instr_at(pc + kInstrSize);
   DCHECK(IsAuipc(instr1));
   DCHECK(IsLd(instr2));
-  int32_t embedded_target_offset = BrachlongOffset(instr1, instr2);
+  int32_t embedded_target_offset = BranchLongOffset(instr1, instr2);
   DEBUG_PRINTF("\tembedded_target_offset %d\n", embedded_target_offset);
   static_assert(sizeof(EmbeddedObjectIndex) == sizeof(intptr_t));
   DEBUG_PRINTF("\t EmbeddedObjectIndex %lu\n",
@@ -205,7 +205,7 @@ void Assembler::set_embedded_object_index_referenced_from(
   Instr instr2 = Assembler::instr_at(pc + kInstrSize);
   DCHECK(IsAuipc(instr1));
   DCHECK(IsLd(instr2));
-  int32_t embedded_target_offset = BrachlongOffset(instr1, instr2);
+  int32_t embedded_target_offset = BranchLongOffset(instr1, instr2);
   Memory<EmbeddedObjectIndex>(pc + embedded_target_offset) = data;
 }
 #endif
@@ -325,7 +325,7 @@ Handle<Code> Assembler::relative_code_target_object_handle_at(
   Instr instr2 = Assembler::instr_at(pc + kInstrSize);
   DCHECK(IsAuipc(instr1));
   DCHECK(IsJalr(instr2));
-  int32_t code_target_index = BrachlongOffset(instr1, instr2);
+  int32_t code_target_index = BranchLongOffset(instr1, instr2);
   return Cast<Code>(GetEmbeddedObject(code_target_index));
 }
 
@@ -334,7 +334,7 @@ Builtin Assembler::target_builtin_at(Address pc) {
   Instr instr2 = Assembler::instr_at(pc + kInstrSize);
   DCHECK(IsAuipc(instr1));
   DCHECK(IsJalr(instr2));
-  int32_t builtin_id = BrachlongOffset(instr1, instr2);
+  int32_t builtin_id = BranchLongOffset(instr1, instr2);
   DCHECK(Builtins::IsBuiltinId(builtin_id));
   return static_cast<Builtin>(builtin_id);
 }

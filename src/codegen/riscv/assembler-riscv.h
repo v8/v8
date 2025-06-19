@@ -248,8 +248,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   // Get offset from instr.
   int BranchOffset(Instr instr);
-  static int BrachlongOffset(Instr auipc, Instr jalr);
-  static int PatchBranchlongOffset(
+  static int BranchLongOffset(Instr auipc, Instr jalr);
+  static int PatchBranchLongOffset(
       Address pc, Instr auipc, Instr instr_I, int32_t offset,
       WritableJitAllocation* jit_allocation = nullptr);
 
