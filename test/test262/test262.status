@@ -814,15 +814,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'built-ins/TypedArray/prototype/values/make-in-bounds-after-exhausted': [FAIL],
-  'built-ins/TypedArray/prototype/values/make-out-of-bounds-after-exhausted': [FAIL],
-}],
-# End roll-watcher patch
-####
-
-####
-# Roll-watcher patch
-[ALWAYS, {
   'language/expressions/assignment/target-super-computed-reference': [SKIP],
 }],
 # End roll-watcher patch

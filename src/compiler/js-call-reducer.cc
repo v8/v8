@@ -6771,9 +6771,7 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
   // {iterated_object} is either a JSArray or a JSTypedArray. For the
   // latter case we even know that it's a Smi in UnsignedSmall range.
   FieldAccess index_access = AccessBuilder::ForJSArrayIteratorNextIndex();
-  if (IsTypedArrayElementsKind(elements_kind)) {
-    index_access.type = TypeCache::Get()->kJSTypedArrayLengthType;
-  } else {
+  if (!IsTypedArrayElementsKind(elements_kind)) {
     index_access.type = TypeCache::Get()->kJSArrayLengthType;
   }
   Node* index = effect = graph()->NewNode(simplified()->LoadField(index_access),
@@ -6909,21 +6907,15 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
     done_false = jsgraph()->TrueConstant();
     value_false = jsgraph()->UndefinedConstant();
 
-    if (!IsTypedArrayElementsKind(elements_kind)) {
-      // Mark the {iterator} as exhausted by setting the [[NextIndex]] to a
-      // value that will never pass the length check again (aka the maximum
-      // value possible for the specific iterated object). Note that this is
-      // different from what the specification says, which is changing the
-      // [[IteratedObject]] field to undefined, but that makes it difficult
-      // to eliminate the map checks and "length" accesses in for..of loops.
-      //
-      // This is not necessary for JSTypedArray's, since the length of those
-      // cannot change later and so if we were ever out of bounds for them
-      // we will stay out-of-bounds forever.
-      Node* end_index = jsgraph()->ConstantNoHole(index_access.type.Max());
-      efalse = graph()->NewNode(simplified()->StoreField(index_access),
-                                iterator, end_index, efalse, if_false);
-    }
+    // Mark the {iterator} as exhausted by setting the [[NextIndex]] to a
+    // value that will never pass the length check again (aka the maximum
+    // value possible for the specific iterated object). Note that this is
+    // different from what the specification says, which is changing the
+    // [[IteratedObject]] field to undefined, but that makes it difficult
+    // to eliminate the map checks and "length" accesses in for..of loops.
+    Node* end_index = jsgraph()->ConstantNoHole(index_access.type.Max());
+    efalse = graph()->NewNode(simplified()->StoreField(index_access), iterator,
+                              end_index, efalse, if_false);
   }
 
   control = graph()->NewNode(common()->Merge(2), if_true, if_false);

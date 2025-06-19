@@ -1951,8 +1951,7 @@ void JSArrayIterator::JSArrayIteratorVerify(Isolate* isolate) {
 
   if (IsJSTypedArray(iterated_object())) {
     // JSTypedArray::length is limited to Smi range.
-    CHECK(IsSmi(next_index()));
-    CHECK_LE(Object::NumberValue(next_index()), Smi::kMaxValue);
+    CHECK_LE(Object::NumberValue(next_index()), kMaxSafeInteger);
   } else if (IsJSArray(iterated_object())) {
     // JSArray::length is limited to Uint32 range.
     CHECK_LE(Object::NumberValue(next_index()), kMaxUInt32);
