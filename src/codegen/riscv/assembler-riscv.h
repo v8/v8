@@ -475,10 +475,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
       assem_->StartBlockTrampolinePool();
     }
 
-    explicit BlockTrampolinePoolScope(Assembler* assem, PoolEmissionCheck check)
-        : assem_(assem) {
-      assem_->StartBlockTrampolinePool();
-    }
     ~BlockTrampolinePoolScope() { assem_->EndBlockTrampolinePool(); }
 
    private:
