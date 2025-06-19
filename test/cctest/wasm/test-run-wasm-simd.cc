@@ -7042,6 +7042,61 @@ TEST(RunWasmTurbofan_ForcePackWithForcePackedInputs) {
   }
 }
 
+TEST(RunWasmTurbofan_TwoForcePackExpectFail) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  r.builder().AddMemoryElems<int8_t>(64);
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(),
+        TSSimd256VerifyScope::VerifyHaveOpcode<
+            compiler::turboshaft::Opcode::kSimdPack128To256>,
+        ExpectedResult::kFail);
+    // ExprI16x8SConvertI8x16Low will use the result of another
+    // ExprI16x8SConvertI8x16Low so the force pack should fail due to input
+    // dependency. ForcePack another two ExprI16x8SConvertI8x16Low nodes that
+    // will verify empty of shared hash-set and fail eventually due to higher
+    // cost.
+    r.Build(
+        {WASM_LOCAL_SET(temp3, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+         WASM_LOCAL_SET(
+             temp1,
+             WASM_SIMD_UNOP(
+                 kExprI16x8Neg,
+                 WASM_SIMD_UNOP(kExprS128Not,
+                                WASM_SIMD_UNOP(kExprI16x8SConvertI8x16Low,
+                                               WASM_LOCAL_GET(temp3))))),
+         WASM_LOCAL_SET(
+             temp2,
+             WASM_SIMD_UNOP(
+                 kExprI16x8Neg,
+                 WASM_SIMD_UNOP(kExprS128Not,
+                                WASM_SIMD_UNOP(kExprI16x8SConvertI8x16Low,
+                                               WASM_LOCAL_GET(temp1))))),
+         WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp1)),
+         WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                    WASM_LOCAL_GET(temp2)),
+         WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_SPLAT(WASM_I32V(1))),
+         WASM_LOCAL_SET(
+             temp2, WASM_SIMD_BINOP(kExprI32x4Add,
+                                    WASM_SIMD_UNOP(kExprI32x4SConvertI16x8Low,
+                                                   WASM_LOCAL_GET(temp1)),
+                                    WASM_SIMD_UNOP(kExprI32x4SConvertI16x8Low,
+                                                   WASM_LOCAL_GET(temp1)))),
+         WASM_SIMD_STORE_MEM_OFFSET(2 * offset, WASM_LOCAL_GET(param2),
+                                    WASM_LOCAL_GET(temp2)),
+         WASM_ONE});
+  }
+}
+
 template <bool inputs_swapped = false>
 void RunForcePackF32x4ReplaceLaneIntersectTest() {
   EXPERIMENTAL_FLAG_SCOPE(revectorize);

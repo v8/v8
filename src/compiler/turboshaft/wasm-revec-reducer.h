@@ -662,7 +662,7 @@ class WasmRevecAnalyzer {
   bool should_reduce_;
   Simd128UseMap* use_map_;
   ZoneUnorderedSet<OpIndex> reorder_inputs_{phase_zone_};
-  // Used as a local hash-set, always clear before use.
+  // Used as a local hash-set, always clear after use.
   ZoneUnorderedSet<OpIndex> shared_set_{phase_zone_};
 };
 

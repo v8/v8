@@ -328,20 +328,24 @@ bool SLPTree::HasInputDependencies(const NodeGroup& node_group) {
   ZoneUnorderedSet<OpIndex>& inputs_set = analyzer_->GetSharedOpIndexSet();
   DCHECK(inputs_set.empty());
   to_visit.push(end);
+
+  bool result = false;
   while (!to_visit.empty()) {
     OpIndex to_visit_node = to_visit.front();
     Operation& op = graph_.Get(to_visit_node);
     to_visit.pop();
     for (OpIndex input : op.inputs()) {
       if (input == start) {
-        return true;
+        result = true;
+        break;
       } else if (input > start) {
         // Check side effect from input to start's previous node to simplify
         // reducing of force-packing nodes.
         OpIndex start_prev = graph().PreviousIndex(start);
         DCHECK(start_prev.valid());
         if (!IsSideEffectFree(start_prev, input)) {
-          return true;
+          result = true;
+          break;
         }
 
         // We should ensure that there is no back edge.
@@ -352,9 +356,12 @@ bool SLPTree::HasInputDependencies(const NodeGroup& node_group) {
     }
   }
 
-  reorder_inputs_.merge(inputs_set);
+  if (!result) {
+    reorder_inputs_.merge(inputs_set);
+  }
+
   inputs_set.clear();
-  return false;
+  return result;
 }
 
 PackNode* SLPTree::NewPackNode(const NodeGroup& node_group) {
