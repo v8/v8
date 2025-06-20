@@ -2559,7 +2559,6 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
       // month-code», «», «»).
       CombinedRecordOwnership owners;
       CombinedRecord fields;
-      ;
 
       using enum CalendarFieldsFlag;
 
@@ -4049,7 +4048,79 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::WithCalendar(
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalPlainDate::ToZonedDateTime(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> item_obj) {
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.PlainDate.toZonedDateTime";
+  // 1. Let temporalDate be the this value.
+  // 2. Perform ? RequireInternalSlot(temporalDate,
+  // [[InitializedTemporalDate]]).
+
+  std::unique_ptr<temporal_rs::TimeZone> time_zone;
+  DirectHandle<Object> temporal_time_obj;
+
+  // 3. If item is an Object, then
+  if (IsJSReceiver(*item_obj)) {
+    DirectHandle<JSReceiver> item = Cast<JSReceiver>(item_obj);
+    // a. Let timeZoneLike be ? Get(item, "timeZone").
+    DirectHandle<Object> time_zone_like;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, time_zone_like,
+        JSReceiver::GetProperty(isolate, item,
+                                isolate->factory()->timeZone_string()));
+    // b. If timeZoneLike is undefined, then
+    if (IsUndefined(*time_zone_like)) {
+      // i. Let timeZone be ? ToTemporalTimeZoneIdentifier(item).
+      MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+          isolate, time_zone,
+          temporal::ToTemporalTimeZoneIdentifier(isolate, item),
+          kNullMaybeHandle);
+      // ii. Let temporalTime be undefined.
+
+      // c. Else,
+    } else {
+      // i. Let timeZone be ? ToTemporalTimeZoneIdentifier(timeZoneLike).
+      MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+          isolate, time_zone,
+          temporal::ToTemporalTimeZoneIdentifier(isolate, time_zone_like),
+          kNullMaybeHandle);
+      // ii. Let temporalTime be ? Get(item, "plainTime").
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, temporal_time_obj,
+          JSReceiver::GetProperty(isolate, item,
+                                  isolate->factory()->plainTime_string()));
+    }
+    // 4. Else,
+  } else {
+    // a. Let timeZone be ? ToTemporalTimeZoneIdentifier(item).
+    MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+        isolate, time_zone,
+        temporal::ToTemporalTimeZoneIdentifier(isolate, item_obj),
+        kNullMaybeHandle);
+    // b. Let temporalTime be undefined.
+  }
+
+  DCHECK(time_zone);
+
+  DirectHandle<JSTemporalPlainTime> temporal_time;
+  temporal_rs::PlainTime* temporal_time_rust;
+
+  // 5. If temporalTime is undefined, then
+  if (IsUndefined(*temporal_time_obj)) {
+    // a. Let epochNs be ? GetStartOfDay(timeZone, temporalDate.[[ISODate]]).
+    // (handled in Rust by temporal_time_rust being a null pointer)
+
+    // 6. Else,
+  } else {
+    // a. Set temporalTime to ? ToTemporalTime(temporalTime).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, temporal_time,
+        temporal::ToTemporalTime(isolate, temporal_time_obj, std::nullopt,
+                                 method_name));
+    temporal_time_rust = temporal_time->time()->raw();
+    // (Rest of the steps handled in Rust)
+  }
+
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(
+      isolate, temporal_date->date()->raw()->to_zoned_date_time(
+                   *time_zone, temporal_time_rust));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.add
@@ -4777,7 +4848,41 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::With(
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainMonthDay::ToPlainDate(
     Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day,
     DirectHandle<Object> item_obj) {
-  UNIMPLEMENTED();
+  // 1. Let monthDay be the this value.
+  // 2. Perform ? RequireInternalSlot(monthDay,
+  // [[InitializedTemporalMonthDay]]).
+
+  // (handled by type system)
+
+  // 3. If item is not an Object, then
+  if (!IsJSReceiver(*item_obj)) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+  }
+  DirectHandle<JSReceiver> item = Cast<JSReceiver>(item_obj);
+  // 4. Let calendar be monthDay.[[Calendar]].
+  auto calendar = month_day->month_day()->raw()->calendar().kind();
+  // 5. Let fields be ISODateToFields(calendar, monthDay.[[ISODate]],
+  // month-day).
+
+  // (handled in Rust)
+
+  // 6. Let inputFields be ? PrepareCalendarFields(calendar, item, « year », «
+  // », « »).
+
+  using enum temporal::CalendarFieldsFlag;
+  temporal::CombinedRecordOwnership owners;
+  temporal::CombinedRecord fields;
+
+  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      isolate, fields,
+      temporal::PrepareCalendarFields(isolate, calendar, item, kYearFields,
+                                      temporal::RequiredFields::kNone, owners),
+      kNullMaybeHandle);
+
+  auto partial_date = std::move(fields).To<temporal_rs::PartialDate>();
+  return ConstructRustWrappingType<JSTemporalPlainDate>(
+      isolate, month_day->month_day()->raw()->to_plain_date(partial_date));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.tostring
@@ -5023,7 +5128,41 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::With(
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainYearMonth::ToPlainDate(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
     DirectHandle<Object> item_obj) {
-  UNIMPLEMENTED();
+  // 1. Let yearMonth be the this value.
+  // 2. Perform ? RequireInternalSlot(yearMonth,
+  // [[InitializedTemporalYearMonth]]).
+
+  // (handled by type system)
+
+  // 3. If item is not an Object, then
+  if (!IsJSReceiver(*item_obj)) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+  }
+  DirectHandle<JSReceiver> item = Cast<JSReceiver>(item_obj);
+  // 4. Let calendar be yearMonth.[[Calendar]].
+  auto calendar = year_month->year_month()->raw()->calendar().kind();
+  // 5. Let fields be ISODateToFields(calendar, yearMonth.[[ISODate]],
+  // year-month).
+
+  // (handled in Rust)
+
+  // 6. Let inputFields be ? PrepareCalendarFields(calendar, item, « day », « »,
+  // « »).
+
+  using enum temporal::CalendarFieldsFlag;
+  temporal::CombinedRecordOwnership owners;
+  temporal::CombinedRecord fields;
+
+  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      isolate, fields,
+      temporal::PrepareCalendarFields(isolate, calendar, item, kYearFields,
+                                      temporal::RequiredFields::kNone, owners),
+      kNullMaybeHandle);
+
+  auto partial_date = std::move(fields).To<temporal_rs::PartialDate>();
+  return ConstructRustWrappingType<JSTemporalPlainDate>(
+      isolate, year_month->year_month()->raw()->to_plain_date(partial_date));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tostring
