@@ -25,6 +25,7 @@
 #include "src/strings/string-builder-inl.h"
 #include "src/temporal/temporal-parser.h"
 #include "temporal_rs/I128Nanoseconds.hpp"
+#include "temporal_rs/OwnedRelativeTo.hpp"
 #include "temporal_rs/Unit.hpp"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
@@ -2878,9 +2879,9 @@ ToTemporalGeneric<JSTemporalZonedDateTime>(
 // Setters should only be called once (this is not a safety
 // invariant, but the spec should not be setting things multiple
 // times)
-class OwnedRelativeTo {
+class RelativeTo {
  public:
-  OwnedRelativeTo()
+  RelativeTo()
       : date_(std::nullopt),
         zoned_(std::nullopt),
         date_ptr_(nullptr),
@@ -2888,28 +2889,37 @@ class OwnedRelativeTo {
 
   // These methods are not constructors so that they can be explicitly invoked,
   // to avoid e.g. passing in an owned type as a pointer.
-  static OwnedRelativeTo Owned(std::unique_ptr<temporal_rs::PlainDate>&& val) {
-    OwnedRelativeTo ret;
+  static RelativeTo Owned(std::unique_ptr<temporal_rs::PlainDate>&& val) {
+    RelativeTo ret;
     ret.date_ = std::move(val);
-    ret.date_ptr_ = val.get();
+    ret.date_ptr_ = ret.date_.value().get();
     return ret;
   }
-  static OwnedRelativeTo Owned(
-      std::unique_ptr<temporal_rs::ZonedDateTime>&& val) {
-    OwnedRelativeTo ret;
+  static RelativeTo Owned(std::unique_ptr<temporal_rs::ZonedDateTime>&& val) {
+    RelativeTo ret;
     ret.zoned_ = std::move(val);
-    ret.zoned_ptr_ = val.get();
+    ret.zoned_ptr_ = ret.zoned_.value().get();
     return ret;
   }
 
-  static OwnedRelativeTo Borrowed(temporal_rs::PlainDate const* val) {
-    OwnedRelativeTo ret;
+  static RelativeTo Owned(temporal_rs::OwnedRelativeTo&& owned) {
+    if (owned.date) {
+      return Owned(std::move(owned.date));
+    } else if (owned.zoned) {
+      return Owned(std::move(owned.zoned));
+    }
+
+    return RelativeTo();
+  }
+
+  static RelativeTo Borrowed(temporal_rs::PlainDate const* val) {
+    RelativeTo ret;
     ret.date_ptr_ = val;
     return ret;
   }
 
-  static OwnedRelativeTo Borrowed(temporal_rs::ZonedDateTime const* val) {
-    OwnedRelativeTo ret;
+  static RelativeTo Borrowed(temporal_rs::ZonedDateTime const* val) {
+    RelativeTo ret;
     ret.zoned_ptr_ = val;
     return ret;
   }
@@ -2930,19 +2940,19 @@ class OwnedRelativeTo {
 
 // https://tc39.es/proposal-temporal/#sec-temporal-gettemporalrelativetooption
 // Also handles the undefined case from GetOptionsObject
-Maybe<OwnedRelativeTo> GetTemporalRelativeToOptionHandleUndefined(
+Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
     Isolate* isolate, DirectHandle<Object> options) {
-  OwnedRelativeTo ret;
+  RelativeTo ret;
 
   // Default is empty
   if (IsUndefined(*options)) {
-    return Just(OwnedRelativeTo());
+    return Just(RelativeTo());
   }
 
   if (!IsJSReceiver(*options)) {
     // (GetOptionsObject) 3. Throw a TypeError exception.
     THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<OwnedRelativeTo>());
+                                 Nothing<RelativeTo>());
   }
 
   // 1. Let value be ?Get(options, "relativeTo").
@@ -2951,12 +2961,12 @@ Maybe<OwnedRelativeTo> GetTemporalRelativeToOptionHandleUndefined(
       isolate, value,
       JSReceiver::GetProperty(isolate, Cast<JSReceiver>(options),
                               isolate->factory()->relativeTo_string()),
-      Nothing<OwnedRelativeTo>());
+      Nothing<RelativeTo>());
 
   // 2. If value is undefined, return the Record { [[PlainRelativeTo]]:
   // undefined, [[ZonedRelativeTo]]: undefined }.
   if (IsUndefined(*value)) {
-    return Just(OwnedRelativeTo());
+    return Just(RelativeTo());
   }
 
   // 3. Let offsetBehaviour be option.
@@ -2979,7 +2989,7 @@ Maybe<OwnedRelativeTo> GetTemporalRelativeToOptionHandleUndefined(
     if (InstanceTypeChecker::IsJSTemporalZonedDateTime(instance_type)) {
       // i. Return the Record { [[PlainRelativeTo]]: undefined,
       // [[ZonedRelativeTo]]: value }.
-      return Just(OwnedRelativeTo::Borrowed(
+      return Just(RelativeTo::Borrowed(
           Cast<JSTemporalZonedDateTime>(value)->zoned_date_time()->raw()));
     }
 
@@ -2987,7 +2997,7 @@ Maybe<OwnedRelativeTo> GetTemporalRelativeToOptionHandleUndefined(
     if (InstanceTypeChecker::IsJSTemporalPlainDate(instance_type)) {
       // i. Return the Record { [[PlainRelativeTo]]: value, [[ZonedRelativeTo]]:
       // undefined }.
-      return Just(OwnedRelativeTo::Borrowed(
+      return Just(RelativeTo::Borrowed(
           Cast<JSTemporalPlainDate>(value)->date()->raw()));
     }
 
@@ -2996,7 +3006,7 @@ Maybe<OwnedRelativeTo> GetTemporalRelativeToOptionHandleUndefined(
       // i. Let plainDate be
       // !CreateTemporalDate(value.[[ISODateTime]].[[ISODate]],
       // value.[[Calendar]]).
-      auto date_record = GetDateRecord(Cast<JSTemporalPlainDate>(value));
+      auto date_record = GetDateRecord(Cast<JSTemporalPlainDateTime>(value));
       std::unique_ptr<temporal_rs::PlainDate> plain_date = nullptr;
 
       MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
@@ -3006,7 +3016,7 @@ Maybe<OwnedRelativeTo> GetTemporalRelativeToOptionHandleUndefined(
           {});
       // ii. Return the Record { [[PlainRelativeTo]]: plainDate,
       // [[ZonedRelativeTo]]: undefined }.
-      return Just(OwnedRelativeTo::Owned(std::move(plain_date)));
+      return Just(RelativeTo::Owned(std::move(plain_date)));
     }
     // d. Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(value).
     temporal_rs::AnyCalendarKind kind = temporal_rs::AnyCalendarKind::Iso;
@@ -3076,7 +3086,7 @@ Maybe<OwnedRelativeTo> GetTemporalRelativeToOptionHandleUndefined(
         {});
     // 12. Return the Record { [[PlainRelativeTo]]: undefined,
     // [[ZonedRelativeTo]]: zonedRelativeTo }.
-    return Just(OwnedRelativeTo::Owned(std::move(zoned_relative_to)));
+    return Just(RelativeTo::Owned(std::move(zoned_relative_to)));
 
     // 6. Else,
   } else {
@@ -3088,40 +3098,24 @@ Maybe<OwnedRelativeTo> GetTemporalRelativeToOptionHandleUndefined(
 
     DirectHandle<String> str = Cast<String>(value);
 
-    // 10. Let epochNanoseconds be ? InterpretISODateTimeOffset(isoDate, time,
-    // offsetBehaviour, offsetNs, timeZone, compatible, reject, matchBehaviour).
+    // b. Let result be ? ParseISODateTime(value, «
+    // TemporalDateTimeString[+Zoned], TemporalDateTimeString[~Zoned] »). Rest
+    // of the steps handled in Rust
+    temporal_rs::OwnedRelativeTo relative_to;
 
-    // 11. Let zonedRelativeTo be !
-    // CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
-
-    auto disambiguation = temporal_rs::Disambiguation::Compatible;
-    auto offset = temporal_rs::OffsetDisambiguation::Reject;
-
-    // Rest of the steps handled in Rust
-
-    auto rust_result = HandleStringEncodings<
-        TemporalAllocatedResult<temporal_rs::ZonedDateTime>>(
-        isolate, str,
-        [&disambiguation, &offset](std::string_view view)
-            -> TemporalAllocatedResult<temporal_rs::ZonedDateTime> {
-          return temporal_rs::ZonedDateTime::from_utf8(view, disambiguation,
-                                                       offset);
-        },
-        [&disambiguation, &offset](std::u16string_view view)
-            -> TemporalAllocatedResult<temporal_rs::ZonedDateTime> {
-          return temporal_rs::ZonedDateTime::from_utf16(view, disambiguation,
-                                                        offset);
-        });
-
-    std::unique_ptr<temporal_rs::ZonedDateTime> zoned_relative_to;
-
+    // TODO(manishearth) This should use HandleStringEncodings
+    // and not allocate a string once
+    // https://github.com/boa-dev/temporal/issues/374 lands
+    auto std_str = str->ToStdString();
     MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
-        isolate, zoned_relative_to,
-        ExtractRustResult(isolate, std::move(rust_result)), {});
+        isolate, relative_to,
+        ExtractRustResult(isolate,
+                          temporal_rs::OwnedRelativeTo::try_from_str(std_str)),
+        {});
 
     // 12. Return the Record { [[PlainRelativeTo]]: undefined,
     // [[ZonedRelativeTo]]: zonedRelativeTo }.
-    return Just(OwnedRelativeTo::Owned(std::move(zoned_relative_to)));
+    return Just(RelativeTo::Owned(std::move(relative_to)));
   }
 }
 
@@ -3471,7 +3465,7 @@ MaybeDirectHandle<Smi> JSTemporalDuration::Compare(
       isolate, two,
       temporal::ToTemporalDuration(isolate, two_obj, method_name));
 
-  temporal::OwnedRelativeTo relative_to;
+  temporal::RelativeTo relative_to;
 
   MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
       isolate, relative_to,
@@ -3502,7 +3496,110 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::From(
 MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Round(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     DirectHandle<Object> round_to_obj) {
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.Duration.prototype.round";
+  // 1. Let duration be the this value.
+  // 2. Perform ? RequireInternalSlot(duration,
+  // [[InitializedTemporalDuration]]).
+
+  // (handled by type system)
+  // 3. If roundTo is undefined, then
+  if (IsUndefined(*round_to_obj)) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+  }
+
+  DirectHandle<JSReceiver> round_to;
+  auto factory = isolate->factory();
+
+  // 4. If roundTo is a String, then
+  if (IsString(*round_to_obj)) {
+    // a. Let paramString be roundTo.
+    DirectHandle<String> param_string = Cast<String>(round_to_obj);
+    // b. Set roundTo to ! OrdinaryObjectCreate(null).
+    round_to = factory->NewJSObjectWithNullProto();
+    // TODO(manishearth) Ideally we don't have to perform this allocation
+    // c. Perform ! CreateDataPropertyOrThrow(roundTo, "smallestUnit",
+    // paramString).
+    CHECK(JSReceiver::CreateDataProperty(isolate, round_to,
+                                         factory->smallestUnit_string(),
+                                         param_string, Just(kThrowOnError))
+              .FromJust());
+    // 5. Else,
+  } else {
+    // a. Set roundTo to ? GetOptionsObject(roundTo).
+    // We have already checked for undefined, we can hoist the JSReceiver
+    // check out and just cast
+    if (!IsJSReceiver(*round_to_obj)) {
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    }
+    round_to = Cast<JSReceiver>(round_to_obj);
+  }
+
+  // 6. Let smallestUnitPresent be true.
+  // 7. Let largestUnitPresent be true.
+
+  // (handled by Rust)
+
+  // 8. NOTE: (...)
+
+  // 9. Let largestUnit be ? GetTemporalUnitValuedOption(roundTo, "largestUnit",
+  // datetime, unset, « auto »).
+  std::optional<Unit> largest_unit;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, largest_unit,
+      temporal::GetTemporalUnit(
+          isolate, round_to, factory->largestUnit_string(),
+          UnitGroup::kDateTime, std::nullopt, false, method_name, Unit::Auto),
+      kNullMaybeHandle);
+
+  // 10. Let relativeToRecord be ? GetTemporalRelativeToOption(roundTo).
+  // 11. Let zonedRelativeTo be relativeToRecord.[[ZonedRelativeTo]].
+  // 12. Let plainRelativeTo be relativeToRecord.[[PlainRelativeTo]].
+
+  temporal::RelativeTo relative_to;
+
+  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      isolate, relative_to,
+      temporal::GetTemporalRelativeToOptionHandleUndefined(isolate, round_to),
+      kNullMaybeHandle);
+
+  // 13. Let roundingIncrement be ? GetRoundingIncrementOption(roundTo).
+
+  uint32_t rounding_increment;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rounding_increment,
+      temporal::GetRoundingIncrementOption(isolate, round_to),
+      kNullMaybeHandle);
+
+  // 8. Let roundingMode be ? GetRoundingModeOption(roundTo, half-expand).
+  RoundingMode rounding_mode;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rounding_mode,
+      temporal::GetRoundingModeOption(isolate, round_to,
+                                      RoundingMode::HalfExpand, method_name),
+      kNullMaybeHandle);
+
+  // 15. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo,
+  // "smallestUnit", datetime, unset).
+  std::optional<Unit> smallest_unit;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, smallest_unit,
+      temporal::GetTemporalUnit(
+          isolate, round_to, factory->smallestUnit_string(),
+          UnitGroup::kDateTime, std::nullopt, false, method_name),
+      kNullMaybeHandle);
+
+  // Rest of the steps handled in Rust
+
+  auto options = temporal_rs::RoundingOptions{.largest_unit = largest_unit,
+                                              .smallest_unit = smallest_unit,
+                                              .rounding_mode = rounding_mode,
+                                              .increment = rounding_increment};
+
+  auto rounded =
+      duration->duration()->raw()->round(options, relative_to.ToRust());
+  return ConstructRustWrappingType<JSTemporalDuration>(isolate,
+                                                       std::move(rounded));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.total
@@ -3553,7 +3650,7 @@ MaybeDirectHandle<Number> JSTemporalDuration::Total(
   // 8. Let zonedRelativeTo be relativeToRecord.[[ZonedRelativeTo]].
   // 9. Let plainRelativeTo be relativeToRecord.[[PlainRelativeTo]].
 
-  temporal::OwnedRelativeTo relative_to;
+  temporal::RelativeTo relative_to;
 
   MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
       isolate, relative_to,
@@ -4361,7 +4458,83 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::NowISO(
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Round(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> round_to_obj) {
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.PlainDateTime.prototype.round";
+  // 1. Let dateTime be the this value.
+  // 2. Perform ? RequireInternalSlot(dateTime,
+  // [[InitializedTemporalDateTime]]).
+
+  // (handled by type system)
+
+  // 3. If roundTo is undefined, then
+  if (IsUndefined(*round_to_obj)) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+  }
+
+  DirectHandle<JSReceiver> round_to;
+  auto factory = isolate->factory();
+
+  // 4. If roundTo is a String, then
+  if (IsString(*round_to)) {
+    // a. Let paramString be roundTo.
+    DirectHandle<String> param_string = Cast<String>(round_to);
+    // b. Set roundTo to ! OrdinaryObjectCreate(null).
+    round_to = factory->NewJSObjectWithNullProto();
+    // c. c. Perform ! CreateDataPropertyOrThrow(roundTo, "smallestUnit",
+    // paramString).
+    CHECK(JSReceiver::CreateDataProperty(isolate, round_to,
+                                         factory->smallestUnit_string(),
+                                         param_string, Just(kThrowOnError))
+              .FromJust());
+    // 5. Else,
+  } else {
+    // a. Set roundTo to ? GetOptionsObject(roundTo).
+    // We have already checked for undefined, we can hoist the JSReceiver
+    // check out and just cast
+    if (!IsJSReceiver(*round_to_obj)) {
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    }
+    round_to = Cast<JSReceiver>(round_to_obj);
+  }
+
+  // 6. NOTE: (...)
+
+  // 7. Let roundingIncrement be ? GetRoundingIncrementOption(roundTo).
+
+  uint32_t rounding_increment;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rounding_increment,
+      temporal::GetRoundingIncrementOption(isolate, round_to),
+      kNullMaybeHandle);
+
+  // 8. Let roundingMode be ? GetRoundingModeOption(roundTo, half-expand).
+  RoundingMode rounding_mode;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rounding_mode,
+      temporal::GetRoundingModeOption(isolate, round_to,
+                                      RoundingMode::HalfExpand, method_name),
+      kNullMaybeHandle);
+
+  // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo,
+  // "smallestUnit", time, required, « day »).
+  std::optional<Unit> smallest_unit;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, smallest_unit,
+      temporal::GetTemporalUnit(
+          isolate, round_to, factory->smallestUnit_string(),
+          UnitGroup::kDateTime, std::nullopt, true, method_name, Unit::Day),
+      kNullMaybeHandle);
+
+  // Rest of the steps handled in Rust
+
+  auto options = temporal_rs::RoundingOptions{.largest_unit = std::nullopt,
+                                              .smallest_unit = smallest_unit,
+                                              .rounding_mode = rounding_mode,
+                                              .increment = rounding_increment};
+
+  auto rounded = date_time->date_time()->raw()->round(options);
+  return ConstructRustWrappingType<JSTemporalPlainDateTime>(isolate,
+                                                            std::move(rounded));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.add
@@ -4985,7 +5158,79 @@ MaybeDirectHandle<Oddball> JSTemporalPlainTime::Equals(
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Round(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     DirectHandle<Object> round_to_obj) {
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.PlainDateTime.prototype.round";
+  // 1. Let temporalTime be the this value.
+  // 2. Perform ? RequireInternalSlot(dateTime, [[InitializedTemporalTime]]).
+
+  // (handled by type system)
+
+  // 3. If roundTo is undefined, then
+  if (IsUndefined(*round_to_obj)) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+  }
+
+  DirectHandle<JSReceiver> round_to;
+  auto factory = isolate->factory();
+
+  // 4. If roundTo is a String, then
+  if (IsString(*round_to)) {
+    // a. Let paramString be roundTo.
+    DirectHandle<String> param_string = Cast<String>(round_to);
+    // b. Set roundTo to ! OrdinaryObjectCreate(null).
+    round_to = factory->NewJSObjectWithNullProto();
+    // TODO(manishearth) Ideally we don't have to perform this allocation
+    // c. Perform ! CreateDataPropertyOrThrow(roundTo, "smallestUnit",
+    // paramString).
+    CHECK(JSReceiver::CreateDataProperty(isolate, round_to,
+                                         factory->smallestUnit_string(),
+                                         param_string, Just(kThrowOnError))
+              .FromJust());
+    // 5. Else,
+  } else {
+    // a. Set roundTo to ? GetOptionsObject(roundTo).
+    // We have already checked for undefined, we can hoist the JSReceiver
+    // check out and just cast
+    if (!IsJSReceiver(*round_to_obj)) {
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    }
+    round_to = Cast<JSReceiver>(round_to_obj);
+  }
+
+  // 6. NOTE: (...)
+
+  // 7. Let roundingIncrement be ? GetRoundingIncrementOption(roundTo).
+
+  uint32_t rounding_increment;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rounding_increment,
+      temporal::GetRoundingIncrementOption(isolate, round_to),
+      kNullMaybeHandle);
+
+  // 8. Let roundingMode be ? GetRoundingModeOption(roundTo, half-expand).
+  RoundingMode rounding_mode;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rounding_mode,
+      temporal::GetRoundingModeOption(isolate, round_to,
+                                      RoundingMode::HalfExpand, method_name),
+      kNullMaybeHandle);
+
+  // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo,
+  // "smallestUnit", time, required).
+  std::optional<Unit> smallest_unit;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, smallest_unit,
+      temporal::GetTemporalUnit(
+          isolate, round_to, factory->smallestUnit_string(), UnitGroup::kTime,
+          std::nullopt, true, method_name),
+      kNullMaybeHandle);
+
+  // Rest of the steps handled in Rust
+
+  auto rounded = temporal_time->time()->raw()->round(
+      smallest_unit.value(), rounding_increment, rounding_mode);
+  return ConstructRustWrappingType<JSTemporalPlainTime>(isolate,
+                                                        std::move(rounded));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.with
@@ -5518,7 +5763,83 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::NowISO(
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Round(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> round_to_obj) {
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.PlainDateTime.prototype.round";
+  // 1. Let zonedDateTime be the this value.
+  // 2. Perform ? RequireInternalSlot(zonedDateTime,
+  // [[InitializedTemporalZonedDateTime]]).
+
+  // (handled by type system)
+
+  // 3. If roundTo is undefined, then
+  if (IsUndefined(*round_to_obj)) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+  }
+
+  DirectHandle<JSReceiver> round_to;
+  auto factory = isolate->factory();
+
+  // 4. If roundTo is a String, then
+  if (IsString(*round_to)) {
+    // a. Let paramString be roundTo.
+    DirectHandle<String> param_string = Cast<String>(round_to);
+    // b. Set roundTo to ! OrdinaryObjectCreate(null).
+    round_to = factory->NewJSObjectWithNullProto();
+    // c. c. Perform ! CreateDataPropertyOrThrow(roundTo, "smallestUnit",
+    // paramString).
+    CHECK(JSReceiver::CreateDataProperty(isolate, round_to,
+                                         factory->smallestUnit_string(),
+                                         param_string, Just(kThrowOnError))
+              .FromJust());
+    // 5. Else,
+  } else {
+    // a. Set roundTo to ? GetOptionsObject(roundTo).
+    // We have already checked for undefined, we can hoist the JSReceiver
+    // check out and just cast
+    if (!IsJSReceiver(*round_to_obj)) {
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    }
+    round_to = Cast<JSReceiver>(round_to_obj);
+  }
+
+  // 6. NOTE: (...)
+
+  // 7. Let roundingIncrement be ? GetRoundingIncrementOption(roundTo).
+
+  uint32_t rounding_increment;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rounding_increment,
+      temporal::GetRoundingIncrementOption(isolate, round_to),
+      kNullMaybeHandle);
+
+  // 8. Let roundingMode be ? GetRoundingModeOption(roundTo, half-expand).
+  RoundingMode rounding_mode;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rounding_mode,
+      temporal::GetRoundingModeOption(isolate, round_to,
+                                      RoundingMode::HalfExpand, method_name),
+      kNullMaybeHandle);
+
+  // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo,
+  // "smallestUnit", time, required, « day »).
+  std::optional<Unit> smallest_unit;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, smallest_unit,
+      temporal::GetTemporalUnit(
+          isolate, round_to, factory->smallestUnit_string(), UnitGroup::kTime,
+          std::nullopt, true, method_name, Unit::Day),
+      kNullMaybeHandle);
+
+  // Rest of the steps handled in Rust
+
+  auto options = temporal_rs::RoundingOptions{.largest_unit = std::nullopt,
+                                              .smallest_unit = smallest_unit,
+                                              .rounding_mode = rounding_mode,
+                                              .increment = rounding_increment};
+
+  auto rounded = zoned_date_time->zoned_date_time()->raw()->round(options);
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(isolate,
+                                                            std::move(rounded));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.add
