@@ -111,8 +111,16 @@ RegExpMacroAssemblerRISCV::RegExpMacroAssemblerRISCV(Isolate* isolate,
   __ bind(&start_label_);  // And then continue from here.
 }
 
-RegExpMacroAssemblerRISCV::~RegExpMacroAssemblerRISCV() {
-  // Unuse labels in case we throw away the assembler without calling GetCode.
+RegExpMacroAssemblerRISCV::~RegExpMacroAssemblerRISCV() = default;
+
+void RegExpMacroAssemblerRISCV::AbortedCodeGeneration() {
+  // Tell the underlying assembler that we're aborting the code generation, so
+  // it can clean up and clear constant pools.
+  masm_->AbortedCodeGeneration();
+
+  // We are throwing away the assembler without calling GetCode, so we unuse
+  // all the labels to avoid running into issues when destructing linked, but
+  // not bound, labels.
   entry_label_.Unuse();
   start_label_.Unuse();
   success_label_.Unuse();
