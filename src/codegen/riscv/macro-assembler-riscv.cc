@@ -5345,23 +5345,6 @@ MemOperand MacroAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
                     IsolateData::BuiltinEntrySlotOffset(builtin));
 }
 
-void MacroAssembler::PatchAndJump(Address target) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  auipc(scratch, 0);  // Load PC into scratch
-  LoadWord(t6, MemOperand(scratch, kInstrSize * 4));
-  jr(t6);
-  nop();  // For alignment
-#if V8_TARGET_ARCH_RISCV64
-  DCHECK_EQ(reinterpret_cast<uint64_t>(pc_) % 8, 0);
-#elif V8_TARGET_ARCH_RISCV32
-  DCHECK_EQ(reinterpret_cast<uint32_t>(pc_) % 4, 0);
-#endif
-  *reinterpret_cast<uintptr_t*>(pc_) = target;  // pc_ should be align.
-  pc_ += sizeof(uintptr_t);
-}
-
 void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   // This generates the final instruction sequence for calls to C functions
   // once an exit frame has been constructed.
@@ -6573,9 +6556,6 @@ void MacroAssembler::Abort(AbortReason reason) {
     return;
   }
 
-  Label abort_start;
-  bind(&abort_start);
-
   Move(a0, Smi::FromInt(static_cast<int>(reason)));
 
   {
@@ -6593,20 +6573,8 @@ void MacroAssembler::Abort(AbortReason reason) {
       CallBuiltin(Builtin::kAbort);
     }
   }
+
   // Will not return here.
-  if (is_trampoline_pool_blocked()) {
-    // If the calling code cares about the exact number of
-    // instructions generated, we insert padding here to keep the size
-    // of the Abort macro constant.
-    // Currently in debug mode with debug_code enabled the number of
-    // generated instructions is 10, so we use this as a maximum value.
-    static const int kExpectedAbortInstructions = 10;
-    int abort_instructions = InstructionsGeneratedSince(&abort_start);
-    DCHECK_LE(abort_instructions, kExpectedAbortInstructions);
-    while (abort_instructions++ < kExpectedAbortInstructions) {
-      NOP();
-    }
-  }
 }
 
 // Sets condition flags based on comparison, and returns type in type_reg.

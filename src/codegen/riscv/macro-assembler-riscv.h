@@ -314,7 +314,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   }
   static int64_t CalculateTargetOffset(Address target, RelocInfo::Mode rmode,
                                        uint8_t* pc);
-  void PatchAndJump(Address target);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, COND_ARGS);
   void Jump(const ExternalReference& reference);
   void Call(Register target, COND_ARGS);

@@ -1950,12 +1950,9 @@ void ConstantPool::Check(Emission force_emit, Jump require_jump,
   //  * emission is mandatory or opportune according to {ShouldEmitNow}.
   if (!IsEmpty() && (force_emit == Emission::kForced ||
                      ShouldEmitNow(require_jump, margin))) {
-    // Emit veneers for branches that would go out of range during emission of
-    // the constant pool.
-    int worst_case_size = ComputeSize(Jump::kRequired, Alignment::kRequired);
-
     // Check that the code buffer is large enough before emitting the constant
     // pool (this includes the gap to the relocation information).
+    int worst_case_size = ComputeSize(Jump::kRequired, Alignment::kRequired);
     int needed_space = worst_case_size + assm_->kGap;
     while (assm_->buffer_space() <= needed_space) {
       assm_->GrowBuffer();
