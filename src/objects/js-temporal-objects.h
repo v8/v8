@@ -383,16 +383,6 @@ class JSTemporalPlainDateTime
       Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> plain_date,
       DirectHandle<Object> other);
 
-  // #sec-temporal.plaindatetime.prototype.toplainyearmonth
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainYearMonth>
-  ToPlainYearMonth(Isolate* isolate,
-                   DirectHandle<JSTemporalPlainDateTime> date_time);
-
-  // #sec-temporal.plaindatetime.prototype.toplainmonthday
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainMonthDay>
-  ToPlainMonthDay(Isolate* isolate,
-                  DirectHandle<JSTemporalPlainDateTime> date_time);
-
   // #sec-temporal.plaintime.prototype.tozoneddatetime
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalZonedDateTime>
   ToZonedDateTime(Isolate* isolate,

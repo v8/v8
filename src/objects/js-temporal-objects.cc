@@ -2008,6 +2008,27 @@ Maybe<std::unique_ptr<temporal_rs::ZonedDateTime>> GenericTemporalNowISO(
 
 // ====== Construction operations ======
 
+// Implementing val.toFoo() for different Temporal types Foo
+// (this is distinct from the ToTemporalFoo abstract operations below)
+template <typename DstType, typename SrcType>
+MaybeDirectHandle<DstType> GenericToTemporalMethod(
+    Isolate* isolate, DirectHandle<SrcType> val,
+    TemporalAllocatedResult<typename DstType::RustType> (
+        SrcType::RustType::*method)() const) {
+  return ConstructRustWrappingType<DstType>(isolate,
+                                            (val->wrapped_rust().*method)());
+}
+
+// Same as above, but for infallible conversions
+template <typename DstType, typename SrcType>
+MaybeDirectHandle<DstType> GenericToTemporalMethod(
+    Isolate* isolate, DirectHandle<SrcType> val,
+    std::unique_ptr<typename DstType::RustType> (SrcType::RustType::*method)()
+        const) {
+  return ConstructRustWrappingType<DstType>(isolate,
+                                            (val->wrapped_rust().*method)());
+}
+
 // https://tc39.es/proposal-temporal/#sec-temporal-totemporalduration
 MaybeDirectHandle<JSTemporalDuration> ToTemporalDuration(
     Isolate* isolate, DirectHandle<Object> item, const char* method_name) {
@@ -3638,15 +3659,15 @@ MaybeDirectHandle<Oddball> JSTemporalPlainDate::Equals(
 MaybeDirectHandle<JSTemporalPlainYearMonth>
 JSTemporalPlainDate::ToPlainYearMonth(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date) {
-  return ConstructRustWrappingType<JSTemporalPlainYearMonth>(
-      isolate, temporal_date->date()->raw()->to_plain_year_month());
+  return temporal::GenericToTemporalMethod<JSTemporalPlainYearMonth>(
+      isolate, temporal_date, &temporal_rs::PlainDate::to_plain_year_month);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.toplainmonthday
 MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainDate::ToPlainMonthDay(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date) {
-  return ConstructRustWrappingType<JSTemporalPlainMonthDay>(
-      isolate, temporal_date->date()->raw()->to_plain_month_day());
+  return temporal::GenericToTemporalMethod<JSTemporalPlainMonthDay>(
+      isolate, temporal_date, &temporal_rs::PlainDate::to_plain_month_day);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.toplaindatetime
@@ -4023,20 +4044,6 @@ JSTemporalPlainDateTime::WithPlainTime(
   UNIMPLEMENTED();
 }
 
-// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.toplainyearmonth
-MaybeDirectHandle<JSTemporalPlainYearMonth>
-JSTemporalPlainDateTime::ToPlainYearMonth(
-    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time) {
-  UNIMPLEMENTED();
-}
-
-// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.toplainmonthday
-MaybeDirectHandle<JSTemporalPlainMonthDay>
-JSTemporalPlainDateTime::ToPlainMonthDay(
-    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time) {
-  UNIMPLEMENTED();
-}
-
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tozoneddatetime
 MaybeDirectHandle<JSTemporalZonedDateTime>
 JSTemporalPlainDateTime::ToZonedDateTime(
@@ -4191,13 +4198,15 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDateTime::Since(
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.toplaindate
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDateTime::ToPlainDate(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time) {
-  UNIMPLEMENTED();
+  return temporal::GenericToTemporalMethod<JSTemporalPlainDate>(
+      isolate, date_time, &temporal_rs::PlainDateTime::to_plain_date);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.toplaintime
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainDateTime::ToPlainTime(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time) {
-  UNIMPLEMENTED();
+  return temporal::GenericToTemporalMethod<JSTemporalPlainTime>(
+      isolate, date_time, &temporal_rs::PlainDateTime::to_plain_time);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday
@@ -5130,27 +5139,30 @@ JSTemporalZonedDateTime::GetTimeZoneTransition(
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toinstant
 MaybeDirectHandle<JSTemporalInstant> JSTemporalZonedDateTime::ToInstant(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  return temporal::GenericToTemporalMethod<JSTemporalInstant>(
+      isolate, zoned_date_time, &temporal_rs::ZonedDateTime::to_instant);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toplaindate
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalZonedDateTime::ToPlainDate(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  UNIMPLEMENTED();
+  return temporal::GenericToTemporalMethod<JSTemporalPlainDate>(
+      isolate, zoned_date_time, &temporal_rs::ZonedDateTime::to_plain_date);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toplaintime
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalZonedDateTime::ToPlainTime(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  UNIMPLEMENTED();
+  return temporal::GenericToTemporalMethod<JSTemporalPlainTime>(
+      isolate, zoned_date_time, &temporal_rs::ZonedDateTime::to_plain_time);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toplaindatetime
 MaybeDirectHandle<JSTemporalPlainDateTime>
 JSTemporalZonedDateTime::ToPlainDateTime(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  UNIMPLEMENTED();
+  return temporal::GenericToTemporalMethod<JSTemporalPlainDateTime>(
+      isolate, zoned_date_time, &temporal_rs::ZonedDateTime::to_plain_datetime);
 }
 
 namespace temporal {
