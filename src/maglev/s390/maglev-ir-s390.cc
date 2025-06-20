@@ -274,8 +274,7 @@ void Int32MultiplyOverflownBits::GenerateCode(MaglevAssembler* masm,
   Register out = ToRegister(result());
 
   // TODO(leszeks): peephole optimise multiplication by a constant.
-  __ MulS32(out, left, right);
-  __ LoadS32(out, out);
+  __ MulHighS32(out, left, right);
 }
 
 void Int32Divide::SetValueLocationConstraints() {
