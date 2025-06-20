@@ -7,12 +7,12 @@
 
 #include <optional>
 
-#include "src/base/logging.h"
 #include "src/base/small-vector.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/maglev/maglev-compilation-info.h"
+#include "src/maglev/maglev-graph-builder.h"
 #include "src/maglev/maglev-graph-processor.h"
-#include "src/maglev/maglev-reducer.h"
 
 namespace v8 {
 namespace internal {
@@ -27,7 +27,11 @@ class MaglevPhiRepresentationSelector {
   using Snapshot = SnapshotTable<ValueNode*>::Snapshot;
 
  public:
-  explicit MaglevPhiRepresentationSelector(Graph* graph);
+  explicit MaglevPhiRepresentationSelector(Graph* graph)
+      : graph_(graph),
+        phi_taggings_(zone()),
+        predecessors_(zone()),
+        new_nodes_at_start_(zone()) {}
 
   void PreProcessGraph(Graph* graph) {
     if (v8_flags.trace_maglev_phi_untagging) {
@@ -66,14 +70,6 @@ class MaglevPhiRepresentationSelector {
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
     return UpdateNodeInputs(node, &state);
   }
-
-  DeoptFrame GetDeoptFrameForEagerDeopt() {
-    DCHECK_NOT_NULL(eager_deopt_frame_);
-    return *eager_deopt_frame_;
-  }
-  DeoptFrame GetDeoptFrameForLazyDeopt() { UNREACHABLE(); }
-  void AttachExceptionHandlerInfo(Node*) { UNREACHABLE(); }
-  KnownNodeAspects& known_node_aspects() { UNREACHABLE(); }
 
  private:
   enum class HoistType : uint8_t {
@@ -175,6 +171,8 @@ class MaglevPhiRepresentationSelector {
   // that a different conversion is now needed.
   void UpdateUntaggingOfPhi(Phi* phi, ValueNode* old_untagging);
 
+  enum class NewNodePosition { kBeginingOfCurrentBlock, kEndOfBlock };
+
   // Returns a tagged node that represents a tagged version of {phi}.
   // If we are calling EnsurePhiTagged to ensure a Phi input of a Phi is tagged,
   // then {predecessor_index} should be set to the id of this input (ie, 0 for
@@ -182,21 +180,17 @@ class MaglevPhiRepresentationSelector {
   // to find existing tagging for {phi} in the {predecessor_index}th predecessor
   // of the current block.
   ValueNode* EnsurePhiTagged(
-      Phi* phi, BasicBlock* block, BasicBlockPosition pos,
+      Phi* phi, BasicBlock* block, NewNodePosition pos,
       const ProcessingState* state,
       std::optional<int> predecessor_index = std::nullopt);
 
-  template <typename NodeT, typename... Args>
-  NodeT* AddNewNode(BasicBlock* block, BasicBlockPosition pos,
-                    std::initializer_list<ValueNode*> inputs, Args&&... args);
+  ValueNode* AddNodeAtBlockEnd(ValueNode* new_node, BasicBlock* block,
+                               DeoptFrame* deopt_frame = nullptr);
 
-  template <typename NodeT, typename... Args>
-  NodeT* AddNewNodeAtBlockEnd(BasicBlock* block,
-                              std::initializer_list<ValueNode*> inputs,
-                              Args&&... args) {
-    return AddNewNode<NodeT>(block, BasicBlockPosition::kEnd, inputs,
-                             std::forward<Args>(args)...);
-  }
+  ValueNode* AddNode(ValueNode* node, BasicBlock* block, NewNodePosition pos,
+                     const ProcessingState* state,
+                     DeoptFrame* deopt_frame = nullptr);
+  void RegisterNewNode(ValueNode* node);
 
   // If {block} is the start of a loop header, FixLoopPhisBackedge inserts the
   // necessary tagging on the backedge of the loop Phis of the loop header.
@@ -215,8 +209,7 @@ class MaglevPhiRepresentationSelector {
   Zone* zone() const { return graph_->zone(); }
 
   Graph* graph_;
-
-  MaglevReducer<MaglevPhiRepresentationSelector> reducer_;
+  BasicBlock* current_block_ = nullptr;
 
   // {phi_taggings_} is a SnapshotTable containing mappings from untagged Phis
   // to Tagged alternatives for those phis.
@@ -225,13 +218,13 @@ class MaglevPhiRepresentationSelector {
   // it, in order to save memory and not reallocate it for each merge.
   ZoneVector<Snapshot> predecessors_;
 
+  ZoneVector<Node*> new_nodes_at_start_;
+
   absl::flat_hash_map<BasicBlock::Id, Snapshot> snapshots_;
 
 #ifdef DEBUG
   std::unordered_set<NodeBase*> new_nodes_;
 #endif
-
-  DeoptFrame* eager_deopt_frame_ = nullptr;
 };
 
 }  // namespace maglev
