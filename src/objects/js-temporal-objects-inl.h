@@ -9,10 +9,8 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/api/api-inl.h"
+#include "src/objects/contexts-inl.h"
 #include "src/objects/objects-inl.h"
-
-// Has to be the last include (doesn't have include guards):
-#include "src/objects/object-macros.h"
 
 // Rust includes to transitively include
 #include "temporal_rs/Duration.hpp"
@@ -23,6 +21,9 @@
 #include "temporal_rs/PlainTime.hpp"
 #include "temporal_rs/PlainYearMonth.hpp"
 #include "temporal_rs/ZonedDateTime.hpp"
+
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
@@ -56,6 +57,24 @@ ACCESSORS(JSTemporalPlainYearMonth, year_month,
           Tagged<Managed<temporal_rs::PlainYearMonth>>, kYearMonthOffset)
 ACCESSORS(JSTemporalZonedDateTime, zoned_date_time,
           Tagged<Managed<temporal_rs::ZonedDateTime>>, kZonedDateTimeOffset)
+
+#define DEFINE_CTOR_HELPER(JSType, camel_case)                              \
+  inline DirectHandle<JSFunction> JSType::GetConstructorTarget(             \
+      Isolate* isolate) {                                                   \
+    return DirectHandle<JSFunction>(                                        \
+        Cast<JSFunction>(                                                   \
+            isolate->native_context()->temporal_##camel_case##_function()), \
+        isolate);                                                           \
+  }
+
+DEFINE_CTOR_HELPER(JSTemporalDuration, duration)
+DEFINE_CTOR_HELPER(JSTemporalInstant, instant)
+DEFINE_CTOR_HELPER(JSTemporalPlainDate, plain_date)
+DEFINE_CTOR_HELPER(JSTemporalPlainDateTime, plain_date_time)
+DEFINE_CTOR_HELPER(JSTemporalPlainMonthDay, plain_month_day)
+DEFINE_CTOR_HELPER(JSTemporalPlainTime, plain_time)
+DEFINE_CTOR_HELPER(JSTemporalPlainYearMonth, plain_year_month)
+DEFINE_CTOR_HELPER(JSTemporalZonedDateTime, zoned_date_time)
 
 }  // namespace internal
 }  // namespace v8
