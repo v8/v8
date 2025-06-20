@@ -339,9 +339,10 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     PushRegisters(regs_to_save);
     li(WasmHandleStackOverflowDescriptor::GapRegister(), frame_size);
     Add_d(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
-          Operand(stack_param_slots * kStackSlotSize +
+          Operand(stack_param_slots * kSystemPointerSize +
                   CommonFrameConstants::kFixedFrameSizeAboveFp));
     CallBuiltin(Builtin::kWasmHandleStackOverflow);
+    safepoint_table_builder->DefineSafepoint(this);
     PopRegisters(regs_to_save);
   } else {
     Call(static_cast<Address>(Builtin::kWasmStackOverflow),
