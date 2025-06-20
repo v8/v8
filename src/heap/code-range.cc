@@ -192,7 +192,7 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   // Sandboxed code should never write to code space.
   SandboxHardwareSupport::RegisterOutOfSandboxMemory(
-      base(), size(), PageAllocator::Permission::kNoAccess);
+      base(), size(), PagePermissions::kNoAccess);
 #endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
   // On some platforms, specifically Win64, we need to reserve some pages at

@@ -2309,7 +2309,7 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size) {
       CHECK(ThreadIsolation::MakeExecutable(mem.address(), mem.size()));
     } else {
       CHECK(base::MemoryProtectionKey::SetPermissionsAndKey(
-          mem.region(), PageAllocator::kReadWriteExecute,
+          mem.region(), PagePermissions::kReadWriteExecute,
           RwxMemoryWriteScope::memory_protection_key()));
     }
 #else

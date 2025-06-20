@@ -38,15 +38,15 @@ void SandboxHardwareSupport::RegisterSandboxMemory(Address addr, size_t size) {
   if (!IsActive()) return;
 
   CHECK(base::MemoryProtectionKey::SetPermissionsAndKey(
-      {addr, size}, v8::PageAllocator::Permission::kNoAccess, sandbox_pkey_));
+      {addr, size}, PagePermissions::kNoAccess, sandbox_pkey_));
 }
 
 void SandboxHardwareSupport::RegisterOutOfSandboxMemory(
-    Address addr, size_t size, PageAllocator::Permission page_permission) {
+    Address addr, size_t size, PagePermissions permissions) {
   if (!IsActive()) return;
 
   CHECK(base::MemoryProtectionKey::SetPermissionsAndKey(
-      {addr, size}, page_permission, out_of_sandbox_pkey_));
+      {addr, size}, permissions, out_of_sandbox_pkey_));
 }
 
 void SandboxHardwareSupport::RegisterUnsafeSandboxExtensionMemory(Address addr,
@@ -54,19 +54,19 @@ void SandboxHardwareSupport::RegisterUnsafeSandboxExtensionMemory(Address addr,
   if (!IsActive()) return;
 
   CHECK(base::MemoryProtectionKey::SetPermissionsAndKey(
-      {addr, size}, v8::PageAllocator::Permission::kReadWrite,
-      extension_pkey_));
+      {addr, size}, PagePermissions::kReadWrite, extension_pkey_));
 }
 
 // static
 void SandboxHardwareSupport::RegisterReadOnlyMemoryInsideSandbox(
-    Address addr, size_t size, PageAllocator::Permission perm) {
+    Address addr, size_t size, PagePermissions current_permissions) {
   if (!IsActive()) return;
 
   // Reset the pkey of the read-only page to the default pkey, since some
   // SBXCHECKs will safely read read-only data from the heap.
   CHECK(base::MemoryProtectionKey::SetPermissionsAndKey(
-      {addr, size}, perm, base::MemoryProtectionKey::kDefaultProtectionKey));
+      {addr, size}, current_permissions,
+      base::MemoryProtectionKey::kDefaultProtectionKey));
 }
 
 // static

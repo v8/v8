@@ -71,8 +71,8 @@ bool TrustedRange::InitReservation(size_t requested) {
 
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   // Sandboxed code should never write to trusted memory.
-  SandboxHardwareSupport::RegisterOutOfSandboxMemory(base(), size(),
-                                                     params.permissions);
+  SandboxHardwareSupport::RegisterOutOfSandboxMemory(
+      base(), size(), PagePermissions::kNoAccess);
 #endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
   return success;

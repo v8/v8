@@ -142,8 +142,7 @@ void ThreadIsolation::Initialize(
   // TODO(sroettger): make this immutable once there's OS support.
   bool success = base::MemoryProtectionKey::SetPermissionsAndKey(
       {reinterpret_cast<Address>(&trusted_data_), sizeof(trusted_data_)},
-      v8::PageAllocator::Permission::kRead,
-      base::MemoryProtectionKey::kDefaultProtectionKey);
+      PagePermissions::kRead, base::MemoryProtectionKey::kDefaultProtectionKey);
   CHECK_IMPLIES(v8_flags.force_memory_protection_keys, success);
 #endif
 }
@@ -478,7 +477,7 @@ bool ThreadIsolation::MakeExecutable(Address address, size_t size) {
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   return base::MemoryProtectionKey::SetPermissionsAndKey(
-      {address, size}, PageAllocator::Permission::kReadWriteExecute, pkey());
+      {address, size}, PagePermissions::kReadWriteExecute, pkey());
 #else   // V8_HAS_PKU_JIT_WRITE_PROTECT
   UNREACHABLE();
 #endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
@@ -613,8 +612,7 @@ bool ThreadIsolation::WriteProtectMemory(
 
 #if V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
   return base::MemoryProtectionKey::SetPermissionsAndKey(
-      {addr, size}, PageAllocator::Permission::kNoAccess,
-      ThreadIsolation::pkey());
+      {addr, size}, PagePermissions::kNoAccess, ThreadIsolation::pkey());
 #else
   UNREACHABLE();
 #endif

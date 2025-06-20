@@ -46,8 +46,8 @@ class V8_EXPORT_PRIVATE SandboxHardwareSupport {
   // method, which will assign the proper memory protection key to it. Once we
   // always use the default pkey as out_of_sandbox_pkey_, this method will no
   // longer be required.
-  static void RegisterOutOfSandboxMemory(
-      Address addr, size_t size, PageAllocator::Permission page_permission);
+  static void RegisterOutOfSandboxMemory(Address addr, size_t size,
+                                         PagePermissions permissions);
 
   // Make additional out-of-sandbox memory accessible to sandboxed code.
   //
@@ -64,7 +64,7 @@ class V8_EXPORT_PRIVATE SandboxHardwareSupport {
   // active DisallowSandboxAccess scope, and this function configures the
   // memory protection keys accordingly.
   static void RegisterReadOnlyMemoryInsideSandbox(
-      Address addr, size_t size, PageAllocator::Permission current_permissions);
+      Address addr, size_t size, PagePermissions current_permissions);
 
   // Enter and exit sandboxed execution mode for the current thread.
   //

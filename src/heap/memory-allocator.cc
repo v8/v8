@@ -467,8 +467,7 @@ ReadOnlyPageMetadata* MemoryAllocator::AllocateReadOnlyPage(
 
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   SandboxHardwareSupport::RegisterReadOnlyMemoryInsideSandbox(
-      metadata->ChunkAddress(), metadata->size(),
-      PageAllocator::Permission::kReadWrite);
+      metadata->ChunkAddress(), metadata->size(), PagePermissions::kReadWrite);
 #endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
   return metadata;
