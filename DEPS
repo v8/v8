@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '3f633ff2f98baa7bd2563b710bc4168691eda7bb',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '9a172103022289fcd1374c4d12d0192204343f59',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
