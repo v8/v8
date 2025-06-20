@@ -3053,7 +3053,42 @@ DirectHandle<String> Intl::SourceString(Isolate* isolate,
   }
 }
 
-DirectHandle<String> Intl::DefaultTimeZone(Isolate* isolate) {
+MaybeHandle<String> Intl::TimeZoneIdToString(Isolate* isolate,
+                                             const icu::UnicodeString& id) {
+  // In CLDR (http://unicode.org/cldr/trac/ticket/9943), Etc/UTC is made
+  // a separate timezone ID from Etc/GMT even though they're still the same
+  // timezone. We have Etc/UTC because 'UTC', 'Etc/Universal',
+  // 'Etc/Zulu' and others are turned to 'Etc/UTC' by ICU. Etc/GMT comes
+  // from Etc/GMT0, Etc/GMT+0, Etc/GMT-0, Etc/Greenwich.
+  // ecma402#sec-canonicalizetimezonename step 3
+  if (id == UNICODE_STRING_SIMPLE("Etc/UTC") ||
+      id == UNICODE_STRING_SIMPLE("Etc/GMT")) {
+    return isolate->factory()->UTC_string();
+  }
+  // If the id is in the format of GMT[+-]hh:mm, change it to
+  // [+-]hh:mm.
+  if (id.startsWith(u"GMT", 3)) {
+    return Intl::ToString(isolate, id.tempSubString(3));
+  }
+  return Intl::ToString(isolate, id);
+}
+
+// Same logic as above but for std::string
+std::string Intl::TimeZoneIdToString(const icu::UnicodeString& id) {
+  if (id == UNICODE_STRING_SIMPLE("Etc/UTC") ||
+      id == UNICODE_STRING_SIMPLE("Etc/GMT")) {
+    return "UTC";
+  }
+  std::string result;
+  if (id.startsWith(u"GMT", 3)) {
+    return id.tempSubString(3).toUTF8String(result);
+  } else {
+    id.toUTF8String(result);
+  }
+  return result;
+}
+
+std::string Intl::DefaultTimeZone() {
   icu::UnicodeString id;
   {
     std::unique_ptr<icu::TimeZone> tz(icu::TimeZone::createDefault());
@@ -3063,8 +3098,7 @@ DirectHandle<String> Intl::DefaultTimeZone(Isolate* isolate) {
   icu::UnicodeString canonical;
   icu::TimeZone::getCanonicalID(id, canonical, status);
   DCHECK(U_SUCCESS(status));
-  return JSDateTimeFormat::TimeZoneIdToString(isolate, canonical)
-      .ToHandleChecked();
+  return Intl::TimeZoneIdToString(canonical);
 }
 
 namespace {

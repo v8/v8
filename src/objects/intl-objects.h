@@ -461,7 +461,10 @@ class Intl {
       Isolate* isolate, int32_t time_zone_index,
       DirectHandle<BigInt> nanosecond_epoch);
 
-  static DirectHandle<String> DefaultTimeZone(Isolate* isolate);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> TimeZoneIdToString(
+      Isolate* isolate, const icu::UnicodeString& id);
+  static std::string TimeZoneIdToString(const icu::UnicodeString& id);
+  static std::string DefaultTimeZone();
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> CanonicalizeTimeZoneName(
       Isolate* isolate, DirectHandle<String> identifier);

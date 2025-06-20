@@ -1918,6 +1918,94 @@ Maybe<CombinedRecord> PrepareCalendarFields(Isolate* isolate,
 #undef TIMEZONE_REQUIRED_CHECK
 #undef CALENDAR_FIELDS
 
+// ====== System time ======
+
+// https://tc39.es/proposal-temporal/#sec-systemtimezoneidentifier
+std::unique_ptr<temporal_rs::TimeZone> UTCTimeZone() {
+  TEMPORAL_ENTER_FUNC();
+  // TODO(manishearth) This is a fallible method that in theory should
+  // never fail, but we should avoid this problem by using something infallible
+  // instead.
+  // Can be fixed after https://github.com/boa-dev/temporal/pull/358 lands
+  return temporal_rs::TimeZone::try_from_identifier_str("UTC").ok().value();
+}
+
+// https://tc39.es/proposal-temporal/#sec-systemtimezoneidentifier
+#ifdef V8_INTL_SUPPORT
+std::unique_ptr<temporal_rs::TimeZone> SystemTimeZoneIdentifier() {
+  TEMPORAL_ENTER_FUNC();
+  auto tz_str = Intl::DefaultTimeZone();
+  auto tz = temporal_rs::TimeZone::try_from_identifier_str(tz_str).ok();
+  if (tz.has_value()) {
+    return std::move(tz).value();
+  }
+  return UTCTimeZone();
+}
+#else   //  V8_INTL_SUPPORT
+std::unique_ptr<temporal_rs::TimeZone> SystemTimeZoneIdentifier() {
+  TEMPORAL_ENTER_FUNC();
+  return UTCTimeZone();
+}
+#endif  //  V8_INTL_SUPPORT
+
+// We don't have nanosecond precision counters, so it's pointless to perform
+// numeric conversions back and forth.
+//
+// https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochnanoseconds
+// https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochmilliseconds
+int64_t SystemUTCEpochMilliseconds() {
+  double ms =
+      V8::GetCurrentPlatform()->CurrentClockTimeMillisecondsHighResolution();
+
+  auto min = static_cast<double>(std::numeric_limits<int64_t>::min());
+  auto max = static_cast<double>(std::numeric_limits<int64_t>::max());
+  double clamped = std::clamp(ms, min, max);
+
+  return static_cast<int64_t>(clamped);
+}
+
+// Gets a ZonedDateTime in the ISO calendar representing system time, using
+// either a passed in timezone or the system timezone.
+//
+// Primarily patterned off of Now.zonedDateTimeISO(), all other callers can
+// convert to specific types.
+//
+// https://tc39.es/proposal-temporal/#sec-temporal.now.zoneddatetimeiso
+// https://tc39.es/proposal-temporal/#sec-temporal.now.plaindatetimeiso
+// https://tc39.es/proposal-temporal/#sec-temporal.now.plaindateiso
+// https://tc39.es/proposal-temporal/#sec-temporal.now.plaintimeiso
+Maybe<std::unique_ptr<temporal_rs::ZonedDateTime>> GenericTemporalNowISO(
+    Isolate* isolate, DirectHandle<Object> temporal_time_zone_like) {
+  std::unique_ptr<temporal_rs::TimeZone> time_zone;
+
+  // 1. If temporalTimeZoneLike is undefined, then
+  if (IsUndefined(*temporal_time_zone_like)) {
+    // a. Let timeZone be SystemTimeZoneIdentifier().
+    time_zone = SystemTimeZoneIdentifier();
+    // 2. Else,
+  } else {
+    // a. Let timeZone be ? ToTemporalTimeZoneIdentifier(temporalTimeZoneLike).
+    MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(isolate, time_zone,
+                                         temporal::ToTemporalTimeZoneIdentifier(
+                                             isolate, temporal_time_zone_like),
+                                         {});
+  }
+
+  // 3. Let ns be SystemUTCEpochNanoseconds().
+  auto ms = SystemUTCEpochMilliseconds();
+
+  // 4. Return ! CreateTemporalZonedDateTime(ns, timeZone, "iso8601").
+  // TODO(manishearth) we can avoid the multiple layers of allocation here
+  // once https://github.com/boa-dev/temporal/pull/359 lands.
+  std::unique_ptr<temporal_rs::Instant> instant;
+  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      isolate, instant,
+      ExtractRustResult(isolate,
+                        temporal_rs::Instant::from_epoch_milliseconds(ms)),
+      {});
+  return Just(instant->to_zoned_date_time_iso(*time_zone));
+}
+
 // ====== Construction operations ======
 
 // https://tc39.es/proposal-temporal/#sec-temporal-totemporalduration
@@ -3698,17 +3786,17 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDate::Since(
       method_name);
 }
 
-// https://tc39.es/proposal-temporal/#sec-temporal.now.plaindate
-MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Now(
-    Isolate* isolate, DirectHandle<Object> calendar_like,
-    DirectHandle<Object> temporal_time_zone_like) {
-  UNIMPLEMENTED();
-}
-
 // https://tc39.es/proposal-temporal/#sec-temporal.now.plaindateiso
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::NowISO(
     Isolate* isolate, DirectHandle<Object> temporal_time_zone_like) {
-  UNIMPLEMENTED();
+  TEMPORAL_ENTER_FUNC();
+  std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
+  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      isolate, zdt,
+      temporal::GenericTemporalNowISO(isolate, temporal_time_zone_like),
+      kNullMaybeHandle);
+  return ConstructRustWrappingType<JSTemporalPlainDate>(isolate,
+                                                        zdt->to_plain_date());
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.from
@@ -4075,17 +4163,17 @@ MaybeDirectHandle<String> JSTemporalPlainDateTime::ToString(
                                        std::move(rust_options), show_calendar);
 }
 
-// https://tc39.es/proposal-temporal/#sec-temporal.now.plaindatetime
-MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Now(
-    Isolate* isolate, DirectHandle<Object> calendar_like,
-    DirectHandle<Object> temporal_time_zone_like) {
-  UNIMPLEMENTED();
-}
-
 // https://tc39.es/proposal-temporal/#sec-temporal.now.plaindatetimeiso
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::NowISO(
     Isolate* isolate, DirectHandle<Object> temporal_time_zone_like) {
-  UNIMPLEMENTED();
+  TEMPORAL_ENTER_FUNC();
+  std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
+  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      isolate, zdt,
+      temporal::GenericTemporalNowISO(isolate, temporal_time_zone_like),
+      kNullMaybeHandle);
+  return ConstructRustWrappingType<JSTemporalPlainDateTime>(
+      isolate, zdt->to_plain_datetime());
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.round
@@ -4635,7 +4723,14 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::With(
 // https://tc39.es/proposal-temporal/#sec-temporal.now.plaintimeiso
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::NowISO(
     Isolate* isolate, DirectHandle<Object> temporal_time_zone_like) {
-  UNIMPLEMENTED();
+  TEMPORAL_ENTER_FUNC();
+  std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
+  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      isolate, zdt,
+      temporal::GenericTemporalNowISO(isolate, temporal_time_zone_like),
+      kNullMaybeHandle);
+  return ConstructRustWrappingType<JSTemporalPlainTime>(isolate,
+                                                        zdt->to_plain_time());
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaintime.from
@@ -4935,18 +5030,17 @@ MaybeDirectHandle<String> JSTemporalZonedDateTime::ToString(
   UNIMPLEMENTED();
 }
 
-// https://tc39.es/proposal-temporal/#sec-temporal.now.zoneddatetime
-MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Now(
-    Isolate* isolate, DirectHandle<Object> calendar_like,
-    DirectHandle<Object> temporal_time_zone_like) {
-  UNIMPLEMENTED();
-}
-
 // https://tc39.es/proposal-temporal/#sec-temporal.now.zoneddatetimeiso
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::NowISO(
     Isolate* isolate, DirectHandle<Object> temporal_time_zone_like) {
   TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
+  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      isolate, zdt,
+      temporal::GenericTemporalNowISO(isolate, temporal_time_zone_like),
+      kNullMaybeHandle);
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(isolate,
+                                                            std::move(zdt));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.round
@@ -4990,7 +5084,9 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalZonedDateTime::Since(
 // https://tc39.es/proposal-temporal/#sec-temporal.now.instant
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Now(Isolate* isolate) {
   TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  auto ms = temporal::SystemUTCEpochMilliseconds();
+  return ConstructRustWrappingType<JSTemporalInstant>(
+      isolate, temporal_rs::Instant::from_epoch_milliseconds(ms));
 }
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.offsetnanoseconds

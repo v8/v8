@@ -558,26 +558,6 @@ int FractionalSecondDigitsFromPattern(const std::string& pattern) {
 }
 }  // namespace
 
-MaybeHandle<String> JSDateTimeFormat::TimeZoneIdToString(
-    Isolate* isolate, const icu::UnicodeString& id) {
-  // In CLDR (http://unicode.org/cldr/trac/ticket/9943), Etc/UTC is made
-  // a separate timezone ID from Etc/GMT even though they're still the same
-  // timezone. We have Etc/UTC because 'UTC', 'Etc/Universal',
-  // 'Etc/Zulu' and others are turned to 'Etc/UTC' by ICU. Etc/GMT comes
-  // from Etc/GMT0, Etc/GMT+0, Etc/GMT-0, Etc/Greenwich.
-  // ecma402#sec-canonicalizetimezonename step 3
-  if (id == UNICODE_STRING_SIMPLE("Etc/UTC") ||
-      id == UNICODE_STRING_SIMPLE("Etc/GMT")) {
-    return isolate->factory()->UTC_string();
-  }
-  // If the id is in the format of GMT[+-]hh:mm, change it to
-  // [+-]hh:mm.
-  if (id.startsWith(u"GMT", 3)) {
-    return Intl::ToString(isolate, id.tempSubString(3));
-  }
-  return Intl::ToString(isolate, id);
-}
-
 DirectHandle<Object> JSDateTimeFormat::TimeZoneId(Isolate* isolate,
                                                   const icu::TimeZone& tz) {
   Factory* factory = isolate->factory();
@@ -597,8 +577,8 @@ DirectHandle<Object> JSDateTimeFormat::TimeZoneId(Isolate* isolate,
   }
   DirectHandle<String> timezone_value;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, timezone_value, TimeZoneIdToString(isolate, canonical_time_zone),
-      {});
+      isolate, timezone_value,
+      Intl::TimeZoneIdToString(isolate, canonical_time_zone), {});
   return timezone_value;
 }
 

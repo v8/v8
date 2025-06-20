@@ -101,8 +101,6 @@ class JSDateTimeFormat
 
   DirectHandle<Object> static TimeZoneId(Isolate* isolate,
                                          const icu::TimeZone& tz);
-  V8_WARN_UNUSED_RESULT static MaybeHandle<String> TimeZoneIdToString(
-      Isolate* isolate, const icu::UnicodeString& id);
 
   std::unique_ptr<icu::TimeZone> static CreateTimeZone(
       Isolate* isolate, DirectHandle<String> time_zone);

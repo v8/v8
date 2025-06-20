@@ -319,11 +319,6 @@ class JSTemporalPlainDate
                   DirectHandle<JSTemporalPlainDate> plain_date,
                   DirectHandle<Object> item);
 
-  // #sec-temporal.now.plaindate
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainDate> Now(
-      Isolate* isolate, DirectHandle<Object> calendar_like,
-      DirectHandle<Object> temporal_time_zone_like);
-
   // #sec-temporal.now.plaindateiso
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainDate> NowISO(
       Isolate* isolate, DirectHandle<Object> temporal_time_zone_like);
@@ -456,11 +451,6 @@ class JSTemporalPlainDateTime
   Subtract(Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
            DirectHandle<Object> temporal_duration_like,
            DirectHandle<Object> options);
-
-  // #sec-temporal.now.plaindatetime
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainDateTime> Now(
-      Isolate* isolate, DirectHandle<Object> calendar_like,
-      DirectHandle<Object> temporal_time_zone_like);
 
   // #sec-temporal.now.plaindatetimeiso
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainDateTime>
@@ -792,12 +782,6 @@ class JSTemporalZonedDateTime
            DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
            DirectHandle<Object> temporal_duration_like,
            DirectHandle<Object> options);
-
-
-  // #sec-temporal.now.zoneddatetime
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalZonedDateTime> Now(
-      Isolate* isolate, DirectHandle<Object> calendar_like,
-      DirectHandle<Object> temporal_time_zone_like);
 
   // #sec-temporal.now.zoneddatetimeiso
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalZonedDateTime>
