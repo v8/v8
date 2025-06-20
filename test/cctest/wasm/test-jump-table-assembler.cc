@@ -161,6 +161,13 @@ void CompileJumpTableThunk(Address thunk, Address jump_target) {
   __ bind(&exit);
   __ Ret();
 
+#if V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
+  // On RISC-V, the instruction sequence above may leave non-emitted entries
+  // in the constant pool of the assembler. Make sure to give the assembler
+  // a chance to emit them.
+  masm.FinishCode();
+#endif
+
   FlushInstructionCache(thunk, kThunkBufferSize);
 #if defined(V8_OS_DARWIN) && defined(V8_HOST_ARCH_ARM64)
   // MacOS on arm64 refuses {mprotect} calls to toggle permissions of RWX
