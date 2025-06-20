@@ -2367,8 +2367,13 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
   // Compute handler and stack unwinding information by performing a full walk
   // over the stack and dispatching according to the frame type.
   int visited_frames = 0;
+  bool ignore_next_frame = false;
   for (StackFrameIterator iter(this, thread_local_top());;
        iter.Advance(), visited_frames++) {
+    if (ignore_next_frame) {
+      ignore_next_frame = false;
+      continue;
+    }
 #if V8_ENABLE_WEBASSEMBLY
     if (iter.frame()->type() == StackFrame::STACK_SWITCH) {
       if (catchable_by_js && iter.frame()->LookupCode()->builtin_id() !=
@@ -2704,6 +2709,16 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
           HandlerTable table(caller_code->UnsafeCastToCode());
           int handler_offset = table.LookupReturn(caller_offset);
           if (handler_offset < 0) {
+            // No handler was registered for the fast call. The stack iteration
+            // would therefore continue with the next frame, which is the frame
+            // of the caller of the fast API call. We checked that frame already
+            // here, so there is no need to check it again. Additionally, the
+            // `pc` of the next frame is off by a call instruction, because for
+            // a normal deopt, the return address on the stack would point to
+            // the deopt exit of the call, but to reach the current code
+            // location, the deopt exit has already been called, to the address
+            // after the deopt exit is on the stack as the return address.
+            ignore_next_frame = true;
             break;
           }
 
