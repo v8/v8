@@ -1479,10 +1479,11 @@ bool DeoptimizedMaglevvedCodeEarly(Isolate* isolate,
                                    Tagged<JSFunction> function,
                                    Tagged<Code> code) {
   if (!code->is_maglevved()) return false;
-  if (function->GetRequestedOptimizationIfAny(isolate) ==
-      CodeKind::TURBOFAN_JS) {
-    // We request turbofan after consuming the invocation_count_for_turbofan
-    // budget which is greater than
+  if (function->tiering_in_progress() ||
+      function->GetRequestedOptimizationIfAny(isolate) ==
+          CodeKind::TURBOFAN_JS) {
+    // We request or start turbofan after consuming the
+    // invocation_count_for_turbofan budget which is greater than
     // invocation_count_for_maglev_with_delay.
     return false;
   }
