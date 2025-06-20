@@ -2411,6 +2411,12 @@ MaybeReduceResult MaglevGraphBuilder::TryFoldInt32BinaryOperation(
       }
       if (cst_right != 0) {
         // x / n = x reciprocal_int_mult(x, n)
+        if (cst_right < 0) {
+          // Deopt if division would result in -0.
+          AddNewNode<CheckInt32Condition>({left, GetInt32Constant(0)},
+                                          AssertCondition::kNotEqual,
+                                          DeoptimizeReason::kMinusZero);
+        }
         base::MagicNumbersForDivision<int32_t> magic =
             base::SignedDivisionByConstant(cst_right);
         ValueNode* quot = AddNewNode<Int32MultiplyOverflownBits>(
