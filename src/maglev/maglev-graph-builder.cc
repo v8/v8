@@ -2399,13 +2399,16 @@ MaybeReduceResult MaglevGraphBuilder::TryFoldInt32BinaryOperation(
       if (cst_right == 0) {
         AddNewNode<CheckInt32Condition>({left, GetInt32Constant(0)},
                                         AssertCondition::kGreaterThanEqual,
-                                        DeoptimizeReason::kNotInt32);
+                                        DeoptimizeReason::kMinusZero);
         return GetInt32Constant(0);
       }
       return {};
     case Operation::kDivide:
       // x / -1 = 0 - x
       if (cst_right == -1) {
+        AddNewNode<CheckInt32Condition>({left, GetInt32Constant(0)},
+                                        AssertCondition::kNotEqual,
+                                        DeoptimizeReason::kMinusZero);
         return AddNewNode<Int32SubtractWithOverflow>(
             {GetInt32Constant(0), left});
       }
