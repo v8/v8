@@ -6100,15 +6100,35 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::FromEpochMilliseconds(
 
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.fromepochnanoseconds
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::FromEpochNanoseconds(
-    Isolate* isolate, DirectHandle<Object> item) {
-  UNIMPLEMENTED();
+    Isolate* isolate, DirectHandle<Object> epoch_nanoseconds_obj) {
+  // 1. Set epochNanoseconds to ? ToBigInt(epochNanoseconds).
+  DirectHandle<BigInt> epoch_nanoseconds;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, epoch_nanoseconds,
+      BigInt::FromObject(isolate, epoch_nanoseconds_obj));
+
+  // Rest of the steps handled by CreateTemporalInstantWithValidityCheck
+
+  return temporal::CreateTemporalInstantWithValidityCheck(isolate,
+                                                          epoch_nanoseconds);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.compare
 MaybeDirectHandle<Smi> JSTemporalInstant::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj) {
-  UNIMPLEMENTED();
+  TEMPORAL_ENTER_FUNC();
+  const char method_name[] = "Temporal.Instant.compare";
+  DirectHandle<JSTemporalInstant> one;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, one, temporal::ToTemporalInstant(isolate, one_obj, method_name));
+  DirectHandle<JSTemporalInstant> two;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, two, temporal::ToTemporalInstant(isolate, two_obj, method_name));
+
+  return direct_handle(
+      Smi::FromInt(one->instant()->raw()->compare(*two->instant()->raw())),
+      isolate);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.equals
