@@ -339,6 +339,52 @@ Maybe<IntegerType> ToPositiveIntegerTypeWithTruncation(
   return Just(static_cast<IntegerType>(d));
 }
 
+// Throws RangeErrors for out-of-range BigInts, checking IsValidEpochNanoseconds
+Maybe<temporal_rs::I128Nanoseconds> GetI128FromBigInt(
+    Isolate* isolate, DirectHandle<BigInt> bigint) {
+  if (bigint->Words64Count() > 2) {
+    // 3. ! IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
+    // RangeError exception.
+    // TODO(manishearth) Perform full check here, not just the coarse one
+    // once https://github.com/boa-dev/temporal/pull/363 lands
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), {});
+  }
+
+  uint64_t words[2] = {0, 0};
+  uint32_t word_count = 2;
+  int sign_bit = 0;
+
+  bigint->ToWordsArray64(&sign_bit, &word_count, words);
+
+  if (words[1] > std::numeric_limits<int64_t>::max()) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), {});
+  }
+
+  int64_t high = static_cast<int64_t>(words[1]);
+  if (sign_bit == 1) {
+    high = -high;
+  }
+
+  return Just(temporal_rs::I128Nanoseconds{.high = high, .low = words[0]});
+}
+
+MaybeDirectHandle<BigInt> I128ToBigInt(Isolate* isolate,
+                                       temporal_rs::I128Nanoseconds ns) {
+  uint64_t words[2];
+  bool sign_bit;
+  if (ns.high < 0) {
+    sign_bit = true;
+    words[1] = static_cast<uint64_t>(-ns.high);
+  } else {
+    sign_bit = false;
+    words[1] = static_cast<uint64_t>(ns.high);
+  }
+  words[0] = ns.low;
+  return BigInt::FromWords64(isolate, sign_bit, 2, words);
+}
+
 bool IsValidTime(double hour, double minute, double second, double millisecond,
                  double microsecond, double nanosecond) {
   // 1. If hour < 0 or hour > 23, then
@@ -5025,28 +5071,11 @@ MaybeDirectHandle<JSTemporalInstant> CreateTemporalInstantWithValidityCheck(
     DirectHandle<HeapObject> new_target,
     DirectHandle<BigInt> epoch_nanoseconds) {
   TEMPORAL_ENTER_FUNC();
-  if (epoch_nanoseconds->Words64Count() > 2) {
-    // 3. If ! IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
-    // RangeError exception.
-    // Most validation is performed by the Instant ctor.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
-  }
 
-  uint64_t words[2] = {0, 0};
-  uint32_t word_count = 2;
-  int sign_bit = 0;
-  epoch_nanoseconds->ToWordsArray64(&sign_bit, &word_count, words);
-
-  if (words[1] > std::numeric_limits<int64_t>::max()) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
-  }
-
-  int64_t high = static_cast<int64_t>(words[1]);
-  if (sign_bit == 1) {
-    high = -high;
-  }
-
-  auto ns = temporal_rs::I128Nanoseconds{.high = high, .low = words[0]};
+  temporal_rs::I128Nanoseconds ns;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, ns, GetI128FromBigInt(isolate, epoch_nanoseconds),
+      kNullMaybeHandle);
 
   return ConstructRustWrappingType<JSTemporalInstant>(
       isolate, target, new_target, temporal_rs::Instant::try_new(ns));
@@ -5100,8 +5129,29 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::From(
 
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.fromepochmilliseconds
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::FromEpochMilliseconds(
-    Isolate* isolate, DirectHandle<Object> item) {
-  UNIMPLEMENTED();
+    Isolate* isolate, DirectHandle<Object> epoch_milliseconds) {
+  // 1. Let number be ? ToNumber(epochMilliseconds).
+  DirectHandle<Number> number;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, number,
+                             Object::ToNumber(isolate, epoch_milliseconds));
+  double ms = Object::NumberValue(*number);
+
+  // 2. Set epochMilliseconds to ?NumberToBigInt(epochMilliseconds).
+  // 3. Let epochNanoseconds be epochMilliseconds × ℤ(10**6).
+  // 4. If IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
+  // RangeError exception.
+  //
+  // These checks are handled by Rust, we just need to make sure we can safely
+  // convert to an int64_t NumberToBigInt also throws a RangeError.
+  if (!std::isfinite(ms) ||
+      ms < static_cast<double>(std::numeric_limits<int64_t>::min()) ||
+      ms > static_cast<double>(std::numeric_limits<int64_t>::max())) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+  }
+  auto ms_int = static_cast<int64_t>(ms);
+
+  return ConstructRustWrappingType<JSTemporalInstant>(
+      isolate, temporal_rs::Instant::from_epoch_milliseconds(ms_int));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.fromepochnanoseconds
@@ -5222,19 +5272,8 @@ MaybeDirectHandle<Number> JSTemporalInstant::EpochMilliseconds(
 MaybeDirectHandle<BigInt> JSTemporalInstant::EpochNanoseconds(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle) {
   TEMPORAL_ENTER_FUNC();
-  temporal_rs::I128Nanoseconds ns =
-      handle->instant()->raw()->epoch_nanoseconds();
-  uint64_t words[2];
-  bool sign_bit;
-  if (ns.high < 0) {
-    sign_bit = true;
-    words[1] = static_cast<uint64_t>(-ns.high);
-  } else {
-    sign_bit = false;
-    words[1] = static_cast<uint64_t>(ns.high);
-  }
-  words[0] = ns.low;
-  return BigInt::FromWords64(isolate, sign_bit, 2, words);
+
+  return temporal::I128ToBigInt(isolate, handle->instant()->raw()->epoch_nanoseconds());
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tozoneddatetime
