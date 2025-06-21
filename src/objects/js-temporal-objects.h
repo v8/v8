@@ -389,9 +389,6 @@ class JSTemporalPlainDateTime
                   DirectHandle<JSTemporalPlainDateTime> date_time,
                   DirectHandle<Object> temporal_time_zone_like,
                   DirectHandle<Object> options_obj);
-  // #sec-temporal.plaindatetime.prototype.getisofields
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSReceiver> GetISOFields(
-      Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time);
 
   // #sec-temporal.plaindatetime.prototype.with
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainDateTime> With(

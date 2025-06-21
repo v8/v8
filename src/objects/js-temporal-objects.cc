@@ -4033,7 +4033,16 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::With(
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::WithCalendar(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> calendar_id) {
-  UNIMPLEMENTED();
+  // 3. Let calendar be ? ToTemporalCalendarIdentifier(calendarLike).
+  temporal_rs::AnyCalendarKind calendar_kind;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, calendar_kind,
+      temporal::ToTemporalCalendarIdentifier(isolate, calendar_id),
+      kNullMaybeHandle);
+
+  // Rest of the steps handled in Rust
+  return ConstructRustWrappingType<JSTemporalPlainDate>(
+      isolate, temporal_date->date()->raw()->with_calendar(calendar_kind));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.tozoneddatetime
@@ -4377,7 +4386,16 @@ MaybeDirectHandle<JSTemporalPlainDateTime>
 JSTemporalPlainDateTime::WithCalendar(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> temporal_date,
     DirectHandle<Object> calendar_id) {
-  UNIMPLEMENTED();
+  // 3. Let calendar be ? ToTemporalCalendarIdentifier(calendarLike).
+  temporal_rs::AnyCalendarKind calendar_kind;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, calendar_kind,
+      temporal::ToTemporalCalendarIdentifier(isolate, calendar_id),
+      kNullMaybeHandle);
+
+  // Rest of the steps handled in Rust
+  return ConstructRustWrappingType<JSTemporalPlainDateTime>(
+      isolate, temporal_date->date_time()->raw()->with_calendar(calendar_kind));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.withplaintime
@@ -4759,12 +4777,6 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::With(
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainMonthDay::ToPlainDate(
     Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day,
     DirectHandle<Object> item_obj) {
-  UNIMPLEMENTED();
-}
-
-// https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.getisofields
-MaybeDirectHandle<JSReceiver> JSTemporalPlainMonthDay::GetISOFields(
-    Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day) {
   UNIMPLEMENTED();
 }
 
@@ -5655,7 +5667,17 @@ MaybeDirectHandle<JSTemporalZonedDateTime>
 JSTemporalZonedDateTime::WithCalendar(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> temporal_date,
     DirectHandle<Object> calendar_id) {
-  UNIMPLEMENTED();
+  // 3. Let calendar be ? ToTemporalCalendarIdentifier(calendarLike).
+  temporal_rs::AnyCalendarKind calendar_kind;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, calendar_kind,
+      temporal::ToTemporalCalendarIdentifier(isolate, calendar_id),
+      kNullMaybeHandle);
+
+  // Rest of the steps handled in Rust
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(
+      isolate,
+      temporal_date->zoned_date_time()->raw()->with_calendar(calendar_kind));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.withplaintime
