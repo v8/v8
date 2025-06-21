@@ -4879,14 +4879,83 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
     DirectHandle<HeapObject> new_target,
     DirectHandle<Object> epoch_nanoseconds_obj,
     DirectHandle<Object> time_zone_like, DirectHandle<Object> calendar_like) {
-  UNIMPLEMENTED();
+  // 1. If NewTarget is undefined, throw a TypeError exception.
+  if (IsUndefined(*new_target)) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+  }
+
+  // 2. Set epochNanoseconds to ? ToBigInt(epochNanoseconds).
+  DirectHandle<BigInt> epoch_nanoseconds;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, epoch_nanoseconds,
+      BigInt::FromObject(isolate, epoch_nanoseconds_obj));
+
+  // 3. If IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
+  // RangeError exception.
+  temporal_rs::I128Nanoseconds ns;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, ns, temporal::GetI128FromBigInt(isolate, epoch_nanoseconds),
+      kNullMaybeHandle);
+
+  // 4. If timeZone is not a String, throw a TypeError exception.
+  if (!IsString(*time_zone_like)) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+  }
+
+  auto tz_string = Cast<String>(time_zone_like)->ToStdString();
+
+  // 5. Let timeZoneParse be ? ParseTimeZoneIdentifier(timeZone).
+  // 6. If timeZoneParse.[[OffsetMinutes]] is empty, then
+  //   a. Let identifierRecord be
+  //   GetAvailableNamedTimeZoneIdentifier(timeZoneParse.[[Name]]). b. If
+  //   identifierRecord is empty, throw a RangeError exception. c. Set timeZone
+  //   to identifierRecord.[[Identifier]].
+  // 7. Else,
+  //   a. Set timeZone to
+  //   FormatOffsetTimeZoneIdentifier(timeZoneParse.[[OffsetMinutes]]).
+  std::unique_ptr<temporal_rs::TimeZone> time_zone;
+  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      isolate, time_zone,
+      ExtractRustResult(
+          isolate, temporal_rs::TimeZone::try_from_identifier_str(tz_string)),
+      kNullMaybeHandle);
+
+  if (!time_zone->is_valid()) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+  }
+
+  // 8. If calendar is undefined, set calendar to "iso8601".
+  temporal_rs::AnyCalendarKind calendar = temporal_rs::AnyCalendarKind::Iso;
+  // 9. If calendar is not a String, throw a TypeError exception.
+  if (!IsString(*calendar_like)) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+  }
+
+  // 10. Set calendar to ? CanonicalizeCalendar(calendar).
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, calendar,
+      temporal::CanonicalizeCalendar(isolate, Cast<String>(calendar_like)),
+      kNullMaybeHandle);
+
+  // 11. Return ? CreateTemporalZonedDateTime(epochNanoseconds, timeZone,
+  // calendar, NewTarget).
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(
+      isolate, target, new_target,
+      temporal_rs::ZonedDateTime::try_new(ns, calendar, *time_zone));
 }
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.hoursinday
-MaybeDirectHandle<Object> JSTemporalZonedDateTime::HoursInDay(
+MaybeDirectHandle<Smi> JSTemporalZonedDateTime::HoursInDay(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+
+  uint8_t hours;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, hours,
+      ExtractRustResult(
+          isolate, zoned_date_time->zoned_date_time()->raw()->hours_in_day()),
+      kNullMaybeHandle);
+  return direct_handle(Smi::FromInt(hours), isolate);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.from
@@ -4959,6 +5028,8 @@ MaybeDirectHandle<Smi> JSTemporalZonedDateTime::Compare(
 MaybeDirectHandle<Oddball> JSTemporalZonedDateTime::Equals(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> other_obj) {
+  // TODO(manishearth) Implement once
+  // https://github.com/boa-dev/temporal/pull/362 lands
   UNIMPLEMENTED();
 }
 
@@ -5097,6 +5168,8 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Now(Isolate* isolate) {
 MaybeDirectHandle<Object> JSTemporalZonedDateTime::OffsetNanoseconds(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
+  // TODO(manishearth) Implement once
+  // https://github.com/boa-dev/temporal/pull/361 lands
   UNIMPLEMENTED();
 }
 
@@ -5104,13 +5177,16 @@ MaybeDirectHandle<Object> JSTemporalZonedDateTime::OffsetNanoseconds(
 MaybeDirectHandle<BigInt> JSTemporalZonedDateTime::EpochNanoseconds(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  return temporal::I128ToBigInt(
+      isolate, zoned_date_time->zoned_date_time()->raw()->epoch_nanoseconds());
 }
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.timezoneid
 MaybeDirectHandle<String> JSTemporalZonedDateTime::TimeZoneId(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
+  // TODO(manishearth) Implement once
+  // https://github.com/boa-dev/temporal/pull/344 lands
   UNIMPLEMENTED();
 }
 
@@ -5118,6 +5194,8 @@ MaybeDirectHandle<String> JSTemporalZonedDateTime::TimeZoneId(
 MaybeDirectHandle<String> JSTemporalZonedDateTime::Offset(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
+  // TODO(manishearth) Implement once
+  // https://github.com/boa-dev/temporal/pull/362 lands
   UNIMPLEMENTED();
 }
 
@@ -5125,7 +5203,8 @@ MaybeDirectHandle<String> JSTemporalZonedDateTime::Offset(
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::StartOfDay(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(
+      isolate, zoned_date_time->zoned_date_time()->raw()->start_of_day());
 }
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.gettimezonetransition
 MaybeDirectHandle<JSTemporalZonedDateTime>
@@ -5376,7 +5455,8 @@ MaybeDirectHandle<BigInt> JSTemporalInstant::EpochNanoseconds(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle) {
   TEMPORAL_ENTER_FUNC();
 
-  return temporal::I128ToBigInt(isolate, handle->instant()->raw()->epoch_nanoseconds());
+  return temporal::I128ToBigInt(isolate,
+                                handle->instant()->raw()->epoch_nanoseconds());
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tozoneddatetime
@@ -5549,6 +5629,8 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalInstant::Since(
 // https://tc39.es/proposal-temporal/#sec-temporal.now.timezoneid
 V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> JSTemporalNowTimeZoneId(
     Isolate* isolate) {
+  // TODO(manishearth) Implement once
+  // https://github.com/boa-dev/temporal/pull/344 lands
   UNIMPLEMENTED();
 }
 
