@@ -67,7 +67,7 @@ MaybeDirectHandle<JSSegmenter> JSSegmenter::New(
   // 13. Let granularity be ? GetOption(options, "granularity", "string", «
   // "grapheme", "word", "sentence" », "grapheme").
   Maybe<Granularity> maybe_granularity = GetStringOption<Granularity>(
-      isolate, options, "granularity", service,
+      isolate, options, isolate->factory()->granularity_string(), service,
       std::to_array<const std::string_view>({"grapheme", "word", "sentence"}),
       std::array{Granularity::GRAPHEME, Granularity::WORD,
                  Granularity::SENTENCE},

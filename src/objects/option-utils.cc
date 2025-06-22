@@ -43,18 +43,14 @@ MaybeDirectHandle<JSReceiver> CoerceOptionsToObject(
 }
 
 Maybe<bool> GetStringOption(Isolate* isolate, DirectHandle<JSReceiver> options,
-                            const char* property,
+                            DirectHandle<String> property,
                             const std::span<const std::string_view> values,
                             const char* method_name,
                             DirectHandle<String>* result) {
-  DirectHandle<String> property_str =
-      isolate->factory()->NewStringFromAsciiChecked(property);
-
   // 1. Let value be ? Get(options, property).
   DirectHandle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value,
-      Object::GetPropertyOrElement(isolate, options, property_str),
+      isolate, value, Object::GetPropertyOrElement(isolate, options, property),
       Nothing<bool>());
 
   if (IsUndefined(*value, isolate)) {
@@ -83,7 +79,7 @@ Maybe<bool> GetStringOption(Isolate* isolate, DirectHandle<JSReceiver> options,
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
         NewRangeError(MessageTemplate::kValueOutOfRange, value, method_str,
-                      property_str),
+                      property),
         Nothing<bool>());
   }
 
@@ -93,16 +89,12 @@ Maybe<bool> GetStringOption(Isolate* isolate, DirectHandle<JSReceiver> options,
 }
 
 V8_WARN_UNUSED_RESULT Maybe<bool> GetBoolOption(
-    Isolate* isolate, DirectHandle<JSReceiver> options, const char* property,
-    const char* method_name, bool* result) {
-  DirectHandle<String> property_str =
-      isolate->factory()->NewStringFromAsciiChecked(property);
-
+    Isolate* isolate, DirectHandle<JSReceiver> options,
+    DirectHandle<String> property, const char* method_name, bool* result) {
   // 1. Let value be ? Get(options, property).
   DirectHandle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value,
-      Object::GetPropertyOrElement(isolate, options, property_str),
+      isolate, value, Object::GetPropertyOrElement(isolate, options, property),
       Nothing<bool>());
 
   // 2. If value is not undefined, then

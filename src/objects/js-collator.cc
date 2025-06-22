@@ -47,7 +47,7 @@ Maybe<CaseFirst> GetCaseFirst(Isolate* isolate,
                               DirectHandle<JSReceiver> options,
                               const char* method_name) {
   return GetStringOption<CaseFirst>(
-      isolate, options, "caseFirst", method_name,
+      isolate, options, isolate->factory()->caseFirst_string(), method_name,
       std::to_array<const std::string_view>({"upper", "lower", "false"}),
       std::array{CaseFirst::kUpper, CaseFirst::kLower, CaseFirst::kFalse},
       CaseFirst::kUndefined);
@@ -297,7 +297,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
   // 4. Let usage be ? GetOption(options, "usage", "string", « "sort",
   // "search" », "sort").
   Maybe<Usage> maybe_usage = GetStringOption<Usage>(
-      isolate, options, "usage", service,
+      isolate, options, isolate->factory()->usage_string(), service,
       std::to_array<const std::string_view>({"sort", "search"}),
       std::array{Usage::SORT, Usage::SEARCH}, Usage::SORT);
   MAYBE_RETURN(maybe_usage, MaybeHandle<JSCollator>());
@@ -315,7 +315,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
   // *undefined*, *undefined*).
   DirectHandle<String> collation_str;
   Maybe<bool> maybe_collation =
-      GetStringOption(isolate, options, "collation",
+      GetStringOption(isolate, options, isolate->factory()->collation_string(),
                       std::span<std::string_view>(), service, &collation_str);
   MAYBE_RETURN(maybe_collation, MaybeHandle<JSCollator>());
 
@@ -348,7 +348,8 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
   // 13. Set opt.[[kn]] to numeric.
   bool numeric;
   Maybe<bool> found_numeric =
-      GetBoolOption(isolate, options, "numeric", service, &numeric);
+      GetBoolOption(isolate, options, isolate->factory()->numeric_string(),
+                    service, &numeric);
   MAYBE_RETURN(found_numeric, MaybeHandle<JSCollator>());
 
   // 14. Let caseFirst be ? GetOption(options, "caseFirst", "string",
@@ -482,7 +483,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
   // 24. Let sensitivity be ? GetOption(options, "sensitivity",
   // "string", « "base", "accent", "case", "variant" », undefined).
   Maybe<Sensitivity> maybe_sensitivity = GetStringOption<Sensitivity>(
-      isolate, options, "sensitivity", service,
+      isolate, options, isolate->factory()->sensitivity_string(), service,
       std::to_array<const std::string_view>(
           {"base", "accent", "case", "variant"}),
       std::array{Sensitivity::kBase, Sensitivity::kAccent, Sensitivity::kCase,
@@ -524,7 +525,8 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
   // "ignorePunctuation", "boolean", undefined, false).
   bool ignore_punctuation = false;
   Maybe<bool> found_ignore_punctuation = GetBoolOption(
-      isolate, options, "ignorePunctuation", service, &ignore_punctuation);
+      isolate, options, isolate->factory()->ignorePunctuation_string(), service,
+      &ignore_punctuation);
   MAYBE_RETURN(found_ignore_punctuation, MaybeHandle<JSCollator>());
 
   // 28. Set collator.[[IgnorePunctuation]] to ignorePunctuation.

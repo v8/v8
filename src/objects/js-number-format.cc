@@ -1163,7 +1163,7 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   // "percent", "currency", "unit" », "decimal").
 
   Maybe<Style> maybe_style = GetStringOption<Style>(
-      isolate, options, "style", service,
+      isolate, options, isolate->factory()->style_string(), service,
       std::to_array<const std::string_view>(
           {"decimal", "percent", "currency", "unit"}),
       std::array{Style::DECIMAL, Style::PERCENT, Style::CURRENCY, Style::UNIT},
@@ -1177,7 +1177,7 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   // undefined).
   DirectHandle<String> currency_str;
   Maybe<bool> found_currency =
-      GetStringOption(isolate, options, "currency",
+      GetStringOption(isolate, options, isolate->factory()->currency_string(),
                       std::span<std::string_view>(), service, &currency_str);
   MAYBE_RETURN(found_currency, MaybeDirectHandle<JSNumberFormat>());
   std::string currency;
@@ -1205,7 +1205,8 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   // "string", « "code",  "symbol", "name", "narrowSymbol" », "symbol").
   Maybe<CurrencyDisplay> maybe_currency_display =
       GetStringOption<CurrencyDisplay>(
-          isolate, options, "currencyDisplay", service,
+          isolate, options, isolate->factory()->currencyDisplay_string(),
+          service,
           std::to_array<const std::string_view>(
               {"code", "symbol", "name", "narrowSymbol"}),
           std::array{CurrencyDisplay::CODE, CurrencyDisplay::SYMBOL,
@@ -1218,7 +1219,7 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   // 9. Let currencySign be ? GetOption(options, "currencySign", "string", «
   // "standard",  "accounting" », "standard").
   Maybe<CurrencySign> maybe_currency_sign = GetStringOption<CurrencySign>(
-      isolate, options, "currencySign", service,
+      isolate, options, isolate->factory()->currencySign_string(), service,
       std::to_array<const std::string_view>({"standard", "accounting"}),
       std::array{CurrencySign::STANDARD, CurrencySign::ACCOUNTING},
       CurrencySign::STANDARD);
@@ -1229,8 +1230,8 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   // undefined).
   DirectHandle<String> unit_str;
   Maybe<bool> found_unit =
-      GetStringOption(isolate, options, "unit", std::span<std::string_view>(),
-                      service, &unit_str);
+      GetStringOption(isolate, options, isolate->factory()->unit_string(),
+                      std::span<std::string_view>(), service, &unit_str);
   MAYBE_RETURN(found_unit, MaybeDirectHandle<JSNumberFormat>());
 
   std::pair<icu::MeasureUnit, icu::MeasureUnit> unit_pair;
@@ -1262,7 +1263,7 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   // 13. Let unitDisplay be ? GetOption(options, "unitDisplay", "string", «
   // "short", "narrow", "long" »,  "short").
   Maybe<UnitDisplay> maybe_unit_display = GetStringOption<UnitDisplay>(
-      isolate, options, "unitDisplay", service,
+      isolate, options, isolate->factory()->unitDisplay_string(), service,
       std::to_array<const std::string_view>({"short", "narrow", "long"}),
       std::array{UnitDisplay::SHORT, UnitDisplay::NARROW, UnitDisplay::LONG},
       UnitDisplay::SHORT);
@@ -1334,7 +1335,7 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, notation,
       GetStringOption<Notation>(
-          isolate, options, "notation", service,
+          isolate, options, isolate->factory()->notation_string(), service,
           std::to_array<const std::string_view>(
               {"standard", "scientific", "engineering", "compact"}),
           std::array{Notation::STANDARD, Notation::SCIENTIFIC,
@@ -1390,7 +1391,7 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   // 28. Let compactDisplay be ? GetOption(options, "compactDisplay",
   // "string", « "short", "long" »,  "short").
   Maybe<CompactDisplay> maybe_compact_display = GetStringOption<CompactDisplay>(
-      isolate, options, "compactDisplay", service,
+      isolate, options, isolate->factory()->compactDisplay_string(), service,
       std::to_array<const std::string_view>({"short", "long"}),
       std::array{CompactDisplay::SHORT, CompactDisplay::LONG},
       CompactDisplay::SHORT);
@@ -1434,7 +1435,7 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   // "auto", "never", "always",  "exceptZero", "negative" », "auto").
   Maybe<SignDisplay> maybe_sign_display = Nothing<SignDisplay>();
   maybe_sign_display = GetStringOption<SignDisplay>(
-      isolate, options, "signDisplay", service,
+      isolate, options, isolate->factory()->signDisplay_string(), service,
       std::to_array<const std::string_view>(
           {"auto", "never", "always", "exceptZero", "negative"}),
       std::array{SignDisplay::AUTO, SignDisplay::NEVER, SignDisplay::ALWAYS,

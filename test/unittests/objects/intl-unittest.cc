@@ -145,19 +145,20 @@ TEST_F(IntlTest, FlattenRegionsToParts) {
 TEST_F(IntlTest, GetStringOption) {
   DirectHandle<JSObject> options =
       i_isolate()->factory()->NewJSObjectWithNullProto();
+
+  DirectHandle<String> key =
+      i_isolate()->factory()->NewStringFromAsciiChecked("foo");
   {
     // No value found
     DirectHandle<String> result;
     Maybe<bool> found =
-        GetStringOption(i_isolate(), options, "foo",
+        GetStringOption(i_isolate(), options, key,
                         std::span<std::string_view>(), "service", &result);
 
     CHECK(!found.FromJust());
     CHECK(result.is_null());
   }
 
-  DirectHandle<String> key =
-      i_isolate()->factory()->NewStringFromAsciiChecked("foo");
   LookupIterator it(i_isolate(), options, key);
   CHECK(Object::SetProperty(
             &it, DirectHandle<Smi>(Smi::FromInt(42), i_isolate()),
@@ -168,7 +169,7 @@ TEST_F(IntlTest, GetStringOption) {
     // Value found
     DirectHandle<String> result;
     Maybe<bool> found =
-        GetStringOption(i_isolate(), options, "foo",
+        GetStringOption(i_isolate(), options, key,
                         std::span<std::string_view>(), "service", &result);
 
     CHECK(found.FromJust());
@@ -180,7 +181,7 @@ TEST_F(IntlTest, GetStringOption) {
     // No expected value in values array
     DirectHandle<String> result;
     Maybe<bool> found = GetStringOption(
-        i_isolate(), options, "foo",
+        i_isolate(), options, key,
         std::to_array<const std::string_view>({"bar"}), "service", &result);
     CHECK(i_isolate()->has_exception());
     CHECK(found.IsNothing());
@@ -192,7 +193,7 @@ TEST_F(IntlTest, GetStringOption) {
     // Expected value in values array
     DirectHandle<String> result;
     Maybe<bool> found = GetStringOption(
-        i_isolate(), options, "foo",
+        i_isolate(), options, key,
         std::to_array<const std::string_view>({"42"}), "service", &result);
     CHECK(found.FromJust());
     auto s = result->ToStdString();
@@ -203,16 +204,17 @@ TEST_F(IntlTest, GetStringOption) {
 TEST_F(IntlTest, GetBoolOption) {
   DirectHandle<JSObject> options =
       i_isolate()->factory()->NewJSObjectWithNullProto();
+  DirectHandle<String> key =
+      i_isolate()->factory()->NewStringFromAsciiChecked("foo");
+
   {
     bool result = false;
     Maybe<bool> found =
-        GetBoolOption(i_isolate(), options, "foo", "service", &result);
+        GetBoolOption(i_isolate(), options, key, "service", &result);
     CHECK(!found.FromJust());
     CHECK(!result);
   }
 
-  DirectHandle<String> key =
-      i_isolate()->factory()->NewStringFromAsciiChecked("foo");
   {
     LookupIterator it(i_isolate(), options, key);
     DirectHandle<Object> false_value(
@@ -223,7 +225,7 @@ TEST_F(IntlTest, GetBoolOption) {
         .Assert();
     bool result = false;
     Maybe<bool> found =
-        GetBoolOption(i_isolate(), options, "foo", "service", &result);
+        GetBoolOption(i_isolate(), options, key, "service", &result);
     CHECK(found.FromJust());
     CHECK(!result);
   }
@@ -238,7 +240,7 @@ TEST_F(IntlTest, GetBoolOption) {
         .Assert();
     bool result = false;
     Maybe<bool> found =
-        GetBoolOption(i_isolate(), options, "foo", "service", &result);
+        GetBoolOption(i_isolate(), options, key, "service", &result);
     CHECK(found.FromJust());
     CHECK(result);
   }

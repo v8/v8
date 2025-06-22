@@ -569,7 +569,8 @@ Maybe<temporal_rs::ArithmeticOverflow> ToTemporalOverflowHandleUndefined(
   // 2. Return ? GetOption(options, "overflow", « String », « "constrain",
   // "reject" », "constrain").
   return GetStringOption<temporal_rs::ArithmeticOverflow>(
-      isolate, Cast<JSReceiver>(options), "overflow", method_name,
+      isolate, Cast<JSReceiver>(options), isolate->factory()->overflow_string(),
+      method_name,
       std::to_array<const std::string_view>({"constrain", "reject"}),
       std::to_array<temporal_rs::ArithmeticOverflow>(
           {temporal_rs::ArithmeticOverflow::Constrain,
@@ -596,7 +597,8 @@ GetTemporalDisambiguationOptionHandleUndefined(Isolate* isolate,
   // 1. Let stringValue be ?GetOption(options, "disambiguation", string, «
   // "compatible", "earlier", "later", "reject" », "compatible").
   return GetStringOption<temporal_rs::Disambiguation>(
-      isolate, Cast<JSReceiver>(options), "overflow", method_name,
+      isolate, Cast<JSReceiver>(options),
+      isolate->factory()->disambiguation_string(), method_name,
       std::to_array<const std::string_view>(
           {"compatible", "earlier", "later", "reject"}),
       std::to_array<temporal_rs::Disambiguation>({
@@ -625,7 +627,8 @@ Maybe<temporal_rs::OffsetDisambiguation> GetTemporalOffsetOptionHandleUndefined(
   // 5. Let stringValue be ? GetOption(options, "offset", string, « "prefer",
   // "use", "ignore", "reject" », stringFallback).
   return GetStringOption<temporal_rs::OffsetDisambiguation>(
-      isolate, Cast<JSReceiver>(options), "overflow", method_name,
+      isolate, Cast<JSReceiver>(options), isolate->factory()->offset_string(),
+      method_name,
       std::to_array<const std::string_view>(
           {"prefer", "use", "ignore", "reject"}),
       std::to_array<temporal_rs::OffsetDisambiguation>({
@@ -726,9 +729,9 @@ Maybe<temporal_rs::Precision> GetTemporalFractionalSecondDigitsOption(
 // Unit::Auto to cover all the possible value for extraValues.
 Maybe<std::optional<Unit>> GetTemporalUnit(
     Isolate* isolate, DirectHandle<JSReceiver> normalized_options,
-    const char* key, UnitGroup unit_group, std::optional<Unit> default_value,
-    bool default_is_required, const char* method_name,
-    std::optional<Unit> extra_values = std::nullopt) {
+    DirectHandle<String> key, UnitGroup unit_group,
+    std::optional<Unit> default_value, bool default_is_required,
+    const char* method_name, std::optional<Unit> extra_values = std::nullopt) {
   std::span<const std::string_view> str_values;
   std::span<const std::optional<Unit::Value>> enum_values;
   switch (unit_group) {
@@ -866,8 +869,7 @@ Maybe<std::optional<Unit>> GetTemporalUnit(
         NewRangeError(
             MessageTemplate::kValueOutOfRange,
             isolate->factory()->undefined_value(),
-            isolate->factory()->NewStringFromAsciiChecked(method_name),
-            isolate->factory()->NewStringFromAsciiChecked(key)),
+            isolate->factory()->NewStringFromAsciiChecked(method_name), key),
         Nothing<std::optional<Unit>>());
   }
   // 12. Return value.
@@ -945,7 +947,7 @@ Maybe<RoundingMode> GetRoundingModeOption(Isolate* isolate,
        RoundingMode::HalfExpand, RoundingMode::HalfTrunc,
        RoundingMode::HalfEven});
   return GetStringOption<RoundingMode>(
-      isolate, options, "roundingMode", method_name,
+      isolate, options, isolate->factory()->roundingMode_string(), method_name,
       std::to_array<const std::string_view>(
           {"ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
            "halfExpand", "halfTrunc", "halfEven"}),
@@ -970,8 +972,9 @@ Maybe<temporal_rs::DifferenceSettings> GetDifferenceSettingsWithoutChecks(
   std::optional<Unit> largest_unit;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, largest_unit,
-      GetTemporalUnit(isolate, options, "largestUnit", unit_group, Unit::Auto,
-                      false, method_name),
+      GetTemporalUnit(isolate, options,
+                      isolate->factory()->largestUnit_string(), unit_group,
+                      Unit::Auto, false, method_name),
       Nothing<temporal_rs::DifferenceSettings>());
 
   // 3. If disallowedUnits contains largestUnit, throw a RangeError exception.
@@ -999,7 +1002,8 @@ Maybe<temporal_rs::DifferenceSettings> GetDifferenceSettingsWithoutChecks(
   std::optional<Unit> smallest_unit;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, largest_unit,
-      GetTemporalUnit(isolate, options, "smallestUnit", unit_group,
+      GetTemporalUnit(isolate, options,
+                      isolate->factory()->smallestUnit_string(), unit_group,
                       fallback_smallest_unit,
                       !fallback_smallest_unit.has_value(), method_name),
       Nothing<temporal_rs::DifferenceSettings>());
@@ -1019,7 +1023,7 @@ Maybe<temporal_rs::DisplayCalendar> GetTemporalShowCalendarNameOption(
   // 1. Return ? GetOption(normalizedOptions, "calendarName", « String », «
   // "auto", "always", "never" », "auto").
   return GetStringOption<temporal_rs::DisplayCalendar>(
-      isolate, options, "calendarName", method_name,
+      isolate, options, isolate->factory()->calendarName_string(), method_name,
       std::to_array<const std::string_view>(
           {"auto", "always", "never", "critical"}),
       std::to_array<temporal_rs::DisplayCalendar>(
@@ -3366,8 +3370,9 @@ MaybeDirectHandle<Number> JSTemporalDuration::Total(
   std::optional<Unit> unit;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, unit,
-      temporal::GetTemporalUnit(isolate, total_of, "unit", UnitGroup::kDateTime,
-                                std::nullopt, true, method_name),
+      temporal::GetTemporalUnit(
+          isolate, total_of, isolate->factory()->unit_string(),
+          UnitGroup::kDateTime, std::nullopt, true, method_name),
       kNullMaybeHandle);
   // We set required to true.
   DCHECK(unit.has_value());
@@ -3542,9 +3547,9 @@ MaybeDirectHandle<String> JSTemporalDuration::ToString(
   std::optional<Unit> smallest_unit;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, smallest_unit,
-      temporal::GetTemporalUnit(isolate, options, "smallestUnit",
-                                UnitGroup::kTime, std::nullopt, false,
-                                method_name),
+      temporal::GetTemporalUnit(
+          isolate, options, isolate->factory()->smallestUnit_string(),
+          UnitGroup::kTime, std::nullopt, false, method_name),
       DirectHandle<String>());
 
   // 8-17 performed by Rust
@@ -4110,9 +4115,9 @@ MaybeDirectHandle<String> JSTemporalPlainDateTime::ToString(
   std::optional<Unit> smallest_unit;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, smallest_unit,
-      temporal::GetTemporalUnit(isolate, options, "smallestUnit",
-                                UnitGroup::kTime, std::nullopt, false,
-                                method_name),
+      temporal::GetTemporalUnit(
+          isolate, options, isolate->factory()->smallestUnit_string(),
+          UnitGroup::kTime, std::nullopt, false, method_name),
       DirectHandle<String>());
 
   // Rest of the steps handled in Rust
@@ -4857,9 +4862,9 @@ MaybeDirectHandle<String> JSTemporalPlainTime::ToString(
   std::optional<Unit> smallest_unit;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, smallest_unit,
-      temporal::GetTemporalUnit(isolate, options, "smallestUnit",
-                                UnitGroup::kTime, std::nullopt, false,
-                                method_name),
+      temporal::GetTemporalUnit(
+          isolate, options, isolate->factory()->smallestUnit_string(),
+          UnitGroup::kTime, std::nullopt, false, method_name),
       DirectHandle<String>());
 
   // 8-10 performed by Rust
@@ -5426,9 +5431,9 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Round(
   std::optional<Unit> smallest_unit;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, smallest_unit,
-      temporal::GetTemporalUnit(isolate, round_to, "smallestUnit",
-                                UnitGroup::kTime, std::nullopt, true,
-                                method_name),
+      temporal::GetTemporalUnit(
+          isolate, round_to, isolate->factory()->smallestUnit_string(),
+          UnitGroup::kTime, std::nullopt, true, method_name),
       DirectHandle<JSTemporalInstant>());
 
   auto options = temporal_rs::RoundingOptions{.largest_unit = std::nullopt,
@@ -5521,9 +5526,9 @@ MaybeDirectHandle<String> JSTemporalInstant::ToString(
   std::optional<Unit> smallest_unit;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, smallest_unit,
-      temporal::GetTemporalUnit(isolate, options, "smallestUnit",
-                                UnitGroup::kTime, std::nullopt, false,
-                                method_name),
+      temporal::GetTemporalUnit(
+          isolate, options, isolate->factory()->smallestUnit_string(),
+          UnitGroup::kTime, std::nullopt, false, method_name),
       DirectHandle<String>());
 
   // 8. If smallestUnit is hour, throw a RangeError exception.

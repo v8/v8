@@ -45,6 +45,7 @@
   V(_, firstDayOfWeek_string, "firstDayOfWeek")                     \
   V(_, floor_string, "floor")                                       \
   V(_, format_string, "format")                                     \
+  V(_, formatMatcher_string, "formatMatcher")                       \
   V(_, fraction_string, "fraction")                                 \
   V(_, fractionalDigits_string, "fractionalDigits")                 \
   V(_, fractionalSecond_string, "fractionalSecond")                 \
@@ -78,6 +79,7 @@
   V(_, list_string, "list")                                         \
   V(_, literal_string, "literal")                                   \
   V(_, locale_string, "locale")                                     \
+  V(_, localeMatcher_string, "localeMatcher")                       \
   V(_, loose_string, "loose")                                       \
   V(_, lower_string, "lower")                                       \
   V(_, ltr_string, "ltr")                                           \
@@ -112,7 +114,6 @@
   V(_, quarter_string, "quarter")                                   \
   V(_, region_string, "region")                                     \
   V(_, relatedYear_string, "relatedYear")                           \
-  V(_, roundingMode_string, "roundingMode")                         \
   V(_, roundingPriority_string, "roundingPriority")                 \
   V(_, rtl_string, "rtl")                                           \
   V(_, scientific_string, "scientific")                             \
@@ -602,6 +603,7 @@
   V(_, CompileError_string, "CompileError")                                   \
   V(_, calendar_string, "calendar")                                           \
   V(_, calendarId_string, "calendarId")                                       \
+  V(_, calendarName_string, "calendarName")                                   \
   V(_, callee_string, "callee")                                               \
   V(_, caller_string, "caller")                                               \
   V(_, cause_string, "cause")                                                 \
@@ -630,6 +632,7 @@
   V(_, defineProperty_string, "defineProperty")                               \
   V(_, deleteProperty_string, "deleteProperty")                               \
   V(_, detached_string, "detached")                                           \
+  V(_, disambiguation_string, "disambiguation")                               \
   V(_, disjunction_string, "disjunction")                                     \
   V(_, disposed_string, "disposed")                                           \
   V(_, done_string, "done")                                                   \
@@ -800,6 +803,7 @@
   V(_, return_string, "return")                                               \
   V(_, revoke_string, "revoke")                                               \
   V(_, roundingIncrement_string, "roundingIncrement")                         \
+  V(_, roundingMode_string, "roundingMode")                                   \
   V(_, RuntimeError_string, "RuntimeError")                                   \
   V(_, WebAssemblyException_string, "WebAssembly.Exception")                  \
   V(_, WebAssemblyModule_string, "WebAssembly.Module")                        \

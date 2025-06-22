@@ -37,7 +37,8 @@ V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSReceiver> CoerceOptionsToObject(
 // method_name is a string denoting the method the call from; used when
 // printing the error message.
 V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Maybe<bool> GetStringOption(
-    Isolate* isolate, DirectHandle<JSReceiver> options, const char* property,
+    Isolate* isolate, DirectHandle<JSReceiver> options,
+    DirectHandle<String> property,
     const std::span<const std::string_view> values, const char* method_name,
     DirectHandle<String>* result);
 
@@ -47,8 +48,9 @@ V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Maybe<bool> GetStringOption(
 // default_value will be return.
 template <typename T>
 V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOption(
-    Isolate* isolate, DirectHandle<JSReceiver> options, const char* name,
-    const char* method_name, const std::span<const std::string_view> str_values,
+    Isolate* isolate, DirectHandle<JSReceiver> options,
+    DirectHandle<String> name, const char* method_name,
+    const std::span<const std::string_view> str_values,
     const std::span<const T> enum_values, T default_value) {
   DCHECK_EQ(str_values.size(), enum_values.size());
   DirectHandle<String> found_string;
@@ -139,9 +141,10 @@ V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOrBooleanOption(
 //
 // method_name is a string denoting the method it called from; used when
 // printing the error message.
+
 V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Maybe<bool> GetBoolOption(
-    Isolate* isolate, DirectHandle<JSReceiver> options, const char* property,
-    const char* method_name, bool* result);
+    Isolate* isolate, DirectHandle<JSReceiver> options,
+    DirectHandle<String> property, const char* method_name, bool* result);
 
 V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Maybe<int> GetNumberOption(
     Isolate* isolate, DirectHandle<JSReceiver> options,

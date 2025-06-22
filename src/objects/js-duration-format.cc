@@ -86,8 +86,8 @@ const std::initializer_list<JSDurationFormat::FieldStyle>
         JSDurationFormat::FieldStyle::k2Digit};
 
 Maybe<DurationUnitOptions> GetDurationUnitOptions(
-    Isolate* isolate, Unit unit, const char* unit_string,
-    const char* display_field, DirectHandle<JSReceiver> options,
+    Isolate* isolate, Unit unit, DirectHandle<String> unit_string,
+    DirectHandle<String> display_field, DirectHandle<JSReceiver> options,
     JSDurationFormat::Style base_style,
     const std::span<const std::string_view> value_strings,
     const std::span<const JSDurationFormat::FieldStyle> value_enums,
@@ -325,7 +325,8 @@ MaybeDirectHandle<JSDurationFormat> JSDurationFormat::New(
   Style style;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, style,
-      GetStringOption<Style>(isolate, options, "style", method_name,
+      GetStringOption<Style>(isolate, options,
+                             isolate->factory()->style_string(), method_name,
                              std::to_array<const std::string_view>(
                                  {"long", "short", "narrow", "digital"}),
                              std::array{Style::kLong, Style::kShort,
@@ -370,9 +371,9 @@ MaybeDirectHandle<JSDurationFormat> JSDurationFormat::New(
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(                                      \
       isolate, property##_option,                                              \
       GetDurationUnitOptions(                                                  \
-          isolate, Unit::unit, #property, #property "Display", options, style, \
-          strings, enums, JSDurationFormat::FieldStyle::digital_base,          \
-          prev_style),                                                         \
+          isolate, Unit::unit, factory->property##_string(),                   \
+          factory->property##Display_string(), options, style, strings, enums, \
+          JSDurationFormat::FieldStyle::digital_base, prev_style),             \
       DirectHandle<JSDurationFormat>());
 
   // #table-durationformat

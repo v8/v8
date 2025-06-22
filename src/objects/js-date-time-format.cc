@@ -112,7 +112,7 @@ Maybe<JSDateTimeFormat::HourCycle> GetHourCycle(
     Isolate* isolate, DirectHandle<JSReceiver> options,
     const char* method_name) {
   return GetStringOption<JSDateTimeFormat::HourCycle>(
-      isolate, options, "hourCycle", method_name,
+      isolate, options, isolate->factory()->hourCycle_string(), method_name,
       std::to_array<const std::string_view>({"h11", "h12", "h23", "h24"}),
       std::array{
           JSDateTimeFormat::HourCycle::kH11, JSDateTimeFormat::HourCycle::kH12,
@@ -144,19 +144,32 @@ class PatternMap {
 DEFINE_BIT_FIELDS(BIT_FIELDS)
 #undef BIT_FIELDS
 
+enum class DateTimeProperty {
+  kWeekday,
+  kEra,
+  kYear,
+  kMonth,
+  kDay,
+  kDayPeriod,
+  kHour,
+  kMinute,
+  kSecond,
+  kTimeZoneName,
+};
+
 class PatternItem {
  public:
-  PatternItem(int32_t shift, const std::string property,
+  PatternItem(int32_t shift, DateTimeProperty property,
               std::vector<PatternMap> pairs,
               std::span<const std::string_view> allowed_values)
       : bitShift(shift),
-        property(std::move(property)),
+        property(property),
         pairs(std::move(pairs)),
         allowed_values(allowed_values) {}
   virtual ~PatternItem() = default;
 
   int32_t bitShift;
-  const std::string property;
+  DateTimeProperty property;
   // It is important for the pattern in the pairs from longer one to shorter one
   // if the longer one contains substring of an shorter one.
   std::vector<PatternMap> pairs;
@@ -172,7 +185,7 @@ static std::vector<PatternItem> BuildPatternItems() {
       std::to_array<std::string_view>(
           {"narrow", "long", "short", "2-digit", "numeric"});
   std::vector<PatternItem> items = {
-      PatternItem(Weekday::kShift, "weekday",
+      PatternItem(Weekday::kShift, DateTimeProperty::kWeekday,
                   {{"EEEEE", "narrow"},
                    {"EEEE", "long"},
                    {"EEE", "short"},
@@ -180,13 +193,13 @@ static std::vector<PatternItem> BuildPatternItems() {
                    {"cccc", "long"},
                    {"ccc", "short"}},
                   kNarrowLongShort),
-      PatternItem(Era::kShift, "era",
+      PatternItem(Era::kShift, DateTimeProperty::kEra,
                   {{"GGGGG", "narrow"}, {"GGGG", "long"}, {"GGG", "short"}},
                   kNarrowLongShort),
-      PatternItem(Year::kShift, "year", {{"yy", "2-digit"}, {"y", "numeric"}},
-                  k2DigitNumeric)};
+      PatternItem(Year::kShift, DateTimeProperty::kYear,
+                  {{"yy", "2-digit"}, {"y", "numeric"}}, k2DigitNumeric)};
   // Sometimes we get L instead of M for month - standalone name.
-  items.push_back(PatternItem(Month::kShift, "month",
+  items.push_back(PatternItem(Month::kShift, DateTimeProperty::kMonth,
                               {{"MMMMM", "narrow"},
                                {"MMMM", "long"},
                                {"MMM", "short"},
@@ -198,10 +211,10 @@ static std::vector<PatternItem> BuildPatternItems() {
                                {"LL", "2-digit"},
                                {"L", "numeric"}},
                               kNarrowLongShort2DigitNumeric));
-  items.push_back(PatternItem(Day::kShift, "day",
+  items.push_back(PatternItem(Day::kShift, DateTimeProperty::kDay,
                               {{"dd", "2-digit"}, {"d", "numeric"}},
                               k2DigitNumeric));
-  items.push_back(PatternItem(DayPeriod::kShift, "dayPeriod",
+  items.push_back(PatternItem(DayPeriod::kShift, DateTimeProperty::kDayPeriod,
                               {{"BBBBB", "narrow"},
                                {"bbbbb", "narrow"},
                                {"BBBB", "long"},
@@ -209,7 +222,7 @@ static std::vector<PatternItem> BuildPatternItems() {
                                {"B", "short"},
                                {"b", "short"}},
                               kNarrowLongShort));
-  items.push_back(PatternItem(Hour::kShift, "hour",
+  items.push_back(PatternItem(Hour::kShift, DateTimeProperty::kHour,
                               {{"HH", "2-digit"},
                                {"H", "numeric"},
                                {"hh", "2-digit"},
@@ -219,17 +232,18 @@ static std::vector<PatternItem> BuildPatternItems() {
                                {"KK", "2-digit"},
                                {"K", "numeric"}},
                               k2DigitNumeric));
-  items.push_back(PatternItem(Minute::kShift, "minute",
+  items.push_back(PatternItem(Minute::kShift, DateTimeProperty::kMinute,
                               {{"mm", "2-digit"}, {"m", "numeric"}},
                               k2DigitNumeric));
-  items.push_back(PatternItem(Second::kShift, "second",
+  items.push_back(PatternItem(Second::kShift, DateTimeProperty::kSecond,
                               {{"ss", "2-digit"}, {"s", "numeric"}},
                               k2DigitNumeric));
 
   static const auto kTimezone = std::to_array<std::string_view>(
       {"long", "short", "longOffset", "shortOffset", "longGeneric",
        "shortGeneric"});
-  items.push_back(PatternItem(TimeZoneName::kShift, "timeZoneName",
+  items.push_back(PatternItem(TimeZoneName::kShift,
+                              DateTimeProperty::kTimeZoneName,
                               {{"zzzz", "long"},
                                {"z", "short"},
                                {"OOOO", "longOffset"},
@@ -258,12 +272,10 @@ static const std::vector<PatternItem>& GetPatternItems() {
 
 class PatternData {
  public:
-  PatternData(int32_t shift, const std::string property,
+  PatternData(int32_t shift, DateTimeProperty property,
               std::vector<PatternMap> pairs,
               std::span<const std::string_view> allowed_values)
-      : bitShift(shift),
-        property(std::move(property)),
-        allowed_values(allowed_values) {
+      : bitShift(shift), property(property), allowed_values(allowed_values) {
     for (const auto& pair : pairs) {
       map.insert(std::make_pair(pair.value, pair.pattern));
     }
@@ -271,17 +283,42 @@ class PatternData {
   virtual ~PatternData() = default;
 
   int32_t bitShift;
-  const std::string property;
+  DateTimeProperty property;
   // std::less<> is a transparent comparator which allows us to compare
   // against std::string_views
   std::map<const std::string, const std::string, std::less<>> map;
   std::span<const std::string_view> allowed_values;
 };
 
+Handle<String> GetPropertyString(Factory& factory, DateTimeProperty property) {
+  switch (property) {
+    case DateTimeProperty::kWeekday:
+      return factory.weekday_string();
+    case DateTimeProperty::kEra:
+      return factory.era_string();
+    case DateTimeProperty::kYear:
+      return factory.year_string();
+    case DateTimeProperty::kMonth:
+      return factory.month_string();
+    case DateTimeProperty::kDay:
+      return factory.day_string();
+    case DateTimeProperty::kDayPeriod:
+      return factory.dayPeriod_string();
+    case DateTimeProperty::kHour:
+      return factory.hour_string();
+    case DateTimeProperty::kMinute:
+      return factory.minute_string();
+    case DateTimeProperty::kSecond:
+      return factory.second_string();
+    case DateTimeProperty::kTimeZoneName:
+      return factory.timeZoneName_string();
+  }
+}
+
 const std::vector<PatternData> CreateCommonData(const PatternData& hour_data) {
   std::vector<PatternData> build;
   for (const PatternItem& item : GetPatternItems()) {
-    if (item.property == "hour") {
+    if (item.property == DateTimeProperty::kHour) {
       build.push_back(hour_data);
     } else {
       build.push_back(PatternData(item.bitShift, item.property, item.pairs,
@@ -294,7 +331,7 @@ const std::vector<PatternData> CreateCommonData(const PatternData& hour_data) {
 const std::vector<PatternData> CreateData(const char* digit2,
                                           const char* numeric) {
   return CreateCommonData(
-      PatternData(Hour::kShift, "hour",
+      PatternData(Hour::kShift, DateTimeProperty::kHour,
                   {{digit2, "2-digit"}, {numeric, "numeric"}}, k2DigitNumeric));
 }
 
@@ -737,7 +774,7 @@ MaybeDirectHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
       date_time_format->time_style() == DateTimeStyle::kUndefined) {
     for (const auto& item : GetPatternItems()) {
       // fractionalSecondsDigits need to be added before timeZoneName
-      if (item.property == "timeZoneName") {
+      if (item.property == DateTimeProperty::kTimeZoneName) {
         int fsd = FractionalSecondDigitsFromPattern(pattern);
         if (fsd > 0) {
           Maybe<bool> maybe_create_fractional_seconds_digits =
@@ -751,8 +788,7 @@ MaybeDirectHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
       for (const auto& pair : item.pairs) {
         if (pattern.find(pair.pattern) != std::string::npos) {
           Maybe<bool> maybe_create_property = JSReceiver::CreateDataProperty(
-              isolate, options,
-              factory->NewStringFromAsciiChecked(item.property.c_str()),
+              isolate, options, GetPropertyString(*factory, item.property),
               factory->NewStringFromAsciiChecked(pair.value.c_str()),
               Just(kDontThrow));
           DCHECK(maybe_create_property.FromJust());
@@ -1999,7 +2035,7 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   // 6. Let calendar be ? GetOption(options, "calendar",
   //    "string", undefined, undefined).
   Maybe<bool> maybe_calendar =
-      GetStringOption(isolate, options, "calendar",
+      GetStringOption(isolate, options, isolate->factory()->calendar_string(),
                       std::span<std::string_view>(), service, &calendar_str);
   MAYBE_RETURN(maybe_calendar, {});
   // Unfortunately needs to be a std::string because of Intl::IsValidCalendar
@@ -2023,8 +2059,8 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   // 6. Let hour12 be ? GetOption(options, "hour12", "boolean", undefined,
   // undefined).
   bool hour12;
-  Maybe<bool> maybe_get_hour12 =
-      GetBoolOption(isolate, options, "hour12", service, &hour12);
+  Maybe<bool> maybe_get_hour12 = GetBoolOption(
+      isolate, options, factory->hour12_string(), service, &hour12);
   MAYBE_RETURN(maybe_get_hour12, {});
 
   // 7. Let hourCycle be ? GetOption(options, "hourCycle", "string", « "h11",
@@ -2180,7 +2216,7 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   std::string skeleton;
   for (const PatternData& item : GetPatternData(hc)) {
     // Need to read fractionalSecondDigits before reading the timeZoneName
-    if (item.property == "timeZoneName") {
+    if (item.property == DateTimeProperty::kTimeZoneName) {
       // Let _value_ be ? GetNumberOption(options, "fractionalSecondDigits", 1,
       // 3, *undefined*). The *undefined* is represented by value 0 here.
       int fsd;
@@ -2202,14 +2238,14 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
     // i. Let prop be the name given in the Property column of the row.
     // ii. Let value be ? GetOption(options, prop, "string", « the strings
     // given in the Values column of the row », undefined).
-    Maybe<bool> maybe_get_option =
-        GetStringOption(isolate, options, item.property.c_str(),
-                        item.allowed_values, service, &input);
+    Maybe<bool> maybe_get_option = GetStringOption(
+        isolate, options, GetPropertyString(*factory, item.property),
+        item.allowed_values, service, &input);
     MAYBE_RETURN(maybe_get_option, {});
     if (maybe_get_option.FromJust()) {
       std::string input_str = input->ToStdString();
       // Record which fields are not undefined into explicit_format_components.
-      if (item.property == "hour") {
+      if (item.property == DateTimeProperty::kHour) {
         has_hour_option = true;
       }
       // iii. Set opt.[[<prop>]] to value.
@@ -2228,7 +2264,7 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   //     «  "basic", "best fit" », "best fit").
   Maybe<FormatMatcherOption> maybe_format_matcher =
       GetStringOption<FormatMatcherOption>(
-          isolate, options, "formatMatcher", service,
+          isolate, options, isolate->factory()->formatMatcher_string(), service,
           std::to_array<const std::string_view>({"best fit", "basic"}),
           std::array{FormatMatcherOption::kBestFit,
                      FormatMatcherOption::kBasic},
@@ -2240,7 +2276,7 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   // 32. Let dateStyle be ? GetOption(options, "dateStyle", "string", «
   // "full", "long", "medium", "short" », undefined).
   Maybe<DateTimeStyle> maybe_date_style = GetStringOption<DateTimeStyle>(
-      isolate, options, "dateStyle", service,
+      isolate, options, isolate->factory()->dateStyle_string(), service,
       std::to_array<const std::string_view>(
           {"full", "long", "medium", "short"}),
       std::array{DateTimeStyle::kFull, DateTimeStyle::kLong,
@@ -2253,7 +2289,7 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   // 34. Let timeStyle be ? GetOption(options, "timeStyle", "string", «
   // "full", "long", "medium", "short" »).
   Maybe<DateTimeStyle> maybe_time_style = GetStringOption<DateTimeStyle>(
-      isolate, options, "timeStyle", service,
+      isolate, options, isolate->factory()->timeStyle_string(), service,
       std::to_array<const std::string_view>(
           {"full", "long", "medium", "short"}),
       std::array{DateTimeStyle::kFull, DateTimeStyle::kLong,

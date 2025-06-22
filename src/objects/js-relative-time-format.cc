@@ -148,7 +148,7 @@ MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   // 16. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
   Maybe<Style> maybe_style = GetStringOption<Style>(
-      isolate, options, "style", service,
+      isolate, options, isolate->factory()->style_string(), service,
       std::to_array<const std::string_view>({"long", "short", "narrow"}),
       std::array{Style::LONG, Style::SHORT, Style::NARROW}, Style::LONG);
   MAYBE_RETURN(maybe_style, MaybeDirectHandle<JSRelativeTimeFormat>());
@@ -159,7 +159,7 @@ MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   // 18. Let numeric be ? GetOption(options, "numeric", "string",
   //                                «"always", "auto"», "always").
   Maybe<Numeric> maybe_numeric = GetStringOption<Numeric>(
-      isolate, options, "numeric", service,
+      isolate, options, isolate->factory()->numeric_string(), service,
       std::to_array<const std::string_view>({"always", "auto"}),
       std::array{Numeric::ALWAYS, Numeric::AUTO}, Numeric::ALWAYS);
   MAYBE_RETURN(maybe_numeric, MaybeDirectHandle<JSRelativeTimeFormat>());

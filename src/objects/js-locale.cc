@@ -38,7 +38,7 @@ namespace internal {
 namespace {
 
 struct OptionData {
-  const char* name;
+  Handle<String> (Factory::*object_key)();
   const char* key;
   const std::span<const std::string_view> possible_values;
   bool is_bool_value;
@@ -60,13 +60,13 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
       std::to_array<const std::string_view>({"upper", "lower", "false"});
   const auto empty_values = std::span<std::string_view>();
   const std::array<OptionData, 7> kOptionToUnicodeTagMap = {
-      {{"calendar", "ca", empty_values, false},
-       {"collation", "co", empty_values, false},
-       {"firstDayOfWeek", "fw", empty_values, false},
-       {"hourCycle", "hc", hour_cycle_values, false},
-       {"caseFirst", "kf", case_first_values, false},
-       {"numeric", "kn", empty_values, true},
-       {"numberingSystem", "nu", empty_values, false}}};
+      {{&Factory::calendar_string, "ca", empty_values, false},
+       {&Factory::collation_string, "co", empty_values, false},
+       {&Factory::firstDayOfWeek_string, "fw", empty_values, false},
+       {&Factory::hourCycle_string, "hc", hour_cycle_values, false},
+       {&Factory::caseFirst_string, "kf", case_first_values, false},
+       {&Factory::numeric_string, "kn", empty_values, true},
+       {&Factory::numberingSystem_string, "nu", empty_values, false}}};
 
   // TODO(cira): Pass in values as per the spec to make this to be
   // spec compliant.
@@ -74,11 +74,12 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
   for (const auto& option_to_bcp47 : kOptionToUnicodeTagMap) {
     DirectHandle<String> value_str;
     bool value_bool = false;
+    DirectHandle<String> name =
+        (isolate->factory()->*option_to_bcp47.object_key)();
     Maybe<bool> maybe_found =
         option_to_bcp47.is_bool_value
-            ? GetBoolOption(isolate, options, option_to_bcp47.name, "locale",
-                            &value_bool)
-            : GetStringOption(isolate, options, option_to_bcp47.name,
+            ? GetBoolOption(isolate, options, name, "locale", &value_bool)
+            : GetStringOption(isolate, options, name,
                               option_to_bcp47.possible_values, "locale",
                               &value_str);
     MAYBE_RETURN(maybe_found, Nothing<bool>());
@@ -301,8 +302,8 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
   // undefined).
   DirectHandle<String> language_str;
   Maybe<bool> maybe_language = GetStringOption(
-      isolate, options, "language", std::span<std::string_view>(),
-      "ApplyOptionsToTag", &language_str);
+      isolate, options, isolate->factory()->language_string(),
+      std::span<std::string_view>(), "ApplyOptionsToTag", &language_str);
   MAYBE_RETURN(maybe_language, Nothing<bool>());
 
   // 4. If language is not undefined, then
@@ -320,9 +321,9 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
   // 5. Let script be ? GetOption(options, "script", "string", undefined,
   // undefined).
   DirectHandle<String> script_str;
-  Maybe<bool> maybe_script =
-      GetStringOption(isolate, options, "script", std::span<std::string_view>(),
-                      "ApplyOptionsToTag", &script_str);
+  Maybe<bool> maybe_script = GetStringOption(
+      isolate, options, isolate->factory()->script_string(),
+      std::span<std::string_view>(), "ApplyOptionsToTag", &script_str);
   MAYBE_RETURN(maybe_script, Nothing<bool>());
   // 6. If script is not undefined, then
   if (maybe_script.FromJust()) {
@@ -338,9 +339,9 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
   // 7. Let region be ? GetOption(options, "region", "string", undefined,
   // undefined).
   DirectHandle<String> region_str;
-  Maybe<bool> maybe_region =
-      GetStringOption(isolate, options, "region", std::span<std::string_view>(),
-                      "ApplyOptionsToTag", &region_str);
+  Maybe<bool> maybe_region = GetStringOption(
+      isolate, options, isolate->factory()->region_string(),
+      std::span<std::string_view>(), "ApplyOptionsToTag", &region_str);
   MAYBE_RETURN(maybe_region, Nothing<bool>());
   // 8. If region is not undefined, then
   if (maybe_region.FromJust()) {

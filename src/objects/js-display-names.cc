@@ -450,7 +450,7 @@ MaybeDirectHandle<JSDisplayNames> JSDisplayNames::New(
   // 10. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
   Maybe<Style> maybe_style = GetStringOption<Style>(
-      isolate, options, "style", service,
+      isolate, options, isolate->factory()->style_string(), service,
       std::to_array<const std::string_view>({"long", "short", "narrow"}),
       std::array{Style::kLong, Style::kShort, Style::kNarrow}, Style::kLong);
   MAYBE_RETURN(maybe_style, MaybeDirectHandle<JSDisplayNames>());
@@ -462,7 +462,7 @@ MaybeDirectHandle<JSDisplayNames> JSDisplayNames::New(
   // "region", "script", "currency" , "calendar", "dateTimeField", "unit"»,
   // undefined).
   Maybe<Type> maybe_type = GetStringOption<Type>(
-      isolate, options, "type", service,
+      isolate, options, isolate->factory()->type_string(), service,
       std::to_array<const std::string_view>({"language", "region", "script",
                                              "currency", "calendar",
                                              "dateTimeField"}),
@@ -482,7 +482,7 @@ MaybeDirectHandle<JSDisplayNames> JSDisplayNames::New(
   // 15. Let fallback be ? GetOption(options, "fallback", "string",
   //     « "code", "none" », "code").
   Maybe<Fallback> maybe_fallback = GetStringOption<Fallback>(
-      isolate, options, "fallback", service,
+      isolate, options, isolate->factory()->fallback_string(), service,
       std::to_array<const std::string_view>({"code", "none"}),
       std::array{Fallback::kCode, Fallback::kNone}, Fallback::kCode);
   MAYBE_RETURN(maybe_fallback, MaybeDirectHandle<JSDisplayNames>());
@@ -495,7 +495,8 @@ MaybeDirectHandle<JSDisplayNames> JSDisplayNames::New(
   // "string", « "dialect", "standard" », "dialect").
   Maybe<LanguageDisplay> maybe_language_display =
       GetStringOption<LanguageDisplay>(
-          isolate, options, "languageDisplay", service,
+          isolate, options, isolate->factory()->languageDisplay_string(),
+          service,
           std::to_array<const std::string_view>({"dialect", "standard"}),
           std::array{LanguageDisplay::kDialect, LanguageDisplay::kStandard},
           LanguageDisplay::kDialect);
