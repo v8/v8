@@ -5119,6 +5119,11 @@ void Builtins::Generate_DeoptimizationEntry_Lazy(MacroAssembler* masm) {
 
 void Builtins::Generate_DeoptimizationEntry_LazyAfterFastCall(
     MacroAssembler* masm) {
+  // We get here directly after returning from a call to an API function from
+  // generated code. As such, we'll have left sandboxed execution mode for the
+  // call but haven't yet entered it again. Do so now.
+  __ EnterSandbox();
+
   // The deoptimizer may have been triggered right after the return of a fast
   // API call. In that case, exception handling and possible stack unwinding
   // did not happen yet.
