@@ -1454,7 +1454,10 @@
   'd8/flush-denormals-flag': [SKIP],
   'd8/flush-denormals-helper': [SKIP],
   'd8/flush-denormals-worker': [SKIP],
-  'wasm/denormals': [SKIP]
+  'wasm/denormals': [SKIP],
+
+  # wasm deopt don't support simd128
+  'wasm/deopt/deopt-many-params-many-locals-s128': [SKIP],
 }],  # 'arch == riscv64 or arch == riscv32'
 
 ['variant == stress and (arch == riscv64 or arch == riscv32)', {
@@ -2537,7 +2540,7 @@
 # TODO(ports): Support Wasm deopts on all platforms.
 # If you need to add your architecture here, you will need to disable the
 # wasm_deopt flag by default on your platform as well!
-['arch in [riscv32, riscv64, mips64, ppc64, s390x]', {
+['arch in [mips64, ppc64, s390x]', {
   # --wasm-deopt implementation not ported to all  architectures, yet.
   'wasm/deopt/*': [SKIP],
   'regress/wasm/regress-350779988': [SKIP],

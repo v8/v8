@@ -4863,6 +4863,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   // int simd128_regs_offset = FrameDescription::simd128_registers_offset();
   //  Copy FPU registers to
   //  double_registers_[DoubleRegister::kNumAllocatableRegisters]
+  //  Don't support simd128.
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     int dst_offset = code * kDoubleSize + double_regs_offset;
@@ -4917,41 +4918,42 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ CalcScaledAddress(a1, a4, a1, kSystemPointerSizeLog2);
   __ BranchShort(&outer_loop_header);
   __ bind(&outer_push_loop);
-  // Inner loop state: a2 = current FrameDescription*, a3 = loop index.
-  __ LoadWord(a2, MemOperand(a4, 0));  // output_[ix]
-  __ LoadWord(a3, MemOperand(a2, FrameDescription::frame_size_offset()));
-  __ BranchShort(&inner_loop_header);
+  Register current_frame = a2;
+  Register frame_size = a3;
+  __ LoadWord(current_frame, MemOperand(a4, 0));
+  __ LoadWord(frame_size,
+              MemOperand(current_frame, FrameDescription::frame_size_offset()));
+  __ Branch(&inner_loop_header);
   __ bind(&inner_push_loop);
-  __ SubWord(a3, a3, Operand(kSystemPointerSize));
-  __ AddWord(a6, a2, Operand(a3));
+  __ SubWord(frame_size, frame_size, Operand(kSystemPointerSize));
+  __ AddWord(a6, current_frame, Operand(frame_size));
   __ LoadWord(a7, MemOperand(a6, FrameDescription::frame_content_offset()));
-  __ push(a7);
+  __ Push(a7);
   __ bind(&inner_loop_header);
-  __ Branch(&inner_push_loop, ne, a3, Operand(zero_reg));
-
+  __ BranchShort(&inner_push_loop, ne, frame_size, Operand(zero_reg));
   __ AddWord(a4, a4, Operand(kSystemPointerSize));
   __ bind(&outer_loop_header);
-  __ Branch(&outer_push_loop, lt, a4, Operand(a1));
+  __ BranchShort(&outer_push_loop, lt, a4, Operand(a1));
 
-  __ LoadWord(a1, MemOperand(a0, Deoptimizer::input_offset()));
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
     int src_offset = code * kDoubleSize + double_regs_offset;
-    __ LoadDouble(fpu_reg, MemOperand(a1, src_offset));
+    __ LoadDouble(fpu_reg, MemOperand(current_frame, src_offset));
   }
 
   // Push pc and continuation from the last output frame.
-  __ LoadWord(a6, MemOperand(a2, FrameDescription::pc_offset()));
+  __ LoadWord(a6, MemOperand(current_frame, FrameDescription::pc_offset()));
   __ push(a6);
-  __ LoadWord(a6, MemOperand(a2, FrameDescription::continuation_offset()));
+  __ LoadWord(
+      a6, MemOperand(current_frame, FrameDescription::continuation_offset()));
   __ push(a6);
 
   // Technically restoring 't3' should work unless zero_reg is also restored
   // but it's safer to check for this.
   DCHECK(!(restored_regs.has(t3)));
   // Restore the registers from the last output frame.
-  __ Move(t3, a2);
+  __ Move(t3, current_frame);
   for (int i = kNumberOfRegisters - 1; i >= 0; i--) {
     int offset =
         (i * kSystemPointerSize) + FrameDescription::registers_offset();
@@ -4960,14 +4962,16 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     }
   }
 
+  // If the continuation is non-zero (JavaScript), branch to the continuation.
+  // For Wasm just return to the pc from the last output frame in the lr
+  // register.
+  Label end;
   __ pop(t6);  // Get continuation, leave pc on stack.
   __ pop(ra);
-  Label end;
-  __ Branch(&end, eq, t6, Operand(zero_reg));
+  __ BranchShort(&end, eq, t6, Operand(zero_reg));
   __ Jump(t6);
   __ bind(&end);
   __ Ret();
-  __ stop();
 }
 
 }  // namespace
