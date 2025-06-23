@@ -597,15 +597,18 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   void ForceConstantPoolEmissionWithoutJump() {
     constpool_.Check(Emission::kForced, Jump::kOmitted);
   }
-  void ForceConstantPoolEmissionWithJump() {
-    constpool_.Check(Emission::kForced, Jump::kRequired);
-  }
+
   // Check if the const pool needs to be emitted while pretending that {margin}
-  // more bytes of instructions have already been emitted.
+  // more bytes of instructions have already been emitted. This variant is used
+  // in positions in code that we might fall through to.
   void EmitConstPoolWithJumpIfNeeded(size_t margin = 0) {
     constpool_.Check(Emission::kIfNeeded, Jump::kRequired, margin);
   }
 
+  // Check if the const pool needs to be emitted while pretending that {margin}
+  // more bytes of instructions have already been emitted. This variant is used
+  // at unreachable positions in the code, such as right after an unconditional
+  // transfer of control (jump, return).
   void EmitConstPoolWithoutJumpIfNeeded(size_t margin = 0) {
     constpool_.Check(Emission::kIfNeeded, Jump::kOmitted, margin);
   }

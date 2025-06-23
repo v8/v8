@@ -4522,7 +4522,7 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
         bind(&skip);
       } else {
         BranchLong(L);
-        EmitConstPoolWithJumpIfNeeded();
+        EmitConstPoolWithoutJumpIfNeeded();
       }
     }
   } else {
@@ -4538,7 +4538,7 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
         bind(&skip);
       } else {
         BranchLong(L);
-        EmitConstPoolWithJumpIfNeeded();
+        EmitConstPoolWithoutJumpIfNeeded();
       }
     } else {
       BranchShort(L, cond, rs, rt);
@@ -4661,7 +4661,7 @@ bool MacroAssembler::BranchShortHelper(int32_t offset, Label* L, Condition cond,
       case cc_always:
         if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
         j(offset);
-        EmitConstPoolWithJumpIfNeeded();
+        EmitConstPoolWithoutJumpIfNeeded();
         break;
       case eq:
         // rs == rt
@@ -5005,7 +5005,7 @@ void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
     BlockTrampolinePoolScope block_trampoline_pool(this);
     li(t6, Operand(target, rmode));
     Jump(t6, al, zero_reg, Operand(zero_reg));
-    EmitConstPoolWithJumpIfNeeded();
+    EmitConstPoolWithoutJumpIfNeeded();
     bind(&skip);
   }
 }
@@ -5396,11 +5396,11 @@ void MacroAssembler::BranchLong(Label* L) {
       (imm & 1) == 0) {
     j(imm);
     NOP();
-    EmitConstPoolWithJumpIfNeeded();
+    EmitConstPoolWithoutJumpIfNeeded();
     return;
   }
   GenPCRelativeJump(t6, imm);
-  EmitConstPoolWithJumpIfNeeded();
+  EmitConstPoolWithoutJumpIfNeeded();
 }
 
 void MacroAssembler::BranchAndLinkLong(Label* L) {
