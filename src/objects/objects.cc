@@ -587,6 +587,8 @@ MaybeDirectHandle<String> Object::NoSideEffectsToMaybeString(
 
   if (IsString(*input) || IsNumber(*input) || IsOddball(*input)) {
     return Object::ToString(isolate, input).ToHandleChecked();
+  } else if (IsTerminationException(*input)) {
+    return isolate->factory()->NewStringFromStaticChars("TerminationException");
   } else if (IsJSProxy(*input)) {
     DirectHandle<Object> currInput = input;
     do {
