@@ -310,8 +310,8 @@ class Code : public ExposedTrustedObject {
   SafepointEntry GetSafepointEntry(Isolate* isolate, Address pc);
   MaglevSafepointEntry GetMaglevSafepointEntry(Isolate* isolate, Address pc);
 
-  inline void SetMarkedForDeoptimization(Isolate* isolate,
-                                         LazyDeoptimizeReason reason);
+  void SetMarkedForDeoptimization(Isolate* isolate,
+                                  LazyDeoptimizeReason reason);
   void TraceMarkForDeoptimization(Isolate* isolate,
                                   LazyDeoptimizeReason reason);
 

@@ -4870,14 +4870,7 @@ int MacroAssembler::CallCFunction(Register function, int num_arguments,
       ArgumentStackSlotsForCFunctionCall(num_arguments);
   // Restoring the stack pointer has to happen right after the call. The
   // deoptimizer may overwrite everything after restoring the SP.
-  int before_offset = pc_offset();
   movq(rsp, Operand(rsp, argument_slots_on_stack * kSystemPointerSize));
-  Nop(kMaxSizeOfMoveAfterFastCall - (pc_offset() - before_offset));
-  // We assume that with the nop padding, the move instruction uses
-  // kMaxSizeOfMoveAfterFastCall bytes. When we patch in the deopt trampoline,
-  // we patch it in after the move instruction, so that the stack has been
-  // restored correctly.
-  CHECK_EQ(kMaxSizeOfMoveAfterFastCall, pc_offset() - before_offset);
 
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // We don't unset the PC; the FP is the source of truth.

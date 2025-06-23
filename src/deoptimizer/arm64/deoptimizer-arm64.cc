@@ -22,6 +22,11 @@ const int Deoptimizer::kLazyDeoptExitSize = 1 * kInstrSize;
 const int Deoptimizer::kAdaptShadowStackOffsetToSubtract = 0;
 
 // static
+void Deoptimizer::ZapCode(Address start, Address end, RelocIterator& it) {
+  // TODO(422364570): Support this platform.
+}
+
+// static
 void Deoptimizer::PatchToJump(Address pc, Address new_pc) {
   RwxMemoryWriteScope rwx_write_scope("Patch jump to deopt trampoline");
   intptr_t offset = (new_pc - pc) / kInstrSize;

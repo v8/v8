@@ -372,8 +372,7 @@ class ActivationsFinder : public ThreadVisitor {
             // For C calls the caller has to pop parameters off the stack. This
             // has to happen before deoptimization. Therefore we add the offset
             // here that is needed for popping the arguments.
-            Address pc =
-                *it.frame()->pc_address() + kMaxSizeOfMoveAfterFastCall;
+            Address pc = *it.frame()->pc_address();
             Deoptimizer::PatchToJump(pc, new_pc);
           } else {
             if (v8_flags.cet_compatible) {
@@ -3040,9 +3039,13 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
                result);
     }
   } else {
-    unsigned outgoing_size = 0;
-    CHECK_EQ(fixed_size_above_fp + (stack_slots * kSystemPointerSize) -
-                 CommonFrameConstants::kFixedFrameSizeAboveFp + outgoing_size,
+    // TurboFan code can be deopted right after fast API calls, when parameters
+    // may still be on the stack.
+    // TODO(422364570): Find a way to get the exact stack size here, and then
+    // use the `CHECK_EQ` here instead of `CHECK_LE`, similar to what Maglev
+    // does.
+    CHECK_LE(fixed_size_above_fp + (stack_slots * kSystemPointerSize) -
+                 CommonFrameConstants::kFixedFrameSizeAboveFp,
              result);
   }
   return result;

@@ -180,6 +180,13 @@ class Deoptimizer : public Malloced {
   // when Shadow Stack is enabled.
   static void PatchToJump(Address pc, Address new_pc);
 
+  // Overwrites the code range from start to end with trapping instructions. The
+  // RelocIterator is needed to avoid overwriting GC-relevant reloc info. If the
+  // GC-relevant code segments get overwritten with zap values, the GC would
+  // interpret the zap value as references and behave incorrectly. Note that the
+  // GC may access the code object concurrently to code zapping.
+  static void ZapCode(Address start, Address end, RelocIterator& it);
+
  private:
   void QueueValueForMaterialization(Address output_address, Tagged<Object> obj,
                                     const TranslatedFrame::iterator& iterator);

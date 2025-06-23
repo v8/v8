@@ -382,6 +382,10 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   int pc_offset() const { return static_cast<int>(pc_ - buffer_start_); }
 
+  Address current_pc() const { return reinterpret_cast<Address>(pc_); }
+
+  void skip_bytes(int num_bytes) { pc_ += num_bytes; }
+
   int pc_offset_for_safepoint() {
 #if defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_LOONG64)
     // MIPS and LOONG need to use their own implementation to avoid trampoline's

@@ -1690,12 +1690,14 @@ void InstructionStream::InstructionStreamVerify(Isolate* isolate) {
 
   Object::ObjectVerify(relocation_info(), isolate);
 
-  for (RelocIterator it(code); !it.done(); it.next()) {
-    it.rinfo()->Verify(isolate);
-    // Ensure that GC will not iterate twice over the same pointer.
-    if (RelocInfo::IsGCRelocMode(it.rinfo()->rmode())) {
-      CHECK(it.rinfo()->pc() != last_gc_pc);
-      last_gc_pc = it.rinfo()->pc();
+  if (!code->marked_for_deoptimization()) {
+    for (RelocIterator it(code); !it.done(); it.next()) {
+      it.rinfo()->Verify(isolate);
+      // Ensure that GC will not iterate twice over the same pointer.
+      if (RelocInfo::IsGCRelocMode(it.rinfo()->rmode())) {
+        CHECK(it.rinfo()->pc() != last_gc_pc);
+        last_gc_pc = it.rinfo()->pc();
+      }
     }
   }
 }
