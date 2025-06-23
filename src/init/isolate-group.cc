@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "src/base/bounded-page-allocator.h"
+#include "src/base/once.h"
 #include "src/base/platform/memory.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/ptr-compr-inl.h"
@@ -476,19 +477,85 @@ void* SandboxedArrayBufferAllocator::Allocate(size_t length) {
   return mem;
 }
 
+void* SandboxedArrayBufferAllocator::AllocateUninitialized(size_t length) {
+  return Allocate(length);
+}
+
 void SandboxedArrayBufferAllocator::Free(void* data) {
   base::MutexGuard guard(&mutex_);
   region_alloc_->FreeRegion(reinterpret_cast<Address>(data));
 }
 
-PageAllocator* SandboxedArrayBufferAllocator::page_allocator() {
-  return sandbox_->page_allocator();
+#if defined(V8_USE_PA_BACKED_SANDBOX_FOR_ARRAY_BUFFER_ALLOCATOR)
+void PABackedSandboxedArrayBufferAllocator::LazyInitialize(Sandbox* sandbox) {
+  base::CallOnce(&partition_init_, [sandbox] {
+    const size_t max_pool_size = partition_alloc::internal::
+        PartitionAddressSpace::ConfigurablePoolMaxSize();
+    const size_t min_pool_size = partition_alloc::internal::
+        PartitionAddressSpace::ConfigurablePoolMinSize();
+    size_t pool_size = max_pool_size;
+    // Try to reserve the maximum size of the pool at first, then keep halving
+    // the size on failure until it succeeds.
+    uintptr_t pool_base = 0;
+    while (!pool_base && pool_size >= min_pool_size) {
+      pool_base = sandbox->address_space()->AllocatePages(
+          VirtualAddressSpace::kNoHint, pool_size, pool_size,
+          v8::PagePermissions::kNoAccess);
+      if (!pool_base) {
+        pool_size /= 2;
+      }
+    }
+    // The V8 sandbox is guaranteed to be large enough to host the pool.
+    CHECK(pool_base);
+    partition_alloc::internal::PartitionAddressSpace::InitConfigurablePool(
+        pool_base, pool_size);
+  });
+
+  partition_alloc::PartitionOptions opts;
+  opts.backup_ref_ptr = partition_alloc::PartitionOptions::kDisabled;
+  opts.use_configurable_pool = partition_alloc::PartitionOptions::kAllowed;
+
+  partition_.emplace(std::move(opts));
 }
 
-SandboxedArrayBufferAllocator*
+void* PABackedSandboxedArrayBufferAllocator::Allocate(size_t length) {
+  constexpr partition_alloc::AllocFlags flags =
+      partition_alloc::AllocFlags::kZeroFill |
+      partition_alloc::AllocFlags::kReturnNull;
+  return AllocateInternal<flags>(length);
+}
+
+void* PABackedSandboxedArrayBufferAllocator::AllocateUninitialized(
+    size_t length) {
+  constexpr partition_alloc::AllocFlags flags =
+      partition_alloc::AllocFlags::kReturnNull;
+  return AllocateInternal<flags>(length);
+}
+
+template <partition_alloc::AllocFlags flags>
+void* PABackedSandboxedArrayBufferAllocator::AllocateInternal(size_t length) {
+  // The V8 sandbox requires all ArrayBuffer backing stores to be allocated
+  // inside the sandbox address space. This isn't guaranteed if allocation
+  // override hooks (which are e.g. used by GWP-ASan) are enabled or if a
+  // memory tool (e.g. ASan) overrides malloc, so disable both.
+  constexpr auto new_flags = flags |
+                             partition_alloc::AllocFlags::kNoOverrideHooks |
+                             partition_alloc::AllocFlags::kNoMemoryToolOverride;
+  return partition_->root()->AllocInline<new_flags>(
+      length, "PABackedSandboxedArrayBufferAllocator");
+}
+
+void PABackedSandboxedArrayBufferAllocator::Free(void* data) {
+  partition_->root()->Free<partition_alloc::FreeFlags::kNoMemoryToolOverride>(
+      data);
+}
+#endif  // defined(V8_USE_PA_BACKED_SANDBOX_FOR_ARRAY_BUFFER_ALLOCATOR)
+
+SandboxedArrayBufferAllocatorBase*
 IsolateGroup::GetSandboxedArrayBufferAllocator() {
   // TODO(342905186): Consider initializing it during IsolateGroup
   // initialization instead of doing it lazily.
+  //
   backend_allocator_.LazyInitialize(sandbox());
   return &backend_allocator_;
 }

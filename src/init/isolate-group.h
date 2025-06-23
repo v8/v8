@@ -26,7 +26,16 @@
 
 #ifdef V8_ENABLE_SANDBOX
 #include "src/base/region-allocator.h"
-#endif
+
+#ifdef V8_ENABLE_PARTITION_ALLOC
+#include <partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc.h>
+
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#define V8_USE_PA_BACKED_SANDBOX_FOR_ARRAY_BUFFER_ALLOCATOR 1
+#endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+
+#endif  // V8_ENABLE_PARTITION_ALLOC
+#endif  // V8_ENABLE_SANDBOX
 
 namespace v8 {
 
@@ -43,33 +52,35 @@ class PagePool;
 class MemoryChunkMetadata;
 class Sandbox;
 
+class SandboxedArrayBufferAllocatorBase {
+ public:
+  virtual void* Allocate(size_t length) = 0;
+  virtual void* AllocateUninitialized(size_t length) = 0;
+  virtual void Free(void* ptr) = 0;
+};
+
 // Backend allocator shared by all ArrayBufferAllocator instances inside one
 // sandbox. This way, there is a single region of virtual address space
 // reserved inside a sandbox from which all ArrayBufferAllocators allocate
 // their memory, instead of each allocator creating their own region, which
 // may cause address space exhaustion inside the sandbox.
 // TODO(chromium:1340224): replace this with a more efficient allocator.
-class SandboxedArrayBufferAllocator {
+class SandboxedArrayBufferAllocator final
+    : public SandboxedArrayBufferAllocatorBase {
  public:
   SandboxedArrayBufferAllocator() = default;
+
   SandboxedArrayBufferAllocator(const SandboxedArrayBufferAllocator&) = delete;
   SandboxedArrayBufferAllocator& operator=(
       const SandboxedArrayBufferAllocator&) = delete;
 
-  void LazyInitialize(Sandbox* sandbox);
-
-  bool is_initialized() const { return !!sandbox_; }
-
-  // Returns page allocator that's supposed to be used for allocating pages
-  // for V8 heap. In case pointer compression is enabled it allocates pages
-  // within the pointer compression cage.
-  v8::PageAllocator* page_allocator();
-
   ~SandboxedArrayBufferAllocator();
 
-  void* Allocate(size_t length);
+  void LazyInitialize(Sandbox* sandbox);
 
-  void Free(void* data);
+  void* Allocate(size_t length) override;
+  void* AllocateUninitialized(size_t length) override;
+  void Free(void* data) override;
 
  private:
   // Use a region allocator with a "page size" of 128 bytes as a reasonable
@@ -79,12 +90,40 @@ class SandboxedArrayBufferAllocator {
   // The backing memory's accessible region is grown in chunks of this size.
   static constexpr size_t kChunkSize = 1 * MB;
 
+  bool is_initialized() const { return !!sandbox_; }
+
   std::unique_ptr<base::RegionAllocator> region_alloc_;
   size_t end_of_accessible_region_ = 0;
   Sandbox* sandbox_ = nullptr;
   base::Mutex mutex_;
 };
-#endif
+
+#if defined(V8_USE_PA_BACKED_SANDBOX_FOR_ARRAY_BUFFER_ALLOCATOR)
+class PABackedSandboxedArrayBufferAllocator
+    : public SandboxedArrayBufferAllocatorBase {
+ public:
+  PABackedSandboxedArrayBufferAllocator() = default;
+
+  PABackedSandboxedArrayBufferAllocator(
+      const PABackedSandboxedArrayBufferAllocator&) = delete;
+  PABackedSandboxedArrayBufferAllocator& operator=(
+      const PABackedSandboxedArrayBufferAllocator&) = delete;
+
+  void LazyInitialize(Sandbox* sandbox);
+
+  void* Allocate(size_t length) override;
+  void* AllocateUninitialized(size_t length) override;
+  void Free(void* data) override;
+
+ private:
+  template <partition_alloc::AllocFlags flags>
+  void* AllocateInternal(size_t length);
+
+  std::optional<partition_alloc::PartitionAllocator> partition_;
+  base::OnceType partition_init_ = V8_ONCE_INIT;
+};
+#endif  // !defined(V8_USE_PA_BACKED_SANDBOX_FOR_ARRAY_BUFFER_ALLOCATOR)
+#endif  // V8_ENABLE_SANDBOX
 
 class CodeRange;
 class Isolate;
@@ -226,7 +265,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
     return metadata_pointer_table_;
   }
 
-  SandboxedArrayBufferAllocator* GetSandboxedArrayBufferAllocator();
+  SandboxedArrayBufferAllocatorBase* GetSandboxedArrayBufferAllocator();
 #endif  // V8_ENABLE_SANDBOX
 
 #ifdef V8_ENABLE_LEAPTIERING
@@ -347,7 +386,11 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   MemoryChunkMetadata*
       metadata_pointer_table_[MemoryChunkConstants::kMetadataPointerTableSize] =
           {nullptr};
+#if defined(V8_USE_PA_BACKED_SANDBOX_FOR_ARRAY_BUFFER_ALLOCATOR)
+  PABackedSandboxedArrayBufferAllocator backend_allocator_;
+#else
   SandboxedArrayBufferAllocator backend_allocator_;
+#endif
 #endif  // V8_ENABLE_SANDBOX
 
 #ifdef V8_ENABLE_LEAPTIERING

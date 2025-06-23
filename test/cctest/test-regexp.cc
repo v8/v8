@@ -26,6 +26,8 @@ const int kSubjectStringLength = arraysize(kOneByteSubjectString) - 1;
 static_assert(arraysize(kOneByteSubjectString) ==
               arraysize(kTwoByteSubjectString));
 
+namespace base = v8::base;
+
 class OneByteVectorResource : public String::ExternalOneByteStringResource {
  public:
   explicit OneByteVectorResource(base::Vector<const char> vector)

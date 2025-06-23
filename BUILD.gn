@@ -1472,6 +1472,9 @@ config("features") {
   if (v8_enable_leaptiering) {
     defines += [ "V8_ENABLE_LEAPTIERING" ]
   }
+  if (v8_enable_partition_alloc) {
+    defines += [ "V8_ENABLE_PARTITION_ALLOC" ]
+  }
   if (v8_wasm_random_fuzzers) {
     defines += [ "V8_WASM_RANDOM_FUZZERS" ]
   }
@@ -5034,6 +5037,10 @@ v8_header_set("v8_internal_headers") {
     "//third_party/fp16",
   ]
 
+  if (v8_enable_partition_alloc) {
+    public_deps += [ "//third_party/partition_alloc" ]
+  }
+
   deps = [
     ":cppgc_headers",
     ":generate_bytecode_builtins_list",
@@ -7902,11 +7909,6 @@ v8_executable("d8") {
   }
   if (current_os == "zos" && is_component_build) {
     deps += [ ":zoslib" ]
-  }
-
-  if (v8_enable_partition_alloc) {
-    defines += [ "V8_ENABLE_PARTITION_ALLOC" ]
-    deps += [ "//third_party/partition_alloc" ]
   }
 }
 

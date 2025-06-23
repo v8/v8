@@ -330,7 +330,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 
  private:
   i::Sandbox* sandbox_ = nullptr;
-  i::SandboxedArrayBufferAllocator* allocator_ = nullptr;
+  i::SandboxedArrayBufferAllocatorBase* allocator_ = nullptr;
 };
 
 #else
