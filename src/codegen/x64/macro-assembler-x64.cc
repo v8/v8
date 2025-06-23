@@ -500,6 +500,10 @@ void MacroAssembler::EnterSandbox() {
 
   if (v8_flags.debug_code) {
     // Check that we are not in sandboxed mode.
+    // Avoid calling the Abort builtin here as that would again Assert that the
+    // sandboxing mode is as expected, leading to recursive aborts.
+    HardAbortScope hard_abort(this);
+
     // If sandbox hardware support is not active, the mask will be all zeroes
     // and so this test will also pass.
     rdpkru();
@@ -539,6 +543,10 @@ void MacroAssembler::ExitSandbox() {
 
   if (v8_flags.debug_code) {
     // Check that we are in sandboxed mode.
+    // Avoid calling the Abort builtin here as that would again Assert that the
+    // sandboxing mode is as expected, leading to recursive aborts.
+    HardAbortScope hard_abort(this);
+
     // If sandbox hardware support is not active, the mask will be all zeroes
     // and so we need to handle this here.
     Label hardware_support_not_active;
@@ -571,6 +579,10 @@ void MacroAssembler::ExitSandbox() {
 void MacroAssembler::AssertInSandboxedExecutionMode() {
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   if (v8_flags.debug_code) {
+    // Avoid calling the Abort builtin here as that would again Assert that the
+    // sandboxing mode is as expected, leading to recursive aborts.
+    HardAbortScope hard_abort(this);
+
     pushq(rax);
     pushq(rbx);
     pushq(rcx);
