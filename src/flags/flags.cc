@@ -16,6 +16,7 @@
 #include <set>
 #include <sstream>
 
+#include "src/base/fpu.h"
 #include "src/base/hashing.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/platform.h"
@@ -450,6 +451,9 @@ uint32_t ComputeFlagListHash() {
   std::ostringstream modified_args_as_string;
   if (COMPRESS_POINTERS_BOOL) modified_args_as_string << "ptr-compr";
   if (DEBUG_BOOL) modified_args_as_string << "debug";
+  if (base::FPU::GetFlushDenormals()) {
+    modified_args_as_string << "flush-denormals";
+  }
 
 #ifdef DEBUG
   // These two sets are used to check that we don't leave out any flags
