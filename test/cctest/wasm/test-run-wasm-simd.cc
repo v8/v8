@@ -5011,6 +5011,50 @@ TEST(RunWasmTurbofan_ReturnUseSimd128Revec) {
   CHECK_EQ(3.0f, r.Call(0, 32));
 }
 
+TEST(RunWasmTurbofan_TupleUseSimd128Revec) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  float* memory = r.builder().AddMemoryElems<float>(16);
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+
+  // Build a callee function that returns multiple values, one of which is using
+  // Simd128 type.
+  ValueType param_types[5] = {kWasmI32, kWasmS128, kWasmI32, kWasmI32,
+                              kWasmI32};
+  FunctionSig sig(3, 2, param_types);
+  WasmFunctionCompiler& t = r.NewFunction(&sig);
+  std::array<uint8_t, kSimd128Size> one = {1};
+  t.Build({WASM_LOCAL_GET(0), WASM_SIMD_CONSTANT(one), WASM_LOCAL_GET(1)});
+
+  // Load a F32x8 vector, calculate the Abs and store the result to memory.
+  // Call function t. The return values will be projected and used in TupleOp
+  // with drop.
+  TSSimd256VerifyScope ts_scope(r.zone());
+  r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+           WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM_OFFSET(
+                                     offset, WASM_LOCAL_GET(param1))),
+           WASM_SIMD_STORE_MEM(
+               WASM_LOCAL_GET(param2),
+               WASM_SIMD_UNOP(kExprF32x4Abs, WASM_LOCAL_GET(temp1))),
+           WASM_SIMD_STORE_MEM_OFFSET(
+               offset, WASM_LOCAL_GET(param2),
+               WASM_SIMD_UNOP(kExprF32x4Abs, WASM_LOCAL_GET(temp2))),
+           WASM_CALL_FUNCTION(t.function_index(), WASM_LOCAL_GET(param2),
+                              WASM_LOCAL_GET(param1)),
+           WASM_DROP, WASM_DROP});
+
+  r.builder().WriteMemory(&memory[1], -1.0f);
+  r.builder().WriteMemory(&memory[6], 2.0f);
+  CHECK_EQ(32, r.Call(0, 32));
+  CHECK_EQ(1.0f, r.builder().ReadMemory(&memory[9]));
+  CHECK_EQ(2.0f, r.builder().ReadMemory(&memory[14]));
+}
+
 TEST(RunWasmTurbofan_F32x4ShuffleForSplatRevec) {
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
