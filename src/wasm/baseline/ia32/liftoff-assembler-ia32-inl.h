@@ -1240,7 +1240,6 @@ void LiftoffAssembler::AtomicCompareExchange(
   // We expect that the offset has already been added to {dst_addr}, and no
   // {offset_reg} is provided. This is to save registers.
   DCHECK_EQ(offset_reg, no_reg);
-
   DCHECK_EQ(result, expected);
 
   if (type.value() != StoreType::kI64Store) {
@@ -1350,6 +1349,44 @@ void LiftoffAssembler::AtomicCompareExchange(
   // Move the result into the correct registers.
   ParallelRegisterMove(
       {{result, LiftoffRegister::ForPair(expected_lo, expected_hi), kI64}});
+}
+
+void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
+    Register dst_addr, Register offset_reg, uintptr_t offset_imm,
+    LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
+    LiftoffRegList pinned) {
+  // We expect that the offset has already been added to {dst_addr}, and no
+  // {offset_reg} is provided. This is to save registers.
+  DCHECK_EQ(offset_reg, no_reg);
+  DCHECK_EQ(result, expected);
+  // "Save" the value to be stored as it is needed for the write barrier.
+  Register new_value_for_write_barrier =
+      pinned.set(GetUnusedRegister(RegClass::kGpReg, pinned)).gp();
+  mov(new_value_for_write_barrier, new_value.gp());
+  Register value_reg = new_value.gp();
+  Register result_reg = expected.gp();
+  // The cmpxchg instruction uses rax to store the old value of the
+  // compare-exchange primitive. Therefore we have to spill the register and
+  // move any use to another register.
+  ClearRegister(eax, {&dst_addr, &value_reg, &new_value_for_write_barrier},
+                pinned);
+  if (expected.gp() != eax) {
+    mov(eax, expected.gp());
+  }
+
+  Operand dst_op = Operand(dst_addr, offset_imm);
+  lock();
+  cmpxchg(dst_op, value_reg);
+  if (result_reg != eax) {
+    mov(result_reg, eax);
+  }
+
+  if (v8_flags.disable_write_barriers) return;
+  // This assumes that the caller didn't pin any additional registers.
+  // {expected} and {new_value} are no longer needed; we need to unpin
+  // them so that enough registers are available for the write barrier.
+  pinned = LiftoffRegList(dst_addr, new_value_for_write_barrier, result_reg);
+  EmitWriteBarrier(dst_addr, dst_op, new_value_for_write_barrier, pinned);
 }
 
 void LiftoffAssembler::AtomicFence() { mfence(); }

@@ -1046,6 +1046,55 @@ void LiftoffAssembler::AtomicCompareExchange(
   }
 }
 
+void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
+    Register dst_addr, Register offset_reg, uintptr_t offset_imm,
+    LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
+    LiftoffRegList pinned) {
+  if (offset_reg != no_reg) AssertZeroExtended(offset_reg);
+  // "Save" the value to be stored as it is needed for the write barrier.
+  Register new_value_for_write_barrier =
+      pinned.set(GetUnusedRegister(RegClass::kGpReg, pinned)).gp();
+  movq(new_value_for_write_barrier, new_value.gp());
+  Register value_reg = new_value.gp();
+  // The cmpxchg instruction uses rax to store the old value of the
+  // compare-exchange primitive. Therefore we have to spill the register and
+  // move any use to another register.
+  ClearRegister(
+      rax, {&dst_addr, &offset_reg, &value_reg, &new_value_for_write_barrier},
+      pinned);
+  // ClearRegister does not update the pinned registers if any new register was
+  // needed to clear rax, so we need to manually pin them again.
+  pinned.set(dst_addr);
+  if (offset_reg != no_reg) {
+    pinned.set(offset_reg);
+  }
+  pinned.set(value_reg);
+  pinned.set(new_value_for_write_barrier);
+
+  if (expected.gp() != rax) {
+    movq(rax, expected.gp());
+  }
+
+  Operand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
+
+  lock();
+  if constexpr (COMPRESS_POINTERS_BOOL) {
+    cmpxchgl(dst_op, value_reg);
+    if (result.gp() != rax) {
+      movl(result.gp(), rax);
+    }
+    addq(result.gp(), kPtrComprCageBaseRegister);
+  } else {
+    cmpxchgq(dst_op, value_reg);
+    if (result.gp() != rax) {
+      movq(result.gp(), rax);
+    }
+  }
+
+  if (v8_flags.disable_write_barriers) return;
+  EmitWriteBarrier(dst_addr, dst_op, new_value_for_write_barrier, pinned);
+}
+
 void LiftoffAssembler::AtomicFence() { mfence(); }
 
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,

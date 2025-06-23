@@ -6432,13 +6432,15 @@ class LiftoffCompiler {
 #endif  // V8_TARGET_ARCH_IA32
 
     if (is_reference(field_kind)) {
-      UNIMPLEMENTED();
+      __ AtomicCompareExchangeTaggedPointer(obj.gp(), no_reg, offset,
+                                            expected_value, new_value,
+                                            result_reg, pinned);
     } else {
       __ AtomicCompareExchange(obj.gp(), no_reg, offset, expected_value,
                                new_value, result_reg,
                                StoreType::ForValueKind(field_kind), false);
-      __ PushRegister(field_kind, result_reg);
     }
+    __ PushRegister(field_kind, result_reg);
   }
 
   void ArrayAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
@@ -6651,7 +6653,9 @@ class LiftoffCompiler {
     LiftoffRegister result_reg = expected_value;
     const int offset = wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize);
     if (is_reference(elem_kind)) {
-      UNIMPLEMENTED();
+      __ AtomicCompareExchangeTaggedPointer(mem_location.gp(), no_reg, offset,
+                                            expected_value, new_value,
+                                            result_reg, pinned);
     } else {
       __ AtomicCompareExchange(mem_location.gp(), no_reg, offset,
                                expected_value, new_value, result_reg,
@@ -6712,10 +6716,12 @@ class LiftoffCompiler {
     LiftoffRegister result_reg =
         pinned.set(__ GetUnusedRegister(reg_class_for(elem_kind), pinned));
     const int offset = wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize);
+    Register offset_reg = index.gp();
     if (is_reference(elem_kind)) {
-      UNIMPLEMENTED();
+      __ AtomicCompareExchangeTaggedPointer(array.gp(), offset_reg, offset,
+                                            expected_value, new_value,
+                                            result_reg, pinned);
     } else {
-      Register offset_reg = index.gp();
       __ AtomicCompareExchange(array.gp(), offset_reg, offset, expected_value,
                                new_value, result_reg,
                                StoreType::ForValueKind(elem_kind), false);

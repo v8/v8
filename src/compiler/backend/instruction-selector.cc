@@ -3552,8 +3552,11 @@ void InstructionSelector::VisitNode(OpIndex node) {
         }
       } else {
         CHECK_EQ(atomic_op.in_out_rep, Rep::Tagged());
-        CHECK_EQ(atomic_op.bin_op, AtomicRMWOp::BinOp::kExchange);
-        return VisitTaggedAtomicExchange(node);
+        if (atomic_op.bin_op == AtomicRMWOp::BinOp::kExchange) {
+          return VisitTaggedAtomicExchange(node);
+        }
+        CHECK_EQ(atomic_op.bin_op, AtomicRMWOp::BinOp::kCompareExchange);
+        return VisitTaggedAtomicCompareExchange(node);
       }
       UNREACHABLE();
     }

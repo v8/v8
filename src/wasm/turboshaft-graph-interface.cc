@@ -4968,10 +4968,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     const StructType* struct_type = field.struct_imm.struct_type;
     ValueKind field_kind = struct_type->field(field.field_imm.index).kind();
 
-    if (field_kind == ValueKind::kRef || field_kind == ValueKind::kRefNull) {
-      UNIMPLEMENTED();
-    }
-
     if (!field.struct_imm.shared && field_kind == ValueKind::kI64) {
       // On some architectures atomic operations require aligned accesses while
       // unshared objects don't have the required alignment. For simplicity we
@@ -5167,10 +5163,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                                   AtomicMemoryOrder order, Value* result) {
     auto array_value = V<WasmArrayNullable>::Cast(array_obj.op);
     BoundsCheckArray(array_value, index.op, array_obj.type);
-
-    if (imm.array_type->element_type().is_reference()) {
-      UNIMPLEMENTED();
-    }
 
     if (!array_obj.type.is_shared() &&
         imm.array_type->element_type() == kWasmI64) {

@@ -3663,13 +3663,20 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
       g.UseUniqueRegister(atomic_op.value()),
       g.UseUniqueRegister(atomic_op.base()),
       g.GetEffectiveIndexOperand(atomic_op.index(), &addressing_mode)};
+  base::SmallVector<InstructionOperand, 3> temps;
+  if (opcode == kAtomicCompareExchangeWithWriteBarrier) {
+    temps.push_back(g.TempRegister());
+    temps.push_back(g.TempRegister());
+    temps.push_back(g.TempRegister());
+  }
   InstructionOperand outputs[] = {g.DefineAsFixed(node, rax)};
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
     code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
-  selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs);
+  selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+                 temps.size(), temps.data());
 }
 
 }  // namespace
@@ -4169,6 +4176,14 @@ void InstructionSelector::VisitWord64AtomicCompareExchange(OpIndex node) {
   }
   VisitAtomicCompareExchange(this, node, opcode, AtomicWidth::kWord64,
                              atomic_op.memory_access_kind);
+}
+
+void InstructionSelector::VisitTaggedAtomicCompareExchange(OpIndex node) {
+  const AtomicRMWOp& atomic_op = Cast<AtomicRMWOp>(node);
+  AtomicWidth width =
+      COMPRESS_POINTERS_BOOL ? AtomicWidth::kWord32 : AtomicWidth::kWord64;
+  VisitAtomicCompareExchange(this, node, kAtomicCompareExchangeWithWriteBarrier,
+                             width, atomic_op.memory_access_kind);
 }
 
 void InstructionSelector::VisitWord32AtomicBinaryOperation(

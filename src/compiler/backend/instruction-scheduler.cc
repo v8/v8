@@ -371,6 +371,7 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kAtomicCompareExchangeInt16:
     case kAtomicCompareExchangeUint16:
     case kAtomicCompareExchangeWord32:
+    case kAtomicCompareExchangeWithWriteBarrier:
     case kAtomicAddInt8:
     case kAtomicAddUint8:
     case kAtomicAddInt16:

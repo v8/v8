@@ -797,8 +797,13 @@ class LiftoffAssembler : public MacroAssembler {
                                     uintptr_t offset_imm,
                                     LiftoffRegister expected,
                                     LiftoffRegister new_value,
-                                    LiftoffRegister value, StoreType type,
+                                    LiftoffRegister result, StoreType type,
                                     bool i64_offset);
+
+  inline void AtomicCompareExchangeTaggedPointer(
+      Register dst_addr, Register offset_reg, uintptr_t offset_imm,
+      LiftoffRegister expected, LiftoffRegister new_value,
+      LiftoffRegister result, LiftoffRegList pinned);
 
   inline void AtomicFence();
 

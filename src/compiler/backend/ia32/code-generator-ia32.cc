@@ -3586,6 +3586,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Operand operand = i.MemoryOperand(1);
       __ mov(written_value, i.InputRegister(0));
       __ xchg(i.InputRegister(0), operand);
+      if (v8_flags.disable_write_barriers) break;
       // Emit write barrier.
       if (v8_flags.debug_code) {
         // Checking that |written_value| is not a cleared weakref: our write
@@ -3646,6 +3647,36 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicCompareExchangeWord32: {
       __ lock();
       __ cmpxchg(i.MemoryOperand(2), i.InputRegister(1));
+      break;
+    }
+    case kAtomicCompareExchangeWithWriteBarrier: {
+      Register written_value = i.TempRegister(0);
+      Register object = i.InputRegister(2);
+      Operand operand = i.MemoryOperand(2);
+      __ mov(written_value, i.InputRegister(1));
+      __ lock();
+      __ cmpxchg(operand, i.InputRegister(1));
+      if (v8_flags.disable_write_barriers) break;
+      // Emit write barrier.
+      if (v8_flags.debug_code) {
+        // Checking that |written_value| is not a cleared weakref: our write
+        // barrier does not support that for now.
+        __ cmp(written_value, Immediate(kClearedWeakHeapObjectLower32));
+        __ Check(not_equal, AbortReason::kOperandIsCleared);
+      }
+      // Reuse eax (the result register) as a scratch register for the write
+      // barrier.
+      __ Push(eax);
+      Register scratch = eax;
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, operand, written_value, scratch,
+          RecordWriteMode::kValueIsAny, DetermineStubCallMode());
+      __ JumpIfSmi(written_value, ool->exit());
+      __ CheckPageFlag(object, scratch,
+                       MemoryChunk::kPointersFromHereAreInterestingMask,
+                       not_zero, ool->entry());
+      __ bind(ool->exit());
+      __ Pop(eax);
       break;
     }
     case kIA32Word32AtomicPairCompareExchange: {

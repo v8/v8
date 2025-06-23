@@ -734,10 +734,11 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 
   // The write barrier.
   Label exit;
+  JumpIfSmi(src, &exit);
   CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
                 kZero, &exit);
-  JumpIfSmi(src, &exit);
-  CheckPageFlag(src, MemoryChunk::kPointersToHereAreInterestingMask, eq, &exit);
+  CheckPageFlag(src, MemoryChunk::kPointersToHereAreInterestingMask, kZero,
+                &exit);
   CallRecordWriteStubSaveRegisters(dst_addr, offset_op, SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);
   bind(&exit);
@@ -1172,10 +1173,11 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
   if (v8_flags.disable_write_barriers) return;
   // The write barrier.
   Label exit;
+  JumpIfSmi(src, &exit);
   CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
                 kZero, &exit);
-  JumpIfSmi(src, &exit);
-  CheckPageFlag(src, MemoryChunk::kPointersToHereAreInterestingMask, eq, &exit);
+  CheckPageFlag(src, MemoryChunk::kPointersToHereAreInterestingMask, kZero,
+                &exit);
   // TODO(mliedtke): It would be great to reuse this calculation from the
   // liftoff::CalculateActualAddress above.
   Operand offset_op = offset_reg.is_valid() ? Operand(offset_reg.W(), UXTW)
@@ -1284,11 +1286,11 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
   if (v8_flags.disable_write_barriers) return;
   // Emit the write barrier.
   Label exit;
+  JumpIfSmi(value.gp(), &exit);
   CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
                 kZero, &exit);
-  JumpIfSmi(value.gp(), &exit);
-  CheckPageFlag(value.gp(), MemoryChunk::kPointersToHereAreInterestingMask, eq,
-                &exit);
+  CheckPageFlag(value.gp(), MemoryChunk::kPointersToHereAreInterestingMask,
+                kZero, &exit);
   // TODO(mliedtke): It would be great to reuse this calculation from the
   // liftoff::CalculateActualAddress above.
   UseScratchRegisterScope temps(this);
@@ -1392,6 +1394,40 @@ void LiftoffAssembler::AtomicCompareExchange(
     Cbnz(store_result.W(), &retry);
     Bind(&done);
   }
+}
+
+void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
+    Register dst_addr, Register offset_reg, uintptr_t offset_imm,
+    LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
+    LiftoffRegList pinned) {
+  AtomicCompareExchange(
+      dst_addr, offset_reg, offset_imm, expected, new_value, result,
+      COMPRESS_POINTERS_BOOL ? StoreType::kI32Store : StoreType::kI64Store,
+      false);
+
+  if constexpr (COMPRESS_POINTERS_BOOL) {
+    add(result.gp().X(), result.gp().X(), kPtrComprCageBaseRegister);
+  }
+
+  if (v8_flags.disable_write_barriers) return;
+  // Emit the write barrier.
+  Label exit;
+  JumpIfSmi(new_value.gp(), &exit);
+  CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
+                kZero, &exit);
+  CheckPageFlag(new_value.gp(), MemoryChunk::kPointersToHereAreInterestingMask,
+                kZero, &exit);
+  UseScratchRegisterScope temps(this);
+  Operand offset_op = offset_reg.is_valid() ? Operand(offset_reg.W(), UXTW)
+                                            : Operand(offset_imm);
+  if (offset_reg.is_valid() && offset_imm) {
+    Register effective_offset = temps.AcquireX();
+    Add(effective_offset.W(), offset_reg.W(), offset_imm);
+    offset_op = effective_offset;
+  }
+  CallRecordWriteStubSaveRegisters(dst_addr, offset_op, SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
+  bind(&exit);
 }
 
 void LiftoffAssembler::AtomicFence() { Dmb(InnerShareable, BarrierAll); }

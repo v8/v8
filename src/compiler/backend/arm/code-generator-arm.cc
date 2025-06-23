@@ -3450,6 +3450,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kAtomicExchangeWithWriteBarrier: {
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldrex, strex);
+      if (v8_flags.disable_write_barriers) break;
       Register object = i.InputRegister(0);
       Register offset = i.InputRegister(1);
       Register value = i.InputRegister(2);
@@ -3494,6 +3495,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrex, strex,
                                                i.InputRegister(2));
       break;
+    case kAtomicCompareExchangeWithWriteBarrier: {
+      __ add(i.TempRegister(1), i.InputRegister(0), i.InputRegister(1));
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrex, strex,
+                                               i.InputRegister(2));
+      if (v8_flags.disable_write_barriers) break;
+      // Emit the write barrier.
+      Register object = i.InputRegister(0);
+      Register offset = i.InputRegister(1);
+      Register new_value = i.InputRegister(3);
+      RecordWriteMode mode = RecordWriteMode::kValueIsAny;
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, Operand(offset), new_value, mode,
+          DetermineStubCallMode(), &unwinding_info_writer_);
+      __ JumpIfSmi(new_value, ool->exit());
+      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
+                       ne, ool->entry());
+      __ bind(ool->exit());
+      break;
+    }
 #define ATOMIC_BINOP_CASE(op, inst)                    \
   case kAtomic##op##Int8:                              \
     ASSEMBLE_ATOMIC_BINOP(ldrexb, strexb, inst);       \

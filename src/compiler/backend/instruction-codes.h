@@ -80,6 +80,7 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(AtomicCompareExchangeInt16)                            \
   V(AtomicCompareExchangeUint16)                           \
   V(AtomicCompareExchangeWord32)                           \
+  V(AtomicCompareExchangeWithWriteBarrier)                 \
   V(AtomicAddInt8)                                         \
   V(AtomicAddUint8)                                        \
   V(AtomicAddInt16)                                        \
