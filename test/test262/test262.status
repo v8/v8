@@ -1304,5 +1304,13 @@
   'intl402/RelativeTimeFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
 }],
 # End roll-watcher patch
+
+####
+# import test262@a073f479f80b336256b7fc4e04700c827293e2fe
+[ALWAYS, {
+  'built-ins/Map/prototype/getOrInsertComputed/canonical-key-passed-to-callback': [FAIL],
+}],
+# end import test262@a073f479f80b336256b7fc4e04700c827293e2fe
+###
 ####
 ]
