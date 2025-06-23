@@ -436,6 +436,14 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
 
   const Isolate* GetIsolate() const { return isolate_; }
 
+  Address fuzzer_entry_frame_pointer() { return fuzzer_entry_frame_pointer_; }
+  void set_fuzzer_entry_frame_pointer(Address frame_address) {
+    fuzzer_entry_frame_pointer_ = frame_address;
+  }
+  void reset_fuzzer_entry_frame_pointer() {
+    fuzzer_entry_frame_pointer_ = kNullAddress;
+  }
+
   State state() const { return state_; }
 
   void Run() {
@@ -554,6 +562,10 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
   Isolate* isolate_;
   State state_;
   TrapReason trap_reason_;
+  // In fuzzer mode, the interpreter is not called from a JS function, but
+  // directly from the fuzzer. We need to add a fake frame pointer that can be
+  // used to access the stack.
+  Address fuzzer_entry_frame_pointer_;
 
   static constexpr uint32_t kInitialStackSize = 1 * MB;
   static constexpr uint32_t kStackSizeIncrement = 1 * MB;

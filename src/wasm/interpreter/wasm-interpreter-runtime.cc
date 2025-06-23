@@ -51,6 +51,14 @@ namespace {
 // Find the frame pointer of the interpreter frame on the stack.
 Address FindInterpreterEntryFramePointer(Isolate* isolate) {
   StackFrameIterator it(isolate, isolate->thread_local_top());
+
+  if (it.frame() == nullptr && v8_flags.drumbrake_fuzzing_mode) {
+    wasm::WasmInterpreterThread* thread =
+        wasm::WasmInterpreterThread::GetCurrentInterpreterThread(isolate);
+    DCHECK_NOT_NULL(thread);
+    return thread->fuzzer_entry_frame_pointer();
+  }
+
   // On top: C entry stub.
   DCHECK_EQ(StackFrame::EXIT, it.frame()->type());
   it.Advance();

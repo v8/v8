@@ -7718,6 +7718,7 @@ group("v8_fuzzers") {
       data_deps += [
         ":v8_simple_wasm_fast_interpreter_fuzzer",
         ":v8_simple_wasm_interpreter_all_fuzzer",
+        ":v8_simple_wasm_interpreter_all_multiple_modules_fuzzer",
         ":v8_simple_wasm_interpreter_base_fuzzer",
         ":v8_simple_wasm_interpreter_code_fuzzer",
         ":v8_simple_wasm_interpreter_diff_fuzzer",
@@ -8101,6 +8102,12 @@ if (v8_enable_webassembly) {
     v8_fuzzer("wasm_interpreter_all_fuzzer") {
       sources = [ "test/fuzzer/wasm/interpreter/interpreter-all.cc" ]
 
+      deps = [ ":lib_wasm_interpreter_fuzzer_common" ]
+    }
+
+    v8_fuzzer("wasm_interpreter_all_multiple_modules_fuzzer") {
+      sources =
+          [ "test/fuzzer/wasm/interpreter/interpreter-all-multiple-modules.cc" ]
       deps = [ ":lib_wasm_interpreter_fuzzer_common" ]
     }
 

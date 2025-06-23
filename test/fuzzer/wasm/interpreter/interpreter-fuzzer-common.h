@@ -33,6 +33,15 @@ typedef std::function<bool(Isolate*, Zone*, v8::base::Vector<const uint8_t>,
 int LLVMFuzzerTestOneInputCommon(const uint8_t* data, size_t size,
                                  GenerateModuleFunc generate_module);
 
+typedef std::function<bool(Isolate*, Zone*, v8::base::Vector<const uint8_t>,
+                           ZoneBuffer*, std::vector<fuzzing::ExportData>*,
+                           std::vector<fuzzing::ExportData>*)>
+    GeneratExportDataMultipleModuleFunc;
+
+int LLVMFuzzerTestTwoModulesCommon(
+    const uint8_t* data, size_t size,
+    GeneratExportDataMultipleModuleFunc generate_module);
+
 }  // namespace v8::internal::wasm::fuzzing
 
 #endif  // WASM_FAST_INTERPRETER_FUZZER_COMMON_H_

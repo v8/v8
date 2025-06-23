@@ -1067,7 +1067,13 @@ class BodyGen {
 
   template <ValueKind wanted_kind>
   void call(DataRange* data) {
-    call(data, ValueType::Primitive(wanted_kind), kCallDirect);
+    bool use_imported_call = module_imports_ != nullptr &&
+                             !module_imports_->empty() && data->get<bool>();
+    if (use_imported_call) {
+      call_import(data, ValueType::Primitive(wanted_kind));
+    } else {
+      call(data, ValueType::Primitive(wanted_kind), kCallDirect);
+    }
   }
 
   template <ValueKind wanted_kind>
@@ -1121,6 +1127,43 @@ class BodyGen {
     FATAL("No funcref table found; table index 0 is expected to be funcref");
   }
 
+  void call_import(DataRange* data, ValueType wanted_kind) {
+    if (module_imports_ == nullptr || module_imports_->empty()) {
+      FATAL("Cannot call random imported function without module imports.");
+    }
+    uint8_t random_byte = data->get<uint8_t>();
+    int func_index = random_byte % module_imports_->size();
+    const ExportData& export_data = (*module_imports_)[func_index];
+    const FunctionSig* sig = export_data.sig;
+    // Generate arguments.
+    for (size_t i = 0; i < sig->parameter_count(); ++i) {
+      Generate(sig->GetParam(i), data);
+    }
+    // Emit call.
+    // If the return types of the callee happen to match the return types of the
+    // caller, generate a tail call.
+    bool use_return_call = random_byte > 127;
+    if (use_return_call && sig->returns() == builder_->signature()->returns()) {
+      builder_->EmitWithU32V(kExprReturnCall, export_data.index);
+    } else {
+      builder_->EmitWithU32V(kExprCallFunction, export_data.index);
+    }
+    if (sig->return_count() == 0 && wanted_kind != kWasmVoid) {
+      // The call did not generate a value. Thus just generate it here.
+      Generate(wanted_kind, data);
+      return;
+    }
+    if (wanted_kind == kWasmVoid) {
+      // The call did generate values, but we did not want one.
+      for (size_t i = 0; i < sig->return_count(); ++i) {
+        builder_->Emit(kExprDrop);
+      }
+      return;
+    }
+    auto wanted_types = base::VectorOf(&wanted_kind, 1);
+    ConsumeAndGenerate(sig->returns(), wanted_types, data);
+  }
+
   void call(DataRange* data, ValueType wanted_kind, CallKind call_kind) {
     uint8_t random_byte = data->get<uint8_t>();
     int func_index = random_byte % functions_.size();
@@ -1134,10 +1177,7 @@ class BodyGen {
     // If the return types of the callee happen to match the return types of the
     // caller, generate a tail call.
     bool use_return_call = random_byte > 127;
-    if (use_return_call &&
-        std::equal(sig->returns().begin(), sig->returns().end(),
-                   builder_->signature()->returns().begin(),
-                   builder_->signature()->returns().end())) {
+    if (use_return_call && sig->returns() == builder_->signature()->returns()) {
       if (call_kind == kCallDirect) {
         builder_->EmitWithU32V(kExprReturnCall,
                                NumImportedFunctions() + func_index);
@@ -1189,8 +1229,7 @@ class BodyGen {
       }
       return;
     }
-    auto wanted_types =
-        base::VectorOf(&wanted_kind, wanted_kind == kWasmVoid ? 0 : 1);
+    auto wanted_types = base::VectorOf(&wanted_kind, 1);
     ConsumeAndGenerate(sig->returns(), wanted_types, data);
   }
 
@@ -2373,7 +2412,8 @@ class BodyGen {
           const std::vector<uint8_t>& mutable_globals,
           const std::vector<ModuleTypeIndex>& structs,
           const std::vector<ModuleTypeIndex>& arrays,
-          const StringImports& strings, DataRange* data)
+          const StringImports& strings, std::vector<ExportData>* module_imports,
+          DataRange* data)
       : options_(options),
         builder_(fn),
         functions_(functions),
@@ -2381,7 +2421,8 @@ class BodyGen {
         mutable_globals_(mutable_globals),
         structs_(structs),
         arrays_(arrays),
-        string_imports_(strings) {
+        string_imports_(strings),
+        module_imports_(module_imports) {
     const FunctionSig* sig = fn->signature();
     blocks_.emplace_back();
     for (size_t i = 0; i < sig->return_count(); ++i) {
@@ -3670,6 +3711,7 @@ class BodyGen {
   const std::vector<ModuleTypeIndex>& structs_;
   const std::vector<ModuleTypeIndex>& arrays_;
   const StringImports& string_imports_;
+  std::vector<ExportData>* const module_imports_;
   bool locals_initialized_ = false;
 };
 
@@ -3888,7 +3930,8 @@ class ModuleGen {
   void GenerateRandomFunctionSigs(
       const std::map<uint8_t, uint8_t>& explicit_rec_groups,
       std::vector<ModuleTypeIndex>& function_signatures,
-      uint8_t& current_type_index, bool kIsFinal) {
+      uint8_t& current_type_index, bool kIsFinal,
+      bool reference_existing_types) {
     // Recursive groups consist of recursive types that came with the WasmGC
     // proposal.
     DCHECK_IMPLIES(!options_.generate_wasm_gc(), explicit_rec_groups.empty());
@@ -3898,7 +3941,9 @@ class ModuleGen {
       uint8_t current_rec_group_end = rec_group != explicit_rec_groups.end()
                                           ? rec_group->second
                                           : current_type_index;
-      FunctionSig* sig = GenerateSig(kFunctionSig, current_rec_group_end + 1);
+      FunctionSig* sig =
+          GenerateSig(kFunctionSig,
+                      reference_existing_types ? current_rec_group_end + 1 : 0);
       ModuleTypeIndex signature_index =
           builder_->ForceAddSignature(sig, kIsFinal);
       function_signatures.push_back(signature_index);
@@ -3910,6 +3955,18 @@ class ModuleGen {
       FunctionSig* sig = GenerateSig(kExceptionSig, num_types_);
       builder_->AddTag(sig);
     }
+  }
+
+  void AddImportedFunctions(std::vector<ExportData>* imports) {
+    const bool kIsFinal = true;
+    for (auto& import : *imports) {
+      import.sig_index = builder_->ForceAddSignature(import.sig, kIsFinal);
+      uint32_t index =
+          builder_->AddImport(base::VectorOf(import.name), import.sig,
+                              base::VectorOf(import.module_name));
+      import.index = index;
+    }
+    imports_ = imports;
   }
 
   // Adds the "wasm:js-string" imports to the module.
@@ -4092,6 +4149,7 @@ class ModuleGen {
   const uint8_t num_structs_;
   const uint8_t num_arrays_;
   const uint16_t num_types_;
+  std::vector<ExportData>* imports_ = nullptr;
 };
 
 WasmInitExpr GenerateStructNewInitExpr(
@@ -4344,7 +4402,8 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
 
 base::Vector<uint8_t> GenerateRandomWasmModule(
     Zone* zone, WasmModuleGenerationOptions options,
-    base::Vector<const uint8_t> data) {
+    base::Vector<const uint8_t> data, std::vector<ExportData>* module_exports,
+    std::vector<ExportData>* module_imports) {
   WasmModuleBuilder builder(zone);
 
   // Split input data in two parts:
@@ -4437,8 +4496,11 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
   current_type_index++;
 
   // Add randomly generated signatures.
-  gen_module.GenerateRandomFunctionSigs(
-      explicit_rec_groups, function_signatures, current_type_index, kIsFinal);
+  bool reference_existing_types =
+      (module_exports == nullptr || !module_exports->empty());
+  gen_module.GenerateRandomFunctionSigs(explicit_rec_groups,
+                                        function_signatures, current_type_index,
+                                        kIsFinal, reference_existing_types);
   DCHECK_EQ(current_type_index, num_functions + num_structs + num_arrays);
 
   // Add exceptions.
@@ -4452,6 +4514,10 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
                               ? gen_module.AddImportedStringImports()
                               : StringImports();
 
+  if (module_imports) {
+    gen_module.AddImportedFunctions(module_imports);
+  }
+
   // Generate function declarations before tables. This will be needed once we
   // have typed-function tables.
   std::vector<WasmFunctionBuilder*> functions;
@@ -4464,6 +4530,11 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
     // TODO(14034): Relax this when we implement proper recursive-group
     // support.
     functions.push_back(builder.AddFunction(function_signatures[i]));
+    if (module_exports) {
+      module_exports->push_back(
+          ExportData(std::string("fuzzer_exported_") + std::to_string(i),
+                     functions.back()->signature(), "fuzzer_module"));
+    }
   }
 
   // Generate tables before function bodies, so they are available for table
@@ -4491,14 +4562,19 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
                                    ? functions_range.split()
                                    : std::move(functions_range);
     BodyGen gen_body(options, f, function_signatures, globals, mutable_globals,
-                     struct_types, array_types, strings, &function_range);
+                     struct_types, array_types, strings, module_imports,
+                     &function_range);
     const FunctionSig* sig = f->signature();
     base::Vector<const ValueType> return_types(sig->returns().begin(),
                                                sig->return_count());
     gen_body.InitializeNonDefaultableLocals(&function_range);
     gen_body.Generate(return_types, &function_range);
     f->Emit(kExprEnd);
-    if (i == 0) builder.AddExport(base::CStrVector("main"), f);
+    if (module_exports) {
+      builder.AddExport(base::CStrVector((*module_exports)[i].name.c_str()), f);
+    } else if (i == 0) {
+      builder.AddExport(base::CStrVector("main"), f);
+    }
   }
 
   ZoneBuffer buffer{zone};
@@ -4928,7 +5004,7 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
     WasmFunctionBuilder* f = functions[declared_func_index];
     DataRange function_range = range.split();
     BodyGen gen_body(options, f, function_signatures, {}, {}, struct_types,
-                     array_types, strings, &function_range);
+                     array_types, strings, nullptr, &function_range);
     gen_body.InitializeNonDefaultableLocals(&function_range);
     if (i == 0) {
       // For the inner-most inlinee, emit the deopt point (e.g. a call_ref).
@@ -4954,7 +5030,7 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
     WasmFunctionBuilder* f = functions[declared_func_index];
     DataRange function_range = range.split();
     BodyGen gen_body(options, f, function_signatures, {}, {}, struct_types,
-                     array_types, strings, &function_range);
+                     array_types, strings, nullptr, &function_range);
     gen_body.InitializeNonDefaultableLocals(&function_range);
     // Store the call target
     f->EmitWithU32V(kExprLocalGet, 0);
@@ -4984,7 +5060,7 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
     WasmFunctionBuilder* f = functions[i];
     DataRange function_range = range.split();
     BodyGen gen_body(options, f, function_signatures, {}, {}, struct_types,
-                     array_types, strings, &function_range);
+                     array_types, strings, nullptr, &function_range);
     const FunctionSig* sig = f->signature();
     base::Vector<const ValueType> target_return_types(sig->returns().begin(),
                                                       sig->return_count());
@@ -5092,7 +5168,8 @@ base::Vector<uint8_t> GenerateWasmModuleForRevec(
                                    ? functions_range.split()
                                    : std::move(functions_range);
     BodyGen gen_body(options, f, function_signatures, globals, mutable_globals,
-                     struct_types, array_types, strings, &function_range);
+                     struct_types, array_types, strings, nullptr,
+                     &function_range);
     const FunctionSig* sig = f->signature();
     base::Vector<const ValueType> return_types(sig->returns().begin(),
                                                sig->return_count());

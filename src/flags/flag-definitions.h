@@ -2069,6 +2069,8 @@ DEFINE_BOOL(drumbrake_super_instructions, true,
             "enable drumbrake merged wasm instructions optimization")
 DEFINE_BOOL(drumbrake_register_optimization, true,
             "enable passing the top stack value in a register in drumbrake")
+DEFINE_BOOL(drumbrake_fuzzing_mode, false,
+            "enable drumbrake fuzzer mode (for testing)")
 
 // Directly interpret asm.js code as regular JavaScript code, instead of
 // translating it to Wasm bytecode first and then interpreting that with
