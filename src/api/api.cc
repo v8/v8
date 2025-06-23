@@ -3212,17 +3212,19 @@ bool StackFrame::IsUserJavaScript() const {
 
 // --- J S O N ---
 
-MaybeLocal<Value> JSON::Parse(Local<Context> context,
-                              Local<String> json_string) {
+MaybeLocal<Value> JSON::Parse(
+    Local<Context> context, Local<String> json_string,
+    std::optional<ScriptOriginOptions> origin_options) {
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_JSON_Parse};
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto string = Utils::OpenHandle(*json_string);
   i::Handle<i::String> source = i::String::Flatten(i_isolate, string);
   i::Handle<i::Object> undefined = i_isolate->factory()->undefined_value();
-  auto maybe_result =
-      source->IsOneByteRepresentation()
-          ? i::JsonParser<uint8_t>::Parse(i_isolate, source, undefined)
-          : i::JsonParser<uint16_t>::Parse(i_isolate, source, undefined);
+  auto maybe_result = source->IsOneByteRepresentation()
+                          ? i::JsonParser<uint8_t>::Parse(
+                                i_isolate, source, undefined, origin_options)
+                          : i::JsonParser<uint16_t>::Parse(
+                                i_isolate, source, undefined, origin_options);
   return api_scope.EscapeMaybe(maybe_result);
 }
 
