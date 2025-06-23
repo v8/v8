@@ -41,16 +41,20 @@ class IsolateGroupAccessScope final {
   explicit IsolateGroupAccessScope(IsolateGroup* group)
       : previous_(IsolateGroup::current()) {
     IsolateGroup::set_current(group);
+#ifdef V8_ENABLE_SANDBOX
     Sandbox::set_current(group->sandbox());
+#endif
   }
 
   ~IsolateGroupAccessScope() {
     IsolateGroup::set_current(previous_);
+#ifdef V8_ENABLE_SANDBOX
     if (previous_) {
       Sandbox::set_current(previous_->sandbox());
     } else {
       Sandbox::set_current(nullptr);
     }
+#endif
   }
 
  private:
