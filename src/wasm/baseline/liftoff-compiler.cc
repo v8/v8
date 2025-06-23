@@ -2397,7 +2397,7 @@ class LiftoffCompiler {
       // not overlap, for easier code generation.
       LiftoffRegList pinned{lhs};
       LiftoffRegister dst = src_rc == result_rc
-                                ? __ GetUnusedRegister(result_rc, {lhs}, pinned)
+                                ? __ GetUnusedRegister(result_rc, {lhs}, {})
                                 : __ GetUnusedRegister(result_rc, pinned);
 
       CallEmitFn(fnImm, dst, lhs, imm);

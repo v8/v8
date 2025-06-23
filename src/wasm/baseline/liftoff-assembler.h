@@ -514,6 +514,7 @@ class LiftoffAssembler : public MacroAssembler {
       LiftoffRegList pinned) {
     DCHECK(!cache_state_.frozen);
     for (LiftoffRegister reg : try_first) {
+      DCHECK(!pinned.has(reg));
       DCHECK_EQ(reg.reg_class(), rc);
       if (cache_state_.is_free(reg)) return reg;
     }

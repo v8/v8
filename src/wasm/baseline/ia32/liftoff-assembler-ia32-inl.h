@@ -3435,7 +3435,9 @@ void LiftoffAssembler::emit_i64x2_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
     // 2. SSE4_2, dst != lhs.
     if (dst == lhs) {
       LiftoffRegister tmp =
-          GetUnusedRegister(RegClass::kFpReg, {rhs}, LiftoffRegList{lhs});
+          rhs == lhs
+              ? GetUnusedRegister(RegClass::kFpReg, LiftoffRegList{lhs})
+              : GetUnusedRegister(RegClass::kFpReg, {rhs}, LiftoffRegList{lhs});
       // macro-assembler uses kScratchDoubleReg, so don't use it.
       I64x2GeS(tmp.fp(), lhs.fp(), rhs.fp(), liftoff::kScratchDoubleReg);
       movaps(dst.fp(), tmp.fp());
