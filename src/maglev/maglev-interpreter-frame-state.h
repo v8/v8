@@ -376,6 +376,7 @@ struct KnownNodeAspects {
     NodeType static_type = node->GetStaticType(broker);
     if (current_type) *current_type = static_type;
     if (NodeTypeIs(static_type, type)) return true;
+    if (IsEmptyNodeType(IntersectType(static_type, type))) return false;
     auto it = FindInfo(node);
     if (!IsValid(it)) return false;
     if (current_type) *current_type = it->second.type();

@@ -1660,7 +1660,7 @@ CheckType GetCheckType(NodeType type) {
 }
 }  // namespace
 
-ValueNode* MaglevGraphBuilder::GetInternalizedString(
+ReduceResult MaglevGraphBuilder::GetInternalizedString(
     interpreter::Register reg) {
   ValueNode* node = current_interpreter_frame_.get(reg);
   NodeType old_type;
@@ -1672,6 +1672,9 @@ ValueNode* MaglevGraphBuilder::GetInternalizedString(
   }
 
   if (!NodeTypeIs(old_type, NodeType::kString)) {
+    if (IsEmptyNodeType(IntersectType(old_type, NodeType::kString))) {
+      return EmitUnconditionalDeopt(DeoptimizeReason::kNotAString);
+    }
     known_info->IntersectType(NodeType::kString);
   }
 
@@ -3175,6 +3178,8 @@ bool MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
   }
   if (!maybe_constant) return false;
 
+  DCHECK(!IsEmptyNodeType(GetType(other)));
+
   if (CheckType(other, NodeType::kBoolean)) {
     auto CompareOtherWith = [&](bool constant) {
       compiler::OptionalHeapObjectRef const_other = TryGetConstant(other);
@@ -3397,13 +3402,17 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
              kOperation == Operation::kStrictEqual);
       ValueNode *left, *right;
       if (IsRegisterEqualToAccumulator(0)) {
-        left = right = GetInternalizedString(iterator_.GetRegisterOperand(0));
+        GET_VALUE_OR_ABORT(
+            left, GetInternalizedString(iterator_.GetRegisterOperand(0)));
+        right = left;
         SetAccumulator(GetRootConstant(RootIndex::kTrueValue));
         return ReduceResult::Done();
       }
-      left = GetInternalizedString(iterator_.GetRegisterOperand(0));
-      right =
-          GetInternalizedString(interpreter::Register::virtual_accumulator());
+      GET_VALUE_OR_ABORT(
+          left, GetInternalizedString(iterator_.GetRegisterOperand(0)));
+      GET_VALUE_OR_ABORT(
+          right,
+          GetInternalizedString(interpreter::Register::virtual_accumulator()));
       if (TryConstantFoldEqual(left, right)) return ReduceResult::Done();
       SetAccumulator(BuildTaggedEqual(left, right));
       return ReduceResult::Done();

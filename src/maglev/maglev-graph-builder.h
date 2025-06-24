@@ -728,7 +728,7 @@ class MaglevGraphBuilder {
     return GetTaggedValue(value, record_use_repr_hint);
   }
 
-  ValueNode* GetInternalizedString(interpreter::Register reg);
+  ReduceResult GetInternalizedString(interpreter::Register reg);
 
   // Get an Int32 representation node whose value is equivalent to the ToInt32
   // truncation of the given node (including a ToNumber call). Only trivial
