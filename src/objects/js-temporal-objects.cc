@@ -339,6 +339,8 @@ Maybe<IntegerType> ToPositiveIntegerTypeWithTruncation(
   return Just(static_cast<IntegerType>(d));
 }
 
+static constexpr uint64_t kU64HighBitMask = uint64_t{1} << 63;
+
 // Throws RangeErrors for out-of-range BigInts, checking IsValidEpochNanoseconds
 Maybe<temporal_rs::I128Nanoseconds> GetI128FromBigInt(
     Isolate* isolate, DirectHandle<BigInt> bigint) {
@@ -354,34 +356,44 @@ Maybe<temporal_rs::I128Nanoseconds> GetI128FromBigInt(
   uint64_t words[2] = {0, 0};
   uint32_t word_count = 2;
   int sign_bit = 0;
-
   bigint->ToWordsArray64(&sign_bit, &word_count, words);
 
-  if (words[1] > std::numeric_limits<int64_t>::max()) {
+  if ((words[1] & kU64HighBitMask) != 0) {
     THROW_NEW_ERROR_RETURN_VALUE(isolate,
                                  NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), {});
   }
 
-  int64_t high = static_cast<int64_t>(words[1]);
+  uint64_t high = words[1];
   if (sign_bit == 1) {
-    high = -high;
+    high |= kU64HighBitMask;
   }
 
-  return Just(temporal_rs::I128Nanoseconds{.high = high, .low = words[0]});
+  temporal_rs::I128Nanoseconds ns;
+
+  // This static_cast is necessary until
+  // https://github.com/boa-dev/temporal/pull/372 makes its way to third_party.
+  auto high_cast = static_cast<decltype(ns.high)>(high);
+  ns.high = high_cast;
+  ns.low = words[0];
+  return Just(ns);
 }
 
 MaybeDirectHandle<BigInt> I128ToBigInt(Isolate* isolate,
                                        temporal_rs::I128Nanoseconds ns) {
   uint64_t words[2];
   bool sign_bit;
-  if (ns.high < 0) {
+
+  // This static_cast is necessary until
+  // https://github.com/boa-dev/temporal/pull/372 makes its way to third_party.
+  if ((ns.high & temporal::kU64HighBitMask) != 0) {
     sign_bit = true;
-    words[1] = static_cast<uint64_t>(-ns.high);
+    words[1] = static_cast<uint64_t>(ns.high & ~temporal::kU64HighBitMask);
   } else {
     sign_bit = false;
     words[1] = static_cast<uint64_t>(ns.high);
   }
   words[0] = ns.low;
+
   return BigInt::FromWords64(isolate, sign_bit, 2, words);
 }
 
