@@ -429,7 +429,7 @@ class V8_EXPORT Object : public Value {
    * be skipped by __proto__ and it does not consult the security
    * handler.
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "V8 will stop providing access to hidden prototype (i.e. "
       "JSGlobalObject). Use GetPrototypeV2() instead. "
       "See http://crbug.com/333672197.")
