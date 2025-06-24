@@ -1767,7 +1767,7 @@ void ReportLiveCodeFromFrameForGC(
     WasmCode* code = wasm_frame->wasm_code();
     live_wasm_code.insert(code);
 #if V8_TARGET_ARCH_X64
-    if (code->for_debugging()) {
+    if (code->is_inspectable()) {
       Address osr_target =
           base::Memory<Address>(wasm_frame->fp() - kOSRTargetOffset);
       if (osr_target) {
