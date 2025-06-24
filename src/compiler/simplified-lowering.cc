@@ -2473,39 +2473,65 @@ class RepresentationSelector {
           node->opcode() != IrOpcode::kStateValues &&
           node->opcode() != IrOpcode::kFrameState &&
           node->opcode() != IrOpcode::kPhi) {
+        base::SmallVector<Node*, 2> dead_inputs;
         for (int i = 0; i < node->op()->ValueInputCount(); i++) {
           Node* input = node->InputAt(i);
           if (TypeOf(input).IsNone()) {
-            node->ReplaceInput(0, input);
-            node->TrimInputCount(1);
-            ChangeOp(node,
-                     common()->DeadValue(GetInfo(node)->representation()));
-            return;
+            dead_inputs.push_back(input);
           }
         }
+        if (dead_inputs.size() > 0) {
+          const int input_count = static_cast<int>(dead_inputs.size());
+          for (int i = 0; i < input_count; ++i) {
+            node->ReplaceInput(i, dead_inputs[i]);
+          }
+          node->TrimInputCount(input_count);
+          ChangeOp(node, common()->DeadValue(GetInfo(node)->representation(),
+                                             input_count));
+          GetInfo(node)->set_feedback_type(Type::None());
+          return;
+        }
       } else {
-        bool is_dead = false;
+        // If any of the node's inputs is Type::None(), we turn it into an
+        // Unreachable, but keep all value inputs.
+        base::SmallVector<Node*, 2> dead_inputs;
         if (node->op()->ValueOutputCount() > 0 &&
             node->op()->ControlOutputCount() == 0 &&
             node->opcode() != IrOpcode::kPhi &&
+            node->opcode() != IrOpcode::kDeadValue &&
             node->opcode() != IrOpcode::kStateValues &&
             node->opcode() != IrOpcode::kFrameState) {
           for (int i = 0; i < node->op()->ValueInputCount(); i++) {
             Node* input = node->InputAt(i);
-            // If one of the node's inputs produces a None-type, then this node
-            // cannot produce a value itself.
             if (TypeOf(input).IsNone()) {
-              GetInfo(node)->set_feedback_type(Type::None());
-              is_dead = true;
-              break;
+              dead_inputs.push_back(input);
+            }
+          }
+
+          const int dead_input_count = static_cast<int>(dead_inputs.size());
+          if (dead_input_count > 0) {
+            // This node is already unreachable, so handle it depending on
+            // control edge.
+            if (node->op()->ControlInputCount() > 0) {
+              Node* effect_input = NodeProperties::GetEffectInput(node);
+              Node* control_input = NodeProperties::GetControlInput(node);
+              Node* unreachable = graph()->NewNode(common()->Unreachable(),
+                                                   effect_input, control_input);
+              ReplaceEffectControlUses(node, unreachable, control_input);
+              // Now turn this node into a DeadValue.
+              for (int i = 0; i < dead_input_count; ++i) {
+                node->ReplaceInput(i, dead_inputs[i]);
+              }
+              node->TrimInputCount(dead_input_count);
+              ChangeOp(node,
+                       common()->DeadValue(GetInfo(node)->representation(),
+                                           dead_input_count));
+              return;
             }
           }
         }
 
         InsertUnreachableIfNecessary<T>(node);
-        // If the node is dead, we don't wont to lower it to avoid breaking
-        // effect chains.
-        if (is_dead) return;
       }
     }
 
