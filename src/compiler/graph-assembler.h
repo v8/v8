@@ -1095,7 +1095,6 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   TNode<Object> JSCallRuntime2(Runtime::FunctionId function_id,
                                TNode<Object> arg0, TNode<Object> arg1,
                                TNode<Context> context, FrameState frame_state);
-  Node* Chained(const Operator* op, Node* input);
 
   JSHeapBroker* broker() const { return broker_; }
   JSGraph* jsgraph() const { return jsgraph_; }

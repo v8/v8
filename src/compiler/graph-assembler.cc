@@ -1067,12 +1067,6 @@ TNode<Object> JSGraphAssembler::JSCallRuntime2(Runtime::FunctionId function_id,
   });
 }
 
-Node* JSGraphAssembler::Chained(const Operator* op, Node* input) {
-  DCHECK_EQ(op->ValueInputCount(), 1);
-  return AddNode(
-      graph()->NewNode(common()->Chained(op), input, effect(), control()));
-}
-
 Node* GraphAssembler::TypeGuard(Type type, Node* value) {
   return AddNode(
       graph()->NewNode(common()->TypeGuard(type), value, effect(), control()));
