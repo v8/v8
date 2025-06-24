@@ -2342,6 +2342,13 @@ void InstructionSelector::VisitWord64AtomicCompareExchange(OpIndex node) {
   VisitAtomicCompareExchange(this, node, opcode, AtomicWidth::kWord64);
 }
 
+void InstructionSelector::VisitTaggedAtomicCompareExchange(OpIndex node) {
+  AtomicWidth width =
+      COMPRESS_POINTERS_BOOL ? AtomicWidth::kWord32 : AtomicWidth::kWord64;
+  VisitAtomicCompareExchange(this, node, kAtomicCompareExchangeWithWriteBarrier,
+                             width);
+}
+
 void InstructionSelector::VisitWord32AtomicBinaryOperation(
     OpIndex node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
     ArchOpcode uint16_op, ArchOpcode word32_op) {
