@@ -146,6 +146,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvF64x2Floor:
     case kRiscvF64x2Trunc:
     case kRiscvF64x2NearestInt:
+    case kRiscvF64x2Eq:
+    case kRiscvF64x2Ne:
+    case kRiscvF64x2Lt:
+    case kRiscvF64x2Le:
     case kRiscvI64x2SplatI32Pair:
     case kRiscvI64x2ExtractLane:
     case kRiscvI64x2ReplaceLane:

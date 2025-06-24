@@ -273,6 +273,10 @@ namespace compiler {
   V(RiscvF64x2Floor)                      \
   V(RiscvF64x2Trunc)                      \
   V(RiscvF64x2NearestInt)                 \
+  V(RiscvF64x2Eq)                         \
+  V(RiscvF64x2Ne)                         \
+  V(RiscvF64x2Lt)                         \
+  V(RiscvF64x2Le)                         \
   V(RiscvI64x2SplatI32Pair)               \
   V(RiscvI64x2ExtractLane)                \
   V(RiscvI64x2ReplaceLane)                \
