@@ -580,7 +580,7 @@ class LiftoffAssembler : public MacroAssembler {
   // all matches in {possible_uses} are rewritten to that temporary register.
   void ClearRegister(Register reg,
                      std::initializer_list<Register*> possible_uses,
-                     LiftoffRegList pinned);
+                     LiftoffRegList& pinned);
 
   // Spills all passed registers.
   template <typename... Regs>

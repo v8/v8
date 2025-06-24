@@ -1062,14 +1062,6 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
   ClearRegister(
       rax, {&dst_addr, &offset_reg, &value_reg, &new_value_for_write_barrier},
       pinned);
-  // ClearRegister does not update the pinned registers if any new register was
-  // needed to clear rax, so we need to manually pin them again.
-  pinned.set(dst_addr);
-  if (offset_reg != no_reg) {
-    pinned.set(offset_reg);
-  }
-  pinned.set(value_reg);
-  pinned.set(new_value_for_write_barrier);
 
   if (expected.gp() != rax) {
     movq(rax, expected.gp());

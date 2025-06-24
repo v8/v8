@@ -1252,15 +1252,15 @@ void LiftoffAssembler::AtomicCompareExchange(
     // The cmpxchg instruction uses eax to store the old value of the
     // compare-exchange primitive. Therefore we have to spill the register and
     // move any use to another register.
-    ClearRegister(eax, {&dst_addr, &value_reg},
-                  LiftoffRegList{dst_addr, value_reg, expected_reg});
+    LiftoffRegList pinned{dst_addr, value_reg, expected_reg};
+    ClearRegister(eax, {&dst_addr, &value_reg}, pinned);
     if (expected_reg != eax) {
       mov(eax, expected_reg);
       expected_reg = eax;
     }
 
     bool is_byte_store = type.size() == 1;
-    LiftoffRegList pinned{dst_addr, value_reg, expected_reg};
+    pinned = LiftoffRegList{dst_addr, value_reg, expected_reg};
 
     // Ensure that {value_reg} is a valid register.
     if (is_byte_store && !liftoff::kByteRegs.has(value_reg)) {
@@ -1385,7 +1385,11 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
   // This assumes that the caller didn't pin any additional registers.
   // {expected} and {new_value} are no longer needed; we need to unpin
   // them so that enough registers are available for the write barrier.
-  pinned = LiftoffRegList(dst_addr, new_value_for_write_barrier, result_reg);
+  LiftoffRegList new_pinned{dst_addr, new_value_for_write_barrier, result_reg};
+  DCHECK(pinned.MaskOut(new_pinned)
+             .MaskOut(LiftoffRegList{expected, new_value, eax})
+             .is_empty());
+  pinned = new_pinned;
   EmitWriteBarrier(dst_addr, dst_op, new_value_for_write_barrier, pinned);
 }
 
