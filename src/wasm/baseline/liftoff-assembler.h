@@ -508,13 +508,12 @@ class LiftoffAssembler : public MacroAssembler {
   }
 
   // Get an unused register for class {rc}, reusing one of {try_first} if
-  // possible.
+  // possible. May return a register from {pinned}.
   LiftoffRegister GetUnusedRegister(
       RegClass rc, std::initializer_list<LiftoffRegister> try_first,
       LiftoffRegList pinned) {
     DCHECK(!cache_state_.frozen);
     for (LiftoffRegister reg : try_first) {
-      DCHECK(!pinned.has(reg));
       DCHECK_EQ(reg.reg_class(), rc);
       if (cache_state_.is_free(reg)) return reg;
     }

@@ -2397,7 +2397,7 @@ class LiftoffCompiler {
       // not overlap, for easier code generation.
       LiftoffRegList pinned{lhs};
       LiftoffRegister dst = src_rc == result_rc
-                                ? __ GetUnusedRegister(result_rc, {lhs}, {})
+                                ? __ GetUnusedRegister(result_rc, {lhs}, pinned)
                                 : __ GetUnusedRegister(result_rc, pinned);
 
       CallEmitFn(fnImm, dst, lhs, imm);
@@ -2447,6 +2447,8 @@ class LiftoffCompiler {
     LiftoffRegister dst =
         CpuFeatures::IsSupported(AVX)
             ? __ GetUnusedRegister(result_rc, {src, mask}, {})
+        : src == mask
+            ? __ GetUnusedRegister(result_rc, LiftoffRegList{mask})
             : __ GetUnusedRegister(result_rc, {src}, LiftoffRegList{mask});
 #else
     LiftoffRegister dst = __ GetUnusedRegister(result_rc, {src, mask}, {});
@@ -5224,8 +5226,9 @@ class LiftoffCompiler {
         LiftoffRegister lhs = pinned.set(__ PopToRegister(pinned));
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
         // x86 platforms save a move when dst == acc, so prefer that.
-        LiftoffRegister dst =
-            __ GetUnusedRegister(res_rc, {acc}, LiftoffRegList{lhs, rhs});
+        LiftoffRegister dst = (acc == lhs || acc == rhs)
+                                  ? __ GetUnusedRegister(res_rc, pinned)
+                                  : __ GetUnusedRegister(res_rc, {acc}, pinned);
 #else
         // On other platforms, for simplicity, we ensure that none of the
         // registers alias. (If we cared, it would probably be feasible to
