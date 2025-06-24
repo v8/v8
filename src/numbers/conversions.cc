@@ -1060,7 +1060,7 @@ class StringToBigIntHelper : public StringToIntHelper {
       return std::unique_ptr<char[]>(new char[2]{'0', '\0'});
     }
     DCHECK_EQ(state(), State::kDone);
-    int num_digits = accumulator_.ResultLength();
+    uint32_t num_digits = accumulator_.ResultLength();
     base::SmallVector<bigint::digit_t, 8> digit_storage(num_digits);
     bigint::RWDigits digits(digit_storage.data(), num_digits);
     processor->FromString(digits, &accumulator_);
