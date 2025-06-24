@@ -10108,8 +10108,11 @@ TEST(DetachGlobal) {
 
 void GetThisX(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
-  info.GetReturnValue().Set(
-      context->Global()->Get(context, v8_str("x")).ToLocalChecked());
+  Local<Value> result;
+  if (!context->Global()->Get(context, v8_str("x")).ToLocal(&result)) {
+    return;
+  }
+  info.GetReturnValue().Set(result);
 }
 
 
@@ -10159,6 +10162,10 @@ TEST(DetachedAccesses) {
 
   Local<Object> env2_global = env2->Global();
   env2->DetachGlobal();
+  // Explicitly allow accessing cross-context globals from native contexts
+  // with the same security token. Otherwise `env1.get_x()` or `env1.this_x()`
+  // would throw access check failure exception.
+  env2->SetSecurityToken(foo);
 
   Local<Value> result;
   result = CompileRun("bound_x()");
@@ -10168,7 +10175,7 @@ TEST(DetachedAccesses) {
   result = CompileRun("get_x_w()");
   CHECK(result.IsEmpty());
   result = CompileRun("this_x()");
-  CHECK(v8_str("env2_x")->Equals(env1.local(), result).FromJust());
+  CHECK(result.IsEmpty());
 
   // Reattach env2's proxy
   env2 = Context::New(env1.isolate(), nullptr, v8::Local<v8::ObjectTemplate>(),
@@ -10199,7 +10206,9 @@ TEST(DetachedAccesses) {
       CHECK(v8_str("env3_x")
                 ->Equals(env2, results->Get(env2, i + 2).ToLocalChecked())
                 .FromJust());
-      CHECK(v8_str("env2_x")
+      // |this_x| is an Api function from detached |env2| context but it loads
+      // property "x" from |env2_global|. See GetThisX.
+      CHECK(v8_str("env3_x")
                 ->Equals(env2, results->Get(env2, i + 3).ToLocalChecked())
                 .FromJust());
     }
@@ -10229,7 +10238,7 @@ TEST(DetachedAccesses) {
               ->Equals(env1.local(),
                        results->Get(env1.local(), i + 2).ToLocalChecked())
               .FromJust());
-    CHECK(v8_str("env2_x")
+    CHECK(v8_str("env3_x")
               ->Equals(env1.local(),
                        results->Get(env1.local(), i + 3).ToLocalChecked())
               .FromJust());
@@ -10259,7 +10268,7 @@ TEST(DetachedAccesses) {
               ->Equals(env1.local(),
                        results->Get(env1.local(), i + 2).ToLocalChecked())
               .FromJust());
-    CHECK(v8_str("env2_x")
+    CHECK(v8_str("env3_x")
               ->Equals(env1.local(),
                        results->Get(env1.local(), i + 3).ToLocalChecked())
               .FromJust());

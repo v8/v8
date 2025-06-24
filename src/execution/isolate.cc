@@ -7265,9 +7265,8 @@ void Isolate::CheckDetachedContextsAfterGC() {
   }
 }
 
-void Isolate::DetachGlobal(DirectHandle<Context> env) {
-  counters()->errors_thrown_per_context()->AddSample(
-      env->native_context()->GetErrorsThrown());
+void Isolate::DetachGlobal(DirectHandle<NativeContext> env) {
+  counters()->errors_thrown_per_context()->AddSample(env->GetErrorsThrown());
 
   ReadOnlyRoots roots(this);
   DirectHandle<JSGlobalProxy> global_proxy(env->global_proxy(), this);
@@ -7281,8 +7280,10 @@ void Isolate::DetachGlobal(DirectHandle<Context> env) {
                                                        kRelaxedStore);
   if (v8_flags.track_detached_contexts) AddDetachedContext(env);
   DCHECK(global_proxy->IsDetached());
-
-  env->native_context()->set_microtask_queue(this, nullptr);
+  env->set_microtask_queue(this, nullptr);
+  // Set security token back to default (unique) state making sure that only
+  // accesses from the same native context are allowed.
+  env->set_security_token(env->global_object());
 }
 
 void Isolate::SetIsLoading(bool is_loading) {

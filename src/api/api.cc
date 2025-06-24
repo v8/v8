@@ -7222,14 +7222,8 @@ void Context::SetMicrotaskQueue(v8::MicrotaskQueue* queue) {
 v8::Local<v8::Object> Context::Global() {
   auto context = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = i::Isolate::Current();
-  i::DirectHandle<i::JSGlobalProxy> global(context->global_proxy(), i_isolate);
-  // TODO(chromium:324812): This should always return the global proxy
-  // but can't presently as calls to GetPrototype will return the wrong result.
-  if (global->IsDetachedFrom(i_isolate, context->global_object())) {
-    i::DirectHandle<i::JSObject> result(context->global_object(), i_isolate);
-    return Utils::ToLocal(result);
-  }
-  return Utils::ToLocal(i::Cast<i::JSObject>(global));
+  i::DirectHandle<i::JSObject> global(context->global_proxy(), i_isolate);
+  return Utils::ToLocal(global);
 }
 
 void Context::DetachGlobal() {

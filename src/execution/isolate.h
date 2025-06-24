@@ -1917,7 +1917,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void CheckDetachedContextsAfterGC();
 
   // Detach the environment from its outer global object.
-  void DetachGlobal(DirectHandle<Context> env);
+  void DetachGlobal(DirectHandle<NativeContext> env);
 
   std::vector<Tagged<Object>>* startup_object_cache() {
     return &startup_object_cache_;
