@@ -578,29 +578,12 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
     } break;
     case JAL: {
       DCHECK(IsJal(instr));
-      intptr_t offset = target_pos - pos;
-      if (is_intn(offset, Assembler::kJumpOffsetBits)) {
-        instr = SetJalOffset(pos, target_pos, instr);
-        instr_at_put(pos, instr);
-      } else {
-        Instr instr_I = instr_at(pos + 4);
-        CHECK_EQ(instr_I, kNopByte);
-        CHECK(is_int32(offset + 0x800));
-        Instr instr_auipc = AUIPC | t6.code() << kRdShift;
-        instr_I = RO_JALR | (t6.code() << kRs1Shift) |
-                  (instruction->RdValue() << kRdShift);
-
-        int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
-        int32_t Lo12 = (int32_t)offset << 20 >> 20;
-
-        instr_auipc = SetHi20Offset(Hi20, instr_auipc);
-        instr_at_put(pos, instr_auipc);
-
-        instr_I = SetLo12Offset(Lo12, instr_I);
-        instr_at_put(pos + 4, instr_I);
-        DCHECK_EQ(offset, BranchLongOffset(Assembler::instr_at(pos),
-                                           Assembler::instr_at(pos + 4)));
-      }
+      // We only use the 'jal' instruction if we're certain the final offset
+      // will fit in the legal jump offset range, so we never need to patch
+      // this to an 'auipc; jalr' sequence.
+      DCHECK(is_intn(target_pos - pos, Assembler::kJumpOffsetBits));
+      instr = SetJalOffset(pos, target_pos, instr);
+      instr_at_put(pos, instr);
     } break;
     case LUI: {
       Address pc = reinterpret_cast<Address>(buffer_start_ + pos);
@@ -608,40 +591,29 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
           pc, reinterpret_cast<uintptr_t>(buffer_start_ + target_pos));
     } break;
     case AUIPC: {
+      // It would be possible to replace the two instruction 'auipc; jalr'
+      // sequence with 'jal; nop' if the offset was in the legal jump offset
+      // range, but it would introduce a subtle bug: There may be a safepoint
+      // recorded after the call and we must be sure that the return address
+      // stored in register ra matches the safepoint after any changes to the
+      // instructions. The use of 'jal' would move the value of register back
+      // with the size of instruction and break finding the correct safepoint.
       Instr instr_auipc = instr;
       Instr instr_I = instr_at(pos + 4);
-      Instruction* instruction_I = Instruction::At(buffer_start_ + pos + 4);
       DCHECK(IsJalr(instr_I) || IsAddi(instr_I));
 
       intptr_t offset = target_pos - pos;
-      if (is_int21(offset) && IsJalr(instr_I) &&
-          (instruction->RdValue() == instruction_I->Rs1Value())) {
-        if (v8_flags.riscv_debug) {
-          disassembleInstr(buffer_start_ + pos);
-          disassembleInstr(buffer_start_ + pos + 4);
-        }
-        DEBUG_PRINTF("\ttarget_at_put: Relpace by JAL pos:(%d) \n", pos);
-        DCHECK(is_int21(offset) && ((offset & 1) == 0));
-        Instr instr = JAL | (instruction_I->RdValue() << kRdShift);
-        instr = SetJalOffset(pos, target_pos, instr);
-        DCHECK(IsJal(instr));
-        DCHECK(JumpOffset(instr) == offset);
-        instr_at_put(pos, instr);
-        instr_at_put(pos + 4, kNopByte);
-      } else {
-        CHECK(is_int32(offset + 0x800));
+      CHECK(is_int32(offset + 0x800));
+      int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
+      int32_t Lo12 = (int32_t)offset << 20 >> 20;
 
-        int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
-        int32_t Lo12 = (int32_t)offset << 20 >> 20;
+      instr_auipc = SetHi20Offset(Hi20, instr_auipc);
+      instr_at_put(pos, instr_auipc);
 
-        instr_auipc = SetHi20Offset(Hi20, instr_auipc);
-        instr_at_put(pos, instr_auipc);
-
-        const int kImm31_20Mask = ((1 << 12) - 1) << 20;
-        const int kImm11_0Mask = ((1 << 12) - 1);
-        instr_I = (instr_I & ~kImm31_20Mask) | ((Lo12 & kImm11_0Mask) << 20);
-        instr_at_put(pos + 4, instr_I);
-      }
+      const int kImm31_20Mask = ((1 << 12) - 1) << 20;
+      const int kImm11_0Mask = ((1 << 12) - 1);
+      instr_I = (instr_I & ~kImm31_20Mask) | ((Lo12 & kImm11_0Mask) << 20);
+      instr_at_put(pos + 4, instr_I);
     } break;
     case RO_C_J: {
       ShortInstr short_instr = SetCJalOffset(pos, target_pos, instr);
