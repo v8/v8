@@ -293,6 +293,10 @@ namespace compiler {
   V(RiscvF32x4Floor)                      \
   V(RiscvF32x4Trunc)                      \
   V(RiscvF32x4NearestInt)                 \
+  V(RiscvF32x4Eq)                         \
+  V(RiscvF32x4Ne)                         \
+  V(RiscvF32x4Lt)                         \
+  V(RiscvF32x4Le)                         \
   V(RiscvI32x4SConvertF32x4)              \
   V(RiscvI32x4UConvertF32x4)              \
   V(RiscvI32x4TruncSatF64x2SZero)         \

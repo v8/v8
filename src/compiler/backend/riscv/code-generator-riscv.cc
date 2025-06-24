@@ -3379,11 +3379,46 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmv_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
+    case kRiscvF32x4Eq: {
+      __ VU.set(kScratchReg, E32, m1);
+      // The later vmerge.vi instruction implicitly uses the reserved
+      // register 'v0', so we put the comparison output there.
+      __ vmfeq_vv(v0, i.InputSimd128Register(1), i.InputSimd128Register(0));
+      __ vmv_vi(kSimd128ScratchReg, 0);
+      __ vmerge_vi(i.OutputSimd128Register(), -1, kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvF32x4Ne: {
+      __ VU.set(kScratchReg, E32, m1);
+      // The later vmerge.vi instruction implicitly uses the reserved
+      // register 'v0', so we put the comparison output there.
+      __ vmfne_vv(v0, i.InputSimd128Register(1), i.InputSimd128Register(0));
+      __ vmv_vi(kSimd128ScratchReg, 0);
+      __ vmerge_vi(i.OutputSimd128Register(), -1, kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvF32x4Lt: {
+      __ VU.set(kScratchReg, E32, m1);
+      // The later vmerge.vi instruction implicitly uses the reserved
+      // register 'v0', so we put the comparison output there.
+      __ vmflt_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(1));
+      __ vmv_vi(kSimd128ScratchReg, 0);
+      __ vmerge_vi(i.OutputSimd128Register(), -1, kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvF32x4Le: {
+      __ VU.set(kScratchReg, E32, m1);
+      // The later vmerge.vi instruction implicitly uses the reserved
+      // register 'v0', so we put the comparison output there.
+      __ vmfle_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(1));
+      __ vmv_vi(kSimd128ScratchReg, 0);
+      __ vmerge_vi(i.OutputSimd128Register(), -1, kSimd128ScratchReg);
+      break;
+    }
     case kRiscvI64x2SConvertI32x4Low: {
       __ VU.set(kScratchReg, E64, m1);
       __ vmv_vv(kSimd128ScratchReg, i.InputSimd128Register(0));
       __ vsext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
-
       break;
     }
     case kRiscvI64x2SConvertI32x4High: {
@@ -4324,19 +4359,19 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
 #ifdef V8_TARGET_ARCH_RISCV64
   } else if (instr->arch_opcode() == kRiscvCmpZero32) {
     auto trim_reg = [&](Register in) -> Register {
-        Register temp = i.TempRegister(0);
-        __ slliw(temp, in, 0);
-        return temp;
+      Register temp = i.TempRegister(0);
+      __ slliw(temp, in, 0);
+      return temp;
     };
     auto trim_op = [&](Operand in) -> Register {
-        Register temp = i.TempRegister(0);
-        if (in.is_reg()) {
-          __ slliw(temp, in.rm(), 0);
-        } else {
-          __ Li(temp, in.immediate());
-          __ slliw(temp, temp, 0);
-        }
-        return temp;
+      Register temp = i.TempRegister(0);
+      if (in.is_reg()) {
+        __ slliw(temp, in.rm(), 0);
+      } else {
+        __ Li(temp, in.immediate());
+        __ slliw(temp, temp, 0);
+      }
+      return temp;
     };
     Condition cc = FlagsConditionToConditionCmp(condition);
     switch (cc) {
@@ -4535,13 +4570,12 @@ void CodeGenerator::AssembleConstructFrame() {
       // If the frame is bigger than the stack, we throw the stack overflow
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
-      if ((required_slots * kSystemPointerSize) <
-          (v8_flags.stack_size * KB)) {
+      if ((required_slots * kSystemPointerSize) < (v8_flags.stack_size * KB)) {
         UseScratchRegisterScope temps(masm());
         Register stack_limit = temps.Acquire();
         __ LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
         __ AddWord(stack_limit, stack_limit,
-                 Operand(required_slots * kSystemPointerSize));
+                   Operand(required_slots * kSystemPointerSize));
         __ Branch(&done, uge, sp, Operand(stack_limit));
       }
 
@@ -4974,7 +5008,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         if (rep == MachineRepresentation::kFloat32) {
           // In src/builtins/wasm-to-js.tq:193
           //*toRef =
-          //Convert<intptr>(Bitcast<uint32>(WasmTaggedToFloat32(retVal))); so
+          // Convert<intptr>(Bitcast<uint32>(WasmTaggedToFloat32(retVal))); so
           // high 32 of src is 0. fmv.s can't NaNBox src.
           __ fmv_x_w(kScratchReg, src);
           __ fmv_w_x(dst, kScratchReg);
