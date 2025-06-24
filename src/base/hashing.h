@@ -360,12 +360,4 @@ V8_BASE_BIT_SPECIALIZE_BIT_CAST(double, uint64_t)
 
 }  // namespace v8::base
 
-// Also define std::hash for all classes that can be hashed via v8::base::hash.
-namespace std {
-template <typename T>
-  requires requires { typename v8::base::hash<T>; }
-struct hash<T> : v8::base::hash<T> {};
-
-}  // namespace std
-
 #endif  // V8_BASE_HASHING_H_
