@@ -24,12 +24,20 @@ namespace base {
 // TODO(416209124): Once this has stabilized further, consider moving it into a
 // MemoryProtectionKeyProvider or similar class expsed via the Platform and
 // provided by the Embedder.
+// TODO(416209124): Formalize the interaction between this class (which manages
+// memory protection keys), and VirtualAddressSpace (which manages memory,
+// potentially using a key managed by this class).
+// TODO(416209124): Consider reusing the MemoryProtectionKeyId type from
+// VirtualAddressSpace instead of raw ints. That would also give us some
+// assurance that the values are compatible.
 class V8_BASE_EXPORT MemoryProtectionKey {
  public:
   // Sentinel value if there is no PKU support or allocation of a key failed.
   // This is also the return value on an error of pkey_alloc() and has the
   // benefit that calling pkey_mprotect() with -1 behaves the same as regular
   // mprotect().
+  // TODO(416209124): consider using an std::optional instead like we do in the
+  // VirtualAddressSpace API.
   static constexpr int kNoMemoryProtectionKey = -1;
 
   // The default ProtectionKey can be used to remove pkey assignments.

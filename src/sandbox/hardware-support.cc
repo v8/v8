@@ -33,14 +33,6 @@ bool SandboxHardwareSupport::IsActive() {
   return sandbox_pkey_ != base::MemoryProtectionKey::kNoMemoryProtectionKey;
 }
 
-// static
-void SandboxHardwareSupport::RegisterSandboxMemory(Address addr, size_t size) {
-  if (!IsActive()) return;
-
-  CHECK(base::MemoryProtectionKey::SetPermissionsAndKey(
-      {addr, size}, PagePermissions::kNoAccess, sandbox_pkey_));
-}
-
 void SandboxHardwareSupport::RegisterOutOfSandboxMemory(
     Address addr, size_t size, PagePermissions permissions) {
   if (!IsActive()) return;

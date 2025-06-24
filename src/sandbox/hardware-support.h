@@ -34,11 +34,6 @@ class V8_EXPORT_PRIVATE SandboxHardwareSupport {
   // before and succeeded in allocating the memory protection keys.
   static bool IsActive();
 
-  // Register the memory for the sandbox.
-  //
-  // This will set up the memory protection keys for the sandbox address space.
-  static void RegisterSandboxMemory(Address addr, size_t size);
-
   // Register memory outside of the sandbox.
   //
   // When in sandboxed execution mode, memory outside of the sandbox cannot be
@@ -94,10 +89,18 @@ class V8_EXPORT_PRIVATE SandboxHardwareSupport {
   }
 
  private:
-  friend class DisallowSandboxAccess;
   friend class AllowSandboxAccess;
+  friend class DisallowSandboxAccess;
+  friend class Sandbox;
 
   static bool TryActivate();
+
+  // Returns the pkey used for in-sandbox memory.
+  //
+  // This should only be used by the Sandbox class during initialization.
+  // TODO(416209124): this should probably return an
+  // std::optional<MemoryProtectionKeyId> or similar.
+  static int SandboxPkey() { return sandbox_pkey_; }
 
   // This PKEY is used for all (writable) memory inside the sandbox. It can be
   // used for two different purposes:
