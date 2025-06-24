@@ -4856,15 +4856,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                        const Value& struct_object, const FieldImmediate& field,
                        const Value& field_value, AtomicMemoryOrder memory_order,
                        Value* result) {
-    if (!field.struct_imm.shared) {
+    const StructType* struct_type = field.struct_imm.struct_type;
+    ValueKind field_kind = struct_type->field(field.field_imm.index).kind();
+    if (!field.struct_imm.shared && field_kind == ValueKind::kI64) {
       // On some architectures atomic operations require aligned accesses while
-      // unshared objects don't have the required alignment. For simplicity we
-      // do the same on all platforms and for all rmw operations (even though
-      // only 64 bit operations should run into alignment problems).
-      // TODO(mliedtke): Reconsider this if atomic operations on unshared
-      // objects remain part of the spec proposal.
-      const StructType* struct_type = field.struct_imm.struct_type;
-      ValueKind field_kind = struct_type->field(field.field_imm.index).kind();
+      // unshared objects don't have the required alignment for 64 bit accesses.
       V<Any> old_value = __ StructGet(
           struct_object.op, struct_type, field.struct_imm.index,
           field.field_imm.index, true,
@@ -4873,58 +4869,28 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           {});
       result->op = old_value;
       V<Any> new_value;
-      if (field_kind == ValueKind::kI32) {
-        V<Word32> old = V<Word32>::Cast(old_value);
-        switch (opcode) {
-          case kExprStructAtomicAdd:
-            new_value = __ Word32Add(old, field_value.op);
-            break;
-          case kExprStructAtomicSub:
-            new_value = __ Word32Sub(old, field_value.op);
-            break;
-          case kExprStructAtomicAnd:
-            new_value = __ Word32BitwiseAnd(old, field_value.op);
-            break;
-          case kExprStructAtomicOr:
-            new_value = __ Word32BitwiseOr(old, field_value.op);
-            break;
-          case kExprStructAtomicXor:
-            new_value = __ Word32BitwiseXor(old, field_value.op);
-            break;
-          case kExprStructAtomicExchange:
-            new_value = field_value.op;
-            break;
-          default:
-            UNREACHABLE();
-        }
-      } else if (field_kind == ValueKind::kI64) {
-        V<Word64> old = V<Word64>::Cast(old_value);
-        switch (opcode) {
-          case kExprStructAtomicAdd:
-            new_value = __ Word64Add(old, field_value.op);
-            break;
-          case kExprStructAtomicSub:
-            new_value = __ Word64Sub(old, field_value.op);
-            break;
-          case kExprStructAtomicAnd:
-            new_value = __ Word64BitwiseAnd(old, field_value.op);
-            break;
-          case kExprStructAtomicOr:
-            new_value = __ Word64BitwiseOr(old, field_value.op);
-            break;
-          case kExprStructAtomicXor:
-            new_value = __ Word64BitwiseXor(old, field_value.op);
-            break;
-          case kExprStructAtomicExchange:
-            new_value = field_value.op;
-            break;
-          default:
-            UNREACHABLE();
-        }
-      } else {
-        CHECK(is_reference(field_kind));
-        CHECK_EQ(opcode, kExprStructAtomicExchange);
-        new_value = field_value.op;
+      V<Word64> old = V<Word64>::Cast(old_value);
+      switch (opcode) {
+        case kExprStructAtomicAdd:
+          new_value = __ Word64Add(old, field_value.op);
+          break;
+        case kExprStructAtomicSub:
+          new_value = __ Word64Sub(old, field_value.op);
+          break;
+        case kExprStructAtomicAnd:
+          new_value = __ Word64BitwiseAnd(old, field_value.op);
+          break;
+        case kExprStructAtomicOr:
+          new_value = __ Word64BitwiseOr(old, field_value.op);
+          break;
+        case kExprStructAtomicXor:
+          new_value = __ Word64BitwiseXor(old, field_value.op);
+          break;
+        case kExprStructAtomicExchange:
+          new_value = field_value.op;
+          break;
+        default:
+          UNREACHABLE();
       }
       DCHECK(new_value.valid());
       __ StructSet(struct_object.op, new_value, struct_type,
@@ -5055,72 +5021,38 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                       const Value& array_obj, const ArrayIndexImmediate& imm,
                       const Value& index, const Value& value,
                       AtomicMemoryOrder order, Value* result) {
-    if (!array_obj.type.is_shared()) {
+    ValueType element_type = imm.array_type->element_type();
+    if (!array_obj.type.is_shared() && element_type == kWasmI64) {
       // On some architectures atomic operations require aligned accesses while
-      // unshared objects don't have the required alignment. For simplicity we
-      // do the same on all platforms and for all rmw operations (even though
-      // only 64 bit operations should run into alignment problems).
-      // TODO(mliedtke): Reconsider this if atomic operations on unshared
-      // objects remain part of the spec proposal.
+      // unshared objects don't have the required alignment for 64 bit accesses.
       auto array_value = V<WasmArrayNullable>::Cast(array_obj.op);
       BoundsCheckArray(array_value, index.op, array_obj.type);
       V<Any> old_value =
           __ ArrayGet(array_value, index.op, imm.array_type, true, {});
       result->op = old_value;
       V<Word> new_value;
-      ValueType element_type = imm.array_type->element_type();
-      if (element_type == kWasmI32) {
-        V<Word32> old = V<Word32>::Cast(old_value);
-        switch (opcode) {
-          case kExprArrayAtomicAdd:
-            new_value = __ Word32Add(old, value.op);
-            break;
-          case kExprArrayAtomicSub:
-            new_value = __ Word32Sub(old, value.op);
-            break;
-          case kExprArrayAtomicAnd:
-            new_value = __ Word32BitwiseAnd(old, value.op);
-            break;
-          case kExprArrayAtomicOr:
-            new_value = __ Word32BitwiseOr(old, value.op);
-            break;
-          case kExprArrayAtomicXor:
-            new_value = __ Word32BitwiseXor(old, value.op);
-            break;
-          case kExprArrayAtomicExchange:
-            new_value = value.op;
-            break;
-          default:
-            UNREACHABLE();
-        }
-      } else if (element_type == kWasmI64) {
-        V<Word64> old = V<Word64>::Cast(old_value);
-        switch (opcode) {
-          case kExprArrayAtomicAdd:
-            new_value = __ Word64Add(old, value.op);
-            break;
-          case kExprArrayAtomicSub:
-            new_value = __ Word64Sub(old, value.op);
-            break;
-          case kExprArrayAtomicAnd:
-            new_value = __ Word64BitwiseAnd(old, value.op);
-            break;
-          case kExprArrayAtomicOr:
-            new_value = __ Word64BitwiseOr(old, value.op);
-            break;
-          case kExprArrayAtomicXor:
-            new_value = __ Word64BitwiseXor(old, value.op);
-            break;
-          case kExprArrayAtomicExchange:
-            new_value = value.op;
-            break;
-          default:
-            UNREACHABLE();
-        }
-      } else {
-        CHECK(element_type.is_reference());
-        CHECK_EQ(opcode, kExprArrayAtomicExchange);
-        new_value = value.op;
+      V<Word64> old = V<Word64>::Cast(old_value);
+      switch (opcode) {
+        case kExprArrayAtomicAdd:
+          new_value = __ Word64Add(old, value.op);
+          break;
+        case kExprArrayAtomicSub:
+          new_value = __ Word64Sub(old, value.op);
+          break;
+        case kExprArrayAtomicAnd:
+          new_value = __ Word64BitwiseAnd(old, value.op);
+          break;
+        case kExprArrayAtomicOr:
+          new_value = __ Word64BitwiseOr(old, value.op);
+          break;
+        case kExprArrayAtomicXor:
+          new_value = __ Word64BitwiseXor(old, value.op);
+          break;
+        case kExprArrayAtomicExchange:
+          new_value = value.op;
+          break;
+        default:
+          UNREACHABLE();
       }
       DCHECK(new_value.valid());
       __ ArraySet(array_value, index.op, new_value,
@@ -5167,10 +5099,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     if (!array_obj.type.is_shared() &&
         imm.array_type->element_type() == kWasmI64) {
       // On some architectures atomic operations require aligned accesses while
-      // unshared objects don't have the required alignment. For simplicity we
-      // do the same on all platforms.
-      // TODO(mliedtke): Reconsider this if atomic operations on unshared
-      // objects remain part of the spec proposal.
+      // unshared objects don't have the required alignment for 64 bit accesses.
       V<Word64> old_value = V<Word64>::Cast(
           __ ArrayGet(array_value, index.op, imm.array_type, true, {}));
       result->op = old_value;

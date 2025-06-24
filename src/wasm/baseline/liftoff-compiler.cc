@@ -6212,13 +6212,10 @@ class LiftoffCompiler {
 // (ia32 doesn't require any alignment for these operation) and there are only
 // painfully few registers available on ia32.
 #if !V8_TARGET_ARCH_IA32
-    if (!field.struct_imm.shared) {
+    if (!field.struct_imm.shared && field_kind == ValueKind::kI64) {
       // On some architectures atomic operations require aligned accesses while
-      // unshared objects don't have the required alignment. For simplicity we
-      // do the same on all platforms and for all rmw operations (even though
-      // only 64 bit operations should run into alignment problems).
-      // TODO(mliedtke): Reconsider this if atomic operations on unshared
-      // objects remain part of the spec proposal.
+      // unshared objects don't have the required alignment for 64 bit
+      // operations.
       LiftoffRegister result_reg =
           pinned.set(__ GetUnusedRegister(reg_class_for(field_kind), pinned));
       LoadObjectField(decoder, result_reg, obj.gp(), no_reg, offset, field_kind,
@@ -6228,54 +6225,26 @@ class LiftoffCompiler {
                                       : pinned.set(__ GetUnusedRegister(
                                             reg_class_for(field_kind), pinned));
 
-      if (field_kind == ValueKind::kI32) {
-        switch (opcode) {
-          case kExprStructAtomicAdd:
-            __ emit_i32_add(new_value.gp(), result_reg.gp(), value.gp());
-            break;
-          case kExprStructAtomicSub:
-            __ emit_i32_sub(new_value.gp(), result_reg.gp(), value.gp());
-            break;
-          case kExprStructAtomicAnd:
-            __ emit_i32_and(new_value.gp(), result_reg.gp(), value.gp());
-            break;
-          case kExprStructAtomicOr:
-            __ emit_i32_or(new_value.gp(), result_reg.gp(), value.gp());
-            break;
-          case kExprStructAtomicXor:
-            __ emit_i32_xor(new_value.gp(), result_reg.gp(), value.gp());
-            break;
-          case kExprStructAtomicExchange:
-            break;
-          default:
-            UNREACHABLE();
-        }
-      } else if (field_kind == ValueKind::kI64) {
-        switch (opcode) {
-          case kExprStructAtomicAdd:
-            __ emit_i64_add(new_value, result_reg, value);
-            break;
-          case kExprStructAtomicSub:
-            __ emit_i64_sub(new_value, result_reg, value);
-            break;
-          case kExprStructAtomicAnd:
-            __ emit_i64_and(new_value, result_reg, value);
-            break;
-          case kExprStructAtomicOr:
-            __ emit_i64_or(new_value, result_reg, value);
-            break;
-          case kExprStructAtomicXor:
-            __ emit_i64_xor(new_value, result_reg, value);
-            break;
-          case kExprStructAtomicExchange:
-            break;
-          default:
-            UNREACHABLE();
-        }
-      } else {
-        CHECK(is_reference(field_kind));
-        CHECK_EQ(opcode, kExprStructAtomicExchange);
-        // Nothing to be done here.
+      switch (opcode) {
+        case kExprStructAtomicAdd:
+          __ emit_i64_add(new_value, result_reg, value);
+          break;
+        case kExprStructAtomicSub:
+          __ emit_i64_sub(new_value, result_reg, value);
+          break;
+        case kExprStructAtomicAnd:
+          __ emit_i64_and(new_value, result_reg, value);
+          break;
+        case kExprStructAtomicOr:
+          __ emit_i64_or(new_value, result_reg, value);
+          break;
+        case kExprStructAtomicXor:
+          __ emit_i64_xor(new_value, result_reg, value);
+          break;
+        case kExprStructAtomicExchange:
+          break;
+        default:
+          UNREACHABLE();
       }
       __ PushRegister(field_kind, result_reg);
       StoreObjectField(decoder, obj.gp(), no_reg, offset, new_value, false,
@@ -6476,13 +6445,10 @@ class LiftoffCompiler {
     // needed (ia32 doesn't require any alignment for these operation) and there
     // are only painfully few registers available on ia32.
 #if !V8_TARGET_ARCH_IA32
-    if (!array_obj.type.is_shared()) {
+    if (!array_obj.type.is_shared() && elem_kind == ValueKind::kI64) {
       // On some architectures atomic operations require aligned accesses while
-      // unshared objects don't have the required alignment. For simplicity we
-      // do the same on all platforms and for all rmw operations (even though
-      // only 64 bit operations should run into alignment problems).
-      // TODO(mliedtke): Reconsider this if atomic operations on unshared
-      // objects remain part of the spec proposal.
+      // unshared objects don't have the required alignment for 64 bit
+      // operations.
       LiftoffRegister result_reg =
           pinned.set(__ GetUnusedRegister(reg_class_for(elem_kind), pinned));
       LoadObjectField(decoder, result_reg, array.gp(), index.gp(),
@@ -6492,55 +6458,26 @@ class LiftoffCompiler {
                                       ? value
                                       : pinned.set(__ GetUnusedRegister(
                                             reg_class_for(elem_kind), pinned));
-
-      if (elem_kind == ValueKind::kI32) {
-        switch (opcode) {
-          case kExprArrayAtomicAdd:
-            __ emit_i32_add(new_value.gp(), result_reg.gp(), value.gp());
-            break;
-          case kExprArrayAtomicSub:
-            __ emit_i32_sub(new_value.gp(), result_reg.gp(), value.gp());
-            break;
-          case kExprArrayAtomicAnd:
-            __ emit_i32_and(new_value.gp(), result_reg.gp(), value.gp());
-            break;
-          case kExprArrayAtomicOr:
-            __ emit_i32_or(new_value.gp(), result_reg.gp(), value.gp());
-            break;
-          case kExprArrayAtomicXor:
-            __ emit_i32_xor(new_value.gp(), result_reg.gp(), value.gp());
-            break;
-          case kExprArrayAtomicExchange:
-            break;
-          default:
-            UNREACHABLE();
-        }
-      } else if (elem_kind == ValueKind::kI64) {
-        switch (opcode) {
-          case kExprArrayAtomicAdd:
-            __ emit_i64_add(new_value, result_reg, value);
-            break;
-          case kExprArrayAtomicSub:
-            __ emit_i64_sub(new_value, result_reg, value);
-            break;
-          case kExprArrayAtomicAnd:
-            __ emit_i64_and(new_value, result_reg, value);
-            break;
-          case kExprArrayAtomicOr:
-            __ emit_i64_or(new_value, result_reg, value);
-            break;
-          case kExprArrayAtomicXor:
-            __ emit_i64_xor(new_value, result_reg, value);
-            break;
-          case kExprArrayAtomicExchange:
-            break;
-          default:
-            UNREACHABLE();
-        }
-      } else {
-        CHECK(is_reference(elem_kind));
-        CHECK_EQ(opcode, kExprArrayAtomicExchange);
-        // Nothing to be done here.
+      switch (opcode) {
+        case kExprArrayAtomicAdd:
+          __ emit_i64_add(new_value, result_reg, value);
+          break;
+        case kExprArrayAtomicSub:
+          __ emit_i64_sub(new_value, result_reg, value);
+          break;
+        case kExprArrayAtomicAnd:
+          __ emit_i64_and(new_value, result_reg, value);
+          break;
+        case kExprArrayAtomicOr:
+          __ emit_i64_or(new_value, result_reg, value);
+          break;
+        case kExprArrayAtomicXor:
+          __ emit_i64_xor(new_value, result_reg, value);
+          break;
+        case kExprArrayAtomicExchange:
+          break;
+        default:
+          UNREACHABLE();
       }
       __ PushRegister(elem_kind, result_reg);
       StoreObjectField(decoder, array.gp(), index.gp(),
