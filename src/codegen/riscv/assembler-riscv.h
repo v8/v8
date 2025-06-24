@@ -206,7 +206,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   static RegList DefaultTmpList();
   static DoubleRegList DefaultFPTmpList();
 
-  void AbortedCodeGeneration();
+  void AbortedCodeGeneration() override;
+
   // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
   static constexpr int kNoHandlerTable = 0;
   static constexpr SafepointTableBuilderBase* kNoSafepointTable = nullptr;
@@ -220,6 +221,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   void GetCode(LocalIsolate* isolate, CodeDesc* desc) {
     GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
   }
+
+  // On RISC-V, we sometimes need to emit branch trampolines between emitting
+  // a call instruction (jal/jalr) and recording a safepoint. This means that
+  // we have to be careful to make sure the safepoint is recorded at the right
+  // position. So we record the pc right after emitting the call instruction
+  // and use this for the safepoint.
+  int pc_offset_for_safepoint() const { return pc_offset_for_safepoint_; }
 
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
@@ -256,7 +264,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // Returns the branch offset to the given label from the current code
   // position. Links the label to the current position if it is still unbound.
   // Manages the jump elimination optimization if the second parameter is true.
-  virtual int32_t branch_offset_helper(Label* L, OffsetSize bits);
+  int32_t branch_offset_helper(Label* L, OffsetSize bits) override;
   uintptr_t jump_address(Label* L);
   int32_t branch_long_offset(Label* L);
 
@@ -691,7 +699,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   VectorUnit VU;
 
-  void ClearVectorunit() { VU.clear(); }
+  void ClearVectorunit() override { VU.clear(); }
 
  protected:
   // Readable constants for base and offset adjustment helper, these indicate if
@@ -728,6 +736,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   // Record reloc info for current pc_.
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
+
+  // Record the current pc for the next safepoint.
+  void RecordPcForSafepoint() override {
+    pc_offset_for_safepoint_ = pc_offset();
+  }
 
   // Block the emission of the trampoline pool before pc_offset.
   void BlockTrampolinePoolBefore(int pc_offset) {
@@ -820,12 +833,17 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
 
+  // Keep track of the last call instruction (jal/jalr) position to ensure that
+  // we can generate a correct safepoint even in the presence of a branch
+  // trampoline between emitting the call and recording the safepoint.
+  int pc_offset_for_safepoint_ = -1;
+
   // InstructionStream emission.
   inline void CheckBuffer();
   void GrowBuffer();
-  void emit(Instr x);
-  void emit(ShortInstr x);
-  void emit(uint64_t x);
+  void emit(Instr x) override;
+  void emit(ShortInstr x) override;
+  void emit(uint64_t x) override;
   template <typename T>
   inline void EmitHelper(T x);
 

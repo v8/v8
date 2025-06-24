@@ -1528,6 +1528,9 @@ void Assembler::CheckTrampolinePool() {
       DEBUG_PRINTF("inserting trampoline pool at %p (%d)\n",
                    reinterpret_cast<Instr*>(buffer_start_ + pc_offset()),
                    pc_offset());
+      int pc_offset_for_safepoint_before = pc_offset_for_safepoint();
+      USE(pc_offset_for_safepoint_before);  // Only used in DCHECK below.
+
       BlockTrampolinePoolScope block_trampoline_pool(this);
       Label after_pool;
       j(&after_pool);
@@ -1542,12 +1545,17 @@ void Assembler::CheckTrampolinePool() {
         auipc(t6, Hi20);  // Read PC + Hi20 into t6
         jr(t6, Lo12);     // jump PC + Hi20 + Lo12
       }
+
       // If unbound_labels_count_ is big enough, label after_pool will
       // need a trampoline too, so we must create the trampoline before
       // the bind operation to make sure function 'bind' can get this
       // information.
       trampoline_ = Trampoline(pool_start, unbound_labels_count_);
       bind(&after_pool);
+
+      // Make sure we didn't mess with the recorded pc for the next safepoint
+      // as part of emitting the branch trampolines.
+      DCHECK_EQ(pc_offset_for_safepoint(), pc_offset_for_safepoint_before);
 
       trampoline_emitted_ = true;
       // As we are only going to emit trampoline once, we need to prevent any

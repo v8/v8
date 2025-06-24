@@ -386,15 +386,13 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   void skip_bytes(int num_bytes) { pc_ += num_bytes; }
 
-  int pc_offset_for_safepoint() {
-#if defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_LOONG64)
-    // MIPS and LOONG need to use their own implementation to avoid trampoline's
-    // influence.
-    UNREACHABLE();
-#else
-    return pc_offset();
+// MIPS, LOONG, and RISC-V need to use their own implementations to avoid the
+// influence of branch trampolines. They provide their implementations in the
+// architecture-specific assembler subclasses.
+#if !defined(V8_TARGET_ARCH_MIPS64) && !defined(V8_TARGET_ARCH_LOONG64) && \
+    !defined(V8_TARGET_ARCH_RISCV32) && !defined(V8_TARGET_ARCH_RISCV64)
+  int pc_offset_for_safepoint() const { return pc_offset(); }
 #endif
-  }
 
   uint8_t* buffer_start() const { return buffer_->start(); }
   int buffer_size() const { return buffer_->size(); }
