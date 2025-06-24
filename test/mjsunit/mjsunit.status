@@ -311,6 +311,9 @@
   'es6/block-conflicts': [PASS, SLOW],
   'es6/typedarray-of': [PASS, SLOW],
   'compiler/inlining-exponential': [PASS, SLOW],
+
+  # BUG(https://crbug.com/422346609): Verification of regalloc is too slow.
+  'wasm/max-params': [SKIP],
 }],  # mode == debug
 
 ['novfp3', {
