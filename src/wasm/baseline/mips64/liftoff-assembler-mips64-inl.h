@@ -726,7 +726,8 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
                                   LoadType type, LiftoffRegList pinned,
-                                  bool i64_offset) {
+                                  bool i64_offset,
+                                  Endianness /* endianness */) {
   UseScratchRegisterScope temps(this);
   MemOperand src_op =
       liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm, i64_offset);
@@ -788,7 +789,8 @@ void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
                                    StoreType type, LiftoffRegList pinned,
-                                   bool i64_offset) {
+                                   bool i64_offset,
+                                   Endianness /* endianness */) {
   UseScratchRegisterScope temps(this);
   MemOperand dst_op =
       liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm, i64_offset);
@@ -863,7 +865,7 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
   void LiftoffAssembler::Atomic##name(                                         \
       Register dst_addr, Register offset_reg, uintptr_t offset_imm,            \
       LiftoffRegister value, LiftoffRegister result, StoreType type,           \
-      bool i64_offset) {                                                       \
+      bool i64_offset, Endianness /* endianness */) {                          \
     LiftoffRegList pinned{dst_addr, value, result};                            \
     if (offset_reg != no_reg) pinned.set(offset_reg);                          \
     Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();       \
@@ -942,7 +944,8 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                                       uintptr_t offset_imm,
                                       LiftoffRegister value,
                                       LiftoffRegister result, StoreType type,
-                                      bool i64_offset) {
+                                      bool i64_offset,
+                                      Endianness /* endianness */) {
   LiftoffRegList pinned{dst_addr, value, result};
   if (offset_reg != no_reg) pinned.set(offset_reg);
   Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
