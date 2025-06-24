@@ -48,7 +48,7 @@ namespace internal {
 class V8_EXPORT_PRIVATE Sandbox {
  public:
   // +-  ~~~  -+----------------------------------------  ~~~  -+-  ~~~  -+
-  // |  32 GB  |                 (Ideally) 1 TB                 |  32 GB  |
+  // |  64 GB  |                 (Ideally) 1 TB                 |  64 GB  |
   // |         |                                                |         |
   // | Guard   |      4 GB      :  ArrayBuffer backing stores,  | Guard   |
   // | Region  |    V8 Heap     :  WASM memory buffers, and     | Region  |
