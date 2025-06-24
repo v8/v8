@@ -2574,7 +2574,6 @@ Float32 Simulator::get_fpu_register_Float32(int fpureg,
                                             bool check_nanbox) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
   if (check_nanbox && !is_boxed_float(FPUregisters_[fpureg])) {
-    std::cout << std::hex << FPUregisters_[fpureg] << std::endl;
     return Float32::FromBits(0x7fc00000);
   }
   return Float32::FromBits(FPUregisters_[fpureg] & 0xFFFF'FFFF);
