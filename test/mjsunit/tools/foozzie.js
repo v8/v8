@@ -30,10 +30,14 @@ if (this.Intl) {
 }
 
 // Dummy performance methods.
-assertEquals(1.2, performance.now());
+assertEquals(undefined, performance.now());
 assertEquals(undefined, performance.mark("a mark"));
 assertEquals(undefined, performance.measure("a measure"));
-assertEquals([], performance.measureMemory());
+assertEquals(undefined, performance.measureMemory());
+assertEquals(undefined, new this.constructor().performance.now());
+assertEquals(undefined, new this.constructor().performance.mark());
+assertEquals(undefined, new this.constructor().performance.measure());
+assertEquals(undefined, new this.constructor().performance.measureMemory());
 
 // Worker messages follow a predefined deterministic pattern.
 const worker = new Worker(``, {type: 'string'});

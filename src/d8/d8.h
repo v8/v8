@@ -588,6 +588,7 @@ class Shell : public i::AllStatic {
       const v8::FunctionCallbackInfo<v8::Value>& info);
   static void PerformanceMeasureMemory(
       const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void PerformanceStub(const v8::FunctionCallbackInfo<v8::Value>& info);
 
   static void RealmCurrent(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& info);

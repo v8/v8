@@ -70,12 +70,6 @@ var prettyPrinted = function prettyPrinted(msg) { return msg; };
   Date = new Proxy(Date, handler);
 })();
 
-// Mock performance methods.
-performance.now = function() { return 1.2; };
-performance.mark = function() { return undefined; };
-performance.measure = function() { return undefined; };
-performance.measureMemory = function() { return []; };
-
 // Mock readline so that test cases don't hang.
 readline = function() { return "foo"; };
 

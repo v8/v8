@@ -2380,6 +2380,11 @@ void Shell::PerformanceMeasureMemory(
   info.GetReturnValue().Set(promise_resolver->GetPromise());
 }
 
+// Stub for differential fuzzing.
+void Shell::PerformanceStub(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(v8::Undefined(info.GetIsolate()));
+}
+
 // Realm.current() returns the index of the currently active realm.
 void Shell::RealmCurrent(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
@@ -4115,15 +4120,27 @@ Local<ObjectTemplate> Shell::CreateAsyncHookTemplate(Isolate* isolate) {
 
 Local<ObjectTemplate> Shell::CreatePerformanceTemplate(Isolate* isolate) {
   Local<ObjectTemplate> performance_template = ObjectTemplate::New(isolate);
-  performance_template->Set(isolate, "now",
-                            FunctionTemplate::New(isolate, PerformanceNow));
-  performance_template->Set(isolate, "mark",
-                            FunctionTemplate::New(isolate, PerformanceMark));
-  performance_template->Set(isolate, "measure",
-                            FunctionTemplate::New(isolate, PerformanceMeasure));
-  performance_template->Set(
-      isolate, "measureMemory",
-      FunctionTemplate::New(isolate, PerformanceMeasureMemory));
+  if (i::v8_flags.correctness_fuzzer_suppressions) {
+    // Stubs for differential fuzzing.
+    performance_template->Set(isolate, "now",
+                              FunctionTemplate::New(isolate, PerformanceStub));
+    performance_template->Set(isolate, "mark",
+                              FunctionTemplate::New(isolate, PerformanceStub));
+    performance_template->Set(isolate, "measure",
+                              FunctionTemplate::New(isolate, PerformanceStub));
+    performance_template->Set(isolate, "measureMemory",
+                              FunctionTemplate::New(isolate, PerformanceStub));
+  } else {
+    performance_template->Set(isolate, "now",
+                              FunctionTemplate::New(isolate, PerformanceNow));
+    performance_template->Set(isolate, "mark",
+                              FunctionTemplate::New(isolate, PerformanceMark));
+    performance_template->Set(
+        isolate, "measure", FunctionTemplate::New(isolate, PerformanceMeasure));
+    performance_template->Set(
+        isolate, "measureMemory",
+        FunctionTemplate::New(isolate, PerformanceMeasureMemory));
+  }
   return performance_template;
 }
 
