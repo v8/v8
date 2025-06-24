@@ -2366,7 +2366,7 @@ MaybeDirectHandle<JSTemporalPlainDate> ToTemporalDate(
     } else if (InstanceTypeChecker::IsJSTemporalPlainDateTime(instance_type)) {
       // iii. Return !CreateTemporalDate(item.[[ISODateTime]].[[ISODate]],
       // item.[[Calendar]]).
-      record = GetDateRecord(Cast<JSTemporalPlainDate>(item));
+      record = GetDateRecord(Cast<JSTemporalPlainDateTime>(item));
     } else {
       // d. Let calendar be ?GetTemporalCalendarIdentifierWithISODefault(item).
       temporal_rs::AnyCalendarKind kind = temporal_rs::AnyCalendarKind::Iso;
@@ -3384,71 +3384,101 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Constructor(
                                  isolate->factory()->NewStringFromAsciiChecked(
                                      "Temporal.Duration")));
   }
-  // 2. Let y be ? ToIntegerIfIntegral(years).
-  double y;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, y, temporal::ToIntegerIfIntegral(isolate, years),
-      DirectHandle<JSTemporalDuration>());
+  // 2. If years is undefined, let y be 0; else let y be
+  // ? ToIntegerIfIntegral(years).
+  double y = 0;
+  if (!IsUndefined(*years)) {
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, y, temporal::ToIntegerIfIntegral(isolate, years),
+        DirectHandle<JSTemporalDuration>());
+  }
 
-  // 3. Let mo be ? ToIntegerIfIntegral(months).
-  double mo;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, mo, temporal::ToIntegerIfIntegral(isolate, months),
-      DirectHandle<JSTemporalDuration>());
+  // 3. If months is undefined, let mo be 0; else let mo be
+  // ? ToIntegerIfIntegral(months).
+  double mo = 0;
+  if (!IsUndefined(*months)) {
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, mo, temporal::ToIntegerIfIntegral(isolate, months),
+        DirectHandle<JSTemporalDuration>());
+  }
 
-  // 4. Let w be ? ToIntegerIfIntegral(weeks).
-  double w;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, w, temporal::ToIntegerIfIntegral(isolate, weeks),
-      DirectHandle<JSTemporalDuration>());
+  // 4. If weeks is undefined, let w be 0; else let w be
+  // ? ToIntegerIfIntegral(weeks).
+  double w = 0;
+  if (!IsUndefined(*weeks)) {
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, w, temporal::ToIntegerIfIntegral(isolate, weeks),
+        DirectHandle<JSTemporalDuration>());
+  }
 
-  // 5. Let d be ? ToIntegerIfIntegral(days).
-  double d;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, d, temporal::ToIntegerIfIntegral(isolate, days),
-      DirectHandle<JSTemporalDuration>());
+  // 5. If days is undefined, let d be 0; else let d be
+  // ? ToIntegerIfIntegral(days).
+  double d = 0;
+  if (!IsUndefined(*days)) {
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, d, temporal::ToIntegerIfIntegral(isolate, days),
+        DirectHandle<JSTemporalDuration>());
+  }
 
-  // 6. Let h be ? ToIntegerIfIntegral(hours).
-  double h;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, h, temporal::ToIntegerIfIntegral(isolate, hours),
-      DirectHandle<JSTemporalDuration>());
+  // 6. If hours is undefined, let h be 0; else let h be
+  // ? ToIntegerIfIntegral(hours).
+  double h = 0;
+  if (!IsUndefined(*hours)) {
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, h, temporal::ToIntegerIfIntegral(isolate, hours),
+        DirectHandle<JSTemporalDuration>());
+  }
 
-  // 7. Let m be ? ToIntegerIfIntegral(minutes).
-  double m;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, m, temporal::ToIntegerIfIntegral(isolate, minutes),
-      DirectHandle<JSTemporalDuration>());
+  // 7. If minutes is undefined, let m be 0; else let m be
+  // ? ToIntegerIfIntegral(minutes).
+  double m = 0;
+  if (!IsUndefined(*minutes)) {
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, m, temporal::ToIntegerIfIntegral(isolate, minutes),
+        DirectHandle<JSTemporalDuration>());
+  }
 
-  // 8. Let s be ? ToIntegerIfIntegral(seconds).
-  double s;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, s, temporal::ToIntegerIfIntegral(isolate, seconds),
-      DirectHandle<JSTemporalDuration>());
+  // 8. If seconds is undefined, let s be 0; else let s be
+  // ? ToIntegerIfIntegral(seconds).
+  double s = 0;
+  if (!IsUndefined(*seconds)) {
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, s, temporal::ToIntegerIfIntegral(isolate, seconds),
+        DirectHandle<JSTemporalDuration>());
+  }
 
-  // 9. Let ms be ? ToIntegerIfIntegral(milliseconds).
-  double ms;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, ms, temporal::ToIntegerIfIntegral(isolate, milliseconds),
-      DirectHandle<JSTemporalDuration>());
+  // 9. If milliseconds is undefined, let ms be 0; else let ms be
+  // ? ToIntegerIfIntegral(milliseconds).
+  double ms = 0;
+  if (!IsUndefined(*milliseconds)) {
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, ms, temporal::ToIntegerIfIntegral(isolate, milliseconds),
+        DirectHandle<JSTemporalDuration>());
+  }
 
-  // 10. Let mis be ? ToIntegerIfIntegral(microseconds).
-  double mis;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, mis, temporal::ToIntegerIfIntegral(isolate, microseconds),
-      DirectHandle<JSTemporalDuration>());
+  // 10. If microseconds is undefined, let mis be 0; else let mis be
+  // ? ToIntegerIfIntegral(microseconds).
+  double mis = 0;
+  if (!IsUndefined(*microseconds)) {
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, mis, temporal::ToIntegerIfIntegral(isolate, microseconds),
+        DirectHandle<JSTemporalDuration>());
+  }
 
-  // 11. Let ns be ? ToIntegerIfIntegral(nanoseconds).
-  double ns;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, ns, temporal::ToIntegerIfIntegral(isolate, nanoseconds),
-      DirectHandle<JSTemporalDuration>());
+  // 11. If nanoseconds is undefined, let ns be 0; else let ns be
+  // ? ToIntegerIfIntegral(nanoseconds).
+  double ns = 0;
+  if (!IsUndefined(*nanoseconds)) {
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, ns, temporal::ToIntegerIfIntegral(isolate, nanoseconds),
+        DirectHandle<JSTemporalDuration>());
+  }
 
   // 12. Return ?CreateTemporalDuration(y, mo, w, d, h, m, s, ms, mis, ns,
   // NewTarget).
   return ConstructRustWrappingType<JSTemporalDuration>(
       isolate,
-      temporal_rs::Duration::create(y, mo, w, d, h, m, s, ms, mis, ms));
+      temporal_rs::Duration::create(y, mo, w, d, h, m, s, ms, mis, ns));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.duration.compare
@@ -3654,8 +3684,7 @@ MaybeDirectHandle<Number> JSTemporalDuration::Total(
 
   MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
       isolate, relative_to,
-      temporal::GetTemporalRelativeToOptionHandleUndefined(isolate,
-                                                           total_of_obj),
+      temporal::GetTemporalRelativeToOptionHandleUndefined(isolate, total_of),
       kNullMaybeHandle);
 
   // 10. Let unit be ? GetTemporalUnitValuedOption(totalOf, "unit", datetime,
