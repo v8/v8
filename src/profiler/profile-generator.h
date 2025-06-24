@@ -362,7 +362,8 @@ class V8_EXPORT_PRIVATE ProfileNode {
   ProfileNode* parent_;
   unsigned id_;
   // maps line and column --> number of ticks
-  std::unordered_map<std::pair<int, int>, int> line_and_column_ticks_;
+  std::unordered_map<std::pair<int, int>, int, base::hash<std::pair<int, int>>>
+      line_and_column_ticks_;
 
   std::vector<CpuProfileDeoptInfo> deopt_infos_;
 };
