@@ -721,9 +721,7 @@ Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
                                      Object::ToString(isolate, locale_in),
                                      Nothing<std::string>());
   } else {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NewTypeError(MessageTemplate::kLanguageID),
-                                 Nothing<std::string>());
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kLanguageID));
   }
   std::string locale = locale_str->ToStdString();
   return Intl::ValidateAndCanonicalizeUnicodeLocaleId(isolate, locale);
@@ -735,11 +733,10 @@ Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
 Maybe<std::string> Intl::ValidateAndCanonicalizeUnicodeLocaleId(
     Isolate* isolate, std::string_view locale_in) {
   if (!IsStructurallyValidLanguageTag(locale_in)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalidLanguageTag,
-                      isolate->factory()->NewStringFromAsciiChecked(locale_in)),
-        Nothing<std::string>());
+    THROW_NEW_ERROR(
+        isolate, NewRangeError(
+                     MessageTemplate::kInvalidLanguageTag,
+                     isolate->factory()->NewStringFromAsciiChecked(locale_in)));
   }
 
   std::string locale(locale_in);
@@ -773,33 +770,27 @@ Maybe<std::string> Intl::ValidateAndCanonicalizeUnicodeLocaleId(
   icu::Locale icu_locale = icu::Locale::forLanguageTag(locale.c_str(), error);
 
   if (U_FAILURE(error) || icu_locale.isBogus()) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(
-            MessageTemplate::kInvalidLanguageTag,
-            isolate->factory()->NewStringFromAsciiChecked(locale.c_str())),
-        Nothing<std::string>());
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kInvalidLanguageTag,
+                                  isolate->factory()->NewStringFromAsciiChecked(
+                                      locale.c_str())));
   }
 
   // Use LocaleBuilder to validate locale.
   icu_locale = icu::LocaleBuilder().setLocale(icu_locale).build(error);
   icu_locale.canonicalize(error);
   if (U_FAILURE(error) || icu_locale.isBogus()) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(
-            MessageTemplate::kInvalidLanguageTag,
-            isolate->factory()->NewStringFromAsciiChecked(locale.c_str())),
-        Nothing<std::string>());
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kInvalidLanguageTag,
+                                  isolate->factory()->NewStringFromAsciiChecked(
+                                      locale.c_str())));
   }
   Maybe<std::string> maybe_to_language_tag = Intl::ToLanguageTag(icu_locale);
   if (maybe_to_language_tag.IsNothing()) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(
-            MessageTemplate::kInvalidLanguageTag,
-            isolate->factory()->NewStringFromAsciiChecked(locale.c_str())),
-        Nothing<std::string>());
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kInvalidLanguageTag,
+                                  isolate->factory()->NewStringFromAsciiChecked(
+                                      locale.c_str())));
   }
 
   return maybe_to_language_tag;
@@ -1641,11 +1632,9 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   // 8. If roundingIncrement is not in « 1, 2, 5, 10, 20, 25, 50, 100, 200, 250,
   // 500, 1000, 2000, 2500, 5000 », throw a RangeError exception.
   if (!IsValidRoundingIncrement(digit_options.rounding_increment)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
-                      factory->roundingIncrement_string()),
-        Nothing<NumberFormatDigitOptions>());
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
+                                  factory->roundingIncrement_string()));
   }
 
   // 9. Let roundingMode be ? GetOption(options, "roundingMode", string, «
@@ -1786,10 +1775,9 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
       } else if (mnfd > mxfd) {
         // v. Else if mnfd is greater than mxfd, throw a RangeError
         // exception.
-        THROW_NEW_ERROR_RETURN_VALUE(
+        THROW_NEW_ERROR(
             isolate,
-            NewRangeError(MessageTemplate::kPropertyValueOutOfRange, mxfd_str),
-            Nothing<NumberFormatDigitOptions>());
+            NewRangeError(MessageTemplate::kPropertyValueOutOfRange, mxfd_str));
       }
       // vi. Set intlObj.[[MinimumFractionDigits]] to mnfd.
       digit_options.minimum_fraction_digits = mnfd;
@@ -1839,18 +1827,15 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
     // a. If intlObj.[[RoundingType]] is not fractionDigits, throw a TypeError
     // exception.
     if (digit_options.rounding_type != RoundingType::kFractionDigits) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate, NewTypeError(MessageTemplate::kBadRoundingType),
-          Nothing<NumberFormatDigitOptions>());
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kBadRoundingType));
     }
     // b. If intlObj.[[MaximumFractionDigits]] is not equal to
     // intlObj.[[MinimumFractionDigits]], throw a RangeError exception.
     if (digit_options.maximum_fraction_digits !=
         digit_options.minimum_fraction_digits) {
-      THROW_NEW_ERROR_RETURN_VALUE(
+      THROW_NEW_ERROR(
           isolate,
-          NewRangeError(MessageTemplate::kPropertyValueOutOfRange, mxfd_str),
-          Nothing<NumberFormatDigitOptions>());
+          NewRangeError(MessageTemplate::kPropertyValueOutOfRange, mxfd_str));
     }
   }
   return Just(digit_options);
@@ -2796,11 +2781,10 @@ Maybe<bool> Intl::GetNumberingSystem(Isolate* isolate,
   if (maybe.FromJust()) {
     result = output->ToStdString();
     if (!IsWellFormedNumberingSystem(result)) {
-      THROW_NEW_ERROR_RETURN_VALUE(
+      THROW_NEW_ERROR(
           isolate,
           NewRangeError(MessageTemplate::kInvalid,
-                        isolate->factory()->numberingSystem_string(), output),
-          Nothing<bool>());
+                        isolate->factory()->numberingSystem_string(), output));
     }
     return Just(true);
   }

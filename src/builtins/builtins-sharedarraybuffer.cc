@@ -289,12 +289,11 @@ V8_NOINLINE Maybe<bool> CheckAtomicsPauseIterationNumber(
     }
   }
 
-  THROW_NEW_ERROR_RETURN_VALUE(
+  THROW_NEW_ERROR(
       isolate,
       NewError(isolate->type_error_function(),
                MessageTemplate::kArgumentIsNotUndefinedOrInteger,
-               isolate->factory()->NewStringFromAsciiChecked(method_name)),
-      Nothing<bool>());
+               isolate->factory()->NewStringFromAsciiChecked(method_name)));
 }
 }  // namespace
 

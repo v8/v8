@@ -78,9 +78,8 @@ Maybe<bool> CollectFieldsAndElements(Isolate* isolate,
 
       // TODO(v8:12547): Support Symbols?
       if (IsSymbol(*property_name)) {
-        THROW_NEW_ERROR_RETURN_VALUE(
-            isolate, NewTypeError(MessageTemplate::kSymbolToString),
-            Nothing<bool>());
+        THROW_NEW_ERROR(isolate,
+                        NewTypeError(MessageTemplate::kSymbolToString));
       }
 
       is_duplicate = !field_names_set.insert(property_name).second;
@@ -91,11 +90,9 @@ Maybe<bool> CollectFieldsAndElements(Isolate* isolate,
     }
 
     if (is_duplicate) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate,
-          NewTypeError(MessageTemplate::kDuplicateTemplateProperty,
-                       property_name),
-          Nothing<bool>());
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kDuplicateTemplateProperty,
+                                   property_name));
     }
   }
 

@@ -122,11 +122,10 @@ V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOrBooleanOption(
     }
   }
 
-  THROW_NEW_ERROR_RETURN_VALUE(
+  THROW_NEW_ERROR(
       isolate,
       NewRangeError(MessageTemplate::kValueOutOfRange, value,
-                    factory->NewStringFromAsciiChecked(method), property_str),
-      Nothing<T>());
+                    factory->NewStringFromAsciiChecked(method), property_str));
 }
 
 // ECMA402 9.2.10. GetOption( options, property, type, values, fallback)

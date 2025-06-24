@@ -36,8 +36,7 @@ Maybe<double> ToIntegerWithoutRounding(Isolate* isolate,
   }
   // 3. If IsIntegralNumber(number) is false, throw a RangeError exception.
   if (!IsIntegralNumber(isolate, number)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<double>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
   // 4. Return ℝ(number).
   return Just(Object::NumberValue(*number));
@@ -214,9 +213,7 @@ Maybe<TimeDurationRecord> TimeDurationRecord::Create(
   TimeDurationRecord record = {days,         hours,        minutes,    seconds,
                                milliseconds, microseconds, nanoseconds};
   if (!IsValidDuration(isolate, {0, 0, 0, record})) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                 Nothing<TimeDurationRecord>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
   // 2. Return the Record { [[Days]]: ℝ(𝔽(days)), [[Hours]]: ℝ(𝔽(hours)),
   // [[Minutes]]: ℝ(𝔽(minutes)), [[Seconds]]: ℝ(𝔽(seconds)), [[Milliseconds]]:
@@ -239,9 +236,7 @@ Maybe<DurationRecord> DurationRecord::Create(
       weeks,
       {days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds}};
   if (!IsValidDuration(isolate, record)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                 Nothing<DurationRecord>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
   // 2. Return the Record { [[Years]]: ℝ(𝔽(years)), [[Months]]: ℝ(𝔽(months)),
   // [[Weeks]]: ℝ(𝔽(weeks)), [[Days]]: ℝ(𝔽(days)), [[Hours]]: ℝ(𝔽(hours)),
@@ -258,8 +253,7 @@ Maybe<DurationRecord> ToPartialDuration(
   // 1. If Type(temporalDurationLike) is not Object, then
   if (!IsJSReceiver(*temporal_duration_like_obj)) {
     // a. Throw a TypeError exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<DurationRecord>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
   }
   DirectHandle<JSReceiver> temporal_duration_like =
       Cast<JSReceiver>(temporal_duration_like_obj);
@@ -307,8 +301,7 @@ Maybe<DurationRecord> ToPartialDuration(
   // 5. If any is false, then
   if (!any) {
     // a. Throw a TypeError exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<DurationRecord>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
   }
   // 6. Return result.
   return Just(result);

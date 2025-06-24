@@ -1585,9 +1585,7 @@ Maybe<icu::number::FormattedNumber> IcuFormatNumber(
   if (U_FAILURE(status)) {
     // This happen because of icu data trimming trim out "unit".
     // See https://bugs.chromium.org/p/v8/issues/detail?id=8641
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NewTypeError(MessageTemplate::kIcuError),
-                                 Nothing<icu::number::FormattedNumber>());
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
   return Just(std::move(formatted));
 }
@@ -1606,9 +1604,7 @@ Maybe<icu::number::FormattedNumber> IntlMathematicalValue::FormatNumeric(
     icu::number::FormattedNumber result =
         FormatDecimalString(isolate, number_format, string, status);
     if (U_FAILURE(status)) {
-      THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                   NewTypeError(MessageTemplate::kIcuError),
-                                   Nothing<icu::number::FormattedNumber>());
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
     }
     return Just(std::move(result));
   }
@@ -1635,9 +1631,7 @@ Maybe<icu::number::FormattedNumberRange> IntlMathematicalValue::FormatRange(
       number_range_format.formatFormattableRange(x_formatable, y_formatable,
                                                  status);
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NewTypeError(MessageTemplate::kIcuError),
-                                 Nothing<icu::number::FormattedNumberRange>());
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
 
   return Just(std::move(result));
@@ -1811,9 +1805,7 @@ Maybe<icu::Formattable> IntlMathematicalValue::ToFormattable(
       if (U_SUCCESS(status)) return Just(result);
     }
   }
-  THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                               NewTypeError(MessageTemplate::kIcuError),
-                               Nothing<icu::Formattable>());
+  THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
 }
 
 namespace {
@@ -1933,8 +1925,7 @@ Maybe<int> ConstructParts(Isolate* isolate,
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString formatted_text = formatted.toString(status);
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NewTypeError(MessageTemplate::kIcuError), Nothing<int>());
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
   int32_t length = formatted_text.length();
   int index = start_index;
@@ -2038,18 +2029,15 @@ MaybeDirectHandle<T> PartitionNumberRangePattern(
 
   // 1. If x is not-a-number or y is not-a-number, throw a RangeError exception.
   if (x.IsNaN()) {
-    THROW_NEW_ERROR_RETURN_VALUE(
+    THROW_NEW_ERROR(
         isolate,
         NewRangeError(MessageTemplate::kInvalid,
-                      factory->NewStringFromStaticChars("start"), start),
-        MaybeDirectHandle<T>());
+                      factory->NewStringFromStaticChars("start"), start));
   }
   if (y.IsNaN()) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalid,
-                      factory->NewStringFromStaticChars("end"), end),
-        MaybeDirectHandle<T>());
+    THROW_NEW_ERROR(
+        isolate, NewRangeError(MessageTemplate::kInvalid,
+                               factory->NewStringFromStaticChars("end"), end));
   }
 
   Maybe<icu::number::LocalizedNumberRangeFormatter> maybe_range_formatter =
@@ -2125,9 +2113,7 @@ JSNumberFormat::GetRangeFormatter(
               number_formatter.toSkeleton(status), perror, status))
           .locale(icu::Locale::forLanguageTag(locale_str, status));
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NewTypeError(MessageTemplate::kIcuError),
-        Nothing<icu::number::LocalizedNumberRangeFormatter>());
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
   return Just(range_formatter);
 }

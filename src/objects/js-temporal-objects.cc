@@ -136,14 +136,10 @@ Maybe<ContainedValue> ExtractRustResult(
     auto err = std::move(rust_result).err().value();
     switch (err.kind) {
       case temporal_rs::ErrorKind::Type:
-        THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                     NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                     Nothing<ContainedValue>());
+        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
         break;
       case temporal_rs::ErrorKind::Range:
-        THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                     NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                     Nothing<ContainedValue>());
+        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
         break;
       case temporal_rs::ErrorKind::Syntax:
       case temporal_rs::ErrorKind::Assert:
@@ -151,9 +147,8 @@ Maybe<ContainedValue> ExtractRustResult(
       default:
         // These cases shouldn't happen; the spec doesn't currently trigger
         // these errors
-        THROW_NEW_ERROR_RETURN_VALUE(
-            isolate, NewTypeError(MessageTemplate::kTemporalRsError),
-            Nothing<ContainedValue>());
+        THROW_NEW_ERROR(isolate,
+                        NewTypeError(MessageTemplate::kTemporalRsError));
     }
     return Nothing<ContainedValue>();
   }
@@ -230,8 +225,7 @@ Maybe<double> ToIntegerIfIntegral(Isolate* isolate,
   // 2. If number is not an integral Number, throw a RangeError exception.
   if (!std::isfinite(number_double) ||
       nearbyint(number_double) != number_double) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<double>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
   // 3. Return ℝ(number).
   return Just(number_double);
@@ -247,8 +241,7 @@ Maybe<double> ToIntegerWithTruncation(Isolate* isolate,
       Nothing<double>());
   // 2. If number is NaN, +∞𝔽 or -∞𝔽, throw a RangeError exception.
   if (!std::isfinite(number)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<double>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
 
   // 3. Return truncate(number).
@@ -265,8 +258,7 @@ Maybe<double> ToPositiveIntegerWithTruncation(Isolate* isolate,
       Nothing<double>());
   // 2. If integer is ≤ 0, throw a RangeError exception
   if (integer <= 0) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<double>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
 
   // 3. Return integer.
@@ -287,9 +279,7 @@ Maybe<IntegerType> ToIntegerTypeWithTruncation(Isolate* isolate,
       Nothing<IntegerType>());
   if (d < std::numeric_limits<IntegerType>::min() ||
       d > std::numeric_limits<IntegerType>::max()) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                 Nothing<IntegerType>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
 
   return Just(static_cast<IntegerType>(d));
@@ -308,9 +298,7 @@ Maybe<IntegerType> ToPositiveIntegerTypeWithTruncation(
       Nothing<IntegerType>());
   if (d < std::numeric_limits<IntegerType>::min() ||
       d > std::numeric_limits<IntegerType>::max()) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                 Nothing<IntegerType>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
 
   return Just(static_cast<IntegerType>(d));
@@ -327,8 +315,7 @@ Maybe<temporal_rs::I128Nanoseconds> GetI128FromBigInt(
     //
     // This only performs part of the check, the rest of it is done below with
     // is_valid()
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), {});
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
 
   uint64_t words[2] = {0, 0};
@@ -337,8 +324,7 @@ Maybe<temporal_rs::I128Nanoseconds> GetI128FromBigInt(
   bigint->ToWordsArray64(&sign_bit, &word_count, words);
 
   if ((words[1] & kU64HighBitMask) != 0) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), {});
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
 
   uint64_t high = words[1];
@@ -352,8 +338,7 @@ Maybe<temporal_rs::I128Nanoseconds> GetI128FromBigInt(
   ns.low = words[0];
 
   if (!ns.is_valid()) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), {});
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
   return Just(ns);
 }
@@ -487,57 +472,44 @@ Maybe<std::string> ToMonthCode(Isolate* isolate,
 
   // 2. If monthCode is not a String, throw a TypeError exception.
   if (!IsString(*mc_prim)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<std::string>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
   }
 
   auto month_code = Cast<String>(*mc_prim)->ToStdString();
 
   // 3. If the length of monthCode is not 3 or 4, throw a RangeError exception.
   if (month_code.size() != 3 && month_code.size() != 4) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                 Nothing<std::string>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
 
   // 4. If the first code unit of monthCode is not 0x004D (LATIN CAPITAL LETTER
   // M), throw a RangeError exception.
   if (month_code[0] != 'M') {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                 Nothing<std::string>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
   // 5. If the second code unit of monthCode is not in the inclusive interval
   // from 0x0030 (DIGIT ZERO) to 0x0039 (DIGIT NINE), throw a RangeError
   // exception.
   if (month_code[1] < '0' || month_code[1] > '9') {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                 Nothing<std::string>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
   // 6. If the third code unit of monthCode is not in the inclusive interval
   // from 0x0030 (DIGIT ZERO) to 0x0039 (DIGIT NINE), throw a RangeError
   // exception.
   if (month_code[2] < '0' || month_code[2] > '9') {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                 Nothing<std::string>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
   // 7. If the length of monthCode is 4 and the fourth code unit of monthCode is
   // not 0x004C (LATIN CAPITAL LETTER L), throw a RangeError exception.
   if (month_code.size() == 4 && month_code[3] != 'L') {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                 Nothing<std::string>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
   // 8. Let monthCodeDigits be the substring of monthCode from 1 to 3.
   // 9. Let monthCodeInteger be ℝ(StringToNumber(monthCodeDigits)).
   // 10. If monthCodeInteger is 0 and the length of monthCode is not 4, throw a
   // RangeError exception.
   if (month_code[1] == '0' && month_code[2] == '0' && month_code.size() != 4) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                 Nothing<std::string>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
   // 11. Return monthCode.
   return Just(month_code);
@@ -553,8 +525,7 @@ Maybe<temporal_rs::ArithmeticOverflow> ToTemporalOverflowHandleUndefined(
         temporal_rs::ArithmeticOverflow::Constrain));
   if (!IsJSReceiver(*options)) {
     // (GetOptionsObject) 3. Throw a TypeError exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<temporal_rs::ArithmeticOverflow>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
   }
   // 2. Return ? GetOption(options, "overflow", « String », « "constrain",
   // "reject" », "constrain").
@@ -593,8 +564,7 @@ Maybe<temporal_rs::TransitionDirection> GetDirectionOption(
     return Just(temporal_rs::TransitionDirection(dir.value()));
   } else {
     // Hoisted from GetOption
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), {});
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
 }
 // https://tc39.es/proposal-temporal/#sec-temporal-gettemporaldisambiguationoption
@@ -610,8 +580,7 @@ GetTemporalDisambiguationOptionHandleUndefined(Isolate* isolate,
   }
   if (!IsJSReceiver(*options)) {
     // (GetOptionsObject) 3. Throw a TypeError exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<temporal_rs::Disambiguation>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
   }
   // 1. Let stringValue be ?GetOption(options, "disambiguation", string, «
   // "compatible", "earlier", "later", "reject" », "compatible").
@@ -640,8 +609,7 @@ Maybe<temporal_rs::OffsetDisambiguation> GetTemporalOffsetOptionHandleUndefined(
   }
   if (!IsJSReceiver(*options)) {
     // (GetOptionsObject) 3. Throw a TypeError exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<temporal_rs::OffsetDisambiguation>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
   }
   // 5. Let stringValue be ? GetOption(options, "offset", string, « "prefer",
   // "use", "ignore", "reject" », stringFallback).
@@ -689,11 +657,9 @@ Maybe<temporal_rs::Precision> GetTemporalFractionalSecondDigitsOption(
     //  a. If ? ToString(digitsValue) is not "auto", throw a RangeError
     //  exception.
     if (!String::Equals(isolate, string, factory->auto_string())) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate,
-          NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
-                        factory->fractionalSecondDigits_string()),
-          Nothing<temporal_rs::Precision>());
+      THROW_NEW_ERROR(isolate,
+                      NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
+                                    factory->fractionalSecondDigits_string()));
     }
     //  b. Return auto.
     return Just(auto_val);
@@ -702,21 +668,17 @@ Maybe<temporal_rs::Precision> GetTemporalFractionalSecondDigitsOption(
   auto digits_num = Cast<Number>(*digits_val);
   auto digits_float = Object::NumberValue(digits_num);
   if (std::isnan(digits_float) || std::isinf(digits_float)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
-                      factory->fractionalSecondDigits_string()),
-        Nothing<temporal_rs::Precision>());
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
+                                  factory->fractionalSecondDigits_string()));
   }
   // 5. Let digitCount be floor(ℝ(digitsValue)).
   int64_t digit_count = std::floor(Object::NumberValue(digits_num));
   // 6. If digitCount < 0 or digitCount > 9, throw a RangeError exception.
   if (digit_count < 0 || digit_count > 9) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
-                      factory->fractionalSecondDigits_string()),
-        Nothing<temporal_rs::Precision>());
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
+                                  factory->fractionalSecondDigits_string()));
   }
 
   return Just(
@@ -883,13 +845,12 @@ Maybe<std::optional<Unit>> GetTemporalUnit(
   // 10. If value is undefined and default is required, throw a RangeError
   // exception.
   if (default_is_required && value == std::nullopt) {
-    THROW_NEW_ERROR_RETURN_VALUE(
+    THROW_NEW_ERROR(
         isolate,
         NewRangeError(
             MessageTemplate::kValueOutOfRange,
             isolate->factory()->undefined_value(),
-            isolate->factory()->NewStringFromAsciiChecked(method_name), key),
-        Nothing<std::optional<Unit>>());
+            isolate->factory()->NewStringFromAsciiChecked(method_name), key));
   }
   // 12. Return value.
   if (value.has_value()) {
@@ -910,9 +871,7 @@ Maybe<temporal_rs::AnyCalendarKind> CanonicalizeCalendar(
   auto cal = temporal_rs::AnyCalendarKind::get_for_str(s);
 
   if (!cal.has_value()) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                 Nothing<temporal_rs::AnyCalendarKind>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
   // Other steps unnecessary, we're not storing these as -u- values but rather
   // as enums.
@@ -944,8 +903,7 @@ Maybe<uint32_t> GetRoundingIncrementOption(
   // 4. If integerIncrement < 1 or integerIncrement > 10**9, throw a RangeError
   // exception.
   if (integer_increment < 1 || integer_increment > 1e9) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<uint32_t>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
 
   return Just(static_cast<uint32_t>(integer_increment));
@@ -1144,8 +1102,7 @@ Maybe<temporal_rs::AnyCalendarKind> ToTemporalCalendarIdentifier(
 
   // 2. If temporalCalendarLike is not a String, throw a TypeError exception.
   if (!IsString(*calendar_like)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<temporal_rs::AnyCalendarKind>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
   }
   // 3. Let identifier be ?ParseTemporalCalendarString(temporalCalendarLike).
   // 4. Return ?CanonicalizeCalendar(identifier).
@@ -1387,8 +1344,7 @@ Maybe<std::string> ToOffsetString(Isolate* isolate,
 
   // 2. If offset is not a String, throw a TypeError exception.
   if (!IsString(*offset_prim)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 {});
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
   }
 
   // 3. Perform ?ParseDateTimeUTCOffset(offset).
@@ -1401,9 +1357,7 @@ Maybe<std::string> ToOffsetString(Isolate* isolate,
   // https://github.com/boa-dev/temporal/pull/376 lands.
 
   if (offset.size() == 0 || (offset[0] != '+' && offset[0] != '-')) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                 {});
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
 
   // TODO(manishearth) this has a minor unnecessary cost of allocating a
@@ -1433,9 +1387,7 @@ Maybe<std::unique_ptr<temporal_rs::TimeZone>> ToTemporalTimeZoneIdentifier(
   }
   // 2. If temporalTimeZoneLike is not a String, throw a TypeError exception.
   if (!IsString(*tz_like)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-        Nothing<std::unique_ptr<temporal_rs::TimeZone>>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
   }
 
   DirectHandle<String> str = Cast<String>(tz_like);
@@ -1454,8 +1406,7 @@ Maybe<temporal_rs::PartialDuration> ToTemporalPartialDurationRecord(
   // 1. If temporalDurationLike is not an Object, then
   if (!IsJSReceiver(*duration_like_obj)) {
     // a. Throw a TypeError exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<temporal_rs::PartialDuration>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
   }
 
   DirectHandle<JSReceiver> duration_like = Cast<JSReceiver>(duration_like_obj);
@@ -1693,8 +1644,7 @@ Maybe<temporal_rs::PartialTime> ToTemporalTimeRecord(
       Nothing<temporal_rs::PartialTime>());
 
   if (!any) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<temporal_rs::PartialTime>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
   }
 
   return Just(result);
@@ -1862,11 +1812,9 @@ Maybe<bool> GetSingleCalendarField(
 #define ERA_CONDITION(cond) calendarUsesEras && (cond)
 
 #define NOOP_REQUIRED_CHECK
-#define TIMEZONE_REQUIRED_CHECK                                         \
-  if (!found && required_fields == RequiredFields::kTimeZone) {         \
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,                               \
-                                 NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(), \
-                                 Nothing<CombinedRecord>());            \
+#define TIMEZONE_REQUIRED_CHECK                                      \
+  if (!found && required_fields == RequiredFields::kTimeZone) {      \
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR()); \
   }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-calendar-fields-records
@@ -2014,8 +1962,7 @@ Maybe<CombinedRecord> PrepareCalendarFields(Isolate* isolate,
   // 10. If requiredFieldNames is partial and any is false, then
   if (required_fields == RequiredFields::kPartial && !any) {
     // a. Throw a TypeError exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<CombinedRecord>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
   }
 
   return Just(std::move(result));
@@ -2964,8 +2911,7 @@ Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
 
   if (!IsJSReceiver(*options)) {
     // (GetOptionsObject) 3. Throw a TypeError exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<RelativeTo>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
   }
 
   // 1. Let value be ?Get(options, "relativeTo").
@@ -2989,8 +2935,7 @@ Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
   // so that we can optimize with InstanceType. Step 5-6 are unobservable
   // in this case.
   if (!IsHeapObject(*value)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 {});
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
   }
   InstanceType instance_type =
       Cast<HeapObject>(*value)->map(isolate)->instance_type();
@@ -3105,8 +3050,7 @@ Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
   } else {
     // a. If value is not a String, throw a TypeError exception.
     if (!InstanceTypeChecker::IsString(instance_type)) {
-      THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                   NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(), {});
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
     }
 
     DirectHandle<String> str = Cast<String>(value);
@@ -6722,11 +6666,9 @@ MaybeDirectHandle<String> JSTemporalInstant::ToString(
 
   // 8. If smallestUnit is hour, throw a RangeError exception.
   if (smallest_unit == Unit::Hour) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
-                      isolate->factory()->smallestUnit_string()),
-        DirectHandle<String>());
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
+                                  isolate->factory()->smallestUnit_string()));
   }
 
   // 9. Let timeZone be ? Get(resolvedOptions, "timeZone").

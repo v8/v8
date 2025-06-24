@@ -137,9 +137,8 @@ class LanguageNames : public LocaleDisplayNamesCommon {
     icu::Locale l(tagLocale.getBaseName());
     if (U_FAILURE(status) || tagLocale != l ||
         !JSLocale::StartsWithUnicodeLanguageId(code)) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate, NewRangeError(MessageTemplate::kInvalidArgument),
-          Nothing<icu::UnicodeString>());
+      THROW_NEW_ERROR(isolate,
+                      NewRangeError(MessageTemplate::kInvalidArgument));
     }
 
     // 1.b If IsStructurallyValidLanguageTag(code) is false, throw a RangeError
@@ -150,9 +149,8 @@ class LanguageNames : public LocaleDisplayNamesCommon {
     std::string checked = l.toLanguageTag<std::string>(status);
 
     if (U_FAILURE(status)) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate, NewRangeError(MessageTemplate::kInvalidArgument),
-          Nothing<icu::UnicodeString>());
+      THROW_NEW_ERROR(isolate,
+                      NewRangeError(MessageTemplate::kInvalidArgument));
     }
 
     icu::UnicodeString result;
@@ -176,9 +174,8 @@ class RegionNames : public LocaleDisplayNamesCommon {
                                const char* code) const override {
     std::string code_str(code);
     if (!IsUnicodeRegionSubtag(code_str)) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate, NewRangeError(MessageTemplate::kInvalidArgument),
-          Nothing<icu::UnicodeString>());
+      THROW_NEW_ERROR(isolate,
+                      NewRangeError(MessageTemplate::kInvalidArgument));
     }
 
     icu::UnicodeString result;
@@ -201,9 +198,8 @@ class ScriptNames : public LocaleDisplayNamesCommon {
                                const char* code) const override {
     std::string code_str(code);
     if (!IsUnicodeScriptSubtag(code_str)) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate, NewRangeError(MessageTemplate::kInvalidArgument),
-          Nothing<icu::UnicodeString>());
+      THROW_NEW_ERROR(isolate,
+                      NewRangeError(MessageTemplate::kInvalidArgument));
     }
 
     icu::UnicodeString result;
@@ -260,9 +256,8 @@ class CurrencyNames : public KeyValueDisplayNames {
                                const char* code) const override {
     std::string code_str(code);
     if (!Intl::IsWellFormedCurrency(code_str)) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate, NewRangeError(MessageTemplate::kInvalidArgument),
-          Nothing<icu::UnicodeString>());
+      THROW_NEW_ERROR(isolate,
+                      NewRangeError(MessageTemplate::kInvalidArgument));
     }
     return KeyValueDisplayNames::of(isolate, code);
   }
@@ -281,9 +276,8 @@ class CalendarNames : public KeyValueDisplayNames {
                                const char* code) const override {
     std::string code_str(code);
     if (!Intl::IsWellFormedCalendar(code_str)) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate, NewRangeError(MessageTemplate::kInvalidArgument),
-          Nothing<icu::UnicodeString>());
+      THROW_NEW_ERROR(isolate,
+                      NewRangeError(MessageTemplate::kInvalidArgument));
     }
     return KeyValueDisplayNames::of(isolate, strcmp(code, "gregory") == 0
                                                  ? "gregorian"
@@ -364,9 +358,8 @@ class DateTimeFieldNames : public DisplayNamesInternal {
                                const char* code) const override {
     UDateTimePatternField field = StringToUDateTimePatternField(code);
     if (field == UDATPG_FIELD_COUNT) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate, NewRangeError(MessageTemplate::kInvalidArgument),
-          Nothing<icu::UnicodeString>());
+      THROW_NEW_ERROR(isolate,
+                      NewRangeError(MessageTemplate::kInvalidArgument));
     }
     return Just(generator_->getFieldDisplayName(field, width_));
   }

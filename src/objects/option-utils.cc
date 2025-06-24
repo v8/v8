@@ -76,11 +76,8 @@ Maybe<bool> GetStringOption(Isolate* isolate, DirectHandle<JSReceiver> options,
 
     DirectHandle<String> method_str =
         isolate->factory()->NewStringFromAsciiChecked(method_name);
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kValueOutOfRange, value, method_str,
-                      property),
-        Nothing<bool>());
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kValueOutOfRange,
+                                           value, method_str, property));
   }
 
   // 2. e. return value
@@ -127,10 +124,9 @@ Maybe<int> DefaultNumberOption(Isolate* isolate, DirectHandle<Object> value,
   // RangeError exception.
   if (IsNaN(*value_num) || Object::NumberValue(*value_num) < min ||
       Object::NumberValue(*value_num) > max) {
-    THROW_NEW_ERROR_RETURN_VALUE(
+    THROW_NEW_ERROR(
         isolate,
-        NewRangeError(MessageTemplate::kPropertyValueOutOfRange, property),
-        Nothing<int>());
+        NewRangeError(MessageTemplate::kPropertyValueOutOfRange, property));
   }
 
   // The max and min arguments are integers and the above check makes
@@ -177,10 +173,9 @@ Maybe<double> GetNumberOptionAsDouble(Isolate* isolate,
       isolate, value_num, Object::ToNumber(isolate, value), Nothing<double>());
   // b. If value is NaN, throw a RangeError exception.
   if (IsNaN(*value_num)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
+    THROW_NEW_ERROR(
         isolate,
-        NewRangeError(MessageTemplate::kPropertyValueOutOfRange, property),
-        Nothing<double>());
+        NewRangeError(MessageTemplate::kPropertyValueOutOfRange, property));
   }
 
   // 7. Return value.

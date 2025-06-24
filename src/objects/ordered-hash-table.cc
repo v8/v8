@@ -27,11 +27,9 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Allocate(
       base::bits::RoundUpToPowerOfTwo32(std::max({kInitialCapacity, capacity}));
   if (capacity > MaxCapacity()) {
     // Throw RangeError with a generic message.
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kCollectionGrowFailed,
-                      isolate->factory()->empty_string()),
-        {});
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kCollectionGrowFailed,
+                                  isolate->factory()->empty_string()));
   }
   int num_buckets = capacity / kLoadFactor;
   Handle<FixedArray> backing_store = isolate->factory()->NewFixedArrayWithMap(

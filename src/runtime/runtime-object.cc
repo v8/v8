@@ -1469,12 +1469,10 @@ Maybe<bool> FindPrivateMembersFromReceiver(Isolate* isolate,
       Nothing<bool>());
 
   if (results.empty()) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NewError(not_found_message, desc),
-                                 Nothing<bool>());
+    THROW_NEW_ERROR(isolate, NewError(not_found_message, desc));
   } else if (results.size() > 1) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NewError(MessageTemplate::kConflictingPrivateName, desc),
-        Nothing<bool>());
+    THROW_NEW_ERROR(isolate,
+                    NewError(MessageTemplate::kConflictingPrivateName, desc));
   }
 
   *result = results[0];

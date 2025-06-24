@@ -597,10 +597,8 @@ MaybeDirectHandle<Object> JSWrappedFunction::Create(
         creation_context->type_error_function(), isolate);
     DirectHandle<String> string =
         Object::NoSideEffectsToString(isolate, exception);
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewError(type_error_function, MessageTemplate::kCannotWrap, string),
-        {});
+    THROW_NEW_ERROR(isolate, NewError(type_error_function,
+                                      MessageTemplate::kCannotWrap, string));
   }
   DCHECK(is_abrupt.FromJust());
 

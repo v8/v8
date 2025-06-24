@@ -1015,8 +1015,8 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalGeneric(
     // "iso8601", throw a RangeError exception.
     if (!IsSameCalendar(temporal->wrapped_rust().calendar().kind(),
                         date_time_format)) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate, NewRangeError(MessageTemplate::kMismatchedCalendars), {});
+      THROW_NEW_ERROR(isolate,
+                      NewRangeError(MessageTemplate::kMismatchedCalendars));
     }
   }
   // 2. Let epochNs be ? GetEpochNanosecondsFor(dateTimeFormat.[[TimeZone]],
@@ -1106,9 +1106,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeOthers(
   // 6. Set x to TimeClip(x).
   // 7. If x is NaN, throw a RangeError exception.
   if (!DateCache::TryTimeClip(&x)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NewRangeError(MessageTemplate::kInvalidTimeValue),
-        Nothing<DateTimeValueRecord>());
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
   }
 
   // 8. Let epochNanoseconds be ℤ(x) × 10^6ℤ.

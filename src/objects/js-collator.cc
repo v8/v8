@@ -327,11 +327,10 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
     // 1. If _collation_ does not match the Unicode Locale Identifier `type`
     // nonterminal, throw a *RangeError* exception.
     if (!JSLocale::Is38AlphaNumList(collation_stdstr)) {
-      THROW_NEW_ERROR_RETURN_VALUE(
+      THROW_NEW_ERROR(
           isolate,
           NewRangeError(MessageTemplate::kInvalid,
-                        isolate->factory()->collation_string(), collation_str),
-          MaybeHandle<JSCollator>());
+                        isolate->factory()->collation_string(), collation_str));
     }
   }
   // x. Set _opt_.[[co]] to _collation_.

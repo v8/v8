@@ -275,9 +275,7 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
                               icu::LocaleBuilder* builder) {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   if (tag->length() == 0) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NewRangeError(MessageTemplate::kLocaleNotEmpty),
-        Nothing<bool>());
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kLocaleNotEmpty));
   }
 
   v8::String::Utf8Value bcp47_tag(v8_isolate, v8::Utils::ToLocal(tag));

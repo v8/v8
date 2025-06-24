@@ -182,22 +182,18 @@ Maybe<DurationUnitOptions> GetDurationUnitOptions(
   if (display == JSDurationFormat::Display::kAlways &&
       style == JSDurationFormat::FieldStyle::kFractional) {
     // a. Throw a RangeError exception.
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalid,
-                      isolate->factory()->object_string(), options),
-        Nothing<DurationUnitOptions>());
+    THROW_NEW_ERROR(
+        isolate, NewRangeError(MessageTemplate::kInvalid,
+                               isolate->factory()->object_string(), options));
   }
   // 8. If prevStyle is "fractional", then
   if (prev_style == JSDurationFormat::FieldStyle::kFractional) {
     // a. If style is not "fractional", then
     if (style != JSDurationFormat::FieldStyle::kFractional) {
       // i. Throw a RangeError exception.
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate,
-          NewRangeError(MessageTemplate::kInvalid,
-                        isolate->factory()->object_string(), options),
-          Nothing<DurationUnitOptions>());
+      THROW_NEW_ERROR(
+          isolate, NewRangeError(MessageTemplate::kInvalid,
+                                 isolate->factory()->object_string(), options));
     }
   }
   // 7. If prevStyle is "numeric" or "2-digit", then
@@ -208,11 +204,9 @@ Maybe<DurationUnitOptions> GetDurationUnitOptions(
         style != JSDurationFormat::FieldStyle::kNumeric &&
         style != JSDurationFormat::FieldStyle::k2Digit) {
       // i. Throw a RangeError exception.
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate,
-          NewRangeError(MessageTemplate::kInvalid,
-                        isolate->factory()->object_string(), options),
-          Nothing<DurationUnitOptions>());
+      THROW_NEW_ERROR(
+          isolate, NewRangeError(MessageTemplate::kInvalid,
+                                 isolate->factory()->object_string(), options));
     }
     // b. If unit is "minutes" or "seconds", then
     if (unit == Unit::kMinutes || unit == Unit::kSeconds) {
@@ -1020,11 +1014,9 @@ Maybe<DurationRecord> ToDurationRecord(Isolate* isolate, Handle<Object> input,
                                        const DurationRecord& default_value) {
   // 1-a. If Type(input) is String, throw a RangeError exception.
   if (IsString(*input)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalid,
-                      isolate->factory()->object_string(), input),
-        Nothing<DurationRecord>());
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kInvalid,
+                                  isolate->factory()->object_string(), input));
   }
   // Step 1-b - 23. Same as ToTemporalPartialDurationRecord.
   DurationRecord record;
@@ -1035,11 +1027,9 @@ Maybe<DurationRecord> ToDurationRecord(Isolate* isolate, Handle<Object> input,
   // 24. If IsValidDurationRecord(result) is false, throw a RangeError
   // exception.
   if (!temporal::IsValidDuration(isolate, record)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalid,
-                      isolate->factory()->object_string(), input),
-        Nothing<DurationRecord>());
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kInvalid,
+                                  isolate->factory()->object_string(), input));
   }
   return Just(record);
 }

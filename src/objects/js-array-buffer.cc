@@ -139,10 +139,9 @@ Maybe<bool> JSArrayBuffer::Detach(DirectHandle<JSArrayBuffer> buffer,
         !maybe_key.is_null() && !Object::StrictEquals(*maybe_key, *detach_key);
   }
   if (key_mismatch) {
-    THROW_NEW_ERROR_RETURN_VALUE(
+    THROW_NEW_ERROR(
         isolate,
-        NewTypeError(MessageTemplate::kArrayBufferDetachKeyDoesntMatch),
-        Nothing<bool>());
+        NewTypeError(MessageTemplate::kArrayBufferDetachKeyDoesntMatch));
   }
 
   if (buffer->was_detached()) return Just(true);
@@ -206,17 +205,15 @@ Maybe<bool> JSArrayBuffer::GetResizableBackingStorePageConfiguration(
   if (!RoundUpToPageSize(byte_length, *page_size, JSArrayBuffer::kMaxByteLength,
                          initial_pages)) {
     if (should_throw == kDontThrow) return Nothing<bool>();
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength),
-        Nothing<bool>());
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
   }
 
   if (!RoundUpToPageSize(max_byte_length, *page_size,
                          JSArrayBuffer::kMaxByteLength, max_pages)) {
     if (should_throw == kDontThrow) return Nothing<bool>();
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferMaxLength),
-        Nothing<bool>());
+    THROW_NEW_ERROR(
+        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferMaxLength));
   }
 
   return Just(true);
