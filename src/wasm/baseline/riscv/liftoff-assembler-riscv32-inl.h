@@ -680,7 +680,8 @@ inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
                                   LoadType type, LiftoffRegList pinned,
-                                  bool i64_offset) {
+                                  bool i64_offset,
+                                  Endianness /* endianness */) {
   UseScratchRegisterScope temps(this);
   Register src_reg = liftoff::CalculateActualAddress(this, temps, src_addr,
                                                      offset_reg, offset_imm);
@@ -745,7 +746,8 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
                                    StoreType type, LiftoffRegList pinned,
-                                   bool i64_offset) {
+                                   bool i64_offset,
+                                   Endianness /* endianness */) {
   UseScratchRegisterScope temps(this);
   Register dst_reg = liftoff::CalculateActualAddress(this, temps, dst_addr,
                                                      offset_reg, offset_imm);
@@ -793,7 +795,7 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 bool i64_offset) {
+                                 bool i64_offset, Endianness /* endianness */) {
   if (type.value() == StoreType::kI64Store) {
     liftoff::AtomicBinop64(this, dst_addr, offset_reg, offset_imm, value,
                            result, type, liftoff::Binop::kAdd);
@@ -820,7 +822,7 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 bool i64_offset) {
+                                 bool i64_offset, Endianness /* endianness */) {
   if (type.value() == StoreType::kI64Store) {
     liftoff::AtomicBinop64(this, dst_addr, offset_reg, offset_imm, value,
                            result, type, liftoff::Binop::kSub);
@@ -847,7 +849,7 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 bool i64_offset) {
+                                 bool i64_offset, Endianness /* endianness */) {
   if (type.value() == StoreType::kI64Store) {
     liftoff::AtomicBinop64(this, dst_addr, offset_reg, offset_imm, value,
                            result, type, liftoff::Binop::kAnd);
@@ -873,7 +875,7 @@ void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
                                 uint32_t offset_imm, LiftoffRegister value,
                                 LiftoffRegister result, StoreType type,
-                                bool i64_offset) {
+                                bool i64_offset, Endianness /* endianness */) {
   if (type.value() == StoreType::kI64Store) {
     liftoff::AtomicBinop64(this, dst_addr, offset_reg, offset_imm, value,
                            result, type, liftoff::Binop::kOr);
@@ -899,7 +901,7 @@ void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 bool i64_offset) {
+                                 bool i64_offset, Endianness /* endianness */) {
   if (type.value() == StoreType::kI64Store) {
     liftoff::AtomicBinop64(this, dst_addr, offset_reg, offset_imm, value,
                            result, type, liftoff::Binop::kXor);
@@ -926,7 +928,8 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                                       uint32_t offset_imm,
                                       LiftoffRegister value,
                                       LiftoffRegister result, StoreType type,
-                                      bool i64_offset) {
+                                      bool i64_offset,
+                                      Endianness /* endianness */) {
   if (type.value() == StoreType::kI64Store) {
     liftoff::AtomicBinop64(this, dst_addr, offset_reg, offset_imm, value,
                            result, type, liftoff::Binop::kExchange);
@@ -991,7 +994,7 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
 void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
-    StoreType type, bool i64_offset) {
+    StoreType type, bool i64_offset, Endianness /* endianness */) {
   ASM_CODE_COMMENT(this);
   LiftoffRegList pinned{dst_addr, expected, new_value, result};
   if (offset_reg != no_reg) pinned.set(offset_reg);
