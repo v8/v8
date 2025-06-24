@@ -1861,7 +1861,13 @@ void GCTracer::ReportYoungCycleToRecorder() {
   const std::shared_ptr<metrics::Recorder>& recorder =
       heap_->isolate()->metrics_recorder();
   DCHECK_NOT_NULL(recorder);
-  if (!recorder->HasEmbedderRecorder()) return;
+  auto* cpp_heap = v8::internal::CppHeap::From(heap_->cpp_heap());
+  if (!recorder->HasEmbedderRecorder()) {
+    if (cpp_heap) {
+      cpp_heap->GetMetricRecorder()->ClearCachedYoungEvents();
+    }
+    return;
+  }
 
   v8::metrics::GarbageCollectionYoungCycle event;
   // Reason:
@@ -1869,7 +1875,6 @@ void GCTracer::ReportYoungCycleToRecorder() {
   event.priority = current_.priority;
 #if defined(CPPGC_YOUNG_GENERATION)
   // Managed C++ heap statistics:
-  auto* cpp_heap = v8::internal::CppHeap::From(heap_->cpp_heap());
   if (cpp_heap && cpp_heap->generational_gc_supported()) {
     auto* metric_recorder = cpp_heap->GetMetricRecorder();
     const std::optional<cppgc::internal::MetricRecorder::GCCycle>

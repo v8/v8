@@ -80,6 +80,7 @@ class V8_EXPORT_PRIVATE CppHeap final
     ExtractLastIncrementalMarkEvent();
 
     void ClearCachedEvents();
+    void ClearCachedYoungEvents();
 
    private:
     Isolate* GetIsolate() const;

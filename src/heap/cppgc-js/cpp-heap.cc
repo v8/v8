@@ -462,10 +462,16 @@ CppHeap::MetricRecorderAdapter::ExtractLastIncrementalMarkEvent() {
 }
 
 void CppHeap::MetricRecorderAdapter::ClearCachedEvents() {
+  DCHECK(!last_young_gc_event_.has_value());
   incremental_mark_batched_events_.events.clear();
   incremental_sweep_batched_events_.events.clear();
   last_incremental_mark_event_.reset();
   last_full_gc_event_.reset();
+}
+
+void CppHeap::MetricRecorderAdapter::ClearCachedYoungEvents() {
+  DCHECK(incremental_mark_batched_events_.events.empty());
+  DCHECK(!last_incremental_mark_event_.has_value());
   last_young_gc_event_.reset();
 }
 
