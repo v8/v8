@@ -695,8 +695,7 @@ double Object::NumberValue(Tagged<Smi> obj) {
 template <typename T, template <typename> typename HandleType>
   requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 Maybe<double> Object::IntegerValue(Isolate* isolate, HandleType<T> input) {
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, input, ConvertToNumber(isolate, input), Nothing<double>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ConvertToNumber(isolate, input));
   if (IsSmi(*input)) {
     return Just(static_cast<double>(Cast<Smi>(*input).value()));
   }

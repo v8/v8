@@ -201,11 +201,10 @@ JSDisposableStackBase::ResolveAPromiseWithValueAndReturnIt(
   DirectHandle<JSFunction> promise_function = isolate->promise_function();
   DirectHandle<Object> args[] = {value};
   DirectHandle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result,
       Execution::CallBuiltin(isolate, isolate->promise_resolve(),
-                             promise_function, base::VectorOf(args)),
-      MaybeDirectHandle<JSReceiver>());
+                             promise_function, base::VectorOf(args)));
   return Cast<JSReceiver>(result);
 }
 

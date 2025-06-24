@@ -214,18 +214,16 @@ static Maybe<bool> UnscopableLookup(LookupIterator* it, bool is_with_context) {
   if (!is_with_context || found.IsNothing() || !found.FromJust()) return found;
 
   DirectHandle<Object> unscopables;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, unscopables,
       JSReceiver::GetProperty(isolate, Cast<JSReceiver>(it->GetReceiver()),
-                              isolate->factory()->unscopables_symbol()),
-      Nothing<bool>());
+                              isolate->factory()->unscopables_symbol()));
   if (!IsJSReceiver(*unscopables)) return Just(true);
   DirectHandle<Object> blocklist;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, blocklist,
       JSReceiver::GetProperty(isolate, Cast<JSReceiver>(unscopables),
-                              it->name()),
-      Nothing<bool>());
+                              it->name()));
   return Just(!Object::BooleanValue(*blocklist, isolate));
 }
 

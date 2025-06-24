@@ -1612,9 +1612,8 @@ Maybe<bool> Object::SetPropertyWithAccessor(
     }
 
     if (info->is_sloppy() && !IsJSReceiver(*receiver)) {
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-          isolate, receiver, Object::ConvertReceiver(isolate, receiver),
-          Nothing<bool>());
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
+                                 Object::ConvertReceiver(isolate, receiver));
     }
 
     PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder,
@@ -2400,13 +2399,12 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
 
           if (holder->type() == kExternalBigInt64Array ||
               holder->type() == kExternalBigUint64Array) {
-            ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            ASSIGN_RETURN_ON_EXCEPTION(
                 it->isolate(), converted_value,
-                BigInt::FromObject(it->isolate(), value), Nothing<bool>());
+                BigInt::FromObject(it->isolate(), value));
           } else {
-            ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-                it->isolate(), converted_value,
-                Object::ToNumber(it->isolate(), value), Nothing<bool>());
+            ASSIGN_RETURN_ON_EXCEPTION(it->isolate(), converted_value,
+                                       Object::ToNumber(it->isolate(), value));
           }
           // For RAB/GSABs, the above conversion might grow the buffer so that
           // the index is no longer out of bounds. Redo the bounds check and try
@@ -2661,17 +2659,15 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it,
     auto receiver_ta = Cast<JSTypedArray>(receiver);
     ElementsKind elements_kind = Cast<JSObject>(*receiver)->GetElementsKind();
     if (IsBigIntTypedArrayElementsKind(elements_kind)) {
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, to_assign,
-                                       BigInt::FromObject(isolate, value),
-                                       Nothing<bool>());
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, to_assign,
+                                 BigInt::FromObject(isolate, value));
       if (V8_UNLIKELY(receiver_ta->IsDetachedOrOutOfBounds() ||
                       it->index() >= receiver_ta->GetLength())) {
         return Just(true);
       }
     } else if (!IsNumber(*value) && !IsUndefined(*value, isolate)) {
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, to_assign,
-                                       Object::ToNumber(isolate, value),
-                                       Nothing<bool>());
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, to_assign,
+                                 Object::ToNumber(isolate, value));
       if (V8_UNLIKELY(receiver_ta->IsDetachedOrOutOfBounds() ||
                       it->index() >= receiver_ta->GetLength())) {
         return Just(true);
@@ -2683,9 +2679,8 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it,
   if (V8_UNLIKELY(IsJSSharedStruct(*receiver, isolate) ||
                   IsJSSharedArray(*receiver, isolate))) {
     // Shared structs can only point to primitives or shared values.
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, to_assign, Object::Share(isolate, to_assign, kThrowOnError),
-        Nothing<bool>());
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, to_assign, Object::Share(isolate, to_assign, kThrowOnError));
     it->WriteDataValue(to_assign, false);
   } else {
     // Possibly migrate to the most up-to-date map that will be able to store
@@ -2947,11 +2942,10 @@ Maybe<bool> JSProxy::HasProperty(Isolate* isolate, DirectHandle<JSProxy> proxy,
   DirectHandle<JSReceiver> target(Cast<JSReceiver>(proxy->target()), isolate);
   // 6. Let trap be ? GetMethod(handler, "has").
   DirectHandle<Object> trap;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap,
       Object::GetMethod(isolate, Cast<JSReceiver>(handler),
-                        isolate->factory()->has_string()),
-      Nothing<bool>());
+                        isolate->factory()->has_string()));
   // 7. If trap is undefined, then
   if (IsUndefined(*trap, isolate)) {
     // 7a. Return target.[[HasProperty]](P).
@@ -2960,10 +2954,9 @@ Maybe<bool> JSProxy::HasProperty(Isolate* isolate, DirectHandle<JSProxy> proxy,
   // 8. Let booleanTrapResult be ToBoolean(? Call(trap, handler, «target, P»)).
   DirectHandle<Object> trap_result_obj;
   DirectHandle<Object> args[] = {target, name};
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap_result_obj,
-      Execution::Call(isolate, trap, handler, base::VectorOf(args)),
-      Nothing<bool>());
+      Execution::Call(isolate, trap, handler, base::VectorOf(args)));
   bool boolean_trap_result = Object::BooleanValue(*trap_result_obj, isolate);
   // 9. If booleanTrapResult is false, then:
   if (!boolean_trap_result) {
@@ -3022,9 +3015,8 @@ Maybe<bool> JSProxy::SetProperty(DirectHandle<JSProxy> proxy,
   DirectHandle<JSReceiver> handler(Cast<JSReceiver>(proxy->handler()), isolate);
 
   DirectHandle<Object> trap;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, trap, Object::GetMethod(isolate, handler, trap_name),
-      Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, trap,
+                             Object::GetMethod(isolate, handler, trap_name));
   if (IsUndefined(*trap, isolate)) {
     PropertyKey key(isolate, name);
     LookupIterator it(isolate, receiver, key, target);
@@ -3035,10 +3027,9 @@ Maybe<bool> JSProxy::SetProperty(DirectHandle<JSProxy> proxy,
 
   DirectHandle<Object> trap_result;
   DirectHandle<Object> args[] = {target, name, value, receiver};
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap_result,
-      Execution::Call(isolate, trap, handler, base::VectorOf(args)),
-      Nothing<bool>());
+      Execution::Call(isolate, trap, handler, base::VectorOf(args)));
   if (!Object::BooleanValue(*trap_result, isolate)) {
     RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
                    NewTypeError(MessageTemplate::kProxyTrapReturnedFalsishFor,
@@ -3074,9 +3065,8 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(DirectHandle<JSProxy> proxy,
   DirectHandle<JSReceiver> handler(Cast<JSReceiver>(proxy->handler()), isolate);
 
   DirectHandle<Object> trap;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, trap, Object::GetMethod(isolate, handler, trap_name),
-      Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, trap,
+                             Object::GetMethod(isolate, handler, trap_name));
   if (IsUndefined(*trap, isolate)) {
     return JSReceiver::DeletePropertyOrElement(isolate, target, name,
                                                language_mode);
@@ -3084,10 +3074,9 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(DirectHandle<JSProxy> proxy,
 
   DirectHandle<Object> trap_result;
   DirectHandle<Object> args[] = {target, name};
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap_result,
-      Execution::Call(isolate, trap, handler, base::VectorOf(args)),
-      Nothing<bool>());
+      Execution::Call(isolate, trap, handler, base::VectorOf(args)));
   if (!Object::BooleanValue(*trap_result, isolate)) {
     RETURN_FAILURE(isolate, should_throw,
                    NewTypeError(MessageTemplate::kProxyTrapReturnedFalsishFor,
@@ -3389,10 +3378,9 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate,
   DirectHandle<JSReceiver> target(Cast<JSReceiver>(proxy->target()), isolate);
   // 6. Let trap be ? GetMethod(handler, "defineProperty").
   DirectHandle<Object> trap;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap,
-      Object::GetMethod(isolate, Cast<JSReceiver>(handler), trap_name),
-      Nothing<bool>());
+      Object::GetMethod(isolate, Cast<JSReceiver>(handler), trap_name));
   // 7. If trap is undefined, then:
   if (IsUndefined(*trap, isolate)) {
     // 7a. Return target.[[DefineOwnProperty]](P, Desc).
@@ -3410,10 +3398,9 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate,
   DCHECK(!property_name->IsPrivate());
   DirectHandle<Object> trap_result_obj;
   DirectHandle<Object> args[] = {target, property_name, desc_obj};
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap_result_obj,
-      Execution::Call(isolate, trap, handler, base::VectorOf(args)),
-      Nothing<bool>());
+      Execution::Call(isolate, trap, handler, base::VectorOf(args)));
   // 10. If booleanTrapResult is false, return false.
   if (!Object::BooleanValue(*trap_result_obj, isolate)) {
     RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
@@ -3558,10 +3545,9 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
   DirectHandle<JSReceiver> target(Cast<JSReceiver>(proxy->target()), isolate);
   // 6. Let trap be ? GetMethod(handler, "getOwnPropertyDescriptor").
   DirectHandle<Object> trap;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap,
-      Object::GetMethod(isolate, Cast<JSReceiver>(handler), trap_name),
-      Nothing<bool>());
+      Object::GetMethod(isolate, Cast<JSReceiver>(handler), trap_name));
   // 7. If trap is undefined, then
   if (IsUndefined(*trap, isolate)) {
     // 7a. Return target.[[GetOwnProperty]](P).
@@ -3570,11 +3556,10 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
   // 8. Let trapResultObj be ? Call(trap, handler, «target, P»).
   Handle<JSAny> trap_result_obj;
   DirectHandle<Object> args[] = {target, name};
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap_result_obj,
       Cast<JSAny>(
-          Execution::Call(isolate, trap, handler, base::VectorOf(args))),
-      Nothing<bool>());
+          Execution::Call(isolate, trap, handler, base::VectorOf(args))));
   // 9. If Type(trapResultObj) is neither Object nor Undefined, throw a
   //    TypeError exception.
   if (!IsJSReceiver(*trap_result_obj) &&
@@ -3678,19 +3663,17 @@ Maybe<bool> JSProxy::PreventExtensions(DirectHandle<JSProxy> proxy,
   DirectHandle<JSReceiver> handler(Cast<JSReceiver>(proxy->handler()), isolate);
 
   DirectHandle<Object> trap;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, trap, Object::GetMethod(isolate, handler, trap_name),
-      Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, trap,
+                             Object::GetMethod(isolate, handler, trap_name));
   if (IsUndefined(*trap, isolate)) {
     return JSReceiver::PreventExtensions(isolate, target, should_throw);
   }
 
   DirectHandle<Object> trap_result;
   DirectHandle<Object> args[] = {target};
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap_result,
-      Execution::Call(isolate, trap, handler, base::VectorOf(args)),
-      Nothing<bool>());
+      Execution::Call(isolate, trap, handler, base::VectorOf(args)));
   if (!Object::BooleanValue(*trap_result, isolate)) {
     RETURN_FAILURE(
         isolate, should_throw,
@@ -3723,19 +3706,17 @@ Maybe<bool> JSProxy::IsExtensible(DirectHandle<JSProxy> proxy) {
   DirectHandle<JSReceiver> handler(Cast<JSReceiver>(proxy->handler()), isolate);
 
   DirectHandle<Object> trap;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, trap, Object::GetMethod(isolate, handler, trap_name),
-      Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, trap,
+                             Object::GetMethod(isolate, handler, trap_name));
   if (IsUndefined(*trap, isolate)) {
     return JSReceiver::IsExtensible(isolate, target);
   }
 
   DirectHandle<Object> trap_result;
   DirectHandle<Object> args[] = {target};
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap_result,
-      Execution::Call(isolate, trap, handler, base::VectorOf(args)),
-      Nothing<bool>());
+      Execution::Call(isolate, trap, handler, base::VectorOf(args)));
 
   // Enforce the invariant.
   Maybe<bool> target_result = JSReceiver::IsExtensible(isolate, target);
@@ -4912,10 +4893,9 @@ Maybe<bool> JSProxy::SetPrototype(Isolate* isolate, DirectHandle<JSProxy> proxy,
   DirectHandle<JSReceiver> target(Cast<JSReceiver>(proxy->target()), isolate);
   // 6. Let trap be ? GetMethod(handler, "getPrototypeOf").
   DirectHandle<Object> trap;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap,
-      Object::GetMethod(isolate, Cast<JSReceiver>(handler), trap_name),
-      Nothing<bool>());
+      Object::GetMethod(isolate, Cast<JSReceiver>(handler), trap_name));
   // 7. If trap is undefined, then return target.[[SetPrototypeOf]]().
   if (IsUndefined(*trap, isolate)) {
     return JSReceiver::SetPrototype(isolate, target, value, from_javascript,
@@ -4924,10 +4904,9 @@ Maybe<bool> JSProxy::SetPrototype(Isolate* isolate, DirectHandle<JSProxy> proxy,
   // 8. Let booleanTrapResult be ToBoolean(? Call(trap, handler, «target, V»)).
   DirectHandle<Object> args[] = {target, value};
   DirectHandle<Object> trap_result;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap_result,
-      Execution::Call(isolate, trap, handler, base::VectorOf(args)),
-      Nothing<bool>());
+      Execution::Call(isolate, trap, handler, base::VectorOf(args)));
   bool bool_trap_result = Object::BooleanValue(*trap_result, isolate);
   // 9. If booleanTrapResult is false, return false.
   if (!bool_trap_result) {
@@ -4947,9 +4926,8 @@ Maybe<bool> JSProxy::SetPrototype(Isolate* isolate, DirectHandle<JSProxy> proxy,
   }
   // 12. Let targetProto be ? target.[[GetPrototypeOf]]().
   DirectHandle<Object> target_proto;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, target_proto,
-                                   JSReceiver::GetPrototype(isolate, target),
-                                   Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, target_proto,
+                             JSReceiver::GetPrototype(isolate, target));
   // 13. If SameValue(V, targetProto) is false, throw a TypeError exception.
   if (bool_trap_result && !Object::SameValue(*value, *target_proto)) {
     isolate->Throw(*isolate->factory()->NewTypeError(

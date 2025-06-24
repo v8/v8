@@ -153,9 +153,8 @@ V8_WARN_UNUSED_RESULT Maybe<uint64_t> GetRelativeIndex(
   int64_t relative_index = init_if_undefined;
   if (!IsUndefined(*index)) {
     double provided_relative_index;
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, provided_relative_index,
-                                           Object::IntegerValue(isolate, index),
-                                           Nothing<uint64_t>());
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION(isolate, provided_relative_index,
+                                     Object::IntegerValue(isolate, index));
     if (std::abs(provided_relative_index) > length) {
       return Just(provided_relative_index < 0 ? 0 : length);
     }
@@ -183,9 +182,8 @@ V8_WARN_UNUSED_RESULT Maybe<uint64_t> GetLengthProperty(
   }
 
   DirectHandle<Object> raw_length_number;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, raw_length_number,
-      Object::GetLengthFromArrayLike(isolate, receiver), Nothing<uint64_t>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, raw_length_number,
+                             Object::GetLengthFromArrayLike(isolate, receiver));
   return Just(static_cast<uint64_t>(Object::NumberValue(*raw_length_number)));
 }
 

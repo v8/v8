@@ -616,7 +616,8 @@ DirectHandle<Object> JSDateTimeFormat::TimeZoneId(Isolate* isolate,
   DirectHandle<String> timezone_value;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, timezone_value,
-      Intl::TimeZoneIdToString(isolate, canonical_time_zone), {});
+      Intl::TimeZoneIdToString(isolate, canonical_time_zone),
+      DirectHandle<Object>());
   return timezone_value;
 }
 
@@ -1024,9 +1025,9 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalGeneric(
   auto tz = GetTzString(date_time_format);
 
   int64_t epoch_milliseconds = 0;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
       isolate, epoch_milliseconds,
-      temporal->GetEpochMillisecondsFor(isolate, tz), {});
+      temporal->GetEpochMillisecondsFor(isolate, tz));
 
   // 3. Let format be dateTimeFormat.[[TemporalPlainDateFormat]].
   // 4. Return Value Format Record { [[Format]]: format, [[EpochNanoseconds]]:
@@ -1098,9 +1099,8 @@ Maybe<DateTimeValueRecord> HandleDateTimeOthers(
     // 5. Else,
   } else {
     // a. Set x to ? ToNumber(x).
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, x_obj,
-                                     Object::ToNumber(isolate, x_obj),
-                                     Nothing<DateTimeValueRecord>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, x_obj,
+                               Object::ToNumber(isolate, x_obj));
     x = Object::NumberValue(*x_obj);
   }
   // 6. Set x to TimeClip(x).
@@ -1368,9 +1368,9 @@ MaybeDirectHandle<String> FormatDateTimeWithTemporalSupport(
     Isolate* isolate, const icu::SimpleDateFormat& date_format,
     DirectHandle<Object> x, const char* method_name) {
   DateTimeValueRecord record;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
       isolate, record,
-      HandleDateTimeValue(isolate, date_format, x, method_name), {});
+      HandleDateTimeValue(isolate, date_format, x, method_name));
   return FormatMillisecondsByKindToString(isolate, date_format, record.kind,
                                           record.epoch_milliseconds);
 }
@@ -2285,11 +2285,10 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
       // Let _value_ be ? GetNumberOption(options, "fractionalSecondDigits", 1,
       // 3, *undefined*). The *undefined* is represented by value 0 here.
       int fsd;
-      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
           isolate, fsd,
           GetNumberOption(isolate, options,
-                          factory->fractionalSecondDigits_string(), 1, 3, 0),
-          {});
+                          factory->fractionalSecondDigits_string(), 1, 3, 0));
       if (fsd > 0) {
         explicit_format_components =
             FractionalSecondDigits::update(explicit_format_components, true);
@@ -2663,9 +2662,8 @@ MaybeDirectHandle<JSArray> FormatToPartsWithTemporalSupport(
 
   // 1. Let x be ? HandleDateTimeValue(dateTimeFormat, x).
   DateTimeValueRecord x_record;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, x_record, HandleDateTimeValue(isolate, *format, x, method_name),
-      {});
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, x_record, HandleDateTimeValue(isolate, *format, x, method_name));
 
   return FormatMillisecondsByKindToArray(isolate, *format, x_record.kind,
                                          x_record.epoch_milliseconds,
@@ -2812,9 +2810,8 @@ Maybe<bool> AddPartForFormatRange(
     const icu::UnicodeString& string, int32_t index, int32_t field,
     int32_t start, int32_t end, const Intl::FormatRangeSourceTracker& tracker) {
   DirectHandle<String> substring;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, substring,
-                                   Intl::ToString(isolate, string, start, end),
-                                   Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, substring,
+                             Intl::ToString(isolate, string, start, end));
   Intl::AddElement(isolate, array, index,
                    IcuDateFieldIdToDateType(field, isolate), substring,
                    isolate->factory()->source_string(),
@@ -2986,17 +2983,17 @@ MaybeDirectHandle<T> FormatRangeCommonWithTemporalSupport(
   icu::SimpleDateFormat* icu_simple_date_format =
       date_time_format->icu_simple_date_format()->raw();
   DateTimeValueRecord x_record;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
       isolate, x_record,
-      HandleDateTimeValue(isolate, *icu_simple_date_format, x_obj, method_name),
-      {});
+      HandleDateTimeValue(isolate, *icu_simple_date_format, x_obj,
+                          method_name));
 
   // 7. Let y be ? HandleDateTimeValue(dateTimeFormat, y).
   DateTimeValueRecord y_record;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
       isolate, y_record,
-      HandleDateTimeValue(isolate, *icu_simple_date_format, y_obj, method_name),
-      {});
+      HandleDateTimeValue(isolate, *icu_simple_date_format, y_obj,
+                          method_name));
 
   std::unique_ptr<icu::DateIntervalFormat> format(
       LazyCreateDateIntervalFormat(isolate, date_time_format, x_record.kind));

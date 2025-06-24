@@ -251,11 +251,10 @@ Maybe<bool> AddToDisposableStack(Isolate* isolate,
                                  DisposeMethodCallType type,
                                  DisposeMethodHint hint) {
   DirectHandle<Object> method;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, method,
       JSDisposableStackBase::CheckValueAndGetDisposeMethod(isolate, value,
-                                                           hint),
-      Nothing<bool>());
+                                                           hint));
 
   // Return the DisposableResource Record { [[ResourceValue]]: V, [[Hint]]:
   // hint, [[DisposeMethod]]: method }.

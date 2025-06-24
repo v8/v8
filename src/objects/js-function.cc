@@ -375,9 +375,8 @@ Maybe<bool> JSFunctionOrBoundFunctionOrWrappedFunction::CopyNameAndLength(
     if (attributes.IsNothing()) return Nothing<bool>();
     if (attributes.FromJust() != ABSENT) {
       DirectHandle<Object> target_length;
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, target_length,
-                                       Object::GetProperty(&length_lookup),
-                                       Nothing<bool>());
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, target_length,
+                                 Object::GetProperty(&length_lookup));
       if (IsNumber(*target_length)) {
         length = isolate->factory()->NewNumber(std::max(
             0.0,
@@ -407,19 +406,16 @@ Maybe<bool> JSFunctionOrBoundFunctionOrWrappedFunction::CopyNameAndLength(
       !name_lookup.GetAccessors().is_identical_to(function_name_accessor) ||
       (name_lookup.IsFound() && !name_lookup.HolderIsReceiver())) {
     DirectHandle<Object> target_name;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, target_name,
-                                     Object::GetProperty(&name_lookup),
-                                     Nothing<bool>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, target_name,
+                               Object::GetProperty(&name_lookup));
     DirectHandle<String> name;
     if (IsString(*target_name)) {
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      ASSIGN_RETURN_ON_EXCEPTION(
           isolate, name,
-          Name::ToFunctionName(isolate, Cast<String>(target_name)),
-          Nothing<bool>());
+          Name::ToFunctionName(isolate, Cast<String>(target_name)));
       if (!prefix.is_null()) {
-        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate, name, isolate->factory()->NewConsString(prefix, name),
-            Nothing<bool>());
+        ASSIGN_RETURN_ON_EXCEPTION(
+            isolate, name, isolate->factory()->NewConsString(prefix, name));
       }
     } else if (prefix.is_null()) {
       name = isolate->factory()->empty_string();
@@ -489,9 +485,8 @@ Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
     DirectHandle<JSWrappedFunction> target(
         Cast<JSWrappedFunction>(function->bound_target_function()), isolate);
     int target_length = 0;
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, target_length, JSWrappedFunction::GetLength(isolate, target),
-        Nothing<int>());
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, target_length, JSWrappedFunction::GetLength(isolate, target));
     int length = std::max(0, target_length - nof_bound_arguments);
     return Just(length);
   }

@@ -97,12 +97,11 @@ Maybe<DurationUnitOptions> GetDurationUnitOptions(
   JSDurationFormat::FieldStyle style;
   // 1. Let style be ? GetOption(options, unit, "string", stylesList,
   // undefined).
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
       isolate, style,
       GetStringOption<JSDurationFormat::FieldStyle>(
           isolate, options, unit_string, method_name, value_strings,
-          value_enums, JSDurationFormat::FieldStyle::kUndefined),
-      Nothing<DurationUnitOptions>());
+          value_enums, JSDurationFormat::FieldStyle::kUndefined));
 
   // 2. Let displayDefault be "always".
   JSDurationFormat::Display display_default =
@@ -169,15 +168,14 @@ Maybe<DurationUnitOptions> GetDurationUnitOptions(
   // 6. Let display be ? GetOption(options, displayField, "string", « "auto",
   // "always" », displayDefault).
   JSDurationFormat::Display display;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
       isolate, display,
       GetStringOption<JSDurationFormat::Display>(
           isolate, options, display_field, method_name,
           std::to_array<const std::string_view>({"auto", "always"}),
           std::array{JSDurationFormat::Display::kAuto,
                      JSDurationFormat::Display::kAlways},
-          display_default),
-      Nothing<DurationUnitOptions>());
+          display_default));
   // 7. If display is "always" and style is "fractional", then
   if (display == JSDurationFormat::Display::kAlways &&
       style == JSDurationFormat::FieldStyle::kFractional) {
@@ -247,10 +245,9 @@ MaybeDirectHandle<JSDurationFormat> JSDurationFormat::New(
 
   // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   std::vector<std::string> requested_locales;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
       isolate, requested_locales,
-      Intl::CanonicalizeLocaleList(isolate, locales),
-      DirectHandle<JSDurationFormat>());
+      Intl::CanonicalizeLocaleList(isolate, locales));
 
   // 4. Let options be ? GetOptionsObject(options).
   DirectHandle<JSReceiver> options;
@@ -260,9 +257,8 @@ MaybeDirectHandle<JSDurationFormat> JSDurationFormat::New(
   // 5. Let matcher be ? GetOption(options, "localeMatcher", "string", «
   // "lookup", "best fit" », "best fit").
   Intl::MatcherOption matcher;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, matcher, Intl::GetLocaleMatcher(isolate, options, method_name),
-      DirectHandle<JSDurationFormat>());
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, matcher, Intl::GetLocaleMatcher(isolate, options, method_name));
 
   // 6. Let numberingSystem be ? GetOption(options, "numberingSystem", "string",
   // undefined, undefined).
@@ -275,11 +271,10 @@ MaybeDirectHandle<JSDurationFormat> JSDurationFormat::New(
   // Intl::GetNumberingSystem.
   std::string numbering_system_str;
   bool get;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
       isolate, get,
       Intl::GetNumberingSystem(isolate, options, method_name,
-                               numbering_system_str),
-      DirectHandle<JSDurationFormat>());
+                               numbering_system_str));
 
   // 8. Let opt be the Record { [[localeMatcher]]: matcher, [[nu]]:
   // numberingSystem }.
@@ -317,7 +312,7 @@ MaybeDirectHandle<JSDurationFormat> JSDurationFormat::New(
   // 13. Let style be ? GetOption(options, "style", "string", « "long", "short",
   // "narrow", "digital" », "long").
   Style style;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
       isolate, style,
       GetStringOption<Style>(isolate, options,
                              isolate->factory()->style_string(), method_name,
@@ -325,8 +320,7 @@ MaybeDirectHandle<JSDurationFormat> JSDurationFormat::New(
                                  {"long", "short", "narrow", "digital"}),
                              std::array{Style::kLong, Style::kShort,
                                         Style::kNarrow, Style::kDigital},
-                             Style::kShort),
-      DirectHandle<JSDurationFormat>());
+                             Style::kShort));
 
   // 14. Set durationFormat.[[Style]] to style.
   // 15. Set durationFormat.[[DataLocale]] to r.[[dataLocale]].
@@ -362,13 +356,12 @@ MaybeDirectHandle<JSDurationFormat> JSDurationFormat::New(
 
 #define CALL_GET_DURATION_UNIT_OPTIONS(unit, property, strings, enums,         \
                                        digital_base, prev_style)               \
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(                                      \
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(                                            \
       isolate, property##_option,                                              \
       GetDurationUnitOptions(                                                  \
           isolate, Unit::unit, factory->property##_string(),                   \
           factory->property##Display_string(), options, style, strings, enums, \
-          JSDurationFormat::FieldStyle::digital_base, prev_style),             \
-      DirectHandle<JSDurationFormat>());
+          JSDurationFormat::FieldStyle::digital_base, prev_style));
 
   // #table-durationformat
   // Table 3: Internal slots and property names of DurationFormat instances
@@ -433,11 +426,10 @@ MaybeDirectHandle<JSDurationFormat> JSDurationFormat::New(
   // 18. Set durationFormat.[[FractionalDigits]] to ? GetNumberOption(options,
   // "fractionalDigits", 0, 9, undefined).
   int fractional_digits;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
       isolate, fractional_digits,
       GetNumberOption(isolate, options, factory->fractionalDigits_string(), 0,
-                      9, kUndefinedFractionalDigits),
-      DirectHandle<JSDurationFormat>());
+                      9, kUndefinedFractionalDigits));
 
   icu::number::LocalizedNumberFormatter fmt =
       icu::number::UnlocalizedNumberFormatter()
@@ -1020,10 +1012,9 @@ Maybe<DurationRecord> ToDurationRecord(Isolate* isolate, Handle<Object> input,
   }
   // Step 1-b - 23. Same as ToTemporalPartialDurationRecord.
   DurationRecord record;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
       isolate, record,
-      temporal::ToPartialDuration(isolate, input, default_value),
-      Nothing<DurationRecord>());
+      temporal::ToPartialDuration(isolate, input, default_value));
   // 24. If IsValidDurationRecord(result) is false, throw a RangeError
   // exception.
   if (!temporal::IsValidDuration(isolate, record)) {
@@ -1046,10 +1037,9 @@ MaybeDirectHandle<T> FormatCommon(Isolate* isolate,
   // 2. Perform ? RequireInternalSlot(df, [[InitializedDurationFormat]]).
   // 3. Let record be ? ToDurationRecord(duration).
   DurationRecord record;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
       isolate, record,
-      ToDurationRecord(isolate, duration, {0, 0, 0, {0, 0, 0, 0, 0, 0, 0}}),
-      DirectHandle<T>());
+      ToDurationRecord(isolate, duration, {0, 0, 0, {0, 0, 0, 0, 0, 0, 0}}));
   // 5. Let parts be ! PartitionDurationFormatPattern(df, record).
   return PartitionDurationFormatPattern<T, Details, Format>(isolate, df, record,
                                                             method_name);

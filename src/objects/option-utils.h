@@ -113,10 +113,9 @@ V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOrBooleanOption(
 
   // 1. Let value be ? Get(options, property).
   DirectHandle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, value,
-      Object::GetPropertyOrElement(isolate, options, property_str),
-      Nothing<T>());
+      Object::GetPropertyOrElement(isolate, options, property_str));
   // 2. If value is undefined, then return fallback.
   if (IsUndefined(*value, isolate)) {
     return Just(fallback_value);
@@ -134,8 +133,8 @@ V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOrBooleanOption(
 
   DirectHandle<String> value_str;
   // 6. Let value be ? ToString(value).
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value_str, Object::ToString(isolate, value), Nothing<T>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, value_str,
+                             Object::ToString(isolate, value));
   // 7. If value is *"true"* or *"false"*, return _fallback_.
   if (String::Equals(isolate, value_str, factory->true_string()) ||
       String::Equals(isolate, value_str, factory->false_string())) {

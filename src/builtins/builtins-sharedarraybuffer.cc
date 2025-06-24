@@ -86,11 +86,10 @@ V8_WARN_UNUSED_RESULT Maybe<size_t> ValidateAtomicAccess(
     Isolate* isolate, DirectHandle<JSTypedArray> typed_array,
     Handle<Object> request_index) {
   DirectHandle<Object> access_index_obj;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, access_index_obj,
       Object::ToIndex(isolate, request_index,
-                      MessageTemplate::kInvalidAtomicAccessIndex),
-      Nothing<size_t>());
+                      MessageTemplate::kInvalidAtomicAccessIndex));
 
   size_t access_index;
   size_t typed_array_length = typed_array->GetLength();

@@ -717,9 +717,8 @@ Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
   if (IsString(*locale_in)) {
     locale_str = Cast<String>(locale_in);
   } else if (IsJSReceiver(*locale_in)) {
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, locale_str,
-                                     Object::ToString(isolate, locale_in),
-                                     Nothing<std::string>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, locale_str,
+                               Object::ToString(isolate, locale_in));
   } else {
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kLanguageID));
   }
@@ -829,14 +828,11 @@ Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
   // 4. Else,
   // 4a. Let O be ? ToObject(locales).
   DirectHandle<JSReceiver> o;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, o,
-                                   Object::ToObject(isolate, locales),
-                                   Nothing<std::vector<std::string>>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, o, Object::ToObject(isolate, locales));
   // 5. Let len be ? ToLength(? Get(O, "length")).
   DirectHandle<Object> length_obj;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, length_obj,
-                                   Object::GetLengthFromArrayLike(isolate, o),
-                                   Nothing<std::vector<std::string>>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, length_obj,
+                             Object::GetLengthFromArrayLike(isolate, o));
   // TODO(jkummerow): Spec violation: strictly speaking, we have to iterate
   // up to 2^53-1 if {length_obj} says so. Since cases above 2^32 probably
   // don't happen in practice (and would be very slow if they do), we'll keep
@@ -856,8 +852,7 @@ Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
     if (!maybe_found.FromJust()) continue;
     // 7c i. Let kValue be ? Get(O, Pk).
     DirectHandle<Object> k_value;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, k_value, Object::GetProperty(&it),
-                                     Nothing<std::vector<std::string>>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, k_value, Object::GetProperty(&it));
     // 7c ii. If Type(kValue) is not String or Object, throw a TypeError
     // exception.
     // 7c iii. If Type(kValue) is Object and kValue has an [[InitializedLocale]]
@@ -1585,35 +1580,31 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
 
   // 2. Let mnfd be ? Get(options, "minimumFractionDigits").
   DirectHandle<Object> mnfd_obj;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, mnfd_obj,
       JSReceiver::GetProperty(isolate, options,
-                              factory->minimumFractionDigits_string()),
-      Nothing<NumberFormatDigitOptions>());
+                              factory->minimumFractionDigits_string()));
 
   // 3. Let mxfd be ? Get(options, "maximumFractionDigits").
   DirectHandle<Object> mxfd_obj;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, mxfd_obj,
       JSReceiver::GetProperty(isolate, options,
-                              factory->maximumFractionDigits_string()),
-      Nothing<NumberFormatDigitOptions>());
+                              factory->maximumFractionDigits_string()));
 
   // 4.  Let mnsd be ? Get(options, "minimumSignificantDigits").
   DirectHandle<Object> mnsd_obj;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, mnsd_obj,
       JSReceiver::GetProperty(isolate, options,
-                              factory->minimumSignificantDigits_string()),
-      Nothing<NumberFormatDigitOptions>());
+                              factory->minimumSignificantDigits_string()));
 
   // 5. Let mxsd be ? Get(options, "maximumSignificantDigits").
   DirectHandle<Object> mxsd_obj;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, mxsd_obj,
       JSReceiver::GetProperty(isolate, options,
-                              factory->maximumSignificantDigits_string()),
-      Nothing<NumberFormatDigitOptions>());
+                              factory->maximumSignificantDigits_string()));
 
   digit_options.rounding_priority = RoundingPriority::kAuto;
   digit_options.minimum_significant_digits = 0;

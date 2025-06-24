@@ -240,6 +240,9 @@ class WaiterQueueNode;
 #define MAYBE_RETURN_ON_EXCEPTION_VALUE(isolate, call, value) \
   RETURN_ON_EXCEPTION_VALUE(isolate, call, value)
 
+#define MAYBE_RETURN_ON_EXCEPTION(isolate, call) \
+  MAYBE_RETURN_ON_EXCEPTION_VALUE(isolate, call, internal::kNullMaybe)
+
 /**
  * RETURN_RESULT_OR_FAILURE is used in functions with return type Object (such
  * as "RUNTIME_FUNCTION(...) {...}" or "BUILTIN(...) {...}" ) to return either
@@ -434,16 +437,13 @@ class WaiterQueueNode;
 
 // Like MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE, but moves out of the call
 // instead of performing copy-assignment
-#define MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
-  do {                                                                  \
-    if (!(call).MoveTo(&dst)) {                                         \
-      DCHECK((isolate)->has_exception());                               \
-      return value;                                                     \
-    }                                                                   \
-  } while (false)
-
 #define MAYBE_MOVE_RETURN_ON_EXCEPTION(isolate, dst, call) \
-  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, internal::kNullMaybe)
+  do {                                                     \
+    if (!(call).MoveTo(&dst)) {                            \
+      DCHECK((isolate)->has_exception());                  \
+      return internal::kNullMaybe;                         \
+    }                                                      \
+  } while (false)
 
 #define MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, dst, call) \
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, dst, call)

@@ -529,8 +529,7 @@ Maybe<bool> IncludesValueSlowPath(Isolate* isolate,
       continue;
     }
     DirectHandle<Object> element_k;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, element_k,
-                                     Object::GetProperty(&it), Nothing<bool>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, element_k, Object::GetProperty(&it));
 
     if (Object::SameValueZero(*value, *element_k)) return Just(true);
   }
@@ -548,8 +547,7 @@ Maybe<int64_t> IndexOfValueSlowPath(Isolate* isolate,
       continue;
     }
     DirectHandle<Object> element_k;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, element_k, Object::GetProperty(&it), Nothing<int64_t>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, element_k, Object::GetProperty(&it));
 
     if (Object::StrictEquals(*value, *element_k)) return Just<int64_t>(k);
   }
@@ -1044,11 +1042,10 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       DirectHandle<FixedArrayBase> old_elements, ElementsKind from_kind,
       ElementsKind to_kind, uint32_t capacity) {
     DirectHandle<FixedArrayBase> elements;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, elements,
         ConvertElementsWithCapacity(isolate, object, old_elements, from_kind,
-                                    capacity),
-        Nothing<bool>());
+                                    capacity));
 
     if (IsHoleyElementsKind(from_kind)) {
       to_kind = GetHoleyElementsKind(to_kind);
@@ -1096,11 +1093,10 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       return Just(false);
     }
     DirectHandle<FixedArrayBase> elements;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, elements,
         ConvertElementsWithCapacity(isolate, object, old_elements, kind(),
-                                    new_capacity),
-        Nothing<bool>());
+                                    new_capacity));
 
     DCHECK_EQ(object->GetElementsKind(), kind());
     // Transition through the allocation site as well if present.
@@ -1238,8 +1234,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       } else {
         // This might modify the elements and/or change the elements kind.
         LookupIterator it(isolate, object, index, LookupIterator::OWN);
-        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate, value, Object::GetProperty(&it), Nothing<bool>());
+        ASSIGN_RETURN_ON_EXCEPTION(isolate, value, Object::GetProperty(&it));
       }
       if (get_entries) value = MakeEntryPair(isolate, index, value);
       values_or_entries->set(count++, *value);
@@ -1265,8 +1260,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
 
       DirectHandle<Object> value;
       LookupIterator it(isolate, object, index, LookupIterator::OWN);
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, value, Object::GetProperty(&it),
-                                       Nothing<bool>());
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, value, Object::GetProperty(&it));
 
       if (get_entries) value = MakeEntryPair(isolate, index, value);
       values_or_entries->set(count++, *value);
@@ -1956,9 +1950,8 @@ class DictionaryElementsAccessor
           DCHECK_EQ(it.state(), LookupIterator::ACCESSOR);
           DirectHandle<Object> element_k;
 
-          ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, element_k,
-                                           Object::GetPropertyWithAccessor(&it),
-                                           Nothing<bool>());
+          ASSIGN_RETURN_ON_EXCEPTION(isolate, element_k,
+                                     Object::GetPropertyWithAccessor(&it));
 
           if (Object::SameValueZero(*value, *element_k)) return Just(true);
 
@@ -2030,9 +2023,8 @@ class DictionaryElementsAccessor
           DCHECK_EQ(it.state(), LookupIterator::ACCESSOR);
           DirectHandle<Object> element_k;
 
-          ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, element_k,
-                                           Object::GetPropertyWithAccessor(&it),
-                                           Nothing<int64_t>());
+          ASSIGN_RETURN_ON_EXCEPTION(isolate, element_k,
+                                     Object::GetPropertyWithAccessor(&it));
 
           if (Object::StrictEquals(*value, *element_k)) return Just<int64_t>(k);
 
@@ -2659,12 +2651,11 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       // If we add arguments to the start we have to shift the existing objects.
       int copy_dst_index = add_position == AT_START ? add_size : 0;
       // Copy over all objects to a new backing_store.
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      ASSIGN_RETURN_ON_EXCEPTION(
           isolate, backing_store,
           Subclass::ConvertElementsWithCapacity(isolate, receiver,
                                                 backing_store, KindTraits::Kind,
-                                                capacity, 0, copy_dst_index),
-          Nothing<uint32_t>());
+                                                capacity, 0, copy_dst_index));
       receiver->set_elements(*backing_store);
     } else if (add_position == AT_START) {
       // If the backing store has enough capacity and we add elements to the
@@ -5167,9 +5158,8 @@ class SloppyArgumentsElementsAccessor
         LookupIterator it(isolate, object, k, LookupIterator::OWN);
         DCHECK(it.IsFound());
         DCHECK_EQ(it.state(), LookupIterator::ACCESSOR);
-        ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, element_k,
-                                         Object::GetPropertyWithAccessor(&it),
-                                         Nothing<bool>());
+        ASSIGN_RETURN_ON_EXCEPTION(isolate, element_k,
+                                   Object::GetPropertyWithAccessor(&it));
 
         if (Object::SameValueZero(*value, *element_k)) return Just(true);
 
@@ -5208,9 +5198,8 @@ class SloppyArgumentsElementsAccessor
         LookupIterator it(isolate, object, k, LookupIterator::OWN);
         DCHECK(it.IsFound());
         DCHECK_EQ(it.state(), LookupIterator::ACCESSOR);
-        ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, element_k,
-                                         Object::GetPropertyWithAccessor(&it),
-                                         Nothing<int64_t>());
+        ASSIGN_RETURN_ON_EXCEPTION(isolate, element_k,
+                                   Object::GetPropertyWithAccessor(&it));
 
         if (Object::StrictEquals(*value, *element_k)) {
           return Just<int64_t>(k);
@@ -5442,11 +5431,10 @@ class FastSloppyArgumentsElementsAccessor
     DCHECK(from_kind == SLOW_SLOPPY_ARGUMENTS_ELEMENTS ||
            static_cast<uint32_t>(old_arguments->length()) < capacity);
     DirectHandle<FixedArrayBase> arguments;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, arguments,
         ConvertElementsWithCapacity(isolate, object, old_arguments, from_kind,
-                                    capacity),
-        Nothing<bool>());
+                                    capacity));
     DirectHandle<Map> new_map = JSObject::GetElementsTransitionMap(
         isolate, object, FAST_SLOPPY_ARGUMENTS_ELEMENTS);
     JSObject::MigrateToMap(isolate, object, new_map);

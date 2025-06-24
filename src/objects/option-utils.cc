@@ -48,9 +48,8 @@ Maybe<bool> GetStringOption(Isolate* isolate, DirectHandle<JSReceiver> options,
                             DirectHandle<String>* result) {
   // 1. Let value be ? Get(options, property).
   DirectHandle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value, Object::GetPropertyOrElement(isolate, options, property),
-      Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, value, Object::GetPropertyOrElement(isolate, options, property));
 
   if (IsUndefined(*value, isolate)) {
     return Just(false);
@@ -58,8 +57,8 @@ Maybe<bool> GetStringOption(Isolate* isolate, DirectHandle<JSReceiver> options,
 
   // 2. c. Let value be ? ToString(value).
   DirectHandle<String> value_str;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value_str, Object::ToString(isolate, value), Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, value_str,
+                             Object::ToString(isolate, value));
 
   // 2. d. if values is not undefined, then
   // Skip: this overload is only for when values is undefined
@@ -74,9 +73,8 @@ V8_WARN_UNUSED_RESULT Maybe<bool> GetBoolOption(
     DirectHandle<String> property, const char* method_name, bool* result) {
   // 1. Let value be ? Get(options, property).
   DirectHandle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value, Object::GetPropertyOrElement(isolate, options, property),
-      Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, value, Object::GetPropertyOrElement(isolate, options, property));
 
   // 2. If value is not undefined, then
   if (!IsUndefined(*value, isolate)) {
@@ -100,8 +98,8 @@ Maybe<int> DefaultNumberOption(Isolate* isolate, DirectHandle<Object> value,
   // 1. If value is not undefined, then
   // a. Let value be ? ToNumber(value).
   DirectHandle<Number> value_num;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value_num, Object::ToNumber(isolate, value), Nothing<int>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, value_num,
+                             Object::ToNumber(isolate, value));
   DCHECK(IsNumber(*value_num));
 
   // b. If value is NaN or less than minimum or greater than maximum, throw a
@@ -127,9 +125,8 @@ Maybe<int> GetNumberOption(Isolate* isolate, DirectHandle<JSReceiver> options,
                            int fallback) {
   // 1. Let value be ? Get(options, property).
   DirectHandle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value, JSReceiver::GetProperty(isolate, options, property),
-      Nothing<int>());
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, value, JSReceiver::GetProperty(isolate, options, property));
 
   // Return ? DefaultNumberOption(value, minimum, maximum, fallback).
   return DefaultNumberOption(isolate, value, min, max, fallback, property);
@@ -142,9 +139,8 @@ Maybe<double> GetNumberOptionAsDouble(Isolate* isolate,
                                       double default_value) {
   // 1. Let value be ? Get(options, property).
   DirectHandle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value, JSReceiver::GetProperty(isolate, options, property),
-      Nothing<double>());
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, value, JSReceiver::GetProperty(isolate, options, property));
   // 2. If value is undefined, then
   if (IsUndefined(*value)) {
     // b. Return default.
@@ -153,8 +149,8 @@ Maybe<double> GetNumberOptionAsDouble(Isolate* isolate,
   // 4. Else if type is "number", then
   // a. Set value to ? ToNumber(value).
   DirectHandle<Number> value_num;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value_num, Object::ToNumber(isolate, value), Nothing<double>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, value_num,
+                             Object::ToNumber(isolate, value));
   // b. If value is NaN, throw a RangeError exception.
   if (IsNaN(*value_num)) {
     THROW_NEW_ERROR(

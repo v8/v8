@@ -63,12 +63,11 @@ Maybe<bool> CollectFieldsAndElements(Isolate* isolate,
   Handle<Name> property_name;
   UniqueNameHandleSet field_names_set;
   for (int i = 0; i < num_properties; i++) {
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, raw_property_name,
-        JSReceiver::GetElement(isolate, property_names, i), Nothing<bool>());
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, property_name,
-                                     Object::ToName(isolate, raw_property_name),
-                                     Nothing<bool>());
+        JSReceiver::GetElement(isolate, property_names, i));
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, property_name,
+                               Object::ToName(isolate, raw_property_name));
 
     bool is_duplicate;
     size_t index;

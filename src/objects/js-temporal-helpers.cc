@@ -28,8 +28,8 @@ Maybe<double> ToIntegerWithoutRounding(Isolate* isolate,
                                        DirectHandle<Object> argument) {
   // 1. Let number be ? ToNumber(argument).
   DirectHandle<Number> number;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, number, Object::ToNumber(isolate, argument), Nothing<double>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, number,
+                             Object::ToNumber(isolate, argument));
   // 2. If number is NaN, +0𝔽, or −0𝔽 return 0.
   if (IsNaN(*number) || Object::NumberValue(*number) == 0) {
     return Just(static_cast<double>(0));
@@ -74,10 +74,9 @@ Maybe<bool> IterateDurationRecordFieldsTable(
     // row.first is prop: the Property Name value of the current row
     // row.second is the address of result's field whose name is the Field Name
     // value of the current row
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,
-        RowFunction(isolate, temporal_duration_like, row.first, row.second),
-        Nothing<bool>());
+        RowFunction(isolate, temporal_duration_like, row.first, row.second));
     any |= result;
   }
   return Just(any);
@@ -269,7 +268,7 @@ Maybe<DurationRecord> ToPartialDuration(
   // Table 8: Duration Record Fields
   // #table-temporal-duration-record-fields
   // 4. For each row of Table 8, except the header row, in table order, do
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
       isolate, any,
       IterateDurationRecordFieldsTable(
           isolate, temporal_duration_like,
@@ -279,10 +278,9 @@ Maybe<DurationRecord> ToPartialDuration(
             // a. Let prop be the Property value of the current row.
             DirectHandle<Object> val;
             // b. Let val be ? Get(temporalDurationLike, prop).
-            ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            ASSIGN_RETURN_ON_EXCEPTION(
                 isolate, val,
-                JSReceiver::GetProperty(isolate, temporal_duration_like, prop),
-                Nothing<bool>());
+                JSReceiver::GetProperty(isolate, temporal_duration_like, prop));
             // c. If val is not undefined, then
             if (!IsUndefined(*val)) {
               // i. Set any to true.
@@ -290,14 +288,12 @@ Maybe<DurationRecord> ToPartialDuration(
               // ii. Let val be 𝔽(? ToIntegerWithoutRounding(val)).
               // iii. Set result's field whose name is the Field Name value of
               // the current row to val.
-              MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-                  isolate, *field, ToIntegerWithoutRounding(isolate, val),
-                  Nothing<bool>());
+              MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
+                  isolate, *field, ToIntegerWithoutRounding(isolate, val));
             }
             return Just(not_undefined);
           },
-          &result),
-      Nothing<DurationRecord>());
+          &result));
 
   // 5. If any is false, then
   if (!any) {

@@ -392,9 +392,8 @@ Maybe<bool> AddLiteral(Isolate* isolate, DirectHandle<JSArray> array,
                        const icu::UnicodeString& string, int32_t index,
                        int32_t start, int32_t limit) {
   DirectHandle<String> substring;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, substring, Intl::ToString(isolate, string, start, limit),
-      Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, substring,
+                             Intl::ToString(isolate, string, start, limit));
   Intl::AddElement(isolate, array, index, isolate->factory()->literal_string(),
                    substring);
   return Just(true);
@@ -405,10 +404,9 @@ Maybe<bool> AddUnit(Isolate* isolate, DirectHandle<JSArray> array,
                     const NumberFormatSpan& part, DirectHandle<String> unit,
                     bool is_nan) {
   DirectHandle<String> substring;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, substring,
-      Intl::ToString(isolate, string, part.begin_pos, part.end_pos),
-      Nothing<bool>());
+      Intl::ToString(isolate, string, part.begin_pos, part.end_pos));
   Intl::AddElement(isolate, array, index,
                    Intl::NumberFieldToType(isolate, part, string, is_nan),
                    substring, isolate->factory()->unit_string(), unit);
