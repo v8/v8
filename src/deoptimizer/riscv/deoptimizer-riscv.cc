@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/common/code-memory-access-inl.h"
 #include "src/deoptimizer/deoptimizer.h"
 
 namespace v8 {
@@ -19,6 +20,7 @@ void Deoptimizer::ZapCode(Address start, Address end, RelocIterator& it) {
 
 // static
 void Deoptimizer::PatchToJump(Address pc, Address new_pc) {
+  RwxMemoryWriteScope rwx_write_scope("Patch jump to deopt trampoline");
   intptr_t offset = (new_pc - pc);
   // We'll overwrite only one instruction of 4-bytes. Give enough
   // space not to try to grow the buffer.
