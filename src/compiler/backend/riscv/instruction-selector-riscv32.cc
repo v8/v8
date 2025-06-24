@@ -1187,6 +1187,28 @@ void InstructionSelector::VisitWord32AtomicCompareExchange(OpIndex node) {
     VisitAtomicCompareExchange(this, node, opcode, AtomicWidth::kWord32);
 }
 
+void InstructionSelector::VisitTaggedAtomicCompareExchange(OpIndex node) {
+  RiscvOperandGenerator g(this);
+  const AtomicRMWOp& atomic_op = Cast<AtomicRMWOp>(node);
+  OpIndex base = atomic_op.base();
+  OpIndex index = atomic_op.index();
+  OpIndex old_value = atomic_op.expected().value();
+  OpIndex new_value = atomic_op.value();
+  InstructionOperand inputs[] = {
+      g.UseUniqueRegister(base),
+      g.UseUniqueRegister(index),
+      g.UseUniqueRegister(old_value),
+      g.UseUniqueRegister(new_value),
+  };
+  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(),
+                                g.TempRegister()};
+  InstructionCode code = kAtomicCompareExchangeWithWriteBarrier |
+                         AddressingModeField::encode(kMode_MRR);
+  Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+       arraysize(temps), temps);
+}
+
 void InstructionSelector::VisitWord32AtomicBinaryOperation(
     OpIndex node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
     ArchOpcode uint16_op, ArchOpcode word32_op) {
