@@ -232,9 +232,11 @@ bool Isolate::IsInitialArrayPrototype(Tagged<JSArray> array) {
 
 #define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)              \
   Handle<UNPAREN(type)> Isolate::name() {                             \
+    DCHECK(!raw_native_context().is_null());                          \
     return Handle<UNPAREN(type)>(raw_native_context()->name(), this); \
   }                                                                   \
   bool Isolate::is_##name(Tagged<UNPAREN(type)> value) {              \
+    DCHECK(!raw_native_context().is_null());                          \
     return raw_native_context()->is_##name(value);                    \
   }
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)

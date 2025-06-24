@@ -2866,11 +2866,16 @@ DirectHandle<JSObject> Factory::NewSuppressedErrorAtDisposal(
   return err;
 }
 
-#define DEFINE_ERROR(NAME, name)                                         \
-  Handle<JSObject> Factory::New##NAME(                                   \
-      MessageTemplate template_index,                                    \
-      base::Vector<const DirectHandle<Object>> args) {                   \
-    return NewError(isolate()->name##_function(), template_index, args); \
+#define DEFINE_ERROR(NAME, name)                                            \
+  Handle<JSObject> Factory::New##NAME(                                      \
+      MessageTemplate template_index,                                       \
+      base::Vector<const DirectHandle<Object>> args) {                      \
+    auto raw_native_context = isolate()->raw_native_context();              \
+    CHECK_WITH_MSG(!raw_native_context.is_null(),                           \
+                   "Cannot create NAME##Error without a native_context.");  \
+    Handle<JSFunction> ctor_function(raw_native_context->name##_function(), \
+                                     isolate());                            \
+    return NewError(ctor_function, template_index, args);                   \
   }
 DEFINE_ERROR(Error, error)
 DEFINE_ERROR(EvalError, eval_error)
