@@ -66,8 +66,6 @@
       'V8 Linux - verify csa - builder': 'release_x86_verify_csa',
       # Linux64.
       'V8 Linux64 - builder': 'release_x64_gcmole',
-      'V8 Linux64 - builder (reclient)': 'release_x64_reclient',
-      'V8 Linux64 - builder (reclient compare)': 'release_x64_reclient',
       'V8 Linux64 - official - builder': 'official_x64_on_release_branch',
       'V8 Linux64 - debug builder': 'debug_x64',
       'V8 Linux64 - no shared cage - debug builder': 'debug_x64_no_shared_cage',
@@ -84,22 +82,17 @@
       # Windows.
       'V8 Win - arm64 - debug builder': 'debug_arm64',
       'V8 Win32 - builder': 'release_x86_minimal_symbols',
-      'V8 Win32 - builder (reclient)': 'release_x86_minimal_symbols_reclient',
-      'V8 Win32 - builder (reclient compare)': 'release_x86_minimal_symbols_reclient',
       'V8 Win32 - debug builder': 'debug_x86_minimal_symbols',
       # TODO(machenbach): Remove after switching to x64 on infra side.
       'V8 Win64 ASAN - builder': 'release_x64_asan_no_lsan',
       'V8 Win64 - CET shadow stack - builder': 'release_x64_cet_shadow_stack',
       'V8 Win64 - builder': 'release_x64_minimal_symbols',
-      'V8 Win64 - builder (reclient)': 'release_x64_minimal_symbols_reclient',
-      'V8 Win64 - builder (reclient compare)': 'release_x64_minimal_symbols_reclient',
       'V8 Win64 - dev image': 'release_x64_minimal_symbols',
       'V8 Win64 - debug builder': 'debug_x64_minimal_symbols',
       'V8 Win64 - drumbrake - debug builder': 'debug_x64_drumbrake',
       # Mac.
       'V8 Mac64 - builder': 'release_x64',
       'V8 Mac64 - debug builder': 'debug_x64',
-      'V8 Mac64 - builder (reclient)': 'release_x64_reclient',
       'V8 Official Mac ARM64': 'release_arm64',
       'V8 Official Mac ARM64 Debug': 'debug_arm64',
       'V8 Mac64 ASAN - builder': 'release_x64_asan_no_lsan',
@@ -130,11 +123,8 @@
       'V8 Linux64 - sticky mark bits - debug builder': 'debug_x64_sticky_mark_bits',
       'V8 Linux64 - undefined double - debug builder': 'debug_x64_undefined_double',
       'V8 Linux64 css - debug builder': 'debug_x64_conservative_stack_scanning',
-      'V8 Linux64 gcc - builder': 'release_x64_gcc',
       'V8 Linux64 - jammy - gcc - builder': 'release_x64_gcc',
-      'V8 Linux64 gcc - debug builder': 'debug_x64_gcc',
       'V8 Linux64 - jammy - gcc - debug builder': 'debug_x64_gcc',
-      'V8 Linux64 gcc light - debug builder': 'debug_x64_gcc',
       'V8 Fuchsia - builder': 'release_x64_fuchsia',
       'V8 Fuchsia - debug builder': 'debug_x64_fuchsia',
       'V8 Linux64 - cfi - builder': 'release_x64_cfi',
@@ -607,7 +597,7 @@
       'release_bot', 'x64', 'asan', 'lsan', 'symbolized',
       'v8_verify_heap', 'v8_enable_turboshaft_csa'],
     'release_x64_cet_shadow_stack': [
-      'release_bot', 'x64', 'cet_shadow_stack', 'use_siso'],
+      'release_bot', 'x64', 'cet_shadow_stack'],
     'release_x64_cfi': [
       'release_bot', 'x64', 'cfi'],
     'release_x64_cfi_clusterfuzz_turboshaft_csa': [
@@ -629,7 +619,7 @@
     'release_x64_fuchsia_trybot': [
       'release_trybot', 'x64', 'fuchsia'],
     'release_x64_gcc': [
-      'release_bot_no_reclient', 'x64', 'gcc', 'lld', 'no_custom_libcxx'],
+      'release_bot_no_remoteexec', 'x64', 'gcc', 'lld', 'no_custom_libcxx'],
     'release_x64_ios_simulator': [
       'release_bot', 'x64', 'ios_simulator'],
     'release_x64_internal': [
@@ -638,13 +628,9 @@
       'release_bot', 'x64', 'v8_lower_limits_mode'],
     'release_x64_minimal_symbols': [
       'release_bot', 'x64', 'minimal_symbols'],
-    'release_x64_minimal_symbols_reclient': [
-      'release_bot_reclient', 'x64', 'minimal_symbols'],
     'release_x64_no_pointer_compression': [
       'release_bot', 'x64', 'no_sandbox', 'dcheck_always_on', 'v8_enable_slow_dchecks',
       'v8_enable_javascript_promise_hooks', 'v8_disable_pointer_compression'],
-    'release_x64_reclient': [
-      'release_bot_reclient', 'x64'],
     'release_x64_no_sandbox': [
       'release_bot', 'x64', 'no_sandbox'],
     'release_x64_sandbox_hardware_support': [
@@ -699,7 +685,7 @@
     'debug_x64_asan_centipede': [
       'debug_bot', 'x64', 'asan', 'use_centipede'],
     'debug_x64_asan_no_lsan_static_turboshaft_csa': [
-      'debug', 'static', 'reclient', 'v8_enable_slow_dchecks',
+      'debug', 'static', 'remoteexec', 'v8_enable_slow_dchecks',
       'v8_optimized_debug', 'x64', 'asan', 'v8_enable_turboshaft_csa'],
     'debug_x64_asan_undefined_double': [
       'debug_bot', 'x64', 'asan', 'v8_enable_undefined_double'],
@@ -714,7 +700,7 @@
     'debug_x64_fuchsia': [
       'debug_bot', 'x64', 'fuchsia'],
     'debug_x64_gcc': [
-      'debug_bot_no_reclient', 'x64', 'gcc', 'lld', 'no_custom_libcxx'],
+      'debug_bot_no_remoteexec', 'x64', 'gcc', 'lld', 'no_custom_libcxx'],
     'debug_x64_header_includes': [
       'debug_bot', 'x64', 'v8_check_header_includes'],
     'debug_x64_no_shared_cage': [
@@ -765,7 +751,7 @@
     'debug_x86_vtunejit': [
       'debug_bot', 'x86', 'v8_enable_vtunejit'],
     'full_debug_x86': [
-      'debug', 'x86', 'reclient', 'v8_enable_slow_dchecks', 'v8_full_debug'],
+      'debug', 'x86', 'remoteexec', 'v8_enable_slow_dchecks', 'v8_full_debug'],
 
     # Release configs for x86.
     'release_x86_asan_symbolized_verify_heap_turboshaft_csa': [
@@ -777,14 +763,12 @@
       'release_trybot', 'x86', 'gcmole'],
     'release_x86_minimal_symbols': [
       'release_bot', 'x86', 'minimal_symbols'],
-    'release_x86_minimal_symbols_reclient': [
-      'release_bot_reclient', 'x86', 'minimal_symbols'],
     'release_x86_no_i18n_trybot': [
       'release_trybot', 'x86', 'v8_no_i18n'],
     'release_x64_predictable': [
       'release_bot', 'x64', 'v8_enable_verify_predictable'],
     'release_x86_shared_verify_heap': [
-      'release', 'x86', 'reclient', 'shared', 'v8_verify_heap'],
+      'release', 'x86', 'remoteexec', 'shared', 'v8_verify_heap'],
     'release_x86_trybot': [
       'release_trybot', 'x86'],
     'release_x86_verify_csa': [
@@ -830,7 +814,7 @@
     },
 
     'builtins_profiling': {
-      'mixins' : ['release_bot_reclient'],
+      'mixins' : ['release_bot_remoteexec'],
       'gn_args': 'v8_enable_builtins_profiling=true',
     },
 
@@ -876,19 +860,19 @@
 
     'debug_bot_no_slow_dchecks': {
       'mixins': [
-        'debug', 'shared', 'reclient', 'v8_disable_slow_dchecks',
+        'debug', 'shared', 'remoteexec', 'v8_disable_slow_dchecks',
         'v8_optimized_debug', 'v8_enable_google_benchmark'],
     },
 
     'debug_bot': {
       'mixins': [
-        'debug', 'shared', 'reclient', 'v8_enable_slow_dchecks',
+        'debug', 'shared', 'remoteexec', 'v8_enable_slow_dchecks',
         'v8_optimized_debug', 'v8_enable_google_benchmark'],
     },
 
-    'debug_bot_no_reclient': {
+    'debug_bot_no_remoteexec': {
       'mixins': [
-        'debug', 'shared', 'no_reclient', 'v8_enable_slow_dchecks',
+        'debug', 'shared', 'no_remoteexec', 'v8_enable_slow_dchecks',
         'v8_optimized_debug'],
     },
 
@@ -962,8 +946,8 @@
       'gn_args': 'use_custom_libcxx=false',
     },
 
-    'no_reclient': {
-      'gn_args': 'use_remoteexec=false use_siso=false',
+    'no_remoteexec': {
+      'gn_args': 'use_remoteexec=false',
     },
 
     'no_sandbox': {
@@ -982,11 +966,8 @@
       'gn_args': 'v8_use_perfetto=true',
     },
 
-    # TODO(https://crbug.com/414724525): Temporarily use the reclient and siso
-    # configs synonym. In a follow up we'll drop the reclient parts and replace
-    # them with SISO configs.
-    'reclient': {
-      'gn_args': 'use_remoteexec=true use_siso=true',
+    'remoteexec': {
+      'gn_args': 'use_remoteexec=true',
     },
 
     'release': {
@@ -998,15 +979,15 @@
     },
 
     'release_bot': {
-      'mixins': ['release', 'static', 'reclient', 'v8_enable_google_benchmark'],
+      'mixins': ['release', 'static', 'remoteexec', 'v8_enable_google_benchmark'],
     },
 
-    'release_bot_no_reclient': {
-      'mixins': ['release', 'static', 'no_reclient'],
+    'release_bot_no_remoteexec': {
+      'mixins': ['release', 'static', 'no_remoteexec'],
     },
 
-    'release_bot_reclient': {
-      'mixins': ['release', 'static', 'reclient'],
+    'release_bot_remoteexec': {
+      'mixins': ['release', 'static', 'remoteexec'],
     },
 
     'release_trybot': {
@@ -1083,10 +1064,6 @@
 
     'use_centipede': {
       'gn_args': 'use_centipede=true optimize_for_fuzzing = true',
-    },
-
-    'use_siso': {
-      'gn_args': 'use_siso=true',
     },
 
     'v8_check_header_includes': {
