@@ -1368,6 +1368,50 @@ DeoptFrame* MaglevGraphBuilder::GetCallerDeoptFrame() {
   return caller_details_->deopt_frame;
 }
 
+namespace {
+DeoptFrame WrapDeoptFrameWithContinuation(
+    Zone* zone, const DeoptFrame& parent_frame,
+    const MaglevGraphBuilder::DeoptFrameScope* deopt_scope,
+    DeoptimizeKind kind) {
+#ifdef DEBUG
+  DCHECK_EQ(deopt_scope->data().tag(),
+            DeoptFrame::FrameType::kBuiltinContinuationFrame);
+  const DeoptFrame::BuiltinContinuationFrameData& frame =
+      deopt_scope->data().get<DeoptFrame::BuiltinContinuationFrameData>();
+  DCHECK_EQ(kind == DeoptimizeKind::kLazy,
+            deopt_scope->IsLazyDeoptContinuationFrame());
+  // TODO(leszeks): Support lazy-after-fast-call if needed.
+  DCHECK_NE(kind, DeoptimizeKind::kLazyAfterFastCall);
+  if (frame.maybe_js_target) {
+    int stack_parameter_count =
+        Builtins::GetStackParameterCount(frame.builtin_id);
+    DCHECK_EQ(
+        stack_parameter_count,
+        frame.parameters.length() + (kind == DeoptimizeKind::kLazy ? 1 : 0));
+  } else {
+    CallInterfaceDescriptor descriptor =
+        Builtins::CallInterfaceDescriptorFor(frame.builtin_id);
+    DCHECK_EQ(
+        descriptor.GetParameterCount(),
+        frame.parameters.length() + (kind == DeoptimizeKind::kLazy ? 1 : 0));
+  }
+#endif
+
+  DeoptFrame* maybe_wrapped_parent_frame;
+  if (deopt_scope->parent()) {
+    // If this deopt scope has any parent scopes, only the first is
+    // eager and the rest are lazy.
+    maybe_wrapped_parent_frame =
+        zone->New<DeoptFrame>(WrapDeoptFrameWithContinuation(
+            zone, parent_frame, deopt_scope->parent(), DeoptimizeKind::kLazy));
+  } else {
+    maybe_wrapped_parent_frame = zone->New<DeoptFrame>(parent_frame);
+  }
+
+  return DeoptFrame(deopt_scope->data(), maybe_wrapped_parent_frame);
+}
+}  // namespace
+
 DeoptFrame MaglevGraphBuilder::GetLatestCheckpointedFrame() {
   if (in_prologue_) {
     return GetDeoptFrameForEntryStackCheck();
@@ -1386,7 +1430,8 @@ DeoptFrame MaglevGraphBuilder::GetLatestCheckpointedFrame() {
         [&](ValueNode* node, interpreter::Register) { AddDeoptUse(node); });
     AddDeoptUse(latest_checkpointed_frame_->as_interpreted().closure());
 
-    // Skip lazy deopt builtin continuations.
+    // Skip initial outer lazy deopt builtin continuations.
+    // TODO(leszeks): Investigate if this is necessary.
     const DeoptFrameScope* deopt_scope = current_deopt_scope_;
     while (deopt_scope != nullptr &&
            deopt_scope->IsLazyDeoptContinuationFrame()) {
@@ -1394,32 +1439,9 @@ DeoptFrame MaglevGraphBuilder::GetLatestCheckpointedFrame() {
     }
 
     if (deopt_scope != nullptr) {
-      // Support exactly one eager deopt builtin continuation. This can be
-      // expanded in the future if necessary.
-      DCHECK_NULL(deopt_scope->parent());
-      DCHECK_EQ(deopt_scope->data().tag(),
-                DeoptFrame::FrameType::kBuiltinContinuationFrame);
-#ifdef DEBUG
-      if (deopt_scope->data().tag() ==
-          DeoptFrame::FrameType::kBuiltinContinuationFrame) {
-        const DeoptFrame::BuiltinContinuationFrameData& frame =
-            deopt_scope->data().get<DeoptFrame::BuiltinContinuationFrameData>();
-        if (frame.maybe_js_target) {
-          int stack_parameter_count =
-              Builtins::GetStackParameterCount(frame.builtin_id);
-          DCHECK_EQ(stack_parameter_count, frame.parameters.length());
-        } else {
-          CallInterfaceDescriptor descriptor =
-              Builtins::CallInterfaceDescriptorFor(frame.builtin_id);
-          DCHECK_EQ(descriptor.GetParameterCount(), frame.parameters.length());
-        }
-      }
-#endif
-
-      // Wrap the above frame in the scope frame.
       latest_checkpointed_frame_.emplace(
-          deopt_scope->data(),
-          zone()->New<DeoptFrame>(*latest_checkpointed_frame_));
+          WrapDeoptFrameWithContinuation(zone(), *latest_checkpointed_frame_,
+                                         deopt_scope, DeoptimizeKind::kEager));
     }
   }
   return *latest_checkpointed_frame_;
