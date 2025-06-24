@@ -135,6 +135,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvDivD:
     case kRiscvDivS:
     case kRiscvDivU32:
+    case kRiscvFEq:
+    case kRiscvFNe:
+    case kRiscvFLt:
+    case kRiscvFLe:
     case kRiscvF64x2Abs:
     case kRiscvF64x2Sqrt:
     case kRiscvF64x2Pmin:
@@ -146,10 +150,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvF64x2Floor:
     case kRiscvF64x2Trunc:
     case kRiscvF64x2NearestInt:
-    case kRiscvF64x2Eq:
-    case kRiscvF64x2Ne:
-    case kRiscvF64x2Lt:
-    case kRiscvF64x2Le:
     case kRiscvI64x2SplatI32Pair:
     case kRiscvI64x2ExtractLane:
     case kRiscvI64x2ReplaceLane:
@@ -174,10 +174,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvF32x4Floor:
     case kRiscvF32x4Trunc:
     case kRiscvF32x4NearestInt:
-    case kRiscvF32x4Eq:
-    case kRiscvF32x4Ne:
-    case kRiscvF32x4Lt:
-    case kRiscvF32x4Le:
     case kRiscvF64x2ExtractLane:
     case kRiscvF64x2ReplaceLane:
     case kRiscvFloat32Max:

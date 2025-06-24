@@ -3177,8 +3177,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  kScratchReg, kSimd128ScratchReg);
       break;
     }
-    case kRiscvF64x2Eq: {
-      __ VU.set(kScratchReg, E64, m1);
+    case kRiscvFEq: {
+      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
       // The later vmerge.vi instruction implicitly uses the reserved
       // register 'v0', so we put the comparison output there.
       __ vmfeq_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(1));
@@ -3186,8 +3186,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmerge_vi(i.OutputSimd128Register(), -1, kSimd128ScratchReg);
       break;
     }
-    case kRiscvF64x2Ne: {
-      __ VU.set(kScratchReg, E64, m1);
+    case kRiscvFNe: {
+      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
       // The later vmerge.vi instruction implicitly uses the reserved
       // register 'v0', so we put the comparison output there.
       __ vmfne_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(1));
@@ -3195,8 +3195,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmerge_vi(i.OutputSimd128Register(), -1, kSimd128ScratchReg);
       break;
     }
-    case kRiscvF64x2Lt: {
-      __ VU.set(kScratchReg, E64, m1);
+    case kRiscvFLt: {
+      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
       // The later vmerge.vi instruction implicitly uses the reserved
       // register 'v0', so we put the comparison output there.
       __ vmflt_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(1));
@@ -3204,8 +3204,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmerge_vi(i.OutputSimd128Register(), -1, kSimd128ScratchReg);
       break;
     }
-    case kRiscvF64x2Le: {
-      __ VU.set(kScratchReg, E64, m1);
+    case kRiscvFLe: {
+      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
       // The later vmerge.vi instruction implicitly uses the reserved
       // register 'v0', so we put the comparison output there.
       __ vmfle_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(1));
@@ -3413,42 +3413,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vfnmsub_vv(i.InputSimd128Register(0), i.InputSimd128Register(1),
                     i.InputSimd128Register(2));
       __ vmv_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kRiscvF32x4Eq: {
-      __ VU.set(kScratchReg, E32, m1);
-      // The later vmerge.vi instruction implicitly uses the reserved
-      // register 'v0', so we put the comparison output there.
-      __ vmfeq_vv(v0, i.InputSimd128Register(1), i.InputSimd128Register(0));
-      __ vmv_vi(kSimd128ScratchReg, 0);
-      __ vmerge_vi(i.OutputSimd128Register(), -1, kSimd128ScratchReg);
-      break;
-    }
-    case kRiscvF32x4Ne: {
-      __ VU.set(kScratchReg, E32, m1);
-      // The later vmerge.vi instruction implicitly uses the reserved
-      // register 'v0', so we put the comparison output there.
-      __ vmfne_vv(v0, i.InputSimd128Register(1), i.InputSimd128Register(0));
-      __ vmv_vi(kSimd128ScratchReg, 0);
-      __ vmerge_vi(i.OutputSimd128Register(), -1, kSimd128ScratchReg);
-      break;
-    }
-    case kRiscvF32x4Lt: {
-      __ VU.set(kScratchReg, E32, m1);
-      // The later vmerge.vi instruction implicitly uses the reserved
-      // register 'v0', so we put the comparison output there.
-      __ vmflt_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(1));
-      __ vmv_vi(kSimd128ScratchReg, 0);
-      __ vmerge_vi(i.OutputSimd128Register(), -1, kSimd128ScratchReg);
-      break;
-    }
-    case kRiscvF32x4Le: {
-      __ VU.set(kScratchReg, E32, m1);
-      // The later vmerge.vi instruction implicitly uses the reserved
-      // register 'v0', so we put the comparison output there.
-      __ vmfle_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(1));
-      __ vmv_vi(kSimd128ScratchReg, 0);
-      __ vmerge_vi(i.OutputSimd128Register(), -1, kSimd128ScratchReg);
       break;
     }
     case kRiscvI64x2SConvertI32x4Low: {
