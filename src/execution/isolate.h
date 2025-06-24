@@ -234,7 +234,7 @@ class WaiterQueueNode;
   RETURN_VALUE_IF_EXCEPTION(isolate, (detector.AcceptSideEffects(), value))
 
 #define RETURN_EXCEPTION_IF_EXCEPTION(isolate) \
-  RETURN_VALUE_IF_EXCEPTION(isolate, kNullMaybeHandle)
+  RETURN_VALUE_IF_EXCEPTION(isolate, internal::kNullMaybe)
 
 #define MAYBE_RETURN_ON_EXCEPTION_VALUE(isolate, call, value) \
   do {                                                        \
@@ -290,7 +290,7 @@ class WaiterQueueNode;
   } while (false)
 
 #define ASSIGN_RETURN_ON_EXCEPTION(isolate, dst, call) \
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, kNullMaybeHandle)
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, internal::kNullMaybe)
 
 #define THROW_NEW_ERROR_RETURN_FAILURE(isolate, call)         \
   do {                                                        \
@@ -306,7 +306,7 @@ class WaiterQueueNode;
   } while (false)
 
 #define THROW_NEW_ERROR(isolate, call) \
-  THROW_NEW_ERROR_RETURN_VALUE(isolate, call, kNullMaybeHandle)
+  THROW_NEW_ERROR_RETURN_VALUE(isolate, call, internal::kNullMaybe)
 
 /**
  * RETURN_ON_EXCEPTION_VALUE conditionally returns the given value when the
@@ -394,7 +394,7 @@ class WaiterQueueNode;
  * Maybe<X> or Handle<X>, use RETURN_ON_EXCEPTION_VALUE instead.
  */
 #define RETURN_ON_EXCEPTION(isolate, call) \
-  RETURN_ON_EXCEPTION_VALUE(isolate, call, kNullMaybeHandle)
+  RETURN_ON_EXCEPTION_VALUE(isolate, call, internal::kNullMaybe)
 
 #define RETURN_FAILURE(isolate, should_throw, call) \
   do {                                              \
@@ -411,7 +411,7 @@ class WaiterQueueNode;
     if ((call).IsNothing()) return value; \
   } while (false)
 
-#define MAYBE_RETURN_NULL(call) MAYBE_RETURN(call, kNullMaybeHandle)
+#define MAYBE_RETURN_NULL(call) MAYBE_RETURN(call, internal::kNullMaybe)
 
 #define API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
   do {                                                                  \
@@ -446,6 +446,10 @@ class WaiterQueueNode;
     }                                                                     \
   } while (false)
 
+#define MAYBE_ASSIGN_RETURN_ON_EXCEPTION(isolate, dst, call) \
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, \
+                                         internal::kNullMaybe)
+
 // Like MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE, but moves out of the call
 // instead of performing copy-assignment
 #define MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
@@ -455,6 +459,9 @@ class WaiterQueueNode;
       return value;                                                     \
     }                                                                   \
   } while (false)
+
+#define MAYBE_MOVE_RETURN_ON_EXCEPTION(isolate, dst, call) \
+  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, internal::kNullMaybe)
 
 #define MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, dst, call) \
   do {                                                               \

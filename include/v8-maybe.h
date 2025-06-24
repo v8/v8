@@ -14,6 +14,12 @@
 
 namespace v8 {
 
+namespace internal {
+struct NullMaybeType {};
+
+constexpr NullMaybeType kNullMaybe;
+}  // namespace internal
+
 namespace api_internal {
 // Called when ToChecked is called on an empty Maybe.
 V8_EXPORT void FromJustIsNothing();
@@ -33,6 +39,8 @@ template <class T>
 class Maybe : public cppgc::internal::ConditionalStackAllocatedBase<T> {
  public:
   constexpr Maybe() = default;
+
+  V8_INLINE Maybe(internal::NullMaybeType) {}
 
   V8_INLINE bool IsNothing() const { return !has_value_; }
   V8_INLINE bool IsJust() const { return has_value_; }

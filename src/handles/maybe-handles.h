@@ -7,6 +7,7 @@
 
 #include <type_traits>
 
+#include "include/v8-maybe.h"
 #include "src/handles/handles.h"
 
 namespace v8 {
@@ -29,6 +30,7 @@ class MaybeHandle final {
  public:
   V8_INLINE MaybeHandle() = default;
 
+  V8_INLINE MaybeHandle(NullMaybeType) {}
   V8_INLINE MaybeHandle(NullMaybeHandleType) {}
 
   // Constructor for handling automatic up casting from Handle.
@@ -152,6 +154,7 @@ class MaybeDirectHandle final {
  public:
   V8_INLINE MaybeDirectHandle() = default;
 
+  V8_INLINE MaybeDirectHandle(NullMaybeType) {}
   V8_INLINE MaybeDirectHandle(NullMaybeHandleType) {}
 
   // Constructor for handling automatic up casting from DirectHandle.
@@ -241,6 +244,7 @@ template <typename T>
 class MaybeDirectHandle {
  public:
   V8_INLINE MaybeDirectHandle() = default;
+  V8_INLINE MaybeDirectHandle(NullMaybeType) {}
   V8_INLINE MaybeDirectHandle(NullMaybeHandleType) {}
 
   V8_INLINE MaybeDirectHandle(Tagged<T> object, Isolate* isolate)
