@@ -665,8 +665,7 @@ Cast<JSArrayForFastToString>(
   // Verify that the initial array prototype is not modified.
   const validityCell = *NativeContextSlot(
       nativeContext, ContextSlot::INITIAL_ARRAY_PROTOTYPE_VALIDITY_CELL_INDEX);
-  if (TaggedEqual(
-          validityCell.maybe_value, SmiConstant(kPrototypeChainInvalid))) {
+  if (TaggedEqual(validityCell.maybe_value, kPrototypeChainInvalid)) {
     goto CastError;
   }
 

@@ -1475,6 +1475,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return Word32BinaryNot(IsCleared(value));
   }
 
+  TNode<MaybeObject> PrototypeChainInvalidConstant();
+
   // Removes the weak bit + asserts it was set.
   TNode<HeapObject> GetHeapObjectAssumeWeak(TNode<MaybeObject> value);
 
