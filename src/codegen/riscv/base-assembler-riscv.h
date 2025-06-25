@@ -84,7 +84,7 @@ class AssemblerRiscvBase {
   virtual void ClearVectorunit() = 0;
 
   // Record the last known safepoint location to the current pc.
-  virtual void RecordPcForSafepoint();
+  virtual void RecordPcForSafepoint() = 0;
 
   // Instruction generation.
 
