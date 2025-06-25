@@ -5,6 +5,7 @@
 #include "src/maglev/maglev-graph-builder.h"
 
 #include <algorithm>
+#include <iomanip>
 #include <limits>
 #include <optional>
 #include <utility>
