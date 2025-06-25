@@ -7852,7 +7852,8 @@ void CodeGenerator::AssembleConstructFrame() {
                 Immediate(static_cast<int32_t>(
                     call_descriptor->ParameterSlotCount() * kSystemPointerSize +
                     CommonFrameConstants::kFixedFrameSizeAboveFp)));
-        __ CallBuiltin(Builtin::kWasmHandleStackOverflow);
+        __ Call(static_cast<Address>(Builtin::kWasmHandleStackOverflow),
+                RelocInfo::WASM_STUB_CALL);
         __ PopAll(fp_regs_to_save);
         __ PopAll(regs_to_save);
       } else {
