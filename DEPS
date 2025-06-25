@@ -92,7 +92,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': 'f8a48647751d44a0497a76633f6dc22ab28f51ad',
+  'partition_alloc_version': '983d556a9aed36814954a4463bb0b508d2af133a',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -130,9 +130,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a9e7ce7e5f1f442ea18f3516cde638b679f00ce9',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f85273885aa0e055bacfa3f1d960de805bf8f1ff',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'ece689efbeca473e0ef67ec97db014095ab79952',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'e4d18feca868416b05aad59db16848144fe229c1',
   'buildtools/linux64': {
     'packages': [
       {
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6a1451c0c08a9dd0a93bed0b43a936d1f9ceb9f8',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '838762e3aeb6e8bf03ab1a3ea79f9fe2a104df37',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -302,7 +302,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '2c359c239b138a20a03f798e47889448ef131c22',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'b5d83e70a1537fbce965e6319877c76794daaa80',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'e44c3c4560f1742744ef3f9fb4217a5f26ebca1b',
   'third_party/libunwind/src':
@@ -484,7 +484,7 @@ deps = {
       'condition': 'checkout_android',
   },
   'tools/rust':
-    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '12ac1a1b8e11ec3ed94a111ae3f9571cb3cb3581',
+    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + 'c52b68f9dc6986af8573e3151a99b009311dd75f',
   'third_party/rust':
     Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '4b5d818f299d12635ac66d271be972da40779bdf',
   'third_party/rust-toolchain': {
@@ -492,31 +492,31 @@ deps = {
     'bucket': 'chromium-browser-clang',
     'objects': [
       {
-        'object_name': 'Linux_x64/rust-toolchain-22be76b7e259f27bf3e55eb931f354cd8b69d55f-1-llvmorg-21-init-16348-gbd809ffb.tar.xz',
-        'sha256sum': '8bdd25ada8ed9d5becd39ffd8290040e1c7793cc611d36152f3f14c4a9905661',
-        'size_bytes': 119794812,
-        'generation': 1750690366003625,
+        'object_name': 'Linux_x64/rust-toolchain-22be76b7e259f27bf3e55eb931f354cd8b69d55f-3-llvmorg-21-init-16348-gbd809ffb.tar.xz',
+        'sha256sum': '5f8e9ad847e5bf586e0de1bb563c9a49e05ad36edfad5037900d7510004fc577',
+        'size_bytes': 138573136,
+        'generation': 1750840933611077,
         'condition': 'host_os == "linux"',
       },
       {
-        'object_name': 'Mac/rust-toolchain-22be76b7e259f27bf3e55eb931f354cd8b69d55f-1-llvmorg-21-init-16348-gbd809ffb.tar.xz',
-        'sha256sum': 'e9f44227ed9391348d3453ad3a149020376a96eadbc13f6f4364abb47897eb78',
-        'size_bytes': 112781684,
-        'generation': 1750690367799684,
+        'object_name': 'Mac/rust-toolchain-22be76b7e259f27bf3e55eb931f354cd8b69d55f-3-llvmorg-21-init-16348-gbd809ffb.tar.xz',
+        'sha256sum': '357db812ca0a518ef0fc4394ddc859d68f23384931294412b7424bb3aabb3c09',
+        'size_bytes': 132392604,
+        'generation': 1750840935469331,
         'condition': 'host_os == "mac" and host_cpu == "x64"',
       },
       {
-        'object_name': 'Mac_arm64/rust-toolchain-22be76b7e259f27bf3e55eb931f354cd8b69d55f-1-llvmorg-21-init-16348-gbd809ffb.tar.xz',
-        'sha256sum': '787347babc5b6d01501983e61a33dc9bbe7b4132cc0b9d8fc8d52172116ff1e8',
-        'size_bytes': 103157336,
-        'generation': 1750690369530803,
+        'object_name': 'Mac_arm64/rust-toolchain-22be76b7e259f27bf3e55eb931f354cd8b69d55f-3-llvmorg-21-init-16348-gbd809ffb.tar.xz',
+        'sha256sum': 'd3cb60c6388e86d3d1a0c46c539f1ea0ed1ff48cf907dc21b2cb5ff441b23c03',
+        'size_bytes': 120354192,
+        'generation': 1750840937280735,
         'condition': 'host_os == "mac" and host_cpu == "arm64"',
       },
       {
-        'object_name': 'Win/rust-toolchain-22be76b7e259f27bf3e55eb931f354cd8b69d55f-1-llvmorg-21-init-16348-gbd809ffb.tar.xz',
-        'sha256sum': '4de34b051f839d1c836955ce7eac77744bc8d2a0f8ee69d21fa3570765fa6161',
-        'size_bytes': 195070072,
-        'generation': 1750690371353176,
+        'object_name': 'Win/rust-toolchain-22be76b7e259f27bf3e55eb931f354cd8b69d55f-3-llvmorg-21-init-16348-gbd809ffb.tar.xz',
+        'sha256sum': '7e804f3a8bef4c8ca32d3368ca7564e5c12b684899453d9a522bdd05b1f1df7b',
+        'size_bytes': 195000356,
+        'generation': 1750840939064273,
         'condition': 'host_os == "win"',
       },
     ],
@@ -534,7 +534,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '4028ebf8710ee39d2286cb0f847f9b95c59f84d8',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'dda2034aac4c409b7e18198fff3079b3f8a976c4',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'cb4a6fc9704f19e6977d7fd1da2a578274b9f611',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '502dcad5230ec1da544e7720b15d91782f040d9f',
   'third_party/abseil-cpp': {
