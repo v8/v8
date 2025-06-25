@@ -303,9 +303,7 @@ if (is_debug && !v8_optimized_debug) {
   }
 }
 
-if (!is_debug &&
-    # TODO(crbug.com/417956700): Remove this after clang roll.
-    !use_libcxx_modules) {
+if (!is_debug) {
   v8_remove_configs += [
     # Too much performance impact, unclear security benefit.
     "//build/config/compiler:default_init_stack_vars",
