@@ -4198,6 +4198,13 @@ Isolate* Isolate::Allocate(IsolateGroup* group) {
   // IsolateAllocator manages the virtual memory resources for the Isolate.
   Isolate* isolate = new (isolate_ptr) Isolate(group);
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  // TODO(427392572): sandboxed code currently still requires write access to
+  // the Isolate object. This is unsafe and we'll need to fix that eventually.
+  SandboxHardwareSupport::RegisterUnsafeSandboxExtensionMemory(
+      reinterpret_cast<Address>(isolate_ptr), sizeof(Isolate));
+#endif
+
 #ifdef DEBUG
   non_disposed_isolates_++;
 #endif  // DEBUG
