@@ -191,7 +191,7 @@
   'unicode-case-overoptimization1': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mips64el, mips64, riscv64, riscv32, loong64)', SKIP]],
   'regress/regress-3976': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mips64el, mips64, riscv64, riscv32, loong64)', SKIP]],
   'regress/regress-crbug-482998': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mips64el, riscv64, riscv32, loong64)', SKIP]],
-  'regress/regress-740784': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mips64el, riscv64,riscv32, loong64)', SKIP]],
+  'regress/regress-740784': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mips64el, riscv64, riscv32, loong64)', SKIP]],
 
   # TODO(bmeurer): Flaky timeouts (sometimes <1s, sometimes >3m).
   'unicodelctest': [PASS, NO_VARIANTS],
@@ -1458,6 +1458,9 @@
 
   # wasm deopt don't support simd128
   'wasm/deopt/deopt-many-params-many-locals-s128': [SKIP],
+
+  # TODO(kasperl@rivosinc.com): These new tests currently fail on riscv32 and riscv64.
+  'compiler/fast-api-deopt': [FAIL],
 }],  # 'arch == riscv64 or arch == riscv32'
 
 ['variant == stress and (arch == riscv64 or arch == riscv32)', {
