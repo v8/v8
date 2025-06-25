@@ -463,7 +463,6 @@ class MaglevGraphBuilder {
   NodeInfo* GetOrCreateInfoFor(ValueNode* node) {
     return known_node_aspects().GetOrCreateInfoFor(broker(), node);
   }
-
   // Returns true if we statically know that {lhs} and {rhs} have disjoint
   // types.
   bool HaveDisjointTypes(ValueNode* lhs, ValueNode* rhs) {

@@ -341,29 +341,7 @@ struct KnownNodeAspects {
     if (IsValid(info_it)) return &info_it->second;
     auto res = &node_infos.emplace(node, NodeInfo()).first->second;
     res->IntersectType(node->GetStaticType(broker));
-    if (auto alloc = node->TryCast<InlinedAllocation>()) {
-      if (alloc->object()->has_static_map()) {
-        compiler::MapRef map = alloc->object()->map();
-        res->SetPossibleMaps(PossibleMaps{map}, !map.is_stable(),
-                             StaticTypeForMap(map, broker), broker);
-      }
-    }
     return res;
-  }
-
-  std::optional<PossibleMaps> TryGetPossibleMaps(ValueNode* node) {
-    if (NodeInfo* info = TryGetInfoFor(node)) {
-      if (info->possible_maps_are_known()) {
-        return info->possible_maps();
-      }
-      return {};
-    }
-    if (auto alloc = node->TryCast<InlinedAllocation>()) {
-      if (alloc->object()->has_static_map()) {
-        return PossibleMaps{alloc->object()->map()};
-      }
-    }
-    return {};
   }
 
   NodeType GetType(compiler::JSHeapBroker* broker, ValueNode* node) const {
