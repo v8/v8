@@ -522,14 +522,14 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;
 
   Label exit;
+  JumpIfSmi(src, &exit);
   // NOTE: to_condition(kZero) is the equality condition (eq)
   // This line verifies the masked address is equal to dst_addr,
   // not that it is zero!
   CheckPageFlag(dst_addr, ip, MemoryChunk::kPointersFromHereAreInterestingMask,
                 to_condition(kZero), &exit);
-  JumpIfSmi(src, &exit);
-  CheckPageFlag(src, ip, MemoryChunk::kPointersToHereAreInterestingMask, eq,
-                &exit);
+  CheckPageFlag(src, ip, MemoryChunk::kPointersToHereAreInterestingMask,
+                to_condition(kZero), &exit);
   mov(ip, Operand(offset_imm));
   add(ip, ip, dst_addr);
   if (offset_reg != no_reg) {
@@ -557,14 +557,14 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
   if (v8_flags.disable_write_barriers) return;
 
   Label exit;
+  JumpIfSmi(src, &exit);
   // NOTE: to_condition(kZero) is the equality condition (eq)
   // This line verifies the masked address is equal to dst_addr,
   // not that it is zero!
   CheckPageFlag(dst_addr, ip, MemoryChunk::kPointersFromHereAreInterestingMask,
                 to_condition(kZero), &exit);
-  JumpIfSmi(src, &exit);
-  CheckPageFlag(src, ip, MemoryChunk::kPointersToHereAreInterestingMask, eq,
-                &exit);
+  CheckPageFlag(src, ip, MemoryChunk::kPointersToHereAreInterestingMask,
+                to_condition(kZero), &exit);
   mov(ip, Operand(offset_imm));
   add(ip, ip, dst_addr);
   if (offset_reg != no_reg) {
@@ -995,11 +995,11 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
   if (v8_flags.disable_write_barriers) return;
   // Emit the write barrier.
   Label exit;
+  JumpIfSmi(value.gp(), &exit);
   CheckPageFlag(dst_addr, ip, MemoryChunk::kPointersFromHereAreInterestingMask,
                 to_condition(kZero), &exit);
-  JumpIfSmi(value.gp(), &exit);
   CheckPageFlag(value.gp(), ip, MemoryChunk::kPointersToHereAreInterestingMask,
-                eq, &exit);
+                to_condition(kZero), &exit);
   mov(ip, Operand(offset_imm));
   add(ip, ip, dst_addr);
   if (offset_reg != no_reg) {
@@ -1094,6 +1094,38 @@ void LiftoffAssembler::AtomicCompareExchange(
     default:
       UNREACHABLE();
   }
+}
+
+void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
+    Register dst_addr, Register offset_reg, uintptr_t offset_imm,
+    LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
+    LiftoffRegList pinned) {
+  AtomicCompareExchange(
+      dst_addr, offset_reg, offset_imm, expected, new_value, result,
+      COMPRESS_POINTERS_BOOL ? StoreType::kI32Store : StoreType::kI64Store,
+      false);
+
+  if constexpr (COMPRESS_POINTERS_BOOL) {
+    AddS64(result.gp(), result.gp(), kPtrComprCageBaseRegister);
+  }
+
+  if (v8_flags.disable_write_barriers) return;
+  // Emit the write barrier.
+  Label exit;
+  JumpIfSmi(new_value.gp(), &exit);
+  CheckPageFlag(dst_addr, ip, MemoryChunk::kPointersFromHereAreInterestingMask,
+                to_condition(kZero), &exit);
+  CheckPageFlag(new_value.gp(), ip,
+                MemoryChunk::kPointersToHereAreInterestingMask,
+                to_condition(kZero), &exit);
+  mov(ip, Operand(offset_imm));
+  add(ip, ip, dst_addr);
+  if (offset_reg != no_reg) {
+    add(ip, ip, offset_reg);
+  }
+  CallRecordWriteStubSaveRegisters(dst_addr, ip, SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
+  bind(&exit);
 }
 
 void LiftoffAssembler::AtomicFence() { sync(); }

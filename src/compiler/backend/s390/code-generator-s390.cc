@@ -2629,6 +2629,34 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_Word64AtomicCompareExchangeUint64:
       ASSEMBLE_ATOMIC64_COMP_EXCHANGE_WORD64();
       break;
+    case kAtomicCompareExchangeWithWriteBarrier: {
+      Register new_val = i.InputRegister(1);
+      Register output = i.OutputRegister();
+      Register addr = kScratchReg;
+      size_t index = 2;
+      AddressingMode mode = kMode_None;
+      MemOperand op = i.MemoryOperand(&mode, &index);
+      __ lay(addr, op);
+      if constexpr (COMPRESS_POINTERS_BOOL) {
+        __ CmpAndSwap(output, new_val, MemOperand(addr));
+        __ LoadU32(output, output);
+        __ AddS64(output, output, kPtrComprCageBaseRegister);
+      } else {
+        __ CmpAndSwap64(output, new_val, MemOperand(addr));
+      }
+      if (v8_flags.disable_write_barriers) break;
+      // Emit the write barrier.
+      Register object = i.InputRegister(2);
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, op, r1, ip, new_val, RecordWriteMode::kValueIsAny,
+          DetermineStubCallMode(), &unwinding_info_writer_);
+      __ JumpIfSmi(new_val, ool->exit());
+      __ CheckPageFlag(object, r1,
+                       MemoryChunk::kPointersFromHereAreInterestingMask, ne,
+                       ool->entry());
+      __ bind(ool->exit());
+      break;
+    }
       // Simd Support.
 #define SIMD_SHIFT_LIST(V) \
   V(I64x2Shl)              \

@@ -450,11 +450,11 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;
 
   Label exit;
+  JumpIfSmi(src, &exit);
   CheckPageFlag(dst_addr, r1, MemoryChunk::kPointersFromHereAreInterestingMask,
                 to_condition(kZero), &exit);
-  JumpIfSmi(src, &exit);
-  CheckPageFlag(src, r1, MemoryChunk::kPointersToHereAreInterestingMask, eq,
-                &exit);
+  CheckPageFlag(src, r1, MemoryChunk::kPointersToHereAreInterestingMask,
+                to_condition(kZero), &exit);
   lay(r1, dst_op);
   CallRecordWriteStubSaveRegisters(dst_addr, r1, SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);
@@ -1327,11 +1327,11 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
   if (v8_flags.disable_write_barriers) return;
   // Emit the write barrier.
   Label exit;
+  JumpIfSmi(value.gp(), &exit);
   CheckPageFlag(dst_addr, r1, MemoryChunk::kPointersFromHereAreInterestingMask,
                 to_condition(kZero), &exit);
-  JumpIfSmi(value.gp(), &exit);
   CheckPageFlag(value.gp(), r1, MemoryChunk::kPointersToHereAreInterestingMask,
-                eq, &exit);
+                to_condition(kZero), &exit);
   lay(r1, dst_op);
   CallRecordWriteStubSaveRegisters(dst_addr, r1, SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);
@@ -1414,6 +1414,36 @@ void LiftoffAssembler::AtomicCompareExchange(
     default:
       UNREACHABLE();
   }
+}
+
+void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
+    Register dst_addr, Register offset_reg, uintptr_t offset_imm,
+    LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
+    LiftoffRegList pinned) {
+  AtomicCompareExchange(
+      dst_addr, offset_reg, offset_imm, expected, new_value, result,
+      COMPRESS_POINTERS_BOOL ? StoreType::kI32Store : StoreType::kI64Store,
+      false);
+
+  if constexpr (COMPRESS_POINTERS_BOOL) {
+    AddS64(result.gp(), result.gp(), kPtrComprCageBaseRegister);
+  }
+
+  if (v8_flags.disable_write_barriers) return;
+  // Emit the write barrier.
+  Label exit;
+  JumpIfSmi(new_value.gp(), &exit);
+  CheckPageFlag(dst_addr, r1, MemoryChunk::kPointersFromHereAreInterestingMask,
+                to_condition(kZero), &exit);
+  CheckPageFlag(new_value.gp(), r1,
+                MemoryChunk::kPointersToHereAreInterestingMask,
+                to_condition(kZero), &exit);
+  MemOperand dst_op =
+      MemOperand(dst_addr, offset_reg == no_reg ? r0 : offset_reg, offset_imm);
+  lay(r1, dst_op);
+  CallRecordWriteStubSaveRegisters(dst_addr, r1, SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
+  bind(&exit);
 }
 
 void LiftoffAssembler::AtomicFence() { bailout(kAtomics, "AtomicFence"); }

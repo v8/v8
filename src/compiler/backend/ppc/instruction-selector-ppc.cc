@@ -2293,6 +2293,11 @@ void VisitAtomicBinaryOperation(InstructionSelector* selector, OpIndex node,
   selector->Emit(code, output_count, outputs, input_count, inputs);
 }
 
+void InstructionSelector::VisitTaggedAtomicCompareExchange(OpIndex node) {
+  VisitAtomicCompareExchange(this, node,
+                             kAtomicCompareExchangeWithWriteBarrier);
+}
+
 void InstructionSelector::VisitWord32AtomicBinaryOperation(
     OpIndex node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
     ArchOpcode uint16_op, ArchOpcode word32_op) {
