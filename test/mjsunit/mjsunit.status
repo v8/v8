@@ -1458,9 +1458,6 @@
 
   # wasm deopt don't support simd128
   'wasm/deopt/deopt-many-params-many-locals-s128': [SKIP],
-
-  # TODO(kasperl@rivosinc.com): These new tests currently fail on riscv32 and riscv64.
-  'compiler/fast-api-deopt': [FAIL],
 }],  # 'arch == riscv64 or arch == riscv32'
 
 ['variant == stress and (arch == riscv64 or arch == riscv32)', {
