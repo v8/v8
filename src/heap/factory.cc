@@ -475,7 +475,7 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
   vector->reset_osr_state();
   vector->reset_flags();
 #ifndef V8_ENABLE_LEAPTIERING
-  vector->set_maybe_optimized_code(ClearedValue(isolate()));
+  vector->set_maybe_optimized_code(kClearedWeakValue);
   vector->set_log_next_execution(v8_flags.log_function_events);
 #endif  // !V8_ENABLE_LEAPTIERING
   vector->set_closure_feedback_cell_array(*closure_feedback_cell_array);

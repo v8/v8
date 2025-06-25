@@ -84,11 +84,13 @@ Address V8HeapCompressionSchemeImpl<Cage>::base() {
 // static
 template <typename Cage>
 Tagged_t V8HeapCompressionSchemeImpl<Cage>::CompressObject(Address tagged) {
-  // This is used to help clang produce better code. Values which could be
-  // invalid pointers need to be compressed with CompressAny.
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-  DCHECK_IMPLIES(!HAS_SMI_TAG(tagged),
-                 (tagged & kPtrComprCageBaseMask) == base());
+#ifdef V8_COMPRESS_POINTERS
+  // Ensure that we do not accidentally compress value from a different cage.
+  // Cleared weak reference must be either pure (with empty upper part) or
+  // belong to the same cage.
+  DCHECK_IMPLIES(
+      !HAS_SMI_TAG(tagged) && (tagged != kClearedWeakHeapObjectLower32),
+      (tagged & kPtrComprCageBaseMask) == base());
 #endif
   return static_cast<Tagged_t>(tagged);
 }

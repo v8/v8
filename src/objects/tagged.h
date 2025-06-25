@@ -833,7 +833,7 @@ class Tagged : public detail::BaseForTagged<T>::type {
 template <>
 class Tagged<ClearedWeakValue> : public WeakTaggedBase {
  public:
-  V8_INLINE explicit Tagged(Address ptr) : WeakTaggedBase(ptr) {}
+  V8_INLINE constexpr explicit Tagged(Address ptr) : WeakTaggedBase(ptr) {}
 };
 
 // Generic Tagged<T> for any T that is a subclass of HeapObject. There are

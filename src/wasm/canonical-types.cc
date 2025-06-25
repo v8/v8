@@ -443,8 +443,8 @@ void TypeCanonicalizer::PrepareForCanonicalTypeId(Isolate* isolate,
   DirectHandle<WeakFixedArray> new_rtts =
       WeakFixedArray::New(isolate, new_length, AllocationType::kOld);
   WeakFixedArray::CopyElements(isolate, *new_rtts, 0, *old_rtts, 0, old_length);
-  MemsetTagged(new_rtts->RawFieldOfFirstElement() + old_length,
-               ClearedValue(isolate), new_length - old_length);
+  MemsetTagged(new_rtts->RawFieldOfFirstElement() + old_length, ClearedValue(),
+               new_length - old_length);
   heap->SetWasmCanonicalRtts(*new_rtts);
 }
 

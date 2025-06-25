@@ -291,7 +291,7 @@ Handle<FeedbackVector> FeedbackVector::New(
       case FeedbackSlotKind::kStoreGlobalSloppy:
       case FeedbackSlotKind::kStoreGlobalStrict:
       case FeedbackSlotKind::kJumpLoop:
-        vector->Set(slot, ClearedValue(isolate), SKIP_WRITE_BARRIER);
+        vector->Set(slot, kClearedWeakValue, SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kForIn:
       case FeedbackSlotKind::kCompareOp:
@@ -438,7 +438,7 @@ void FeedbackVector::SetOptimizedCode(IsolateForSandbox isolate,
 void FeedbackVector::ClearOptimizedCode() {
   DCHECK(has_optimized_code());
   DCHECK(maybe_has_maglev_code() || maybe_has_turbofan_code());
-  set_maybe_optimized_code(ClearedValue(GetIsolate()));
+  set_maybe_optimized_code(kClearedWeakValue);
   set_maybe_has_maglev_code(false);
   set_maybe_has_turbofan_code(false);
 }
@@ -613,13 +613,12 @@ DirectHandle<WeakFixedArray> FeedbackNexus::CreateArrayOfSize(int length) {
 }
 
 void FeedbackNexus::ConfigureUninitialized() {
-  Isolate* isolate = config()->isolate();
   switch (kind()) {
     case FeedbackSlotKind::kStoreGlobalSloppy:
     case FeedbackSlotKind::kStoreGlobalStrict:
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
     case FeedbackSlotKind::kLoadGlobalInsideTypeof:
-      SetFeedback(ClearedValue(isolate), SKIP_WRITE_BARRIER,
+      SetFeedback(kClearedWeakValue, SKIP_WRITE_BARRIER,
                   UninitializedSentinel(), SKIP_WRITE_BARRIER);
       break;
     case FeedbackSlotKind::kCloneObject:
@@ -645,7 +644,7 @@ void FeedbackNexus::ConfigureUninitialized() {
                   UninitializedSentinel(), SKIP_WRITE_BARRIER);
       break;
     case FeedbackSlotKind::kJumpLoop:
-      SetFeedback(ClearedValue(isolate), SKIP_WRITE_BARRIER);
+      SetFeedback(kClearedWeakValue, SKIP_WRITE_BARRIER);
       break;
     default:
       UNREACHABLE();
@@ -720,10 +719,9 @@ bool FeedbackNexus::Clear(ClearBehavior behavior) {
 
 bool FeedbackNexus::ConfigureMegamorphic() {
   DisallowGarbageCollection no_gc;
-  Isolate* isolate = config()->isolate();
   Tagged<MaybeObject> sentinel = MegamorphicSentinel();
   if (GetFeedback() != sentinel) {
-    SetFeedback(sentinel, SKIP_WRITE_BARRIER, ClearedValue(isolate));
+    SetFeedback(sentinel, SKIP_WRITE_BARRIER, kClearedWeakValue);
     return true;
   }
 
@@ -984,7 +982,7 @@ void FeedbackNexus::ConfigureHandlerMode(
     const MaybeObjectDirectHandle& handler) {
   DCHECK(IsGlobalICKind(kind()));
   DCHECK(IC::IsHandler(*handler));
-  SetFeedback(ClearedValue(config()->isolate()), UPDATE_WRITE_BARRIER, *handler,
+  SetFeedback(kClearedWeakValue, UPDATE_WRITE_BARRIER, *handler,
               UPDATE_WRITE_BARRIER);
 }
 
@@ -1029,7 +1027,7 @@ void FeedbackNexus::ConfigureCloneObject(
         raw_array->set(1, GetFeedbackExtra());
         raw_array->set(2, MakeWeak(*source_map));
         raw_array->set(3, GetHandler());
-        SetFeedback(raw_array, UPDATE_WRITE_BARRIER, ClearedValue(isolate));
+        SetFeedback(raw_array, UPDATE_WRITE_BARRIER, kClearedWeakValue);
       }
       break;
     case InlineCacheState::POLYMORPHIC: {
@@ -1051,7 +1049,7 @@ void FeedbackNexus::ConfigureCloneObject(
         if (i == kMaxElements) {
           // Transition to MEGAMORPHIC.
           Tagged<MaybeObject> sentinel = MegamorphicSentinel();
-          SetFeedback(sentinel, SKIP_WRITE_BARRIER, ClearedValue(isolate));
+          SetFeedback(sentinel, SKIP_WRITE_BARRIER, kClearedWeakValue);
           break;
         }
 

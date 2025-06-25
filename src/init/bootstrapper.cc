@@ -6473,7 +6473,7 @@ void Genesis::InitializeMapCaches() {
 
     DisallowGarbageCollection no_gc;
     for (int i = 0; i < JSObject::kMapCacheSize; i++) {
-      cache->set(i, ClearedValue(isolate()));
+      cache->set(i, kClearedWeakValue);
     }
     native_context()->set_map_cache(*cache);
     Tagged<Map> initial = native_context()->object_function()->initial_map();

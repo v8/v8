@@ -3872,7 +3872,7 @@ void MarkCompactCollector::ClearWeakReferences(
 }
 
 void MarkCompactCollector::ClearTrivialWeakReferences() {
-  Tagged<HeapObjectReference> cleared_weak_ref = ClearedValue(heap_->isolate());
+  Tagged<HeapObjectReference> cleared_weak_ref = ClearedValue();
   ClearWeakReferences<HeapObjectAndSlot, MaybeObjectSlot>(
       local_weak_objects()->weak_references_trivial_local, cleared_weak_ref);
 }
@@ -3915,7 +3915,7 @@ void MarkCompactCollector::ClearNonTrivialWeakReferences() {
   TRACE_GC(heap_->tracer(),
            GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_NON_TRIVIAL);
   HeapObjectAndSlot slot;
-  Tagged<HeapObjectReference> cleared_weak_ref = ClearedValue(heap_->isolate());
+  Tagged<HeapObjectReference> cleared_weak_ref = ClearedValue();
   while (local_weak_objects()->weak_references_non_trivial_unmarked_local.Pop(
       &slot)) {
     // The slot may not have been overwritten since it was filtered, so we can

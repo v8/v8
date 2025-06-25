@@ -1433,7 +1433,7 @@ int Deserializer<IsolateT>::ReadClearedWeakReference(
   if (v8_flags.trace_deserialization) {
     PrintF("%*sClearedWeakReference\n", depth_, "");
   }
-  return slot_accessor.Write(ClearedValue(isolate()), 0, SKIP_WRITE_BARRIER);
+  return slot_accessor.Write(ClearedValue(), 0, SKIP_WRITE_BARRIER);
 }
 
 template <typename IsolateT>

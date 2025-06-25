@@ -1335,7 +1335,7 @@ WasmMemoryMapDescriptor::NewFromFileDescriptor(Isolate* isolate,
       isolate->factory()->NewJSObject(descriptor_ctor, AllocationType::kOld));
 
   descriptor_object->set_file_descriptor(file_descriptor);
-  descriptor_object->set_memory(ClearedValue(isolate));
+  descriptor_object->set_memory(ClearedValue());
   descriptor_object->set_offset(0);
   descriptor_object->set_size(0);
 

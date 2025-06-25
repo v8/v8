@@ -282,7 +282,7 @@ std::optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(
   if (code->marked_for_deoptimization()) {
     // Clear the cached Code object if deoptimized.
     // TODO(jgruber): Add tracing.
-    Set(slot, ClearedValue(isolate));
+    Set(slot, ClearedValue());
     if (!bytecode.is_null()) {
       RecomputeOptimizedOsrCodeFlags(isolate, bytecode);
     }
@@ -556,7 +556,7 @@ Tagged<MaybeObject> FeedbackNexus::MegaDOMSentinel() const {
 
 Tagged<MaybeObject> FeedbackNexus::FromHandle(
     MaybeObjectDirectHandle slot) const {
-  return slot.is_null() ? ClearedValue(config()->isolate()) : *slot;
+  return slot.is_null() ? ClearedValue() : *slot;
 }
 
 MaybeObjectHandle FeedbackNexus::ToHandle(Tagged<MaybeObject> value) const {

@@ -963,11 +963,11 @@ const Address kWeakHeapObjectMask = 1 << 1;
 // The lower 32 bits of the cleared weak reference value is always equal to
 // the |kClearedWeakHeapObjectLower32| constant but on 64-bit architectures
 // the value of the upper 32 bits part may be
-// 1) zero when pointer compression is disabled,
-// 2) upper 32 bits of the isolate root value when pointer compression is
-//    enabled.
-// This is necessary to make pointer decompression computation also suitable
-// for cleared weak reference.
+// 1) zero when pointer compression is disabled or for a kClearedWeakValue
+//    constant,
+// 2) upper 32 bits of the respective cage base when pointer compression is
+//    enabled (this is useful for detecting cases when a cleared value loaded
+//    from once cage is written to another cage).
 // Note, that real heap objects can't have lower 32 bits equal to 3 because
 // this offset belongs to page header. So, in either case it's enough to
 // compare only the lower 32 bits of a Tagged<MaybeObject> value in order to
