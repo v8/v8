@@ -10,7 +10,7 @@ const fast_c_api = new d8.test.FastCAPI();
   let val = -42;
   function func() {
     const ret = fast_c_api.call_to_number(val);
-    assertEquals(ret, undefined);
+    assertEquals(undefined, ret);
     // Do a second fast API call. If deoptimization was triggered in the call to
     // `call_to_number`, then this second call should be a regular call.
     return fast_c_api.add_32bit_int(12, 14);
@@ -56,9 +56,9 @@ const fast_c_api = new d8.test.FastCAPI();
   function func() {
     try {
       const ret = fast_c_api.call_to_number(val);
-      assertEquals(ret, undefined);
+      assertEquals(undefined, ret);
     } catch (e) {
-        exceptionHappened = true;
+      exceptionHappened = true;
     }
     // Do a second fast API call. If deoptimization was triggered in the call to
     // `call_to_number`, then this second call should be a regular call.
@@ -109,9 +109,9 @@ const fast_c_api = new d8.test.FastCAPI();
     fast_c_api.add_32bit_int(12, 14);
     try {
       const ret = fast_c_api.call_to_number(val);
-      assertEquals(ret, undefined);
+      assertEquals(undefined, ret);
     } catch (e) {
-        exceptionHappened = true;
+      exceptionHappened = true;
     }
     // Do a second fast API call. If deoptimization was triggered in the call to
     // `call_to_number`, then this second call should be a regular call.
@@ -159,7 +159,7 @@ const fast_c_api = new d8.test.FastCAPI();
   let exceptionHappened = false;
   function func() {
     const ret = fast_c_api.call_to_number(val);
-    assertEquals(ret, undefined);
+    assertEquals(undefined, ret);
     // Do a second fast API call. If deoptimization was triggered in the call to
     // `call_to_number`, then this second call should be a regular call.
     return fast_c_api.add_32bit_int(12, 14);
@@ -190,7 +190,7 @@ const fast_c_api = new d8.test.FastCAPI();
   };
   fast_c_api.reset_counts();
   try {
-  func();
+    func();
   } catch(e) {
     exceptionHappened = true;
   }
@@ -228,7 +228,7 @@ const fast_c_api = new d8.test.FastCAPI();
       }
     };
     const ret = fast_c_api.call_to_number(val);
-    assertEquals(ret, undefined);
+    assertEquals(undefined, ret);
     // Do a second fast API call. If deoptimization was triggered in the call to
     // `call_to_number`, then this second call should be a regular call.
     return fast_c_api.add_32bit_int(12, 14);
@@ -253,8 +253,8 @@ const fast_c_api = new d8.test.FastCAPI();
   assertEquals(0, fast_c_api.slow_call_count());
   innerVal = {
     valueOf: () => {
-        %DeoptimizeFunction(outer);
-        return 12;
+      %DeoptimizeFunction(outer);
+      return 12;
     }
   };
   fast_c_api.reset_counts();
