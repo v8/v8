@@ -1651,19 +1651,11 @@ void RegExpMacroAssemblerARM64::CompareAndBranchOrBacktrack(Register reg,
                                                             int immediate,
                                                             Condition condition,
                                                             Label* to) {
-  if ((immediate == 0) && ((condition == eq) || (condition == ne))) {
-    if (to == nullptr) {
-      to = &backtrack_label_;
-    }
-    if (condition == eq) {
-      __ Cbz(reg, to);
-    } else {
-      __ Cbnz(reg, to);
-    }
-  } else {
-    __ Cmp(reg, immediate);
-    BranchOrBacktrack(condition, to);
+  DCHECK_NE(condition, al);
+  if (to == nullptr) {
+    to = &backtrack_label_;
   }
+  __ CompareAndBranch(reg, immediate, condition, to);
 }
 
 void RegExpMacroAssemblerARM64::CallCFunctionFromIrregexpCode(
