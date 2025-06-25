@@ -273,11 +273,9 @@ Assembler::Assembler(const AssemblerOptions& options,
   last_trampoline_pool_end_ = 0;
   no_trampoline_pool_before_ = 0;
   trampoline_pool_blocked_nesting_ = 0;
-  // We leave space (16 * kTrampolineSlotsSize)
-  // for BlockTrampolinePoolScope buffer.
   next_buffer_check_ = v8_flags.force_long_branches
                            ? kMaxInt
-                           : kMaxBranchOffset - kTrampolineSlotsSize * 16;
+                           : kMaxBranchOffset - BlockTrampolinePoolScope::kGap;
   internal_trampoline_exception_ = false;
   last_bound_pos_ = 0;
 
@@ -1497,48 +1495,56 @@ void Assembler::CheckTrampolinePool() {
   if (unbound_labels_count_ > 0) {
     // First we emit jump, then we emit trampoline pool.
     {
-      DEBUG_PRINTF("inserting trampoline pool at %p (%d)\n",
+      int size = kTrampolinePoolOverhead +
+                 unbound_labels_count_ * kTrampolineSlotsSize;
+      DEBUG_PRINTF("inserting trampoline pool at %p (%d) with size %d\n",
                    reinterpret_cast<Instr*>(buffer_start_ + pc_offset()),
-                   pc_offset());
+                   pc_offset(), size);
       int pc_offset_for_safepoint_before = pc_offset_for_safepoint();
       USE(pc_offset_for_safepoint_before);  // Only used in DCHECK below.
 
-      BlockTrampolinePoolScope block_trampoline_pool(this);
-      Label after_pool;
-      j(&after_pool);
+      // Mark the trampoline pool as emitted eagerly to avoid recursive
+      // emissions occurring from the blocking scope.
+      trampoline_emitted_ = true;
+
+      // By construction, we know that any branch or jump up until this point
+      // can reach the last entry in the trampoline pool. Therefore, we can
+      // safely jump around the pool as long as the last entry isn't too big
+      // to allow skipping the pool with a single 'jump immediate' instruction.
+      static_assert(kMaxBranchOffset <= kMaxJumpOffset - kTrampolineSlotsSize);
+      int preamble_start = pc_offset();
+      USE(preamble_start);  // Only used in DCHECK.
+      BlockTrampolinePoolScope block_trampoline_pool(this, size);
+      j(size);
 
       int pool_start = pc_offset();
+      DCHECK_EQ(pool_start - preamble_start, kTrampolinePoolOverhead);
       for (int i = 0; i < unbound_labels_count_; i++) {
-        int32_t imm;
-        imm = branch_long_offset(&after_pool);
-        CHECK(is_int32(imm + 0x800));
-        int32_t Hi20 = (((int32_t)imm + 0x800) >> 12);
-        int32_t Lo12 = (int32_t)imm << 20 >> 20;
-        auipc(t6, Hi20);  // Read PC + Hi20 into t6
-        jr(t6, Lo12);     // jump PC + Hi20 + Lo12
+        // Emit a dummy far branch. It will be patched later when one of the
+        // unbound labels are bound.
+        auipc(t6, 0);  // Read pc into t6.
+        jr(t6, 0);     // Jump to t6 - the auipc instruction.
       }
 
-      // If unbound_labels_count_ is big enough, label after_pool will
-      // need a trampoline too, so we must create the trampoline before
-      // the bind operation to make sure function 'bind' can get this
-      // information.
       trampoline_ = Trampoline(pool_start, unbound_labels_count_);
-      bind(&after_pool);
+      int pool_size = pc_offset() - pool_start;
+      USE(pool_size);  // Only used in DCHECK.
+      DCHECK_EQ(pool_size, unbound_labels_count_ * kTrampolineSlotsSize);
 
       // Make sure we didn't mess with the recorded pc for the next safepoint
       // as part of emitting the branch trampolines.
       DCHECK_EQ(pc_offset_for_safepoint(), pc_offset_for_safepoint_before);
 
-      trampoline_emitted_ = true;
-      // As we are only going to emit trampoline once, we need to prevent any
-      // further emission.
+      // As we are only going to emit the trampoline pool once, we do not have
+      // to check ever again. We set the next check position to something we
+      // will never reach.
       next_buffer_check_ = kMaxInt;
     }
   } else {
     // Number of branches to unbound label at this point is zero, so we can
     // move next buffer check to maximum.
     next_buffer_check_ =
-        pc_offset() + kMaxBranchOffset - kTrampolineSlotsSize * 16;
+        pc_offset() + kMaxBranchOffset - BlockTrampolinePoolScope::kGap;
   }
   return;
 }

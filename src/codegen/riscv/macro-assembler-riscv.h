@@ -1984,12 +1984,9 @@ void MacroAssembler::GenerateSwitchTable(Register index, size_t case_count,
   // all unbound forward branches cannot be bound over it. Use nop() because the
   // trampoline cannot be emitted right after Jump().
   NOP();
-  static constexpr int mask = kInstrSize - 1;
   int aligned_label_area_size =
       static_cast<int>(case_count) * kUIntptrSize + kSystemPointerSize;
-  int instructions_per_label_area =
-      ((aligned_label_area_size + mask) & ~mask) >> kInstrSizeLog2;
-  BlockTrampolinePoolFor(instructions_per_label_area);
+  BlockTrampolinePoolScope block_trampoline_pool(this, aligned_label_area_size);
   // Emit the jump table inline, under the assumption that it's not too big.
   Align(kSystemPointerSize);
   bind(&jump_table);

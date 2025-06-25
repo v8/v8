@@ -394,7 +394,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // Max offset for jal instruction with 20-bit offset field (multiple of 2)
   static constexpr int kMaxJumpOffset = (1 << (21 - 1)) - 1;
 
+  // The size of the an entry in the trampoline pool.
   static constexpr int kTrampolineSlotsSize = 2 * kInstrSize;
+
+  // The size of the overhead for a trampoline pool. The overhead covers
+  // the jump around the entries.
+  static constexpr int kTrampolinePoolOverhead = 1 * kInstrSize;
 
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
   DoubleRegList* GetScratchDoubleRegisterList() {
@@ -472,21 +477,43 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   }
 
   using BlockConstPoolScope = ConstantPool::BlockScope;
+
   // Class for scoping postponing the trampoline pool generation.
-  class BlockTrampolinePoolScope {
+  class V8_NODISCARD BlockTrampolinePoolScope {
    public:
+    // We leave space for a number of trampoline pool slots, so we do not
+    // have to pass in an explicit margin for all scopes.
+    static constexpr int kGap = kTrampolineSlotsSize * 16;
+
     explicit BlockTrampolinePoolScope(Assembler* assem, int margin = 0)
-        : assem_(assem) {
+        : assem_(assem), start_offset_(assem->pc_offset()), margin_(margin) {
       if (margin > 0) {
-        assem_->CheckTrampolinePoolQuick(margin);
+        assem->CheckTrampolinePoolQuick(margin);
       }
-      assem_->StartBlockTrampolinePool();
+      assem->StartBlockTrampolinePool();
     }
 
-    ~BlockTrampolinePoolScope() { assem_->EndBlockTrampolinePool(); }
+    ~BlockTrampolinePoolScope() {
+      assem_->EndBlockTrampolinePool();
+      int generated = assem_->pc_offset() - start_offset_;
+      USE(generated);  // Only used in DCHECK.
+      int allowed = margin_;
+      if (allowed == 0) allowed = kGap - kTrampolinePoolOverhead;
+      DCHECK_GE(generated, 0);
+      if (false) {
+        // Right now, we cannot enable this check because we sometimes end up
+        // emitting constant pool sections while the trampoline pool is
+        // blocked. This is actually broken behavior, because we risk emitting
+        // enough stuff to make it impossible for our branches to reach the
+        // trampoline pool when we later emit that.
+        DCHECK_LE(generated, allowed);
+      }
+    }
 
    private:
-    Assembler* assem_;
+    Assembler* const assem_;
+    const int start_offset_;
+    const int margin_;
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockTrampolinePoolScope);
   };
 
@@ -629,7 +656,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     }
   }
 
-  inline int next_buffer_check() { return next_buffer_check_; }
+  int next_buffer_check() const { return next_buffer_check_; }
 
   friend class VectorUnit;
   class VectorUnit {

@@ -2014,7 +2014,8 @@ TEST(jump_tables1) {
     __ Sd(ra, MemOperand(sp));
     __ Align(8);
     {
-      __ BlockTrampolinePoolFor(kNumCases * 2 + 6);
+      MacroAssembler::BlockTrampolinePoolScope block(
+          &assm, (kNumCases * 2 + 6) * kInstrSize);
 
       __ auipc(ra, 0);
       __ slli(t3, a0, 3);
@@ -2073,7 +2074,8 @@ TEST(jump_tables2) {
     __ bind(&dispatch);
 
     {
-      __ BlockTrampolinePoolFor(kNumCases * 2 + 6);
+      MacroAssembler::BlockTrampolinePoolScope block(
+          &assm, (kNumCases * 2 + 6) * kInstrSize);
 
       __ auipc(ra, 0);
       __ slli(t3, a0, 3);
@@ -2132,7 +2134,9 @@ TEST(jump_tables3) {
 
     __ bind(&dispatch);
     {
-      __ BlockTrampolinePoolFor(kNumCases * 2 + 6);
+      MacroAssembler::BlockTrampolinePoolScope block(
+          &assm, (kNumCases * 2 + 6) * kInstrSize);
+
       __ Align(8);
       __ auipc(ra, 0);
       __ slli(t3, a0, 3);
