@@ -30,7 +30,11 @@ class BytecodeGeneratorTest : public TestWithContext {
     TestWithContext::SetUpTestSuite();
   }
 
-  void SetUp() override { TestWithContext::SetUp(); }
+  void SetUp() override {
+    // TODO(v8:13723): Remove once TDZ elision ships.
+    i::v8_flags.ignition_elide_redundant_tdz_checks = false;
+    TestWithContext::SetUp();
+  }
 
   BytecodeExpectationsPrinter& printer() { return printer_; }
 
@@ -3242,6 +3246,8 @@ TEST_F(BytecodeGeneratorTest, ElideRedundantLoadOperationOfImmutableContext) {
 }
 
 TEST_F(BytecodeGeneratorTest, ElideRedundantHoleChecks) {
+  i::v8_flags.ignition_elide_redundant_tdz_checks = true;
+
   printer().set_wrap(false);
   printer().set_test_function_name("f");
 

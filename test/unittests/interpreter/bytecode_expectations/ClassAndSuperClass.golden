@@ -89,7 +89,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 1
-bytecode array length: 49
+bytecode array length: 52
 bytecodes: [
                 B(Mov), R(closure), R(1),
   /*  118 S> */ B(LdaSmi), I8(1),
@@ -107,7 +107,9 @@ bytecodes: [
                 B(Ldar), R(this),
                 B(ThrowSuperAlreadyCalledIfNotHole),
                 B(Mov), R(4), R(this),
-  /*  128 S> */ B(LdaSmi), I8(2),
+  /*  128 S> */ B(Ldar), R(this),
+                B(ThrowSuperNotCalledIfHole),
+                B(LdaSmi), I8(2),
   /*  136 E> */ B(SetNamedProperty), R(this), U8(0), U8(2),
                 B(Ldar), R(this),
                 B(ThrowSuperNotCalledIfHole),
@@ -134,7 +136,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 46
+bytecode array length: 49
 bytecodes: [
                 B(Mov), R(closure), R(1),
   /*  117 S> */ B(FindNonDefaultConstructorOrConstruct), R(1), R(0), R(6),
@@ -150,7 +152,9 @@ bytecodes: [
                 B(Ldar), R(this),
                 B(ThrowSuperAlreadyCalledIfNotHole),
                 B(Mov), R(4), R(this),
-  /*  126 S> */ B(LdaSmi), I8(2),
+  /*  126 S> */ B(Ldar), R(this),
+                B(ThrowSuperNotCalledIfHole),
+                B(LdaSmi), I8(2),
   /*  134 E> */ B(SetNamedProperty), R(this), U8(0), U8(2),
                 B(Ldar), R(this),
                 B(ThrowSuperNotCalledIfHole),
