@@ -355,7 +355,7 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
   CollectEvacuationCandidates(heap_->trusted_space());
 
   if (heap_->isolate()->AllowsCodeCompaction() &&
-      (!heap_->IsGCWithStack() || v8_flags.compact_code_space_with_stack)) {
+      !(mode == StartCompactionMode::kAtomic && heap_->IsGCWithStack())) {
     CollectEvacuationCandidates(heap_->code_space());
   } else if (v8_flags.trace_fragmentation) {
     TraceFragmentation(heap_->code_space());
@@ -4966,8 +4966,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
       for (PageMetadata* page : old_space_evacuation_pages_) {
         ReportAbortedEvacuationCandidateDueToFlags(page, page->Chunk());
       }
-    } else if (!v8_flags.compact_code_space_with_stack ||
-               heap_->isolate()->InFastCCall()) {
+    } else {
       // For fast C calls we cannot patch the return address in the native stack
       // frame if we would relocate InstructionStream objects.
       for (PageMetadata* page : old_space_evacuation_pages_) {
