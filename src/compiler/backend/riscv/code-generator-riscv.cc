@@ -2759,6 +2759,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vnot_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
+    case kRiscvS128AndNot: {
+      __ VU.set(kScratchReg, E8, m1);
+      __ vnot_vv(v0, i.InputSimd128Register(1));
+      __ vand_vv(i.OutputSimd128Register(), i.InputSimd128Register(0), v0);
+      break;
+    }
     case kRiscvS128Const: {
       Simd128Register dst = i.OutputSimd128Register();
       uint8_t imm[16];

@@ -1084,13 +1084,10 @@ UNIMPLEMENTED_SIMD_FP16_OP_LIST(SIMD_VISIT_UNIMPL_FP16_OP)
 
 void InstructionSelector::VisitS128AndNot(OpIndex node) {
   RiscvOperandGenerator g(this);
-  InstructionOperand temp1 = g.TempFpRegister(v0);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
-  this->Emit(kRiscvVnotVv, temp1, g.UseRegister(op.input(1)),
-             g.UseImmediate(E8), g.UseImmediate(m1));
-  this->Emit(kRiscvVandVv, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
-             temp1, g.UseImmediate(E8), g.UseImmediate(m1));
+  this->Emit(kRiscvS128AndNot, g.DefineAsRegister(node),
+             g.UseRegister(op.input(0)), g.UseRegister(op.input(1)));
 }
 
 void InstructionSelector::VisitS128Const(OpIndex node) {

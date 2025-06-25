@@ -239,6 +239,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvRoundWS:
     case kRiscvVnot:
     case kRiscvS128Select:
+    case kRiscvS128AndNot:
     case kRiscvS128Const:
     case kRiscvS128Zero:
     case kRiscvS128Load32Zero:

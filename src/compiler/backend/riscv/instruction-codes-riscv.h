@@ -244,6 +244,7 @@ namespace compiler {
   V(RiscvSignExtendShort)                 \
   V(RiscvSync)                            \
   V(RiscvAssertEqual)                     \
+  V(RiscvS128AndNot)                      \
   V(RiscvS128Const)                       \
   V(RiscvS128Zero)                        \
   V(RiscvS128AllOnes)                     \
