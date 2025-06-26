@@ -272,6 +272,8 @@ namespace compiler {
   V(RiscvF64x2PromoteLowF32x4)            \
   V(RiscvF64x2ExtractLane)                \
   V(RiscvF64x2ReplaceLane)                \
+  V(RiscvF64x2Min)                        \
+  V(RiscvF64x2Max)                        \
   V(RiscvF64x2Pmin)                       \
   V(RiscvF64x2Pmax)                       \
   V(RiscvF64x2Ceil)                       \
@@ -291,6 +293,8 @@ namespace compiler {
   V(RiscvF32x4Qfms)                       \
   V(RiscvF64x2Qfma)                       \
   V(RiscvF64x2Qfms)                       \
+  V(RiscvF32x4Min)                        \
+  V(RiscvF32x4Max)                        \
   V(RiscvF32x4Pmin)                       \
   V(RiscvF32x4Pmax)                       \
   V(RiscvF32x4DemoteF64x2Zero)            \

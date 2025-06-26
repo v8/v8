@@ -141,6 +141,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvFLe:
     case kRiscvF64x2Abs:
     case kRiscvF64x2Sqrt:
+    case kRiscvF64x2Min:
+    case kRiscvF64x2Max:
     case kRiscvF64x2Pmin:
     case kRiscvF64x2Pmax:
     case kRiscvF64x2ConvertLowI32x4S:
@@ -167,6 +169,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvF32x4ReplaceLane:
     case kRiscvF32x4SConvertI32x4:
     case kRiscvF32x4UConvertI32x4:
+    case kRiscvF32x4Min:
+    case kRiscvF32x4Max:
     case kRiscvF32x4Pmin:
     case kRiscvF32x4Pmax:
     case kRiscvF32x4DemoteF64x2Zero:

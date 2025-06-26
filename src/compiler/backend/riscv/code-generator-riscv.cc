@@ -3273,6 +3273,116 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                     i.InputSimd128Register(0));
       break;
     }
+#if V8_TARGET_ARCH_RISCV32
+    case kRiscvF64x2Min: {
+      __ VU.set(kScratchReg, E64, m1);
+      // Detect NaNs. Simply compare the vector to itself. Only non-NaNs will
+      // have their bit set.
+      Simd128Register temp1 = v0;
+      Simd128Register mask_reg = v0;
+      Simd128Register temp2 = kSimd128ScratchReg;
+      const int32_t kNaN = 0x7ff80000L, kNaNShift = 32;
+
+      __ vmfeq_vv(temp1, i.InputSimd128Register(0), i.InputSimd128Register(0));
+      __ vmfeq_vv(temp2, i.InputSimd128Register(1), i.InputSimd128Register(1));
+      // Store the bits in v0 which will be implicitly used by the
+      // vfmin_vv instruction (due to the Mask).
+      __ vand_vv(mask_reg, temp2, temp1);
+
+      Simd128Register temp3 = kSimd128ScratchReg;
+      Simd128Register temp4 = kSimd128ScratchReg;
+      Simd128Register temp5 = kSimd128ScratchReg;
+
+      // Create a vector with just NaNs.
+      __ li(kScratchReg, kNaN);
+      __ vmv_vx(temp3, kScratchReg);
+      __ li(kScratchReg, kNaNShift);
+      __ vsll_vx(temp4, temp3, kScratchReg);
+      // Take the min for all non-NaN values.
+      __ vfmin_vv(temp5, i.InputSimd128Register(1), i.InputSimd128Register(0),
+                  Mask);
+      __ vmv_vv(i.OutputSimd128Register(), temp5);
+      break;
+    }
+    case kRiscvF64x2Max: {
+      __ VU.set(kScratchReg, E64, m1);
+      // Detect NaNs. Simply compare the vector to itself. Only non-NaNs will
+      // have their bit set.
+      Simd128Register temp1 = v0;
+      Simd128Register mask_reg = v0;
+      Simd128Register temp2 = kSimd128ScratchReg;
+      const int32_t kNaN = 0x7ff80000L, kNaNShift = 32;
+
+      __ vmfeq_vv(temp1, i.InputSimd128Register(0), i.InputSimd128Register(0));
+      __ vmfeq_vv(temp2, i.InputSimd128Register(1), i.InputSimd128Register(1));
+      // Store the bits in v0 which will be implicitly used by the
+      // vfmax_vv instruction (due to the Mask).
+      __ vand_vv(mask_reg, temp2, temp1);
+
+      Simd128Register temp3 = kSimd128ScratchReg;
+      Simd128Register temp4 = kSimd128ScratchReg;
+      Simd128Register temp5 = kSimd128ScratchReg;
+      // Create a vector with just NaNs.
+      __ li(kScratchReg, kNaN);
+      __ vmv_vx(temp3, kScratchReg);
+      __ li(kScratchReg, kNaNShift);
+      __ vsll_vx(temp4, temp3, kScratchReg);
+      // Take the max for all non-NaN values.
+      __ vfmax_vv(temp5, i.InputSimd128Register(1), i.InputSimd128Register(0),
+                  Mask);
+      __ vmv_vv(i.OutputSimd128Register(), temp5);
+      break;
+    }
+#else
+    case kRiscvF64x2Min: {
+      __ VU.set(kScratchReg, E64, m1);
+      // Detect NaNs. Simply compare the vector to itself. Only non-NaNs will
+      // have their bit set.
+      Simd128Register temp1 = v0;
+      Simd128Register temp2 = kSimd128ScratchReg;
+      Simd128Register mask_reg = v0;
+      __ vmfeq_vv(temp1, i.InputSimd128Register(0), i.InputSimd128Register(0));
+      __ vmfeq_vv(temp2, i.InputSimd128Register(1), i.InputSimd128Register(1));
+      // Store the bits in v0 which will be implicitly used by the
+      // vfmin_vv instruction (due to the Mask).
+      __ vand_vv(mask_reg, temp2, temp1);
+
+      Simd128Register NaN = kSimd128ScratchReg;
+      Simd128Register result = kSimd128ScratchReg;
+      // Create a vector with just NaNs.
+      __ li(kScratchReg, 0x7ff8000000000000L);
+      __ vmv_vx(NaN, kScratchReg);
+      // Take the min for all non-NaN values.
+      __ vfmin_vv(result, i.InputSimd128Register(1), i.InputSimd128Register(0),
+                  Mask);
+      __ vmv_vv(i.OutputSimd128Register(), result);
+      break;
+    }
+    case kRiscvF64x2Max: {
+      __ VU.set(kScratchReg, E64, m1);
+      // Detect NaNs. Simply compare the vector to itself. Only non-NaNs will
+      // have their bit set.
+      Simd128Register temp1 = v0;
+      Simd128Register temp2 = kSimd128ScratchReg;
+      Simd128Register mask_reg = v0;
+      __ vmfeq_vv(temp1, i.InputSimd128Register(0), i.InputSimd128Register(0));
+      __ vmfeq_vv(temp2, i.InputSimd128Register(1), i.InputSimd128Register(1));
+      // Store the bits in v0 which will be implicitly used by the
+      // vfmax_vv instruction (due to the Mask).
+      __ vand_vv(mask_reg, temp2, temp1);
+
+      Simd128Register NaN = kSimd128ScratchReg;
+      Simd128Register result = kSimd128ScratchReg;
+      // Create a vector with just NaNs.
+      __ li(kScratchReg, 0x7ff8000000000000L);
+      __ vmv_vx(NaN, kScratchReg);
+      // Take the max for all non-NaN values.
+      __ vfmax_vv(result, i.InputSimd128Register(1), i.InputSimd128Register(0),
+                  Mask);
+      __ vmv_vv(i.OutputSimd128Register(), result);
+      break;
+    }
+#endif
     case kRiscvF64x2Pmax: {
       __ VU.set(kScratchReg, E64, m1);
       __ vmflt_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(1));
@@ -3414,6 +3524,54 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmflt_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(1));
       __ vmerge_vv(i.OutputSimd128Register(), i.InputSimd128Register(1),
                    i.InputSimd128Register(0));
+      break;
+    }
+    case kRiscvF32x4Min: {
+      __ VU.set(kScratchReg, E32, m1);
+      // Detect NaNs. Simply compare the vector to itself. Only non-NaNs will
+      // have their bit set.
+      Simd128Register temp1 = v0;
+      Simd128Register mask_reg = v0;
+      Simd128Register temp2 = kSimd128ScratchReg;
+      __ vmfeq_vv(temp1, i.InputSimd128Register(0), i.InputSimd128Register(0));
+      __ vmfeq_vv(temp2, i.InputSimd128Register(1), i.InputSimd128Register(1));
+      // Store the bits in v0 which will be implicitly used by the
+      // vfmin_vv instruction (due to the Mask).
+      __ vand_vv(mask_reg, temp2, temp1);
+
+      Simd128Register NaN = kSimd128ScratchReg;
+      Simd128Register result = kSimd128ScratchReg;
+      // Create a vector with just NaNs.
+      __ li(kScratchReg, 0x7FC00000);
+      __ vmv_vx(NaN, kScratchReg);
+      // Take the min for all non-NaN values.
+      __ vfmin_vv(result, i.InputSimd128Register(1), i.InputSimd128Register(0),
+                  Mask);
+      __ vmv_vv(i.OutputSimd128Register(), result);
+      break;
+    }
+    case kRiscvF32x4Max: {
+      __ VU.set(kScratchReg, E32, m1);
+      // Detect NaNs. Simply compare the vector to itself. Only non-NaNs will
+      // have their bit set.
+      Simd128Register temp1 = v0;
+      Simd128Register mask_reg = v0;
+      Simd128Register temp2 = kSimd128ScratchReg;
+      __ vmfeq_vv(temp1, i.InputSimd128Register(0), i.InputSimd128Register(0));
+      __ vmfeq_vv(temp2, i.InputSimd128Register(1), i.InputSimd128Register(1));
+      // Store the bits in v0 which will be implicitly used by the
+      // vfmax_vv instruction (due to the Mask).
+      __ vand_vv(mask_reg, temp2, temp1);
+
+      Simd128Register NaN = kSimd128ScratchReg;
+      Simd128Register result = kSimd128ScratchReg;
+      // Create a vector with just NaNs.
+      __ li(kScratchReg, 0x7FC00000);
+      __ vmv_vx(NaN, kScratchReg);
+      // Take the max for all non-NaN values.
+      __ vfmax_vv(result, i.InputSimd128Register(1), i.InputSimd128Register(0),
+                  Mask);
+      __ vmv_vv(i.OutputSimd128Register(), result);
       break;
     }
     case kRiscvF32x4Pmin: {
