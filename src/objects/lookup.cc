@@ -615,6 +615,9 @@ void LookupIterator::PrepareTransitionToDataProperty(
 
   DirectHandle<Map> map(receiver->map(isolate_), isolate_);
 
+  // Migrate to the newest map before storing the property.
+  map = Map::Update(isolate(), map);
+
   // Dictionary maps can always have additional data properties.
   if (map->is_dictionary_map()) {
     state_ = TRANSITION;

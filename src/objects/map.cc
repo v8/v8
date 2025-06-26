@@ -2004,9 +2004,7 @@ DirectHandle<Map> Map::TransitionToDataProperty(
 
   DCHECK(IsUniqueName(*name));
   DCHECK(!map->is_dictionary_map());
-
-  // Migrate to the newest map before storing the property.
-  map = Update(isolate, map);
+  CHECK(!map->is_deprecated());
 
   MaybeHandle<Map> maybe_transition = TransitionsAccessor::SearchTransition(
       isolate, map, *name, PropertyKind::kData, attributes);
