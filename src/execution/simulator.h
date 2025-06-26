@@ -117,7 +117,7 @@ class SimulatorStack : public v8::internal::AllStatic {
   }
 
   static int JSStackLimitMargin() {
-    return wasm::StackMemory::JSStackLimitMarginKB() * KB;
+    return wasm::StackMemory::JSCentralStackLimitMarginKB() * KB;
   }
 #endif
 

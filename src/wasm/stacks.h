@@ -164,20 +164,21 @@ class StackMemory {
     stack_switch_info_.source_fp = kNullAddress;
   }
 
-  static int JSStackLimitMarginKB() {
-    if (v8_flags.experimental_wasm_growable_stacks) {
-      // The limiting factor for this margin is the stack space used by outgoing
-      // stack parameters in wasm. They can take up to 16KB (1000 simd
-      // parameters, minus register parameters) and are not taken into account
-      // by stack checks.
-      // TODO(42204615): look into changing the stack check to take outgoing
-      // stack parameters into account.
-      static_assert(kMaxValueTypeSize == 16);
-      static_assert(kV8MaxWasmFunctionParams == 1000);
-      return 20;
-    } else {
-      return DEBUG_BOOL ? 80 : 40;
+  static int JSCentralStackLimitMarginKB() { return DEBUG_BOOL ? 80 : 40; }
+
+  static int JSGrowableStackLimitMarginKB() {
+    if (!v8_flags.experimental_wasm_growable_stacks) {
+      return JSCentralStackLimitMarginKB();
     }
+    // The limiting factor for this margin is the stack space used by outgoing
+    // stack parameters in wasm. They can take up to 16KB (1000 simd
+    // parameters, minus register parameters) and are not taken into account
+    // by stack checks.
+    // TODO(42204615): look into changing the stack check to take outgoing
+    // stack parameters into account.
+    static_assert(kMaxValueTypeSize == 16);
+    static_assert(kV8MaxWasmFunctionParams == 1000);
+    return 20;
   }
 
   friend class StackPool;
