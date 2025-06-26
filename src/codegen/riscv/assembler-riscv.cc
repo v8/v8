@@ -270,8 +270,6 @@ Assembler::Assembler(const AssemblerOptions& options,
       constpool_(this) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
-  last_trampoline_pool_end_ = 0;
-  no_trampoline_pool_before_ = 0;
   trampoline_pool_blocked_nesting_ = 0;
   next_buffer_check_ = v8_flags.force_long_branches
                            ? kMaxInt
@@ -1459,35 +1457,18 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   reloc_info_writer.Write(&rinfo);
 }
 
-void Assembler::BlockTrampolinePoolFor(int instructions) {
-  DEBUG_PRINTF("\tBlockTrampolinePoolFor %d", instructions);
-  int margin = instructions * kInstrSize;
-  CheckTrampolinePoolQuick(margin);
-  DEBUG_PRINTF("\tpc_offset %d,BlockTrampolinePoolBefore %d\n", pc_offset(),
-               pc_offset() + margin);
-  BlockTrampolinePoolBefore(pc_offset() + margin);
-}
-
 void Assembler::CheckTrampolinePool() {
   if (trampoline_emitted_) return;
   // Some small sequences of instructions must not be broken up by the
-  // insertion of a trampoline pool; such sequences are protected by setting
-  // either trampoline_pool_blocked_nesting_ or no_trampoline_pool_before_,
-  // which are both checked here. Also, recursive calls to CheckTrampolinePool
-  // are blocked by trampoline_pool_blocked_nesting_.
-  DEBUG_PRINTF("\tpc_offset %d no_trampoline_pool_before:%d\n", pc_offset(),
-               no_trampoline_pool_before_);
+  // insertion of a trampoline pool; such sequences are protected by increasing
+  // trampoline_pool_blocked_nesting_. This is also used to block recursive
+  // calls to CheckTrampolinePool.
   DEBUG_PRINTF("\ttrampoline_pool_blocked_nesting:%d\n",
                trampoline_pool_blocked_nesting_);
-  if ((trampoline_pool_blocked_nesting_ > 0) ||
-      (pc_offset() < no_trampoline_pool_before_)) {
+  if (is_trampoline_pool_blocked()) {
     // Emission is currently blocked; make sure we try again as soon as
     // possible.
-    if (trampoline_pool_blocked_nesting_ > 0) {
-      next_buffer_check_ = pc_offset() + kInstrSize;
-    } else {
-      next_buffer_check_ = no_trampoline_pool_before_;
-    }
+    next_buffer_check_ = pc_offset() + kInstrSize;
     return;
   }
 
@@ -1924,7 +1905,7 @@ void ConstantPool::Check(Emission force_emit, Jump require_jump,
                          size_t margin) {
   // Some short sequence of instruction must not be broken up by constant pool
   // emission, such sequences are protected by a ConstPool::BlockScope.
-  if (IsBlocked()) {
+  if (IsBlocked() || assm_->is_trampoline_pool_blocked()) {
     // Something is wrong if emission is forced and blocked at the same time.
     DCHECK_EQ(force_emit, Emission::kIfNeeded);
     return;
@@ -1944,6 +1925,9 @@ void ConstantPool::Check(Emission force_emit, Jump require_jump,
       assm_->GrowBuffer();
     }
 
+    // Since we do not know how much space the constant pool is going to take
+    // up, we cannot handle getting here while the trampoline pool is blocked.
+    CHECK(!assm_->is_trampoline_pool_blocked());
     EmitAndClear(require_jump);
   }
   // Since a constant pool is (now) empty, move the check offset forward by

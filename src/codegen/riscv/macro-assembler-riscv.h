@@ -1981,9 +1981,7 @@ void MacroAssembler::GenerateSwitchTable(Register index, size_t case_count,
   // Calculate label area size and let MASM know that it will be impossible to
   // create the trampoline within the range. That forces MASM to create the
   // trampoline right here if necessary, i.e. if label area is too large and
-  // all unbound forward branches cannot be bound over it. Use nop() because the
-  // trampoline cannot be emitted right after Jump().
-  NOP();
+  // all unbound forward branches cannot be bound over it.
   int aligned_label_area_size =
       static_cast<int>(case_count) * kUIntptrSize + kSystemPointerSize;
   BlockTrampolinePoolScope block_trampoline_pool(this, aligned_label_area_size);

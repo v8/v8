@@ -486,34 +486,28 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     static constexpr int kGap = kTrampolineSlotsSize * 16;
 
     explicit BlockTrampolinePoolScope(Assembler* assem, int margin = 0)
-        : assem_(assem), start_offset_(assem->pc_offset()), margin_(margin) {
+        : assem_(assem), margin_(margin) {
       if (margin > 0) {
         assem->CheckTrampolinePoolQuick(margin);
       }
       assem->StartBlockTrampolinePool();
+      start_offset_ = assem->pc_offset();
     }
 
     ~BlockTrampolinePoolScope() {
-      assem_->EndBlockTrampolinePool();
       int generated = assem_->pc_offset() - start_offset_;
       USE(generated);  // Only used in DCHECK.
       int allowed = margin_;
       if (allowed == 0) allowed = kGap - kTrampolinePoolOverhead;
       DCHECK_GE(generated, 0);
-      if (false) {
-        // Right now, we cannot enable this check because we sometimes end up
-        // emitting constant pool sections while the trampoline pool is
-        // blocked. This is actually broken behavior, because we risk emitting
-        // enough stuff to make it impossible for our branches to reach the
-        // trampoline pool when we later emit that.
-        DCHECK_LE(generated, allowed);
-      }
+      DCHECK_LE(generated, allowed);
+      assem_->EndBlockTrampolinePool();
     }
 
    private:
     Assembler* const assem_;
-    const int start_offset_;
     const int margin_;
+    int start_offset_;
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockTrampolinePoolScope);
   };
 
@@ -578,10 +572,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   Instruction* InstructionAt(ptrdiff_t offset) const {
     return reinterpret_cast<Instruction*>(buffer_start_ + offset);
   }
-
-  // Postpone the generation of the trampoline pool for the specified number of
-  // instructions.
-  void BlockTrampolinePoolFor(int instructions);
 
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting
@@ -772,14 +762,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     pc_offset_for_safepoint_ = pc_offset();
   }
 
-  // Block the emission of the trampoline pool before pc_offset.
-  void BlockTrampolinePoolBefore(int pc_offset) {
-    if (no_trampoline_pool_before_ < pc_offset) {
-      DEBUG_PRINTF("\tBlockTrampolinePoolBefore %d\n", pc_offset);
-      no_trampoline_pool_before_ = pc_offset;
-    }
-  }
-
   void StartBlockTrampolinePool() {
     DEBUG_PRINTF("\tStartBlockTrampolinePool %d\n", pc_offset());
     trampoline_pool_blocked_nesting_++;
@@ -847,10 +829,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   // Emission of the trampoline pool may be blocked in some code sequences.
   int trampoline_pool_blocked_nesting_;  // Block emission if this is not zero.
-  int no_trampoline_pool_before_;  // Block emission before this pc offset.
-
-  // Keep track of the last emitted pool to guarantee a maximal distance.
-  int last_trampoline_pool_end_;  // pc offset of the end of the last pool.
 
   // Automatic growth of the assembly buffer may be blocked for some sequences.
   bool block_buffer_growth_;  // Block growth when true.

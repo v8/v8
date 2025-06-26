@@ -431,7 +431,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
   }
 #endif
 
-  Assembler::BlockPoolsScope blocked_pools_scope_(this, 4 * kInstrSize);
+  Assembler::BlockPoolsScope blocked_pools_scope(this);
   auto trapper = [protected_store_pc](int offset) {
     if (protected_store_pc) *protected_store_pc = static_cast<uint32_t>(offset);
   };

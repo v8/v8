@@ -230,22 +230,20 @@ void MaglevAssembler::MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
                                                  Label* eager_deopt_entry,
                                                  size_t lazy_deopt_count,
                                                  Label* lazy_deopt_entry) {
+  // On most platforms, we emit two shared tail calls to the eager and lazy
+  // deoptimization builtins and the individual exits just call them to save
+  // space. We do not currently do this on RISC-V, so we don't bind the two
+  // provided labels here. This matches how it is done in the RISC-V variant
+  // of CodeGenerator::PrepareForDeoptimizationExits.
+
+  // We do have to avoid getting the trampoline pool emitted in the middle
+  // of the deoptimization exits, because it destroys our ability to compute
+  // the deoptimization index based on the 'pc' and the offset of the start
+  // of the exits section.
   ForceConstantPoolEmissionWithoutJump();
-
-  DCHECK_GE(Deoptimizer::kLazyDeoptExitSize, Deoptimizer::kEagerDeoptExitSize);
-
-  MaglevAssembler::TemporaryRegisterScope scope(this);
-  Register scratch = scope.AcquireScratch();
-  if (eager_deopt_count > 0) {
-    bind(eager_deopt_entry);
-    LoadEntryFromBuiltin(Builtin::kDeoptimizationEntry_Eager, scratch);
-    MacroAssembler::Jump(scratch);
-  }
-  if (lazy_deopt_count > 0) {
-    bind(lazy_deopt_entry);
-    LoadEntryFromBuiltin(Builtin::kDeoptimizationEntry_Lazy, scratch);
-    MacroAssembler::Jump(scratch);
-  }
+  size_t total_size = eager_deopt_count * Deoptimizer::kEagerDeoptExitSize +
+                      lazy_deopt_count * Deoptimizer::kLazyDeoptExitSize;
+  CheckTrampolinePoolQuick(static_cast<int>(total_size));
 }
 
 void MaglevAssembler::LoadSingleCharacterString(Register result,

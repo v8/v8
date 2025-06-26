@@ -4511,39 +4511,37 @@ void MacroAssembler::Branch(Label* L) {
 
 void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
                             const Operand& rt, Label::Distance distance) {
+  DEBUG_PRINTF("\t Branch is_trampoline_emitted %d\n", is_trampoline_emitted());
   if (L->is_bound()) {
-    if (!BranchShortCheck(0, L, cond, rs, rt)) {
-      if (cond != cc_always) {
-        Label skip;
-        Condition neg_cond = NegateCondition(cond);
-        BlockPoolsScope block_pools(this, 3 * kInstrSize);
-        BranchShort(&skip, neg_cond, rs, rt);
-        BranchLong(L);
-        bind(&skip);
-      } else {
-        BranchLong(L);
-        EmitConstPoolWithoutJumpIfNeeded();
-      }
-    }
-  } else {
-    DEBUG_PRINTF("\t Branch is_trampoline_emitted %d\n",
-                 is_trampoline_emitted());
-    if (is_trampoline_emitted()) {
-      if (cond != cc_always) {
-        Label skip;
-        Condition neg_cond = NegateCondition(cond);
-        BlockPoolsScope block_pools(this, 3 * kInstrSize);
-        BranchShort(&skip, neg_cond, rs, rt);
-        BranchLong(L);
-        bind(&skip);
-      } else {
-        BranchLong(L);
-        EmitConstPoolWithoutJumpIfNeeded();
-      }
-    } else {
-      BranchShort(L, cond, rs, rt);
-    }
+    // Go ahead and emit the branch as a short branch if possible.
+    if (BranchShortCheck(0, L, cond, rs, rt)) return;
+  } else if (!is_trampoline_emitted()) {
+    // We know that we're going to insert a trampoline for this branch if
+    // needed, so we can safely emit it as a short branch.
+    BranchShort(L, cond, rs, rt);
+    return;
   }
+
+  if (cond == cc_always) {
+    // We either have a branch backward to a position too far away to reach with
+    // a short branch - or a branch forward where we are unable to go through
+    // the trampoline pool because it has already been emitted.
+    BranchLong(L);
+    return;
+  }
+
+  // We're are going to use a short forward branch to skip the longer branch, so
+  // we need to make sure that we do not get a large constant pool emitted here.
+  // Otherwise, the short branch may not be able to reach the other side.
+  BlockPoolsScope block_pools(this);
+
+  // The short branch may span several instructions because we may have to
+  // materialize the 'rt' operand in a register. This can involve loading from a
+  // constant pool entry or constructing a complex immediate.
+  Label skip;
+  BranchShort(&skip, NegateCondition(cond), rs, rt);
+  BranchLong(L);
+  bind(&skip);
 }
 
 void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
@@ -4976,7 +4974,7 @@ void MacroAssembler::Jump(Register target, Condition cond, Register rs,
                   "don't use x5 as target for jumps to avoid RAS pollution");
   if (cond == cc_always) {
     jr(target);
-    ForceConstantPoolEmissionWithoutJump();
+    EmitConstPoolWithoutJumpIfNeeded();
   } else {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     BRANCH_ARGS_CHECK(cond, rs, rt);
@@ -5385,7 +5383,6 @@ void MacroAssembler::BranchLong(Label* L) {
   if (L->is_bound() && is_intn(imm, Assembler::kJumpOffsetBits) &&
       (imm & 1) == 0) {
     j(imm);
-    NOP();
     EmitConstPoolWithoutJumpIfNeeded();
     return;
   }
@@ -5401,7 +5398,6 @@ void MacroAssembler::BranchAndLinkLong(Label* L) {
   if (L->is_bound() && is_intn(imm, Assembler::kJumpOffsetBits) &&
       (imm & 1) == 0) {
     jal(t6, imm);
-    NOP();
     return;
   }
   GenPCRelativeJumpAndLink(t6, imm);
@@ -6257,6 +6253,15 @@ void MacroAssembler::MulOverflow32(Register dst, Register left,
                                    const Operand& right, Register overflow,
                                    bool sign_extend_inputs) {
   ASM_CODE_COMMENT(this);
+
+  // Validate that the inputs are already sign extended if we're asked not to
+  // take care of the sign extending. Do this before we block the trampoline
+  // pool to avoid emitting too much code while blocked.
+  if (!sign_extend_inputs) {
+    AssertSignExtended(left);
+    if (right.is_reg()) AssertSignExtended(right.rm());
+  }
+
   UseScratchRegisterScope temps(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Register right_reg = no_reg;
@@ -6285,14 +6290,8 @@ void MacroAssembler::MulOverflow32(Register dst, Register left,
     rs1 = overflow;
     rs2 = scratch;
   } else {
-    // we can skip sext_w on register inputs if not requested
     rs1 = left;
     rs2 = right_reg;
-    // no need in assert if input was imm
-    if (right.is_reg()) {
-      AssertSignExtended(rs2);
-    }
-    AssertSignExtended(rs1);
   }
   mul(overflow, rs1, rs2);
   sext_w(dst, overflow);
