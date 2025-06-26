@@ -2804,11 +2804,6 @@ TNode<MaybeObject> CodeStubAssembler::ClearedValue() {
       BitcastWordToTagged(IntPtrConstant(kClearedWeakHeapObjectLower32)));
 }
 
-TNode<MaybeObject> CodeStubAssembler::PrototypeChainInvalidConstant() {
-  static_assert(Map::kPrototypeChainInvalid.IsCleared());
-  return ClearedValue();
-}
-
 template <>
 TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(TNode<FixedArray> array) {
   return LoadAndUntagFixedArrayBaseLength(array);

@@ -1461,8 +1461,8 @@ macro OutOfBounds<T: type, X: type>(index: T, length: X): bool {
       Convert<uintptr>(Convert<intptr>(length)));
 }
 
-extern macro PrototypeChainInvalidConstant(): MaybeObject;
-const kPrototypeChainInvalid: MaybeObject = PrototypeChainInvalidConstant();
+const kPrototypeChainInvalid:
+    constexpr Smi generates 'Map::kPrototypeChainInvalid';
 
 extern macro IsJSArrayMap(Map): bool;
 extern macro IsPrototypeInitialArrayPrototype(
