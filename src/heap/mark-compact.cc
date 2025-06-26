@@ -701,11 +701,9 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   } else if (v8_flags.stress_compaction) {
     for (size_t i = 0; i < pages.size(); i++) {
       PageMetadata* p = pages[i].second;
-      if (i % 2 == 0) {
-        candidate_count++;
-        total_live_bytes += pages[i].first;
-        AddEvacuationCandidate(p);
-      }
+      candidate_count++;
+      total_live_bytes += pages[i].first;
+      AddEvacuationCandidate(p);
     }
   } else {
     // The following approach determines the pages that should be evacuated.
@@ -4980,7 +4978,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   }
 
   if (v8_flags.stress_compaction || v8_flags.stress_compaction_random) {
-    // Stress aborting of evacuation by aborting ~10% of evacuation candidates
+    // Stress aborting of evacuation by aborting ~5% of evacuation candidates
     // when stress testing.
     const double kFraction = 0.05;
 
