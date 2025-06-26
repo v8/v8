@@ -568,6 +568,35 @@ Maybe<temporal_rs::ArithmeticOverflow> ToTemporalOverflowHandleUndefined(
       temporal_rs::ArithmeticOverflow::Constrain);
 }
 
+// https://tc39.es/proposal-temporal/#sec-temporal-getdirectionoption
+
+Maybe<temporal_rs::TransitionDirection> GetDirectionOption(
+    Isolate* isolate, DirectHandle<JSReceiver> options,
+    const char* method_name) {
+  // 1. Let stringValue be ? GetOption(options, "direction", string, « "next",
+  // "previous" », required).
+  std::optional<temporal_rs::TransitionDirection::Value> dir;
+
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, dir,
+      GetStringOption<std::optional<temporal_rs::TransitionDirection::Value>>(
+          isolate, Cast<JSReceiver>(options),
+          isolate->factory()->direction_string(), method_name,
+          std::to_array<const std::string_view>({"next", "previous"}),
+          std::to_array<std::optional<temporal_rs::TransitionDirection::Value>>(
+              {temporal_rs::TransitionDirection::Next,
+               temporal_rs::TransitionDirection::Previous}),
+          std::nullopt),
+      {});
+
+  if (dir.has_value()) {
+    return Just(temporal_rs::TransitionDirection(dir.value()));
+  } else {
+    // Hoisted from GetOption
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), {});
+  }
+}
 // https://tc39.es/proposal-temporal/#sec-temporal-gettemporaldisambiguationoption
 // Also handles the undefined check from GetOptionsObject
 Maybe<temporal_rs::Disambiguation>
@@ -1069,30 +1098,29 @@ std::optional<temporal_rs::AnyCalendarKind> ExtractCalendarFrom(
   // i. Return temporalCalendarLike.[[Calendar]].
   if (InstanceTypeChecker::IsJSTemporalPlainDate(instance_type)) {
     return Cast<JSTemporalPlainDate>(*calendar_like)
-        ->date()
-        ->raw()
-        ->calendar()
+        ->wrapped_rust()
+        .calendar()
         .kind();
   } else if (InstanceTypeChecker::IsJSTemporalPlainDateTime(instance_type)) {
     return Cast<JSTemporalPlainDateTime>(*calendar_like)
-        ->date_time()
-        ->raw()
-        ->calendar()
+        ->wrapped_rust()
+        .calendar()
         .kind();
   } else if (InstanceTypeChecker::IsJSTemporalPlainMonthDay(instance_type)) {
     return Cast<JSTemporalPlainMonthDay>(*calendar_like)
-        ->month_day()
-        ->raw()
-        ->calendar()
+        ->wrapped_rust()
+        .calendar()
         .kind();
   } else if (InstanceTypeChecker::IsJSTemporalPlainYearMonth(instance_type)) {
     return Cast<JSTemporalPlainYearMonth>(*calendar_like)
-        ->year_month()
-        ->raw()
-        ->calendar()
+        ->wrapped_rust()
+        .calendar()
         .kind();
-  } else if (IsJSTemporalZonedDateTime(*calendar_like)) {
-    UNIMPLEMENTED();
+  } else if (InstanceTypeChecker::IsJSTemporalZonedDateTime(instance_type)) {
+    return Cast<JSTemporalZonedDateTime>(*calendar_like)
+        ->wrapped_rust()
+        .calendar()
+        .kind();
   }
   return std::nullopt;
 }
@@ -2302,6 +2330,28 @@ MaybeDirectHandle<JSTemporalPlainTime> ToTemporalTime(
     return ConstructRustWrappingType<JSTemporalPlainTime>(
         isolate, std::move(rust_result));
   }
+}
+
+// Instead of returning Midnight, just returns null, since temporal_rs
+// handles the midnight-setting
+//
+// https://tc39.es/proposal-temporal/#sec-temporal-totimerecordormidnight
+Maybe<const temporal_rs::PlainTime*> ToTimeRecordOrMidnight(
+    Isolate* isolate, DirectHandle<Object> item,
+    DirectHandle<JSTemporalPlainTime>& output_time, const char* method_name) {
+  // 1. If item is undefined, return MidnightTimeRecord().
+  if (IsUndefined(*item)) {
+    return Just(static_cast<const temporal_rs::PlainTime*>(nullptr));
+  }
+
+  // 2. Let plainTime be ? ToTemporalTime(item).
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, output_time,
+      ToTemporalTime(isolate, item, std::nullopt, method_name), {});
+
+  // 3. Return plainTime.[[Time]].
+  return Just(
+      static_cast<const temporal_rs::PlainTime*>(output_time->time()->raw()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-totemporaldate
@@ -4033,15 +4083,17 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDate::ToPlainDateTime(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> temporal_time_obj) {
   const char method_name[] = "Temporal.PlainDate.toPlainDateTime";
-  const temporal_rs::PlainTime* maybe_time = nullptr;
-  DirectHandle<JSTemporalPlainTime> time;
-  if (!IsUndefined(*temporal_time_obj)) {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, time,
-        temporal::ToTemporalTime(isolate, temporal_time_obj, std::nullopt,
-                                 method_name));
-    maybe_time = time->time()->raw();
-  }
+
+  // 3. Let time be ? ToTimeRecordOrMidnight(temporalTime).
+  const temporal_rs::PlainTime* maybe_time;
+  DirectHandle<JSTemporalPlainTime> time_output;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, maybe_time,
+      temporal::ToTimeRecordOrMidnight(isolate, temporal_time_obj, time_output,
+                                       method_name),
+      {});
+
+  // Rest of the steps handled in Rust.
   return ConstructRustWrappingType<JSTemporalPlainDateTime>(
       isolate, temporal_date->date()->raw()->to_plain_date_time(maybe_time));
 }
@@ -4509,7 +4561,20 @@ MaybeDirectHandle<JSTemporalPlainDateTime>
 JSTemporalPlainDateTime::WithPlainTime(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> plain_time_like) {
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.PlainDateTime.prototype.withPlainTime";
+
+  // 3. Let time be ? ToTimeRecordOrMidnight(plainTimeLike).
+  const temporal_rs::PlainTime* maybe_time;
+  DirectHandle<JSTemporalPlainTime> time_output;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, maybe_time,
+      temporal::ToTimeRecordOrMidnight(isolate, plain_time_like, time_output,
+                                       method_name),
+      {});
+
+  // Rest of the steps handled in Rust.
+  return ConstructRustWrappingType<JSTemporalPlainDateTime>(
+      isolate, date_time->date_time()->raw()->with_time(maybe_time));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tozoneddatetime
@@ -4518,7 +4583,29 @@ JSTemporalPlainDateTime::ToZonedDateTime(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> temporal_time_zone_like,
     DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.PlainDateTime.prototype.toZonedDateTime";
+  // 3. Let timeZone be ? ToTemporalTimeZoneIdentifier(temporalTimeZoneLike).
+  std::unique_ptr<temporal_rs::TimeZone> time_zone;
+  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      isolate, time_zone,
+      temporal::ToTemporalTimeZoneIdentifier(isolate, temporal_time_zone_like),
+      {});
+  // 4. Let resolvedOptions be ? GetOptionsObject(options).
+  // 5. Let disambiguation be ?
+  // GetTemporalDisambiguationOption(resolvedOptions).
+
+  temporal_rs::Disambiguation disambiguation;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, disambiguation,
+      temporal::GetTemporalDisambiguationOptionHandleUndefined(
+          isolate, options_obj, method_name),
+      {});
+
+  // Rest of the steps handled in Rust.
+
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(
+      isolate, date_time->date_time()->raw()->to_zoned_date_time(
+                   *time_zone, disambiguation));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tostring
@@ -5924,8 +6011,57 @@ MaybeDirectHandle<JSTemporalZonedDateTime>
 JSTemporalZonedDateTime::WithPlainTime(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> plain_time_like) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.ZonedDateTime.prototype.withPlainTime";
+  // 1. Let zonedDateTime be the this value.
+  //
+  // 2. Perform ? RequireInternalSlot(zonedDateTime,
+  // [[InitializedTemporalZonedDateTime]]).
+  //
+  // 3. Let timeZone be zonedDateTime.[[TimeZone]].
+  //
+  // 4. Let calendar be zonedDateTime.[[Calendar]].
+
+  // (handled by type system)
+
+  // 5. Let isoDateTime be GetISODateTimeFor(timeZone,
+  // zonedDateTime.[[EpochNanoseconds]]).
+
+  // (handled later in Rust, idempotent)
+
+  DirectHandle<JSTemporalPlainTime> plain_time_obj;
+  temporal_rs::PlainTime* plain_time = nullptr;
+
+  // 6. If plainTimeLike is undefined, then
+  if (IsUndefined(*plain_time_like)) {
+    // a. Let epochNs be ? GetStartOfDay(timeZone, isoDateTime.[[ISODate]]).
+
+    // (handled later in Rust, there are no steps between this and the Rust
+    // call. Rust handles this by detecting a null time argument)
+
+    // 7. Else,
+  } else {
+    // a. Let plainTime be ? ToTemporalTime(plainTimeLike).
+
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, plain_time_obj,
+        temporal::ToTemporalTime(isolate, plain_time_like, std::nullopt,
+                                 method_name));
+
+    plain_time = plain_time_obj->time()->raw();
+    // b. Let resultISODateTime be
+    // CombineISODateAndTimeRecord(isoDateTime.[[ISODate]], plainTime.[[Time]]).
+    // c. Let epochNs be ? GetEpochNanosecondsFor(timeZone, resultISODateTime,
+    // compatible).
+
+    // (handled later in Rust, there are no steps between this and the Rust
+    // call)
+  }
+
+  // Rest of the steps handled in Rust.
+
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(
+      isolate,
+      zoned_date_time->zoned_date_time()->raw()->with_plain_time(plain_time));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.withtimezone
@@ -5933,8 +6069,17 @@ MaybeDirectHandle<JSTemporalZonedDateTime>
 JSTemporalZonedDateTime::WithTimeZone(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> time_zone_like) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  // 3. Let timeZone be ? ToTemporalTimeZoneIdentifier(timeZoneLike).
+  std::unique_ptr<temporal_rs::TimeZone> time_zone;
+  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      isolate, time_zone,
+      temporal::ToTemporalTimeZoneIdentifier(isolate, time_zone_like), {});
+
+  // 4. Return ! CreateTemporalZonedDateTime(zonedDateTime.[[EpochNanoseconds]],
+  // timeZone, zonedDateTime.[[Calendar]]).
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(
+      isolate,
+      zoned_date_time->zoned_date_time()->raw()->with_timezone(*time_zone));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tostring
@@ -6256,9 +6401,55 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::StartOfDay(
 MaybeDirectHandle<JSTemporalZonedDateTime>
 JSTemporalZonedDateTime::GetTimeZoneTransition(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
-    DirectHandle<Object> direction_param) {
+    DirectHandle<Object> direction_param_obj) {
+  const char method_name[] =
+      "Temporal.ZonedDateTime.prototype.getTimeZoneTransition";
   TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+
+  // 4. If directionParam is undefined, throw a TypeError exception.
+  if (IsUndefined(*direction_param_obj)) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+  }
+
+  // 3. If roundTo is undefined, then
+
+  DirectHandle<JSReceiver> direction_param;
+  auto factory = isolate->factory();
+
+  // 5. If directionParam is a String, then
+  if (IsString(*direction_param_obj)) {
+    // a. a. Let paramString be directionParam.
+    DirectHandle<String> param_string = Cast<String>(direction_param_obj);
+    //  b. Set directionParam to OrdinaryObjectCreate(null).
+    direction_param = factory->NewJSObjectWithNullProto();
+    // TODO(manishearth) Ideally we don't have to perform this allocation
+    // c. Perform ! CreateDataPropertyOrThrow(directionParam, "direction",
+    // paramString).
+    CHECK(JSReceiver::CreateDataProperty(isolate, direction_param,
+                                         factory->smallestUnit_string(),
+                                         param_string, Just(kThrowOnError))
+              .FromJust());
+    // 6. Else,
+  } else {
+    // a. Set directionParam to ? GetOptionsObject(directionParam).
+    // We have already checked for undefined, we can hoist the JSReceiver
+    // check out and just cast
+    if (!IsJSReceiver(*direction_param_obj)) {
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    }
+    direction_param = Cast<JSReceiver>(direction_param_obj);
+  }
+
+  // 7. Let direction be ? GetDirectionOption(directionParam).
+  temporal_rs::TransitionDirection dir;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, dir,
+      temporal::GetDirectionOption(isolate, direction_param, method_name), {});
+
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(
+      isolate,
+      zoned_date_time->zoned_date_time()->raw()->get_time_zone_transition(dir));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toinstant
@@ -6528,11 +6719,17 @@ MaybeDirectHandle<BigInt> JSTemporalInstant::EpochNanoseconds(
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tozoneddatetime
 MaybeDirectHandle<JSTemporalZonedDateTime>
 JSTemporalInstant::ToZonedDateTimeISO(Isolate* isolate,
-                                      DirectHandle<JSTemporalInstant> handle,
-                                      DirectHandle<Object> item_obj) {
+                                      DirectHandle<JSTemporalInstant> instant,
+                                      DirectHandle<Object> time_zone_obj) {
   TEMPORAL_ENTER_FUNC();
+  // 3. Let timeZone be ? ToTemporalTimeZoneIdentifier(temporalTimeZoneLike).
+  std::unique_ptr<temporal_rs::TimeZone> time_zone;
+  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      isolate, time_zone,
+      temporal::ToTemporalTimeZoneIdentifier(isolate, time_zone_obj), {});
 
-  UNIMPLEMENTED();
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(
+      isolate, instant->instant()->raw()->to_zoned_date_time_iso(*time_zone));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tostring
@@ -6716,15 +6913,4 @@ V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> JSTemporalNowTimeZoneId(
 #endif
 }
 
-namespace temporal {
-
-// A simple convenient function to avoid the need to unnecessarily exposing
-// the definition of enum Disambiguation.
-MaybeDirectHandle<JSTemporalInstant> BuiltinTimeZoneGetInstantForCompatible(
-    Isolate* isolate, DirectHandle<JSReceiver> time_zone,
-    DirectHandle<JSTemporalPlainDateTime> date_time, const char* method_name) {
-  UNIMPLEMENTED();
-}
-
-}  // namespace temporal
 }  // namespace v8::internal

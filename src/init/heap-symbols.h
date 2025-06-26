@@ -31,7 +31,6 @@
   V(_, decimal_string, "decimal")                                   \
   V(_, dialect_string, "dialect")                                   \
   V(_, digital_string, "digital")                                   \
-  V(_, direction_string, "direction")                               \
   V(_, endRange_string, "endRange")                                 \
   V(_, engineering_string, "engineering")                           \
   V(_, exceptZero_string, "exceptZero")                             \
@@ -632,6 +631,7 @@
   V(_, defineProperty_string, "defineProperty")                               \
   V(_, deleteProperty_string, "deleteProperty")                               \
   V(_, detached_string, "detached")                                           \
+  V(_, direction_string, "direction")                                         \
   V(_, disambiguation_string, "disambiguation")                               \
   V(_, disjunction_string, "disjunction")                                     \
   V(_, disposed_string, "disposed")                                           \
