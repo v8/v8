@@ -1341,8 +1341,12 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
 void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
-    StoreType type, bool i64_offset) {
-
+    StoreType type, bool i64_offset, Endianness endianness) {
+#ifdef V8_TARGET_BIG_ENDIAN
+  bool reverse_bytes = endianness == LiftoffAssembler::kLittle;
+#else
+  bool reverse_bytes = false;
+#endif
   LiftoffRegList pinned = LiftoffRegList{dst_addr, expected, new_value, result};
   if (offset_reg != no_reg) pinned.set(offset_reg);
   Register tmp1 = GetUnusedRegister(kGpReg, pinned).gp();
@@ -1363,52 +1367,52 @@ void LiftoffAssembler::AtomicCompareExchange(
     }
     case StoreType::kI32Store16:
     case StoreType::kI64Store16: {
-#ifdef V8_TARGET_BIG_ENDIAN
-      lrvr(tmp1, expected.gp());
-      lrvr(tmp2, new_value.gp());
-      ShiftRightU32(tmp1, tmp1, Operand(16));
-      ShiftRightU32(tmp2, tmp2, Operand(16));
-#else
-      LoadU16(tmp1, expected.gp());
-      LoadU16(tmp2, new_value.gp());
-#endif
+      if (reverse_bytes) {
+        lrvr(tmp1, expected.gp());
+        lrvr(tmp2, new_value.gp());
+        ShiftRightU32(tmp1, tmp1, Operand(16));
+        ShiftRightU32(tmp2, tmp2, Operand(16));
+      } else {
+        LoadU16(tmp1, expected.gp());
+        LoadU16(tmp2, new_value.gp());
+      }
       AtomicCmpExchangeU16(ip, result.gp(), tmp1, tmp2, r0, r1);
       LoadU16(result.gp(), result.gp());
-#ifdef V8_TARGET_BIG_ENDIAN
-      lrvr(result.gp(), result.gp());
-      ShiftRightU32(result.gp(), result.gp(), Operand(16));
-#endif
+      if (reverse_bytes) {
+        lrvr(result.gp(), result.gp());
+        ShiftRightU32(result.gp(), result.gp(), Operand(16));
+      }
       break;
     }
     case StoreType::kI32Store:
     case StoreType::kI64Store32: {
-#ifdef V8_TARGET_BIG_ENDIAN
-      lrvr(tmp1, expected.gp());
-      lrvr(tmp2, new_value.gp());
-#else
-      LoadU32(tmp1, expected.gp());
-      LoadU32(tmp2, new_value.gp());
-#endif
+      if (reverse_bytes) {
+        lrvr(tmp1, expected.gp());
+        lrvr(tmp2, new_value.gp());
+      } else {
+        LoadU32(tmp1, expected.gp());
+        LoadU32(tmp2, new_value.gp());
+      }
       CmpAndSwap(tmp1, tmp2, MemOperand(ip));
       LoadU32(result.gp(), tmp1);
-#ifdef V8_TARGET_BIG_ENDIAN
-      lrvr(result.gp(), result.gp());
-#endif
+      if (reverse_bytes) {
+        lrvr(result.gp(), result.gp());
+      }
       break;
     }
     case StoreType::kI64Store: {
-#ifdef V8_TARGET_BIG_ENDIAN
-      lrvgr(tmp1, expected.gp());
-      lrvgr(tmp2, new_value.gp());
-#else
-      mov(tmp1, expected.gp());
-      mov(tmp2, new_value.gp());
-#endif
+      if (reverse_bytes) {
+        lrvgr(tmp1, expected.gp());
+        lrvgr(tmp2, new_value.gp());
+      } else {
+        mov(tmp1, expected.gp());
+        mov(tmp2, new_value.gp());
+      }
       CmpAndSwap64(tmp1, tmp2, MemOperand(ip));
       mov(result.gp(), tmp1);
-#ifdef V8_TARGET_BIG_ENDIAN
-      lrvgr(result.gp(), result.gp());
-#endif
+      if (reverse_bytes) {
+        lrvgr(result.gp(), result.gp());
+      }
       break;
     }
     default:
@@ -1423,7 +1427,7 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
   AtomicCompareExchange(
       dst_addr, offset_reg, offset_imm, expected, new_value, result,
       COMPRESS_POINTERS_BOOL ? StoreType::kI32Store : StoreType::kI64Store,
-      false);
+      false, LiftoffAssembler::kNative);
 
   if constexpr (COMPRESS_POINTERS_BOOL) {
     AddS64(result.gp(), result.gp(), kPtrComprCageBaseRegister);

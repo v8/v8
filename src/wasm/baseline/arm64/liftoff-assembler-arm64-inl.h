@@ -1309,7 +1309,7 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
 void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
-    StoreType type, bool /* i64_offset */) {
+    StoreType type, bool /* i64_offset */, Endianness /* endianness */) {
   // The result register may not alias with any of the inputs as the CAS
   // instruction overwrites it in the loop.
   DCHECK(!LiftoffRegList(dst_addr, expected, new_value).has(result));

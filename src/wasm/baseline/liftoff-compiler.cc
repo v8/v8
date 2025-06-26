@@ -6410,7 +6410,8 @@ class LiftoffCompiler {
     } else {
       __ AtomicCompareExchange(obj.gp(), no_reg, offset, expected_value,
                                new_value, result_reg,
-                               StoreType::ForValueKind(field_kind), false);
+                               StoreType::ForValueKind(field_kind), false,
+                               LiftoffAssembler::kNative);
     }
     __ PushRegister(field_kind, result_reg);
   }
@@ -6599,7 +6600,8 @@ class LiftoffCompiler {
     } else {
       __ AtomicCompareExchange(mem_location.gp(), no_reg, offset,
                                expected_value, new_value, result_reg,
-                               StoreType::ForValueKind(elem_kind), false);
+                               StoreType::ForValueKind(elem_kind), false,
+                               LiftoffAssembler::kNative);
     }
     __ PushRegister(elem_kind, result_reg);
 #else
@@ -6662,9 +6664,9 @@ class LiftoffCompiler {
                                             expected_value, new_value,
                                             result_reg, pinned);
     } else {
-      __ AtomicCompareExchange(array.gp(), offset_reg, offset, expected_value,
-                               new_value, result_reg,
-                               StoreType::ForValueKind(elem_kind), false);
+      __ AtomicCompareExchange(
+          array.gp(), offset_reg, offset, expected_value, new_value, result_reg,
+          StoreType::ForValueKind(elem_kind), false, LiftoffAssembler::kNative);
     }
     __ PushRegister(elem_kind, result_reg);
 #endif

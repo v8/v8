@@ -797,7 +797,8 @@ class LiftoffAssembler : public MacroAssembler {
                                     LiftoffRegister expected,
                                     LiftoffRegister new_value,
                                     LiftoffRegister result, StoreType type,
-                                    bool i64_offset);
+                                    bool i64_offset,
+                                    Endianness endianness = kLittle);
 
   inline void AtomicCompareExchangeTaggedPointer(
       Register dst_addr, Register offset_reg, uintptr_t offset_imm,
