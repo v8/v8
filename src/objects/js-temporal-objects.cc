@@ -348,8 +348,9 @@ Maybe<temporal_rs::I128Nanoseconds> GetI128FromBigInt(
   if (bigint->Words64Count() > 2) {
     // 3. ! IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
     // RangeError exception.
-    // TODO(manishearth) Perform full check here, not just the coarse one
-    // once https://github.com/boa-dev/temporal/pull/363 lands
+    //
+    // This only performs part of the check, the rest of it is done below with
+    // is_valid()
     THROW_NEW_ERROR_RETURN_VALUE(isolate,
                                  NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), {});
   }
@@ -371,11 +372,13 @@ Maybe<temporal_rs::I128Nanoseconds> GetI128FromBigInt(
 
   temporal_rs::I128Nanoseconds ns;
 
-  // This static_cast is necessary until
-  // https://github.com/boa-dev/temporal/pull/372 makes its way to third_party.
-  auto high_cast = static_cast<decltype(ns.high)>(high);
-  ns.high = high_cast;
+  ns.high = high;
   ns.low = words[0];
+
+  if (!ns.is_valid()) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), {});
+  }
   return Just(ns);
 }
 
@@ -384,14 +387,12 @@ MaybeDirectHandle<BigInt> I128ToBigInt(Isolate* isolate,
   uint64_t words[2];
   bool sign_bit;
 
-  // This static_cast is necessary until
-  // https://github.com/boa-dev/temporal/pull/372 makes its way to third_party.
   if ((ns.high & temporal::kU64HighBitMask) != 0) {
     sign_bit = true;
-    words[1] = static_cast<uint64_t>(ns.high & ~temporal::kU64HighBitMask);
+    words[1] = ns.high & ~temporal::kU64HighBitMask;
   } else {
     sign_bit = false;
-    words[1] = static_cast<uint64_t>(ns.high);
+    words[1] = ns.high;
   }
   words[0] = ns.low;
 
@@ -1393,7 +1394,7 @@ Maybe<std::string> ToOffsetString(Isolate* isolate,
   // at once. We check to ensure that this is UTC offset-like (not
   // identifier-like) before handing off to Rust.
   // TODO(manishearth) clean up after
-  // https://github.com/boa-dev/temporal/pull/348 lands.
+  // https://github.com/boa-dev/temporal/pull/376 lands.
 
   if (offset.size() == 0 || (offset[0] != '+' && offset[0] != '-')) {
     THROW_NEW_ERROR_RETURN_VALUE(isolate,
@@ -1419,13 +1420,12 @@ Maybe<std::unique_ptr<temporal_rs::TimeZone>> ToTemporalTimeZoneIdentifier(
   // internal slot, then
   if (IsJSTemporalZonedDateTime(*tz_like)) {
     // i. Return temporalTimeZoneLike.[[TimeZone]].
-    // TODO(manishearth) we don't currently have a nice way to clone timezones
-    // See https://github.com/boa-dev/temporal/pull/344 and
-    // https://github.com/boa-dev/temporal/issues/330.
 
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-        Nothing<std::unique_ptr<temporal_rs::TimeZone>>());
+    return Just(Cast<JSTemporalZonedDateTime>(tz_like)
+                    ->zoned_date_time()
+                    ->raw()
+                    ->timezone()
+                    .clone());
   }
   // 2. If temporalTimeZoneLike is not a String, throw a TypeError exception.
   if (!IsString(*tz_like)) {
@@ -5781,9 +5781,20 @@ MaybeDirectHandle<Smi> JSTemporalZonedDateTime::Compare(
 MaybeDirectHandle<Oddball> JSTemporalZonedDateTime::Equals(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> other_obj) {
-  // TODO(manishearth) Implement once
-  // https://github.com/boa-dev/temporal/pull/362 lands
-  UNIMPLEMENTED();
+  const char method_name[] = "Temporal.ZonedDateTime.prototype.equals";
+
+  // 3. Set other to ? ToTemporalZonedDateTime(other).
+  DirectHandle<JSTemporalZonedDateTime> other;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, other,
+                             temporal::ToTemporalZonedDateTime(
+                                 isolate, other_obj, std::nullopt, std::nullopt,
+                                 std::nullopt, method_name));
+
+  // Rest of the steps handled in Rust.
+  auto equals = zoned_date_time->zoned_date_time()->raw()->equals(
+      *other->zoned_date_time()->raw());
+
+  return isolate->factory()->ToBoolean(equals);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.with
@@ -6091,9 +6102,14 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Now(Isolate* isolate) {
 MaybeDirectHandle<Object> JSTemporalZonedDateTime::OffsetNanoseconds(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
-  // TODO(manishearth) Implement once
-  // https://github.com/boa-dev/temporal/pull/361 lands
-  UNIMPLEMENTED();
+  int64_t offset_ns;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, offset_ns,
+      ExtractRustResult(
+          isolate,
+          zoned_date_time->zoned_date_time()->raw()->offset_nanoseconds()),
+      {});
+  return isolate->factory()->NewNumberFromInt64(offset_ns);
 }
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.epochnanoseconds
@@ -6108,18 +6124,36 @@ MaybeDirectHandle<BigInt> JSTemporalZonedDateTime::EpochNanoseconds(
 MaybeDirectHandle<String> JSTemporalZonedDateTime::TimeZoneId(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
-  // TODO(manishearth) Implement once
-  // https://github.com/boa-dev/temporal/pull/344 lands
-  UNIMPLEMENTED();
+  std::string id;
+
+  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      isolate, id,
+      ExtractRustResult(
+          isolate,
+          zoned_date_time->zoned_date_time()->raw()->timezone().identifier()),
+      {});
+
+  IncrementalStringBuilder builder(isolate);
+  builder.AppendString(id);
+  return builder.Finish().ToHandleChecked();
 }
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.offset
 MaybeDirectHandle<String> JSTemporalZonedDateTime::Offset(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
-  // TODO(manishearth) Implement once
-  // https://github.com/boa-dev/temporal/pull/362 lands
-  UNIMPLEMENTED();
+
+  std::string offset;
+
+  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      isolate, offset,
+      ExtractRustResult(isolate,
+                        zoned_date_time->zoned_date_time()->raw()->offset()),
+      {});
+
+  IncrementalStringBuilder builder(isolate);
+  builder.AppendString(offset);
+  return builder.Finish().ToHandleChecked();
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.startofday
@@ -6581,9 +6615,16 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalInstant::Since(
 // https://tc39.es/proposal-temporal/#sec-temporal.now.timezoneid
 V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> JSTemporalNowTimeZoneId(
     Isolate* isolate) {
-  // TODO(manishearth) Implement once
-  // https://github.com/boa-dev/temporal/pull/344 lands
-  UNIMPLEMENTED();
+  // 1. Return SystemTimeZoneIdentifier().
+#ifdef V8_INTL_SUPPORT
+  auto tz_str = Intl::DefaultTimeZone();
+
+  IncrementalStringBuilder builder(isolate);
+  builder.AppendString(tz_str);
+  return builder.Finish().ToHandleChecked();
+#else
+  return isolate->factory()->UTC_string();
+#endif
 }
 
 namespace temporal {
