@@ -782,11 +782,19 @@ constexpr ConditionalBranchOp BC_cond =
 // MOPS
 using MemCpyOp = uint32_t;
 constexpr MemCpyOp CpyFixed = 0x1D000400;
-constexpr MemCpyOp CpyFMask = 0x1D000400;
-constexpr MemCpyOp CpyMask = CpyFMask | 0x00C00000;
+constexpr MemCpyOp CpyFMask = 0xFF20FC00;
+constexpr MemCpyOp CpyMask = CpyFMask | 0x00E00000;
 constexpr MemCpyOp CPYP = CpyFixed | 0x00000000;
 constexpr MemCpyOp CPYM = CpyFixed | 0x00400000;
 constexpr MemCpyOp CPYE = CpyFixed | 0x00800000;
+
+using MemSetOp = uint32_t;
+constexpr MemSetOp SetFixed = 0x19C00400;
+constexpr MemSetOp SetFMask = 0xFFE03C00;
+constexpr MemSetOp SetMask = SetFMask | 0x0000C000;
+constexpr MemSetOp SETP = SetFixed | 0x00000000;
+constexpr MemSetOp SETM = SetFixed | 0x00004000;
+constexpr MemSetOp SETE = SetFixed | 0x00008000;
 
 // System.
 // System instruction encoding is complicated because some instructions use op

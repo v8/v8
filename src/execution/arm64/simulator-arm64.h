@@ -915,8 +915,12 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   void VisitCpyP(Instruction* instr);
   void VisitCpyM(Instruction* instr);
   void VisitCpyE(Instruction* instr);
+  void VisitSetP(Instruction* instr);
+  void VisitSetM(Instruction* instr);
+  void VisitSetE(Instruction* instr);
+  template <Instruction::MemOp mem_op>
   void MOPSPHelper(Instruction* instr) {
-    DCHECK(instr->IsConsistentMOPSTriplet());
+    DCHECK(instr->IsConsistentMOPSTriplet<mem_op>());
 
     int d = instr->Rd();
     int n = instr->Rn();
@@ -928,7 +932,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
     }
 
     // Additionally, Xs may not be xzr for cpy.
-    if (s == 31) {
+    if (mem_op == Instruction::MemOp::kCPY && s == 31) {
       VisitUnallocated(instr);
     }
 
@@ -939,7 +943,8 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
 
     // Saturate copy count.
     uint64_t xn = xreg(n);
-    constexpr int saturation_bits = 55;
+    constexpr int saturation_bits =
+        mem_op == Instruction::MemOp::kCPY ? 55 : 63;
     if ((xn >> saturation_bits) != 0) {
       xn = (UINT64_C(1) << saturation_bits) - 1;
       set_xreg(n, xn);

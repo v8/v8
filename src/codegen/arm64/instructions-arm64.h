@@ -397,24 +397,30 @@ class Instruction {
     return false;
   }
 
-  bool IsMOPSPrologueOf(const Instruction* instr) const {
-    constexpr int op_lsb = 22;
+  enum class MemOp : uint8_t {
+    kCPY,
+    kSET,
+  };
+
+  bool IsMOPSPrologueOf(const Instruction* instr, MemOp mem_op) const {
+    int op_lsb = mem_op == MemOp::kCPY ? 22 : 14;
     return InstructionBits() == instr->Mask(~(0x3U << op_lsb));
   }
 
-  bool IsMOPSMainOf(const Instruction* instr) const {
-    constexpr int op_lsb = 22;
+  bool IsMOPSMainOf(const Instruction* instr, MemOp mem_op) const {
+    int op_lsb = mem_op == MemOp::kCPY ? 22 : 14;
     return InstructionBits() ==
            (instr->Mask(~(0x3U << op_lsb)) | (0x1 << op_lsb));
   }
 
-  bool IsMOPSEpilogueOf(const Instruction* instr) const {
-    constexpr int op_lsb = 22;
+  bool IsMOPSEpilogueOf(const Instruction* instr, MemOp mem_op) const {
+    int op_lsb = mem_op == MemOp::kCPY ? 22 : 14;
     return InstructionBits() ==
            (instr->Mask(~(0x3U << op_lsb)) | (0x2 << op_lsb));
   }
 
-  bool IsConsistentMOPSTriplet() {
+  template <MemOp mem_op>
+  bool IsConsistentMOPSTriplet() const {
     int64_t isize = static_cast<int64_t>(kInstrSize);
     const Instruction* prev2 = InstructionAtOffset(-2 * isize);
     const Instruction* prev1 = InstructionAtOffset(-1 * isize);
@@ -426,18 +432,21 @@ class Instruction {
     // are MOPS-type, but checks that they form a consistent triplet if they
     // are. For example, 'mov x0, #0; mov x0, #512; mov x0, #1024' is a
     // consistent triplet, but they are not MOPS instructions.
-    constexpr int op_lsb = 22;
+    constexpr int op_lsb = mem_op == MemOp::kCPY ? 22 : 14;
     constexpr uint32_t kMOPSOpfield = 0x3 << op_lsb;
     constexpr uint32_t kMOPSPrologue = 0;
     constexpr uint32_t kMOPSMain = 0x1 << op_lsb;
     constexpr uint32_t kMOPSEpilogue = 0x2 << op_lsb;
     switch (Mask(kMOPSOpfield)) {
       case kMOPSPrologue:
-        return next1->IsMOPSMainOf(this) && next2->IsMOPSEpilogueOf(this);
+        return next1->IsMOPSMainOf(this, mem_op) &&
+               next2->IsMOPSEpilogueOf(this, mem_op);
       case kMOPSMain:
-        return prev1->IsMOPSPrologueOf(this) && next1->IsMOPSEpilogueOf(this);
+        return prev1->IsMOPSPrologueOf(this, mem_op) &&
+               next1->IsMOPSEpilogueOf(this, mem_op);
       case kMOPSEpilogue:
-        return prev2->IsMOPSPrologueOf(this) && prev1->IsMOPSMainOf(this);
+        return prev2->IsMOPSPrologueOf(this, mem_op) &&
+               prev1->IsMOPSMainOf(this, mem_op);
       default:
         UNREACHABLE();
     }

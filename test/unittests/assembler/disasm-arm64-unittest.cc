@@ -5149,6 +5149,9 @@ TEST_F(DisasmArm64Test, mops) {
   COMPARE(cpym(x1, x10, x23), "cpym [x1]!, [x10]!, x23!");
   COMPARE(cpye(x14, x15, x19), "cpye [x14]!, [x15]!, x19!");
 
+  COMPARE(setp(x7, x17, x11), "setp [x7]!, x17!, x11");
+  COMPARE(setm(x8, x7, x9), "setm [x8]!, x7!, x9");
+  COMPARE(sete(x3, x23, x1), "sete [x3]!, x23!, x1");
   CLEANUP();
 }
 

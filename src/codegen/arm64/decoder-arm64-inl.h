@@ -339,8 +339,11 @@ void Decoder<V>::DecodeLoadStore(Instruction* instr) {
       }
     } else {
       if (instr->Bit(29) == 0) {
-        if (instr->Mask(CpyFixed) == CpyFixed && instr->Bits(23, 22) != 0x3) {
+        if (instr->Mask(CpyFMask) == CpyFixed && instr->Bits(23, 22) != 0x3) {
           V::VisitCpy(instr);
+        } else if (instr->Mask(SetFMask) == SetFixed &&
+                   instr->Bits(15, 14) != 0x3) {
+          V::VisitSet(instr);
         } else {
           V::VisitUnallocated(instr);
         }

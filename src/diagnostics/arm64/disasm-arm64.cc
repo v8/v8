@@ -4616,6 +4616,41 @@ void DisassemblingDecoder::VisitCpy(Instruction* instr) {
   Format(instr, mnemonic, form);
 }
 
+void DisassemblingDecoder::VisitSet(Instruction* instr) {
+  const char* mnemonic = "";
+
+  switch (instr->Mask(SetMask)) {
+    default:
+      UNREACHABLE();
+    case SETP:
+      mnemonic = "setp";
+      break;
+    case SETM:
+      mnemonic = "setm";
+      break;
+    case SETE:
+      mnemonic = "sete";
+      break;
+  }
+  const char* form = "['Xd]!, 'Xn!, 'Xs";
+
+  int d = instr->Rd();
+  int n = instr->Rn();
+  int s = instr->Rs();
+
+  // Aliased registers are disallowed, only rs can be zr/sp.
+  if ((d == n) || (d == s) || (n == s) || (d == 31) || (n == 31)) {
+    form = nullptr;
+  }
+
+  // Bits 31 and 30 must be zero.
+  if (instr->Bits(31, 30)) {
+    form = nullptr;
+  }
+
+  Format(instr, mnemonic, form);
+}
+
 void PrintDisassembler::ProcessOutput(Instruction* instr) {
   fprintf(stream_, "0x%016" PRIx64 "  %08" PRIx32 "\t\t%s\n",
           reinterpret_cast<uint64_t>(instr), instr->InstructionBits(),

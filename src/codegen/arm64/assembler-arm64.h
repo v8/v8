@@ -1596,6 +1596,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void cpym(const Register& rd, const Register& rs, const Register& rn);
   void cpye(const Register& rd, const Register& rs, const Register& rn);
 
+  void set(MemSetOp op, const Register& rd, const Register& rn,
+           const Register& rs);
+  void setp(const Register& rd, const Register& rn, const Register& rs);
+  void setm(const Register& rd, const Register& rn, const Register& rs);
+  void sete(const Register& rd, const Register& rn, const Register& rs);
+
   // Misc instructions.
   // Monitor debug-mode breakpoint.
   void brk(int code);

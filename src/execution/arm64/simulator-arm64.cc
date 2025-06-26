@@ -6746,7 +6746,7 @@ void Simulator::VisitNEONPerm(Instruction* instr) {
 }
 
 void Simulator::VisitCpyP(Instruction* instr) {
-  MOPSPHelper(instr);
+  MOPSPHelper<Instruction::MemOp::kCPY>(instr);
 
   int d = instr->Rd();
   int n = instr->Rn();
@@ -6776,8 +6776,8 @@ void Simulator::VisitCpyP(Instruction* instr) {
 }
 
 void Simulator::VisitCpyM(Instruction* instr) {
-  DCHECK(instr->IsConsistentMOPSTriplet());
-  DCHECK(instr->IsMOPSMainOf(last_instr()));
+  DCHECK(instr->IsConsistentMOPSTriplet<Instruction::MemOp::kCPY>());
+  DCHECK(instr->IsMOPSMainOf(last_instr(), Instruction::MemOp::kCPY));
 
   int d = instr->Rd();
   int n = instr->Rn();
@@ -6814,8 +6814,8 @@ void Simulator::VisitCpyM(Instruction* instr) {
 
 void Simulator::VisitCpyE(Instruction* instr) {
   USE(instr);
-  DCHECK(instr->IsConsistentMOPSTriplet());
-  DCHECK(instr->IsMOPSEpilogueOf(last_instr()));
+  DCHECK(instr->IsConsistentMOPSTriplet<Instruction::MemOp::kCPY>());
+  DCHECK(instr->IsMOPSEpilogueOf(last_instr(), Instruction::MemOp::kCPY));
   // This implementation does nothing in the epilogue; all copying is completed
   // in the "main" part.
 }
@@ -6832,6 +6832,50 @@ void Simulator::VisitCpy(Instruction* instr) {
       break;
     case CPYE:
       VisitCpyE(instr);
+      break;
+  }
+}
+
+void Simulator::VisitSetP(Instruction* instr) {
+  MOPSPHelper<Instruction::MemOp::kSET>(instr);
+  LogSystemRegister(NZCV);
+}
+
+void Simulator::VisitSetM(Instruction* instr) {
+  DCHECK(instr->IsConsistentMOPSTriplet<Instruction::MemOp::kSET>());
+  DCHECK(instr->IsMOPSMainOf(last_instr(), Instruction::MemOp::kSET));
+
+  uint64_t xd = xreg(instr->Rd());
+  uint64_t xn = xreg(instr->Rn());
+  uint64_t xs = xreg(instr->Rs());
+
+  while (xn--) {
+    MemoryWrite<uint8_t>(xd++, static_cast<uint8_t>(xs));
+  }
+  set_xreg(instr->Rd(), xd);
+  set_xreg(instr->Rn(), 0);
+}
+
+void Simulator::VisitSetE(Instruction* instr) {
+  USE(instr);
+  DCHECK(instr->IsConsistentMOPSTriplet<Instruction::MemOp::kSET>());
+  DCHECK(instr->IsMOPSEpilogueOf(last_instr(), Instruction::MemOp::kSET));
+  // This implementation does nothing in the epilogue; all setting is completed
+  // in the "main" part.
+}
+
+void Simulator::VisitSet(Instruction* instr) {
+  switch (instr->Mask(SetMask)) {
+    default:
+      UNREACHABLE();
+    case SETP:
+      VisitSetP(instr);
+      break;
+    case SETM:
+      VisitSetM(instr);
+      break;
+    case SETE:
+      VisitSetE(instr);
       break;
   }
 }

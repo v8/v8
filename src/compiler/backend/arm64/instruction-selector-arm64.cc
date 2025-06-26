@@ -1121,10 +1121,20 @@ void InstructionSelector::VisitLoadTransform(OpIndex node) {
 void InstructionSelector::VisitMemoryCopy(OpIndex node) {
   DCHECK(CpuFeatures::IsSupported(MOPS));
   Arm64OperandGenerator g(this);
-  const auto& memcpy = this->Get(node).Cast<MemoryCopyOp>();
+  const auto& memcpy_op = this->Get(node).Cast<MemoryCopyOp>();
 
-  Emit(kArm64Cpy, g.NoOutput(), g.UseRegister(memcpy.dst_base()),
-       g.UseRegister(memcpy.src_base()), g.UseRegister(memcpy.num_bytes()));
+  Emit(kArm64Cpy, g.NoOutput(), g.UseRegister(memcpy_op.dst_base()),
+       g.UseRegister(memcpy_op.src_base()),
+       g.UseRegister(memcpy_op.num_bytes()));
+}
+
+void InstructionSelector::VisitMemoryFill(OpIndex node) {
+  DCHECK(CpuFeatures::IsSupported(MOPS));
+  Arm64OperandGenerator g(this);
+  const auto& memset_op = this->Get(node).Cast<MemoryFillOp>();
+
+  Emit(kArm64Set, g.NoOutput(), g.UseRegister(memset_op.dst_base()),
+       g.UseRegister(memset_op.value()), g.UseRegister(memset_op.num_bytes()));
 }
 
 #endif  // V8_ENABLE_WEBASSEMBLY

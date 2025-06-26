@@ -86,6 +86,7 @@ namespace internal {
   V(NEONPerm)                           \
   V(NEONSHA3)                           \
   V(Cpy)                                \
+  V(Set)                                \
   V(Unallocated)                        \
   V(Unimplemented)
 

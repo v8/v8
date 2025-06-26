@@ -4479,9 +4479,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     __ TrapIfNot(result, TrapId::kTrapMemOutOfBounds);
   }
 
-  void InlineMemFill(const WasmMemory* memory, V<WordPtr> offset,
-                     const V<Word32> value, V<WordPtr> size_op,
-                     int32_t bytes_to_copy) {
+  void MemFillBoundsCheck(const WasmMemory* memory, V<WordPtr> offset,
+                          V<WordPtr> size_op) {
     // Bounds check the write to memory.
     V<WordPtr> mem_size = MemSize(memory->index);
     V<WordPtr> offset_limit = __ WordPtrSub(mem_size, size_op);
@@ -4489,7 +4488,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         __ Word32BitwiseAnd(__ UintPtrLessThanOrEqual(offset, offset_limit),
                             __ UintPtrLessThanOrEqual(size_op, mem_size)),
         TrapId::kTrapMemOutOfBounds);
+  }
 
+  void InlineMemFill(const WasmMemory* memory, V<WordPtr> offset,
+                     const V<Word32> value, V<WordPtr> size_op,
+                     int32_t bytes_to_copy) {
+    MemFillBoundsCheck(memory, offset, size_op);
     // We've performed the bounds check above.
     constexpr auto strategy = compiler::BoundsCheckResult::kDynamicallyChecked;
 
@@ -4565,6 +4569,18 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         }
       }
     }
+
+#if V8_TARGET_ARCH_ARM64
+    if (CpuFeatures::IsSupported(MOPS)) {
+      const WasmMemory* memory = imm.memory;
+      MemFillBoundsCheck(memory, dst_offset, size_op);
+      // Calculate the effective address of dst.
+      V<WordPtr> dst_mem_start = MemStart(memory->index);
+      V<WordPtr> dst_base = __ WordPtrAdd(dst_mem_start, dst_offset);
+      __ MemoryFill(dst_base, value.op, size_op);
+      return;
+    }
+#endif  // V8_TARGET_ARCH_ARM64
 
     auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
                    .Params(MachineType::Pointer(), MachineType::Uint32(),

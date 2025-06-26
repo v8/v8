@@ -3214,6 +3214,10 @@ class TurboshaftAssemblerOpInterface
                   V<WordPtr> num_bytes) {
     ReduceIfReachableMemoryCopy(dst_base, src_base, num_bytes);
   }
+
+  void MemoryFill(V<WordPtr> dst_base, V<Word32> value, V<WordPtr> num_bytes) {
+    ReduceIfReachableMemoryFill(dst_base, value, num_bytes);
+  }
 #endif
 
   void JSStackCheck(V<Context> context,

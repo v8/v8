@@ -16658,6 +16658,68 @@ TEST(mops_cpy) {
   }
 }
 
+TEST(mops_set) {
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(MOPS);
+
+  const uint8_t kBufferLength = 16;
+  uint8_t dst[kBufferLength];
+  memset(dst, 0x55, kBufferLength);
+  uintptr_t dst_addr = reinterpret_cast<uintptr_t>(dst);
+
+  START();
+  __ Mov(x0, dst_addr);
+  __ Add(x1, x0, 1);
+  __ Mov(x2, 13);
+  __ Mov(x3, 0x1234aa);
+  __ Mov(x4, 0xbb);
+
+  // Set 13 bytes dst[1] onwards to 0xaa.
+  __ setp(x1, x2, x3);
+  __ setm(x1, x2, x3);
+  __ sete(x1, x2, x3);
+  __ Mrs(x20, NZCV);
+
+  // x2 is now zero, so this should do nothing.
+  __ setp(x1, x2, x4);
+  __ setm(x1, x2, x4);
+  __ sete(x1, x2, x4);
+  __ Mrs(x21, NZCV);
+
+  // Set dst[15] to zero using the masm helper.
+  __ Add(x1, x0, 15);
+  __ Mov(x2, 1);
+  __ Set(x1, x2, xzr);
+  __ Mrs(x22, NZCV);
+
+  // Load dst for comparison.
+  __ Ldp(x10, x11, MemOperand(x0));
+  END();
+
+  if (CAN_RUN()) {
+    // Permitted results:
+    //            NZCV    Xd                Xn
+    //  Option A: ....    end of buffer     0
+    //  Option B: ..C.    end of buffer     0
+
+    std::array allowed_flags = {NoFlag, CFlag};
+
+    RUN();
+    CHECK(Equal64(allowed_flags[0], &core, x20) ||
+          Equal64(allowed_flags[1], &core, x20));
+    CHECK(Equal64(allowed_flags[0], &core, x21) ||
+          Equal64(allowed_flags[1], &core, x21));
+    CHECK(Equal64(allowed_flags[0], &core, x22) ||
+          Equal64(allowed_flags[1], &core, x22));
+    CHECK_EQUAL_64(dst_addr + 16, x1);
+    CHECK_EQUAL_64(0, x2);
+    CHECK_EQUAL_64(0x1234aa, x3);
+    CHECK_EQUAL_64(0xaaaa'aaaa'aaaa'aa55, x10);
+    CHECK_EQUAL_64(0x0055'aaaa'aaaa'aaaa, x11);
+  }
+}
+
 using MinMaxOp = void (MacroAssembler::*)(const Register&, const Register&,
                                           const Operand&);
 

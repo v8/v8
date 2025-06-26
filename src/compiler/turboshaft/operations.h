@@ -323,6 +323,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   IF_WASM(V, LoadStackPointer)               \
   IF_WASM(V, SetStackPointer)                \
   IF_WASM(V, MemoryCopy)                     \
+  IF_WASM(V, MemoryFill)                     \
   V(Phi)                                     \
   V(FrameState)                              \
   V(Call)                                    \
@@ -3956,6 +3957,30 @@ struct MemoryCopyOp : FixedArityOperationT<3, MemoryCopyOp> {
 
   V<WordPtr> dst_base() const { return input<WordPtr>(0); }
   V<WordPtr> src_base() const { return input<WordPtr>(1); }
+  V<WordPtr> num_bytes() const { return input<WordPtr>(2); }
+};
+
+struct MemoryFillOp : FixedArityOperationT<3, MemoryFillOp> {
+  // Depends on one or more bounds checks.
+  static constexpr OpEffects effects =
+      OpEffects().CanWriteMemory().CanDependOnChecks();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::WordPtr(),
+                          MaybeRegisterRepresentation::Word32(),
+                          MaybeRegisterRepresentation::WordPtr()>();
+  }
+
+  MemoryFillOp(V<WordPtr> dst_base, V<Word32> value, V<WordPtr> num_bytes)
+      : Base(dst_base, value, num_bytes) {}
+
+  std::tuple<> options() const { return {}; }
+
+  V<WordPtr> dst_base() const { return input<WordPtr>(0); }
+  V<Word32> value() const { return input<Word32>(1); }
   V<WordPtr> num_bytes() const { return input<WordPtr>(2); }
 };
 #endif  // V8_ENABLE_WEBASSEMBLY

@@ -622,6 +622,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // MOPS
   inline void Cpy(const Register& rd, const Register& rs, const Register& rn);
+  inline void Set(const Register& rd, const Register& rn, const Register& rs);
 
   inline void Dmb(BarrierDomain domain, BarrierType type);
   inline void Dsb(BarrierDomain domain, BarrierType type);

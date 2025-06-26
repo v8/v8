@@ -255,6 +255,7 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kStructSet:
       case Opcode::kSetStackPointer:
       case Opcode::kMemoryCopy:
+      case Opcode::kMemoryFill:
       case Opcode::kWasmIncCoverageCounter:
 #endif  // V8_ENABLE_WEBASSEMBLY
         // We explicitly break for those operations that have can_write effects

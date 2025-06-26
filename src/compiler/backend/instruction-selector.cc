@@ -1953,6 +1953,7 @@ IF_WASM(VISIT_UNSUPPORTED_OP, I8x4Shuffle)
 IF_WASM(VISIT_UNSUPPORTED_OP, I8x8Shuffle)
 
 IF_WASM(VISIT_UNSUPPORTED_OP, MemoryCopy)
+IF_WASM(VISIT_UNSUPPORTED_OP, MemoryFill)
 #endif  // !V8_TARGET_ARCH_ARM64
 
 void InstructionSelector::VisitParameter(OpIndex node) {
@@ -3849,6 +3850,9 @@ void InstructionSelector::VisitNode(OpIndex node) {
 
     case Opcode::kMemoryCopy:
       return VisitMemoryCopy(node);
+
+    case Opcode::kMemoryFill:
+      return VisitMemoryFill(node);
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 #define UNREACHABLE_CASE(op) case Opcode::k##op:

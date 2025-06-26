@@ -2555,6 +2555,29 @@ void Assembler::cpye(const Register& rd, const Register& rs,
   cpy(CPYE, rd, rs, rn);
 }
 
+void Assembler::set(MemSetOp op, const Register& rd, const Register& rn,
+                    const Register& rs) {
+  Emit(op | Rd(rd) | Rn(rn) | Rs(rs));
+}
+
+// Set prologue
+void Assembler::setp(const Register& rd, const Register& rn,
+                     const Register& rs) {
+  set(SETP, rd, rn, rs);
+}
+
+// Set main
+void Assembler::setm(const Register& rd, const Register& rn,
+                     const Register& rs) {
+  set(SETM, rd, rn, rs);
+}
+
+// Set epilogue
+void Assembler::sete(const Register& rd, const Register& rn,
+                     const Register& rs) {
+  set(SETE, rd, rn, rs);
+}
+
 void Assembler::mrs(const Register& rt, SystemRegister sysreg) {
   DCHECK(rt.Is64Bits());
   Emit(MRS | ImmSystemRegister(sysreg) | Rt(rt));
