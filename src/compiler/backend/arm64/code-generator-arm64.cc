@@ -3820,31 +3820,35 @@ void AssembleConditionalCompareChain(Instruction* instr, int64_t num_ccmps,
   }
 }
 
-// Assemble a conditional compare and boolean materializations after this
-// instruction.
-void CodeGenerator::AssembleArchConditionalBoolean(Instruction* instr) {
-  // Materialize a full 64-bit 1 or 0 value. The result register is always the
-  // last output of the instruction.
-  DCHECK_NE(0u, instr->OutputCount());
-  Arm64OperandConverter i(this, instr);
-  Register reg = i.OutputRegister(instr->OutputCount() - 1);
+#if V8_ENABLE_WEBASSEMBLY
+void CodeGenerator::AssembleArchConditionalTrap(Instruction* instr,
+                                                FlagsCondition condition) {
   DCHECK_GE(instr->InputCount(), 6);
-
+  Arm64OperandConverter i(this, instr);
   // Input ordering:
-  // > InputCount - 1: number of ccmps.
-  // > InputCount - 2: branch condition.
+  // > InputCount - 1: trap id.
+  // > InputCount - 2: number of ccmps.
+  // > InputCount - 3: branch condition.
   size_t num_ccmps_index =
-      instr->InputCount() - kConditionalSetEndOffsetOfNumCcmps;
-  size_t set_condition_index =
-      instr->InputCount() - kConditionalSetEndOffsetOfCondition;
+      instr->InputCount() - kConditionalTrapEndOffsetOfNumCcmps;
   int64_t num_ccmps = i.ToConstant(instr->InputAt(num_ccmps_index)).ToInt64();
-  size_t ccmp_base_index = set_condition_index - kNumCcmpOperands * num_ccmps;
+  size_t ccmp_base_index = instr->InputCount() -
+                           kConditionalTrapEndOffsetOfCondition -
+                           kNumCcmpOperands * num_ccmps;
   AssembleConditionalCompareChain(instr, num_ccmps, ccmp_base_index, this);
-
-  FlagsCondition set_condition = static_cast<FlagsCondition>(
-      i.ToConstant(instr->InputAt(set_condition_index)).ToInt64());
-  __ Cset(reg, FlagsConditionToCondition(set_condition));
+  Condition cc = FlagsConditionToCondition(condition);
+  auto ool = zone()->New<WasmOutOfLineTrap>(this, instr);
+  Label* tlabel = ool->entry();
+  // Assume traps aren't taken, so they're consistent.
+  if (CpuFeatures::IsSupported(HBC)) {
+    CpuFeatureScope scope(masm(), HBC);
+    __ Bc(cc, tlabel);
+  } else {
+    __ B(cc, tlabel);
+  }
 }
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void CodeGenerator::AssembleArchConditionalBranch(Instruction* instr,
                                                   BranchInfo* branch) {

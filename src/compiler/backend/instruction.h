@@ -1030,6 +1030,10 @@ class V8_EXPORT_PRIVATE Instruction final {
     return FlagsModeField::decode(opcode()) == kFlags_trap;
   }
 
+  bool IsConditionalTrap() const {
+    return FlagsModeField::decode(opcode()) == kFlags_conditional_trap;
+  }
+
   bool IsJump() const { return arch_opcode() == ArchOpcode::kArchJmp; }
   bool IsRet() const { return arch_opcode() == ArchOpcode::kArchRet; }
   bool IsTailCall() const {
@@ -2078,8 +2082,8 @@ constexpr size_t kCcmpOffsetOfLhs = 1;
 constexpr size_t kCcmpOffsetOfRhs = 2;
 constexpr size_t kCcmpOffsetOfDefaultFlags = 3;
 constexpr size_t kCcmpOffsetOfCompareCondition = 4;
-constexpr size_t kConditionalSetEndOffsetOfNumCcmps = 1;
-constexpr size_t kConditionalSetEndOffsetOfCondition = 2;
+constexpr size_t kConditionalTrapEndOffsetOfNumCcmps = 2;
+constexpr size_t kConditionalTrapEndOffsetOfCondition = 3;
 constexpr size_t kBranchEndOffsetOfFalseBlock = 1;
 constexpr size_t kBranchEndOffsetOfTrueBlock = 2;
 constexpr size_t kConditionalBranchEndOffsetOfNumCcmps = 3;

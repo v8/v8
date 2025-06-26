@@ -1700,18 +1700,20 @@ TEST_F(TurboshaftInstructionSelectorTest, BranchHints) {
   }
 }
 
-TEST_F(TurboshaftInstructionSelectorTest, ConditionalCompares) {
+#if V8_ENABLE_WEBASSEMBLY
+TEST_F(TurboshaftInstructionSelectorTest, ConditionalTraps) {
   {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
                     MachineType::Int32(), MachineType::Int32());
     OpIndex a = m.Int32LessThan(m.Parameter(0), m.Parameter(1));
     OpIndex b = m.Int32LessThan(m.Parameter(0), m.Parameter(2));
-    m.Return(m.Word32BitwiseAnd(a, b));
+    m.TrapIf(m.Word32BitwiseAnd(a, b), TrapId::kTrapMemOutOfBounds);
+    m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     EXPECT_EQ(kArm64Cmp32, s[0]->arch_opcode());
-    EXPECT_EQ(kFlags_conditional_set, s[0]->flags_mode());
-    EXPECT_EQ(9U, s[0]->InputCount());
-    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(kFlags_conditional_trap, s[0]->flags_mode());
+    EXPECT_EQ(10U, s[0]->InputCount());
+    EXPECT_EQ(0U, s[0]->OutputCount());
   }
   {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int64(),
@@ -1719,12 +1721,14 @@ TEST_F(TurboshaftInstructionSelectorTest, ConditionalCompares) {
     OpIndex a = m.Word64Equal(m.Parameter(0), m.Parameter(1));
     OpIndex b = m.Word64Equal(m.Parameter(0), m.Parameter(2));
     OpIndex c = m.Word64NotEqual(m.Parameter(0), m.Int64Constant(42));
-    m.Return(m.Word32BitwiseOr(m.Word32BitwiseOr(a, b), c));
+    m.TrapIf(m.Word32BitwiseOr(m.Word32BitwiseOr(a, b), c),
+             TrapId::kTrapMemOutOfBounds);
+    m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     EXPECT_EQ(kArm64Cmp, s[0]->arch_opcode());
-    EXPECT_EQ(kFlags_conditional_set, s[0]->flags_mode());
-    EXPECT_EQ(14U, s[0]->InputCount());
-    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(kFlags_conditional_trap, s[0]->flags_mode());
+    EXPECT_EQ(15U, s[0]->InputCount());
+    EXPECT_EQ(0U, s[0]->OutputCount());
   }
   {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int64(),
@@ -1733,15 +1737,99 @@ TEST_F(TurboshaftInstructionSelectorTest, ConditionalCompares) {
     OpIndex b = m.Word64Equal(m.Parameter(0), m.Int64Constant(50));
     OpIndex c = m.Uint64LessThanOrEqual(m.Parameter(0), m.Parameter(1));
     OpIndex d = m.Int64LessThan(m.Parameter(0), m.Parameter(2));
-    m.Return(
-        m.Word32BitwiseAnd(m.Word32BitwiseAnd(m.Word32BitwiseOr(a, b), c), d));
+    m.TrapIf(
+        m.Word32BitwiseAnd(m.Word32BitwiseAnd(m.Word32BitwiseOr(a, b), c), d),
+        TrapId::kTrapMemOutOfBounds);
+    m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     EXPECT_EQ(kArm64Cmp, s[0]->arch_opcode());
     EXPECT_EQ(50, s.ToInt64(s[0]->InputAt(1)));
-    EXPECT_EQ(kFlags_conditional_set, s[0]->flags_mode());
-    EXPECT_EQ(19U, s[0]->InputCount());
-    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(kFlags_conditional_trap, s[0]->flags_mode());
+    EXPECT_EQ(20U, s[0]->InputCount());
+    EXPECT_EQ(0U, s[0]->OutputCount());
   }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int64(),
+                    MachineType::Int64(), MachineType::Int64());
+    OpIndex src = m.Parameter(0);
+    OpIndex dst = m.Parameter(1);
+    OpIndex size = m.Parameter(2);
+    OpIndex max_size = m.IntPtrConstant(16);
+    OpIndex limit = m.IntPtrConstant(4096);
+
+    m.TrapIfNot(m.Word32BitwiseAnd(
+                    m.Word32BitwiseAnd(m.UintPtrLessThanOrEqual(src, limit),
+                                       m.UintPtrLessThanOrEqual(dst, limit)),
+                    m.UintPtrLessThanOrEqual(size, max_size)),
+                TrapId::kTrapMemOutOfBounds);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64Cmp, s[0]->arch_opcode());
+    EXPECT_EQ(kFlags_conditional_trap, s[0]->flags_mode());
+    EXPECT_EQ(15U, s[0]->InputCount());
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int64(),
+                    MachineType::Int64(), MachineType::Int64());
+    OpIndex mem_size = m.Parameter(0);
+    OpIndex offset_limit = m.Parameter(1);
+    OpIndex offset = m.Parameter(2);
+    OpIndex size = m.IntPtrConstant(100);
+    m.TrapIfNot(
+        m.Word32BitwiseAnd(m.UintPtrLessThanOrEqual(offset, offset_limit),
+                           m.UintPtrLessThanOrEqual(size, mem_size)),
+        TrapId::kTrapMemOutOfBounds);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64Cmp, s[0]->arch_opcode());
+    EXPECT_EQ(kFlags_conditional_trap, s[0]->flags_mode());
+    EXPECT_EQ(10U, s[0]->InputCount());
+  }
+  {
+    // kMaxCompareChainSize limit
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int64(),
+                    MachineType::Int64(), MachineType::Int64());
+    OpIndex a = m.Word64Equal(m.Parameter(0), m.Int64Constant(30));
+    OpIndex b = m.Word64Equal(m.Parameter(0), m.Int64Constant(50));
+    OpIndex c = m.Uint64LessThanOrEqual(m.Parameter(0), m.Parameter(1));
+    OpIndex d = m.Int64LessThan(m.Parameter(0), m.Parameter(2));
+    OpIndex e = m.Int64LessThan(m.Parameter(1), m.Parameter(2));
+    m.TrapIf(m.Word32BitwiseOr(
+                 m.Word32BitwiseAnd(
+                     m.Word32BitwiseAnd(m.Word32BitwiseOr(a, b), c), d),
+                 e),
+             TrapId::kTrapMemOutOfBounds);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64Cmp, s[0]->arch_opcode());
+    EXPECT_EQ(kFlags_conditional_trap, s[0]->flags_mode());
+    EXPECT_EQ(25U, s[0]->InputCount());
+  }
+  {
+    // Exceeds kMaxCompareChainSize limit
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int64(),
+                    MachineType::Int64(), MachineType::Int64());
+    OpIndex a = m.Word64Equal(m.Parameter(0), m.Int64Constant(30));
+    OpIndex b = m.Word64Equal(m.Parameter(0), m.Int64Constant(50));
+    OpIndex c = m.Uint64LessThanOrEqual(m.Parameter(0), m.Parameter(1));
+    OpIndex d = m.Int64LessThan(m.Parameter(0), m.Parameter(2));
+    OpIndex e = m.Int64LessThan(m.Parameter(1), m.Parameter(2));
+    OpIndex f = m.Word64Equal(m.Parameter(1), m.Parameter(2));
+    m.TrapIf(m.Word32BitwiseOr(
+                 m.Word32BitwiseOr(
+                     m.Word32BitwiseAnd(
+                         m.Word32BitwiseAnd(m.Word32BitwiseOr(a, b), c), d),
+                     e),
+                 f),
+             TrapId::kTrapMemOutOfBounds);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    EXPECT_NE(kFlags_conditional_trap, s[0]->flags_mode());
+  }
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+TEST_F(TurboshaftInstructionSelectorTest, ConditionalBranches) {
   {
     StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
                     MachineType::Int64(), MachineType::Int64());

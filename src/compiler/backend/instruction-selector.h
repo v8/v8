@@ -117,13 +117,13 @@ class FlagsContinuation final {
     return FlagsContinuation(condition, result);
   }
 
-  // Creates a new flags continuation for a conditional boolean value.
-  static FlagsContinuation ForConditionalSet(compare_chain_t& compares,
-                                             uint32_t num_conditional_compares,
-                                             FlagsCondition set_condition,
-                                             turboshaft::OpIndex result) {
-    return FlagsContinuation(compares, num_conditional_compares, set_condition,
-                             result);
+  // Creates a new flags continuation for a conditional wasm trap.
+  static FlagsContinuation ForConditionalTrap(compare_chain_t& compares,
+                                              uint32_t num_conditional_compares,
+                                              FlagsCondition condition,
+                                              TrapId trap_id) {
+    return FlagsContinuation(compares, num_conditional_compares, condition,
+                             trap_id);
   }
 
   // Creates a new flags continuation for a wasm trap.
@@ -145,15 +145,15 @@ class FlagsContinuation final {
   }
   bool IsDeoptimize() const { return mode_ == kFlags_deoptimize; }
   bool IsSet() const { return mode_ == kFlags_set; }
-  bool IsConditionalSet() const { return mode_ == kFlags_conditional_set; }
   bool IsTrap() const { return mode_ == kFlags_trap; }
+  bool IsConditionalTrap() const { return mode_ == kFlags_conditional_trap; }
   bool IsSelect() const { return mode_ == kFlags_select; }
   FlagsCondition condition() const {
     DCHECK(!IsNone());
     return condition_;
   }
   FlagsCondition final_condition() const {
-    DCHECK(IsConditionalSet() || IsConditionalBranch());
+    DCHECK(IsConditionalTrap() || IsConditionalBranch());
     return final_condition_;
   }
   DeoptimizeReason reason() const {
@@ -173,11 +173,11 @@ class FlagsContinuation final {
     return frame_state_or_result_;
   }
   turboshaft::OpIndex result() const {
-    DCHECK(IsSet() || IsConditionalSet() || IsSelect());
+    DCHECK(IsSet() || IsSelect());
     return frame_state_or_result_;
   }
   TrapId trap_id() const {
-    DCHECK(IsTrap());
+    DCHECK(IsTrap() || IsConditionalTrap());
     return trap_id_;
   }
   turboshaft::Block* true_block() const {
@@ -201,41 +201,41 @@ class FlagsContinuation final {
     return false_value_;
   }
   const compare_chain_t& compares() const {
-    DCHECK(IsConditionalSet() || IsConditionalBranch());
+    DCHECK(IsConditionalTrap() || IsConditionalBranch());
     return compares_;
   }
   uint32_t num_conditional_compares() const {
-    DCHECK(IsConditionalSet() || IsConditionalBranch());
+    DCHECK(IsConditionalTrap() || IsConditionalBranch());
     return num_conditional_compares_;
   }
 
   void Negate() {
     DCHECK(!IsNone());
-    DCHECK(!IsConditionalSet() && !IsConditionalBranch());
+    DCHECK(!IsConditionalTrap() && !IsConditionalBranch());
     condition_ = NegateFlagsCondition(condition_);
   }
 
   void Commute() {
     DCHECK(!IsNone());
-    DCHECK(!IsConditionalSet() && !IsConditionalBranch());
+    DCHECK(!IsConditionalTrap() && !IsConditionalBranch());
     condition_ = CommuteFlagsCondition(condition_);
   }
 
   void Overwrite(FlagsCondition condition) {
-    DCHECK(!IsConditionalSet() && !IsConditionalBranch());
+    DCHECK(!IsConditionalTrap() && !IsConditionalBranch());
     condition_ = condition;
   }
 
   void OverwriteAndNegateIfEqual(FlagsCondition condition) {
     DCHECK(condition_ == kEqual || condition_ == kNotEqual);
-    DCHECK(!IsConditionalSet() && !IsConditionalBranch());
+    DCHECK(!IsConditionalTrap() && !IsConditionalBranch());
     bool negate = condition_ == kEqual;
     condition_ = condition;
     if (negate) Negate();
   }
 
   void OverwriteUnsignedIfSigned() {
-    DCHECK(!IsConditionalSet() && !IsConditionalBranch());
+    DCHECK(!IsConditionalTrap() && !IsConditionalBranch());
     switch (condition_) {
       case kSignedLessThan:
         condition_ = kUnsignedLessThan;
@@ -327,20 +327,18 @@ class FlagsContinuation final {
     DCHECK(result.valid());
   }
 
-  FlagsContinuation(compare_chain_t& compares,
-                    uint32_t num_conditional_compares,
-                    FlagsCondition set_condition, turboshaft::OpIndex result)
-      : mode_(kFlags_conditional_set),
-        condition_(compares.front().compare_condition),
-        final_condition_(set_condition),
-        num_conditional_compares_(num_conditional_compares),
-        compares_(compares),
-        frame_state_or_result_(result) {
-    DCHECK(result.valid());
-  }
-
   FlagsContinuation(FlagsCondition condition, TrapId trap_id)
       : mode_(kFlags_trap), condition_(condition), trap_id_(trap_id) {}
+
+  FlagsContinuation(compare_chain_t& compares,
+                    uint32_t num_conditional_compares, FlagsCondition condition,
+                    TrapId trap_id)
+      : mode_(kFlags_conditional_trap),
+        condition_(compares.front().compare_condition),
+        final_condition_(condition),
+        num_conditional_compares_(num_conditional_compares),
+        compares_(compares),
+        trap_id_(trap_id) {}
 
   FlagsContinuation(FlagsCondition condition, turboshaft::OpIndex result,
                     turboshaft::OpIndex true_value,
@@ -357,11 +355,12 @@ class FlagsContinuation final {
 
   FlagsMode const mode_;
   FlagsCondition condition_;
-  FlagsCondition final_condition_;     // Only valid if mode_ ==
-                                       // kFlags_conditional_set.
+  FlagsCondition final_condition_;  // Only valid if mode_ ==
+                                    // kFlags_conditional_*
+
   uint32_t num_conditional_compares_;  // Only valid if mode_ ==
-                                       // kFlags_conditional_set.
-  compare_chain_t compares_;  // Only valid if mode_ == kFlags_conditional_set.
+                                       // kFlags_conditional_*.
+  compare_chain_t compares_;  // Only valid if mode_ == kFlags_conditional_*.
   DeoptimizeReason reason_;         // Only valid if mode_ == kFlags_deoptimize*
   uint32_t node_id_;                // Only valid if mode_ == kFlags_deoptimize*
   FeedbackSource feedback_;         // Only valid if mode_ == kFlags_deoptimize*
@@ -370,7 +369,8 @@ class FlagsContinuation final {
                                     // or mode_ == kFlags_set.
   turboshaft::Block* true_block_;   // Only valid if mode_ == kFlags_branch*.
   turboshaft::Block* false_block_;  // Only valid if mode_ == kFlags_branch*.
-  TrapId trap_id_;                  // Only valid if mode_ == kFlags_trap.
+  TrapId trap_id_;                  // Only valid if mode_ == kFlags_trap or
+                                    // mode_ == kFlags_conditional_trap.
   turboshaft::OpIndex true_value_;  // Only valid if mode_ == kFlags_select.
   turboshaft::OpIndex false_value_;  // Only valid if mode_ == kFlags_select.
   BranchHint hint_ = BranchHint::kNone;

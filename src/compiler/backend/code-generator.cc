@@ -865,11 +865,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
       AssembleArchBoolean(instr, condition);
       break;
     }
-    case kFlags_conditional_set: {
-      // Assemble a conditional boolean materialization after this instruction.
-      AssembleArchConditionalBoolean(instr);
-      break;
-    }
     case kFlags_select: {
       AssembleArchSelect(instr, condition);
       break;
@@ -877,6 +872,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
     case kFlags_trap: {
 #if V8_ENABLE_WEBASSEMBLY
       AssembleArchTrap(instr, condition);
+      break;
+#else
+      UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
+    }
+    case kFlags_conditional_trap: {
+#if V8_ENABLE_WEBASSEMBLY
+      InstructionOperandConverter i(this, instr);
+      condition = static_cast<FlagsCondition>(
+          i.ToConstant(instr->InputAt(instr->InputCount() -
+                                      kConditionalTrapEndOffsetOfCondition))
+              .ToInt64());
+      AssembleArchConditionalTrap(instr, condition);
       break;
 #else
       UNREACHABLE();

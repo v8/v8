@@ -42,7 +42,7 @@ class PPCOperandConverter final : public InstructionOperandConverter {
       case kFlags_conditional_branch:
       case kFlags_deoptimize:
       case kFlags_set:
-      case kFlags_conditional_set:
+      case kFlags_conditional_trap:
       case kFlags_trap:
       case kFlags_select:
         return SetRC;
@@ -3051,9 +3051,12 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   __ bind(&done);
 }
 
-void CodeGenerator::AssembleArchConditionalBoolean(Instruction* instr) {
+#if V8_ENABLE_WEBASSEMBLY
+void CodeGenerator::AssembleArchConditionalTrap(Instruction* instr,
+                                                FlagsCondition condition) {
   UNREACHABLE();
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void CodeGenerator::AssembleArchConditionalBranch(Instruction* instr,
                                                   BranchInfo* branch) {

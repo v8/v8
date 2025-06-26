@@ -227,7 +227,7 @@ enum FlagsMode {
   kFlags_set = 3,
   kFlags_trap = 4,
   kFlags_select = 5,
-  kFlags_conditional_set = 6,
+  kFlags_conditional_trap = 6,
   kFlags_conditional_branch = 7,
 };
 

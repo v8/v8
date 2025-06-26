@@ -1021,7 +1021,7 @@ Instruction* InstructionSelector::EmitWithContinuation(
     AppendDeoptimizeArguments(&continuation_inputs_, cont->reason(),
                               cont->node_id(), cont->feedback(),
                               cont->frame_state());
-  } else if (cont->IsSet() || cont->IsConditionalSet()) {
+  } else if (cont->IsSet()) {
     continuation_outputs_.push_back(g.DefineAsRegister(cont->result()));
   } else if (cont->IsSelect()) {
     // The {Select} should put one of two values into the output register,
@@ -1031,7 +1031,7 @@ Instruction* InstructionSelector::EmitWithContinuation(
     // condition.
     AddOutputToSelectContinuation(&g, static_cast<int>(input_count) - 2,
                                   cont->result());
-  } else if (cont->IsTrap()) {
+  } else if (cont->IsTrap() || cont->IsConditionalTrap()) {
     int trap_id = static_cast<int>(cont->trap_id());
     continuation_inputs_.push_back(g.UseImmediate(trap_id));
   } else {

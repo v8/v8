@@ -2487,9 +2487,12 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   }
 }
 
-void CodeGenerator::AssembleArchConditionalBoolean(Instruction* instr) {
+#if V8_ENABLE_WEBASSEMBLY
+void CodeGenerator::AssembleArchConditionalTrap(Instruction* instr,
+                                                FlagsCondition condition) {
   UNREACHABLE();
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
   Loong64OperandConverter i(this, instr);

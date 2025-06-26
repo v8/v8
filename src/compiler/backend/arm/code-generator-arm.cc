@@ -44,7 +44,7 @@ class ArmOperandConverter final : public InstructionOperandConverter {
       case kFlags_conditional_branch:
       case kFlags_deoptimize:
       case kFlags_set:
-      case kFlags_conditional_set:
+      case kFlags_conditional_trap:
       case kFlags_trap:
       case kFlags_select:
         return SetCC;
@@ -3730,9 +3730,12 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   __ mov(reg, Operand(1), LeaveCC, cc);
 }
 
-void CodeGenerator::AssembleArchConditionalBoolean(Instruction* instr) {
+#if V8_ENABLE_WEBASSEMBLY
+void CodeGenerator::AssembleArchConditionalTrap(Instruction* instr,
+                                                FlagsCondition condition) {
   UNREACHABLE();
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void CodeGenerator::AssembleArchConditionalBranch(Instruction* instr,
                                                   BranchInfo* branch) {
