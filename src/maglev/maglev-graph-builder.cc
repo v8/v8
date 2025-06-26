@@ -4080,23 +4080,19 @@ ValueNode* MaglevGraphBuilder::BuildTestUndetectable(ValueNode* value) {
     return GetBooleanConstant(false);
   }
 
-  auto it = known_node_aspects().FindInfo(value);
-  if (known_node_aspects().IsValid(it)) {
-    NodeInfo& info = it->second;
-    if (info.possible_maps_are_known()) {
-      // We check if all the possible maps have the same undetectable bit value.
-      DCHECK_GT(info.possible_maps().size(), 0);
-      bool first_is_undetectable = info.possible_maps()[0].is_undetectable();
-      bool all_the_same_value =
-          std::all_of(info.possible_maps().begin(), info.possible_maps().end(),
-                      [first_is_undetectable](compiler::MapRef map) {
-                        bool is_undetectable = map.is_undetectable();
-                        return (first_is_undetectable && is_undetectable) ||
-                               (!first_is_undetectable && !is_undetectable);
-                      });
-      if (all_the_same_value) {
-        return GetBooleanConstant(first_is_undetectable);
-      }
+  if (auto possible_maps = known_node_aspects().TryGetPossibleMaps(value)) {
+    // We check if all the possible maps have the same undetectable bit value.
+    DCHECK_GT(possible_maps->size(), 0);
+    bool first_is_undetectable = possible_maps->at(0).is_undetectable();
+    bool all_the_same_value =
+        std::all_of(possible_maps->begin(), possible_maps->end(),
+                    [first_is_undetectable](compiler::MapRef map) {
+                      bool is_undetectable = map.is_undetectable();
+                      return (first_is_undetectable && is_undetectable) ||
+                             (!first_is_undetectable && !is_undetectable);
+                    });
+    if (all_the_same_value) {
+      return GetBooleanConstant(first_is_undetectable);
     }
   }
 
@@ -6076,10 +6072,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
     if (receiver != lookup_start_object) return {};
 
     // Use known possible maps if we have any.
-    NodeInfo* object_info =
-        known_node_aspects().TryGetInfoFor(lookup_start_object);
-    if (object_info && object_info->possible_maps_are_known()) {
-      inferred_maps = object_info->possible_maps();
+    if (auto possible_maps =
+            known_node_aspects().TryGetPossibleMaps(lookup_start_object)) {
+      inferred_maps = *possible_maps;
     } else {
       // If we have no known maps, make the access megamorphic.
       switch (access_mode) {
@@ -6914,11 +6909,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccess(
     return {};
   }
 
-  NodeInfo* object_info = known_node_aspects().TryGetInfoFor(object);
+  auto possible_maps = known_node_aspects().TryGetPossibleMaps(object);
   compiler::ElementAccessFeedback refined_feedback =
-      object_info && object_info->possible_maps_are_known()
-          ? feedback.Refine(broker(), object_info->possible_maps())
-          : feedback;
+      possible_maps ? feedback.Refine(broker(), *possible_maps) : feedback;
 
   if (refined_feedback.HasOnlyStringMaps(broker())) {
     return TryBuildElementAccessOnString(object, index_object, refined_feedback,
@@ -8809,12 +8802,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIsArray(
     return GetBooleanConstant(true);
   }
 
-  auto node_info = known_node_aspects().TryGetInfoFor(node);
-  if (node_info && node_info->possible_maps_are_known()) {
+  if (auto possible_maps = known_node_aspects().TryGetPossibleMaps(node)) {
     bool has_array_map = false;
     bool has_proxy_map = false;
     bool has_other_map = false;
-    for (compiler::MapRef map : node_info->possible_maps()) {
+    for (compiler::MapRef map : *possible_maps) {
       InstanceType type = map.instance_type();
       if (InstanceTypeChecker::IsJSArray(type)) {
         has_array_map = true;
@@ -8825,7 +8817,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIsArray(
       }
     }
     if ((has_array_map ^ has_other_map) && !has_proxy_map) {
-      if (has_array_map) node_info->IntersectType(NodeType::kJSArray);
+      if (has_array_map) {
+        if (auto node_info = known_node_aspects().TryGetInfoFor(node)) {
+          node_info->IntersectType(NodeType::kJSArray);
+        }
+      }
       return GetBooleanConstant(has_array_map);
     }
   }
@@ -8850,8 +8846,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     return {};
   }
 
-  auto node_info = known_node_aspects().TryGetInfoFor(receiver);
-  if (!node_info || !node_info->possible_maps_are_known()) {
+  auto possible_maps = known_node_aspects().TryGetPossibleMaps(receiver);
+  if (!possible_maps) {
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << "  ! Failed to reduce Array.prototype.forEach - receiver "
                    "map is unknown"
@@ -8861,7 +8857,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   }
 
   ElementsKind elements_kind;
-  if (!CanInlineArrayIteratingBuiltin(broker(), node_info->possible_maps(),
+  if (!CanInlineArrayIteratingBuiltin(broker(), *possible_maps,
                                       &elements_kind)) {
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << "  ! Failed to reduce Array.prototype.forEach - doesn't "
@@ -9038,8 +9034,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
     return {};
   }
 
-  auto node_info = known_node_aspects().TryGetInfoFor(receiver);
-  if (!node_info || !node_info->possible_maps_are_known()) {
+  auto possible_maps = known_node_aspects().TryGetPossibleMaps(receiver);
+  if (!possible_maps) {
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << "  ! Failed to reduce " << name
                 << " - receiver map is unknown" << std::endl;
@@ -9048,7 +9044,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
   }
 
   ElementsKind elements_kind;
-  if (!CanInlineArrayIteratingBuiltin(broker(), node_info->possible_maps(),
+  if (!CanInlineArrayIteratingBuiltin(broker(), *possible_maps,
                                       &elements_kind)) {
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << "  ! Failed to reduce " << name
@@ -9098,8 +9094,12 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
   ValueNode* original_length_int32 = GetInt32(original_length);
 
   // Remember the receiver map set before entering the loop the call.
-  bool receiver_maps_were_unstable = node_info->possible_maps_are_unstable();
-  PossibleMaps receiver_maps_before_loop(node_info->possible_maps());
+  bool receiver_maps_were_unstable = false;
+  auto node_info = known_node_aspects().TryGetInfoFor(receiver);
+  if (node_info) {
+    receiver_maps_were_unstable = node_info->possible_maps_are_unstable();
+  }
+  PossibleMaps receiver_maps_before_loop(*possible_maps);
 
   // Create a sub graph builder with two variables (index and length).
   MaglevSubGraphBuilder sub_builder(this, 2);
@@ -9122,14 +9122,17 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
 
   // Reset the known receiver maps if necessary.
   if (receiver_maps_were_unstable) {
+    DCHECK(node_info);
     node_info->SetPossibleMaps(receiver_maps_before_loop,
                                receiver_maps_were_unstable,
                                // Node type is monotonic, no need to reset it.
                                NodeType::kUnknown, broker());
     known_node_aspects().any_map_for_any_node_is_unstable = true;
   } else {
-    DCHECK_EQ(node_info->possible_maps().size(),
-              receiver_maps_before_loop.size());
+    if (node_info) {
+      DCHECK_EQ(node_info->possible_maps().size(),
+                receiver_maps_before_loop.size());
+    }
   }
   // Reset the cached loaded array length to the length var.
   RecordKnownProperty(receiver, broker()->length_string(),
@@ -9337,15 +9340,16 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
     elements_kind = map.elements_kind();
     maps.push_back(map);
   } else {
-    auto node_info = known_node_aspects().TryGetInfoFor(iterated_object);
-    if (!node_info || !node_info->possible_maps_are_known()) {
+    auto possible_maps =
+        known_node_aspects().TryGetPossibleMaps(iterated_object);
+    if (!possible_maps) {
       FAIL("iterated object is unknown");
     }
-    if (!CanInlineArrayIteratingBuiltin(broker(), node_info->possible_maps(),
+    if (!CanInlineArrayIteratingBuiltin(broker(), *possible_maps,
                                         &elements_kind)) {
       FAIL("no fast array iteration support or incompatible maps");
     }
-    for (auto map : node_info->possible_maps()) {
+    for (auto map : *possible_maps) {
       maps.push_back(map);
     }
   }
@@ -9934,10 +9938,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetField(
   }
 
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  const NodeInfo* receiver_info = known_node_aspects().TryGetInfoFor(receiver);
   // If the map set is not found, then we don't know anything about the map of
   // the receiver, so bail.
-  if (!receiver_info || !receiver_info->possible_maps_are_known()) {
+  auto possible_receiver_maps =
+      known_node_aspects().TryGetPossibleMaps(receiver);
+  if (!possible_receiver_maps) {
     if (v8_flags.trace_maglev_graph_building) {
       std::cout
           << "  ! Failed to reduce Date.prototype.GetXXX - unknown receiver map"
@@ -9946,18 +9951,17 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetField(
     return {};
   }
 
-  const PossibleMaps& possible_receiver_maps = receiver_info->possible_maps();
   // If the set of possible maps is empty, then there's no possible map for this
   // receiver, therefore this path is unreachable at runtime. We're unlikely to
   // ever hit this case, BuildCheckMaps should already unconditionally deopt,
   // but check it in case another checking operation fails to statically
   // unconditionally deopt.
-  if (possible_receiver_maps.is_empty()) {
+  if (possible_receiver_maps->is_empty()) {
     // TODO(leszeks): Add an unreachable assert here.
     return ReduceResult::DoneWithAbort();
   }
 
-  if (!AllOfInstanceTypesAre(possible_receiver_maps, JS_DATE_TYPE)) {
+  if (!AllOfInstanceTypesAre(*possible_receiver_maps, JS_DATE_TYPE)) {
     if (v8_flags.trace_maglev_graph_building) {
       std::cout
           << "  ! Failed to reduce Date.prototype.GetXXX - wrong receiver maps "
@@ -10161,10 +10165,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMapPrototypeGet(
   }
 
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  const NodeInfo* receiver_info = known_node_aspects().TryGetInfoFor(receiver);
+  auto possible_receiver_maps =
+      known_node_aspects().TryGetPossibleMaps(receiver);
   // If the map set is not found, then we don't know anything about the map of
   // the receiver, so bail.
-  if (!receiver_info || !receiver_info->possible_maps_are_known()) {
+  if (!possible_receiver_maps) {
     if (v8_flags.trace_maglev_graph_building) {
       std::cout
           << "  ! Failed to reduce Map.prototype.Get - unknown receiver map"
@@ -10173,18 +10178,17 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMapPrototypeGet(
     return {};
   }
 
-  const PossibleMaps& possible_receiver_maps = receiver_info->possible_maps();
   // If the set of possible maps is empty, then there's no possible map for this
   // receiver, therefore this path is unreachable at runtime. We're unlikely to
   // ever hit this case, BuildCheckMaps should already unconditionally deopt,
   // but check it in case another checking operation fails to statically
   // unconditionally deopt.
-  if (possible_receiver_maps.is_empty()) {
+  if (possible_receiver_maps->is_empty()) {
     // TODO(leszeks): Add an unreachable assert here.
     return ReduceResult::DoneWithAbort();
   }
 
-  if (!AllOfInstanceTypesAre(possible_receiver_maps, JS_MAP_TYPE)) {
+  if (!AllOfInstanceTypesAre(*possible_receiver_maps, JS_MAP_TYPE)) {
     if (v8_flags.trace_maglev_graph_building) {
       std::cout
           << "  ! Failed to reduce Map.prototype.Get - wrong receiver maps "
@@ -10228,8 +10232,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceSetPrototypeHas(
     return {};
   }
 
-  auto node_info = known_node_aspects().TryGetInfoFor(receiver);
-  if (!node_info || !node_info->possible_maps_are_known()) {
+  auto possible_receiver_maps =
+      known_node_aspects().TryGetPossibleMaps(receiver);
+  if (!possible_receiver_maps) {
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << "  ! Failed to reduce Set.prototype.has"
                 << " - receiver map is unknown" << std::endl;
@@ -10237,18 +10242,17 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceSetPrototypeHas(
     return {};
   }
 
-  const PossibleMaps& possible_receiver_maps = node_info->possible_maps();
   // If the set of possible maps is empty, then there's no possible map for this
   // receiver, therefore this path is unreachable at runtime. We're unlikely to
   // ever hit this case, BuildCheckMaps should already unconditionally deopt,
   // but check it in case another checking operation fails to statically
   // unconditionally deopt.
-  if (possible_receiver_maps.is_empty()) {
+  if (possible_receiver_maps->is_empty()) {
     // TODO(leszeks): Add an unreachable assert here.
     return ReduceResult::DoneWithAbort();
   }
 
-  if (!AllOfInstanceTypesAre(possible_receiver_maps, JS_SET_TYPE)) {
+  if (!AllOfInstanceTypesAre(*possible_receiver_maps, JS_SET_TYPE)) {
     if (v8_flags.trace_maglev_graph_building) {
       std::cout
           << "  ! Failed to reduce Set.prototype.has - wrong receiver maps "
@@ -10274,6 +10278,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
     }
     return {};
   }
+
   // TODO(pthier): Support multiple arguments.
   if (args.count() != 1) {
     if (v8_flags.trace_maglev_graph_building) {
@@ -10285,10 +10290,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   }
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
 
-  auto node_info = known_node_aspects().TryGetInfoFor(receiver);
+  auto possible_maps = known_node_aspects().TryGetPossibleMaps(receiver);
   // If the map set is not found, then we don't know anything about the map of
   // the receiver, so bail.
-  if (!node_info || !node_info->possible_maps_are_known()) {
+  if (!possible_maps) {
     if (v8_flags.trace_maglev_graph_building) {
       std::cout
           << "  ! Failed to reduce Array.prototype.push - unknown receiver map"
@@ -10297,13 +10302,12 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
     return {};
   }
 
-  const PossibleMaps& possible_maps = node_info->possible_maps();
   // If the set of possible maps is empty, then there's no possible map for this
   // receiver, therefore this path is unreachable at runtime. We're unlikely to
   // ever hit this case, BuildCheckMaps should already unconditionally deopt,
   // but check it in case another checking operation fails to statically
   // unconditionally deopt.
-  if (possible_maps.is_empty()) {
+  if (possible_maps->is_empty()) {
     // TODO(leszeks): Add an unreachable assert here.
     return ReduceResult::DoneWithAbort();
   }
@@ -10336,7 +10340,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
     return static_cast<ElementsKind>(kind_index * 2);
   };
   int unique_kind_count;
-  if (!CanInlineArrayResizingBuiltin(broker(), possible_maps, map_kinds,
+  if (!CanInlineArrayResizingBuiltin(broker(), *possible_maps, map_kinds,
                                      elements_kind_to_index, &unique_kind_count,
                                      false)) {
     if (v8_flags.trace_maglev_graph_building) {
@@ -10415,10 +10419,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
 
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
 
-  auto node_info = known_node_aspects().TryGetInfoFor(receiver);
+  auto possible_maps = known_node_aspects().TryGetPossibleMaps(receiver);
   // If the map set is not found, then we don't know anything about the map of
   // the receiver, so bail.
-  if (!node_info || !node_info->possible_maps_are_known()) {
+  if (!possible_maps) {
     if (v8_flags.trace_maglev_graph_building) {
       std::cout
           << "  ! Failed to reduce Array.prototype.pop - unknown receiver map"
@@ -10427,14 +10431,12 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
     return {};
   }
 
-  const PossibleMaps& possible_maps = node_info->possible_maps();
-
   // If the set of possible maps is empty, then there's no possible map for this
   // receiver, therefore this path is unreachable at runtime. We're unlikely to
   // ever hit this case, BuildCheckMaps should already unconditionally deopt,
   // but check it in case another checking operation fails to statically
   // unconditionally deopt.
-  if (possible_maps.is_empty()) {
+  if (possible_maps->is_empty()) {
     // TODO(leszeks): Add an unreachable assert here.
     return ReduceResult::DoneWithAbort();
   }
@@ -10482,7 +10484,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
   };
 
   int unique_kind_count;
-  if (!CanInlineArrayResizingBuiltin(broker(), possible_maps, map_kinds,
+  if (!CanInlineArrayResizingBuiltin(broker(), *possible_maps, map_kinds,
                                      elements_kind_to_index, &unique_kind_count,
                                      true)) {
     if (v8_flags.trace_maglev_graph_building) {
@@ -10690,15 +10692,14 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceObjectPrototypeHasOwnProperty(
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceGetProto(ValueNode* object) {
-  NodeInfo* info = known_node_aspects().TryGetInfoFor(object);
-  if (!info || !info->possible_maps_are_known()) {
+  auto possible_maps = known_node_aspects().TryGetPossibleMaps(object);
+  if (!possible_maps) {
     return {};
   }
-  auto& possible_maps = info->possible_maps();
-  if (possible_maps.is_empty()) {
+  if (possible_maps->is_empty()) {
     return ReduceResult::DoneWithAbort();
   }
-  auto it = possible_maps.begin();
+  auto it = possible_maps->begin();
   compiler::MapRef map = *it;
   if (IsSpecialReceiverInstanceType(map.instance_type())) {
     return {};
@@ -10706,7 +10707,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGetProto(ValueNode* object) {
   DCHECK(!map.IsPrimitiveMap() && map.IsJSReceiverMap());
   compiler::HeapObjectRef proto = map.prototype(broker());
   ++it;
-  for (; it != possible_maps.end(); ++it) {
+  for (; it != possible_maps->end(); ++it) {
     map = *it;
     if (IsSpecialReceiverInstanceType(map.instance_type()) ||
         !proto.equals(map.prototype(broker()))) {
@@ -11190,7 +11191,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownApiFunction(
 
     api_holder =
         compiler::HolderLookupResult{CallOptimization::kHolderIsReceiver};
-  } else {
+  } else if (args.receiver()) {
     // Try to infer API holder from the known aspects of the {receiver}.
     api_holder =
         TryInferApiHolderValue(function_template_info, args.receiver());
@@ -11500,13 +11501,13 @@ compiler::HolderLookupResult MaglevGraphBuilder::TryInferApiHolderValue(
     ValueNode* receiver) {
   const compiler::HolderLookupResult not_found;
 
-  auto receiver_info = known_node_aspects().TryGetInfoFor(receiver);
-  if (!receiver_info || !receiver_info->possible_maps_are_known()) {
+  auto possible_maps = known_node_aspects().TryGetPossibleMaps(receiver);
+  if (!possible_maps) {
     // No info about receiver, can't infer API holder.
     return not_found;
   }
-  DCHECK(!receiver_info->possible_maps().is_empty());
-  compiler::MapRef first_receiver_map = receiver_info->possible_maps()[0];
+  DCHECK(!possible_maps->is_empty());
+  compiler::MapRef first_receiver_map = possible_maps->at(0);
 
   // See if we can constant-fold the compatible receiver checks.
   compiler::HolderLookupResult api_holder =
@@ -11528,7 +11529,7 @@ compiler::HolderLookupResult MaglevGraphBuilder::TryInferApiHolderValue(
   CHECK(!first_receiver_map.is_access_check_needed() ||
         function_template_info.accept_any_receiver());
 
-  for (compiler::MapRef receiver_map : receiver_info->possible_maps()) {
+  for (compiler::MapRef receiver_map : *possible_maps) {
     compiler::HolderLookupResult holder_i =
         function_template_info.LookupHolderOfExpectedType(broker(),
                                                           receiver_map);
@@ -12709,10 +12710,10 @@ ReduceResult MaglevGraphBuilder::VisitTestGreaterThanOrEqual() {
 MaglevGraphBuilder::InferHasInPrototypeChainResult
 MaglevGraphBuilder::InferHasInPrototypeChain(
     ValueNode* receiver, compiler::HeapObjectRef prototype) {
-  auto node_info = known_node_aspects().TryGetInfoFor(receiver);
+  auto possible_maps = known_node_aspects().TryGetPossibleMaps(receiver);
   // If the map set is not found, then we don't know anything about the map of
   // the receiver, so bail.
-  if (!node_info || !node_info->possible_maps_are_known()) {
+  if (!possible_maps) {
     return kMayBeInPrototypeChain;
   }
 
@@ -12721,7 +12722,7 @@ MaglevGraphBuilder::InferHasInPrototypeChain(
   // ever hit this case, BuildCheckMaps should already unconditionally deopt,
   // but check it in case another checking operation fails to statically
   // unconditionally deopt.
-  if (node_info->possible_maps().is_empty()) {
+  if (possible_maps->is_empty()) {
     // TODO(leszeks): Add an unreachable assert here.
     return kIsNotInPrototypeChain;
   }
@@ -12733,7 +12734,7 @@ MaglevGraphBuilder::InferHasInPrototypeChain(
   // kMayBeInPrototypeChain.
   bool all = true;
   bool none = true;
-  for (compiler::MapRef map : node_info->possible_maps()) {
+  for (compiler::MapRef map : *possible_maps) {
     receiver_map_refs.push_back(map);
     while (true) {
       if (IsSpecialReceiverInstanceType(map.instance_type())) {
@@ -14978,19 +14979,27 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfToBooleanTrue(
     // JSReceivers are true iff they are not marked as undetectable. Check if
     // all maps have the same detectability, and if yes, the boolean value is
     // known.
-    NodeInfo* node_info = known_node_aspects().TryGetInfoFor(node);
-    if (node_info && NodeTypeIs(node_info->type(), NodeType::kJSReceiver) &&
-        node_info->possible_maps_are_known()) {
-      bool all_detectable = true;
-      bool all_undetectable = true;
-      for (compiler::MapRef map : node_info->possible_maps()) {
-        bool is_undetectable = map.is_undetectable();
-        all_detectable &= !is_undetectable;
-        all_undetectable &= is_undetectable;
+    if (NodeInfo* node_info = known_node_aspects().TryGetInfoFor(node)) {
+      if (node_info && NodeTypeIs(node_info->type(), NodeType::kJSReceiver) &&
+          node_info->possible_maps_are_known()) {
+        bool all_detectable = true;
+        bool all_undetectable = true;
+        for (compiler::MapRef map : node_info->possible_maps()) {
+          bool is_undetectable = map.is_undetectable();
+          all_detectable &= !is_undetectable;
+          all_undetectable &= is_undetectable;
+        }
+        if (all_detectable || all_undetectable) {
+          known_to_boolean_value = true;
+          direction_is_true = all_detectable;
+        }
       }
-      if (all_detectable || all_undetectable) {
-        known_to_boolean_value = true;
-        direction_is_true = all_detectable;
+    } else if (auto alloc = node->TryCast<InlinedAllocation>()) {
+      if (alloc->object()->has_static_map()) {
+        if (alloc->object()->map().IsJSReceiverMap()) {
+          known_to_boolean_value = true;
+          direction_is_true = !alloc->object()->map().is_undetectable();
+        }
       }
     }
   }
