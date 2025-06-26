@@ -15,6 +15,7 @@
 #include "temporal_rs/PlainMonthDay.d.hpp"
 #include "temporal_rs/PlainTime.d.hpp"
 #include "temporal_rs/PlainYearMonth.d.hpp"
+#include "temporal_rs/TimeZone.d.hpp"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -339,6 +340,10 @@ class JSTemporalPlainDate
       Isolate* isolate, DirectHandle<JSTemporalPlainDate> plain_date,
       DirectHandle<Object> locales, DirectHandle<Object> options);
 
+  // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporaldate
+  V8_WARN_UNUSED_RESULT Maybe<int64_t> GetEpochMillisecondsFor(
+      Isolate* isolate, std::string_view time_zone);
+
   DECL_PRINTER(JSTemporalPlainDate)
   DECL_CTOR_HELPER()
   static constexpr bool kTypeContainsCalendar = true;
@@ -456,6 +461,10 @@ class JSTemporalPlainDateTime
   ToPlainTime(Isolate* isolate,
               DirectHandle<JSTemporalPlainDateTime> date_time);
 
+  // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporaldate
+  V8_WARN_UNUSED_RESULT Maybe<int64_t> GetEpochMillisecondsFor(
+      Isolate* isolate, std::string_view time_zone);
+
   DECL_PRINTER(JSTemporalPlainDateTime)
 
   DECL_CTOR_HELPER()
@@ -514,6 +523,10 @@ class JSTemporalPlainMonthDay
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> ToLocaleString(
       Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> plain_date,
       DirectHandle<Object> locales, DirectHandle<Object> options);
+
+  // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporalmonthday
+  V8_WARN_UNUSED_RESULT Maybe<int64_t> GetEpochMillisecondsFor(
+      Isolate* isolate, std::string_view time_zone);
 
   DECL_PRINTER(JSTemporalPlainMonthDay)
 
@@ -604,6 +617,10 @@ class JSTemporalPlainTime
       Isolate* isolate, DirectHandle<JSTemporalPlainTime> plain_time,
       DirectHandle<Object> locales, DirectHandle<Object> options);
 
+  // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporaldate
+  V8_WARN_UNUSED_RESULT Maybe<int64_t> GetEpochMillisecondsFor(
+      Isolate* isolate, std::string_view time_zone);
+
   DECL_PRINTER(JSTemporalPlainTime)
 
   DECL_CTOR_HELPER()
@@ -685,6 +702,10 @@ class JSTemporalPlainYearMonth
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> ToLocaleString(
       Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> plain_date,
       DirectHandle<Object> locales, DirectHandle<Object> options);
+
+  // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporaldate
+  V8_WARN_UNUSED_RESULT Maybe<int64_t> GetEpochMillisecondsFor(
+      Isolate* isolate, std::string_view time_zone);
 
   // Abstract Operations
 
@@ -877,10 +898,6 @@ BuiltinTimeZoneGetPlainDateTimeFor(Isolate* isolate,
 V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> InvokeCalendarMethod(
     Isolate* isolate, DirectHandle<JSReceiver> calendar,
     DirectHandle<String> name, DirectHandle<JSReceiver> temporal_like);
-
-V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSReceiver> ToTemporalTimeZone(
-    Isolate* isolate, DirectHandle<Object> temporal_time_zone_like,
-    const char* method_name);
 
 }  // namespace temporal
 }  // namespace internal

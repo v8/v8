@@ -20,6 +20,7 @@
 #include "src/objects/js-date-time-format-inl.h"
 #ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"
+#include "temporal_rs/AnyCalendarKind.hpp"
 #include "temporal_rs/Instant.hpp"
 #endif  // V8_TEMPORAL_SUPPORT
 #include "src/objects/managed-inl.h"
@@ -910,51 +911,81 @@ struct DateTimeValueRecord {
 };
 
 #ifdef V8_TEMPORAL_SUPPORT
-DateTimeValueRecord TemporalInstantToRecord(
-    Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
-    PatternKind kind) {
-  double milliseconds = instant->instant()->raw()->epoch_milliseconds();
-  return {milliseconds, kind};
+
+bool IsSameCalendar(temporal_rs::AnyCalendarKind kind,
+                    const icu::SimpleDateFormat& date_time_format) {
+  using enum temporal_rs::AnyCalendarKind::Value;
+  std::string_view other_kind = date_time_format.getCalendar()->getType();
+  // Note: some calendars have aliases, and "islamic" encompasses all Islamic
+  // calendars
+  //
+  // We unfortuantely have to string match against ICU4C's values. We could
+  // potentially get away with parsing AnyCalendarKind from string, however
+  // ICU4C has slightly different calendar name behavior from ICU4X around
+  // islamic calendars. This works for now, and perhaps temporal_rs can add
+  // a match_icu4c_calendar function to move this logic out of V8.
+  switch (kind) {
+    case Buddhist:
+      return other_kind == "buddhist";
+    case Chinese:
+      return other_kind == "chinese";
+    case Coptic:
+      return other_kind == "coptic";
+    case Dangi:
+      return other_kind == "dangi";
+    case Ethiopian:
+      return other_kind == "ethiopic";
+    case EthiopianAmeteAlem:
+      return other_kind == "ethiopic-amete-alem" || other_kind == "ethioaa";
+    case Gregorian:
+      return other_kind == "gregory";
+    case Hebrew:
+      return other_kind == "hebrew";
+    case Indian:
+      return other_kind == "Indian";
+    case HijriTabularTypeIIFriday:
+      return other_kind == "islamic-civil" || other_kind == "islamicc" ||
+             other_kind == "islamic";
+    case HijriSimulatedMecca:
+      return other_kind == "islamic-rgsa" || other_kind == "islamic";
+    case HijriTabularTypeIIThursday:
+      return other_kind == "islamic-tbla" || other_kind == "islamic";
+    case HijriUmmAlQura:
+      return other_kind == "islamic-umalqura " || other_kind == "islamic";
+    case Iso:
+      return other_kind == "iso8601";
+    case Japanese:
+    case JapaneseExtended:
+      return other_kind == "japanese" || other_kind == "japanese-extended";
+    case Persian:
+      return other_kind == "persian";
+    case Roc:
+      return other_kind == "roc";
+  }
+  // Exhaustive match
+  UNREACHABLE();
 }
 
-template <typename T>
-Maybe<DateTimeValueRecord> TemporalToRecord(
-    Isolate* isolate, const icu::SimpleDateFormat& date_time_format,
-    PatternKind kind, DirectHandle<T> temporal,
-    DirectHandle<JSReceiver> calendar, const char* method_name) {
-  // TODO(b/401065166) To be implemented once we have enough of Temporal
-  UNIMPLEMENTED();
+std::string GetTzString(const icu::SimpleDateFormat& date_time_format) {
+  icu::UnicodeString result;
+  const auto& icutz = date_time_format.getTimeZone();
+  icutz.getDisplayName(result);
+  std::string std_result;
+  result.toUTF8String(std_result);
+  return std_result;
 }
 
-// #sec-temporal-handledatetimevaluetemporaldate
-Maybe<DateTimeValueRecord> HandleDateTimeTemporalDate(
-    Isolate* isolate, const icu::SimpleDateFormat& date_time_format,
-    DirectHandle<String> date_time_format_calendar,
-    DirectHandle<JSTemporalPlainDate> temporal_date, const char* method_name) {
-  // TODO(b/401065166) To be implemented once we have enough of Temporal
-  UNIMPLEMENTED();
-}
-
-// #sec-temporal-handledatetimevaluetemporaldatetime
-Maybe<DateTimeValueRecord> HandleDateTimeTemporalDateTime(
-    Isolate* isolate, const icu::SimpleDateFormat& date_time_format,
-    DirectHandle<String> date_time_format_calendar,
-    DirectHandle<JSTemporalPlainDateTime> date_time, const char* method_name) {
-  // TODO(b/401065166) To be implemented once we have enough of Temporal
-  UNIMPLEMENTED();
-}
-
-// #sec-temporal-handledatetimevaluetemporalzoneddatetime
+// #sec-temporal-handledatetimetemporalzoneddatetime
 Maybe<DateTimeValueRecord> HandleDateTimeTemporalZonedDateTime(
     Isolate* isolate, const icu::SimpleDateFormat& date_time_format,
-    DirectHandle<String> date_time_format_calendar,
     DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     const char* method_name) {
-  // TODO(b/401065166) To be implemented once we have enough of Temporal
-  UNIMPLEMENTED();
+  double milliseconds =
+      zoned_date_time->zoned_date_time()->raw()->epoch_milliseconds();
+  return Just(DateTimeValueRecord{milliseconds, PatternKind::kZonedDateTime});
 }
 
-// #sec-temporal-handledatetimevaluetemporalinstant
+// #sec-temporal-handledatetimetemporalinstant
 Maybe<DateTimeValueRecord> HandleDateTimeTemporalInstant(
     Isolate* isolate, const icu::SimpleDateFormat& date_time_format,
     DirectHandle<JSTemporalInstant> instant, const char* method_name) {
@@ -964,48 +995,89 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalInstant(
 
   // 4. Return the Record { [[pattern]]: pattern.[[pattern]], [[rangePatterns]]:
   // pattern.[[rangePatterns]], [[epochNanoseconds]]: instant.[[Nanoseconds]] }.
-  return Just(TemporalInstantToRecord(isolate, instant, PatternKind::kInstant));
+
+  double milliseconds = instant->instant()->raw()->epoch_milliseconds();
+  return Just(DateTimeValueRecord{milliseconds, PatternKind::kInstant});
 }
 
-// #sec-temporal-handledatetimevaluetemporaltime
+// #sec-temporal-handledatetimetemporalyearmonth
+// #sec-temporal-handledatetimetemporalmonthday
+// #sec-temporal-handledatetimetemporaldatetime
+// #sec-temporal-handledatetimetemporaldate
+// #sec-temporal-handledatetimetemporaltime
+template <typename T>
+Maybe<DateTimeValueRecord> HandleDateTimeTemporalGeneric(
+    Isolate* isolate, const icu::SimpleDateFormat& date_time_format,
+    PatternKind kind, DirectHandle<T> temporal) {
+  // Onlt perform this check for calendared types (not Time)
+  if constexpr (T::kTypeContainsCalendar) {
+    // 1. If temporalDate.[[Calendar]] is not dateTimeFormat.[[Calendar]] or
+    // "iso8601", throw a RangeError exception.
+    if (!IsSameCalendar(temporal->wrapped_rust().calendar().kind(),
+                        date_time_format)) {
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate, NewRangeError(MessageTemplate::kMismatchedCalendars), {});
+    }
+  }
+  // 2. Let epochNs be ? GetEpochNanosecondsFor(dateTimeFormat.[[TimeZone]],
+  // isoDateTime, compatible).
+  auto tz = GetTzString(date_time_format);
+
+  int64_t epoch_milliseconds = 0;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, epoch_milliseconds,
+      temporal->GetEpochMillisecondsFor(isolate, tz), {});
+
+  // 3. Let format be dateTimeFormat.[[TemporalPlainDateFormat]].
+  // 4. Return Value Format Record { [[Format]]: format, [[EpochNanoseconds]]:
+  // epochNs  }.
+  return Just(
+      DateTimeValueRecord{static_cast<double>(epoch_milliseconds), kind});
+}
+
+// #sec-temporal-handledatetimetemporalyearmonth
+Maybe<DateTimeValueRecord> HandleDateTimeTemporalYearMonth(
+    Isolate* isolate, const icu::SimpleDateFormat& date_time_format,
+    DirectHandle<JSTemporalPlainYearMonth> temporal_year_month,
+    const char* method_name) {
+  return HandleDateTimeTemporalGeneric<JSTemporalPlainYearMonth>(
+      isolate, date_time_format, PatternKind::kPlainYearMonth,
+      temporal_year_month);
+}
+
+// #sec-temporal-handledatetimetemporalmonthday
+Maybe<DateTimeValueRecord> HandleDateTimeTemporalMonthDay(
+    Isolate* isolate, const icu::SimpleDateFormat& date_time_format,
+    DirectHandle<JSTemporalPlainMonthDay> temporal_month_day,
+    const char* method_name) {
+  return HandleDateTimeTemporalGeneric<JSTemporalPlainMonthDay>(
+      isolate, date_time_format, PatternKind::kPlainMonthDay,
+      temporal_month_day);
+}
+
+// #sec-temporal-handledatetimetemporaldatetime
+Maybe<DateTimeValueRecord> HandleDateTimeTemporalDateTime(
+    Isolate* isolate, const icu::SimpleDateFormat& date_time_format,
+    DirectHandle<JSTemporalPlainDateTime> date_time, const char* method_name) {
+  return HandleDateTimeTemporalGeneric<JSTemporalPlainDateTime>(
+      isolate, date_time_format, PatternKind::kPlainDateTime, date_time);
+}
+
+// #sec-temporal-handledatetimetemporaldate
+Maybe<DateTimeValueRecord> HandleDateTimeTemporalDate(
+    Isolate* isolate, const icu::SimpleDateFormat& date_time_format,
+    DirectHandle<JSTemporalPlainDate> temporal_date, const char* method_name) {
+  return HandleDateTimeTemporalGeneric<JSTemporalPlainDate>(
+      isolate, date_time_format, PatternKind::kPlainDate, temporal_date);
+}
+
+// #sec-temporal-handledatetimetemporaltime
 Maybe<DateTimeValueRecord> HandleDateTimeTemporalTime(
     Isolate* isolate, const icu::SimpleDateFormat& date_time_format,
     DirectHandle<JSTemporalPlainTime> temporal_time, const char* method_name) {
-  // TODO(b/401065166) To be implemented once we have enough of Temporal
-  UNIMPLEMENTED();
+  return HandleDateTimeTemporalGeneric<JSTemporalPlainTime>(
+      isolate, date_time_format, PatternKind::kPlainTime, temporal_time);
 }
-
-template <typename T>
-Maybe<DateTimeValueRecord> HandleDateTimeTemporalYearMonthOrMonthDay(
-    Isolate* isolate, const icu::SimpleDateFormat& date_time_format,
-    DirectHandle<String> date_time_format_calendar, PatternKind kind,
-    DirectHandle<T> temporal, const char* method_name) {
-  // TODO(b/401065166) To be implemented once we have enough of Temporal
-  UNIMPLEMENTED();
-}
-
-// #sec-temporal-handledatetimevaluetemporalyearmonth
-Maybe<DateTimeValueRecord> HandleDateTimeTemporalYearMonth(
-    Isolate* isolate, const icu::SimpleDateFormat& date_time_format,
-    DirectHandle<String> date_time_format_calendar,
-    DirectHandle<JSTemporalPlainYearMonth> temporal_year_month,
-    const char* method_name) {
-  return HandleDateTimeTemporalYearMonthOrMonthDay<JSTemporalPlainYearMonth>(
-      isolate, date_time_format, date_time_format_calendar,
-      PatternKind::kPlainYearMonth, temporal_year_month, method_name);
-}
-
-// #sec-temporal-handledatetimevaluetemporalmonthday
-Maybe<DateTimeValueRecord> HandleDateTimeTemporalMonthDay(
-    Isolate* isolate, const icu::SimpleDateFormat& date_time_format,
-    DirectHandle<String> date_time_format_calendar,
-    DirectHandle<JSTemporalPlainMonthDay> temporal_month_day,
-    const char* method_name) {
-  return HandleDateTimeTemporalYearMonthOrMonthDay<JSTemporalPlainMonthDay>(
-      isolate, date_time_format, date_time_format_calendar,
-      PatternKind::kPlainMonthDay, temporal_month_day, method_name);
-}
-
 #endif  // V8_TEMPORAL_SUPPORT
 
 // #sec-temporal-handledatetimeothers
@@ -1049,30 +1121,28 @@ Maybe<DateTimeValueRecord> HandleDateTimeOthers(
 // #sec-temporal-handledatetimevalue
 Maybe<DateTimeValueRecord> HandleDateTimeValue(
     Isolate* isolate, const icu::SimpleDateFormat& date_time_format,
-    DirectHandle<String> date_time_format_calendar, DirectHandle<Object> x,
-    const char* method_name) {
+    DirectHandle<Object> x, const char* method_name) {
 #ifdef V8_TEMPORAL_SUPPORT
   if (IsTemporalObject(x)) {
     // a. If x has an [[InitializedTemporalDate]] internal slot, then
     if (IsJSTemporalPlainDate(*x)) {
       // i. Return ? HandleDateTimeTemporalDate(dateTimeFormat, x).
       return HandleDateTimeTemporalDate(
-          isolate, date_time_format, date_time_format_calendar,
-          Cast<JSTemporalPlainDate>(x), method_name);
+          isolate, date_time_format, Cast<JSTemporalPlainDate>(x), method_name);
     }
     // b. If x has an [[InitializedTemporalYearMonth]] internal slot, then
     if (IsJSTemporalPlainYearMonth(*x)) {
       // i. Return ? HandleDateTimeTemporalYearMonth(dateTimeFormat, x).
-      return HandleDateTimeTemporalYearMonth(
-          isolate, date_time_format, date_time_format_calendar,
-          Cast<JSTemporalPlainYearMonth>(x), method_name);
+      return HandleDateTimeTemporalYearMonth(isolate, date_time_format,
+                                             Cast<JSTemporalPlainYearMonth>(x),
+                                             method_name);
     }
     // c. If x has an [[InitializedTemporalMonthDay]] internal slot, then
     if (IsJSTemporalPlainMonthDay(*x)) {
       // i. Return ? HandleDateTimeTemporalMonthDay(dateTimeFormat, x).
-      return HandleDateTimeTemporalMonthDay(
-          isolate, date_time_format, date_time_format_calendar,
-          Cast<JSTemporalPlainMonthDay>(x), method_name);
+      return HandleDateTimeTemporalMonthDay(isolate, date_time_format,
+                                            Cast<JSTemporalPlainMonthDay>(x),
+                                            method_name);
     }
     // d. If x has an [[InitializedTemporalTime]] internal slot, then
     if (IsJSTemporalPlainTime(*x)) {
@@ -1083,9 +1153,9 @@ Maybe<DateTimeValueRecord> HandleDateTimeValue(
     // e. If x has an [[InitializedTemporalDateTime]] internal slot, then
     if (IsJSTemporalPlainDateTime(*x)) {
       // i. Return ? HandleDateTimeTemporalDateTime(dateTimeFormat, x).
-      return HandleDateTimeTemporalDateTime(
-          isolate, date_time_format, date_time_format_calendar,
-          Cast<JSTemporalPlainDateTime>(x), method_name);
+      return HandleDateTimeTemporalDateTime(isolate, date_time_format,
+                                            Cast<JSTemporalPlainDateTime>(x),
+                                            method_name);
     }
     // f. If x has an [[InitializedTemporalInstant]] internal slot, then
     if (IsJSTemporalInstant(*x)) {
@@ -1096,9 +1166,9 @@ Maybe<DateTimeValueRecord> HandleDateTimeValue(
     // g. Assert: x has an [[InitializedTemporalZonedDateTime]] internal slot.
     DCHECK(IsJSTemporalZonedDateTime(*x));
     // h. Return ? HandleDateTimeTemporalZonedDateTime(dateTimeFormat, x).
-    return HandleDateTimeTemporalZonedDateTime(
-        isolate, date_time_format, date_time_format_calendar,
-        Cast<JSTemporalZonedDateTime>(x), method_name);
+    return HandleDateTimeTemporalZonedDateTime(isolate, date_time_format,
+                                               Cast<JSTemporalZonedDateTime>(x),
+                                               method_name);
   }
 #endif  // V8_TEMPORAL_SUPPORT
   // 2. Return ? HandleDateTimeOthers(dateTimeFormat, x).
@@ -1298,14 +1368,11 @@ MaybeDirectHandle<String> FormatMillisecondsByKindToString(
 
 MaybeDirectHandle<String> FormatDateTimeWithTemporalSupport(
     Isolate* isolate, const icu::SimpleDateFormat& date_format,
-    DirectHandle<String> date_time_format_calendar, DirectHandle<Object> x,
-    const char* method_name) {
+    DirectHandle<Object> x, const char* method_name) {
   DateTimeValueRecord record;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, record,
-      HandleDateTimeValue(isolate, date_format, date_time_format_calendar, x,
-                          method_name),
-      {});
+      HandleDateTimeValue(isolate, date_format, x, method_name), {});
   return FormatMillisecondsByKindToString(isolate, date_format, record.kind,
                                           record.epoch_milliseconds);
 }
@@ -1314,8 +1381,8 @@ MaybeDirectHandle<String> FormatDateTimeWithTemporalSupport(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     DirectHandle<Object> x, const char* method_name) {
   return FormatDateTimeWithTemporalSupport(
-      isolate, *(date_time_format->icu_simple_date_format()->raw()),
-      JSDateTimeFormat::Calendar(isolate, date_time_format), x, method_name);
+      isolate, *(date_time_format->icu_simple_date_format()->raw()), x,
+      method_name);
 }
 
 }  // namespace
@@ -2594,9 +2661,7 @@ MaybeDirectHandle<JSArray> FormatToPartsWithTemporalSupport(
   // 1. Let x be ? HandleDateTimeValue(dateTimeFormat, x).
   DateTimeValueRecord x_record;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, x_record,
-      HandleDateTimeValue(isolate, *format, GetCalendar(isolate, *format), x,
-                          method_name),
+      isolate, x_record, HandleDateTimeValue(isolate, *format, x, method_name),
       {});
 
   return FormatMillisecondsByKindToArray(isolate, *format, x_record.kind,
@@ -2917,21 +2982,17 @@ MaybeDirectHandle<T> FormatRangeCommonWithTemporalSupport(
   // 6. Let x be ? HandleDateTimeValue(dateTimeFormat, x).
   icu::SimpleDateFormat* icu_simple_date_format =
       date_time_format->icu_simple_date_format()->raw();
-  DirectHandle<String> date_time_format_calendar =
-      GetCalendar(isolate, *icu_simple_date_format);
   DateTimeValueRecord x_record;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, x_record,
-      HandleDateTimeValue(isolate, *icu_simple_date_format,
-                          date_time_format_calendar, x_obj, method_name),
+      HandleDateTimeValue(isolate, *icu_simple_date_format, x_obj, method_name),
       {});
 
   // 7. Let y be ? HandleDateTimeValue(dateTimeFormat, y).
   DateTimeValueRecord y_record;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, y_record,
-      HandleDateTimeValue(isolate, *icu_simple_date_format,
-                          date_time_format_calendar, y_obj, method_name),
+      HandleDateTimeValue(isolate, *icu_simple_date_format, y_obj, method_name),
       {});
 
   std::unique_ptr<icu::DateIntervalFormat> format(

@@ -76,6 +76,26 @@ DEFINE_CTOR_HELPER(JSTemporalPlainTime, plain_time)
 DEFINE_CTOR_HELPER(JSTemporalPlainYearMonth, plain_year_month)
 DEFINE_CTOR_HELPER(JSTemporalZonedDateTime, zoned_date_time)
 
+// Paired with DECL_ACCESSORS_FOR_RUST_WRAPPER
+// Can be omitted and overridden if needed.
+#define DEFINE_ACCESSORS_FOR_RUST_WRAPPER(field, JSType)        \
+  inline void JSType::initialize_with_wrapped_rust_value(       \
+      Tagged<Managed<JSType::RustType>> handle) {               \
+    this->set_##field(handle);                                  \
+  }                                                             \
+  inline const JSType::RustType& JSType::wrapped_rust() const { \
+    return *this->field()->raw();                               \
+  }
+
+DEFINE_ACCESSORS_FOR_RUST_WRAPPER(instant, JSTemporalInstant)
+DEFINE_ACCESSORS_FOR_RUST_WRAPPER(duration, JSTemporalDuration)
+DEFINE_ACCESSORS_FOR_RUST_WRAPPER(date, JSTemporalPlainDate)
+DEFINE_ACCESSORS_FOR_RUST_WRAPPER(date_time, JSTemporalPlainDateTime)
+DEFINE_ACCESSORS_FOR_RUST_WRAPPER(month_day, JSTemporalPlainMonthDay)
+DEFINE_ACCESSORS_FOR_RUST_WRAPPER(time, JSTemporalPlainTime)
+DEFINE_ACCESSORS_FOR_RUST_WRAPPER(year_month, JSTemporalPlainYearMonth)
+DEFINE_ACCESSORS_FOR_RUST_WRAPPER(zoned_date_time, JSTemporalZonedDateTime)
+
 }  // namespace internal
 }  // namespace v8
 
