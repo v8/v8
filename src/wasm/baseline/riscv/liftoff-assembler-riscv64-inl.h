@@ -915,12 +915,18 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     LiftoffRegList pinned) {
-  AtomicCompareExchange(
-      dst_addr, offset_reg, offset_imm, expected, new_value, result,
-      COMPRESS_POINTERS_BOOL ? StoreType::kI32Store : StoreType::kI64Store,
-      false);
-  if constexpr (COMPRESS_POINTERS_BOOL) {
+  UseScratchRegisterScope temps(this);
+  if (COMPRESS_POINTERS_BOOL) {
+    Register scratch = temps.Acquire();
+    Sll32(scratch, expected.gp(), 0);
+    AtomicCompareExchange(dst_addr, offset_reg, offset_imm,
+                          LiftoffRegister(scratch), new_value, result,
+                          StoreType::kI32Store, false);
+    ZeroExtendWord(result.gp(), result.gp());
     AddWord(result.gp(), result.gp(), kPtrComprCageBaseRegister);
+  } else {
+    AtomicCompareExchange(dst_addr, offset_reg, offset_imm, expected, new_value,
+                          result, StoreType::kI64Store, false);
   }
   if (v8_flags.disable_write_barriers) return;
   // Emit the write barrier.
@@ -930,7 +936,6 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
                 kZero, &exit);
   CheckPageFlag(new_value.gp(), MemoryChunk::kPointersToHereAreInterestingMask,
                 kZero, &exit);
-  UseScratchRegisterScope temps(this);
   Operand offset_op =
       offset_reg.is_valid() ? Operand(offset_reg) : Operand(offset_imm);
   if (offset_reg.is_valid() && offset_imm) {

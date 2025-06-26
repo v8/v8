@@ -519,6 +519,7 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
     __ bind(&compareExchange);                                                 \
     __ load_linked(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0),      \
                    trapper);                                                   \
+    DCHECK_NE(i.InputRegister(2), i.OutputRegister(0));                        \
     __ BranchShort(&exit, ne, i.InputRegister(2),                              \
                    Operand(i.OutputRegister(0)));                              \
     __ Move(i.TempRegister(2), i.InputRegister(3));                            \
@@ -552,6 +553,7 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
                    size, sign_extend);                                         \
     __ ExtractBits(i.InputRegister(2), i.InputRegister(2), 0, size,            \
                    sign_extend);                                               \
+    DCHECK_NE(i.InputRegister(2), i.OutputRegister(0));                        \
     __ BranchShort(&exit, ne, i.InputRegister(2),                              \
                    Operand(i.OutputRegister(0)));                              \
     __ InsertBits(i.TempRegister(2), i.InputRegister(3), i.TempRegister(1),    \
@@ -2425,7 +2427,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #if V8_TARGET_ARCH_RISCV64
     case kAtomicCompareExchangeWithWriteBarrier: {
       if constexpr (COMPRESS_POINTERS_BOOL) {
-        ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll, Sc);
+        // We need sign extend the expected value(i.InputRegister(2))) to be
+        // compared, so we don't use ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER.
+        // Also we don't emit sign extend instr in instr selector, because
+        // There are have chance to use a same register for i.InputRegister(2)
+        // and i.OutputRegister(0).
+        Label compareExchange;
+        Label exit;
+        __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
+        __ sync();
+        __ bind(&compareExchange);
+        __ SignExtendWord(i.TempRegister(1), i.InputRegister(2));
+        __ Ll(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0), trapper);
+        DCHECK_NE(i.TempRegister(1), i.OutputRegister(0));
+        __ BranchShort(&exit, ne, i.TempRegister(1),
+                       Operand(i.OutputRegister(0)));
+        __ Move(i.TempRegister(2), i.InputRegister(3));
+        __ Sc(i.TempRegister(2), MemOperand(i.TempRegister(0), 0));
+        __ BranchShort(&compareExchange, ne, i.TempRegister(2),
+                       Operand(zero_reg));
+        __ bind(&exit);
+        __ sync();
         __ ZeroExtendWord(i.OutputRegister(), i.OutputRegister());
         __ AddWord(i.OutputRegister(), i.OutputRegister(),
                    kPtrComprCageBaseRegister);
@@ -2499,7 +2521,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef ATOMIC_BINOP_CASE
 #elif V8_TARGET_ARCH_RISCV32
     case kAtomicCompareExchangeWithWriteBarrier: {
-      __ AddWord(i.TempRegister(1), i.InputRegister(0), i.InputRegister(1));
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll, Sc);
       if (v8_flags.disable_write_barriers) break;
       // Emit the write barrier.

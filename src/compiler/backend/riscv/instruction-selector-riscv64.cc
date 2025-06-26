@@ -2110,12 +2110,10 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
       has_write_barrier ? g.UseUniqueRegister(index) : g.UseRegister(index),
       g.UseUniqueRegister(old_value), g.UseUniqueRegister(new_value)};
 
-  InstructionOperand outputs[1];
-  outputs[0] = g.UseUniqueRegister(node);
-  InstructionOperand temps[3];
-  temps[0] = g.TempRegister();
-  temps[1] = g.TempRegister();
-  temps[2] = g.TempRegister();
+  InstructionOperand outputs[] = {g.UseUniqueRegister(node)};
+  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(),
+                                g.TempRegister()};
+
   InstructionCode code = opcode | AddressingModeField::encode(kMode_MRR) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
