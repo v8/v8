@@ -81,7 +81,7 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 69
+bytecode array length: 67
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
                 B(Mov), R(closure), R(2),
@@ -106,7 +106,6 @@ bytecodes: [
   /*   47 S> */ B(LdaUndefined),
                 B(Star1),
   /*   52 S> */ B(LdaModuleVariable), I8(-1), U8(0),
-                B(ThrowReferenceErrorIfHole), U8(3),
                 B(Star2),
                 B(LdaSmi), I8(42),
                 B(Star3),
