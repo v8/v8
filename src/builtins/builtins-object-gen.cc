@@ -562,7 +562,7 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
       TNode<Cell> validity_cell = CAST(
           GetHeapObjectAssumeWeak(maybe_validity_cell, &runtime_map_lookup));
       GotoIf(TaggedEqual(LoadCellMaybeValue(validity_cell),
-                         SmiConstant(Map::kPrototypeChainInvalid)),
+                         PrototypeChainInvalidConstant()),
              &runtime_map_lookup);
       clone_map = target_map;
     }

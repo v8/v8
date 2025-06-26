@@ -535,7 +535,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   // Invalid state for prototype validity cell. Everything else is considered
   // as valid state.
-  static constexpr Tagged<Smi> kPrototypeChainInvalid = Smi::FromInt(0);
+  static constexpr Tagged<ClearedWeakValue> kPrototypeChainInvalid =
+      kClearedWeakValue;
 
   // This sentinel is used in IC data handlers instead of actual validity cell
   // when there's nothing to guard against (when direct prototype is null or

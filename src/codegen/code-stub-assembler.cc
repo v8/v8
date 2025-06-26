@@ -2804,6 +2804,11 @@ TNode<MaybeObject> CodeStubAssembler::ClearedValue() {
       BitcastWordToTagged(IntPtrConstant(kClearedWeakHeapObjectLower32)));
 }
 
+TNode<MaybeObject> CodeStubAssembler::PrototypeChainInvalidConstant() {
+  static_assert(Map::kPrototypeChainInvalid.IsCleared());
+  return ClearedValue();
+}
+
 template <>
 TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(TNode<FixedArray> array) {
   return LoadAndUntagFixedArrayBaseLength(array);
@@ -8149,6 +8154,14 @@ TNode<BoolT> CodeStubAssembler::JSAnyIsNotPrimitive(TNode<HeapObject> object) {
 #else
   return IsJSReceiver(object);
 #endif
+}
+
+TNode<BoolT> CodeStubAssembler::JSAnyIsPrimitiveMap(TNode<Map> map) {
+  return Word32BinaryNot(JSAnyIsNotPrimitiveMap(map));
+}
+
+TNode<BoolT> CodeStubAssembler::JSAnyIsPrimitive(TNode<HeapObject> object) {
+  return Word32BinaryNot(JSAnyIsNotPrimitive(object));
 }
 
 TNode<BoolT> CodeStubAssembler::IsNullOrJSReceiver(TNode<HeapObject> object) {

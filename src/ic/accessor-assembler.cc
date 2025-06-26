@@ -1117,9 +1117,15 @@ TNode<Object> AccessorAssembler::HandleProtoHandler(
   //
   // Check prototype validity cell.
   //
-  TNode<Object> maybe_validity_cell =
-      LoadObjectField(handler, offsetof(ICHandler, validity_cell_));
-  CheckPrototypeValidityCell(maybe_validity_cell, miss);
+  TNode<MaybeObject> validity_cell_value;
+  {
+    TNode<Object> maybe_validity_cell =
+        LoadObjectField(handler, offsetof(ICHandler, validity_cell_));
+    validity_cell_value = CheckPrototypeValidityCell(maybe_validity_cell, miss);
+    // CheckPrototypeValidityCell guarantees that the returned value is not
+    // a cleared weak reference value.
+    CSA_DCHECK(this, IsNotCleared(validity_cell_value));
+  }
 
   //
   // Check smi handler bits.
@@ -1162,12 +1168,11 @@ TNode<Object> AccessorAssembler::HandleProtoHandler(
 
       BIND(&if_do_access_check);
       {
-        // Load expected native context from the validity cell.
-        TNode<MaybeObject> maybe_expected_native_context =
-            LoadCellMaybeValue(CAST(maybe_validity_cell));
-        CSA_DCHECK(this, IsWeakOrCleared(maybe_expected_native_context));
-        TNode<Context> expected_native_context =
-            CAST(GetHeapObjectAssumeWeak(maybe_expected_native_context, miss));
+        // The expected native context is stored as a weak reference in
+        // the validity cell and validity cell check guarantees that it's not
+        // cleared.
+        TNode<NativeContext> expected_native_context =
+            CAST(GetHeapObjectAssumeWeak(validity_cell_value));
         EmitAccessCheck(expected_native_context, p->context(),
                         p->lookup_start_object(), &done, miss);
       }
@@ -1275,19 +1280,39 @@ void AccessorAssembler::HandleLoadICProtoHandler(
   }
 }
 
-void AccessorAssembler::EmitAccessCheck(TNode<Context> expected_native_context,
-                                        TNode<Context> context,
-                                        TNode<Object> receiver,
-                                        Label* can_access, Label* miss) {
+void AccessorAssembler::EmitAccessCheck(
+    TNode<NativeContext> expected_native_context, TNode<Context> context,
+    TNode<Object> lookup_start_object, Label* can_access, Label* miss) {
   CSA_DCHECK(this, IsNativeContext(expected_native_context));
 
   TNode<NativeContext> native_context = LoadNativeContext(context);
   GotoIf(TaggedEqual(expected_native_context, native_context), can_access);
-  // If the receiver is not a JSGlobalProxy then we miss.
-  GotoIf(TaggedIsSmi(receiver), miss);
-  GotoIfNot(IsJSGlobalProxy(CAST(receiver)), miss);
-  // For JSGlobalProxy receiver try to compare security tokens of current
-  // and expected native contexts.
+
+  // If the |lookup_start_object| is primitive then we have to take a slow
+  // path because primitive maps are context-independent and thus the data
+  // handler can encode the prototype chain state only for one native context
+  // (namely for the |expected_native_context|) while the data handler can
+  // be used in another native context via megamorphic stub cache.
+  // TODO(ishell): consider jumping to |slow| case instead of |miss|.
+  GotoIf(TaggedIsSmi(lookup_start_object), miss);
+  GotoIf(JSAnyIsPrimitive(CAST(lookup_start_object)), miss);
+
+  if (DEBUG_BOOL) {
+    // Check that the |lookup_start_object| is bound to some native context.
+    Label ok(this), no_creation_context(this);
+    GetCreationContext(CAST(lookup_start_object), &no_creation_context);
+    Goto(&ok);
+
+    BIND(&no_creation_context);
+    Check(Int32FalseConstant(),
+          "lookup_start_object does not have creation context");
+    Unreachable();
+
+    BIND(&ok);
+  }
+
+  // For |lookup_start_object|s bound to a native context we can proceed
+  // with comparing security tokens of current and expected native contexts.
   TNode<Object> expected_token = LoadContextElementNoCell(
       expected_native_context, Context::SECURITY_TOKEN_INDEX);
   TNode<Object> current_token =
@@ -1923,8 +1948,11 @@ void AccessorAssembler::StoreJSSharedStructField(
   BIND(&done);
 }
 
-void AccessorAssembler::CheckPrototypeValidityCell(
+TNode<MaybeObject> AccessorAssembler::CheckPrototypeValidityCell(
     TNode<Object> maybe_validity_cell, Label* miss) {
+  TVARIABLE(MaybeObject, var_cell_value,
+            SmiConstant(Map::kNoValidityCellSentinel));
+
   Label done(this);
   GotoIf(TaggedEqual(maybe_validity_cell,
                      SmiConstant(Map::kNoValidityCellSentinel)),
@@ -1932,10 +1960,11 @@ void AccessorAssembler::CheckPrototypeValidityCell(
   CSA_DCHECK(this, TaggedIsNotSmi(maybe_validity_cell));
 
   TNode<MaybeObject> cell_value = LoadCellMaybeValue(CAST(maybe_validity_cell));
-  Branch(TaggedEqual(cell_value, SmiConstant(Map::kPrototypeChainInvalid)),
-         miss, &done);
+  var_cell_value = cell_value;
+  Branch(TaggedEqual(cell_value, PrototypeChainInvalidConstant()), miss, &done);
 
   BIND(&done);
+  return var_cell_value.value();
 }
 
 void AccessorAssembler::HandleStoreICProtoHandler(
