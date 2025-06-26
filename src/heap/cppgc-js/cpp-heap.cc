@@ -318,6 +318,23 @@ class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
     MarkerBase::AdvanceMarkingOnAllocationImpl();
   }
 
+  bool AdvanceMarkingOnStep(v8::base::TimeDelta max_duration,
+                            std::optional<size_t> marked_bytes_limit,
+                            cppgc::EmbedderStackState stack_state) {
+    // This is similar to MarkerBase::IncrementalMarkingStep() with the
+    // difference that we accept a duration instead of using the default
+    // duration and that the bytes limit is
+    if (stack_state == StackState::kNoHeapPointers) {
+      mutator_marking_state_.FlushNotFullyConstructedObjects();
+    }
+    if (!marked_bytes_limit.has_value()) {
+      marked_bytes_limit.emplace(schedule().GetNextIncrementalStepDuration(
+          heap().stats_collector()->allocated_object_size()));
+    }
+    return MarkerBase::AdvanceMarkingWithLimits(max_duration,
+                                                *marked_bytes_limit);
+  }
+
  protected:
   cppgc::Visitor& visitor() final { return marking_visitor_; }
 
@@ -856,7 +873,8 @@ size_t CppHeap::last_bytes_marked() const {
 }
 
 bool CppHeap::AdvanceMarking(v8::base::TimeDelta max_duration,
-                             size_t marked_bytes_limit) {
+                             std::optional<size_t> marked_bytes_limit,
+                             cppgc::EmbedderStackState stack_state) {
   if (!TracingInitialized()) {
     return true;
   }
@@ -870,8 +888,8 @@ bool CppHeap::AdvanceMarking(v8::base::TimeDelta max_duration,
     marker_->NotifyConcurrentMarkingOfWorkIfNeeded(
         cppgc::TaskPriority::kUserBlocking);
   }
-  marking_done_ =
-      marker_->AdvanceMarkingWithLimits(max_duration, marked_bytes_limit);
+  marking_done_ = marker_->To<UnifiedHeapMarker>().AdvanceMarkingOnStep(
+      max_duration, marked_bytes_limit, stack_state);
   DCHECK_IMPLIES(in_atomic_pause_, marking_done_);
   is_in_v8_marking_step_ = false;
   return marking_done_;
@@ -1119,9 +1137,11 @@ void CppHeap::CollectGarbageForTesting(CollectionType collection_type,
     }
     EnterFinalPause(stack_state);
     EnterProcessGlobalAtomicPause();
-    CHECK(AdvanceMarking(v8::base::TimeDelta::Max(), SIZE_MAX));
+    CHECK(AdvanceMarking(v8::base::TimeDelta::Max(), SIZE_MAX,
+                         StackState::kMayContainHeapPointers));
     if (FinishConcurrentMarkingIfNeeded()) {
-      CHECK(AdvanceMarking(v8::base::TimeDelta::Max(), SIZE_MAX));
+      CHECK(AdvanceMarking(v8::base::TimeDelta::Max(), SIZE_MAX,
+                           StackState::kMayContainHeapPointers));
     }
     FinishMarkingAndProcessWeakness();
     CompactAndSweep();

@@ -470,7 +470,8 @@ void IncrementalMarking::StopPointerTableBlackAllocation() {
 }
 
 std::pair<v8::base::TimeDelta, size_t> IncrementalMarking::CppHeapStep(
-    v8::base::TimeDelta max_duration, size_t marked_bytes_limit) {
+    v8::base::TimeDelta max_duration, std::optional<size_t> marked_bytes_limit,
+    StepOrigin step_origin) {
   DCHECK(IsMarking());
   auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
   if (!cpp_heap || !cpp_heap->incremental_marking_supported()) {
@@ -479,7 +480,11 @@ std::pair<v8::base::TimeDelta, size_t> IncrementalMarking::CppHeapStep(
 
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_TRACING);
   const auto start = v8::base::TimeTicks::Now();
-  cpp_heap->AdvanceMarking(max_duration, marked_bytes_limit);
+  cpp_heap->AdvanceMarking(
+      max_duration, marked_bytes_limit,
+      step_origin == StepOrigin::kTask
+          ? cppgc::internal::StackState::kNoHeapPointers
+          : cppgc::internal::StackState::kMayContainHeapPointers);
   return {v8::base::TimeTicks::Now() - start, cpp_heap->last_bytes_marked()};
 }
 
@@ -815,8 +820,12 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
   // on the main thread.
   v8::base::TimeDelta cpp_heap_duration;
   size_t cpp_heap_marked_bytes;
+  std::optional<size_t> cpp_heap_marked_bytes_limit;
+  if (v8_flags.incremental_marking_unified_schedule) {
+    cpp_heap_marked_bytes_limit.emplace(marked_bytes_limit);
+  }
   std::tie(cpp_heap_duration, cpp_heap_marked_bytes) =
-      CppHeapStep(max_duration, marked_bytes_limit);
+      CppHeapStep(max_duration, cpp_heap_marked_bytes_limit, step_origin);
 
   // Add an optional V8 step if we are not exceeding our limits.
   size_t v8_marked_bytes = 0;
@@ -846,9 +855,11 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
   if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
     const auto v8_max_duration = max_duration - cpp_heap_duration;
     const auto v8_marked_bytes_limit =
-        marked_bytes_limit - cpp_heap_marked_bytes;
+        marked_bytes_limit > cpp_heap_marked_bytes
+            ? marked_bytes_limit - cpp_heap_marked_bytes
+            : 0;
     isolate()->PrintWithTimestamp(
-        "[IncrementalMaring] Step: origin: %s overall: %.1fms "
+        "[IncrementalMarking] Step: origin: %s overall: %.1fms "
         "V8: %zuKB (%zuKB), %.1fms (%.1fms), %.1fMB/s "
         "CppHeap: %zuKB (%zuKB), %.1fms (%.1fms)\n",
         ToString(step_origin),
