@@ -74,6 +74,20 @@ class MaybeHandle final {
   template <typename S>
   V8_WARN_UNUSED_RESULT V8_INLINE bool ToHandle(DirectHandle<S>* out) const;
 
+  // Adapter methods to make error handling macros like
+  // ASSIGN_RETURN_ON_EXCEPTION work with MaybeHandles.
+  template <typename S>
+  V8_WARN_UNUSED_RESULT V8_INLINE bool To(Handle<S>* out) const {
+    return ToHandle(out);
+  }
+
+  template <typename S>
+  V8_WARN_UNUSED_RESULT V8_INLINE bool To(DirectHandle<S>* out) const {
+    return ToHandle(out);
+  }
+
+  bool IsEmpty() const { return is_null(); }
+
   // Location equality.
   bool equals(MaybeHandle<T> other) const {
     return address() == other.address();
@@ -210,6 +224,15 @@ class MaybeDirectHandle final {
     }
   }
 
+  // Adapter methods to make error handling macros like
+  // ASSIGN_RETURN_ON_EXCEPTION work with MaybeDirectHandles.
+  template <typename S>
+  V8_WARN_UNUSED_RESULT V8_INLINE bool To(DirectHandle<S>* out) const {
+    return ToHandle(out);
+  }
+
+  bool IsEmpty() const { return is_null(); }
+
   // Address equality.
   bool equals(MaybeHandle<T> other) const {
     return address() == other.address();
@@ -281,6 +304,15 @@ class MaybeDirectHandle {
   V8_WARN_UNUSED_RESULT V8_INLINE bool ToHandle(DirectHandle<S>* out) const {
     return handle_.ToHandle(out);
   }
+
+  // Adapter methods to make error handling macros like
+  // ASSIGN_RETURN_ON_EXCEPTION work with MaybeDirectHandles.
+  template <typename S>
+  V8_WARN_UNUSED_RESULT V8_INLINE bool To(DirectHandle<S>* out) const {
+    return ToHandle(out);
+  }
+
+  bool IsEmpty() const { return is_null(); }
 
   V8_INLINE bool is_null() const { return handle_.is_null(); }
 

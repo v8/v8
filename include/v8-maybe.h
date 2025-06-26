@@ -46,6 +46,12 @@ class Maybe : public cppgc::internal::ConditionalStackAllocatedBase<T> {
   V8_INLINE bool IsJust() const { return has_value_; }
 
   /**
+   * Same as IsNothing(). It's useful for unified handling of empty states
+   * with v8::MaybeLocal<T>.
+   */
+  V8_INLINE bool IsEmpty() const { return IsNothing(); }
+
+  /**
    * An alias for |FromJust|. Will crash if the Maybe<> is nothing.
    */
   V8_INLINE T ToChecked() const { return FromJust(); }

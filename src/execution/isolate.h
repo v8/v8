@@ -236,13 +236,9 @@ class WaiterQueueNode;
 #define RETURN_EXCEPTION_IF_EXCEPTION(isolate) \
   RETURN_VALUE_IF_EXCEPTION(isolate, internal::kNullMaybe)
 
+// TODO(427539322) Remove once we've migrated everyone to these
 #define MAYBE_RETURN_ON_EXCEPTION_VALUE(isolate, call, value) \
-  do {                                                        \
-    if ((call).IsNothing()) {                                 \
-      DCHECK((isolate)->has_exception());                     \
-      return value;                                           \
-    }                                                         \
-  } while (false)
+  RETURN_ON_EXCEPTION_VALUE(isolate, call, value)
 
 /**
  * RETURN_RESULT_OR_FAILURE is used in functions with return type Object (such
@@ -266,7 +262,7 @@ class WaiterQueueNode;
   do {                                               \
     DirectHandle<Object> __result__;                 \
     Isolate* __isolate__ = (isolate);                \
-    if (!(call).ToHandle(&__result__)) {             \
+    if (!(call).To(&__result__)) {                   \
       DCHECK(__isolate__->has_exception());          \
       return ReadOnlyRoots(__isolate__).exception(); \
     }                                                \
@@ -276,7 +272,7 @@ class WaiterQueueNode;
 
 #define ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
   do {                                                              \
-    if (!(call).ToHandle(&dst)) {                                   \
+    if (!(call).To(&dst)) {                                         \
       DCHECK((isolate)->has_exception());                           \
       return value;                                                 \
     }                                                               \
@@ -340,7 +336,7 @@ class WaiterQueueNode;
  */
 #define RETURN_ON_EXCEPTION_VALUE(isolate, call, value) \
   do {                                                  \
-    if ((call).is_null()) {                             \
+    if ((call).IsEmpty()) {                             \
       DCHECK((isolate)->has_exception());               \
       return value;                                     \
     }                                                   \
@@ -406,9 +402,9 @@ class WaiterQueueNode;
     }                                               \
   } while (false)
 
-#define MAYBE_RETURN(call, value)         \
-  do {                                    \
-    if ((call).IsNothing()) return value; \
+#define MAYBE_RETURN(call, value)       \
+  do {                                  \
+    if ((call).IsEmpty()) return value; \
   } while (false)
 
 #define MAYBE_RETURN_NULL(call) MAYBE_RETURN(call, internal::kNullMaybe)
@@ -421,30 +417,16 @@ class WaiterQueueNode;
     }                                                                   \
   } while (false)
 
+// TODO(427539322) Remove these MAYBE_ ones once we've migrated everyone to
+// these
 #define MAYBE_RETURN_ON_EXCEPTION_VALUE(isolate, call, value) \
-  do {                                                        \
-    if ((call).IsNothing()) {                                 \
-      DCHECK((isolate)->has_exception());                     \
-      return value;                                           \
-    }                                                         \
-  } while (false)
+  RETURN_ON_EXCEPTION_VALUE(isolate, call, value)
 
 #define MAYBE_RETURN_FAILURE_ON_EXCEPTION(isolate, call) \
-  do {                                                   \
-    Isolate* __isolate__ = (isolate);                    \
-    if ((call).IsNothing()) {                            \
-      DCHECK((__isolate__)->has_exception());            \
-      return ReadOnlyRoots(__isolate__).exception();     \
-    }                                                    \
-  } while (false)
+  RETURN_FAILURE_ON_EXCEPTION(isolate, call)
 
 #define MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
-  do {                                                                    \
-    if (!(call).To(&dst)) {                                               \
-      DCHECK((isolate)->has_exception());                                 \
-      return value;                                                       \
-    }                                                                     \
-  } while (false)
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value)
 
 #define MAYBE_ASSIGN_RETURN_ON_EXCEPTION(isolate, dst, call) \
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, \
@@ -464,13 +446,7 @@ class WaiterQueueNode;
   MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, internal::kNullMaybe)
 
 #define MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, dst, call) \
-  do {                                                               \
-    Isolate* __isolate__ = (isolate);                                \
-    if (!(call).To(&dst)) {                                          \
-      DCHECK(__isolate__->has_exception());                          \
-      return ReadOnlyRoots(__isolate__).exception();                 \
-    }                                                                \
-  } while (false)
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, dst, call)
 
 #define FOR_WITH_HANDLE_SCOPE(isolate, loop_var_type, init, loop_var,      \
                               limit_check, increment, body)                \
