@@ -521,16 +521,16 @@ void JsonParser<Char>::ReportUnexpectedCharacter(base::uc32 c) {
 
 template <typename Char>
 JsonParser<Char>::~JsonParser() {
-  if (StringShape(*source_).IsExternal()) {
-    // Check that the string shape hasn't changed. Otherwise our GC hooks are
-    // broken.
-    Cast<SeqExternalString>(*source_);
-  } else {
+  if (chars_may_relocate_) {
     // Check that the string shape hasn't changed. Otherwise our GC hooks are
     // broken.
     Cast<SeqString>(*source_);
     isolate()->main_thread_local_heap()->RemoveGCEpilogueCallback(
         UpdatePointersCallback, this);
+  } else {
+    // Check that the string shape hasn't changed. Otherwise our GC hooks are
+    // broken.
+    Cast<SeqExternalString>(*source_);
   }
 }
 
