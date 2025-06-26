@@ -82,7 +82,7 @@ vars = {
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:c23de742b8483ddc09d8b68ef845efc7f5c6192f',
+  'siso_version': 'git_revision:13b7a626dcadfb49c7f4759a44095cebea6e91bc',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -92,7 +92,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '983d556a9aed36814954a4463bb0b508d2af133a',
+  'partition_alloc_version': '3d6e246fc6014fd3f9f850876eae0fcd8f97921e',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -130,7 +130,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f85273885aa0e055bacfa3f1d960de805bf8f1ff',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '18c94bbacfdf02815bba03a58128b5da8585d660',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'e4d18feca868416b05aad59db16848144fe229c1',
   'buildtools/linux64': {
@@ -232,7 +232,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '0c0721de3c2654774e45da98c0bbe2a13f206350',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '8b6c661e426a3f1cde2a11aeb39f4079ade01a63',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -282,7 +282,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + '45a1c3ad5ac3de58c8e9a3f89036e3f954820d4c',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'f8ed0e687c806bc70871f3f556d848a79bff4c01',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'a45468c0fcbeda1588573a7d8283b320bf9970cb',
   'third_party/highway/src':
     Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '00fe003dac355b979f36157f9407c7c46448958e',
   'third_party/icu':
@@ -304,7 +304,7 @@ deps = {
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'b5d83e70a1537fbce965e6319877c76794daaa80',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'e44c3c4560f1742744ef3f9fb4217a5f26ebca1b',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '02570151a883c93800bd336774e26d2bad8fee0d',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '5bbf35ae6801f579c523893176789774c0726e22',
   'third_party/llvm-libc/src':
@@ -486,7 +486,7 @@ deps = {
   'tools/rust':
     Var('chromium_url') + '/chromium/src/tools/rust' + '@' + 'c52b68f9dc6986af8573e3151a99b009311dd75f',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '4b5d818f299d12635ac66d271be972da40779bdf',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '10890f1e73c90f1521fc19e91a9e1a657fa9575c',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
