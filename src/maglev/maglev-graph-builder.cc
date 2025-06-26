@@ -7292,47 +7292,27 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
                     &*ret_val});
           }
         }
+        if (is_any_store) {
+          sub_graph.Goto(&*done);
+        } else if (continuation) {
+          // Generate code for further bytecodes inside the polymorphic
+          // branch.
 
-#ifdef DEBUG
-        int predecessor_count_for_offset_after_continuation =
-            continuation ? predecessor_count_[continuation->after_continuation]
-                         : 0;
-#endif
-        if (!is_any_store) {
-          if (continuation) {
-            // Generate code for further bytecodes inside the polymorphic
-            // branch.
+          // First save the result of the property load in the accumulator.
+          SetAccumulator(result.value());
 
-            // First save the result of the property load in the accumulator.
-            SetAccumulator(result.value());
-
-            BuildContinuationForPolymorphicPropertyLoad(*continuation);
-
-            // The continuation stored its value into the accumulator. Take that
-            // value as our value.
+          if (!BuildContinuationForPolymorphicPropertyLoad(*continuation)
+                   .IsDoneWithAbort()) {
+            // The continuation stored its value into the accumulator. Take
+            // that value as our value.
             sub_graph.set(*ret_val,
                           current_interpreter_frame_.get(
                               interpreter::Register::virtual_accumulator()));
-          } else {
-            sub_graph.set(*ret_val, result.value());
+            sub_graph.Goto(&*done);
           }
-        }
-        if (current_block_) {
-          sub_graph.Goto(&*done);
-#ifdef DEBUG
-          if (continuation) {
-            DCHECK_EQ(predecessor_count_[continuation->after_continuation],
-                      predecessor_count_for_offset_after_continuation);
-          }
-#endif
         } else {
-          // The continuation is dead. Marking it dead decreased the predecessor
-          // count of continuation->after_continuation. Correct for that.
-#ifdef DEBUG
-          DCHECK_EQ(predecessor_count_[continuation->after_continuation],
-                    predecessor_count_for_offset_after_continuation - 1);
-#endif
-          ++predecessor_count_[continuation->after_continuation];
+          sub_graph.set(*ret_val, result.value());
+          sub_graph.Goto(&*done);
         }
         break;
       }
@@ -7365,14 +7345,17 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
     if (continuation) {
       DCHECK(!is_any_store);
       SetAccumulator(generic_result.value());
-      BuildContinuationForPolymorphicPropertyLoad(*continuation);
+      ReduceResult continuation_result =
+          BuildContinuationForPolymorphicPropertyLoad(*continuation);
       if (!done.has_value()) {
         return current_interpreter_frame_.get(
             interpreter::Register::virtual_accumulator());
       }
-      sub_graph.set(*ret_val,
-                    current_interpreter_frame_.get(
-                        interpreter::Register::virtual_accumulator()));
+      if (!continuation_result.IsDoneWithAbort()) {
+        sub_graph.set(*ret_val,
+                      current_interpreter_frame_.get(
+                          interpreter::Register::virtual_accumulator()));
+      }
     } else {
       if (!done.has_value()) {
         return is_any_store ? ReduceResult::Done() : generic_result.value();
@@ -7465,12 +7448,15 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoad() {
   // can't assume it should call SetAccumulator after TryBuildLoadNamedProperty.
 }
 
-void MaglevGraphBuilder::BuildContinuationForPolymorphicPropertyLoad(
+ReduceResult MaglevGraphBuilder::BuildContinuationForPolymorphicPropertyLoad(
     const ContinuationOffsets& continuation) {
   while (iterator_.current_offset() < continuation.last_continuation) {
     iterator_.Advance();
-    VisitSingleBytecode();
+    if (VisitSingleBytecode().IsDoneWithAbort()) {
+      return ReduceResult::DoneWithAbort();
+    }
   }
+  return ReduceResult::Done();
 }
 
 void MaglevGraphBuilder::RecordKnownProperty(
@@ -14450,11 +14436,19 @@ void MaglevGraphBuilder::BuildLoopForPeeling() {
 
   while (iterator_.current_bytecode() != interpreter::Bytecode::kJumpLoop) {
     local_isolate_->heap()->Safepoint();
-    VisitSingleBytecode();
+    // TODO(marja): Simplify this. Figure out when / how stop iterating, instead
+    // of marking the bytecode dead. Remove decremented_predecessor_offsets_
+    // handling.
+    if (VisitSingleBytecode().IsDoneWithAbort()) {
+      MarkBytecodeDead();
+    }
     iterator_.Advance();
   }
 
-  VisitSingleBytecode();  // VisitJumpLoop
+  // VisitJumpLoop
+  if (VisitSingleBytecode().IsDoneWithAbort()) {
+    MarkBytecodeDead();
+  }
 
   DCHECK_EQ(was_in_peeled_iteration, in_peeled_iteration());
   if (!in_peeled_iteration()) {
@@ -15798,7 +15792,9 @@ void MaglevGraphBuilder::BuildBody() {
       DCHECK_EQ(iterator_.current_bytecode(), interpreter::Bytecode::kJumpLoop);
       continue;
     }
-    VisitSingleBytecode();
+    if (VisitSingleBytecode().IsDoneWithAbort()) {
+      MarkBytecodeDead();
+    }
   }
   DCHECK_EQ(loop_effects_stack_.size(),
             is_inline() && caller_details_->loop_effects ? 1 : 0);
@@ -16079,7 +16075,7 @@ void MaglevGraphBuilder::PrintVirtualObjects() {
       std::cout, "* VOs (Interpreter Frame State): ", graph_labeller());
 }
 
-void MaglevGraphBuilder::VisitSingleBytecode() {
+ReduceResult MaglevGraphBuilder::VisitSingleBytecode() {
   if (v8_flags.trace_maglev_graph_building) {
     std::cout << std::setw(4) << iterator_.current_offset() << " : ";
     interpreter::BytecodeDecoder::Decode(std::cout,
@@ -16128,8 +16124,7 @@ void MaglevGraphBuilder::VisitSingleBytecode() {
       // dead.
       if (!jump_targets_[offset].has_ref() ||
           !merge_state->exception_handler_was_used()) {
-        MarkBytecodeDead();
-        return;
+        return ReduceResult::DoneWithAbort();
       }
       ProcessMergePointAtExceptionHandlerStart(offset);
     } else if (merge_state->is_unmerged_unreachable_loop()) {
@@ -16137,8 +16132,7 @@ void MaglevGraphBuilder::VisitSingleBytecode() {
       // back-edge, but the bytecode_analysis didn't notice upfront. This can
       // e.g. be a loop that is entered on a dead fall-through.
       static_assert(kLoopsMustBeEnteredThroughHeader);
-      MarkBytecodeDead();
-      return;
+      return ReduceResult::DoneWithAbort();
     } else {
       ProcessMergePoint(offset, preserve_known_node_aspects);
     }
@@ -16161,8 +16155,7 @@ void MaglevGraphBuilder::VisitSingleBytecode() {
     } else {
       CHECK_EQ(predecessor_count(offset), 0);
     }
-    MarkBytecodeDead();
-    return;
+    return ReduceResult::DoneWithAbort();
   }
 
   // Handle exceptions if we have a table.
@@ -16202,21 +16195,17 @@ void MaglevGraphBuilder::VisitSingleBytecode() {
     static_assert(kLoopsMustBeEnteredThroughHeader);
     CHECK(EmitUnconditionalDeopt(DeoptimizeReason::kOSREarlyExit)
               .IsDoneWithAbort());
-    MarkBytecodeDead();
-    return;
+    return ReduceResult::DoneWithAbort();
   }
 
   switch (iterator_.current_bytecode()) {
-#define BYTECODE_CASE(name, ...)           \
-  case interpreter::Bytecode::k##name: {   \
-    if (Visit##name().IsDoneWithAbort()) { \
-      MarkBytecodeDead();                  \
-    }                                      \
-    break;                                 \
-  }
+#define BYTECODE_CASE(name, ...)       \
+  case interpreter::Bytecode::k##name: \
+    return Visit##name();
     BYTECODE_LIST(BYTECODE_CASE, BYTECODE_CASE)
 #undef BYTECODE_CASE
   }
+  UNREACHABLE();
 }
 
 void MaglevGraphBuilder::AddInitializedNodeToGraph(Node* node) {

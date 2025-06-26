@@ -519,7 +519,7 @@ class MaglevGraphBuilder {
 
   void PrintVirtualObjects();
 
-  void VisitSingleBytecode();
+  ReduceResult VisitSingleBytecode();
 
 #define BYTECODE_VISITOR(name, ...) ReduceResult Visit##name();
   BYTECODE_LIST(BYTECODE_VISITOR, BYTECODE_VISITOR)
@@ -1524,7 +1524,7 @@ class MaglevGraphBuilder {
   };
   std::optional<ContinuationOffsets>
   FindContinuationForPolymorphicPropertyLoad();
-  void BuildContinuationForPolymorphicPropertyLoad(
+  ReduceResult BuildContinuationForPolymorphicPropertyLoad(
       const ContinuationOffsets& offsets);
 
   // Load elimination -- when loading or storing a simple property without
