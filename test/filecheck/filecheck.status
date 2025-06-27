@@ -8,4 +8,14 @@
   # same test is executed twice (similar to message tests).
   'deopt-too-much-feedback': [SKIP],
 }],  # variant == code_serializer
+
+['variant == jitless', {
+  'wasm-pause': [SKIP],
+}],  # variant == jitless
+
+['single_generation', {
+  # TODO(42204563): These tests rely on the shared heap which is incompatible
+  # with single generation.
+  'wasm-pause': [SKIP],
+}], # single_generation
 ]

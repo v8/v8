@@ -6183,6 +6183,8 @@ class LiftoffCompiler {
 
   void AtomicFence(FullDecoder* decoder) { __ AtomicFence(); }
 
+  void Pause(FullDecoder* decoder) { __ Pause(); }
+
   void StructAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
                        const Value& struct_object, const FieldImmediate& field,
                        const Value& field_value, AtomicMemoryOrder order,

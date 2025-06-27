@@ -2596,6 +2596,10 @@ void InstructionSelector::VisitComment(OpIndex node) {
   Emit(kArchComment, 0, nullptr, 1, &operand);
 }
 
+void InstructionSelector::VisitPause(OpIndex node) {
+  Emit(kArchPause, 0, nullptr, 0, nullptr);
+}
+
 void InstructionSelector::VisitRetain(OpIndex node) {
   const RetainOp& retain = Cast<RetainOp>(node);
   OperandGenerator g(this);
@@ -3563,6 +3567,9 @@ void InstructionSelector::VisitNode(OpIndex node) {
     }
     case Opcode::kMemoryBarrier:
       return VisitMemoryBarrier(node);
+
+    case Opcode::kPause:
+      return VisitPause(node);
 
     case Opcode::kComment:
       return VisitComment(node);

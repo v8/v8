@@ -2750,6 +2750,8 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableMemoryBarrier(memory_order);
   }
 
+  OpIndex Pause() { return ReduceIfReachablePause(); }
+
   OpIndex Load(OpIndex base, OptionalOpIndex index, LoadOp::Kind kind,
                MemoryRepresentation loaded_rep,
                RegisterRepresentation result_rep, int32_t offset = 0,

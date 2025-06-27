@@ -1475,6 +1475,7 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
   F(AtomicOp, WasmOpcode opcode, const Value args[], const size_t argc,        \
     const MemoryAccessImmediate& imm, Value* result)                           \
   F(AtomicFence)                                                               \
+  F(Pause)                                                                     \
   F(MemoryInit, const MemoryInitImmediate& imm, const Value& dst,              \
     const Value& src, const Value& size)                                       \
   F(DataDrop, const IndexImmediate& imm)                                       \
@@ -2731,6 +2732,8 @@ class WasmDecoder : public Decoder {
             // One unused zero-byte.
             return length + 1;
           }
+          case kExprPause:
+            return length;
           case kExprStructAtomicGet:
           case kExprStructAtomicGetS:
           case kExprStructAtomicGetU:
@@ -6837,6 +6840,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         CALL_INTERFACE_IF_OK_AND_REACHABLE(AtomicFence);
         return 1 + opcode_length;
       }
+      case kExprPause:
+        CHECK_PROTOTYPE_OPCODE(shared);
+        NON_CONST_ONLY
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(Pause);
+        return opcode_length;
       case kExprStructAtomicGetS:
       case kExprStructAtomicGetU: {
         CHECK_PROTOTYPE_OPCODE(shared);

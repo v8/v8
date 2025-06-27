@@ -1655,6 +1655,8 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
 
 void LiftoffAssembler::AtomicFence() { dmb(ISH); }
 
+void LiftoffAssembler::Pause() { isb(SY); }
+
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueKind kind) {

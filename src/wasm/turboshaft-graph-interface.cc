@@ -4301,6 +4301,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     __ MemoryBarrier(AtomicMemoryOrder::kSeqCst);
   }
 
+  void Pause(FullDecoder* decoder) { __ Pause(); }
+
   void MemoryInit(FullDecoder* decoder, const MemoryInitImmediate& imm,
                   const Value& dst, const Value& src, const Value& size) {
     V<WordPtr> dst_uintptr = MemoryAddressToUintPtrOrOOBTrap(

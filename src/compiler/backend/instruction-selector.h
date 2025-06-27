@@ -1342,6 +1342,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   DECLARE_GENERATOR_T(SignExtendWord32ToInt64)
   DECLARE_GENERATOR_T(TraceInstruction)
   DECLARE_GENERATOR_T(MemoryBarrier)
+  DECLARE_GENERATOR_T(Pause)
   DECLARE_GENERATOR_T(LoadStackCheckOffset)
   DECLARE_GENERATOR_T(LoadFramePointer)
   DECLARE_GENERATOR_T(LoadParentFramePointer)

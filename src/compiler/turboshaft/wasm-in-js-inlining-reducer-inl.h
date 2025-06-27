@@ -724,6 +724,8 @@ class WasmInJsInliningInterface {
   }
   void AtomicFence(FullDecoder* decoder) { Bailout(decoder); }
 
+  void Pause(FullDecoder* decoder) { Bailout(decoder); }
+
   void StructAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
                        const Value& struct_object, const FieldImmediate& field,
                        const Value& field_value, AtomicMemoryOrder order,

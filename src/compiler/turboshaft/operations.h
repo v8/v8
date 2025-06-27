@@ -338,7 +338,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(MemoryBarrier)                           \
   V(Comment)                                 \
   V(Dead)                                    \
-  V(AbortCSADcheck)
+  V(AbortCSADcheck)                          \
+  V(Pause)
 
 #define TURBOSHAFT_JS_THROWING_OPERATION_LIST(V) \
   V(GenericBinop)                                \
@@ -3380,6 +3381,25 @@ struct MemoryBarrierOp : FixedArityOperationT<0, MemoryBarrierOp> {
 
   auto options() const { return std::tuple{memory_order}; }
   void PrintOptions(std::ostream& os) const;
+};
+
+// "Pause" operation used to indicate the thread is doing something of
+// low-importance, e.g. a spinlock, see also the x86 pause instruction.
+struct PauseOp : FixedArityOperationT<0, PauseOp> {
+  // While this operation doesn't have any observable side effects, it should
+  // not be optimized away (its whole purpose is to affect the generated code.)
+  static constexpr OpEffects effects = OpEffects().RequiredWhenUnused();
+
+  PauseOp() = default;
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return {};
+  }
+
+  auto options() const { return std::tuple{}; }
 };
 
 // Store `value` to: base + offset + index * 2^element_size_log2.

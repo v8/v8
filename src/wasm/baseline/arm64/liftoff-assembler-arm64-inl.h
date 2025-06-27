@@ -1432,6 +1432,8 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
 
 void LiftoffAssembler::AtomicFence() { Dmb(InnerShareable, BarrierAll); }
 
+void LiftoffAssembler::Pause() { Isb(); }
+
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueKind kind) {
