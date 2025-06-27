@@ -275,7 +275,6 @@ namespace v8::internal {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Scheduling)                        \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, SelectInstructions)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, SimplifiedLowering)                \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, SimplifyLoops)                     \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TraceScheduleAndVerify)            \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftBlockInstrumentation)    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftBuildGraph)              \
@@ -325,10 +324,7 @@ namespace v8::internal {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmGCLowering)                    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmGCOptimization)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmInlining)                      \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmLoopPeeling)                   \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmLoopUnrolling)                 \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmOptimization)                  \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmJSLowering)                    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmTyping)                        \
                                                                               \
   ADD_THREAD_SPECIFIC_COUNTER(V, Parse, ArrowFunctionLiteral)                 \

@@ -1390,18 +1390,6 @@ struct WasmGCOptimizationPhase {
   }
 };
 
-struct SimplifyLoopsPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(SimplifyLoops)
-
-  void Run(TFPipelineData* data, Zone* temp_zone) {
-    GraphReducer graph_reducer(
-        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
-        data->jsgraph()->Dead(), data->observe_node_manager());
-    SimplifyTFLoops simplify_loops(&graph_reducer, data->mcgraph());
-    AddReducer(data, &graph_reducer, &simplify_loops);
-    graph_reducer.ReduceGraph();
-  }
-};
 
 struct WasmGCLoweringPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(WasmGCLowering)
