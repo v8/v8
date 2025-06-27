@@ -4228,8 +4228,8 @@ void CodeStubAssembler::TryStoreArrayElement(ElementsKind kind, Label* bailout,
 
     BIND(&undefined);
     {
-      StoreFixedDoubleArrayUndefined(
-          TNode<FixedDoubleArray>::UncheckedCast(elements), index);
+      StoreFixedDoubleArrayUndefined(UncheckedCast<FixedDoubleArray>(elements),
+                                     index);
       Goto(&done);
     }
     BIND(&done);
@@ -5938,8 +5938,11 @@ void CodeStubAssembler::StoreFixedDoubleArrayHole(TNode<FixedDoubleArray> array,
 }
 
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+template <typename TIndex>
+  requires(std::is_same_v<TIndex, Smi> || std::is_same_v<TIndex, UintPtrT> ||
+           std::is_same_v<TIndex, IntPtrT>)
 void CodeStubAssembler::StoreFixedDoubleArrayUndefined(
-    TNode<FixedDoubleArray> array, TNode<IntPtrT> index) {
+    TNode<FixedDoubleArray> array, TNode<TIndex> index) {
   TNode<IntPtrT> offset =
       ElementOffsetFromIndex(index, PACKED_DOUBLE_ELEMENTS,
                              OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
@@ -5949,6 +5952,11 @@ void CodeStubAssembler::StoreFixedDoubleArrayUndefined(
                               PACKED_DOUBLE_ELEMENTS));
   StoreDoubleUndefined(array, offset);
 }
+
+// Export the Smi version which is used outside of code-stub-assembler.
+template V8_EXPORT_PRIVATE void
+    CodeStubAssembler::StoreFixedDoubleArrayUndefined<Smi>(
+        TNode<FixedDoubleArray>, TNode<Smi>);
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 void CodeStubAssembler::FillFixedArrayWithSmiZero(ElementsKind kind,

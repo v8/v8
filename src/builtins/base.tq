@@ -2105,7 +2105,7 @@ transitioning builtin FastCreateDataProperty(
                 doubleElements[index] = n;
               }
               case (Undefined): {
-                StoreFixedDoubleArrayUndefined(doubleElements, SmiUntag(index));
+                StoreFixedDoubleArrayUndefined(doubleElements, index);
               }
               case (JSAny): {
                 goto Slow;

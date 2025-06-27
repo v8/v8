@@ -993,14 +993,6 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
 
   BIND(rebox_double);
   {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-    Label if_not_undefined(this);
-    GotoIfNot(IsDoubleUndefined(var_double_value->value()), &if_not_undefined);
-    GotoIfNot(IsSetWord32<LoadHandler::AllowHandlingHole>(handler_word), miss);
-    exit_point->Return(UndefinedConstant());
-
-    BIND(&if_not_undefined);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     exit_point->Return(AllocateHeapNumberWithValue(var_double_value->value()));
   }
 }

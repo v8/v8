@@ -1954,8 +1954,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void StoreFixedDoubleArrayHole(TNode<FixedDoubleArray> array,
                                  TNode<IntPtrT> index);
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  template <typename TIndex>
+    requires(std::is_same_v<TIndex, Smi> || std::is_same_v<TIndex, UintPtrT> ||
+             std::is_same_v<TIndex, IntPtrT>)
   void StoreFixedDoubleArrayUndefined(TNode<FixedDoubleArray> array,
-                                      TNode<IntPtrT> index);
+                                      TNode<TIndex> index);
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   void StoreFeedbackVectorSlot(
       TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,

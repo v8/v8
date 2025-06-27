@@ -278,7 +278,7 @@ Store<FastDoubleElements>(
     dcheck(kEnableExperimentalUndefinedDouble);
     @if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) {
       dcheck(Is<Undefined>(value));
-      StoreFixedDoubleArrayUndefined(elements, SmiUntag(index));
+      StoreFixedDoubleArrayUndefined(elements, index);
     }
   }
   return kSuccess;
