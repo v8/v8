@@ -269,7 +269,7 @@ class CTypeInfo {
   // than any valid Type enum.
   static constexpr Type kCallbackOptionsType = Type(255);
 
-  enum class V8_DEPRECATE_SOON(
+  enum class V8_DEPRECATED(
       "There is no special support in V8 anymore, there is no need to"
       "use a SequenceType") SequenceType : uint8_t {
     kScalar,
@@ -288,7 +288,7 @@ class CTypeInfo {
   explicit constexpr CTypeInfo(Type type, Flags flags = Flags::kNone)
       : type_(type), sequence_type_(SequenceType::kScalar), flags_(flags) {}
 
-  V8_DEPRECATE_SOON("Use CTypeInfo(Type, Flags) instead")
+  V8_DEPRECATED("Use CTypeInfo(Type, Flags) instead")
   constexpr CTypeInfo(Type type, SequenceType sequence_type,
                       Flags flags = Flags::kNone)
       : type_(type), sequence_type_(sequence_type), flags_(flags) {}
@@ -305,7 +305,7 @@ class CTypeInfo {
   }
 
   constexpr Type GetType() const { return type_; }
-  V8_DEPRECATE_SOON("Use the constant SequenceType::kScalar instead")
+  V8_DEPRECATED("Use the constant SequenceType::kScalar instead")
   constexpr SequenceType GetSequenceType() const { return sequence_type_; }
   constexpr Flags GetFlags() const { return flags_; }
 
