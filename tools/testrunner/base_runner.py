@@ -44,6 +44,7 @@ TEST_MAP = {
         "wasm-spec-tests",
         "inspector",
         "webkit",
+        "bigint",
         "mkgrokdump",
         "wasm-js",
         "fuzzer",
