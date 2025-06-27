@@ -1213,16 +1213,36 @@ void InstructionSelector::VisitF32x4Min(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
-  this->Emit(kRiscvF32x4Min, g.DefineAsRegister(node),
-             g.UseRegister(op.input(0)), g.UseRegister(op.input(1)));
+  this->Emit(kRiscvFMin, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+             g.UseRegister(op.input(1)), g.UseImmediate(E32),
+             g.UseImmediate(m1));
 }
 
 void InstructionSelector::VisitF32x4Max(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
-  this->Emit(kRiscvF32x4Max, g.DefineAsRegister(node),
-             g.UseRegister(op.input(0)), g.UseRegister(op.input(1)));
+  this->Emit(kRiscvFMax, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+             g.UseRegister(op.input(1)), g.UseImmediate(E32),
+             g.UseImmediate(m1));
+}
+
+void InstructionSelector::VisitF64x2Min(OpIndex node) {
+  RiscvOperandGenerator g(this);
+  const Operation& op = this->Get(node);
+  DCHECK_EQ(op.input_count, 2);
+  this->Emit(kRiscvFMin, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+             g.UseRegister(op.input(1)), g.UseImmediate(E64),
+             g.UseImmediate(m1));
+}
+
+void InstructionSelector::VisitF64x2Max(OpIndex node) {
+  RiscvOperandGenerator g(this);
+  const Operation& op = this->Get(node);
+  DCHECK_EQ(op.input_count, 2);
+  this->Emit(kRiscvFMax, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+             g.UseRegister(op.input(1)), g.UseImmediate(E64),
+             g.UseImmediate(m1));
 }
 
 void InstructionSelector::VisitF32x4RelaxedMin(OpIndex node) {

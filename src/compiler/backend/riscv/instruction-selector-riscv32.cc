@@ -1516,22 +1516,6 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(OpIndex node) {
        temps);
 }
 
-void InstructionSelector::VisitF64x2Min(OpIndex node) {
-  RiscvOperandGenerator g(this);
-  const Operation& op = this->Get(node);
-  DCHECK_EQ(op.input_count, 2);
-  this->Emit(kRiscvF64x2Min, g.DefineAsRegister(node),
-             g.UseRegister(op.input(0)), g.UseRegister(op.input(1)));
-}
-
-void InstructionSelector::VisitF64x2Max(OpIndex node) {
-  RiscvOperandGenerator g(this);
-  const Operation& op = this->Get(node);
-  DCHECK_EQ(op.input_count, 2);
-  this->Emit(kRiscvF64x2Max, g.DefineAsRegister(node),
-             g.UseRegister(op.input(0)), g.UseRegister(op.input(1)));
-}
-
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
