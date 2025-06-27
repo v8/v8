@@ -4515,10 +4515,38 @@ TEST(WasmTurbofan_I16x16GeU) {
                                     compiler::IrOpcode::kI16x16GeU);
 }
 
-template <typename S, typename T, typename OpType = T (*)(S, S)>
+namespace {
+
+bool IsLowHalfExtMulOp(WasmOpcode opcode) {
+  switch (opcode) {
+    case kExprI16x8ExtMulLowI8x16S:
+    case kExprI16x8ExtMulLowI8x16U:
+    case kExprI32x4ExtMulLowI16x8S:
+    case kExprI32x4ExtMulLowI16x8U:
+    case kExprI64x2ExtMulLowI32x4S:
+    case kExprI64x2ExtMulLowI32x4U:
+      return true;
+    case kExprI16x8ExtMulHighI8x16S:
+    case kExprI16x8ExtMulHighI8x16U:
+    case kExprI32x4ExtMulHighI16x8S:
+    case kExprI32x4ExtMulHighI16x8U:
+    case kExprI64x2ExtMulHighI32x4S:
+    case kExprI64x2ExtMulHighI32x4U:
+      return false;
+
+    default:
+      UNREACHABLE();
+  }
+}
+
+}  // namespace
+
+template <typename S, typename T,
+          typename compiler::turboshaft::Opcode revec_opcode,
+          typename OpType = T (*)(S, S)>
 void RunExtMulRevecTest(WasmOpcode opcode_low, WasmOpcode opcode_high,
                         OpType expected_op,
-                        compiler::IrOpcode::Value revec_opcode) {
+                        ExpectedResult revec_result = ExpectedResult::kPass) {
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
   static_assert(sizeof(T) == 2 * sizeof(S),
@@ -4526,15 +4554,197 @@ void RunExtMulRevecTest(WasmOpcode opcode_low, WasmOpcode opcode_high,
                 "extended integer multiplication");
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
       TestExecutionTier::kTurbofan);
-  uint32_t count = 6 * kSimd128Size / sizeof(S);
-  S* memory = r.builder().AddMemoryElems<S>(count);
+
   // Build fn perform extmul on two 128 bit vectors a and b, store the result in
-  // c:
-  //   simd128 *a,*b,*c;
-  //   *c = *a op_low *b;
-  //   *(c+1) = *a op_high *b;
-  //   *(c+3) = *a op_high *b;
-  //   *(c+2) = *a op_low *b;
+  // c and d:
+  // v128 a = v128.load(param1);
+  // v128 b = v128.load(param2);
+  // v128 c = v128.not(v128.not(opcode1(a, b)));
+  // v128 d = v128.not(v128.not(opcode2(a, b)));
+  // v128.store(param3, c);
+  // v128.store(param3 + 16, d);
+  // Where opcode1 and opcode2 are extended integer multiplication opcodes, the
+  // two v128.not are used to make sure revec is beneficial in revec cost
+  // estimation steps.
+  uint32_t count = 4 * kSimd128Size / sizeof(S);
+  S* memory = r.builder().AddMemoryElems<S>(count);
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t param3 = 2;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  uint8_t temp4 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<revec_opcode>,
+        revec_result);
+    r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+             WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2))),
+             WASM_LOCAL_SET(temp3,
+                            WASM_SIMD_BINOP(opcode_low, WASM_LOCAL_GET(temp1),
+                                            WASM_LOCAL_GET(temp2))),
+             WASM_LOCAL_SET(
+                 temp3, WASM_SIMD_UNOP(kExprS128Not,
+                                       WASM_SIMD_UNOP(kExprS128Not,
+                                                      WASM_LOCAL_GET(temp3)))),
+             WASM_LOCAL_SET(temp4,
+                            WASM_SIMD_BINOP(opcode_high, WASM_LOCAL_GET(temp1),
+                                            WASM_LOCAL_GET(temp2))),
+             WASM_LOCAL_SET(
+                 temp4, WASM_SIMD_UNOP(kExprS128Not,
+                                       WASM_SIMD_UNOP(kExprS128Not,
+                                                      WASM_LOCAL_GET(temp4)))),
+             WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param3), WASM_LOCAL_GET(temp3)),
+             WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param3),
+                                        WASM_LOCAL_GET(temp4)),
+             WASM_ONE});
+  }
+
+  constexpr uint32_t lanes = kSimd128Size / sizeof(S);
+  for (S x : compiler::ValueHelper::GetVector<S>()) {
+    for (S y : compiler::ValueHelper::GetVector<S>()) {
+      for (uint32_t i = 0; i < lanes / 2; i++) {
+        r.builder().WriteMemory(&memory[i], x);
+        r.builder().WriteMemory(&memory[i + lanes / 2], y);
+        r.builder().WriteMemory(&memory[i + lanes], y);
+        r.builder().WriteMemory(&memory[i + lanes + lanes / 2], y);
+      }
+      r.Call(0, 16, 32);
+      T expected_low = expected_op(x, y);
+      T expected_high = expected_op(y, y);
+      T* output = reinterpret_cast<T*>(memory + 2 * lanes);
+      for (uint32_t i = 0; i < lanes / 2; i++) {
+        CHECK_EQ(IsLowHalfExtMulOp(opcode_low) ? expected_low : expected_high,
+                 output[i]);
+        CHECK_EQ(IsLowHalfExtMulOp(opcode_high) ? expected_low : expected_high,
+                 output[lanes / 2 + i]);
+      }
+    }
+  }
+}
+
+// (low, high) extmul, revec to simd256 extmul, revec succeed.
+// (low, low) extmul, force pack, revec succeed.
+// (high, high) extmul, force pack, revec succeed.
+// (high, low) extmul, revec failed, not
+// supported yet.
+TEST(RunWasmTurbofan_ForcePackExtMul) {
+  // 8x16 to 16x8.
+  RunExtMulRevecTest<int8_t, int16_t,
+                     compiler::turboshaft::Opcode::kSimd256Binop>(
+      kExprI16x8ExtMulLowI8x16S, kExprI16x8ExtMulHighI8x16S, MultiplyLong);
+  RunExtMulRevecTest<int8_t, int16_t,
+                     compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI16x8ExtMulLowI8x16S, kExprI16x8ExtMulLowI8x16S, MultiplyLong);
+  RunExtMulRevecTest<int8_t, int16_t,
+                     compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI16x8ExtMulHighI8x16S, kExprI16x8ExtMulHighI8x16S, MultiplyLong);
+  RunExtMulRevecTest<int8_t, int16_t,
+                     compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI16x8ExtMulHighI8x16S, kExprI16x8ExtMulLowI8x16S, MultiplyLong,
+      ExpectedResult::kFail);
+  RunExtMulRevecTest<uint8_t, uint16_t,
+                     compiler::turboshaft::Opcode::kSimd256Binop>(
+      kExprI16x8ExtMulLowI8x16U, kExprI16x8ExtMulHighI8x16U, MultiplyLong);
+  RunExtMulRevecTest<uint8_t, uint16_t,
+                     compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI16x8ExtMulLowI8x16U, kExprI16x8ExtMulLowI8x16U, MultiplyLong);
+  RunExtMulRevecTest<uint8_t, uint16_t,
+                     compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI16x8ExtMulHighI8x16U, kExprI16x8ExtMulHighI8x16U, MultiplyLong);
+  RunExtMulRevecTest<uint8_t, uint16_t,
+                     compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI16x8ExtMulHighI8x16U, kExprI16x8ExtMulLowI8x16U, MultiplyLong,
+      ExpectedResult::kFail);
+
+  // 16x8 to 32x4.
+  RunExtMulRevecTest<int16_t, int32_t,
+                     compiler::turboshaft::Opcode::kSimd256Binop>(
+      kExprI32x4ExtMulLowI16x8S, kExprI32x4ExtMulHighI16x8S, MultiplyLong);
+  RunExtMulRevecTest<int16_t, int32_t,
+                     compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI32x4ExtMulLowI16x8S, kExprI32x4ExtMulLowI16x8S, MultiplyLong);
+  RunExtMulRevecTest<int16_t, int32_t,
+                     compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI32x4ExtMulHighI16x8S, kExprI32x4ExtMulHighI16x8S, MultiplyLong);
+  RunExtMulRevecTest<int16_t, int32_t,
+                     compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI32x4ExtMulHighI16x8S, kExprI32x4ExtMulLowI16x8S, MultiplyLong,
+      ExpectedResult::kFail);
+  RunExtMulRevecTest<uint16_t, uint32_t,
+                     compiler::turboshaft::Opcode::kSimd256Binop>(
+      kExprI32x4ExtMulLowI16x8U, kExprI32x4ExtMulHighI16x8U, MultiplyLong);
+  RunExtMulRevecTest<uint16_t, uint32_t,
+                     compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI32x4ExtMulLowI16x8U, kExprI32x4ExtMulLowI16x8U, MultiplyLong);
+  RunExtMulRevecTest<uint16_t, uint32_t,
+                     compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI32x4ExtMulHighI16x8U, kExprI32x4ExtMulHighI16x8U, MultiplyLong);
+  RunExtMulRevecTest<uint16_t, uint32_t,
+                     compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI32x4ExtMulHighI16x8U, kExprI32x4ExtMulLowI16x8U, MultiplyLong,
+      ExpectedResult::kFail);
+
+  // 32x4 to 64x2.
+  RunExtMulRevecTest<int32_t, int64_t,
+                     compiler::turboshaft::Opcode::kSimd256Binop>(
+      kExprI64x2ExtMulLowI32x4S, kExprI64x2ExtMulHighI32x4S, MultiplyLong);
+  RunExtMulRevecTest<int32_t, int64_t,
+                     compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI64x2ExtMulLowI32x4S, kExprI64x2ExtMulLowI32x4S, MultiplyLong);
+  RunExtMulRevecTest<int32_t, int64_t,
+                     compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI64x2ExtMulHighI32x4S, kExprI64x2ExtMulHighI32x4S, MultiplyLong);
+  RunExtMulRevecTest<int32_t, int64_t,
+                     compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI64x2ExtMulHighI32x4S, kExprI64x2ExtMulLowI32x4S, MultiplyLong,
+      ExpectedResult::kFail);
+  RunExtMulRevecTest<uint32_t, uint64_t,
+                     compiler::turboshaft::Opcode::kSimd256Binop>(
+      kExprI64x2ExtMulLowI32x4U, kExprI64x2ExtMulHighI32x4U, MultiplyLong);
+  RunExtMulRevecTest<uint32_t, uint64_t,
+                     compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI64x2ExtMulLowI32x4U, kExprI64x2ExtMulLowI32x4U, MultiplyLong);
+  RunExtMulRevecTest<uint32_t, uint64_t,
+                     compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI64x2ExtMulHighI32x4U, kExprI64x2ExtMulHighI32x4U, MultiplyLong);
+  RunExtMulRevecTest<uint32_t, uint64_t,
+                     compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI64x2ExtMulHighI32x4U, kExprI64x2ExtMulLowI32x4U, MultiplyLong,
+      ExpectedResult::kFail);
+}
+
+// Similar with RunExtMulRevecTest, but two stores share an extended integer
+// multiplication op.
+template <typename S, typename T,
+          typename compiler::turboshaft::Opcode revec_opcode,
+          typename OpType = T (*)(S, S)>
+void RunExtMulRevecTestSplat(WasmOpcode opcode, OpType expected_op) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  static_assert(sizeof(T) == 2 * sizeof(S),
+                "the element size of dst vector must be twice of src vector in "
+                "extended integer multiplication");
+  WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
+      TestExecutionTier::kTurbofan);
+
+  // Build fn perform extmul on two 128 bit vectors a and b, store the result in
+  // d and e:
+  // v128 a = v128.load(param1);
+  // v128 b = v128.load(param2);
+  // v128 c = opcode1(a, b)
+  // v128 d = v128.not(v128.not(c));
+  // v128 e = v128.not(v128.not(c));
+  // v128.store(param3, d);
+  // v128.store(param3 + 16, e);
+  // Where opcode1 is an extended integer multiplication opcode, the two
+  // v128.not are used to make sure revec is beneficial in revec cost estimation
+  // steps.
+  uint32_t count = 4 * kSimd128Size / sizeof(S);
+  S* memory = r.builder().AddMemoryElems<S>(count);
   uint8_t param1 = 0;
   uint8_t param2 = 1;
   uint8_t param3 = 2;
@@ -4543,89 +4753,94 @@ void RunExtMulRevecTest(WasmOpcode opcode_low, WasmOpcode opcode_high,
   uint8_t temp3 = r.AllocateLocal(kWasmS128);
   uint8_t temp4 = r.AllocateLocal(kWasmS128);
   uint8_t temp5 = r.AllocateLocal(kWasmS128);
-  uint8_t temp6 = r.AllocateLocal(kWasmS128);
   constexpr uint8_t offset = 16;
 
   {
     TSSimd256VerifyScope ts_scope(
-        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
-                      compiler::turboshaft::Opcode::kSimd256Binop>);
-    BUILD_AND_CHECK_REVEC_NODE(
-        r, revec_opcode,
-        WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
-        WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2))),
-        WASM_LOCAL_SET(temp3, WASM_SIMD_BINOP(opcode_low, WASM_LOCAL_GET(temp1),
-                                              WASM_LOCAL_GET(temp2))),
-        WASM_LOCAL_SET(temp4,
-                       WASM_SIMD_BINOP(opcode_high, WASM_LOCAL_GET(temp1),
-                                       WASM_LOCAL_GET(temp2))),
-        WASM_LOCAL_SET(temp5,
-                       WASM_SIMD_BINOP(opcode_high, WASM_LOCAL_GET(temp1),
-                                       WASM_LOCAL_GET(temp2))),
-        WASM_LOCAL_SET(temp6, WASM_SIMD_BINOP(opcode_low, WASM_LOCAL_GET(temp1),
-                                              WASM_LOCAL_GET(temp2))),
-        WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param3), WASM_LOCAL_GET(temp3)),
-        WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param3),
-                                   WASM_LOCAL_GET(temp4)),
-        WASM_SIMD_STORE_MEM_OFFSET(3 * offset, WASM_LOCAL_GET(param3),
-                                   WASM_LOCAL_GET(temp5)),
-        WASM_SIMD_STORE_MEM_OFFSET(2 * offset, WASM_LOCAL_GET(param3),
-                                   WASM_LOCAL_GET(temp6)),
-        WASM_ONE);
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<revec_opcode>,
+        ExpectedResult::kPass);
+    r.Build(
+        {WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+         WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2))),
+         WASM_LOCAL_SET(temp5, WASM_SIMD_BINOP(opcode, WASM_LOCAL_GET(temp1),
+                                               WASM_LOCAL_GET(temp2))),
+         WASM_LOCAL_SET(
+             temp3, WASM_SIMD_UNOP(
+                        kExprS128Not,
+                        WASM_SIMD_UNOP(kExprS128Not, WASM_LOCAL_GET(temp5)))),
+         WASM_LOCAL_SET(
+             temp4, WASM_SIMD_UNOP(
+                        kExprS128Not,
+                        WASM_SIMD_UNOP(kExprS128Not, WASM_LOCAL_GET(temp5)))),
+         WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param3), WASM_LOCAL_GET(temp3)),
+         WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param3),
+                                    WASM_LOCAL_GET(temp4)),
+         WASM_ONE});
   }
 
   constexpr uint32_t lanes = kSimd128Size / sizeof(S);
   for (S x : compiler::ValueHelper::GetVector<S>()) {
     for (S y : compiler::ValueHelper::GetVector<S>()) {
-      for (uint32_t i = 0; i < lanes; i++) {
+      for (uint32_t i = 0; i < lanes / 2; i++) {
         r.builder().WriteMemory(&memory[i], x);
+        r.builder().WriteMemory(&memory[i + lanes / 2], y);
         r.builder().WriteMemory(&memory[i + lanes], y);
+        r.builder().WriteMemory(&memory[i + lanes + lanes / 2], y);
       }
       r.Call(0, 16, 32);
-      T expected = expected_op(x, y);
+      T expected_low = expected_op(x, y);
+      T expected_high = expected_op(y, y);
       T* output = reinterpret_cast<T*>(memory + 2 * lanes);
       for (uint32_t i = 0; i < lanes; i++) {
-        CHECK_EQ(expected, output[i]);
-        CHECK_EQ(expected, output[i + lanes]);
+        CHECK_EQ(IsLowHalfExtMulOp(opcode) ? expected_low : expected_high,
+                 output[i]);
       }
     }
   }
 }
 
-TEST(RunWasmTurbofan_I16x16ExtMulI8x16S) {
-  RunExtMulRevecTest<int8_t, int16_t>(kExprI16x8ExtMulLowI8x16S,
-                                      kExprI16x8ExtMulHighI8x16S, MultiplyLong,
-                                      compiler::IrOpcode::kI16x16ExtMulI8x16S);
-}
+TEST(RunWasmTurbofan_ForcePackExtMulSplat) {
+  // 8x16 to 16x8.
+  RunExtMulRevecTestSplat<int8_t, int16_t,
+                          compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI16x8ExtMulLowI8x16S, MultiplyLong);
+  RunExtMulRevecTestSplat<int8_t, int16_t,
+                          compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI16x8ExtMulHighI8x16S, MultiplyLong);
+  RunExtMulRevecTestSplat<uint8_t, uint16_t,
+                          compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI16x8ExtMulLowI8x16U, MultiplyLong);
+  RunExtMulRevecTestSplat<uint8_t, uint16_t,
+                          compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI16x8ExtMulHighI8x16U, MultiplyLong);
 
-TEST(RunWasmTurbofan_I16x16ExtMulI8x16U) {
-  RunExtMulRevecTest<uint8_t, uint16_t>(
-      kExprI16x8ExtMulLowI8x16U, kExprI16x8ExtMulHighI8x16U, MultiplyLong,
-      compiler::IrOpcode::kI16x16ExtMulI8x16U);
-}
+  // 16x8 to 32x4.
+  RunExtMulRevecTestSplat<int16_t, int32_t,
+                          compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI32x4ExtMulLowI16x8S, MultiplyLong);
+  RunExtMulRevecTestSplat<int16_t, int32_t,
+                          compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI32x4ExtMulHighI16x8S, MultiplyLong);
+  RunExtMulRevecTestSplat<uint16_t, uint32_t,
+                          compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI32x4ExtMulLowI16x8U, MultiplyLong);
+  RunExtMulRevecTestSplat<uint16_t, uint32_t,
+                          compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI32x4ExtMulHighI16x8U, MultiplyLong);
 
-TEST(RunWasmTurbofan_I32x8ExtMulI16x8S) {
-  RunExtMulRevecTest<int16_t, int32_t>(kExprI32x4ExtMulLowI16x8S,
-                                       kExprI32x4ExtMulHighI16x8S, MultiplyLong,
-                                       compiler::IrOpcode::kI32x8ExtMulI16x8S);
-}
-
-TEST(RunWasmTurbofan_I32x8ExtMulI16x8U) {
-  RunExtMulRevecTest<uint16_t, uint32_t>(
-      kExprI32x4ExtMulLowI16x8U, kExprI32x4ExtMulHighI16x8U, MultiplyLong,
-      compiler::IrOpcode::kI32x8ExtMulI16x8U);
-}
-
-TEST(RunWasmTurbofan_I64x4ExtMulI32x4S) {
-  RunExtMulRevecTest<int32_t, int64_t>(kExprI64x2ExtMulLowI32x4S,
-                                       kExprI64x2ExtMulHighI32x4S, MultiplyLong,
-                                       compiler::IrOpcode::kI64x4ExtMulI32x4S);
-}
-
-TEST(RunWasmTurbofan_I64x4ExtMulI32x4U) {
-  RunExtMulRevecTest<uint32_t, uint64_t>(
-      kExprI64x2ExtMulLowI32x4U, kExprI64x2ExtMulHighI32x4U, MultiplyLong,
-      compiler::IrOpcode::kI64x4ExtMulI32x4U);
+  // 32x4 to 64x2.
+  RunExtMulRevecTestSplat<int32_t, int64_t,
+                          compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI64x2ExtMulLowI32x4S, MultiplyLong);
+  RunExtMulRevecTestSplat<int32_t, int64_t,
+                          compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI64x2ExtMulHighI32x4S, MultiplyLong);
+  RunExtMulRevecTestSplat<uint32_t, uint64_t,
+                          compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI64x2ExtMulLowI32x4U, MultiplyLong);
+  RunExtMulRevecTestSplat<uint32_t, uint64_t,
+                          compiler::turboshaft::Opcode::kSimdPack128To256>(
+      kExprI64x2ExtMulHighI32x4U, MultiplyLong);
 }
 
 TEST(RunWasmTurbofan_I16x16Shl) {
