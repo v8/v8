@@ -6708,54 +6708,264 @@ TEST(RunWasmTurbofan_ForcePackLoadExtend) {
   }
 }
 
-TEST(RunWasmTurbofan_ForcePackI16x16ConvertI8x16) {
+namespace {
+
+bool IsLowHalfExtensionOp(WasmOpcode opcode) {
+  switch (opcode) {
+    case kExprI16x8UConvertI8x16Low:
+    case kExprI16x8SConvertI8x16Low:
+    case kExprI32x4UConvertI16x8Low:
+    case kExprI32x4SConvertI16x8Low:
+    case kExprI64x2UConvertI32x4Low:
+    case kExprI64x2SConvertI32x4Low:
+      return true;
+    case kExprI16x8UConvertI8x16High:
+    case kExprI16x8SConvertI8x16High:
+    case kExprI32x4UConvertI16x8High:
+    case kExprI32x4SConvertI16x8High:
+    case kExprI64x2UConvertI32x4High:
+    case kExprI64x2SConvertI32x4High:
+      return false;
+    default:
+      UNREACHABLE();
+  }
+}
+
+}  // namespace
+
+template <typename S, typename T>
+void RunIntToIntExtensionRevecForcePack(
+    WasmOpcode opcode1, WasmOpcode opcode2,
+    ExpectedResult revec_result = ExpectedResult::kPass) {
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
+  static_assert(sizeof(T) == 2 * sizeof(S),
+                "the element size of dst vector must be twice of src vector in "
+                "integer to integer extension");
   WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
-  int8_t* memory = r.builder().AddMemoryElems<int8_t>(48);
+
+  // v128 a = v128.load(param1);
+  // v128 b = v128.not(v128.not(opcode1(a));
+  // v128 c = v128.not(v128.not(opcode2(a));
+  // v128.store(param2, b);
+  // v128.store(param2 + 16, c);
+  // Where opcode1 and opcode2 are int to int extension opcodes, the two
+  // v128.not are used to make sure revec is beneficial in revec cost estimation
+  // steps.
+  uint32_t count = 3 * kSimd128Size / sizeof(S);
+  S* memory = r.builder().AddMemoryElems<S>(count);
+
   uint8_t param1 = 0;
   uint8_t param2 = 1;
-
   uint8_t temp1 = r.AllocateLocal(kWasmS128);
   uint8_t temp2 = r.AllocateLocal(kWasmS128);
   uint8_t temp3 = r.AllocateLocal(kWasmS128);
   constexpr uint8_t offset = 16;
   {
     TSSimd256VerifyScope ts_scope(
-        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
-                      compiler::turboshaft::Opcode::kSimdPack128To256>);
-    r.Build({WASM_LOCAL_SET(temp3, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
-             WASM_LOCAL_SET(
-                 temp1,
-                 WASM_SIMD_UNOP(
-                     kExprI16x8Neg,
-                     WASM_SIMD_UNOP(kExprS128Not,
-                                    WASM_SIMD_UNOP(kExprI16x8SConvertI8x16Low,
-                                                   WASM_LOCAL_GET(temp3))))),
-             WASM_LOCAL_SET(
-                 temp2,
-                 WASM_SIMD_UNOP(
-                     kExprI16x8Neg,
-                     WASM_SIMD_UNOP(kExprS128Not,
-                                    WASM_SIMD_UNOP(kExprI16x8SConvertI8x16Low,
-                                                   WASM_LOCAL_GET(temp3))))),
-             WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp1)),
-             WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
-                                        WASM_LOCAL_GET(temp2)),
-             WASM_ONE});
+        r.zone(),
+        TSSimd256VerifyScope::VerifyHaveOpcode<
+            compiler::turboshaft::Opcode::kSimdPack128To256>,
+        revec_result);
+    r.Build(
+        {WASM_LOCAL_SET(temp3, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+         WASM_LOCAL_SET(
+             temp1, WASM_SIMD_UNOP(
+                        kExprS128Not,
+                        WASM_SIMD_UNOP(
+                            kExprS128Not,
+                            WASM_SIMD_UNOP(opcode1, WASM_LOCAL_GET(temp3))))),
+         WASM_LOCAL_SET(
+             temp2, WASM_SIMD_UNOP(
+                        kExprS128Not,
+                        WASM_SIMD_UNOP(
+                            kExprS128Not,
+                            WASM_SIMD_UNOP(opcode2, WASM_LOCAL_GET(temp3))))),
+         WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp1)),
+         WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                    WASM_LOCAL_GET(temp2)),
+         WASM_ONE});
   }
-  FOR_INT8_INPUTS(x) {
-    for (int i = 0; i < 16; i++) {
-      r.builder().WriteMemory(&memory[i], x);
-    }
-    r.Call(0, 16);
-    int16_t expected_signed = -(~static_cast<int16_t>(x));
-    int16_t* out_memory = reinterpret_cast<int16_t*>(memory);
-    for (int i = 0; i < 8; i++) {
-      CHECK_EQ(expected_signed, out_memory[8 + i]);
-      CHECK_EQ(expected_signed, out_memory[16 + i]);
+
+  constexpr uint32_t lanes = kSimd128Size / sizeof(S);
+  for (S x : compiler::ValueHelper::GetVector<S>()) {
+    for (S y : compiler::ValueHelper::GetVector<S>()) {
+      for (uint32_t i = 0; i < lanes / 2; i++) {
+        r.builder().WriteMemory(&memory[i], x);
+        r.builder().WriteMemory(&memory[i + lanes / 2], y);
+      }
+      r.Call(0, 16);
+      T expected_low = static_cast<T>(x);
+      T expected_high = static_cast<T>(y);
+      T* output = reinterpret_cast<T*>(memory + lanes);
+      for (uint32_t i = 0; i < lanes / 2; i++) {
+        CHECK_EQ(IsLowHalfExtensionOp(opcode1) ? expected_low : expected_high,
+                 output[i]);
+        CHECK_EQ(IsLowHalfExtensionOp(opcode2) ? expected_low : expected_high,
+                 output[lanes / 2 + i]);
+      }
     }
   }
+}
+
+// (low, low) unsign extend, revec succeed.
+// (low, low) sign extend, revec succeed.
+// (high, high) unsign extend, revec succeed.
+// (high, high) sign extend, revec succeed.
+// (high, low) unsign extend, revec failed, not supported yet.
+// (high, low) sign extend, revec failed, not supported yet.
+TEST(RunWasmTurbofan_ForcePackIntToIntExtension) {
+  // Extend 8 bits to 16 bits.
+  RunIntToIntExtensionRevecForcePack<uint8_t, uint16_t>(
+      kExprI16x8UConvertI8x16Low, kExprI16x8UConvertI8x16Low);
+  RunIntToIntExtensionRevecForcePack<int8_t, int16_t>(
+      kExprI16x8SConvertI8x16Low, kExprI16x8SConvertI8x16Low);
+  RunIntToIntExtensionRevecForcePack<uint8_t, uint16_t>(
+      kExprI16x8UConvertI8x16High, kExprI16x8UConvertI8x16High);
+  RunIntToIntExtensionRevecForcePack<int8_t, int16_t>(
+      kExprI16x8SConvertI8x16High, kExprI16x8SConvertI8x16High);
+  RunIntToIntExtensionRevecForcePack<uint8_t, uint16_t>(
+      kExprI16x8UConvertI8x16High, kExprI16x8UConvertI8x16Low,
+      ExpectedResult::kFail);
+  RunIntToIntExtensionRevecForcePack<int8_t, int16_t>(
+      kExprI16x8SConvertI8x16High, kExprI16x8SConvertI8x16Low,
+      ExpectedResult::kFail);
+
+  // Extend 16 bits to 32 bits.
+  RunIntToIntExtensionRevecForcePack<uint16_t, uint32_t>(
+      kExprI32x4UConvertI16x8Low, kExprI32x4UConvertI16x8Low);
+  RunIntToIntExtensionRevecForcePack<int16_t, int32_t>(
+      kExprI32x4SConvertI16x8Low, kExprI32x4SConvertI16x8Low);
+  RunIntToIntExtensionRevecForcePack<uint16_t, uint32_t>(
+      kExprI32x4UConvertI16x8High, kExprI32x4UConvertI16x8High);
+  RunIntToIntExtensionRevecForcePack<int16_t, int32_t>(
+      kExprI32x4SConvertI16x8High, kExprI32x4SConvertI16x8High);
+  RunIntToIntExtensionRevecForcePack<uint16_t, uint32_t>(
+      kExprI32x4UConvertI16x8High, kExprI32x4UConvertI16x8Low,
+      ExpectedResult::kFail);
+  RunIntToIntExtensionRevecForcePack<int16_t, int32_t>(
+      kExprI32x4SConvertI16x8High, kExprI32x4SConvertI16x8Low,
+      ExpectedResult::kFail);
+
+  // Extend 32 bits to 64 bits.
+  RunIntToIntExtensionRevecForcePack<uint32_t, uint64_t>(
+      kExprI64x2UConvertI32x4Low, kExprI64x2UConvertI32x4Low);
+  RunIntToIntExtensionRevecForcePack<int32_t, int64_t>(
+      kExprI64x2SConvertI32x4Low, kExprI64x2SConvertI32x4Low);
+  RunIntToIntExtensionRevecForcePack<uint32_t, uint64_t>(
+      kExprI64x2UConvertI32x4High, kExprI64x2UConvertI32x4High);
+  RunIntToIntExtensionRevecForcePack<int32_t, int64_t>(
+      kExprI64x2SConvertI32x4High, kExprI64x2SConvertI32x4High);
+  RunIntToIntExtensionRevecForcePack<uint32_t, uint64_t>(
+      kExprI64x2UConvertI32x4High, kExprI64x2UConvertI32x4Low,
+      ExpectedResult::kFail);
+  RunIntToIntExtensionRevecForcePack<int32_t, int64_t>(
+      kExprI64x2SConvertI32x4High, kExprI64x2SConvertI32x4Low,
+      ExpectedResult::kFail);
+}
+
+// Similar with RunIntToIntExtensionRevecForcePack, but two stores share an int
+// to int extension op.
+template <typename S, typename T>
+void RunIntToIntExtensionRevecForcePackSplat(WasmOpcode opcode) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  static_assert(sizeof(T) == 2 * sizeof(S),
+                "the element size of dst vector must be twice of src vector in "
+                "integer to integer extension");
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+
+  // v128 a = v128.load(param1);
+  // v128 b = opcode1(a);
+  // v128 c = v128.not(v128.not(b));
+  // v128 d = v128.not(v128.not(b));
+  // v128.store(param2, c);
+  // v128.store(param2 + 16, d);
+  // Where opcode1 is an int to int extension opcode, the two
+  // v128.not are used to make sure revec is beneficial in revec cost estimation
+  // steps.
+  uint32_t count = 3 * kSimd128Size / sizeof(S);
+  S* memory = r.builder().AddMemoryElems<S>(count);
+
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(),
+        TSSimd256VerifyScope::VerifyHaveOpcode<
+            compiler::turboshaft::Opcode::kSimdPack128To256>,
+        ExpectedResult::kPass);
+    r.Build(
+        {WASM_LOCAL_SET(
+             temp3, WASM_SIMD_UNOP(opcode,
+                                   WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1)))),
+         WASM_LOCAL_SET(
+             temp1, WASM_SIMD_UNOP(
+                        kExprS128Not,
+                        WASM_SIMD_UNOP(kExprS128Not, WASM_LOCAL_GET(temp3)))),
+         WASM_LOCAL_SET(
+             temp2, WASM_SIMD_UNOP(
+                        kExprS128Not,
+                        WASM_SIMD_UNOP(kExprS128Not, WASM_LOCAL_GET(temp3)))),
+         WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp1)),
+         WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                    WASM_LOCAL_GET(temp2)),
+         WASM_ONE});
+  }
+
+  constexpr uint32_t lanes = kSimd128Size / sizeof(S);
+  for (S x : compiler::ValueHelper::GetVector<S>()) {
+    for (S y : compiler::ValueHelper::GetVector<S>()) {
+      for (uint32_t i = 0; i < lanes / 2; i++) {
+        r.builder().WriteMemory(&memory[i], x);
+        r.builder().WriteMemory(&memory[i + lanes / 2], y);
+      }
+      r.Call(0, 16);
+      T expected_low = static_cast<T>(x);
+      T expected_high = static_cast<T>(y);
+      T* output = reinterpret_cast<T*>(memory + lanes);
+      for (uint32_t i = 0; i < lanes; i++) {
+        CHECK_EQ(IsLowHalfExtensionOp(opcode) ? expected_low : expected_high,
+                 output[i]);
+      }
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_ForcePackIntToIntExtensionSplat) {
+  // Extend 8 bits to 16 bits.
+  RunIntToIntExtensionRevecForcePackSplat<uint8_t, uint16_t>(
+      kExprI16x8UConvertI8x16Low);
+  RunIntToIntExtensionRevecForcePackSplat<int8_t, int16_t>(
+      kExprI16x8SConvertI8x16Low);
+  RunIntToIntExtensionRevecForcePackSplat<uint8_t, uint16_t>(
+      kExprI16x8UConvertI8x16High);
+  RunIntToIntExtensionRevecForcePackSplat<int8_t, int16_t>(
+      kExprI16x8SConvertI8x16High);
+
+  // Extend 16 bits to 32 bits.
+  RunIntToIntExtensionRevecForcePackSplat<uint16_t, uint32_t>(
+      kExprI32x4UConvertI16x8Low);
+  RunIntToIntExtensionRevecForcePackSplat<int16_t, int32_t>(
+      kExprI32x4SConvertI16x8Low);
+  RunIntToIntExtensionRevecForcePackSplat<uint16_t, uint32_t>(
+      kExprI32x4UConvertI16x8High);
+  RunIntToIntExtensionRevecForcePackSplat<int16_t, int32_t>(
+      kExprI32x4SConvertI16x8High);
+
+  // Extend 32 bits to 64 bits.
+  RunIntToIntExtensionRevecForcePackSplat<uint32_t, uint64_t>(
+      kExprI64x2UConvertI32x4Low);
+  RunIntToIntExtensionRevecForcePackSplat<int32_t, int64_t>(
+      kExprI64x2SConvertI32x4Low);
+  RunIntToIntExtensionRevecForcePackSplat<uint32_t, uint64_t>(
+      kExprI64x2UConvertI32x4High);
+  RunIntToIntExtensionRevecForcePackSplat<int32_t, int64_t>(
+      kExprI64x2SConvertI32x4High);
 }
 
 TEST(RunWasmTurbofan_ForcePackI16x16ConvertI8x16ExpectFail) {
