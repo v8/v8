@@ -4695,7 +4695,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kFloat64ToBoolean:
     case Opcode::kFloat64Ieee754Unary:
     case Opcode::kInt32CountLeadingZeros:
-    case Opcode::kSmiCountLeadingZeros:
+    case Opcode::kTaggedCountLeadingZeros:
     case Opcode::kFloat64CountLeadingZeros:
     case Opcode::kCheckedSmiIncrement:
     case Opcode::kCheckedSmiDecrement:
@@ -10821,14 +10821,16 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathClz32(
     }
     return {};
   }
+
   DCHECK_EQ(arg_repr, ValueRepresentation::kTagged);
-  if (CheckType(arg, NodeType::kSmi)) {
-    return AddNewNode<SmiCountLeadingZeros>({arg});
+  if (CheckType(arg, NodeType::kNumber)) {
+    return AddNewNode<TaggedCountLeadingZeros>({arg});
   }
 
   if (!CanSpeculateCall()) {
     return {};
   }
+
   DeoptFrameScope continuation_scope(this,
                                      Float64CountLeadingZeros::continuation());
   ToNumberOrNumeric* conversion =

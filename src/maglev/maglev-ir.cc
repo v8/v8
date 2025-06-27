@@ -4927,16 +4927,35 @@ void Int32CountLeadingZeros::GenerateCode(MaglevAssembler* masm,
   __ CountLeadingZerosInt32(out, in);
 }
 
-void SmiCountLeadingZeros::SetValueLocationConstraints() {
+void TaggedCountLeadingZeros::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
+  set_double_temporaries_needed(1);
 }
-void SmiCountLeadingZeros::GenerateCode(MaglevAssembler* masm,
-                                        const ProcessingState&) {
+void TaggedCountLeadingZeros::GenerateCode(MaglevAssembler* masm,
+                                           const ProcessingState&) {
   Register in = ToRegister(input());
   Register out = ToRegister(result());
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  DoubleRegister double_value = temps.AcquireDouble();
+  Label is_not_smi, done;
+
+  __ JumpIfNotSmi(in, &is_not_smi, Label::Distance::kNear);
+
   __ SmiToInt32(out, in);
   __ CountLeadingZerosInt32(out, out);
+  __ Jump(&done, Label::Distance::kNear);
+
+  __ bind(&is_not_smi);
+  if (v8_flags.debug_code) {
+    __ AssertObjectType(in, HEAP_NUMBER_TYPE, AbortReason::kUnexpectedValue);
+  }
+  // If heap number, get double value.
+  __ LoadHeapNumberValue(double_value, in);
+  __ TruncateDoubleToInt32(out, double_value);
+  __ CountLeadingZerosInt32(out, out);
+
+  __ bind(&done);
 }
 
 void Float64CountLeadingZeros::SetValueLocationConstraints() {

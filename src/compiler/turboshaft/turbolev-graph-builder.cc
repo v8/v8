@@ -3945,9 +3945,33 @@ class GraphBuildingNodeProcessor {
     SetMap(node, __ Word32CountLeadingZeros(Map(node->input())));
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::SmiCountLeadingZeros* node,
+  maglev::ProcessResult Process(maglev::TaggedCountLeadingZeros* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node, __ Word32CountLeadingZeros(__ UntagSmi(Map(node->input()))));
+    ScopedVar<Word32, AssemblerT> result(this);
+    V<Object> value = Map(node->input());
+    IF (__ IsSmi(value)) {
+      result = __ Word32CountLeadingZeros(__ UntagSmi(V<Smi>::Cast(value)));
+    } ELSE {
+#ifdef DEBUG
+      Label<> abort(this);
+      Label<> heap_number(this);
+
+      V<i::Map> map = __ LoadMapField(value);
+      V<Word32> is_heap_number = __ TaggedEqual(
+          map, __ HeapConstant(local_factory_->heap_number_map()));
+      GOTO_IF_NOT(is_heap_number, abort);
+      GOTO(heap_number);
+
+      BIND(abort);
+      __ RuntimeAbort(AbortReason::kUnexpectedValue);
+      __ Unreachable();
+
+      BIND(heap_number);
+#endif
+      result = __ Word32CountLeadingZeros(__ JSTruncateFloat64ToWord32(
+          __ LoadHeapNumberValue(V<HeapNumber>::Cast(value))));
+    }
+    SetMap(node, result);
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::Float64CountLeadingZeros* node,
