@@ -2494,7 +2494,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 // emitted is what you specified when creating the scope.
 class V8_NODISCARD InstructionAccurateScope {
  public:
-  explicit InstructionAccurateScope(MacroAssembler* masm, size_t count = 0)
+  explicit InstructionAccurateScope(MacroAssembler* masm, size_t count)
       : masm_(masm),
         block_pool_(masm, count * kInstrSize)
 #ifdef DEBUG
@@ -2502,12 +2502,11 @@ class V8_NODISCARD InstructionAccurateScope {
         size_(count * kInstrSize)
 #endif
   {
+    DCHECK_GT(count, 0);
     masm_->CheckVeneerPool(false, true, count * kInstrSize);
     masm_->StartBlockVeneerPool();
 #ifdef DEBUG
-    if (count != 0) {
-      masm_->bind(&start_);
-    }
+    masm_->bind(&start_);
     previous_allow_macro_instructions_ = masm_->allow_macro_instructions();
     masm_->set_allow_macro_instructions(false);
 #endif
@@ -2516,9 +2515,7 @@ class V8_NODISCARD InstructionAccurateScope {
   ~InstructionAccurateScope() {
     masm_->EndBlockVeneerPool();
 #ifdef DEBUG
-    if (start_.is_bound()) {
-      DCHECK(masm_->SizeOfCodeGeneratedSince(&start_) == size_);
-    }
+    DCHECK(masm_->SizeOfCodeGeneratedSince(&start_) == size_);
     masm_->set_allow_macro_instructions(previous_allow_macro_instructions_);
 #endif
   }
