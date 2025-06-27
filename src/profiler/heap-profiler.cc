@@ -10,6 +10,7 @@
 
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
+#include "src/base/platform/platform.h"
 #include "src/debug/debug.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/heap-inl.h"
@@ -172,7 +173,9 @@ void HeapProfiler::WriteSnapshotToDiskAfterGC(HeapSnapshotMode snapshot_mode) {
   // snapshot generator to work.
   heap()->stack().SetMarkerIfNeededAndCallback([this, snapshot_mode]() {
     int64_t time = V8::GetCurrentPlatform()->CurrentClockTimeMilliseconds();
-    std::string filename = "v8-heap-" + std::to_string(time) + ".heapsnapshot";
+    int pid = base::OS::GetCurrentProcessId();
+    std::string filename = "v8-heap-" + std::to_string(time) + "-" +
+                           std::to_string(pid) + ".heapsnapshot";
     v8::HeapProfiler::HeapSnapshotOptions options;
     std::unique_ptr<HeapSnapshot> result(
         new HeapSnapshot(this, snapshot_mode, options.numerics_mode));
