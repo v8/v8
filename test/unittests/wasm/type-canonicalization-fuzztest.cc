@@ -148,6 +148,18 @@ struct Module {
   }
 };
 
+struct PrintRecgroupsWithSameId {
+  const std::map<std::string, CanonicalTypeIndex>& canonical_types;
+  CanonicalTypeIndex index;
+};
+
+std::ostream& operator<<(std::ostream& os, const PrintRecgroupsWithSameId& p) {
+  for (auto& [str, id] : p.canonical_types) {
+    if (id == p.index) os << "- " << str << "\n";
+  }
+  return os;
+}
+
 }  // namespace test
 
 class TypeCanonicalizerTest
@@ -226,6 +238,10 @@ void TypeCanonicalizerTest::TestCanonicalization(
   // works as expected. The key is a text representation of the respective type
   // or recursion group; we expect same text to mean identical group.
   std::map<std::string, CanonicalTypeIndex> canonical_types;
+  // Also remember all seen canonical type IDs so we can check that we don't
+  // accidentally canonicalize different types to the same index.
+  std::unordered_set<CanonicalTypeIndex, base::hash<CanonicalTypeIndex>>
+      seen_canonical_indexes;
 
   for (const test::Module& test_module : test_modules) {
     WasmModuleBuilder builder(&zone_);
@@ -251,6 +267,8 @@ void TypeCanonicalizerTest::TestCanonicalization(
 
     size_t num_previous_types = 0;
     for (const test::RecursionGroup& rec_group : test_module.rec_groups) {
+      DCHECK_EQ(seen_canonical_indexes.size(), canonical_types.size());
+
       // The total number of types must be within kV8MaxWasmTypes.
       ASSERT_GE(kMaxUInt32, num_previous_types);
       uint32_t first_type_id = static_cast<uint32_t>(num_previous_types);
@@ -271,12 +289,21 @@ void TypeCanonicalizerTest::TestCanonicalization(
       std::string recgroup_str = (std::ostringstream{} << rec_group).str();
       auto [it, added] = canonical_types.insert(
           std::make_pair(recgroup_str, first_canonical_id));
-      // Check that the entry holds first_canonical_id; either it was added
-      // here, or it existed and we check against the existing entry.
-      ASSERT_EQ(it->second, first_canonical_id)
-          << "New recgroup:\n"
-          << recgroup_str << "\nOld recgroup:\n"
-          << it->first;
+      if (added) {
+        // If this is a new recgroup, check that it gets a unique canonical ID
+        // (we do not accidentally canonicalize different types).
+        ASSERT_TRUE(seen_canonical_indexes.insert(first_canonical_id).second)
+            << "A new type should get a new canonical ID assigned.\n"
+            << "Recgroups with the same ID (" << first_canonical_id << "):\n"
+            << test::PrintRecgroupsWithSameId{canonical_types,
+                                              first_canonical_id};
+      } else {
+        // If this recgroup equals an existing one, we should get the same
+        // canonical ID.
+        ASSERT_EQ(it->second, first_canonical_id)
+            << "Identical recgroups should get canonicalized:\n"
+            << recgroup_str;
+      }
     }
   }
 }
