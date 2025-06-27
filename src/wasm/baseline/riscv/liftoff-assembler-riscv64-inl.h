@@ -873,7 +873,7 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
 void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
-    StoreType type, bool i64_offset) {
+    StoreType type, bool i64_offset, Endianness /* endianness */) {
   LiftoffRegList pinned{dst_addr, expected, new_value, result};
   if (offset_reg != no_reg) pinned.set(offset_reg);
 
