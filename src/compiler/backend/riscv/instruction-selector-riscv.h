@@ -1381,19 +1381,8 @@ void InstructionSelector::VisitI8x16RoundingAverageU(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
-  InstructionOperand temp = g.TempFpRegister(kSimd128ScratchReg);
-  this->Emit(kRiscvVwadduVv, temp, g.UseRegister(op.input(0)),
-             g.UseRegister(op.input(1)), g.UseImmediate(E8),
-             g.UseImmediate(m1));
-  InstructionOperand temp2 = g.TempFpRegister(kSimd128ScratchReg3);
-  this->Emit(kRiscvVwadduWx, temp2, temp, g.UseImmediate(1), g.UseImmediate(E8),
-             g.UseImmediate(m1));
-  InstructionOperand temp3 = g.TempFpRegister(kSimd128ScratchReg3);
-  this->Emit(kRiscvVdivu, temp3, temp2, g.UseImmediate(2), g.UseImmediate(E16),
-             g.UseImmediate(m2));
-  this->Emit(kRiscvVnclipu, g.DefineAsRegister(node), temp3, g.UseImmediate(0),
-             g.UseImmediate(E8), g.UseImmediate(m1),
-             g.UseImmediate(FPURoundingMode::RNE));
+  Emit(kRiscvI8x16RoundingAverageU, g.DefineAsRegister(node),
+       g.UseRegister(op.input(0)), g.UseRegister(op.input(1)));
 }
 
 void InstructionSelector::VisitI8x16SConvertI16x8(OpIndex node) {
@@ -1429,18 +1418,11 @@ void InstructionSelector::VisitI16x8RoundingAverageU(OpIndex node) {
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
   InstructionOperand temp = g.TempFpRegister(v16);
-  InstructionOperand temp2 = g.TempFpRegister(v16);
-  InstructionOperand temp3 = g.TempFpRegister(v16);
-  this->Emit(kRiscvVwadduVv, temp, g.UseRegister(op.input(0)),
-             g.UseRegister(op.input(1)), g.UseImmediate(E16),
-             g.UseImmediate(m1));
-  this->Emit(kRiscvVwadduWx, temp2, temp, g.UseImmediate(1),
-             g.UseImmediate(E16), g.UseImmediate(m1));
-  this->Emit(kRiscvVdivu, temp3, temp2, g.UseImmediate(2), g.UseImmediate(E32),
-             g.UseImmediate(m2));
-  this->Emit(kRiscvVnclipu, g.DefineAsRegister(node), temp3, g.UseImmediate(0),
-             g.UseImmediate(E16), g.UseImmediate(m1),
-             g.UseImmediate(FPURoundingMode::RNE));
+  InstructionOperand temps[] = {temp, temp, temp};
+  size_t temp_count = arraysize(temps);
+  this->Emit(kRiscvI16x8RoundingAverageU, g.DefineAsRegister(node),
+             g.UseRegister(op.input(0)), g.UseRegister(op.input(1)), temp_count,
+             temps);
 }
 
 void InstructionSelector::VisitI32x4DotI16x8S(OpIndex node) {

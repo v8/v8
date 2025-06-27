@@ -307,6 +307,7 @@ namespace compiler {
   V(RiscvI16x8UConvertI32x4)              \
   V(RiscvI8x16SConvertI16x8)              \
   V(RiscvI8x16UConvertI16x8)              \
+  V(RiscvI16x8RoundingAverageU)           \
   V(RiscvI32x4SConvertF32x4)              \
   V(RiscvI32x4UConvertF32x4)              \
   V(RiscvI32x4SConvertI16x8High)          \
@@ -328,6 +329,7 @@ namespace compiler {
   V(RiscvI8x16Shl)                        \
   V(RiscvI8x16ShrS)                       \
   V(RiscvI8x16ShrU)                       \
+  V(RiscvI8x16RoundingAverageU)           \
   V(RiscvI8x16Popcnt)                     \
   V(RiscvVnot)                            \
   V(RiscvS128Select)                      \

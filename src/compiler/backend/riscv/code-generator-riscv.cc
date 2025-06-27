@@ -3572,6 +3572,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vnclipu_vi(i.OutputSimd128Register(), tmp_reg, 0);
       break;
     }
+    case kRiscvI8x16RoundingAverageU: {
+      // Lanewise (x + y + 1) / 2.
+      __ VU.set(kScratchReg, E8, m1);
+      Simd128Register temp = kSimd128ScratchReg;
+      __ vwaddu_vv(temp, i.InputSimd128Register(0), i.InputSimd128Register(1));
+      Simd128Register temp2 = kSimd128ScratchReg3;
+      __ li(kScratchReg, 1);
+      __ vwaddu_wx(temp2, temp, kScratchReg);
+      Simd128Register temp3 = kSimd128ScratchReg3;
+      __ VU.set(kScratchReg, E16, m2);
+      __ li(kScratchReg, 2);
+      __ vdivu_vx(temp3, temp2, kScratchReg);
+      __ VU.set(kScratchReg, E8, m1);
+      __ VU.set(FPURoundingMode::RNE);
+      __ vnclipu_vi(i.OutputSimd128Register(), temp3, 0);
+      break;
+    }
     case kRiscvI8x16SConvertI16x8: {
       __ VU.set(kScratchReg, E16, m1);
       // Move the input to the temporary registers so they are guaranteed to be
@@ -3606,6 +3623,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ VU.set(kScratchReg, E8, m1);
       __ VU.set(FPURoundingMode::RNE);
       __ vnclipu_vi(i.OutputSimd128Register(), tmp_reg, 0);
+      break;
+    }
+    case kRiscvI16x8RoundingAverageU: {
+      // Lanewise (x + y + 1) / 2.
+      __ VU.set(kScratchReg, E16, m1);
+      Simd128Register temp = i.TempSimd128Register(0);
+      Simd128Register temp2 = i.TempSimd128Register(1);
+      Simd128Register temp3 = i.TempSimd128Register(2);
+      __ vwaddu_vv(temp, i.InputSimd128Register(0), i.InputSimd128Register(1));
+      __ li(kScratchReg, 1);
+      __ vwaddu_wx(temp2, temp, kScratchReg);
+      __ VU.set(kScratchReg, E32, m2);
+      __ li(kScratchReg, 2);
+      __ vdivu_vx(temp3, temp2, kScratchReg);
+      __ VU.set(kScratchReg, E16, m1);
+      __ VU.set(FPURoundingMode::RNE);
+      __ vnclipu_vi(i.OutputSimd128Register(), temp3, 0);
       break;
     }
     case kRiscvI64x2SConvertI32x4Low: {
