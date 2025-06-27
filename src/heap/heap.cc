@@ -1004,7 +1004,7 @@ void Heap::GarbageCollectionPrologueInSafepoint(GarbageCollector collector) {
   new_space_allocation_counter_ = NewSpaceAllocationCounter();
   if (v8_flags.large_page_pool_timeout == 0 &&
       collector == GarbageCollector::MARK_COMPACTOR) {
-    memory_allocator()->pool()->ReleaseLargeImmediately();
+    isolate_->isolate_group()->page_pool()->ReleaseLargeImmediately();
   }
 }
 
@@ -5865,7 +5865,8 @@ void Heap::SetUp(LocalHeap* main_thread_local_heap) {
 
   // Set up memory allocator.
   memory_allocator_.reset(new MemoryAllocator(
-      isolate_, code_page_allocator, trusted_page_allocator, MaxReserved()));
+      isolate_, code_page_allocator, trusted_page_allocator,
+      isolate_->isolate_group()->page_pool(), MaxReserved()));
 
   sweeper_.reset(new Sweeper(this));
 
@@ -6455,7 +6456,6 @@ void Heap::TearDown() {
 
   read_only_space_ = nullptr;
 
-  memory_allocator()->pool()->ReleaseOnTearDown(isolate());
   memory_allocator()->TearDown();
 
   StrongRootsEntry* next = nullptr;

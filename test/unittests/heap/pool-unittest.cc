@@ -341,7 +341,7 @@ class PoolTest : public                                     //
 
   Heap* heap() { return isolate()->heap(); }
   MemoryAllocator* allocator() { return heap()->memory_allocator(); }
-  PagePool* pool() { return allocator()->pool(); }
+  PagePool* pool() { return isolate()->isolate_group()->page_pool(); }
 
   TrackingPageAllocator* tracking_page_allocator() {
     return tracking_page_allocator_;

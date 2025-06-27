@@ -115,7 +115,8 @@ size_t SemiSpace::CommittedPhysicalMemory() const {
 
 bool SemiSpace::AllocateFreshPage() {
   PageMetadata* new_page = heap()->memory_allocator()->AllocatePage(
-      MemoryAllocator::AllocationMode::kUsePool, this, NOT_EXECUTABLE);
+      MemoryAllocator::AllocationMode::kTryDelayedAndPooled, this,
+      NOT_EXECUTABLE);
   if (new_page == nullptr) {
     return false;
   }

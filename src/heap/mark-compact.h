@@ -444,10 +444,6 @@ class MarkCompactCollector final {
   std::vector<PageMetadata*> aborted_evacuation_candidates_due_to_flags_;
   std::vector<LargePageMetadata*> promoted_large_pages_;
 
-  // We postpone page freeing until the pointer-update phase is done (updating
-  // slots may happen for dead objects which point to dead memory).
-  std::vector<MutablePageMetadata*> queued_pages_to_be_freed_;
-
   // Map which stores ephemeron pairs for the linear-time algorithm.
   KeyToValues key_to_values_;
 

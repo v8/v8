@@ -908,12 +908,8 @@ void MarkCompactCollector::Finish() {
 
   sweeper_->StartMajorSweeperTasks();
 
-  // Release empty pages now, when the pointer-update phase is done.
-  for (MutablePageMetadata* page : queued_pages_to_be_freed_) {
-    heap_->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
-                                    page);
-  }
-  queued_pages_to_be_freed_.clear();
+  // Release delayed pages now that the pointer-update phase is done.
+  heap_->memory_allocator()->ReleaseDelayedPages();
 
   // Shrink pages if possible after processing and filtering slots.
   ShrinkPagesToObjectSizes(heap_, heap_->lo_space());
@@ -5980,16 +5976,16 @@ void MarkCompactCollector::ReleasePage(PagedSpaceBase* space,
       // shared objects. Postpone releasing empty pages so that updating
       // old-to-new slots in dead old objects may access the dead shared
       // objects.
-      queued_pages_to_be_freed_.push_back(page);
+      heap()->memory_allocator()->Free(
+          MemoryAllocator::FreeMode::kDelayThenRelease, page);
       break;
     }
-
     case OLD_SPACE:
     case NEW_SPACE: {
-      heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kPool, page);
+      heap()->memory_allocator()->Free(
+          MemoryAllocator::FreeMode::kDelayThenPool, page);
       break;
     }
-
     default: {
       heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
                                        page);
@@ -6103,7 +6099,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
 }
 
 namespace {
-bool ShouldPostponeFreeingEmptyPages(LargeObjectSpace* space) {
+bool ShouldDelayFreeingEmptyPages(LargeObjectSpace* space) {
   // Delay releasing dead old large object pages until after pointer updating is
   // done because dead old space objects may have old-to-new slots (which
   // were possibly later overriden with old-to-old references) that are
@@ -6119,14 +6115,16 @@ bool ShouldPostponeFreeingEmptyPages(LargeObjectSpace* space) {
 void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
   PtrComprCageBase cage_base(heap_->isolate());
   size_t surviving_object_size = 0;
-  const bool postpone_freeing = ShouldPostponeFreeingEmptyPages(space);
+  const bool delay_freeing = ShouldDelayFreeingEmptyPages(space);
   const bool add_to_pool =
       v8_flags.large_page_pool && space->identity() == NEW_LO_SPACE;
-  DCHECK_IMPLIES(add_to_pool, !postpone_freeing);
-  std::vector<LargePageMetadata*> pages_to_pool;
-  if (add_to_pool) {
-    pages_to_pool.reserve(space->memory_chunk_list().size());
-  }
+  DCHECK_IMPLIES(add_to_pool, !delay_freeing);
+  // We don't need to delay freeing for pages that we can pool. The allocator
+  // doesn't support `kPool` for large pages, so we choose `kDelayThenPool`.
+  const auto free_mode = add_to_pool ? MemoryAllocator::FreeMode::kDelayThenPool
+                         : delay_freeing
+                             ? MemoryAllocator::FreeMode::kDelayThenRelease
+                             : MemoryAllocator::FreeMode::kImmediately;
   for (auto it = space->begin(); it != space->end();) {
     LargePageMetadata* current = *(it++);
     DCHECK(!current->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
@@ -6134,14 +6132,7 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
     if (!marking_state_->IsMarked(object)) {
       // Object is dead and page can be released.
       space->RemovePage(current);
-      if (postpone_freeing) {
-        queued_pages_to_be_freed_.push_back(current);
-      } else if (add_to_pool) {
-        pages_to_pool.push_back(current);
-      } else {
-        heap_->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
-                                        current);
-      }
+      heap_->memory_allocator()->Free(free_mode, current);
       continue;
     }
     if (!v8_flags.sticky_mark_bits) {
@@ -6152,15 +6143,10 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
     surviving_object_size += static_cast<size_t>(object->Size(cage_base));
   }
   space->set_objects_size(surviving_object_size);
-
-  if (add_to_pool && !pages_to_pool.empty()) {
-    heap()->memory_allocator()->FreeLargePagesPooled(std::move(pages_to_pool));
-  }
 }
 
 void MarkCompactCollector::Sweep() {
   DCHECK(!sweeper_->sweeping_in_progress());
-  DCHECK(queued_pages_to_be_freed_.empty());
 
   sweeper_->InitializeMajorSweeping();
 

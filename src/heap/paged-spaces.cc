@@ -300,7 +300,7 @@ bool PagedSpaceBase::TryExpand(LocalHeap* local_heap, AllocationOrigin origin) {
   }
   const MemoryAllocator::AllocationMode allocation_mode =
       (identity() == NEW_SPACE || identity() == OLD_SPACE)
-          ? MemoryAllocator::AllocationMode::kUsePool
+          ? MemoryAllocator::AllocationMode::kTryDelayedAndPooled
           : MemoryAllocator::AllocationMode::kRegular;
   PageMetadata* page = heap()->memory_allocator()->AllocatePage(
       allocation_mode, this, executable());
