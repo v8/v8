@@ -527,6 +527,10 @@ class BaseTestRunner(object):
         'report_destroy_locked=0',
       ])
 
+    if self.build_config.sandbox_hardware_support:
+      os.environ['LD_BIND_NOW'] = '1'
+      os.environ['GLIBC_TUNABLES'] = 'glibc.pthread.rseq=0'
+
   def _get_external_symbolizer_option(self):
     # TODO(https://crbug.com/396446140): Switch to the symbolizer from our
     # bundled toolchain as soon as one is available for linux-arm64.
