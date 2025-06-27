@@ -1178,7 +1178,7 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   DirectHandle<String> currency_str;
   Maybe<bool> found_currency =
       GetStringOption(isolate, options, isolate->factory()->currency_string(),
-                      std::span<std::string_view>(), service, &currency_str);
+                      service, &currency_str);
   MAYBE_RETURN(found_currency, MaybeDirectHandle<JSNumberFormat>());
   std::string currency;
 
@@ -1229,9 +1229,8 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   // 10. Let unit be ? GetOption(options, "unit", "string", undefined,
   // undefined).
   DirectHandle<String> unit_str;
-  Maybe<bool> found_unit =
-      GetStringOption(isolate, options, isolate->factory()->unit_string(),
-                      std::span<std::string_view>(), service, &unit_str);
+  Maybe<bool> found_unit = GetStringOption(
+      isolate, options, isolate->factory()->unit_string(), service, &unit_str);
   MAYBE_RETURN(found_unit, MaybeDirectHandle<JSNumberFormat>());
 
   std::pair<icu::MeasureUnit, icu::MeasureUnit> unit_pair;

@@ -24,10 +24,9 @@ V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSReceiver> CoerceOptionsToObject(
 // ECMA402 9.2.10. GetOption( options, property, type, values, fallback)
 // ecma402/#sec-getoption and temporal/#sec-getoption
 //
-// This is specialized for the case when type is string.
-//
-// Instead of passing undefined for the values argument as the spec
-// defines, pass in an empty vector.
+// This is specialized for the case when type is string, and when
+// no list of values is passed. If you wish to pass a list of values,
+// use the other overload.
 //
 // Returns true if options object has the property and stores the
 // result in value. Returns false if the value is not found. The
@@ -38,11 +37,20 @@ V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSReceiver> CoerceOptionsToObject(
 // printing the error message.
 V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Maybe<bool> GetStringOption(
     Isolate* isolate, DirectHandle<JSReceiver> options,
-    DirectHandle<String> property,
-    const std::span<const std::string_view> values, const char* method_name,
+    DirectHandle<String> property, const char* method_name,
     DirectHandle<String>* result);
 
-// A helper template to get string from option into a enum.
+// ECMA402 9.2.10. GetOption( options, property, type, values, fallback)
+// ecma402/#sec-getoption and temporal/#sec-getoption
+//
+// This is specialized for the case when type is string, and when you are
+// passing in a list of values to match against. If you just wish to get the
+// string, use the overload above. This function expects a list of
+// `enum_values`, which it will return on matching the corresponding
+// (index-wise) str_values entry, which is useful when trying to match against
+// an options list. If you do not need a particular enum but still wish to match
+// against a list of values, just pass in str_values twice.
+//
 // The enum in the enum_values is the corresponding value to the strings
 // in the str_values. If the option does not contains name,
 // default_value will be return. If default_value is not set, fallback
@@ -58,8 +66,8 @@ V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOption(
   // 2. c. Let value be ? ToString(value).
 
   DirectHandle<String> found_string;
-  Maybe<bool> found = GetStringOption(isolate, options, property, str_values,
-                                      method_name, &found_string);
+  Maybe<bool> found =
+      GetStringOption(isolate, options, property, method_name, &found_string);
   MAYBE_RETURN(found, Nothing<T>());
   // 2. d. if values is not undefined, then
 

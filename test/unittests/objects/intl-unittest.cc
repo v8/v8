@@ -152,8 +152,7 @@ TEST_F(IntlTest, GetStringOption) {
     // No value found
     DirectHandle<String> result;
     Maybe<bool> found =
-        GetStringOption(i_isolate(), options, key,
-                        std::span<std::string_view>(), "service", &result);
+        GetStringOption(i_isolate(), options, key, "service", &result);
 
     CHECK(!found.FromJust());
     CHECK(result.is_null());
@@ -169,8 +168,7 @@ TEST_F(IntlTest, GetStringOption) {
     // Value found
     DirectHandle<String> result;
     Maybe<bool> found =
-        GetStringOption(i_isolate(), options, key,
-                        std::span<std::string_view>(), "service", &result);
+        GetStringOption(i_isolate(), options, key, "service", &result);
 
     CHECK(found.FromJust());
     std::string s = result->ToStdString();

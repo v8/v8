@@ -2776,7 +2776,7 @@ Maybe<bool> Intl::GetNumberingSystem(Isolate* isolate,
   DirectHandle<String> output;
   Maybe<bool> maybe = GetStringOption(
       isolate, options, isolate->factory()->numberingSystem_string(),
-      std::span<std::string_view>(), method_name, &output);
+      method_name, &output);
   MAYBE_RETURN(maybe, Nothing<bool>());
   if (maybe.FromJust()) {
     result = output->ToStdString();

@@ -316,7 +316,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
   DirectHandle<String> collation_str;
   Maybe<bool> maybe_collation =
       GetStringOption(isolate, options, isolate->factory()->collation_string(),
-                      std::span<std::string_view>(), service, &collation_str);
+                      service, &collation_str);
   MAYBE_RETURN(maybe_collation, MaybeHandle<JSCollator>());
 
   // Unfortunately needs to be a std::string because of Intl::IsValidCollation

@@ -44,7 +44,6 @@ MaybeDirectHandle<JSReceiver> CoerceOptionsToObject(
 
 Maybe<bool> GetStringOption(Isolate* isolate, DirectHandle<JSReceiver> options,
                             DirectHandle<String> property,
-                            const std::span<const std::string_view> values,
                             const char* method_name,
                             DirectHandle<String>* result) {
   // 1. Let value be ? Get(options, property).
@@ -63,22 +62,7 @@ Maybe<bool> GetStringOption(Isolate* isolate, DirectHandle<JSReceiver> options,
       isolate, value_str, Object::ToString(isolate, value), Nothing<bool>());
 
   // 2. d. if values is not undefined, then
-  if (!values.empty()) {
-    // 2. d. i. If values does not contain an element equal to value,
-    // throw a RangeError exception.
-    for (const auto& val : values) {
-      if (value_str->IsEqualTo(val, isolate)) {
-        // 2. e. return value
-        *result = value_str;
-        return Just(true);
-      }
-    }
-
-    DirectHandle<String> method_str =
-        isolate->factory()->NewStringFromAsciiChecked(method_name);
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kValueOutOfRange,
-                                           value, method_str, property));
-  }
+  // Skip: this overload is only for when values is undefined
 
   // 2. e. return value
   *result = value_str;

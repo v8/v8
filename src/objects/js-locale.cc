@@ -88,10 +88,7 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
       DirectHandle<String> output;
       MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, found,
-          GetStringOption(isolate, options, name,
-                          std::span<const std::string_view>(), "locale",
-                          &output),
-          {});
+          GetStringOption(isolate, options, name, "locale", &output), {});
       if (found) {
         owned = output->ToStdString();
         value_str = owned;
@@ -317,9 +314,9 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
   // 3. Let language be ? GetOption(options, "language", "string", undefined,
   // undefined).
   DirectHandle<String> language_str;
-  Maybe<bool> maybe_language = GetStringOption(
-      isolate, options, isolate->factory()->language_string(),
-      std::span<std::string_view>(), "ApplyOptionsToTag", &language_str);
+  Maybe<bool> maybe_language =
+      GetStringOption(isolate, options, isolate->factory()->language_string(),
+                      "ApplyOptionsToTag", &language_str);
   MAYBE_RETURN(maybe_language, Nothing<bool>());
 
   // 4. If language is not undefined, then
@@ -337,9 +334,9 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
   // 5. Let script be ? GetOption(options, "script", "string", undefined,
   // undefined).
   DirectHandle<String> script_str;
-  Maybe<bool> maybe_script = GetStringOption(
-      isolate, options, isolate->factory()->script_string(),
-      std::span<std::string_view>(), "ApplyOptionsToTag", &script_str);
+  Maybe<bool> maybe_script =
+      GetStringOption(isolate, options, isolate->factory()->script_string(),
+                      "ApplyOptionsToTag", &script_str);
   MAYBE_RETURN(maybe_script, Nothing<bool>());
   // 6. If script is not undefined, then
   if (maybe_script.FromJust()) {
@@ -355,9 +352,9 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
   // 7. Let region be ? GetOption(options, "region", "string", undefined,
   // undefined).
   DirectHandle<String> region_str;
-  Maybe<bool> maybe_region = GetStringOption(
-      isolate, options, isolate->factory()->region_string(),
-      std::span<std::string_view>(), "ApplyOptionsToTag", &region_str);
+  Maybe<bool> maybe_region =
+      GetStringOption(isolate, options, isolate->factory()->region_string(),
+                      "ApplyOptionsToTag", &region_str);
   MAYBE_RETURN(maybe_region, Nothing<bool>());
   // 8. If region is not undefined, then
   if (maybe_region.FromJust()) {

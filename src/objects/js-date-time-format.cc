@@ -2101,7 +2101,7 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   //    "string", undefined, undefined).
   Maybe<bool> maybe_calendar =
       GetStringOption(isolate, options, isolate->factory()->calendar_string(),
-                      std::span<std::string_view>(), service, &calendar_str);
+                      service, &calendar_str);
   MAYBE_RETURN(maybe_calendar, {});
   // Unfortunately needs to be a std::string because of Intl::IsValidCalendar
   std::string calendar_stdstr;
