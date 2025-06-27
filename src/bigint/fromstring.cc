@@ -90,7 +90,11 @@ void ProcessorImpl::FromStringLarge(RWDigits Z,
                                     FromStringAccumulator* accumulator) {
   uint32_t num_parts = static_cast<uint32_t>(accumulator->heap_parts_.size());
   DCHECK(num_parts >= 2);
-  DCHECK(Z.len() >= num_parts);
+  // This is a release-mode check to guard against concurrent in-sandbox
+  // corruption. Due to the rotating-buffer scheme described above, if Z
+  // was too short, the algorithm would get confused and eventually perform
+  // OOB writes into {multipliers_storage} (allocated below).
+  CHECK(Z.len() >= num_parts);
   RWDigits parts(accumulator->heap_parts_.data(), num_parts);
   Storage multipliers_storage(num_parts);
   RWDigits multipliers(multipliers_storage.get(), num_parts);
