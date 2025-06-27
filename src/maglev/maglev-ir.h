@@ -143,7 +143,8 @@ class ExceptionHandlerInfo;
   V(Float64Round)                       \
   V(Float64Compare)                     \
   V(Float64ToBoolean)                   \
-  V(Float64Ieee754Unary)
+  V(Float64Ieee754Unary)                \
+  V(Float64Ieee754Binary)
 
 #define SMI_OPERATIONS_NODE_LIST(V) \
   V(CheckedSmiIncrement)            \
@@ -3643,6 +3644,46 @@ class Float64Ieee754Unary
       typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
 
   Input& input() { return Node::input(0); }
+
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  auto options() const { return std::tuple{ieee_function_}; }
+
+  Ieee754Function ieee_function() const { return ieee_function_; }
+  ExternalReference ieee_function_ref() const;
+
+ private:
+  Ieee754Function ieee_function_;
+};
+
+#define IEEE_754_BINARY_LIST(V) \
+  V(MathAtan2, atan2, Atan2)    \
+  V(MathPow, pow, Power)
+
+class Float64Ieee754Binary
+    : public FixedInputValueNodeT<2, Float64Ieee754Binary> {
+  using Base = FixedInputValueNodeT<2, Float64Ieee754Binary>;
+
+ public:
+  enum class Ieee754Function : uint8_t {
+#define DECL_ENUM(MathName, ExtName, EnumName) k##EnumName,
+    IEEE_754_BINARY_LIST(DECL_ENUM)
+#undef DECL_ENUM
+  };
+  explicit Float64Ieee754Binary(uint64_t bitfield,
+                                Ieee754Function ieee_function)
+      : Base(bitfield), ieee_function_(ieee_function) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Float64() | OpProperties::Call();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kHoleyFloat64, ValueRepresentation::kHoleyFloat64};
+
+  Input& input_lhs() { return Node::input(0); }
+  Input& input_rhs() { return Node::input(1); }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();

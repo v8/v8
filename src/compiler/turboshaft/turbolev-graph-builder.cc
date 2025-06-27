@@ -4197,6 +4197,22 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::Float64Ieee754Binary* node,
+                                const maglev::ProcessingState& state) {
+    FloatBinopOp::Kind kind;
+    switch (node->ieee_function()) {
+#define CASE(MathName, ExpName, EnumName)                          \
+  case maglev::Float64Ieee754Binary::Ieee754Function::k##EnumName: \
+    kind = FloatBinopOp::Kind::k##EnumName;                        \
+    break;
+      IEEE_754_BINARY_LIST(CASE)
+#undef CASE
+    }
+    SetMap(node, __ Float64Binary(Map(node->input_lhs()),
+                                  Map(node->input_rhs()), kind));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::CheckedSmiIncrement* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());

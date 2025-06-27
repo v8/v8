@@ -1045,7 +1045,6 @@ class MaglevGraphBuilder {
   V(NumberParseInt)                            \
   V(MathCeil)                                  \
   V(MathFloor)                                 \
-  V(MathPow)                                   \
   V(MathAbs)                                   \
   V(MathRound)                                 \
   V(MathClz32)                                 \
@@ -1058,7 +1057,8 @@ class MaglevGraphBuilder {
   V(StringPrototypeIterator)                   \
   IF_INTL(V, StringPrototypeLocaleCompareIntl) \
   CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V) \
-  IEEE_754_UNARY_LIST(V)
+  IEEE_754_UNARY_LIST(V)                       \
+  IEEE_754_BINARY_LIST(V)
 
 #define DEFINE_BUILTIN_REDUCER(Name, ...)                           \
   MaybeReduceResult TryReduce##Name(compiler::JSFunctionRef target, \

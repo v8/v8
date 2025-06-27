@@ -10599,36 +10599,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringConstructor(
   return BuildToString(args[0], ToString::kConvertSymbol);
 }
 
-MaybeReduceResult MaglevGraphBuilder::TryReduceMathPow(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  if (args.count() < 2) {
-    // For < 2 args, we'll be calculating Math.Pow(arg[0], undefined), which is
-    // ToNumber(arg[0]) ** NaN == NaN. So we can just return NaN.
-    // However, if there is a single argument and it's tagged, we have to call
-    // ToNumber on it before returning NaN, for side effects. This call could
-    // lazy deopt, which would mean we'd need a continuation to actually set
-    // the NaN return value... it's easier to just bail out, this should be
-    // an uncommon case anyway.
-    if (args.count() == 1 && args[0]->properties().is_tagged()) {
-      return {};
-    }
-    return GetRootConstant(RootIndex::kNanValue);
-  }
-  if (!CanSpeculateCall()) return {};
-  // If both arguments are tagged, it is cheaper to call Math.Pow builtin,
-  // instead of Float64Exponentiate, since we are still making a call and we
-  // don't need to unbox both inputs. See https://crbug.com/1393643.
-  if (args[0]->properties().is_tagged() && args[1]->properties().is_tagged()) {
-    // The Math.pow call will be created in CallKnownJSFunction reduction.
-    return {};
-  }
-  ValueNode* left = GetHoleyFloat64ForToNumber(
-      args[0], NodeType::kNumber, TaggedToFloat64ConversionType::kOnlyNumber);
-  ValueNode* right = GetHoleyFloat64ForToNumber(
-      args[1], NodeType::kNumber, TaggedToFloat64ConversionType::kOnlyNumber);
-  return AddNewNode<Float64Exponentiate>({left, right});
-}
-
 #define MATH_UNARY_IEEE_BUILTIN_REDUCER(MathName, ExtName, EnumName)          \
   MaybeReduceResult MaglevGraphBuilder::TryReduce##MathName(                  \
       compiler::JSFunctionRef target, CallArguments& args) {                  \
@@ -10651,6 +10621,31 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathPow(
 
 IEEE_754_UNARY_LIST(MATH_UNARY_IEEE_BUILTIN_REDUCER)
 #undef MATH_UNARY_IEEE_BUILTIN_REDUCER
+
+#define MATH_BINARY_IEEE_BUILTIN_REDUCER(MathName, ExtName, EnumName)      \
+  MaybeReduceResult MaglevGraphBuilder::TryReduce##MathName(               \
+      compiler::JSFunctionRef target, CallArguments& args) {               \
+    if (args.count() < 2) {                                                \
+      if (args.count() == 1 && !CheckType(args[0], NodeType::kNumber)) {   \
+        return {};                                                         \
+      }                                                                    \
+      return GetRootConstant(RootIndex::kNanValue);                        \
+    }                                                                      \
+    if (!CanSpeculateCall() && (!CheckType(args[0], NodeType::kNumber) ||  \
+                                !CheckType(args[1], NodeType::kNumber))) { \
+      return {};                                                           \
+    }                                                                      \
+    ValueNode* lhs =                                                       \
+        GetFloat64ForToNumber(args[0], NodeType::kNumber,                  \
+                              TaggedToFloat64ConversionType::kOnlyNumber); \
+    ValueNode* rhs =                                                       \
+        GetFloat64ForToNumber(args[1], NodeType::kNumber,                  \
+                              TaggedToFloat64ConversionType::kOnlyNumber); \
+    return AddNewNode<Float64Ieee754Binary>(                               \
+        {lhs, rhs}, Float64Ieee754Binary::Ieee754Function::k##EnumName);   \
+  }
+IEEE_754_BINARY_LIST(MATH_BINARY_IEEE_BUILTIN_REDUCER)
+#undef MATH_BINARY_IEEE_BUILTIN_REDUCER
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceBuiltin(
     compiler::JSFunctionRef target, compiler::SharedFunctionInfoRef shared,

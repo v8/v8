@@ -802,6 +802,7 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kFloat64Round:
     case Opcode::kFloat64ToBoolean:
     case Opcode::kFloat64Ieee754Unary:
+    case Opcode::kFloat64Ieee754Binary:
     case Opcode::kInt32CountLeadingZeros:
     case Opcode::kTaggedCountLeadingZeros:
     case Opcode::kFloat64CountLeadingZeros:
@@ -836,6 +837,16 @@ ExternalReference Float64Ieee754Unary::ieee_function_ref() const {
   case Ieee754Function::k##EnumName:      \
     return ExternalReference::ieee754_##ExtName##_function();
     IEEE_754_UNARY_LIST(CASE)
+#undef CASE
+  }
+}
+
+ExternalReference Float64Ieee754Binary::ieee_function_ref() const {
+  switch (ieee_function_) {
+#define CASE(MathName, ExtName, EnumName) \
+  case Ieee754Function::k##EnumName:      \
+    return ExternalReference::ieee754_##ExtName##_function();
+    IEEE_754_BINARY_LIST(CASE)
 #undef CASE
   }
 }
@@ -8396,6 +8407,18 @@ void Float64Ieee754Unary::PrintParams(
     os << "(" << #EnumName << ")";        \
     break;
     IEEE_754_UNARY_LIST(CASE)
+#undef CASE
+  }
+}
+
+void Float64Ieee754Binary::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  switch (ieee_function_) {
+#define CASE(MathName, ExtName, EnumName) \
+  case Ieee754Function::k##EnumName:      \
+    os << "(" << #EnumName << ")";        \
+    break;
+    IEEE_754_BINARY_LIST(CASE)
 #undef CASE
   }
 }

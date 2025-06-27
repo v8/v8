@@ -1890,6 +1890,12 @@ class TurboshaftAssemblerOpInterface
                                        FloatRepresentation::Float64());
   }
 
+  V<Float64> Float64Binary(V<Float64> lhs, V<Float64> rhs,
+                           FloatBinopOp::Kind kind) {
+    return ReduceIfReachableFloatBinop(lhs, rhs, kind,
+                                       FloatRepresentation::Float64());
+  }
+
 #define DECL_MULTI_REP_UNARY(name, operation, rep_type, kind)                \
   OpIndex name(OpIndex input, rep_type rep) {                                \
     return ReduceIfReachable##operation(input, operation##Op::Kind::k##kind, \

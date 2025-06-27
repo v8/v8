@@ -905,6 +905,21 @@ void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
   __ CallCFunction(ieee_function_ref(), 1);
 }
 
+int Float64Ieee754Binary::MaxCallStackArgs() const {
+  return MaglevAssembler::ArgumentStackSlotsForCFunctionCall(2);
+}
+void Float64Ieee754Binary::SetValueLocationConstraints() {
+  UseFixed(input_lhs(), xmm0);
+  UseFixed(input_rhs(), xmm1);
+  DefineSameAsFirst(this);
+}
+void Float64Ieee754Binary::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  AllowExternalCallThatCantCauseGC scope(masm);
+  __ PrepareCallCFunction(2);
+  __ CallCFunction(ieee_function_ref(), 2);
+}
+
 void HoleyFloat64ToMaybeNanFloat64::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
