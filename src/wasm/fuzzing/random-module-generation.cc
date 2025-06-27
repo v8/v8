@@ -4489,10 +4489,12 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
 
   // We keep the signature for the first (main) function constant.
   constexpr bool kIsFinal = true;
-  auto kMainFnSig = FixedSizeSignature<ValueType>::Returns(kWasmI32).Params(
-      kWasmI32, kWasmI32, kWasmI32);
-  function_signatures.push_back(
-      builder.ForceAddSignature(&kMainFnSig, kIsFinal));
+  const FunctionSig* main_sig =
+      CreateSignature(zone,
+                      base::VectorOf({ValueType{kWasmI32}, ValueType{kWasmI32},
+                                      ValueType{kWasmI32}}),
+                      base::VectorOf({ValueType{kWasmI32}}));
+  function_signatures.push_back(builder.ForceAddSignature(main_sig, kIsFinal));
   current_type_index++;
 
   // Add randomly generated signatures.
