@@ -42,6 +42,10 @@ namespace liftoff {
 //  -----+--------------------+  <-- stack ptr (sp)
 //
 
+#if defined(V8_TARGET_BIG_ENDIAN)
+#error Big-endian RISCV is not supported
+#endif
+
 inline MemOperand GetMemOp(LiftoffAssembler* assm, Register addr,
                            Register offset, uintptr_t offset_imm,
                            bool i64_offset = false, unsigned shift_amount = 0) {
@@ -401,13 +405,6 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
   if (protected_load_pc) {
     DCHECK(InstructionAt(*protected_load_pc)->IsLoad());
   }
-
-#if defined(V8_TARGET_BIG_ENDIAN)
-  if (is_load_mem) {
-    pinned.set(src_op.rm());
-    liftoff::ChangeEndiannessLoad(this, dst, type, pinned);
-  }
-#endif
 }
 
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
@@ -417,19 +414,6 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              bool i64_offset) {
   MemOperand dst_op =
       liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm, i64_offset);
-
-#if defined(V8_TARGET_BIG_ENDIAN)
-  if (is_store_mem) {
-    pinned.set(dst_op.rm());
-    LiftoffRegister tmp = GetUnusedRegister(src.reg_class(), pinned);
-    // Save original value.
-    Move(tmp, src, type.value_type());
-
-    src = tmp;
-    pinned.set(tmp);
-    liftoff::ChangeEndiannessStore(this, src, type, pinned);
-  }
-#endif
 
   Assembler::BlockPoolsScope blocked_pools_scope(this);
   auto trapper = [protected_store_pc](int offset) {
