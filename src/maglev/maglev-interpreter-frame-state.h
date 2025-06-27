@@ -395,7 +395,7 @@ struct KnownNodeAspects {
   }
 
   bool CheckType(compiler::JSHeapBroker* broker, ValueNode* node, NodeType type,
-                 NodeType* current_type) {
+                 NodeType* current_type = nullptr) {
     NodeType static_type = node->GetStaticType(broker);
     if (current_type) *current_type = static_type;
     if (NodeTypeIs(static_type, type)) return true;
@@ -428,7 +428,7 @@ struct KnownNodeAspects {
   }
 
   bool EnsureType(compiler::JSHeapBroker* broker, ValueNode* node,
-                  NodeType type, NodeType* old_type) {
+                  NodeType type, NodeType* old_type = nullptr) {
     NodeType static_type = node->GetStaticType(broker);
     if (old_type) *old_type = static_type;
     if (NodeTypeIs(static_type, type)) return true;

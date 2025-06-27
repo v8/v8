@@ -642,6 +642,24 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
 #endif
 }
 
+// ValueRepresentation doesn't distinguish between Int32 and TruncatedInt32:
+// both are Int32. For Phi untagging however, it's interesting to have a
+// difference between the 2, as a TruncatedInt32 would allow untagging to
+// Float64, whereas an Int32 use wouldn't (because it would require a deopting
+// Float64->Int32 conversion, whereas the truncating version of this conversion
+// cannot deopt). We thus use a UseRepresentation to record use hints for Phis.
+enum class UseRepresentation : uint8_t {
+  kTagged,
+  kInt32,
+  kTruncatedInt32,
+  kUint32,
+  kFloat64,
+  kHoleyFloat64,
+};
+
+typedef base::EnumSet<ValueRepresentation, int8_t> ValueRepresentationSet;
+typedef base::EnumSet<UseRepresentation, int8_t> UseRepresentationSet;
+
 // TODO(olivf): Rename Unknown to Any.
 
 /* Every object should belong to exactly one of these.*/
@@ -2799,6 +2817,8 @@ class ValueNode : public Node {
   bool StaticTypeIs(compiler::JSHeapBroker* broker, NodeType type) {
     return NodeTypeIs(GetStaticType(broker), type);
   }
+
+  inline void RecordUseReprHintIfPhi(UseRepresentation repr);
 
   void InitializeRegisterData() {
     if (use_double_register()) {
@@ -9854,41 +9874,6 @@ class ConstantGapMove : public FixedInputNodeT<0, ConstantGapMove> {
 
 class MergePointInterpreterFrameState;
 
-// ValueRepresentation doesn't distinguish between Int32 and TruncatedInt32:
-// both are Int32. For Phi untagging however, it's interesting to have a
-// difference between the 2, as a TruncatedInt32 would allow untagging to
-// Float64, whereas an Int32 use wouldn't (because it would require a deopting
-// Float64->Int32 conversion, whereas the truncating version of this conversion
-// cannot deopt). We thus use a UseRepresentation to record use hints for Phis.
-enum class UseRepresentation : uint8_t {
-  kTagged,
-  kInt32,
-  kTruncatedInt32,
-  kUint32,
-  kFloat64,
-  kHoleyFloat64,
-};
-
-inline std::ostream& operator<<(std::ostream& os,
-                                const UseRepresentation& repr) {
-  switch (repr) {
-    case UseRepresentation::kTagged:
-      return os << "Tagged";
-    case UseRepresentation::kInt32:
-      return os << "Int32";
-    case UseRepresentation::kTruncatedInt32:
-      return os << "TruncatedInt32";
-    case UseRepresentation::kUint32:
-      return os << "Uint32";
-    case UseRepresentation::kFloat64:
-      return os << "Float64";
-    case UseRepresentation::kHoleyFloat64:
-      return os << "HoleyFloat64";
-  }
-}
-
-typedef base::EnumSet<ValueRepresentation, int8_t> ValueRepresentationSet;
-typedef base::EnumSet<UseRepresentation, int8_t> UseRepresentationSet;
 
 // TODO(verwaest): It may make more sense to buffer phis in merged_states until
 // we set up the interpreter frame state for code generation. At that point we
@@ -10047,6 +10032,12 @@ class Phi : public ValueNodeT<Phi> {
 
   friend base::ThreadedListTraits<Phi>;
 };
+
+void ValueNode::RecordUseReprHintIfPhi(UseRepresentation repr) {
+  if (Phi* phi = TryCast<Phi>()) {
+    phi->RecordUseReprHint(repr);
+  }
+}
 
 class Call : public ValueNodeT<Call> {
   using Base = ValueNodeT<Call>;

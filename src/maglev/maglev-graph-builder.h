@@ -9,10 +9,9 @@
 #include <type_traits>
 #include <utility>
 
-#include "src/base/hashing.h"
+#include "src/base/base-export.h"
 #include "src/base/logging.h"
 #include "src/base/vector.h"
-#include "src/codegen/external-reference.h"
 #include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
 #include "src/compiler/bytecode-analysis.h"
@@ -27,12 +26,14 @@
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-intrinsics.h"
+#include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-reducer.h"
 #include "src/objects/bytecode-array.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/string.h"
@@ -162,8 +163,6 @@ inline ReduceResult MaybeReduceResult::Checked() { return ReduceResult(*this); }
     using T = std::remove_pointer_t<std::decay_t<decltype(variable)>>; \
     variable = res.value()->Cast<T>();                                 \
   } while (false)
-
-enum class UseReprHintRecording { kRecord, kDoNotRecord };
 
 struct CatchBlockDetails {
   BasicBlockRef* ref = nullptr;
@@ -298,6 +297,8 @@ class MaglevGraphBuilder {
     return nullptr;
   }
 
+  MaglevReducer<MaglevGraphBuilder>& reducer() { return reducer_; }
+
   // True when this graph builder is building the subgraph of an inlined
   // function.
   bool is_inline() const { return caller_details_ != nullptr; }
@@ -312,6 +313,11 @@ class MaglevGraphBuilder {
   }
 
   DeoptFrame GetLatestCheckpointedFrame();
+  DeoptFrame GetDeoptFrameForEagerDeopt() {
+    return GetLatestCheckpointedFrame();
+  }
+  std::tuple<DeoptFrame, interpreter::Register, int>
+  GetDeoptFrameForLazyDeopt();
 
   bool need_checkpointed_loop_entry() {
     return v8_flags.maglev_speculative_hoist_phi_untagging ||
@@ -324,11 +330,12 @@ class MaglevGraphBuilder {
   void RecordUseReprHint(Phi* phi, UseRepresentation repr);
   void RecordUseReprHintIfPhi(ValueNode* node, UseRepresentation repr);
 
+  SourcePosition GetCurrentSourcePosition() const;
+
+  BasicBlock* current_block() const;
   void set_current_block(BasicBlock* block);
   BasicBlock* FinishInlinedBlockForCaller(
       ControlNode* control_node, ZoneVector<Node*> rem_nodes_in_call_block);
-
-  ZoneVector<Node*>& node_buffer() { return graph_->node_buffer(); }
 
   uint32_t NewObjectId() { return graph_->NewObjectId(); }
 
@@ -382,10 +389,24 @@ class MaglevGraphBuilder {
     }
   }
 
+  KnownNodeAspects& known_node_aspects() {
+    return *current_interpreter_frame_.known_node_aspects();
+  }
+
   DeoptFrame* AddInlinedArgumentsToDeoptFrame(DeoptFrame* deopt_frame,
                                               const MaglevCompilationUnit* unit,
                                               ValueNode* closure,
                                               base::Vector<ValueNode*> args);
+
+  std::pair<interpreter::Register, int> GetResultLocationAndSize() const;
+
+  void AttachExceptionHandlerInfo(Node* node);
+
+  template <typename NodeT>
+  void MarkPossibleSideEffect(NodeT* node);
+
+  template <bool is_possible_map_change = true>
+  void ResetBuilderCachedState();
 
  private:
   // Helper class for building a subgraph with its own control flow, that is not
@@ -536,25 +557,13 @@ class MaglevGraphBuilder {
   template <typename NodeT, typename Function, typename... Args>
   NodeT* AddNewNode(size_t input_count,
                     Function&& post_create_input_initializer, Args&&... args);
-  template <typename NodeT, typename... Args>
-  NodeT* AddNewNodeOrGetEquivalent(std::initializer_list<ValueNode*> raw_inputs,
-                                   Args&&... args);
   // Add a new node with a static set of inputs.
   template <typename NodeT, typename... Args>
   NodeT* AddNewNode(std::initializer_list<ValueNode*> inputs, Args&&... args);
-  template <typename NodeT, typename... Args>
-  NodeT* CreateNewConstantNode(Args&&... args) const;
-  template <typename NodeT>
-  NodeT* AttachExtraInfoAndAddToGraph(NodeT* node);
   template <typename NodeT>
   void AttachDeoptCheckpoint(NodeT* node);
   template <typename NodeT>
   void AttachEagerDeoptInfo(NodeT* node);
-  template <typename NodeT>
-  void AttachLazyDeoptInfo(NodeT* node);
-  template <typename NodeT>
-  void AttachExceptionHandlerInfo(NodeT* node);
-  void AddInitializedNodeToGraph(Node* node);
 
   // Bytecode iterator of the current graph builder is inside a try-block
   // region.
@@ -711,6 +720,7 @@ class MaglevGraphBuilder {
   ValueNode* GetTaggedValue(ValueNode* value,
                             UseReprHintRecording record_use_repr_hint =
                                 UseReprHintRecording::kRecord);
+
   ReduceResult GetSmiValue(ValueNode* value,
                            UseReprHintRecording record_use_repr_hint =
                                UseReprHintRecording::kRecord);
@@ -724,10 +734,7 @@ class MaglevGraphBuilder {
 
   ValueNode* GetTaggedValue(interpreter::Register reg,
                             UseReprHintRecording record_use_repr_hint =
-                                UseReprHintRecording::kRecord) {
-    ValueNode* value = current_interpreter_frame_.get(reg);
-    return GetTaggedValue(value, record_use_repr_hint);
-  }
+                                UseReprHintRecording::kRecord);
 
   ReduceResult GetInternalizedString(interpreter::Register reg);
 
@@ -769,15 +776,9 @@ class MaglevGraphBuilder {
   // Deopts if the value is not exactly representable as an Int32.
   ValueNode* GetInt32(ValueNode* value, bool can_be_heap_number = false);
 
-  void EnsureInt32(ValueNode* value, bool can_be_heap_number = false) {
-    // Either the value is Int32 already, or we force a conversion to Int32 and
-    // cache the value in its alternative representation node.
-    GetInt32(value, can_be_heap_number);
-  }
+  void EnsureInt32(ValueNode* value, bool can_be_heap_number = false);
 
-  void EnsureInt32(interpreter::Register reg) {
-    EnsureInt32(current_interpreter_frame_.get(reg));
-  }
+  void EnsureInt32(interpreter::Register reg);
 
   std::optional<double> TryGetFloat64Constant(
       ValueNode* value, TaggedToFloat64ConversionType conversion_type);
@@ -791,10 +792,7 @@ class MaglevGraphBuilder {
   //
   // Deopts if the value is not exactly representable as a Float64.
   ValueNode* GetFloat64(ValueNode* value);
-
-  ValueNode* GetFloat64(interpreter::Register reg) {
-    return GetFloat64(current_interpreter_frame_.get(reg));
-  }
+  ValueNode* GetFloat64(interpreter::Register reg);
 
   ValueNode* GetHoleyFloat64(ValueNode* value, bool convert_hole_to_undefined);
 
@@ -807,13 +805,9 @@ class MaglevGraphBuilder {
   ValueNode* GetFloat64ForToNumber(
       ValueNode* value, NodeType allowed_input_type,
       TaggedToFloat64ConversionType conversion_type);
-
   ValueNode* GetFloat64ForToNumber(
       interpreter::Register reg, NodeType allowed_input_type,
-      TaggedToFloat64ConversionType conversion_type) {
-    return GetFloat64ForToNumber(current_interpreter_frame_.get(reg),
-                                 allowed_input_type, conversion_type);
-  }
+      TaggedToFloat64ConversionType conversion_type);
 
   ValueNode* GetHoleyFloat64ForToNumber(
       ValueNode* value, NodeType allowed_input_type,
@@ -921,7 +915,6 @@ class MaglevGraphBuilder {
       std::pair<interpreter::Register, interpreter::Register> target,
       NodeT* value);
 
-  std::pair<interpreter::Register, int> GetResultLocationAndSize() const;
 #ifdef DEBUG
   bool HasOutputRegister(interpreter::Register reg) const;
 #endif
@@ -930,18 +923,10 @@ class MaglevGraphBuilder {
   DeoptFrame* GetDeoptFrameForEagerCall(const MaglevCompilationUnit* unit,
                                         ValueNode* closure,
                                         base::Vector<ValueNode*> args);
-  DeoptFrame GetDeoptFrameForLazyDeopt(interpreter::Register result_location,
-                                       int result_size);
   DeoptFrame GetDeoptFrameForLazyDeoptHelper(
       interpreter::Register result_location, int result_size,
       DeoptFrameScope* scope, bool mark_accumulator_dead);
   InterpretedDeoptFrame GetDeoptFrameForEntryStackCheck();
-
-  template <typename NodeT>
-  void MarkPossibleSideEffect(NodeT* node);
-
-  template <bool is_possible_map_change = true>
-  void ResetBuilderCachedState();
 
   int next_offset() const {
     return iterator_.current_offset() + iterator_.current_bytecode_size();
@@ -973,8 +958,6 @@ class MaglevGraphBuilder {
 
   template <UseReprHintRecording hint = UseReprHintRecording::kRecord>
   ValueNode* ConvertInputTo(ValueNode* input, ValueRepresentation expected);
-
-  void FlushNodesToBlock();
 
   template <typename NodeT>
   static constexpr UseReprHintRecording ShouldRecordUseReprHint() {
@@ -1960,9 +1943,6 @@ class MaglevGraphBuilder {
   int parameter_count() const { return compilation_unit_->parameter_count(); }
   int parameter_count_without_receiver() const { return parameter_count() - 1; }
   int register_count() const { return compilation_unit_->register_count(); }
-  KnownNodeAspects& known_node_aspects() {
-    return *current_interpreter_frame_.known_node_aspects();
-  }
 
   float GetCurrentCallFrequency() {
     if (!is_inline()) return 1.0f;
@@ -1982,6 +1962,8 @@ class MaglevGraphBuilder {
     DCHECK(is_inline());
     return bytecode().length();
   }
+
+  MaglevReducer<MaglevGraphBuilder> reducer_;
 
   LocalIsolate* const local_isolate_;
   MaglevCompilationUnit* const compilation_unit_;
@@ -2046,6 +2028,8 @@ class MaglevGraphBuilder {
     return peeled_iteration_count_ > 0;
   }
 
+  compiler::FeedbackSource current_speculation_feedback();
+
   // When loop SPeeling is enabled then the second-last peeling iteration
   // is the optimistic iteration. At the end we try to compile the JumpLoop and
   // only proceed with the fallback iteration 0, if the loop state is
@@ -2071,10 +2055,8 @@ class MaglevGraphBuilder {
 
   // Current block information.
   bool in_prologue_ = true;
-  BasicBlock* current_block_ = nullptr;
   std::optional<InterpretedDeoptFrame> entry_stack_check_frame_;
   std::optional<DeoptFrame> latest_checkpointed_frame_;
-  SourcePosition current_source_position_;
   struct ForInState {
     ValueNode* receiver = nullptr;
     ValueNode* cache_type = nullptr;
@@ -2092,7 +2074,6 @@ class MaglevGraphBuilder {
   MergePointInterpreterFrameState** merge_states_;
 
   InterpreterFrameState current_interpreter_frame_;
-  compiler::FeedbackSource current_speculation_feedback_;
   SpeculationMode current_speculation_mode_ =
       SpeculationMode::kDisallowSpeculation;
 
@@ -2120,62 +2101,8 @@ class MaglevGraphBuilder {
   ZoneStack<HandlerTableEntry> catch_block_stack_;
 
 #ifdef DEBUG
-  bool IsNodeCreatedForThisBytecode(ValueNode* node) const {
-    return new_nodes_.find(node) != new_nodes_.end();
-  }
-
-  std::unordered_set<Node*> new_nodes_;
+  bool IsNodeCreatedForThisBytecode(ValueNode* node) const;
 #endif
-
-  // Some helpers for CSE
-
-  static size_t fast_hash_combine(size_t seed, size_t h) {
-    // Implementation from boost. Good enough for GVN.
-    return h + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-  }
-
-  template <typename T>
-  static size_t gvn_hash_value(const T& in) {
-    return base::hash_value(in);
-  }
-
-  static size_t gvn_hash_value(const compiler::MapRef& map) {
-    return map.hash_value();
-  }
-
-  static size_t gvn_hash_value(const interpreter::Register& reg) {
-    return base::hash_value(reg.index());
-  }
-
-  static size_t gvn_hash_value(const Representation& rep) {
-    return base::hash_value(rep.kind());
-  }
-
-  static size_t gvn_hash_value(const ExternalReference& ref) {
-    return base::hash_value(ref.address());
-  }
-
-  static size_t gvn_hash_value(const PolymorphicAccessInfo& access_info) {
-    return access_info.hash_value();
-  }
-
-  template <typename T>
-  static size_t gvn_hash_value(const v8::internal::ZoneCompactSet<T>& vector) {
-    size_t hash = base::hash_value(vector.size());
-    for (auto e : vector) {
-      hash = fast_hash_combine(hash, gvn_hash_value(e));
-    }
-    return hash;
-  }
-
-  template <typename T>
-  static size_t gvn_hash_value(const v8::internal::ZoneVector<T>& vector) {
-    size_t hash = base::hash_value(vector.size());
-    for (auto e : vector) {
-      hash = fast_hash_combine(hash, gvn_hash_value(e));
-    }
-    return hash;
-  }
 
   bool CanSpeculateCall() const {
     return current_speculation_mode_ == SpeculationMode::kAllowSpeculation;
@@ -2198,6 +2125,68 @@ class MaglevGraphBuilder {
   ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>
       unobserved_context_slot_stores_;
 };
+
+template <bool is_possible_map_change>
+void MaglevGraphBuilder::ResetBuilderCachedState() {
+  latest_checkpointed_frame_.reset();
+
+  // If a map might have changed, then we need to re-check it for for-in.
+  // TODO(leszeks): Track this on merge states / known node aspects, rather
+  // than on the graph, so that it can survive control flow.
+  if constexpr (is_possible_map_change) {
+    current_for_in_state.receiver_needs_map_check = true;
+  }
+}
+
+template <typename NodeT>
+void MaglevGraphBuilder::MarkPossibleSideEffect(NodeT* node) {
+  if constexpr (NodeT::kProperties.can_read() ||
+                NodeT::kProperties.can_deopt() ||
+                NodeT::kProperties.can_throw()) {
+    unobserved_context_slot_stores_.clear();
+  }
+
+  if constexpr (Node::opcode_of<NodeT> != Opcode::kAllocationBlock &&
+                (NodeT::kProperties.can_deopt() ||
+                 NodeT::kProperties.can_throw() ||
+                 NodeT::kProperties.can_allocate())) {
+    ClearCurrentAllocationBlock();
+  }
+
+  // Don't do anything for nodes without side effects.
+  if constexpr (!NodeT::kProperties.can_write()) return;
+
+  // We only need to clear unstable node aspects on the current builder, not
+  // the parent, since we'll anyway copy the known_node_aspects to the parent
+  // once we finish the inlined function.
+
+  if constexpr (IsElementsArrayWrite(Node::opcode_of<NodeT>)) {
+    node->ClearElementsProperties(known_node_aspects());
+    if (is_loop_effect_tracking()) {
+      loop_effects_->keys_cleared.insert(
+          KnownNodeAspects::LoadedPropertyMapKey::Elements());
+    }
+  } else if constexpr (!IsSimpleFieldStore(Node::opcode_of<NodeT>) &&
+                       !IsTypedArrayStore(Node::opcode_of<NodeT>)) {
+    // Don't change known node aspects for simple field stores. The only
+    // relevant side effect on these is writes to objects which invalidate
+    // loaded properties and context slots, and we invalidate these already as
+    // part of emitting the store.
+    node->ClearUnstableNodeAspects(known_node_aspects());
+    if (is_loop_effect_tracking()) {
+      loop_effects_->unstable_aspects_cleared = true;
+    }
+  }
+
+  // Simple field stores can't possibly change or migrate the map.
+  static constexpr bool is_possible_map_change =
+      !IsSimpleFieldStore(Node::opcode_of<NodeT>);
+
+  // All user-observable side effects need to clear state that is cached on
+  // the builder. This reset has to be propagated up through the parents.
+  // TODO(leszeks): What side effects aren't observable? Maybe migrations?
+  ResetBuilderCachedState<is_possible_map_change>();
+}
 
 }  // namespace maglev
 }  // namespace internal

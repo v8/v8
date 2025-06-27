@@ -35,6 +35,10 @@ class MaglevGraphLabeller {
       next_node_label_++;
     }
   }
+  void RegisterNode(const NodeBase* node, const Provenance* provenance) {
+    RegisterNode(node, provenance->unit, provenance->bytecode_offset,
+                 provenance->position);
+  }
   void RegisterNode(const NodeBase* node) {
     RegisterNode(node, nullptr, BytecodeOffset::None(),
                  SourcePosition::Unknown());
