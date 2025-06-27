@@ -176,6 +176,18 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvF32x4Floor:
     case kRiscvF32x4Trunc:
     case kRiscvF32x4NearestInt:
+    case kRiscvI32x4SConvertI16x8Low:
+    case kRiscvI32x4UConvertI16x8Low:
+    case kRiscvI16x8SConvertI8x16High:
+    case kRiscvI16x8SConvertI32x4:
+    case kRiscvI16x8UConvertI32x4:
+    case kRiscvI8x16SConvertI16x8:
+    case kRiscvI8x16UConvertI16x8:
+    case kRiscvI32x4SConvertI16x8High:
+    case kRiscvI32x4UConvertI16x8High:
+    case kRiscvI16x8SConvertI8x16Low:
+    case kRiscvI16x8UConvertI8x16High:
+    case kRiscvI16x8UConvertI8x16Low:
     case kRiscvF64x2ExtractLane:
     case kRiscvF64x2ReplaceLane:
     case kRiscvFloat32Max:
@@ -218,7 +230,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvI8x16Shl:
     case kRiscvI8x16ShrS:
     case kRiscvI8x16ShrU:
-    case kRiscvI8x16RoundingAverageU:
     case kRiscvI8x16Popcnt:
     case kRiscvMaxD:
     case kRiscvMaxS:

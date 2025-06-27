@@ -1327,68 +1327,54 @@ void InstructionSelector::VisitF32x4Le(OpIndex node) {
 
 void InstructionSelector::VisitI32x4SConvertI16x8Low(OpIndex node) {
   RiscvOperandGenerator g(this);
-  InstructionOperand temp = g.TempFpRegister(kSimd128ScratchReg);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 1);
-  this->Emit(kRiscvVmv, temp, g.UseRegister(op.input(0)), g.UseImmediate(E32),
-             g.UseImmediate(m1));
-  this->Emit(kRiscvVsextVf2, g.DefineAsRegister(node), temp,
-             g.UseImmediate(E32), g.UseImmediate(m1));
+  Emit(kRiscvI32x4SConvertI16x8Low, g.DefineAsRegister(node),
+       g.UseRegister(op.input(0)));
 }
 
 void InstructionSelector::VisitI32x4UConvertI16x8Low(OpIndex node) {
   RiscvOperandGenerator g(this);
-  InstructionOperand temp = g.TempFpRegister(kSimd128ScratchReg);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 1);
-  this->Emit(kRiscvVmv, temp, g.UseRegister(op.input(0)), g.UseImmediate(E32),
-             g.UseImmediate(m1));
-  this->Emit(kRiscvVzextVf2, g.DefineAsRegister(node), temp,
-             g.UseImmediate(E32), g.UseImmediate(m1));
+  Emit(kRiscvI32x4UConvertI16x8Low, g.DefineAsRegister(node),
+       g.UseRegister(op.input(0)));
 }
 
 void InstructionSelector::VisitI16x8SConvertI8x16High(OpIndex node) {
   RiscvOperandGenerator g(this);
-  InstructionOperand temp1 = g.TempFpRegister(v0);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 1);
-  Emit(kRiscvVslidedown, temp1, g.UseRegister(op.input(0)), g.UseImmediate(8),
-       g.UseImmediate(E8), g.UseImmediate(m1));
-  Emit(kRiscvVsextVf2, g.DefineAsRegister(node), temp1, g.UseImmediate(E16),
-       g.UseImmediate(m1));
+  Emit(kRiscvI16x8SConvertI8x16High, g.DefineAsRegister(node),
+       g.UseRegister(op.input(0)));
 }
 
 void InstructionSelector::VisitI16x8SConvertI32x4(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
-  InstructionOperand temp = g.TempFpRegister(v26);
-  InstructionOperand temp2 = g.TempFpRegister(v27);
-  this->Emit(kRiscvVmv, temp, g.UseRegister(op.input(0)), g.UseImmediate(E32),
-             g.UseImmediate(m1));
-  this->Emit(kRiscvVmv, temp2, g.UseRegister(op.input(1)), g.UseImmediate(E32),
-             g.UseImmediate(m1));
-  this->Emit(kRiscvVnclip, g.DefineAsRegister(node), temp, g.UseImmediate(0),
-             g.UseImmediate(E16), g.UseImmediate(m1),
-             g.UseImmediate(FPURoundingMode::RNE));
+  // Request a register group (two adjacent registers starting at an even
+  // index). There is nothing special about the registers, as long as they
+  // are adjacent and start at an even index.
+  InstructionOperand temps[] = {g.TempFpRegister(v26), g.TempFpRegister(v27)};
+  size_t temp_count = arraysize(temps);
+  Emit(kRiscvI16x8SConvertI32x4, g.DefineAsRegister(node),
+       g.UseRegister(op.input(0)), g.UseRegister(op.input(1)), temp_count,
+       temps);
 }
 
 void InstructionSelector::VisitI16x8UConvertI32x4(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
-  InstructionOperand temp = g.TempFpRegister(v26);
-  InstructionOperand temp2 = g.TempFpRegister(v27);
-  InstructionOperand temp3 = g.TempFpRegister(v26);
-  this->Emit(kRiscvVmv, temp, g.UseRegister(op.input(0)), g.UseImmediate(E32),
-             g.UseImmediate(m1));
-  this->Emit(kRiscvVmv, temp2, g.UseRegister(op.input(1)), g.UseImmediate(E32),
-             g.UseImmediate(m1));
-  this->Emit(kRiscvVmax, temp3, temp, g.UseImmediate(0), g.UseImmediate(E32),
-             g.UseImmediate(m2));
-  this->Emit(kRiscvVnclipu, g.DefineAsRegister(node), temp3, g.UseImmediate(0),
-             g.UseImmediate(E16), g.UseImmediate(m1),
-             g.UseImmediate(FPURoundingMode::RNE));
+  // Request a register group (two adjacent registers starting at an even
+  // index). There is nothing special about the registers, as long as they
+  // are adjacent and start at an even index.
+  InstructionOperand temps[] = {g.TempFpRegister(v26), g.TempFpRegister(v27)};
+  size_t temp_count = arraysize(temps);
+  Emit(kRiscvI16x8UConvertI32x4, g.DefineAsRegister(node),
+       g.UseRegister(op.input(0)), g.UseRegister(op.input(1)), temp_count,
+       temps);
 }
 
 void InstructionSelector::VisitI8x16RoundingAverageU(OpIndex node) {
@@ -1414,33 +1400,28 @@ void InstructionSelector::VisitI8x16SConvertI16x8(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
-  InstructionOperand temp = g.TempFpRegister(v26);
-  InstructionOperand temp2 = g.TempFpRegister(v27);
-  this->Emit(kRiscvVmv, temp, g.UseRegister(op.input(0)), g.UseImmediate(E16),
-             g.UseImmediate(m1));
-  this->Emit(kRiscvVmv, temp2, g.UseRegister(op.input(1)), g.UseImmediate(E16),
-             g.UseImmediate(m1));
-  this->Emit(kRiscvVnclip, g.DefineAsRegister(node), temp, g.UseImmediate(0),
-             g.UseImmediate(E8), g.UseImmediate(m1),
-             g.UseImmediate(FPURoundingMode::RNE));
+  // Request a register group (two adjacent registers starting at an even
+  // index). There is nothing special about the registers, as long as they
+  // are adjacent and start at an even index.
+  InstructionOperand temps[] = {g.TempFpRegister(v26), g.TempFpRegister(v27)};
+  size_t temp_count = arraysize(temps);
+  Emit(kRiscvI8x16SConvertI16x8, g.DefineAsRegister(node),
+       g.UseRegister(op.input(0)), g.UseRegister(op.input(1)), temp_count,
+       temps);
 }
 
 void InstructionSelector::VisitI8x16UConvertI16x8(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
-  InstructionOperand temp = g.TempFpRegister(v26);
-  InstructionOperand temp2 = g.TempFpRegister(v27);
-  InstructionOperand temp3 = g.TempFpRegister(v26);
-  this->Emit(kRiscvVmv, temp, g.UseRegister(op.input(0)), g.UseImmediate(E16),
-             g.UseImmediate(m1));
-  this->Emit(kRiscvVmv, temp2, g.UseRegister(op.input(1)), g.UseImmediate(E16),
-             g.UseImmediate(m1));
-  this->Emit(kRiscvVmax, temp3, temp, g.UseImmediate(0), g.UseImmediate(E16),
-             g.UseImmediate(m2));
-  this->Emit(kRiscvVnclipu, g.DefineAsRegister(node), temp3, g.UseImmediate(0),
-             g.UseImmediate(E8), g.UseImmediate(m1),
-             g.UseImmediate(FPURoundingMode::RNE));
+  // Request a register group (two adjacent registers starting at an even
+  // index). There is nothing special about the registers, as long as they
+  // are adjacent and start at an even index.
+  InstructionOperand temps[] = {g.TempFpRegister(v26), g.TempFpRegister(v27)};
+  size_t temp_count = arraysize(temps);
+  Emit(kRiscvI8x16UConvertI16x8, g.DefineAsRegister(node),
+       g.UseRegister(op.input(0)), g.UseRegister(op.input(1)), temp_count,
+       temps);
 }
 
 void InstructionSelector::VisitI16x8RoundingAverageU(OpIndex node) {
@@ -1622,55 +1603,40 @@ void InstructionSelector::VisitI32x4SConvertI16x8High(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 1);
-  InstructionOperand temp = g.TempFpRegister(kSimd128ScratchReg);
-  this->Emit(kRiscvVslidedown, temp, g.UseRegister(op.input(0)),
-             g.UseImmediate(4), g.UseImmediate(E16), g.UseImmediate(m1));
-  this->Emit(kRiscvVsextVf2, g.DefineAsRegister(node), temp,
-             g.UseImmediate(E32), g.UseImmediate(m1));
+  this->Emit(kRiscvI32x4SConvertI16x8High, g.DefineAsRegister(node),
+             g.UseRegister(op.input(0)));
 }
 
 void InstructionSelector::VisitI32x4UConvertI16x8High(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 1);
-  InstructionOperand temp = g.TempFpRegister(kSimd128ScratchReg);
-  this->Emit(kRiscvVslidedown, temp, g.UseRegister(op.input(0)),
-             g.UseImmediate(4), g.UseImmediate(E16), g.UseImmediate(m1));
-  this->Emit(kRiscvVzextVf2, g.DefineAsRegister(node), temp,
-             g.UseImmediate(E32), g.UseImmediate(m1));
+  this->Emit(kRiscvI32x4UConvertI16x8High, g.DefineAsRegister(node),
+             g.UseRegister(op.input(0)));
 }
 
 void InstructionSelector::VisitI16x8SConvertI8x16Low(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 1);
-  InstructionOperand temp = g.TempFpRegister(kSimd128ScratchReg);
-  this->Emit(kRiscvVmv, temp, g.UseRegister(op.input(0)), g.UseImmediate(E16),
-             g.UseImmediate(m1));
-  this->Emit(kRiscvVsextVf2, g.DefineAsRegister(node), temp,
-             g.UseImmediate(E16), g.UseImmediate(m1));
+  this->Emit(kRiscvI16x8SConvertI8x16Low, g.DefineAsRegister(node),
+             g.UseRegister(op.input(0)));
 }
 
 void InstructionSelector::VisitI16x8UConvertI8x16High(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 1);
-  InstructionOperand temp = g.TempFpRegister(kSimd128ScratchReg);
-  Emit(kRiscvVslidedown, temp, g.UseRegister(op.input(0)), g.UseImmediate(8),
-       g.UseImmediate(E8), g.UseImmediate(m1));
-  Emit(kRiscvVzextVf2, g.DefineAsRegister(node), temp, g.UseImmediate(E16),
-       g.UseImmediate(m1));
+  this->Emit(kRiscvI16x8UConvertI8x16High, g.DefineAsRegister(node),
+             g.UseRegister(op.input(0)));
 }
 
 void InstructionSelector::VisitI16x8UConvertI8x16Low(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 1);
-  InstructionOperand temp = g.TempFpRegister(kSimd128ScratchReg);
-  Emit(kRiscvVmv, temp, g.UseRegister(op.input(0)), g.UseImmediate(E16),
-       g.UseImmediate(m1));
-  Emit(kRiscvVzextVf2, g.DefineAsRegister(node), temp, g.UseImmediate(E16),
-       g.UseImmediate(m1));
+  this->Emit(kRiscvI16x8UConvertI8x16Low, g.DefineAsRegister(node),
+             g.UseRegister(op.input(0)));
 }
 
 void InstructionSelector::VisitSignExtendWord8ToInt32(OpIndex node) {

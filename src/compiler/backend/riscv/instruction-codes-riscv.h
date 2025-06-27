@@ -300,8 +300,20 @@ namespace compiler {
   V(RiscvF32x4Floor)                      \
   V(RiscvF32x4Trunc)                      \
   V(RiscvF32x4NearestInt)                 \
+  V(RiscvI32x4SConvertI16x8Low)           \
+  V(RiscvI32x4UConvertI16x8Low)           \
+  V(RiscvI16x8SConvertI8x16High)          \
+  V(RiscvI16x8SConvertI32x4)              \
+  V(RiscvI16x8UConvertI32x4)              \
+  V(RiscvI8x16SConvertI16x8)              \
+  V(RiscvI8x16UConvertI16x8)              \
   V(RiscvI32x4SConvertF32x4)              \
   V(RiscvI32x4UConvertF32x4)              \
+  V(RiscvI32x4SConvertI16x8High)          \
+  V(RiscvI32x4UConvertI16x8High)          \
+  V(RiscvI16x8SConvertI8x16Low)           \
+  V(RiscvI16x8UConvertI8x16High)          \
+  V(RiscvI16x8UConvertI8x16Low)           \
   V(RiscvI32x4TruncSatF64x2SZero)         \
   V(RiscvI32x4TruncSatF64x2UZero)         \
   V(RiscvI16x8ExtractLaneU)               \
@@ -316,7 +328,6 @@ namespace compiler {
   V(RiscvI8x16Shl)                        \
   V(RiscvI8x16ShrS)                       \
   V(RiscvI8x16ShrU)                       \
-  V(RiscvI8x16RoundingAverageU)           \
   V(RiscvI8x16Popcnt)                     \
   V(RiscvVnot)                            \
   V(RiscvS128Select)                      \

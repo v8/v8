@@ -3518,6 +3518,96 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmv_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
+    case kRiscvI32x4SConvertI16x8Low: {
+      __ VU.set(kScratchReg, E32, m1);
+      __ vmv_vv(kSimd128ScratchReg, i.InputSimd128Register(0));
+      __ vsext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvI32x4UConvertI16x8Low: {
+      __ VU.set(kScratchReg, E32, m1);
+      __ vmv_vv(kSimd128ScratchReg, i.InputSimd128Register(0));
+      __ vzext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvI16x8SConvertI8x16High: {
+      __ VU.set(kScratchReg, E8, m1);
+      __ vslidedown_vi(v0, i.InputSimd128Register(0), 8);
+      __ VU.set(kScratchReg, E16, m1);
+      __ vsext_vf2(i.OutputSimd128Register(), v0);
+      break;
+    }
+    case kRiscvI16x8SConvertI32x4: {
+      __ VU.set(kScratchReg, E32, m1);
+      // Move the input to the temporary registers so they are guaranteed to be
+      // in a register group.
+      Simd128Register tmp_reg = i.TempSimd128Register(0);
+      Simd128Register tmp_reg2 = i.TempSimd128Register(1);
+      DCHECK((tmp_reg.code() & 1) == 0 &&
+             (tmp_reg2.code() == tmp_reg.code() + 1));
+      __ vmv_vv(tmp_reg, i.InputSimd128Register(0));
+      __ vmv_vv(tmp_reg2, i.InputSimd128Register(1));
+      __ VU.set(kScratchReg, E16, m1);
+      __ VU.set(FPURoundingMode::RNE);
+      __ vnclip_vi(i.OutputSimd128Register(), tmp_reg, 0);
+      break;
+    }
+    case kRiscvI16x8UConvertI32x4: {
+      __ VU.set(kScratchReg, E32, m1);
+      // Move the input to the temporary registers so they are guaranteed to be
+      // in a register group.
+      Simd128Register tmp_reg = i.TempSimd128Register(0);
+      Simd128Register tmp_reg2 = i.TempSimd128Register(1);
+      DCHECK((tmp_reg.code() & 1) == 0 &&
+             (tmp_reg2.code() == tmp_reg.code() + 1));
+      __ vmv_vv(tmp_reg, i.InputSimd128Register(0));
+      __ vmv_vv(tmp_reg2, i.InputSimd128Register(1));
+      // Clip negative values to zero.
+      __ VU.set(kScratchReg, E32, m2);
+      __ li(kScratchReg, 0);
+      __ vmax_vx(tmp_reg, tmp_reg, kScratchReg);
+      // Convert the clipped values to 16-bit positive integers.
+      __ VU.set(kScratchReg, E16, m1);
+      __ VU.set(FPURoundingMode::RNE);
+      __ vnclipu_vi(i.OutputSimd128Register(), tmp_reg, 0);
+      break;
+    }
+    case kRiscvI8x16SConvertI16x8: {
+      __ VU.set(kScratchReg, E16, m1);
+      // Move the input to the temporary registers so they are guaranteed to be
+      // in a register group.
+      Simd128Register tmp_reg = i.TempSimd128Register(0);
+      Simd128Register tmp_reg2 = i.TempSimd128Register(1);
+      DCHECK((tmp_reg.code() & 1) == 0 &&
+             (tmp_reg2.code() == tmp_reg.code() + 1));
+      __ vmv_vv(tmp_reg, i.InputSimd128Register(0));
+      __ vmv_vv(tmp_reg2, i.InputSimd128Register(1));
+      // Convert.
+      __ VU.set(kScratchReg, E8, m1);
+      __ VU.set(FPURoundingMode::RNE);
+      __ vnclip_vi(i.OutputSimd128Register(), tmp_reg, 0);
+      break;
+    }
+    case kRiscvI8x16UConvertI16x8: {
+      __ VU.set(kScratchReg, E16, m1);
+      // Move the input to the temporary registers so they are guaranteed to be
+      // in a register group.
+      Simd128Register tmp_reg = i.TempSimd128Register(0);
+      Simd128Register tmp_reg2 = i.TempSimd128Register(1);
+      DCHECK((tmp_reg.code() & 1) == 0 &&
+             (tmp_reg2.code() == tmp_reg.code() + 1));
+      __ vmv_vv(tmp_reg, i.InputSimd128Register(0));
+      __ vmv_vv(tmp_reg2, i.InputSimd128Register(1));
+      // Clip negative values to zero.
+      __ VU.set(kScratchReg, E16, m2);
+      __ li(kScratchReg, 0);
+      __ vmax_vx(tmp_reg, tmp_reg, kScratchReg);
+      // Convert the clipped values.
+      __ VU.set(kScratchReg, E8, m1);
+      __ VU.set(FPURoundingMode::RNE);
+      __ vnclipu_vi(i.OutputSimd128Register(), tmp_reg, 0);
+      break;
+    }
     case kRiscvI64x2SConvertI32x4Low: {
       __ VU.set(kScratchReg, E64, m1);
       __ vmv_vv(kSimd128ScratchReg, i.InputSimd128Register(0));
@@ -3572,6 +3662,44 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ vfcvt_xu_f_v(kSimd128ScratchReg, i.InputSimd128Register(0), Mask);
         __ vmv_vv(i.OutputSimd128Register(), kSimd128ScratchReg);
       }
+      break;
+    }
+    case kRiscvI32x4SConvertI16x8High: {
+      __ VU.set(kScratchReg, E16, m1);
+      Simd128Register temp = kSimd128ScratchReg;
+      __ vslidedown_vi(temp, i.InputSimd128Register(0), 4);
+      __ VU.set(kScratchReg, E32, m1);
+      __ vsext_vf2(i.OutputSimd128Register(), temp);
+      break;
+    }
+    case kRiscvI32x4UConvertI16x8High: {
+      __ VU.set(kScratchReg, E16, m1);
+      Simd128Register temp = kSimd128ScratchReg;
+      __ vslidedown_vi(temp, i.InputSimd128Register(0), 4);
+      __ VU.set(kScratchReg, E32, m1);
+      __ vzext_vf2(i.OutputSimd128Register(), temp);
+      break;
+    }
+    case kRiscvI16x8SConvertI8x16Low: {
+      __ VU.set(kScratchReg, E16, m1);
+      Simd128Register temp = kSimd128ScratchReg;
+      __ vmv_vv(temp, i.InputSimd128Register(0));
+      __ vsext_vf2(i.OutputSimd128Register(), temp);
+      break;
+    }
+    case kRiscvI16x8UConvertI8x16High: {
+      __ VU.set(kScratchReg, E8, m1);
+      Simd128Register temp = kSimd128ScratchReg;
+      __ vslidedown_vi(temp, i.InputSimd128Register(0), 8);
+      __ VU.set(kScratchReg, E16, m1);
+      __ vzext_vf2(i.OutputSimd128Register(), temp);
+      break;
+    }
+    case kRiscvI16x8UConvertI8x16Low: {
+      __ VU.set(kScratchReg, E16, m1);
+      Simd128Register temp = kSimd128ScratchReg;
+      __ vmv_vv(temp, i.InputSimd128Register(0));
+      __ vzext_vf2(i.OutputSimd128Register(), temp);
       break;
     }
 #if V8_TARGET_ARCH_RISCV32
