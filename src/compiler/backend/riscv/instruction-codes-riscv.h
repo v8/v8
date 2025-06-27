@@ -308,6 +308,9 @@ namespace compiler {
   V(RiscvI8x16SConvertI16x8)              \
   V(RiscvI8x16UConvertI16x8)              \
   V(RiscvI16x8RoundingAverageU)           \
+  V(RiscvI32x4DotI16x8S)                  \
+  V(RiscvI16x8DotI8x16I7x16S)             \
+  V(RiscvI32x4DotI8x16I7x16AddS)          \
   V(RiscvI32x4SConvertF32x4)              \
   V(RiscvI32x4UConvertF32x4)              \
   V(RiscvI32x4SConvertI16x8High)          \

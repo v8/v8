@@ -3642,6 +3642,86 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vnclipu_vi(i.OutputSimd128Register(), temp3, 0);
       break;
     }
+    case kRiscvI32x4DotI16x8S: {
+      constexpr int32_t FIRST_INDEX = 0b01010101;
+      constexpr int32_t SECOND_INDEX = 0b10101010;
+      Simd128Register temp = i.TempSimd128Register(0);
+      Simd128Register temp1 = i.TempSimd128Register(1);
+      Simd128Register temp2 = i.TempSimd128Register(2);
+      __ VU.set(kScratchReg, E16, m1);
+      __ vwmul_vv(temp, i.InputSimd128Register(0), i.InputSimd128Register(1));
+      __ VU.set(kScratchReg, E32, m2);
+      __ li(kScratchReg, FIRST_INDEX);
+      __ vmv_sx(v0, kScratchReg);
+      __ vcompress_vv(temp2, temp, v0);
+      __ li(kScratchReg, SECOND_INDEX);
+      __ vmv_sx(v0, kScratchReg);
+      __ vcompress_vv(temp1, temp, v0);
+      __ VU.set(kScratchReg, E32, m1);
+      __ vadd_vv(i.OutputSimd128Register(), temp1, temp2);
+      break;
+    }
+    case kRiscvI16x8DotI8x16I7x16S: {
+      constexpr int32_t FIRST_INDEX = 0b0101010101010101;
+      constexpr int32_t SECOND_INDEX = 0b1010101010101010;
+      Simd128Register temp = i.TempSimd128Register(0);
+      Simd128Register temp1 = i.TempSimd128Register(1);
+      Simd128Register temp2 = i.TempSimd128Register(2);
+      __ VU.set(kScratchReg, E8, m1);
+      __ vwmul_vv(temp, i.InputSimd128Register(0), i.InputSimd128Register(1));
+      __ VU.set(kScratchReg, E16, m2);
+      __ li(kScratchReg, FIRST_INDEX);
+      __ vmv_sx(v0, kScratchReg);
+      __ vcompress_vv(temp2, temp, v0);
+      __ li(kScratchReg, SECOND_INDEX);
+      __ vmv_sx(v0, kScratchReg);
+      __ vcompress_vv(temp1, temp, v0);
+      __ VU.set(kScratchReg, E16, m1);
+      __ vadd_vv(i.OutputSimd128Register(), temp1, temp2);
+      break;
+    }
+    case kRiscvI32x4DotI8x16I7x16AddS: {
+      constexpr int32_t FIRST_INDEX = 0b0001000100010001;
+      constexpr int32_t SECOND_INDEX = 0b0010001000100010;
+      constexpr int32_t THIRD_INDEX = 0b0100010001000100;
+      constexpr int32_t FOURTH_INDEX = 0b1000100010001000;
+      Simd128Register intermediate = i.TempSimd128Register(0);
+      __ VU.set(kScratchReg, E8, m1);
+      __ vwmul_vv(intermediate, i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+
+      Simd128Register compressed_part1 = i.TempSimd128Register(1);
+      Simd128Register compressed_part2 = i.TempSimd128Register(2);
+      __ VU.set(kScratchReg, E16, m2);
+      __ li(kScratchReg, FIRST_INDEX);
+      __ vmv_sx(v0, kScratchReg);
+      __ vcompress_vv(compressed_part2, intermediate, v0);
+      __ li(kScratchReg, SECOND_INDEX);
+      __ vmv_sx(v0, kScratchReg);
+      __ vcompress_vv(compressed_part1, intermediate, v0);
+
+      Simd128Register compressed_part3 = i.TempSimd128Register(3);
+      Simd128Register compressed_part4 = i.TempSimd128Register(4);
+      __ li(kScratchReg, THIRD_INDEX);
+      __ vmv_sx(v0, kScratchReg);
+      __ vcompress_vv(compressed_part3, intermediate, v0);
+      __ li(kScratchReg, FOURTH_INDEX);
+      __ vmv_sx(v0, kScratchReg);
+      __ vcompress_vv(compressed_part4, intermediate, v0);
+
+      Simd128Register temp2 = i.TempSimd128Register(5);
+      Simd128Register temp = kSimd128ScratchReg;
+      __ VU.set(kScratchReg, E16, m1);
+      __ vwadd_vv(temp2, compressed_part1, compressed_part2);
+      __ vwadd_vv(temp, compressed_part3, compressed_part4);
+
+      Simd128Register mul_result = i.TempSimd128Register(2);
+      __ VU.set(kScratchReg, E32, m1);
+      __ vadd_vv(mul_result, temp2, temp);
+      __ vadd_vv(i.OutputSimd128Register(), mul_result,
+                 i.InputSimd128Register(2));
+      break;
+    }
     case kRiscvI64x2SConvertI32x4Low: {
       __ VU.set(kScratchReg, E64, m1);
       __ vmv_vv(kSimd128ScratchReg, i.InputSimd128Register(0));
