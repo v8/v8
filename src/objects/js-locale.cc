@@ -72,30 +72,48 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
   // spec compliant.
 
   for (const auto& option_to_bcp47 : kOptionToUnicodeTagMap) {
-    DirectHandle<String> value_str;
     bool value_bool = false;
     DirectHandle<String> name =
         (isolate->factory()->*option_to_bcp47.object_key)();
-    Maybe<bool> maybe_found =
-        option_to_bcp47.is_bool_value
-            ? GetBoolOption(isolate, options, name, "locale", &value_bool)
-            : GetStringOption(isolate, options, name,
-                              option_to_bcp47.possible_values, "locale",
-                              &value_str);
-    MAYBE_RETURN(maybe_found, Nothing<bool>());
+
+    bool found = false;
+    std::string_view value_str;
+    std::string owned;
+    if (option_to_bcp47.is_bool_value) {
+      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, found,
+          GetBoolOption(isolate, options, name, "locale", &value_bool), {});
+    } else if (option_to_bcp47.possible_values.empty()) {
+      // We just wish to fetch the string
+      DirectHandle<String> output;
+      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, found,
+          GetStringOption(isolate, options, name,
+                          std::span<const std::string_view>(), "locale",
+                          &output),
+          {});
+      if (found) {
+        owned = output->ToStdString();
+        value_str = owned;
+      }
+    } else {
+      // The string is expected to be in a particular set.
+      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, value_str,
+          GetStringOption<std::string_view>(
+              isolate, options, name, "locale", option_to_bcp47.possible_values,
+              option_to_bcp47.possible_values, std::string_view()),
+          {});
+      if (!value_str.empty()) {
+        found = true;
+      }
+    }
 
     // TODO(cira): Use fallback value if value is not found to make
     // this spec compliant.
-    if (!maybe_found.FromJust()) continue;
+    if (!found) continue;
 
-    std::string value_stdstr;
-
-    const char* type = nullptr;
-
-    if (!value_str.is_null()) {
-      value_stdstr = value_str->ToStdString();
-      type = value_stdstr.data();
-    }
+    const char* type = value_str.data();
 
     if (strcmp(option_to_bcp47.key, "fw") == 0) {
       const std::array<ValueAndType, 8> kFirstDayValuesAndTypes = {

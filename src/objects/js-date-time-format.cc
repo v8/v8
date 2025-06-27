@@ -2299,22 +2299,27 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
         skeleton += "S";
       }
     }
-    DirectHandle<String> input;
     // i. Let prop be the name given in the Property column of the row.
     // ii. Let value be ? GetOption(options, prop, "string", « the strings
     // given in the Values column of the row », undefined).
-    Maybe<bool> maybe_get_option = GetStringOption(
-        isolate, options, GetPropertyString(*factory, item.property),
-        item.allowed_values, service, &input);
-    MAYBE_RETURN(maybe_get_option, {});
-    if (maybe_get_option.FromJust()) {
-      std::string input_str = input->ToStdString();
+    //
+    // We use the empty string as a sentinel for "undefined" since it won't
+    // match anything in the map anyway.
+    std::string_view found_value;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, found_value,
+        GetStringOption<std::string_view>(
+            isolate, options, GetPropertyString(*factory, item.property),
+            service, item.allowed_values, item.allowed_values,
+            std::string_view("")),
+        {});
+    if (!found_value.empty()) {
       // Record which fields are not undefined into explicit_format_components.
       if (item.property == DateTimeProperty::kHour) {
         has_hour_option = true;
       }
       // iii. Set opt.[[<prop>]] to value.
-      skeleton += item.map.find(input_str)->second;
+      skeleton += item.map.find(found_value)->second;
       // e. If value is not undefined, then
       // i. Set hasExplicitFormatComponents to true.
       explicit_format_components |= 1 << static_cast<int32_t>(item.bitShift);

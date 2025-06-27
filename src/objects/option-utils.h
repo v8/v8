@@ -45,27 +45,47 @@ V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Maybe<bool> GetStringOption(
 // A helper template to get string from option into a enum.
 // The enum in the enum_values is the corresponding value to the strings
 // in the str_values. If the option does not contains name,
-// default_value will be return.
+// default_value will be return. If default_value is not set, fallback
+// is treated as REQUIRED and this will error when a value cannot be matched.
 template <typename T>
 V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOption(
     Isolate* isolate, DirectHandle<JSReceiver> options,
-    DirectHandle<String> name, const char* method_name,
+    DirectHandle<String> property, const char* method_name,
     const std::span<const std::string_view> str_values,
-    const std::span<const T> enum_values, T default_value) {
+    const std::span<const T> enum_values, std::optional<T> default_value) {
   DCHECK_EQ(str_values.size(), enum_values.size());
+  // 1. Let value be ? Get(options, property).
+  // 2. c. Let value be ? ToString(value).
+
   DirectHandle<String> found_string;
-  Maybe<bool> found = GetStringOption(isolate, options, name, str_values,
+  Maybe<bool> found = GetStringOption(isolate, options, property, str_values,
                                       method_name, &found_string);
   MAYBE_RETURN(found, Nothing<T>());
+  // 2. d. if values is not undefined, then
+
   if (found.FromJust()) {
     for (size_t i = 0; i < str_values.size(); i++) {
       if (found_string->IsEqualTo(str_values[i], isolate)) {
         return Just(enum_values[i]);
       }
     }
-    UNREACHABLE();
+  } else if (default_value.has_value()) {
+    // 2. If value is undefined, then
+    // a. If default is required, throw a RangeError exception.
+    // (done in branch below)
+    // b. Return default.
+    return Just(default_value.value());
   }
-  return Just(default_value);
+
+  // 2. d. i. If values does not contain an element equal to value,
+  // throw a RangeError exception.
+  DirectHandle<String> method_str =
+      isolate->factory()->NewStringFromAsciiChecked(method_name);
+  THROW_NEW_ERROR_RETURN_VALUE(
+      isolate,
+      NewRangeError(MessageTemplate::kValueOutOfRange, found_string, method_str,
+                    property),
+      Nothing<T>());
 }
 
 // A helper template to get string from option into a enum.

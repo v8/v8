@@ -568,27 +568,21 @@ Maybe<temporal_rs::TransitionDirection> GetDirectionOption(
     const char* method_name) {
   // 1. Let stringValue be ? GetOption(options, "direction", string, « "next",
   // "previous" », required).
-  std::optional<temporal_rs::TransitionDirection::Value> dir;
+  temporal_rs::TransitionDirection dir;
 
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, dir,
-      GetStringOption<std::optional<temporal_rs::TransitionDirection::Value>>(
+      GetStringOption<temporal_rs::TransitionDirection>(
           isolate, Cast<JSReceiver>(options),
           isolate->factory()->direction_string(), method_name,
           std::to_array<const std::string_view>({"next", "previous"}),
-          std::to_array<std::optional<temporal_rs::TransitionDirection::Value>>(
+          std::to_array<temporal_rs::TransitionDirection>(
               {temporal_rs::TransitionDirection::Next,
                temporal_rs::TransitionDirection::Previous}),
           std::nullopt),
       {});
 
-  if (dir.has_value()) {
-    return Just(temporal_rs::TransitionDirection(dir.value()));
-  } else {
-    // Hoisted from GetOption
-    THROW_NEW_ERROR(isolate,
-                    NEW_TEMPORAL_RANGE_ERROR("Invalid direction value."));
-  }
+  return Just(dir);
 }
 // https://tc39.es/proposal-temporal/#sec-temporal-gettemporaldisambiguationoption
 // Also handles the undefined check from GetOptionsObject
