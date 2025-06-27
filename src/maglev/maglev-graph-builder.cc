@@ -3201,7 +3201,12 @@ bool MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
   }
   if (!maybe_constant) return false;
 
-  DCHECK(!IsEmptyNodeType(GetType(other)));
+  // TODO(marja): We should detect empty types earlier, but that would require
+  // GetFloat64ForToNumber returning a ReduceResult which would require
+  // AddNewNode return a ReduceResult.
+  if (IsEmptyNodeType(GetType(other))) {
+    return false;
+  }
 
   if (CheckType(other, NodeType::kBoolean)) {
     auto CompareOtherWith = [&](bool constant) {
