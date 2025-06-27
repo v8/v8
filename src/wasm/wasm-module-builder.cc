@@ -667,6 +667,9 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   buffer->write_u32(kWasmVersion);
 
   // == Emit types =============================================================
+  // Check that the last `StartRecursiveTypeGroup()` was followed by
+  // `EndRecursiveTypeGroup()`.
+  DCHECK_EQ(-1, current_recursive_group_start_);
   if (!types_.empty()) {
     size_t start = EmitSection(kTypeSectionCode, buffer);
     // Every recursion group occupies one type entry.
