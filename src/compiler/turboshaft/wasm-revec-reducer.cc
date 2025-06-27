@@ -292,9 +292,10 @@ void SLPTree::Print(const char* info) {
 }
 
 bool SLPTree::HasReorderInput(const NodeGroup& node_group) {
-  // The force-packing nodes can be reordered as input in other SLPTree, but not
-  // the current one.
-  if (analyzer_->HasReorderInput(node_group[0]) ||
+  DCHECK_EQ(node_group.size(), 2);
+  if (reorder_inputs_.contains(node_group[0]) ||
+      reorder_inputs_.contains(node_group[1]) ||
+      analyzer_->HasReorderInput(node_group[0]) ||
       analyzer_->HasReorderInput(node_group[1])) {
     return true;
   }

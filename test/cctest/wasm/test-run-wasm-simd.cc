@@ -7511,6 +7511,75 @@ TEST(RunWasmTurbofan_ForcePackWithForcePackedInputs) {
   }
 }
 
+TEST(RunWasmTurbofan_ForcePackInputsExpectFail) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  r.builder().AddMemoryElems<int8_t>(64);
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmI32);
+  uint8_t temp4 = r.AllocateLocal(kWasmS128);
+  uint8_t temp5 = r.AllocateLocal(kWasmS128);
+  uint8_t temp6 = r.AllocateLocal(kWasmS128);
+  uint8_t temp7 = r.AllocateLocal(kWasmS128);
+  uint8_t temp8 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(),
+        TSSimd256VerifyScope::VerifyHaveOpcode<
+            compiler::turboshaft::Opcode::kSimdPack128To256>,
+        ExpectedResult::kFail);
+
+    // Force-pack two I32x4ConvertI16x8Low nodes, the one with bigger OpIndex
+    // has an input from temp4. Later in the same SLP tree, we will try to
+    // force-pack temp4 with temp7 from another tree branch. We should forbid
+    // this force-packing since it will cause unchecked reordering of temp3
+    // (input of temp7) before temp4.
+    r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+             WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM_OFFSET(
+                                       offset, WASM_LOCAL_GET(param1))),
+             WASM_LOCAL_SET(
+                 temp1,
+                 WASM_SIMD_UNOP(
+                     kExprI16x8Neg,
+                     WASM_SIMD_UNOP(kExprI16x8Abs,
+                                    WASM_SIMD_UNOP(kExprI16x8SConvertI8x16Low,
+                                                   WASM_LOCAL_GET(temp1))))),
+             WASM_LOCAL_SET(
+                 temp3, WASM_ATOMICS_LOAD_OP(kExprI32AtomicLoad,
+                                             WASM_I32V_3(kWasmPageSize),
+                                             MachineRepresentation::kWord32)),
+             WASM_LOCAL_SET(temp4, WASM_SIMD_I16x8_REPLACE_LANE(
+                                       0, WASM_LOCAL_GET(temp2), WASM_I32V(1))),
+             WASM_LOCAL_SET(
+                 temp5, WASM_SIMD_BINOP(kExprI16x8Add, WASM_LOCAL_GET(temp1),
+                                        WASM_LOCAL_GET(temp4))),
+             WASM_LOCAL_SET(
+                 temp6,
+                 WASM_SIMD_UNOP(
+                     kExprI16x8Neg,
+                     WASM_SIMD_UNOP(kExprI16x8Abs,
+                                    WASM_SIMD_UNOP(kExprI16x8SConvertI8x16Low,
+                                                   WASM_LOCAL_GET(temp4))))),
+             WASM_LOCAL_SET(
+                 temp7, WASM_SIMD_I16x8_REPLACE_LANE(1, WASM_LOCAL_GET(temp2),
+                                                     WASM_LOCAL_GET(temp3))),
+             WASM_LOCAL_SET(
+                 temp8, WASM_SIMD_BINOP(kExprI16x8Add, WASM_LOCAL_GET(temp6),
+                                        WASM_LOCAL_GET(temp7))),
+             WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp5)),
+             WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                        WASM_LOCAL_GET(temp8)),
+             WASM_ONE});
+  }
+}
+
 TEST(RunWasmTurbofan_TwoForcePackExpectFail) {
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
