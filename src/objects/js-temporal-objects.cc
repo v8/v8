@@ -1634,7 +1634,6 @@ Maybe<bool> IsPartialTemporalObject(Isolate* isolate,
 Maybe<temporal_rs::PartialTime> ToTemporalTimeRecord(
     Isolate* isolate, DirectHandle<JSReceiver> time_like,
     const char* method_name, Completeness completeness = kComplete) {
-  TEMPORAL_ENTER_FUNC();
   Factory* factory = isolate->factory();
 
   // 2. If completeness is complete, then
@@ -2035,7 +2034,6 @@ Maybe<CombinedRecord> PrepareCalendarFields(Isolate* isolate,
 
 // https://tc39.es/proposal-temporal/#sec-systemtimezoneidentifier
 std::unique_ptr<temporal_rs::TimeZone> UTCTimeZone() {
-  TEMPORAL_ENTER_FUNC();
   // TODO(manishearth) This is a fallible method that in theory should
   // never fail, but we should avoid this problem by using something infallible
   // instead.
@@ -2046,7 +2044,6 @@ std::unique_ptr<temporal_rs::TimeZone> UTCTimeZone() {
 // https://tc39.es/proposal-temporal/#sec-systemtimezoneidentifier
 #ifdef V8_INTL_SUPPORT
 std::unique_ptr<temporal_rs::TimeZone> SystemTimeZoneIdentifier() {
-  TEMPORAL_ENTER_FUNC();
   auto tz_str = Intl::DefaultTimeZone();
   auto tz = temporal_rs::TimeZone::try_from_identifier_str(tz_str).ok();
   if (tz.has_value()) {
@@ -2056,7 +2053,6 @@ std::unique_ptr<temporal_rs::TimeZone> SystemTimeZoneIdentifier() {
 }
 #else   //  V8_INTL_SUPPORT
 std::unique_ptr<temporal_rs::TimeZone> SystemTimeZoneIdentifier() {
-  TEMPORAL_ENTER_FUNC();
   return UTCTimeZone();
 }
 #endif  //  V8_INTL_SUPPORT
@@ -2145,7 +2141,6 @@ MaybeDirectHandle<DstType> GenericToTemporalMethod(
 // https://tc39.es/proposal-temporal/#sec-temporal-totemporalduration
 MaybeDirectHandle<JSTemporalDuration> ToTemporalDuration(
     Isolate* isolate, DirectHandle<Object> item, const char* method_name) {
-  TEMPORAL_ENTER_FUNC();
 
   // 1. If item is an Object and item has an [[InitializedTemporalDuration]]
   // internal slot, then a. a. Return ! CreateTemporalDuration(item.[[Years]],
@@ -2210,7 +2205,6 @@ MaybeDirectHandle<JSTemporalDuration> ToTemporalDuration(
 // https://tc39.es/proposal-temporal/#sec-temporal-totemporalinstant
 MaybeDirectHandle<JSTemporalInstant> ToTemporalInstant(
     Isolate* isolate, DirectHandle<Object> item, const char* method_name) {
-  TEMPORAL_ENTER_FUNC();
 
   // 1. If item is an Object, then
   // a. If item has an [[InitializedTemporalInstant]] or
@@ -2262,7 +2256,6 @@ MaybeDirectHandle<JSTemporalPlainTime> ToTemporalTime(
     Isolate* isolate, DirectHandle<Object> item,
     std::optional<temporal_rs::ArithmeticOverflow> overflow,
     const char* method_name) {
-  TEMPORAL_ENTER_FUNC();
   // 1. If options is not present, set options to undefined.
   // (handled by caller)
 
@@ -2361,7 +2354,6 @@ MaybeDirectHandle<JSTemporalPlainDate> ToTemporalDate(
     Isolate* isolate, DirectHandle<Object> item,
     std::optional<temporal_rs::ArithmeticOverflow> overflow,
     const char* method_name) {
-  TEMPORAL_ENTER_FUNC();
   // 1. If options is not present, set options to undefined.
   // (handled by caller)
 
@@ -2453,7 +2445,6 @@ MaybeDirectHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
     Isolate* isolate, DirectHandle<Object> item,
     std::optional<temporal_rs::ArithmeticOverflow> overflow,
     const char* method_name) {
-  TEMPORAL_ENTER_FUNC();
   // 1. If options is not present, set options to undefined.
   // (handled by caller)
 
@@ -2546,7 +2537,6 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
     Isolate* isolate, DirectHandle<Object> item,
     std::optional<temporal_rs::ArithmeticOverflow> overflow,
     const char* method_name) {
-  TEMPORAL_ENTER_FUNC();
   // 1. If options is not present, set options to undefined.
   // (handled by caller)
 
@@ -2649,7 +2639,6 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
     std::optional<temporal_rs::OffsetDisambiguation> offset_option,
     std::optional<temporal_rs::ArithmeticOverflow> overflow,
     const char* method_name) {
-  TEMPORAL_ENTER_FUNC();
   // 1. If options is not present, set options to undefined.
   // (handled by caller)
 
@@ -2753,7 +2742,6 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
     Isolate* isolate, DirectHandle<Object> item,
     std::optional<temporal_rs::ArithmeticOverflow> overflow,
     const char* method_name) {
-  TEMPORAL_ENTER_FUNC();
   // 1. If options is not present, set options to undefined.
   // (handled by caller)
 
@@ -3563,7 +3551,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Constructor(
 MaybeDirectHandle<Smi> JSTemporalDuration::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj, DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.Duration.compare";
+  static const char method_name[] = "Temporal.Duration.compare";
   DirectHandle<JSTemporalDuration> one;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, one,
@@ -3595,7 +3583,7 @@ MaybeDirectHandle<Smi> JSTemporalDuration::Compare(
 // https://tc39.es/proposal-temporal/#sec-temporal.duration.from
 MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::From(
     Isolate* isolate, DirectHandle<Object> item) {
-  const char method_name[] = "Temporal.Duration.from";
+  static const char method_name[] = "Temporal.Duration.from";
 
   return temporal::ToTemporalDuration(isolate, item, method_name);
 }
@@ -3604,7 +3592,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::From(
 MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Round(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     DirectHandle<Object> round_to_obj) {
-  const char method_name[] = "Temporal.Duration.prototype.round";
+  static const char method_name[] = "Temporal.Duration.prototype.round";
   // 1. Let duration be the this value.
   // 2. Perform ? RequireInternalSlot(duration,
   // [[InitializedTemporalDuration]]).
@@ -3715,7 +3703,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Round(
 MaybeDirectHandle<Number> JSTemporalDuration::Total(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     DirectHandle<Object> total_of_obj) {
-  const char method_name[] = "Temporal.Duration.prototype.total";
+  static const char method_name[] = "Temporal.Duration.prototype.total";
   // 1. Let duration be the this value.
   // 2. Perform ? RequireInternalSlot(duration,
   // [[InitializedTemporalDuration]]).
@@ -3867,7 +3855,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Abs(
 MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Add(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  const char method_name[] = "Temporal.Duration.prototype.add";
+  static const char method_name[] = "Temporal.Duration.prototype.add";
 
   DirectHandle<JSTemporalDuration> other_duration;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -3884,7 +3872,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Add(
 MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  const char method_name[] = "Temporal.Duration.prototype.subtract";
+  static const char method_name[] = "Temporal.Duration.prototype.subtract";
 
   DirectHandle<JSTemporalDuration> other_duration;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -3901,7 +3889,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Subtract(
 MaybeDirectHandle<String> JSTemporalDuration::ToString(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.Duration.prototype.toString";
+  static const char method_name[] = "Temporal.Duration.prototype.toString";
 
   // 3. Let resolvedOptions be ?GetOptionsObject(options).
   DirectHandle<JSReceiver> options;
@@ -4032,7 +4020,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Constructor(
 MaybeDirectHandle<Smi> JSTemporalPlainDate::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj) {
-  const char method_name[] = "Temporal.PlainDate.compare";
+  static const char method_name[] = "Temporal.PlainDate.compare";
   DirectHandle<JSTemporalPlainDate> one;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, one,
@@ -4051,7 +4039,7 @@ MaybeDirectHandle<Smi> JSTemporalPlainDate::Compare(
 MaybeDirectHandle<Oddball> JSTemporalPlainDate::Equals(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> other_obj) {
-  const char method_name[] = "Temporal.PlainDate.prototype.equals";
+  static const char method_name[] = "Temporal.PlainDate.prototype.equals";
 
   DirectHandle<JSTemporalPlainDate> other;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -4082,7 +4070,7 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainDate::ToPlainMonthDay(
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDate::ToPlainDateTime(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> temporal_time_obj) {
-  const char method_name[] = "Temporal.PlainDate.toPlainDateTime";
+  static const char method_name[] = "Temporal.PlainDate.toPlainDateTime";
 
   // 3. Let time be ? ToTimeRecordOrMidnight(temporalTime).
   const temporal_rs::PlainTime* maybe_time;
@@ -4103,7 +4091,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::With(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> temporal_date_like_obj,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.PlainDate.prototype.with";
+  static const char method_name[] = "Temporal.PlainDate.prototype.with";
   return temporal::GenericWith<JSTemporalPlainDate, temporal_rs::PartialDate>(
       isolate, temporal_date, temporal_date_like_obj, options_obj,
       temporal::kAllDateFlags, method_name);
@@ -4129,7 +4117,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::WithCalendar(
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalPlainDate::ToZonedDateTime(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> item_obj) {
-  const char method_name[] = "Temporal.PlainDate.toZonedDateTime";
+  static const char method_name[] = "Temporal.PlainDate.toZonedDateTime";
   // 1. Let temporalDate be the this value.
   // 2. Perform ? RequireInternalSlot(temporalDate,
   // [[InitializedTemporalDate]]).
@@ -4209,8 +4197,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Add(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> temporal_duration_like,
     DirectHandle<Object> options_obj) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainDate.prototype.add";
+  static const char method_name[] = "Temporal.PlainDate.prototype.add";
   // 3. Return ? AddDurationToDate(add, temporalDate, temporalDurationLike,
   // options).
   return temporal::AddDurationToGeneric(isolate, &temporal_rs::PlainDate::add,
@@ -4223,8 +4210,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> temporal_duration_like,
     DirectHandle<Object> options_obj) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainDate.prototype.subtract";
+  static const char method_name[] = "Temporal.PlainDate.prototype.subtract";
   // 3. Return ? AddDurationToDate(subtract, temporalDate, temporalDurationLike,
   // options).
   return temporal::AddDurationToGeneric<JSTemporalPlainDate>(
@@ -4236,8 +4222,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Subtract(
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDate::Until(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainDate.prototype.until";
+  static const char method_name[] = "Temporal.PlainDate.prototype.until";
 
   return temporal::GenericDifferenceTemporal(
       isolate, &temporal_rs::PlainDate::until, UnitGroup::kDate, Unit::Day,
@@ -4248,8 +4233,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDate::Until(
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDate::Since(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainDate.prototype.since";
+  static const char method_name[] = "Temporal.PlainDate.prototype.since";
 
   return temporal::GenericDifferenceTemporal(
       isolate, &temporal_rs::PlainDate::since, UnitGroup::kDate, Unit::Day,
@@ -4259,7 +4243,6 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDate::Since(
 // https://tc39.es/proposal-temporal/#sec-temporal.now.plaindateiso
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::NowISO(
     Isolate* isolate, DirectHandle<Object> temporal_time_zone_like) {
-  TEMPORAL_ENTER_FUNC();
   std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
   MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
       isolate, zdt,
@@ -4273,7 +4256,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::NowISO(
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::From(
     Isolate* isolate, DirectHandle<Object> item_obj,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.PlainDate.from";
+  static const char method_name[] = "Temporal.PlainDate.from";
   DirectHandle<JSTemporalPlainDate> item;
 
   // Options parsing hoisted out of ToTemporalTime
@@ -4294,7 +4277,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::From(
 MaybeDirectHandle<String> JSTemporalPlainDate::ToString(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.PlainDate.prototype.toString";
+  static const char method_name[] = "Temporal.PlainDate.prototype.toString";
 
   // 3. Let resolvedOptions be ?GetOptionsObject(options).
   DirectHandle<JSReceiver> options;
@@ -4469,7 +4452,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Constructor(
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::From(
     Isolate* isolate, DirectHandle<Object> item_obj,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.PlainDateTime.from";
+  static const char method_name[] = "Temporal.PlainDateTime.from";
   DirectHandle<JSTemporalPlainDateTime> item;
 
   // Options parsing hoisted out of ToTemporalDateTime
@@ -4491,7 +4474,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::From(
 MaybeDirectHandle<Smi> JSTemporalPlainDateTime::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj) {
-  const char method_name[] = "Temporal.PlainDateTime.compare";
+  static const char method_name[] = "Temporal.PlainDateTime.compare";
   DirectHandle<JSTemporalPlainDateTime> one;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, one,
                              temporal::ToTemporalDateTime(
@@ -4510,7 +4493,7 @@ MaybeDirectHandle<Smi> JSTemporalPlainDateTime::Compare(
 MaybeDirectHandle<Oddball> JSTemporalPlainDateTime::Equals(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> other_obj) {
-  const char method_name[] = "Temporal.PlainDateTime.prototype.equals";
+  static const char method_name[] = "Temporal.PlainDateTime.prototype.equals";
 
   DirectHandle<JSTemporalPlainDateTime> other;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -4529,7 +4512,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::With(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> temporal_date_time_like_obj,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.PlainDateTime.prototype.with";
+  static const char method_name[] = "Temporal.PlainDateTime.prototype.with";
 
   using enum temporal::CalendarFieldsFlag;
 
@@ -4561,7 +4544,8 @@ MaybeDirectHandle<JSTemporalPlainDateTime>
 JSTemporalPlainDateTime::WithPlainTime(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> plain_time_like) {
-  const char method_name[] = "Temporal.PlainDateTime.prototype.withPlainTime";
+  static const char method_name[] =
+      "Temporal.PlainDateTime.prototype.withPlainTime";
 
   // 3. Let time be ? ToTimeRecordOrMidnight(plainTimeLike).
   const temporal_rs::PlainTime* maybe_time;
@@ -4583,7 +4567,8 @@ JSTemporalPlainDateTime::ToZonedDateTime(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> temporal_time_zone_like,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.PlainDateTime.prototype.toZonedDateTime";
+  static const char method_name[] =
+      "Temporal.PlainDateTime.prototype.toZonedDateTime";
   // 3. Let timeZone be ? ToTemporalTimeZoneIdentifier(temporalTimeZoneLike).
   std::unique_ptr<temporal_rs::TimeZone> time_zone;
   MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
@@ -4612,7 +4597,7 @@ JSTemporalPlainDateTime::ToZonedDateTime(
 MaybeDirectHandle<String> JSTemporalPlainDateTime::ToString(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.DateTime.prototype.toString";
+  static const char method_name[] = "Temporal.DateTime.prototype.toString";
 
   // 3. Let resolvedOptions be ?GetOptionsObject(options).
   DirectHandle<JSReceiver> options;
@@ -4684,7 +4669,6 @@ MaybeDirectHandle<String> JSTemporalPlainDateTime::ToLocaleString(
 // https://tc39.es/proposal-temporal/#sec-temporal.now.plaindatetimeiso
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::NowISO(
     Isolate* isolate, DirectHandle<Object> temporal_time_zone_like) {
-  TEMPORAL_ENTER_FUNC();
   std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
   MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
       isolate, zdt,
@@ -4698,7 +4682,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::NowISO(
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Round(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> round_to_obj) {
-  const char method_name[] = "Temporal.PlainDateTime.prototype.round";
+  static const char method_name[] = "Temporal.PlainDateTime.prototype.round";
   // 1. Let dateTime be the this value.
   // 2. Perform ? RequireInternalSlot(dateTime,
   // [[InitializedTemporalDateTime]]).
@@ -4781,8 +4765,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Round(
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Add(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainDateTime.prototype.add";
+  static const char method_name[] = "Temporal.PlainDateTime.prototype.add";
   // 3. Return ? AddDurationToDateTime(add, temporalDate, temporalDurationLike,
   // options).
   return temporal::AddDurationToGeneric(
@@ -4794,8 +4777,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Add(
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainDateTime.prototype.subtract";
+  static const char method_name[] = "Temporal.PlainDateTime.prototype.subtract";
   // 3. Return ? AddDurationToDateTime(subtract, temporalDate,
   // temporalDurationLike, options).
   return temporal::AddDurationToGeneric(
@@ -4807,8 +4789,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Subtract(
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDateTime::Until(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainDateTime.prototype.until";
+  static const char method_name[] = "Temporal.PlainDateTime.prototype.until";
 
   return temporal::GenericDifferenceTemporal(
       isolate, &temporal_rs::PlainDateTime::until, UnitGroup::kDateTime,
@@ -4819,8 +4800,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDateTime::Until(
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDateTime::Since(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainDateTime.prototype.since";
+  static const char method_name[] = "Temporal.PlainDateTime.prototype.since";
 
   return temporal::GenericDifferenceTemporal(
       isolate, &temporal_rs::PlainDateTime::since, UnitGroup::kDateTime,
@@ -4924,7 +4904,7 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::Constructor(
 MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::From(
     Isolate* isolate, DirectHandle<Object> item_obj,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.PlainMonthDay.from";
+  static const char method_name[] = "Temporal.PlainMonthDay.from";
   DirectHandle<JSTemporalPlainMonthDay> item;
 
   // Options parsing hoisted out of ToTemporalYearMonth
@@ -4945,7 +4925,7 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::From(
 MaybeDirectHandle<Oddball> JSTemporalPlainMonthDay::Equals(
     Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day,
     DirectHandle<Object> other_obj) {
-  const char method_name[] = "Temporal.PlainMonthDay.prototype.equals";
+  static const char method_name[] = "Temporal.PlainMonthDay.prototype.equals";
 
   DirectHandle<JSTemporalPlainMonthDay> other;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -4964,7 +4944,7 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::With(
     Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> temporal_month_day,
     DirectHandle<Object> temporal_month_day_like_obj,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.PlainYearMonth.prototype.with";
+  static const char method_name[] = "Temporal.PlainYearMonth.prototype.with";
 
   using enum temporal::CalendarFieldsFlag;
 
@@ -5019,7 +4999,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainMonthDay::ToPlainDate(
 MaybeDirectHandle<String> JSTemporalPlainMonthDay::ToString(
     Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.PlainMonthDay.prototype.toString";
+  static const char method_name[] = "Temporal.PlainMonthDay.prototype.toString";
 
   // 3. Let resolvedOptions be ?GetOptionsObject(options).
   DirectHandle<JSReceiver> options;
@@ -5144,7 +5124,7 @@ JSTemporalPlainYearMonth::Constructor(
 MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::From(
     Isolate* isolate, DirectHandle<Object> item_obj,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.PlainYearMonth.from";
+  static const char method_name[] = "Temporal.PlainYearMonth.from";
   DirectHandle<JSTemporalPlainYearMonth> item;
 
   // Options parsing hoisted out of ToTemporalYearMonth
@@ -5166,7 +5146,7 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::From(
 MaybeDirectHandle<Smi> JSTemporalPlainYearMonth::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj) {
-  const char method_name[] = "Temporal.PlainYearMonth.compare";
+  static const char method_name[] = "Temporal.PlainYearMonth.compare";
   DirectHandle<JSTemporalPlainYearMonth> one;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, one,
                              temporal::ToTemporalYearMonth(
@@ -5186,7 +5166,7 @@ MaybeDirectHandle<Smi> JSTemporalPlainYearMonth::Compare(
 MaybeDirectHandle<Oddball> JSTemporalPlainYearMonth::Equals(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
     DirectHandle<Object> other_obj) {
-  const char method_name[] = "Temporal.PlainYearMonth.prototype.equals";
+  static const char method_name[] = "Temporal.PlainYearMonth.prototype.equals";
 
   DirectHandle<JSTemporalPlainYearMonth> other;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -5204,8 +5184,7 @@ MaybeDirectHandle<Oddball> JSTemporalPlainYearMonth::Equals(
 MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::Add(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainYearMonth.prototype.add";
+  static const char method_name[] = "Temporal.PlainYearMonth.prototype.add";
   // 3. Return ? AddDurationToYearMonth(add, temporalDate, temporalDurationLike,
   // options).
   return temporal::AddDurationToGeneric(
@@ -5217,8 +5196,8 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::Add(
 MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainYearMonth.prototype.subtract";
+  static const char method_name[] =
+      "Temporal.PlainYearMonth.prototype.subtract";
   // 3. Return ? AddDurationToYearMonth(subtract, temporalDate,
   // temporalDurationLike, options).
   return temporal::AddDurationToGeneric(
@@ -5230,8 +5209,7 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::Subtract(
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainYearMonth::Until(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainYearMonth.prototype.until";
+  static const char method_name[] = "Temporal.PlainYearMonth.prototype.until";
 
   return temporal::GenericDifferenceTemporal(
       isolate, &temporal_rs::PlainYearMonth::until, UnitGroup::kDate, Unit::Day,
@@ -5242,8 +5220,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainYearMonth::Until(
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainYearMonth::Since(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainYearMonth.prototype.since";
+  static const char method_name[] = "Temporal.PlainYearMonth.prototype.since";
 
   return temporal::GenericDifferenceTemporal(
       isolate, &temporal_rs::PlainYearMonth::since, UnitGroup::kDate, Unit::Day,
@@ -5256,7 +5233,7 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::With(
     DirectHandle<JSTemporalPlainYearMonth> temporal_year_month,
     DirectHandle<Object> temporal_year_month_like_obj,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.PlainYearMonth.prototype.with";
+  static const char method_name[] = "Temporal.PlainYearMonth.prototype.with";
 
   using enum temporal::CalendarFieldsFlag;
 
@@ -5311,7 +5288,8 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainYearMonth::ToPlainDate(
 MaybeDirectHandle<String> JSTemporalPlainYearMonth::ToString(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.PlainYearMonth.prototype.toString";
+  static const char method_name[] =
+      "Temporal.PlainYearMonth.prototype.toString";
 
   // 3. Let resolvedOptions be ?GetOptionsObject(options).
   DirectHandle<JSReceiver> options;
@@ -5455,7 +5433,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Constructor(
 MaybeDirectHandle<Smi> JSTemporalPlainTime::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj) {
-  const char method_name[] = "Temporal.PlainTime.compare";
+  static const char method_name[] = "Temporal.PlainTime.compare";
   DirectHandle<JSTemporalPlainTime> one;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, one,
@@ -5492,7 +5470,7 @@ MaybeDirectHandle<Oddball> JSTemporalPlainTime::Equals(
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Round(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     DirectHandle<Object> round_to_obj) {
-  const char method_name[] = "Temporal.PlainDateTime.prototype.round";
+  static const char method_name[] = "Temporal.PlainDateTime.prototype.round";
   // 1. Let temporalTime be the this value.
   // 2. Perform ? RequireInternalSlot(dateTime, [[InitializedTemporalTime]]).
 
@@ -5572,7 +5550,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::With(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     DirectHandle<Object> temporal_time_like_obj,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.PlainTime.prototype.with";
+  static const char method_name[] = "Temporal.PlainTime.prototype.with";
 
   // 3. If ? IsPartialTemporalObject(temporalTimeLike) is false, throw a
   // TypeError exception.
@@ -5614,7 +5592,6 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::With(
 // https://tc39.es/proposal-temporal/#sec-temporal.now.plaintimeiso
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::NowISO(
     Isolate* isolate, DirectHandle<Object> temporal_time_zone_like) {
-  TEMPORAL_ENTER_FUNC();
   std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
   MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
       isolate, zdt,
@@ -5628,7 +5605,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::NowISO(
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::From(
     Isolate* isolate, DirectHandle<Object> item_obj,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.PlainTime.from";
+  static const char method_name[] = "Temporal.PlainTime.from";
   DirectHandle<JSTemporalPlainTime> item;
 
   // Options parsing hoisted out of ToTemporalTime
@@ -5653,8 +5630,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::From(
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Add(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     DirectHandle<Object> temporal_duration_like) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainTime.prototype.add";
+  static const char method_name[] = "Temporal.PlainTime.prototype.add";
 
   DirectHandle<JSTemporalDuration> other_duration;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, other_duration,
@@ -5672,8 +5648,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Add(
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     DirectHandle<Object> temporal_duration_like) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainTime.prototype.subtract";
+  static const char method_name[] = "Temporal.PlainTime.prototype.subtract";
 
   DirectHandle<JSTemporalDuration> other_duration;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, other_duration,
@@ -5691,8 +5666,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Subtract(
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainTime::Until(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainTime.prototype.until";
+  static const char method_name[] = "Temporal.PlainTime.prototype.until";
 
   return temporal::GenericDifferenceTemporal(
       isolate, &temporal_rs::PlainTime::until, UnitGroup::kTime,
@@ -5703,8 +5677,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainTime::Until(
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainTime::Since(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainTime.prototype.since";
+  static const char method_name[] = "Temporal.PlainTime.prototype.since";
 
   return temporal::GenericDifferenceTemporal(
       isolate, &temporal_rs::PlainTime::since, UnitGroup::kTime,
@@ -5716,7 +5689,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainTime::Since(
 MaybeDirectHandle<String> JSTemporalPlainTime::ToString(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.PlainTime.prototype.toString";
+  static const char method_name[] = "Temporal.PlainTime.prototype.toString";
   // 3. Let resolvedOptions be ?GetOptionsObject(options).
   DirectHandle<JSReceiver> options;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -5876,7 +5849,6 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.hoursinday
 MaybeDirectHandle<Smi> JSTemporalZonedDateTime::HoursInDay(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  TEMPORAL_ENTER_FUNC();
 
   uint8_t hours;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -5891,7 +5863,7 @@ MaybeDirectHandle<Smi> JSTemporalZonedDateTime::HoursInDay(
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::From(
     Isolate* isolate, DirectHandle<Object> item_obj,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.ZonedDateTime.from";
+  static const char method_name[] = "Temporal.ZonedDateTime.from";
   DirectHandle<JSTemporalPlainDateTime> item;
 
   // Options parsing hoisted out of ToTemporalZonedDateTime
@@ -5934,8 +5906,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::From(
 MaybeDirectHandle<Smi> JSTemporalZonedDateTime::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.ZonedDateTime.compare";
+  static const char method_name[] = "Temporal.ZonedDateTime.compare";
   DirectHandle<JSTemporalZonedDateTime> one;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, one,
                              temporal::ToTemporalZonedDateTime(
@@ -5957,7 +5928,7 @@ MaybeDirectHandle<Smi> JSTemporalZonedDateTime::Compare(
 MaybeDirectHandle<Oddball> JSTemporalZonedDateTime::Equals(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> other_obj) {
-  const char method_name[] = "Temporal.ZonedDateTime.prototype.equals";
+  static const char method_name[] = "Temporal.ZonedDateTime.prototype.equals";
 
   // 3. Set other to ? ToTemporalZonedDateTime(other).
   DirectHandle<JSTemporalZonedDateTime> other;
@@ -5978,7 +5949,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::With(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> temporal_zoned_date_time_like_obj,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.ZonedDateTime.prototype.with";
+  static const char method_name[] = "Temporal.ZonedDateTime.prototype.with";
 
   using enum temporal::CalendarFieldsFlag;
 
@@ -6011,7 +5982,8 @@ MaybeDirectHandle<JSTemporalZonedDateTime>
 JSTemporalZonedDateTime::WithPlainTime(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> plain_time_like) {
-  const char method_name[] = "Temporal.ZonedDateTime.prototype.withPlainTime";
+  static const char method_name[] =
+      "Temporal.ZonedDateTime.prototype.withPlainTime";
   // 1. Let zonedDateTime be the this value.
   //
   // 2. Perform ? RequireInternalSlot(zonedDateTime,
@@ -6086,8 +6058,7 @@ JSTemporalZonedDateTime::WithTimeZone(
 MaybeDirectHandle<String> JSTemporalZonedDateTime::ToString(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> options_obj) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.ZonedDateTime.prototype.toString";
+  static const char method_name[] = "Temporal.ZonedDateTime.prototype.toString";
 
   // 3. Let resolvedOptions be ?GetOptionsObject(options).
   DirectHandle<JSReceiver> options;
@@ -6163,7 +6134,6 @@ MaybeDirectHandle<String> JSTemporalZonedDateTime::ToString(
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tojson
 MaybeDirectHandle<String> JSTemporalZonedDateTime::ToJSON(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  TEMPORAL_ENTER_FUNC();
   return temporal::GenericTemporalToString(
       isolate, zoned_date_time, &temporal_rs::ZonedDateTime::to_ixdtf_string,
       temporal_rs::DisplayOffset::Auto, temporal_rs::DisplayTimeZone::Auto,
@@ -6174,7 +6144,6 @@ MaybeDirectHandle<String> JSTemporalZonedDateTime::ToJSON(
 MaybeDirectHandle<String> JSTemporalZonedDateTime::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
   return temporal::GenericTemporalToString(
       isolate, zoned_date_time, &temporal_rs::ZonedDateTime::to_ixdtf_string,
       temporal_rs::DisplayOffset::Auto, temporal_rs::DisplayTimeZone::Auto,
@@ -6184,7 +6153,6 @@ MaybeDirectHandle<String> JSTemporalZonedDateTime::ToLocaleString(
 // https://tc39.es/proposal-temporal/#sec-temporal.now.zoneddatetimeiso
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::NowISO(
     Isolate* isolate, DirectHandle<Object> temporal_time_zone_like) {
-  TEMPORAL_ENTER_FUNC();
   std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
   MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
       isolate, zdt,
@@ -6198,7 +6166,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::NowISO(
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Round(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> round_to_obj) {
-  const char method_name[] = "Temporal.PlainDateTime.prototype.round";
+  static const char method_name[] = "Temporal.PlainDateTime.prototype.round";
   // 1. Let zonedDateTime be the this value.
   // 2. Perform ? RequireInternalSlot(zonedDateTime,
   // [[InitializedTemporalZonedDateTime]]).
@@ -6281,8 +6249,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Round(
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Add(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.ZonedDateTime.prototype.add";
+  static const char method_name[] = "Temporal.ZonedDateTime.prototype.add";
   // 3. Return ? AddDurationToZonedDateTime(add, temporalDate,
   // temporalDurationLike, options).
   return temporal::AddDurationToGeneric(
@@ -6293,8 +6260,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Add(
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.ZonedDateTime.prototype.subtract";
+  static const char method_name[] = "Temporal.ZonedDateTime.prototype.subtract";
   // 3. Return ? AddDurationToZonedDateTime(subtract, temporalDate,
   // temporalDurationLike, options).
   return temporal::AddDurationToGeneric(
@@ -6306,8 +6272,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Subtract(
 MaybeDirectHandle<JSTemporalDuration> JSTemporalZonedDateTime::Until(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  const char method_name[] = "Temporal.ZonedDateTime.prototype.since";
-  TEMPORAL_ENTER_FUNC();
+  static const char method_name[] = "Temporal.ZonedDateTime.prototype.since";
   return temporal::GenericDifferenceTemporal(
       isolate, &temporal_rs::ZonedDateTime::until, UnitGroup::kDateTime,
       Unit::Nanosecond, handle, other, options, method_name);
@@ -6317,8 +6282,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalZonedDateTime::Until(
 MaybeDirectHandle<JSTemporalDuration> JSTemporalZonedDateTime::Since(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  const char method_name[] = "Temporal.ZonedDateTime.prototype.since";
-  TEMPORAL_ENTER_FUNC();
+  static const char method_name[] = "Temporal.ZonedDateTime.prototype.since";
   return temporal::GenericDifferenceTemporal(
       isolate, &temporal_rs::ZonedDateTime::since, UnitGroup::kDateTime,
       Unit::Nanosecond, handle, other, options, method_name);
@@ -6326,7 +6290,6 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalZonedDateTime::Since(
 
 // https://tc39.es/proposal-temporal/#sec-temporal.now.instant
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Now(Isolate* isolate) {
-  TEMPORAL_ENTER_FUNC();
   auto ms = temporal::SystemUTCEpochMilliseconds();
   return ConstructRustWrappingType<JSTemporalInstant>(
       isolate, temporal_rs::Instant::from_epoch_milliseconds(ms));
@@ -6335,7 +6298,6 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Now(Isolate* isolate) {
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.offsetnanoseconds
 MaybeDirectHandle<Object> JSTemporalZonedDateTime::OffsetNanoseconds(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  TEMPORAL_ENTER_FUNC();
   int64_t offset_ns;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, offset_ns,
@@ -6349,7 +6311,6 @@ MaybeDirectHandle<Object> JSTemporalZonedDateTime::OffsetNanoseconds(
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.epochnanoseconds
 MaybeDirectHandle<BigInt> JSTemporalZonedDateTime::EpochNanoseconds(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  TEMPORAL_ENTER_FUNC();
   return temporal::I128ToBigInt(
       isolate, zoned_date_time->zoned_date_time()->raw()->epoch_nanoseconds());
 }
@@ -6357,7 +6318,6 @@ MaybeDirectHandle<BigInt> JSTemporalZonedDateTime::EpochNanoseconds(
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.timezoneid
 MaybeDirectHandle<String> JSTemporalZonedDateTime::TimeZoneId(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  TEMPORAL_ENTER_FUNC();
   std::string id;
 
   MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
@@ -6375,7 +6335,6 @@ MaybeDirectHandle<String> JSTemporalZonedDateTime::TimeZoneId(
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.offset
 MaybeDirectHandle<String> JSTemporalZonedDateTime::Offset(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  TEMPORAL_ENTER_FUNC();
 
   std::string offset;
 
@@ -6393,7 +6352,6 @@ MaybeDirectHandle<String> JSTemporalZonedDateTime::Offset(
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.startofday
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::StartOfDay(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  TEMPORAL_ENTER_FUNC();
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
       isolate, zoned_date_time->zoned_date_time()->raw()->start_of_day());
 }
@@ -6402,9 +6360,8 @@ MaybeDirectHandle<JSTemporalZonedDateTime>
 JSTemporalZonedDateTime::GetTimeZoneTransition(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> direction_param_obj) {
-  const char method_name[] =
+  static const char method_name[] =
       "Temporal.ZonedDateTime.prototype.getTimeZoneTransition";
-  TEMPORAL_ENTER_FUNC();
 
   // 4. If directionParam is undefined, throw a TypeError exception.
   if (IsUndefined(*direction_param_obj)) {
@@ -6489,7 +6446,6 @@ MaybeDirectHandle<JSTemporalInstant> CreateTemporalInstantWithValidityCheck(
     Isolate* isolate, DirectHandle<JSFunction> target,
     DirectHandle<HeapObject> new_target,
     DirectHandle<BigInt> epoch_nanoseconds) {
-  TEMPORAL_ENTER_FUNC();
 
   temporal_rs::I128Nanoseconds ns;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -6502,7 +6458,6 @@ MaybeDirectHandle<JSTemporalInstant> CreateTemporalInstantWithValidityCheck(
 
 MaybeDirectHandle<JSTemporalInstant> CreateTemporalInstantWithValidityCheck(
     Isolate* isolate, DirectHandle<BigInt> epoch_nanoseconds) {
-  TEMPORAL_ENTER_FUNC();
   auto ctor = JSTemporalInstant::GetConstructorTarget(isolate);
   return CreateTemporalInstantWithValidityCheck(isolate, ctor, ctor,
                                                 epoch_nanoseconds);
@@ -6515,7 +6470,6 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Constructor(
     Isolate* isolate, DirectHandle<JSFunction> target,
     DirectHandle<HeapObject> new_target,
     DirectHandle<Object> epoch_nanoseconds_obj) {
-  TEMPORAL_ENTER_FUNC();
   // 1. If NewTarget is undefined, then
   if (IsUndefined(*new_target)) {
     // a. Throw a TypeError exception.
@@ -6537,7 +6491,7 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Constructor(
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.from
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::From(
     Isolate* isolate, DirectHandle<Object> item) {
-  const char method_name[] = "Temporal.Instant.from";
+  static const char method_name[] = "Temporal.Instant.from";
   DirectHandle<JSTemporalInstant> item_instant;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, item_instant,
@@ -6592,8 +6546,7 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::FromEpochNanoseconds(
 MaybeDirectHandle<Smi> JSTemporalInstant::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.Instant.compare";
+  static const char method_name[] = "Temporal.Instant.compare";
   DirectHandle<JSTemporalInstant> one;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, one, temporal::ToTemporalInstant(isolate, one_obj, method_name));
@@ -6610,8 +6563,7 @@ MaybeDirectHandle<Smi> JSTemporalInstant::Compare(
 MaybeDirectHandle<Oddball> JSTemporalInstant::Equals(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
     DirectHandle<Object> other_obj) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.Instant.prototype.equals";
+  static const char method_name[] = "Temporal.Instant.prototype.equals";
 
   DirectHandle<JSTemporalInstant> other;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -6631,8 +6583,7 @@ MaybeDirectHandle<Oddball> JSTemporalInstant::Equals(
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Round(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
     DirectHandle<Object> round_to_obj) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.Instant.prototype.round";
+  static const char method_name[] = "Temporal.Instant.prototype.round";
   Factory* factory = isolate->factory();
   // 1. Let instant be the this value.
   // 2. Perform ? RequireInternalSlot(instant, [[InitializedTemporalInstant]]).
@@ -6701,7 +6652,6 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Round(
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.epochmilliseconds
 MaybeDirectHandle<Number> JSTemporalInstant::EpochMilliseconds(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle) {
-  TEMPORAL_ENTER_FUNC();
   int64_t ms = handle->instant()->raw()->epoch_milliseconds();
 
   return isolate->factory()->NewNumberFromInt64(ms);
@@ -6710,7 +6660,6 @@ MaybeDirectHandle<Number> JSTemporalInstant::EpochMilliseconds(
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.epochnanoseconds
 MaybeDirectHandle<BigInt> JSTemporalInstant::EpochNanoseconds(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle) {
-  TEMPORAL_ENTER_FUNC();
 
   return temporal::I128ToBigInt(isolate,
                                 handle->instant()->raw()->epoch_nanoseconds());
@@ -6721,7 +6670,6 @@ MaybeDirectHandle<JSTemporalZonedDateTime>
 JSTemporalInstant::ToZonedDateTimeISO(Isolate* isolate,
                                       DirectHandle<JSTemporalInstant> instant,
                                       DirectHandle<Object> time_zone_obj) {
-  TEMPORAL_ENTER_FUNC();
   // 3. Let timeZone be ? ToTemporalTimeZoneIdentifier(temporalTimeZoneLike).
   std::unique_ptr<temporal_rs::TimeZone> time_zone;
   MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
@@ -6736,8 +6684,7 @@ JSTemporalInstant::ToZonedDateTimeISO(Isolate* isolate,
 MaybeDirectHandle<String> JSTemporalInstant::ToString(
     Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
     DirectHandle<Object> options_obj) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.Instant.prototype.toString";
+  static const char method_name[] = "Temporal.Instant.prototype.toString";
 
   // 3. Set options to ? GetOptionsObject(options).
   DirectHandle<JSReceiver> options;
@@ -6815,7 +6762,6 @@ MaybeDirectHandle<String> JSTemporalInstant::ToString(
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tojson
 MaybeDirectHandle<String> JSTemporalInstant::ToJSON(
     Isolate* isolate, DirectHandle<JSTemporalInstant> instant) {
-  TEMPORAL_ENTER_FUNC();
 
   return temporal::GenericTemporalToString(
       isolate, instant,
@@ -6827,7 +6773,6 @@ MaybeDirectHandle<String> JSTemporalInstant::ToJSON(
 MaybeDirectHandle<String> JSTemporalInstant::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
 
   return temporal::GenericTemporalToString(
       isolate, instant,
@@ -6839,8 +6784,7 @@ MaybeDirectHandle<String> JSTemporalInstant::ToLocaleString(
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Add(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
     DirectHandle<Object> temporal_duration_like) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.Duration.prototype.add";
+  static const char method_name[] = "Temporal.Duration.prototype.add";
 
   DirectHandle<JSTemporalDuration> other_duration;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, other_duration,
@@ -6858,9 +6802,7 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Add(
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
     DirectHandle<Object> temporal_duration_like) {
-  TEMPORAL_ENTER_FUNC();
-
-  const char method_name[] = "Temporal.Duration.prototype.subtract";
+  static const char method_name[] = "Temporal.Duration.prototype.subtract";
 
   DirectHandle<JSTemporalDuration> other_duration;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, other_duration,
@@ -6878,8 +6820,7 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Subtract(
 MaybeDirectHandle<JSTemporalDuration> JSTemporalInstant::Until(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.Instant.prototype.until";
+  static const char method_name[] = "Temporal.Instant.prototype.until";
 
   return temporal::GenericDifferenceTemporal(
       isolate, &temporal_rs::Instant::until, UnitGroup::kTime, Unit::Nanosecond,
@@ -6890,8 +6831,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalInstant::Until(
 MaybeDirectHandle<JSTemporalDuration> JSTemporalInstant::Since(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.Instant.prototype.since";
+  static const char method_name[] = "Temporal.Instant.prototype.since";
 
   return temporal::GenericDifferenceTemporal(
       isolate, &temporal_rs::Instant::since, UnitGroup::kTime, Unit::Nanosecond,

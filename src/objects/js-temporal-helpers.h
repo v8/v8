@@ -20,15 +20,8 @@
 
 #ifdef DEBUG
 #define TEMPORAL_DEBUG_INFO AT
-#define TEMPORAL_ENTER_FUNC()
-// #define TEMPORAL_ENTER_FUNC()  do { PrintF("Start: %s\n", __func__); } while
-// (false)
 #else
-// #define TEMPORAL_DEBUG_INFO ""
-#define TEMPORAL_DEBUG_INFO AT
-#define TEMPORAL_ENTER_FUNC()
-// #define TEMPORAL_ENTER_FUNC()  do { PrintF("Start: %s\n", __func__); } while
-// (false)
+#define TEMPORAL_DEBUG_INFO ""
 #endif  // DEBUG
 
 #define NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR()       \
