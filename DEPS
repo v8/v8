@@ -308,7 +308,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '5bbf35ae6801f579c523893176789774c0726e22',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '58ec325a33373f73e9d8bd044720dc01c52b48c4',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '97c89c7a7b7a78a998e98790ec8989ea72d48123',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
