@@ -8069,8 +8069,13 @@ if (v8_enable_webassembly) {
       ]
 
       deps = [
+        ":fuzzer_support",
         ":v8_internal_headers",
+      ]
+
+      public_deps = [
         ":wasm_fuzzer_common",
+        ":wasm_test_common",
       ]
 
       configs = [
