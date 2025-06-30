@@ -3111,7 +3111,7 @@ void WasmDescriptorOptions::WasmDescriptorOptionsPrint(std::ostream& os) {
 
 void WasmModuleObject::WasmModuleObjectPrint(std::ostream& os) {
   PrintHeader(os, "WasmModuleObject");
-  os << "\n - module: " << module();
+  os << "\n - module: " << native_module()->module();
   os << "\n - native module: " << native_module();
   os << "\n - script: " << Brief(script());
   os << "\n";

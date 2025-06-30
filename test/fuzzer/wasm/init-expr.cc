@@ -259,12 +259,12 @@ void FuzzIt(base::Vector<const uint8_t> data) {
 
   DirectHandle<WasmModuleObject> module_object =
       compiled_module.ToHandleChecked();
+  const WasmModule* module = module_object->native_module()->module();
   DirectHandle<WasmInstanceObject> instance =
       GetWasmEngine()
           ->SyncInstantiate(i_isolate, &thrower, module_object, {}, {})
           .ToHandleChecked();
-  CHECK_EQ(expression_count,
-           module_object->native_module()->module()->num_declared_functions);
+  CHECK_EQ(expression_count, module->num_declared_functions);
 
   for (size_t i = 0; i < expression_count; ++i) {
     char buffer[22];
@@ -340,8 +340,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
         CHECK_EQ(IsNullOrWasmNull(*global_val),
                  IsNullOrWasmNull(*function_result));
         if (!IsNullOrWasmNull(*global_val)) {
-          if (IsSubtypeOf(global->type(), kWasmFuncRef,
-                          module_object->module())) {
+          if (IsSubtypeOf(global->type(), kWasmFuncRef, module)) {
             // For any function the global should be an internal function
             // whose external function equals the call result. (The call goes
             // through JS conversions while the global is accessed directly.)
@@ -358,7 +357,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
                 instance->trusted_data(i_isolate)->GetGlobalValue(
                     i_isolate, instance->module()->globals[i]);
             WasmValue func_value(function_result, global_value.type());
-            CheckEquivalent(global_value, func_value, *module_object->module());
+            CheckEquivalent(global_value, func_value, *module);
           }
         }
         break;

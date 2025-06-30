@@ -783,21 +783,20 @@ static Tagged<Object> CreateWasmObject(Isolate* isolate,
     DCHECK(isolate->has_exception());
     return ReadOnlyRoots(isolate).exception();
   }
+  const wasm::WasmModule* module = module_object->native_module()->module();
   wasm::WasmValue value(int64_t{0x7AADF00DBAADF00D});
   wasm::ModuleTypeIndex type_index{0};
   Tagged<Map> map = Tagged<Map>::cast(
       instance->trusted_data(isolate)->managed_object_maps()->get(
           type_index.index));
   if (is_struct) {
-    const wasm::StructType* struct_type =
-        instance->module()->struct_type(type_index);
+    const wasm::StructType* struct_type = module->struct_type(type_index);
     DCHECK_EQ(struct_type->field_count(), 1);
     DCHECK_EQ(struct_type->field(0), wasm::kWasmI64);
     return *isolate->factory()->NewWasmStruct(struct_type, &value,
                                               direct_handle(map, isolate));
   } else {
-    DCHECK_EQ(instance->module()->array_type(type_index)->element_type(),
-              wasm::kWasmI64);
+    DCHECK_EQ(module->array_type(type_index)->element_type(), wasm::kWasmI64);
     return *isolate->factory()->NewWasmArray(wasm::kWasmI64, 1, value,
                                              direct_handle(map, isolate));
   }

@@ -272,9 +272,9 @@ int ExecuteAgainstReference(Isolate* isolate,
                             bool is_wasm_jitless
 #endif  // V8_ENABLE_DRUMBRAKE
 ) {
-  const WasmModule* module = module_object->module();
-  const base::Vector<const uint8_t> wire_bytes =
-      module_object->native_module()->wire_bytes();
+  NativeModule* native_module = module_object->native_module();
+  const WasmModule* module = native_module->module();
+  const base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   int exported_main = FindExportedMainFunction(module, wire_bytes);
   if (exported_main < 0) return -1;
 

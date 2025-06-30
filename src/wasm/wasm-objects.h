@@ -167,7 +167,6 @@ class WasmModuleObject
   inline wasm::NativeModule* native_module() const;
   inline const std::shared_ptr<wasm::NativeModule>& shared_native_module()
       const;
-  inline const wasm::WasmModule* module() const;
 
   // Dispatched behavior.
   DECL_PRINTER(WasmModuleObject)
@@ -177,9 +176,6 @@ class WasmModuleObject
   V8_EXPORT_PRIVATE static DirectHandle<WasmModuleObject> New(
       Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
       DirectHandle<Script> script);
-
-  // Check whether this module was generated from asm.js source.
-  inline bool is_asm_js();
 
   // Get the module name, if set. Returns an empty handle otherwise.
   static MaybeDirectHandle<String> GetModuleNameOrNull(
@@ -201,10 +197,7 @@ class WasmModuleObject
   // internalized. (Prefer to internalize early if the string will be used for a
   // property lookup anyway.)
   static DirectHandle<String> ExtractUtf8StringFromModuleBytes(
-      Isolate*, DirectHandle<WasmModuleObject>, wasm::WireBytesRef,
-      InternalizeString);
-  static DirectHandle<String> ExtractUtf8StringFromModuleBytes(
-      Isolate*, base::Vector<const uint8_t> wire_byte, wasm::WireBytesRef,
+      Isolate*, base::Vector<const uint8_t> wire_bytes, wasm::WireBytesRef,
       InternalizeString);
 
   TQ_OBJECT_CONSTRUCTORS(WasmModuleObject)

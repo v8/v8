@@ -441,6 +441,7 @@ DirectHandle<JSArray> GetImports(Isolate* isolate,
   // Create the result array.
   NativeModule* native_module = module_object->native_module();
   const WasmModule* module = native_module->module();
+  base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   int num_imports = static_cast<int>(module->import_table.size());
   DirectHandle<JSArray> array_object =
       factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
@@ -506,8 +507,7 @@ DirectHandle<JSArray> GetImports(Isolate* isolate,
             import.module_name.length() == magic_string_constants.size() &&
             std::equal(magic_string_constants.begin(),
                        magic_string_constants.end(),
-                       module_object->native_module()->wire_bytes().begin() +
-                           import.module_name.offset())) {
+                       wire_bytes.begin() + import.module_name.offset())) {
           continue;
         }
         if (enabled_features.has_type_reflection()) {
@@ -525,11 +525,11 @@ DirectHandle<JSArray> GetImports(Isolate* isolate,
 
     DirectHandle<String> import_module =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-            isolate, module_object, import.module_name, kInternalize);
+            isolate, wire_bytes, import.module_name, kInternalize);
 
     DirectHandle<String> import_name =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-            isolate, module_object, import.field_name, kInternalize);
+            isolate, wire_bytes, import.field_name, kInternalize);
 
     JSObject::AddProperty(isolate, entry, module_string, import_module, NONE);
     JSObject::AddProperty(isolate, entry, name_string, import_name, NONE);
@@ -566,7 +566,8 @@ DirectHandle<JSArray> GetExports(Isolate* isolate,
   DirectHandle<String> tag_string = factory->InternalizeUtf8String("tag");
 
   // Create the result array.
-  const WasmModule* module = module_object->module();
+  NativeModule* native_module = module_object->native_module();
+  const WasmModule* module = native_module->module();
   int num_exports = static_cast<int>(module->export_table.size());
   DirectHandle<JSArray> array_object =
       factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
@@ -633,7 +634,7 @@ DirectHandle<JSArray> GetExports(Isolate* isolate,
 
     DirectHandle<String> export_name =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-            isolate, module_object, exp.name, kNoInternalize);
+            isolate, native_module->wire_bytes(), exp.name, kNoInternalize);
 
     JSObject::AddProperty(isolate, entry, name_string, export_name, NONE);
     JSObject::AddProperty(isolate, entry, kind_string, export_kind, NONE);
@@ -664,7 +665,7 @@ DirectHandle<JSArray> GetCustomSections(
   for (auto& section : custom_sections) {
     DirectHandle<String> section_name =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-            isolate, module_object, section.name, kNoInternalize);
+            isolate, wire_bytes, section.name, kNoInternalize);
 
     if (!name->Equals(*section_name)) continue;
 

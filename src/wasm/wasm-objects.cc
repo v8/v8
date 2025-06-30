@@ -134,15 +134,6 @@ DirectHandle<WasmModuleObject> WasmModuleObject::New(
 }
 
 DirectHandle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-    Isolate* isolate, DirectHandle<WasmModuleObject> module_object,
-    wasm::WireBytesRef ref, InternalizeString internalize) {
-  base::Vector<const uint8_t> wire_bytes =
-      module_object->native_module()->wire_bytes();
-  return ExtractUtf8StringFromModuleBytes(isolate, wire_bytes, ref,
-                                          internalize);
-}
-
-DirectHandle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
     Isolate* isolate, base::Vector<const uint8_t> wire_bytes,
     wasm::WireBytesRef ref, InternalizeString internalize) {
   base::Vector<const uint8_t> name_vec =
@@ -160,23 +151,24 @@ DirectHandle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
 
 MaybeDirectHandle<String> WasmModuleObject::GetModuleNameOrNull(
     Isolate* isolate, DirectHandle<WasmModuleObject> module_object) {
-  const WasmModule* module = module_object->module();
+  wasm::NativeModule* native_module = module_object->native_module();
+  const WasmModule* module = native_module->module();
   if (!module->name.is_set()) return {};
-  return ExtractUtf8StringFromModuleBytes(isolate, module_object, module->name,
-                                          kNoInternalize);
+  return ExtractUtf8StringFromModuleBytes(isolate, native_module->wire_bytes(),
+                                          module->name, kNoInternalize);
 }
 
 MaybeDirectHandle<String> WasmModuleObject::GetFunctionNameOrNull(
     Isolate* isolate, DirectHandle<WasmModuleObject> module_object,
     uint32_t func_index) {
-  DCHECK_LT(func_index, module_object->module()->functions.size());
-  wasm::WireBytesRef name =
-      module_object->module()->lazily_generated_names.LookupFunctionName(
-          wasm::ModuleWireBytes(module_object->native_module()->wire_bytes()),
-          func_index);
+  wasm::NativeModule* native_module = module_object->native_module();
+  const WasmModule* module = native_module->module();
+  DCHECK_LT(func_index, module->functions.size());
+  wasm::WireBytesRef name = module->lazily_generated_names.LookupFunctionName(
+      wasm::ModuleWireBytes(native_module->wire_bytes()), func_index);
   if (!name.is_set()) return {};
-  return ExtractUtf8StringFromModuleBytes(isolate, module_object, name,
-                                          kNoInternalize);
+  return ExtractUtf8StringFromModuleBytes(isolate, native_module->wire_bytes(),
+                                          name, kNoInternalize);
 }
 
 base::Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
@@ -184,11 +176,12 @@ base::Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
   if (func_index == wasm::kAnonymousFuncIndex) {
     return base::Vector<const uint8_t>({nullptr, 0});
   }
-  DCHECK_GT(module()->functions.size(), func_index);
-  wasm::ModuleWireBytes wire_bytes(native_module()->wire_bytes());
+  wasm::NativeModule* native_mod = native_module();
+  const WasmModule* module = native_mod->module();
+  DCHECK_GT(module->functions.size(), func_index);
+  wasm::ModuleWireBytes wire_bytes(native_mod->wire_bytes());
   wasm::WireBytesRef name_ref =
-      module()->lazily_generated_names.LookupFunctionName(wire_bytes,
-                                                          func_index);
+      module->lazily_generated_names.LookupFunctionName(wire_bytes, func_index);
   wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
   return base::Vector<const uint8_t>::cast(name);
 }

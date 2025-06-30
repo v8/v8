@@ -140,7 +140,8 @@ CompilationResult CompileSync(Isolate* isolate,
         Object::ToString(isolate, error).ToHandleChecked();
     return CompilationResult::ForFailure(error_msg->ToCString().get());
   }
-  return CompilationResult::ForSuccess(module_object->module());
+  return CompilationResult::ForSuccess(
+      module_object->native_module()->module());
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {

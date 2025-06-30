@@ -1226,10 +1226,11 @@ class InstanceBuilder {
  private:
   Isolate* isolate_;
   v8::metrics::Recorder::ContextId context_id_;
+  NativeModule* native_module_;
   const WasmEnabledFeatures enabled_;
   const WasmModule* const module_;
   ErrorThrower* thrower_;
-  DirectHandle<WasmModuleObject> module_object_;
+  DirectHandle<WasmModuleObject> untrusted_module_object_;
   DirectHandle<WasmTrustedInstanceData> trusted_data_;
   DirectHandle<WasmTrustedInstanceData> shared_trusted_data_;
   MaybeDirectHandle<JSReceiver> ffi_;
@@ -1256,8 +1257,8 @@ class InstanceBuilder {
 
   std::string ImportName(uint32_t index) {
     const WasmImport& import = module_->import_table[index];
-    const char* wire_bytes_start = reinterpret_cast<const char*>(
-        module_object_->native_module()->wire_bytes().data());
+    const char* wire_bytes_start =
+        reinterpret_cast<const char*>(native_module_->wire_bytes().data());
     std::ostringstream oss;
     oss << "Import #" << index << " \"";
     oss.write(wire_bytes_start + import.module_name.offset(),
@@ -1435,10 +1436,11 @@ InstanceBuilder::InstanceBuilder(
     MaybeDirectHandle<JSArrayBuffer> asmjs_memory_buffer)
     : isolate_(isolate),
       context_id_(context_id),
-      enabled_(module_object->native_module()->enabled_features()),
-      module_(module_object->module()),
+      native_module_(module_object->native_module()),
+      enabled_(native_module_->enabled_features()),
+      module_(native_module_->module()),
       thrower_(thrower),
-      module_object_(module_object),
+      untrusted_module_object_(module_object),
       ffi_(ffi),
       asmjs_memory_buffer_(asmjs_memory_buffer),
       tags_wrappers_(isolate),
@@ -1499,21 +1501,21 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
   // We assume failure for now, and will update to success later.
   TrustedPointerPublishingScope publish_trusted_objects(isolate_, no_js);
   publish_trusted_objects.MarkFailure();
-  NativeModule* native_module = module_object_->native_module();
 
   //--------------------------------------------------------------------------
   // Create the WebAssembly.Instance object.
   //--------------------------------------------------------------------------
-  TRACE("New module instantiation for %p\n", native_module);
-  trusted_data_ = WasmTrustedInstanceData::New(isolate_, module_object_, false);
-  bool shared = module_object_->module()->has_shared_part;
+  TRACE("New module instantiation for %p\n", native_module_);
+  trusted_data_ =
+      WasmTrustedInstanceData::New(isolate_, untrusted_module_object_, false);
+  bool shared = module_->has_shared_part;
   if (shared) {
     // For now, allocate the shared part in non-shared space. We do not need it
     // in shared space yet since no shared objects point to it.
     // TODO(42204563): This will change once we introduce shared globals,
     // tables, or functions.
     shared_trusted_data_ =
-        WasmTrustedInstanceData::New(isolate_, module_object_, false);
+        WasmTrustedInstanceData::New(isolate_, untrusted_module_object_, false);
     trusted_data_->set_shared_part(*shared_trusted_data_);
   }
 
@@ -1864,8 +1866,7 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
   }
 
   DCHECK(!isolate_->has_exception());
-  TRACE("Successfully built instance for module %p\n",
-        module_object_->native_module());
+  TRACE("Successfully built instance for module %p\n", native_module_);
 
 #if V8_ENABLE_DRUMBRAKE
   // Skip this event because not (yet) supported by Chromium.
@@ -2093,8 +2094,7 @@ MaybeDirectHandle<Object> InstanceBuilder::LookupImportAsm(
 // Load data segments into the memory.
 // TODO(14616): Consider what to do with shared memories.
 void InstanceBuilder::LoadDataSegments() {
-  base::Vector<const uint8_t> wire_bytes =
-      module_object_->native_module()->wire_bytes();
+  base::Vector<const uint8_t> wire_bytes = native_module_->wire_bytes();
   for (const WasmDataSegment& segment : module_->data_segments) {
     uint32_t size = segment.source.length();
 
@@ -2222,14 +2222,13 @@ void InstanceBuilder::FinalizeExportsObject(
 }
 
 void InstanceBuilder::SanitizeImports() {
-  NativeModule* native_module = module_object_->native_module();
-  base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
+  base::Vector<const uint8_t> wire_bytes = native_module_->wire_bytes();
   const WellKnownImportsList& well_known_imports =
       module_->type_feedback.well_known_imports;
   const std::string& magic_string_constants =
-      native_module->compile_imports().constants_module();
+      native_module_->compile_imports().constants_module();
   const bool has_magic_string_constants =
-      native_module->compile_imports().contains(
+      native_module_->compile_imports().contains(
           CompileTimeImport::kStringConstants);
   const std::vector<WasmImport>& import_table = module_->import_table;
   sanitized_imports_.resize(import_table.size());
@@ -2761,8 +2760,7 @@ int InstanceBuilder::ProcessImports() {
     }
   }
   if (num_imported_functions > 0) {
-    module_object_->native_module()->UpdateWellKnownImports(
-        base::VectorOf(well_known_imports_));
+    native_module_->UpdateWellKnownImports(base::VectorOf(well_known_imports_));
   }
   return num_imported_functions;
 }
@@ -2944,7 +2942,7 @@ void InstanceBuilder::ProcessExports() {
   for (const WasmExport& exp : module_->export_table) {
     DirectHandle<String> name =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-            isolate_, module_object_, exp.name, kInternalize);
+            isolate_, native_module_->wire_bytes(), exp.name, kInternalize);
     DirectHandle<JSAny> value;
     switch (exp.kind) {
       case kExternalFunction: {
