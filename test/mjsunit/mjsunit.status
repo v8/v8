@@ -2909,8 +2909,22 @@
   'regress/regress-392928803': [FAIL],
 }],  # not disassembler
 
+##############################################################################
 # https://issues.chromium.org/issues/404881599
 ['(arch == arm64) and simulator_run', {
 'wasm/growable-stacks': [SKIP],
-}]
+}], # (arch == arm64) and simulator_run
+
+##############################################################################
+['sandbox_hardware_support', {
+  # Skip tests for unsupported features. See https://crbug.com/428674890.
+
+  # Multi-mapped mock allocator is not currently supported.
+  'regress/regress-crbug-1041232': [SKIP],
+  'regress/regress-crbug-1209152': [SKIP],
+
+  # Wasm code coverage is not currently supported.
+  'wasm/wasm-code-coverage': [SKIP],
+}] # sandbox_hardware_support
+
 ]
