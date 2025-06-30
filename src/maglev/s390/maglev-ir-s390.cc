@@ -777,7 +777,7 @@ void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
 int Float64Ieee754Binary::MaxCallStackArgs() const { return 0; }
 void Float64Ieee754Binary::SetValueLocationConstraints() {
   UseFixed(input_lhs(), d0);
-  UseFixed(input_rhs(), d1);
+  UseFixed(input_rhs(), d2);
   DefineSameAsFirst(this);
 }
 void Float64Ieee754Binary::GenerateCode(MaglevAssembler* masm,
