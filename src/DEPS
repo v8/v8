@@ -134,7 +134,4 @@ specific_include_rules = {
   "string-hasher-inl\.h": [
     "+third_party/rapidhash-v8/rapidhash.h",
   ],
-  "json-stringifier.cc": [
-    "+absl/functional/overload.h",
-  ],
 }

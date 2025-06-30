@@ -569,12 +569,14 @@ include_rules = [
   '+absl/container/flat_hash_map.h',
   '+absl/container/flat_hash_set.h',
   '+absl/container/btree_map.h',
+  '+absl/functional/overload.h',
   '+absl/status',
   '+absl/synchronization/mutex.h',
   '+absl/time/time.h',
   # Some abseil features are explicitly banned.
   '-absl/types/any.h', # Requires RTTI.
   '-absl/types/flags', # Requires RTTI.
+  '-absl/functional/function_ref.h', # Use base::FunctionRef
 ]
 
 # checkdeps.py shouldn't check for includes in these directories:
