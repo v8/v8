@@ -581,6 +581,7 @@ def build_config_content(cpu, icu):
         ("pointer_compression", "true"),
         ("runtime_call_stats", "false"),
         ("sandbox", "false"),
+        ("sandbox_hardware_support", "false"),
         ("shared_ro_heap", "false"),
         ("simd_mips", "false"),
         ("simulator_run", "false"),
