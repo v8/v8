@@ -233,9 +233,13 @@ void RunTests() {
                     "p;dx replacer.Value.shared_function_info.flags",
                     {"kNamedExpression"}, &output, p_debug_control.Get());
 
+#ifdef V8_ENABLE_SANDBOX
+  // "raw_characters" only available when the sandbox and pointer compression
+  // are enabled.
   RunAndCheckOutput(
       "in-object properties", "dx object.Value.@\"in-object properties\"[1]",
       {"raw_characters", "\"external\""}, &output, p_debug_control.Get());
+#endif
 
   RunAndCheckOutput(
       "arrays of structs",
