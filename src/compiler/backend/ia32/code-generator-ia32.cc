@@ -4191,8 +4191,8 @@ void CodeGenerator::AssembleConstructFrame() {
                Immediate(static_cast<int32_t>(
                    call_descriptor->ParameterSlotCount() * kSystemPointerSize +
                    CommonFrameConstants::kFixedFrameSizeAboveFp)));
-        __ call(static_cast<Address>(Builtin::kWasmHandleStackOverflow),
-                RelocInfo::WASM_STUB_CALL);
+        __ wasm_call(static_cast<Address>(Builtin::kWasmHandleStackOverflow),
+                     RelocInfo::WASM_STUB_CALL);
         for (size_t i = 0; i < arraysize(wasm::kFpParamRegisters); i++) {
           __ Movdqu(wasm::kFpParamRegisters[i], Operand(esp, kSimd128Size * i));
         }
