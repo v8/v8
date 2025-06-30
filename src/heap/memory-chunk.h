@@ -366,7 +366,6 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 
 #ifdef V8_ENABLE_SANDBOX
   static void ClearMetadataPointer(MemoryChunkMetadata* metadata);
-  static void ResetMetadataPointer(MemoryChunkMetadata* metadata);
 #endif
 
  private:
