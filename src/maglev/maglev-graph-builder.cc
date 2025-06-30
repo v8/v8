@@ -878,9 +878,10 @@ ValueNode* MaglevGraphBuilder::Select(FCond cond, FTrue if_true,
   return subgraph.get(ret_val);
 }
 
-template <typename FCond, typename FTrue, typename FFalse>
-MaybeReduceResult MaglevGraphBuilder::SelectReduction(FCond cond, FTrue if_true,
-                                                      FFalse if_false) {
+ReduceResult MaglevGraphBuilder::SelectReduction(
+    base::FunctionRef<BranchResult(BranchBuilder&)> cond,
+    base::FunctionRef<ReduceResult()> if_true,
+    base::FunctionRef<ReduceResult()> if_false) {
   MaglevSubGraphBuilder subgraph(this, 1);
   MaglevSubGraphBuilder::Label else_branch(&subgraph, 1);
   BranchBuilder builder(this, &subgraph, BranchType::kBranchIfFalse,
@@ -895,14 +896,14 @@ MaybeReduceResult MaglevGraphBuilder::SelectReduction(FCond cond, FTrue if_true,
   DCHECK(branch_result == BranchResult::kDefault);
   MaglevSubGraphBuilder::Variable ret_val(0);
   MaglevSubGraphBuilder::Label done(&subgraph, 2, {&ret_val});
-  MaybeReduceResult result_if_true = if_true();
+  ReduceResult result_if_true = if_true();
   CHECK(result_if_true.IsDone());
   if (result_if_true.IsDoneWithValue()) {
     subgraph.set(ret_val, result_if_true.value());
   }
   subgraph.GotoOrTrim(&done);
   subgraph.Bind(&else_branch);
-  MaybeReduceResult result_if_false = if_false();
+  ReduceResult result_if_false = if_false();
   CHECK(result_if_false.IsDone());
   if (result_if_true.IsDoneWithAbort() && result_if_false.IsDoneWithAbort()) {
     return ReduceResult::DoneWithAbort();
@@ -2708,7 +2709,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
   };
 
   return Select(
-      [&](auto& builder) {
+      [&](BranchBuilder& builder) {
         if (left_min_length > 0) return BranchResult::kAlwaysFalse;
         return BuildBranchIfInt32Compare(builder, Operation::kEqual,
                                          left_length, GetInt32Constant(0));
@@ -2716,7 +2717,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
       [&] { return right; },
       [&] {
         return Select(
-            [&](auto& builder) {
+            [&](BranchBuilder& builder) {
               if (right_min_length > 0) return BranchResult::kAlwaysFalse;
               return BuildBranchIfInt32Compare(builder, Operation::kEqual,
                                                right_length,
@@ -3891,7 +3892,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceTypeOf(
       return GetResult(TypeOfLiteralFlag::kSymbol, RootIndex::ksymbol_string);
     case NodeType::kCallable:
       return Select(
-          [&](auto& builder) {
+          [&](BranchBuilder& builder) {
             return BuildBranchIfUndetectable(builder, value);
           },
           [&] {
@@ -5982,7 +5983,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnString(
     GET_VALUE_OR_ABORT(positive_index, GetUint32ElementIndex(index));
     ValueNode* uint32_length = AddNewNode<UnsafeInt32ToUint32>({length});
     return Select(
-        [&](auto& builder) {
+        [&](BranchBuilder& builder) {
           return BuildBranchIfUint32Compare(builder, Operation::kLessThan,
                                             positive_index, uint32_length);
         },
@@ -6072,7 +6073,7 @@ bool CompareUint32(uint32_t lhs, uint32_t rhs, Operation operation) {
 
 }  // namespace
 
-MaybeReduceResult MaglevGraphBuilder::TryBuildCheckInt32Condition(
+ReduceResult MaglevGraphBuilder::TryBuildCheckInt32Condition(
     ValueNode* lhs, ValueNode* rhs, AssertCondition condition,
     DeoptimizeReason reason, bool allow_unconditional_deopt) {
   auto lhs_const = TryGetInt32Constant(lhs);
@@ -6368,7 +6369,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
   ValueNode* length = is_jsarray ? GetInt32(BuildLoadJSArrayLength(object))
                                  : BuildLoadFixedArrayLength(elements_array);
 
-  auto emit_load = [&]() -> MaybeReduceResult {
+  auto emit_load = [&]() -> ReduceResult {
     ValueNode* result;
     if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
       result = BuildLoadHoleyFixedDoubleArrayElement(
@@ -6400,7 +6401,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
     GET_VALUE_OR_ABORT(positive_index, GetUint32ElementIndex(index));
     ValueNode* uint32_length = AddNewNode<UnsafeInt32ToUint32>({length});
     return SelectReduction(
-        [&](auto& builder) {
+        [&](BranchBuilder& builder) {
           return BuildBranchIfUint32Compare(builder, Operation::kLessThan,
                                             positive_index, uint32_length);
         },
@@ -9061,7 +9062,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
   MaglevSubGraphBuilder::Variable ret_value(1);
   RETURN_IF_ABORT(subgraph.Branch(
       {&is_done, &ret_value},
-      [&](auto& builder) {
+      [&](BranchBuilder& builder) {
         return BuildBranchIfUint32Compare(builder, Operation::kLessThan,
                                           uint32_index, uint32_length);
       },
@@ -9255,7 +9256,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharAt(
   if (current_speculation_mode_ ==
       SpeculationMode::kDisallowBoundsCheckSpeculation) {
     return Select(
-        [&](auto& builder) {
+        [&](BranchBuilder& builder) {
           // Do unsafe conversions of length and index into uint32, to do an
           // unsigned comparison. The index might actually be a negative signed
           // value, but this "unsafe" cast will still work, converting it into a
@@ -9324,7 +9325,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
   if (current_speculation_mode_ ==
       SpeculationMode::kDisallowBoundsCheckSpeculation) {
     return Select(
-        [&](auto& builder) {
+        [&](BranchBuilder& builder) {
           // Do unsafe conversions of length and index into uint32, to do an
           // unsigned comparison. The index might actually be a negative signed
           // value, but this "unsafe" cast will still work, converting it into a
@@ -9381,7 +9382,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
   if (current_speculation_mode_ ==
       SpeculationMode::kDisallowBoundsCheckSpeculation) {
     return Select(
-        [&](auto& builder) {
+        [&](BranchBuilder& builder) {
           // Do unsafe conversions of length and index into uint32, to do an
           // unsigned comparison. The index might actually be a negative signed
           // value, but this "unsafe" cast will still work, converting it into a
@@ -11302,7 +11303,7 @@ MaglevGraphBuilder::TryReduceFunctionPrototypeApplyCallWithReceiver(
     return build_call_with_array_like();
   }
   return SelectReduction(
-      [&](auto& builder) {
+      [&](BranchBuilder& builder) {
         return BuildBranchIfUndefinedOrNull(builder, args[1]);
       },
       build_call_only_with_new_receiver, build_call_with_array_like);
@@ -12076,7 +12077,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
   // site to avoid deopt loops.
   if (args.count() == 1 && can_inline_call) {
     return SelectReduction(
-        [&](auto& builder) {
+        [&](BranchBuilder& builder) {
           return BuildBranchIfInt32Compare(builder,
                                            Operation::kGreaterThanOrEqual,
                                            args[0], GetInt32Constant(0));
@@ -13714,7 +13715,7 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
           ValueNode* the_hole_value = GetConstant(broker()->the_hole_value());
           for (int i = 0; i < param_count; i++, param_idx_in_ctxt--) {
             ValueNode* value = Select(
-                [&](auto& builder) {
+                [&](BranchBuilder& builder) {
                   return BuildBranchIfInt32Compare(builder,
                                                    Operation::kLessThan,
                                                    GetInt32Constant(i), length);
@@ -15357,20 +15358,19 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGetIterator(
     FeedbackSlot call_slot = FeedbackVector::ToSlot(call_slot_index);
     compiler::FeedbackSource call_feedback{feedback(), call_slot};
     CallArguments args(ConvertReceiverMode::kAny, {receiver});
-    MaybeReduceResult result_call =
-        ReduceCall(iterator_method, args, call_feedback);
+    ReduceResult result_call = ReduceCall(iterator_method, args, call_feedback);
 
     if (result_call.IsDoneWithAbort()) return result_call;
     DCHECK(result_call.IsDoneWithValue());
     return SelectReduction(
-        [&](auto& builder) {
+        [&](BranchBuilder& builder) {
           return BuildBranchIfJSReceiver(builder, result_call.value());
         },
         [&] { return result_call; }, throw_symbol_iterator_invalid);
   };
   // Check if the iterator_method is undefined and call the method otherwise.
   return SelectReduction(
-      [&](auto& builder) {
+      [&](BranchBuilder& builder) {
         return BuildBranchIfUndefined(builder, iterator_method);
       },
       throw_iterator_error, call_iterator_method);

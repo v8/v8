@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "src/base/base-export.h"
+#include "src/base/functional/function-ref.h"
 #include "src/base/logging.h"
 #include "src/base/vector.h"
 #include "src/codegen/source-position-table.h"
@@ -1416,7 +1417,7 @@ class MaglevGraphBuilder {
   ValueNode* BuildLoadJSFunctionFeedbackCell(ValueNode* closure);
   ValueNode* BuildLoadJSFunctionContext(ValueNode* closure);
 
-  MaybeReduceResult TryBuildCheckInt32Condition(
+  ReduceResult TryBuildCheckInt32Condition(
       ValueNode* lhs, ValueNode* rhs, AssertCondition condition,
       DeoptimizeReason reason, bool allow_unconditional_deopt = true);
 
@@ -1915,8 +1916,10 @@ class MaglevGraphBuilder {
   template <typename FCond, typename FTrue, typename FFalse>
   ValueNode* Select(FCond cond, FTrue if_true, FFalse if_false);
 
-  template <typename FCond, typename FTrue, typename FFalse>
-  MaybeReduceResult SelectReduction(FCond cond, FTrue if_true, FFalse if_false);
+  ReduceResult SelectReduction(
+      base::FunctionRef<BranchResult(BranchBuilder&)> cond,
+      base::FunctionRef<ReduceResult()> if_true,
+      base::FunctionRef<ReduceResult()> if_false);
 
   void MarkBranchDeadAndJumpIfNeeded(bool is_jump_taken);
 
