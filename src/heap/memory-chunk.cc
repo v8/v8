@@ -62,8 +62,21 @@ MemoryChunk::MemoryChunk(MainThreadFlags flags, MemoryChunkMetadata* metadata)
 void MemoryChunk::ClearMetadataPointer(MemoryChunkMetadata* metadata) {
   uint32_t metadata_index = MetadataTableIndex(metadata->ChunkAddress());
   MemoryChunkMetadata** metadata_pointer_table = MetadataTableAddress();
-  DCHECK_EQ(metadata_pointer_table[metadata_index], metadata);
-  metadata_pointer_table[metadata_index] = nullptr;
+  MemoryChunkMetadata*& chunk_metadata = metadata_pointer_table[metadata_index];
+  if (chunk_metadata == nullptr) {
+    return;
+  }
+  CHECK_EQ(chunk_metadata, metadata);
+  chunk_metadata = nullptr;
+}
+
+// static
+void MemoryChunk::ResetMetadataPointer(MemoryChunkMetadata* metadata) {
+  uint32_t metadata_index = MetadataTableIndex(metadata->ChunkAddress());
+  MemoryChunkMetadata** metadata_pointer_table = MetadataTableAddress();
+  MemoryChunkMetadata*& chunk_metadata = metadata_pointer_table[metadata_index];
+  CHECK_NULL(chunk_metadata);
+  chunk_metadata = metadata;
 }
 
 // static

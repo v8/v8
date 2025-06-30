@@ -11,6 +11,7 @@
 #include "src/execution/isolate.h"
 #include "src/heap/large-page-metadata.h"
 #include "src/heap/memory-allocator.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/tasks/cancelable-task.h"
 
@@ -189,6 +190,9 @@ bool MemoryPool::LargePagePoolImpl::Add(std::vector<LargePageMetadata*>& pages,
     }
 
     total_size_ += page->size();
+#ifdef V8_ENABLE_SANDBOX
+    MemoryChunk::ClearMetadataPointer(page);
+#endif  // V8_ENABLE_SANDBOX
     pages_.emplace_back(time,
                         LargePageMemory(page, [](LargePageMetadata* metadata) {
                           MemoryAllocator::DeleteMemoryChunk(metadata);
@@ -222,6 +226,9 @@ LargePageMetadata* MemoryPool::LargePagePoolImpl::Remove(size_t chunk_size) {
   }
 
   LargePageMetadata* result = selected->second.release();
+#ifdef V8_ENABLE_SANDBOX
+  MemoryChunk::ResetMetadataPointer(result);
+#endif  // V8_ENABLE_SANDBOX
   total_size_ -= result->size();
   pages_.erase(selected);
   DCHECK_EQ(total_size_, ComputeTotalSize());
@@ -375,9 +382,13 @@ void MemoryPool::Add(Isolate* isolate, MutablePageMetadata* chunk) {
   DCHECK_EQ(chunk->size(), PageMetadata::kPageSize);
   DCHECK(!chunk->Chunk()->IsLargePage());
   DCHECK(!chunk->Chunk()->IsTrusted());
+  DCHECK(!chunk->Chunk()->InReadOnlySpace());
   DCHECK_NE(chunk->Chunk()->executable(), EXECUTABLE);
   // Ensure that ReleaseAllAllocatedMemory() was called on the page.
   DCHECK(!chunk->ContainsAnySlots());
+#ifdef V8_ENABLE_SANDBOX
+  MemoryChunk::ClearMetadataPointer(chunk);
+#endif  // V8_ENABLE_SANDBOX
   page_pool_.PutLocal(isolate,
                       PageMemory(chunk, [](MutablePageMetadata* metadata) {
                         MemoryAllocator::DeleteMemoryChunk(metadata);
@@ -388,7 +399,11 @@ MutablePageMetadata* MemoryPool::Remove(Isolate* isolate) {
   DCHECK_NOT_NULL(isolate);
   auto result = page_pool_.Get(isolate);
   if (result) {
-    return result.value().release();
+    MutablePageMetadata* chunk = result.value().release();
+#ifdef V8_ENABLE_SANDBOX
+    MemoryChunk::ResetMetadataPointer(chunk);
+#endif  // V8_ENABLE_SANDBOX
+    return chunk;
   }
   return nullptr;
 }

@@ -740,7 +740,6 @@ void MemoryAllocator::RecordMemoryChunkDestroyed(const MemoryChunk* chunk) {
 // static
 void MemoryAllocator::DeleteMemoryChunk(MutablePageMetadata* metadata) {
   DCHECK(metadata->reserved_memory()->IsReserved());
-  DCHECK(!metadata->Chunk()->InReadOnlySpace());
   // The Metadata contains a VirtualMemory reservation and the destructor will
   // release the MemoryChunk.
   DiscardSealedMemoryScope discard_scope("Deleting a memory chunk");
