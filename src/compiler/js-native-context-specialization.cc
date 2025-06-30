@@ -363,23 +363,11 @@ Handle<String> JSNativeContextSpecialization::Concatenate(
 
   int32_t length = left->length() + right->length();
   if (length > kConstantStringFlattenMaxSize) {
-    // The generational write-barrier doesn't work in background threads, so,
-    // if {left} or {right} are in the young generation, we would have to copy
-    // them to the local heap (which is old) before creating the (old)
-    // ConsString. But, copying a ConsString instead of flattening it to a
-    // SeqString makes no sense here (since flattening would be faster and use
-    // less memory). Thus, if one of {left} or {right} is a young string, we'll
-    // build a SeqString rather than a ConsString, regardless of {length}.
-    // TODO(dmercadier, dinfuehr): always build a ConsString here once the
-    // generational write-barrier supports background threads.
-    if (!LocalHeap::Current() || (!HeapLayout::InYoungGeneration(*left) &&
-                                  !HeapLayout::InYoungGeneration(*right))) {
-      return broker()
-          ->local_isolate_or_isolate()
-          ->factory()
-          ->NewConsString(left, right, AllocationType::kOld)
-          .ToHandleChecked();
-    }
+    return broker()
+        ->local_isolate_or_isolate()
+        ->factory()
+        ->NewConsString(left, right, AllocationType::kOld)
+        .ToHandleChecked();
   }
 
   // If one of the string is not in readonly space, then we need a
@@ -483,12 +471,9 @@ Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
           StringCanSafelyBeRead(rhs, right))) {
       // One of {lhs} or {rhs} is not safe to be read in the background.
 
-      if (left->length() + right->length() > ConsString::kMinLength &&
-          (!LocalHeap::Current() || (!HeapLayout::InYoungGeneration(*left) &&
-                                     !HeapLayout::InYoungGeneration(*right)))) {
+      if (left->length() + right->length() > ConsString::kMinLength) {
         // We can create a ConsString with {left} and {right}, without needing
-        // to read their content (and this ConsString will not introduce
-        // old-to-new pointers from the background).
+        // to read their content.
         Handle<String> concatenated =
             broker()
                 ->local_isolate_or_isolate()
@@ -503,9 +488,6 @@ Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
         // Concatenating those strings would not produce a ConsString but rather
         // a flat string (because the result is small). And, since the strings
         // are not safe to be read in the background, this wouldn't be safe.
-        // Or, one of the string is in the young generation, and since the
-        // generational barrier doesn't support background threads, we cannot
-        // create the ConsString.
         return NoChange();
       }
     }
