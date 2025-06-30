@@ -38,7 +38,7 @@ std::optional<PoolEntry> MemoryPool::PoolImpl<PoolEntry>::Get(
   auto it = local_pools_.find(isolate);
 
   if (it == local_pools_.end()) {
-    // Pages in this pool will be flushed soon, reuse them.
+    // Pages in this pool will be flushed soon. Take them first.
     if (!shared_pool_.empty()) {
       auto& shared_entries = shared_pool_.back().second;
       if (!shared_entries.empty()) {
@@ -50,6 +50,9 @@ std::optional<PoolEntry> MemoryPool::PoolImpl<PoolEntry>::Get(
         return {std::move(shared_entry)};
       }
     }
+
+    // Otherwise steal from some other isolate's local pool.
+    it = local_pools_.begin();
   }
 
   if (it != local_pools_.end()) {

@@ -15,8 +15,11 @@ class Isolate;
 class LargePageMetadata;
 class MutablePageMetadata;
 
-// Pool that keeps memory cached until explicitly flushed. Currently used for
-// pages and zone reservations.
+// Pool that keeps memory cached until explicitly flushed. The pool assumes that
+// memory can be freely reused and globally shared. E.g., pages entering the
+// pool can immediately be reused by some other Isolate.
+//
+// Currently used for pages and zone reservations.
 class MemoryPool final {
   // Logical time used to indicate when memory is supposed to be released.
   using InternalTime = size_t;
@@ -32,8 +35,9 @@ class MemoryPool final {
   void Add(Isolate* isolate, MutablePageMetadata* chunk);
 
   // Tries to get page from the pool. Order of priority for pools:
-  //   (1) Local pool for the isolate.
-  //   (2) Shared pool.
+  // 1. Local pool for the isolate.
+  // 2. Shared pool.
+  // 3. Steal from another isolate.
   MutablePageMetadata* Remove(Isolate* isolate);
 
   void AddLarge(Isolate* isolate, std::vector<LargePageMetadata*>& pages);
