@@ -1804,6 +1804,7 @@
 
   # Tests using a shared heap are inherently non-deterministic.
   'shared-memory/*': [SKIP],
+  'wasm/shared-everything/post-message': [SKIP],
 
   # BUG(v8:7166).
   'd8/enable-tracing': [SKIP],
