@@ -87,6 +87,12 @@ enum Completeness {
   kPartial,
 };
 
+// Common error strings
+static constexpr char kInvalidIsoDate[] = "Invalid ISO date.";
+static constexpr char kInvalidTime[] = "Invalid time";
+static constexpr char kFiniteInteger[] = "Expected finite integer.";
+static constexpr char kIntegerOutOfRange[] = "Integer out of range.";
+
 #define ORDINARY_CREATE_FROM_CONSTRUCTOR(obj, target, new_target, T)           \
   DirectHandle<JSReceiver> new_target_receiver = Cast<JSReceiver>(new_target); \
   DirectHandle<Map> map;                                                       \
@@ -95,9 +101,6 @@ enum Completeness {
       JSFunction::GetDerivedMap(isolate, target, new_target_receiver));        \
   DirectHandle<T> object =                                                     \
       Cast<T>(isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
-
-#define THROW_INVALID_RANGE(T) \
-  THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
 
 // Helper function to split the string into its two constituent encodings
 // and call two different functions depending on the encoding
@@ -134,21 +137,33 @@ Maybe<ContainedValue> ExtractRustResult(
     Isolate* isolate, TemporalResult<ContainedValue>&& rust_result) {
   if (rust_result.is_err()) {
     auto err = std::move(rust_result).err().value();
+    Handle<String> msg;
+    if (err.msg.has_value()) {
+      bool success =
+          isolate->factory()->NewStringFromUtf8(err.msg.value()).ToHandle(&msg);
+      if (!success) {
+        msg = isolate->factory()->NewStringFromStaticChars("(utf8 error)");
+      }
+    }
     switch (err.kind) {
       case temporal_rs::ErrorKind::Type:
-        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+        THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kTemporal, msg));
         break;
       case temporal_rs::ErrorKind::Range:
-        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+        THROW_NEW_ERROR(isolate,
+                        NewRangeError(MessageTemplate::kTemporal, msg));
         break;
       case temporal_rs::ErrorKind::Syntax:
+        THROW_NEW_ERROR(isolate,
+                        NewSyntaxError(MessageTemplate::kTemporal, msg));
       case temporal_rs::ErrorKind::Assert:
       case temporal_rs::ErrorKind::Generic:
       default:
         // These cases shouldn't happen; the spec doesn't currently trigger
         // these errors
-        THROW_NEW_ERROR(isolate,
-                        NewTypeError(MessageTemplate::kTemporalRsError));
+        msg = isolate->factory()->NewStringFromStaticChars(
+            "Internal temporal_rs error.");
+        THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kTemporal, msg));
     }
     return Nothing<ContainedValue>();
   }
@@ -225,7 +240,7 @@ Maybe<double> ToIntegerIfIntegral(Isolate* isolate,
   // 2. If number is not an integral Number, throw a RangeError exception.
   if (!std::isfinite(number_double) ||
       nearbyint(number_double) != number_double) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kFiniteInteger));
   }
   // 3. Return ℝ(number).
   return Just(number_double);
@@ -241,7 +256,7 @@ Maybe<double> ToIntegerWithTruncation(Isolate* isolate,
       Nothing<double>());
   // 2. If number is NaN, +∞𝔽 or -∞𝔽, throw a RangeError exception.
   if (!std::isfinite(number)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kFiniteInteger));
   }
 
   // 3. Return truncate(number).
@@ -258,7 +273,8 @@ Maybe<double> ToPositiveIntegerWithTruncation(Isolate* isolate,
       Nothing<double>());
   // 2. If integer is ≤ 0, throw a RangeError exception
   if (integer <= 0) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate,
+                    NEW_TEMPORAL_RANGE_ERROR("Expected positive integer."));
   }
 
   // 3. Return integer.
@@ -279,7 +295,7 @@ Maybe<IntegerType> ToIntegerTypeWithTruncation(Isolate* isolate,
       Nothing<IntegerType>());
   if (d < std::numeric_limits<IntegerType>::min() ||
       d > std::numeric_limits<IntegerType>::max()) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kIntegerOutOfRange));
   }
 
   return Just(static_cast<IntegerType>(d));
@@ -298,7 +314,7 @@ Maybe<IntegerType> ToPositiveIntegerTypeWithTruncation(
       Nothing<IntegerType>());
   if (d < std::numeric_limits<IntegerType>::min() ||
       d > std::numeric_limits<IntegerType>::max()) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kIntegerOutOfRange));
   }
 
   return Just(static_cast<IntegerType>(d));
@@ -309,13 +325,15 @@ static constexpr uint64_t kU64HighBitMask = uint64_t{1} << 63;
 // Throws RangeErrors for out-of-range BigInts, checking IsValidEpochNanoseconds
 Maybe<temporal_rs::I128Nanoseconds> GetI128FromBigInt(
     Isolate* isolate, DirectHandle<BigInt> bigint) {
+  static constexpr char kNSOutOfRange[] = "Nanoseconds out of range.";
+
   if (bigint->Words64Count() > 2) {
     // 3. ! IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
     // RangeError exception.
     //
     // This only performs part of the check, the rest of it is done below with
     // is_valid()
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kNSOutOfRange));
   }
 
   uint64_t words[2] = {0, 0};
@@ -324,7 +342,7 @@ Maybe<temporal_rs::I128Nanoseconds> GetI128FromBigInt(
   bigint->ToWordsArray64(&sign_bit, &word_count, words);
 
   if ((words[1] & kU64HighBitMask) != 0) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kNSOutOfRange));
   }
 
   uint64_t high = words[1];
@@ -338,9 +356,10 @@ Maybe<temporal_rs::I128Nanoseconds> GetI128FromBigInt(
   ns.low = words[0];
 
   if (!ns.is_valid()) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kNSOutOfRange));
   }
   return Just(ns);
+#undef NANOSECONDS_RANGE_ERROR
 }
 
 MaybeDirectHandle<BigInt> I128ToBigInt(Isolate* isolate,
@@ -458,6 +477,8 @@ bool IsValidIsoDate(double year, double month, double day) {
 // https://tc39.es/proposal-temporal/#sec-temporal-tomonthcode
 Maybe<std::string> ToMonthCode(Isolate* isolate,
                                DirectHandle<Object> argument) {
+  static constexpr char kMonthCodeOutOfRange[] = "Month code out of range.";
+
   // 1. Let monthCode be ?ToPrimitive(argument, string).
   DirectHandle<Object> mc_prim;
   if (IsJSReceiver(*argument)) {
@@ -472,47 +493,48 @@ Maybe<std::string> ToMonthCode(Isolate* isolate,
 
   // 2. If monthCode is not a String, throw a TypeError exception.
   if (!IsString(*mc_prim)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kMonthCodeOutOfRange));
   }
 
   auto month_code = Cast<String>(*mc_prim)->ToStdString();
 
   // 3. If the length of monthCode is not 3 or 4, throw a RangeError exception.
   if (month_code.size() != 3 && month_code.size() != 4) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kMonthCodeOutOfRange));
   }
 
   // 4. If the first code unit of monthCode is not 0x004D (LATIN CAPITAL LETTER
   // M), throw a RangeError exception.
   if (month_code[0] != 'M') {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kMonthCodeOutOfRange));
   }
   // 5. If the second code unit of monthCode is not in the inclusive interval
   // from 0x0030 (DIGIT ZERO) to 0x0039 (DIGIT NINE), throw a RangeError
   // exception.
   if (month_code[1] < '0' || month_code[1] > '9') {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kMonthCodeOutOfRange));
   }
   // 6. If the third code unit of monthCode is not in the inclusive interval
   // from 0x0030 (DIGIT ZERO) to 0x0039 (DIGIT NINE), throw a RangeError
   // exception.
   if (month_code[2] < '0' || month_code[2] > '9') {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kMonthCodeOutOfRange));
   }
   // 7. If the length of monthCode is 4 and the fourth code unit of monthCode is
   // not 0x004C (LATIN CAPITAL LETTER L), throw a RangeError exception.
   if (month_code.size() == 4 && month_code[3] != 'L') {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kMonthCodeOutOfRange));
   }
   // 8. Let monthCodeDigits be the substring of monthCode from 1 to 3.
   // 9. Let monthCodeInteger be ℝ(StringToNumber(monthCodeDigits)).
   // 10. If monthCodeInteger is 0 and the length of monthCode is not 4, throw a
   // RangeError exception.
   if (month_code[1] == '0' && month_code[2] == '0' && month_code.size() != 4) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kMonthCodeOutOfRange));
   }
   // 11. Return monthCode.
   return Just(month_code);
+#undef MONTHCODE_RANGE_ERROR
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-totemporaloverflow
@@ -564,7 +586,8 @@ Maybe<temporal_rs::TransitionDirection> GetDirectionOption(
     return Just(temporal_rs::TransitionDirection(dir.value()));
   } else {
     // Hoisted from GetOption
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate,
+                    NEW_TEMPORAL_RANGE_ERROR("Invalid direction value."));
   }
 }
 // https://tc39.es/proposal-temporal/#sec-temporal-gettemporaldisambiguationoption
@@ -871,7 +894,8 @@ Maybe<temporal_rs::AnyCalendarKind> CanonicalizeCalendar(
   auto cal = temporal_rs::AnyCalendarKind::get_for_str(s);
 
   if (!cal.has_value()) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR_WITH_ARG(
+                                 "Unknown calendar type ", calendar));
   }
   // Other steps unnecessary, we're not storing these as -u- values but rather
   // as enums.
@@ -903,7 +927,7 @@ Maybe<uint32_t> GetRoundingIncrementOption(
   // 4. If integerIncrement < 1 or integerIncrement > 10**9, throw a RangeError
   // exception.
   if (integer_increment < 1 || integer_increment > 1e9) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kIntegerOutOfRange));
   }
 
   return Just(static_cast<uint32_t>(integer_increment));
@@ -1348,7 +1372,8 @@ Maybe<std::string> ToOffsetString(Isolate* isolate,
   }
 
   // 3. Perform ?ParseDateTimeUTCOffset(offset).
-  auto offset = Cast<String>(*offset_prim)->ToStdString();
+  auto offset_str = Cast<String>(offset_prim);
+  auto offset = offset_str->ToStdString();
 
   // Currently TimeZone::try_from_str parses identifiers and UTC offsets
   // at once. We check to ensure that this is UTC offset-like (not
@@ -1357,7 +1382,8 @@ Maybe<std::string> ToOffsetString(Isolate* isolate,
   // https://github.com/boa-dev/temporal/pull/376 lands.
 
   if (offset.size() == 0 || (offset[0] != '+' && offset[0] != '-')) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR_WITH_ARG("Invalid offset",
+                                                               offset_str));
   }
 
   // TODO(manishearth) this has a minor unnecessary cost of allocating a
@@ -3118,7 +3144,8 @@ MaybeDirectHandle<JSTemporalDuration> GenericDifferenceTemporal(
     // 2. If CalendarEquals(temporalDate.[[Calendar]], other.[[Calendar]]) is
     // false, throw a RangeError exception.
     if (this_rust.calendar().kind() != other_rust.calendar().kind()) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+      THROW_NEW_ERROR(isolate,
+                      NEW_TEMPORAL_RANGE_ERROR("Mismatched calendars."));
     }
   }
 
@@ -3944,7 +3971,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Constructor(
   }
   // 8. If IsValidISODate(y, m, d) is false, throw a RangeError exception.
   if (!temporal::IsValidIsoDate(y, m, d)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kInvalidIsoDate));
   }
 
   // Rest of the steps handled in Rust
@@ -4367,13 +4394,13 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Constructor(
   // 14. If IsValidISODate(isoYear, isoMonth, isoDay) is false, throw a
   // RangeError exception.
   if (!temporal::IsValidIsoDate(y, m, d)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kInvalidIsoDate));
   }
   // 16. If IsValidTime(hour, minute, second, millisecond, microsecond,
   // nanosecond) is false, throw a RangeError exception.
   if (!temporal::IsValidTime(hour, minute, second, millisecond, microsecond,
                              nanosecond)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kInvalidTime));
   }
 
   // Rest of the steps handled in Rust.
@@ -4828,7 +4855,7 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::Constructor(
 
   // 9. If IsValidISODate(ref, m, d) is false, throw a RangeError exception.
   if (!temporal::IsValidIsoDate(reference_iso_year, m, d)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kInvalidIsoDate));
   }
   // Rest of the steps handled in Rust.
 
@@ -5048,7 +5075,7 @@ JSTemporalPlainYearMonth::Constructor(
 
   // 9. If IsValidISODate(y, m, ref) is false, throw a RangeError exception.
   if (!temporal::IsValidIsoDate(y, m, reference_iso_day)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kInvalidIsoDate));
   }
   // Rest of the steps handled in Rust.
 
@@ -5356,7 +5383,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Constructor(
   // nanosecond) is false, throw a RangeError exception.
   if (!temporal::IsValidTime(hour, minute, second, millisecond, microsecond,
                              nanosecond)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kInvalidTime));
   }
 
   // Rest of the steps handled in Rust
@@ -5748,7 +5775,9 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
     THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
   }
 
-  auto tz_string = Cast<String>(time_zone_like)->ToStdString();
+  auto tz_str = Cast<String>(time_zone_like);
+
+  auto tz_stdstr = tz_str->ToStdString();
 
   // 5. Let timeZoneParse be ? ParseTimeZoneIdentifier(timeZone).
   // 6. If timeZoneParse.[[OffsetMinutes]] is empty, then
@@ -5763,18 +5792,20 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
   MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
       isolate, time_zone,
       ExtractRustResult(
-          isolate, temporal_rs::TimeZone::try_from_identifier_str(tz_string)),
+          isolate, temporal_rs::TimeZone::try_from_identifier_str(tz_stdstr)),
       kNullMaybeHandle);
 
   if (!time_zone->is_valid()) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(
+        isolate, NEW_TEMPORAL_RANGE_ERROR_WITH_ARG("Invalid timezone", tz_str));
   }
 
   // 8. If calendar is undefined, set calendar to "iso8601".
   temporal_rs::AnyCalendarKind calendar = temporal_rs::AnyCalendarKind::Iso;
   // 9. If calendar is not a String, throw a TypeError exception.
   if (!IsString(*calendar_like)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate,
+                    NEW_TEMPORAL_RANGE_ERROR("Calendar must be string."));
   }
 
   // 10. Set calendar to ? CanonicalizeCalendar(calendar).
@@ -6052,7 +6083,8 @@ MaybeDirectHandle<String> JSTemporalZonedDateTime::ToString(
 
   // 10. If smallestUnit is hour, throw a RangeError exception.
   if (smallest_unit == Unit::Hour) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate,
+                    NEW_TEMPORAL_RANGE_ERROR("smallestUnit cannot be Hour."));
   }
 
   // 11. Let showTimeZone be
@@ -6463,7 +6495,8 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::FromEpochMilliseconds(
   if (!std::isfinite(ms) ||
       ms < static_cast<double>(std::numeric_limits<int64_t>::min()) ||
       ms > static_cast<double>(std::numeric_limits<int64_t>::max())) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate,
+                    NEW_TEMPORAL_RANGE_ERROR("Expected finite integer."));
   }
   auto ms_int = static_cast<int64_t>(ms);
 

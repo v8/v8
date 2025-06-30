@@ -331,6 +331,10 @@ inline Vector<const char> CStrVector(const char* data) {
   return {data, strlen(data)};
 }
 
+inline Vector<const char> StrVector(std::string_view str) {
+  return {str.data(), str.size()};
+}
+
 // OneByteVector is never constexpr because the data pointer is
 // {reinterpret_cast}ed.
 inline Vector<const uint8_t> OneByteVector(const char* data, size_t length) {

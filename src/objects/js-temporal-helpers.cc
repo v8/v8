@@ -36,7 +36,7 @@ Maybe<double> ToIntegerWithoutRounding(Isolate* isolate,
   }
   // 3. If IsIntegralNumber(number) is false, throw a RangeError exception.
   if (!IsIntegralNumber(isolate, number)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR("Number not integral."));
   }
   // 4. Return ℝ(number).
   return Just(Object::NumberValue(*number));
@@ -213,7 +213,7 @@ Maybe<TimeDurationRecord> TimeDurationRecord::Create(
   TimeDurationRecord record = {days,         hours,        minutes,    seconds,
                                milliseconds, microseconds, nanoseconds};
   if (!IsValidDuration(isolate, {0, 0, 0, record})) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR("Invalid duration."));
   }
   // 2. Return the Record { [[Days]]: ℝ(𝔽(days)), [[Hours]]: ℝ(𝔽(hours)),
   // [[Minutes]]: ℝ(𝔽(minutes)), [[Seconds]]: ℝ(𝔽(seconds)), [[Milliseconds]]:
@@ -236,7 +236,7 @@ Maybe<DurationRecord> DurationRecord::Create(
       weeks,
       {days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds}};
   if (!IsValidDuration(isolate, record)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR("Invalid duration."));
   }
   // 2. Return the Record { [[Years]]: ℝ(𝔽(years)), [[Months]]: ℝ(𝔽(months)),
   // [[Weeks]]: ℝ(𝔽(weeks)), [[Days]]: ℝ(𝔽(days)), [[Hours]]: ℝ(𝔽(hours)),

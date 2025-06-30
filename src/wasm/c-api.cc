@@ -950,7 +950,7 @@ i::DirectHandle<i::String> VecToString(i::Isolate* isolate,
   // so let's be robust to that.
   if (length > 0 && chars[length - 1] == 0) length--;
   return isolate->factory()
-      ->NewStringFromUtf8({chars.get(), length})
+      ->NewStringFromUtf8(std::string_view{chars.get(), length})
       .ToHandleChecked();
 }
 

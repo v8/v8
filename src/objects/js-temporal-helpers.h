@@ -29,10 +29,16 @@
       MessageTemplate::kInvalidArgumentForTemporal, \
       isolate->factory()->NewStringFromStaticChars(TEMPORAL_DEBUG_INFO))
 
-#define NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR()       \
-  NewRangeError(                                     \
-      MessageTemplate::kInvalidTimeValueForTemporal, \
-      isolate->factory()->NewStringFromStaticChars(TEMPORAL_DEBUG_INFO))
+#define NEW_TEMPORAL_TYPE_ERROR(str)       \
+  NewTypeError(MessageTemplate::kTemporal, \
+               isolate->factory()->NewStringFromStaticChars(str))
+#define NEW_TEMPORAL_RANGE_ERROR(str)       \
+  NewRangeError(MessageTemplate::kTemporal, \
+                isolate->factory()->NewStringFromStaticChars(str))
+
+#define NEW_TEMPORAL_RANGE_ERROR_WITH_ARG(str, arg) \
+  NewRangeError(MessageTemplate::kTemporalWithArg,  \
+                isolate->factory()->NewStringFromStaticChars(str), arg)
 
 namespace v8 {
 namespace internal {
