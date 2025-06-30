@@ -135,6 +135,12 @@ class V8_BASE_EXPORT MemoryProtectionKey {
   // configurable by passing in the default permissions into AllocateKey and
   // remembering them alongside the key.
   static void SetDefaultPermissionsForAllKeysInSignalHandler();
+
+  // Tag the stack of the current thread with the given key.
+  //
+  // This will attempt to determine the start and size of the current thread's
+  // stack, then tag that memory with the given key.
+  static bool SetKeyForCurrentThreadsStack(int key);
 };
 
 }  // namespace base

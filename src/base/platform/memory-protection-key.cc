@@ -6,6 +6,7 @@
 
 #if V8_HAS_PKU_SUPPORT
 
+#include <pthread.h>  // For SetKeyForCurrentThreadsStack.
 #include <sys/mman.h>  // For {mprotect()} protection macros.
 #undef MAP_TYPE  // Conflicts with MAP_TYPE in Torque-generated instance-types.h
 
@@ -165,6 +166,31 @@ void MemoryProtectionKey::SetDefaultPermissionsForAllKeysInSignalHandler() {
       SetPermissionsForKey(key, kDisableWrite);
     }
   }
+}
+
+bool MemoryProtectionKey::SetKeyForCurrentThreadsStack(int key) {
+  DCHECK_NE(kNoMemoryProtectionKey, key);
+
+  pthread_attr_t attr;
+  void* stackaddr;
+  size_t stacksize;
+
+  // Obtain this thread's stack bounds through the pthreads API.
+  // TODO(saelo): consider generalizing this and moving it into the platform
+  // API once we support other platforms here.
+  CHECK_EQ(pthread_getattr_np(pthread_self(), &attr), 0);
+  CHECK_EQ(pthread_attr_getstack(&attr, &stackaddr, &stacksize), 0);
+  CHECK_EQ(pthread_attr_destroy(&attr), 0);
+
+  int flags = PROT_READ | PROT_WRITE;
+  bool success = pkey_mprotect(stackaddr, stacksize, flags, key) == 0;
+  if (!success) {
+    // Retry with PROT_GROWSDOWN. This is typically required for the main
+    // thread's stack.
+    flags |= PROT_GROWSDOWN;
+    success = pkey_mprotect(stackaddr, stacksize, flags, key) == 0;
+  }
+  return success;
 }
 
 }  // namespace base

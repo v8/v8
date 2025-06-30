@@ -34,6 +34,23 @@ class V8_EXPORT_PRIVATE SandboxHardwareSupport {
   // before and succeeded in allocating the memory protection keys.
   static bool IsActive();
 
+  // Returns true if strict sandboxing mode is enabled.
+  //
+  // In strict mode, we use the default pkey (key zero) as out-of-sandbox pkey,
+  // thereby removing write access to all memory outside the sandbox in
+  // sandboxed execution mode, with the exception of "sandbox extension" memory
+  // (opt-out). If strict mode is not active, we use a dedicated out-of-sandbox
+  // pkey and require memory that should be inaccessible to manually be tagged
+  // with this key (opt-in).
+  static bool IsStrict();
+
+  // Enable sandbox hardware support for the current thread.
+  //
+  // Any thread that wishes to use EnterSandbox/ExitSandbox must first call
+  // this function. Internally, this will ensure that the thread's stack memory
+  // is correctly set up for hardware sandboxing.
+  static void EnableForCurrentThread();
+
   // Register memory outside of the sandbox.
   //
   // When in sandboxed execution mode, memory outside of the sandbox cannot be

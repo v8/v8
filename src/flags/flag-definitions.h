@@ -3053,6 +3053,25 @@ DEFINE_BOOL(
 //
 // Sandbox-related flags.
 //
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+DEFINE_BOOL(
+    strict_pkey_sandbox, false,
+    "Enable strict pkey-based hardware sandboxing for the V8 Sandbox. When "
+    "this is enabled, sandboxed code does not have write access to any "
+    "out-of-sandbox memory, except for \"sandbox extension\" memory "
+    "specifically marked as such. Under the hood, this works by removing write "
+    "access to the default pkey (key zero) in sandboxed execution mode. This "
+    "currently only works on x64 Linux and might require additional "
+    "workarounds: `LD_BIND_NOW=1` to avoid lazy resolving of imported "
+    "functions which would cause a write to out-of-sandbox memory (the GOT), "
+    "`GLIBC_TUNABLES=glibc.pthread.rseq=0` to disable rseq which is "
+    "incompatible with code running without write access to the default pkey "
+    "(otherwise, the kernel will attempt to write to thread-local storage "
+    "during context switches, which would segfault due to missing pkey "
+    "permissions). NOTE: this is an experimental proot-of-concept feature and "
+    "not meant for production use.")
+#endif
+
 #ifdef V8_ENABLE_SANDBOX
 DEFINE_BOOL(sandbox_testing, false,
             "Enable sandbox testing mode. This exposes the memory corruption "
