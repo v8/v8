@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "src/base/platform/mutex.h"
+#include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate.h"
 #include "src/heap/large-page-metadata.h"
 #include "src/heap/memory-allocator.h"
@@ -294,7 +295,10 @@ class MemoryPool::ReleasePooledChunksTask final : public CancelableTask {
   ReleasePooledChunksTask& operator=(const ReleasePooledChunksTask&) = delete;
 
  private:
-  void RunInternal() override { pool_->ReleaseUpTo(isolate_, release_time_); }
+  void RunInternal() override {
+    PtrComprCageAccessScope scope(isolate_);
+    pool_->ReleaseUpTo(isolate_, release_time_);
+  }
 
   Isolate* const isolate_;
   MemoryPool* const pool_;
@@ -407,7 +411,7 @@ class MemoryPool::ReleasePooledLargeChunksTask final : public CancelableTask {
  public:
   ReleasePooledLargeChunksTask(Isolate* isolate, MemoryPool* pool,
                                InternalTime time)
-      : CancelableTask(isolate), pool_(pool), time_(time) {}
+      : CancelableTask(isolate), isolate_(isolate), pool_(pool), time_(time) {}
 
   ~ReleasePooledLargeChunksTask() override = default;
   ReleasePooledLargeChunksTask(const ReleasePooledLargeChunksTask&) = delete;
@@ -416,8 +420,12 @@ class MemoryPool::ReleasePooledLargeChunksTask final : public CancelableTask {
 
  private:
   // v8::internal::CancelableTask overrides.
-  void RunInternal() override { pool_->large_pool_.ReleaseUpTo(time_); }
+  void RunInternal() override {
+    PtrComprCageAccessScope scope(isolate_);
+    pool_->large_pool_.ReleaseUpTo(time_);
+  }
 
+  Isolate* const isolate_;
   MemoryPool* pool_;
   InternalTime time_;
 };
