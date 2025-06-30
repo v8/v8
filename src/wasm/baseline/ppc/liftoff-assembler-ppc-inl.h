@@ -1130,6 +1130,8 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
 
 void LiftoffAssembler::AtomicFence() { sync(); }
 
+void LiftoffAssembler::Pause() { isync(); }
+
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueKind kind) {

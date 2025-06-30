@@ -1452,6 +1452,8 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
 
 void LiftoffAssembler::AtomicFence() { bailout(kAtomics, "AtomicFence"); }
 
+void LiftoffAssembler::Pause() { nop(); }
+
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueKind kind) {
