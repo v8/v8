@@ -543,10 +543,18 @@ void Deserializer<Isolate>::PostProcessNewJSReceiver(
       uint32_t store_index =
           typed_array->GetExternalBackingStoreRefForDeserialization();
       auto backing_store = backing_stores_[store_index];
-      void* start = backing_store ? backing_store->buffer_start() : nullptr;
-      if (!start) start = EmptyBackingStoreBuffer();
-      typed_array->SetOffHeapDataPtr(main_thread_isolate(), start,
-                                     typed_array->byte_offset());
+      if (backing_store && backing_store->buffer_start()) {
+        typed_array->SetOffHeapDataPtr(main_thread_isolate(),
+                                       backing_store->buffer_start(),
+                                       typed_array->byte_offset());
+      } else {
+        // Directly set the data pointer to point to the
+        // EmptyBackingStoreBuffer. Otherwise, we might end up setting it to
+        // EmptyBackingStoreBuffer() + byte_offset() which would result in an
+        // invalid pointer.
+        typed_array->SetOffHeapDataPtr(main_thread_isolate(),
+                                       EmptyBackingStoreBuffer(), 0);
+      }
     }
   } else if (InstanceTypeChecker::IsJSArrayBuffer(instance_type)) {
     auto buffer = Cast<JSArrayBuffer>(*obj);
