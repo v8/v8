@@ -25,6 +25,7 @@
 #include "src/codegen/safepoint-table.h"
 #include "src/codegen/source-position.h"
 #include "src/handles/handles.h"
+#include "src/sandbox/sandbox-malloc.h"
 #include "src/tasks/operations-barrier.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-environment.h"
@@ -1085,8 +1086,15 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // hence needs to be destructed first when this native module dies.
   std::unique_ptr<CompilationState> compilation_state_;
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  // Array to handle number of function calls. Allocated inside the sandbox as
+  // it is written to from generated code and only contains untrusted data.
+  // TODO(427410040): Make this in-sandbox allocated in all configurations.
+  std::unique_ptr<std::atomic<uint32_t>[], SandboxFreeDeleter> tiering_budgets_;
+#else
   // Array to handle number of function calls.
   std::unique_ptr<std::atomic<uint32_t>[]> tiering_budgets_;
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
   // This mutex protects concurrent calls to {AddCode} and friends.
   // TODO(dlehmann): Revert this to a regular {Mutex} again.

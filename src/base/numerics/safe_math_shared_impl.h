@@ -13,7 +13,6 @@
 #include <concepts>
 #include <type_traits>
 
-#include "build/build_config.h"
 #include "src/base/numerics/safe_conversions.h"
 
 #if defined(__asmjs__) || defined(__wasm__)

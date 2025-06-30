@@ -1026,8 +1026,13 @@ NativeModule::NativeModule(WasmEnabledFeatures enabled_features,
     code_table_ =
         std::make_unique<WasmCode*[]>(module_->num_declared_functions);
     InitializeCodePointerTableHandles(module_->num_declared_functions);
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+    tiering_budgets_.reset(reinterpret_cast<std::atomic<uint32_t>*>(
+        SandboxAllocArray<uint32_t>(module_->num_declared_functions)));
+#else
     tiering_budgets_ = std::make_unique<std::atomic<uint32_t>[]>(
         module_->num_declared_functions);
+#endif
     // The tiering budget is accessed directly from generated code.
     static_assert(sizeof(*tiering_budgets_.get()) == sizeof(uint32_t));
 

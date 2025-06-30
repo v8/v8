@@ -1434,8 +1434,14 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
   // Reset tiering budget of the function that triggered the deopt.
   int declared_func_index =
       wasm::declared_function_index(native_module->module(), code->index());
-  wasm_trusted_instance->tiering_budget_array()[declared_func_index].store(
-      v8_flags.wasm_tiering_budget, std::memory_order_relaxed);
+  {
+    // We're running under a DisallowSandboxAccess scope, which also removes
+    // write access into the sandbox. As such, we need to temporarily allow
+    // sandbox access for this store.
+    AllowSandboxAccess sandbox_access_for_write;
+    wasm_trusted_instance->tiering_budget_array()[declared_func_index].store(
+        v8_flags.wasm_tiering_budget, std::memory_order_relaxed);
+  }
 
   isolate()->counters()->wasm_deopts_executed()->AddSample(
       wasm::GetWasmEngine()->IncrementDeoptsExecutedCount());
