@@ -92,6 +92,14 @@ static constexpr char kInvalidIsoDate[] = "Invalid ISO date.";
 static constexpr char kInvalidTime[] = "Invalid time";
 static constexpr char kFiniteInteger[] = "Expected finite integer.";
 static constexpr char kIntegerOutOfRange[] = "Integer out of range.";
+static constexpr char kOptionMustBeObject[] = "Option must be object: ";
+static constexpr char kCalendarMustBeString[] = "Calendar must be string.";
+static constexpr char kRoundToMissing[] = "Must specify a roundTo parameter.";
+static constexpr char kRoundToMustBeObject[] = "roundTo must be an object.";
+static constexpr char kYearMustBeObject[] = "year argument must be an object.";
+static constexpr char kTimeZoneMissing[] = "Must specify time zone.";
+static constexpr char kWithNoPartial[] =
+    "Argument to with() must contain some date/time fields.";
 
 #define ORDINARY_CREATE_FROM_CONSTRUCTOR(obj, target, new_target, T)           \
   DirectHandle<JSReceiver> new_target_receiver = Cast<JSReceiver>(new_target); \
@@ -144,6 +152,9 @@ Maybe<ContainedValue> ExtractRustResult(
       if (!success) {
         msg = isolate->factory()->NewStringFromStaticChars("(utf8 error)");
       }
+    } else {
+      // We need to have *some* message here even if Rust doesn't have one
+      msg = isolate->factory()->NewStringFromStaticChars("Unspecified error.");
     }
     switch (err.kind) {
       case temporal_rs::ErrorKind::Type:
@@ -545,15 +556,16 @@ Maybe<temporal_rs::ArithmeticOverflow> ToTemporalOverflowHandleUndefined(
   if (IsUndefined(*options))
     return Just(temporal_rs::ArithmeticOverflow(
         temporal_rs::ArithmeticOverflow::Constrain));
+  auto overflow_ident = isolate->factory()->overflow_string();
   if (!IsJSReceiver(*options)) {
     // (GetOptionsObject) 3. Throw a TypeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR_WITH_ARG(
+                                 kOptionMustBeObject, overflow_ident));
   }
   // 2. Return ? GetOption(options, "overflow", « String », « "constrain",
   // "reject" », "constrain").
   return GetStringOption<temporal_rs::ArithmeticOverflow>(
-      isolate, Cast<JSReceiver>(options), isolate->factory()->overflow_string(),
-      method_name,
+      isolate, Cast<JSReceiver>(options), overflow_ident, method_name,
       std::to_array<const std::string_view>({"constrain", "reject"}),
       std::to_array<temporal_rs::ArithmeticOverflow>(
           {temporal_rs::ArithmeticOverflow::Constrain,
@@ -595,15 +607,16 @@ GetTemporalDisambiguationOptionHandleUndefined(Isolate* isolate,
     return Just(
         temporal_rs::Disambiguation(temporal_rs::Disambiguation::Reject));
   }
+  auto disambiguation_ident = isolate->factory()->disambiguation_string();
   if (!IsJSReceiver(*options)) {
     // (GetOptionsObject) 3. Throw a TypeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR_WITH_ARG(
+                                 kOptionMustBeObject, disambiguation_ident));
   }
   // 1. Let stringValue be ?GetOption(options, "disambiguation", string, «
   // "compatible", "earlier", "later", "reject" », "compatible").
   return GetStringOption<temporal_rs::Disambiguation>(
-      isolate, Cast<JSReceiver>(options),
-      isolate->factory()->disambiguation_string(), method_name,
+      isolate, Cast<JSReceiver>(options), disambiguation_ident, method_name,
       std::to_array<const std::string_view>(
           {"compatible", "earlier", "later", "reject"}),
       std::to_array<temporal_rs::Disambiguation>({
@@ -624,15 +637,16 @@ Maybe<temporal_rs::OffsetDisambiguation> GetTemporalOffsetOptionHandleUndefined(
   if (IsUndefined(*options)) {
     return Just(fallback);
   }
+  auto offset_ident = isolate->factory()->offset_string();
   if (!IsJSReceiver(*options)) {
     // (GetOptionsObject) 3. Throw a TypeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR_WITH_ARG(
+                                 kOptionMustBeObject, offset_ident));
   }
   // 5. Let stringValue be ? GetOption(options, "offset", string, « "prefer",
   // "use", "ignore", "reject" », stringFallback).
   return GetStringOption<temporal_rs::OffsetDisambiguation>(
-      isolate, Cast<JSReceiver>(options), isolate->factory()->offset_string(),
-      method_name,
+      isolate, Cast<JSReceiver>(options), offset_ident, method_name,
       std::to_array<const std::string_view>(
           {"prefer", "use", "ignore", "reject"}),
       std::to_array<temporal_rs::OffsetDisambiguation>({
@@ -862,12 +876,8 @@ Maybe<std::optional<Unit>> GetTemporalUnit(
   // 10. If value is undefined and default is required, throw a RangeError
   // exception.
   if (default_is_required && value == std::nullopt) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewRangeError(
-            MessageTemplate::kValueOutOfRange,
-            isolate->factory()->undefined_value(),
-            isolate->factory()->NewStringFromAsciiChecked(method_name), key));
+    THROW_NEW_ERROR(isolate,
+                    NEW_TEMPORAL_RANGE_ERROR("Unit must be specified."));
   }
   // 12. Return value.
   if (value.has_value()) {
@@ -1120,7 +1130,9 @@ Maybe<temporal_rs::AnyCalendarKind> ToTemporalCalendarIdentifier(
 
   // 2. If temporalCalendarLike is not a String, throw a TypeError exception.
   if (!IsString(*calendar_like)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(
+        isolate, NEW_TEMPORAL_TYPE_ERROR(
+                     "Calendar must be string or calendared Temporal object."));
   }
   // 3. Let identifier be ?ParseTemporalCalendarString(temporalCalendarLike).
   // 4. Return ?CanonicalizeCalendar(identifier).
@@ -1362,7 +1374,7 @@ Maybe<std::string> ToOffsetString(Isolate* isolate,
 
   // 2. If offset is not a String, throw a TypeError exception.
   if (!IsString(*offset_prim)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR("Offset must be string."));
   }
 
   // 3. Perform ?ParseDateTimeUTCOffset(offset).
@@ -1407,7 +1419,9 @@ Maybe<std::unique_ptr<temporal_rs::TimeZone>> ToTemporalTimeZoneIdentifier(
   }
   // 2. If temporalTimeZoneLike is not a String, throw a TypeError exception.
   if (!IsString(*tz_like)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate,
+                    NEW_TEMPORAL_TYPE_ERROR(
+                        "Time zone must be string or ZonedDateTime object."));
   }
 
   DirectHandle<String> str = Cast<String>(tz_like);
@@ -1426,7 +1440,8 @@ Maybe<temporal_rs::PartialDuration> ToTemporalPartialDurationRecord(
   // 1. If temporalDurationLike is not an Object, then
   if (!IsJSReceiver(*duration_like_obj)) {
     // a. Throw a TypeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate,
+                    NEW_TEMPORAL_TYPE_ERROR("Must provide a duration."));
   }
 
   DirectHandle<JSReceiver> duration_like = Cast<JSReceiver>(duration_like_obj);
@@ -1664,7 +1679,8 @@ Maybe<temporal_rs::PartialTime> ToTemporalTimeRecord(
       Nothing<temporal_rs::PartialTime>());
 
   if (!any) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
+                                 "Must specify at least one time field."));
   }
 
   return Just(result);
@@ -1832,9 +1848,9 @@ Maybe<bool> GetSingleCalendarField(
 #define ERA_CONDITION(cond) calendarUsesEras && (cond)
 
 #define NOOP_REQUIRED_CHECK
-#define TIMEZONE_REQUIRED_CHECK                                      \
-  if (!found && required_fields == RequiredFields::kTimeZone) {      \
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR()); \
+#define TIMEZONE_REQUIRED_CHECK                                          \
+  if (!found && required_fields == RequiredFields::kTimeZone) {          \
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kTimeZoneMissing)); \
   }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-calendar-fields-records
@@ -1982,7 +1998,8 @@ Maybe<CombinedRecord> PrepareCalendarFields(Isolate* isolate,
   // 10. If requiredFieldNames is partial and any is false, then
   if (required_fields == RequiredFields::kPartial && !any) {
     // a. Throw a TypeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
+                                 "Must specify at least one calendar field."));
   }
 
   return Just(std::move(result));
@@ -2138,7 +2155,9 @@ MaybeDirectHandle<JSTemporalDuration> ToTemporalDuration(
   if (!IsJSReceiver(*item)) {
     // a. If item is not a String, throw a TypeError exception.
     if (!IsString(*item)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate,
+                      NEW_TEMPORAL_TYPE_ERROR(
+                          "Duration argument must be Duration or string."));
     }
     DirectHandle<String> str = Cast<String>(item);
     // b. Let result be ? ParseTemporalDurationString(string).
@@ -2195,7 +2214,9 @@ MaybeDirectHandle<JSTemporalInstant> ToTemporalInstant(
   }
 
   if (!IsString(*item_prim)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(
+        isolate,
+        NEW_TEMPORAL_TYPE_ERROR("Instant argument must be Instant or string."));
   }
 
   DirectHandle<String> item_string = Cast<String>(item_prim);
@@ -2229,7 +2250,9 @@ MaybeDirectHandle<JSTemporalPlainTime> ToTemporalTime(
   // This error is eventually thrown by step 3; we perform a check early
   // so that we can optimize with InstanceType. Step 1 and 2 are unobservable.
   if (!IsHeapObject(*item)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(
+        isolate,
+        NEW_TEMPORAL_TYPE_ERROR("Time-like argument must be object or string"));
   }
   InstanceType instance_type =
       Cast<HeapObject>(*item)->map(isolate)->instance_type();
@@ -2271,7 +2294,9 @@ MaybeDirectHandle<JSTemporalPlainTime> ToTemporalTime(
   } else {
     // a. If item is not a String, throw a TypeError exception.
     if (!InstanceTypeChecker::IsString(instance_type)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate,
+                      NEW_TEMPORAL_TYPE_ERROR(
+                          "Time-like argument must be object or string"));
     }
     DirectHandle<String> str = Cast<String>(item);
 
@@ -2327,7 +2352,8 @@ MaybeDirectHandle<JSTemporalPlainDate> ToTemporalDate(
   // This error is eventually thrown by step 3a; we perform a check early
   // so that we can optimize with InstanceType. Step 1 and 2 are unobservable.
   if (!IsHeapObject(*item)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
+                                 "Date argument must be object or string."));
   }
   InstanceType instance_type =
       Cast<HeapObject>(*item)->map(isolate)->instance_type();
@@ -2382,7 +2408,8 @@ MaybeDirectHandle<JSTemporalPlainDate> ToTemporalDate(
   } else {
     // a. If item is not a String, throw a TypeError exception.
     if (!InstanceTypeChecker::IsString(instance_type)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
+                                   "Date argument must be object or string."));
     }
     DirectHandle<String> str = Cast<String>(item);
 
@@ -2418,7 +2445,9 @@ MaybeDirectHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
   // This error is eventually thrown by step 3; we perform a check early
   // so that we can optimize with InstanceType. Step 1 and 2 are unobservable.
   if (!IsHeapObject(*item)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(
+        isolate,
+        NEW_TEMPORAL_TYPE_ERROR("DateTime argument must be object or string."));
   }
   InstanceType instance_type =
       Cast<HeapObject>(*item)->map(isolate)->instance_type();
@@ -2474,7 +2503,9 @@ MaybeDirectHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
   } else {
     // 3. If item is not a String, throw a TypeError exception.
     if (!InstanceTypeChecker::IsString(instance_type)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate,
+                      NEW_TEMPORAL_TYPE_ERROR(
+                          "DateTime argument must be object or string."));
     }
     DirectHandle<String> str = Cast<String>(item);
 
@@ -2510,7 +2541,9 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
   // This error is eventually thrown by step 3; we perform a check early
   // so that we can optimize with InstanceType. Step 1 and 2 are unobservable.
   if (!IsHeapObject(*item)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate,
+                    NEW_TEMPORAL_TYPE_ERROR(
+                        "YearMonth argument must be object or string."));
   }
   InstanceType instance_type =
       Cast<HeapObject>(*item)->map(isolate)->instance_type();
@@ -2574,7 +2607,9 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
   } else {
     // 3. If item is not a String, throw a TypeError exception.
     if (!InstanceTypeChecker::IsString(instance_type)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate,
+                      NEW_TEMPORAL_TYPE_ERROR(
+                          "YearMonth argument must be object or string."));
     }
     DirectHandle<String> str = Cast<String>(item);
 
@@ -2612,7 +2647,9 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
   // This error is eventually thrown by step 3; we perform a check early
   // so that we can optimize with InstanceType. Step 1 and 2 are unobservable.
   if (!IsHeapObject(*item)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate,
+                    NEW_TEMPORAL_TYPE_ERROR(
+                        "ZonedDateTime argument must be object or string."));
   }
   InstanceType instance_type =
       Cast<HeapObject>(*item)->map(isolate)->instance_type();
@@ -2671,7 +2708,9 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
   } else {
     // 3. If item is not a String, throw a TypeError exception.
     if (!InstanceTypeChecker::IsString(instance_type)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate,
+                      NEW_TEMPORAL_TYPE_ERROR(
+                          "ZonedDateTime argument must be object or string."));
     }
     DirectHandle<String> str = Cast<String>(item);
 
@@ -2715,7 +2754,9 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
   // This error is eventually thrown by step 3; we perform a check early
   // so that we can optimize with InstanceType. Step 1 and 2 are unobservable.
   if (!IsHeapObject(*item)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(
+        isolate,
+        NEW_TEMPORAL_TYPE_ERROR("MonthDay argument must be object or string."));
   }
   InstanceType instance_type =
       Cast<HeapObject>(*item)->map(isolate)->instance_type();
@@ -2784,7 +2825,9 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
   } else {
     // 3. If item is not a String, throw a TypeError exception.
     if (!InstanceTypeChecker::IsString(instance_type)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate,
+                      NEW_TEMPORAL_TYPE_ERROR(
+                          "MonthDay argument must be object or string."));
     }
     DirectHandle<String> str = Cast<String>(item);
     DirectHandle<JSTemporalPlainDate> result;
@@ -2929,9 +2972,11 @@ Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
     return Just(RelativeTo());
   }
 
+  auto relativeto_ident = isolate->factory()->relativeTo_string();
   if (!IsJSReceiver(*options)) {
     // (GetOptionsObject) 3. Throw a TypeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR_WITH_ARG(
+                                 kOptionMustBeObject, relativeto_ident));
   }
 
   // 1. Let value be ?Get(options, "relativeTo").
@@ -2939,7 +2984,7 @@ Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, value,
       JSReceiver::GetProperty(isolate, Cast<JSReceiver>(options),
-                              isolate->factory()->relativeTo_string()),
+                              relativeto_ident),
       Nothing<RelativeTo>());
 
   // 2. If value is undefined, return the Record { [[PlainRelativeTo]]:
@@ -2955,7 +3000,8 @@ Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
   // so that we can optimize with InstanceType. Step 5-6 are unobservable
   // in this case.
   if (!IsHeapObject(*value)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
+                                 "relativeTo must be object or string."));
   }
   InstanceType instance_type =
       Cast<HeapObject>(*value)->map(isolate)->instance_type();
@@ -3070,7 +3116,8 @@ Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
   } else {
     // a. If value is not a String, throw a TypeError exception.
     if (!InstanceTypeChecker::IsString(instance_type)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
+                                   "relativeTo must be object or string."));
     }
 
     DirectHandle<String> str = Cast<String>(value);
@@ -3307,7 +3354,7 @@ MaybeDirectHandle<JSType> GenericWith(Isolate* isolate,
       isolate, is_partial, IsPartialTemporalObject(isolate, temporal_like_obj),
       kNullMaybeHandle);
   if (!is_partial) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kWithNoPartial));
   }
   // IsPartialTemporalObject only returns true for valid JSReceivers.
   auto options_recvr = Cast<JSReceiver>(temporal_like_obj);
@@ -3566,7 +3613,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Round(
   // 3. If roundTo is undefined, then
   if (IsUndefined(*round_to_obj)) {
     // a. Throw a TypeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kRoundToMissing));
   }
 
   DirectHandle<JSReceiver> round_to;
@@ -3591,7 +3638,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Round(
     // We have already checked for undefined, we can hoist the JSReceiver
     // check out and just cast
     if (!IsJSReceiver(*round_to_obj)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kRoundToMustBeObject));
     }
     round_to = Cast<JSReceiver>(round_to_obj);
   }
@@ -3677,7 +3724,8 @@ MaybeDirectHandle<Number> JSTemporalDuration::Total(
 
   // 3. If totalOf is undefined, throw a TypeError exception.
   if (IsUndefined(*total_of_obj)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(
+        isolate, NEW_TEMPORAL_TYPE_ERROR("Must specify a totalOf parameter"));
   }
 
   DirectHandle<JSReceiver> total_of;
@@ -3700,7 +3748,8 @@ MaybeDirectHandle<Number> JSTemporalDuration::Total(
     // We have already checked for undefined, we can hoist the JSReceiver
     // check out and just cast
     if (!IsJSReceiver(*total_of_obj)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate,
+                      NEW_TEMPORAL_TYPE_ERROR("totalOf must be an object."));
     }
     total_of = Cast<JSReceiver>(total_of_obj);
   }
@@ -3954,7 +4003,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Constructor(
   if (!IsUndefined(*calendar_like)) {
     // 6. If calendar is not a String, throw a TypeError exception.
     if (!IsString(*calendar_like)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kCalendarMustBeString));
     }
 
     // 7. Set calendar to ?CanonicalizeCalendar(calendar).
@@ -4376,7 +4425,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Constructor(
   if (!IsUndefined(*calendar_like)) {
     // 12. If calendar is not a String, throw a TypeError exception.
     if (!IsString(*calendar_like)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kCalendarMustBeString));
     }
 
     // 13. Set calendar to ?CanonicalizeCalendar(calendar).
@@ -4657,7 +4706,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Round(
   // 3. If roundTo is undefined, then
   if (IsUndefined(*round_to_obj)) {
     // a. Throw a TypeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kRoundToMissing));
   }
 
   DirectHandle<JSReceiver> round_to;
@@ -4681,7 +4730,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Round(
     // We have already checked for undefined, we can hoist the JSReceiver
     // check out and just cast
     if (!IsJSReceiver(*round_to_obj)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kRoundToMustBeObject));
     }
     round_to = Cast<JSReceiver>(round_to_obj);
   }
@@ -4830,7 +4879,7 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::Constructor(
   if (!IsUndefined(*calendar_like)) {
     // 6. If calendar is not a String, throw a TypeError exception.
     if (!IsString(*calendar_like)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kCalendarMustBeString));
     }
 
     // 7. Set calendar to ?CanonicalizeCalendar(calendar).
@@ -4932,7 +4981,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainMonthDay::ToPlainDate(
   // 3. If item is not an Object, then
   if (!IsJSReceiver(*item_obj)) {
     // a. Throw a TypeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kYearMustBeObject));
   }
   DirectHandle<JSReceiver> item = Cast<JSReceiver>(item_obj);
   // 4. Let calendar be monthDay.[[Calendar]].
@@ -5050,7 +5099,7 @@ JSTemporalPlainYearMonth::Constructor(
   if (!IsUndefined(*calendar_like)) {
     // 6. If calendar is not a String, throw a TypeError exception.
     if (!IsString(*calendar_like)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kCalendarMustBeString));
     }
 
     // 7. Set calendar to ?CanonicalizeCalendar(calendar).
@@ -5221,7 +5270,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainYearMonth::ToPlainDate(
   // 3. If item is not an Object, then
   if (!IsJSReceiver(*item_obj)) {
     // a. Throw a TypeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kYearMustBeObject));
   }
   DirectHandle<JSReceiver> item = Cast<JSReceiver>(item_obj);
   // 4. Let calendar be yearMonth.[[Calendar]].
@@ -5444,7 +5493,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Round(
   // 3. If roundTo is undefined, then
   if (IsUndefined(*round_to_obj)) {
     // a. Throw a TypeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kRoundToMissing));
   }
 
   DirectHandle<JSReceiver> round_to;
@@ -5469,7 +5518,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Round(
     // We have already checked for undefined, we can hoist the JSReceiver
     // check out and just cast
     if (!IsJSReceiver(*round_to_obj)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kRoundToMustBeObject));
     }
     round_to = Cast<JSReceiver>(round_to_obj);
   }
@@ -5525,7 +5574,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::With(
       temporal::IsPartialTemporalObject(isolate, temporal_time_like_obj), {});
 
   if (!is_partial) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kWithNoPartial));
   }
 
   // 4. Let partialTime be ? ToTemporalTimeRecord(temporalTimeLike, partial).
@@ -5748,7 +5797,10 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
     DirectHandle<Object> time_zone_like, DirectHandle<Object> calendar_like) {
   // 1. If NewTarget is undefined, throw a TypeError exception.
   if (IsUndefined(*new_target)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
+                                 isolate->factory()->NewStringFromAsciiChecked(
+                                     "Temporal.ZonedDateTime")));
   }
 
   // 2. Set epochNanoseconds to ? ToBigInt(epochNanoseconds).
@@ -5766,7 +5818,8 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
 
   // 4. If timeZone is not a String, throw a TypeError exception.
   if (!IsString(*time_zone_like)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate,
+                    NEW_TEMPORAL_TYPE_ERROR("Time zone must be string"));
   }
 
   auto tz_str = Cast<String>(time_zone_like);
@@ -5798,8 +5851,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
   temporal_rs::AnyCalendarKind calendar = temporal_rs::AnyCalendarKind::Iso;
   // 9. If calendar is not a String, throw a TypeError exception.
   if (!IsString(*calendar_like)) {
-    THROW_NEW_ERROR(isolate,
-                    NEW_TEMPORAL_RANGE_ERROR("Calendar must be string."));
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kCalendarMustBeString));
   }
 
   // 10. Set calendar to ? CanonicalizeCalendar(calendar).
@@ -6146,7 +6198,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Round(
   // 3. If roundTo is undefined, then
   if (IsUndefined(*round_to_obj)) {
     // a. Throw a TypeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kRoundToMissing));
   }
 
   DirectHandle<JSReceiver> round_to;
@@ -6170,7 +6222,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Round(
     // We have already checked for undefined, we can hoist the JSReceiver
     // check out and just cast
     if (!IsJSReceiver(*round_to_obj)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kRoundToMustBeObject));
     }
     round_to = Cast<JSReceiver>(round_to_obj);
   }
@@ -6336,7 +6388,8 @@ JSTemporalZonedDateTime::GetTimeZoneTransition(
   // 4. If directionParam is undefined, throw a TypeError exception.
   if (IsUndefined(*direction_param_obj)) {
     // a. Throw a TypeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
+                                 "Must specify a direction parameter."));
   }
 
   // 3. If roundTo is undefined, then
@@ -6363,7 +6416,8 @@ JSTemporalZonedDateTime::GetTimeZoneTransition(
     // We have already checked for undefined, we can hoist the JSReceiver
     // check out and just cast
     if (!IsJSReceiver(*direction_param_obj)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
+                                   "directionParam must be object or string."));
     }
     direction_param = Cast<JSReceiver>(direction_param_obj);
   }
@@ -6561,7 +6615,7 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Round(
   // 3. If roundTo is undefined, then
   if (IsUndefined(*round_to_obj)) {
     // a. Throw a TypeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kRoundToMissing));
   }
   DirectHandle<JSReceiver> round_to;
   // 4. If Type(roundTo) is String, then

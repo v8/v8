@@ -253,7 +253,8 @@ Maybe<DurationRecord> ToPartialDuration(
   // 1. If Type(temporalDurationLike) is not Object, then
   if (!IsJSReceiver(*temporal_duration_like_obj)) {
     // a. Throw a TypeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
+                                 "Duration argument must be an object."));
   }
   DirectHandle<JSReceiver> temporal_duration_like =
       Cast<JSReceiver>(temporal_duration_like_obj);
@@ -301,7 +302,10 @@ Maybe<DurationRecord> ToPartialDuration(
   // 5. If any is false, then
   if (!any) {
     // a. Throw a TypeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(
+        isolate,
+        NEW_TEMPORAL_TYPE_ERROR(
+            "Duration argument must contain at least one date/time field."));
   }
   // 6. Return result.
   return Just(result);

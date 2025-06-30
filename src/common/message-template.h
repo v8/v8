@@ -359,8 +359,8 @@ namespace internal {
   T(SymbolKeyFor, "% is not a symbol")                                         \
   T(SymbolToNumber, "Cannot convert a Symbol value to a number")               \
   T(SymbolToString, "Cannot convert a Symbol value to a string")               \
-  T(Temporal, "Temporal error: %s")                                            \
-  T(TemporalWithArg, "Temporal error: %s %s.")                                 \
+  T(Temporal, "Temporal error: %")                                             \
+  T(TemporalWithArg, "Temporal error: % %.")                                   \
   T(ThrowMethodMissing, "The iterator does not provide a 'throw' method.")     \
   T(TopLevelAwaitStalled, "Top-level await promise never resolved")            \
   T(UndefinedOrNullToObject, "Cannot convert undefined or null to object")     \
@@ -412,7 +412,6 @@ namespace internal {
   T(InvalidShadowRealmEvaluateSourceText, "Invalid value used as source text") \
   T(InvalidStringLength, "Invalid string length")                              \
   T(InvalidTimeValue, "Invalid time value")                                    \
-  T(InvalidTimeValueForTemporal, "Invalid time value for Temporal %")          \
   T(InvalidTimeZone, "Invalid time zone specified: %")                         \
   T(InvalidTypedArrayAlignment, "% of % should be a multiple of %")            \
   T(InvalidTypedArrayIndex, "Invalid typed array index")                       \

@@ -24,11 +24,6 @@
 #define TEMPORAL_DEBUG_INFO ""
 #endif  // DEBUG
 
-#define NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR()       \
-  NewTypeError(                                     \
-      MessageTemplate::kInvalidArgumentForTemporal, \
-      isolate->factory()->NewStringFromStaticChars(TEMPORAL_DEBUG_INFO))
-
 #define NEW_TEMPORAL_TYPE_ERROR(str)       \
   NewTypeError(MessageTemplate::kTemporal, \
                isolate->factory()->NewStringFromStaticChars(str))
@@ -39,6 +34,10 @@
 #define NEW_TEMPORAL_RANGE_ERROR_WITH_ARG(str, arg) \
   NewRangeError(MessageTemplate::kTemporalWithArg,  \
                 isolate->factory()->NewStringFromStaticChars(str), arg)
+
+#define NEW_TEMPORAL_TYPE_ERROR_WITH_ARG(str, arg) \
+  NewTypeError(MessageTemplate::kTemporalWithArg,  \
+               isolate->factory()->NewStringFromStaticChars(str), arg)
 
 namespace v8 {
 namespace internal {
