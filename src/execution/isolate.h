@@ -236,13 +236,6 @@ class WaiterQueueNode;
 #define RETURN_EXCEPTION_IF_EXCEPTION(isolate) \
   RETURN_VALUE_IF_EXCEPTION(isolate, internal::kNullMaybe)
 
-// TODO(427539322) Remove once we've migrated everyone to these
-#define MAYBE_RETURN_ON_EXCEPTION_VALUE(isolate, call, value) \
-  RETURN_ON_EXCEPTION_VALUE(isolate, call, value)
-
-#define MAYBE_RETURN_ON_EXCEPTION(isolate, call) \
-  MAYBE_RETURN_ON_EXCEPTION_VALUE(isolate, call, internal::kNullMaybe)
-
 /**
  * RETURN_RESULT_OR_FAILURE is used in functions with return type Object (such
  * as "RUNTIME_FUNCTION(...) {...}" or "BUILTIN(...) {...}" ) to return either
@@ -420,33 +413,15 @@ class WaiterQueueNode;
     }                                                                   \
   } while (false)
 
-// TODO(427539322) Remove these MAYBE_ ones once we've migrated everyone to
-// these
-#define MAYBE_RETURN_ON_EXCEPTION_VALUE(isolate, call, value) \
-  RETURN_ON_EXCEPTION_VALUE(isolate, call, value)
-
-#define MAYBE_RETURN_FAILURE_ON_EXCEPTION(isolate, call) \
-  RETURN_FAILURE_ON_EXCEPTION(isolate, call)
-
-#define MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value)
-
-#define MAYBE_ASSIGN_RETURN_ON_EXCEPTION(isolate, dst, call) \
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, \
-                                         internal::kNullMaybe)
-
-// Like MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE, but moves out of the call
+// Like ASSIGN_RETURN_ON_EXCEPTION_VALUE, but moves out of the call
 // instead of performing copy-assignment
-#define MAYBE_MOVE_RETURN_ON_EXCEPTION(isolate, dst, call) \
-  do {                                                     \
-    if (!(call).MoveTo(&dst)) {                            \
-      DCHECK((isolate)->has_exception());                  \
-      return internal::kNullMaybe;                         \
-    }                                                      \
+#define MOVE_RETURN_ON_EXCEPTION(isolate, dst, call) \
+  do {                                               \
+    if (!(call).MoveTo(&dst)) {                      \
+      DCHECK((isolate)->has_exception());            \
+      return internal::kNullMaybe;                   \
+    }                                                \
   } while (false)
-
-#define MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, dst, call) \
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, dst, call)
 
 #define FOR_WITH_HANDLE_SCOPE(isolate, loop_var_type, init, loop_var,      \
                               limit_check, increment, body)                \

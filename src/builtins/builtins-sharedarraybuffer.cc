@@ -144,8 +144,8 @@ BUILTIN(AtomicsNotify) {
     c = kMaxUInt32;
   } else {
     double count_double;
-    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, count_double, Object::IntegerValue(isolate, count));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, count_double,
+                                       Object::IntegerValue(isolate, count));
     if (count_double < 0) {
       count_double = 0;
     } else if (count_double > kMaxUInt32) {
@@ -307,7 +307,7 @@ BUILTIN(AtomicsPause) {
   // exception.
   if (V8_UNLIKELY(!IsUndefined(*iteration_number, isolate) &&
                   !IsSmi(*iteration_number))) {
-    MAYBE_RETURN_ON_EXCEPTION_VALUE(
+    RETURN_ON_EXCEPTION_VALUE(
         isolate, CheckAtomicsPauseIterationNumber(isolate, iteration_number),
         ReadOnlyRoots(isolate).exception());
   }

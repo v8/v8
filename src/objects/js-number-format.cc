@@ -1331,7 +1331,7 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   Notation notation = Notation::STANDARD;
   // xx. Let notation be ? GetOption(options, "notation", "string", «
   // "standard", "scientific",  "engineering", "compact" », "standard").
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, notation,
       GetStringOption<Notation>(
           isolate, options, isolate->factory()->notation_string(), service,
@@ -1613,12 +1613,10 @@ Maybe<icu::number::FormattedNumberRange> IntlMathematicalValue::FormatRange(
     const icu::number::LocalizedNumberRangeFormatter& number_range_format,
     const IntlMathematicalValue& x, const IntlMathematicalValue& y) {
   icu::Formattable x_formatable;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(isolate, x_formatable,
-                                   x.ToFormattable(isolate));
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, x_formatable, x.ToFormattable(isolate));
 
   icu::Formattable y_formatable;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(isolate, y_formatable,
-                                   y.ToFormattable(isolate));
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, y_formatable, y.ToFormattable(isolate));
 
   UErrorCode status = U_ZERO_ERROR;
   icu::number::FormattedNumberRange result =
@@ -2008,13 +2006,13 @@ MaybeDirectHandle<T> PartitionNumberRangePattern(
   Factory* factory = isolate->factory();
   // 4. Let x be ? ToIntlMathematicalValue(start).
   IntlMathematicalValue x;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(isolate, x,
-                                   IntlMathematicalValue::From(isolate, start));
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, x,
+                             IntlMathematicalValue::From(isolate, start));
 
   // 5. Let y be ? ToIntlMathematicalValue(end).
   IntlMathematicalValue y;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(isolate, y,
-                                   IntlMathematicalValue::From(isolate, end));
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, y,
+                             IntlMathematicalValue::From(isolate, end));
 
   // 1. If x is not-a-number or y is not-a-number, throw a RangeError exception.
   if (x.IsNaN()) {
@@ -2071,7 +2069,7 @@ MaybeDirectHandle<JSArray> FormatToJSArray(
   DirectHandle<JSArray> result = factory->NewJSArray(0);
 
   int format_to_parts;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, format_to_parts,
       ConstructParts(isolate, formatted, result, 0, is_unit, is_nan,
                      output_source, false, DirectHandle<String>()));
@@ -2127,8 +2125,8 @@ MaybeDirectHandle<String> JSNumberFormat::NumberFormatFunction(
 
   // 4. Let x be ? ToIntlMathematicalValue(value).
   IntlMathematicalValue x;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(isolate, x,
-                                   IntlMathematicalValue::From(isolate, value));
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, x,
+                             IntlMathematicalValue::From(isolate, value));
 
   // 5. Return FormatNumeric(nf, x).
   Maybe<icu::number::FormattedNumber> maybe_formatted =
@@ -2147,8 +2145,8 @@ MaybeDirectHandle<JSArray> JSNumberFormat::FormatToParts(
       number_format->icu_number_formatter()->raw();
   DCHECK_NOT_NULL(fmt);
   IntlMathematicalValue value;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, value, IntlMathematicalValue::From(isolate, numeric_obj));
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
+                             IntlMathematicalValue::From(isolate, numeric_obj));
 
   Maybe<icu::number::FormattedNumber> maybe_formatted =
       IntlMathematicalValue::FormatNumeric(isolate, *fmt, value);

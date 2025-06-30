@@ -74,7 +74,7 @@ Maybe<bool> IterateDurationRecordFieldsTable(
     // row.first is prop: the Property Name value of the current row
     // row.second is the address of result's field whose name is the Field Name
     // value of the current row
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,
         RowFunction(isolate, temporal_duration_like, row.first, row.second));
     any |= result;
@@ -268,7 +268,7 @@ Maybe<DurationRecord> ToPartialDuration(
   // Table 8: Duration Record Fields
   // #table-temporal-duration-record-fields
   // 4. For each row of Table 8, except the header row, in table order, do
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, any,
       IterateDurationRecordFieldsTable(
           isolate, temporal_duration_like,
@@ -288,7 +288,7 @@ Maybe<DurationRecord> ToPartialDuration(
               // ii. Let val be 𝔽(? ToIntegerWithoutRounding(val)).
               // iii. Set result's field whose name is the Field Name value of
               // the current row to val.
-              MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
+              ASSIGN_RETURN_ON_EXCEPTION(
                   isolate, *field, ToIntegerWithoutRounding(isolate, val));
             }
             return Just(not_undefined);

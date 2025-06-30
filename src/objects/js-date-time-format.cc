@@ -1025,9 +1025,8 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalGeneric(
   auto tz = GetTzString(date_time_format);
 
   int64_t epoch_milliseconds = 0;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, epoch_milliseconds,
-      temporal->GetEpochMillisecondsFor(isolate, tz));
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, epoch_milliseconds,
+                             temporal->GetEpochMillisecondsFor(isolate, tz));
 
   // 3. Let format be dateTimeFormat.[[TemporalPlainDateFormat]].
   // 4. Return Value Format Record { [[Format]]: format, [[EpochNanoseconds]]:
@@ -1368,7 +1367,7 @@ MaybeDirectHandle<String> FormatDateTimeWithTemporalSupport(
     Isolate* isolate, const icu::SimpleDateFormat& date_format,
     DirectHandle<Object> x, const char* method_name) {
   DateTimeValueRecord record;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, record,
       HandleDateTimeValue(isolate, date_format, x, method_name));
   return FormatMillisecondsByKindToString(isolate, date_format, record.kind,
@@ -2285,7 +2284,7 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
       // Let _value_ be ? GetNumberOption(options, "fractionalSecondDigits", 1,
       // 3, *undefined*). The *undefined* is represented by value 0 here.
       int fsd;
-      MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
+      ASSIGN_RETURN_ON_EXCEPTION(
           isolate, fsd,
           GetNumberOption(isolate, options,
                           factory->fractionalSecondDigits_string(), 1, 3, 0));
@@ -2305,13 +2304,12 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
     // We use the empty string as a sentinel for "undefined" since it won't
     // match anything in the map anyway.
     std::string_view found_value;
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, found_value,
         GetStringOption<std::string_view>(
             isolate, options, GetPropertyString(*factory, item.property),
             service, item.allowed_values, item.allowed_values,
-            std::string_view("")),
-        {});
+            std::string_view("")));
     if (!found_value.empty()) {
       // Record which fields are not undefined into explicit_format_components.
       if (item.property == DateTimeProperty::kHour) {
@@ -2662,7 +2660,7 @@ MaybeDirectHandle<JSArray> FormatToPartsWithTemporalSupport(
 
   // 1. Let x be ? HandleDateTimeValue(dateTimeFormat, x).
   DateTimeValueRecord x_record;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, x_record, HandleDateTimeValue(isolate, *format, x, method_name));
 
   return FormatMillisecondsByKindToArray(isolate, *format, x_record.kind,
@@ -2983,14 +2981,14 @@ MaybeDirectHandle<T> FormatRangeCommonWithTemporalSupport(
   icu::SimpleDateFormat* icu_simple_date_format =
       date_time_format->icu_simple_date_format()->raw();
   DateTimeValueRecord x_record;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, x_record,
       HandleDateTimeValue(isolate, *icu_simple_date_format, x_obj,
                           method_name));
 
   // 7. Let y be ? HandleDateTimeValue(dateTimeFormat, y).
   DateTimeValueRecord y_record;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, y_record,
       HandleDateTimeValue(isolate, *icu_simple_date_format, y_obj,
                           method_name));

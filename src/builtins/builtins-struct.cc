@@ -45,11 +45,10 @@ BUILTIN(SharedSpaceJSObjectHasInstance) {
   }
 
   bool result;
-  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      AlwaysSharedSpaceJSObject::HasInstance(isolate,
-                                             Cast<JSFunction>(constructor),
-                                             args.atOrUndefined(isolate, 1)));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                     AlwaysSharedSpaceJSObject::HasInstance(
+                                         isolate, Cast<JSFunction>(constructor),
+                                         args.atOrUndefined(isolate, 1)));
   return *isolate->factory()->ToBoolean(result);
 }
 

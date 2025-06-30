@@ -6622,7 +6622,7 @@ MaybeDirectHandle<JSPromise> NewRejectedPromise(
                                        v8::Promise::Resolver::New(api_context),
                                        MaybeDirectHandle<JSPromise>());
 
-  MAYBE_RETURN_ON_EXCEPTION_VALUE(
+  RETURN_ON_EXCEPTION_VALUE(
       isolate, resolver->Reject(api_context, v8::Utils::ToLocal(exception)),
       MaybeDirectHandle<JSPromise>());
 

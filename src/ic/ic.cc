@@ -4090,7 +4090,7 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
     // throw an exception.
     constexpr bool ignore_return_value = true;
     InterceptorResult result;
-    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result,
         callback_args.GetBooleanReturnValue(intercepted, "Setter",
                                             ignore_return_value));

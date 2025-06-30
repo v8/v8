@@ -153,8 +153,8 @@ V8_WARN_UNUSED_RESULT Maybe<uint64_t> GetRelativeIndex(
   int64_t relative_index = init_if_undefined;
   if (!IsUndefined(*index)) {
     double provided_relative_index;
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION(isolate, provided_relative_index,
-                                     Object::IntegerValue(isolate, index));
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, provided_relative_index,
+                               Object::IntegerValue(isolate, index));
     if (std::abs(provided_relative_index) > length) {
       return Just(provided_relative_index < 0 ? 0 : length);
     }
@@ -377,8 +377,8 @@ BUILTIN(ArrayPrototypeFill) {
 
   // 2. Let len be ? ToLength(? Get(O, "length")).
   uint64_t length;
-  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, length, GetLengthProperty(isolate, receiver));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, length,
+                                     GetLengthProperty(isolate, receiver));
 
   // 3. Let relativeStart be ? ToInteger(start).
   // 4. If relativeStart < 0, let k be max((len + relativeStart), 0);
@@ -386,7 +386,7 @@ BUILTIN(ArrayPrototypeFill) {
   DirectHandle<Object> start = args.atOrUndefined(isolate, 2);
 
   uint64_t start_index;
-  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, start_index, GetRelativeIndex(isolate, length, start, 0));
 
   // 5. If end is undefined, let relativeEnd be len;
@@ -396,7 +396,7 @@ BUILTIN(ArrayPrototypeFill) {
   DirectHandle<Object> end = args.atOrUndefined(isolate, 3);
 
   uint64_t end_index;
-  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, end_index, GetRelativeIndex(isolate, length, end, length));
 
   if (start_index >= end_index) return *receiver;
@@ -509,7 +509,7 @@ BUILTIN(ArrayPush) {
 
   ElementsAccessor* accessor = array->GetElementsAccessor();
   uint32_t new_length;
-  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, new_length, accessor->Push(isolate, array, &args, to_add));
   return *isolate->factory()->NewNumberFromUint((new_length));
 }
@@ -608,7 +608,7 @@ BUILTIN(ArrayPop) {
                               Object::TypeOf(isolate, array), array));
   }
   bool set_len_ok;
-  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, set_len_ok, JSArray::SetLength(isolate, array, new_length));
 
   return *result;
@@ -649,7 +649,7 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayShift(
 
     // c. Let fromPresent be ? HasProperty(O, from).
     bool from_present;
-    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, from_present,
         JSReceiver::HasPropertyOrElement(isolate, receiver, from));
 
@@ -707,8 +707,8 @@ BUILTIN(ArrayShift) {
 
   // 2. Let len be ? ToLength(? Get(O, "length")).
   uint64_t length;
-  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, length, GetLengthProperty(isolate, receiver));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, length,
+                                     GetLengthProperty(isolate, receiver));
 
   // 3. If len is zero, then.
   if (length == 0) {
@@ -746,7 +746,7 @@ BUILTIN(ArrayUnshift) {
 
   ElementsAccessor* accessor = array->GetElementsAccessor();
   uint32_t new_length;
-  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, new_length, accessor->Unshift(isolate, array, &args, to_add));
   return Smi::FromInt(new_length);
 }

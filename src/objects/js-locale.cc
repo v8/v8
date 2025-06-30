@@ -80,13 +80,13 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
     std::string_view value_str;
     std::string owned;
     if (option_to_bcp47.is_bool_value) {
-      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, found,
           GetBoolOption(isolate, options, name, "locale", &value_bool), {});
     } else if (option_to_bcp47.possible_values.empty()) {
       // We just wish to fetch the string
       DirectHandle<String> output;
-      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, found,
           GetStringOption(isolate, options, name, "locale", &output), {});
       if (found) {
@@ -95,7 +95,7 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
       }
     } else {
       // The string is expected to be in a particular set.
-      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, value_str,
           GetStringOption<std::string_view>(
               isolate, options, name, "locale", option_to_bcp47.possible_values,

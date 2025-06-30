@@ -1276,8 +1276,8 @@ BUILTIN(SegmentsPrototypeContaining) {
 
   // 6. Let n be ? ToInteger(index).
   double n;
-  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, n, Object::IntegerValue(isolate, index));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, n,
+                                     Object::IntegerValue(isolate, index));
 
   RETURN_RESULT_OR_FAILURE(isolate,
                            JSSegments::Containing(isolate, segments, n));

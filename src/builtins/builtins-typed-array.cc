@@ -56,19 +56,19 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
 
   if (V8_LIKELY(args.length() > 1)) {
     double num;
-    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, num, Object::IntegerValue(isolate, args.at<Object>(1)));
     to = CapRelativeIndex(num, 0, len);
 
     if (args.length() > 2) {
-      MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, num, Object::IntegerValue(isolate, args.at<Object>(2)));
       from = CapRelativeIndex(num, 0, len);
 
       DirectHandle<Object> end = args.atOrUndefined(isolate, 3);
       if (!IsUndefined(*end, isolate)) {
-        MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-            isolate, num, Object::IntegerValue(isolate, end));
+        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, num,
+                                           Object::IntegerValue(isolate, end));
         final = CapRelativeIndex(num, 0, len);
       }
     }
@@ -167,8 +167,8 @@ BUILTIN(TypedArrayPrototypeFill) {
     // 6. Let relativeStart be ? ToIntegerOrInfinity(start).
     DirectHandle<Object> num = args.atOrUndefined(isolate, 2);
     double double_num;
-    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, double_num, Object::IntegerValue(isolate, num));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, double_num,
+                                       Object::IntegerValue(isolate, num));
 
     // 7. If relativeStart = -∞, let startIndex be 0.
     // 8. Else if relativeStart < 0, let startIndex be max(len + relativeStart,
@@ -183,8 +183,8 @@ BUILTIN(TypedArrayPrototypeFill) {
       // 11. If relativeEnd = -∞, let endIndex be 0.
       // 12. Else if relativeEnd < 0, let endIndex be max(len + relativeEnd, 0).
       // 13. Else, let endIndex be min(relativeEnd, len).
-      MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, double_num, Object::IntegerValue(isolate, num));
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, double_num,
+                                         Object::IntegerValue(isolate, num));
       end = CapRelativeIndex(double_num, 0, len);
     }
   }
@@ -247,7 +247,7 @@ BUILTIN(TypedArrayPrototypeIncludes) {
   int64_t index = 0;
   if (args.length() > 2) {
     double num;
-    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, num, Object::IntegerValue(isolate, args.at<Object>(2)));
     index = CapRelativeIndex(num, 0, len);
   }
@@ -275,7 +275,7 @@ BUILTIN(TypedArrayPrototypeIndexOf) {
   int64_t index = 0;
   if (args.length() > 2) {
     double num;
-    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, num, Object::IntegerValue(isolate, args.at<Object>(2)));
     index = CapRelativeIndex(num, 0, len);
   }
@@ -309,7 +309,7 @@ BUILTIN(TypedArrayPrototypeLastIndexOf) {
   int64_t index = len - 1;
   if (args.length() > 2) {
     double num;
-    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, num, Object::IntegerValue(isolate, args.at<Object>(2)));
     // Set a negative value (-1) for returning -1 if num is negative and
     // len + num is still negative. Upper bound is len - 1.
@@ -428,7 +428,7 @@ HandleOptionsBag(Isolate* isolate, DirectHandle<Object> options) {
     // 3. If alphabet is neither "base64" nor "base64url", throw a TypeError
     //    exception.
     DirectHandle<String> alphabet_string = Cast<String>(opt_alphabet);
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, alphabet,
         MapOptionToEnum(isolate, alphabet_string, SimdutfBase64OptionsVector()),
         (Nothing<std::pair<simdutf::base64_options,
@@ -458,7 +458,7 @@ HandleOptionsBag(Isolate* isolate, DirectHandle<Object> options) {
     DirectHandle<String> last_chunk_handling_string =
         Cast<String>(opt_last_chunk_handling);
 
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, last_chunk_handling,
         MapOptionToEnum(isolate, last_chunk_handling_string,
                         SimdutfLastChunkHandlingOptionsVector()),
@@ -542,14 +542,14 @@ BUILTIN(Uint8ArrayFromBase64) {
   // 2. Let opts be ? GetOptionsObject(options).
   DirectHandle<Object> input_options = args.atOrUndefined(isolate, 2);
   DirectHandle<Object> options;
-  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, options, GetOptionsObject(isolate, input_options, method_name));
 
   // Steps 3-8 handled in HandleOptionsBag
   std::pair<simdutf::base64_options, simdutf::last_chunk_handling_options>
       options_pair;
-  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, options_pair,
-                                           HandleOptionsBag(isolate, options));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, options_pair,
+                                     HandleOptionsBag(isolate, options));
 
   // 9. Let result be ? FromBase64(string, alphabet, lastChunkHandling).
   size_t input_length;
@@ -638,14 +638,14 @@ BUILTIN(Uint8ArrayPrototypeSetFromBase64) {
   // 4. Let opts be ? GetOptionsObject(options).
   DirectHandle<Object> input_options = args.atOrUndefined(isolate, 2);
   DirectHandle<Object> options;
-  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, options, GetOptionsObject(isolate, input_options, method_name));
 
   // Steps 5-10 handled in HandleOptionsBag
   std::pair<simdutf::base64_options, simdutf::last_chunk_handling_options>
       options_pair;
-  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, options_pair,
-                                           HandleOptionsBag(isolate, options));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, options_pair,
+                                     HandleOptionsBag(isolate, options));
 
   // 11. Let taRecord be MakeTypedArrayWithBufferWitnessRecord(into, seq-cst).
   // 12. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError
@@ -744,7 +744,7 @@ BUILTIN(Uint8ArrayPrototypeToBase64) {
   // 3. Let opts be ? GetOptionsObject(options).
   DirectHandle<Object> input_options = args.atOrUndefined(isolate, 1);
   DirectHandle<Object> options;
-  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, options, GetOptionsObject(isolate, input_options, method_name));
 
   // 4. Let alphabet be ? Get(opts, "alphabet").
@@ -766,7 +766,7 @@ BUILTIN(Uint8ArrayPrototypeToBase64) {
     // exception.
     DirectHandle<String> alphabet_string = Cast<String>(opt_alphabet);
 
-    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, alphabet,
         MapOptionToEnum(isolate, alphabet_string,
                         SimdutfBase64OptionsVector()));

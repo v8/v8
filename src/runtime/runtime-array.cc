@@ -170,7 +170,7 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
 
   if (index >= capacity) {
     bool has_grown;
-    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, has_grown,
         object->GetElementsAccessor()->GrowCapacity(isolate, object, index));
     if (!has_grown) {
@@ -250,7 +250,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
   int64_t index = 0;
   if (!IsUndefined(*from_index, isolate)) {
     double start_from;
-    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, start_from, Object::IntegerValue(isolate, from_index));
 
     if (start_from >= len) return ReadOnlyRoots(isolate).false_value();
@@ -342,7 +342,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
   int64_t start_from;
   {
     double fp;
-    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, fp, Object::IntegerValue(isolate, from_index));
     if (fp > len) return Smi::FromInt(-1);
     if (V8_LIKELY(fp >=

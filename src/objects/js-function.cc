@@ -485,8 +485,8 @@ Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
     DirectHandle<JSWrappedFunction> target(
         Cast<JSWrappedFunction>(function->bound_target_function()), isolate);
     int target_length = 0;
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, target_length, JSWrappedFunction::GetLength(isolate, target));
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, target_length,
+                               JSWrappedFunction::GetLength(isolate, target));
     int length = std::max(0, target_length - nof_bound_arguments);
     return Just(length);
   }

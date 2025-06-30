@@ -6999,11 +6999,10 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
           isolate_, NewTypeError(error_->msg_id, error_->name), false);
     }
     for (const auto& obj : objects_to_freeze_) {
-      MAYBE_RETURN_ON_EXCEPTION_VALUE(
-          isolate_,
-          i::JSReceiver::SetIntegrityLevel(isolate_, obj, i::FROZEN,
-                                           i::kThrowOnError),
-          false);
+      RETURN_ON_EXCEPTION_VALUE(isolate_,
+                                i::JSReceiver::SetIntegrityLevel(
+                                    isolate_, obj, i::FROZEN, i::kThrowOnError),
+                                false);
     }
     return true;
   }
