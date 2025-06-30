@@ -645,6 +645,8 @@
   'wasm/atomic-wait-multi-memory': [SKIP],
   'wasm/generate-random-module*': [SKIP],
   'wasm/js-api': [SKIP],
+  'wasm/memory-copy-inline': [SKIP],
+  'wasm/memory-fill-inline': [SKIP],
   'wasm/memory-huge-constant-index': [SKIP],
   'wasm/multi-memory*': [SKIP],
 
@@ -652,6 +654,9 @@
   'regress/wasm/regress-v8-14471': [SKIP],
   'wasm/stack-switching*': [SKIP],
   'wasm/growable-stacks': [SKIP],
+
+  # --experimental-wasm-growable-stacks
+  'regress/wasm/regress-421055121': [SKIP],
 
   # --experimental-wasm-stringref
   'regress/wasm/regress-324475066': [SKIP],
@@ -800,6 +805,7 @@
   'wasm/async-compile': [SKIP],
   'wasm/log-code-after-post-message': [SKIP],
   'wasm/multiple-code-spaces': [SKIP],
+  'wasm/wasm-code-coverage': [SKIP],
   'wasm/wrapper-compilation': [SKIP],
 
   # Tests that expect different profiling samples.
@@ -851,6 +857,9 @@
 
   # --wasm_tier_up
   'wasm/graceful_shutdown_during_tierup': [SKIP],
+
+  # --turboshaft-wasm-in-js-inlining
+  'regress/wasm/regress-422639603': [SKIP],
 
   # asm.js tests
   'asm/*': [SKIP],
