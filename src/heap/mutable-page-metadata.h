@@ -373,7 +373,7 @@ class MutablePageMetadata : public MemoryChunkMetadata {
 
   // For ReleaseAllAllocatedMemory().
   friend class MemoryAllocator;
-  friend class PagePool;
+  friend class MemoryPool;
   // For set_typed_slot_set().
   template <RememberedSetType>
   friend class RememberedSet;

@@ -16,8 +16,8 @@
 #include "src/heap/heap.h"
 #include "src/heap/large-page-metadata.h"
 #include "src/heap/memory-chunk-metadata.h"
+#include "src/heap/memory-pool.h"
 #include "src/heap/mutable-page-metadata.h"
-#include "src/heap/page-pool.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/zapping.h"
 #include "src/logging/log.h"
@@ -37,7 +37,7 @@ size_t MemoryAllocator::commit_page_size_bits_ = 0;
 MemoryAllocator::MemoryAllocator(Isolate* isolate,
                                  v8::PageAllocator* code_page_allocator,
                                  v8::PageAllocator* trusted_page_allocator,
-                                 PagePool* page_pool, size_t capacity)
+                                 MemoryPool* page_pool, size_t capacity)
     : isolate_(isolate),
       data_page_allocator_(isolate->page_allocator()),
       code_page_allocator_(code_page_allocator),

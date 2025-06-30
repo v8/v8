@@ -14,7 +14,7 @@
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/execution/isolate.h"
 #include "src/heap/code-range.h"
-#include "src/heap/page-pool.h"
+#include "src/heap/memory-pool.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/trusted-range.h"
@@ -108,7 +108,7 @@ IsolateGroup::~IsolateGroup() {
   DCHECK(isolates_.empty());
   DCHECK_NULL(main_isolate_);
 
-  page_pool_->TearDown();
+  memory_pool_->TearDown();
 
 #ifdef V8_ENABLE_LEAPTIERING
   js_dispatch_table_.TearDown();
@@ -159,7 +159,7 @@ void IsolateGroup::Initialize(bool process_wide, Sandbox* sandbox) {
   code_pointer_table()->Initialize();
   optimizing_compile_task_executor_ =
       std::make_unique<OptimizingCompileTaskExecutor>();
-  page_pool_ = std::make_unique<PagePool>();
+  memory_pool_ = std::make_unique<MemoryPool>();
 
 #ifdef V8_ENABLE_LEAPTIERING
   js_dispatch_table()->Initialize();
@@ -181,7 +181,7 @@ void IsolateGroup::Initialize(bool process_wide) {
   trusted_pointer_compression_cage_ = &reservation_;
   optimizing_compile_task_executor_ =
       std::make_unique<OptimizingCompileTaskExecutor>();
-  page_pool_ = std::make_unique<PagePool>();
+  memory_pool_ = std::make_unique<MemoryPool>();
 #ifdef V8_ENABLE_LEAPTIERING
   js_dispatch_table()->Initialize();
 #endif  // V8_ENABLE_LEAPTIERING
@@ -192,7 +192,7 @@ void IsolateGroup::Initialize(bool process_wide) {
   page_allocator_ = GetPlatformPageAllocator();
   optimizing_compile_task_executor_ =
       std::make_unique<OptimizingCompileTaskExecutor>();
-  page_pool_ = std::make_unique<PagePool>();
+  memory_pool_ = std::make_unique<MemoryPool>();
 #ifdef V8_ENABLE_LEAPTIERING
   js_dispatch_table()->Initialize();
 #endif  // V8_ENABLE_LEAPTIERING

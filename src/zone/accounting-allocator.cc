@@ -11,7 +11,7 @@
 #include "src/base/macros.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
-#include "src/heap/page-pool.h"
+#include "src/heap/memory-pool.h"
 #include "src/utils/allocation.h"
 #include "src/zone/zone-segment.h"
 
@@ -29,7 +29,8 @@ class ManagedZones final {
     // zone page size. Larger sizes may be required and just bypass the pool.
     if (isolate && bytes == kMinZonePageSize) {
       auto maybe_reservation =
-          IsolateGroup::current()->page_pool()->RemoveZoneReservation(isolate);
+          IsolateGroup::current()->memory_pool()->RemoveZoneReservation(
+              isolate);
       if (maybe_reservation) {
         return maybe_reservation;
       }
@@ -72,7 +73,7 @@ class ManagedZones final {
     VirtualMemory reservation(GetPlatformPageAllocator(),
                               reinterpret_cast<Address>(memory), bytes);
     if (reservation.size() == ManagedZones::kMinZonePageSize) {
-      IsolateGroup::current()->page_pool()->AddZoneReservation(
+      IsolateGroup::current()->memory_pool()->AddZoneReservation(
           isolate, std::move(reservation));
     }
     // Reservation will be automatically freed here otherwise.

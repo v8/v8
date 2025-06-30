@@ -46,7 +46,7 @@ class LeakyObject;
 
 namespace internal {
 
-class PagePool;
+class MemoryPool;
 
 #ifdef V8_ENABLE_SANDBOX
 class MemoryChunkMetadata;
@@ -278,9 +278,9 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   void AddIsolate(Isolate* isolate);
   void RemoveIsolate(Isolate* isolate);
 
-  PagePool* page_pool() const {
-    DCHECK(page_pool_);
-    return page_pool_.get();
+  MemoryPool* memory_pool() const {
+    DCHECK(memory_pool_);
+    return memory_pool_.get();
   }
 
   template <typename Callback>
@@ -314,8 +314,8 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
  private:
   friend class base::LeakyObject<IsolateGroup>;
+  friend class MemoryPool;
   friend class PoolTest;
-  friend class PagePool;
 
   // Unless you manually create a new isolate group, all isolates in a process
   // are in the same isolate group and share process-wide resources from
@@ -354,7 +354,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   thread_local static IsolateGroup* current_;
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
-  std::unique_ptr<PagePool> page_pool_;
+  std::unique_ptr<MemoryPool> memory_pool_;
 
   base::OnceType init_code_range_ = V8_ONCE_INIT;
   std::unique_ptr<CodeRange> code_range_;

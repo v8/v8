@@ -41,8 +41,8 @@
 #include "src/heap/large-spaces.h"
 #include "src/heap/main-allocator.h"
 #include "src/heap/memory-allocator.h"
+#include "src/heap/memory-pool.h"
 #include "src/heap/mutable-page-metadata.h"
-#include "src/heap/page-pool.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/spaces.h"
 #include "src/objects/free-space.h"
@@ -70,7 +70,7 @@ class V8_NODISCARD TestMemoryAllocatorScope {
         isolate,
         page_allocator != nullptr ? page_allocator : isolate->page_allocator(),
         page_allocator != nullptr ? page_allocator : isolate->page_allocator(),
-        isolate->isolate_group()->page_pool(), max_capacity));
+        isolate->isolate_group()->memory_pool(), max_capacity));
     if (page_allocator != nullptr) {
       isolate->heap()->memory_allocator_->data_page_allocator_ = page_allocator;
     }

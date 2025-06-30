@@ -30,7 +30,7 @@ class TestMemoryAllocatorScope;
 
 class Heap;
 class Isolate;
-class PagePool;
+class MemoryPool;
 class ReadOnlyPageMetadata;
 
 // `MemoryAllocator` provides infrastructure to allocate and release pages of
@@ -82,7 +82,7 @@ class MemoryAllocator final {
   V8_EXPORT_PRIVATE MemoryAllocator(Isolate* isolate,
                                     v8::PageAllocator* code_page_allocator,
                                     v8::PageAllocator* trusted_page_allocator,
-                                    PagePool* page_pool, size_t max_capacity);
+                                    MemoryPool* page_pool, size_t max_capacity);
 
   MemoryAllocator(const MemoryAllocator&) = delete;
   MemoryAllocator& operator=(const MemoryAllocator&) = delete;
@@ -241,7 +241,7 @@ class MemoryAllocator final {
   // Computes the size of a MemoryChunk from the size of the object_area.
   static size_t ComputeChunkSize(size_t area_size, AllocationSpace space);
 
-  PagePool* pool() { return pool_; }
+  MemoryPool* pool() { return pool_; }
 
   // Internal allocation method for all pages/memory chunks. Returns data about
   // the uninitialized memory region.
@@ -364,7 +364,7 @@ class MemoryAllocator final {
   std::atomic<Address> highest_executable_ever_allocated_{kNullAddress};
 
   std::optional<VirtualMemory> reserved_chunk_at_virtual_memory_limit_;
-  PagePool* pool_;
+  MemoryPool* pool_;
 
 #ifdef DEBUG
   // Data structure to remember allocated executable memory chunks.

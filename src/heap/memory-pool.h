@@ -2,31 +2,31 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_PAGE_POOL_H_
-#define V8_HEAP_PAGE_POOL_H_
+#ifndef V8_HEAP_MEMORY_POOL_H_
+#define V8_HEAP_MEMORY_POOL_H_
 
 #include "absl/container/flat_hash_map.h"
 #include "src/base/platform/mutex.h"
 #include "src/utils/allocation.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 class Isolate;
 class LargePageMetadata;
 class MutablePageMetadata;
 
-// Pool keeps pages allocated and accessible until explicitly flushed.
-class PagePool final {
+// Pool that keeps memory cached until explicitly flushed. Currently used for
+// pages and zone reservations.
+class MemoryPool final {
   // Logical time used to indicate when memory is supposed to be released.
   using InternalTime = size_t;
 
  public:
-  PagePool() = default;
-  ~PagePool();
+  MemoryPool() = default;
+  ~MemoryPool();
 
-  PagePool(const PagePool&) = delete;
-  PagePool& operator=(const PagePool&) = delete;
+  MemoryPool(const MemoryPool&) = delete;
+  MemoryPool& operator=(const MemoryPool&) = delete;
 
   // Adds page to the pool.
   void Add(Isolate* isolate, MutablePageMetadata* chunk);
@@ -143,7 +143,6 @@ class PagePool final {
   std::atomic<InternalTime> next_time_{1};
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
-#endif  // V8_HEAP_PAGE_POOL_H_
+#endif  // V8_HEAP_MEMORY_POOL_H_

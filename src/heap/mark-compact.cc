@@ -6118,13 +6118,17 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
   const bool delay_freeing = ShouldDelayFreeingEmptyPages(space);
   const bool add_to_pool =
       v8_flags.large_page_pool && space->identity() == NEW_LO_SPACE;
-  DCHECK_IMPLIES(add_to_pool, !delay_freeing);
-  // We don't need to delay freeing for pages that we can pool. The allocator
-  // doesn't support `kPool` for large pages, so we choose `kDelayThenPool`.
-  const auto free_mode = add_to_pool ? MemoryAllocator::FreeMode::kDelayThenPool
-                         : delay_freeing
-                             ? MemoryAllocator::FreeMode::kDelayThenRelease
-                             : MemoryAllocator::FreeMode::kImmediately;
+  MemoryAllocator::FreeMode free_mode;
+  if (add_to_pool) {
+    // We don't need to delay freeing for pages that we can pool. The allocator
+    // doesn't support `kPool` for large pages, so we choose `kDelayThenPool`.
+    DCHECK_IMPLIES(add_to_pool, !delay_freeing);
+    free_mode = MemoryAllocator::FreeMode::kDelayThenPool;
+  } else if (delay_freeing) {
+    free_mode = MemoryAllocator::FreeMode::kDelayThenRelease;
+  } else {
+    free_mode = MemoryAllocator::FreeMode::kImmediately;
+  }
   for (auto it = space->begin(); it != space->end();) {
     LargePageMetadata* current = *(it++);
     DCHECK(!current->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
