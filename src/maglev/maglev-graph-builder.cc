@@ -10399,6 +10399,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGetProto(ValueNode* object) {
 MaybeReduceResult MaglevGraphBuilder::TryReduceObjectPrototypeGetProto(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() != 0) return {};
+  if (!args.receiver()) return {};
   return TryReduceGetProto(args.receiver());
 }
 
