@@ -200,6 +200,7 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
     case FeedbackSlotKind::kStringAddAndInternalize:
       return "StringAddAndInternalize";
   }
+  UNREACHABLE();
 }
 
 FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot) const {
