@@ -801,7 +801,7 @@ class MaglevCodeGeneratingNodeProcessor {
     if (v8_flags.code_comments) {
       std::stringstream ss;
       ss << "--   " << graph_labeller()->NodeId(node) << ": "
-         << PrintNode(graph_labeller(), node);
+         << PrintNode(node);
       __ RecordComment(ss.str());
     }
 

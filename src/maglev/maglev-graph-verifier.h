@@ -37,7 +37,7 @@ class MaglevGraphVerifier {
   void PostPhiProcessing() {}
 
   ProcessResult Process(Dead* node, const ProcessingState& state) {
-    node->VerifyInputs(graph_labeller_);
+    node->VerifyInputs();
     return ProcessResult::kContinue;
   }
 
@@ -48,7 +48,7 @@ class MaglevGraphVerifier {
       CHECK_GE(op, kFirstOpcode);
       CHECK_LE(op, kLastOpcode);
     }
-    node->VerifyInputs(graph_labeller_);
+    node->VerifyInputs();
     return ProcessResult::kContinue;
   }
 

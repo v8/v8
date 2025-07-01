@@ -82,20 +82,26 @@ class MaglevGraphLabeller {
   int next_node_label_ = 1;
 };
 
+class MaglevGraphLabellerScope {
+ public:
+  explicit MaglevGraphLabellerScope(MaglevGraphLabeller* graph_labeller);
+  ~MaglevGraphLabellerScope();
+};
+
+extern thread_local MaglevGraphLabeller* thread_graph_labeller;
+
+MaglevGraphLabeller* GetCurrentGraphLabeller();
+
 #ifdef V8_ENABLE_MAGLEV_GRAPH_PRINTER
 
 class PrintNode {
  public:
-  PrintNode(MaglevGraphLabeller* graph_labeller, const NodeBase* node,
-            bool skip_targets = false)
-      : graph_labeller_(graph_labeller),
-        node_(node),
-        skip_targets_(skip_targets) {}
+  explicit PrintNode(const NodeBase* node, bool skip_targets = false)
+      : node_(node), skip_targets_(skip_targets) {}
 
   void Print(std::ostream& os) const;
 
  private:
-  MaglevGraphLabeller* graph_labeller_;
   const NodeBase* node_;
   // This is used when tracing graph building, since targets might not exist
   // yet.
@@ -104,13 +110,11 @@ class PrintNode {
 
 class PrintNodeLabel {
  public:
-  PrintNodeLabel(MaglevGraphLabeller* graph_labeller, const NodeBase* node)
-      : graph_labeller_(graph_labeller), node_(node) {}
+  explicit PrintNodeLabel(const NodeBase* node) : node_(node) {}
 
   void Print(std::ostream& os) const;
 
  private:
-  MaglevGraphLabeller* graph_labeller_;
   const NodeBase* node_;
 };
 
@@ -118,14 +122,13 @@ class PrintNodeLabel {
 
 class PrintNode {
  public:
-  PrintNode(MaglevGraphLabeller* graph_labeller, const NodeBase* node,
-            bool skip_targets = false) {}
+  explicit PrintNode(const NodeBase* node, bool skip_targets = false) {}
   void Print(std::ostream& os) const {}
 };
 
 class PrintNodeLabel {
  public:
-  PrintNodeLabel(MaglevGraphLabeller* graph_labeller, const NodeBase* node) {}
+  explicit PrintNodeLabel(const NodeBase* node) {}
   void Print(std::ostream& os) const {}
 };
 

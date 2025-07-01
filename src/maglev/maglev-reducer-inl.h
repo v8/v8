@@ -228,8 +228,8 @@ void MaglevReducer<BaseT>::AddInitializedNodeToGraph(Node* node) {
   node->set_owner(current_block());
   if (V8_UNLIKELY(has_graph_labeller())) RegisterNode(node);
   if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building)) {
-    std::cout << "  " << node << "  " << PrintNodeLabel(graph_labeller(), node)
-              << ": " << PrintNode(graph_labeller(), node) << std::endl;
+    std::cout << "  " << node << "  " << PrintNodeLabel(node) << ": "
+              << PrintNode(node) << std::endl;
   }
 #ifdef DEBUG
   new_nodes_current_period_.insert(node);

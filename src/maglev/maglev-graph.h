@@ -297,9 +297,8 @@ class Graph final : public ZoneObject {
     static_assert(!NodeT::kProperties.can_write());
     if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
     if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  " << node << "  "
-                << PrintNodeLabel(graph_labeller(), node) << ": "
-                << PrintNode(graph_labeller(), node) << std::endl;
+      std::cout << "  " << node << "  " << PrintNodeLabel(node) << ": "
+                << PrintNode(node) << std::endl;
     }
     return node;
   }

@@ -10,6 +10,7 @@
 #include <type_traits>
 #include <unordered_map>
 
+#include "maglev-graph-labeller.h"
 #include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/base/threaded-list.h"
@@ -62,6 +63,12 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
   compiler::CurrentHeapBrokerScope current_broker(compilation_info->broker());
   Graph* graph = Graph::New(compilation_info);
 
+  // TODO(b/428630874): Assign MaglevGraphLabeller lazily and only register
+  // nodes when needed
+  compilation_info->set_graph_labeller(new MaglevGraphLabeller());
+  MaglevGraphLabellerScope current_thread_graph_labeller(
+      compilation_info->graph_labeller());
+
   bool is_tracing_enabled = false;
   {
     UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());
@@ -78,7 +85,6 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                                ->shared_function_info()
                                .object()
                                ->PassesFilter(v8_flags.maglev_print_filter);
-      compilation_info->set_graph_labeller(new MaglevGraphLabeller());
     }
 
     if (is_tracing_enabled &&
@@ -305,6 +311,9 @@ std::pair<MaybeHandle<Code>, BailoutReason> MaglevCompiler::GenerateCode(
   MaglevCodeGenerator* const code_generator =
       compilation_info->code_generator();
   DCHECK_NOT_NULL(code_generator);
+
+  MaglevGraphLabellerScope current_thread_graph_labeller(
+      compilation_info->graph_labeller());
 
   Handle<Code> code;
   {

@@ -6351,6 +6351,7 @@ void PrintMaglevGraph(PipelineData& data,
   CodeTracer* code_tracer = data.GetCodeTracer();
   CodeTracer::StreamScope tracing_scope(code_tracer);
   tracing_scope.stream() << "\n----- " << msg << " -----" << std::endl;
+
   maglev::PrintGraph(tracing_scope.stream(), maglev_graph);
 }
 
@@ -6447,7 +6448,11 @@ std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(PipelineData* data,
   maglev::Graph* maglev_graph = maglev::Graph::New(compilation_info.get());
 
   // We always create a MaglevGraphLabeller in order to record source positions.
+  // TODO(victorgomes): Investigate support for Turbolev without
+  // MaglevGraphLabeller
   compilation_info->set_graph_labeller(new maglev::MaglevGraphLabeller());
+  maglev::MaglevGraphLabellerScope current_thread_graph_labeller(
+      compilation_info->graph_labeller());
 
   maglev::MaglevGraphBuilder maglev_graph_builder(
       local_isolate, compilation_info->toplevel_compilation_unit(),

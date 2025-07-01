@@ -363,8 +363,7 @@ void StraightForwardRegisterAllocator::PrintLiveRegs() const {
 
 void StraightForwardRegisterAllocator::AllocateRegisters() {
   if (v8_flags.trace_maglev_regalloc) {
-    printing_visitor_.reset(
-        new MaglevPrintingVisitor(graph_labeller(), std::cout));
+    printing_visitor_.reset(new MaglevPrintingVisitor(std::cout));
     printing_visitor_->PreProcessGraph(graph_);
   }
 
@@ -595,8 +594,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
         // We remove unused pure nodes.
         if (v8_flags.trace_maglev_regalloc) {
           printing_visitor_->os()
-              << "Removing unused node "
-              << PrintNodeLabel(graph_labeller(), node) << "\n";
+              << "Removing unused node " << PrintNodeLabel(node) << "\n";
         }
 
         if (!node->Is<Identity>()) {
@@ -633,8 +631,7 @@ void StraightForwardRegisterAllocator::FreeRegistersUsedBy(ValueNode* node) {
 void StraightForwardRegisterAllocator::UpdateUse(
     ValueNode* node, InputLocation* input_location) {
   if (v8_flags.trace_maglev_regalloc) {
-    printing_visitor_->os()
-        << "Using " << PrintNodeLabel(graph_labeller(), node) << "...\n";
+    printing_visitor_->os() << "Using " << PrintNodeLabel(node) << "...\n";
   }
 
   DCHECK(!node->has_no_more_uses());
@@ -645,8 +642,7 @@ void StraightForwardRegisterAllocator::UpdateUse(
   if (!node->has_no_more_uses()) return;
 
   if (v8_flags.trace_maglev_regalloc) {
-    printing_visitor_->os()
-        << "  freeing " << PrintNodeLabel(graph_labeller(), node) << "\n";
+    printing_visitor_->os() << "  freeing " << PrintNodeLabel(node) << "\n";
   }
 
   // If a value is dead, make sure it's cleared.
@@ -725,8 +721,7 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
   current_node_ = node;
   if (v8_flags.trace_maglev_regalloc) {
     printing_visitor_->os()
-        << "Allocating " << PrintNodeLabel(graph_labeller(), node)
-        << " inputs...\n";
+        << "Allocating " << PrintNodeLabel(node) << " inputs...\n";
   }
   AssignInputs(node);
   VerifyInputs(node);
@@ -912,8 +907,8 @@ void StraightForwardRegisterAllocator::DropRegisterValue(
   ValueNode* node = registers.GetValue(reg);
 
   if (v8_flags.trace_maglev_regalloc) {
-    printing_visitor_->os() << "  dropping " << reg << " value "
-                            << PrintNodeLabel(graph_labeller(), node) << "\n";
+    printing_visitor_->os()
+        << "  dropping " << reg << " value " << PrintNodeLabel(node) << "\n";
   }
 
   MachineRepresentation mach_repr = node->GetMachineRepresentation();
@@ -1197,17 +1192,16 @@ void StraightForwardRegisterAllocator::AddMoveBeforeCurrentNode(
   if (source.IsConstant()) {
     DCHECK(IsConstantNode(node->opcode()));
     if (v8_flags.trace_maglev_regalloc) {
-      printing_visitor_->os()
-          << "  constant gap move: " << target << " ← "
-          << PrintNodeLabel(graph_labeller(), node) << std::endl;
+      printing_visitor_->os() << "  constant gap move: " << target << " ← "
+                              << PrintNodeLabel(node) << std::endl;
     }
     gap_move =
         Node::New<ConstantGapMove>(compilation_info_->zone(), 0, node, target);
   } else {
     if (v8_flags.trace_maglev_regalloc) {
-      printing_visitor_->os() << "  gap move: " << target << " ← "
-                              << PrintNodeLabel(graph_labeller(), node) << ":"
-                              << source << std::endl;
+      printing_visitor_->os()
+          << "  gap move: " << target << " ← " << PrintNodeLabel(node) << ":"
+          << source << std::endl;
     }
     gap_move =
         Node::New<GapMove>(compilation_info_->zone(), 0,
@@ -1233,9 +1227,8 @@ void StraightForwardRegisterAllocator::Spill(ValueNode* node) {
   if (node->is_loadable()) return;
   AllocateSpillSlot(node);
   if (v8_flags.trace_maglev_regalloc) {
-    printing_visitor_->os()
-        << "  spill: " << node->spill_slot() << " ← "
-        << PrintNodeLabel(graph_labeller(), node) << std::endl;
+    printing_visitor_->os() << "  spill: " << node->spill_slot() << " ← "
+                            << PrintNodeLabel(node) << std::endl;
   }
 }
 
@@ -1249,18 +1242,16 @@ void StraightForwardRegisterAllocator::AssignFixedInput(Input& input) {
     case compiler::UnallocatedOperand::MUST_HAVE_REGISTER:
       // Allocated in AssignArbitraryRegisterInput.
       if (v8_flags.trace_maglev_regalloc) {
-        printing_visitor_->os()
-            << "- " << PrintNodeLabel(graph_labeller(), input.node())
-            << " has arbitrary register\n";
+        printing_visitor_->os() << "- " << PrintNodeLabel(input.node())
+                                << " has arbitrary register\n";
       }
       return;
 
     case compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT:
       // Allocated in AssignAnyInput.
       if (v8_flags.trace_maglev_regalloc) {
-        printing_visitor_->os()
-            << "- " << PrintNodeLabel(graph_labeller(), input.node())
-            << " has arbitrary location\n";
+        printing_visitor_->os() << "- " << PrintNodeLabel(input.node())
+                                << " has arbitrary location\n";
       }
       return;
 
@@ -1284,9 +1275,8 @@ void StraightForwardRegisterAllocator::AssignFixedInput(Input& input) {
       UNREACHABLE();
   }
   if (v8_flags.trace_maglev_regalloc) {
-    printing_visitor_->os()
-        << "- " << PrintNodeLabel(graph_labeller(), input.node())
-        << " in forced " << input.operand() << "\n";
+    printing_visitor_->os() << "- " << PrintNodeLabel(input.node())
+                            << " in forced " << input.operand() << "\n";
   }
 
   compiler::AllocatedOperand allocated =
@@ -1396,10 +1386,9 @@ void StraightForwardRegisterAllocator::AssignArbitraryRegisterInput(
     // Reuse an existing register if possible.
     if (existing_register_location.IsAnyLocationOperand()) {
       if (v8_flags.trace_maglev_regalloc) {
-        printing_visitor_->os()
-            << "- " << PrintNodeLabel(graph_labeller(), input.node()) << " in "
-            << (is_clobbered ? "clobbered " : "") << existing_register_location
-            << "\n";
+        printing_visitor_->os() << "- " << PrintNodeLabel(input.node())
+                                << " in " << (is_clobbered ? "clobbered " : "")
+                                << existing_register_location << "\n";
       }
       return compiler::AllocatedOperand::cast(existing_register_location);
     }
@@ -1412,7 +1401,7 @@ void StraightForwardRegisterAllocator::AssignArbitraryRegisterInput(
 
     if (v8_flags.trace_maglev_regalloc) {
       printing_visitor_->os()
-          << "- " << PrintNodeLabel(graph_labeller(), input.node()) << " in "
+          << "- " << PrintNodeLabel(input.node()) << " in "
           << (is_clobbered ? "clobbered " : "") << allocation << " ← "
           << node->allocation() << "\n";
     }
@@ -1455,9 +1444,8 @@ void StraightForwardRegisterAllocator::AssignAnyInput(Input& input) {
     }
   }
   if (v8_flags.trace_maglev_regalloc) {
-    printing_visitor_->os()
-        << "- " << PrintNodeLabel(graph_labeller(), input.node())
-        << " in original " << location << "\n";
+    printing_visitor_->os() << "- " << PrintNodeLabel(input.node())
+                            << " in original " << location << "\n";
   }
   UpdateUse(&input);
 }
@@ -1518,7 +1506,7 @@ void StraightForwardRegisterAllocator::VerifyRegisterState() {
   auto NodeNameForFatal = [&](ValueNode* node) {
     std::stringstream ss;
     if (has_graph_labeller()) {
-      ss << PrintNodeLabel(graph_labeller(), node);
+      ss << PrintNodeLabel(node);
     } else {
       ss << "<" << node << ">";
     }
@@ -1597,8 +1585,8 @@ void StraightForwardRegisterAllocator::SpillAndClearRegisters(
     RegisterT reg = registers.used().first();
     ValueNode* node = registers.GetValue(reg);
     if (v8_flags.trace_maglev_regalloc) {
-      printing_visitor_->os() << "  clearing registers with "
-                              << PrintNodeLabel(graph_labeller(), node) << "\n";
+      printing_visitor_->os()
+          << "  clearing registers with " << PrintNodeLabel(node) << "\n";
     }
     Spill(node);
     registers.FreeRegistersUsedBy(node);
@@ -1834,8 +1822,7 @@ compiler::AllocatedOperand StraightForwardRegisterAllocator::ForceAllocate(
   DCHECK(!registers.is_blocked(reg));
   if (v8_flags.trace_maglev_regalloc) {
     printing_visitor_->os()
-        << "  forcing " << reg << " to "
-        << PrintNodeLabel(graph_labeller(), node) << "...\n";
+        << "  forcing " << reg << " to " << PrintNodeLabel(node) << "...\n";
   }
   if (registers.free().has(reg)) {
     // If it's already free, remove it from the free list.
@@ -2295,9 +2282,9 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       incoming = registers.GetValue(reg);
       if (!IsLiveAtTarget(incoming, control, target)) {
         if (v8_flags.trace_maglev_regalloc) {
-          printing_visitor_->os() << "  " << reg << " - incoming node "
-                                  << PrintNodeLabel(graph_labeller(), incoming)
-                                  << " dead at target\n";
+          printing_visitor_->os()
+              << "  " << reg << " - incoming node " << PrintNodeLabel(incoming)
+              << " dead at target\n";
         }
         incoming = nullptr;
       }
@@ -2309,8 +2296,9 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       if (v8_flags.trace_maglev_regalloc) {
         if (node) {
           printing_visitor_->os()
-              << "  " << reg << " - incoming node same as node: "
-              << PrintNodeLabel(graph_labeller(), node) << "\n";
+              << "  " << reg
+              << " - incoming node same as node: " << PrintNodeLabel(node)
+              << "\n";
         }
       }
       if (merge) merge->operand(predecessor_id) = register_info;
@@ -2328,9 +2316,9 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       // TODO(v8:7700): Overeager DCHECK.
       // DCHECK(node->properties().is_conversion());
       if (v8_flags.trace_maglev_regalloc) {
-        printing_visitor_->os() << "  " << reg << " - can't load "
-                                << PrintNodeLabel(graph_labeller(), node)
-                                << ", dropping the merge\n";
+        printing_visitor_->os()
+            << "  " << reg << " - can't load " << PrintNodeLabel(node)
+            << ", dropping the merge\n";
       }
       // We always need to be able to restore values on JumpLoop since the value
       // is definitely live at the loop header.
@@ -2344,9 +2332,9 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       // where that node is allocated on the incoming branch.
       merge->operand(predecessor_id) = node->allocation();
       if (v8_flags.trace_maglev_regalloc) {
-        printing_visitor_->os() << "  " << reg << " - merge: loading "
-                                << PrintNodeLabel(graph_labeller(), node)
-                                << " from " << node->allocation() << " \n";
+        printing_visitor_->os()
+            << "  " << reg << " - merge: loading " << PrintNodeLabel(node)
+            << " from " << node->allocation() << " \n";
       }
 
       if (incoming != nullptr) {
@@ -2377,7 +2365,7 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       if (v8_flags.trace_maglev_regalloc) {
         printing_visitor_->os()
             << "  " << reg << " - can't load incoming "
-            << PrintNodeLabel(graph_labeller(), incoming) << ", bailing out\n";
+            << PrintNodeLabel(incoming) << ", bailing out\n";
       }
       return;
     }
@@ -2406,16 +2394,16 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
     if (node == nullptr) {
       merge->operand(predecessor_id) = register_info;
       if (v8_flags.trace_maglev_regalloc) {
-        printing_visitor_->os() << "  " << reg << " - new merge: loading new "
-                                << PrintNodeLabel(graph_labeller(), incoming)
-                                << " from " << register_info << " \n";
+        printing_visitor_->os()
+            << "  " << reg << " - new merge: loading new "
+            << PrintNodeLabel(incoming) << " from " << register_info << " \n";
       }
     } else {
       merge->operand(predecessor_id) = node->allocation();
       if (v8_flags.trace_maglev_regalloc) {
-        printing_visitor_->os() << "  " << reg << " - new merge: loading "
-                                << PrintNodeLabel(graph_labeller(), node)
-                                << " from " << node->allocation() << " \n";
+        printing_visitor_->os()
+            << "  " << reg << " - new merge: loading " << PrintNodeLabel(node)
+            << " from " << node->allocation() << " \n";
       }
     }
     state = {merge, initialized_merge};

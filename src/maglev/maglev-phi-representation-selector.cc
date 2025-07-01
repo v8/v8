@@ -117,8 +117,7 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
     return ProcessPhiResult::kNone;
   }
 
-  TRACE_UNTAGGING(
-      "Considering for untagging: " << PrintNodeLabel(graph_labeller(), node));
+  TRACE_UNTAGGING("Considering for untagging: " << PrintNodeLabel(node));
 
   // {input_mask} represents the ValueRepresentation that {node} could have,
   // based on the ValueRepresentation of its inputs.
@@ -488,9 +487,8 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
 
   for (int input_index = 0; input_index < phi->input_count(); input_index++) {
     ValueNode* input = phi->input(input_index).node();
-#define TRACE_INPUT_LABEL               \
-  "    @ Input " << input_index << " (" \
-                 << PrintNodeLabel(graph_labeller(), input) << ")"
+#define TRACE_INPUT_LABEL \
+  "    @ Input " << input_index << " (" << PrintNodeLabel(input) << ")"
 
     if (input->Is<SmiConstant>()) {
       switch (repr) {

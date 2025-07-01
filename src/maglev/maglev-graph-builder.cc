@@ -3410,9 +3410,8 @@ ValueNode* MaglevGraphBuilder::LoadAndCacheContextSlot(
           : known_node_aspects().loaded_context_constants[{context, offset}];
   if (cached_value) {
     if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  * Reusing cached context slot "
-                << PrintNodeLabel(graph_labeller(), context) << "[" << offset
-                << "]: " << PrintNode(graph_labeller(), cached_value)
+      std::cout << "  * Reusing cached context slot " << PrintNodeLabel(context)
+                << "[" << offset << "]: " << PrintNode(cached_value)
                 << std::endl;
     }
     return cached_value;
@@ -3552,9 +3551,8 @@ ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
   }
 
   if (v8_flags.trace_maglev_graph_building) {
-    std::cout << "  * Recording context slot store "
-              << PrintNodeLabel(graph_labeller(), context) << "[" << offset
-              << "]: " << PrintNode(graph_labeller(), value) << std::endl;
+    std::cout << "  * Recording context slot store " << PrintNodeLabel(context)
+              << "[" << offset << "]: " << PrintNode(value) << std::endl;
   }
   KnownNodeAspects::LoadedContextSlots& loaded_context_slots =
       known_node_aspects().loaded_context_slots;
@@ -3573,10 +3571,8 @@ ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
             cache.second != value) {
           if (v8_flags.trace_maglev_graph_building) {
             std::cout << "  * Clearing probably aliasing value "
-                      << PrintNodeLabel(graph_labeller(),
-                                        std::get<ValueNode*>(cache.first))
-                      << "[" << offset
-                      << "]: " << PrintNode(graph_labeller(), value)
+                      << PrintNodeLabel(std::get<ValueNode*>(cache.first))
+                      << "[" << offset << "]: " << PrintNode(value)
                       << std::endl;
           }
           cache.second = nullptr;
@@ -5036,8 +5032,8 @@ void MaglevGraphBuilder::TryBuildStoreTaggedFieldToAllocation(ValueNode* object,
   AddNonEscapingUses(allocation, 1);
   if (v8_flags.trace_maglev_object_tracking) {
     std::cout << "  * Setting value in virtual object "
-              << PrintNodeLabel(graph_labeller(), vobject) << "[" << offset
-              << "]: " << PrintNode(graph_labeller(), value) << std::endl;
+              << PrintNodeLabel(vobject) << "[" << offset
+              << "]: " << PrintNode(value) << std::endl;
   }
 }
 
@@ -6100,9 +6096,8 @@ ValueNode* MaglevGraphBuilder::BuildLoadElements(ValueNode* object) {
     DCHECK(known_elements.IsDoneWithValue());
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << "  * Reusing non-constant [Elements] "
-                << PrintNodeLabel(graph_labeller(), known_elements.value())
-                << ": " << PrintNode(graph_labeller(), known_elements.value())
-                << std::endl;
+                << PrintNodeLabel(known_elements.value()) << ": "
+                << PrintNode(known_elements.value()) << std::endl;
     }
     return known_elements.value();
   }
@@ -7195,9 +7190,8 @@ void MaglevGraphBuilder::RecordKnownProperty(
 
   if (v8_flags.trace_maglev_graph_building) {
     std::cout << "  * Recording " << (is_const ? "constant" : "non-constant")
-              << " known property "
-              << PrintNodeLabel(graph_labeller(), lookup_start_object) << ": "
-              << PrintNode(graph_labeller(), lookup_start_object) << " [";
+              << " known property " << PrintNodeLabel(lookup_start_object)
+              << ": " << PrintNode(lookup_start_object) << " [";
     switch (key.type()) {
       case KnownNodeAspects::LoadedPropertyMapKey::kName:
         std::cout << *key.name().object();
@@ -7212,8 +7206,8 @@ void MaglevGraphBuilder::RecordKnownProperty(
         std::cout << "String length";
         break;
     }
-    std::cout << "] = " << PrintNodeLabel(graph_labeller(), value) << ": "
-              << PrintNode(graph_labeller(), value) << std::endl;
+    std::cout << "] = " << PrintNodeLabel(value) << ": " << PrintNode(value)
+              << std::endl;
   }
 
   if (IsAnyStore(access_mode) && !is_const && is_loop_effect_tracking()) {
@@ -7236,8 +7230,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReuseKnownPropertyLoad(
       result.IsDone()) {
     if (v8_flags.trace_maglev_graph_building && result.IsDoneWithValue()) {
       std::cout << "  * Reusing non-constant loaded property "
-                << PrintNodeLabel(graph_labeller(), result.value()) << ": "
-                << PrintNode(graph_labeller(), result.value()) << std::endl;
+                << PrintNodeLabel(result.value()) << ": "
+                << PrintNode(result.value()) << std::endl;
     }
     return result;
   }
@@ -7247,8 +7241,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReuseKnownPropertyLoad(
       result.IsDone()) {
     if (v8_flags.trace_maglev_graph_building && result.IsDoneWithValue()) {
       std::cout << "  * Reusing constant loaded property "
-                << PrintNodeLabel(graph_labeller(), result.value()) << ": "
-                << PrintNode(graph_labeller(), result.value()) << std::endl;
+                << PrintNodeLabel(result.value()) << ": "
+                << PrintNode(result.value()) << std::endl;
     }
     return result;
   }
@@ -7273,8 +7267,8 @@ ValueNode* MaglevGraphBuilder::BuildLoadStringLength(ValueNode* string) {
       result.IsDone()) {
     if (v8_flags.trace_maglev_graph_building && result.IsDoneWithValue()) {
       std::cout << "  * Reusing constant [String length]"
-                << PrintNodeLabel(graph_labeller(), result.value()) << ": "
-                << PrintNode(graph_labeller(), result.value()) << std::endl;
+                << PrintNodeLabel(result.value()) << ": "
+                << PrintNode(result.value()) << std::endl;
     }
     return result.value();
   }
@@ -15588,9 +15582,8 @@ void MaglevGraphBuilder::ProcessMergePointAtExceptionHandlerStart(int offset) {
                                      BytecodeOffset(offset),
                                      GetCurrentSourcePosition());
       if (v8_flags.trace_maglev_graph_building) {
-        std::cout << "  " << phi << "  "
-                  << PrintNodeLabel(graph_labeller(), phi) << ": "
-                  << PrintNode(graph_labeller(), phi) << std::endl;
+        std::cout << "  " << phi << "  " << PrintNodeLabel(phi) << ": "
+                  << PrintNode(phi) << std::endl;
       }
     }
   }
@@ -15665,8 +15658,8 @@ void MaglevGraphBuilder::RegisterPhisWithGraphLabeller(
   for (Phi* phi : *merge_state.phis()) {
     reducer_.RegisterNode(phi);
     if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  " << phi << "  " << PrintNodeLabel(graph_labeller(), phi)
-                << ": " << PrintNode(graph_labeller(), phi) << std::endl;
+      std::cout << "  " << phi << "  " << PrintNodeLabel(phi) << ": "
+                << PrintNode(phi) << std::endl;
     }
   }
 }
@@ -15770,7 +15763,7 @@ void MaglevGraphBuilder::UpdateSourceAndBytecodePosition(int offset) {
 void MaglevGraphBuilder::PrintVirtualObjects() {
   if (!v8_flags.trace_maglev_graph_building) return;
   current_interpreter_frame_.virtual_objects().Print(
-      std::cout, "* VOs (Interpreter Frame State): ", graph_labeller());
+      std::cout, "* VOs (Interpreter Frame State): ");
 }
 
 ReduceResult MaglevGraphBuilder::VisitSingleBytecode() {
@@ -16376,10 +16369,8 @@ BasicBlock* MaglevGraphBuilder::FinishBlock(
     reducer_.RegisterNode(control_node);
     if (v8_flags.trace_maglev_graph_building) {
       bool kSkipTargets = true;
-      std::cout << "  " << control_node << "  "
-                << PrintNodeLabel(graph_labeller(), control_node) << ": "
-                << PrintNode(graph_labeller(), control_node, kSkipTargets)
-                << std::endl;
+      std::cout << "  " << control_node << "  " << PrintNodeLabel(control_node)
+                << ": " << PrintNode(control_node, kSkipTargets) << std::endl;
     }
   }
   return block;
@@ -16427,8 +16418,8 @@ ValueNode* MaglevGraphBuilder::BuildLoadTaggedField(ValueNode* object,
     }
     if (v8_flags.trace_maglev_object_tracking) {
       std::cout << "  * Reusing value in virtual object "
-                << PrintNodeLabel(graph_labeller(), vobject) << "[" << offset
-                << "]: " << PrintNode(graph_labeller(), value) << std::endl;
+                << PrintNodeLabel(vobject) << "[" << offset
+                << "]: " << PrintNode(value) << std::endl;
     }
     return value;
   }

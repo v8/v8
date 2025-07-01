@@ -220,8 +220,7 @@ class TruncationProcessor {
       std::cout << "[truncation]: " << __VA_ARGS__ << std::endl; \
     }                                                            \
   } while (false);
-#define PRINT(node) \
-  PrintNodeLabel(graph_->graph_labeller(), node) << ": " << node->opcode()
+#define PRINT(node) PrintNodeLabel(node) << ": " << node->opcode()
 
   void PreProcessGraph(Graph* graph) {}
   void PostProcessBasicBlock(BasicBlock* block) {}
@@ -619,8 +618,8 @@ class DeadNodeSweepingProcessor {
     // Remove inlined allocation that became non-escaping.
     if (!node->HasEscaped()) {
       if (v8_flags.trace_maglev_escape_analysis) {
-        std::cout << "* Removing allocation node "
-                  << PrintNodeLabel(labeller_, node) << std::endl;
+        std::cout << "* Removing allocation node " << PrintNodeLabel(node)
+                  << std::endl;
       }
       return ProcessResult::kRemove;
     }
@@ -643,9 +642,9 @@ class DeadNodeSweepingProcessor {
               node->input(0).node()->template TryCast<InlinedAllocation>()) {
         if (!object->HasEscaped()) {
           if (v8_flags.trace_maglev_escape_analysis) {
-            std::cout << "* Removing store node "
-                      << PrintNodeLabel(labeller_, node) << " to allocation "
-                      << PrintNodeLabel(labeller_, object) << std::endl;
+            std::cout << "* Removing store node " << PrintNodeLabel(node)
+                      << " to allocation " << PrintNodeLabel(object)
+                      << std::endl;
           }
           return ProcessResult::kRemove;
         }
