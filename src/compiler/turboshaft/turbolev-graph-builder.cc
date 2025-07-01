@@ -257,13 +257,8 @@ class GeneratorAnalyzer {
   //                 |-------------------------------------|
 
  public:
-  explicit GeneratorAnalyzer(Zone* phase_zone,
-                             maglev::MaglevGraphLabeller* labeller)
-      : labeller_(labeller),
-        block_to_header_(phase_zone),
-        visit_queue_(phase_zone) {
-    USE(labeller_);
-  }
+  explicit GeneratorAnalyzer(Zone* phase_zone)
+      : block_to_header_(phase_zone), visit_queue_(phase_zone) {}
 
   void Analyze(maglev::Graph* graph) {
     for (auto it = graph->rbegin(); it != graph->rend(); ++it) {
@@ -393,8 +388,6 @@ class GeneratorAnalyzer {
     }
   }
 
-  maglev::MaglevGraphLabeller* labeller_;
-
   // Map from blocks inside loops to the header of said loops.
   ZoneAbslFlatHashMap<const maglev::BasicBlock*, const maglev::BasicBlock*>
       block_to_header_;
@@ -499,8 +492,7 @@ class GraphBuildingNodeProcessor {
         regs_to_vars_(temp_zone),
         loop_single_edge_predecessors_(temp_zone),
         maglev_representations_(temp_zone),
-        generator_analyzer_(temp_zone,
-                            maglev_compilation_unit_->graph_labeller()),
+        generator_analyzer_(temp_zone),
         bailout_(bailout) {}
 
   void PreProcessGraph(maglev::Graph* graph) {
@@ -6290,8 +6282,7 @@ class NodeProcessorBase : public GraphBuildingNodeProcessor {
                     std::optional<BailoutReason>* bailout)
       : GraphBuildingNodeProcessor(data, graph, temp_zone,
                                    maglev_compilation_unit, bailout),
-        graph_(graph),
-        labeller_(maglev_compilation_unit->graph_labeller()) {}
+        graph_(graph) {}
 
   template <typename NodeT>
   maglev::ProcessResult Process(NodeT* node,
@@ -6314,7 +6305,8 @@ class NodeProcessorBase : public GraphBuildingNodeProcessor {
                    IsMapped(node));
 
     // Recording the SourcePositions of the OpIndex that were just created.
-    SourcePosition source = labeller_->GetNodeProvenance(node).position;
+    SourcePosition source =
+        maglev::GetCurrentGraphLabeller()->GetNodeProvenance(node).position;
     for (OpIndex idx = end_index_before; idx != graph_.EndIndex();
          idx = graph_.NextIndex(idx)) {
       graph_.source_positions()[idx] = source;
@@ -6325,7 +6317,6 @@ class NodeProcessorBase : public GraphBuildingNodeProcessor {
 
  private:
   Graph& graph_;
-  maglev::MaglevGraphLabeller* labeller_;
 };
 
 void PrintBytecode(PipelineData& data,
