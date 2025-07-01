@@ -2568,9 +2568,6 @@ filegroup(
         "src/tasks/operations-barrier.h",
         "src/tasks/task-utils.cc",
         "src/tasks/task-utils.h",
-        # Temporal is currently gn-only
-        # "src/temporal/temporal-parser.cc",
-        # "src/temporal/temporal-parser.h",
         "src/torque/runtime-macro-shims.h",
         "src/tracing/trace-event.cc",
         "src/tracing/trace-event.h",

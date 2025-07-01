@@ -462,7 +462,6 @@ v8_source_set("v8_unittests_sources") {
     "strings/unicode-unittest.cc",
     "tasks/background-compile-task-unittest.cc",
     "tasks/cancelable-tasks-unittest.cc",
-    "temporal/temporal-parser-unittest.cc",
     "test-helpers.cc",
     "test-helpers.h",
     "test-utils.cc",

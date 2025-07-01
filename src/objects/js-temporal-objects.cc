@@ -23,7 +23,6 @@
 #include "src/objects/property-descriptor.h"
 #include "src/objects/string-set.h"
 #include "src/strings/string-builder-inl.h"
-#include "src/temporal/temporal-parser.h"
 #include "temporal_rs/I128Nanoseconds.hpp"
 #include "temporal_rs/OwnedRelativeTo.hpp"
 #include "temporal_rs/Unit.hpp"
