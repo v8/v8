@@ -1164,21 +1164,19 @@ void MaglevPhiRepresentationSelector::PreparePhiTaggings(
 
     // We create a Phi to merge all of the existing taggings.
     int predecessor_count = new_block->predecessor_count();
-    Phi* phi = reducer_.AddNewNode<Phi>(
-        predecessor_count,
-        [&](Phi* phi) {
-          for (int i = 0; static_cast<size_t>(i) < predecessors.size(); i++) {
-            phi->set_input(i, predecessors[i]);
-          }
-          if (predecessors.size() != static_cast<size_t>(predecessor_count)) {
-            // The backedge is omitted from {predecessors}. With set the Phi as
-            // its own backedge.
-            DCHECK(new_block->is_loop());
-            phi->set_input(predecessor_count - 1, phi);
-          }
-          new_block->AddPhi(phi);
-        },
-        new_block->state(), interpreter::Register());
+    Phi* phi = Node::New<Phi>(zone(), predecessor_count, new_block->state(),
+                              interpreter::Register());
+    for (int i = 0; static_cast<size_t>(i) < predecessors.size(); i++) {
+      phi->set_input(i, predecessors[i]);
+    }
+    if (predecessors.size() != static_cast<size_t>(predecessor_count)) {
+      // The backedge is omitted from {predecessors}. With set the Phi as its
+      // own backedge.
+      DCHECK(new_block->is_loop());
+      phi->set_input(predecessor_count - 1, phi);
+    }
+    reducer_.RegisterNode(phi);
+    new_block->AddPhi(phi);
 
     return phi;
   };
