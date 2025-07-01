@@ -3229,19 +3229,26 @@ bool StackFrame::IsUserJavaScript() const {
 
 // --- J S O N ---
 
-MaybeLocal<Value> JSON::Parse(
-    Local<Context> context, Local<String> json_string,
-    std::optional<ScriptOriginOptions> origin_options) {
+MaybeLocal<Value> JSON::Parse(Local<Context> context, Local<String> json_string,
+                              std::optional<ScriptOrigin> origin) {
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_JSON_Parse};
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto string = Utils::OpenHandle(*json_string);
   i::Handle<i::String> source = i::String::Flatten(i_isolate, string);
   i::Handle<i::Object> undefined = i_isolate->factory()->undefined_value();
+  std::optional<i::ScriptDetails> script_details;
+  if (origin.has_value()) {
+    const ScriptOrigin& script_origin = origin.value();
+    script_details.emplace(GetScriptDetails(
+        i_isolate, script_origin.ResourceName(), script_origin.LineOffset(),
+        script_origin.ColumnOffset(), script_origin.SourceMapUrl(),
+        script_origin.GetHostDefinedOptions(), script_origin.Options()));
+  }
   auto maybe_result = source->IsOneByteRepresentation()
                           ? i::JsonParser<uint8_t>::Parse(
-                                i_isolate, source, undefined, origin_options)
+                                i_isolate, source, undefined, script_details)
                           : i::JsonParser<uint16_t>::Parse(
-                                i_isolate, source, undefined, origin_options);
+                                i_isolate, source, undefined, script_details);
   return api_scope.EscapeMaybe(maybe_result);
 }
 

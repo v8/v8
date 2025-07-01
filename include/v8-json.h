@@ -28,14 +28,14 @@ class V8_EXPORT JSON {
    *
    * \param the context in which to parse and create the value.
    * \param json_string The string to parse.
-   * \param origin_options Optional script origin options to use for error
-   * reporting. If not provided, error reporting will use default origin options
+   * \param origin Optional script origin to use for error reporting.
+   * If not provided, error reporting will use default origin options
    * or attempt to infer origin from the current stack.
    * \return The corresponding value if successfully parsed.
    */
   static V8_WARN_UNUSED_RESULT MaybeLocal<Value> Parse(
       Local<Context> context, Local<String> json_string,
-      std::optional<ScriptOriginOptions> origin_options = std::nullopt);
+      std::optional<ScriptOrigin> origin = std::nullopt);
 
   /**
    * Tries to stringify the JSON-serializable object |json_object| and returns

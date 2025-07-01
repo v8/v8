@@ -10,6 +10,7 @@
 #include "include/v8-callbacks.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
+#include "src/codegen/script-details.h"
 #include "src/common/high-allocation-throughput-scope.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
@@ -165,13 +166,13 @@ class JsonParser final {
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Parse(
       Isolate* isolate, Handle<String> source, Handle<Object> reviver,
-      std::optional<ScriptOriginOptions> origin_options) {
+      std::optional<ScriptDetails> script_details) {
     HighAllocationThroughputScope high_throughput_scope(
         V8::GetCurrentPlatform());
     Handle<Object> result;
     MaybeHandle<Object> val_node;
     {
-      JsonParser parser(isolate, source, origin_options);
+      JsonParser parser(isolate, source, script_details);
       ASSIGN_RETURN_ON_EXCEPTION(isolate, result, parser.ParseJson(reviver));
       val_node = parser.parsed_val_node_;
     }
@@ -212,7 +213,7 @@ class JsonParser final {
   };
 
   JsonParser(Isolate* isolate, Handle<String> source,
-             std::optional<ScriptOriginOptions> origin_options);
+             std::optional<ScriptDetails> script_details);
   ~JsonParser();
 
   // Parse a string containing a single JSON value.
@@ -420,10 +421,10 @@ class JsonParser final {
   Handle<JSFunction> object_constructor_;
   const Handle<String> original_source_;
   Handle<String> source_;
-  // Script origin options for error reporting. When provided, error Script
-  // objects will use these origin options instead of inferring from the stack
-  // frame.
-  std::optional<ScriptOriginOptions> script_origin_options_;
+  // Script details for error reporting. When provided, error Script
+  // objects will use this information instead of inferring from the
+  // stack frame.
+  std::optional<ScriptDetails> script_details_;
   // The parsed value's source to be passed to the reviver, if the reviver is
   // callable.
   MaybeHandle<Object> parsed_val_node_;
