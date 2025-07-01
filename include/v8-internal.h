@@ -848,6 +848,24 @@ V8_EXPORT internal::Isolate* IsolateFromNeverReadOnlySpaceObject(Address obj);
 // mode based on the current context and the closure. This returns true if the
 // language mode is strict.
 V8_EXPORT bool ShouldThrowOnError(internal::Isolate* isolate);
+
+struct HandleScopeData final {
+  static constexpr uint32_t kSizeInBytes =
+      2 * kApiSystemPointerSize + 2 * kApiInt32Size;
+
+  Address* next;
+  Address* limit;
+  int level;
+  int sealed_level;
+
+  void Initialize() {
+    next = limit = nullptr;
+    sealed_level = level = 0;
+  }
+};
+
+static_assert(HandleScopeData::kSizeInBytes == sizeof(HandleScopeData));
+
 /**
  * This class exports constants and functionality from within v8 that
  * is necessary to implement inline functions in the v8 api.  Don't
@@ -1202,6 +1220,12 @@ class Internals {
     Address addr = reinterpret_cast<Address>(isolate) +
                    kIsolateEmbedderDataOffset + slot * kApiSystemPointerSize;
     return *reinterpret_cast<void* const*>(addr);
+  }
+
+  V8_INLINE static HandleScopeData* GetHandleScopeData(v8::Isolate* isolate) {
+    Address addr =
+        reinterpret_cast<Address>(isolate) + kIsolateHandleScopeDataOffset;
+    return reinterpret_cast<HandleScopeData*>(addr);
   }
 
   V8_INLINE static void IncrementLongTasksStatsCounter(v8::Isolate* isolate) {

@@ -369,23 +369,6 @@ class V8_NODISCARD SealHandleScope final {
 #endif
 };
 
-struct HandleScopeData final {
-  static constexpr uint32_t kSizeInBytes =
-      2 * kSystemPointerSize + 2 * kInt32Size;
-
-  Address* next;
-  Address* limit;
-  int level;
-  int sealed_level;
-
-  void Initialize() {
-    next = limit = nullptr;
-    sealed_level = level = 0;
-  }
-};
-
-static_assert(HandleScopeData::kSizeInBytes == sizeof(HandleScopeData));
-
 template <typename T>
 struct is_direct_handle : public std::false_type {};
 template <typename T>

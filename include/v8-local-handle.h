@@ -118,18 +118,16 @@ void TypeCheckLocal(V* value) {
  */
 class V8_EXPORT V8_NODISCARD HandleScope {
  public:
-  explicit HandleScope(Isolate* isolate);
+  V8_INLINE explicit HandleScope(Isolate* isolate);
 
-  ~HandleScope();
+  V8_INLINE ~HandleScope();
 
   /**
    * Counts the number of allocated handles.
    */
   static int NumberOfHandles(Isolate* isolate);
 
-  V8_INLINE Isolate* GetIsolate() const {
-    return reinterpret_cast<Isolate*>(i_isolate_);
-  }
+  V8_INLINE Isolate* GetIsolate() const { return isolate_; }
 
   HandleScope(const HandleScope&) = delete;
   void operator=(const HandleScope&) = delete;
@@ -140,12 +138,27 @@ class V8_EXPORT V8_NODISCARD HandleScope {
  protected:
   V8_INLINE HandleScope() = default;
 
-  void Initialize(Isolate* isolate);
+  V8_INLINE void Initialize(Isolate* isolate);
 
-  static internal::Address* CreateHandle(internal::Isolate* i_isolate,
-                                         internal::Address value);
+  V8_INLINE static internal::Address* CreateHandle(Isolate* i_isolate,
+                                                   internal::Address value);
 
  private:
+  // Extend the HandleScope making room for more handles.  Not inlined.
+  static internal::Address* Extend(Isolate* isolate);
+  // Delete any extensions in HandleScope destructor.  Not called unless there
+  // are extensions.  Not inlined.
+  void DeleteExtensions(Isolate* isolate);
+
+  // Non-inlined asserts on HandleScope constructor.
+  void DoInitializeAsserts(Isolate* isolate);
+  // Non-inlined assert for HandleScope destructor.
+  void AssertScopeLevelsMatch();
+  // Non-inlined asserts for HandleScope destructor.  Also zaps the slots
+  // if this is enabled.
+  void DoCloseScopeAsserts(int before, internal::Address* limit,
+                           internal::HandleScopeData* current);
+
   // Declaring operator new and delete as deleted is not spec compliant.
   // Therefore declare them private instead to disable dynamic alloc
   void* operator new(size_t size);
@@ -153,7 +166,7 @@ class V8_EXPORT V8_NODISCARD HandleScope {
   void operator delete(void*, size_t);
   void operator delete[](void*, size_t);
 
-  internal::Isolate* i_isolate_;
+  Isolate* isolate_;
   internal::Address* prev_next_;
   internal::Address* prev_limit_;
 #ifdef V8_ENABLE_CHECKS
@@ -169,6 +182,61 @@ class V8_EXPORT V8_NODISCARD HandleScope {
   friend class Object;
   friend class Context;
 };
+
+HandleScope::HandleScope(Isolate* v8_isolate) { Initialize(v8_isolate); }
+
+void HandleScope::Initialize(Isolate* v8_isolate) {
+  using I = internal::Internals;
+  internal::HandleScopeData* current = I::GetHandleScopeData(v8_isolate);
+  isolate_ = v8_isolate;
+  prev_next_ = current->next;
+  prev_limit_ = current->limit;
+  current->level++;
+#ifdef V8_ENABLE_CHECKS
+  DoInitializeAsserts(v8_isolate);
+  scope_level_ = current->level;
+#endif
+}
+
+HandleScope::~HandleScope() {
+  if (V8_UNLIKELY(isolate_ == nullptr)) return;
+#ifdef V8_ENABLE_CHECKS
+  AssertScopeLevelsMatch();
+  int handle_count_before = NumberOfHandles(isolate_);
+#endif
+
+  using I = internal::Internals;
+  internal::HandleScopeData* current = I::GetHandleScopeData(isolate_);
+  std::swap(current->next, prev_next_);
+  current->level--;
+  internal::Address* limit = prev_next_;
+  if (V8_UNLIKELY(current->limit != prev_limit_)) {
+    current->limit = prev_limit_;
+    limit = prev_limit_;
+    DeleteExtensions(isolate_);
+  }
+#ifdef V8_ENABLE_CHECKS
+  DoCloseScopeAsserts(handle_count_before, limit, current);
+#else
+  (void)limit;  // Avoid unused variable warning.
+#endif
+}
+
+internal::Address* HandleScope::CreateHandle(Isolate* v8_isolate,
+                                             internal::Address value) {
+  using I = internal::Internals;
+  internal::HandleScopeData* data = I::GetHandleScopeData(v8_isolate);
+  internal::Address* result = data->next;
+  if (V8_UNLIKELY(result == data->limit)) {
+    result = Extend(v8_isolate);
+  }
+  // Update the current next field, set the value in the created handle,
+  // and return the result.
+  data->next = reinterpret_cast<internal::Address*>(
+      reinterpret_cast<internal::Address>(result) + sizeof(internal::Address));
+  *result = value;
+  return result;
+}
 
 /**
  * A base class for local handles.
@@ -236,8 +304,7 @@ class LocalBase : public api_internal::IndirectHandleBase {
   V8_INLINE LocalBase(const LocalBase<S>& other) : IndirectHandleBase(other) {}
 
   V8_INLINE static LocalBase<T> New(Isolate* isolate, internal::Address value) {
-    return LocalBase(HandleScope::CreateHandle(
-        reinterpret_cast<internal::Isolate*>(isolate), value));
+    return LocalBase(HandleScope::CreateHandle(isolate, value));
   }
 
   V8_INLINE static LocalBase<T> New(Isolate* isolate, T* that) {
