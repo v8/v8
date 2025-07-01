@@ -11,6 +11,7 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/option-utils.h"
 #include "src/objects/simd.h"
 #include "third_party/simdutf/simdutf.h"
 
@@ -539,7 +540,10 @@ BUILTIN(Uint8ArrayFromBase64) {
       String::Flatten(isolate, Cast<String>(input));
 
   // 2. Let opts be ? GetOptionsObject(options).
-  DirectHandle<Object> options = args.atOrUndefined(isolate, 2);
+  DirectHandle<Object> input_options = args.atOrUndefined(isolate, 2);
+  DirectHandle<Object> options;
+  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, input_options, method_name));
 
   // Steps 3-8 handled in HandleOptionsBag
   std::pair<simdutf::base64_options, simdutf::last_chunk_handling_options>
@@ -632,7 +636,10 @@ BUILTIN(Uint8ArrayPrototypeSetFromBase64) {
       String::Flatten(isolate, Cast<String>(input));
 
   // 4. Let opts be ? GetOptionsObject(options).
-  DirectHandle<Object> options = args.atOrUndefined(isolate, 2);
+  DirectHandle<Object> input_options = args.atOrUndefined(isolate, 2);
+  DirectHandle<Object> options;
+  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, input_options, method_name));
 
   // Steps 5-10 handled in HandleOptionsBag
   std::pair<simdutf::base64_options, simdutf::last_chunk_handling_options>
@@ -735,7 +742,10 @@ BUILTIN(Uint8ArrayPrototypeToBase64) {
   }
 
   // 3. Let opts be ? GetOptionsObject(options).
-  DirectHandle<Object> options = args.atOrUndefined(isolate, 1);
+  DirectHandle<Object> input_options = args.atOrUndefined(isolate, 1);
+  DirectHandle<Object> options;
+  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, input_options, method_name));
 
   // 4. Let alphabet be ? Get(opts, "alphabet").
   DirectHandle<Object> opt_alphabet;
