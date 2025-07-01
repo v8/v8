@@ -1088,7 +1088,7 @@ void SharedFunctionInfo::ClearPreparseData(IsolateForSandbox isolate) {
   // Trim off the pre-parsed scope data from the uncompiled data by swapping the
   // map, leaving only an uncompiled data without pre-parsed scope.
   DisallowGarbageCollection no_gc;
-  Heap* heap = GetHeapFromWritableObject(data);
+  Heap* heap = Isolate::Current()->heap();
 
   // We are basically trimming that object to its supertype, so recorded slots
   // within the object don't need to be invalidated.
