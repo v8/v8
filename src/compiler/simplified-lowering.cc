@@ -1112,12 +1112,13 @@ class RepresentationSelector {
     }
   }
 
-  // Helper for an unused node.
+  // Helper for an unused node. If the operation still needs to guarantee valid
+  // inputs, it can propate its input {use}.
   template <Phase T>
-  void VisitUnused(Node* node) {
+  void VisitUnused(Node* node, UseInfo use = UseInfo::None()) {
     int first_effect_index = NodeProperties::FirstEffectIndex(node);
     for (int i = 0; i < first_effect_index; i++) {
-      ProcessInput<T>(node, i, UseInfo::None());
+      ProcessInput<T>(node, i, use);
     }
     ProcessRemainingInputs<T>(node, first_effect_index);
 
@@ -1838,8 +1839,10 @@ class RepresentationSelector {
           DeferReplacement(
               node, InsertUnconditionalDeopt(
                         node, DeoptimizeReason::kNotAdditiveSafeInteger));
+          return VisitUnused<T>(node);
         }
-        return VisitUnused<T>(node);
+        return VisitUnused<T>(
+            node, UseInfo::CheckedSafeIntTruncatingWord32(FeedbackSource()));
       }
 
       if (truncation.IsUsedAsWord32() && !TypeOf(node).IsNone()) {
