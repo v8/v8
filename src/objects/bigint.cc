@@ -1519,11 +1519,7 @@ int32_t MutableBigInt_AbsoluteMulAndCanonicalize(Address result_addr,
   Tagged<MutableBigInt> result =
       Cast<MutableBigInt>(Tagged<Object>(result_addr));
 
-  Isolate* isolate;
-  if (!GetIsolateFromHeapObject(x, &isolate)) {
-    // We should always get the isolate from the BigInt.
-    UNREACHABLE();
-  }
+  Isolate* isolate = Isolate::Current();
 
   bigint::Status status = isolate->bigint_processor()->Multiply(
       result->rw_digits(), x->digits(), y->digits());
@@ -1545,11 +1541,7 @@ int32_t MutableBigInt_AbsoluteDivAndCanonicalize(Address result_addr,
   DCHECK_GE(result->length(),
             bigint::DivideResultLength(x->digits(), y->digits()));
 
-  Isolate* isolate;
-  if (!GetIsolateFromHeapObject(x, &isolate)) {
-    // We should always get the isolate from the BigInt.
-    UNREACHABLE();
-  }
+  Isolate* isolate = Isolate::Current();
 
   bigint::Status status = isolate->bigint_processor()->Divide(
       result->rw_digits(), x->digits(), y->digits());
@@ -1569,11 +1561,7 @@ int32_t MutableBigInt_AbsoluteModAndCanonicalize(Address result_addr,
   Tagged<MutableBigInt> result =
       Cast<MutableBigInt>(Tagged<Object>(result_addr));
 
-  Isolate* isolate;
-  if (!GetIsolateFromHeapObject(x, &isolate)) {
-    // We should always get the isolate from the BigInt.
-    UNREACHABLE();
-  }
+  Isolate* isolate = Isolate::Current();
 
   bigint::Status status = isolate->bigint_processor()->Modulo(
       result->rw_digits(), x->digits(), y->digits());
