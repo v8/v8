@@ -28,6 +28,21 @@ namespace compiler {
 
 #define TRACE(...) PrintF(__VA_ARGS__)
 
+static int SewToInt(VSew sew) {
+  switch (sew) {
+    case E8:
+      return 8;
+    case E16:
+      return 16;
+    case E32:
+      return 32;
+    case E64:
+      return 64;
+    default:
+      UNREACHABLE();
+  }
+}
+
 // Adds RISC-V-specific methods to convert InstructionOperands.
 class RiscvOperandConverter final : public InstructionOperandConverter {
  public:
@@ -3890,6 +3905,46 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vrgather_vv(src2, src, index_reg2);
       __ VU.set(kScratchReg, sew, mf2);
       __ vwaddu_vv(i.OutputSimd128Register(), src1, src2);
+      break;
+    }
+    case kRiscvExtMulLowS: {
+      __ VU.set(kScratchReg, i.InputInt8(2), mf2);
+      __ vwmul_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
+    case kRiscvExtMulHighS: {
+      VSew sew = VSew(i.InputInt8(2));
+      int sew_bits = SewToInt(static_cast<VSew>(sew));
+      int shift_amount = kRvvVLEN / sew_bits / 2;
+      DCHECK(sew == E8 || sew == E16 || sew == E32);
+      __ VU.set(kScratchReg, sew, m1);
+      Simd128Register t1 = i.TempSimd128Register(0);
+      __ vslidedown_vi(t1, i.InputSimd128Register(0), shift_amount);
+      Simd128Register t2 = i.TempSimd128Register(1);
+      __ vslidedown_vi(t2, i.InputSimd128Register(1), shift_amount);
+      __ VU.set(kScratchReg, sew, mf2);
+      __ vwmul_vv(i.OutputSimd128Register(), t1, t2);
+      break;
+    }
+    case kRiscvExtMulLowU: {
+      __ VU.set(kScratchReg, i.InputInt8(2), mf2);
+      __ vwmulu_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1));
+      break;
+    }
+    case kRiscvExtMulHighU: {
+      VSew sew = VSew(i.InputInt8(2));
+      int sew_bits = SewToInt(static_cast<VSew>(sew));
+      int shift_amount = kRvvVLEN / sew_bits / 2;
+      DCHECK(sew == E8 || sew == E16 || sew == E32);
+      __ VU.set(kScratchReg, sew, m1);
+      Simd128Register t1 = i.TempSimd128Register(0);
+      __ vslidedown_vi(t1, i.InputSimd128Register(0), shift_amount);
+      Simd128Register t2 = i.TempSimd128Register(1);
+      __ vslidedown_vi(t2, i.InputSimd128Register(1), shift_amount);
+      __ VU.set(kScratchReg, sew, mf2);
+      __ vwmulu_vv(i.OutputSimd128Register(), t1, t2);
       break;
     }
 #if V8_TARGET_ARCH_RISCV32

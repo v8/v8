@@ -1590,9 +1590,9 @@ void InstructionSelector::VisitWord32Clz(OpIndex node) {
     RiscvOperandGenerator g(this);                                           \
     const Operation& op = this->Get(node);                                   \
     DCHECK_EQ(op.input_count, 2);                                            \
-    Emit(kRiscvVwmul, g.DefineAsRegister(node),                              \
+    Emit(kRiscvExtMulLowS, g.DefineAsRegister(node),                         \
          g.UseUniqueRegister(op.input(0)), g.UseUniqueRegister(op.input(1)), \
-         g.UseImmediate(E##TYPE), g.UseImmediate(mf2));                      \
+         g.UseImmediate(E##TYPE));                                           \
   }                                                                          \
                                                                              \
   void InstructionSelector::Visit##OPCODE1##ExtMulHigh##OPCODE2##S(          \
@@ -1601,15 +1601,12 @@ void InstructionSelector::VisitWord32Clz(OpIndex node) {
     const Operation& op = this->Get(node);                                   \
     DCHECK_EQ(op.input_count, 2);                                            \
     InstructionOperand t1 = g.TempFpRegister(v16);                           \
-    Emit(kRiscvVslidedown, t1, g.UseUniqueRegister(op.input(0)),             \
-         g.UseImmediate(kRvvVLEN / TYPE / 2), g.UseImmediate(E##TYPE),       \
-         g.UseImmediate(m1));                                                \
     InstructionOperand t2 = g.TempFpRegister(v17);                           \
-    Emit(kRiscvVslidedown, t2, g.UseUniqueRegister(op.input(1)),             \
-         g.UseImmediate(kRvvVLEN / TYPE / 2), g.UseImmediate(E##TYPE),       \
-         g.UseImmediate(m1));                                                \
-    Emit(kRiscvVwmul, g.DefineAsRegister(node), t1, t2,                      \
-         g.UseImmediate(E##TYPE), g.UseImmediate(mf2));                      \
+    InstructionOperand temps[] = {t1, t2};                                   \
+    size_t temp_count = arraysize(temps);                                    \
+    Emit(kRiscvExtMulHighS, g.DefineAsRegister(node),                        \
+         g.UseUniqueRegister(op.input(0)), g.UseUniqueRegister(op.input(1)), \
+         g.UseImmediate(E##TYPE), temp_count, temps);                        \
   }                                                                          \
                                                                              \
   void InstructionSelector::Visit##OPCODE1##ExtMulLow##OPCODE2##U(           \
@@ -1617,9 +1614,9 @@ void InstructionSelector::VisitWord32Clz(OpIndex node) {
     RiscvOperandGenerator g(this);                                           \
     const Operation& op = this->Get(node);                                   \
     DCHECK_EQ(op.input_count, 2);                                            \
-    Emit(kRiscvVwmulu, g.DefineAsRegister(node),                             \
+    Emit(kRiscvExtMulLowU, g.DefineAsRegister(node),                         \
          g.UseUniqueRegister(op.input(0)), g.UseUniqueRegister(op.input(1)), \
-         g.UseImmediate(E##TYPE), g.UseImmediate(mf2));                      \
+         g.UseImmediate(E##TYPE));                                           \
   }                                                                          \
                                                                              \
   void InstructionSelector::Visit##OPCODE1##ExtMulHigh##OPCODE2##U(          \
@@ -1628,15 +1625,12 @@ void InstructionSelector::VisitWord32Clz(OpIndex node) {
     const Operation& op = this->Get(node);                                   \
     DCHECK_EQ(op.input_count, 2);                                            \
     InstructionOperand t1 = g.TempFpRegister(v16);                           \
-    Emit(kRiscvVslidedown, t1, g.UseUniqueRegister(op.input(0)),             \
-         g.UseImmediate(kRvvVLEN / TYPE / 2), g.UseImmediate(E##TYPE),       \
-         g.UseImmediate(m1));                                                \
     InstructionOperand t2 = g.TempFpRegister(v17);                           \
-    Emit(kRiscvVslidedown, t2, g.UseUniqueRegister(op.input(1)),             \
-         g.UseImmediate(kRvvVLEN / TYPE / 2), g.UseImmediate(E##TYPE),       \
-         g.UseImmediate(m1));                                                \
-    Emit(kRiscvVwmulu, g.DefineAsRegister(node), t1, t2,                     \
-         g.UseImmediate(E##TYPE), g.UseImmediate(mf2));                      \
+    InstructionOperand temps[] = {t1, t2};                                   \
+    size_t temp_count = arraysize(temps);                                    \
+    Emit(kRiscvExtMulHighU, g.DefineAsRegister(node),                        \
+         g.UseUniqueRegister(op.input(0)), g.UseUniqueRegister(op.input(1)), \
+         g.UseImmediate(E##TYPE), temp_count, temps);                        \
   }
 
 VISIT_EXT_MUL(I64x2, I32x4, 32)
