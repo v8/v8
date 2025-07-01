@@ -2598,6 +2598,9 @@ void LiftoffAssembler::emit_inc_i32_at(Address address) {
   StoreWord(value, MemOperand(counter_addr, 0));
 }
 
+void LiftoffAssembler::AtomicFence() { sync(); }
+void LiftoffAssembler::Pause() { sync(); }
+
 }  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_BASELINE_RISCV_LIFTOFF_ASSEMBLER_RISCV_INL_H_
