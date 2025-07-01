@@ -128,7 +128,11 @@ IsolateGroup::~IsolateGroup() {
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_ENABLE_SANDBOX
+  backend_allocator_.TearDown();
   sandbox_->TearDown();
+  if (!process_wide_) {
+    delete sandbox_;
+  }
 #endif  // V8_ENABLE_SANDBOX
 }
 
@@ -439,15 +443,6 @@ void SandboxedArrayBufferAllocator::LazyInitialize(Sandbox* sandbox) {
   });
 }
 
-SandboxedArrayBufferAllocator::~SandboxedArrayBufferAllocator() {
-  // The sandbox may already have been torn down, in which case there's no
-  // need to free any memory.
-  if (is_initialized() && sandbox_->is_initialized()) {
-    sandbox_->address_space()->FreePages(region_alloc_->begin(),
-                                         region_alloc_->size());
-  }
-}
-
 void* SandboxedArrayBufferAllocator::Allocate(size_t length) {
   base::MutexGuard guard(&mutex_);
 
@@ -488,6 +483,17 @@ void* SandboxedArrayBufferAllocator::AllocateUninitialized(size_t length) {
 void SandboxedArrayBufferAllocator::Free(void* data) {
   base::MutexGuard guard(&mutex_);
   region_alloc_->FreeRegion(reinterpret_cast<Address>(data));
+}
+
+void SandboxedArrayBufferAllocator::TearDown() {
+  // The sandbox may already have been torn down, in which case there's no
+  // need to free any memory.
+  if (is_initialized() && sandbox_->is_initialized()) {
+    sandbox_->address_space()->FreePages(region_alloc_->begin(),
+                                         region_alloc_->size());
+  }
+  sandbox_ = nullptr;
+  region_alloc_.reset(nullptr);
 }
 
 #if defined(V8_USE_PA_BACKED_SANDBOX_FOR_ARRAY_BUFFER_ALLOCATOR)

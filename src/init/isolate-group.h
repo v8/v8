@@ -74,13 +74,15 @@ class SandboxedArrayBufferAllocator final
   SandboxedArrayBufferAllocator& operator=(
       const SandboxedArrayBufferAllocator&) = delete;
 
-  ~SandboxedArrayBufferAllocator();
+  ~SandboxedArrayBufferAllocator() = default;
 
   void LazyInitialize(Sandbox* sandbox);
 
   void* Allocate(size_t length) override;
   void* AllocateUninitialized(size_t length) override;
   void Free(void* data) override;
+
+  void TearDown();
 
  private:
   // Use a region allocator with a "page size" of 128 bytes as a reasonable
