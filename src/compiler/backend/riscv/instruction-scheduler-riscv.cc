@@ -213,6 +213,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvI64x2SConvertI32x4High:
     case kRiscvI64x2UConvertI32x4Low:
     case kRiscvI64x2UConvertI32x4High:
+    case kRiscvI32x4ExtAddPairwiseI16x8S:
+    case kRiscvI32x4ExtAddPairwiseI16x8U:
+    case kRiscvI16x8ExtAddPairwiseI8x16S:
+    case kRiscvI16x8ExtAddPairwiseI8x16U:
     case kRiscvI16x8ExtractLaneU:
     case kRiscvI16x8ExtractLaneS:
     case kRiscvI16x8ReplaceLane:

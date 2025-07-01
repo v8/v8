@@ -318,6 +318,10 @@ namespace compiler {
   V(RiscvI16x8SConvertI8x16Low)           \
   V(RiscvI16x8UConvertI8x16High)          \
   V(RiscvI16x8UConvertI8x16Low)           \
+  V(RiscvI32x4ExtAddPairwiseI16x8S)       \
+  V(RiscvI32x4ExtAddPairwiseI16x8U)       \
+  V(RiscvI16x8ExtAddPairwiseI8x16S)       \
+  V(RiscvI16x8ExtAddPairwiseI8x16U)       \
   V(RiscvI32x4TruncSatF64x2SZero)         \
   V(RiscvI32x4TruncSatF64x2UZero)         \
   V(RiscvI16x8ExtractLaneU)               \

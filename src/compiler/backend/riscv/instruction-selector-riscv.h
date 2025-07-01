@@ -837,12 +837,10 @@ void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8S(OpIndex node) {
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 1);
   InstructionOperand src = g.UseUniqueRegister(op.input(0));
-  Emit(kRiscvVrgather, src1, src, g.UseImmediate64(0x0006000400020000),
-       g.UseImmediate(int8_t(E16)), g.UseImmediate(int8_t(m1)));
-  Emit(kRiscvVrgather, src2, src, g.UseImmediate64(0x0007000500030001),
-       g.UseImmediate(int8_t(E16)), g.UseImmediate(int8_t(m1)));
-  Emit(kRiscvVwaddVv, g.DefineAsRegister(node), src1, src2,
-       g.UseImmediate(int8_t(E16)), g.UseImmediate(int8_t(mf2)));
+  InstructionOperand temps[] = {src1, src2};
+  size_t temps_count = arraysize(temps);
+  Emit(kRiscvI32x4ExtAddPairwiseI16x8S, g.DefineAsRegister(node), src,
+       temps_count, temps);
 }
 
 void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8U(OpIndex node) {
@@ -852,12 +850,10 @@ void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8U(OpIndex node) {
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 1);
   InstructionOperand src = g.UseUniqueRegister(op.input(0));
-  Emit(kRiscvVrgather, src1, src, g.UseImmediate64(0x0006000400020000),
-       g.UseImmediate(int8_t(E16)), g.UseImmediate(int8_t(m1)));
-  Emit(kRiscvVrgather, src2, src, g.UseImmediate64(0x0007000500030001),
-       g.UseImmediate(int8_t(E16)), g.UseImmediate(int8_t(m1)));
-  Emit(kRiscvVwadduVv, g.DefineAsRegister(node), src1, src2,
-       g.UseImmediate(int8_t(E16)), g.UseImmediate(int8_t(mf2)));
+  InstructionOperand temps[] = {src1, src2};
+  size_t temps_count = arraysize(temps);
+  Emit(kRiscvI32x4ExtAddPairwiseI16x8U, g.DefineAsRegister(node), src,
+       temps_count, temps);
 }
 
 void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16S(OpIndex node) {
@@ -867,12 +863,10 @@ void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16S(OpIndex node) {
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 1);
   InstructionOperand src = g.UseUniqueRegister(op.input(0));
-  Emit(kRiscvVrgather, src1, src, g.UseImmediate64(0x0E0C0A0806040200),
-       g.UseImmediate(int8_t(E8)), g.UseImmediate(int8_t(m1)));
-  Emit(kRiscvVrgather, src2, src, g.UseImmediate64(0x0F0D0B0907050301),
-       g.UseImmediate(int8_t(E8)), g.UseImmediate(int8_t(m1)));
-  Emit(kRiscvVwaddVv, g.DefineAsRegister(node), src1, src2,
-       g.UseImmediate(int8_t(E8)), g.UseImmediate(int8_t(mf2)));
+  InstructionOperand temps[] = {src1, src2};
+  size_t temps_count = arraysize(temps);
+  Emit(kRiscvI16x8ExtAddPairwiseI8x16S, g.DefineAsRegister(node), src,
+       temps_count, temps);
 }
 
 void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16U(OpIndex node) {
@@ -882,12 +876,10 @@ void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16U(OpIndex node) {
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 1);
   InstructionOperand src = g.UseUniqueRegister(op.input(0));
-  Emit(kRiscvVrgather, src1, src, g.UseImmediate64(0x0E0C0A0806040200),
-       g.UseImmediate(int8_t(E8)), g.UseImmediate(int8_t(m1)));
-  Emit(kRiscvVrgather, src2, src, g.UseImmediate64(0x0F0D0B0907050301),
-       g.UseImmediate(int8_t(E8)), g.UseImmediate(int8_t(m1)));
-  Emit(kRiscvVwadduVv, g.DefineAsRegister(node), src1, src2,
-       g.UseImmediate(int8_t(E8)), g.UseImmediate(int8_t(mf2)));
+  InstructionOperand temps[] = {src1, src2};
+  size_t temps_count = arraysize(temps);
+  Emit(kRiscvI16x8ExtAddPairwiseI8x16U, g.DefineAsRegister(node), src,
+       temps_count, temps);
 }
 
 #define SIMD_INT_TYPE_LIST(V) \
