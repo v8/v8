@@ -1162,6 +1162,7 @@ class LiftoffCompiler {
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(ool->position), true);
     __ CallBuiltin(ool->builtin);
+    auto pc_offset_after_call = __ pc_offset_for_safepoint();
     // It is safe to not check for existing safepoint at this address since we
     // just emitted a call.
     auto safepoint = safepoint_table_builder_.DefineSafepoint(&asm_);
@@ -1186,7 +1187,7 @@ class LiftoffCompiler {
 
     DCHECK_EQ(!debug_sidetable_builder_, !ool->debug_sidetable_entry_builder);
     if (V8_UNLIKELY(ool->debug_sidetable_entry_builder)) {
-      ool->debug_sidetable_entry_builder->set_pc_offset(__ pc_offset());
+      ool->debug_sidetable_entry_builder->set_pc_offset(pc_offset_after_call);
     }
     DCHECK_EQ(ool->continuation.get()->is_bound(), is_stack_check || is_tierup);
     if (is_stack_check) {
@@ -1828,7 +1829,7 @@ class LiftoffCompiler {
     VarState exn = __ PopVarState();
     CallBuiltin(Builtin::kWasmThrowRef, MakeSig::Params(kRef), {exn},
                 decoder->position());
-    int pc_offset = __ pc_offset();
+    int pc_offset = __ pc_offset_for_safepoint();
     MaybeOSR();
     EmitLandingPad(decoder, pc_offset);
   }
@@ -4258,7 +4259,7 @@ class LiftoffCompiler {
       DebugSideTableBuilder::AssumeSpilling assume_spilling) {
     if (V8_LIKELY(!debug_sidetable_builder_)) return;
     debug_sidetable_builder_->NewEntry(
-        __ pc_offset(),
+        __ pc_offset_for_safepoint(),
         GetCurrentDebugSideTableEntries(decoder, assume_spilling).as_vector());
   }
 
@@ -5697,10 +5698,10 @@ class LiftoffCompiler {
                 {VarState{kIntPtrKind, exception_tag, 0},
                  VarState{kIntPtrKind, values_array, 0}},
                 decoder->position());
+    int pc_offset = __ pc_offset_for_safepoint();
 
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
-    int pc_offset = __ pc_offset();
     MaybeOSR();
     EmitLandingPad(decoder, pc_offset);
   }
@@ -9450,7 +9451,8 @@ class LiftoffCompiler {
         source_position_table_builder_.AddPosition(
             __ pc_offset(), SourcePosition(decoder->position()), true);
         __ CallIndirect(&sig, call_descriptor, target);
-        FinishCall(decoder, &sig, call_descriptor);
+        int pc_offset = __ pc_offset_for_safepoint();
+        FinishCall(decoder, &sig, call_descriptor, pc_offset);
       }
     } else {
       // Update call counts for inlining.
@@ -9478,7 +9480,8 @@ class LiftoffCompiler {
         source_position_table_builder_.AddPosition(
             __ pc_offset(), SourcePosition(decoder->position()), true);
         __ CallNativeWasmCode(addr);
-        FinishCall(decoder, &sig, call_descriptor);
+        int pc_offset = __ pc_offset_for_safepoint();
+        FinishCall(decoder, &sig, call_descriptor, pc_offset);
       }
     }
   }
@@ -9820,7 +9823,8 @@ class LiftoffCompiler {
         source_position_table_builder_.AddPosition(
             __ pc_offset(), SourcePosition(decoder->position()), true);
         __ CallIndirect(&sig, call_descriptor, target);
-        FinishCall(decoder, &sig, call_descriptor);
+        int pc_offset = __ pc_offset_for_safepoint();
+        FinishCall(decoder, &sig, call_descriptor, pc_offset);
       }
     }
   }
@@ -9973,7 +9977,8 @@ class LiftoffCompiler {
       source_position_table_builder_.AddPosition(
           __ pc_offset(), SourcePosition(decoder->position()), true);
       __ CallIndirect(&sig, call_descriptor, target_reg);
-      FinishCall(decoder, &sig, call_descriptor);
+      int pc_offset = __ pc_offset_for_safepoint();
+      FinishCall(decoder, &sig, call_descriptor, pc_offset);
     }
   }
 
@@ -10168,8 +10173,9 @@ class LiftoffCompiler {
   }
 
   void FinishCall(FullDecoder* decoder, ValueKindSig* sig,
-                  compiler::CallDescriptor* call_descriptor) {
-    DefineSafepoint();
+                  compiler::CallDescriptor* call_descriptor,
+                  int pc_offset_after_call) {
+    DefineSafepoint(pc_offset_after_call);
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
     if (deopt_info_bytecode_offset_ == decoder->pc_offset() &&
@@ -10193,9 +10199,8 @@ class LiftoffCompiler {
       StoreFrameDescriptionForDeopt(decoder, adapt_shadow_stack_pc_offset);
     }
 
-    int pc_offset = __ pc_offset();
     MaybeOSR();
-    EmitLandingPad(decoder, pc_offset);
+    EmitLandingPad(decoder, pc_offset_after_call);
     __ FinishCall(sig, call_descriptor);
   }
 
