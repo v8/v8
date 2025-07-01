@@ -4464,8 +4464,8 @@ void Simulator::DecodeTypeOp17() {
       printf_instr("DBAR\n");
       break;
     case IBAR:
-      printf("Sim UNIMPLEMENTED: IBAR\n");
-      UNIMPLEMENTED();
+      printf_instr("IBAR\n");
+      break;
     case FSCALEB_S:
       printf("Sim UNIMPLEMENTED: FSCALEB_S\n");
       UNIMPLEMENTED();
