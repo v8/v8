@@ -12,12 +12,16 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-// Take a lane-wise shuffle and expand to a 16 byte-wise shuffle.
-template <size_t N>
-constexpr const SimdShuffle::ShuffleArray expand(
+namespace {
+
+// Take a lane-wise shuffle and expand to a |kLanes| byte-wise shuffle
+// (kLanes = kSimd128Size by default).
+template <size_t N, int kLanes = kSimd128Size>
+  requires(kLanes % N == 0)
+constexpr SimdShuffle::ShuffleArray<kLanes> expand(
     const std::array<uint8_t, N> in) {
-  SimdShuffle::ShuffleArray res{};
-  constexpr size_t lane_bytes = 16 / N;
+  SimdShuffle::ShuffleArray<kLanes> res{};
+  constexpr size_t lane_bytes = kLanes / N;
   for (unsigned i = 0; i < N; ++i) {
     for (unsigned j = 0; j < lane_bytes; ++j) {
       res[i * lane_bytes + j] = lane_bytes * in[i] + j;
@@ -25,14 +29,19 @@ constexpr const SimdShuffle::ShuffleArray expand(
   }
   return res;
 }
+template <size_t N>
+constexpr SimdShuffle::ShuffleArray<kSimd128HalfSize> expandHalf(
+    const std::array<uint8_t, N>& in) {
+  return expand<N, kSimd128HalfSize>(in);
+}
+
+}  // namespace
 
 SimdShuffle::CanonicalShuffle SimdShuffle::TryMatchCanonical(
-    const ShuffleArray& shuffle) {
-  using CanonicalShuffleList =
-      std::array<std::pair<const ShuffleArray, const CanonicalShuffle>,
-                 static_cast<size_t>(CanonicalShuffle::kMaxShuffles) - 1>;
-
-  static constexpr CanonicalShuffleList canonical_shuffle_list = {{
+    const ShuffleArray<kSimd128Size>& shuffle) {
+  using CanonicalPair =
+      std::pair<const ShuffleArray<kSimd128Size>, const CanonicalShuffle>;
+  static constexpr auto canonical_shuffle_list = std::to_array<CanonicalPair>({
       {expand<2>({0, 1}), CanonicalShuffle::kIdentity},
       {expand<2>({0, 2}), CanonicalShuffle::kS64x2Even},
       {expand<2>({1, 3}), CanonicalShuffle::kS64x2Odd},
@@ -75,8 +84,47 @@ SimdShuffle::CanonicalShuffle SimdShuffle::TryMatchCanonical(
        CanonicalShuffle::kS8x16TransposeEven},
       {{1, 17, 3, 19, 5, 21, 7, 23, 9, 25, 11, 27, 13, 29, 15, 31},
        CanonicalShuffle::kS8x16TransposeOdd},
-  }};
-  for (auto& [lanes, canonical] : canonical_shuffle_list) {
+  });
+  for (const auto& [lanes, canonical] : canonical_shuffle_list) {
+    if (std::equal(lanes.begin(), lanes.end(), shuffle.begin())) {
+      return canonical;
+    }
+  }
+  return CanonicalShuffle::kUnknown;
+}
+
+SimdShuffle::CanonicalShuffle SimdShuffle::TryMatchCanonical(
+    const ShuffleArray<kSimd128HalfSize>& shuffle) {
+  using CanonicalPair =
+      std::pair<const ShuffleArray<kSimd128HalfSize>, const CanonicalShuffle>;
+  static constexpr auto canonical_shuffle_list = std::to_array<CanonicalPair>({
+      {expandHalf<2>({0, 1}), CanonicalShuffle::kIdentity},
+      {expandHalf<2>({0, 4}), CanonicalShuffle::kS32x2InterleaveLowHalves},
+      {expandHalf<2>({1, 5}), CanonicalShuffle::kS32x2InterleaveHighHalves},
+      {expandHalf<2>({1, 0}), CanonicalShuffle::kS32x2Reverse},
+      {expandHalf<4>({0, 2, 8, 10}), CanonicalShuffle::kS16x4Even},
+      {expandHalf<4>({1, 3, 9, 11}), CanonicalShuffle::kS16x4Odd},
+      {expandHalf<4>({0, 8, 1, 9}),
+       CanonicalShuffle::kS16x4InterleaveLowHalves},
+      {expandHalf<4>({2, 10, 3, 11}),
+       CanonicalShuffle::kS16x4InterleaveHighHalves},
+      {expandHalf<4>({0, 8, 2, 10}), CanonicalShuffle::kS16x4TransposeEven},
+      {expandHalf<4>({1, 9, 3, 11}), CanonicalShuffle::kS16x4TransposeOdd},
+      {expandHalf<4>({3, 2, 1, 0}), CanonicalShuffle::kS16x4Reverse},
+      {expandHalf<4>({1, 0, 3, 2}), CanonicalShuffle::kS16x2Reverse},
+      {{7, 6, 5, 4, 3, 2, 1, 0}, CanonicalShuffle::kS64x1ReverseBytes},
+      {{0, 2, 4, 6, 16, 18, 20, 22}, CanonicalShuffle::kS8x8Even},
+      {{1, 3, 5, 7, 17, 19, 21, 23}, CanonicalShuffle::kS8x8Odd},
+      {{0, 16, 1, 17, 2, 18, 3, 19},
+       CanonicalShuffle::kS8x8InterleaveLowHalves},
+      {{4, 20, 5, 21, 6, 22, 7, 23},
+       CanonicalShuffle::kS8x8InterleaveHighHalves},
+      {{0, 16, 2, 18, 4, 20, 6, 22}, CanonicalShuffle::kS8x8TransposeEven},
+      {{1, 17, 3, 19, 5, 21, 7, 23}, CanonicalShuffle::kS8x8TransposeOdd},
+      {{3, 2, 1, 0, 7, 6, 5, 4}, CanonicalShuffle::kS8x4Reverse},
+      {{1, 0, 3, 2, 5, 4, 7, 6}, CanonicalShuffle::kS8x2Reverse},
+  });
+  for (const auto& [lanes, canonical] : canonical_shuffle_list) {
     if (std::equal(lanes.begin(), lanes.end(), shuffle.begin())) {
       return canonical;
     }

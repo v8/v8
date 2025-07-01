@@ -1447,16 +1447,21 @@ class V8_EXPORT_PRIVATE InstructionSelector final
 #if V8_ENABLE_WEBASSEMBLY
   // Canonicalize shuffles to make pattern matching simpler. Returns the shuffle
   // indices, and a boolean indicating if the shuffle is a swizzle (one input).
-  template <const int simd_size = kSimd128Size>
+  template <const int simd_size = kSimd128Size,
+            const int shuffle_size = simd_size>
   void CanonicalizeShuffle(SimdShuffleView& view, uint8_t* shuffle,
                            bool* is_swizzle)
-    requires(simd_size == kSimd128Size || simd_size == kSimd256Size)
+    requires((simd_size == kSimd128Size || simd_size == kSimd256Size) &&
+             (simd_size % shuffle_size == 0))
   {
     // Get raw shuffle indices.
     if constexpr (simd_size == kSimd128Size) {
+      static_assert(shuffle_size == kSimd128Size ||
+                    shuffle_size == kSimd128HalfSize);
       DCHECK(view.isSimd128());
-      memcpy(shuffle, view.data(), kSimd128Size);
+      memcpy(shuffle, view.data(), shuffle_size);
     } else if constexpr (simd_size == kSimd256Size) {
+      static_assert(shuffle_size == kSimd256Size);
       DCHECK(!view.isSimd128());
       memcpy(shuffle, view.data(), kSimd256Size);
     } else {
@@ -1465,8 +1470,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final
     bool needs_swap;
     bool inputs_equal =
         GetVirtualRegister(view.input(0)) == GetVirtualRegister(view.input(1));
-    wasm::SimdShuffle::CanonicalizeShuffle<simd_size>(inputs_equal, shuffle,
-                                                      &needs_swap, is_swizzle);
+    wasm::SimdShuffle::CanonicalizeShuffle<simd_size, shuffle_size>(
+        inputs_equal, shuffle, &needs_swap, is_swizzle);
     if (needs_swap) {
       SwapShuffleInputs(view);
     }
