@@ -557,7 +557,14 @@ CodeSandboxingMode Builtins::SandboxingModeOf(Builtin builtin) {
       // Bytecode handlers and inline caches run sandboxed.
       return CodeSandboxingMode::kSandboxed;
     case TFS:
-      return CodeSandboxingMode::kSandboxed;
+      switch (builtin) {
+        // Microtask-related builtins run in privileged mode as they need write
+        // access to the MicrotaskQueue object.
+        case Builtin::kEnqueueMicrotask:
+          return CodeSandboxingMode::kUnsandboxed;
+        default:
+          return CodeSandboxingMode::kSandboxed;
+      }
     case TSC:
     case TFC:
     case ASM:

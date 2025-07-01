@@ -1493,8 +1493,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchCallCodeObject: {
+      // We need to manually manage the sandboxing mode here and cannot let
+      // CallBuiltin do that since we assume that the last instruction emitted
+      // by it is the `call` instruction (so that RecordCallPosition works
+      // correctly).
+      // TODO(428152530): once we perform the mode switching via a dedicated
+      // trampoline, we no longer need this workaround.
+      CodeSandboxingMode previous_sandboxing_mode = __ sandboxing_mode();
       if (HasImmediateInput(instr, 0)) {
         Handle<Code> code = i.InputCode(0);
+        previous_sandboxing_mode =
+            __ SwitchSandboxingModeBeforeCallIfNeeded(code->sandboxing_mode());
         __ Call(code, RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
@@ -1509,6 +1518,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       RecordCallPosition(instr);
       AssemblePlaceHolderForLazyDeopt(instr);
       frame_access_state()->ClearSPDelta();
+      __ SwitchSandboxingModeAfterCallIfNeeded(previous_sandboxing_mode);
       break;
     }
     case kArchCallBuiltinPointer: {

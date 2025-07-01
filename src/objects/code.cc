@@ -368,9 +368,7 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   if (code->has_handler_table()) {
     HandlerTable table(code);
     os << "Handler Table (size = " << table.NumberOfReturnEntries() << ")\n";
-    if (CodeKindIsOptimizedJSFunction(kind)) {
-      table.HandlerTableReturnPrint(os);
-    }
+    table.HandlerTableReturnPrint(os);
     os << "\n";
   }
 

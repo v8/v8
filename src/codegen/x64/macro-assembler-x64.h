@@ -728,7 +728,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // required by the build config.
   void CodeEntry();
   // Define an exception handler.
-  void ExceptionHandler() { CodeEntry(); }
+  void ExceptionHandler();
   // Define an exception handler and bind a label.
   void BindExceptionHandler(Label* label) { BindJumpTarget(label); }
   // Bind a jump target and mark it as a valid code entry.
@@ -795,14 +795,19 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // sandboxed- and unsandboxed code. Examples include CallBuiltin and
   // CallCFunction which may both need to temporarily switch out of sandboxed
   // execution mode.
+  // SwitchSandboxingModeBeforeCallIfNeeded will return the old sandboxing mode
+  // which must then be passed into SwitchSandboxingModeAfterCallIfNeeded.
+  // These function will also change the global sandboxing_mode(). As such,
+  // there must not be any control-flow transfers in between the two function
+  // calls.
   //
-  // In the future, we might want to replace this mechanism entirely by instead
-  // going through dedicated trampolines that perform the mode switching.
+  // TODO(428152530): In the future, we might want to replace this mechanism
+  // and instead use dedicated trampolines that perform the mode switching.
   void SwitchSandboxingModeTo(CodeSandboxingMode mode);
-  void SwitchSandboxingModeBeforeCallIfNeeded(
+  CodeSandboxingMode SwitchSandboxingModeBeforeCallIfNeeded(
       CodeSandboxingMode target_sandboxing_mode);
   void SwitchSandboxingModeAfterCallIfNeeded(
-      CodeSandboxingMode target_sandboxing_mode);
+      CodeSandboxingMode previous_sandboxing_mode);
 
   // Transform a SandboxedPointer from/to its encoded form, which is used when
   // the pointer is stored on the heap and ensures that the pointer will always

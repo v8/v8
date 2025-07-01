@@ -820,9 +820,8 @@ class V8_EXPORT_PRIVATE JSEntryDescriptor
     : public StaticCallInterfaceDescriptor<JSEntryDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
-  // JSEntry is technically invoked in unsandboxed execution mode but then
-  // switches to sandboxed execution mode on entry.
-  SANDBOXING_MODE(kSandboxed)
+  // The JSEntryTrampoline builtins transition into sandboxed execution mode.
+  SANDBOXING_MODE(kUnsandboxed)
   DEFINE_PARAMETERS()
   DEFINE_PARAMETER_TYPES()
   DECLARE_DESCRIPTOR(JSEntryDescriptor)
@@ -2578,9 +2577,7 @@ class RunMicrotasksEntryDescriptor final
     : public StaticCallInterfaceDescriptor<RunMicrotasksEntryDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
-  // RunMicrotasksEntry is technically invoked in unsandboxed execution mode
-  // but then switches to sandboxed execution mode on entry.
-  SANDBOXING_MODE(kSandboxed)
+  SANDBOXING_MODE(kUnsandboxed)
   DEFINE_PARAMETERS_ENTRY(kRootRegisterValue, kMicrotaskQueue)
   DEFINE_PARAMETER_TYPES(MachineType::Pointer(),  // kRootRegisterValue
                          MachineType::Pointer())  // kMicrotaskQueue
@@ -2593,7 +2590,7 @@ class RunMicrotasksDescriptor final
     : public StaticCallInterfaceDescriptor<RunMicrotasksDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
-  SANDBOXING_MODE(kSandboxed)
+  SANDBOXING_MODE(kUnsandboxed)
   DEFINE_PARAMETERS(kMicrotaskQueue)
   DEFINE_PARAMETER_TYPES(MachineType::Pointer())
   DECLARE_DESCRIPTOR(RunMicrotasksDescriptor)
