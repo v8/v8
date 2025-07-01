@@ -617,7 +617,7 @@ int LLVMFuzzerTestOneInputCommon(const uint8_t* data, size_t size,
 
 int LLVMFuzzerTestTwoModulesCommon(
     const uint8_t* data, size_t size,
-    GeneratExportDataeModuleFunc generate_module) {
+    GenerateExportDataMultipleModulesFunc generate_module) {
   auto rnd_gen = MersenneTwister(reinterpret_cast<const char*>(data), size);
 
   wasm::fuzzing::InitializeDrumbrakeForFuzzing();
@@ -652,7 +652,7 @@ int LLVMFuzzerTestTwoModulesCommon(
 
   wasm::ZoneBuffer buffer(&zone);
 
-  std::vector<fuzzing::ExportData> exports;
+  std::vector<ExportData> exports;
   if (!generate_module(i_isolate, &zone, {data, size}, &buffer, &exports,
                        nullptr)) {
     return 0;
