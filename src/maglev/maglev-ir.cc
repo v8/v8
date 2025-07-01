@@ -684,6 +684,9 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kLoadFixedDoubleArrayElement:
     case Opcode::kLoadHoleyFixedDoubleArrayElement:
     case Opcode::kLoadHoleyFixedDoubleArrayElementCheckedNotHole:
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    case Opcode::kLoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole:
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     case Opcode::kLoadSignedIntDataViewElement:
     case Opcode::kLoadDoubleDataViewElement:
     case Opcode::kLoadTypedArrayLength:
@@ -3231,6 +3234,29 @@ void LoadHoleyFixedDoubleArrayElementCheckedNotHole::GenerateCode(
   __ JumpIfHoleNan(result_reg, temps.Acquire(),
                    __ GetDeoptLabel(this, DeoptimizeReason::kHole));
 }
+
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+void LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole::
+    SetValueLocationConstraints() {
+  UseRegister(elements_input());
+  UseRegister(index_input());
+  DefineAsRegister(this);
+  set_temporaries_needed(1);
+}
+void LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register elements = ToRegister(elements_input());
+  Register index = ToRegister(index_input());
+  DoubleRegister result_reg = ToDoubleRegister(result());
+  __ LoadFixedDoubleArrayElement(result_reg, elements, index);
+  // TODO(nicohartmann): Should have a combined JumpIfUndefinedOrHoleNan.
+  Register scratch = temps.Acquire();
+  Label* deopt_label = __ GetDeoptLabel(this, DeoptimizeReason::kHole);
+  __ JumpIfUndefinedNan(result_reg, scratch, deopt_label);
+  __ JumpIfHoleNan(result_reg, scratch, deopt_label);
+}
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 void StoreFixedDoubleArrayElement::SetValueLocationConstraints() {
   UseRegister(elements_input());

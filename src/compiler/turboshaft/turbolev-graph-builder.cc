@@ -3049,6 +3049,21 @@ class GraphBuildingNodeProcessor {
     SetMap(node, result);
     return maglev::ProcessResult::kContinue;
   }
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  maglev::ProcessResult Process(
+      maglev::LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole* node,
+      const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    V<Float64> result = __ LoadFixedDoubleArrayElement(
+        Map(node->elements_input()),
+        __ ChangeInt32ToIntPtr(Map(node->index_input())));
+    __ DeoptimizeIf(__ Float64IsUndefinedOrHole(result), frame_state,
+                    DeoptimizeReason::kHole,
+                    node->eager_deopt_info()->feedback_to_update());
+    SetMap(node, result);
+    return maglev::ProcessResult::kContinue;
+  }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
   maglev::ProcessResult Process(maglev::StoreTaggedFieldNoWriteBarrier* node,
                                 const maglev::ProcessingState& state) {

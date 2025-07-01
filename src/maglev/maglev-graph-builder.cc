@@ -5185,8 +5185,14 @@ ValueNode* MaglevGraphBuilder::BuildLoadHoleyFixedDoubleArrayElement(
   if (convert_hole) {
     return AddNewNode<LoadHoleyFixedDoubleArrayElement>({elements, index});
   } else {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    return AddNewNode<
+        LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole>(
+        {elements, index});
+#else
     return AddNewNode<LoadHoleyFixedDoubleArrayElementCheckedNotHole>(
         {elements, index});
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   }
 }
 
@@ -8836,8 +8842,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
   // ```
   ValueNode* elements = BuildLoadElements(receiver);
   ValueNode* element;
-  if (IsDoubleElementsKind(elements_kind)) {
+  if (elements_kind == PACKED_DOUBLE_ELEMENTS) {
     element = BuildLoadFixedDoubleArrayElement(elements, index_int32);
+  } else if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
+    element =
+        BuildLoadHoleyFixedDoubleArrayElement(elements, index_int32, true);
   } else {
     element = BuildLoadFixedArrayElement(elements, index_int32);
   }

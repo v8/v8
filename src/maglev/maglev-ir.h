@@ -173,168 +173,169 @@ class ExceptionHandlerInfo;
 
 #define TURBOLEV_NON_VALUE_NODE_LIST(V) V(TransitionAndStoreArrayElement)
 
-#define VALUE_NODE_LIST(V)                          \
-  V(Identity)                                       \
-  V(AllocationBlock)                                \
-  V(ArgumentsElements)                              \
-  V(ArgumentsLength)                                \
-  V(RestLength)                                     \
-  V(Call)                                           \
-  V(CallBuiltin)                                    \
-  V(CallCPPBuiltin)                                 \
-  V(CallForwardVarargs)                             \
-  V(CallRuntime)                                    \
-  V(CallWithArrayLike)                              \
-  V(CallWithSpread)                                 \
-  V(CallKnownApiFunction)                           \
-  V(CallKnownJSFunction)                            \
-  V(CallSelf)                                       \
-  V(Construct)                                      \
-  V(CheckConstructResult)                           \
-  V(CheckDerivedConstructResult)                    \
-  V(ConstructWithSpread)                            \
-  V(ConvertReceiver)                                \
-  V(ConvertHoleToUndefined)                         \
-  V(CreateArrayLiteral)                             \
-  V(CreateShallowArrayLiteral)                      \
-  V(CreateObjectLiteral)                            \
-  V(CreateShallowObjectLiteral)                     \
-  V(CreateFunctionContext)                          \
-  V(CreateClosure)                                  \
-  V(FastCreateClosure)                              \
-  V(CreateRegExpLiteral)                            \
-  V(DeleteProperty)                                 \
-  V(EnsureWritableFastElements)                     \
-  V(ExtendPropertiesBackingStore)                   \
-  V(InlinedAllocation)                              \
-  V(ForInPrepare)                                   \
-  V(ForInNext)                                      \
-  V(GeneratorRestoreRegister)                       \
-  V(GetIterator)                                    \
-  V(GetSecondReturnedValue)                         \
-  V(GetTemplateObject)                              \
-  V(HasInPrototypeChain)                            \
-  V(InitialValue)                                   \
-  V(LoadTaggedField)                                \
-  V(LoadTaggedFieldForProperty)                     \
-  V(LoadTaggedFieldForContextSlotNoCells)           \
-  V(LoadTaggedFieldForContextSlot)                  \
-  V(LoadDoubleField)                                \
-  V(LoadFloat64)                                    \
-  V(LoadInt32)                                      \
-  V(LoadTaggedFieldByFieldIndex)                    \
-  V(LoadFixedArrayElement)                          \
-  V(LoadFixedDoubleArrayElement)                    \
-  V(LoadHoleyFixedDoubleArrayElement)               \
-  V(LoadHoleyFixedDoubleArrayElementCheckedNotHole) \
-  V(LoadSignedIntDataViewElement)                   \
-  V(LoadDoubleDataViewElement)                      \
-  V(LoadTypedArrayLength)                           \
-  V(LoadSignedIntTypedArrayElement)                 \
-  V(LoadUnsignedIntTypedArrayElement)               \
-  V(LoadDoubleTypedArrayElement)                    \
-  V(LoadSignedIntConstantTypedArrayElement)         \
-  V(LoadUnsignedIntConstantTypedArrayElement)       \
-  V(LoadDoubleConstantTypedArrayElement)            \
-  V(LoadEnumCacheLength)                            \
-  V(LoadGlobal)                                     \
-  V(LoadNamedGeneric)                               \
-  V(LoadNamedFromSuperGeneric)                      \
-  V(MaybeGrowFastElements)                          \
-  V(MigrateMapIfNeeded)                             \
-  V(SetNamedGeneric)                                \
-  V(DefineNamedOwnGeneric)                          \
-  V(StoreInArrayLiteralGeneric)                     \
-  V(StoreGlobal)                                    \
-  V(GetKeyedGeneric)                                \
-  V(SetKeyedGeneric)                                \
-  V(DefineKeyedOwnGeneric)                          \
-  V(Phi)                                            \
-  V(RegisterInput)                                  \
-  V(CheckedSmiSizedInt32)                           \
-  V(CheckedSmiTagInt32)                             \
-  V(CheckedSmiTagUint32)                            \
-  V(CheckedSmiTagIntPtr)                            \
-  V(UnsafeSmiTagInt32)                              \
-  V(UnsafeSmiTagUint32)                             \
-  V(UnsafeSmiTagIntPtr)                             \
-  V(CheckedSmiUntag)                                \
-  V(UnsafeSmiUntag)                                 \
-  V(CheckedInternalizedString)                      \
-  V(CheckedObjectToIndex)                           \
-  V(CheckedTruncateNumberOrOddballToInt32)          \
-  V(CheckedInt32ToUint32)                           \
-  V(CheckedIntPtrToUint32)                          \
-  V(UnsafeInt32ToUint32)                            \
-  V(CheckedUint32ToInt32)                           \
-  V(CheckedIntPtrToInt32)                           \
-  V(ChangeInt32ToFloat64)                           \
-  V(ChangeUint32ToFloat64)                          \
-  V(ChangeIntPtrToFloat64)                          \
-  V(CheckedTruncateFloat64ToInt32)                  \
-  V(CheckedTruncateFloat64ToUint32)                 \
-  V(TruncateNumberOrOddballToInt32)                 \
-  V(TruncateUint32ToInt32)                          \
-  V(TruncateFloat64ToInt32)                         \
-  V(UnsafeTruncateUint32ToInt32)                    \
-  V(UnsafeTruncateFloat64ToInt32)                   \
-  V(Int32ToUint8Clamped)                            \
-  V(Uint32ToUint8Clamped)                           \
-  V(Float64ToUint8Clamped)                          \
-  V(CheckedNumberToUint8Clamped)                    \
-  V(Int32ToNumber)                                  \
-  V(Uint32ToNumber)                                 \
-  V(Int32CountLeadingZeros)                         \
-  V(TaggedCountLeadingZeros)                        \
-  V(Float64CountLeadingZeros)                       \
-  V(IntPtrToBoolean)                                \
-  V(IntPtrToNumber)                                 \
-  V(Float64ToTagged)                                \
-  V(Float64ToHeapNumberForField)                    \
-  V(HoleyFloat64ToTagged)                           \
-  V(CheckedSmiTagFloat64)                           \
-  V(CheckedNumberToInt32)                           \
-  V(CheckedNumberOrOddballToFloat64)                \
-  V(UncheckedNumberOrOddballToFloat64)              \
-  V(CheckedNumberOrOddballToHoleyFloat64)           \
-  V(CheckedHoleyFloat64ToFloat64)                   \
-  V(HoleyFloat64ToMaybeNanFloat64)                  \
-  IF_UD(V, Float64ToHoleyFloat64)                   \
-  IF_UD(V, ConvertHoleNanToUndefinedNan)            \
-  IF_UD(V, HoleyFloat64IsUndefinedOrHole)           \
-  IF_NOT_UD(V, HoleyFloat64IsHole)                  \
-  V(LogicalNot)                                     \
-  V(SetPendingMessage)                              \
-  V(StringAt)                                       \
-  V(StringEqual)                                    \
-  V(StringLength)                                   \
-  V(StringConcat)                                   \
-  V(SeqOneByteStringAt)                             \
-  V(ConsStringMap)                                  \
-  V(UnwrapStringWrapper)                            \
-  V(ToBoolean)                                      \
-  V(ToBooleanLogicalNot)                            \
-  V(AllocateElementsArray)                          \
-  V(TaggedEqual)                                    \
-  V(TaggedNotEqual)                                 \
-  V(TestInstanceOf)                                 \
-  V(TestUndetectable)                               \
-  V(TestTypeOf)                                     \
-  V(ToName)                                         \
-  V(ToNumberOrNumeric)                              \
-  V(ToObject)                                       \
-  V(ToString)                                       \
-  V(TransitionElementsKind)                         \
-  V(NumberToString)                                 \
-  V(UpdateJSArrayLength)                            \
-  V(VirtualObject)                                  \
-  V(GetContinuationPreservedEmbedderData)           \
-  CONSTANT_VALUE_NODE_LIST(V)                       \
-  INT32_OPERATIONS_NODE_LIST(V)                     \
-  FLOAT64_OPERATIONS_NODE_LIST(V)                   \
-  SMI_OPERATIONS_NODE_LIST(V)                       \
-  GENERIC_OPERATIONS_NODE_LIST(V)                   \
-  INLINE_BUILTIN_NODE_LIST(V)                       \
+#define VALUE_NODE_LIST(V)                                            \
+  V(Identity)                                                         \
+  V(AllocationBlock)                                                  \
+  V(ArgumentsElements)                                                \
+  V(ArgumentsLength)                                                  \
+  V(RestLength)                                                       \
+  V(Call)                                                             \
+  V(CallBuiltin)                                                      \
+  V(CallCPPBuiltin)                                                   \
+  V(CallForwardVarargs)                                               \
+  V(CallRuntime)                                                      \
+  V(CallWithArrayLike)                                                \
+  V(CallWithSpread)                                                   \
+  V(CallKnownApiFunction)                                             \
+  V(CallKnownJSFunction)                                              \
+  V(CallSelf)                                                         \
+  V(Construct)                                                        \
+  V(CheckConstructResult)                                             \
+  V(CheckDerivedConstructResult)                                      \
+  V(ConstructWithSpread)                                              \
+  V(ConvertReceiver)                                                  \
+  V(ConvertHoleToUndefined)                                           \
+  V(CreateArrayLiteral)                                               \
+  V(CreateShallowArrayLiteral)                                        \
+  V(CreateObjectLiteral)                                              \
+  V(CreateShallowObjectLiteral)                                       \
+  V(CreateFunctionContext)                                            \
+  V(CreateClosure)                                                    \
+  V(FastCreateClosure)                                                \
+  V(CreateRegExpLiteral)                                              \
+  V(DeleteProperty)                                                   \
+  V(EnsureWritableFastElements)                                       \
+  V(ExtendPropertiesBackingStore)                                     \
+  V(InlinedAllocation)                                                \
+  V(ForInPrepare)                                                     \
+  V(ForInNext)                                                        \
+  V(GeneratorRestoreRegister)                                         \
+  V(GetIterator)                                                      \
+  V(GetSecondReturnedValue)                                           \
+  V(GetTemplateObject)                                                \
+  V(HasInPrototypeChain)                                              \
+  V(InitialValue)                                                     \
+  V(LoadTaggedField)                                                  \
+  V(LoadTaggedFieldForProperty)                                       \
+  V(LoadTaggedFieldForContextSlotNoCells)                             \
+  V(LoadTaggedFieldForContextSlot)                                    \
+  V(LoadDoubleField)                                                  \
+  V(LoadFloat64)                                                      \
+  V(LoadInt32)                                                        \
+  V(LoadTaggedFieldByFieldIndex)                                      \
+  V(LoadFixedArrayElement)                                            \
+  V(LoadFixedDoubleArrayElement)                                      \
+  V(LoadHoleyFixedDoubleArrayElement)                                 \
+  V(LoadHoleyFixedDoubleArrayElementCheckedNotHole)                   \
+  IF_UD(V, LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole) \
+  V(LoadSignedIntDataViewElement)                                     \
+  V(LoadDoubleDataViewElement)                                        \
+  V(LoadTypedArrayLength)                                             \
+  V(LoadSignedIntTypedArrayElement)                                   \
+  V(LoadUnsignedIntTypedArrayElement)                                 \
+  V(LoadDoubleTypedArrayElement)                                      \
+  V(LoadSignedIntConstantTypedArrayElement)                           \
+  V(LoadUnsignedIntConstantTypedArrayElement)                         \
+  V(LoadDoubleConstantTypedArrayElement)                              \
+  V(LoadEnumCacheLength)                                              \
+  V(LoadGlobal)                                                       \
+  V(LoadNamedGeneric)                                                 \
+  V(LoadNamedFromSuperGeneric)                                        \
+  V(MaybeGrowFastElements)                                            \
+  V(MigrateMapIfNeeded)                                               \
+  V(SetNamedGeneric)                                                  \
+  V(DefineNamedOwnGeneric)                                            \
+  V(StoreInArrayLiteralGeneric)                                       \
+  V(StoreGlobal)                                                      \
+  V(GetKeyedGeneric)                                                  \
+  V(SetKeyedGeneric)                                                  \
+  V(DefineKeyedOwnGeneric)                                            \
+  V(Phi)                                                              \
+  V(RegisterInput)                                                    \
+  V(CheckedSmiSizedInt32)                                             \
+  V(CheckedSmiTagInt32)                                               \
+  V(CheckedSmiTagUint32)                                              \
+  V(CheckedSmiTagIntPtr)                                              \
+  V(UnsafeSmiTagInt32)                                                \
+  V(UnsafeSmiTagUint32)                                               \
+  V(UnsafeSmiTagIntPtr)                                               \
+  V(CheckedSmiUntag)                                                  \
+  V(UnsafeSmiUntag)                                                   \
+  V(CheckedInternalizedString)                                        \
+  V(CheckedObjectToIndex)                                             \
+  V(CheckedTruncateNumberOrOddballToInt32)                            \
+  V(CheckedInt32ToUint32)                                             \
+  V(CheckedIntPtrToUint32)                                            \
+  V(UnsafeInt32ToUint32)                                              \
+  V(CheckedUint32ToInt32)                                             \
+  V(CheckedIntPtrToInt32)                                             \
+  V(ChangeInt32ToFloat64)                                             \
+  V(ChangeUint32ToFloat64)                                            \
+  V(ChangeIntPtrToFloat64)                                            \
+  V(CheckedTruncateFloat64ToInt32)                                    \
+  V(CheckedTruncateFloat64ToUint32)                                   \
+  V(TruncateNumberOrOddballToInt32)                                   \
+  V(TruncateUint32ToInt32)                                            \
+  V(TruncateFloat64ToInt32)                                           \
+  V(UnsafeTruncateUint32ToInt32)                                      \
+  V(UnsafeTruncateFloat64ToInt32)                                     \
+  V(Int32ToUint8Clamped)                                              \
+  V(Uint32ToUint8Clamped)                                             \
+  V(Float64ToUint8Clamped)                                            \
+  V(CheckedNumberToUint8Clamped)                                      \
+  V(Int32ToNumber)                                                    \
+  V(Uint32ToNumber)                                                   \
+  V(Int32CountLeadingZeros)                                           \
+  V(TaggedCountLeadingZeros)                                          \
+  V(Float64CountLeadingZeros)                                         \
+  V(IntPtrToBoolean)                                                  \
+  V(IntPtrToNumber)                                                   \
+  V(Float64ToTagged)                                                  \
+  V(Float64ToHeapNumberForField)                                      \
+  V(HoleyFloat64ToTagged)                                             \
+  V(CheckedSmiTagFloat64)                                             \
+  V(CheckedNumberToInt32)                                             \
+  V(CheckedNumberOrOddballToFloat64)                                  \
+  V(UncheckedNumberOrOddballToFloat64)                                \
+  V(CheckedNumberOrOddballToHoleyFloat64)                             \
+  V(CheckedHoleyFloat64ToFloat64)                                     \
+  V(HoleyFloat64ToMaybeNanFloat64)                                    \
+  IF_UD(V, Float64ToHoleyFloat64)                                     \
+  IF_UD(V, ConvertHoleNanToUndefinedNan)                              \
+  IF_UD(V, HoleyFloat64IsUndefinedOrHole)                             \
+  IF_NOT_UD(V, HoleyFloat64IsHole)                                    \
+  V(LogicalNot)                                                       \
+  V(SetPendingMessage)                                                \
+  V(StringAt)                                                         \
+  V(StringEqual)                                                      \
+  V(StringLength)                                                     \
+  V(StringConcat)                                                     \
+  V(SeqOneByteStringAt)                                               \
+  V(ConsStringMap)                                                    \
+  V(UnwrapStringWrapper)                                              \
+  V(ToBoolean)                                                        \
+  V(ToBooleanLogicalNot)                                              \
+  V(AllocateElementsArray)                                            \
+  V(TaggedEqual)                                                      \
+  V(TaggedNotEqual)                                                   \
+  V(TestInstanceOf)                                                   \
+  V(TestUndetectable)                                                 \
+  V(TestTypeOf)                                                       \
+  V(ToName)                                                           \
+  V(ToNumberOrNumeric)                                                \
+  V(ToObject)                                                         \
+  V(ToString)                                                         \
+  V(TransitionElementsKind)                                           \
+  V(NumberToString)                                                   \
+  V(UpdateJSArrayLength)                                              \
+  V(VirtualObject)                                                    \
+  V(GetContinuationPreservedEmbedderData)                             \
+  CONSTANT_VALUE_NODE_LIST(V)                                         \
+  INT32_OPERATIONS_NODE_LIST(V)                                       \
+  FLOAT64_OPERATIONS_NODE_LIST(V)                                     \
+  SMI_OPERATIONS_NODE_LIST(V)                                         \
+  GENERIC_OPERATIONS_NODE_LIST(V)                                     \
+  INLINE_BUILTIN_NODE_LIST(V)                                         \
   TURBOLEV_VALUE_NODE_LIST(V)
 
 #define GAP_MOVE_NODE_LIST(V) \
@@ -8672,6 +8673,35 @@ class LoadHoleyFixedDoubleArrayElementCheckedNotHole
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const {}
 };
+
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+class LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole
+    : public FixedInputValueNodeT<
+          2, LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole> {
+  using Base = FixedInputValueNodeT<
+      2, LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole>;
+
+ public:
+  explicit LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole(
+      uint64_t bitfield)
+      : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::CanRead() |
+                                              OpProperties::Float64() |
+                                              OpProperties::EagerDeopt();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kInt32};
+
+  static constexpr int kElementsIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  Input& elements_input() { return input(kElementsIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const {}
+};
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 class StoreFixedDoubleArrayElement
     : public FixedInputNodeT<3, StoreFixedDoubleArrayElement> {

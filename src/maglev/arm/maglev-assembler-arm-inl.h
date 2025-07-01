@@ -995,10 +995,6 @@ void MaglevAssembler::JumpIfHoleNan(DoubleRegister value, Register scratch,
                masm->VmovHigh(scratch, value);
                masm->CompareInt32AndJumpIf(scratch, kHoleNanUpper32, kEqual,
                                            *is_hole);
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-               masm->CompareInt32AndJumpIf(scratch, kUndefinedNanUpper32,
-                                           kEqual, *is_hole);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
                masm->Jump(*is_not_hole);
              },
              value, scratch, is_hole, is_not_hole));
