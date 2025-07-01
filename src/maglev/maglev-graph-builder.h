@@ -194,7 +194,8 @@ struct MaglevCallSiteInfo {
 
 class MaglevGraphBuilder {
  public:
-  class DeoptFrameScope;
+  class EagerDeoptFrameScope;
+  class LazyDeoptFrameScope;
 
   class V8_NODISCARD LazyDeoptResultLocationScope {
    public:
@@ -286,8 +287,8 @@ class MaglevGraphBuilder {
     return current_interpreter_frame_;
   }
   MaglevCallerDetails* caller_details() const { return caller_details_; }
-  const DeoptFrameScope* current_deopt_scope() const {
-    return current_deopt_scope_;
+  const LazyDeoptFrameScope* current_lazy_deopt_scope() const {
+    return current_lazy_deopt_scope_;
   }
   compiler::JSHeapBroker* broker() const { return broker_; }
   LocalIsolate* local_isolate() const { return local_isolate_; }
@@ -410,6 +411,8 @@ class MaglevGraphBuilder {
   void ResetBuilderCachedState();
 
  private:
+  class DeoptFrameScopeBase;
+
   // Helper class for building a subgraph with its own control flow, that is not
   // attached to any bytecode.
   //
@@ -926,7 +929,7 @@ class MaglevGraphBuilder {
                                         base::Vector<ValueNode*> args);
   DeoptFrame GetDeoptFrameForLazyDeoptHelper(
       interpreter::Register result_location, int result_size,
-      DeoptFrameScope* scope, bool mark_accumulator_dead);
+      LazyDeoptFrameScope* scope, bool mark_accumulator_dead);
   InterpretedDeoptFrame GetDeoptFrameForEntryStackCheck();
 
   int next_offset() const {
@@ -1067,9 +1070,13 @@ class MaglevGraphBuilder {
   MAGLEV_REDUCED_BUILTIN(DEFINE_BUILTIN_REDUCER)
 #undef DEFINE_BUILTIN_REDUCER
 
-  using InitialCallback = std::function<ReduceResult(ValueNode*)>;
-  using ProcessElementCallback = std::function<void(ValueNode*, ValueNode*)>;
-  using GetDeoptScopeCallback = std::function<DeoptFrameScope(
+  using InitialCallback = base::FunctionRef<ReduceResult(ValueNode*)>;
+  using ProcessElementCallback =
+      base::FunctionRef<void(ValueNode*, ValueNode*)>;
+  using GetEagerDeoptScopeCallback = base::FunctionRef<EagerDeoptFrameScope(
+      compiler::JSFunctionRef, ValueNode*, ValueNode*, ValueNode*, ValueNode*,
+      ValueNode*, ValueNode*)>;
+  using GetLazyDeoptScopeCallback = base::FunctionRef<LazyDeoptFrameScope(
       compiler::JSFunctionRef, ValueNode*, ValueNode*, ValueNode*, ValueNode*,
       ValueNode*, ValueNode*)>;
 
@@ -1079,8 +1086,8 @@ class MaglevGraphBuilder {
   // each result element.
   MaybeReduceResult TryReduceArrayIteratingBuiltin(
       const char* name, compiler::JSFunctionRef target, CallArguments& args,
-      GetDeoptScopeCallback get_eager_deopt_scope,
-      GetDeoptScopeCallback get_lazy_deopt_scope,
+      GetEagerDeoptScopeCallback get_eager_deopt_scope,
+      GetLazyDeoptScopeCallback get_lazy_deopt_scope,
       const std::optional<InitialCallback>& initial_callback = {},
       const std::optional<ProcessElementCallback>& process_element_callback =
           {});
@@ -2094,7 +2101,8 @@ class MaglevGraphBuilder {
   int inlining_id_ = SourcePosition::kNotInlined;
   int next_handler_table_index_ = 0;
 
-  DeoptFrameScope* current_deopt_scope_ = nullptr;
+  EagerDeoptFrameScope* current_eager_deopt_scope_ = nullptr;
+  LazyDeoptFrameScope* current_lazy_deopt_scope_ = nullptr;
   LazyDeoptResultLocationScope* lazy_deopt_result_location_scope_ = nullptr;
 
   struct HandlerTableEntry {

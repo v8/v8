@@ -130,8 +130,6 @@ std::ostream& operator<<(std::ostream& os, FrameStateInfo const& info) {
   return os;
 }
 
-namespace {
-
 // Lazy deopt points where the frame state is associated with a call get an
 // additional parameter for the return result from the call. The return result
 // is added by the deoptimizer and not explicitly specified in the frame state.
@@ -149,6 +147,8 @@ uint8_t DeoptimizerParameterCountFor(ContinuationFrameStateMode mode) {
   }
   UNREACHABLE();
 }
+
+namespace {
 
 FrameState CreateBuiltinContinuationFrameStateCommon(
     JSGraph* jsgraph, FrameStateType frame_type, Builtin name, Node* closure,

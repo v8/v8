@@ -29,6 +29,7 @@
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/feedback-source.h"
+#include "src/compiler/frame-states.h"
 #include "src/compiler/heap-refs.h"
 #include "src/compiler/js-heap-broker-inl.h"
 #include "src/compiler/js-heap-broker.h"
@@ -390,33 +391,19 @@ MaglevGraphBuilder::LazyDeoptResultLocationScope::
   builder_->lazy_deopt_result_location_scope_ = previous_;
 }
 
-class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
+class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScopeBase {
  public:
-  DeoptFrameScope(MaglevGraphBuilder* builder, Builtin continuation,
-                  compiler::OptionalJSFunctionRef maybe_js_target = {})
+  DeoptFrameScopeBase(MaglevGraphBuilder* builder, Builtin continuation,
+                      compiler::OptionalJSFunctionRef maybe_js_target = {},
+                      base::Vector<ValueNode* const> parameters = {})
       : builder_(builder),
-        parent_(builder->current_deopt_scope_),
         data_(DeoptFrame::BuiltinContinuationFrameData{
-            continuation, {}, builder->GetContext(), maybe_js_target}) {
-    builder_->current_interpreter_frame().virtual_objects().Snapshot();
-    builder_->current_deopt_scope_ = this;
-    builder_->AddDeoptUse(
-        data_.get<DeoptFrame::BuiltinContinuationFrameData>().context);
-    DCHECK(data_.get<DeoptFrame::BuiltinContinuationFrameData>()
-               .parameters.empty());
-  }
-
-  DeoptFrameScope(MaglevGraphBuilder* builder, Builtin continuation,
-                  compiler::OptionalJSFunctionRef maybe_js_target,
-                  base::Vector<ValueNode* const> parameters)
-      : builder_(builder),
-        parent_(builder->current_deopt_scope_),
-        data_(DeoptFrame::BuiltinContinuationFrameData{
-            continuation, builder->zone()->CloneVector(parameters),
+            continuation,
+            parameters.empty() ? base::Vector<ValueNode*>{}
+                               : builder->zone()->CloneVector(parameters),
             builder->GetContext(), maybe_js_target}) {
-    builder_->current_interpreter_frame().virtual_objects().Snapshot();
-    builder_->current_deopt_scope_ = this;
-    builder_->AddDeoptUse(
+    builder->current_interpreter_frame().virtual_objects().Snapshot();
+    builder->AddDeoptUse(
         data_.get<DeoptFrame::BuiltinContinuationFrameData>().context);
     if (parameters.size() > 0) {
       if (InlinedAllocation* receiver =
@@ -426,61 +413,122 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
         // meterialized object.
         receiver->ForceEscaping();
       }
-    }
-    for (ValueNode* node :
-         data_.get<DeoptFrame::BuiltinContinuationFrameData>().parameters) {
-      builder_->AddDeoptUse(node);
+      for (ValueNode* node :
+           data_.get<DeoptFrame::BuiltinContinuationFrameData>().parameters) {
+        builder->AddDeoptUse(node);
+      }
+    } else {
+      DCHECK(data_.get<DeoptFrame::BuiltinContinuationFrameData>()
+                 .parameters.empty());
     }
   }
 
-  DeoptFrameScope(MaglevGraphBuilder* builder, ValueNode* receiver)
+  DeoptFrameScopeBase(MaglevGraphBuilder* builder, ValueNode* receiver)
       : builder_(builder),
-        parent_(builder->current_deopt_scope_),
         data_(DeoptFrame::ConstructInvokeStubFrameData{
             *builder->compilation_unit(), builder->GetCurrentSourcePosition(),
             receiver, builder->GetContext()}) {
     builder_->current_interpreter_frame().virtual_objects().Snapshot();
-    builder_->current_deopt_scope_ = this;
     builder_->AddDeoptUse(
         data_.get<DeoptFrame::ConstructInvokeStubFrameData>().receiver);
     builder_->AddDeoptUse(
         data_.get<DeoptFrame::ConstructInvokeStubFrameData>().context);
   }
 
-  ~DeoptFrameScope() {
-    builder_->current_deopt_scope_ = parent_;
+  ~DeoptFrameScopeBase() {
     // We might have cached a checkpointed frame which includes this scope;
     // reset it just in case.
     builder_->latest_checkpointed_frame_.reset();
   }
 
-  DeoptFrameScope* parent() const { return parent_; }
-
-  bool IsLazyDeoptContinuationFrame() const {
-    if (data_.tag() != DeoptFrame::FrameType::kBuiltinContinuationFrame) {
-      return false;
-    }
-    switch (data_.get<DeoptFrame::FrameType::kBuiltinContinuationFrame>()
-                .builtin_id) {
-      case Builtin::kGetIteratorWithFeedbackLazyDeoptContinuation:
-      case Builtin::kCallIteratorWithFeedbackLazyDeoptContinuation:
-      case Builtin::kArrayForEachLoopLazyDeoptContinuation:
-      case Builtin::kArrayMapLoopLazyDeoptContinuation:
-      case Builtin::kGenericLazyDeoptContinuation:
-      case Builtin::kToBooleanLazyDeoptContinuation:
-        return true;
-      default:
-        return false;
-    }
-  }
-
   DeoptFrame::FrameData& data() { return data_; }
   const DeoptFrame::FrameData& data() const { return data_; }
 
+ protected:
+  MaglevGraphBuilder* builder() { return builder_; }
+
  private:
   MaglevGraphBuilder* builder_;
-  DeoptFrameScope* parent_;
   DeoptFrame::FrameData data_;
+};
+
+namespace {
+
+void DebugVerifyBuiltinDeoptFrame(const DeoptFrame::FrameData& data,
+                                  compiler::ContinuationFrameStateMode mode) {
+#ifdef DEBUG
+  DCHECK_EQ(data.tag(), DeoptFrame::FrameType::kBuiltinContinuationFrame);
+  const DeoptFrame::BuiltinContinuationFrameData& frame =
+      data.get<DeoptFrame::BuiltinContinuationFrameData>();
+  if (frame.maybe_js_target) {
+    int stack_parameter_count =
+        Builtins::GetStackParameterCount(frame.builtin_id);
+    DCHECK_EQ(stack_parameter_count,
+              frame.parameters.length() +
+                  compiler::DeoptimizerParameterCountFor(mode));
+  } else {
+    CallInterfaceDescriptor descriptor =
+        Builtins::CallInterfaceDescriptorFor(frame.builtin_id);
+    DCHECK_EQ(descriptor.GetParameterCount(),
+              frame.parameters.length() +
+                  compiler::DeoptimizerParameterCountFor(mode));
+  }
+#endif
+}
+
+}  // namespace
+
+class V8_NODISCARD MaglevGraphBuilder::LazyDeoptFrameScope
+    : public MaglevGraphBuilder::DeoptFrameScopeBase {
+ public:
+  LazyDeoptFrameScope(MaglevGraphBuilder* builder, Builtin continuation,
+                      compiler::OptionalJSFunctionRef maybe_js_target = {},
+                      base::Vector<ValueNode* const> parameters = {})
+      : DeoptFrameScopeBase(builder, continuation, maybe_js_target, parameters),
+        parent_(builder->current_lazy_deopt_scope_) {
+    DebugVerifyBuiltinDeoptFrame(data(),
+                                 compiler::ContinuationFrameStateMode::LAZY);
+    builder->current_lazy_deopt_scope_ = this;
+  }
+
+  LazyDeoptFrameScope(MaglevGraphBuilder* builder, ValueNode* receiver)
+      : DeoptFrameScopeBase(builder, receiver),
+        parent_(builder->current_lazy_deopt_scope_) {
+    builder->current_lazy_deopt_scope_ = this;
+  }
+
+  ~LazyDeoptFrameScope() { builder()->current_lazy_deopt_scope_ = parent_; }
+
+  LazyDeoptFrameScope* parent() const { return parent_; }
+
+ private:
+  MaglevGraphBuilder::LazyDeoptFrameScope* parent_;
+};
+
+class V8_NODISCARD MaglevGraphBuilder::EagerDeoptFrameScope
+    : public MaglevGraphBuilder::DeoptFrameScopeBase {
+ public:
+  EagerDeoptFrameScope(MaglevGraphBuilder* builder, Builtin continuation,
+                       compiler::OptionalJSFunctionRef maybe_js_target = {},
+                       base::Vector<ValueNode* const> parameters = {})
+      : DeoptFrameScopeBase(builder, continuation, maybe_js_target, parameters),
+        parent_(builder->current_lazy_deopt_scope_) {
+    DebugVerifyBuiltinDeoptFrame(data(),
+                                 compiler::ContinuationFrameStateMode::EAGER);
+    // Eager deopt continuations cannot be nested, so this should always be
+    // null.
+    DCHECK_NULL(builder->current_eager_deopt_scope_);
+    builder->current_eager_deopt_scope_ = this;
+  }
+
+  ~EagerDeoptFrameScope() { builder()->current_eager_deopt_scope_ = nullptr; }
+
+  LazyDeoptFrameScope* parent() const { return parent_; }
+
+ private:
+  // An eager deopt continuation's parent has to be a lazy deopt continuation,
+  // because we want to continue _after_ the eager deopt continuation completes.
+  MaglevGraphBuilder::LazyDeoptFrameScope* parent_;
 };
 
 class MaglevGraphBuilder::MaglevSubGraphBuilder::Variable {
@@ -1365,7 +1413,7 @@ DeoptFrame* MaglevGraphBuilder::GetDeoptFrameForEagerCall(
           iterator_.current_bytecode()));
   DeoptFrame* deopt_frame = zone()->New<DeoptFrame>(
       GetDeoptFrameForLazyDeoptHelper(interpreter::Register::invalid_value(), 0,
-                                      current_deopt_scope_, true));
+                                      current_lazy_deopt_scope_, true));
   return AddInlinedArgumentsToDeoptFrame(deopt_frame, unit, closure, args);
 }
 
@@ -1375,46 +1423,16 @@ DeoptFrame* MaglevGraphBuilder::GetCallerDeoptFrame() {
 }
 
 namespace {
-DeoptFrame WrapDeoptFrameWithContinuation(
-    Zone* zone, const DeoptFrame& parent_frame,
-    const MaglevGraphBuilder::DeoptFrameScope* deopt_scope,
-    DeoptimizeKind kind) {
-#ifdef DEBUG
-  DCHECK_EQ(deopt_scope->data().tag(),
-            DeoptFrame::FrameType::kBuiltinContinuationFrame);
-  const DeoptFrame::BuiltinContinuationFrameData& frame =
-      deopt_scope->data().get<DeoptFrame::BuiltinContinuationFrameData>();
-  DCHECK_EQ(kind == DeoptimizeKind::kLazy,
-            deopt_scope->IsLazyDeoptContinuationFrame());
-  // TODO(leszeks): Support lazy-after-fast-call if needed.
-  DCHECK_NE(kind, DeoptimizeKind::kLazyAfterFastCall);
-  if (frame.maybe_js_target) {
-    int stack_parameter_count =
-        Builtins::GetStackParameterCount(frame.builtin_id);
-    DCHECK_EQ(
-        stack_parameter_count,
-        frame.parameters.length() + (kind == DeoptimizeKind::kLazy ? 1 : 0));
-  } else {
-    CallInterfaceDescriptor descriptor =
-        Builtins::CallInterfaceDescriptorFor(frame.builtin_id);
-    DCHECK_EQ(
-        descriptor.GetParameterCount(),
-        frame.parameters.length() + (kind == DeoptimizeKind::kLazy ? 1 : 0));
-  }
-#endif
-
-  DeoptFrame* maybe_wrapped_parent_frame;
-  if (deopt_scope->parent()) {
-    // If this deopt scope has any parent scopes, only the first is
-    // eager and the rest are lazy.
-    maybe_wrapped_parent_frame =
-        zone->New<DeoptFrame>(WrapDeoptFrameWithContinuation(
-            zone, parent_frame, deopt_scope->parent(), DeoptimizeKind::kLazy));
-  } else {
-    maybe_wrapped_parent_frame = zone->New<DeoptFrame>(parent_frame);
+DeoptFrame* RecursivelyWrapDeoptFrameWithContinuations(
+    Zone* zone, const DeoptFrame& frame,
+    const MaglevGraphBuilder::LazyDeoptFrameScope* parent_scope) {
+  if (!parent_scope) {
+    return zone->New<DeoptFrame>(frame);
   }
 
-  return DeoptFrame(deopt_scope->data(), maybe_wrapped_parent_frame);
+  return zone->New<DeoptFrame>(parent_scope->data(),
+                               RecursivelyWrapDeoptFrameWithContinuations(
+                                   zone, frame, parent_scope->parent()));
 }
 }  // namespace
 
@@ -1436,18 +1454,12 @@ DeoptFrame MaglevGraphBuilder::GetLatestCheckpointedFrame() {
         [&](ValueNode* node, interpreter::Register) { AddDeoptUse(node); });
     AddDeoptUse(latest_checkpointed_frame_->as_interpreted().closure());
 
-    // Skip initial outer lazy deopt builtin continuations.
-    // TODO(leszeks): Investigate if this is necessary.
-    const DeoptFrameScope* deopt_scope = current_deopt_scope_;
-    while (deopt_scope != nullptr &&
-           deopt_scope->IsLazyDeoptContinuationFrame()) {
-      deopt_scope = deopt_scope->parent();
-    }
-
+    const EagerDeoptFrameScope* deopt_scope = current_eager_deopt_scope_;
     if (deopt_scope != nullptr) {
       latest_checkpointed_frame_.emplace(
-          WrapDeoptFrameWithContinuation(zone(), *latest_checkpointed_frame_,
-                                         deopt_scope, DeoptimizeKind::kEager));
+          deopt_scope->data(),
+          RecursivelyWrapDeoptFrameWithContinuations(
+              zone(), *latest_checkpointed_frame_, deopt_scope->parent()));
     }
   }
   return *latest_checkpointed_frame_;
@@ -1465,13 +1477,13 @@ MaglevGraphBuilder::GetDeoptFrameForLazyDeopt() {
   }
   return std::make_tuple(
       GetDeoptFrameForLazyDeoptHelper(result_location, result_size,
-                                      current_deopt_scope_, false),
+                                      current_lazy_deopt_scope_, false),
       result_location, result_size);
 }
 
 DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
     interpreter::Register result_location, int result_size,
-    DeoptFrameScope* scope, bool mark_accumulator_dead) {
+    LazyDeoptFrameScope* scope, bool mark_accumulator_dead) {
   if (scope == nullptr) {
     compiler::BytecodeLivenessState* liveness =
         zone()->New<compiler::BytecodeLivenessState>(*GetOutLiveness(), zone());
@@ -1516,29 +1528,6 @@ DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
   // the accumulator
   DCHECK(interpreter::Bytecodes::WritesOrClobbersAccumulator(
       iterator_.current_bytecode()));
-
-#ifdef DEBUG
-  if (scope->data().tag() == DeoptFrame::FrameType::kBuiltinContinuationFrame) {
-    const DeoptFrame::BuiltinContinuationFrameData& frame =
-        current_deopt_scope_->data()
-            .get<DeoptFrame::BuiltinContinuationFrameData>();
-    if (frame.maybe_js_target) {
-      int stack_parameter_count =
-          Builtins::GetStackParameterCount(frame.builtin_id);
-      // The deopt input value is passed by the deoptimizer, so shouldn't be a
-      // parameter here.
-      DCHECK_EQ(stack_parameter_count, frame.parameters.length() + 1);
-    } else {
-      CallInterfaceDescriptor descriptor =
-          Builtins::CallInterfaceDescriptorFor(frame.builtin_id);
-      // The deopt input value is passed by the deoptimizer, so shouldn't be a
-      // parameter here.
-      DCHECK_EQ(descriptor.GetParameterCount(), frame.parameters.length() + 1);
-      // The deopt input value is passed on the stack.
-      DCHECK_GT(descriptor.GetStackParameterCount(), 0);
-    }
-  }
-#endif
 
   // Mark the accumulator dead in parent frames since we know that the
   // continuation will write it.
@@ -8564,7 +8553,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
       [this](compiler::JSFunctionRef target, ValueNode* receiver,
              ValueNode* callback, ValueNode* this_arg, ValueNode* index_int32,
              ValueNode* next_index_int32, ValueNode* original_length) {
-        return DeoptFrameScope(
+        return LazyDeoptFrameScope(
             this, Builtin::kArrayForEachLoopLazyDeoptContinuation, target,
             base::VectorOf<ValueNode*>({receiver, callback, this_arg,
                                         next_index_int32, original_length}));
@@ -8574,7 +8563,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
       [this](compiler::JSFunctionRef target, ValueNode* receiver,
              ValueNode* callback, ValueNode* this_arg, ValueNode* index_int32,
              ValueNode* next_index_int32, ValueNode* original_length) {
-        return DeoptFrameScope(
+        return EagerDeoptFrameScope(
             this, Builtin::kArrayForEachLoopEagerDeoptContinuation, target,
             base::VectorOf<ValueNode*>({receiver, callback, this_arg,
                                         next_index_int32, original_length}));
@@ -8653,7 +8642,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayMap(
                                   ValueNode* next_index_int32,
                                   ValueNode* original_length) {
     DCHECK_NOT_NULL(result_array);
-    return DeoptFrameScope(
+    return LazyDeoptFrameScope(
         this, Builtin::kArrayMapLoopLazyDeoptContinuation, target,
         base::VectorOf<ValueNode*>({receiver, callback, this_arg, result_array,
                                     index_int32, original_length}));
@@ -8666,7 +8655,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayMap(
                                    ValueNode* next_index_int32,
                                    ValueNode* original_length) {
     DCHECK_NOT_NULL(result_array);
-    return DeoptFrameScope(
+    return EagerDeoptFrameScope(
         this, Builtin::kArrayMapLoopEagerDeoptContinuation, target,
         base::VectorOf<ValueNode*>({receiver, callback, this_arg, result_array,
                                     next_index_int32, original_length}));
@@ -8688,8 +8677,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayMap(
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
     const char* name, compiler::JSFunctionRef target, CallArguments& args,
-    GetDeoptScopeCallback get_eager_deopt_scope,
-    GetDeoptScopeCallback get_lazy_deopt_scope,
+    GetEagerDeoptScopeCallback get_eager_deopt_scope,
+    GetLazyDeoptScopeCallback get_lazy_deopt_scope,
     const std::optional<InitialCallback>& initial_callback,
     const std::optional<ProcessElementCallback>& process_element_callback) {
   DCHECK_EQ(initial_callback.has_value(), process_element_callback.has_value());
@@ -8758,7 +8747,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
   EnsureType(callback, NodeType::kCallable, [&](NodeType old_type) {
     // ThrowIfNotCallable is wrapped in a lazy_deopt_scope to make sure the
     // exception has the right call stack.
-    const DeoptFrameScope& lazy_deopt_scope = get_lazy_deopt_scope(
+    const LazyDeoptFrameScope& lazy_deopt_scope = get_lazy_deopt_scope(
         target, receiver, callback, this_arg, GetSmiConstant(0),
         GetSmiConstant(0), original_length);
     AddNewNode<ThrowIfNotCallable>({callback});
@@ -8834,7 +8823,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
     // TODO(pthier): In practice this increment can never overflow, as the max
     // possible array length is less than int32 max value. Add a new
     // Int32Increment that asserts no overflow instead of deopting.
-    DeoptFrameScope eager_deopt_scope =
+    EagerDeoptFrameScope eager_deopt_scope =
         get_eager_deopt_scope(target, receiver, callback, this_arg, index_int32,
                               index_int32, original_length);
     next_index_int32 = AddNewNode<Int32IncrementWithOverflow>({index_int32});
@@ -8874,7 +8863,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
   // ```
   MaybeReduceResult result;
   {
-    const DeoptFrameScope& lazy_deopt_scope =
+    const LazyDeoptFrameScope& lazy_deopt_scope =
         get_lazy_deopt_scope(target, receiver, callback, this_arg, index_int32,
                              next_index_int32, original_length);
     CallArguments call_args =
@@ -8924,7 +8913,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
 
     // Make sure to finish the loop if we eager deopt in the map check or index
     // check.
-    const DeoptFrameScope& eager_deopt_scope =
+    const EagerDeoptFrameScope& eager_deopt_scope =
         get_eager_deopt_scope(target, receiver, callback, this_arg, index_int32,
                               next_index_int32, original_length);
 
@@ -10530,7 +10519,8 @@ MaybeReduceResult MaglevGraphBuilder::DoTryReduceMathRound(
         kind);
   }
   if (!CanSpeculateCall()) return {};
-  DeoptFrameScope continuation_scope(this, Float64Round::continuation(kind));
+  LazyDeoptFrameScope continuation_scope(this,
+                                         Float64Round::continuation(kind));
   ToNumberOrNumeric* conversion =
       AddNewNode<ToNumberOrNumeric>({arg}, Object::Conversion::kToNumber);
   ValueNode* float64_value = AddNewNode<UncheckedNumberOrOddballToFloat64>(
@@ -10577,8 +10567,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathClz32(
     return {};
   }
 
-  DeoptFrameScope continuation_scope(this,
-                                     Float64CountLeadingZeros::continuation());
+  LazyDeoptFrameScope continuation_scope(
+      this, Float64CountLeadingZeros::continuation());
   ToNumberOrNumeric* conversion =
       AddNewNode<ToNumberOrNumeric>({arg}, Object::Conversion::kToNumber);
   ValueNode* float64_value = AddNewNode<UncheckedNumberOrOddballToFloat64>(
@@ -12143,7 +12133,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructGeneric(
     args.set_receiver(implicit_receiver);
     ValueNode* call_result;
     {
-      DeoptFrameScope construct(this, implicit_receiver);
+      LazyDeoptFrameScope construct(this, implicit_receiver);
       MaybeReduceResult result = TryBuildCallKnownJSFunction(
           function, new_target, args, feedback_source);
       RETURN_IF_ABORT(result);
@@ -12181,7 +12171,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructGeneric(
   args.set_receiver(implicit_receiver);
   ValueNode* call_result;
   {
-    DeoptFrameScope construct(this, implicit_receiver);
+    LazyDeoptFrameScope construct(this, implicit_receiver);
     MaybeReduceResult result = TryBuildCallKnownJSFunction(
         function, new_target, args, feedback_source);
     RETURN_IF_ABORT(result);
@@ -12625,7 +12615,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
     {
       // Make sure that a lazy deopt after the @@hasInstance call also performs
       // ToBoolean before returning to the interpreter.
-      DeoptFrameScope continuation_scope(
+      LazyDeoptFrameScope continuation_scope(
           this, Builtin::kToBooleanLazyDeoptContinuation);
 
       if (has_instance_field->IsJSFunction()) {
@@ -15324,7 +15314,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGetIterator(
   compiler::NameRef iterator_symbol = broker()->iterator_symbol();
   ValueNode* iterator_method;
   {
-    DeoptFrameScope deopt_continuation(
+    // TryBuildLoadNamedProperty can eager deopt on e.g. a failed map check --
+    // this shouldn't pick up this lazy deopt frame.
+    LazyDeoptFrameScope deopt_continuation(
         this, Builtin::kGetIteratorWithFeedbackLazyDeoptContinuation, {},
         base::VectorOf<ValueNode*>({receiver, GetSmiConstant(call_slot_index),
                                     GetConstant(feedback())}));
@@ -15346,13 +15338,24 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGetIterator(
     return BuildCallRuntime(Runtime::kThrowSymbolIteratorInvalid, {});
   };
   auto call_iterator_method = [&] {
-    DeoptFrameScope deopt_continuation(
+    // If the call eager deopts (e.g. because of incorrect speculation of the
+    // call target), we need to do the full call in the continuation.
+    EagerDeoptFrameScope eager_deopt_continuation(
+        this, Builtin::kCallIteratorWithFeedback, {},
+        base::VectorOf<ValueNode*>({receiver, iterator_method,
+                                    GetSmiConstant(call_slot_index),
+                                    GetConstant(feedback())}));
+    // If the call lazy deopts, we can assume the call itself happened and the
+    // continuation only has to do the post-call checks.
+    LazyDeoptFrameScope deopt_continuation(
         this, Builtin::kCallIteratorWithFeedbackLazyDeoptContinuation);
 
     FeedbackSlot call_slot = FeedbackVector::ToSlot(call_slot_index);
     compiler::FeedbackSource call_feedback{feedback(), call_slot};
+
     CallArguments args(ConvertReceiverMode::kAny, {receiver});
-    ReduceResult result_call = ReduceCall(iterator_method, args, call_feedback);
+    ReduceResult result_call =
+        BuildCallWithFeedback(iterator_method, args, call_feedback);
 
     if (result_call.IsDoneWithAbort()) return result_call;
     DCHECK(result_call.IsDoneWithValue());
