@@ -54,17 +54,6 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
 #define BUILTINS_WITH_DISPATCH_ADAPTER(V, CamelName, underscore_name, ...) \
   V(CamelName, CamelName##SharedFun)
 
-// If we have predictable builtins then dispatch handles of builtins are
-// stored in the read only segment of the JSDispatchTable. Otherwise,
-// we need a table of per-isolate dispatch handles of builtins.
-#if V8_ENABLE_LEAPTIERING_BOOL
-#if V8_STATIC_ROOTS_BOOL
-#define V8_STATIC_DISPATCH_HANDLES_BOOL true
-#else
-#define V8_STATIC_DISPATCH_HANDLES_BOOL false
-#endif  // V8_STATIC_ROOTS_BOOL
-#endif  // V8_ENABLE_LEAPTIERING_BOOL
-
 #define BUILTINS_WITH_DISPATCH_LIST(V) \
   BUILTINS_WITH_SFI_LIST_GENERATOR(BUILTINS_WITH_DISPATCH_ADAPTER, V)
 

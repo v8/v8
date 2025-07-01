@@ -7790,25 +7790,28 @@ base::LazyMutex read_only_dispatch_entries_mutex_ = LAZY_MUTEX_INITIALIZER;
 
 void Isolate::InitializeBuiltinJSDispatchTable() {
 #ifdef V8_ENABLE_LEAPTIERING
+  static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
+
+  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+
+#if V8_STATIC_DISPATCH_HANDLES_BOOL
+  // For static dispatch handles we need:
+  // 1. Builtins be shared across isolates.
+  // 2. Predictable handles in the dispatch table's r/o segment.
+  static_assert(Builtins::kCodeObjectsAreInROSpace);
+  static_assert(JSDispatchTable::kUseContiguousMemory);
+
   // Ideally these entries would be created when the read only heap is
   // initialized. However, since builtins are deserialized later, we need to
   // patch it up here. Also, we need a mutex so the shared read only heaps space
   // is not initialized multiple times. This must be blocking as no isolate
   // should be allowed to proceed until the table is initialized.
   base::MutexGuard guard(read_only_dispatch_entries_mutex_.Pointer());
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
 
-  bool needs_initialization =
-      !V8_STATIC_DISPATCH_HANDLES_BOOL ||
-      jdt->PreAllocatedEntryNeedsInitialization(
+  if (jdt->PreAllocatedEntryNeedsInitialization(
           read_only_heap_->js_dispatch_table_space(),
-          builtin_dispatch_handle(JSBuiltinDispatchHandleRoot::Idx::kFirst));
-
-  if (needs_initialization) {
-    std::optional<JSDispatchTable::UnsealReadOnlySegmentScope> unseal_scope;
-    if (V8_STATIC_DISPATCH_HANDLES_BOOL) {
-      unseal_scope.emplace(jdt);
-    }
+          builtin_dispatch_handle(JSBuiltinDispatchHandleRoot::Idx::kFirst))) {
+    JSDispatchTable::UnsealReadOnlySegmentScope unseal_scope(jdt);
     for (JSBuiltinDispatchHandleRoot::Idx idx =
              JSBuiltinDispatchHandleRoot::kFirst;
          idx < JSBuiltinDispatchHandleRoot::kCount;
@@ -7817,24 +7820,38 @@ void Isolate::InitializeBuiltinJSDispatchTable() {
       Builtin builtin = JSBuiltinDispatchHandleRoot::to_builtin(idx);
       DCHECK(Builtins::IsIsolateIndependent(builtin));
       Tagged<Code> code = builtins_.code(builtin);
-      DCHECK(code->entrypoint_tag() == CodeEntrypointTag::kJSEntrypointTag);
+      DCHECK_EQ(code->entrypoint_tag(), CodeEntrypointTag::kJSEntrypointTag);
+      // Since we are sharing the dispatch handles we need all isolates to
+      // share the builtin code objects.
+      DCHECK_IMPLIES(!serializer_enabled_, HeapLayout::InReadOnlySpace(code));
+
       // TODO(olivf, 40931165): It might be more robust to get the static
       // parameter count of this builtin.
       int parameter_count = code->parameter_count();
-#if V8_STATIC_DISPATCH_HANDLES_BOOL
+
       JSDispatchHandle handle = builtin_dispatch_handle(builtin);
+      DCHECK_EQ(builtin_dispatch_handle(idx), handle);
       jdt->InitializePreAllocatedEntry(
           read_only_heap_->js_dispatch_table_space(), handle, code,
           parameter_count);
-#else
-      CHECK_LT(idx, JSBuiltinDispatchHandleRoot::kTableSize);
-      JSDispatchHandle handle = jdt->AllocateAndInitializeEntry(
-          read_only_heap_->js_dispatch_table_space(), parameter_count, code);
-      isolate_data_.builtin_dispatch_table()[idx] = handle;
-#endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
     }
   }
-#endif
+#else
+  for (JSBuiltinDispatchHandleRoot::Idx idx =
+           JSBuiltinDispatchHandleRoot::kFirst;
+       idx < JSBuiltinDispatchHandleRoot::kCount;
+       idx = static_cast<JSBuiltinDispatchHandleRoot::Idx>(
+           static_cast<int>(idx) + 1)) {
+    Builtin builtin = JSBuiltinDispatchHandleRoot::to_builtin(idx);
+    Tagged<Code> code = builtins_.code(builtin);
+    int parameter_count = code->parameter_count();
+    DCHECK_LT(idx, JSBuiltinDispatchHandleRoot::kTableSize);
+    JSDispatchHandle handle = jdt->AllocateAndInitializeEntry(
+        heap()->js_dispatch_table_space(), parameter_count, code);
+    isolate_data_.builtin_dispatch_table()[idx] = handle;
+  }
+#endif  // !V8_STATIC_DISPATCH_HANDLES_BOOL
+#endif  // V8_ENABLE_LEAPTIERING
 }
 
 void Isolate::PrintNumberStringCacheStats(const char* comment,

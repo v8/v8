@@ -182,7 +182,7 @@ ReadOnlyHeap::ReadOnlyHeap(ReadOnlySpace* ro_space)
 #if V8_STATIC_DISPATCH_HANDLES_BOOL
   jdt->AttachSpaceToReadOnlySegments(&js_dispatch_table_space_);
   jdt->PreAllocateEntries(&js_dispatch_table_space_,
-                          JSBuiltinDispatchHandleRoot::kCount, true);
+                          JSBuiltinDispatchHandleRoot::kCount);
 #endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
 #endif  // V8_ENABLE_LEAPTIERING
 }

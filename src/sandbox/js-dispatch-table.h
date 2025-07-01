@@ -246,8 +246,7 @@ class V8_EXPORT_PRIVATE JSDispatchTable
 
   // The following methods are used to pre allocate entries and then initialize
   // them later.
-  JSDispatchHandle PreAllocateEntries(Space* space, int num,
-                                      bool ensure_static_handles);
+  void PreAllocateEntries(Space* space, int num);
   bool PreAllocatedEntryNeedsInitialization(Space* space,
                                             JSDispatchHandle handle);
   void InitializePreAllocatedEntry(Space* space, JSDispatchHandle handle,
