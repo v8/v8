@@ -839,8 +839,8 @@ void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8S(OpIndex node) {
   InstructionOperand src = g.UseUniqueRegister(op.input(0));
   InstructionOperand temps[] = {src1, src2};
   size_t temps_count = arraysize(temps);
-  Emit(kRiscvI32x4ExtAddPairwiseI16x8S, g.DefineAsRegister(node), src,
-       temps_count, temps);
+  Emit(kRiscvExtAddPairwiseS, g.DefineAsRegister(node), src,
+       g.UseImmediate(E16), temps_count, temps);
 }
 
 void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8U(OpIndex node) {
@@ -852,8 +852,8 @@ void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8U(OpIndex node) {
   InstructionOperand src = g.UseUniqueRegister(op.input(0));
   InstructionOperand temps[] = {src1, src2};
   size_t temps_count = arraysize(temps);
-  Emit(kRiscvI32x4ExtAddPairwiseI16x8U, g.DefineAsRegister(node), src,
-       temps_count, temps);
+  Emit(kRiscvExtAddPairwiseU, g.DefineAsRegister(node), src,
+       g.UseImmediate(E16), temps_count, temps);
 }
 
 void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16S(OpIndex node) {
@@ -865,7 +865,7 @@ void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16S(OpIndex node) {
   InstructionOperand src = g.UseUniqueRegister(op.input(0));
   InstructionOperand temps[] = {src1, src2};
   size_t temps_count = arraysize(temps);
-  Emit(kRiscvI16x8ExtAddPairwiseI8x16S, g.DefineAsRegister(node), src,
+  Emit(kRiscvExtAddPairwiseS, g.DefineAsRegister(node), src, g.UseImmediate(E8),
        temps_count, temps);
 }
 
@@ -878,7 +878,7 @@ void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16U(OpIndex node) {
   InstructionOperand src = g.UseUniqueRegister(op.input(0));
   InstructionOperand temps[] = {src1, src2};
   size_t temps_count = arraysize(temps);
-  Emit(kRiscvI16x8ExtAddPairwiseI8x16U, g.DefineAsRegister(node), src,
+  Emit(kRiscvExtAddPairwiseU, g.DefineAsRegister(node), src, g.UseImmediate(E8),
        temps_count, temps);
 }
 

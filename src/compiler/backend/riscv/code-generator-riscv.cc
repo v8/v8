@@ -3819,12 +3819,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vzext_vf2(i.OutputSimd128Register(), temp);
       break;
     }
-    case kRiscvI32x4ExtAddPairwiseI16x8S: {
+    case kRiscvExtAddPairwiseS: {
+      int8_t sew = i.InputInt8(1);
       Simd128Register src1 = i.TempSimd128Register(0);
       Simd128Register src2 = i.TempSimd128Register(1);
       Simd128Register src = i.InputSimd128Register(0);
-      uint64_t index1 = 0x0006000400020000;
-      uint64_t index2 = 0x0007000500030001;
+      DCHECK(sew == E8 || sew == E16);
+      uint64_t index1 = (sew == E8) ? 0x0E0C0A0806040200 : 0x0006000400020000;
+      uint64_t index2 = (sew == E8) ? 0x0F0D0B0907050301 : 0x0007000500030001;
       Simd128Register index_reg1 = kSimd128ScratchReg;
       Simd128Register index_reg2 = kSimd128ScratchReg3;
 #if V8_TARGET_ARCH_RISCV64
@@ -3844,24 +3846,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ li(kScratchReg, static_cast<uint32_t>(index2 & 0xFFFFFFFF));
       __ vmv_sx(index_reg2, kScratchReg);
 #endif
-      __ VU.set(kScratchReg, E16, m1);
+      __ VU.set(kScratchReg, sew, m1);
       __ vrgather_vv(src1, src, index_reg1);
       __ vrgather_vv(src2, src, index_reg2);
-      __ VU.set(kScratchReg, E16, mf2);
+      __ VU.set(kScratchReg, sew, mf2);
       __ vwadd_vv(i.OutputSimd128Register(), src1, src2);
       break;
     }
-    case kRiscvI32x4ExtAddPairwiseI16x8U: {
+    case kRiscvExtAddPairwiseU: {
+      int8_t sew = i.InputInt8(1);
       Simd128Register src1 = i.TempSimd128Register(0);
       Simd128Register src2 = i.TempSimd128Register(1);
       Simd128Register src = i.InputSimd128Register(0);
-      uint64_t index1 = 0x0006000400020000;
-      uint64_t index2 = 0x0007000500030001;
+      DCHECK(sew == E8 || sew == E16);
+      uint64_t index1 = (sew == E8) ? 0x0E0C0A0806040200 : 0x0006000400020000;
+      uint64_t index2 = (sew == E8) ? 0x0F0D0B0907050301 : 0x0007000500030001;
       Simd128Register index_reg1 = kSimd128ScratchReg;
       Simd128Register index_reg2 = kSimd128ScratchReg3;
 #if V8_TARGET_ARCH_RISCV64
       __ VU.set(kScratchReg, E64, m1);
       __ li(kScratchReg, index1);
+      // We only set element 0 here. The gather below might thus use an
+      // uninitialized element 1 for the remaining 64 bits. However, that's
+      // fine, since we are halving the register when we do the
+      // vwadd_vv below (mf2), thus not using the elements that were gathered
+      // with the uninitialized element 1.
       __ vmv_sx(index_reg1, kScratchReg);
       __ li(kScratchReg, index2);
       __ vmv_sx(index_reg2, kScratchReg);
@@ -3876,74 +3885,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ li(kScratchReg, static_cast<uint32_t>(index2 & 0xFFFFFFFF));
       __ vmv_sx(index_reg2, kScratchReg);
 #endif
-      __ VU.set(kScratchReg, E16, m1);
+      __ VU.set(kScratchReg, sew, m1);
       __ vrgather_vv(src1, src, index_reg1);
       __ vrgather_vv(src2, src, index_reg2);
-      __ VU.set(kScratchReg, E16, mf2);
-      __ vwaddu_vv(i.OutputSimd128Register(), src1, src2);
-      break;
-    }
-    case kRiscvI16x8ExtAddPairwiseI8x16S: {
-      Simd128Register src1 = i.TempSimd128Register(0);
-      Simd128Register src2 = i.TempSimd128Register(1);
-      Simd128Register src = i.InputSimd128Register(0);
-      uint64_t index1 = 0x0E0C0A0806040200;
-      uint64_t index2 = 0x0F0D0B0907050301;
-      Simd128Register index_reg1 = kSimd128ScratchReg;
-      Simd128Register index_reg2 = kSimd128ScratchReg3;
-#if V8_TARGET_ARCH_RISCV64
-      __ VU.set(kScratchReg, E64, m1);
-      __ li(kScratchReg, index1);
-      __ vmv_sx(index_reg1, kScratchReg);
-      __ li(kScratchReg, index2);
-      __ vmv_sx(index_reg2, kScratchReg);
-#elif V8_TARGET_ARCH_RISCV32
-      __ VU.set(kScratchReg, E32, m1);
-      __ li(kScratchReg, static_cast<uint32_t>(index1 >> 32));
-      __ vmv_vx(index_reg1, kScratchReg);
-      __ li(kScratchReg, static_cast<uint32_t>(index1 & 0xFFFFFFFF));
-      __ vmv_sx(index_reg1, kScratchReg);
-      __ li(kScratchReg, static_cast<uint32_t>(index2 >> 32));
-      __ vmv_vx(index_reg2, kScratchReg);
-      __ li(kScratchReg, static_cast<uint32_t>(index2 & 0xFFFFFFFF));
-      __ vmv_sx(index_reg2, kScratchReg);
-#endif
-      __ VU.set(kScratchReg, E8, m1);
-      __ vrgather_vv(src1, src, index_reg1);
-      __ vrgather_vv(src2, src, index_reg2);
-      __ VU.set(kScratchReg, E8, mf2);
-      __ vwadd_vv(i.OutputSimd128Register(), src1, src2);
-      break;
-    }
-    case kRiscvI16x8ExtAddPairwiseI8x16U: {
-      Simd128Register src1 = i.TempSimd128Register(0);
-      Simd128Register src2 = i.TempSimd128Register(1);
-      Simd128Register src = i.InputSimd128Register(0);
-      uint64_t index1 = 0x0E0C0A0806040200;
-      uint64_t index2 = 0x0F0D0B0907050301;
-      Simd128Register index_reg1 = kSimd128ScratchReg;
-      Simd128Register index_reg2 = kSimd128ScratchReg3;
-#if V8_TARGET_ARCH_RISCV64
-      __ VU.set(kScratchReg, E64, m1);
-      __ li(kScratchReg, index1);
-      __ vmv_sx(index_reg1, kScratchReg);
-      __ li(kScratchReg, index2);
-      __ vmv_sx(index_reg2, kScratchReg);
-#elif V8_TARGET_ARCH_RISCV32
-      __ VU.set(kScratchReg, E32, m1);
-      __ li(kScratchReg, static_cast<uint32_t>(index1 >> 32));
-      __ vmv_vx(index_reg1, kScratchReg);
-      __ li(kScratchReg, static_cast<uint32_t>(index1 & 0xFFFFFFFF));
-      __ vmv_sx(index_reg1, kScratchReg);
-      __ li(kScratchReg, static_cast<uint32_t>(index2 >> 32));
-      __ vmv_vx(index_reg2, kScratchReg);
-      __ li(kScratchReg, static_cast<uint32_t>(index2 & 0xFFFFFFFF));
-      __ vmv_sx(index_reg2, kScratchReg);
-#endif
-      __ VU.set(kScratchReg, E8, m1);
-      __ vrgather_vv(src1, src, index_reg1);
-      __ vrgather_vv(src2, src, index_reg2);
-      __ VU.set(kScratchReg, E8, mf2);
+      __ VU.set(kScratchReg, sew, mf2);
       __ vwaddu_vv(i.OutputSimd128Register(), src1, src2);
       break;
     }
