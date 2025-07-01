@@ -197,6 +197,9 @@ int32_t ExperimentalRegExp::MatchForCallFromJs(
     Address subject, int32_t start_position, Address input_start,
     Address input_end, int* output_registers, int32_t output_register_count,
     RegExp::CallOrigin call_origin, Isolate* isolate, Address regexp_data) {
+  // TODO(422992937): investigate running the interpreter in sandboxed mode.
+  ExitSandboxScope unsandboxed;
+
   DCHECK(v8_flags.enable_experimental_regexp_engine);
   DCHECK_NOT_NULL(isolate);
   DCHECK_NOT_NULL(output_registers);

@@ -4585,7 +4585,11 @@ void Isolate::Deinit() {
 
   // Delete any remaining RegExpResultVector instances.
   for (int32_t* v : active_dynamic_regexp_result_vectors_) {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+    SandboxFree(v);
+#else
     delete[] v;
+#endif
   }
   active_dynamic_regexp_result_vectors_.clear();
 
