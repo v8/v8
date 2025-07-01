@@ -202,12 +202,10 @@ void PrintDictionaryContents(std::ostream& os, Tagged<T> dict) {
   DisallowGarbageCollection no_gc;
   ReadOnlyRoots roots = GetReadOnlyRoots();
 
-  if (dict->Capacity() == 0) {
-    return;
-  }
+  if (dict->Capacity() == 0) return;
 
 #ifdef V8_ENABLE_SWISS_NAME_DICTIONARY
-  Isolate* isolate = GetIsolateFromWritableObject(dict);
+  Isolate* isolate = Isolate::Current();
   // IterateEntries for SwissNameDictionary needs to create a handle.
   HandleScope scope(isolate);
 #endif
@@ -1701,8 +1699,7 @@ void FeedbackCell::FeedbackCellPrint(std::ostream& os) {
         TryCast(value(), &fbv) && fbv->tiering_in_progress()) {
       os << "in_progress ";
     }
-    jdt->PrintCurrentTieringRequest(dispatch_handle(),
-                                    GetIsolateFromWritableObject(*this), os);
+    jdt->PrintCurrentTieringRequest(dispatch_handle(), Isolate::Current(), os);
   }
 
 #endif  // V8_ENABLE_LEAPTIERING
@@ -2174,24 +2171,18 @@ void JSFinalizationRegistry::JSFinalizationRegistryPrint(std::ostream& os) {
 
 void JSSharedArray::JSSharedArrayPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSSharedArray");
-  Isolate* isolate = GetIsolateFromWritableObject(*this);
-  os << "\n - isolate: " << isolate;
   if (HeapLayout::InWritableSharedSpace(*this)) os << " (shared)";
   JSObjectPrintBody(os, *this);
 }
 
 void JSSharedStruct::JSSharedStructPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSSharedStruct");
-  Isolate* isolate = GetIsolateFromWritableObject(*this);
-  os << "\n - isolate: " << isolate;
   if (HeapLayout::InWritableSharedSpace(*this)) os << " (shared)";
   JSObjectPrintBody(os, *this);
 }
 
 void JSAtomicsMutex::JSAtomicsMutexPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSAtomicsMutex");
-  Isolate* isolate = GetIsolateFromWritableObject(*this);
-  os << "\n - isolate: " << isolate;
   if (HeapLayout::InWritableSharedSpace(*this)) os << " (shared)";
   os << "\n - state: " << this->state();
   os << "\n - owner_thread_id: " << this->owner_thread_id();
@@ -2200,8 +2191,6 @@ void JSAtomicsMutex::JSAtomicsMutexPrint(std::ostream& os) {
 
 void JSAtomicsCondition::JSAtomicsConditionPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSAtomicsCondition");
-  Isolate* isolate = GetIsolateFromWritableObject(*this);
-  os << "\n - isolate: " << isolate;
   if (HeapLayout::InWritableSharedSpace(*this)) os << " (shared)";
   os << "\n - state: " << this->state();
   JSObjectPrintBody(os, *this);
@@ -4122,7 +4111,7 @@ void Map::MapPrint(std::ostream& os) {
   if (!HeapLayout::InReadOnlySpace(*this)) {
     Isolate* isolate = HeapLayout::InWritableSharedSpace(*this)
                            ? Isolate::Current()->shared_space_isolate()
-                           : GetIsolateFromWritableObject(*this);
+                           : Isolate::Current();
     TransitionsAccessor transitions(isolate, *this);
     int nof_transitions = transitions.NumberOfTransitions();
     if (nof_transitions > 0 || transitions.HasPrototypeTransitions() ||
@@ -4241,13 +4230,14 @@ void TransitionsAccessor::PrintOneTransition(std::ostream& os, Tagged<Name> key,
 }
 
 void TransitionArray::PrintInternal(std::ostream& os) {
+  Isolate* isolate = Isolate::Current();
   {
     int num_transitions = number_of_transitions();
     os << "\n   Transitions #" << num_transitions << ":";
     for (int i = 0; i < num_transitions; i++) {
       Tagged<Name> key = GetKey(i);
       Tagged<Map> target;
-      GetTargetIfExists(i, GetIsolateFromWritableObject(*this), &target);
+      GetTargetIfExists(i, isolate, &target);
       TransitionsAccessor::PrintOneTransition(os, key, target);
     }
   }

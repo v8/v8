@@ -149,7 +149,7 @@ uint32_t CompilationCacheShape::HashForObject(ReadOnlyRoots roots,
   // object.
   if (IsRegExpDataWrapper(object)) {
     Tagged<RegExpDataWrapper> re_wrapper = Cast<RegExpDataWrapper>(object);
-    Isolate* isolate = GetIsolateFromWritableObject(re_wrapper);
+    Isolate* isolate = Isolate::Current();
     Tagged<RegExpData> data = re_wrapper->data(isolate);
     return RegExpHash(data->source(), Smi::FromInt(data->flags()));
   }

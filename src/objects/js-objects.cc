@@ -5175,7 +5175,7 @@ void InvalidateOnePrototypeValidityCellInternal(Tagged<Map> map) {
   // here, even if the cell was already invalid.
   if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL && map->is_dictionary_map()) {
     // TODO(11527): pass Isolate as an argument.
-    Isolate* isolate = GetIsolateFromWritableObject(map);
+    Isolate* isolate = Isolate::Current();
     DependentCode::DeoptimizeDependencyGroups(
         isolate, map, DependentCode::kPrototypeCheckGroup);
   }

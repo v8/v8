@@ -528,8 +528,7 @@ bool Code::marked_for_deoptimization() const {
 }
 
 void Code::set_marked_for_deoptimization(bool flag) {
-  DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(
-                           GetIsolateFromWritableObject(*this)));
+  DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(Isolate::Current()));
   int32_t previous = flags(kRelaxedLoad);
   int32_t updated = MarkedForDeoptimizationField::update(previous, flag);
   set_flags(updated, kRelaxedStore);

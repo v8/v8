@@ -1800,9 +1800,7 @@ ScriptCompiler::StreamedSource::~StreamedSource() = default;
 
 Local<Script> UnboundScript::BindToCurrentContext() {
   auto function_info = Utils::OpenDirectHandle(this);
-  // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is gone.
-  DCHECK(!i::HeapLayout::InReadOnlySpace(*function_info));
-  i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*function_info);
+  i::Isolate* i_isolate = i::Isolate::Current();
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   i::DirectHandle<i::JSFunction> function =
       i::Factory::JSFunctionBuilder{i_isolate, function_info,
@@ -1813,135 +1811,90 @@ Local<Script> UnboundScript::BindToCurrentContext() {
 
 int UnboundScript::GetId() const {
   auto function_info = Utils::OpenDirectHandle(this);
-  // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is gone.
-  DCHECK(!i::HeapLayout::InReadOnlySpace(*function_info));
-  ApiRuntimeCallStatsScope rcs_scope(
-      i::GetIsolateFromWritableObject(*function_info),
-      RCCId::kAPI_UnboundScript_GetId);
+  ApiRuntimeCallStatsScope rcs_scope(i::Isolate::Current(),
+                                     RCCId::kAPI_UnboundScript_GetId);
   return i::Cast<i::Script>(function_info->script())->id();
 }
 
 int UnboundScript::GetLineNumber(int code_pos) {
   auto obj = Utils::OpenDirectHandle(this);
-  if (i::IsScript(obj->script())) {
-    // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is
-    // gone.
-    DCHECK(!i::HeapLayout::InReadOnlySpace(*obj));
-    i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
-    EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-    ApiRuntimeCallStatsScope rcs_scope(i_isolate,
-                                       RCCId::kAPI_UnboundScript_GetLineNumber);
-    i::DirectHandle<i::Script> script(i::Cast<i::Script>(obj->script()),
-                                      i_isolate);
-    return i::Script::GetLineNumber(script, code_pos);
-  } else {
-    return -1;
-  }
+  if (!i::IsScript(obj->script())) return -1;
+  i::Isolate* i_isolate = i::Isolate::Current();
+  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
+  ApiRuntimeCallStatsScope rcs_scope(i_isolate,
+                                     RCCId::kAPI_UnboundScript_GetLineNumber);
+  i::DirectHandle<i::Script> script(i::Cast<i::Script>(obj->script()),
+                                    i_isolate);
+  return i::Script::GetLineNumber(script, code_pos);
 }
 
 int UnboundScript::GetColumnNumber(int code_pos) {
   auto obj = Utils::OpenDirectHandle(this);
-  if (i::IsScript(obj->script())) {
-    // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is
-    // gone.
-    DCHECK(!i::HeapLayout::InReadOnlySpace(*obj));
-    i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
-    EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-    ApiRuntimeCallStatsScope rcs_scope(
-        i_isolate, RCCId::kAPI_UnboundScript_GetColumnNumber);
-    i::DirectHandle<i::Script> script(i::Cast<i::Script>(obj->script()),
-                                      i_isolate);
-    return i::Script::GetColumnNumber(script, code_pos);
-  } else {
-    return -1;
-  }
+  if (!i::IsScript(obj->script())) return -1;
+  i::Isolate* i_isolate = i::Isolate::Current();
+  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
+  ApiRuntimeCallStatsScope rcs_scope(i_isolate,
+                                     RCCId::kAPI_UnboundScript_GetColumnNumber);
+  i::DirectHandle<i::Script> script(i::Cast<i::Script>(obj->script()),
+                                    i_isolate);
+  return i::Script::GetColumnNumber(script, code_pos);
 }
 
 Local<Value> UnboundScript::GetScriptName() {
   auto obj = Utils::OpenDirectHandle(this);
-  if (i::IsScript(obj->script())) {
-    // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is
-    // gone.
-    DCHECK(!i::HeapLayout::InReadOnlySpace(*obj));
-    i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
-    EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-    ApiRuntimeCallStatsScope rcs_scope(i_isolate,
-                                       RCCId::kAPI_UnboundScript_GetName);
-    i::Tagged<i::Object> name = i::Cast<i::Script>(obj->script())->name();
-    return Utils::ToLocal(i::direct_handle(name, i_isolate));
-  } else {
-    return {};
-  }
+  if (!i::IsScript(obj->script())) return {};
+  i::Isolate* i_isolate = i::Isolate::Current();
+  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
+  ApiRuntimeCallStatsScope rcs_scope(i_isolate,
+                                     RCCId::kAPI_UnboundScript_GetName);
+  i::Tagged<i::Object> name = i::Cast<i::Script>(obj->script())->name();
+  return Utils::ToLocal(i::direct_handle(name, i_isolate));
 }
 
 Local<Value> UnboundScript::GetSourceURL() {
   auto obj = Utils::OpenDirectHandle(this);
-  if (i::IsScript(obj->script())) {
-    // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is
-    // gone.
-    DCHECK(!i::HeapLayout::InReadOnlySpace(*obj));
-    i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
-    ApiRuntimeCallStatsScope rcs_scope(i_isolate,
-                                       RCCId::kAPI_UnboundScript_GetSourceURL);
-    EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-    i::Tagged<i::Object> url = i::Cast<i::Script>(obj->script())->source_url();
-    return Utils::ToLocal(i::direct_handle(url, i_isolate));
-  } else {
-    return {};
-  }
+  if (!i::IsScript(obj->script())) return {};
+  i::Isolate* i_isolate = i::Isolate::Current();
+  ApiRuntimeCallStatsScope rcs_scope(i_isolate,
+                                     RCCId::kAPI_UnboundScript_GetSourceURL);
+  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
+  i::Tagged<i::Object> url = i::Cast<i::Script>(obj->script())->source_url();
+  return Utils::ToLocal(i::direct_handle(url, i_isolate));
 }
 
 Local<Value> UnboundScript::GetSourceMappingURL() {
   auto obj = Utils::OpenDirectHandle(this);
-  if (i::IsScript(obj->script())) {
-    // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is
-    // gone.
-    DCHECK(!i::HeapLayout::InReadOnlySpace(*obj));
-    i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
-    ApiRuntimeCallStatsScope rcs_scope(
-        i_isolate, RCCId::kAPI_UnboundScript_GetSourceMappingURL);
-    EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-    i::Tagged<i::Object> url =
-        i::Cast<i::Script>(obj->script())->source_mapping_url();
-    return Utils::ToLocal(i::direct_handle(url, i_isolate));
-  } else {
-    return {};
-  }
+  if (!i::IsScript(obj->script())) return {};
+  i::Isolate* i_isolate = i::Isolate::Current();
+  ApiRuntimeCallStatsScope rcs_scope(
+      i_isolate, RCCId::kAPI_UnboundScript_GetSourceMappingURL);
+  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
+  i::Tagged<i::Object> url =
+      i::Cast<i::Script>(obj->script())->source_mapping_url();
+  return Utils::ToLocal(i::direct_handle(url, i_isolate));
 }
 
 Local<Value> UnboundModuleScript::GetSourceURL() {
   auto obj = Utils::OpenDirectHandle(this);
-  if (i::IsScript(obj->script())) {
-    // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is
-    // gone.
-    DCHECK(!i::HeapLayout::InReadOnlySpace(*obj));
-    i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
-    ApiRuntimeCallStatsScope rcs_scope(
-        i_isolate, RCCId::kAPI_UnboundModuleScript_GetSourceURL);
-    EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-    i::Tagged<i::Object> url = i::Cast<i::Script>(obj->script())->source_url();
-    return Utils::ToLocal(i::direct_handle(url, i_isolate));
-  } else {
-    return {};
-  }
+  if (!i::IsScript(obj->script())) return {};
+  i::Isolate* i_isolate = i::Isolate::Current();
+  ApiRuntimeCallStatsScope rcs_scope(
+      i_isolate, RCCId::kAPI_UnboundModuleScript_GetSourceURL);
+  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
+  i::Tagged<i::Object> url = i::Cast<i::Script>(obj->script())->source_url();
+  return Utils::ToLocal(i::direct_handle(url, i_isolate));
 }
 
 Local<Value> UnboundModuleScript::GetSourceMappingURL() {
   auto obj = Utils::OpenDirectHandle(this);
-  if (i::IsScript(obj->script())) {
-    // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is
-    // gone.
-    DCHECK(!i::HeapLayout::InReadOnlySpace(*obj));
-    i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
-    ApiRuntimeCallStatsScope rcs_scope(
-        i_isolate, RCCId::kAPI_UnboundModuleScript_GetSourceMappingURL);
-    EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-    i::Tagged<i::Object> url =
-        i::Cast<i::Script>(obj->script())->source_mapping_url();
-    return Utils::ToLocal(i::direct_handle(url, i_isolate));
-  } else {
-    return {};
-  }
+  if (!i::IsScript(obj->script())) return {};
+  i::Isolate* i_isolate = i::Isolate::Current();
+  ApiRuntimeCallStatsScope rcs_scope(
+      i_isolate, RCCId::kAPI_UnboundModuleScript_GetSourceMappingURL);
+  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
+  i::Tagged<i::Object> url =
+      i::Cast<i::Script>(obj->script())->source_mapping_url();
+  return Utils::ToLocal(i::direct_handle(url, i_isolate));
 }
 
 MaybeLocal<Value> Script::Run(Local<Context> context) {
@@ -1986,14 +1939,14 @@ MaybeLocal<Value> Script::Run(Local<Context> context,
 
 Local<Value> ScriptOrModule::GetResourceName() {
   auto obj = Utils::OpenDirectHandle(this);
-  i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
+  i::Isolate* i_isolate = i::Isolate::Current();
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   return ToApiHandle<Value>(i::direct_handle(obj->resource_name(), i_isolate));
 }
 
 Local<Data> ScriptOrModule::HostDefinedOptions() {
   auto obj = Utils::OpenDirectHandle(this);
-  i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
+  i::Isolate* i_isolate = i::Isolate::Current();
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   return ToApiHandle<Data>(
       i::direct_handle(obj->host_defined_options(), i_isolate));
@@ -2731,9 +2684,7 @@ uint32_t ScriptCompiler::CachedDataVersionTag() {
 ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCache(
     Local<UnboundScript> unbound_script) {
   auto shared = Utils::OpenHandle(*unbound_script);
-  // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is gone.
-  DCHECK(!i::HeapLayout::InReadOnlySpace(*shared));
-  i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*shared);
+  i::Isolate* i_isolate = i::Isolate::Current();
   Utils::ApiCheck(!i_isolate->serializer_enabled(),
                   "ScriptCompiler::CreateCodeCache",
                   "Cannot create code cache while creating a snapshot");
@@ -2748,9 +2699,7 @@ ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCache(
     Local<UnboundModuleScript> unbound_module_script) {
   i::Handle<i::SharedFunctionInfo> shared =
       Utils::OpenHandle(*unbound_module_script);
-  // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is gone.
-  DCHECK(!i::HeapLayout::InReadOnlySpace(*shared));
-  i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*shared);
+  i::Isolate* i_isolate = i::Isolate::Current();
   Utils::ApiCheck(!i_isolate->serializer_enabled(),
                   "ScriptCompiler::CreateCodeCache",
                   "Cannot create code cache while creating a snapshot");
@@ -3848,9 +3797,9 @@ MaybeLocal<Uint32> Value::ToUint32(Local<Context> context) const {
       Utils::ToMaybeLocal(i::Object::ToUint32(i_isolate, obj)).As<Uint32>());
 }
 
+// Note: This method is deprecated.
 i::Isolate* i::IsolateFromNeverReadOnlySpaceObject(i::Address obj) {
-  return i::GetIsolateFromWritableObject(
-      i::Cast<i::HeapObject>(i::Tagged<i::Object>(obj)));
+  return i::Isolate::Current();
 }
 
 namespace api_internal {
@@ -6213,10 +6162,9 @@ Local<Value> Symbol::Description(Isolate* v8_isolate) const {
 
 Local<Value> Private::Name() const {
   const Symbol* sym = reinterpret_cast<const Symbol*>(this);
-  auto i_sym = Utils::OpenDirectHandle(sym);
   // v8::Private symbols are created by API and are therefore writable, so we
   // can always recover an Isolate.
-  i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*i_sym);
+  i::Isolate* i_isolate = i::Isolate::Current();
   return sym->Description(reinterpret_cast<Isolate*>(i_isolate));
 }
 

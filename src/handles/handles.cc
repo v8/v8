@@ -21,13 +21,6 @@
 #include "src/maglev/maglev-concurrent-dispatcher.h"
 #endif  // V8_ENABLE_MAGLEV
 
-#ifdef DEBUG
-// For GetIsolateFromWritableHeapObject.
-#include "src/heap/heap-write-barrier-inl.h"
-// For GetIsolateFromWritableObject.
-#include "src/execution/isolate-utils-inl.h"
-#endif
-
 #ifdef V8_ENABLE_DIRECT_HANDLE
 // For Isolate::Current() in indirect_handle.
 #include "src/execution/isolate-inl.h"

@@ -112,7 +112,7 @@ ArrayBufferExtension* JSArrayBuffer::extension() const {
   // We need Acquire semantics here when loading the entry, see below.
   // Consider adding respective external pointer accessors if non-relaxed
   // ordering semantics are ever needed in other places as well.
-  Isolate* isolate = GetIsolateFromWritableObject(*this);
+  Isolate* isolate = Isolate::Current();
   ExternalPointerHandle handle =
       base::AsAtomic32::Acquire_Load(extension_handle_location());
   return reinterpret_cast<ArrayBufferExtension*>(
@@ -127,7 +127,7 @@ void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
   // TODO(saelo): if we ever use the external pointer table for all external
   // pointer fields in the no-sandbox-ptr-compression config, replace this code
   // here and above with the respective external pointer accessors.
-  IsolateForPointerCompression isolate = GetIsolateFromWritableObject(*this);
+  IsolateForPointerCompression isolate = Isolate::Current();
   const ExternalPointerTag tag = kArrayBufferExtensionTag;
   Address value = reinterpret_cast<Address>(extension);
   ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag);

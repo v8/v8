@@ -123,12 +123,8 @@ DEF_GETTER(BytecodeArray, SourcePositionTable, Tagged<TrustedByteArray>) {
   // WARNING: This function may be called from a background thread, hence
   // changes to how it accesses the heap can easily lead to bugs.
   Tagged<Object> maybe_table = raw_source_position_table(kAcquireLoad);
-  if (IsTrustedByteArray(maybe_table))
-    return Cast<TrustedByteArray>(maybe_table);
-  DCHECK_EQ(maybe_table, Smi::zero());
-  return GetIsolateFromWritableObject(*this)
-      ->heap()
-      ->empty_trusted_byte_array();
+  if (maybe_table != Smi::zero()) return Cast<TrustedByteArray>(maybe_table);
+  return Isolate::Current()->heap()->empty_trusted_byte_array();
 }
 
 void BytecodeArray::SetSourcePositionsFailedToCollect() {

@@ -2314,7 +2314,7 @@ wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
     case wasm::kRef:
     case wasm::kRefNull: {
       DirectHandle<Object> ref(TaggedField<Object>::load(*this, field_offset),
-                               GetIsolateFromWritableObject(*this));
+                               Isolate::Current());
       return wasm::WasmValue(ref, field_type);
     }
     case wasm::kVoid:
@@ -2344,7 +2344,7 @@ wasm::WasmValue WasmArray::GetElement(uint32_t index) {
     case wasm::kRef:
     case wasm::kRefNull: {
       DirectHandle<Object> ref(TaggedField<Object>::load(*this, element_offset),
-                               GetIsolateFromWritableObject(*this));
+                               Isolate::Current());
       return wasm::WasmValue(ref, element_type);
     }
     case wasm::kVoid:

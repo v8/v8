@@ -31,18 +31,8 @@ V8_INLINE Heap* GetHeapFromWritableObject(Tagged<HeapObject> object) {
   return heap;
 }
 
-// TODO(396607238): Replace all callers with `Isolate::Current()`.
-V8_INLINE Isolate* GetIsolateFromWritableObject(Tagged<HeapObject> object) {
-  return Isolate::FromHeap(GetHeapFromWritableObject(object));
-}
-
 V8_INLINE Heap* GetHeapFromWritableObject(const HeapObjectLayout& object) {
   return GetHeapFromWritableObject(Tagged(&object));
-}
-
-V8_INLINE Isolate* GetIsolateFromWritableObject(
-    const HeapObjectLayout& object) {
-  return GetIsolateFromWritableObject(Tagged(&object));
 }
 
 V8_INLINE bool GetIsolateFromHeapObject(Tagged<HeapObject> object,
