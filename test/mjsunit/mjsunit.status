@@ -2348,7 +2348,6 @@
   'wasm/js-to-wasm-invalid-sig': [SKIP],
   'wasm/shuffles': [SKIP],
   'wasm/redundant-shuffle-lanes': [SKIP],
-  'wasm/shared-everything/atomic-instructions': [SKIP],
   'wasm/simd-*': [SKIP],
   'wasm/turboshaft/array-new-unreachable': [SKIP],
   'wasm/turboshaft/reduction-shuffle': [SKIP],
