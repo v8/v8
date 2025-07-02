@@ -48,6 +48,7 @@
 #include "src/maglev/maglev-pre-regalloc-codegen-processors.h"
 #include "src/maglev/maglev-regalloc-data.h"
 #include "src/maglev/maglev-regalloc.h"
+#include "src/maglev/maglev-truncation.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/js-function.h"
 #include "src/utils/identity-map.h"
@@ -153,7 +154,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.Maglev.Truncation");
 
-      GraphProcessor<TruncationProcessor> truncate(graph);
+      GraphProcessor<MaglevTruncationProcessor> truncate(graph);
       truncate.ProcessGraph(graph);
 
       if (is_tracing_enabled && v8_flags.print_maglev_graphs) {

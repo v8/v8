@@ -52,6 +52,7 @@
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-phi-representation-selector.h"
 #include "src/maglev/maglev-post-hoc-optimizations-processors.h"
+#include "src/maglev/maglev-truncation.h"
 #include "src/objects/contexts.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/heap-object.h"
@@ -6383,7 +6384,8 @@ void RunMaglevOptimizations(PipelineData* data,
 
   // Truncation pass.
   if (v8_flags.maglev_truncation) {
-    maglev::GraphProcessor<maglev::TruncationProcessor> processor(maglev_graph);
+    maglev::GraphProcessor<maglev::MaglevTruncationProcessor> processor(
+        maglev_graph);
     processor.ProcessGraph(maglev_graph);
   }
 

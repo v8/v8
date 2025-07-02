@@ -3008,6 +3008,22 @@ inline DoubleRegList ValueNode::ClearRegisters() {
   return std::exchange(double_registers_with_result_, kEmptyDoubleRegList);
 }
 
+void NodeBase::change_input(int index, ValueNode* node) {
+  DCHECK_NE(input(index).node(), nullptr);
+  if (input(index).node() == node) return;
+  // After the AnyUseMarkingProcessor the use count can be -1.
+  if (input(index).node()->is_used()) {
+    input(index).node()->remove_use();
+  } else {
+    DCHECK_EQ(input(index).node()->use_count(), -1);
+  }
+
+#ifdef DEBUG
+  input(index) = Input(nullptr);
+#endif
+  set_input(index, node);
+}
+
 ValueLocation& Node::result() {
   DCHECK(Is<ValueNode>());
   return Cast<ValueNode>()->result();
@@ -6527,6 +6543,17 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
   friend List;
   friend base::ThreadedListTraits<InlinedAllocation>;
 };
+
+void ValueNode::remove_use() {
+  // Make sure a saturated use count won't drop below zero.
+  DCHECK_GT(use_count_, 0);
+  use_count_--;
+  if (auto alloc = TryCast<InlinedAllocation>()) {
+    // Unfortunately we cannot know if the removed use was escaping or not. To
+    // be safe we need to assume it wasn't.
+    alloc->RemoveNonEscapingUses(1);
+  }
+}
 
 template <typename Function>
 inline void VirtualObject::ForEachNestedRuntimeInput(
