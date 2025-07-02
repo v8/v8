@@ -1501,11 +1501,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void WasmRvvS128const(VRegister dst, const uint8_t imms[16]);
 
   void LoadLane(
-      int sz, VRegister dst, uint8_t laneidx, MemOperand src,
-      Trapper&& trapper = [](int){});
+      VSew sew, VRegister dst, uint8_t laneidx, MemOperand src,
+      Trapper&& trapper = [](int) {});
   void StoreLane(
-      int sz, VRegister src, uint8_t laneidx, MemOperand dst,
-      Trapper&& trapper = [](int){});
+      VSew sew, VRegister src, uint8_t laneidx, MemOperand dst,
+      Trapper&& trapper = [](int) {});
 
   // It assumes that the arguments are located below the stack pointer.
   void LoadReceiver(Register dest) { LoadWord(dest, MemOperand(sp, 0)); }

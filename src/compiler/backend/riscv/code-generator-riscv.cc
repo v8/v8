@@ -43,6 +43,10 @@ static int SewToInt(VSew sew) {
   }
 }
 
+static VSew DecodeElementWidth(int opcode) {
+  return static_cast<VSew>(LaneSizeField::decode(opcode));
+}
+
 // Adds RISC-V-specific methods to convert InstructionOperands.
 class RiscvOperandConverter final : public InstructionOperandConverter {
  public:
@@ -2689,15 +2693,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvS128LoadLane: {
       Simd128Register dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
-      auto sz = LaneSizeField::decode(opcode);
-      __ LoadLane(sz, dst, i.InputUint8(1), i.MemoryOperand(2), trapper);
+      auto sew = DecodeElementWidth(opcode);
+      __ LoadLane(sew, dst, i.InputUint8(1), i.MemoryOperand(2), trapper);
       break;
     }
     case kRiscvS128StoreLane: {
       Simd128Register src = i.InputSimd128Register(0);
       DCHECK_EQ(src, i.InputSimd128Register(0));
-      auto sz = LaneSizeField::decode(opcode);
-      __ StoreLane(sz, src, i.InputUint8(1), i.MemoryOperand(2), trapper);
+      auto sew = DecodeElementWidth(opcode);
+      __ StoreLane(sew, src, i.InputUint8(1), i.MemoryOperand(2), trapper);
       break;
     }
     case kRiscvS128Load64ExtendS: {

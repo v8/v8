@@ -29,6 +29,29 @@ namespace compiler {
 
 using namespace turboshaft;  // NOLINT(build/namespaces)
 
+static int EncodeElementWidth(VSew sew) {
+  // We currently encode the element size in 2 bits.
+  // The lane size field has 8 free bits, so there is plenty of room.
+  static_assert((0 <= static_cast<int>(VSew::E8)) &&
+                (static_cast<int>(VSew::E8) <= 3));
+  return LaneSizeField::encode(sew);
+}
+
+static VSew ByteSizeToSew(int byte_size) {
+  switch (byte_size) {
+    case 1:
+      return VSew::E8;
+    case 2:
+      return VSew::E16;
+    case 4:
+      return VSew::E32;
+    case 8:
+      return VSew::E64;
+    default:
+      UNREACHABLE();
+  }
+}
+
 // Adds RISC-V-specific methods for generating InstructionOperands.
 
 class RiscvOperandGenerator final : public OperandGenerator {

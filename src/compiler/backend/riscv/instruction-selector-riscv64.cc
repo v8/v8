@@ -233,7 +233,7 @@ void EmitS128Load(InstructionSelector* selector, OpIndex node,
 void InstructionSelector::VisitStoreLane(OpIndex node) {
   const Simd128LaneMemoryOp& store = Get(node).Cast<Simd128LaneMemoryOp>();
   InstructionCode opcode = kRiscvS128StoreLane;
-  opcode |= LaneSizeField::encode(store.lane_size() * kBitsPerByte);
+  opcode |= EncodeElementWidth(ByteSizeToSew(store.lane_size()));
   if (store.kind.with_trap_handler) {
     opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
@@ -258,7 +258,7 @@ void InstructionSelector::VisitStoreLane(OpIndex node) {
 void InstructionSelector::VisitLoadLane(OpIndex node) {
   const Simd128LaneMemoryOp& load = this->Get(node).Cast<Simd128LaneMemoryOp>();
   InstructionCode opcode = kRiscvS128LoadLane;
-  opcode |= LaneSizeField::encode(load.lane_size() * kBitsPerByte);
+  opcode |= EncodeElementWidth(ByteSizeToSew(load.lane_size()));
   if (load.kind.with_trap_handler) {
     opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }

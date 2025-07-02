@@ -6042,29 +6042,29 @@ void MacroAssembler::WasmRvvS128const(VRegister dst, const uint8_t imms[16]) {
 }
 #endif
 
-void MacroAssembler::LoadLane(int ts, VRegister dst, uint8_t laneidx,
+void MacroAssembler::LoadLane(VSew sew, VRegister dst, uint8_t laneidx,
                               MemOperand src, Trapper&& trapper) {
   DCHECK_NE(kScratchReg, src.rm());
-  if (ts == 8) {
+  if (sew == E8) {
     Lbu(kScratchReg2, src, std::forward<Trapper>(trapper));
     VU.set(kScratchReg, E32, m1);
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);
     VU.set(kScratchReg, E8, m1);
     vmerge_vx(dst, kScratchReg2, dst);
-  } else if (ts == 16) {
+  } else if (sew == E16) {
     Lhu(kScratchReg2, src, std::forward<Trapper>(trapper));
     VU.set(kScratchReg, E16, m1);
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);
     vmerge_vx(dst, kScratchReg2, dst);
-  } else if (ts == 32) {
+  } else if (sew == E32) {
     Load32U(kScratchReg2, src, std::forward<Trapper>(trapper));
     VU.set(kScratchReg, E32, m1);
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);
     vmerge_vx(dst, kScratchReg2, dst);
-  } else if (ts == 64) {
+  } else if (sew == E64) {
 #if V8_TARGET_ARCH_RISCV64
     LoadWord(kScratchReg2, src, std::forward<Trapper>(trapper));
     VU.set(kScratchReg, E64, m1);
@@ -6083,29 +6083,28 @@ void MacroAssembler::LoadLane(int ts, VRegister dst, uint8_t laneidx,
   }
 }
 
-void MacroAssembler::StoreLane(int sz, VRegister src, uint8_t laneidx,
+void MacroAssembler::StoreLane(VSew sew, VRegister src, uint8_t laneidx,
                                MemOperand dst, Trapper&& trapper) {
   DCHECK_NE(kScratchReg, dst.rm());
-  if (sz == 8) {
+  if (sew == E8) {
     VU.set(kScratchReg, E8, m1);
     vslidedown_vi(kSimd128ScratchReg, src, laneidx);
     vmv_xs(kScratchReg, kSimd128ScratchReg);
     trapper(pc_offset());
     Sb(kScratchReg, dst, std::forward<Trapper>(trapper));
-  } else if (sz == 16) {
+  } else if (sew == E16) {
     VU.set(kScratchReg, E16, m1);
     vslidedown_vi(kSimd128ScratchReg, src, laneidx);
     vmv_xs(kScratchReg, kSimd128ScratchReg);
     trapper(pc_offset());
     Sh(kScratchReg, dst, std::forward<Trapper>(trapper));
-  } else if (sz == 32) {
+  } else if (sew == E32) {
     VU.set(kScratchReg, E32, m1);
     vslidedown_vi(kSimd128ScratchReg, src, laneidx);
     vmv_xs(kScratchReg, kSimd128ScratchReg);
     trapper(pc_offset());
     Sw(kScratchReg, dst, std::forward<Trapper>(trapper));
-  } else {
-    DCHECK_EQ(sz, 64);
+  } else if (sew == E64) {
     VU.set(kScratchReg, E64, m1);
     vslidedown_vi(kSimd128ScratchReg, src, laneidx);
 #if V8_TARGET_ARCH_RISCV64
@@ -6117,6 +6116,8 @@ void MacroAssembler::StoreLane(int sz, VRegister src, uint8_t laneidx,
     trapper(pc_offset());
     StoreDouble(kScratchDoubleReg, dst, std::forward<Trapper>(trapper));
 #endif
+  } else {
+    UNREACHABLE();
   }
 }
 // -----------------------------------------------------------------------------
