@@ -31,16 +31,6 @@ class SimulatorTrapHandlerTest : public TestWithIsolate {
     }
   }
 
-  void SetThreadInWasm() {
-    EXPECT_EQ(0, *thread_in_wasm);
-    *thread_in_wasm = 1;
-  }
-
-  void ResetThreadInWasm() {
-    EXPECT_EQ(1, *thread_in_wasm);
-    *thread_in_wasm = 0;
-  }
-
   uintptr_t InaccessibleMemoryPtr() {
     if (!inaccessible_memory_) {
       auto* page_allocator = GetArrayBufferPageAllocator();
@@ -53,8 +43,6 @@ class SimulatorTrapHandlerTest : public TestWithIsolate {
     }
     return reinterpret_cast<uintptr_t>(inaccessible_memory_);
   }
-
-  int* thread_in_wasm = trap_handler::GetThreadInWasmThreadLocalAddress();
 
  private:
   uint8_t* inaccessible_memory_ = nullptr;
@@ -75,12 +63,11 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryFailInaccessible) {
 }
 
 TEST_F(SimulatorTrapHandlerTest, ProbeMemoryFailWhileInWasm) {
-  // Test that we still crash if the trap handler is set up and the "thread in
-  // wasm" flag is set, but the PC is not registered as a protected instruction.
+  // Test that we still crash if the trap handler is set up, but the PC is not
+  // registered as a protected instruction.
   constexpr bool kUseDefaultHandler = true;
   CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultHandler));
 
-  SetThreadInWasm();
   EXPECT_DEATH_IF_SUPPORTED(ProbeMemory(InaccessibleMemoryPtr(), kFakePc), "");
 }
 
@@ -98,11 +85,9 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithTrapHandled) {
   int handler_data_index =
       RegisterHandlerData(0, 128, 1, &fake_protected_instruction);
 
-  SetThreadInWasm();
   EXPECT_EQ(v8_landing_pad(), ProbeMemory(InaccessibleMemoryPtr(), kFakePc));
 
   // Reset everything.
-  ResetThreadInWasm();
   ReleaseHandlerData(handler_data_index);
   RemoveTrapHandler();
 }
@@ -166,9 +151,7 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithLandingPad) {
 
   trap_handler::SetLandingPad(reinterpret_cast<uintptr_t>(buffer->start()) +
                               recovery_offset);
-  SetThreadInWasm();
   code.Call();
-  ResetThreadInWasm();
 
   ReleaseHandlerData(handler_data_index);
   RemoveTrapHandler();

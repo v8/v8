@@ -11,11 +11,6 @@ namespace v8 {
 namespace internal {
 
 RUNTIME_FUNCTION(Runtime_StringToNumber) {
-  // When this is called from Wasm code, clear the "thread in wasm" flag,
-  // which is important in case any GC needs to happen.
-  // TODO(40192807): Find a better fix, likely by replacing the global flag.
-  SaveAndClearThreadInWasmFlag clear_wasm_flag(isolate);
-
   HandleScope handle_scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<String> subject = args.at<String>(0);
@@ -62,11 +57,6 @@ RUNTIME_FUNCTION(Runtime_StringParseFloat) {
 }
 
 RUNTIME_FUNCTION(Runtime_NumberToStringSlow) {
-  // When this is called from Wasm code, clear the "thread in wasm" flag,
-  // which is important in case any GC needs to happen.
-  // TODO(40192807): Find a better fix, likely by replacing the global flag.
-  SaveAndClearThreadInWasmFlag clear_wasm_flag(isolate);
-
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   return *isolate->factory()->NumberToString(args.at(0),

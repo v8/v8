@@ -3665,14 +3665,6 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
   // Restore rsp to free the reserved stack slots for the sections.
   __ leaq(rsp, MemOperand(rbp, StackSwitchFrameConstants::kLastSpillOffset));
 
-  // Unset thread_in_wasm_flag.
-  Register thread_in_wasm_flag_addr = r8;
-  __ movq(
-      thread_in_wasm_flag_addr,
-      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
-  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(0));
-  thread_in_wasm_flag_addr = no_reg;
-
   // The exception becomes the parameter of the RejectPromise builtin, and the
   // promise is the return value of this wrapper.
   static const Builtin_RejectPromise_InterfaceDescriptor desc;
@@ -3807,11 +3799,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   }
   DCHECK_EQ(next_offset, stack_params_offset);
 
-  Register thread_in_wasm_flag_addr = r12;
-  __ movq(
-      thread_in_wasm_flag_addr,
-      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
-  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(1));
   if (stack_switch) {
     __ Move(MemOperand(rbp, StackSwitchFrameConstants::kGCScanSlotCountOffset),
             0);
@@ -3823,12 +3810,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   // it here, but an attacker that could corrupt the signature could also
   // corrupt that signature hash (which is outside of the sandbox).
   __ CallWasmCodePointerNoSignatureCheck(call_target);
-
-  __ movq(
-      thread_in_wasm_flag_addr,
-      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
-  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(0));
-  thread_in_wasm_flag_addr = no_reg;
 
   wrapper_buffer = rcx;
   for (size_t i = 0; i < arraysize(wasm::kGpReturnRegisters); ++i) {

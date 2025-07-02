@@ -73,12 +73,7 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
   template <typename T, typename A>
   friend class compiler::turboshaft::ScopedVar;
 
- public:
   using OpIndex = compiler::turboshaft::OpIndex;
-  void BuildModifyThreadInWasmFlagHelper(Zone* zone,
-                                         OpIndex thread_in_wasm_flag_address,
-                                         bool new_value);
-  void BuildModifyThreadInWasmFlag(Zone* zone, bool new_value);
 
  protected:
   WasmGraphBuilderBase(Zone* zone, Assembler& assembler)

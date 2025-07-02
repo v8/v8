@@ -107,8 +107,6 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
       wasm::GetOrCreateInterpreterHandle(isolate, interpreter_object);
 
   if (wasm::WasmBytecode::ContainsSimd(sig)) {
-    wasm::ClearThreadInWasmScope clear_wasm_flag(isolate);
-
     interpreter_handle->SetTrapFunctionIndex(func_index);
     isolate->Throw(*isolate->factory()->NewTypeError(
         MessageTemplate::kWasmTrapJSTypeError));
@@ -698,13 +696,11 @@ void WasmInterpreterRuntime::ThrowException(const uint8_t*& code, uint32_t* sp,
 
   // Now that the exception is ready, set it as pending.
   {
-    wasm::ClearThreadInWasmScope clear_wasm_flag(isolate_);
     isolate_->Throw(exception_object);
     if (HandleException(sp, code) != WasmInterpreterThread::HANDLED) {
       RedirectCodeToUnwindHandler(code);
     }
   }
-  DCHECK(trap_handler::IsThreadInWasm() || isolate_->has_exception());
 }
 
 // Throw a given existing exception caught by the catch block specified.
@@ -957,7 +953,6 @@ void WasmInterpreterRuntime::BeginExecution(
         p + (ref_rets_count + ref_args_count) * sizeof(WasmRef) - stack_limit;
     if (!thread->ExpandStack(additional_required_size)) {
       // TODO(paolosev@microsoft.com) - Calculate initial function offset.
-      ClearThreadInWasmScope clear_wasm_flag(isolate_);
       SealHandleScope shs(isolate_);
       isolate_->StackOverflow();
       const pc_t trap_pc = 0;
@@ -1397,7 +1392,6 @@ void WasmInterpreterRuntime::ExecuteImportedFunction(
       // instruction in the catch handler.
       thread->Run();
     } else {
-      DCHECK(!trap_handler::IsThreadInWasm());
       DCHECK_EQ(exception_handling_result,
                 WasmInterpreterThread::ExceptionHandlingResult::UNWOUND);
       if (thread->state() != WasmInterpreterThread::State::EH_UNWINDING) {
@@ -1489,7 +1483,6 @@ void WasmInterpreterRuntime::PrepareTailCall(const uint8_t*& code,
             current_frame_.current_sp_,
             (stack_limit = current_frame_.thread_->StackLimitAddress()) -
                 current_frame_.current_sp_)) {
-      ClearThreadInWasmScope clear_wasm_flag(isolate_);
       SealHandleScope shs(isolate_);
       SetTrap(TrapReason::kTrapUnreachable, code);
       isolate_->StackOverflow();
@@ -1599,7 +1592,6 @@ void WasmInterpreterRuntime::ExecuteFunction(const uint8_t*& code,
             current_frame_.current_sp_,
             (stack_limit = current_frame_.thread_->StackLimitAddress()) -
                 current_frame_.current_sp_)) {
-      ClearThreadInWasmScope clear_wasm_flag(isolate_);
       SealHandleScope shs(isolate_);
       SetTrap(TrapReason::kTrapUnreachable, code);
       isolate_->StackOverflow();
@@ -1687,7 +1679,6 @@ void WasmInterpreterRuntime::ExecuteFunction(const uint8_t*& code,
           current_frame_.thread_->Run();
         } else {
           // UNWOUND
-          DCHECK(!trap_handler::IsThreadInWasm());
           RedirectCodeToUnwindHandler(code);
         }
         break;
@@ -1960,7 +1951,6 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
 
         if (HandleException(sp, current_code) ==
             WasmInterpreterThread::ExceptionHandlingResult::UNWOUND) {
-          DCHECK(!trap_handler::IsThreadInWasm());
           thread->Stop();
           RedirectCodeToUnwindHandler(current_code);
         } else {
@@ -2032,7 +2022,6 @@ void WasmInterpreterRuntime::ExecuteCallRef(
 
     if (HandleException(sp, current_code) ==
         WasmInterpreterThread::ExceptionHandlingResult::UNWOUND) {
-      DCHECK(!trap_handler::IsThreadInWasm());
       thread->Stop();
       RedirectCodeToUnwindHandler(current_code);
     } else {
@@ -2181,7 +2170,6 @@ void WasmInterpreterRuntime::CallWasmToJSBuiltin(
 
   if (!IsJSFunction(*js_function, isolate_)) {
     AllowHeapAllocation allow_gc;
-    trap_handler::ClearThreadInWasm();
 
     isolate->set_exception(*isolate_->factory()->NewTypeError(
         MessageTemplate::kWasmTrapJSTypeError));
@@ -2210,10 +2198,6 @@ void WasmInterpreterRuntime::CallWasmToJSBuiltin(
   isolate->thread_local_top()->handler_ =
       saved_c_entry_fp ? reinterpret_cast<Address>(&stack_handler)
                        : kNullAddress;
-  if (trap_handler::IsThreadInWasm()) {
-    trap_handler::ClearThreadInWasm();
-  }
-
   {
     RCS_SCOPE(isolate, RuntimeCallCounterId::kJS_Execution);
     Address result = generic_wasm_to_js_interpreter_wrapper_fn_.Call(
@@ -2221,14 +2205,8 @@ void WasmInterpreterRuntime::CallWasmToJSBuiltin(
         saved_c_entry_fp, (*callable).ptr());
     if (result != WasmToJSInterpreterFrameConstants::kSuccess) {
       isolate->set_exception(Tagged<Object>(result));
-      if (trap_handler::IsThreadInWasm()) {
-        trap_handler::ClearThreadInWasm();
-      }
     } else {
       current_thread_->Run();
-      if (!trap_handler::IsThreadInWasm()) {
-        trap_handler::SetThreadInWasm();
-      }
     }
   }
 
@@ -2247,7 +2225,6 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
   if (!IsJSCompatibleSignature(
           reinterpret_cast<const wasm::CanonicalSig*>(sig))) {
     AllowHeapAllocation allow_gc;
-    ClearThreadInWasmScope clear_wasm_flag(isolate_);
 
     isolate_->Throw(*isolate_->factory()->NewTypeError(
         MessageTemplate::kWasmTrapJSTypeError));
@@ -2555,9 +2532,6 @@ WasmRef WasmInterpreterRuntime::JSToWasmObject(WasmRef extern_ref,
     // Only in case of exception it can allocate.
     AllowHeapAllocation allow_gc;
 
-    if (v8_flags.wasm_jitless && trap_handler::IsThreadInWasm()) {
-      trap_handler::ClearThreadInWasm();
-    }
     Tagged<Object> error = isolate_->Throw(*isolate_->factory()->NewTypeError(
         MessageTemplate::kWasmTrapJSTypeError));
     return direct_handle(error, isolate_);
@@ -2883,9 +2857,6 @@ inline WasmInterpreterThread::State InterpreterHandle::RunExecutionLoop(
       case WasmInterpreterThread::State::TRAPPED: {
         if (!isolate_->has_exception()) {
           // An exception handler was found, keep running the loop.
-          if (!trap_handler::IsThreadInWasm()) {
-            trap_handler::SetThreadInWasm();
-          }
           break;
         }
         thread->Stop();

@@ -77,8 +77,6 @@ enum class IsolateFieldId : uint8_t;
     "RegExpStack::stack_pointer_address()")                                    \
   V(address_of_regexp_static_result_offsets_vector,                            \
     "Isolate::address_of_regexp_static_result_offsets_vector")                 \
-  V(thread_in_wasm_flag_address_address,                                       \
-    "Isolate::thread_in_wasm_flag_address_address")                            \
   EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)
 
 #ifdef V8_ENABLE_SANDBOX

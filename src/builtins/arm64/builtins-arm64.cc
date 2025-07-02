@@ -4088,14 +4088,6 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
   int catch_handler = __ pc_offset();
   __ JumpTarget();
 
-  DEFINE_SCOPED(thread_in_wasm_flag_addr);
-  thread_in_wasm_flag_addr = x2;
-  // Unset thread_in_wasm_flag.
-  __ Ldr(
-      thread_in_wasm_flag_addr,
-      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
-  __ Str(wzr, MemOperand(thread_in_wasm_flag_addr, 0));
-
   // The exception becomes the parameter of the RejectPromise builtin, and the
   // promise is the return value of this wrapper.
   __ Move(reason, kReturnRegister0);
@@ -4273,15 +4265,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
     DCHECK_EQ(next_offset, stack_params_offset);
   }
 
-  {
-    DEFINE_SCOPED(thread_in_wasm_flag_addr);
-    __ Ldr(thread_in_wasm_flag_addr,
-           MemOperand(kRootRegister,
-                      Isolate::thread_in_wasm_flag_address_offset()));
-    DEFINE_SCOPED(scratch);
-    __ Mov(scratch, 1);
-    __ Str(scratch.W(), MemOperand(thread_in_wasm_flag_addr, 0));
-  }
   __ Str(xzr,
          MemOperand(fp, StackSwitchFrameConstants::kGCScanSlotCountOffset));
   {
@@ -4301,13 +4284,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   // The wrapper_buffer has to be in x2 as the correct parameter register.
   regs.Reserve(kReturnRegister0, kReturnRegister1);
   ASSIGN_PINNED(wrapper_buffer, x2);
-  {
-    DEFINE_SCOPED(thread_in_wasm_flag_addr);
-    __ Ldr(thread_in_wasm_flag_addr,
-           MemOperand(kRootRegister,
-                      Isolate::thread_in_wasm_flag_address_offset()));
-    __ Str(wzr, MemOperand(thread_in_wasm_flag_addr, 0));
-  }
 
   __ Ldr(wrapper_buffer,
          MemOperand(fp, JSToWasmWrapperFrameConstants::kWrapperBufferOffset));

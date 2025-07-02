@@ -16,6 +16,37 @@ namespace v8 {
 namespace internal {
 namespace trap_handler {
 
+// Mechanism to guard against nested faults and deadlocks in the trap handler.
+//
+// When we enter the trap handler or take a lock required by it, we use these
+// scope objects to set a thread-local global flag, indicating that it is not
+// safe to run the trap handler on the current thread. When that flag is set,
+// we bail out early from the trap handler and thereby avoid handling nested
+// faults (e.g. in case of corrupted trap handler data structures) or causing
+// deadlocks (if a lock needed by the trap handler is held on the same thread).
+class TrapHandlerGuard {
+ public:
+  TrapHandlerGuard() {
+    TH_CHECK(!is_active_);
+    is_active_ = true;
+  }
+  ~TrapHandlerGuard() { is_active_ = false; }
+
+  TrapHandlerGuard(const TrapHandlerGuard&) = delete;
+  void operator=(const TrapHandlerGuard&) = delete;
+
+  static bool IsActiveOnCurrentThread() { return is_active_; }
+
+ private:
+#if defined(V8_OS_AIX)
+  // `thread_local` does not link on AIX:
+  // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=100641
+  static __thread bool is_active_;
+#else
+  static thread_local bool is_active_;
+#endif
+};
+
 // This describes a chunk of code that the trap handler will be able to handle
 // faults in. {base} points to the beginning of the chunk, and {size} is the
 // number of bytes in the code chunk. The remainder of the struct is a list of

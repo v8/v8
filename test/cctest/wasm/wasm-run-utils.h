@@ -471,16 +471,6 @@ class WasmRunnerBase : public InitializedHandleScope {
   bool compiled_ = false;
   bool possible_nondeterminism_ = false;
   int32_t main_fn_index_ = 0;
-
-  static void SetThreadInWasmFlag() {
-    *reinterpret_cast<int*>(trap_handler::GetThreadInWasmThreadLocalAddress()) =
-        true;
-  }
-
-  static void ClearThreadInWasmFlag() {
-    *reinterpret_cast<int*>(trap_handler::GetThreadInWasmThreadLocalAddress()) =
-        false;
-  }
 };
 
 template <typename T>

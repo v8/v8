@@ -76,37 +76,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     }
   }
 
-  class ModifyThreadInWasmFlagScope {
-   public:
-    ModifyThreadInWasmFlagScope(
-        WasmWrapperTSGraphBuilder* wasm_wrapper_graph_builder, Assembler& asm_)
-        : wasm_wrapper_graph_builder_(wasm_wrapper_graph_builder) {
-      if (!trap_handler::IsTrapHandlerEnabled()) return;
-
-      thread_in_wasm_flag_address_ =
-          asm_.Load(asm_.LoadRootRegister(), OptionalOpIndex::Nullopt(),
-                    LoadOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
-                    RegisterRepresentation::WordPtr(),
-                    Isolate::thread_in_wasm_flag_address_offset());
-      wasm_wrapper_graph_builder_->BuildModifyThreadInWasmFlagHelper(
-          wasm_wrapper_graph_builder_->Asm().phase_zone(),
-          thread_in_wasm_flag_address_, true);
-    }
-
-    ModifyThreadInWasmFlagScope(const ModifyThreadInWasmFlagScope&) = delete;
-
-    ~ModifyThreadInWasmFlagScope() {
-      if (!trap_handler::IsTrapHandlerEnabled()) return;
-      wasm_wrapper_graph_builder_->BuildModifyThreadInWasmFlagHelper(
-          wasm_wrapper_graph_builder_->Asm().phase_zone(),
-          thread_in_wasm_flag_address_, false);
-    }
-
-   private:
-    WasmWrapperTSGraphBuilder* wasm_wrapper_graph_builder_;
-    V<WordPtr> thread_in_wasm_flag_address_;
-  };
-
   V<Smi> LoadExportedFunctionIndexAsSmi(V<Object> exported_function_data) {
     return __ Load(exported_function_data,
                    LoadOp::Kind::TaggedBase().Immutable(),
@@ -368,22 +337,13 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     const int rets_count = static_cast<int>(sig_->return_count());
     base::SmallVector<OpIndex, 1> rets(rets_count);
 
-    // Set the ThreadInWasm flag before we do the actual call.
-    {
-      std::optional<ModifyThreadInWasmFlagScope>
-          modify_thread_in_wasm_flag_builder;
-      if (set_in_wasm_flag) {
-        modify_thread_in_wasm_flag_builder.emplace(this, Asm());
-      }
-
-      V<WasmInternalFunction> internal =
-          V<WasmInternalFunction>::Cast(__ LoadProtectedPointerField(
-              function_data, LoadOp::Kind::TaggedBase().Immutable(),
-              WasmExportedFunctionData::kProtectedInternalOffset));
-      auto [target, implicit_arg] = BuildFunctionTargetAndImplicitArg(internal);
-      BuildCallWasmFromWrapper(__ phase_zone(), sig_, target, implicit_arg,
-                               args, base::VectorOf(rets));
-    }
+    V<WasmInternalFunction> internal =
+        V<WasmInternalFunction>::Cast(__ LoadProtectedPointerField(
+            function_data, LoadOp::Kind::TaggedBase().Immutable(),
+            WasmExportedFunctionData::kProtectedInternalOffset));
+    auto [target, implicit_arg] = BuildFunctionTargetAndImplicitArg(internal);
+    BuildCallWasmFromWrapper(__ phase_zone(), sig_, target, implicit_arg, args,
+                             base::VectorOf(rets));
 
     V<Object> jsval;
     if (sig_->return_count() == 0) {
@@ -573,7 +533,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                                           MemoryRepresentation::TaggedPointer(),
                                           WasmImportData::kCallableOffset);
     auto [old_sp, old_limit] = BuildSwitchToTheCentralStackIfNeeded();
-    BuildModifyThreadInWasmFlag(__ phase_zone(), false);
     OpIndex call = OpIndex::Invalid();
     switch (kind) {
       // =======================================================================
@@ -662,7 +621,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                                 native_context, sig_->GetReturn(i));
       }
     }
-    BuildModifyThreadInWasmFlag(__ phase_zone(), true);
     BuildSwitchBackFromCentralStack(old_sp, old_limit);
     if (sig_->return_count() <= 1) {
       __ Return(val);
@@ -718,7 +676,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     V<Object> host_data_foreign = __ LoadTaggedField(
         function_data, WasmCapiFunctionData::kEmbedderDataOffset);
 
-    BuildModifyThreadInWasmFlag(__ phase_zone(), false);
     OpIndex isolate_root = __ LoadRootRegister();
     OpIndex fp_value = __ FramePointer();
     __ Store(isolate_root, fp_value, StoreOp::Kind::RawAligned(),
@@ -734,8 +691,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
             .Params(MachineType::AnyTagged(), MachineType::Pointer());
     OpIndex return_value =
         CallC(&host_sig, call_target, {host_data_foreign, values});
-
-    BuildModifyThreadInWasmFlag(__ phase_zone(), true);
 
     IF_NOT (__ WordPtrEqual(return_value, __ IntPtrConstant(0))) {
       WasmRethrowExplicitContextDescriptor interface_descriptor;

@@ -238,10 +238,6 @@ class WasmGraphBuilder {
 
   TrapId GetTrapIdForTrap(wasm::TrapReason reason);
 
-  void BuildModifyThreadInWasmFlag(bool new_value);
-  void BuildModifyThreadInWasmFlagHelper(Node* thread_in_wasm_flag_address,
-                                         bool new_value);
-
   Node* BuildChangeInt64ToBigInt(Node* input, StubCallMode stub_mode);
 
   void Assert(Node* condition, AbortReason abort_reason);
