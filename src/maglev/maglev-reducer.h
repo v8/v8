@@ -5,6 +5,7 @@
 #ifndef V8_MAGLEV_MAGLEV_REDUCER_H_
 #define V8_MAGLEV_MAGLEV_REDUCER_H_
 
+#include <algorithm>
 #include <utility>
 
 #include "src/base/logging.h"
@@ -182,12 +183,28 @@ concept ReducerBaseWithEffectTracking = requires(BaseT* b) {
 
 enum class UseReprHintRecording { kRecord, kDoNotRecord };
 
-// TODO(victorgomes): We'll need a more fine grain position, like At(index) or
-// After(node).
-enum class BasicBlockPosition {
-  kStart,
-  kEnd,
+class BasicBlockPosition {
+ public:
+  static BasicBlockPosition Start() { return BasicBlockPosition(0); }
+  static BasicBlockPosition End() { return BasicBlockPosition(-1); }
+  static BasicBlockPosition At(int index) { return BasicBlockPosition(index); }
+  inline friend bool operator==(const BasicBlockPosition& lhs,
+                                const BasicBlockPosition& rhs);
+
+  bool is_at_end() const { return index_ == kEnd; }
+
+  int index() const { return index_; }
+
+ private:
+  int index_;
+  static constexpr int kEnd = -1;
+  explicit constexpr BasicBlockPosition(int index) : index_(index) {}
 };
+
+inline bool operator==(const BasicBlockPosition& lhs,
+                       const BasicBlockPosition& rhs) {
+  return lhs.index_ == rhs.index_;
+}
 
 template <typename BaseT>
 class MaglevReducer {
@@ -203,14 +220,14 @@ class MaglevReducer {
 #ifdef DEBUG
         new_nodes_current_period_(zone()),
 #endif  // DEBUG
-        new_nodes_at_start_(zone()),
+        new_nodes_at_(zone()),
         new_nodes_at_end_(zone()) {
-    new_nodes_at_start_.reserve(8);
+    new_nodes_at_.reserve(8);
     new_nodes_at_end_.reserve(32);
   }
 
   ~MaglevReducer() {
-    DCHECK(new_nodes_at_start_.empty());
+    DCHECK(new_nodes_at_.empty());
     DCHECK(new_nodes_at_end_.empty());
   }
 
@@ -266,7 +283,7 @@ class MaglevReducer {
 
   BasicBlock* current_block() const { return current_block_; }
   void set_current_block(BasicBlock* block) {
-    DCHECK(new_nodes_at_start_.empty());
+    DCHECK(new_nodes_at_.empty());
     DCHECK(new_nodes_at_end_.empty());
     current_block_ = block;
   }
@@ -316,15 +333,20 @@ class MaglevReducer {
     return new_nodes_current_period_.count(node) > 0;
   }
 
-  Node* GetLastNewNodeInCurrentBlockPosition() const {
-    switch (current_block_position_) {
-      case BasicBlockPosition::kStart:
-        DCHECK(!new_nodes_at_start_.empty());
-        return new_nodes_at_start_.back();
-      case BasicBlockPosition::kEnd:
-        DCHECK(!new_nodes_at_end_.empty());
-        return new_nodes_at_end_.back();
+  Node* GetLastNewNodeInCurrentBlockPosition() {
+    if (current_block_position_.is_at_end()) {
+      DCHECK(!new_nodes_at_end_.empty());
+      return new_nodes_at_end_.back();
     }
+    auto pos_cmp = [](const auto& p1, const auto& p2) {
+      return p1.first < p2.first;
+    };
+    std::stable_sort(new_nodes_at_.begin(), new_nodes_at_.end(), pos_cmp);
+    auto it_upper = std::upper_bound(
+        new_nodes_at_.begin(), new_nodes_at_.end(),
+        std::make_pair(current_block_position_.index(), nullptr), pos_cmp);
+    DCHECK_NE(it_upper, new_nodes_at_.begin());
+    return std::prev(it_upper)->second;
   }
 #endif  // DEBUG
 
@@ -480,7 +502,7 @@ class MaglevReducer {
 
   MaglevGraphLabeller::Provenance current_provenance_;
   BasicBlock* current_block_ = nullptr;
-  BasicBlockPosition current_block_position_ = BasicBlockPosition::kEnd;
+  BasicBlockPosition current_block_position_ = BasicBlockPosition::End();
   AddNewNodeMode add_new_node_mode_ = AddNewNodeMode::kBuffered;
 
 #ifdef DEBUG
@@ -491,7 +513,7 @@ class MaglevReducer {
 #endif  // DEBUG
 
   // New node buffers.
-  ZoneVector<Node*> new_nodes_at_start_;
+  ZoneVector<std::pair<int, Node*>> new_nodes_at_;
   ZoneVector<Node*> new_nodes_at_end_;
 
   compiler::FeedbackSource current_speculation_feedback_ = {};

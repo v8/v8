@@ -191,7 +191,7 @@ class MaglevPhiRepresentationSelector {
   NodeT* AddNewNodeAtBlockEnd(BasicBlock* block,
                               std::initializer_list<ValueNode*> inputs,
                               Args&&... args) {
-    return AddNewNode<NodeT>(block, BasicBlockPosition::kEnd, inputs,
+    return AddNewNode<NodeT>(block, BasicBlockPosition::End(), inputs,
                              std::forward<Args>(args)...);
   }
 

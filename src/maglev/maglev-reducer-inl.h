@@ -215,18 +215,16 @@ template <typename BaseT>
 void MaglevReducer<BaseT>::AddInitializedNodeToGraph(Node* node) {
   // VirtualObjects should never be add to the Maglev graph.
   DCHECK(!node->Is<VirtualObject>());
-  switch (current_block_position_) {
-    case BasicBlockPosition::kStart:
-      DCHECK_EQ(add_new_node_mode_, AddNewNodeMode::kBuffered);
-      new_nodes_at_start_.push_back(node);
-      break;
-    case BasicBlockPosition::kEnd:
-      if (V8_UNLIKELY(add_new_node_mode_ == AddNewNodeMode::kUnbuffered)) {
-        current_block_->nodes().push_back(node);
-      } else {
-        new_nodes_at_end_.push_back(node);
-      }
-      break;
+  if (current_block_position_.is_at_end()) {
+    if (V8_UNLIKELY(add_new_node_mode_ == AddNewNodeMode::kUnbuffered)) {
+      current_block_->nodes().push_back(node);
+    } else {
+      new_nodes_at_end_.push_back(node);
+    }
+  } else {
+    DCHECK_EQ(add_new_node_mode_, AddNewNodeMode::kBuffered);
+    new_nodes_at_.push_back(
+        std::make_pair(current_block_position_.index(), node));
   }
   node->set_owner(current_block());
   if (V8_UNLIKELY(has_graph_labeller())) RegisterNode(node);
@@ -696,15 +694,40 @@ void MaglevReducer<BaseT>::FlushNodesToBlock() {
     new_nodes_at_end_.clear();
   }
 
-  if (new_nodes_at_start_.size() > 0) {
-    size_t diff = new_nodes_at_start_.size();
-    if (diff == 0) return;
+  if (new_nodes_at_.size() > 0) {
+    // Sort by index.
+    auto pos_cmp = [](const auto& p1, const auto& p2) {
+      return p1.first < p2.first;
+    };
+    std::stable_sort(new_nodes_at_.begin(), new_nodes_at_.end(), pos_cmp);
+    // Resize nodes and copy all nodes to the end.
+    size_t diff = new_nodes_at_.size();
+    DCHECK_GT(diff, 0);
     size_t old_size = nodes.size();
-    nodes.resize(old_size + new_nodes_at_start_.size());
-    auto begin = nodes.begin();
-    std::copy_backward(begin, begin + old_size, nodes.end());
-    std::copy(new_nodes_at_start_.begin(), new_nodes_at_start_.end(), begin);
-    new_nodes_at_start_.clear();
+    nodes.resize(old_size + new_nodes_at_.size());
+    std::copy_backward(nodes.begin(), nodes.begin() + old_size, nodes.end());
+    // Now we move nodes either from the end or from new_nodes_at.
+    int orig_idx = 0;
+    auto it = nodes.begin();
+    auto it_back = nodes.begin() + diff;
+    auto it_new_nodes = new_nodes_at_.begin();
+    while (it_new_nodes != new_nodes_at_.end()) {
+      auto [new_node_idx, new_node] = *it_new_nodes;
+      if (new_node_idx == orig_idx) {
+        // Add the new node to the block buffer.
+        // Do not advance the index.
+        *it = new_node;
+        it_new_nodes++;
+      } else {
+        // Add the old node in that index and advance the original index.
+        *it = *it_back;
+        it_back++;
+        orig_idx++;
+      }
+      it++;
+      DCHECK_LE(it, nodes.end());
+    }
+    new_nodes_at_.clear();
   }
 }
 

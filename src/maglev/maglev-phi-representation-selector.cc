@@ -373,7 +373,7 @@ void MaglevPhiRepresentationSelector::EnsurePhiInputsTagged(Phi* phi) {
     if (Phi* phi_input = input->TryCast<Phi>()) {
       phi->change_input(i,
                         EnsurePhiTagged(phi_input, phi->predecessor_at(i),
-                                        BasicBlockPosition::kEnd, nullptr, i));
+                                        BasicBlockPosition::End(), nullptr, i));
     } else {
       // Inputs of Phis that aren't Phi should always be tagged (except for the
       // phis untagged by this class, but {phi} isn't one of them).
@@ -892,7 +892,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     // barrier.
     node->change_input(input_index,
                        EnsurePhiTagged(phi, reducer_.current_block(),
-                                       BasicBlockPosition::kStart, state));
+                                       BasicBlockPosition::Start(), state));
     static_assert(StoreTaggedFieldNoWriteBarrier::kObjectIndex ==
                   StoreTaggedFieldWithWriteBarrier::kObjectIndex);
     static_assert(StoreTaggedFieldNoWriteBarrier::kValueIndex ==
@@ -921,7 +921,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     // barrier.
     node->change_input(input_index,
                        EnsurePhiTagged(phi, reducer_.current_block(),
-                                       BasicBlockPosition::kStart, state));
+                                       BasicBlockPosition::Start(), state));
     static_assert(StoreFixedArrayElementNoWriteBarrier::kElementsIndex ==
                   StoreFixedArrayElementWithWriteBarrier::kElementsIndex);
     static_assert(StoreFixedArrayElementNoWriteBarrier::kIndexIndex ==
@@ -979,7 +979,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
   } else {
     node->change_input(input_index,
                        EnsurePhiTagged(phi, reducer_.current_block(),
-                                       BasicBlockPosition::kStart, state));
+                                       BasicBlockPosition::Start(), state));
   }
   return ProcessResult::kContinue;
 }
@@ -987,7 +987,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
 ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
     Phi* phi, BasicBlock* block, BasicBlockPosition pos,
     const ProcessingState* state, std::optional<int> predecessor_index) {
-  DCHECK_IMPLIES(state == nullptr, pos == BasicBlockPosition::kEnd);
+  DCHECK_IMPLIES(state == nullptr, pos == BasicBlockPosition::End());
 
   if (phi->value_representation() == ValueRepresentation::kTagged) {
     return phi;
@@ -1081,7 +1081,7 @@ void MaglevPhiRepresentationSelector::FixLoopPhisBackedge(BasicBlock* block) {
         phi->change_input(
             last_input_idx,
             EnsurePhiTagged(backedge->Cast<Phi>(), reducer_.current_block(),
-                            BasicBlockPosition::kEnd, /*state*/ nullptr));
+                            BasicBlockPosition::End(), /*state*/ nullptr));
       }
     } else {
       // If {phi} was untagged and its backedge became Identity, then we need to
@@ -1112,7 +1112,7 @@ NodeT* MaglevPhiRepresentationSelector::AddNewNode(
   if (block == reducer_.current_block()) {
     new_node = reducer_.AddNewNode<NodeT>(inputs, std::forward<Args>(args)...);
   } else {
-    DCHECK_EQ(pos, BasicBlockPosition::kEnd);
+    DCHECK_EQ(pos, BasicBlockPosition::End());
     new_node = reducer_.AddUnbufferedNewNode<NodeT>(
         block, inputs, std::forward<Args>(args)...);
   }
