@@ -6311,7 +6311,7 @@ TEST(RightTrimFixedArrayWithBlackAllocatedPages) {
       isolate->factory()->NewFixedArray(100, AllocationType::kOld);
   Address start_address = array->address();
   Address end_address = start_address + array->Size();
-  PageMetadata* page = PageMetadata::FromAddress(start_address);
+  PageMetadata* page = PageMetadata::FromHeapObject(*array);
   CHECK(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
   CHECK(heap->old_space()->Contains(*array));
 
@@ -6324,21 +6324,21 @@ TEST(RightTrimFixedArrayWithBlackAllocatedPages) {
   CHECK(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
 
   heap::InvokeAtomicMajorGC(heap);
-  CHECK(!page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+  CHECK(!PageMetadata::FromHeapObject(*array)->Chunk()->IsFlagSet(
+      MemoryChunk::BLACK_ALLOCATED));
 
   heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
                                 i::GarbageCollectionReason::kTesting);
 
   // Allocate the large fixed array that will be trimmed later.
   array = isolate->factory()->NewFixedArray(200000, AllocationType::kOld);
-  start_address = array->address();
-  end_address = start_address + array->Size();
   CHECK(heap->lo_space()->Contains(*array));
-  page = PageMetadata::FromAddress(start_address);
-  CHECK(!page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+  CHECK(!PageMetadata::FromHeapObject(*array)->Chunk()->IsFlagSet(
+      MemoryChunk::BLACK_ALLOCATED));
 
   heap::InvokeAtomicMajorGC(heap);
-  CHECK(!page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+  CHECK(!PageMetadata::FromHeapObject(*array)->Chunk()->IsFlagSet(
+      MemoryChunk::BLACK_ALLOCATED));
 }
 
 TEST(Regress618958) {

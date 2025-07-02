@@ -833,7 +833,8 @@ class FeedbackMetadataIterator {
         next_slot_(FeedbackSlot(0)),
         slot_kind_(FeedbackSlotKind::kInvalid) {}
 
-  explicit FeedbackMetadataIterator(Tagged<FeedbackMetadata> metadata)
+  FeedbackMetadataIterator(Tagged<FeedbackMetadata> metadata,
+                           const DisallowGarbageCollection& no_gc)
       : metadata_(metadata),
         next_slot_(FeedbackSlot(0)),
         slot_kind_(FeedbackSlotKind::kInvalid) {}

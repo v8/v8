@@ -1004,7 +1004,9 @@ void Heap::GarbageCollectionPrologueInSafepoint(GarbageCollector collector) {
   new_space_allocation_counter_ = NewSpaceAllocationCounter();
   if (v8_flags.large_page_pool_timeout == 0 &&
       collector == GarbageCollector::MARK_COMPACTOR) {
-    isolate_->isolate_group()->memory_pool()->ReleaseLargeImmediately();
+    if (auto* memory_pool = isolate_->isolate_group()->memory_pool()) {
+      memory_pool->ReleaseLargeImmediately();
+    }
   }
 }
 
@@ -1353,8 +1355,10 @@ void FreeCachesOnMemoryPressure(Isolate* isolate) {
 
   // TODO(ishell): consider trimming number to string caches to initial size.
 
-  if (v8_flags.memory_pool_release_before_memory_pressure_gcs) {
-    IsolateGroup::current()->memory_pool()->ReleaseImmediately(isolate);
+  if (auto* memory_pool = IsolateGroup::current()->memory_pool()) {
+    if (v8_flags.memory_pool_release_before_memory_pressure_gcs) {
+      memory_pool->ReleaseImmediately(isolate);
+    }
   }
 }
 

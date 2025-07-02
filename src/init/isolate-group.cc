@@ -108,7 +108,9 @@ IsolateGroup::~IsolateGroup() {
   DCHECK(isolates_.empty());
   DCHECK_NULL(main_isolate_);
 
-  memory_pool_->TearDown();
+  if (memory_pool_) {
+    memory_pool_->TearDown();
+  }
 
 #ifdef V8_ENABLE_LEAPTIERING
   js_dispatch_table_.TearDown();
@@ -163,7 +165,10 @@ void IsolateGroup::Initialize(bool process_wide, Sandbox* sandbox) {
   code_pointer_table()->Initialize();
   optimizing_compile_task_executor_ =
       std::make_unique<OptimizingCompileTaskExecutor>();
-  memory_pool_ = std::make_unique<MemoryPool>();
+
+  if (v8_flags.memory_pool) {
+    memory_pool_ = std::make_unique<MemoryPool>();
+  }
 
 #ifdef V8_ENABLE_LEAPTIERING
   js_dispatch_table()->Initialize();

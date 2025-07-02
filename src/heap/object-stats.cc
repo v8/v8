@@ -753,7 +753,8 @@ void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
   // Iterate over the feedback slots and log each one.
   if (!vector->shared_function_info()->HasFeedbackMetadata()) return;
 
-  FeedbackMetadataIterator it(vector->metadata());
+  DisallowGarbageCollection no_gc;
+  FeedbackMetadataIterator it(vector->metadata(), no_gc);
   while (it.HasNext()) {
     FeedbackSlot slot = it.Next();
     // Log the entry (or entries) taken up by this slot.

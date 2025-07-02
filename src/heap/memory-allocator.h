@@ -241,7 +241,7 @@ class MemoryAllocator final {
   // Computes the size of a MemoryChunk from the size of the object_area.
   static size_t ComputeChunkSize(size_t area_size, AllocationSpace space);
 
-  MemoryPool* pool() { return pool_; }
+  MemoryPool* memory_pool() { return pool_; }
 
   // Internal allocation method for all pages/memory chunks. Returns data about
   // the uninitialized memory region.

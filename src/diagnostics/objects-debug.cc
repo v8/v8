@@ -1009,7 +1009,8 @@ void FeedbackMetadata::FeedbackMetadataVerify(Isolate* isolate) {
   if (slot_count() == 0 && create_closure_slot_count() == 0) {
     CHECK_EQ(ReadOnlyRoots(isolate).empty_feedback_metadata(), *this);
   } else {
-    FeedbackMetadataIterator iter(*this);
+    DisallowGarbageCollection no_gc;
+    FeedbackMetadataIterator iter(*this, no_gc);
     while (iter.HasNext()) {
       iter.Next();
       FeedbackSlotKind kind = iter.kind();

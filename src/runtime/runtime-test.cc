@@ -2278,7 +2278,7 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
       isolate->factory()->NewFixedArray(feedback_vector->length());
   int result_ix = 0;
 
-  FeedbackMetadataIterator iter(feedback_vector->metadata());
+  FeedbackMetadataIterator iter(handle(feedback_vector->metadata(), isolate));
   while (iter.HasNext()) {
     FeedbackSlot slot = iter.Next();
     FeedbackSlotKind kind = iter.kind();

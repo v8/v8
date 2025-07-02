@@ -50,8 +50,10 @@ MemoryAllocator::MemoryAllocator(Isolate* isolate,
 }
 
 void MemoryAllocator::TearDown() {
-  pool()->ReleaseOnTearDown(isolate_);
-  DCHECK_EQ(pool()->GetCount(isolate_), 0);
+  if (auto* pool = memory_pool()) {
+    pool->ReleaseOnTearDown(isolate_);
+    DCHECK_EQ(pool->GetCount(isolate_), 0);
+  }
 
   // Check that spaces were torn down before MemoryAllocator.
   DCHECK_EQ(size_, 0u);
@@ -69,19 +71,21 @@ void MemoryAllocator::TearDown() {
 }
 
 size_t MemoryAllocator::GetPooledChunksCount() {
-  return pool()->GetCount(isolate_);
+  return memory_pool() ? memory_pool()->GetCount(isolate_) : 0;
 }
 
 size_t MemoryAllocator::GetSharedPooledChunksCount() {
-  return pool()->GetSharedCount();
+  return memory_pool() ? memory_pool()->GetSharedCount() : 0;
 }
 
 size_t MemoryAllocator::GetTotalPooledChunksCount() {
-  return pool()->GetTotalCount();
+  return memory_pool() ? memory_pool()->GetTotalCount() : 0;
 }
 
 void MemoryAllocator::ReleasePooledChunksImmediately() {
-  pool()->ReleaseImmediately(isolate_);
+  if (auto* pool = memory_pool()) {
+    pool->ReleaseImmediately(isolate_);
+  }
 }
 
 void MemoryAllocator::FreeMemoryRegion(v8::PageAllocator* page_allocator,
@@ -379,17 +383,27 @@ void MemoryAllocator::Free(MemoryAllocator::FreeMode mode,
                 static_cast<size_t>(MutablePageMetadata::kPageSize));
       DCHECK_EQ(chunk->executable(), NOT_EXECUTABLE);
 #endif  // DEBUG
-      pool()->Add(isolate_, page_metadata);
+      if (auto* pool = memory_pool()) {
+        pool->Add(isolate_, page_metadata);
+      } else {
+        PerformFreeMemory(page_metadata);
+      }
       break;
   }
 }
 
 void MemoryAllocator::ReleaseDelayedPages() {
   for (auto* delayed_page : delayed_then_pooled_pages_) {
-    pool()->Add(isolate_, delayed_page);
+    if (auto* pool = memory_pool()) {
+      pool->Add(isolate_, delayed_page);
+    } else {
+      PerformFreeMemory(delayed_page);
+    }
   }
   delayed_then_pooled_pages_.clear();
-  pool()->AddLarge(isolate_, delayed_then_pooled_large_pages_);
+  if (auto* pool = memory_pool()) {
+    pool->AddLarge(isolate_, delayed_then_pooled_large_pages_);
+  }
   // AddLarge() leaves pages that couldn't be pooled in the vector to be
   // released afterwards.
   for (auto* delayed_page : delayed_then_pooled_large_pages_) {
@@ -594,8 +608,8 @@ MemoryAllocator::AllocateUninitializedPageFromDelayedOrPool(Space* space) {
     chunk_metadata = delayed_then_pooled_pages_.back();
     delayed_then_pooled_pages_.pop_back();
   }
-  if (chunk_metadata == nullptr) {
-    chunk_metadata = pool()->Remove(isolate_);
+  if (chunk_metadata == nullptr && memory_pool()) {
+    chunk_metadata = memory_pool()->Remove(isolate_);
   }
   if (chunk_metadata == nullptr) {
     return {};
@@ -625,13 +639,18 @@ MemoryAllocator::AllocateUninitializedPageFromDelayedOrPool(Space* space) {
 std::optional<MemoryAllocator::MemoryChunkAllocationResult>
 MemoryAllocator::TryAllocateUninitializedLargePageFromPool(Space* space,
                                                            size_t object_size) {
+  if (!memory_pool()) {
+    return {};
+  }
   const size_t object_start_offset =
       MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(space->identity());
   // Select a pooled large page which can store |object_size| bytes. In case the
   // page is larger than necessary, the next full GC will trim down its size.
   MemoryChunkMetadata* chunk_metadata =
-      pool()->RemoveLarge(isolate_, object_start_offset + object_size);
-  if (chunk_metadata == nullptr) return {};
+      memory_pool()->RemoveLarge(isolate_, object_start_offset + object_size);
+  if (chunk_metadata == nullptr) {
+    return {};
+  }
   const Address start = chunk_metadata->ChunkAddress();
   const size_t size = chunk_metadata->size();
   const Address area_start = start + object_start_offset;

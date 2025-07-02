@@ -509,7 +509,8 @@ bool FeedbackVector::ClearSlots(Isolate* isolate, ClearBehavior behavior) {
       FeedbackVector::RawUninitializedSentinel(isolate);
 
   bool feedback_updated = false;
-  FeedbackMetadataIterator iter(metadata());
+  DisallowGarbageCollection no_gc;
+  FeedbackMetadataIterator iter(metadata(), no_gc);
   while (iter.HasNext()) {
     FeedbackSlot slot = iter.Next();
 

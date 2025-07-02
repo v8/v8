@@ -1748,7 +1748,8 @@ void FeedbackMetadata::FeedbackMetadataPrint(std::ostream& os) {
   os << "\n - slot_count: " << slot_count();
   os << "\n - create_closure_slot_count: " << create_closure_slot_count();
 
-  FeedbackMetadataIterator iter(*this);
+  DisallowGarbageCollection no_gc;
+  FeedbackMetadataIterator iter(*this, no_gc);
   while (iter.HasNext()) {
     FeedbackSlot slot = iter.Next();
     FeedbackSlotKind kind = iter.kind();
@@ -1792,7 +1793,8 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {
   os << "\n - closure feedback cell array: ";
   closure_feedback_cell_array()->ClosureFeedbackCellArrayPrint(os);
 
-  FeedbackMetadataIterator iter(metadata());
+  DisallowGarbageCollection no_gc;
+  FeedbackMetadataIterator iter(metadata(), no_gc);
   while (iter.HasNext()) {
     FeedbackSlot slot = iter.Next();
     FeedbackSlotKind kind = iter.kind();

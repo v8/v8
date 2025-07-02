@@ -2390,6 +2390,8 @@ DEFINE_BOOL(stress_per_context_marking_worklist, false,
 DEFINE_BOOL(stress_incremental_marking, false,
             "force incremental marking for small heaps and run it more often")
 
+DEFINE_BOOL(memory_pool, true,
+            "Pool memory globally before returning it to the operating system")
 DEFINE_BOOL(
     memory_pool_share_memory_on_teardown, true,
     "Share memory on Isolate teardown using other Isolate's task runners")
@@ -2404,6 +2406,7 @@ DEFINE_INT(large_page_pool_timeout, 3,
            "Release pooled large pages after X seconds.")
 DEFINE_BOOL(managed_zone_memory, false,
             "Manage zone memory in V8 instead of using malloc().")
+DEFINE_NEG_NEG_IMPLICATION(memory_pool, managed_zone_memory)
 
 DEFINE_BOOL(fuzzer_gc_analysis, false,
             "prints number of allocations and enables analysis mode for gc "

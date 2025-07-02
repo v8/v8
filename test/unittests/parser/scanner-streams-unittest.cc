@@ -769,7 +769,7 @@ TEST_F(ScannerStreamsTest, RelocatingCharacterStream) {
   int length = static_cast<int>(strlen(string));
 
   v8::Global<v8::String> two_byte_string_global;
-  i::Tagged<i::String> raw;
+  i::Address raw_string_address;
   {
     v8::HandleScope scope(isolate());
     std::unique_ptr<v8::base::uc16[]> uc16_buffer(new v8::base::uc16[length]);
@@ -790,7 +790,7 @@ TEST_F(ScannerStreamsTest, RelocatingCharacterStream) {
     CHECK_EQ(size_t{2}, two_byte_string_stream->pos());
     two_byte_string_global.Reset(isolate(),
                                  v8::Utils::ToLocal(two_byte_string));
-    raw = *two_byte_string;
+    raw_string_address = two_byte_string->address();
   }
   // We need to invoke GC without stack, otherwise no compaction is performed.
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
@@ -814,7 +814,7 @@ TEST_F(ScannerStreamsTest, RelocatingCharacterStream) {
     std::unique_ptr<i::Utf16CharacterStream> two_byte_string_stream(
         i::ScannerStream::For(i_isolate(), two_byte_string, 2, length));
     // GC moved the string.
-    CHECK_NE(raw, *two_byte_string);
+    CHECK_NE(raw_string_address, two_byte_string.address());
     CHECK_EQ('c', two_byte_string_stream->Advance());
     CHECK_EQ('d', two_byte_string_stream->Advance());
   }
@@ -830,7 +830,7 @@ TEST_F(ScannerStreamsTest, RelocatingUnbufferedCharacterStream) {
   int length = static_cast<int>(std::char_traits<char16_t>::length(string));
 
   v8::Global<v8::String> two_byte_string_global;
-  i::Tagged<i::String> raw;
+  i::Address raw_string_address;
   {
     v8::HandleScope scope(isolate());
     std::unique_ptr<v8::base::uc16[]> uc16_buffer(new v8::base::uc16[length]);
@@ -854,7 +854,7 @@ TEST_F(ScannerStreamsTest, RelocatingUnbufferedCharacterStream) {
 
     two_byte_string_global.Reset(isolate(),
                                  v8::Utils::ToLocal(two_byte_string));
-    raw = *two_byte_string;
+    raw_string_address = two_byte_string->address();
   }
   // We need to invoke GC without stack, otherwise no compaction is performed.
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
@@ -878,7 +878,7 @@ TEST_F(ScannerStreamsTest, RelocatingUnbufferedCharacterStream) {
     std::unique_ptr<i::Utf16CharacterStream> two_byte_string_stream(
         i::ScannerStream::For(i_isolate(), two_byte_string, 3, length));
     // GC moved the string and buffer was updated to the correct location.
-    CHECK_NE(raw, *two_byte_string);
+    CHECK_NE(raw_string_address, two_byte_string.address());
 
     // Check that we correctly moved based on buffer_pos_, not based on a
     // position of zero.

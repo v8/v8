@@ -280,10 +280,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   void AddIsolate(Isolate* isolate);
   void RemoveIsolate(Isolate* isolate);
 
-  MemoryPool* memory_pool() const {
-    DCHECK(memory_pool_);
-    return memory_pool_.get();
-  }
+  MemoryPool* memory_pool() const { return memory_pool_.get(); }
 
   template <typename Callback>
   bool FindAnotherIsolateLocked(Isolate* isolate, Callback callback) {
