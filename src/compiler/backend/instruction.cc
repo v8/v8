@@ -937,9 +937,23 @@ void InstructionSequence::ComputeAssemblyOrder() {
       }
       block->set_loop_header_alignment(header_align);
     }
-    if (block->loop_header().IsValid() && block->IsTableSwitchTarget()) {
-      block->set_code_target_alignment(true);
+    if (block->loop_header().IsValid()) {
+      if (block->IsTableSwitchTarget()) {
+        block->set_code_target_alignment(true);
+      } else {
+        // If this block has no fallthrough predecessors then it can only be
+        // accessed via a jump.
+        RpoNumber ao_pred_block = ao_blocks_->back()->rpo_number();
+        if (std::none_of(block->predecessors().begin(),
+                         block->predecessors().end(),
+                         [&ao_pred_block](RpoNumber pred) {
+                           return pred == ao_pred_block;
+                         })) {
+          block->set_code_target_alignment(true);
+        }
+      }
     }
+
     block->set_ao_number(RpoNumber::FromInt(ao++));
     ao_blocks_->push_back(block);
   }
