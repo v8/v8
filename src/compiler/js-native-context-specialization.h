@@ -221,9 +221,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Node* BuildCheckEqualsName(NameRef name, Node* value, Node* effect,
                              Node* control);
 
-  // Concatenates {left} and {right}.
-  Handle<String> Concatenate(Handle<String> left, Handle<String> right);
-
   // Returns true if {str} can safely be read:
   //   - if we are on the main thread, then any string can safely be read
   //   - in the background, we can only read some string shapes, except if we

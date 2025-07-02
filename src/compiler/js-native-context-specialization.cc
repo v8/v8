@@ -15,6 +15,7 @@
 #include "src/compiler/allocation-builder-inl.h"
 #include "src/compiler/allocation-builder.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/common-utils.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/fast-api-calls.h"
 #include "src/compiler/frame-states.h"
@@ -340,91 +341,6 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionResolve(
   return Replace(promise);
 }
 
-// Concatenates {left} and {right}. The result is fairly similar to creating a
-// new ConsString with {left} and {right} and then flattening it, which we don't
-// do because String::Flatten does not support background threads. Rather than
-// implementing a full String::Flatten for background threads, we prefered to
-// implement this Concatenate function, which, unlike String::Flatten, doesn't
-// need to replace ConsStrings by ThinStrings.
-Handle<String> JSNativeContextSpecialization::Concatenate(
-    Handle<String> left, Handle<String> right) {
-  if (left->length() == 0) return right;
-  if (right->length() == 0) return left;
-
-  // Repeated concatenations have a quadratic cost (eg, "s+=a;s+=b;s+=c;...").
-  // Rather than doing static analysis to determine how many concatenations we
-  // there are and how many uses the result of each concatenation have, we
-  // generate ConsString when the result of the concatenation would have more
-  // than {kConstantStringFlattenMaxSize} characters, and flattened SeqString
-  // otherwise.
-  // TODO(dmercadier): ideally, we would like to get rid of this constant, and
-  // always flatten. This requires some care to avoid the quadratic worst-case.
-  constexpr int32_t kConstantStringFlattenMaxSize = 100;
-
-  int32_t length = left->length() + right->length();
-  if (length > kConstantStringFlattenMaxSize) {
-    return broker()
-        ->local_isolate_or_isolate()
-        ->factory()
-        ->NewConsString(left, right, AllocationType::kOld)
-        .ToHandleChecked();
-  }
-
-  // If one of the string is not in readonly space, then we need a
-  // SharedStringAccessGuardIfNeeded before accessing its content.
-  bool require_guard = SharedStringAccessGuardIfNeeded::IsNeeded(
-                           *left, broker()->local_isolate_or_isolate()) ||
-                       SharedStringAccessGuardIfNeeded::IsNeeded(
-                           *right, broker()->local_isolate_or_isolate());
-
-  // Check string representation of both strings. This does not require the
-  // SharedStringAccessGuardIfNeeded as the representation is stable.
-  const bool result_is_one_byte_string =
-      left->IsOneByteRepresentation() && right->IsOneByteRepresentation();
-
-  if (result_is_one_byte_string) {
-    // {left} and {right} are 1-byte ==> the result will be 1-byte.
-    // Note that we need a canonical handle, because we insert in
-    // {created_strings_} the handle's address, which is kinda meaningless if
-    // the handle isn't canonical.
-    Handle<SeqOneByteString> flat = broker()->CanonicalPersistentHandle(
-        broker()
-            ->local_isolate_or_isolate()
-            ->factory()
-            ->NewRawOneByteString(length, AllocationType::kOld)
-            .ToHandleChecked());
-    created_strings_.insert(flat);
-    DisallowGarbageCollection no_gc;
-    SharedStringAccessGuardIfNeeded access_guard(
-        require_guard ? broker()->local_isolate_or_isolate() : nullptr);
-    String::WriteToFlat(*left, flat->GetChars(no_gc, access_guard), 0,
-                        left->length(), access_guard);
-    String::WriteToFlat(*right,
-                        flat->GetChars(no_gc, access_guard) + left->length(), 0,
-                        right->length(), access_guard);
-    return flat;
-  } else {
-    // One (or both) of {left} and {right} is 2-byte ==> the result will be
-    // 2-byte.
-    Handle<SeqTwoByteString> flat = broker()->CanonicalPersistentHandle(
-        broker()
-            ->local_isolate_or_isolate()
-            ->factory()
-            ->NewRawTwoByteString(length, AllocationType::kOld)
-            .ToHandleChecked());
-    created_strings_.insert(flat);
-    DisallowGarbageCollection no_gc;
-    SharedStringAccessGuardIfNeeded access_guard(
-        require_guard ? broker()->local_isolate_or_isolate() : nullptr);
-    String::WriteToFlat(*left, flat->GetChars(no_gc, access_guard), 0,
-                        left->length(), access_guard);
-    String::WriteToFlat(*right,
-                        flat->GetChars(no_gc, access_guard) + left->length(), 0,
-                        right->length(), access_guard);
-    return flat;
-  }
-}
-
 bool JSNativeContextSpecialization::StringCanSafelyBeRead(Node* const node,
                                                           Handle<String> str) {
   DCHECK(node->opcode() == IrOpcode::kHeapConstant ||
@@ -492,7 +408,9 @@ Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
       }
     }
 
-    Handle<String> concatenated = Concatenate(left, right);
+    Handle<String> concatenated =
+        utils::ConcatenateStrings(left, right, broker());
+    created_strings_.insert(concatenated);
     Node* reduced = graph()->NewNode(common()->HeapConstant(
         broker()->CanonicalPersistentHandle(concatenated)));
 

@@ -27,6 +27,7 @@
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/bytecode-liveness-map.h"
+#include "src/compiler/common-utils.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/frame-states.h"
@@ -2454,6 +2455,18 @@ ReduceResult MaglevGraphBuilder::BuildStringConcat(ValueNode* left,
       SetAccumulator(left);
       return ReduceResult::Done();
     }
+  }
+  auto left_cst = TryGetStringConstant(left);
+  auto right_cst = TryGetStringConstant(right);
+  Handle<String> left_string;
+  Handle<String> right_string;
+  if (left_cst.ToHandle(&left_string) && right_cst.ToHandle(&right_string)) {
+    Handle<String> concatenated = compiler::utils::ConcatenateStrings(
+        left_string, right_string, broker());
+    ValueNode* string_node = graph()->GetConstant(MakeRefAssumeMemoryFence(
+        broker(), broker()->CanonicalPersistentHandle(concatenated)));
+    SetAccumulator(string_node);
+    return ReduceResult::Done();
   }
   RETURN_IF_ABORT(BuildCheckString(left));
   RETURN_IF_ABORT(BuildCheckString(right));
@@ -15746,6 +15759,16 @@ std::optional<int32_t> MaglevGraphBuilder::TryGetInt32Constant(
 std::optional<double> MaglevGraphBuilder::TryGetFloat64Constant(
     ValueNode* value, TaggedToFloat64ConversionType conversion_type) {
   return reducer_.TryGetFloat64Constant(value, conversion_type);
+}
+
+MaybeHandle<String> MaglevGraphBuilder::TryGetStringConstant(ValueNode* value) {
+  if (Constant* constant = value->TryCast<Constant>()) {
+    if (constant->object().IsString()) {
+      return handle(Cast<String>(*constant->object().object()),
+                    local_isolate());
+    }
+  }
+  return {};
 }
 
 template <Builtin kBuiltin>

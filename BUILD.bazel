@@ -3210,6 +3210,8 @@ filegroup(
         "src/compiler/common-operator.h",
         "src/compiler/common-operator-reducer.cc",
         "src/compiler/common-operator-reducer.h",
+        "src/compiler/common-utils.cc",
+        "src/compiler/common-utils.h",
         "src/compiler/compilation-dependencies.cc",
         "src/compiler/compilation-dependencies.h",
         "src/compiler/compiler-source-position-table.cc",
