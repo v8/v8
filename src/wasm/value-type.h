@@ -1073,8 +1073,15 @@ class CanonicalValueType : public ValueTypeBase {
     return bit_field_ == other.bit_field_;
   }
 
+  // For hashing everything except the index.
+  constexpr uint32_t all_bits_without_index() const {
+    static_assert(std::is_same_v<uint32_t, decltype(bit_field_)>);
+    return bit_field_ & ~kIndexBits;
+  }
+
+  // For checking equality of everything except the index.
   constexpr bool is_equal_except_index(CanonicalValueType other) const {
-    return (bit_field_ & ~kIndexBits) == (other.bit_field_ & ~kIndexBits);
+    return all_bits_without_index() == other.all_bits_without_index();
   }
 
   constexpr bool IsFunctionType() const {
