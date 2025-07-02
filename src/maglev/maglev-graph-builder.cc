@@ -2208,19 +2208,19 @@ MaybeReduceResult MaglevGraphBuilder::TryFoldInt32BinaryOperation(
   switch (kOperation) {
     case Operation::kAdd:
       if (base::bits::SignedAddOverflow32(cst_left, cst_right, &result)) {
-        return GetInt32Constant(result);
+        return {};
       }
-      return {};
+      return GetInt32Constant(result);
     case Operation::kSubtract:
       if (base::bits::SignedSubOverflow32(cst_left, cst_right, &result)) {
-        return GetInt32Constant(result);
+        return {};
       }
-      return {};
+      return GetInt32Constant(result);
     case Operation::kMultiply:
       if (base::bits::SignedMulOverflow32(cst_left, cst_right, &result)) {
-        return GetInt32Constant(result);
+        return {};
       }
-      return {};
+      return GetInt32Constant(result);
     case Operation::kModulus:
       // TODO(v8:7700): Constant fold mod.
       return {};
