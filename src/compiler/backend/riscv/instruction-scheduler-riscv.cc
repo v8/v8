@@ -279,7 +279,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvVnotVv:
     case kRiscvVxorVv:
     case kRiscvVmvSx:
-    case kRiscvVmvXs:
+    case kRiscvBitMask:
     case kRiscvVfmvVf:
     case kRiscvVcompress:
     case kRiscvVaddVv:
@@ -296,7 +296,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvVmulVv:
     case kRiscvVdivu:
     case kRiscvVsmulVv:
-    case kRiscvVmslt:
     case kRiscvVgtsVv:
     case kRiscvVgesVv:
     case kRiscvVgeuVv:

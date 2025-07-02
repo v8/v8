@@ -352,7 +352,7 @@ namespace compiler {
   V(RiscvVwmul)                           \
   V(RiscvVwmulu)                          \
   V(RiscvVmvSx)                           \
-  V(RiscvVmvXs)                           \
+  V(RiscvBitMask)                         \
   V(RiscvVcompress)                       \
   V(RiscvVaddVv)                          \
   V(RiscvVsubVv)                          \
@@ -372,7 +372,6 @@ namespace compiler {
   V(RiscvVminsVv)                         \
   V(RiscvVmulVv)                          \
   V(RiscvVdivu)                           \
-  V(RiscvVmslt)                           \
   V(RiscvVgtsVv)                          \
   V(RiscvVgesVv)                          \
   V(RiscvVgeuVv)                          \

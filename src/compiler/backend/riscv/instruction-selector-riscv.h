@@ -1506,21 +1506,20 @@ void InstructionSelector::VisitI8x16Swizzle(OpIndex node) {
        g.UseImmediate(E8), g.UseImmediate(m1), arraysize(temps), temps);
 }
 
-#define VISIT_BIMASK(TYPE, VSEW, LMUL)                                      \
-                                                                            \
-  void InstructionSelector::Visit##TYPE##BitMask(OpIndex node) {            \
-    RiscvOperandGenerator g(this);                                          \
-    const Operation& op = this->Get(node);                                  \
-    DCHECK_EQ(op.input_count, 1);                                           \
-    InstructionOperand temp = g.TempFpRegister(v16);                        \
-    this->Emit(kRiscvVmslt, temp, g.UseRegister(op.input(0)),               \
-               g.UseImmediate(0), g.UseImmediate(VSEW), g.UseImmediate(m1), \
-               g.UseImmediate(true));                                       \
-    this->Emit(kRiscvVmvXs, g.DefineAsRegister(node), temp,                 \
-               g.UseImmediate(E32), g.UseImmediate(m1));                    \
+#define VISIT_BITMASK(TYPE, VSEW, LMUL)                          \
+                                                                 \
+  void InstructionSelector::Visit##TYPE##BitMask(OpIndex node) { \
+    RiscvOperandGenerator g(this);                               \
+    const Operation& op = this->Get(node);                       \
+    DCHECK_EQ(op.input_count, 1);                                \
+    InstructionOperand temps[] = {g.TempFpRegister(v16)};        \
+    size_t temp_count = arraysize(temps);                        \
+    this->Emit(kRiscvBitMask, g.DefineAsRegister(node),          \
+               g.UseRegister(op.input(0)), g.UseImmediate(VSEW), \
+               g.UseImmediate(m1), temp_count, temps);           \
   }
 
-SIMD_INT_TYPE_LIST(VISIT_BIMASK)
+SIMD_INT_TYPE_LIST(VISIT_BITMASK)
 #undef VISIT_BIMASK
 
 void InstructionSelector::VisitI32x4SConvertI16x8High(OpIndex node) {
