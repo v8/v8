@@ -655,22 +655,25 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
-                                  LoadType type, LiftoffRegList /* pinned */,
-                                  bool i64_offset, Endianness endianness) {
-  Load(dst, src_addr, offset_reg, offset_imm, type, nullptr,
+                                  LoadType type, uint32_t* protected_load_pc,
+                                  LiftoffRegList /* pinned */, bool i64_offset,
+                                  Endianness endianness) {
+  Load(dst, src_addr, offset_reg, offset_imm, type, protected_load_pc,
        endianness == kLittle, i64_offset);
 }
 
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
-                                   StoreType type, LiftoffRegList /* pinned */,
-                                   bool i64_offset, Endianness endianness) {
+                                   StoreType type, uint32_t* protected_store_pc,
+                                   LiftoffRegList /* pinned */, bool i64_offset,
+                                   Endianness endianness) {
 #ifdef V8_TARGET_BIG_ENDIAN
   bool reverse_bytes = endianness == LiftoffAssembler::kLittle;
 #else
   bool reverse_bytes = false;
 #endif
   PREP_MEM_OPERAND(offset_reg, offset_imm, ip)
+  if (protected_store_pc) *protected_store_pc = pc_offset();
   lay(ip,
       MemOperand(dst_addr, offset_reg == no_reg ? r0 : offset_reg, offset_imm));
 
@@ -726,7 +729,8 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 bool i64_offset, Endianness endianness) {
+                                 uint32_t* protected_load_pc, bool i64_offset,
+                                 Endianness endianness) {
 #ifdef V8_TARGET_BIG_ENDIAN
   bool reverse_bytes = endianness == LiftoffAssembler::kLittle;
 #else
@@ -745,6 +749,7 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
   switch (type.value()) {
     case StoreType::kI32Store8:
     case StoreType::kI64Store8: {
+      DCHECK_NULL(protected_load_pc);
       Label doadd;
       bind(&doadd);
       LoadU8(tmp1, MemOperand(ip));
@@ -756,6 +761,7 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
     }
     case StoreType::kI32Store16:
     case StoreType::kI64Store16: {
+      DCHECK_NULL(protected_load_pc);
       Label doadd;
       bind(&doadd);
       LoadU16(tmp1, MemOperand(ip));
@@ -779,6 +785,7 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
     }
     case StoreType::kI32Store:
     case StoreType::kI64Store32: {
+      if (protected_load_pc) *protected_load_pc = pc_offset();
       Label doadd;
       bind(&doadd);
       LoadU32(tmp1, MemOperand(ip));
@@ -798,6 +805,7 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
       break;
     }
     case StoreType::kI64Store: {
+      if (protected_load_pc) *protected_load_pc = pc_offset();
       Label doadd;
       bind(&doadd);
       LoadU64(tmp1, MemOperand(ip));
@@ -824,7 +832,8 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 bool i64_offset, Endianness endianness) {
+                                 uint32_t* protected_load_pc, bool i64_offset,
+                                 Endianness endianness) {
 #ifdef V8_TARGET_BIG_ENDIAN
   bool reverse_bytes = endianness == LiftoffAssembler::kLittle;
 #else
@@ -843,6 +852,7 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
   switch (type.value()) {
     case StoreType::kI32Store8:
     case StoreType::kI64Store8: {
+      DCHECK_NULL(protected_load_pc);
       Label do_again;
       bind(&do_again);
       LoadU8(tmp1, MemOperand(ip));
@@ -854,6 +864,7 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
     }
     case StoreType::kI32Store16:
     case StoreType::kI64Store16: {
+      DCHECK_NULL(protected_load_pc);
       Label do_again;
       bind(&do_again);
       LoadU16(tmp1, MemOperand(ip));
@@ -877,6 +888,7 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
     }
     case StoreType::kI32Store:
     case StoreType::kI64Store32: {
+      if (protected_load_pc) *protected_load_pc = pc_offset();
       Label do_again;
       bind(&do_again);
       LoadU32(tmp1, MemOperand(ip));
@@ -896,6 +908,7 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
       break;
     }
     case StoreType::kI64Store: {
+      if (protected_load_pc) *protected_load_pc = pc_offset();
       Label do_again;
       bind(&do_again);
       LoadU64(tmp1, MemOperand(ip));
@@ -922,7 +935,8 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 bool i64_offset, Endianness endianness) {
+                                 uint32_t* protected_load_pc, bool i64_offset,
+                                 Endianness endianness) {
 #ifdef V8_TARGET_BIG_ENDIAN
   bool reverse_bytes = endianness == LiftoffAssembler::kLittle;
 #else
@@ -941,6 +955,7 @@ void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
   switch (type.value()) {
     case StoreType::kI32Store8:
     case StoreType::kI64Store8: {
+      DCHECK_NULL(protected_load_pc);
       Label do_again;
       bind(&do_again);
       LoadU8(tmp1, MemOperand(ip));
@@ -952,6 +967,7 @@ void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
     }
     case StoreType::kI32Store16:
     case StoreType::kI64Store16: {
+      DCHECK_NULL(protected_load_pc);
       Label do_again;
       bind(&do_again);
       LoadU16(tmp1, MemOperand(ip));
@@ -975,6 +991,7 @@ void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
     }
     case StoreType::kI32Store:
     case StoreType::kI64Store32: {
+      if (protected_load_pc) *protected_load_pc = pc_offset();
       Label do_again;
       bind(&do_again);
       LoadU32(tmp1, MemOperand(ip));
@@ -994,6 +1011,7 @@ void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
       break;
     }
     case StoreType::kI64Store: {
+      if (protected_load_pc) *protected_load_pc = pc_offset();
       Label do_again;
       bind(&do_again);
       LoadU64(tmp1, MemOperand(ip));
@@ -1020,7 +1038,8 @@ void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
                                 uintptr_t offset_imm, LiftoffRegister value,
                                 LiftoffRegister result, StoreType type,
-                                bool i64_offset, Endianness endianness) {
+                                uint32_t* protected_load_pc, bool i64_offset,
+                                Endianness endianness) {
 #ifdef V8_TARGET_BIG_ENDIAN
   bool reverse_bytes = endianness == LiftoffAssembler::kLittle;
 #else
@@ -1039,6 +1058,7 @@ void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
   switch (type.value()) {
     case StoreType::kI32Store8:
     case StoreType::kI64Store8: {
+      DCHECK_NULL(protected_load_pc);
       Label do_again;
       bind(&do_again);
       LoadU8(tmp1, MemOperand(ip));
@@ -1050,6 +1070,7 @@ void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
     }
     case StoreType::kI32Store16:
     case StoreType::kI64Store16: {
+      DCHECK_NULL(protected_load_pc);
       Label do_again;
       bind(&do_again);
       LoadU16(tmp1, MemOperand(ip));
@@ -1073,6 +1094,7 @@ void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
     }
     case StoreType::kI32Store:
     case StoreType::kI64Store32: {
+      if (protected_load_pc) *protected_load_pc = pc_offset();
       Label do_again;
       bind(&do_again);
       LoadU32(tmp1, MemOperand(ip));
@@ -1092,6 +1114,7 @@ void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
       break;
     }
     case StoreType::kI64Store: {
+      if (protected_load_pc) *protected_load_pc = pc_offset();
       Label do_again;
       bind(&do_again);
       LoadU64(tmp1, MemOperand(ip));
@@ -1118,7 +1141,8 @@ void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 bool i64_offset, Endianness endianness) {
+                                 uint32_t* protected_load_pc, bool i64_offset,
+                                 Endianness endianness) {
 #ifdef V8_TARGET_BIG_ENDIAN
   bool reverse_bytes = endianness == LiftoffAssembler::kLittle;
 #else
@@ -1137,6 +1161,7 @@ void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
   switch (type.value()) {
     case StoreType::kI32Store8:
     case StoreType::kI64Store8: {
+      DCHECK_NULL(protected_load_pc);
       Label do_again;
       bind(&do_again);
       LoadU8(tmp1, MemOperand(ip));
@@ -1148,6 +1173,7 @@ void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
     }
     case StoreType::kI32Store16:
     case StoreType::kI64Store16: {
+      DCHECK_NULL(protected_load_pc);
       Label do_again;
       bind(&do_again);
       LoadU16(tmp1, MemOperand(ip));
@@ -1171,6 +1197,7 @@ void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
     }
     case StoreType::kI32Store:
     case StoreType::kI64Store32: {
+      if (protected_load_pc) *protected_load_pc = pc_offset();
       Label do_again;
       bind(&do_again);
       LoadU32(tmp1, MemOperand(ip));
@@ -1190,6 +1217,7 @@ void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
       break;
     }
     case StoreType::kI64Store: {
+      if (protected_load_pc) *protected_load_pc = pc_offset();
       Label do_again;
       bind(&do_again);
       LoadU64(tmp1, MemOperand(ip));
@@ -1217,6 +1245,7 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                                       uintptr_t offset_imm,
                                       LiftoffRegister value,
                                       LiftoffRegister result, StoreType type,
+                                      uint32_t* protected_load_pc,
                                       bool i64_offset, Endianness endianness) {
 #ifdef V8_TARGET_BIG_ENDIAN
   bool reverse_bytes = endianness == LiftoffAssembler::kLittle;
@@ -1230,12 +1259,14 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
   switch (type.value()) {
     case StoreType::kI32Store8:
     case StoreType::kI64Store8: {
+      DCHECK_NULL(protected_load_pc);
       AtomicExchangeU8(ip, value.gp(), result.gp(), r0);
       LoadU8(result.gp(), result.gp());
       break;
     }
     case StoreType::kI32Store16:
     case StoreType::kI64Store16: {
+      DCHECK_NULL(protected_load_pc);
       if (reverse_bytes) {
         lrvr(r1, value.gp());
         ShiftRightU32(r1, r1, Operand(16));
@@ -1253,6 +1284,7 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
     }
     case StoreType::kI32Store:
     case StoreType::kI64Store32: {
+      if (protected_load_pc) *protected_load_pc = pc_offset();
       if (reverse_bytes) {
         lrvr(r1, value.gp());
       } else {
@@ -1269,6 +1301,7 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
       break;
     }
     case StoreType::kI64Store: {
+      if (protected_load_pc) *protected_load_pc = pc_offset();
       if (reverse_bytes) {
         lrvgr(r1, value.gp());
       } else {
@@ -1290,7 +1323,8 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
 
 void LiftoffAssembler::AtomicExchangeTaggedPointer(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
-    LiftoffRegister value, LiftoffRegister result, LiftoffRegList pinned) {
+    LiftoffRegister value, LiftoffRegister result, uint32_t* protected_load_pc,
+    LiftoffRegList pinned) {
   if (!is_int20(offset_imm)) {
     if (offset_reg != no_reg) {
       mov(r0, Operand(offset_imm));
@@ -1304,6 +1338,7 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
   }
   MemOperand dst_op =
       MemOperand(dst_addr, offset_reg == no_reg ? r0 : offset_reg, offset_imm);
+  if (protected_load_pc) *protected_load_pc = pc_offset();
   lay(ip, dst_op);
 
   if constexpr (COMPRESS_POINTERS_BOOL) {
@@ -1341,7 +1376,8 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
 void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
-    StoreType type, bool i64_offset, Endianness endianness) {
+    StoreType type, uint32_t* protected_load_pc, bool i64_offset,
+    Endianness endianness) {
 #ifdef V8_TARGET_BIG_ENDIAN
   bool reverse_bytes = endianness == LiftoffAssembler::kLittle;
 #else
@@ -1360,6 +1396,7 @@ void LiftoffAssembler::AtomicCompareExchange(
   switch (type.value()) {
     case StoreType::kI32Store8:
     case StoreType::kI64Store8: {
+      DCHECK_NULL(protected_load_pc);
       AtomicCmpExchangeU8(ip, result.gp(), expected.gp(), new_value.gp(), r0,
                           r1);
       LoadU8(result.gp(), result.gp());
@@ -1367,6 +1404,7 @@ void LiftoffAssembler::AtomicCompareExchange(
     }
     case StoreType::kI32Store16:
     case StoreType::kI64Store16: {
+      DCHECK_NULL(protected_load_pc);
       if (reverse_bytes) {
         lrvr(tmp1, expected.gp());
         lrvr(tmp2, new_value.gp());
@@ -1386,6 +1424,7 @@ void LiftoffAssembler::AtomicCompareExchange(
     }
     case StoreType::kI32Store:
     case StoreType::kI64Store32: {
+      if (protected_load_pc) *protected_load_pc = pc_offset();
       if (reverse_bytes) {
         lrvr(tmp1, expected.gp());
         lrvr(tmp2, new_value.gp());
@@ -1401,6 +1440,7 @@ void LiftoffAssembler::AtomicCompareExchange(
       break;
     }
     case StoreType::kI64Store: {
+      if (protected_load_pc) *protected_load_pc = pc_offset();
       if (reverse_bytes) {
         lrvgr(tmp1, expected.gp());
         lrvgr(tmp2, new_value.gp());
@@ -1423,11 +1463,11 @@ void LiftoffAssembler::AtomicCompareExchange(
 void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
-    LiftoffRegList pinned) {
+    uint32_t* protected_load_pc, LiftoffRegList pinned) {
   AtomicCompareExchange(
       dst_addr, offset_reg, offset_imm, expected, new_value, result,
       COMPRESS_POINTERS_BOOL ? StoreType::kI32Store : StoreType::kI64Store,
-      false, LiftoffAssembler::kNative);
+      protected_load_pc, false, LiftoffAssembler::kNative);
 
   if constexpr (COMPRESS_POINTERS_BOOL) {
     AddS64(result.gp(), result.gp(), kPtrComprCageBaseRegister);
