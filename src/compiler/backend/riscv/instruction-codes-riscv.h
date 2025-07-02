@@ -44,7 +44,7 @@ namespace compiler {
   V(RiscvRvvLd)                                            \
   V(RiscvRvvSt)
 
-#define TARGET_ARCH_OPCODE_LIST_SPECAIL(V)           \
+#define TARGET_ARCH_OPCODE_LIST_SPECIAL(V)           \
   TARGET_ARCH_OPCODE_WITH_MEMORY_ACCESS_MODE_LIST(V) \
   V(RiscvAdd64)                                      \
   V(RiscvAddOvf32)                                   \
@@ -100,7 +100,7 @@ namespace compiler {
   V(RiscvCmpZero32)                                  \
   V(RiscvTst64)
 #elif V8_TARGET_ARCH_RISCV32
-#define TARGET_ARCH_OPCODE_LIST_SPECAIL(V) \
+#define TARGET_ARCH_OPCODE_LIST_SPECIAL(V) \
   V(RiscvAddPair)                          \
   V(RiscvSubPair)                          \
   V(RiscvMulPair)                          \
@@ -454,7 +454,7 @@ namespace compiler {
 
 #define TARGET_ARCH_OPCODE_LIST(V)   \
   TARGET_ARCH_OPCODE_LIST_COMMON(V)  \
-  TARGET_ARCH_OPCODE_LIST_SPECAIL(V) \
+  TARGET_ARCH_OPCODE_LIST_SPECIAL(V) \
   TARGET_ARCH_OPCODE_LIST_ZBB(V)     \
   TARGET_ARCH_OPCODE_LIST_ZBS(V)     \
   TARGET_ARCH_OPCODE_LIST_ZBA(V)     \
