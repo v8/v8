@@ -4147,6 +4147,23 @@ TEST(RunWasmTurbofan_F32x8Sqrt) {
                         compiler::IrOpcode::kF32x8Sqrt);
 }
 
+TEST(RunWasmTurbofan_F32x8Add) {
+  RunF32x8BinOpRevecTest(kExprF32x4Add, Add, compiler::IrOpcode::kF32x8Add);
+}
+
+TEST(RunWasmTurbofan_F32x8Sub) {
+  RunF32x8BinOpRevecTest(kExprF32x4Sub, Sub, compiler::IrOpcode::kF32x8Sub);
+}
+
+TEST(RunWasmTurbofan_F32x8Mul) {
+  RunF32x8BinOpRevecTest(kExprF32x4Mul, Mul, compiler::IrOpcode::kF32x8Mul);
+}
+
+TEST(RunWasmTurbofan_F32x8Div) {
+  RunF32x8BinOpRevecTest(kExprF32x4Div, base::Divide,
+                         compiler::IrOpcode::kF32x8Div);
+}
+
 TEST(RunWasmTurbofan_F32x8Min) {
   RunF32x8BinOpRevecTest(kExprF32x4Min, JSMin, compiler::IrOpcode::kF32x8Min);
 }
@@ -4165,6 +4182,24 @@ TEST(RunWasmTurbofan_F32x8Pmax) {
                          compiler::IrOpcode::kF32x8Pmax);
 }
 
+TEST(RunWasmTurbofan_F32x8Eq) {
+  RunF32x8CompareOpRevecTest(kExprF32x4Eq, Equal, compiler::IrOpcode::kF32x8Eq);
+}
+
+TEST(RunWasmTurbofan_F32x8Ne) {
+  RunF32x8CompareOpRevecTest(kExprF32x4Ne, NotEqual,
+                             compiler::IrOpcode::kF32x8Ne);
+}
+
+TEST(RunWasmTurbofan_F32x8Lt) {
+  RunF32x8CompareOpRevecTest(kExprF32x4Lt, Less, compiler::IrOpcode::kF32x8Lt);
+}
+
+TEST(RunWasmTurbofan_F32x8Le) {
+  RunF32x8CompareOpRevecTest(kExprF32x4Le, LessEqual,
+                             compiler::IrOpcode::kF32x8Le);
+}
+
 TEST(RunWasmTurbofan_I64x4Shl) {
   RunI64x4ShiftOpRevecTest(kExprI64x2Shl, LogicalShiftLeft,
                            compiler::IrOpcode::kI64x4Shl);
@@ -4175,8 +4210,31 @@ TEST(RunWasmTurbofan_I64x4ShrU) {
                            compiler::IrOpcode::kI64x4ShrU);
 }
 
+TEST(RunWasmTurbofan_I64x4Add) {
+  RunI64x4BinOpRevecTest(kExprI64x2Add, base::AddWithWraparound,
+                         compiler::IrOpcode::kI64x4Add);
+}
+
+TEST(RunWasmTurbofan_I64x4Sub) {
+  RunI64x4BinOpRevecTest(kExprI64x2Sub, base::SubWithWraparound,
+                         compiler::IrOpcode::kI64x4Sub);
+}
+
+TEST(RunWasmTurbofan_I64x4Mul) {
+  RunI64x4BinOpRevecTest(kExprI64x2Mul, base::MulWithWraparound,
+                         compiler::IrOpcode::kI64x4Mul);
+}
+
+TEST(RunWasmTurbofan_I64x4Eq) {
+  RunI64x4BinOpRevecTest(kExprI64x2Eq, Equal, compiler::IrOpcode::kI64x4Eq);
+}
+
 TEST(RunWasmTurbofan_I64x4Ne) {
   RunI64x4BinOpRevecTest(kExprI64x2Ne, NotEqual, compiler::IrOpcode::kI64x4Ne);
+}
+
+TEST(RunWasmTurbofan_I64x4GtS) {
+  RunI64x4BinOpRevecTest(kExprI64x2GtS, Greater, compiler::IrOpcode::kI64x4GtS);
 }
 
 TEST(RunWasmTurbofan_I64x4GeS) {
@@ -4197,6 +4255,23 @@ TEST(RunWasmTurbofan_F64x4Sqrt) {
                         compiler::IrOpcode::kF64x4Sqrt);
 }
 
+TEST(RunWasmTurbofan_F64x4Add) {
+  RunF64x4BinOpRevecTest(kExprF64x2Add, Add, compiler::IrOpcode::kF64x4Add);
+}
+
+TEST(RunWasmTurbofan_F64x4Sub) {
+  RunF64x4BinOpRevecTest(kExprF64x2Sub, Sub, compiler::IrOpcode::kF64x4Sub);
+}
+
+TEST(RunWasmTurbofan_F64x4Mul) {
+  RunF64x4BinOpRevecTest(kExprF64x2Mul, Mul, compiler::IrOpcode::kF64x4Mul);
+}
+
+TEST(RunWasmTurbofan_F64x4Div) {
+  RunF64x4BinOpRevecTest(kExprF64x2Div, base::Divide,
+                         compiler::IrOpcode::kF64x4Div);
+}
+
 TEST(RunWasmTurbofan_F64x4Min) {
   RunF64x4BinOpRevecTest(kExprF64x2Min, JSMin, compiler::IrOpcode::kF64x4Min);
 }
@@ -4213,6 +4288,24 @@ TEST(RunWasmTurbofan_F64x4Pmin) {
 TEST(RunWasmTurbofan_F64x4Pmax) {
   RunF64x4BinOpRevecTest(kExprF64x2Pmax, Maximum,
                          compiler::IrOpcode::kF64x4Pmax);
+}
+
+TEST(RunWasmTurbofan_F64x4Eq) {
+  RunF64x4CompareOpRevecTest(kExprF64x2Eq, Equal, compiler::IrOpcode::kF64x4Eq);
+}
+
+TEST(RunWasmTurbofan_F64x4Ne) {
+  RunF64x4CompareOpRevecTest(kExprF64x2Ne, NotEqual,
+                             compiler::IrOpcode::kF64x4Ne);
+}
+
+TEST(RunWasmTurbofan_F64x4Lt) {
+  RunF64x4CompareOpRevecTest(kExprF64x2Lt, Less, compiler::IrOpcode::kF64x4Lt);
+}
+
+TEST(RunWasmTurbofan_F64x4Le) {
+  RunF64x4CompareOpRevecTest(kExprF64x2Le, LessEqual,
+                             compiler::IrOpcode::kF64x4Le);
 }
 
 TEST(RunWasmTurbofan_I32x8SConvertF32x8) {
@@ -4432,8 +4525,51 @@ TEST(RunWasmTurbofan_S256Select) {
   }
 }
 
+TEST(RunWasmTurbofan_I32x8Add) {
+  RunI32x8BinOpRevecTest(kExprI32x4Add, base::AddWithWraparound,
+                         compiler::IrOpcode::kI32x8Add);
+}
+
+TEST(RunWasmTurbofan_I32x8Sub) {
+  RunI32x8BinOpRevecTest(kExprI32x4Sub, base::SubWithWraparound,
+                         compiler::IrOpcode::kI32x8Sub);
+}
+
+TEST(RunWasmTurbofan_I32x8Mul) {
+  RunI32x8BinOpRevecTest(kExprI32x4Mul, base::MulWithWraparound,
+                         compiler::IrOpcode::kI32x8Mul);
+}
+
+TEST(RunWasmTurbofan_I32x8MinS) {
+  RunI32x8BinOpRevecTest(kExprI32x4MinS, Minimum,
+                         compiler::IrOpcode::kI32x8MinS);
+}
+
+TEST(RunWasmTurbofan_I32x8MinU) {
+  RunI32x8BinOpRevecTest(kExprI32x4MinU, UnsignedMinimum,
+                         compiler::IrOpcode::kI32x8MinU);
+}
+
+TEST(RunWasmTurbofan_I32x8MaxS) {
+  RunI32x8BinOpRevecTest(kExprI32x4MaxS, Maximum,
+                         compiler::IrOpcode::kI32x8MaxS);
+}
+
+TEST(RunWasmTurbofan_I32x8MaxU) {
+  RunI32x8BinOpRevecTest(kExprI32x4MaxU, UnsignedMaximum,
+                         compiler::IrOpcode::kI32x8MaxU);
+}
+
+TEST(RunWasmTurbofan_I32x8Eq) {
+  RunI32x8BinOpRevecTest(kExprI32x4Eq, Equal, compiler::IrOpcode::kI32x8Eq);
+}
+
 TEST(RunWasmTurbofan_I32x8Ne) {
   RunI32x8BinOpRevecTest(kExprI32x4Ne, NotEqual, compiler::IrOpcode::kI32x8Ne);
+}
+
+TEST(RunWasmTurbofan_I32x8GtS) {
+  RunI32x8BinOpRevecTest(kExprI32x4GtS, Greater, compiler::IrOpcode::kI32x8GtS);
 }
 
 TEST(RunWasmTurbofan_I32x8GtU) {
@@ -4475,6 +4611,21 @@ TEST(RunWasmTurbofan_I16x16Abs) {
   RunI16x16UnOpRevecTest(kExprI16x8Abs, Abs, compiler::IrOpcode::kI16x16Abs);
 }
 
+TEST(RunWasmTurbofan_I16x16Add) {
+  RunI16x16BinOpRevecTest(kExprI16x8Add, base::AddWithWraparound,
+                          compiler::IrOpcode::kI16x16Add);
+}
+
+TEST(RunWasmTurbofan_I16x16Sub) {
+  RunI16x16BinOpRevecTest(kExprI16x8Sub, base::SubWithWraparound,
+                          compiler::IrOpcode::kI16x16Sub);
+}
+
+TEST(RunWasmTurbofan_I16x16Mul) {
+  RunI16x16BinOpRevecTest(kExprI16x8Mul, base::MulWithWraparound,
+                          compiler::IrOpcode::kI16x16Mul);
+}
+
 TEST(RunWasmTurbofan_I16x16AddSatS) {
   RunI16x16BinOpRevecTest<int16_t>(kExprI16x8AddSatS, SaturateAdd,
                                    compiler::IrOpcode::kI16x16AddSatS);
@@ -4495,9 +4646,18 @@ TEST(RunWasmTurbofan_I16x16SubSatU) {
                                     compiler::IrOpcode::kI16x16SubSatU);
 }
 
+TEST(WasmTurbofan_I16x16Eq) {
+  RunI16x16BinOpRevecTest(kExprI16x8Eq, Equal, compiler::IrOpcode::kI16x16Eq);
+}
+
 TEST(WasmTurbofan_I16x16Ne) {
   RunI16x16BinOpRevecTest(kExprI16x8Ne, NotEqual,
                           compiler::IrOpcode::kI16x16Ne);
+}
+
+TEST(WasmTurbofan_I16x16GtS) {
+  RunI16x16BinOpRevecTest(kExprI16x8GtS, Greater,
+                          compiler::IrOpcode::kI16x16GtS);
 }
 
 TEST(WasmTurbofan_I16x16GtU) {
@@ -4513,6 +4673,32 @@ TEST(WasmTurbofan_I16x16GeS) {
 TEST(WasmTurbofan_I16x16GeU) {
   RunI16x16BinOpRevecTest<uint16_t>(kExprI16x8GeU, UnsignedGreaterEqual,
                                     compiler::IrOpcode::kI16x16GeU);
+}
+
+TEST(WasmTurbofan_I16x16MinS) {
+  RunI16x16BinOpRevecTest(kExprI16x8MinS, Minimum,
+                          compiler::IrOpcode::kI16x16MinS);
+}
+
+TEST(WasmTurbofan_I16x16MinU) {
+  RunI16x16BinOpRevecTest(kExprI16x8MinU, UnsignedMinimum,
+                          compiler::IrOpcode::kI16x16MinU);
+}
+
+TEST(WasmTurbofan_I16x16MaxS) {
+  RunI16x16BinOpRevecTest(kExprI16x8MaxS, Maximum,
+                          compiler::IrOpcode::kI16x16MaxS);
+}
+
+TEST(WasmTurbofan_I16x16MaxU) {
+  RunI16x16BinOpRevecTest(kExprI16x8MaxU, UnsignedMaximum,
+                          compiler::IrOpcode::kI16x16MaxU);
+}
+
+TEST(WasmTurbofan_I16x16RoundingAverageU) {
+  RunI16x16BinOpRevecTest<uint16_t>(
+      kExprI16x8RoundingAverageU, RoundingAverageUnsigned,
+      compiler::IrOpcode::kI16x16RoundingAverageU);
 }
 
 namespace {
@@ -4867,6 +5053,16 @@ TEST(RunWasmTurbofan_I8x32Abs) {
   RunI8x32UnOpRevecTest(kExprI8x16Abs, Abs, compiler::IrOpcode::kI8x32Abs);
 }
 
+TEST(RunWasmTurbofan_I8x32Add) {
+  RunI8x32BinOpRevecTest(kExprI8x16Add, base::AddWithWraparound,
+                         compiler::IrOpcode::kI8x32Add);
+}
+
+TEST(RunWasmTurbofan_I8x32Sub) {
+  RunI8x32BinOpRevecTest(kExprI8x16Sub, base::SubWithWraparound,
+                         compiler::IrOpcode::kI8x32Sub);
+}
+
 TEST(RunWasmTurbofan_I8x32AddSatS) {
   RunI8x32BinOpRevecTest<int8_t>(kExprI8x16AddSatS, SaturateAdd,
                                  compiler::IrOpcode::kI8x32AddSatS);
@@ -4887,8 +5083,16 @@ TEST(RunWasmTurbofan_I8x32SubSatU) {
                                   compiler::IrOpcode::kI8x32SubSatU);
 }
 
+TEST(RunWasmTurbofan_I8x32Eq) {
+  RunI8x32BinOpRevecTest(kExprI8x16Eq, Equal, compiler::IrOpcode::kI8x32Eq);
+}
+
 TEST(RunWasmTurbofan_I8x32Ne) {
   RunI8x32BinOpRevecTest(kExprI8x16Ne, NotEqual, compiler::IrOpcode::kI8x32Ne);
+}
+
+TEST(RunWasmTurbofan_I8x32GtS) {
+  RunI8x32BinOpRevecTest(kExprI8x16GtS, Greater, compiler::IrOpcode::kI8x32GtS);
 }
 
 TEST(RunWasmTurbofan_I8x32GtU) {
@@ -4904,6 +5108,32 @@ TEST(RunWasmTurbofan_I8x32GeS) {
 TEST(RunWasmTurbofan_I8x32GeU) {
   RunI8x32BinOpRevecTest<uint8_t>(kExprI8x16GeU, UnsignedGreaterEqual,
                                   compiler::IrOpcode::kI8x32GeU);
+}
+
+TEST(RunWasmTurbofan_I8x32MinS) {
+  RunI8x32BinOpRevecTest(kExprI8x16MinS, Minimum,
+                         compiler::IrOpcode::kI8x32MinS);
+}
+
+TEST(RunWasmTurbofan_I8x32MinU) {
+  RunI8x32BinOpRevecTest(kExprI8x16MinU, UnsignedMinimum,
+                         compiler::IrOpcode::kI8x32MinU);
+}
+
+TEST(RunWasmTurbofan_I8x32MaxS) {
+  RunI8x32BinOpRevecTest(kExprI8x16MaxS, Maximum,
+                         compiler::IrOpcode::kI8x32MaxS);
+}
+
+TEST(RunWasmTurbofan_I8x32MaxU) {
+  RunI8x32BinOpRevecTest(kExprI8x16MaxU, UnsignedMaximum,
+                         compiler::IrOpcode::kI8x32MaxU);
+}
+
+TEST(RunWasmTurbofan_I8x32RoundingAverageU) {
+  RunI8x32BinOpRevecTest<uint8_t>(kExprI8x16RoundingAverageU,
+                                  RoundingAverageUnsigned,
+                                  compiler::IrOpcode::kI8x32RoundingAverageU);
 }
 
 TEST(RunWasmTurbofan_F32x4AddRevec) {

@@ -348,8 +348,12 @@ void RunI64x4BinOpRevecTest(WasmOpcode opcode, Int64BinOp expected_op,
                             compiler::IrOpcode::Value revec_opcode);
 void RunF64x4BinOpRevecTest(WasmOpcode opcode, DoubleBinOp expected_op,
                             compiler::IrOpcode::Value revec_opcode);
+void RunF64x4CompareOpRevecTest(WasmOpcode opcode, DoubleBinOp expected_op,
+                                compiler::IrOpcode::Value revec_opcode);
 void RunF32x8BinOpRevecTest(WasmOpcode opcode, FloatBinOp expected_op,
                             compiler::IrOpcode::Value revec_opcode);
+void RunF32x8CompareOpRevecTest(WasmOpcode opcode, FloatBinOp expected_op,
+                                compiler::IrOpcode::Value revec_opcode);
 
 void RunI16x16ShiftOpRevecTest(WasmOpcode opcode, Int16ShiftOp expected_op,
                                compiler::IrOpcode::Value revec_opcode);
