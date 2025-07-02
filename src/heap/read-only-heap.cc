@@ -62,9 +62,9 @@ void ReadOnlyHeap::SetUp(Isolate* isolate,
       isolate->external_pointer_table().SetUpFromReadOnlyArtifacts(
           isolate->heap()->read_only_external_pointer_space(), artifacts);
 #endif  // V8_COMPRESS_POINTERS
+      artifacts->read_only_heap()->InitializeIsolateRoots(isolate);
     }
     artifacts->VerifyChecksum(read_only_snapshot_data, read_only_heap_created);
-    artifacts->read_only_heap()->InitializeIsolateRoots(isolate);
   } else {
     // This path should only be taken in mksnapshot, should only be run once
     // before tearing down the Isolate that holds this ReadOnlyArtifacts and
