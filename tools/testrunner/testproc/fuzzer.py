@@ -72,6 +72,7 @@ EXTRA_FLAGS = [
     (0.1, '--ephemeron-fixpoint-iterations=0'),
     (0.25, '--experimental-wasm-revectorize'),
     (0.5, '--additive-safe-int-feedback'),
+    (0.1, '--no-memory-pool'),
 ]
 
 MIN_DEOPT = 1
