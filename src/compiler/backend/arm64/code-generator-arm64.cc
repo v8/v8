@@ -3397,26 +3397,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Ext(dst, src, src, 8);
       break;
     }
-      SIMD_BINOP_CASE(kArm64S64x2UnzipLeft, Uzp1, 2D);
-      SIMD_BINOP_CASE(kArm64S64x2UnzipRight, Uzp2, 2D);
-      SIMD_BINOP_CASE(kArm64S32x4ZipLeft, Zip1, 4S);
-      SIMD_BINOP_CASE(kArm64S32x4ZipRight, Zip2, 4S);
-      SIMD_BINOP_CASE(kArm64S32x4UnzipLeft, Uzp1, 4S);
-      SIMD_BINOP_CASE(kArm64S32x4UnzipRight, Uzp2, 4S);
-      SIMD_BINOP_CASE(kArm64S32x4TransposeLeft, Trn1, 4S);
-      SIMD_BINOP_CASE(kArm64S32x4TransposeRight, Trn2, 4S);
-      SIMD_BINOP_CASE(kArm64S16x8ZipLeft, Zip1, 8H);
-      SIMD_BINOP_CASE(kArm64S16x8ZipRight, Zip2, 8H);
-      SIMD_BINOP_CASE(kArm64S16x8UnzipLeft, Uzp1, 8H);
-      SIMD_BINOP_CASE(kArm64S16x8UnzipRight, Uzp2, 8H);
-      SIMD_BINOP_CASE(kArm64S16x8TransposeLeft, Trn1, 8H);
-      SIMD_BINOP_CASE(kArm64S16x8TransposeRight, Trn2, 8H);
-      SIMD_BINOP_CASE(kArm64S8x16ZipLeft, Zip1, 16B);
-      SIMD_BINOP_CASE(kArm64S8x16ZipRight, Zip2, 16B);
-      SIMD_BINOP_CASE(kArm64S8x16UnzipLeft, Uzp1, 16B);
-      SIMD_BINOP_CASE(kArm64S8x16UnzipRight, Uzp2, 16B);
-      SIMD_BINOP_CASE(kArm64S8x16TransposeLeft, Trn1, 16B);
-      SIMD_BINOP_CASE(kArm64S8x16TransposeRight, Trn2, 16B);
+      SIMD_BINOP_LANE_SIZE_CASE(kArm64S128UnzipLeft, Uzp1);
+      SIMD_BINOP_LANE_SIZE_CASE(kArm64S128UnzipRight, Uzp2);
+      SIMD_BINOP_LANE_SIZE_CASE(kArm64S128ZipLeft, Zip1);
+      SIMD_BINOP_LANE_SIZE_CASE(kArm64S128ZipRight, Zip2);
+      SIMD_BINOP_LANE_SIZE_CASE(kArm64S128TransposeLeft, Trn1);
+      SIMD_BINOP_LANE_SIZE_CASE(kArm64S128TransposeRight, Trn2);
     case kArm64S8x16Concat: {
       __ Ext(i.OutputSimd128Register().V16B(), i.InputSimd128Register(0).V16B(),
              i.InputSimd128Register(1).V16B(), i.InputInt4(2));
@@ -3460,12 +3446,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Ext(dst.V16B(), dst.V16B(), dst.V16B(), 8);
       break;
     }
-      SIMD_UNOP_CASE(kArm64S32x2Reverse, Rev64, 4S);
-      SIMD_UNOP_CASE(kArm64S16x4Reverse, Rev64, 8H);
-      SIMD_UNOP_CASE(kArm64S16x2Reverse, Rev32, 8H);
-      SIMD_UNOP_CASE(kArm64S8x8Reverse, Rev64, 16B);
-      SIMD_UNOP_CASE(kArm64S8x4Reverse, Rev32, 16B);
-      SIMD_UNOP_CASE(kArm64S8x2Reverse, Rev16, 16B);
+      SIMD_UNOP_LANE_SIZE_CASE(kArm64S128Rev16, Rev16);
+      SIMD_UNOP_LANE_SIZE_CASE(kArm64S128Rev32, Rev32);
+      SIMD_UNOP_LANE_SIZE_CASE(kArm64S128Rev64, Rev64);
     case kArm64LoadSplat: {
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));

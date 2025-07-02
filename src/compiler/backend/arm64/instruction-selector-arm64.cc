@@ -5485,43 +5485,50 @@ void ArrangeShuffleTable(Arm64OperandGenerator* g, OpIndex input0,
 }
 
 using CanonicalShuffle = wasm::SimdShuffle::CanonicalShuffle;
-std::optional<ArchOpcode> TryMapCanonicalShuffleToArch(
+std::optional<InstructionCode> TryMapCanonicalShuffleToInstr(
     CanonicalShuffle shuffle) {
-  using CanonicalToArch = std::pair<CanonicalShuffle, ArchOpcode>;
-  constexpr static auto arch_shuffles = std::to_array<CanonicalToArch>({
-      {CanonicalShuffle::kS64x2Even, kArm64S64x2UnzipLeft},
-      {CanonicalShuffle::kS64x2Odd, kArm64S64x2UnzipRight},
-      {CanonicalShuffle::kS64x2Reverse, kArm64S64x2Reverse},
-      {CanonicalShuffle::kS64x2ReverseBytes, kArm64S8x8Reverse},
-      {CanonicalShuffle::kS32x4Even, kArm64S32x4UnzipLeft},
-      {CanonicalShuffle::kS32x4Odd, kArm64S32x4UnzipRight},
-      {CanonicalShuffle::kS32x4InterleaveLowHalves, kArm64S32x4ZipLeft},
-      {CanonicalShuffle::kS32x4InterleaveHighHalves, kArm64S32x4ZipRight},
-      {CanonicalShuffle::kS32x4ReverseBytes, kArm64S8x4Reverse},
-      {CanonicalShuffle::kS32x4Reverse, kArm64S32x4Reverse},
-      {CanonicalShuffle::kS32x2Reverse, kArm64S32x2Reverse},
-      {CanonicalShuffle::kS32x4TransposeEven, kArm64S32x4TransposeLeft},
-      {CanonicalShuffle::kS32x4TransposeOdd, kArm64S32x4TransposeRight},
-      {CanonicalShuffle::kS16x8Even, kArm64S16x8UnzipLeft},
-      {CanonicalShuffle::kS16x8Odd, kArm64S16x8UnzipRight},
-      {CanonicalShuffle::kS16x8InterleaveLowHalves, kArm64S16x8ZipLeft},
-      {CanonicalShuffle::kS16x8InterleaveHighHalves, kArm64S16x8ZipRight},
-      {CanonicalShuffle::kS16x2Reverse, kArm64S16x2Reverse},
-      {CanonicalShuffle::kS16x4Reverse, kArm64S16x4Reverse},
-      {CanonicalShuffle::kS16x8ReverseBytes, kArm64S8x2Reverse},
-      {CanonicalShuffle::kS16x8TransposeEven, kArm64S16x8TransposeLeft},
-      {CanonicalShuffle::kS16x8TransposeOdd, kArm64S16x8TransposeRight},
-      {CanonicalShuffle::kS8x16Even, kArm64S8x16UnzipLeft},
-      {CanonicalShuffle::kS8x16Odd, kArm64S8x16UnzipRight},
-      {CanonicalShuffle::kS8x16InterleaveLowHalves, kArm64S8x16ZipLeft},
-      {CanonicalShuffle::kS8x16InterleaveHighHalves, kArm64S8x16ZipRight},
-      {CanonicalShuffle::kS8x16TransposeEven, kArm64S8x16TransposeLeft},
-      {CanonicalShuffle::kS8x16TransposeOdd, kArm64S8x16TransposeRight},
-  });
+  using CanonicalToInstr = std::pair<CanonicalShuffle, InstructionCode>;
 
-  for (auto& [canonical, arch_opcode] : arch_shuffles) {
+#define CANONICAL_TO_INSTR(canonical, opcode, size)                   \
+  {                                                                   \
+    CanonicalShuffle::canonical, opcode | LaneSizeField::encode(size) \
+  }
+
+  static constexpr std::array arch_shuffles = std::to_array<CanonicalToInstr>({
+      CANONICAL_TO_INSTR(kS64x2Even, kArm64S128UnzipLeft, 64),
+      CANONICAL_TO_INSTR(kS64x2Odd, kArm64S128UnzipRight, 64),
+      {CanonicalShuffle::kS64x2Reverse, kArm64S64x2Reverse},
+      CANONICAL_TO_INSTR(kS64x2ReverseBytes, kArm64S128Rev64, 8),
+      CANONICAL_TO_INSTR(kS32x4Even, kArm64S128UnzipLeft, 32),
+      CANONICAL_TO_INSTR(kS32x4Odd, kArm64S128UnzipRight, 32),
+      CANONICAL_TO_INSTR(kS32x4InterleaveLowHalves, kArm64S128ZipLeft, 32),
+      CANONICAL_TO_INSTR(kS32x4InterleaveHighHalves, kArm64S128ZipRight, 32),
+      {CanonicalShuffle::kS32x4Reverse, kArm64S32x4Reverse},
+      CANONICAL_TO_INSTR(kS32x4ReverseBytes, kArm64S128Rev32, 8),
+      CANONICAL_TO_INSTR(kS32x2Reverse, kArm64S128Rev64, 32),
+      CANONICAL_TO_INSTR(kS32x4TransposeEven, kArm64S128TransposeLeft, 32),
+      CANONICAL_TO_INSTR(kS32x4TransposeOdd, kArm64S128TransposeRight, 32),
+      CANONICAL_TO_INSTR(kS16x8Even, kArm64S128UnzipLeft, 16),
+      CANONICAL_TO_INSTR(kS16x8Odd, kArm64S128UnzipRight, 16),
+      CANONICAL_TO_INSTR(kS16x8InterleaveLowHalves, kArm64S128ZipLeft, 16),
+      CANONICAL_TO_INSTR(kS16x8InterleaveHighHalves, kArm64S128ZipRight, 16),
+      CANONICAL_TO_INSTR(kS16x2Reverse, kArm64S128Rev32, 16),
+      CANONICAL_TO_INSTR(kS16x4Reverse, kArm64S128Rev64, 16),
+      CANONICAL_TO_INSTR(kS16x8ReverseBytes, kArm64S128Rev16, 8),
+      CANONICAL_TO_INSTR(kS16x8TransposeEven, kArm64S128TransposeLeft, 16),
+      CANONICAL_TO_INSTR(kS16x8TransposeOdd, kArm64S128TransposeRight, 16),
+      CANONICAL_TO_INSTR(kS8x16Even, kArm64S128UnzipLeft, 8),
+      CANONICAL_TO_INSTR(kS8x16Odd, kArm64S128UnzipRight, 8),
+      CANONICAL_TO_INSTR(kS8x16InterleaveLowHalves, kArm64S128ZipLeft, 8),
+      CANONICAL_TO_INSTR(kS8x16InterleaveHighHalves, kArm64S128ZipRight, 8),
+      CANONICAL_TO_INSTR(kS8x16TransposeEven, kArm64S128TransposeLeft, 8),
+      CANONICAL_TO_INSTR(kS8x16TransposeOdd, kArm64S128TransposeRight, 8),
+  });
+#undef CANONICAL_TO_INSTR
+
+  for (const auto& [canonical, instr_opcode] : arch_shuffles) {
     if (canonical == shuffle) {
-      return arch_opcode;
+      return instr_opcode;
     }
   }
   return {};
@@ -5617,9 +5624,9 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
   const CanonicalShuffle canonical =
       wasm::SimdShuffle::TryMatchCanonical(shuffle);
 
-  if (auto arch_opcode = TryMapCanonicalShuffleToArch(canonical);
-      arch_opcode.has_value()) {
-    Emit(arch_opcode.value(), g.DefineAsRegister(node), g.UseRegister(input0),
+  if (auto instr_opcode = TryMapCanonicalShuffleToInstr(canonical);
+      instr_opcode.has_value()) {
+    Emit(instr_opcode.value(), g.DefineAsRegister(node), g.UseRegister(input0),
          g.UseRegister(input1));
     return;
   }
