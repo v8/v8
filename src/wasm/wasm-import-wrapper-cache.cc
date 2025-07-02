@@ -35,7 +35,7 @@ WasmImportWrapperHandle::WasmImportWrapperHandle(Address addr,
               addr, signature_hash)) {}
 
 WasmImportWrapperHandle::~WasmImportWrapperHandle() {
-  WasmCode* wasm_code = code_.load(std::memory_order_relaxed);
+  WasmCode* wasm_code = code_.load(std::memory_order_acquire);
   if (wasm_code) {
     bool should_free = wasm_code->DecRef();
     USE(should_free);
@@ -50,7 +50,7 @@ void WasmImportWrapperHandle::set_code(WasmCode* code) {
   // and should have a refcount of 1.
   code->DcheckRefCountIsOne();
   DCHECK(!has_code());
-  code_.store(code, std::memory_order_relaxed);
+  code_.store(code, std::memory_order_release);
 }
 
 // The wrapper cache is shared per-process; but it is initialized on demand, and

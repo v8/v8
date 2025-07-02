@@ -651,7 +651,7 @@ void WasmTableObject::UpdateDispatchTable(
 #endif
 
   if (wrapper_handle->has_code()) {
-    DCHECK_EQ(wrapper_handle->code().instruction_start(), call_target);
+    DCHECK_EQ(wrapper_handle->code()->instruction_start(), call_target);
   } else {
     const wasm::CanonicalSig* sig =
         wasm::GetWasmEngine()->type_canonicalizer()->LookupFunctionSignature(
@@ -1534,13 +1534,16 @@ void ImportedFunctionEntry::SetWasmToWrapper(
             instance_data_->ptr(), index_, callable->ptr(),
             wrapper_handle->has_code()
                 ? nullptr
-                : wrapper_handle->code().instructions().begin());
+                : wrapper_handle->code()->instructions().begin());
 
+#if DEBUG
   if (wrapper_handle->has_code()) {
-    DCHECK(wrapper_handle->code().kind() == wasm::WasmCode::kWasmToJsWrapper ||
-           wrapper_handle->code().kind() == wasm::WasmCode::kWasmToCapiWrapper);
-    DCHECK_EQ(wrapper_handle->code().signature_hash(), sig->signature_hash());
+    DCHECK(wrapper_handle->code()->kind() == wasm::WasmCode::kWasmToJsWrapper ||
+           wrapper_handle->code()->kind() ==
+               wasm::WasmCode::kWasmToCapiWrapper);
+    DCHECK_EQ(wrapper_handle->code()->signature_hash(), sig->signature_hash());
   }
+#endif  // DEBUG
 
   constexpr bool kShared = false;
   DirectHandle<WasmImportData> import_data =
@@ -2487,7 +2490,7 @@ void WasmDispatchTable::SetForWrapper(
     NewOrExistingEntry new_or_existing) {
   DCHECK_NE(implicit_arg, Smi::zero());
   SBXCHECK(v8_flags.wasm_jitless || !wrapper_handle->has_code() ||
-           !wrapper_handle->code().is_dying());
+           !wrapper_handle->code()->is_dying());
   SBXCHECK_BOUNDS(index, length());
   DCHECK(sig_id.valid());
   const int offset = OffsetOf(index);

@@ -136,11 +136,9 @@ class WasmImportWrapperHandle {
   ~WasmImportWrapperHandle();
 
   WasmCodePointer code_pointer() const { return code_pointer_; }
-  const WasmCode& code() const {
-    return *code_.load(std::memory_order_relaxed);
-  }
+  const WasmCode* code() const { return code_.load(std::memory_order_acquire); }
   bool has_code() const {
-    return code_.load(std::memory_order_relaxed) != nullptr;
+    return code_.load(std::memory_order_acquire) != nullptr;
   }
 
  private:

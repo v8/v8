@@ -48,7 +48,7 @@ TEST(CacheHit) {
                                     expected_arity, kNoSuspend);
 
     CHECK(c1->has_code());
-    CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->code().kind());
+    CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->code()->kind());
 
     std::shared_ptr<wasm::WasmImportWrapperHandle> c2 =
         GetWasmImportWrapperCache()->Get(isolate, kind, type_index,
@@ -89,7 +89,7 @@ TEST(CacheMissSig) {
                                   expected_arity1, kNoSuspend);
 
   CHECK(c1->has_code());
-  CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->code().kind());
+  CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->code()->kind());
 
   CHECK(!GetWasmImportWrapperCache()->HasCodeForTesting(
       kind, type_index2, expected_arity2, kNoSuspend));
@@ -115,7 +115,7 @@ TEST(CacheMissKind) {
                                   expected_arity, kNoSuspend);
 
   CHECK(c1->has_code());
-  CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->code().kind());
+  CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->code()->kind());
 
   CHECK(!GetWasmImportWrapperCache()->HasCodeForTesting(
       kind2, type_index, expected_arity, kNoSuspend));
@@ -146,7 +146,7 @@ TEST(CacheHitMissSig) {
                                   expected_arity1, kNoSuspend);
 
   CHECK_NOT_NULL(c1);
-  CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->code().kind());
+  CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->code()->kind());
 
   CHECK(!GetWasmImportWrapperCache()->HasCodeForTesting(
       kind, type_index2, expected_arity2, kNoSuspend));
