@@ -538,13 +538,21 @@ void LiftoffAssembler::EmitWriteBarrier(Register target_object,
   // {CallRecordWriteStubSaveRegisters} just emits a near call). Hence we can
   // use it as scratch register here.
   Label exit;
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  // TODO(429142815): WriteBarrier builtins currently require a sandbox mode
+  // switch, so more code is emitted and we need far jumps here. Once the
+  // builtins run in sandboxed mode, we can again always use near jumps.
+  Label::Distance distance = Label::kFar;
+#else
+  Label::Distance distance = Label::kNear;
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   CheckPageFlag(target_object, kScratchRegister,
                 MemoryChunk::kPointersFromHereAreInterestingMask, zero, &exit,
-                Label::kNear);
-  JumpIfSmi(stored_value, &exit, Label::kNear);
+                distance);
+  JumpIfSmi(stored_value, &exit, distance);
   CheckPageFlag(stored_value, kScratchRegister,
                 MemoryChunk::kPointersToHereAreInterestingMask, zero, &exit,
-                Label::kNear);
+                distance);
   leaq(kScratchRegister, store_location);
 
   CallRecordWriteStubSaveRegisters(target_object, kScratchRegister,

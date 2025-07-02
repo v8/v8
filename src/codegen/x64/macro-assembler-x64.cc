@@ -1033,9 +1033,14 @@ void MacroAssembler::CallRecordWriteStub(Register object, Register slot_address,
 #if V8_ENABLE_WEBASSEMBLY
   if (mode == StubCallMode::kCallWasmRuntimeStub) {
     // Use {near_call} for direct Wasm call within a module.
-    intptr_t wasm_target =
-        static_cast<intptr_t>(wasm::WasmCode::GetRecordWriteBuiltin(fp_mode));
-    near_call(wasm_target, RelocInfo::WASM_STUB_CALL);
+    Builtin wasm_target = wasm::WasmCode::GetRecordWriteBuiltin(fp_mode);
+    // TODO(429142815): replace with a DCHECK_EQ(sandboxing_mode(),
+    // target_sandboxing_mode()) once write barrier builtins can run in
+    // sandboxed execution mode.
+    CodeSandboxingMode previous_mode = SwitchSandboxingModeBeforeCallIfNeeded(
+        Builtins::SandboxingModeOf(wasm_target));
+    near_call(static_cast<intptr_t>(wasm_target), RelocInfo::WASM_STUB_CALL);
+    SwitchSandboxingModeAfterCallIfNeeded(previous_mode);
 #else
   if (false) {
 #endif
