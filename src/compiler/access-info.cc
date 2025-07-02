@@ -441,6 +441,53 @@ bool AccessInfoFactory::ObjectMayHaveOwnProperties(JSObjectRef obj,
   }
 }
 
+// Determines whether the given {obj}, which is the "target" of a Proxy,
+// meets the requirements for inlining the get/set traps of that Proxy.
+// Specifically, consider steps 8 and 9 of
+// https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-get-p-receiver
+//
+//   8. Let targetDesc be ? target.[[GetOwnProperty]](P).
+//   9. If targetDesc is not undefined and targetDesc.[[Configurable]] is
+//      false, then...
+//
+// Since this is a fast path, we don't want to spend time on these checks or
+// even emit code to perform them, so we require a target for which we can
+// statically prove that *any* [[GetOwnProperty]] lookup will return undefined.
+bool AccessInfoFactory::ObjectIsSuitableProxyTarget(KeyType key_type,
+                                                    JSObjectRef obj) const {
+  MapRef map = obj.map(broker());
+  // If the object is empty and frozen, it is statically guaranteed to remain
+  // that way, satisfying the fast path's requirements.
+  if (!ObjectMayHaveElements(obj, map) &&
+      (key_type == KeyType::kIndex || !ObjectMayHaveOwnProperties(obj, map))) {
+    return true;
+  }
+  // Some use cases can't use frozen targets because that limits the flexibility
+  // of other Proxy traps. So we also support objects where we can register
+  // sufficient code dependencies to get a deopt if the object gains elements.
+  //
+  // For now, we support objects that are currently empty, have a stable map,
+  // and have fast elements (which are always configurable and writable) by
+  // installing a dependency on their map stability. Adding properties or
+  // elements with non-default attributes would cause a map transition and
+  // loss of stability.
+  if (map.is_stable() && map.NumberOfOwnDescriptors() == 0 &&
+      IsFastElementsKind(map.elements_kind())) {
+    dependencies()->DependOnStableMap(map);
+    return true;
+  }
+
+  // TODO(jkummerow): Instead of requiring "NumberOfOwnDescriptors() == 0" as
+  // above, we could also allow stable maps where all fields are configurable.
+  //
+  // If there is a use case for it, we could also easily support the pristine
+  // Array.prototype or Object.prototype when key_type == kIndex by depending
+  // on the NoElementsProtector.
+
+  // This target object is not (yet?) supported.
+  return false;
+}
+
 std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
     MapRef map, AccessMode access_mode) const {
   if (map.CanInlineElementAccess()) {
@@ -526,15 +573,16 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
         if (!maybe_target.has_value()) return {};
         if (!maybe_target->IsJSObject()) return {};
         JSObjectRef target = maybe_target.value().AsJSObject();
-        MapRef target_map = target.map(broker());
-        if (ObjectMayHaveElements(target, target_map)) return {};
         if (key_type == wasm::kWasmExternRef) {
+          // If the prototypes would handle some keys, we cannot take the fast
+          // path, because it would let the trap handle all keys.
           if (prototypes_may_have_properties) return {};
-          if (ObjectMayHaveOwnProperties(target, target_map)) return {};
-        } else if (key_type != wasm::kWasmI32) {
+          if (!ObjectIsSuitableProxyTarget(KeyType::kString, target)) return {};
+        } else if (key_type == wasm::kWasmI32) {
+          if (!ObjectIsSuitableProxyTarget(KeyType::kIndex, target)) return {};
+        } else {
           return {};
         }
-        if (!target_map.prototype(broker()).IsNull()) return {};
 
         // Finally: all good!
         bool string_keys = key_type == wasm::kWasmExternRef;

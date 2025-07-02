@@ -286,6 +286,8 @@ class AccessInfoFactory final {
       ZoneVector<PropertyAccessInfo> infos, AccessMode access_mode) const;
 
  private:
+  enum class KeyType { kString, kIndex };
+
   std::optional<ElementAccessInfo> ConsolidateElementLoad(
       ElementAccessFeedback const& feedback) const;
   PropertyAccessInfo LookupSpecialFieldAccessor(MapRef map, NameRef name) const;
@@ -318,6 +320,7 @@ class AccessInfoFactory final {
 
   bool ObjectMayHaveElements(JSObjectRef obj, MapRef map) const;
   bool ObjectMayHaveOwnProperties(JSObjectRef obj, MapRef map) const;
+  bool ObjectIsSuitableProxyTarget(KeyType key_type, JSObjectRef obj) const;
 
   CompilationDependencies* dependencies() const;
   JSHeapBroker* broker() const { return broker_; }

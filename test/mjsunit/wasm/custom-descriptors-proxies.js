@@ -23,11 +23,13 @@ let kStringTest = builder.addImport('wasm:js-string', 'test', kSig_i_r);
 let $make_t = builder.addType(makeSig([kWasmI32], [kWasmAnyRef]));
 
 // We'll set up several descriptor/constructor pairs with different prototypes:
-// 0: all good.
+// 0: all good. Proxy handler is frozen.
 // 1: Proxy traps can't get inlined due to existence of prototype method.
 // 2: "set" trap returns {false}.
 // 3: Proxy trap can't get inlined due to elements on the prototype chain.
-const kNumDescriptors = 4;
+// 4: Proxy handler is Array prototype, acquires elements later.
+// 5: Proxy handler is empty object, acquires elements later.
+const kNumDescriptors = 6;
 const kFuncIndexOffset = 1;  // Because of {kStringTest}.
 function MakeDescriptorAndConstructor(index) {
   let global =
@@ -87,6 +89,8 @@ ConfigurePrototype(0, []);
 ConfigurePrototype(1, [[1, ...StringToArray("foo"), $foo.index]]);  // 1=getter
 ConfigurePrototype(2, []);
 ConfigurePrototype(3, []);
+ConfigurePrototype(4, []);
+ConfigurePrototype(5, []);
 
 builder.addCustomSection("experimental-descriptors", [
   0,  // version
@@ -131,10 +135,30 @@ Object.setPrototypeOf(
     })));
 Object.freeze(wasm.W3.prototype);
 
+Object.setPrototypeOf(
+    wasm.W4.prototype,
+    new Proxy(Array.prototype, Object.freeze({
+      get: wasm.geti,
+      set: wasm.seti,
+    })));
+Object.freeze(wasm.W4.prototype);
+
+function W5Target() {}
+let w5_target = new W5Target();
+Object.setPrototypeOf(
+    wasm.W5.prototype,
+    new Proxy(w5_target, Object.freeze({
+      get: wasm.geti,
+      set: wasm.seti,
+    })));
+Object.freeze(wasm.W5.prototype);
+
 let w0 = new wasm.W0();
 let w1 = new wasm.W1();
 let w2 = new wasm.W2();
 let w3 = new wasm.W3();
+let w4 = new wasm.W4();
+let w5 = new wasm.W5();
 
 class Test {
   constructor(body, expected, inner = null) {
@@ -234,3 +258,29 @@ for (let test of tests) {
   if (test.inner) { %OptimizeFunctionOnNextCall(test.inner); }
   assertEquals(test.expected, test.body(test.inner));
 }
+
+function GetW4(obj, index) { return obj[index]; }
+function GetW5(obj, index) { return obj[index]; }
+%PrepareFunctionForOptimization(GetW4);
+%PrepareFunctionForOptimization(GetW5);
+for (let i = 0; i < 3; i++) {
+  assertEquals(11, GetW4(w4, 0));
+  assertEquals(11, GetW4(w4, 10));
+  assertEquals(11, GetW5(w5, 0));
+  assertEquals(11, GetW5(w5, 10));
+}
+%OptimizeFunctionOnNextCall(GetW4);
+%OptimizeFunctionOnNextCall(GetW5);
+assertEquals(11, GetW4(w4, 0));
+assertEquals(11, GetW4(w4, 10));
+assertEquals(11, GetW5(w5, 0));
+assertEquals(11, GetW5(w5, 10));
+// Trigger deopt.
+Object.defineProperty(
+    Array.prototype, 0, {value: 999, configurable: false, writable: false});
+assertThrows(() => GetW4(w4, 0), TypeError,
+    /property '0' is a read-only and non-configurable data property/);
+Object.defineProperty(
+    w5_target, 0, {value: 999, configurable: false, writable: false});
+assertThrows(() => GetW5(w5, 0), TypeError,
+    /property '0' is a read-only and non-configurable data property/);
