@@ -360,8 +360,9 @@ int32_t Assembler::target_constant32_at(Address pc) {
   if (IsLui(*reinterpret_cast<Instr*>(instr0)) &&
       IsAddi(*reinterpret_cast<Instr*>(instr1))) {
     // Assemble the 32bit value.
-    int32_t constant32 = (int32_t)(instr0->Imm20UValue() << kImm20Shift) +
-                         (int32_t)instr1->Imm12Value();
+    int32_t constant32 =
+        static_cast<int32_t>(instr0->Imm20UValue() << kImm20Shift) +
+        static_cast<int32_t>(instr1->Imm12Value());
     return constant32;
   }
   // We should never get here, force a bad address if we do.
@@ -378,8 +379,8 @@ void Assembler::set_target_constant32_at(Address pc, uint32_t target,
   DCHECK(IsLui(*reinterpret_cast<Instr*>(instr0)) &&
          IsAddi(*reinterpret_cast<Instr*>(instr1)));
 #endif
-  int32_t high_20 = (((int32_t)target + 0x800) >> 12);  // 20 bits
-  int32_t low_12 = (int32_t)target << 20 >> 20;         // 12 bits
+  int32_t high_20 = (static_cast<int32_t>(target) + 0x800) >> 12;  // 20 bits
+  int32_t low_12 = static_cast<int32_t>(target) << 20 >> 20;       // 12 bits
   instr_at_put(pc, SetHi20Offset(high_20, instr0->InstructionBits()),
                jit_allocation);
   instr_at_put(pc + 1 * kInstrSize,

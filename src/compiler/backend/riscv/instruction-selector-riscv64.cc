@@ -1915,7 +1915,7 @@ void InstructionSelector::VisitWord32Equal(OpIndex node) {
             MacroAssemblerBase::ReadOnlyRootPtr(root_index, isolate());
         if (g.CanBeImmediate(ptr, kRiscvCmp32)) {
           VisitCompare(this, kRiscvCmp32, g.UseRegister(left),
-                       g.TempImmediate(int32_t(ptr)), &cont);
+                       g.TempImmediate(static_cast<int32_t>(ptr)), &cont);
           return;
         }
       }

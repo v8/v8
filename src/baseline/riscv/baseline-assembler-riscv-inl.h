@@ -529,8 +529,8 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
   int64_t imm64;
   imm64 = __ branch_long_offset(&table);
   CHECK(is_int32(imm64 + 0x800));
-  int32_t Hi20 = (((int32_t)imm64 + 0x800) >> 12);
-  int32_t Lo12 = (int32_t)imm64 << 20 >> 20;
+  int32_t Hi20 = (static_cast<int32_t>(imm64) + 0x800) >> 12;
+  int32_t Lo12 = (static_cast<int32_t>(imm64) << 20) >> 20;
   __ auipc(t6, Hi20);     // Read PC + Hi20 into t6.
   __ addi(t6, t6, Lo12);  // Jump PC + Hi20 + Lo12.
 

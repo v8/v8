@@ -486,7 +486,6 @@ int Assembler::target_at(int pos, bool is_internal) {
   return instr | (imm12 & kImm12Mask);
 }
 
-
 [[nodiscard]] static inline Instr SetJalOffset(int32_t pos, int32_t target_pos,
                                                Instr instr) {
   DCHECK(Assembler::IsJal(instr));
@@ -600,8 +599,8 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
 
       intptr_t offset = target_pos - pos;
       CHECK(is_int32(offset + 0x800));
-      int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
-      int32_t Lo12 = (int32_t)offset << 20 >> 20;
+      int32_t Hi20 = (static_cast<int32_t>(offset) + 0x800) >> 12;
+      int32_t Lo12 = static_cast<int32_t>(offset) << 20 >> 20;
 
       instr_auipc = SetHi20Offset(Hi20, instr_auipc);
       instr_at_put(pos, instr_auipc);
@@ -778,8 +777,8 @@ int Assembler::PatchBranchLongOffset(Address pc, Instr instr_auipc,
   DCHECK(IsAuipc(instr_auipc));
   DCHECK(IsJalr(instr_jalr));
   CHECK(is_int32(offset + 0x800));
-  int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
-  int32_t Lo12 = (int32_t)offset << 20 >> 20;
+  int32_t Hi20 = (static_cast<int32_t>(offset) + 0x800) >> 12;
+  int32_t Lo12 = static_cast<int32_t>(offset) << 20 >> 20;
   instr_at_put(pc, SetHi20Offset(Hi20, instr_auipc), jit_allocation);
   instr_at_put(pc + kInstrSize, SetLo12Offset(Lo12, instr_jalr),
                jit_allocation);
@@ -914,7 +913,7 @@ void Assembler::label_at_put(Label* L, int at_offset) {
       DCHECK_EQ(imm18 & 3, 0);
       int32_t imm16 = imm18 >> 2;
       DCHECK(is_int16(imm16));
-      instr_at_put(at_offset, (int32_t)(imm16 & kImm16Mask));
+      instr_at_put(at_offset, static_cast<int32_t>(imm16 & kImm16Mask));
     } else {
       target_pos = kEndOfJumpChain;
       instr_at_put(at_offset, target_pos);
@@ -952,7 +951,7 @@ void Assembler::EBREAK() {
 void Assembler::nop() { addi(ToRegister(0), ToRegister(0), 0); }
 
 inline int64_t signExtend(uint64_t V, int N) {
-  return int64_t(V << (64 - N)) >> (64 - N);
+  return static_cast<int64_t>(V << (64 - N)) >> (64 - N);
 }
 
 #if V8_TARGET_ARCH_RISCV64
@@ -992,7 +991,7 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
     int64_t high_20 = ((imm + 0x800) >> 12);
     int64_t low_12 = imm << 52 >> 52;
     if (high_20) {
-      lui(rd, (int32_t)high_20);
+      lui(rd, static_cast<int32_t>(high_20));
       if (low_12) {
         addi(rd, rd, low_12);
       }
@@ -1024,7 +1023,7 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
           // Adjust to 20 bits for the case of overflow
           high_20 &= 0xfffff;
           sim_low = ((high_20 << 12) << 32) >> 32;
-          lui(rd, (int32_t)high_20);
+          lui(rd, static_cast<int32_t>(high_20));
           if (low_12) {
             sim_low += (low_12 << 52 >> 52) | low_12;
             addi(rd, rd, low_12);
@@ -1058,7 +1057,7 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
       if (high_20) {
         // Adjust to 20 bits for the case of overflow
         high_20 &= 0xfffff;
-        lui(temp_reg, (int32_t)high_20);
+        lui(temp_reg, static_cast<int32_t>(high_20));
         if (low_12) {
           addi(temp_reg, temp_reg, low_12);
         }
@@ -1081,7 +1080,7 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
     if (high_20) {
       // Adjust to 20 bits for the case of overflow
       high_20 &= 0xfffff;
-      lui(rd, (int32_t)high_20);
+      lui(rd, static_cast<int32_t>(high_20));
       if (low_12) {
         addi(rd, rd, low_12);
       }
@@ -1109,13 +1108,13 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
       int32_t part;
       if ((i + 11) < 32) {
         // Pick 11 bits
-        part = ((uint32_t)(low_32 << i) >> i) >> (32 - (i + 11));
+        part = (static_cast<uint32_t>(low_32 << i) >> i) >> (32 - (i + 11));
         slli(rd, rd, shift_val + 11);
         ori(rd, rd, part);
         i += 10;
         mask >>= 11;
       } else {
-        part = (uint32_t)(low_32 << i) >> i;
+        part = static_cast<uint32_t>(low_32 << i) >> i;
         slli(rd, rd, shift_val + (32 - i));
         ori(rd, rd, part);
         break;
@@ -1135,7 +1134,7 @@ void Assembler::li_ptr(Register rd, int64_t imm) {
   int64_t high_31 = (imm >> 8) & 0x7fffffff;    // 31 bits
   int64_t high_20 = ((high_31 + 0x800) >> 12);  // 19 bits
   int64_t low_12 = high_31 & 0xfff;             // 12 bits
-  lui(rd, (int32_t)high_20);
+  lui(rd, static_cast<int32_t>(high_20));
   addi(rd, rd, low_12);  // 31 bits in rd.
   slli(rd, rd, 8);       // Space for next 8 bis
   ori(rd, rd, a8);       // 8 bits are put in.
@@ -1149,7 +1148,7 @@ void Assembler::li_ptr(Register rd, int64_t imm) {
   int64_t high_31 = (imm >> 17) & 0x7fffffff;   // 31 bits
   int64_t high_20 = ((high_31 + 0x800) >> 12);  // 19 bits
   int64_t low_12 = high_31 & 0xfff;             // 12 bits
-  lui(rd, (int32_t)high_20);
+  lui(rd, static_cast<int32_t>(high_20));
   addi(rd, rd, low_12);  // 31 bits in rd.
   slli(rd, rd, 11);      // Space for next 11 bis
   ori(rd, rd, b11);      // 11 bits are put in. 42 bit in rd
@@ -1551,12 +1550,12 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
       }
     } else {
       DCHECK(IsJalr(*reinterpret_cast<Instr*>(pc + 4)));
-      intptr_t imm = (intptr_t)target - (intptr_t)pc;
+      intptr_t imm = static_cast<intptr_t>(target) - static_cast<intptr_t>(pc);
       Instr instr = instr_at(pc);
       Instr instr1 = instr_at(pc + 1 * kInstrSize);
       DCHECK(is_int32(imm + 0x800));
-      int num = PatchBranchLongOffset(pc, instr, instr1, (int32_t)imm,
-                                      jit_allocation);
+      int num = PatchBranchLongOffset(
+          pc, instr, instr1, static_cast<int32_t>(imm), jit_allocation);
       if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
         FlushInstructionCache(pc, num * kInstrSize);
       }
@@ -1604,10 +1603,10 @@ Address Assembler::target_constant_address_at(Address pc) {
       IsSlli(*reinterpret_cast<Instr*>(instr2)) &&
       IsOri(*reinterpret_cast<Instr*>(instr3))) {
     // Assemble the 64 bit value.
-    int64_t addr = (int64_t)(instr0->Imm20UValue() << kImm20Shift) +
-                   (int64_t)instr1->Imm12Value();
+    int64_t addr = static_cast<int64_t>(instr0->Imm20UValue() << kImm20Shift) +
+                   static_cast<int64_t>(instr1->Imm12Value());
     addr <<= 8;
-    addr |= (int64_t)instr3->Imm12Value();
+    addr |= static_cast<int64_t>(instr3->Imm12Value());
 #else
   Instruction* instr0 = Instruction::At((unsigned char*)pc);
   Instruction* instr1 = Instruction::At((unsigned char*)(pc + 1 * kInstrSize));
@@ -1625,12 +1624,12 @@ Address Assembler::target_constant_address_at(Address pc) {
       IsSlli(*reinterpret_cast<Instr*>(instr4)) &&
       IsOri(*reinterpret_cast<Instr*>(instr5))) {
     // Assemble the 64 bit value.
-    int64_t addr = (int64_t)(instr0->Imm20UValue() << kImm20Shift) +
-                   (int64_t)instr1->Imm12Value();
+    int64_t addr = static_cast<int64_t>(instr0->Imm20UValue() << kImm20Shift) +
+                   static_cast<int64_t>(instr1->Imm12Value());
     addr <<= 11;
-    addr |= (int64_t)instr3->Imm12Value();
+    addr |= static_cast<int64_t>(instr3->Imm12Value());
     addr <<= 6;
-    addr |= (int64_t)instr5->Imm12Value();
+    addr |= static_cast<int64_t>(instr5->Imm12Value());
 #endif
     DEBUG_PRINTF("\taddr: %" PRIx64 "\n", addr);
     return static_cast<Address>(addr);
@@ -1677,12 +1676,15 @@ void Assembler::set_target_value_at(Address pc, uint64_t target,
   int64_t high_31 = (target >> 8) & 0x7fffffff;  // 31 bits
   int64_t high_20 = ((high_31 + 0x800) >> 12);   // 19 bits
   int64_t low_12 = high_31 & 0xfff;              // 12 bits
-  instr_at_put(pc, (*p & 0xfff) | ((int32_t)high_20 << 12), jit_allocation);
+  instr_at_put(pc, (*p & 0xfff) | (static_cast<int32_t>(high_20) << 12),
+               jit_allocation);
   instr_at_put(pc + 1 * kInstrSize,
-               (*(p + 1) & 0xfffff) | ((int32_t)low_12 << 20), jit_allocation);
+               (*(p + 1) & 0xfffff) | (static_cast<int32_t>(low_12) << 20),
+               jit_allocation);
   instr_at_put(pc + 2 * kInstrSize, (*(p + 2) & 0xfffff) | (8 << 20),
                jit_allocation);
-  instr_at_put(pc + 3 * kInstrSize, (*(p + 3) & 0xfffff) | ((int32_t)a8 << 20),
+  instr_at_put(pc + 3 * kInstrSize,
+               (*(p + 3) & 0xfffff) | (static_cast<int32_t>(a8) << 20),
                jit_allocation);
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc, 6 * kInstrSize);
@@ -1705,16 +1707,20 @@ void Assembler::set_target_value_at(Address pc, uint64_t target,
   int64_t high_31 = (target >> 17) & 0x7fffffff;  // 31 bits
   int64_t high_20 = ((high_31 + 0x800) >> 12);    // 19 bits
   int64_t low_12 = high_31 & 0xfff;               // 12 bits
-  instr_at_put(pc, (*p & 0xfff) | ((int32_t)high_20 << 12), jit_allocation);
+  instr_at_put(pc, (*p & 0xfff) | (static_cast<int32_t>(high_20) << 12),
+               jit_allocation);
   instr_at_put(pc + 1 * kInstrSize,
-               (*(p + 1) & 0xfffff) | ((int32_t)low_12 << 20), jit_allocation);
+               (*(p + 1) & 0xfffff) | (static_cast<int32_t>(low_12) << 20),
+               jit_allocation);
   instr_at_put(pc + 2 * kInstrSize, (*(p + 2) & 0xfffff) | (11 << 20),
                jit_allocation);
-  instr_at_put(pc + 3 * kInstrSize, (*(p + 3) & 0xfffff) | ((int32_t)b11 << 20),
+  instr_at_put(pc + 3 * kInstrSize,
+               (*(p + 3) & 0xfffff) | (static_cast<int32_t>(b11) << 20),
                jit_allocation);
   instr_at_put(pc + 4 * kInstrSize, (*(p + 4) & 0xfffff) | (6 << 20),
                jit_allocation);
-  instr_at_put(pc + 5 * kInstrSize, (*(p + 5) & 0xfffff) | ((int32_t)a6 << 20),
+  instr_at_put(pc + 5 * kInstrSize,
+               (*(p + 5) & 0xfffff) | (static_cast<int32_t>(a6) << 20),
                jit_allocation);
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc, 8 * kInstrSize);
@@ -1887,8 +1893,8 @@ void ConstantPool::SetLoadOffsetToConstPoolEntry(int load_offset,
       reinterpret_cast<Address>(entry_offset) -
       reinterpret_cast<Address>(assm_->toAddress(load_offset)));
   CHECK(is_int32(distance + 0x800));
-  int32_t Hi20 = (((int32_t)distance + 0x800) >> 12);
-  int32_t Lo12 = (int32_t)distance << 20 >> 20;
+  int32_t Hi20 = (static_cast<int32_t>(distance) + 0x800) >> 12;
+  int32_t Lo12 = static_cast<int32_t>(distance) << 20 >> 20;
   assm_->instr_at_put(load_offset, SetHi20Offset(Hi20, instr_auipc));
   assm_->instr_at_put(load_offset + 4, SetLoadOffset(Lo12, instr_load));
 }
@@ -1952,8 +1958,9 @@ const size_t ConstantPool::kApproxMaxEntryCount = 512;
 //===----------------------------------------------------------------------===//
 void Assembler::RecursiveLi(Register rd, int64_t val) {
   if (val > 0 && RecursiveLiImplCount(val) > 2) {
-    unsigned LeadingZeros = base::bits::CountLeadingZeros((uint64_t)val);
-    uint64_t ShiftedVal = (uint64_t)val << LeadingZeros;
+    unsigned LeadingZeros =
+        base::bits::CountLeadingZeros(static_cast<uint64_t>(val));
+    uint64_t ShiftedVal = static_cast<uint64_t>(val) << LeadingZeros;
     int countFillZero = RecursiveLiImplCount(ShiftedVal) + 1;
     if (countFillZero < RecursiveLiImplCount(val)) {
       RecursiveLiImpl(rd, ShiftedVal);
@@ -1966,8 +1973,9 @@ void Assembler::RecursiveLi(Register rd, int64_t val) {
 
 int Assembler::RecursiveLiCount(int64_t val) {
   if (val > 0 && RecursiveLiImplCount(val) > 2) {
-    unsigned LeadingZeros = base::bits::CountLeadingZeros((uint64_t)val);
-    uint64_t ShiftedVal = (uint64_t)val << LeadingZeros;
+    unsigned LeadingZeros =
+        base::bits::CountLeadingZeros(static_cast<uint64_t>(val));
+    uint64_t ShiftedVal = static_cast<uint64_t>(val) << LeadingZeros;
     // Fill in the bits that will be shifted out with 1s. An example where
     // this helps is trailing one masks with 32 or more ones. This will
     // generate ADDI -1 and an SRLI.
@@ -1992,7 +2000,7 @@ void Assembler::RecursiveLiImpl(Register rd, int64_t Val) {
     int64_t Lo12 = Val << 52 >> 52;
 
     if (Hi20) {
-      lui(rd, (int32_t)Hi20);
+      lui(rd, static_cast<int32_t>(Hi20));
     }
 
     if (Lo12 || Hi20 == 0) {
@@ -2030,19 +2038,20 @@ void Assembler::RecursiveLiImpl(Register rd, int64_t Val) {
   // subsequently performed when the recursion returns.
 
   int64_t Lo12 = Val << 52 >> 52;
-  int64_t Hi52 = ((uint64_t)Val + 0x800ull) >> 12;
-  int ShiftAmount = 12 + base::bits::CountTrailingZeros((uint64_t)Hi52);
+  int64_t Hi52 = (static_cast<uint64_t>(Val) + 0x800ull) >> 12;
+  int ShiftAmount =
+      12 + base::bits::CountTrailingZeros(static_cast<uint64_t>(Hi52));
   Hi52 = signExtend(Hi52 >> (ShiftAmount - 12), 64 - ShiftAmount);
 
   // If the remaining bits don't fit in 12 bits, we might be able to reduce
   // the shift amount in order to use LUI which will zero the lower 12 bits.
   bool Unsigned = false;
   if (ShiftAmount > 12 && !is_int12(Hi52)) {
-    if (is_int32((uint64_t)Hi52 << 12)) {
+    if (is_int32(static_cast<uint64_t>(Hi52) << 12)) {
       // Reduce the shift amount and add zeros to the LSBs so it will match
       // LUI.
       ShiftAmount -= 12;
-      Hi52 = (uint64_t)Hi52 << 12;
+      Hi52 = static_cast<uint64_t>(Hi52) << 12;
     }
   }
   RecursiveLi(rd, Hi52);
@@ -2070,7 +2079,7 @@ int Assembler::RecursiveLiImplCount(int64_t Val) {
     int64_t Lo12 = Val << 52 >> 52;
 
     if (Hi20) {
-      // lui(rd, (int32_t)Hi20);
+      // lui(rd, static_cast<int32_t>(Hi20));
       count++;
     }
 
@@ -2107,19 +2116,20 @@ int Assembler::RecursiveLiImplCount(int64_t Val) {
   // subsequently performed when the recursion returns.
 
   int64_t Lo12 = Val << 52 >> 52;
-  int64_t Hi52 = ((uint64_t)Val + 0x800ull) >> 12;
-  int ShiftAmount = 12 + base::bits::CountTrailingZeros((uint64_t)Hi52);
+  int64_t Hi52 = (static_cast<uint64_t>(Val) + 0x800ull) >> 12;
+  int ShiftAmount =
+      12 + base::bits::CountTrailingZeros(static_cast<uint64_t>(Hi52));
   Hi52 = signExtend(Hi52 >> (ShiftAmount - 12), 64 - ShiftAmount);
 
   // If the remaining bits don't fit in 12 bits, we might be able to reduce
   // the shift amount in order to use LUI which will zero the lower 12 bits.
   bool Unsigned = false;
   if (ShiftAmount > 12 && !is_int12(Hi52)) {
-    if (is_int32((uint64_t)Hi52 << 12)) {
+    if (is_int32(static_cast<uint64_t>(Hi52) << 12)) {
       // Reduce the shift amount and add zeros to the LSBs so it will match
       // LUI.
       ShiftAmount -= 12;
-      Hi52 = (uint64_t)Hi52 << 12;
+      Hi52 = static_cast<uint64_t>(Hi52) << 12;
     }
   }
 

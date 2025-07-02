@@ -1228,8 +1228,8 @@ class InstructionGetters : public T {
     }
   }
 
-#define sext(x, len) (((int32_t)(x) << (32 - len)) >> (32 - len))
-#define zext(x, len) (((uint32_t)(x) << (32 - len)) >> (32 - len))
+#define sext(x, len) ((static_cast<int32_t>(x) << (32 - len)) >> (32 - len))
+#define zext(x, len) ((static_cast<uint32_t>(x) << (32 - len)) >> (32 - len))
 
   inline int32_t RvvSimm5() const {
     DCHECK(this->InstructionType() == InstructionBase::kVType);

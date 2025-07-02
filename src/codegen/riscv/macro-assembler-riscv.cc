@@ -307,7 +307,7 @@ void MacroAssembler::LoadRoot(Register destination, RootIndex index) {
 void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
   if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index) &&
       is_int12(ReadOnlyRootPtr(index))) {
-    li(destination, (int32_t)ReadOnlyRootPtr(index));
+    li(destination, static_cast<int32_t>(ReadOnlyRootPtr(index)));
     return;
   }
   LoadWord(destination,
@@ -2652,9 +2652,9 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
     if (v8_flags.riscv_constant_pool && count >= 4 && reverse_count >= 4) {
       // Ld/Lw an Address from a constant pool.
 #if V8_TARGET_ARCH_RISCV32
-      RecordEntry((uint32_t)j.immediate(), j.rmode());
+      RecordEntry(static_cast<uint32_t>(j.immediate()), j.rmode());
 #elif V8_TARGET_ARCH_RISCV64
-      RecordEntry((uint64_t)j.immediate(), j.rmode());
+      RecordEntry(static_cast<uint64_t>(j.immediate()), j.rmode());
 #endif
       auipc(rd, 0);
       // Record a value into constant pool, passing 1 as the offset makes the
@@ -2678,9 +2678,9 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
       DCHECK(is_int32(j.immediate()) || is_uint32(j.immediate()));
       RecordRelocInfo(j.rmode());
 #if V8_TARGET_ARCH_RISCV64
-      li_constant32(rd, int32_t(j.immediate()));
+      li_constant32(rd, static_cast<int32_t>(j.immediate()));
 #elif V8_TARGET_ARCH_RISCV32
-      li_constant(rd, int32_t(j.immediate()));
+      li_constant(rd, static_cast<int32_t>(j.immediate()));
 #endif
       return;
     } else if (RelocInfo::IsCompressedEmbeddedObject(j.rmode())) {
@@ -5473,8 +5473,8 @@ void MacroAssembler::LoadAddress(Register dst, Label* target,
   int32_t offset;
   if (CalculateOffset(target, &offset, OffsetSize::kOffset32)) {
     CHECK(is_int32(offset + 0x800));
-    int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
-    int32_t Lo12 = (int32_t)offset << 20 >> 20;
+    int32_t Hi20 = (static_cast<int32_t>(offset) + 0x800) >> 12;
+    int32_t Lo12 = static_cast<int32_t>(offset) << 20 >> 20;
     BlockTrampolinePoolScope block_trampoline_pool(this);
     auipc(dst, Hi20);
     AddWord(dst, dst, Lo12);

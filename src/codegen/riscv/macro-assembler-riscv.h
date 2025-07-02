@@ -23,7 +23,7 @@
 namespace v8 {
 namespace internal {
 
-#define xlen (uint8_t(sizeof(void*) * 8))
+#define xlen (static_cast<uint8_t>(sizeof(void*) * 8))
 // Forward declarations.
 enum class AbortReason : uint8_t;
 
