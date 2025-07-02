@@ -57,10 +57,10 @@ static constexpr v8::base::TimeDelta kMaxStepSizeOnAllocation =
 
 #ifndef DEBUG
 static constexpr size_t kV8ActivationThreshold = 8 * MB;
-static constexpr size_t kEmbedderActivationThreshold = 8 * MB;
+static constexpr size_t kGlobalActivationThreshold = 8 * MB;
 #else
 static constexpr size_t kV8ActivationThreshold = 0;
-static constexpr size_t kEmbedderActivationThreshold = 0;
+static constexpr size_t kGlobalActivationThreshold = 0;
 #endif  // DEBUG
 
 base::TimeDelta GetMaxDuration(StepOrigin step_origin) {
@@ -128,8 +128,8 @@ bool IncrementalMarking::CanBeStarted() const {
 }
 
 bool IncrementalMarking::IsBelowActivationThresholds() const {
-  return heap_->OldGenerationSizeOfObjects() <= kV8ActivationThreshold &&
-         heap_->EmbedderSizeOfObjects() <= kEmbedderActivationThreshold;
+  return heap_->OldGenerationConsumedBytes() <= kV8ActivationThreshold &&
+         heap_->GlobalConsumedBytes() <= kGlobalActivationThreshold;
 }
 
 void IncrementalMarking::Start(GarbageCollector garbage_collector,
