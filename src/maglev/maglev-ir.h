@@ -610,6 +610,53 @@ constexpr bool CanBeStoreToNonEscapedObject(Opcode opcode) {
   }
 }
 
+// MAP_OPERATION_TO_NODES are tuples with the following format:
+// - Operation name,
+// - Int32 operation node,
+// - Identity of int32 operation (e.g, 0 for add/sub and 1 for mul/div), if it
+//   exists, or otherwise {}.
+#define MAP_BINARY_OPERATION_TO_INT32_NODE(V) \
+  V(Add, Int32AddWithOverflow, 0)             \
+  V(Subtract, Int32SubtractWithOverflow, 0)   \
+  V(Multiply, Int32MultiplyWithOverflow, 1)   \
+  V(Divide, Int32DivideWithOverflow, 1)       \
+  V(Modulus, Int32ModulusWithOverflow, {})    \
+  V(BitwiseAnd, Int32BitwiseAnd, ~0)          \
+  V(BitwiseOr, Int32BitwiseOr, 0)             \
+  V(BitwiseXor, Int32BitwiseXor, 0)           \
+  V(ShiftLeft, Int32ShiftLeft, 0)             \
+  V(ShiftRight, Int32ShiftRight, 0)           \
+  V(ShiftRightLogical, Int32ShiftRightLogical, {})
+
+#define MAP_UNARY_OPERATION_TO_INT32_NODE(V) \
+  V(BitwiseNot, Int32BitwiseNot)             \
+  V(Increment, Int32IncrementWithOverflow)   \
+  V(Decrement, Int32DecrementWithOverflow)   \
+  V(Negate, Int32NegateWithOverflow)
+
+// MAP_OPERATION_TO_FLOAT64_NODE are tuples with the following format:
+// (Operation name, Float64 operation node).
+#define MAP_OPERATION_TO_FLOAT64_NODE(V) \
+  V(Add, Float64Add)                     \
+  V(Subtract, Float64Subtract)           \
+  V(Multiply, Float64Multiply)           \
+  V(Divide, Float64Divide)               \
+  V(Modulus, Float64Modulus)             \
+  V(Exponentiate, Float64Exponentiate)
+
+template <Operation kOperation>
+static constexpr std::optional<int> Int32Identity() {
+  switch (kOperation) {
+#define CASE(op, _, identity) \
+  case Operation::k##op:      \
+    return identity;
+    MAP_BINARY_OPERATION_TO_INT32_NODE(CASE)
+#undef CASE
+    default:
+      UNREACHABLE();
+  }
+}
+
 // Forward-declare NodeBase sub-hierarchies.
 class Node;
 class ControlNode;

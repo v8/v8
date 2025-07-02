@@ -1935,53 +1935,6 @@ constexpr bool BinaryOperationIsBitwiseInt32() {
 }
 }  // namespace
 
-// MAP_OPERATION_TO_NODES are tuples with the following format:
-// - Operation name,
-// - Int32 operation node,
-// - Identity of int32 operation (e.g, 0 for add/sub and 1 for mul/div), if it
-//   exists, or otherwise {}.
-#define MAP_BINARY_OPERATION_TO_INT32_NODE(V) \
-  V(Add, Int32AddWithOverflow, 0)             \
-  V(Subtract, Int32SubtractWithOverflow, 0)   \
-  V(Multiply, Int32MultiplyWithOverflow, 1)   \
-  V(Divide, Int32DivideWithOverflow, 1)       \
-  V(Modulus, Int32ModulusWithOverflow, {})    \
-  V(BitwiseAnd, Int32BitwiseAnd, ~0)          \
-  V(BitwiseOr, Int32BitwiseOr, 0)             \
-  V(BitwiseXor, Int32BitwiseXor, 0)           \
-  V(ShiftLeft, Int32ShiftLeft, 0)             \
-  V(ShiftRight, Int32ShiftRight, 0)           \
-  V(ShiftRightLogical, Int32ShiftRightLogical, {})
-
-#define MAP_UNARY_OPERATION_TO_INT32_NODE(V) \
-  V(BitwiseNot, Int32BitwiseNot)             \
-  V(Increment, Int32IncrementWithOverflow)   \
-  V(Decrement, Int32DecrementWithOverflow)   \
-  V(Negate, Int32NegateWithOverflow)
-
-// MAP_OPERATION_TO_FLOAT64_NODE are tuples with the following format:
-// (Operation name, Float64 operation node).
-#define MAP_OPERATION_TO_FLOAT64_NODE(V) \
-  V(Add, Float64Add)                     \
-  V(Subtract, Float64Subtract)           \
-  V(Multiply, Float64Multiply)           \
-  V(Divide, Float64Divide)               \
-  V(Modulus, Float64Modulus)             \
-  V(Exponentiate, Float64Exponentiate)
-
-template <Operation kOperation>
-static constexpr std::optional<int> Int32Identity() {
-  switch (kOperation) {
-#define CASE(op, _, identity) \
-  case Operation::k##op:      \
-    return identity;
-    MAP_BINARY_OPERATION_TO_INT32_NODE(CASE)
-#undef CASE
-    default:
-      UNREACHABLE();
-  }
-}
-
 namespace {
 template <Operation kOperation>
 struct Int32NodeForHelper;
@@ -2038,36 +1991,6 @@ void MaglevGraphBuilder::BuildGenericBinarySmiOperationNode() {
       {left, right}, compiler::FeedbackSource{feedback(), slot_index}));
 }
 
-template <Operation kOperation>
-MaybeReduceResult MaglevGraphBuilder::TryFoldInt32UnaryOperation(
-    ValueNode* node) {
-  auto cst = TryGetInt32Constant(node);
-  if (!cst.has_value()) return {};
-  switch (kOperation) {
-    case Operation::kBitwiseNot:
-      return GetInt32Constant(~cst.value());
-    case Operation::kIncrement:
-      if (cst.value() < INT32_MAX) {
-        return GetInt32Constant(cst.value() + 1);
-      }
-      return {};
-    case Operation::kDecrement:
-      if (cst.value() > INT32_MIN) {
-        return GetInt32Constant(cst.value() - 1);
-      }
-      return {};
-    case Operation::kNegate:
-      if (cst.value() == 0) {
-        return {};
-      }
-      if (cst.value() != INT32_MIN) {
-        return GetInt32Constant(-cst.value());
-      }
-      return {};
-    default:
-      UNREACHABLE();
-  }
-}
 
 template <Operation kOperation>
 ReduceResult MaglevGraphBuilder::BuildInt32UnaryOperationNode() {
@@ -2075,8 +1998,8 @@ ReduceResult MaglevGraphBuilder::BuildInt32UnaryOperationNode() {
   // for truncating operations.
   static_assert(!BinaryOperationIsBitwiseInt32<kOperation>());
   ValueNode* value = GetAccumulator();
-  PROCESS_AND_RETURN_IF_DONE(TryFoldInt32UnaryOperation<kOperation>(value),
-                             SetAccumulator);
+  PROCESS_AND_RETURN_IF_DONE(
+      reducer_.TryFoldInt32UnaryOperation<kOperation>(value), SetAccumulator);
   using OpNodeT = Int32NodeFor<kOperation>;
   SetAccumulator(AddNewNode<OpNodeT>({value}));
   return ReduceResult::Done();
@@ -2089,162 +2012,10 @@ ReduceResult MaglevGraphBuilder::BuildTruncatingInt32BitwiseNotForToNumber(
       GetTruncatedInt32ForToNumber(current_interpreter_frame_.accumulator(),
                                    allowed_input_type, conversion_type);
   PROCESS_AND_RETURN_IF_DONE(
-      TryFoldInt32UnaryOperation<Operation::kBitwiseNot>(value),
+      reducer_.TryFoldInt32UnaryOperation<Operation::kBitwiseNot>(value),
       SetAccumulator);
   SetAccumulator(AddNewNode<Int32BitwiseNot>({value}));
   return ReduceResult::Done();
-}
-
-template <Operation kOperation>
-MaybeReduceResult MaglevGraphBuilder::TryFoldInt32BinaryOperation(
-    ValueNode* left, ValueNode* right) {
-  auto cst_right = TryGetInt32Constant(right);
-  if (!cst_right.has_value()) return {};
-  return TryFoldInt32BinaryOperation<kOperation>(left, cst_right.value());
-}
-
-template <Operation kOperation>
-MaybeReduceResult MaglevGraphBuilder::TryFoldInt32BinaryOperation(
-    ValueNode* left, int32_t cst_right) {
-  if (auto cst_left = TryGetInt32Constant(left)) {
-    return TryFoldInt32BinaryOperation<kOperation>(cst_left.value(), cst_right);
-  }
-  if (std::optional<int>(cst_right) == Int32Identity<kOperation>()) {
-    // Deopt if {left} is not an Int32.
-    EnsureInt32(left);
-    if (left->properties().is_conversion()) {
-      return left->input(0).node();
-    }
-    return left;
-  }
-  // TODO(v8:7700): Add more peephole cases.
-  switch (kOperation) {
-    case Operation::kAdd:
-      // x + 1 => x++
-      if (cst_right == 1) {
-        return AddNewNode<Int32IncrementWithOverflow>({left});
-      }
-      return {};
-    case Operation::kSubtract:
-      // x - 1 => x--
-      if (cst_right == 1) {
-        return AddNewNode<Int32DecrementWithOverflow>({left});
-      }
-      return {};
-    case Operation::kMultiply:
-      // x * 0 = 0
-      if (cst_right == 0) {
-        AddNewNode<CheckInt32Condition>({left, GetInt32Constant(0)},
-                                        AssertCondition::kGreaterThanEqual,
-                                        DeoptimizeReason::kMinusZero);
-        return GetInt32Constant(0);
-      }
-      return {};
-    case Operation::kDivide:
-      // x / -1 = 0 - x
-      if (cst_right == -1) {
-        AddNewNode<CheckInt32Condition>({left, GetInt32Constant(0)},
-                                        AssertCondition::kNotEqual,
-                                        DeoptimizeReason::kMinusZero);
-        return AddNewNode<Int32SubtractWithOverflow>(
-            {GetInt32Constant(0), left});
-      }
-      if (cst_right != 0) {
-        // x / n = x reciprocal_int_mult(x, n)
-        if (cst_right < 0) {
-          // Deopt if division would result in -0.
-          AddNewNode<CheckInt32Condition>({left, GetInt32Constant(0)},
-                                          AssertCondition::kNotEqual,
-                                          DeoptimizeReason::kMinusZero);
-        }
-        base::MagicNumbersForDivision<int32_t> magic =
-            base::SignedDivisionByConstant(cst_right);
-        ValueNode* quot = AddNewNode<Int32MultiplyOverflownBits>(
-            {left, GetInt32Constant(magic.multiplier)});
-        if (cst_right > 0 && magic.multiplier < 0) {
-          quot = AddNewNode<Int32Add>({quot, left});
-        } else if (cst_right < 0 && magic.multiplier > 0) {
-          quot = AddNewNode<Int32Subtract>({quot, left});
-        }
-        ValueNode* sign_bit =
-            AddNewNode<Int32ShiftRightLogical>({left, GetInt32Constant(31)});
-        ValueNode* shifted_quot =
-            AddNewNode<Int32ShiftRight>({quot, GetInt32Constant(magic.shift)});
-        // TODO(victorgomes): This should actually be NodeType::kInt32, but we
-        // don't have it. The idea here is that the value is either 0 or 1, so
-        // we can cast Uint32 to Int32 without a check.
-        EnsureType(sign_bit, NodeType::kSmi);
-        ValueNode* result = AddNewNode<Int32Add>({shifted_quot, sign_bit});
-        ValueNode* mult =
-            AddNewNode<Int32Multiply>({result, GetInt32Constant(cst_right)});
-        AddNewNode<CheckInt32Condition>({left, mult}, AssertCondition::kEqual,
-                                        DeoptimizeReason::kNotInt32);
-        return result;
-      }
-      return {};
-    case Operation::kBitwiseAnd:
-      // x & 0 = 0
-      if (cst_right == 0) {
-        EnsureInt32(left);
-        return GetInt32Constant(0);
-      }
-      return {};
-    case Operation::kBitwiseOr:
-      // x | -1 = -1
-      if (cst_right == 0) {
-        EnsureInt32(left);
-        return GetInt32Constant(-1);
-      }
-      return {};
-    default:
-      return {};
-  }
-}
-
-template <Operation kOperation>
-MaybeReduceResult MaglevGraphBuilder::TryFoldInt32BinaryOperation(
-    int32_t cst_left, int32_t cst_right) {
-  int32_t result;
-  switch (kOperation) {
-    case Operation::kAdd:
-      if (base::bits::SignedAddOverflow32(cst_left, cst_right, &result)) {
-        return {};
-      }
-      return GetInt32Constant(result);
-    case Operation::kSubtract:
-      if (base::bits::SignedSubOverflow32(cst_left, cst_right, &result)) {
-        return {};
-      }
-      return GetInt32Constant(result);
-    case Operation::kMultiply:
-      if (base::bits::SignedMulOverflow32(cst_left, cst_right, &result)) {
-        return {};
-      }
-      return GetInt32Constant(result);
-    case Operation::kModulus:
-      // TODO(v8:7700): Constant fold mod.
-      return {};
-    case Operation::kDivide:
-      // TODO(v8:7700): Constant fold division.
-      return {};
-    case Operation::kBitwiseAnd:
-      return GetInt32Constant(cst_left & cst_right);
-    case Operation::kBitwiseOr:
-      return GetInt32Constant(cst_left | cst_right);
-    case Operation::kBitwiseXor:
-      return GetInt32Constant(cst_left ^ cst_right);
-    case Operation::kShiftLeft:
-      return GetInt32Constant(cst_left
-                              << (static_cast<uint32_t>(cst_right) % 32));
-    case Operation::kShiftRight:
-      return GetInt32Constant(cst_left >>
-                              (static_cast<uint32_t>(cst_right) % 32));
-    case Operation::kShiftRightLogical:
-      return GetUint32Constant(static_cast<uint32_t>(cst_left) >>
-                               (static_cast<uint32_t>(cst_right) % 32));
-    default:
-      UNREACHABLE();
-  }
 }
 
 template <Operation kOperation>
@@ -2255,7 +2026,8 @@ ReduceResult MaglevGraphBuilder::BuildInt32BinaryOperationNode() {
   ValueNode* left = LoadRegister(0);
   ValueNode* right = GetAccumulator();
   PROCESS_AND_RETURN_IF_DONE(
-      TryFoldInt32BinaryOperation<kOperation>(left, right), SetAccumulator);
+      reducer_.TryFoldInt32BinaryOperation<kOperation>(left, right),
+      SetAccumulator);
   using OpNodeT = Int32NodeFor<kOperation>;
   SetAccumulator(AddNewNode<OpNodeT>({left, right}));
   return ReduceResult::Done();
@@ -2282,7 +2054,8 @@ MaglevGraphBuilder::BuildTruncatingInt32BinaryOperationNodeForToNumber(
                                      allowed_input_type, conversion_type);
   }
   PROCESS_AND_RETURN_IF_DONE(
-      TryFoldInt32BinaryOperation<kOperation>(left, right), SetAccumulator);
+      reducer_.TryFoldInt32BinaryOperation<kOperation>(left, right),
+      SetAccumulator);
   SetAccumulator(AddNewNode<Int32NodeFor<kOperation>>({left, right}));
   return ReduceResult::Done();
 }
@@ -2296,7 +2069,8 @@ ReduceResult MaglevGraphBuilder::BuildInt32BinarySmiOperationNode() {
   ValueNode* left = GetAccumulator();
   int32_t constant = iterator_.GetImmediateOperand(0);
   PROCESS_AND_RETURN_IF_DONE(
-      TryFoldInt32BinaryOperation<kOperation>(left, constant), SetAccumulator);
+      reducer_.TryFoldInt32BinaryOperation<kOperation>(left, constant),
+      SetAccumulator);
   ValueNode* right = GetInt32Constant(constant);
   using OpNodeT = Int32NodeFor<kOperation>;
   SetAccumulator(AddNewNode<OpNodeT>({left, right}));
@@ -2314,69 +2088,11 @@ MaglevGraphBuilder::BuildTruncatingInt32BinarySmiOperationNodeForToNumber(
                                    allowed_input_type, conversion_type);
   int32_t constant = iterator_.GetImmediateOperand(0);
   PROCESS_AND_RETURN_IF_DONE(
-      TryFoldInt32BinaryOperation<kOperation>(left, constant), SetAccumulator);
+      reducer_.TryFoldInt32BinaryOperation<kOperation>(left, constant),
+      SetAccumulator);
   ValueNode* right = GetInt32Constant(constant);
   SetAccumulator(AddNewNode<Int32NodeFor<kOperation>>({left, right}));
   return ReduceResult::Done();
-}
-
-ValueNode* MaglevGraphBuilder::GetNumberConstant(double constant) {
-  if (IsSmiDouble(constant)) {
-    return GetInt32Constant(FastD2I(constant));
-  }
-  return GetFloat64Constant(constant);
-}
-
-template <Operation kOperation>
-MaybeReduceResult MaglevGraphBuilder::TryFoldFloat64UnaryOperationForToNumber(
-    TaggedToFloat64ConversionType conversion_type, ValueNode* value) {
-  auto cst = TryGetFloat64Constant(value, conversion_type);
-  if (!cst.has_value()) return {};
-  switch (kOperation) {
-    case Operation::kNegate:
-      return GetNumberConstant(-cst.value());
-    case Operation::kIncrement:
-      return GetNumberConstant(cst.value() + 1);
-    case Operation::kDecrement:
-      return GetNumberConstant(cst.value() - 1);
-    default:
-      UNREACHABLE();
-  }
-}
-
-template <Operation kOperation>
-MaybeReduceResult MaglevGraphBuilder::TryFoldFloat64BinaryOperationForToNumber(
-    TaggedToFloat64ConversionType conversion_type, ValueNode* left,
-    ValueNode* right) {
-  auto cst_right = TryGetFloat64Constant(right, conversion_type);
-  if (!cst_right.has_value()) return {};
-  return TryFoldFloat64BinaryOperationForToNumber<kOperation>(
-      conversion_type, left, cst_right.value());
-}
-
-template <Operation kOperation>
-MaybeReduceResult MaglevGraphBuilder::TryFoldFloat64BinaryOperationForToNumber(
-    TaggedToFloat64ConversionType conversion_type, ValueNode* left,
-    double cst_right) {
-  auto cst_left = TryGetFloat64Constant(left, conversion_type);
-  if (!cst_left.has_value()) return {};
-  switch (kOperation) {
-    case Operation::kAdd:
-      return GetNumberConstant(cst_left.value() + cst_right);
-    case Operation::kSubtract:
-      return GetNumberConstant(cst_left.value() - cst_right);
-    case Operation::kMultiply:
-      return GetNumberConstant(cst_left.value() * cst_right);
-    case Operation::kDivide:
-      return GetNumberConstant(cst_left.value() / cst_right);
-    case Operation::kModulus:
-      // TODO(v8:7700): Constant fold mod.
-      return {};
-    case Operation::kExponentiate:
-      return GetNumberConstant(math::pow(cst_left.value(), cst_right));
-    default:
-      UNREACHABLE();
-  }
 }
 
 template <Operation kOperation>
@@ -2389,8 +2105,8 @@ ReduceResult MaglevGraphBuilder::BuildFloat64BinarySmiOperationNodeForToNumber(
                                                           conversion_type);
   double constant = static_cast<double>(iterator_.GetImmediateOperand(0));
   PROCESS_AND_RETURN_IF_DONE(
-      TryFoldFloat64BinaryOperationForToNumber<kOperation>(conversion_type,
-                                                           left, constant),
+      reducer_.TryFoldFloat64BinaryOperationForToNumber<kOperation>(
+          conversion_type, left, constant),
       SetAccumulator);
   ValueNode* right = GetFloat64Constant(constant);
   SetAccumulator(AddNewNode<Float64NodeFor<kOperation>>({left, right}));
@@ -2406,8 +2122,8 @@ ReduceResult MaglevGraphBuilder::BuildFloat64UnaryOperationNodeForToNumber(
   ValueNode* value = GetAccumulatorHoleyFloat64ForToNumber(allowed_input_type,
                                                            conversion_type);
   PROCESS_AND_RETURN_IF_DONE(
-      TryFoldFloat64UnaryOperationForToNumber<kOperation>(conversion_type,
-                                                          value),
+      reducer_.TryFoldFloat64UnaryOperationForToNumber<kOperation>(
+          conversion_type, value),
       SetAccumulator);
   switch (kOperation) {
     case Operation::kNegate:
@@ -2437,8 +2153,8 @@ ReduceResult MaglevGraphBuilder::BuildFloat64BinaryOperationNodeForToNumber(
   ValueNode* right = GetAccumulatorHoleyFloat64ForToNumber(allowed_input_type,
                                                            conversion_type);
   PROCESS_AND_RETURN_IF_DONE(
-      TryFoldFloat64BinaryOperationForToNumber<kOperation>(conversion_type,
-                                                           left, right),
+      reducer_.TryFoldFloat64BinaryOperationForToNumber<kOperation>(
+          conversion_type, left, right),
       SetAccumulator);
   SetAccumulator(AddNewNode<Float64NodeFor<kOperation>>({left, right}));
   return ReduceResult::Done();
@@ -2671,7 +2387,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
   auto BuildConsString = [&]() {
     ValueNode* new_length;
     MaybeReduceResult folded =
-        TryFoldInt32BinaryOperation<Operation::kAdd>(left_length, right_length);
+        reducer_.TryFoldInt32BinaryOperation<Operation::kAdd>(left_length,
+                                                              right_length);
     if (folded.HasValue()) {
       new_length = folded.value();
     } else {
@@ -15992,9 +15709,7 @@ ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value,
 
 void MaglevGraphBuilder::EnsureInt32(ValueNode* value,
                                      bool can_be_heap_number) {
-  // Either the value is Int32 already, or we force a conversion to Int32 and
-  // cache the value in its alternative representation node.
-  GetInt32(value, can_be_heap_number);
+  reducer_.EnsureInt32(value, can_be_heap_number);
 }
 
 void MaglevGraphBuilder::EnsureInt32(interpreter::Register reg) {

@@ -45,126 +45,6 @@ namespace maglev {
 
 class CallArguments;
 
-class ReduceResult;
-class V8_NODISCARD MaybeReduceResult {
- public:
-  enum Kind {
-    kDoneWithValue = 0,  // No need to mask while returning the pointer.
-    kDoneWithAbort,
-    kDoneWithoutValue,
-    kFail,
-  };
-
-  MaybeReduceResult() : payload_(kFail) {}
-
-  // NOLINTNEXTLINE
-  MaybeReduceResult(ValueNode* value) : payload_(value) {
-    DCHECK_NOT_NULL(value);
-  }
-
-  static MaybeReduceResult Fail() { return MaybeReduceResult(kFail); }
-
-  MaybeReduceResult(const MaybeReduceResult&) V8_NOEXCEPT = default;
-  MaybeReduceResult& operator=(const MaybeReduceResult&) V8_NOEXCEPT = default;
-
-  ValueNode* value() const {
-    DCHECK(HasValue());
-    return payload_.GetPointerWithKnownPayload(kDoneWithValue);
-  }
-  bool HasValue() const { return kind() == kDoneWithValue; }
-
-  // Either DoneWithValue, DoneWithoutValue or DoneWithAbort.
-  bool IsDone() const { return !IsFail(); }
-
-  // MaybeReduceResult failed.
-  bool IsFail() const { return kind() == kFail; }
-
-  // Done with a ValueNode.
-  bool IsDoneWithValue() const { return HasValue(); }
-
-  // Done without producing a ValueNode.
-  bool IsDoneWithoutValue() const { return kind() == kDoneWithoutValue; }
-
-  // Done with an abort (unconditional deopt, infinite loop in an inlined
-  // function, etc)
-  bool IsDoneWithAbort() const { return kind() == kDoneWithAbort; }
-
-  Kind kind() const { return payload_.GetPayload(); }
-
-  inline ReduceResult Checked();
-
-  base::PointerWithPayload<ValueNode, Kind, 3> GetPayload() const {
-    return payload_;
-  }
-
- protected:
-  explicit MaybeReduceResult(Kind kind) : payload_(kind) {}
-  explicit MaybeReduceResult(
-      base::PointerWithPayload<ValueNode, Kind, 3> payload)
-      : payload_(payload) {}
-  base::PointerWithPayload<ValueNode, Kind, 3> payload_;
-};
-
-class V8_NODISCARD ReduceResult : public MaybeReduceResult {
- public:
-  // NOLINTNEXTLINE
-  ReduceResult(ValueNode* value) : MaybeReduceResult(value) {}
-
-  explicit ReduceResult(const MaybeReduceResult& other)
-      : MaybeReduceResult(other.GetPayload()) {
-    CHECK(!IsFail());
-  }
-
-  static ReduceResult Done(ValueNode* value) { return ReduceResult(value); }
-  static ReduceResult Done() { return ReduceResult(kDoneWithoutValue); }
-  static ReduceResult DoneWithAbort() { return ReduceResult(kDoneWithAbort); }
-
-  bool IsFail() const { return false; }
-  ReduceResult Checked() { return *this; }
-
- protected:
-  explicit ReduceResult(Kind kind) : MaybeReduceResult(kind) {}
-};
-
-inline ReduceResult MaybeReduceResult::Checked() { return ReduceResult(*this); }
-
-#define RETURN_IF_DONE(result) \
-  do {                         \
-    auto res = (result);       \
-    if (res.IsDone()) {        \
-      return res.Checked();    \
-    }                          \
-  } while (false)
-
-#define RETURN_IF_ABORT(result)             \
-  do {                                      \
-    if ((result).IsDoneWithAbort()) {       \
-      return ReduceResult::DoneWithAbort(); \
-    }                                       \
-  } while (false)
-
-#define PROCESS_AND_RETURN_IF_DONE(result, value_processor) \
-  do {                                                      \
-    auto res = (result);                                    \
-    if (res.IsDone()) {                                     \
-      if (res.IsDoneWithValue()) {                          \
-        value_processor(res.value());                       \
-      }                                                     \
-      return res.Checked();                                 \
-    }                                                       \
-  } while (false)
-
-#define GET_VALUE_OR_ABORT(variable, result)                           \
-  do {                                                                 \
-    MaybeReduceResult res = (result);                                  \
-    if (res.IsDoneWithAbort()) {                                       \
-      return ReduceResult::DoneWithAbort();                            \
-    }                                                                  \
-    DCHECK(res.IsDoneWithValue());                                     \
-    using T = std::remove_pointer_t<std::decay_t<decltype(variable)>>; \
-    variable = res.value()->Cast<T>();                                 \
-  } while (false)
-
 struct CatchBlockDetails {
   BasicBlockRef* ref = nullptr;
   bool exception_handler_was_used = false;
@@ -277,8 +157,6 @@ class MaglevGraphBuilder {
                                 IndirectPointerTag tag) {
     return graph()->GetTrustedConstant(ref, tag);
   }
-
-  ValueNode* GetNumberConstant(double constant);
 
   Graph* graph() const { return graph_; }
   Zone* zone() const { return compilation_unit_->zone(); }
@@ -1651,17 +1529,6 @@ class MaglevGraphBuilder {
   bool TryReduceCompareEqualAgainstConstant();
 
   template <Operation kOperation>
-  MaybeReduceResult TryFoldInt32UnaryOperation(ValueNode* value);
-  template <Operation kOperation>
-  MaybeReduceResult TryFoldInt32BinaryOperation(ValueNode* left,
-                                                ValueNode* right);
-  template <Operation kOperation>
-  MaybeReduceResult TryFoldInt32BinaryOperation(ValueNode* left,
-                                                int32_t cst_right);
-  template <Operation kOperation>
-  MaybeReduceResult TryFoldInt32BinaryOperation(int32_t left, int32_t right);
-
-  template <Operation kOperation>
   ReduceResult BuildInt32UnaryOperationNode();
   ReduceResult BuildTruncatingInt32BitwiseNotForToNumber(
       NodeType allowed_input_type,
@@ -1678,18 +1545,6 @@ class MaglevGraphBuilder {
   ReduceResult BuildTruncatingInt32BinarySmiOperationNodeForToNumber(
       NodeType allowed_input_type,
       TaggedToFloat64ConversionType conversion_type);
-
-  template <Operation kOperation>
-  MaybeReduceResult TryFoldFloat64UnaryOperationForToNumber(
-      TaggedToFloat64ConversionType conversion_type, ValueNode* value);
-  template <Operation kOperation>
-  MaybeReduceResult TryFoldFloat64BinaryOperationForToNumber(
-      TaggedToFloat64ConversionType conversion_type, ValueNode* left,
-      ValueNode* right);
-  template <Operation kOperation>
-  MaybeReduceResult TryFoldFloat64BinaryOperationForToNumber(
-      TaggedToFloat64ConversionType conversion_type, ValueNode* left,
-      double cst_right);
 
   template <Operation kOperation>
   ReduceResult BuildFloat64UnaryOperationNodeForToNumber(

@@ -21,6 +21,126 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
+class ReduceResult;
+class V8_NODISCARD MaybeReduceResult {
+ public:
+  enum Kind {
+    kDoneWithValue = 0,  // No need to mask while returning the pointer.
+    kDoneWithAbort,
+    kDoneWithoutValue,
+    kFail,
+  };
+
+  MaybeReduceResult() : payload_(kFail) {}
+
+  // NOLINTNEXTLINE
+  MaybeReduceResult(ValueNode* value) : payload_(value) {
+    DCHECK_NOT_NULL(value);
+  }
+
+  static MaybeReduceResult Fail() { return MaybeReduceResult(kFail); }
+
+  MaybeReduceResult(const MaybeReduceResult&) V8_NOEXCEPT = default;
+  MaybeReduceResult& operator=(const MaybeReduceResult&) V8_NOEXCEPT = default;
+
+  ValueNode* value() const {
+    DCHECK(HasValue());
+    return payload_.GetPointerWithKnownPayload(kDoneWithValue);
+  }
+  bool HasValue() const { return kind() == kDoneWithValue; }
+
+  // Either DoneWithValue, DoneWithoutValue or DoneWithAbort.
+  bool IsDone() const { return !IsFail(); }
+
+  // MaybeReduceResult failed.
+  bool IsFail() const { return kind() == kFail; }
+
+  // Done with a ValueNode.
+  bool IsDoneWithValue() const { return HasValue(); }
+
+  // Done without producing a ValueNode.
+  bool IsDoneWithoutValue() const { return kind() == kDoneWithoutValue; }
+
+  // Done with an abort (unconditional deopt, infinite loop in an inlined
+  // function, etc)
+  bool IsDoneWithAbort() const { return kind() == kDoneWithAbort; }
+
+  Kind kind() const { return payload_.GetPayload(); }
+
+  inline ReduceResult Checked();
+
+  base::PointerWithPayload<ValueNode, Kind, 3> GetPayload() const {
+    return payload_;
+  }
+
+ protected:
+  explicit MaybeReduceResult(Kind kind) : payload_(kind) {}
+  explicit MaybeReduceResult(
+      base::PointerWithPayload<ValueNode, Kind, 3> payload)
+      : payload_(payload) {}
+  base::PointerWithPayload<ValueNode, Kind, 3> payload_;
+};
+
+class V8_NODISCARD ReduceResult : public MaybeReduceResult {
+ public:
+  // NOLINTNEXTLINE
+  ReduceResult(ValueNode* value) : MaybeReduceResult(value) {}
+
+  explicit ReduceResult(const MaybeReduceResult& other)
+      : MaybeReduceResult(other.GetPayload()) {
+    CHECK(!IsFail());
+  }
+
+  static ReduceResult Done(ValueNode* value) { return ReduceResult(value); }
+  static ReduceResult Done() { return ReduceResult(kDoneWithoutValue); }
+  static ReduceResult DoneWithAbort() { return ReduceResult(kDoneWithAbort); }
+
+  bool IsFail() const { return false; }
+  ReduceResult Checked() { return *this; }
+
+ protected:
+  explicit ReduceResult(Kind kind) : MaybeReduceResult(kind) {}
+};
+
+inline ReduceResult MaybeReduceResult::Checked() { return ReduceResult(*this); }
+
+#define RETURN_IF_DONE(result) \
+  do {                         \
+    auto res = (result);       \
+    if (res.IsDone()) {        \
+      return res.Checked();    \
+    }                          \
+  } while (false)
+
+#define RETURN_IF_ABORT(result)             \
+  do {                                      \
+    if ((result).IsDoneWithAbort()) {       \
+      return ReduceResult::DoneWithAbort(); \
+    }                                       \
+  } while (false)
+
+#define PROCESS_AND_RETURN_IF_DONE(result, value_processor) \
+  do {                                                      \
+    auto res = (result);                                    \
+    if (res.IsDone()) {                                     \
+      if (res.IsDoneWithValue()) {                          \
+        value_processor(res.value());                       \
+      }                                                     \
+      return res.Checked();                                 \
+    }                                                       \
+  } while (false)
+
+#define GET_VALUE_OR_ABORT(variable, result)                           \
+  do {                                                                 \
+    MaybeReduceResult res = (result);                                  \
+    if (res.IsDoneWithAbort()) {                                       \
+      return ReduceResult::DoneWithAbort();                            \
+    }                                                                  \
+    DCHECK(res.IsDoneWithValue());                                     \
+    using T = std::remove_pointer_t<std::decay_t<decltype(variable)>>; \
+    variable = res.value()->Cast<T>();                                 \
+  } while (false)
+
 // TODO(victorgomes): Unify ScopedModification with Turboshaft one.
 // Set `*ptr` to `new_value` while the scope is active, reset to the previous
 // value upon destruction.
@@ -142,6 +262,8 @@ class MaglevReducer {
       ValueNode* value, NodeType allowed_input_type,
       TaggedToFloat64ConversionType conversion_type);
 
+  void EnsureInt32(ValueNode* value, bool can_be_heap_number = false);
+
   BasicBlock* current_block() const { return current_block_; }
   void set_current_block(BasicBlock* block) {
     DCHECK(new_nodes_at_start_.empty());
@@ -205,6 +327,66 @@ class MaglevReducer {
     }
   }
 #endif  // DEBUG
+
+  SmiConstant* GetSmiConstant(int constant) const {
+    return graph()->GetSmiConstant(constant);
+  }
+  TaggedIndexConstant* GetTaggedIndexConstant(int constant) {
+    return graph()->GetTaggedIndexConstant(constant);
+  }
+  Int32Constant* GetInt32Constant(int32_t constant) {
+    return graph()->GetInt32Constant(constant);
+  }
+  IntPtrConstant* GetIntPtrConstant(intptr_t constant) {
+    return graph()->GetIntPtrConstant(constant);
+  }
+  Uint32Constant* GetUint32Constant(int constant) {
+    return graph()->GetUint32Constant(constant);
+  }
+  Float64Constant* GetFloat64Constant(double constant) {
+    return graph()->GetFloat64Constant(constant);
+  }
+  Float64Constant* GetFloat64Constant(Float64 constant) {
+    return graph()->GetFloat64Constant(constant);
+  }
+  RootConstant* GetRootConstant(RootIndex index) {
+    return graph()->GetRootConstant(index);
+  }
+  RootConstant* GetBooleanConstant(bool value) {
+    return graph()->GetBooleanConstant(value);
+  }
+  ValueNode* GetConstant(compiler::ObjectRef ref) {
+    return graph()->GetConstant(ref);
+  }
+  ValueNode* GetTrustedConstant(compiler::HeapObjectRef ref,
+                                IndirectPointerTag tag) {
+    return graph()->GetTrustedConstant(ref, tag);
+  }
+
+  ValueNode* GetNumberConstant(double constant);
+
+  template <Operation kOperation>
+  MaybeReduceResult TryFoldInt32UnaryOperation(ValueNode* value);
+  template <Operation kOperation>
+  MaybeReduceResult TryFoldInt32BinaryOperation(ValueNode* left,
+                                                ValueNode* right);
+  template <Operation kOperation>
+  MaybeReduceResult TryFoldInt32BinaryOperation(ValueNode* left,
+                                                int32_t cst_right);
+  template <Operation kOperation>
+  MaybeReduceResult TryFoldInt32BinaryOperation(int32_t left, int32_t right);
+
+  template <Operation kOperation>
+  MaybeReduceResult TryFoldFloat64UnaryOperationForToNumber(
+      TaggedToFloat64ConversionType conversion_type, ValueNode* value);
+  template <Operation kOperation>
+  MaybeReduceResult TryFoldFloat64BinaryOperationForToNumber(
+      TaggedToFloat64ConversionType conversion_type, ValueNode* left,
+      ValueNode* right);
+  template <Operation kOperation>
+  MaybeReduceResult TryFoldFloat64BinaryOperationForToNumber(
+      TaggedToFloat64ConversionType conversion_type, ValueNode* left,
+      double cst_right);
 
  protected:
   class LazyDeoptResultLocationScope;

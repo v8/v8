@@ -8,7 +8,10 @@
 #include "src/maglev/maglev-reducer.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/base/bits.h"
+#include "src/base/division-by-constant.h"
 #include "src/maglev/maglev-ir-inl.h"
+#include "src/numbers/ieee754.h"
 #include "src/objects/heap-number-inl.h"
 
 namespace v8 {
@@ -623,6 +626,14 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
 }
 
 template <typename BaseT>
+void MaglevReducer<BaseT>::EnsureInt32(ValueNode* value,
+                                       bool can_be_heap_number) {
+  // Either the value is Int32 already, or we force a conversion to Int32 and
+  // cache the value in its alternative representation node.
+  GetInt32(value, can_be_heap_number);
+}
+
+template <typename BaseT>
 std::optional<double> MaglevReducer<BaseT>::TryGetFloat64Constant(
     ValueNode* value, TaggedToFloat64ConversionType conversion_type) {
   switch (value->opcode()) {
@@ -730,6 +741,258 @@ ValueNode* MaglevReducer<BaseT>::BuildNumberOrOddballToFloat64(
                                                          conversion_type);
   } else {
     return AddNewNode<CheckedNumberOrOddballToFloat64>({node}, conversion_type);
+  }
+}
+
+template <typename BaseT>
+ValueNode* MaglevReducer<BaseT>::GetNumberConstant(double constant) {
+  if (IsSmiDouble(constant)) {
+    return GetInt32Constant(FastD2I(constant));
+  }
+  return GetFloat64Constant(constant);
+}
+
+template <typename BaseT>
+template <Operation kOperation>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32UnaryOperation(
+    ValueNode* node) {
+  auto cst = TryGetInt32Constant(node);
+  if (!cst.has_value()) return {};
+  switch (kOperation) {
+    case Operation::kBitwiseNot:
+      return GetInt32Constant(~cst.value());
+    case Operation::kIncrement:
+      if (cst.value() < INT32_MAX) {
+        return GetInt32Constant(cst.value() + 1);
+      }
+      return {};
+    case Operation::kDecrement:
+      if (cst.value() > INT32_MIN) {
+        return GetInt32Constant(cst.value() - 1);
+      }
+      return {};
+    case Operation::kNegate:
+      if (cst.value() == 0) {
+        return {};
+      }
+      if (cst.value() != INT32_MIN) {
+        return GetInt32Constant(-cst.value());
+      }
+      return {};
+    default:
+      UNREACHABLE();
+  }
+}
+
+template <typename BaseT>
+template <Operation kOperation>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
+    ValueNode* left, ValueNode* right) {
+  auto cst_right = TryGetInt32Constant(right);
+  if (!cst_right.has_value()) return {};
+  return TryFoldInt32BinaryOperation<kOperation>(left, cst_right.value());
+}
+
+template <typename BaseT>
+template <Operation kOperation>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
+    ValueNode* left, int32_t cst_right) {
+  if (auto cst_left = TryGetInt32Constant(left)) {
+    return TryFoldInt32BinaryOperation<kOperation>(cst_left.value(), cst_right);
+  }
+  if (std::optional<int>(cst_right) == Int32Identity<kOperation>()) {
+    // Deopt if {left} is not an Int32.
+    EnsureInt32(left);
+    if (left->properties().is_conversion()) {
+      return left->input(0).node();
+    }
+    return left;
+  }
+  // TODO(v8:7700): Add more peephole cases.
+  switch (kOperation) {
+    case Operation::kAdd:
+      // x + 1 => x++
+      if (cst_right == 1) {
+        return AddNewNode<Int32IncrementWithOverflow>({left});
+      }
+      return {};
+    case Operation::kSubtract:
+      // x - 1 => x--
+      if (cst_right == 1) {
+        return AddNewNode<Int32DecrementWithOverflow>({left});
+      }
+      return {};
+    case Operation::kMultiply:
+      // x * 0 = 0
+      if (cst_right == 0) {
+        AddNewNode<CheckInt32Condition>({left, GetInt32Constant(0)},
+                                        AssertCondition::kGreaterThanEqual,
+                                        DeoptimizeReason::kMinusZero);
+        return GetInt32Constant(0);
+      }
+      return {};
+    case Operation::kDivide:
+      // x / -1 = 0 - x
+      if (cst_right == -1) {
+        AddNewNode<CheckInt32Condition>({left, GetInt32Constant(0)},
+                                        AssertCondition::kNotEqual,
+                                        DeoptimizeReason::kMinusZero);
+        return AddNewNode<Int32SubtractWithOverflow>(
+            {GetInt32Constant(0), left});
+      }
+      if (cst_right != 0) {
+        // x / n = x reciprocal_int_mult(x, n)
+        if (cst_right < 0) {
+          // Deopt if division would result in -0.
+          AddNewNode<CheckInt32Condition>({left, GetInt32Constant(0)},
+                                          AssertCondition::kNotEqual,
+                                          DeoptimizeReason::kMinusZero);
+        }
+        base::MagicNumbersForDivision<int32_t> magic =
+            base::SignedDivisionByConstant(cst_right);
+        ValueNode* quot = AddNewNode<Int32MultiplyOverflownBits>(
+            {left, GetInt32Constant(magic.multiplier)});
+        if (cst_right > 0 && magic.multiplier < 0) {
+          quot = AddNewNode<Int32Add>({quot, left});
+        } else if (cst_right < 0 && magic.multiplier > 0) {
+          quot = AddNewNode<Int32Subtract>({quot, left});
+        }
+        ValueNode* sign_bit =
+            AddNewNode<Int32ShiftRightLogical>({left, GetInt32Constant(31)});
+        ValueNode* shifted_quot =
+            AddNewNode<Int32ShiftRight>({quot, GetInt32Constant(magic.shift)});
+        // TODO(victorgomes): This should actually be NodeType::kInt32, but we
+        // don't have it. The idea here is that the value is either 0 or 1, so
+        // we can cast Uint32 to Int32 without a check.
+        EnsureType(sign_bit, NodeType::kSmi);
+        ValueNode* result = AddNewNode<Int32Add>({shifted_quot, sign_bit});
+        ValueNode* mult =
+            AddNewNode<Int32Multiply>({result, GetInt32Constant(cst_right)});
+        AddNewNode<CheckInt32Condition>({left, mult}, AssertCondition::kEqual,
+                                        DeoptimizeReason::kNotInt32);
+        return result;
+      }
+      return {};
+    case Operation::kBitwiseAnd:
+      // x & 0 = 0
+      if (cst_right == 0) {
+        EnsureInt32(left);
+        return GetInt32Constant(0);
+      }
+      return {};
+    case Operation::kBitwiseOr:
+      // x | -1 = -1
+      if (cst_right == 0) {
+        EnsureInt32(left);
+        return GetInt32Constant(-1);
+      }
+      return {};
+    default:
+      return {};
+  }
+}
+
+template <typename BaseT>
+template <Operation kOperation>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
+    int32_t cst_left, int32_t cst_right) {
+  int32_t result;
+  switch (kOperation) {
+    case Operation::kAdd:
+      if (base::bits::SignedAddOverflow32(cst_left, cst_right, &result)) {
+        return {};
+      }
+      return GetInt32Constant(result);
+    case Operation::kSubtract:
+      if (base::bits::SignedSubOverflow32(cst_left, cst_right, &result)) {
+        return {};
+      }
+      return GetInt32Constant(result);
+    case Operation::kMultiply:
+      if (base::bits::SignedMulOverflow32(cst_left, cst_right, &result)) {
+        return {};
+      }
+      return GetInt32Constant(result);
+    case Operation::kModulus:
+      // TODO(v8:7700): Constant fold mod.
+      return {};
+    case Operation::kDivide:
+      // TODO(v8:7700): Constant fold division.
+      return {};
+    case Operation::kBitwiseAnd:
+      return GetInt32Constant(cst_left & cst_right);
+    case Operation::kBitwiseOr:
+      return GetInt32Constant(cst_left | cst_right);
+    case Operation::kBitwiseXor:
+      return GetInt32Constant(cst_left ^ cst_right);
+    case Operation::kShiftLeft:
+      return GetInt32Constant(cst_left
+                              << (static_cast<uint32_t>(cst_right) % 32));
+    case Operation::kShiftRight:
+      return GetInt32Constant(cst_left >>
+                              (static_cast<uint32_t>(cst_right) % 32));
+    case Operation::kShiftRightLogical:
+      return GetUint32Constant(static_cast<uint32_t>(cst_left) >>
+                               (static_cast<uint32_t>(cst_right) % 32));
+    default:
+      UNREACHABLE();
+  }
+}
+
+template <typename BaseT>
+template <Operation kOperation>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64UnaryOperationForToNumber(
+    TaggedToFloat64ConversionType conversion_type, ValueNode* value) {
+  auto cst = TryGetFloat64Constant(value, conversion_type);
+  if (!cst.has_value()) return {};
+  switch (kOperation) {
+    case Operation::kNegate:
+      return GetNumberConstant(-cst.value());
+    case Operation::kIncrement:
+      return GetNumberConstant(cst.value() + 1);
+    case Operation::kDecrement:
+      return GetNumberConstant(cst.value() - 1);
+    default:
+      UNREACHABLE();
+  }
+}
+
+template <typename BaseT>
+template <Operation kOperation>
+MaybeReduceResult
+MaglevReducer<BaseT>::TryFoldFloat64BinaryOperationForToNumber(
+    TaggedToFloat64ConversionType conversion_type, ValueNode* left,
+    ValueNode* right) {
+  auto cst_right = TryGetFloat64Constant(right, conversion_type);
+  if (!cst_right.has_value()) return {};
+  return TryFoldFloat64BinaryOperationForToNumber<kOperation>(
+      conversion_type, left, cst_right.value());
+}
+
+template <typename BaseT>
+template <Operation kOperation>
+MaybeReduceResult
+MaglevReducer<BaseT>::TryFoldFloat64BinaryOperationForToNumber(
+    TaggedToFloat64ConversionType conversion_type, ValueNode* left,
+    double cst_right) {
+  auto cst_left = TryGetFloat64Constant(left, conversion_type);
+  if (!cst_left.has_value()) return {};
+  switch (kOperation) {
+    case Operation::kAdd:
+      return GetNumberConstant(cst_left.value() + cst_right);
+    case Operation::kSubtract:
+      return GetNumberConstant(cst_left.value() - cst_right);
+    case Operation::kMultiply:
+      return GetNumberConstant(cst_left.value() * cst_right);
+    case Operation::kDivide:
+      return GetNumberConstant(cst_left.value() / cst_right);
+    case Operation::kModulus:
+      // TODO(v8:7700): Constant fold mod.
+      return {};
+    case Operation::kExponentiate:
+      return GetNumberConstant(math::pow(cst_left.value(), cst_right));
+    default:
+      UNREACHABLE();
   }
 }
 
