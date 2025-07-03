@@ -191,6 +191,19 @@ bool SandboxHardwareSupport::TryActivate() {
     // sandboxed code does not have write access to any out-of-sandbox memory
     // except for "sandbox extension" memory (opt-out).
     out_of_sandbox_pkey_ = base::MemoryProtectionKey::kDefaultProtectionKey;
+
+#ifdef V8_OS_LINUX
+    // Strict mode currently requires some special environment variables.
+    // See https://crbug.com/428179540 for more details. Check for them here.
+    char* bind_now = getenv("LD_BIND_NOW");
+    char* glibc_tunables = getenv("GLIBC_TUNABLES");
+    if (!bind_now || !glibc_tunables || strcmp(bind_now, "1") != 0 ||
+        strstr(glibc_tunables, "pthread.rseq=0") == nullptr) {
+      FATAL(
+          "Missing necessary environment variables: `LD_BIND_NOW=1` and "
+          "`GLIBC_TUNABLES=glibc.pthread.rseq=0`. See crbug.com/428179540");
+    }
+#endif  // V8_OS_LINUX
   } else {
     // In non-strict mode, we use a dedicated pkey as out-of-sandbox pkey.
     // Memory that should be inaccessible to sandboxed code must manually be
