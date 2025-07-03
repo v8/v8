@@ -18,6 +18,7 @@
 #ifdef V8_OS_LINUX
 #include <signal.h>
 #include <sys/mman.h>
+#include <sys/ucontext.h>
 #include <unistd.h>
 #endif  // V8_OS_LINUX
 
@@ -571,7 +572,7 @@ void UninstallCrashFilter() {
 #endif
 }
 
-void CrashFilter(int signal, siginfo_t* info, void* void_context) {
+void CrashFilter(int signal, siginfo_t* info, void* context) {
   // NOTE: This code MUST be async-signal safe.
   // NO malloc or stdio is allowed here.
 
@@ -703,6 +704,19 @@ void CrashFilter(int signal, siginfo_t* info, void* void_context) {
   UninstallCrashFilter();
 
   PrintToStderr("\n## V8 sandbox violation detected!\n\n");
+
+#ifdef V8_HOST_ARCH_X64
+  ucontext_t* ctx = reinterpret_cast<ucontext_t*>(context);
+  // Matches X86_PF_WRITE in x86_pf_error_code.
+  static constexpr greg_t kWriteAccessBit = 1;
+  const bool write_access =
+      ctx->uc_mcontext.gregs[REG_ERR] & (1 << kWriteAccessBit);
+  if (!write_access) {
+    PrintToStderr(
+        "Access type was read though which is technically not a sandbox "
+        "violation. This requires manual investigation.\n");
+  }
+#endif  // V8_HOST_ARCH_X64
 }
 
 #ifdef V8_USE_ADDRESS_SANITIZER
