@@ -19615,6 +19615,78 @@ void CodeStubAssembler::GetMarkBit(TNode<IntPtrT> object, TNode<IntPtrT>* cell,
   }
 }
 
+// Word-to-Word32:
+template <>
+TNode<Int32T> CodeStubAssembler::Convert(TNode<IntPtrT> from) {
+  return TruncateIntPtrToInt32(from);
+}
+template <>
+TNode<Uint32T> CodeStubAssembler::Convert(TNode<IntPtrT> from) {
+  return Unsigned(TruncateIntPtrToInt32(from));
+}
+template <>
+TNode<Uint32T> CodeStubAssembler::Convert(TNode<WordT> from) {
+  return Convert<Uint32T>(Signed(from));
+}
+template <>
+TNode<Int32T> CodeStubAssembler::Convert(TNode<UintPtrT> from) {
+  return Convert<Int32T>(Signed(from));
+}
+template <>
+TNode<Uint32T> CodeStubAssembler::Convert(TNode<UintPtrT> from) {
+  return Convert<Uint32T>(Signed(from));
+}
+
+// Word32-to-Word.
+template <>
+TNode<UintPtrT> CodeStubAssembler::Convert(TNode<Uint32T> from) {
+  // Zero-extend.
+  return ChangeUint32ToWord(from);
+}
+template <>
+TNode<UintPtrT> CodeStubAssembler::Convert(TNode<Word32T> from) {
+  // Zero-extend.
+  return Convert<UintPtrT>(Unsigned(from));
+}
+template <>
+TNode<IntPtrT> CodeStubAssembler::Convert(TNode<Uint32T> from) {
+  // Zero-extend.
+  return Signed(ChangeUint32ToWord(from));
+}
+template <>
+TNode<IntPtrT> CodeStubAssembler::Convert(TNode<Int32T> from) {
+  // Sign-extend.
+  return ChangeInt32ToIntPtr(from);
+}
+
+// To-tagged.
+template <>
+TNode<Smi> CodeStubAssembler::Convert(TNode<IntPtrT> from) {
+  return SmiFromIntPtr(from);
+}
+template <>
+TNode<Smi> CodeStubAssembler::Convert(TNode<Int32T> from) {
+  return SmiFromInt32(from);
+}
+template <>
+TNode<Smi> CodeStubAssembler::Convert(TNode<Uint32T> from) {
+  return SmiFromUint32(from);
+}
+
+// From-tagged.
+template <>
+TNode<IntPtrT> CodeStubAssembler::Convert(TNode<Smi> from) {
+  return SmiToIntPtr(from);
+}
+template <>
+TNode<Int32T> CodeStubAssembler::Convert(TNode<Smi> from) {
+  return SmiToInt32(from);
+}
+template <>
+TNode<Uint32T> CodeStubAssembler::Convert(TNode<Smi> from) {
+  return PositiveSmiToUint32(from);
+}
+
 #undef CSA_DCHECK_BRANCH
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"
