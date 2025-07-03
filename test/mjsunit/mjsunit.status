@@ -2579,6 +2579,7 @@
   'json2': [SKIP],
   'es6/typedarray-of': [SKIP],
   'compiler/osr-block-scope': [SKIP],
+  'regress/regress-425583995': [SKIP],
 
   # TODO(victorgomes):
   'es6/unicode-regexp-ignore-case-noi18n': [SKIP],
