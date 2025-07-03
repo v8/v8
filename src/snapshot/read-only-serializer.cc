@@ -446,7 +446,7 @@ class ReadOnlyHeapImageSerializer {
 
 std::vector<ReadOnlyHeapImageSerializer::MemoryRegion> GetUnmappedRegions(
     Isolate* isolate) {
-#ifdef V8_STATIC_ROOTS
+#if defined(V8_STATIC_ROOTS) && defined(V8_ENABLE_WEBASSEMBLY)
   // WasmNull's payload is aligned to the OS page and consists of
   // WasmNull::kPayloadSize bytes of unmapped memory. To avoid inflating the
   // snapshot size and accessing uninitialized and/or unmapped memory, the
@@ -466,7 +466,7 @@ std::vector<ReadOnlyHeapImageSerializer::MemoryRegion> GetUnmappedRegions(
   return unmapped;
 #else
   return {};
-#endif  // V8_STATIC_ROOTS
+#endif  // V8_STATIC_ROOTS && V8_ENABLE_WEBASSEMBLY
 }
 
 }  // namespace

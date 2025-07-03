@@ -685,19 +685,12 @@ if (v8_enable_sandbox == "") {
 if (v8_enable_static_roots == "") {
   # Static roots are only valid for builds with pointer compression and a
   # shared read-only heap.
-  # TODO(olivf, v8:13466) Some configurations could be supported if we
-  # introduce different static root files for different build configurations:
-  # Non-wasm and non-i18n builds have fewer read only roots. Configurations
-  # without external code space allocate read only roots at a further
-  # location relative to the cage base.
   v8_enable_static_roots =
-      v8_enable_pointer_compression && v8_enable_external_code_space &&
-      v8_enable_webassembly && v8_enable_i18n_support
+      v8_enable_pointer_compression && v8_enable_external_code_space
 }
 
 assert(!v8_enable_static_roots ||
-           (v8_enable_pointer_compression && v8_enable_external_code_space &&
-                v8_enable_webassembly && v8_enable_i18n_support),
+           (v8_enable_pointer_compression && v8_enable_external_code_space),
        "Trying to enable static roots in a configuration that is not supported")
 
 assert(
@@ -4288,6 +4281,10 @@ v8_header_set("v8_internal_headers") {
     "src/regexp/special-case.h",
     "src/roots/roots-inl.h",
     "src/roots/roots.h",
+    "src/roots/static-roots-intl-nowasm.h",
+    "src/roots/static-roots-intl-wasm.h",
+    "src/roots/static-roots-nointl-nowasm.h",
+    "src/roots/static-roots-nointl-wasm.h",
     "src/roots/static-roots.h",
     "src/runtime/runtime-utils.h",
     "src/runtime/runtime.h",

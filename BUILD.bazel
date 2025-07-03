@@ -137,7 +137,10 @@ v8_flag(name = "v8_enable_snapshot_code_comments")
 
 v8_flag(name = "v8_enable_snapshot_native_code_counters")
 
-v8_flag(name = "v8_enable_static_roots")
+v8_flag(
+  name = "v8_enable_static_roots",
+  default = True,
+)
 
 v8_flag(name = "v8_enable_trace_maps")
 
@@ -405,6 +408,24 @@ config_setting(
     },
 )
 
+# Explicity defined v8_enable_static_roots
+config_setting(
+    name = "v8_enable_static_roots_is_true",
+    flag_values = {
+        ":v8_enable_static_roots": "True",
+    },
+)
+
+# Enable static roots when pointer compression and external code space is enabled
+selects.config_setting_group(
+    name = "enable_static_roots",
+    match_all = [
+        ":v8_enable_static_roots_is_true",
+        ":is_v8_enable_pointer_compression",
+        ":enable_external_code_space",
+    ],
+)
+
 # Enable VTune jit profiling
 v8_flag(
     name = "v8_enable_vtunejit",
@@ -473,7 +494,6 @@ v8_config(
         "v8_enable_slow_dchecks": "ENABLE_SLOW_DCHECKS",
         "v8_enable_runtime_call_stats": "V8_RUNTIME_CALL_STATS",
         "v8_enable_snapshot_native_code_counters": "V8_SNAPSHOT_NATIVE_CODE_COUNTERS",
-        "v8_enable_static_roots": "V8_STATIC_ROOTS",
         "v8_enable_trace_maps": "V8_TRACE_MAPS",
         "v8_enable_turbofan": "V8_ENABLE_TURBOFAN",
         "v8_enable_v8_checks": "V8_ENABLE_CHECKS",
@@ -568,6 +588,11 @@ v8_config(
     }) + select({
         ":enable_external_code_space": [
             "V8_EXTERNAL_CODE_SPACE",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        ":enable_static_roots": [
+            "V8_STATIC_ROOTS",
         ],
         "//conditions:default": [],
     }) + select({
@@ -2386,6 +2411,10 @@ filegroup(
         "src/roots/roots.h",
         "src/roots/roots-inl.h",
         "src/roots/static-roots.h",
+        "src/roots/static-roots-intl-nowasm.h",
+        "src/roots/static-roots-intl-wasm.h",
+        "src/roots/static-roots-nointl-nowasm.h",
+        "src/roots/static-roots-nointl-wasm.h",
         "src/runtime/runtime.cc",
         "src/runtime/runtime.h",
         "src/runtime/runtime-array.cc",
