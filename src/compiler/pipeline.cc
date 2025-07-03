@@ -956,10 +956,10 @@ struct InliningPhase {
     // Not forwarding this information to the TurboFan pipeline data here later
     // skips `JSWasmInliningPhase` if there are no JS-to-Wasm functions calls.
     if (call_reducer.has_js_wasm_calls()) {
-      const wasm::WasmModule* wasm_module =
-          call_reducer.wasm_module_for_inlining();
-      DCHECK_NOT_NULL(wasm_module);
-      data->set_wasm_module_for_inlining(wasm_module);
+      const wasm::NativeModule* native_module =
+          call_reducer.wasm_native_module_for_inlining();
+      DCHECK_NOT_NULL(native_module);
+      data->set_wasm_native_module_for_inlining(native_module);
       // Enable source positions if not enabled yet. While JS only uses the
       // source position table for tracing, profiling, ..., wasm needs it at
       // compile time for keeping track of source locations for wasm traps.
@@ -980,7 +980,7 @@ struct JSWasmInliningPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(JSWasmInlining)
   void Run(TFPipelineData* data, Zone* temp_zone) {
     DCHECK(data->has_js_wasm_calls());
-    DCHECK_NOT_NULL(data->wasm_module_for_inlining());
+    DCHECK_NOT_NULL(data->wasm_native_module_for_inlining());
 
     OptimizedCompilationInfo* info = data->info();
     GraphReducer graph_reducer(temp_zone, data->graph(), &info->tick_counter(),
@@ -998,10 +998,11 @@ struct JSWasmInliningPhase {
         (v8_flags.turboshaft_wasm_in_js_inlining)
             ? JSInliningHeuristic::kWasmWrappersOnly
             : JSInliningHeuristic::kWasmFullInlining;
-    JSInliningHeuristic inlining(
-        &graph_reducer, temp_zone, data->info(), data->jsgraph(),
-        data->broker(), data->source_positions(), data->node_origins(), mode,
-        data->wasm_module_for_inlining(), data->js_wasm_calls_sidetable());
+    JSInliningHeuristic inlining(&graph_reducer, temp_zone, data->info(),
+                                 data->jsgraph(), data->broker(),
+                                 data->source_positions(), data->node_origins(),
+                                 mode, data->wasm_native_module_for_inlining(),
+                                 data->js_wasm_calls_sidetable());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
     AddReducer(data, &graph_reducer, &inlining);
@@ -1013,7 +1014,7 @@ struct JSWasmLoweringPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(JSWasmLowering)
   void Run(TFPipelineData* data, Zone* temp_zone) {
     DCHECK(data->has_js_wasm_calls());
-    DCHECK_NOT_NULL(data->wasm_module_for_inlining());
+    DCHECK_NOT_NULL(data->wasm_native_module_for_inlining());
 
     OptimizedCompilationInfo* info = data->info();
     GraphReducer graph_reducer(temp_zone, data->graph(), &info->tick_counter(),
@@ -1021,7 +1022,7 @@ struct JSWasmLoweringPhase {
     // The Wasm trap handler is not supported in JavaScript.
     const bool disable_trap_handler = true;
     WasmGCLowering lowering(&graph_reducer, data->jsgraph(),
-                            data->wasm_module_for_inlining(),
+                            data->wasm_native_module_for_inlining()->module(),
                             disable_trap_handler, data->source_positions());
     AddReducer(data, &graph_reducer, &lowering);
     graph_reducer.ReduceGraph();
@@ -2046,7 +2047,8 @@ bool PipelineImpl::OptimizeTurbofanGraph(Linkage* linkage) {
     RunPrintAndVerify(WasmTypingPhase::phase_name(), true);
 
     if (v8_flags.wasm_opt) {
-      RUN_MAYBE_ABORT(WasmGCOptimizationPhase, data->wasm_module_for_inlining(),
+      RUN_MAYBE_ABORT(WasmGCOptimizationPhase,
+                      data->wasm_native_module_for_inlining()->module(),
                       data->jsgraph());
       RunPrintAndVerify(WasmGCOptimizationPhase::phase_name(), true);
     }

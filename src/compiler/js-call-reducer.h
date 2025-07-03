@@ -75,10 +75,10 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
 #if V8_ENABLE_WEBASSEMBLY
   bool has_js_wasm_calls() const {
-    return wasm_module_for_inlining_ != nullptr;
+    return wasm_native_module_for_inlining_ != nullptr;
   }
-  const wasm::WasmModule* wasm_module_for_inlining() const {
-    return wasm_module_for_inlining_;
+  const wasm::NativeModule* wasm_native_module_for_inlining() const {
+    return wasm_native_module_for_inlining_;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -309,7 +309,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   std::unordered_set<Node*> generated_calls_with_array_like_or_spread_;
 
 #if V8_ENABLE_WEBASSEMBLY
-  const wasm::WasmModule* wasm_module_for_inlining_ = nullptr;
+  const wasm::NativeModule* wasm_native_module_for_inlining_ = nullptr;
 #endif  // V8_ENABLE_WEBASSEMBLY
 };
 

@@ -52,14 +52,11 @@ class WasmInJSInliningReducer : public Next {
     // we have TS Wasm-in-JS inlining enabled.
     CHECK(v8_flags.turboshaft_wasm_in_js_inlining);
 
-    const wasm::WasmModule* module =
-        descriptor->js_wasm_call_parameters->module();
     wasm::NativeModule* native_module =
         descriptor->js_wasm_call_parameters->native_module();
     uint32_t func_idx = descriptor->js_wasm_call_parameters->function_index();
 
-    V<Any> result =
-        TryInlineWasmCall(module, native_module, func_idx, arguments);
+    V<Any> result = TryInlineWasmCall(native_module, func_idx, arguments);
     if (!result.valid()) {
       result =
           Next::ReduceCall(callee, frame_state, arguments, descriptor, effects);
@@ -68,8 +65,7 @@ class WasmInJSInliningReducer : public Next {
   }
 
  private:
-  V<Any> TryInlineWasmCall(const wasm::WasmModule* module,
-                           wasm::NativeModule* native_module, uint32_t func_idx,
+  V<Any> TryInlineWasmCall(wasm::NativeModule* native_module, uint32_t func_idx,
                            base::Vector<const OpIndex> arguments);
 };
 
@@ -1234,8 +1230,9 @@ class WasmInJsInliningInterface {
 
 template <class Next>
 V<Any> WasmInJSInliningReducer<Next>::TryInlineWasmCall(
-    const wasm::WasmModule* module, wasm::NativeModule* native_module,
-    uint32_t func_idx, base::Vector<const OpIndex> arguments) {
+    wasm::NativeModule* native_module, uint32_t func_idx,
+    base::Vector<const OpIndex> arguments) {
+  const wasm::WasmModule* module = native_module->module();
   const wasm::WasmFunction& func = module->functions[func_idx];
 
   TRACE("Considering wasm function ["

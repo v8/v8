@@ -37,6 +37,7 @@
 #include "src/objects/objects.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/canonical-types.h"
 #include "src/wasm/value-type.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -2409,8 +2410,13 @@ class RepresentationSelector {
     JSWasmCallNode n(node);
 
     JSWasmCallParameters const& params = n.Parameters();
-    const wasm::CanonicalSig* wasm_signature = params.signature();
+    const wasm::WasmModule* wasm_module = params.native_module()->module();
+    const wasm::CanonicalSig* wasm_signature =
+        wasm::GetTypeCanonicalizer()->LookupFunctionSignature(
+            wasm_module->canonical_sig_id(
+                wasm_module->functions[params.function_index()].sig_index));
     int wasm_arg_count = static_cast<int>(wasm_signature->parameter_count());
+    DCHECK_EQ(wasm_arg_count, params.arity_without_implicit_args());
     DCHECK_EQ(wasm_arg_count, n.ArgumentCount());
 
     base::SmallVector<UseInfo, kInitialArgumentsCount> arg_use_info(
@@ -2442,11 +2448,12 @@ class RepresentationSelector {
     ProcessRemainingInputs<T>(node, NodeProperties::FirstEffectIndex(node));
 
     if (wasm_signature->return_count() == 1) {
-      MachineType return_type =
-          MachineTypeForWasmReturnType(wasm_signature->GetReturn());
-      SetOutput<T>(
-          node, return_type.representation(),
-          JSWasmCallNode::TypeForWasmReturnType(wasm_signature->GetReturn()));
+      wasm::CanonicalValueType return_type = wasm_signature->GetReturn();
+      DCHECK_IMPLIES(return_type.is_ref(),
+                     return_type.is_reference_to(wasm::HeapType::kExtern));
+      MachineType machine_type = MachineTypeForWasmReturnType(return_type);
+      SetOutput<T>(node, machine_type.representation(),
+                   JSWasmCallNode::TypeForWasmReturnKind(return_type.kind()));
     } else {
       DCHECK_EQ(wasm_signature->return_count(), 0);
       SetOutput<T>(node, MachineRepresentation::kTagged);

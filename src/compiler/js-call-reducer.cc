@@ -3952,21 +3952,19 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
   }
 
   wasm::NativeModule* native_module = instance_data->native_module();
-  const wasm::WasmModule* wasm_module = native_module->module();
   int wasm_function_index = function_data->function_index();
   bool receiver_is_first_param = function_data->receiver_is_first_param() != 0;
 
-  if (wasm_module_for_inlining_ == nullptr) {
-    wasm_module_for_inlining_ = wasm_module;
+  if (wasm_native_module_for_inlining_ == nullptr) {
+    wasm_native_module_for_inlining_ = native_module;
   }
 
   // TODO(mliedtke): We should be able to remove module, signature, native
   // module and function index from the SharedFunctionInfoRef. However, for some
   // reason I may dereference the SharedFunctionInfoRef here but not in
   // JSInliningHeuristic later on.
-  const Operator* op =
-      javascript()->CallWasm(wasm_module, wasm_signature, wasm_function_index,
-                             shared, native_module, p.feedback());
+  const Operator* op = javascript()->CallWasm(
+      native_module, wasm_function_index, shared, p.feedback());
 
   size_t actual_arity = n.ArgumentCount();
   DCHECK(JSCallNode::kFeedbackVectorIsLastInput);

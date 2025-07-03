@@ -1254,11 +1254,15 @@ Type Typer::Visitor::TypeSetContinuationPreservedEmbedderData(Node* node) {
 #if V8_ENABLE_WEBASSEMBLY
 Type Typer::Visitor::TypeJSWasmCall(Node* node) {
   const JSWasmCallParameters& op_params = JSWasmCallParametersOf(node->op());
-  const wasm::CanonicalSig* wasm_signature = op_params.signature();
-  if (wasm_signature->return_count() > 0) {
-    return JSWasmCallNode::TypeForWasmReturnType(wasm_signature->GetReturn());
-  }
-  return Type::Any();
+  const wasm::WasmModule* module = op_params.native_module()->module();
+  const wasm::WasmFunction* func =
+      &module->functions[op_params.function_index()];
+  if (func->sig->return_count() == 0) return Type::Any();
+  DCHECK_EQ(1, func->sig->return_count());
+  wasm::ValueType return_type = func->sig->GetReturn();
+  DCHECK_IMPLIES(return_type.is_ref(),
+                 return_type.is_reference_to(wasm::HeapType::kExtern));
+  return JSWasmCallNode::TypeForWasmReturnKind(return_type.kind());
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

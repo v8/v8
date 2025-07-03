@@ -849,9 +849,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
 
   CanonicalTypeIndex canonical_sig_id(ModuleTypeIndex index) const {
     DCHECK(has_signature(index));
-    size_t num_types = isorecursive_canonical_type_ids.size();
-    V8_ASSUME(index.index < num_types);
-    return isorecursive_canonical_type_ids[index.index];
+    return canonical_type_id(index);
   }
 
   uint64_t signature_hash(const TypeCanonicalizer*,
