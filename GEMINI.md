@@ -20,19 +20,56 @@ Some hints:
 
 The full documentation for building using GN can be found at https://v8.dev/docs/build-gn.
 
-Once the initial dependencies are installed V8 can generally be built with e.g.
-```
-gclient sync
+Once the initial dependencies are installed, V8 can be built using `gm.py`, which is a wrapper around GN and Ninja.
+
+```bash
+# List all available build configurations and targets
+tools/dev/gm.py
+
+# Build the d8 shell for x64 in release mode
 tools/dev/gm.py x64.release
+
+# Build d8 for x64 in debug mode
+tools/dev/gm.py x64.debug
 ```
 
-The tool `gm.py` lists all its available targets and configuration modes.
-A common target is x64.optdebug.d8 to build V8's shell called `d8` for the x64 architecture in optdebug mode.
+- **release:** Optimized for performance, with debug information stripped. Use for benchmarking.
+- **debug:** Contains full debug information and enables assertions. Slower, but essential for debugging.
+- **optdebug:** A compromise with optimizations enabled and debug information included. Good for general development.
 
-For the general build you can suppress stdout but should keep logging stderr.
+## Testing
 
-## Coding
+The primary script for running tests is `tools/run-tests.py`. You specify the build output directory and the tests you want to run.
+
+```bash
+# Run all standard tests for the x64.release build
+tools/run-tests.py --outdir=out/x64.release
+
+# Run a specific test suite (e.g., cctest)
+tools/run-tests.py --outdir=out/x64.release cctest
+
+# Run a specific test file
+tools/run-tests.py --outdir=out/x64.release cctest/test-heap
+```
+
+The full testing documentation is at https://v8.dev/docs/test.
+
+## Coding and Committing
 
 - Always follow the style conventions used in code surrounding your changes.
-- Otherwise, follow Chromium's C++ style guide with a fallback to Google's C++ style guide.
-- Use `git cl format` on your changes.
+- Otherwise, follow [Chromium's C++ style guide](https://chromium.googlesource.com/chromium/src/+/main/styleguide/styleguide.md).
+- Use `git cl format` to automatically format your changes.
+
+Commit messages should follow the convention described at https:/v8.dev/docs/contribute#commit-messages. A typical format is:
+
+```
+[component]: Short description of the change
+
+Longer description explaining the "why" of the change, not just
+the "what". Wrap lines at 72 characters.
+
+Bug: 123456
+```
+
+- The `component` is the area of the codebase (e.g., `compiler`, `runtime`, `api`).
+- The `Bug:` line is important for linking to issues in the tracker at https://crbug.com/
