@@ -824,7 +824,8 @@ class JSTemporalZonedDateTime
              DirectHandle<JSTemporalZonedDateTime> zoned_date_time);
 
   // #sec-temporal.zoneddatetime.prototype.gettimezonetransition
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalZonedDateTime>
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<
+      UnionOf<JSTemporalZonedDateTime, Null>>
   GetTimeZoneTransition(Isolate* isolate,
                         DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
                         DirectHandle<Object> direction_param);

@@ -85,6 +85,11 @@ V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOption(
     return Just(default_value.value());
   }
 
+  // For the error
+  if (found_string.is_null()) {
+    found_string = isolate->factory()->undefined_string();
+  }
+
   // 2. d. i. If values does not contain an element equal to value,
   // throw a RangeError exception.
   DirectHandle<String> method_str =

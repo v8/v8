@@ -4151,10 +4151,10 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalPlainDate::ToZonedDateTime(
   DCHECK(time_zone);
 
   DirectHandle<JSTemporalPlainTime> temporal_time;
-  temporal_rs::PlainTime* temporal_time_rust;
+  temporal_rs::PlainTime* temporal_time_rust = nullptr;
 
   // 5. If temporalTime is undefined, then
-  if (IsUndefined(*temporal_time_obj)) {
+  if (temporal_time_obj.is_null() || IsUndefined(*temporal_time_obj)) {
     // a. Let epochNs be ? GetStartOfDay(timeZone, temporalDate.[[ISODate]]).
     // (handled in Rust by temporal_time_rust being a null pointer)
 
@@ -6258,7 +6258,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::StartOfDay(
       isolate, zoned_date_time->zoned_date_time()->raw()->start_of_day());
 }
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.gettimezonetransition
-MaybeDirectHandle<JSTemporalZonedDateTime>
+MaybeDirectHandle<UnionOf<JSTemporalZonedDateTime, Null>>
 JSTemporalZonedDateTime::GetTimeZoneTransition(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> direction_param_obj) {
@@ -6308,9 +6308,22 @@ JSTemporalZonedDateTime::GetTimeZoneTransition(
       isolate, dir,
       temporal::GetDirectionOption(isolate, direction_param, method_name));
 
-  return ConstructRustWrappingType<JSTemporalZonedDateTime>(
-      isolate,
-      zoned_date_time->zoned_date_time()->raw()->get_time_zone_transition(dir));
+  // Steps 8-10 handled in Rust.
+  std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
+  MOVE_RETURN_ON_EXCEPTION(
+      isolate, zdt,
+      ExtractRustResult(
+          isolate,
+          zoned_date_time->zoned_date_time()->raw()->get_time_zone_transition(
+              dir)));
+
+  // 11. If transition is null, return null.
+  if (!zdt) {
+    return isolate->factory()->null_value();
+  }
+
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(isolate,
+                                                            std::move(zdt));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toinstant
