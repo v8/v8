@@ -62,7 +62,7 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
 bool FunctionTemplateInfo::IsTemplateFor(Tagged<Map> map) const {
   RCS_SCOPE(
       LocalHeap::Current() == nullptr
-          ? GetIsolateChecked()->counters()->runtime_call_stats()
+          ? Isolate::Current()->counters()->runtime_call_stats()
           : LocalIsolate::FromHeap(LocalHeap::Current())->runtime_call_stats(),
       RuntimeCallCounterId::kIsTemplateFor);
 

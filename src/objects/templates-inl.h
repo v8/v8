@@ -287,19 +287,6 @@ bool FunctionTemplateInfo::IsTemplateFor(Tagged<JSObject> object) const {
   return IsTemplateFor(object->map());
 }
 
-Isolate* TemplateInfo::GetIsolateChecked() const {
-  Isolate* current_isolate = Isolate::Current();
-  // TODO(396607238): Remove this debug code.
-#if DEBUG
-  if (Isolate* obj_isolate; GetIsolateFromHeapObject(*this, &obj_isolate)) {
-    DCHECK_EQ(obj_isolate, current_isolate);
-  } else {
-    DCHECK(ReadOnlyHeap::Contains(*this));
-  }
-#endif
-  return current_isolate;
-}
-
 bool TemplateInfo::is_cacheable() const {
   return IsCacheableBit::decode(template_info_flags());
 }
