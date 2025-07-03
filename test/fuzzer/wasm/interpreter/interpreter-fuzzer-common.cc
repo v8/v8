@@ -112,8 +112,6 @@ WasmInterpretationResult FastInterpretWasmModule(
       v8::internal::WasmTrustedInstanceData::GetOrCreateInterpreterObject(
           instance);
 
-  int* thread_in_wasm_code = trap_handler::GetThreadInWasmThreadLocalAddress();
-  *thread_in_wasm_code = true;
   // Assume an instance can run in only one thread.
   wasm::InterpreterHandle* handle =
       wasm::GetOrCreateInterpreterHandle(isolate, interpreter_object);
@@ -126,7 +124,6 @@ WasmInterpretationResult FastInterpretWasmModule(
   }
   bool success = handle->wasm::InterpreterHandle::Execute(
       thread, 0, static_cast<uint32_t>(function_index), args, rets);
-  *thread_in_wasm_code = false;
 
   // Returned values should not be the hole value.
   if (success) {
