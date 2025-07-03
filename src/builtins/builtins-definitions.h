@@ -27,6 +27,9 @@ namespace internal {
   KIND(NAME##_Generic, __VA_ARGS__)   \
   KIND(NAME##_ISX, __VA_ARGS__)       \
   KIND(NAME, __VA_ARGS__)
+
+constexpr int kGearboxISXBuiltinIdOffset = -1;
+constexpr int kGearboxGenericBuiltinIdOffset = -2;
 #else
 #define WITH_GEARBOX(KIND, NAME, ...) KIND(NAME, __VA_ARGS__)
 #endif  // V8_ENABLE_GEARBOX

@@ -89,6 +89,32 @@ V8_INLINE constexpr Builtin operator--(Builtin& builtin) {
   return builtin = static_cast<Builtin>(static_cast<type>(builtin) - 1);
 }
 
+V8_INLINE constexpr Builtin operator+(const Builtin& builtin,
+                                      const int offset) {
+  using type = std::underlying_type_t<Builtin>;
+  type b = static_cast<type>(builtin) + offset;
+  return static_cast<Builtin>(b);
+}
+
+V8_INLINE constexpr Builtin operator-(const Builtin& builtin,
+                                      const int offset) {
+  using type = std::underlying_type_t<Builtin>;
+  type b = static_cast<type>(builtin) - offset;
+  return static_cast<Builtin>(b);
+}
+
+V8_INLINE constexpr Builtin& operator+=(Builtin& builtin, const int offset) {
+  using type = std::underlying_type_t<Builtin>;
+  builtin = static_cast<Builtin>(static_cast<type>(builtin) + offset);
+  return builtin;
+}
+
+V8_INLINE constexpr Builtin& operator-=(Builtin& builtin, const int offset) {
+  using type = std::underlying_type_t<Builtin>;
+  builtin = static_cast<Builtin>(static_cast<type>(builtin) - offset);
+  return builtin;
+}
+
 class Builtins {
  public:
   explicit Builtins(Isolate* isolate) : isolate_(isolate) {}
@@ -168,7 +194,7 @@ class Builtins {
   }
 
   static inline constexpr bool IsGearboxPlaceholder(Builtin builtin) {
-    return IsISXVariant(--builtin);
+    return IsISXVariant(builtin + kGearboxISXBuiltinIdOffset);
   }
 
   static inline constexpr Builtin GetGearboxPlaceholderFromVariant(
@@ -176,17 +202,28 @@ class Builtins {
     DCHECK(IsGenericVariant(builtin) || IsISXVariant(builtin) ||
            IsGearboxPlaceholder(builtin));
     if (IsISXVariant(builtin)) {
-      ++builtin;
+      builtin -= kGearboxISXBuiltinIdOffset;
       DCHECK_LE(builtin, Builtins::kLast);
       return builtin;
     } else if (IsGenericVariant(builtin)) {
-      ++builtin;
-      ++builtin;
+      builtin -= kGearboxGenericBuiltinIdOffset;
       DCHECK_LE(builtin, Builtins::kLast);
       return builtin;
     } else {
       return builtin;
     }
+  }
+
+  static inline constexpr Builtin GetISXVariantFromGearboxPlaceholder(
+      Builtin builtin) {
+    DCHECK(IsGearboxPlaceholder(builtin));
+    return builtin + kGearboxISXBuiltinIdOffset;
+  }
+
+  static inline constexpr Builtin GetGenericVariantFromGearboxPlaceholder(
+      Builtin builtin) {
+    DCHECK(IsGearboxPlaceholder(builtin));
+    return builtin + kGearboxGenericBuiltinIdOffset;
   }
 
   // Now we just use only SSE4_1 as the condition for enabling ISX.

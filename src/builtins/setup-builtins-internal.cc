@@ -76,6 +76,23 @@ class InstructionSetExtensionScope {
 
 #endif  // V8_ENABLE_GEARBOX
 
+const ProfileDataFromFile* GetProfileForBuiltin(Builtin id, const char* name) {
+#if V8_ENABLE_GEARBOX
+  if (Builtins::IsGearboxPlaceholder(id)) {
+    // V8 didn't need to use any profile for placeholder, because the
+    // instruction stream of placeholder builtin is unused.
+    return nullptr;
+  } else if (Builtins::IsISXVariant(id) || Builtins::IsGenericVariant(id)) {
+    // both of ISX and generic have same IR in schedule pass and also same as
+    // the collected profile, so v8 could use the placeholder's builtin profile
+    // for both variants.
+    Builtin placeholder = Builtins::GetGearboxPlaceholderFromVariant(id);
+    return ProfileDataFromFile::TryRead(Builtins::name(placeholder));
+  } else
+#endif
+    return ProfileDataFromFile::TryRead(name);
+}
+
 using BuiltinCompilationScheduler =
     compiler::CodeAssembler::BuiltinCompilationScheduler;
 
@@ -267,7 +284,7 @@ void CompileJSLinkageCodeStubBuiltin(Isolate* isolate, Builtin builtin,
       compiler::Pipeline::NewJSLinkageCodeStubBuiltinCompilationJob(
           isolate, builtin, generator, installer,
           BuiltinAssemblerOptions(isolate, builtin), argc, name,
-          ProfileDataFromFile::TryRead(name), finalize_order));
+          GetProfileForBuiltin(builtin, name), finalize_order));
   scheduler.CompileCode(isolate, std::move(job));
 }
 
@@ -312,7 +329,7 @@ void CompileCSLinkageCodeStubBuiltin(Isolate* isolate, Builtin builtin,
       compiler::Pipeline::NewCSLinkageCodeStubBuiltinCompilationJob(
           isolate, builtin, generator, installer,
           BuiltinAssemblerOptions(isolate, builtin), interface_descriptor, name,
-          ProfileDataFromFile::TryRead(name), finalize_order));
+          GetProfileForBuiltin(builtin, name), finalize_order));
   scheduler.CompileCode(isolate, std::move(job));
 }
 
@@ -331,7 +348,7 @@ void CompileBytecodeHandler(
       compiler::Pipeline::NewBytecodeHandlerCompilationJob(
           isolate, builtin, generator, installer,
           BuiltinAssemblerOptions(isolate, builtin), name,
-          ProfileDataFromFile::TryRead(name), finalize_order));
+          GetProfileForBuiltin(builtin, name), finalize_order));
   scheduler.CompileCode(isolate, std::move(job));
 }
 

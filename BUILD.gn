@@ -1333,14 +1333,12 @@ config("features") {
     defines += [ "V8_ENABLE_FUZZTEST" ]
   }
 
-  # TODO(Wenqin): Gearbox is not compatible with builtin PGO builds yet, try to
-  # support it later.
   # TODO(Wenqin): Gearbox didn't work when didn't enable pointer compression,
   # it's related to the deserializer, when pointer compression is disable, it
   # will not call PostProcessCode method, which is the bottleneck for Gearbox
   # try to fix it later.
-  if (v8_builtins_profiling_log_file == "" && v8_enable_pointer_compression &&
-      v8_enable_builtins_gearbox && v8_current_cpu == "x64") {
+  if (v8_enable_pointer_compression && v8_enable_builtins_gearbox &&
+      v8_current_cpu == "x64") {
     defines += [ "V8_BUILTINS_GEARBOX" ]
   }
   if (v8_enable_short_builtin_calls) {
