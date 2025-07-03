@@ -268,7 +268,7 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
   unsigned shift_amount = !needs_shift ? 0 : COMPRESS_POINTERS_BOOL ? 2 : 3;
   MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm,
                                         false, shift_amount);
-  Assembler::BlockPoolsScope blocked_pools_scope_(this, 4 * kInstrSize);
+  Assembler::BlockPoolsScope blocked_pools_scope_(this);
   LoadTaggedField(dst, src_op, [protected_load_pc](int offset) {
     if (protected_load_pc) *protected_load_pc = offset;
   });
@@ -348,7 +348,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
   unsigned shift_amount = needs_shift ? type.size_log_2() : 0;
   MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm,
                                         i64_offset, shift_amount);
-  Assembler::BlockPoolsScope blocked_pools_scope_(this, 4 * kInstrSize);
+  Assembler::BlockPoolsScope blocked_pools_scope_(this);
   auto trapper = [protected_load_pc](int offset) {
     if (protected_load_pc) *protected_load_pc = static_cast<uint32_t>(offset);
   };
