@@ -306,8 +306,17 @@ class MaglevReducer {
         inlining_id);
   }
 
+  void SetCurrentProvenance(MaglevGraphLabeller::Provenance provenance) {
+    current_provenance_ = provenance;
+  }
+
   void RegisterNode(NodeBase* node) {
     graph_labeller()->RegisterNode(node, &current_provenance_);
+  }
+
+  bool has_graph_labeller() const { return graph()->has_graph_labeller(); }
+  MaglevGraphLabeller* graph_labeller() const {
+    return graph()->graph_labeller();
   }
 
   // TODO(victorgomes): Delete these access (or move to private) when the
@@ -325,6 +334,9 @@ class MaglevReducer {
   void SetNewNodePosition(BasicBlockPosition position) {
     current_block_position_ = position;
   }
+
+  template <UseReprHintRecording hint = UseReprHintRecording::kRecord>
+  ValueNode* ConvertInputTo(ValueNode* input, ValueRepresentation expected);
 
 #ifdef DEBUG
   // TODO(victorgomes): Investigate if we can create a better API for this!
@@ -422,9 +434,6 @@ class MaglevReducer {
   NodeT* AddNewNodeOrGetEquivalent(std::initializer_list<ValueNode*> raw_inputs,
                                    Args&&... args);
 
-  template <UseReprHintRecording hint = UseReprHintRecording::kRecord>
-  ValueNode* ConvertInputTo(ValueNode* input, ValueRepresentation expected);
-
   template <typename NodeT>
   static constexpr UseReprHintRecording ShouldRecordUseReprHint() {
     // We do not record a Tagged use on Return, since they are never on the hot
@@ -488,11 +497,6 @@ class MaglevReducer {
   Graph* graph() const { return graph_; }
   compiler::JSHeapBroker* broker() const { return broker_; }
 
-  bool has_graph_labeller() const { return graph()->has_graph_labeller(); }
-  MaglevGraphLabeller* graph_labeller() const {
-    return graph()->graph_labeller();
-  }
-
  private:
   BaseT* base_;
 
@@ -508,7 +512,8 @@ class MaglevReducer {
 #ifdef DEBUG
   // This is used for dcheck purposes, it is the set of all nodes created in
   // the current "period". Where period is defined by Base. In the case of the
-  // GraphBuilder is all nodes created while visiting a bytecode.
+  // GraphBuilder is all nodes created while visiting a bytecode. In the case
+  // of GraphOptimizer is all nodes created while visiting a maglev node.
   ZoneSet<Node*> new_nodes_current_period_;
 #endif  // DEBUG
 

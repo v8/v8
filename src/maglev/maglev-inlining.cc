@@ -8,6 +8,8 @@
 #include <utility>
 
 #include "src/execution/local-isolate.h"
+#include "src/maglev/maglev-graph-optimizer.h"
+#include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-reducer-inl.h"
 
 namespace v8::internal::maglev {
@@ -34,6 +36,20 @@ void MaglevInliner::Run(bool is_tracing_maglev_graphs_enabled) {
                 << call_site->generic_call_node->shared_function_info()
                 << std::endl;
       PrintGraph(std::cout, graph_);
+    }
+
+    // Optimize current graph.
+    {
+      GraphProcessor<MaglevGraphOptimizer> optimizer(graph_);
+      optimizer.ProcessGraph(graph_);
+
+      if (is_tracing_maglev_graphs_enabled && v8_flags.print_maglev_graphs &&
+          v8_flags.trace_maglev_inlining_verbose) {
+        std::cout << "\nAfter optimization "
+                  << call_site->generic_call_node->shared_function_info()
+                  << std::endl;
+        PrintGraph(std::cout, graph_);
+      }
     }
   }
 
