@@ -105,6 +105,15 @@ class V8_EXPORT_PRIVATE SandboxHardwareSupport {
     return reinterpret_cast<Address>(&sandboxed_mode_pkey_mask_);
   }
 
+  // Returns whether the kernel supports signal delivery in sandboxed code.
+  //
+  // Older Linux kernel versions wouldn't correctly handle the case of signal
+  // delivery on an alternate stack when the executing code doesn't have access
+  // to the default pkey. This routine checks if the kernel version is new
+  // enough. If not, signal handlers should not be used if they could trigger
+  // during execution of sandboxed code. See also https://crbug.com/429173713.
+  static bool KernelSupportsSignalDeliveryInSandbox();
+
  private:
   friend class AllowSandboxAccess;
   friend class DisallowSandboxAccess;
@@ -244,6 +253,17 @@ class V8_NODISCARD V8_ALLOW_UNUSED AllowSandboxAccess {
   int pkey_;
 #endif  // DEBUG && V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 };
+
+// Convenience function to test whether we can use signal handlers from
+// sandboxed code. See https://crbug.com/429173713 for more details.
+inline bool HardwareSandboxingDisabledOrSupportsSignalDeliveryInSandbox() {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  return !SandboxHardwareSupport::IsActive() ||
+         SandboxHardwareSupport::KernelSupportsSignalDeliveryInSandbox();
+#else
+  return true;
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+}
 
 }  // namespace internal
 }  // namespace v8

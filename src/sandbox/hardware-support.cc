@@ -8,6 +8,10 @@
 #include "src/base/platform/platform.h"
 #include "src/flags/flags.h"
 
+#ifdef V8_OS_LINUX
+#include <sys/utsname.h>
+#endif  // V8_OS_LINUX
+
 namespace v8 {
 namespace internal {
 
@@ -141,6 +145,25 @@ bool SandboxHardwareSupport::CurrentSandboxingModeIs(
     CodeSandboxingMode expected_mode) {
   if (!IsActive()) return true;
   return CurrentSandboxingMode() == expected_mode;
+}
+
+// static
+bool SandboxHardwareSupport::KernelSupportsSignalDeliveryInSandbox() {
+#ifdef V8_OS_LINUX
+  struct utsname buffer;
+  CHECK_EQ(uname(&buffer), 0);
+
+  int major, minor;
+  CHECK_EQ(sscanf(buffer.release, "%d.%d", &major, &minor), 2);
+
+  // Kernel 6.12 seems to be the first release to have the necessary fixes
+  // that support signal delivery when the stack uses a non-default pkey:
+  // https://github.com/torvalds/linux/commit/24cf2bc982ffe02aeffb4a3885c71751a2c7023b
+  return major > 6 || (major == 6 && minor >= 12);
+#else
+  // Hardware-assisted sandboxing is currently only available on Linux.
+  UNREACHABLE();
+#endif  // V8_OS_LINUX
 }
 
 // static

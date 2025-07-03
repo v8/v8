@@ -2925,6 +2925,23 @@
 
   # Wasm code coverage is not currently supported.
   'wasm/wasm-code-coverage': [SKIP],
+
+  # Tests that require the sampler/profiler, which doesn't work on older kernel
+  # versions if hardware sandboxing is active. See https://crbug.com/429173713.
+  'regress/regress-381390367': [SKIP],
+  'regress-332570754': [SKIP],
+  'asm/regress-1395401': [SKIP],
+  'asm/log-lazy-code': [SKIP],
+  'regress/regress-1394663': [SKIP],
+  'regress/wasm/regress-crbug-1502180': [SKIP],
+  'regress/wasm/regress-392928805': [SKIP],
+  'regress/wasm/regress-406043349': [SKIP],
+  'regress/wasm/regress-413963387': [SKIP],
+  'wasm/interrupt-worker-with-perf': [SKIP],
+  'wasm/liftoff-trap-handler': [SKIP],
+  'wasm/log-code-after-post-message': [SKIP],
+  'wasm/log-wasm-to-js-wrapper-callref': [SKIP],
+  'wasm/log-wasm-to-js-wrapper-indirect': [SKIP],
 }] # sandbox_hardware_support
 
 ]

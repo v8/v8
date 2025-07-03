@@ -131,6 +131,11 @@ SamplingEventsProcessor::SamplingEventsProcessor(
   precise_sleep_timer_.TryInit();
 #endif  // V8_OS_WIN
 
+  // Check whether the sampler can be used. If this fails on test bots, the
+  // corresponding test probably needs to be disabled in the sandbox +
+  // hardware support configuration until crbug.com/429173713 is resolved.
+  CHECK(HardwareSandboxingDisabledOrSupportsSignalDeliveryInSandbox());
+
   sampler_->Start();
 }
 

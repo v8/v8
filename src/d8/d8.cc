@@ -6924,6 +6924,13 @@ int Shell::Main(int argc, char* argv[]) {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
+  // TODO(429173713): currently we need to disable the trap handler if hardware
+  // sandboxing is active and the kernel version is too old.
+  if (!i::HardwareSandboxingDisabledOrSupportsSignalDeliveryInSandbox()) {
+    fprintf(stderr, "Disabling Wasm trap handler as the kernel is too old\n");
+    options.wasm_trap_handler = false;
+  }
+
   if (V8_TRAP_HANDLER_SUPPORTED && options.wasm_trap_handler) {
     constexpr bool kUseDefaultTrapHandler = true;
     if (!v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultTrapHandler)) {

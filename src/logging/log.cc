@@ -1125,6 +1125,15 @@ class Ticker : public sampler::Sampler {
     if (IsActive()) Stop();
   }
 
+  void Start() {
+    // Check whether the sampler can be used. If this fails on test bots, the
+    // corresponding test probably needs to be disabled in the sandbox +
+    // hardware support configuration until crbug.com/429173713 is resolved.
+    CHECK(HardwareSandboxingDisabledOrSupportsSignalDeliveryInSandbox());
+
+    Sampler::Start();
+  }
+
   void SetProfiler(Profiler* profiler) {
     DCHECK_NULL(profiler_);
     profiler_ = profiler;
