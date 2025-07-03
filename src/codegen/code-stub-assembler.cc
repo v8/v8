@@ -17105,6 +17105,12 @@ void CodeStubAssembler::GotoIfNotNumberOrUndefined(
          is_not_number_or_undefined);
   BIND(&is_number_or_undefined);
 }
+void CodeStubAssembler::GotoIfNumberOrUndefined(TNode<Object> input,
+                                                Label* is_number_or_undefined) {
+  GotoIf(TaggedIsSmi(input), is_number_or_undefined);
+  GotoIf(IsHeapNumber(CAST(input)), is_number_or_undefined);
+  GotoIf(IsUndefined(input), is_number_or_undefined);
+}
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 void CodeStubAssembler::GotoIfNumber(TNode<Object> input, Label* is_number) {

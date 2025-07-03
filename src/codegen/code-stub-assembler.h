@@ -691,6 +691,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Number> NumberSub(TNode<Number> a, TNode<Number> b);
   void GotoIfNotNumber(TNode<Object> value, Label* is_not_number);
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  void GotoIfNumberOrUndefined(TNode<Object> value,
+                               Label* is_number_or_undefined);
   void GotoIfNotNumberOrUndefined(TNode<Object> value,
                                   Label* is_not_number_or_undefined);
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE

@@ -509,7 +509,7 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
   BIND(&holey_double_transition);
   {
     TNode<Object> arg = args.AtIndex(arg_index.value());
-    GotoIfNumber(arg, &default_label);
+    GotoIfNumberOrUndefined(arg, &default_label);
     TNode<Number> length = LoadJSArrayLength(array_receiver);
     // TODO(danno): Use the KeyedStoreGeneric stub here when possible,
     // calling into the runtime to do the elements transition is overkill.
