@@ -354,8 +354,7 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
 
   CollectEvacuationCandidates(heap_->trusted_space());
 
-  if (heap_->isolate()->AllowsCodeCompaction() &&
-      !(mode == StartCompactionMode::kAtomic && heap_->IsGCWithStack())) {
+  if (heap_->isolate()->AllowsCodeCompaction()) {
     CollectEvacuationCandidates(heap_->code_space());
   } else if (v8_flags.trace_fragmentation) {
     TraceFragmentation(heap_->code_space());
@@ -4464,6 +4463,7 @@ void MarkCompactCollector::EvacuatePrologue() {
 void MarkCompactCollector::EvacuateEpilogue() {
   aborted_evacuation_candidates_due_to_oom_.clear();
   aborted_evacuation_candidates_due_to_flags_.clear();
+  aborted_evacuation_candidates_due_to_running_code_.clear();
 
   // New space.
   if (heap_->new_space()) {
@@ -4970,16 +4970,14 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     evacuation_items.emplace_back(ParallelWorkItem{}, page);
   }
 
+  for (PageMetadata* page :
+       aborted_evacuation_candidates_due_to_running_code_) {
+    ReportAbortedEvacuationCandidateDueToFlags(page, page->Chunk());
+  }
+
   if (heap_->IsGCWithStack()) {
     if (!v8_flags.compact_with_stack) {
       for (PageMetadata* page : old_space_evacuation_pages_) {
-        ReportAbortedEvacuationCandidateDueToFlags(page, page->Chunk());
-      }
-    } else {
-      // For fast C calls we cannot patch the return address in the native stack
-      // frame if we would relocate InstructionStream objects.
-      for (PageMetadata* page : old_space_evacuation_pages_) {
-        if (page->owner_identity() != CODE_SPACE) continue;
         ReportAbortedEvacuationCandidateDueToFlags(page, page->Chunk());
       }
     }
@@ -5895,6 +5893,11 @@ void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToFlags(
   aborted_evacuation_candidates_due_to_flags_.push_back(page);
 }
 
+void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToRunningCode(
+    PageMetadata* page) {
+  aborted_evacuation_candidates_due_to_running_code_.insert(page);
+}
+
 namespace {
 
 void ReRecordPage(Heap* heap, Address failed_start, PageMetadata* page) {
@@ -6252,6 +6255,14 @@ void RootMarkingVisitor::VisitRunningCode(
   code->IterateDeoptimizationLiterals(this);
 
   if (istream_or_smi_zero != Smi::zero()) {
+    Tagged<InstructionStream> istream =
+        Cast<InstructionStream>(istream_or_smi_zero);
+    MemoryChunk* chunk = MemoryChunk::FromHeapObject(istream);
+    if (chunk->IsFlagSet(MemoryChunk::EVACUATION_CANDIDATE)) {
+      PageMetadata* page = PageMetadata::cast(chunk->Metadata());
+      collector_->ReportAbortedEvacuationCandidateDueToRunningCode(page);
+    }
+
     VisitRootPointer(Root::kStackRoots, nullptr, istream_or_smi_zero_slot);
   }
 
