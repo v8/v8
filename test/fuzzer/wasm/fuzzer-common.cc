@@ -59,7 +59,9 @@ void CompileAllFunctionsForReferenceExecution(NativeModule* native_module,
                                       .set_func_index(func.func_index)
                                       .set_for_debugging(kForDebugging)
                                       .set_max_steps(max_steps)
-                                      .set_detect_nondeterminism(true));
+                                      // TODO(clemensb): Fully remove
+                                      // nondeterminism detection.
+                                      .set_detect_nondeterminism(false));
     if (!result.succeeded()) {
       FATAL(
           "Liftoff compilation failed on a valid module. Run with "
