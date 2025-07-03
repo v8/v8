@@ -1822,26 +1822,33 @@ ValueNode* MaglevGraphBuilder::GetHoleyFloat64(ValueNode* value,
 
   NodeInfo* node_info = GetOrCreateInfoFor(value);
 
-  if (representation == ValueRepresentation::kFloat64) {
-    // We need to silence NaNs, because we start interpreting some bit patterns
-    // differently.
-    return AddNewNode<HoleyFloat64ToMaybeNanFloat64>({value});
-  } else if (representation == ValueRepresentation::kHoleyFloat64) {
-    DCHECK(convert_hole_to_undefined);
-    if (!IsEmptyNodeType(node_info->type()) &&
-        NodeTypeIs(node_info->type(), NodeType::kNumberOrBoolean)) {
-      // We don't have holes, so we don't need to convert anything.
-      return value;
+  switch (representation) {
+    case ValueRepresentation::kTagged:
+      return AddNewNode<CheckedNumberOrOddballToHoleyFloat64>({value});
+    case ValueRepresentation::kInt32: {
+      auto& alternative = node_info->alternative();
+      return alternative.set_float64(AddNewNode<ChangeInt32ToFloat64>({value}));
     }
-    return AddNewNode<ConvertHoleNanToUndefinedNan>({value});
-  } else if (representation == ValueRepresentation::kTagged) {
-    return AddNewNode<CheckedNumberOrOddballToHoleyFloat64>({value});
-  } else if (representation == ValueRepresentation::kInt32) {
-    auto& alternative = node_info->alternative();
-    return alternative.set_float64(AddNewNode<ChangeInt32ToFloat64>({value}));
+    case ValueRepresentation::kUint32: {
+      auto& alternative = node_info->alternative();
+      return alternative.set_float64(
+          AddNewNode<ChangeUint32ToFloat64>({value}));
+    }
+    case ValueRepresentation::kFloat64:
+      // We need to silence NaNs, because we start interpreting some bit
+      // patterns differently.
+      return AddNewNode<HoleyFloat64ToMaybeNanFloat64>({value});
+    case ValueRepresentation::kHoleyFloat64:
+      DCHECK(convert_hole_to_undefined);
+      if (!IsEmptyNodeType(node_info->type()) &&
+          NodeTypeIs(node_info->type(), NodeType::kNumberOrBoolean)) {
+        // We don't have holes, so we don't need to convert anything.
+        return value;
+      }
+      return AddNewNode<ConvertHoleNanToUndefinedNan>({value});
+    case ValueRepresentation::kIntPtr:
+      return AddNewNode<ChangeIntPtrToFloat64>({value});
   }
-
-  UNREACHABLE();
 }
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
