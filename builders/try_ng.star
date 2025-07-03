@@ -70,13 +70,6 @@ def trybot_pair(
     )
 
 trybot_pair(
-    name = "v8_android_arm64_n5x_rel",
-    cq_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    properties = {"target_platform": "android", "target_arch": "arm"},
-)
-
-trybot_pair(
     name = "v8_android_arm64_p7_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},

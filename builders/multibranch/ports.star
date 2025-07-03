@@ -110,14 +110,6 @@ in_category(
         properties = {"target_platform": "android", "target_arch": "arm", "builder_group": "client.v8.ports"},
     ),
     multibranch_builder(
-        name = "V8 Android Arm64 - N5X",
-        parent_builder = "V8 Android Arm64 - builder",
-        properties = {"builder_group": "client.v8.ports"},
-        barrier = BARRIER.NONE,
-        notifies = ["V8 Flake Sheriff"],
-        disable_resultdb_exports = True,
-    ),
-    multibranch_builder(
         name = "V8 Android Arm64 - P7",
         parent_builder = "V8 Android Arm64 - builder",
         properties = {"builder_group": "client.v8.ports"},
