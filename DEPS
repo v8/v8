@@ -130,7 +130,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c162f3e80b7850c8caec6fa0ca2d7530faa21efe',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f644c70588e2d2ae68a600330f2c1d6ee50567b1',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'f30f8f10c9d1ad97480dc08eb72f7d9d1bf4cf89',
   'buildtools/linux64': {
@@ -232,7 +232,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '7b82569daea7f195c624d98764157eaf29d5e1b8',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '173d963edf3eeef2c53fa7a47ca1dfce67573198',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -304,7 +304,7 @@ deps = {
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'b5d83e70a1537fbce965e6319877c76794daaa80',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '02570151a883c93800bd336774e26d2bad8fee0d',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '33b29ab05db63a9b90416ae352ea09ac5ca81e11',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '5bbf35ae6801f579c523893176789774c0726e22',
   'third_party/llvm-libc/src':
@@ -534,7 +534,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '4028ebf8710ee39d2286cb0f847f9b95c59f84d8',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '48692041ba3f01d397daae1f629ebc56fb584008',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '9659fbf62194e9ce75a5142e345615a266d352d7',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '502dcad5230ec1da544e7720b15d91782f040d9f',
   'third_party/abseil-cpp': {
