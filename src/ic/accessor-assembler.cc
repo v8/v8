@@ -3242,13 +3242,10 @@ void AccessorAssembler::LoadIC(const LoadICParameters* p) {
 
   TVARIABLE(MaybeObject, var_handler);
   Label if_handler(this, &var_handler), non_inlined(this, Label::kDeferred),
-      try_polymorphic(this), miss(this, Label::kDeferred),
-      no_feedback(this, Label::kDeferred);
+      try_polymorphic(this), miss(this, Label::kDeferred);
 
   TNode<Map> lookup_start_object_map =
       LoadReceiverMap(p->receiver_and_lookup_start_object());
-
-  GotoIf(IsUndefined(p->vector()), &no_feedback);
 
   // Check monomorphic case.
   TNode<HeapObjectReference> weak_lookup_start_object_map =
@@ -3276,15 +3273,6 @@ void AccessorAssembler::LoadIC(const LoadICParameters* p) {
   {
     LoadIC_Noninlined(p, lookup_start_object_map, strong_feedback, &var_handler,
                       &if_handler, &miss, &direct_exit);
-  }
-
-  BIND(&no_feedback);
-  {
-    Comment("LoadIC_nofeedback");
-    // Call into the stub that implements the non-inlined parts of LoadIC.
-    direct_exit.ReturnCallBuiltin(Builtin::kLoadIC_NoFeedback, p->context(),
-                                  p->receiver(), p->name(),
-                                  SmiConstant(FeedbackSlotKind::kLoadProperty));
   }
 
   BIND(&miss);
@@ -4478,7 +4466,8 @@ void AccessorAssembler::GenerateLoadICBaseline() {
   TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
   TNode<Context> context = LoadContextFromBaseline();
 
-  TailCallBuiltin(Builtin::kLoadIC, context, receiver, name, slot, vector);
+  LoadICParameters p(context, receiver, name, slot, vector);
+  LoadIC(&p);
 }
 
 void AccessorAssembler::GenerateLoadICTrampoline_Megamorphic() {
