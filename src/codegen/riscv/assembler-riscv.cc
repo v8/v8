@@ -1746,15 +1746,9 @@ void Assembler::set_target_value_at(Address pc, uint32_t target,
 bool Assembler::IsConstantPoolAt(Instruction* instr) {
   // The constant pool marker is made of two instructions. These instructions
   // will never be emitted by the JIT, so checking for the first one is enough:
-  // 0: ld x0, x0, #offset
+  // 0: auipc x0, #offset
   Instr instr_value = *reinterpret_cast<Instr*>(instr);
-#if V8_TARGET_ARCH_RISCV64
-  bool result = IsLd(instr_value) && (instr->Rs1Value() == kRegCode_zero_reg) &&
-                (instr->RdValue() == kRegCode_zero_reg);
-#elif V8_TARGET_ARCH_RISCV32
-  bool result = IsLw(instr_value) && (instr->Rs1Value() == kRegCode_zero_reg) &&
-                (instr->RdValue() == kRegCode_zero_reg);
-#endif
+  bool result = IsAuipc(instr_value) && (instr->RdValue() == kRegCode_zero_reg);
 #ifdef DEBUG
   // It is still worth asserting the marker is complete.
   // 1: j 0x0
@@ -1768,7 +1762,7 @@ bool Assembler::IsConstantPoolAt(Instruction* instr) {
 
 int Assembler::ConstantPoolSizeAt(Instruction* instr) {
   if (IsConstantPoolAt(instr)) {
-    return instr->Imm12Value();
+    return instr->Imm20UValue();
   } else {
     return -1;
   }
@@ -1856,14 +1850,12 @@ void ConstantPool::EmitPrologue(Alignment require_alignment) {
   // Recorded constant pool size is expressed in number of 32-bits words,
   // and includes prologue and alignment, but not the jump around the pool
   // and the size of the marker itself.
+  // word_count may exceed 12 bits, so auipc is used.
   const int marker_size = 1;
   int word_count =
       ComputeSize(Jump::kOmitted, require_alignment) / kInt32Size - marker_size;
-#if V8_TARGET_ARCH_RISCV64
-  assm_->ld(zero_reg, zero_reg, word_count);
-#elif V8_TARGET_ARCH_RISCV32
-  assm_->lw(zero_reg, zero_reg, word_count);
-#endif
+  DCHECK(is_int20(word_count));
+  assm_->auipc(zero_reg, word_count);
   assm_->EmitPoolGuard();
 }
 
