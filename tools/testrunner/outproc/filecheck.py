@@ -16,6 +16,9 @@ class FileCheckOutProc(base.OutProc):
     self._js_file = js_file
 
   def _is_failure_output(self, output):
+    if output.exit_code != 0:
+      return True
+
     cmd = ["vpython3", "-m", "filecheck", str(self._js_file)]
     # Note that we encode the input again because on Windows providing
     # > input=output.stdout, encoding="utf-8", text=True

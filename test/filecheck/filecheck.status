@@ -3,6 +3,12 @@
 # found in the LICENSE file.
 
 [
+[ALWAYS, {
+  # These are negative test cases that make sure that certain scenarios are
+  # reported as failures.
+  'fail/*': [FAIL],
+}],
+
 ['variant == code_serializer', {
   # Code serializer output is incompatible with some filecheck tests because the
   # same test is executed twice (similar to message tests).
@@ -16,6 +22,10 @@
 ['single_generation', {
   # TODO(42204563): These tests rely on the shared heap which is incompatible
   # with single generation.
+  'wasm-pause': [SKIP],
+}], # single_generation
+
+['not has_webassembly', {
   'wasm-pause': [SKIP],
 }], # single_generation
 ]
