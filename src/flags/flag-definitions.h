@@ -3059,7 +3059,7 @@ DEFINE_BOOL(
 //
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 DEFINE_BOOL(
-    strict_pkey_sandbox, false,
+    strict_pkey_sandbox, true,
     "Enable strict pkey-based hardware sandboxing for the V8 Sandbox. When "
     "this is enabled, sandboxed code does not have write access to any "
     "out-of-sandbox memory, except for \"sandbox extension\" memory "
