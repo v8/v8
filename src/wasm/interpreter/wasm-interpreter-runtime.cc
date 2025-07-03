@@ -2827,7 +2827,6 @@ InterpreterHandle::InterpreterHandle(Isolate* isolate,
                                      DirectHandle<Tuple2> interpreter_object)
     : isolate_(isolate),
       module_(WasmInterpreterObject::get_wasm_instance(*interpreter_object)
-                  ->module_object()
                   ->module()),
       interpreter_(isolate, module_, GetBytes(*interpreter_object),
                    direct_handle(WasmInterpreterObject::get_wasm_instance(

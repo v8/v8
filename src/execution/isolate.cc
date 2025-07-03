@@ -1006,7 +1006,7 @@ class CallSiteBuilder {
       FrameSummary::WasmInterpretedFrameSummary const& summary) {
     Handle<WasmInstanceObject> instance = summary.wasm_instance();
     int flags = CallSiteInfo::kIsWasm | CallSiteInfo::kIsWasmInterpretedFrame;
-    DCHECK(!instance->module_object()->is_asm_js());
+    DCHECK(!wasm::is_asmjs_module(instance->module()));
     // We don't have any code object in the interpreter, so we pass 'undefined'.
     auto code = isolate_->factory()->undefined_value();
     AppendFrame(instance,

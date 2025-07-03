@@ -344,7 +344,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
                  IsNullOrWasmNull(*function_result));
         if (!IsNullOrWasmNull(*global_val)) {
           if (IsSubtypeOf(global->type(), kWasmFuncRef,
-                          module_object->module())) {
+                          module_object->native_module()->module())) {
             // For any function the global should be an internal function
             // whose external function equals the call result. (The call goes
             // through JS conversions while the global is accessed directly.)
@@ -361,7 +361,8 @@ void FuzzIt(base::Vector<const uint8_t> data) {
                 instance->trusted_data(i_isolate)->GetGlobalValue(
                     i_isolate, instance->module()->globals[i]);
             WasmValue func_value(function_result, global_value.type());
-            CheckEquivalent(global_value, func_value, *module_object->module());
+            CheckEquivalent(global_value, func_value,
+                            *module_object->native_module()->module());
           }
         }
         break;

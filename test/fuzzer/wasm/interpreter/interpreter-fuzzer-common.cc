@@ -176,7 +176,8 @@ Handle<JSFunction> GenerateJSFunction(Isolate* isolate) {
 MaybeDirectHandle<WasmTableObject> GenerateWasmTable(
     Isolate* isolate, DirectHandle<WasmModuleObject> module_object,
     uint32_t table_index) {
-  const WasmTable& table = module_object->module()->tables[table_index];
+  const WasmTable& table =
+      module_object->native_module()->module()->tables[table_index];
 
   uint32_t table_initial = 10;
   uint32_t table_maximum = 30;
@@ -221,9 +222,11 @@ Handle<JSObject> CreateImportObjectInternal(
 
   base::Vector<const uint8_t> wire_bytes =
       module_object->native_module()->wire_bytes();
-  for (size_t index = 0; index < module_object->module()->import_table.size();
+  for (size_t index = 0;
+       index < module_object->native_module()->module()->import_table.size();
        ++index) {
-    const WasmImport& import = module_object->module()->import_table[index];
+    const WasmImport& import =
+        module_object->native_module()->module()->import_table[index];
 
     Handle<String> module_name = ExtractUtf8StringFromModuleBytes(
         isolate, wire_bytes, import.module_name);
@@ -274,7 +277,7 @@ Handle<JSObject> CreateImportObjectInternal(
         // Global
         const uint32_t offset = 0;
         const WasmGlobal& global =
-            module_object->module()->globals[import.index];
+            module_object->native_module()->module()->globals[import.index];
         DirectHandle<WasmTrustedInstanceData> trusted_data =
             WasmTrustedInstanceData::New(isolate, module_object, false);
         MaybeDirectHandle<WasmGlobalObject> maybe_global_obj =
@@ -444,7 +447,8 @@ int FastInterpretAndExecuteModule(Isolate* isolate,
                                   std::mt19937_64 rand_generator) {
   // We do not instantiate the module if there is a start function, because a
   // start function can contain an infinite loop which we cannot handle.
-  if (module_object->module()->start_function_index >= 0) return -1;
+  if (module_object->native_module()->module()->start_function_index >= 0)
+    return -1;
 
   HandleScope handle_scope(isolate);  // Avoid leaking handles.
 
@@ -468,8 +472,10 @@ int FastInterpretAndExecuteModules(
     i::Isolate* isolate, DirectHandle<WasmModuleObject> module_object,
     DirectHandle<WasmModuleObject> other_module_object,
     std::mt19937_64 rand_generator) {
-  if (module_object->module()->start_function_index >= 0) return -1;
-  if (other_module_object->module()->start_function_index >= 0) return -1;
+  if (module_object->native_module()->module()->start_function_index >= 0)
+    return -1;
+  if (other_module_object->native_module()->module()->start_function_index >= 0)
+    return -1;
 
   HandleScope handle_scope(isolate);  // Avoid leaking handles.
 
@@ -488,9 +494,11 @@ int FastInterpretAndExecuteModules(
   Handle<JSObject> imports_obj =
       CreateImportObjectInternal(isolate, module_object);
 
-  for (size_t i = 0; i < other_module_object->module()->export_table.size();
+  for (size_t i = 0;
+       i < other_module_object->native_module()->module()->export_table.size();
        ++i) {
-    WasmExport exp = other_module_object->module()->export_table[i];
+    WasmExport exp =
+        other_module_object->native_module()->module()->export_table[i];
 
     if (exp.kind != kExternalFunction) continue;
 
