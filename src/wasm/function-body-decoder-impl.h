@@ -6171,8 +6171,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             CALL_INTERFACE(Drop);
             CALL_INTERFACE(I32Const, result, 0);
           } else {
-            if (imm.type.is_index()) {
-              CALL_INTERFACE(RefTest, imm.type, obj, result, null_succeeds);
+            if (target_type.is_index()) {
+              CALL_INTERFACE(RefTest, target_type, obj, result, null_succeeds);
             } else {
               CALL_INTERFACE(RefTestAbstract, obj, target_type, result,
                              null_succeeds);

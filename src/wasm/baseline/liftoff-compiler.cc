@@ -7851,11 +7851,12 @@ class LiftoffCompiler {
 
   // Falls through on match (=successful type check).
   // Returns the register containing the object.
-  void SubtypeCheck(const WasmModule* module, Register obj_reg,
-                    ValueType obj_type, Register rtt_reg, HeapType target_type,
+  void SubtypeCheck(FullDecoder* decoder, Register obj_reg, ValueType obj_type,
+                    Register rtt_reg, HeapType target_type,
                     Register scratch_null, Register scratch2, Label* no_match,
-                    NullSucceeds null_succeeds,
+                    NullSucceeds null_succeeds, bool rtt_is_custom_descriptor,
                     const FreezeCacheState& frozen) {
+    const WasmModule* module = decoder->module_;
     Label match;
     bool is_cast_from_any = obj_type.is_reference_to(HeapType::kAny);
 
@@ -7877,15 +7878,38 @@ class LiftoffCompiler {
     __ LoadMap(tmp1, obj_reg);
     // {tmp1} now holds the object's map.
 
-    if (module->type(target_type.ref_index()).is_final ||
-        target_type.is_exact()) {
-      // In this case, simply check for map equality.
+    // We need to do one of three things:
+    // (1) Compare only the object's map against the target RTT. That's
+    //     appropriate for any of these cases:
+    //     - target RTT is a canonical RTT for a final or exact target type
+    //       that doesn't have a custom descriptor
+    //     - target RTT is a custom descriptor
+    // (2) Compare only the last (most specific) type in the object's map's
+    //     supertypes list against the target RTT. That's appropriate for:
+    //     - target RTT is a canonical RTT for an exact target type that does
+    //       have a custom descriptor.
+    //       The object's map will be that custom descriptor, its immediate
+    //       super-RTT will be the same type's canonical RTT.
+    // (3) Perform the full flexible subtype check: compare the object's map
+    //     against the target RTT, and if they're not equal, load the right
+    //     entry from the supertypes list and compare with that. This is for:
+    //     - any case not listed above.
+    // Cases (2) and (3) can share most of their implementation.
+    const TypeDefinition& type = module->type(target_type.ref_index());
+    bool compare_map =
+        (!type.has_descriptor() && (type.is_final || target_type.is_exact())) ||
+        rtt_is_custom_descriptor;
+    bool compare_last_super = type.has_descriptor() && target_type.is_exact();
+
+    if (compare_map) {
       __ emit_cond_jump(kNotEqual, no_match, ValueKind::kRef, tmp1, rtt_reg,
                         frozen);
     } else {
-      // Check for rtt equality, and if not, check if the rtt is a struct/array
-      // rtt.
-      __ emit_cond_jump(kEqual, &match, ValueKind::kRef, tmp1, rtt_reg, frozen);
+      if (!compare_last_super) {
+        // Check for rtt equality.
+        __ emit_cond_jump(kEqual, &match, ValueKind::kRef, tmp1, rtt_reg,
+                          frozen);
+      }
 
       if (is_cast_from_any) {
         // Check for map being a map for a wasm object (struct, array, func).
@@ -7900,25 +7924,36 @@ class LiftoffCompiler {
 
       // Constant-time subtyping check: load exactly one candidate RTT from the
       // supertypes list.
-      // Step 1: load the WasmTypeInfo into {tmp1}.
+      // Load the WasmTypeInfo into {tmp1}.
       constexpr int kTypeInfoOffset = wasm::ObjectAccess::ToTagged(
           Map::kConstructorOrBackPointerOrNativeContextOffset);
       __ LoadTaggedPointer(tmp1, tmp1, no_reg, kTypeInfoOffset);
-      // Step 2: check the list's length if needed.
-      uint32_t rtt_depth = GetSubtypingDepth(module, target_type.ref_index());
-      if (rtt_depth >= kMinimumSupertypeArraySize) {
+      constexpr int kLengthOffset =
+          ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesLengthOffset);
+      if (compare_last_super) {
         LiftoffRegister list_length(scratch2);
-        int offset =
-            ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesLengthOffset);
-        __ LoadSmiAsInt32(list_length, tmp1, offset);
-        __ emit_i32_cond_jumpi(kUnsignedLessThanEqual, no_match,
-                               list_length.gp(), rtt_depth, frozen);
+        __ LoadSmiAsInt32(list_length, tmp1, kLengthOffset);
+        // Load the candidate list slot into {tmp1}.
+        __ emit_i32_shli(list_length.gp(), list_length.gp(), kTaggedSizeLog2);
+        __ LoadTaggedPointer(
+            tmp1, tmp1, list_length.gp(),
+            ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset -
+                                   kTaggedSize));
+      } else {
+        // Check the list's length if needed.
+        uint32_t rtt_depth = GetSubtypingDepth(module, target_type.ref_index());
+        if (rtt_depth >= kMinimumSupertypeArraySize) {
+          LiftoffRegister list_length(scratch2);
+          __ LoadSmiAsInt32(list_length, tmp1, kLengthOffset);
+          __ emit_i32_cond_jumpi(kUnsignedLessThanEqual, no_match,
+                                 list_length.gp(), rtt_depth, frozen);
+        }
+        // Load the candidate list slot into {tmp1}.
+        __ LoadTaggedPointer(
+            tmp1, tmp1, no_reg,
+            ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
+                                   rtt_depth * kTaggedSize));
       }
-      // Step 3: load the candidate list slot into {tmp1}, and compare it.
-      __ LoadTaggedPointer(
-          tmp1, tmp1, no_reg,
-          ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
-                                 rtt_depth * kTaggedSize));
       __ emit_cond_jump(kNotEqual, no_match, ValueKind::kRef, tmp1, rtt_reg,
                         frozen);
     }
@@ -7943,9 +7978,11 @@ class LiftoffCompiler {
 
     {
       FREEZE_STATE(frozen);
-      SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt_reg.gp(),
-                   target_type, scratch_null, result.gp(), &return_false,
-                   null_succeeds ? kNullSucceeds : kNullFails, frozen);
+      constexpr bool kNoCustomDescriptor = false;
+      SubtypeCheck(decoder, obj_reg.gp(), obj.type, rtt_reg.gp(), target_type,
+                   scratch_null, result.gp(), &return_false,
+                   null_succeeds ? kNullSucceeds : kNullFails,
+                   kNoCustomDescriptor, frozen);
 
       __ LoadConstant(result, WasmValue(1));
       // TODO(jkummerow): Emit near jumps on platforms that have them.
@@ -8034,7 +8071,7 @@ class LiftoffCompiler {
   void RefCast(FullDecoder* decoder, const Value& obj, Value* result) {
     if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) return;
     LiftoffRegister rtt = RttCanon(decoder, result->type.ref_index(), {});
-    return RefCastImpl(decoder, result->type, obj, rtt);
+    return RefCastImpl(decoder, result->type, obj, rtt, false);
   }
 
   void RefCastDesc(FullDecoder* decoder, const Value& obj, const Value& desc,
@@ -8044,12 +8081,12 @@ class LiftoffCompiler {
       return;
     }
     LiftoffRegister rtt = GetRttFromDescriptorOnStack(decoder, desc);
-    // Pretending that the target type is exact skips the supertype check.
-    return RefCastImpl(decoder, result->type.AsExact(), obj, rtt);
+    return RefCastImpl(decoder, result->type, obj, rtt, true);
   }
 
   void RefCastImpl(FullDecoder* decoder, ValueType target_type,
-                   const Value& obj, LiftoffRegister rtt) {
+                   const Value& obj, LiftoffRegister rtt,
+                   bool rtt_is_custom_descriptor) {
     LiftoffRegList pinned{rtt};
     LiftoffRegister obj_reg = pinned.set(__ PopToRegister(pinned));
     Register scratch_null =
@@ -8064,9 +8101,10 @@ class LiftoffCompiler {
           target_type.is_nullable() ? kNullSucceeds : kNullFails;
       OolTrapLabel trap =
           AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapIllegalCast);
-      SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt.gp(),
+      SubtypeCheck(decoder, obj_reg.gp(), obj.type, rtt.gp(),
                    target_type.heap_type(), scratch_null, scratch2,
-                   trap.label(), on_null, trap.frozen());
+                   trap.label(), on_null, rtt_is_custom_descriptor,
+                   trap.frozen());
     }
     __ PushRegister(obj.type.kind(), obj_reg);
   }
@@ -8148,7 +8186,8 @@ class LiftoffCompiler {
                 Value* /* result_on_branch */, uint32_t depth,
                 bool null_succeeds) {
     LiftoffRegister rtt = RttCanon(decoder, target_type.ref_index(), {});
-    return BrOnCastImpl(decoder, target_type, obj, rtt, depth, null_succeeds);
+    return BrOnCastImpl(decoder, target_type, obj, rtt, depth, null_succeeds,
+                        false);
   }
 
   void BrOnCastDesc(FullDecoder* decoder, HeapType target_type,
@@ -8158,11 +8197,11 @@ class LiftoffCompiler {
     LiftoffRegister rtt = GetRttFromDescriptorOnStack(decoder, descriptor);
     // Pretending that the target type is exact skips the supertype check.
     return BrOnCastImpl(decoder, target_type.AsExact(), obj, rtt, depth,
-                        null_succeeds);
+                        null_succeeds, true);
   }
   void BrOnCastImpl(FullDecoder* decoder, HeapType target_type,
                     const Value& obj, LiftoffRegister rtt, uint32_t depth,
-                    bool null_succeeds) {
+                    bool null_succeeds, bool rtt_is_custom_descriptor) {
     LiftoffRegList pinned{rtt};
     // Avoid having sequences of branches do duplicate work.
     if (depth != decoder->control_depth() - 1) {
@@ -8181,9 +8220,9 @@ class LiftoffCompiler {
     FREEZE_STATE(frozen);
 
     NullSucceeds null_handling = null_succeeds ? kNullSucceeds : kNullFails;
-    SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt.gp(),
-                 target_type, scratch_null, scratch2, &cont_false,
-                 null_handling, frozen);
+    SubtypeCheck(decoder, obj_reg.gp(), obj.type, rtt.gp(), target_type,
+                 scratch_null, scratch2, &cont_false, null_handling,
+                 rtt_is_custom_descriptor, frozen);
 
     BrOrRet(decoder, depth);
 
@@ -8195,7 +8234,7 @@ class LiftoffCompiler {
                     uint32_t depth, bool null_succeeds) {
     LiftoffRegister rtt = RttCanon(decoder, target_type.ref_index(), {});
     return BrOnCastFailImpl(decoder, target_type, obj, rtt, depth,
-                            null_succeeds);
+                            null_succeeds, false);
   }
 
   void BrOnCastDescFail(FullDecoder* decoder, HeapType target_type,
@@ -8205,12 +8244,12 @@ class LiftoffCompiler {
     LiftoffRegister rtt = GetRttFromDescriptorOnStack(decoder, descriptor);
     // Pretending that the target type is exact skips the supertype check.
     return BrOnCastFailImpl(decoder, target_type.AsExact(), obj, rtt, depth,
-                            null_succeeds);
+                            null_succeeds, true);
   }
 
   void BrOnCastFailImpl(FullDecoder* decoder, HeapType target_type,
                         const Value& obj, LiftoffRegister rtt, uint32_t depth,
-                        bool null_succeeds) {
+                        bool null_succeeds, bool rtt_is_custom_descriptor) {
     LiftoffRegList pinned{rtt};
     // Avoid having sequences of branches do duplicate work.
     if (depth != decoder->control_depth() - 1) {
@@ -8230,9 +8269,9 @@ class LiftoffCompiler {
     FREEZE_STATE(frozen);
 
     NullSucceeds null_handling = null_succeeds ? kNullSucceeds : kNullFails;
-    SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt.gp(),
-                 target_type, scratch_null, scratch2, &cont_branch,
-                 null_handling, frozen);
+    SubtypeCheck(decoder, obj_reg.gp(), obj.type, rtt.gp(), target_type,
+                 scratch_null, scratch2, &cont_branch, null_handling,
+                 rtt_is_custom_descriptor, frozen);
     __ emit_jump(&fallthrough);
 
     __ bind(&cont_branch);

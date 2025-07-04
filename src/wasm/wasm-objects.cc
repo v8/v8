@@ -2268,8 +2268,10 @@ DirectHandle<WasmStruct> WasmStruct::AllocateDescriptorUninitialized(
       isolate};
   DirectHandle<NativeContext> context(
       Cast<NativeContext>(trusted_data->native_context()), isolate);
-  DirectHandle<Map> rtt =
-      CreateStructMap(isolate, described_index, rtt_parent, context);
+  // There's always at least one supertype for {rtt_parent}.
+  int num_supertypes = module->type(type.describes).subtyping_depth + 1;
+  DirectHandle<Map> rtt = CreateStructMap(isolate, described_index, rtt_parent,
+                                          num_supertypes, context);
 
   if (v8_flags.wasm_explicit_prototypes && !IsSmi(*first_field) &&
       IsWasmDescriptorOptions(Cast<HeapObject>(*first_field))) {
@@ -3080,7 +3082,7 @@ bool WasmJSFunction::IsWasmJSFunction(Tagged<Object> object) {
 
 DirectHandle<Map> CreateStructMap(
     Isolate* isolate, wasm::CanonicalTypeIndex struct_index,
-    DirectHandle<Map> opt_rtt_parent,
+    DirectHandle<Map> opt_rtt_parent, int num_supertypes,
     DirectHandle<NativeContext> opt_native_context) {
   const wasm::CanonicalStructType* type =
       wasm::GetTypeCanonicalizer()->LookupStruct(struct_index);
@@ -3097,7 +3099,7 @@ DirectHandle<Map> CreateStructMap(
   wasm::CanonicalValueType heaptype = wasm::CanonicalValueType::Ref(
       struct_index, shared, wasm::RefTypeKind::kStruct);
   DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      heaptype, no_array_element, opt_rtt_parent, shared);
+      heaptype, no_array_element, opt_rtt_parent, num_supertypes, shared);
   DirectHandle<Map> map;
   // TODO(manoskouk): Combine `shared` with contextful maps.
   if (shared) {
@@ -3121,7 +3123,8 @@ DirectHandle<Map> CreateStructMap(
 
 DirectHandle<Map> CreateArrayMap(Isolate* isolate,
                                  wasm::CanonicalTypeIndex array_index,
-                                 DirectHandle<Map> opt_rtt_parent) {
+                                 DirectHandle<Map> opt_rtt_parent,
+                                 int num_supertypes) {
   const wasm::CanonicalArrayType* type =
       wasm::GetTypeCanonicalizer()->LookupArray(array_index);
   wasm::CanonicalValueType element_type = type->element_type();
@@ -3133,7 +3136,7 @@ DirectHandle<Map> CreateArrayMap(Isolate* isolate,
   wasm::CanonicalValueType heaptype = wasm::CanonicalValueType::Ref(
       array_index, shared, wasm::RefTypeKind::kArray);
   DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      heaptype, element_type, opt_rtt_parent, shared);
+      heaptype, element_type, opt_rtt_parent, num_supertypes, shared);
 
   DirectHandle<Map> map =
       shared ? isolate->factory()->NewMapWithMetaMap(
@@ -3155,7 +3158,7 @@ DirectHandle<Map> CreateArrayMap(Isolate* isolate,
 DirectHandle<Map> CreateFuncRefMap(Isolate* isolate,
                                    wasm::CanonicalTypeIndex type,
                                    DirectHandle<Map> opt_rtt_parent,
-                                   bool shared) {
+                                   int num_supertypes, bool shared) {
   const int inobject_properties = 0;
   const InstanceType instance_type = WASM_FUNC_REF_TYPE;
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
@@ -3163,7 +3166,7 @@ DirectHandle<Map> CreateFuncRefMap(Isolate* isolate,
   wasm::CanonicalValueType heaptype =
       wasm::CanonicalValueType::Ref(type, shared, wasm::RefTypeKind::kFunction);
   DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      heaptype, no_array_element, opt_rtt_parent, shared);
+      heaptype, no_array_element, opt_rtt_parent, num_supertypes, shared);
   constexpr int kInstanceSize = WasmFuncRef::kSize;
   DCHECK_EQ(
       kInstanceSize,
@@ -3203,7 +3206,7 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
     rtt = direct_handle(
         Cast<Map>(maybe_canonical_map.GetHeapObjectAssumeWeak()), isolate);
   } else {
-    rtt = CreateFuncRefMap(isolate, sig_id, DirectHandle<Map>(), false);
+    rtt = CreateFuncRefMap(isolate, sig_id, DirectHandle<Map>(), 0, false);
     canonical_rtts->set(sig_id.index, MakeWeak(*rtt));
   }
 

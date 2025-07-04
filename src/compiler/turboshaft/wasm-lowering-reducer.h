@@ -866,6 +866,22 @@ class WasmLoweringReducer : public Next {
     return object;
   }
 
+  V<Object> LoadImmediateSuperRTT(V<Map> map) {
+    V<Object> type_info = LoadWasmTypeInfo(map);
+    V<Word32> supertypes_length =
+        __ UntagSmi(__ Load(type_info, LoadOp::Kind::TaggedBase().Immutable(),
+                            MemoryRepresentation::TaggedSigned(),
+                            WasmTypeInfo::kSupertypesLengthOffset));
+    // Instead of subtracting 1 from {supertypes_length}, subtract the size
+    // of one entry from the offset.
+    constexpr int kOffsetOfLastEntry =
+        WasmTypeInfo::kSupertypesLengthOffset - kTaggedSize;
+    return __ Load(type_info, __ ChangeInt32ToIntPtr(supertypes_length),
+                   LoadOp::Kind::TaggedBase().Immutable(),
+                   MemoryRepresentation::TaggedPointer(), kOffsetOfLastEntry,
+                   kTaggedSizeLog2);
+  }
+
   V<Object> ReduceWasmTypeCastRtt(V<Object> object, OptionalV<Map> rtt,
                                   WasmTypeCheckConfig config) {
     DCHECK(rtt.has_value());
@@ -896,10 +912,20 @@ class WasmLoweringReducer : public Next {
     V<Map> map = __ LoadMapField(object);
 
     DCHECK_IMPLIES(module_->type(config.to.ref_index()).is_final,
-                   config.exactness == kExactMatchOnly);
+                   config.exactness != kMayBeSubtype);
 
     if (config.exactness == kExactMatchOnly) {
       __ TrapIfNot(__ TaggedEqual(map, rtt.value()), TrapId::kTrapIllegalCast);
+      GOTO(end_label);
+    } else if (config.exactness == kExactMatchLastSupertype) {
+      // Check if map instance type identifies a wasm object.
+      if (is_cast_from_any) {
+        V<Word32> is_wasm_obj = IsDataRefMap(map);
+        __ TrapIfNot(is_wasm_obj, TrapId::kTrapIllegalCast);
+      }
+      V<Object> maybe_match = LoadImmediateSuperRTT(map);
+      __ TrapIfNot(__ TaggedEqual(maybe_match, rtt.value()),
+                   TrapId::kTrapIllegalCast);
       GOTO(end_label);
     } else {
       // First, check if types happen to be equal. This has been shown to give
@@ -968,10 +994,18 @@ class WasmLoweringReducer : public Next {
     V<Map> map = __ LoadMapField(object);
 
     DCHECK_IMPLIES(module_->type(config.to.ref_index()).is_final,
-                   config.exactness == kExactMatchOnly);
+                   config.exactness != kMayBeSubtype);
 
     if (config.exactness == kExactMatchOnly) {
       GOTO(end_label, __ TaggedEqual(map, rtt.value()));
+    } else if (config.exactness == kExactMatchLastSupertype) {
+      // Check if map instance type identifies a wasm object.
+      if (is_cast_from_any) {
+        V<Word32> is_wasm_obj = IsDataRefMap(map);
+        GOTO_IF_NOT(LIKELY(is_wasm_obj), end_label, __ Word32Constant(0));
+      }
+      V<Object> maybe_match = LoadImmediateSuperRTT(map);
+      GOTO(end_label, __ TaggedEqual(maybe_match, rtt.value()));
     } else {
       // First, check if types happen to be equal. This has been shown to give
       // large speedups.

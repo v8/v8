@@ -1591,17 +1591,18 @@ class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
 // not point to any context-specific objects!).
 DirectHandle<Map> CreateStructMap(
     Isolate* isolate, wasm::CanonicalTypeIndex type,
-    DirectHandle<Map> opt_rtt_parent,
+    DirectHandle<Map> opt_rtt_parent, int num_supertypes,
     DirectHandle<NativeContext> opt_native_context);
 
 DirectHandle<Map> CreateArrayMap(Isolate* isolate,
                                  wasm::CanonicalTypeIndex array_index,
-                                 DirectHandle<Map> opt_rtt_parent);
+                                 DirectHandle<Map> opt_rtt_parent,
+                                 int num_supertypes);
 
 DirectHandle<Map> CreateFuncRefMap(Isolate* isolate,
                                    wasm::CanonicalTypeIndex type,
                                    DirectHandle<Map> opt_rtt_parent,
-                                   bool shared);
+                                   int num_supertypes, bool shared);
 
 namespace wasm {
 // Takes a {value} in the JS representation and typechecks it according to

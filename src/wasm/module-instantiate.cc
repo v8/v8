@@ -57,9 +57,6 @@ uint8_t* raw_buffer_ptr(MaybeDirectHandle<JSArrayBuffer> buffer, int offset) {
 void CreateMapForType(Isolate* isolate, const WasmModule* module,
                       ModuleTypeIndex type_index,
                       DirectHandle<FixedArray> maybe_shared_maps) {
-  // Recursive calls for supertypes may already have created this map.
-  if (IsMap(maybe_shared_maps->get(type_index.index))) return;
-
   CanonicalTypeIndex canonical_type_index =
       module->canonical_type_id(type_index);
 
@@ -76,34 +73,36 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
     return;
   }
 
+  const TypeDefinition type = module->type(type_index);
+  int num_supertypes = type.subtyping_depth;
   DirectHandle<Map> rtt_parent;
-  // If the type with {type_index} has an explicit supertype, make sure the
-  // map for that supertype is created first, so that the supertypes list
-  // that's cached on every RTT can be set up correctly.
   ModuleTypeIndex supertype = module->supertype(type_index);
   if (supertype.valid()) {
-    // This recursion is safe, because kV8MaxRttSubtypingDepth limits the
-    // number of recursive steps, so we won't overflow the stack.
-    CreateMapForType(isolate, module, supertype, maybe_shared_maps);
+    // Validation guarantees that supertypes have lower indices, and we
+    // create maps in order, so the supertype map must exist already.
+    DCHECK_LT(supertype.index, type_index.index);
+    DCHECK(IsMap(maybe_shared_maps->get(supertype.index)));
+    DCHECK(num_supertypes == module->type(supertype).subtyping_depth + 1);
     // We look up the supertype in {maybe_shared_maps} as a shared type can only
     // inherit from a shared type and vice verca.
     rtt_parent = direct_handle(
         Cast<Map>(maybe_shared_maps->get(supertype.index)), isolate);
   }
   DirectHandle<Map> map;
-  switch (module->type(type_index).kind) {
+  switch (type.kind) {
     case TypeDefinition::kStruct: {
       DirectHandle<NativeContext> context_independent;
       map = CreateStructMap(isolate, canonical_type_index, rtt_parent,
-                            context_independent);
+                            num_supertypes, context_independent);
       break;
     }
     case TypeDefinition::kArray:
-      map = CreateArrayMap(isolate, canonical_type_index, rtt_parent);
+      map = CreateArrayMap(isolate, canonical_type_index, rtt_parent,
+                           num_supertypes);
       break;
     case TypeDefinition::kFunction:
       map = CreateFuncRefMap(isolate, canonical_type_index, rtt_parent,
-                             module->type(type_index).is_shared);
+                             num_supertypes, type.is_shared);
       break;
     case TypeDefinition::kCont:
       UNIMPLEMENTED();

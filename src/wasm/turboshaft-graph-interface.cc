@@ -5377,14 +5377,23 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                          Map::kInstanceDescriptorsOffset);
   }
 
-  compiler::ExactOrSubtype GetExactness(FullDecoder* decoder, HeapType target) {
+  compiler::SubtypeCheckExactness GetExactness(FullDecoder* decoder,
+                                               HeapType target) {
     // For exact target types, an exact match is needed for correctness;
     // for final target types, it's a performance optimization.
-    if (target.is_exact() ||
-        decoder->module_->type(target.ref_index()).is_final) {
-      return compiler::kExactMatchOnly;
+    // For types with custom descriptors, we need to look at their immediate
+    // supertype instead of the object's map.
+    // See Liftoff's {SubtypeCheck()} for detailed explanation. This function
+    // here is not called for instructions using custom descriptors
+    // (ref.cast_desc, br_on_cast_desc{,_fail}).
+    const TypeDefinition& type = decoder->module_->type(target.ref_index());
+    if (!type.has_descriptor() && (type.is_final || target.is_exact())) {
+      return compiler::SubtypeCheckExactness::kExactMatchOnly;
     }
-    return compiler::kMayBeSubtype;
+    if (type.has_descriptor() && target.is_exact()) {
+      return compiler::SubtypeCheckExactness::kExactMatchLastSupertype;
+    }
+    return compiler::SubtypeCheckExactness::kMayBeSubtype;
   }
 
   void RefTest(FullDecoder* decoder, HeapType target, const Value& object,
