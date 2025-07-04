@@ -721,9 +721,10 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
-                                  LoadType type, LiftoffRegList pinned,
-                                  bool i64_offset,
+                                  LoadType type, uint32_t* protected_load_pc,
+                                  LiftoffRegList pinned, bool i64_offset,
                                   Endianness /* endianness */) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   UseScratchRegisterScope temps(this);
   MemOperand src_op =
       liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm, i64_offset);
@@ -732,32 +733,45 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
     case LoadType::kI64Load8U: {
       Ld_bu(dst.gp(), src_op);
       dbar(0);
-      return;
+      break;
     }
     case LoadType::kI32Load16U:
     case LoadType::kI64Load16U: {
       Ld_hu(dst.gp(), src_op);
       dbar(0);
-      return;
+      break;
     }
     case LoadType::kI32Load: {
       Ld_w(dst.gp(), src_op);
       dbar(0);
-      return;
+      break;
     }
     case LoadType::kI64Load32U: {
       Ld_wu(dst.gp(), src_op);
       dbar(0);
-      return;
+      break;
     }
     case LoadType::kI64Load: {
       Ld_d(dst.gp(), src_op);
       dbar(0);
-      return;
+      break;
     }
+    case LoadType::kI32Load8S:
+      Ld_b(dst.gp(), src_op);
+      dbar(0);
+      break;
+    case LoadType::kI32Load16S:
+      Ld_h(dst.gp(), src_op);
+      dbar(0);
+      break;
     default:
       UNREACHABLE();
   }
+
+  // protected_load_pc should be the address of the load instruction.
+  // The MacroAssembler load may contain some instructions for adjusting
+  // MemOperand, so use pc_offset - kInstrSize * 2 to locate.
+  if (protected_load_pc) *protected_load_pc = pc_offset() - kInstrSize * 2;
 }
 
 void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
@@ -787,9 +801,10 @@ void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
 
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
-                                   StoreType type, LiftoffRegList pinned,
-                                   bool i64_offset,
+                                   StoreType type, uint32_t* protected_store_pc,
+                                   LiftoffRegList pinned, bool i64_offset,
                                    Endianness /* endianness */) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   UseScratchRegisterScope temps(this);
   MemOperand dst_op =
       liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm, i64_offset);
@@ -798,28 +813,33 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
     case StoreType::kI32Store8: {
       dbar(0);
       St_b(src.gp(), dst_op);
-      return;
+      break;
     }
     case StoreType::kI64Store16:
     case StoreType::kI32Store16: {
       dbar(0);
       St_h(src.gp(), dst_op);
-      return;
+      break;
     }
     case StoreType::kI64Store32:
     case StoreType::kI32Store: {
       dbar(0);
       St_w(src.gp(), dst_op);
-      return;
+      break;
     }
     case StoreType::kI64Store: {
       dbar(0);
       St_d(src.gp(), dst_op);
-      return;
+      break;
     }
     default:
       UNREACHABLE();
   }
+
+  // protected_store_pc should be the address of the store instruction.
+  // The MacroAssembler store may contain some instructions for adjusting
+  // MemOperand, so use pc_offset - kInstrSize to locate.
+  if (protected_store_pc) *protected_store_pc = pc_offset() - kInstrSize;
 }
 
 void LiftoffAssembler::AtomicStoreTaggedPointer(
@@ -873,6 +893,7 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
     slli_w(temp3, temp3, 3);                                            \
     dbar(0);                                                            \
     bind(&binop);                                                       \
+    if (protected_load_pc) *protected_load_pc = pc_offset();            \
     load_linked(temp1, MemOperand(temp0, 0));                           \
     ExtractBits(result.gp(), temp1, temp3, size, false);                \
     bin_instr(temp2, result.gp(), Operand(value.gp()));                 \
@@ -886,7 +907,8 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
   void LiftoffAssembler::Atomic##name(                                         \
       Register dst_addr, Register offset_reg, uintptr_t offset_imm,            \
       LiftoffRegister value, LiftoffRegister result, StoreType type,           \
-      bool i64_offset, Endianness /* endianness */) {                          \
+      uint32_t* protected_load_pc, bool i64_offset,                            \
+      Endianness /* endianness */) {                                           \
     LiftoffRegList pinned{dst_addr, value, result};                            \
     if (offset_reg != no_reg) pinned.set(offset_reg);                          \
     Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();       \
@@ -898,24 +920,30 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
     Add_d(temp0, dst_op.base(), dst_op.offset());                              \
     switch (type.value()) {                                                    \
       case StoreType::kI64Store8:                                              \
+        DCHECK_NULL(protected_load_pc);                                        \
         ASSEMBLE_ATOMIC_BINOP_EXT(Ll_d, Sc_d, 8, inst64, 7);                   \
         break;                                                                 \
       case StoreType::kI32Store8:                                              \
+        DCHECK_NULL(protected_load_pc);                                        \
         ASSEMBLE_ATOMIC_BINOP_EXT(Ll_w, Sc_w, 8, inst32, 3);                   \
         break;                                                                 \
       case StoreType::kI64Store16:                                             \
+        DCHECK_NULL(protected_load_pc);                                        \
         ASSEMBLE_ATOMIC_BINOP_EXT(Ll_d, Sc_d, 16, inst64, 7);                  \
         break;                                                                 \
       case StoreType::kI32Store16:                                             \
+        DCHECK_NULL(protected_load_pc);                                        \
         ASSEMBLE_ATOMIC_BINOP_EXT(Ll_w, Sc_w, 16, inst32, 3);                  \
         break;                                                                 \
       case StoreType::kI64Store32:                                             \
         ASSEMBLE_ATOMIC_BINOP_EXT(Ll_d, Sc_d, 32, inst64, 7);                  \
         break;                                                                 \
       case StoreType::kI32Store:                                               \
+        if (protected_load_pc) *protected_load_pc = pc_offset();               \
         am##opcode##_db_w(result.gp(), value.gp(), temp0);                     \
         break;                                                                 \
       case StoreType::kI64Store:                                               \
+        if (protected_load_pc) *protected_load_pc = pc_offset();               \
         am##opcode##_db_d(result.gp(), value.gp(), temp0);                     \
         break;                                                                 \
       default:                                                                 \
@@ -933,6 +961,7 @@ ATOMIC_BINOP_CASE(Xor, Xor, Xor, xor)
     Label binop;                                                         \
     dbar(0);                                                             \
     bind(&binop);                                                        \
+    if (protected_load_pc) *protected_load_pc = pc_offset();             \
     load_linked(result.gp(), MemOperand(temp0, 0));                      \
     bin_instr(temp1, result.gp(), Operand(value.gp()));                  \
     store_conditional(temp1, MemOperand(temp0, 0));                      \
@@ -943,7 +972,8 @@ ATOMIC_BINOP_CASE(Xor, Xor, Xor, xor)
 void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 bool i64_offset, Endianness /* endianness */) {
+                                 uint32_t* protected_load_pc, bool i64_offset,
+                                 Endianness /* endianness */) {
   LiftoffRegList pinned{dst_addr, value, result};
   if (offset_reg != no_reg) pinned.set(offset_reg);
   Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
@@ -955,15 +985,19 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
   Add_d(temp0, dst_op.base(), dst_op.offset());
   switch (type.value()) {
     case StoreType::kI64Store8:
+      DCHECK_NULL(protected_load_pc);
       ASSEMBLE_ATOMIC_BINOP_EXT(Ll_d, Sc_d, 8, Sub_d, 7);
       break;
     case StoreType::kI32Store8:
+      DCHECK_NULL(protected_load_pc);
       ASSEMBLE_ATOMIC_BINOP_EXT(Ll_w, Sc_w, 8, Sub_w, 3);
       break;
     case StoreType::kI64Store16:
+      DCHECK_NULL(protected_load_pc);
       ASSEMBLE_ATOMIC_BINOP_EXT(Ll_d, Sc_d, 16, Sub_d, 7);
       break;
     case StoreType::kI32Store16:
+      DCHECK_NULL(protected_load_pc);
       ASSEMBLE_ATOMIC_BINOP_EXT(Ll_w, Sc_w, 16, Sub_w, 3);
       break;
     case StoreType::kI64Store32:
@@ -992,6 +1026,7 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
     slli_w(temp1, temp1, 3);                                                 \
     dbar(0);                                                                 \
     bind(&exchange);                                                         \
+    if (protected_load_pc) *protected_load_pc = pc_offset();                 \
     load_linked(temp2, MemOperand(temp0, 0));                                \
     ExtractBits(result.gp(), temp2, temp1, size, false);                     \
     InsertBits(temp2, value.gp(), temp1, size);                              \
@@ -1000,12 +1035,11 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
     dbar(0);                                                                 \
   } while (0)
 
-void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
-                                      uintptr_t offset_imm,
-                                      LiftoffRegister value,
-                                      LiftoffRegister result, StoreType type,
-                                      bool i64_offset,
-                                      Endianness /* endianness */) {
+void LiftoffAssembler::AtomicExchange(
+    Register dst_addr, Register offset_reg, uintptr_t offset_imm,
+    LiftoffRegister value, LiftoffRegister result, StoreType type,
+    uint32_t* protected_load_pc, bool i64_offset, Endianness /* endianness */) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   LiftoffRegList pinned{dst_addr, value, result};
   if (offset_reg != no_reg) pinned.set(offset_reg);
   Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
@@ -1016,24 +1050,30 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
   Add_d(temp0, dst_op.base(), dst_op.offset());
   switch (type.value()) {
     case StoreType::kI64Store8:
+      DCHECK_NULL(protected_load_pc);
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll_d, Sc_d, 8, 7);
       break;
     case StoreType::kI32Store8:
+      DCHECK_NULL(protected_load_pc);
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll_w, Sc_w, 8, 3);
       break;
     case StoreType::kI64Store16:
+      DCHECK_NULL(protected_load_pc);
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll_d, Sc_d, 16, 7);
       break;
     case StoreType::kI32Store16:
+      DCHECK_NULL(protected_load_pc);
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll_w, Sc_w, 16, 3);
       break;
     case StoreType::kI64Store32:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll_d, Sc_d, 32, 7);
       break;
     case StoreType::kI32Store:
+      if (protected_load_pc) *protected_load_pc = pc_offset();
       amswap_db_w(result.gp(), value.gp(), temp0);
       break;
     case StoreType::kI64Store:
+      if (protected_load_pc) *protected_load_pc = pc_offset();
       amswap_db_d(result.gp(), value.gp(), temp0);
       break;
     default:
@@ -1044,12 +1084,14 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
 
 void LiftoffAssembler::AtomicExchangeTaggedPointer(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
-    LiftoffRegister value, LiftoffRegister result, LiftoffRegList pinned) {
+    LiftoffRegister value, LiftoffRegister result, uint32_t* protected_load_pc,
+    LiftoffRegList pinned) {
   // Perform the atomic exchange.
   {
     UseScratchRegisterScope temps(this);
     Register actual_addr = liftoff::CalculateActualAddress(
         this, temps, dst_addr, offset_reg, offset_imm);
+    if (protected_load_pc) *protected_load_pc = pc_offset();
     if constexpr (COMPRESS_POINTERS_BOOL) {
       amswap_db_w(result.gp(), value.gp(), actual_addr);
       Bstrpick_d(result.gp(), result.gp(), 31, 0);
@@ -1090,8 +1132,9 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
     Label exit;                                                     \
     dbar(0);                                                        \
     bind(&compareExchange);                                         \
+    if (protected_load_pc) *protected_load_pc = pc_offset();        \
     load_linked(result.gp(), MemOperand(temp0, 0));                 \
-    BranchShort(&exit, ne, expected.gp(), Operand(result.gp()));    \
+    BranchShort(&exit, ne, expected_reg, Operand(result.gp()));     \
     mov(temp2, new_value.gp());                                     \
     store_conditional(temp2, MemOperand(temp0, 0));                 \
     BranchShort(&compareExchange, eq, temp2, Operand(zero_reg));    \
@@ -1109,9 +1152,10 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
     slli_w(temp1, temp1, 3);                                     \
     dbar(0);                                                     \
     bind(&compareExchange);                                      \
+    if (protected_load_pc) *protected_load_pc = pc_offset();     \
     load_linked(temp2, MemOperand(temp0, 0));                    \
     ExtractBits(result.gp(), temp2, temp1, size, false);         \
-    ExtractBits(temp2, expected.gp(), zero_reg, size, false);    \
+    ExtractBits(temp2, expected_reg, zero_reg, size, false);     \
     BranchShort(&exit, ne, temp2, Operand(result.gp()));         \
     InsertBits(temp2, new_value.gp(), temp1, size);              \
     store_conditional(temp2, MemOperand(temp0, 0));              \
@@ -1123,9 +1167,11 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
 void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
-    StoreType type, bool i64_offset, Endianness /* endianness */) {
+    StoreType type, uint32_t* protected_load_pc, bool i64_offset,
+    Endianness /* endianness */) {
   LiftoffRegList pinned{dst_addr, expected, new_value, result};
   if (offset_reg != no_reg) pinned.set(offset_reg);
+  Register expected_reg = expected.gp();
   Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Register temp2 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
@@ -1134,23 +1180,30 @@ void LiftoffAssembler::AtomicCompareExchange(
   Add_d(temp0, dst_op.base(), dst_op.offset());
   switch (type.value()) {
     case StoreType::kI64Store8:
+      DCHECK_NULL(protected_load_pc);
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll_d, Sc_d, 8, 7);
       break;
     case StoreType::kI32Store8:
+      DCHECK_NULL(protected_load_pc);
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll_w, Sc_w, 8, 3);
       break;
     case StoreType::kI64Store16:
+      DCHECK_NULL(protected_load_pc);
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll_d, Sc_d, 16, 7);
       break;
     case StoreType::kI32Store16:
+      DCHECK_NULL(protected_load_pc);
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll_w, Sc_w, 16, 3);
       break;
     case StoreType::kI64Store32:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll_d, Sc_d, 32, 7);
       break;
-    case StoreType::kI32Store:
+    case StoreType::kI32Store: {
+      slli_w(temp1, expected.gp(), 0);
+      expected_reg = temp1;
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll_w, Sc_w);
       break;
+    }
     case StoreType::kI64Store:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll_d, Sc_d);
       break;
@@ -1164,11 +1217,11 @@ void LiftoffAssembler::AtomicCompareExchange(
 void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
-    LiftoffRegList pinned) {
+    uint32_t* protected_load_pc, LiftoffRegList pinned) {
   AtomicCompareExchange(
       dst_addr, offset_reg, offset_imm, expected, new_value, result,
       COMPRESS_POINTERS_BOOL ? StoreType::kI32Store : StoreType::kI64Store,
-      false);
+      protected_load_pc, false);
 
   if constexpr (COMPRESS_POINTERS_BOOL) {
     add_d(result.gp(), result.gp(), kPtrComprCageBaseRegister);

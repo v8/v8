@@ -71,6 +71,8 @@ class Mips64OperandGenerator final : public OperandGenerator {
 
   bool CanBeImmediate(int64_t value, InstructionCode opcode) {
     switch (ArchOpcodeField::decode(opcode)) {
+      case kArchAtomicStoreWithWriteBarrier:
+        return false;
       case kMips64Shl:
       case kMips64Sar:
       case kMips64Shr:

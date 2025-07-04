@@ -88,6 +88,8 @@ class Loong64OperandGenerator final : public OperandGenerator {
 
   bool CanBeImmediate(int64_t value, InstructionCode opcode) {
     switch (ArchOpcodeField::decode(opcode)) {
+      case kArchAtomicStoreWithWriteBarrier:
+        return false;
       case kLoong64Cmp32:
       case kLoong64Cmp64:
         return true;
@@ -1737,11 +1739,9 @@ void VisitAtomicLoad(InstructionSelector* selector, OpIndex node,
 
   bool traps_on_null;
   if (load.is_protected(&traps_on_null)) {
-    // Atomic loads and null dereference are mutually exclusive. This might
-    // change with multi-threaded wasm-gc in which case the access mode should
-    // probably be kMemoryAccessProtectedNullDereference.
-    DCHECK(!traps_on_null);
-    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+    code |= AccessModeField::encode(traps_on_null
+                                        ? kMemoryAccessProtectedNullDereference
+                                        : kMemoryAccessProtectedMemOutOfBounds);
   }
 
   if (g.CanBeImmediate(index, code)) {

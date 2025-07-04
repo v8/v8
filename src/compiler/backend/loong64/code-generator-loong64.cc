@@ -985,12 +985,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchAtomicStoreWithWriteBarrier: {
+      DCHECK_EQ(AddressingModeField::decode(instr->opcode()), kMode_MRR);
       MacroAssembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
       // Indirect pointer writes must use a different opcode.
       DCHECK_NE(mode, RecordWriteMode::kValueIsIndirectPointer);
       Register object = i.InputRegister(0);
-      int64_t offset = i.InputInt64(1);
+      Register offset = i.InputRegister(1);
       Register value = i.InputRegister(2);
 
       auto ool = zone()->New<OutOfLineRecordWrite>(
@@ -2067,6 +2068,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kAtomicCompareExchangeWithWriteBarrier: {
       if constexpr (COMPRESS_POINTERS_BOOL) {
+        __ slli_w(i.InputRegister(2), i.InputRegister(2), 0);
         ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll_w, Sc_w);
         // Contrary to x64, the instruction sequence we emit on loong64 always
         // writes an uncompressed value into the output register, so we can
