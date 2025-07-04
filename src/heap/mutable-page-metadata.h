@@ -86,18 +86,20 @@ class MutablePageMetadata : public MemoryChunkMetadata {
     return static_cast<const MutablePageMetadata*>(metadata);
   }
 
+  static MemoryChunk::MainThreadFlags OldGenerationPageFlags(
+      MarkingMode marking_mode, AllocationSpace space);
+  static MemoryChunk::MainThreadFlags YoungGenerationPageFlags(
+      MarkingMode marking_mode);
+
   MutablePageMetadata(Heap* heap, BaseSpace* space, size_t size,
                       Address area_start, Address area_end,
                       VirtualMemory reservation, PageSize page_size);
 
   MemoryChunk::MainThreadFlags InitialFlags(Executability executable) const;
+  void SetOldGenerationPageFlags(MarkingMode marking_mode);
+  void SetYoungGenerationPageFlags(MarkingMode marking_mode);
 
   size_t BucketsInSlotSet() const { return SlotSet::BucketsForSize(size()); }
-
-  V8_INLINE void SetOldGenerationPageFlags(MarkingMode marking_mode);
-  void SetYoungGenerationPageFlags(MarkingMode marking_mode) {
-    return Chunk()->SetYoungGenerationPageFlags(marking_mode);
-  }
 
   base::Mutex& mutex() { return mutex_; }
   const base::Mutex& mutex() const { return mutex_; }

@@ -61,8 +61,8 @@ PageMetadata* PageMetadata::ConvertNewToOld(PageMetadata* old_page,
   old_page->set_owner(old_space);
   chunk->ClearFlagsNonExecutable(MemoryChunk::kAllFlagsMask);
   DCHECK_NE(old_space->identity(), SHARED_SPACE);
-  chunk->SetOldGenerationPageFlags(
-      old_page->heap()->incremental_marking()->marking_mode(), OLD_SPACE);
+  old_page->SetOldGenerationPageFlags(
+      old_page->heap()->incremental_marking()->marking_mode());
   PageMetadata* new_page = old_space->InitializePage(old_page);
   old_space->AddPromotedPage(new_page, free_mode);
   return new_page;

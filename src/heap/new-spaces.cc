@@ -146,7 +146,7 @@ void SemiSpace::RewindPages(int num_pages) {
 
 void SemiSpace::FixPagesFlags() {
   const auto to_space_flags =
-      MemoryChunk::YoungGenerationPageFlags(
+      MutablePageMetadata::YoungGenerationPageFlags(
           heap()->incremental_marking()->marking_mode()) |
       MemoryChunk::TO_PAGE;
   for (PageMetadata* page : *this) {

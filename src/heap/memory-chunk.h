@@ -327,14 +327,6 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     return (address & kAlignmentMask) == 0;
   }
 
-  static MainThreadFlags OldGenerationPageFlags(MarkingMode marking_mode,
-                                                AllocationSpace space);
-  static MainThreadFlags YoungGenerationPageFlags(MarkingMode marking_mode);
-
-  void SetOldGenerationPageFlags(MarkingMode marking_mode,
-                                 AllocationSpace space);
-  void SetYoungGenerationPageFlags(MarkingMode marking_mode);
-
 #ifdef DEBUG
   bool IsTrusted() const;
 #else

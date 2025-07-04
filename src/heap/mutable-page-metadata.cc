@@ -59,15 +59,57 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
   static_assert(kOffsetOfFirstFastField / 64 == kOffsetOfLastFastField / 64);
 }
 
+// static
+MemoryChunk::MainThreadFlags MutablePageMetadata::OldGenerationPageFlags(
+    MarkingMode marking_mode, AllocationSpace space) {
+  MemoryChunk::MainThreadFlags flags_to_set = MemoryChunk::NO_FLAGS;
+
+  if (!v8_flags.sticky_mark_bits || (space != OLD_SPACE)) {
+    flags_to_set |= MemoryChunk::CONTAINS_ONLY_OLD;
+  }
+
+  if (marking_mode == MarkingMode::kMajorMarking) {
+    flags_to_set |= MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING |
+                    MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING |
+                    MemoryChunk::INCREMENTAL_MARKING |
+                    MemoryChunk::IS_MAJOR_GC_IN_PROGRESS;
+  } else if (IsAnySharedSpace(space)) {
+    // We need to track pointers into the SHARED_SPACE for OLD_TO_SHARED.
+    flags_to_set |= MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
+  } else {
+    flags_to_set |= MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING;
+    if (marking_mode == MarkingMode::kMinorMarking) {
+      flags_to_set |= MemoryChunk::INCREMENTAL_MARKING;
+    }
+  }
+
+  return flags_to_set;
+}
+
+// static
+MemoryChunk::MainThreadFlags MutablePageMetadata::YoungGenerationPageFlags(
+    MarkingMode marking_mode) {
+  MemoryChunk::MainThreadFlags flags =
+      MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
+  if (marking_mode != MarkingMode::kNoMarking) {
+    flags |= MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING;
+    flags |= MemoryChunk::INCREMENTAL_MARKING;
+    if (marking_mode == MarkingMode::kMajorMarking) {
+      flags |= MemoryChunk::IS_MAJOR_GC_IN_PROGRESS;
+    }
+  }
+  return flags;
+}
+
 MemoryChunk::MainThreadFlags MutablePageMetadata::InitialFlags(
     Executability executable) const {
   MemoryChunk::MainThreadFlags flags = MemoryChunk::NO_FLAGS;
 
   if (owner()->identity() == NEW_SPACE || owner()->identity() == NEW_LO_SPACE) {
-    flags |= MemoryChunk::YoungGenerationPageFlags(
-        heap()->incremental_marking()->marking_mode());
+    flags |=
+        YoungGenerationPageFlags(heap()->incremental_marking()->marking_mode());
   } else {
-    flags |= MemoryChunk::OldGenerationPageFlags(
+    flags |= OldGenerationPageFlags(
         heap()->incremental_marking()->marking_mode(), owner()->identity());
   }
 
@@ -105,13 +147,47 @@ MemoryChunk::MainThreadFlags MutablePageMetadata::InitialFlags(
   return flags;
 }
 
+void MutablePageMetadata::SetOldGenerationPageFlags(MarkingMode marking_mode) {
+  const auto owner = owner_identity();
+  MemoryChunk::MainThreadFlags flags_to_set =
+      OldGenerationPageFlags(marking_mode, owner);
+  MemoryChunk::MainThreadFlags flags_to_clear = MemoryChunk::NO_FLAGS;
+
+  if (marking_mode != MarkingMode::kMajorMarking) {
+    if (IsAnySharedSpace(owner)) {
+      // No need to track OLD_TO_NEW or OLD_TO_SHARED within the shared space.
+      flags_to_clear |= MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING |
+                        MemoryChunk::INCREMENTAL_MARKING;
+    } else {
+      flags_to_clear |= MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
+      if (marking_mode != MarkingMode::kMinorMarking) {
+        flags_to_clear |= MemoryChunk::INCREMENTAL_MARKING;
+      }
+    }
+  }
+
+  Chunk()->SetFlagsUnlocked(flags_to_set, flags_to_set);
+  Chunk()->ClearFlagsUnlocked(flags_to_clear);
+}
+
+void MutablePageMetadata::SetYoungGenerationPageFlags(
+    MarkingMode marking_mode) {
+  const MemoryChunk::MainThreadFlags flags_to_set =
+      YoungGenerationPageFlags(marking_mode);
+  MemoryChunk::MainThreadFlags flags_to_clear = MemoryChunk::NO_FLAGS;
+  if (marking_mode == MarkingMode::kNoMarking) {
+    flags_to_clear |= MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING;
+    flags_to_clear |= MemoryChunk::INCREMENTAL_MARKING;
+  }
+
+  Chunk()->SetFlagsNonExecutable(flags_to_set, flags_to_set);
+  Chunk()->ClearFlagsNonExecutable(flags_to_clear);
+}
+
 size_t MutablePageMetadata::CommittedPhysicalMemory() const {
   if (!base::OS::HasLazyCommits() || Chunk()->IsLargePage()) return size();
   return active_system_pages_->Size(MemoryAllocator::GetCommitPageSizeBits());
 }
-
-// -----------------------------------------------------------------------------
-// MutablePageMetadata implementation
 
 void MutablePageMetadata::ReleaseAllocatedMemoryNeededForWritableChunk() {
   DCHECK(SweepingDone());
