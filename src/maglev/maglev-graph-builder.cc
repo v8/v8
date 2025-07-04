@@ -1592,24 +1592,31 @@ ReduceResult MaglevGraphBuilder::GetSmiValue(
   switch (representation) {
     case ValueRepresentation::kInt32: {
       if (NodeTypeIsSmi(node_info->type())) {
-        return alternative.set_tagged(AddNewNode<UnsafeSmiTagInt32>({value}));
+        return alternative.set_tagged(
+            AddNewNodeNoInputConversion<UnsafeSmiTagInt32>({value}));
       }
-      return alternative.set_tagged(AddNewNode<CheckedSmiTagInt32>({value}));
+      return alternative.set_tagged(
+          AddNewNodeNoInputConversion<CheckedSmiTagInt32>({value}));
     }
     case ValueRepresentation::kUint32: {
       if (NodeTypeIsSmi(node_info->type())) {
-        return alternative.set_tagged(AddNewNode<UnsafeSmiTagUint32>({value}));
+        return alternative.set_tagged(
+            AddNewNodeNoInputConversion<UnsafeSmiTagUint32>({value}));
       }
-      return alternative.set_tagged(AddNewNode<CheckedSmiTagUint32>({value}));
+      return alternative.set_tagged(
+          AddNewNodeNoInputConversion<CheckedSmiTagUint32>({value}));
     }
     case ValueRepresentation::kFloat64: {
-      return alternative.set_tagged(AddNewNode<CheckedSmiTagFloat64>({value}));
+      return alternative.set_tagged(
+          AddNewNodeNoInputConversion<CheckedSmiTagFloat64>({value}));
     }
     case ValueRepresentation::kHoleyFloat64: {
-      return alternative.set_tagged(AddNewNode<CheckedSmiTagFloat64>({value}));
+      return alternative.set_tagged(
+          AddNewNodeNoInputConversion<CheckedSmiTagFloat64>({value}));
     }
     case ValueRepresentation::kIntPtr:
-      return alternative.set_tagged(AddNewNode<CheckedSmiTagIntPtr>({value}));
+      return alternative.set_tagged(
+          AddNewNodeNoInputConversion<CheckedSmiTagIntPtr>({value}));
     case ValueRepresentation::kTagged:
       UNREACHABLE();
   }
@@ -15666,6 +15673,13 @@ template <typename NodeT, typename... Args>
 NodeT* MaglevGraphBuilder::AddNewNode(std::initializer_list<ValueNode*> inputs,
                                       Args&&... args) {
   return reducer_.AddNewNode<NodeT>(inputs, std::forward<Args>(args)...);
+}
+
+template <typename NodeT, typename... Args>
+NodeT* MaglevGraphBuilder::AddNewNodeNoInputConversion(
+    std::initializer_list<ValueNode*> inputs, Args&&... args) {
+  return reducer_.AddNewNodeNoInputConversion<NodeT>(
+      inputs, std::forward<Args>(args)...);
 }
 
 template <typename NodeT>

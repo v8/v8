@@ -690,6 +690,13 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
 #endif
 }
 
+inline bool ValueRepresentationIs(ValueRepresentation got,
+                                  ValueRepresentation expected) {
+  // Allow Float64 values to be inputs when HoleyFloat64 is expected.
+  return (got == expected) || (got == ValueRepresentation::kFloat64 &&
+                               expected == ValueRepresentation::kHoleyFloat64);
+}
+
 // ValueRepresentation doesn't distinguish between Int32 and TruncatedInt32:
 // both are Int32. For Phi untagging however, it's interesting to have a
 // difference between the 2, as a TruncatedInt32 would allow untagging to

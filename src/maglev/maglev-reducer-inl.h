@@ -89,13 +89,31 @@ NodeT* MaglevReducer<BaseT>::AddNewNode(
   if constexpr (Node::participate_in_cse(Node::opcode_of<NodeT>) &&
                 ReducerBaseWithKNA<BaseT>) {
     if (v8_flags.maglev_cse) {
-      return AddNewNodeOrGetEquivalent<NodeT>(inputs,
+      return AddNewNodeOrGetEquivalent<NodeT>(true, inputs,
                                               std::forward<Args>(args)...);
     }
   }
   NodeT* node =
       NodeBase::New<NodeT>(zone(), inputs.size(), std::forward<Args>(args)...);
   SetNodeInputs(node, inputs);
+  return AttachExtraInfoAndAddToGraph(node);
+}
+
+template <typename BaseT>
+template <typename NodeT, typename... Args>
+NodeT* MaglevReducer<BaseT>::AddNewNodeNoInputConversion(
+    std::initializer_list<ValueNode*> inputs, Args&&... args) {
+  static_assert(IsFixedInputNode<NodeT>());
+  if constexpr (Node::participate_in_cse(Node::opcode_of<NodeT>) &&
+                ReducerBaseWithKNA<BaseT>) {
+    if (v8_flags.maglev_cse) {
+      return AddNewNodeOrGetEquivalent<NodeT>(false, inputs,
+                                              std::forward<Args>(args)...);
+    }
+  }
+  NodeT* node =
+      NodeBase::New<NodeT>(zone(), inputs.size(), std::forward<Args>(args)...);
+  SetNodeInputsNoConversion(node, inputs);
   return AttachExtraInfoAndAddToGraph(node);
 }
 
@@ -115,7 +133,8 @@ NodeT* MaglevReducer<BaseT>::AddUnbufferedNewNode(
 template <typename BaseT>
 template <typename NodeT, typename... Args>
 NodeT* MaglevReducer<BaseT>::AddNewNodeOrGetEquivalent(
-    std::initializer_list<ValueNode*> raw_inputs, Args&&... args) {
+    bool convert_inputs, std::initializer_list<ValueNode*> raw_inputs,
+    Args&&... args) {
   DCHECK(v8_flags.maglev_cse);
   static constexpr Opcode op = Node::opcode_of<NodeT>;
   static_assert(Node::participate_in_cse(op));
@@ -133,9 +152,16 @@ NodeT* MaglevReducer<BaseT>::AddNewNodeOrGetEquivalent(
     int i = 0;
     constexpr UseReprHintRecording hint = ShouldRecordUseReprHint<NodeT>();
     for (ValueNode* raw_input : raw_inputs) {
-      // TODO(marja): Here we might already have the empty type for the
-      // node. Generate a deopt and make callers handle it.
-      inputs[i] = ConvertInputTo<hint>(raw_input, NodeT::kInputTypes[i]);
+      if (convert_inputs) {
+        // TODO(marja): Here we might already have the empty type for the
+        // node. Generate a deopt and make callers handle it.
+        inputs[i] = ConvertInputTo<hint>(raw_input, NodeT::kInputTypes[i]);
+      } else {
+        CHECK(ValueRepresentationIs(
+            raw_input->properties().value_representation(),
+            NodeT::kInputTypes[i]));
+        inputs[i] = raw_input;
+      }
       i++;
     }
     if constexpr (IsCommutativeNode(Node::opcode_of<NodeT>)) {
@@ -196,11 +222,7 @@ NodeT* MaglevReducer<BaseT>::AddNewNodeOrGetEquivalent(
   }
   NodeT* node =
       NodeBase::New<NodeT>(zone(), inputs.size(), std::forward<Args>(args)...);
-  int i = 0;
-  for (ValueNode* input : inputs) {
-    DCHECK_NOT_NULL(input);
-    node->set_input(i++, input);
-  }
+  SetNodeInputsNoConversion(node, inputs);
   DCHECK_EQ(node->options(), std::tuple{std::forward<Args>(args)...});
   uint32_t epoch = Node::needs_epoch_check(op)
                        ? known_node_aspects().effect_epoch()
@@ -268,9 +290,8 @@ ValueNode* MaglevReducer<BaseT>::ConvertInputTo(ValueNode* input,
 }
 
 template <typename BaseT>
-template <typename NodeT>
-void MaglevReducer<BaseT>::SetNodeInputs(
-    NodeT* node, std::initializer_list<ValueNode*> inputs) {
+template <typename NodeT, typename InputsT>
+void MaglevReducer<BaseT>::SetNodeInputs(NodeT* node, InputsT inputs) {
   // Nodes with zero input count don't have kInputTypes defined.
   if constexpr (NodeT::kInputCount > 0) {
     constexpr UseReprHintRecording hint = ShouldRecordUseReprHint<NodeT>();
@@ -278,6 +299,23 @@ void MaglevReducer<BaseT>::SetNodeInputs(
     for (ValueNode* input : inputs) {
       DCHECK_NOT_NULL(input);
       node->set_input(i, ConvertInputTo<hint>(input, NodeT::kInputTypes[i]));
+      i++;
+    }
+  }
+}
+
+template <typename BaseT>
+template <typename NodeT, typename InputsT>
+void MaglevReducer<BaseT>::SetNodeInputsNoConversion(NodeT* node,
+                                                     InputsT inputs) {
+  // Nodes with zero input count don't have kInputTypes defined.
+  if constexpr (NodeT::kInputCount > 0) {
+    int i = 0;
+    for (ValueNode* input : inputs) {
+      DCHECK_NOT_NULL(input);
+      CHECK(ValueRepresentationIs(input->properties().value_representation(),
+                                  NodeT::kInputTypes[i]));
+      node->set_input(i, input);
       i++;
     }
   }
@@ -402,32 +440,40 @@ ValueNode* MaglevReducer<BaseT>::GetTaggedValue(
     case ValueRepresentation::kInt32: {
       if (!IsEmptyNodeType(node_info->type()) &&
           NodeTypeIsSmi(node_info->type())) {
-        return alternative.set_tagged(AddNewNode<UnsafeSmiTagInt32>({value}));
+        return alternative.set_tagged(
+            AddNewNodeNoInputConversion<UnsafeSmiTagInt32>({value}));
       }
-      return alternative.set_tagged(AddNewNode<Int32ToNumber>({value}));
+      return alternative.set_tagged(
+          AddNewNodeNoInputConversion<Int32ToNumber>({value}));
     }
     case ValueRepresentation::kUint32: {
       if (!IsEmptyNodeType(node_info->type()) &&
           NodeTypeIsSmi(node_info->type())) {
-        return alternative.set_tagged(AddNewNode<UnsafeSmiTagUint32>({value}));
+        return alternative.set_tagged(
+            AddNewNodeNoInputConversion<UnsafeSmiTagUint32>({value}));
       }
-      return alternative.set_tagged(AddNewNode<Uint32ToNumber>({value}));
+      return alternative.set_tagged(
+          AddNewNodeNoInputConversion<Uint32ToNumber>({value}));
     }
     case ValueRepresentation::kFloat64: {
-      return alternative.set_tagged(AddNewNode<Float64ToTagged>(
-          {value}, Float64ToTagged::ConversionMode::kCanonicalizeSmi));
+      return alternative.set_tagged(
+          AddNewNodeNoInputConversion<Float64ToTagged>(
+              {value}, Float64ToTagged::ConversionMode::kCanonicalizeSmi));
     }
     case ValueRepresentation::kHoleyFloat64: {
-      return alternative.set_tagged(AddNewNode<HoleyFloat64ToTagged>(
-          {value}, HoleyFloat64ToTagged::ConversionMode::kForceHeapNumber));
+      return alternative.set_tagged(
+          AddNewNodeNoInputConversion<HoleyFloat64ToTagged>(
+              {value}, HoleyFloat64ToTagged::ConversionMode::kForceHeapNumber));
     }
 
     case ValueRepresentation::kIntPtr:
       if (!IsEmptyNodeType(node_info->type()) &&
           NodeTypeIsSmi(node_info->type())) {
-        return alternative.set_tagged(AddNewNode<UnsafeSmiTagIntPtr>({value}));
+        return alternative.set_tagged(
+            AddNewNodeNoInputConversion<UnsafeSmiTagIntPtr>({value}));
       }
-      return alternative.set_tagged(AddNewNode<IntPtrToNumber>({value}));
+      return alternative.set_tagged(
+          AddNewNodeNoInputConversion<IntPtrToNumber>({value}));
 
     case ValueRepresentation::kTagged:
       UNREACHABLE();

@@ -867,10 +867,7 @@ void CheckValueInputIs(const NodeBase* node, int i,
   ValueNode* input = node->input(i).node();
   DCHECK(!input->Is<Identity>());
   ValueRepresentation got = input->properties().value_representation();
-  // Allow Float64 values to be inputs when HoleyFloat64 is expected.
-  bool valid =
-      (got == expected) || (got == ValueRepresentation::kFloat64 &&
-                            expected == ValueRepresentation::kHoleyFloat64);
+  bool valid = ValueRepresentationIs(got, expected);
   if (!valid) {
     std::ostringstream str;
     str << "Type representation error: node ";

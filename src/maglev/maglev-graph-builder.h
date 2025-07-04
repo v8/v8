@@ -442,6 +442,9 @@ class MaglevGraphBuilder {
   // Add a new node with a static set of inputs.
   template <typename NodeT, typename... Args>
   NodeT* AddNewNode(std::initializer_list<ValueNode*> inputs, Args&&... args);
+  template <typename NodeT, typename... Args>
+  NodeT* AddNewNodeNoInputConversion(std::initializer_list<ValueNode*> inputs,
+                                     Args&&... args);
   template <typename NodeT>
   void AttachDeoptCheckpoint(NodeT* node);
   template <typename NodeT>

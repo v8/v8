@@ -245,6 +245,11 @@ class MaglevReducer {
                               std::initializer_list<ValueNode*> inputs,
                               Args&&... args);
 
+  // Add a new node with a static set of inputs.
+  template <typename NodeT, typename... Args>
+  NodeT* AddNewNodeNoInputConversion(std::initializer_list<ValueNode*> inputs,
+                                     Args&&... args);
+
   void AddInitializedNodeToGraph(Node* node);
 
   std::optional<int32_t> TryGetInt32Constant(ValueNode* value);
@@ -419,7 +424,8 @@ class MaglevReducer {
   };
 
   template <typename NodeT, typename... Args>
-  NodeT* AddNewNodeOrGetEquivalent(std::initializer_list<ValueNode*> raw_inputs,
+  NodeT* AddNewNodeOrGetEquivalent(bool convert_inputs,
+                                   std::initializer_list<ValueNode*> raw_inputs,
                                    Args&&... args);
 
   template <UseReprHintRecording hint = UseReprHintRecording::kRecord>
@@ -438,8 +444,15 @@ class MaglevReducer {
     }
   }
 
-  template <typename NodeT>
-  void SetNodeInputs(NodeT* node, std::initializer_list<ValueNode*> inputs);
+  // TODO(marja): When we have C++26, `inputs` can be std::span<ValueNode*>,
+  // since std::intializer_list can be converted to std::span.
+  template <typename NodeT, typename InputsT>
+  void SetNodeInputs(NodeT* node, InputsT inputs);
+
+  // TODO(marja): When we have C++26, `inputs` can be std::span<ValueNode*>,
+  // since std::intializer_list can be converted to std::span.
+  template <typename NodeT, typename InputsT>
+  void SetNodeInputsNoConversion(NodeT* node, InputsT inputs);
   template <typename NodeT>
   NodeT* AttachExtraInfoAndAddToGraph(NodeT* node);
   template <typename NodeT>
