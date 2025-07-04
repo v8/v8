@@ -414,6 +414,13 @@ ValueNode* MaglevReducer<BaseT>::GetTaggedValue(
     value->RecordUseReprHintIfPhi(UseRepresentation::kTagged);
   }
 
+  // TODO(victorgomes): Change identity value representation to unknown. Or
+  // modify OpProperties::value_representation to support Identity with multiple
+  // representations.
+  if (value->Is<Identity>()) {
+    return GetTaggedValue(value->input(0).node(), record_use_repr_hint);
+  }
+
   ValueRepresentation representation =
       value->properties().value_representation();
   if (representation == ValueRepresentation::kTagged) return value;
