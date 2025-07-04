@@ -3534,14 +3534,6 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
   // Restore esp to free the reserved stack slots for the sections.
   __ lea(esp, MemOperand(ebp, StackSwitchFrameConstants::kLastSpillOffset));
 
-  // Unset thread_in_wasm_flag.
-  Register thread_in_wasm_flag_addr = ecx;
-  __ mov(
-      thread_in_wasm_flag_addr,
-      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
-  __ mov(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(0));
-  thread_in_wasm_flag_addr = no_reg;
-
   // The exception becomes the parameter of the RejectPromise builtin, and the
   // promise is the return value of this wrapper.
   static const Builtin_RejectPromise_InterfaceDescriptor desc;
@@ -3682,15 +3674,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
     __ Movsd(wasm::kFpParamRegisters[i], MemOperand(params_start, next_offset));
   }
 
-  // Set the flag-in-wasm flag before loading the parameter registers. There are
-  // not so many registers, so we use one of the parameter registers before it
-  // is blocked.
-  Register thread_in_wasm_flag_addr = ecx;
-  __ mov(
-      thread_in_wasm_flag_addr,
-      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
-  __ mov(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(1));
-
   next_offset -= param_padding;
   for (size_t i = arraysize(wasm::kGpParamRegisters) - 1; i > 0; --i) {
     next_offset -= kSystemPointerSize;
@@ -3719,12 +3702,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
             Immediate(0));
   }
   __ CallWasmCodePointer(call_target);
-
-  __ mov(
-      thread_in_wasm_flag_addr,
-      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
-  __ mov(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(0));
-  thread_in_wasm_flag_addr = no_reg;
 
   wrapper_buffer = esi;
   __ mov(wrapper_buffer,

@@ -2116,9 +2116,6 @@ Tagged<Object> Isolate::Throw(Tagged<Object> raw_exception,
   DCHECK_IMPLIES(IsHole(raw_exception),
                  raw_exception == ReadOnlyRoots{this}.termination_exception());
   CHECK(IsOnCentralStack());
-#if V8_ENABLE_WEBASSEMBLY
-  trap_handler::AssertThreadNotInWasm();
-#endif
 
   HandleScope scope(this);
   DirectHandle<Object> exception(raw_exception, this);
@@ -2236,26 +2233,6 @@ Tagged<Object> Isolate::ReThrow(Tagged<Object> exception,
   return ReThrow(exception);
 }
 
-namespace {
-#if V8_ENABLE_WEBASSEMBLY
-// This scope will set the thread-in-wasm flag after the execution of all
-// destructors. The thread-in-wasm flag is only set when the scope gets enabled.
-class SetThreadInWasmFlagScope {
- public:
-  SetThreadInWasmFlagScope() { trap_handler::AssertThreadNotInWasm(); }
-
-  ~SetThreadInWasmFlagScope() {
-    if (enabled_) trap_handler::SetThreadInWasm();
-  }
-
-  void Enable() { enabled_ = true; }
-
- private:
-  bool enabled_ = false;
-};
-#endif  // V8_ENABLE_WEBASSEMBLY
-}  // namespace
-
 Tagged<Object> Isolate::UnwindAndFindHandler() {
   // TODO(v8:12676): Fix gcmole failures in this function.
   DisableGCMole no_gcmole;
@@ -2265,15 +2242,6 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
   // unwinding.
   clear_topmost_script_having_context();
 
-#if V8_ENABLE_WEBASSEMBLY
-  // Create the {SetThreadInWasmFlagScope} first in this function so that its
-  // destructor gets called after all the other destructors. It is important
-  // that the destructor sets the thread-in-wasm flag after all other
-  // destructors. The other destructors may cause exceptions, e.g. ASan on
-  // Windows, which would invalidate the thread-in-wasm flag when the wasm trap
-  // handler handles such non-wasm exceptions.
-  SetThreadInWasmFlagScope set_thread_in_wasm_flag_scope;
-#endif  // V8_ENABLE_WEBASSEMBLY
   Tagged<Object> exception = this->exception();
 
   auto FoundHandler = [&](StackFrameIterator& iter, Tagged<Context> context,
@@ -2476,9 +2444,6 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
           Address return_sp = *reinterpret_cast<Address*>(
               frame->fp() + WasmInterpreterCWasmEntryConstants::kSPFPOffset);
           const int handler_offset = table.LookupReturn(0);
-          if (trap_handler::IsThreadInWasm()) {
-            trap_handler::ClearThreadInWasm();
-          }
           return FoundHandler(iter, Context(), instruction_start,
                               handler_offset, code->constant_pool(), return_sp,
                               frame->fp(), visited_frames);
@@ -2505,9 +2470,6 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
 
 #if V8_ENABLE_DRUMBRAKE
       case StackFrame::WASM_INTERPRETER_ENTRY: {
-        if (trap_handler::IsThreadInWasm()) {
-          trap_handler::ClearThreadInWasm();
-        }
       } break;
 #endif  // V8_ENABLE_DRUMBRAKE
 
@@ -2542,10 +2504,6 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         }
 #endif  // V8_ENABLE_DRUMBRAKE
 
-        // This is going to be handled by WebAssembly, so we need to set the TLS
-        // flag. The {SetThreadInWasmFlagScope} will set the flag after all
-        // destructors have been executed.
-        set_thread_in_wasm_flag_scope.Enable();
         return FoundHandler(iter, Context(), wasm_code->instruction_start(),
                             offset, wasm_code->constant_pool(), return_sp,
                             frame->fp(), visited_frames);

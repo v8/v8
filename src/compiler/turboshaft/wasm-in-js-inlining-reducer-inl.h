@@ -57,35 +57,11 @@ class WasmInJSInliningReducer : public Next {
     uint32_t func_idx = descriptor->js_wasm_call_parameters->function_index();
 
     V<Any> result = TryInlineWasmCall(native_module, func_idx, arguments);
-    if (result.valid()) {
-      return result;
-    } else {
-      // The JS-to-Wasm wrapper was already inlined by the earlier TurboFan
-      // phase, specifically `JSInliner::ReduceJSWasmCall`. However, it did
-      // not toggle the thread-in-Wasm flag, since we don't want to set it
-      // in the inline case above.
-      // For the non-inline case, we need to toggle the flag now.
-      // TODO(dlehmann,353475584): Reuse the code from
-      // `WasmGraphBuilderBase::BuildModifyThreadInWasmFlag`, but that
-      // requires a different assembler stack...
-      OpIndex isolate_root = __ LoadRootRegister();
-      V<WordPtr> thread_in_wasm_flag_address =
-          __ Load(isolate_root, LoadOp::Kind::RawAligned().Immutable(),
-                  MemoryRepresentation::UintPtr(),
-                  Isolate::thread_in_wasm_flag_address_offset());
-      __ Store(thread_in_wasm_flag_address, __ Word32Constant(1),
-               LoadOp::Kind::RawAligned(), MemoryRepresentation::Int32(),
-               compiler::kNoWriteBarrier);
-
+    if (!result.valid()) {
       result =
           Next::ReduceCall(callee, frame_state, arguments, descriptor, effects);
-
-      __ Store(thread_in_wasm_flag_address, __ Word32Constant(0),
-               LoadOp::Kind::RawAligned(), MemoryRepresentation::Int32(),
-               compiler::kNoWriteBarrier);
-
-      return result;
     }
+    return result;
   }
 
  private:

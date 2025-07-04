@@ -1075,11 +1075,6 @@ FUNCTION_REFERENCE(baseline_pc_for_bytecode_offset, BaselinePCForBytecodeOffset)
 FUNCTION_REFERENCE(baseline_pc_for_next_executed_bytecode,
                    BaselinePCForNextExecutedBytecode)
 
-ExternalReference ExternalReference::thread_in_wasm_flag_address_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->thread_in_wasm_flag_address_address());
-}
-
 ExternalReference ExternalReference::invoke_function_callback_generic() {
   Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallbackGeneric);
   ExternalReference::Type thunk_type = ExternalReference::DIRECT_API_CALL;

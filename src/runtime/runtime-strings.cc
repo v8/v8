@@ -154,8 +154,6 @@ RUNTIME_FUNCTION(Runtime_StringSubstring) {
 }
 
 RUNTIME_FUNCTION(Runtime_StringAdd) {
-  // This is used by Wasm.
-  SaveAndClearThreadInWasmFlag non_wasm_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   DirectHandle<String> str1 = args.at<String>(0);
@@ -282,7 +280,6 @@ RUNTIME_FUNCTION(Runtime_InternalizeString) {
 }
 
 RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
-  SaveAndClearThreadInWasmFlag non_wasm_scope(isolate);
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
 
@@ -491,7 +488,6 @@ RUNTIME_FUNCTION(Runtime_StringGreaterThanOrEqual) {
 }
 
 RUNTIME_FUNCTION(Runtime_StringEqual) {
-  SaveAndClearThreadInWasmFlag non_wasm_scope(isolate);
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
   // This function can be called from Wasm: optimized Wasm code calls
@@ -515,7 +511,6 @@ RUNTIME_FUNCTION(Runtime_StringEqual) {
 }
 
 RUNTIME_FUNCTION(Runtime_StringCompare) {
-  SaveAndClearThreadInWasmFlag non_wasm_scope(isolate);
   DCHECK_EQ(2, args.length());
   HandleScope scope(isolate);
   DirectHandle<String> lhs(Cast<String>(args[0]), isolate);

@@ -577,33 +577,6 @@ Node* WasmGraphBuilder::TypeGuard(Node* value, wasm::ValueType type) {
                                     value, effect(), control()));
 }
 
-void WasmGraphBuilder::BuildModifyThreadInWasmFlagHelper(
-    Node* thread_in_wasm_flag_address, bool new_value) {
-  if (v8_flags.debug_code) {
-    Node* flag_value =
-        gasm_->Load(MachineType::Int32(), thread_in_wasm_flag_address, 0);
-    Node* check =
-        gasm_->Word32Equal(flag_value, Int32Constant(new_value ? 0 : 1));
-    Assert(check, new_value ? AbortReason::kUnexpectedThreadInWasmSet
-                            : AbortReason::kUnexpectedThreadInWasmUnset);
-  }
-
-  gasm_->Store({MachineRepresentation::kWord32, kNoWriteBarrier},
-               thread_in_wasm_flag_address, 0,
-               Int32Constant(new_value ? 1 : 0));
-}
-
-void WasmGraphBuilder::BuildModifyThreadInWasmFlag(bool new_value) {
-  if (!trap_handler::IsTrapHandlerEnabled()) return;
-  Node* isolate_root = BuildLoadIsolateRoot();
-
-  Node* thread_in_wasm_flag_address =
-      gasm_->Load(MachineType::Pointer(), isolate_root,
-                  Isolate::thread_in_wasm_flag_address_offset());
-
-  BuildModifyThreadInWasmFlagHelper(thread_in_wasm_flag_address, new_value);
-}
-
 void WasmGraphBuilder::Assert(Node* condition, AbortReason abort_reason) {
   if (!v8_flags.debug_code) return;
 
@@ -670,50 +643,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       : WasmGraphBuilder(nullptr, zone, mcgraph, nullptr, spt, parameter_mode,
                          isolate, wasm::WasmEnabledFeatures::All(), sig) {}
 
-  class ModifyThreadInWasmFlagScope {
-   public:
-    ModifyThreadInWasmFlagScope(
-        WasmWrapperGraphBuilder* wasm_wrapper_graph_builder,
-        WasmGraphAssembler* gasm)
-        : wasm_wrapper_graph_builder_(wasm_wrapper_graph_builder) {
-      if (!trap_handler::IsTrapHandlerEnabled()) return;
-      Node* isolate_root = wasm_wrapper_graph_builder_->BuildLoadIsolateRoot();
-
-      thread_in_wasm_flag_address_ =
-          gasm->Load(MachineType::Pointer(), isolate_root,
-                     Isolate::thread_in_wasm_flag_address_offset());
-
-      wasm_wrapper_graph_builder_->BuildModifyThreadInWasmFlagHelper(
-          thread_in_wasm_flag_address_, true);
-    }
-
-    ModifyThreadInWasmFlagScope(const ModifyThreadInWasmFlagScope&) = delete;
-
-    ~ModifyThreadInWasmFlagScope() {
-      if (!trap_handler::IsTrapHandlerEnabled()) return;
-
-      wasm_wrapper_graph_builder_->BuildModifyThreadInWasmFlagHelper(
-          thread_in_wasm_flag_address_, false);
-    }
-
-   private:
-    WasmWrapperGraphBuilder* wasm_wrapper_graph_builder_;
-    Node* thread_in_wasm_flag_address_;
-  };
-
   Node* BuildCallAndReturn(Node* js_context, Node* function_data,
                            base::SmallVector<Node*, 16> args, Node* frame_state,
                            bool set_in_wasm_flag) {
     const int rets_count = static_cast<int>(wrapper_sig_->return_count());
     base::SmallVector<Node*, 1> rets(rets_count);
-
-    // Set the ThreadInWasm flag before we do the actual call.
-    {
-      std::optional<ModifyThreadInWasmFlagScope>
-          modify_thread_in_wasm_flag_builder;
-      if (set_in_wasm_flag) {
-        modify_thread_in_wasm_flag_builder.emplace(this, gasm_.get());
-      }
 
       // Call to an import or a wasm function defined in this module.
       // The (cached) call target is the jump table slot for that function.
@@ -731,7 +665,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                         WasmInternalFunction::kProtectedImplicitArgOffset));
       BuildWasmCall(wrapper_sig_, base::VectorOf(args), base::VectorOf(rets),
                     wasm::kNoCodePosition, implicit_arg, true, frame_state);
-    }
 
     Node* jsval;
     if (wrapper_sig_->return_count() == 0) {
@@ -928,8 +861,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     Node* undefined_node = UndefinedValue();
 
-    BuildModifyThreadInWasmFlag(false);
-
     DirectHandle<JSFunction> target;
     Node* target_node;
     Node* receiver_node;
@@ -1007,8 +938,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           UNREACHABLE();
         });
     BuildSwitchBackFromCentralStack(old_sp);
-
-    BuildModifyThreadInWasmFlag(true);
 
     Return(call);
   }

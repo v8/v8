@@ -649,7 +649,6 @@ void Execution::CallWasm(Isolate* isolate, DirectHandle<Code> wrapper_code,
 #endif
   isolate->thread_local_top()->handler_ =
       reinterpret_cast<Address>(&stack_handler);
-  trap_handler::SetThreadInWasm();
 
   {
     RCS_SCOPE(isolate, RuntimeCallCounterId::kJS_Execution);
@@ -663,11 +662,6 @@ void Execution::CallWasm(Isolate* isolate, DirectHandle<Code> wrapper_code,
     if (result != kNullAddress) isolate->set_exception(Tagged<Object>(result));
   }
 
-  // If there was an exception, then the thread-in-wasm flag is cleared
-  // already.
-  if (trap_handler::IsThreadInWasm()) {
-    trap_handler::ClearThreadInWasm();
-  }
   isolate->thread_local_top()->handler_ = stack_handler.next;
   if (saved_js_entry_sp == kNullAddress) {
     *isolate->js_entry_sp_address() = saved_js_entry_sp;

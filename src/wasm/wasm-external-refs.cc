@@ -703,41 +703,6 @@ void f16x8_qfms_wrapper(Address data) {
 }
 
 namespace {
-class V8_NODISCARD ThreadNotInWasmScope {
-// Asan on Windows triggers exceptions to allocate shadow memory lazily. When
-// this function is called from WebAssembly, these exceptions would be handled
-// by the trap handler before they get handled by Asan, and thereby confuse the
-// thread-in-wasm flag. Therefore we disable ASAN for this function.
-// Alternatively we could reset the thread-in-wasm flag before calling this
-// function. However, as this is only a problem with Asan on Windows, we did not
-// consider it worth the overhead.
-#if defined(RESET_THREAD_IN_WASM_FLAG_FOR_ASAN_ON_WINDOWS)
-
- public:
-  ThreadNotInWasmScope() : thread_was_in_wasm_(trap_handler::IsThreadInWasm()) {
-    if (thread_was_in_wasm_) {
-      trap_handler::ClearThreadInWasm();
-    }
-  }
-
-  ~ThreadNotInWasmScope() {
-    if (thread_was_in_wasm_) {
-      trap_handler::SetThreadInWasm();
-    }
-  }
-
- private:
-  bool thread_was_in_wasm_;
-#else
-
- public:
-  ThreadNotInWasmScope() {
-    // This is needed to avoid compilation errors (unused variable).
-    USE(this);
-  }
-#endif
-};
-
 inline uint8_t* EffectiveAddress(Tagged<WasmTrustedInstanceData> trusted_data,
                                  uint32_t mem_index, uintptr_t index) {
   return trusted_data->memory_base(mem_index) + index;
@@ -757,7 +722,6 @@ constexpr int32_t kOutOfBounds = 0;
 int32_t memory_init_wrapper(Address trusted_data_addr, uint32_t mem_index,
                             uintptr_t dst, uint32_t src, uint32_t seg_index,
                             uint32_t size) {
-  ThreadNotInWasmScope thread_not_in_wasm_scope;
   DisallowGarbageCollection no_gc;
   Tagged<WasmTrustedInstanceData> trusted_data =
       Cast<WasmTrustedInstanceData>(Tagged<Object>{trusted_data_addr});
@@ -778,7 +742,6 @@ int32_t memory_init_wrapper(Address trusted_data_addr, uint32_t mem_index,
 int32_t memory_copy_wrapper(Address trusted_data_addr, uint32_t dst_mem_index,
                             uint32_t src_mem_index, uintptr_t dst,
                             uintptr_t src, uintptr_t size) {
-  ThreadNotInWasmScope thread_not_in_wasm_scope;
   DisallowGarbageCollection no_gc;
   Tagged<WasmTrustedInstanceData> trusted_data =
       Cast<WasmTrustedInstanceData>(Tagged<Object>{trusted_data_addr});
@@ -797,7 +760,6 @@ int32_t memory_copy_wrapper(Address trusted_data_addr, uint32_t dst_mem_index,
 
 int32_t memory_fill_wrapper(Address trusted_data_addr, uint32_t mem_index,
                             uintptr_t dst, uint8_t value, uintptr_t size) {
-  ThreadNotInWasmScope thread_not_in_wasm_scope;
   DisallowGarbageCollection no_gc;
 
   Tagged<WasmTrustedInstanceData> trusted_data =
@@ -826,7 +788,6 @@ void array_copy_wrapper(Address raw_dst_array, uint32_t dst_index,
                         Address raw_src_array, uint32_t src_index,
                         uint32_t length) {
   DCHECK_GT(length, 0);
-  ThreadNotInWasmScope thread_not_in_wasm_scope;
   DisallowGarbageCollection no_gc;
   Tagged<WasmArray> dst_array = Cast<WasmArray>(Tagged<Object>(raw_dst_array));
   Tagged<WasmArray> src_array = Cast<WasmArray>(Tagged<Object>(raw_src_array));
@@ -864,7 +825,6 @@ void array_copy_wrapper(Address raw_dst_array, uint32_t dst_index,
 void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
                         uint32_t emit_write_barrier, uint32_t raw_type,
                         Address initial_value_addr) {
-  ThreadNotInWasmScope thread_not_in_wasm_scope;
   DisallowGarbageCollection no_gc;
   ValueType type = ValueType::FromRawBitField(raw_type);
   int8_t* initial_element_address = reinterpret_cast<int8_t*>(
