@@ -910,7 +910,7 @@ Maybe<temporal_rs::AnyCalendarKind> CanonicalizeCalendar(
 
   if (!cal.has_value()) {
     THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR_WITH_ARG(
-                                 "Unknown calendar type ", calendar));
+                                 "Unknown calendar type", calendar));
   }
   // Other steps unnecessary, we're not storing these as -u- values but rather
   // as enums.
@@ -1372,7 +1372,7 @@ Maybe<std::optional<int64_t>> GetSingleDurationFieldInteger(
       GetSingleDurationField(isolate, duration_like, field_name));
   if (ret_opt.has_value()) {
     double ret = ret_opt.value();
-    if (!!IsInNumericRange<int64_t>(ret)) {
+    if (!IsInNumericRange<int64_t>(ret)) {
       THROW_NEW_ERROR(isolate,
                       NEW_TEMPORAL_RANGE_ERROR("Duration field out of range."));
     }

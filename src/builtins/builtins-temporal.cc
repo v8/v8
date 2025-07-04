@@ -129,6 +129,15 @@ namespace internal {
 #define CONVERT_ASCII_STRING \
   return *isolate->factory()->NewStringFromAsciiChecked(value);
 
+// Converts empty to undefined (temporal_capi returns empty era codes when
+// undefined)
+#define CONVERT_NULLABLE_ASCII_STRING                             \
+  if (!value.empty()) {                                           \
+    return *isolate->factory()->NewStringFromAsciiChecked(value); \
+  } else {                                                        \
+    return *isolate->factory()->undefined_value();                \
+  }
+
 // converts nullopt to undefined
 #define CONVERT_NULLABLE_INTEGER                          \
   if (value.has_value()) {                                \
@@ -196,7 +205,7 @@ TEMPORAL_METHOD2(PlainDate, Compare)
 
 TEMPORAL_GET_RUST(PlainDate, date, CalendarId, calendarId,
                   calendar().identifier, CONVERT_ASCII_STRING)
-TEMPORAL_GET_RUST(PlainDate, date, Era, era, era, CONVERT_ASCII_STRING)
+TEMPORAL_GET_RUST(PlainDate, date, Era, era, era, CONVERT_NULLABLE_ASCII_STRING)
 TEMPORAL_GET_RUST(PlainDate, date, EraYear, eraYear, era_year,
                   CONVERT_NULLABLE_INTEGER)
 TEMPORAL_GET_RUST(PlainDate, date, Year, year, year, CONVERT_INTEGER64)
@@ -302,7 +311,8 @@ TEMPORAL_METHOD2(PlainDateTime, Compare)
 TEMPORAL_GET_RUST(PlainDateTime, date_time, CalendarId, calendarId,
                   calendar().identifier, CONVERT_ASCII_STRING)
 TEMPORAL_GET_RUST(PlainDateTime, date_time, Year, year, year, CONVERT_INTEGER64)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Era, era, era, CONVERT_ASCII_STRING)
+TEMPORAL_GET_RUST(PlainDateTime, date_time, Era, era, era,
+                  CONVERT_NULLABLE_ASCII_STRING)
 TEMPORAL_GET_RUST(PlainDateTime, date_time, EraYear, eraYear, era_year,
                   CONVERT_NULLABLE_INTEGER)
 TEMPORAL_GET_RUST(PlainDateTime, date_time, Month, month, month, CONVERT_SMI)
