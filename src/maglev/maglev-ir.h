@@ -1494,10 +1494,12 @@ class OpProperties {
     return OpProperties(kNeedsRegisterSnapshotBit::encode(true));
   }
 
-  const uint32_t bitfield_;
+  const uint16_t bitfield_;
 
  public:
-  static const size_t kSize = kNeedsRegisterSnapshotBit::kLastUsedBit + 1;
+  static const size_t kUsedSize = kNeedsRegisterSnapshotBit::kLastUsedBit + 1;
+  static const size_t kSize = 16;
+  static_assert(kUsedSize <= kSize);
 
   constexpr bool is_deferred_call() const {
     // Currently, there is no kDeferredCall bit, but DeferredCall only sets a
@@ -2167,19 +2169,18 @@ struct KnownNodeAspects;
 class NodeBase : public ZoneObject {
  private:
   // Bitfield specification.
+  // [opcode:16][input_count:16][properties:16][extras:16]
   using OpcodeField = base::BitField64<Opcode, 0, 16>;
   static_assert(OpcodeField::is_valid(kLastOpcode));
+  using InputCountField = OpcodeField::Next<size_t, 16>;
   using OpPropertiesField =
-      OpcodeField::Next<OpProperties, OpProperties::kSize>;
+      InputCountField::Next<OpProperties, OpProperties::kSize>;
   using NumTemporariesNeededField = OpPropertiesField::Next<uint8_t, 2>;
   using NumDoubleTemporariesNeededField =
       NumTemporariesNeededField::Next<uint8_t, 1>;
-  using InputCountField = NumDoubleTemporariesNeededField::Next<size_t, 17>;
-  static_assert(InputCountField::kShift == 32);
-
  protected:
   // Reserved for intermediate superclasses such as ValueNode.
-  using ReservedField = InputCountField::Next<bool, 1>;
+  using ReservedField = NumDoubleTemporariesNeededField::Next<bool, 1>;
   // Subclasses may use the remaining bitfield bits.
   template <class T, int size>
   using NextBitField = ReservedField::Next<T, size>;
