@@ -107,6 +107,10 @@ class V8_EXPORT_PRIVATE INSTRUCTION_OPERAND_ALIGN InstructionOperand {
   inline bool IsSimd128StackSlot() const;
   inline bool IsSimd256StackSlot() const;
 
+#if defined(V8_TARGET_ARCH_X64)
+  inline bool CanBeSimd128Register() const;
+#endif
+
   template <typename SubKindOperand>
   static SubKindOperand* New(Zone* zone, const SubKindOperand& op) {
     return zone->New<SubKindOperand>(op);
@@ -676,6 +680,20 @@ bool InstructionOperand::IsSimd128Register() const {
   return IsAnyRegister() && LocationOperand::cast(this)->representation() ==
                                 MachineRepresentation::kSimd128;
 }
+
+#if defined(V8_TARGET_ARCH_X64)
+bool InstructionOperand::CanBeSimd128Register() const {
+  // IsSimd128Register is called for multiple purposes. Use this function when
+  // we need to use a simd128 register only. On x64, Simd256 and Simd128 share
+  // identical register code.
+  if (IsAnyRegister()) {
+    MachineRepresentation rep = LocationOperand::cast(this)->representation();
+    return rep == MachineRepresentation::kSimd128 ||
+           rep == MachineRepresentation::kSimd256;
+  }
+  return false;
+}
+#endif
 
 bool InstructionOperand::IsSimd256Register() const {
   return IsAnyRegister() && LocationOperand::cast(this)->representation() ==

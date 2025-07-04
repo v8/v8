@@ -5104,6 +5104,96 @@ TEST(RunWasmTurbofan_ExtractCallParameterRevec) {
   CHECK_EQ(34.0f, r.Call(0, 32));
 }
 
+void RunExtractByShuffleRevecTest(
+    const std::array<int8_t, kSimd128Size>& shuffle) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+
+  // Build fn to add a i32x8 vector by a constant splat, shuffle the two i32x4
+  // vectors and store the result to memory:
+  // v128 temp1 = *a; v128 temp2 = *(a + 16);
+  // v128 temp3 = temp1 + i32x4.splat(1);
+  // v128 temp4 = temp2 + i32x4.splat(2);
+  // v128 *(b) = temp3;
+  // v128 *(b+16) = temp4;
+  // v128 *(b+32) = i8x16.shuffle(temp2, temp1, shuffle)
+  // temp1 and temp2 will be extracted from YMM registers, and extract of temp1
+  // will be omitted due to alias to xmm at lower 128-bit. Use temp1 at input 1
+  // that will be checked by CanBeSimd128Register.
+  int8_t* memory = r.builder().AddMemoryElems<int8_t>(80);
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  uint8_t temp4 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimd256Binop>);
+    r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+             WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM_OFFSET(
+                                       offset, WASM_LOCAL_GET(param1))),
+             WASM_LOCAL_SET(
+                 temp3, WASM_SIMD_BINOP(kExprI32x4Add, WASM_LOCAL_GET(temp1),
+                                        WASM_SIMD_I32x4_SPLAT(WASM_I32V(1)))),
+             WASM_LOCAL_SET(
+                 temp4, WASM_SIMD_BINOP(kExprI32x4Add, WASM_LOCAL_GET(temp2),
+                                        WASM_SIMD_I32x4_SPLAT(WASM_I32V(1)))),
+             WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp3)),
+             WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                        WASM_LOCAL_GET(temp4)),
+             WASM_SIMD_STORE_MEM_OFFSET(
+                 offset * 2, WASM_LOCAL_GET(param2),
+                 WASM_SIMD_I8x16_SHUFFLE_OP(kExprI8x16Shuffle, shuffle,
+                                            WASM_LOCAL_GET(temp2),
+                                            WASM_LOCAL_GET(temp1))),
+             WASM_ONE});
+  }
+
+  for (int i = 0; i < 16; ++i) {
+    r.builder().WriteMemory(&memory[i], static_cast<int8_t>(i + 16));
+    r.builder().WriteMemory(&memory[i + 16], static_cast<int8_t>(i));
+  }
+  r.Call(0, 32);
+  for (int i = 0; i < 16; ++i) {
+    CHECK_EQ(shuffle[i], r.builder().ReadMemory(&memory[i + 64]));
+  }
+}
+
+TEST(RunWasmTurbofan_Extract128LowForUnzipLow) {
+  ShuffleMap::const_iterator it = test_shuffles.find(kS8x16UnzipLeft);
+  DCHECK_NE(it, test_shuffles.end());
+  // ExtractF128 used by S8x16UnzipLow and checked in ASSEMBLE_SIMD_INSTR.
+  RunExtractByShuffleRevecTest(it->second);
+}
+
+TEST(RunWasmTurbofan_Extract128LowForUnpackLow) {
+  // shuffle32x4 [0,4,1,5]
+  const std::array<int8_t, 16> shuffle_unpack_low = {
+      0, 1, 2, 3, 16, 17, 18, 19, 4, 5, 6, 7, 20, 21, 22, 23};
+  // ExtractF128 used by S32x4UnpackLow and checked in
+  // ASSEMBLE_SIMD_PUNPCK_SHUFFLE.
+  RunExtractByShuffleRevecTest(shuffle_unpack_low);
+}
+
+TEST(RunWasmTurbofan_Extract128LowForS32x4Shuffle) {
+  // shuffle32x4 [0,1,2,4]
+  const std::array<int8_t, 16> shuffle = {0, 1, 2,  3,  4,  5,  6,  7,
+                                          8, 9, 10, 11, 16, 17, 18, 19};
+  // ExtractF128 used by S32x4Shuffle and checked in ASSEMBLE_SIMD_IMM_INSTR.
+  RunExtractByShuffleRevecTest(shuffle);
+}
+
+TEST(RunWasmTurbofan_Extract128LowForS16x8Blend) {
+  const std::array<int8_t, 16> shuffle_16x8_blend = {
+      0, 1, 18, 19, 4, 5, 22, 23, 8, 9, 26, 27, 12, 13, 30, 31};
+  // ExtractF128 used by S16x8Blend and checked in ASSEMBLE_SIMD_IMM_SHUFFLE.
+  RunExtractByShuffleRevecTest(shuffle_16x8_blend);
+}
+
 TEST(RunWasmTurbofan_LoadStoreOOBRevec) {
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
@@ -5117,7 +5207,7 @@ TEST(RunWasmTurbofan_LoadStoreOOBRevec) {
   constexpr uint8_t offset = 16;
   {
     TSSimd256VerifyScope ts_scope(r.zone());
-    // Load a F32x8 vectori, calculate the Abs and store the result to memory.
+    // Load a F32x8 vector, calculate the Abs and store the result to memory.
     r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
              WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM_OFFSET(
                                        offset, WASM_LOCAL_GET(param1))),
@@ -5497,7 +5587,6 @@ TEST(RunWasmTurbofan_ShuffleVpshufd) {
     constexpr std::array<int32_t, 8> input = {1, 2, 3, 4, 5, 6, 7, 8};
     constexpr std::array<int32_t, 8> expected = {2, 3, 4, 0x1010101,
                                                  6, 7, 8, 0x5050505};
-
     WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
     build_fn(r, shuffle, ExpectedResult::kFail);
     init_memory(r, input);
@@ -5588,6 +5677,7 @@ TEST(RunWasmTurbofan_I8x32ShuffleShufps) {
              WASM_SIMD_I8x16_SHUFFLE_OP(kExprI8x16Shuffle, shuffle,
                                         WASM_LOCAL_GET(temp1),
                                         WASM_LOCAL_GET(temp3))),
+
          WASM_SIMD_STORE_MEM_OFFSET(
              16 * 5, WASM_ZERO,
              WASM_SIMD_I8x16_SHUFFLE_OP(kExprI8x16Shuffle, shuffle,
