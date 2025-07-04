@@ -49,11 +49,13 @@ inline bool Is(Tagged<U> value) {
 template <typename T, typename U>
 inline bool Is(IndirectHandle<U> value);
 template <typename T, typename U>
-inline bool Is(MaybeIndirectHandle<U> value);
-template <typename T, typename U>
 inline bool Is(DirectHandle<U> value);
+// Is<T> checks for MaybeHandles are forbidden -- you need to first convert to
+// a Handle with ToHandle or ToHandleChecked.
 template <typename T, typename U>
-inline bool Is(MaybeDirectHandle<U> value);
+bool Is(MaybeIndirectHandle<U> value) = delete;
+template <typename T, typename U>
+bool Is(MaybeDirectHandle<U> value) = delete;
 
 // `UncheckedCast<T>(value)` casts `value` to a tagged object of type `T`,
 // without checking the type of value.
@@ -73,7 +75,7 @@ inline MaybeDirectHandle<To> UncheckedCast(MaybeDirectHandle<From> value);
 // HasCastImplementation is a concept that checks for the existence of
 // Is<To>(Holder<From>) and UncheckedCast<To>(Holder<From>).
 template <template <typename> class Holder, typename To, typename From>
-concept HasCastImplementation = requires(Holder<From> value) {
+concept HasTryCastImplementation = requires(Holder<From> value) {
   { Is<To>(value) } -> std::same_as<bool>;
   { UncheckedCast<To>(value) } -> std::same_as<Holder<To>>;
 };
@@ -82,7 +84,7 @@ concept HasCastImplementation = requires(Holder<From> value) {
 // writes the value to `out`, returning true if the cast succeeded and false if
 // it failed.
 template <typename To, typename From, template <typename> class Holder>
-  requires HasCastImplementation<Holder, To, From>
+  requires HasTryCastImplementation<Holder, To, From>
 inline bool TryCast(Holder<From> value, Holder<To>* out) {
   if (!Is<To>(value)) return false;
   *out = UncheckedCast<To>(value);
@@ -115,13 +117,48 @@ Tagged<T> GCSafeCast(Tagged<Object> object, const Heap* heap) {
   return UncheckedCast<T>(object);
 }
 
+// Check if a value holder is null -- used for Cast DCHECKs, so that null
+// handles pass the check.
+template <typename T, typename U>
+inline bool NullOrIs(Tagged<U> value) {
+  // Raw tagged values are not allowed to be null, just check Is<T>.
+  return Is<T>(value);
+}
+template <typename T, typename U>
+inline bool NullOrIs(IndirectHandle<U> value) {
+  return value.is_null() || Is<T>(value);
+}
+template <typename T, typename U>
+inline bool NullOrIs(DirectHandle<U> value) {
+  return value.is_null() || Is<T>(value);
+}
+template <typename T, typename U>
+inline bool NullOrIs(MaybeIndirectHandle<U> value) {
+  IndirectHandle<U> handle;
+  return !value.ToHandle(&handle) || Is<T>(handle);
+}
+template <typename T, typename U>
+inline bool NullOrIs(MaybeDirectHandle<U> value) {
+  DirectHandle<U> handle;
+  return !value.ToHandle(&handle) || Is<T>(handle);
+}
+
+// HasCastImplementation is a concept that checks for the existence of
+// NullOrIs<To>(Holder<From>) and UncheckedCast<To>(Holder<From>).
+template <template <typename> class Holder, typename To, typename From>
+concept HasCastImplementation = requires(Holder<From> value) {
+  { NullOrIs<To>(value) } -> std::same_as<bool>;
+  { UncheckedCast<To>(value) } -> std::same_as<Holder<To>>;
+};
+
 // `Cast<T>(value)` casts `value` to a tagged object of type `T`, with a debug
-// check that `value` is a tagged object of type `T`.
+// check that `value` is a tagged object of type `T`. Null-valued holders are
+// allowed.
 template <typename To, typename From, template <typename> class Holder>
   requires HasCastImplementation<Holder, To, From>
 inline Holder<To> Cast(Holder<From> value, const v8::SourceLocation& loc =
                                                INIT_SOURCE_LOCATION_IN_DEBUG) {
-  DCHECK_WITH_MSG_AND_LOC(Is<To>(value),
+  DCHECK_WITH_MSG_AND_LOC(NullOrIs<To>(value),
                           V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
   return UncheckedCast<To>(value);
 }

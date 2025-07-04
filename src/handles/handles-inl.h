@@ -49,7 +49,7 @@ Handle<T> Handle<T>::New(Tagged<T> object, Isolate* isolate) {
 
 template <typename T, typename U>
 inline bool Is(IndirectHandle<U> value) {
-  return value.is_null() || Is<T>(*value);
+  return Is<T>(*value);
 }
 template <typename To, typename From>
 inline Handle<To> UncheckedCast(Handle<From> value) {
@@ -114,7 +114,7 @@ V8_INLINE DirectHandle<T>::DirectHandle(Tagged<T> object)
 
 template <typename T, typename U>
 inline bool Is(DirectHandle<U> value) {
-  return value.is_null() || Is<T>(*value);
+  return Is<T>(*value);
 }
 template <typename To, typename From>
 inline DirectHandle<To> UncheckedCast(DirectHandle<From> value) {
@@ -125,7 +125,7 @@ inline DirectHandle<To> UncheckedCast(DirectHandle<From> value) {
 
 template <typename T, typename U>
 inline bool Is(DirectHandle<U> value) {
-  return value.is_null() || Is<T>(*value);
+  return Is<T>(*value);
 }
 template <typename To, typename From>
 inline DirectHandle<To> UncheckedCast(DirectHandle<From> value) {
