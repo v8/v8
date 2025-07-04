@@ -492,6 +492,7 @@ void WasmInterpreterThread::RaiseException(Isolate* isolate,
                                            MessageTemplate message) {
   DCHECK_EQ(WasmInterpreterThread::TRAPPED, state_);
   if (!isolate->has_exception()) {
+    ClearThreadInWasmScope wasm_flag(isolate);
     DirectHandle<JSObject> error_obj =
         isolate->factory()->NewWasmRuntimeError(message);
     JSObject::AddProperty(isolate, error_obj,
@@ -576,6 +577,8 @@ INSTRUCTION_HANDLER_FUNC TrapMemOutOfBounds(
 
 void InitTrapHandlersOnce(Isolate* isolate) {
   CHECK_LE(kInstructionCount, kInstructionTableSize);
+
+  ClearThreadInWasmScope wasm_flag(isolate);
 
   // Overwrites the instruction handlers that access memory and can cause an
   // out-of-bounds trap with builtin versions that don't have explicit bounds
@@ -13177,6 +13180,23 @@ bool WasmBytecodeGenerator::TryCompactInstructionHandler(
     return true;
   }
   return false;
+}
+
+ClearThreadInWasmScope::ClearThreadInWasmScope(Isolate* isolate)
+    : isolate_(isolate) {
+  DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
+                 trap_handler::IsThreadInWasm());
+  trap_handler::ClearThreadInWasm();
+}
+
+ClearThreadInWasmScope ::~ClearThreadInWasmScope() {
+  DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
+                 !trap_handler::IsThreadInWasm());
+  if (!isolate_->has_exception()) {
+    trap_handler::SetThreadInWasm();
+  }
+  // Otherwise we only want to set the flag if the exception is caught in
+  // wasm. This is handled by the unwinder.
 }
 
 }  // namespace wasm

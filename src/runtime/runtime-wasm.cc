@@ -103,6 +103,46 @@ Tagged<Context> GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
   return GetWasmInstanceDataOnStackTop(isolate)->native_context();
 }
 
+// TODO(jkummerow): Merge this with {SaveAndClearThreadInWasmFlag} from
+// runtime-utils.h.
+class V8_NODISCARD ClearThreadInWasmScope {
+ public:
+  explicit ClearThreadInWasmScope(Isolate* isolate)
+      : isolate_(isolate), is_thread_in_wasm_(trap_handler::IsThreadInWasm()) {
+    // In some cases we call this from Wasm code inlined into JavaScript
+    // so the flag might not be set.
+    if (is_thread_in_wasm_) {
+      trap_handler::ClearThreadInWasm();
+    }
+
+#if V8_ENABLE_DRUMBRAKE
+    if (v8_flags.wasm_enable_exec_time_histograms && v8_flags.slow_histograms &&
+        !v8_flags.wasm_jitless) {
+      isolate->wasm_execution_timer()->Stop();
+    }
+#endif  // V8_ENABLE_DRUMBRAKE
+  }
+  ~ClearThreadInWasmScope() {
+    trap_handler::AssertThreadNotInWasm();
+    if (!isolate_->has_exception() && is_thread_in_wasm_) {
+      trap_handler::SetThreadInWasm();
+
+#if V8_ENABLE_DRUMBRAKE
+      if (v8_flags.wasm_enable_exec_time_histograms &&
+          v8_flags.slow_histograms && !v8_flags.wasm_jitless) {
+        isolate_->wasm_execution_timer()->Start();
+      }
+#endif  // V8_ENABLE_DRUMBRAKE
+    }
+    // Otherwise we only want to set the flag if the exception is caught in
+    // wasm. This is handled by the unwinder.
+  }
+
+ private:
+  Isolate* isolate_;
+  const bool is_thread_in_wasm_;
+};
+
 Tagged<Object> ThrowWasmError(
     Isolate* isolate, MessageTemplate message,
     std::initializer_list<DirectHandle<Object>> args = {}) {
@@ -176,6 +216,7 @@ RUNTIME_FUNCTION(Runtime_WasmGenericJSToWasmObject) {
 // Type checks the object against the type; if the check succeeds, returns the
 // object in its wasm representation; otherwise throws a type error.
 RUNTIME_FUNCTION(Runtime_WasmJSToWasmObject) {
+  SaveAndClearThreadInWasmFlag non_wasm_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   DirectHandle<Object> value(args[0], isolate);
@@ -197,6 +238,7 @@ RUNTIME_FUNCTION(Runtime_WasmJSToWasmObject) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
@@ -216,6 +258,7 @@ RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
 }
 
 RUNTIME_FUNCTION(Runtime_TrapHandlerThrowWasmError) {
+  ClearThreadInWasmScope flag_scope(isolate);
   CHECK(isolate->IsOnCentralStack());
   HandleScope scope(isolate);
   FrameFinder<WasmFrame> frame_finder(isolate, {StackFrame::EXIT});
@@ -252,6 +295,7 @@ RUNTIME_FUNCTION(Runtime_TrapHandlerThrowWasmError) {
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
+  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK(isolate->IsOnCentralStack());
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -260,12 +304,27 @@ RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmStackOverflow) {
+  ClearThreadInWasmScope clear_wasm_flag(isolate);
   SealHandleScope shs(isolate);
   DCHECK_LE(0, args.length());
   return isolate->StackOverflow();
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrowJSTypeError) {
+  // The caller may be wasm or JS. Only clear the thread_in_wasm flag if the
+  // caller is wasm, and let the unwinder set it back depending on the handler.
+  if (trap_handler::IsTrapHandlerEnabled() && trap_handler::IsThreadInWasm()) {
+#if V8_ENABLE_DRUMBRAKE
+    // Transitioning from Wasm To JS.
+    if (v8_flags.wasm_enable_exec_time_histograms && v8_flags.slow_histograms &&
+        !v8_flags.wasm_jitless) {
+      // Stop measuring the time spent running jitted Wasm.
+      isolate->wasm_execution_timer()->Stop();
+    }
+#endif  // V8_ENABLE_DRUMBRAKE
+
+    trap_handler::ClearThreadInWasm();
+  }
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   THROW_NEW_ERROR_RETURN_FAILURE(
@@ -282,6 +341,7 @@ RUNTIME_FUNCTION(Runtime_ThrowWasmSuspendError) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrowRangeError) {
+  ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   MessageTemplate message_id = MessageTemplateFromInt(args.smi_value_at(0));
@@ -289,6 +349,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowRangeError) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrowDataViewTypeError) {
+  ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   MessageTemplate message_id = MessageTemplateFromInt(args.smi_value_at(0));
@@ -302,6 +363,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowDataViewTypeError) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrowDataViewDetachedError) {
+  ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   MessageTemplate message_id = MessageTemplateFromInt(args.smi_value_at(0));
@@ -313,6 +375,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowDataViewDetachedError) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
+  ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   MessageTemplate message_id = MessageTemplateFromInt(args.smi_value_at(0));
@@ -325,6 +388,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrow) {
+  ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   Tagged<Context> context = GetNativeContextFromWasmInstanceOnStackTop(isolate);
@@ -342,12 +406,14 @@ RUNTIME_FUNCTION(Runtime_WasmThrow) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmReThrow) {
+  ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   return isolate->ReThrow(args[0]);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
+  ClearThreadInWasmScope wasm_flag(isolate);
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
 
@@ -362,6 +428,7 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
+  ClearThreadInWasmScope wasm_flag(isolate);
   DCHECK_EQ(2, args.length());
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
       Cast<WasmTrustedInstanceData>(args[0]);
@@ -412,6 +479,7 @@ Tagged<FixedArray> AllocateFeedbackVector(
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
+  ClearThreadInWasmScope wasm_flag(isolate);
   DCHECK(isolate->IsOnCentralStack());
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
@@ -430,6 +498,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmLiftoffDeoptFinish) {
+  ClearThreadInWasmScope wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
@@ -655,6 +724,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
+  ClearThreadInWasmScope clear_wasm_flag(isolate);
   SealHandleScope shs(isolate);
 
   {
@@ -702,6 +772,7 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
+  ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
@@ -729,6 +800,7 @@ RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
+  ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
@@ -770,6 +842,7 @@ Tagged<Object> ThrowTableOutOfBounds(
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmRefFunc) {
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
@@ -781,6 +854,7 @@ RUNTIME_FUNCTION(Runtime_WasmRefFunc) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmInternalFunctionCreateExternal) {
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   // TODO(14564): Pass WasmFuncRef here instead of WasmInternalFunction.
@@ -790,6 +864,7 @@ RUNTIME_FUNCTION(Runtime_WasmInternalFunctionCreateExternal) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
@@ -811,6 +886,7 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
@@ -833,6 +909,7 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTableInit) {
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(6, args.length());
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
@@ -860,6 +937,7 @@ RUNTIME_FUNCTION(Runtime_WasmTableInit) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTableCopy) {
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(6, args.length());
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
@@ -883,6 +961,7 @@ RUNTIME_FUNCTION(Runtime_WasmTableCopy) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTableGrow) {
+  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK(isolate->IsOnCentralStack());
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
@@ -901,6 +980,7 @@ RUNTIME_FUNCTION(Runtime_WasmTableGrow) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTableFill) {
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
@@ -1000,6 +1080,7 @@ bool ExecuteWasmDebugBreaks(
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   FrameFinder<WasmFrame> frame_finder(
@@ -1037,6 +1118,7 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
 // TODO(manoskouk): Unify part of this with the implementation in
 // wasm-extern-refs.cc
 RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DisallowGarbageCollection no_gc;
   DCHECK_EQ(5, args.length());
@@ -1076,6 +1158,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmAllocateDescriptorStruct) {
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   DirectHandle<WasmTrustedInstanceData> trusted_data{
@@ -1088,6 +1171,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateDescriptorStruct) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
@@ -1151,6 +1235,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(6, args.length());
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
@@ -1316,6 +1401,7 @@ RUNTIME_FUNCTION(Runtime_ClearWasmSuspenderResumeField) {
 // "Special" because the type must be in a recgroup of its own.
 // Used by "JS String Builtins".
 RUNTIME_FUNCTION(Runtime_WasmCastToSpecialPrimitiveArray) {
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
 
@@ -1344,6 +1430,7 @@ RUNTIME_FUNCTION(Runtime_WasmCastToSpecialPrimitiveArray) {
 // Returns the new string if the operation succeeds.  Otherwise throws an
 // exception and returns an empty result.
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
+  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(5, args.length());
   HandleScope scope(isolate);
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
@@ -1381,6 +1468,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8Array) {
+  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(4, args.length());
   HandleScope scope(isolate);
   uint32_t utf8_variant_value = args.positive_smi_value_at(0);
@@ -1405,6 +1493,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8Array) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
+  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(4, args.length());
   HandleScope scope(isolate);
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
@@ -1430,6 +1519,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16Array) {
+  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(3, args.length());
   HandleScope scope(isolate);
   DirectHandle<WasmArray> array(Cast<WasmArray>(args[0]), isolate);
@@ -1441,6 +1531,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16Array) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmSubstring) {
+  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(3, args.length());
   HandleScope scope(isolate);
   DirectHandle<String> string(Cast<String>(args[0]), isolate);
@@ -1453,6 +1544,7 @@ RUNTIME_FUNCTION(Runtime_WasmSubstring) {
 
 // Returns the new string if the operation succeeds.  Otherwise traps.
 RUNTIME_FUNCTION(Runtime_WasmStringConst) {
+  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(2, args.length());
   HandleScope scope(isolate);
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
@@ -1476,6 +1568,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringConst) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewSegmentWtf8) {
+  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(5, args.length());
   HandleScope scope(isolate);
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
@@ -1631,6 +1724,7 @@ void ToUtf8Lossy(Isolate* isolate, DirectHandle<String> string,
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringMeasureUtf8) {
+  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
   DirectHandle<String> string(Cast<String>(args[0]), isolate);
@@ -1657,6 +1751,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringMeasureUtf8) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringMeasureWtf8) {
+  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
   DirectHandle<String> string(Cast<String>(args[0]), isolate);
@@ -1666,6 +1761,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringMeasureWtf8) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf8) {
+  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(5, args.length());
   HandleScope scope(isolate);
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
@@ -1691,6 +1787,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf8) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf8Array) {
+  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(4, args.length());
   HandleScope scope(isolate);
   uint32_t utf8_variant_value = args.positive_smi_value_at(0);
@@ -1710,6 +1807,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf8Array) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringToUtf8Array) {
+  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
   DirectHandle<String> string(Cast<String>(args[0]), isolate);
@@ -1738,6 +1836,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringToUtf8Array) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf16) {
+  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(6, args.length());
   HandleScope scope(isolate);
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
@@ -1780,6 +1879,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf16) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringAsWtf8) {
+  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
   DirectHandle<String> string(Cast<String>(args[0]), isolate);
@@ -1798,6 +1898,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringAsWtf8) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Encode) {
+  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(7, args.length());
   HandleScope scope(isolate);
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
@@ -1850,6 +1951,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Encode) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Slice) {
+  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(3, args.length());
   HandleScope scope(isolate);
   DirectHandle<ByteArray> array(Cast<ByteArray>(args[0]), isolate);
@@ -1894,6 +1996,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceEndExecution) {
 #endif  // V8_ENABLE_DRUMBRAKE
 
 RUNTIME_FUNCTION(Runtime_WasmStringFromCodePoint) {
+  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
 
@@ -1922,6 +2025,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringFromCodePoint) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringHash) {
+  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(1, args.length());
   Tagged<String> string(Cast<String>(args[0]));
   uint32_t hash = string->EnsureHash();

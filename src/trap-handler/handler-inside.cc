@@ -40,10 +40,10 @@ bool IsFaultAddressCovered(uintptr_t fault_addr) {
 
   // Taking locks in the trap handler is risky because a fault in the trap
   // handler itself could lead to a deadlock when attempting to acquire the
-  // lock again. We guard against this with the TrapHandlerGuard: the lock may
-  // only be taken when the guard is active on the current thread (the lock
-  // constructor ensures this), in which case the trap handler will bail out
-  // before trying to take the lock.
+  // lock again. We guard against this case with g_thread_in_wasm_code. The
+  // lock may only be taken when not executing Wasm code (an assert in
+  // MetadataLock's constructor ensures this). The trap handler will bail
+  // out before trying to take the lock if g_thread_in_wasm_code is not set.
   MetadataLock lock_holder;
 
   for (size_t i = 0; i < gNumCodeObjects; ++i) {

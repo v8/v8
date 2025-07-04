@@ -447,6 +447,9 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
   State state() const { return state_; }
 
   void Run() {
+    if (!trap_handler::IsThreadInWasm()) {
+      trap_handler::SetThreadInWasm();
+    }
     state_ = State::RUNNING;
   }
   void Stop() { state_ = State::STOPPED; }
@@ -2108,6 +2111,16 @@ class WasmBytecodeGenerator {
 
   WasmBytecodeGenerator(const WasmBytecodeGenerator&) = delete;
   WasmBytecodeGenerator& operator=(const WasmBytecodeGenerator&) = delete;
+};
+
+// TODO(paolosev@microsoft.com) Duplicated from src/runtime/runtime-wasm.cc
+class V8_NODISCARD ClearThreadInWasmScope {
+ public:
+  explicit ClearThreadInWasmScope(Isolate* isolate);
+  ~ClearThreadInWasmScope();
+
+ private:
+  Isolate* isolate_;
 };
 
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING

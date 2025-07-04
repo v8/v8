@@ -105,6 +105,8 @@ namespace internal {
   V(kWrongFunctionContext, "Wrong context passed to function")                 \
   V(kWrongFunctionDispatchHandle,                                              \
     "Wrong value in dispatch handle register passed")                          \
+  V(kUnexpectedThreadInWasmSet, "thread_in_wasm flag was already set")         \
+  V(kUnexpectedThreadInWasmUnset, "thread_in_wasm flag was not set")           \
   V(kInvalidReceiver, "Expected JS object or primitive object")                \
   V(kUnexpectedInstanceType, "Unexpected instance type encountered")           \
   V(kTurboshaftTypeAssertionFailed,                                            \

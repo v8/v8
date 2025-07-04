@@ -491,6 +491,11 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   // the arguments object, but only to get to its map.
   isolate->set_context(deoptimizer->function()->native_context());
 
+  // When this is called from WasmGC code, clear the "thread in wasm" flag,
+  // which is important in case any GC needs to happen.
+  // TODO(40192807): Find a better fix, likely by replacing the global flag.
+  SaveAndClearThreadInWasmFlag clear_wasm_flag(isolate);
+
   // Make sure to materialize objects before causing any allocation.
   deoptimizer->MaterializeHeapObjects();
   deoptimizer->ProcessDeoptReason(deopt_reason);

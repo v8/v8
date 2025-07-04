@@ -416,6 +416,11 @@ RUNTIME_FUNCTION(Runtime_IsWasmPartialOOBWriteNoop) {
   return isolate->heap()->ToBoolean(wasm::kPartialOOBWritesAreNoops);
 }
 
+RUNTIME_FUNCTION(Runtime_IsThreadInWasm) {
+  DisallowGarbageCollection no_gc;
+  return isolate->heap()->ToBoolean(trap_handler::IsThreadInWasm());
+}
+
 RUNTIME_FUNCTION(Runtime_GetWasmRecoveredTrapCount) {
   HandleScope scope(isolate);
   size_t trap_count = trap_handler::GetRecoveredTrapCount();
