@@ -171,6 +171,14 @@ class RootVisitor;
   V(Map, interpreter_data_map, InterpreterDataMap)                             \
   V(Map, shared_function_info_wrapper_map, SharedFunctionInfoWrapperMap)       \
   V(Map, trusted_foreign_map, TrustedForeignMap)                               \
+  V(Map, uncompiled_data_without_preparse_data_map,                            \
+    UncompiledDataWithoutPreparseDataMap)                                      \
+  V(Map, uncompiled_data_with_preparse_data_map,                               \
+    UncompiledDataWithPreparseDataMap)                                         \
+  V(Map, uncompiled_data_without_preparse_data_with_job_map,                   \
+    UncompiledDataWithoutPreparseDataWithJobMap)                               \
+  V(Map, uncompiled_data_with_preparse_data_and_job_map,                       \
+    UncompiledDataWithPreparseDataAndJobMap)                                   \
   /* String maps */                                                            \
   V(Map, seq_two_byte_string_map, SeqTwoByteStringMap)                         \
   V(Map, cons_two_byte_string_map, ConsTwoByteStringMap)                       \

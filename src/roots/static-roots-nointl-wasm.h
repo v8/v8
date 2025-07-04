@@ -188,74 +188,74 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kStoreHandler2Map = 0x163d;
   static constexpr Tagged_t kStoreHandler3Map = 0x1665;
   static constexpr Tagged_t kFunctionTemplateInfoMap = 0x168d;
-  static constexpr Tagged_t kUncompiledDataWithoutPreparseDataMap = 0x16b5;
-  static constexpr Tagged_t kUncompiledDataWithPreparseDataMap = 0x16dd;
+  static constexpr Tagged_t kOnHeapBasicBlockProfilerDataMap = 0x16b5;
+  static constexpr Tagged_t kObjectTemplateInfoMap = 0x16dd;
+  static constexpr Tagged_t kTurbofanBitsetTypeMap = 0x1705;
+  static constexpr Tagged_t kTurbofanUnionTypeMap = 0x172d;
+  static constexpr Tagged_t kTurbofanRangeTypeMap = 0x1755;
+  static constexpr Tagged_t kTurbofanHeapConstantTypeMap = 0x177d;
+  static constexpr Tagged_t kTurbofanOtherNumberConstantTypeMap = 0x17a5;
+  static constexpr Tagged_t kTurboshaftWord32TypeMap = 0x17cd;
+  static constexpr Tagged_t kTurboshaftWord32RangeTypeMap = 0x17f5;
+  static constexpr Tagged_t kTurboshaftWord64TypeMap = 0x181d;
+  static constexpr Tagged_t kTurboshaftWord64RangeTypeMap = 0x1845;
+  static constexpr Tagged_t kTurboshaftFloat64TypeMap = 0x186d;
+  static constexpr Tagged_t kTurboshaftFloat64RangeTypeMap = 0x1895;
+  static constexpr Tagged_t kInternalClassMap = 0x18bd;
+  static constexpr Tagged_t kSmiPairMap = 0x18e5;
+  static constexpr Tagged_t kSmiBoxMap = 0x190d;
+  static constexpr Tagged_t kExportedSubClassBaseMap = 0x1935;
+  static constexpr Tagged_t kExportedSubClassMap = 0x195d;
+  static constexpr Tagged_t kAbstractInternalClassSubclass1Map = 0x1985;
+  static constexpr Tagged_t kAbstractInternalClassSubclass2Map = 0x19ad;
+  static constexpr Tagged_t kExportedSubClass2Map = 0x19d5;
+  static constexpr Tagged_t kSortStateMap = 0x19fd;
+  static constexpr Tagged_t kWasmFastApiCallDataMap = 0x1a25;
+  static constexpr Tagged_t kWasmStringViewIterMap = 0x1a4d;
+  static constexpr Tagged_t kSloppyArgumentsElementsMap = 0x1a75;
+  static constexpr Tagged_t kStrongDescriptorArrayMap = 0x1a9d;
+  static constexpr Tagged_t kTurboshaftWord32SetTypeMap = 0x1ac5;
+  static constexpr Tagged_t kTurboshaftWord64SetTypeMap = 0x1aed;
+  static constexpr Tagged_t kTurboshaftFloat64SetTypeMap = 0x1b15;
+  static constexpr Tagged_t kInternalClassWithStructElementsMap = 0x1b3d;
+  static constexpr Tagged_t kOrderedHashMapMap = 0x1b65;
+  static constexpr Tagged_t kOrderedHashSetMap = 0x1b8d;
+  static constexpr Tagged_t kSimpleNumberDictionaryMap = 0x1bb5;
+  static constexpr Tagged_t kSimpleNameDictionaryMap = 0x1bdd;
+  static constexpr Tagged_t kNameToIndexHashTableMap = 0x1c05;
+  static constexpr Tagged_t kDoubleStringCacheMap = 0x1c2d;
+  static constexpr Tagged_t kEmbedderDataArrayMap = 0x1c55;
+  static constexpr Tagged_t kEphemeronHashTableMap = 0x1c7d;
+  static constexpr Tagged_t kScriptContextTableMap = 0x1ca5;
+  static constexpr Tagged_t kObjectBoilerplateDescriptionMap = 0x1ccd;
+  static constexpr Tagged_t kCoverageInfoMap = 0x1cf5;
+  static constexpr Tagged_t kRegExpMatchInfoMap = 0x1d1d;
+  static constexpr Tagged_t kRegExpDataMap = 0x1d45;
+  static constexpr Tagged_t kAtomRegExpDataMap = 0x1d6d;
+  static constexpr Tagged_t kIrRegExpDataMap = 0x1d95;
+  static constexpr Tagged_t kSourceTextModuleMap = 0x1dbd;
+  static constexpr Tagged_t kSyntheticModuleMap = 0x1de5;
+  static constexpr Tagged_t kContextCellMap = 0x1e0d;
+  static constexpr Tagged_t kWasmImportDataMap = 0x1e35;
+  static constexpr Tagged_t kWasmCapiFunctionDataMap = 0x1e5d;
+  static constexpr Tagged_t kWasmExportedFunctionDataMap = 0x1e85;
+  static constexpr Tagged_t kWasmInternalFunctionMap = 0x1ead;
+  static constexpr Tagged_t kWasmFuncRefMap = 0x1ed5;
+  static constexpr Tagged_t kWasmJSFunctionDataMap = 0x1efd;
+  static constexpr Tagged_t kWasmResumeDataMap = 0x1f25;
+  static constexpr Tagged_t kWasmSuspenderObjectMap = 0x1f4d;
+  static constexpr Tagged_t kWasmContinuationObjectMap = 0x1f75;
+  static constexpr Tagged_t kWasmTypeInfoMap = 0x1f9d;
+  static constexpr Tagged_t kWasmNullMap = 0x1fc5;
+  static constexpr Tagged_t kWasmTrustedInstanceDataMap = 0x1fed;
+  static constexpr Tagged_t kWasmDispatchTableMap = 0x2015;
+  static constexpr Tagged_t kWeakCellMap = 0x203d;
+  static constexpr Tagged_t kInterpreterDataMap = 0x2065;
+  static constexpr Tagged_t kUncompiledDataWithoutPreparseDataMap = 0x208d;
+  static constexpr Tagged_t kUncompiledDataWithPreparseDataMap = 0x20b5;
   static constexpr Tagged_t kUncompiledDataWithoutPreparseDataWithJobMap =
-      0x1705;
-  static constexpr Tagged_t kUncompiledDataWithPreparseDataAndJobMap = 0x172d;
-  static constexpr Tagged_t kOnHeapBasicBlockProfilerDataMap = 0x1755;
-  static constexpr Tagged_t kObjectTemplateInfoMap = 0x177d;
-  static constexpr Tagged_t kTurbofanBitsetTypeMap = 0x17a5;
-  static constexpr Tagged_t kTurbofanUnionTypeMap = 0x17cd;
-  static constexpr Tagged_t kTurbofanRangeTypeMap = 0x17f5;
-  static constexpr Tagged_t kTurbofanHeapConstantTypeMap = 0x181d;
-  static constexpr Tagged_t kTurbofanOtherNumberConstantTypeMap = 0x1845;
-  static constexpr Tagged_t kTurboshaftWord32TypeMap = 0x186d;
-  static constexpr Tagged_t kTurboshaftWord32RangeTypeMap = 0x1895;
-  static constexpr Tagged_t kTurboshaftWord64TypeMap = 0x18bd;
-  static constexpr Tagged_t kTurboshaftWord64RangeTypeMap = 0x18e5;
-  static constexpr Tagged_t kTurboshaftFloat64TypeMap = 0x190d;
-  static constexpr Tagged_t kTurboshaftFloat64RangeTypeMap = 0x1935;
-  static constexpr Tagged_t kInternalClassMap = 0x195d;
-  static constexpr Tagged_t kSmiPairMap = 0x1985;
-  static constexpr Tagged_t kSmiBoxMap = 0x19ad;
-  static constexpr Tagged_t kExportedSubClassBaseMap = 0x19d5;
-  static constexpr Tagged_t kExportedSubClassMap = 0x19fd;
-  static constexpr Tagged_t kAbstractInternalClassSubclass1Map = 0x1a25;
-  static constexpr Tagged_t kAbstractInternalClassSubclass2Map = 0x1a4d;
-  static constexpr Tagged_t kExportedSubClass2Map = 0x1a75;
-  static constexpr Tagged_t kSortStateMap = 0x1a9d;
-  static constexpr Tagged_t kWasmFastApiCallDataMap = 0x1ac5;
-  static constexpr Tagged_t kWasmStringViewIterMap = 0x1aed;
-  static constexpr Tagged_t kSloppyArgumentsElementsMap = 0x1b15;
-  static constexpr Tagged_t kStrongDescriptorArrayMap = 0x1b3d;
-  static constexpr Tagged_t kTurboshaftWord32SetTypeMap = 0x1b65;
-  static constexpr Tagged_t kTurboshaftWord64SetTypeMap = 0x1b8d;
-  static constexpr Tagged_t kTurboshaftFloat64SetTypeMap = 0x1bb5;
-  static constexpr Tagged_t kInternalClassWithStructElementsMap = 0x1bdd;
-  static constexpr Tagged_t kOrderedHashMapMap = 0x1c05;
-  static constexpr Tagged_t kOrderedHashSetMap = 0x1c2d;
-  static constexpr Tagged_t kSimpleNumberDictionaryMap = 0x1c55;
-  static constexpr Tagged_t kSimpleNameDictionaryMap = 0x1c7d;
-  static constexpr Tagged_t kNameToIndexHashTableMap = 0x1ca5;
-  static constexpr Tagged_t kDoubleStringCacheMap = 0x1ccd;
-  static constexpr Tagged_t kEmbedderDataArrayMap = 0x1cf5;
-  static constexpr Tagged_t kEphemeronHashTableMap = 0x1d1d;
-  static constexpr Tagged_t kScriptContextTableMap = 0x1d45;
-  static constexpr Tagged_t kObjectBoilerplateDescriptionMap = 0x1d6d;
-  static constexpr Tagged_t kCoverageInfoMap = 0x1d95;
-  static constexpr Tagged_t kRegExpMatchInfoMap = 0x1dbd;
-  static constexpr Tagged_t kRegExpDataMap = 0x1de5;
-  static constexpr Tagged_t kAtomRegExpDataMap = 0x1e0d;
-  static constexpr Tagged_t kIrRegExpDataMap = 0x1e35;
-  static constexpr Tagged_t kSourceTextModuleMap = 0x1e5d;
-  static constexpr Tagged_t kSyntheticModuleMap = 0x1e85;
-  static constexpr Tagged_t kContextCellMap = 0x1ead;
-  static constexpr Tagged_t kWasmImportDataMap = 0x1ed5;
-  static constexpr Tagged_t kWasmCapiFunctionDataMap = 0x1efd;
-  static constexpr Tagged_t kWasmExportedFunctionDataMap = 0x1f25;
-  static constexpr Tagged_t kWasmInternalFunctionMap = 0x1f4d;
-  static constexpr Tagged_t kWasmFuncRefMap = 0x1f75;
-  static constexpr Tagged_t kWasmJSFunctionDataMap = 0x1f9d;
-  static constexpr Tagged_t kWasmResumeDataMap = 0x1fc5;
-  static constexpr Tagged_t kWasmSuspenderObjectMap = 0x1fed;
-  static constexpr Tagged_t kWasmContinuationObjectMap = 0x2015;
-  static constexpr Tagged_t kWasmTypeInfoMap = 0x203d;
-  static constexpr Tagged_t kWasmNullMap = 0x2065;
-  static constexpr Tagged_t kWasmTrustedInstanceDataMap = 0x208d;
-  static constexpr Tagged_t kWasmDispatchTableMap = 0x20b5;
-  static constexpr Tagged_t kWeakCellMap = 0x20dd;
-  static constexpr Tagged_t kInterpreterDataMap = 0x2105;
+      0x20dd;
+  static constexpr Tagged_t kUncompiledDataWithPreparseDataAndJobMap = 0x2105;
   static constexpr Tagged_t kSharedFunctionInfoWrapperMap = 0x212d;
   static constexpr Tagged_t kDictionaryTemplateInfoMap = 0x2155;
   static constexpr Tagged_t kEmptyArrayList = 0x217d;
@@ -1042,6 +1042,10 @@ static constexpr std::array<Tagged_t, 899> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kInterpreterDataMap,
     StaticReadOnlyRoot::kSharedFunctionInfoWrapperMap,
     StaticReadOnlyRoot::kTrustedForeignMap,
+    StaticReadOnlyRoot::kUncompiledDataWithoutPreparseDataMap,
+    StaticReadOnlyRoot::kUncompiledDataWithPreparseDataMap,
+    StaticReadOnlyRoot::kUncompiledDataWithoutPreparseDataWithJobMap,
+    StaticReadOnlyRoot::kUncompiledDataWithPreparseDataAndJobMap,
     StaticReadOnlyRoot::kSeqTwoByteStringMap,
     StaticReadOnlyRoot::kConsTwoByteStringMap,
     StaticReadOnlyRoot::kConsOneByteStringMap,
@@ -1771,10 +1775,6 @@ static constexpr std::array<Tagged_t, 899> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kSloppyArgumentsElementsMap,
     StaticReadOnlyRoot::kDescriptorArrayMap,
     StaticReadOnlyRoot::kStrongDescriptorArrayMap,
-    StaticReadOnlyRoot::kUncompiledDataWithoutPreparseDataMap,
-    StaticReadOnlyRoot::kUncompiledDataWithPreparseDataMap,
-    StaticReadOnlyRoot::kUncompiledDataWithoutPreparseDataWithJobMap,
-    StaticReadOnlyRoot::kUncompiledDataWithPreparseDataAndJobMap,
     StaticReadOnlyRoot::kOnHeapBasicBlockProfilerDataMap,
     StaticReadOnlyRoot::kObjectTemplateInfoMap,
     StaticReadOnlyRoot::kTurbofanBitsetTypeMap,

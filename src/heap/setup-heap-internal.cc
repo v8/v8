@@ -810,6 +810,20 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
     ALLOCATE_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell)
     ALLOCATE_MAP(INTERPRETER_DATA_TYPE, sizeof(InterpreterData),
                  interpreter_data)
+
+    ALLOCATE_MAP(UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
+                 sizeof(UncompiledDataWithoutPreparseData),
+                 uncompiled_data_without_preparse_data)
+    ALLOCATE_MAP(UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
+                 sizeof(UncompiledDataWithPreparseData),
+                 uncompiled_data_with_preparse_data)
+    ALLOCATE_MAP(UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_WITH_JOB_TYPE,
+                 sizeof(UncompiledDataWithoutPreparseDataWithJob),
+                 uncompiled_data_without_preparse_data_with_job)
+    ALLOCATE_MAP(UNCOMPILED_DATA_WITH_PREPARSE_DATA_AND_JOB_TYPE,
+                 sizeof(UncompiledDataWithPreparseDataAndJob),
+                 uncompiled_data_with_preparse_data_and_job)
+
     ALLOCATE_MAP(SHARED_FUNCTION_INFO_WRAPPER_TYPE,
                  SharedFunctionInfoWrapper::kSize, shared_function_info_wrapper)
 

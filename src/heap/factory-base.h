@@ -267,25 +267,26 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<PreparseData> NewPreparseData(int data_length, int children_length);
 
   DirectHandle<UncompiledDataWithoutPreparseData>
-  NewUncompiledDataWithoutPreparseData(Handle<String> inferred_name,
+  NewUncompiledDataWithoutPreparseData(DirectHandle<String> inferred_name,
                                        int32_t start_position,
                                        int32_t end_position);
 
   DirectHandle<UncompiledDataWithPreparseData>
-  NewUncompiledDataWithPreparseData(Handle<String> inferred_name,
+  NewUncompiledDataWithPreparseData(DirectHandle<String> inferred_name,
                                     int32_t start_position,
-                                    int32_t end_position, Handle<PreparseData>);
+                                    int32_t end_position,
+                                    DirectHandle<PreparseData>);
 
   DirectHandle<UncompiledDataWithoutPreparseDataWithJob>
-  NewUncompiledDataWithoutPreparseDataWithJob(Handle<String> inferred_name,
-                                              int32_t start_position,
-                                              int32_t end_position);
+  NewUncompiledDataWithoutPreparseDataWithJob(
+      DirectHandle<String> inferred_name, int32_t start_position,
+      int32_t end_position);
 
   DirectHandle<UncompiledDataWithPreparseDataAndJob>
-  NewUncompiledDataWithPreparseDataAndJob(Handle<String> inferred_name,
+  NewUncompiledDataWithPreparseDataAndJob(DirectHandle<String> inferred_name,
                                           int32_t start_position,
                                           int32_t end_position,
-                                          Handle<PreparseData>);
+                                          DirectHandle<PreparseData>);
 
   // Allocates a FeedbackMetadata object and zeroes the data section.
   Handle<FeedbackMetadata> NewFeedbackMetadata(

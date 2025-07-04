@@ -2003,7 +2003,7 @@ void BackgroundCompileTask::Run(
       info.set_consumed_preparse_data(ConsumedPreparseData::For(
           isolate,
           handle(shared_info->uncompiled_data_with_preparse_data(isolate)
-                     ->preparse_data(isolate),
+                     ->preparse_data(),
                  isolate)));
     }
   }

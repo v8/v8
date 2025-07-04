@@ -2698,6 +2698,40 @@ void PreparseData::PreparseDataVerify(Isolate* isolate) {
   }
 }
 
+void UncompiledData::UncompiledDataVerify(Isolate* isolate) {
+  CHECK(IsUncompiledData(this, isolate));
+  {
+    Tagged<Object> inferred_name = this->inferred_name();
+    Object::VerifyPointer(isolate, inferred_name);
+    CHECK(IsString(inferred_name));
+  }
+}
+void UncompiledDataWithoutPreparseData::UncompiledDataWithoutPreparseDataVerify(
+    Isolate* isolate) {
+  UncompiledDataVerify(isolate);
+  CHECK(IsUncompiledDataWithoutPreparseData(this, isolate));
+}
+void UncompiledDataWithPreparseData::UncompiledDataWithPreparseDataVerify(
+    Isolate* isolate) {
+  UncompiledDataVerify(isolate);
+  CHECK(IsUncompiledDataWithPreparseData(this, isolate));
+  {
+    Tagged<Object> preparse_data = this->preparse_data();
+    Object::VerifyPointer(isolate, preparse_data);
+    CHECK(IsPreparseData(preparse_data));
+  }
+}
+void UncompiledDataWithoutPreparseDataWithJob::
+    UncompiledDataWithoutPreparseDataWithJobVerify(Isolate* isolate) {
+  UncompiledDataWithoutPreparseDataVerify(isolate);
+  CHECK(IsUncompiledDataWithoutPreparseDataWithJob(this, isolate));
+}
+void UncompiledDataWithPreparseDataAndJob::
+    UncompiledDataWithPreparseDataAndJobVerify(Isolate* isolate) {
+  UncompiledDataWithPreparseDataVerify(isolate);
+  CHECK(IsUncompiledDataWithPreparseDataAndJob(this, isolate));
+}
+
 void CallSiteInfo::CallSiteInfoVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::CallSiteInfoVerify(*this, isolate);
 #if V8_ENABLE_WEBASSEMBLY

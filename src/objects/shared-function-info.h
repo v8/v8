@@ -138,10 +138,18 @@ static_assert(IsAligned(OFFSET_OF_DATA_START(PreparseData),
 
 // Abstract class representing extra data for an uncompiled function, which is
 // not stored in the SharedFunctionInfo.
-class UncompiledData
-    : public TorqueGeneratedUncompiledData<UncompiledData,
-                                           ExposedTrustedObject> {
+V8_OBJECT class UncompiledData : public ExposedTrustedObjectLayout {
  public:
+  inline Tagged<String> inferred_name() const;
+  inline void set_inferred_name(Tagged<String> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int32_t start_position() const { return start_position_; }
+  inline void set_start_position(int32_t value) { start_position_ = value; }
+
+  inline int32_t end_position() const { return end_position_; }
+  inline void set_end_position(int32_t value) { end_position_ = value; }
+
   inline void InitAfterBytecodeFlush(
       Isolate* isolate, Tagged<String> inferred_name, int start_position,
       int end_position,
@@ -149,56 +157,75 @@ class UncompiledData
                          Tagged<HeapObject> target)>
           gc_notify_updated_slot);
 
-  TQ_OBJECT_CONSTRUCTORS(UncompiledData)
-};
+  DECL_VERIFIER(UncompiledData)
+
+  friend class Torque;
+  friend struct OffsetsForDebug;
+
+  TaggedMember<String> inferred_name_;
+  int32_t start_position_;
+  int32_t end_position_;
+} V8_OBJECT_END;
 
 // Class representing data for an uncompiled function that does not have any
 // data from the pre-parser, either because it's a leaf function or because the
 // pre-parser bailed out.
-class UncompiledDataWithoutPreparseData
-    : public TorqueGeneratedUncompiledDataWithoutPreparseData<
-          UncompiledDataWithoutPreparseData, UncompiledData> {
+V8_OBJECT class UncompiledDataWithoutPreparseData : public UncompiledData {
  public:
-  class BodyDescriptor;
+  DECL_PRINTER(UncompiledDataWithoutPreparseData)
+  DECL_VERIFIER(UncompiledDataWithoutPreparseData)
 
-  TQ_OBJECT_CONSTRUCTORS(UncompiledDataWithoutPreparseData)
-};
+  class BodyDescriptor;
+} V8_OBJECT_END;
 
 // Class representing data for an uncompiled function that has pre-parsed scope
 // data.
-class UncompiledDataWithPreparseData
-    : public TorqueGeneratedUncompiledDataWithPreparseData<
-          UncompiledDataWithPreparseData, UncompiledData> {
+V8_OBJECT class UncompiledDataWithPreparseData : public UncompiledData {
  public:
+  inline Tagged<PreparseData> preparse_data() const;
+  inline void set_preparse_data(Tagged<PreparseData> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  DECL_PRINTER(UncompiledDataWithPreparseData)
+  DECL_VERIFIER(UncompiledDataWithPreparseData)
+
   class BodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(UncompiledDataWithPreparseData)
-};
+  TaggedMember<PreparseData> preparse_data_;
+} V8_OBJECT_END;
 
 // Class representing data for an uncompiled function that does not have any
 // data from the pre-parser, either because it's a leaf function or because the
 // pre-parser bailed out, but has a job pointer.
-class UncompiledDataWithoutPreparseDataWithJob
-    : public TorqueGeneratedUncompiledDataWithoutPreparseDataWithJob<
-          UncompiledDataWithoutPreparseDataWithJob,
-          UncompiledDataWithoutPreparseData> {
+V8_OBJECT class UncompiledDataWithoutPreparseDataWithJob
+    : public UncompiledDataWithoutPreparseData {
  public:
+  inline Address job() const { return job_; }
+  inline void set_job(Address value) { job_ = value; }
+
+  DECL_PRINTER(UncompiledDataWithoutPreparseDataWithJob)
+  DECL_VERIFIER(UncompiledDataWithoutPreparseDataWithJob)
+
   class BodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(UncompiledDataWithoutPreparseDataWithJob)
-};
+  Address job_;
+} V8_OBJECT_END;
 
 // Class representing data for an uncompiled function that has pre-parsed scope
 // data and a job pointer.
-class UncompiledDataWithPreparseDataAndJob
-    : public TorqueGeneratedUncompiledDataWithPreparseDataAndJob<
-          UncompiledDataWithPreparseDataAndJob,
-          UncompiledDataWithPreparseData> {
+V8_OBJECT class UncompiledDataWithPreparseDataAndJob
+    : public UncompiledDataWithPreparseData {
  public:
+  inline Address job() const { return job_; }
+  inline void set_job(Address value) { job_ = value; }
+
+  DECL_PRINTER(UncompiledDataWithPreparseDataAndJob)
+  DECL_VERIFIER(UncompiledDataWithPreparseDataAndJob)
+
   class BodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(UncompiledDataWithPreparseDataAndJob)
-};
+  Address job_;
+} V8_OBJECT_END;
 
 V8_OBJECT class InterpreterData : public ExposedTrustedObjectLayout {
  public:

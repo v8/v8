@@ -90,11 +90,21 @@ void PreparseData::set_child(int index, Tagged<PreparseData> value,
   children()[index].Relaxed_Store(this, value, mode);
 }
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledData)
-TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithoutPreparseData)
-TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreparseData)
-TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithoutPreparseDataWithJob)
-TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreparseDataAndJob)
+Tagged<String> UncompiledData::inferred_name() const {
+  return inferred_name_.load();
+}
+void UncompiledData::set_inferred_name(Tagged<String> value,
+                                       WriteBarrierMode mode) {
+  inferred_name_.store(this, value, mode);
+}
+
+Tagged<PreparseData> UncompiledDataWithPreparseData::preparse_data() const {
+  return preparse_data_.load();
+}
+void UncompiledDataWithPreparseData::set_preparse_data(
+    Tagged<PreparseData> value, WriteBarrierMode mode) {
+  preparse_data_.store(this, value, mode);
+}
 
 Tagged<BytecodeArray> InterpreterData::bytecode_array() const {
   DCHECK(has_bytecode_array());
@@ -1084,16 +1094,16 @@ void SharedFunctionInfo::ClearPreparseData(IsolateForSandbox isolate) {
   // within the object don't need to be invalidated.
   heap->NotifyObjectLayoutChange(data, no_gc, InvalidateRecordedSlots::kNo,
                                  InvalidateExternalPointerSlots::kNo);
-  static_assert(UncompiledDataWithoutPreparseData::kSize <
-                UncompiledDataWithPreparseData::kSize);
-  static_assert(UncompiledDataWithoutPreparseData::kSize ==
-                UncompiledData::kHeaderSize);
+  static_assert(sizeof(UncompiledDataWithoutPreparseData) <
+                sizeof(UncompiledDataWithPreparseData));
+  static_assert(sizeof(UncompiledDataWithoutPreparseData) ==
+                sizeof(UncompiledData));
 
   // Fill the remaining space with filler and clear slots in the trimmed area.
   int old_size = data->Size();
-  DCHECK_LE(UncompiledDataWithPreparseData::kSize, old_size);
+  DCHECK_LE(sizeof(UncompiledDataWithPreparseData), old_size);
   heap->NotifyObjectSizeChange(data, old_size,
-                               UncompiledDataWithoutPreparseData::kSize,
+                               sizeof(UncompiledDataWithoutPreparseData),
                                ClearRecordedSlots::kYes);
 
   // Swap the map.
@@ -1115,8 +1125,7 @@ void UncompiledData::InitAfterBytecodeFlush(
   init_self_indirect_pointer(isolate);
 #endif
   set_inferred_name(inferred_name);
-  gc_notify_updated_slot(*this, RawField(UncompiledData::kInferredNameOffset),
-                         inferred_name);
+  gc_notify_updated_slot(this, ObjectSlot(&inferred_name_), inferred_name);
   set_start_position(start_position);
   set_end_position(end_position);
 }
@@ -1144,7 +1153,7 @@ DEF_GETTER(SharedFunctionInfo, inferred_name, Tagged<String>) {
   } else {
     IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
     if (HasUncompiledData(isolate)) {
-      return uncompiled_data(isolate)->inferred_name(cage_base);
+      return uncompiled_data(isolate)->inferred_name();
     }
   }
   return GetReadOnlyRoots().empty_string();

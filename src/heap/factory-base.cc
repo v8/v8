@@ -514,41 +514,80 @@ Handle<PreparseData> FactoryBase<Impl>::NewPreparseData(int data_length,
 template <typename Impl>
 DirectHandle<UncompiledDataWithoutPreparseData>
 FactoryBase<Impl>::NewUncompiledDataWithoutPreparseData(
-    Handle<String> inferred_name, int32_t start_position,
+    DirectHandle<String> inferred_name, int32_t start_position,
     int32_t end_position) {
-  return TorqueGeneratedFactory<Impl>::NewUncompiledDataWithoutPreparseData(
-      inferred_name, start_position, end_position, AllocationType::kTrusted);
+  int size = sizeof(UncompiledDataWithoutPreparseData);
+  Tagged<Map> map =
+      read_only_roots().uncompiled_data_without_preparse_data_map();
+  Tagged<UncompiledDataWithoutPreparseData> result =
+      Cast<UncompiledDataWithoutPreparseData>(
+          AllocateRawWithImmortalMap(size, AllocationType::kTrusted, map));
+  DisallowGarbageCollection no_gc;
+  result->init_self_indirect_pointer(isolate());
+  result->set_inferred_name(*inferred_name);
+  result->set_start_position(start_position);
+  result->set_end_position(end_position);
+  return direct_handle(result, isolate());
 }
 
 template <typename Impl>
 DirectHandle<UncompiledDataWithPreparseData>
 FactoryBase<Impl>::NewUncompiledDataWithPreparseData(
-    Handle<String> inferred_name, int32_t start_position, int32_t end_position,
-    Handle<PreparseData> preparse_data) {
-  return TorqueGeneratedFactory<Impl>::NewUncompiledDataWithPreparseData(
-      inferred_name, start_position, end_position, preparse_data,
-      AllocationType::kTrusted);
+    DirectHandle<String> inferred_name, int32_t start_position,
+    int32_t end_position, DirectHandle<PreparseData> preparse_data) {
+  int size = sizeof(UncompiledDataWithPreparseData);
+  Tagged<Map> map = read_only_roots().uncompiled_data_with_preparse_data_map();
+  Tagged<UncompiledDataWithPreparseData> result =
+      Cast<UncompiledDataWithPreparseData>(
+          AllocateRawWithImmortalMap(size, AllocationType::kTrusted, map));
+  DisallowGarbageCollection no_gc;
+  result->init_self_indirect_pointer(isolate());
+  result->set_inferred_name(*inferred_name);
+  result->set_start_position(start_position);
+  result->set_end_position(end_position);
+  result->set_preparse_data(*preparse_data);
+  return direct_handle(result, isolate());
 }
 
 template <typename Impl>
 DirectHandle<UncompiledDataWithoutPreparseDataWithJob>
 FactoryBase<Impl>::NewUncompiledDataWithoutPreparseDataWithJob(
-    Handle<String> inferred_name, int32_t start_position,
+    DirectHandle<String> inferred_name, int32_t start_position,
     int32_t end_position) {
-  return TorqueGeneratedFactory<Impl>::
-      NewUncompiledDataWithoutPreparseDataWithJob(inferred_name, start_position,
-                                                  end_position, kNullAddress,
-                                                  AllocationType::kTrusted);
+  int size = sizeof(UncompiledDataWithoutPreparseDataWithJob);
+  Tagged<Map> map =
+      read_only_roots().uncompiled_data_without_preparse_data_with_job_map();
+  Tagged<UncompiledDataWithoutPreparseDataWithJob> result =
+      Cast<UncompiledDataWithoutPreparseDataWithJob>(
+          AllocateRawWithImmortalMap(size, AllocationType::kTrusted, map));
+  DisallowGarbageCollection no_gc;
+  result->init_self_indirect_pointer(isolate());
+  result->set_inferred_name(*inferred_name);
+  result->set_start_position(start_position);
+  result->set_end_position(end_position);
+  result->set_job(kNullAddress);
+  return direct_handle(result, isolate());
 }
 
 template <typename Impl>
 DirectHandle<UncompiledDataWithPreparseDataAndJob>
 FactoryBase<Impl>::NewUncompiledDataWithPreparseDataAndJob(
-    Handle<String> inferred_name, int32_t start_position, int32_t end_position,
-    Handle<PreparseData> preparse_data) {
-  return TorqueGeneratedFactory<Impl>::NewUncompiledDataWithPreparseDataAndJob(
-      inferred_name, start_position, end_position, preparse_data, kNullAddress,
-      AllocationType::kTrusted);
+    DirectHandle<String> inferred_name, int32_t start_position,
+    int32_t end_position, DirectHandle<PreparseData> preparse_data) {
+  int size = sizeof(UncompiledDataWithPreparseDataAndJob);
+  Tagged<Map> map =
+      read_only_roots().uncompiled_data_with_preparse_data_and_job_map();
+  Tagged<UncompiledDataWithPreparseDataAndJob> result =
+      Cast<UncompiledDataWithPreparseDataAndJob>(
+          AllocateRawWithImmortalMap(size, AllocationType::kTrusted, map));
+  DisallowGarbageCollection no_gc;
+  result->init_self_indirect_pointer(isolate());
+  result->set_inferred_name(*inferred_name);
+  result->set_start_position(start_position);
+  result->set_end_position(end_position);
+  result->set_preparse_data(*preparse_data);
+  result->set_job(kNullAddress);
+  return direct_handle(result, isolate());
 }
 
 template <typename Impl>

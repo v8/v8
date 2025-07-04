@@ -3539,6 +3539,46 @@ void PreparseData::PreparseDataPrint(std::ostream& os) {
   os << "\n";
 }
 
+void UncompiledDataWithoutPreparseData::UncompiledDataWithoutPreparseDataPrint(
+    std::ostream& os) {
+  PrintHeader(os, "UncompiledDataWithoutPreparseData");
+  os << "\n - inferred_name: " << Brief(inferred_name());
+  os << "\n - start_position: " << start_position();
+  os << "\n - end_position: " << end_position();
+  os << '\n';
+}
+
+void UncompiledDataWithPreparseData::UncompiledDataWithPreparseDataPrint(
+    std::ostream& os) {
+  PrintHeader(os, "UncompiledDataWithPreparseData");
+  os << "\n - inferred_name: " << Brief(inferred_name());
+  os << "\n - start_position: " << start_position();
+  os << "\n - end_position: " << end_position();
+  os << "\n - preparse_data: " << Brief(preparse_data());
+  os << '\n';
+}
+
+void UncompiledDataWithoutPreparseDataWithJob::
+    UncompiledDataWithoutPreparseDataWithJobPrint(std::ostream& os) {
+  PrintHeader(os, "UncompiledDataWithoutPreparseDataWithJob");
+  os << "\n - inferred_name: " << Brief(inferred_name());
+  os << "\n - start_position: " << start_position();
+  os << "\n - end_position: " << end_position();
+  os << "\n - job: " << job();
+  os << '\n';
+}
+
+void UncompiledDataWithPreparseDataAndJob::
+    UncompiledDataWithPreparseDataAndJobPrint(std::ostream& os) {
+  PrintHeader(os, "UncompiledDataWithPreparseDataAndJob");
+  os << "\n - inferred_name: " << Brief(inferred_name());
+  os << "\n - start_position: " << start_position();
+  os << "\n - end_position: " << end_position();
+  os << "\n - preparse_data: " << Brief(preparse_data());
+  os << "\n - job: " << job();
+  os << '\n';
+}
+
 void HeapNumber::HeapNumberPrint(std::ostream& os) {
   PrintHeader(os, "HeapNumber");
   os << "\n - value: ";

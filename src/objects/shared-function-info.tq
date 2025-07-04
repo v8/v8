@@ -155,31 +155,28 @@ macro IsSharedFunctionInfoDontAdaptArguments(sfi: SharedFunctionInfo): bool {
 }
 
 @abstract
+@cppObjectLayoutDefinition
 extern class UncompiledData extends ExposedTrustedObject {
   inferred_name: String;
   start_position: int32;
   end_position: int32;
 }
 
-@generateUniqueMap
-@generateFactoryFunction
+@cppObjectLayoutDefinition
 extern class UncompiledDataWithoutPreparseData extends UncompiledData {}
 
-@generateUniqueMap
-@generateFactoryFunction
+@cppObjectLayoutDefinition
 extern class UncompiledDataWithPreparseData extends UncompiledData {
   preparse_data: PreparseData;
 }
 
-@generateUniqueMap
-@generateFactoryFunction
+@cppObjectLayoutDefinition
 extern class UncompiledDataWithoutPreparseDataWithJob extends
     UncompiledDataWithoutPreparseData {
   job: RawPtr;
 }
 
-@generateUniqueMap
-@generateFactoryFunction
+@cppObjectLayoutDefinition
 extern class UncompiledDataWithPreparseDataAndJob extends
     UncompiledDataWithPreparseData {
   job: RawPtr;

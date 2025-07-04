@@ -863,11 +863,12 @@ class UncompiledDataWithoutPreparseData::BodyDescriptor final
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     IterateSelfIndirectPointer(obj, kUncompiledDataIndirectPointerTag, v);
-    IteratePointer(obj, kInferredNameOffset, v);
+    IteratePointer(
+        obj, offsetof(UncompiledDataWithoutPreparseData, inferred_name_), v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
-    return kSize;
+    return sizeof(UncompiledDataWithoutPreparseData);
   }
 };
 
@@ -878,12 +879,14 @@ class UncompiledDataWithPreparseData::BodyDescriptor final
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     IterateSelfIndirectPointer(obj, kUncompiledDataIndirectPointerTag, v);
-    IteratePointer(obj, kInferredNameOffset, v);
-    IteratePointer(obj, kPreparseDataOffset, v);
+    IteratePointer(obj,
+                   offsetof(UncompiledDataWithPreparseData, inferred_name_), v);
+    IteratePointer(obj,
+                   offsetof(UncompiledDataWithPreparseData, preparse_data_), v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
-    return kSize;
+    return sizeof(UncompiledDataWithPreparseData);
   }
 };
 
@@ -894,11 +897,13 @@ class UncompiledDataWithoutPreparseDataWithJob::BodyDescriptor final
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     IterateSelfIndirectPointer(obj, kUncompiledDataIndirectPointerTag, v);
-    IteratePointer(obj, kInferredNameOffset, v);
+    IteratePointer(
+        obj, offsetof(UncompiledDataWithoutPreparseDataWithJob, inferred_name_),
+        v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
-    return kSize;
+    return sizeof(UncompiledDataWithoutPreparseDataWithJob);
   }
 };
 
@@ -909,12 +914,14 @@ class UncompiledDataWithPreparseDataAndJob::BodyDescriptor final
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     IterateSelfIndirectPointer(obj, kUncompiledDataIndirectPointerTag, v);
-    IteratePointer(obj, kInferredNameOffset, v);
-    IteratePointer(obj, kPreparseDataOffset, v);
+    IteratePointer(
+        obj, offsetof(UncompiledDataWithPreparseDataAndJob, inferred_name_), v);
+    IteratePointer(
+        obj, offsetof(UncompiledDataWithPreparseDataAndJob, preparse_data_), v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
-    return kSize;
+    return sizeof(UncompiledDataWithPreparseDataAndJob);
   }
 };
 

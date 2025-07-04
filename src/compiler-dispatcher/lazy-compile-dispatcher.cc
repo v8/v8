@@ -97,7 +97,7 @@ void SetUncompiledDataJobPointer(LocalIsolate* isolate,
                                  Address job_address) {
   Tagged<UncompiledData> uncompiled_data =
       shared_info->uncompiled_data(isolate);
-  switch (uncompiled_data->map(isolate)->instance_type()) {
+  switch (uncompiled_data->map()->instance_type()) {
     // The easy cases -- we already have a job slot, so can write into it and
     // return.
     case UNCOMPILED_DATA_WITH_PREPARSE_DATA_AND_JOB_TYPE:

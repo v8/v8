@@ -3326,7 +3326,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   // The size of the bytecode array should always be larger than an
   // UncompiledData object.
   static_assert(BytecodeArray::SizeFor(0) >=
-                UncompiledDataWithoutPreparseData::kSize);
+                sizeof(UncompiledDataWithoutPreparseData));
 
   // Replace the bytecode with an uncompiled data object.
   Tagged<BytecodeArray> bytecode_array =
@@ -3375,8 +3375,8 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
 
   // Create a filler object for any left over space in the bytecode array.
   if (!heap_->IsLargeObject(compiled_data)) {
-    const int aligned_filler_offset =
-        ALIGN_TO_ALLOCATION_ALIGNMENT(UncompiledDataWithoutPreparseData::kSize);
+    const int aligned_filler_offset = ALIGN_TO_ALLOCATION_ALIGNMENT(
+        sizeof(UncompiledDataWithoutPreparseData));
     heap_->CreateFillerObjectAt(compiled_data.address() + aligned_filler_offset,
                                 compiled_data_size - aligned_filler_offset);
   }
