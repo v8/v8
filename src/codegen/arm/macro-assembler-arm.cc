@@ -2518,6 +2518,19 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
   bind(&done);
 }
 
+void MacroAssembler::LoadInterpreterDataBytecodeArray(
+    Register destination, Register interpreter_data) {
+  ldr(destination, FieldMemOperand(interpreter_data,
+                                   offsetof(InterpreterData, bytecode_array_)));
+}
+
+void MacroAssembler::LoadInterpreterDataInterpreterTrampoline(
+    Register destination, Register interpreter_data) {
+  ldr(destination,
+      FieldMemOperand(interpreter_data,
+                      offsetof(InterpreterData, interpreter_trampoline_)));
+}
+
 void MacroAssembler::LoadGlobalProxy(Register dst) {
   ASM_CODE_COMMENT(this);
   LoadNativeContextSlot(dst, Context::GLOBAL_PROXY_INDEX);

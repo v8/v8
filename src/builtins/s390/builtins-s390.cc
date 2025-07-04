@@ -82,8 +82,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
 
   __ CmpS32(scratch1, Operand(INTERPRETER_DATA_TYPE));
   __ b(ne, is_unavailable);
-  __ LoadTaggedField(
-      data, FieldMemOperand(data, InterpreterData::kBytecodeArrayOffset));
+  __ LoadInterpreterDataBytecodeArray(data, data);
 
   __ bind(&done);
 }
@@ -2063,8 +2062,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
                        INTERPRETER_DATA_TYPE);
   __ bne(&builtin_trampoline);
 
-  __ LoadTaggedField(
-      r4, FieldMemOperand(r4, InterpreterData::kInterpreterTrampolineOffset));
+  __ LoadInterpreterDataInterpreterTrampoline(r4, r4);
   __ LoadCodeInstructionStart(r4, r4);
   __ b(&trampoline_loaded);
 

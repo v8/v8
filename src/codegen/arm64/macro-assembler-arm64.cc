@@ -3614,6 +3614,21 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
   Bind(&done);
 }
 
+void MacroAssembler::LoadInterpreterDataBytecodeArray(
+    Register destination, Register interpreter_data) {
+  LoadProtectedPointerField(
+      destination, FieldMemOperand(interpreter_data,
+                                   offsetof(InterpreterData, bytecode_array_)));
+}
+
+void MacroAssembler::LoadInterpreterDataInterpreterTrampoline(
+    Register destination, Register interpreter_data) {
+  LoadProtectedPointerField(
+      destination,
+      FieldMemOperand(interpreter_data,
+                      offsetof(InterpreterData, interpreter_trampoline_)));
+}
+
 // Sets condition flags based on comparison, and returns type in type_reg.
 void MacroAssembler::CompareInstanceType(Register map, Register type_reg,
                                          InstanceType type) {

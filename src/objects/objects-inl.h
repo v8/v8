@@ -1090,6 +1090,18 @@ void HeapObject::InitSelfIndirectPointerField(
   i::InitSelfIndirectPointerField(field_address(offset), isolate, *this, tag,
                                   opt_publishing_scope);
 }
+
+void HeapObjectLayout::InitSelfIndirectPointerField(
+    std::atomic<IndirectPointerHandle>* field_ptr, IsolateForSandbox isolate,
+    TrustedPointerPublishingScope* opt_publishing_scope) {
+  DCHECK(IsExposedTrustedObject(this));
+  InstanceType instance_type = map()->instance_type();
+  bool shared = HeapLayout::InAnySharedSpace(this);
+  IndirectPointerTag tag =
+      IndirectPointerTagFromInstanceType(instance_type, shared);
+  i::InitSelfIndirectPointerField(reinterpret_cast<Address>(field_ptr), isolate,
+                                  this, tag, opt_publishing_scope);
+}
 #endif  // V8_ENABLE_SANDBOX
 
 template <IndirectPointerTag tag>

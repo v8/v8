@@ -10,6 +10,7 @@ extern class PreparseData extends HeapObject {
   children_length: int32;
 }
 
+@cppObjectLayoutDefinition
 extern class InterpreterData extends ExposedTrustedObject {
   bytecode_array: ProtectedPointer<BytecodeArray>;
   interpreter_trampoline: ProtectedPointer<Code>;

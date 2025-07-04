@@ -808,7 +808,7 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
             wasm_dispatch_table);
 
     ALLOCATE_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell)
-    ALLOCATE_MAP(INTERPRETER_DATA_TYPE, InterpreterData::kSize,
+    ALLOCATE_MAP(INTERPRETER_DATA_TYPE, sizeof(InterpreterData),
                  interpreter_data)
     ALLOCATE_MAP(SHARED_FUNCTION_INFO_WRAPPER_TYPE,
                  SharedFunctionInfoWrapper::kSize, shared_function_info_wrapper)

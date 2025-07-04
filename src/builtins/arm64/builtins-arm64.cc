@@ -447,8 +447,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
                                               &done);
   }
 
-  __ LoadProtectedPointerField(
-      bytecode, FieldMemOperand(data, InterpreterData::kBytecodeArrayOffset));
+  __ LoadInterpreterDataBytecodeArray(bytecode, data);
 
   __ Bind(&done);
   __ IsObjectType(bytecode, scratch1, scratch1, BYTECODE_ARRAY_TYPE);
@@ -2057,8 +2056,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
                   kInterpreterDispatchTableRegister, INTERPRETER_DATA_TYPE);
   __ B(ne, &builtin_trampoline);
 
-  __ LoadProtectedPointerField(
-      x1, FieldMemOperand(x1, InterpreterData::kInterpreterTrampolineOffset));
+  __ LoadInterpreterDataInterpreterTrampoline(x1, x1);
   __ LoadCodeInstructionStart(x1, x1, kJSEntrypointTag);
   __ B(&trampoline_loaded);
 

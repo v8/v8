@@ -109,6 +109,17 @@ V8_OBJECT class HeapObjectLayout {
   inline WriteBarrierMode GetWriteBarrierMode(
       const DisallowGarbageCollection& promise);
 
+#if V8_ENABLE_SANDBOX
+  //
+  // Indirect pointers.
+  //
+  // These are only available when the sandbox is enabled, in which case they
+  // are the under-the-hood implementation of trusted pointers.
+  inline void InitSelfIndirectPointerField(
+      std::atomic<IndirectPointerHandle>* field, IsolateForSandbox isolate,
+      TrustedPointerPublishingScope* opt_publishing_scope);
+#endif  // V8_ENABLE_SANDBOX
+
 #ifdef OBJECT_PRINT
   void PrintHeader(std::ostream& os, const char* id);
 #endif

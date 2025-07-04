@@ -4077,7 +4077,7 @@ class ClassFieldOffsetGenerator : public FieldOffsetsGenerator {
       // HeapObject) being mirrored by a *Layout class. Remove once
       // everything is ported to layout classes.
       if (parent_name == "HeapObject" || parent_name == "TrustedObject" ||
-          parent_name == "Struct") {
+          parent_name == "ExposedTrustedObject" || parent_name == "Struct") {
         parent_name += "Layout";
       }
 

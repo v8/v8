@@ -104,11 +104,37 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreparseData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithoutPreparseDataWithJob)
 TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreparseDataAndJob)
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(InterpreterData)
-PROTECTED_POINTER_ACCESSORS(InterpreterData, bytecode_array, BytecodeArray,
-                            kBytecodeArrayOffset)
-PROTECTED_POINTER_ACCESSORS(InterpreterData, interpreter_trampoline, Code,
-                            kInterpreterTrampolineOffset)
+Tagged<BytecodeArray> InterpreterData::bytecode_array() const {
+  DCHECK(has_bytecode_array());
+  return bytecode_array_.load();
+}
+void InterpreterData::set_bytecode_array(Tagged<BytecodeArray> value,
+                                         WriteBarrierMode mode) {
+  DCHECK(HeapLayout::IsOwnedByAnyHeap(this));
+  bytecode_array_.store(this, value, mode);
+}
+bool InterpreterData::has_bytecode_array() const {
+  return !bytecode_array_.load().is_null();
+}
+void InterpreterData::clear_bytecode_array() {
+  bytecode_array_.store(this, {}, SKIP_WRITE_BARRIER);
+}
+
+Tagged<Code> InterpreterData::interpreter_trampoline() const {
+  DCHECK(has_interpreter_trampoline());
+  return interpreter_trampoline_.load();
+}
+void InterpreterData::set_interpreter_trampoline(Tagged<Code> value,
+                                                 WriteBarrierMode mode) {
+  DCHECK(HeapLayout::IsOwnedByAnyHeap(this));
+  interpreter_trampoline_.store(this, value, mode);
+}
+bool InterpreterData::has_interpreter_trampoline() const {
+  return !interpreter_trampoline_.load().is_null();
+}
+void InterpreterData::clear_interpreter_trampoline() {
+  interpreter_trampoline_.store(this, {}, SKIP_WRITE_BARRIER);
+}
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfo)
 

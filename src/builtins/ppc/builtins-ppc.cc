@@ -102,9 +102,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
                                               &done);
   }
 
-  __ LoadTrustedPointerField(
-      bytecode, FieldMemOperand(data, InterpreterData::kBytecodeArrayOffset),
-      kBytecodeArrayIndirectPointerTag, scratch1);
+  __ LoadInterpreterDataBytecodeArray(bytecode, data);
 
   __ bind(&done);
   __ IsObjectType(bytecode, scratch1, scratch1, BYTECODE_ARRAY_TYPE);
@@ -2044,9 +2042,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
                   kInterpreterDispatchTableRegister, INTERPRETER_DATA_TYPE);
   __ bne(&builtin_trampoline);
 
-  __ LoadCodePointerField(
-      r5, FieldMemOperand(r5, InterpreterData::kInterpreterTrampolineOffset),
-      r6);
+  __ LoadInterpreterDataInterpreterTrampoline(r5, r5);
   __ LoadCodeInstructionStart(r5, r5);
   __ b(&trampoline_loaded);
 

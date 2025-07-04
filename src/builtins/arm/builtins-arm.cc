@@ -337,7 +337,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
 
   __ cmp(scratch1, Operand(INTERPRETER_DATA_TYPE));
   __ b(ne, is_unavailable);
-  __ ldr(data, FieldMemOperand(data, InterpreterData::kBytecodeArrayOffset));
+  __ LoadInterpreterDataBytecodeArray(data, data);
 
   __ bind(&done);
 }
@@ -1735,8 +1735,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
                        INTERPRETER_DATA_TYPE);
   __ b(ne, &builtin_trampoline);
 
-  __ ldr(r2,
-         FieldMemOperand(r2, InterpreterData::kInterpreterTrampolineOffset));
+  __ LoadInterpreterDataInterpreterTrampoline(r2, r2);
   __ LoadCodeInstructionStart(r2, r2);
   __ b(&trampoline_loaded);
 

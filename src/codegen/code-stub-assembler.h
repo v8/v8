@@ -1738,6 +1738,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<SharedFunctionInfo> sfi);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+  TNode<BytecodeArray> LoadInterpreterDataBytecodeArray(
+      TNode<InterpreterData> data);
+  TNode<Code> LoadInterpreterDataInterpreterTrampoline(
+      TNode<InterpreterData> data);
+
   TNode<Int32T> LoadBytecodeArrayParameterCount(
       TNode<BytecodeArray> bytecode_array);
   TNode<Int32T> LoadBytecodeArrayParameterCountWithoutReceiver(

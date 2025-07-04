@@ -110,6 +110,7 @@ void MacroAssembler::LoadRoot(Register destination, RootIndex index) {
   // costs us more than the load.
   Ld_d(destination, MemOperand(s6, RootRegisterOffsetForRootIndex(index)));
 }
+
 void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
   if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index) &&
       is_int12(ReadOnlyRootPtr(index))) {
@@ -4088,6 +4089,21 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
   Branch(fbv_undef);
 
   bind(&done);
+}
+
+void MacroAssembler::LoadInterpreterDataBytecodeArray(
+    Register destination, Register interpreter_data) {
+  LoadProtectedPointerField(
+      destination, FieldMemOperand(interpreter_data,
+                                   offsetof(InterpreterData, bytecode_array_)));
+}
+
+void MacroAssembler::LoadInterpreterDataInterpreterTrampoline(
+    Register destination, Register interpreter_data) {
+  LoadProtectedPointerField(
+      destination,
+      FieldMemOperand(interpreter_data,
+                      offsetof(InterpreterData, interpreter_trampoline_)));
 }
 
 void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {

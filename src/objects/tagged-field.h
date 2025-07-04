@@ -21,6 +21,9 @@ namespace v8::internal {
 template <typename T, typename CompressionScheme = V8HeapCompressionScheme>
 class TaggedMember;
 
+template <typename T>
+using ProtectedTaggedMember = TaggedMember<T, TrustedSpaceCompressionScheme>;
+
 // Base class for all TaggedMember<T> classes.
 // TODO(leszeks): Merge with TaggedImpl.
 // TODO(leszeks): Maybe split STRONG and WEAK bases.

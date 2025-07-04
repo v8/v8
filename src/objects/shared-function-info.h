@@ -21,6 +21,8 @@
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/objects/struct.h"
+#include "src/objects/tagged-field.h"
+#include "src/objects/trusted-object.h"
 #include "src/roots/roots.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 #include "torque-generated/bit-fields.h"
@@ -177,18 +179,33 @@ class UncompiledDataWithPreparseDataAndJob
   TQ_OBJECT_CONSTRUCTORS(UncompiledDataWithPreparseDataAndJob)
 };
 
-class InterpreterData
-    : public TorqueGeneratedInterpreterData<InterpreterData,
-                                            ExposedTrustedObject> {
+V8_OBJECT class InterpreterData : public ExposedTrustedObjectLayout {
  public:
-  DECL_PROTECTED_POINTER_ACCESSORS(bytecode_array, BytecodeArray)
-  DECL_PROTECTED_POINTER_ACCESSORS(interpreter_trampoline, Code)
+  inline Tagged<BytecodeArray> bytecode_array() const;
+  inline void set_bytecode_array(Tagged<BytecodeArray> value,
+                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline bool has_bytecode_array() const;
+  inline void clear_bytecode_array();
+
+  inline Tagged<Code> interpreter_trampoline() const;
+  inline void set_interpreter_trampoline(
+      Tagged<Code> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline bool has_interpreter_trampoline() const;
+  inline void clear_interpreter_trampoline();
+
+  DECL_VERIFIER(InterpreterData)
+  DECL_PRINTER(InterpreterData)
 
   class BodyDescriptor;
 
  private:
-  TQ_OBJECT_CONSTRUCTORS(InterpreterData)
-};
+  friend class TorqueGeneratedInterpreterDataAsserts;
+  friend class MacroAssembler;
+  friend class CodeStubAssembler;
+
+  ProtectedTaggedMember<BytecodeArray> bytecode_array_;
+  ProtectedTaggedMember<Code> interpreter_trampoline_;
+} V8_OBJECT_END;
 
 using NameOrScopeInfoT = UnionOf<Smi, String, ScopeInfo>;
 

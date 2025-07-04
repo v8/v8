@@ -3793,8 +3793,8 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
   BIND(&check_for_interpreter_data);
 
   GotoIfNot(HasInstanceType(var_result.value(), INTERPRETER_DATA_TYPE), &done);
-  TNode<BytecodeArray> bytecode_array = CAST(LoadProtectedPointerField(
-      CAST(var_result.value()), InterpreterData::kBytecodeArrayOffset));
+  TNode<BytecodeArray> bytecode_array =
+      LoadInterpreterDataBytecodeArray(CAST(var_result.value()));
   var_result = bytecode_array;
   Goto(&done);
 
@@ -3840,6 +3840,18 @@ CodeStubAssembler::LoadSharedFunctionInfoWasmJSFunctionData(
   return CAST(function_data);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+TNode<BytecodeArray> CodeStubAssembler::LoadInterpreterDataBytecodeArray(
+    TNode<InterpreterData> data) {
+  return CAST(LoadProtectedPointerField(
+      data, offsetof(InterpreterData, bytecode_array_)));
+}
+
+TNode<Code> CodeStubAssembler::LoadInterpreterDataInterpreterTrampoline(
+    TNode<InterpreterData> data) {
+  return CAST(LoadProtectedPointerField(
+      data, offsetof(InterpreterData, interpreter_trampoline_)));
+}
 
 TNode<Int32T> CodeStubAssembler::LoadBytecodeArrayParameterCount(
     TNode<BytecodeArray> bytecode_array) {
@@ -17995,8 +18007,8 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
     // IsInterpreterData: Interpret bytecode
     BIND(&check_is_interpreter_data);
     {
-      TNode<Code> trampoline = CAST(LoadProtectedPointerField(
-          CAST(sfi_data), InterpreterData::kInterpreterTrampolineOffset));
+      TNode<Code> trampoline =
+          LoadInterpreterDataInterpreterTrampoline(CAST(sfi_data));
       sfi_code = trampoline;
     }
     Goto(&done);

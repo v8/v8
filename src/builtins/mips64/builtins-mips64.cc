@@ -320,7 +320,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
   __ Branch(&done, eq, scratch1, Operand(BYTECODE_ARRAY_TYPE));
 
   __ Branch(is_unavailable, ne, scratch1, Operand(INTERPRETER_DATA_TYPE));
-  __ Ld(data, FieldMemOperand(data, InterpreterData::kBytecodeArrayOffset));
+  __ LoadInterpreterDataBytecodeArray(bytecode, data);
   __ bind(&done);
 }
 
@@ -1717,7 +1717,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ Branch(&builtin_trampoline, ne, kInterpreterDispatchTableRegister,
             Operand(INTERPRETER_DATA_TYPE));
 
-  __ Ld(t0, FieldMemOperand(t0, InterpreterData::kInterpreterTrampolineOffset));
+  __ LoadInterpreterDataInterpreterTrampoline(t0, t0);
   __ LoadCodeInstructionStart(t0, t0, kJSEntrypointTag);
   __ Branch(&trampoline_loaded);
 

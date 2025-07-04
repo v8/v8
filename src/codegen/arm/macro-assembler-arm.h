@@ -594,6 +594,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadFeedbackVector(Register dst, Register closure, Register scratch,
                           Label* fbv_undef);
 
+  void LoadInterpreterDataInterpreterTrampoline(Register destination,
+                                                Register interpreter_data);
+  void LoadInterpreterDataBytecodeArray(Register destination,
+                                        Register interpreter_data);
+
   void PushAll(RegList registers) {
     if (registers.is_empty()) return;
     ASM_CODE_COMMENT(this);

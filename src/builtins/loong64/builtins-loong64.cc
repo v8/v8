@@ -321,8 +321,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
 #endif  // !V8_JITLESS
 
   __ Branch(&done, ne, scratch1, Operand(INTERPRETER_DATA_TYPE));
-  __ LoadProtectedPointerField(
-      bytecode, FieldMemOperand(data, InterpreterData::kBytecodeArrayOffset));
+  __ LoadInterpreterDataBytecodeArray(bytecode, data);
 
   __ bind(&done);
 
@@ -1783,8 +1782,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ JumpIfObjectType(&builtin_trampoline, ne, t0, INTERPRETER_DATA_TYPE,
                       kInterpreterDispatchTableRegister);
 
-  __ LoadProtectedPointerField(
-      t0, FieldMemOperand(t0, InterpreterData::kInterpreterTrampolineOffset));
+  __ LoadInterpreterDataInterpreterTrampoline(t0, t0);
   __ LoadCodeInstructionStart(t0, t0, kJSEntrypointTag);
   __ Branch(&trampoline_loaded);
 

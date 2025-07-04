@@ -137,6 +137,24 @@ class ExposedTrustedObject : public TrustedObject {
   OBJECT_CONSTRUCTORS(ExposedTrustedObject, TrustedObject);
 };
 
+V8_OBJECT class ExposedTrustedObjectLayout : public TrustedObjectLayout {
+ public:
+  // Initializes this object by creating its pointer table entry.
+  inline void init_self_indirect_pointer(Isolate* isolate);
+  inline void init_self_indirect_pointer(LocalIsolate* isolate);
+
+  inline IndirectPointerHandle self_indirect_pointer_handle() const;
+
+  DECL_VERIFIER(ExposedTrustedObject)
+
+ private:
+#ifdef V8_ENABLE_SANDBOX
+  // The 'self' indirect pointer is only available when the sandbox is enabled.
+  // Otherwise, these objects are referenced through direct pointers.
+  std::atomic<IndirectPointerHandle> self_indirect_pointer_;
+#endif  // V8_ENABLE_SANDBOX
+} V8_OBJECT_END;
+
 }  // namespace internal
 }  // namespace v8
 

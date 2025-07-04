@@ -99,6 +99,19 @@ void MacroAssembler::LoadRoot(Register destination, RootIndex index) {
   Ld(destination, MemOperand(s6, RootRegisterOffsetForRootIndex(index)));
 }
 
+void MacroAssembler::LoadInterpreterDataBytecodeArray(
+    Register destination, Register interpreter_data) {
+  Ld(destination, FieldMemOperand(interpreter_data,
+                                  offsetof(InterpreterData, bytecode_array_)));
+}
+
+void MacroAssembler::LoadInterpreterDataInterpreterTrampoline(
+    Register destination, Register interpreter_data) {
+  Ld(destination,
+     FieldMemOperand(interpreter_data,
+                     offsetof(InterpreterData, interpreter_trampoline_)));
+}
+
 void MacroAssembler::LoadRoot(Register destination, RootIndex index,
                               Condition cond, Register src1,
                               const Operand& src2) {

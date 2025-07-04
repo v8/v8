@@ -546,8 +546,7 @@ static void GetSharedFunctionInfoBytecode(MacroAssembler* masm,
 
   __ CmpObjectType(sfi_data, INTERPRETER_DATA_TYPE, scratch1);
   __ j(not_equal, &done, Label::kNear);
-  __ mov(sfi_data,
-         FieldOperand(sfi_data, InterpreterData::kBytecodeArrayOffset));
+  __ LoadInterpreterDataBytecodeArray(sfi_data, sfi_data);
 
   __ bind(&done);
 }
@@ -592,7 +591,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
 
   __ CmpInstanceType(scratch1, INTERPRETER_DATA_TYPE);
   __ j(not_equal, is_unavailable);
-  __ mov(data, FieldOperand(data, InterpreterData::kBytecodeArrayOffset));
+  __ LoadInterpreterDataBytecodeArray(data, data);
 
   __ bind(&done);
 }
@@ -1738,8 +1737,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ CmpObjectType(scratch, INTERPRETER_DATA_TYPE, eax);
   __ j(not_equal, &builtin_trampoline, Label::kNear);
 
-  __ mov(scratch,
-         FieldOperand(scratch, InterpreterData::kInterpreterTrampolineOffset));
+  __ LoadInterpreterDataInterpreterTrampoline(scratch, scratch);
   __ LoadCodeInstructionStart(scratch, scratch);
   __ jmp(&trampoline_loaded, Label::kNear);
 

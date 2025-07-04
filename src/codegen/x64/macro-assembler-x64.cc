@@ -303,6 +303,21 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
   bind(&done);
 }
 
+void MacroAssembler::LoadInterpreterDataBytecodeArray(
+    Register destination, Register interpreter_data) {
+  LoadProtectedPointerField(
+      destination, FieldOperand(interpreter_data,
+                                offsetof(InterpreterData, bytecode_array_)));
+}
+
+void MacroAssembler::LoadInterpreterDataInterpreterTrampoline(
+    Register destination, Register interpreter_data) {
+  LoadProtectedPointerField(
+      destination,
+      FieldOperand(interpreter_data,
+                   offsetof(InterpreterData, interpreter_trampoline_)));
+}
+
 void MacroAssembler::LoadTaggedField(Register destination,
                                      Operand field_operand) {
   if (COMPRESS_POINTERS_BOOL) {

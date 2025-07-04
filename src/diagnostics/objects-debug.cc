@@ -1490,6 +1490,10 @@ void SharedFunctionInfoWrapper::SharedFunctionInfoWrapperVerify(
   Object::VerifyPointer(isolate, shared_info());
 }
 
+void InterpreterData::InterpreterDataVerify(Isolate* isolate) {
+  CHECK(IsInterpreterData(this, isolate));
+}
+
 void JSGlobalProxy::JSGlobalProxyVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSGlobalProxyVerify(*this, isolate);
   CHECK(map()->is_access_check_needed());

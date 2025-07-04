@@ -109,6 +109,31 @@ IndirectPointerHandle ExposedTrustedObject::self_indirect_pointer_handle()
 #endif
 }
 
+void ExposedTrustedObjectLayout::init_self_indirect_pointer(Isolate* isolate) {
+#ifdef V8_ENABLE_SANDBOX
+  InitSelfIndirectPointerField(&self_indirect_pointer_, isolate,
+                               isolate->trusted_pointer_publishing_scope());
+#endif
+}
+
+void ExposedTrustedObjectLayout::init_self_indirect_pointer(
+    LocalIsolate* isolate) {
+#ifdef V8_ENABLE_SANDBOX
+  // Background threads using LocalIsolates don't use
+  // TrustedPointerPublishingScopes.
+  InitSelfIndirectPointerField(&self_indirect_pointer_, isolate, nullptr);
+#endif
+}
+
+IndirectPointerHandle ExposedTrustedObjectLayout::self_indirect_pointer_handle()
+    const {
+#ifdef V8_ENABLE_SANDBOX
+  return self_indirect_pointer_.load(std::memory_order::relaxed);
+#else
+  UNREACHABLE();
+#endif
+}
+
 }  // namespace internal
 }  // namespace v8
 

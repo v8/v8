@@ -2550,6 +2550,13 @@ void SharedFunctionInfoWrapper::SharedFunctionInfoWrapperPrint(
   os << "\n    sfi: " << Brief(shared_info());
 }
 
+void InterpreterData::InterpreterDataPrint(std::ostream& os) {
+  PrintHeader(os, "InterpreterData");
+  os << "\n - bytecode_array: " << Brief(bytecode_array());
+  os << "\n - interpreter_trampoline: " << Brief(interpreter_trampoline());
+  os << "\n";
+}
+
 void JSGlobalProxy::JSGlobalProxyPrint(std::ostream& os) {
   JSAPIObjectWithEmbedderSlotsPrintHeader(os, *this, "JSGlobalProxy");
   JSObjectPrintBody(os, *this);
