@@ -3221,9 +3221,8 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
 
   int offset = Context::OffsetOfElementAt(index);
   if (!maybe_value->IsContextCell()) {
-    *store = BuildStoreTaggedField(context, value, offset,
-                                   StoreTaggedMode::kDefault);
-    return ReduceResult::Done();
+    return BuildStoreTaggedField(context, value, offset,
+                                 StoreTaggedMode::kDefault, store);
   }
 
   compiler::ContextCellRef slot_ref = maybe_value->AsContextCell();
@@ -3244,10 +3243,9 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
     case ContextCell::kSmi:
       RETURN_IF_ABORT(BuildCheckSmi(value));
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
-      *store = BuildStoreTaggedFieldNoWriteBarrier(
+      return BuildStoreTaggedFieldNoWriteBarrier(
           GetConstant(slot_ref), value, offsetof(ContextCell, tagged_value_),
-          StoreTaggedMode::kDefault);
-      return ReduceResult::Done();
+          StoreTaggedMode::kDefault, store);
     case ContextCell::kInt32:
       EnsureInt32(value, true);
       *store = AddNewNode<StoreInt32>(
@@ -3263,9 +3261,8 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
       return ReduceResult::Done();
     case ContextCell::kDetached:
-      *store = BuildStoreTaggedField(context, value, offset,
-                                     StoreTaggedMode::kDefault);
-      return ReduceResult::Done();
+      return BuildStoreTaggedField(context, value, offset,
+                                   StoreTaggedMode::kDefault, store);
   }
   UNREACHABLE();
 }
@@ -3290,8 +3287,8 @@ ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
   }
 
   if (!store) {
-    store = BuildStoreTaggedField(context, value, offset,
-                                  StoreTaggedMode::kDefault);
+    RETURN_IF_ABORT(BuildStoreTaggedField(context, value, offset,
+                                          StoreTaggedMode::kDefault, &store));
   }
 
   if (v8_flags.trace_maglev_graph_building) {
@@ -3756,20 +3753,18 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
         RETURN_IF_ABORT(GetSmiValue(value));
       }
       ValueNode* property_cell_node = GetConstant(property_cell.AsHeapObject());
-      BuildStoreTaggedField(property_cell_node, value,
-                            PropertyCell::kValueOffset,
-                            StoreTaggedMode::kDefault);
-      break;
+      return BuildStoreTaggedField(property_cell_node, value,
+                                   PropertyCell::kValueOffset,
+                                   StoreTaggedMode::kDefault);
     }
     case PropertyCellType::kMutable: {
       // Record a code dependency on the cell, and just deoptimize if the
       // property ever becomes read-only.
       broker()->dependencies()->DependOnGlobalProperty(property_cell);
       ValueNode* property_cell_node = GetConstant(property_cell.AsHeapObject());
-      BuildStoreTaggedField(property_cell_node, GetAccumulator(),
-                            PropertyCell::kValueOffset,
-                            StoreTaggedMode::kDefault);
-      break;
+      return BuildStoreTaggedField(property_cell_node, GetAccumulator(),
+                                   PropertyCell::kValueOffset,
+                                   StoreTaggedMode::kDefault);
     }
     case PropertyCellType::kInTransition:
       UNREACHABLE();
@@ -4652,12 +4647,18 @@ void MaglevGraphBuilder::BuildInitializeStore(InlinedAllocation* object,
     inlined_value->AddNonEscapingUses();
   }
   if (value_is_trusted) {
-    BuildStoreTrustedPointerField(object, value, offset,
-                                  value->Cast<TrustedConstant>()->tag(),
-                                  StoreTaggedMode::kInitializing);
+    // Since `value` is tagged, BuildStoreTaggedField doesn't need to do input
+    // conversions and won't abort.
+    ReduceResult result = BuildStoreTrustedPointerField(
+        object, value, offset, value->Cast<TrustedConstant>()->tag(),
+        StoreTaggedMode::kInitializing);
+    CHECK(!result.IsDoneWithAbort());
   } else {
-    BuildStoreTaggedField(object, value, offset,
-                          StoreTaggedMode::kInitializing);
+    // Since `value` is tagged, BuildStoreTaggedField doesn't need to do input
+    // conversions and won't abort.
+    ReduceResult result = BuildStoreTaggedField(object, value, offset,
+                                                StoreTaggedMode::kInitializing);
+    CHECK(!result.IsDoneWithAbort());
   }
 }
 
@@ -4782,23 +4783,23 @@ void MaglevGraphBuilder::TryBuildStoreTaggedFieldToAllocation(ValueNode* object,
   }
 }
 
-Node* MaglevGraphBuilder::BuildStoreTaggedField(ValueNode* object,
-                                                ValueNode* value, int offset,
-                                                StoreTaggedMode store_mode) {
+ReduceResult MaglevGraphBuilder::BuildStoreTaggedField(
+    ValueNode* object, ValueNode* value, int offset, StoreTaggedMode store_mode,
+    Node** store) {
   // The value may be used to initialize a VO, which can leak to IFS.
   // It should NOT be a conversion node, UNLESS it's an initializing value.
   // Initializing values are tagged before allocation, since conversion nodes
   // may allocate, and are not used to set a VO.
   DCHECK_IMPLIES(store_mode != StoreTaggedMode::kInitializing,
                  !value->properties().is_conversion());
-  // TODO(marja): Bail out if `value` has the empty type. This requires that
-  // BuildInlinedAllocation can bail out.
+  // TODO(marja): Bail out if `value` has the empty type.
   if (store_mode != StoreTaggedMode::kInitializing) {
     TryBuildStoreTaggedFieldToAllocation(object, value, offset);
   }
+  Node* store_node;
   if (CanElideWriteBarrier(object, value)) {
-    return AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset,
-                                                      store_mode);
+    store_node = AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value},
+                                                            offset, store_mode);
   } else {
     // Detect stores that would create old-to-new references and pretenure the
     // value.
@@ -4810,14 +4811,18 @@ Node* MaglevGraphBuilder::BuildStoreTaggedField(ValueNode* object,
         }
       }
     }
-    return AddNewNode<StoreTaggedFieldWithWriteBarrier>({object, value}, offset,
-                                                        store_mode);
+    store_node = AddNewNode<StoreTaggedFieldWithWriteBarrier>(
+        {object, value}, offset, store_mode);
   }
+  if (store) {
+    *store = store_node;
+  }
+  return ReduceResult::Done();
 }
 
-Node* MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(
-    ValueNode* object, ValueNode* value, int offset,
-    StoreTaggedMode store_mode) {
+ReduceResult MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(
+    ValueNode* object, ValueNode* value, int offset, StoreTaggedMode store_mode,
+    Node** store) {
   // The value may be used to initialize a VO, which can leak to IFS.
   // It should NOT be a conversion node, UNLESS it's an initializing value.
   // Initializing values are tagged before allocation, since conversion nodes
@@ -4828,18 +4833,23 @@ Node* MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(
   if (store_mode != StoreTaggedMode::kInitializing) {
     TryBuildStoreTaggedFieldToAllocation(object, value, offset);
   }
-  return AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset,
-                                                    store_mode);
+  Node* store_node = AddNewNode<StoreTaggedFieldNoWriteBarrier>(
+      {object, value}, offset, store_mode);
+  if (store) {
+    *store = store_node;
+  }
+  return ReduceResult::Done();
 }
 
-void MaglevGraphBuilder::BuildStoreTrustedPointerField(
+ReduceResult MaglevGraphBuilder::BuildStoreTrustedPointerField(
     ValueNode* object, ValueNode* value, int offset, IndirectPointerTag tag,
     StoreTaggedMode store_mode) {
 #ifdef V8_ENABLE_SANDBOX
   AddNewNode<StoreTrustedPointerFieldWithWriteBarrier>({object, value}, offset,
                                                        tag, store_mode);
+  return ReduceResult::Done();
 #else
-  BuildStoreTaggedField(object, value, offset, store_mode);
+  return BuildStoreTaggedField(object, value, offset, store_mode);
 #endif  // V8_ENABLE_SANDBOX
 }
 
@@ -5296,9 +5306,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
       // Allocate the mutable double box owned by the field.
       ValueNode* heapnumber_value =
           AddNewNode<Float64ToHeapNumberForField>({value});
-      BuildStoreTaggedField(store_target, heapnumber_value,
-                            field_index.offset(),
-                            StoreTaggedMode::kTransitioning);
+      RETURN_IF_ABORT(BuildStoreTaggedField(store_target, heapnumber_value,
+                                            field_index.offset(),
+                                            StoreTaggedMode::kTransitioning));
       BuildStoreMap(receiver, access_info.transition_map().value(),
                     StoreMap::Kind::kTransitioning);
     } else {
@@ -5312,13 +5322,13 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
                                    ? StoreTaggedMode::kTransitioning
                                    : StoreTaggedMode::kDefault;
   if (field_representation.IsSmi()) {
-    BuildStoreTaggedFieldNoWriteBarrier(store_target, value,
-                                        field_index.offset(), store_mode);
+    RETURN_IF_ABORT(BuildStoreTaggedFieldNoWriteBarrier(
+        store_target, value, field_index.offset(), store_mode));
   } else {
     DCHECK(field_representation.IsHeapObject() ||
            field_representation.IsTagged());
-    BuildStoreTaggedField(store_target, value, field_index.offset(),
-                          store_mode);
+    RETURN_IF_ABORT(BuildStoreTaggedField(store_target, value,
+                                          field_index.offset(), store_mode));
   }
   if (access_info.HasTransitionMap()) {
     BuildStoreMap(receiver, access_info.transition_map().value(),
@@ -7323,9 +7333,8 @@ ReduceResult MaglevGraphBuilder::VisitStaModuleVariable() {
   // The actual array index is (cell_index - 1).
   cell_index -= 1;
   ValueNode* cell = BuildLoadFixedArrayElement(exports, cell_index);
-  BuildStoreTaggedField(cell, GetAccumulator(), Cell::kValueOffset,
-                        StoreTaggedMode::kDefault);
-  return ReduceResult::Done();
+  return BuildStoreTaggedField(cell, GetAccumulator(), Cell::kValueOffset,
+                               StoreTaggedMode::kDefault);
 }
 
 ReduceResult MaglevGraphBuilder::BuildLoadGlobal(
@@ -8848,10 +8857,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
             {int32_index, GetInt32Constant(1)});
         EnsureType(next_index, NodeType::kSmi);
         // Update [[NextIndex]]
-        BuildStoreTaggedFieldNoWriteBarrier(receiver, next_index,
-                                            JSArrayIterator::kNextIndexOffset,
-                                            StoreTaggedMode::kDefault);
-        return ReduceResult::Done();
+        return BuildStoreTaggedFieldNoWriteBarrier(
+            receiver, next_index, JSArrayIterator::kNextIndexOffset,
+            StoreTaggedMode::kDefault);
       },
       [&] {
         // Index is greater or equal than length.
@@ -8868,9 +8876,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
           // This is not necessary for JSTypedArray's, since the length of those
           // cannot change later and so if we were ever out of bounds for them
           // we will stay out-of-bounds forever.
-          BuildStoreTaggedField(receiver, GetFloat64Constant(kMaxUInt32),
-                                JSArrayIterator::kNextIndexOffset,
-                                StoreTaggedMode::kDefault);
+          return BuildStoreTaggedField(receiver, GetFloat64Constant(kMaxUInt32),
+                                       JSArrayIterator::kNextIndexOffset,
+                                       StoreTaggedMode::kDefault);
         }
         return ReduceResult::Done();
       }));
@@ -11544,9 +11552,9 @@ ReduceResult MaglevGraphBuilder::VisitIntrinsicGeneratorClose(
   DCHECK_EQ(args.register_count(), 1);
   ValueNode* generator = current_interpreter_frame_.get(args[0]);
   ValueNode* value = GetSmiConstant(JSGeneratorObject::kGeneratorClosed);
-  BuildStoreTaggedFieldNoWriteBarrier(generator, value,
-                                      JSGeneratorObject::kContinuationOffset,
-                                      StoreTaggedMode::kDefault);
+  RETURN_IF_ABORT(BuildStoreTaggedFieldNoWriteBarrier(
+      generator, value, JSGeneratorObject::kContinuationOffset,
+      StoreTaggedMode::kDefault));
   SetAccumulator(GetRootConstant(RootIndex::kUndefinedValue));
   return ReduceResult::Done();
 }
@@ -14966,9 +14974,9 @@ ReduceResult MaglevGraphBuilder::VisitSwitchOnGeneratorState() {
   ValueNode* state =
       BuildLoadTaggedField(generator, JSGeneratorObject::kContinuationOffset);
   ValueNode* new_state = GetSmiConstant(JSGeneratorObject::kGeneratorExecuting);
-  BuildStoreTaggedFieldNoWriteBarrier(generator, new_state,
-                                      JSGeneratorObject::kContinuationOffset,
-                                      StoreTaggedMode::kDefault);
+  RETURN_IF_ABORT(BuildStoreTaggedFieldNoWriteBarrier(
+      generator, new_state, JSGeneratorObject::kContinuationOffset,
+      StoreTaggedMode::kDefault));
   ValueNode* context =
       BuildLoadTaggedField(generator, JSGeneratorObject::kContextOffset);
   EnsureType(context, NodeType::kContext);

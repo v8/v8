@@ -1227,14 +1227,17 @@ class MaglevGraphBuilder {
   ValueNode* BuildLoadTaggedField(ValueNode* object, uint32_t offset,
                                   Args&&... args);
 
-  Node* BuildStoreTaggedField(ValueNode* object, ValueNode* value, int offset,
-                              StoreTaggedMode store_mode);
-  Node* BuildStoreTaggedFieldNoWriteBarrier(ValueNode* object, ValueNode* value,
-                                            int offset,
-                                            StoreTaggedMode store_mode);
-  void BuildStoreTrustedPointerField(ValueNode* object, ValueNode* value,
-                                     int offset, IndirectPointerTag tag,
-                                     StoreTaggedMode store_mode);
+  ReduceResult BuildStoreTaggedField(ValueNode* object, ValueNode* value,
+                                     int offset, StoreTaggedMode store_mode,
+                                     Node** store = nullptr);
+  ReduceResult BuildStoreTaggedFieldNoWriteBarrier(ValueNode* object,
+                                                   ValueNode* value, int offset,
+                                                   StoreTaggedMode store_mode,
+                                                   Node** store = nullptr);
+  ReduceResult BuildStoreTrustedPointerField(ValueNode* object,
+                                             ValueNode* value, int offset,
+                                             IndirectPointerTag tag,
+                                             StoreTaggedMode store_mode);
 
   ValueNode* BuildLoadFixedArrayElement(ValueNode* elements, int index);
   ValueNode* BuildLoadFixedArrayElement(ValueNode* elements, ValueNode* index);
