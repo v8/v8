@@ -2388,14 +2388,14 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
 
 void MacroAssembler::LoadInterpreterDataBytecodeArray(
     Register destination, Register interpreter_data) {
-  __ LoadTaggedField(
-      destination, FieldMemOperand(interpreter_data,
-                                   offsetof(InterpreterData, bytecode_array_)));
+  LoadTaggedField(destination,
+                  FieldMemOperand(interpreter_data,
+                                  offsetof(InterpreterData, bytecode_array_)));
 }
 
 void MacroAssembler::LoadInterpreterDataInterpreterTrampoline(
     Register destination, Register interpreter_data) {
-  __ LoadTaggedField(
+  LoadTaggedField(
       destination,
       FieldMemOperand(interpreter_data,
                       offsetof(InterpreterData, interpreter_trampoline_)));

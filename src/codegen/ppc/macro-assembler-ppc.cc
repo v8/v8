@@ -2540,14 +2540,15 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
 
 void MacroAssembler::LoadInterpreterDataBytecodeArray(
     Register destination, Register interpreter_data) {
-  LoadProtectedPointerField(
-      destination, FieldMemOperand(interpreter_data,
-                                   offsetof(InterpreterData, bytecode_array_)));
+  LoadTaggedField(destination,
+                  FieldMemOperand(interpreter_data,
+                                  offsetof(InterpreterData, bytecode_array_)),
+                  r0);
 }
 
 void MacroAssembler::LoadInterpreterDataInterpreterTrampoline(
     Register destination, Register interpreter_data) {
-  LoadCodePointerField(
+  LoadTaggedField(
       destination,
       FieldMemOperand(interpreter_data,
                       offsetof(InterpreterData, interpreter_trampoline_)),
