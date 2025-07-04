@@ -239,17 +239,21 @@ ValueNode* MaglevInliner::EnsureTagged(MaglevGraphBuilder& builder,
   // TODO(victorgomes): Use KNA to create better conversion nodes?
   switch (node->value_representation()) {
     case ValueRepresentation::kInt32:
-      return builder.reducer().AddNewNode<Int32ToNumber>({node});
+      return builder.reducer().AddNewNodeNoInputConversion<Int32ToNumber>(
+          {node});
     case ValueRepresentation::kUint32:
-      return builder.reducer().AddNewNode<Uint32ToNumber>({node});
+      return builder.reducer().AddNewNodeNoInputConversion<Uint32ToNumber>(
+          {node});
     case ValueRepresentation::kFloat64:
-      return builder.reducer().AddNewNode<Float64ToTagged>(
+      return builder.reducer().AddNewNodeNoInputConversion<Float64ToTagged>(
           {node}, Float64ToTagged::ConversionMode::kForceHeapNumber);
     case ValueRepresentation::kHoleyFloat64:
-      return builder.reducer().AddNewNode<HoleyFloat64ToTagged>(
-          {node}, HoleyFloat64ToTagged::ConversionMode::kForceHeapNumber);
+      return builder.reducer()
+          .AddNewNodeNoInputConversion<HoleyFloat64ToTagged>(
+              {node}, HoleyFloat64ToTagged::ConversionMode::kForceHeapNumber);
     case ValueRepresentation::kIntPtr:
-      return builder.reducer().AddNewNode<IntPtrToNumber>({node});
+      return builder.reducer().AddNewNodeNoInputConversion<IntPtrToNumber>(
+          {node});
     case ValueRepresentation::kTagged:
       return node;
   }

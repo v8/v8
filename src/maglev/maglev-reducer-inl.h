@@ -119,13 +119,14 @@ NodeT* MaglevReducer<BaseT>::AddNewNodeNoInputConversion(
 
 template <typename BaseT>
 template <typename NodeT, typename... Args>
-NodeT* MaglevReducer<BaseT>::AddUnbufferedNewNode(
+NodeT* MaglevReducer<BaseT>::AddUnbufferedNewNodeNoInputConversion(
     BasicBlock* block, std::initializer_list<ValueNode*> inputs,
     Args&&... args) {
   ScopedModification<BasicBlock*> save_block(&current_block_, block);
   DCHECK_EQ(add_new_node_mode_, AddNewNodeMode::kBuffered);
   add_new_node_mode_ = AddNewNodeMode::kUnbuffered;
-  NodeT* node = AddNewNode<NodeT>(inputs, std::forward<Args>(args)...);
+  NodeT* node =
+      AddNewNodeNoInputConversion<NodeT>(inputs, std::forward<Args>(args)...);
   add_new_node_mode_ = AddNewNodeMode::kBuffered;
   return node;
 }

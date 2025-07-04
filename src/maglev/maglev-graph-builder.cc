@@ -1140,7 +1140,7 @@ ValueNode* MaglevGraphBuilder::GetInlinedArgument(int i) {
 void MaglevGraphBuilder::InitializeRegister(interpreter::Register reg,
                                             ValueNode* value) {
   current_interpreter_frame_.set(
-      reg, value ? value : AddNewNode<InitialValue>({}, reg));
+      reg, value ? value : AddNewNodeNoInputConversion<InitialValue>({}, reg));
 }
 
 void MaglevGraphBuilder::BuildRegisterFrameInitialization(
@@ -1166,8 +1166,8 @@ void MaglevGraphBuilder::BuildRegisterFrameInitialization(
 
   if (compilation_unit_->is_osr()) {
     for (; register_index < register_count(); register_index++) {
-      auto val =
-          AddNewNode<InitialValue>({}, interpreter::Register(register_index));
+      auto val = AddNewNodeNoInputConversion<InitialValue>(
+          {}, interpreter::Register(register_index));
       InitializeRegister(interpreter::Register(register_index), val);
       graph_->osr_values().push_back(val);
     }
@@ -1668,7 +1668,7 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(
   if (representation == ValueRepresentation::kInt32) return value;
   if (representation == ValueRepresentation::kUint32) {
     // This node is cheap (no code gen, just a bitcast), so don't cache it.
-    return AddNewNode<TruncateUint32ToInt32>({value});
+    return AddNewNodeNoInputConversion<TruncateUint32ToInt32>({value});
   }
 
   // Process constants first to avoid allocating NodeInfo for them.
@@ -1727,16 +1727,17 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(
         return alternative.set_int32(BuildSmiUntag(value));
       }
       if (allowed_input_type == NodeType::kSmi) {
-        return alternative.set_int32(AddNewNode<CheckedSmiUntag>({value}));
+        return alternative.set_int32(
+            AddNewNodeNoInputConversion<CheckedSmiUntag>({value}));
       }
       if (NodeTypeIs(old_type, allowed_input_type)) {
         return alternative.set_truncated_int32_to_number(
-            AddNewNode<TruncateNumberOrOddballToInt32>({value},
-                                                       conversion_type));
+            AddNewNodeNoInputConversion<TruncateNumberOrOddballToInt32>(
+                {value}, conversion_type));
       }
       return alternative.set_truncated_int32_to_number(
-          AddNewNode<CheckedTruncateNumberOrOddballToInt32>({value},
-                                                            conversion_type));
+          AddNewNodeNoInputConversion<CheckedTruncateNumberOrOddballToInt32>(
+              {value}, conversion_type));
     }
     case ValueRepresentation::kFloat64:
     // Ignore conversion_type for HoleyFloat64, and treat them like Float64.
@@ -1745,15 +1746,16 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(
     // we can ignore the hint (though we'll miss updating the feedback).
     case ValueRepresentation::kHoleyFloat64: {
       return alternative.set_truncated_int32_to_number(
-          AddNewNode<TruncateFloat64ToInt32>({value}));
+          AddNewNodeNoInputConversion<TruncateFloat64ToInt32>({value}));
     }
 
     case ValueRepresentation::kIntPtr: {
       // This is not an efficient implementation, but this only happens in
       // corner cases.
-      ValueNode* value_to_number = AddNewNode<IntPtrToNumber>({value});
+      ValueNode* value_to_number =
+          AddNewNodeNoInputConversion<IntPtrToNumber>({value});
       return alternative.set_truncated_int32_to_number(
-          AddNewNode<TruncateNumberOrOddballToInt32>(
+          AddNewNodeNoInputConversion<TruncateNumberOrOddballToInt32>(
               {value_to_number}, TaggedToFloat64ConversionType::kOnlyNumber));
     }
     case ValueRepresentation::kInt32:
@@ -1831,20 +1833,23 @@ ValueNode* MaglevGraphBuilder::GetHoleyFloat64(ValueNode* value,
 
   switch (representation) {
     case ValueRepresentation::kTagged:
-      return AddNewNode<CheckedNumberOrOddballToHoleyFloat64>({value});
+      return AddNewNodeNoInputConversion<CheckedNumberOrOddballToHoleyFloat64>(
+          {value});
     case ValueRepresentation::kInt32: {
       auto& alternative = node_info->alternative();
-      return alternative.set_float64(AddNewNode<ChangeInt32ToFloat64>({value}));
+      return alternative.set_float64(
+          AddNewNodeNoInputConversion<ChangeInt32ToFloat64>({value}));
     }
     case ValueRepresentation::kUint32: {
       auto& alternative = node_info->alternative();
       return alternative.set_float64(
-          AddNewNode<ChangeUint32ToFloat64>({value}));
+          AddNewNodeNoInputConversion<ChangeUint32ToFloat64>({value}));
     }
     case ValueRepresentation::kFloat64:
       // We need to silence NaNs, because we start interpreting some bit
       // patterns differently.
-      return AddNewNode<HoleyFloat64ToMaybeNanFloat64>({value});
+      return AddNewNodeNoInputConversion<HoleyFloat64ToMaybeNanFloat64>(
+          {value});
     case ValueRepresentation::kHoleyFloat64:
       DCHECK(convert_hole_to_undefined);
       if (!IsEmptyNodeType(node_info->type()) &&
@@ -1852,9 +1857,9 @@ ValueNode* MaglevGraphBuilder::GetHoleyFloat64(ValueNode* value,
         // We don't have holes, so we don't need to convert anything.
         return value;
       }
-      return AddNewNode<ConvertHoleNanToUndefinedNan>({value});
+      return AddNewNodeNoInputConversion<ConvertHoleNanToUndefinedNan>({value});
     case ValueRepresentation::kIntPtr:
-      return AddNewNode<ChangeIntPtrToFloat64>({value});
+      return AddNewNodeNoInputConversion<ChangeIntPtrToFloat64>({value});
   }
 }
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
@@ -1883,17 +1888,18 @@ ValueNode* MaglevGraphBuilder::GetUint8ClampedForToNumber(ValueNode* value) {
     case ValueRepresentation::kIntPtr:
       // This is not an efficient implementation, but this only happens in
       // corner cases.
-      return AddNewNode<CheckedNumberToUint8Clamped>(
-          {AddNewNode<IntPtrToNumber>({value})});
+      return AddNewNodeNoInputConversion<CheckedNumberToUint8Clamped>(
+          {AddNewNodeNoInputConversion<IntPtrToNumber>({value})});
     case ValueRepresentation::kTagged: {
       if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
         return GetInt32Constant(ClampToUint8(constant->value().value()));
       }
       NodeInfo* info = known_node_aspects().TryGetInfoFor(value);
       if (info && info->alternative().int32()) {
-        return AddNewNode<Int32ToUint8Clamped>({info->alternative().int32()});
+        return AddNewNodeNoInputConversion<Int32ToUint8Clamped>(
+            {info->alternative().int32()});
       }
-      return AddNewNode<CheckedNumberToUint8Clamped>({value});
+      return AddNewNodeNoInputConversion<CheckedNumberToUint8Clamped>({value});
     }
     // HoleyFloat64 is treated like Float64. ToNumber of undefined is anyway a
     // NaN, so we'll simply truncate away the NaN-ness of the hole, and don't
@@ -1903,14 +1909,14 @@ ValueNode* MaglevGraphBuilder::GetUint8ClampedForToNumber(ValueNode* value) {
     case ValueRepresentation::kHoleyFloat64:
       // TODO(leszeks): Handle Float64Constant, which requires the correct
       // rounding for clamping.
-      return AddNewNode<Float64ToUint8Clamped>({value});
+      return AddNewNodeNoInputConversion<Float64ToUint8Clamped>({value});
     case ValueRepresentation::kInt32:
       if (Int32Constant* constant = value->TryCast<Int32Constant>()) {
         return GetInt32Constant(ClampToUint8(constant->value()));
       }
-      return AddNewNode<Int32ToUint8Clamped>({value});
+      return AddNewNodeNoInputConversion<Int32ToUint8Clamped>({value});
     case ValueRepresentation::kUint32:
-      return AddNewNode<Uint32ToUint8Clamped>({value});
+      return AddNewNodeNoInputConversion<Uint32ToUint8Clamped>({value});
   }
   UNREACHABLE();
 }
@@ -2726,9 +2732,11 @@ bool MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
     }
     if (holey_float) {
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-      SetAccumulator(AddNewNode<HoleyFloat64IsUndefinedOrHole>({holey_float}));
+      SetAccumulator(AddNewNodeNoInputConversion<HoleyFloat64IsUndefinedOrHole>(
+          {holey_float}));
 #else
-      SetAccumulator(AddNewNode<HoleyFloat64IsHole>({holey_float}));
+      SetAccumulator(
+          AddNewNodeNoInputConversion<HoleyFloat64IsHole>({holey_float}));
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
       return true;
     }
@@ -2834,7 +2842,8 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
       if (TryConstantFoldEqual(left, right)) return ReduceResult::Done();
       if (TryConstantFoldInt32(left, right)) return ReduceResult::Done();
       SortCommute(left, right);
-      SetAccumulator(AddNewNode<Int32Compare>({left, right}, kOperation));
+      SetAccumulator(
+          AddNewNodeNoInputConversion<Int32Compare>({left, right}, kOperation));
       return ReduceResult::Done();
     }
     case CompareOperationHint::kNumberOrOddball:
@@ -2859,7 +2868,8 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
         if (TryConstantFoldEqual(left, right)) return ReduceResult::Done();
         if (TryConstantFoldInt32(left, right)) return ReduceResult::Done();
         SortCommute(left, right);
-        SetAccumulator(AddNewNode<Int32Compare>({left, right}, kOperation));
+        SetAccumulator(AddNewNodeNoInputConversion<Int32Compare>({left, right},
+                                                                 kOperation));
         return ReduceResult::Done();
       }
       auto [allowed_input_type, conversion_type] =
@@ -2875,7 +2885,8 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
         return ReduceResult::Done();
       }
       SortCommute(left, right);
-      SetAccumulator(AddNewNode<Float64Compare>({left, right}, kOperation));
+      SetAccumulator(AddNewNodeNoInputConversion<Float64Compare>({left, right},
+                                                                 kOperation));
       return ReduceResult::Done();
     }
     case CompareOperationHint::kInternalizedString: {
@@ -2923,8 +2934,8 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
       switch (kOperation) {
         case Operation::kEqual:
         case Operation::kStrictEqual: {
-          result = AddNewNode<StringEqual>({tagged_left, tagged_right},
-                                           StringEqualInputs::kOnlyStrings);
+          result = AddNewNodeNoInputConversion<StringEqual>(
+              {tagged_left, tagged_right}, StringEqualInputs::kOnlyStrings);
           break;
         }
         case Operation::kLessThan:
@@ -2962,7 +2973,7 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
 
         ValueNode* tagged_left = GetTaggedValue(left);
         ValueNode* tagged_right = GetTaggedValue(right);
-        ValueNode* result = AddNewNode<StringEqual>(
+        ValueNode* result = AddNewNodeNoInputConversion<StringEqual>(
             {tagged_left, tagged_right}, StringEqualInputs::kStringsOrOddballs);
         SetAccumulator(result);
         return ReduceResult::Done();
@@ -3496,7 +3507,7 @@ ValueNode* MaglevGraphBuilder::BuildTaggedEqual(ValueNode* lhs,
     // HeapObjectRef, so equal constants should have been handled above.
     return GetBooleanConstant(false);
   }
-  return AddNewNode<TaggedEqual>({tagged_lhs, tagged_rhs});
+  return AddNewNodeNoInputConversion<TaggedEqual>({tagged_lhs, tagged_rhs});
 }
 
 ValueNode* MaglevGraphBuilder::BuildTaggedEqual(ValueNode* lhs,
@@ -3515,9 +3526,9 @@ ValueNode* MaglevGraphBuilder::BuildTestUndetectable(ValueNode* value) {
   if (value->properties().value_representation() ==
       ValueRepresentation::kHoleyFloat64) {
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-    return AddNewNode<HoleyFloat64IsUndefinedOrHole>({value});
+    return AddNewNodeNoInputConversion<HoleyFloat64IsUndefinedOrHole>({value});
 #else
-    return AddNewNode<HoleyFloat64IsHole>({value});
+    return AddNewNodeNoInputConversion<HoleyFloat64IsHole>({value});
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   } else if (value->properties().value_representation() !=
              ValueRepresentation::kTagged) {
@@ -3551,7 +3562,7 @@ ValueNode* MaglevGraphBuilder::BuildTestUndetectable(ValueNode* value) {
   }
 
   enum CheckType type = GetCheckType(node_type);
-  return AddNewNode<TestUndetectable>({value}, type);
+  return AddNewNodeNoInputConversion<TestUndetectable>({value}, type);
 }
 
 MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfUndetectable(
@@ -3964,8 +3975,9 @@ bool MaglevGraphBuilder::CheckContextExtensions(size_t depth) {
       ValueNode* extension =
           LoadAndCacheContextSlot(context, Context::EXTENSION_INDEX, kMutable,
                                   ContextMode::kNoContextCells);
-      AddNewNode<CheckValue>({extension}, broker()->undefined_value(),
-                             DeoptimizeReason::kUnexpectedContextExtension);
+      AddNewNodeNoInputConversion<CheckValue>(
+          {extension}, broker()->undefined_value(),
+          DeoptimizeReason::kUnexpectedContextExtension);
     }
     CHECK_IMPLIES(!scope_info.HasOuterScopeInfo(), d + 1 == depth);
     if (scope_info.HasOuterScopeInfo()) {
@@ -4108,21 +4120,21 @@ ReduceResult MaglevGraphBuilder::BuildCheckSmi(ValueNode* object,
   switch (object->value_representation()) {
     case ValueRepresentation::kInt32:
       if (!SmiValuesAre32Bits()) {
-        AddNewNode<CheckInt32IsSmi>({object});
+        AddNewNodeNoInputConversion<CheckInt32IsSmi>({object});
       }
       break;
     case ValueRepresentation::kUint32:
-      AddNewNode<CheckUint32IsSmi>({object});
+      AddNewNodeNoInputConversion<CheckUint32IsSmi>({object});
       break;
     case ValueRepresentation::kFloat64:
     case ValueRepresentation::kHoleyFloat64:
-      AddNewNode<CheckHoleyFloat64IsSmi>({object});
+      AddNewNodeNoInputConversion<CheckHoleyFloat64IsSmi>({object});
       break;
     case ValueRepresentation::kTagged:
-      AddNewNode<CheckSmi>({object});
+      AddNewNodeNoInputConversion<CheckSmi>({object});
       break;
     case ValueRepresentation::kIntPtr:
-      AddNewNode<CheckIntPtrIsSmi>({object});
+      AddNewNodeNoInputConversion<CheckIntPtrIsSmi>({object});
       break;
   }
   return object;
@@ -5387,7 +5399,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
       // TODO(dmercadier): update KnownNodeInfo.
       ValueNode* string = BuildLoadTaggedField(
           lookup_start_object, JSPrimitiveWrapper::kValueOffset);
-      return AddNewNode<StringLength>({string});
+      return AddNewNodeNoInputConversion<StringLength>({string});
     }
     case compiler::PropertyAccessInfo::kTypedArrayLength: {
       CHECK(!IsRabGsabTypedArrayElementsKind(access_info.elements_kind()));
@@ -5602,7 +5614,7 @@ ValueNode* MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
 
   switch (object->properties().value_representation()) {
     case ValueRepresentation::kIntPtr:
-      return AddNewNode<CheckedIntPtrToInt32>({object});
+      return AddNewNodeNoInputConversion<CheckedIntPtrToInt32>({object});
     case ValueRepresentation::kTagged:
       NodeType old_type;
       if (SmiConstant* constant = object->TryCast<SmiConstant>()) {
@@ -5614,8 +5626,8 @@ ValueNode* MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
       } else {
         // TODO(leszeks): Cache this knowledge/converted value somehow on
         // the node info.
-        return AddNewNode<CheckedObjectToIndex>({object},
-                                                GetCheckType(old_type));
+        return AddNewNodeNoInputConversion<CheckedObjectToIndex>(
+            {object}, GetCheckType(old_type));
       }
     case ValueRepresentation::kInt32:
       // Already good.
@@ -5635,7 +5647,7 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
 
   switch (object->properties().value_representation()) {
     case ValueRepresentation::kIntPtr:
-      return AddNewNode<CheckedIntPtrToUint32>({object});
+      return AddNewNodeNoInputConversion<CheckedIntPtrToUint32>({object});
     case ValueRepresentation::kTagged:
       // TODO(victorgomes): Consider creating a CheckedObjectToUnsignedIndex.
       if (SmiConstant* constant = object->TryCast<SmiConstant>()) {
@@ -5645,7 +5657,8 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
         }
         return GetUint32Constant(value);
       }
-      return AddNewNode<CheckedInt32ToUint32>({GetInt32ElementIndex(object)});
+      return AddNewNodeNoInputConversion<CheckedInt32ToUint32>(
+          {GetInt32ElementIndex(object)});
     case ValueRepresentation::kInt32:
       if (Int32Constant* constant = object->TryCast<Int32Constant>()) {
         int32_t value = constant->value();
@@ -5654,7 +5667,7 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
         }
         return GetUint32Constant(value);
       }
-      return AddNewNode<CheckedInt32ToUint32>({object});
+      return AddNewNodeNoInputConversion<CheckedInt32ToUint32>({object});
     case ValueRepresentation::kUint32:
       return object;
     case ValueRepresentation::kFloat64:
@@ -5671,7 +5684,8 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
       [[fallthrough]];
     case ValueRepresentation::kHoleyFloat64: {
       // CheckedTruncateFloat64ToUint32 will gracefully deopt on holes.
-      return AddNewNode<CheckedTruncateFloat64ToUint32>({object});
+      return AddNewNodeNoInputConversion<CheckedTruncateFloat64ToUint32>(
+          {object});
     }
   }
 }
@@ -15175,7 +15189,7 @@ void MaglevGraphBuilder::Build() {
   StartPrologue();
   for (int i = 0; i < parameter_count(); i++) {
     // TODO(v8:7700): Consider creating InitialValue nodes lazily.
-    InitialValue* v = AddNewNode<InitialValue>(
+    InitialValue* v = AddNewNodeNoInputConversion<InitialValue>(
         {}, interpreter::Register::FromParameterIndex(i));
     DCHECK_EQ(graph()->parameters().size(), static_cast<size_t>(i));
     graph()->parameters().push_back(v);

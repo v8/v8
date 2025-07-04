@@ -184,15 +184,16 @@ class MaglevPhiRepresentationSelector {
       std::optional<int> predecessor_index = std::nullopt);
 
   template <typename NodeT, typename... Args>
-  NodeT* AddNewNode(BasicBlock* block, BasicBlockPosition pos,
-                    std::initializer_list<ValueNode*> inputs, Args&&... args);
+  NodeT* AddNewNodeNoInputConversion(BasicBlock* block, BasicBlockPosition pos,
+                                     std::initializer_list<ValueNode*> inputs,
+                                     Args&&... args);
 
   template <typename NodeT, typename... Args>
-  NodeT* AddNewNodeAtBlockEnd(BasicBlock* block,
-                              std::initializer_list<ValueNode*> inputs,
-                              Args&&... args) {
-    return AddNewNode<NodeT>(block, BasicBlockPosition::End(), inputs,
-                             std::forward<Args>(args)...);
+  NodeT* AddNewNodeNoInputConversionAtBlockEnd(
+      BasicBlock* block, std::initializer_list<ValueNode*> inputs,
+      Args&&... args) {
+    return AddNewNodeNoInputConversion<NodeT>(
+        block, BasicBlockPosition::End(), inputs, std::forward<Args>(args)...);
   }
 
   // If {block} is the start of a loop header, FixLoopPhisBackedge inserts the
