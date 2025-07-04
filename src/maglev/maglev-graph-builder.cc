@@ -10352,24 +10352,20 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringConstructor(
   return BuildToString(args[0], ToString::kConvertSymbol);
 }
 
-#define MATH_UNARY_IEEE_BUILTIN_REDUCER(MathName, ExtName, EnumName)          \
-  MaybeReduceResult MaglevGraphBuilder::TryReduce##MathName(                  \
-      compiler::JSFunctionRef target, CallArguments& args) {                  \
-    if (args.count() < 1) {                                                   \
-      return GetRootConstant(RootIndex::kNanValue);                           \
-    }                                                                         \
-    if (!CanSpeculateCall()) {                                                \
-      ValueRepresentation rep = args[0]->properties().value_representation(); \
-      if (rep == ValueRepresentation::kTagged ||                              \
-          rep == ValueRepresentation::kHoleyFloat64) {                        \
-        return {};                                                            \
-      }                                                                       \
-    }                                                                         \
-    ValueNode* value =                                                        \
-        GetFloat64ForToNumber(args[0], NodeType::kNumber,                     \
-                              TaggedToFloat64ConversionType::kOnlyNumber);    \
-    return AddNewNode<Float64Ieee754Unary>(                                   \
-        {value}, Float64Ieee754Unary::Ieee754Function::k##EnumName);          \
+#define MATH_UNARY_IEEE_BUILTIN_REDUCER(MathName, ExtName, EnumName)       \
+  MaybeReduceResult MaglevGraphBuilder::TryReduce##MathName(               \
+      compiler::JSFunctionRef target, CallArguments& args) {               \
+    if (args.count() < 1) {                                                \
+      return GetRootConstant(RootIndex::kNanValue);                        \
+    }                                                                      \
+    if (!CanSpeculateCall() && !CheckType(args[0], NodeType::kNumber)) {   \
+      return {};                                                           \
+    }                                                                      \
+    ValueNode* value =                                                     \
+        GetFloat64ForToNumber(args[0], NodeType::kNumber,                  \
+                              TaggedToFloat64ConversionType::kOnlyNumber); \
+    return AddNewNode<Float64Ieee754Unary>(                                \
+        {value}, Float64Ieee754Unary::Ieee754Function::k##EnumName);       \
   }
 
 IEEE_754_UNARY_LIST(MATH_UNARY_IEEE_BUILTIN_REDUCER)
