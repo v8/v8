@@ -1897,10 +1897,10 @@ Maybe<bool> GetSingleCalendarField(
     SIMPLE_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)                                \
   V(kTimeZone, timeZone, result.time_zone,                                     \
     std::unique_ptr<temporal_rs::TimeZone>, ToTemporalTimeZoneIdentifier,      \
-    SIMPLE_CONDITION, MOVING_SETTER, NOOP_REQUIRED_CHECK, MOVE)                \
+    SIMPLE_CONDITION, MOVING_SETTER, TIMEZONE_REQUIRED_CHECK, MOVE)            \
   V(kYearFields, year, result.date.year, int32_t,                              \
     ToIntegerTypeWithTruncation<int32_t>, SIMPLE_CONDITION, SIMPLE_SETTER,     \
-    TIMEZONE_REQUIRED_CHECK, ASSIGN)
+    NOOP_REQUIRED_CHECK, ASSIGN)
 
 // https://tc39.es/proposal-temporal/#sec-temporal-preparecalendarfields
 Maybe<CombinedRecord> PrepareCalendarFields(Isolate* isolate,
@@ -5751,7 +5751,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
   if (!IsUndefined(*calendar_like)) {
     // 9. If calendar is not a String, throw a TypeError exception.
     if (!IsString(*calendar_like)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kCalendarMustBeString));
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kCalendarMustBeString));
     }
 
     // 10. Set calendar to ? CanonicalizeCalendar(calendar).
