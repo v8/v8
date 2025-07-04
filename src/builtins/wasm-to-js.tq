@@ -61,6 +61,7 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
   // 1 fixed slot, rounded up to stack alignment.
   const numFixedSlots = alignment;
 
+  ModifyThreadInWasmFlag(0);
   // Trigger a wrapper tier-up when this function got called often enough.
   let budget: Smi = UnsafeCast<Smi>(data.wrapper_budget.value);
   dcheck(budget > 0);
@@ -298,6 +299,7 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
           torque_internal::SizeOf<intptr>() +
       numFixedSlots;
 
+  ModifyThreadInWasmFlag(1);
   const wasmToJSResult = WasmToJSResult{
     popCount: popCount,
     result0: *GetRefAt<intptr>(gpRegSlots, 0),

@@ -1512,7 +1512,9 @@ void Deoptimizer::DoComputeOutputFrames() {
 
 #if V8_ENABLE_WEBASSEMBLY
   if (v8_flags.wasm_deopt && function_.is_null()) {
+    trap_handler::ClearThreadInWasm();
     DoComputeOutputFramesWasmImpl();
+    trap_handler::SetThreadInWasm();
     return;
   }
 #endif

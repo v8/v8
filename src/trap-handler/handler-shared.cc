@@ -24,7 +24,14 @@ namespace v8 {
 namespace internal {
 namespace trap_handler {
 
-thread_local bool TrapHandlerGuard::is_active_ = 0;
+// We declare this as int rather than bool as a workaround for a glibc bug, in
+// which the dynamic loader cannot handle executables whose TLS area is only
+// 1 byte in size; see https://sourceware.org/bugzilla/show_bug.cgi?id=14898.
+thread_local int g_thread_in_wasm_code;
+
+static_assert(sizeof(g_thread_in_wasm_code) > 1,
+              "sizeof(thread_local_var) must be > 1, see "
+              "https://sourceware.org/bugzilla/show_bug.cgi?id=14898");
 
 size_t gNumCodeObjects = 0;
 CodeProtectionInfoListEntry* gCodeObjects = nullptr;
@@ -42,34 +49,28 @@ std::atomic_flag SandboxRecordsLock::spinlock_;
 #endif
 
 MetadataLock::MetadataLock() {
-  // This lock is taken from inside the trap handler. As such, we must only
-  // take this lock if the trap handler guard is active on this thread. This
-  // way, we avoid a deadlock in case we cause a fault while holding the lock.
-  TH_CHECK(TrapHandlerGuard::IsActiveOnCurrentThread());
+  if (g_thread_in_wasm_code) {
+    abort();
+  }
 
   while (spinlock_.test_and_set(std::memory_order_acquire)) {
   }
 }
 
 MetadataLock::~MetadataLock() {
-  TH_CHECK(TrapHandlerGuard::IsActiveOnCurrentThread());
+  if (g_thread_in_wasm_code) {
+    abort();
+  }
 
   spinlock_.clear(std::memory_order_release);
 }
 
 SandboxRecordsLock::SandboxRecordsLock() {
-  // This lock is taken from inside the trap handler. As such, we must only
-  // take this lock if the trap handler guard is active on this thread. This
-  // way, we avoid a deadlock in case we cause a fault while holding the lock.
-  TH_CHECK(TrapHandlerGuard::IsActiveOnCurrentThread());
-
   while (spinlock_.test_and_set(std::memory_order_acquire)) {
   }
 }
 
 SandboxRecordsLock::~SandboxRecordsLock() {
-  TH_CHECK(TrapHandlerGuard::IsActiveOnCurrentThread());
-
   spinlock_.clear(std::memory_order_release);
 }
 

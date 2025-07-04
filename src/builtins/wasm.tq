@@ -930,6 +930,16 @@ macro GetRefAt<T: type, From: type>(base: From, offset: intptr): &T {
 
 extern macro LoadPointerFromRootRegister(intptr): RawPtr;
 
+const kThreadInWasmFlagAddressOffset: constexpr intptr
+    generates 'Isolate::thread_in_wasm_flag_address_offset()';
+
+macro ModifyThreadInWasmFlag(newValue: int32): void {
+  const threadInWasmFlagAddress =
+      LoadPointerFromRootRegister(kThreadInWasmFlagAddressOffset);
+  const threadInWasmFlagRef = GetRefAt<int32>(threadInWasmFlagAddress, 0);
+  *threadInWasmFlagRef = newValue;
+}
+
 builtin WasmStringNewWtf8(
     offset: uintptr, size: uint32, memory: uint32, utf8Variant: Smi): String
     |WasmNull {
@@ -1590,9 +1600,11 @@ builtin WasmFastApiCallTypeCheckAndUpdateIC(
     receiver: JSAny): Smi {
   try {
     const rec = Cast<JSReceiver>(receiver) otherwise goto IllegalCast;
+    ModifyThreadInWasmFlag(0);
     // We don't care about the actual compatible receiver; we just rely
     // on this helper throwing an exception when there isn't one.
     GetCompatibleReceiver(rec, data.signature, context);
+    ModifyThreadInWasmFlag(1);
     data.cached_map = StrongToWeak(rec.map);
     return 1;
   } label IllegalCast {
