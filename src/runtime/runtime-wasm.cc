@@ -1333,7 +1333,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
 
   // Update the stack state.
   wasm::StackMemory* active_stack = isolate->isolate_data()->active_stack();
-  std::unique_ptr<wasm::StackMemory> target_stack =
+  std::unique_ptr<wasm::StackMemory, wasm::StackMemoryDeleter> target_stack =
       isolate->stack_pool().GetOrAllocate();
   target_stack->jmpbuf()->parent = active_stack;
   target_stack->jmpbuf()->stack_limit = target_stack->jslimit();

@@ -1788,7 +1788,8 @@ void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
   wasm::WasmCodeRefScope code_ref_scope;
   std::unordered_set<wasm::WasmCode*> live_wasm_code;
 
-  for (const std::unique_ptr<StackMemory>& stack : isolate->wasm_stacks()) {
+  for (const std::unique_ptr<StackMemory, StackMemoryDeleter>& stack :
+       isolate->wasm_stacks()) {
     if (stack->IsActive()) {
       // The active stack's jump buffer does not match the current state, use
       // the thread info below instead.

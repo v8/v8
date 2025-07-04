@@ -643,7 +643,8 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeRefScope wasm_code_ref_scope;
 
-  for (const std::unique_ptr<wasm::StackMemory>& stack : wasm_stacks_) {
+  for (const std::unique_ptr<wasm::StackMemory, wasm::StackMemoryDeleter>&
+           stack : wasm_stacks_) {
     if (stack->IsActive()) {
       continue;
     }
@@ -3995,7 +3996,7 @@ void Isolate::RetireWasmStack(wasm::StackMemory* stack) {
   size_t index = stack->index();
   // We can only return from a stack that was still in the global list.
   DCHECK_LT(index, wasm_stacks().size());
-  std::unique_ptr<wasm::StackMemory> stack_ptr =
+  std::unique_ptr<wasm::StackMemory, wasm::StackMemoryDeleter> stack_ptr =
       std::move(wasm_stacks()[index]);
   DCHECK_EQ(stack_ptr.get(), stack);
   if (index != wasm_stacks().size() - 1) {

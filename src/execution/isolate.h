@@ -2326,7 +2326,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
 #ifdef V8_ENABLE_WEBASSEMBLY
   bool IsOnCentralStack();
-  std::vector<std::unique_ptr<wasm::StackMemory>>& wasm_stacks() {
+  std::vector<std::unique_ptr<wasm::StackMemory, wasm::StackMemoryDeleter>>&
+  wasm_stacks() {
     return wasm_stacks_;
   }
 
@@ -2902,7 +2903,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   size_t stack_size_;
 #ifdef V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeLookupCache* wasm_code_look_up_cache_ = nullptr;
-  std::vector<std::unique_ptr<wasm::StackMemory>> wasm_stacks_;
+  std::vector<std::unique_ptr<wasm::StackMemory, wasm::StackMemoryDeleter>>
+      wasm_stacks_;
 #if V8_ENABLE_DRUMBRAKE
   std::unique_ptr<wasm::WasmExecutionTimer> wasm_execution_timer_;
 #endif  // V8_ENABLE_DRUMBRAKE

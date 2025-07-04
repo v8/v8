@@ -60,13 +60,17 @@ void SandboxHardwareSupport::EnableForCurrentThread() {
   // Signal handlers may run without access to any non-default pkeys (for
   // example on older Linux kernels). As such, they must all be registered with
   // SA_ONSTACK and we must have an alternative stack available. Otherwise,
-  // they will immediately segfault as they cannot access the stack (to which
-  // we assign a pkey below). Here we ensure that an alternative stack is
-  // available for the main thread (which is currently the only thread that
-  // uses a stack with a non-default pkey).
+  // they will immediately segfault as they cannot access stack memory.
   // Note: this should happen before we assign a pkey to the stack below in
   // case a signal is ever delivered between these two operations.
   base::OS::EnsureAlternativeSignalStackIsAvailableForCurrentThread();
+
+  // We only need to set a pkey on stack memory in strict sandboxing mode.
+  //
+  // Note: we need an alternative stack in any case as for example Wasm stacks
+  // always use the sandbox extension PKEY and so a signal handler would not
+  // have access to them.
+  if (!IsStrict()) return;
 
   // The current hardware sandboxing prototype still requires full write access
   // to the regular stack in sandboxed mode. To support that, we need to assign
