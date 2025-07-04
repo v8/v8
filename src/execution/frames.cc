@@ -2597,9 +2597,21 @@ Tagged<Object> CommonFrameWithJSLinkage::GetParameter(int index) const {
 int CommonFrameWithJSLinkage::ComputeParametersCount() const {
   DCHECK(!iterator_->IsStackFrameIteratorForProfiler() &&
          isolate()->heap()->gc_state() == Heap::NOT_IN_GC);
-  return function()
-      ->shared()
-      ->internal_formal_parameter_count_without_receiver();
+  // Use the (trusted) parameter count from the Bytecode or Code object.
+  int parameter_count;
+  if (is_interpreted()) {
+    const InterpretedFrame* iframe = InterpretedFrame::cast(this);
+    parameter_count =
+        iframe->GetBytecodeArray()->parameter_count_without_receiver();
+  } else {
+    Tagged<GcSafeCode> code = GcSafeLookupCode();
+    parameter_count = code->parameter_count_without_receiver();
+  }
+  // TODO(saelo): remove once we're confident that the two always match.
+  DCHECK_EQ(
+      parameter_count,
+      function()->shared()->internal_formal_parameter_count_without_receiver());
+  return parameter_count;
 }
 
 int JavaScriptFrame::GetActualArgumentCount() const {

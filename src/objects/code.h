@@ -558,6 +558,8 @@ class GcSafeCode : public HeapObject {
   inline Address constant_pool() const;
   inline Address safepoint_table_address() const;
   inline uint32_t stack_slots() const;
+  inline uint16_t parameter_count() const;
+  inline uint16_t parameter_count_without_receiver() const;
 
   inline int GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const;
   inline Address InstructionStart(Isolate* isolate, Address pc) const;
