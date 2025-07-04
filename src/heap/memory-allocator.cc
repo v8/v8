@@ -355,6 +355,9 @@ void MemoryAllocator::PerformFreeMemory(MutablePageMetadata* chunk_metadata) {
 
 void MemoryAllocator::Free(MemoryAllocator::FreeMode mode,
                            MutablePageMetadata* page_metadata) {
+  // IsLargePage() internals depend on memory that is released in
+  // PreFreeMemory().
+  const bool is_large_page = page_metadata->IsLargePage();
   PreFreeMemory(page_metadata);
   switch (mode) {
     case FreeMode::kImmediately:
@@ -364,7 +367,7 @@ void MemoryAllocator::Free(MemoryAllocator::FreeMode mode,
       delayed_then_released_pages_.push_back(page_metadata);
       break;
     case FreeMode::kDelayThenPool:
-      if (page_metadata->IsLargePage()) {
+      if (is_large_page) {
         delayed_then_pooled_large_pages_.push_back(
             static_cast<LargePageMetadata*>(page_metadata));
       } else {
