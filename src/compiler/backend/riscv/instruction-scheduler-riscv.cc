@@ -62,51 +62,19 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvAddPair:
     case kRiscvSubPair:
     case kRiscvMulPair:
-    case kRiscvAndPair:
-    case kRiscvOrPair:
-    case kRiscvXorPair:
     case kRiscvShlPair:
     case kRiscvShrPair:
     case kRiscvSarPair:
     case kRiscvSub32:
 #endif
-    case kRiscvSh1add:
-    case kRiscvSh2add:
-    case kRiscvSh3add:
-#if V8_TARGET_ARCH_RISCV64
-    case kRiscvAdduw:
-    case kRiscvSh1adduw:
-    case kRiscvSh2adduw:
-    case kRiscvSh3adduw:
-    case kRiscvSlliuw:
-#endif
-    case kRiscvAndn:
-    case kRiscvOrn:
-    case kRiscvXnor:
     case kRiscvClz:
     case kRiscvCtz:
     case kRiscvCpop:
 #if V8_TARGET_ARCH_RISCV64
-    case kRiscvClzw:
     case kRiscvCtzw:
     case kRiscvCpopw:
 #endif
-    case kRiscvMax:
-    case kRiscvMaxu:
-    case kRiscvMin:
-    case kRiscvMinu:
-    case kRiscvSextb:
-    case kRiscvSexth:
-    case kRiscvZexth:
     case kRiscvRev8:
-    case kRiscvBclr:
-    case kRiscvBclri:
-    case kRiscvBext:
-    case kRiscvBexti:
-    case kRiscvBinv:
-    case kRiscvBinvi:
-    case kRiscvBset:
-    case kRiscvBseti:
     case kRiscvAbsD:
     case kRiscvAbsS:
     case kRiscvAddD:
@@ -242,13 +210,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvI8x16ShrU:
     case kRiscvI8x16RoundingAverageU:
     case kRiscvI8x16Popcnt:
-    case kRiscvMaxD:
-    case kRiscvMaxS:
-    case kRiscvMinD:
-    case kRiscvMinS:
     case kRiscvMod32:
     case kRiscvModU32:
-    case kRiscvMov:
     case kRiscvMul32:
     case kRiscvMulD:
     case kRiscvMulHigh32:
@@ -271,21 +234,13 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvS128AllOnes:
     case kRiscvV128AnyTrue:
     case kRiscvI8x16Shuffle:
-    case kRiscvVwmul:
-    case kRiscvVwmulu:
     case kRiscvVmv:
     case kRiscvVandVv:
     case kRiscvVorVv:
-    case kRiscvVnotVv:
     case kRiscvVxorVv:
-    case kRiscvVmvSx:
     case kRiscvBitMask:
     case kRiscvVfmvVf:
-    case kRiscvVcompress:
     case kRiscvVaddVv:
-    case kRiscvVwaddVv:
-    case kRiscvVwadduVv:
-    case kRiscvVwadduWx:
     case kRiscvVsubVv:
     case kRiscvVnegVv:
     case kRiscvVfnegVv:
@@ -294,7 +249,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvVminsVv:
     case kRiscvVminuVv:
     case kRiscvVmulVv:
-    case kRiscvVdivu:
     case kRiscvVsmulVv:
     case kRiscvVgtsVv:
     case kRiscvVgesVv:
@@ -308,25 +262,11 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvVsubSatUVv:
     case kRiscvVsubSatSVv:
     case kRiscvVrgather:
-    case kRiscvVslidedown:
-    case kRiscvVredminuVs:
     case kRiscvVAllTrue:
-    case kRiscvVnclipu:
-    case kRiscvVnclip:
-    case kRiscvVsll:
     case kRiscvVfaddVv:
     case kRiscvVfsubVv:
     case kRiscvVfmulVv:
     case kRiscvVfdivVv:
-    case kRiscvVfminVv:
-    case kRiscvVfmaxVv:
-    case kRiscvVmfeqVv:
-    case kRiscvVmfneVv:
-    case kRiscvVmfltVv:
-    case kRiscvVmfleVv:
-    case kRiscvVmergeVx:
-    case kRiscvVzextVf2:
-    case kRiscvVsextVf2:
     case kRiscvSar32:
     case kRiscvSignExtendByte:
     case kRiscvSignExtendShort:
@@ -348,7 +288,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvTst64:
     case kRiscvLd:
     case kRiscvLwu:
-    case kRiscvUlwu:
     case kRiscvWord64AtomicLoadUint64:
     case kRiscvLoadDecompressTaggedSigned:
     case kRiscvLoadDecompressTagged:
@@ -406,9 +345,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvWord32AtomicPairCompareExchange:
 #endif
     case kRiscvModD:
-    case kRiscvModS:
     case kRiscvRvvSt:
-    case kRiscvPush:
     case kRiscvSb:
     case kRiscvStoreDouble:
     case kRiscvSh:
@@ -1299,8 +1236,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return AndLatency(instr->InputAt(0)->IsRegister());
     case kRiscvRor32:
       return 1;
-    case kRiscvMov:
-      return 1;
     case kRiscvCmpS:
       return MoveLatency() + CompareF32Latency();
     case kRiscvAddS:
@@ -1311,19 +1246,12 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return Latency::MUL_S;
     case kRiscvDivS:
       return Latency::DIV_S;
-    case kRiscvModS:
-      return PrepareCallCFunctionLatency() + MovToFloatParametersLatency() +
-             CallCFunctionLatency() + MovFromFloatResultLatency();
     case kRiscvAbsS:
       return Latency::ABS_S;
     case kRiscvNegS:
       return NegdLatency();
     case kRiscvSqrtS:
       return Latency::SQRT_S;
-    case kRiscvMaxS:
-      return Latency::MAX_S;
-    case kRiscvMinS:
-      return Latency::MIN_S;
     case kRiscvCmpD:
       return MoveLatency() + CompareF64Latency();
     case kRiscvAddD:
@@ -1343,10 +1271,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return NegdLatency();
     case kRiscvSqrtD:
       return Latency::SQRT_D;
-    case kRiscvMaxD:
-      return Latency::MAX_D;
-    case kRiscvMinD:
-      return Latency::MIN_D;
 #if V8_TARGET_ARCH_RISCV64
     case kRiscvFloat64RoundDown:
     case kRiscvFloat64RoundTruncate:
@@ -1472,8 +1396,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kRiscvUlh:
       return UlhuLatency();
 #if V8_TARGET_ARCH_RISCV64
-    case kRiscvUlwu:
-      return UlwuLatency();
     case kRiscvUld:
       return UldLatency();
     case kRiscvUsd:
@@ -1493,15 +1415,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return UStoreFloatLatency();
     case kRiscvUStoreDouble:
       return UStoreDoubleLatency();
-    case kRiscvPush: {
-      int latency = 0;
-      if (instr->InputAt(0)->IsFPRegister()) {
-        latency = StoreDoubleLatency() + Sub64Latency(false);
-      } else {
-        latency = PushLatency();
-      }
-      return latency;
-    }
     case kRiscvPeek: {
       int latency = 0;
       if (instr->OutputAt(0)->IsFPRegister()) {

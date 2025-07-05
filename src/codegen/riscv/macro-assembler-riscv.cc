@@ -2887,26 +2887,6 @@ void MacroAssembler::SubPair(Register dst_low, Register dst_high,
   Move(dst_low, scratch1);
 }
 
-void MacroAssembler::AndPair(Register dst_low, Register dst_high,
-                             Register left_low, Register left_high,
-                             Register right_low, Register right_high) {
-  And(dst_low, left_low, right_low);
-  And(dst_high, left_high, right_high);
-}
-
-void MacroAssembler::OrPair(Register dst_low, Register dst_high,
-                            Register left_low, Register left_high,
-                            Register right_low, Register right_high) {
-  Or(dst_low, left_low, right_low);
-  Or(dst_high, left_high, right_high);
-}
-void MacroAssembler::XorPair(Register dst_low, Register dst_high,
-                             Register left_low, Register left_high,
-                             Register right_low, Register right_high) {
-  Xor(dst_low, left_low, right_low);
-  Xor(dst_high, left_high, right_high);
-}
-
 void MacroAssembler::MulPair(Register dst_low, Register dst_high,
                              Register left_low, Register left_high,
                              Register right_low, Register right_high,

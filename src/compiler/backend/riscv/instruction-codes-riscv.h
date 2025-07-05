@@ -78,7 +78,6 @@ namespace compiler {
   V(RiscvCvtDL)                                      \
   V(RiscvCvtDUl)                                     \
   V(RiscvUsd)                                        \
-  V(RiscvUlwu)                                       \
   V(RiscvBitcastDL)                                  \
   V(RiscvBitcastLD)                                  \
   V(RiscvByteSwap64)                                 \
@@ -104,9 +103,6 @@ namespace compiler {
   V(RiscvAddPair)                          \
   V(RiscvSubPair)                          \
   V(RiscvMulPair)                          \
-  V(RiscvAndPair)                          \
-  V(RiscvOrPair)                           \
-  V(RiscvXorPair)                          \
   V(RiscvShlPair)                          \
   V(RiscvShrPair)                          \
   V(RiscvSarPair)                          \
@@ -166,7 +162,6 @@ namespace compiler {
   V(RiscvShr32)                           \
   V(RiscvSar32)                           \
   V(RiscvRor32)                           \
-  V(RiscvMov)                             \
   V(RiscvTst32)                           \
   V(RiscvCmp)                             \
   V(RiscvCmpZero)                         \
@@ -175,12 +170,9 @@ namespace compiler {
   V(RiscvSubS)                            \
   V(RiscvMulS)                            \
   V(RiscvDivS)                            \
-  V(RiscvModS)                            \
   V(RiscvAbsS)                            \
   V(RiscvNegS)                            \
   V(RiscvSqrtS)                           \
-  V(RiscvMaxS)                            \
-  V(RiscvMinS)                            \
   V(RiscvCmpD)                            \
   V(RiscvAddD)                            \
   V(RiscvSubD)                            \
@@ -190,8 +182,6 @@ namespace compiler {
   V(RiscvAbsD)                            \
   V(RiscvNegD)                            \
   V(RiscvSqrtD)                           \
-  V(RiscvMaxD)                            \
-  V(RiscvMinD)                            \
   V(RiscvFloat32RoundDown)                \
   V(RiscvFloat32RoundTruncate)            \
   V(RiscvFloat32RoundUp)                  \
@@ -235,7 +225,6 @@ namespace compiler {
   V(RiscvFloat32Min)                      \
   V(RiscvFloat64Min)                      \
   V(RiscvFloat64SilenceNaN)               \
-  V(RiscvPush)                            \
   V(RiscvPeek)                            \
   V(RiscvByteSwap32)                      \
   V(RiscvStoreToStackSlot)                \
@@ -346,23 +335,13 @@ namespace compiler {
   V(RiscvI8x16Shuffle)                    \
   V(RiscvVmv)                             \
   V(RiscvVandVv)                          \
-  V(RiscvVnotVv)                          \
   V(RiscvVorVv)                           \
   V(RiscvVxorVv)                          \
-  V(RiscvVwmul)                           \
-  V(RiscvVwmulu)                          \
-  V(RiscvVmvSx)                           \
   V(RiscvBitMask)                         \
-  V(RiscvVcompress)                       \
   V(RiscvVaddVv)                          \
   V(RiscvVsubVv)                          \
-  V(RiscvVwaddVv)                         \
-  V(RiscvVwadduVv)                        \
-  V(RiscvVwadduWx)                        \
   V(RiscvVrgather)                        \
-  V(RiscvVslidedown)                      \
   V(RiscvVAbs)                            \
-  V(RiscvVsll)                            \
   V(RiscvVfmvVf)                          \
   V(RiscvVnegVv)                          \
   V(RiscvVfnegVv)                         \
@@ -371,7 +350,6 @@ namespace compiler {
   V(RiscvVminuVv)                         \
   V(RiscvVminsVv)                         \
   V(RiscvVmulVv)                          \
-  V(RiscvVdivu)                           \
   V(RiscvVgtsVv)                          \
   V(RiscvVgesVv)                          \
   V(RiscvVgeuVv)                          \
@@ -382,83 +360,31 @@ namespace compiler {
   V(RiscvVaddSatUVv)                      \
   V(RiscvVsubSatSVv)                      \
   V(RiscvVsubSatUVv)                      \
-  V(RiscvVmfeqVv)                         \
-  V(RiscvVmfneVv)                         \
-  V(RiscvVmfleVv)                         \
-  V(RiscvVmfltVv)                         \
   V(RiscvVfaddVv)                         \
   V(RiscvVfsubVv)                         \
   V(RiscvVfmulVv)                         \
   V(RiscvVfdivVv)                         \
-  V(RiscvVfminVv)                         \
-  V(RiscvVfmaxVv)                         \
-  V(RiscvVmergeVx)                        \
   V(RiscvVsmulVv)                         \
-  V(RiscvVnclipu)                         \
-  V(RiscvVnclip)                          \
-  V(RiscvVredminuVs)                      \
-  V(RiscvVAllTrue)                        \
-  V(RiscvVzextVf2)                        \
-  V(RiscvVsextVf2)
+  V(RiscvVAllTrue)
 
 #define TARGET_ARCH_OPCODE_LIST_ZBB(V) \
-  V(RiscvAndn)                         \
-  V(RiscvOrn)                          \
-  V(RiscvXnor)                         \
   V(RiscvClz)                          \
   V(RiscvCtz)                          \
   V(RiscvCpop)                         \
-  V(RiscvMax)                          \
-  V(RiscvMaxu)                         \
-  V(RiscvMin)                          \
-  V(RiscvMinu)                         \
-  V(RiscvSextb)                        \
-  V(RiscvSexth)                        \
-  V(RiscvZexth)                        \
   V(RiscvRev8)
 
 #ifdef V8_TARGET_ARCH_RISCV64
 #define TARGET_ARCH_OPCODE_LIST_ZBB_32(V) \
-  V(RiscvClzw)                            \
   V(RiscvCtzw)                            \
   V(RiscvCpopw)
 #else
 #define TARGET_ARCH_OPCODE_LIST_ZBB_32(V)
 #endif
 
-#define TARGET_ARCH_OPCODE_LIST_ZBA(V) \
-  V(RiscvSh1add)                       \
-  V(RiscvSh2add)                       \
-  V(RiscvSh3add)
-
-#ifdef V8_TARGET_ARCH_RISCV64
-#define TARGET_ARCH_OPCODE_LIST_ZBA_32(V) \
-  V(RiscvAdduw)                           \
-  V(RiscvSh1adduw)                        \
-  V(RiscvSh2adduw)                        \
-  V(RiscvSh3adduw)                        \
-  V(RiscvSlliuw)
-#else
-#define TARGET_ARCH_OPCODE_LIST_ZBA_32(V)
-#endif
-
-#define TARGET_ARCH_OPCODE_LIST_ZBS(V) \
-  V(RiscvBclr)                         \
-  V(RiscvBclri)                        \
-  V(RiscvBext)                         \
-  V(RiscvBexti)                        \
-  V(RiscvBinv)                         \
-  V(RiscvBinvi)                        \
-  V(RiscvBset)                         \
-  V(RiscvBseti)
-
 #define TARGET_ARCH_OPCODE_LIST(V)   \
   TARGET_ARCH_OPCODE_LIST_COMMON(V)  \
   TARGET_ARCH_OPCODE_LIST_SPECIAL(V) \
   TARGET_ARCH_OPCODE_LIST_ZBB(V)     \
-  TARGET_ARCH_OPCODE_LIST_ZBS(V)     \
-  TARGET_ARCH_OPCODE_LIST_ZBA(V)     \
-  TARGET_ARCH_OPCODE_LIST_ZBA_32(V)  \
   TARGET_ARCH_OPCODE_LIST_ZBB_32(V)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
