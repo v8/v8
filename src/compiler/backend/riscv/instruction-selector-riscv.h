@@ -1107,8 +1107,8 @@ void InstructionSelector::VisitS128AndNot(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
-  this->Emit(kRiscvS128AndNot, g.DefineAsRegister(node),
-             g.UseRegister(op.input(0)), g.UseRegister(op.input(1)));
+  Emit(kRiscvS128AndNot, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+       g.UseRegister(op.input(1)));
 }
 
 void InstructionSelector::VisitS128Const(OpIndex node) {
@@ -1178,27 +1178,27 @@ SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 #undef SIMD_VISIT_SHIFT_OP
 
-#define SIMD_VISIT_BINOP_RVV(Name, instruction, VSEW)                        \
-                                                                             \
-  void InstructionSelector::Visit##Name(OpIndex node) {                      \
-    RiscvOperandGenerator g(this);                                           \
-    const Operation& op = this->Get(node);                                   \
-    DCHECK_EQ(op.input_count, 2);                                            \
-    InstructionCode opcode = instruction | EncodeElementWidth(VSEW);         \
-    this->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)), \
-               g.UseRegister(op.input(1)));                                  \
+#define SIMD_VISIT_BINOP_RVV(Name, instruction, VSEW)                  \
+                                                                       \
+  void InstructionSelector::Visit##Name(OpIndex node) {                \
+    RiscvOperandGenerator g(this);                                     \
+    const Operation& op = this->Get(node);                             \
+    DCHECK_EQ(op.input_count, 2);                                      \
+    InstructionCode opcode = instruction | EncodeElementWidth(VSEW);   \
+    Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)), \
+         g.UseRegister(op.input(1)));                                  \
   }
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP_RVV)
 #undef SIMD_VISIT_BINOP_RVV
 
-#define SIMD_VISIT_UNOP2(Name, instruction, VSEW)                             \
-                                                                              \
-  void InstructionSelector::Visit##Name(OpIndex node) {                       \
-    RiscvOperandGenerator g(this);                                            \
-    const Operation& op = this->Get(node);                                    \
-    DCHECK_EQ(op.input_count, 1);                                             \
-    InstructionCode opcode = instruction | EncodeElementWidth(VSEW);          \
-    this->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0))); \
+#define SIMD_VISIT_UNOP2(Name, instruction, VSEW)                       \
+                                                                        \
+  void InstructionSelector::Visit##Name(OpIndex node) {                 \
+    RiscvOperandGenerator g(this);                                      \
+    const Operation& op = this->Get(node);                              \
+    DCHECK_EQ(op.input_count, 1);                                       \
+    InstructionCode opcode = instruction | EncodeElementWidth(VSEW);    \
+    Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0))); \
   }
 SIMD_UNOP_LIST2(SIMD_VISIT_UNOP2)
 #undef SIMD_VISIT_UNOP2
@@ -1234,8 +1234,8 @@ void InstructionSelector::VisitF32x4Min(OpIndex node) {
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
   InstructionCode opcode = kRiscvFMin | EncodeElementWidth(E32);
-  this->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
-             g.UseRegister(op.input(1)));
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+       g.UseRegister(op.input(1)));
 }
 
 void InstructionSelector::VisitF32x4Max(OpIndex node) {
@@ -1243,8 +1243,8 @@ void InstructionSelector::VisitF32x4Max(OpIndex node) {
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
   InstructionCode opcode = kRiscvFMax | EncodeElementWidth(E32);
-  this->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
-             g.UseRegister(op.input(1)));
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+       g.UseRegister(op.input(1)));
 }
 
 void InstructionSelector::VisitF64x2Min(OpIndex node) {
@@ -1252,8 +1252,8 @@ void InstructionSelector::VisitF64x2Min(OpIndex node) {
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
   InstructionCode opcode = kRiscvFMin | EncodeElementWidth(E64);
-  this->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
-             g.UseRegister(op.input(1)));
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+       g.UseRegister(op.input(1)));
 }
 
 void InstructionSelector::VisitF64x2Max(OpIndex node) {
@@ -1261,8 +1261,8 @@ void InstructionSelector::VisitF64x2Max(OpIndex node) {
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
   InstructionCode opcode = kRiscvFMax | EncodeElementWidth(E64);
-  this->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
-             g.UseRegister(op.input(1)));
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+       g.UseRegister(op.input(1)));
 }
 
 void InstructionSelector::VisitF32x4RelaxedMin(OpIndex node) {
@@ -1448,9 +1448,9 @@ void InstructionSelector::VisitI16x8RoundingAverageU(OpIndex node) {
   InstructionOperand temp = g.TempFpRegister(v16);
   InstructionOperand temps[] = {temp, temp, temp};
   size_t temp_count = arraysize(temps);
-  this->Emit(kRiscvI16x8RoundingAverageU, g.DefineAsRegister(node),
-             g.UseRegister(op.input(0)), g.UseRegister(op.input(1)), temp_count,
-             temps);
+  Emit(kRiscvI16x8RoundingAverageU, g.DefineAsRegister(node),
+       g.UseRegister(op.input(0)), g.UseRegister(op.input(1)), temp_count,
+       temps);
 }
 
 void InstructionSelector::VisitI32x4DotI16x8S(OpIndex node) {
@@ -1460,9 +1460,9 @@ void InstructionSelector::VisitI32x4DotI16x8S(OpIndex node) {
   InstructionOperand temps[] = {g.TempFpRegister(v16), g.TempFpRegister(v14),
                                 g.TempFpRegister(v30)};
   size_t temp_count = arraysize(temps);
-  this->Emit(kRiscvI32x4DotI16x8S, g.DefineAsRegister(node),
-             g.UseRegister(op.input(0)), g.UseRegister(op.input(1)), temp_count,
-             temps);
+  Emit(kRiscvI32x4DotI16x8S, g.DefineAsRegister(node),
+       g.UseRegister(op.input(0)), g.UseRegister(op.input(1)), temp_count,
+       temps);
 }
 
 void InstructionSelector::VisitI16x8DotI8x16I7x16S(OpIndex node) {
@@ -1472,9 +1472,9 @@ void InstructionSelector::VisitI16x8DotI8x16I7x16S(OpIndex node) {
   InstructionOperand temps[] = {g.TempFpRegister(v16), g.TempFpRegister(v14),
                                 g.TempFpRegister(v30)};
   size_t temp_count = arraysize(temps);
-  this->Emit(kRiscvI16x8DotI8x16I7x16S, g.DefineAsRegister(node),
-             g.UseRegister(op.input(0)), g.UseRegister(op.input(1)), temp_count,
-             temps);
+  Emit(kRiscvI16x8DotI8x16I7x16S, g.DefineAsRegister(node),
+       g.UseRegister(op.input(0)), g.UseRegister(op.input(1)), temp_count,
+       temps);
 }
 
 void InstructionSelector::VisitI32x4DotI8x16I7x16AddS(OpIndex node) {
@@ -1486,9 +1486,9 @@ void InstructionSelector::VisitI32x4DotI8x16I7x16AddS(OpIndex node) {
       g.TempFpRegister(v20), g.TempFpRegister(v26), g.TempFpRegister(v18),
   };
   size_t temp_count = arraysize(temps);
-  this->Emit(kRiscvI32x4DotI8x16I7x16AddS, g.DefineAsRegister(node),
-             g.UseRegister(op.input(0)), g.UseRegister(op.input(1)),
-             g.UseRegister(op.input(2)), temp_count, temps);
+  Emit(kRiscvI32x4DotI8x16I7x16AddS, g.DefineAsRegister(node),
+       g.UseRegister(op.input(0)), g.UseRegister(op.input(1)),
+       g.UseRegister(op.input(2)), temp_count, temps);
 }
 
 void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
@@ -1542,17 +1542,17 @@ void InstructionSelector::VisitI8x16Swizzle(OpIndex node) {
        g.UseUniqueRegister(op.input(1)), arraysize(temps), temps);
 }
 
-#define VISIT_BITMASK(TYPE, VSEW)                                            \
-                                                                             \
-  void InstructionSelector::Visit##TYPE##BitMask(OpIndex node) {             \
-    RiscvOperandGenerator g(this);                                           \
-    const Operation& op = this->Get(node);                                   \
-    DCHECK_EQ(op.input_count, 1);                                            \
-    InstructionOperand temps[] = {g.TempFpRegister(v16)};                    \
-    size_t temp_count = arraysize(temps);                                    \
-    InstructionCode opcode = kRiscvBitMask | EncodeElementWidth(VSEW);       \
-    this->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)), \
-               temp_count, temps);                                           \
+#define VISIT_BITMASK(TYPE, VSEW)                                      \
+                                                                       \
+  void InstructionSelector::Visit##TYPE##BitMask(OpIndex node) {       \
+    RiscvOperandGenerator g(this);                                     \
+    const Operation& op = this->Get(node);                             \
+    DCHECK_EQ(op.input_count, 1);                                      \
+    InstructionOperand temps[] = {g.TempFpRegister(v16)};              \
+    size_t temp_count = arraysize(temps);                              \
+    InstructionCode opcode = kRiscvBitMask | EncodeElementWidth(VSEW); \
+    Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)), \
+         temp_count, temps);                                           \
   }
 
 SIMD_INT_TYPE_LIST(VISIT_BITMASK)
@@ -1562,40 +1562,40 @@ void InstructionSelector::VisitI32x4SConvertI16x8High(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 1);
-  this->Emit(kRiscvI32x4SConvertI16x8High, g.DefineAsRegister(node),
-             g.UseRegister(op.input(0)));
+  Emit(kRiscvI32x4SConvertI16x8High, g.DefineAsRegister(node),
+       g.UseRegister(op.input(0)));
 }
 
 void InstructionSelector::VisitI32x4UConvertI16x8High(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 1);
-  this->Emit(kRiscvI32x4UConvertI16x8High, g.DefineAsRegister(node),
-             g.UseRegister(op.input(0)));
+  Emit(kRiscvI32x4UConvertI16x8High, g.DefineAsRegister(node),
+       g.UseRegister(op.input(0)));
 }
 
 void InstructionSelector::VisitI16x8SConvertI8x16Low(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 1);
-  this->Emit(kRiscvI16x8SConvertI8x16Low, g.DefineAsRegister(node),
-             g.UseRegister(op.input(0)));
+  Emit(kRiscvI16x8SConvertI8x16Low, g.DefineAsRegister(node),
+       g.UseRegister(op.input(0)));
 }
 
 void InstructionSelector::VisitI16x8UConvertI8x16High(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 1);
-  this->Emit(kRiscvI16x8UConvertI8x16High, g.DefineAsRegister(node),
-             g.UseRegister(op.input(0)));
+  Emit(kRiscvI16x8UConvertI8x16High, g.DefineAsRegister(node),
+       g.UseRegister(op.input(0)));
 }
 
 void InstructionSelector::VisitI16x8UConvertI8x16Low(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 1);
-  this->Emit(kRiscvI16x8UConvertI8x16Low, g.DefineAsRegister(node),
-             g.UseRegister(op.input(0)));
+  Emit(kRiscvI16x8UConvertI8x16Low, g.DefineAsRegister(node),
+       g.UseRegister(op.input(0)));
 }
 
 void InstructionSelector::VisitSignExtendWord8ToInt32(OpIndex node) {

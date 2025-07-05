@@ -873,7 +873,7 @@ void InstructionSelector::VisitTryTruncateFloat64ToInt32(OpIndex node) {
     outputs[output_count++] = g.DefineAsRegister(success_output.value());
   }
 
-  this->Emit(kRiscvTruncWD, output_count, outputs, 1, inputs);
+  Emit(kRiscvTruncWD, output_count, outputs, 1, inputs);
 }
 
 void InstructionSelector::VisitTryTruncateFloat64ToUint32(OpIndex node) {
@@ -935,7 +935,7 @@ void InstructionSelector::VisitTryTruncateFloat32ToInt64(OpIndex node) {
     outputs[output_count++] = g.DefineAsRegister(success_output.value());
   }
 
-  this->Emit(kRiscvTruncLS, output_count, outputs, 1, inputs);
+  Emit(kRiscvTruncLS, output_count, outputs, 1, inputs);
 }
 
 void InstructionSelector::VisitTryTruncateFloat64ToInt64(OpIndex node) {
@@ -2329,7 +2329,7 @@ void InstructionSelector::VisitSignExtendWord32ToInt64(OpIndex node) {
 //     InstructionOperand inputs[2];
 //     inputs[0] = operand;
 //     inputs[1] = g.UseImmediate64(length);
-//     this->Emit(kArchComment, 0, nullptr, 1, inputs);
+//     Emit(kArchComment, 0, nullptr, 1, inputs);
 // }
 
 // static
