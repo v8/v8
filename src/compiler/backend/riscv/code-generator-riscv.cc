@@ -2829,7 +2829,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         index = kSimd128ScratchReg3;
 #endif
       }
-      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       if (i.OutputSimd128Register() == i.InputSimd128Register(0)) {
         __ vrgather_vv(kSimd128ScratchReg, i.InputSimd128Register(0), index);
         __ vmv_vv(i.OutputSimd128Register(), kSimd128ScratchReg);
@@ -3013,7 +3014,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvVAbs: {
-      __ VU.set(kScratchReg, i.InputInt8(1), i.InputInt8(2));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vmv_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ vmslt_vx(v0, i.InputSimd128Register(0), zero_reg);
       __ vneg_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
@@ -3158,7 +3160,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvVAllTrue: {
-      __ VU.set(kScratchReg, i.InputInt8(1), i.InputInt8(2));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       Register dst = i.OutputRegister();
       Label notalltrue;
       __ vmv_vi(kSimd128ScratchReg, -1);
@@ -3236,7 +3239,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvFEq: {
-      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       // The later vmerge.vi instruction implicitly uses the reserved
       // register 'v0', so we put the comparison output there.
       __ vmfeq_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(1));
@@ -3245,7 +3249,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvFNe: {
-      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       // The later vmerge.vi instruction implicitly uses the reserved
       // register 'v0', so we put the comparison output there.
       __ vmfne_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(1));
@@ -3254,7 +3259,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvFLt: {
-      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       // The later vmerge.vi instruction implicitly uses the reserved
       // register 'v0', so we put the comparison output there.
       __ vmflt_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(1));
@@ -3263,7 +3269,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvFLe: {
-      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       // The later vmerge.vi instruction implicitly uses the reserved
       // register 'v0', so we put the comparison output there.
       __ vmfle_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(1));
@@ -3305,7 +3312,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvFMin: {
-      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       // Detect NaNs. Simply compare the vector to itself. Only non-NaNs will
       // have their bit set.
       Simd128Register temp1 = v0;
@@ -3319,7 +3327,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       // Fill the result vector with just NaNs.
       Simd128Register result = kSimd128ScratchReg;
-      if (i.InputInt8(2) == E32) {
+      if (sew == E32) {
         // Working on 32-bit floats.
         __ li(kScratchReg, 0x7FC00000);
         __ vmv_vx(result, kScratchReg);
@@ -3343,7 +3351,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvFMax: {
-      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       // Detect NaNs. Simply compare the vector to itself. Only non-NaNs will
       // have their bit set.
       Simd128Register temp1 = v0;
@@ -3357,7 +3366,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       // Fill the result vector with just NaNs.
       Simd128Register result = kSimd128ScratchReg;
-      if (i.InputInt8(2) == E32) {
+      if (sew == E32) {
         // Working on 32-bit floats.
         __ li(kScratchReg, 0x7FC00000);
         __ vmv_vx(result, kScratchReg);
@@ -3848,7 +3857,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvExtAddPairwiseS: {
-      int8_t sew = i.InputInt8(1);
+      auto sew = DecodeElementWidth(opcode);
       Simd128Register src1 = i.TempSimd128Register(0);
       Simd128Register src2 = i.TempSimd128Register(1);
       Simd128Register src = i.InputSimd128Register(0);
@@ -3882,7 +3891,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvExtAddPairwiseU: {
-      int8_t sew = i.InputInt8(1);
+      auto sew = DecodeElementWidth(opcode);
       Simd128Register src1 = i.TempSimd128Register(0);
       Simd128Register src2 = i.TempSimd128Register(1);
       Simd128Register src = i.InputSimd128Register(0);
@@ -3921,13 +3930,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvExtMulLowS: {
-      __ VU.set(kScratchReg, i.InputInt8(2), mf2);
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, mf2);
       __ vwmul_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       break;
     }
     case kRiscvExtMulHighS: {
-      VSew sew = VSew(i.InputInt8(2));
+      auto sew = DecodeElementWidth(opcode);
       int sew_bits = SewToInt(static_cast<VSew>(sew));
       int shift_amount = kRvvVLEN / sew_bits / 2;
       DCHECK(sew == E8 || sew == E16 || sew == E32);
@@ -3941,13 +3951,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvExtMulLowU: {
-      __ VU.set(kScratchReg, i.InputInt8(2), mf2);
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, mf2);
       __ vwmulu_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputSimd128Register(1));
       break;
     }
     case kRiscvExtMulHighU: {
-      VSew sew = VSew(i.InputInt8(2));
+      auto sew = DecodeElementWidth(opcode);
       int sew_bits = SewToInt(static_cast<VSew>(sew));
       int shift_amount = kRvvVLEN / sew_bits / 2;
       DCHECK(sew == E8 || sew == E16 || sew == E32);
@@ -4065,7 +4076,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvBitMask: {
-      __ VU.set(kScratchReg, i.InputInt8(1), i.InputInt8(2));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       Simd128Register temp = i.TempSimd128Register(0);
       DCHECK(temp != i.InputSimd128Register(0));
       __ vmv_vx(temp, zero_reg);
@@ -4110,19 +4122,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvVaddVv: {
-      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vadd_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;
     }
     case kRiscvVsubVv: {
-      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vsub_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;
     }
     case kRiscvVmv: {
-      __ VU.set(kScratchReg, i.InputInt8(1), i.InputInt8(2));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       if (instr->InputAt(0)->IsSimd128Register()) {
         __ vmv_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
       } else if (instr->InputAt(0)->IsRegister()) {
@@ -4139,28 +4154,33 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvVfmvVf: {
-      __ VU.set(kScratchReg, i.InputInt8(1), i.InputInt8(2));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vfmv_vf(i.OutputSimd128Register(), i.InputDoubleRegister(0));
       break;
     }
     case kRiscvVnegVv: {
-      __ VU.set(kScratchReg, i.InputInt8(1), i.InputInt8(2));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vneg_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kRiscvVfnegVv: {
-      __ VU.set(kScratchReg, i.InputInt8(1), i.InputInt8(2));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vfneg_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kRiscvVmaxuVv: {
-      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vmaxu_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       break;
     }
     case kRiscvVmax: {
-      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       if (instr->InputAt(1)->IsSimd128Register()) {
         __ vmax_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputSimd128Register(1));
@@ -4177,103 +4197,114 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvVminuVv: {
-      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vminu_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       break;
     }
     case kRiscvVminsVv: {
-      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vmin_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;
     }
     case kRiscvVmulVv: {
-      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vmul_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;
     }
     case kRiscvVgtsVv: {
+      auto sew = DecodeElementWidth(opcode);
       __ WasmRvvGtS(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                    i.InputSimd128Register(1), VSew(i.InputInt8(2)),
-                    Vlmul(i.InputInt8(3)));
+                    i.InputSimd128Register(1), sew, m1);
       break;
     }
     case kRiscvVgesVv: {
+      auto sew = DecodeElementWidth(opcode);
       __ WasmRvvGeS(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                    i.InputSimd128Register(1), VSew(i.InputInt8(2)),
-                    Vlmul(i.InputInt8(3)));
+                    i.InputSimd128Register(1), sew, m1);
       break;
     }
     case kRiscvVgeuVv: {
+      auto sew = DecodeElementWidth(opcode);
       __ WasmRvvGeU(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                    i.InputSimd128Register(1), VSew(i.InputInt8(2)),
-                    Vlmul(i.InputInt8(3)));
+                    i.InputSimd128Register(1), sew, m1);
       break;
     }
     case kRiscvVgtuVv: {
+      auto sew = DecodeElementWidth(opcode);
       __ WasmRvvGtU(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                    i.InputSimd128Register(1), VSew(i.InputInt8(2)),
-                    Vlmul(i.InputInt8(3)));
+                    i.InputSimd128Register(1), sew, m1);
       break;
     }
     case kRiscvVeqVv: {
+      auto sew = DecodeElementWidth(opcode);
       __ WasmRvvEq(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                   i.InputSimd128Register(1), VSew(i.InputInt8(2)),
-                   Vlmul(i.InputInt8(3)));
+                   i.InputSimd128Register(1), sew, m1);
       break;
     }
     case kRiscvVneVv: {
+      auto sew = DecodeElementWidth(opcode);
       __ WasmRvvNe(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                   i.InputSimd128Register(1), VSew(i.InputInt8(2)),
-                   Vlmul(i.InputInt8(3)));
+                   i.InputSimd128Register(1), sew, m1);
       break;
     }
     case kRiscvVaddSatSVv: {
-      (__ VU).set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vsadd_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       break;
     }
     case kRiscvVaddSatUVv: {
-      (__ VU).set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vsaddu_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputSimd128Register(1));
       break;
     }
     case kRiscvVsubSatSVv: {
-      (__ VU).set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vssub_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       break;
     }
     case kRiscvVsubSatUVv: {
-      (__ VU).set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vssubu_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputSimd128Register(1));
       break;
     }
     case kRiscvVfaddVv: {
-      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vfadd_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       break;
     }
     case kRiscvVfsubVv: {
-      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vfsub_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       break;
     }
     case kRiscvVfmulVv: {
-      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vfmul_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       break;
     }
     case kRiscvVfdivVv: {
-      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vfdiv_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       break;
@@ -4315,19 +4346,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvVandVv: {
-      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vand_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;
     }
     case kRiscvVorVv: {
-      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vor_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                 i.InputSimd128Register(1));
       break;
     }
     case kRiscvVxorVv: {
-      (__ VU).set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vxor_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;
@@ -4350,7 +4384,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvVsmulVv: {
-      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vsmul_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       break;
