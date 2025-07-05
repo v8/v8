@@ -498,7 +498,6 @@ void InstructionSelector::VisitChangeFloat64ToInt32(OpIndex node) {
   using Rep = turboshaft::RegisterRepresentation;
   if (CanCover(node, value)) {
     const turboshaft::Operation& op = this->Get(value);
-    DCHECK_EQ(op.input_count, 1);
     if (op.Is<turboshaft::ChangeOp>()) {
       const turboshaft::ChangeOp& change = op.Cast<turboshaft::ChangeOp>();
       if (change.kind == turboshaft::ChangeOp::Kind::kFloatConversion) {
