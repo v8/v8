@@ -44,7 +44,13 @@ static int SewToInt(VSew sew) {
 }
 
 static VSew DecodeElementWidth(int opcode) {
+#ifdef DEBUG
+  // Check that the lane-size field was populated.
+  DCHECK((LaneSizeField::decode(opcode) & 0x4) != 0);
+  return static_cast<VSew>(LaneSizeField::decode(opcode) & 0x3);
+#else
   return static_cast<VSew>(LaneSizeField::decode(opcode));
+#endif
 }
 
 // Adds RISC-V-specific methods to convert InstructionOperands.
@@ -2713,7 +2719,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ LoadDouble(kScratchDoubleReg, i.MemoryOperand(), trapper);
       __ vfmv_vf(kSimd128ScratchReg, kScratchDoubleReg);
 #endif
-      __ VU.set(kScratchReg, i.InputInt8(2), m1);
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vsext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
       break;
     }
@@ -2726,13 +2733,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ LoadDouble(kScratchDoubleReg, i.MemoryOperand(), trapper);
       __ vfmv_vf(kSimd128ScratchReg, kScratchDoubleReg);
 #endif
-      __ VU.set(kScratchReg, i.InputInt8(2), m1);
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
       __ vzext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
       break;
     }
     case kRiscvS128LoadSplat: {
-      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
-      switch (i.InputInt8(2)) {
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.set(kScratchReg, sew, m1);
+      switch (sew) {
         case E8:
           __ Lb(kScratchReg, i.MemoryOperand(), trapper);
           __ vmv_vx(i.OutputSimd128Register(), kScratchReg);
