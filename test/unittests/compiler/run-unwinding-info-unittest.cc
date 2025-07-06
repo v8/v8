@@ -12,26 +12,26 @@
 #include "src/flags/flags.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/compiler/function-tester.h"
+#include "test/unittests/compiler/function-tester.h"
+#include "test/unittests/test-utils.h"
 
-namespace v8 {
-namespace internal {
-namespace compiler {
+namespace v8::internal::compiler {
 
-TEST(RunUnwindingInfo) {
+using RunUnwindingInfoTest = TestWithContext;
+
+TEST_F(RunUnwindingInfoTest, RunUnwindingInfo) {
   v8_flags.always_turbofan = true;
   v8_flags.perf_prof_unwinding_info = true;
 
-  FunctionTester tester(
-      "(function (x) {\n"
-      "  function f(x) { return x*x; }\n"
-      "  return x > 0 ? x+1 : f(x);\n"
-      "})");
+  FunctionTester tester(i_isolate(),
+                        "(function (x) {\n"
+                        "  function f(x) { return x*x; }\n"
+                        "  return x > 0 ? x+1 : f(x);\n"
+                        "})");
 
-  tester.Call(tester.Val(-1));
+  tester.Call(tester.NewNumber(-1));
 
-  CHECK(tester.function->code(tester.main_isolate())->has_unwinding_info());
+  EXPECT_TRUE(tester.function->code(i_isolate())->has_unwinding_info());
 }
 
 // TODO(ssanfilippo) Build low-level graph and check that state is correctly
@@ -58,8 +58,6 @@ TEST(RunUnwindingInfo) {
 //  +-->|  Failure here  |<--+
 //      +----------------+
 
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::compiler
 
 #endif
