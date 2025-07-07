@@ -5178,12 +5178,25 @@ V8_INLINE void* GetAlignedPointerFromEmbedderDataInCreationContextImpl(
   const char* location =
       "v8::Object::GetAlignedPointerFromEmbedderDataInCreationContext()";
   auto maybe_context = object->GetCreationContext();
-  if (!maybe_context.has_value()) return nullptr;
+  i::Tagged<i::NativeContext> native_context;
+  if (maybe_context.has_value()) {
+    native_context = maybe_context.value();
+  } else {
+    // This happens when we're accessing a global property but passed its (now
+    // detached) global proxy as holder. If the global proxy is detached because
+    // of navigation, it won't have a context-specific metamap anymore (it gets
+    // cleared on Detach to avoid leaks). Since we're doing a global proxy
+    // access though, the Isolate's current native context must be the native
+    // context we care about.
+    i::Isolate* isolate = i::Isolate::Current();
+    i::Tagged<i::Context> context = isolate->context();
+    CHECK_EQ(context->global_proxy(), *object);
+    native_context = context->native_context();
+  }
 
   // The code below mostly mimics Context::GetAlignedPointerFromEmbedderData()
   // but it doesn't try to expand the EmbedderDataArray instance.
   i::DisallowGarbageCollection no_gc;
-  i::Tagged<i::NativeContext> native_context = maybe_context.value();
 
   // This macro requires a real Isolate while |i_isolate_for_sandbox| might be
   // nullptr if the V8 sandbox is not enabled.
