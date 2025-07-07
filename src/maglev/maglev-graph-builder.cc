@@ -2481,12 +2481,14 @@ ReduceResult MaglevGraphBuilder::BuildStringConcat(ValueNode* left,
   Handle<String> left_string;
   Handle<String> right_string;
   if (left_cst.ToHandle(&left_string) && right_cst.ToHandle(&right_string)) {
-    Handle<String> concatenated = compiler::utils::ConcatenateStrings(
-        left_string, right_string, broker());
-    ValueNode* string_node = graph()->GetConstant(MakeRefAssumeMemoryFence(
-        broker(), broker()->CanonicalPersistentHandle(concatenated)));
-    SetAccumulator(string_node);
-    return ReduceResult::Done();
+    Handle<String> concatenated;
+    if (compiler::utils::ConcatenateStrings(left_string, right_string, broker())
+            .ToHandle(&concatenated)) {
+      ValueNode* string_node = graph()->GetConstant(MakeRefAssumeMemoryFence(
+          broker(), broker()->CanonicalPersistentHandle(concatenated)));
+      SetAccumulator(string_node);
+      return ReduceResult::Done();
+    }
   }
   RETURN_IF_ABORT(BuildCheckString(left));
   RETURN_IF_ABORT(BuildCheckString(right));

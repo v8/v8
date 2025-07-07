@@ -408,8 +408,10 @@ Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
       }
     }
 
+    // ConcatenateStrings won't fail, since we already checked the resulting
+    // string is not too long.
     Handle<String> concatenated =
-        utils::ConcatenateStrings(left, right, broker());
+        utils::ConcatenateStrings(left, right, broker()).ToHandleChecked();
     created_strings_.insert(concatenated);
     Node* reduced = graph()->NewNode(common()->HeapConstant(
         broker()->CanonicalPersistentHandle(concatenated)));

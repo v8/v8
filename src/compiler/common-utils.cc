@@ -16,10 +16,15 @@ namespace v8::internal::compiler::utils {
 // implementing a full String::Flatten for background threads, we preferred to
 // implement this Concatenate function, which, unlike String::Flatten, doesn't
 // need to replace ConsStrings by ThinStrings.
-Handle<String> ConcatenateStrings(Handle<String> left, Handle<String> right,
-                                  JSHeapBroker* broker) {
+MaybeHandle<String> ConcatenateStrings(Handle<String> left,
+                                       Handle<String> right,
+                                       JSHeapBroker* broker) {
   if (left->length() == 0) return right;
   if (right->length() == 0) return left;
+
+  if (left->length() + right->length() > String::kMaxLength) {
+    return {};
+  }
 
   // Repeated concatenations have a quadratic cost (eg, "s+=a;s+=b;s+=c;...").
   // Rather than doing static analysis to determine how many concatenations we

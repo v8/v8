@@ -14,8 +14,9 @@ class JSHeapBroker;
 
 namespace utils {
 
-Handle<String> ConcatenateStrings(Handle<String> left, Handle<String> right,
-                                  JSHeapBroker* broker);
+MaybeHandle<String> ConcatenateStrings(Handle<String> left,
+                                       Handle<String> right,
+                                       JSHeapBroker* broker);
 
 }  // namespace utils
 }  // namespace v8::internal::compiler
