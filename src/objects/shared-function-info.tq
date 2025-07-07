@@ -4,6 +4,7 @@
 
 // TODO(saelo): Consider also moving this into trusted space as
 // UncompiledDataWithPreparseData is now in trusted space.
+@cppObjectLayoutDefinition
 extern class PreparseData extends HeapObject {
   // TODO(v8:8983): Add declaration for variable-sized region.
   data_length: int32;

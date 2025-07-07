@@ -829,7 +829,7 @@ class PreparseData::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     Tagged<PreparseData> data = UncheckedCast<PreparseData>(obj);
-    int start_offset = data->inner_start_offset();
+    int start_offset = data->children_start_offset();
     int end_offset = start_offset + data->children_length() * kTaggedSize;
     IteratePointers(obj, start_offset, end_offset, v);
   }

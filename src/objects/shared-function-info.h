@@ -9,6 +9,7 @@
 #include <optional>
 
 #include "src/base/bit-field.h"
+#include "src/base/macros.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
@@ -77,11 +78,13 @@ enum class CreateSourcePositions { kNo, kYes };
 // +-------------------------------+
 // | Inner PreparseData N          |
 // +-------------------------------+
-class PreparseData
-    : public TorqueGeneratedPreparseData<PreparseData, HeapObject> {
+V8_OBJECT class PreparseData : public HeapObjectLayout {
  public:
-  inline int inner_start_offset() const;
-  inline ObjectSlot inner_data_start() const;
+  int32_t data_length() const { return data_length_; }
+  void set_data_length(int32_t value) { data_length_ = value; }
+
+  int32_t children_length() const { return children_length_; }
+  void set_children_length(int32_t value) { children_length_ = value; }
 
   inline uint8_t get(int index) const;
   inline void set(int index, uint8_t value);
@@ -97,23 +100,41 @@ class PreparseData
   DECL_PRINTER(PreparseData)
   DECL_VERIFIER(PreparseData)
 
-  static const int kDataStartOffset = kSize;
-
   class BodyDescriptor;
 
-  static int InnerOffset(int data_length) {
-    return RoundUp(kDataStartOffset + data_length * kByteSize, kTaggedSize);
-  }
-
-  static int SizeFor(int data_length, int children_length) {
-    return InnerOffset(data_length) + children_length * kTaggedSize;
-  }
-
-  TQ_OBJECT_CONSTRUCTORS(PreparseData)
+  static inline int SizeFor(int data_length, int children_length);
 
  private:
-  inline Tagged<Object> get_child_raw(int index) const;
-};
+  friend class TorqueGeneratedPreparseDataAsserts;
+  template <typename Impl>
+  friend class FactoryBase;
+
+  static int ChildrenOffsetInData(int data_length) {
+    return RoundUp(data_length * kByteSize, kTaggedSize);
+  }
+
+  uint8_t* data() { return reinterpret_cast<uint8_t*>(data_and_children()); }
+  const uint8_t* data() const {
+    return reinterpret_cast<const uint8_t*>(data_and_children());
+  }
+  TaggedMember<PreparseData>* children() {
+    return reinterpret_cast<TaggedMember<PreparseData>*>(
+        &data_and_children()[ChildrenOffsetInData(data_length())]);
+  }
+  const TaggedMember<PreparseData>* children() const {
+    return reinterpret_cast<const TaggedMember<PreparseData>*>(
+        &data_and_children()[ChildrenOffsetInData(data_length())]);
+  }
+
+  inline int children_start_offset() const;
+
+  int32_t data_length_;
+  int32_t children_length_;
+  FLEXIBLE_ARRAY_MEMBER(char, data_and_children);
+} V8_OBJECT_END;
+
+static_assert(IsAligned(OFFSET_OF_DATA_START(PreparseData),
+                        alignof(TaggedMember<PreparseData>)));
 
 // Abstract class representing extra data for an uncompiled function, which is
 // not stored in the SharedFunctionInfo.

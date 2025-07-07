@@ -39,63 +39,55 @@ namespace v8::internal {
 
 #include "torque-generated/src/objects/shared-function-info-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(PreparseData)
-
-int PreparseData::inner_start_offset() const {
-  return InnerOffset(data_length());
+// static
+int PreparseData::SizeFor(int data_length, int children_length) {
+  return OFFSET_OF_DATA_START(PreparseData) +
+         ChildrenOffsetInData(data_length) +
+         children_length * sizeof(TaggedMember<PreparseData>);
 }
 
-ObjectSlot PreparseData::inner_data_start() const {
-  return RawField(inner_start_offset());
+int PreparseData::children_start_offset() const {
+  return OFFSET_OF_DATA_START(PreparseData) +
+         ChildrenOffsetInData(data_length());
 }
 
 void PreparseData::clear_padding() {
-  int data_end_offset = kDataStartOffset + data_length();
-  int padding_size = inner_start_offset() - data_end_offset;
+  int data_end_offset = data_length() * sizeof(uint8_t);
+  int padding_size = ChildrenOffsetInData(data_length()) - data_end_offset;
   DCHECK_LE(0, padding_size);
   if (padding_size == 0) return;
-  memset(reinterpret_cast<void*>(address() + data_end_offset), 0, padding_size);
+  memset(&data_and_children()[data_end_offset], 0, padding_size);
 }
 
 uint8_t PreparseData::get(int index) const {
   DCHECK_LE(0, index);
   DCHECK_LT(index, data_length());
-  int offset = kDataStartOffset + index * kByteSize;
-  return ReadField<uint8_t>(offset);
+  return data()[index];
 }
 
 void PreparseData::set(int index, uint8_t value) {
   DCHECK_LE(0, index);
   DCHECK_LT(index, data_length());
-  int offset = kDataStartOffset + index * kByteSize;
-  WriteField<uint8_t>(offset, value);
+  data()[index] = value;
 }
 
 void PreparseData::copy_in(int index, const uint8_t* buffer, int length) {
   DCHECK(index >= 0 && length >= 0 && length <= kMaxInt - index &&
          index + length <= this->data_length());
-  Address dst_addr = field_address(kDataStartOffset + index * kByteSize);
-  memcpy(reinterpret_cast<void*>(dst_addr), buffer, length);
+  memcpy(&data()[index], buffer, length);
 }
 
 Tagged<PreparseData> PreparseData::get_child(int index) const {
-  return Cast<PreparseData>(get_child_raw(index));
-}
-
-Tagged<Object> PreparseData::get_child_raw(int index) const {
   DCHECK_LE(0, index);
-  DCHECK_LT(index, this->children_length());
-  int offset = inner_start_offset() + index * kTaggedSize;
-  return RELAXED_READ_FIELD(*this, offset);
+  DCHECK_LT(index, children_length());
+  return children()[index].Relaxed_Load();
 }
 
 void PreparseData::set_child(int index, Tagged<PreparseData> value,
                              WriteBarrierMode mode) {
   DCHECK_LE(0, index);
-  DCHECK_LT(index, this->children_length());
-  int offset = inner_start_offset() + index * kTaggedSize;
-  RELAXED_WRITE_FIELD(*this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
+  DCHECK_LT(index, children_length());
+  children()[index].Relaxed_Store(this, value, mode);
 }
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledData)

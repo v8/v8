@@ -505,7 +505,7 @@ Handle<PreparseData> FactoryBase<Impl>::NewPreparseData(int data_length,
   DisallowGarbageCollection no_gc;
   result->set_data_length(data_length);
   result->set_children_length(children_length);
-  MemsetTagged(result->inner_data_start(), read_only_roots().null_value(),
+  MemsetTagged(ObjectSlot(result->children()), read_only_roots().null_value(),
                children_length);
   result->clear_padding();
   return handle(result, isolate());

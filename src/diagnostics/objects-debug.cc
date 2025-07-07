@@ -2684,12 +2684,15 @@ void NormalizedMapCache::NormalizedMapCacheVerify(Isolate* isolate) {
 }
 
 void PreparseData::PreparseDataVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::PreparseDataVerify(*this, isolate);
+  CHECK(IsPreparseData(this));
   CHECK_LE(0, data_length());
   CHECK_LE(0, children_length());
 
   for (int i = 0; i < children_length(); ++i) {
-    Tagged<Object> child = get_child_raw(i);
+    Tagged<Object> child = children()[i].Relaxed_Load();
+    // Preparse data is created recursively, depth first, so if there is a heap
+    // verification during preparse data tree creation, it will observe a
+    // partially initialized preparse data with null values.
     CHECK(IsNull(child) || IsPreparseData(child));
     Object::VerifyPointer(isolate, child);
   }
