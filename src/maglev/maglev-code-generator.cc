@@ -18,6 +18,7 @@
 #include "src/codegen/source-position.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
+#include "src/compiler/frame-states.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/deoptimizer/frame-translation-builder.h"
@@ -1333,16 +1334,17 @@ class MaglevFrameTranslationBuilder {
     BytecodeOffset bailout_id =
         Builtins::GetContinuationBytecodeOffset(frame.builtin_id());
     int literal_id = GetDeoptLiteral(frame.GetSharedFunctionInfo());
-    int height = frame.parameters().length();
 
-    constexpr int kExtraFixedJSFrameParameters =
-        V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 4 : 3;
+    constexpr int kFixedJSFrameRegisterParameters =
+        JSTrampolineDescriptor::GetRegisterParameterCount();
+
     if (frame.is_javascript()) {
       translation_array_builder_->BeginJavaScriptBuiltinContinuationFrame(
-          bailout_id, literal_id, height + kExtraFixedJSFrameParameters);
+          bailout_id, literal_id,
+          frame.parameters().length() + kFixedJSFrameRegisterParameters);
     } else {
       translation_array_builder_->BeginBuiltinContinuationFrame(
-          bailout_id, literal_id, height);
+          bailout_id, literal_id, frame.parameters().length());
     }
 
     // Closure
@@ -1353,20 +1355,24 @@ class MaglevFrameTranslationBuilder {
       translation_array_builder_->StoreOptimizedOut();
     }
 
-    // Parameters
+    // Parameters. For stubs, this is the parameters in the expected order (the
+    // first N parameters are in registers, then remaining parameters are stack
+    // parameters). For JS continuations, this is the stack parameters only,
+    // with the JS trampoline's register parameters handled second. This is
+    // because JS frame iteration requires the receiver to be the first
+    // parameter.
+    static_assert(TranslatedFrame::kReceiverIsFirstParameterInJSFrames);
     for (ValueNode* value : frame.parameters()) {
       BuildDeoptFrameSingleValue(value, current_input_location,
                                  virtual_objects);
     }
 
-    // Extra fixed JS frame parameters. These at the end since JS builtins
-    // push their parameters in reverse order.
     if (frame.is_javascript()) {
+      // Fixed register parameters for JS frames.
       DCHECK_EQ(Builtins::CallInterfaceDescriptorFor(frame.builtin_id())
                     .GetRegisterParameterCount(),
-                kExtraFixedJSFrameParameters);
-      static_assert(kExtraFixedJSFrameParameters ==
-                    3 + (V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 1 : 0));
+                kFixedJSFrameRegisterParameters);
+
       // kJavaScriptCallTargetRegister
       translation_array_builder_->StoreLiteral(
           GetDeoptLiteral(frame.javascript_target()));
@@ -1380,6 +1386,9 @@ class MaglevFrameTranslationBuilder {
       // kJavaScriptCallDispatchHandleRegister
       translation_array_builder_->StoreLiteral(
           GetDeoptLiteral(Smi::FromInt(kInvalidDispatchHandle.value())));
+      static_assert(kFixedJSFrameRegisterParameters == 4);
+#else
+      static_assert(kFixedJSFrameRegisterParameters == 3);
 #endif
     }
 

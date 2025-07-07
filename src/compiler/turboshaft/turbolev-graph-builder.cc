@@ -13,6 +13,7 @@
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
 #include "src/codegen/bailout-reason.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
@@ -5181,21 +5182,21 @@ class GraphBuildingNodeProcessor {
       builder.AddUnusedRegister();
     }
 
-    // Parameters
+    // Parameters. For stubs, this is the parameters in the expected order (the
+    // first N parameters are in registers, then remaining parameters are stack
+    // parameters). For JS continuations, this is the stack parameters only,
+    // with the JS trampoline's register parameters handled second. This is
+    // because JS frame iteration requires the receiver to be the first
+    // parameter.
+    static_assert(TranslatedFrame::kReceiverIsFirstParameterInJSFrames);
     for (maglev::ValueNode* param : frame.parameters()) {
       AddDeoptInput(builder, virtual_objects, param);
     }
 
-    // Extra fixed JS frame parameters. These are at the end since JS builtins
-    // push their parameters in reverse order.
-    constexpr int kExtraFixedJSFrameParameters =
-        V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 4 : 3;
     if (frame.is_javascript()) {
-      DCHECK_EQ(Builtins::CallInterfaceDescriptorFor(frame.builtin_id())
-                    .GetRegisterParameterCount(),
-                kExtraFixedJSFrameParameters);
-      static_assert(kExtraFixedJSFrameParameters ==
-                    3 + (V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 1 : 0));
+      constexpr int kFixedJSFrameRegisterParameters =
+          JSTrampolineDescriptor::GetRegisterParameterCount();
+
       // kJavaScriptCallTargetRegister
       builder.AddInput(MachineType::AnyTagged(),
                        __ HeapConstant(frame.javascript_target().object()));
@@ -5211,6 +5212,9 @@ class GraphBuildingNodeProcessor {
       builder.AddInput(
           MachineType::AnyTagged(),
           __ SmiConstant(Smi::FromInt(kInvalidDispatchHandle.value())));
+      static_assert(kFixedJSFrameRegisterParameters == 4);
+#else
+      static_assert(kFixedJSFrameRegisterParameters == 3);
 #endif
     }
 

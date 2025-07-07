@@ -219,6 +219,21 @@ class TranslatedFrame {
     kInvalid
   };
 
+  // The frame iteration assumes that for JavaScript frames (unoptimized
+  // functions and JS builtins continuations), the receiver is the first
+  // parameter. Optimizing compilers have to make sure to preserve this
+  // encoding.
+  static constexpr int kReceiverIsFirstParameterInJSFrames = true;
+
+  static bool IsJavaScriptFrame(Kind kind) {
+    return kind == kUnoptimizedFunction ||
+           IsJavaScriptBuiltinContinuationFrame(kind);
+  }
+  static bool IsJavaScriptBuiltinContinuationFrame(Kind kind) {
+    return kind == kJavaScriptBuiltinContinuation ||
+           kind == kJavaScriptBuiltinContinuationWithCatch;
+  }
+
   int GetValueCount() const;
 
   Kind kind() const { return kind_; }

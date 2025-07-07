@@ -7,7 +7,7 @@
 #include <optional>
 
 #include "src/base/memory.h"
-#include "src/codegen/interface-descriptors.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/reloc-info.h"
 #include "src/debug/debug.h"
@@ -305,10 +305,7 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
   int counter = jsframe_index;
   for (auto it = translated_values.begin(); it != translated_values.end();
        it++) {
-    if (it->kind() == TranslatedFrame::kUnoptimizedFunction ||
-        it->kind() == TranslatedFrame::kJavaScriptBuiltinContinuation ||
-        it->kind() ==
-            TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch) {
+    if (TranslatedFrame::IsJavaScriptFrame(it->kind())) {
       if (counter == 0) {
         frame_it = it;
         break;
@@ -2701,7 +2698,19 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
   }
 
+  std::vector<TranslatedFrame::iterator> register_values;
+  int total_registers = config->num_general_registers();
+  register_values.resize(total_registers, {value_iterator});
+
   if (mode == BuiltinContinuationMode::STUB) {
+    // Parameters into the stubs are stored with the register parameters first,
+    // and stack parameters second, to match how builtin call descriptors are
+    // defined.
+    for (int i = 0; i < register_parameter_count; ++i, ++value_iterator) {
+      int code = continuation_descriptor.GetRegisterParameter(i).code();
+      register_values[code] = value_iterator;
+    }
+
     DCHECK_EQ(continuation_descriptor.GetStackArgumentOrder(),
               StackArgumentOrder::kDefault);
     for (uint32_t i = 0; i < frame_info.translated_stack_parameter_count();
@@ -2744,19 +2753,21 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     }
     frame_writer.PushStackJSArguments(
         value_iterator, frame_info.translated_stack_parameter_count());
+
+    // Parameters into JS builtins are stored with the stack parameters first,
+    // and the JS trampoline register parameters second, so that the first
+    // parameter is always the receiver (for frame iteration).
+    static_assert(TranslatedFrame::kReceiverIsFirstParameterInJSFrames);
+    DCHECK_EQ(register_parameter_count,
+              JSTrampolineDescriptor::GetRegisterParameterCount());
+    for (int i = 0; i < register_parameter_count; ++i, ++value_iterator) {
+      int code = continuation_descriptor.GetRegisterParameter(i).code();
+      register_values[code] = value_iterator;
+    }
   }
 
   DCHECK_EQ(output_frame->GetLastArgumentSlotOffset(),
             frame_writer.top_offset());
-
-  std::vector<TranslatedFrame::iterator> register_values;
-  int total_registers = config->num_general_registers();
-  register_values.resize(total_registers, {value_iterator});
-
-  for (int i = 0; i < register_parameter_count; ++i, ++value_iterator) {
-    int code = continuation_descriptor.GetRegisterParameter(i).code();
-    register_values[code] = value_iterator;
-  }
 
   // The context register is always implicit in the CallInterfaceDescriptor but
   // its register must be explicitly set when continuing to the builtin. Make

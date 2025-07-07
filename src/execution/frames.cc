@@ -12,7 +12,7 @@
 #include "src/api/api-arguments.h"
 #include "src/api/api-natives.h"
 #include "src/base/bits.h"
-#include "src/codegen/interface-descriptors.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/linkage-location.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/maglev-safepoint-table.h"
@@ -3064,10 +3064,7 @@ FrameSummaries OptimizedJSFrame::Summarize() const {
   // in the deoptimization translation are ordered bottom-to-top.
   bool is_constructor = IsConstructor();
   for (auto it = translated.begin(); it != translated.end(); it++) {
-    if (it->kind() == TranslatedFrame::kUnoptimizedFunction ||
-        it->kind() == TranslatedFrame::kJavaScriptBuiltinContinuation ||
-        it->kind() ==
-            TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch) {
+    if (TranslatedFrame::IsJavaScriptFrame(it->kind())) {
       DirectHandle<SharedFunctionInfo> shared_info = it->shared_info();
 
       // The translation commands are ordered and the function is always
@@ -3081,6 +3078,7 @@ FrameSummaries OptimizedJSFrame::Summarize() const {
       translated_values++;
 
       // Get the correct receiver in the optimized frame.
+      static_assert(TranslatedFrame::kReceiverIsFirstParameterInJSFrames);
       CHECK(!translated_values->IsMaterializedObject());
       DirectHandle<Object> receiver = translated_values->GetValue();
       translated_values++;
@@ -3089,9 +3087,7 @@ FrameSummaries OptimizedJSFrame::Summarize() const {
       // the translation corresponding to the frame type in question.
       DirectHandle<AbstractCode> abstract_code;
       unsigned code_offset;
-      if (it->kind() == TranslatedFrame::kJavaScriptBuiltinContinuation ||
-          it->kind() ==
-              TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch) {
+      if (TranslatedFrame::IsJavaScriptBuiltinContinuationFrame(it->kind())) {
         code_offset = 0;
         abstract_code = Cast<AbstractCode>(isolate()->builtins()->code_handle(
             Builtins::GetBuiltinFromBytecodeOffset(it->bytecode_offset())));
