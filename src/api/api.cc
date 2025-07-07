@@ -701,6 +701,7 @@ void InternalFieldOutOfBounds(int index) {
 
 // --- H a n d l e s ---
 
+#ifdef V8_ENABLE_CHECKS
 void HandleScope::DoInitializeAsserts(Isolate* v8_isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   // We do not want to check the correct usage of the Locker class all over the
@@ -716,15 +717,12 @@ void HandleScope::DoInitializeAsserts(Isolate* v8_isolate) {
 }
 
 void HandleScope::AssertScopeLevelsMatch() {
-#ifdef V8_ENABLE_CHECKS
   auto i_isolate = reinterpret_cast<internal::Isolate*>(isolate_);
   CHECK_EQ(scope_level_, i_isolate->handle_scope_data()->level);
-#endif
 }
 
 void HandleScope::DoCloseScopeAsserts(int before, internal::Address* limit,
                                       internal::HandleScopeData* current) {
-#ifdef V8_ENABLE_CHECKS
 #ifdef ENABLE_LOCAL_HANDLE_ZAPPING
   internal::HandleScope::ZapRange(current->next, limit);
 #endif
@@ -737,9 +735,10 @@ void HandleScope::DoCloseScopeAsserts(int before, internal::Address* limit,
     int after = NumberOfHandles(isolate_);
     DCHECK_LT(after - before, internal::HandleScope::kCheckHandleThreshold);
     DCHECK_LT(before, internal::HandleScope::kCheckHandleThreshold);
+    USE(after);
   }
-#endif
 }
+#endif  // V8_ENABLE_CHECKS
 
 void* HandleScope::operator new(size_t) { base::OS::Abort(); }
 void* HandleScope::operator new[](size_t) { base::OS::Abort(); }

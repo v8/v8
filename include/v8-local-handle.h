@@ -150,6 +150,7 @@ class V8_EXPORT V8_NODISCARD HandleScope {
   // are extensions.  Not inlined.
   void DeleteExtensions(Isolate* isolate);
 
+#ifdef V8_ENABLE_CHECKS
   // Non-inlined asserts on HandleScope constructor.
   void DoInitializeAsserts(Isolate* isolate);
   // Non-inlined assert for HandleScope destructor.
@@ -158,6 +159,7 @@ class V8_EXPORT V8_NODISCARD HandleScope {
   // if this is enabled.
   void DoCloseScopeAsserts(int before, internal::Address* limit,
                            internal::HandleScopeData* current);
+#endif
 
   // Declaring operator new and delete as deleted is not spec compliant.
   // Therefore declare them private instead to disable dynamic alloc
