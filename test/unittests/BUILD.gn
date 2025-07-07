@@ -529,6 +529,7 @@ v8_source_set("v8_unittests_sources") {
       "compiler/js-operator-unittest.cc",
       "compiler/js-typed-lowering-unittest.cc",
       "compiler/linkage-tail-call-unittest.cc",
+      "compiler/linkage-unittest.cc",
       "compiler/load-elimination-unittest.cc",
       "compiler/loop-peeling-unittest.cc",
       "compiler/machine-operator-reducer-unittest.cc",
