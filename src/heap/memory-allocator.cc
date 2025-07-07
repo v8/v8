@@ -607,9 +607,12 @@ bool MemoryAllocator::ResizeLargePage(LargePageMetadata* page,
 std::optional<MemoryAllocator::MemoryChunkAllocationResult>
 MemoryAllocator::AllocateUninitializedPageFromDelayedOrPool(Space* space) {
   MemoryChunkMetadata* chunk_metadata = nullptr;
-  if (!delayed_then_pooled_pages_.empty()) {
-    chunk_metadata = delayed_then_pooled_pages_.back();
-    delayed_then_pooled_pages_.pop_back();
+  {
+    base::MutexGuard guard(chunks_mutex_);
+    if (!delayed_then_pooled_pages_.empty()) {
+      chunk_metadata = delayed_then_pooled_pages_.back();
+      delayed_then_pooled_pages_.pop_back();
+    }
   }
   if (chunk_metadata == nullptr && memory_pool()) {
     chunk_metadata = memory_pool()->Remove(isolate_);
