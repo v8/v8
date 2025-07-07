@@ -4899,9 +4899,8 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
   return AddNewNode<LoadFixedArrayElement>({elements, index});
 }
 
-void MaglevGraphBuilder::BuildStoreFixedArrayElement(ValueNode* elements,
-                                                     ValueNode* index,
-                                                     ValueNode* value) {
+ReduceResult MaglevGraphBuilder::BuildStoreFixedArrayElement(
+    ValueNode* elements, ValueNode* index, ValueNode* value) {
   // TODO(victorgomes): Support storing element to a virtual object. If we
   // modify the elements array, we need to modify the original object to point
   // to the new elements array.
@@ -4911,6 +4910,7 @@ void MaglevGraphBuilder::BuildStoreFixedArrayElement(ValueNode* elements,
     AddNewNode<StoreFixedArrayElementWithWriteBarrier>(
         {elements, index, value});
   }
+  return ReduceResult::Done();
 }
 
 ValueNode* MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
@@ -4941,11 +4941,11 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
   return AddNewNode<LoadFixedDoubleArrayElement>({elements, index});
 }
 
-void MaglevGraphBuilder::BuildStoreFixedDoubleArrayElement(ValueNode* elements,
-                                                           ValueNode* index,
-                                                           ValueNode* value) {
+ReduceResult MaglevGraphBuilder::BuildStoreFixedDoubleArrayElement(
+    ValueNode* elements, ValueNode* index, ValueNode* value) {
   // TODO(victorgomes): Support storing double element to a virtual object.
   AddNewNode<StoreFixedDoubleArrayElement>({elements, index, value});
+  return ReduceResult::Done();
 }
 
 ValueNode* MaglevGraphBuilder::BuildLoadHoleyFixedDoubleArrayElement(
@@ -5217,7 +5217,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadJSFunctionContext(ValueNode* closure) {
 
 void MaglevGraphBuilder::BuildStoreMap(ValueNode* object, compiler::MapRef map,
                                        StoreMap::Kind kind) {
-  AddNewNode<StoreMap>({object}, map, kind);
+  AddNewNodeNoInputConversion<StoreMap>({object}, map, kind);
   NodeType object_type = StaticTypeForMap(map, broker());
   NodeInfo* node_info = GetOrCreateInfoFor(object);
   if (map.is_stable()) {
@@ -5963,7 +5963,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadConstantTypedArrayElement(
 #undef BUILD_AND_RETURN_LOAD_CONSTANTTYPED_ARRAY
 }
 
-void MaglevGraphBuilder::BuildStoreTypedArrayElement(
+ReduceResult MaglevGraphBuilder::BuildStoreTypedArrayElement(
     ValueNode* object, ValueNode* index, ElementsKind elements_kind) {
 #define BUILD_STORE_TYPED_ARRAY(Type, value)                           \
   AddNewNode<Store##Type##TypedArrayElement>({object, index, (value)}, \
@@ -5999,9 +5999,10 @@ void MaglevGraphBuilder::BuildStoreTypedArrayElement(
       UNREACHABLE();
   }
 #undef BUILD_STORE_TYPED_ARRAY
+  return ReduceResult::Done();
 }
 
-void MaglevGraphBuilder::BuildStoreConstantTypedArrayElement(
+ReduceResult MaglevGraphBuilder::BuildStoreConstantTypedArrayElement(
     compiler::JSTypedArrayRef typed_array, ValueNode* index,
     ElementsKind elements_kind) {
 #define BUILD_STORE_CONSTANT_TYPED_ARRAY(Type, value) \
@@ -6039,6 +6040,7 @@ void MaglevGraphBuilder::BuildStoreConstantTypedArrayElement(
       UNREACHABLE();
   }
 #undef BUILD_STORE_CONSTANT_TYPED_ARRAY
+  return ReduceResult::Done();
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
@@ -6100,13 +6102,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
         if (constant_object.IsJSTypedArray() &&
             constant_object.AsJSTypedArray().is_off_heap_non_rab_gsab(
                 broker())) {
-          BuildStoreConstantTypedArrayElement(constant_object.AsJSTypedArray(),
-                                              index, elements_kind);
-          return ReduceResult::Done();
+          return BuildStoreConstantTypedArrayElement(
+              constant_object.AsJSTypedArray(), index, elements_kind);
         }
       }
-      BuildStoreTypedArrayElement(object, index, elements_kind);
-      return ReduceResult::Done();
+      return BuildStoreTypedArrayElement(object, index, elements_kind);
     case compiler::AccessMode::kHas:
       // TODO(victorgomes): Implement has element access.
       return {};
@@ -6298,12 +6298,10 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
 
   // Do the store.
   if (IsDoubleElementsKind(elements_kind)) {
-    BuildStoreFixedDoubleArrayElement(elements_array, index, value);
+    return BuildStoreFixedDoubleArrayElement(elements_array, index, value);
   } else {
-    BuildStoreFixedArrayElement(elements_array, index, value);
+    return BuildStoreFixedArrayElement(elements_array, index, value);
   }
-
-  return ReduceResult::Done();
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnJSArrayOrJSObject(
@@ -9822,14 +9820,13 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
 
     // Do the store
     if (IsDoubleElementsKind(kind)) {
-      BuildStoreFixedDoubleArrayElement(writable_elements_array,
-                                        old_array_length, value);
+      return BuildStoreFixedDoubleArrayElement(writable_elements_array,
+                                               old_array_length, value);
     } else {
       DCHECK(IsSmiElementsKind(kind) || IsObjectElementsKind(kind));
-      BuildStoreFixedArrayElement(writable_elements_array, old_array_length,
-                                  value);
+      return BuildStoreFixedArrayElement(writable_elements_array,
+                                         old_array_length, value);
     }
-    return ReduceResult::Done();
   };
 
   RETURN_IF_ABORT(BuildJSArrayBuiltinMapSwitchOnElementsKind(
@@ -9977,15 +9974,16 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
     if (IsDoubleElementsKind(kind)) {
       value = BuildLoadFixedDoubleArrayElement(writable_elements_array,
                                                new_array_length);
-      BuildStoreFixedDoubleArrayElement(
+      RETURN_IF_ABORT(BuildStoreFixedDoubleArrayElement(
           writable_elements_array, new_array_length,
-          GetFloat64Constant(Float64::FromBits(kHoleNanInt64)));
+          GetFloat64Constant(Float64::FromBits(kHoleNanInt64))));
     } else {
       DCHECK(IsSmiElementsKind(kind) || IsObjectElementsKind(kind));
       value =
           BuildLoadFixedArrayElement(writable_elements_array, new_array_length);
-      BuildStoreFixedArrayElement(writable_elements_array, new_array_length,
-                                  GetRootConstant(RootIndex::kTheHoleValue));
+      RETURN_IF_ABORT(BuildStoreFixedArrayElement(
+          writable_elements_array, new_array_length,
+          GetRootConstant(RootIndex::kTheHoleValue)));
     }
 
     if (IsHoleyElementsKind(kind)) {

@@ -1241,14 +1241,15 @@ class MaglevGraphBuilder {
 
   ValueNode* BuildLoadFixedArrayElement(ValueNode* elements, int index);
   ValueNode* BuildLoadFixedArrayElement(ValueNode* elements, ValueNode* index);
-  void BuildStoreFixedArrayElement(ValueNode* elements, ValueNode* index,
-                                   ValueNode* value);
+  ReduceResult BuildStoreFixedArrayElement(ValueNode* elements,
+                                           ValueNode* index, ValueNode* value);
 
   ValueNode* BuildLoadFixedDoubleArrayElement(ValueNode* elements, int index);
   ValueNode* BuildLoadFixedDoubleArrayElement(ValueNode* elements,
                                               ValueNode* index);
-  void BuildStoreFixedDoubleArrayElement(ValueNode* elements, ValueNode* index,
-                                         ValueNode* value);
+  ReduceResult BuildStoreFixedDoubleArrayElement(ValueNode* elements,
+                                                 ValueNode* index,
+                                                 ValueNode* value);
 
   ValueNode* BuildLoadHoleyFixedDoubleArrayElement(ValueNode* elements,
                                                    ValueNode* index,
@@ -1348,9 +1349,9 @@ class MaglevGraphBuilder {
   ValueNode* BuildLoadConstantTypedArrayElement(
       compiler::JSTypedArrayRef typed_array, ValueNode* index,
       ElementsKind elements_kind);
-  void BuildStoreTypedArrayElement(ValueNode* object, ValueNode* index,
-                                   ElementsKind elements_kind);
-  void BuildStoreConstantTypedArrayElement(
+  ReduceResult BuildStoreTypedArrayElement(ValueNode* object, ValueNode* index,
+                                           ElementsKind elements_kind);
+  ReduceResult BuildStoreConstantTypedArrayElement(
       compiler::JSTypedArrayRef typed_array, ValueNode* index,
       ElementsKind elements_kind);
 
