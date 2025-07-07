@@ -2403,6 +2403,10 @@ void Simulator::LoadStorePairHelper(Instruction* instr, AddrMode addrmode) {
   uintptr_t address2 = address + access_size;
   uintptr_t stack = 0;
 
+  // First, check whether the memory is accessible (for wasm trap handling).
+  if (!ProbeMemory(address, access_size)) return;
+  if (!ProbeMemory(address2, access_size)) return;
+
   {
     GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
     if (instr->IsLoad()) {
@@ -5547,72 +5551,86 @@ void Simulator::NEONLoadStoreMultiStructHelper(const Instruction* instr,
   switch (instr->Mask(NEONLoadStoreMultiStructPostIndexMask)) {
     case NEON_LD1_4v:
     case NEON_LD1_4v_post:
+      if (!ProbeMemory(addr[3], reg_size)) return;
       ld1(vf, vreg(reg[3]), addr[3]);
       count++;
       [[fallthrough]];
     case NEON_LD1_3v:
     case NEON_LD1_3v_post:
+      if (!ProbeMemory(addr[2], reg_size)) return;
       ld1(vf, vreg(reg[2]), addr[2]);
       count++;
       [[fallthrough]];
     case NEON_LD1_2v:
     case NEON_LD1_2v_post:
+      if (!ProbeMemory(addr[1], reg_size)) return;
       ld1(vf, vreg(reg[1]), addr[1]);
       count++;
       [[fallthrough]];
     case NEON_LD1_1v:
     case NEON_LD1_1v_post:
+      if (!ProbeMemory(addr[0], reg_size)) return;
       ld1(vf, vreg(reg[0]), addr[0]);
       break;
     case NEON_ST1_4v:
     case NEON_ST1_4v_post:
+      if (!ProbeMemory(addr[3], reg_size)) return;
       st1(vf, vreg(reg[3]), addr[3]);
       count++;
       [[fallthrough]];
     case NEON_ST1_3v:
     case NEON_ST1_3v_post:
+      if (!ProbeMemory(addr[2], reg_size)) return;
       st1(vf, vreg(reg[2]), addr[2]);
       count++;
       [[fallthrough]];
     case NEON_ST1_2v:
     case NEON_ST1_2v_post:
+      if (!ProbeMemory(addr[1], reg_size)) return;
       st1(vf, vreg(reg[1]), addr[1]);
       count++;
       [[fallthrough]];
     case NEON_ST1_1v:
     case NEON_ST1_1v_post:
+      if (!ProbeMemory(addr[0], reg_size)) return;
       st1(vf, vreg(reg[0]), addr[0]);
       log_read = false;
       break;
     case NEON_LD2_post:
     case NEON_LD2:
+      if (!ProbeMemory(addr[0], 2 * reg_size)) return;
       ld2(vf, vreg(reg[0]), vreg(reg[1]), addr[0]);
       count = 2;
       break;
     case NEON_ST2:
     case NEON_ST2_post:
+      if (!ProbeMemory(addr[0], 2 * reg_size)) return;
       st2(vf, vreg(reg[0]), vreg(reg[1]), addr[0]);
       count = 2;
       log_read = false;
       break;
     case NEON_LD3_post:
     case NEON_LD3:
+      if (!ProbeMemory(addr[0], 3 * reg_size)) return;
       ld3(vf, vreg(reg[0]), vreg(reg[1]), vreg(reg[2]), addr[0]);
       count = 3;
       break;
     case NEON_ST3:
     case NEON_ST3_post:
+      if (!ProbeMemory(addr[0], 3 * reg_size)) return;
       st3(vf, vreg(reg[0]), vreg(reg[1]), vreg(reg[2]), addr[0]);
       count = 3;
       log_read = false;
       break;
     case NEON_LD4_post:
     case NEON_LD4:
+      if (!ProbeMemory(addr[0], 4 * reg_size)) return;
       ld4(vf, vreg(reg[0]), vreg(reg[1]), vreg(reg[2]), vreg(reg[3]), addr[0]);
       count = 4;
       break;
     case NEON_ST4:
     case NEON_ST4_post:
+      if (!ProbeMemory(addr[0], 4 * reg_size)) return;
       st4(vf, vreg(reg[0]), vreg(reg[1]), vreg(reg[2]), vreg(reg[3]), addr[0]);
       count = 4;
       log_read = false;

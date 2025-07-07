@@ -92,74 +92,111 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithTrapHandled) {
   RemoveTrapHandler();
 }
 
-TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithLandingPad) {
-  EXPECT_EQ(0u, GetRecoveredTrapCount());
+#define PROBEMEM_UNITTEST(name, test_body)                                     \
+  TEST_F(SimulatorTrapHandlerTest, name) {                                     \
+    EXPECT_EQ(0u, GetRecoveredTrapCount());                                    \
+                                                                               \
+    /* Test that the trap handler can recover a memory access violation in     \
+     wasm code (we fake the wasm code and the access violation). */            \
+    std::unique_ptr<TestingAssemblerBuffer> buffer =                           \
+        AllocateAssemblerBuffer();                                             \
+    MacroAssembler masm(isolate(), AssemblerOptions{},                         \
+                        CodeObjectRequired::kNo, buffer->CreateView());        \
+                                                                               \
+    test_body;                                                                 \
+    CodeDesc desc;                                                             \
+    masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);                  \
+                                                                               \
+    constexpr bool kUseDefaultHandler = true;                                  \
+    CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultHandler));           \
+                                                                               \
+    ProtectedInstructionData protected_instruction{crash_offset};              \
+    int handler_data_index =                                                   \
+        RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),            \
+                            desc.instr_size, 1, &protected_instruction);       \
+                                                                               \
+    /* Now execute the code.*/                                                 \
+    buffer->MakeExecutable();                                                  \
+    GeneratedCode<void> code = GeneratedCode<void>::FromAddress(               \
+        i_isolate(), reinterpret_cast<Address>(desc.buffer));                  \
+                                                                               \
+    trap_handler::SetLandingPad(reinterpret_cast<uintptr_t>(buffer->start()) + \
+                                recovery_offset);                              \
+    code.Call();                                                               \
+                                                                               \
+    ReleaseHandlerData(handler_data_index);                                    \
+    RemoveTrapHandler();                                                       \
+    trap_handler::SetLandingPad(0);                                            \
+                                                                               \
+    EXPECT_EQ(1u, GetRecoveredTrapCount());                                    \
+  }
 
-  // Test that the trap handler can recover a memory access violation in
-  // wasm code (we fake the wasm code and the access violation).
-  std::unique_ptr<TestingAssemblerBuffer> buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
-                      buffer->CreateView());
-
+PROBEMEM_UNITTEST(
+    ProbeMemoryWithLandingPad,
 #ifdef V8_TARGET_ARCH_ARM64
-  constexpr Register scratch = x0;
-  // Generate an illegal memory access.
-  masm.Mov(scratch, InaccessibleMemoryPtr());
-  uint32_t crash_offset = masm.pc_offset();
-  masm.Str(scratch, MemOperand(scratch, 0));  // load from inaccessible memory.
-  uint32_t recovery_offset = masm.pc_offset();
-  // Return.
-  masm.Ret();
+    constexpr Register scratch = x0;
+    // Generate an illegal memory access.
+    masm.Mov(scratch, InaccessibleMemoryPtr());
+    uint32_t crash_offset = masm.pc_offset();
+    masm.Str(scratch, MemOperand(scratch, 0));  // store to inaccessible memory.
+    uint32_t recovery_offset = masm.pc_offset();
+    // Return.
+    masm.Ret();
 #elif V8_TARGET_ARCH_LOONG64
-  constexpr Register scratch = a0;
-  // Generate an illegal memory access.
-  masm.li(scratch, static_cast<int64_t>(InaccessibleMemoryPtr()));
-  uint32_t crash_offset = masm.pc_offset();
-  masm.St_d(scratch, MemOperand(scratch, 0));  // load from inaccessible memory.
-  uint32_t recovery_offset = masm.pc_offset();
-  // Return.
-  masm.Ret();
+    constexpr Register scratch = a0;
+    // Generate an illegal memory access.
+    masm.li(scratch, static_cast<int64_t>(InaccessibleMemoryPtr()));
+    uint32_t crash_offset = masm.pc_offset();
+    masm.St_d(scratch,
+              MemOperand(scratch, 0));  // store to inaccessible memory.
+    uint32_t recovery_offset = masm.pc_offset();
+    // Return.
+    masm.Ret();
 #elif V8_TARGET_ARCH_RISCV64
-  constexpr Register scratch = a0;
-  // Generate an illegal memory access.
-  masm.li(scratch, static_cast<int64_t>(InaccessibleMemoryPtr()));
-  uint32_t crash_offset = masm.pc_offset();
-  masm.StoreWord(scratch,
-                 MemOperand(scratch, 0));  // load from inaccessible memory.
-  uint32_t recovery_offset = masm.pc_offset();
-  // Return.
-  masm.Ret();
+    constexpr Register scratch = a0;
+    // Generate an illegal memory access.
+    masm.li(scratch, static_cast<int64_t>(InaccessibleMemoryPtr()));
+    uint32_t crash_offset = masm.pc_offset();
+    masm.StoreWord(scratch,
+                   MemOperand(scratch, 0));  // store to inaccessible memory.
+    uint32_t recovery_offset = masm.pc_offset();
+    // Return.
+    masm.Ret();
 #else
 #error Unsupported platform
 #endif
-
-  CodeDesc desc;
-  masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
-
-  constexpr bool kUseDefaultHandler = true;
-  CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultHandler));
-
-  ProtectedInstructionData protected_instruction{crash_offset};
-  int handler_data_index =
-      RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
-                          desc.instr_size, 1, &protected_instruction);
-
-  // Now execute the code.
-  buffer->MakeExecutable();
-  GeneratedCode<void> code = GeneratedCode<void>::FromAddress(
-      i_isolate(), reinterpret_cast<Address>(desc.buffer));
-
-  trap_handler::SetLandingPad(reinterpret_cast<uintptr_t>(buffer->start()) +
-                              recovery_offset);
-  code.Call();
-
-  ReleaseHandlerData(handler_data_index);
-  RemoveTrapHandler();
-  trap_handler::SetLandingPad(0);
-
-  EXPECT_EQ(1u, GetRecoveredTrapCount());
-}
-
+)
+PROBEMEM_UNITTEST(ProbeMemory_MultiStruct,
+#ifdef V8_TARGET_ARCH_ARM64
+                  constexpr VRegister scratch = v0;
+                  constexpr Register addr = x0;
+                  // Generate an illegal memory access.
+                  masm.Mov(addr, InaccessibleMemoryPtr());
+                  uint32_t crash_offset = masm.pc_offset();
+                  masm.Ld1(scratch.V16B(), MemOperand(addr, 0));
+                  uint32_t recovery_offset = masm.pc_offset();
+                  // Return.
+                  masm.Ret();
+#else
+#error Unsupported platform
+#endif
+)
+PROBEMEM_UNITTEST(ProbeMemory_LoadStorePair,
+#ifdef V8_TARGET_ARCH_ARM64
+                  constexpr Register scratch_0 = x0;
+                  constexpr Register scratch_1 = x1;
+                  constexpr Register addr = x2;
+                  // Generate an illegal memory access.
+                  masm.Mov(addr, InaccessibleMemoryPtr());
+                  uint32_t crash_offset = masm.pc_offset();
+                  masm.Ldp(scratch_0, scratch_1, MemOperand(addr, 0));
+                  uint32_t recovery_offset = masm.pc_offset();
+                  // Return.
+                  masm.Ret();
+#else
+#error Unsupported platform
+#endif
+)
 }  // namespace trap_handler
 }  // namespace internal
 }  // namespace v8
