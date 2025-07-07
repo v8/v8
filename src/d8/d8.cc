@@ -2488,6 +2488,16 @@ void Shell::DisposeRealm(const v8::FunctionCallbackInfo<v8::Value>& info,
 // and returns its index.
 void Shell::RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
+
+  // Explicitly check for stack overflows. This method can call into JS
+  // code via extensions, and will consume significant stack space before that,
+  // so that stack check might come too late.
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  if (i::StackLimitCheck{i_isolate}.HasOverflowed()) {
+    i_isolate->StackOverflow();
+    return;
+  }
+
   CreateRealm(info, -1, v8::MaybeLocal<Value>());
 }
 
@@ -2496,6 +2506,16 @@ void Shell::RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void Shell::RealmCreateAllowCrossRealmAccess(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
+
+  // Explicitly check for stack overflows. This method can call into JS
+  // code via extensions, and will consume significant stack space before that,
+  // so that stack check might come too late.
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  if (i::StackLimitCheck{i_isolate}.HasOverflowed()) {
+    i_isolate->StackOverflow();
+    return;
+  }
+
   Local<Context> context;
   if (CreateRealm(info, -1, v8::MaybeLocal<Value>()).ToLocal(&context)) {
     context->SetSecurityToken(
