@@ -2765,7 +2765,8 @@ class WasmDecoder : public Decoder {
           case kExprArrayAtomicCompareExchange: {
             MemoryOrderImmediate memory_order(decoder, pc + length, validate);
             (ios.MemoryOrder(memory_order), ...);
-            ArrayIndexImmediate array(decoder, pc + length, validate);
+            ArrayIndexImmediate array(
+                decoder, pc + length + memory_order.length, validate);
             (ios.TypeIndex(array), ...);
             return length + memory_order.length + array.length;
           }
