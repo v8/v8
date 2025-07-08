@@ -564,6 +564,11 @@ void PABackedSandboxedArrayBufferAllocator::Free(void* data) {
   partition_->root()->Free<partition_alloc::FreeFlags::kNoMemoryToolOverride>(
       data);
 }
+
+void PABackedSandboxedArrayBufferAllocator::TearDown() {
+  // No need for two-stage destruction - the regular dtor will destroy the
+  // partition.
+}
 #endif  // defined(V8_USE_PA_BACKED_SANDBOX_FOR_ARRAY_BUFFER_ALLOCATOR)
 
 SandboxedArrayBufferAllocatorBase*

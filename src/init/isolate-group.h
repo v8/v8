@@ -117,6 +117,8 @@ class PABackedSandboxedArrayBufferAllocator
   void* AllocateUninitialized(size_t length) override;
   void Free(void* data) override;
 
+  void TearDown();
+
  private:
   template <partition_alloc::AllocFlags flags>
   void* AllocateInternal(size_t length);
