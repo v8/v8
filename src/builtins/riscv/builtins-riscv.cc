@@ -5051,7 +5051,7 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
   __ LoadTrustedPointerField(
       code_obj,
       FieldMemOperand(code_obj, SharedFunctionInfo::kTrustedFunctionDataOffset),
-      kUnknownIndirectPointerTag);
+      kCodeIndirectPointerTag);
 
   // For OSR entry it is safe to assume we always have baseline code.
   if (v8_flags.debug_code) {
