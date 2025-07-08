@@ -1049,29 +1049,20 @@ ExternalReference::address_of_enable_experimental_regexp_engine() {
 
 namespace {
 
-static uintptr_t BaselinePCForBytecodeOffset(Address raw_code_obj,
-                                             int bytecode_offset,
-                                             Address raw_bytecode_array) {
-  Tagged<Code> code_obj = Cast<Code>(Tagged<Object>(raw_code_obj));
-  Tagged<BytecodeArray> bytecode_array =
-      Cast<BytecodeArray>(Tagged<Object>(raw_bytecode_array));
-  return code_obj->GetBaselineStartPCForBytecodeOffset(bytecode_offset,
-                                                       bytecode_array);
-}
-
 static uintptr_t BaselinePCForNextExecutedBytecode(Address raw_code_obj,
                                                    int bytecode_offset,
                                                    Address raw_bytecode_array) {
   Tagged<Code> code_obj = Cast<Code>(Tagged<Object>(raw_code_obj));
+  SBXCHECK(IsCode(code_obj));
   Tagged<BytecodeArray> bytecode_array =
       Cast<BytecodeArray>(Tagged<Object>(raw_bytecode_array));
+  SBXCHECK(IsBytecodeArray(bytecode_array));
   return code_obj->GetBaselinePCForNextExecutedBytecode(bytecode_offset,
                                                         bytecode_array);
 }
 
 }  // namespace
 
-FUNCTION_REFERENCE(baseline_pc_for_bytecode_offset, BaselinePCForBytecodeOffset)
 FUNCTION_REFERENCE(baseline_pc_for_next_executed_bytecode,
                    BaselinePCForNextExecutedBytecode)
 
