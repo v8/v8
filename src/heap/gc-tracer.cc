@@ -838,15 +838,21 @@ void GCTracer::PrintNVP() const {
   // Avoid data races when printing the background scopes.
   base::MutexGuard guard(&background_scopes_mutex_);
 
+  static constexpr size_t kBufferSize = 16 * KB;
+  static char output_buffer[kBufferSize];
+
   switch (current_.type) {
     case Event::Type::SCAVENGER:
-      heap_->isolate()->PrintWithTimestamp(
+      snprintf(
+          output_buffer, kBufferSize,
           "pause=%.1f "
           "mutator=%.1f "
           "gc=%s "
           "reduce_memory=%d "
           "during_sweeping=%d "
           "time_to_safepoint=%.2f "
+          "stack=%s "
+          "reason=\"%s\" "
           "heap.prologue=%.2f "
           "heap.epilogue=%.2f "
           "heap.external.prologue=%.2f "
@@ -894,12 +900,13 @@ void GCTracer::PrintNVP() const {
           "allocation_throughput=%.1f "
           "pool_local_chunks=%zu "
           "pool_shared_chunks=%zu "
-          "pool_total_chunks=%zu\n",
+          "pool_total_chunks=%zu ",
           duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(),
           ToString(current_.type, true), current_.reduce_memory,
           young_gc_during_full_gc_sweeping_,
           current_.scopes[Scope::TIME_TO_SAFEPOINT].InMillisecondsF(),
-          current_scope(Scope::HEAP_PROLOGUE),
+          heap_->IsGCWithStack() ? "true" : "false",
+          ToString(current_.gc_reason), current_scope(Scope::HEAP_PROLOGUE),
           current_scope(Scope::HEAP_EPILOGUE),
           current_scope(Scope::HEAP_EXTERNAL_PROLOGUE),
           current_scope(Scope::HEAP_EXTERNAL_EPILOGUE),
@@ -946,114 +953,121 @@ void GCTracer::PrintNVP() const {
       break;
     case Event::Type::MINOR_MARK_SWEEPER:
     case Event::Type::INCREMENTAL_MINOR_MARK_SWEEPER:
-      heap_->isolate()->PrintWithTimestamp(
-          "pause=%.1f "
-          "mutator=%.1f "
-          "gc=%s "
-          "reduce_memory=%d "
-          "minor_ms=%.2f "
-          "time_to_safepoint=%.2f "
-          "mark=%.2f "
-          "mark.incremental_seed=%.2f "
-          "mark.finish_incremental=%.2f "
-          "mark.seed=%.2f "
-          "mark.traced_handles=%.2f "
-          "mark.closure_parallel=%.2f "
-          "mark.closure=%.2f "
-          "mark.conservative_stack=%.2f "
-          "clear=%.2f "
-          "clear.string_forwarding_table=%.2f "
-          "clear.string_table=%.2f "
-          "clear.global_handles=%.2f "
-          "complete.sweep_array_buffers=%.2f "
-          "complete.sweeping=%.2f "
-          "sweep=%.2f "
-          "sweep.new=%.2f "
-          "sweep.new_lo=%.2f "
-          "sweep.update_string_table=%.2f "
-          "sweep.start_jobs=%.2f "
-          "sweep.array_buffers=%.2f "
-          "finish=%.2f "
-          "finish.ensure_capacity=%.2f "
-          "finish.sweep_array_buffers=%.2f "
-          "background.mark=%.2f "
-          "background.sweep=%.2f "
-          "background.sweep.array_buffers=%.2f "
-          "conservative_stack_scanning=%.2f "
-          "start_object_size=%zu "
-          "end_object_size=%zu "
-          "start_memory_size=%zu "
-          "end_memory_size=%zu "
-          "start_holes_size=%zu "
-          "end_holes_size=%zu "
-          "allocated=%zu "
-          "promoted=%zu "
-          "new_space_survived=%zu "
-          "nodes_died_in_new=%d "
-          "nodes_copied_in_new=%d "
-          "nodes_promoted=%d "
-          "promotion_ratio=%.1f%% "
-          "average_survival_ratio=%.1f%% "
-          "promotion_rate=%.1f%% "
-          "new_space_survive_rate_=%.1f%% "
-          "new_space_capacity=%zu "
-          "old_gen_allocation_limit=%zu "
-          "global_allocation_limit=%zu "
-          "new_space_allocation_throughput=%.1f "
-          "allocation_throughput=%.1f\n",
-          duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(), "mms",
-          current_.reduce_memory, current_scope(Scope::MINOR_MS),
-          current_scope(Scope::TIME_TO_SAFEPOINT),
-          current_scope(Scope::MINOR_MS_MARK),
-          current_scope(Scope::MINOR_MS_MARK_INCREMENTAL_SEED),
-          current_scope(Scope::MINOR_MS_MARK_FINISH_INCREMENTAL),
-          current_scope(Scope::MINOR_MS_MARK_SEED),
-          current_scope(Scope::MINOR_MS_MARK_TRACED_HANDLES),
-          current_scope(Scope::MINOR_MS_MARK_CLOSURE_PARALLEL),
-          current_scope(Scope::MINOR_MS_MARK_CLOSURE),
-          current_scope(Scope::MINOR_MS_MARK_CONSERVATIVE_STACK),
-          current_scope(Scope::MINOR_MS_CLEAR),
-          current_scope(Scope::MINOR_MS_CLEAR_STRING_FORWARDING_TABLE),
-          current_scope(Scope::MINOR_MS_CLEAR_STRING_TABLE),
-          current_scope(Scope::MINOR_MS_CLEAR_WEAK_GLOBAL_HANDLES),
-          current_scope(Scope::MINOR_MS_COMPLETE_SWEEP_ARRAY_BUFFERS),
-          current_scope(Scope::MINOR_MS_COMPLETE_SWEEPING),
-          current_scope(Scope::MINOR_MS_SWEEP),
-          current_scope(Scope::MINOR_MS_SWEEP_NEW),
-          current_scope(Scope::MINOR_MS_SWEEP_NEW_LO),
-          current_scope(Scope::MINOR_MS_SWEEP_UPDATE_STRING_TABLE),
-          current_scope(Scope::MINOR_MS_SWEEP_START_JOBS),
-          current_scope(Scope::YOUNG_ARRAY_BUFFER_SWEEP),
-          current_scope(Scope::MINOR_MS_FINISH),
-          current_scope(Scope::MINOR_MS_FINISH_ENSURE_CAPACITY),
-          current_scope(Scope::MINOR_MS_FINISH_SWEEP_ARRAY_BUFFERS),
-          current_scope(Scope::MINOR_MS_BACKGROUND_MARKING),
-          current_scope(Scope::MINOR_MS_BACKGROUND_SWEEPING),
-          current_scope(Scope::BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP),
-          current_scope(Scope::CONSERVATIVE_STACK_SCANNING),
-          current_.start_object_size, current_.end_object_size,
-          current_.start_memory_size, current_.end_memory_size,
-          current_.start_holes_size, current_.end_holes_size,
-          allocated_since_last_gc, heap_->promoted_objects_size(),
-          heap_->new_space_surviving_object_size(),
-          heap_->nodes_died_in_new_space_, heap_->nodes_copied_in_new_space_,
-          heap_->nodes_promoted_, heap_->promotion_ratio_,
-          AverageSurvivalRatio(), heap_->promotion_rate_,
-          heap_->new_space_surviving_rate_,
-          heap_->new_space() ? heap_->new_space()->TotalCapacity() : 0,
-          heap_->old_generation_allocation_limit(),
-          heap_->global_allocation_limit(),
-          NewSpaceAllocationThroughputInBytesPerMillisecond(),
-          AllocationThroughputInBytesPerMillisecond());
+      snprintf(output_buffer, kBufferSize,
+               "pause=%.1f "
+               "mutator=%.1f "
+               "gc=%s "
+               "reduce_memory=%d "
+               "minor_ms=%.2f "
+               "time_to_safepoint=%.2f "
+               "stack=%s "
+               "reason=\"%s\" "
+               "mark=%.2f "
+               "mark.incremental_seed=%.2f "
+               "mark.finish_incremental=%.2f "
+               "mark.seed=%.2f "
+               "mark.traced_handles=%.2f "
+               "mark.closure_parallel=%.2f "
+               "mark.closure=%.2f "
+               "mark.conservative_stack=%.2f "
+               "clear=%.2f "
+               "clear.string_forwarding_table=%.2f "
+               "clear.string_table=%.2f "
+               "clear.global_handles=%.2f "
+               "complete.sweep_array_buffers=%.2f "
+               "complete.sweeping=%.2f "
+               "sweep=%.2f "
+               "sweep.new=%.2f "
+               "sweep.new_lo=%.2f "
+               "sweep.update_string_table=%.2f "
+               "sweep.start_jobs=%.2f "
+               "sweep.array_buffers=%.2f "
+               "finish=%.2f "
+               "finish.ensure_capacity=%.2f "
+               "finish.sweep_array_buffers=%.2f "
+               "background.mark=%.2f "
+               "background.sweep=%.2f "
+               "background.sweep.array_buffers=%.2f "
+               "conservative_stack_scanning=%.2f "
+               "start_object_size=%zu "
+               "end_object_size=%zu "
+               "start_memory_size=%zu "
+               "end_memory_size=%zu "
+               "start_holes_size=%zu "
+               "end_holes_size=%zu "
+               "allocated=%zu "
+               "promoted=%zu "
+               "new_space_survived=%zu "
+               "nodes_died_in_new=%d "
+               "nodes_copied_in_new=%d "
+               "nodes_promoted=%d "
+               "promotion_ratio=%.1f%% "
+               "average_survival_ratio=%.1f%% "
+               "promotion_rate=%.1f%% "
+               "new_space_survive_rate_=%.1f%% "
+               "new_space_capacity=%zu "
+               "old_gen_allocation_limit=%zu "
+               "global_allocation_limit=%zu "
+               "new_space_allocation_throughput=%.1f "
+               "allocation_throughput=%.1f ",
+               duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(),
+               "mms", current_.reduce_memory, current_scope(Scope::MINOR_MS),
+               current_scope(Scope::TIME_TO_SAFEPOINT),
+               heap_->IsGCWithStack() ? "true" : "false",
+               ToString(current_.gc_reason),
+               current_scope(Scope::MINOR_MS_MARK),
+               current_scope(Scope::MINOR_MS_MARK_INCREMENTAL_SEED),
+               current_scope(Scope::MINOR_MS_MARK_FINISH_INCREMENTAL),
+               current_scope(Scope::MINOR_MS_MARK_SEED),
+               current_scope(Scope::MINOR_MS_MARK_TRACED_HANDLES),
+               current_scope(Scope::MINOR_MS_MARK_CLOSURE_PARALLEL),
+               current_scope(Scope::MINOR_MS_MARK_CLOSURE),
+               current_scope(Scope::MINOR_MS_MARK_CONSERVATIVE_STACK),
+               current_scope(Scope::MINOR_MS_CLEAR),
+               current_scope(Scope::MINOR_MS_CLEAR_STRING_FORWARDING_TABLE),
+               current_scope(Scope::MINOR_MS_CLEAR_STRING_TABLE),
+               current_scope(Scope::MINOR_MS_CLEAR_WEAK_GLOBAL_HANDLES),
+               current_scope(Scope::MINOR_MS_COMPLETE_SWEEP_ARRAY_BUFFERS),
+               current_scope(Scope::MINOR_MS_COMPLETE_SWEEPING),
+               current_scope(Scope::MINOR_MS_SWEEP),
+               current_scope(Scope::MINOR_MS_SWEEP_NEW),
+               current_scope(Scope::MINOR_MS_SWEEP_NEW_LO),
+               current_scope(Scope::MINOR_MS_SWEEP_UPDATE_STRING_TABLE),
+               current_scope(Scope::MINOR_MS_SWEEP_START_JOBS),
+               current_scope(Scope::YOUNG_ARRAY_BUFFER_SWEEP),
+               current_scope(Scope::MINOR_MS_FINISH),
+               current_scope(Scope::MINOR_MS_FINISH_ENSURE_CAPACITY),
+               current_scope(Scope::MINOR_MS_FINISH_SWEEP_ARRAY_BUFFERS),
+               current_scope(Scope::MINOR_MS_BACKGROUND_MARKING),
+               current_scope(Scope::MINOR_MS_BACKGROUND_SWEEPING),
+               current_scope(Scope::BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP),
+               current_scope(Scope::CONSERVATIVE_STACK_SCANNING),
+               current_.start_object_size, current_.end_object_size,
+               current_.start_memory_size, current_.end_memory_size,
+               current_.start_holes_size, current_.end_holes_size,
+               allocated_since_last_gc, heap_->promoted_objects_size(),
+               heap_->new_space_surviving_object_size(),
+               heap_->nodes_died_in_new_space_,
+               heap_->nodes_copied_in_new_space_, heap_->nodes_promoted_,
+               heap_->promotion_ratio_, AverageSurvivalRatio(),
+               heap_->promotion_rate_, heap_->new_space_surviving_rate_,
+               heap_->new_space() ? heap_->new_space()->TotalCapacity() : 0,
+               heap_->old_generation_allocation_limit(),
+               heap_->global_allocation_limit(),
+               NewSpaceAllocationThroughputInBytesPerMillisecond(),
+               AllocationThroughputInBytesPerMillisecond());
       break;
     case Event::Type::MARK_COMPACTOR:
     case Event::Type::INCREMENTAL_MARK_COMPACTOR:
-      heap_->isolate()->PrintWithTimestamp(
+      snprintf(
+          output_buffer, kBufferSize,
           "pause=%.1f "
           "mutator=%.1f "
           "gc=%s "
           "reduce_memory=%d "
           "time_to_safepoint=%.2f "
+          "stack=%s "
+          "reason=\"%s\" "
           "heap.prologue=%.2f "
           "heap.embedder_tracing_epilogue=%.2f "
           "heap.epilogue=%.2f "
@@ -1073,7 +1087,7 @@ void GCTracer::PrintNVP() const {
           "clear.weak_references_non_trivial=%.1f "
           "clear.weak_references_filter_non_trivial=%.1f "
           "clear.js_weak_references=%.1f "
-          "clear.join_filter_job=%.1f"
+          "clear.join_filter_job=%.1f "
           "clear.join_job=%.1f "
           "weakness_handling=%.1f "
           "complete.sweep_array_buffers=%.1f "
@@ -1151,11 +1165,12 @@ void GCTracer::PrintNVP() const {
           "pool_local_chunks=%zu "
           "pool_shared_chunks=%zu "
           "pool_total_chunks=%zu "
-          "compaction_speed=%.1f\n",
+          "compaction_speed=%.1f ",
           duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(),
           ToString(current_.type, true), current_.reduce_memory,
           current_scope(Scope::TIME_TO_SAFEPOINT),
-          current_scope(Scope::HEAP_PROLOGUE),
+          heap_->IsGCWithStack() ? "true" : "false",
+          ToString(current_.gc_reason), current_scope(Scope::HEAP_PROLOGUE),
           current_scope(Scope::HEAP_EMBEDDER_TRACING_EPILOGUE),
           current_scope(Scope::HEAP_EPILOGUE),
           current_scope(Scope::HEAP_EXTERNAL_PROLOGUE),
@@ -1250,6 +1265,14 @@ void GCTracer::PrintNVP() const {
     case Event::Type::START:
       break;
   }
+
+  heap_->isolate()->PrintWithTimestamp("%s\n", output_buffer);
+
+#if defined(V8_USE_PERFETTO)
+  TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCTraceGCNVP",
+                       TRACE_EVENT_SCOPE_THREAD, "value",
+                       TRACE_STR_COPY(output_buffer));
+#endif
 }
 
 void GCTracer::RecordIncrementalMarkingSpeed(size_t bytes,
@@ -1535,6 +1558,9 @@ void GCTracer::RecordGCSizeCounters() const {
   TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                 perfetto::CounterTrack("ExternalMemoryBytes", parent_track_),
                 heap_->external_memory());
+  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                perfetto::CounterTrack("NewSpaceCapacity", parent_track_),
+                heap_->NewSpaceCapacity());
 #endif
 }
 
