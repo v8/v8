@@ -659,12 +659,6 @@ DEFINE_EXPERIMENTAL_FEATURE(turbolev_non_eager_inlining,
                             "enable Turbolev non-eager inlining")
 DEFINE_WEAK_IMPLICATION(turbolev_future, turbolev_non_eager_inlining)
 
-DEFINE_BOOL(maglev_inlining_following_eager_order, false,
-            "enable Maglev non-eager inlining using the same order as eager "
-            "inlining (for testing)")
-DEFINE_IMPLICATION(maglev_inlining_following_eager_order,
-                   maglev_non_eager_inlining)
-
 DEFINE_STRING(maglev_filter, "*", "optimization filter for the maglev compiler")
 DEFINE_STRING(maglev_print_filter, "*",
               "filter for maglev's tracing/printing options")

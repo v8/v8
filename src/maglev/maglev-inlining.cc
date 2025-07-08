@@ -14,18 +14,21 @@
 
 namespace v8::internal::maglev {
 
+bool MaglevCallSiteInfoCompare::operator()(const MaglevCallSiteInfo* info1,
+                                           const MaglevCallSiteInfo* info2) {
+  return info1->score < info2->score;
+}
+
 void MaglevInliner::Run(bool is_tracing_maglev_graphs_enabled) {
   if (graph_->inlineable_calls().empty()) return;
 
-  while (true) {
+  while (!graph_->inlineable_calls().empty()) {
     if (graph_->total_inlined_bytecode_size() >
         v8_flags.max_maglev_inlined_bytecode_size_cumulative) {
       // No more inlining.
       break;
     }
     MaglevCallSiteInfo* call_site = ChooseNextCallSite();
-    if (!call_site) break;
-
     MaybeReduceResult result = BuildInlineFunction(call_site);
     if (result.IsFail()) continue;
     // If --trace-maglev-inlining-verbose, we print the graph after each
@@ -62,22 +65,8 @@ void MaglevInliner::Run(bool is_tracing_maglev_graphs_enabled) {
 }
 
 MaglevCallSiteInfo* MaglevInliner::ChooseNextCallSite() {
-  auto it =
-      v8_flags.maglev_inlining_following_eager_order
-          ? std::ranges::find_if(graph_->inlineable_calls(),
-                                 [](auto* site) { return site != nullptr; })
-          : std::ranges::max_element(
-                graph_->inlineable_calls(),
-                [](const MaglevCallSiteInfo* info1,
-                   const MaglevCallSiteInfo* info2) {
-                  if (info1 == nullptr || info2 == nullptr) {
-                    return info2 != nullptr;
-                  }
-                  return info1->score < info2->score;
-                });
-  if (it == graph_->inlineable_calls().end()) return nullptr;
-  MaglevCallSiteInfo* call_site = *it;
-  *it = nullptr;  // Erase call site.
+  auto call_site = graph_->inlineable_calls().top();
+  graph_->inlineable_calls().pop();
   return call_site;
 }
 

@@ -20,6 +20,12 @@ using BlockConstReverseIterator =
     ZoneVector<BasicBlock*>::const_reverse_iterator;
 
 struct MaglevCallSiteInfo;
+class MaglevCallSiteInfoCompare {
+ public:
+  bool operator()(const MaglevCallSiteInfo*, const MaglevCallSiteInfo*);
+};
+using MaglevCallSiteCandidates =
+    ZonePriorityQueue<MaglevCallSiteInfo*, MaglevCallSiteInfoCompare>;
 
 class Graph final : public ZoneObject {
  public:
@@ -135,9 +141,7 @@ class Graph final : public ZoneObject {
   ZoneVector<InitialValue*>& osr_values() { return osr_values_; }
   ZoneVector<InitialValue*>& parameters() { return parameters_; }
 
-  ZoneVector<MaglevCallSiteInfo*>& inlineable_calls() {
-    return inlineable_calls_;
-  }
+  MaglevCallSiteCandidates& inlineable_calls() { return inlineable_calls_; }
 
   // Running JS2, 99.99% of the cases, we have less than 2 dependencies.
   using SmallAllocationVector = SmallZoneVector<InlinedAllocation*, 2>;
@@ -267,7 +271,7 @@ class Graph final : public ZoneObject {
   // Use the bits of the float as the key.
   ZoneMap<uint64_t, Float64Constant*> float64_constants_;
   ZoneVector<InitialValue*> parameters_;
-  ZoneVector<MaglevCallSiteInfo*> inlineable_calls_;
+  MaglevCallSiteCandidates inlineable_calls_;
   ZoneMap<InlinedAllocation*, SmallAllocationVector> allocations_escape_map_;
   ZoneMap<InlinedAllocation*, SmallAllocationVector> allocations_elide_map_;
   RegList register_inputs_;

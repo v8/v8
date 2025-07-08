@@ -8136,7 +8136,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
           unobserved_context_slot_stores_, catch_details, IsInsideLoop(),
           /* is_eager_inline */ false, call_frequency},
       generic_call, feedback_cell, score);
-  graph()->inlineable_calls().push_back(call_site);
+  graph()->inlineable_calls().push(call_site);
   return generic_call;
 }
 
