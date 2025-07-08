@@ -126,7 +126,13 @@ TEST_F(ApiWasmTest, WasmStreamingCallback) {
   TestWasmStreaming(WasmStreamingCallbackTestCallbackIsCalled,
                     Promise::kPending);
   CHECK(wasm_streaming_callback_got_called);
-  InvokeMemoryReducingMajorGCs(i_isolate());
+  {
+    // We need to invoke GC without stack, otherwise the WasmStreaming data may
+    // not be reclaimed.
+    i::DisableConservativeStackScanningScopeForTesting no_css_scope(
+        i_isolate()->heap());
+    InvokeMemoryReducingMajorGCs(i_isolate());
+  }
   CHECK(wasm_streaming_data_got_collected);
 }
 
