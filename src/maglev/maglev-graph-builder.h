@@ -488,8 +488,8 @@ class MaglevGraphBuilder {
                                      int slot_index, ValueNode* value,
                                      ContextMode context_mode);
 
-  void BuildStoreMap(ValueNode* object, compiler::MapRef map,
-                     StoreMap::Kind kind);
+  ReduceResult BuildStoreMap(ValueNode* object, compiler::MapRef map,
+                             StoreMap::Kind kind);
 
   ValueNode* BuildExtendPropertiesBackingStore(compiler::MapRef map,
                                                ValueNode* receiver,

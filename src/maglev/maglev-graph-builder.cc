@@ -5215,9 +5215,10 @@ ValueNode* MaglevGraphBuilder::BuildLoadJSFunctionContext(ValueNode* closure) {
   return context;
 }
 
-void MaglevGraphBuilder::BuildStoreMap(ValueNode* object, compiler::MapRef map,
-                                       StoreMap::Kind kind) {
-  AddNewNodeNoInputConversion<StoreMap>({object}, map, kind);
+ReduceResult MaglevGraphBuilder::BuildStoreMap(ValueNode* object,
+                                               compiler::MapRef map,
+                                               StoreMap::Kind kind) {
+  AddNewNode<StoreMap>({object}, map, kind);
   NodeType object_type = StaticTypeForMap(map, broker());
   NodeInfo* node_info = GetOrCreateInfoFor(object);
   if (map.is_stable()) {
@@ -5227,6 +5228,7 @@ void MaglevGraphBuilder::BuildStoreMap(ValueNode* object, compiler::MapRef map,
     node_info->SetPossibleMaps(PossibleMaps{map}, true, object_type, broker());
     known_node_aspects().any_map_for_any_node_is_unstable = true;
   }
+  return ReduceResult::Done();
 }
 
 ValueNode* MaglevGraphBuilder::BuildExtendPropertiesBackingStore(
@@ -5311,8 +5313,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
       RETURN_IF_ABORT(BuildStoreTaggedField(store_target, heapnumber_value,
                                             field_index.offset(),
                                             StoreTaggedMode::kTransitioning));
-      BuildStoreMap(receiver, access_info.transition_map().value(),
-                    StoreMap::Kind::kTransitioning);
+      RETURN_IF_ABORT(BuildStoreMap(receiver,
+                                    access_info.transition_map().value(),
+                                    StoreMap::Kind::kTransitioning));
     } else {
       AddNewNode<StoreDoubleField>({store_target, value}, field_index.offset());
     }
@@ -5333,8 +5336,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
                                           field_index.offset(), store_mode));
   }
   if (access_info.HasTransitionMap()) {
-    BuildStoreMap(receiver, access_info.transition_map().value(),
-                  StoreMap::Kind::kTransitioning);
+    RETURN_IF_ABORT(BuildStoreMap(receiver,
+                                  access_info.transition_map().value(),
+                                  StoreMap::Kind::kTransitioning));
   }
 
   return ReduceResult::Done();
@@ -13285,8 +13289,9 @@ InlinedAllocation* MaglevGraphBuilder::BuildInlinedAllocationForHeapNumber(
   InlinedAllocation* allocation =
       ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
   AddNonEscapingUses(allocation, 2);
-  BuildStoreMap(allocation, broker()->heap_number_map(),
-                StoreMap::Kind::kInlinedAllocation);
+  ReduceResult result = BuildStoreMap(allocation, broker()->heap_number_map(),
+                                      StoreMap::Kind::kInlinedAllocation);
+  CHECK(!result.IsDoneWithAbort());
   AddNewNode<StoreFloat64>({allocation, GetFloat64Constant(vobject->number())},
                            static_cast<int>(offsetof(HeapNumber, value_)));
   return allocation;
@@ -13300,8 +13305,10 @@ MaglevGraphBuilder::BuildInlinedAllocationForDoubleFixedArray(
       ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
   int length = vobject->double_elements_length();
   AddNonEscapingUses(allocation, length + 2);
-  BuildStoreMap(allocation, broker()->fixed_double_array_map(),
-                StoreMap::Kind::kInlinedAllocation);
+  ReduceResult result =
+      BuildStoreMap(allocation, broker()->fixed_double_array_map(),
+                    StoreMap::Kind::kInlinedAllocation);
+  CHECK(!result.IsDoneWithAbort());
   AddNewNode<StoreTaggedFieldNoWriteBarrier>(
       {allocation, GetSmiConstant(length)},
       static_cast<int>(offsetof(FixedDoubleArray, length_)),
@@ -13355,8 +13362,9 @@ InlinedAllocation* MaglevGraphBuilder::BuildInlinedAllocation(
       AddNonEscapingUses(allocation, static_cast<int>(values.size()));
       if (vobject->has_static_map()) {
         AddNonEscapingUses(allocation, 1);
-        BuildStoreMap(allocation, vobject->map(),
-                      StoreMap::Kind::kInlinedAllocation);
+        ReduceResult result = BuildStoreMap(allocation, vobject->map(),
+                                            StoreMap::Kind::kInlinedAllocation);
+        CHECK(!result.IsDoneWithAbort());
       }
       for (uint32_t i = 0; i < values.size(); i++) {
         BuildInitializeStore(allocation, values[i], (i + 1) * kTaggedSize);
