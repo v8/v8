@@ -990,6 +990,7 @@
   'staging/sm/TypedArray/constructor-buffer-sequence': [FAIL],
   'staging/sm/TypedArray/constructor-non-detached': [FAIL],
   'staging/sm/TypedArray/from_typedarray_fastpath_detached': [FAIL],
+  'staging/sm/TypedArray/prototype-constructor-identity': [FAIL],
   'staging/sm/TypedArray/set-detached-bigint': [FAIL],
   'staging/sm/TypedArray/seal-and-freeze': [FAIL],
   'staging/sm/TypedArray/test-integrity-level': [FAIL],
