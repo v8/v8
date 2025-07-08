@@ -1529,14 +1529,14 @@ class MaglevGraphBuilder {
       compiler::MapRef map, compiler::ScopeInfoRef scope, int context_length);
 
   template <Operation kOperation>
-  void BuildGenericUnaryOperationNode();
+  ReduceResult BuildGenericUnaryOperationNode();
   template <Operation kOperation>
-  void BuildGenericBinaryOperationNode();
+  ReduceResult BuildGenericBinaryOperationNode();
   template <Operation kOperation>
-  void BuildGenericBinarySmiOperationNode();
+  ReduceResult BuildGenericBinarySmiOperationNode();
 
   template <Operation kOperation>
-  bool TryReduceCompareEqualAgainstConstant();
+  MaybeReduceResult TryReduceCompareEqualAgainstConstant();
 
   template <Operation kOperation>
   ReduceResult BuildInt32UnaryOperationNode();

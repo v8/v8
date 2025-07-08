@@ -1985,32 +1985,34 @@ using Float64NodeFor = typename Float64NodeForHelper<kOperation>::type;
 }  // namespace
 
 template <Operation kOperation>
-void MaglevGraphBuilder::BuildGenericUnaryOperationNode() {
+ReduceResult MaglevGraphBuilder::BuildGenericUnaryOperationNode() {
   FeedbackSlot slot_index = GetSlotOperand(0);
   ValueNode* value = GetAccumulator();
   SetAccumulator(AddNewNode<GenericNodeForOperation<kOperation>>(
       {value}, compiler::FeedbackSource{feedback(), slot_index}));
+  return ReduceResult::Done();
 }
 
 template <Operation kOperation>
-void MaglevGraphBuilder::BuildGenericBinaryOperationNode() {
+ReduceResult MaglevGraphBuilder::BuildGenericBinaryOperationNode() {
   ValueNode* left = LoadRegister(0);
   ValueNode* right = GetAccumulator();
   FeedbackSlot slot_index = GetSlotOperand(1);
   SetAccumulator(AddNewNode<GenericNodeForOperation<kOperation>>(
       {left, right}, compiler::FeedbackSource{feedback(), slot_index}));
+  return ReduceResult::Done();
 }
 
 template <Operation kOperation>
-void MaglevGraphBuilder::BuildGenericBinarySmiOperationNode() {
+ReduceResult MaglevGraphBuilder::BuildGenericBinarySmiOperationNode() {
   ValueNode* left = GetAccumulator();
   int constant = iterator_.GetImmediateOperand(0);
   ValueNode* right = GetSmiConstant(constant);
   FeedbackSlot slot_index = GetSlotOperand(1);
   SetAccumulator(AddNewNode<GenericNodeForOperation<kOperation>>(
       {left, right}, compiler::FeedbackSource{feedback(), slot_index}));
+  return ReduceResult::Done();
 }
-
 
 template <Operation kOperation>
 ReduceResult MaglevGraphBuilder::BuildInt32UnaryOperationNode() {
@@ -2240,8 +2242,7 @@ ReduceResult MaglevGraphBuilder::VisitUnaryOperation() {
       // Fallback to generic node.
       break;
   }
-  BuildGenericUnaryOperationNode<kOperation>();
-  return ReduceResult::Done();
+  return BuildGenericUnaryOperationNode<kOperation>();
 }
 
 ValueNode* MaglevGraphBuilder::BuildNewConsStringMap(ValueNode* left,
@@ -2556,8 +2557,7 @@ ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
       // Fallback to generic node.
       break;
   }
-  BuildGenericBinaryOperationNode<kOperation>();
-  return ReduceResult::Done();
+  return BuildGenericBinaryOperationNode<kOperation>();
 }
 
 template <Operation kOperation>
@@ -2599,8 +2599,7 @@ ReduceResult MaglevGraphBuilder::VisitBinarySmiOperation() {
       // Fallback to generic node.
       break;
   }
-  BuildGenericBinarySmiOperationNode<kOperation>();
-  return ReduceResult::Done();
+  return BuildGenericBinarySmiOperationNode<kOperation>();
 }
 
 template <Operation kOperation, typename type>
@@ -2646,9 +2645,11 @@ std::optional<ValueNode*> MaglevGraphBuilder::TryGetConstantAlternative(
 }
 
 template <Operation kOperation>
-bool MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
-  if (kOperation != Operation::kStrictEqual && kOperation != Operation::kEqual)
-    return false;
+MaybeReduceResult MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
+  if (kOperation != Operation::kStrictEqual &&
+      kOperation != Operation::kEqual) {
+    return {};
+  }
 
   ValueNode* left = LoadRegister(0);
   ValueNode* right = GetAccumulator();
@@ -2659,13 +2660,13 @@ bool MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
     maybe_constant = TryGetConstant(right);
     other = left;
   }
-  if (!maybe_constant) return false;
+  if (!maybe_constant) return {};
 
   // TODO(marja): We should detect empty types earlier, but that would require
   // GetFloat64ForToNumber returning a ReduceResult which would require
   // AddNewNode return a ReduceResult.
   if (IsEmptyNodeType(GetType(other))) {
-    return false;
+    return {};
   }
 
   if (CheckType(other, NodeType::kBoolean)) {
@@ -2687,10 +2688,10 @@ bool MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
 
     if (maybe_constant.equals(broker_->true_value())) {
       CompareOtherWith(true);
-      return true;
+      return ReduceResult::Done();
     } else if (maybe_constant.equals(broker_->false_value())) {
       CompareOtherWith(false);
-      return true;
+      return ReduceResult::Done();
     } else if (kOperation == Operation::kEqual) {
       // For `bool == num` we can convert the actual comparison `ToNumber(bool)
       // == num` into `(num == 1) ? bool : ((num == 0) ? !bool : false)`,
@@ -2710,15 +2711,17 @@ bool MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
           // `ToNumber(false)`.
           SetAccumulator(GetBooleanConstant(false));
         }
-        return true;
+        return ReduceResult::Done();
       }
     }
   }
 
-  if (kOperation != Operation::kStrictEqual) return false;
+  if (kOperation != Operation::kStrictEqual) return {};
 
   InstanceType type = maybe_constant.value().map(broker()).instance_type();
-  if (!InstanceTypeChecker::IsReferenceComparable(type)) return false;
+  if (!InstanceTypeChecker::IsReferenceComparable(type)) {
+    return {};
+  }
 
   // If the constant is the undefined value, we can compare it
   // against holey floats.
@@ -2739,7 +2742,7 @@ bool MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
       SetAccumulator(
           AddNewNodeNoInputConversion<HoleyFloat64IsHole>({holey_float}));
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-      return true;
+      return ReduceResult::Done();
     }
   }
 
@@ -2751,13 +2754,12 @@ bool MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
   } else {
     SetAccumulator(BuildTaggedEqual(left, right));
   }
-  return true;
+  return ReduceResult::Done();
 }
 
 template <Operation kOperation>
 ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
-  if (TryReduceCompareEqualAgainstConstant<kOperation>())
-    return ReduceResult::Done();
+  RETURN_IF_DONE(TryReduceCompareEqualAgainstConstant<kOperation>());
 
   // Compare opcodes are not always commutative. We sort the ones which are for
   // better CSE coverage.
@@ -3011,8 +3013,7 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
     }
   }
 
-  BuildGenericBinaryOperationNode<kOperation>();
-  return ReduceResult::Done();
+  return BuildGenericBinaryOperationNode<kOperation>();
 }
 
 ReduceResult MaglevGraphBuilder::VisitLdar() {
