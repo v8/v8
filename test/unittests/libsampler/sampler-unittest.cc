@@ -51,7 +51,7 @@ class TestSampler : public Sampler {
     isolate()->GetStackSample(regs, frames, kMaxFramesCount, &sample_info);
     if (is_counting_samples_) {
       if (sample_info.vm_state == JS) ++js_sample_count_;
-      if (sample_info.vm_state == EXTERNAL) ++external_sample_count_;
+      if (IsExternal(sample_info.vm_state)) ++external_sample_count_;
     }
   }
 };

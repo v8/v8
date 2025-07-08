@@ -4223,7 +4223,7 @@ TEST(SamplingHeapProfilerLargeInterval) {
   std::unique_ptr<v8::AllocationProfile> profile(
       heap_profiler->GetAllocationProfile());
   CHECK(profile);
-  const char* names[] = {"(EXTERNAL)"};
+  const char* names[] = {"(IDLE)"};
   auto node = FindAllocationProfileNode(env.isolate(), profile.get(),
                                         v8::base::ArrayVector(names));
   CHECK(node);

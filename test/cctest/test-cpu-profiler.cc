@@ -2270,12 +2270,12 @@ TEST(IdleTime) {
   const v8::CpuProfileNode* program_node =
       GetChild(env.local(), root, CodeEntry::kProgramEntryName);
   CHECK_EQ(0, program_node->GetChildrenCount());
-  CHECK_GE(program_node->GetHitCount(), 2u);
+  CHECK_GE(program_node->GetHitCount(), 1u);
 
   const v8::CpuProfileNode* idle_node =
       GetChild(env.local(), root, CodeEntry::kIdleEntryName);
   CHECK_EQ(0, idle_node->GetChildrenCount());
-  CHECK_GE(idle_node->GetHitCount(), 3u);
+  CHECK_GE(idle_node->GetHitCount(), 4u);
 
   profile->Delete();
   cpu_profiler->Dispose();

@@ -33,6 +33,7 @@ struct V8_EXPORT RegisterState {
 };
 
 // A StateTag represents a possible state of the VM.
+// LINT.IfChange
 enum StateTag : uint16_t {
   JS,
   GC,
@@ -43,8 +44,18 @@ enum StateTag : uint16_t {
   EXTERNAL,
   ATOMICS_WAIT,
   IDLE,
+  IDLE_EXTERNAL,
   LOGGING,
 };
+// LINT.ThenChange(../tools/profile.mjs, ../tools/tickprocessor.mjs)
+
+constexpr bool IsExternal(StateTag state) {
+  return state == EXTERNAL || state == IDLE_EXTERNAL;
+}
+
+constexpr bool IsIdle(StateTag state) {
+  return state == IDLE || state == IDLE_EXTERNAL;
+}
 
 // The output structure filled up by GetStackSample API function.
 struct SampleInfo {

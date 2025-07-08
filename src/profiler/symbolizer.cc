@@ -35,6 +35,7 @@ CodeEntry* EntryForVMState(StateTag tag) {
     // To avoid confusing people, let's put all these entries into
     // one bucket.
     case OTHER:
+    case IDLE_EXTERNAL:
     case EXTERNAL:
     case LOGGING:
       return CodeEntry::program_entry();
@@ -61,7 +62,7 @@ Symbolizer::SymbolizedSample Symbolizer::SymbolizeTickSample(
   bool src_pos_not_found = true;
 
   if (sample.pc != nullptr) {
-    if (sample.has_external_callback && sample.state == EXTERNAL) {
+    if (sample.has_external_callback && IsExternal(sample.state)) {
       // Don't use PC when in external callback code, as it can point
       // inside a callback's code, and we will erroneously report
       // that a callback calls itself.
