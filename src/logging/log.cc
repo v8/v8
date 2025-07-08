@@ -1155,6 +1155,9 @@ class Ticker : public sampler::Sampler {
              perThreadData_->thread_id()) ||
          perThreadData_->thread_state() != nullptr))
       return;
+    if (!v8_flags.prof_include_idle && IsIdle(isolate->current_vm_state())) {
+      return;
+    }
     TickSample sample;
     sample.Init(isolate, state, TickSample::kIncludeCEntryFrame, true);
     profiler_->Insert(&sample);

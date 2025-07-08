@@ -3374,6 +3374,8 @@ DEFINE_BOOL(log_function_events, false,
 DEFINE_BOOL(detailed_line_info, false,
             "Always generate detailed line information for CPU profiling.")
 
+DEFINE_BOOL(prof_include_idle, false, "Include idle samples in the profile")
+
 DEFINE_BOOL(perfetto_code_logger, false,
             "Enable the Perfetto code data source.")
 
