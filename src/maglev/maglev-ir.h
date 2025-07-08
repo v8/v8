@@ -1090,6 +1090,7 @@ inline bool NodeTypeMayBeNullOrUndefined(NodeType type) {
 
 enum class TaggedToFloat64ConversionType : uint8_t {
   kOnlyNumber,
+  kNumberOrUndefined,
   kNumberOrBoolean,
   kNumberOrOddball,
 };
@@ -1123,6 +1124,8 @@ inline std::ostream& operator<<(
   switch (conversion_type) {
     case TaggedToFloat64ConversionType::kOnlyNumber:
       return os << "Number";
+    case TaggedToFloat64ConversionType::kNumberOrUndefined:
+      return os << "NumberOrUndefined";
     case TaggedToFloat64ConversionType::kNumberOrBoolean:
       return os << "NumberOrBoolean";
     case TaggedToFloat64ConversionType::kNumberOrOddball:
@@ -4813,8 +4816,10 @@ class CheckedNumberOrOddballToHoleyFloat64
   using Base = FixedInputValueNodeT<1, CheckedNumberOrOddballToHoleyFloat64>;
 
  public:
-  explicit CheckedNumberOrOddballToHoleyFloat64(uint64_t bitfield)
-      : Base(bitfield) {}
+  explicit CheckedNumberOrOddballToHoleyFloat64(
+      uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
+      : Base(TaggedToFloat64ConversionTypeOffset::update(bitfield,
+                                                         conversion_type)) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
                                               OpProperties::HoleyFloat64() |
@@ -4824,13 +4829,32 @@ class CheckedNumberOrOddballToHoleyFloat64
 
   Input& input() { return Node::input(0); }
 
+  TaggedToFloat64ConversionType conversion_type() const {
+    return TaggedToFloat64ConversionTypeOffset::decode(Base::bitfield());
+  }
+
   DeoptimizeReason deoptimize_reason() const {
-    return DeoptimizeReason::kNotANumberOrOddball;
+    switch (conversion_type()) {
+      case TaggedToFloat64ConversionType::kOnlyNumber:
+        return DeoptimizeReason::kNotANumber;
+      case TaggedToFloat64ConversionType::kNumberOrBoolean:
+        return DeoptimizeReason::kNotANumberOrBoolean;
+      case TaggedToFloat64ConversionType::kNumberOrUndefined:
+        // TODO(nicohartmann): We could consider a NotANumberOrUndefined reason.
+      case TaggedToFloat64ConversionType::kNumberOrOddball:
+        return DeoptimizeReason::kNotANumberOrOddball;
+    }
   }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const {}
+
+  auto options() const { return std::tuple{conversion_type()}; }
+
+ private:
+  using TaggedToFloat64ConversionTypeOffset =
+      Base::template NextBitField<TaggedToFloat64ConversionType, 2>;
 };
 
 class CheckedNumberToInt32

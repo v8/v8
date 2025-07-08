@@ -2021,6 +2021,26 @@ void JumpToFailIfNotHeapNumberOrOddball(
 #endif
       break;
     }
+
+    case TaggedToFloat64ConversionType::kNumberOrUndefined: {
+      // Check if HeapNumber or Undefined, jump to fail otherwise.
+      MaglevAssembler::TemporaryRegisterScope temps(masm);
+      Register map = temps.AcquireScratch();
+
+      Label done;
+      __ LoadMap(map, value);
+      __ CompareRoot(map, RootIndex::kHeapNumberMap);
+      __ JumpIf(kEqual, &done);
+      __ CompareRoot(map, RootIndex::kUndefinedMap);
+      if (fail) {
+        __ JumpIf(kNotEqual, fail);
+      } else {
+        __ Assert(kEqual, AbortReason::kUnexpectedValue);
+      }
+      __ bind(&done);
+      break;
+    }
+
     case TaggedToFloat64ConversionType::kNumberOrOddball:
       // Check if HeapNumber or Oddball, jump to fail otherwise.
       if (fail) {
@@ -2101,8 +2121,7 @@ void CheckedNumberOrOddballToHoleyFloat64::GenerateCode(
   __ Int32ToDouble(dst, src);
   __ Jump(&done);
   __ bind(&is_not_smi);
-  JumpToFailIfNotHeapNumberOrOddball(
-      masm, src, TaggedToFloat64ConversionType::kNumberOrOddball, fail);
+  JumpToFailIfNotHeapNumberOrOddball(masm, src, conversion_type(), fail);
   __ LoadHeapNumberOrOddballValue(dst, src);
   __ JumpIfNotObjectType(src, InstanceType::HEAP_NUMBER_TYPE, &done,
                          Label::kNear);

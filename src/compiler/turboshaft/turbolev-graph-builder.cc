@@ -4421,6 +4421,8 @@ class GraphBuildingNodeProcessor {
       case maglev::TaggedToFloat64ConversionType::kOnlyNumber:
         kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber;
         break;
+      case maglev::TaggedToFloat64ConversionType::kNumberOrUndefined:
+        UNREACHABLE();
       case maglev::TaggedToFloat64ConversionType::kNumberOrBoolean:
         kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
             kNumberOrBoolean;
@@ -4446,6 +4448,7 @@ class GraphBuildingNodeProcessor {
         node,
         __ ConvertJSPrimitiveToUntaggedOrDeopt(
             Map(node->input()), frame_state,
+            // FIXME: Handle conversion type here.
             ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
                 kNumberOrOddball,
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
@@ -4596,6 +4599,8 @@ class GraphBuildingNodeProcessor {
         input_requirement =
             TruncateJSPrimitiveToUntaggedOrDeoptOp::InputRequirement::kNumber;
         break;
+      case maglev::TaggedToFloat64ConversionType::kNumberOrUndefined:
+        UNREACHABLE();
       case maglev::TaggedToFloat64ConversionType::kNumberOrBoolean:
         input_requirement = TruncateJSPrimitiveToUntaggedOrDeoptOp::
             InputRequirement::kNumberOrBoolean;

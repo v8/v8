@@ -602,7 +602,8 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
                 input_index,
                 AddNewNodeNoInputConversionAtBlockEnd<
                     CheckedNumberOrOddballToHoleyFloat64>(
-                    phi->predecessor_at(input_index), {input_phi}));
+                    phi->predecessor_at(input_index), {input_phi},
+                    TaggedToFloat64ConversionType::kNumberOrUndefined));
             break;
           }
           case ValueRepresentation::kTagged:

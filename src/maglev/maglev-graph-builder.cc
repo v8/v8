@@ -1812,11 +1812,10 @@ std::optional<double> MaglevGraphBuilder::TryGetHoleyFloat64Constant(
   return TryGetFloat64Constant(value,
                                TaggedToFloat64ConversionType::kNumberOrOddball);
 }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-ValueNode* MaglevGraphBuilder::GetHoleyFloat64(ValueNode* value,
-                                               bool convert_hole_to_undefined) {
+ValueNode* MaglevGraphBuilder::GetHoleyFloat64(
+    ValueNode* value, TaggedToFloat64ConversionType conversion_type,
+    bool convert_hole_to_undefined) {
   ValueRepresentation representation =
       value->properties().value_representation();
   if (representation == ValueRepresentation::kHoleyFloat64 &&
@@ -1834,7 +1833,7 @@ ValueNode* MaglevGraphBuilder::GetHoleyFloat64(ValueNode* value,
   switch (representation) {
     case ValueRepresentation::kTagged:
       return AddNewNodeNoInputConversion<CheckedNumberOrOddballToHoleyFloat64>(
-          {value});
+          {value}, conversion_type);
     case ValueRepresentation::kInt32: {
       auto& alternative = node_info->alternative();
       return alternative.set_float64(
@@ -6181,7 +6180,9 @@ ReduceResult MaglevGraphBuilder::ConvertForStoring(ValueNode* value,
     if (kind == ElementsKind::HOLEY_DOUBLE_ELEMENTS) {
         RecordUseReprHintIfPhi(value, UseRepresentation::kHoleyFloat64);
         const bool convert_hole_to_undefined = true;
-        return GetHoleyFloat64(value, convert_hole_to_undefined);
+        return GetHoleyFloat64(
+            value, TaggedToFloat64ConversionType::kNumberOrUndefined,
+            convert_hole_to_undefined);
     }
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     // Make sure we do not store signalling NaNs into double arrays.
