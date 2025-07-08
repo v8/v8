@@ -48,39 +48,6 @@ static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
   __ Assert(eq, AbortReason::kExpectedBaselineData);
 }
 
-static void CheckSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
-                                                      Register data,
-                                                      Register scratch,
-                                                      Label* is_baseline,
-                                                      Label* is_bytecode) {
-  DCHECK(!AreAliased(r0, scratch));
-
-#if V8_STATIC_ROOTS_BOOL
-  __ IsObjectTypeFast(data, scratch, CODE_TYPE, r0);
-#else
-  __ CompareObjectType(data, scratch, scratch, CODE_TYPE);
-#endif  // V8_STATIC_ROOTS_BOOL
-  if (v8_flags.debug_code) {
-    Label not_baseline;
-    __ b(ne, &not_baseline);
-    AssertCodeIsBaseline(masm, data, scratch);
-    __ b(eq, is_baseline);
-    __ bind(&not_baseline);
-  } else {
-    __ b(eq, is_baseline);
-  }
-
-#if V8_STATIC_ROOTS_BOOL
-  // scratch already contains the compressed map.
-  __ CompareInstanceTypeWithUniqueCompressedMap(scratch, Register::no_reg(),
-                                                INTERPRETER_DATA_TYPE);
-#else
-  // scratch already contains the instance type.
-  __ CmpU64(scratch, Operand(INTERPRETER_DATA_TYPE), r0);
-#endif  // V8_STATIC_ROOTS_BOOL
-  __ b(ne, is_bytecode);
-}
-
 static void GetSharedFunctionInfoBytecodeOrBaseline(
     MacroAssembler* masm, Register sfi, Register bytecode, Register scratch1,
     Label* is_baseline, Label* is_unavailable) {
@@ -98,8 +65,31 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
     __ IsObjectType(data, scratch1, scratch1, INTERPRETER_DATA_TYPE);
     __ b(ne, &done);
   } else {
-    CheckSharedFunctionInfoBytecodeOrBaseline(masm, data, scratch1, is_baseline,
-                                              &done);
+    DCHECK(!AreAliased(r0, scratch1));
+#if V8_STATIC_ROOTS_BOOL
+    __ IsObjectTypeFast(data, scratch1, CODE_TYPE, r0);
+#else
+    __ CompareObjectType(data, scratch1, scratch1, CODE_TYPE);
+#endif  // V8_STATIC_ROOTS_BOOL
+    if (v8_flags.debug_code) {
+      Label not_baseline;
+      __ b(ne, &not_baseline);
+      AssertCodeIsBaseline(masm, data, scratch1);
+      __ b(eq, is_baseline);
+      __ bind(&not_baseline);
+    } else {
+      __ b(eq, is_baseline);
+    }
+
+#if V8_STATIC_ROOTS_BOOL
+    // scratch1 already contains the compressed map.
+    __ CompareInstanceTypeWithUniqueCompressedMap(scratch1, Register::no_reg(),
+                                                  INTERPRETER_DATA_TYPE);
+#else
+    // scratch1 already contains the instance type.
+    __ CmpU64(scratch1, Operand(INTERPRETER_DATA_TYPE), r0);
+#endif  // V8_STATIC_ROOTS_BOOL
+    __ b(ne, &done);
   }
 
   __ LoadInterpreterDataBytecodeArray(bytecode, data);
