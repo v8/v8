@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <iomanip>
+#include <optional>
 #include <ostream>
 #include <type_traits>
 #include <unordered_map>
@@ -61,14 +62,9 @@ namespace maglev {
 // static
 bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                              MaglevCompilationInfo* compilation_info) {
+  std::optional<MaglevGraphLabellerScope> graph_labeller_scope;
   compiler::CurrentHeapBrokerScope current_broker(compilation_info->broker());
   Graph* graph = Graph::New(compilation_info);
-
-  // TODO(b/428630874): Assign MaglevGraphLabeller lazily and only register
-  // nodes when needed
-  compilation_info->set_graph_labeller(new MaglevGraphLabeller());
-  MaglevGraphLabellerScope current_thread_graph_labeller(
-      compilation_info->graph_labeller());
 
   bool is_tracing_enabled = false;
   {
@@ -81,11 +77,13 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
         v8_flags.trace_maglev_escape_analysis ||
         v8_flags.trace_maglev_phi_untagging || v8_flags.trace_maglev_regalloc ||
         v8_flags.trace_maglev_object_tracking ||
-        v8_flags.trace_maglev_truncation) {
+        v8_flags.maglev_untagged_phis || v8_flags.trace_maglev_truncation) {
       is_tracing_enabled = compilation_info->toplevel_compilation_unit()
                                ->shared_function_info()
                                .object()
                                ->PassesFilter(v8_flags.maglev_print_filter);
+      compilation_info->set_graph_labeller(new MaglevGraphLabeller());
+      graph_labeller_scope.emplace(compilation_info->graph_labeller());
     }
 
     if (is_tracing_enabled &&
@@ -313,11 +311,10 @@ std::pair<MaybeHandle<Code>, BailoutReason> MaglevCompiler::GenerateCode(
       compilation_info->code_generator();
   DCHECK_NOT_NULL(code_generator);
 
-  MaglevGraphLabellerScope current_thread_graph_labeller(
-      compilation_info->graph_labeller());
-
   Handle<Code> code;
   {
+    MaglevGraphLabellerScope current_thread_graph_labeller(
+        compilation_info->graph_labeller());
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  "V8.Maglev.CodeGeneration");
     if (compilation_info->is_detached() ||
