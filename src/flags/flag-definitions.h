@@ -633,6 +633,9 @@ DEFINE_INT(max_maglev_inlined_bytecode_size_cumulative, 920,
            "small functions")
 DEFINE_INT(max_maglev_inlined_bytecode_size_small, 27,
            "maximum size of bytecode considered for small function inlining")
+DEFINE_INT(max_maglev_inlined_bytecode_size_small_with_heapnum_in_out, 75,
+           "maximum size of bytecode considered for small function inlining, "
+           "when the function call has a HeapNumber as input or output")
 DEFINE_FLOAT(min_maglev_inlining_frequency, 0.10,
              "minimum frequency for inlining")
 DEFINE_WEAK_VALUE_IMPLICATION(turbofan, max_maglev_inline_depth, 1)

@@ -8056,12 +8056,33 @@ bool MaglevGraphBuilder::TopLevelFunctionPassMaglevPrintFilter() {
 }
 
 bool MaglevGraphBuilder::ShouldEagerInlineCall(
-    compiler::SharedFunctionInfoRef shared) {
+    compiler::SharedFunctionInfoRef shared, CallArguments& args) {
   compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
   if (bytecode.length() < max_inlined_bytecode_size_small()) {
     TRACE_INLINING("  greedy inlining "
                    << shared << ": small function, skipping max-depth");
     return true;
+  }
+  if (bytecode.length() <
+          max_inlined_bytecode_size_small_with_heapnum_in_out() &&
+      args.mode() == CallArguments::kDefault) {
+    bool has_float_arg = false;
+    for (size_t i = 1; i < args.count_with_receiver(); i++) {
+      if (args[i] &&
+          (args[i]->value_representation() == ValueRepresentation::kFloat64 ||
+           args[i]->value_representation() ==
+               ValueRepresentation::kHoleyFloat64)) {
+        has_float_arg = true;
+        break;
+      }
+    }
+    if (has_float_arg) {
+      TRACE_INLINING(
+          "  greedy inlining "
+          << shared
+          << ": small function with heap number inputs, skipping max-depth");
+      return true;
+    }
   }
   return false;
 }
@@ -8091,7 +8112,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
   float call_frequency = feedback_frequency * GetCurrentCallFrequency();
 
   if (!CanInlineCall(shared, call_frequency)) return {};
-  if (ShouldEagerInlineCall(shared)) {
+  if (ShouldEagerInlineCall(shared, args)) {
     return BuildEagerInlineCall(context, function, new_target, shared,
                                 feedback_cell, args, call_frequency);
   }

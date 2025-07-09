@@ -244,6 +244,14 @@ class MaglevGraphBuilder {
       return v8_flags.max_maglev_inlined_bytecode_size_small;
     }
   }
+  int max_inlined_bytecode_size_small_with_heapnum_in_out() {
+    if (is_turbolev()) {
+      return v8_flags.max_inlined_bytecode_size_small_with_heapnum_in_out;
+    } else {
+      return v8_flags
+          .max_maglev_inlined_bytecode_size_small_with_heapnum_in_out;
+    }
+  }
   float min_inlining_frequency() {
     if (is_turbolev()) {
       return v8_flags.min_inlining_frequency;
@@ -1040,7 +1048,8 @@ class MaglevGraphBuilder {
       const compiler::FeedbackSource& feedback_source);
   bool CanInlineCall(compiler::SharedFunctionInfoRef shared,
                      float call_frequency);
-  bool ShouldEagerInlineCall(compiler::SharedFunctionInfoRef shared);
+  bool ShouldEagerInlineCall(compiler::SharedFunctionInfoRef shared,
+                             CallArguments& args);
   ReduceResult BuildEagerInlineCall(ValueNode* context, ValueNode* function,
                                     ValueNode* new_target,
                                     compiler::SharedFunctionInfoRef shared,
