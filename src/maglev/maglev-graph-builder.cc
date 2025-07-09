@@ -1809,8 +1809,14 @@ std::optional<double> MaglevGraphBuilder::TryGetHoleyFloat64Constant(
       return Cast<Oddball>(root_object)->to_number_raw();
     }
   }
-  return TryGetFloat64Constant(value,
-                               TaggedToFloat64ConversionType::kNumberOrOddball);
+  std::optional<double> constant = TryGetFloat64Constant(
+      value, TaggedToFloat64ConversionType::kNumberOrOddball);
+  if (constant.has_value() && std::isnan(constant.value())) {
+    // If need to silence nans when converting from Float64 to HoleyFloat64
+    // representation.
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+  return constant;
 }
 
 ValueNode* MaglevGraphBuilder::GetHoleyFloat64(
