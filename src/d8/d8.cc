@@ -6764,16 +6764,27 @@ void d8_install_sigterm_handler() {
 #endif  // V8_OS_POSIX
 }
 
-}  // namespace
-
-int Shell::Main(int argc, char* argv[]) {
+void ConfigurePartitionAllocIfEnabled() {
 #if defined(V8_ENABLE_PARTITION_ALLOC)
 #if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
   allocator_shim::ConfigurePartitionsForTesting();
   allocator_shim::internal::PartitionAllocMalloc::Allocator()
       ->EnableThreadCacheIfSupported();
+  // Use the same limits Chrome uses for the foreground mode.
+  static constexpr size_t kThreadCacheLargeSizeThreshold = 1 << 15;
+  ::partition_alloc::ThreadCache::SetLargestCachedSize(
+      kThreadCacheLargeSizeThreshold);
+#if defined(V8_OS_DARWIN) || defined(V8_OS_WIN)
+  allocator_shim::AdjustDefaultAllocatorForForeground();
+#endif  // defined(V8_OS_DARWIN) || defined(V8_OS_WIN)
 #endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 #endif
+}
+
+}  // namespace
+
+int Shell::Main(int argc, char* argv[]) {
+  ConfigurePartitionAllocIfEnabled();
   v8::base::EnsureConsoleOutput();
   if (!SetOptions(argc, argv)) return 1;
   if (!i::v8_flags.fuzzing) d8_install_sigterm_handler();
