@@ -22,6 +22,8 @@ class MaglevInliner {
   void Run(bool is_tracing_maglev_graphs_enabled);
 
  private:
+  int max_inlined_bytecode_size_cumulative() const;
+
   Graph* graph_;
 
   compiler::JSHeapBroker* broker() const { return graph_->broker(); }

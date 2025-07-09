@@ -254,6 +254,8 @@ class Graph final : public ZoneObject {
     return compilation_info_->graph_labeller();
   }
 
+  MaglevCompilationInfo* compilation_info() const { return compilation_info_; }
+
  private:
   MaglevCompilationInfo* compilation_info_;
   uint32_t tagged_stack_slots_ = kMaxUInt32;

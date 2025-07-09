@@ -24,7 +24,7 @@ void MaglevInliner::Run(bool is_tracing_maglev_graphs_enabled) {
 
   while (!graph_->inlineable_calls().empty()) {
     if (graph_->total_inlined_bytecode_size() >
-        v8_flags.max_maglev_inlined_bytecode_size_cumulative) {
+        max_inlined_bytecode_size_cumulative()) {
       // No more inlining.
       break;
     }
@@ -61,6 +61,14 @@ void MaglevInliner::Run(bool is_tracing_maglev_graphs_enabled) {
       !v8_flags.trace_maglev_inlining_verbose) {
     std::cout << "\nAfter inlining" << std::endl;
     PrintGraph(std::cout, graph_);
+  }
+}
+
+int MaglevInliner::max_inlined_bytecode_size_cumulative() const {
+  if (graph_->compilation_info()->is_turbolev()) {
+    return v8_flags.max_inlined_bytecode_size_cumulative;
+  } else {
+    return v8_flags.max_maglev_inlined_bytecode_size_cumulative;
   }
 }
 
