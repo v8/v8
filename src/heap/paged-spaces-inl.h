@@ -49,13 +49,15 @@ void HeapObjectRange::iterator::AdvanceToNextObject() {
     if (IsFreeSpaceOrFiller(obj, cage_base())) {
       cur_addr_ += cur_size_;
     } else {
+#ifdef DEBUG
       if (IsInstructionStream(obj, cage_base())) {
         DCHECK_EQ(PageMetadata::FromHeapObject(obj)->owner_identity(),
                   CODE_SPACE);
-        DCHECK_CODEOBJECT_SIZE(cur_size_);
+        DCHECK_VALID_REGULAR_CODEOBJECT_SIZE(cur_size_);
       } else {
-        DCHECK_OBJECT_SIZE(cur_size_);
+        DCHECK_VALID_REGULAR_OBJECT_SIZE(cur_size_);
       }
+#endif  // DEBUG
       return;
     }
   }

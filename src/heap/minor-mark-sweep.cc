@@ -834,8 +834,8 @@ void MinorMarkSweepCollector::TraceFragmentation() {
           free_bytes_index++;
         }
       }
-      live_bytes += size;
-      free_start = free_end + size;
+      live_bytes += size.value();
+      free_start = free_end + size.value();
     }
     const Address top = heap_->NewSpaceTop();
     size_t area_end = p->Contains(top) ? top : p->area_end();

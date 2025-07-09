@@ -1439,7 +1439,7 @@ class ProfilingMigrationObserver final : public MigrationObserver {
 class HeapObjectVisitor {
  public:
   virtual ~HeapObjectVisitor() = default;
-  virtual bool Visit(Tagged<HeapObject> object, int size) = 0;
+  virtual bool Visit(Tagged<HeapObject> object, SafeHeapObjectSize size) = 0;
 };
 
 class EvacuateVisitorBase : public HeapObjectVisitor {
@@ -1486,13 +1486,16 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 
   using MigrateFunction = void (*)(EvacuateVisitorBase* base,
                                    Tagged<HeapObject> dst,
-                                   Tagged<HeapObject> src, int size,
+                                   Tagged<HeapObject> src,
+                                   SafeHeapObjectSize size,
                                    AllocationSpace dest);
 
   template <MigrationMode mode>
   static void RawMigrateObject(EvacuateVisitorBase* base,
                                Tagged<HeapObject> dst, Tagged<HeapObject> src,
-                               int size, AllocationSpace dest) {
+                               SafeHeapObjectSize object_size,
+                               AllocationSpace dest) {
+    const uint32_t size = object_size.value();
     Address dst_addr = dst.address();
     Address src_addr = src.address();
     PtrComprCageBase cage_base = base->cage_base();
@@ -1501,7 +1504,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     DCHECK_NE(dest, CODE_LO_SPACE);
     DCHECK_NE(dest, TRUSTED_LO_SPACE);
     if (dest == OLD_SPACE) {
-      DCHECK_OBJECT_SIZE(size);
+      DCHECK_VALID_REGULAR_OBJECT_SIZE(size);
       DCHECK(IsAligned(size, kTaggedSize));
       base->heap_->CopyBlock(dst_addr, src_addr, size);
       if (mode != MigrationMode::kFast) {
@@ -1511,7 +1514,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       // here. This is fine since they store the same content.
       base->record_visitor_->Visit(dst->map(cage_base), dst, size);
     } else if (dest == SHARED_SPACE) {
-      DCHECK_OBJECT_SIZE(size);
+      DCHECK_VALID_REGULAR_OBJECT_SIZE(size);
       DCHECK(IsAligned(size, kTaggedSize));
       base->heap_->CopyBlock(dst_addr, src_addr, size);
       if (mode != MigrationMode::kFast) {
@@ -1519,7 +1522,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       }
       base->record_visitor_->Visit(dst->map(cage_base), dst, size);
     } else if (dest == TRUSTED_SPACE) {
-      DCHECK_OBJECT_SIZE(size);
+      DCHECK_VALID_REGULAR_OBJECT_SIZE(size);
       DCHECK(IsAligned(size, kTaggedSize));
       base->heap_->CopyBlock(dst_addr, src_addr, size);
       if (mode != MigrationMode::kFast) {
@@ -1529,7 +1532,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       // here. This is fine since they store the same content.
       base->record_visitor_->Visit(dst->map(cage_base), dst, size);
     } else if (dest == CODE_SPACE) {
-      DCHECK_CODEOBJECT_SIZE(size);
+      DCHECK_VALID_REGULAR_CODEOBJECT_SIZE(size);
       {
         WritableJitAllocation writable_allocation =
             ThreadIsolation::RegisterInstructionStreamAllocation(dst_addr,
@@ -1552,7 +1555,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       // here. This is fine since they store the same content.
       base->record_visitor_->Visit(dst->map(cage_base), dst, size);
     } else {
-      DCHECK_OBJECT_SIZE(size);
+      DCHECK_VALID_REGULAR_OBJECT_SIZE(size);
       DCHECK(dest == NEW_SPACE);
       base->heap_->CopyBlock(dst_addr, src_addr, size);
       if (mode != MigrationMode::kFast) {
@@ -1585,7 +1588,8 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
   }
 
   inline bool TryEvacuateObject(AllocationSpace target_space,
-                                Tagged<HeapObject> object, int size,
+                                Tagged<HeapObject> object,
+                                SafeHeapObjectSize size,
                                 Tagged<HeapObject>* target_object) {
 #if DEBUG
     DCHECK_LE(abort_evacuation_at_address_,
@@ -1633,7 +1637,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
   }
 
   inline void MigrateObject(Tagged<HeapObject> dst, Tagged<HeapObject> src,
-                            int size, AllocationSpace dest) {
+                            SafeHeapObjectSize size, AllocationSpace dest) {
     migration_function_(this, dst, src, size, dest);
   }
 
@@ -1666,11 +1670,13 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
                    heap->incremental_marking()->IsMajorMarking());
   }
 
-  inline bool Visit(Tagged<HeapObject> object, int size) override {
+  inline bool Visit(Tagged<HeapObject> object,
+                    SafeHeapObjectSize size) override {
     if (TryEvacuateWithoutCopy(object)) return true;
     Tagged<HeapObject> target_object;
 
-    PretenuringHandler::UpdateAllocationSite(heap_, object->map(), object, size,
+    PretenuringHandler::UpdateAllocationSite(heap_, object->map(), object,
+                                             size.value(),
                                              local_pretenuring_feedback_);
 
     if (!TryEvacuateObject(OLD_SPACE, object, size, &target_object)) {
@@ -1678,7 +1684,7 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
           "MarkCompactCollector: young object promotion failed");
     }
 
-    promoted_size_ += size;
+    promoted_size_ += size.value();
     return true;
   }
 
@@ -1710,8 +1716,8 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     AllocationSpace space_allocated_in = NEW_SPACE;
     AllocationAlignment alignment =
         HeapObject::RequiredAlignment(space_allocated_in, old_object->map());
-    AllocationResult allocation =
-        local_allocator_->Allocate(NEW_SPACE, size, alignment);
+    AllocationResult allocation = local_allocator_->Allocate(
+        NEW_SPACE, SafeHeapObjectSize(static_cast<uint32_t>(size)), alignment);
     if (allocation.IsFailure()) {
       space_allocated_in = OLD_SPACE;
       alignment =
@@ -1726,8 +1732,9 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
 
   inline AllocationResult AllocateInOldSpace(int size_in_bytes,
                                              AllocationAlignment alignment) {
-    AllocationResult allocation =
-        local_allocator_->Allocate(OLD_SPACE, size_in_bytes, alignment);
+    AllocationResult allocation = local_allocator_->Allocate(
+        OLD_SPACE, SafeHeapObjectSize(static_cast<uint32_t>(size_in_bytes)),
+        alignment);
     if (allocation.IsFailure()) {
       heap_->FatalProcessOutOfMemory(
           "MarkCompactCollector: semi-space copy, fallback in old gen");
@@ -1759,11 +1766,13 @@ class EvacuateNewToOldSpacePageVisitor final : public HeapObjectVisitor {
                                 : FreeMode::kLinkCategory);
   }
 
-  inline bool Visit(Tagged<HeapObject> object, int size) override {
-    PretenuringHandler::UpdateAllocationSite(heap_, object->map(), object, size,
+  inline bool Visit(Tagged<HeapObject> object,
+                    SafeHeapObjectSize size) override {
+    PretenuringHandler::UpdateAllocationSite(heap_, object->map(), object,
+                                             size.value(),
                                              local_pretenuring_feedback_);
     DCHECK(!HeapLayout::InCodeSpace(object));
-    record_visitor_->Visit(object->map(), object, size);
+    record_visitor_->Visit(object->map(), object, size.value());
     return true;
   }
 
@@ -1784,7 +1793,8 @@ class EvacuateOldSpaceVisitor final : public EvacuateVisitorBase {
                           RecordMigratedSlotVisitor* record_visitor)
       : EvacuateVisitorBase(heap, local_allocator, record_visitor) {}
 
-  inline bool Visit(Tagged<HeapObject> object, int size) override {
+  inline bool Visit(Tagged<HeapObject> object,
+                    SafeHeapObjectSize size) override {
     Tagged<HeapObject> target_object;
     if (TryEvacuateObject(
             PageMetadata::FromHeapObject(object)->owner_identity(), object,
@@ -1802,14 +1812,14 @@ class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
   explicit EvacuateRecordOnlyVisitor(Heap* heap)
       : heap_(heap), cage_base_(heap->isolate()) {}
 
-  bool Visit(Tagged<HeapObject> object, int size) override {
+  bool Visit(Tagged<HeapObject> object, SafeHeapObjectSize size) override {
     RecordMigratedSlotVisitor visitor(heap_);
     Tagged<Map> map = object->map(cage_base_);
     // Instead of calling object.IterateFast(cage_base(), &visitor) here
     // we can shortcut and use the precomputed size value passed to the visitor.
-    DCHECK_EQ(object->SizeFromMap(map), size);
-    live_object_size_ += ALIGN_TO_ALLOCATION_ALIGNMENT(size);
-    visitor.Visit(map, object, size);
+    DCHECK_EQ(object->SizeFromMap(map), size.value());
+    live_object_size_ += ALIGN_TO_ALLOCATION_ALIGNMENT(size.value());
+    visitor.Visit(map, object, size.value());
     return true;
   }
 
@@ -4664,7 +4674,8 @@ bool Evacuator::RawEvacuatePage(MutablePageMetadata* page) {
     case kPageNewToOld:
       if (chunk->IsLargePage()) {
         auto object = LargePageMetadata::cast(page)->GetObject();
-        bool success = new_to_old_page_visitor_.Visit(object, object->Size());
+        bool success = new_to_old_page_visitor_.Visit(
+            object, SafeHeapObjectSize(static_cast<uint32_t>(object->Size())));
         USE(success);
         DCHECK(success);
       } else {

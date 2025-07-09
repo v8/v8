@@ -379,7 +379,6 @@ class Heap final {
 
   // Copy block of memory from src to dst. Size of block should be aligned
   // by pointer size.
-  static inline void CopyBlock(Address dst, Address src, int byte_size);
   static inline void CopyBlock(Address dst, Address src, size_t byte_size);
 
   enum class StackScanMode { kNone, kFull, kSelective };

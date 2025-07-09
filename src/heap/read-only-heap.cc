@@ -282,7 +282,7 @@ Tagged<HeapObject> ReadOnlyPageObjectIterator::Next() {
       continue;
     }
 
-    DCHECK_OBJECT_SIZE(object_size);
+    DCHECK_VALID_REGULAR_OBJECT_SIZE(object_size);
     return object;
   }
 }

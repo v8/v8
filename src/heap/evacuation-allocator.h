@@ -29,8 +29,6 @@ class EvacuationAllocator {
   inline AllocationResult Allocate(AllocationSpace space,
                                    SafeHeapObjectSize object_size,
                                    AllocationAlignment alignment);
-  inline AllocationResult Allocate(AllocationSpace space, int object_size,
-                                   AllocationAlignment alignment);
   void FreeLast(AllocationSpace space, Tagged<HeapObject> object,
                 SafeHeapObjectSize object_size);
 

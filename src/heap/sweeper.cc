@@ -667,7 +667,7 @@ void Sweeper::LocalSweeper::ParallelIteratePromotedPage(
           Address dead_end = object.address();
           ZapDeadObjectsInRange(sweeper_->heap_, dead_start, dead_end,
                                 zapping_mode);
-          dead_start = dead_end + size;
+          dead_start = dead_end + size.value();
         }
       }
       if (zapping_mode != ZappingMode::kNone) {
@@ -787,7 +787,7 @@ void ZapDeadObjectsOnPage(Heap* heap, PageMetadata* p) {
   for (auto [object, size] : LiveObjectRange(p)) {
     Address dead_end = object.address();
     ZapDeadObjectsInRange(heap, dead_start, dead_end, zapping_mode);
-    dead_start = dead_end + size;
+    dead_start = dead_end + size.value();
   }
   ZapDeadObjectsInRange(heap, dead_start, p->area_end(), zapping_mode);
 }
@@ -1216,8 +1216,8 @@ void Sweeper::RawSweep(PageMetadata* p,
           free_start, free_end, p, record_free_ranges, &free_ranges_map,
           sweeping_mode);
     }
-    live_bytes += size;
-    free_start = free_end + size;
+    live_bytes += size.value();
+    free_start = free_end + size.value();
 
     if (active_system_pages_after_sweeping) {
       MemoryChunk* chunk = p->Chunk();

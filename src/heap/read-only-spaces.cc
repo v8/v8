@@ -240,7 +240,7 @@ class ReadOnlySpaceObjectIterator : public ObjectIterator {
       cur_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(obj_size);
       DCHECK_LE(cur_addr_, cur_end_);
       if (!IsFreeSpaceOrFiller(obj)) {
-        DCHECK_OBJECT_SIZE(obj_size);
+        DCHECK_VALID_REGULAR_OBJECT_SIZE(obj_size);
         return obj;
       }
     }

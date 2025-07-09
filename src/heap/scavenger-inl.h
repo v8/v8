@@ -66,8 +66,7 @@ bool Scavenger::MigrateObject(Tagged<Map> map, Tagged<HeapObject> source,
   // memory ordering for the CAS above.
   target->set_map_word(map, kRelaxedStore);
   heap()->CopyBlock(target.address() + kTaggedSize,
-                    source.address() + kTaggedSize,
-                    static_cast<size_t>(size.value() - kTaggedSize));
+                    source.address() + kTaggedSize, size.value() - kTaggedSize);
 
   if (V8_UNLIKELY(is_logging_)) {
     // TODO(425150995): We should have uint versions for allocation to avoid

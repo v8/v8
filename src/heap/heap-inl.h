@@ -289,11 +289,6 @@ Heap* Heap::FromWritableHeapObject(Tagged<HeapObject> obj) {
   return heap;
 }
 
-void Heap::CopyBlock(Address dst, Address src, int byte_size) {
-  DCHECK(IsAligned(byte_size, kTaggedSize));
-  CopyTagged(dst, src, static_cast<size_t>(byte_size / kTaggedSize));
-}
-
 void Heap::CopyBlock(Address dst, Address src, size_t byte_size) {
   DCHECK(IsAligned(byte_size, kTaggedSize));
   CopyTagged(dst, src, byte_size / kTaggedSize);
