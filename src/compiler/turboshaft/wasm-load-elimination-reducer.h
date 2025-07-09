@@ -608,6 +608,9 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kStructAtomicRMW:
         ProcessAtomicRMW(op_idx, op.Cast<StructAtomicRMWOp>());
         break;
+      case Opcode::kArrayAtomicRMW:
+        // Nothing to be done. We don't eliminate loads on wasm arrays at all.
+        break;
       case Opcode::kArrayLength:
         ProcessArrayLength(op_idx, op.Cast<ArrayLengthOp>());
         break;
