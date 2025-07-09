@@ -117,6 +117,7 @@ def _default_args():
                 "-Wno-implicit-int-float-conversion",
                 "-Wno-deprecated-copy",
                 "-Wno-non-virtual-dtor",
+                "-Wno-unnecessary-virtual-specifier",
                 "-isystem .",
             ],
             "//conditions:default": [],
