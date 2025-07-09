@@ -177,10 +177,23 @@ PROBEMEM_UNITTEST(ProbeMemory_MultiStruct,
                   uint32_t recovery_offset = masm.pc_offset();
                   // Return.
                   masm.Ret();
+#elif V8_TARGET_ARCH_RISCV64
+                  constexpr Register addr = a0;
+                  constexpr VRegister scratch = v1;
+                  // Generate an illegal memory access.
+                  masm.li(addr, InaccessibleMemoryPtr());
+                  uint32_t crash_offset = masm.pc_offset();
+                  masm.vl(scratch, addr, 0, VSew::E16);
+                  uint32_t recovery_offset = masm.pc_offset();
+                  // Return.
+                  masm.Ret();
 #else
 #error Unsupported platform
 #endif
 )
+
+// RISCV64 and RISCV32 don't have LoadStorePair instr so don't need to test it.
+#if (!defined(V8_TARGET_ARCH_RISCV64) && !defined(V8_TARGET_ARCH_RISCV32))
 PROBEMEM_UNITTEST(ProbeMemory_LoadStorePair,
 #ifdef V8_TARGET_ARCH_ARM64
                   constexpr Register scratch_0 = x0;
@@ -197,6 +210,7 @@ PROBEMEM_UNITTEST(ProbeMemory_LoadStorePair,
 #error Unsupported platform
 #endif
 )
+#endif
 }  // namespace trap_handler
 }  // namespace internal
 }  // namespace v8

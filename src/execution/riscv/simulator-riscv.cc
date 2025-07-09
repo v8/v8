@@ -1279,16 +1279,15 @@ struct type_sew_t<128> {
   const reg_t nf = rvv_nf() + 1;                                               \
   const reg_t vl = is_mask_ldst ? ((rvv_vl() + 7) / 8) : rvv_vl();             \
   const int64_t baseAddr = rs1();                                              \
+  if (!ProbeMemory(baseAddr, sizeof(__int128_t))) {                            \
+    return true;                                                               \
+  }                                                                            \
   for (reg_t i = 0; i < vl; ++i) {                                             \
     VI_ELEMENT_SKIP(i);                                                        \
     VI_STRIP(i);                                                               \
     set_rvv_vstart(i);                                                         \
     for (reg_t fn = 0; fn < nf; ++fn) {                                        \
       auto addr = baseAddr + (stride) + (offset) * sizeof(elt_width##_t);      \
-      if (!ProbeMemory(addr, sizeof(elt_width##_t))) {                         \
-        set_rvv_vstart(0);                                                     \
-        return true;                                                           \
-      }                                                                        \
       auto val = ReadMem<elt_width##_t>(addr, instr_.instr());                 \
       type_sew_t<sizeof(elt_width##_t) * 8>::type& vd =                        \
           Rvvelt<type_sew_t<sizeof(elt_width##_t) * 8>::type>(rvv_vd_reg(),    \
@@ -1311,16 +1310,15 @@ struct type_sew_t<128> {
   const reg_t nf = rvv_nf() + 1;                                               \
   const reg_t vl = is_mask_ldst ? ((rvv_vl() + 7) / 8) : rvv_vl();             \
   const int64_t baseAddr = rs1();                                              \
+  if (!ProbeMemory(baseAddr, sizeof(__int128_t))) {                            \
+    return true;                                                               \
+  }                                                                            \
   for (reg_t i = 0; i < vl; ++i) {                                             \
     VI_STRIP(i)                                                                \
     VI_ELEMENT_SKIP(i);                                                        \
     set_rvv_vstart(i);                                                         \
     for (reg_t fn = 0; fn < nf; ++fn) {                                        \
       auto addr = baseAddr + (stride) + (offset) * sizeof(elt_width##_t);      \
-      if (!ProbeMemory(addr, sizeof(elt_width##_t))) {                         \
-        set_rvv_vstart(0);                                                     \
-        return true;                                                           \
-      }                                                                        \
       elt_width##_t vs1 = Rvvelt<type_sew_t<sizeof(elt_width##_t) * 8>::type>( \
           rvv_vs3_reg(), vreg_inx);                                            \
       WriteMem(addr, vs1, instr_.instr());                                     \
