@@ -5237,7 +5237,7 @@ ReduceResult MaglevGraphBuilder::BuildStoreMap(ValueNode* object,
   return ReduceResult::Done();
 }
 
-ValueNode* MaglevGraphBuilder::BuildExtendPropertiesBackingStore(
+ReduceResult MaglevGraphBuilder::BuildExtendPropertiesBackingStore(
     compiler::MapRef map, ValueNode* receiver, ValueNode* property_array) {
   int length = map.NextFreePropertyIndex() - map.GetInObjectProperties();
   // Under normal circumstances, NextFreePropertyIndex() will always be larger
@@ -5306,8 +5306,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
     store_target =
         BuildLoadTaggedField(receiver, JSReceiver::kPropertiesOrHashOffset);
     if (original_map && original_map->UnusedPropertyFields() == 0) {
-      store_target = BuildExtendPropertiesBackingStore(*original_map, receiver,
-                                                       store_target);
+      GET_VALUE_OR_ABORT(store_target,
+                         BuildExtendPropertiesBackingStore(
+                             *original_map, receiver, store_target));
     }
   }
 
@@ -5631,7 +5632,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
   }
 }
 
-ValueNode* MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
+ReduceResult MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
   RecordUseReprHintIfPhi(object, UseRepresentation::kInt32);
 
   switch (object->properties().value_representation()) {
@@ -5670,7 +5671,7 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
   switch (object->properties().value_representation()) {
     case ValueRepresentation::kIntPtr:
       return AddNewNodeNoInputConversion<CheckedIntPtrToUint32>({object});
-    case ValueRepresentation::kTagged:
+    case ValueRepresentation::kTagged: {
       // TODO(victorgomes): Consider creating a CheckedObjectToUnsignedIndex.
       if (SmiConstant* constant = object->TryCast<SmiConstant>()) {
         int32_t value = constant->value().value();
@@ -5679,8 +5680,10 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
         }
         return GetUint32Constant(value);
       }
-      return AddNewNodeNoInputConversion<CheckedInt32ToUint32>(
-          {GetInt32ElementIndex(object)});
+      ValueNode* index;
+      GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(object));
+      return AddNewNodeNoInputConversion<CheckedInt32ToUint32>({index});
+    }
     case ValueRepresentation::kInt32:
       if (Int32Constant* constant = object->TryCast<Int32Constant>()) {
         int32_t value = constant->value();
@@ -5739,7 +5742,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnString(
   }
 
   ValueNode* length = BuildLoadStringLength(object);
-  ValueNode* index = GetInt32ElementIndex(index_object);
+  ValueNode* index;
+  GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(index_object));
   auto emit_load = [&]() -> ValueNode* {
     if (is_one_byte_seq_string) {
       return AddNewNode<SeqOneByteStringAt>({object, index});
@@ -5922,7 +5926,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadTypedArrayLength(
   return result;
 }
 
-ValueNode* MaglevGraphBuilder::BuildLoadTypedArrayElement(
+ReduceResult MaglevGraphBuilder::BuildLoadTypedArrayElement(
     ValueNode* object, ValueNode* index, ElementsKind elements_kind) {
 #define BUILD_AND_RETURN_LOAD_TYPED_ARRAY(Type)                     \
   return AddNewNode<Load##Type##TypedArrayElement>({object, index}, \
@@ -6135,7 +6139,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
   DCHECK(is_jsarray || HasOnlyJSObjectMaps(maps));
 
   ValueNode* elements_array = BuildLoadElements(object);
-  ValueNode* index = GetInt32ElementIndex(index_object);
+  ValueNode* index;
+  GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(index_object));
   ValueNode* length = is_jsarray ? GetInt32(BuildLoadJSArrayLength(object))
                                  : BuildLoadFixedArrayLength(elements_array);
 
@@ -6225,7 +6230,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
   // optimization if loop peeling is on.
   if (keyed_mode.access_mode() == compiler::AccessMode::kStoreInLiteral &&
       index_object->Is<SmiConstant>() && is_jsarray && !any_peeled_loop_) {
-    index = GetInt32ElementIndex(index_object);
+    GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(index_object));
   } else {
     // Check boundaries.
     ValueNode* elements_array_length = nullptr;
@@ -6236,7 +6241,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
       length = elements_array_length =
           BuildLoadFixedArrayLength(elements_array);
     }
-    index = GetInt32ElementIndex(index_object);
+    GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(index_object));
     if (keyed_mode.store_mode() == KeyedAccessStoreMode::kGrowAndHandleCOW) {
       if (elements_array_length == nullptr) {
         elements_array_length = BuildLoadFixedArrayLength(elements_array);
@@ -9022,7 +9027,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharAt(
     // Index is the undefined object. ToIntegerOrInfinity(undefined) = 0.
     index = GetInt32Constant(0);
   } else {
-    index = GetInt32ElementIndex(args[0]);
+    GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(args[0]));
   }
   // Any other argument is ignored.
 
@@ -9079,7 +9084,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
     // Index is the undefined object. ToIntegerOrInfinity(undefined) = 0.
     index = GetInt32Constant(0);
   } else {
-    index = GetInt32ElementIndex(args[0]);
+    GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(args[0]));
   }
   // Any other argument is ignored.
 
@@ -9147,7 +9152,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
     // Index is the undefined object. ToIntegerOrInfinity(undefined) = 0.
     index = GetInt32Constant(0);
   } else {
-    index = GetInt32ElementIndex(args[0]);
+    GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(args[0]));
   }
   // Any other argument is ignored.
   // Ensure that {receiver} is actually a String.
@@ -9291,8 +9296,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildLoadDataView(
   AddNewNode<CheckInstanceType>({receiver}, CheckType::kCheckHeapObject,
                                 JS_DATA_VIEW_TYPE, JS_DATA_VIEW_TYPE);
   // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
-  ValueNode* offset =
-      args[0] ? GetInt32ElementIndex(args[0]) : GetInt32Constant(0);
+  ValueNode* offset;
+  if (args[0]) {
+    GET_VALUE_OR_ABORT(offset, GetInt32ElementIndex(args[0]));
+  } else {
+    offset = GetInt32Constant(0);
+  }
   AddNewNode<CheckJSDataViewBounds>({receiver, offset}, type);
   ValueNode* is_little_endian = args[1] ? args[1] : GetBooleanConstant(false);
   return AddNewNode<LoadNode>({receiver, offset, is_little_endian}, type);
@@ -9311,8 +9320,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreDataView(
   AddNewNode<CheckInstanceType>({receiver}, CheckType::kCheckHeapObject,
                                 JS_DATA_VIEW_TYPE, JS_DATA_VIEW_TYPE);
   // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
-  ValueNode* offset =
-      args[0] ? GetInt32ElementIndex(args[0]) : GetInt32Constant(0);
+  ValueNode* offset;
+  if (args[0]) {
+    GET_VALUE_OR_ABORT(offset, GetInt32ElementIndex(args[0]));
+  } else {
+    offset = GetInt32Constant(0);
+  }
   AddNewNode<CheckJSDataViewBounds>({receiver, offset},
                                     ExternalArrayType::kExternalFloat64Array);
   ValueNode* value = getValue(args[1]);

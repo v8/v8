@@ -499,9 +499,9 @@ class MaglevGraphBuilder {
   ReduceResult BuildStoreMap(ValueNode* object, compiler::MapRef map,
                              StoreMap::Kind kind);
 
-  ValueNode* BuildExtendPropertiesBackingStore(compiler::MapRef map,
-                                               ValueNode* receiver,
-                                               ValueNode* property_array);
+  ReduceResult BuildExtendPropertiesBackingStore(compiler::MapRef map,
+                                                 ValueNode* receiver,
+                                                 ValueNode* property_array);
 
   template <Builtin kBuiltin>
   CallBuiltin* BuildCallBuiltin(std::initializer_list<ValueNode*> inputs);
@@ -1266,11 +1266,11 @@ class MaglevGraphBuilder {
                                                    ValueNode* index,
                                                    bool convert_hole);
 
-  ValueNode* GetInt32ElementIndex(interpreter::Register reg) {
+  ReduceResult GetInt32ElementIndex(interpreter::Register reg) {
     ValueNode* index_object = current_interpreter_frame_.get(reg);
     return GetInt32ElementIndex(index_object);
   }
-  ValueNode* GetInt32ElementIndex(ValueNode* index_object);
+  ReduceResult GetInt32ElementIndex(ValueNode* index_object);
 
   ReduceResult GetUint32ElementIndex(interpreter::Register reg) {
     ValueNode* index_object = current_interpreter_frame_.get(reg);
@@ -1355,8 +1355,8 @@ class MaglevGraphBuilder {
 
   ReduceResult BuildLoadTypedArrayLength(ValueNode* object,
                                          ElementsKind elements_kind);
-  ValueNode* BuildLoadTypedArrayElement(ValueNode* object, ValueNode* index,
-                                        ElementsKind elements_kind);
+  ReduceResult BuildLoadTypedArrayElement(ValueNode* object, ValueNode* index,
+                                          ElementsKind elements_kind);
   ValueNode* BuildLoadConstantTypedArrayElement(
       compiler::JSTypedArrayRef typed_array, ValueNode* index,
       ElementsKind elements_kind);
