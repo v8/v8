@@ -7886,8 +7886,8 @@ class LiftoffCompiler {
     //     - target RTT is a custom descriptor
     // (2) Compare only the last (most specific) type in the object's map's
     //     supertypes list against the target RTT. That's appropriate for:
-    //     - target RTT is a canonical RTT for an exact target type that does
-    //       have a custom descriptor.
+    //     - target RTT is a canonical RTT for a final or exact target type
+    //       that does have a custom descriptor.
     //       The object's map will be that custom descriptor, its immediate
     //       super-RTT will be the same type's canonical RTT.
     // (3) Perform the full flexible subtype check: compare the object's map
@@ -7899,7 +7899,8 @@ class LiftoffCompiler {
     bool compare_map =
         (!type.has_descriptor() && (type.is_final || target_type.is_exact())) ||
         rtt_is_custom_descriptor;
-    bool compare_last_super = type.has_descriptor() && target_type.is_exact();
+    bool compare_last_super =
+        type.has_descriptor() && (type.is_final || target_type.is_exact());
 
     if (compare_map) {
       __ emit_cond_jump(kNotEqual, no_match, ValueKind::kRef, tmp1, rtt_reg,

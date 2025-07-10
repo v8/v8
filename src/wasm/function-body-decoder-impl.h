@@ -6362,7 +6362,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       if (V8_LIKELY(current_code_reachable_and_ok_)) {
         // This logic ensures that code generation can assume that functions
         // can only be cast to function types, and data objects to data types.
+        // For descriptor casts, static type information cannot predict
+        // guaranteed success.
         if (V8_UNLIKELY(
+                opcode != kExprBrOnCastDesc &&
                 TypeCheckAlwaysSucceeds(obj, target_type.heap_type()))) {
           // The branch will still not be taken on null if not
           // {null_succeeds}.
@@ -6377,8 +6380,12 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             SetSucceedingCodeDynamicallyUnreachable();
           }
           c->br_merge()->reached = true;
-        } else if (V8_LIKELY(!TypeCheckAlwaysFails(obj, target_type.heap_type(),
-                                                   null_succeeds))) {
+        } else if (V8_UNLIKELY(TypeCheckAlwaysFails(
+                       obj, target_type.heap_type(), null_succeeds))) {
+          if (opcode == kExprBrOnCastDesc) {
+            CALL_INTERFACE(Drop);  // Drop descriptor.
+          }
+        } else {
           if (opcode == kExprBrOnCastDesc) {
             CALL_INTERFACE(BrOnCastDesc, target_imm.type, obj, descriptor,
                            value_on_branch, branch_depth.depth, null_succeeds);
@@ -6429,6 +6436,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                              null_succeeds))) {
           // The types are incompatible (i.e. neither of the two types is a
           // subtype of the other). Always branch.
+          if (opcode == kExprBrOnCastDescFail) {
+            CALL_INTERFACE(Drop);  // Drop the descriptor.
+          }
           CALL_INTERFACE(Forward, obj, stack_value(1));
           CALL_INTERFACE(BrOrRet, branch_depth.depth);
           // We know that the following code is not reachable, but according
@@ -6436,6 +6446,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           SetSucceedingCodeDynamicallyUnreachable();
           c->br_merge()->reached = true;
         } else if (V8_UNLIKELY(
+                       opcode != kExprBrOnCastDescFail &&
                        TypeCheckAlwaysSucceeds(obj, target_type.heap_type()))) {
           // The branch can still be taken on null.
           if (obj.type.is_nullable() && !null_succeeds) {

@@ -178,7 +178,8 @@ class WasmGCTypedOptimizationReducer : public Next {
                                       cast_op.config.to.heap_type(), module_));
       bool to_nullable = cast_op.config.to.is_nullable();
       if (wasm::IsHeapSubtypeOf(type.heap_type(), cast_op.config.to.heap_type(),
-                                module_)) {
+                                module_) &&
+          !IsCastToCustomDescriptor(cast_op.config)) {
         if (to_nullable || type.is_non_nullable()) {
           // The inferred type is already as specific as the cast target, the
           // cast is guaranteed to always succeed and can therefore be removed.
@@ -243,7 +244,10 @@ class WasmGCTypedOptimizationReducer : public Next {
           type.heap_type(), type_check.config.to.heap_type(), module_));
       bool to_nullable = type_check.config.to.is_nullable();
       if (wasm::IsHeapSubtypeOf(type.heap_type(),
-                                type_check.config.to.heap_type(), module_)) {
+                                type_check.config.to.heap_type(), module_) &&
+          // When checking for a particular custom descriptor, static types
+          // cannot guarantee success.
+          !(IsCastToCustomDescriptor(type_check.config))) {
         if (to_nullable || type.is_non_nullable()) {
           // The inferred type is guaranteed to be a subtype of the checked
           // type.
@@ -431,6 +435,12 @@ class WasmGCTypedOptimizationReducer : public Next {
   }
 
  private:
+  bool IsCastToCustomDescriptor(WasmTypeCheckConfig config) {
+    return config.to.has_index() &&
+           module_->type(config.to.ref_index()).has_descriptor() &&
+           config.exactness == compiler::kExactMatchOnly;
+  }
+
   Graph& graph_ = __ modifiable_input_graph();
   const wasm::WasmModule* module_ = __ data() -> wasm_module();
   WasmGCTypeAnalyzer analyzer_{__ data(), graph_, __ phase_zone()};

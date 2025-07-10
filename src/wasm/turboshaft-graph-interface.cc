@@ -5328,8 +5328,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                          Map::kInstanceDescriptorsOffset);
   }
 
-  compiler::SubtypeCheckExactness GetExactness(FullDecoder* decoder,
-                                               HeapType target) {
+  using SubtypeCheckExactness = compiler::SubtypeCheckExactness;
+
+  SubtypeCheckExactness GetExactness(FullDecoder* decoder, HeapType target) {
     // For exact target types, an exact match is needed for correctness;
     // for final target types, it's a performance optimization.
     // For types with custom descriptors, we need to look at their immediate
@@ -5338,13 +5339,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     // here is not called for instructions using custom descriptors
     // (ref.cast_desc, br_on_cast_desc{,_fail}).
     const TypeDefinition& type = decoder->module_->type(target.ref_index());
-    if (!type.has_descriptor() && (type.is_final || target.is_exact())) {
-      return compiler::SubtypeCheckExactness::kExactMatchOnly;
+    if (type.is_final || target.is_exact()) {
+      return type.has_descriptor()
+                 ? SubtypeCheckExactness::kExactMatchLastSupertype
+                 : SubtypeCheckExactness::kExactMatchOnly;
     }
-    if (type.has_descriptor() && target.is_exact()) {
-      return compiler::SubtypeCheckExactness::kExactMatchLastSupertype;
-    }
-    return compiler::SubtypeCheckExactness::kMayBeSubtype;
+    return SubtypeCheckExactness::kMayBeSubtype;
   }
 
   void RefTest(FullDecoder* decoder, HeapType target, const Value& object,
@@ -8687,6 +8687,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                               const StructIndexImmediate& imm,
                               const Value& descriptor, OpIndex args[],
                               bool has_nondefault_args) {
+    if (__ generating_unreachable_operations()) return {};
     const TypeDefinition& type = decoder->module_->type(imm.index);
     DCHECK_EQ(type.has_descriptor(), descriptor.op.valid());
     V<Map> rtt;

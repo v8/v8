@@ -628,13 +628,14 @@ class ModuleDecoderImpl : public Decoder {
         return {};
       }
       detected_features_->add_custom_descriptors();
-      consume_bytes(1, " described_by", tracer_);
+      consume_bytes(1, "", tracer_);
       const uint8_t* pos = pc();
-      uint32_t descriptor = consume_u32v("descriptor", tracer_);
+      uint32_t descriptor = consume_u32v(" descriptor", tracer_);
       if (descriptor >= module_->types.size()) {
         errorf(pos, "descriptor type index %u is out of bounds", descriptor);
         return {};
       }
+      if (tracer_) tracer_->Description(descriptor);
       if (tracer_) tracer_->NextLine();
       TypeDefinition type =
           consume_base_type_definition(is_descriptor, is_shared);
@@ -659,13 +660,14 @@ class ModuleDecoderImpl : public Decoder {
         return {};
       }
       detected_features_->add_custom_descriptors();
-      consume_bytes(1, " describes", tracer_);
+      consume_bytes(1, "", tracer_);
       const uint8_t* pos = pc();
-      uint32_t describes = consume_u32v("describes", tracer_);
+      uint32_t describes = consume_u32v(" describes", tracer_);
       if (describes >= current_type_index) {
         error(pos, "types can only describe previously-declared types");
         return {};
       }
+      if (tracer_) tracer_->Description(describes);
       if (tracer_) tracer_->NextLine();
       TypeDefinition type = consume_described_type(true, is_shared);
       if (type.kind != TypeDefinition::kStruct) {
