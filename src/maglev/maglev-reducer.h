@@ -244,11 +244,13 @@ class MaglevReducer {
   NodeT* AddUnbufferedNewNodeNoInputConversion(
       BasicBlock* block, std::initializer_list<ValueNode*> inputs,
       Args&&... args);
-
   // Add a new node with a static set of inputs.
   template <typename NodeT, typename... Args>
   NodeT* AddNewNodeNoInputConversion(std::initializer_list<ValueNode*> inputs,
                                      Args&&... args);
+  template <typename ControlNodeT, typename... Args>
+  void AddNewControlNode(std::initializer_list<ValueNode*> inputs,
+                         Args&&... args);
 
   void AddInitializedNodeToGraph(Node* node);
 

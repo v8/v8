@@ -132,6 +132,30 @@ NodeT* MaglevReducer<BaseT>::AddUnbufferedNewNodeNoInputConversion(
 }
 
 template <typename BaseT>
+template <typename ControlNodeT, typename... Args>
+void MaglevReducer<BaseT>::AddNewControlNode(
+    std::initializer_list<ValueNode*> inputs, Args&&... args) {
+  ControlNodeT* control_node = NodeBase::New<ControlNodeT>(
+      zone(), inputs.size(), std::forward<Args>(args)...);
+  SetNodeInputs(control_node, inputs);
+  AttachEagerDeoptInfo(control_node);
+  AttachDeoptCheckpoint(control_node);
+  static_assert(!ControlNodeT::kProperties.can_lazy_deopt());
+  static_assert(!ControlNodeT::kProperties.can_throw());
+  static_assert(!ControlNodeT::kProperties.can_write());
+  control_node->set_owner(current_block());
+  current_block()->set_control_node(control_node);
+  if (has_graph_labeller()) {
+    RegisterNode(control_node);
+    if (v8_flags.trace_maglev_graph_building) {
+      bool kSkipTargets = true;
+      std::cout << "  " << control_node << "  " << PrintNodeLabel(control_node)
+                << ": " << PrintNode(control_node, kSkipTargets) << std::endl;
+    }
+  }
+}
+
+template <typename BaseT>
 template <typename NodeT, typename... Args>
 NodeT* MaglevReducer<BaseT>::AddNewNodeOrGetEquivalent(
     bool convert_inputs, std::initializer_list<ValueNode*> raw_inputs,

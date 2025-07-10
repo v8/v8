@@ -15751,21 +15751,6 @@ NodeT* MaglevGraphBuilder::AddNewNodeNoInputConversion(
       inputs, std::forward<Args>(args)...);
 }
 
-template <typename NodeT>
-void MaglevGraphBuilder::AttachDeoptCheckpoint(NodeT* node) {
-  if constexpr (NodeT::kProperties.is_deopt_checkpoint()) {
-    node->SetEagerDeoptInfo(zone(), GetLatestCheckpointedFrame());
-  }
-}
-
-template <typename NodeT>
-void MaglevGraphBuilder::AttachEagerDeoptInfo(NodeT* node) {
-  if constexpr (NodeT::kProperties.can_eager_deopt()) {
-    node->SetEagerDeoptInfo(zone(), GetLatestCheckpointedFrame(),
-                            current_speculation_feedback());
-  }
-}
-
 CatchBlockDetails MaglevGraphBuilder::GetCurrentTryCatchBlock() {
   if (IsInsideTryBlock()) {
     // Inside a try-block.
@@ -16143,54 +16128,12 @@ void MaglevGraphBuilder::StartNewBlock(
   refs_to_block.Bind(current_block());
 }
 
-template <UseReprHintRecording hint>
-ValueNode* MaglevGraphBuilder::ConvertInputTo(ValueNode* input,
-                                              ValueRepresentation expected) {
-  ValueRepresentation repr = input->properties().value_representation();
-  if (repr == expected) return input;
-  switch (expected) {
-    case ValueRepresentation::kTagged:
-      return GetTaggedValue(input, hint);
-    case ValueRepresentation::kInt32:
-      return GetInt32(input);
-    case ValueRepresentation::kFloat64:
-    case ValueRepresentation::kHoleyFloat64:
-      return GetFloat64(input);
-    case ValueRepresentation::kUint32:
-    case ValueRepresentation::kIntPtr:
-      // These conversion should be explicitly done beforehand.
-      UNREACHABLE();
-  }
-}
-
-template <typename NodeT>
-void MaglevGraphBuilder::SetNodeInputs(
-    NodeT* node, std::initializer_list<ValueNode*> inputs) {
-  // Nodes with zero input count don't have kInputTypes defined.
-  if constexpr (NodeT::kInputCount > 0) {
-    constexpr UseReprHintRecording hint = ShouldRecordUseReprHint<NodeT>();
-    int i = 0;
-    for (ValueNode* input : inputs) {
-      DCHECK_NOT_NULL(input);
-      node->set_input(i, ConvertInputTo<hint>(input, NodeT::kInputTypes[i]));
-      i++;
-    }
-  }
-}
-
 template <typename ControlNodeT, typename... Args>
 BasicBlock* MaglevGraphBuilder::FinishBlock(
     std::initializer_list<ValueNode*> control_inputs, Args&&... args) {
-  ControlNodeT* control_node = NodeBase::New<ControlNodeT>(
-      zone(), control_inputs.size(), std::forward<Args>(args)...);
-  SetNodeInputs(control_node, control_inputs);
-  AttachEagerDeoptInfo(control_node);
-  AttachDeoptCheckpoint(control_node);
-  static_assert(!ControlNodeT::kProperties.can_lazy_deopt());
-  static_assert(!ControlNodeT::kProperties.can_throw());
-  static_assert(!ControlNodeT::kProperties.can_write());
-  control_node->set_owner(current_block());
-  current_block()->set_control_node(control_node);
+  reducer_.AddNewControlNode<ControlNodeT>(control_inputs,
+                                           std::forward<Args>(args)...);
+
   // Clear unobserved context slot stores when there is any controlflow.
   // TODO(olivf): More precision could be achieved by tracking dominating
   // stores within known_node_aspects. For this we could use a stack of
@@ -16203,16 +16146,7 @@ BasicBlock* MaglevGraphBuilder::FinishBlock(
   BasicBlock* block = current_block();
   reducer_.FlushNodesToBlock();
   set_current_block(nullptr);
-
   graph()->Add(block);
-  if (has_graph_labeller()) {
-    reducer_.RegisterNode(control_node);
-    if (v8_flags.trace_maglev_graph_building) {
-      bool kSkipTargets = true;
-      std::cout << "  " << control_node << "  " << PrintNodeLabel(control_node)
-                << ": " << PrintNode(control_node, kSkipTargets) << std::endl;
-    }
-  }
   return block;
 }
 

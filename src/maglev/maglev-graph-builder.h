@@ -453,10 +453,6 @@ class MaglevGraphBuilder {
   template <typename NodeT, typename... Args>
   NodeT* AddNewNodeNoInputConversion(std::initializer_list<ValueNode*> inputs,
                                      Args&&... args);
-  template <typename NodeT>
-  void AttachDeoptCheckpoint(NodeT* node);
-  template <typename NodeT>
-  void AttachEagerDeoptInfo(NodeT* node);
 
   // Bytecode iterator of the current graph builder is inside a try-block
   // region.
@@ -848,25 +844,6 @@ class MaglevGraphBuilder {
   template <typename ControlNodeT, typename... Args>
   BasicBlock* FinishBlock(std::initializer_list<ValueNode*> control_inputs,
                           Args&&... args);
-
-  template <typename NodeT>
-  void SetNodeInputs(NodeT* node, std::initializer_list<ValueNode*> inputs);
-
-  template <UseReprHintRecording hint = UseReprHintRecording::kRecord>
-  ValueNode* ConvertInputTo(ValueNode* input, ValueRepresentation expected);
-
-  template <typename NodeT>
-  static constexpr UseReprHintRecording ShouldRecordUseReprHint() {
-    // We do not record a Tagged use on Return, since they are never on the hot
-    // path, and will lead to a maximum of one additional Tagging operation in
-    // the worst case. This allows loop accumulator to be untagged even if they
-    // are later returned.
-    if constexpr (std::is_same_v<NodeT, Return>) {
-      return UseReprHintRecording::kDoNotRecord;
-    } else {
-      return UseReprHintRecording::kRecord;
-    }
-  }
 
   ValueNode* GetValueOrUndefined(ValueNode* maybe_value) {
     if (maybe_value == nullptr) {
