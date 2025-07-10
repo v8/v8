@@ -39,6 +39,15 @@
 .settings
 .torquelint-cache
 .vscode
+
+# Directories added by standalone gclient setup.
+/.cipd
+/.gclient
+/.gclient_entries
+/.gclient_previous_custom_vars
+/.gclient_previous_sync_commits
+/.gcs_entries
+
 /_*
 /base
 /build
