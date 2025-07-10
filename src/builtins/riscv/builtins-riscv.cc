@@ -329,22 +329,43 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
       FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset),
       kUnknownIndirectPointerTag);
 
-  __ GetObjectType(data, scratch1, scratch1);
-#ifndef V8_JITLESS
-  if (v8_flags.debug_code) {
-    Label not_baseline;
-    __ Branch(&not_baseline, ne, scratch1, Operand(CODE_TYPE));
-    AssertCodeIsBaseline(masm, data, scratch1);
-    __ Branch(is_baseline);
-    __ bind(&not_baseline);
+  if (V8_JITLESS_BOOL) {
+    __ GetObjectType(data, scratch1, scratch1);
+    __ Branch(&done, ne, scratch1, Operand(INTERPRETER_DATA_TYPE));
   } else {
-    __ Branch(is_baseline, eq, scratch1, Operand(CODE_TYPE));
+    if (v8_flags.debug_code) {
+      Label not_baseline;
+#if V8_STATIC_ROOTS_BOOL
+      __ BranchObjectTypeFast(&not_baseline, ne, data, scratch1, CODE_TYPE);
+#else
+      __ GetObjectType(data, scratch1, scratch1);
+      __ Branch(&not_baseline, ne, scratch1, Operand(CODE_TYPE));
+#endif  // V8_STATIC_ROOTS_BOOL
+      AssertCodeIsBaseline(masm, data, scratch1);
+      __ Branch(is_baseline);
+      __ bind(&not_baseline);
+    } else {
+#if V8_STATIC_ROOTS_BOOL
+      __ BranchObjectTypeFast(&is_baseline, eq, data, scratch1, CODE_TYPE);
+#else
+      __ GetObjectType(data, scratch1, scratch1);
+      __ Branch(is_baseline, eq, scratch1, Operand(CODE_TYPE));
+#endif
+    }
+#if V8_STATIC_ROOTS_BOOL
+    // scratch1 already contains the compressed map.
+    __ BranchInstanceTypeWithUniqueCompressedMap(
+        &done, ne, scratch1, Register::no_reg(), INTERPRETER_DATA_TYPE);
+#else
+    __ Branch(&done, ne, scratch1, Operand(INTERPRETER_DATA_TYPE));
+#endif
   }
-#endif  // !V8_JITLESS
-  __ Branch(&done, eq, scratch1, Operand(BYTECODE_ARRAY_TYPE));
-  __ Branch(is_unavailable, ne, scratch1, Operand(INTERPRETER_DATA_TYPE));
   __ LoadInterpreterDataBytecodeArray(bytecode, data);
+
   __ bind(&done);
+
+  __ GetObjectType(bytecode, scratch1, scratch1);
+  __ Branch(is_unavailable, ne, scratch1, Operand(BYTECODE_ARRAY_TYPE));
 }
 
 // static

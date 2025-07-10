@@ -5109,6 +5109,38 @@ void MacroAssembler::CompareRoot(const Register& obj, RootIndex index,
 }
 #endif
 
+#if V8_STATIC_ROOTS_BOOL
+void MacroAssembler::BranchInstanceTypeWithUniqueCompressedMap(
+    Label* target, Condition cc, Register map, Register scratch,
+    InstanceType type) {
+  std::optional<RootIndex> expected =
+      InstanceTypeChecker::UniqueMapOfInstanceType(type);
+  CHECK(expected);
+  Tagged_t expected_ptr = ReadOnlyRootPtr(*expected);
+  UseScratchRegisterScope temps(this);
+  if (scratch == Register::no_reg()) {
+    // TODO(tpearson): Figure out why ScratchRegisterScope returns a
+    // register that is aliased with one of our other in-use registers
+    // For now, use r11 (kScratchReg in the code generator)
+    scratch = temps.Acquire();
+  }
+  DCHECK_NE(map, scratch);
+  li(scratch, Operand(expected_ptr));
+  CompareTaggedAndBranch(target, cc, map, Operand(scratch));
+}
+
+void MacroAssembler::BranchObjectTypeFast(Label* target, Condition cc,
+                                          Register object,
+                                          Register compressed_map_scratch,
+                                          InstanceType type) {
+  ASM_CODE_COMMENT(this);
+  CHECK(InstanceTypeChecker::UniqueMapOfInstanceType(type));
+  LoadCompressedMap(compressed_map_scratch, object);
+  BranchInstanceTypeWithUniqueCompressedMap(target, cc, compressed_map_scratch,
+                                            Register::no_reg(), type);
+}
+#endif  // V8_STATIC_ROOTS_BOOL
+
 void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
                                      unsigned higher_limit,
                                      Label* on_in_range) {
