@@ -6857,20 +6857,14 @@ void MacroAssembler::SmiUntag(Register dst, const MemOperand& src) {
   }
 }
 
-void MacroAssembler::SmiToInt32(Register smi) {
-  ASM_CODE_COMMENT(this);
-  if (v8_flags.enable_slow_asserts) {
-    AssertSmi(smi);
-  }
-  DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
-  SmiUntag(smi);
-}
+void MacroAssembler::SmiToInt32(Register smi) { SmiToInt32(smi, smi); }
 
 void MacroAssembler::SmiToInt32(Register dst, Register src) {
-  if (dst != src) {
-    Move(dst, src);
+  ASM_CODE_COMMENT(this);
+  if (v8_flags.enable_slow_asserts) {
+    AssertSmi(src);
   }
-  SmiToInt32(dst);
+  SmiUntag(dst, src);
 }
 
 void MacroAssembler::JumpIfSmi(Register value, Label* smi_label,
