@@ -2279,32 +2279,21 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     __ SubWord(scratch, argc, Operand(JSParameterCount(0)));
-    if (CpuFeatures::IsSupported(ZICOND)) {
-      __ MoveIfZero(arguments_list, undefined_value, scratch);  // if argc == 0
-      __ MoveIfZero(this_argument, undefined_value, scratch);   // if argc == 0
-      __ MoveIfZero(target, undefined_value, scratch);          // if argc == 0
-      __ SubWord(scratch, scratch, Operand(1));
-      __ MoveIfZero(arguments_list, undefined_value, scratch);  // if argc == 1
-      __ MoveIfZero(this_argument, undefined_value, scratch);   // if argc == 1
-      __ SubWord(scratch, scratch, Operand(1));
-      __ MoveIfZero(arguments_list, undefined_value, scratch);  // if argc == 2
-    } else {
-      Label done0, done1, done2;
-      __ Branch(&done0, ne, scratch, Operand(zero_reg), Label::Distance::kNear);
-      __ Move(arguments_list, undefined_value);  // if argc == 0
-      __ Move(this_argument, undefined_value);   // if argc == 0
-      __ Move(target, undefined_value);          // if argc == 0
-      __ bind(&done0);                           // argc != 0
+    Label done0, done1, done2;
+    __ Branch(&done0, ne, scratch, Operand(zero_reg), Label::Distance::kNear);
+    __ Move(arguments_list, undefined_value);  // if argc == 0
+    __ Move(this_argument, undefined_value);   // if argc == 0
+    __ Move(target, undefined_value);          // if argc == 0
+    __ bind(&done0);                           // argc != 0
 
-      __ Branch(&done1, ne, scratch, Operand(1), Label::Distance::kNear);
-      __ Move(arguments_list, undefined_value);  // if argc == 1
-      __ Move(this_argument, undefined_value);   // if argc == 1
-      __ bind(&done1);                           // argc > 1
+    __ Branch(&done1, ne, scratch, Operand(1), Label::Distance::kNear);
+    __ Move(arguments_list, undefined_value);  // if argc == 1
+    __ Move(this_argument, undefined_value);   // if argc == 1
+    __ bind(&done1);                           // argc > 1
 
-      __ Branch(&done2, ne, scratch, Operand(2), Label::Distance::kNear);
-      __ Move(arguments_list, undefined_value);  // if argc == 2
-      __ bind(&done2);                           // argc > 2
-    }
+    __ Branch(&done2, ne, scratch, Operand(2), Label::Distance::kNear);
+    __ Move(arguments_list, undefined_value);  // if argc == 2
+    __ bind(&done2);                           // argc > 2
 
     __ DropArgumentsAndPushNewReceiver(argc, this_argument);
   }
@@ -2354,32 +2343,21 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     __ SubWord(scratch, argc, Operand(JSParameterCount(0)));
-    if (CpuFeatures::IsSupported(ZICOND)) {
-      __ MoveIfZero(arguments_list, undefined_value, scratch);  // if argc == 0
-      __ MoveIfZero(new_target, undefined_value, scratch);      // if argc == 0
-      __ MoveIfZero(target, undefined_value, scratch);          // if argc == 0
-      __ SubWord(scratch, scratch, Operand(1));
-      __ MoveIfZero(arguments_list, undefined_value, scratch);  // if argc == 1
-      __ MoveIfZero(new_target, target, scratch);               // if argc == 1
-      __ SubWord(scratch, scratch, Operand(1));
-      __ MoveIfZero(new_target, target, scratch);  // if argc == 2
-    } else {
-      Label done0, done1, done2;
-      __ Branch(&done0, ne, scratch, Operand(zero_reg), Label::Distance::kNear);
-      __ Move(arguments_list, undefined_value);  // if argc == 0
-      __ Move(new_target, undefined_value);      // if argc == 0
-      __ Move(target, undefined_value);          // if argc == 0
-      __ bind(&done0);
+    Label done0, done1, done2;
+    __ Branch(&done0, ne, scratch, Operand(zero_reg), Label::Distance::kNear);
+    __ Move(arguments_list, undefined_value);  // if argc == 0
+    __ Move(new_target, undefined_value);      // if argc == 0
+    __ Move(target, undefined_value);          // if argc == 0
+    __ bind(&done0);
 
-      __ Branch(&done1, ne, scratch, Operand(1), Label::Distance::kNear);
-      __ Move(arguments_list, undefined_value);  // if argc == 1
-      __ Move(new_target, target);               // if argc == 1
-      __ bind(&done1);
+    __ Branch(&done1, ne, scratch, Operand(1), Label::Distance::kNear);
+    __ Move(arguments_list, undefined_value);  // if argc == 1
+    __ Move(new_target, target);               // if argc == 1
+    __ bind(&done1);
 
-      __ Branch(&done2, ne, scratch, Operand(2), Label::Distance::kNear);
-      __ Move(new_target, target);  // if argc == 2
-      __ bind(&done2);
-    }
+    __ Branch(&done2, ne, scratch, Operand(2), Label::Distance::kNear);
+    __ Move(new_target, target);  // if argc == 2
+    __ bind(&done2);
 
     __ DropArgumentsAndPushNewReceiver(argc, undefined_value);
   }
