@@ -4,6 +4,7 @@
 
 import("//build/config/chrome_build.gni")
 import("//build/config/compiler/pgo/pgo.gni")
+import("//build/config/features.gni")
 import("//build/config/gclient_args.gni")
 import("//build/config/ios/config.gni")
 import("//build/config/ios/ios_sdk_overrides.gni")
@@ -93,9 +94,8 @@ declare_args() {
   # (is_ios is based on host_os).
   if (target_os == "ios") {
     if (target_platform == "iphoneos") {
-      # iOS executable code pages is in 18.4 SDK.
-      # TODO(dtapuska): Change this to an assert.
-      v8_enable_lite_mode = ios_deployment_target != "18.4"
+      # iOS executable code pages is in 18.4 SDK which the iOS + Blink targets.
+      v8_enable_lite_mode = !use_blink
     } else if (target_platform == "tvos") {
       # tvOS runs in single process mode and is not allowed to use JIT.
       # TODO(crbug.com/394710095): Enable the v8 lite mode to run v8 with the
