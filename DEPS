@@ -130,7 +130,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '777cde7d7982be74ca3271ff30d343990e3bf4cb',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '64800877328dda92f527e764ea81a8bde0961b90',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '17bdad4a57ed807c4bef2a1947248d5fefef4efe',
   'buildtools/linux64': {
@@ -232,7 +232,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '09cd5e163ec0bf4d4c2c7fbd996cd0c3970c8a99',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'b3eb8f07c320420ee24d398e67272acebb477c1a',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -548,7 +548,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '3102d2a0da9555701b4aa4e531a89dc9ef10d604',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'b17ffb3e80e66f00811e341fb2d1047b560d9770',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'ba3b36a090500ce5e4ce73aac511274a6d55dacd',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '3438d4183bfc7c0d6850e8b970204cc8189f0323',
   'third_party/abseil-cpp': {
