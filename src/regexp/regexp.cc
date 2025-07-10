@@ -1097,7 +1097,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
   std::unique_ptr<RegExpMacroAssembler> tracer_macro_assembler;
   if (v8_flags.trace_regexp_assembler) {
     tracer_macro_assembler.reset(
-        new RegExpMacroAssemblerTracer(isolate, macro_assembler_ptr));
+        new RegExpMacroAssemblerTracer(macro_assembler_ptr));
     macro_assembler_ptr = tracer_macro_assembler.get();
   }
 #endif

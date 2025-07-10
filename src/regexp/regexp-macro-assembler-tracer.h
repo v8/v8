@@ -14,7 +14,7 @@ namespace internal {
 // Decorator on a RegExpMacroAssembler that write all calls.
 class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
  public:
-  RegExpMacroAssemblerTracer(Isolate* isolate, RegExpMacroAssembler* assembler);
+  explicit RegExpMacroAssemblerTracer(RegExpMacroAssembler* assembler);
   ~RegExpMacroAssemblerTracer() override;
   void AbortedCodeGeneration() override;
   int stack_limit_slack_slot_count() override {

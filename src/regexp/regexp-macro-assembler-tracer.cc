@@ -11,8 +11,8 @@ namespace v8 {
 namespace internal {
 
 RegExpMacroAssemblerTracer::RegExpMacroAssemblerTracer(
-    Isolate* isolate, RegExpMacroAssembler* assembler)
-    : RegExpMacroAssembler(isolate, assembler->zone()), assembler_(assembler) {
+    RegExpMacroAssembler* assembler)
+    : RegExpMacroAssembler(*assembler), assembler_(assembler) {
   PrintF("RegExpMacroAssembler%s();\n",
          ImplementationToString(assembler->Implementation()));
 }

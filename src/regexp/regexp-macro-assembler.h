@@ -42,6 +42,7 @@ class RegExpMacroAssembler {
   static constexpr int kUseCharactersValue = -1;
 
   RegExpMacroAssembler(Isolate* isolate, Zone* zone);
+  RegExpMacroAssembler(const RegExpMacroAssembler& other) V8_NOEXCEPT = default;
   virtual ~RegExpMacroAssembler() = default;
 
   virtual DirectHandle<HeapObject> GetCode(DirectHandle<String> source,
