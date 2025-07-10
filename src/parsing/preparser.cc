@@ -41,11 +41,11 @@ PreParserIdentifier GetIdentifierHelper(Scanner* scanner,
   if (string == avf->constructor_string()) {
     return PreParserIdentifier::Constructor();
   }
-  if (scanner->literal_contains_escapes()) {
-    return PreParserIdentifier::Default();
-  }
   if (string == avf->eval_string()) {
     return PreParserIdentifier::Eval();
+  }
+  if (scanner->literal_contains_escapes()) {
+    return PreParserIdentifier::Default();
   }
   if (string == avf->arguments_string()) {
     return PreParserIdentifier::Arguments();
