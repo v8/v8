@@ -1196,12 +1196,13 @@ void MaglevGraphBuilder::BuildRegisterFrameInitialization(
 void MaglevGraphBuilder::BuildMergeStates() {
   auto offset_and_info = bytecode_analysis().GetLoopInfos().begin();
   auto end = bytecode_analysis().GetLoopInfos().end();
-  while (offset_and_info != end && offset_and_info->first < entrypoint_) {
+  while (offset_and_info != end &&
+         offset_and_info->loop_start() < entrypoint_) {
     ++offset_and_info;
   }
   for (; offset_and_info != end; ++offset_and_info) {
-    int offset = offset_and_info->first;
-    const compiler::LoopInfo& loop_info = offset_and_info->second;
+    const compiler::LoopInfo& loop_info = *offset_and_info;
+    int offset = loop_info.loop_start();
     if (loop_headers_to_peel_.Contains(offset)) {
       // Peeled loops are treated like normal merges at first. We will construct
       // the proper loop header merge state when reaching the `JumpLoop` of the
