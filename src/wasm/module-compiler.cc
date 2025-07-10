@@ -844,7 +844,7 @@ CompilationStateImpl* BackgroundCompileScope::compilation_state() const {
 }
 
 size_t CompilationStateImpl::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(CompilationStateImpl, 456);
+  UPDATE_WHEN_CLASS_CHANGES(CompilationStateImpl, 464);
   size_t result = sizeof(CompilationStateImpl);
 
   {
@@ -1749,6 +1749,11 @@ void PublishDetectedFeatures(WasmDetectedFeatures detected_features,
       {WasmDetectedFeature::jspi, Feature::kWasmJavaScriptPromiseIntegration},
       {WasmDetectedFeature::branch_hinting, Feature::kWasmBranchHinting},
       {WasmDetectedFeature::multi_value, Feature::kWasmMultiValue},
+      {WasmDetectedFeature::bulk_memory, Feature::kWasmBulkMemory},
+      {WasmDetectedFeature::mutable_globals, Feature::kWasmMutableGlobals},
+      {WasmDetectedFeature::non_trapping_float_to_int,
+       Feature::kWasmNonTrappingFloatToInt},
+      {WasmDetectedFeature::sign_extension_ops, Feature::kWasmSignExtensionOps},
   };
 
   // Check that every staging or shipping feature has a use counter as that is

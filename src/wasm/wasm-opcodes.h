@@ -248,11 +248,13 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const CanonicalSig* sig);
   V(I32ReinterpretF32, 0xbc, i_f, "i32.reinterpret_f32") \
   V(I64ReinterpretF64, 0xbd, l_d, "i64.reinterpret_f64") \
   V(F32ReinterpretI32, 0xbe, f_i, "f32.reinterpret_i32") \
-  V(F64ReinterpretI64, 0xbf, d_l, "f64.reinterpret_i64") \
-  V(I32SExtendI8, 0xc0, i_i, "i32.extend8_s")            \
-  V(I32SExtendI16, 0xc1, i_i, "i32.extend16_s")          \
-  V(I64SExtendI8, 0xc2, l_l, "i64.extend8_s")            \
-  V(I64SExtendI16, 0xc3, l_l, "i64.extend16_s")          \
+  V(F64ReinterpretI64, 0xbf, d_l, "f64.reinterpret_i64")
+
+#define FOREACH_SIGN_EXTENSION_OPCODE(V)        \
+  V(I32SExtendI8, 0xc0, i_i, "i32.extend8_s")   \
+  V(I32SExtendI16, 0xc1, i_i, "i32.extend16_s") \
+  V(I64SExtendI8, 0xc2, l_l, "i64.extend8_s")   \
+  V(I64SExtendI16, 0xc3, l_l, "i64.extend16_s") \
   V(I64SExtendI32, 0xc4, l_l, "i64.extend32_s")
 
 #define FOREACH_WASMFX_OPCODE(V)          \
@@ -862,6 +864,7 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const CanonicalSig* sig);
   FOREACH_NUMERIC_OPCODE(V)          \
   FOREACH_GC_OPCODE(V)               \
   FOREACH_ATOMIC_GC_OPCODE(V)        \
+  FOREACH_SIGN_EXTENSION_OPCODE(V)   \
   FOREACH_WASMFX_OPCODE(V)
 
 // All signatures.

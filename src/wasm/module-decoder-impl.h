@@ -1074,6 +1074,9 @@ class ModuleDecoderImpl : public Decoder {
         error("Multiple memories not supported in Wasm jitless mode");
       }
     }
+    if (module_->num_imported_mutable_globals > 0) {
+      detected_features_->add_mutable_globals();
+    }
     UpdateComputedMemoryInformation();
     module_->type_feedback.well_known_imports.Initialize(
         module_->num_imported_functions);

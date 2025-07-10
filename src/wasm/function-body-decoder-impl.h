@@ -2423,6 +2423,14 @@ class WasmDecoder : public Decoder {
       case kExprThrowRef:
         return 1;
 
+      /********** Sign extension opcodes **********/
+      case kExprI32SExtendI8:
+      case kExprI32SExtendI16:
+      case kExprI64SExtendI8:
+      case kExprI64SExtendI16:
+      case kExprI64SExtendI32:
+        return 1;
+
       /********** Core stack switching ********/
       case kExprContNew: {
         ContIndexImmediate imm(decoder, pc + 1, validate);
@@ -4774,10 +4782,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     auto [full_opcode, opcode_length] =
         this->template read_prefixed_opcode<ValidationTag>(this->pc_,
                                                            "numeric index");
-    if (full_opcode == kExprTableGrow || full_opcode == kExprTableSize ||
-        full_opcode == kExprTableFill) {
-      this->detected_->add_reftypes();
-    }
     trace_msg->AppendOpcode(full_opcode);
     return DecodeNumericOpcode(full_opcode, opcode_length);
   }
@@ -4836,6 +4840,15 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       this->detected_->add_gc();
       return DecodeGCOpcode(full_opcode, opcode_length);
     }
+  }
+
+  DECODE(SignExtension_i_i) {
+    this->detected_->add_sign_extension_ops();
+    return BuildSimpleOperator_i_i(opcode);
+  }
+  DECODE(SignExtension_l_l) {
+    this->detected_->add_sign_extension_ops();
+    return BuildSimpleOperator_l_l(opcode);
   }
 
 #define SIMPLE_PROTOTYPE_CASE(name, ...) \
@@ -4953,6 +4966,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 #define SIMPLE_PROTOTYPE_CASE(name, ...) DECODE_IMPL(name);
     FOREACH_SIMPLE_PROTOTYPE_OPCODE(SIMPLE_PROTOTYPE_CASE)
 #undef SIMPLE_PROTOTYPE_CASE
+#define DECODE_SIGN_EXTENSION(op, _, sig, ...) \
+  DECODE_IMPL2(kExpr##op, SignExtension_##sig)
+    FOREACH_SIGN_EXTENSION_OPCODE(DECODE_SIGN_EXTENSION)
+#undef DECODE_SIGN_EXTENSION
     return &WasmFullDecoder::UnknownOpcodeError;
   }
 
@@ -7287,6 +7304,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprI64SConvertSatF64:
       case kExprI64UConvertSatF64: {
         BuildSimpleOperator(opcode, sig);
+        this->detected_->add_non_trapping_float_to_int();
         return opcode_length;
       }
       case kExprMemoryInit: {
@@ -7316,6 +7334,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
         auto [dst, src, size] = Pop(dst_type, src_type, size_type);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(MemoryCopy, imm, dst, src, size);
+        this->detected_->add_bulk_memory();
         return opcode_length + imm.length;
       }
       case kExprMemoryFill: {
@@ -7324,6 +7343,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         ValueType mem_type = MemoryAddressType(imm.memory);
         auto [dst, value, size] = Pop(mem_type, kWasmI32, mem_type);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(MemoryFill, imm, dst, value, size);
+        this->detected_->add_bulk_memory();
         return opcode_length + imm.length;
       }
       case kExprTableInit: {
@@ -7332,6 +7352,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         ValueType table_address_type = TableAddressType(imm.table.table);
         auto [dst, src, size] = Pop(table_address_type, kWasmI32, kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(TableInit, imm, dst, src, size);
+        this->detected_->add_bulk_memory();
         return opcode_length + imm.length;
       }
       case kExprElemDrop: {
@@ -7341,6 +7362,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           return 0;
         }
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ElemDrop, imm);
+        this->detected_->add_bulk_memory();
         return opcode_length + imm.length;
       }
       case kExprTableCopy: {
@@ -7353,6 +7375,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
         auto [dst, src, size] = Pop(dst_type, src_type, size_type);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(TableCopy, imm, dst, src, size);
+        this->detected_->add_bulk_memory();
         return opcode_length + imm.length;
       }
       case kExprTableGrow: {
@@ -7363,6 +7386,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         Value* result = Push(table_address_type);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(TableGrow, imm, value, delta,
                                            result);
+        this->detected_->add_reftypes();
         return opcode_length + imm.length;
       }
       case kExprTableSize: {
@@ -7370,6 +7394,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         Value* result = Push(TableAddressType(imm.table));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(TableSize, imm, result);
+        this->detected_->add_reftypes();
         return opcode_length + imm.length;
       }
       case kExprTableFill: {
@@ -7379,6 +7404,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         auto [start, value, count] =
             Pop(table_address_type, imm.table->type, table_address_type);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(TableFill, imm, start, value, count);
+        this->detected_->add_reftypes();
         return opcode_length + imm.length;
       }
       case kExprF32LoadMemF16: {

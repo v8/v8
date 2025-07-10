@@ -1828,6 +1828,10 @@ void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       return js_api_scope.AssertException();
     }
     is_mutable = value->BooleanValue(isolate);
+    if (is_mutable) {
+      i_isolate->CountUsage(
+          v8::Isolate::UseCounterFeature::kWasmMutableGlobals);
+    }
   }
 
   // The descriptor's type, called 'value'. It is called 'value' because this
