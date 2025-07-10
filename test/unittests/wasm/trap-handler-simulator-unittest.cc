@@ -166,6 +166,10 @@ PROBEMEM_UNITTEST(
 #error Unsupported platform
 #endif
 )
+
+// TODO(loong64): Implement ProbeMemory_MultiStruct test after wasm-simd is
+// supported.
+#if !defined(V8_TARGET_ARCH_LOONG64)
 PROBEMEM_UNITTEST(ProbeMemory_MultiStruct,
 #ifdef V8_TARGET_ARCH_ARM64
                   constexpr VRegister scratch = v0;
@@ -191,9 +195,11 @@ PROBEMEM_UNITTEST(ProbeMemory_MultiStruct,
 #error Unsupported platform
 #endif
 )
+#endif  // !V8_TARGET_ARCH_LOONG64
 
 // RISCV64 and RISCV32 don't have LoadStorePair instr so don't need to test it.
-#if (!defined(V8_TARGET_ARCH_RISCV64) && !defined(V8_TARGET_ARCH_RISCV32))
+#if (!defined(V8_TARGET_ARCH_RISCV64) && !defined(V8_TARGET_ARCH_RISCV32)) && \
+    !defined(V8_TARGET_ARCH_LOONG64)
 PROBEMEM_UNITTEST(ProbeMemory_LoadStorePair,
 #ifdef V8_TARGET_ARCH_ARM64
                   constexpr Register scratch_0 = x0;
