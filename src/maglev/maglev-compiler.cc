@@ -77,7 +77,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
         v8_flags.trace_maglev_escape_analysis ||
         v8_flags.trace_maglev_phi_untagging || v8_flags.trace_maglev_regalloc ||
         v8_flags.trace_maglev_object_tracking ||
-        v8_flags.maglev_untagged_phis || v8_flags.trace_maglev_truncation) {
+        v8_flags.trace_maglev_truncation) {
       is_tracing_enabled = compilation_info->toplevel_compilation_unit()
                                ->shared_function_info()
                                .object()
@@ -313,8 +313,10 @@ std::pair<MaybeHandle<Code>, BailoutReason> MaglevCompiler::GenerateCode(
 
   Handle<Code> code;
   {
-    MaglevGraphLabellerScope current_thread_graph_labeller(
-        compilation_info->graph_labeller());
+    std::optional<MaglevGraphLabellerScope> current_thread_graph_labeller;
+    if (compilation_info->has_graph_labeller()) {
+      current_thread_graph_labeller.emplace(compilation_info->graph_labeller());
+    }
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  "V8.Maglev.CodeGeneration");
     if (compilation_info->is_detached() ||
