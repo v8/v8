@@ -6682,10 +6682,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
       start_source_position_iterator_state =
           source_position_iterator_.GetState();
   std::optional<ContinuationOffsets> continuation;
-  if (!is_any_store && !in_peeled_iteration()) {
-    // TODO(marja): enable continuations inside peeled iterations. Predecessor
-    // tracking (decremented_predecessor_offsets_ etc) needs to be adapted to
-    // make that work.
+  if (!is_any_store) {
     continuation = FindContinuationForPolymorphicPropertyLoad();
   }
 
