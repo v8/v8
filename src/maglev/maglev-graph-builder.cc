@@ -8074,7 +8074,10 @@ bool MaglevGraphBuilder::ShouldEagerInlineCall(
                    << shared << ": small function, skipping max-depth");
     return true;
   }
-  if (bytecode.length() <
+  // TODO(victorgomes): Evaluate why this is not worth for Maglev, it regresses
+  // crypto benchmarks.
+  if (is_turbolev() && inlining_depth() <= max_inline_depth() &&
+      bytecode.length() <
           max_inlined_bytecode_size_small_with_heapnum_in_out() &&
       args.mode() == CallArguments::kDefault) {
     bool has_float_arg = false;
@@ -8088,10 +8091,8 @@ bool MaglevGraphBuilder::ShouldEagerInlineCall(
       }
     }
     if (has_float_arg) {
-      TRACE_INLINING(
-          "  greedy inlining "
-          << shared
-          << ": small function with heap number inputs, skipping max-depth");
+      TRACE_INLINING("  greedy inlining "
+                     << shared << ": small function with heap number inputs");
       return true;
     }
   }
