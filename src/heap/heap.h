@@ -1990,6 +1990,8 @@ class Heap final {
   // v8 browsing benchmarks.
   static const int kMaxLoadTimeMs = 7000;
 
+  void NotifyBackgrounded();
+
   V8_EXPORT_PRIVATE bool ShouldOptimizeForLoadTime() const;
   void NotifyLoadingStarted();
   void NotifyLoadingEnded();
@@ -2057,6 +2059,7 @@ class Heap final {
     size_t global_allocation_limit;
   };
   static LimitsCompuatationResult ComputeNewAllocationLimits(Heap* heap);
+  V8_EXPORT_PRIVATE void ComputeAndSetNewAllocationLimits();
 
   // ===========================================================================
   // GC Tasks. =================================================================
