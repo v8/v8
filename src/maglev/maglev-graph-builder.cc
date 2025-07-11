@@ -6712,12 +6712,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
       // We know from known possible maps that this branch is not reachable,
       // so don't emit any code for it.
       if (continuation) {
-        // Also don't generate any code for the continuation, just advance
-        // through it.
-        while (iterator_.current_offset() < continuation->last_continuation) {
-          iterator_.Advance();
-          UpdateSourceAndBytecodePosition(iterator_.current_offset());
-        }
+        AdvanceThroughContinuationForPolymorphicPropertyLoad(*continuation);
       }
       continue;
     }
@@ -6781,6 +6776,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
         break;
       }
       case MaybeReduceResult::kDoneWithAbort:
+        if (continuation) {
+          AdvanceThroughContinuationForPolymorphicPropertyLoad(*continuation);
+        }
         break;
       case MaybeReduceResult::kFail:
         if (!generic_access.has_value()) {
@@ -6917,10 +6915,19 @@ ReduceResult MaglevGraphBuilder::BuildContinuationForPolymorphicPropertyLoad(
   while (iterator_.current_offset() < continuation.last_continuation) {
     iterator_.Advance();
     if (VisitSingleBytecode().IsDoneWithAbort()) {
+      AdvanceThroughContinuationForPolymorphicPropertyLoad(continuation);
       return ReduceResult::DoneWithAbort();
     }
   }
   return ReduceResult::Done();
+}
+
+void MaglevGraphBuilder::AdvanceThroughContinuationForPolymorphicPropertyLoad(
+    const ContinuationOffsets& continuation) {
+  while (iterator_.current_offset() < continuation.last_continuation) {
+    iterator_.Advance();
+    UpdateSourceAndBytecodePosition(iterator_.current_offset());
+  }
 }
 
 void MaglevGraphBuilder::RecordKnownProperty(

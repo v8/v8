@@ -1392,6 +1392,8 @@ class MaglevGraphBuilder {
   FindContinuationForPolymorphicPropertyLoad();
   ReduceResult BuildContinuationForPolymorphicPropertyLoad(
       const ContinuationOffsets& offsets);
+  void AdvanceThroughContinuationForPolymorphicPropertyLoad(
+      const ContinuationOffsets& offsets);
 
   // Load elimination -- when loading or storing a simple property without
   // side effects, record its value, and allow that value to be reused on
