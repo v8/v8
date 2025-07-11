@@ -189,6 +189,9 @@ DISALLOWED_FLAGS = [
     '--expose-statistics',
     '--log',
     '--rcs',
+
+    # https://crbug.com/430624025
+    '--flush-denormals',
 ]
 
 # The same as above, but prefixes that either match multiple flags or flags
