@@ -75,7 +75,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:635a71e20e99db0b08520ca0746b501167a5c7e5',
+  'gn_version': 'git_revision:c4748415f12ac92d2781608b8b84fcc0e33e5ff9',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -130,7 +130,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '9a0b74bfb0ff9e56c0dce2c76243daa165ffd520',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '581a41c49717616b1d688276cbb51d054ecab316',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '17bdad4a57ed807c4bef2a1947248d5fefef4efe',
   'buildtools/linux64': {
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '7784911e43aef4eba901c491ea3a04ac0106d54f',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c2a6159a0d39caa1686977317d6f1c8891d2c83e',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
