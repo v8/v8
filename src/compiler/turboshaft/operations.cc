@@ -1393,6 +1393,9 @@ std::ostream& operator<<(
     case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber:
       return os << "Number";
     case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
+        kNumberOrUndefined:
+      return os << "NumberOrUndefined";
+    case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
         kNumberOrBoolean:
       return os << "NumberOrBoolean";
     case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::

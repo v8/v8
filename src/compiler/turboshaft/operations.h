@@ -5069,6 +5069,7 @@ struct ConvertJSPrimitiveToUntaggedOrDeoptOp
   enum class JSPrimitiveKind : uint8_t {
     kAdditiveSafeInteger,
     kNumber,
+    kNumberOrUndefined,
     kNumberOrBoolean,
     kNumberOrOddball,
     kNumberOrString,

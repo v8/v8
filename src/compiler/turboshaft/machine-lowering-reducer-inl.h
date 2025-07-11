@@ -1435,8 +1435,10 @@ class MachineLoweringReducer : public Next {
       // TODO(nicohartmann): Consider merging this into
       // ConvertHeapObjectToFloat64OrDeopt.
       case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kHoleyFloat64: {
-        DCHECK_EQ(from_kind, ConvertJSPrimitiveToUntaggedOrDeoptOp::
-                                 JSPrimitiveKind::kNumberOrOddball);
+        DCHECK(from_kind == ConvertJSPrimitiveToUntaggedOrDeoptOp::
+                                JSPrimitiveKind::kNumberOrUndefined ||
+               from_kind == ConvertJSPrimitiveToUntaggedOrDeoptOp::
+                                JSPrimitiveKind::kNumberOrOddball);
         Label<Float64> done(this);
 
         IF (LIKELY(__ ObjectIsSmi(object))) {
@@ -1452,6 +1454,11 @@ class MachineLoweringReducer : public Next {
             __ Unreachable();
           }
 
+          if (from_kind == ConvertJSPrimitiveToUntaggedOrDeoptOp::
+                               JSPrimitiveKind::kNumberOrUndefined) {
+            from_kind =
+                ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber;
+          }
           V<Float64> value = ConvertHeapObjectToFloat64OrDeopt(
               object, frame_state, from_kind, feedback, map);
           V<Float64> silenced_value = __ Float64SilenceNaN(value);
@@ -3893,6 +3900,9 @@ class MachineLoweringReducer : public Next {
                            DeoptimizeReason::kNotAHeapNumber, feedback);
         break;
       }
+      case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
+          kNumberOrUndefined:
+        UNREACHABLE();
       case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
           kNumberOrBoolean: {
 #if V8_STATIC_ROOTS_BOOL
