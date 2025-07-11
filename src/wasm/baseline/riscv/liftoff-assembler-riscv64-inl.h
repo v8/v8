@@ -922,7 +922,7 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
   UseScratchRegisterScope temps(this);
   if (COMPRESS_POINTERS_BOOL) {
     Register scratch = temps.Acquire();
-    Sll32(scratch, expected.gp(), 0);
+    SignExtendWord(scratch, expected.gp());
     AtomicCompareExchange(dst_addr, offset_reg, offset_imm,
                           LiftoffRegister(scratch), new_value, result,
                           StoreType::kI32Store, protected_load_pc, false);

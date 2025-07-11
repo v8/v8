@@ -1289,21 +1289,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kRiscvAnd32:
       __ And(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
-      __ Sll32(i.OutputRegister(), i.OutputRegister(), 0x0);
+      __ SignExtendWord(i.OutputRegister(), i.OutputRegister());
       break;
     case kRiscvOr:
       __ Or(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
       break;
     case kRiscvOr32:
       __ Or(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
-      __ Sll32(i.OutputRegister(), i.OutputRegister(), 0x0);
+      __ SignExtendWord(i.OutputRegister(), i.OutputRegister());
       break;
     case kRiscvXor:
       __ Xor(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
       break;
     case kRiscvXor32:
       __ Xor(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
-      __ Sll32(i.OutputRegister(), i.OutputRegister(), 0x0);
+      __ SignExtendWord(i.OutputRegister(), i.OutputRegister());
       break;
     case kRiscvClz32:
       __ Clz32(i.OutputRegister(), i.InputOrZeroRegister(0));
@@ -1388,7 +1388,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif
     case kRiscvTst32:
       __ And(kScratchReg, i.InputRegister(0), i.InputOperand(1));
-      __ Sll32(kScratchReg, kScratchReg, 0x0);
+      __ SignExtendWord(kScratchReg, kScratchReg);
       // Pseudo-instruction used for cmp/branch. No opcode emitted here.
       break;
     case kRiscvRor32:
@@ -2276,7 +2276,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicCompareExchangeWord32:
       switch (AtomicWidthField::decode(opcode)) {
         case AtomicWidth::kWord32:
-          __ Sll32(i.InputRegister(2), i.InputRegister(2), 0);
+          __ SignExtendWord(i.InputRegister(2), i.InputRegister(2));
           ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll, Sc);
           break;
 #if V8_TARGET_ARCH_RISCV64

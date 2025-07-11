@@ -4533,7 +4533,7 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
     if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index) &&
         is_int12(ReadOnlyRootPtr(index))) {
       left = temps.Acquire();
-      Sll32(left, rs, 0);
+      SignExtendWord(left, rs);
     }
     LoadTaggedRoot(right, index);
     Branch(L, cond, left, Operand(right));
@@ -4549,16 +4549,16 @@ void MacroAssembler::CompareTaggedAndBranch(Label* label, Condition cond,
   if (COMPRESS_POINTERS_BOOL) {
     UseScratchRegisterScope temps(this);
     Register scratch0 = temps.Acquire();
-    Sll32(scratch0, r1, 0);
+    SignExtendWord(scratch0, r1);
     if (IsZero(r2)) {
       Branch(label, cond, scratch0, Operand(zero_reg));
     } else {
       Register scratch1 = temps.Acquire();
       if (r2.is_reg()) {
-        Sll32(scratch1, r2.rm(), 0);
+        SignExtendWord(scratch1, r2.rm());
       } else {
         li(scratch1, r2);
-        Sll32(scratch1, scratch1, 0);
+        SignExtendWord(scratch1, scratch1);
       }
       Branch(label, cond, scratch0, Operand(scratch1));
     }

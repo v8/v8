@@ -1263,14 +1263,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // input.
   void JumpIfEqual(Register a, int32_t b, Label* dest) {
 #ifdef V8_COMPRESS_POINTERS
-    Sll32(a, a, 0);
+    SignExtendWord(a, a);
 #endif
     Branch(dest, eq, a, Operand(b));
   }
 
   void JumpIfLessThan(Register a, int32_t b, Label* dest) {
 #ifdef V8_COMPRESS_POINTERS
-    Sll32(a, a, 0);
+    SignExtendWord(a, a);
 #endif
     Branch(dest, lt, a, Operand(b));
   }
@@ -1553,15 +1553,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     Branch(if_not_equal, ne, with, index, distance);
   }
 
-#if V8_STATIC_ROOTS_BOOL
-  // Fast variant which is guaranteed to not actually load the instance type
-  // from the map.
-  void BranchObjectTypeFast(Label* target, Condition cc, Register heap_object,
-                            Register compressed_map_scratch, InstanceType type);
-  void BranchInstanceTypeWithUniqueCompressedMap(Label* target, Condition cc,
-                                                 Register map, Register scratch,
-                                                 InstanceType type);
-#endif  // V8_STATIC_ROOTS_BOOL
   // Checks if value is in range [lower_limit, higher_limit] using a single
   // comparison.
   void JumpIfIsInRange(Register value, unsigned lower_limit,

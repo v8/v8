@@ -327,7 +327,7 @@ void MaglevAssembler::IsObjectType(Register object, Register scratch1,
         InstanceTypeChecker::UniqueMapOfInstanceType(type);
     Tagged_t expected_ptr = ReadOnlyRootPtr(*expected);
     li(scratch2, expected_ptr);
-    Sll32(scratch2, scratch2, Operand(0));
+    SignExtendWord(scratch2, scratch2);
     MacroAssembler::Branch(&ConditionMet, Condition::kEqual, scratch1,
                            Operand(scratch2), Label::kNear);
   } else {
