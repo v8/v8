@@ -8937,6 +8937,80 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
   return allocation;
 }
 
+MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeAt(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (!CanSpeculateCall()) return {};
+
+  if (!broker()->dependencies()->DependOnNoElementsProtector()) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  ! Failed to reduce Array.prototype.at - "
+                   "NoElementsProtector invalidated";
+    }
+    return {};
+  }
+
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+  auto possible_maps = known_node_aspects().TryGetPossibleMaps(receiver);
+  ElementsKind elements_kind = NO_ELEMENTS;
+  // TODO(42204525): Support polymorphism. I.e., DOUBLE_ELEMENTS and ELEMENTS
+  // together.
+  if (!possible_maps || !CanInlineArrayIteratingBuiltin(
+                            broker(), *possible_maps, &elements_kind)) {
+    return {};
+  }
+
+  ValueNode* length = BuildLoadJSArrayLength(receiver);
+  ValueNode* index = nullptr;
+  if (args.count() == 0) {
+    // Index is the undefined object. ToIntegerOrInfinity(undefined) = 0.
+    index = GetInt32Constant(0);
+  } else {
+    index = (Select(
+        [&](auto& builder) {
+          return BuildBranchIfInt32Compare(builder, Operation::kLessThan,
+                                           args[0], GetInt32Constant(0));
+        },
+        [&]() { return AddNewNode<Int32Add>({args[0], length}); },
+        [&]() { return args[0]; }));
+  }
+
+  ValueNode* elements = BuildLoadElements(receiver);
+
+  ValueNode* result = Select(
+      [&](auto& builder) {
+        return BuildBranchIfInt32Compare(builder,
+                                         Operation::kGreaterThanOrEqual, index,
+                                         GetInt32Constant(0));
+      },
+      [&]() {
+        return Select(
+            [&](auto& builder) {
+              return BuildBranchIfInt32Compare(builder, Operation::kLessThan,
+                                               index, length);
+            },
+            [&]() -> ValueNode* {
+              ValueNode* element;
+              if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
+                element = AddNewNode<LoadHoleyFixedDoubleArrayElement>(
+                    {elements, index});
+              } else if (elements_kind == PACKED_DOUBLE_ELEMENTS) {
+                element = BuildLoadFixedDoubleArrayElement(elements, index);
+              } else {
+                element = BuildLoadFixedArrayElement(elements, index);
+              }
+              if (IsHoleyElementsKind(elements_kind)) {
+                element = AddNewNode<ConvertHoleToUndefined>({element});
+              }
+
+              return element;
+            },
+            [&]() { return GetRootConstant(RootIndex::kUndefinedValue); });
+      },
+      [&]() { return GetRootConstant(RootIndex::kUndefinedValue); });
+
+  return result;
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeEntries(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall()) return {};

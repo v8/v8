@@ -887,6 +887,7 @@ class MaglevGraphBuilder {
   V(ArrayIsArray)                              \
   V(ArrayIteratorPrototypeNext)                \
   V(ArrayMap)                                  \
+  V(ArrayPrototypeAt)                          \
   V(ArrayPrototypeEntries)                     \
   V(ArrayPrototypeKeys)                        \
   V(ArrayPrototypeValues)                      \
