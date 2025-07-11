@@ -143,7 +143,8 @@ class ExceptionHandlerInfo;
   V(Float64Compare)                     \
   V(Float64ToBoolean)                   \
   V(Float64Ieee754Unary)                \
-  V(Float64Ieee754Binary)
+  V(Float64Ieee754Binary)               \
+  V(Float64Sqrt)
 
 #define SMI_OPERATIONS_NODE_LIST(V) \
   V(CheckedSmiIncrement)            \
@@ -3769,6 +3770,23 @@ class Float64Ieee754Binary
 
  private:
   Ieee754Function ieee_function_;
+};
+
+class Float64Sqrt : public FixedInputValueNodeT<1, Float64Sqrt> {
+  using Base = FixedInputValueNodeT<1, Float64Sqrt>;
+
+ public:
+  explicit Float64Sqrt(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::HoleyFloat64();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const;
 };
 
 class CheckInt32IsSmi : public FixedInputNodeT<1, CheckInt32IsSmi> {

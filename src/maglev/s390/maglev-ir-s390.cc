@@ -762,7 +762,7 @@ void Float64Exponentiate::GenerateCode(MaglevAssembler* masm,
 
 int Float64Ieee754Unary::MaxCallStackArgs() const { return 0; }
 void Float64Ieee754Unary::SetValueLocationConstraints() {
-  UseFixed(input(), d0);
+  UseRegister(input(), d0);
   DefineSameAsFirst(this);
 }
 void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
@@ -787,6 +787,17 @@ void Float64Ieee754Binary::GenerateCode(MaglevAssembler* masm,
   __ PrepareCallCFunction(0, 2);
   __ CallCFunction(ieee_function_ref(), 0, 2);
   __ Pop(r2, r3, r4, r5);
+}
+
+void Float64Sqrt::SetValueLocationConstraints() {
+  UseFixed(input());
+  DefineSameAsFirst(this);
+}
+void Float64Sqrt::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  DoubleRegister value = ToDoubleRegister(receiver_input());
+  DoubleRegister result_register = ToDoubleRegister(result());
+  __ sqdbr(result_register, value);
 }
 
 void LoadTypedArrayLength::SetValueLocationConstraints() {

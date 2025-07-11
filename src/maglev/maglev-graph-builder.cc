@@ -10449,6 +10449,24 @@ IEEE_754_UNARY_LIST(MATH_UNARY_IEEE_BUILTIN_REDUCER)
 IEEE_754_BINARY_LIST(MATH_BINARY_IEEE_BUILTIN_REDUCER)
 #undef MATH_BINARY_IEEE_BUILTIN_REDUCER
 
+MaybeReduceResult MaglevGraphBuilder::TryReduceMathSqrt(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (args.count() < 1) {
+    return GetRootConstant(RootIndex::kNanValue);
+  }
+
+  if (!CanSpeculateCall()) {
+    ValueRepresentation rep = args[0]->properties().value_representation();
+    if (rep == ValueRepresentation::kTagged) return {};
+  }
+
+  ValueNode* value =
+      GetFloat64ForToNumber(args[0], NodeType::kNumber,
+                            TaggedToFloat64ConversionType::kNumberOrUndefined);
+
+  return AddNewNode<Float64Sqrt>({value});
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryReduceBuiltin(
     compiler::JSFunctionRef target, compiler::SharedFunctionInfoRef shared,
     CallArguments& args, const compiler::FeedbackSource& feedback_source) {

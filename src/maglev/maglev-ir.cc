@@ -794,6 +794,7 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kFloat64ToBoolean:
     case Opcode::kFloat64Ieee754Unary:
     case Opcode::kFloat64Ieee754Binary:
+    case Opcode::kFloat64Sqrt:
     case Opcode::kInt32CountLeadingZeros:
     case Opcode::kTaggedCountLeadingZeros:
     case Opcode::kFloat64CountLeadingZeros:
@@ -8378,6 +8379,8 @@ void Float64Ieee754Binary::PrintParams(std::ostream& os) const {
 #undef CASE
   }
 }
+
+void Float64Sqrt::PrintParams(std::ostream& os) const { os << "(MathSqrt)"; }
 
 void Float64Round::PrintParams(std::ostream& os) const {
   switch (kind_) {

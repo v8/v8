@@ -920,6 +920,7 @@ class MaglevGraphBuilder {
   V(MathFloor)                                 \
   V(MathAbs)                                   \
   V(MathRound)                                 \
+  V(MathSqrt)                                  \
   V(MathClz32)                                 \
   V(SetPrototypeHas)                           \
   V(StringConstructor)                         \

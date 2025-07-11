@@ -867,6 +867,17 @@ void Float64Ieee754Binary::GenerateCode(MaglevAssembler* masm,
   __ CallCFunction(ieee_function_ref(), 2);
 }
 
+void Float64Sqrt::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void Float64Sqrt::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  DoubleRegister value = ToDoubleRegister(receiver_input());
+  DoubleRegister result_register = ToDoubleRegister(result());
+  __ fsqrt(result_register, value);
+}
+
 void LoadTypedArrayLength::SetValueLocationConstraints() {
   UseRegister(receiver_input());
   DefineAsRegister(this);

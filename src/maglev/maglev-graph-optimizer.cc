@@ -1456,6 +1456,11 @@ ProcessResult MaglevGraphOptimizer::VisitFloat64Ieee754Binary() {
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitFloat64Sqrt() {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitCheckedSmiIncrement() {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;

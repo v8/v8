@@ -920,6 +920,17 @@ void Float64Ieee754Binary::GenerateCode(MaglevAssembler* masm,
   __ CallCFunction(ieee_function_ref(), 2);
 }
 
+void Float64Sqrt::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void Float64Sqrt::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  DoubleRegister value = ToDoubleRegister(input());
+  DoubleRegister result_register = ToDoubleRegister(result());
+  __ Sqrtsd(result_register, value);
+}
+
 void HoleyFloat64ToMaybeNanFloat64::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
