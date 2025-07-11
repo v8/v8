@@ -95,10 +95,12 @@ class V8_EXPORT_PRIVATE MarkingWorklists final {
   // This should be invoked at the end of marking. All worklists must be
   // empty at that point.
   void ReleaseContextWorklists();
-  bool IsUsingContextWorklists() const { return !context_worklists_.empty(); }
+  bool IsPerContextMode() const { return !context_worklists_.empty(); }
 
   void Clear();
   void Print();
+
+  bool IsEmpty() const;
 
  private:
   struct ContextHash {
@@ -109,7 +111,8 @@ class V8_EXPORT_PRIVATE MarkingWorklists final {
   using ContextToIndexMap = std::unordered_map<Address, uint32_t, ContextHash>;
 
   // Prints the stats about the global pool of the worklist.
-  void PrintWorklist(const char* worklist_name, MarkingWorklist* worklist);
+  static void PrintWorklist(const char* worklist_name,
+                            MarkingWorklist* worklist);
 
   // Worklist used for most objects.
   // TODO(mlippautz): Rename to "default".

@@ -633,7 +633,7 @@ size_t ConcurrentMarking::GetMinorMaxConcurrency(size_t worker_count) {
                                heap_->minor_mark_sweep_collector()
                                    ->remembered_sets_marking_handler()
                                    ->RemainingRememberedSetsMarkingIteams();
-  DCHECK(!marking_worklists_->IsUsingContextWorklists());
+  DCHECK(!marking_worklists_->IsPerContextMode());
   size_t jobs = worker_count + marking_items;
   jobs = std::min<size_t>(task_state_.size() - 1, jobs);
   if (heap_->ShouldOptimizeForBattery()) {
@@ -728,7 +728,7 @@ void ConcurrentMarking::TryScheduleJob(GarbageCollector garbage_collector,
 bool ConcurrentMarking::IsWorkLeft() const {
   DCHECK(garbage_collector_.has_value());
   if (garbage_collector_ == GarbageCollector::MARK_COMPACTOR) {
-    return !marking_worklists_->shared()->IsEmpty() ||
+    return !marking_worklists_->IsEmpty() ||
            !weak_objects_->current_ephemerons.IsEmpty();
   }
   DCHECK_EQ(GarbageCollector::MINOR_MARK_SWEEPER, garbage_collector_);
