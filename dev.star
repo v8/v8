@@ -6,7 +6,7 @@
 lucicfg.check_version("1.30.9", "Please update depot_tools")
 
 load("//lib/acls.star", "waterfall_acls")
-load("//lib/reclient.star", "RECLIENT")
+load("//lib/siso.star", "SISO")
 
 # Use LUCI Scheduler BBv2 names and add Scheduler realms configs.
 lucicfg.enable_experiment("crbug.com/1182002")
@@ -76,7 +76,7 @@ luci.builder(
     dimensions = {"cpu": "x86-64", "os": "Windows-10", "pool": "luci.chromium.ci"},
     executable = "recipe:v8",
     properties = {
-        "$build/reclient": RECLIENT.DEFAULT,
+        "$build/siso": SISO.CHROMIUM_TRUSTED,
         "$build/v8": {"use_remoteexec": True},
         "builder_group": "client.v8",
         "recipe": "v8",
