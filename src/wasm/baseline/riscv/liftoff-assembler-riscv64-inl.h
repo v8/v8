@@ -1632,7 +1632,7 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
     if (kind == kI32) {
       UseScratchRegisterScope temps(this);
       Register scratch0 = temps.Acquire();
-      slliw(scratch0, lhs, 0);
+      SignExtendWord(scratch0, lhs);
       MacroAssembler::Branch(label, cond, scratch0, Operand(zero_reg));
     } else {
       DCHECK(kind == kI64);
@@ -1661,7 +1661,7 @@ void LiftoffAssembler::emit_ptrsize_cond_jumpi(Condition cond, Label* label,
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
-  MacroAssembler::slliw(dst, src, 0);
+  MacroAssembler::SignExtendWord(dst, src);
   MacroAssembler::Sltu(dst, src, 1);
 }
 
@@ -1670,8 +1670,8 @@ void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
   UseScratchRegisterScope temps(this);
   Register scratch0 = temps.Acquire();
   Register scratch1 = kScratchReg;
-  MacroAssembler::slliw(scratch0, lhs, 0);
-  MacroAssembler::slliw(scratch1, rhs, 0);
+  MacroAssembler::SignExtendWord(scratch0, lhs);
+  MacroAssembler::SignExtendWord(scratch1, rhs);
   MacroAssembler::CompareI(dst, scratch0, Operand(scratch1), cond);
 }
 

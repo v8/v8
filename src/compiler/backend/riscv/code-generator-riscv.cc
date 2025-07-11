@@ -4163,10 +4163,10 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
     if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kRiscvCmp32)) {
       Register temp0 = i.TempRegister(0);
       Register temp1 = right.is_reg() ? i.TempRegister(1) : no_reg;
-      __ slliw(temp0, left, 0);
+      __ SignExtendWord(temp0, left);
       left = temp0;
       if (temp1 != no_reg) {
-        __ slliw(temp1, right.rm(), 0);
+        __ SignExtendWord(temp1, right.rm());
         right = Operand(temp1);
       }
     }
@@ -4186,7 +4186,7 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
       __ Branch(tlabel);
     } else if (i.InputOrZeroRegister(0) != zero_reg) {
       Register temp0 = i.TempRegister(0);
-      __ slliw(temp0, i.InputRegister(0), 0);
+      __ SignExtendWord(temp0, i.InputRegister(0));
       __ Branch(tlabel, cc, temp0, Operand(zero_reg));
     }
 #endif
@@ -4346,10 +4346,10 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kRiscvCmp32)) {
       Register temp0 = i.TempRegister(0);
       Register temp1 = right.is_reg() ? i.TempRegister(1) : no_reg;
-      __ slliw(temp0, left, 0);
+      __ SignExtendWord(temp0, left);
       left = temp0;
       if (temp1 != no_reg) {
-        __ slliw(temp1, right.rm(), 0);
+        __ SignExtendWord(temp1, right.rm());
         right = Operand(temp1);
       }
     }
@@ -4491,16 +4491,16 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   } else if (instr->arch_opcode() == kRiscvCmpZero32) {
     auto trim_reg = [&](Register in) -> Register {
       Register temp = i.TempRegister(0);
-      __ slliw(temp, in, 0);
+      __ SignExtendWord(temp, in);
       return temp;
     };
     auto trim_op = [&](Operand in) -> Register {
       Register temp = i.TempRegister(0);
       if (in.is_reg()) {
-        __ slliw(temp, in.rm(), 0);
+        __ SignExtendWord(temp, in.rm());
       } else {
         __ Li(temp, in.immediate());
-        __ slliw(temp, temp, 0);
+        __ SignExtendWord(temp, temp);
       }
       return temp;
     };
