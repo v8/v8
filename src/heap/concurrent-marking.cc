@@ -391,7 +391,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
       }
     }
     PtrComprCageBase cage_base(isolate);
-    bool is_per_context_mode = local_marking_worklists.IsPerContextMode();
+    const bool is_per_context_mode = local_marking_worklists.IsPerContextMode();
     bool done = false;
     while (!done) {
       size_t current_marked_bytes = 0;
@@ -615,7 +615,6 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
 
 size_t ConcurrentMarking::GetMajorMaxConcurrency(size_t worker_count) {
   size_t marking_items = marking_worklists_->shared()->Size();
-  marking_items += marking_worklists_->other()->Size();
   for (auto& worklist : marking_worklists_->context_worklists()) {
     marking_items += worklist.worklist->Size();
   }
@@ -634,7 +633,6 @@ size_t ConcurrentMarking::GetMinorMaxConcurrency(size_t worker_count) {
                                heap_->minor_mark_sweep_collector()
                                    ->remembered_sets_marking_handler()
                                    ->RemainingRememberedSetsMarkingIteams();
-  DCHECK(marking_worklists_->other()->IsEmpty());
   DCHECK(!marking_worklists_->IsUsingContextWorklists());
   size_t jobs = worker_count + marking_items;
   jobs = std::min<size_t>(task_state_.size() - 1, jobs);

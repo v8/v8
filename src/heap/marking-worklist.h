@@ -101,6 +101,13 @@ class V8_EXPORT_PRIVATE MarkingWorklists final {
   void Print();
 
  private:
+  struct ContextHash {
+    V8_INLINE size_t operator()(const Address context) const {
+      return std::hash<uint32_t>{}(static_cast<uint32_t>(context));
+    }
+  };
+  using ContextToIndexMap = std::unordered_map<Address, uint32_t, ContextHash>;
+
   // Prints the stats about the global pool of the worklist.
   void PrintWorklist(const char* worklist_name, MarkingWorklist* worklist);
 
@@ -114,11 +121,13 @@ class V8_EXPORT_PRIVATE MarkingWorklists final {
   // for freshly allocatd objects.
   MarkingWorklist on_hold_;
 
-  // Per-context worklists. Objects are in the `shared_` worklist by default.
-  std::vector<ContextWorklistPair> context_worklists_;
   // Worklist used for objects that are attributed to contexts that are
   // not being measured.
   MarkingWorklist other_;
+
+  // Per-context worklists. Objects are in the `shared_` worklist by default.
+  std::vector<ContextWorklistPair> context_worklists_;
+  ContextToIndexMap worklist_by_context_;
 };
 
 // A thread-local view of the marking worklists. It owns all local marking
@@ -186,12 +195,12 @@ class V8_EXPORT_PRIVATE MarkingWorklists::Local final {
   MarkingWorklist::Local* active_;
   MarkingWorklist::Local shared_;
   MarkingWorklist::Local on_hold_;
+  MarkingWorklist::Local other_;
   Address active_context_;
   const bool is_per_context_mode_;
 
   std::vector<MarkingWorklist::Local> context_worklists_;
-  AddressToIndexHashMap worklist_by_context_;
-  MarkingWorklist::Local other_;
+  const ContextToIndexMap& worklist_by_context_;
   std::unique_ptr<CppMarkingState> cpp_marking_state_;
 };
 
