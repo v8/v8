@@ -274,8 +274,8 @@
   'intl402/DurationFormat/prototype/formatToParts/temporal*': [SKIP],
   'intl402/DurationFormat/prototype/formatToParts/taint-temporal*': [SKIP],
   'built-ins/Date/prototype/toTemporalInstant/*': [SKIP],
-  'intl402/Intl/DateTimeFormat/prototype/formatRange/fails-on-distinct-temporal-types': [SKIP],
-  'intl402/Intl/DateTimeFormat/prototype/formatRangeToParts/fails-on-distinct-temporal-types': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatRange/fails-on-distinct-temporal-types': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/fails-on-distinct-temporal-types': [SKIP],
   'staging/sm/Date/to-temporal-instant': [SKIP],
 
   # https://github.com/tc39/test262/pull/3988
@@ -1133,7 +1133,7 @@
 ####
 # import test262@44d71fbe7dccabcc071cbe66cc4b105d896d3c2a
 [ALWAYS, {
- 'built-ins/NativeErrors/SuppressedError/order-of-args-evaluation': [SKIP],
+ 'built-ins/SuppressedError/order-of-args-evaluation': [SKIP],
  'intl402/Locale/getters': [SKIP],
 }],
 # end import test262@44d71fbe7dccabcc071cbe66cc4b105d896d3c2a
@@ -1298,5 +1298,13 @@
 }],
 # end import test262@a073f479f80b336256b7fc4e04700c827293e2fe
 ###
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/Uint8Array/fromBase64/last-chunk-invalid': [SKIP],
+}],
+# End roll-watcher patch
 ####
 ]
