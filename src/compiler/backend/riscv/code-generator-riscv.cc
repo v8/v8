@@ -1289,21 +1289,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kRiscvAnd32:
       __ And(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
+#if V8_TARGET_ARCH_RISCV64
       __ SignExtendWord(i.OutputRegister(), i.OutputRegister());
+#endif
       break;
     case kRiscvOr:
       __ Or(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
       break;
     case kRiscvOr32:
       __ Or(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
+#if V8_TARGET_ARCH_RISCV64
       __ SignExtendWord(i.OutputRegister(), i.OutputRegister());
+#endif
       break;
     case kRiscvXor:
       __ Xor(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
       break;
     case kRiscvXor32:
       __ Xor(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
+#if V8_TARGET_ARCH_RISCV64
       __ SignExtendWord(i.OutputRegister(), i.OutputRegister());
+#endif
       break;
     case kRiscvClz32:
       __ Clz32(i.OutputRegister(), i.InputOrZeroRegister(0));
@@ -1388,7 +1394,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif
     case kRiscvTst32:
       __ And(kScratchReg, i.InputRegister(0), i.InputOperand(1));
+#if V8_TARGET_ARCH_RISCV64
       __ SignExtendWord(kScratchReg, kScratchReg);
+#endif
       // Pseudo-instruction used for cmp/branch. No opcode emitted here.
       break;
     case kRiscvRor32:
