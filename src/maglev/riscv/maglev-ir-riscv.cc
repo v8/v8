@@ -873,9 +873,9 @@ void Float64Sqrt::SetValueLocationConstraints() {
 }
 void Float64Sqrt::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
-  DoubleRegister value = ToDoubleRegister(receiver_input());
+  DoubleRegister value = ToDoubleRegister(input());
   DoubleRegister result_register = ToDoubleRegister(result());
-  __ fsqrt(result_register, value);
+  __ fsqrt_d(result_register, value);
 }
 
 void LoadTypedArrayLength::SetValueLocationConstraints() {
