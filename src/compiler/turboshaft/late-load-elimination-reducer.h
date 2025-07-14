@@ -813,12 +813,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
                          Asm().output_graph().IsCreatedFromTurbofan()));
         }
 #ifdef DEBUG
-        // TODO(dmercadier, 425754604): re-enable verification once the issue
-        // with HeapNumber being materialized multiple times has been fixed (for
-        // instance, by implementing a cache in
-        // AllocateAndInstallRequestedHeapNumbers).
-        // if (v8_flags.turboshaft_verify_load_elimination) {
-        if ((false)) {
+        if (v8_flags.turboshaft_verify_load_elimination) {
           // When the debug flag {turboshaft_verify_load_elimination} is used,
           // we perform the original load and assert that it's indeed equal to
           // the replacement that we are using.
