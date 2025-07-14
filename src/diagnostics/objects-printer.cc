@@ -632,6 +632,23 @@ void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
     if (previous_index != i - 1) {
       ss << '-' << (i - 1);
     }
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    if constexpr (std::is_floating_point_v<ElementType>) {
+      if (std::isnan(previous_value)) {
+        os << std::setw(12) << ss.str() << ": " << +previous_value << " (0x"
+           << std::hex;
+        if constexpr (std::is_same_v<ElementType, float>) {
+          os << base::bit_cast<uint32_t>(previous_value);
+        } else {
+          os << base::bit_cast<uint64_t>(previous_value);
+        }
+        os << std::dec << ")";
+        previous_index = i;
+        previous_value = value;
+        continue;
+      }
+    }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     os << std::setw(12) << ss.str() << ": " << +previous_value;
     previous_index = i;
     previous_value = value;
