@@ -6,6 +6,9 @@
 This module contains helper functions to compile V8.
 """
 
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+
 FlagInfo = provider("The value of an option.",
 fields = ["value"])
 
@@ -214,7 +217,7 @@ def v8_binary(
         **kwargs):
     default = _default_args()
     if _should_emit_noicu_and_icu(noicu_srcs, noicu_deps, noicu_defines, icu_srcs, icu_deps, icu_defines):
-        native.cc_binary(
+        cc_binary(
             name = "noicu/" + name,
             srcs = srcs + noicu_srcs,
             deps = deps + noicu_deps + default.deps,
@@ -224,7 +227,7 @@ def v8_binary(
             linkopts = linkopts + default.linkopts,
             **kwargs
         )
-        native.cc_binary(
+        cc_binary(
             name = "icu/" + name,
             srcs = srcs + icu_srcs,
             deps = deps + icu_deps + default.deps,
@@ -235,7 +238,7 @@ def v8_binary(
             **kwargs
         )
     else:
-        native.cc_binary(
+        cc_binary(
             name = name,
             srcs = srcs,
             deps = deps + default.deps,
@@ -263,7 +266,7 @@ def v8_library(
         **kwargs):
     default = _default_args()
     if _should_emit_noicu_and_icu(noicu_srcs, noicu_deps, noicu_defines, icu_srcs, icu_deps, icu_defines):
-        native.cc_library(
+        cc_library(
             name = name + "_noicu",
             srcs = srcs + noicu_srcs,
             deps = deps + noicu_deps + default.deps,
@@ -282,7 +285,7 @@ def v8_library(
             name = "noicu/" + name,
             actual = name + "_noicu",
         )
-        native.cc_library(
+        cc_library(
             name = name + "_icu",
             srcs = srcs + icu_srcs,
             deps = deps + icu_deps + default.deps,
@@ -302,7 +305,7 @@ def v8_library(
             actual = name + "_icu",
         )
     else:
-        native.cc_library(
+        cc_library(
             name = name,
             srcs = srcs,
             deps = deps + default.deps,
