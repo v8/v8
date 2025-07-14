@@ -543,8 +543,6 @@ class MjsunitFunctionDis : public WasmDecoder<Decoder::FullValidationTag> {
 
   void WriteMjsunit(MultiLineStringBuilder& out);
 
-  // TODO(jkummerow): Support for compilation hints is missing.
-
   void DecodeGlobalInitializer(StringBuilder& out);
 
   uint32_t PrintMjsunitImmediatesAndGetLength(StringBuilder& out);

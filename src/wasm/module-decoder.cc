@@ -63,8 +63,6 @@ const char* SectionName(SectionCode code) {
       return kBuildIdString;
     case kInstTraceSectionCode:
       return kInstTraceString;
-    case kCompilationHintsSectionCode:
-      return kCompilationHintsString;
     case kBranchHintsSectionCode:
       return kBranchHintsString;
     case kDescriptorsSectionCode:

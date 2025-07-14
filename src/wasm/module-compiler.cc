@@ -69,12 +69,6 @@ enum class CompileStrategy : uint8_t {
   // Compiles baseline ahead of execution and starts top tier compilation in
   // background (if applicable).
   kEager,
-  // Triggers baseline compilation on first use (just like {kLazy}) with the
-  // difference that top tier compilation is started eagerly.
-  // This strategy can help to reduce startup time at the risk of blocking
-  // execution, but only in its early phase (until top tier compilation
-  // finishes).
-  kLazyBaselineEagerTopTier,
   // Marker for default strategy.
   kDefault = kEager,
 };
@@ -591,10 +585,9 @@ class CompilationStateImpl {
 
   bool cancelled() const;
 
-  // Apply a compilation hint to the initial compilation progress, updating all
+  // Apply eager tier-up to the initial compilation progress, updating all
   // internal fields accordingly.
-  void ApplyCompilationHintToInitialProgress(const WasmCompilationHint& hint,
-                                             size_t hint_idx);
+  void ApplyEagerTierUpToInitialProgress(size_t hint_idx);
 
   // Use PGO information to choose a better initial compilation progress
   // (tiering decisions).
@@ -978,52 +971,6 @@ WasmDetectedFeatures CompilationState::UpdateDetectedFeatures(
 
 namespace {
 
-ExecutionTier ApplyHintToExecutionTier(WasmCompilationHintTier hint,
-                                       ExecutionTier default_tier) {
-  switch (hint) {
-    case WasmCompilationHintTier::kDefault:
-      return default_tier;
-    case WasmCompilationHintTier::kBaseline:
-      return ExecutionTier::kLiftoff;
-    case WasmCompilationHintTier::kOptimized:
-      return ExecutionTier::kTurbofan;
-  }
-  UNREACHABLE();
-}
-
-const WasmCompilationHint* GetCompilationHint(const WasmModule* module,
-                                              uint32_t func_index) {
-  DCHECK_LE(module->num_imported_functions, func_index);
-  uint32_t hint_index = declared_function_index(module, func_index);
-  const std::vector<WasmCompilationHint>& compilation_hints =
-      module->compilation_hints;
-  if (hint_index < compilation_hints.size()) {
-    return &compilation_hints[hint_index];
-  }
-  return nullptr;
-}
-
-CompileStrategy GetCompileStrategy(const WasmModule* module,
-                                   WasmEnabledFeatures enabled_features,
-                                   uint32_t func_index, bool lazy_module) {
-  if (lazy_module) return CompileStrategy::kLazy;
-  if (!enabled_features.has_compilation_hints()) {
-    return CompileStrategy::kDefault;
-  }
-  auto* hint = GetCompilationHint(module, func_index);
-  if (hint == nullptr) return CompileStrategy::kDefault;
-  switch (hint->strategy) {
-    case WasmCompilationHintStrategy::kLazy:
-      return CompileStrategy::kLazy;
-    case WasmCompilationHintStrategy::kEager:
-      return CompileStrategy::kEager;
-    case WasmCompilationHintStrategy::kLazyBaselineEagerTopTier:
-      return CompileStrategy::kLazyBaselineEagerTopTier;
-    case WasmCompilationHintStrategy::kDefault:
-      return CompileStrategy::kDefault;
-  }
-}
-
 struct ExecutionTierPair {
   ExecutionTier baseline_tier;
   ExecutionTier top_tier;
@@ -1063,17 +1010,8 @@ ExecutionTierPair GetLazyCompilationTiers(NativeModule* native_module,
   constexpr bool kNotLazy = false;
   ExecutionTierPair tiers =
       GetDefaultTiersPerModule(native_module, is_in_debug_state, kNotLazy);
-  // If we are in debug mode, we ignore compilation hints.
+  // If we are in debug mode, we ignore the tier-up filter.
   if (is_in_debug_state) return tiers;
-
-  // Check if compilation hints override default tiering behaviour.
-  if (native_module->enabled_features().has_compilation_hints()) {
-    if (auto* hint = GetCompilationHint(native_module->module(), func_index)) {
-      tiers.baseline_tier =
-          ApplyHintToExecutionTier(hint->baseline_tier, tiers.baseline_tier);
-      tiers.top_tier = ApplyHintToExecutionTier(hint->top_tier, tiers.top_tier);
-    }
-  }
 
   if (V8_UNLIKELY(v8_flags.wasm_tier_up_filter >= 0 &&
                   func_index !=
@@ -1240,9 +1178,7 @@ bool CompileLazy(Isolate* isolate,
 
   const WasmModule* module = native_module->module();
   const bool lazy_module = IsLazyModule(module);
-  if (GetCompileStrategy(module, native_module->enabled_features(), func_index,
-                         lazy_module) == CompileStrategy::kLazy &&
-      tiers.baseline_tier < tiers.top_tier) {
+  if (lazy_module && tiers.baseline_tier < tiers.top_tier) {
     WasmCompilationUnit tiering_unit{func_index, tiers.top_tier,
                                      kNotForDebugging};
     compilation_state->CommitTopTierCompilationUnit(tiering_unit);
@@ -2177,21 +2113,6 @@ std::unique_ptr<CompilationUnitBuilder> InitializeCompilation(
   return builder;
 }
 
-bool MayCompriseLazyFunctions(const WasmModule* module,
-                              WasmEnabledFeatures enabled_features) {
-  if (IsLazyModule(module)) return true;
-  if (enabled_features.has_compilation_hints()) return true;
-#ifdef ENABLE_SLOW_DCHECKS
-  int start = module->num_imported_functions;
-  int end = start + module->num_declared_functions;
-  for (int func_index = start; func_index < end; func_index++) {
-    SLOW_DCHECK(GetCompileStrategy(module, enabled_features, func_index,
-                                   false) != CompileStrategy::kLazy);
-  }
-#endif
-  return false;
-}
-
 class CompilationTimeCallback : public CompilationEventCallback {
  public:
   enum CompileMode { kSynchronous, kAsync, kStreaming };
@@ -2266,20 +2187,17 @@ WasmError ValidateFunctions(const WasmModule* module,
                             OnlyLazyFunctions only_lazy_functions,
                             WasmDetectedFeatures* detected_features) {
   DCHECK_EQ(module->origin, kWasmOrigin);
-  if (only_lazy_functions &&
-      !MayCompriseLazyFunctions(module, enabled_features)) {
+  if (only_lazy_functions && !IsLazyModule(module)) {
     return {};
   }
 
+  // TODO(manoskouk): This will either validate all or no functions. However we
+  // believe this structure will be useful for the new compilation-hints
+  // implementation.
   std::function<bool(int)> filter;  // Initially empty for "all functions".
   if (only_lazy_functions) {
     const bool is_lazy_module = IsLazyModule(module);
-    filter = [module, enabled_features, is_lazy_module](int func_index) {
-      CompileStrategy strategy = GetCompileStrategy(module, enabled_features,
-                                                    func_index, is_lazy_module);
-      return strategy == CompileStrategy::kLazy ||
-             strategy == CompileStrategy::kLazyBaselineEagerTopTier;
-    };
+    filter = [is_lazy_module](int func_index) { return is_lazy_module; };
   }
   // Call {ValidateFunctions} in the module decoder.
   return ValidateFunctions(module, enabled_features, wire_bytes, filter,
@@ -3355,14 +3273,9 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(
   auto enabled_features = job_->enabled_features_;
   DCHECK_EQ(module->origin, kWasmOrigin);
   const bool lazy_module = v8_flags.wasm_lazy_compilation;
-  CompileStrategy strategy =
-      GetCompileStrategy(module, enabled_features, func_index, lazy_module);
   CHECK_IMPLIES(v8_flags.wasm_jitless, !v8_flags.wasm_lazy_validation);
   bool validate_lazily_compiled_function =
-      v8_flags.wasm_jitless ||
-      (!v8_flags.wasm_lazy_validation &&
-       (strategy == CompileStrategy::kLazy ||
-        strategy == CompileStrategy::kLazyBaselineEagerTopTier));
+      v8_flags.wasm_jitless || (!v8_flags.wasm_lazy_validation && lazy_module);
   if (validate_lazily_compiled_function) {
     // {bytes} is part of a section buffer owned by the streaming decoder. The
     // streaming decoder is held alive by the {AsyncCompileJob}, so we can just
@@ -3621,46 +3534,14 @@ bool CompilationStateImpl::cancelled() const {
   return compile_cancelled_.load(std::memory_order_relaxed);
 }
 
-void CompilationStateImpl::ApplyCompilationHintToInitialProgress(
-    const WasmCompilationHint& hint, size_t hint_idx) {
+void CompilationStateImpl::ApplyEagerTierUpToInitialProgress(size_t hint_idx) {
   // Get old information.
   uint8_t& progress = compilation_progress_[hint_idx];
   ExecutionTier old_baseline_tier = RequiredBaselineTierField::decode(progress);
-  ExecutionTier old_top_tier = RequiredTopTierField::decode(progress);
 
   // Compute new information.
-  ExecutionTier new_baseline_tier =
-      ApplyHintToExecutionTier(hint.baseline_tier, old_baseline_tier);
-  ExecutionTier new_top_tier =
-      ApplyHintToExecutionTier(hint.top_tier, old_top_tier);
-  switch (hint.strategy) {
-    case WasmCompilationHintStrategy::kDefault:
-      // Be careful not to switch from lazy to non-lazy.
-      if (old_baseline_tier == ExecutionTier::kNone) {
-        new_baseline_tier = ExecutionTier::kNone;
-      }
-      if (old_top_tier == ExecutionTier::kNone) {
-        new_top_tier = ExecutionTier::kNone;
-      }
-      break;
-    case WasmCompilationHintStrategy::kLazy:
-      new_baseline_tier = ExecutionTier::kNone;
-      new_top_tier = ExecutionTier::kNone;
-      break;
-    case WasmCompilationHintStrategy::kEager:
-      // Nothing to do, use the encoded (new) tiers.
-      break;
-    case WasmCompilationHintStrategy::kLazyBaselineEagerTopTier:
-      new_baseline_tier = ExecutionTier::kNone;
-      break;
-  }
-
-  if (new_top_tier == ExecutionTier::kLiftoff &&
-      new_baseline_tier == ExecutionTier::kTurbofan) {
-    // The top tier shouldn't be lower than the baseline tier (or it should be
-    // ::None).
-    new_top_tier = ExecutionTier::kTurbofan;
-  }
+  ExecutionTier new_baseline_tier = ExecutionTier::kTurbofan;
+  ExecutionTier new_top_tier = ExecutionTier::kTurbofan;
 
   progress = RequiredBaselineTierField::update(progress, new_baseline_tier);
   progress = RequiredTopTierField::update(progress, new_top_tier);
@@ -3790,16 +3671,6 @@ void CompilationStateImpl::InitializeCompilationProgress(
       outstanding_baseline_units_ += module->num_declared_functions;
     }
 
-    // Apply compilation hints, if enabled.
-    if (native_module_->enabled_features().has_compilation_hints()) {
-      size_t num_hints = std::min(module->compilation_hints.size(),
-                                  size_t{module->num_declared_functions});
-      for (size_t hint_idx = 0; hint_idx < num_hints; ++hint_idx) {
-        const auto& hint = module->compilation_hints[hint_idx];
-        ApplyCompilationHintToInitialProgress(hint, hint_idx);
-      }
-    }
-
     // Transform --wasm-eager-tier-up-function, if given, into a fake
     // compilation hint.
     if (V8_UNLIKELY(
@@ -3810,10 +3681,7 @@ void CompilationStateImpl::InitializeCompilationProgress(
                 module->functions.size())) {
       uint32_t func_idx =
           v8_flags.wasm_eager_tier_up_function - module->num_imported_functions;
-      WasmCompilationHint hint{WasmCompilationHintStrategy::kEager,
-                               WasmCompilationHintTier::kOptimized,
-                               WasmCompilationHintTier::kOptimized};
-      ApplyCompilationHintToInitialProgress(hint, func_idx);
+      ApplyEagerTierUpToInitialProgress(func_idx);
     }
   }
 

@@ -1182,17 +1182,4 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define LANE(ptr, index) ptr[index]
 #endif
 
-//------------------------------------------------------------------------------
-// Compilation Hints.
-//------------------------------------------------------------------------------
-#define COMPILE_STRATEGY_DEFAULT (0x00)
-#define COMPILE_STRATEGY_LAZY (0x01)
-#define COMPILE_STRATEGY_EAGER (0x02)
-#define BASELINE_TIER_DEFAULT (0x00 << 2)
-#define BASELINE_TIER_BASELINE (0x01 << 2)
-#define BASELINE_TIER_OPTIMIZED (0x02 << 2)
-#define TOP_TIER_DEFAULT (0x00 << 4)
-#define TOP_TIER_BASELINE (0x01 << 4)
-#define TOP_TIER_OPTIMIZED (0x02 << 4)
-
 #endif  // V8_WASM_MACRO_GEN_H_

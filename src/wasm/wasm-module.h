@@ -272,26 +272,6 @@ struct WasmExport {
   uint32_t index = 0;         // index into the respective space.
 };
 
-enum class WasmCompilationHintStrategy : uint8_t {
-  kDefault = 0,
-  kLazy = 1,
-  kEager = 2,
-  kLazyBaselineEagerTopTier = 3,
-};
-
-enum class WasmCompilationHintTier : uint8_t {
-  kDefault = 0,
-  kBaseline = 1,
-  kOptimized = 2,
-};
-
-// Static representation of a wasm compilation hint
-struct WasmCompilationHint {
-  WasmCompilationHintStrategy strategy;
-  WasmCompilationHintTier baseline_tier;
-  WasmCompilationHintTier top_tier;
-};
-
 #define SELECT_WASM_COUNTER(counters, origin, prefix, suffix)     \
   ((origin) == kWasmOrigin ? (counters)->prefix##_wasm_##suffix() \
                            : (counters)->prefix##_asm_##suffix())
@@ -721,7 +701,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<WasmTag> tags;
   std::vector<WasmStringRefLiteral> stringref_literals;
   std::vector<WasmElemSegment> elem_segments;
-  std::vector<WasmCompilationHint> compilation_hints;
   BranchHintInfo branch_hints;
   // Pairs of module offsets and mark id.
   std::vector<std::pair<uint32_t, uint32_t>> inst_traces;

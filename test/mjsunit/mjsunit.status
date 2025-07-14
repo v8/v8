@@ -631,9 +631,6 @@
   #--experimental-wasm-ref-cast-nop
   'wasm/gc-experiments': [SKIP],
 
-  # --experimental-wasm-compilation-hints
-  'wasm/compilation-hints*': [SKIP],
-
   # --experimental-wasm-extended-const
   'wasm/extended-constants': [SKIP],
 
@@ -695,7 +692,6 @@
   'wasm/deopt/*': [SKIP],
   'wasm/enter-debug-state': [SKIP],
   'wasm/liftoff-trap-handler': [SKIP],
-  'wasm/serialization-with-compilation-hints': [SKIP],
   'wasm/streaming-trap-location': [SKIP],
 
   # --wasm_lazy_compilation
@@ -1577,11 +1573,6 @@
   'wasm/wasm-to-js-tierup': [SKIP],
   'wasm/deopt/deopt-debugging': [SKIP],
 
-  # The test relies on precise switching of code kinds of wasm functions. With
-  # multiple isolates that share the wasm functions, the precise switching is
-  # not possible.
-  'wasm/serialization-with-compilation-hints': [SKIP],
-
   # The test enables the global profiler, and there can only exist one profiler
   # at a time.
   'wasm/log-code-after-post-message': [SKIP],
@@ -1846,9 +1837,6 @@
   'wasm/shared-memory-worker-gc-stress': [SKIP],
   'object-literal': [SKIP],
 
-  # Slow tests.
-  'wasm/serialization-with-compilation-hints': [SKIP],
-
   # https://crbug.com/v8/14228
   'asm/poppler/poppler': [SKIP],
 
@@ -2066,7 +2054,6 @@
 
   # Wasm serialization relies on TurboFan to be available, hence does not work
   # in the 'nooptimization' variant.
-  'wasm/serialization-with-compilation-hints': [SKIP],
   'regress/wasm/regress-7785': [SKIP],
 
   # Tests that require wasm tier up.

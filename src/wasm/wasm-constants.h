@@ -129,7 +129,6 @@ enum SectionCode : int8_t {
   kExternalDebugInfoSectionCode,  // Section encoding the external symbol path
   kBuildIdSectionCode,            // Unique build id to match the symbol file
   kInstTraceSectionCode,          // Instruction trace section
-  kCompilationHintsSectionCode,   // Compilation hints section
   kBranchHintsSectionCode,        // Branch hints section
   kDescriptorsSectionCode,        // Descriptors section
 
@@ -138,10 +137,6 @@ enum SectionCode : int8_t {
   kLastKnownModuleSection = kStringRefSectionCode,
   kFirstUnorderedSection = kDataCountSectionCode,
 };
-
-// Binary encoding of compilation hints.
-constexpr uint8_t kDefaultCompilationHint = 0x0;
-constexpr uint8_t kNoCompilationHint = kMaxUInt8;
 
 // Binary encoding of name section kinds.
 enum NameSectionKindCode : uint8_t {

@@ -31,7 +31,6 @@ namespace v8::internal::wasm {
 constexpr char kNameString[] = "name";
 constexpr char kSourceMappingURLString[] = "sourceMappingURL";
 constexpr char kInstTraceString[] = "metadata.code.trace_inst";
-constexpr char kCompilationHintsString[] = "compilationHints";
 constexpr char kBranchHintsString[] = "metadata.code.branch_hint";
 constexpr char kDebugInfoString[] = ".debug_info";
 constexpr char kExternalDebugInfoString[] = "external_debug_info";
@@ -140,8 +139,6 @@ inline SectionCode IdentifyUnknownSectionInternal(Decoder* decoder,
       {base::StaticCharVector(kSourceMappingURLString),
        kSourceMappingURLSectionCode},
       {base::StaticCharVector(kInstTraceString), kInstTraceSectionCode},
-      {base::StaticCharVector(kCompilationHintsString),
-       kCompilationHintsSectionCode},
       {base::StaticCharVector(kBranchHintsString), kBranchHintsSectionCode},
       {base::StaticCharVector(kDebugInfoString), kDebugInfoSectionCode},
       {base::StaticCharVector(kExternalDebugInfoString),
@@ -254,8 +251,7 @@ class WasmSectionIterator {
     }
 
     if (section_code == kUnknownSectionCode) {
-      // Check for the known "name", "sourceMappingURL", or "compilationHints"
-      // section.
+      // Check for the known "name" or "sourceMappingURL" section.
       // To identify the unknown section we set the end of the decoder bytes to
       // the end of the custom section, so that we do not read the section name
       // beyond the end of the section.
@@ -489,19 +485,6 @@ class ModuleDecoderImpl : public Decoder {
           DecodeInstTraceSection();
         } else {
           // Ignore this section when feature is disabled. It is an optional
-          // custom section anyways.
-          consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
-        }
-        break;
-      case kCompilationHintsSectionCode:
-        // TODO(jkummerow): We're missing tracing support for well-known
-        // custom sections. This confuses `wami --full-hexdump` e.g.
-        // for the modules created by
-        // mjsunit/wasm/compilation-hints-streaming-compilation.js.
-        if (enabled_features_.has_compilation_hints()) {
-          DecodeCompilationHintsSection();
-        } else {
-          // Ignore this section when feature was disabled. It is an optional
           // custom section anyways.
           consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
         }
@@ -1696,102 +1679,6 @@ class ModuleDecoderImpl : public Decoder {
 
     // Skip the whole instruction trace section in the outer decoder.
     consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
-  }
-
-  void DecodeCompilationHintsSection() {
-    TRACE("DecodeCompilationHints module+%d\n", static_cast<int>(pc_ - start_));
-
-    // TODO(frgossen): Find a way to report compilation hint errors as warnings.
-    // All except first occurrence after function section and before code
-    // section are ignored.
-    const bool before_function_section =
-        next_ordered_section_ <= kFunctionSectionCode;
-    const bool after_code_section = next_ordered_section_ > kCodeSectionCode;
-    if (before_function_section || after_code_section ||
-        has_seen_unordered_section(kCompilationHintsSectionCode)) {
-      return;
-    }
-    set_seen_unordered_section(kCompilationHintsSectionCode);
-
-    // TODO(frgossen) Propagate errors to outer decoder in experimental phase.
-    // We should use an inner decoder later and propagate its errors as
-    // warnings.
-    Decoder& decoder = *this;
-    // Decoder decoder(start_, pc_, end_, buffer_offset_);
-
-    // Ensure exactly one compilation hint per function.
-    uint32_t hint_count = decoder.consume_u32v("compilation hint count");
-    if (hint_count != module_->num_declared_functions) {
-      decoder.errorf(decoder.pc(), "Expected %u compilation hints (%u found)",
-                     module_->num_declared_functions, hint_count);
-    }
-
-    // Decode sequence of compilation hints.
-    if (decoder.ok()) {
-      module_->compilation_hints.reserve(hint_count);
-    }
-    for (uint32_t i = 0; decoder.ok() && i < hint_count; i++) {
-      TRACE("DecodeCompilationHints[%d] module+%d\n", i,
-            static_cast<int>(pc_ - start_));
-
-      // Compilation hints are encoded in one byte each.
-      // +-------+----------+---------------+----------+
-      // | 2 bit | 2 bit    | 2 bit         | 2 bit    |
-      // | ...   | Top tier | Baseline tier | Strategy |
-      // +-------+----------+---------------+----------+
-      uint8_t hint_byte = decoder.consume_u8("compilation hint");
-      if (!decoder.ok()) break;
-
-      // Validate the hint_byte.
-      // For the compilation strategy, all 2-bit values are valid. For the tier,
-      // only 0x0, 0x1, and 0x2 are allowed.
-      static_assert(
-          static_cast<int>(WasmCompilationHintTier::kDefault) == 0 &&
-              static_cast<int>(WasmCompilationHintTier::kBaseline) == 1 &&
-              static_cast<int>(WasmCompilationHintTier::kOptimized) == 2,
-          "The check below assumes that 0x03 is the only invalid 2-bit number "
-          "for a compilation tier");
-      if (((hint_byte >> 2) & 0x03) == 0x03 ||
-          ((hint_byte >> 4) & 0x03) == 0x03) {
-        decoder.errorf(decoder.pc(),
-                       "Invalid compilation hint %#04x (invalid tier 0x03)",
-                       hint_byte);
-        break;
-      }
-
-      // Decode compilation hint.
-      WasmCompilationHint hint;
-      hint.strategy =
-          static_cast<WasmCompilationHintStrategy>(hint_byte & 0x03);
-      hint.baseline_tier =
-          static_cast<WasmCompilationHintTier>((hint_byte >> 2) & 0x03);
-      hint.top_tier =
-          static_cast<WasmCompilationHintTier>((hint_byte >> 4) & 0x03);
-
-      // Ensure that the top tier never downgrades a compilation result. If
-      // baseline and top tier are the same compilation will be invoked only
-      // once.
-      if (hint.top_tier < hint.baseline_tier &&
-          hint.top_tier != WasmCompilationHintTier::kDefault) {
-        decoder.errorf(decoder.pc(),
-                       "Invalid compilation hint %#04x (forbidden downgrade)",
-                       hint_byte);
-      }
-
-      // Happily accept compilation hint.
-      if (decoder.ok()) {
-        module_->compilation_hints.push_back(std::move(hint));
-      }
-    }
-
-    // If section was invalid reset compilation hints.
-    if (decoder.failed()) {
-      module_->compilation_hints.clear();
-    }
-
-    // @TODO(frgossen) Skip the whole compilation hints section in the outer
-    // decoder if inner decoder was used.
-    // consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
   }
 
   void DecodeBranchHintsSection() {
