@@ -577,6 +577,12 @@ DEFINE_BOOL_READONLY(
     "make OptimizeFunctionOnNextCall optimize to maglev instead of turbofan")
 #endif  //  V8_ENABLE_MAGLEV
 
+DEFINE_BOOL(maglev_as_top_tier, false,
+            "disable Turbofan/Turbolev, make Maglev optimize more aggressively")
+DEFINE_IMPLICATION(maglev_as_top_tier, maglev)
+DEFINE_NEG_IMPLICATION(maglev_as_top_tier, turbofan)
+DEFINE_NEG_IMPLICATION(maglev_as_top_tier, turbolev)
+
 DEFINE_BOOL(maglev_inlining, true,
             "enable inlining in the maglev optimizing compiler")
 DEFINE_BOOL(maglev_loop_peeling, true,
@@ -626,7 +632,7 @@ DEFINE_INT(
 DEFINE_INT(
     max_maglev_hard_inline_depth, 10,
     "max depth of functions that Maglev will inline incl. small functions")
-DEFINE_INT(max_maglev_inlined_bytecode_size, 460,
+DEFINE_INT(max_maglev_inlined_bytecode_size, 100,
            "maximum size of bytecode for a single inlining")
 DEFINE_INT(max_maglev_inlined_bytecode_size_cumulative, 920,
            "maximum cumulative size of bytecode considered for inlining excl. "
@@ -636,13 +642,14 @@ DEFINE_INT(max_maglev_inlined_bytecode_size_small, 27,
 DEFINE_INT(max_maglev_inlined_bytecode_size_small_with_heapnum_in_out, 75,
            "maximum size of bytecode considered for small function inlining, "
            "when the function call has a HeapNumber as input or output")
-DEFINE_FLOAT(min_maglev_inlining_frequency, 0.10,
+DEFINE_FLOAT(min_maglev_inlining_frequency, 0.95,
              "minimum frequency for inlining")
-DEFINE_WEAK_VALUE_IMPLICATION(turbofan, max_maglev_inline_depth, 1)
-DEFINE_WEAK_VALUE_IMPLICATION(turbofan, max_maglev_inlined_bytecode_size, 100)
-DEFINE_WEAK_VALUE_IMPLICATION(turbofan,
-                              max_maglev_inlined_bytecode_size_cumulative, 920)
-DEFINE_WEAK_VALUE_IMPLICATION(turbofan, min_maglev_inlining_frequency, 0.95)
+
+DEFINE_WEAK_VALUE_IMPLICATION(maglev_as_top_tier,
+                              max_maglev_inlined_bytecode_size, 460)
+DEFINE_WEAK_VALUE_IMPLICATION(maglev_as_top_tier, min_maglev_inlining_frequency,
+                              0.10)
+
 DEFINE_BOOL(maglev_reuse_stack_slots, true,
             "reuse stack slots in the maglev optimizing compiler")
 DEFINE_BOOL(maglev_untagged_phis, true,
