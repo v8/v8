@@ -1232,6 +1232,9 @@ class RepresentationSelector {
       // double uses. For tagging that just means some potentially expensive
       // allocation code; we might want to do the same for -0 as well?
       return MachineRepresentation::kTagged;
+    } else if (type.Is(TypeCache::Get()->kAdditiveSafeInteger) && Is64() &&
+               use.check_safe_integer()) {
+      return MachineRepresentation::kWord64;
     } else if (type.Is(Type::Number())) {
       return MachineRepresentation::kFloat64;
     } else if (type.Is(Type::BigInt()) && Is64() && use.IsUsedAsWord64()) {
