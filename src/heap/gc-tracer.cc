@@ -309,10 +309,18 @@ void GCTracer::StartInSafepoint(base::TimeTicks time) {
   SampleAllocation(current_.start_time, heap_->NewSpaceAllocationCounter(),
                    heap_->OldGenerationAllocationCounter(),
                    heap_->EmbedderAllocationCounter());
-
   current_.start_object_size = heap_->SizeOfObjects();
   current_.start_memory_size = heap_->memory_allocator()->Size();
   current_.start_holes_size = CountTotalHolesSize(heap_);
+  current_.old_generation_consumed_baseline =
+      heap_->OldGenerationConsumedBytesAtLastGC();
+  current_.old_generation_consumed_current =
+      heap_->OldGenerationConsumedBytes();
+  current_.old_generation_consumed_limit =
+      heap_->old_generation_allocation_limit();
+  current_.global_consumed_baseline = heap_->GlobalConsumedBytesAtLastGC();
+  current_.global_consumed_current = heap_->GlobalConsumedBytes();
+  current_.global_consumed_limit = heap_->global_allocation_limit();
   size_t new_space_size = (heap_->new_space() ? heap_->new_space()->Size() : 0);
   size_t new_lo_space_size =
       (heap_->new_lo_space() ? heap_->new_lo_space()->SizeOfObjects() : 0);
@@ -1801,6 +1809,32 @@ void GCTracer::ReportFullCycleToRecorder() {
       current_.start_memory_size > current_.end_memory_size
           ? current_.start_memory_size - current_.end_memory_size
           : 0U;
+  // Old generation Consumed Byes:
+  event.old_generation_consumed.bytes_baseline =
+      current_.old_generation_consumed_baseline;
+  event.old_generation_consumed.bytes_limit =
+      current_.old_generation_consumed_limit;
+  event.old_generation_consumed.bytes_current =
+      current_.old_generation_consumed_current;
+  event.old_generation_consumed.growing_bytes =
+      current_.old_generation_consumed_current -
+      current_.old_generation_consumed_baseline;
+  event.old_generation_consumed.growing_factor =
+      current_.old_generation_consumed_baseline > 0
+          ? static_cast<double>(event.old_generation_consumed.growing_bytes) /
+                current_.old_generation_consumed_baseline
+          : 0.0;
+  // Global Consumed Byes:
+  event.global_consumed.bytes_baseline = current_.global_consumed_baseline;
+  event.global_consumed.bytes_limit = current_.global_consumed_limit;
+  event.global_consumed.bytes_current = current_.global_consumed_current;
+  event.global_consumed.growing_bytes =
+      current_.global_consumed_current - current_.global_consumed_baseline;
+  event.global_consumed.growing_factor =
+      current_.global_consumed_baseline > 0
+          ? static_cast<double>(event.global_consumed.growing_bytes) /
+                current_.global_consumed_baseline
+          : 0.0;
   // Collection Rate:
   if (event.objects.bytes_before == 0) {
     event.collection_rate_in_percent = 0;

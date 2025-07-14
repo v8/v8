@@ -215,6 +215,16 @@ class V8_EXPORT_PRIVATE GCTracer {
     // Size of memory allocated from OS set in destructor.
     size_t end_memory_size = 0;
 
+    // Consumed bytes used to evaluate old generation allocation limits.
+    size_t old_generation_consumed_baseline = 0;
+    size_t old_generation_consumed_limit = 0;
+    size_t old_generation_consumed_current = 0;
+
+    // Consumed bytes used to evaluate global allocation limits.
+    size_t global_consumed_baseline = 0;
+    size_t global_consumed_limit = 0;
+    size_t global_consumed_current = 0;
+
     // Total amount of space either wasted or contained in one of free lists
     // before the current GC.
     size_t start_holes_size = 0;
