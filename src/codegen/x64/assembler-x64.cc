@@ -6,7 +6,6 @@
 
 #include <cstring>
 
-#include "absl/container/flat_hash_map.h"
 #include "src/utils/utils.h"
 
 #if V8_TARGET_ARCH_X64
@@ -258,31 +257,9 @@ bool Operand::AddressUsesRegister(Register reg) const {
   }
 }
 
-void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
-  DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
-
-  absl::flat_hash_map<double, Handle<HeapNumber>> previous_requests_;
-
-  for (HeapNumberRequest& request : heap_number_requests_) {
-    Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
-    Handle<HeapNumber> object;
-
-    if (v8_flags.deduplicate_heap_number_requests) {
-      auto it = previous_requests_.find(request.heap_number());
-      if (it != previous_requests_.end()) {
-        object = it->second;
-      } else {
-        object = isolate->factory()->NewHeapNumber<AllocationType::kOld>(
-            request.heap_number());
-        previous_requests_.insert({request.heap_number(), object});
-      }
-    } else {
-      object = isolate->factory()->NewHeapNumber<AllocationType::kOld>(
-          request.heap_number());
-    }
-
-    WriteUnalignedValue(pc, object);
-  }
+void Assembler::PatchInHeapNumberRequest(Address pc,
+                                         Handle<HeapNumber> heap_number) {
+  WriteUnalignedValue(pc, heap_number);
 }
 
 // Partial Constant Pool.

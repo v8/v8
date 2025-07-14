@@ -527,6 +527,10 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   // by the pc offset associated with each request).
   void RequestHeapNumber(HeapNumberRequest request);
 
+  void AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate);
+  virtual void PatchInHeapNumberRequest(Address pc,
+                                        Handle<HeapNumber> object) = 0;
+
   bool ShouldRecordRelocInfo(RelocInfo::Mode rmode) const {
     DCHECK(!RelocInfo::IsNoInfo(rmode));
     if (RelocInfo::IsOnlyForSerializer(rmode) &&

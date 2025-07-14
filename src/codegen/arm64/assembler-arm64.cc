@@ -437,16 +437,10 @@ win64_unwindinfo::BuiltinUnwindInfo Assembler::GetUnwindInfo() const {
 }
 #endif
 
-void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
-  DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
-  for (auto& request : heap_number_requests_) {
-    Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
-    Handle<HeapObject> object =
-        isolate->factory()->NewHeapNumber<AllocationType::kOld>(
-            request.heap_number());
-    EmbeddedObjectIndex index = AddEmbeddedObject(object);
-    set_embedded_object_index_referenced_from(pc, index);
-  }
+void Assembler::PatchInHeapNumberRequest(Address pc,
+                                         Handle<HeapNumber> object) {
+  EmbeddedObjectIndex index = AddEmbeddedObject(object);
+  set_embedded_object_index_referenced_from(pc, index);
 }
 
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {

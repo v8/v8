@@ -34,9 +34,11 @@
 
 #include "src/codegen/assembler.h"
 
+#include "absl/container/flat_hash_map.h"
 #ifdef V8_CODE_COMMENTS
 #include <iomanip>
 #endif
+
 #include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -261,6 +263,35 @@ void Assembler::DataAlign(int m) {
 void AssemblerBase::RequestHeapNumber(HeapNumberRequest request) {
   request.set_offset(pc_offset());
   heap_number_requests_.push_front(request);
+}
+
+void AssemblerBase::AllocateAndInstallRequestedHeapNumbers(
+    LocalIsolate* isolate) {
+  DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
+
+  absl::flat_hash_map<double, Handle<HeapNumber>> previous_requests_;
+
+  for (HeapNumberRequest& request : heap_number_requests_) {
+    Handle<HeapNumber> object;
+
+    if (v8_flags.deduplicate_heap_number_requests) {
+      auto it = previous_requests_.find(request.heap_number());
+      if (it != previous_requests_.end()) {
+        object = it->second;
+      } else {
+        object = isolate->factory()->NewHeapNumber<AllocationType::kOld>(
+            request.heap_number());
+        previous_requests_.insert({request.heap_number(), object});
+      }
+    } else {
+      object = isolate->factory()->NewHeapNumber<AllocationType::kOld>(
+          request.heap_number());
+    }
+
+    Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
+
+    PatchInHeapNumberRequest(pc, object);
+  }
 }
 
 int AssemblerBase::AddCodeTarget(IndirectHandle<Code> target) {
