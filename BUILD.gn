@@ -8024,6 +8024,8 @@ template("v8_fuzzer") {
   fuzzer_name = target_name
 
   v8_source_set(fuzzer_name) {
+    testonly = true
+
     sources = invoker.sources
 
     deps = [ ":fuzzer_support" ]
@@ -8038,6 +8040,8 @@ template("v8_fuzzer") {
   }
 
   v8_executable("v8_simple_${fuzzer_name}") {
+    testonly = true
+
     deps = [
       ":${fuzzer_name}",
       "//build/win:default_exe_manifest",
@@ -8145,6 +8149,8 @@ if (v8_enable_webassembly) {
   }
 
   v8_source_set("wasm_test_common") {
+    testonly = true
+
     sources = [
       "test/common/flag-utils.h",
       "test/common/wasm/flag-utils.h",
@@ -8174,6 +8180,8 @@ if (v8_enable_webassembly) {
   }
 
   v8_source_set("wasm_fuzzer_common") {
+    testonly = true
+
     sources = [
       "test/fuzzer/wasm/fuzzer-common.cc",
       "test/fuzzer/wasm/fuzzer-common.h",
