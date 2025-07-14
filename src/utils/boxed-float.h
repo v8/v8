@@ -21,7 +21,7 @@ namespace internal {
 // the exact bit pattern during deoptimization when passing this value.
 class Float32 {
  public:
-  Float32() = default;
+  constexpr Float32() = default;
 
   // This constructor does not guarantee that bit pattern of the input value
   // is preserved if the input is a NaN.
@@ -33,11 +33,13 @@ class Float32 {
     DCHECK(!std::isnan(value));
   }
 
-  uint32_t get_bits() const { return bit_pattern_; }
+  constexpr uint32_t get_bits() const { return bit_pattern_; }
 
-  float get_scalar() const { return base::bit_cast<float>(bit_pattern_); }
+  constexpr float get_scalar() const {
+    return base::bit_cast<float>(bit_pattern_);
+  }
 
-  bool is_nan() const {
+  constexpr bool is_nan() const {
     // Even though {get_scalar()} might set the quiet NaN bit, it's ok here,
     // because this does not change the is_nan property.
     bool nan = std::isnan(get_scalar());
@@ -45,14 +47,30 @@ class Float32 {
     return nan;
   }
 
-  bool is_quiet_nan() const { return is_nan() && (bit_pattern_ & (1 << 22)); }
+  constexpr bool is_quiet_nan() const {
+    return is_nan() && (bit_pattern_ & kQuietNanBit);
+  }
+
+  constexpr bool is_inf() const {
+    bool inf = std::isinf(get_scalar());
+    DCHECK_EQ(inf, exponent() == 0xff && mantissa() == 0);
+    return inf;
+  }
+
+  constexpr bool is_negative() const { return bit_pattern_ & kSignBit; }
 
   V8_WARN_UNUSED_RESULT Float32 to_quiet_nan() const {
     DCHECK(is_nan());
-    Float32 quiet_nan{bit_pattern_ | (1 << 22)};
+    Float32 quiet_nan{bit_pattern_ | kQuietNanBit};
     DCHECK(quiet_nan.is_quiet_nan());
     return quiet_nan;
   }
+
+  V8_WARN_UNUSED_RESULT Float32 to_negative() const {
+    return Float32::FromBits(bit_pattern_ | kSignBit);
+  }
+
+  constexpr bool operator==(const Float32&) const = default;
 
   // Return a pointer to the field storing the bit pattern. Used in code
   // generation tests to store generated values there directly.
@@ -60,12 +78,32 @@ class Float32 {
 
   static constexpr Float32 FromBits(uint32_t bits) { return Float32(bits); }
 
+  // This static constructor allows passing NaNs, but as the signalling bit
+  // might get lost when passing the float parameter we explicitly put this in
+  // the method name, and still DCHECK for it (which might not trigger if a
+  // signalling NaN is implicitly silenced when passed here).
+  static Float32 FromNonSignallingFloat(float value) {
+    Float32 result = Float32::FromBits(base::bit_cast<uint32_t>(value));
+    DCHECK(!result.is_nan() || result.is_quiet_nan());
+    return result;
+  }
+
+  static constexpr Float32 quiet_nan() {
+    return FromBits((0xffu << kExponentShift) | kQuietNanBit);
+  }
+
  private:
   explicit constexpr Float32(uint32_t bit_pattern)
       : bit_pattern_(bit_pattern) {}
 
-  uint32_t exponent() const { return (bit_pattern_ >> 23) & 0xff; }
-  uint32_t mantissa() const { return bit_pattern_ & ((1 << 23) - 1); }
+  static constexpr int kExponentShift = 23;
+  static constexpr uint32_t kQuietNanBit = 1 << 22;
+  static constexpr uint32_t kSignBit = 1 << 31;
+
+  uint32_t exponent() const { return (bit_pattern_ >> kExponentShift) & 0xff; }
+  uint32_t mantissa() const {
+    return bit_pattern_ & ((1 << kExponentShift) - 1);
+  }
 
   uint32_t bit_pattern_ = 0;
 };

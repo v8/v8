@@ -529,6 +529,10 @@ class WasmRunner : public WasmRunnerBase {
   }
 
   ReturnType Call(ParamTypes... p) {
+    // We should only call code after having built it (via one of the
+    // `Build(...)` methods).
+    CHECK(compiled_);
+
     std::array<DirectHandle<Object>, sizeof...(p)> param_objs = {
         MakeParam(p)...};
     MaybeDirectHandle<Object> retval =
