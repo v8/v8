@@ -76,11 +76,10 @@ luci.builder(
     dimensions = {"cpu": "x86-64", "os": "Windows-10", "pool": "luci.chromium.ci"},
     executable = "recipe:v8",
     properties = {
-        "$build/siso": SISO.CHROMIUM_TRUSTED,
         "$build/v8": {"use_remoteexec": True},
         "builder_group": "client.v8",
         "recipe": "v8",
-    },
+    } | SISO.CHROMIUM_TRUSTED,
     execution_timeout = 7200 * time.second,
     build_numbers = True,
     service_account = "v8-ci-builder-dev@chops-service-accounts.iam.gserviceaccount.com",
