@@ -1613,10 +1613,16 @@ DEFINE_IMPLICATION(experimental_wasm_shared, shared_heap)
 DEFINE_IMPLICATION(experimental_wasm_shared, shared_string_table)
 #endif
 
+DEFINE_BOOL(
+    deduplicate_heap_number_requests, false,
+    "avoid duplicated HeapNumber materializations in HeapNumberRequests")
+
 #ifdef DEBUG
 
 DEFINE_BOOL(turboshaft_verify_load_elimination, false,
             "insert runtime checks to verify Late Load Elimination")
+DEFINE_IMPLICATION(turboshaft_verify_load_elimination,
+                   deduplicate_heap_number_requests)
 DEFINE_UINT64(turboshaft_opt_bisect_limit, std::numeric_limits<uint64_t>::max(),
               "stop applying optional optimizations after a specified number "
               "of steps, useful for bisecting optimization bugs")
