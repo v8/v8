@@ -754,8 +754,14 @@ inline void MaglevAssembler::CallBuiltin(Builtin builtin) {
   // registers and therefore doesn't require special spill handling.
   DCHECK(allow_call() || builtin == Builtin::kDoubleToI);
 
+  // Checking that the allow_allocate effect is correct.
+  // TODO(dmercadier): also check this on Bazel (currently disabled by the
+  // "ifndef GOOGLE3" check), which requires linking the dynamically generated
+  // builtins-effects.cc in the final v8 binary.
+#ifndef GOOGLE3
   DCHECK_IMPLIES(!allow_allocate(), builtin == Builtin::kDoubleToI ||
                                         !BuiltinCanAllocate(builtin));
+#endif
 
   // Temporaries have to be reset before calling CallBuiltin, in case it uses
   // temporaries that alias register parameters.

@@ -885,6 +885,11 @@ void CallOp::Validate(const Graph& graph) const {
     DCHECK(Get(graph, frame_state().value()).Is<FrameStateOp>());
   }
 
+  // Checking that the can_allocate effect is correct.
+  // TODO(dmercadier): also check this on Bazel (currently disabled by the
+  // "ifndef GOOGLE3" check), which requires linking the dynamically generated
+  // builtins-effects.cc in the final v8 binary.
+#ifndef GOOGLE3
   if (!graph.has_broker()) return;
   if (const ConstantOp* target =
           graph.Get(callee()).TryCast<Opmask::kHeapConstant>()) {
@@ -894,6 +899,7 @@ void CallOp::Validate(const Graph& graph) const {
                     !BuiltinCanAllocate(*builtin));
     }
   }
+#endif
 #endif
 }
 
