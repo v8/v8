@@ -5361,7 +5361,7 @@ SourceGroup::IsolateThread::IsolateThread(SourceGroup* group)
     : base::Thread(GetThreadOptions("IsolateThread")), group_(group) {}
 
 void SourceGroup::ExecuteInThread() {
-  v8::base::FlushDenormalsScope denormals_scope(Shell::options.flush_denormals);
+  base::FlushDenormalsScope denormals_scope(Shell::options.flush_denormals);
 
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
@@ -5666,7 +5666,7 @@ void Worker::SetCurrentWorker(Worker* worker) {
 Worker* Worker::GetCurrentWorker() { return current_worker_; }
 
 void Worker::ExecuteInThread() {
-  v8::base::FlushDenormalsScope denormals_scope(flush_denormals_);
+  base::FlushDenormalsScope denormals_scope(flush_denormals_);
 
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
@@ -6789,7 +6789,7 @@ int Shell::Main(int argc, char* argv[]) {
   if (!SetOptions(argc, argv)) return 1;
   if (!i::v8_flags.fuzzing) d8_install_sigterm_handler();
 
-  v8::base::FlushDenormalsScope denormals_scope(options.flush_denormals);
+  base::FlushDenormalsScope denormals_scope(options.flush_denormals);
 
   v8::V8::InitializeICUDefaultLocation(argv[0], options.icu_data_file);
 

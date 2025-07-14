@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "src/base/fpu.h"
 #include "src/base/logging.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/platform.h"
@@ -348,6 +349,7 @@ class StressOffThreadDeserializeThread final : public base::Thread {
         cached_data_(cached_data) {}
 
   void Run() final {
+    base::FlushDenormalsScope denormals_scope(isolate_->flush_denormals());
     LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);
     UnparkedScope unparked_scope(&local_isolate);
     LocalHandleScope handle_scope(&local_isolate);
