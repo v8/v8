@@ -247,6 +247,10 @@ class Graph final : public ZoneObject {
 
   BasicBlock::Id max_block_id() const { return max_block_id_; }
 
+  bool is_tracing_enabled() const {
+    return compilation_info_->is_tracing_enabled();
+  }
+
   bool has_graph_labeller() const {
     return compilation_info_->has_graph_labeller();
   }
@@ -302,7 +306,8 @@ class Graph final : public ZoneObject {
     static_assert(!NodeT::kProperties.can_throw());
     static_assert(!NodeT::kProperties.can_write());
     if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
-    if (v8_flags.trace_maglev_graph_building) {
+    if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                    is_tracing_enabled())) {
       std::cout << "  " << node << "  " << PrintNodeLabel(node) << ": "
                 << PrintNode(node) << std::endl;
     }

@@ -2409,8 +2409,8 @@ class NodeBase : public ZoneObject {
 
   auto options() const { return std::tuple{}; }
 
-  void ClearUnstableNodeAspects(KnownNodeAspects&);
-  void ClearElementsProperties(KnownNodeAspects&);
+  void ClearUnstableNodeAspects(bool is_tracing_enabled, KnownNodeAspects&);
+  void ClearElementsProperties(bool is_tracing_enabled, KnownNodeAspects&);
 
   void set_owner(BasicBlock* block) { owner_or_temporaries_ = block; }
 
@@ -7586,7 +7586,8 @@ class CheckMapsWithMigration
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
 
-  void ClearUnstableNodeAspects(KnownNodeAspects& known_node_aspects);
+  void ClearUnstableNodeAspects(bool is_tracing_enabled,
+                                KnownNodeAspects& known_node_aspects);
 
  private:
   using CheckTypeBitField = NextBitField<CheckType, 1>;
@@ -7618,7 +7619,8 @@ class MigrateMapIfNeeded : public FixedInputValueNodeT<2, MigrateMapIfNeeded> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const {}
 
-  void ClearUnstableNodeAspects(KnownNodeAspects& known_node_aspects);
+  void ClearUnstableNodeAspects(bool is_tracing_enabled,
+                                KnownNodeAspects& known_node_aspects);
 };
 
 class CheckCacheIndicesNotCleared
@@ -9358,7 +9360,7 @@ class StoreMap : public FixedInputNodeT<1, StoreMap> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
 
-  void ClearUnstableNodeAspects(KnownNodeAspects&);
+  void ClearUnstableNodeAspects(bool is_tracing_enabled, KnownNodeAspects&);
 
  private:
   using KindField = NextBitField<Kind, 3>;

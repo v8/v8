@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "src/base/base-export.h"
 #include "src/execution/local-isolate.h"
 #include "src/maglev/maglev-graph-optimizer.h"
 #include "src/maglev/maglev-graph-processor.h"
@@ -19,7 +20,7 @@ bool MaglevCallSiteInfoCompare::operator()(const MaglevCallSiteInfo* info1,
   return info1->score < info2->score;
 }
 
-void MaglevInliner::Run(bool is_tracing_maglev_graphs_enabled) {
+void MaglevInliner::Run() {
   if (graph_->inlineable_calls().empty()) return;
 
   while (!graph_->inlineable_calls().empty()) {
@@ -33,8 +34,7 @@ void MaglevInliner::Run(bool is_tracing_maglev_graphs_enabled) {
     if (result.IsFail()) continue;
     // If --trace-maglev-inlining-verbose, we print the graph after each
     // inlining step/call.
-    if (is_tracing_maglev_graphs_enabled && v8_flags.print_maglev_graphs &&
-        v8_flags.trace_maglev_inlining_verbose) {
+    if (V8_UNLIKELY(v8_flags.print_maglev_graphs && is_tracing_enabled())) {
       std::cout << "\nAfter inlining "
                 << call_site->generic_call_node->shared_function_info()
                 << std::endl;
@@ -46,8 +46,7 @@ void MaglevInliner::Run(bool is_tracing_maglev_graphs_enabled) {
       GraphProcessor<MaglevGraphOptimizer> optimizer(graph_);
       optimizer.ProcessGraph(graph_);
 
-      if (is_tracing_maglev_graphs_enabled && v8_flags.print_maglev_graphs &&
-          v8_flags.trace_maglev_inlining_verbose) {
+      if (V8_UNLIKELY(v8_flags.print_maglev_graphs && is_tracing_enabled())) {
         std::cout << "\nAfter optimization "
                   << call_site->generic_call_node->shared_function_info()
                   << std::endl;
@@ -57,8 +56,7 @@ void MaglevInliner::Run(bool is_tracing_maglev_graphs_enabled) {
   }
 
   // Otherwise we print just once at the end.
-  if (is_tracing_maglev_graphs_enabled && v8_flags.print_maglev_graphs &&
-      !v8_flags.trace_maglev_inlining_verbose) {
+  if (V8_UNLIKELY(v8_flags.print_maglev_graphs && is_tracing_enabled())) {
     std::cout << "\nAfter inlining" << std::endl;
     PrintGraph(std::cout, graph_);
   }
@@ -94,7 +92,7 @@ MaybeReduceResult MaglevInliner::BuildInlineFunction(
     return ReduceResult::Fail();
   }
 
-  if (v8_flags.trace_maglev_inlining) {
+  if (V8_UNLIKELY(v8_flags.trace_maglev_inlining && is_tracing_enabled())) {
     std::cout << "  non-eager inlining " << shared << std::endl;
   }
 

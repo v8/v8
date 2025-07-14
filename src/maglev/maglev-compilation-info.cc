@@ -114,6 +114,12 @@ MaglevCompilationInfo::MaglevCompilationInfo(
         MaglevCompilationUnit::New(zone(), this, function);
   }
 
+  if (FlagsMightEnableMaglevTracing()) {
+    is_tracing_enabled_ = toplevel_compilation_unit_->shared_function_info()
+                              .object()
+                              ->PassesFilter(v8_flags.maglev_print_filter);
+  }
+
   collect_source_positions_ = isolate->NeedsDetailedOptimizedCodeLineInfo();
 }
 

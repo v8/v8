@@ -81,9 +81,10 @@
 #include "src/objects/intl-objects.h"
 #endif
 
-#define TRACE(...)                            \
-  if (v8_flags.trace_maglev_graph_building) { \
-    std::cout << __VA_ARGS__ << std::endl;    \
+#define TRACE(...)                                        \
+  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building && \
+                  is_tracing_enabled())) {                \
+    std::cout << __VA_ARGS__ << std::endl;                \
   }
 
 #define FAIL(...)                                                         \
@@ -1092,11 +1093,9 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
 
     iterator_.AdvanceTo(entrypoint_);
 
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "- Non-standard entrypoint @" << entrypoint_
-                << " by OSR from @" << compilation_unit_->osr_offset().ToInt()
-                << std::endl;
-    }
+    TRACE("- Non-standard entrypoint @"
+          << entrypoint_ << " by OSR from @"
+          << compilation_unit_->osr_offset().ToInt());
   }
   CHECK_IMPLIES(!compilation_unit_->is_osr(), entrypoint_ == 0);
 
@@ -1211,9 +1210,7 @@ void MaglevGraphBuilder::BuildMergeStates() {
     }
     const compiler::BytecodeLivenessState* liveness = GetInLivenessFor(offset);
     DCHECK_NULL(merge_states_[offset]);
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "- Creating loop merge state at @" << offset << std::endl;
-    }
+    TRACE("- Creating loop merge state at @" << offset);
     merge_states_[offset] = MergePointInterpreterFrameState::NewForLoop(
         current_interpreter_frame_, graph_, *compilation_unit_, offset,
         predecessor_count(offset), liveness, &loop_info);
@@ -1229,11 +1226,9 @@ void MaglevGraphBuilder::BuildMergeStates() {
           GetInLivenessFor(offset);
       DCHECK_EQ(predecessor_count(offset), 0);
       DCHECK_NULL(merge_states_[offset]);
-      if (v8_flags.trace_maglev_graph_building) {
-        std::cout << "- Creating exception merge state at @" << offset
-                  << (was_used ? "" : " (never used)") << ", context register r"
-                  << context_reg.index() << std::endl;
-      }
+      TRACE("- Creating exception merge state at @"
+            << offset << (was_used ? "" : " (never used)")
+            << ", context register r" << context_reg.index());
       merge_states_[offset] = MergePointInterpreterFrameState::NewForCatchBlock(
           *compilation_unit_, liveness, offset, was_used, context_reg, graph_);
     }
@@ -3162,11 +3157,9 @@ ValueNode* MaglevGraphBuilder::LoadAndCacheContextSlot(
           ? known_node_aspects().loaded_context_slots[{context, offset}]
           : known_node_aspects().loaded_context_constants[{context, offset}];
   if (cached_value) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  * Reusing cached context slot " << PrintNodeLabel(context)
-                << "[" << offset << "]: " << PrintNode(cached_value)
-                << std::endl;
-    }
+    TRACE("  * Reusing cached context slot "
+          << PrintNodeLabel(context) << "[" << offset
+          << "]: " << PrintNode(cached_value));
     return cached_value;
   }
   if (slot_mutability == kMutable &&
@@ -3300,10 +3293,9 @@ ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
                                           StoreTaggedMode::kDefault, &store));
   }
 
-  if (v8_flags.trace_maglev_graph_building) {
-    std::cout << "  * Recording context slot store " << PrintNodeLabel(context)
-              << "[" << offset << "]: " << PrintNode(value) << std::endl;
-  }
+  TRACE("  * Recording context slot store " << PrintNodeLabel(context) << "["
+                                            << offset
+                                            << "]: " << PrintNode(value));
   KnownNodeAspects::LoadedContextSlots& loaded_context_slots =
       known_node_aspects().loaded_context_slots;
   if (!loaded_context_slots.empty()) {
@@ -3319,12 +3311,9 @@ ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
           std::get<ValueNode*>(cache.first) != context) {
         if (ContextMayAlias(std::get<ValueNode*>(cache.first), scope_info) &&
             cache.second != value) {
-          if (v8_flags.trace_maglev_graph_building) {
-            std::cout << "  * Clearing probably aliasing value "
-                      << PrintNodeLabel(std::get<ValueNode*>(cache.first))
-                      << "[" << offset << "]: " << PrintNode(value)
-                      << std::endl;
-          }
+          TRACE("  * Clearing probably aliasing value "
+                << PrintNodeLabel(std::get<ValueNode*>(cache.first)) << "["
+                << offset << "]: " << PrintNode(value));
           cache.second = nullptr;
           if (is_loop_effect_tracking()) {
             loop_effects_->context_slot_written.insert(cache.first);
@@ -5874,11 +5863,9 @@ ValueNode* MaglevGraphBuilder::BuildLoadElements(ValueNode* object) {
                             KnownNodeAspects::LoadedPropertyMapKey::Elements());
   if (known_elements.IsDone()) {
     DCHECK(known_elements.IsDoneWithValue());
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  * Reusing non-constant [Elements] "
-                << PrintNodeLabel(known_elements.value()) << ": "
-                << PrintNode(known_elements.value()) << std::endl;
-    }
+    TRACE("  * Reusing non-constant [Elements] "
+          << PrintNodeLabel(known_elements.value()) << ": "
+          << PrintNode(known_elements.value()));
     return known_elements.value();
   }
 
@@ -6956,7 +6943,8 @@ void MaglevGraphBuilder::RecordKnownProperty(
     // change and therefore can't be clobbered.
     // TODO(leszeks): Do some light aliasing analysis here, e.g. checking
     // whether there's an intersection of known maps.
-    if (v8_flags.trace_maglev_graph_building) {
+    if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                    is_tracing_enabled())) {
       std::cout << "  * Removing all non-constant cached ";
       switch (key.type()) {
         case KnownNodeAspects::LoadedPropertyMapKey::kName:
@@ -6977,7 +6965,8 @@ void MaglevGraphBuilder::RecordKnownProperty(
     props_for_key.clear();
   }
 
-  if (v8_flags.trace_maglev_graph_building) {
+  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                  is_tracing_enabled())) {
     std::cout << "  * Recording " << (is_const ? "constant" : "non-constant")
               << " known property " << PrintNodeLabel(lookup_start_object)
               << ": " << PrintNode(lookup_start_object) << " [";
@@ -7017,10 +7006,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReuseKnownPropertyLoad(
   if (MaybeReduceResult result = TryFindLoadedProperty(
           known_node_aspects().loaded_properties, lookup_start_object, name);
       result.IsDone()) {
-    if (v8_flags.trace_maglev_graph_building && result.IsDoneWithValue()) {
-      std::cout << "  * Reusing non-constant loaded property "
-                << PrintNodeLabel(result.value()) << ": "
-                << PrintNode(result.value()) << std::endl;
+    if (result.IsDoneWithValue()) {
+      TRACE("  * Reusing non-constant loaded property "
+            << PrintNodeLabel(result.value()) << ": "
+            << PrintNode(result.value()));
     }
     return result;
   }
@@ -7028,10 +7017,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReuseKnownPropertyLoad(
           TryFindLoadedProperty(known_node_aspects().loaded_constant_properties,
                                 lookup_start_object, name);
       result.IsDone()) {
-    if (v8_flags.trace_maglev_graph_building && result.IsDoneWithValue()) {
-      std::cout << "  * Reusing constant loaded property "
-                << PrintNodeLabel(result.value()) << ": "
-                << PrintNode(result.value()) << std::endl;
+    if (result.IsDoneWithValue()) {
+      TRACE("  * Reusing constant loaded property "
+            << PrintNodeLabel(result.value()) << ": "
+            << PrintNode(result.value()));
     }
     return result;
   }
@@ -7054,10 +7043,10 @@ ValueNode* MaglevGraphBuilder::BuildLoadStringLength(ValueNode* string) {
           known_node_aspects().loaded_constant_properties, string,
           KnownNodeAspects::LoadedPropertyMapKey::StringLength());
       result.IsDone()) {
-    if (v8_flags.trace_maglev_graph_building && result.IsDoneWithValue()) {
-      std::cout << "  * Reusing constant [String length]"
-                << PrintNodeLabel(result.value()) << ": "
-                << PrintNode(result.value()) << std::endl;
+    if (result.IsDoneWithValue()) {
+      TRACE("  * Reusing constant [String length]"
+            << PrintNodeLabel(result.value()) << ": "
+            << PrintNode(result.value()));
     }
     return result.value();
   }
@@ -7916,19 +7905,17 @@ ReduceResult MaglevGraphBuilder::BuildInlineFunction(
   compiler::BytecodeArrayRef bytecode = compilation_unit_->bytecode();
   compiler::FeedbackVectorRef feedback = compilation_unit_->feedback();
 
-  if (v8_flags.maglev_print_inlined &&
-      TopLevelFunctionPassMaglevPrintFilter() &&
-      (v8_flags.print_maglev_code || v8_flags.print_maglev_graph ||
-       v8_flags.print_maglev_graphs ||
-       v8_flags.trace_maglev_inlining_verbose)) {
-    std::cout << "== Inlining " << Brief(*shared.object()) << std::endl;
-    BytecodeArray::Disassemble(bytecode.object(), std::cout);
-    if (v8_flags.maglev_print_feedback) {
-      i::Print(*feedback.object(), std::cout);
+  if (is_tracing_enabled()) {
+    if (v8_flags.maglev_print_inlined && v8_flags.maglev_print_bytecode) {
+      std::cout << "== Inlining " << Brief(*shared.object()) << std::endl;
+      BytecodeArray::Disassemble(bytecode.object(), std::cout);
+      if (v8_flags.maglev_print_feedback) {
+        i::Print(*feedback.object(), std::cout);
+      }
+    } else if (v8_flags.trace_maglev_graph_building ||
+               v8_flags.trace_maglev_inlining) {
+      std::cout << "== Inlining " << shared.object() << std::endl;
     }
-  } else if (v8_flags.trace_maglev_graph_building ||
-             v8_flags.trace_maglev_inlining) {
-    std::cout << "== Inlining " << shared.object() << std::endl;
   }
 
   graph()->inlined_functions().push_back(
@@ -7989,10 +7976,7 @@ ReduceResult MaglevGraphBuilder::BuildInlineFunction(
     // no control flow that reaches the end of the inlined function, either
     // because of infinite loops or deopts
     if (merge_states_[inline_exit_offset()] == nullptr) {
-      if (v8_flags.trace_maglev_graph_building) {
-        std::cout << "== Finished inlining (abort) " << shared.object()
-                  << std::endl;
-      }
+      TRACE("== Finished inlining (abort) " << shared.object());
       return ReduceResult::DoneWithAbort();
     }
 
@@ -8000,19 +7984,17 @@ ReduceResult MaglevGraphBuilder::BuildInlineFunction(
     StartNewBlock(inline_exit_offset(), /*predecessor*/ nullptr);
   }
 
-  if (v8_flags.trace_maglev_graph_building) {
-    std::cout << "== Finished inlining " << shared.object() << std::endl;
-  }
+  TRACE("== Finished inlining " << shared.object());
 
   // Pull the returned accumulator value out of the inlined function's final
   // merged return state.
   return current_interpreter_frame_.accumulator();
 }
 
-#define TRACE_INLINING(...)                       \
-  do {                                            \
-    if (v8_flags.trace_maglev_inlining)           \
-      StdoutStream{} << __VA_ARGS__ << std::endl; \
+#define TRACE_INLINING(...)                                                  \
+  do {                                                                       \
+    if (V8_UNLIKELY(v8_flags.trace_maglev_inlining && is_tracing_enabled())) \
+      StdoutStream{} << __VA_ARGS__ << std::endl;                            \
   } while (false)
 
 #define TRACE_CANNOT_INLINE(...) \
@@ -8066,13 +8048,6 @@ bool MaglevGraphBuilder::CanInlineCall(compiler::SharedFunctionInfoRef shared,
     return false;
   }
   return true;
-}
-
-bool MaglevGraphBuilder::TopLevelFunctionPassMaglevPrintFilter() {
-  return compilation_unit_->GetTopLevelCompilationUnit()
-      ->shared_function_info()
-      .object()
-      ->PassesFilter(v8_flags.maglev_print_filter);
 }
 
 bool MaglevGraphBuilder::ShouldEagerInlineCall(
@@ -8321,53 +8296,32 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   if (!receiver) return {};
 
   if (args.count() < 1) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce Array.prototype.forEach - not enough "
-                   "arguments"
-                << std::endl;
-    }
-    return {};
+    FAIL(" to reduce Array.prototype.forEach - not enough arguments");
   }
 
   auto possible_maps = known_node_aspects().TryGetPossibleMaps(receiver);
   if (!possible_maps) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce Array.prototype.forEach - receiver "
-                   "map is unknown"
-                << std::endl;
-    }
-    return {};
+    FAIL(" to reduce Array.prototype.forEach - receiver map is unknown");
   }
 
   ElementsKind elements_kind;
   if (!CanInlineArrayIteratingBuiltin(broker(), *possible_maps,
                                       &elements_kind)) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce Array.prototype.forEach - doesn't "
-                   "support fast array iteration or incompatible maps"
-                << std::endl;
-    }
-    return {};
+    FAIL(
+        " to reduce Array.prototype.forEach - doesn't support fast array "
+        "iteration or incompatible maps");
   }
 
   // TODO(leszeks): May only be needed for holey elements kinds.
   if (!broker()->dependencies()->DependOnNoElementsProtector()) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce Array.prototype.forEach - invalidated "
-                   "no elements protector"
-                << std::endl;
-    }
-    return {};
+    FAIL(
+        " to reduce Array.prototype.forEach - invalidated no elements "
+        "protector");
   }
 
   ValueNode* callback = args[0];
   if (!callback->is_tagged()) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce Array.prototype.forEach - callback is "
-                   "untagged value"
-                << std::endl;
-    }
-    return {};
+    FAIL(" to reduce Array.prototype.forEach - callback is untagged value")
   }
 
   auto get_lazy_deopt_scope =
@@ -8407,12 +8361,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayMap(
   }
 
   if (!broker()->dependencies()->DependOnArraySpeciesProtector()) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce Array.prototype.map - invalidated "
-                   "array species protector"
-                << std::endl;
-    }
-    return {};
+    FAIL(
+        "  to reduce Array.prototype.map - invalidated array species "
+        "protector");
   }
 
   compiler::NativeContextRef native_context = broker()->target_native_context();
@@ -8510,49 +8461,30 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
   if (!receiver) return {};
 
   if (args.count() < 1) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce " << name << " - not enough arguments"
-                << std::endl;
-    }
-    return {};
+    FAIL(" to reduce " << name << " - not enough arguments");
   }
 
   auto possible_maps = known_node_aspects().TryGetPossibleMaps(receiver);
   if (!possible_maps) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce " << name
-                << " - receiver map is unknown" << std::endl;
-    }
-    return {};
+    FAIL(" to reduce " << name << " - receiver map is unknown");
   }
 
   ElementsKind elements_kind;
   if (!CanInlineArrayIteratingBuiltin(broker(), *possible_maps,
                                       &elements_kind)) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce " << name
-                << " - doesn't support fast array iteration or incompatible"
-                << " maps" << std::endl;
-    }
-    return {};
+    FAIL(" to reduce "
+         << name << " - doesn't support fast array iteration or incompatible"
+         << " maps");
   }
 
   // TODO(leszeks): May only be needed for holey elements kinds.
   if (!broker()->dependencies()->DependOnNoElementsProtector()) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce " << name
-                << " - invalidated no elements protector" << std::endl;
-    }
-    return {};
+    FAIL(" to reduce " << name << " - invalidated no elements protector");
   }
 
   ValueNode* callback = args[0];
   if (!callback->is_tagged()) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce " << name
-                << " - callback is untagged value" << std::endl;
-    }
-    return {};
+    FAIL(" to reduce " << name << " - callback is untagged value");
   }
 
   ValueNode* this_arg =
@@ -9497,11 +9429,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetField(
   if (!CanSpeculateCall()) return {};
 
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce Date.prototype.GetXXX - no receiver"
-                << std::endl;
-    }
-    return {};
+    FAIL(" to reduce Date.prototype.GetXXX - no receiver");
   }
 
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
@@ -9510,12 +9438,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetField(
   auto possible_receiver_maps =
       known_node_aspects().TryGetPossibleMaps(receiver);
   if (!possible_receiver_maps) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout
-          << "  ! Failed to reduce Date.prototype.GetXXX - unknown receiver map"
-          << std::endl;
-    }
-    return {};
+    FAIL(" to reduce Date.prototype.GetXXX - unknown receiver map");
   }
 
   // If the set of possible maps is empty, then there's no possible map for this
@@ -9529,23 +9452,15 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetField(
   }
 
   if (!AllOfInstanceTypesAre(*possible_receiver_maps, JS_DATE_TYPE)) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout
-          << "  ! Failed to reduce Date.prototype.GetXXX - wrong receiver maps "
-          << std::endl;
-    }
-    return {};
+    FAIL(" to reduce Date.prototype.GetXXX - wrong receiver maps ");
   }
 
   if (!broker()
            ->dependencies()
            ->DependOnNoDateTimeConfigurationChangeProtector()) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce Date.prototype.GetXXX - "
-                   "NoDateTimeConfigurationChangeProtector invalidated"
-                << std::endl;
-    }
-    return {};
+    FAIL(
+        " to reduce Date.prototype.GetXXX - "
+        "NoDateTimeConfigurationChangeProtector invalidated");
   }
 
   int field_offset = JSDate::kYearOffset + field_index * kTaggedSize;
@@ -9716,19 +9631,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMapPrototypeGet(
   }
 
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce Map.prototype.Get - no receiver"
-                << std::endl;
-    }
-    return {};
+    FAIL(" to reduce Map.prototype.Get - no receiver");
   }
   if (args.count() != 1) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce Map.prototype.Get - invalid "
-                   "argument count"
-                << std::endl;
-    }
-    return {};
+    FAIL(" to reduce Map.prototype.Get - invalid argument count");
   }
 
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
@@ -9737,12 +9643,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMapPrototypeGet(
   // If the map set is not found, then we don't know anything about the map of
   // the receiver, so bail.
   if (!possible_receiver_maps) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout
-          << "  ! Failed to reduce Map.prototype.Get - unknown receiver map"
-          << std::endl;
-    }
-    return {};
+    FAIL(" to reduce Map.prototype.Get - unknown receiver map");
   }
 
   // If the set of possible maps is empty, then there's no possible map for this
@@ -9756,12 +9657,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMapPrototypeGet(
   }
 
   if (!AllOfInstanceTypesAre(*possible_receiver_maps, JS_MAP_TYPE)) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout
-          << "  ! Failed to reduce Map.prototype.Get - wrong receiver maps "
-          << std::endl;
-    }
-    return {};
+    FAIL(" to reduce Map.prototype.Get - wrong receiver maps");
   }
 
   ValueNode* key = args[0];
@@ -9791,22 +9687,13 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceSetPrototypeHas(
   if (!receiver) return {};
 
   if (args.count() != 1) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce Set.prototype.has - invalid "
-                   "argument count"
-                << std::endl;
-    }
-    return {};
+    FAIL(" to reduce Set.prototype.has - invalid argument count");
   }
 
   auto possible_receiver_maps =
       known_node_aspects().TryGetPossibleMaps(receiver);
   if (!possible_receiver_maps) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce Set.prototype.has"
-                << " - receiver map is unknown" << std::endl;
-    }
-    return {};
+    FAIL(" to reduce Set.prototype.has - receiver map is unknown");
   }
 
   // If the set of possible maps is empty, then there's no possible map for this
@@ -9820,12 +9707,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceSetPrototypeHas(
   }
 
   if (!AllOfInstanceTypesAre(*possible_receiver_maps, JS_SET_TYPE)) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout
-          << "  ! Failed to reduce Set.prototype.has - wrong receiver maps "
-          << std::endl;
-    }
-    return {};
+    FAIL(" to reduce Set.prototype.has - wrong receiver maps");
   }
 
   ValueNode* key = args[0];
@@ -9839,21 +9721,12 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   if (!CanSpeculateCall()) return {};
   // We can't reduce Function#call when there is no receiver function.
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce Array.prototype.push - no receiver"
-                << std::endl;
-    }
-    return {};
+    FAIL(" to reduce Array.prototype.push - no receiver");
   }
 
   // TODO(pthier): Support multiple arguments.
   if (args.count() != 1) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce Array.prototype.push - invalid "
-                   "argument count"
-                << std::endl;
-    }
-    return {};
+    FAIL("  to reduce Array.prototype.push - invalid argument count");
   }
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
 
@@ -9861,12 +9734,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   // If the map set is not found, then we don't know anything about the map of
   // the receiver, so bail.
   if (!possible_maps) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout
-          << "  ! Failed to reduce Array.prototype.push - unknown receiver map"
-          << std::endl;
-    }
-    return {};
+    FAIL(" to reduce Array.prototype.push - unknown receiver map");
   }
 
   // If the set of possible maps is empty, then there's no possible map for this
@@ -9880,12 +9748,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   }
 
   if (!broker()->dependencies()->DependOnNoElementsProtector()) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce Array.prototype.push - "
-                   "NoElementsProtector invalidated"
-                << std::endl;
-    }
-    return {};
+    FAIL(" to reduce Array.prototype.push - NoElementsProtector invalidated");
   }
 
   // Check that inlining resizing array builtins is supported and group maps
@@ -9910,12 +9773,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   if (!CanInlineArrayResizingBuiltin(broker(), *possible_maps, map_kinds,
                                      elements_kind_to_index, &unique_kind_count,
                                      false)) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce Array.prototype.push - Map doesn't "
-                   "support fast resizing"
-                << std::endl;
-    }
-    return {};
+    FAIL(" to reduce Array.prototype.push - Map doesn't support fast resizing");
   }
 
   MaglevSubGraphBuilder sub_graph(this, 0);
@@ -9976,11 +9834,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
   if (!CanSpeculateCall()) return {};
   // We can't reduce Function#call when there is no receiver function.
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce Array.prototype.pop - no receiver"
-                << std::endl;
-    }
-    return {};
+    FAIL(" to reduce Array.prototype.pop - no receiver");
   }
 
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
@@ -9989,12 +9843,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
   // If the map set is not found, then we don't know anything about the map of
   // the receiver, so bail.
   if (!possible_maps) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout
-          << "  ! Failed to reduce Array.prototype.pop - unknown receiver map"
-          << std::endl;
-    }
-    return {};
+    FAIL(" to reduce Array.prototype.pop - unknown receiver map");
   }
 
   // If the set of possible maps is empty, then there's no possible map for this
@@ -10008,12 +9857,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
   }
 
   if (!broker()->dependencies()->DependOnNoElementsProtector()) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce Array.prototype.pop - "
-                   "NoElementsProtector invalidated"
-                << std::endl;
-    }
-    return {};
+    FAIL(" to reduce Array.prototype.pop - NoElementsProtector invalidated");
   }
 
   constexpr int max_kind_count = 4;
@@ -10053,12 +9897,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
   if (!CanInlineArrayResizingBuiltin(broker(), *possible_maps, map_kinds,
                                      elements_kind_to_index, &unique_kind_count,
                                      true)) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce Array.prototype.pop - Map doesn't "
-                   "support fast resizing"
-                << std::endl;
-    }
-    return {};
+    FAIL(" to reduce Array.prototype.pop - Map doesn't support fast resizing");
   }
 
   MaglevSubGraphBuilder sub_graph(this, 2);
@@ -10562,10 +10401,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceBuiltin(
   }
   SaveCallSpeculationScope speculate(this, feedback_source);
   if (!shared.HasBuiltinId()) return {};
-  if (v8_flags.trace_maglev_graph_building) {
-    std::cout << "  ! Trying to reduce builtin "
-              << Builtins::name(shared.builtin_id()) << std::endl;
-  }
+  TRACE("  ! Trying to reduce builtin " << Builtins::name(shared.builtin_id()));
   switch (shared.builtin_id()) {
 #define CASE(Name, ...)  \
   case Builtin::k##Name: \
@@ -13979,11 +13815,7 @@ void MaglevGraphBuilder::PeelLoop() {
   peeled_iteration_count_ = v8_flags.maglev_optimistic_peeled_loops ? 2 : 1;
   any_peeled_loop_ = true;
   allow_loop_peeling_ = false;
-
-  if (v8_flags.trace_maglev_graph_building) {
-    std::cout << "  * Begin loop peeling...." << std::endl;
-  }
-
+  TRACE("  * Begin loop peeling....");
   while (in_peeled_iteration()) {
     BuildLoopForPeeling();
   }
@@ -14295,9 +14127,7 @@ void MaglevGraphBuilder::MergeDeadIntoFrameState(int target) {
     // If this merge is the last one which kills a loop merge, remove that
     // merge state.
     if (merge_states_[target]->is_unmerged_unreachable_loop()) {
-      if (v8_flags.trace_maglev_graph_building) {
-        std::cout << "! Killing loop merge state at @" << target << std::endl;
-      }
+      TRACE("! Killing loop merge state at @" << target);
       merge_states_[target] = nullptr;
     }
   }
@@ -15471,7 +15301,8 @@ bool MaglevGraphBuilder::ShouldEmitOsrInterruptBudgetChecks() {
 
 BasicBlock* MaglevGraphBuilder::CreateEdgeSplitBlock(
     BasicBlockRef& jump_targets, BasicBlock* predecessor) {
-  if (v8_flags.trace_maglev_graph_building) {
+  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                  is_tracing_enabled())) {
     std::cout << "== New empty block ==" << std::endl;
     PrintVirtualObjects();
   }
@@ -15507,10 +15338,8 @@ void MaglevGraphBuilder::ProcessMergePointAtExceptionHandlerStart(int offset) {
       graph_labeller()->RegisterNode(phi, compilation_unit_,
                                      BytecodeOffset(offset),
                                      GetCurrentSourcePosition());
-      if (v8_flags.trace_maglev_graph_building) {
-        std::cout << "  " << phi << "  " << PrintNodeLabel(phi) << ": "
-                  << PrintNode(phi) << std::endl;
-      }
+      TRACE("  " << phi << "  " << PrintNodeLabel(phi) << ": "
+                 << PrintNode(phi));
     }
   }
 }
@@ -15583,10 +15412,7 @@ void MaglevGraphBuilder::RegisterPhisWithGraphLabeller(
 
   for (Phi* phi : *merge_state.phis()) {
     reducer_.RegisterNode(phi);
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  " << phi << "  " << PrintNodeLabel(phi) << ": "
-                << PrintNode(phi) << std::endl;
-    }
+    TRACE("  " << phi << "  " << PrintNodeLabel(phi) << ": " << PrintNode(phi));
   }
 }
 
@@ -15631,7 +15457,8 @@ void MaglevGraphBuilder::KillPeeledLoopTargets(int peelings) {
 
 void MaglevGraphBuilder::MarkBytecodeDead() {
   DCHECK_NULL(current_block());
-  if (v8_flags.trace_maglev_graph_building) {
+  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                  is_tracing_enabled())) {
     std::cout << "== Dead ==\n"
               << std::setw(4) << iterator_.current_offset() << " : ";
     interpreter::BytecodeDecoder::Decode(std::cout,
@@ -15687,13 +15514,15 @@ void MaglevGraphBuilder::UpdateSourceAndBytecodePosition(int offset) {
 }
 
 void MaglevGraphBuilder::PrintVirtualObjects() {
-  if (!v8_flags.trace_maglev_graph_building) return;
+  if (V8_LIKELY(!v8_flags.trace_maglev_graph_building)) return;
+  if (V8_LIKELY(!is_tracing_enabled())) return;
   current_interpreter_frame_.virtual_objects().Print(
       std::cout, "* VOs (Interpreter Frame State): ");
 }
 
 ReduceResult MaglevGraphBuilder::VisitSingleBytecode() {
-  if (v8_flags.trace_maglev_graph_building) {
+  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                  is_tracing_enabled())) {
     std::cout << std::setw(4) << iterator_.current_offset() << " : ";
     interpreter::BytecodeDecoder::Decode(std::cout,
                                          iterator_.current_address());
@@ -15725,7 +15554,8 @@ ReduceResult MaglevGraphBuilder::VisitSingleBytecode() {
       merge_state->Merge(this, *compilation_unit_, current_interpreter_frame_,
                          predecessor);
     }
-    if (v8_flags.trace_maglev_graph_building) {
+    if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                    is_tracing_enabled())) {
       auto detail = merge_state->is_exception_handler() ? "exception handler"
                     : merge_state->is_loop()            ? "loop header"
                                                         : "merge";
@@ -16260,7 +16090,8 @@ void MaglevGraphBuilder::StartFallthroughBlock(int next_block_offset,
   DCHECK_NULL(current_block());
 
   if (predecessor_count(next_block_offset) == 1) {
-    if (v8_flags.trace_maglev_graph_building) {
+    if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                    is_tracing_enabled())) {
       std::cout << "== New block (single fallthrough) at "
                 << *compilation_unit_->shared_function_info().object()
                 << "==" << std::endl;

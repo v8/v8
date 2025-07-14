@@ -147,7 +147,8 @@ void MaglevReducer<BaseT>::AddNewControlNode(
   current_block()->set_control_node(control_node);
   if (has_graph_labeller()) {
     RegisterNode(control_node);
-    if (v8_flags.trace_maglev_graph_building) {
+    if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                    is_tracing_enabled())) {
       bool kSkipTargets = true;
       std::cout << "  " << control_node << "  " << PrintNodeLabel(control_node)
                 << ": " << PrintNode(control_node, kSkipTargets) << std::endl;
@@ -275,7 +276,8 @@ void MaglevReducer<BaseT>::AddInitializedNodeToGraph(Node* node) {
   }
   node->set_owner(current_block());
   if (V8_UNLIKELY(has_graph_labeller())) RegisterNode(node);
-  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building)) {
+  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                  is_tracing_enabled())) {
     std::cout << "  " << node << "  " << PrintNodeLabel(node) << ": "
               << PrintNode(node) << std::endl;
   }

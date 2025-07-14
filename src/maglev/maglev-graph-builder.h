@@ -204,8 +204,6 @@ class MaglevGraphBuilder {
            v8_flags.maglev_licm;
   }
 
-  bool TopLevelFunctionPassMaglevPrintFilter();
-
   void RecordUseReprHint(Phi* phi, UseRepresentationSet reprs);
   void RecordUseReprHint(Phi* phi, UseRepresentation repr);
   void RecordUseReprHintIfPhi(ValueNode* node, UseRepresentation repr);
@@ -275,6 +273,10 @@ class MaglevGraphBuilder {
     } else {
       return v8_flags.max_maglev_inline_depth;
     }
+  }
+
+  bool is_tracing_enabled() const {
+    return compilation_unit_->info()->is_tracing_enabled();
   }
 
   KnownNodeAspects& known_node_aspects() {
@@ -2027,7 +2029,7 @@ void MaglevGraphBuilder::MarkPossibleSideEffect(NodeT* node) {
   // once we finish the inlined function.
 
   if constexpr (IsElementsArrayWrite(Node::opcode_of<NodeT>)) {
-    node->ClearElementsProperties(known_node_aspects());
+    node->ClearElementsProperties(is_tracing_enabled(), known_node_aspects());
     if (is_loop_effect_tracking()) {
       loop_effects_->keys_cleared.insert(
           KnownNodeAspects::LoadedPropertyMapKey::Elements());
@@ -2038,7 +2040,7 @@ void MaglevGraphBuilder::MarkPossibleSideEffect(NodeT* node) {
     // relevant side effect on these is writes to objects which invalidate
     // loaded properties and context slots, and we invalidate these already as
     // part of emitting the store.
-    node->ClearUnstableNodeAspects(known_node_aspects());
+    node->ClearUnstableNodeAspects(is_tracing_enabled(), known_node_aspects());
     if (is_loop_effect_tracking()) {
       loop_effects_->unstable_aspects_cleared = true;
     }

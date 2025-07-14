@@ -326,6 +326,8 @@ class MaglevReducer {
     return graph()->graph_labeller();
   }
 
+  bool is_tracing_enabled() const { return graph()->is_tracing_enabled(); }
+
   // TODO(victorgomes): Delete these access (or move to private) when the
   // speculation scope is moved inside MaglevReducer.
   compiler::FeedbackSource current_speculation_feedback() const {

@@ -6404,7 +6404,7 @@ void RunMaglevOptimizations(PipelineData* data,
   // Non-eager inlining.
   if (v8_flags.turbolev_non_eager_inlining) {
     maglev::MaglevInliner inliner(maglev_graph);
-    inliner.Run(data->info()->trace_turbo_graph());
+    inliner.Run();
 
     maglev::GraphProcessor<maglev::SweepIdentityNodes,
                            /* visit_identity_nodes */ true>

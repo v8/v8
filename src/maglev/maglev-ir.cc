@@ -10,6 +10,7 @@
 
 #include "src/base/bounds.h"
 #include "src/base/logging.h"
+#include "src/base/macros.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/code-factory.h"
@@ -8492,27 +8493,31 @@ void ExtendPropertiesBackingStore::PrintParams(std::ostream& os) const {
 }
 
 // Keeping track of the effects this instruction has on known node aspects.
-void NodeBase::ClearElementsProperties(KnownNodeAspects& known_node_aspects) {
+void NodeBase::ClearElementsProperties(bool is_tracing_enabled,
+                                       KnownNodeAspects& known_node_aspects) {
   DCHECK(IsElementsArrayWrite(opcode()));
   // Clear Elements cache.
   auto elements_properties = known_node_aspects.loaded_properties.find(
       KnownNodeAspects::LoadedPropertyMapKey::Elements());
   if (elements_properties != known_node_aspects.loaded_properties.end()) {
     elements_properties->second.clear();
-    if (v8_flags.trace_maglev_graph_building) {
+    if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                    is_tracing_enabled)) {
       std::cout << "  * Removing non-constant cached [Elements]";
     }
   }
 }
 
-void NodeBase::ClearUnstableNodeAspects(KnownNodeAspects& known_node_aspects) {
+void NodeBase::ClearUnstableNodeAspects(bool is_tracing_enabled,
+                                        KnownNodeAspects& known_node_aspects) {
   DCHECK(properties().can_write());
   DCHECK(!IsSimpleFieldStore(opcode()));
   DCHECK(!IsElementsArrayWrite(opcode()));
-  known_node_aspects.ClearUnstableNodeAspects();
+  known_node_aspects.ClearUnstableNodeAspects(is_tracing_enabled);
 }
 
-void StoreMap::ClearUnstableNodeAspects(KnownNodeAspects& known_node_aspects) {
+void StoreMap::ClearUnstableNodeAspects(bool is_tracing_enabled,
+                                        KnownNodeAspects& known_node_aspects) {
   switch (kind()) {
     case Kind::kInitializing:
     case Kind::kInlinedAllocation:
@@ -8527,7 +8532,8 @@ void StoreMap::ClearUnstableNodeAspects(KnownNodeAspects& known_node_aspects) {
             return map.equals(old_map);
           };
           known_node_aspects.ClearUnstableMapsIfAny(MaybeAliases);
-          if (v8_flags.trace_maglev_graph_building) {
+          if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                          is_tracing_enabled)) {
             std::cout << "  ! StoreMap: Clearing unstable map "
                       << Brief(*old_map.object()) << std::endl;
           }
@@ -8539,19 +8545,19 @@ void StoreMap::ClearUnstableNodeAspects(KnownNodeAspects& known_node_aspects) {
   }
   // TODO(olivf): Only invalidate nodes with the same type.
   known_node_aspects.ClearUnstableMaps();
-  if (v8_flags.trace_maglev_graph_building) {
+  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building && is_tracing_enabled)) {
     std::cout << "  ! StoreMap: Clearing unstable maps" << std::endl;
   }
 }
 
 void CheckMapsWithMigration::ClearUnstableNodeAspects(
-    KnownNodeAspects& known_node_aspects) {
+    bool is_tracing_enabled, KnownNodeAspects& known_node_aspects) {
   // This instruction only migrates representations of values, not the values
   // themselves, so cached values are still valid.
 }
 
 void MigrateMapIfNeeded::ClearUnstableNodeAspects(
-    KnownNodeAspects& known_node_aspects) {
+    bool is_tracing_enabled, KnownNodeAspects& known_node_aspects) {
   // This instruction only migrates representations of values, not the values
   // themselves, so cached values are still valid.
 }

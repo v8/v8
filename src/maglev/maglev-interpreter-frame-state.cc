@@ -145,8 +145,8 @@ void KnownNodeAspects::UpdateMayHaveAliasingContexts(
   }
 }
 
-void KnownNodeAspects::ClearUnstableNodeAspects() {
-  if (v8_flags.trace_maglev_graph_building) {
+void KnownNodeAspects::ClearUnstableNodeAspects(bool is_tracing_enabled) {
+  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building && is_tracing_enabled)) {
     std::cout << "  ! Clearing unstable node aspects" << std::endl;
   }
   ClearUnstableMaps();
@@ -529,9 +529,11 @@ MergePointInterpreterFrameState::MergePointInterpreterFrameState(
                     frame_state_.size(info))) {}
 
 namespace {
-void PrintBeforeMerge(ValueNode* current_value, ValueNode* unmerged_value,
-                      interpreter::Register reg, KnownNodeAspects* kna) {
-  if (!v8_flags.trace_maglev_graph_building) return;
+void PrintBeforeMerge(MaglevGraphBuilder* builder, ValueNode* current_value,
+                      ValueNode* unmerged_value, interpreter::Register reg,
+                      KnownNodeAspects* kna) {
+  if (V8_LIKELY(!v8_flags.trace_maglev_graph_building)) return;
+  if (V8_LIKELY(!builder->is_tracing_enabled())) return;
   std::cout << "  " << reg.ToString() << ": " << PrintNodeLabel(current_value)
             << "<";
   if (kna) {
@@ -553,8 +555,10 @@ void PrintBeforeMerge(ValueNode* current_value, ValueNode* unmerged_value,
   }
   std::cout << ">";
 }
-void PrintAfterMerge(ValueNode* merged_value, KnownNodeAspects* kna) {
-  if (!v8_flags.trace_maglev_graph_building) return;
+void PrintAfterMerge(MaglevGraphBuilder* builder, ValueNode* merged_value,
+                     KnownNodeAspects* kna) {
+  if (V8_LIKELY(!v8_flags.trace_maglev_graph_building)) return;
+  if (V8_LIKELY(!builder->is_tracing_enabled())) return;
   std::cout << " => " << PrintNodeLabel(merged_value) << ": "
             << PrintNode(merged_value) << "<";
 
@@ -584,11 +588,12 @@ void MergePointInterpreterFrameState::MergePhis(
   int i = 0;
   frame_state_.ForEachValue(
       compilation_unit, [&](ValueNode*& value, interpreter::Register reg) {
-        PrintBeforeMerge(value, unmerged.get(reg), reg, known_node_aspects_);
+        PrintBeforeMerge(builder, value, unmerged.get(reg), reg,
+                         known_node_aspects_);
         value = MergeValue(builder, reg, *unmerged.known_node_aspects(), value,
                            unmerged.get(reg), &per_predecessor_alternatives_[i],
                            optimistic_loop_phis);
-        PrintAfterMerge(value, known_node_aspects_);
+        PrintAfterMerge(builder, value, known_node_aspects_);
         ++i;
       });
 }
@@ -603,7 +608,8 @@ void MergePointInterpreterFrameState::MergeVirtualObject(
   }
   DCHECK(unmerged->compatible_for_merge(merged));
 
-  if (v8_flags.trace_maglev_graph_building) {
+  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                  builder->is_tracing_enabled())) {
     std::cout << " - Merging VOS: " << PrintNodeLabel(merged) << "(merged) and "
               << PrintNodeLabel(unmerged) << "(unmerged)" << std::endl;
   }
@@ -632,7 +638,7 @@ void MergePointInterpreterFrameState::MergeVirtualObjects(
 
   frame_state_.virtual_objects().Snapshot();
 
-  PrintVirtualObjects(unmerged_vos, "VOs before merge:");
+  PrintVirtualObjects(compilation_unit, unmerged_vos, "VOs before merge:");
 
   SmallZoneMap<InlinedAllocation*, VirtualObject*, 10> unmerged_map(
       builder->zone());
@@ -684,7 +690,7 @@ void MergePointInterpreterFrameState::MergeVirtualObjects(
     }
   }
 
-  PrintVirtualObjects(unmerged_vos, "VOs after merge:");
+  PrintVirtualObjects(compilation_unit, unmerged_vos, "VOs after merge:");
 }
 
 void MergePointInterpreterFrameState::InitializeLoop(
@@ -704,7 +710,8 @@ void MergePointInterpreterFrameState::InitializeLoop(
       optimistic_initial_state, loop_effects, builder->zone());
   unmerged.virtual_objects().Snapshot();
   frame_state_.set_virtual_objects(unmerged.virtual_objects());
-  if (v8_flags.trace_maglev_graph_building) {
+  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                  builder->is_tracing_enabled())) {
     std::cout << "Initializing "
               << (optimistic_initial_state ? "optimistic " : "")
               << "loop state..." << std::endl;
@@ -735,7 +742,8 @@ void MergePointInterpreterFrameState::Merge(
   }
 
   known_node_aspects_->Merge(*unmerged.known_node_aspects(), builder->zone());
-  if (v8_flags.trace_maglev_graph_building) {
+  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                  compilation_unit.is_tracing_enabled())) {
     std::cout << "Merging..." << std::endl;
   }
 
@@ -765,16 +773,17 @@ void MergePointInterpreterFrameState::MergeLoop(
   backedge_deopt_frame_ =
       builder->zone()->New<DeoptFrame>(builder->GetLatestCheckpointedFrame());
 
-  if (v8_flags.trace_maglev_graph_building) {
+  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                  compilation_unit.is_tracing_enabled())) {
     std::cout << "Merging loop backedge..." << std::endl;
   }
   frame_state_.ForEachValue(
       compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
-        PrintBeforeMerge(value, loop_end_state.get(reg), reg,
+        PrintBeforeMerge(builder, value, loop_end_state.get(reg), reg,
                          known_node_aspects_);
         MergeLoopValue(builder, reg, *loop_end_state.known_node_aspects(),
                        value, loop_end_state.get(reg));
-        PrintAfterMerge(value, known_node_aspects_);
+        PrintAfterMerge(builder, value, known_node_aspects_);
       });
   predecessors_so_far_++;
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);
@@ -814,7 +823,8 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
   // TODO(olivf): This could be done faster by consulting loop_effects_
   if (!loop_end_state.known_node_aspects()->IsCompatibleWithLoopHeader(
           *known_node_aspects_)) {
-    if (v8_flags.trace_maglev_graph_building) {
+    if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                    compilation_unit.is_tracing_enabled())) {
       std::cout << "Merging failed, peeling loop instead... " << std::endl;
     }
     ClearLoopInfo();
@@ -851,17 +861,18 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
   loop_end_block->set_predecessor_id(input);
   predecessors_[input] = loop_end_block;
 
-  if (v8_flags.trace_maglev_graph_building) {
+  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                  compilation_unit.is_tracing_enabled())) {
     std::cout << "Next peeling not needed due to compatible state" << std::endl;
   }
 
   frame_state_.ForEachValue(
       compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
-        PrintBeforeMerge(value, loop_end_state.get(reg), reg,
+        PrintBeforeMerge(builder, value, loop_end_state.get(reg), reg,
                          known_node_aspects_);
         MergeLoopValue(builder, reg, *loop_end_state.known_node_aspects(),
                        value, loop_end_state.get(reg));
-        PrintAfterMerge(value, known_node_aspects_);
+        PrintAfterMerge(builder, value, known_node_aspects_);
       });
   predecessors_so_far_++;
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);
@@ -896,9 +907,10 @@ void MergePointInterpreterFrameState::MergeThrow(
   const InterpreterFrameState& builder_frame =
       builder->current_interpreter_frame();
 
-  if (v8_flags.trace_maglev_graph_building) {
+  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                  handler_unit->is_tracing_enabled())) {
     std::cout << "- Merging into exception handler @" << this << std::endl;
-    PrintVirtualObjects(virtual_objects);
+    PrintVirtualObjects(*handler_unit, virtual_objects);
   }
 
   if (known_node_aspects_ == nullptr) {
@@ -914,19 +926,19 @@ void MergePointInterpreterFrameState::MergeThrow(
 
   frame_state_.ForEachParameter(
       *handler_unit, [&](ValueNode*& value, interpreter::Register reg) {
-        PrintBeforeMerge(value, builder_frame.get(reg), reg,
+        PrintBeforeMerge(builder, value, builder_frame.get(reg), reg,
                          known_node_aspects_);
         value = MergeValue(builder, reg, known_node_aspects, value,
                            builder_frame.get(reg), nullptr);
-        PrintAfterMerge(value, known_node_aspects_);
+        PrintAfterMerge(builder, value, known_node_aspects_);
       });
   frame_state_.ForEachLocal(
       *handler_unit, [&](ValueNode*& value, interpreter::Register reg) {
-        PrintBeforeMerge(value, builder_frame.get(reg), reg,
+        PrintBeforeMerge(builder, value, builder_frame.get(reg), reg,
                          known_node_aspects_);
         value = MergeValue(builder, reg, known_node_aspects, value,
                            builder_frame.get(reg), nullptr);
-        PrintAfterMerge(value, known_node_aspects_);
+        PrintAfterMerge(builder, value, known_node_aspects_);
       });
 
   // Pick out the context value from the incoming registers.
@@ -934,12 +946,13 @@ void MergePointInterpreterFrameState::MergeThrow(
   // the identity for generator-restored context. If generator value restores
   // were handled differently, we could avoid emitting a Phi here.
   ValueNode*& context = frame_state_.context(*handler_unit);
-  PrintBeforeMerge(context, builder_frame.get(catch_block_context_register_),
+  PrintBeforeMerge(builder, context,
+                   builder_frame.get(catch_block_context_register_),
                    catch_block_context_register_, known_node_aspects_);
   context = MergeValue(
       builder, catch_block_context_register_, known_node_aspects, context,
       builder_frame.get(catch_block_context_register_), nullptr);
-  PrintAfterMerge(context, known_node_aspects_);
+  PrintAfterMerge(builder, context, known_node_aspects_);
 
   predecessors_so_far_++;
 }

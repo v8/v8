@@ -288,7 +288,7 @@ struct KnownNodeAspects {
                                        LoopEffects* loop_effects,
                                        Zone* zone) const;
 
-  void ClearUnstableNodeAspects();
+  void ClearUnstableNodeAspects(bool is_tracing_enabled);
 
   void ClearUnstableMaps() {
     // A side effect could change existing objects' maps. For stable maps we
@@ -1039,9 +1039,13 @@ class MergePointInterpreterFrameState {
     frame_state_.set_virtual_objects(vos);
   }
 
-  void PrintVirtualObjects(VirtualObjectList from_ifs,
+  void PrintVirtualObjects(const MaglevCompilationUnit& unit,
+                           VirtualObjectList from_ifs,
                            const char* prelude = nullptr) {
-    if (!v8_flags.trace_maglev_graph_building) return;
+    if (V8_LIKELY(!v8_flags.trace_maglev_graph_building ||
+                  !unit.is_tracing_enabled())) {
+      return;
+    }
     if (prelude) {
       std::cout << prelude << std::endl;
     }
@@ -1272,18 +1276,19 @@ struct LoopEffects {
   }
 };
 
-void InterpreterFrameState::CopyFrom(const MaglevCompilationUnit& info,
+void InterpreterFrameState::CopyFrom(const MaglevCompilationUnit& unit,
                                      MergePointInterpreterFrameState& state,
                                      bool preserve_known_node_aspects = false,
                                      Zone* zone = nullptr) {
   DCHECK_IMPLIES(preserve_known_node_aspects, zone);
-  if (v8_flags.trace_maglev_graph_building) {
+  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                  unit.is_tracing_enabled())) {
     std::cout << "- Copying frame state from merge @" << &state << std::endl;
-    state.PrintVirtualObjects(virtual_objects());
+    state.PrintVirtualObjects(unit, virtual_objects());
   }
   virtual_objects_.Snapshot();
   state.frame_state().ForEachValue(
-      info, [&](ValueNode* value, interpreter::Register reg) {
+      unit, [&](ValueNode* value, interpreter::Register reg) {
         frame_[reg] = value;
       });
   if (preserve_known_node_aspects) {
