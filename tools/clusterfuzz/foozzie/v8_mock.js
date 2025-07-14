@@ -134,6 +134,7 @@ Object.defineProperty(
     return new Proxy(type, handler);
   }
 
+  Float16Array = mock(Float16Array);
   Float32Array = mock(Float32Array);
   Float64Array = mock(Float64Array);
 })();
@@ -142,6 +143,10 @@ Object.defineProperty(
 (function() {
   const origIsNaN = isNaN;
   const deNaNify = function(value) { return origIsNaN(value) ? 1 : value; };
+  const origSetFloat16 = DataView.prototype.setFloat16;
+  DataView.prototype.setFloat16 = function(offset, value, ...rest) {
+    origSetFloat16.call(this, offset, deNaNify(value), ...rest);
+  };
   const origSetFloat32 = DataView.prototype.setFloat32;
   DataView.prototype.setFloat32 = function(offset, value, ...rest) {
     origSetFloat32.call(this, offset, deNaNify(value), ...rest);
@@ -200,6 +205,7 @@ Object.defineProperty(
   Uint32Array = mock(Uint32Array);
   BigInt64Array = mock(BigInt64Array);
   BigUint64Array = mock(BigUint64Array);
+  Float16Array = mock(Float16Array);
   Float32Array = mock(Float32Array);
   Float64Array = mock(Float64Array);
 })();
@@ -218,6 +224,7 @@ Object.defineProperty(
     Uint32Array,
     BigInt64Array,
     BigUint64Array,
+    Float16Array,
     Float32Array,
     Float64Array,
   ];
