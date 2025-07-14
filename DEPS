@@ -82,7 +82,7 @@ vars = {
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:f96f46a8e4cf30c097110903d4b71516ef976fb6',
+  'siso_version': 'git_revision:1566dafa8c7c9a2c07e90fdba91b714cfcd6f366',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -132,7 +132,7 @@ deps = {
   'build':
     Var('chromium_url') + '/chromium/src/build.git' + '@' + 'cb592905b1f94a0c315dccb59939f91ef869592c',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '17bdad4a57ed807c4bef2a1947248d5fefef4efe',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '428390e5e357593d2aadabf315d6f5d8a80982b6',
   'buildtools/linux64': {
     'packages': [
       {
