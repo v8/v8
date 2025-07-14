@@ -4533,7 +4533,9 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
     if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index) &&
         is_int12(ReadOnlyRootPtr(index))) {
       left = temps.Acquire();
+#if V8_TARGET_ARCH_RISCV64
       SignExtendWord(left, rs);
+#endif
     }
     LoadTaggedRoot(right, index);
     Branch(L, cond, left, Operand(right));
@@ -4547,6 +4549,7 @@ void MacroAssembler::CompareTaggedAndBranch(Label* label, Condition cond,
                                             Register r1, const Operand& r2,
                                             bool need_link) {
   if (COMPRESS_POINTERS_BOOL) {
+#if V8_TARGET_ARCH_RISCV64
     UseScratchRegisterScope temps(this);
     Register scratch0 = temps.Acquire();
     SignExtendWord(scratch0, r1);
@@ -4562,6 +4565,9 @@ void MacroAssembler::CompareTaggedAndBranch(Label* label, Condition cond,
       }
       Branch(label, cond, scratch0, Operand(scratch1));
     }
+#else
+    UNREACHABLE();
+#endif
   } else {
     Branch(label, cond, r1, r2);
   }

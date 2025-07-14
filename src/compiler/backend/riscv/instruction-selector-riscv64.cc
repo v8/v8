@@ -1832,28 +1832,13 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
           switch (binop->kind) {
             case OverflowCheckedBinopOp::Kind::kSignedAdd:
               cont->OverwriteAndNegateIfEqual(kOverflow);
-              if (is64) {
-                return VisitBinop<Int32BinopMatcher>(this, node,
-                                                     kRiscvAddOvfWord, cont);
-              } else {  // If enable COMPRESS_POINTERS, smi will zero extend to
-                        // 64 bit, kRiscvAdd64 can't process smi overflow.
-                return VisitBinop<Int32BinopMatcher>(
-                    this, node,
-                    COMPRESS_POINTERS_BOOL ? kRiscvAddOvf32 : kRiscvAdd64,
-                    cont);
-              }
+              return VisitBinop<Int32BinopMatcher>(
+                  this, node, is64 ? kRiscvAddOvfWord : kRiscvAdd64, cont);
             case OverflowCheckedBinopOp::Kind::kSignedSub:
               cont->OverwriteAndNegateIfEqual(kOverflow);
-              if (is64) {
-                return VisitBinop<Int32BinopMatcher>(this, node,
-                                                     kRiscvSubOvfWord, cont);
-              } else {  // If enable COMPRESS_POINTERS, smi will zero extend to
-                        // 64 bit, kRiscvSub64 can't process smi overflow.
-                return VisitBinop<Int32BinopMatcher>(
-                    this, node,
-                    COMPRESS_POINTERS_BOOL ? kRiscvSubOvf32 : kRiscvSub64,
-                    cont);
-              }
+
+              return VisitBinop<Int32BinopMatcher>(
+                  this, node, is64 ? kRiscvSubOvfWord : kRiscvSub64, cont);
             case OverflowCheckedBinopOp::Kind::kSignedMul:
               cont->OverwriteAndNegateIfEqual(kOverflow);
               return VisitBinop<Int32BinopMatcher>(
@@ -1950,9 +1935,7 @@ void InstructionSelector::VisitInt32AddWithOverflow(OpIndex node) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
     // If enable COMPRESS_POINTERS, smi will zero extend to
     // 64 bit, kRiscvAdd64 can't process smi overflow.
-    return VisitBinop<Int32BinopMatcher>(
-        this, node, COMPRESS_POINTERS_BOOL ? kRiscvAddOvf32 : kRiscvAdd64,
-        &cont);
+    return VisitBinop<Int32BinopMatcher>(this, node, kRiscvAdd64, &cont);
   }
   FlagsContinuation cont;
   VisitBinop<Int32BinopMatcher>(this, node, kRiscvAdd64, &cont);
@@ -1964,9 +1947,7 @@ void InstructionSelector::VisitInt32SubWithOverflow(OpIndex node) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
     // If enable COMPRESS_POINTERS, smi will zero extend to
     // 64 bit, kRiscvSub64 can't process smi overflow.
-    return VisitBinop<Int32BinopMatcher>(
-        this, node, COMPRESS_POINTERS_BOOL ? kRiscvSubOvf32 : kRiscvSub64,
-        &cont);
+    return VisitBinop<Int32BinopMatcher>(this, node, kRiscvSub64, &cont);
   }
   FlagsContinuation cont;
   VisitBinop<Int32BinopMatcher>(this, node, kRiscvSub64, &cont);

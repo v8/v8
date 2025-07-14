@@ -2284,7 +2284,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicCompareExchangeWord32:
       switch (AtomicWidthField::decode(opcode)) {
         case AtomicWidth::kWord32:
+#if V8_TARGET_ARCH_RISCV64
           __ SignExtendWord(i.InputRegister(2), i.InputRegister(2));
+#endif
           ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll, Sc);
           break;
 #if V8_TARGET_ARCH_RISCV64
