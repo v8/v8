@@ -232,6 +232,11 @@ std::vector<BasicBlock*> MaglevInliner::TruncateGraphAt(BasicBlock* block) {
 ValueNode* MaglevInliner::EnsureTagged(MaglevGraphBuilder& builder,
                                        ValueNode* node) {
   // TODO(victorgomes): Use KNA to create better conversion nodes?
+  if (node->Is<Identity>()) {
+    // TODO(victorgomes): Properly support identities with different
+    // value representations.
+    return EnsureTagged(builder, node->input(0).node());
+  }
   switch (node->value_representation()) {
     case ValueRepresentation::kInt32:
       return builder.reducer().AddNewNodeNoInputConversion<Int32ToNumber>(
