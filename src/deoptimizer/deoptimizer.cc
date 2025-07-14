@@ -2522,9 +2522,7 @@ TranslatedValue Deoptimizer::TranslatedValueForWasmReturnKind(
       case wasm::kF32:
         return TranslatedValue::NewFloat(
             &translated_state_,
-            Float32(*reinterpret_cast<float*>(
-                input_->GetDoubleRegister(wasm::kFpReturnRegisters[0].code())
-                    .get_bits_address())));
+            input_->GetFloatRegister(wasm::kFpReturnRegisters[0].code()));
       case wasm::kF64:
         return TranslatedValue::NewDouble(
             &translated_state_,
