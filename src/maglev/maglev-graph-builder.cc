@@ -15829,9 +15829,9 @@ template <typename NodeT, typename Function, typename... Args>
 NodeT* MaglevGraphBuilder::AddNewNode(size_t input_count,
                                       Function&& post_create_input_initializer,
                                       Args&&... args) {
-  return reducer_.AddNewNode<NodeT>(input_count,
-                                    std::move(post_create_input_initializer),
-                                    std::forward<Args>(args)...);
+  return reducer_.AddNewNode<NodeT>(
+      input_count, std::forward<Function>(post_create_input_initializer),
+      std::forward<Args>(args)...);
 }
 
 // Add a new node with a static set of inputs.
