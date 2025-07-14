@@ -12,7 +12,9 @@
 namespace v8 {
 namespace internal {
 
-TEST(SandboxHardwareSupportTest, Initialization) {
+class SandboxHardwareSupportTest : public TestWithPlatform {};
+
+TEST_F(SandboxHardwareSupportTest, Initialization) {
   if (!base::MemoryProtectionKey::HasMemoryProtectionKeyAPIs() ||
       !base::MemoryProtectionKey::TestKeyAllocation())
     return;
@@ -33,72 +35,50 @@ TEST(SandboxHardwareSupportTest, Initialization) {
     ExitSandbox();          \
   }
 
-TEST(SandboxHardwareSupportTest, SimpleSandboxedCPPCode) {
+TEST_F(SandboxHardwareSupportTest, SimpleSandboxedCPPCode) {
   // Skip this test if hardware sandboxing support cannot be enabled (likely
   // because the system doesn't support PKEYs, see the Initialization test).
+  CHECK(Sandbox::GetDefault()->is_initialized());
   CHECK_IMPLIES(v8_flags.force_memory_protection_keys,
                 SandboxHardwareSupport::IsActive());
   if (!SandboxHardwareSupport::IsActive()) return;
 
-  base::VirtualAddressSpace global_vas;
+  int* in_sandbox_memory = SandboxAlloc<int>();
+  int* out_of_sandbox_memory = new int;
 
-  Sandbox sandbox;
-  sandbox.Initialize(&global_vas);
+  // Use a volatile pointer to ensure the memory accesses are performed.
+  volatile int* in_sandbox_ptr = in_sandbox_memory;
+  volatile int* out_of_sandbox_ptr = out_of_sandbox_memory;
 
-  size_t size = global_vas.allocation_granularity();
-  size_t alignment = global_vas.allocation_granularity();
-
-  Address page_outside_sandbox =
-      global_vas.AllocatePages(VirtualAddressSpace::kNoHint, size, alignment,
-                               PagePermissions::kReadWrite);
-  EXPECT_NE(page_outside_sandbox, kNullAddress);
-  SandboxHardwareSupport::RegisterOutOfSandboxMemory(
-      page_outside_sandbox, size, PagePermissions::kReadWrite);
-
-  VirtualAddressSpace* sandbox_vas = sandbox.address_space();
-  Address page_in_sandbox =
-      sandbox_vas->AllocatePages(VirtualAddressSpace::kNoHint, size, alignment,
-                                 PagePermissions::kReadWrite);
-  EXPECT_NE(page_in_sandbox, kNullAddress);
-  EXPECT_TRUE(sandbox.Contains(page_in_sandbox));
-
-  // TODO(saelo): in the future, we should be able to use "regular" memory here
-  // (e.g. malloc allocations, global memory, etc.). But for now, that memory
-  // is not yet automatically tagged as out-of-sandbox memory.
-  volatile int* out_of_sandbox_ptr =
-      reinterpret_cast<int*>(page_outside_sandbox);
-  volatile int* in_sandbox_ptr = reinterpret_cast<int*>(page_in_sandbox);
+  // Both memory locations can be written to normally.
+  *in_sandbox_ptr = 1;
+  *out_of_sandbox_ptr = 2;
 
   // Out-of-sandbox memory cannot be written to in sandboxed mode.
-  ASSERT_DEATH_IF_SUPPORTED(RUN_SANDBOXED(*out_of_sandbox_ptr = 42), "");
+  ASSERT_DEATH_IF_SUPPORTED(RUN_SANDBOXED(*out_of_sandbox_ptr = 3), "");
   // In-sandbox memory on the other hand can be written to.
-  RUN_SANDBOXED(*in_sandbox_ptr = 43);
+  RUN_SANDBOXED(*in_sandbox_ptr = 4);
+
+  SandboxFree(in_sandbox_memory);
+  delete out_of_sandbox_memory;
 }
 
-TEST(SandboxHardwareSupportTest, SandboxedCodeNoWriteAccessToTrustedSpace) {
+TEST_F(SandboxHardwareSupportTest, SandboxedCodeNoWriteAccessToTrustedSpace) {
   // Skip this test if hardware sandboxing support cannot be enabled (likely
   // because the system doesn't support PKEYs, see the Initialization test).
+  CHECK(Sandbox::GetDefault()->is_initialized());
   CHECK_IMPLIES(v8_flags.force_memory_protection_keys,
                 SandboxHardwareSupport::IsActive());
   if (!SandboxHardwareSupport::IsActive()) return;
 
-  // TODO(saelo): we should instead use the TestWithPlatform mixin for this
-  // test, but currently we still need to manually activate sandbox hardware
-  // support before that. Once sandbox hardware support has matured further, we
-  // should be able to activate it as part of V8's initialization, and then we
-  // can switch to the TestWithPlatform mixin here.
-  auto platform = v8::platform::NewDefaultPlatform(
-      0, v8::platform::IdleTaskSupport::kEnabled);
-  i::V8::InitializePlatformForTesting(platform.get());
-
-  auto trusted_range =
-      TrustedRange::EnsureProcessWideTrustedRange(kMinimumTrustedRangeSize);
+  auto trusted_range = TrustedRange::GetProcessWideTrustedRange();
   auto trusted_space_allocator = trusted_range->page_allocator();
   size_t size = trusted_space_allocator->AllocatePageSize();
   void* page_in_trusted_space = trusted_space_allocator->AllocatePages(
       nullptr, size, size, PageAllocator::kReadWrite);
   CHECK_NE(page_in_trusted_space, nullptr);
 
+  // Use a volatile pointer to ensure the memory accesses are performed.
   volatile int* trusted_space_ptr =
       reinterpret_cast<int*>(page_in_trusted_space);
 
@@ -106,33 +86,24 @@ TEST(SandboxHardwareSupportTest, SandboxedCodeNoWriteAccessToTrustedSpace) {
   *trusted_space_ptr = 42;
   // ... but not from sandboxed code.
   ASSERT_DEATH_IF_SUPPORTED(RUN_SANDBOXED(*trusted_space_ptr = 43), "");
+
+  trusted_space_allocator->FreePages(page_in_trusted_space, size);
 }
 
-TEST(SandboxHardwareSupportTest, DisallowSandboxAccess) {
+TEST_F(SandboxHardwareSupportTest, DisallowSandboxAccess) {
   // DisallowSandboxAccess is only enforced in DEBUG builds.
   if (!DEBUG_BOOL) return;
 
   // Skip this test if hardware sandboxing support cannot be enabled (likely
   // because the system doesn't support PKEYs, see the Initialization test).
+  CHECK(Sandbox::GetDefault()->is_initialized());
   CHECK_IMPLIES(v8_flags.force_memory_protection_keys,
                 SandboxHardwareSupport::IsActive());
   if (!SandboxHardwareSupport::IsActive()) return;
 
-  base::VirtualAddressSpace global_vas;
-
-  Sandbox sandbox;
-  sandbox.Initialize(&global_vas);
-
-  VirtualAddressSpace* sandbox_vas = sandbox.address_space();
-  size_t size = sandbox_vas->allocation_granularity();
-  size_t alignment = sandbox_vas->allocation_granularity();
-  Address ptr =
-      sandbox_vas->AllocatePages(VirtualAddressSpace::kNoHint, size, alignment,
-                                 PagePermissions::kReadWrite);
-  EXPECT_NE(ptr, kNullAddress);
-  EXPECT_TRUE(sandbox.Contains(ptr));
-
-  volatile int* in_sandbox_ptr = reinterpret_cast<int*>(ptr);
+  int* in_sandbox_memory = SandboxAlloc<int>();
+  // Use a volatile pointer to ensure the memory accesses are performed.
+  volatile int* in_sandbox_ptr = in_sandbox_memory;
 
   // Accessing in-sandbox memory should be possible.
   int value = *in_sandbox_ptr;
@@ -179,34 +150,23 @@ TEST(SandboxHardwareSupportTest, DisallowSandboxAccess) {
   // Mostly just needed to force a use of |value|.
   EXPECT_EQ(value, 0);
 
-  sandbox.TearDown();
+  SandboxFree(in_sandbox_memory);
 }
 
-TEST(SandboxHardwareSupportTest, AllowSandboxAccess) {
+TEST_F(SandboxHardwareSupportTest, AllowSandboxAccess) {
   // DisallowSandboxAccess/AllowSandboxAccess is only enforced in DEBUG builds.
   if (!DEBUG_BOOL) return;
 
   // Skip this test if hardware sandboxing support cannot be enabled (likely
   // because the system doesn't support PKEYs, see the Initialization test).
+  CHECK(Sandbox::GetDefault()->is_initialized());
   CHECK_IMPLIES(v8_flags.force_memory_protection_keys,
                 SandboxHardwareSupport::IsActive());
   if (!SandboxHardwareSupport::IsActive()) return;
 
-  base::VirtualAddressSpace global_vas;
-
-  Sandbox sandbox;
-  sandbox.Initialize(&global_vas);
-
-  VirtualAddressSpace* sandbox_vas = sandbox.address_space();
-  size_t size = sandbox_vas->allocation_granularity();
-  size_t alignment = sandbox_vas->allocation_granularity();
-  Address ptr =
-      sandbox_vas->AllocatePages(VirtualAddressSpace::kNoHint, size, alignment,
-                                 PagePermissions::kReadWrite);
-  EXPECT_NE(ptr, kNullAddress);
-  EXPECT_TRUE(sandbox.Contains(ptr));
-
-  volatile int* in_sandbox_ptr = reinterpret_cast<int*>(ptr);
+  int* in_sandbox_memory = SandboxAlloc<int>();
+  // Use a volatile pointer to ensure the memory accesses are performed.
+  volatile int* in_sandbox_ptr = in_sandbox_memory;
 
   // Accessing in-sandbox memory should be possible.
   int value = *in_sandbox_ptr;
@@ -242,7 +202,7 @@ TEST(SandboxHardwareSupportTest, AllowSandboxAccess) {
   // Mostly just needed to force a use of |value|.
   EXPECT_EQ(value, 0);
 
-  sandbox.TearDown();
+  SandboxFree(in_sandbox_memory);
 }
 
 }  // namespace internal
