@@ -6849,6 +6849,10 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoad() {
     return {};
   }
 
+  if (!is_turbolev()) {
+    return {};
+  }
+
   if (iterator_.current_bytecode() !=
       interpreter::Bytecode::kGetNamedProperty) {
     return {};
