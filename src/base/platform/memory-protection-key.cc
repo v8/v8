@@ -155,15 +155,17 @@ uint32_t MemoryProtectionKey::ComputeRegisterMaskForPermissionSwitch(
 }
 
 // static
-void MemoryProtectionKey::SetDefaultPermissionsForAllKeysInSignalHandler() {
+void MemoryProtectionKey::SetDefaultPermissionsForAllKeysInSignalHandler(
+    bool needs_full_access) {
   // NOTE: This code MUST be async-signal safe
 
   // As a future optimization, we could compute the register state first (or
   // even let g_active_keys already resemble the final register state), and
   // then perform a single WRPKRU instruction.
+  Permission permission = needs_full_access ? kNoRestrictions : kDisableWrite;
   for (int key = 0; key < kMaxAvailableKeys; key++) {
     if (g_active_keys[key]) {
-      SetPermissionsForKey(key, kDisableWrite);
+      SetPermissionsForKey(key, permission);
     }
   }
 }

@@ -352,4 +352,22 @@
   'MacroAssemblerTest.TestHardAbort': [SKIP],
 }],  # simulator_run
 
+##############################################################################
+['sandbox_hardware_support', {
+  # Tests that require the sampler/profiler, which doesn't work on older kernel
+  # versions if hardware sandboxing is active. See https://crbug.com/429173713.
+  'LogTest.*': [SKIP],
+  'LogMapsTest.*': [SKIP],
+  'LogAllTest.LogAll': [SKIP],
+  'LogTimerTest.ConsoleTimeEvents': [SKIP],
+  'LogInterpretedFramesNativeStackTest.LogInterpretedFramesNativeStack': [SKIP],
+  'LogInterpretedFramesNativeStackWithSerializationTest.LogInterpretedFramesNativeStackWithSerialization': [SKIP],
+  'LogExternalLogEventListenerTest.ExternalLogEventListener': [SKIP],
+  'LogExternalLogEventListenerInnerFunctionTest.ExternalLogEventListenerInnerFunctions': [SKIP],
+  'LogExternalInterpretedFramesNativeStackTest.ExternalLogEventListenerWithInterpretedFramesNativeStack': [SKIP],
+  'LogMapsCodeTest.LogMapsDetailsCode': [SKIP],
+  'LogFunctionEventsTest.LogFunctionEvents': [SKIP],
+  'CompilerTest.ProfilerEnabledDuringBackgroundCompile': [SKIP],
+}],
+
 ]

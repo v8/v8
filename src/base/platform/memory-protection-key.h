@@ -134,7 +134,8 @@ class V8_BASE_EXPORT MemoryProtectionKey {
   // (kDisableWrite). If necessary in the future, we could make that
   // configurable by passing in the default permissions into AllocateKey and
   // remembering them alongside the key.
-  static void SetDefaultPermissionsForAllKeysInSignalHandler();
+  static void SetDefaultPermissionsForAllKeysInSignalHandler(
+      bool needs_full_access = false);
 
   // Tag the stack of the current thread with the given key.
   //

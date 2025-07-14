@@ -19,12 +19,7 @@ TEST(SandboxHardwareSupportTest, Initialization) {
 
   // If PKEYs are supported at runtime (and V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   // is enabled at compile-time) we expect hardware sandbox support to work.
-  ASSERT_TRUE(SandboxHardwareSupport::TryActivateBeforeThreadCreation());
-  base::VirtualAddressSpace vas;
-  Sandbox sandbox;
-  sandbox.Initialize(&vas);
   ASSERT_TRUE(SandboxHardwareSupport::IsActive());
-  sandbox.TearDown();
 }
 
 // The ASSERT_DEATH_IF_SUPPORTED macro is somewhat complicated and for example
@@ -41,13 +36,14 @@ TEST(SandboxHardwareSupportTest, Initialization) {
 TEST(SandboxHardwareSupportTest, SimpleSandboxedCPPCode) {
   // Skip this test if hardware sandboxing support cannot be enabled (likely
   // because the system doesn't support PKEYs, see the Initialization test).
-  if (!SandboxHardwareSupport::TryActivateBeforeThreadCreation()) return;
+  CHECK_IMPLIES(v8_flags.force_memory_protection_keys,
+                SandboxHardwareSupport::IsActive());
+  if (!SandboxHardwareSupport::IsActive()) return;
 
   base::VirtualAddressSpace global_vas;
 
   Sandbox sandbox;
   sandbox.Initialize(&global_vas);
-  ASSERT_TRUE(SandboxHardwareSupport::IsActive());
 
   size_t size = global_vas.allocation_granularity();
   size_t alignment = global_vas.allocation_granularity();
@@ -82,7 +78,9 @@ TEST(SandboxHardwareSupportTest, SimpleSandboxedCPPCode) {
 TEST(SandboxHardwareSupportTest, SandboxedCodeNoWriteAccessToTrustedSpace) {
   // Skip this test if hardware sandboxing support cannot be enabled (likely
   // because the system doesn't support PKEYs, see the Initialization test).
-  if (!SandboxHardwareSupport::TryActivateBeforeThreadCreation()) return;
+  CHECK_IMPLIES(v8_flags.force_memory_protection_keys,
+                SandboxHardwareSupport::IsActive());
+  if (!SandboxHardwareSupport::IsActive()) return;
 
   // TODO(saelo): we should instead use the TestWithPlatform mixin for this
   // test, but currently we still need to manually activate sandbox hardware
@@ -116,13 +114,14 @@ TEST(SandboxHardwareSupportTest, DisallowSandboxAccess) {
 
   // Skip this test if hardware sandboxing support cannot be enabled (likely
   // because the system doesn't support PKEYs, see the Initialization test).
-  if (!SandboxHardwareSupport::TryActivateBeforeThreadCreation()) return;
+  CHECK_IMPLIES(v8_flags.force_memory_protection_keys,
+                SandboxHardwareSupport::IsActive());
+  if (!SandboxHardwareSupport::IsActive()) return;
 
   base::VirtualAddressSpace global_vas;
 
   Sandbox sandbox;
   sandbox.Initialize(&global_vas);
-  ASSERT_TRUE(SandboxHardwareSupport::IsActive());
 
   VirtualAddressSpace* sandbox_vas = sandbox.address_space();
   size_t size = sandbox_vas->allocation_granularity();
@@ -189,13 +188,14 @@ TEST(SandboxHardwareSupportTest, AllowSandboxAccess) {
 
   // Skip this test if hardware sandboxing support cannot be enabled (likely
   // because the system doesn't support PKEYs, see the Initialization test).
-  if (!SandboxHardwareSupport::TryActivateBeforeThreadCreation()) return;
+  CHECK_IMPLIES(v8_flags.force_memory_protection_keys,
+                SandboxHardwareSupport::IsActive());
+  if (!SandboxHardwareSupport::IsActive()) return;
 
   base::VirtualAddressSpace global_vas;
 
   Sandbox sandbox;
   sandbox.Initialize(&global_vas);
-  ASSERT_TRUE(SandboxHardwareSupport::IsActive());
 
   VirtualAddressSpace* sandbox_vas = sandbox.address_space();
   size_t size = sandbox_vas->allocation_granularity();

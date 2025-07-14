@@ -34,8 +34,13 @@ namespace {
 class MemoryAllocationPermissionsTest : public TestWithPlatform {
   static void SignalHandler(int signal, siginfo_t* info, void*) {
 #if V8_HAS_PKU_SUPPORT
-    base::MemoryProtectionKey::SetDefaultPermissionsForAllKeysInSignalHandler();
-#endif
+    // Since we use siglongjmp to "return" from the signal handler, we need to
+    // restore pkey permissions with full access here. Normally we would only
+    // give the signal handler read access.
+    const bool kNeedsFullAccess = true;
+    v8::base::MemoryProtectionKey::
+        SetDefaultPermissionsForAllKeysInSignalHandler(kNeedsFullAccess);
+#endif  // V8_HAS_PKU_SUPPORT
     siglongjmp(continuation_, 1);
   }
   struct sigaction old_action_;
@@ -49,7 +54,7 @@ class MemoryAllocationPermissionsTest : public TestWithPlatform {
     struct sigaction action;
     action.sa_sigaction = SignalHandler;
     sigemptyset(&action.sa_mask);
-    action.sa_flags = SA_SIGINFO;
+    action.sa_flags = SA_SIGINFO | SA_ONSTACK;
     sigaction(SIGSEGV, &action, &old_action_);
 #if V8_OS_DARWIN
     sigaction(SIGBUS, &action, &old_bus_action_);

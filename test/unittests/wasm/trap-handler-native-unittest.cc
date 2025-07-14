@@ -106,7 +106,7 @@ class TrapHandlerTest : public TestWithIsolate,
     struct sigaction action;
     action.sa_sigaction = SignalHandler;
     sigemptyset(&action.sa_mask);
-    action.sa_flags = SA_SIGINFO;
+    action.sa_flags = SA_SIGINFO | SA_ONSTACK;
     // SIGSEGV happens for wasm oob memory accesses on Linux.
     EXPECT_EQ(0, sigaction(SIGSEGV, &action, &g_old_segv_action));
     // SIGBUS happens for wasm oob memory accesses on macOS.
