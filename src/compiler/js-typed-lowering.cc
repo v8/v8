@@ -710,7 +710,7 @@ Node* JSTypedLowering::UnwrapStringWrapper(Node* string_or_wrapper,
 
   Node* vfalse = efalse = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSPrimitiveWrapperValue()),
-      string_or_wrapper, *effect, *control);
+      string_or_wrapper, *effect, if_false);
 
   // The value read from a string wrapper is a string.
   vfalse = efalse = graph()->NewNode(common()->TypeGuard(Type::String()),
