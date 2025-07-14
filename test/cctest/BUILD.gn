@@ -321,6 +321,7 @@ v8_source_set("cctest_sources") {
       "../common/wasm/flag-utils.h",
       "../common/wasm/test-signatures.h",
       "../common/wasm/wasm-macro-gen.h",
+      "../common/wasm/wasm-run-utils.h",
       "compiler/test-multiple-return.cc",
 
       # test-run-native-calls uses wasm's LinkageAllocator.
@@ -361,8 +362,7 @@ v8_source_set("cctest_sources") {
       "wasm/test-wasm-strings.cc",
       "wasm/test-wasm-trap-position.cc",
       "wasm/wasm-atomics-utils.h",
-      "wasm/wasm-run-utils.cc",
-      "wasm/wasm-run-utils.h",
+      "wasm/wasm-runner.h",
       "wasm/wasm-simd-utils.cc",
       "wasm/wasm-simd-utils.h",
     ]

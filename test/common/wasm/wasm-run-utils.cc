@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/wasm/wasm-run-utils.h"
 
 #include <optional>
 
@@ -23,9 +23,7 @@
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-subtyping.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
 // Helper Functions.
 bool IsSameNan(uint16_t expected, uint16_t actual) {
@@ -58,7 +56,7 @@ TestingModuleBuilder::TestingModuleBuilder(
     Zone* zone, ModuleOrigin origin, ManuallyImportedJSFunction* maybe_import,
     TestExecutionTier tier, Isolate* isolate)
     : test_module_(std::make_shared<WasmModule>(origin)),
-      isolate_(isolate ? isolate : CcTest::InitIsolateOnce()),
+      isolate_(isolate),
       enabled_features_(WasmEnabledFeatures::FromIsolate(isolate_)),
       execution_tier_(tier) {
   // In this test setup, the NativeModule gets allocated before functions get
@@ -73,7 +71,7 @@ TestingModuleBuilder::TestingModuleBuilder(
   // The GlobalsData must be located inside the sandbox, so allocate it from the
   // ArrayBuffer allocator.
   globals_data_ = reinterpret_cast<uint8_t*>(
-      CcTest::array_buffer_allocator()->Allocate(kMaxGlobalsSize));
+      isolate->array_buffer_allocator()->Allocate(kMaxGlobalsSize));
 
   uint32_t maybe_import_index = 0;
   if (maybe_import) {
@@ -87,8 +85,8 @@ TestingModuleBuilder::TestingModuleBuilder(
   instance_object_ = InitInstanceObject();
   trusted_instance_data_ =
       direct_handle(instance_object_->trusted_data(isolate_), isolate_);
-  DirectHandle<FixedArray> tables(isolate_->factory()->NewFixedArray(0));
-  trusted_instance_data_->set_tables(*tables);
+  trusted_instance_data_->set_tables(
+      ReadOnlyRoots{isolate_}.empty_fixed_array());
 
   if (maybe_import) {
     WasmCodeRefScope code_ref_scope;
@@ -116,7 +114,7 @@ TestingModuleBuilder::~TestingModuleBuilder() {
   // When the native module dies and is erased from the cache, it is expected to
   // have either valid bytes or no bytes at all.
   native_module_->SetWireBytes({});
-  CcTest::array_buffer_allocator()->Free(globals_data_, kMaxGlobalsSize);
+  isolate_->array_buffer_allocator()->Free(globals_data_, kMaxGlobalsSize);
 }
 
 uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
@@ -423,12 +421,12 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
   uint8_t size = type.value_kind_size();
-  global_offset = (global_offset + size - 1) & ~(size - 1);  // align
+  global_offset_ = RoundUp(global_offset_, size);  // align
   test_module_->globals.push_back(
-      {type, true, {}, {global_offset}, false, false, false});
-  global_offset += size;
+      {type, true, {}, {global_offset_}, false, false, false});
+  global_offset_ += size;
   // limit number of globals.
-  CHECK_LT(global_offset, kMaxGlobalsSize);
+  CHECK_LT(global_offset_, kMaxGlobalsSize);
   return &test_module_->globals.back();
 }
 
@@ -591,6 +589,4 @@ FunctionSig* WasmRunnerBase::CreateSig(MachineType return_type,
   return zone.New<FunctionSig>(return_count, param_count, sig_types);
 }
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm

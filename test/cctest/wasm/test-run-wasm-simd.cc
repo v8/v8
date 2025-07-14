@@ -33,7 +33,7 @@
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/cctest/wasm/wasm-runner.h"
 #include "test/cctest/wasm/wasm-simd-utils.h"
 #include "test/common/flag-utils.h"
 #include "test/common/value-helper.h"

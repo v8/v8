@@ -10,7 +10,7 @@
 #include "src/common/globals.h"
 #include "src/wasm/compilation-environment.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/cctest/wasm/wasm-runner.h"
 #include "test/cctest/wasm/wasm-simd-utils.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/wasm-macro-gen.h"

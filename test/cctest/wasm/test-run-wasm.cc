@@ -13,7 +13,7 @@
 #include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/cctest/wasm/wasm-runner.h"
 #include "test/common/value-helper.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -2677,8 +2677,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Factorial) {
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
 
-  WasmRunner<uint32_t, uint32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
-                                   isolate_scope.i_isolate());
+  WasmRunner<uint32_t, uint32_t> r(isolate_scope.i_isolate(), execution_tier);
 
   WasmFunctionCompiler& fact_aux_fn =
       r.NewFunction<uint32_t, uint32_t, uint32_t>("fact_aux");
@@ -2712,8 +2711,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_MutualFactorial) {
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
 
-  WasmRunner<uint32_t, uint32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
-                                   isolate_scope.i_isolate());
+  WasmRunner<uint32_t, uint32_t> r(isolate_scope.i_isolate(), execution_tier);
 
   WasmFunctionCompiler& f_fn = r.NewFunction<uint32_t, uint32_t, uint32_t>("f");
   WasmFunctionCompiler& g_fn = r.NewFunction<uint32_t, uint32_t, uint32_t>("g");
@@ -2754,8 +2752,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
 
-  WasmRunner<uint32_t, uint32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
-                                   isolate_scope.i_isolate());
+  WasmRunner<uint32_t, uint32_t> r(isolate_scope.i_isolate(), execution_tier);
 
   TestSignatures sigs;
 
@@ -2800,8 +2797,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Sum) {
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
 
-  WasmRunner<int32_t, int32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
-                                 isolate_scope.i_isolate());
+  WasmRunner<int32_t, int32_t> r(isolate_scope.i_isolate(), execution_tier);
   TestSignatures sigs;
 
   WasmFunctionCompiler& sum_aux_fn = r.NewFunction(sigs.i_ii(), "sum_aux");
@@ -2839,8 +2835,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Bounce_Sum) {
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
 
-  WasmRunner<int32_t, int32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
-                                 isolate_scope.i_isolate());
+  WasmRunner<int32_t, int32_t> r(isolate_scope.i_isolate(), execution_tier);
   TestSignatures sigs;
 
   WasmFunctionCompiler& b1_fn = r.NewFunction(sigs.i_ii(), "b1");

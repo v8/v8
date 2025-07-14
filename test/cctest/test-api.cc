@@ -90,7 +90,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-engine.h"
-#include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/cctest/wasm/wasm-runner.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -14609,7 +14609,7 @@ TEST(WasmSetJitCodeEventHandler) {
   jitcode_line_info = &lineinfo;
 
   WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
-  i::Isolate* isolate = r.main_isolate();
+  i::Isolate* isolate = r.isolate();
 
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8_isolate->SetJitCodeEventHandler(v8::kJitCodeEventDefault,

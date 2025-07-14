@@ -307,7 +307,7 @@ class V8_NODISCARD HandleScope {
     requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
   HandleType<T> CloseAndEscape(HandleType<T> handle_value);
 
-  Isolate* isolate() { return isolate_; }
+  Isolate* isolate() const { return isolate_; }
 
   // Limit for number of handles with --check-handle-count. This is
   // large enough to compile natives and pass unit tests with some

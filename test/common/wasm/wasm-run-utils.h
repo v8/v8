@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef WASM_RUN_UTILS_H
-#define WASM_RUN_UTILS_H
+#ifndef TEST_COMMON_WASM_WASM_RUN_UTILS_H
+#define TEST_COMMON_WASM_WASM_RUN_UTILS_H
 
 #include <setjmp.h>
 #include <stdint.h>
@@ -33,9 +33,7 @@
 #include "src/wasm/wasm-tier.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/compiler/graph-and-builders.h"
-#include "test/common/call-tester.h"
+#include "test/common/c-signature.h"
 #include "test/common/value-helper.h"
 #include "test/common/wasm/flag-utils.h"
 
@@ -284,7 +282,7 @@ class TestingModuleBuilder {
   std::shared_ptr<WasmModule> test_module_;
   Isolate* isolate_;
   WasmEnabledFeatures enabled_features_;
-  uint32_t global_offset = 0;
+  uint32_t global_offset_ = 0;
   // The TestingModuleBuilder only supports one memory currently.
   uint8_t* mem0_start_ = nullptr;
   uint32_t mem0_size_ = 0;
@@ -345,14 +343,16 @@ class WasmFunctionCompiler {
 
 // A helper class to build a module around Wasm bytecode, generate machine
 // code, and run that code.
-class WasmRunnerBase : public InitializedHandleScope {
+class WasmRunnerBase {
  public:
   WasmRunnerBase(ManuallyImportedJSFunction* maybe_import, ModuleOrigin origin,
                  TestExecutionTier execution_tier, int num_params,
-                 Isolate* isolate = nullptr)
-      : InitializedHandleScope(isolate),
-        zone_(&allocator_, ZONE_NAME),
+                 Isolate* isolate)
+      : zone_(&allocator_, ZONE_NAME),
+        handle_scope_(isolate),
         builder_(&zone_, origin, maybe_import, execution_tier, isolate) {}
+
+  Isolate* isolate() const { return handle_scope_.isolate(); }
 
   // Builds a graph from the given Wasm code and generates the machine
   // code and call wrapper for that graph. This method must not be called
@@ -436,13 +436,12 @@ class WasmRunnerBase : public InitializedHandleScope {
   MaybeDirectHandle<Object> CallViaJS(
       uint32_t function_index,
       base::Vector<const DirectHandle<Object>> parameters) {
-    Isolate* isolate = main_isolate();
     // Save the original context, because CEntry (for runtime calls) will
     // reset / invalidate it when returning.
-    SaveContext save_context(isolate);
+    SaveContext save_context(isolate());
 
     if (!jsfuncs_.has_value()) {
-      jsfuncs_.emplace(isolate);
+      jsfuncs_.emplace(isolate());
     }
     if (jsfuncs_->size() <= function_index) {
       jsfuncs_->resize(function_index + 1);
@@ -451,8 +450,9 @@ class WasmRunnerBase : public InitializedHandleScope {
       (*jsfuncs_)[function_index] = builder_.WrapCode(function_index);
     }
     DirectHandle<JSFunction> jsfunc = (*jsfuncs_)[function_index];
-    DirectHandle<Object> global(isolate->context()->global_object(), isolate);
-    return Execution::TryCall(isolate, jsfunc, global, parameters,
+    DirectHandle<Object> global(isolate()->context()->global_object(),
+                                isolate());
+    return Execution::TryCall(isolate(), jsfunc, global, parameters,
                               Execution::MessageHandling::kReport, nullptr);
   }
 
@@ -466,6 +466,7 @@ class WasmRunnerBase : public InitializedHandleScope {
 
   v8::internal::AccountingAllocator allocator_;
   Zone zone_;
+  HandleScope handle_scope_;
   TestingModuleBuilder builder_;
   std::vector<std::unique_ptr<WasmFunctionCompiler>> functions_;
   bool compiled_ = false;
@@ -487,13 +488,12 @@ inline WasmValue WasmValueInitializer(int16_t value) {
 }
 
 template <typename ReturnType, typename... ParamTypes>
-class WasmRunner : public WasmRunnerBase {
+class CommonWasmRunner : public WasmRunnerBase {
  public:
-  explicit WasmRunner(TestExecutionTier execution_tier,
-                      ModuleOrigin origin = kWasmOrigin,
-                      ManuallyImportedJSFunction* maybe_import = nullptr,
-                      const char* main_fn_name = "main",
-                      Isolate* isolate = nullptr)
+  CommonWasmRunner(Isolate* isolate, TestExecutionTier execution_tier,
+                   ModuleOrigin origin = kWasmOrigin,
+                   ManuallyImportedJSFunction* maybe_import = nullptr,
+                   const char* main_fn_name = "main")
       : WasmRunnerBase(maybe_import, origin, execution_tier,
                        sizeof...(ParamTypes), isolate) {
     WasmFunctionCompiler& main_fn =
@@ -504,7 +504,7 @@ class WasmRunner : public WasmRunnerBase {
 
   template <typename T>
   DirectHandle<Object> MakeParam(T t) {
-    Factory* factory = builder_.isolate()->factory();
+    Factory* factory = isolate()->factory();
     if constexpr (std::is_integral_v<T> && std::is_signed_v<T> &&
                   sizeof(T) <= sizeof(int)) {
       return factory->NewNumberFromInt(t);
@@ -514,10 +514,10 @@ class WasmRunner : public WasmRunnerBase {
       return factory->NewNumberFromUint(t);
     }
     if constexpr (std::is_same_v<T, int64_t>) {
-      return BigInt::FromInt64(builder_.isolate(), t);
+      return BigInt::FromInt64(isolate(), t);
     }
     if constexpr (std::is_same_v<T, uint64_t>) {
-      return BigInt::FromUint64(builder_.isolate(), t);
+      return BigInt::FromUint64(isolate(), t);
     }
     if constexpr (std::is_same_v<T, float>) {
       return factory->NewNumber(t);
@@ -581,8 +581,7 @@ class WasmRunner : public WasmRunnerBase {
   }
 
   void CheckCallViaJSTraps(ParamTypes... p) {
-    std::array<DirectHandle<Object>, sizeof...(p)> param_objs = {
-        MakeParam(p)...};
+    std::array<DirectHandle<Object>, sizeof...(p)> param_objs{MakeParam(p)...};
     MaybeDirectHandle<Object> retval =
         CallViaJS(function()->func_index, base::VectorOf(param_objs));
     CHECK(retval.is_null());
@@ -632,4 +631,4 @@ class WasmRunner : public WasmRunnerBase {
 
 }  // namespace v8::internal::wasm
 
-#endif
+#endif  // TEST_COMMON_WASM_WASM_RUN_UTILS_H
