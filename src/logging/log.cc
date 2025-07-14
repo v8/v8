@@ -1978,6 +1978,9 @@ void V8FileLogger::RuntimeCallTimerEvent() {
 
 void V8FileLogger::TickEvent(TickSample* sample, bool overflow) {
   if (!v8_flags.prof_cpp) return;
+  if (!v8_flags.prof_include_idle && IsIdle(sample->state)) {
+    return;
+  }
   VMStateIfMainThread<LOGGING> state(isolate_);
   if (V8_UNLIKELY(TracingFlags::runtime_stats.load(std::memory_order_relaxed) ==
                   v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE)) {
