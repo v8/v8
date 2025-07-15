@@ -2800,6 +2800,8 @@ class StringTableVerifier : public RootVisitor {
         Tagged<HeapObject> object = Cast<HeapObject>(o);
         // Check that the string is actually internalized.
         CHECK(IsInternalizedString(object));
+        DCHECK_IMPLIES(v8_flags.shared_string_table,
+                       HeapLayout::InAnySharedSpace(object));
       }
     }
   }

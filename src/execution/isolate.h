@@ -2272,7 +2272,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   };
 
   // Returns true when this isolate contains the shared spaces.
-  bool is_shared_space_isolate() const { return is_shared_space_isolate_; }
+  bool is_shared_space_isolate() const {
+    DCHECK(is_shared_space_isolate_initialized_);
+    return is_shared_space_isolate_;
+  }
 
   // Returns the isolate that owns the shared spaces.
   Isolate* shared_space_isolate() const {
@@ -2521,6 +2524,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Set to true if this isolate is used as main isolate with a shared space.
   bool is_shared_space_isolate_{false};
+
+#if DEBUG
+  bool is_shared_space_isolate_initialized_{false};
+#endif  // DEBUG
 
   IsolateGroup* isolate_group_;
   Heap heap_;

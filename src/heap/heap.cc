@@ -180,8 +180,8 @@ Heap::Heap()
       safepoint_(std::make_unique<IsolateSafepoint>(this)),
       external_string_table_(this),
       allocation_type_for_in_place_internalizable_strings_(
-          isolate()->OwnsStringTables() ? AllocationType::kOld
-                                        : AllocationType::kSharedOld),
+          v8_flags.shared_string_table ? AllocationType::kSharedOld
+                                       : AllocationType::kOld),
       marking_state_(isolate_),
       non_atomic_marking_state_(isolate_),
       pretenuring_handler_(this) {

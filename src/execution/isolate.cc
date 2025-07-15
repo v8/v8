@@ -5538,8 +5538,11 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   isolate_group()->AddIsolate(this);
   Isolate* const use_shared_space_isolate =
       isolate_group()->shared_space_isolate();
+#if DEBUG
+  is_shared_space_isolate_initialized_ = true;
+#endif  // DEBUG
 
-  CHECK_IMPLIES(is_shared_space_isolate_, V8_CAN_CREATE_SHARED_HEAP_BOOL);
+  CHECK_IMPLIES(is_shared_space_isolate(), V8_CAN_CREATE_SHARED_HEAP_BOOL);
 
   stress_deopt_count_ = v8_flags.deopt_every_n_times;
   force_slow_path_ = v8_flags.force_slow_path;
@@ -5578,7 +5581,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   interpreter_ = new interpreter::Interpreter(this);
   bigint_processor_ = bigint::Processor::New(new BigIntPlatform(this));
 
-  if (is_shared_space_isolate_) {
+  if (is_shared_space_isolate()) {
     global_safepoint_ = std::make_unique<GlobalSafepoint>(this);
   }
 
