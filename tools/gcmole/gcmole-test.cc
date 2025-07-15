@@ -14,6 +14,9 @@
 namespace v8 {
 namespace internal {
 
+// GCMole should not be confused by forward declarations.
+class ConservativePinningScope;
+
 // ------- Test simple argument evaluation order problems ---------
 
 void Safepoint() { LocalHeap::Current()->Safepoint(); }
@@ -368,8 +371,22 @@ void TestConservativePinningScope(Isolate* isolate) {
   Print(raw_obj);
 }
 
+void TestConservativePinningScopeConst(Isolate* isolate) {
+  const ConservativePinningScope pinning_scope(isolate->heap());
+  Tagged<JSObject> raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
+  CauseGCRaw(raw_obj, isolate);
+  Print(raw_obj);
+}
+
 void TestConservativePinningScopeWitness(
     Isolate* isolate, ConservativePinningScope& pinning_scope_witness) {
+  Tagged<JSObject> raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
+  CauseGCRaw(raw_obj, isolate);
+  Print(raw_obj);
+}
+
+void TestConservativePinningScopeConstWitness(
+    Isolate* isolate, const ConservativePinningScope& pinning_scope_witness) {
   Tagged<JSObject> raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
   CauseGCRaw(raw_obj, isolate);
   Print(raw_obj);
