@@ -288,6 +288,7 @@
   'regress/regress-crbug-808192': [SKIP],
   'regress/regress-crbug-941743': [SKIP],
   'regress/regress-create-exception': [SKIP],
+  'maglev/regress-431665299': [SKIP],
 
   # These tests run out of stack space in debug mode.
   'big-array-literal': [SKIP],
@@ -1096,6 +1097,7 @@
   'frozen-array-reduce': [PASS, SLOW],
   'generated-transition-stub': [PASS, SLOW],
   'math-floor-of-div-nosudiv': [PASS, SLOW],
+  'maglev/regress-431665299': [PASS, SLOW],
   'messages': [PASS, SLOW],
   'regress/regress-2790': [PASS, SLOW],
   'regress/regress-490': [PASS, SLOW],
@@ -1282,6 +1284,7 @@
   'regress/regress-490': [SKIP],
   'regress/regress-create-exception': [SKIP],
   'regress/regress-3247124': [SKIP],
+  'maglev/regress-431665299': [SKIP],
 
   # Requires bigger stack size in the Genesis and if stack size is increased,
   # the test requires too much time to run.  However, the problem test covers
@@ -1355,6 +1358,7 @@
   'compiler/regress-funarguments': [PASS, SLOW],
   'compiler/regress-3249650': [PASS, SLOW],
   'compiler/simple-deopt': [PASS, SLOW],
+  'maglev/regress-431665299': [PASS, SLOW],
   'regress/regress-490': [PASS, SLOW],
   'regress/regress-create-exception': [PASS, SLOW],
   'regress/regress-3218915': [PASS, SLOW],
@@ -1418,6 +1422,7 @@
   'regress/regress-490': [SKIP],
   'regress/regress-create-exception': [SKIP],
   'regress/regress-3247124': [SKIP],
+  'maglev/regress-431665299': [SKIP],
 
   # RISCV don't preserve signalling NaNs.
   'regress/wasm/regress-347914831': [SKIP],

@@ -301,6 +301,8 @@ class StraightForwardRegisterAllocator {
 
   void ApplyPatches(BasicBlock* block);
 
+  ProcessingState GetCurrentState();
+
   bool has_graph_labeller() const { return graph_->has_graph_labeller(); }
 
   MaglevGraphLabeller* graph_labeller() const {

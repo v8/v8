@@ -65,25 +65,24 @@ enum class ProcessResult {
 
 class ProcessingState {
  public:
-  explicit ProcessingState(BlockConstIterator block_it,
-                           NodeIterator* node_it = nullptr)
-      : block_it_(block_it), node_it_(node_it) {}
+  explicit ProcessingState(BlockConstIterator block_end,
+                           BlockConstIterator block_it)
+      : block_end_(block_end), block_it_(block_it) {}
 
   // Disallow copies, since the underlying frame states stay mutable.
   ProcessingState(const ProcessingState&) = delete;
   ProcessingState& operator=(const ProcessingState&) = delete;
 
   BasicBlock* block() const { return *block_it_; }
-  BasicBlock* next_block() const { return *(block_it_ + 1); }
-
-  NodeIterator* node_it() const {
-    DCHECK_NOT_NULL(node_it_);
-    return node_it_;
+  BasicBlock* next_block() const {
+    BlockConstIterator next_block_it = block_it_ + 1;
+    if (next_block_it == block_end_) return nullptr;
+    return *next_block_it;
   }
 
  private:
+  BlockConstIterator block_end_;
   BlockConstIterator block_it_;
-  NodeIterator* node_it_;
 };
 
 template <typename NodeProcessor, bool visit_identity_nodes>
@@ -221,7 +220,7 @@ class GraphProcessor {
 
  private:
   ProcessingState GetCurrentState() {
-    return ProcessingState(block_it_, &node_it_);
+    return ProcessingState(graph_->end(), block_it_);
   }
 
   ProcessResult ProcessNodeBase(NodeBase* node, const ProcessingState& state) {
