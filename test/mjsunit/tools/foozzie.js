@@ -80,6 +80,18 @@ function testArrayType(intArrayType, floatArrayType, pattern) {
     return new intArrayType(arr.buffer);
   };
   testSameOptimized(intArrayType, pattern, create);
+  create = function() {
+    const arr = new floatArrayType(1);
+    Object.defineProperty(arr, 0, { value: undefined });
+    return new intArrayType(arr.buffer);
+  };
+  testSameOptimized(intArrayType, pattern, create);
+  create = function() {
+    const arr = new floatArrayType(1);
+    Object.defineProperty(arr, 0, { value: () => { return undefined; } });
+    return new intArrayType(arr.buffer);
+  };
+  testSameOptimized(intArrayType, pattern, create);
 }
 
 var isBigEndian = new Uint8Array(new Uint16Array([0xABCD]).buffer)[0] === 0xAB;
@@ -95,6 +107,24 @@ else {
   testArrayType(Uint16Array, Float64Array, [0, 0, 0, 16368]);
   testArrayType(Uint32Array, Float64Array, [0, 1072693248]);
 }
+
+// We stub out float array property setting. Test that we don't stub
+// out altering other objects.
+const someObject = {};
+Object.defineProperty(someObject, 0, { value: undefined });
+assertEquals(undefined, someObject[0]);
+
+// Test that we preserve non-NaN values and don't alter NaN properties.
+function testPreservation(arrayType) {
+  const arr = new arrayType(1);
+  Object.defineProperty(arr, 0, { value: 42 })
+  assertEquals(42, arr[0]);
+  Object.defineProperty(arr, "a", { get() { return 43; } })
+  assertEquals(43, arr["a"]);
+}
+testPreservation(Float16Array);
+testPreservation(Float32Array);
+testPreservation(Float64Array);
 
 // Test that DataView has the same NaN patterns with optimized and
 // unoptimized code.

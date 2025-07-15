@@ -137,6 +137,24 @@ Object.defineProperty(
   Float16Array = mock(Float16Array);
   Float32Array = mock(Float32Array);
   Float64Array = mock(Float64Array);
+
+  const origObjectDefineProperty = Object.defineProperty;
+  const safeFloat16Array = Float16Array;
+  const safeFloat32Array = Float32Array;
+  const safeFloat64Array = Float64Array;
+
+  // Mock float-array access via Object.defineProperty.
+  Object.defineProperty = function (obj, prop, descriptor) {
+    let newDescriptor = descriptor;
+    const isFloatArray = (
+        obj instanceof safeFloat16Array ||
+        obj instanceof safeFloat32Array ||
+        obj instanceof safeFloat64Array);
+    if (isFloatArray && !origIsNaN(prop)) {
+      newDescriptor = { value : deNaNify(descriptor?.value) };
+    }
+    origObjectDefineProperty(obj, prop, newDescriptor);
+  };
 })();
 
 // Mock buffer access via DataViews because of varying NaN patterns.
