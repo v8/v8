@@ -1291,7 +1291,7 @@ class FunctionAnalyzer {
 
   const clang::CXXRecordDecl* GetDefinitionOrNull(
       const clang::CXXRecordDecl* record) {
-    if (record == nullptr) return nullptr;
+    assert(record);
     if (!InV8Namespace(record)) return nullptr;
     if (!record->hasDefinition()) return nullptr;
     return record->getDefinition();
@@ -1369,27 +1369,11 @@ class FunctionAnalyzer {
   }
 
   bool IsGCGuard(clang::QualType qtype) {
-    if (!no_gc_mole_decl_) return false;
-    if (qtype.isNull()) return false;
-    if (qtype->isNullPtrType()) return false;
-
-    const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
-    const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
-
-    if (!definition) return false;
-    return no_gc_mole_decl_ == definition;
+    return IsSameType(qtype, no_gc_mole_decl_);
   }
 
   bool IsConservativePinningScope(clang::QualType qtype) {
-    if (!conservative_pinning_scope_decl_) return false;
-    if (qtype.isNull()) return false;
-    if (qtype->isNullPtrType()) return false;
-
-    const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
-    const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
-
-    if (!definition) return false;
-    return conservative_pinning_scope_decl_ == definition;
+    return IsSameType(qtype, conservative_pinning_scope_decl_);
   }
 
   Environment VisitDecl(clang::Decl* decl, Environment& env) {
@@ -1477,6 +1461,16 @@ class FunctionAnalyzer {
   }
 
  private:
+  bool IsSameType(clang::QualType qtype, clang::CXXRecordDecl* decl) {
+    if (!decl) return false;
+    if (qtype.isNull() || qtype->isNullPtrType()) return false;
+
+    const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
+    if (!record) return false;
+
+    return record->getCanonicalDecl() == decl->getCanonicalDecl();
+  }
+
   void ReportUnsafe(const clang::Expr* expr, const std::string& msg) {
     clang::SourceLocation error_loc =
         clang::FullSourceLoc(expr->getExprLoc(), sm_);
