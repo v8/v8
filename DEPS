@@ -130,7 +130,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'cb592905b1f94a0c315dccb59939f91ef869592c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '70c150bc0ae989d00c15ab1ed67464198e4890d0',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '428390e5e357593d2aadabf315d6f5d8a80982b6',
   'buildtools/linux64': {
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'dd8909f2123922b1d2c5e6a9a717d0a1f5250bf0',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'fa0292bfbe4c35e83516adb6af38f93f03ea2209',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
