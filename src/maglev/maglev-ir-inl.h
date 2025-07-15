@@ -117,10 +117,16 @@ void NodeBase::OverwriteWithIdentityTo(ValueNode* node) {
   // there is at least 1 input. Since the first input is always the one
   // closest to the input_base().
   DCHECK_GE(input_count(), 1);
-  set_opcode(NodeBase::opcode_of<Identity>);
+  // Remove use of all inputs first.
+  for (Input& input : *this) {
+    input.clear();
+  }
+  // Unfortunately we cannot remove uses from deopt frames, since these could be
+  // shared with other nodes.
+  set_opcode(Opcode::kIdentity);
   set_properties(OpProperties::Pure());
   bitfield_ = InputCountField::update(bitfield_, 1);
-  change_input(0, node);
+  set_input(0, node);
 }
 
 }  // namespace maglev

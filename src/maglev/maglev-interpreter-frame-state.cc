@@ -1467,9 +1467,13 @@ void MergePointInterpreterFrameState::RemovePredecessorAt(int predecessor_id) {
   // Remove Phi input of index predecessor_id.
   for (Phi* phi : *phis()) {
     DCHECK_EQ(phi->input_count(), predecessor_count_);
+    if (phi->input(predecessor_id).node()) {
+      phi->input(predecessor_id).clear();
+    }
     // Shift phi inputs by 1.
     for (int i = predecessor_id; i < phi->input_count() - 1; i++) {
-      phi->change_input(i, phi->input(i + 1).node());
+      // Do not call change_input, since we don't want to update the use count.
+      phi->input(i) = std::move(phi->input(i + 1));
     }
     phi->reduce_input_count(1);
   }

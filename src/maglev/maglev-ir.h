@@ -1585,6 +1585,16 @@ class InputLocation : public ValueLocation {
 class Input : public InputLocation {
  public:
   explicit Input(ValueNode* node) : node_(node) {}
+  Input(const Input&) V8_NOEXCEPT = default;
+  Input& operator=(const Input&) V8_NOEXCEPT = default;
+  Input(Input&& other) V8_NOEXCEPT {
+    DCHECK_NULL(node_);
+    node_ = other.node_;
+#ifdef DEBUG
+    other.node_ = nullptr;
+#endif  // DEBUG
+  }
+
   ValueNode* node() const { return node_; }
   void set_node(ValueNode* node) { node_ = node; }
   void clear();
@@ -3004,7 +3014,7 @@ inline void NodeBase::initialize_input_null(int index) {
 
 inline void NodeBase::set_input(int index, ValueNode* node) {
   DCHECK_NOT_NULL(node);
-  DCHECK_EQ(input(index).node(), nullptr);
+  DCHECK_NULL(input(index).node());
   node->add_use();
   new (&input(index)) Input(node);
 }
