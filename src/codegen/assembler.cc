@@ -35,6 +35,7 @@
 #include "src/codegen/assembler.h"
 
 #include "absl/container/flat_hash_map.h"
+#include "src/base/macros.h"
 #ifdef V8_CODE_COMMENTS
 #include <iomanip>
 #endif
@@ -269,19 +270,24 @@ void AssemblerBase::AllocateAndInstallRequestedHeapNumbers(
     LocalIsolate* isolate) {
   DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
 
-  absl::flat_hash_map<double, Handle<HeapNumber>> previous_requests_;
+  // {previous_requests} is a cache of HeapNumbers that have already been
+  // requested. It is keyed on uint64_t rather than doubles to avoid undefined
+  // behavior when NaN is used as a key (where the uint64_t are just bitcasts
+  // from the doubles).
+  absl::flat_hash_map<uint64_t, Handle<HeapNumber>> previous_requests;
 
   for (HeapNumberRequest& request : heap_number_requests_) {
     Handle<HeapNumber> object;
 
     if (v8_flags.deduplicate_heap_number_requests) {
-      auto it = previous_requests_.find(request.heap_number());
-      if (it != previous_requests_.end()) {
+      uint64_t cache_key = base::bit_cast<uint64_t>(request.heap_number());
+      auto it = previous_requests.find(cache_key);
+      if (it != previous_requests.end()) {
         object = it->second;
       } else {
         object = isolate->factory()->NewHeapNumber<AllocationType::kOld>(
             request.heap_number());
-        previous_requests_.insert({request.heap_number(), object});
+        previous_requests.insert({cache_key, object});
       }
     } else {
       object = isolate->factory()->NewHeapNumber<AllocationType::kOld>(
