@@ -6,6 +6,7 @@
 #define V8_MAGLEV_MAGLEV_GRAPH_OPTIMIZER_H_
 
 #include "src/base/logging.h"
+#include "src/common/scoped-modification.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"

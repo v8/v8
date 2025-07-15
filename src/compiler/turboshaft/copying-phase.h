@@ -17,6 +17,7 @@
 #include "src/base/vector.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/source-position.h"
+#include "src/common/scoped-modification.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"

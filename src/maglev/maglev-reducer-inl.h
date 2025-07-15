@@ -10,6 +10,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
+#include "src/common/scoped-modification.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/numbers/ieee754.h"
 #include "src/objects/heap-number-inl.h"

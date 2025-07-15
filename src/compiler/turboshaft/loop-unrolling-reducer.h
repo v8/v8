@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "src/base/logging.h"
+#include "src/common/scoped-modification.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/copying-phase.h"

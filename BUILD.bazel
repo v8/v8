@@ -1533,6 +1533,7 @@ filegroup(
         "src/common/ptr-compr.h",
         "src/common/ptr-compr-inl.h",
         "src/common/thread-local-storage.h",
+        "src/common/scoped-modification.h",
         "src/common/segmented-table.h",
         "src/common/segmented-table-inl.h",
         "src/common/simd128.h",

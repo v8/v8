@@ -142,26 +142,6 @@ inline ReduceResult MaybeReduceResult::Checked() { return ReduceResult(*this); }
     variable = res.value()->Cast<T>();                                 \
   } while (false)
 
-// TODO(victorgomes): Unify ScopedModification with Turboshaft one.
-// Set `*ptr` to `new_value` while the scope is active, reset to the previous
-// value upon destruction.
-template <class T>
-class ScopedModification {
- public:
-  ScopedModification(T* ptr, T new_value)
-      : ptr_(ptr), old_value_(std::move(*ptr)) {
-    *ptr = std::move(new_value);
-  }
-
-  ~ScopedModification() { *ptr_ = std::move(old_value_); }
-
-  const T& old_value() const { return old_value_; }
-
- private:
-  T* ptr_;
-  T old_value_;
-};
-
 template <typename BaseT>
 concept ReducerBaseWithKNA = requires(BaseT* b) { b->known_node_aspects(); };
 

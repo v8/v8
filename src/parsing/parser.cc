@@ -18,6 +18,7 @@
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
+#include "src/common/scoped-modification.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/heap/parked-scope.h"
 #include "src/logging/counters.h"
@@ -745,7 +746,8 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
   DCHECK_EQ(parsing_on_main_thread_, isolate != nullptr);
   DCHECK_NULL(scope_);
 
-  ParsingModeScope mode(this, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
+  ScopedModification<Mode> mode_scope(
+      &mode_, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
   ResetInfoId();
 
   FunctionLiteral* result = nullptr;
@@ -911,7 +913,7 @@ void Parser::ParseWrapped(Isolate* isolate, ParseInfo* info,
                           DeclarationScope* outer_scope, Zone* zone) {
   DCHECK(parsing_on_main_thread_);
   DCHECK(info->is_wrapped_as_function());
-  ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
+  ScopedModification<Mode> mode_scope(&mode_, PARSE_EAGERLY);
 
   // Set function and block state for the outer eval scope.
   DCHECK(outer_scope->is_eval_scope());
@@ -1095,7 +1097,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
   DCHECK_LT(0, function_literal_id);
   SkipInfos(function_literal_id - 1);
 
-  ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
+  ScopedModification<Mode> mode_scope(&mode_, PARSE_EAGERLY);
 
   // Place holder for the result.
   FunctionLiteral* result = nullptr;
@@ -1225,7 +1227,7 @@ FunctionLiteral* Parser::ParseClassForMemberInitialization(
 
   // We preparse the class members that are not fields with initializers
   // in order to collect the function literal ids.
-  ParsingModeScope mode(this, PARSE_LAZILY);
+  ScopedModification<Mode> mode_scope(&mode_, PARSE_LAZILY);
 
   ExpressionParsingScope no_expression_scope(impl());
 
@@ -2770,7 +2772,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   // Determine whether we can lazy parse the inner function. Lazy compilation
   // has to be enabled, which is either forced by overall parse flags or via a
-  // ParsingModeScope.
+  // ScopedModification.
   const bool can_preparse = parse_lazily();
 
   // Determine whether we can post any parallel compile tasks. Preparsing must
@@ -3058,7 +3060,8 @@ void Parser::ParseFunction(
     int* suspend_count,
     ZonePtrList<const AstRawString>* arguments_for_wrapped_function) {
   FunctionParsingScope function_parsing_scope(this);
-  ParsingModeScope mode(this, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
+  ScopedModification<Mode> mode_scope(
+      &mode_, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
 
   FunctionState function_state(&function_state_, &scope_, function_scope);
 
