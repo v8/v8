@@ -49,6 +49,7 @@ class DeoptimizeCodeThread : public v8::base::Thread {
         source_(trigger) {}
 
   void Run() override {
+    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
     v8::Locker locker(isolate_);
     isolate_->Enter();
     {
@@ -294,6 +295,7 @@ class KangarooThread : public v8::base::Thread {
         context_(isolate, context) {}
 
   void Run() override {
+    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
     {
       v8::Locker locker(isolate_);
       v8::Isolate::Scope isolate_scope(isolate_);
@@ -408,6 +410,7 @@ class IsolateLockingThreadWithLocalContext : public JoinableThread {
   }
 
   void Run() override {
+    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
     v8::Locker locker(isolate_);
     v8::Isolate::Scope isolate_scope(isolate_);
     v8::HandleScope handle_scope(isolate_);
@@ -455,6 +458,7 @@ class IsolateNestedLockingThread : public JoinableThread {
     : JoinableThread("IsolateNestedLocking"), isolate_(isolate) {
   }
   void Run() override {
+    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
     v8::Locker lock(isolate_);
     v8::Isolate::Scope isolate_scope(isolate_);
     v8::HandleScope handle_scope(isolate_);
@@ -499,6 +503,7 @@ class SeparateIsolatesLocksNonexclusiveThread : public JoinableThread {
   }
 
   void Run() override {
+    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
     v8::Locker lock(isolate1_);
     v8::Isolate::Scope isolate_scope(isolate1_);
     v8::HandleScope handle_scope(isolate1_);
@@ -547,6 +552,7 @@ class LockIsolateAndCalculateFibSharedContextThread : public JoinableThread {
         context_(isolate, context) {}
 
   void Run() override {
+    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
     v8::Locker lock(isolate_);
     v8::Isolate::Scope isolate_scope(isolate_);
     v8::HandleScope handle_scope(isolate_);
@@ -568,6 +574,7 @@ class LockerUnlockerThread : public JoinableThread {
   }
 
   void Run() override {
+    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
     isolate_->DiscardThreadSpecificMetadata();  // No-op
     {
       v8::Locker lock(isolate_);
@@ -628,6 +635,7 @@ class LockTwiceAndUnlockThread : public JoinableThread {
   }
 
   void Run() override {
+    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
     v8::Locker lock(isolate_);
     v8::Isolate::Scope isolate_scope(isolate_);
     v8::HandleScope handle_scope(isolate_);
@@ -688,6 +696,7 @@ class LockAndUnlockDifferentIsolatesThread : public JoinableThread {
   }
 
   void Run() override {
+    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
     std::unique_ptr<LockIsolateAndCalculateFibSharedContextThread> thread;
     v8::Locker lock1(isolate1_);
     CHECK(v8::Locker::IsLocked(isolate1_));
@@ -751,6 +760,7 @@ class LockUnlockLockThread : public JoinableThread {
         context_(isolate, context) {}
 
   void Run() override {
+    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
     v8::Locker lock1(isolate_);
     CHECK(v8::Locker::IsLocked(isolate_));
     CHECK(!v8::Locker::IsLocked(CcTest::isolate()));
@@ -814,6 +824,7 @@ class LockUnlockLockDefaultIsolateThread : public JoinableThread {
         context_(CcTest::isolate(), context) {}
 
   void Run() override {
+    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
     v8::Locker lock1(CcTest::isolate());
     {
       v8::Isolate::Scope isolate_scope(CcTest::isolate());
@@ -898,6 +909,7 @@ class IsolateGenesisThread : public JoinableThread {
   {}
 
   void Run() override {
+    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
     v8::Isolate::CreateParams create_params;
     create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
     v8::Isolate* isolate = v8::Isolate::New(create_params);

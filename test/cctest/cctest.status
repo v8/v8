@@ -887,4 +887,28 @@
   'test-strings/Traverse': [SLOW],
 }],  # variant == conservative_stack_scanning
 
+##############################################################################
+['sandbox_hardware_support', {
+  # The liftoff-for-fuzzing configuration is currently incompatible with
+  # sandbox hardware support. See https://crbug.com/431949927.
+  'test-liftoff-for-fuzzing/*': [SKIP],
+
+  # Tests that require the sampler/profiler, which doesn't work on older kernel
+  # versions if hardware sandboxing is active. See https://crbug.com/429173713.
+  'test-cpu-profiler/*': [SKIP],
+  'test-profile-generator/*': [SKIP],
+  'test-streaming-compilation/*': [SKIP],
+  'test-api/SimpleCallbackWithProfiler': [SKIP],
+  'test-api/FastReturnValuesWithProfiler': [SKIP],
+  'test-api/FunctionTemplateWithProfiler': [SKIP],
+  'test-api/CallICFastApi_TrivialSignatureWithProfiler': [SKIP],
+  'test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
+  'test-api/InterceptorCallICFastApi_TrivialSignatureWithProfiler': [SKIP],
+
+  # Tests that rely on Wasm trap handling, which is similarly not supported on
+  # older kernel versions. See again https://crbug.com/429173713.
+  'test-run-wasm-simd/*': [SKIP],
+  'test-run-wasm-relaxed-simd/*': [SKIP],
+}] # sandbox_hardware_support
+
 ]

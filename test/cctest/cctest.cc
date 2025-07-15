@@ -111,7 +111,9 @@ CcTest::CcTest(TestFunction* callback, const char* file, const char* name,
 }
 
 void CcTest::Run(const char* snapshot_directory) {
-  // TODO(350324877): Investigate enabling sandbox hardware support here.
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  v8::SandboxHardwareSupport::InitializeBeforeThreadCreation();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   v8::V8::InitializeICUDefaultLocation(snapshot_directory);
   std::unique_ptr<v8::Platform> underlying_default_platform(
       v8::platform::NewDefaultPlatform());
@@ -133,8 +135,10 @@ void CcTest::Run(const char* snapshot_directory) {
   v8::V8::InitializeExternalStartupData(snapshot_directory);
 
 #if V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
-  constexpr bool kUseDefaultTrapHandler = true;
-  CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultTrapHandler));
+  if (i::HardwareSandboxingDisabledOrSupportsSignalDeliveryInSandbox()) {
+    constexpr bool kUseDefaultTrapHandler = true;
+    CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultTrapHandler));
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
 
   CcTest::set_array_buffer_allocator(

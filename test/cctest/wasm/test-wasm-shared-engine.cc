@@ -90,6 +90,7 @@ class SharedEngineThread : public v8::base::Thread {
       : Thread(Options("SharedEngineThread")), callback_(callback) {}
 
   void Run() override {
+    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
     SharedEngineIsolate isolate;
     callback_(&isolate);
   }

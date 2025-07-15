@@ -13748,6 +13748,8 @@ bool ApiTestFuzzer::NextThread() {
 }
 
 void ApiTestFuzzer::Run() {
+  v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
+
   // Wait until it is our turn.
   gate_.Wait();
   {
@@ -17516,6 +17518,8 @@ class StackOverflowThread : public v8::base::Thread {
         result_(false) {}
 
   void Run() override {
+    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
+
     uintptr_t stack_top = v8::base::Stack::GetStackStart();
     // Compute isolate stack limit by js stack size.
     uintptr_t stack_base = stack_top - js_stack_size_;
@@ -19200,6 +19204,7 @@ class IsolateThread : public v8::base::Thread {
       : Thread(Options("IsolateThread")), fib_limit_(fib_limit), result_(0) {}
 
   void Run() override {
+    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
     v8::Isolate::CreateParams create_params = CreateTestParams();
     v8::Isolate* isolate = v8::Isolate::New(create_params);
     result_ = CalcFibonacci(isolate, fib_limit_);
@@ -21621,6 +21626,7 @@ class ThreadInterruptTest {
       // Setup signal handler
       memset(&action, 0, sizeof(action));
       action.sa_handler = SignalHandler;
+      action.sa_flags = SA_ONSTACK;
       sigaction(SIGCHLD, &action, nullptr);
 
       // Send signal

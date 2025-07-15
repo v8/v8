@@ -4173,6 +4173,8 @@ class ArchiveRestoreThread : public v8::base::Thread,
 
   void Run() override {
     {
+      v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
+
       v8::Locker locker(isolate_);
       v8::Isolate::Scope i_scope(isolate_);
 
