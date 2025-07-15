@@ -1306,7 +1306,7 @@ ProcessResult MaglevGraphOptimizer::VisitInt32AddWithOverflow() {
                                                                 GetInputAt(1));
       result.IsDone()) {
     DCHECK(result.IsDoneWithValue());
-    return ReplaceWith(result.value());
+    return ReplaceWith(reducer_.GetInt32(result.value()));
   }
   return ProcessResult::kContinue;
 }
