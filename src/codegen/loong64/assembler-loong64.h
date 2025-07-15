@@ -1108,7 +1108,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   DoubleRegList scratch_fpregister_list_;
 
  private:
-  void AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate);
+  void PatchInHeapNumberRequest(Address pc, Handle<HeapNumber> object) override;
 
   int WriteCodeComments();
 
