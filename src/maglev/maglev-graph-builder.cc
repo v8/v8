@@ -16257,11 +16257,5 @@ bool MaglevGraphBuilder::IsInsideLoop() const {
 ValueNode* MaglevGraphBuilder::BuildSmiUntag(ValueNode* node) {
   return reducer_.BuildSmiUntag(node);
 }
-ValueNode* MaglevGraphBuilder::BuildNumberOrOddballToFloat64(
-    ValueNode* node, NodeType allowed_input_type,
-    TaggedToFloat64ConversionType conversion_type) {
-  return reducer_.BuildNumberOrOddballToFloat64(node, allowed_input_type,
-                                                conversion_type);
-}
 
 }  // namespace v8::internal::maglev

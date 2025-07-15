@@ -1150,9 +1150,6 @@ class MaglevGraphBuilder {
       std::pair<interpreter::Register, interpreter::Register> result);
 
   ValueNode* BuildSmiUntag(ValueNode* node);
-  ValueNode* BuildNumberOrOddballToFloat64(
-      ValueNode* node, NodeType allowed_input_type,
-      TaggedToFloat64ConversionType conversion_type);
 
   ReduceResult BuildCheckSmi(ValueNode* object, bool elidable = true);
   ReduceResult BuildCheckNumber(ValueNode* object);
