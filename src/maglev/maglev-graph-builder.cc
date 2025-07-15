@@ -15187,6 +15187,18 @@ void MaglevGraphBuilder::Build() {
     DCHECK_EQ(graph()->parameters().size(), static_cast<size_t>(i));
     graph()->parameters().push_back(v);
     SetArgument(i, v);
+    if (i == 0) {
+      // This is the receiver (the "this" register).
+      if (is_sloppy(
+              compilation_unit_->shared_function_info().language_mode())) {
+        DCHECK(compilation_unit_->shared_function_info().IsUserJavaScript());
+        EnsureType(v, NodeType::kJSReceiver);
+      }
+      // In strict mode, the receiver can be pretty much anything (ie, not just
+      // a JSReceiver but also a Smi or undefined, and in derived constructors
+      // it can even be the_hole). The type would be NodeType::kUnknown, so we
+      // just don't set it.
+    }
   }
 
   BuildRegisterFrameInitialization();
