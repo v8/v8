@@ -2468,6 +2468,9 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
           for (size_t k = start_from; k < length; ++k) {
             if (elements->is_the_hole(static_cast<int>(k))) return Just(true);
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+            if (elements->is_undefined(static_cast<int>(k))) return Just(true);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
           }
           return Just(false);
         }
@@ -2505,6 +2508,11 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
           for (size_t k = start_from; k < length; ++k) {
             if (elements->is_the_hole(static_cast<int>(k))) continue;
             if (elements->get_scalar(static_cast<int>(k)) == search_number) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+              // This can never be undefined, otherwise search_number would be a
+              // NaN.
+              DCHECK(!elements->is_undefined(static_cast<int>(k)));
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
               return Just(true);
             }
           }
@@ -2538,6 +2546,10 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
           for (size_t k = start_from; k < length; ++k) {
             if (elements->is_the_hole(static_cast<int>(k))) continue;
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+            // We do not treat the undefined NaN as a NaN.
+            if (elements->is_undefined(static_cast<int>(k))) continue;
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
             if (std::isnan(elements->get_scalar(static_cast<int>(k)))) {
               return Just(true);
             }
