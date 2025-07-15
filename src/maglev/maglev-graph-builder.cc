@@ -2247,8 +2247,8 @@ ReduceResult MaglevGraphBuilder::VisitUnaryOperation() {
   return BuildGenericUnaryOperationNode<kOperation>();
 }
 
-ValueNode* MaglevGraphBuilder::BuildNewConsStringMap(ValueNode* left,
-                                                     ValueNode* right) {
+ReduceResult MaglevGraphBuilder::BuildNewConsStringMap(ValueNode* left,
+                                                       ValueNode* right) {
   struct Result {
     bool static_map;
     bool is_two_byte;
@@ -2407,7 +2407,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
   ValueNode* left_length = BuildLoadStringLength(left);
   ValueNode* right_length = BuildLoadStringLength(right);
 
-  auto BuildConsString = [&]() {
+  auto BuildConsString = [&]() -> ReduceResult {
     ValueNode* new_length;
     MaybeReduceResult folded =
         reducer_.TryFoldInt32BinaryOperation<Operation::kAdd>(left_length,
@@ -2419,16 +2419,13 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
           AddNewNode<Int32AddWithOverflow>({left_length, right_length});
     }
 
-    // TODO(olivf): Add unconditional deopt support to the Select builder
-    // instead of disabling unconditional deopt it here.
-    MaybeReduceResult too_long = TryBuildCheckInt32Condition(
+    RETURN_IF_ABORT(TryBuildCheckInt32Condition(
         new_length, GetInt32Constant(String::kMaxLength),
         AssertCondition::kUnsignedLessThanEqual,
-        DeoptimizeReason::kStringTooLarge,
-        /* allow_unconditional_deopt */ false);
-    CHECK(!too_long.IsDoneWithAbort());
+        DeoptimizeReason::kStringTooLarge));
 
-    ValueNode* new_map = BuildNewConsStringMap(left, right);
+    ValueNode* new_map;
+    GET_VALUE_OR_ABORT(new_map, BuildNewConsStringMap(left, right));
     VirtualObject* cons_string =
         CreateConsString(new_map, new_length, left, right);
     ValueNode* allocation =
@@ -2437,7 +2434,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
     return allocation;
   };
 
-  return Select(
+  return SelectReduction(
       [&](BranchBuilder& builder) {
         if (left_min_length > 0) return BranchResult::kAlwaysFalse;
         return BuildBranchIfInt32Compare(builder, Operation::kEqual,
@@ -2445,7 +2442,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
       },
       [&] { return right; },
       [&] {
-        return Select(
+        return SelectReduction(
             [&](BranchBuilder& builder) {
               if (right_min_length > 0) return BranchResult::kAlwaysFalse;
               return BuildBranchIfInt32Compare(builder, Operation::kEqual,
@@ -5840,7 +5837,7 @@ bool CompareUint32(uint32_t lhs, uint32_t rhs, Operation operation) {
 
 ReduceResult MaglevGraphBuilder::TryBuildCheckInt32Condition(
     ValueNode* lhs, ValueNode* rhs, AssertCondition condition,
-    DeoptimizeReason reason, bool allow_unconditional_deopt) {
+    DeoptimizeReason reason) {
   auto lhs_const = TryGetInt32Constant(lhs);
   if (lhs_const) {
     auto rhs_const = TryGetInt32Constant(rhs);
@@ -5848,9 +5845,7 @@ ReduceResult MaglevGraphBuilder::TryBuildCheckInt32Condition(
       if (CheckConditionIn32(lhs_const.value(), rhs_const.value(), condition)) {
         return ReduceResult::Done();
       }
-      if (allow_unconditional_deopt) {
-        return EmitUnconditionalDeopt(reason);
-      }
+      return EmitUnconditionalDeopt(reason);
     }
   }
   AddNewNode<CheckInt32Condition>({lhs, rhs}, condition, reason);

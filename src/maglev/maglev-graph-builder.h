@@ -1295,9 +1295,9 @@ class MaglevGraphBuilder {
   ValueNode* BuildLoadJSFunctionFeedbackCell(ValueNode* closure);
   ValueNode* BuildLoadJSFunctionContext(ValueNode* closure);
 
-  ReduceResult TryBuildCheckInt32Condition(
-      ValueNode* lhs, ValueNode* rhs, AssertCondition condition,
-      DeoptimizeReason reason, bool allow_unconditional_deopt = true);
+  ReduceResult TryBuildCheckInt32Condition(ValueNode* lhs, ValueNode* rhs,
+                                           AssertCondition condition,
+                                           DeoptimizeReason reason);
 
   MaybeReduceResult TryBuildPropertyLoad(
       ValueNode* receiver, ValueNode* lookup_start_object,
@@ -1563,7 +1563,7 @@ class MaglevGraphBuilder {
 
   ValueNode* BuildUnwrapStringWrapper(ValueNode* input);
   ReduceResult BuildStringConcat(ValueNode* left, ValueNode* right);
-  ValueNode* BuildNewConsStringMap(ValueNode* left, ValueNode* right);
+  ReduceResult BuildNewConsStringMap(ValueNode* left, ValueNode* right);
   size_t StringLengthStaticLowerBound(ValueNode* string, int max_depth = 2);
   MaybeReduceResult TryBuildNewConsString(
       ValueNode* left, ValueNode* right,
