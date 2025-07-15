@@ -8074,6 +8074,8 @@ if (v8_enable_webassembly) {
 
   if (v8_enable_drumbrake) {
     v8_source_set("lib_wasm_interpreter_fuzzer_common") {
+      testonly = true
+
       sources = [
         "test/fuzzer/wasm/interpreter/interpreter-fuzzer-common.cc",
         "test/fuzzer/wasm/interpreter/interpreter-fuzzer-common.h",

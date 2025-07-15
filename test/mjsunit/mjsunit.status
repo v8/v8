@@ -645,6 +645,7 @@
   'wasm/js-api': [SKIP],
   'wasm/memory-copy-inline': [SKIP],
   'wasm/memory-fill-inline': [SKIP],
+  'wasm/memory-fill-outline': [SKIP],
   'wasm/memory-huge-constant-index': [SKIP],
   'wasm/multi-memory*': [SKIP],
 

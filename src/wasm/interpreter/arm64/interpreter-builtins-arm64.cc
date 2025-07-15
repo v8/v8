@@ -1684,7 +1684,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ Ldr(packed_args, MemOperand(fp, kPackedArrayOffset));
   __ Str(return_reg, MemOperand(packed_args, current_result_offset));
   __ Add(current_result_offset, current_result_offset,
-         Immediate(sizeof(kSystemPointerSize)));
+         Immediate(kSystemPointerSize));
 
   // A result converted.
   __ bind(&return_done);
