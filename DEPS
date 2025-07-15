@@ -92,7 +92,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '7b2807165fad397df23f5f749b15e9e43269ccf5',
+  'partition_alloc_version': '328d516729e7e9edc833244c73cc9013828e5a1a',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -130,9 +130,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '70c150bc0ae989d00c15ab1ed67464198e4890d0',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4c2097756b42e5e42866bd364ff56c14f9bad9ac',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '428390e5e357593d2aadabf315d6f5d8a80982b6',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '839dbfe8796c6118e31eb998c13a12285adb47cd',
   'buildtools/linux64': {
     'packages': [
       {
@@ -232,7 +232,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'ffa0089e2ca8c0ae5e0f1890ca8be6c0fb931a1b',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '14e8e1ef0d8bbd0b8b52fe9c4976fddeee3d3684',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -304,7 +304,7 @@ deps = {
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '7a36df3acb8356667cf11331638fc31e0fd533c4',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '4a1b4864252ea043cb995be635c52a0888131308',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '8eeec53078a5e67346123d2be6337ab0592e6435',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '634c609746c6ce2d731a4e6f6285135bd84bd3a3',
   'third_party/llvm-libc/src':
