@@ -47,7 +47,7 @@ void PrintGraph(Graph* graph, bool condition, const char* message) {
                   graph->compilation_info()->is_tracing_enabled())) {
     UnparkedScopeIfOnBackground unparked_scope(
         graph->broker()->local_isolate()->heap());
-    std::cout << "\nAfter graph building" << std::endl;
+    std::cout << "\n" << message << std::endl;
     PrintGraph(std::cout, graph);
   }
 }
