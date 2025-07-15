@@ -1865,6 +1865,8 @@ void GCTracer::ReportFullCycleToRecorder() {
     event.collection_weight_in_percent = 0;
     event.main_thread_collection_weight_in_percent = 0;
   } else {
+    event.total_duration_since_last_mark_compact =
+        total_duration_since_last_mark_compact_.InMicroseconds();
     event.collection_weight_in_percent =
         static_cast<double>(event.total.total_wall_clock_duration_in_us) /
         total_duration_since_last_mark_compact_.InMicroseconds();
