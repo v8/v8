@@ -69,7 +69,12 @@
   /* Resizable buffer integration */                                           \
   /* https://github.com/WebAssembly/spec/issues/1292 */                        \
   /* V8 side owner: syg */                                                     \
-  V(rab_integration, "resizable buffers integration", false)
+  V(rab_integration, "resizable buffers integration", false)                   \
+                                                                               \
+  /* Compilation hints */                                                      \
+  /* https://github.com/WebAssembly/compilation-hints */                       \
+  /* V8 side owner: ecmziegler, manoskouk */                                   \
+  V(compilation_hints, "compilation hints", false)
 
 // #############################################################################
 // Pre-staged features (disabled by default, but enabled via

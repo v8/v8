@@ -73,6 +73,13 @@ namespace module_decoder_unittest {
                     'd', 'e', '.', 'b', 'r', 'a', 'n', 'c', 'h', '_', 'h', \
                     'i', 'n', 't'),                                        \
           __VA_ARGS__)
+#define SECTION_COMPILATION_PRIORITY(...)                                   \
+  SECTION(                                                                  \
+      Unknown,                                                              \
+      ADD_COUNT('m', 'e', 't', 'a', 'd', 'a', 't', 'a', '.', 'c', 'o', 'd', \
+                'e', '.', 'c', 'o', 'm', 'p', 'i', 'l', 'a', 't', 'i', 'o', \
+                'n', '_', 'p', 'r', 'i', 'o', 'r', 'i', 't', 'y'),          \
+      __VA_ARGS__)
 
 #define X1(...) __VA_ARGS__
 #define X2(...) __VA_ARGS__, __VA_ARGS__
@@ -2327,6 +2334,169 @@ TEST_F(WasmModuleVerifyTest, BranchHintingBad) {
     EXPECT_OK(result);
     EXPECT_EQ(0U, result.value()->branch_hints.size());
   }
+}
+
+TEST_F(WasmModuleVerifyTest, CompilationPriority) {
+  WASM_FEATURE_SCOPE(compilation_hints);
+  static const uint8_t data[] = {
+      TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(2, 0, 0),
+      SECTION_COMPILATION_PRIORITY(ENTRY_COUNT(2), 0 /* func_index */,
+                                   0 /* byte_offset */,
+                                   ADD_COUNT(0 /* compilation_priority */,
+                                             10 /* optimization_priority */),
+                                   1 /* func_index */, 0 /* byte_offset */,
+                                   ADD_COUNT(1 /* compilation_priority */,
+                                             20 /* optimization_priority */)),
+      SECTION(Code, ENTRY_COUNT(2), ADD_COUNT(0, WASM_END),
+              ADD_COUNT(0, WASM_END))};
+  ModuleResult result = DecodeModule(base::ArrayVector(data));
+  EXPECT_OK(result);
+  CompilationPriorities& hints = result.value()->compilation_priorities;
+  EXPECT_EQ(2U, hints.size());
+  EXPECT_EQ(0U, hints[0].compilation_priority);
+  EXPECT_EQ(10U, hints[0].optimization_priority);
+  EXPECT_EQ(1U, hints[1].compilation_priority);
+  EXPECT_EQ(20U, hints[1].optimization_priority);
+}
+
+TEST_F(WasmModuleVerifyTest, CompilationPriorityNooptimization_priority) {
+  WASM_FEATURE_SCOPE(compilation_hints);
+  static const uint8_t data[] = {
+      TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(2, 0, 0),
+      SECTION_COMPILATION_PRIORITY(ENTRY_COUNT(2), 0 /* func_index */,
+                                   0 /* byte_offset */,
+                                   ADD_COUNT(0 /* compilation_priority */,
+                                             10 /* optimization_priority */),
+                                   1 /* func_index */, 0 /* byte_offset */,
+                                   ADD_COUNT(1 /* compilation_priority */)),
+      SECTION(Code, ENTRY_COUNT(2), ADD_COUNT(0, WASM_END),
+              ADD_COUNT(0, WASM_END))};
+  ModuleResult result = DecodeModule(base::ArrayVector(data));
+  EXPECT_OK(result);
+  CompilationPriorities& hints = result.value()->compilation_priorities;
+  EXPECT_EQ(2U, hints.size());
+  EXPECT_EQ(0U, hints[0].compilation_priority);
+  EXPECT_EQ(10U, hints[0].optimization_priority);
+  EXPECT_EQ(1U, hints[1].compilation_priority);
+  EXPECT_EQ(0U, hints[1].optimization_priority);
+}
+
+TEST_F(WasmModuleVerifyTest,
+       CompilationPriorityAdditionalBytesAfteroptimization_priority) {
+  WASM_FEATURE_SCOPE(compilation_hints);
+  static const uint8_t data[] = {
+      TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(2, 0, 0),
+      SECTION_COMPILATION_PRIORITY(ENTRY_COUNT(2), 0 /* func_index */,
+                                   0 /* byte_offset */,
+                                   ADD_COUNT(0 /* compilation_priority */,
+                                             10 /* optimization_priority */, 0,
+                                             1 /* additional bytes */),
+                                   1 /* func_index */, 0 /* byte_offset */,
+                                   ADD_COUNT(1 /* compilation_priority */,
+                                             20 /* optimization_priority */)),
+      SECTION(Code, ENTRY_COUNT(2), ADD_COUNT(0, WASM_END),
+              ADD_COUNT(0, WASM_END))};
+  ModuleResult result = DecodeModule(base::ArrayVector(data));
+  EXPECT_OK(result);
+  CompilationPriorities& hints = result.value()->compilation_priorities;
+  EXPECT_EQ(2U, hints.size());
+  EXPECT_EQ(0U, hints[0].compilation_priority);
+  EXPECT_EQ(10U, hints[0].optimization_priority);
+  EXPECT_EQ(1U, hints[1].compilation_priority);
+  EXPECT_EQ(20U, hints[1].optimization_priority);
+}
+
+// Failing compilation-priority tests. Compilation succeeds because this is just
+// a custom section, but no hints should be parsed.
+
+TEST_F(WasmModuleVerifyTest, CompilationPriorityAdditionalBytes) {
+  WASM_FEATURE_SCOPE(compilation_hints);
+  static const uint8_t data[] = {
+      TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(2, 0, 0),
+      SECTION_COMPILATION_PRIORITY(ENTRY_COUNT(2), 0 /* func_index */,
+                                   0 /* byte_offset */,
+                                   ADD_COUNT(0 /* compilation_priority */,
+                                             10 /* optimization_priority */),
+                                   1 /* func_index */, 0 /* byte_offset */,
+                                   ADD_COUNT(1 /* compilation_priority */,
+                                             20 /* optimization_priority */),
+                                   0, 1, 2 /* additional bytes */
+                                   ),
+      SECTION(Code, ENTRY_COUNT(2), ADD_COUNT(0, WASM_END),
+              ADD_COUNT(0, WASM_END))};
+  ModuleResult result = DecodeModule(base::ArrayVector(data));
+  EXPECT_OK(result);
+  CompilationPriorities& hints = result.value()->compilation_priorities;
+  EXPECT_EQ(0U, hints.size());
+}
+
+TEST_F(WasmModuleVerifyTest, CompilationPriorityPriorityOverflows) {
+  WASM_FEATURE_SCOPE(compilation_hints);
+  static const uint8_t data[] = {
+      TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(1, 0),
+      SECTION_COMPILATION_PRIORITY(ENTRY_COUNT(1), 0 /* func_index */,
+                                   0 /* byte_offset */, 1 /* count, too low */,
+                                   0xFF, 0x00 /* compilation_priority */,
+                                   10 /* optimization_priority */),
+      SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(0, WASM_END))};
+  ModuleResult result = DecodeModule(base::ArrayVector(data));
+  EXPECT_OK(result);
+  CompilationPriorities& hints = result.value()->compilation_priorities;
+  EXPECT_EQ(0U, hints.size());
+}
+
+TEST_F(WasmModuleVerifyTest,
+       CompilationPriorityoptimization_priorityOverflows) {
+  WASM_FEATURE_SCOPE(compilation_hints);
+  static const uint8_t data[] = {
+      TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(1, 0),
+      SECTION_COMPILATION_PRIORITY(ENTRY_COUNT(1), 0 /* func_index */,
+                                   0 /* byte_offset */, 2 /* count, too low */,
+                                   0 /* compilation_priority */,  // --
+                                   0xFF, 0x00 /* optimization_priority */),
+      SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(0, WASM_END))};
+  ModuleResult result = DecodeModule(base::ArrayVector(data));
+  EXPECT_OK(result);
+  CompilationPriorities& hints = result.value()->compilation_priorities;
+  EXPECT_EQ(0U, hints.size());
+}
+
+TEST_F(WasmModuleVerifyTest, CompilationPriorityOutOfOrderFunctions) {
+  WASM_FEATURE_SCOPE(compilation_hints);
+  static const uint8_t data[] = {
+      TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(2, 0, 0),
+      SECTION_COMPILATION_PRIORITY(ENTRY_COUNT(2), 1 /* func_index */,
+                                   0 /* byte_offset */,
+                                   ADD_COUNT(0 /* compilation_priority */,
+                                             10 /* optimization_priority */),
+                                   0 /* func_index */, 0 /* byte_offset */,
+                                   ADD_COUNT(1 /* compilation_priority */,
+                                             20 /* optimization_priority */)),
+      SECTION(Code, ENTRY_COUNT(2), ADD_COUNT(0, WASM_END),
+              ADD_COUNT(0, WASM_END))};
+  ModuleResult result = DecodeModule(base::ArrayVector(data));
+  EXPECT_OK(result);
+  CompilationPriorities& hints = result.value()->compilation_priorities;
+  EXPECT_EQ(0U, hints.size());
+}
+
+TEST_F(WasmModuleVerifyTest, CompilationPriorityDuplicateFunctions) {
+  WASM_FEATURE_SCOPE(compilation_hints);
+  static const uint8_t data[] = {
+      TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(2, 0, 0),
+      SECTION_COMPILATION_PRIORITY(ENTRY_COUNT(2), 0 /* func_index */,
+                                   0 /* byte_offset */,
+                                   ADD_COUNT(0 /* compilation_priority */,
+                                             10 /* optimization_priority */),
+                                   0 /* func_index */, 0 /* byte_offset */,
+                                   ADD_COUNT(1 /* compilation_priority */,
+                                             20 /* optimization_priority */)),
+      SECTION(Code, ENTRY_COUNT(2), ADD_COUNT(0, WASM_END),
+              ADD_COUNT(0, WASM_END))};
+  ModuleResult result = DecodeModule(base::ArrayVector(data));
+  EXPECT_OK(result);
+  CompilationPriorities& hints = result.value()->compilation_priorities;
+  EXPECT_EQ(0U, hints.size());
 }
 
 class WasmSignatureDecodeTest : public TestWithZone {

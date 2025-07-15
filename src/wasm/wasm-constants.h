@@ -123,14 +123,15 @@ enum SectionCode : int8_t {
   // The following sections are custom sections, and are identified using a
   // string rather than an integer. Their enumeration values are not guaranteed
   // to be consistent.
-  kNameSectionCode,               // Name section (encoded as a string)
-  kSourceMappingURLSectionCode,   // Source Map URL section
-  kDebugInfoSectionCode,          // DWARF section .debug_info
-  kExternalDebugInfoSectionCode,  // Section encoding the external symbol path
-  kBuildIdSectionCode,            // Unique build id to match the symbol file
-  kInstTraceSectionCode,          // Instruction trace section
-  kBranchHintsSectionCode,        // Branch hints section
-  kDescriptorsSectionCode,        // Descriptors section
+  kNameSectionCode,                 // Name section (encoded as a string)
+  kSourceMappingURLSectionCode,     // Source Map URL section
+  kDebugInfoSectionCode,            // DWARF section .debug_info
+  kExternalDebugInfoSectionCode,    // Section encoding the external symbol path
+  kBuildIdSectionCode,              // Unique build id to match the symbol file
+  kInstTraceSectionCode,            // Instruction trace section
+  kBranchHintsSectionCode,          // Branch hints section
+  kCompilationPrioritySectionCode,  // Compilation priority section
+  kDescriptorsSectionCode,          // Descriptors section
 
   // Helper values
   kFirstSectionInModule = kTypeSectionCode,

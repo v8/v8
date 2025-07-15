@@ -642,6 +642,12 @@ struct WasmTable {
   bool is_table64() const { return address_type == AddressType::kI64; }
 };
 
+struct CompilationPriority {
+  uint32_t compilation_priority;
+  uint32_t optimization_priority;
+};
+using CompilationPriorities = std::unordered_map<uint32_t, CompilationPriority>;
+
 // Static representation of a module.
 struct V8_EXPORT_PRIVATE WasmModule {
   // ================ Fields ===================================================
@@ -702,6 +708,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<WasmStringRefLiteral> stringref_literals;
   std::vector<WasmElemSegment> elem_segments;
   BranchHintInfo branch_hints;
+  CompilationPriorities compilation_priorities;
   // Pairs of module offsets and mark id.
   std::vector<std::pair<uint32_t, uint32_t>> inst_traces;
 

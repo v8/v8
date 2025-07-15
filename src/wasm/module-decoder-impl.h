@@ -32,6 +32,8 @@ constexpr char kNameString[] = "name";
 constexpr char kSourceMappingURLString[] = "sourceMappingURL";
 constexpr char kInstTraceString[] = "metadata.code.trace_inst";
 constexpr char kBranchHintsString[] = "metadata.code.branch_hint";
+constexpr char kCompilationPriorityString[] =
+    "metadata.code.compilation_priority";
 constexpr char kDebugInfoString[] = ".debug_info";
 constexpr char kExternalDebugInfoString[] = "external_debug_info";
 constexpr char kBuildIdString[] = "build_id";
@@ -140,6 +142,8 @@ inline SectionCode IdentifyUnknownSectionInternal(Decoder* decoder,
        kSourceMappingURLSectionCode},
       {base::StaticCharVector(kInstTraceString), kInstTraceSectionCode},
       {base::StaticCharVector(kBranchHintsString), kBranchHintsSectionCode},
+      {base::StaticCharVector(kCompilationPriorityString),
+       kCompilationPrioritySectionCode},
       {base::StaticCharVector(kDebugInfoString), kDebugInfoSectionCode},
       {base::StaticCharVector(kExternalDebugInfoString),
        kExternalDebugInfoSectionCode},
@@ -251,7 +255,7 @@ class WasmSectionIterator {
     }
 
     if (section_code == kUnknownSectionCode) {
-      // Check for the known "name" or "sourceMappingURL" section.
+      // Check for known custom sections.
       // To identify the unknown section we set the end of the decoder bytes to
       // the end of the custom section, so that we do not read the section name
       // beyond the end of the section.
@@ -492,6 +496,15 @@ class ModuleDecoderImpl : public Decoder {
       case kBranchHintsSectionCode:
         if (enabled_features_.has_branch_hinting()) {
           DecodeBranchHintsSection();
+        } else {
+          // Ignore this section when feature was disabled. It is an optional
+          // custom section anyways.
+          consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
+        }
+        break;
+      case kCompilationPrioritySectionCode:
+        if (enabled_features_.has_compilation_hints()) {
+          DecodeCompilationPrioritySection();
         } else {
           // Ignore this section when feature was disabled. It is an optional
           // custom section anyways.
@@ -1752,6 +1765,87 @@ class ModuleDecoderImpl : public Decoder {
       // If everything went well, accept the hints for the module.
       if (inner.ok()) {
         module_->branch_hints = std::move(branch_hints);
+      } else {
+        TRACE("DecodeBranchHints error: %s", inner.error().message().c_str());
+      }
+    }
+    // Skip the whole branch hints section in the outer decoder.
+    consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
+  }
+
+  void DecodeCompilationPrioritySection() {
+    TRACE("DecodeCompilationPriority module+%d\n",
+          static_cast<int>(pc_ - start_));
+    detected_features_->add_compilation_hints();
+    if (!has_seen_unordered_section(kCompilationPrioritySectionCode)) {
+      set_seen_unordered_section(kCompilationPrioritySectionCode);
+      // Use an inner decoder so that errors don't fail the outer decoder.
+      Decoder inner(start_, pc_, end_, buffer_offset_);
+      CompilationPriorities compilation_priorities;
+
+      uint32_t func_count = inner.consume_u32v("number of functions");
+
+      int64_t last_func_index = -1;
+
+      for (uint32_t i = 0; i < func_count; i++) {
+        uint32_t func_index = inner.consume_u32v("function index");
+        if (static_cast<int64_t>(func_index) <= last_func_index) {
+          inner.error("out of order functions");
+          break;
+        }
+        last_func_index = func_index;
+        uint32_t byte_offset = inner.consume_u32v("byte offset");
+        if (byte_offset != 0) {
+          inner.error("byte offset has to be 0 (function level only)");
+          break;
+        }
+        uint32_t hint_length = inner.consume_u32v("hint length");
+        const uint8_t* pc_after_hint_length = inner.pc();
+        uint32_t compilation_priority =
+            inner.consume_u32v("compilation priority");
+        if (static_cast<int64_t>(hint_length) <
+            inner.pc() - pc_after_hint_length) {
+          inner.error("Compilation priority longer than declared hint length");
+          break;
+        }
+        uint32_t optimization_priority = 0;
+
+        // If we exhausted the declared hint length, do not parse optimization
+        // priority.
+        if (static_cast<int64_t>(hint_length) >
+            inner.pc() - pc_after_hint_length) {
+          optimization_priority = inner.consume_u32v("optimization priority");
+          if (static_cast<int64_t>(hint_length) <
+              inner.pc() - pc_after_hint_length) {
+            inner.error("Optimization priority overflows declared hint length");
+            break;
+          }
+        }
+
+        // Ignore remaining hint bytes.
+        inner.consume_bytes(
+            hint_length -
+            static_cast<uint32_t>(inner.pc() - pc_after_hint_length));
+
+        if (!inner.ok()) break;
+
+        compilation_priorities.emplace(
+            func_index,
+            CompilationPriority{compilation_priority, optimization_priority});
+      }
+
+      // Extra unexpected bytes are an error.
+      if (inner.more()) {
+        inner.errorf("Unexpected extra bytes: %d\n",
+                     static_cast<int>(inner.pc() - inner.start()));
+      }
+      // If everything went well, accept the compilation priority hints for the
+      // module.
+      if (inner.ok()) {
+        module_->compilation_priorities = std::move(compilation_priorities);
+      } else {
+        TRACE("DecodeCompilationPriority error: %s",
+              inner.error().message().c_str());
       }
     }
     // Skip the whole branch hints section in the outer decoder.
