@@ -204,10 +204,6 @@ class MaglevGraphBuilder {
            v8_flags.maglev_licm;
   }
 
-  void RecordUseReprHint(Phi* phi, UseRepresentationSet reprs);
-  void RecordUseReprHint(Phi* phi, UseRepresentation repr);
-  void RecordUseReprHintIfPhi(ValueNode* node, UseRepresentation repr);
-
   SourcePosition GetCurrentSourcePosition() const;
 
   BasicBlock* current_block() const;

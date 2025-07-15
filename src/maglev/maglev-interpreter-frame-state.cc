@@ -1390,7 +1390,7 @@ void MergePointInterpreterFrameState::MergeLoopValue(
 
   if (Phi* unmerged_phi = unmerged->TryCast<Phi>()) {
     // Propagating the `uses_repr` from {result} to {unmerged_phi}.
-    builder->RecordUseReprHint(unmerged_phi, result->get_uses_repr_hints());
+    unmerged_phi->RecordUseReprHint(result->get_uses_repr_hints());
 
     // Soundness of the loop phi Smi type relies on the back-edge static types
     // sminess.

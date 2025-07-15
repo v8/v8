@@ -1560,7 +1560,7 @@ InterpretedDeoptFrame MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
 ReduceResult MaglevGraphBuilder::GetSmiValue(
     ValueNode* value, UseReprHintRecording record_use_repr_hint) {
   if (V8_LIKELY(record_use_repr_hint == UseReprHintRecording::kRecord)) {
-    RecordUseReprHintIfPhi(value, UseRepresentation::kTagged);
+    value->RecordUseReprHintIfPhi(UseRepresentation::kTagged);
   }
 
   NodeInfo* node_info = GetOrCreateInfoFor(value);
@@ -1657,7 +1657,7 @@ ReduceResult MaglevGraphBuilder::GetInternalizedString(
 ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(
     ValueNode* value, NodeType allowed_input_type,
     TaggedToFloat64ConversionType conversion_type) {
-  RecordUseReprHintIfPhi(value, UseRepresentation::kTruncatedInt32);
+  value->RecordUseReprHintIfPhi(UseRepresentation::kTruncatedInt32);
 
   ValueRepresentation representation =
       value->properties().value_representation();
@@ -1868,7 +1868,7 @@ ValueNode* MaglevGraphBuilder::GetHoleyFloat64(
 ValueNode* MaglevGraphBuilder::GetHoleyFloat64ForToNumber(
     ValueNode* value, NodeType allowed_input_type,
     TaggedToFloat64ConversionType conversion_type) {
-  RecordUseReprHintIfPhi(value, UseRepresentation::kHoleyFloat64);
+  value->RecordUseReprHintIfPhi(UseRepresentation::kHoleyFloat64);
   ValueRepresentation representation =
       value->properties().value_representation();
   // Ignore the hint for
@@ -4602,7 +4602,7 @@ bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
                                               ValueNode* value) {
   if (value->Is<RootConstant>() || value->Is<ConsStringMap>()) return true;
   if (!IsEmptyNodeType(GetType(value)) && CheckType(value, NodeType::kSmi)) {
-    RecordUseReprHintIfPhi(value, UseRepresentation::kTagged);
+    value->RecordUseReprHintIfPhi(UseRepresentation::kTagged);
     return true;
   }
 
@@ -5623,7 +5623,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
 }
 
 ReduceResult MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
-  RecordUseReprHintIfPhi(object, UseRepresentation::kInt32);
+  object->RecordUseReprHintIfPhi(UseRepresentation::kInt32);
 
   switch (object->properties().value_representation()) {
     case ValueRepresentation::kIntPtr:
@@ -6182,11 +6182,11 @@ ReduceResult MaglevGraphBuilder::ConvertForStoring(ValueNode* value,
   if (IsDoubleElementsKind(kind)) {
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     if (kind == ElementsKind::HOLEY_DOUBLE_ELEMENTS) {
-        RecordUseReprHintIfPhi(value, UseRepresentation::kHoleyFloat64);
-        const bool convert_hole_to_undefined = true;
-        return GetHoleyFloat64(
-            value, TaggedToFloat64ConversionType::kNumberOrUndefined,
-            convert_hole_to_undefined);
+      value->RecordUseReprHintIfPhi(UseRepresentation::kHoleyFloat64);
+      const bool convert_hole_to_undefined = true;
+      return GetHoleyFloat64(value,
+                             TaggedToFloat64ConversionType::kNumberOrUndefined,
+                             convert_hole_to_undefined);
     }
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     // Make sure we do not store signalling NaNs into double arrays.
@@ -15253,20 +15253,6 @@ void MaglevGraphBuilder::BuildBody() {
   }
   DCHECK_EQ(loop_effects_stack_.size(),
             is_inline() && caller_details_->loop_effects ? 1 : 0);
-}
-
-void MaglevGraphBuilder::RecordUseReprHint(Phi* phi,
-                                           UseRepresentationSet reprs) {
-  phi->RecordUseReprHint(reprs);
-}
-void MaglevGraphBuilder::RecordUseReprHint(Phi* phi, UseRepresentation repr) {
-  RecordUseReprHint(phi, UseRepresentationSet{repr});
-}
-void MaglevGraphBuilder::RecordUseReprHintIfPhi(ValueNode* node,
-                                                UseRepresentation repr) {
-  if (Phi* phi = node->TryCast<Phi>()) {
-    RecordUseReprHint(phi, repr);
-  }
 }
 
 SourcePosition MaglevGraphBuilder::GetCurrentSourcePosition() const {

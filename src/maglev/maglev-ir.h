@@ -2876,6 +2876,7 @@ class ValueNode : public Node {
     return NodeTypeIs(GetStaticType(broker), type);
   }
 
+  inline void RecordUseReprHintIfPhi(UseRepresentationSet repr);
   inline void RecordUseReprHintIfPhi(UseRepresentation repr);
 
   void InitializeRegisterData() {
@@ -10122,10 +10123,6 @@ class Phi : public ValueNodeT<Phi> {
 
   BasicBlock* predecessor_at(int i);
 
-  void RecordUseReprHint(UseRepresentation repr) {
-    RecordUseReprHint(UseRepresentationSet{repr});
-  }
-
   void RecordUseReprHint(UseRepresentationSet repr_mask);
 
   UseRepresentationSet get_uses_repr_hints() { return uses_repr_hint_; }
@@ -10227,8 +10224,12 @@ class Phi : public ValueNodeT<Phi> {
 };
 
 void ValueNode::RecordUseReprHintIfPhi(UseRepresentation repr) {
+  RecordUseReprHintIfPhi(UseRepresentationSet{repr});
+}
+
+void ValueNode::RecordUseReprHintIfPhi(UseRepresentationSet repr_mask) {
   if (Phi* phi = TryCast<Phi>()) {
-    phi->RecordUseReprHint(repr);
+    phi->RecordUseReprHint(repr_mask);
   }
 }
 
