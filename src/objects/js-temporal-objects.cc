@@ -91,7 +91,7 @@ static constexpr char kInvalidIsoDate[] = "Invalid ISO date.";
 static constexpr char kInvalidTime[] = "Invalid time";
 static constexpr char kFiniteInteger[] = "Expected finite integer.";
 static constexpr char kIntegerOutOfRange[] = "Integer out of range.";
-static constexpr char kOptionMustBeObject[] = "Option must be object: ";
+static constexpr char kOptionMustBeObject[] = "Option must be object:";
 static constexpr char kCalendarMustBeString[] = "Calendar must be string.";
 static constexpr char kRoundToMissing[] = "Must specify a roundTo parameter.";
 static constexpr char kRoundToMustBeObject[] = "roundTo must be an object.";
@@ -997,7 +997,7 @@ Maybe<temporal_rs::DisplayTimeZone> GetTemporalShowTimeZoneNameOption(
       {temporal_rs::DisplayTimeZone::Auto, temporal_rs::DisplayTimeZone::Never,
        temporal_rs::DisplayTimeZone::Critical});
   return GetStringOption<temporal_rs::DisplayTimeZone>(
-      isolate, options, isolate->factory()->offset_string(), method_name,
+      isolate, options, isolate->factory()->timeZoneName_string(), method_name,
       std::to_array<const std::string_view>({"auto", "never", "critical"}),
       values, temporal_rs::DisplayTimeZone::Auto);
 }

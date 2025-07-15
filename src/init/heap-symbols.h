@@ -133,7 +133,6 @@
   V(_, textInfo_string, "textInfo")                                 \
   V(_, timeStyle_string, "timeStyle")                               \
   V(_, timeZones_string, "timeZones")                               \
-  V(_, timeZoneName_string, "timeZoneName")                         \
   V(_, trailingZeroDisplay_string, "trailingZeroDisplay")           \
   V(_, trunc_string, "trunc")                                       \
   V(_, two_digit_string, "2-digit")                                 \
@@ -853,6 +852,7 @@
   V(_, timed_out_string, "timed-out")                                         \
   V(_, timeZone_string, "timeZone")                                           \
   V(_, timeZoneId_string, "timeZoneId")                                       \
+  V(_, timeZoneName_string, "timeZoneName")                                   \
   V(_, toJSON_string, "toJSON")                                               \
   V(_, toString_string, "toString")                                           \
   V(_, true_string, "true")                                                   \
