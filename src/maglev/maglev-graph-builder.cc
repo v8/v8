@@ -6836,10 +6836,6 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoad() {
     return {};
   }
 
-  if (!is_turbolev()) {
-    return {};
-  }
-
   if (iterator_.current_bytecode() !=
       interpreter::Bytecode::kGetNamedProperty) {
     return {};
@@ -6903,6 +6899,7 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoad() {
 
 ReduceResult MaglevGraphBuilder::BuildContinuationForPolymorphicPropertyLoad(
     const ContinuationOffsets& continuation) {
+  ScopedModification<bool> only_inline_small_scope(&only_inline_small_, true);
   while (iterator_.current_offset() < continuation.last_continuation) {
     iterator_.Advance();
     if (VisitSingleBytecode().IsDoneWithAbort()) {
@@ -8118,6 +8115,10 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
   if (ShouldEagerInlineCall(shared, args)) {
     return BuildEagerInlineCall(context, function, new_target, shared,
                                 feedback_cell, args, call_frequency);
+  }
+
+  if (!is_turbolev() && only_inline_small_) {
+    return {};
   }
 
   // Should we inline call?

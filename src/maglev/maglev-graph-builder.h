@@ -1985,6 +1985,9 @@ class MaglevGraphBuilder {
 
   ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>
       unobserved_context_slot_stores_;
+
+  // When set, inline only small functions.
+  bool only_inline_small_ = false;
 };
 
 template <bool is_possible_map_change>
