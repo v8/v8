@@ -103,6 +103,11 @@ Object.defineProperty(
       set.apply(this, [array, offset]);
     };
 
+    const fill = type.prototype.fill;
+    type.prototype.fill = function(value, start, end) {
+      fill.apply(this, [deNaNify(value), start, end]);
+    };
+
     const handler = {
       // Remove NaN values from parameters to constructor.
       construct: function(target, args) {

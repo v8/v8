@@ -99,6 +99,12 @@ function testArrayType(intArrayType, floatArrayType, pattern) {
     return new intArrayType(arr.buffer);
   };
   testSameOptimized(intArrayType, pattern, create);
+  create = function() {
+    const arr = new floatArrayType(1);
+    arr.fill(undefined);
+    return new intArrayType(arr.buffer);
+  };
+  testSameOptimized(intArrayType, pattern, create);
 }
 
 var isBigEndian = new Uint8Array(new Uint16Array([0xABCD]).buffer)[0] === 0xAB;
@@ -123,13 +129,16 @@ assertEquals(undefined, someObject[0]);
 
 // Test that we preserve non-NaN values and don't alter NaN properties.
 function testPreservation(arrayType) {
-  const arr = new arrayType(2);
+  const arr = new arrayType(4);
   Object.defineProperty(arr, 0, { value: 42 })
   assertEquals(42, arr[0]);
   Object.defineProperty(arr, "a", { get() { return 43; } })
   assertEquals(43, arr["a"]);
   arr.set([44], 1);
   assertEquals(44, arr[1]);
+  arr.fill(45, 2, 4);
+  assertEquals(45, arr[2]);
+  assertEquals(45, arr[3]);
 }
 testPreservation(Float16Array);
 testPreservation(Float32Array);
