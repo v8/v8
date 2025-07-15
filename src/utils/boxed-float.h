@@ -35,11 +35,9 @@ class Float32 {
 
   constexpr uint32_t get_bits() const { return bit_pattern_; }
 
-  constexpr float get_scalar() const {
-    return base::bit_cast<float>(bit_pattern_);
-  }
+  float get_scalar() const { return base::bit_cast<float>(bit_pattern_); }
 
-  constexpr bool is_nan() const {
+  bool is_nan() const {
     // Even though {get_scalar()} might set the quiet NaN bit, it's ok here,
     // because this does not change the is_nan property.
     bool nan = std::isnan(get_scalar());
@@ -47,11 +45,11 @@ class Float32 {
     return nan;
   }
 
-  constexpr bool is_quiet_nan() const {
+  bool is_quiet_nan() const {
     return is_nan() && (bit_pattern_ & kQuietNanBit);
   }
 
-  constexpr bool is_inf() const {
+  bool is_inf() const {
     bool inf = std::isinf(get_scalar());
     DCHECK_EQ(inf, exponent() == 0xff && mantissa() == 0);
     return inf;
