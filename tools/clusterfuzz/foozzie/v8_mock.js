@@ -95,8 +95,10 @@ Object.defineProperty(
     // Remove NaN values from parameters to "set" function.
     const set = type.prototype.set;
     type.prototype.set = function(array, offset) {
-      if (origArrayIsArray(array)) {
-        array = applyOrigArrayMap(array, [deNaNify]);
+      // The 'set' function also treats passed objects as array-like if they
+      // have a length property.
+      if (origArrayIsArray(array) || array.length) {
+        array = applyOrigArrayMap(Array.from(array), [deNaNify]);
       }
       set.apply(this, [array, offset]);
     };

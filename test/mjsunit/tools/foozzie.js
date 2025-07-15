@@ -80,6 +80,13 @@ function testArrayType(intArrayType, floatArrayType, pattern) {
     return new intArrayType(arr.buffer);
   };
   testSameOptimized(intArrayType, pattern, create);
+  // Pass NaN via set using an iterable type.
+  create = function() {
+    const arr = new floatArrayType(1);
+    arr.set({ length: 1 }, 0);
+    return new intArrayType(arr.buffer);
+  };
+  testSameOptimized(intArrayType, pattern, create);
   create = function() {
     const arr = new floatArrayType(1);
     Object.defineProperty(arr, 0, { value: undefined });
@@ -116,11 +123,13 @@ assertEquals(undefined, someObject[0]);
 
 // Test that we preserve non-NaN values and don't alter NaN properties.
 function testPreservation(arrayType) {
-  const arr = new arrayType(1);
+  const arr = new arrayType(2);
   Object.defineProperty(arr, 0, { value: 42 })
   assertEquals(42, arr[0]);
   Object.defineProperty(arr, "a", { get() { return 43; } })
   assertEquals(43, arr["a"]);
+  arr.set([44], 1);
+  assertEquals(44, arr[1]);
 }
 testPreservation(Float16Array);
 testPreservation(Float32Array);
