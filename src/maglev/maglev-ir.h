@@ -2960,6 +2960,9 @@ class ValueNode : public Node {
     return spill_;
   }
 
+  ValueNode* UnwrapIdentities();
+  const ValueNode* UnwrapIdentities() const;
+
  protected:
   explicit ValueNode(uint64_t bitfield)
       : Node(bitfield),
@@ -3050,6 +3053,18 @@ void NodeBase::change_input(int index, ValueNode* node) {
 ValueLocation& Node::result() {
   DCHECK(Is<ValueNode>());
   return Cast<ValueNode>()->result();
+}
+
+inline ValueNode* ValueNode::UnwrapIdentities() {
+  ValueNode* node = this;
+  while (node->Is<Identity>()) node = node->input(0).node();
+  return node;
+}
+
+inline const ValueNode* ValueNode::UnwrapIdentities() const {
+  const ValueNode* node = this;
+  while (node->Is<Identity>()) node = node->input(0).node();
+  return node;
 }
 
 // Mixin for a node with known class (and therefore known opcode and static
@@ -6620,9 +6635,7 @@ template <typename Function>
 inline void VirtualObject::ForEachNestedRuntimeInput(
     VirtualObjectList virtual_objects, Function&& f) {
   ForEachInput([&](ValueNode*& value) {
-    if (value->Is<Identity>()) {
-      value = value->input(0).node();
-    }
+    value = value->UnwrapIdentities();
     if (IsConstantNode(value->opcode())) {
       // No location assigned to constants.
       return;
@@ -6659,9 +6672,7 @@ template <typename Function>
 inline void VirtualObject::ForEachNestedRuntimeInput(
     VirtualObjectList virtual_objects, Function&& f) const {
   ForEachInput([&](ValueNode* value) {
-    if (value->Is<Identity>()) {
-      value = value->input(0).node();
-    }
+    value = value->UnwrapIdentities();
     if (IsConstantNode(value->opcode())) {
       // No location assigned to constants.
       return;

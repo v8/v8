@@ -5337,9 +5337,7 @@ class GraphBuildingNodeProcessor {
   void AddDeoptInput(FrameStateData::Builder& builder,
                      const maglev::VirtualObjectList& virtual_objects,
                      const maglev::ValueNode* node) {
-    while (node->Is<maglev::Identity>()) {
-      node = node->input(0).node();
-    }
+    node = node->UnwrapIdentities();
     if (const maglev::InlinedAllocation* alloc =
             node->TryCast<maglev::InlinedAllocation>()) {
       DCHECK(alloc->HasBeenAnalysed());
@@ -6032,9 +6030,7 @@ class GraphBuildingNodeProcessor {
                 compact_frame->GetValueOf(owner, maglev_unit);
             DCHECK_NOT_NULL(maglev_value);
 
-            while (maglev_value->Is<maglev::Identity>()) {
-              maglev_value = maglev_value->input(0).node();
-            }
+            maglev_value = maglev_value->UnwrapIdentities();
 
             if (const maglev::VirtualObject* vobj =
                     maglev_value->TryCast<maglev::VirtualObject>()) {

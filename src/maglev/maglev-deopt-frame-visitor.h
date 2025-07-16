@@ -58,9 +58,7 @@ class DeoptInfoVisitor {
   void VisitSingleFrame(DeoptFrameT& frame, Function&& f) {
     auto updated_f = [&](ValueNodeT node) {
       DCHECK(!node->template Is<VirtualObject>());
-      if (node->template Is<Identity>()) {
-        node = node->input(0).node();
-      }
+      node = node->UnwrapIdentities();
       if (auto alloc = node->template TryCast<InlinedAllocation>()) {
         VirtualObject* vobject = virtual_objects_.FindAllocatedWith(alloc);
         if (vobject && (!alloc->HasBeenAnalysed() || alloc->HasBeenElided())) {

@@ -64,9 +64,7 @@ ValueNode* MaglevGraphOptimizer::GetInputAt(int index) const {
   CHECK_NOT_NULL(current_node_);
   DCHECK_LT(index, current_node()->input_count());
   ValueNode* input = current_node()->input(index).node();
-  while (input->Is<Identity>()) {
-    input = input->input(0).node();
-  }
+  input = input->UnwrapIdentities();
   return input;
 }
 

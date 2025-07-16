@@ -1566,9 +1566,7 @@ class MaglevFrameTranslationBuilder {
   void BuildDeoptFrameSingleValue(const ValueNode* value,
                                   const InputLocation*& input_location,
                                   const VirtualObjectList& virtual_objects) {
-    while (value->Is<Identity>()) {
-      value = value->input(0).node();
-    }
+    value = value->UnwrapIdentities();
     DCHECK(!value->Is<VirtualObject>());
     if (const InlinedAllocation* alloc = value->TryCast<InlinedAllocation>()) {
       VirtualObject* vobject = virtual_objects.FindAllocatedWith(alloc);
