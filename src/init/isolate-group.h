@@ -177,6 +177,8 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
     const Isolate* isolate() const { return isolate_; }
     MemoryChunkMetadata* metadata() const { return metadata_; }
 
+    MemoryChunkMetadata** metadata_slot() { return &metadata_; }
+
    private:
     // This indicates that the metadata entry can be read from any isolates
     // (in essence, for the read-only or shared pages).

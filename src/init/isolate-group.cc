@@ -74,8 +74,10 @@ void IsolateGroup::MemoryChunkMetadataTableEntry::SetMetadata(
     MemoryChunkMetadata* metadata, Isolate* isolate) {
   metadata_ = metadata;
   // Read-only and shared pages can be accessed from any isolate, mark the entry
-  // with the sentinel.
-  if (metadata && (metadata->Chunk()->InReadOnlySpace() ||
+  // with the sentinel. Check the RO flag directly here (not calling
+  // IsReadOnlySpace()), because the latter will try to access not yet
+  // initialized (i.e. this) metadata table entry.
+  if (metadata && (metadata->Chunk()->IsFlagSet(MemoryChunk::READ_ONLY_HEAP) ||
                    metadata->Chunk()->InWritableSharedSpace())) {
     isolate_ =
         reinterpret_cast<Isolate*>(kReadOnlyOrSharedEntryIsolateSentinel);

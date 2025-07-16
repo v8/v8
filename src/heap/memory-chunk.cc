@@ -136,10 +136,11 @@ void MemoryChunk::InitializationMemoryFence() {
   static_assert(sizeof(base::AtomicWord) ==
                 sizeof(metadata_pointer_table[0].metadata()));
   static_assert(sizeof(base::Atomic32) == sizeof(metadata_index_));
-  base::Release_Store(reinterpret_cast<base::AtomicWord*>(
-                          &metadata_pointer_table[metadata_index_]),
-                      *reinterpret_cast<base::AtomicWord*>(
-                          &metadata_pointer_table[metadata_index_]));
+  base::Release_Store(
+      reinterpret_cast<base::AtomicWord*>(
+          metadata_pointer_table[metadata_index_].metadata_slot()),
+      reinterpret_cast<base::AtomicWord>(
+          metadata_pointer_table[metadata_index_].metadata()));
   base::Release_Store(reinterpret_cast<base::Atomic32*>(&metadata_index_),
                       metadata_index_);
 #endif
@@ -164,7 +165,7 @@ void MemoryChunk::SynchronizedLoad() const {
           &(const_cast<MemoryChunk*>(this)->metadata_index_)));
   MemoryChunkMetadata* metadata = reinterpret_cast<MemoryChunkMetadata*>(
       base::Acquire_Load(reinterpret_cast<base::AtomicWord*>(
-          &metadata_pointer_table[metadata_index])));
+          metadata_pointer_table[metadata_index].metadata_slot())));
 #endif
   metadata->SynchronizedHeapLoad();
 }
