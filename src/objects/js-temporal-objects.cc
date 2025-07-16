@@ -5263,7 +5263,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainYearMonth::ToPlainDate(
 
   MOVE_RETURN_ON_EXCEPTION(
       isolate, fields,
-      temporal::PrepareCalendarFields(isolate, calendar, item, kYearFields,
+      temporal::PrepareCalendarFields(isolate, calendar, item, kDay,
                                       temporal::RequiredFields::kNone, owners));
   auto partial_date = std::move(fields).To<temporal_rs::PartialDate>();
   return ConstructRustWrappingType<JSTemporalPlainDate>(
