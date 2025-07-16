@@ -298,13 +298,11 @@ ReadOnlyArtifacts* IsolateGroup::InitializeReadOnlyArtifacts() {
   return read_only_artifacts_.get();
 }
 
-PageAllocator* IsolateGroup::GetBackingStorePageAllocator() {
 #ifdef V8_ENABLE_SANDBOX
-  return sandbox()->page_allocator();
-#else
-  return GetPlatformPageAllocator();
-#endif
+std::weak_ptr<PageAllocator> IsolateGroup::GetBackingStorePageAllocator() {
+  return sandbox()->page_allocator_weak();
 }
+#endif  // V8_ENABLE_SANDBOX
 
 void IsolateGroup::SetupReadOnlyHeap(Isolate* isolate,
                                      SnapshotData* read_only_snapshot_data,

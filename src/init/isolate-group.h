@@ -285,13 +285,13 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
   ReadOnlyArtifacts* InitializeReadOnlyArtifacts();
 
+#ifdef V8_ENABLE_SANDBOX
   // Unlike page_allocator() this one is supposed to be used for allocation
   // of memory for array backing stores or Wasm memory. When pointer compression
   // is enabled it allocates memory outside of the pointer compression
   // cage. When sandbox is enabled, it allocates memory within the sandbox.
-  PageAllocator* GetBackingStorePageAllocator();
+  std::weak_ptr<PageAllocator> GetBackingStorePageAllocator();
 
-#ifdef V8_ENABLE_SANDBOX
   Sandbox* sandbox() { return sandbox_; }
 
   CodePointerTable* code_pointer_table() { return &code_pointer_table_; }

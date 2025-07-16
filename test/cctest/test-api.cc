@@ -26712,6 +26712,27 @@ TEST(DeterministicRandomNumberGeneration) {
   i::v8_flags.random_seed = previous_seed;
 }
 
+UNINITIALIZED_TEST(ResizableArrayBuffer_OutlivesScope) {
+  std::shared_ptr<v8::BackingStore> backing_store;
+  v8::Isolate::CreateParams create_params = CreateTestParams();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    v8::Context::Scope context_scope(context);
+    backing_store = v8::ArrayBuffer::NewResizableBackingStore(32, 1024);
+    Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, backing_store);
+    CHECK_EQ(backing_store.get(), ab->GetBackingStore().get());
+  }
+  isolate->Dispose();
+  v8::V8::Dispose();
+  v8::V8::DisposePlatform();
+  backing_store.reset();
+
+  CcTest::disable_dispose_in_test();
+}
+
 UNINITIALIZED_TEST(AllowAtomicsWait) {
   v8::Isolate::CreateParams create_params = CreateTestParams();
   create_params.allow_atomics_wait = false;

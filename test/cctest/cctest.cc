@@ -80,6 +80,7 @@ v8::base::Atomic32 CcTest::isolate_used_ = 0;
 v8::ArrayBuffer::Allocator* CcTest::allocator_ = nullptr;
 v8::Isolate* CcTest::isolate_ = nullptr;
 v8::Platform* CcTest::default_platform_ = nullptr;
+bool CcTest::should_call_dispose_ = false;
 
 CcTest::CcTest(TestFunction* callback, const char* file, const char* name,
                bool enabled, bool initialize,
@@ -124,6 +125,7 @@ void CcTest::Run(const char* snapshot_directory) {
   } else {
     platform = std::move(underlying_default_platform);
   }
+  should_call_dispose_ = true;
   i::V8::InitializePlatformForTesting(platform.get());
   cppgc::InitializeProcess(platform->GetPageAllocator());
 
@@ -186,15 +188,21 @@ void CcTest::Run(const char* snapshot_directory) {
     CHECK_NULL(isolate_);
   }
 
-  v8::V8::Dispose();
+  if (should_call_dispose_) {
+    v8::V8::Dispose();
+  }
   cppgc::ShutdownProcess();
-  v8::V8::DisposePlatform();
+  if (should_call_dispose_) {
+    v8::V8::DisposePlatform();
+  }
 }
 
 i::Heap* CcTest::heap() { return i_isolate()->heap(); }
 i::ReadOnlyHeap* CcTest::read_only_heap() {
   return i_isolate()->read_only_heap();
 }
+
+void CcTest::disable_dispose_in_test() { should_call_dispose_ = false; }
 
 void CcTest::AddGlobalFunction(v8::Local<v8::Context> env, const char* name,
                                v8::FunctionCallback callback) {
