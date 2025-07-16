@@ -4605,8 +4605,11 @@ bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
 
   // No need for a write barrier if both object and value are part of the same
   // folded young allocation.
+  // Turbolev will do this optimization later after allocation folding. Doing it
+  // here could interfere with turboshaft pretenuring.
   AllocationBlock* allocation = GetAllocation(object);
-  if (allocation != nullptr && current_allocation_block_ == allocation &&
+  if (!is_turbolev() && allocation != nullptr &&
+      current_allocation_block_ == allocation &&
       allocation->allocation_type() == AllocationType::kYoung &&
       allocation == GetAllocation(value)) {
     allocation->set_elided_write_barriers_depend_on_type();
