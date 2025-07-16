@@ -2370,6 +2370,10 @@ DEFINE_INT(memory_reducer_gc_count, 2,
 DEFINE_BOOL(
     external_memory_accounted_in_global_limit, false,
     "External memory limits are computed as part of global limits in v8 Heap.")
+DEFINE_FLOAT(
+    external_memory_max_growing_factor, 1.3,
+    "When external memory limits are computed as poart of the global limits,"
+    "this is the upper bound for growing factor imposed on external memory.")
 DEFINE_BOOL(gc_speed_uses_counters, false,
             "Old gen GC speed is computed directly from gc tracer counters.")
 DEFINE_INT(heap_growing_percent, 0,

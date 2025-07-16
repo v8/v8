@@ -2612,8 +2612,9 @@ Heap::LimitsCompuatationResult Heap::ComputeNewAllocationLimits(Heap* heap) {
 
   double global_growing_factor =
       std::max(v8_growing_factor, embedder_growing_factor);
-  double external_growing_factor = std::min(
-      global_growing_factor, GlobalMemoryTrait::kConservativeGrowingFactor);
+  double external_growing_factor =
+      std::min(global_growing_factor,
+               v8_flags.external_memory_max_growing_factor.value());
   DCHECK_GT(global_growing_factor, 0);
   DCHECK_GT(external_growing_factor, 0);
   size_t new_global_allocation_limit =
