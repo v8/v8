@@ -2491,7 +2491,9 @@ class V8_NODISCARD InstructionAccurateScope {
 #endif
   {
     DCHECK_GT(count, 0);
-    masm_->CheckVeneerPool(false, true, count * kInstrSize);
+    // We include the branch instruction in the veneer distance margin if we
+    // need to emit a veneer pool.
+    masm_->CheckVeneerPool(false, true, (count + 1) * kInstrSize);
     masm_->StartBlockVeneerPool();
 #ifdef DEBUG
     masm_->bind(&start_);
