@@ -32,6 +32,10 @@ constexpr char kNameString[] = "name";
 constexpr char kSourceMappingURLString[] = "sourceMappingURL";
 constexpr char kInstTraceString[] = "metadata.code.trace_inst";
 constexpr char kBranchHintsString[] = "metadata.code.branch_hint";
+#if V8_CC_GNU
+// TODO(miladfarca): remove once switched to using Clang.
+__attribute__((used))
+#endif
 constexpr char kCompilationPriorityString[] =
     "metadata.code.compilation_priority";
 constexpr char kDebugInfoString[] = ".debug_info";
