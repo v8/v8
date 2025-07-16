@@ -1055,9 +1055,6 @@ class V8_EXPORT_PRIVATE UseScratchRegisterScope {
   DoubleRegList old_available_double_;
 };
 
-[[nodiscard]] static inline Instr SetHi20Offset(int32_t hi29, Instr instr);
-[[nodiscard]] static inline Instr SetLo12Offset(int32_t lo12, Instr instr);
-
 }  // namespace internal
 }  // namespace v8
 
