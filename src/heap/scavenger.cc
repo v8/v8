@@ -512,11 +512,12 @@ class ObjectPinningVisitorBase : public RootVisitor {
     DCHECK_LT(0, object_size.value());
     pinned_objects_.push_back({object_address, map_word, object_size});
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+    auto* metdata = MutablePageMetadata::cast(chunk->Metadata());
     if (!chunk->IsQuarantined()) {
-      chunk->SetFlagNonExecutable(MemoryChunk::IS_QUARANTINED);
+      metdata->SetFlagNonExecutable(MemoryChunk::IS_QUARANTINED);
       if (v8_flags.scavenger_promote_quarantined_pages &&
           heap_->semi_space_new_space()->ShouldPageBePromoted(chunk)) {
-        chunk->SetFlagNonExecutable(MemoryChunk::WILL_BE_PROMOTED);
+        metdata->SetFlagNonExecutable(MemoryChunk::WILL_BE_PROMOTED);
       }
     }
     scavenger_.PinAndPushObject(chunk, object, map_word);

@@ -3761,7 +3761,7 @@ void Heap::Unmark() {
   auto unmark_space = [](auto& space) {
     for (auto* page : space) {
       page->marking_bitmap()->template Clear<AccessMode::NON_ATOMIC>();
-      page->Chunk()->SetMajorGCInProgress();
+      page->SetMajorGCInProgress();
       page->SetLiveBytes(0);
     }
   };
@@ -3790,7 +3790,7 @@ void Heap::DeactivateMajorGCInProgressFlag() {
 
   auto deactivate_space = [](auto& space) {
     for (auto* metadata : space) {
-      metadata->Chunk()->ResetMajorGCInProgress();
+      metadata->ResetMajorGCInProgress();
     }
   };
 
@@ -6268,7 +6268,7 @@ void Heap::NotifyOldGenerationExpansion(
   // Pages created during bootstrapping may contain immortal immovable objects.
   if (!deserialization_complete()) {
     DCHECK_NE(NEW_SPACE, chunk_metadata->owner()->identity());
-    chunk_metadata->Chunk()->MarkNeverEvacuate();
+    chunk_metadata->MarkNeverEvacuate();
   }
   if (IsAnyCodeSpace(space)) {
     isolate()->AddCodeMemoryChunk(chunk_metadata);

@@ -103,6 +103,23 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   void SetOldGenerationPageFlags(MarkingMode marking_mode);
   void SetYoungGenerationPageFlags(MarkingMode marking_mode);
 
+  V8_INLINE void SetMajorGCInProgress();
+  V8_INLINE void ResetMajorGCInProgress();
+
+  V8_INLINE void ClearFlagsNonExecutable(MemoryChunk::MainThreadFlags flags);
+  V8_INLINE void SetFlagsNonExecutable(
+      MemoryChunk::MainThreadFlags flags,
+      MemoryChunk::MainThreadFlags mask = MemoryChunk::kAllFlagsMask);
+  V8_INLINE void ClearFlagNonExecutable(MemoryChunk::Flag flag);
+  V8_INLINE void SetFlagNonExecutable(MemoryChunk::Flag flag);
+  void SetFlagMaybeExecutable(MemoryChunk::Flag flag);
+  void ClearFlagMaybeExecutable(MemoryChunk::Flag flag);
+  // TODO(mlippautz): Replace those with non-executable or slow versions.
+  V8_INLINE void SetFlagUnlocked(MemoryChunk::Flag flag);
+  V8_INLINE void ClearFlagUnlocked(MemoryChunk::Flag flag);
+
+  V8_EXPORT_PRIVATE void MarkNeverEvacuate();
+
   size_t BucketsInSlotSet() const { return SlotSet::BucketsForSize(size()); }
 
   base::Mutex& mutex() { return mutex_; }
@@ -367,6 +384,11 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   base::Mutex object_mutex_;
 
  private:
+  V8_INLINE void SetFlagsUnlocked(
+      MemoryChunk::MainThreadFlags flags,
+      MemoryChunk::MainThreadFlags mask = MemoryChunk::kAllFlagsMask);
+  V8_INLINE void ClearFlagsUnlocked(MemoryChunk::MainThreadFlags flags);
+
   static constexpr intptr_t MarkingBitmapOffset() {
     return offsetof(MutablePageMetadata, marking_bitmap_);
   }

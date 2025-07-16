@@ -54,12 +54,11 @@ void PageMetadata::ReleaseFreeListCategories() {
 PageMetadata* PageMetadata::ConvertNewToOld(PageMetadata* old_page,
                                             FreeMode free_mode) {
   DCHECK(old_page);
-  MemoryChunk* chunk = old_page->Chunk();
-  DCHECK(chunk->InNewSpace());
+  DCHECK(old_page->Chunk()->InNewSpace());
   old_page->ResetAgeInNewSpace();
   OldSpace* old_space = old_page->heap()->old_space();
   old_page->set_owner(old_space);
-  chunk->ClearFlagsNonExecutable(MemoryChunk::kAllFlagsMask);
+  old_page->ClearFlagsNonExecutable(MemoryChunk::kAllFlagsMask);
   DCHECK_NE(old_space->identity(), SHARED_SPACE);
   old_page->SetOldGenerationPageFlags(
       old_page->heap()->incremental_marking()->marking_mode());
@@ -76,11 +75,10 @@ size_t PageMetadata::AvailableInFreeList() {
 }
 
 void PageMetadata::MarkNeverAllocateForTesting() {
-  MemoryChunk* chunk = Chunk();
   DCHECK(this->owner_identity() != NEW_SPACE);
-  DCHECK(!chunk->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE));
-  chunk->SetFlagSlow(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
-  chunk->SetFlagSlow(MemoryChunk::NEVER_EVACUATE);
+  DCHECK(!Chunk()->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE));
+  SetFlagMaybeExecutable(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
+  SetFlagMaybeExecutable(MemoryChunk::NEVER_EVACUATE);
   reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
 }
 

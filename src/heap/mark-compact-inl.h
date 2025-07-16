@@ -42,14 +42,15 @@ void MarkCompactCollector::MarkRootObject(
   if (V8_UNLIKELY(in_conservative_stack_scanning_)) {
     DCHECK_EQ(root, Root::kStackRoots);
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);
+    auto* metadata = MutablePageMetadata::cast(chunk->Metadata());
     if (chunk->IsEvacuationCandidate()) {
       DCHECK(!chunk->InYoungGeneration());
-      ReportAbortedEvacuationCandidateDueToFlags(
-          PageMetadata::cast(chunk->Metadata()), chunk);
+      ReportAbortedEvacuationCandidateDueToFlags(PageMetadata::cast(metadata),
+                                                 chunk);
     } else if (chunk->InYoungGeneration() && !chunk->IsLargePage()) {
       DCHECK(chunk->IsToPage());
       if (!chunk->IsQuarantined()) {
-        chunk->SetFlagNonExecutable(MemoryChunk::IS_QUARANTINED);
+        metadata->SetFlagNonExecutable(MemoryChunk::IS_QUARANTINED);
       }
     }
   }

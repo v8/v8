@@ -95,43 +95,63 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
   heap->SetGCState(Heap::NOT_IN_GC);
 }
 
-TEST_F(SpacesTest, WriteBarrierIsMarking) {
-  const size_t kSizeOfMemoryChunk = sizeof(MutablePageMetadata);
-  char memory[kSizeOfMemoryChunk];
-  memset(&memory, 0, kSizeOfMemoryChunk);
-  MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
-  EXPECT_FALSE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
-  EXPECT_FALSE(chunk->IsMarking());
-  chunk->SetFlagNonExecutable(MemoryChunk::INCREMENTAL_MARKING);
-  EXPECT_TRUE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
-  EXPECT_TRUE(chunk->IsMarking());
-  chunk->ClearFlagNonExecutable(MemoryChunk::INCREMENTAL_MARKING);
-  EXPECT_FALSE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
-  EXPECT_FALSE(chunk->IsMarking());
-}
+TEST_F(SpacesTest, WriteBarriers) {
+  // Test allocates a real page in OLD_SPACE to check various flag combinaton.
+  Heap* heap = i_isolate()->heap();
+  OldSpace* old_space = heap->old_space();
+  EXPECT_TRUE(old_space != nullptr);
 
-TEST_F(SpacesTest, WriteBarrierInYoungGenerationToSpace) {
-  const size_t kSizeOfMemoryChunk = sizeof(MutablePageMetadata);
-  char memory[kSizeOfMemoryChunk];
-  memset(&memory, 0, kSizeOfMemoryChunk);
-  MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
-  EXPECT_FALSE(chunk->InYoungGeneration());
-  chunk->SetFlagNonExecutable(MemoryChunk::TO_PAGE);
-  EXPECT_TRUE(chunk->InYoungGeneration());
-  chunk->ClearFlagNonExecutable(MemoryChunk::TO_PAGE);
-  EXPECT_FALSE(chunk->InYoungGeneration());
-}
+  for (PageMetadata* p : *old_space) {
+    // Unlink free lists from the main space to avoid reusing the memory for
+    // compaction spaces.
+    old_space->free_list()->EvictFreeListItems(p);
+  }
 
-TEST_F(SpacesTest, WriteBarrierInYoungGenerationFromSpace) {
-  const size_t kSizeOfMemoryChunk = sizeof(MutablePageMetadata);
-  char memory[kSizeOfMemoryChunk];
-  memset(&memory, 0, kSizeOfMemoryChunk);
-  MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
-  EXPECT_FALSE(chunk->InYoungGeneration());
-  chunk->SetFlagNonExecutable(MemoryChunk::FROM_PAGE);
-  EXPECT_TRUE(chunk->InYoungGeneration());
-  chunk->ClearFlagNonExecutable(MemoryChunk::FROM_PAGE);
-  EXPECT_FALSE(chunk->InYoungGeneration());
+  heap->SetGCState(Heap::MARK_COMPACT);
+  {
+    std::unique_ptr<CompactionSpace> compaction_space(
+        new CompactionSpace(heap, OLD_SPACE, NOT_EXECUTABLE,
+                            CompactionSpaceKind::kCompactionSpaceForMarkCompact,
+                            CompactionSpace::DestinationHeap::kSameHeap));
+    EXPECT_TRUE(compaction_space);
+    MainAllocator allocator(heap, compaction_space.get(), MainAllocator::kInGC);
+
+    Tagged<HeapObject> object =
+        allocator
+            .AllocateRaw(kMaxRegularHeapObjectSize, kTaggedAligned,
+                         AllocationOrigin::kGC, AllocationHint())
+            .ToObjectChecked();
+    heap->CreateFillerObjectAt(object.address(), kMaxRegularHeapObjectSize);
+    EXPECT_EQ(1, compaction_space->CountTotalPages());
+
+    MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+    MutablePageMetadata* metadata = MutablePageMetadata::FromHeapObject(object);
+
+    // Marking states.
+    EXPECT_FALSE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
+    EXPECT_FALSE(chunk->IsMarking());
+    metadata->SetFlagNonExecutable(MemoryChunk::INCREMENTAL_MARKING);
+    EXPECT_TRUE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
+    EXPECT_TRUE(chunk->IsMarking());
+    metadata->ClearFlagNonExecutable(MemoryChunk::INCREMENTAL_MARKING);
+    EXPECT_FALSE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
+    EXPECT_FALSE(chunk->IsMarking());
+
+    // In young generation for TO space.
+    EXPECT_FALSE(chunk->InYoungGeneration());
+    metadata->SetFlagNonExecutable(MemoryChunk::TO_PAGE);
+    EXPECT_TRUE(chunk->InYoungGeneration());
+    metadata->ClearFlagNonExecutable(MemoryChunk::TO_PAGE);
+    EXPECT_FALSE(chunk->InYoungGeneration());
+
+    // In young generation for FROM space.
+    EXPECT_FALSE(chunk->InYoungGeneration());
+    metadata->SetFlagNonExecutable(MemoryChunk::FROM_PAGE);
+    EXPECT_TRUE(chunk->InYoungGeneration());
+    metadata->ClearFlagNonExecutable(MemoryChunk::FROM_PAGE);
+    EXPECT_FALSE(chunk->InYoungGeneration());
+  }
+  heap->SetGCState(Heap::NOT_IN_GC);
 }
 
 TEST_F(SpacesTest, CodeRangeAddressReuse) {

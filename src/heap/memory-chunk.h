@@ -31,6 +31,7 @@ class TurboshaftAssemblerOpInterface;
 
 class Heap;
 class MemoryChunkMetadata;
+class MutablePageMetadata;
 class ReadOnlyPageMetadata;
 class PageMetadata;
 class LargePageMetadata;
@@ -201,7 +202,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   V8_INLINE const MemoryChunkMetadata* MetadataNoIsolateCheck() const;
 
   V8_INLINE bool IsFlagSet(Flag flag) const {
-    return main_thread_flags_ & flag;
+    return untrusted_main_thread_flags_ & flag;
   }
 
   V8_INLINE bool IsMarking() const { return IsFlagSet(INCREMENTAL_MARKING); }
@@ -223,43 +224,8 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     return GetFlags() & kYoungOrSharedChunkMask;
   }
 
-  void SetFlagSlow(Flag flag);
-  void ClearFlagSlow(Flag flag);
-
-  V8_INLINE MainThreadFlags GetFlags() const { return main_thread_flags_; }
-
-  V8_INLINE void SetFlagUnlocked(Flag flag) { main_thread_flags_ |= flag; }
-  V8_INLINE void ClearFlagUnlocked(Flag flag) {
-    main_thread_flags_ = main_thread_flags_.without(flag);
-  }
-  // Set or clear multiple flags at a time. `mask` indicates which flags are
-  // should be replaced with new `flags`.
-  V8_INLINE void ClearFlagsUnlocked(MainThreadFlags flags) {
-    main_thread_flags_ &= ~flags;
-  }
-  V8_INLINE void SetFlagsUnlocked(MainThreadFlags flags,
-                                  MainThreadFlags mask = kAllFlagsMask) {
-    main_thread_flags_ = (main_thread_flags_ & ~mask) | (flags & mask);
-  }
-
-  V8_INLINE void SetFlagNonExecutable(Flag flag) {
-    return SetFlagUnlocked(flag);
-  }
-  V8_INLINE void ClearFlagNonExecutable(Flag flag) {
-    return ClearFlagUnlocked(flag);
-  }
-  V8_INLINE void SetFlagsNonExecutable(MainThreadFlags flags,
-                                       MainThreadFlags mask = kAllFlagsMask) {
-    return SetFlagsUnlocked(flags, mask);
-  }
-  V8_INLINE void ClearFlagsNonExecutable(MainThreadFlags flags) {
-    return ClearFlagsUnlocked(flags);
-  }
-  V8_INLINE void SetMajorGCInProgress() {
-    SetFlagUnlocked(IS_MAJOR_GC_IN_PROGRESS);
-  }
-  V8_INLINE void ResetMajorGCInProgress() {
-    ClearFlagUnlocked(IS_MAJOR_GC_IN_PROGRESS);
+  V8_INLINE MainThreadFlags GetFlags() const {
+    return untrusted_main_thread_flags_;
   }
 
   V8_INLINE Heap* GetHeap();
@@ -287,7 +253,6 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   V8_INLINE bool InTrustedSpace() const { return IsFlagSet(IS_TRUSTED); }
 
   bool NeverEvacuate() const { return IsFlagSet(NEVER_EVACUATE); }
-  void MarkNeverEvacuate() { SetFlagSlow(NEVER_EVACUATE); }
 
   bool CanAllocate() const {
     return !IsEvacuationCandidate() && !IsFlagSet(NEVER_ALLOCATE_ON_PAGE);
@@ -371,7 +336,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   // Keep offsets and masks private to only expose them with matching friend
   // declarations.
   static constexpr intptr_t FlagsOffset() {
-    return offsetof(MemoryChunk, main_thread_flags_);
+    return offsetof(MemoryChunk, untrusted_main_thread_flags_);
   }
 
   static constexpr intptr_t kAlignment =
@@ -415,7 +380,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 
   // Flags that are only mutable from the main thread when no concurrent
   // component (e.g. marker, sweeper, compilation, allocation) is running.
-  MainThreadFlags main_thread_flags_;
+  MainThreadFlags untrusted_main_thread_flags_;
 
 #ifdef V8_ENABLE_SANDBOX
   uint32_t metadata_index_;
@@ -423,6 +388,8 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   MemoryChunkMetadata* metadata_;
 #endif
 
+  // For main_thread_flags_.
+  friend class MutablePageMetadata;
   // For kMetadataPointerTableSizeMask, FlagsOffset(), MetadataIndexOffset(),
   // MetadataOffset().
   friend class CodeStubAssembler;

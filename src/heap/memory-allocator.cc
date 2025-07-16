@@ -299,7 +299,15 @@ void MemoryAllocator::UnregisterMemoryChunk(MemoryChunkMetadata* chunk_metadata,
     ThreadIsolation::UnregisterJitPage(chunk->address(),
                                        chunk_metadata->size());
   }
-  chunk->SetFlagSlow(MemoryChunk::UNREGISTERED);
+  // For non-RO pages we want to set them as UNREGISTERED to allow actually
+  // freeing them.
+  // TODO(mlippautz): We should use a trusted flag here.
+  if (!chunk->InReadOnlySpace()) {
+    // Cannot use MutablePageMetadata::cast() because that relies on having an
+    // owner() which is unsed at this point.
+    reinterpret_cast<MutablePageMetadata*>(chunk_metadata)
+        ->SetFlagMaybeExecutable(MemoryChunk::UNREGISTERED);
+  }
 }
 
 void MemoryAllocator::UnregisterMutableMemoryChunk(MutablePageMetadata* chunk) {
@@ -342,7 +350,7 @@ void MemoryAllocator::PreFreeMemory(MutablePageMetadata* chunk_metadata) {
       reinterpret_cast<Address>(chunk_metadata),
       chunk->IsEvacuationCandidate());
   chunk_metadata->ReleaseAllAllocatedMemory();
-  chunk->SetFlagSlow(MemoryChunk::PRE_FREED);
+  chunk_metadata->SetFlagMaybeExecutable(MemoryChunk::PRE_FREED);
 }
 
 void MemoryAllocator::PerformFreeMemory(MutablePageMetadata* chunk_metadata) {

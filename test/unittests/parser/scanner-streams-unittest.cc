@@ -802,7 +802,7 @@ TEST_F(ScannerStreamsTest, RelocatingCharacterStream) {
     v8::HandleScope scope(isolate());
     i::Handle<i::String> two_byte_string =
         v8::Utils::OpenHandle(*two_byte_string_global.Get(isolate()));
-    i::MemoryChunk::FromHeapObject(*two_byte_string)
+    i::MutablePageMetadata::FromHeapObject(*two_byte_string)
         ->SetFlagNonExecutable(
             i::MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
   }
@@ -866,7 +866,7 @@ TEST_F(ScannerStreamsTest, RelocatingUnbufferedCharacterStream) {
     v8::HandleScope scope(isolate());
     i::Handle<i::String> two_byte_string =
         v8::Utils::OpenHandle(*two_byte_string_global.Get(isolate()));
-    i::MemoryChunk::FromHeapObject(*two_byte_string)
+    i::MutablePageMetadata::FromHeapObject(*two_byte_string)
         ->SetFlagNonExecutable(
             i::MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
   }

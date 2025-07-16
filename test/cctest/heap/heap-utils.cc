@@ -372,7 +372,7 @@ void ForceEvacuationCandidate(PageMetadata* page) {
   Isolate* isolate = page->owner()->heap()->isolate();
   SafepointScope safepoint(isolate, kGlobalSafepointForSharedSpaceIsolate);
   CHECK(v8_flags.manual_evacuation_candidates_selection);
-  page->Chunk()->SetFlagNonExecutable(
+  page->SetFlagNonExecutable(
       MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
   page->owner()->heap()->FreeLinearAllocationAreas();
 }

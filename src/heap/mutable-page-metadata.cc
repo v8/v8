@@ -166,8 +166,8 @@ void MutablePageMetadata::SetOldGenerationPageFlags(MarkingMode marking_mode) {
     }
   }
 
-  Chunk()->SetFlagsUnlocked(flags_to_set, flags_to_set);
-  Chunk()->ClearFlagsUnlocked(flags_to_clear);
+  SetFlagsNonExecutable(flags_to_set, flags_to_set);
+  ClearFlagsNonExecutable(flags_to_clear);
 }
 
 void MutablePageMetadata::SetYoungGenerationPageFlags(
@@ -180,8 +180,8 @@ void MutablePageMetadata::SetYoungGenerationPageFlags(
     flags_to_clear |= MemoryChunk::INCREMENTAL_MARKING;
   }
 
-  Chunk()->SetFlagsNonExecutable(flags_to_set, flags_to_set);
-  Chunk()->ClearFlagsNonExecutable(flags_to_clear);
+  SetFlagsNonExecutable(flags_to_set, flags_to_set);
+  ClearFlagsNonExecutable(flags_to_clear);
 }
 
 size_t MutablePageMetadata::CommittedPhysicalMemory() const {
@@ -281,6 +281,30 @@ int MutablePageMetadata::ComputeFreeListsLength() {
 bool MutablePageMetadata::IsLivenessClear() const {
   CHECK_IMPLIES(marking_bitmap()->IsClean(), live_bytes() == 0);
   return marking_bitmap()->IsClean();
+}
+
+void MutablePageMetadata::SetFlagMaybeExecutable(MemoryChunk::Flag flag) {
+  // TODO(mlippautz): Replace with a trusted version.
+  if (Chunk()->executable()) {
+    RwxMemoryWriteScope scope("Set a MemoryChunk flag in executable memory.");
+    SetFlagUnlocked(flag);
+  } else {
+    SetFlagUnlocked(flag);
+  }
+}
+
+void MutablePageMetadata::ClearFlagMaybeExecutable(MemoryChunk::Flag flag) {
+  // TODO(mlippautz): Replace with a trusted version.
+  if (Chunk()->executable()) {
+    RwxMemoryWriteScope scope("Set a MemoryChunk flag in executable memory.");
+    ClearFlagUnlocked(flag);
+  } else {
+    ClearFlagUnlocked(flag);
+  }
+}
+
+void MutablePageMetadata::MarkNeverEvacuate() {
+  SetFlagMaybeExecutable(MemoryChunk::NEVER_EVACUATE);
 }
 
 }  // namespace v8::internal

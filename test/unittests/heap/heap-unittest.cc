@@ -897,7 +897,7 @@ TEST_F(HeapTest, PrecisePinningFullGCDoesntMoveOldObjectReachableFromHandles) {
 
   Address number_address = number->address();
 
-  i::MemoryChunk::FromHeapObject(*number)->SetFlagNonExecutable(
+  i::MutablePageMetadata::FromHeapObject(*number)->SetFlagNonExecutable(
       i::MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
 
   InvokeMajorGC();
@@ -982,7 +982,7 @@ TEST_F(HeapTest,
   Address number_address = number->address();
 
   for (int i = 0; i < 10; i++) {
-    i::MemoryChunk::FromHeapObject(*number)->SetFlagNonExecutable(
+    i::MutablePageMetadata::FromHeapObject(*number)->SetFlagNonExecutable(
         i::MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
     InvokeMajorGC();
     CHECK_EQ(number_address, number->address());

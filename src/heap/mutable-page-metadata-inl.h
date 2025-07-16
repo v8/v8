@@ -79,6 +79,55 @@ void MutablePageMetadata::ClearLiveness() {
   SetLiveBytes(0);
 }
 
+void MutablePageMetadata::SetMajorGCInProgress() {
+  SetFlagUnlocked(MemoryChunk::IS_MAJOR_GC_IN_PROGRESS);
+}
+
+void MutablePageMetadata::ResetMajorGCInProgress() {
+  ClearFlagUnlocked(MemoryChunk::IS_MAJOR_GC_IN_PROGRESS);
+}
+
+void MutablePageMetadata::ClearFlagsNonExecutable(
+    MemoryChunk::MainThreadFlags flags) {
+  return ClearFlagsUnlocked(flags);
+}
+
+void MutablePageMetadata::SetFlagsNonExecutable(
+    MemoryChunk::MainThreadFlags flags, MemoryChunk::MainThreadFlags mask) {
+  return SetFlagsUnlocked(flags, mask);
+}
+
+void MutablePageMetadata::ClearFlagNonExecutable(MemoryChunk::Flag flag) {
+  return ClearFlagUnlocked(flag);
+}
+
+void MutablePageMetadata::SetFlagNonExecutable(MemoryChunk::Flag flag) {
+  return SetFlagUnlocked(flag);
+}
+
+void MutablePageMetadata::SetFlagsUnlocked(MemoryChunk::MainThreadFlags flags,
+                                           MemoryChunk::MainThreadFlags mask) {
+  auto& untrusted_main_thread_flags = Chunk()->untrusted_main_thread_flags_;
+  untrusted_main_thread_flags =
+      (untrusted_main_thread_flags & ~mask) | (flags & mask);
+}
+
+void MutablePageMetadata::ClearFlagsUnlocked(
+    MemoryChunk::MainThreadFlags flags) {
+  auto& untrusted_main_thread_flags = Chunk()->untrusted_main_thread_flags_;
+  untrusted_main_thread_flags &= ~flags;
+}
+
+void MutablePageMetadata::SetFlagUnlocked(MemoryChunk::Flag flag) {
+  auto& untrusted_main_thread_flags = Chunk()->untrusted_main_thread_flags_;
+  untrusted_main_thread_flags |= flag;
+}
+
+void MutablePageMetadata::ClearFlagUnlocked(MemoryChunk::Flag flag) {
+  auto& untrusted_main_thread_flags = Chunk()->untrusted_main_thread_flags_;
+  untrusted_main_thread_flags = untrusted_main_thread_flags.without(flag);
+}
+
 }  // namespace internal
 }  // namespace v8
 

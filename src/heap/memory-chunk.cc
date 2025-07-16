@@ -41,7 +41,7 @@ constexpr MemoryChunk::MainThreadFlags
     MemoryChunk::kSkipEvacuationSlotsRecordingMask;
 
 MemoryChunk::MemoryChunk(MainThreadFlags flags, MemoryChunkMetadata* metadata)
-    : main_thread_flags_(flags)
+    : untrusted_main_thread_flags_(flags)
 #ifndef V8_ENABLE_SANDBOX
       ,
       metadata_(metadata)
@@ -201,24 +201,6 @@ size_t MemoryChunk::OffsetMaybeOutOfRange(Address addr) const {
 }
 
 #endif  // DEBUG
-
-void MemoryChunk::SetFlagSlow(Flag flag) {
-  if (executable()) {
-    RwxMemoryWriteScope scope("Set a MemoryChunk flag in executable memory.");
-    SetFlagUnlocked(flag);
-  } else {
-    SetFlagNonExecutable(flag);
-  }
-}
-
-void MemoryChunk::ClearFlagSlow(Flag flag) {
-  if (executable()) {
-    RwxMemoryWriteScope scope("Clear a MemoryChunk flag in executable memory.");
-    ClearFlagUnlocked(flag);
-  } else {
-    ClearFlagNonExecutable(flag);
-  }
-}
 
 #ifdef V8_ENABLE_SANDBOX
 bool MemoryChunk::SandboxSafeInReadOnlySpace() const {
