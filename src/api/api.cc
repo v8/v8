@@ -5988,7 +5988,7 @@ void v8::String::VerifyExternalStringResource(
     v8::String::ExternalStringResource* value) const {
   i::DisallowGarbageCollection no_gc;
   i::Tagged<i::String> str = *Utils::OpenDirectHandle(this);
-  const v8::String::ExternalStringResource* expected;
+  const v8::String::ExternalStringResource* expected = nullptr;
 
   if (i::IsThinString(str)) {
     str = i::Cast<i::ThinString>(str)->actual();
@@ -6006,8 +6006,6 @@ void v8::String::VerifyExternalStringResource(
       if (!is_one_byte) {
         expected = reinterpret_cast<const ExternalStringResource*>(resource);
       }
-    } else {
-      expected = nullptr;
     }
   }
   CHECK_EQ(expected, value);
