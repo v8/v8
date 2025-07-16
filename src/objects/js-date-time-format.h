@@ -48,7 +48,9 @@ class JSDateTimeFormat
   CreateDateTimeFormat(Isolate* isolate, DirectHandle<Map> map,
                        DirectHandle<Object> locales,
                        DirectHandle<Object> options, RequiredOption required,
-                       DefaultsOption defaults, const char* service);
+                       DefaultsOption defaults,
+                       MaybeDirectHandle<String> toLocaleStringTimeZone,
+                       const char* service);
 
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSObject> ResolvedOptions(
       Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format);
@@ -91,11 +93,20 @@ class JSDateTimeFormat
       DirectHandle<Object> options, RequiredOption required,
       DefaultsOption defaults, const char* method_name);
 
+#ifdef V8_TEMPORAL_SUPPORT
   // Function to support Temporal
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> TemporalToLocaleString(
       Isolate* isolate, DirectHandle<JSReceiver> temporal,
       DirectHandle<Object> locales, DirectHandle<Object> options,
+      RequiredOption required, DefaultsOption defaults,
       const char* method_name);
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String>
+  TemporalZonedDateTimeToLocaleString(Isolate* isolate,
+                                      DirectHandle<JSReceiver> temporal,
+                                      DirectHandle<Object> locales,
+                                      DirectHandle<Object> options,
+                                      const char* method_name);
+#endif  // V8_TEMPORAL_SUPPORT
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
