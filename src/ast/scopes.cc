@@ -440,6 +440,8 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
                                     AstValueFactory* ast_value_factory,
                                     DeserializationMode deserialization_mode,
                                     ParseInfo* parse_info) {
+  CHECK_IMPLIES(parse_info != nullptr && parse_info->flags().is_toplevel(),
+                parse_info->flags().is_eval());
   // Reconstruct the outer scope chain from a closure's context chain.
   Scope* current_scope = nullptr;
   Scope* innermost_scope = nullptr;
