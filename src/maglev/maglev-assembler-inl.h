@@ -29,6 +29,8 @@
 #include "src/maglev/x64/maglev-assembler-x64-inl.h"
 #elif V8_TARGET_ARCH_S390X
 #include "src/maglev/s390/maglev-assembler-s390-inl.h"
+#elif V8_TARGET_ARCH_PPC64
+#include "src/maglev/ppc64/maglev-assembler-ppc64-inl.h"
 #else
 #error "Maglev does not supported this architecture."
 #endif
@@ -816,9 +818,9 @@ inline void MaglevAssembler::SetMapAsRoot(Register object, RootIndex map) {
 
 inline void MaglevAssembler::SmiTagInt32AndJumpIfFail(
     Register dst, Register src, Label* fail, Label::Distance distance) {
-  SmiTagInt32AndSetFlags(dst, src);
+  Condition cond = TrySmiTagInt32(dst, src);
   if (!SmiValuesAre32Bits()) {
-    JumpIf(kOverflow, fail, distance);
+    JumpIf(NegateCondition(cond), fail, distance);
   }
 }
 
@@ -829,9 +831,9 @@ inline void MaglevAssembler::SmiTagInt32AndJumpIfFail(
 
 inline void MaglevAssembler::SmiTagInt32AndJumpIfSuccess(
     Register dst, Register src, Label* success, Label::Distance distance) {
-  SmiTagInt32AndSetFlags(dst, src);
+  Condition cond = TrySmiTagInt32(dst, src);
   if (!SmiValuesAre32Bits()) {
-    JumpIf(kNoOverflow, success, distance);
+    JumpIf(cond, success, distance);
   } else {
     jmp(success);
   }
@@ -843,9 +845,9 @@ inline void MaglevAssembler::SmiTagInt32AndJumpIfSuccess(
 }
 
 inline void MaglevAssembler::UncheckedSmiTagInt32(Register dst, Register src) {
-  SmiTagInt32AndSetFlags(dst, src);
+  Condition cond = TrySmiTagInt32(dst, src);
   if (!SmiValuesAre32Bits()) {
-    Assert(kNoOverflow, AbortReason::kInputDoesNotFitSmi);
+    Assert(cond, AbortReason::kInputDoesNotFitSmi);
   }
 }
 
@@ -858,9 +860,9 @@ inline void MaglevAssembler::SmiTagUint32AndJumpIfFail(
   // Perform an unsigned comparison against Smi::kMaxValue.
   CompareInt32AndJumpIf(src, Smi::kMaxValue, kUnsignedGreaterThan, fail,
                         distance);
-  SmiTagInt32AndSetFlags(dst, src);
+  Condition cond = TrySmiTagInt32(dst, src);
   if (!SmiValuesAre32Bits()) {
-    Assert(kNoOverflow, AbortReason::kInputDoesNotFitSmi);
+    Assert(cond, AbortReason::kInputDoesNotFitSmi);
   }
 }
 
@@ -873,9 +875,9 @@ inline void MaglevAssembler::SmiTagIntPtrAndJumpIfFail(
     Register dst, Register src, Label* fail, Label::Distance distance) {
   CheckIntPtrIsSmi(src, fail, distance);
   // If the IntPtr is in the Smi range, we can treat it as Int32.
-  SmiTagInt32AndSetFlags(dst, src);
+  Condition cond = TrySmiTagInt32(dst, src);
   if (!SmiValuesAre32Bits()) {
-    Assert(kNoOverflow, AbortReason::kInputDoesNotFitSmi);
+    Assert(cond, AbortReason::kInputDoesNotFitSmi);
   }
 }
 
@@ -906,9 +908,9 @@ inline void MaglevAssembler::UncheckedSmiTagUint32(Register dst, Register src) {
     CompareInt32AndAssert(src, Smi::kMaxValue, kUnsignedLessThanEqual,
                           AbortReason::kInputDoesNotFitSmi);
   }
-  SmiTagInt32AndSetFlags(dst, src);
+  Condition cond = TrySmiTagInt32(dst, src);
   if (!SmiValuesAre32Bits()) {
-    Assert(kNoOverflow, AbortReason::kInputDoesNotFitSmi);
+    Assert(cond, AbortReason::kInputDoesNotFitSmi);
   }
 }
 

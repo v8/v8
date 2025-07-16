@@ -206,7 +206,8 @@ void Assembler::PatchInHeapNumberRequest(Address pc,
 Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)),
-      scratch_register_list_({ip}),
+      scratch_register_list_(DefaultTmpList()),
+      scratch_double_register_list_(DefaultFPTmpList()),
       constant_pool_builder_(kLoadPtrMaxReachBits, kLoadDoubleMaxReachBits) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
@@ -2193,6 +2194,11 @@ PatchingAssembler::~PatchingAssembler() {
   // Check that the code was patched as expected.
   DCHECK_EQ(pc_, buffer_start_ + buffer_->size() - kGap);
   DCHECK_EQ(reloc_info_writer.pos(), buffer_start_ + buffer_->size());
+}
+
+RegList Assembler::DefaultTmpList() { return {r26, ip}; }
+DoubleRegList Assembler::DefaultFPTmpList() {
+  return {kScratchDoubleReg, kDoubleRegZero};
 }
 
 }  // namespace internal

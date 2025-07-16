@@ -855,7 +855,8 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
            index * kSystemPointerSize;
   }
 
-  inline void SmiTagInt32AndSetFlags(Register dst, Register src);
+  // Returns the condition code satisfied if tagging is successful.
+  inline Condition TrySmiTagInt32(Register dst, Register src);
 
   MaglevCodeGenState* const code_gen_state_;
   TemporaryRegisterScope* scratch_register_scope_ = nullptr;

@@ -248,14 +248,14 @@ inline void MaglevAssembler::BindBlock(BasicBlock* block) {
   bind(block->label());
 }
 
-inline void MaglevAssembler::SmiTagInt32AndSetFlags(Register dst,
-                                                    Register src) {
+inline Condition MaglevAssembler::TrySmiTagInt32(Register dst, Register src) {
   Move(dst, src);
   if (SmiValuesAre31Bits()) {
     addl(dst, dst);
   } else {
     SmiTag(dst);
   }
+  return kNoOverflow;
 }
 
 inline void MaglevAssembler::CheckInt32IsSmi(Register obj, Label* fail,

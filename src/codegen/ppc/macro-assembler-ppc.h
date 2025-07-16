@@ -139,6 +139,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // load an SMI value <value> to GPR <dst>
   void LoadSmiLiteral(Register dst, Tagged<Smi> smi);
 
+  // dst points to address of mflr
   void LoadPC(Register dst);
   void ComputeCodeStartAddress(Register dst);
 
@@ -162,6 +163,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     }
   }
 
+  void Cmp(Register dst, int32_t src) { CmpS32(dst, Operand(src), r0); }
+
+  void CmpTagged(const Register& src1, const Register& src2) {
+    CompareTagged(src1, src2);
+  }
+
   void MinF64(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs,
               DoubleRegister scratch = kScratchDoubleReg);
   void MaxF64(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs,
@@ -177,6 +184,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
               Register scratch = r0, OEBit s = LeaveOE, RCBit r = LeaveRC);
   void AddS64(Register dst, Register src, Register value, OEBit s = LeaveOE,
               RCBit r = LeaveRC);
+  void AddS64(Register dst, Register src, int32_t imm, Register scratch = r0,
+              OEBit s = LeaveOE, RCBit r = LeaveRC) {
+    AddS64(dst, src, Operand(imm), scratch, s, r);
+  }
+
   void SubS64(Register dst, Register src, const Operand& value,
               Register scratch = r0, OEBit s = LeaveOE, RCBit r = LeaveRC);
   void SubS64(Register dst, Register src, Register value, OEBit s = LeaveOE,
@@ -457,6 +469,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Push a handle.
   void Push(Handle<HeapObject> handle);
   void Push(Tagged<Smi> smi);
+  void Push(Tagged<TaggedIndex> index);
 
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2) {
@@ -564,6 +577,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void MultiPopF64AndV128(DoubleRegList dregs, Simd128RegList simd_regs,
                           Register scratch1, Register scratch2,
                           Register location = sp);
+  void PushAll(RegList registers);
+  void PopAll(RegList registers);
+  void PushAll(DoubleRegList registers, int stack_slot_size = kDoubleSize);
+  void PopAll(DoubleRegList registers, int stack_slot_size = kDoubleSize);
 
   // Calculate how much stack space (in bytes) are required to store caller
   // registers excluding those specified in the arguments.
@@ -789,6 +806,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     // TODO(johnyan): Use scratch register scope instead of r0.
     LoadU64(dst, src, r0);
   }
+  // Loads a field containing smi value and untags it.
+  void SmiUntagField(Register dst, const MemOperand& src, RCBit rc = LeaveRC,
+                     Register scratch = r0);
 
   void SmiUntag(Register dst, const MemOperand& src, RCBit rc = LeaveRC,
                 Register scratch = no_reg);
@@ -808,6 +828,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
     SmiUntag(smi);
   }
+  void SmiToInt32(Register dst, Register src) {
+    DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
+    mr(dst, src);
+    SmiUntag(dst);
+  }
 
   // Shift left by kSmiShift
   void SmiTag(Register reg, RCBit rc = LeaveRC) { SmiTag(reg, reg, rc); }
@@ -818,6 +843,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object) NOOP_UNLESS_DEBUG_CODE;
   void AssertSmi(Register object) NOOP_UNLESS_DEBUG_CODE;
+
+  // Abort execution if argument is not a Map, enabled via
+  // --debug-code.
+  void AssertMap(Register object) NOOP_UNLESS_DEBUG_CODE;
+  // Like Assert(), but without condition.
+  // Use --debug-code to enable.
+  void AssertUnreachable(AbortReason reason) NOOP_UNLESS_DEBUG_CODE;
+  void AssertZeroExtended(Register reg) NOOP_UNLESS_DEBUG_CODE;
 
   void ZeroExtByte(Register dst, Register src);
   void ZeroExtHalfWord(Register dst, Register src);
@@ -901,11 +934,29 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     TestIfSmi(value, r0);
     beq(smi_label, cr0);  // branch if SMI
   }
+
+  Condition CheckSmi(Register src) {
+    TestIfSmi(src, r0);
+    return eq;
+  }
+
   void JumpIfEqual(Register x, int32_t y, Label* dest);
   void JumpIfLessThan(Register x, int32_t y, Label* dest);
 
+  // Caution: if {reg} is a 32-bit negative int, it should be sign-extended to
+  // 64-bit before calling this function.
+  void Switch(Register scrach, Register reg, int case_base_value,
+              Label** labels, int num_labels);
+
+  void JumpIfCodeIsMarkedForDeoptimization(Register code, Register scratch,
+                                           Label* if_marked_for_deoptimization);
+
+  void JumpIfCodeIsTurbofanned(Register code, Register scratch,
+                               Label* if_turbofanned);
+
   void LoadMap(Register destination, Register object);
   void LoadCompressedMap(Register dst, Register object, Register scratch);
+  void LoadCompressedMap(Register dst, Register object);
 
   void LoadFeedbackVector(Register dst, Register closure, Register scratch,
                           Label* fbv_undef);
@@ -925,6 +976,13 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Overflow handling functions.
   // Usage: call the appropriate arithmetic function and then call one of the
   // flow control functions with the corresponding label.
+  void MoveToCrFromXer(CRegister cr) {
+    if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
+      mcrxrx(cr);
+    } else {
+      mcrxr(cr);
+    }
+  }
 
   // Compute dst = left + right, setting condition codes. dst may be same as
   // either left or right (or a unique register). left and right must not be
@@ -945,9 +1003,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // succeeds, otherwise falls through if result is saturated. On return
   // 'result' either holds answer, or is clobbered on fall through.
   void TryInlineTruncateDoubleToI(Register result, DoubleRegister input,
-                                  Label* done);
+                                  Label* done, DoubleRegister double_scratch);
   void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,
-                         DoubleRegister double_input, StubCallMode stub_mode);
+                         DoubleRegister double_input, StubCallMode stub_mode,
+                         DoubleRegister double_scratch);
 
   void LoadConstantPoolPointerRegister();
 
@@ -962,8 +1021,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   }
 
   // Convenience functions to call/jmp to the code of a JSFunction object.
-  void CallJSFunction(Register function_object, uint16_t argument_count,
-                      Register scratch);
+  void CallJSFunction(Register function_object, uint16_t argument_count);
   void JumpJSFunction(Register function_object, Register scratch,
                       JumpMode jump_mode = JumpMode::kJump);
 #ifdef V8_ENABLE_LEAPTIERING
@@ -1098,14 +1156,17 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Loads a field containing any tagged value and decompresses it if necessary.
   void LoadTaggedField(const Register& destination,
                        const MemOperand& field_operand,
-                       const Register& scratch = no_reg);
+                       const Register& scratch = r0);
   void LoadTaggedSignedField(Register destination, MemOperand field_operand,
-                             Register scratch);
+                             Register scratch = r0);
+  void LoadTaggedFieldWithoutDecompressing(const Register& destination,
+                                           const MemOperand& field_operand,
+                                           const Register& scratch = r0);
 
   // Compresses and stores tagged value to given on-heap location.
   void StoreTaggedField(const Register& value,
                         const MemOperand& dst_field_operand,
-                        const Register& scratch = no_reg);
+                        const Register& scratch = r0);
 
   void Zero(const MemOperand& dest);
   void Zero(const MemOperand& dest1, const MemOperand& dest2);
@@ -1139,6 +1200,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadU64(Register dst, const MemOperand& mem, Register scratch = no_reg);
   void LoadU32(Register dst, const MemOperand& mem, Register scratch = no_reg);
   void LoadS32(Register dst, const MemOperand& mem, Register scratch = no_reg);
+  void LoadS32(Register dst, Register src) { extsw(dst, src); }
   void LoadU16(Register dst, const MemOperand& mem, Register scratch = no_reg);
   void LoadS16(Register dst, const MemOperand& mem, Register scratch = no_reg);
   void LoadU8(Register dst, const MemOperand& mem, Register scratch = no_reg);
@@ -1603,6 +1665,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void LoadNativeContextSlot(Register dst, int index);
 
+  // Falls through and sets scratch_and_result to 0 on failure, jumps to
+  // on_result on success.
+  void TryLoadOptimizedOsrCode(Register scratch_and_result,
+                               CodeKind min_opt_level, Register feedback_vector,
+                               FeedbackSlot slot, Label* on_result,
+                               Label::Distance distance);
   // ----------------------------------------------------------------
   // new PPC macro-assembler interfaces that are slightly higher level
   // than assembler-ppc and may generate variable length sequences
@@ -1659,6 +1727,21 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // ---------------------------------------------------------------------------
   // Support functions.
 
+  // Compare instance type in a map.  map contains a valid map object whose
+  // object type should be compared with the given type.  This both
+  // sets the flags and leaves the object type in the type_reg register.
+  template <bool use_unsigned_cmp = false>
+  void CompareInstanceType(Register map, Register type_reg, InstanceType type) {
+    static_assert(Map::kInstanceTypeOffset < 4096);
+    static_assert(LAST_TYPE <= 0xFFFF);
+    if (use_unsigned_cmp) {
+      LoadU16(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+      CmpU64(type_reg, Operand(type), r0);
+    } else {
+      LoadS16(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+      CmpS64(type_reg, Operand(type), r0);
+    }
+  }
   // Compare object type for heap object.  heap_object contains a non-Smi
   // whose object type should be compared with the given type.  This both
   // sets the flags and leaves the object type in the type_reg register.
@@ -1667,8 +1750,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // register unless the heap_object register is the same register as one of the
   // other registers.
   // Type_reg can be no_reg. In that case ip is used.
+  template <bool use_unsigned_cmp = false>
   void CompareObjectType(Register heap_object, Register map, Register type_reg,
-                         InstanceType type);
+                         InstanceType type) {
+    const Register temp = type_reg == no_reg ? r0 : type_reg;
+
+    LoadMap(map, heap_object);
+    CompareInstanceType<use_unsigned_cmp>(map, temp, type);
+  }
+
   // Variant of the above, which compares against a type range rather than a
   // single type (lower_limit and higher_limit are inclusive).
   //
@@ -1704,10 +1794,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                         InstanceType type, Label* if_cond_pass,
                         Condition cond = eq);
 
-  // Compare instance type in a map.  map contains a valid map object whose
-  // object type should be compared with the given type.  This both
-  // sets the flags and leaves the object type in the type_reg register.
-  void CompareInstanceType(Register map, Register type_reg, InstanceType type);
 
   // Compare instance type ranges for a map (lower_limit and higher_limit
   // inclusive).
@@ -1768,6 +1854,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
                                            Register closure, Register scratch1,
                                            Register slot_address);
+  Condition LoadFeedbackVectorFlagsAndCheckIfNeedsProcessing(
+      Register flags, Register feedback_vector, CodeKind current_code_kind);
   void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
       Register flags, Register feedback_vector, CodeKind current_code_kind,
       Label* flags_need_processing);

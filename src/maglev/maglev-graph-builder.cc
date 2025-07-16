@@ -119,7 +119,8 @@ bool IsSupported(CpuOperation op) {
 #endif
 
     case CpuOperation::kMathClz32:
-#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_S390X)
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_S390X) || \
+    defined(V8_TARGET_ARCH_PPC64)
       return true;
 #elif defined(V8_TARGET_ARCH_ARM)
       return CpuFeatures::IsSupported(ARMv8);

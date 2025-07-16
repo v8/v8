@@ -37,6 +37,8 @@
 #include "src/codegen/x64/register-x64.h"
 #elif V8_TARGET_ARCH_S390X
 #include "src/codegen/s390/register-s390.h"
+#elif V8_TARGET_ARCH_PPC64
+#include "src/codegen/ppc/register-ppc.h"
 #else
 #error "Maglev does not supported this architecture."
 #endif

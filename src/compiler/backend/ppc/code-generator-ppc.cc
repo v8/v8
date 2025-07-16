@@ -919,7 +919,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       uint32_t num_arguments =
           i.InputUint32(instr->JSCallArgumentCountInputIndex());
-      __ CallJSFunction(func, num_arguments, kScratchReg);
+      __ CallJSFunction(func, num_arguments);
       RecordCallPosition(instr);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       frame_access_state()->ClearSPDelta();
@@ -1144,7 +1144,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchTruncateDoubleToI:
       __ TruncateDoubleToI(isolate(), zone(), i.OutputRegister(),
-                           i.InputDoubleRegister(0), DetermineStubCallMode());
+                           i.InputDoubleRegister(0), DetermineStubCallMode(),
+                           kScratchDoubleReg);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     case kArchStoreWithWriteBarrier: {

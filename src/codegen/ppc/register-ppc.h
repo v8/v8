@@ -21,7 +21,7 @@ namespace internal {
   V(r3)  V(r4)  V(r5)  V(r6)  V(r7)                       \
   V(r8)  V(r9)  V(r10) V(r14) V(r15)                      \
   V(r16) V(r17) V(r18) V(r19) V(r20) V(r21) V(r22) V(r23) \
-  V(r24) V(r25) V(r26) V(r30)
+  V(r24) V(r25) V(r30)
 
 #if V8_EMBEDDED_CONSTANT_POOL_BOOL
 #define MAYBE_ALLOCATEABLE_CONSTANT_POOL_REGISTER(V)
@@ -311,6 +311,7 @@ DEFINE_REGISTER_NAMES(DoubleRegister, DOUBLE_REGISTERS)
 DEFINE_REGISTER_NAMES(Simd128Register, SIMD128_REGISTERS)
 
 // Give alias names to registers for calling conventions.
+constexpr Register kStackPointerRegister = sp;
 constexpr Register kReturnRegister0 = r3;
 constexpr Register kReturnRegister1 = r4;
 constexpr Register kReturnRegister2 = r5;

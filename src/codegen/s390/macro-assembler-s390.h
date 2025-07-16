@@ -1177,7 +1177,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void BindExceptionHandler(Label* label) { bind(label); }
 
   // Convenience functions to call/jmp to the code of a JSFunction object.
-  void CallJSFunction(Register function_object, uint16_t argument_count);
+  void CallJSFunction(Register function_object, uint16_t argument_count,
+                      Register scratch = r0);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
 #ifdef V8_ENABLE_LEAPTIERING

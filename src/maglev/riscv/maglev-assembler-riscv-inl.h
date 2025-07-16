@@ -339,8 +339,7 @@ inline void MaglevAssembler::AssertMap(Register object) {
 }
 #endif
 
-inline void MaglevAssembler::SmiTagInt32AndSetFlags(Register dst,
-                                                    Register src) {
+inline Condition MaglevAssembler::TrySmiTagInt32(Register dst, Register src) {
   // FIXME check callsites and subsequent calls to Assert!
   ASM_CODE_COMMENT(this);
   static_assert(kSmiTag == 0);
@@ -359,6 +358,7 @@ inline void MaglevAssembler::SmiTagInt32AndSetFlags(Register dst,
     // no overflow happens (check!)
     Move(overflow_flag, zero_reg);
   }
+  return kNoOverflow;
 }
 
 inline void MaglevAssembler::CheckInt32IsSmi(Register maybeSmi, Label* fail,
