@@ -6484,9 +6484,12 @@ void Heap::TearDown() {
   heap_profiler_.reset();
 }
 
-bool Heap::IsFreeSpaceValid(const FreeSpace* object) const {
-  Tagged<Object> free_space_map = isolate()->root(RootIndex::kFreeSpaceMap);
-  CHECK(!deserialization_complete() ||
+// static
+bool Heap::IsFreeSpaceValid(const FreeSpace* object) {
+  Heap* heap = HeapUtils::GetOwnerHeap(object);
+  Tagged<Object> free_space_map =
+      heap->isolate()->root(RootIndex::kFreeSpaceMap);
+  CHECK(!heap->deserialization_complete() ||
         object->map_slot().contains_map_value(free_space_map.ptr()));
   CHECK_LE(offsetof(FreeSpace, next_) + kTaggedSize,
            object->size(kRelaxedLoad));

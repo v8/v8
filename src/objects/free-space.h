@@ -45,8 +45,7 @@ class FreeSpace : public HeapObjectLayout {
 
   // Accessors for the next field.
   inline Tagged<FreeSpace> next() const;
-  inline void SetNext(const Heap* heap,
-                      const WritableFreeSpace& writable_free_space,
+  inline void SetNext(const WritableFreeSpace& writable_free_space,
                       Tagged<FreeSpace> next);
 
   // Dispatched behavior.
@@ -58,7 +57,7 @@ class FreeSpace : public HeapObjectLayout {
  private:
   friend class Heap;
 
-  inline bool IsValid(const Heap* isolate) const;
+  inline bool IsValid() const;
 
   TaggedMember<Smi> size_in_tagged_;
 #ifdef V8_EXTERNAL_CODE_SPACE

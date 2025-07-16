@@ -122,7 +122,7 @@ class MemoryPool final {
     ~LargePagePoolImpl() { DCHECK(pages_.empty()); }
 
     bool Add(std::vector<LargePageMetadata*>& pages, InternalTime time);
-    LargePageMetadata* Remove(Isolate* isolate, size_t chunk_size);
+    LargePageMetadata* Remove(size_t chunk_size);
     void ReleaseAll();
     size_t ReleaseUpTo(InternalTime release_time);
 

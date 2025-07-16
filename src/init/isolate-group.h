@@ -17,7 +17,6 @@
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/heap/memory-chunk-constants.h"
-#include "src/sandbox/check.h"
 #include "src/sandbox/code-pointer-table.h"
 #include "src/utils/allocation.h"
 
@@ -161,34 +160,6 @@ class SnapshotData;
 // group.  Ensuring this invariant is the responsibility of the API user.
 class V8_EXPORT_PRIVATE IsolateGroup final {
  public:
-#ifdef V8_ENABLE_SANDBOX
-  class MemoryChunkMetadataTableEntry {
-   public:
-    void CheckIfMetadataAccessibleFromIsolate(const Isolate* isolate) const {
-      if (isolate_ ==
-          reinterpret_cast<Isolate*>(kReadOnlyOrSharedEntryIsolateSentinel)) {
-        return;
-      }
-      SBXCHECK_EQ(isolate_, isolate);
-    }
-
-    void SetMetadata(MemoryChunkMetadata* metadata, Isolate* isolate);
-
-    const Isolate* isolate() const { return isolate_; }
-    MemoryChunkMetadata* metadata() const { return metadata_; }
-
-   private:
-    // This indicates that the metadata entry can be read from any isolates
-    // (in essence, for the read-only or shared pages).
-    static constexpr uintptr_t kReadOnlyOrSharedEntryIsolateSentinel = -1;
-
-    MemoryChunkMetadata* metadata_ = nullptr;
-    Isolate* isolate_ = nullptr;
-  };
-  static_assert(sizeof(MemoryChunkMetadataTableEntry) ==
-                2 * kSystemPointerSize);
-#endif  // V8_ENABLE_SANDBOX
-
   // InitializeOncePerProcess should be called early on to initialize the
   // process-wide group.
   static IsolateGroup* AcquireDefault() { return GetDefault()->Acquire(); }
@@ -294,7 +265,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
   CodePointerTable* code_pointer_table() { return &code_pointer_table_; }
 
-  MemoryChunkMetadataTableEntry* metadata_pointer_table() {
+  MemoryChunkMetadata** metadata_pointer_table() {
     return metadata_pointer_table_;
   }
 
@@ -413,8 +384,9 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 #ifdef V8_ENABLE_SANDBOX
   Sandbox* sandbox_ = nullptr;
   CodePointerTable code_pointer_table_;
-  MemoryChunkMetadataTableEntry metadata_pointer_table_
-      [MemoryChunkConstants::kMetadataPointerTableSize]{};
+  MemoryChunkMetadata*
+      metadata_pointer_table_[MemoryChunkConstants::kMetadataPointerTableSize] =
+          {nullptr};
 #if defined(V8_USE_PA_BACKED_SANDBOX_FOR_ARRAY_BUFFER_ALLOCATOR)
   PABackedSandboxedArrayBufferAllocator backend_allocator_;
 #else

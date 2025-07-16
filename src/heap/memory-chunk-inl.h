@@ -8,28 +8,22 @@
 #include "src/heap/memory-chunk.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/execution/isolate-current.h"
 #include "src/heap/memory-chunk-metadata.h"
 #include "src/sandbox/check.h"
 
 namespace v8 {
 namespace internal {
 
-template <bool check_isolate>
-MemoryChunkMetadata* MemoryChunk::MetadataImpl(const Isolate* isolate) {
+MemoryChunkMetadata* MemoryChunk::Metadata() {
   // If this changes, we also need to update
   // CodeStubAssembler::PageMetadataFromMemoryChunk
 #ifdef V8_ENABLE_SANDBOX
   DCHECK_LT(metadata_index_,
             MemoryChunkConstants::kMetadataPointerTableSizeMask);
-  IsolateGroup::MemoryChunkMetadataTableEntry* metadata_pointer_table =
+  MemoryChunkMetadata** metadata_pointer_table =
       IsolateGroup::current()->metadata_pointer_table();
-  auto metadata_entry = metadata_pointer_table
+  MemoryChunkMetadata* metadata = metadata_pointer_table
       [metadata_index_ & MemoryChunkConstants::kMetadataPointerTableSizeMask];
-  if constexpr (check_isolate) {
-    metadata_entry.CheckIfMetadataAccessibleFromIsolate(isolate);
-  }
-  MemoryChunkMetadata* metadata = metadata_entry.metadata();
   // Check that the Metadata belongs to this Chunk, since an attacker with write
   // inside the sandbox could've swapped the index.
   SBXCHECK_EQ(metadata->Chunk(), this);
@@ -39,37 +33,11 @@ MemoryChunkMetadata* MemoryChunk::MetadataImpl(const Isolate* isolate) {
 #endif
 }
 
-template <bool check_isolate>
-const MemoryChunkMetadata* MemoryChunk::MetadataImpl(
-    const Isolate* isolate) const {
-  return const_cast<MemoryChunk*>(this)->MetadataImpl<check_isolate>(isolate);
-}
-
-MemoryChunkMetadata* MemoryChunk::Metadata(const Isolate* isolate) {
-  return MetadataImpl<true>(isolate);
-}
-
-const MemoryChunkMetadata* MemoryChunk::Metadata(const Isolate* isolate) const {
-  return const_cast<MemoryChunk*>(this)->Metadata(isolate);
-}
-
-MemoryChunkMetadata* MemoryChunk::Metadata() {
-  return const_cast<MemoryChunk*>(this)->MetadataImpl<true>(Isolate::Current());
-}
-
 const MemoryChunkMetadata* MemoryChunk::Metadata() const {
   return const_cast<MemoryChunk*>(this)->Metadata();
 }
 
-MemoryChunkMetadata* MemoryChunk::MetadataNoIsolateCheck() {
-  return MetadataImpl<false>(nullptr);
-}
-
-const MemoryChunkMetadata* MemoryChunk::MetadataNoIsolateCheck() const {
-  return const_cast<MemoryChunk*>(this)->MetadataImpl<false>(nullptr);
-}
-
-Heap* MemoryChunk::GetHeap() { return Metadata(Isolate::Current())->heap(); }
+Heap* MemoryChunk::GetHeap() { return Metadata()->heap(); }
 
 }  // namespace internal
 }  // namespace v8

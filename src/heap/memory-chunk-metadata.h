@@ -33,13 +33,9 @@ class MemoryChunkMetadata {
  public:
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
   V8_INLINE static MemoryChunkMetadata* FromAddress(Address a);
-  V8_INLINE static MemoryChunkMetadata* FromAddress(const Isolate* isolate,
-                                                    Address a);
 
   // Only works if the object is in the first kPageSize of the MemoryChunk.
   V8_INLINE static MemoryChunkMetadata* FromHeapObject(Tagged<HeapObject> o);
-  V8_INLINE static MemoryChunkMetadata* FromHeapObject(const Isolate* i,
-                                                       Tagged<HeapObject> o);
 
   // Only works if the object is in the first kPageSize of the MemoryChunk.
   V8_INLINE static MemoryChunkMetadata* FromHeapObject(

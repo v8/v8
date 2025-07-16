@@ -205,8 +205,7 @@ bool MemoryPool::LargePagePoolImpl::Add(std::vector<LargePageMetadata*>& pages,
   return added_to_pool;
 }
 
-LargePageMetadata* MemoryPool::LargePagePoolImpl::Remove(Isolate* isolate,
-                                                         size_t chunk_size) {
+LargePageMetadata* MemoryPool::LargePagePoolImpl::Remove(size_t chunk_size) {
   base::MutexGuard guard(&mutex_);
   auto selected = pages_.end();
   DCHECK_EQ(total_size_, ComputeTotalSize());
@@ -228,7 +227,7 @@ LargePageMetadata* MemoryPool::LargePagePoolImpl::Remove(Isolate* isolate,
 
   LargePageMetadata* result = selected->second.release();
 #ifdef V8_ENABLE_SANDBOX
-  MemoryChunk::ResetMetadataPointer(isolate, result);
+  MemoryChunk::ResetMetadataPointer(result);
 #endif  // V8_ENABLE_SANDBOX
   total_size_ -= result->size();
   pages_.erase(selected);
@@ -402,7 +401,7 @@ MutablePageMetadata* MemoryPool::Remove(Isolate* isolate) {
   if (result) {
     MutablePageMetadata* chunk = result.value().release();
 #ifdef V8_ENABLE_SANDBOX
-    MemoryChunk::ResetMetadataPointer(isolate, chunk);
+    MemoryChunk::ResetMetadataPointer(chunk);
 #endif  // V8_ENABLE_SANDBOX
     return chunk;
   }
@@ -455,7 +454,7 @@ void MemoryPool::AddLarge(Isolate* isolate,
 
 LargePageMetadata* MemoryPool::RemoveLarge(Isolate* isolate,
                                            size_t chunk_size) {
-  return large_pool_.Remove(isolate, chunk_size);
+  return large_pool_.Remove(chunk_size);
 }
 
 void MemoryPool::AddZoneReservation(Isolate* isolate,

@@ -192,14 +192,9 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     return FromAddress(object.ptr());
   }
 
-  V8_INLINE MemoryChunkMetadata* Metadata(const Isolate* isolate);
-  V8_INLINE const MemoryChunkMetadata* Metadata(const Isolate* isolate) const;
-
   V8_INLINE MemoryChunkMetadata* Metadata();
-  V8_INLINE const MemoryChunkMetadata* Metadata() const;
 
-  V8_INLINE MemoryChunkMetadata* MetadataNoIsolateCheck();
-  V8_INLINE const MemoryChunkMetadata* MetadataNoIsolateCheck() const;
+  V8_INLINE const MemoryChunkMetadata* Metadata() const;
 
   V8_INLINE bool IsFlagSet(Flag flag) const {
     return untrusted_main_thread_flags_ & flag;
@@ -328,8 +323,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 
 #ifdef V8_ENABLE_SANDBOX
   static void ClearMetadataPointer(MemoryChunkMetadata* metadata);
-  static void ResetMetadataPointer(Isolate* isolate,
-                                   MemoryChunkMetadata* metadata);
+  static void ResetMetadataPointer(MemoryChunkMetadata* metadata);
 #endif
 
  private:
@@ -352,10 +346,10 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     return offsetof(MemoryChunk, metadata_index_);
   }
 
+  V8_INLINE static MemoryChunkMetadata* FromIndex(uint32_t index);
   static uint32_t MetadataTableIndex(Address chunk_address);
 
-  V8_INLINE static IsolateGroup::MemoryChunkMetadataTableEntry*
-  MetadataTableAddress() {
+  V8_INLINE static MemoryChunkMetadata** MetadataTableAddress() {
     return IsolateGroup::current()->metadata_pointer_table();
   }
 
@@ -372,11 +366,6 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   }
 
 #endif  // !V8_ENABLE_SANDBOX
-
-  template <bool check_isolate>
-  MemoryChunkMetadata* MetadataImpl(const Isolate* isolate);
-  template <bool check_isolate>
-  const MemoryChunkMetadata* MetadataImpl(const Isolate* isolate) const;
 
   // Flags that are only mutable from the main thread when no concurrent
   // component (e.g. marker, sweeper, compilation, allocation) is running.

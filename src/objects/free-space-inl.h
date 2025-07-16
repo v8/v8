@@ -37,7 +37,7 @@ inline void FreeSpace::SetSize(const WritableFreeSpace& writable_free_space,
 int FreeSpace::Size() { return size(kRelaxedLoad); }
 
 Tagged<FreeSpace> FreeSpace::next() const {
-  DCHECK(IsValid(Isolate::Current()->heap()));
+  DCHECK(IsValid());
 #ifdef V8_EXTERNAL_CODE_SPACE
   intptr_t diff_to_next{next_.Relaxed_Load().value()};
   if (diff_to_next == 0) {
@@ -50,10 +50,9 @@ Tagged<FreeSpace> FreeSpace::next() const {
 #endif  // V8_EXTERNAL_CODE_SPACE
 }
 
-void FreeSpace::SetNext(const Heap* heap,
-                        const WritableFreeSpace& writable_free_space,
+void FreeSpace::SetNext(const WritableFreeSpace& writable_free_space,
                         Tagged<FreeSpace> next) {
-  DCHECK(IsValid(heap));
+  DCHECK(IsValid());
 
 #ifdef V8_EXTERNAL_CODE_SPACE
   if (next.is_null()) {
@@ -71,9 +70,7 @@ void FreeSpace::SetNext(const Heap* heap,
 #endif  // V8_EXTERNAL_CODE_SPACE
 }
 
-bool FreeSpace::IsValid(const Heap* heap) const {
-  return heap->IsFreeSpaceValid(this);
-}
+bool FreeSpace::IsValid() const { return Heap::IsFreeSpaceValid(this); }
 
 }  // namespace internal
 }  // namespace v8
