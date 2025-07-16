@@ -2126,9 +2126,12 @@ MaybeDirectHandle<DstType> GenericToTemporalMethod(
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-totemporalduration
-MaybeDirectHandle<JSTemporalDuration> ToTemporalDuration(
+//
+// We split this out since Temporal is lazy-initialized; so we do not wish
+// to call ConstructRustWrappingType in a context where Temporal has not yet
+// been initialized (e.g. DurationFormat)
+Maybe<std::unique_ptr<temporal_rs::Duration>> ToTemporalDurationRust(
     Isolate* isolate, DirectHandle<Object> item, const char* method_name) {
-
   // 1. If item is an Object and item has an [[InitializedTemporalDuration]]
   // internal slot, then a. a. Return ! CreateTemporalDuration(item.[[Years]],
   // item.[[Months]], item.[[Weeks]], item.[[Days]], item.[[Hours]],
@@ -2148,7 +2151,7 @@ MaybeDirectHandle<JSTemporalDuration> ToTemporalDuration(
     auto microseconds = raw->microseconds();
     auto nanoseconds = raw->nanoseconds();
     // i. Return !CreateTemporalInstant(item.[[EpochNanoseconds]]).
-    return ConstructRustWrappingType<JSTemporalDuration>(
+    return ExtractRustResult(
         isolate, temporal_rs::Duration::create(
                      years, months, weeks, days, hours, minutes, seconds,
                      milliseconds, microseconds, nanoseconds));
@@ -2177,8 +2180,7 @@ MaybeDirectHandle<JSTemporalDuration> ToTemporalDuration(
                 -> TemporalAllocatedResult<temporal_rs::Duration> {
               return temporal_rs::Duration::from_utf16(view);
             });
-    return ConstructRustWrappingType<JSTemporalDuration>(
-        isolate, std::move(rust_result));
+    return ExtractRustResult(isolate, std::move(rust_result));
   }
 
   temporal_rs::PartialDuration partial;
@@ -2186,8 +2188,42 @@ MaybeDirectHandle<JSTemporalDuration> ToTemporalDuration(
       isolate, partial,
       temporal::ToTemporalPartialDurationRecord(isolate, item));
 
-  return ConstructRustWrappingType<JSTemporalDuration>(
+  return ExtractRustResult(
       isolate, temporal_rs::Duration::from_partial_duration(partial));
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal-totemporalduration
+MaybeDirectHandle<JSTemporalDuration> ToTemporalDuration(
+    Isolate* isolate, DirectHandle<Object> item, const char* method_name) {
+  std::unique_ptr<temporal_rs::Duration> duration;
+  MOVE_RETURN_ON_EXCEPTION(isolate, duration,
+                           ToTemporalDurationRust(isolate, item, method_name));
+  return ConstructRustWrappingType<JSTemporalDuration>(isolate,
+                                                       std::move(duration));
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal-totemporalduration
+//
+// Used by DurationFormat
+Maybe<DurationRecord> ToTemporalDurationAsRecord(Isolate* isolate,
+                                                 DirectHandle<Object> item,
+                                                 const char* method_name) {
+  std::unique_ptr<temporal_rs::Duration> duration;
+  MOVE_RETURN_ON_EXCEPTION(isolate, duration,
+                           ToTemporalDurationRust(isolate, item, method_name));
+  return Just(temporal::DurationRecord{
+      .years = static_cast<double>(duration->years()),
+      .months = static_cast<double>(duration->months()),
+      .weeks = static_cast<double>(duration->weeks()),
+      .time_duration = {
+          .days = static_cast<double>(duration->days()),
+          .hours = static_cast<double>(duration->hours()),
+          .minutes = static_cast<double>(duration->minutes()),
+          .seconds = static_cast<double>(duration->seconds()),
+          .milliseconds = static_cast<double>(duration->milliseconds()),
+          .microseconds = static_cast<double>(duration->microseconds()),
+          .nanoseconds = static_cast<double>(duration->nanoseconds()),
+      }});
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-totemporalinstant

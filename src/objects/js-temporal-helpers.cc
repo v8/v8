@@ -245,8 +245,8 @@ Maybe<DurationRecord> DurationRecord::Create(
   return Just(record);
 }
 
-// #sec-temporal-topartialduration
-Maybe<DurationRecord> ToPartialDuration(
+// https://tc39.es/proposal-temporal/#sec-todurationrecord-deleted
+Maybe<DurationRecord> ToDurationRecord(
     Isolate* isolate, DirectHandle<Object> temporal_duration_like_obj,
     const DurationRecord& input) {
   // 1. If Type(temporalDurationLike) is not Object, then

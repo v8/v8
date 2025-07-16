@@ -7,6 +7,7 @@
 
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/objects/js-temporal-helpers.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
 #include "temporal_rs/Instant.d.hpp"
@@ -899,6 +900,10 @@ BuiltinTimeZoneGetPlainDateTimeFor(Isolate* isolate,
 V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> InvokeCalendarMethod(
     Isolate* isolate, DirectHandle<JSReceiver> calendar,
     DirectHandle<String> name, DirectHandle<JSReceiver> temporal_like);
+
+// Used in DurationFormat
+V8_WARN_UNUSED_RESULT Maybe<DurationRecord> ToTemporalDurationAsRecord(
+    Isolate* isolate, DirectHandle<Object> item, const char* method_name);
 
 }  // namespace temporal
 }  // namespace internal

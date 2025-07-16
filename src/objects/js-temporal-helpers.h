@@ -79,8 +79,8 @@ struct DurationRecord {
   static int32_t Sign(const DurationRecord& dur);
 };
 
-// #sec-temporal-topartialduration
-Maybe<DurationRecord> ToPartialDuration(
+// https://tc39.es/proposal-temporal/#sec-todurationrecord-deleted
+Maybe<DurationRecord> ToDurationRecord(
     Isolate* isolate, DirectHandle<Object> temporal_duration_like_obj,
     const DurationRecord& input);
 

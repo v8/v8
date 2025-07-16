@@ -31,6 +31,9 @@
 #include "unicode/numberformatter.h"
 #include "unicode/ulistformatter.h"
 #include "unicode/unumberformatter.h"
+#ifdef V8_TEMPORAL_SUPPORT
+#include "src/objects/js-temporal-objects.h"
+#endif
 #pragma GCC diagnostic pop
 
 namespace v8 {
@@ -1009,18 +1012,30 @@ Maybe<DurationRecord> ToDurationRecord(Isolate* isolate, Handle<Object> input,
                     NewRangeError(MessageTemplate::kInvalid,
                                   isolate->factory()->object_string(), input));
   }
-  // Step 1-b - 23. Same as ToTemporalPartialDurationRecord.
+
   DurationRecord record;
+  // The Temporal spec patches this; we support both cases and normalize
+  // to a DurationRecord
+#ifdef V8_TEMPORAL_SUPPORT
+  // 3. Let duration be ?ToTemporalDuration(durationLike).
+  DirectHandle<JSTemporalDuration> duration;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, record,
-      temporal::ToPartialDuration(isolate, input, default_value));
-  // 24. If IsValidDurationRecord(result) is false, throw a RangeError
-  // exception.
+      temporal::ToTemporalDurationAsRecord(isolate, input, "ToDurationRecord"));
+#else
+  // Step 1-b - 23. Same as ToTemporalPartialDurationRecord.
+  // 3. Let record be ?ToDurationRecord(durationLike).
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, record,
+      temporal::ToDurationRecord(isolate, input, default_value));
+  // (ToDurationRecord) 24. If IsValidDurationRecord(result) is false, throw a
+  // RangeError exception.
   if (!temporal::IsValidDuration(isolate, record)) {
     THROW_NEW_ERROR(isolate,
                     NewRangeError(MessageTemplate::kInvalid,
                                   isolate->factory()->object_string(), input));
   }
+#endif
   return Just(record);
 }
 
