@@ -818,7 +818,10 @@ v8_source_set("v8_unittests_sources") {
     ]
 
     if (v8_enable_webassembly) {
-      sources += [ "wasm/type-canonicalization-fuzztest.cc" ]
+      sources += [
+        "wasm/cross-compiler-determinism-fuzztest.cc",
+        "wasm/type-canonicalization-fuzztest.cc",
+      ]
     }
 
     if (!is_win) {

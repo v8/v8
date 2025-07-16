@@ -7,10 +7,12 @@
 
 #include <cmath>
 
+#include "absl/strings/str_format.h"
 #include "src/base/hashing.h"
 #include "src/base/macros.h"
 #include "src/base/numbers/double.h"
 #include "src/common/globals.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {
@@ -70,6 +72,10 @@ class Float32 {
 
   constexpr bool operator==(const Float32&) const = default;
 
+  constexpr Float32 operator-() const {
+    return Float32::FromBits(bit_pattern_ ^ kSignBit);
+  }
+
   // Return a pointer to the field storing the bit pattern. Used in code
   // generation tests to store generated values there directly.
   uint32_t* get_bits_address() { return &bit_pattern_; }
@@ -90,6 +96,17 @@ class Float32 {
     return FromBits((0xffu << kExponentShift) | kQuietNanBit);
   }
 
+  static constexpr Float32 infinity() {
+    return FromBits(0xffu << kExponentShift);
+  }
+
+  // absl stringify support, enabling e.g. FuzzTest outputting Float32 values
+  // instead of printing "unprintable value".
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, Float32 f) {
+    absl::Format(&sink, "%f (0x%08x)", f.get_scalar(), f.get_bits());
+  }
+
  private:
   explicit constexpr Float32(uint32_t bit_pattern)
       : bit_pattern_(bit_pattern) {}
@@ -107,6 +124,11 @@ class Float32 {
 };
 
 ASSERT_TRIVIALLY_COPYABLE(Float32);
+
+inline std::ostream& operator<<(std::ostream& os, const Float32& float32) {
+  return os << float32.get_scalar() << " ("
+            << AsHex(float32.get_bits(), 8, true) << ")";
+}
 
 // Safety wrapper for a 64-bit floating-point value to make sure we don't lose
 // the exact bit pattern during deoptimization when passing this value.

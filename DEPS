@@ -579,12 +579,13 @@ include_rules = [
   # to this set -- if in doubt, email v8-dev@. For general guidance, refer to
   # the Chromium guidelines (though note that some requirements in V8 may be
   # different to Chromium's):
-  # https://chromium.googlesource.com/chromium/src/+/main/styleguide/c++/c++11.md
+  # https://chromium.googlesource.com/chromium/src/+/main/styleguide/c++/c++-features.md
   '+absl/container/flat_hash_map.h',
   '+absl/container/flat_hash_set.h',
   '+absl/container/btree_map.h',
   '+absl/functional/overload.h',
   '+absl/status',
+  '+absl/strings/str_format.h',
   '+absl/synchronization/mutex.h',
   '+absl/time/time.h',
   # Some abseil features are explicitly banned.

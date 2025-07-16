@@ -232,8 +232,16 @@ class SmallVector {
     return pos;
   }
 
-  T* insert(T* pos, std::initializer_list<T> values) {
+  T* insert(T* pos, std::initializer_list<const T> values) {
     return insert(pos, values.begin(), values.end());
+  }
+
+  template <typename Container>
+    requires requires(const Container& v) {
+      std::is_same_v<decltype(std::begin(v)), decltype(std::end(v))>;
+    }
+  T* insert(T* pos, const Container& values) {
+    return insert(pos, std::begin(values), std::end(values));
   }
 
   T* erase(T* erase_start, T* erase_end) {
