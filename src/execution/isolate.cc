@@ -9,6 +9,7 @@
 #include <atomic>
 #include <cinttypes>
 #include <cstdint>
+#include <cstdio>
 #include <fstream>
 #include <memory>
 #include <optional>
@@ -7285,12 +7286,23 @@ base::LazyMutex print_with_timestamp_mutex_ = LAZY_MUTEX_INITIALIZER;
 
 void Isolate::PrintWithTimestamp(const char* format, ...) {
   base::MutexGuard guard(print_with_timestamp_mutex_.Pointer());
-  base::OS::Print("[%d:%p:%d] %8.0f ms: ", base::OS::GetCurrentProcessId(),
-                  static_cast<void*>(this), id(), time_millis_since_init());
+
+  static constexpr size_t kBufferSize = 16 * KB;
+  static char output_buffer[kBufferSize];
+
   va_list arguments;
   va_start(arguments, format);
-  base::OS::VPrint(format, arguments);
+  vsnprintf(output_buffer, kBufferSize, format, arguments);
   va_end(arguments);
+
+  base::OS::Print("[%d:%p:%d] %8.0f ms: %s", base::OS::GetCurrentProcessId(),
+                  static_cast<void*>(this), id(), time_millis_since_init(),
+                  output_buffer);
+
+#if defined(V8_USE_PERFETTO)
+  TRACE_EVENT_INSTANT1("v8", "V8.PrintWithTimestamp", TRACE_EVENT_SCOPE_THREAD,
+                       "value", TRACE_STR_COPY(output_buffer));
+#endif
 }
 
 void Isolate::SetIdle(bool is_idle) {
