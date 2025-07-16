@@ -2232,6 +2232,8 @@ DEFINE_BOOL(incremental_marking, true, "use incremental marking")
 DEFINE_BOOL(incremental_marking_task, true, "use tasks for incremental marking")
 DEFINE_BOOL(incremental_marking_start_user_visible, true,
             "Starts incremental marking with kUserVisible priority.")
+DEFINE_BOOL(incremental_marking_always_user_visible, false,
+            "Always posts incremental marking with kUserVisible priority.")
 DEFINE_INT(incremental_marking_soft_trigger, 0,
            "threshold for starting incremental marking via a task in percent "
            "of available space: limit - size")
