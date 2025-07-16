@@ -385,7 +385,7 @@ TEMPORAL_GET_RUST(PlainYearMonth, year_month, CalendarId, calendarId,
 TEMPORAL_GET_RUST(PlainYearMonth, year_month, Year, year, year,
                   CONVERT_INTEGER64)
 TEMPORAL_GET_RUST(PlainYearMonth, year_month, Era, era, era,
-                  CONVERT_ASCII_STRING)
+                  CONVERT_NULLABLE_ASCII_STRING)
 TEMPORAL_GET_RUST(PlainYearMonth, year_month, EraYear, eraYear, era_year,
                   CONVERT_NULLABLE_INTEGER)
 TEMPORAL_GET_RUST(PlainYearMonth, year_month, Month, month, month, CONVERT_SMI)
@@ -461,7 +461,7 @@ TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, TimeZoneId, time_zone)
 TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Year, year, year,
                   CONVERT_INTEGER64)
 TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Era, era, era,
-                  CONVERT_ASCII_STRING)
+                  CONVERT_NULLABLE_ASCII_STRING)
 TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, EraYear, eraYear, era_year,
                   CONVERT_NULLABLE_INTEGER)
 TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Month, month, month,

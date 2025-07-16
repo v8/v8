@@ -171,9 +171,11 @@ Maybe<ContainedValue> ExtractRustResult(
       default:
         // These cases shouldn't happen; the spec doesn't currently trigger
         // these errors
-        msg = isolate->factory()->NewStringFromStaticChars(
-            "Internal temporal_rs error.");
-        THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kTemporal, msg));
+        THROW_NEW_ERROR(isolate,
+                        NewError(MessageTemplate::kTemporalWithArg,
+                                 isolate->factory()->NewStringFromStaticChars(
+                                     "Internal error:"),
+                                 msg));
     }
     return Nothing<ContainedValue>();
   }
@@ -1845,9 +1847,12 @@ Maybe<bool> GetSingleCalendarField(
 // and set resultField to field, performing additional work if necessary.
 #define SIMPLE_SETTER(resultField, field) resultField = field;
 #define MOVING_SETTER(resultField, field) resultField = std::move(field);
-#define ANCHORED_STRING_SETTER(resultField, field) \
-  anchor.era = field->ToStdString();               \
-  resultField = anchor.era;
+#define ANCHORED_SETTER_WITH_STR_CONVERSION(resultField, field) \
+  anchor.field = field->ToStdString();                          \
+  resultField = anchor.field;
+#define ANCHORED_SETTER_WITH_MOVE(resultField, field) \
+  anchor.field = std::move(field);                    \
+  resultField = anchor.field;
 
 // Conditions take a boolean expression and wrap it with additional checks
 #define SIMPLE_CONDITION(cond) cond
@@ -1867,7 +1872,8 @@ Maybe<bool> GetSingleCalendarField(
     ToPositiveIntegerTypeWithTruncation<uint8_t>, SIMPLE_CONDITION,            \
     SIMPLE_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)                                \
   V(kYearFields, era, result.date.era, DirectHandle<String>, Object::ToString, \
-    ERA_CONDITION, ANCHORED_STRING_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)        \
+    ERA_CONDITION, ANCHORED_SETTER_WITH_STR_CONVERSION, NOOP_REQUIRED_CHECK,   \
+    ASSIGN)                                                                    \
   V(kYearFields, eraYear, result.date.era_year, int32_t,                       \
     ToIntegerTypeWithTruncation<int32_t>, ERA_CONDITION, SIMPLE_SETTER,        \
     NOOP_REQUIRED_CHECK, ASSIGN)                                               \
@@ -1886,9 +1892,8 @@ Maybe<bool> GetSingleCalendarField(
   V(kMonthFields, month, result.date.month, uint8_t,                           \
     ToPositiveIntegerTypeWithTruncation<uint8_t>, SIMPLE_CONDITION,            \
     SIMPLE_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)                                \
-  V(kMonthFields, monthCode, result.date.month_code, DirectHandle<String>,     \
-    Object::ToString, SIMPLE_CONDITION, ANCHORED_STRING_SETTER,                \
-    NOOP_REQUIRED_CHECK, ASSIGN)                                               \
+  V(kMonthFields, monthCode, result.date.month_code, std::string, ToMonthCode, \
+    SIMPLE_CONDITION, ANCHORED_SETTER_WITH_MOVE, NOOP_REQUIRED_CHECK, ASSIGN)  \
   V(kTimeFields, nanosecond, result.time.nanosecond, uint16_t,                 \
     ToPositiveIntegerTypeWithTruncation<uint16_t>, SIMPLE_CONDITION,           \
     SIMPLE_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)                                \
@@ -2012,7 +2017,8 @@ Maybe<CombinedRecord> PrepareCalendarFields(Isolate* isolate,
 
 #undef SIMPLE_SETTER
 #undef MOVING_SETTER
-#undef ANCHORED_STRING_SETTER
+#undef ANCHORED_SETTER_WITH_MOVE
+#undef ANCHORED_SETTER_WITH_STR_CONVERSION
 #undef SIMPLE_CONDITION
 #undef ERA_CONDITION
 #undef NOOP_REQUIRED_CHECK
@@ -2620,10 +2626,20 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
 
       // TODO(manishearth) We can handle this correctly once
       // https://github.com/boa-dev/temporal/pull/351 lands,
-      // for now we do something mostly sensible that will not
-      // throw errors for missing fields and will not handle month codes.
-      year = fields.date.year.value_or(0);
-      month = fields.date.month.value_or(1);
+      // For now we return the TypeErrors that CalendarResolveFields wants
+      // us to.
+      if (!fields.date.month.has_value()) {
+        // This should allow `monthCode`-but-no-`month`, but we currently have
+        // no API for constructing from monthCode.
+        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
+                                     "YearMonth argument must have month."));
+      }
+      if (!fields.date.year.has_value()) {
+        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
+                                     "YearMonth argument must have year."));
+      }
+      year = fields.date.year.value();
+      month = fields.date.month.value();
       kind = fields.date.calendar;
     }
 
@@ -2893,11 +2909,21 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
 
       // TODO(manishearth) We can handle this correctly once
       // https://github.com/boa-dev/temporal/pull/351 lands,
-      // for now we do something mostly sensible that will not
-      // throw errors for missing fields and will not handle month codes.
+      // For now we return the TypeErrors that CalendarResolveFields wants
+      // us to.
+      if (!fields.date.month.has_value()) {
+        // This should allow `monthCode`-but-no-`month`, but we currently have
+        // no API for constructing from monthCode.
+        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
+                                     "MonthDay argument must have month."));
+      }
+      if (!fields.date.day.has_value()) {
+        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
+                                     "MonthDay argument must have day."));
+      }
       year = fields.date.year;
-      month = fields.date.month.value_or(1);
-      day = fields.date.day.value_or(1);
+      month = fields.date.month.value();
+      day = fields.date.day.value();
       kind = fields.date.calendar;
     }
 
@@ -5100,7 +5126,7 @@ JSTemporalPlainYearMonth::Constructor(
   if (!IsUndefined(*calendar_like)) {
     // 6. If calendar is not a String, throw a TypeError exception.
     if (!IsString(*calendar_like)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kCalendarMustBeString));
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kCalendarMustBeString));
     }
 
     // 7. Set calendar to ?CanonicalizeCalendar(calendar).
@@ -5212,9 +5238,14 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainYearMonth::Until(
     DirectHandle<Object> other, DirectHandle<Object> options) {
   static const char method_name[] = "Temporal.PlainYearMonth.prototype.until";
 
+  // Uplifted from step 5 of DifferenceTemporalPlainYearMonth
+  //
+  // (Differ..YearMonth) 5. Let settings be
+  // ? GetDifferenceSettings(operation, resolvedOptions, date, « week, day »,
+  // month, year).
   return temporal::GenericDifferenceTemporal(
-      isolate, &temporal_rs::PlainYearMonth::until, UnitGroup::kDate, Unit::Day,
-      handle, other, options, method_name);
+      isolate, &temporal_rs::PlainYearMonth::until, UnitGroup::kDate,
+      Unit::Month, handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.since
@@ -5223,9 +5254,14 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainYearMonth::Since(
     DirectHandle<Object> other, DirectHandle<Object> options) {
   static const char method_name[] = "Temporal.PlainYearMonth.prototype.since";
 
+  // Uplifted from step 5 of DifferenceTemporalPlainYearMonth
+  //
+  // (Differ..YearMonth) 5. Let settings be
+  // ? GetDifferenceSettings(operation, resolvedOptions, date, « week, day »,
+  // month, year).
   return temporal::GenericDifferenceTemporal(
-      isolate, &temporal_rs::PlainYearMonth::since, UnitGroup::kDate, Unit::Day,
-      handle, other, options, method_name);
+      isolate, &temporal_rs::PlainYearMonth::since, UnitGroup::kDate,
+      Unit::Month, handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.with
