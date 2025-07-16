@@ -19,8 +19,20 @@ MemoryChunkMetadata* MemoryChunkMetadata::FromAddress(Address a) {
 }
 
 // static
+MemoryChunkMetadata* MemoryChunkMetadata::FromAddress(const Isolate* i,
+                                                      Address a) {
+  return MemoryChunk::FromAddress(a)->Metadata(i);
+}
+
+// static
 MemoryChunkMetadata* MemoryChunkMetadata::FromHeapObject(Tagged<HeapObject> o) {
   return FromAddress(o.ptr());
+}
+
+// static
+MemoryChunkMetadata* MemoryChunkMetadata::FromHeapObject(const Isolate* i,
+                                                         Tagged<HeapObject> o) {
+  return FromAddress(i, o.ptr());
 }
 
 // static

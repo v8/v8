@@ -300,7 +300,7 @@ bool Heap::IsPendingAllocationInternal(Tagged<HeapObject> object) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   if (chunk->InReadOnlySpace()) return false;
 
-  BaseSpace* base_space = chunk->Metadata()->owner();
+  BaseSpace* base_space = chunk->Metadata(isolate())->owner();
   Address addr = object.address();
 
   switch (base_space->identity()) {

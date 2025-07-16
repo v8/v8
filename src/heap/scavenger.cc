@@ -163,7 +163,7 @@ class IterateAndScavengePromotedObjectsVisitor final
         SLOW_DCHECK(IsHeapObject(target));
         MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
         MutablePageMetadata* page =
-            MutablePageMetadata::cast(chunk->Metadata());
+            MutablePageMetadata::cast(chunk->Metadata(heap_->isolate()));
 
         // Sweeper is stopped during scavenge, so we can directly
         // insert into its remembered set here.
@@ -175,7 +175,8 @@ class IterateAndScavengePromotedObjectsVisitor final
 
     if (HeapLayout::InWritableSharedSpace(target)) {
       MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
-      MutablePageMetadata* page = MutablePageMetadata::cast(chunk->Metadata());
+      MutablePageMetadata* page =
+          MutablePageMetadata::cast(chunk->Metadata(heap_->isolate()));
       RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(
           page, chunk->Offset(slot.address()));
     }
@@ -719,13 +720,15 @@ void ScavengerCollector::QuarantinedPageSweeper::JobTask::Run(
       return;
     }
     MemoryChunk* chunk = next_page_iterator_->first;
-    PageMetadata* page = static_cast<PageMetadata*>(chunk->Metadata());
+    PageMetadata* page =
+        static_cast<PageMetadata*>(chunk->Metadata(heap_->isolate()));
     DCHECK(!chunk->IsFromPage());
     if (chunk->IsToPage()) {
       SweepPage(CreateFillerFreeSpaceHandler, chunk, page,
                 next_page_iterator_->second);
     } else {
-      DCHECK_EQ(chunk->Metadata()->owner()->identity(), OLD_SPACE);
+      DCHECK_EQ(chunk->Metadata(heap_->isolate())->owner()->identity(),
+                OLD_SPACE);
       base::MutexGuard guard(page->mutex());
       // If for some reason the page is swept twice, this DCHECK will fail.
       DCHECK_EQ(page->area_size(), page->allocated_bytes());
@@ -760,8 +763,10 @@ void ScavengerCollector::QuarantinedPageSweeper::JobTask::
   if (should_zap) {
     heap::ZapBlock(address, size, heap::ZapValue());
   }
-  DCHECK_EQ(OLD_SPACE, PageMetadata::FromAddress(address)->owner()->identity());
-  DCHECK(PageMetadata::FromAddress(address)->SweepingDone());
+  DCHECK_EQ(
+      OLD_SPACE,
+      PageMetadata::FromAddress(heap->isolate(), address)->owner()->identity());
+  DCHECK(PageMetadata::FromAddress(heap->isolate(), address)->SweepingDone());
   OldSpace* const old_space = heap->old_space();
   old_space->FreeDuringSweep(address, size);
 }
@@ -769,7 +774,7 @@ void ScavengerCollector::QuarantinedPageSweeper::JobTask::
 size_t ScavengerCollector::QuarantinedPageSweeper::JobTask::SweepPage(
     FreeSpaceHandler free_space_handler, MemoryChunk* chunk, PageMetadata* page,
     ObjectsAndSizes& pinned_objects_on_page) {
-  DCHECK_EQ(page, chunk->Metadata());
+  DCHECK_EQ(page, chunk->Metadata(heap_->isolate()));
   DCHECK(!pinned_objects_on_page.empty());
   Address start = page->area_start();
   std::sort(pinned_objects_on_page.begin(), pinned_objects_on_page.end());
@@ -1425,7 +1430,7 @@ bool Scavenger::PromoteIfLargeObject(Tagged<HeapObject> object) {
 
 void Scavenger::PinAndPushObject(MemoryChunk* chunk, Tagged<HeapObject> object,
                                  MapWord map_word) {
-  DCHECK(chunk->Metadata()->Contains(object->address()));
+  DCHECK(chunk->Metadata(heap_->isolate())->Contains(object->address()));
   DCHECK_EQ(map_word, object->map_word(kRelaxedLoad));
   Tagged<Map> map = map_word.ToMap();
   const auto object_size = object->SafeSizeFromMap(map);

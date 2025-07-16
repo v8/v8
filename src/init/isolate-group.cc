@@ -69,6 +69,22 @@ class IsolateGroupAccessScope final {
 };
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
+#ifdef V8_ENABLE_SANDBOX
+void IsolateGroup::MemoryChunkMetadataTableEntry::SetMetadata(
+    MemoryChunkMetadata* metadata, Isolate* isolate) {
+  metadata_ = metadata;
+  // Read-only and shared pages can be accessed from any isolate, mark the entry
+  // with the sentinel.
+  if (metadata && (metadata->Chunk()->InReadOnlySpace() ||
+                   metadata->Chunk()->InWritableSharedSpace())) {
+    isolate_ =
+        reinterpret_cast<Isolate*>(kReadOnlyOrSharedEntryIsolateSentinel);
+    return;
+  }
+  isolate_ = isolate;
+}
+#endif  // V8_ENABLE_SANDBOX
+
 IsolateGroup* IsolateGroup::default_isolate_group_ = nullptr;
 
 #ifdef V8_COMPRESS_POINTERS

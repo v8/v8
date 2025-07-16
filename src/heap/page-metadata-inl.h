@@ -22,6 +22,12 @@ PageMetadata* PageMetadata::FromAddress(Address addr) {
 }
 
 // static
+PageMetadata* PageMetadata::FromAddress(const Isolate* isolate, Address addr) {
+  return reinterpret_cast<PageMetadata*>(
+      MemoryChunk::FromAddress(addr)->Metadata(isolate));
+}
+
+// static
 PageMetadata* PageMetadata::FromHeapObject(Tagged<HeapObject> o) {
   return FromAddress(o.ptr());
 }

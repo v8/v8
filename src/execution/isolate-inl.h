@@ -31,15 +31,6 @@ Isolate::CurrentPerIsolateThreadData() {
   return g_current_per_isolate_thread_data_;
 }
 
-// static
-V8_INLINE Isolate* Isolate::Current() {
-  Isolate* isolate = TryGetCurrent();
-  DCHECK_NOT_NULL(isolate);
-  return isolate;
-}
-
-bool Isolate::IsCurrent() const { return this == TryGetCurrent(); }
-
 void Isolate::set_context(Tagged<Context> context) {
   DCHECK(context.is_null() || IsContext(context));
   thread_local_top()->context_ = context;

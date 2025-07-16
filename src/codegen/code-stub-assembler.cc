@@ -14385,6 +14385,12 @@ TNode<IntPtrT> CodeStubAssembler::MemoryChunkFromAddress(
 TNode<IntPtrT> CodeStubAssembler::PageMetadataFromMemoryChunk(
     TNode<IntPtrT> address) {
 #ifdef V8_ENABLE_SANDBOX
+  // The metadata entry consists of two system pointers.
+  static constexpr size_t kMemoryChunkMetadataTableEntrySizeLog2 =
+      base::bits::WhichPowerOfTwo(
+          sizeof(IsolateGroup::MemoryChunkMetadataTableEntry));
+  static_assert(kMemoryChunkMetadataTableEntrySizeLog2 ==
+                kSystemPointerSizeLog2 + 1);
   TNode<RawPtrT> table = ExternalConstant(
       ExternalReference::memory_chunk_metadata_table_address());
   TNode<Uint32T> index = Load<Uint32T>(
@@ -14392,8 +14398,8 @@ TNode<IntPtrT> CodeStubAssembler::PageMetadataFromMemoryChunk(
   index = Word32And(index,
                     UniqueUint32Constant(
                         MemoryChunkConstants::kMetadataPointerTableSizeMask));
-  TNode<IntPtrT> offset = ChangeInt32ToIntPtr(
-      Word32Shl(index, UniqueUint32Constant(kSystemPointerSizeLog2)));
+  TNode<IntPtrT> offset = ChangeInt32ToIntPtr(Word32Shl(
+      index, UniqueUint32Constant(kMemoryChunkMetadataTableEntrySizeLog2)));
   TNode<IntPtrT> metadata = Load<IntPtrT>(table, offset);
   // Check that the Metadata belongs to this Chunk, since an attacker with write
   // inside the sandbox could've swapped the index.
