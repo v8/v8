@@ -1478,6 +1478,7 @@ Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args,
         } else {
           DisallowGarbageCollection no_gc;
           Tagged<JSArray> array = Cast<JSArray>(*obj);
+          const bool has_array_prototype = array->HasArrayPrototype(isolate);
           uint32_t length =
               static_cast<uint32_t>(Object::NumberValue(array->length()));
           switch (array->GetElementsKind()) {
@@ -1494,7 +1495,8 @@ Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args,
                     || elements->is_undefined(k)
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
                 ) {
-                  if (Protectors::IsNoElementsIntact(isolate)) {
+                  if (has_array_prototype &&
+                      Protectors::IsNoElementsIntact(isolate)) {
                     // If we do not have elements on the prototype chain,
                     // we can generate a HOLEY_DOUBLE_ELEMENTS.
                     kind = HOLEY_DOUBLE_ELEMENTS;
@@ -1526,15 +1528,20 @@ Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args,
               for (uint32_t k = 0; k < length; k++) {
                 Tagged<Object> element = elements->get(k);
                 if (element == the_hole) {
-                  if (Protectors::IsNoElementsIntact(isolate)) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+                  if (has_array_prototype &&
+                      Protectors::IsNoElementsIntact(isolate)) {
                     // If we do not have elements on the prototype chain,
                     // we can generate a HOLEY_DOUBLE_ELEMENTS.
                     kind = HOLEY_DOUBLE_ELEMENTS;
                     double_storage->set_the_hole(j);
                   } else {
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
                     failure = true;
                     break;
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
                   }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
                 } else {
                   int32_t int_value = Smi::ToInt(element);
                   double_storage->set(j, int_value);
