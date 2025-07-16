@@ -111,7 +111,7 @@ var isBigEndian = new Uint8Array(new Uint16Array([0xABCD]).buffer)[0] === 0xAB;
 testArrayType(Uint16Array, Float16Array, [15360]);
 testArrayType(Uint32Array, Float32Array, [1065353216]);
 if (isBigEndian){
-  testArrayType(Uint16Array, Float32Array, [0, 32831]);
+  testArrayType(Uint16Array, Float32Array, [16256, 0]);
   testArrayType(Uint16Array, Float64Array, [16368, 0, 0, 0]);
   testArrayType(Uint32Array, Float64Array, [1072693248, 0]);
 }
