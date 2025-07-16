@@ -1623,7 +1623,6 @@ filegroup(
         "src/execution/interrupts-scope.h",
         "src/execution/isolate.cc",
         "src/execution/isolate.h",
-        "src/execution/isolate-current.h",
         "src/execution/isolate-data.h",
         "src/execution/isolate-inl.h",
         "src/execution/isolate-utils.h",
