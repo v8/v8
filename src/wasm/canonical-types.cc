@@ -210,8 +210,11 @@ const CanonicalArrayType* TypeCanonicalizer::LookupArray(
 
 void TypeCanonicalizer::AddPredefinedArrayTypes() {
   static constexpr std::pair<CanonicalTypeIndex, CanonicalValueType>
-      kPredefinedArrayTypes[] = {{kPredefinedArrayI8Index, {kWasmI8}},
-                                 {kPredefinedArrayI16Index, {kWasmI16}}};
+      kPredefinedArrayTypes[] = {
+          {kPredefinedArrayI8Index, {kWasmI8}},
+          {kPredefinedArrayI16Index, {kWasmI16}},
+          {kPredefinedArrayExternRefIndex, {kWasmExternRef}},
+          {kPredefinedArrayFuncRefIndex, {kWasmFuncRef}}};
   canonical_types_.reserve(kNumberOfPredefinedTypes, &zone_);
   for (auto [index, element_type] : kPredefinedArrayTypes) {
     DCHECK_GT(kNumberOfPredefinedTypes, index.index);

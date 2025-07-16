@@ -16,6 +16,7 @@
 #include "src/heap/factory.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/property-descriptor.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/strings/unicode-inl.h"
 #include "src/trap-handler/trap-handler.h"
@@ -1288,6 +1289,255 @@ RUNTIME_FUNCTION(Runtime_ClearWasmSuspenderResumeField) {
   DCHECK_EQ(1, args.length());
   Tagged<WasmSuspenderObject> suspender = Cast<WasmSuspenderObject>(args[0]);
   suspender->set_resume(ReadOnlyRoots(isolate).undefined_value());
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+namespace {
+
+class PrototypesSetup : public wasm::Decoder {
+ public:
+  struct Method {
+    enum Kind : uint8_t { kMethod = 0, kGetter = 1, kSetter = 2 };
+
+    Kind kind;
+    bool is_static;
+    base::Vector<const char> name;
+  };
+
+  PrototypesSetup(Isolate* isolate, const uint8_t* begin, const uint8_t* end,
+                  DirectHandle<WasmArray> prototypes,
+                  DirectHandle<WasmArray> functions)
+      : Decoder(begin, end),
+        isolate_(isolate),
+        prototypes_(prototypes),
+        functions_(functions) {}
+
+  Method NextMethod(bool is_static) {
+    uint8_t kind = consume_u8("kind");
+    if (kind > 2) {
+      errorf(pc_offset() - 1, "invalid method kind %u", kind);
+      return {};
+    }
+    uint32_t name_length = consume_u32v("name length");
+    if (!ok()) return {};
+    const char* name_start = reinterpret_cast<const char*>(pc());
+    consume_bytes(name_length);
+    if (!ok()) return {};
+    return {.kind = static_cast<Method::Kind>(kind),
+            .is_static = is_static,
+            .name = {name_start, name_length}};
+  }
+
+  DirectHandle<WasmExportedFunction> NextFunction() {
+    if (function_index_ >= functions_->length()) {
+      ThrowWasmError(isolate_, MessageTemplate::kWasmTrapArrayOutOfBounds);
+      return {};
+    }
+    DirectHandle<WasmFuncRef> funcref = Cast<WasmFuncRef>(
+        WasmArray::GetElement(isolate_, functions_, function_index_++));
+    DirectHandle<WasmInternalFunction> internal_function(
+        funcref->internal(isolate_), isolate_);
+    return Cast<WasmExportedFunction>(
+        WasmInternalFunction::GetOrCreateExternal(internal_function));
+  }
+
+  DirectHandle<JSObject> NextPrototype() {
+    // This implicitly performs a bounds check: {GetElement} would return
+    // {undefined}, which would fail the {TryCast}.
+    DirectHandle<JSObject> prototype;
+    if (!TryCast<JSObject>(
+            WasmArray::GetElement(isolate_, prototypes_, prototype_index_++),
+            &prototype) ||
+        !IsWasmDescriptorOptions(*prototype)) {
+      ThrowWasmError(isolate_, MessageTemplate::kWasmTrapIllegalCast);
+      return {};
+    }
+    return Cast<JSObject>(direct_handle(
+        Cast<WasmDescriptorOptions>(*prototype)->prototype(), isolate_));
+  }
+
+  // Adding multiple properties is more efficient when the prototype
+  // object is in dictionary mode. ICs will transition it back to
+  // "fast" (but slow to modify) properties.
+  void ToDictionaryMode(DirectHandle<JSReceiver> object, int num_properties) {
+    if (!IsJSObject(*object) || !object->HasFastProperties()) return;
+    JSObject::NormalizeProperties(isolate_, Cast<JSObject>(object),
+                                  KEEP_INOBJECT_PROPERTIES, num_properties,
+                                  "Wasm prototype setup");
+  }
+
+  bool InstallMethod(DirectHandle<JSReceiver> receiver, Method method,
+                     DirectHandle<WasmExportedFunction> function) {
+    if (!method.is_static) {
+      WasmExportedFunction::MarkAsReceiverIsFirstParam(isolate_, function);
+    }
+    DirectHandle<String> name =
+        isolate_->factory()->InternalizeUtf8String(method.name);
+    PropertyDescriptor prop;
+    prop.set_enumerable(false);
+    prop.set_configurable(true);
+    if (method.kind == Method::kMethod) {
+      prop.set_writable(true);
+      prop.set_value(function);
+    } else if (method.kind == Method::kGetter) {
+      prop.set_get(function);
+    } else if (method.kind == Method::kSetter) {
+      prop.set_set(function);
+    } else {
+      UNREACHABLE();  // Ruled out by validation.
+    }
+    return JSReceiver::DefineOwnProperty(isolate_, receiver, name, &prop,
+                                         Just(ShouldThrow::kThrowOnError))
+        .FromMaybe(false);
+  }
+
+  bool InstallConstructor(DirectHandle<JSReceiver> prototype,
+                          DirectHandle<WasmExportedFunction> wasm_function,
+                          DirectHandle<String> name,
+                          DirectHandle<JSObject> all_constructors) {
+    DirectHandle<Context> context = isolate_->factory()->NewBuiltinContext(
+        isolate_->native_context(), wasm::kConstructorFunctionContextLength);
+    context->SetNoCell(wasm::kConstructorFunctionContextSlot, *wasm_function);
+    Builtin code = Builtin::kWasmConstructorWrapper;
+    int length = wasm_function->length();
+    DirectHandle<SharedFunctionInfo> sfi =
+        isolate_->factory()->NewSharedFunctionInfoForBuiltin(name, code, length,
+                                                             kDontAdapt);
+    sfi->set_native(true);
+    sfi->set_language_mode(LanguageMode::kStrict);
+    DirectHandle<JSFunction> constructor =
+        Factory::JSFunctionBuilder{isolate_, sfi, context}
+            .set_map(isolate_->strict_function_with_readonly_prototype_map())
+            .Build();
+    constructor->set_prototype_or_initial_map(*prototype, kReleaseStore);
+    prototype->map()->SetConstructor(*constructor);
+
+    PropertyDescriptor prop;
+    prop.set_enumerable(true);
+    prop.set_configurable(true);
+    prop.set_writable(true);
+    prop.set_value(constructor);
+    return JSReceiver::DefineOwnProperty(isolate_, all_constructors, name,
+                                         &prop,
+                                         Just(ShouldThrow::kThrowOnError))
+        .FromMaybe(false);
+  }
+
+ private:
+  Isolate* isolate_;
+  DirectHandle<WasmArray> prototypes_;
+  DirectHandle<WasmArray> functions_;
+  uint32_t function_index_{0};
+  uint32_t prototype_index_{0};
+};
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypes) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+
+  MessageTemplate illegal_cast = MessageTemplate::kWasmTrapIllegalCast;
+  if (!IsWasmArray(args[0])) return ThrowWasmError(isolate, illegal_cast);
+  if (!IsWasmArray(args[1])) return ThrowWasmError(isolate, illegal_cast);
+  if (!IsWasmArray(args[2])) return ThrowWasmError(isolate, illegal_cast);
+  if (!IsJSObject(args[3])) return ThrowWasmError(isolate, illegal_cast);
+  DirectHandle<WasmArray> prototypes(Cast<WasmArray>(args[0]), isolate);
+  DirectHandle<WasmArray> functions(Cast<WasmArray>(args[1]), isolate);
+  DirectHandle<WasmArray> data(Cast<WasmArray>(args[2]), isolate);
+  DirectHandle<JSObject> constructors(Cast<JSObject>(args[3]), isolate);
+  {
+    Tagged<Object> expected_prototypes_map =
+        MakeStrong(isolate->heap()->wasm_canonical_rtts()->get(
+            wasm::TypeCanonicalizer::kPredefinedArrayExternRefIndex.index));
+    Tagged<Object> expected_functions_map =
+        MakeStrong(isolate->heap()->wasm_canonical_rtts()->get(
+            wasm::TypeCanonicalizer::kPredefinedArrayFuncRefIndex.index));
+    Tagged<Object> expected_data_map =
+        MakeStrong(isolate->heap()->wasm_canonical_rtts()->get(
+            wasm::TypeCanonicalizer::kPredefinedArrayI8Index.index));
+    if (prototypes->map() != expected_prototypes_map ||
+        functions->map() != expected_functions_map ||
+        data->map() != expected_data_map) {
+      return ThrowWasmError(isolate, illegal_cast);
+    }
+  }
+
+  // Arrays on the heap can move on GC, so we create an immovable copy of
+  // the data we'll need to decode.
+  uint32_t length = data->length();
+  std::vector<uint8_t> immovable_data(size_t{length});
+  memcpy(immovable_data.data(),
+         reinterpret_cast<const uint8_t*>(data->ElementAddress(0)), length);
+
+  PrototypesSetup decoder(isolate, immovable_data.data(),
+                          immovable_data.data() + length, prototypes,
+                          functions);
+  while (decoder.more()) {
+    DirectHandle<JSObject> prototype = decoder.NextPrototype();
+    if (prototype.is_null()) return ReadOnlyRoots(isolate).exception();
+    uint32_t num_methods = decoder.consume_u32v("number of methods");
+    if (!decoder.ok()) break;
+    decoder.ToDictionaryMode(prototype, num_methods);
+    for (uint32_t i = 0; i < num_methods; i++) {
+      PrototypesSetup::Method method = decoder.NextMethod(false);
+      if (!decoder.ok()) break;
+      DirectHandle<WasmExportedFunction> function = decoder.NextFunction();
+      if (function.is_null() ||
+          !decoder.InstallMethod(prototype, method, function)) {
+        DCHECK(isolate->has_exception());
+        return ReadOnlyRoots(isolate).exception();
+      }
+    }
+    if (!decoder.ok()) break;
+    uint32_t has_constructor = decoder.consume_u32v("constructor");
+    if (!decoder.ok()) break;
+    if (has_constructor == 0) continue;
+    if (has_constructor > 1) {
+      decoder.errorf(decoder.pc_offset() - 1, "invalid constructor count: %d",
+                     has_constructor);
+      break;
+    }
+
+    DirectHandle<WasmExportedFunction> constructor = decoder.NextFunction();
+    uint32_t ctor_name_length = decoder.consume_u32v("constructor name length");
+    if (!decoder.ok()) break;
+    const char* ctor_name_start = reinterpret_cast<const char*>(decoder.pc());
+    decoder.consume_bytes(ctor_name_length);
+    if (!decoder.ok()) break;
+    DirectHandle<String> ctor_name = isolate->factory()->InternalizeUtf8String(
+        {ctor_name_start, ctor_name_length});
+    if (!decoder.InstallConstructor(prototype, constructor, ctor_name,
+                                    constructors)) {
+      DCHECK(isolate->has_exception());
+      return ReadOnlyRoots(isolate).exception();
+    }
+    uint32_t num_statics = decoder.consume_u32v("number of statics");
+    if (!decoder.ok()) break;
+    if (num_statics == 0) continue;
+    decoder.ToDictionaryMode(constructor, num_statics);
+    for (uint32_t i = 0; i < num_statics; i++) {
+      PrototypesSetup::Method method = decoder.NextMethod(true);
+      if (!decoder.ok()) break;
+      DirectHandle<WasmExportedFunction> function = decoder.NextFunction();
+      if (function.is_null() ||
+          !decoder.InstallMethod(constructor, method, function)) {
+        DCHECK(isolate->has_exception());
+        return ReadOnlyRoots(isolate).exception();
+      }
+    }
+    if (!decoder.ok()) break;
+  }
+  if (!decoder.ok()) {
+    DirectHandle<String> message =
+        isolate->factory()
+            ->NewStringFromUtf8(base::VectorOf(decoder.error().message()))
+            .ToHandleChecked();
+    DirectHandle<JSObject> error = isolate->factory()->NewError(
+        isolate->wasm_compile_error_function(), message);
+    return isolate->Throw(*error);
+  }
+
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

@@ -617,9 +617,6 @@ CompileTimeImports ArgumentToCompileOptions(
                                        i::Object::GetProperty(&it), {});
       if (i::IsString(*value)) {
         i::Tagged<i::String> builtin = i::Cast<i::String>(*value);
-        // TODO(jkummerow): We could make other string comparisons to known
-        // constants in this file more efficient by migrating them to this
-        // style (rather than `...->StringEquals(v8_str(...))`).
         if (builtin->IsEqualTo(base::CStrVector("js-string"))) {
           result.Add(CompileTimeImport::kJsString);
           continue;
@@ -631,6 +628,12 @@ CompileTimeImports ArgumentToCompileOptions(
           }
           if (builtin->IsEqualTo(base::CStrVector("text-decoder"))) {
             result.Add(CompileTimeImport::kTextDecoder);
+            continue;
+          }
+        }
+        if (enabled_features.has_custom_descriptors()) {
+          if (builtin->IsEqualTo(base::CStrVector("js-prototypes"))) {
+            result.Add(CompileTimeImport::kJsPrototypes);
             continue;
           }
         }

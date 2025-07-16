@@ -50,7 +50,9 @@ class TypeCanonicalizer {
  public:
   static constexpr CanonicalTypeIndex kPredefinedArrayI8Index{0};
   static constexpr CanonicalTypeIndex kPredefinedArrayI16Index{1};
-  static constexpr uint32_t kNumberOfPredefinedTypes = 2;
+  static constexpr CanonicalTypeIndex kPredefinedArrayExternRefIndex{2};
+  static constexpr CanonicalTypeIndex kPredefinedArrayFuncRefIndex{3};
+  static constexpr uint32_t kNumberOfPredefinedTypes = 4;
 
   TypeCanonicalizer();
 

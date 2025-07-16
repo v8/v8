@@ -2155,27 +2155,28 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
 // Returns the name, Builtin ID, and "length" (in the JSFunction sense, i.e.
 // number of parameters) for the function representing the given import.
 std::tuple<const char*, Builtin, int> NameBuiltinLength(WellKnownImport wki) {
-#define CASE(CamelName, name, length)       \
-  case WellKnownImport::kString##CamelName: \
-    return std::make_tuple(name, Builtin::kWebAssemblyString##CamelName, length)
+#define CASE(CamelName, name, length) \
+  case WellKnownImport::k##CamelName: \
+    return std::make_tuple(name, Builtin::kWebAssembly##CamelName, length)
   switch (wki) {
-    CASE(Cast, "cast", 1);
-    CASE(CharCodeAt, "charCodeAt", 2);
-    CASE(CodePointAt, "codePointAt", 2);
-    CASE(Compare, "compare", 2);
-    CASE(Concat, "concat", 2);
-    CASE(Equals, "equals", 2);
-    CASE(FromCharCode, "fromCharCode", 1);
-    CASE(FromCodePoint, "fromCodePoint", 1);
-    CASE(FromUtf8Array, "decodeStringFromUTF8Array", 3);
-    CASE(FromWtf16Array, "fromCharCodeArray", 3);
-    CASE(IntoUtf8Array, "encodeStringIntoUTF8Array", 3);
-    CASE(Length, "length", 1);
-    CASE(MeasureUtf8, "measureStringAsUTF8", 1);
-    CASE(Substring, "substring", 3);
-    CASE(Test, "test", 1);
-    CASE(ToUtf8Array, "encodeStringToUTF8Array", 1);
-    CASE(ToWtf16Array, "intoCharCodeArray", 3);
+    CASE(ConfigureAllPrototypes, "configureAll", 4);
+    CASE(StringCast, "cast", 1);
+    CASE(StringCharCodeAt, "charCodeAt", 2);
+    CASE(StringCodePointAt, "codePointAt", 2);
+    CASE(StringCompare, "compare", 2);
+    CASE(StringConcat, "concat", 2);
+    CASE(StringEquals, "equals", 2);
+    CASE(StringFromCharCode, "fromCharCode", 1);
+    CASE(StringFromCodePoint, "fromCodePoint", 1);
+    CASE(StringFromUtf8Array, "decodeStringFromUTF8Array", 3);
+    CASE(StringFromWtf16Array, "fromCharCodeArray", 3);
+    CASE(StringIntoUtf8Array, "encodeStringIntoUTF8Array", 3);
+    CASE(StringLength, "length", 1);
+    CASE(StringMeasureUtf8, "measureStringAsUTF8", 1);
+    CASE(StringSubstring, "substring", 3);
+    CASE(StringTest, "test", 1);
+    CASE(StringToUtf8Array, "encodeStringToUTF8Array", 1);
+    CASE(StringToWtf16Array, "intoCharCodeArray", 3);
     default:
       UNREACHABLE();  // Only call this for compile-time imports.
   }

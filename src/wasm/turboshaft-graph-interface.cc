@@ -2283,6 +2283,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       case WKI::kLinkError:
         return false;
 
+      // Custom Descriptors proposal.
+      // These are more relevant for Liftoff than for Turbofan.
+      case WKI::kConfigureAllPrototypes:
+        return false;
+
       // JS String Builtins proposal.
       case WKI::kStringCast: {
         result = ExternRefToString(args[0]);

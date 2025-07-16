@@ -1749,21 +1749,29 @@ void PublishDetectedFeatures(WasmDetectedFeatures detected_features,
 namespace {
 
 bool IsI16Array(wasm::ValueType type, const WasmModule* module) {
-  if (!type.is_object_reference() || !type.has_index()) return false;
-  ModuleTypeIndex reftype = type.ref_index();
-  if (!module->has_array(reftype)) return false;
-  return module->canonical_type_id(reftype) ==
+  if (!type.has_index()) return false;
+  return module->canonical_type_id(type.ref_index()) ==
          TypeCanonicalizer::kPredefinedArrayI16Index;
 }
 
 bool IsI8Array(wasm::ValueType type, const WasmModule* module,
                bool allow_nullable) {
-  if (!type.is_object_reference() || !type.has_index()) return false;
+  if (!type.has_index()) return false;
   if (!allow_nullable && type.is_nullable()) return false;
-  ModuleTypeIndex reftype = type.ref_index();
-  if (!module->has_array(reftype)) return false;
-  return module->canonical_type_id(reftype) ==
+  return module->canonical_type_id(type.ref_index()) ==
          TypeCanonicalizer::kPredefinedArrayI8Index;
+}
+
+bool IsExternRefArray(wasm::ValueType type, const WasmModule* module) {
+  if (!type.has_index()) return false;
+  return module->canonical_type_id(type.ref_index()) ==
+         TypeCanonicalizer::kPredefinedArrayExternRefIndex;
+}
+
+bool IsFuncRefArray(wasm::ValueType type, const WasmModule* module) {
+  if (!type.has_index()) return false;
+  return module->canonical_type_id(type.ref_index()) ==
+         TypeCanonicalizer::kPredefinedArrayFuncRefIndex;
 }
 
 // Returns the start offset of a given import, for use in error messages.
@@ -1947,6 +1955,19 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
         }
         status = WellKnownImport::kStringFromUtf8Array;
         detected->add_imported_strings_utf8();
+      }
+    } else if (collection == base::StaticOneByteVector("js-prototypes") &&
+               imports.contains(CompileTimeImport::kJsPrototypes)) {
+      if (name == base::StaticOneByteVector("configureAll")) {
+        if (sig->parameter_count() != 4 || sig->return_count() != 0 ||
+            !IsExternRefArray(sig->GetParam(0), module) ||
+            !IsFuncRefArray(sig->GetParam(1), module) ||
+            !IsI8Array(sig->GetParam(2), module, false) ||
+            sig->GetParam(3) != kWasmExternRef) {
+          RETURN_ERROR("js-prototypes", "configureAll");
+        }
+        status = WellKnownImport::kConfigureAllPrototypes;
+        detected->add_custom_descriptors();
       }
     }
 #undef RETURN_ERROR

@@ -143,6 +143,7 @@ enum class CompileTimeImport {
   kStringConstants,
   kTextEncoder,
   kTextDecoder,
+  kJsPrototypes,
   // Not really an import, but needs the same handling as compile-time imports.
   kDisableDenormalFloats,
 };

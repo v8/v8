@@ -332,8 +332,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   }
 
   OpIndex BuildCallAndReturn(V<Context> js_context, V<HeapObject> function_data,
-                             base::Vector<OpIndex> args, bool do_conversion,
-                             bool set_in_wasm_flag) {
+                             base::Vector<OpIndex> args, bool do_conversion) {
     const int rets_count = static_cast<int>(sig_->return_count());
     base::SmallVector<OpIndex, 1> rets(rets_count);
 
@@ -374,7 +373,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     const bool do_conversion = true;
     const compiler::turboshaft::OptionalOpIndex frame_state =
         compiler::turboshaft::OptionalOpIndex::Nullopt();
-    const bool set_in_wasm_flag = true;
     const int wasm_param_count = static_cast<int>(sig_->parameter_count());
 
     __ Bind(__ NewBlock());
@@ -441,9 +439,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         OpIndex wasm_param = FromJSFast(params[i], sig_->GetParam(i));
         args[i + 1] = wasm_param;
       }
-      jsval =
-          BuildCallAndReturn(js_context, function_data, base::VectorOf(args),
-                             do_conversion, set_in_wasm_flag);
+      jsval = BuildCallAndReturn(js_context, function_data,
+                                 base::VectorOf(args), do_conversion);
       GOTO(done, jsval);
       __ Bind(slow_path);
     }
@@ -469,7 +466,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     }
 
     jsval = BuildCallAndReturn(js_context, function_data, base::VectorOf(args),
-                               do_conversion, set_in_wasm_flag);
+                               do_conversion);
     // If both the default and a fast transformation paths are present,
     // get the return value based on the path used.
     if (include_fast_path) {
