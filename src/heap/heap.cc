@@ -5403,8 +5403,12 @@ void Heap::RecordStats(HeapStats* stats) {
   stats->memory_allocator_capacity =
       memory_allocator()->Size() + memory_allocator()->Available();
   stats->os_error = base::OS::GetLastError();
-  // TODO(leszeks): Include the string table in both current and peak usage.
-  stats->malloced_memory = isolate_->allocator()->GetCurrentMemoryUsage();
+  stats->malloced_memory = isolate_->allocator()->GetCurrentMemoryUsage() +
+                           isolate_->string_table()->GetCurrentMemoryUsage();
+#if V8_ENABLE_WEBASSEMBLY
+  stats->malloced_memory +=
+      i::wasm::GetWasmEngine()->allocator()->GetCurrentMemoryUsage();
+#endif  // V8_ENABLE_WEBASSEMBLY
   stats->malloced_peak_memory = isolate_->allocator()->GetMaxMemoryUsage();
   GetFromRingBuffer(stats->last_few_messages);
 }
