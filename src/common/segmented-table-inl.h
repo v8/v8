@@ -69,15 +69,25 @@ void SegmentedTable<Entry, size>::Initialize() {
   static_assert(kUseContiguousMemory);
   DCHECK(IsAligned(kReservationSize, root_space->allocation_granularity()));
 
+  std::optional<VirtualAddressSpace::MemoryProtectionKeyId> pkey;
+  if (kUseContiguousMemory && kIsWriteProtected && ThreadIsolation::Enabled()) {
+#if V8_HAS_PKU_JIT_WRITE_PROTECT
+    pkey = ThreadIsolation::pkey();
+#else
+    UNREACHABLE();
+#endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
+  }
+
   if (root_space->CanAllocateSubspaces()) {
-    auto subspace = root_space->AllocateSubspace(VirtualAddressSpace::kNoHint,
-                                                 kReservationSize, kAlignment,
-                                                 PagePermissions::kReadWrite);
+    auto subspace = root_space->AllocateSubspace(
+        VirtualAddressSpace::kNoHint, kReservationSize, kAlignment,
+        PagePermissions::kReadWrite, pkey);
     vas_ = subspace.release();
   } else {
     // This may be required on old Windows versions that don't support
-    // VirtualAlloc2, which is required for subspaces. In that case, just use a
-    // fully-backed emulated subspace.
+    // VirtualAlloc2, which is required for subspaces. In that case, just
+    // use a fully-backed emulated subspace.
+    DCHECK(!pkey);
     Address reservation_base = root_space->AllocatePages(
         VirtualAddressSpace::kNoHint, kReservationSize, kAlignment,
         PagePermissions::kNoAccess);
@@ -104,11 +114,6 @@ void SegmentedTable<Entry, size>::Initialize() {
     }
 
     segment_pool_grow_mutex_ = new base::Mutex();
-  }
-
-  if constexpr (kUseContiguousMemory && kIsWriteProtected) {
-    CHECK(ThreadIsolation::WriteProtectMemory(
-        base(), size, PageAllocator::Permission::kNoAccess));
   }
 }
 
