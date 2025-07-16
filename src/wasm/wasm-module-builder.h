@@ -412,6 +412,15 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   }
   bool IsSignature(ModuleTypeIndex index) { return IsSignature(index.index); }
 
+  // Useful both for retrieving generated types, and for setting rarely-used
+  // fields on recently added types.
+  // This is UNSAFE in the sense that the pointer becomes stale if more types
+  // are added. (We could devise a more robust mechanism, but for fuzzer-only
+  // code we don't want to over-engineer it.)
+  TypeDefinition& GetType_Unsafe(ModuleTypeIndex index) {
+    return types_[index.index];
+  }
+
   const FunctionSig* GetSignature(uint32_t index) {
     DCHECK(types_[index].kind == TypeDefinition::kFunction);
     return types_[index].function_sig;

@@ -1475,16 +1475,27 @@ class BodyGen {
           struct_gen->fields().begin(), struct_gen->fields().end(),
           [](ValueType type) -> bool { return type.is_defaultable(); });
 
+      WasmOpcode opcode;
       if (new_default && can_be_defaultable) {
-        builder_->EmitWithPrefix(kExprStructNewDefault);
-        builder_->EmitU32V(index);
+        opcode = kExprStructNewDefault;
       } else {
+        opcode = kExprStructNew;
         for (int i = 0; i < field_count; i++) {
           Generate(struct_gen->field(i).Unpacked(), data);
         }
-        builder_->EmitWithPrefix(kExprStructNew);
-        builder_->EmitU32V(index);
       }
+      {
+        const TypeDefinition& struct_def =
+            builder_->builder()->GetType_Unsafe(index);
+        if (struct_def.has_descriptor()) {
+          GenerateRef(HeapType::Index(struct_def.descriptor, false,
+                                      RefTypeKind::kStruct)
+                          .AsExact(),
+                      data, kNonNullable);
+        }
+      }
+      builder_->EmitWithPrefix(opcode);
+      builder_->EmitU32V(index);
     } else if (builder_->builder()->IsArrayType(index)) {
       ValueType element_type =
           builder_->builder()->GetArrayType(index)->element_type();
@@ -1941,6 +1952,42 @@ class BodyGen {
     return true;  // It always produces the desired result type.
   }
 
+  bool ref_cast_desc(HeapType type, DataRange* data, Nullability nullable) {
+    if (!builder_->builder()
+             ->GetType_Unsafe(type.ref_index())
+             .has_descriptor()) {
+      return false;
+    }
+    HeapType input_type = top_type(type);
+    GenerateRef(input_type, data);
+    HeapType desc_type =
+        HeapType::Index(
+            builder_->builder()->GetType_Unsafe(type.ref_index()).descriptor,
+            false, RefTypeKind::kStruct)
+            .AsExact(type.exactness());
+    GenerateRef(desc_type, data, kNonNullable);
+    builder_->EmitWithPrefix(nullable ? kExprRefCastDescNull
+                                      : kExprRefCastDesc);
+    builder_->EmitHeapType(type);
+    return true;
+  }
+
+  bool ref_get_desc(HeapType type, DataRange* data, Nullability nullable) {
+    HeapType source;
+    {
+      const TypeDefinition& target_def =
+          builder_->builder()->GetType_Unsafe(type.ref_index());
+      if (!target_def.is_descriptor()) return false;
+      source =
+          HeapType::Index(target_def.describes, false, RefTypeKind::kStruct)
+              .AsExact(type.exactness());
+    }
+    GenerateRef(source, data);
+    builder_->EmitWithPrefix(kExprRefGetDesc);
+    builder_->EmitU32V(source.ref_index());
+    return true;
+  }
+
   HeapType top_type(HeapType type) {
     switch (type.representation()) {
       case HeapType::kAny:
@@ -2095,52 +2142,59 @@ class BodyGen {
     }
 
     Generate(break_types.SubVector(0, break_types.size() - 1), data);
-    if (data->get<bool>()) {
-      // br_on_cast
-      HeapType source_type = top_type(break_type.heap_type());
-      const bool source_is_nullable = data->get<bool>();
-      GenerateRef(source_type, data,
-                  source_is_nullable ? kNullable : kNonNullable);
-      const bool target_is_nullable =
-          source_is_nullable && break_type.is_nullable() && data->get<bool>();
-      builder_->EmitWithPrefix(kExprBrOnCast);
-      builder_->EmitU32V(source_is_nullable + (target_is_nullable << 1));
-      builder_->EmitU32V(block_index);
-      builder_->EmitHeapType(source_type);             // source type
-      builder_->EmitHeapType(break_type.heap_type());  // target type
+    uint8_t config = data->get<uint8_t>();
+    bool br_on_success = config & 1;
+    bool use_descriptor = config & 2;
+    bool source_is_nullable = config & 4;
+    bool target_is_nullable = config & 8;
+
+    WasmOpcode opcode;
+    HeapType source_type;
+    HeapType target_type;
+    base::SmallVector<ValueType, 32> fallthrough_types(break_types);
+    if (br_on_success) {
+      opcode = kExprBrOnCast;
+      source_type = top_type(break_type.heap_type());
+      target_type = break_type.heap_type();
+      target_is_nullable =
+          source_is_nullable && break_type.is_nullable() && target_is_nullable;
       // Fallthrough: The type has been up-cast to the source type of the
       // br_on_cast instruction! (If the type on the stack was more specific,
       // this loses type information.)
-      base::SmallVector<ValueType, 32> fallthrough_types(break_types);
       fallthrough_types.back() = ValueType::RefMaybeNull(
           source_type, source_is_nullable ? kNullable : kNonNullable);
-      ConsumeAndGenerate(base::VectorOf(fallthrough_types), {}, data);
-      // Generate the actually desired ref type.
-      GenerateRef(type, data, nullable);
     } else {
-      // br_on_cast_fail
-      HeapType source_type = break_type.heap_type();
-      const bool source_is_nullable = data->get<bool>();
-      GenerateRef(source_type, data,
-                  source_is_nullable ? kNullable : kNonNullable);
-      const bool target_is_nullable =
-          source_is_nullable &&
-          (!break_type.is_nullable() || data->get<bool>());
-      HeapType target_type = choose_sub_type(source_type, data);
-
-      builder_->EmitWithPrefix(kExprBrOnCastFail);
-      builder_->EmitU32V(source_is_nullable + (target_is_nullable << 1));
-      builder_->EmitU32V(block_index);
-      builder_->EmitHeapType(source_type);
-      builder_->EmitHeapType(target_type);
+      opcode = kExprBrOnCastFail;
+      source_type = break_type.heap_type();
+      target_is_nullable = source_is_nullable &&
+                           (!break_type.is_nullable() || target_is_nullable);
+      target_type = choose_sub_type(source_type, data);
       // Fallthrough: The type has been cast to the target type.
-      base::SmallVector<ValueType, 32> fallthrough_types(break_types);
       fallthrough_types.back() = ValueType::RefMaybeNull(
           target_type, target_is_nullable ? kNullable : kNonNullable);
-      ConsumeAndGenerate(base::VectorOf(fallthrough_types), {}, data);
-      // Generate the actually desired ref type.
-      GenerateRef(type, data, nullable);
     }
+    GenerateRef(source_type, data,
+                source_is_nullable ? kNullable : kNonNullable);
+    if (use_descriptor && target_type.has_index()) {
+      const TypeDefinition& target_type_def =
+          builder_->builder()->GetType_Unsafe(target_type.ref_index());
+      if (target_type_def.has_descriptor()) {
+        HeapType desc_type = HeapType::Index(target_type_def.descriptor, false,
+                                             RefTypeKind::kStruct)
+                                 .AsExact(target_type.exactness());
+        GenerateRef(desc_type, data, kNonNullable);
+        if (opcode == kExprBrOnCast) opcode = kExprBrOnCastDesc;
+        if (opcode == kExprBrOnCastFail) opcode = kExprBrOnCastDescFail;
+      }
+    }
+    builder_->EmitWithPrefix(opcode);
+    builder_->EmitU32V(source_is_nullable + (target_is_nullable << 1));
+    builder_->EmitU32V(block_index);
+    builder_->EmitHeapType(source_type);
+    builder_->EmitHeapType(target_type);
+    ConsumeAndGenerate(base::VectorOf(fallthrough_types), {}, data);
+    // Generate the actually desired ref type.
+    GenerateRef(type, data, nullable);
     return true;
   }
 
@@ -3329,6 +3383,8 @@ class BodyGen {
                     &BodyGen::array_get_ref,    //
                     &BodyGen::struct_get_ref,   //
                     &BodyGen::ref_cast,         //
+                    &BodyGen::ref_cast_desc,    //
+                    &BodyGen::ref_get_desc,     //
                     &BodyGen::ref_as_non_null,  //
                     &BodyGen::br_on_cast);      //
 
@@ -3783,15 +3839,30 @@ class ModuleGen {
     while (current_type_index < num_types_) {
       // First, pick a random start for the next group. We allow it to be
       // beyond the end of types (i.e., we add no further recursive groups).
-      uint8_t group_start = module_range_->get<uint8_t>() %
-                                (num_types_ - current_type_index + 1) +
-                            current_type_index;
+      // Recgroups are more interesting than non-recgroups, so in 50% of cases
+      // we want a recgroup to start right away.
+      uint8_t diceroll = module_range_->get<uint8_t>();
+      uint8_t group_start;
+      if (diceroll < 128) {
+        group_start = current_type_index;
+      } else {
+        group_start = diceroll % (num_types_ - current_type_index + 1) +
+                      current_type_index;
+      }
       DCHECK_GE(group_start, current_type_index);
       current_type_index = group_start;
       if (group_start < num_types_) {
         // If we did not reach the end of the types, pick a random group size.
-        uint8_t group_size =
-            module_range_->get<uint8_t>() % (num_types_ - group_start) + 1;
+        // We generate rather few types, and recgroups with some number of
+        // types in them are more interesting, so in 50% of cases we want the
+        // recgroup to extend all the way to the end.
+        diceroll = module_range_->get<uint8_t>();
+        uint8_t group_size;
+        if (diceroll < 128) {
+          group_size = num_types_ - group_start;
+        } else {
+          group_size = diceroll % (num_types_ - group_start) + 1;
+        }
         DCHECK_LE(group_start + group_size, num_types_);
         for (uint8_t i = group_start; i < group_start + group_size; i++) {
           explicit_rec_groups.emplace(i, group_start + group_size - 1);
@@ -3809,27 +3880,96 @@ class ModuleGen {
       std::vector<ModuleTypeIndex>& struct_types, uint8_t& current_type_index,
       uint8_t kNumDefaultArrayTypes) {
     uint8_t last_struct_type_index = current_type_index + num_structs_;
+    ModuleTypeIndex is_descriptor_for = kNoType;
+    ModuleTypeIndex parent_descriptor = kNoType;
     for (; current_type_index < last_struct_type_index; current_type_index++) {
+      bool is_descriptor = is_descriptor_for != kNoType;
+      ModuleTypeIndex next_parent_descriptor = kNoType;
       auto rec_group = explicit_rec_groups.find(current_type_index);
       uint8_t current_rec_group_end = rec_group != explicit_rec_groups.end()
                                           ? rec_group->second
                                           : current_type_index;
 
+      // Be frugal: only consume one byte of randomness for multiple decisions.
+      // We only use two bits for the number of fields (so technically we
+      // won't even reach 4 fields in one go, but subtypes will).
+      static_assert(kMaxStructFields <= 4);
+      uint8_t config = module_range_->get<uint8_t>();
+      bool is_final = (config & 3) == 0;            // Bits 0-1
+      bool have_supertype = config & 4;             // Bit 2
+      bool have_descriptor = config & 8;            // Bit 3
+      uint8_t num_fields = (config >> 4) & 3;       // Bits 4-5
+      uint8_t maybe_supertype = (config >> 6) & 3;  // Bits 6-7
       ModuleTypeIndex supertype = kNoSuperType;
-      uint8_t num_fields =
-          module_range_->get<uint8_t>() % (kMaxStructFields + 1);
+
+      // Can't have a descriptor if this is the last type in the recgroup or
+      // the last struct type.
+      bool can_have_descriptor =
+          v8_flags.experimental_wasm_custom_descriptors &&
+          current_type_index != current_rec_group_end &&
+          current_type_index < last_struct_type_index - 1;
+      if (have_descriptor && !can_have_descriptor) {
+        have_descriptor = false;
+      }
 
       uint32_t existing_struct_types =
-          current_type_index - kNumDefaultArrayTypes;
-      if (existing_struct_types > 0 && module_range_->get<bool>()) {
-        supertype = ModuleTypeIndex{module_range_->get<uint8_t>() %
-                                        existing_struct_types +
-                                    kNumDefaultArrayTypes};
-        num_fields += builder_->GetStructType(supertype)->field_count();
+          static_cast<uint32_t>(struct_types.size());
+      if (is_descriptor) {
+        // Supertypes of descriptors must be descriptors themselves. We ensure
+        // that by passing it along instead of picking it randomly.
+        supertype = parent_descriptor;
+        // It'd be nice to support descriptors that have descriptors themselves,
+        // but this fuzzer is currently too limited for that: in particular,
+        // {can_have_descriptor} would need to look more than one type ahead,
+        // or the pre-selected number of structs would need to be allowed to
+        // be exceeded.
+        have_descriptor = false;
+        // If the described type isn't final, we won't make the descriptor
+        // final either -- any subtypes wouldn't know how to deal with that.
+        if (!builder_->GetType_Unsafe(is_descriptor_for).is_final) {
+          is_final = false;
+        }
+      } else if (existing_struct_types > 0 && have_supertype) {
+        supertype = ModuleTypeIndex{
+            struct_types[maybe_supertype % existing_struct_types]};
+        // A non-descriptor type can't inherit from a descriptor. Fix that
+        // if necessary by going back. Due to the way we generate descriptor
+        // types here, we know that there's always a non-descriptor right
+        // before a descriptor.
+        if (builder_->GetType_Unsafe(supertype).is_descriptor()) {
+          DCHECK_GT(maybe_supertype, 0);
+          maybe_supertype--;
+          supertype = ModuleTypeIndex{
+              struct_types[maybe_supertype % existing_struct_types]};
+        }
       }
-      // TODO(403372470): Add support for custom descriptors.
+      do {
+        if (supertype == kNoSuperType) break;
+        const TypeDefinition& supertype_def =
+            builder_->GetType_Unsafe(supertype);
+        // If the chosen supertype is final, it can't be a supertype.
+        if (supertype_def.is_final) {
+          supertype = kNoSuperType;
+          break;
+        }
+        // If the chosen supertype has a descriptor, this type must have one
+        // too, otherwise that can't be the supertype.
+        if (supertype_def.has_descriptor()) {
+          if (can_have_descriptor) {
+            have_descriptor = true;
+            // We'll generate the descriptor in the next loop iteration.
+            next_parent_descriptor = supertype_def.descriptor;
+          } else {
+            supertype = kNoSuperType;
+            break;
+          }
+        }
+        num_fields += builder_->GetStructType(supertype)->field_count();
+      } while (false);
+
       // TODO(42204563): Add support for shared structs.
-      StructType::Builder struct_builder(zone_, num_fields, false, false);
+      StructType::Builder struct_builder(zone_, num_fields, is_descriptor,
+                                         false);
 
       // Add all fields from super type.
       uint32_t field_index = 0;
@@ -3847,6 +3987,8 @@ class ModuleGen {
         // - We allow a type to only have non-nullable fields of types that
         //   are defined earlier. This way we avoid infinite non-nullable
         //   constructions. Also relevant for arrays and functions.
+        //   If the current type is a descriptor, "defined earlier" means
+        //   "defined before the type being described".
         // - On the other hand, nullable fields can be picked up to the end of
         //   the current recursive group.
         // - We exclude the non-nullable generic types arrayref, anyref,
@@ -3854,19 +3996,33 @@ class ModuleGen {
         //   arrays. This is so that GenerateInitExpr has a way to break a
         //   recursion between a struct/array field and those types
         //   ((ref extern) gets materialized through (ref any)).
+        uint8_t max_non_nullable_type = current_type_index;
+        if (is_descriptor) max_non_nullable_type--;
         ValueType type = GetValueTypeHelper(
             options_, module_range_, current_rec_group_end + 1,
-            current_type_index, kIncludeNumericTypes, kIncludePackedTypes,
+            max_non_nullable_type, kIncludeNumericTypes, kIncludePackedTypes,
             kExcludeSomeGenerics);
 
         bool mutability = module_range_->get<bool>();
         struct_builder.AddField(type, mutability);
       }
       StructType* struct_fuz = struct_builder.Build();
-      // TODO(14034): Generate some final types too.
       ModuleTypeIndex index =
-          builder_->AddStructType(struct_fuz, false, supertype);
+          builder_->AddStructType(struct_fuz, is_final, supertype);
+      DCHECK_EQ(index.index, current_type_index);
       struct_types.push_back(index);
+      if (have_descriptor) {
+        builder_->GetType_Unsafe(index).descriptor =
+            ModuleTypeIndex{index.index + 1};
+      }
+      if (is_descriptor) {
+        builder_->GetType_Unsafe(index).describes = is_descriptor_for;
+      }
+
+      // Pass along required information to the next iteration, which will
+      // generate the descriptor if we decided to have one.
+      is_descriptor_for = have_descriptor ? index : kNoType;
+      parent_descriptor = next_parent_descriptor;
     }
   }
 
@@ -4163,7 +4319,17 @@ WasmInitExpr GenerateStructNewInitExpr(
       range.get<bool>();
 
   if (use_new_default) {
-    return WasmInitExpr::StructNewDefault(index);
+    ZoneVector<WasmInitExpr>* descriptor = nullptr;
+    const TypeDefinition& struct_def = builder->GetType_Unsafe(index);
+    if (struct_def.has_descriptor()) {
+      descriptor = zone->New<ZoneVector<WasmInitExpr>>(zone);
+      ValueType type =
+          ValueType::Ref(struct_def.descriptor, false, RefTypeKind::kStruct)
+              .AsExact();
+      descriptor->push_back(GenerateInitExpr(
+          zone, range, builder, type, structs, arrays, recursion_depth + 1));
+    }
+    return WasmInitExpr::StructNewDefault(index, descriptor);
   } else {
     ZoneVector<WasmInitExpr>* elements =
         zone->New<ZoneVector<WasmInitExpr>>(zone);
@@ -4172,6 +4338,14 @@ WasmInitExpr GenerateStructNewInitExpr(
       elements->push_back(GenerateInitExpr(
           zone, range, builder, struct_type->field(field_index), structs,
           arrays, recursion_depth + 1));
+    }
+    const TypeDefinition& struct_def = builder->GetType_Unsafe(index);
+    if (struct_def.has_descriptor()) {
+      ValueType type =
+          ValueType::Ref(struct_def.descriptor, false, RefTypeKind::kStruct)
+              .AsExact();
+      elements->push_back(GenerateInitExpr(zone, range, builder, type, structs,
+                                           arrays, recursion_depth + 1));
     }
     return WasmInitExpr::StructNew(index, elements);
   }

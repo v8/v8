@@ -695,6 +695,17 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
         buffer->write_u8(kWasmSubtypeCode);
         buffer->write_u8(0);
       }
+      if (type.is_shared) {
+        buffer->write_u8(kSharedFlagCode);
+      }
+      if (type.is_descriptor()) {
+        buffer->write_u8(kWasmDescribesCode);
+        buffer->write_u32v(type.describes);
+      }
+      if (type.has_descriptor()) {
+        buffer->write_u8(kWasmDescriptorCode);
+        buffer->write_u32v(type.descriptor);
+      }
       switch (type.kind) {
         case TypeDefinition::kFunction: {
           const FunctionSig* sig = type.function_sig;

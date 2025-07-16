@@ -457,6 +457,10 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
       // `PrintModule()` of `mjsunit-module-disassembler-impl.h`, to make bugs
       // easier to reproduce with generated mjsunit test cases.
 
+      // The "pure Wasm" part of this proposal is considered ready for
+      // fuzzing, the JS-related part (prototypes etc) not yet.
+      v8_flags.experimental_wasm_custom_descriptors = true;
+
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
       // Fuzz revectorization, which is otherwise still considered experimental.
       v8_flags.experimental_wasm_revectorize = true;
