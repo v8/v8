@@ -1177,6 +1177,10 @@ IrregexpInterpreter::Result IrregexpInterpreter::MatchInternal(
 
 // This method is called through an external reference from RegExpExecInternal
 // builtin.
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+// Hardware sandboxing is incompatible with ASAN, see crbug.com/432168626.
+DISABLE_ASAN
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 int IrregexpInterpreter::MatchForCallFromJs(
     Address subject, int32_t start_position, Address, Address,
     int* output_registers, int32_t output_register_count,
