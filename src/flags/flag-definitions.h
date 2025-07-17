@@ -884,7 +884,7 @@ DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, maglev)
 DEFINE_IMPLICATION(disable_optimizing_compilers, liftoff)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, wasm_tier_up)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, wasm_dynamic_tiering)
-// Disable translation of asm.js to Wasm
+// Disable translation of asm.js to Wasm.
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, validate_asm)
 #endif  // V8_ENABLE_WEBASSEMBLY
 // Field type tracking is only used by TurboFan, so can be disabled.
@@ -1250,14 +1250,20 @@ DEFINE_BOOL(print_deopt_stress, false, "print number of possible deopt points")
 // Flags for TurboFan.
 #ifdef V8_ENABLE_TURBOFAN
 #define V8_ENABLE_TURBOFAN_BOOL true
-DEFINE_BOOL(turbofan, true, "use the Turbofan optimizing compiler")
+DEFINE_BOOL(turbofan, true,
+            "use the Turbofan optimizing compiler for JavaScript code "
+            "(Wasm uses separate flags)")
 // TODO(leszeks): Temporary alias until we make sure all our infra is passing
 // --turbofan instead of --opt.
 DEFINE_ALIAS_BOOL(opt, turbofan)
 #else
 #define V8_ENABLE_TURBOFAN_BOOL false
-DEFINE_BOOL_READONLY(turbofan, false, "use the Turbofan optimizing compiler")
-DEFINE_BOOL_READONLY(opt, false, "use the Turbofan optimizing compiler")
+DEFINE_BOOL_READONLY(turbofan, false,
+                     "use the Turbofan optimizing compiler for JavaScript code "
+                     "(Wasm uses separate flags)")
+DEFINE_BOOL_READONLY(opt, false,
+                     "use the Turbofan optimizing compiler for JavaScript code "
+                     "(Wasm uses separate flags)")
 #endif  // V8_ENABLE_TURBOFAN
 
 DEFINE_BOOL(
@@ -1919,7 +1925,9 @@ DEFINE_BOOL(wasm_staging, false, "enable staged wasm features")
 FOREACH_WASM_STAGING_FEATURE_FLAG(WASM_STAGING_IMPLICATION)
 #undef WASM_STAGING_IMPLICATION
 
-DEFINE_DEBUG_BOOL(wasm_opt, true, "enable wasm optimization")
+DEFINE_DEBUG_BOOL(
+    wasm_opt, true,
+    "enable optimization when compiling Wasm functions with Turbofan")
 DEFINE_BOOL(wasm_bounds_checks, true,
             "enable bounds checks (disable for performance testing only)")
 DEFINE_BOOL(wasm_stack_checks, true,
