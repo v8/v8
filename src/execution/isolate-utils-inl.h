@@ -22,7 +22,7 @@ V8_INLINE bool GetIsolateFromHeapObject(Tagged<HeapObject> object,
     *isolate = nullptr;
     return false;
   }
-  *isolate = Isolate::FromHeap(chunk->GetHeap());
+  *isolate = Isolate::FromHeap(chunk->Metadata()->heap());
   return true;
 }
 

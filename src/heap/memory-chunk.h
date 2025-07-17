@@ -228,8 +228,6 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     return untrusted_main_thread_flags_;
   }
 
-  V8_INLINE Heap* GetHeap();
-
   // Emits a memory barrier. For TSAN builds the other thread needs to perform
   // MemoryChunk::SynchronizedLoad() to simulate the barrier.
   void InitializationMemoryFence();

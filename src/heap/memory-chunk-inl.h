@@ -12,8 +12,7 @@
 #include "src/heap/memory-chunk-metadata.h"
 #include "src/sandbox/check.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 template <bool check_isolate>
 MemoryChunkMetadata* MemoryChunk::MetadataImpl(const Isolate* isolate) {
@@ -69,9 +68,6 @@ const MemoryChunkMetadata* MemoryChunk::MetadataNoIsolateCheck() const {
   return const_cast<MemoryChunk*>(this)->MetadataImpl<false>(nullptr);
 }
 
-Heap* MemoryChunk::GetHeap() { return Metadata(Isolate::Current())->heap(); }
-
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_HEAP_MEMORY_CHUNK_INL_H_

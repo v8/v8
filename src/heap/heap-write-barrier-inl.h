@@ -385,7 +385,7 @@ void WriteBarrier::GenerationalBarrierForCppHeapPointer(
   if (V8_LIKELY(HeapLayout::InYoungGeneration(memory_chunk, host))) {
     return;
   }
-  auto* cpp_heap = memory_chunk->GetHeap()->cpp_heap();
+  auto* cpp_heap = memory_chunk->Metadata()->heap()->cpp_heap();
   v8::internal::CppHeap::From(cpp_heap)->RememberCrossHeapReferenceIfNeeded(
       host, value);
 }

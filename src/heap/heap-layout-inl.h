@@ -94,7 +94,7 @@ bool HeapLayout::InBlackAllocatedPage(Tagged<HeapObject> object) {
 
 // static
 bool HeapLayout::IsOwnedByAnyHeap(Tagged<HeapObject> object) {
-  return MemoryChunk::FromHeapObject(object)->GetHeap();
+  return MemoryChunk::FromHeapObject(object)->Metadata()->heap();
 }
 
 }  // namespace v8::internal
