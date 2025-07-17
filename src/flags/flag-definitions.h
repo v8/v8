@@ -374,6 +374,10 @@ DEFINE_BOOL(builtin_subclassing, true,
 DEFINE_BOOL(enable_sharedarraybuffer_per_context, false,
             "enable the SharedArrayBuffer constructor per context")
 
+DEFINE_EXPERIMENTAL_FEATURE(
+    for_of_optimization,
+    "Experimental flag for improving ForOf loops on ArrayIterator")
+
 #ifdef V8_INTL_SUPPORT
 DEFINE_BOOL(icu_timezone_data, true, "get information about timezones from ICU")
 #endif
