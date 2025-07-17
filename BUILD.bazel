@@ -2229,6 +2229,7 @@ filegroup(
         "src/objects/scope-info.cc",
         "src/objects/scope-info.h",
         "src/objects/scope-info-inl.h",
+        "src/objects/script.cc",
         "src/objects/script.h",
         "src/objects/script-inl.h",
         "src/objects/shared-function-info.cc",
