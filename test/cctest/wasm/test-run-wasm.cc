@@ -177,7 +177,8 @@ Float32 f32_add_result(Float32 lhs, Float32 rhs) {
 Float32 f32_sub_result(Float32 lhs, Float32 rhs) {
   if (auto maybe_nan = propagate_f32_binop_nan(lhs, rhs)) return *maybe_nan;
 
-#if defined(V8_TARGET_ARCH_ARM64)
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_PPC64) || \
+    defined(V8_TARGET_ARCH_S390X)
   // inf - inf -> NaN
   // -inf - -inf -> NaN
   if (lhs.is_inf() && rhs.is_inf() && lhs.is_negative() == rhs.is_negative()) {

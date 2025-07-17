@@ -4463,8 +4463,9 @@ void MacroAssembler::SubF32(DoubleRegister dst, DoubleRegister lhs,
   if (dst == lhs) {
     sebr(dst, rhs);
   } else if (dst == rhs) {
-    sebr(dst, lhs);
-    lcebr(dst, dst);
+    ler(kScratchDoubleReg, dst);
+    ler(dst, lhs);
+    sebr(dst, kScratchDoubleReg);
   } else {
     ler(dst, lhs);
     sebr(dst, rhs);
