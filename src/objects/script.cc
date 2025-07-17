@@ -5,6 +5,7 @@
 #include "src/objects/script.h"
 
 #include "src/ast/ast.h"
+#include "src/common/globals.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/tracing/traced-value.h"
 #include "src/utils/hex-format.h"
@@ -18,7 +19,7 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     FunctionLiteral* function_literal) {
   DCHECK(function_literal->shared_function_info().is_null());
   int function_literal_id = function_literal->function_literal_id();
-  CHECK_NE(function_literal_id, kInvalidInfoId);
+  CHECK_GE(function_literal_id, 0);
   // If this check fails, the problem is most probably the function id
   // renumbering done by AstFunctionLiteralIdReindexer; in particular, that
   // AstTraversalVisitor doesn't recurse properly in the construct which
@@ -32,6 +33,11 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
   }
   Handle<SharedFunctionInfo> result(Cast<SharedFunctionInfo>(heap_object),
                                     isolate);
+  CHECK(Is<SharedFunctionInfo>(*result));
+  CHECK_EQ(result->StartPosition(), function_literal->start_position());
+  CHECK_EQ(result->EndPosition(), function_literal->end_position());
+  CHECK_EQ(result->function_literal_id(kRelaxedLoad),
+           function_literal->function_literal_id());
   function_literal->set_shared_function_info(result);
   return result;
 }
