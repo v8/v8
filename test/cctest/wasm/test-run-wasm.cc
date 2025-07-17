@@ -139,10 +139,7 @@ WASM_EXEC_TEST(Int32Add_multi_if) {
 }
 
 namespace {
-// Compute the expected result of a float binop.
-// The Wasm spec is pretty relaxed on this, but we want a deterministic result,
-// in particular to be able to do differential fuzzing across tiers.
-Float32 f32_add_result(Float32 lhs, Float32 rhs) {
+std::optional<Float32> propagate_f32_binop_nan(Float32 lhs, Float32 rhs) {
 #if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_S390X) || \
     defined(V8_TARGET_ARCH_LOONG64)
   // On these platforms any signalling NaN "wins" (but is made quiet).
@@ -156,6 +153,14 @@ Float32 f32_add_result(Float32 lhs, Float32 rhs) {
 #endif
   if (lhs.is_nan()) return lhs.to_quiet_nan();
   if (rhs.is_nan()) return rhs.to_quiet_nan();
+  return {};
+}
+
+// Compute the expected result of a float binop.
+// The Wasm spec is pretty relaxed on this, but we want a deterministic result,
+// in particular to be able to do differential fuzzing across tiers.
+Float32 f32_add_result(Float32 lhs, Float32 rhs) {
+  if (auto maybe_nan = propagate_f32_binop_nan(lhs, rhs)) return *maybe_nan;
 
 #if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_PPC64) ||   \
     defined(V8_TARGET_ARCH_S390X) || defined(V8_TARGET_ARCH_LOONG64) || \
@@ -169,6 +174,20 @@ Float32 f32_add_result(Float32 lhs, Float32 rhs) {
   return Float32::FromNonSignallingFloat(lhs.get_scalar() + rhs.get_scalar());
 }
 
+Float32 f32_sub_result(Float32 lhs, Float32 rhs) {
+  if (auto maybe_nan = propagate_f32_binop_nan(lhs, rhs)) return *maybe_nan;
+
+#if defined(V8_TARGET_ARCH_ARM64)
+  // inf - inf -> NaN
+  // -inf - -inf -> NaN
+  if (lhs.is_inf() && rhs.is_inf() && lhs.is_negative() == rhs.is_negative()) {
+    return Float32::quiet_nan();
+  }
+#endif
+
+  return Float32::FromNonSignallingFloat(lhs.get_scalar() - rhs.get_scalar());
+}
+
 using F32ExpectedFn = base::FunctionRef<Float32(Float32, Float32)>;
 
 void TestF32BinopOnConsts(TestExecutionTier tier, uint8_t opcode,
@@ -178,9 +197,8 @@ void TestF32BinopOnConsts(TestExecutionTier tier, uint8_t opcode,
     FOR_FLOAT32_INPUTS(j) {
       WasmRunner<float> r(tier);
       r.Build({WASM_F32(i), WASM_F32(j), opcode});
-      Float32 expected =
-          expected_fn(Float32::FromBits(base::bit_cast<uint32_t>(i)),
-                      Float32::FromBits(base::bit_cast<uint32_t>(j)));
+      Float32 expected = expected_fn(Float32::FromNonSignallingFloat(i),
+                                     Float32::FromNonSignallingFloat(j));
       CHECK_FLOAT_EQ(expected.get_scalar(), r.Call());
     }
   }
@@ -207,9 +225,8 @@ void TestF32BinopOnParams(TestExecutionTier tier, uint8_t opcode,
 
   FOR_FLOAT32_INPUTS(i) {
     FOR_FLOAT32_INPUTS(j) {
-      Float32 expected =
-          expected_fn(Float32::FromBits(base::bit_cast<uint32_t>(i)),
-                      Float32::FromBits(base::bit_cast<uint32_t>(j)));
+      Float32 expected = expected_fn(Float32::FromNonSignallingFloat(i),
+                                     Float32::FromNonSignallingFloat(j));
       CHECK_FLOAT_EQ(expected.get_scalar(), r1.Call(i, j));
     }
   }
@@ -236,9 +253,8 @@ void TestF32BinopOnConstAndParam(TestExecutionTier tier, uint8_t opcode,
     r.Build({WASM_F32(i), WASM_LOCAL_GET(0), opcode});
 
     FOR_FLOAT32_INPUTS(j) {
-      Float32 expected =
-          expected_fn(Float32::FromBits(base::bit_cast<uint32_t>(i)),
-                      Float32::FromBits(base::bit_cast<uint32_t>(j)));
+      Float32 expected = expected_fn(Float32::FromNonSignallingFloat(i),
+                                     Float32::FromNonSignallingFloat(j));
       CHECK_FLOAT_EQ(expected.get_scalar(), r.Call(j));
     }
   }
@@ -265,9 +281,8 @@ void TestF32BinopOnParamAndConst(TestExecutionTier tier, uint8_t opcode,
     r.Build({WASM_LOCAL_GET(0), WASM_F32(j), opcode});
 
     FOR_FLOAT32_INPUTS(i) {
-      Float32 expected =
-          expected_fn(Float32::FromBits(base::bit_cast<uint32_t>(i)),
-                      Float32::FromBits(base::bit_cast<uint32_t>(j)));
+      Float32 expected = expected_fn(Float32::FromNonSignallingFloat(i),
+                                     Float32::FromNonSignallingFloat(j));
       CHECK_FLOAT_EQ(expected.get_scalar(), r.Call(i));
     }
   }
@@ -303,6 +318,7 @@ void TestF32BinopOnParamAndConst(TestExecutionTier tier, uint8_t opcode,
 }  // anonymous namespace
 
 F32_BINOP_TEST(Float32Add, kExprF32Add, f32_add_result)
+F32_BINOP_TEST(Float32Sub, kExprF32Sub, f32_sub_result)
 
 WASM_EXEC_TEST(Float64Add) {
   WasmRunner<int32_t> r(execution_tier);

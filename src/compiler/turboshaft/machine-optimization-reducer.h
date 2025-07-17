@@ -180,9 +180,8 @@ bool CanFoldFloatConstants(bool ensure_deterministic_nan, T k1, T k2) {
   if (!ensure_deterministic_nan) return true;
   // Operations involving NaN values have platform specific results.
   return (!std::isnan(k1) && !std::isnan(k2)) &&
-         // Operations involving +Inf and -Inf values have platform specific
-         // results.
-         (!(std::isinf(k1) && std::isinf(k2) && k1 != k2));
+         // Operations involving +/-Inf values have platform specific results.
+         (!std::isinf(k1) || !std::isinf(k2));
 }
 
 }  // namespace detail
