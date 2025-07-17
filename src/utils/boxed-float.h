@@ -76,10 +76,6 @@ class Float32 {
     return Float32::FromBits(bit_pattern_ ^ kSignBit);
   }
 
-  // Return a pointer to the field storing the bit pattern. Used in code
-  // generation tests to store generated values there directly.
-  uint32_t* get_bits_address() { return &bit_pattern_; }
-
   static constexpr Float32 FromBits(uint32_t bits) { return Float32(bits); }
 
   // This static constructor allows passing NaNs, but as the signalling bit
@@ -174,10 +170,6 @@ class Float64 {
     DCHECK(quiet_nan.is_quiet_nan());
     return quiet_nan;
   }
-
-  // Return a pointer to the field storing the bit pattern. Used in code
-  // generation tests to store generated values there directly.
-  uint64_t* get_bits_address() { return &bit_pattern_; }
 
   static constexpr Float64 FromBits(uint64_t bits) { return Float64(bits); }
 
