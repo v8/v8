@@ -1074,6 +1074,8 @@ ValueNode* NonTaggedToTagged(const MaglevGraphBuilder* builder,
       return FromFloat64ToTagged(builder, node_type, value, predecessor);
     case ValueRepresentation::kHoleyFloat64:
       return FromHoleyFloat64ToTagged(builder, node_type, value, predecessor);
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
   }
 }
 ValueNode* EnsureTagged(const MaglevGraphBuilder* builder,

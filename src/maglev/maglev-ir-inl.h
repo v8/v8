@@ -124,7 +124,7 @@ void NodeBase::OverwriteWithIdentityTo(ValueNode* node) {
   // Unfortunately we cannot remove uses from deopt frames, since these could be
   // shared with other nodes.
   set_opcode(Opcode::kIdentity);
-  set_properties(OpProperties::Pure());
+  set_properties(StaticPropertiesForOpcode(Opcode::kIdentity));
   bitfield_ = InputCountField::update(bitfield_, 1);
   set_input(0, node);
 }

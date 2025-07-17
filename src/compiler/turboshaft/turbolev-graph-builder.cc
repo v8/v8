@@ -83,6 +83,8 @@ MachineType MachineTypeFor(maglev::ValueRepresentation repr) {
       return MachineType::Float64();
     case maglev::ValueRepresentation::kHoleyFloat64:
       return MachineType::HoleyFloat64();
+    case maglev::ValueRepresentation::kNone:
+      UNREACHABLE();
   }
 }
 
@@ -792,6 +794,9 @@ class GraphBuildingNodeProcessor {
         case maglev::ValueRepresentation::kIntPtr:
           __ SetVariable(var,
                          __ ConvertIntPtrToNumber(V<WordPtr>::Cast(ts_idx)));
+          break;
+        case maglev::ValueRepresentation::kNone:
+          UNREACHABLE();
       }
     });
   }
@@ -920,6 +925,7 @@ class GraphBuildingNodeProcessor {
               additional_input = dummy_float64_input_;
               break;
             case maglev::ValueRepresentation::kIntPtr:
+            case maglev::ValueRepresentation::kNone:
               // Maglev doesn't have IntPtr Phis.
               UNREACHABLE();
           }
@@ -5911,6 +5917,8 @@ class GraphBuildingNodeProcessor {
         return RegisterRepresentation::Float64();
       case maglev::ValueRepresentation::kIntPtr:
         return RegisterRepresentation::WordPtr();
+      case maglev::ValueRepresentation::kNone:
+        UNREACHABLE();
     }
   }
 

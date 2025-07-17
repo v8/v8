@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "src/base/base-export.h"
+#include "src/base/logging.h"
 #include "src/execution/local-isolate.h"
 #include "src/maglev/maglev-graph-optimizer.h"
 #include "src/maglev/maglev-graph-processor.h"
@@ -136,6 +137,12 @@ MaybeReduceResult MaglevInliner::BuildInlineFunction(
   MaglevGraphBuilder inner_graph_builder(local_isolate, inner_unit, graph_,
                                          &call_site->caller_details);
 
+  // Make sure the arguments identities and conversions are unwrapped, so they
+  // don't leak to the graph builder, nor to the interpreter frame state.
+  for (ValueNode*& node : call_site->caller_details.arguments) {
+    node = node->Unwrap();
+  }
+
   // Update caller deopt frame with inlined arguments.
   caller_details->deopt_frame =
       inner_graph_builder.AddInlinedArgumentsToDeoptFrame(
@@ -150,9 +157,15 @@ MaybeReduceResult MaglevInliner::BuildInlineFunction(
   // Set the inner graph builder to build in the truncated call block.
   inner_graph_builder.set_current_block(call_block);
 
+  // TODO(victorgomes): Fix use count. BuildInlineFunction uses the nodes from
+  // caller_details.arguments as input instead of the call_node inputs. But we
+  // remove the uses from the call node_inputs when overwriting the returned
+  // value.
   ReduceResult result = inner_graph_builder.BuildInlineFunction(
-      caller_deopt_frame->GetSourcePosition(), call_node->context().node(),
-      call_node->closure().node(), call_node->new_target().node());
+      caller_deopt_frame->GetSourcePosition(),
+      call_node->context().node()->Unwrap(),
+      call_node->closure().node()->Unwrap(),
+      call_node->new_target().node()->Unwrap());
 
   if (result.IsDoneWithAbort()) {
     // Since the rest of the block is dead, these nodes don't belong
@@ -256,6 +269,8 @@ ValueNode* MaglevInliner::EnsureTagged(MaglevGraphBuilder& builder,
           {node});
     case ValueRepresentation::kTagged:
       return node;
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
   }
 }
 

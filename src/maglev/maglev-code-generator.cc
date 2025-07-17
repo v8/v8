@@ -641,6 +641,7 @@ class ExceptionHandlerTrampolineBuilder {
         case ValueRepresentation::kHoleyFloat64:
           materialising_moves->emplace_back(target, source);
           break;
+        case ValueRepresentation::kNone:
           UNREACHABLE();
       }
     }
@@ -1420,6 +1421,8 @@ class MaglevFrameTranslationBuilder {
         translation_array_builder_->StoreHoleyDoubleRegister(
             operand.GetDoubleRegister());
         break;
+      case ValueRepresentation::kNone:
+        UNREACHABLE();
     }
   }
 
@@ -1445,6 +1448,8 @@ class MaglevFrameTranslationBuilder {
       case ValueRepresentation::kHoleyFloat64:
         translation_array_builder_->StoreHoleyDoubleStackSlot(stack_slot);
         break;
+      case ValueRepresentation::kNone:
+        UNREACHABLE();
     }
   }
 

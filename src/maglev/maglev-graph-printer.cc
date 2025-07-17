@@ -787,6 +787,7 @@ ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
       os_ << "ʰᶠ";
       break;
     case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kNone:
       UNREACHABLE();
   }
   if (phi->uses_require_31_bit_value()) {
@@ -964,6 +965,7 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
             os_ << "ʰᶠ";
             break;
           case ValueRepresentation::kIntPtr:
+          case ValueRepresentation::kNone:
             UNREACHABLE();
         }
         if (phi->uses_require_31_bit_value()) {

@@ -673,7 +673,8 @@ enum class ValueRepresentation : uint8_t {
   kUint32,
   kFloat64,
   kHoleyFloat64,
-  kIntPtr
+  kIntPtr,
+  kNone,
 };
 
 inline constexpr bool IsDoubleRepresentation(ValueRepresentation repr) {
@@ -1116,7 +1117,9 @@ inline std::ostream& operator<<(std::ostream& os,
     case ValueRepresentation::kHoleyFloat64:
       return os << "HoleyFloat64";
     case ValueRepresentation::kIntPtr:
-      return os << "Word64";
+      return os << "IntPtr";
+    case ValueRepresentation::kNone:
+      return os << "None";
   }
 }
 
@@ -2874,6 +2877,8 @@ class ValueNode : public Node {
         return MachineRepresentation::kFloat64;
       case ValueRepresentation::kHoleyFloat64:
         return MachineRepresentation::kFloat64;
+      case ValueRepresentation::kNone:
+        UNREACHABLE();
     }
   }
 
@@ -2962,6 +2967,9 @@ class ValueNode : public Node {
 
   ValueNode* UnwrapIdentities();
   const ValueNode* UnwrapIdentities() const;
+
+  // Unwrap identities and conversions.
+  ValueNode* Unwrap();
 
  protected:
   explicit ValueNode(uint64_t bitfield)
@@ -3064,6 +3072,14 @@ inline ValueNode* ValueNode::UnwrapIdentities() {
 inline const ValueNode* ValueNode::UnwrapIdentities() const {
   const ValueNode* node = this;
   while (node->Is<Identity>()) node = node->input(0).node();
+  return node;
+}
+
+inline ValueNode* ValueNode::Unwrap() {
+  ValueNode* node = this;
+  while (node->Is<Identity>() || node->properties().is_conversion()) {
+    node = node->input(0).node();
+  }
   return node;
 }
 
@@ -3188,7 +3204,9 @@ class Identity : public FixedInputValueNodeT<1, Identity> {
   using Base = FixedInputValueNodeT<1, Identity>;
 
  public:
-  static constexpr OpProperties kProperties = OpProperties::Pure();
+  static constexpr OpProperties kProperties =
+      OpProperties::Pure() |
+      OpProperties::ForValueRepresentation(ValueRepresentation::kNone);
 
   explicit Identity(uint64_t bitfield) : Base(bitfield) {}
 
@@ -7815,6 +7833,9 @@ class Dead : public NodeT<Dead> {
   using Base = NodeT<Dead>;
 
  public:
+  static constexpr OpProperties kProperties =
+      OpProperties::ForValueRepresentation(ValueRepresentation::kNone);
+
   void SetValueLocationConstraints() {}
   void GenerateCode(MaglevAssembler*, const ProcessingState&) { UNREACHABLE(); }
   void PrintParams(std::ostream&) const {}

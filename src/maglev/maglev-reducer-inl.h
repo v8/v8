@@ -305,6 +305,7 @@ ValueNode* MaglevReducer<BaseT>::ConvertInputTo(ValueNode* input,
         return GetFloat64(input);
       case ValueRepresentation::kUint32:
       case ValueRepresentation::kIntPtr:
+      case ValueRepresentation::kNone:
         // These conversion should be explicitly done beforehand.
         UNREACHABLE();
     }
@@ -511,6 +512,7 @@ ValueNode* MaglevReducer<BaseT>::GetTaggedValue(
           AddNewNodeNoInputConversion<IntPtrToNumber>({value}));
 
     case ValueRepresentation::kTagged:
+    case ValueRepresentation::kNone:
       UNREACHABLE();
   }
   UNREACHABLE();
@@ -568,6 +570,7 @@ ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
       return alternative.set_int32(AddNewNode<CheckedIntPtrToInt32>({value}));
 
     case ValueRepresentation::kInt32:
+    case ValueRepresentation::kNone:
       UNREACHABLE();
   }
   UNREACHABLE();
@@ -699,6 +702,7 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
       return alternative.set_float64(
           AddNewNode<ChangeIntPtrToFloat64>({value}));
     case ValueRepresentation::kFloat64:
+    case ValueRepresentation::kNone:
       UNREACHABLE();
   }
   UNREACHABLE();

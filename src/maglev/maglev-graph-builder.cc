@@ -1615,6 +1615,7 @@ ReduceResult MaglevGraphBuilder::GetSmiValue(
       return alternative.set_tagged(
           AddNewNodeNoInputConversion<CheckedSmiTagIntPtr>({value}));
     case ValueRepresentation::kTagged:
+    case ValueRepresentation::kNone:
       UNREACHABLE();
   }
   UNREACHABLE();
@@ -1757,6 +1758,7 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(
     }
     case ValueRepresentation::kInt32:
     case ValueRepresentation::kUint32:
+    case ValueRepresentation::kNone:
       UNREACHABLE();
   }
   UNREACHABLE();
@@ -1862,6 +1864,8 @@ ValueNode* MaglevGraphBuilder::GetHoleyFloat64(
       return AddNewNodeNoInputConversion<ConvertHoleNanToUndefinedNan>({value});
     case ValueRepresentation::kIntPtr:
       return AddNewNodeNoInputConversion<ChangeIntPtrToFloat64>({value});
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
   }
 }
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
@@ -1919,6 +1923,8 @@ ValueNode* MaglevGraphBuilder::GetUint8ClampedForToNumber(ValueNode* value) {
       return AddNewNodeNoInputConversion<Int32ToUint8Clamped>({value});
     case ValueRepresentation::kUint32:
       return AddNewNodeNoInputConversion<Uint32ToUint8Clamped>({value});
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
   }
   UNREACHABLE();
 }
@@ -4127,6 +4133,8 @@ ReduceResult MaglevGraphBuilder::BuildCheckSmi(ValueNode* object,
     case ValueRepresentation::kIntPtr:
       AddNewNodeNoInputConversion<CheckIntPtrIsSmi>({object});
       break;
+    case maglev::ValueRepresentation::kNone:
+      UNREACHABLE();
   }
   return object;
 }
@@ -5650,6 +5658,8 @@ ReduceResult MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
     case ValueRepresentation::kFloat64:
     case ValueRepresentation::kHoleyFloat64:
       return GetInt32(object);
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
   }
 }
 
@@ -5702,6 +5712,8 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
       // CheckedTruncateFloat64ToUint32 will gracefully deopt on holes.
       return AddNewNodeNoInputConversion<CheckedTruncateFloat64ToUint32>(
           {object});
+      case ValueRepresentation::kNone:
+        UNREACHABLE();
     }
   }
 }
@@ -10192,6 +10204,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceNumberParseInt(
     case ValueRepresentation::kFloat64:
     case ValueRepresentation::kHoleyFloat64:
       return {};
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
   }
 }
 
@@ -10227,6 +10241,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathAbs(
     case ValueRepresentation::kFloat64:
     case ValueRepresentation::kHoleyFloat64:
       return AddNewNode<Float64Abs>({arg});
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
   }
   return {};
 }
@@ -12425,6 +12441,8 @@ ValueNode* MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
 
     case ValueRepresentation::kTagged:
       break;
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
   }
 
   NodeInfo* node_info = known_node_aspects().TryGetInfoFor(value);
@@ -12566,6 +12584,8 @@ ReduceResult MaglevGraphBuilder::BuildToNumberOrToNumeric(
     case ValueRepresentation::kTagged:
       // We'll insert the required checks depending on the feedback.
       break;
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
   }
 
   FeedbackSlot slot = GetSlotOperand(0);
@@ -14452,6 +14472,8 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfToBooleanTrue(
 
     case ValueRepresentation::kTagged:
       break;
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
   }
 
   NodeInfo* node_info = known_node_aspects().TryGetInfoFor(node);
@@ -14880,6 +14902,8 @@ ReduceResult MaglevGraphBuilder::VisitThrowReferenceErrorIfHole() {
     case ValueRepresentation::kTagged:
       // Could be the hole.
       break;
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
   }
 
   // Avoid the check if {value} has an alternative whose representation doesn't
