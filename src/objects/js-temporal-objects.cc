@@ -5046,10 +5046,23 @@ MaybeDirectHandle<String> JSTemporalPlainMonthDay::ToLocaleString(
 Maybe<int64_t> JSTemporalPlainMonthDay::GetEpochMillisecondsFor(
     Isolate* isolate, std::string_view time_zone) {
   std::unique_ptr<temporal_rs::PlainDate> date;
+
+  auto partial_date = temporal::kNullPartialDate;
+  // TODO(manishearth, 432343766): We should ideally be using refYear here
+  // but it is not exposed yet.
+  //
+  // See: https://github.com/boa-dev/temporal/issues/410
+  //
+  // to_plain_date needs some year to be set. GetEpochMillisecondsFor is used
+  // in DateTimeFormat where the year should not be getting displayed anyway, so
+  // ideally it does not matter. Using iso year here may lead to errors in
+  // non-Gregorian calendars; but this should be fixed before we start caring
+  // about those.
+  partial_date.year = month_day()->raw()->iso_year();
   MOVE_RETURN_ON_EXCEPTION(
       isolate, date,
       ExtractRustResult(isolate,
-                        month_day()->raw()->to_plain_date(std::nullopt)));
+                        month_day()->raw()->to_plain_date(partial_date)));
   return temporal::GetEpochMillisecondsForDate(isolate, *date, time_zone);
 }
 
@@ -5307,10 +5320,21 @@ MaybeDirectHandle<String> JSTemporalPlainYearMonth::ToLocaleString(
 Maybe<int64_t> JSTemporalPlainYearMonth::GetEpochMillisecondsFor(
     Isolate* isolate, std::string_view time_zone) {
   std::unique_ptr<temporal_rs::PlainDate> date;
+
+  auto partial_date = temporal::kNullPartialDate;
+  // TODO(manishearth): We should ideally be using refDay here
+  // but it is not exposed yet.
+  //
+  // See: https://github.com/boa-dev/temporal/issues/410
+  //
+  // to_plain_date needs some day to be set. GetEpochMillisecondsFor is used
+  // in DateTimeFormat where the day should not be getting displayed anyway, so
+  // ideally it does not matter.
+  partial_date.day = 1;
   MOVE_RETURN_ON_EXCEPTION(
       isolate, date,
       ExtractRustResult(isolate,
-                        year_month()->raw()->to_plain_date(std::nullopt)));
+                        year_month()->raw()->to_plain_date(partial_date)));
   return temporal::GetEpochMillisecondsForDate(isolate, *date, time_zone);
 }
 
