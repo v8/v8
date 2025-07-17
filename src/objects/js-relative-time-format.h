@@ -40,7 +40,7 @@ class JSRelativeTimeFormat
   // locales and options.
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSRelativeTimeFormat> New(
       Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
-      DirectHandle<Object> options, const char* method_name);
+      DirectHandle<Object> options);
 
   V8_WARN_UNUSED_RESULT static DirectHandle<JSObject> ResolvedOptions(
       Isolate* isolate, DirectHandle<JSRelativeTimeFormat> format_holder);

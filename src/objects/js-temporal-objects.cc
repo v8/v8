@@ -29,7 +29,6 @@
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-date-time-format.h"
-#include "src/objects/js-duration-format.h"
 #include "unicode/calendar.h"
 #include "unicode/unistr.h"
 #endif  // V8_INTL_SUPPORT
@@ -4027,19 +4026,13 @@ MaybeDirectHandle<String> JSTemporalDuration::ToJSON(
                                            std::move(temporal::kToStringAuto));
 }
 
+// https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalDuration::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
-#ifdef V8_INTL_SUPPORT
-  // https://tc39.es/proposal-temporal/#sup-temporal.duration.prototype.tolocalestring
-  return JSDurationFormat::TemporalToLocaleString(isolate, duration, locales,
-                                                  options);
-#else   // V8_INTL_SUPPORT
-  // https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.tolocalestring
   return temporal::GenericTemporalToString(isolate, duration,
                                            &temporal_rs::Duration::to_string,
                                            std::move(temporal::kToStringAuto));
-#endif  // V8_INTL_SUPPORT
 }
 
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Constructor(
@@ -4370,22 +4363,13 @@ MaybeDirectHandle<String> JSTemporalPlainDate::ToJSON(
       temporal_rs::DisplayCalendar::Auto);
 }
 
+// https://tc39.es/proposal-temporal/#sup-temporal.plaindate.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalPlainDate::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
-#ifdef V8_INTL_SUPPORT
-  // https://tc39.es/proposal-temporal/#sup-temporal.plaindate.prototype.tolocalestring
-  return JSDateTimeFormat::TemporalToLocaleString(
-      isolate, temporal_date, locales, options,
-      JSDateTimeFormat::RequiredOption::kDate,
-      JSDateTimeFormat::DefaultsOption::kDate,
-      "Temporal.PlainDate.prototype.toLocaleString");
-#else   // V8_INTL_SUPPORT
-  // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.tolocalestring
   return temporal::GenericTemporalToString(
       isolate, temporal_date, &temporal_rs::PlainDate::to_ixdtf_string,
       temporal_rs::DisplayCalendar::Auto);
-#endif  // V8_INTL_SUPPORT
 }
 
 Maybe<int64_t> JSTemporalPlainDate::GetEpochMillisecondsFor(
@@ -4700,22 +4684,13 @@ MaybeDirectHandle<String> JSTemporalPlainDateTime::ToJSON(
       std::move(temporal::kToStringAuto), temporal_rs::DisplayCalendar::Auto);
 }
 
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalPlainDateTime::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
-#ifdef V8_INTL_SUPPORT
-  // https://tc39.es/proposal-temporal/#sup-temporal.plaindatetime.prototype.tolocalestring
-  return JSDateTimeFormat::TemporalToLocaleString(
-      isolate, date_time, locales, options,
-      JSDateTimeFormat::RequiredOption::kAny,
-      JSDateTimeFormat::DefaultsOption::kAll,
-      "Temporal.PlainDateTime.prototype.toLocaleString");
-#else   // V8_INTL_SUPPORT
-  // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tolocalestring
   return temporal::GenericTemporalToString(
       isolate, date_time, &temporal_rs::PlainDateTime::to_ixdtf_string,
       std::move(temporal::kToStringAuto), temporal_rs::DisplayCalendar::Auto);
-#endif  //  V8_INTL_SUPPORT
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.now.plaindatetimeiso
@@ -5058,22 +5033,13 @@ MaybeDirectHandle<String> JSTemporalPlainMonthDay::ToJSON(
       temporal_rs::DisplayCalendar::Auto);
 }
 
+// https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalPlainMonthDay::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
-#ifdef V8_INTL_SUPPORT
-  // https://tc39.es/proposal-temporal/#sup-temporal.plainmonthday.prototype.tolocalestring
-  return JSDateTimeFormat::TemporalToLocaleString(
-      isolate, month_day, locales, options,
-      JSDateTimeFormat::RequiredOption::kDate,
-      JSDateTimeFormat::DefaultsOption::kDate,
-      "Temporal.PlainMonthDay.prototype.toLocaleString");
-#else   // V8_INTL_SUPPORT
-  // https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.tolocalestring
   return temporal::GenericTemporalToString(
       isolate, month_day, &temporal_rs::PlainMonthDay::to_ixdtf_string,
       temporal_rs::DisplayCalendar::Auto);
-#endif  // V8_INTL_SUPPORT
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporalmonthday
@@ -5341,22 +5307,13 @@ MaybeDirectHandle<String> JSTemporalPlainYearMonth::ToString(
       show_calendar);
 }
 
+// https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalPlainYearMonth::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
-#ifdef V8_INTL_SUPPORT
-  // https://tc39.es/proposal-temporal/#sup-temporal.plainyearmonth.prototype.tolocalestring
-  return JSDateTimeFormat::TemporalToLocaleString(
-      isolate, year_month, locales, options,
-      JSDateTimeFormat::RequiredOption::kDate,
-      JSDateTimeFormat::DefaultsOption::kDate,
-      "Temporal.PlainYearMonth.prototype.toLocaleString");
-#else   // V8_INTL_SUPPORT
-  // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tolocalestring
   return temporal::GenericTemporalToString(
       isolate, year_month, &temporal_rs::PlainYearMonth::to_ixdtf_string,
       temporal_rs::DisplayCalendar::Auto);
-#endif  // V8_INTL_SUPPORT
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporalyearmonth
@@ -5768,22 +5725,13 @@ MaybeDirectHandle<String> JSTemporalPlainTime::ToJSON(
       std::move(temporal::kToStringAuto));
 }
 
+// https://tc39.es/proposal-temporal/#sup-temporal.plaintime.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalPlainTime::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
-#ifdef V8_INTL_SUPPORT
-  // https://tc39.es/proposal-temporal/#sup-temporal.plaintime.prototype.tolocalestring
-  return JSDateTimeFormat::TemporalToLocaleString(
-      isolate, temporal_time, locales, options,
-      JSDateTimeFormat::RequiredOption::kTime,
-      JSDateTimeFormat::DefaultsOption::kTime,
-      "Temporal.PlainTime.prototype.toLocaleString");
-#else   // V8_INTL_SUPPORT
-  // https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.tolocalestring
   return temporal::GenericTemporalToString(
       isolate, temporal_time, &temporal_rs::PlainTime::to_ixdtf_string,
       std::move(temporal::kToStringAuto));
-#endif  // V8_INTL_SUPPORT
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporaldate
@@ -6135,21 +6083,14 @@ MaybeDirectHandle<String> JSTemporalZonedDateTime::ToJSON(
       temporal_rs::DisplayCalendar::Auto, std::move(temporal::kToStringAuto));
 }
 
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalZonedDateTime::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
-#ifdef V8_INTL_SUPPORT
-  // https://tc39.es/proposal-temporal/#sub-temporal.zoneddatetime.prototype.tolocalestring
-  return JSDateTimeFormat::TemporalZonedDateTimeToLocaleString(
-      isolate, zoned_date_time, locales, options,
-      "Temporal.ZonedDateTime.prototype.toLocaleString");
-#else   // V8_INTL_SUPPORT
-  // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tolocalestring
   return temporal::GenericTemporalToString(
       isolate, zoned_date_time, &temporal_rs::ZonedDateTime::to_ixdtf_string,
       temporal_rs::DisplayOffset::Auto, temporal_rs::DisplayTimeZone::Auto,
       temporal_rs::DisplayCalendar::Auto, std::move(temporal::kToStringAuto));
-#endif  // V8_INTL_SUPPORT
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.now.zoneddatetimeiso
@@ -6773,23 +6714,15 @@ MaybeDirectHandle<String> JSTemporalInstant::ToJSON(
       std::move(temporal::kToStringAuto));
 }
 
+// https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalInstant::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
-#ifdef V8_INTL_SUPPORT
-  // https://tc39.es/proposal-temporal/#sub-temporal.instant.prototype.tolocalestring
-  return JSDateTimeFormat::TemporalToLocaleString(
-      isolate, instant, locales, options,
-      JSDateTimeFormat::RequiredOption::kAny,
-      JSDateTimeFormat::DefaultsOption::kAll,
-      "Temporal.Instant.prototype.toLocaleString");
-#else   // V8_INTL_SUPPORT
-  // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tolocalestring
+
   return temporal::GenericTemporalToString(
       isolate, instant,
       &temporal_rs::Instant::to_ixdtf_string_with_compiled_data, nullptr,
       std::move(temporal::kToStringAuto));
-#endif  // V8_INTL_SUPPORT
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.add

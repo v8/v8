@@ -68,7 +68,7 @@ Style fromIcuStyle(UDateRelativeDateTimeFormatterStyle icu_style) {
 
 MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
     Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
-    DirectHandle<Object> input_options, const char* service) {
+    DirectHandle<Object> input_options) {
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
@@ -78,6 +78,7 @@ MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
 
   // 2. Set options to ? CoerceOptionsToObject(options).
   DirectHandle<JSReceiver> options;
+  const char* service = "Intl.RelativeTimeFormat";
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, options, CoerceOptionsToObject(isolate, input_options, service));
 

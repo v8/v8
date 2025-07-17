@@ -59,7 +59,7 @@ UListFormatterType GetIcuType(JSListFormat::Type type) {
 
 MaybeDirectHandle<JSListFormat> JSListFormat::New(
     Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
-    DirectHandle<Object> input_options, const char* service) {
+    DirectHandle<Object> input_options) {
   // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
@@ -68,6 +68,7 @@ MaybeDirectHandle<JSListFormat> JSListFormat::New(
       maybe_requested_locales.FromJust();
 
   DirectHandle<JSReceiver> options;
+  const char* service = "Intl.ListFormat";
   // 4. Let options be GetOptionsObject(_options_).
   ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
                              GetOptionsObject(isolate, input_options, service));

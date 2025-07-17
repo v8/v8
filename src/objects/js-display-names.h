@@ -35,8 +35,7 @@ class JSDisplayNames
   static MaybeDirectHandle<JSDisplayNames> New(Isolate* isolate,
                                                DirectHandle<Map> map,
                                                DirectHandle<Object> locales,
-                                               DirectHandle<Object> options,
-                                               const char* method_name);
+                                               DirectHandle<Object> options);
 
   static DirectHandle<JSObject> ResolvedOptions(
       Isolate* isolate, DirectHandle<JSDisplayNames> format_holder);

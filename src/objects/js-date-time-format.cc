@@ -913,8 +913,8 @@ struct DateTimeValueRecord {
 
 #ifdef V8_TEMPORAL_SUPPORT
 
-bool CalendarIsIso8601OrEqualTo(temporal_rs::AnyCalendarKind kind,
-                                const icu::SimpleDateFormat& date_time_format) {
+bool IsSameCalendar(temporal_rs::AnyCalendarKind kind,
+                    const icu::SimpleDateFormat& date_time_format) {
   using enum temporal_rs::AnyCalendarKind::Value;
   std::string_view other_kind = date_time_format.getCalendar()->getType();
   // Note: some calendars have aliases, and "islamic" encompasses all Islamic
@@ -954,7 +954,7 @@ bool CalendarIsIso8601OrEqualTo(temporal_rs::AnyCalendarKind kind,
     case HijriUmmAlQura:
       return other_kind == "islamic-umalqura " || other_kind == "islamic";
     case Iso:
-      return true;
+      return other_kind == "iso8601";
     case Japanese:
     case JapaneseExtended:
       return other_kind == "japanese" || other_kind == "japanese-extended";
@@ -965,6 +965,15 @@ bool CalendarIsIso8601OrEqualTo(temporal_rs::AnyCalendarKind kind,
   }
   // Exhaustive match
   UNREACHABLE();
+}
+
+std::string GetTzString(const icu::SimpleDateFormat& date_time_format) {
+  icu::UnicodeString result;
+  const auto& icutz = date_time_format.getTimeZone();
+  icutz.getDisplayName(result);
+  std::string std_result;
+  result.toUTF8String(std_result);
+  return std_result;
 }
 
 // #sec-temporal-handledatetimetemporalzoneddatetime
@@ -1005,23 +1014,19 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalGeneric(
   if constexpr (T::kTypeContainsCalendar) {
     // 1. If temporalDate.[[Calendar]] is not dateTimeFormat.[[Calendar]] or
     // "iso8601", throw a RangeError exception.
-    if (!CalendarIsIso8601OrEqualTo(temporal->wrapped_rust().calendar().kind(),
-                                    date_time_format)) {
+    if (!IsSameCalendar(temporal->wrapped_rust().calendar().kind(),
+                        date_time_format)) {
       THROW_NEW_ERROR(isolate,
                       NewRangeError(MessageTemplate::kMismatchedCalendars));
     }
   }
   // 2. Let epochNs be ? GetEpochNanosecondsFor(dateTimeFormat.[[TimeZone]],
   // isoDateTime, compatible).
-  DirectHandle<Object> time_zone_obj = GetTimeZone(isolate, date_time_format);
-  DirectHandle<String> time_zone_str;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, time_zone_str,
-                             Object::ToString(isolate, time_zone_obj));
+  auto tz = GetTzString(date_time_format);
 
   int64_t epoch_milliseconds = 0;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, epoch_milliseconds,
-      temporal->GetEpochMillisecondsFor(isolate, time_zone_str->ToStdString()));
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, epoch_milliseconds,
+                             temporal->GetEpochMillisecondsFor(isolate, tz));
 
   // 3. Let format be dateTimeFormat.[[TemporalPlainDateFormat]].
   // 4. Return Value Format Record { [[Format]]: format, [[EpochNanoseconds]]:
@@ -1470,8 +1475,8 @@ MaybeDirectHandle<String> JSDateTimeFormat::ToLocaleDateTime(
   DirectHandle<JSDateTimeFormat> date_time_format;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, date_time_format,
-      JSDateTimeFormat::CreateDateTimeFormat(
-          isolate, map, locales, options, required, defaults, {}, method_name));
+      JSDateTimeFormat::CreateDateTimeFormat(isolate, map, locales, options,
+                                             required, defaults, method_name));
 
   if (can_cache) {
     isolate->set_icu_object_in_cache(
@@ -1485,22 +1490,10 @@ MaybeDirectHandle<String> JSDateTimeFormat::ToLocaleDateTime(
   return FormatDateTime(isolate, *format, x);
 }
 
-#ifdef V8_TEMPORAL_SUPPORT
 MaybeDirectHandle<String> JSDateTimeFormat::TemporalToLocaleString(
     Isolate* isolate, DirectHandle<JSReceiver> x, DirectHandle<Object> locales,
-    DirectHandle<Object> options, RequiredOption required,
-    DefaultsOption defaults, const char* method_name) {
-  // For Instant and PlainDateTime:
-  // 3. Let dateFormat be ? CreateDateTimeFormat(%Intl.DateTimeFormat%, locales,
-  // options, ANY, ALL).
-
-  // For PlainDate, PlainMonthDay, and PlainYearMonth:
-  // 3. Let dateFormat be ? CreateDateTimeFormat(%Intl.DateTimeFormat%, locales,
-  // options, DATE, DATE).
-
-  // For PlainTime:
-  // 3. Let dateFormat be ? CreateDateTimeFormat(%Intl.DateTimeFormat%, locales,
-  // options, TIME, TIME).
+    DirectHandle<Object> options, const char* method_name) {
+  // 4. Let dateFormat be ? Construct(%DateTimeFormat%, « locales, options »).
   DirectHandle<JSFunction> constructor(
       isolate->context()->native_context()->intl_date_time_format_function(),
       isolate);
@@ -1510,57 +1503,12 @@ MaybeDirectHandle<String> JSDateTimeFormat::TemporalToLocaleString(
   DirectHandle<JSDateTimeFormat> date_time_format;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, date_time_format,
-      JSDateTimeFormat::CreateDateTimeFormat(
-          isolate, map, locales, options, required, defaults, {}, method_name));
+      JSDateTimeFormat::New(isolate, map, locales, options, method_name));
+
   // 5. Return FormatDateTime(dateFormat, x).
   return FormatDateTimeWithTemporalSupport(isolate, date_time_format, x,
                                            method_name);
 }
-MaybeDirectHandle<String> JSDateTimeFormat::TemporalZonedDateTimeToLocaleString(
-    Isolate* isolate, DirectHandle<JSReceiver> x, DirectHandle<Object> locales,
-    DirectHandle<Object> options, const char* method_name) {
-  DirectHandle<JSTemporalZonedDateTime> zdt = Cast<JSTemporalZonedDateTime>(x);
-  // 3. Let dateTimeFormat be ? CreateDateTimeFormat(%Intl.DateTimeFormat%,
-  // locales, options, ANY, ALL, zonedDateTime.[[TimeZone]]).
-  DirectHandle<JSFunction> constructor(
-      isolate->context()->native_context()->intl_date_time_format_function(),
-      isolate);
-  DirectHandle<Map> map =
-      JSFunction::GetDerivedMap(isolate, constructor, constructor)
-          .ToHandleChecked();
-
-  DirectHandle<String> time_zone;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, time_zone,
-                             JSTemporalZonedDateTime::TimeZoneId(isolate, zdt));
-
-  DirectHandle<JSDateTimeFormat> date_time_format;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, date_time_format,
-      JSDateTimeFormat::CreateDateTimeFormat(
-          isolate, map, locales, options, RequiredOption::kAny,
-          DefaultsOption::kAll, time_zone, method_name));
-
-  // 4. If zonedDateTime.[[Calendar]] is not "iso8601" and
-  // CalendarEquals(zonedDateTime.[[Calendar]], dateTimeFormat.[[Calendar]]) is
-  // false, then
-  if (!CalendarIsIso8601OrEqualTo(
-          zdt->wrapped_rust().calendar().kind(),
-          *(date_time_format->icu_simple_date_format()->raw()))) {
-    // a. Throw a RangeError exception.
-    THROW_NEW_ERROR(isolate,
-                    NewRangeError(MessageTemplate::kMismatchedCalendars));
-  }
-  // 5. Let instant be
-  // ! CreateTemporalInstant(zonedDateTime.[[EpochNanoseconds]]).
-  DirectHandle<JSTemporalInstant> instant;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, instant,
-                             JSTemporalZonedDateTime::ToInstant(isolate, zdt));
-
-  // 6. Return ? FormatDateTime(dateTimeFormat, instant).
-  return FormatDateTimeWithTemporalSupport(isolate, date_time_format, instant,
-                                           method_name);
-}
-#endif  // V8_TEMPORAL_SUPPORT
 
 MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::UnwrapDateTimeFormat(
     Isolate* isolate, Handle<JSReceiver> format_holder) {
@@ -2119,14 +2067,13 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     DirectHandle<Object> input_options, const char* service) {
   return JSDateTimeFormat::CreateDateTimeFormat(
       isolate, map, locales, input_options, RequiredOption::kAny,
-      DefaultsOption::kDate, {}, service);
+      DefaultsOption::kDate, service);
 }
 
 MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
     Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
     DirectHandle<Object> input_options, RequiredOption required,
-    DefaultsOption defaults, MaybeDirectHandle<String> toLocaleStringTimeZone,
-    const char* service) {
+    DefaultsOption defaults, const char* service) {
   Factory* factory = isolate->factory();
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
@@ -2296,30 +2243,14 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
                                    isolate->factory()->timeZone_string()));
 
   std::unique_ptr<icu::TimeZone> tz;
-  // 28. If timeZone is undefined, then
-  if (IsUndefined(*time_zone_obj, isolate)) {
-    // a. If toLocaleStringTimeZone is present, then
-    if (!toLocaleStringTimeZone.IsEmpty()) {
-      //    i. Set timeZone to toLocaleStringTimeZone.
-      tz = JSDateTimeFormat::CreateTimeZone(
-          isolate, toLocaleStringTimeZone.ToHandleChecked());
-      // b. Else
-    } else {
-      //    i. Set timeZone to SystemTimeZoneIdentifier().
-      tz.reset(icu::TimeZone::createDefault());
-    }
-  } else {
-    // a. If toLocaleStringTimeZone is present, throw a TypeError exception.
-    if (!toLocaleStringTimeZone.IsEmpty()) {
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kInvalidTimeZone,
-                                   toLocaleStringTimeZone.ToHandleChecked()));
-    }
-    // b. Set timeZone to ? ToString(timeZone).
+  if (!IsUndefined(*time_zone_obj, isolate)) {
     DirectHandle<String> time_zone;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, time_zone,
                                Object::ToString(isolate, time_zone_obj));
     tz = JSDateTimeFormat::CreateTimeZone(isolate, time_zone);
+  } else {
+    // 19.a. Else / Let timeZone be DefaultTimeZone().
+    tz.reset(icu::TimeZone::createDefault());
   }
 
   if (tz.get() == nullptr) {

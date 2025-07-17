@@ -68,7 +68,7 @@ Handle<String> JSPluralRules::TypeAsString(Isolate* isolate) const {
 // static
 MaybeDirectHandle<JSPluralRules> JSPluralRules::New(
     Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
-    DirectHandle<Object> options_obj, const char* service) {
+    DirectHandle<Object> options_obj) {
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
@@ -78,6 +78,7 @@ MaybeDirectHandle<JSPluralRules> JSPluralRules::New(
 
   // 2. Set options to ? CoerceOptionsToObject(options).
   DirectHandle<JSReceiver> options;
+  const char* service = "Intl.PluralRules";
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, options, CoerceOptionsToObject(isolate, options_obj, service));
 
