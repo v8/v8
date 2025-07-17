@@ -3461,8 +3461,6 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
       return {};
     }
     case HeapType::kAny: {
-      // TODO(mliedtke): We need to construct heap numbers with correct
-      // sharedness.
       if (IsSmi(*value)) {
         return CanonicalizeSmi(value, isolate, expected.is_shared());
       }

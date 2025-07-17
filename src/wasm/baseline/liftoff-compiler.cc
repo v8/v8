@@ -7434,7 +7434,6 @@ class LiftoffCompiler {
     // Skipping the write barrier is safe as long as:
     // (1) {obj} is freshly allocated, and
     // (2) {obj} is in new-space (not pretenured).
-    // TODO(mliedtke): Only emit write barriers for reference types.
     ArrayFillImpl(decoder, pinned, obj, index, value, length, elem_kind,
                   is_shared ? LiftoffAssembler::kNoSkipWriteBarrier
                             : LiftoffAssembler::kSkipWriteBarrier);
@@ -10171,7 +10170,6 @@ class LiftoffCompiler {
     } else {
       // Primitive kind.
       StoreType store_type = StoreType::ForValueKind(kind);
-      // TODO(mliedtke): Mark load trapping if trapping
       __ AtomicStore(obj, offset_reg, offset, value, store_type,
                      &protected_load_pc, pinned, false,
                      LiftoffAssembler::kNative);
