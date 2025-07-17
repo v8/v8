@@ -19,6 +19,7 @@
 #include "src/common/code-memory-access-inl.h"
 #include "src/execution/isolate-data.h"
 #include "src/execution/isolate.h"
+#include "src/heap/code-range.h"
 #include "src/heap/heap-allocator-inl.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier.h"
@@ -38,6 +39,7 @@
 #include "src/objects/slots-inl.h"
 #include "src/objects/visitors-inl.h"
 #include "src/roots/static-roots.h"
+#include "src/utils/allocation.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-list-inl.h"
 
@@ -300,7 +302,7 @@ bool Heap::IsPendingAllocationInternal(Tagged<HeapObject> object) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   if (chunk->InReadOnlySpace()) return false;
 
-  BaseSpace* base_space = chunk->Metadata()->owner();
+  BaseSpace* base_space = chunk->Metadata(isolate())->owner();
   Address addr = object.address();
 
   switch (base_space->identity()) {

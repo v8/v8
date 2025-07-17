@@ -835,8 +835,8 @@ bool PagedSpaceAllocatorPolicy::TryAllocationFromFreeList(
             size_in_bytes);
 
   size_t new_node_size = 0;
-  Tagged<FreeSpace> new_node =
-      space_->free_list_->Allocate(size_in_bytes, &new_node_size, origin);
+  Tagged<FreeSpace> new_node = space_->free_list_->Allocate(
+      space_->heap(), size_in_bytes, &new_node_size, origin);
   if (new_node.is_null()) return false;
   DCHECK_GE(new_node_size, size_in_bytes);
 

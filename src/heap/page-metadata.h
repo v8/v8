@@ -30,6 +30,8 @@ class PageMetadata : public MutablePageMetadata {
   // from [page_addr .. page_addr + kPageSize]. This only works if the object is
   // in fact in a page.
   V8_INLINE static PageMetadata* FromAddress(Address addr);
+  V8_INLINE static PageMetadata* FromAddress(const Isolate* isolate,
+                                             Address addr);
   V8_INLINE static PageMetadata* FromHeapObject(Tagged<HeapObject> o);
 
   static PageMetadata* cast(MemoryChunkMetadata* metadata) {

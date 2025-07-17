@@ -76,7 +76,9 @@ Address ConservativeStackVisitorBase<ConcreteVisitor>::FindBasePtr(
   if (chunk == nullptr) {
     return kNullAddress;
   }
-  const MemoryChunkMetadata* chunk_metadata = chunk->Metadata();
+  // This code can run from the shared heap isolate and the slot may point
+  // into a client heap isolate, so ignore the isolate check.
+  const MemoryChunkMetadata* chunk_metadata = chunk->MetadataNoIsolateCheck();
   DCHECK(chunk_metadata->Contains(maybe_inner_ptr));
 
   if (!ConcreteVisitor::FilterPage(chunk)) {

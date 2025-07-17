@@ -21,8 +21,20 @@ MutablePageMetadata* MutablePageMetadata::FromAddress(Address a) {
 }
 
 // static
+MutablePageMetadata* MutablePageMetadata::FromAddress(const Isolate* i,
+                                                      Address a) {
+  return cast(MemoryChunkMetadata::FromAddress(i, a));
+}
+
+// static
 MutablePageMetadata* MutablePageMetadata::FromHeapObject(Tagged<HeapObject> o) {
   return cast(MemoryChunkMetadata::FromHeapObject(o));
+}
+
+// static
+MutablePageMetadata* MutablePageMetadata::FromHeapObject(const Isolate* i,
+                                                         Tagged<HeapObject> o) {
+  return cast(MemoryChunkMetadata::FromHeapObject(i, o));
 }
 
 void MutablePageMetadata::IncrementExternalBackingStoreBytes(

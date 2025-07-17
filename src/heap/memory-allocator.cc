@@ -729,7 +729,9 @@ const MemoryChunk* MemoryAllocator::LookupChunkContainingAddressInSafepoint(
     // The chunk is a normal page.
     // auto* normal_page = PageMetadata::cast(chunk);
     DCHECK_LE((*normal_page_it)->address(), addr);
-    if (chunk->Metadata()->Contains(addr)) return chunk;
+    // This code can run from the shared heap isolate and the slot may point
+    // into a client heap isolate, so ignore the isolate check.
+    if (chunk->MetadataNoIsolateCheck()->Contains(addr)) return chunk;
   } else if (auto large_page_it = large_pages_.upper_bound(chunk);
              large_page_it != large_pages_.begin()) {
     // The chunk could be inside a large page.
@@ -738,7 +740,10 @@ const MemoryChunk* MemoryAllocator::LookupChunkContainingAddressInSafepoint(
     auto* large_page_chunk = *std::next(large_page_it, -1);
     DCHECK_NOT_NULL(large_page_chunk);
     DCHECK_LE(large_page_chunk->address(), addr);
-    if (large_page_chunk->Metadata()->Contains(addr)) return large_page_chunk;
+    // This code can run from the shared heap isolate and the slot may point
+    // into a client heap isolate, so ignore the isolate check.
+    if (large_page_chunk->MetadataNoIsolateCheck()->Contains(addr))
+      return large_page_chunk;
   }
   // Not found in any page.
   return nullptr;
