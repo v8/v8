@@ -5,6 +5,8 @@
 #ifndef V8_SANDBOX_CHECK_H_
 #define V8_SANDBOX_CHECK_H_
 
+#include <optional>
+
 #include "src/sandbox/hardware-support.h"
 
 // When the sandbox is enabled, a SBXCHECK behaves exactly like a CHECK, but
@@ -30,16 +32,25 @@
 // doubt, feel free to add someone from the security team as a reviewer. If
 // sandbox hardware support is enabled, we'll block these accesses temporarily
 // in debug builds.
-#define SBXCHECK(condition)                                \
-  do {                                                     \
-    v8::internal::DisallowSandboxAccess no_sandbox_access; \
-    CHECK(condition);                                      \
+// Wrap DisallowSandboxAccess into optional to allow the CHECK to be used in
+// constexpr contexts.
+// TODO: Remove it after switching to C++23.
+#define SBXCHECK(condition)                                               \
+  do {                                                                    \
+    std::optional<v8::internal::DisallowSandboxAccess> no_sandbox_access; \
+    if (!std::is_constant_evaluated()) {                                  \
+      no_sandbox_access.emplace();                                        \
+    }                                                                     \
+    CHECK(condition);                                                     \
   } while (false)
 
-#define SBXCHECK_WRAPPED(CONDITION, lhs, rhs)              \
-  do {                                                     \
-    v8::internal::DisallowSandboxAccess no_sandbox_access; \
-    CHECK_##CONDITION(lhs, rhs);                           \
+#define SBXCHECK_WRAPPED(CONDITION, lhs, rhs)                             \
+  do {                                                                    \
+    std::optional<v8::internal::DisallowSandboxAccess> no_sandbox_access; \
+    if (!std::is_constant_evaluated()) {                                  \
+      no_sandbox_access.emplace();                                        \
+    }                                                                     \
+    CHECK_##CONDITION(lhs, rhs);                                          \
   } while (false)
 
 #define SBXCHECK_EQ(lhs, rhs) SBXCHECK_WRAPPED(EQ, lhs, rhs)
