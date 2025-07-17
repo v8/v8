@@ -1141,10 +1141,18 @@ Maybe<temporal_rs::AnyCalendarKind> ToTemporalCalendarIdentifier(
         isolate, NEW_TEMPORAL_TYPE_ERROR(
                      "Calendar must be string or calendared Temporal object."));
   }
+  auto stdstr = Cast<String>(calendar_like)->ToStdString();
+
   // 3. Let identifier be ?ParseTemporalCalendarString(temporalCalendarLike).
   // 4. Return ?CanonicalizeCalendar(identifier).
-  // (CanonicalizeCalendar here takes a string)
-  return temporal::CanonicalizeCalendar(isolate, Cast<String>(calendar_like));
+  auto kind =
+      temporal_rs::AnyCalendarKind::parse_temporal_calendar_string(stdstr);
+  if (kind.has_value()) {
+    return Just(kind.value());
+  } else {
+    THROW_NEW_ERROR(isolate,
+                    NEW_TEMPORAL_RANGE_ERROR("Invalid calendar string"));
+  }
 }
 // https://tc39.es/proposal-temporal/#sec-temporal-gettemporalcalendarslotvaluewithisodefault
 Maybe<temporal_rs::AnyCalendarKind> GetTemporalCalendarIdentifierWithISODefault(
@@ -1408,23 +1416,13 @@ Maybe<std::string> ToOffsetString(Isolate* isolate,
   auto offset_str = Cast<String>(offset_prim);
   auto offset = offset_str->ToStdString();
 
-  // Currently TimeZone::try_from_str parses identifiers and UTC offsets
-  // at once. We check to ensure that this is UTC offset-like (not
-  // identifier-like) before handing off to Rust.
-  // TODO(manishearth) clean up after
-  // https://github.com/boa-dev/temporal/pull/376 lands.
-
-  if (offset.size() == 0 || (offset[0] != '+' && offset[0] != '-')) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR_WITH_ARG("Invalid offset",
-                                                               offset_str));
-  }
-
   // TODO(manishearth) this has a minor unnecessary cost of allocating a
   // TimeZone, but it can be obviated once
   // https://github.com/boa-dev/temporal/issues/330 is fixed.
   RETURN_ON_EXCEPTION(
       isolate,
-      ExtractRustResult(isolate, temporal_rs::TimeZone::try_from_str(offset)));
+      ExtractRustResult(isolate,
+                        temporal_rs::TimeZone::try_from_offset_str(offset)));
 
   return Just(std::move(offset));
 }
@@ -2029,11 +2027,7 @@ Maybe<CombinedRecord> PrepareCalendarFields(Isolate* isolate,
 
 // https://tc39.es/proposal-temporal/#sec-systemtimezoneidentifier
 std::unique_ptr<temporal_rs::TimeZone> UTCTimeZone() {
-  // TODO(manishearth) This is a fallible method that in theory should
-  // never fail, but we should avoid this problem by using something infallible
-  // instead.
-  // Can be fixed after https://github.com/boa-dev/temporal/pull/358 lands
-  return temporal_rs::TimeZone::try_from_identifier_str("UTC").ok().value();
+  return temporal_rs::TimeZone::utc();
 }
 
 // https://tc39.es/proposal-temporal/#sec-systemtimezoneidentifier
@@ -2586,22 +2580,26 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
       Cast<HeapObject>(*item)->map(isolate)->instance_type();
   // 2. If item is an Object, then
   if (InstanceTypeChecker::IsJSReceiver(instance_type)) {
-    auto year = 0;
-    auto month = 1;
-    temporal_rs::AnyCalendarKind kind = temporal_rs::AnyCalendarKind::Iso;
     // a. If item has an [[InitializedTemporalYearMonth]] internal slot, then
     if (InstanceTypeChecker::IsJSTemporalPlainYearMonth(instance_type)) {
       auto cast = Cast<JSTemporalPlainYearMonth>(item);
       auto rust_object = cast->year_month()->raw();
 
-      // iii. Return !CreateTemporalYearMonth(item.[[ISODate]],
+      // ii. Perform ? GetTemporalOverflowOption(resolvedOptions).
+      READ_AND_DISCARD_OVERFLOW(options_obj);
+      // iii. Return ! CreateTemporalYearMonth(item.[[ISODate]],
       // item.[[Calendar]]).
-      year = rust_object->year();
-      month = rust_object->month();
-      kind = rust_object->calendar().kind();
+      auto year = rust_object->iso_year();
+      auto month = rust_object->iso_month();
+      auto kind = rust_object->calendar().kind();
+      return ConstructRustWrappingType<JSTemporalPlainYearMonth>(
+          isolate, temporal_rs::PlainYearMonth::try_new_with_overflow(
+                       year, month, std::nullopt, kind, {}));
     } else {
       // b. Let calendar be ?GetTemporalCalendarIdentifierWithISODefault(item).
       DirectHandle<JSReceiver> item_recvr = Cast<JSReceiver>(item);
+
+      temporal_rs::AnyCalendarKind kind;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, kind,
           temporal::GetTemporalCalendarIdentifierWithISODefault(isolate,
@@ -2620,40 +2618,20 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
                                 kYearFields | kMonthFields,
                                 RequiredFields::kNone, owners));
 
-      // Remaining steps handled in Rust
+      // e. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
 
+      temporal_rs::ArithmeticOverflow overflow;
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, overflow,
+                                 temporal::ToTemporalOverflowHandleUndefined(
+                                     isolate, options_obj, method_name));
+      // f. Let isoDate be ? CalendarYearMonthFromFields(calendar, fields,
+      // overflow).
+      //
       // g. Return !CreateTemporalYearMonth(isoDate, calendar).
-
-      // TODO(manishearth) We can handle this correctly once
-      // https://github.com/boa-dev/temporal/pull/351 lands,
-      // For now we return the TypeErrors that CalendarResolveFields wants
-      // us to.
-      if (!fields.date.month.has_value()) {
-        // This should allow `monthCode`-but-no-`month`, but we currently have
-        // no API for constructing from monthCode.
-        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
-                                     "YearMonth argument must have month."));
-      }
-      if (!fields.date.year.has_value()) {
-        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
-                                     "YearMonth argument must have year."));
-      }
-      year = fields.date.year.value();
-      month = fields.date.month.value();
-      kind = fields.date.calendar;
+      return ConstructRustWrappingType<JSTemporalPlainYearMonth>(
+          isolate,
+          temporal_rs::PlainYearMonth::from_partial(fields.date, overflow));
     }
-
-    // (GetTemporalOverflowOption and CreateTemporalYearMonth from both
-    // branches)
-    temporal_rs::ArithmeticOverflow overflow;
-    // d. Let resolvedOptions be ?GetOptionsObject(options).
-    // e. f. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, overflow,
-                               temporal::ToTemporalOverflowHandleUndefined(
-                                   isolate, options_obj, method_name));
-    return ConstructRustWrappingType<JSTemporalPlainYearMonth>(
-        isolate, temporal_rs::PlainYearMonth::try_new_with_overflow(
-                     year, month, std::nullopt, kind, overflow));
   } else {
     // 3. If item is not a String, throw a TypeError exception.
     if (!InstanceTypeChecker::IsString(instance_type)) {
@@ -2784,7 +2762,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
           temporal::GetTemporalCalendarIdentifierWithISODefault(isolate,
                                                                 item_recvr));
 
-      // e. c. Let fields be ? PrepareCalendarFields(calendar, item, « year,
+      // c. Let fields be ? PrepareCalendarFields(calendar, item, « year,
       // month, month-code, day», « hour, minute, second, millisecond,
       // microsecond, nanosecond, offset, time-zone», « time-zone»).
       CombinedRecordOwnership owners;
@@ -2820,30 +2798,38 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
     }
     DirectHandle<String> str = Cast<String>(item);
 
+    // b. Let result be ? ParseISODateTime(item, «
+    // TemporalDateTimeString[+Zoned] »).
+    //
+    // Steps b-l handled in Rust
+    std::unique_ptr<temporal_rs::OwnedPartialZonedDateTime> parsed;
+
+    auto rust_result = HandleStringEncodings<
+        TemporalAllocatedResult<temporal_rs::OwnedPartialZonedDateTime>>(
+        isolate, str,
+        [](std::string_view view)
+            -> TemporalAllocatedResult<temporal_rs::OwnedPartialZonedDateTime> {
+          return temporal_rs::OwnedPartialZonedDateTime::from_utf8(view);
+        },
+        [](std::u16string_view view)
+            -> TemporalAllocatedResult<temporal_rs::OwnedPartialZonedDateTime> {
+          return temporal_rs::OwnedPartialZonedDateTime::from_utf16(view);
+        });
+    MOVE_RETURN_ON_EXCEPTION(
+        isolate, parsed, ExtractRustResult(isolate, std::move(rust_result)));
+
     // o. Perform ? GetTemporalDisambiguationOption(resolvedOptions).
     // p. Perform ? GetTemporalOffsetOption(resolvedOptions, reject).
     // q. Perform ? GetTemporalOverflowOption(resolvedOptions).
     ZDTOptions options;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, options, GetZDTOptions(isolate, options_obj, method_name));
-    // Rest of the steps handled in Rust.
 
-    auto rust_result = HandleStringEncodings<
-        TemporalAllocatedResult<temporal_rs::ZonedDateTime>>(
-        isolate, str,
-        [&options](std::string_view view)
-            -> TemporalAllocatedResult<temporal_rs::ZonedDateTime> {
-          return temporal_rs::ZonedDateTime::from_utf8(
-              view, options.disambiguation, options.offset_option);
-        },
-        [&options](std::u16string_view view)
-            -> TemporalAllocatedResult<temporal_rs::ZonedDateTime> {
-          return temporal_rs::ZonedDateTime::from_utf16(
-              view, options.disambiguation, options.offset_option);
-        });
-
+    // Rest of the steps handled in Rust
     return ConstructRustWrappingType<JSTemporalZonedDateTime>(
-        isolate, std::move(rust_result));
+        isolate, temporal_rs::ZonedDateTime::from_owned_partial(
+                     *parsed, options.overflow, options.disambiguation,
+                     options.offset_option));
   }
 }
 
@@ -2865,26 +2851,28 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
       Cast<HeapObject>(*item)->map(isolate)->instance_type();
   // 2. If item is an Object, then
   if (InstanceTypeChecker::IsJSReceiver(instance_type)) {
-    std::optional<int32_t> year = std::nullopt;
-    auto month = 1;
-    auto day = 1;
-    temporal_rs::AnyCalendarKind kind = temporal_rs::AnyCalendarKind::Iso;
     // a. If item has an [[InitializedTemporalMonthDay]] internal slot, then
     if (InstanceTypeChecker::IsJSTemporalPlainMonthDay(instance_type)) {
       auto cast = Cast<JSTemporalPlainMonthDay>(item);
       auto rust_object = cast->month_day()->raw();
 
-      // iii. Return !CreateTemporalMonthDay(item.[[ISODate]],
-      // item.[[Calendar]]).
+      // ii. Perform ? GetTemporalOverflowOption(resolvedOptions).
+      READ_AND_DISCARD_OVERFLOW(options_obj);
 
-      // TODO(manishearth) This only works for ISO, we can fix
-      // it after https://github.com/boa-dev/temporal/pull/351 lands
-      day = rust_object->iso_day();
-      month = rust_object->iso_month();
-      kind = rust_object->calendar().kind();
+      // iii. Return ! CreateTemporalMonthDay(item.[[ISODate]],
+      // item.[[Calendar]]).
+      auto year = rust_object->iso_year();
+      auto month = rust_object->iso_month();
+      auto day = rust_object->iso_day();
+      auto kind = rust_object->calendar().kind();
+      return ConstructRustWrappingType<JSTemporalPlainMonthDay>(
+          isolate, temporal_rs::PlainMonthDay::try_new_with_overflow(
+                       month, day, kind, {}, year));
     } else {
       // b. Let calendar be ?GetTemporalCalendarIdentifierWithISODefault(item).
       DirectHandle<JSReceiver> item_recvr = Cast<JSReceiver>(item);
+
+      temporal_rs::AnyCalendarKind kind;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, kind,
           temporal::GetTemporalCalendarIdentifierWithISODefault(isolate,
@@ -2905,40 +2893,21 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
 
       // Remaining steps handled in Rust
 
-      // g. Return !CreateTemporalMonthDay(isoDate, calendar).
+      // e. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
 
-      // TODO(manishearth) We can handle this correctly once
-      // https://github.com/boa-dev/temporal/pull/351 lands,
-      // For now we return the TypeErrors that CalendarResolveFields wants
-      // us to.
-      if (!fields.date.month.has_value()) {
-        // This should allow `monthCode`-but-no-`month`, but we currently have
-        // no API for constructing from monthCode.
-        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
-                                     "MonthDay argument must have month."));
-      }
-      if (!fields.date.day.has_value()) {
-        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
-                                     "MonthDay argument must have day."));
-      }
-      year = fields.date.year;
-      month = fields.date.month.value();
-      day = fields.date.day.value();
-      kind = fields.date.calendar;
+      temporal_rs::ArithmeticOverflow overflow;
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, overflow,
+                                 temporal::ToTemporalOverflowHandleUndefined(
+                                     isolate, options_obj, method_name));
+      // f. Let isoDate be ? CalendarMonthDayFromFields(calendar, fields,
+      //    overflow).
+      //
+      // g. Return ! CreateTemporalMonthDay(isoDate, calendar).
+
+      return ConstructRustWrappingType<JSTemporalPlainMonthDay>(
+          isolate,
+          temporal_rs::PlainMonthDay::from_partial(fields.date, overflow));
     }
-
-    // (GetTemporalOverflowOption and CreateTemporalMonthDay from both
-    // branches)
-
-    temporal_rs::ArithmeticOverflow overflow;
-    // d. Let resolvedOptions be ?GetOptionsObject(options).
-    // e. f. Let overflow be ?GetTemporalOverflowOption(resolvedOptions).
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, overflow,
-                               temporal::ToTemporalOverflowHandleUndefined(
-                                   isolate, options_obj, method_name));
-    return ConstructRustWrappingType<JSTemporalPlainMonthDay>(
-        isolate, temporal_rs::PlainMonthDay::try_new_with_overflow(
-                     month, day, kind, overflow, year));
   } else {
     // 3. If item is not a String, throw a TypeError exception.
     if (!InstanceTypeChecker::IsString(instance_type)) {
@@ -5844,11 +5813,6 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
       ExtractRustResult(
           isolate, temporal_rs::TimeZone::try_from_identifier_str(tz_stdstr)));
 
-  if (!time_zone->is_valid()) {
-    THROW_NEW_ERROR(
-        isolate, NEW_TEMPORAL_RANGE_ERROR_WITH_ARG("Invalid timezone", tz_str));
-  }
-
   // 8. If calendar is undefined, set calendar to "iso8601".
   temporal_rs::AnyCalendarKind calendar = temporal_rs::AnyCalendarKind::Iso;
 
@@ -6294,17 +6258,7 @@ MaybeDirectHandle<BigInt> JSTemporalZonedDateTime::EpochNanoseconds(
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.timezoneid
 MaybeDirectHandle<String> JSTemporalZonedDateTime::TimeZoneId(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  std::string id;
-
-#ifdef TEMPORAL_CAPI_VERSION_0_0_10
-  MOVE_RETURN_ON_EXCEPTION(
-      isolate, id,
-      ExtractRustResult(
-          isolate,
-          zoned_date_time->zoned_date_time()->raw()->timezone().identifier()));
-#else
-  id = zoned_date_time->zoned_date_time()->raw()->timezone().identifier();
-#endif
+  auto id = zoned_date_time->zoned_date_time()->raw()->timezone().identifier();
 
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(id);
