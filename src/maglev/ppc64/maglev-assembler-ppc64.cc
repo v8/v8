@@ -23,7 +23,7 @@ void SubSizeAndTagObject(MaglevAssembler* masm, Register object,
 void SubSizeAndTagObject(MaglevAssembler* masm, Register object,
                          int size_in_bytes) {
   DCHECK(is_int20(kHeapObjectTag - size_in_bytes));
-  __ addi(object, object, Operand(kHeapObjectTag - size_in_bytes));
+  __ AddS64(object, object, Operand(kHeapObjectTag - size_in_bytes), r0);
 }
 
 template <typename T>
@@ -50,9 +50,9 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
   // {size_in_bytes}.
   Register new_top = object;
   // Check if there is enough space.
-  __ LoadU64(object, __ ExternalReferenceAsOperand(top, scratch));
+  __ LoadU64(object, __ ExternalReferenceAsOperand(top, scratch), r0);
   __ AddS64(object, object, size_in_bytes);
-  __ LoadU64(scratch, __ ExternalReferenceAsOperand(limit, scratch));
+  __ LoadU64(scratch, __ ExternalReferenceAsOperand(limit, scratch), r0);
   __ CmpU64(new_top, scratch);
   // Otherwise call runtime.
   __ JumpToDeferredIf(kUnsignedGreaterThanEqual, AllocateSlow<T>,
