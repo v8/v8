@@ -188,6 +188,19 @@ Float32 f32_sub_result(Float32 lhs, Float32 rhs) {
   return Float32::FromNonSignallingFloat(lhs.get_scalar() - rhs.get_scalar());
 }
 
+Float32 f32_mul_result(Float32 lhs, Float32 rhs) {
+  if (auto maybe_nan = propagate_f32_binop_nan(lhs, rhs)) return *maybe_nan;
+
+#if defined(V8_TARGET_ARCH_ARM64)
+  // 0 * Inf == NaN
+  if (lhs.get_scalar() == 0 && rhs.is_inf()) return Float32::quiet_nan();
+  // Inf * 0 == NaN
+  if (rhs.get_scalar() == 0 && lhs.is_inf()) return Float32::quiet_nan();
+#endif
+
+  return Float32::FromNonSignallingFloat(lhs.get_scalar() * rhs.get_scalar());
+}
+
 using F32ExpectedFn = base::FunctionRef<Float32(Float32, Float32)>;
 
 void TestF32BinopOnConsts(TestExecutionTier tier, uint8_t opcode,
@@ -319,6 +332,7 @@ void TestF32BinopOnParamAndConst(TestExecutionTier tier, uint8_t opcode,
 
 F32_BINOP_TEST(Float32Add, kExprF32Add, f32_add_result)
 F32_BINOP_TEST(Float32Sub, kExprF32Sub, f32_sub_result)
+F32_BINOP_TEST(Float32Mul, kExprF32Mul, f32_mul_result)
 
 WASM_EXEC_TEST(Float64Add) {
   WasmRunner<int32_t> r(execution_tier);

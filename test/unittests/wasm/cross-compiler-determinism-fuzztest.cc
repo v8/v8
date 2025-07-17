@@ -180,17 +180,22 @@ fuzztest::Domain<Float32> ArbitraryFloat32() {
 constexpr std::tuple<WasmOpcode, Float32, Float32> kFloat32BinopSeeds[]{
     // NaN + NaN
     {kExprF32Add, Float32::quiet_nan(), Float32::quiet_nan()},
+    // NaN + -NaN
+    {kExprF32Add, Float32::quiet_nan(), -Float32::quiet_nan()},
     // inf + -inf
     {kExprF32Add, Float32::infinity(), -Float32::infinity()},
     // inf - inf
     {kExprF32Sub, Float32::infinity(), Float32::infinity()},
+    // 0 * inf
+    {kExprF32Mul, Float32::FromBits(0), Float32::infinity()},
 };
 
 V8_FUZZ_TEST_F(CrossCompilerDeterminismTest, TestFloat32Binop)
     .WithDomains(
         // opcode
         // TODO(431593798): Extend to more opcodes.
-        fuzztest::ElementOf<WasmOpcode>({kExprF32Add, kExprF32Sub}),
+        fuzztest::ElementOf<WasmOpcode>({kExprF32Add, kExprF32Sub,
+                                         kExprF32Mul}),
         // lhs
         ArbitraryFloat32(),
         // rhs

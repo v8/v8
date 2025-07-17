@@ -602,6 +602,7 @@ class MachineOptimizationReducer : public Next {
         case Kind::kAdd:
           return __ Float32Constant(k1 + k2);
         case Kind::kMul:
+          if (ensure_deterministic_nan && std::isnan(k1 * k2)) break;
           return __ Float32Constant(k1 * k2);
         case Kind::kSub:
           return __ Float32Constant(k1 - k2);
@@ -628,6 +629,7 @@ class MachineOptimizationReducer : public Next {
         case Kind::kAdd:
           return __ Float64Constant(k1 + k2);
         case Kind::kMul:
+          if (ensure_deterministic_nan && std::isnan(k1 * k2)) break;
           return __ Float64Constant(k1 * k2);
         case Kind::kSub:
           return __ Float64Constant(k1 - k2);
