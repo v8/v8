@@ -69,9 +69,9 @@ struct ConvertTo8BitHashReader {
 
 namespace detail {
 uint64_t HashConvertingTo8Bit(const uint16_t* chars, uint32_t length,
-                              uint64_t seed) {
+                              uint64_t seed, const uint64_t secret[3]) {
   return rapidhash<ConvertTo8BitHashReader>(
-      reinterpret_cast<const uint8_t*>(chars), length, seed);
+      reinterpret_cast<const uint8_t*>(chars), length, seed, secret);
 }
 }  // namespace detail
 

@@ -303,7 +303,6 @@ template <typename Char>
 JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source,
                              std::optional<ScriptDetails> script_details)
     : isolate_(isolate),
-      hash_seed_(HashSeed(isolate)),
       object_constructor_(isolate_->object_function()),
       original_source_(source),
       script_details_(script_details) {

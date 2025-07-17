@@ -134,4 +134,10 @@ specific_include_rules = {
   "string-hasher-inl\.h": [
     "+third_party/rapidhash-v8/rapidhash.h",
   ],
+  "heap\.cc": [
+    "+third_party/rapidhash-v8/secret.h",
+  ],
+  "hash-seed-inl\.h": [
+    "+third_party/rapidhash-v8/secret.h",
+  ],
 }

@@ -5318,7 +5318,7 @@ UNINITIALIZED_TEST(ReinitializeHashSeedJSCollectionRehashable) {
     v8::Isolate::Scope isolate_scope(isolate);
     // Check that rehashing has been performed.
     CHECK_EQ(static_cast<uint64_t>(1337),
-             HashSeed(reinterpret_cast<i::Isolate*>(isolate)));
+             HashSeed(reinterpret_cast<i::Isolate*>(isolate)).seed());
     v8::HandleScope handle_scope(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate);
     CHECK(!context.IsEmpty());
@@ -5378,7 +5378,7 @@ UNINITIALIZED_TEST(ReinitializeHashSeedNameToIndexRehashable) {
     v8::Isolate::Scope isolate_scope(isolate);
     // Check that rehashing has been performed.
     CHECK_EQ(static_cast<uint64_t>(1337),
-             HashSeed(reinterpret_cast<i::Isolate*>(isolate)));
+             HashSeed(reinterpret_cast<i::Isolate*>(isolate)).seed());
     v8::HandleScope handle_scope(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate);
     CHECK(!context.IsEmpty());
@@ -5447,7 +5447,7 @@ UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
     v8::Isolate::Scope isolate_scope(isolate);
     // Check that rehashing has been performed.
     CHECK_EQ(static_cast<uint64_t>(1337),
-             HashSeed(reinterpret_cast<i::Isolate*>(isolate)));
+             HashSeed(reinterpret_cast<i::Isolate*>(isolate)).seed());
     v8::HandleScope handle_scope(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate);
     CHECK(!context.IsEmpty());

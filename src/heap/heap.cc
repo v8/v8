@@ -128,6 +128,7 @@
 #include "src/tracing/trace-event.h"
 #include "src/utils/utils-inl.h"
 #include "src/utils/utils.h"
+#include "third_party/rapidhash-v8/secret.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-engine.h"
@@ -6163,9 +6164,20 @@ void Heap::InitializeHashSeed() {
   } else {
     new_hash_seed = static_cast<uint64_t>(v8_flags.hash_seed);
   }
+
   Tagged<ByteArray> hash_seed = ReadOnlyRoots(this).hash_seed();
+
   MemCopy(hash_seed->begin(), reinterpret_cast<uint8_t*>(&new_hash_seed),
           kInt64Size);
+
+#if V8_USE_DEFAULT_HASHER_SECRET
+  MemCopy(hash_seed->begin() + kInt64Size,
+          reinterpret_cast<const uint8_t*>(RAPIDHASH_DEFAULT_SECRET),
+          kInt64Size * 3);
+#else
+  rapidhash_make_secret(new_hash_seed, reinterpret_cast<uint64_t*>(
+                                           hash_seed->begin() + kInt64Size));
+#endif  // V8_USE_DEFAULT_HASHER_SECRET
 }
 
 std::shared_ptr<v8::TaskRunner> Heap::GetForegroundTaskRunner(
