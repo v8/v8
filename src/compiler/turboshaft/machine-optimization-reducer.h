@@ -611,6 +611,7 @@ class MachineOptimizationReducer : public Next {
         case Kind::kMax:
           return __ Float32Constant(JSMax(k1, k2));
         case Kind::kDiv:
+          if (ensure_deterministic_nan && k2 == 0) break;
           return __ Float32Constant(k1 / k2);
         case Kind::kPower:
           return __ Float32Constant(internal::math::pow(k1, k2));
@@ -638,6 +639,7 @@ class MachineOptimizationReducer : public Next {
         case Kind::kMax:
           return __ Float64Constant(JSMax(k1, k2));
         case Kind::kDiv:
+          if (ensure_deterministic_nan && k2 == 0) break;
           return __ Float64Constant(k1 / k2);
         case Kind::kMod:
           return __ Float64Constant(Modulo(k1, k2));
