@@ -2462,7 +2462,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
       });
 }
 
-ValueNode* MaglevGraphBuilder::BuildUnwrapStringWrapper(ValueNode* input) {
+ReduceResult MaglevGraphBuilder::BuildUnwrapStringWrapper(ValueNode* input) {
   DCHECK(NodeTypeIs(GetType(input), NodeType::kStringOrStringWrapper));
   if (NodeTypeIs(GetType(input), NodeType::kString)) return input;
   return AddNewNode<UnwrapStringWrapper>({input});
@@ -2553,8 +2553,8 @@ ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
           ValueNode* right = GetAccumulator();
           RETURN_IF_ABORT(BuildCheckStringOrStringWrapper(left));
           RETURN_IF_ABORT(BuildCheckStringOrStringWrapper(right));
-          left = BuildUnwrapStringWrapper(left);
-          right = BuildUnwrapStringWrapper(right);
+          GET_VALUE_OR_ABORT(left, BuildUnwrapStringWrapper(left));
+          GET_VALUE_OR_ABORT(right, BuildUnwrapStringWrapper(right));
           return BuildStringConcat(left, right);
         }
       }

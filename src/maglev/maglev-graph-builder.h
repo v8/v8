@@ -1581,7 +1581,7 @@ class MaglevGraphBuilder {
   template <Operation kOperation>
   ReduceResult VisitBinarySmiOperation();
 
-  ValueNode* BuildUnwrapStringWrapper(ValueNode* input);
+  ReduceResult BuildUnwrapStringWrapper(ValueNode* input);
   ReduceResult BuildStringConcat(ValueNode* left, ValueNode* right);
   ReduceResult BuildNewConsStringMap(ValueNode* left, ValueNode* right);
   size_t StringLengthStaticLowerBound(ValueNode* string, int max_depth = 2);
