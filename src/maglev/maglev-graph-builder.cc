@@ -4862,6 +4862,9 @@ ReduceResult MaglevGraphBuilder::BuildStoreTrustedPointerField(
 
 ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
                                                           int index) {
+  // We won't try to reason about the type of the elements array and thus also
+  // cannot end up with an empty type for it.
+  CHECK(!IsEmptyNodeType(GetType(elements)));
   compiler::OptionalHeapObjectRef maybe_constant;
   if ((maybe_constant = TryGetConstant(elements)) &&
       maybe_constant.value().IsFixedArray()) {
@@ -4906,6 +4909,11 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
 
 ReduceResult MaglevGraphBuilder::BuildStoreFixedArrayElement(
     ValueNode* elements, ValueNode* index, ValueNode* value) {
+  // We won't try to reason about the type of the elements array and thus also
+  // cannot end up with an empty type for it. The `value` might have an empty
+  // type though.
+  CHECK(!IsEmptyNodeType(GetType(elements)));
+
   // TODO(victorgomes): Support storing element to a virtual object. If we
   // modify the elements array, we need to modify the original object to point
   // to the new elements array.
@@ -7331,6 +7339,10 @@ ValueNode* MaglevGraphBuilder::GetContextAtDepth(ValueNode* context,
     context = LoadAndCacheContextSlot(context, Context::PREVIOUS_INDEX,
                                       kImmutable, ContextMode::kNoContextCells);
     EnsureType(context, NodeType::kContext);
+
+    // The internal consistency of the bytecode guarantees that we cannot end up
+    // with empty types for objects we think are Contexts.
+    CHECK(!IsEmptyNodeType(GetType(context)));
   }
   return context;
 }
