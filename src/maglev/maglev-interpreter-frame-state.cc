@@ -1399,6 +1399,9 @@ void MergePointInterpreterFrameState::MergeLoopValue(
     if (result->uses_require_31_bit_value()) {
       unmerged_phi->SetUseRequires31BitValue();
     }
+  } else if (CallKnownJSFunction* call =
+                 unmerged->TryCast<CallKnownJSFunction>()) {
+    call->RecordUseReprHint(result->get_uses_repr_hints());
   }
 }
 
