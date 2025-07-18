@@ -3116,7 +3116,10 @@ TEST_F(TurboshaftInstructionSelectorTest, SimdF32x4MulWithDupNegativeTest) {
     ASSERT_EQ(2U, s.size());
     // The shuffle is an i8x16.dup of lane 0.
     EXPECT_EQ(kArm64S128Dup, s[0]->arch_opcode());
-    EXPECT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(8, LaneSizeField::decode(s[0]->opcode()));
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(kArm64FMul, s[1]->arch_opcode());
     EXPECT_EQ(32, LaneSizeField::decode(s[1]->opcode()));
     EXPECT_EQ(1U, s[0]->OutputCount());
@@ -3207,7 +3210,10 @@ TEST_F(TurboshaftInstructionSelectorTest, SimdF64x2MulWithDupNegativeTest) {
     ASSERT_EQ(2U, s.size());
     // The shuffle is an i8x16.dup of lane 0.
     EXPECT_EQ(kArm64S128Dup, s[0]->arch_opcode());
-    EXPECT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(8, LaneSizeField::decode(s[0]->opcode()));
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(kArm64FMul, s[1]->arch_opcode());
     EXPECT_EQ(64, LaneSizeField::decode(s[1]->opcode()));
     EXPECT_EQ(1U, s[0]->OutputCount());
@@ -3543,43 +3549,80 @@ namespace {
 
 struct SIMDDupInst {
   const uint8_t shuffle[16];
-  int32_t lane;
-  int shuffle_input_index;
+  int8_t lane_size;
+  int32_t lane_idx;
+  int input_reg_idx;
 };
 
 std::ostream& operator<<(std::ostream& os, const SIMDDupInst& inst) {
-  return os << "kArm64S128Dup { lane" << inst.lane << ", input "
-            << inst.shuffle_input_index << " }";
+  return os << "Dup { lane size: " << static_cast<int>(inst.lane_size)
+            << ", lane index: " << inst.lane_idx
+            << ", reg: " << inst.input_reg_idx << " }";
 }
 
 }  // namespace
 
-const SIMDDupInst kSIMDS64x2DupInstructions[] = {
+const SIMDDupInst kSIMD128DupInstructions[] = {
     {
         {0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
+        64,
         0,
         0,
     },
     {
         {8, 9, 10, 11, 12, 13, 14, 15, 8, 9, 10, 11, 12, 13, 14, 15},
+        64,
         1,
         0,
     },
     {
         {16, 17, 18, 19, 20, 21, 22, 23, 16, 17, 18, 19, 20, 21, 22, 23},
+        64,
         0,
         1,
     },
     {
         {24, 25, 26, 27, 28, 29, 30, 31, 24, 25, 26, 27, 28, 29, 30, 31},
+        64,
         1,
         1,
-    }};
+    },
+    {
+        {0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3},
+        32,
+        0,
+        0,
+    },
+    {
+        {20, 21, 22, 23, 20, 21, 22, 23, 20, 21, 22, 23, 20, 21, 22, 23},
+        32,
+        1,
+        1,
+    },
+    {
+        {28, 29, 30, 31, 28, 29, 30, 31, 28, 29, 30, 31, 28, 29, 30, 31},
+        32,
+        3,
+        1,
+    },
+    {
+        {12, 13, 12, 13, 12, 13, 12, 13, 12, 13, 12, 13, 12, 13, 12, 13},
+        16,
+        6,
+        0,
+    },
+    {
+        {3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
+        8,
+        3,
+        0,
+    },
+};
 
-using TurboshaftInstructionSelectorSimdS64x2DupTest =
+using TurboshaftInstructionSelectorSimdSIMD128DupTest =
     TurboshaftInstructionSelectorTestWithParam<SIMDDupInst>;
 
-TEST_P(TurboshaftInstructionSelectorSimdS64x2DupTest, SimdS64x2Dup) {
+TEST_P(TurboshaftInstructionSelectorSimdSIMD128DupTest, SimdS128Dup) {
   const SIMDDupInst param = GetParam();
   const MachineType type = MachineType::Simd128();
   {
@@ -3589,17 +3632,18 @@ TEST_P(TurboshaftInstructionSelectorSimdS64x2DupTest, SimdS64x2Dup) {
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64S128Dup, s[0]->arch_opcode());
-    EXPECT_EQ(3U, s[0]->InputCount());
-    EXPECT_EQ(param.lane, s.ToInt32(s[0]->InputAt(2)));
+    EXPECT_EQ(param.lane_size, LaneSizeField::decode(s[0]->opcode()));
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(param.lane_idx, s.ToInt32(s[0]->InputAt(1)));
     EXPECT_EQ(1U, s[0]->OutputCount());
-    EXPECT_EQ(s.ToVreg(m.Parameter(param.shuffle_input_index)),
+    EXPECT_EQ(s.ToVreg(m.Parameter(param.input_reg_idx)),
               s.ToVreg(s[0]->InputAt(0)));
   }
 }
 
 INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
-                         TurboshaftInstructionSelectorSimdS64x2DupTest,
-                         ::testing::ValuesIn(kSIMDS64x2DupInstructions));
+                         TurboshaftInstructionSelectorSimdSIMD128DupTest,
+                         ::testing::ValuesIn(kSIMD128DupInstructions));
 
 TEST_F(TurboshaftInstructionSelectorTest, OneLaneSwizzle32x4Test) {
   const MachineType type = MachineType::Simd128();

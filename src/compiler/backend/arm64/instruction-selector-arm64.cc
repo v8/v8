@@ -5642,9 +5642,9 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
   if (wasm::SimdShuffle::TryMatch64x2Shuffle(shuffle.data(),
                                              shuffle64x2.data())) {
     if (wasm::SimdShuffle::TryMatchSplat<2>(shuffle.data(), &index)) {
-      DCHECK_GT(2, index);
-      Emit(kArm64S128Dup, g.DefineAsRegister(node), g.UseRegister(input0),
-           g.UseImmediate(2), g.UseImmediate(index % 2));
+      DCHECK(is_swizzle);
+      Emit(kArm64S128Dup | LaneSizeField::encode(64), g.DefineAsRegister(node),
+           g.UseRegister(input0), g.UseImmediate(index));
     } else {
       Emit(kArm64S64x2Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
            g.UseRegister(input1),
@@ -5657,9 +5657,9 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
   uint8_t to = 0;
   if (wasm::SimdShuffle::TryMatch32x4Shuffle(shuffle.data(), shuffle32x4)) {
     if (wasm::SimdShuffle::TryMatchSplat<4>(shuffle.data(), &index)) {
-      DCHECK_GT(4, index);
-      Emit(kArm64S128Dup, g.DefineAsRegister(node), g.UseRegister(input0),
-           g.UseImmediate(4), g.UseImmediate(index % 4));
+      DCHECK(is_swizzle);
+      Emit(kArm64S128Dup | LaneSizeField::encode(32), g.DefineAsRegister(node),
+           g.UseRegister(input0), g.UseImmediate(index));
     } else if (wasm::SimdShuffle::TryMatch32x4OneLaneSwizzle(shuffle32x4, &from,
                                                              &to)) {
       Emit(kArm64S32x4OneLaneSwizzle, g.DefineAsRegister(node),
@@ -5678,15 +5678,15 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
     return;
   }
   if (wasm::SimdShuffle::TryMatchSplat<8>(shuffle.data(), &index)) {
-    DCHECK_GT(8, index);
-    Emit(kArm64S128Dup, g.DefineAsRegister(node), g.UseRegister(input0),
-         g.UseImmediate(8), g.UseImmediate(index % 8));
+    DCHECK(is_swizzle);
+    Emit(kArm64S128Dup | LaneSizeField::encode(16), g.DefineAsRegister(node),
+         g.UseRegister(input0), g.UseImmediate(index));
     return;
   }
   if (wasm::SimdShuffle::TryMatchSplat<16>(shuffle.data(), &index)) {
-    DCHECK_GT(16, index);
-    Emit(kArm64S128Dup, g.DefineAsRegister(node), g.UseRegister(input0),
-         g.UseImmediate(16), g.UseImmediate(index % 16));
+    DCHECK(is_swizzle);
+    Emit(kArm64S128Dup | LaneSizeField::encode(8), g.DefineAsRegister(node),
+         g.UseRegister(input0), g.UseImmediate(index));
     return;
   }
   // Code generator uses vtbl, arrange sources to form a valid lookup table.
