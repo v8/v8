@@ -875,7 +875,17 @@ void GCTracer::PrintNVP() const {
       .p("global_allocation_limit", heap_->global_allocation_limit())
       .p("allocation_throughput", AllocationThroughputInBytesPerMillisecond())
       .p("new_space_allocation_throughput",
-         NewSpaceAllocationThroughputInBytesPerMillisecond());
+         NewSpaceAllocationThroughputInBytesPerMillisecond())
+      .p("new_space_survive_rate", heap_->new_space_surviving_rate_)
+      .p("allocated", allocated_since_last_gc)
+      .p("promoted", heap_->promoted_objects_size())
+      .p("new_space_survived", heap_->new_space_surviving_object_size())
+      .p("nodes_died_in_new", heap_->nodes_died_in_new_space_)
+      .p("nodes_copied_in_new", heap_->nodes_copied_in_new_space_)
+      .p("nodes_promoted", heap_->nodes_promoted_)
+      .p("promotion_ratio", heap_->promotion_ratio_)
+      .p("average_survival_ratio", AverageSurvivalRatio())
+      .p("promotion_rate", heap_->promotion_rate_);
 
   switch (current_.type) {
     case Event::Type::SCAVENGER:
@@ -923,20 +933,10 @@ void GCTracer::PrintNVP() const {
              YoungGenerationSpeedInBytesPerMillisecond(
                  YoungGenerationSpeedMode::kOnlyAtomicPause)
                  .value_or(0.0))
-          .p("allocated", allocated_since_last_gc)
-          .p("promoted", heap_->promoted_objects_size())
           .p("quarantined_size",
              heap_->semi_space_new_space()->QuarantinedSize())
           .p("quarantined_pages",
-             heap_->semi_space_new_space()->QuarantinedPageCount())
-          .p("new_space_survived", heap_->new_space_surviving_object_size())
-          .p("nodes_died_in_new", heap_->nodes_died_in_new_space_)
-          .p("nodes_copied_in_new", heap_->nodes_copied_in_new_space_)
-          .p("nodes_promoted", heap_->nodes_promoted_)
-          .p("promotion_ratio", heap_->promotion_ratio_)
-          .p("average_survival_ratio", AverageSurvivalRatio())
-          .p("promotion_rate", heap_->promotion_rate_)
-          .p("new_space_survive_rate_", heap_->new_space_surviving_rate_);
+             heap_->semi_space_new_space()->QuarantinedPageCount());
       break;
     case Event::Type::MINOR_MARK_SWEEPER:
     case Event::Type::INCREMENTAL_MINOR_MARK_SWEEPER:
@@ -986,17 +986,7 @@ void GCTracer::PrintNVP() const {
           .p("background.sweep.array_buffers",
              current_scope(Scope::BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP))
           .p("conservative_stack_scanning",
-             current_scope(Scope::CONSERVATIVE_STACK_SCANNING))
-          .p("allocated", allocated_since_last_gc)
-          .p("promoted", heap_->promoted_objects_size())
-          .p("new_space_survived", heap_->new_space_surviving_object_size())
-          .p("nodes_died_in_new", heap_->nodes_died_in_new_space_)
-          .p("nodes_copied_in_new", heap_->nodes_copied_in_new_space_)
-          .p("nodes_promoted", heap_->nodes_promoted_)
-          .p("promotion_ratio", heap_->promotion_ratio_)
-          .p("average_survival_ratio", AverageSurvivalRatio())
-          .p("promotion_rate", heap_->promotion_rate_)
-          .p("new_space_survive_rate_", heap_->new_space_surviving_rate_);
+             current_scope(Scope::CONSERVATIVE_STACK_SCANNING));
       break;
     case Event::Type::MARK_COMPACTOR:
     case Event::Type::INCREMENTAL_MARK_COMPACTOR:
@@ -1116,16 +1106,6 @@ void GCTracer::PrintNVP() const {
              current_scope(Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS))
           .p("conservative_stack_scanning",
              current_scope(Scope::CONSERVATIVE_STACK_SCANNING))
-          .p("allocated", allocated_since_last_gc)
-          .p("promoted", heap_->promoted_objects_size())
-          .p("new_space_survived", heap_->new_space_surviving_object_size())
-          .p("nodes_died_in_new", heap_->nodes_died_in_new_space_)
-          .p("nodes_copied_in_new", heap_->nodes_copied_in_new_space_)
-          .p("nodes_promoted", heap_->nodes_promoted_)
-          .p("promotion_ratio", heap_->promotion_ratio_)
-          .p("average_survival_ratio", AverageSurvivalRatio())
-          .p("promotion_rate", heap_->promotion_rate_)
-          .p("new_space_survive_rate", heap_->new_space_surviving_rate_)
           .p("compaction_speed",
              CompactionSpeedInBytesPerMillisecond().value_or(0.0));
       break;
