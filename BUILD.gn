@@ -7093,6 +7093,7 @@ v8_header_set("v8_heap_base_headers") {
     "src/heap/base/incremental-marking-schedule.h",
     "src/heap/base/memory-tagging.h",
     "src/heap/base/stack.h",
+    "src/heap/base/unsafe-json-emitter.h",
     "src/heap/base/worklist.h",
   ]
 
@@ -7107,6 +7108,7 @@ v8_source_set("v8_heap_base") {
     "src/heap/base/incremental-marking-schedule.cc",
     "src/heap/base/memory-tagging.cc",
     "src/heap/base/stack.cc",
+    "src/heap/base/unsafe-json-emitter.cc",
     "src/heap/base/worklist.cc",
   ]
 

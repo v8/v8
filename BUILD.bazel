@@ -3946,6 +3946,8 @@ filegroup(
         "src/heap/base/memory-tagging.cc",
         "src/heap/base/stack.cc",
         "src/heap/base/stack.h",
+        "src/heap/base/unsafe-json-emitter.cc",
+        "src/heap/base/unsafe-json-emitter.h",
         "src/heap/base/worklist.cc",
         "src/heap/base/worklist.h",
     ] + select({
