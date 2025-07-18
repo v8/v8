@@ -175,15 +175,6 @@ struct BitfieldCheck {
   }
 };
 
-template <typename T>
-bool CanFoldFloatConstants(bool ensure_deterministic_nan, T k1, T k2) {
-  if (!ensure_deterministic_nan) return true;
-  // Operations involving NaN values have platform specific results.
-  return (!std::isnan(k1) && !std::isnan(k2)) &&
-         // Operations involving +/-Inf values have platform specific results.
-         (!std::isinf(k1) || !std::isinf(k2));
-}
-
 }  // namespace detail
 
 template <class Next>
@@ -593,61 +584,50 @@ class MachineOptimizationReducer : public Next {
     }
 
     // constant folding
-    if (float k1, k2;
-        rep == FloatRepresentation::Float32() &&
-        matcher_.MatchFloat32Constant(lhs, &k1) &&
-        matcher_.MatchFloat32Constant(rhs, &k2) &&
-        detail::CanFoldFloatConstants(ensure_deterministic_nan, k1, k2)) {
+    if (float k1, k2; rep == FloatRepresentation::Float32() &&
+                      matcher_.MatchFloat32Constant(lhs, &k1) &&
+                      matcher_.MatchFloat32Constant(rhs, &k2)) {
+#define CONSTANT_F32_CASE(kind, op)                            \
+  case Kind::kind: {                                           \
+    float result = op;                                         \
+    if (ensure_deterministic_nan && std::isnan(result)) break; \
+    return __ Float32Constant(result);                         \
+  }
       switch (kind) {
-        case Kind::kAdd:
-          return __ Float32Constant(k1 + k2);
-        case Kind::kMul:
-          if (ensure_deterministic_nan && std::isnan(k1 * k2)) break;
-          return __ Float32Constant(k1 * k2);
-        case Kind::kSub:
-          return __ Float32Constant(k1 - k2);
-        case Kind::kMin:
-          return __ Float32Constant(JSMin(k1, k2));
-        case Kind::kMax:
-          return __ Float32Constant(JSMax(k1, k2));
-        case Kind::kDiv:
-          if (ensure_deterministic_nan && k2 == 0) break;
-          return __ Float32Constant(k1 / k2);
-        case Kind::kPower:
-          return __ Float32Constant(internal::math::pow(k1, k2));
-        case Kind::kAtan2:
-          return __ Float32Constant(base::ieee754::atan2(k1, k2));
+        CONSTANT_F32_CASE(kAdd, k1 + k2)
+        CONSTANT_F32_CASE(kMul, k1 * k2)
+        CONSTANT_F32_CASE(kSub, k1 - k2)
+        CONSTANT_F32_CASE(kMin, JSMin(k1, k2))
+        CONSTANT_F32_CASE(kMax, JSMax(k1, k2))
+        CONSTANT_F32_CASE(kDiv, k1 / k2)
+        CONSTANT_F32_CASE(kPower, i::math::pow(k1, k2))
+        CONSTANT_F32_CASE(kAtan2, base::ieee754::atan2(k1, k2));
         case Kind::kMod:
           UNREACHABLE();
       }
+#undef CONSTANT_F32_CASE
     }
-    if (double k1, k2;
-        rep == FloatRepresentation::Float64() &&
-        matcher_.MatchFloat64Constant(lhs, &k1) &&
-        matcher_.MatchFloat64Constant(rhs, &k2) &&
-        detail::CanFoldFloatConstants(ensure_deterministic_nan, k1, k2)) {
+    if (double k1, k2; rep == FloatRepresentation::Float64() &&
+                       matcher_.MatchFloat64Constant(lhs, &k1) &&
+                       matcher_.MatchFloat64Constant(rhs, &k2)) {
+#define CONSTANT_F64_CASE(kind, op)                            \
+  case Kind::kind: {                                           \
+    double result = op;                                        \
+    if (ensure_deterministic_nan && std::isnan(result)) break; \
+    return __ Float64Constant(result);                         \
+  }
       switch (kind) {
-        case Kind::kAdd:
-          return __ Float64Constant(k1 + k2);
-        case Kind::kMul:
-          if (ensure_deterministic_nan && std::isnan(k1 * k2)) break;
-          return __ Float64Constant(k1 * k2);
-        case Kind::kSub:
-          return __ Float64Constant(k1 - k2);
-        case Kind::kMin:
-          return __ Float64Constant(JSMin(k1, k2));
-        case Kind::kMax:
-          return __ Float64Constant(JSMax(k1, k2));
-        case Kind::kDiv:
-          if (ensure_deterministic_nan && k2 == 0) break;
-          return __ Float64Constant(k1 / k2);
-        case Kind::kMod:
-          return __ Float64Constant(Modulo(k1, k2));
-        case Kind::kPower:
-          return __ Float64Constant(math::pow(k1, k2));
-        case Kind::kAtan2:
-          return __ Float64Constant(base::ieee754::atan2(k1, k2));
+        CONSTANT_F64_CASE(kAdd, k1 + k2)
+        CONSTANT_F64_CASE(kMul, k1 * k2)
+        CONSTANT_F64_CASE(kSub, k1 - k2)
+        CONSTANT_F64_CASE(kMin, JSMin(k1, k2))
+        CONSTANT_F64_CASE(kMax, JSMax(k1, k2))
+        CONSTANT_F64_CASE(kDiv, k1 / k2)
+        CONSTANT_F64_CASE(kMod, Modulo(k1, k2))
+        CONSTANT_F64_CASE(kPower, i::math::pow(k1, k2))
+        CONSTANT_F64_CASE(kAtan2, base::ieee754::atan2(k1, k2))
       }
+#undef CONSTANT_F64_CASE
     }
 
     // All NaN folding is disabled for Wasm; architectures disagree on which
