@@ -7,12 +7,12 @@
 #include <algorithm>
 #include <utility>
 
-#include "src/base/base-export.h"
 #include "src/base/logging.h"
 #include "src/execution/local-isolate.h"
 #include "src/maglev/maglev-graph-optimizer.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-post-hoc-optimizations-processors.h"
 #include "src/maglev/maglev-reducer-inl.h"
 
 namespace v8::internal::maglev {
@@ -126,6 +126,19 @@ void MaglevInliner::Run() {
                   << std::endl;
         PrintGraph(std::cout, graph_);
       }
+    }
+
+    // Sweep identities.
+    // TODO(victorgomes): After inlining, the result of the previous inlined
+    // function is an identity. Although we guarantee that all arguments to the
+    // inlined function will not be an identity, their inputs could. However,
+    // the graph builder does not expect identities at any point. We need to
+    // either get rid of the identities before another inline function (either
+    // via the sweeper or the optimizer), or support identities in the graph
+    // builder.
+    {
+      GraphProcessor<SweepIdentityNodes> sweeper;
+      sweeper.ProcessGraph(graph_);
     }
   }
 
