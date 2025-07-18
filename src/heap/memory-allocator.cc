@@ -446,36 +446,24 @@ PageMetadata* MemoryAllocator::AllocatePage(
   }
 
   PageMetadata* metadata;
+  MemoryChunk::MainThreadFlags trusted_flags;
   if (chunk_info->optional_metadata) {
     metadata = new (chunk_info->optional_metadata) PageMetadata(
         isolate_->heap(), space, chunk_info->size, chunk_info->area_start,
-        chunk_info->area_end, std::move(chunk_info->reservation));
+        chunk_info->area_end, std::move(chunk_info->reservation), executable,
+        &trusted_flags);
   } else {
     metadata = new PageMetadata(isolate_->heap(), space, chunk_info->size,
                                 chunk_info->area_start, chunk_info->area_end,
-                                std::move(chunk_info->reservation));
+                                std::move(chunk_info->reservation), executable,
+                                &trusted_flags);
   }
   MemoryChunk* chunk;
-  MemoryChunk::MainThreadFlags flags = metadata->InitialFlags(executable);
-  if (v8_flags.black_allocated_pages && space->identity() != NEW_SPACE &&
-      space->identity() != NEW_LO_SPACE &&
-      isolate_->heap()->incremental_marking()->black_allocation()) {
-    // Disable the write barrier for objects pointing to this page. We don't
-    // need to trigger the barrier for pointers to old black-allocated pages,
-    // since those are never considered for evacuation. However, we have to
-    // keep the old->shared remembered set across multiple GCs, so those
-    // pointers still need to be recorded.
-    if (!IsAnySharedSpace(space->identity())) {
-      flags &= ~MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
-    }
-    // And mark the page as black allocated.
-    flags |= MemoryChunk::BLACK_ALLOCATED;
-  }
   if (executable) {
     RwxMemoryWriteScope scope("Initialize a new MemoryChunk.");
-    chunk = new (chunk_info->chunk) MemoryChunk(flags, metadata);
+    chunk = new (chunk_info->chunk) MemoryChunk(trusted_flags, metadata);
   } else {
-    chunk = new (chunk_info->chunk) MemoryChunk(flags, metadata);
+    chunk = new (chunk_info->chunk) MemoryChunk(trusted_flags, metadata);
   }
 
 #ifdef DEBUG
@@ -546,22 +534,24 @@ LargePageMetadata* MemoryAllocator::AllocateLargePage(LargeObjectSpace* space,
   }
 
   LargePageMetadata* metadata;
+  MemoryChunk::MainThreadFlags trusted_flags;
   if (chunk_info->optional_metadata) {
     metadata = new (chunk_info->optional_metadata) LargePageMetadata(
         isolate_->heap(), space, chunk_info->size, chunk_info->area_start,
-        chunk_info->area_end, std::move(chunk_info->reservation), executable);
+        chunk_info->area_end, std::move(chunk_info->reservation), executable,
+        &trusted_flags);
   } else {
     metadata = new LargePageMetadata(
         isolate_->heap(), space, chunk_info->size, chunk_info->area_start,
-        chunk_info->area_end, std::move(chunk_info->reservation), executable);
+        chunk_info->area_end, std::move(chunk_info->reservation), executable,
+        &trusted_flags);
   }
   MemoryChunk* chunk;
-  MemoryChunk::MainThreadFlags flags = metadata->InitialFlags(executable);
   if (executable) {
     RwxMemoryWriteScope scope("Initialize a new MemoryChunk.");
-    chunk = new (chunk_info->chunk) MemoryChunk(flags, metadata);
+    chunk = new (chunk_info->chunk) MemoryChunk(trusted_flags, metadata);
   } else {
-    chunk = new (chunk_info->chunk) MemoryChunk(flags, metadata);
+    chunk = new (chunk_info->chunk) MemoryChunk(trusted_flags, metadata);
   }
 
 #ifdef DEBUG

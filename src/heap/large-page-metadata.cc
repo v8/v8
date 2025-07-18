@@ -15,11 +15,10 @@ namespace internal {
 
 class Heap;
 
-LargePageMetadata::LargePageMetadata(Heap* heap, BaseSpace* space,
-                                     size_t chunk_size, Address area_start,
-                                     Address area_end,
-                                     VirtualMemory reservation,
-                                     Executability executable)
+LargePageMetadata::LargePageMetadata(
+    Heap* heap, BaseSpace* space, size_t chunk_size, Address area_start,
+    Address area_end, VirtualMemory reservation, Executability executable,
+    MemoryChunk::MainThreadFlags* trusted_flags)
     : MutablePageMetadata(heap, space, chunk_size, area_start, area_end,
                           std::move(reservation), PageSize::kLarge) {
   static_assert(LargePageMetadata::kMaxCodePageSize <=
@@ -32,12 +31,11 @@ LargePageMetadata::LargePageMetadata(Heap* heap, BaseSpace* space,
   }
 
   list_node().Initialize();
-}
 
-MemoryChunk::MainThreadFlags LargePageMetadata::InitialFlags(
-    Executability executable) const {
-  return MutablePageMetadata::InitialFlags(executable) |
-         MemoryChunk::LARGE_PAGE;
+  trusted_main_thread_flags_ =
+      MutablePageMetadata::ComputeInitialFlags(executable) |
+      MemoryChunk::LARGE_PAGE;
+  *trusted_flags = trusted_main_thread_flags_;
 }
 
 void LargePageMetadata::ClearOutOfLiveRangeSlots(Address free_start) {
