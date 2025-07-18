@@ -2900,7 +2900,7 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
       MOVE_RETURN_ON_EXCEPTION(
           isolate, fields,
           PrepareCalendarFields(isolate, kind, item_recvr,
-                                kYearFields | kMonthFields,
+                                kYearFields | kMonthFields | kDay,
                                 RequiredFields::kNone, owners));
 
       // Remaining steps handled in Rust
@@ -4982,10 +4982,12 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::With(
 
   using enum temporal::CalendarFieldsFlag;
 
+  // 6. Let partialMonthDay be ? PrepareCalendarFields(calendar,
+  // temporalMonthDayLike, « year, month, month-code, day », « », partial).
   return temporal::GenericWith<JSTemporalPlainMonthDay,
                                temporal_rs::PartialDate>(
       isolate, temporal_month_day, temporal_month_day_like_obj, options_obj,
-      kDay | kMonthFields, method_name);
+      kYearFields | kMonthFields | kDay, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.toplaindate
