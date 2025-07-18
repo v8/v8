@@ -2720,7 +2720,6 @@ DEFINE_BOOL(trace_file_names, false,
 DEFINE_BOOL(always_turbofan, false, "always try to optimize functions")
 DEFINE_IMPLICATION(always_turbofan, turbofan)
 DEFINE_BOOL(always_osr, false, "always try to OSR functions")
-DEFINE_BOOL(prepare_always_turbofan, false, "prepare for turning on always opt")
 
 DEFINE_BOOL(trace_serializer, false, "print code serializer trace")
 #ifdef DEBUG
