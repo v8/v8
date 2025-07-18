@@ -537,12 +537,6 @@ trybot_pair(
 )
 
 trybot_pair(
-    name = "v8_numfuzz_asan_rel",
-    cq_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-)
-
-trybot_pair(
     name = "v8_numfuzz_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
