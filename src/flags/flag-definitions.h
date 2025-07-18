@@ -637,6 +637,8 @@ DEFINE_INT(max_maglev_inlined_bytecode_size, 100,
 DEFINE_INT(max_maglev_inlined_bytecode_size_cumulative, 920,
            "maximum cumulative size of bytecode considered for inlining excl. "
            "small functions")
+DEFINE_INT(max_maglev_inlined_bytecode_size_small_total, 3000,
+           "maximum size of small functions' bytecode that can be inlining")
 DEFINE_INT(max_maglev_inlined_bytecode_size_small, 27,
            "maximum size of bytecode considered for small function inlining")
 DEFINE_INT(max_maglev_inlined_bytecode_size_small_with_heapnum_in_out, 75,
@@ -649,6 +651,9 @@ DEFINE_WEAK_VALUE_IMPLICATION(maglev_as_top_tier,
                               max_maglev_inlined_bytecode_size, 460)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev_as_top_tier, min_maglev_inlining_frequency,
                               0.10)
+DEFINE_WEAK_VALUE_IMPLICATION(maglev_as_top_tier,
+                              max_maglev_inlined_bytecode_size_small_total,
+                              30000)
 
 DEFINE_BOOL(maglev_reuse_stack_slots, true,
             "reuse stack slots in the maglev optimizing compiler")

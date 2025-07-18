@@ -70,6 +70,7 @@ struct MaglevCallSiteInfo {
   CallKnownJSFunction* generic_call_node;
   compiler::FeedbackCellRef feedback_cell;
   float score;
+  int bytecode_length;
 };
 
 class MaglevGraphBuilder {
@@ -260,6 +261,13 @@ class MaglevGraphBuilder {
       return v8_flags.max_maglev_inlined_bytecode_size_cumulative;
     }
   }
+  int max_inlined_bytecode_size_small_total() {
+    if (is_turbolev()) {
+      return v8_flags.max_inlined_bytecode_size_small_total;
+    } else {
+      return v8_flags.max_maglev_inlined_bytecode_size_small_total;
+    }
+  }
   int max_inline_depth() {
     if (is_turbolev()) {
       // This is just to avoid some corner cases, especially since we allow
@@ -268,6 +276,16 @@ class MaglevGraphBuilder {
       return kMaxDepthForInlining;
     } else {
       return v8_flags.max_maglev_inline_depth;
+    }
+  }
+  // We allow small functions to be inlined deeper than regular functions.
+  int max_inline_depth_small() {
+    if (is_turbolev()) {
+      // For Turbolev, small and normal functions can all be inlined at the same
+      // depth.
+      return max_inline_depth();
+    } else {
+      return v8_flags.max_maglev_hard_inline_depth;
     }
   }
 
@@ -1025,6 +1043,8 @@ class MaglevGraphBuilder {
       const compiler::FeedbackSource& feedback_source);
   bool CanInlineCall(compiler::SharedFunctionInfoRef shared,
                      float call_frequency);
+  bool IsFunctionSmall(compiler::SharedFunctionInfoRef shared,
+                       CallArguments& args);
   bool ShouldEagerInlineCall(compiler::SharedFunctionInfoRef shared,
                              CallArguments& args);
   ReduceResult BuildEagerInlineCall(ValueNode* context, ValueNode* function,

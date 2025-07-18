@@ -715,6 +715,8 @@ enum class UseRepresentation : uint8_t {
   kHoleyFloat64,
 };
 
+std::ostream& operator<<(std::ostream& os, UseRepresentation repr);
+
 typedef base::EnumSet<ValueRepresentation, int8_t> ValueRepresentationSet;
 typedef base::EnumSet<UseRepresentation, int8_t> UseRepresentationSet;
 
@@ -2892,8 +2894,8 @@ class ValueNode : public Node {
     return NodeTypeIs(GetStaticType(broker), type);
   }
 
-  inline void RecordUseReprHintIfPhi(UseRepresentationSet repr);
-  inline void RecordUseReprHintIfPhi(UseRepresentation repr);
+  inline void MaybeRecordUseReprHint(UseRepresentationSet repr);
+  inline void MaybeRecordUseReprHint(UseRepresentation repr);
 
   void InitializeRegisterData() {
     if (use_double_register()) {
@@ -10287,16 +10289,6 @@ class Phi : public ValueNodeT<Phi> {
   friend base::ThreadedListTraits<Phi>;
 };
 
-void ValueNode::RecordUseReprHintIfPhi(UseRepresentation repr) {
-  RecordUseReprHintIfPhi(UseRepresentationSet{repr});
-}
-
-void ValueNode::RecordUseReprHintIfPhi(UseRepresentationSet repr_mask) {
-  if (Phi* phi = TryCast<Phi>()) {
-    phi->RecordUseReprHint(repr_mask);
-  }
-}
-
 class Call : public ValueNodeT<Call> {
   using Base = ValueNodeT<Call>;
 
@@ -10891,6 +10883,11 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
 
   int expected_parameter_count() const { return expected_parameter_count_; }
 
+  void RecordUseReprHint(UseRepresentationSet repr_mask) {
+    uses_repr_hint_.Add(repr_mask);
+  }
+  UseRepresentationSet get_uses_repr_hints() { return uses_repr_hint_; }
+
  private:
 #ifdef V8_ENABLE_LEAPTIERING
   JSDispatchHandle dispatch_handle_;
@@ -10899,6 +10896,8 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   // Cache the expected parameter count so that we can access it in
   // MaxCallStackArgs without needing to unpark the local isolate.
   int expected_parameter_count_;
+
+  UseRepresentationSet uses_repr_hint_ = {};
 };
 
 class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
@@ -10980,6 +10979,20 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
   const compiler::FunctionTemplateInfoRef function_template_info_;
   const compiler::OptionalJSObjectRef api_holder_;
 };
+
+void ValueNode::MaybeRecordUseReprHint(UseRepresentation repr) {
+  MaybeRecordUseReprHint(UseRepresentationSet{repr});
+}
+
+void ValueNode::MaybeRecordUseReprHint(UseRepresentationSet repr_mask) {
+  if (Phi* phi = TryCast<Phi>()) {
+    phi->RecordUseReprHint(repr_mask);
+  }
+  if (CallKnownJSFunction* call = TryCast<CallKnownJSFunction>()) {
+    // std::cout << "Recording UseRepr hint for call : " << repr_mask << "\n";
+    call->RecordUseReprHint(repr_mask);
+  }
+}
 
 class ConstructWithSpread : public ValueNodeT<ConstructWithSpread> {
   using Base = ValueNodeT<ConstructWithSpread>;

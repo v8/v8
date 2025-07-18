@@ -1970,7 +1970,9 @@ MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(
           .set_parameter_count(parameter_count())
           .set_deoptimization_data(deopt_data)
           .set_empty_source_position_table()
-          .set_inlined_bytecode_size(graph_->total_inlined_bytecode_size())
+          .set_inlined_bytecode_size(
+              graph_->total_inlined_bytecode_size() +
+              graph_->total_inlined_bytecode_size_small())
           .set_osr_offset(
               code_gen_state_.compilation_info()->toplevel_osr_offset());
 

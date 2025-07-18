@@ -124,6 +124,23 @@ void NodeBase::CheckCanOverwriteWith(Opcode new_opcode,
 
 #endif  // DEBUG
 
+std::ostream& operator<<(std::ostream& os, UseRepresentation repr) {
+  switch (repr) {
+    case UseRepresentation::kTagged:
+      return os << "Tagged";
+    case UseRepresentation::kInt32:
+      return os << "Int32";
+    case UseRepresentation::kTruncatedInt32:
+      return os << "TruncatedInt32";
+    case UseRepresentation::kUint32:
+      return os << "Uint32";
+    case UseRepresentation::kFloat64:
+      return os << "Float64";
+    case UseRepresentation::kHoleyFloat64:
+      return os << "HoleyFloat64";
+  }
+}
+
 bool Phi::is_loop_phi() const { return merge_state()->is_loop(); }
 
 bool Phi::is_unmerged_loop_phi() const {
@@ -8421,7 +8438,7 @@ void Call::PrintParams(std::ostream& os) const {
 void CallSelf::PrintParams(std::ostream& os) const {}
 
 void CallKnownJSFunction::PrintParams(std::ostream& os) const {
-  os << "(" << shared_function_info_.object() << ")";
+  os << "(" << shared_function_info_.object() << ", " << uses_repr_hint_ << ")";
 }
 
 void CallKnownApiFunction::PrintParams(std::ostream& os) const {

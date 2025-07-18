@@ -1561,7 +1561,7 @@ InterpretedDeoptFrame MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
 ReduceResult MaglevGraphBuilder::GetSmiValue(
     ValueNode* value, UseReprHintRecording record_use_repr_hint) {
   if (V8_LIKELY(record_use_repr_hint == UseReprHintRecording::kRecord)) {
-    value->RecordUseReprHintIfPhi(UseRepresentation::kTagged);
+    value->MaybeRecordUseReprHint(UseRepresentation::kTagged);
   }
 
   NodeInfo* node_info = GetOrCreateInfoFor(value);
@@ -1659,7 +1659,7 @@ ReduceResult MaglevGraphBuilder::GetInternalizedString(
 ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(
     ValueNode* value, NodeType allowed_input_type,
     TaggedToFloat64ConversionType conversion_type) {
-  value->RecordUseReprHintIfPhi(UseRepresentation::kTruncatedInt32);
+  value->MaybeRecordUseReprHint(UseRepresentation::kTruncatedInt32);
 
   ValueRepresentation representation =
       value->properties().value_representation();
@@ -1873,7 +1873,7 @@ ValueNode* MaglevGraphBuilder::GetHoleyFloat64(
 ValueNode* MaglevGraphBuilder::GetHoleyFloat64ForToNumber(
     ValueNode* value, NodeType allowed_input_type,
     TaggedToFloat64ConversionType conversion_type) {
-  value->RecordUseReprHintIfPhi(UseRepresentation::kHoleyFloat64);
+  value->MaybeRecordUseReprHint(UseRepresentation::kHoleyFloat64);
   ValueRepresentation representation =
       value->properties().value_representation();
   // Ignore the hint for
@@ -4610,7 +4610,7 @@ bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
                                               ValueNode* value) {
   if (value->Is<RootConstant>() || value->Is<ConsStringMap>()) return true;
   if (!IsEmptyNodeType(GetType(value)) && CheckType(value, NodeType::kSmi)) {
-    value->RecordUseReprHintIfPhi(UseRepresentation::kTagged);
+    value->MaybeRecordUseReprHint(UseRepresentation::kTagged);
     return true;
   }
 
@@ -5642,7 +5642,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
 }
 
 ReduceResult MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
-  object->RecordUseReprHintIfPhi(UseRepresentation::kInt32);
+  object->MaybeRecordUseReprHint(UseRepresentation::kInt32);
 
   switch (object->properties().value_representation()) {
     case ValueRepresentation::kIntPtr:
@@ -6203,7 +6203,7 @@ ReduceResult MaglevGraphBuilder::ConvertForStoring(ValueNode* value,
   if (IsDoubleElementsKind(kind)) {
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     if (kind == ElementsKind::HOLEY_DOUBLE_ELEMENTS) {
-      value->RecordUseReprHintIfPhi(UseRepresentation::kHoleyFloat64);
+      value->MaybeRecordUseReprHint(UseRepresentation::kHoleyFloat64);
       const bool convert_hole_to_undefined = true;
       return GetHoleyFloat64(value,
                              TaggedToFloat64ConversionType::kNumberOrUndefined,
@@ -8031,23 +8031,6 @@ bool MaglevGraphBuilder::CanInlineCall(compiler::SharedFunctionInfoRef shared,
     return false;
   }
 
-  if (graph()->total_inlined_bytecode_size() >
-      max_inlined_bytecode_size_cumulative()) {
-    compilation_unit_->info()->set_could_not_inline_all_candidates();
-    TRACE_CANNOT_INLINE("maximum inlined bytecode size");
-    return false;
-  }
-  // TODO(olivf): This is a temporary stopgap to prevent infinite recursion when
-  // inlining, because we currently excempt small functions from some of the
-  // negative heuristics. We should refactor these heuristics and make sure they
-  // make sense in the presence of (mutually) recursive inlining. Please do
-  // *not* return true before this check.
-  if (inlining_depth() > v8_flags.max_maglev_hard_inline_depth) {
-    TRACE_CANNOT_INLINE("inlining depth ("
-                        << inlining_depth() << ") >= hard-max-depth ("
-                        << v8_flags.max_maglev_hard_inline_depth << ")");
-    return false;
-  }
   if (compilation_unit_->shared_function_info().equals(shared)) {
     TRACE_CANNOT_INLINE("direct recursion");
     return false;
@@ -8079,14 +8062,16 @@ bool MaglevGraphBuilder::CanInlineCall(compiler::SharedFunctionInfoRef shared,
   return true;
 }
 
-bool MaglevGraphBuilder::ShouldEagerInlineCall(
-    compiler::SharedFunctionInfoRef shared, CallArguments& args) {
+bool MaglevGraphBuilder::IsFunctionSmall(compiler::SharedFunctionInfoRef shared,
+                                         CallArguments& args) {
   compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
   if (bytecode.length() < max_inlined_bytecode_size_small()) {
     TRACE_INLINING("  greedy inlining "
                    << shared << ": small function, skipping max-depth");
     return true;
   }
+
+  // Small-ish functions that have float64 inputs are considered small.
   // TODO(victorgomes): Evaluate why this is not worth for Maglev, it regresses
   // crypto benchmarks.
   if (is_turbolev() && inlining_depth() <= max_inline_depth() &&
@@ -8109,7 +8094,37 @@ bool MaglevGraphBuilder::ShouldEagerInlineCall(
       return true;
     }
   }
+
   return false;
+}
+
+bool MaglevGraphBuilder::ShouldEagerInlineCall(
+    compiler::SharedFunctionInfoRef shared, CallArguments& args) {
+  if (!IsFunctionSmall(shared, args)) {
+    // Functions that aren't small aren't greedily inlined.
+    return false;
+  }
+
+  if (graph()->total_inlined_bytecode_size_small() >
+      max_inlined_bytecode_size_small_total()) {
+    compilation_unit_->info()->set_could_not_inline_all_candidates();
+    TRACE_CANNOT_INLINE("maximum inlined bytecode size for small functions");
+    return false;
+  }
+
+  // TODO(olivf): This is a temporary stopgap to prevent infinite recursion when
+  // inlining, because we currently exempt small functions from some of the
+  // negative heuristics. We should refactor these heuristics and make sure they
+  // make sense in the presence of (mutually) recursive inlining. Please do
+  // *not* return true before this check.
+  if (inlining_depth() > max_inline_depth_small()) {
+    TRACE_CANNOT_INLINE("inlining depth (" << inlining_depth()
+                                           << ") > max_inline_depth_small ("
+                                           << max_inline_depth_small() << ")");
+    return false;
+  }
+
+  return true;
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
@@ -8137,7 +8152,10 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
   float call_frequency = feedback_frequency * GetCurrentCallFrequency();
 
   if (!CanInlineCall(shared, call_frequency)) return {};
+
+  compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
   if (ShouldEagerInlineCall(shared, args)) {
+    graph()->add_inlined_bytecode_size_small(bytecode.length());
     return BuildEagerInlineCall(context, function, new_target, shared,
                                 feedback_cell, args, call_frequency);
   }
@@ -8146,16 +8164,21 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
     return {};
   }
 
-  // Should we inline call?
   if (inlining_depth() > max_inline_depth()) {
     TRACE_CANNOT_INLINE("inlining depth (" << inlining_depth()
-                                           << ") >= max-depth ("
+                                           << ") > max_inline_depth ("
                                            << max_inline_depth() << ")");
     return {};
   }
 
-  compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
   if (!is_non_eager_inlining_enabled()) {
+    if (graph()->total_inlined_bytecode_size() >=
+        max_inlined_bytecode_size_cumulative()) {
+      compilation_unit_->info()->set_could_not_inline_all_candidates();
+      TRACE_CANNOT_INLINE("maximum inlined bytecode size");
+      return {};
+    }
+
     graph()->add_inlined_bytecode_size(bytecode.length());
     return BuildEagerInlineCall(context, function, new_target, shared,
                                 feedback_cell, args, call_frequency);
@@ -8185,7 +8208,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
           known_node_aspects().Clone(zone()), loop_effects_,
           unobserved_context_slot_stores_, catch_details, IsInsideLoop(),
           /* is_eager_inline */ false, call_frequency},
-      generic_call, feedback_cell, score);
+      generic_call, feedback_cell, score, bytecode.length());
   graph()->inlineable_calls().push(call_site);
   return generic_call;
 }

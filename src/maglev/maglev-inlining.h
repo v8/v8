@@ -23,6 +23,10 @@ class MaglevInliner {
 
  private:
   int max_inlined_bytecode_size_cumulative() const;
+  int max_inlined_bytecode_size_small_total() const;
+  int max_inlined_bytecode_size_small_with_heapnum_in_out() const;
+
+  bool IsSmallWithHeapNumberInputsOutputs(MaglevCallSiteInfo* call_site) const;
 
   Graph* graph_;
 
@@ -32,7 +36,8 @@ class MaglevInliner {
   bool is_tracing_enabled() const { return graph_->is_tracing_enabled(); }
 
   MaglevCallSiteInfo* ChooseNextCallSite();
-  MaybeReduceResult BuildInlineFunction(MaglevCallSiteInfo* call_site);
+  MaybeReduceResult BuildInlineFunction(MaglevCallSiteInfo* call_site,
+                                        bool is_small);
 
   // Truncates the graph at the given basic block `block`.  All blocks
   // following `block` (exclusive) are removed from the graph and returned.

@@ -440,7 +440,7 @@ template <typename BaseT>
 ValueNode* MaglevReducer<BaseT>::GetTaggedValue(
     ValueNode* value, UseReprHintRecording record_use_repr_hint) {
   if (V8_LIKELY(record_use_repr_hint == UseReprHintRecording::kRecord)) {
-    value->RecordUseReprHintIfPhi(UseRepresentation::kTagged);
+    value->MaybeRecordUseReprHint(UseRepresentation::kTagged);
   }
 
   // TODO(victorgomes): Change identity value representation to unknown. Or
@@ -521,7 +521,7 @@ ValueNode* MaglevReducer<BaseT>::GetTaggedValue(
 template <typename BaseT>
 ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
                                           bool can_be_heap_number) {
-  value->RecordUseReprHintIfPhi(UseRepresentation::kInt32);
+  value->MaybeRecordUseReprHint(UseRepresentation::kInt32);
 
   ValueRepresentation representation =
       value->properties().value_representation();
@@ -608,7 +608,7 @@ std::optional<int32_t> MaglevReducer<BaseT>::TryGetInt32Constant(
 
 template <typename BaseT>
 ValueNode* MaglevReducer<BaseT>::GetFloat64(ValueNode* value) {
-  value->RecordUseReprHintIfPhi(UseRepresentation::kFloat64);
+  value->MaybeRecordUseReprHint(UseRepresentation::kFloat64);
   return GetFloat64ForToNumber(value, NodeType::kNumber,
                                TaggedToFloat64ConversionType::kOnlyNumber);
 }

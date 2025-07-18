@@ -22,24 +22,6 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-static std::ostream& operator<<(std::ostream& os,
-                                const UseRepresentation& repr) {
-  switch (repr) {
-    case UseRepresentation::kTagged:
-      return os << "Tagged";
-    case UseRepresentation::kInt32:
-      return os << "Int32";
-    case UseRepresentation::kTruncatedInt32:
-      return os << "TruncatedInt32";
-    case UseRepresentation::kUint32:
-      return os << "Uint32";
-    case UseRepresentation::kFloat64:
-      return os << "Float64";
-    case UseRepresentation::kHoleyFloat64:
-      return os << "HoleyFloat64";
-  }
-}
-
 #define TRACE_UNTAGGING(...)                                \
   do {                                                      \
     if (V8_UNLIKELY(v8_flags.trace_maglev_phi_untagging)) { \
