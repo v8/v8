@@ -177,8 +177,9 @@ Float32 f32_add_result(Float32 lhs, Float32 rhs) {
 Float32 f32_sub_result(Float32 lhs, Float32 rhs) {
   if (auto maybe_nan = propagate_f32_binop_nan(lhs, rhs)) return *maybe_nan;
 
-#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_PPC64) || \
-    defined(V8_TARGET_ARCH_S390X)
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_PPC64) ||   \
+    defined(V8_TARGET_ARCH_S390X) || defined(V8_TARGET_ARCH_RISCV64) || \
+    defined(V8_TARGET_ARCH_RISCV32)
   // inf - inf -> NaN
   // -inf - -inf -> NaN
   if (lhs.is_inf() && rhs.is_inf() && lhs.is_negative() == rhs.is_negative()) {
@@ -192,7 +193,8 @@ Float32 f32_sub_result(Float32 lhs, Float32 rhs) {
 Float32 f32_mul_result(Float32 lhs, Float32 rhs) {
   if (auto maybe_nan = propagate_f32_binop_nan(lhs, rhs)) return *maybe_nan;
 
-#if defined(V8_TARGET_ARCH_ARM64)
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_RISCV64) || \
+    defined(V8_TARGET_ARCH_RISCV32)
   // 0 * Inf == NaN
   if (lhs.get_scalar() == 0 && rhs.is_inf()) return Float32::quiet_nan();
   // Inf * 0 == NaN
@@ -203,7 +205,8 @@ Float32 f32_mul_result(Float32 lhs, Float32 rhs) {
 }
 
 Float32 f32_div_result(Float32 lhs, Float32 rhs) {
-#if defined(V8_TARGET_ARCH_ARM)
+#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_RISCV64) || \
+    defined(V8_TARGET_ARCH_RISCV32)
   if (rhs.get_scalar() == 0) {
     // +-0 / +-0 == NaN
     // +-NaN / +-0 == NaN
@@ -217,7 +220,8 @@ Float32 f32_div_result(Float32 lhs, Float32 rhs) {
 
   if (auto maybe_nan = propagate_f32_binop_nan(lhs, rhs)) return *maybe_nan;
 
-#if defined(V8_TARGET_ARCH_ARM64)
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_RISCV64) || \
+    defined(V8_TARGET_ARCH_RISCV32)
   // +-inf / +-inf == NaN
   if (lhs.is_inf() && rhs.is_inf()) return Float32::quiet_nan();
   if (rhs.get_scalar() == 0) {
