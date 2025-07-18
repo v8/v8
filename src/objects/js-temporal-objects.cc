@@ -6296,11 +6296,15 @@ MaybeDirectHandle<String> JSTemporalZonedDateTime::TimeZoneId(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   std::string id;
 
+#ifdef TEMPORAL_CAPI_VERSION_0_0_10
   MOVE_RETURN_ON_EXCEPTION(
       isolate, id,
       ExtractRustResult(
           isolate,
           zoned_date_time->zoned_date_time()->raw()->timezone().identifier()));
+#else
+  id = zoned_date_time->zoned_date_time()->raw()->timezone().identifier();
+#endif
 
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(id);
