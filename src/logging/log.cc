@@ -1153,8 +1153,10 @@ class Ticker : public sampler::Sampler {
     if (isolate->was_locker_ever_used() &&
         (!isolate->thread_manager()->IsLockedByThread(
              perThreadData_->thread_id()) ||
-         perThreadData_->thread_state() != nullptr))
+         perThreadData_->thread_state() != nullptr)) {
       return;
+    }
+    if (isolate->current_vm_state() == LOGGING) return;
     if (!v8_flags.prof_include_idle && IsIdle(isolate->current_vm_state())) {
       return;
     }
@@ -1978,6 +1980,7 @@ void V8FileLogger::RuntimeCallTimerEvent() {
 
 void V8FileLogger::TickEvent(TickSample* sample, bool overflow) {
   if (!v8_flags.prof_cpp) return;
+  if (sample->state == LOGGING) return;
   if (!v8_flags.prof_include_idle && IsIdle(sample->state)) {
     return;
   }
