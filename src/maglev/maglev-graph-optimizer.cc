@@ -1600,6 +1600,11 @@ ProcessResult MaglevGraphOptimizer::VisitCreateFastArrayElements() {
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitNewConsString() {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitMapPrototypeGet() {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;

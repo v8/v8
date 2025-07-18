@@ -168,6 +168,7 @@ class ExceptionHandlerInfo;
 
 #define TURBOLEV_VALUE_NODE_LIST(V) \
   V(CreateFastArrayElements)        \
+  V(NewConsString)                  \
   V(MapPrototypeGet)                \
   V(MapPrototypeGetInt32Key)        \
   V(SetPrototypeHas)
@@ -8169,6 +8170,27 @@ class CreateFastArrayElements
 
  private:
   const AllocationType allocation_type_;
+};
+
+class NewConsString : public FixedInputValueNodeT<3, NewConsString> {
+  using Base = FixedInputValueNodeT<3, NewConsString>;
+
+ public:
+  explicit NewConsString(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::CanAllocate();
+
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kInt32, ValueRepresentation::kTagged,
+      ValueRepresentation::kTagged};
+
+  Input& length_input() { return input(0); }
+  Input& first_input() { return input(1); }
+  Input& second_input() { return input(2); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const {}
 };
 
 class TransitionAndStoreArrayElement

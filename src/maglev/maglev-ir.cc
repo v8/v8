@@ -583,6 +583,7 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kStringAt:
     case Opcode::kStringConcat:
     case Opcode::kBuiltinStringFromCharCode:
+    case Opcode::kNewConsString:
       return NodeType::kString;
     case Opcode::kCheckedInternalizedString:
       return NodeType::kInternalizedString;

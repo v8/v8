@@ -2219,6 +2219,14 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::NewConsString* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node,
+           __ NewConsString(Map(node->length_input()), Map(node->first_input()),
+                            Map(node->second_input())));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::CreateArrayLiteral* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());

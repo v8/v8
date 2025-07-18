@@ -2390,10 +2390,6 @@ size_t MaglevGraphBuilder::StringLengthStaticLowerBound(ValueNode* string,
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
     ValueNode* left, ValueNode* right, AllocationType allocation_type) {
-  // This optimization is also done by Turboshaft.
-  if (is_turbolev()) {
-    return ReduceResult::Fail();
-  }
   if (!v8_flags.maglev_cons_string_elision) {
     return ReduceResult::Fail();
   }
@@ -2430,6 +2426,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
         new_length, GetInt32Constant(String::kMaxLength),
         AssertCondition::kUnsignedLessThanEqual,
         DeoptimizeReason::kStringTooLarge));
+
+    if (is_turbolev()) {
+      // TODO(dmercadier): This can be removed once the Turbolev escape
+      // analysis can handle VirtualConsStrings.
+      return AddNewNode<NewConsString>({new_length, left, right});
+    }
 
     ValueNode* new_map;
     GET_VALUE_OR_ABORT(new_map, BuildNewConsStringMap(left, right));
