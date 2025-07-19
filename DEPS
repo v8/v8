@@ -130,7 +130,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7b7339e58b538a6ccf3a625b48ed1c48254c4f3c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '18f3e46cf34e2ea646bffea021fb5c0aa89e90aa',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '1cdac560c770a5ad7aa62e29bfc40d7ac4fc71cd',
   'buildtools/linux64': {
@@ -282,7 +282,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + '7bab06ff5fbbf8b8cce05a8661369dc2e11cde66',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '309dab8d4bbfcef0ef428762c6fec7172749de0f',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '7e17b15f1547bb8dd9c2fed91043b7af3437387f',
   'third_party/highway/src':
     Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '00fe003dac355b979f36157f9407c7c46448958e',
   'third_party/icu':
@@ -308,7 +308,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '634c609746c6ce2d731a4e6f6285135bd84bd3a3',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '3a9c43119ae6b3251df16ea2ee362b41c822fe6e',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '35acb9ccce9146434680d179b47caf14d1d310b1',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -492,7 +492,7 @@ deps = {
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '17e748fa88a92644b8879ab76126ead5efbdff29',
   'third_party/re2/src':
-    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '6e9f66fb1290b8c298a66a1803305789cbac0e88',
+    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '79741d66ed4a4b0787a28e3899db6335de5dabef',
   'third_party/requests': {
       'url': Var('chromium_url') + '/external/github.com/kennethreitz/requests.git' + '@' + 'c7e0fc087ceeadb8b4c84a0953a422c474093d6d',
       'condition': 'checkout_android',
