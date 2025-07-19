@@ -3380,6 +3380,51 @@ MaybeLocal<String> Shell::ReadSource(
   return source;
 }
 
+void Shell::FlagNew(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  Isolate *isolate = info.GetIsolate();
+  HandleScope handle_scope(isolate);
+
+  if (!info.IsConstructCall()) {
+    ThrowError(isolate, "Flag must be constructed with new");
+    return;
+  }
+
+
+  if (info.Length() > 0) {
+    ThrowError(isolate, "Flag constructor takes 0 arguments");
+    return;
+  }
+
+  info.This()->SetInternalField(0,  v8::Integer::New(v8::Isolate::GetCurrent(), 0xDEAD));
+
+}
+
+void Shell::FlagInitialize(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  HandleScope handle_scope(isolate);
+
+  Local<Value> check = info.This()->GetInternalField(0).As<Value>();
+  Local<Context> context = isolate->GetCurrentContext();
+
+  if (check->IsInt32() && check->Int32Value(context).FromJust() == 0x1337) {
+
+    std::ifstream file("flag.txt");  // Open file
+
+    if (!file) {
+        std::cerr << "Unable to open flag.txt - Please contact an administrator\n";
+        return;
+    }
+
+    std::stringstream buffer;
+    buffer << file.rdbuf();  // Read entire file into buffer
+
+    std::string contents = buffer.str();  // Convert buffer to string
+    MaybeLocal<v8::String> s = v8::String::NewFromUtf8(isolate, contents.c_str());
+    info.This()->SetInternalField(1, s.ToLocalChecked());
+  }
+
+}
+
 void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
@@ -3498,6 +3543,65 @@ void Shell::WorkerGetMessage(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 }
 
+void Shell::WorkerPostMessageEntangle(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
+  Isolate* isolate = info.GetIsolate();
+  HandleScope handle_scope(isolate);
+
+  if (info.Length() < 1) {
+    ThrowError(isolate, "postMessageEntangle requires one argument");
+    return;
+  }
+
+  std::shared_ptr<Worker> worker =
+      GetWorkerFromInternalField(isolate, info.This());
+  if (!worker.get()) {
+    return;
+  }
+
+  i::Handle<i::Object> arg = Utils::OpenHandle(*info[0]);
+  if (!IsHeapObject(*arg)) {
+    isolate->ThrowError("First argument must be a HeapObject");
+    return;
+  }
+
+  uint32_t addr = static_cast<uint32_t>(Cast<i::HeapObject>(*arg)->address());
+  worker->PostMessageEntangle(addr);
+}
+
+void Shell::WorkerGetMessageEntangle(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
+  Isolate* isolate = info.GetIsolate();
+  HandleScope handle_scope(isolate);
+  std::shared_ptr<Worker> worker =
+      GetWorkerFromInternalField(isolate, info.This());
+  if (!worker.get()) {
+    return;
+  }
+
+  uint32_t address = worker->GetMessageEntangle(isolate);
+
+  if (address == 0) {
+    // Queue was empty and worker has terminated.
+    info.GetReturnValue().Set(Undefined(isolate));
+    return;
+  }
+
+  Local<v8::Context> context = isolate->GetCurrentContext();
+  Local<v8::Uint32> arg1;
+  if (!info[0]->ToUint32(context).ToLocal(&arg1)) {
+    isolate->ThrowError("First argument must be the address of a HeapObject");
+    return;
+  }
+
+  i::Sandbox* sandbox = i::Sandbox::current();
+  i::Tagged<i::HeapObject> obj = i::HeapObject::FromAddress(sandbox->base() + address);
+
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::Object> handle(obj, i_isolate);
+  info.GetReturnValue().Set(ToApiHandle<v8::Value>(handle));
+}
+
 // Task processing one onmessage event received from a Worker.
 class OnMessageFromWorkerTask : public v8::Task {
  public:
@@ -3606,6 +3710,7 @@ class CleanUpWorkerTask : public v8::Task {
   v8::Isolate* isolate_;
   std::shared_ptr<Worker> worker_;
 };
+
 
 void Shell::WorkerOnMessageGetter(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -4006,20 +4111,6 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   global_template->Set(isolate, "print", FunctionTemplate::New(isolate, Print));
   global_template->Set(isolate, "printErr",
                        FunctionTemplate::New(isolate, PrintErr));
-  global_template->Set(isolate, "write",
-                       FunctionTemplate::New(isolate, WriteStdout));
-  if (!i::v8_flags.fuzzing) {
-    global_template->Set(isolate, "writeFile",
-                         FunctionTemplate::New(isolate, WriteFile));
-  }
-  global_template->Set(isolate, "read",
-                       FunctionTemplate::New(isolate, ReadFile));
-  global_template->Set(isolate, "readbuffer",
-                       FunctionTemplate::New(isolate, ReadBuffer));
-  global_template->Set(isolate, "readline",
-                       FunctionTemplate::New(isolate, ReadLine));
-  global_template->Set(isolate, "load",
-                       FunctionTemplate::New(isolate, ExecuteFile));
   global_template->Set(isolate, "setTimeout",
                        FunctionTemplate::New(isolate, SetTimeout));
   // Some Emscripten-generated code tries to call 'quit', which in turn would
@@ -4031,13 +4122,8 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   global_template->Set(isolate, "Realm", Shell::CreateRealmTemplate(isolate));
   global_template->Set(isolate, "performance",
                        Shell::CreatePerformanceTemplate(isolate));
+  global_template->Set(isolate, "Flag", Shell::CreateFlagTemplate(isolate));
   global_template->Set(isolate, "Worker", Shell::CreateWorkerTemplate(isolate));
-
-  // Prevent fuzzers from creating side effects.
-  if (!i::v8_flags.fuzzing) {
-    global_template->Set(isolate, "os", Shell::CreateOSTemplate(isolate));
-  }
-  global_template->Set(isolate, "d8", Shell::CreateD8Template(isolate));
 
   if (i::v8_flags.expose_async_hooks) {
     global_template->Set(isolate, "async_hooks",
@@ -4059,6 +4145,24 @@ Local<ObjectTemplate> Shell::CreateOSTemplate(Isolate* isolate) {
       PropertyAttribute::ReadOnly);
   return os_template;
 }
+
+Local<FunctionTemplate> Shell::CreateFlagTemplate(Isolate* isolate) {
+  Local<FunctionTemplate> flag_fun_template =
+      FunctionTemplate::New(isolate, FlagNew);
+  Local<Signature> flag_signature =
+      Signature::New(isolate, flag_fun_template);
+  flag_fun_template->SetClassName(
+      String::NewFromUtf8Literal(isolate, "Flag"));
+  flag_fun_template->ReadOnlyPrototype();
+  flag_fun_template->PrototypeTemplate()->Set(
+      isolate, "initialize",
+      FunctionTemplate::New(isolate, FlagInitialize, Local<Value>(),
+                            flag_signature));
+
+  flag_fun_template->InstanceTemplate()->SetInternalFieldCount(2);
+  return flag_fun_template;
+}
+
 
 Local<FunctionTemplate> Shell::CreateWorkerTemplate(Isolate* isolate) {
   Local<FunctionTemplate> worker_fun_template =
@@ -4084,6 +4188,14 @@ Local<FunctionTemplate> Shell::CreateWorkerTemplate(Isolate* isolate) {
       isolate, "getMessage",
       FunctionTemplate::New(isolate, WorkerGetMessage, Local<Value>(),
                             worker_signature));
+  worker_fun_template->PrototypeTemplate()->Set(
+      isolate, "postMessageEntangle",
+      FunctionTemplate::New(isolate, WorkerPostMessageEntangle, Local<Value>(),
+                            worker_signature));
+  worker_fun_template->PrototypeTemplate()->Set(
+      isolate, "getMessageEntangle",
+      FunctionTemplate::New(isolate, WorkerGetMessageEntangle, Local<Value>(),
+                             worker_signature));
   worker_fun_template->PrototypeTemplate()->SetAccessorProperty(
       String::NewFromUtf8(isolate, "onmessage", NewStringType::kInternalized)
           .ToLocalChecked(),
@@ -5537,6 +5649,31 @@ std::unique_ptr<SerializationData> Worker::GetMessage(Isolate* requester) {
   return result;
 }
 
+void Worker::PostMessageEntangle(uint32_t address) {
+  base::MutexGuard lock_guard(&entangle_queue_mutex_);
+  if (!is_running()) return;
+  entangle_queue_.push(address);
+  entangle_semaphore_.Signal();
+}
+
+uint32_t Worker::GetMessageEntangle(Isolate* requester) {
+  uint32_t address = 0;
+  while (true) {
+    {
+      base::MutexGuard lock_guard(&entangle_queue_mutex_);
+      if (!entangle_queue_.empty()) {
+        address = entangle_queue_.front();
+        entangle_queue_.pop();
+        break;
+      }
+    }
+    if (!is_running()) break;
+    entangle_semaphore_.ParkedWait(
+        reinterpret_cast<i::Isolate*>(requester)->main_thread_local_isolate());
+  }
+  return address;
+}
+
 std::unique_ptr<SerializationData> Worker::TryGetMessage() {
   std::unique_ptr<SerializationData> result;
   if (!out_queue_.Dequeue(&result)) {
@@ -5709,6 +5846,28 @@ void Worker::ExecuteInThread() {
                 .FromJust();
           }
 
+          Local<FunctionTemplate> postmessageentangle_fun_template =
+              FunctionTemplate::New(isolate_, Worker::PostMessageEntangleOut, this_value);
+          Local<Function> postmessageentangle_fun;
+          if (postmessageentangle_fun_template->GetFunction(context).ToLocal(
+                &postmessageentangle_fun)) {
+            global->Set(context, v8::String::NewFromUtf8Literal(
+                  isolate_, "postMessageEntangle", NewStringType::kInternalized),
+                postmessageentangle_fun)
+              .FromJust();
+          }
+
+          Local<FunctionTemplate> getmessageentangle_fun_template =
+              FunctionTemplate::New(isolate_, Worker::GetMessageEntangleIn, this_value);
+          Local<Function> getmessageentangle_fun;
+          if (getmessageentangle_fun_template->GetFunction(context).ToLocal(
+                &getmessageentangle_fun)) {
+            global->Set(context, v8::String::NewFromUtf8Literal(
+                  isolate_, "getMessageEntangle", NewStringType::kInternalized),
+                getmessageentangle_fun)
+              .FromJust();
+          }
+
           Local<FunctionTemplate> close_fun_template =
               FunctionTemplate::New(isolate_, Worker::Close, this_value);
           Local<Function> close_fun;
@@ -5815,6 +5974,58 @@ void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& info) {
         ->PostTask(std::make_unique<CheckMessageFromWorkerTask>(
             worker->parent_isolate_, worker->shared_from_this()));
   }
+}
+
+void Worker::PostMessageEntangleOut(const v8::FunctionCallbackInfo<v8::Value>& info) {
+
+  DCHECK(i::ValidateCallbackInfo(info));
+  Isolate* isolate = info.GetIsolate();
+  HandleScope handle_scope(isolate);
+  Local<External> this_value = info.Data().As<External>();
+  Worker* worker = static_cast<Worker*>(this_value->Value());
+  if (info.Length() < 1) {
+    ThrowError(isolate, "postMessageEntangle requires one argument");
+    return;
+  }
+
+  i::Handle<i::Object> arg = Utils::OpenHandle(*info[0]);
+  if (!IsHeapObject(*arg)) {
+    isolate->ThrowError("First argument must be a HeapObject");
+    return;
+  }
+
+  uint32_t addr = static_cast<uint32_t>(Cast<i::HeapObject>(*arg)->address());
+  worker->PostMessageEntangle(addr);
+}
+
+void Worker::GetMessageEntangleIn(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
+  Isolate* isolate = info.GetIsolate();
+  HandleScope handle_scope(isolate);
+
+  Local<External> this_value = info.Data().As<External>();
+  Worker* worker = static_cast<Worker*>(this_value->Value());
+  uint32_t address = worker->GetMessageEntangle(isolate);
+
+  if (address == 0) {
+    // Queue was empty and worker has terminated.
+    info.GetReturnValue().Set(Undefined(isolate));
+    return;
+  }
+
+  Local<v8::Context> context = isolate->GetCurrentContext();
+  Local<v8::Uint32> arg1;
+  if (!info[0]->ToUint32(context).ToLocal(&arg1)) {
+    isolate->ThrowError("First argument must be the address of a HeapObject");
+    return;
+  }
+
+  i::Sandbox* sandbox = i::Sandbox::current();
+  i::Tagged<i::HeapObject> obj = i::HeapObject::FromAddress(sandbox->base() + address);
+
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::Object> handle(obj, i_isolate);
+  info.GetReturnValue().Set(ToApiHandle<v8::Value>(handle));
 }
 
 void Worker::ImportScripts(const v8::FunctionCallbackInfo<v8::Value>& info) {

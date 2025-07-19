@@ -208,6 +208,8 @@ class Worker : public std::enable_shared_from_this<Worker> {
   // return nullptr.
   // This function should only be called by the thread that created the Worker.
   std::unique_ptr<SerializationData> TryGetMessage();
+  void PostMessageEntangle(uint32_t address);
+  uint32_t GetMessageEntangle(Isolate* requester);
   // Terminate the worker's event loop. Messages from the worker that have been
   // queued can still be read via GetMessage().
   // This function can be called by any thread.
@@ -259,6 +261,8 @@ class Worker : public std::enable_shared_from_this<Worker> {
 
   void ExecuteInThread();
   static void PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void PostMessageEntangleOut(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void GetMessageEntangleIn(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void ImportScripts(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& info);
 
@@ -266,6 +270,10 @@ class Worker : public std::enable_shared_from_this<Worker> {
 
   i::ParkingSemaphore out_semaphore_{0};
   SerializationDataQueue out_queue_;
+
+  base::Mutex entangle_queue_mutex_;
+  std::queue<uint32_t> entangle_queue_;
+  i::ParkingSemaphore entangle_semaphore_{0};
 
   base::Thread* thread_ = nullptr;
   char* script_;
@@ -677,6 +685,8 @@ class Shell : public i::AllStatic {
                                            Local<Value> arguments,
                                            Local<String>* source,
                                            Isolate* isolate);
+  static void FlagNew(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void FlagInitialize(const v8::FunctionCallbackInfo<v8::Value>& info);
   static MaybeLocal<String> ReadSource(
       const v8::FunctionCallbackInfo<v8::Value>& info, int index,
       CodeType default_type);
@@ -684,6 +694,9 @@ class Shell : public i::AllStatic {
   static void WorkerPostMessage(
       const v8::FunctionCallbackInfo<v8::Value>& info);
   static void WorkerGetMessage(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void WorkerPostMessageEntangle(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void WorkerGetMessageEntangle(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void WorkerOnMessageGetter(
       const v8::FunctionCallbackInfo<v8::Value>& info);
   static void WorkerOnMessageSetter(
@@ -840,6 +853,7 @@ class Shell : public i::AllStatic {
       Isolate* isolate, Local<FunctionTemplate> event_target);
   static Local<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
   static Local<ObjectTemplate> CreateOSTemplate(Isolate* isolate);
+  static Local<FunctionTemplate> CreateFlagTemplate(Isolate* isolate);
   static Local<FunctionTemplate> CreateWorkerTemplate(Isolate* isolate);
   static Local<ObjectTemplate> CreateAsyncHookTemplate(Isolate* isolate);
   static Local<ObjectTemplate> CreatePerformanceTemplate(Isolate* isolate);
