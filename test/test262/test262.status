@@ -475,8 +475,6 @@
 
   # Non-simple assignment targets are runtime errors instead of syntax errors
   # for web compat. https://crbug.com/358346
-  'language/expressions/assignmenttargettype/direct-callexpression-arguments': [FAIL],
-  'language/expressions/assignmenttargettype/parenthesized-callexpression-arguments': [FAIL],
 
   # We replace U+202F (narrow-width space) with U+0020 (regular space).
   # https://crbug.com/1414292
@@ -1214,20 +1212,18 @@
   'built-ins/WeakMap/prototype/getOrInsert/returns-value-if-key-is-not-present-symbol-key': [SKIP],
   'built-ins/WeakMap/prototype/getOrInsert/returns-value-if-key-is-present-object-key': [SKIP],
   'built-ins/WeakMap/prototype/getOrInsert/returns-value-if-key-is-present-symbol-key': [SKIP],
-  'staging/upsert/WeakMap/getOrInsertComputed/adds-object-element': [SKIP],
-  'staging/upsert/WeakMap/getOrInsertComputed/adds-symbol-element': [SKIP],
-  'staging/upsert/WeakMap/getOrInsertComputed/adds-value-different-callbackfn': [SKIP],
-  'staging/upsert/WeakMap/getOrInsertComputed/callbackfn-throws': [SKIP],
-  'staging/upsert/WeakMap/getOrInsertComputed/does-not-evaluate-callbackfn-if-key-present': [SKIP],
-  'staging/upsert/WeakMap/getOrInsertComputed/getOrInsertComputed': [SKIP],
-  'staging/upsert/WeakMap/getOrInsertComputed/length': [SKIP],
-  'staging/upsert/WeakMap/getOrInsertComputed/name': [SKIP],
-  'staging/upsert/WeakMap/getOrInsertComputed/not-a-constructor': [SKIP],
-  'staging/upsert/WeakMap/getOrInsertComputed/overwrites-mutation-from-callbackfn': [SKIP],
-  'staging/upsert/WeakMap/getOrInsertComputed/returns-value-if-key-is-not-present-object-key': [SKIP],
-  'staging/upsert/WeakMap/getOrInsertComputed/returns-value-if-key-is-not-present-symbol-key': [SKIP],
-  'staging/upsert/WeakMap/getOrInsertComputed/returns-value-if-key-is-present-object-key': [SKIP],
-  'staging/upsert/WeakMap/getOrInsertComputed/returns-value-if-key-is-present-symbol-key': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/adds-object-element': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/adds-symbol-element': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/adds-value-different-callbackfn': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/callbackfn-throws': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/does-not-evaluate-callbackfn-if-key-present': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/getOrInsertComputed': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/not-a-constructor': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/overwrites-mutation-from-callbackfn': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/returns-value-if-key-is-not-present-object-key': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/returns-value-if-key-is-not-present-symbol-key': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/returns-value-if-key-is-present-object-key': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/returns-value-if-key-is-present-symbol-key': [SKIP],
 }],
 # End roll-watcher patch
 ####
@@ -1304,6 +1300,23 @@
 # Roll-watcher patch
 [ALWAYS, {
   'built-ins/Uint8Array/fromBase64/last-chunk-invalid': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/WeakMap/prototype/getOrInsertComputed/check-callback-fn-args': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/check-state-after-callback-fn-throws': [SKIP],
+  'language/expressions/assignmenttargettype/direct-callexpression': [SKIP],
+  'language/expressions/assignmenttargettype/direct-callexpression-as-for-in-lhs': [SKIP],
+  'language/expressions/assignmenttargettype/direct-callexpression-as-for-of-lhs': [SKIP],
+  'language/expressions/assignmenttargettype/direct-callexpression-in-compound-assignment': [SKIP],
+  'language/expressions/assignmenttargettype/direct-callexpression-in-postfix-update': [SKIP],
+  'language/expressions/assignmenttargettype/direct-callexpression-in-prefix-update': [SKIP],
+  'language/expressions/assignmenttargettype/parenthesized-callexpression': [SKIP],
+  'language/expressions/assignmenttargettype/parenthesized-callexpression-in-compound-assignment': [SKIP],
 }],
 # End roll-watcher patch
 ####

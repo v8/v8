@@ -84,6 +84,10 @@ canonical-tz
 # https://github.com/tc39/proposal-upsert
 upsert
 
+# Immutable Array Buffer
+# https://github.com/tc39/proposal-immutable-arraybuffer
+immutable-arraybuffer
+
 ## Standard language features
 #
 # Language features that have been included in a published version of the
