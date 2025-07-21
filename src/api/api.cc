@@ -10333,6 +10333,10 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i::Heap* heap = i_isolate->heap();
 
+  // Embedder may call GetHeapStatistics() from any thread. Make sure to set the
+  // TLS variable to *this.
+  i::SetCurrentIsolateScope set_current_isolate(i_isolate);
+
   heap->FreeMainThreadLinearAllocationAreas();
 
   // The order of acquiring memory statistics is important here. We query in
