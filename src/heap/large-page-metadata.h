@@ -30,9 +30,8 @@ class LargePageMetadata : public MutablePageMetadata {
 
   LargePageMetadata(Heap* heap, BaseSpace* space, size_t chunk_size,
                     Address area_start, Address area_end,
-                    VirtualMemory reservation, Executability executable);
-
-  MemoryChunk::MainThreadFlags InitialFlags(Executability executable) const;
+                    VirtualMemory reservation, Executability executable,
+                    MemoryChunk::MainThreadFlags* trusted_flags);
 
   Tagged<HeapObject> GetObject() const {
     return HeapObject::FromAddress(area_start());

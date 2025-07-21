@@ -95,17 +95,10 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   static MemoryChunk::MainThreadFlags YoungGenerationPageFlags(
       MarkingMode marking_mode);
 
-  MutablePageMetadata(Heap* heap, BaseSpace* space, size_t size,
-                      Address area_start, Address area_end,
-                      VirtualMemory reservation, PageSize page_size);
-
-  MemoryChunk::MainThreadFlags InitialFlags(Executability executable) const;
   void SetOldGenerationPageFlags(MarkingMode marking_mode);
   void SetYoungGenerationPageFlags(MarkingMode marking_mode);
-
   V8_INLINE void SetMajorGCInProgress();
   V8_INLINE void ResetMajorGCInProgress();
-
   V8_INLINE void ClearFlagsNonExecutable(MemoryChunk::MainThreadFlags flags);
   V8_INLINE void SetFlagsNonExecutable(
       MemoryChunk::MainThreadFlags flags,
@@ -298,6 +291,13 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   bool IsLivenessClear() const;
 
  protected:
+  MutablePageMetadata(Heap* heap, BaseSpace* space, size_t size,
+                      Address area_start, Address area_end,
+                      VirtualMemory reservation, PageSize page_size);
+
+  MemoryChunk::MainThreadFlags ComputeInitialFlags(
+      Executability executable) const;
+
   // Release all memory allocated by the chunk. Should be called when memory
   // chunk is about to be freed.
   void ReleaseAllAllocatedMemory();
@@ -366,6 +366,9 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   // counter is reset to 0 whenever the page is empty.
   size_t age_in_new_space_ = 0;
 
+  MemoryChunk::MainThreadFlags trusted_main_thread_flags_ =
+      MemoryChunk::Flag::NO_FLAGS;
+
   MarkingBitmap marking_bitmap_;
 
   // Possibly platform-dependent fields should go last. We depend on the marking
@@ -377,6 +380,8 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   base::Mutex object_mutex_;
 
  private:
+  V8_INLINE void RawSetTrustedAndUntrustedFlags(
+      MemoryChunk::MainThreadFlags new_flags);
   V8_INLINE void SetFlagsUnlocked(
       MemoryChunk::MainThreadFlags flags,
       MemoryChunk::MainThreadFlags mask = MemoryChunk::kAllFlagsMask);

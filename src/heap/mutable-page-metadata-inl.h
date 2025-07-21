@@ -105,27 +105,37 @@ void MutablePageMetadata::SetFlagNonExecutable(MemoryChunk::Flag flag) {
   return SetFlagUnlocked(flag);
 }
 
+V8_INLINE void MutablePageMetadata::RawSetTrustedAndUntrustedFlags(
+    MemoryChunk::MainThreadFlags new_flags) {
+#ifdef V8_ENABLE_SANDBOX
+  // Must copy out as the SBXCHECK() macros are not allowed to access the
+  // sandbox as that's racy. Copying out is okay as we merely want to shrink the
+  // time window here.
+  const auto untrusted_main_thread_flags =
+      Chunk()->untrusted_main_thread_flags_;
+  SBXCHECK_EQ(untrusted_main_thread_flags, trusted_main_thread_flags_);
+#endif  // V8_ENABLE_SANDBOX
+  trusted_main_thread_flags_ = new_flags;
+  Chunk()->untrusted_main_thread_flags_ = trusted_main_thread_flags_;
+}
+
 void MutablePageMetadata::SetFlagsUnlocked(MemoryChunk::MainThreadFlags flags,
                                            MemoryChunk::MainThreadFlags mask) {
-  auto& untrusted_main_thread_flags = Chunk()->untrusted_main_thread_flags_;
-  untrusted_main_thread_flags =
-      (untrusted_main_thread_flags & ~mask) | (flags & mask);
+  RawSetTrustedAndUntrustedFlags((trusted_main_thread_flags_ & ~mask) |
+                                 (flags & mask));
 }
 
 void MutablePageMetadata::ClearFlagsUnlocked(
     MemoryChunk::MainThreadFlags flags) {
-  auto& untrusted_main_thread_flags = Chunk()->untrusted_main_thread_flags_;
-  untrusted_main_thread_flags &= ~flags;
+  RawSetTrustedAndUntrustedFlags(trusted_main_thread_flags_ & ~flags);
 }
 
 void MutablePageMetadata::SetFlagUnlocked(MemoryChunk::Flag flag) {
-  auto& untrusted_main_thread_flags = Chunk()->untrusted_main_thread_flags_;
-  untrusted_main_thread_flags |= flag;
+  RawSetTrustedAndUntrustedFlags(trusted_main_thread_flags_ | flag);
 }
 
 void MutablePageMetadata::ClearFlagUnlocked(MemoryChunk::Flag flag) {
-  auto& untrusted_main_thread_flags = Chunk()->untrusted_main_thread_flags_;
-  untrusted_main_thread_flags = untrusted_main_thread_flags.without(flag);
+  RawSetTrustedAndUntrustedFlags(trusted_main_thread_flags_.without(flag));
 }
 
 }  // namespace internal

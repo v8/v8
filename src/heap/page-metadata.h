@@ -24,7 +24,9 @@ class Heap;
 class PageMetadata : public MutablePageMetadata {
  public:
   PageMetadata(Heap* heap, BaseSpace* space, size_t size, Address area_start,
-               Address area_end, VirtualMemory reservation);
+               Address area_end, VirtualMemory reservation,
+               Executability executable,
+               MemoryChunk::MainThreadFlags* trusted_flags);
 
   // Returns the page containing a given address. The address ranges
   // from [page_addr .. page_addr + kPageSize]. This only works if the object is
