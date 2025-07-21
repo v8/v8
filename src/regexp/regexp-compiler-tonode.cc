@@ -1281,6 +1281,8 @@ RegExpNode* RegExpCapture::ToNode(RegExpCompiler* compiler,
 RegExpNode* RegExpCapture::ToNode(RegExpTree* body, int index,
                                   RegExpCompiler* compiler,
                                   RegExpNode* on_success) {
+  compiler->ToNodeMaybeCheckForStackOverflow();
+
   DCHECK_NOT_NULL(body);
   int start_reg = RegExpCapture::StartRegister(index);
   int end_reg = RegExpCapture::EndRegister(index);
