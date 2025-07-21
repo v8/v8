@@ -380,6 +380,8 @@ DEFINE_EXPERIMENTAL_FEATURE(
 
 #ifdef V8_INTL_SUPPORT
 DEFINE_BOOL(icu_timezone_data, true, "get information about timezones from ICU")
+DEFINE_STRING(icu_datetime_compat_lang, "*",
+              "limits ICU date time compat changes to the given language")
 #endif
 
 #ifdef V8_ENABLE_DOUBLE_CONST_STORE_CHECK

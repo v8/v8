@@ -1344,10 +1344,15 @@ MaybeDirectHandle<String> FormatDateTime(
   icu::UnicodeString result;
   date_format.format(x, result);
 
-  // Revert ICU 72 change that introduced U+202F instead of U+0020
-  // to separate time from AM/PM. See https://crbug.com/1414292.
-  result = result.findAndReplace(icu::UnicodeString(0x202f),
-                                 icu::UnicodeString(0x20));
+  DCHECK_NE(v8_flags.icu_datetime_compat_lang, nullptr);
+  if (strcmp(v8_flags.icu_datetime_compat_lang, "*") == 0 ||
+      strcmp(v8_flags.icu_datetime_compat_lang,
+             date_format.getSmpFmtLocale().getLanguage()) == 0) {
+    // Revert ICU 72 change that introduced U+202F instead of U+0020
+    // to separate time from AM/PM. See https://crbug.com/1414292.
+    result = result.findAndReplace(icu::UnicodeString(0x202f),
+                                   icu::UnicodeString(0x20));
+  }
 
   return Intl::ToString(isolate, result);
 }
