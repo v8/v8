@@ -282,10 +282,15 @@ Subsumption CheckSubsumes(Node const* a, Node const* b,
               CheckTaggedInputParametersOf(a->op());
           CheckTaggedInputParameters const& bp =
               CheckTaggedInputParametersOf(b->op());
-          // {a} subsumes {b} if the modes are either the same, or {a} checks
-          // for Number, in which case {b} will be subsumed no matter what.
-          if (ap.mode() != bp.mode() &&
-              ap.mode() != CheckTaggedInputMode::kNumber) {
+          // {a} subsumes {b} if the modes are either the same, or {a} is
+          // a stricter check.
+          using Mode = CheckTaggedInputMode;
+          static_assert(static_cast<int32_t>(Mode::kAdditiveSafeInteger) == 0);
+          static_assert(static_cast<int32_t>(Mode::kNumber) == 1);
+          static_assert(static_cast<int32_t>(Mode::kNumberOrBoolean) == 2);
+          static_assert(static_cast<int32_t>(Mode::kNumberOrOddball) == 3);
+          if (static_cast<int32_t>(ap.mode()) >
+              static_cast<int32_t>(bp.mode())) {
             return Subsumption::None();
           }
           break;
