@@ -3983,8 +3983,12 @@ void Simulator::DecodeTypeOp17() {
       typedef float FloatT;
       SetFPUFloatResult(fd_reg(),
                         FPProcessNaNBinop<FloatT>(
-                            fj_float(), fk_float(),
-                            [](FloatT lhs, FloatT rhs) { return lhs * rhs; }));
+                            fj_float(), fk_float(), [](FloatT lhs, FloatT rhs) {
+                              if ((lhs == 0.0 && std::isinf(rhs)) ||
+                                  (rhs == 0.0 && std::isinf(lhs)))
+                                return std::numeric_limits<FloatT>::quiet_NaN();
+                              return lhs * rhs;
+                            }));
       break;
     }
     case FMUL_D: {
@@ -3993,10 +3997,14 @@ void Simulator::DecodeTypeOp17() {
                    FPURegisters::Name(fj_reg()), fj_double(),
                    FPURegisters::Name(fk_reg()), fk_double());
       typedef double FloatT;
-      SetFPUDoubleResult(fd_reg(),
-                         FPProcessNaNBinop<FloatT>(
-                             fj_double(), fk_double(),
-                             [](FloatT lhs, FloatT rhs) { return lhs * rhs; }));
+      SetFPUDoubleResult(
+          fd_reg(), FPProcessNaNBinop<FloatT>(
+                        fj_double(), fk_double(), [](FloatT lhs, FloatT rhs) {
+                          if ((lhs == 0.0 && std::isinf(rhs)) ||
+                              (rhs == 0.0 && std::isinf(lhs)))
+                            return std::numeric_limits<FloatT>::quiet_NaN();
+                          return lhs * rhs;
+                        }));
       break;
     }
     case FDIV_S: {
@@ -4005,14 +4013,14 @@ void Simulator::DecodeTypeOp17() {
                    FPURegisters::Name(fj_reg()), fj_float(),
                    FPURegisters::Name(fk_reg()), fk_float());
       typedef float FloatT;
-      SetFPUFloatResult(
-          fd_reg(),
-          FPProcessNaNBinop<FloatT>(
-              fj_float(), fk_float(), [](FloatT lhs, FloatT rhs) {
-                if (std::isinf(lhs) && std::isinf(rhs) && (lhs == rhs))
-                  return std::numeric_limits<FloatT>::quiet_NaN();
-                return lhs / rhs;
-              }));
+      SetFPUFloatResult(fd_reg(),
+                        FPProcessNaNBinop<FloatT>(
+                            fj_float(), fk_float(), [](FloatT lhs, FloatT rhs) {
+                              if ((std::isinf(lhs) && std::isinf(rhs)) ||
+                                  (rhs == 0.0 && lhs == 0.0))
+                                return std::numeric_limits<FloatT>::quiet_NaN();
+                              return lhs / rhs;
+                            }));
       break;
     }
     case FDIV_D: {
@@ -4022,13 +4030,13 @@ void Simulator::DecodeTypeOp17() {
                    FPURegisters::Name(fk_reg()), fk_double());
       typedef double FloatT;
       SetFPUDoubleResult(
-          fd_reg(),
-          FPProcessNaNBinop<FloatT>(
-              fj_double(), fk_double(), [](FloatT lhs, FloatT rhs) {
-                if (std::isinf(lhs) && std::isinf(rhs) && (lhs == rhs))
-                  return std::numeric_limits<FloatT>::quiet_NaN();
-                return lhs / rhs;
-              }));
+          fd_reg(), FPProcessNaNBinop<FloatT>(
+                        fj_double(), fk_double(), [](FloatT lhs, FloatT rhs) {
+                          if ((std::isinf(lhs) && std::isinf(rhs)) ||
+                              (rhs == 0.0 && lhs == 0.0))
+                            return std::numeric_limits<FloatT>::quiet_NaN();
+                          return lhs / rhs;
+                        }));
       break;
     }
     case FMAX_S:
