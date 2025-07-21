@@ -104,7 +104,7 @@ bool SemiSpaceNewSpace::IsAddressBelowAgeMark(Address address) const {
   // already updated to old space before using this method.
   DCHECK(chunk->InYoungGeneration() ||
          chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
-  DCHECK(!chunk->Metadata()->is_large());
+  DCHECK(!chunk->IsLargePage());
 
   if (!chunk->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)) {
     return false;

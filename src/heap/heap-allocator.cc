@@ -175,7 +175,7 @@ bool HeapAllocator::TryResizeLargeObject(Tagged<HeapObject> object,
   if (space->identity() != NEW_LO_SPACE && space->identity() != LO_SPACE) {
     return false;
   }
-  DCHECK(page->is_large());
+  DCHECK(page->IsLargePage());
   DCHECK_EQ(page->area_size(), old_object_size);
   CHECK_GT(new_object_size, old_object_size);
   if (!heap_->memory_allocator()->ResizeLargePage(

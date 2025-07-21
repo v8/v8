@@ -2566,18 +2566,14 @@ void Heap::EnsureSweepingCompletedForObject(Tagged<HeapObject> object) {
   if (!sweeping_in_progress()) return;
 
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-  if (chunk->InReadOnlySpace()) {
-    return;
-  }
+  if (chunk->InReadOnlySpace()) return;
 
   MutablePageMetadata* mutable_page =
       MutablePageMetadata::cast(chunk->Metadata());
-  if (mutable_page->SweepingDone()) {
-    return;
-  }
+  if (mutable_page->SweepingDone()) return;
 
   // SweepingDone() is always true for large pages.
-  DCHECK(!mutable_page->is_large());
+  DCHECK(!chunk->IsLargePage());
 
   PageMetadata* page = PageMetadata::cast(mutable_page);
   sweeper()->EnsurePageIsSwept(page);

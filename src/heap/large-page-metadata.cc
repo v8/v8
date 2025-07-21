@@ -25,13 +25,13 @@ LargePageMetadata::LargePageMetadata(Heap* heap, BaseSpace* space,
   static_assert(LargePageMetadata::kMaxCodePageSize <=
                 TypedSlotSet::kMaxOffset);
 
+  DCHECK(IsLargePage());
+
   if (executable && chunk_size > LargePageMetadata::kMaxCodePageSize) {
     FATAL("Code page is too large.");
   }
 
   list_node().Initialize();
-  set_is_large();
-  DCHECK(is_large());
 }
 
 MemoryChunk::MainThreadFlags LargePageMetadata::InitialFlags(

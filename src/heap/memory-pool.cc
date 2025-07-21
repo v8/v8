@@ -381,7 +381,7 @@ void MemoryPool::Add(Isolate* isolate, MutablePageMetadata* chunk) {
   // atomic pause so a lock is not needed.
   DCHECK_NOT_NULL(chunk);
   DCHECK_EQ(chunk->size(), PageMetadata::kPageSize);
-  DCHECK(!chunk->is_large());
+  DCHECK(!chunk->Chunk()->IsLargePage());
   DCHECK(!chunk->Chunk()->IsTrusted());
   DCHECK(!chunk->Chunk()->InReadOnlySpace());
   DCHECK_NE(chunk->Chunk()->executable(), EXECUTABLE);

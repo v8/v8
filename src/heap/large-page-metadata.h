@@ -18,7 +18,7 @@ class LargePageMetadata : public MutablePageMetadata {
   static constexpr int kMaxCodePageSize = 512 * MB;
 
   static LargePageMetadata* cast(MutablePageMetadata* metadata) {
-    DCHECK_IMPLIES(metadata, metadata->is_large());
+    DCHECK_IMPLIES(metadata, metadata->Chunk()->IsLargePage());
     return static_cast<LargePageMetadata*>(metadata);
   }
 

@@ -150,13 +150,6 @@ class MemoryChunkMetadata {
     flags_ = IsPreeFreedField::update(flags_, true);
   }
 
-  bool is_large() const { return IsLargePageField::decode(flags_); }
-  void set_is_large() {
-    // Metadata will be re-initialized before being reused.
-    DCHECK(!is_large());
-    flags_ = IsLargePageField::update(flags_, true);
-  }
-
  protected:
 #ifdef THREAD_SANITIZER
   // Perform a dummy acquire load to tell TSAN that there is no data race in
@@ -210,8 +203,6 @@ class MemoryChunkMetadata {
   // The memory chunk is already logically freed, however the actual freeing
   // still has to be performed.
   using IsPreeFreedField = IsUnregisteredField::Next<bool, 1>;
-  // The memory chunk is large.
-  using IsLargePageField = IsPreeFreedField::Next<bool, 1>;
 
   static constexpr intptr_t HeapOffset() {
     return offsetof(MemoryChunkMetadata, heap_);

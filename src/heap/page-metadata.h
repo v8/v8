@@ -39,7 +39,7 @@ class PageMetadata : public MutablePageMetadata {
   }
 
   static PageMetadata* cast(MutablePageMetadata* metadata) {
-    DCHECK_IMPLIES(metadata, !metadata->is_large());
+    DCHECK_IMPLIES(metadata, !metadata->Chunk()->IsLargePage());
     return static_cast<PageMetadata*>(metadata);
   }
 

@@ -36,6 +36,10 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
         sizeof(MemoryChunk), MemoryAllocator::GetCommitPageSizeBits(), size());
   }
 
+  // We do not track active system pages for large pages and use this fact for
+  // `IsLargePage()`.
+  DCHECK_EQ(page_size == PageSize::kLarge, IsLargePage());
+
   // TODO(sroettger): The following fields are accessed most often (AFAICT) and
   // are moved to the end to occupy the same cache line as the slot set array.
   // Without this change, there was a 0.5% performance impact after cache line
@@ -181,7 +185,7 @@ void MutablePageMetadata::SetYoungGenerationPageFlags(
 }
 
 size_t MutablePageMetadata::CommittedPhysicalMemory() const {
-  if (!base::OS::HasLazyCommits() || is_large()) return size();
+  if (!base::OS::HasLazyCommits() || Chunk()->IsLargePage()) return size();
   return active_system_pages_->Size(MemoryAllocator::GetCommitPageSizeBits());
 }
 
@@ -203,7 +207,7 @@ void MutablePageMetadata::ReleaseAllocatedMemoryNeededForWritableChunk() {
   ReleaseTypedSlotSet(OLD_TO_OLD);
   ReleaseTypedSlotSet(OLD_TO_SHARED);
 
-  if (!is_large()) {
+  if (!Chunk()->IsLargePage()) {
     PageMetadata* page = static_cast<PageMetadata*>(this);
     page->ReleaseFreeListCategories();
   }
