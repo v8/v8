@@ -304,8 +304,8 @@ class MemoryAllocator final {
                                   Executability executable);
 
   // Insert and remove normal and large pages that are owned by this allocator.
-  void RecordMemoryChunkCreated(const MemoryChunk* chunk);
-  void RecordMemoryChunkDestroyed(const MemoryChunk* chunk);
+  void RecordMemoryChunkCreated(const MemoryChunkMetadata* metadata);
+  void RecordMemoryChunkDestroyed(const MemoryChunkMetadata* metadata);
 
   // Performs all necessary bookkeeping to free the memory, but does not free
   // it.

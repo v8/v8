@@ -497,7 +497,7 @@ class ObjectPinningVisitorBase : public RootVisitor {
       // the page is only reachable from stack).
       return;
     }
-    DCHECK(!MemoryChunk::FromHeapObject(object)->IsLargePage());
+    DCHECK(!MemoryChunkMetadata::FromHeapObject(object)->is_large());
     DCHECK(HeapLayout::InYoungGeneration(object));
     DCHECK(Heap::InFromPage(object));
     Address object_address = object.address();
@@ -1082,7 +1082,7 @@ void ScavengerCollector::HandleSurvivingNewLargeObjects() {
     object->set_map_word(map, kRelaxedStore);
 
     LargePageMetadata* page = LargePageMetadata::FromHeapObject(object);
-    SBXCHECK(page->IsLargePage());
+    SBXCHECK(page->is_large());
     SBXCHECK_EQ(page->owner_identity(), NEW_LO_SPACE);
     heap_->lo_space()->PromoteNewLargeObject(page);
   }
@@ -1164,7 +1164,7 @@ void Scavenger::IterateAndScavengePromotedObject(
   visitor.Visit(map, target, object_size);
 
   if (IsJSArrayBufferMap(map)) {
-    DCHECK(!MemoryChunk::FromHeapObject(target)->IsLargePage());
+    DCHECK(!MemoryChunkMetadata::FromHeapObject(target)->is_large());
     GCSafeCast<JSArrayBuffer>(target, heap_)->YoungMarkExtensionPromoted();
   }
 }
@@ -1366,7 +1366,7 @@ void Scavenger::Finalize() {
     // objects, promoted to old space, or pinned objects on quarantined pages
     // that will be promoted.
     DCHECK_IMPLIES(
-        !MemoryChunk::FromHeapObject(it.first)->IsLargePage(),
+        !MemoryChunkMetadata::FromHeapObject(it.first)->is_large(),
         !HeapLayout::InYoungGeneration(it.first) ||
             (HeapLayout::IsSelfForwarded(it.first) &&
              MemoryChunk::FromHeapObject(it.first)->IsQuarantined() &&

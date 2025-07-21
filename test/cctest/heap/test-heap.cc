@@ -6375,9 +6375,9 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
   DirectHandle<FixedArray> array_small =
       isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
-  CHECK_EQ(NEW_LO_SPACE,
-           MutablePageMetadata::cast(chunk->Metadata())->owner_identity());
-  CHECK(chunk->IsFlagSet(MemoryChunk::LARGE_PAGE));
+  MemoryChunkMetadata* metadata = chunk->Metadata(isolate);
+  CHECK_EQ(NEW_LO_SPACE, MutablePageMetadata::cast(metadata)->owner_identity());
+  CHECK(metadata->is_large());
   CHECK(chunk->IsFlagSet(MemoryChunk::TO_PAGE));
 
   DirectHandle<Object> number = isolate->factory()->NewHeapNumber(123.456);
@@ -6408,9 +6408,9 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
   DirectHandle<FixedArray> array_small =
       isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
-  CHECK_EQ(NEW_LO_SPACE,
-           MutablePageMetadata::cast(chunk->Metadata())->owner_identity());
-  CHECK(chunk->IsFlagSet(MemoryChunk::LARGE_PAGE));
+  MemoryChunkMetadata* metadata = chunk->Metadata(isolate);
+  CHECK_EQ(NEW_LO_SPACE, MutablePageMetadata::cast(metadata)->owner_identity());
+  CHECK(metadata->is_large());
   CHECK(chunk->IsFlagSet(MemoryChunk::TO_PAGE));
 
   DirectHandle<Object> number = isolate->factory()->NewHeapNumber(123.456);
