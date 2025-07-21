@@ -11922,6 +11922,20 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
       }
       break;
     }
+    case Builtin::kStringConstructor: {
+      ValueNode* value;
+      if (args.count() == 0) {
+        value = GetRootConstant(RootIndex::kempty_string);
+      } else {
+        LazyDeoptFrameScope deopt_continuation(
+            this, Builtin::kStringCreateLazyDeoptContinuation, builtin,
+            base::VectorOf<ValueNode*>(
+                {GetRootConstant(RootIndex::kTheHoleValue)}));
+        value = BuildToString(args[0], ToString::kThrowOnSymbol);
+      }
+      return BuildInlinedAllocation(CreateJSStringWrapper(value),
+                                    AllocationType::kYoung);
+    }
     default:
       break;
   }
@@ -13061,6 +13075,23 @@ ReduceResult MaglevGraphBuilder::CreateJSArray(compiler::MapRef map,
               GetRootConstant(RootIndex::kEmptyFixedArray));
   object->set(JSArray::kLengthOffset, length);
   object->ClearSlots(JSArray::kLengthOffset,
+                     GetRootConstant(RootIndex::kOnePointerFillerMap));
+  return object;
+}
+
+VirtualObject* MaglevGraphBuilder::CreateJSStringWrapper(ValueNode* value) {
+  compiler::MapRef map =
+      broker()->target_native_context().string_function(broker()).initial_map(
+          broker());
+  int slot_count = map.instance_size() / kTaggedSize;
+  SBXCHECK_GE(slot_count, 3);
+  VirtualObject* object = CreateVirtualObject(map, slot_count);
+  object->set(JSObject::kPropertiesOrHashOffset,
+              GetRootConstant(RootIndex::kEmptyFixedArray));
+  object->set(JSObject::kElementsOffset,
+              GetRootConstant(RootIndex::kEmptyFixedArray));
+  object->set(JSPrimitiveWrapper::kValueOffset, value);
+  object->ClearSlots(JSPrimitiveWrapper::kValueOffset,
                      GetRootConstant(RootIndex::kOnePointerFillerMap));
   return object;
 }

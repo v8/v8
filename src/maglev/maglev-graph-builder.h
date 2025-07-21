@@ -1492,6 +1492,7 @@ class MaglevGraphBuilder {
                                         ValueNode* done);
   VirtualObject* CreateJSStringIterator(compiler::MapRef map,
                                         ValueNode* string);
+  VirtualObject* CreateJSStringWrapper(ValueNode* value);
 
   InlinedAllocation* ExtendOrReallocateCurrentAllocationBlock(
       AllocationType allocation_type, VirtualObject* value);
