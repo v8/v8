@@ -423,7 +423,8 @@ test_tag
     del(fake_config["DEFAULT_CWD"])
 
     self.Expect([
-      Cmd("fetch v8", "", cwd=work_dir),
+      Cmd("git clone https://chromium.googlesource.com/v8/v8", "",
+          cwd=work_dir),
     ])
     FakeScript(fake_config, self).Run(["--work-dir", work_dir])
 
