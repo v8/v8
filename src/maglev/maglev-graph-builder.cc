@@ -2793,6 +2793,23 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
     return false;
   };
 
+  auto TryConstantFoldUint32ComparedToZero = [&](ValueNode* left,
+                                                 ValueNode* right) {
+    if (left->value_representation() == ValueRepresentation::kUint32) {
+      auto right_constant = TryGetInt32Constant(right);
+      if ((right_constant && *right_constant <= 0)) {
+        if (kOperation == Operation::kGreaterThanOrEqual) {
+          SetAccumulator(GetBooleanConstant(true));
+          return true;
+        } else if (kOperation == Operation::kLessThan) {
+          SetAccumulator(GetBooleanConstant(false));
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
   auto TryConstantFoldEqual = [&](ValueNode* left, ValueNode* right) {
     if (left == right) {
       SetAccumulator(
@@ -2848,8 +2865,13 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
     case CompareOperationHint::kSignedSmall: {
       // TODO(victorgomes): Add a smart equality operator, that compares for
       // constants in different representations.
-      ValueNode* left = GetInt32(LoadRegister(0));
-      ValueNode* right = GetInt32(GetAccumulator());
+      ValueNode* left = LoadRegister(0);
+      ValueNode* right = GetAccumulator();
+      if (TryConstantFoldUint32ComparedToZero(left, right)) {
+        return ReduceResult::Done();
+      }
+      left = GetInt32(left);
+      right = GetInt32(right);
       if (TryConstantFoldEqual(left, right)) return ReduceResult::Done();
       if (TryConstantFoldInt32(left, right)) return ReduceResult::Done();
       SortCommute(left, right);
@@ -2881,6 +2903,9 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
         SortCommute(left, right);
         SetAccumulator(AddNewNodeNoInputConversion<Int32Compare>({left, right},
                                                                  kOperation));
+        return ReduceResult::Done();
+      }
+      if (TryConstantFoldUint32ComparedToZero(left, right)) {
         return ReduceResult::Done();
       }
       auto [allowed_input_type, conversion_type] =
