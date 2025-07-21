@@ -256,8 +256,7 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
   }
 
   // Runtime functions disabled for all/most types of fuzzing.
-  // Reasons for a function to be in this list include that it is not useful
-  // for fuzzing (e.g. %DebugPrint) or not fuzzing-safe and therefore would
+  // These are mainly functions that are not fuzzing-safe and therefore would
   // cause false-positive crashes (e.g. %AbortJS).
   switch (id) {
     case Runtime::kAbort:
@@ -266,7 +265,7 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
     case Runtime::kSystemBreak:
     case Runtime::kBenchMaglev:
     case Runtime::kBenchTurbofan:
-    case Runtime::kDebugPrint:
+    case Runtime::kDebugPrintPtr:
     case Runtime::kDisassembleFunction:
     case Runtime::kGetFunctionForCurrentFrame:
     case Runtime::kGetCallable:

@@ -1332,11 +1332,10 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
 
 RUNTIME_FUNCTION(Runtime_DebugPrintPtr) {
   SealHandleScope shs(isolate);
-  StdoutStream os;
-  if (args.length() != 1) {
-    return CrashUnlessFuzzing(isolate);
-  }
+  // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
+  DCHECK_EQ(args.length(), 1);
 
+  StdoutStream os;
   Tagged<MaybeObject> maybe_object(*args.address_of_arg_at(0));
   if (!maybe_object.IsCleared()) {
     Tagged<Object> object = maybe_object.GetHeapObjectOrSmi();
