@@ -129,6 +129,27 @@ class MemoryChunkMetadata {
     return MemoryChunk::FromAddress(area_start());
   }
 
+  bool is_pinned_for_testing() const {
+    return IsPinnedForTestingField::decode(flags_);
+  }
+  void set_is_pinned_for_testing(bool value) {
+    flags_ = IsPinnedForTestingField::update(flags_, value);
+  }
+
+  bool is_unregistered() const { return IsUnregisteredField::decode(flags_); }
+  void set_is_unregistered() {
+    // Metadata will be re-initialized before being reused.
+    DCHECK(!is_unregistered());
+    flags_ = IsUnregisteredField::update(flags_, true);
+  }
+
+  bool is_pre_freed() const { return IsPreeFreedField::decode(flags_); }
+  void set_is_pre_freed() {
+    // Metadata will be re-initialized before being reused.
+    DCHECK(!is_pre_freed());
+    flags_ = IsPreeFreedField::update(flags_, true);
+  }
+
  protected:
 #ifdef THREAD_SANITIZER
   // Perform a dummy acquire load to tell TSAN that there is no data race in
@@ -170,7 +191,19 @@ class MemoryChunkMetadata {
   // The space owning this memory chunk.
   std::atomic<BaseSpace*> owner_;
 
+  size_t flags_ = 0;
+
  private:
+  // The memory chunk is pinned in memory and can't be moved. Only used for
+  // testing at this point.
+  using IsPinnedForTestingField = v8::base::BitField<bool, 0, 1, size_t>;
+  // The memory chunk freeing bookkeeping has been performed but the chunk has
+  // not yet been freed.
+  using IsUnregisteredField = IsPinnedForTestingField::Next<bool, 1>;
+  // The memory chunk is already logically freed, however the actual freeing
+  // still has to be performed.
+  using IsPreeFreedField = IsUnregisteredField::Next<bool, 1>;
+
   static constexpr intptr_t HeapOffset() {
     return offsetof(MemoryChunkMetadata, heap_);
   }

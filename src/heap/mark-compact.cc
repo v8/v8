@@ -644,7 +644,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     MemoryChunk* chunk = p->Chunk();
     if (chunk->NeverEvacuate() || !chunk->CanAllocate()) continue;
 
-    if (chunk->IsPinned()) {
+    if (p->is_pinned_for_testing()) {
       DCHECK(!chunk->IsFlagSet(
           MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING));
       continue;
