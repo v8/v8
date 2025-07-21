@@ -3623,7 +3623,18 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int frb = instr->RBValue();
       double fra_val = get_double_from_d_register(fra);
       double frb_val = get_double_from_d_register(frb);
-      double frt_val = fra_val / frb_val;
+      double frt_val =
+          FPProcessNaNBinop(fra_val, frb_val, [](double lhs, double rhs) {
+            if (std::isinf(lhs) && std::isinf(rhs))
+              return std::numeric_limits<double>::quiet_NaN();
+            if (rhs == 0) {
+              if (lhs == 0) return std::numeric_limits<double>::quiet_NaN();
+              bool is_negative = signbit(lhs) ^ signbit(rhs);
+              double inf = std::numeric_limits<double>::infinity();
+              return is_negative ? -inf : inf;
+            }
+            return lhs / rhs;
+          });
       set_d_register_from_double(frt, frt_val);
       return;
     }
@@ -3633,12 +3644,12 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int frb = instr->RBValue();
       double fra_val = get_double_from_d_register(fra);
       double frb_val = get_double_from_d_register(frb);
-      double frt_val;
-      if (std::isinf(fra_val) && std::isinf(frb_val) && (fra_val == frb_val)) {
-        frt_val = std::numeric_limits<double>::quiet_NaN();
-      } else {
-        frt_val = fra_val - frb_val;
-      }
+      double frt_val =
+          FPProcessNaNBinop(fra_val, frb_val, [](double lhs, double rhs) {
+            if (std::isinf(lhs) && std::isinf(rhs) && (lhs == rhs))
+              return std::numeric_limits<double>::quiet_NaN();
+            return lhs - rhs;
+          });
       set_d_register_from_double(frt, frt_val);
       return;
     }
@@ -3648,12 +3659,13 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int frb = instr->RBValue();
       double fra_val = get_double_from_d_register(fra);
       double frb_val = get_double_from_d_register(frb);
-      double frt_val;
-      if (std::isinf(fra_val) && std::isinf(frb_val) && (fra_val != frb_val)) {
-        frt_val = std::numeric_limits<double>::quiet_NaN();
-      } else {
-        frt_val = fra_val + frb_val;
-      }
+      double frt_val =
+          FPProcessNaNBinop(fra_val, frb_val, [](double lhs, double rhs) {
+            if (std::isinf(lhs) && std::isinf(rhs))
+              return lhs != rhs ? std::numeric_limits<double>::quiet_NaN()
+                                : lhs;
+            return lhs + rhs;
+          });
       set_d_register_from_double(frt, frt_val);
       return;
     }
@@ -3683,7 +3695,14 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int frc = instr->RCValue();
       double fra_val = get_double_from_d_register(fra);
       double frc_val = get_double_from_d_register(frc);
-      double frt_val = fra_val * frc_val;
+      double frt_val =
+          FPProcessNaNBinop(fra_val, frc_val, [](double lhs, double rhs) {
+            if (lhs == 0 && std::isinf(rhs))
+              return std::numeric_limits<double>::quiet_NaN();
+            if (rhs == 0 && std::isinf(lhs))
+              return std::numeric_limits<double>::quiet_NaN();
+            return lhs * rhs;
+          });
       set_d_register_from_double(frt, frt_val);
       return;
     }

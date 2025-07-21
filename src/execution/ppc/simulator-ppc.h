@@ -420,6 +420,16 @@ class Simulator : public SimulatorBase {
 
   constexpr void SetCA32(bool carry) { special_reg_xer_.fields.CA32 = carry; }
 
+  double FPProcessNaNBinop(
+      double fp_lhs, double fp_rhs,
+      const std::function<double(double, double)>& op_for_non_nan) {
+    Float64 lhs = Float64::FromBits(base::bit_cast<uint64_t>(fp_lhs));
+    Float64 rhs = Float64::FromBits(base::bit_cast<uint64_t>(fp_rhs));
+    if (lhs.is_nan()) return lhs.to_quiet_nan().get_scalar();
+    if (rhs.is_nan()) return rhs.to_quiet_nan().get_scalar();
+    return op_for_non_nan(fp_lhs, fp_rhs);
+  }
+
   void ExecuteBranchConditional(Instruction* instr, BCType type);
   void ExecuteGeneric(Instruction* instr);
 

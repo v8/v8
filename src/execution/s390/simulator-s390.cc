@@ -7187,8 +7187,8 @@ EVALUATE(AEBR) {
   float fr2_val = get_fpr<float>(r2);
   fr1_val = FPProcessNaNBinop<float, Float32, uint32_t>(
       fr1_val, fr2_val, [](float lhs, float rhs) {
-        if (std::isinf(lhs) && std::isinf(rhs) && (lhs != rhs))
-          return std::numeric_limits<float>::quiet_NaN();
+        if (std::isinf(lhs) && std::isinf(rhs))
+          return lhs != rhs ? std::numeric_limits<float>::quiet_NaN() : lhs;
         return lhs + rhs;
       });
   set_fpr(r1, fr1_val);
@@ -7225,7 +7225,18 @@ EVALUATE(DEBR) {
   DECODE_RRE_INSTRUCTION(r1, r2);
   float fr1_val = get_fpr<float>(r1);
   float fr2_val = get_fpr<float>(r2);
-  fr1_val /= fr2_val;
+  fr1_val = FPProcessNaNBinop<float, Float32, uint32_t>(
+      fr1_val, fr2_val, [](float lhs, float rhs) {
+        if (std::isinf(lhs) && std::isinf(rhs))
+          return std::numeric_limits<float>::quiet_NaN();
+        if (rhs == 0) {
+          if (lhs == 0) return std::numeric_limits<float>::quiet_NaN();
+          bool is_negative = signbit(lhs) ^ signbit(rhs);
+          float inf = std::numeric_limits<float>::infinity();
+          return is_negative ? -inf : inf;
+        }
+        return lhs / rhs;
+      });
   set_fpr(r1, fr1_val);
   return length;
 }
@@ -7325,7 +7336,13 @@ EVALUATE(MEEBR) {
   float fr1_val = get_fpr<float>(r1);
   float fr2_val = get_fpr<float>(r2);
   fr1_val = FPProcessNaNBinop<float, Float32, uint32_t>(
-      fr1_val, fr2_val, [](float lhs, float rhs) { return lhs * rhs; });
+      fr1_val, fr2_val, [](float lhs, float rhs) {
+        if (lhs == 0 && std::isinf(rhs))
+          return std::numeric_limits<float>::quiet_NaN();
+        if (rhs == 0 && std::isinf(lhs))
+          return std::numeric_limits<float>::quiet_NaN();
+        return lhs * rhs;
+      });
   set_fpr(r1, fr1_val);
   return length;
 }
@@ -11065,7 +11082,18 @@ EVALUATE(DEB) {
   intptr_t d2_val = d2;
   float r1_val = get_fpr<float>(r1);
   float fval = ReadFloat(b2_val + x2_val + d2_val);
-  r1_val /= fval;
+  r1_val = FPProcessNaNBinop<float, Float32, uint32_t>(
+      r1_val, fval, [](float lhs, float rhs) {
+        if (std::isinf(lhs) && std::isinf(rhs))
+          return std::numeric_limits<float>::quiet_NaN();
+        if (rhs == 0) {
+          if (lhs == 0) return std::numeric_limits<float>::quiet_NaN();
+          bool is_negative = signbit(lhs) ^ signbit(rhs);
+          float inf = std::numeric_limits<float>::infinity();
+          return is_negative ? -inf : inf;
+        }
+        return lhs / rhs;
+      });
   set_fpr(r1, r1_val);
   return length;
 }
