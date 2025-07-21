@@ -630,10 +630,10 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
     auto obj1 = *h1;
     auto obj2 = *h2;
     page1 = MemoryChunk::FromHeapObject(obj1);
-    EXPECT_TRUE(!page1->IsLargePage());
+    EXPECT_TRUE(!page1->Metadata()->is_large());
     EXPECT_TRUE(v8_flags.minor_ms || page1->IsToPage());
     page2 = MemoryChunk::FromHeapObject(obj2);
-    EXPECT_TRUE(!page2->IsLargePage());
+    EXPECT_TRUE(!page2->Metadata()->is_large());
     EXPECT_TRUE(v8_flags.minor_ms || page2->IsToPage());
     EXPECT_NE(page1, page2);
 
@@ -764,7 +764,7 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedLargeYoungPage) {
     weak.SetWeak();
     auto obj = *h;
     auto page = MemoryChunk::FromHeapObject(obj);
-    EXPECT_TRUE(page->IsLargePage());
+    EXPECT_TRUE(page->Metadata()->is_large());
     EXPECT_EQ(AllocationSpace::NEW_LO_SPACE,
               MutablePageMetadata::cast(page->Metadata())->owner_identity());
     EXPECT_TRUE(v8_flags.minor_ms || page->IsToPage());

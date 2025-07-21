@@ -183,7 +183,7 @@ void OldLargeObjectSpace::PromoteNewLargeObject(LargePageMetadata* page) {
 #ifdef DEBUG
   MemoryChunk* chunk = page->Chunk();
   DCHECK_EQ(page->owner_identity(), NEW_LO_SPACE);
-  DCHECK(chunk->IsLargePage());
+  DCHECK(page->is_large());
   DCHECK(chunk->IsFlagSet(MemoryChunk::FROM_PAGE));
   DCHECK(!chunk->IsFlagSet(MemoryChunk::TO_PAGE));
 #endif  // DEBUG
@@ -406,7 +406,7 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(LocalHeap* local_heap,
     page->ClearLiveness();
   }
   chunk->InitializationMemoryFence();
-  DCHECK(chunk->IsLargePage());
+  DCHECK(page->is_large());
   DCHECK_EQ(page->owner_identity(), NEW_LO_SPACE);
   AdvanceAndInvokeAllocationObservers(result.address(),
                                       static_cast<size_t>(object_size));

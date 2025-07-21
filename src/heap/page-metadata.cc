@@ -16,7 +16,7 @@ PageMetadata::PageMetadata(Heap* heap, BaseSpace* space, size_t size,
                            VirtualMemory reservation)
     : MutablePageMetadata(heap, space, size, area_start, area_end,
                           std::move(reservation), PageSize::kRegular) {
-  DCHECK(!IsLargePage());
+  DCHECK(!is_large());
 }
 
 void PageMetadata::AllocateFreeListCategories() {

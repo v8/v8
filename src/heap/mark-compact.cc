@@ -1348,8 +1348,9 @@ class RecordMigratedSlotVisitor
       if (HeapLayout::InYoungGeneration(value)) {
         MutablePageMetadata* host_metadata =
             MutablePageMetadata::cast(host_chunk->Metadata());
-        DCHECK_IMPLIES(value_chunk->IsToPage(),
-                       v8_flags.minor_ms || value_chunk->IsLargePage());
+        DCHECK_IMPLIES(
+            value_chunk->IsToPage(),
+            v8_flags.minor_ms || value_chunk->Metadata()->is_large());
         DCHECK(host_metadata->SweepingDone());
         RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(
             host_metadata, host_chunk->Offset(slot));
@@ -4672,7 +4673,7 @@ bool Evacuator::RawEvacuatePage(MutablePageMetadata* page) {
       page->ClearLiveness();
       break;
     case kPageNewToOld:
-      if (chunk->IsLargePage()) {
+      if (page->is_large()) {
         auto object = LargePageMetadata::cast(page)->GetObject();
         bool success = new_to_old_page_visitor_.Visit(
             object, SafeHeapObjectSize(static_cast<uint32_t>(object->Size())));
@@ -4898,7 +4899,13 @@ class PrecisePagePinningVisitor final : public RootVisitor {
       return;
     }
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(Cast<HeapObject>(object));
-    if (chunk->IsLargePage() || chunk->InReadOnlySpace()) {
+    // Large objects and read only objects are not evacuated and thus don't
+    // need to be pinned.
+    if (chunk->InReadOnlySpace()) {
+      return;
+    }
+    auto* metadata = MutablePageMetadata::cast(chunk->Metadata());
+    if (metadata->is_large()) {
       // Large objects and read only objects are not evacuated and thus don't
       // need to be pinned.
       return;
@@ -4913,7 +4920,6 @@ class PrecisePagePinningVisitor final : public RootVisitor {
       if (chunk->IsQuarantined()) {
         return;
       }
-      auto* metadata = MutablePageMetadata::cast(chunk->Metadata());
       metadata->SetFlagNonExecutable(MemoryChunk::IS_QUARANTINED);
       return;
     }

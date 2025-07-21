@@ -297,13 +297,6 @@ class MutablePageMetadata : public MemoryChunkMetadata {
 
   bool IsLivenessClear() const;
 
-  bool IsLargePage() {
-    // The active_system_pages_ will be nullptr for large pages, so we uses
-    // that here instead of (for example) adding another enum member. See also
-    // the constructor where this field is set.
-    return active_system_pages_.get() == nullptr;
-  }
-
  protected:
   // Release all memory allocated by the chunk. Should be called when memory
   // chunk is about to be freed.
