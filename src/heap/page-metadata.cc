@@ -2,24 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/page-metadata.h"
+#include "src/heap/page-metadata-inl.h"
 
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
-#include "src/heap/page-metadata-inl.h"
 #include "src/heap/paged-spaces.h"
 
-namespace v8::internal {
+namespace v8 {
+namespace internal {
 
 PageMetadata::PageMetadata(Heap* heap, BaseSpace* space, size_t size,
                            Address area_start, Address area_end,
-                           VirtualMemory reservation, Executability executable,
-                           MemoryChunk::MainThreadFlags* trusted_flags)
+                           VirtualMemory reservation)
     : MutablePageMetadata(heap, space, size, area_start, area_end,
                           std::move(reservation), PageSize::kRegular) {
   DCHECK(!IsLargePage());
-  trusted_main_thread_flags_ = ComputeInitialFlags(executable);
-  *trusted_flags = trusted_main_thread_flags_;
 }
 
 void PageMetadata::AllocateFreeListCategories() {
@@ -115,4 +112,5 @@ void PageMetadata::DestroyBlackArea(Address start, Address end) {
   owner()->NotifyBlackAreaDestroyed(end - start);
 }
 
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

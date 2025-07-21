@@ -108,32 +108,24 @@ void MutablePageMetadata::SetFlagNonExecutable(MemoryChunk::Flag flag) {
 void MutablePageMetadata::SetFlagsUnlocked(MemoryChunk::MainThreadFlags flags,
                                            MemoryChunk::MainThreadFlags mask) {
   auto& untrusted_main_thread_flags = Chunk()->untrusted_main_thread_flags_;
-  SBXCHECK(untrusted_main_thread_flags == trusted_main_thread_flags_);
-  trusted_main_thread_flags_ =
-      (trusted_main_thread_flags_ & ~mask) | (flags & mask);
-  untrusted_main_thread_flags = trusted_main_thread_flags_;
+  untrusted_main_thread_flags =
+      (untrusted_main_thread_flags & ~mask) | (flags & mask);
 }
 
 void MutablePageMetadata::ClearFlagsUnlocked(
     MemoryChunk::MainThreadFlags flags) {
   auto& untrusted_main_thread_flags = Chunk()->untrusted_main_thread_flags_;
-  SBXCHECK_EQ(untrusted_main_thread_flags, trusted_main_thread_flags_);
-  trusted_main_thread_flags_ &= ~flags;
-  untrusted_main_thread_flags = trusted_main_thread_flags_;
+  untrusted_main_thread_flags &= ~flags;
 }
 
 void MutablePageMetadata::SetFlagUnlocked(MemoryChunk::Flag flag) {
   auto& untrusted_main_thread_flags = Chunk()->untrusted_main_thread_flags_;
-  SBXCHECK_EQ(untrusted_main_thread_flags, trusted_main_thread_flags_);
-  trusted_main_thread_flags_ |= flag;
-  untrusted_main_thread_flags = trusted_main_thread_flags_;
+  untrusted_main_thread_flags |= flag;
 }
 
 void MutablePageMetadata::ClearFlagUnlocked(MemoryChunk::Flag flag) {
   auto& untrusted_main_thread_flags = Chunk()->untrusted_main_thread_flags_;
-  SBXCHECK_EQ(untrusted_main_thread_flags, trusted_main_thread_flags_);
-  trusted_main_thread_flags_ = trusted_main_thread_flags_.without(flag);
-  untrusted_main_thread_flags = trusted_main_thread_flags_;
+  untrusted_main_thread_flags = untrusted_main_thread_flags.without(flag);
 }
 
 }  // namespace internal

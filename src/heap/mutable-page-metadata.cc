@@ -101,31 +101,16 @@ MemoryChunk::MainThreadFlags MutablePageMetadata::YoungGenerationPageFlags(
   return flags;
 }
 
-MemoryChunk::MainThreadFlags MutablePageMetadata::ComputeInitialFlags(
+MemoryChunk::MainThreadFlags MutablePageMetadata::InitialFlags(
     Executability executable) const {
-  const AllocationSpace space = owner()->identity();
   MemoryChunk::MainThreadFlags flags = MemoryChunk::NO_FLAGS;
 
-  if (IsAnyNewSpace(space)) {
+  if (owner()->identity() == NEW_SPACE || owner()->identity() == NEW_LO_SPACE) {
     flags |=
         YoungGenerationPageFlags(heap()->incremental_marking()->marking_mode());
   } else {
     flags |= OldGenerationPageFlags(
-        heap()->incremental_marking()->marking_mode(), space);
-    if (!IsAnyLargeSpace(space) &&
-        heap()->incremental_marking()->black_allocation() &&
-        v8_flags.black_allocated_pages) {
-      // Disable the write barrier for objects pointing to this page. We don't
-      // need to trigger the barrier for pointers to old black-allocated pages,
-      // since those are never considered for evacuation. However, we have to
-      // keep the old->shared remembered set across multiple GCs, so those
-      // pointers still need to be recorded.
-      if (!IsAnySharedSpace(space)) {
-        flags &= ~MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
-      }
-      // And mark the page as black allocated.
-      flags |= MemoryChunk::BLACK_ALLOCATED;
-    }
+        heap()->incremental_marking()->marking_mode(), owner()->identity());
   }
 
   if (executable == EXECUTABLE) {
@@ -145,12 +130,12 @@ MemoryChunk::MainThreadFlags MutablePageMetadata::ComputeInitialFlags(
   }
 
   // All pages of a shared heap need to be marked with this flag.
-  if (IsAnySharedSpace(space)) {
+  if (InSharedSpace()) {
     flags |= MemoryChunk::IN_WRITABLE_SHARED_SPACE;
   }
 
   // All pages belonging to a trusted space need to be marked with this flag.
-  if (IsAnyTrustedSpace(space)) {
+  if (InTrustedSpace()) {
     flags |= MemoryChunk::IS_TRUSTED;
   }
 
