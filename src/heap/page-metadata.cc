@@ -13,12 +13,14 @@ namespace v8::internal {
 
 PageMetadata::PageMetadata(Heap* heap, BaseSpace* space, size_t size,
                            Address area_start, Address area_end,
-                           VirtualMemory reservation, Executability executable,
+                           VirtualMemory reservation,
+                           Executability executability,
                            MemoryChunk::MainThreadFlags* trusted_flags)
     : MutablePageMetadata(heap, space, size, area_start, area_end,
-                          std::move(reservation), PageSize::kRegular) {
+                          std::move(reservation), PageSize::kRegular,
+                          executability) {
   DCHECK(!is_large());
-  trusted_main_thread_flags_ = ComputeInitialFlags(executable);
+  trusted_main_thread_flags_ = ComputeInitialFlags(executability);
   *trusted_flags = trusted_main_thread_flags_;
 }
 

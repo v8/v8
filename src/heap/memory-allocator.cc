@@ -245,7 +245,7 @@ void MemoryAllocator::PartialFreeMemory(MemoryChunkMetadata* chunk,
   DCHECK(reservation->IsReserved());
   chunk->set_size(chunk->size() - bytes_to_free);
   chunk->set_area_end(new_area_end);
-  if (chunk->Chunk()->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+  if (chunk->is_executable()) {
     // Add guard page at the end.
     size_t page_size = GetCommitPageSize();
     DCHECK_EQ(0, chunk->area_end() % static_cast<Address>(page_size));
@@ -278,8 +278,8 @@ void MemoryAllocator::UnregisterSharedMemoryChunk(MemoryChunkMetadata* chunk) {
   size_ -= size;
 }
 
-void MemoryAllocator::UnregisterMemoryChunk(MemoryChunkMetadata* chunk_metadata,
-                                            Executability executable) {
+void MemoryAllocator::UnregisterMemoryChunk(
+    MemoryChunkMetadata* chunk_metadata) {
   MemoryChunk* chunk = chunk_metadata->Chunk();
   DCHECK(!chunk_metadata->is_unregistered());
   VirtualMemory* reservation = chunk_metadata->reserved_memory();
@@ -288,7 +288,7 @@ void MemoryAllocator::UnregisterMemoryChunk(MemoryChunkMetadata* chunk_metadata,
   DCHECK_GE(size_, static_cast<size_t>(size));
 
   size_ -= size;
-  if (executable == EXECUTABLE) {
+  if (chunk_metadata->is_executable()) {
     DCHECK_GE(size_executable_, size);
     size_executable_ -= size;
 #ifdef DEBUG
@@ -309,13 +309,13 @@ void MemoryAllocator::UnregisterMemoryChunk(MemoryChunkMetadata* chunk_metadata,
   }
 }
 
-void MemoryAllocator::UnregisterMutableMemoryChunk(MutablePageMetadata* chunk) {
-  UnregisterMemoryChunk(chunk, chunk->Chunk()->executable());
+void MemoryAllocator::UnregisterMutableMemoryChunk(MutablePageMetadata* page) {
+  UnregisterMemoryChunk(page);
 }
 
 void MemoryAllocator::UnregisterReadOnlyPage(ReadOnlyPageMetadata* page) {
-  DCHECK(!page->Chunk()->executable());
-  UnregisterMemoryChunk(page, NOT_EXECUTABLE);
+  DCHECK(!page->is_executable());
+  UnregisterMemoryChunk(page);
 }
 
 void MemoryAllocator::FreeReadOnlyPage(ReadOnlyPageMetadata* chunk) {
@@ -380,7 +380,6 @@ void MemoryAllocator::Free(MemoryAllocator::FreeMode mode,
       break;
     case FreeMode::kPool:
 #ifdef DEBUG
-      MemoryChunk* chunk = page_metadata->Chunk();
       // Ensure that we only ever put pages with their markbits cleared into the
       // pool. This is necessary because `PreFreeMemory` doesn't clear the
       // marking bitmap and the marking bitmap is reused when this page is taken
@@ -388,7 +387,7 @@ void MemoryAllocator::Free(MemoryAllocator::FreeMode mode,
       DCHECK(page_metadata->IsLivenessClear());
       DCHECK_EQ(page_metadata->size(),
                 static_cast<size_t>(MutablePageMetadata::kPageSize));
-      DCHECK_EQ(chunk->executable(), NOT_EXECUTABLE);
+      DCHECK(!page_metadata->is_executable());
 #endif  // DEBUG
       if (auto* pool = memory_pool()) {
         pool->Add(isolate_, page_metadata);
@@ -812,7 +811,7 @@ void MemoryAllocator::UpdateAllocatedSpaceLimits(Address low, Address high,
 void MemoryAllocator::RegisterExecutableMemoryChunk(
     MutablePageMetadata* chunk) {
   base::MutexGuard guard(&executable_memory_mutex_);
-  DCHECK(chunk->Chunk()->IsFlagSet(MemoryChunk::IS_EXECUTABLE));
+  DCHECK(chunk->is_executable());
   DCHECK_EQ(executable_memory_.find(chunk), executable_memory_.end());
   executable_memory_.insert(chunk);
 }

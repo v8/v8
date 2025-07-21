@@ -230,7 +230,7 @@ void LargeObjectSpace::ShrinkPageToObjectSize(LargePageMetadata* page,
   PtrComprCageBase cage_base(heap()->isolate());
   DCHECK_EQ(object, page->GetObject());
   DCHECK_EQ(object_size, page->GetObject()->Size(cage_base));
-  DCHECK_EQ(chunk->executable(), NOT_EXECUTABLE);
+  DCHECK(!page->is_executable());
 #endif  // DEBUG
 
   const size_t used_committed_size =

@@ -25,7 +25,7 @@ class PageMetadata : public MutablePageMetadata {
  public:
   PageMetadata(Heap* heap, BaseSpace* space, size_t size, Address area_start,
                Address area_end, VirtualMemory reservation,
-               Executability executable,
+               Executability executability,
                MemoryChunk::MainThreadFlags* trusted_flags);
 
   // Returns the page containing a given address. The address ranges

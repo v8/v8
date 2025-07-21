@@ -16,7 +16,8 @@ namespace v8::internal {
 MemoryChunkMetadata::MemoryChunkMetadata(Heap* heap, BaseSpace* space,
                                          size_t chunk_size, Address area_start,
                                          Address area_end,
-                                         VirtualMemory reservation)
+                                         VirtualMemory reservation,
+                                         Executability executability)
     : reservation_(std::move(reservation)),
       allocated_bytes_(area_end - area_start),
       high_water_mark_(area_start -
@@ -25,7 +26,9 @@ MemoryChunkMetadata::MemoryChunkMetadata(Heap* heap, BaseSpace* space,
       area_end_(area_end),
       heap_(heap),
       area_start_(area_start),
-      owner_(space) {}
+      owner_(space),
+      flags_(IsExecutableField::update(
+          0, executability == Executability::EXECUTABLE)) {}
 
 MemoryChunkMetadata::~MemoryChunkMetadata() {
 #ifdef V8_ENABLE_SANDBOX

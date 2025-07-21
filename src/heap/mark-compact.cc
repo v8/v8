@@ -4586,16 +4586,15 @@ void Evacuator::EvacuatePage(MutablePageMetadata* page) {
   ReportCompactionProgress(evacuation_time, saved_live_bytes);
   if (v8_flags.trace_evacuation) {
     MemoryChunk* chunk = page->Chunk();
-    PrintIsolate(heap_->isolate(),
-                 "evacuation[%p]: page=%p new_space=%d "
-                 "page_evacuation=%d executable=%d can_promote=%d "
-                 "live_bytes=%" V8PRIdPTR " time=%f success=%d\n",
-                 static_cast<void*>(this), static_cast<void*>(page),
-                 chunk->InNewSpace(),
-                 chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION),
-                 chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE),
-                 heap_->new_space()->IsPromotionCandidate(page),
-                 saved_live_bytes, evacuation_time, success);
+    PrintIsolate(
+        heap_->isolate(),
+        "evacuation[%p]: page=%p new_space=%d "
+        "page_evacuation=%d executable=%d can_promote=%d "
+        "live_bytes=%" V8PRIdPTR " time=%f success=%d\n",
+        static_cast<void*>(this), static_cast<void*>(page), chunk->InNewSpace(),
+        chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION),
+        page->is_executable(), heap_->new_space()->IsPromotionCandidate(page),
+        saved_live_bytes, evacuation_time, success);
   }
 }
 
@@ -5358,7 +5357,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     }
 
     const PtrComprCageBase cage_base = heap_->isolate();
-    if (chunk_->Chunk()->executable()) {
+    if (chunk_->is_executable()) {
       // When updating pointer in an InstructionStream (in particular, the
       // pointer to relocation info), we need to use WriteProtectedSlots that
       // ensure that the code page is unlocked.
@@ -5453,7 +5452,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     // longer need to pass them into our slot implementations.
     const PtrComprCageBase unused_cage_base(kNullAddress);
 
-    if (chunk_->Chunk()->executable()) {
+    if (chunk_->is_executable()) {
       // When updating the InstructionStream -> Code pointer, we need to use
       // WriteProtectedSlots that ensure that the code page is unlocked.
       WritableJitPage jit_page(chunk_->area_start(), chunk_->area_size());
@@ -5488,7 +5487,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   }
 
   void UpdateTypedPointers() {
-    if (!chunk_->Chunk()->executable()) {
+    if (!chunk_->is_executable()) {
       DCHECK_NULL((chunk_->typed_slot_set<OLD_TO_NEW>()));
       DCHECK_NULL((chunk_->typed_slot_set<OLD_TO_OLD>()));
       return;
@@ -5774,7 +5773,7 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
       page->ReleaseSlotSet(TRUSTED_TO_SHARED_TRUSTED);
     }
 
-    if (!chunk->executable()) {
+    if (!page->is_executable()) {
       DCHECK_NULL(page->typed_slot_set<OLD_TO_SHARED>());
       continue;
     }
@@ -6065,7 +6064,7 @@ void MarkCompactCollector::ResetAndRelinkBlackAllocatedPage(
   DCHECK_GE(page->allocated_bytes(), 0);
   DCHECK(page->marking_bitmap()->IsClean());
   std::optional<RwxMemoryWriteScope> scope;
-  if (page->Chunk()->InCodeSpace()) {
+  if (page->is_executable()) {
     scope.emplace("For writing flags.");
   }
   page->ClearFlagUnlocked(MemoryChunk::BLACK_ALLOCATED);

@@ -384,7 +384,7 @@ void MemoryPool::Add(Isolate* isolate, MutablePageMetadata* chunk) {
   DCHECK(!chunk->is_large());
   DCHECK(!chunk->Chunk()->IsTrusted());
   DCHECK(!chunk->Chunk()->InReadOnlySpace());
-  DCHECK_NE(chunk->Chunk()->executable(), EXECUTABLE);
+  DCHECK(!chunk->is_executable());
   // Ensure that ReleaseAllAllocatedMemory() was called on the page.
   DCHECK(!chunk->ContainsAnySlots());
 #ifdef V8_ENABLE_SANDBOX

@@ -25,9 +25,10 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
                                          size_t chunk_size, Address area_start,
                                          Address area_end,
                                          VirtualMemory reservation,
-                                         PageSize page_size)
+                                         PageSize page_size,
+                                         Executability executability)
     : MemoryChunkMetadata(heap, space, chunk_size, area_start, area_end,
-                          std::move(reservation)) {
+                          std::move(reservation), executability) {
   DCHECK_NE(space->identity(), RO_SPACE);
 
   if (page_size == PageSize::kRegular) {
@@ -132,8 +133,7 @@ MemoryChunk::MainThreadFlags MutablePageMetadata::ComputeInitialFlags(
     // 1. We have the invariant that IsTrustedObject(obj) implies
     //    IsTrustedSpaceObject(obj), where IsTrustedSpaceObject checks the
     //   MemoryChunk::IS_TRUSTED flag on the host chunk. As InstructionStream
-    //   objects are
-    //    trusted, their host chunks must also be marked as such.
+    //   objects are trusted, their host chunks must also be marked as such.
     // 2. References between trusted objects must use the TRUSTED_TO_TRUSTED
     //    remembered set. However, that will only be used if both the host
     //    and the value chunk are marked as IS_TRUSTED.
@@ -295,8 +295,7 @@ bool MutablePageMetadata::IsLivenessClear() const {
 }
 
 void MutablePageMetadata::SetFlagMaybeExecutable(MemoryChunk::Flag flag) {
-  // TODO(mlippautz): Replace with a trusted version.
-  if (Chunk()->executable()) {
+  if (is_executable()) {
     RwxMemoryWriteScope scope("Set a MemoryChunk flag in executable memory.");
     SetFlagUnlocked(flag);
   } else {
@@ -305,8 +304,7 @@ void MutablePageMetadata::SetFlagMaybeExecutable(MemoryChunk::Flag flag) {
 }
 
 void MutablePageMetadata::ClearFlagMaybeExecutable(MemoryChunk::Flag flag) {
-  // TODO(mlippautz): Replace with a trusted version.
-  if (Chunk()->executable()) {
+  if (is_executable()) {
     RwxMemoryWriteScope scope("Set a MemoryChunk flag in executable memory.");
     ClearFlagUnlocked(flag);
   } else {

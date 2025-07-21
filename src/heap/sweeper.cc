@@ -1036,7 +1036,7 @@ void Sweeper::ZeroOrDiscardUnusedMemory(PageMetadata* page, Address addr,
   DCHECK(page->ContainsLimit(unused_end));
 
   std::optional<RwxMemoryWriteScope> scope;
-  if (page->Chunk()->executable()) {
+  if (page->is_executable()) {
     scope.emplace("For zeroing unused memory.");
   }
   const std::optional<base::AddressRegion> discard_area =

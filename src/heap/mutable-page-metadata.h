@@ -293,7 +293,8 @@ class MutablePageMetadata : public MemoryChunkMetadata {
  protected:
   MutablePageMetadata(Heap* heap, BaseSpace* space, size_t size,
                       Address area_start, Address area_end,
-                      VirtualMemory reservation, PageSize page_size);
+                      VirtualMemory reservation, PageSize page_size,
+                      Executability executability);
 
   MemoryChunk::MainThreadFlags ComputeInitialFlags(
       Executability executable) const;

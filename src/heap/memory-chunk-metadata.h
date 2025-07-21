@@ -47,9 +47,6 @@ class MemoryChunkMetadata {
 
   V8_INLINE static void UpdateHighWaterMark(Address mark);
 
-  MemoryChunkMetadata(Heap* heap, BaseSpace* space, size_t chunk_size,
-                      Address area_start, Address area_end,
-                      VirtualMemory reservation);
   ~MemoryChunkMetadata();
 
   Address ChunkAddress() const { return Chunk()->address(); }
@@ -157,6 +154,8 @@ class MemoryChunkMetadata {
     flags_ = IsLargePageField::update(flags_, true);
   }
 
+  bool is_executable() const { return IsExecutableField::decode(flags_); }
+
  protected:
 #ifdef THREAD_SANITIZER
   // Perform a dummy acquire load to tell TSAN that there is no data race in
@@ -166,6 +165,10 @@ class MemoryChunkMetadata {
   void SynchronizedHeapStore();
   friend class MemoryChunk;
 #endif
+
+  MemoryChunkMetadata(Heap* heap, BaseSpace* space, size_t chunk_size,
+                      Address area_start, Address area_end,
+                      VirtualMemory reservation, Executability executability);
 
   // If the chunk needs to remember its memory reservation, it is stored here.
   VirtualMemory reservation_;
@@ -212,6 +215,8 @@ class MemoryChunkMetadata {
   using IsPreeFreedField = IsUnregisteredField::Next<bool, 1>;
   // The memory chunk is large.
   using IsLargePageField = IsPreeFreedField::Next<bool, 1>;
+  // Indicates whether the memory chunk is executable or not.
+  using IsExecutableField = IsLargePageField::Next<bool, 1>;
 
   static constexpr intptr_t HeapOffset() {
     return offsetof(MemoryChunkMetadata, heap_);

@@ -20,7 +20,8 @@ LargePageMetadata::LargePageMetadata(
     Address area_end, VirtualMemory reservation, Executability executable,
     MemoryChunk::MainThreadFlags* trusted_flags)
     : MutablePageMetadata(heap, space, chunk_size, area_start, area_end,
-                          std::move(reservation), PageSize::kLarge) {
+                          std::move(reservation), PageSize::kLarge,
+                          executable) {
   static_assert(LargePageMetadata::kMaxCodePageSize <=
                 TypedSlotSet::kMaxOffset);
 

@@ -311,8 +311,7 @@ class MemoryAllocator final {
   // it.
   void UnregisterMutableMemoryChunk(MutablePageMetadata* chunk);
   void UnregisterSharedMemoryChunk(MemoryChunkMetadata* chunk);
-  void UnregisterMemoryChunk(MemoryChunkMetadata* chunk,
-                             Executability executable = NOT_EXECUTABLE);
+  void UnregisterMemoryChunk(MemoryChunkMetadata* chunk);
 
   void RegisterReadOnlyMemory(ReadOnlyPageMetadata* page);
 

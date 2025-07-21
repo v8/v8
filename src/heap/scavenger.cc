@@ -1196,7 +1196,7 @@ void Scavenger::ScavengePage(MutablePageMetadata* page) {
         &local_empty_chunks_);
   }
 
-  if (chunk->executable()) {
+  if (page->is_executable()) {
     std::vector<std::tuple<Tagged<HeapObject>, SlotType, Address>> slot_updates;
 
     // The code running write access to executable memory poses CFI attack

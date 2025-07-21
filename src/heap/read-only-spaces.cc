@@ -141,7 +141,8 @@ ReadOnlyPageMetadata::ReadOnlyPageMetadata(Heap* heap, BaseSpace* space,
                                            Address area_start, Address area_end,
                                            VirtualMemory reservation)
     : MemoryChunkMetadata(heap, space, chunk_size, area_start, area_end,
-                          std::move(reservation)) {
+                          std::move(reservation),
+                          Executability::NOT_EXECUTABLE) {
   allocated_bytes_ = 0;
 }
 
