@@ -522,8 +522,6 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(bool, disable_bytecode_flushing, false)                                 \
   V(int, last_console_context_id, 0)                                        \
   V(v8_inspector::V8Inspector*, inspector, nullptr)                         \
-  V(int, embedder_wrapper_type_index, -1)                                   \
-  V(int, embedder_wrapper_object_index, -1)                                 \
   V(compiler::NodeObserver*, node_observer, nullptr)                        \
   V(bool, javascript_execution_assert, true)                                \
   V(bool, javascript_execution_throws, true)                                \

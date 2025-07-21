@@ -361,7 +361,9 @@ class V8_EXPORT Isolate {
      * for wrapped API objects and are used by the fast C API
      * (for details see v8-fast-api-calls.h).
      */
+    V8_DEPRECATE_SOON("This field is unused.")
     int embedder_wrapper_type_index = -1;
+    V8_DEPRECATE_SOON("This field is unused.")
     int embedder_wrapper_object_index = -1;
 
     /**

@@ -28983,8 +28983,6 @@ void FastApiCallWithAllocationAndGC(AllocationChecker::GCLocation gc_location) {
   v8::Isolate* isolate = CcTest::isolate();
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i_isolate->set_embedder_wrapper_type_index(kV8WrapperTypeIndex);
-  i_isolate->set_embedder_wrapper_object_index(kV8WrapperObjectIndex);
 
   v8::HandleScope scope(isolate);
 
@@ -29030,8 +29028,6 @@ TEST(FastApiCallWithThrowInReentrantCode) {
   v8::Isolate* isolate = CcTest::isolate();
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i_isolate->set_embedder_wrapper_type_index(kV8WrapperTypeIndex);
-  i_isolate->set_embedder_wrapper_object_index(kV8WrapperObjectIndex);
 
   v8::HandleScope scope(isolate);
 
@@ -29140,8 +29136,6 @@ void FastApiCallRecursion(bool inner_most_throws) {
   v8::Isolate* isolate = CcTest::isolate();
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i_isolate->set_embedder_wrapper_type_index(kV8WrapperTypeIndex);
-  i_isolate->set_embedder_wrapper_object_index(kV8WrapperObjectIndex);
 
   v8::HandleScope scope(isolate);
 
@@ -29234,9 +29228,6 @@ TEST(FastApiStackSlot) {
   i::FlagList::EnforceFlagImplications();
 
   v8::Isolate* isolate = CcTest::isolate();
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i_isolate->set_embedder_wrapper_type_index(kV8WrapperTypeIndex);
-  i_isolate->set_embedder_wrapper_object_index(kV8WrapperObjectIndex);
 
   v8::HandleScope scope(isolate);
   LocalContext env;
@@ -29290,9 +29281,6 @@ TEST(FastApiCalls) {
 
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i_isolate->set_embedder_wrapper_type_index(kV8WrapperTypeIndex);
-  i_isolate->set_embedder_wrapper_object_index(kV8WrapperObjectIndex);
 
   v8::HandleScope scope(isolate);
   LocalContext env;
@@ -29868,9 +29856,6 @@ TEST(FastApiCallsString) {
 
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i_isolate->set_embedder_wrapper_type_index(kV8WrapperTypeIndex);
-  i_isolate->set_embedder_wrapper_object_index(kV8WrapperObjectIndex);
 
   v8::HandleScope scope(isolate);
   LocalContext env;
@@ -29992,9 +29977,6 @@ TEST(FastApiCallsFromWasm) {
 
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i_isolate->set_embedder_wrapper_type_index(kV8WrapperTypeIndex);
-  i_isolate->set_embedder_wrapper_object_index(kV8WrapperObjectIndex);
 
   v8::HandleScope scope(isolate);
   LocalContext env;

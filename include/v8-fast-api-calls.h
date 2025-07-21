@@ -93,27 +93,11 @@
  *      }
  *    };
  *
- *    // TODO(mslekova): Clean-up these constants
- *    // The constants kV8EmbedderWrapperTypeIndex and
- *    // kV8EmbedderWrapperObjectIndex describe the offsets for the type info
- *    // struct and the native object, when expressed as internal field indices
- *    // within a JSObject. The existance of this helper function assumes that
- *    // all embedder objects have their JSObject-side type info at the same
- *    // offset, but this is not a limitation of the API itself. For a detailed
- *    // use case, see the third example.
- *    static constexpr int kV8EmbedderWrapperTypeIndex = 0;
- *    static constexpr int kV8EmbedderWrapperObjectIndex = 1;
- *
  *    // The following setup function can be templatized based on
  *    // the {embedder_object} argument.
  *    void SetupCustomEmbedderObject(v8::Isolate* isolate,
  *                                   v8::Local<v8::Context> context,
  *                                   CustomEmbedderType* embedder_object) {
- *      isolate->set_embedder_wrapper_type_index(
- *        kV8EmbedderWrapperTypeIndex);
- *      isolate->set_embedder_wrapper_object_index(
- *        kV8EmbedderWrapperObjectIndex);
- *
  *      v8::CFunction c_func =
  *        MakeV8CFunction(CustomEmbedderType::FastMethod);
  *

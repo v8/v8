@@ -10100,11 +10100,6 @@ void Isolate::Initialize(Isolate* v8_isolate,
     }
   }
 
-  i_isolate->set_embedder_wrapper_type_index(
-      params.embedder_wrapper_type_index);
-  i_isolate->set_embedder_wrapper_object_index(
-      params.embedder_wrapper_object_index);
-
   if (!i::V8::GetCurrentPlatform()
            ->GetForegroundTaskRunner(v8_isolate)
            ->NonNestableTasksEnabled()) {
