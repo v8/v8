@@ -2516,7 +2516,10 @@ MaybeDirectHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
 
   // 2. If item is an Object, then
   if (InstanceTypeChecker::IsJSReceiver(instance_type)) {
+    // hoisted out since the CombinedRecord escapes the if block.
+    CombinedRecordOwnership owners;
     auto record = kNullPartialDateTime;
+
     // a. If item has an [[InitializedTemporalDateTime]] internal slot, then
     if (InstanceTypeChecker::IsJSTemporalPlainDateTime(instance_type)) {
       // iii. Return !CreateTemporalDate(item.[[Date]], item.[[Calendar]]).
@@ -2546,9 +2549,9 @@ MaybeDirectHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
       // e. Let fields be ?PrepareCalendarFields(calendar, item, « year, month,
       // month-code, day», « hour, minute, second, millisecond, microsecond,
       // nanosecond», «»).
-      CombinedRecordOwnership owners;
       CombinedRecord fields;
       using enum CalendarFieldsFlag;
+
       MOVE_RETURN_ON_EXCEPTION(
           isolate, fields,
           PrepareCalendarFields(isolate, kind, item_recvr,
