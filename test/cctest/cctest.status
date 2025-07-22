@@ -518,6 +518,11 @@
 }],  # variant == stress_incremental_marking
 
 ##############################################################################
+['mode == debug and tsan', {
+  'test-serialize/StartupSerializer*': [PASS, NO_VARIANTS],
+}],  # mode == debug and tsan
+
+##############################################################################
 ['variant == no_wasm_traps', {
   'test-accessors/*': [SKIP],
   'test-api-interceptors/*': [SKIP],
