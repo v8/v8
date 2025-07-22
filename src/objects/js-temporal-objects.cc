@@ -1560,16 +1560,17 @@ Maybe<std::optional<IntegerType>> GetSingleTimeRecordField(
       isolate, val, JSReceiver::GetProperty(isolate, time_like, field_name));
   // If val is not undefined, then
   if (!IsUndefined(*val)) {
-    double field;
+    // TODO(manishearth) We should ideally be casting later, see
+    // https://github.com/boa-dev/temporal/issues/334
+    IntegerType field;
     // 5. a. Set result.[[Hour]] to ?ToIntegerWithTruncation(hour).
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, field,
-                               temporal::ToIntegerWithTruncation(isolate, val));
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, field,
+        temporal::ToIntegerTypeWithTruncation<IntegerType>(isolate, val));
     // b. Set any to true.
     *any = true;
 
-    // TODO(manishearth) We should ideally be casting later, see
-    // https://github.com/boa-dev/temporal/issues/334
-    return Just(std::optional(static_cast<IntegerType>(field)));
+    return Just(std::optional(field));
   } else {
     return Just((std::optional<IntegerType>)std::nullopt);
   }
@@ -5657,7 +5658,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::With(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, partial_time,
       temporal::ToTemporalTimeRecord(isolate,
-                                     Cast<JSObject>(temporal_time_like_obj),
+                                     Cast<JSReceiver>(temporal_time_like_obj),
                                      method_name, kPartial));
 
   // Intervening steps handled by Rust, but are not externally observable

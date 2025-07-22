@@ -257,20 +257,124 @@
   'intl402/Locale/constructor-non-iana-canon': [FAIL],
   'intl402/Locale/prototype/minimize/removing-likely-subtags-first-adds-likely-subtags': [FAIL],
 
-  # Temporal is stubbed out, and will be reenabled once we have significant implementation
-  # from ICU4X/temporal_rs
+  # Temporal is stubbed out, we are in the process of enabling the tests
   # See b/42201538
-  'built-ins/Temporal/*': [SKIP],
   'staging/Temporal/*': [SKIP],
   'staging/sm/Temporal/*': [SKIP],
   'built-ins/Date/prototype/toTemporalInstant/*': [SKIP],
   'staging/sm/Date/to-temporal-instant': [SKIP],
 
-  # Temporal intl402 tests which is flaky
-  'intl402/Temporal/ZonedDateTime/from/argument-valid': [SKIP],
-  'intl402/Temporal/PlainDateTime/from/canonicalize-era-codes': [SKIP],
+  # Begin built-ins/Temporal test expectations
 
-  # Turn on Temporal intl402 tests
+  # Instant rounding (https://github.com/boa-dev/temporal/issues/383)
+  'built-ins/Temporal/Duration/compare/relativeto-string-limits': [FAIL],
+  'built-ins/Temporal/Duration/prototype/round/relativeto-string-limits': [FAIL],
+  'built-ins/Temporal/Instant/prototype/round/rounding-direction': [FAIL],
+  'built-ins/Temporal/Instant/prototype/toString/rounding-direction': [FAIL],
+  'built-ins/Temporal/PlainDate/prototype/toZonedDateTime/throws-if-combined-date-time-outside-valid-iso-range': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/compare/argument-string-limits': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/from/argument-string-limits': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/equals/argument-string-limits': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/since/argument-string-limits': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/until/argument-string-limits': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/toString/rounding-direction': [FAIL],
+
+  # Duration range issues
+  'built-ins/Temporal/Duration/prototype/add/result-out-of-range-3': [FAIL],
+  'built-ins/Temporal/Duration/prototype/round/next-day-out-of-range': [FAIL],
+
+  # Sub-minute offsets (https://github.com/boa-dev/temporal/issues/419)
+  'built-ins/Temporal/Duration/compare/relativeto-sub-minute-offset': [FAIL],
+  'built-ins/Temporal/Duration/prototype/round/relativeto-sub-minute-offset': [FAIL],
+  'built-ins/Temporal/Duration/prototype/total/relativeto-sub-minute-offset': [FAIL],
+  'built-ins/Temporal/Duration/prototype/subtract/result-out-of-range-3': [FAIL],
+  'built-ins/Temporal/Duration/prototype/total/relativeto-string-limits': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/compare/zoneddatetime-string-multiple-offsets': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/from/zoneddatetime-string-multiple-offsets': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/equals/zoneddatetime-string-multiple-offsets': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/since/zoneddatetime-string-multiple-offsets': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/until/zoneddatetime-string-multiple-offsets': [FAIL],
+
+  # Float casting to integer (https://github.com/boa-dev/temporal/issues/189, https://github.com/boa-dev/temporal/issues/334)
+  'built-ins/Temporal/Duration/prototype/add/argument-duration-precision-exact-numerical-values': [FAIL],
+  'built-ins/Temporal/Duration/prototype/round/out-of-range-when-converting-from-normalized-duration': [FAIL],
+  'built-ins/Temporal/Duration/prototype/subtract/argument-duration-precision-exact-numerical-values': [FAIL],
+  'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-6': [FAIL],
+  'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-7': [FAIL],
+  'built-ins/Temporal/PlainDate/prototype/toZonedDateTime/order-of-operations': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/withPlainTime/order-of-operations': [FAIL],
+
+
+  # Leap second issue
+  'built-ins/Temporal/Duration/prototype/round/relativeto-leap-second': [FAIL],
+  'built-ins/Temporal/Duration/prototype/total/relativeto-leap-second': [FAIL],
+
+  # Unknown balance issue
+  'built-ins/Temporal/Duration/prototype/round/round-and-balance-calendar-units-with-increment-disallowed': [FAIL],
+
+  # Unknown timezone parsing issue
+  'built-ins/Temporal/Duration/prototype/round/relativeto-string-datetime': [FAIL],
+  'built-ins/Temporal/Duration/prototype/total/relativeto-string-datetime': [FAIL],
+
+  # Parse ordering issues (https://github.com/boa-dev/temporal/issues/408)
+  'built-ins/Temporal/PlainDate/from/observable-get-overflow-argument-string-invalid': [FAIL],
+  'built-ins/Temporal/PlainDateTime/from/observable-get-overflow-argument-string-invalid': [FAIL],
+  'built-ins/Temporal/PlainMonthDay/from/observable-get-overflow-argument-string-invalid': [FAIL],
+  'built-ins/Temporal/PlainTime/from/observable-get-overflow-argument-string-invalid': [FAIL],
+  'built-ins/Temporal/PlainDate/from/options-wrong-type': [FAIL],
+  'built-ins/Temporal/PlainDateTime/from/options-wrong-type': [FAIL],
+  'built-ins/Temporal/PlainMonthDay/from/options-wrong-type': [FAIL],
+  'built-ins/Temporal/PlainTime/from/options-wrong-type': [FAIL],
+  'built-ins/Temporal/PlainYearMonth/from/options-wrong-type': [FAIL],
+  'built-ins/Temporal/PlainYearMonth/from/argument-plainyearmonth': [FAIL],
+  'built-ins/Temporal/PlainYearMonth/from/observable-get-overflow-argument-string-invalid': [FAIL],
+
+  # ToIntegerWithTruncation converts undefined to 0
+  'built-ins/Temporal/PlainDate/argument-convert': [FAIL],
+
+  # Integer out of range (https://github.com/boa-dev/temporal/issues/334)
+  'built-ins/Temporal/PlainDate/from/with-year-month-day-need-constrain': [FAIL],
+  'built-ins/Temporal/PlainMonthDay/from/overflow': [FAIL],
+  'built-ins/Temporal/PlainYearMonth/from/overflow-constrain': [FAIL],
+
+  # Date arithmetic needs limits check (https://github.com/boa-dev/temporal/pull/435)
+  'built-ins/Temporal/PlainDateTime/prototype/add/limits': [FAIL],
+  'built-ins/Temporal/PlainDateTime/prototype/subtract/limits': [FAIL],
+
+  # toPlainDate needs to use overflow: constrain (https://github.com/boa-dev/temporal/pull/430)
+  'built-ins/Temporal/PlainMonthDay/prototype/toPlainDate/default-overflow-behaviour': [FAIL],
+  'built-ins/Temporal/PlainYearMonth/prototype/toPlainDate/default-overflow-behaviour': [FAIL],
+
+  # Expected a RangeError to be thrown but no exception was thrown at all
+  'built-ins/Temporal/PlainYearMonth/prototype/since/throws-if-year-outside-valid-iso-range': [FAIL],
+  'built-ins/Temporal/PlainYearMonth/prototype/until/throws-if-year-outside-valid-iso-range': [FAIL],
+
+  # YearMonth compare should include reference day (https://github.com/boa-dev/temporal/pull/433)
+  'built-ins/Temporal/PlainYearMonth/compare/compare-reference-day': [FAIL],
+  'built-ins/Temporal/PlainYearMonth/prototype/equals/compare-reference-day': [FAIL],
+
+  # transitions not implemented
+  'built-ins/Temporal/ZonedDateTime/prototype/getTimeZoneTransition/utc-no-transitions': [FAIL],
+
+  # offset strings (https://github.com/boa-dev/temporal/issues/428)
+  'built-ins/Temporal/Duration/compare/relativeto-propertybag-invalid-offset-string': [FAIL],
+  'built-ins/Temporal/Duration/prototype/round/relativeto-propertybag-invalid-offset-string': [FAIL],
+  'built-ins/Temporal/Duration/prototype/total/relativeto-propertybag-invalid-offset-string': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/compare/argument-propertybag-invalid-offset-string': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/from/argument-propertybag-invalid-offset-string': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/from/offset-string-invalid': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/equals/argument-propertybag-invalid-offset-string': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/since/argument-propertybag-invalid-offset-string': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/until/argument-propertybag-invalid-offset-string': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/with/offset-property-invalid-string': [FAIL],
+
+  # End built-ins/Temporal test expectations
+
+  # Debug panic: https://github.com/boa-dev/temporal/issues/438
+  'intl402/Temporal/ZonedDateTime/from/argument-valid': [SKIP],
+
+  # Temporal intl402 expectations
+
   'intl402/Temporal/Duration/compare/relativeto-hour': [FAIL],
   'intl402/Temporal/Duration/compare/relativeto-sub-minute-offset': [FAIL],
   'intl402/Temporal/Duration/compare/twenty-five-hour-day': [FAIL],
