@@ -1052,6 +1052,9 @@ DEFINE_VALUE_IMPLICATION(jit_fuzzing, invocation_count_for_turbofan, 20)
 DEFINE_VALUE_IMPLICATION(jit_fuzzing, invocation_count_for_osr, 5)
 DEFINE_VALUE_IMPLICATION(jit_fuzzing, invocation_count_for_maglev_osr, 1)
 DEFINE_VALUE_IMPLICATION(jit_fuzzing, minimum_invocations_after_ic_update, 5)
+// Disable lazy compilation and bytecode flushing.
+DEFINE_NEG_IMPLICATION(jit_fuzzing, lazy)
+DEFINE_NEG_IMPLICATION(jit_fuzzing, flush_bytecode)
 
 #if V8_ENABLE_WEBASSEMBLY
 // Wasm tiering thresholds.
