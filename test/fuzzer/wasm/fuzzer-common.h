@@ -68,7 +68,7 @@ void GenerateTestCase(StdoutStream& os, Isolate* isolate,
 // prepulate the TypeCanonicalizer with a few canonical types, so that a
 // module-specific type index is more likely to be different from its canonical
 // type index.
-void AddDummyTypesToTypeCanonicalizer(Isolate* isolate, Zone* zone);
+void AddDummyTypesToTypeCanonicalizer(Isolate* isolate);
 
 // On the first call, enables all staged wasm features and experimental features
 // that are ready for fuzzing. All subsequent calls are no-ops. This avoids race
@@ -77,7 +77,7 @@ void AddDummyTypesToTypeCanonicalizer(Isolate* isolate, Zone* zone);
 void EnableExperimentalWasmFeatures(v8::Isolate* isolate);
 
 // Clear the type canonicalizer storage and re-add the dummy types.
-void ResetTypeCanonicalizer(v8::Isolate* isolate, Zone* zone);
+void ResetTypeCanonicalizer(v8::Isolate* isolate);
 
 constexpr int kMaxFuzzerInputSize = 512;
 

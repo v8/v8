@@ -27,6 +27,7 @@
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 #include "test/common/flag-utils.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 #include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
 #include "tools/wasm/mjsunit-module-disassembler-impl.h"
@@ -401,36 +402,29 @@ void GenerateTestCase(StdoutStream& os, Isolate* isolate,
 }
 
 namespace {
-std::vector<uint8_t> CreateDummyModuleWireBytes(Zone* zone) {
-  // Build a simple module with a few types to pre-populate the type
-  // canonicalizer.
-  WasmModuleBuilder builder(zone);
-  const bool is_final = true;
-  builder.AddRecursiveTypeGroup(0, 2);
-  builder.AddArrayType(zone->New<ArrayType>(kWasmF32, true), is_final);
-  StructType::Builder struct_builder(zone, 2, false, false);
-  struct_builder.AddField(kWasmI64, false);
-  struct_builder.AddField(kWasmExternRef, false);
-  builder.AddStructType(struct_builder.Build(), !is_final);
-  FunctionSig::Builder sig_builder(zone, 1, 0);
-  sig_builder.AddReturn(kWasmI32);
-  builder.AddSignature(sig_builder.Get(), is_final);
-  ZoneBuffer buffer{zone};
-  builder.WriteTo(&buffer);
-  return std::vector<uint8_t>(buffer.begin(), buffer.end());
-}
+static uint8_t kDummyModuleWireBytes[]{
+    WASM_MODULE_HEADER,
+    SECTION(Type, ENTRY_COUNT(2),
+            // recgroup of 2 types
+            kWasmRecursiveTypeGroupCode, ENTRY_COUNT(2),
+            // (array (field (mut f32)))
+            WASM_ARRAY_DEF(kF32Code, true),
+            // (struct (field i64) (field externref))
+            kWasmSubtypeCode, 0,  // 0 supertypes, non-final
+            WASM_STRUCT_DEF(FIELD_COUNT(2), STRUCT_FIELD(kI64Code, false),
+                            STRUCT_FIELD(kExternRefCode, false)),
+            // -- end of recgroup
+            // function type (void -> i32)
+            SIG_ENTRY_x(kI32Code))};
+
 }  // namespace
 
-void AddDummyTypesToTypeCanonicalizer(Isolate* isolate, Zone* zone) {
+void AddDummyTypesToTypeCanonicalizer(Isolate* isolate) {
   const size_t type_count = GetTypeCanonicalizer()->GetCurrentNumberOfTypes();
   testing::SetupIsolateForWasmModule(isolate);
-  // Cache (and leak) the wire bytes, so they don't need to be rebuilt on each
-  // run.
-  static const std::vector<uint8_t> wire_bytes =
-      CreateDummyModuleWireBytes(zone);
   const bool is_valid = GetWasmEngine()->SyncValidate(
       isolate, WasmEnabledFeatures(), CompileTimeImportsForFuzzing(),
-      base::VectorOf(wire_bytes));
+      base::VectorOf(kDummyModuleWireBytes));
   CHECK(is_valid);
   // As the types are reset on each run by the fuzzer, the validation should
   // have added new types to the TypeCanonicalizer.
@@ -479,7 +473,7 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
       isolate);
 }
 
-void ResetTypeCanonicalizer(v8::Isolate* isolate, Zone* zone) {
+void ResetTypeCanonicalizer(v8::Isolate* isolate) {
   v8::internal::Isolate* i_isolate =
       reinterpret_cast<v8::internal::Isolate*>(isolate);
 
@@ -495,7 +489,7 @@ void ResetTypeCanonicalizer(v8::Isolate* isolate, Zone* zone) {
   }
   GetTypeCanonicalizer()->EmptyStorageForTesting();
   TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(i_isolate);
-  AddDummyTypesToTypeCanonicalizer(i_isolate, zone);
+  AddDummyTypesToTypeCanonicalizer(i_isolate);
 }
 
 int WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
@@ -530,7 +524,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   // Clear recursive groups: The fuzzer creates random types in every run. These
   // are saved as recursive groups as part of the type canonicalizer, but types
   // from previous runs just waste memory.
-  ResetTypeCanonicalizer(isolate, &zone);
+  ResetTypeCanonicalizer(isolate);
 
   // Clear any exceptions from a prior run.
   if (i_isolate->has_exception()) {

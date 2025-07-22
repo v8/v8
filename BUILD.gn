@@ -8186,6 +8186,7 @@ if (v8_enable_webassembly) {
       "test/common/flag-utils.h",
       "test/common/value-helper.h",
       "test/common/wasm/flag-utils.h",
+      "test/common/wasm/wasm-macro-gen.h",
       "test/common/wasm/wasm-module-runner.cc",
       "test/common/wasm/wasm-module-runner.h",
       "test/common/wasm/wasm-run-utils.cc",

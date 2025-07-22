@@ -583,7 +583,7 @@ int LLVMFuzzerTestOneInputCommon(const uint8_t* data, size_t size,
   // Clear recursive groups: The fuzzer creates random types in every run. These
   // are saved as recursive groups as part of the type canonicalizer, but types
   // from previous runs just waste memory.
-  ResetTypeCanonicalizer(isolate, &zone);
+  ResetTypeCanonicalizer(isolate);
 
   wasm::ZoneBuffer buffer(&zone);
 
@@ -653,7 +653,7 @@ int LLVMFuzzerTestTwoModulesCommon(
   // Clear recursive groups: The fuzzer creates random types in every run. These
   // are saved as recursive groups as part of the type canonicalizer, but types
   // from previous runs just waste memory.
-  ResetTypeCanonicalizer(isolate, &zone);
+  ResetTypeCanonicalizer(isolate);
 
   wasm::ZoneBuffer buffer(&zone);
 

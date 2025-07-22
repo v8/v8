@@ -110,15 +110,6 @@ namespace module_decoder_unittest {
 
 #define EXCEPTION_ENTRY(sig_index) U32V_1(kExceptionAttribute), sig_index
 
-#define FIELD_COUNT(count) U32V_1(count)
-#define STRUCT_FIELD(type, mutability) type, (mutability ? 1 : 0)
-#define WASM_REF(index) kRefCode, index
-#define WASM_OPT_REF(index) kRefNullCode, index
-#define WASM_STRUCT_DEF(...) kWasmStructTypeCode, __VA_ARGS__
-#define WASM_ARRAY_DEF(type, mutability) \
-  kWasmArrayTypeCode, type, (mutability ? 1 : 0)
-#define WASM_FUNCTION_DEF(...) kWasmFunctionTypeCode, __VA_ARGS__
-
 #define EXPECT_VERIFIES(data)                                     \
   do {                                                            \
     ModuleResult _result = DecodeModule(base::ArrayVector(data)); \
