@@ -973,17 +973,17 @@ BUILTIN(Uint8ArrayPrototypeSetFromHex) {
                                   method_name)));
   }
 
+  size_t input_length = input_string->length();
+  if (input_length % 2 != 0) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewSyntaxError(MessageTemplate::kInvalidHexString));
+  }
+
   // If the receiver has length of 0, we should return early
   // with 0 bytes read and 0 bytes write.
   if (array_length == 0) {
     return *isolate->factory()->NewJSUint8ArraySetFromResult(
         handle(Smi::zero(), isolate), handle(Smi::zero(), isolate));
-  }
-
-  size_t input_length = input_string->length();
-  if (input_length % 2 != 0) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewSyntaxError(MessageTemplate::kInvalidHexString));
   }
 
   size_t output_length = (input_length / 2);

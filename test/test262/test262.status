@@ -1393,7 +1393,6 @@
 [ALWAYS, {
   'built-ins/TypedArray/prototype/with/negative-index-resize-to-in-bounds': [SKIP],
   'built-ins/TypedArray/prototype/with/negative-index-resize-to-out-of-bounds': [SKIP],
-  'built-ins/Uint8Array/prototype/setFromHex/throws-when-string-length-is-odd': [SKIP],
 }],
 # End roll-watcher patch
 ####
@@ -1430,14 +1429,6 @@
 }],
 # end import test262@a073f479f80b336256b7fc4e04700c827293e2fe
 ###
-####
-
-####
-# Roll-watcher patch
-[ALWAYS, {
-  'built-ins/Uint8Array/fromBase64/last-chunk-invalid': [SKIP],
-}],
-# End roll-watcher patch
 ####
 
 ####
