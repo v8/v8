@@ -75,14 +75,14 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:c4748415f12ac92d2781608b8b84fcc0e33e5ff9',
+  'gn_version': 'git_revision:eb4530a2cb7813f81e390ebc3505f64b94518458',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:dcd000e47f19677c7a5e02550abafa9eadbd4923',
+  'siso_version': 'git_revision:33e71490533f445467879650036b6af7940455f3',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -130,9 +130,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f334595f935de6986770b607bbf922c1c3c569bf',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a1f86487225853f9ad6fa9830336651446f6a532',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '1cdac560c770a5ad7aa62e29bfc40d7ac4fc71cd',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '90b48c96e7cfa1c27068e240217b86fb996ef999',
   'buildtools/linux64': {
     'packages': [
       {
@@ -232,7 +232,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'ffa0089e2ca8c0ae5e0f1890ca8be6c0fb931a1b',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'ed07b403a26d3ba2cfe407e84716464b8899e575',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '5e6b39291412822ad5f14c1dccf9a4c6d062ad1f',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e193d0f558ea6cdf25f854b392550562f0404fb2',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -258,7 +258,7 @@ deps = {
     'condition': 'checkout_fuchsia',
   },
   'third_party/simdutf':
-    Var('chromium_url') + '/chromium/src/third_party/simdutf' + '@' + 'a1046f20f7099b4f7dd72d7127bb4dc05252ec5c',
+    Var('chromium_url') + '/chromium/src/third_party/simdutf' + '@' + 'c6c377dbb834a65fbea1423a670d82ecc2d576d2',
   # Exists for rolling the Fuchsia SDK. Check out of the SDK should always
   # rely on the hook running |update_sdk.py| script below.
   'third_party/fuchsia-sdk/sdk': {
@@ -302,13 +302,13 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '3eda1e62e799cb25bc091f5283833656ca9c28cb',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '569aa83b4bbc8c1330b98c056a4097e4da5212c5',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'b6f2833c99549e5725055f6e9c795ca6e226afc0',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '634c609746c6ce2d731a4e6f6285135bd84bd3a3',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'd2e912712fc74b4be504f92982d416700bae3a17',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'f603c99c991ae9b8287cba62f27a0114b5d5c8f6',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -498,7 +498,7 @@ deps = {
       'condition': 'checkout_android',
   },
   'tools/rust':
-    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '51c21fc75b69394363af6f2796970ea944a7379f',
+    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '13687c3088bd61cfd830dcd705ae2add540f52ff',
   'third_party/rust':
     Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '1c682144a2be16c6da5e4d5dbdae8b888a0ffd95',
   'third_party/rust-toolchain': {
