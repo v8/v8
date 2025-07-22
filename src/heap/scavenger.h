@@ -84,8 +84,8 @@ class Scavenger {
   // Returns true if the object is a large young object, and false otherwise.
   bool PromoteIfLargeObject(Tagged<HeapObject> object);
 
-  void PinAndPushObject(MemoryChunk* chunk, Tagged<HeapObject> object,
-                        MapWord map_word);
+  void PinAndPushObject(MutablePageMetadata* metadata,
+                        Tagged<HeapObject> object, MapWord map_word);
   void VisitPinnedObjects();
 
   size_t bytes_copied() const { return copied_size_; }
@@ -239,6 +239,7 @@ class ScavengerCollector {
     Address address;
     MapWord map_word;
     SafeHeapObjectSize size;
+    MutablePageMetadata* metadata;
   };
   using PinnedObjects = std::vector<PinnedObjectEntry>;
 

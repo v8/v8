@@ -372,26 +372,28 @@ void SemiSpace::AssertValidRange(Address start, Address end) {
 }
 #endif
 
-void SemiSpace::MoveQuarantinedPage(MemoryChunk* chunk) {
+void SemiSpace::MoveQuarantinedPage(PageMetadata* metadata) {
+#ifdef DEBUG
+  MemoryChunk* chunk = metadata->Chunk();
   // Quarantining pages happens at the end of scavenge, after the semi spaces
   // have been swapped. Thus, the quarantined page originates from "from space"
-  // to is moved to "to space" to keep pinned objects as live.
+  // and is moved to "to space" to keep pinned objects as live.
   DCHECK_EQ(kToSpace, id_);
   DCHECK(chunk->IsQuarantined());
-  DCHECK(!chunk->IsFlagSet(MemoryChunk::WILL_BE_PROMOTED));
+  DCHECK(!metadata->will_be_promoted());
   DCHECK(chunk->IsFromPage());
-  PageMetadata* page = PageMetadata::cast(chunk->Metadata());
+#endif  // DEBUG
   SemiSpace& from_space = heap_->semi_space_new_space()->from_space();
-  DCHECK_EQ(&from_space, page->owner());
+  DCHECK_EQ(&from_space, metadata->owner());
   DCHECK_NE(&from_space, this);
-  from_space.RemovePage(page);
-  page->ClearFlagNonExecutable(MemoryChunk::IS_QUARANTINED);
-  page->ClearFlagNonExecutable(MemoryChunk::FROM_PAGE);
-  page->SetFlagNonExecutable(MemoryChunk::TO_PAGE);
-  page->set_owner(this);
+  from_space.RemovePage(metadata);
+  metadata->ClearFlagNonExecutable(MemoryChunk::IS_QUARANTINED);
+  metadata->ClearFlagNonExecutable(MemoryChunk::FROM_PAGE);
+  metadata->SetFlagNonExecutable(MemoryChunk::TO_PAGE);
+  metadata->set_owner(this);
   AccountCommitted(PageMetadata::kPageSize);
-  IncrementCommittedPhysicalMemory(page->CommittedPhysicalMemory());
-  memory_chunk_list_.PushFront(page);
+  IncrementCommittedPhysicalMemory(metadata->CommittedPhysicalMemory());
+  memory_chunk_list_.PushFront(metadata);
   quarantined_pages_count_++;
 }
 
@@ -818,8 +820,8 @@ AllocatorPolicy* SemiSpaceNewSpace::CreateAllocatorPolicy(
   return new SemiSpaceNewSpaceAllocatorPolicy(this, allocator);
 }
 
-void SemiSpaceNewSpace::MoveQuarantinedPage(MemoryChunk* chunk) {
-  to_space_.MoveQuarantinedPage(chunk);
+void SemiSpaceNewSpace::MoveQuarantinedPage(PageMetadata* metadata) {
+  to_space_.MoveQuarantinedPage(metadata);
 }
 
 // -----------------------------------------------------------------------------

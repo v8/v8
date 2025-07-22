@@ -156,6 +156,11 @@ class MemoryChunkMetadata {
 
   bool is_executable() const { return IsExecutableField::decode(flags_); }
 
+  bool will_be_promoted() const { return WillBePromotedField::decode(flags_); }
+  void set_will_be_promoted(bool value) {
+    flags_ = WillBePromotedField::update(flags_, value);
+  }
+
  protected:
 #ifdef THREAD_SANITIZER
   // Perform a dummy acquire load to tell TSAN that there is no data race in
@@ -217,6 +222,9 @@ class MemoryChunkMetadata {
   using IsLargePageField = IsPreeFreedField::Next<bool, 1>;
   // Indicates whether the memory chunk is executable or not.
   using IsExecutableField = IsLargePageField::Next<bool, 1>;
+  // A new space page that will be promoted to old space by the end of the GC.
+  // This flag should only ever be set during a Scavenge cycle.
+  using WillBePromotedField = IsExecutableField::Next<bool, 1>;
 
   static constexpr intptr_t HeapOffset() {
     return offsetof(MemoryChunkMetadata, heap_);

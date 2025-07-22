@@ -126,10 +126,6 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     // space (to make it easier to keep track of the intermediate generation).
     // This flag should only ever be set during a scavenge cycle.
     IS_QUARANTINED = 1u << 23,
-
-    // A new space page that will be promoted to old space by the end of the GC.
-    // This flag should only ever be set during a scavenge cycle.
-    WILL_BE_PROMOTED = 1u << 24,
   };
 
   using MainThreadFlags = base::Flags<Flag, uintptr_t>;

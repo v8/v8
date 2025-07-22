@@ -143,7 +143,7 @@ class SemiSpace final : public Space {
 
   void AddRangeToActiveSystemPages(Address start, Address end);
 
-  void MoveQuarantinedPage(MemoryChunk* chunk);
+  void MoveQuarantinedPage(PageMetadata* metadata);
 
  private:
   bool AllocateFreshPage();
@@ -422,7 +422,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   int GetSpaceRemainingOnCurrentPageForTesting();
   void FillCurrentPageForTesting();
 
-  void MoveQuarantinedPage(MemoryChunk* chunk);
+  void MoveQuarantinedPage(PageMetadata* metadata);
   size_t QuarantinedSize() const { return quarantined_size_; }
   size_t QuarantinedPageCount() const {
     return to_space_.quarantined_pages_count_;

@@ -385,11 +385,10 @@ SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
     DCHECK_IMPLIES(HeapLayout::IsSelfForwarded(object, first_word),
                    dest == object);
     if (dest == object) {
-      MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-      return chunk->IsFlagSet(MemoryChunk::WILL_BE_PROMOTED) ||
-                     chunk->IsLargePage()
-                 ? REMOVE_SLOT
-                 : KEEP_SLOT;
+      const auto* metadata =
+          MemoryChunk::FromHeapObject(object)->Metadata(heap()->isolate());
+      return metadata->will_be_promoted() || metadata->is_large() ? REMOVE_SLOT
+                                                                  : KEEP_SLOT;
     }
 
     UpdateHeapObjectReferenceSlot(p, dest);
@@ -431,12 +430,13 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap, TSlot slot) {
 
     SlotCallbackResult result =
         ScavengeObject(THeapObjectSlot(slot), heap_object);
-    DCHECK_IMPLIES(result == REMOVE_SLOT,
-                   !HeapLayout::InYoungGeneration((*slot).GetHeapObject()) ||
-                       MemoryChunk::FromHeapObject((*slot).GetHeapObject())
-                           ->IsLargePage() ||
-                       MemoryChunk::FromHeapObject((*slot).GetHeapObject())
-                           ->IsFlagSet(MemoryChunk::WILL_BE_PROMOTED));
+    DCHECK_IMPLIES(
+        result == REMOVE_SLOT,
+        !HeapLayout::InYoungGeneration((*slot).GetHeapObject()) ||
+            MemoryChunk::FromHeapObject((*slot).GetHeapObject())
+                ->IsLargePage() ||
+            MemoryChunkMetadata::FromHeapObject((*slot).GetHeapObject())
+                ->will_be_promoted());
     return result;
   } else if (Heap::InToPage(object)) {
     // Already updated slot. This can happen when processing of the work list
