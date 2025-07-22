@@ -941,6 +941,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::GetIterator(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::ForOfNext(Register object,
+                                                      Register next,
+                                                      Register value) {
+  OutputForOfNext(object, next, value);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAsyncIteratorProperty(
     Register object, int feedback_slot) {
   size_t name_index = AsyncIteratorSymbolConstantPoolEntry();

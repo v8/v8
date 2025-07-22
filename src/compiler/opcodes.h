@@ -235,6 +235,7 @@
   V(JSForInNext)                       \
   V(JSForInPrepare)                    \
   V(JSGetIterator)                     \
+  V(JSForOfNext)                       \
   V(JSLoadMessage)                     \
   V(JSStoreMessage)                    \
   V(JSLoadModule)                      \
@@ -1477,6 +1478,7 @@ class V8_EXPORT_PRIVATE IrOpcode {
       case kJSForInNext:
       case kJSForInPrepare:
       case kJSGetIterator:
+      case kJSForOfNext:
       case kJSGetTemplateObject:
       case kJSHasProperty:
       case kJSInstanceOf:

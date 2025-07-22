@@ -2443,6 +2443,8 @@ void BaselineCompiler::VisitResumeGenerator() {
       static_cast<int>(RegisterCount(2)));  // register_count
 }
 
+void BaselineCompiler::VisitForOfNext() { UNREACHABLE(); }
+
 void BaselineCompiler::VisitGetIterator() {
   CallBuiltin<Builtin::kGetIteratorBaseline>(RegisterOperand(0),  // receiver
                                              IndexAsTagged(1),    // load_slot

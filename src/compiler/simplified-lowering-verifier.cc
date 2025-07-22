@@ -721,6 +721,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(JSForInEnumerate)
       CASE(JSForInNext)
       CASE(JSForInPrepare)
+      CASE(JSForOfNext)
       CASE(JSGetIterator)
       CASE(JSLoadMessage)
       CASE(JSStoreMessage)

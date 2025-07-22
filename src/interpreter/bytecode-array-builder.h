@@ -494,6 +494,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
                                   int feedback_slot);
   BytecodeArrayBuilder& ForInStep(Register index);
 
+  BytecodeArrayBuilder& ForOfNext(Register object, Register next,
+                                  Register value);
+
   // Generators.
   BytecodeArrayBuilder& SuspendGenerator(Register generator,
                                          RegisterList registers,

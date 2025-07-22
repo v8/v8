@@ -1084,6 +1084,8 @@ const Operator* JSOperatorBuilder::GetIterator(
       access);                                            // parameter
 }
 
+const Operator* JSOperatorBuilder::ForOfNext() { UNREACHABLE(); }
+
 const Operator* JSOperatorBuilder::HasProperty(FeedbackSource const& feedback) {
   PropertyAccess access(LanguageMode::kSloppy, feedback);
   return zone()->New<Operator1<PropertyAccess>>(          // --

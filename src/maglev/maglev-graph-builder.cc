@@ -15304,6 +15304,8 @@ ReduceResult MaglevGraphBuilder::VisitGetIterator() {
   return ReduceResult::Done();
 }
 
+ReduceResult MaglevGraphBuilder::VisitForOfNext() { UNREACHABLE(); }
+
 ReduceResult MaglevGraphBuilder::VisitDebugger() {
   return BuildCallRuntime(Runtime::kHandleDebuggerStatement, {});
 }

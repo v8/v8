@@ -441,6 +441,10 @@ namespace interpreter {
     OperandType::kReg, OperandType::kRegPair, OperandType::kIdx)               \
   V(ForInStep, ImplicitRegisterUse::kNone, OperandType::kRegInOut)             \
                                                                                \
+  /* Optimizing For..of */                                                     \
+  V(ForOfNext, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,      \
+    OperandType::kReg, OperandType::kRegOut)                                   \
+                                                                               \
   /* Update the pending message */                                             \
   V(SetPendingMessage, ImplicitRegisterUse::kReadWriteAccumulator)             \
                                                                                \

@@ -10,6 +10,7 @@
 #include <sstream>
 #include <string>
 
+#include "src/base/logging.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-operator.h"
@@ -896,6 +897,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kJSForInNext:
       CheckTypeIs(node, Type::Union(Type::Name(), Type::Undefined(), zone));
       break;
+
+    case IrOpcode::kJSForOfNext:
+      UNREACHABLE();
 
     case IrOpcode::kJSLoadMessage:
     case IrOpcode::kJSStoreMessage:

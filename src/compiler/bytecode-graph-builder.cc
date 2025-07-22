@@ -3863,6 +3863,8 @@ void BytecodeGraphBuilder::VisitForInStep() {
   environment()->BindRegister(index_reg, index, Environment::kAttachFrameState);
 }
 
+void BytecodeGraphBuilder::VisitForOfNext() { UNREACHABLE(); }
+
 void BytecodeGraphBuilder::VisitGetIterator() {
   PrepareEagerCheckpoint();
   Node* receiver =

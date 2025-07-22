@@ -216,6 +216,12 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   TNode<T> CallRuntimeN(TNode<Uint32T> function_id, TNode<Context> context,
                         const RegListNodePair& args, int return_count);
 
+  // Calls the next method of an iterator and returns the pair of
+  // {value, done} properties of the result.
+  std::pair<TNode<Object>, TNode<Object>> CallIteratorNext(
+      TNode<Object> iterator, TNode<Object> next_method,
+      TNode<Context> context);
+
   // Jump forward relative to the current bytecode by the |jump_offset|.
   void Jump(TNode<IntPtrT> jump_offset);
 

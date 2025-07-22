@@ -1072,6 +1072,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* ForInNext(ForInMode mode, const FeedbackSource& feedback);
   const Operator* ForInPrepare(ForInMode mode, const FeedbackSource& feedback);
 
+  const Operator* ForOfNext();
+
   const Operator* LoadMessage();
   const Operator* StoreMessage();
 

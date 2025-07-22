@@ -17222,11 +17222,12 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResult(
   return CAST(result);
 }
 
-TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResultForEntry(
+TNode<JSArray> CodeStubAssembler::AllocateJSIteratorResultValueForEntry(
     TNode<Context> context, TNode<Object> key, TNode<Object> value) {
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Smi> length = SmiConstant(2);
   int const elements_size = FixedArray::SizeFor(2);
+
   TNode<FixedArray> elements =
       UncheckedCast<FixedArray>(Allocate(elements_size));
   StoreObjectFieldRoot(elements, offsetof(FixedArray, map_),
@@ -17235,6 +17236,7 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResultForEntry(
                                  length);
   StoreFixedArrayElement(elements, 0, key);
   StoreFixedArrayElement(elements, 1, value);
+
   TNode<Map> array_map = CAST(LoadContextElementNoCell(
       native_context, Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX));
   TNode<HeapObject> array =
@@ -17244,6 +17246,14 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResultForEntry(
                        RootIndex::kEmptyFixedArray);
   StoreObjectFieldNoWriteBarrier(array, JSArray::kElementsOffset, elements);
   StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
+  return CAST(array);
+}
+
+TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResultForEntry(
+    TNode<Context> context, TNode<Object> key, TNode<Object> value) {
+  TNode<NativeContext> native_context = LoadNativeContext(context);
+  TNode<JSArray> array =
+      AllocateJSIteratorResultValueForEntry(context, key, value);
   TNode<Map> iterator_map = CAST(LoadContextElementNoCell(
       native_context, Context::ITERATOR_RESULT_MAP_INDEX));
   TNode<HeapObject> result = Allocate(JSIteratorResult::kSize);
