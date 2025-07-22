@@ -329,9 +329,6 @@
   'built-ins/Temporal/PlainYearMonth/from/argument-plainyearmonth': [FAIL],
   'built-ins/Temporal/PlainYearMonth/from/observable-get-overflow-argument-string-invalid': [FAIL],
 
-  # ToIntegerWithTruncation converts undefined to 0
-  'built-ins/Temporal/PlainDate/argument-convert': [FAIL],
-
   # Integer out of range (https://github.com/boa-dev/temporal/issues/334)
   'built-ins/Temporal/PlainDate/from/with-year-month-day-need-constrain': [FAIL],
   'built-ins/Temporal/PlainMonthDay/from/overflow': [FAIL],

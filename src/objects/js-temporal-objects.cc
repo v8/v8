@@ -287,16 +287,26 @@ Maybe<IntegerType> ToIntegerTypeIfIntegral(Isolate* isolate,
 Maybe<double> ToIntegerWithTruncation(Isolate* isolate,
                                       DirectHandle<Object> argument) {
   // 1. Let number be ? ToNumber(argument).
-  double number;
+  DirectHandle<Number> number;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, number,
-                             Object::IntegerValue(isolate, argument));
+                             Object::ToNumber(isolate, argument));
+  double number_double = Object::NumberValue(*number);
   // 2. If number is NaN, +∞𝔽 or -∞𝔽, throw a RangeError exception.
-  if (!std::isfinite(number)) {
+  if (!std::isfinite(number_double)) {
     THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kFiniteInteger));
   }
 
   // 3. Return truncate(number).
-  return Just(number);
+  return Just(std::trunc(number_double));
+}
+
+// Same as ToIntegerWithTruncation, but returns 0 when undefined
+Maybe<double> ToIntegerWithTruncationOrZero(Isolate* isolate,
+                                            DirectHandle<Object> argument) {
+  if (IsUndefined(*argument)) {
+    return Just(0.0);
+  }
+  return ToIntegerWithTruncation(isolate, argument);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-topositiveintegerwithtruncation
@@ -4463,14 +4473,15 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Constructor(
   // ToIntegerWithTruncation(hour).
   double hour = 0;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, hour, temporal::ToIntegerWithTruncation(isolate, hour_obj));
+      isolate, hour,
+      temporal::ToIntegerWithTruncationOrZero(isolate, hour_obj));
   // 6. If minute is undefined, set minute to 0; else set minute to ?
   // ToIntegerWithTruncation(minute).
   double minute = 0;
   if (!IsUndefined(*minute_obj)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, minute,
-        temporal::ToIntegerWithTruncation(isolate, minute_obj));
+        temporal::ToIntegerWithTruncationOrZero(isolate, minute_obj));
   }
   // 7. If second is undefined, set second to 0; else set second to ?
   // ToIntegerWithTruncation(second).
@@ -4478,7 +4489,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Constructor(
   if (!IsUndefined(*second_obj)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, second,
-        temporal::ToIntegerWithTruncation(isolate, second_obj));
+        temporal::ToIntegerWithTruncationOrZero(isolate, second_obj));
   }
   // 8. If millisecond is undefined, set millisecond to 0; else set millisecond
   // to ? ToIntegerWithTruncation(millisecond).
@@ -4486,7 +4497,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Constructor(
   if (!IsUndefined(*millisecond_obj)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, millisecond,
-        temporal::ToIntegerWithTruncation(isolate, millisecond_obj));
+        temporal::ToIntegerWithTruncationOrZero(isolate, millisecond_obj));
   }
   // 9. If microsecond is undefined, set microsecond to 0; else set microsecond
   // to ? ToIntegerWithTruncation(microsecond).
@@ -4495,7 +4506,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Constructor(
   if (!IsUndefined(*microsecond_obj)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, microsecond,
-        temporal::ToIntegerWithTruncation(isolate, microsecond_obj));
+        temporal::ToIntegerWithTruncationOrZero(isolate, microsecond_obj));
   }
   // 10. If nanosecond is undefined, set nanosecond to 0; else set nanosecond to
   // ? ToIntegerWithTruncation(nanosecond).
@@ -4503,7 +4514,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Constructor(
   if (!IsUndefined(*nanosecond_obj)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, nanosecond,
-        temporal::ToIntegerWithTruncation(isolate, nanosecond_obj));
+        temporal::ToIntegerWithTruncationOrZero(isolate, nanosecond_obj));
   }
 
   // 11. If calendar is undefined, set calendar to "iso8601".
@@ -5456,7 +5467,8 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Constructor(
   double hour = 0;
   if (!IsUndefined(*hour_obj)) {
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, hour, temporal::ToIntegerWithTruncation(isolate, hour_obj));
+        isolate, hour,
+        temporal::ToIntegerWithTruncationOrZero(isolate, hour_obj));
   }
   // 3. If minute is undefined, set minute to 0; else set minute to ?
   // ToIntegerWithTruncation(minute).
@@ -5464,7 +5476,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Constructor(
   if (!IsUndefined(*minute_obj)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, minute,
-        temporal::ToIntegerWithTruncation(isolate, minute_obj));
+        temporal::ToIntegerWithTruncationOrZero(isolate, minute_obj));
   }
   // 4. If second is undefined, set second to 0; else set second to ?
   // ToIntegerWithTruncation(second).
@@ -5472,7 +5484,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Constructor(
   if (!IsUndefined(*second_obj)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, second,
-        temporal::ToIntegerWithTruncation(isolate, second_obj));
+        temporal::ToIntegerWithTruncationOrZero(isolate, second_obj));
   }
   // 5. If millisecond is undefined, set millisecond to 0; else set millisecond
   // to ? ToIntegerWithTruncation(millisecond).
@@ -5480,7 +5492,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Constructor(
   if (!IsUndefined(*millisecond_obj)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, millisecond,
-        temporal::ToIntegerWithTruncation(isolate, millisecond_obj));
+        temporal::ToIntegerWithTruncationOrZero(isolate, millisecond_obj));
   }
   // 6. If microsecond is undefined, set microsecond to 0; else set microsecond
   // to ? ToIntegerWithTruncation(microsecond).
@@ -5489,7 +5501,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Constructor(
   if (!IsUndefined(*microsecond_obj)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, microsecond,
-        temporal::ToIntegerWithTruncation(isolate, microsecond_obj));
+        temporal::ToIntegerWithTruncationOrZero(isolate, microsecond_obj));
   }
   // 7. If nanosecond is undefined, set nanosecond to 0; else set nanosecond to
   // ? ToIntegerWithTruncation(nanosecond).
@@ -5498,7 +5510,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Constructor(
   if (!IsUndefined(*nanosecond_obj)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, nanosecond,
-        temporal::ToIntegerWithTruncation(isolate, nanosecond_obj));
+        temporal::ToIntegerWithTruncationOrZero(isolate, nanosecond_obj));
   }
 
   // 8. If IsValidTime(hour, minute, second, millisecond, microsecond,
