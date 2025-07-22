@@ -1304,7 +1304,8 @@ ProcessResult MaglevGraphOptimizer::VisitInt32AddWithOverflow() {
                                                                 GetInputAt(1));
       result.IsDone()) {
     DCHECK(result.IsDoneWithValue());
-    return ReplaceWith(reducer_.GetInt32(result.value()));
+    // TODO(victorgomes): Should GetInt32 style function support identities?
+    return ReplaceWith(reducer_.GetInt32(result.value()->UnwrapIdentities()));
   }
   return ProcessResult::kContinue;
 }
