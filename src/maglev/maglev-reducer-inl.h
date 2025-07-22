@@ -546,7 +546,8 @@ ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
     case ValueRepresentation::kTagged: {
       if (can_be_heap_number &&
           !known_node_aspects().CheckType(broker(), value, NodeType::kSmi)) {
-        return alternative.set_int32(AddNewNode<CheckedNumberToInt32>({value}));
+        return alternative.set_int32(
+            AddNewNodeNoInputConversion<CheckedNumberToInt32>({value}));
       }
       return alternative.set_int32(BuildSmiUntag(value));
     }
@@ -556,7 +557,8 @@ ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
         return alternative.set_int32(
             AddNewNode<TruncateUint32ToInt32>({value}));
       }
-      return alternative.set_int32(AddNewNode<CheckedUint32ToInt32>({value}));
+      return alternative.set_int32(
+          AddNewNodeNoInputConversion<CheckedUint32ToInt32>({value}));
     }
     case ValueRepresentation::kFloat64:
     // The check here will also work for the hole NaN, so we can treat
@@ -567,7 +569,8 @@ ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
     }
 
     case ValueRepresentation::kIntPtr:
-      return alternative.set_int32(AddNewNode<CheckedIntPtrToInt32>({value}));
+      return alternative.set_int32(
+          AddNewNodeNoInputConversion<CheckedIntPtrToInt32>({value}));
 
     case ValueRepresentation::kInt32:
     case ValueRepresentation::kNone:

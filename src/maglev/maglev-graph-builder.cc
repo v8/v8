@@ -1621,6 +1621,13 @@ ReduceResult MaglevGraphBuilder::GetSmiValue(
   UNREACHABLE();
 }
 
+ReduceResult MaglevGraphBuilder::GetSmiValue(
+    ReduceResult value_result, UseReprHintRecording record_use_repr_hint) {
+  ValueNode* value;
+  GET_VALUE_OR_ABORT(value, value_result);
+  return GetSmiValue(value, record_use_repr_hint);
+}
+
 namespace {
 CheckType GetCheckType(NodeType type) {
   return NodeTypeIs(type, NodeType::kAnyHeapObject)
@@ -5160,7 +5167,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertySetterCall(
   return ReduceResult::Done();
 }
 
-ValueNode* MaglevGraphBuilder::BuildLoadField(
+ReduceResult MaglevGraphBuilder::BuildLoadField(
     compiler::PropertyAccessInfo const& access_info,
     ValueNode* lookup_start_object, compiler::NameRef name) {
   compiler::OptionalJSObjectRef constant_holder =
@@ -5223,14 +5230,17 @@ ValueNode* MaglevGraphBuilder::BuildLoadField(
 
 ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayLength(
     ValueNode* fixed_array) {
+  // We won't try to reason about the type of the FixedArray and thus also
+  // cannot end up with an empty type for it.
+  DCHECK(!IsEmptyNodeType(GetType(fixed_array)));
   ValueNode* length =
       BuildLoadTaggedField(fixed_array, offsetof(FixedArray, length_));
   EnsureType(length, NodeType::kSmi);
   return length;
 }
 
-ValueNode* MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array,
-                                                      NodeType length_type) {
+ReduceResult MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array,
+                                                        NodeType length_type) {
   // TODO(leszeks): JSArray.length is known to be non-constant, don't bother
   // searching the constant values.
   MaybeReduceResult known_length =
@@ -5442,8 +5452,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
       return GetRootConstant(RootIndex::kUndefinedValue);
     case compiler::PropertyAccessInfo::kDataField:
     case compiler::PropertyAccessInfo::kFastDataConstant: {
-      ValueNode* result =
-          BuildLoadField(access_info, lookup_start_object, name);
+      ValueNode* result;
+      GET_VALUE_OR_ABORT(
+          result, BuildLoadField(access_info, lookup_start_object, name));
       RecordKnownProperty(lookup_start_object, name, result,
                           AccessInfoGuaranteedConst(access_info),
                           compiler::AccessMode::kLoad);
@@ -6195,8 +6206,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
   ValueNode* elements_array = BuildLoadElements(object);
   ValueNode* index;
   GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(index_object));
-  ValueNode* length = is_jsarray ? GetInt32(BuildLoadJSArrayLength(object))
-                                 : BuildLoadFixedArrayLength(elements_array);
+  ValueNode* length;
+  if (is_jsarray) {
+    GET_VALUE_OR_ABORT(length, GetInt32(BuildLoadJSArrayLength(object)));
+  } else {
+    length = BuildLoadFixedArrayLength(elements_array);
+  }
 
   auto emit_load = [&]() -> ReduceResult {
     ValueNode* result;
@@ -6290,7 +6305,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
     ValueNode* elements_array_length = nullptr;
     ValueNode* length;
     if (is_jsarray) {
-      length = GetInt32(BuildLoadJSArrayLength(object));
+      GET_VALUE_OR_ABORT(length, GetInt32(BuildLoadJSArrayLength(object)));
     } else {
       length = elements_array_length =
           BuildLoadFixedArrayLength(elements_array);
@@ -8591,7 +8606,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
   ValueNode* this_arg =
       args.count() > 1 ? args[1] : GetRootConstant(RootIndex::kUndefinedValue);
 
-  ValueNode* original_length = BuildLoadJSArrayLength(receiver);
+  ValueNode* original_length;
+  GET_VALUE_OR_ABORT(original_length, BuildLoadJSArrayLength(receiver));
 
   if (initial_callback) {
     RETURN_IF_ABORT((*initial_callback)(original_length));
@@ -8793,7 +8809,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
 
     // Check if the index is still in bounds, in case the callback changed the
     // length.
-    ValueNode* current_length = BuildLoadJSArrayLength(receiver);
+    ValueNode* current_length;
+    GET_VALUE_OR_ABORT(current_length, BuildLoadJSArrayLength(receiver));
     sub_builder.set(var_length, current_length);
 
     // Reference compare the loaded length against the original length. If this
@@ -8889,12 +8906,14 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
       BuildLoadTaggedField(receiver, JSArrayIterator::kNextIndexOffset);
   ValueNode* uint32_index;
   GET_VALUE_OR_ABORT(uint32_index, GetUint32ElementIndex(index));
+  ValueNode* length;
+  GET_VALUE_OR_ABORT(
+      length,
+      BuildLoadJSArrayLength(iterated_object, IsFastElementsKind(elements_kind)
+                                                  ? NodeType::kSmi
+                                                  : NodeType::kNumber));
   ValueNode* uint32_length;
-  GET_VALUE_OR_ABORT(uint32_length,
-                     GetUint32ElementIndex(BuildLoadJSArrayLength(
-                         iterated_object, IsFastElementsKind(elements_kind)
-                                              ? NodeType::kSmi
-                                              : NodeType::kNumber)));
+  GET_VALUE_OR_ABORT(uint32_length, GetUint32ElementIndex(length));
 
   // Check next index is below length
   MaglevSubGraphBuilder subgraph(this, 2);
@@ -8996,7 +9015,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeAt(
     return {};
   }
 
-  ValueNode* length = BuildLoadJSArrayLength(receiver);
+  ValueNode* length;
+  GET_VALUE_OR_ABORT(length, BuildLoadJSArrayLength(receiver));
   ValueNode* index = nullptr;
   if (args.count() == 0) {
     // Index is the undefined object. ToIntegerOrInfinity(undefined) = 0.
@@ -15865,6 +15885,13 @@ ValueNode* MaglevGraphBuilder::GetTaggedValue(
 
 ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value,
                                         bool can_be_heap_number) {
+  return reducer_.GetInt32(value, can_be_heap_number);
+}
+
+ReduceResult MaglevGraphBuilder::GetInt32(ReduceResult value_result,
+                                          bool can_be_heap_number) {
+  ValueNode* value;
+  GET_VALUE_OR_ABORT(value, value_result);
   return reducer_.GetInt32(value, can_be_heap_number);
 }
 

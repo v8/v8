@@ -629,6 +629,9 @@ class MaglevGraphBuilder {
   ReduceResult GetSmiValue(ValueNode* value,
                            UseReprHintRecording record_use_repr_hint =
                                UseReprHintRecording::kRecord);
+  ReduceResult GetSmiValue(ReduceResult value_result,
+                           UseReprHintRecording record_use_repr_hint =
+                               UseReprHintRecording::kRecord);
 
   MaybeReduceResult GetSmiValue(interpreter::Register reg,
                                 UseReprHintRecording record_use_repr_hint =
@@ -678,9 +681,9 @@ class MaglevGraphBuilder {
 
   // Get an Int32 representation node whose value is equivalent to the given
   // node.
-  //
-  // Deopts if the value is not exactly representable as an Int32.
   ValueNode* GetInt32(ValueNode* value, bool can_be_heap_number = false);
+  ReduceResult GetInt32(ReduceResult value_result,
+                        bool can_be_heap_number = false);
 
   void EnsureInt32(ValueNode* value, bool can_be_heap_number = false);
 
@@ -1288,9 +1291,9 @@ class MaglevGraphBuilder {
       compiler::PropertyAccessInfo const& access_info);
 
   // Returns the loaded value node but doesn't update the accumulator yet.
-  ValueNode* BuildLoadField(compiler::PropertyAccessInfo const& access_info,
-                            ValueNode* lookup_start_object,
-                            compiler::NameRef name);
+  ReduceResult BuildLoadField(compiler::PropertyAccessInfo const& access_info,
+                              ValueNode* lookup_start_object,
+                              compiler::NameRef name);
   MaybeReduceResult TryBuildStoreField(
       compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
       compiler::AccessMode access_mode);
@@ -1308,8 +1311,8 @@ class MaglevGraphBuilder {
       const compiler::ProcessedFeedback& processed_feedback);
 
   ValueNode* BuildLoadFixedArrayLength(ValueNode* fixed_array);
-  ValueNode* BuildLoadJSArrayLength(ValueNode* js_array,
-                                    NodeType length_type = NodeType::kSmi);
+  ReduceResult BuildLoadJSArrayLength(ValueNode* js_array,
+                                      NodeType length_type = NodeType::kSmi);
   ValueNode* BuildLoadElements(ValueNode* object);
 
   ValueNode* BuildLoadJSFunctionFeedbackCell(ValueNode* closure);
