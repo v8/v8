@@ -575,7 +575,6 @@ int LLVMFuzzerTestOneInputCommon(const uint8_t* data, size_t size,
   // wasm::fuzzing::EnableExperimentalWasmFeatures(isolate);
 
   v8::TryCatch try_catch(isolate);
-  testing::SetupIsolateForWasmModule(i_isolate);
 
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
@@ -645,7 +644,6 @@ int LLVMFuzzerTestTwoModulesCommon(
   // wasm::fuzzing::EnableExperimentalWasmFeatures(isolate);
 
   v8::TryCatch try_catch(isolate);
-  wasm::testing::SetupIsolateForWasmModule(i_isolate);
 
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);

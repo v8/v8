@@ -295,7 +295,6 @@ UNINITIALIZED_TEST(CompiledWasmModulesTransfer) {
     LocalContext env(from_isolate);
 
     Isolate* from_i_isolate = reinterpret_cast<Isolate*>(from_isolate);
-    testing::SetupIsolateForWasmModule(from_i_isolate);
     ErrorThrower thrower(from_i_isolate, "TestCompiledWasmModulesTransfer");
     auto enabled_features = WasmEnabledFeatures::FromIsolate(from_i_isolate);
     MaybeDirectHandle<WasmModuleObject> maybe_module_object =

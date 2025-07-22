@@ -234,7 +234,6 @@ void FuzzIt(base::Vector<const uint8_t> data) {
   base::Vector<const uint8_t> bytes =
       GenerateWasmModuleForInitExpressions(&zone, data, &expression_count);
 
-  testing::SetupIsolateForWasmModule(i_isolate);
   ModuleWireBytes wire_bytes(bytes.begin(), bytes.end());
   auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
   bool valid = GetWasmEngine()->SyncValidate(i_isolate, enabled_features,

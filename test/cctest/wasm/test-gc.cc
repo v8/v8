@@ -47,7 +47,6 @@ class WasmGCTester {
         isolate_(CcTest::InitIsolateOnce()),
         scope(isolate_),
         thrower(isolate_, "Test wasm GC") {
-    testing::SetupIsolateForWasmModule(isolate_);
   }
 
   uint8_t AddGlobal(ValueType type, bool mutability, WasmInitExpr init) {

@@ -47,7 +47,6 @@ void TestModule(Zone* zone, WasmModuleBuilder* builder,
 
   Isolate* isolate = CcTest::InitIsolateOnce();
   HandleScope scope(isolate);
-  testing::SetupIsolateForWasmModule(isolate);
   int32_t result =
       testing::CompileAndRunWasmModule(isolate, buffer.begin(), buffer.end());
   CHECK_EQ(expected_result, result);
@@ -59,7 +58,6 @@ void TestModuleException(Zone* zone, WasmModuleBuilder* builder) {
 
   Isolate* isolate = CcTest::InitIsolateOnce();
   HandleScope scope(isolate);
-  testing::SetupIsolateForWasmModule(isolate);
   v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
   testing::CompileAndRunWasmModule(isolate, buffer.begin(), buffer.end());
   CHECK(try_catch.HasCaught());
@@ -349,7 +347,6 @@ TEST(TestInterruptLoop) {
     builder->WriteTo(&buffer);
 
     HandleScope scope(isolate);
-    testing::SetupIsolateForWasmModule(isolate);
     ErrorThrower thrower(isolate, "Test");
     const DirectHandle<WasmInstanceObject> instance =
         CompileAndInstantiateForTesting(isolate, &thrower,
@@ -435,7 +432,6 @@ TEST(Run_WasmModule_GrowMemOobFixedIndex) {
     HandleScope scope(isolate);
     ZoneBuffer buffer(&zone);
     builder->WriteTo(&buffer);
-    testing::SetupIsolateForWasmModule(isolate);
 
     ErrorThrower thrower(isolate, "Test");
     DirectHandle<WasmInstanceObject> instance =
@@ -485,7 +481,6 @@ TEST(Run_WasmModule_GrowMemOobVariableIndex) {
     HandleScope scope(isolate);
     ZoneBuffer buffer(&zone);
     builder->WriteTo(&buffer);
-    testing::SetupIsolateForWasmModule(isolate);
 
     ErrorThrower thrower(isolate, "Test");
     DirectHandle<WasmInstanceObject> instance =
@@ -595,7 +590,6 @@ TEST(InitDataAtTheUpperLimit) {
   {
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
-    testing::SetupIsolateForWasmModule(isolate);
 
     ErrorThrower thrower(isolate, "Run_WasmModule_InitDataAtTheUpperLimit");
 
@@ -630,7 +624,6 @@ TEST(EmptyMemoryNonEmptyDataSegment) {
   {
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
-    testing::SetupIsolateForWasmModule(isolate);
 
     ErrorThrower thrower(isolate, "Run_WasmModule_InitDataAtTheUpperLimit");
 
@@ -663,7 +656,6 @@ TEST(EmptyMemoryEmptyDataSegment) {
   {
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
-    testing::SetupIsolateForWasmModule(isolate);
 
     ErrorThrower thrower(isolate, "Run_WasmModule_InitDataAtTheUpperLimit");
 

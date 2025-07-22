@@ -420,7 +420,6 @@ static uint8_t kDummyModuleWireBytes[]{
 
 void AddDummyTypesToTypeCanonicalizer(Isolate* isolate) {
   const size_t type_count = GetTypeCanonicalizer()->GetCurrentNumberOfTypes();
-  testing::SetupIsolateForWasmModule(isolate);
   const bool is_valid = GetWasmEngine()->SyncValidate(
       isolate, WasmEnabledFeatures(), CompileTimeImportsForFuzzing(),
       base::VectorOf(kDummyModuleWireBytes));
@@ -556,8 +555,6 @@ int WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   if (!GenerateModule(i_isolate, &zone, data, &buffer)) {
     return -1;
   }
-
-  testing::SetupIsolateForWasmModule(i_isolate);
 
   ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
 

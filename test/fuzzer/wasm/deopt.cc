@@ -261,7 +261,6 @@ int FuzzIt(base::Vector<const uint8_t> data) {
       GenerateWasmModuleForDeopt(&zone, data, callees, inlinees);
   ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
 
-  testing::SetupIsolateForWasmModule(i_isolate);
   auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
   bool valid = GetWasmEngine()->SyncValidate(
       i_isolate, enabled_features, CompileTimeImportsForFuzzing(), buffer);

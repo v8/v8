@@ -76,7 +76,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   EnableExperimentalWasmFeatures(isolate);
 
   TryCatch try_catch(isolate);
-  testing::SetupIsolateForWasmModule(i_isolate);
 
   bool done = false;
   auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);

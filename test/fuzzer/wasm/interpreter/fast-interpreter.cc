@@ -39,7 +39,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   // EnableExperimentalWasmFeatures(isolate);
 
   v8::TryCatch try_catch(isolate);
-  testing::SetupIsolateForWasmModule(i_isolate);
   ModuleWireBytes wire_bytes(data, data + size);
 
   HandleScope scope(i_isolate);

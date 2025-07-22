@@ -37,7 +37,6 @@ class SharedEngineIsolate {
     v8_isolate()->Enter();
     v8::HandleScope handle_scope(v8_isolate());
     v8::Context::New(v8_isolate())->Enter();
-    testing::SetupIsolateForWasmModule(isolate());
     zone_.reset(new Zone(isolate()->allocator(), ZONE_NAME));
   }
   ~SharedEngineIsolate() {
