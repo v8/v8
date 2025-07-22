@@ -431,7 +431,8 @@ void AddDummyTypesToTypeCanonicalizer(Isolate* isolate) {
 
 void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
   struct EnableExperimentalWasmFeatures {
-    explicit EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
+    explicit EnableExperimentalWasmFeatures(v8::Isolate* isolate)
+        : isolate(isolate) {
       // Enable all staged features.
 #define ENABLE_PRE_STAGED_AND_STAGED_FEATURES(feat, ...) \
   v8_flags.experimental_wasm_##feat = true;
@@ -465,10 +466,17 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
       // implicitly.
       isolate->InstallConditionalFeatures(isolate->GetCurrentContext());
     }
+
+    const v8::Isolate* const isolate;
   };
-  // The compiler will properly synchronize the constructor call.
+
+  // Call the constructor exactly one (per process!). The compiler will properly
+  // synchronize this.
   static EnableExperimentalWasmFeatures one_time_enable_experimental_features(
       isolate);
+  // Ensure that within the same process we always pass the same isolate. You
+  // would get surprising results otherwise.
+  CHECK_EQ(one_time_enable_experimental_features.isolate, isolate);
 }
 
 void ResetTypeCanonicalizer(v8::Isolate* isolate) {
@@ -519,21 +527,6 @@ int WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
 
-  // Clear recursive groups: The fuzzer creates random types in every run. These
-  // are saved as recursive groups as part of the type canonicalizer, but types
-  // from previous runs just waste memory.
-  ResetTypeCanonicalizer(isolate);
-
-  // Clear any exceptions from a prior run.
-  if (i_isolate->has_exception()) {
-    i_isolate->clear_exception();
-  }
-
-  v8::TryCatch try_catch(isolate);
-  HandleScope scope(i_isolate);
-
-  ZoneBuffer buffer(&zone);
-
   // The first byte specifies some internal configuration, like which function
   // is compiled with which compiler, and other flags.
   uint8_t configuration_byte = data.empty() ? 0 : data[0];
@@ -551,21 +544,46 @@ int WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
     tier_mask |= (compiler_config == 0) << i;
     debug_mask |= (compiler_config == 2) << i;
   }
+  // The purpose of setting the tier mask (which affects the initial
+  // compilation of each function) is to deterministically test a combination
+  // of Liftoff and Turbofan.
+  FlagScope<int> tier_mask_scope(&v8_flags.wasm_tier_mask_for_testing,
+                                 tier_mask);
+  FlagScope<int> debug_mask_scope(&v8_flags.wasm_debug_mask_for_testing,
+                                  debug_mask);
 
+  ZoneBuffer buffer(&zone);
   if (!GenerateModule(i_isolate, &zone, data, &buffer)) {
     return -1;
   }
 
-  ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
+  return SyncCompileAndExecuteAgainstReference(isolate, base::VectorOf(buffer),
+                                               require_valid);
+}
+
+int SyncCompileAndExecuteAgainstReference(
+    v8::Isolate* isolate, base::Vector<const uint8_t> wire_bytes,
+    bool require_valid) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
+  // Clear recursive groups: The fuzzer creates random types in every run. These
+  // are saved as recursive groups as part of the type canonicalizer, but types
+  // from previous runs just waste memory.
+  ResetTypeCanonicalizer(isolate);
+
+  // Clear any exceptions from a prior run.
+  if (i_isolate->has_exception()) i_isolate->clear_exception();
+
+  v8::TryCatch try_catch(isolate);
+  HandleScope scope(i_isolate);
 
   auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
 
-  bool valid = GetWasmEngine()->SyncValidate(i_isolate, enabled_features,
-                                             CompileTimeImportsForFuzzing(),
-                                             wire_bytes.module_bytes());
+  bool valid = GetWasmEngine()->SyncValidate(
+      i_isolate, enabled_features, CompileTimeImportsForFuzzing(), wire_bytes);
 
   if (v8_flags.wasm_fuzzer_gen_test) {
-    GenerateTestCase(i_isolate, wire_bytes, valid);
+    GenerateTestCase(i_isolate, ModuleWireBytes{wire_bytes}, valid);
   }
 
   FlagScope<bool> eager_compile(&v8_flags.wasm_lazy_compilation, false);
@@ -574,23 +592,15 @@ int WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   // around inlining). We switch it to synchronous mode to avoid the
   // nondeterminism of background jobs finishing at random times.
   FlagScope<bool> sync_tier_up(&v8_flags.wasm_sync_tier_up, true);
-  // The purpose of setting the tier mask (which affects the initial
-  // compilation of each function) is to deterministically test a combination
-  // of Liftoff and Turbofan.
-  FlagScope<int> tier_mask_scope(&v8_flags.wasm_tier_mask_for_testing,
-                                 tier_mask);
-  FlagScope<int> debug_mask_scope(&v8_flags.wasm_debug_mask_for_testing,
-                                  debug_mask);
   // Reference runs use extra compile settings (like non-determinism detection),
-  // which would be removed and replaced with a new liftoff function without
-  // these options.
+  // which could be replaced by new liftoff code without this option.
   FlagScope<bool> no_liftoff_code_flushing(&v8_flags.flush_liftoff_code, false);
 
   ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
   MaybeDirectHandle<WasmModuleObject> compiled_module =
       GetWasmEngine()->SyncCompile(i_isolate, enabled_features,
                                    CompileTimeImportsForFuzzing(), &thrower,
-                                   base::OwnedCopyOf(buffer));
+                                   base::OwnedCopyOf(wire_bytes));
   CHECK_EQ(valid, !compiled_module.is_null());
   CHECK_EQ(!valid, thrower.error());
   if (require_valid && !valid) {
