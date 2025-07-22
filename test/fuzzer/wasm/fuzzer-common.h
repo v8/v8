@@ -102,10 +102,6 @@ class WasmExecutionFuzzer {
                               ZoneBuffer* buffer) = 0;
 };
 
-int SyncCompileAndExecuteAgainstReference(
-    v8::Isolate* isolate, base::Vector<const uint8_t> wire_bytes,
-    bool require_valid);
-
 }  // namespace v8::internal::wasm::fuzzing
 
 #endif  // WASM_FUZZER_COMMON_H_

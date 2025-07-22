@@ -362,7 +362,7 @@ class TypeCanonicalizerTest
     zone_.Reset();
   }
 
-  AccountingAllocator allocator_;
+  v8::internal::AccountingAllocator allocator_;
   Zone zone_;
   const WasmEnabledFeatures enabled_features_ =
       WasmEnabledFeatures::FromFlags();

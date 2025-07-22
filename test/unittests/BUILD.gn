@@ -818,10 +818,8 @@ v8_source_set("v8_unittests_sources") {
     ]
 
     if (v8_enable_webassembly) {
-      deps += [ "../../:wasm_fuzzer_common" ]
       sources += [
         "wasm/cross-compiler-determinism-fuzztest.cc",
-        "wasm/module-generation-fuzztest.cc",
         "wasm/type-canonicalization-fuzztest.cc",
       ]
     }
