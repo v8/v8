@@ -406,14 +406,13 @@ static uint8_t kDummyModuleWireBytes[]{
     WASM_MODULE_HEADER,
     SECTION(Type, ENTRY_COUNT(2),
             // recgroup of 2 types
-            kWasmRecursiveTypeGroupCode, ENTRY_COUNT(2),
-            // (array (field (mut f32)))
-            WASM_ARRAY_DEF(kF32Code, true),
-            // (struct (field i64) (field externref))
-            kWasmSubtypeCode, 0,  // 0 supertypes, non-final
-            WASM_STRUCT_DEF(FIELD_COUNT(2), STRUCT_FIELD(kI64Code, false),
-                            STRUCT_FIELD(kExternRefCode, false)),
-            // -- end of recgroup
+            WASM_REC_GROUP(ENTRY_COUNT(2),
+                           // (array (field (mut f32)))
+                           WASM_ARRAY_DEF(kF32Code, true),
+                           // (struct (field i64) (field externref))
+                           WASM_NONFINAL(WASM_STRUCT_DEF(
+                               FIELD_COUNT(2), STRUCT_FIELD(kI64Code, false),
+                               STRUCT_FIELD(kExternRefCode, false)))),
             // function type (void -> i32)
             SIG_ENTRY_x(kI32Code))};
 

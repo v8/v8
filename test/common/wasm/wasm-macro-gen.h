@@ -1191,5 +1191,12 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define WASM_ARRAY_DEF(type, mutability) \
   kWasmArrayTypeCode, type, (mutability ? 1 : 0)
 #define WASM_FUNCTION_DEF(...) kWasmFunctionTypeCode, __VA_ARGS__
+#define WASM_REC_GROUP(...) kWasmRecursiveTypeGroupCode, __VA_ARGS__
+#define WASM_NONFINAL(...) kWasmSubtypeCode, 0, __VA_ARGS__
+#define WASM_NONFINAL_WITH_SUPERTYPE(supertype, ...) \
+  kWasmSubtypeCode, 1, supertype, __VA_ARGS__
+#define WASM_FINAL(...) kWasmSubtypeFinalCode, 0, __VA_ARGS__
+#define WASM_FINAL_WITH_SUPERTYPE(supertype, ...) \
+  kWasmSubtypeFinalCode, 1, supertype, __VA_ARGS__
 
 #endif  // V8_WASM_MACRO_GEN_H_

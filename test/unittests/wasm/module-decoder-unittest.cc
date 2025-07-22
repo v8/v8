@@ -1046,12 +1046,10 @@ TEST_F(WasmModuleVerifyTest, InvalidArrayTypeDef) {
 
 TEST_F(WasmModuleVerifyTest, TypeCanonicalization) {
   static const uint8_t identical_group[] = {
-      SECTION(Type,            // --
-              ENTRY_COUNT(2),  // two identical rec. groups
-              kWasmRecursiveTypeGroupCode, ENTRY_COUNT(1),  // --
-              kWasmArrayTypeCode, kI32Code, 0,              // --
-              kWasmRecursiveTypeGroupCode, ENTRY_COUNT(1),  // --
-              kWasmArrayTypeCode, kI32Code, 0),
+      SECTION(Type, ENTRY_COUNT(2),
+              // two identical rec. groups
+              WASM_REC_GROUP(ENTRY_COUNT(1), WASM_ARRAY_DEF(kI32Code, 0)),
+              WASM_REC_GROUP(ENTRY_COUNT(1), WASM_ARRAY_DEF(kI32Code, 0))),
       SECTION(Global,                          // --
               ENTRY_COUNT(1), kRefCode, 0, 0,  // Type, mutability
               WASM_ARRAY_NEW_FIXED(1, 1, WASM_I32V(10)),
@@ -1062,13 +1060,11 @@ TEST_F(WasmModuleVerifyTest, TypeCanonicalization) {
   EXPECT_VERIFIES(identical_group);
 
   static const uint8_t non_identical_group[] = {
-      SECTION(Type,            // --
-              ENTRY_COUNT(2),  // two distrinct rec. groups
-              kWasmRecursiveTypeGroupCode, ENTRY_COUNT(1),  // --
-              kWasmArrayTypeCode, kI32Code, 0,              // --
-              kWasmRecursiveTypeGroupCode, ENTRY_COUNT(2),  // --
-              kWasmArrayTypeCode, kI32Code, 0,              // --
-              kWasmStructTypeCode, ENTRY_COUNT(0)),
+      SECTION(Type, ENTRY_COUNT(2),
+              // two distrinct rec. groups
+              WASM_REC_GROUP(ENTRY_COUNT(1), WASM_ARRAY_DEF(kI32Code, 0)),
+              WASM_REC_GROUP(ENTRY_COUNT(2), WASM_ARRAY_DEF(kI32Code, 0),
+                             WASM_STRUCT_DEF(ENTRY_COUNT(0)))),
       SECTION(Global,                          // --
               ENTRY_COUNT(1), kRefCode, 0, 0,  // Type, mutability
               WASM_ARRAY_NEW_FIXED(1, 1, WASM_I32V(10)),
@@ -1081,19 +1077,18 @@ TEST_F(WasmModuleVerifyTest, TypeCanonicalization) {
       "type error in constant expression[0] (expected (ref 0), got (ref 1))");
 
   static const uint8_t empty_group[] = {
-      SECTION(Type,            // --
-              ENTRY_COUNT(1),  // one rec. group
-              kWasmRecursiveTypeGroupCode, ENTRY_COUNT(0))};
+      SECTION(Type,
+              // one empty rec. group
+              ENTRY_COUNT(1), kWasmRecursiveTypeGroupCode, 0)};
 
   EXPECT_VERIFIES(empty_group);
 
   static const uint8_t mixed_empty_and_nonempty_groups[] = {SECTION(
-      Type,                                         // --
-      ENTRY_COUNT(4),                               // one rec. group
-      kWasmRecursiveTypeGroupCode, ENTRY_COUNT(0),  // empty
-      SIG_ENTRY_v_v,                                // one type
-      kWasmRecursiveTypeGroupCode, ENTRY_COUNT(0),  // empty
-      SIG_ENTRY_v_v                                 // one type
+      Type, ENTRY_COUNT(4),            // 4 entries
+      WASM_REC_GROUP(ENTRY_COUNT(0)),  // empty
+      SIG_ENTRY_v_v,                   // one type
+      WASM_REC_GROUP(ENTRY_COUNT(0)),  // empty
+      SIG_ENTRY_v_v                    // one type
       )};
 
   EXPECT_VERIFIES(mixed_empty_and_nonempty_groups);
@@ -1102,12 +1097,10 @@ TEST_F(WasmModuleVerifyTest, TypeCanonicalization) {
 // Tests that all types in a rec. group are checked for supertype validity.
 TEST_F(WasmModuleVerifyTest, InvalidSupertypeInRecGroup) {
   static const uint8_t invalid_supertype[] = {
-      SECTION(Type, ENTRY_COUNT(1),                         // --
-              kWasmRecursiveTypeGroupCode, ENTRY_COUNT(2),  // --
-              kWasmSubtypeCode, 0,              // 0 supertypes, non-final
-              kWasmArrayTypeCode, kI32Code, 0,  // --
-              kWasmSubtypeCode, 1, 0,           // supertype count, supertype
-              kWasmArrayTypeCode, kI64Code, 0)};
+      SECTION(Type, ENTRY_COUNT(1),
+              WASM_REC_GROUP(
+                  ENTRY_COUNT(2), WASM_NONFINAL(WASM_ARRAY_DEF(kI32Code, 0)),
+                  WASM_FINAL_WITH_SUPERTYPE(0, WASM_ARRAY_DEF(kI64Code, 0))))};
 
   EXPECT_FAILURE_WITH_MSG(invalid_supertype,
                           "type 1 has invalid explicit supertype 0");
@@ -1117,38 +1110,36 @@ TEST_F(WasmModuleVerifyTest, InvalidSupertypeInRecGroup) {
 TEST_F(WasmModuleVerifyTest, SuperTypeDeclarationWith0Supertypes) {
   static const uint8_t zero_supertypes[] = {
       SECTION(Type, ENTRY_COUNT(1),  // --
-              kWasmSubtypeCode, 0,   // supertype count
-              kWasmArrayTypeCode, kI32Code, 0)};
+              WASM_NONFINAL(WASM_ARRAY_DEF(kI32Code, 0)))};
 
   EXPECT_VERIFIES(zero_supertypes);
 }
 
 TEST_F(WasmModuleVerifyTest, NoSupertypeSupertype) {
   static const uint8_t no_supertype[] = {
-      SECTION(Type, ENTRY_COUNT(1),          // --
-              kWasmSubtypeCode, 1,           // supertype count
-              0xff, 0xff, 0xff, 0xff, 0x0f,  // supertype = "kNoSuperType"
-              kWasmArrayTypeCode, kI32Code, 0)};
+      SECTION(Type, ENTRY_COUNT(1),  // --
+              WASM_NONFINAL_WITH_SUPERTYPE(
+                  U32V_5(0xffffffff),  // supertype = "kNoSuperType"
+                  WASM_ARRAY_DEF(kI32Code, 0)))};
 
   EXPECT_FAILURE_WITH_MSG(no_supertype, "type 0: invalid supertype 4294967295");
 }
 
 TEST_F(WasmModuleVerifyTest, NonSpecifiedFinalType) {
   static const uint8_t final_supertype[] = {
-      SECTION(Type, ENTRY_COUNT(2),                 // --
-              kWasmStructTypeCode, 1, kI32Code, 1,  // --
-              kWasmSubtypeCode, 1, 0,               // --
-              kWasmStructTypeCode, 2, kI32Code, 1, kI32Code, 1)};
+      SECTION(Type, ENTRY_COUNT(2),             // --
+              WASM_STRUCT_DEF(1, kI32Code, 1),  // --
+              WASM_NONFINAL_WITH_SUPERTYPE(
+                  0, WASM_STRUCT_DEF(2, kI32Code, 1, kI32Code, 1)))};
   EXPECT_FAILURE_WITH_MSG(final_supertype, "type 1 extends final type 0");
 }
 
 TEST_F(WasmModuleVerifyTest, SpecifiedFinalType) {
   static const uint8_t final_supertype[] = {
-      SECTION(Type, ENTRY_COUNT(2),                 // --
-              kWasmSubtypeFinalCode, 0,             // --
-              kWasmStructTypeCode, 1, kI32Code, 1,  // --
-              kWasmSubtypeCode, 1, 0,               // --
-              kWasmStructTypeCode, 2, kI32Code, 1, kI32Code, 1)};
+      SECTION(Type, ENTRY_COUNT(2),                         // --
+              WASM_FINAL(WASM_STRUCT_DEF(1, kI32Code, 1)),  // --
+              WASM_NONFINAL_WITH_SUPERTYPE(
+                  0, WASM_STRUCT_DEF(2, kI32Code, 1, kI32Code, 1)))};
   EXPECT_FAILURE_WITH_MSG(final_supertype, "type 1 extends final type 0");
 }
 
@@ -1340,19 +1331,21 @@ TEST_F(WasmModuleVerifyTest, MultipleSignatures) {
 
 TEST_F(WasmModuleVerifyTest, CanonicalTypeIds) {
   static const uint8_t data[] = {
-      SECTION(Type,                               // --
-              ENTRY_COUNT(7),                     // --
-              WASM_STRUCT_DEF(                    // Struct definition
-                  FIELD_COUNT(1),                 // --
-                  STRUCT_FIELD(kI32Code, true)),  // --
-              SIG_ENTRY_x_x(kI32Code, kF32Code),  // f32 -> i32
-              SIG_ENTRY_x_x(kI32Code, kF64Code),  // f64 -> i32
-              SIG_ENTRY_x_x(kI32Code, kF32Code),  // f32 -> i32 (again)
-              WASM_ARRAY_DEF(kI32Code, true),     // Array definition
-              kWasmRecursiveTypeGroupCode, ENTRY_COUNT(1),
-              WASM_ARRAY_DEF(kI16Code, true),  // Predefined i16 array
-              kWasmRecursiveTypeGroupCode, ENTRY_COUNT(1),
-              WASM_ARRAY_DEF(kI8Code, true))  // Predefined i8 array
+      SECTION(
+          Type,                               // --
+          ENTRY_COUNT(7),                     // --
+          WASM_STRUCT_DEF(                    // Struct definition
+              FIELD_COUNT(1),                 // --
+              STRUCT_FIELD(kI32Code, true)),  // --
+          SIG_ENTRY_x_x(kI32Code, kF32Code),  // f32 -> i32
+          SIG_ENTRY_x_x(kI32Code, kF64Code),  // f64 -> i32
+          SIG_ENTRY_x_x(kI32Code, kF32Code),  // f32 -> i32 (again)
+          WASM_ARRAY_DEF(kI32Code, true),     // Array definition
+          WASM_REC_GROUP(
+              ENTRY_COUNT(1),
+              WASM_ARRAY_DEF(kI16Code, true)),  // Predefined i16 array
+          WASM_REC_GROUP(ENTRY_COUNT(1),
+                         WASM_ARRAY_DEF(kI8Code, true)))  // Predefined i8 array
   };
 
   ModuleResult result = DecodeModule(base::ArrayVector(data));
@@ -3676,14 +3669,16 @@ TEST_F(WasmModuleVerifyTest, DataCountSegmentCount_omitted) {
 
 TEST_F(WasmModuleVerifyTest, GcStructIdsPass) {
   static const uint8_t data[] = {SECTION(
-      Type, ENTRY_COUNT(1),                         // One recursive group...
-      kWasmRecursiveTypeGroupCode, ENTRY_COUNT(3),  // with three entries.
-      WASM_STRUCT_DEF(FIELD_COUNT(3), STRUCT_FIELD(kI32Code, true),
-                      STRUCT_FIELD(WASM_OPT_REF(0), true),
-                      STRUCT_FIELD(WASM_OPT_REF(1), true)),
-      WASM_STRUCT_DEF(FIELD_COUNT(2), STRUCT_FIELD(WASM_OPT_REF(0), true),
-                      STRUCT_FIELD(WASM_OPT_REF(2), true)),
-      WASM_ARRAY_DEF(WASM_OPT_REF(0), true))};
+      Type, ENTRY_COUNT(1),
+      // One recursive group with three entries.
+      WASM_REC_GROUP(
+          ENTRY_COUNT(3),
+          WASM_STRUCT_DEF(FIELD_COUNT(3), STRUCT_FIELD(kI32Code, true),
+                          STRUCT_FIELD(WASM_OPT_REF(0), true),
+                          STRUCT_FIELD(WASM_OPT_REF(1), true)),
+          WASM_STRUCT_DEF(FIELD_COUNT(2), STRUCT_FIELD(WASM_OPT_REF(0), true),
+                          STRUCT_FIELD(WASM_OPT_REF(2), true)),
+          WASM_ARRAY_DEF(WASM_OPT_REF(0), true)))};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_OK(result);
 }
@@ -3715,29 +3710,35 @@ TEST_F(WasmModuleVerifyTest, RecursiveTypeOutsideRecursiveGroup) {
 }
 
 TEST_F(WasmModuleVerifyTest, OutOfBoundsSupertype) {
-  static const uint8_t data[] = {
-      SECTION(Type, ENTRY_COUNT(1), kWasmRecursiveTypeGroupCode, ENTRY_COUNT(1),
-              kWasmSubtypeCode, ENTRY_COUNT(1), 1,
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)))};
+  static const uint8_t data[] = {SECTION(
+      Type, ENTRY_COUNT(1),
+      WASM_REC_GROUP(ENTRY_COUNT(1),
+                     WASM_NONFINAL_WITH_SUPERTYPE(
+                         1, WASM_STRUCT_DEF(FIELD_COUNT(1),
+                                            STRUCT_FIELD(kI32Code, true)))))};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_NOT_OK(result, "type 0: invalid supertype 1");
 }
 
 TEST_F(WasmModuleVerifyTest, ForwardSupertypeSameType) {
-  static const uint8_t data[] = {
-      SECTION(Type, ENTRY_COUNT(1), kWasmRecursiveTypeGroupCode, ENTRY_COUNT(1),
-              kWasmSubtypeCode, ENTRY_COUNT(1), 0,
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)))};
+  static const uint8_t data[] = {SECTION(
+      Type, ENTRY_COUNT(1),
+      WASM_REC_GROUP(ENTRY_COUNT(1),
+                     WASM_NONFINAL_WITH_SUPERTYPE(
+                         0, WASM_STRUCT_DEF(FIELD_COUNT(1),
+                                            STRUCT_FIELD(kI32Code, true)))))};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_NOT_OK(result, "type 0: invalid supertype 0");
 }
 
 TEST_F(WasmModuleVerifyTest, ForwardSupertypeSameRecGroup) {
-  static const uint8_t data[] = {
-      SECTION(Type, ENTRY_COUNT(1), kWasmRecursiveTypeGroupCode, ENTRY_COUNT(2),
-              kWasmSubtypeCode, ENTRY_COUNT(1), 0,
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)),
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)))};
+  static const uint8_t data[] = {SECTION(
+      Type, ENTRY_COUNT(1),
+      WASM_REC_GROUP(
+          ENTRY_COUNT(2),
+          WASM_NONFINAL_WITH_SUPERTYPE(
+              0, WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true))),
+          WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true))))};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_NOT_OK(result, "type 0: invalid supertype 0");
 }
@@ -3805,8 +3806,8 @@ TEST_F(WasmModuleVerifyTest, ContTypesBasic) {
   static const uint8_t cont_group[] = {
       SECTION(Type,            // --
               ENTRY_COUNT(1),  // one group, four entries
-              kWasmRecursiveTypeGroupCode, ENTRY_COUNT(4), SIG_ENTRY_i_k,
-              SIG_ENTRY_k_i, CONT_ENTRY(0), CONT_ENTRY(1))};
+              WASM_REC_GROUP(ENTRY_COUNT(4), SIG_ENTRY_i_k, SIG_ENTRY_k_i,
+                             CONT_ENTRY(0), CONT_ENTRY(1)))};
 
   EXPECT_VERIFIES(cont_group);
 }
@@ -3823,17 +3824,18 @@ TEST_F(WasmModuleVerifyTest, ContTypesNonFunc) {
 TEST_F(WasmModuleVerifyTest, ContTypesSubtype) {
   WASM_FEATURE_SCOPE(wasmfx);
   // Subtyping of continuation types
-  static const uint8_t cont_sub_group[] = {
-      SECTION(Type,                                         // --
-              ENTRY_COUNT(2),                               // two groups
-              kWasmRecursiveTypeGroupCode, ENTRY_COUNT(4),  // --
-              SIG_ENTRY_i_k,                                // --
-              SIG_ENTRY_k_i,                                // --
-              kWasmSubtypeCode, 0,           // 0 supertypes, non-final
-              CONT_ENTRY(0), CONT_ENTRY(1),  // --
-              kWasmRecursiveTypeGroupCode, ENTRY_COUNT(1),  // --
-              // one supertype which is a cont type
-              kWasmSubtypeCode, 1, 2, CONT_ENTRY(0))};  // --
+  static const uint8_t cont_sub_group[] = {SECTION(
+      Type,            // --
+      ENTRY_COUNT(2),  // two groups
+      WASM_REC_GROUP(ENTRY_COUNT(4),
+                     SIG_ENTRY_i_k,                 // --
+                     SIG_ENTRY_k_i,                 // --
+                     WASM_NONFINAL(CONT_ENTRY(0)),  // --
+                     CONT_ENTRY(1)),                // --
+      WASM_REC_GROUP(ENTRY_COUNT(1),
+                     // one supertype which is a cont type
+                     WASM_NONFINAL_WITH_SUPERTYPE(2, CONT_ENTRY(0)))  // --
+      )};
   EXPECT_VERIFIES(cont_sub_group);
 }
 
@@ -3841,23 +3843,23 @@ TEST_F(WasmModuleVerifyTest, ContTypesNotSubtype) {
   WASM_FEATURE_SCOPE(wasmfx);
   // Continuation types must subtype other continuation types
   static const uint8_t cont_bad_sub_group[] = {SECTION(
-      Type,                                         // --
-      ENTRY_COUNT(2),                               // two groups
-      kWasmRecursiveTypeGroupCode, ENTRY_COUNT(2),  // --
-      SIG_ENTRY_i_k, CONT_ENTRY(0), kWasmRecursiveTypeGroupCode, ENTRY_COUNT(1),
-      kWasmSubtypeCode, 1, 0,  // supertype count, invalid super
-      CONT_ENTRY(0))};
+      Type,
+      ENTRY_COUNT(2),  // two groups
+      WASM_REC_GROUP(ENTRY_COUNT(2), SIG_ENTRY_i_k, CONT_ENTRY(0)),
+      WASM_REC_GROUP(ENTRY_COUNT(1),
+                     WASM_NONFINAL_WITH_SUPERTYPE(0,  // invalid supertype
+                                                  CONT_ENTRY(0))))};
   EXPECT_FAILURE(cont_bad_sub_group);
 
-  static const uint8_t wrong_cont_sub_group[] = {SECTION(
-      Type,                                         // --
-      ENTRY_COUNT(2),                               // two groups
-      kWasmRecursiveTypeGroupCode, ENTRY_COUNT(4),  // --
-      SIG_ENTRY_i_k, SIG_ENTRY_k_i, kWasmSubtypeCode,
-      0,  // 0 supertypes, non-final
-      CONT_ENTRY(0), CONT_ENTRY(1), kWasmRecursiveTypeGroupCode, ENTRY_COUNT(1),
-      kWasmSubtypeCode, 1, 2,  // referenced function not subtype of super
-      CONT_ENTRY(1))};
+  static const uint8_t wrong_cont_sub_group[] = {
+      SECTION(Type,            // --
+              ENTRY_COUNT(2),  // two groups
+              WASM_REC_GROUP(ENTRY_COUNT(4), SIG_ENTRY_i_k, SIG_ENTRY_k_i,
+                             WASM_NONFINAL(CONT_ENTRY(0)), CONT_ENTRY(1)),
+              WASM_REC_GROUP(ENTRY_COUNT(1),
+                             WASM_NONFINAL_WITH_SUPERTYPE(
+                                 2,  // referenced function not subtype of super
+                                 CONT_ENTRY(1))))};
   EXPECT_FAILURE(wrong_cont_sub_group);
 }
 
