@@ -4891,7 +4891,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
                                                           int index) {
   // We won't try to reason about the type of the elements array and thus also
   // cannot end up with an empty type for it.
-  CHECK(!IsEmptyNodeType(GetType(elements)));
+  DCHECK(!IsEmptyNodeType(GetType(elements)));
   compiler::OptionalHeapObjectRef maybe_constant;
   if ((maybe_constant = TryGetConstant(elements)) &&
       maybe_constant.value().IsFixedArray()) {
@@ -4928,6 +4928,10 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
 
 ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
                                                           ValueNode* index) {
+  // We won't try to reason about the type of the elements array or the index
+  // and thus also cannot end up with an empty type for them.
+  DCHECK(!IsEmptyNodeType(GetType(elements)));
+  DCHECK(!IsEmptyNodeType(GetType(index)));
   if (auto constant = TryGetInt32Constant(index)) {
     return BuildLoadFixedArrayElement(elements, constant.value());
   }
@@ -4939,7 +4943,7 @@ ReduceResult MaglevGraphBuilder::BuildStoreFixedArrayElement(
   // We won't try to reason about the type of the elements array and thus also
   // cannot end up with an empty type for it. The `value` might have an empty
   // type though.
-  CHECK(!IsEmptyNodeType(GetType(elements)));
+  DCHECK(!IsEmptyNodeType(GetType(elements)));
 
   // TODO(victorgomes): Support storing element to a virtual object. If we
   // modify the elements array, we need to modify the original object to point
@@ -4955,6 +4959,9 @@ ReduceResult MaglevGraphBuilder::BuildStoreFixedArrayElement(
 
 ValueNode* MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
     ValueNode* elements, int index) {
+  // We won't try to reason about the type of the elements array and thus also
+  // cannot end up with an empty type for it.
+  DCHECK(!IsEmptyNodeType(GetType(elements)));
   if (CanTrackObjectChanges(elements, TrackObjectMode::kLoad)) {
     VirtualObject* vobject =
         GetObjectFromAllocation(elements->Cast<InlinedAllocation>());
@@ -4975,6 +4982,10 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
 
 ValueNode* MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
     ValueNode* elements, ValueNode* index) {
+  // We won't try to reason about the type of the elements array or the index
+  // and thus also cannot end up with an empty type for them.
+  DCHECK(!IsEmptyNodeType(GetType(elements)));
+  DCHECK(!IsEmptyNodeType(GetType(index)));
   if (auto constant = TryGetInt32Constant(index)) {
     return BuildLoadFixedDoubleArrayElement(elements, constant.value());
   }
@@ -4983,6 +4994,11 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
 
 ReduceResult MaglevGraphBuilder::BuildStoreFixedDoubleArrayElement(
     ValueNode* elements, ValueNode* index, ValueNode* value) {
+  // We won't try to reason about the type of the elements array or the index
+  // and thus also cannot end up with an empty type for them. The `value` might
+  // have an empty type though.
+  DCHECK(!IsEmptyNodeType(GetType(elements)));
+  DCHECK(!IsEmptyNodeType(GetType(index)));
   // TODO(victorgomes): Support storing double element to a virtual object.
   AddNewNode<StoreFixedDoubleArrayElement>({elements, index, value});
   return ReduceResult::Done();
@@ -4990,6 +5006,10 @@ ReduceResult MaglevGraphBuilder::BuildStoreFixedDoubleArrayElement(
 
 ValueNode* MaglevGraphBuilder::BuildLoadHoleyFixedDoubleArrayElement(
     ValueNode* elements, ValueNode* index, bool convert_hole) {
+  // We won't try to reason about the type of the elements array or the index
+  // and thus also cannot end up with an empty type for them.
+  DCHECK(!IsEmptyNodeType(GetType(elements)));
+  DCHECK(!IsEmptyNodeType(GetType(index)));
   if (convert_hole) {
     return AddNewNode<LoadHoleyFixedDoubleArrayElement>({elements, index});
   } else {
@@ -7369,7 +7389,7 @@ ValueNode* MaglevGraphBuilder::GetContextAtDepth(ValueNode* context,
 
     // The internal consistency of the bytecode guarantees that we cannot end up
     // with empty types for objects we think are Contexts.
-    CHECK(!IsEmptyNodeType(GetType(context)));
+    DCHECK(!IsEmptyNodeType(GetType(context)));
   }
   return context;
 }
