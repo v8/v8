@@ -1675,6 +1675,32 @@ class CurrentScriptNameStackVisitor {
   Handle<String> name_or_url_;
 };
 
+class CurrentScriptIdStackVisitor {
+ public:
+  void SetPrevFrameAsConstructCall() {
+    // Nothing to do.
+  }
+
+  bool Visit(FrameSummary& summary) {
+    // Skip frames that aren't subject to debugging. Keep this in sync with
+    // StackFrameBuilder::Visit so both visitors visit the same frames.
+    if (!summary.is_subject_to_debugging()) return true;
+
+    // Frames that are subject to debugging always have a valid script object. A
+    // valid script object should have a valid id.
+    auto script = Cast<Script>(summary.script());
+    script_id_ = script->id();
+
+    DCHECK_LT(0, script_id_);
+    return false;
+  }
+
+  int CurrentScriptId() const { return script_id_; }
+
+ private:
+  int script_id_ = v8::Message::kNoScriptIdInfo;
+};
+
 class CurrentScriptStackVisitor {
  public:
   void SetPrevFrameAsConstructCall() {
@@ -1704,6 +1730,13 @@ DirectHandle<String> Isolate::CurrentScriptNameOrSourceURL() {
   CurrentScriptNameStackVisitor visitor(this);
   VisitStack(this, &visitor);
   return visitor.CurrentScriptNameOrSourceURL();
+}
+
+int Isolate::CurrentScriptId() {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__);
+  CurrentScriptIdStackVisitor visitor;
+  VisitStack(this, &visitor);
+  return visitor.CurrentScriptId();
 }
 
 MaybeDirectHandle<Script> Isolate::CurrentReferrerScript() {

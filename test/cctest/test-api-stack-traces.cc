@@ -758,6 +758,41 @@ TEST(ScriptIdInStackTrace) {
   }
 }
 
+static int currentScriptId = -1;
+
+void AnalyzeCurrentScriptIdInStack(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  v8::HandleScope scope(info.GetIsolate());
+  currentScriptId = v8::StackTrace::CurrentScriptId(info.GetIsolate());
+}
+
+TEST(CurrentScriptId_Id) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->Set(isolate, "AnalyzeCurrentScriptIdInStack",
+             v8::FunctionTemplate::New(CcTest::isolate(),
+                                       AnalyzeCurrentScriptIdInStack));
+  LocalContext context(nullptr, templ);
+
+  const char* source = R"(
+    function foo() {
+      AnalyzeCurrentScriptIdInStack();
+    }
+    foo();
+  )";
+
+  v8::Local<v8::Script> script = CompileWithOrigin(source, "test", false);
+  script->Run(context.local()).ToLocalChecked();
+
+  CHECK_EQ(currentScriptId, script->GetUnboundScript()->GetId());
+
+  // When nothing is on the stack, we should get the default response.
+  CHECK_EQ(v8::Message::kNoScriptIdInfo,
+           v8::StackTrace::CurrentScriptId(CcTest::isolate()));
+}
+
 void AnalyzeStackOfInlineScriptWithSourceURL(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));

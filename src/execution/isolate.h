@@ -986,6 +986,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // source URL. The inspected frames are the same as for the detailed stack
   // trace.
   DirectHandle<String> CurrentScriptNameOrSourceURL();
+  // Walks the JS stack to find the first frame with a valid script id. The
+  // inspected frames are the same as for the detailed stack trace.
+  int CurrentScriptId();
   MaybeDirectHandle<Script> CurrentReferrerScript();
   bool GetStackTraceLimit(Isolate* isolate, int* result);
 
