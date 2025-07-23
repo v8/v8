@@ -709,10 +709,14 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   // the given {trusted_instance_data}, or creates a new {WasmInternalFunction}
   // and {WasmFuncRef} if it does not exist yet. The new objects are added to
   // the cache of the {trusted_instance_data} immediately.
+  // {precreate_external}: Allocate the corresponding WasmExportedFunction
+  // immediately (which is slightly more efficient than letting
+  // {WasmInternalFunction::GetOrCreateExternal} do the work separately).
   static DirectHandle<WasmFuncRef> GetOrCreateFuncRef(
       Isolate* isolate,
       DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
-      int function_index);
+      int function_index,
+      wasm::PrecreateExternal precreate_external = wasm::kOnlyInternalFunction);
 
   // Get a raw pointer to the location where the given global is stored.
   // {global} must not be a reference type.
@@ -998,6 +1002,16 @@ class WasmExportedFunction : public JSFunction {
       DirectHandle<WasmFuncRef> func_ref,
       DirectHandle<WasmInternalFunction> internal_function, int arity,
       DirectHandle<Code> export_wrapper);
+  // Compared to the version above, the extra parameters are redundant
+  // information, but passing them along from callers that have them readily
+  // available is faster than looking them up.
+  static DirectHandle<WasmExportedFunction> New(
+      Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_data,
+      DirectHandle<WasmFuncRef> func_ref,
+      DirectHandle<WasmInternalFunction> internal_function, int arity,
+      DirectHandle<Code> export_wrapper, const wasm::WasmModule* module,
+      int func_index, wasm::CanonicalTypeIndex sig_id,
+      const wasm::CanonicalSig* sig, wasm::Promise promise);
 
   static void MarkAsReceiverIsFirstParam(
       Isolate* isolate, DirectHandle<WasmExportedFunction> exported_function);

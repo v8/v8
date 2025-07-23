@@ -1075,7 +1075,7 @@ class JSPrototypesSetup {
     DirectHandle<WasmFuncRef> funcref =
         WasmTrustedInstanceData::GetOrCreateFuncRef(
             isolate_, shared ? shared_instance_data_ : trusted_instance_data_,
-            index);
+            index, kPrecreateExternal);
     DirectHandle<WasmInternalFunction> internal_function(
         funcref->internal(isolate_), isolate_);
     return Cast<WasmExportedFunction>(
@@ -1857,7 +1857,8 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
       bool function_is_shared = module_->type(function.sig_index).is_shared;
       DirectHandle<WasmFuncRef> func_ref =
           WasmTrustedInstanceData::GetOrCreateFuncRef(
-              isolate_, trusted_data(function_is_shared), start_index);
+              isolate_, trusted_data(function_is_shared), start_index,
+              kPrecreateExternal);
       DirectHandle<WasmInternalFunction> internal{func_ref->internal(isolate_),
                                                   isolate_};
       start_function_ = WasmInternalFunction::GetOrCreateExternal(internal);
@@ -2950,7 +2951,7 @@ void InstanceBuilder::ProcessExports() {
         bool shared = module_->function_is_shared(exp.index);
         DirectHandle<WasmFuncRef> func_ref =
             WasmTrustedInstanceData::GetOrCreateFuncRef(
-                isolate_, trusted_data(shared), exp.index);
+                isolate_, trusted_data(shared), exp.index, kPrecreateExternal);
         DirectHandle<WasmInternalFunction> internal_function{
             func_ref->internal(isolate_), isolate_};
         DirectHandle<JSFunction> wasm_external_function =
@@ -3253,7 +3254,7 @@ std::optional<MessageTemplate> InitializeElementSegment(
     Zone* zone, Isolate* isolate,
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
     DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data,
-    uint32_t segment_index) {
+    uint32_t segment_index, PrecreateExternal precreate_external_functions) {
   bool shared =
       trusted_instance_data->module()->elem_segments[segment_index].shared;
   DirectHandle<WasmTrustedInstanceData> data =
@@ -3264,20 +3265,46 @@ std::optional<MessageTemplate> InitializeElementSegment(
   const WasmModule* module = native_module->module();
   const WasmElemSegment& elem_segment = module->elem_segments[segment_index];
 
-  base::Vector<const uint8_t> module_bytes = native_module->wire_bytes();
+  base::Vector<const uint8_t> segment_bytes =
+      native_module->wire_bytes() + elem_segment.elements_wire_bytes_offset;
 
-  Decoder decoder(module_bytes);
-  decoder.consume_bytes(elem_segment.elements_wire_bytes_offset);
+  Decoder decoder(segment_bytes);
 
   DirectHandle<FixedArray> result =
       isolate->factory()->NewFixedArray(elem_segment.element_count);
 
-  for (size_t i = 0; i < elem_segment.element_count; ++i) {
-    ValueOrError value = ConsumeElementSegmentEntry(
-        zone, isolate, trusted_instance_data, shared_trusted_instance_data,
-        elem_segment, decoder, kStrictFunctionsAndNull);
-    if (is_error(value)) return {to_error(value)};
-    result->set(static_cast<int>(i), *to_value(value).to_ref());
+  if (elem_segment.element_type == WasmElemSegment::kFunctionIndexElements) {
+    // Streamlining this path saves about 20ns per function.
+    // {precreate_external_functions}, when applicable, saves another 80ns
+    // per function.
+    // For very large segments (thousands of functions), the macro
+    // FOR_WITH_HANDLE_SCOPE saves another 50ns per function.
+    size_t elem_count = elem_segment.element_count;
+    const uint8_t* pc = decoder.pc();
+    FOR_WITH_HANDLE_SCOPE(isolate, size_t, i = 0, i, i < elem_count, i++, {
+      // Not using {consume_u32v} to avoid validation overhead. At this point
+      // we already know that the segment is valid.
+      auto [function_index, length] =
+          decoder.read_u32v<Decoder::NoValidationTag>(pc, "function index");
+      pc += length;
+      bool function_is_shared =
+          module->type(module->functions[function_index].sig_index).is_shared;
+      DirectHandle<WasmFuncRef> value =
+          WasmTrustedInstanceData::GetOrCreateFuncRef(
+              isolate,
+              function_is_shared ? shared_trusted_instance_data
+                                 : trusted_instance_data,
+              function_index, precreate_external_functions);
+      result->set(static_cast<int>(i), *value);
+    });
+  } else {
+    for (size_t i = 0; i < elem_segment.element_count; ++i) {
+      ValueOrError value = ConsumeElementSegmentEntry(
+          zone, isolate, trusted_instance_data, shared_trusted_instance_data,
+          elem_segment, decoder, kStrictFunctionsAndNull);
+      if (is_error(value)) return {to_error(value)};
+      result->set(static_cast<int>(i), *to_value(value).to_ref());
+    }
   }
 
   data->element_segments()->set(segment_index, *result);

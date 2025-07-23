@@ -241,7 +241,7 @@ DirectHandle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   InitializeWrapperCache();
   DirectHandle<WasmFuncRef> func_ref =
       WasmTrustedInstanceData::GetOrCreateFuncRef(
-          isolate_, trusted_instance_data_, index);
+          isolate_, trusted_instance_data_, index, kPrecreateExternal);
   DirectHandle<WasmInternalFunction> internal{func_ref->internal(isolate_),
                                               isolate_};
   return WasmInternalFunction::GetOrCreateExternal(internal);

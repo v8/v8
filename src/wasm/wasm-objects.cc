@@ -1988,14 +1988,45 @@ bool WasmTrustedInstanceData::try_get_func_ref(int index,
   return true;
 }
 
+namespace {
+
+V8_INLINE DirectHandle<WasmExportedFunction> CreateExportedFunction(
+    Isolate* isolate, const WasmModule* module, int function_index,
+    wasm::ModuleTypeIndex sig_index, DirectHandle<WasmFuncRef> func_ref,
+    DirectHandle<WasmInternalFunction> internal_function,
+    DirectHandle<WasmTrustedInstanceData> trusted_instance_data) {
+  DCHECK_EQ(func_ref->internal(isolate), *internal_function);
+  wasm::CanonicalTypeIndex canon_sig_id = module->canonical_sig_id(sig_index);
+  const wasm::CanonicalSig* canon_sig =
+      wasm::GetTypeCanonicalizer()->LookupFunctionSignature(canon_sig_id);
+  // For now, we assume traditional behavior where the receiver is ignored.
+  // If the corresponding bit in the WasmExportedFunctionData is flipped later,
+  // we'll have to reset any existing compiled wrapper.
+  bool receiver_is_first_param = false;
+  DirectHandle<Code> wrapper_code = WasmExportedFunction::GetWrapper(
+      isolate, canon_sig, canon_sig_id, receiver_is_first_param, module);
+  int arity = static_cast<int>(canon_sig->parameter_count());
+  DirectHandle<WasmExportedFunction> external = WasmExportedFunction::New(
+      isolate, trusted_instance_data, func_ref, internal_function, arity,
+      wrapper_code, module, function_index, canon_sig_id, canon_sig,
+      wasm::kNoPromise);
+  internal_function->set_external(*external);
+  return external;
+}
+
+}  // namespace
+
 DirectHandle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
     Isolate* isolate,
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
-    int function_index) {
+    int function_index, wasm::PrecreateExternal precreate_external) {
   bool shared = HeapLayout::InAnySharedSpace(*trusted_instance_data);
   Tagged<WasmFuncRef> existing_func_ref;
   if (trusted_instance_data->try_get_func_ref(function_index,
                                               &existing_func_ref)) {
+    // Note: if {precreate_external}, we could add a check here that the
+    // WasmExportedFunction exists as well. It's fine to skip that check on
+    // this fast path, as {GetOrCreateExternal} will do what's necessary.
     return direct_handle(existing_func_ref, isolate);
   }
 
@@ -2027,6 +2058,11 @@ DirectHandle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
   DirectHandle<WasmFuncRef> func_ref =
       isolate->factory()->NewWasmFuncRef(internal_function, rtt, shared);
   trusted_instance_data->func_refs()->set(function_index, *func_ref);
+
+  if (precreate_external == wasm::kPrecreateExternal) {
+    CreateExportedFunction(isolate, module, function_index, sig_index, func_ref,
+                           internal_function, trusted_instance_data);
+  }
 
   return func_ref;
 }
@@ -2060,31 +2096,15 @@ DirectHandle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
           : direct_handle(Cast<WasmImportData>(*implicit_arg)->instance_data(),
                           isolate);
   const WasmModule* module = instance_data->module();
-  const WasmFunction& function = module->functions[internal->function_index()];
-  wasm::CanonicalTypeIndex sig_id =
-      module->canonical_sig_id(function.sig_index);
-  const wasm::CanonicalSig* sig =
-      wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_id);
-  wasm::TypeCanonicalizer::PrepareForCanonicalTypeId(isolate, sig_id);
+  int function_index = internal->function_index();
+  wasm::ModuleTypeIndex sig_index = module->functions[function_index].sig_index;
 
-  // For now, we assume traditional behavior where the receiver is ignored.
-  // If the corresponding bit in the WasmExportedFunctionData is flipped later,
-  // we'll have to reset any existing compiled wrapper.
-  bool receiver_is_first_param = false;
-
-  DirectHandle<Code> wrapper_code = WasmExportedFunction::GetWrapper(
-      isolate, sig, sig_id, receiver_is_first_param, module);
   DirectHandle<WasmFuncRef> func_ref{
-      Cast<WasmFuncRef>(
-          instance_data->func_refs()->get(internal->function_index())),
+      Cast<WasmFuncRef>(instance_data->func_refs()->get(function_index)),
       isolate};
-  DCHECK_EQ(func_ref->internal(isolate), *internal);
-  auto result = WasmExportedFunction::New(
-      isolate, instance_data, func_ref, internal,
-      static_cast<int>(sig->parameter_count()), wrapper_code);
 
-  internal->set_external(*result);
-  return result;
+  return CreateExportedFunction(isolate, module, function_index, sig_index,
+                                func_ref, internal, instance_data);
 }
 
 // static
@@ -2967,8 +2987,6 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
            export_wrapper->builtin_id() == Builtin::kWasmPromising ||
            export_wrapper->builtin_id() == Builtin::kWasmStressSwitch)));
   int func_index = internal_function->function_index();
-  Factory* factory = isolate->factory();
-  DirectHandle<Map> rtt;
   wasm::Promise promise =
       export_wrapper->builtin_id() == Builtin::kWasmPromising
           ? wasm::kPromise
@@ -2978,6 +2996,18 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
       module->canonical_sig_id(module->functions[func_index].sig_index);
   const wasm::CanonicalSig* sig =
       wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_id);
+  return New(isolate, instance_data, func_ref, internal_function, arity,
+             export_wrapper, module, func_index, sig_id, sig, promise);
+}
+
+DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
+    Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_data,
+    DirectHandle<WasmFuncRef> func_ref,
+    DirectHandle<WasmInternalFunction> internal_function, int arity,
+    DirectHandle<Code> export_wrapper, const wasm::WasmModule* module,
+    int func_index, wasm::CanonicalTypeIndex sig_id,
+    const wasm::CanonicalSig* sig, wasm::Promise promise) {
+  Factory* factory = isolate->factory();
   DirectHandle<WasmExportedFunctionData> function_data =
       factory->NewWasmExportedFunctionData(
           export_wrapper, instance_data, func_ref, internal_function, sig,
@@ -2999,44 +3029,35 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
   }
 #endif  // V8_ENABLE_DRUMBRAKE
 
-  MaybeDirectHandle<String> maybe_name;
+  DirectHandle<SharedFunctionInfo> shared;
+  DirectHandle<Map> function_map;
   bool is_asm_js_module = is_asmjs_module(module);
   if (is_asm_js_module) {
     // We can use the function name only for asm.js. For WebAssembly, the
     // function name is specified as the function_index.toString().
-    maybe_name = WasmModuleObject::GetFunctionNameOrNull(
-        isolate, direct_handle(instance_data->module_object(), isolate),
-        func_index);
-  }
-  DirectHandle<String> name;
-  if (!maybe_name.ToHandle(&name)) {
-    base::EmbeddedVector<char, 16> buffer;
-    int length = SNPrintF(buffer, "%d", func_index);
-    name = factory
-               ->NewStringFromOneByte(
-                   base::Vector<uint8_t>::cast(buffer.SubVector(0, length)))
-               .ToHandleChecked();
+    DirectHandle<String> name;
+    if (!WasmModuleObject::GetFunctionNameOrNull(
+             isolate, direct_handle(instance_data->module_object(), isolate),
+             func_index)
+             .ToHandle(&name)) {
+      name = factory->SizeToString(func_index);
+    }
+    shared = factory->NewSharedFunctionInfoForWasmExportedFunction(
+        name, function_data, arity, kAdapt);
+    if (module->origin == wasm::kAsmJsSloppyOrigin) {
+      function_map = isolate->sloppy_function_map();
+    } else {
+      function_map = isolate->strict_function_map();
+      shared->set_language_mode(LanguageMode::kStrict);
+    }
+  } else {
+    DirectHandle<String> name = factory->SizeToString(func_index);
+    shared = factory->NewSharedFunctionInfoForWasmExportedFunction(
+        name, function_data, arity, kAdapt);
+    function_map = isolate->wasm_exported_function_map();
   }
 
   DirectHandle<NativeContext> context(isolate->native_context());
-  DirectHandle<SharedFunctionInfo> shared =
-      factory->NewSharedFunctionInfoForWasmExportedFunction(name, function_data,
-                                                            arity, kAdapt);
-
-  DirectHandle<Map> function_map;
-  switch (module->origin) {
-    case wasm::kWasmOrigin:
-      function_map = isolate->wasm_exported_function_map();
-      break;
-    case wasm::kAsmJsSloppyOrigin:
-      function_map = isolate->sloppy_function_map();
-      break;
-    case wasm::kAsmJsStrictOrigin:
-      function_map = isolate->strict_function_map();
-      shared->set_language_mode(LanguageMode::kStrict);
-      break;
-  }
-
   DirectHandle<JSFunction> js_function =
       Factory::JSFunctionBuilder{isolate, shared, context}
           .set_map(function_map)

@@ -51,6 +51,11 @@ enum class ImportCallKind : uint8_t {
   kUseCallBuiltin
 };
 
+enum PrecreateExternal : bool {
+  kOnlyInternalFunction = false,
+  kPrecreateExternal = true,
+};
+
 constexpr ImportCallKind kDefaultImportCallKind = ImportCallKind::kJSFunction;
 
 // Resolves which import call wrapper is required for the given JS callable.
@@ -106,11 +111,15 @@ MaybeDirectHandle<WasmInstanceObject> InstantiateToInstanceObject(
 // {instance}. If successful, returns the empty {Optional}, otherwise an
 // {Optional} that contains the error message. Exits early if the segment is
 // already initialized.
+// {precreate_external_functions} is a non-binding hint that it would be
+// beneficial for performance to create the corresponding WasmExportedFunctions
+// along with any internal funcrefs.
 std::optional<MessageTemplate> InitializeElementSegment(
     Zone* zone, Isolate* isolate,
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
     DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data,
-    uint32_t segment_index);
+    uint32_t segment_index,
+    PrecreateExternal precreate_external_functions = kOnlyInternalFunction);
 
 V8_EXPORT_PRIVATE void CreateMapForType(
     Isolate* isolate, const WasmModule* module, ModuleTypeIndex type_index,
