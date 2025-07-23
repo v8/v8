@@ -21,17 +21,23 @@ void LazyBuiltinsAssembler::GenerateTailCallToJSFunction(
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+#ifdef V8_ENABLE_LEAPTIERING
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
   auto dispatch_handle =
       UncheckedParameter<JSDispatchHandleT>(Descriptor::kDispatchHandle);
+#else
+  TNode<JSDispatchHandleT> dispatch_handle = LoadObjectField<JSDispatchHandleT>(
+      function, JSFunction::kDispatchHandleOffset);
+#endif
   CSA_DCHECK(this,
              Word32Equal(dispatch_handle,
                          LoadObjectField<JSDispatchHandleT>(
                              function, JSFunction::kDispatchHandleOffset)));
   TNode<Code> code = LoadCodeObjectFromJSDispatchTable(dispatch_handle);
-#else
+#else  // V8_ENABLE_LEAPTIERING
   auto dispatch_handle = InvalidDispatchHandleConstant();
-  TNode<Code> code = LoadJSFunctionCode(function);
+  TNode<Code> code =
+      LoadCodePointerFromObject(function, JSFunction::kCodeOffset);
 #endif
   TailCallJSCode(code, context, function, new_target, argc, dispatch_handle);
 }

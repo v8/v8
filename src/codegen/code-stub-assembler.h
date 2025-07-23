@@ -1714,9 +1714,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<HeapObject> LoadJSFunctionPrototype(TNode<JSFunction> function,
                                             Label* if_bailout);
 
-  // Load the "code" property of a JSFunction.
-  TNode<Code> LoadJSFunctionCode(TNode<JSFunction> function);
-
   TNode<Object> LoadSharedFunctionInfoTrustedData(
       TNode<SharedFunctionInfo> sfi);
   TNode<Object> LoadSharedFunctionInfoUntrustedData(

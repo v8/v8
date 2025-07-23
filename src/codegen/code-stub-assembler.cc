@@ -3713,16 +3713,6 @@ TNode<HeapObject> CodeStubAssembler::LoadJSFunctionPrototype(
   return var_result.value();
 }
 
-TNode<Code> CodeStubAssembler::LoadJSFunctionCode(TNode<JSFunction> function) {
-#ifdef V8_ENABLE_LEAPTIERING
-  TNode<JSDispatchHandleT> dispatch_handle = LoadObjectField<JSDispatchHandleT>(
-      function, JSFunction::kDispatchHandleOffset);
-  return LoadCodeObjectFromJSDispatchTable(dispatch_handle);
-#else
-  return LoadCodePointerFromObject(function, JSFunction::kCodeOffset);
-#endif  // V8_ENABLE_LEAPTIERING
-}
-
 TNode<Object> CodeStubAssembler::LoadSharedFunctionInfoTrustedData(
     TNode<SharedFunctionInfo> sfi) {
 #ifdef V8_ENABLE_SANDBOX
