@@ -9078,6 +9078,57 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeEntries(
   return BuildAndAllocateJSArrayIterator(receiver, IterationKind::kEntries);
 }
 
+MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSlice(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (!CanSpeculateCall()) return {};
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+
+  ValueNode* start = GetValueOrUndefined(args[0]);
+  ValueNode* end = GetValueOrUndefined(args[1]);
+
+  if (auto start_value = TryGetInt32Constant(start)) {
+    if (*start_value != 0) return {};
+  } else if (!IsUndefinedValue(start)) {
+    return {};
+  }
+
+  if (!IsUndefinedValue(end)) {
+    return {};
+  }
+
+  auto possible_maps = known_node_aspects().TryGetPossibleMaps(receiver);
+  if (!possible_maps) {
+    return {};
+  }
+  bool can_be_holey = false;
+  for (compiler::MapRef map : *possible_maps) {
+    if (!map.supports_fast_array_iteration(broker())) {
+      return {};
+    }
+
+    if (IsHoleyElementsKind(map.elements_kind())) {
+      can_be_holey = true;
+    }
+  }
+
+  if (!broker()->dependencies()->DependOnArraySpeciesProtector()) {
+    return {};
+  }
+
+  if (can_be_holey &&
+      !broker()->dependencies()->DependOnNoElementsProtector()) {
+    return {};
+  }
+
+  // TODO(maglev): We can do even better here, either adding a CloneArray
+  // simplified operator, whose output type indicates that it's an Array,
+  // saving subsequent checks, or yet better, by introducing new operators
+  // CopySmiOrObjectElements / CopyDoubleElements and inlining the JSArray
+  // allocation in here. That way we'd even get escape analysis and scalar
+  // replacement to help in some cases.
+  return BuildCallBuiltin<Builtin::kCloneFastJSArray>({receiver});
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeKeys(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall()) return {};
