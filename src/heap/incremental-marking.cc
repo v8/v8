@@ -152,25 +152,28 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
         heap()->OldGenerationSizeOfObjects() / MB;
     const size_t old_generation_waste_mb =
         heap()->OldGenerationWastedBytes() / MB;
+    const size_t old_generation_allocated_mb =
+        old_generation_size_mb + old_generation_waste_mb;
     const size_t old_generation_limit_mb =
         heap()->old_generation_allocation_limit() / MB;
+    const size_t old_generation_slack_mb =
+        old_generation_allocated_mb > old_generation_limit_mb
+            ? 0
+            : old_generation_limit_mb - old_generation_allocated_mb;
     const size_t global_size_mb = heap()->GlobalSizeOfObjects() / MB;
     const size_t global_waste_mb = heap()->GlobalWastedBytes() / MB;
+    const size_t global_allocated_mb = global_size_mb + global_waste_mb;
     const size_t global_limit_mb = heap()->global_allocation_limit() / MB;
+    const size_t global_slack_mb = global_allocated_mb > global_limit_mb
+                                       ? 0
+                                       : global_limit_mb - global_allocated_mb;
     isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Start (%s): (size/waste/limit/slack) v8: %zuMB / "
         "%zuMB / %zuMB "
         "/ %zuMB global: %zuMB / %zuMB / %zuMB / %zuMB\n",
         ToString(gc_reason), old_generation_size_mb, old_generation_waste_mb,
-        old_generation_limit_mb,
-        old_generation_size_mb + old_generation_waste_mb >
-                old_generation_limit_mb
-            ? 0
-            : old_generation_limit_mb - old_generation_size_mb,
-        global_size_mb, global_waste_mb, global_limit_mb,
-        global_size_mb + global_waste_mb > global_limit_mb
-            ? 0
-            : global_limit_mb - global_size_mb);
+        old_generation_limit_mb, old_generation_slack_mb, global_size_mb,
+        global_waste_mb, global_limit_mb, global_slack_mb);
   }
 
   Counters* counters = isolate()->counters();
