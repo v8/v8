@@ -423,8 +423,9 @@ class WaiterQueueNode;
     }                                                \
   } while (false)
 
+// "..." is the loop body; this way of writing it allows commas to occur in it.
 #define FOR_WITH_HANDLE_SCOPE(isolate, loop_var_type, init, loop_var,      \
-                              limit_check, increment, body)                \
+                              limit_check, increment, ...)                 \
   do {                                                                     \
     loop_var_type init;                                                    \
     loop_var_type for_with_handle_limit = loop_var;                        \
@@ -433,21 +434,23 @@ class WaiterQueueNode;
       for_with_handle_limit += 1024;                                       \
       HandleScope loop_scope(for_with_handle_isolate);                     \
       for (; limit_check && loop_var < for_with_handle_limit; increment) { \
-        body                                                               \
+        __VA_ARGS__                                                        \
       }                                                                    \
     }                                                                      \
   } while (false)
 
-#define WHILE_WITH_HANDLE_SCOPE(isolate, limit_check, body)                  \
-  do {                                                                       \
-    Isolate* for_with_handle_isolate = isolate;                              \
-    while (limit_check) {                                                    \
-      HandleScope loop_scope(for_with_handle_isolate);                       \
-      for (int for_with_handle_it = 0;                                       \
-           limit_check && for_with_handle_it < 1024; ++for_with_handle_it) { \
-        body                                                                 \
-      }                                                                      \
-    }                                                                        \
+// "..." is the loop body; this way of writing it allows commas to occur in it.
+#define WHILE_WITH_HANDLE_SCOPE(isolate, limit_check, ...) \
+  do {                                                     \
+    Isolate* while_with_handle_isolate = isolate;          \
+    while (limit_check) {                                  \
+      HandleScope loop_scope(while_with_handle_isolate);   \
+      for (int while_with_handle_it = 0;                   \
+           limit_check && while_with_handle_it < 1024;     \
+           ++while_with_handle_it) {                       \
+        __VA_ARGS__                                        \
+      }                                                    \
+    }                                                      \
   } while (false)
 
 #define FIELD_ACCESSOR(type, name)                \
