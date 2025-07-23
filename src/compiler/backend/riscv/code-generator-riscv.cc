@@ -2665,37 +2665,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvVrgather: {
-      Simd128Register index = i.InputSimd128Register(0);
-      if (!(instr->InputAt(1)->IsImmediate())) {
-        index = i.InputSimd128Register(1);
-      } else {
-#if V8_TARGET_ARCH_RISCV64
-        __ VU.set(kScratchReg, E64, m1);
-        __ li(kScratchReg, i.InputInt64(1));
-        __ vmv_vi(kSimd128ScratchReg3, -1);
-        __ vmv_sx(kSimd128ScratchReg3, kScratchReg);
-        index = kSimd128ScratchReg3;
-#elif V8_TARGET_ARCH_RISCV32
-        int64_t intput_int64 = i.InputInt64(1);
-        int32_t input_int32[2];
-        memcpy(input_int32, &intput_int64, sizeof(intput_int64));
-        __ VU.set(kScratchReg, E32, m1);
-        __ li(kScratchReg, input_int32[1]);
-        __ vmv_vx(kSimd128ScratchReg3, kScratchReg);
-        __ li(kScratchReg, input_int32[0]);
-        __ vmv_sx(kSimd128ScratchReg3, kScratchReg);
-        index = kSimd128ScratchReg3;
-#endif
-      }
+      // Gather instructions are not allowed to overlap their source and
+      // destination register groups.
+      CheckRegisterConstraints(
+          opcode, i, RiscvRegisterConstraint::kNoDestinationSourceOverlap);
       auto sew = DecodeElementWidth(opcode);
       __ VU.set(kScratchReg, sew, m1);
-      if (i.OutputSimd128Register() == i.InputSimd128Register(0)) {
-        __ vrgather_vv(kSimd128ScratchReg, i.InputSimd128Register(0), index);
-        __ vmv_vv(i.OutputSimd128Register(), kSimd128ScratchReg);
-      } else {
-        __ vrgather_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                       index);
-      }
+      __ vrgather_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                     i.InputSimd128Register(1));
       break;
     }
     case kRiscvI8x16ExtractLaneU: {
@@ -3846,8 +3823,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvBitMask: {
       auto sew = DecodeElementWidth(opcode);
       __ VU.set(kScratchReg, sew, m1);
-      Simd128Register temp = i.TempSimd128Register(0);
-      DCHECK(temp != i.InputSimd128Register(0));
+      Simd128Register temp = kSimd128ScratchReg;
       __ vmv_vx(temp, zero_reg);
       __ vmslt_vi(temp, i.InputSimd128Register(0), 0);
       __ VU.set(kScratchReg, E32, m1);

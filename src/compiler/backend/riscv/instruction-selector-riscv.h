@@ -1407,8 +1407,8 @@ void InstructionSelector::VisitI16x8SConvertI32x4(OpIndex node) {
   // index). There is nothing special about the registers, as long as they
   // are adjacent and start at an even index.
   // Fixed registers also ensure that the inputs don't overlap with the output.
-  auto input0 = g.UseFixed(op.input(0), v26);
-  auto input1 = g.UseFixed(op.input(1), v27);
+  auto input0 = g.UseFixed(op.input(0), v28);
+  auto input1 = g.UseFixed(op.input(1), v29);
   opcode |= EncodeRegisterConstraint(
       RiscvRegisterConstraint::kRegisterGroupNoOverlap);
   Emit(opcode, g.DefineAsRegister(node), input0, input1);
@@ -1423,8 +1423,8 @@ void InstructionSelector::VisitI16x8UConvertI32x4(OpIndex node) {
   // index). There is nothing special about the registers, as long as they
   // are adjacent and start at an even index.
   // Fixed registers also ensure that the inputs don't overlap with the output.
-  auto input0 = g.UseFixed(op.input(0), v26);
-  auto input1 = g.UseFixed(op.input(1), v27);
+  auto input0 = g.UseFixed(op.input(0), v28);
+  auto input1 = g.UseFixed(op.input(1), v29);
   opcode |= EncodeRegisterConstraint(
       RiscvRegisterConstraint::kRegisterGroupNoOverlap);
   Emit(opcode, g.DefineAsRegister(node), input0, input1);
@@ -1447,8 +1447,8 @@ void InstructionSelector::VisitI8x16SConvertI16x8(OpIndex node) {
   // index). There is nothing special about the registers, as long as they
   // are adjacent and start at an even index.
   // Fixed registers also ensure that the inputs don't overlap with the output.
-  auto input0 = g.UseFixed(op.input(0), v26);
-  auto input1 = g.UseFixed(op.input(1), v27);
+  auto input0 = g.UseFixed(op.input(0), v28);
+  auto input1 = g.UseFixed(op.input(1), v29);
   opcode |= EncodeRegisterConstraint(
       RiscvRegisterConstraint::kRegisterGroupNoOverlap);
   Emit(opcode, g.DefineAsRegister(node), input0, input1);
@@ -1463,8 +1463,8 @@ void InstructionSelector::VisitI8x16UConvertI16x8(OpIndex node) {
   // index). There is nothing special about the registers, as long as they
   // are adjacent and start at an even index.
   // Fixed registers also ensure that the inputs don't overlap with the output.
-  auto input0 = g.UseFixed(op.input(0), v26);
-  auto input1 = g.UseFixed(op.input(1), v27);
+  auto input0 = g.UseFixed(op.input(0), v28);
+  auto input1 = g.UseFixed(op.input(1), v29);
   opcode |= EncodeRegisterConstraint(
       RiscvRegisterConstraint::kRegisterGroupNoOverlap);
   Emit(opcode, g.DefineAsRegister(node), input0, input1);
@@ -1500,7 +1500,7 @@ void InstructionSelector::VisitI32x4DotI8x16I7x16AddS(OpIndex node) {
   DCHECK_EQ(op.input_count, 3);
   InstructionOperand temps[] = {
       g.TempFpRegister(v12), g.TempFpRegister(v14), g.TempFpRegister(v16),
-      g.TempFpRegister(v20), g.TempFpRegister(v26), g.TempFpRegister(v18),
+      g.TempFpRegister(v20), g.TempFpRegister(v28), g.TempFpRegister(v18),
   };
   size_t temp_count = arraysize(temps);
   Emit(kRiscvI32x4DotI8x16I7x16AddS, g.DefineAsRegister(node),
@@ -1549,27 +1549,24 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
 
 void InstructionSelector::VisitI8x16Swizzle(OpIndex node) {
   RiscvOperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempSimd128Register()};
-  // We don't want input 0 or input 1 to be the same as output, since we will
-  // modify output before do the calculation.
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
   InstructionCode opcode = kRiscvVrgather | EncodeElementWidth(E8);
-  Emit(opcode, g.DefineAsRegister(node), g.UseUniqueRegister(op.input(0)),
-       g.UseUniqueRegister(op.input(1)), arraysize(temps), temps);
+  auto input0 = g.UseUniqueRegister(op.input(0));
+  auto input1 = g.UseUniqueRegister(op.input(1));
+  opcode |= EncodeRegisterConstraint(
+      RiscvRegisterConstraint::kNoDestinationSourceOverlap);
+  Emit(opcode, g.DefineAsRegister(node), input0, input1);
 }
 
-#define VISIT_BITMASK(TYPE, VSEW)                                      \
-                                                                       \
-  void InstructionSelector::Visit##TYPE##BitMask(OpIndex node) {       \
-    RiscvOperandGenerator g(this);                                     \
-    const Operation& op = this->Get(node);                             \
-    DCHECK_EQ(op.input_count, 1);                                      \
-    InstructionOperand temps[] = {g.TempFpRegister(v16)};              \
-    size_t temp_count = arraysize(temps);                              \
-    InstructionCode opcode = kRiscvBitMask | EncodeElementWidth(VSEW); \
-    Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)), \
-         temp_count, temps);                                           \
+#define VISIT_BITMASK(TYPE, VSEW)                                       \
+                                                                        \
+  void InstructionSelector::Visit##TYPE##BitMask(OpIndex node) {        \
+    RiscvOperandGenerator g(this);                                      \
+    const Operation& op = this->Get(node);                              \
+    DCHECK_EQ(op.input_count, 1);                                       \
+    InstructionCode opcode = kRiscvBitMask | EncodeElementWidth(VSEW);  \
+    Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0))); \
   }
 
 SIMD_INT_TYPE_LIST(VISIT_BITMASK)
