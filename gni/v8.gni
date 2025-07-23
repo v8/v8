@@ -230,6 +230,10 @@ declare_args() {
   # Specifies if the target build is a simulator build. By default it is set to
   # true if the host and target do not match and we are not cross-compiling.
   v8_target_is_simulator = ""
+
+  # Some fuzzers depend on fuzzing functionality linked into the v8 library.
+  # For binary size reasons this functionality is not always available.
+  v8_wasm_random_fuzzers = ""
 }
 
 if (v8_use_external_startup_data == "") {
@@ -293,6 +297,14 @@ if (v8_target_is_simulator == "") {
   v8_target_is_simulator =
       (target_cpu != v8_target_cpu && !v8_multi_arch_build) ||
       (current_cpu != v8_current_cpu && v8_multi_arch_build)
+}
+
+# Some fuzzers depend on fuzzing functionality linked into the v8 library.
+# For binary size reasons this functionality is not available for official
+# builds, therefore these fuzzers do not function there and should be skipped
+# instead.
+if (v8_wasm_random_fuzzers == "") {
+  v8_wasm_random_fuzzers = !is_official_build
 }
 
 # Points to // in v8 stand-alone or to //v8/ in chromium. We need absolute

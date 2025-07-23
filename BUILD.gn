@@ -468,10 +468,6 @@ declare_args() {
   # the explicit dependency and allows the build to complete.
   v8_depend_on_icu_data_file = icu_use_data_file
 
-  # Some fuzzers depend on fuzzing functionality linked into the v8 library.
-  # For binary size reasons this functionality is not always available.
-  v8_wasm_random_fuzzers = ""
-
   # Experimental testing mode where various limits are artificially set lower.
   v8_lower_limits_mode = false
 
@@ -804,14 +800,6 @@ if (v8_enable_sticky_mark_bits) {
 
 if (v8_expose_public_symbols == "") {
   v8_expose_public_symbols = v8_expose_symbols
-}
-
-# Some fuzzers depend on fuzzing functionality linked into the v8 library.
-# For binary size reasons this functionality is not available for official
-# builds, therefore these fuzzers do not function there and should be skipped
-# instead.
-if (v8_wasm_random_fuzzers == "") {
-  v8_wasm_random_fuzzers = !is_official_build
 }
 
 assert(

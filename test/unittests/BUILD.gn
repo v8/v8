@@ -818,10 +818,14 @@ v8_source_set("v8_unittests_sources") {
     ]
 
     if (v8_enable_webassembly) {
+      deps += [ "../../:wasm_fuzzer_common" ]
       sources += [
         "wasm/cross-compiler-determinism-fuzztest.cc",
         "wasm/type-canonicalization-fuzztest.cc",
       ]
+      if (v8_wasm_random_fuzzers) {
+        sources += [ "wasm/module-generation-fuzztest.cc" ]
+      }
     }
 
     if (!is_win) {
