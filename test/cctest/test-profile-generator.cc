@@ -925,7 +925,6 @@ TEST(LineNumber) {
 TEST(BailoutReason) {
 #if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   i::v8_flags.allow_natives_syntax = true;
-  i::v8_flags.always_turbofan = false;
   i::v8_flags.turbofan = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});

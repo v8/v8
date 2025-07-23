@@ -3873,10 +3873,6 @@ TEST(SamplingHeapProfiler) {
   LocalContext env;
   v8::HeapProfiler* heap_profiler = env.isolate()->GetHeapProfiler();
 
-  // Turn off always_turbofan. Inlining can cause stack traces to be shorter
-  // than what we expect in this test.
-  i::v8_flags.always_turbofan = false;
-
   // Suppress randomness to avoid flakiness in tests.
   i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
@@ -3956,10 +3952,6 @@ TEST(SamplingHeapProfilerRateAgnosticEstimates) {
   v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
   v8::HeapProfiler* heap_profiler = env.isolate()->GetHeapProfiler();
-
-  // Turn off always_turbofan. Inlining can cause stack traces to be shorter
-  // than what we expect in this test.
-  i::v8_flags.always_turbofan = false;
 
   // Disable compilation cache to force compilation in both cases
   i::v8_flags.compilation_cache = false;
@@ -4132,8 +4124,7 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
   i::v8_flags.expose_gc = true;
 
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || i::v8_flags.always_turbofan)
-    return;
+  if (!CcTest::i_isolate()->use_optimizer()) return;
   if (i::v8_flags.gc_global || i::v8_flags.stress_compaction ||
       i::v8_flags.stress_incremental_marking ||
       i::v8_flags.stress_concurrent_allocation ||

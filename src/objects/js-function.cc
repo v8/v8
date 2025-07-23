@@ -760,7 +760,7 @@ void JSFunction::InitializeFeedbackCell(
   }
 
   const bool needs_feedback_vector =
-      !v8_flags.lazy_feedback_allocation || v8_flags.always_turbofan ||
+      !v8_flags.lazy_feedback_allocation ||
       // We also need a feedback vector for certain log events, collecting type
       // profile and more precise code coverage.
       v8_flags.log_function_events ||

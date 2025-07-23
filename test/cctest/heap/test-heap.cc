@@ -1089,7 +1089,6 @@ TEST(Iteration) {
 TEST(TestBytecodeFlushing) {
 #if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   v8_flags.turbofan = false;
-  v8_flags.always_turbofan = false;
   i::v8_flags.optimize_for_size = false;
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 #ifdef V8_ENABLE_SPARKPLUG
@@ -1159,7 +1158,6 @@ TEST(TestBytecodeFlushing) {
 static void TestMultiReferencedBytecodeFlushing(bool sparkplug_compile) {
 #if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   v8_flags.turbofan = false;
-  v8_flags.always_turbofan = false;
   i::v8_flags.optimize_for_size = false;
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 #ifdef V8_ENABLE_SPARKPLUG
@@ -1250,7 +1248,6 @@ HEAP_TEST(Regress10560) {
   // Disable flags that allocate a feedback vector eagerly.
 #if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   i::v8_flags.turbofan = false;
-  i::v8_flags.always_turbofan = false;
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 #ifdef V8_ENABLE_SPARKPLUG
   v8_flags.always_sparkplug = false;
@@ -1420,7 +1417,6 @@ UNINITIALIZED_TEST(Regress12777) {
 TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
   if (v8_flags.single_generation) return;
   v8_flags.turbofan = true;
-  v8_flags.always_turbofan = false;
 #ifdef V8_ENABLE_SPARKPLUG
   v8_flags.always_sparkplug = false;
 #endif  // V8_ENABLE_SPARKPLUG
@@ -1508,9 +1504,6 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
 
 TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
   if (!v8_flags.incremental_marking) return;
-  // Turn off always_turbofan because it interferes with running the built-in
-  // for the last call to g().
-  v8_flags.always_turbofan = false;
   v8_flags.allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -1906,7 +1899,6 @@ int CountNativeContexts() {
 }
 
 TEST(TestInternalWeakLists) {
-  v8_flags.always_turbofan = false;
   v8_flags.allow_natives_syntax = true;
 
   // Some flags turn Scavenge collections into Mark-sweep collections
@@ -2779,7 +2771,7 @@ TEST(OptimizedPretenuringAllocationFolding) {
   v8_flags.allow_natives_syntax = true;
   v8_flags.expose_gc = true;
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || v8_flags.always_turbofan) return;
+  if (!CcTest::i_isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking || v8_flags.single_generation ||
       v8_flags.stress_concurrent_allocation)
@@ -2830,7 +2822,7 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
   v8_flags.allow_natives_syntax = true;
   v8_flags.expose_gc = true;
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || v8_flags.always_turbofan) return;
+  if (!CcTest::i_isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking || v8_flags.single_generation ||
       v8_flags.stress_concurrent_allocation) {
@@ -2870,7 +2862,7 @@ TEST(OptimizedPretenuringNestedInObjectProperties) {
   v8_flags.allow_natives_syntax = true;
   v8_flags.expose_gc = true;
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || v8_flags.always_turbofan) return;
+  if (!CcTest::i_isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking || v8_flags.single_generation ||
       v8_flags.stress_concurrent_allocation) {
@@ -2914,7 +2906,7 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
   v8_flags.allow_natives_syntax = true;
   v8_flags.expose_gc = true;
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || v8_flags.always_turbofan) return;
+  if (!CcTest::i_isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking || v8_flags.single_generation ||
       v8_flags.stress_concurrent_allocation)
@@ -2961,7 +2953,7 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
   v8_flags.allow_natives_syntax = true;
   v8_flags.expose_gc = true;
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || v8_flags.always_turbofan) return;
+  if (!CcTest::i_isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking || v8_flags.single_generation ||
       v8_flags.stress_concurrent_allocation)
@@ -3001,7 +2993,7 @@ TEST(OptimizedPretenuringDoubleArrayLiterals) {
   v8_flags.allow_natives_syntax = true;
   v8_flags.expose_gc = true;
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || v8_flags.always_turbofan) return;
+  if (!CcTest::i_isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking || v8_flags.single_generation ||
       v8_flags.stress_concurrent_allocation)
@@ -3040,7 +3032,7 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
   v8_flags.allow_natives_syntax = true;
   v8_flags.expose_gc = true;
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || v8_flags.always_turbofan) return;
+  if (!CcTest::i_isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking || v8_flags.single_generation ||
       v8_flags.stress_concurrent_allocation)
@@ -3091,7 +3083,7 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
   v8_flags.allow_natives_syntax = true;
   v8_flags.expose_gc = true;
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || v8_flags.always_turbofan) return;
+  if (!CcTest::i_isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking || v8_flags.single_generation ||
       v8_flags.stress_concurrent_allocation)
@@ -3142,7 +3134,7 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
   v8_flags.allow_natives_syntax = true;
   v8_flags.expose_gc = true;
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || v8_flags.always_turbofan) return;
+  if (!CcTest::i_isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking || v8_flags.single_generation ||
       v8_flags.stress_concurrent_allocation)
@@ -3196,7 +3188,7 @@ TEST(OptimizedAllocationArrayLiterals) {
   v8_flags.allow_natives_syntax = true;
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || v8_flags.always_turbofan) return;
+  if (!CcTest::i_isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking)
     return;
@@ -3420,7 +3412,6 @@ TEST(ReleaseOverReservedPages) {
   // The optimizer can allocate stuff, messing up the test.
 #if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   v8_flags.turbofan = false;
-  v8_flags.always_turbofan = false;
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   // - Parallel compaction increases fragmentation, depending on how existing
   //   memory is distributed. Since this is non-deterministic because of
@@ -3548,7 +3539,6 @@ TEST(PrintSharedFunctionInfo) {
 TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
   if (!v8_flags.use_ic) return;
   if (!v8_flags.incremental_marking) return;
-  if (v8_flags.always_turbofan) return;
   v8_flags.allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3605,7 +3595,6 @@ static void CheckVectorIC(DirectHandle<JSFunction> f, int slot_index,
 
 TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
   if (!v8_flags.incremental_marking) return;
-  if (v8_flags.always_turbofan) return;
   v8_flags.allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3634,7 +3623,6 @@ TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
 TEST(IncrementalMarkingPreservesMonomorphicIC) {
   if (!v8_flags.use_ic) return;
   if (!v8_flags.incremental_marking) return;
-  if (v8_flags.always_turbofan) return;
   v8_flags.allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3660,7 +3648,6 @@ TEST(IncrementalMarkingPreservesMonomorphicIC) {
 TEST(IncrementalMarkingPreservesPolymorphicIC) {
   if (!v8_flags.use_ic) return;
   if (!v8_flags.incremental_marking) return;
-  if (v8_flags.always_turbofan) return;
   v8_flags.allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3703,7 +3690,6 @@ TEST(IncrementalMarkingPreservesPolymorphicIC) {
 TEST(ContextDisposeDoesntClearPolymorphicIC) {
   if (!v8_flags.use_ic) return;
   if (!v8_flags.incremental_marking) return;
-  if (v8_flags.always_turbofan) return;
   v8_flags.allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -4363,7 +4349,7 @@ static int SlimAllocationSiteCount(Heap* heap) {
 }
 
 TEST(EnsureAllocationSiteDependentCodesProcessed) {
-  if (v8_flags.always_turbofan || !V8_ALLOCATION_SITE_TRACKING_BOOL) {
+  if (!V8_ALLOCATION_SITE_TRACKING_BOOL) {
     return;
   }
   v8_flags.allow_natives_syntax = true;
@@ -4449,7 +4435,6 @@ void CheckNumberOfAllocations(Heap* heap, const char* source,
 }
 
 TEST(AllocationSiteCreation) {
-  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
@@ -4536,7 +4521,6 @@ TEST(AllocationSiteCreation) {
 }
 
 TEST(CellsInOptimizedCodeAreWeak) {
-  if (v8_flags.always_turbofan) return;
   v8_flags.allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4585,7 +4569,6 @@ TEST(CellsInOptimizedCodeAreWeak) {
 }
 
 TEST(ObjectsInOptimizedCodeAreWeak) {
-  if (v8_flags.always_turbofan) return;
   v8_flags.allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4632,7 +4615,7 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
 }
 
 TEST(NewSpaceObjectsInOptimizedCode) {
-  if (v8_flags.always_turbofan || v8_flags.single_generation) return;
+  if (v8_flags.single_generation) return;
   v8_flags.allow_natives_syntax = true;
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
@@ -4699,7 +4682,6 @@ TEST(NewSpaceObjectsInOptimizedCode) {
 }
 
 TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
-  if (v8_flags.always_turbofan) return;
   v8_flags.allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4788,7 +4770,6 @@ static void ClearWeakIC(
 }
 
 TEST(WeakFunctionInConstructor) {
-  if (v8_flags.always_turbofan) return;
   v8_flags.stress_compaction = false;
   v8_flags.stress_incremental_marking = false;
   v8_flags.allow_natives_syntax = true;
@@ -5063,7 +5044,6 @@ void CheckIC(DirectHandle<JSFunction> function, int slot_index,
 
 TEST(MonomorphicStaysMonomorphicAfterGC) {
   if (!v8_flags.use_ic) return;
-  if (v8_flags.always_turbofan) return;
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -5098,7 +5078,6 @@ TEST(MonomorphicStaysMonomorphicAfterGC) {
 
 TEST(PolymorphicStaysPolymorphicAfterGC) {
   if (!v8_flags.use_ic) return;
-  if (v8_flags.always_turbofan) return;
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -5672,6 +5651,7 @@ static void CheckLeak(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 TEST(MessageObjectLeak) {
   CcTest::InitializeVM();
+  v8_flags.allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
@@ -5680,24 +5660,27 @@ TEST(MessageObjectLeak) {
   v8::Context::Scope cscope(context);
 
   const char* test =
-      "try {"
-      "  throw 'message 1';"
-      "} catch (e) {"
+      "function test() {"
+      "  try {"
+      "    throw 'message 1';"
+      "  } catch (e) {"
+      "  }"
+      "  check();"
+      "  L: try {"
+      "    throw 'message 2';"
+      "  } finally {"
+      "    break L;"
+      "  }"
+      "  check();"
       "}"
-      "check();"
-      "L: try {"
-      "  throw 'message 2';"
-      "} finally {"
-      "  break L;"
-      "}"
-      "check();";
+      "%PrepareFunctionForOptimization(test);"
+      "test()";
   CompileRun(test);
 
-  const char* flag = "--turbo-filter=*";
-  FlagList::SetFlagsFromString(flag, strlen(flag));
-  v8_flags.always_turbofan = true;
-
-  CompileRun(test);
+  const char* test2 =
+      "%OptimizeFunctionOnNextCall(test);"
+      "test()";
+  CompileRun(test2);
 }
 
 static void CheckEqualSharedFunctionInfos(

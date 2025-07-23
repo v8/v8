@@ -24739,9 +24739,6 @@ TEST(ModuleCodeCache) {
 
   // Test that the cache is consumed and execution still works.
   {
-    // Disable --always_turbofan, otherwise we try to optimize during module
-    // instantiation, violating the DisallowCompilation scope.
-    i::v8_flags.always_turbofan = false;
     v8::Isolate* isolate = v8::Isolate::New(create_params);
     {
       v8::Isolate::Scope iscope(isolate);
@@ -28993,9 +28990,6 @@ void FastApiCallWithAllocationAndGC(AllocationChecker::GCLocation gc_location) {
   i::v8_flags.turbofan = true;
   i::v8_flags.turbo_fast_api_calls = true;
   i::v8_flags.allow_natives_syntax = true;
-  // Disable --always_turbofan, otherwise we haven't generated the necessary
-  // feedback to go down the "best optimization" path for the fast call.
-  i::v8_flags.always_turbofan = false;
   i::v8_flags.allow_allocation_in_fast_api_call = true;
   i::v8_flags.expose_gc = true;
   i::FlagList::EnforceFlagImplications();
@@ -29039,9 +29033,6 @@ TEST(FastApiCallWithThrowInReentrantCode) {
   i::v8_flags.turbofan = true;
   i::v8_flags.turbo_fast_api_calls = true;
   i::v8_flags.allow_natives_syntax = true;
-  // Disable --always_turbofan, otherwise we haven't generated the necessary
-  // feedback to go down the "best optimization" path for the fast call.
-  i::v8_flags.always_turbofan = false;
   i::v8_flags.allow_allocation_in_fast_api_call = true;
   i::FlagList::EnforceFlagImplications();
 
@@ -29147,9 +29138,6 @@ void FastApiCallRecursion(bool inner_most_throws) {
   i::v8_flags.turbofan = true;
   i::v8_flags.turbo_fast_api_calls = true;
   i::v8_flags.allow_natives_syntax = true;
-  // Disable --always_turbofan, otherwise we haven't generated the necessary
-  // feedback to go down the "best optimization" path for the fast call.
-  i::v8_flags.always_turbofan = false;
   i::v8_flags.allow_allocation_in_fast_api_call = true;
   i::FlagList::EnforceFlagImplications();
 
@@ -29243,9 +29231,6 @@ TEST(FastApiStackSlot) {
   i::v8_flags.turbofan = true;
   i::v8_flags.turbo_fast_api_calls = true;
   i::v8_flags.allow_natives_syntax = true;
-  // Disable --always_turbofan, otherwise we haven't generated the necessary
-  // feedback to go down the "best optimization" path for the fast call.
-  i::v8_flags.always_turbofan = false;
   i::FlagList::EnforceFlagImplications();
 
   v8::Isolate* isolate = CcTest::isolate();
@@ -29295,9 +29280,6 @@ TEST(FastApiCalls) {
   i::v8_flags.turbo_fast_api_calls = true;
   i::v8_flags.allow_natives_syntax = true;
   i::v8_flags.fast_api_allow_float_in_sim = true;
-  // Disable --always_turbofan, otherwise we haven't generated the necessary
-  // feedback to go down the "best optimization" path for the fast call.
-  i::v8_flags.always_turbofan = false;
   i::FlagList::EnforceFlagImplications();
 
   CcTest::InitializeVM();
@@ -29870,9 +29852,6 @@ TEST(FastApiCallsString) {
   i::v8_flags.turbo_fast_api_calls = true;
   i::v8_flags.allow_natives_syntax = true;
   i::v8_flags.fast_api_allow_float_in_sim = true;
-  // Disable --always_turbofan, otherwise we haven't generated the necessary
-  // feedback to go down the "best optimization" path for the fast call.
-  i::v8_flags.always_turbofan = false;
   i::FlagList::EnforceFlagImplications();
 
   CcTest::InitializeVM();

@@ -903,9 +903,6 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   if (!isolate->use_optimizer()) {
     status |= static_cast<int>(OptimizationStatus::kNeverOptimize);
   }
-  if (v8_flags.always_turbofan) {
-    status |= static_cast<int>(OptimizationStatus::kAlwaysOptimize);
-  }
   if (v8_flags.deopt_every_n_times) {
     status |= static_cast<int>(OptimizationStatus::kMaybeDeopted);
   }

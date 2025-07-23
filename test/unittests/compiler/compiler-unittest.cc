@@ -280,7 +280,7 @@ TEST_F(CompilerTest, GetScriptLineNumber) {
 }
 
 TEST_F(CompilerTest, FeedbackVectorPreservedAcrossRecompiles) {
-  if (i::v8_flags.always_turbofan || !i::v8_flags.turbofan) return;
+  if (!i::v8_flags.turbofan) return;
   i::v8_flags.allow_natives_syntax = true;
   if (!i_isolate()->use_optimizer()) return;
   v8::HandleScope scope(isolate());
@@ -322,8 +322,7 @@ TEST_F(CompilerTest, FeedbackVectorPreservedAcrossRecompiles) {
 }
 
 TEST_F(CompilerTest, FeedbackVectorUnaffectedByScopeChanges) {
-  if (i::v8_flags.always_turbofan || !i::v8_flags.lazy ||
-      i::v8_flags.lite_mode) {
+  if (!i::v8_flags.lazy || i::v8_flags.lite_mode) {
     return;
   }
   v8::HandleScope scope(isolate());
@@ -403,7 +402,6 @@ TEST_F(CompilerTest, OptimizedCodeSharing1) {
 }
 
 TEST_F(CompilerTest, CompileFunction) {
-  if (i::v8_flags.always_turbofan) return;
   v8::HandleScope scope(isolate());
   RunJS("var r = 10;");
   v8::Local<v8::Object> math = v8::Local<v8::Object>::Cast(
@@ -733,7 +731,6 @@ TEST_F(CompilerTest, CompileFunctionFunctionToString) {
 TEST_F(CompilerTest, InvocationCount) {
   if (v8_flags.lite_mode) return;
   v8_flags.allow_natives_syntax = true;
-  v8_flags.always_turbofan = false;
   v8::HandleScope scope(isolate());
 
   RunJS(
@@ -753,7 +750,6 @@ TEST_F(CompilerTest, InvocationCount) {
 }
 
 TEST_F(CompilerTest, ShallowEagerCompilation) {
-  i::v8_flags.always_turbofan = false;
   v8::HandleScope scope(isolate());
   v8::Local<v8::String> source = NewString(
       "function f(x) {"
@@ -773,7 +769,6 @@ TEST_F(CompilerTest, ShallowEagerCompilation) {
 }
 
 TEST_F(CompilerTest, DeepEagerCompilation) {
-  i::v8_flags.always_turbofan = false;
   v8::HandleScope scope(isolate());
   v8::Local<v8::String> source = NewString(
       "function f(x) {"
@@ -799,7 +794,6 @@ TEST_F(CompilerTest, DeepEagerCompilation) {
 }
 
 TEST_F(CompilerTest, DeepEagerCompilationPeakMemory) {
-  i::v8_flags.always_turbofan = false;
   v8::HandleScope scope(isolate());
   v8::Local<v8::String> source = NewString(
       "function f() {"

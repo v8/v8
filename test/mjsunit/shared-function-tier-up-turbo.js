@@ -10,7 +10,6 @@ if (isNeverOptimizeLiteMode()) {
   print("Warning: skipping test that requires optimization in Lite mode.");
   quit(0);
 }
-assertFalse(isAlwaysOptimize());
 assertFalse(isNeverOptimize());
 
 (function() {

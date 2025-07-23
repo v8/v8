@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "include/v8config.h"
+#include "src/objects/foreign.h"
 
 // Test enabled only on supported architectures.
 #if V8_OS_LINUX &&                                                 \
@@ -20,8 +21,8 @@ namespace v8::internal::compiler {
 using RunUnwindingInfoTest = TestWithContext;
 
 TEST_F(RunUnwindingInfoTest, RunUnwindingInfo) {
-  v8_flags.always_turbofan = true;
   v8_flags.perf_prof_unwinding_info = true;
+  v8_flags.jit_fuzzing = true;
 
   FunctionTester tester(i_isolate(),
                         "(function (x) {\n"
@@ -29,7 +30,9 @@ TEST_F(RunUnwindingInfoTest, RunUnwindingInfo) {
                         "  return x > 0 ? x+1 : f(x);\n"
                         "})");
 
-  tester.Call(tester.NewNumber(-1));
+  for (int i = 0; i < 500; ++i) {
+    tester.Call(tester.NewNumber(-1));
+  }
 
   EXPECT_TRUE(tester.function->code(i_isolate())->has_unwinding_info());
 }

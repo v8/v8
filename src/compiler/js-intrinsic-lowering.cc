@@ -264,16 +264,11 @@ Reduction JSIntrinsicLowering::ReduceIsJSReceiver(Node* node) {
 }
 
 Reduction JSIntrinsicLowering::ReduceTurbofanStaticAssert(Node* node) {
-  if (v8_flags.always_turbofan) {
-    // Ignore static asserts, as we most likely won't have enough information
-    RelaxEffectsAndControls(node);
-  } else {
-    Node* value = NodeProperties::GetValueInput(node, 0);
-    Node* effect = NodeProperties::GetEffectInput(node);
-    Node* assert = graph()->NewNode(
-        common()->StaticAssert("%TurbofanStaticAssert"), value, effect);
-    ReplaceWithValue(node, node, assert, nullptr);
-  }
+  Node* value = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* assert = graph()->NewNode(
+      common()->StaticAssert("%TurbofanStaticAssert"), value, effect);
+  ReplaceWithValue(node, node, assert, nullptr);
   return Changed(jsgraph_->UndefinedConstant());
 }
 

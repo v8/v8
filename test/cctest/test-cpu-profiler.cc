@@ -2353,8 +2353,7 @@ TEST(FunctionDetails) {
 }
 
 TEST(FunctionDetailsInlining) {
-  if (!CcTest::i_isolate()->use_optimizer() || i::v8_flags.always_turbofan)
-    return;
+  if (!CcTest::i_isolate()->use_optimizer()) return;
   i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -2562,7 +2561,7 @@ const char* GetBranchDeoptReason(v8::Local<v8::Context> context,
 
 // deopt at top function
 TEST(CollectDeoptEvents) {
-  if (!CcTest::i_isolate()->use_optimizer() || i::v8_flags.always_turbofan) {
+  if (!CcTest::i_isolate()->use_optimizer()) {
     return;
   }
   i::v8_flags.allow_natives_syntax = true;
@@ -2683,7 +2682,7 @@ TEST(CollectDeoptEvents) {
 }
 
 TEST(SourceLocation) {
-  i::v8_flags.always_turbofan = true;
+  i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -2691,6 +2690,9 @@ TEST(SourceLocation) {
       "function CompareStatementWithThis() {\n"
       "  if (this === 1) {}\n"
       "}\n"
+      "%PrepareFunctionForOptimization(CompareStatementWithThis);\n"
+      "CompareStatementWithThis();\n"
+      "%OptimizeFunctionOnNextCall(CompareStatementWithThis);\n"
       "CompareStatementWithThis();\n";
 
   v8::Script::Compile(env.local(), v8_str(source))
@@ -2706,8 +2708,7 @@ static const char* inlined_source =
 
 // deopt at the first level inlined function
 TEST(DeoptAtFirstLevelInlinedSource) {
-  if (!CcTest::i_isolate()->use_optimizer() || i::v8_flags.always_turbofan)
-    return;
+  if (!CcTest::i_isolate()->use_optimizer()) return;
   i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -2779,8 +2780,7 @@ TEST(DeoptAtFirstLevelInlinedSource) {
 
 // deopt at the second level inlined function
 TEST(DeoptAtSecondLevelInlinedSource) {
-  if (!CcTest::i_isolate()->use_optimizer() || i::v8_flags.always_turbofan)
-    return;
+  if (!CcTest::i_isolate()->use_optimizer()) return;
   i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -2858,8 +2858,7 @@ TEST(DeoptAtSecondLevelInlinedSource) {
 
 // deopt in untracked function
 TEST(DeoptUntrackedFunction) {
-  if (!CcTest::i_isolate()->use_optimizer() || i::v8_flags.always_turbofan)
-    return;
+  if (!CcTest::i_isolate()->use_optimizer()) return;
   i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -4365,7 +4364,6 @@ UNINITIALIZED_TEST(DetailedSourcePositionAPI_Inlining) {
   i::v8_flags.detailed_line_info = false;
   i::v8_flags.turbo_inlining = true;
   i::v8_flags.stress_inline = true;
-  i::v8_flags.always_turbofan = false;
   i::v8_flags.allow_natives_syntax = true;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -4618,9 +4616,6 @@ TEST(FastApiCPUProfiler) {
   FLAG_SCOPE(turbofan);
   FLAG_SCOPE(turbo_fast_api_calls);
   FLAG_SCOPE(allow_natives_syntax);
-  // Disable --always_turbofan, otherwise we haven't generated the necessary
-  // feedback to go down the "best optimization" path for the fast call.
-  FLAG_VALUE_SCOPE(always_turbofan, false);
   FLAG_VALUE_SCOPE(prof_browser_mode, false);
 #if V8_ENABLE_MAGLEV
   FLAG_VALUE_SCOPE(maglev, false);
@@ -4720,7 +4715,6 @@ TEST(FastApiCPUProfiler) {
 TEST(BytecodeFlushEventsEagerLogging) {
 #if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   v8_flags.turbofan = false;
-  v8_flags.always_turbofan = false;
   v8_flags.optimize_for_size = false;
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 #ifdef V8_ENABLE_SPARKPLUG

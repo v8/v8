@@ -147,12 +147,6 @@ namespace {
 
 enum CodeCacheType { kLazy, kEager, kAfterExecute };
 
-void DisableAlwaysOpt() {
-  // Isolates prepared for serialization do not optimize. The only exception is
-  // with the flag --always-turbofan.
-  v8_flags.always_turbofan = false;
-}
-
 base::Vector<const uint8_t> WritePayload(
     const base::Vector<const uint8_t>& payload) {
   int length = payload.length();
@@ -287,12 +281,10 @@ void TestStartupSerializerOnceImpl() {
 }  // namespace
 
 UNINITIALIZED_TEST(StartupSerializerOnce) {
-  DisableAlwaysOpt();
   TestStartupSerializerOnceImpl();
 }
 
 UNINITIALIZED_TEST(StartupSerializerTwice) {
-  DisableAlwaysOpt();
   v8::Isolate* isolate = TestSerializer::NewIsolateInitialized();
   StartupBlobs blobs1 = Serialize(isolate);
   isolate->Dispose();
@@ -318,7 +310,6 @@ UNINITIALIZED_TEST(StartupSerializerTwice) {
 }
 
 UNINITIALIZED_TEST(StartupSerializerOnceRunScript) {
-  DisableAlwaysOpt();
   v8::Isolate* isolate = TestSerializer::NewIsolateInitialized();
   StartupBlobs blobs = Serialize(isolate);
   isolate->Dispose();
@@ -343,7 +334,6 @@ UNINITIALIZED_TEST(StartupSerializerOnceRunScript) {
 }
 
 UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
-  DisableAlwaysOpt();
   v8::Isolate* isolate = TestSerializer::NewIsolateInitialized();
   StartupBlobs blobs1 = Serialize(isolate);
   isolate->Dispose();
@@ -471,7 +461,6 @@ static void SerializeContext(base::Vector<const uint8_t>* startup_blob_out,
 
 #ifdef SNAPSHOT_COMPRESSION
 UNINITIALIZED_TEST(SnapshotCompression) {
-  DisableAlwaysOpt();
   base::Vector<const uint8_t> startup_blob;
   base::Vector<const uint8_t> read_only_blob;
   base::Vector<const uint8_t> shared_space_blob;
@@ -493,7 +482,6 @@ UNINITIALIZED_TEST(SnapshotCompression) {
 #endif  // SNAPSHOT_COMPRESSION
 
 UNINITIALIZED_TEST(ContextSerializerContext) {
-  DisableAlwaysOpt();
   base::Vector<const uint8_t> startup_blob;
   base::Vector<const uint8_t> read_only_blob;
   base::Vector<const uint8_t> shared_space_blob;
@@ -674,7 +662,6 @@ static void SerializeCustomContext(
 }
 
 UNINITIALIZED_TEST(ContextSerializerCustomContext) {
-  DisableAlwaysOpt();
   base::Vector<const uint8_t> startup_blob;
   base::Vector<const uint8_t> read_only_blob;
   base::Vector<const uint8_t> shared_space_blob;
@@ -779,7 +766,6 @@ UNINITIALIZED_TEST(ContextSerializerCustomContext) {
 }
 
 UNINITIALIZED_TEST(CustomSnapshotDataBlob1) {
-  DisableAlwaysOpt();
   const char* source1 = "function f() { return 42; }";
 
   DisableEmbeddedBlobRefcounting();
@@ -811,7 +797,6 @@ static void UnreachableCallback(const FunctionCallbackInfo<Value>& info) {
 }
 
 UNINITIALIZED_TEST(CustomSnapshotDataBlobOverwriteGlobal) {
-  DisableAlwaysOpt();
   const char* source1 = "function f() { return 42; }";
 
   DisableEmbeddedBlobRefcounting();
@@ -845,7 +830,6 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobOverwriteGlobal) {
 }
 
 UNINITIALIZED_TEST(CustomSnapshotDataBlobStringNotInternalized) {
-  DisableAlwaysOpt();
   const char* source1 =
       R"javascript(
       // String would be internalized if it came from a literal so create "AB"
@@ -885,7 +869,6 @@ namespace {
 
 void TestCustomSnapshotDataBlobWithIrregexpCode(
     v8::SnapshotCreator::FunctionCodeHandling function_code_handling) {
-  DisableAlwaysOpt();
   const char* source =
       "var re1 = /\\/\\*[^*]*\\*+([^/*][^*]*\\*+)*\\//;\n"
       "function f() { return '/* a comment */'.search(re1); }\n"
@@ -960,7 +943,6 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobWithIrregexpCodeClearCode) {
 }
 
 UNINITIALIZED_TEST(SnapshotChecksum) {
-  DisableAlwaysOpt();
   const char* source1 = "function f() { return 42; }";
 
   DisableEmbeddedBlobRefcounting();
@@ -1037,7 +1019,6 @@ void TypedArrayTestHelper(
     const char* code_to_run_after_restore = nullptr,
     const Int32Expectations& after_restore_expectations = Int32Expectations(),
     v8::ArrayBuffer::Allocator* allocator = nullptr) {
-  DisableAlwaysOpt();
   i::v8_flags.allow_natives_syntax = true;
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
@@ -1205,7 +1186,6 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobDetachedArrayBuffer) {
   Int32Expectations expectations = {std::make_tuple("x.buffer.byteLength", 0),
                                     std::make_tuple("x.length", 0)};
 
-  DisableAlwaysOpt();
   i::v8_flags.allow_natives_syntax = true;
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
@@ -1277,7 +1257,6 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobOnOrOffHeapTypedArray) {
       std::make_tuple("x[0]", 12), std::make_tuple("x[7]", 24),
       std::make_tuple("y[2]", 48), std::make_tuple("z[0]", 96)};
 
-  DisableAlwaysOpt();
   i::v8_flags.allow_natives_syntax = true;
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
@@ -1338,7 +1317,6 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobOnOrOffHeapTypedArray) {
 
 UNINITIALIZED_TEST(CustomSnapshotDataBlobTypedArrayNoEmbedderFieldCallback) {
   const char* code = "var x = new Uint8Array(8);";
-  DisableAlwaysOpt();
   i::v8_flags.allow_natives_syntax = true;
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
@@ -1376,7 +1354,6 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobTypedArrayNoEmbedderFieldCallback) {
 }
 
 UNINITIALIZED_TEST(CustomSnapshotDataBlob2) {
-  DisableAlwaysOpt();
   const char* source2 =
       "function f() { return g() * 2; }"
       "function g() { return 43; }"
@@ -1413,7 +1390,6 @@ static void SerializationFunctionTemplate(
 }
 
 UNINITIALIZED_TEST(CustomSnapshotDataBlobOutdatedContextWithOverflow) {
-  DisableAlwaysOpt();
   const char* source1 =
       "var o = {};"
       "(function() {"
@@ -1461,7 +1437,6 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobOutdatedContextWithOverflow) {
 }
 
 UNINITIALIZED_TEST(CustomSnapshotDataBlobWithLocker) {
-  DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -1503,7 +1478,6 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobWithLocker) {
 }
 
 UNINITIALIZED_TEST(CustomSnapshotDataBlobStackOverflow) {
-  DisableAlwaysOpt();
   const char* source =
       "var a = [0];"
       "var b = a;"
@@ -1551,7 +1525,6 @@ bool IsCompiled(const char* name) {
 }
 
 UNINITIALIZED_TEST(SnapshotDataBlobWithWarmup) {
-  DisableAlwaysOpt();
   const char* warmup = "Math.abs(1); Math.random = 1;";
 
   DisableEmbeddedBlobRefcounting();
@@ -1582,7 +1555,6 @@ UNINITIALIZED_TEST(SnapshotDataBlobWithWarmup) {
 }
 
 UNINITIALIZED_TEST(CustomSnapshotDataBlobWithWarmup) {
-  DisableAlwaysOpt();
   const char* source =
       "function f() { return Math.abs(1); }\n"
       "function g() { return String.raw(1); }\n"
@@ -1645,7 +1617,6 @@ v8::StartupData CreateCustomSnapshotWithKeep() {
 }  // namespace
 
 UNINITIALIZED_TEST(CustomSnapshotDataBlobWithKeep) {
-  DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob = CreateCustomSnapshotWithKeep();
 
@@ -1670,7 +1641,6 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobWithKeep) {
 }
 
 UNINITIALIZED_TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
-  DisableAlwaysOpt();
   // Flood the startup snapshot with shared function infos. If they are
   // serialized before the immortal immovable root, the root will no longer end
   // up on the first page.
@@ -2376,10 +2346,6 @@ TEST(CodeSerializerLargeCodeObject) {
 
   v8::HandleScope scope(CcTest::isolate());
 
-  // The serializer only tests the shared code, which is always the unoptimized
-  // code. Don't even bother generating optimized code to avoid timeouts.
-  v8_flags.always_turbofan = false;
-
   base::Vector<const char> source = ConstructSource(
       base::StaticCharVector("var j=1; if (j == 0) {"),
       base::StaticCharVector(
@@ -2430,7 +2396,6 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   if (!v8_flags.incremental_marking) return;
   if (!v8_flags.compact) return;
   ManualGCScope manual_gc_scope;
-  v8_flags.always_turbofan = false;
   const char* filter_flag = "--turbo-filter=NOTHING";
   FlagList::SetFlagsFromString(filter_flag, strlen(filter_flag));
   heap::ManualEvacuationCandidatesSelectionScope
@@ -3037,10 +3002,6 @@ TEST(CodeSerializerIsolatesEager) {
 }
 
 TEST(CodeSerializerAfterExecute) {
-  // We test that no compilations happen when running this code. Forcing
-  // to always optimize breaks this test.
-  bool prev_always_turbofan_value = v8_flags.always_turbofan;
-  v8_flags.always_turbofan = false;
   const char* js_source = "function f() { return 'abc'; }; f() + 'def'";
   v8::ScriptCompiler::CachedData* cache =
       CompileRunAndProduceCache(js_source, CodeCacheType::kAfterExecute);
@@ -3084,9 +3045,6 @@ TEST(CodeSerializerAfterExecute) {
     }
   }
   isolate2->Dispose();
-
-  // Restore the flags.
-  v8_flags.always_turbofan = prev_always_turbofan_value;
 }
 
 TEST(CodeSerializerEmptyContextDependency) {
@@ -3443,7 +3401,6 @@ TEST(CodeSerializerMergeDeserializedScriptRetainingToplevelSfi) {
 }
 
 UNINITIALIZED_TEST(SnapshotCreatorBlobNotCreated) {
-  DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
   {
     SnapshotCreatorParams testing_params;
@@ -3469,7 +3426,6 @@ UNINITIALIZED_TEST(SnapshotCreatorBlobNotCreated) {
 }
 
 UNINITIALIZED_TEST(SnapshotCreatorMultipleContexts) {
-  DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
@@ -3607,7 +3563,6 @@ const intptr_t short_external_references[] = {
 }  // namespace
 
 UNINITIALIZED_TEST(SnapshotCreatorExternalReferences) {
-  DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   uint32_t my_context_embedder_field_index = 0;
@@ -3727,7 +3682,6 @@ UNINITIALIZED_TEST(SnapshotCreatorExternalReferences) {
 }
 
 UNINITIALIZED_TEST(SnapshotCreatorShortExternalReferences) {
-  DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
@@ -3819,7 +3773,6 @@ v8::StartupData CreateSnapshotWithDefaultAndCustom() {
 }  // namespace
 
 UNINITIALIZED_TEST(SnapshotCreatorNoExternalReferencesDefault) {
-  DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob = CreateSnapshotWithDefaultAndCustom();
 
@@ -3869,7 +3822,6 @@ v8::StartupData CreateCustomSnapshotWithPreparseDataAndNoOuterScope() {
 }
 
 UNINITIALIZED_TEST(SnapshotCreatorPreparseDataAndNoOuterScope) {
-  DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob = CreateCustomSnapshotWithPreparseDataAndNoOuterScope();
 
@@ -3912,7 +3864,6 @@ v8::StartupData CreateCustomSnapshotArrayJoinWithKeep() {
 }
 
 UNINITIALIZED_TEST(SnapshotCreatorArrayJoinWithKeep) {
-  DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob = CreateCustomSnapshotArrayJoinWithKeep();
 
@@ -3958,7 +3909,6 @@ v8::StartupData CreateCustomSnapshotWithDuplicateFunctions() {
 }
 
 UNINITIALIZED_TEST(SnapshotCreatorDuplicateFunctions) {
-  DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob = CreateCustomSnapshotWithDuplicateFunctions();
 
@@ -3987,7 +3937,6 @@ UNINITIALIZED_TEST(SnapshotCreatorDuplicateFunctions) {
 // We do not support building multiple snapshots when read-only heap is shared.
 
 TEST(SnapshotCreatorNoExternalReferencesCustomFail1) {
-  DisableAlwaysOpt();
   v8::StartupData blob = CreateSnapshotWithDefaultAndCustom();
 
   // Deserialize with an incomplete list of external references.
@@ -4012,7 +3961,6 @@ TEST(SnapshotCreatorNoExternalReferencesCustomFail1) {
 }
 
 TEST(SnapshotCreatorNoExternalReferencesCustomFail2) {
-  DisableAlwaysOpt();
   v8::StartupData blob = CreateSnapshotWithDefaultAndCustom();
 
   // Deserialize with an incomplete list of external references.
@@ -4039,7 +3987,6 @@ TEST(SnapshotCreatorNoExternalReferencesCustomFail2) {
 #endif  // V8_SHARED_RO_HEAP
 
 UNINITIALIZED_TEST(SnapshotCreatorUnknownExternalReferences) {
-  DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
   SnapshotCreatorParams testing_params;
   v8::SnapshotCreator creator(testing_params.create_params);
@@ -4067,7 +4014,6 @@ UNINITIALIZED_TEST(SnapshotCreatorUnknownExternalReferences) {
 
 namespace {
 void TestSnapshotCreatorTemplates(bool promote_templates_to_read_only) {
-  DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
 
@@ -4352,7 +4298,6 @@ void DeserializeContextData(v8::Local<v8::Context> context, int index,
 }  // namespace context_data_test
 
 UNINITIALIZED_TEST(SerializeContextData) {
-  DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
 
   v8::SerializeInternalFieldsCallback serialize_internal_fields(
@@ -4602,7 +4547,6 @@ static void DeserializeAPIWrapperCallback(Local<v8::Object> holder,
 START_ALLOW_USE_DEPRECATED()
 
 UNINITIALIZED_TEST(SerializeApiWrapperData) {
-  DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
 
   int64_t special_objects_encountered = 0;
@@ -4705,7 +4649,6 @@ MaybeLocal<v8::Module> ResolveCallback(Local<v8::Context> context,
 }
 
 UNINITIALIZED_TEST(SnapshotCreatorAddData) {
-  DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
 
@@ -4927,7 +4870,6 @@ UNINITIALIZED_TEST(SnapshotCreatorAddData) {
 }
 
 TEST(SnapshotCreatorUnknownHandles) {
-  DisableAlwaysOpt();
   v8::StartupData blob;
 
   {
@@ -5011,7 +4953,6 @@ UNINITIALIZED_TEST(SnapshotObjectDefinePropertyWhenNewGlobalTemplate) {
 }
 
 UNINITIALIZED_TEST(SnapshotCreatorIncludeGlobalProxy) {
-  DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
 
@@ -5206,7 +5147,6 @@ UNINITIALIZED_TEST(SnapshotCreatorIncludeGlobalProxy) {
 }
 
 UNINITIALIZED_TEST(SnapshotCreatorSerializeInterceptorInOldSpace) {
-  DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
 
@@ -5277,7 +5217,6 @@ UNINITIALIZED_TEST(SnapshotCreatorSerializeInterceptorInOldSpace) {
 }
 
 UNINITIALIZED_TEST(ReinitializeHashSeedJSCollectionRehashable) {
-  DisableAlwaysOpt();
   i::v8_flags.rehash_snapshot = true;
   i::v8_flags.hash_seed = 42;
   i::v8_flags.allow_natives_syntax = true;
@@ -5333,7 +5272,6 @@ UNINITIALIZED_TEST(ReinitializeHashSeedJSCollectionRehashable) {
 }
 
 UNINITIALIZED_TEST(ReinitializeHashSeedNameToIndexRehashable) {
-  DisableAlwaysOpt();
   i::v8_flags.rehash_snapshot = true;
   i::v8_flags.hash_seed = 42;
   i::v8_flags.allow_natives_syntax = true;
@@ -5391,7 +5329,6 @@ UNINITIALIZED_TEST(ReinitializeHashSeedNameToIndexRehashable) {
 }
 
 UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
-  DisableAlwaysOpt();
   i::v8_flags.rehash_snapshot = true;
   i::v8_flags.hash_seed = 42;
   i::v8_flags.allow_natives_syntax = true;
@@ -5469,7 +5406,6 @@ UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
 }
 
 UNINITIALIZED_TEST(ClassFields) {
-  DisableAlwaysOpt();
   i::v8_flags.rehash_snapshot = true;
   i::v8_flags.hash_seed = 42;
   i::v8_flags.allow_natives_syntax = true;
@@ -5551,7 +5487,6 @@ UNINITIALIZED_TEST(ClassFields) {
 }
 
 UNINITIALIZED_TEST(ClassFieldsReferencePrivateInInitializer) {
-  DisableAlwaysOpt();
   i::v8_flags.rehash_snapshot = true;
   i::v8_flags.hash_seed = 42;
   i::v8_flags.allow_natives_syntax = true;
@@ -5608,7 +5543,6 @@ UNINITIALIZED_TEST(ClassFieldsReferencePrivateInInitializer) {
 }
 
 UNINITIALIZED_TEST(ClassFieldsReferenceClassVariable) {
-  DisableAlwaysOpt();
   i::v8_flags.rehash_snapshot = true;
   i::v8_flags.hash_seed = 42;
   i::v8_flags.allow_natives_syntax = true;
@@ -5660,7 +5594,6 @@ UNINITIALIZED_TEST(ClassFieldsReferenceClassVariable) {
 }
 
 UNINITIALIZED_TEST(ClassFieldsNested) {
-  DisableAlwaysOpt();
   i::v8_flags.rehash_snapshot = true;
   i::v8_flags.hash_seed = 42;
   i::v8_flags.allow_natives_syntax = true;
@@ -5722,7 +5655,6 @@ UNINITIALIZED_TEST(ClassFieldsNested) {
 }
 
 UNINITIALIZED_TEST(ClassPrivateMethods) {
-  DisableAlwaysOpt();
   i::v8_flags.rehash_snapshot = true;
   i::v8_flags.hash_seed = 42;
   i::v8_flags.allow_natives_syntax = true;
@@ -5797,7 +5729,6 @@ UNINITIALIZED_TEST(ClassPrivateMethods) {
 }
 
 UNINITIALIZED_TEST(ClassFieldsWithInheritance) {
-  DisableAlwaysOpt();
   i::v8_flags.rehash_snapshot = true;
   i::v8_flags.hash_seed = 42;
   i::v8_flags.allow_natives_syntax = true;
@@ -5893,7 +5824,6 @@ UNINITIALIZED_TEST(ClassFieldsWithInheritance) {
 }
 
 UNINITIALIZED_TEST(ClassFieldsRecalcPrivateNames) {
-  DisableAlwaysOpt();
   i::v8_flags.rehash_snapshot = true;
   i::v8_flags.hash_seed = 42;
   i::v8_flags.allow_natives_syntax = true;
@@ -5956,7 +5886,6 @@ UNINITIALIZED_TEST(ClassFieldsRecalcPrivateNames) {
 }
 
 UNINITIALIZED_TEST(ClassFieldsWithBindings) {
-  DisableAlwaysOpt();
   i::v8_flags.rehash_snapshot = true;
   i::v8_flags.hash_seed = 42;
   i::v8_flags.allow_natives_syntax = true;
@@ -6081,7 +6010,6 @@ void CheckInfosAreWeak(Tagged<WeakFixedArray> sfis, Isolate* isolate) {
 UNINITIALIZED_TEST(WeakArraySerializationInSnapshot) {
   const char* code = "var my_func = function() { }";
 
-  DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
   i::v8_flags.allow_natives_syntax = true;
   v8::StartupData blob;
@@ -6182,7 +6110,6 @@ v8::MaybeLocal<v8::Promise> TestHostDefinedOptionFromCachedScript(
 }
 
 TEST(CachedFunctionHostDefinedOption) {
-  DisableAlwaysOpt();
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -6244,7 +6171,6 @@ TEST(CachedFunctionHostDefinedOption) {
 }
 
 TEST(CachedUnboundScriptHostDefinedOption) {
-  DisableAlwaysOpt();
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -6310,7 +6236,6 @@ v8::MaybeLocal<v8::Module> UnexpectedModuleResolveCallback(
 }
 
 TEST(CachedModuleScriptFunctionHostDefinedOption) {
-  DisableAlwaysOpt();
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -6372,7 +6297,6 @@ TEST(CachedModuleScriptFunctionHostDefinedOption) {
 }
 
 TEST(CachedCompileFunction) {
-  DisableAlwaysOpt();
   LocalContext env;
   Isolate* isolate = CcTest::i_isolate();
   isolate->compilation_cache()
@@ -6410,7 +6334,6 @@ TEST(CachedCompileFunction) {
 }
 
 TEST(InvalidCachedCompileFunction) {
-  DisableAlwaysOpt();
   LocalContext env;
   Isolate* isolate = CcTest::i_isolate();
   isolate->compilation_cache()
@@ -6475,7 +6398,6 @@ TEST(InvalidCachedCompileFunction) {
 }
 
 TEST(CachedCompileFunctionRespectsEager) {
-  DisableAlwaysOpt();
   LocalContext env;
   Isolate* isolate = CcTest::i_isolate();
   isolate->compilation_cache()
@@ -6506,7 +6428,6 @@ TEST(CachedCompileFunctionRespectsEager) {
 }
 
 UNINITIALIZED_TEST(SnapshotCreatorAnonClassWithKeep) {
-  DisableAlwaysOpt();
   SnapshotCreatorParams testing_params;
   v8::SnapshotCreator creator(testing_params.create_params);
   v8::Isolate* isolate = creator.GetIsolate();
@@ -6529,7 +6450,6 @@ UNINITIALIZED_TEST(SnapshotCreatorAnonClassWithKeep) {
 }
 
 UNINITIALIZED_TEST(SnapshotCreatorDontDeferByteArrayForTypedArray) {
-  DisableAlwaysOpt();
   v8::StartupData blob;
   {
     SnapshotCreatorParams testing_params;
@@ -6589,7 +6509,6 @@ UNINITIALIZED_TEST(NoStackFrameCacheSerialization) {
   // stack frame cache during serialization. The individual frames
   // can point to JSFunction objects, which need to be stored in a
   // context snapshot, *not* isolate snapshot.
-  DisableAlwaysOpt();
   DisableLazySourcePositionScope lazy_scope;
 
   SnapshotCreatorParams testing_params;
@@ -6701,7 +6620,6 @@ class DebugBreakCounter : public v8::debug::DebugDelegate {
 UNINITIALIZED_TEST(BreakPointAccessorContextSnapshot) {
   // Tests that a breakpoint set in one deserialized context also gets hit in
   // another for lazy accessors.
-  DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
 

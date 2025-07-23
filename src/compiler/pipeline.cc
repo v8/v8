@@ -707,10 +707,9 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
       v8_flags.max_optimized_bytecode_size) {
     return AbortOptimization(BailoutReason::kFunctionTooBig);
   }
-
-  if (!v8_flags.always_turbofan) {
-    compilation_info()->set_bailout_on_uninitialized();
-  }
+  // TODO(victorgomes): We can remove this compilation option. This should
+  // always be true.
+  compilation_info()->set_bailout_on_uninitialized();
   if (v8_flags.turbo_loop_peeling) {
     compilation_info()->set_loop_peeling();
   }
