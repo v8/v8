@@ -855,7 +855,15 @@ void InstructionSelector::VisitWord32Shr(OpIndex node) {
 }
 
 void InstructionSelector::VisitWord32Sar(OpIndex node) {
-  // todo(RISCV): Optimize it
+  const ShiftOp& shift = Get(node).Cast<ShiftOp>();
+  const Operation& lhs = Get(shift.left());
+  if (lhs.Is<Opmask::kTruncateWord64ToWord32>() &&
+      CanCover(node, lhs.input(0))) {
+    RiscvOperandGenerator g(this);
+    Emit(kRiscvSar32, g.DefineAsRegister(node), g.UseRegister(lhs.input(0)),
+         g.UseOperand(shift.right(), kRiscvSar32));
+    return;
+  }
   VisitRRO(this, kRiscvSar32, node);
 }
 

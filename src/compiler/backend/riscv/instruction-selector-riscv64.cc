@@ -458,6 +458,15 @@ void InstructionSelector::VisitStore(OpIndex node) {
 
   InstructionCode code = GetStoreOpcode(store_view.ts_stored_rep());
 
+  if (code == kRiscvSw) {
+    const Operation& value_op = this->Get(value);
+    if (value_op.Is<Opmask::kTruncateWord64ToWord32>() &&
+        CanCover(node, value_op.input(0))) {
+      // If the value is a TruncateWord64ToWord32, we can use the input directly
+      //  to store.
+      value = value_op.input(0);
+    }
+  }
   if (Is<LoadRootRegisterOp>(base)) {
     Emit(code | AddressingModeField::encode(kMode_Root), g.NoOutput(),
          g.UseRegisterOrImmediateZero(value), g.UseImmediate(index));
@@ -1795,15 +1804,16 @@ void InstructionSelector::VisitStackPointerGreaterThan(
                        temp_count, temps, cont);
 }
 
-bool IsWord32Binop(const Operation& op) {
-  if (op.Is<WordBinopOp>()) {
-    const WordBinopOp& binop = op.Cast<WordBinopOp>();
-    switch (binop.kind) {
-      case WordBinopOp::Kind::kBitwiseAnd:
-        if (binop.rep.value() == WordRepresentation::Enum::kWord32) {
-          return true;
-        }
-        break;
+bool IsLoadWord32OrSmaller(InstructionSelector* selector, const OpIndex node) {
+  const Operation& op = selector->Get(node);
+  if (op.Is<LoadOp>()) {
+    auto load_view = selector->load_view(node);
+    LoadRepresentation load_rep = load_view.loaded_rep();
+    switch (load_rep.representation()) {
+      case MachineRepresentation::kWord8:
+      case MachineRepresentation::kWord16:
+      case MachineRepresentation::kWord32:
+        return true;
       default:
         return false;
     }
@@ -1910,7 +1920,11 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
 #ifdef V8_COMPRESS_POINTERS
   if ((comparison &&
        comparison->rep.value() == RegisterRepresentation::Word64()) ||
-      IsWord32Binop(value_op)) {
+      value_op.Is<Opmask::kWord32BitwiseAnd>() ||
+      IsLoadWord32OrSmaller(this, value) ||
+      IsSignExtendWord32ToWord64(value_op)) {
+    // If the value_op is sign-extended or lw/lhu/lh/lbu/lb, we can use
+    // EmitWordCompareZero to emit a 32-bit compare zero.
     return EmitWordCompareZero(this, value, cont);
   } else {
     return EmitWord32CompareZero(this, value, cont);
