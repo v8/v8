@@ -294,6 +294,18 @@ void GCTracer::StartCycle(GarbageCollector collector,
       break;
   }
 
+  if (collector == GarbageCollector::MARK_COMPACTOR) {
+    current_.old_generation_consumed_baseline =
+        heap_->OldGenerationConsumedBytesAtLastGC();
+    current_.old_generation_consumed_current =
+        heap_->OldGenerationConsumedBytes();
+    current_.old_generation_consumed_limit =
+        heap_->old_generation_allocation_limit();
+    current_.global_consumed_baseline = heap_->GlobalConsumedBytesAtLastGC();
+    current_.global_consumed_current = heap_->GlobalConsumedBytes();
+    current_.global_consumed_limit = heap_->global_allocation_limit();
+  }
+
   if (Heap::IsYoungGenerationCollector(collector)) {
     epoch_young_ = next_epoch();
   } else {
@@ -313,15 +325,6 @@ void GCTracer::StartInSafepoint(base::TimeTicks time) {
   current_.start_object_size = heap_->SizeOfObjects();
   current_.start_memory_size = heap_->memory_allocator()->Size();
   current_.start_holes_size = CountTotalHolesSize(heap_);
-  current_.old_generation_consumed_baseline =
-      heap_->OldGenerationConsumedBytesAtLastGC();
-  current_.old_generation_consumed_current =
-      heap_->OldGenerationConsumedBytes();
-  current_.old_generation_consumed_limit =
-      heap_->old_generation_allocation_limit();
-  current_.global_consumed_baseline = heap_->GlobalConsumedBytesAtLastGC();
-  current_.global_consumed_current = heap_->GlobalConsumedBytes();
-  current_.global_consumed_limit = heap_->global_allocation_limit();
   size_t new_space_size = (heap_->new_space() ? heap_->new_space()->Size() : 0);
   size_t new_lo_space_size =
       (heap_->new_lo_space() ? heap_->new_lo_space()->SizeOfObjects() : 0);
