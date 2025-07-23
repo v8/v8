@@ -1304,13 +1304,79 @@ class PrototypesSetup : public wasm::Decoder {
     base::Vector<const char> name;
   };
 
-  PrototypesSetup(Isolate* isolate, const uint8_t* begin, const uint8_t* end,
-                  DirectHandle<WasmArray> prototypes,
-                  DirectHandle<WasmArray> functions)
-      : Decoder(begin, end),
-        isolate_(isolate),
-        prototypes_(prototypes),
-        functions_(functions) {}
+  PrototypesSetup(Isolate* isolate, const uint8_t* data_begin,
+                  const uint8_t* data_end)
+      : Decoder(data_begin, data_end), isolate_(isolate) {}
+
+  Tagged<Object> SetupPrototypes(DirectHandle<JSObject> constructors) {
+    WHILE_WITH_HANDLE_SCOPE(isolate(), more(), {
+      DirectHandle<JSObject> prototype = NextPrototype();
+      if (prototype.is_null()) return ReadOnlyRoots(isolate()).exception();
+      uint32_t num_methods = consume_u32v("number of methods");
+      if (!ok()) break;
+      ToDictionaryMode(prototype, num_methods);
+      for (uint32_t i = 0; i < num_methods; i++) {
+        Method method = NextMethod(false);
+        if (!ok()) break;
+        DirectHandle<WasmExportedFunction> function = NextFunction();
+        if (function.is_null() || !InstallMethod(prototype, method, function)) {
+          DCHECK(isolate()->has_exception());
+          return ReadOnlyRoots(isolate()).exception();
+        }
+      }
+      if (!ok()) break;
+      uint32_t has_constructor = consume_u32v("constructor");
+      if (!ok()) break;
+      if (has_constructor == 0) continue;
+      if (has_constructor > 1) {
+        errorf(pc_offset() - 1, "invalid constructor count: %d",
+               has_constructor);
+        break;
+      }
+
+      DirectHandle<WasmExportedFunction> constructor = NextFunction();
+      uint32_t ctor_name_length = consume_u32v("constructor name length");
+      if (!ok()) break;
+      const char* ctor_name_start = reinterpret_cast<const char*>(pc());
+      consume_bytes(ctor_name_length);
+      if (!ok()) break;
+      DirectHandle<String> ctor_name =
+          isolate()->factory()->InternalizeUtf8String(
+              {ctor_name_start, ctor_name_length});
+      if (!InstallConstructor(prototype, constructor, ctor_name,
+                              constructors)) {
+        DCHECK(isolate()->has_exception());
+        return ReadOnlyRoots(isolate()).exception();
+      }
+      uint32_t num_statics = consume_u32v("number of statics");
+      if (!ok()) break;
+      if (num_statics == 0) continue;
+      ToDictionaryMode(constructor, num_statics);
+      for (uint32_t i = 0; i < num_statics; i++) {
+        Method method = NextMethod(true);
+        if (!ok()) break;
+        DirectHandle<WasmExportedFunction> function = NextFunction();
+        if (function.is_null() ||
+            !InstallMethod(constructor, method, function)) {
+          DCHECK(isolate()->has_exception());
+          return ReadOnlyRoots(isolate()).exception();
+        }
+      }
+      if (!ok()) break;
+    });
+    if (!ok()) {
+      DirectHandle<String> message =
+          isolate()
+              ->factory()
+              ->NewStringFromUtf8(base::VectorOf(error().message()))
+              .ToHandleChecked();
+      DirectHandle<JSObject> error = isolate()->factory()->NewError(
+          isolate()->wasm_compile_error_function(), message);
+      return isolate()->Throw(*error);
+    }
+
+    return ReadOnlyRoots(isolate()).undefined_value();
+  }
 
   Method NextMethod(bool is_static) {
     uint8_t kind = consume_u8("kind");
@@ -1329,12 +1395,12 @@ class PrototypesSetup : public wasm::Decoder {
   }
 
   DirectHandle<WasmExportedFunction> NextFunction() {
-    if (function_index_ >= functions_->length()) {
+    DirectHandle<Object> maybe_func = NextFunctionInternal();
+    if (maybe_func.is_null()) {
       ThrowWasmError(isolate_, MessageTemplate::kWasmTrapArrayOutOfBounds);
       return {};
     }
-    DirectHandle<WasmFuncRef> funcref = Cast<WasmFuncRef>(
-        WasmArray::GetElement(isolate_, functions_, function_index_++));
+    DirectHandle<WasmFuncRef> funcref = Cast<WasmFuncRef>(maybe_func);
     DirectHandle<WasmInternalFunction> internal_function(
         funcref->internal(isolate_), isolate_);
     return Cast<WasmExportedFunction>(
@@ -1342,18 +1408,17 @@ class PrototypesSetup : public wasm::Decoder {
   }
 
   DirectHandle<JSObject> NextPrototype() {
-    // This implicitly performs a bounds check: {GetElement} would return
-    // {undefined}, which would fail the {TryCast}.
-    DirectHandle<JSObject> prototype;
-    if (!TryCast<JSObject>(
-            WasmArray::GetElement(isolate_, prototypes_, prototype_index_++),
-            &prototype) ||
-        !IsWasmDescriptorOptions(*prototype)) {
+    DirectHandle<Object> maybe_proto = NextPrototypeInternal();
+    if (maybe_proto.is_null()) {
+      ThrowWasmError(isolate_, MessageTemplate::kWasmTrapArrayOutOfBounds);
+      return {};
+    }
+    if (!IsWasmDescriptorOptions(*maybe_proto)) {
       ThrowWasmError(isolate_, MessageTemplate::kWasmTrapIllegalCast);
       return {};
     }
     return Cast<JSObject>(direct_handle(
-        Cast<WasmDescriptorOptions>(*prototype)->prototype(), isolate_));
+        Cast<WasmDescriptorOptions>(maybe_proto)->prototype(), isolate_));
   }
 
   // Adding multiple properties is more efficient when the prototype
@@ -1423,12 +1488,41 @@ class PrototypesSetup : public wasm::Decoder {
         .FromMaybe(false);
   }
 
+ protected:
+  Isolate* isolate() { return isolate_; }
+  virtual DirectHandle<Object> NextFunctionInternal() = 0;
+  virtual DirectHandle<Object> NextPrototypeInternal() = 0;
+
  private:
   Isolate* isolate_;
+};
+
+class PrototypesSetup_Arrays : public PrototypesSetup {
+ public:
+  PrototypesSetup_Arrays(Isolate* isolate, const uint8_t* data_begin,
+                         const uint8_t* data_end,
+                         DirectHandle<WasmArray> prototypes,
+                         DirectHandle<WasmArray> functions)
+      : PrototypesSetup(isolate, data_begin, data_end),
+        prototypes_(prototypes),
+        functions_(functions) {}
+
+ protected:
+  DirectHandle<Object> NextFunctionInternal() override {
+    if (function_index_ >= functions_->length()) return {};
+    return WasmArray::GetElement(isolate(), functions_, function_index_++);
+  }
+
+  DirectHandle<Object> NextPrototypeInternal() override {
+    if (prototype_index_ >= prototypes_->length()) return {};
+    return WasmArray::GetElement(isolate(), prototypes_, prototype_index_++);
+  }
+
+ private:
   DirectHandle<WasmArray> prototypes_;
   DirectHandle<WasmArray> functions_;
-  uint32_t function_index_{0};
   uint32_t prototype_index_{0};
+  uint32_t function_index_{0};
 };
 
 }  // namespace
@@ -1470,75 +1564,10 @@ RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypes) {
   memcpy(immovable_data.data(),
          reinterpret_cast<const uint8_t*>(data->ElementAddress(0)), length);
 
-  PrototypesSetup decoder(isolate, immovable_data.data(),
-                          immovable_data.data() + length, prototypes,
-                          functions);
-  while (decoder.more()) {
-    DirectHandle<JSObject> prototype = decoder.NextPrototype();
-    if (prototype.is_null()) return ReadOnlyRoots(isolate).exception();
-    uint32_t num_methods = decoder.consume_u32v("number of methods");
-    if (!decoder.ok()) break;
-    decoder.ToDictionaryMode(prototype, num_methods);
-    for (uint32_t i = 0; i < num_methods; i++) {
-      PrototypesSetup::Method method = decoder.NextMethod(false);
-      if (!decoder.ok()) break;
-      DirectHandle<WasmExportedFunction> function = decoder.NextFunction();
-      if (function.is_null() ||
-          !decoder.InstallMethod(prototype, method, function)) {
-        DCHECK(isolate->has_exception());
-        return ReadOnlyRoots(isolate).exception();
-      }
-    }
-    if (!decoder.ok()) break;
-    uint32_t has_constructor = decoder.consume_u32v("constructor");
-    if (!decoder.ok()) break;
-    if (has_constructor == 0) continue;
-    if (has_constructor > 1) {
-      decoder.errorf(decoder.pc_offset() - 1, "invalid constructor count: %d",
-                     has_constructor);
-      break;
-    }
-
-    DirectHandle<WasmExportedFunction> constructor = decoder.NextFunction();
-    uint32_t ctor_name_length = decoder.consume_u32v("constructor name length");
-    if (!decoder.ok()) break;
-    const char* ctor_name_start = reinterpret_cast<const char*>(decoder.pc());
-    decoder.consume_bytes(ctor_name_length);
-    if (!decoder.ok()) break;
-    DirectHandle<String> ctor_name = isolate->factory()->InternalizeUtf8String(
-        {ctor_name_start, ctor_name_length});
-    if (!decoder.InstallConstructor(prototype, constructor, ctor_name,
-                                    constructors)) {
-      DCHECK(isolate->has_exception());
-      return ReadOnlyRoots(isolate).exception();
-    }
-    uint32_t num_statics = decoder.consume_u32v("number of statics");
-    if (!decoder.ok()) break;
-    if (num_statics == 0) continue;
-    decoder.ToDictionaryMode(constructor, num_statics);
-    for (uint32_t i = 0; i < num_statics; i++) {
-      PrototypesSetup::Method method = decoder.NextMethod(true);
-      if (!decoder.ok()) break;
-      DirectHandle<WasmExportedFunction> function = decoder.NextFunction();
-      if (function.is_null() ||
-          !decoder.InstallMethod(constructor, method, function)) {
-        DCHECK(isolate->has_exception());
-        return ReadOnlyRoots(isolate).exception();
-      }
-    }
-    if (!decoder.ok()) break;
-  }
-  if (!decoder.ok()) {
-    DirectHandle<String> message =
-        isolate->factory()
-            ->NewStringFromUtf8(base::VectorOf(decoder.error().message()))
-            .ToHandleChecked();
-    DirectHandle<JSObject> error = isolate->factory()->NewError(
-        isolate->wasm_compile_error_function(), message);
-    return isolate->Throw(*error);
-  }
-
-  return ReadOnlyRoots(isolate).undefined_value();
+  PrototypesSetup_Arrays decoder(isolate, immovable_data.data(),
+                                 immovable_data.data() + length, prototypes,
+                                 functions);
+  return decoder.SetupPrototypes(constructors);
 }
 
 #define RETURN_RESULT_OR_TRAP(call)                                            \
