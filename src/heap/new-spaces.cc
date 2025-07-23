@@ -404,7 +404,7 @@ NewSpace::NewSpace(Heap* heap)
     : SpaceWithLinearArea(heap, NEW_SPACE, nullptr) {}
 
 void NewSpace::PromotePageToOldSpace(PageMetadata* page, FreeMode free_mode) {
-  DCHECK(!page->Chunk()->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
+  DCHECK(page->will_be_promoted());
   DCHECK(page->Chunk()->InYoungGeneration());
   RemovePage(page);
   PageMetadata* new_page = PageMetadata::ConvertNewToOld(page, free_mode);

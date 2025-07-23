@@ -158,6 +158,9 @@ class MemoryChunkMetadata {
 
   bool will_be_promoted() const { return WillBePromotedField::decode(flags_); }
   void set_will_be_promoted(bool value) {
+    // Only support toggling the value as we should always know which state we
+    // are in.
+    DCHECK_EQ(value, !will_be_promoted());
     flags_ = WillBePromotedField::update(flags_, value);
   }
 
@@ -222,8 +225,9 @@ class MemoryChunkMetadata {
   using IsLargePageField = IsPreeFreedField::Next<bool, 1>;
   // Indicates whether the memory chunk is executable or not.
   using IsExecutableField = IsLargePageField::Next<bool, 1>;
-  // A new space page that will be promoted to old space by the end of the GC.
-  // This flag should only ever be set during a Scavenge cycle.
+  // The memory chunk is flagged to be promoted from the young to the old
+  // generation during the final pause of a GC cycle. The flag is used for young
+  // and old generation GCs.
   using WillBePromotedField = IsExecutableField::Next<bool, 1>;
 
   static constexpr intptr_t HeapOffset() {

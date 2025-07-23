@@ -7,8 +7,6 @@
 
 #include "src/base/build_config.h"
 #include "src/base/hashing.h"
-#include "src/flags/flags.h"
-#include "src/heap/memory-chunk-constants.h"
 #include "src/init/isolate-group.h"
 
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
@@ -29,20 +27,23 @@ template <typename Next>
 class TurboshaftAssemblerOpInterface;
 }
 
-class Heap;
-class MemoryChunkMetadata;
-class MutablePageMetadata;
-class ReadOnlyPageMetadata;
-class PageMetadata;
-class LargePageMetadata;
 class CodeStubAssembler;
 class ExternalReference;
+class Heap;
+class LargePageMetadata;
+class MemoryChunkMetadata;
+class MutablePageMetadata;
+class PageMetadata;
+class ReadOnlyPageMetadata;
 template <typename T>
 class Tagged;
 class TestDebugHelper;
 
-enum class MarkingMode { kNoMarking, kMinorMarking, kMajorMarking };
-
+// A chunk of memory of any size.
+//
+// For the purpose of the V8 sandbox the chunk can reside in either trusted or
+// untrusted memory. Most information can actually be found on the corresponding
+// metadata object that can be retrieved via `Metadata()` and its friends.
 class V8_EXPORT_PRIVATE MemoryChunk final {
  public:
   // All possible flags that can be set on a page. While the value of flags
@@ -92,10 +93,6 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     LARGE_PAGE = 1u << 10,
     EVACUATION_CANDIDATE = 1u << 11,
     NEVER_EVACUATE = 1u << 12,
-
-    // |PAGE_NEW_OLD_PROMOTION|: A page tagged with this flag has been promoted
-    // from new to old space during evacuation.
-    PAGE_NEW_OLD_PROMOTION = 1u << 13,
 
     // This flag is intended to be used for testing. Works only when both
     // v8_flags.stress_compaction and
@@ -360,6 +357,10 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 
   // Flags that are only mutable from the main thread when no concurrent
   // component (e.g. marker, sweeper, compilation, allocation) is running.
+  //
+  // For the purpose of the V8 sandbox these flags can generally not be trusted.
+  // Only when the chunk is known to live in trusted space the flags are assumed
+  // to be safe from modification.
   MainThreadFlags untrusted_main_thread_flags_;
 
 #ifdef V8_ENABLE_SANDBOX

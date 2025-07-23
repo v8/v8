@@ -30,7 +30,7 @@ void PretenuringHandler::UpdateAllocationSite(
   DCHECK_IMPLIES(v8_flags.sticky_mark_bits || chunk->IsToPage(),
                  v8_flags.minor_ms);
   DCHECK_IMPLIES(!v8_flags.minor_ms && !HeapLayout::InYoungGeneration(object),
-                 chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
+                 chunk->Metadata(heap->isolate())->will_be_promoted());
 #endif
   if (V8_UNLIKELY(!v8_flags.allocation_site_pretenuring) ||
       !AllocationSite::CanTrack(map->instance_type())) {

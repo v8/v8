@@ -64,7 +64,6 @@ PageMetadata* PageMetadata::ConvertNewToOld(PageMetadata* old_page,
   OldSpace* old_space = old_page->heap()->old_space();
   old_page->set_owner(old_space);
   old_page->ClearFlagsNonExecutable(MemoryChunk::kAllFlagsMask);
-  old_page->set_will_be_promoted(false);
   DCHECK_NE(old_space->identity(), SHARED_SPACE);
   old_page->SetOldGenerationPageFlags(
       old_page->heap()->incremental_marking()->marking_mode());

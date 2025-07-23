@@ -27,6 +27,8 @@ class Space;
 
 using ActiveSystemPages = ::heap::base::ActiveSystemPages;
 
+enum class MarkingMode { kNoMarking, kMinorMarking, kMajorMarking };
+
 enum RememberedSetType {
   OLD_TO_NEW,
   OLD_TO_NEW_BACKGROUND,

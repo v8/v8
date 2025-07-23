@@ -407,7 +407,6 @@ void HeapVerification::VerifyPage(const MemoryChunkMetadata* chunk_metadata) {
   const MemoryChunk* chunk = chunk_metadata->Chunk();
 
   CHECK(!current_chunk_.has_value());
-  CHECK(!chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
   CHECK(!chunk->IsFlagSet(MemoryChunk::FROM_PAGE));
   CHECK(!chunk_metadata->will_be_promoted());
   CHECK(!chunk->IsQuarantined());

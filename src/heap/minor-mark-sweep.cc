@@ -958,8 +958,10 @@ bool MinorMarkSweepCollector::StartSweepNewSpace() {
       EvacuateExternalPointerReferences(p);
       // free list categories will be relinked by the sweeper after sweeping is
       // done.
+      p->set_will_be_promoted(true);
       heap_->new_space()->PromotePageToOldSpace(p,
                                                 FreeMode::kDoNotLinkCategory);
+      p->set_will_be_promoted(false);
       has_promoted_pages = true;
       sweeper()->AddPromotedPage(p);
     } else {

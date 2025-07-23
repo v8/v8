@@ -4508,11 +4508,15 @@ class Evacuator final : public Malloced {
     }
   }
 
-  static inline EvacuationMode ComputeEvacuationMode(MemoryChunk* chunk) {
+  static inline EvacuationMode ComputeEvacuationMode(
+      const MutablePageMetadata* metadata) {
     // Note: The order of checks is important in this function.
-    if (chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION))
+    if (metadata->will_be_promoted()) {
       return kPageNewToOld;
-    if (chunk->InYoungGeneration()) return kObjectsNewToOld;
+    }
+    if (metadata->Chunk()->InYoungGeneration()) {
+      return kObjectsNewToOld;
+    }
     return kObjectsOldToOld;
   }
 
@@ -4586,15 +4590,15 @@ void Evacuator::EvacuatePage(MutablePageMetadata* page) {
   ReportCompactionProgress(evacuation_time, saved_live_bytes);
   if (v8_flags.trace_evacuation) {
     MemoryChunk* chunk = page->Chunk();
-    PrintIsolate(
-        heap_->isolate(),
-        "evacuation[%p]: page=%p new_space=%d "
-        "page_evacuation=%d executable=%d can_promote=%d "
-        "live_bytes=%" V8PRIdPTR " time=%f success=%d\n",
-        static_cast<void*>(this), static_cast<void*>(page), chunk->InNewSpace(),
-        chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION),
-        page->is_executable(), heap_->new_space()->IsPromotionCandidate(page),
-        saved_live_bytes, evacuation_time, success);
+    PrintIsolate(heap_->isolate(),
+                 "evacuation[%p]: page=%p new_space=%d "
+                 "page_evacuation=%d executable=%d can_promote=%d "
+                 "live_bytes=%" V8PRIdPTR " time=%f success=%d\n",
+                 static_cast<void*>(this), static_cast<void*>(page),
+                 chunk->InNewSpace(), page->will_be_promoted(),
+                 page->is_executable(),
+                 heap_->new_space()->IsPromotionCandidate(page),
+                 saved_live_bytes, evacuation_time, success);
   }
 }
 
@@ -4656,8 +4660,7 @@ void LiveObjectVisitor::VisitMarkedObjectsNoFail(PageMetadata* page,
 }
 
 bool Evacuator::RawEvacuatePage(MutablePageMetadata* page) {
-  MemoryChunk* chunk = page->Chunk();
-  const EvacuationMode evacuation_mode = ComputeEvacuationMode(chunk);
+  const EvacuationMode evacuation_mode = ComputeEvacuationMode(page);
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "FullEvacuator::RawEvacuatePage", "evacuation_mode",
                EvacuationModeName(evacuation_mode), "live_bytes",
@@ -4977,8 +4980,8 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
                                     : MemoryReductionMode::kNone;
     if (ShouldMovePage(page, live_bytes_on_page, memory_reduction_mode) ||
         force_page_promotion || page->Chunk()->IsQuarantined()) {
+      page->set_will_be_promoted(true);
       EvacuateNewToOldSpacePageVisitor::Move(page);
-      page->SetFlagNonExecutable(MemoryChunk::PAGE_NEW_OLD_PROMOTION);
       DCHECK_EQ(heap_->old_space(), page->owner());
       // The move added page->allocated_bytes to the old space, but we are
       // going to sweep the page and add page->live_byte_count.
@@ -5033,7 +5036,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
                      !HeapLayout::InBlackAllocatedPage(object));
       if (marking_state_->IsMarked(object)) {
         heap_->lo_space()->PromoteNewLargeObject(current);
-        current->SetFlagNonExecutable(MemoryChunk::PAGE_NEW_OLD_PROMOTION);
+        current->set_will_be_promoted(true);
         promoted_large_pages_.push_back(current);
         evacuation_items.emplace_back(ParallelWorkItem{}, current);
       }
@@ -5093,17 +5096,11 @@ void MarkCompactCollector::Evacuate() {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_EVACUATE_CLEAN_UP);
 
     for (PageMetadata* p : new_space_evacuation_pages_) {
-      MemoryChunk* chunk = p->Chunk();
       AllocationSpace owner_identity = p->owner_identity();
       USE(owner_identity);
-      if (chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION)) {
-        p->ClearFlagNonExecutable(MemoryChunk::PAGE_NEW_OLD_PROMOTION);
-        // The in-sandbox page flags may be corrupted, so we currently need
-        // this check here to make sure that this doesn't lead to further
-        // confusion about the state of MemoryChunkMetadata objects.
-        // TODO(377724745): if we move (some of) the flags into the trusted
-        // MemoryChunkMetadata object, then this wouldn't be necessary.
-        SBXCHECK_EQ(OLD_SPACE, owner_identity);
+      if (p->will_be_promoted()) {
+        p->set_will_be_promoted(false);
+        DCHECK_EQ(OLD_SPACE, owner_identity);
         sweeper_->AddPage(OLD_SPACE, p);
       } else if (v8_flags.minor_ms) {
         // Sweep non-promoted pages to add them back to the free list.
@@ -5121,8 +5118,8 @@ void MarkCompactCollector::Evacuate() {
     new_space_evacuation_pages_.clear();
 
     for (LargePageMetadata* p : promoted_large_pages_) {
-      DCHECK(p->Chunk()->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
-      p->ClearFlagNonExecutable(MemoryChunk::PAGE_NEW_OLD_PROMOTION);
+      DCHECK(p->will_be_promoted());
+      p->set_will_be_promoted(false);
       Tagged<HeapObject> object = p->GetObject();
       if (!v8_flags.sticky_mark_bits) {
         MarkBit::From(object).Clear();

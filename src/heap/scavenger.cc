@@ -655,6 +655,7 @@ void QuarantinePinnedPages(SemiSpaceNewSpace& new_space) {
       // after sweeping is done.
       new_space.PromotePageToOldSpace(current_page,
                                       FreeMode::kDoNotLinkCategory);
+      current_page->set_will_be_promoted(false);
       DCHECK(!chunk->InYoungGeneration());
     } else {
       new_space.MoveQuarantinedPage(current_page);
