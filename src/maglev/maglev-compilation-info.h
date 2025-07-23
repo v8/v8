@@ -43,8 +43,7 @@ inline bool FlagsMightEnableMaglevTracing() {
          v8_flags.trace_maglev_escape_analysis ||
          v8_flags.trace_maglev_phi_untagging ||
          v8_flags.trace_maglev_regalloc ||
-         v8_flags.trace_maglev_object_tracking ||
-         v8_flags.trace_maglev_truncation || v8_flags.code_comments;
+         v8_flags.trace_maglev_object_tracking || v8_flags.code_comments;
 }
 
 // A list of v8_flag values copied into the MaglevCompilationInfo for

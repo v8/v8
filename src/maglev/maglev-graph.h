@@ -195,6 +195,11 @@ class Graph final : public ZoneObject {
     return may_have_unreachable_blocks_;
   }
 
+  void set_may_have_truncation(bool value = true) {
+    may_have_truncation_ = value;
+  }
+  bool may_have_truncation() const { return may_have_truncation_; }
+
   // Resolve the scope info of a context value.
   // An empty result means we don't statically know the context's scope.
   compiler::OptionalScopeInfoRef TryGetScopeInfo(ValueNode* context);
@@ -301,6 +306,7 @@ class Graph final : public ZoneObject {
   uint32_t object_ids_ = 0;
   bool has_resumable_generator_ = false;
   bool may_have_unreachable_blocks_ = false;
+  bool may_have_truncation_ = false;
   ZoneUnorderedMap<ValueNode*, compiler::OptionalScopeInfoRef> scope_infos_;
   BasicBlock::Id max_block_id_ = 0;
   std::unique_ptr<MaglevGraphLabeller> graph_labeller_ = {};

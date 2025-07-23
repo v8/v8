@@ -120,13 +120,19 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       VerifyGraph(graph);
     }
 
-    // TODO(victorgomes): Add a enable/disable feature to graph processors, so
-    // that we can compile passes that can be disabled by flags.
-    if (v8_flags.maglev_truncation) {
+    if (v8_flags.maglev_truncation && graph->may_have_truncation()) {
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.Maglev.Truncation");
-      GraphProcessor<MaglevTruncationProcessor> truncate(graph);
+      GraphBackwardProcessor<PropagateTruncationProcessor> propagate;
+      propagate.ProcessGraph(graph);
+      PrintGraph(graph, v8_flags.print_maglev_graphs,
+                 "After propagating truncation");
+
+      // TODO(victorgomes): Support identities to flow to next passes?
+      GraphMultiProcessor<TruncationProcessor, SweepIdentityNodes> truncate(
+          TruncationProcessor{graph});
       truncate.ProcessGraph(graph);
+
       PrintGraph(graph, v8_flags.print_maglev_graphs, "After truncation");
       VerifyGraph(graph);
     }

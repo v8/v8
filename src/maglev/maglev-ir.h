@@ -32,6 +32,7 @@
 // TODO(dmercadier): move the Turboshaft utils functions to shared code (in
 // particular, any_of, which is the reason we're including this Turboshaft
 // header)
+#include "src/base/functional/function-ref.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/compiler/turboshaft/utils.h"
@@ -597,6 +598,17 @@ constexpr bool IsTypedArrayStore(Opcode opcode) {
          opcode == Opcode::kStoreDoubleTypedArrayElement;
 }
 
+constexpr bool CanTriggerTruncationPass(Opcode opcode) {
+  switch (opcode) {
+    case Opcode::kTruncateFloat64ToInt32:
+    case Opcode::kCheckedTruncateFloat64ToInt32:
+    case Opcode::kUnsafeTruncateFloat64ToInt32:
+      return true;
+    default:
+      return false;
+  }
+}
+
 constexpr bool CanBeStoreToNonEscapedObject(Opcode opcode) {
   switch (opcode) {
     case Opcode::kStoreMap:
@@ -606,6 +618,18 @@ constexpr bool CanBeStoreToNonEscapedObject(Opcode opcode) {
     case Opcode::kStoreTaggedFieldNoWriteBarrier:
     case Opcode::kStoreContextSlotWithWriteBarrier:
     case Opcode::kStoreFloat64:
+      return true;
+    default:
+      return false;
+  }
+}
+
+constexpr bool HasRangeType(Opcode opcode) {
+  switch (opcode) {
+    case Opcode::kFloat64Add:
+    case Opcode::kFloat64Subtract:
+    case Opcode::kFloat64Multiply:
+    case Opcode::kFloat64Divide:
       return true;
     default:
       return false;
@@ -677,6 +701,16 @@ enum class ValueRepresentation : uint8_t {
   kIntPtr,
   kNone,
 };
+
+inline constexpr bool IsSafeInteger(int64_t value) {
+  return value >= kMinSafeInteger && value <= kMaxSafeInteger;
+}
+
+inline constexpr bool IsSafeInteger(double value) {
+  if (!std::isfinite(value)) return false;
+  if (value != std::trunc(value)) return false;
+  return IsSafeInteger(static_cast<int64_t>(value));
+}
 
 inline constexpr bool IsDoubleRepresentation(ValueRepresentation repr) {
   return repr == ValueRepresentation::kFloat64 ||
@@ -1091,6 +1125,61 @@ NODE_TYPE_LIST(DEFINE_NODE_TYPE_CHECK)
 inline bool NodeTypeMayBeNullOrUndefined(NodeType type) {
   return (static_cast<int>(type) &
           static_cast<int>(NodeType::kNullOrUndefined)) != 0;
+}
+
+struct RangeType {
+  RangeType() = default;
+  RangeType(int64_t min, int64_t max) : is_valid_(true), min_(min), max_(max) {
+    DCHECK(min <= max);
+  }
+  explicit RangeType(int64_t value) : RangeType(value, value) {}
+
+  bool is_valid() const { return is_valid_; }
+
+  int64_t max() const {
+    DCHECK(is_valid_);
+    return max_;
+  }
+
+  int64_t min() const {
+    DCHECK(is_valid_);
+    return min_;
+  }
+
+  static RangeType Join(base::FunctionRef<double(double, double)> op,
+                        RangeType left, RangeType right) {
+    double results[4];
+    results[0] =
+        op(static_cast<double>(left.min()), static_cast<double>(right.min()));
+    results[1] =
+        op(static_cast<double>(left.min()), static_cast<double>(right.max()));
+    results[2] =
+        op(static_cast<double>(left.max()), static_cast<double>(right.min()));
+    results[3] =
+        op(static_cast<double>(left.max()), static_cast<double>(right.max()));
+    double min = *std::min_element(std::begin(results), std::end(results));
+    double max = *std::max_element(std::begin(results), std::end(results));
+    return RangeType(static_cast<int64_t>(min), static_cast<int64_t>(max));
+  }
+
+  bool IsSafeIntegerRange() {
+    if (!is_valid_) return false;
+    return min_ >= kMinSafeInteger && max_ <= kMaxSafeInteger;
+  }
+
+ private:
+  bool is_valid_ = false;
+  int64_t min_ = 0;
+  int64_t max_ = 0;
+};
+
+inline std::ostream& operator<<(std::ostream& os, const RangeType& range) {
+  if (!range.is_valid()) {
+    os << "[-inf, +inf]";
+    return os;
+  }
+  os << "[" << range.min() << ", " << range.max() << "]";
+  return os;
 }
 
 enum class TaggedToFloat64ConversionType : uint8_t {
@@ -2200,10 +2289,11 @@ class NodeBase : public ZoneObject {
       NumTemporariesNeededField::Next<uint8_t, 1>;
  protected:
   // Reserved for intermediate superclasses such as ValueNode.
-  using ReservedField = NumDoubleTemporariesNeededField::Next<bool, 1>;
+  using LastNodeBaseField = NumDoubleTemporariesNeededField;
+  using ReservedFields = LastNodeBaseField::Next<uint8_t, 2>;
   // Subclasses may use the remaining bitfield bits.
   template <class T, int size>
-  using NextBitField = ReservedField::Next<T, size>;
+  using NextBitField = ReservedFields::Next<T, size>;
 
   static constexpr int kMaxInputs = InputCountField::kMax;
 
@@ -2445,7 +2535,7 @@ class NodeBase : public ZoneObject {
     // bitfield start, excluding any spare bits) are equal in the new value.
     const uint64_t base_bitfield_mask =
         ((uint64_t{1} << NextBitField<bool, 1>::kShift) - 1) &
-        ~ReservedField::kMask;
+        ~ReservedFields::kMask;
     DCHECK_EQ(bitfield_ & base_bitfield_mask,
               new_bitfield & base_bitfield_mask);
 #endif
@@ -2710,10 +2800,17 @@ class Node : public NodeBase {
 // All non-control nodes with a result.
 class ValueNode : public Node {
  private:
-  using TaggedResultNeedsDecompressField = NodeBase::ReservedField;
+  using TaggedResultNeedsDecompressField =
+      NodeBase::LastNodeBaseField::Next<bool, 1>;
+  using CanTruncateToInt32Field =
+      TaggedResultNeedsDecompressField::Next<bool, 1>;
+  static_assert(CanTruncateToInt32Field::kShift +
+                    CanTruncateToInt32Field::kSize ==
+                ReservedFields::kShift + ReservedFields::kSize);
 
  protected:
-  using ReservedField = void;
+  using LastNodeBaseField = void;
+  using ReservedFields = void;
 
  public:
   ValueLocation& result() { return result_; }
@@ -2863,6 +2960,14 @@ class ValueNode : public Node {
   constexpr bool decompresses_tagged_result() const { return false; }
 #endif
 
+  constexpr bool can_truncate_to_int32() const {
+    return CanTruncateToInt32Field::decode(bitfield());
+  }
+
+  void set_can_truncate_to_int32(bool value) {
+    set_bitfield(CanTruncateToInt32Field::update(bitfield(), value));
+  }
+
   constexpr ValueRepresentation value_representation() const {
     return properties().value_representation();
   }
@@ -2884,6 +2989,8 @@ class ValueNode : public Node {
         UNREACHABLE();
     }
   }
+
+  RangeType GetRange() const;
 
   compiler::OptionalHeapObjectRef TryGetConstant(
       compiler::JSHeapBroker* broker);
@@ -3593,10 +3700,18 @@ class Float64BinaryNode : public FixedInputValueNodeT<2, Derived> {
   Input& left_input() { return Node::input(kLeftIndex); }
   Input& right_input() { return Node::input(kRightIndex); }
 
+  RangeType range() const { return range_; }
+  void set_range(RangeType r) { range_ = r; }
+
  protected:
   explicit Float64BinaryNode(uint64_t bitfield) : Base(bitfield) {}
 
   void PrintParams(std::ostream&) const {}
+
+  // TODO(victorgomes): This could be in the KNA for more use-precision.
+  // However, for truncation purposes, since it depends on all uses, it is
+  // simpler to store this here.
+  RangeType range_ = {};
 };
 
 #define DEF_OPERATION_NODE_WITH_CALL(Name, Super, OpName)        \

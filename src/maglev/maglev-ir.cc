@@ -240,6 +240,15 @@ void PrintResult(std::ostream& os, const ValueNode* node) {
         os << " 🪦";
       }
     }
+    // Don't print to non float64 nodes, nor to nodes that we bypass the flag.
+    if (node->value_representation() == ValueRepresentation::kFloat64 &&
+        !node->Is<Float64Constant>() && !node->Is<ChangeInt32ToFloat64>()) {
+      if (node->can_truncate_to_int32()) {
+        os << ", can truncate to int32 " << node->GetRange();
+      } else {
+        os << ", cannot truncate to int32";
+      }
+    }
   }
 }
 
@@ -8597,6 +8606,38 @@ std::optional<int32_t> NodeBase::TryGetInt32ConstantInput(int index) {
     return i32->value();
   }
   return {};
+}
+
+RangeType ValueNode::GetRange() const {
+  // TODO(victorgomes): Support other constant nodes.
+  if (Is<Float64Constant>()) {
+    double value = Cast<Float64Constant>()->value().get_scalar();
+    if (!IsSafeInteger(value)) return {};
+    return RangeType(value);
+  }
+  if (properties().is_conversion()) {
+    return input(0).node()->GetRange();
+  }
+  switch (value_representation()) {
+    case ValueRepresentation::kInt32:
+      // TODO(victorgomes): we could be more precise for Int32 operations.
+      return RangeType(INT32_MIN, INT32_MAX);
+    case ValueRepresentation::kFloat64:
+      switch (opcode()) {
+        case Opcode::kFloat64Add:
+          return Cast<Float64Add>()->range();
+        case Opcode::kFloat64Subtract:
+          return Cast<Float64Subtract>()->range();
+        case Opcode::kFloat64Multiply:
+          return Cast<Float64Multiply>()->range();
+        case Opcode::kFloat64Divide:
+          return Cast<Float64Divide>()->range();
+        default:
+          return {};
+      }
+    default:
+      return {};
+  }
 }
 
 }  // namespace maglev

@@ -458,6 +458,8 @@ class MaglevReducer {
   void AttachExceptionHandlerInfo(NodeT* node);
   template <typename NodeT>
   void MarkPossibleSideEffect(NodeT* node);
+  template <typename NodeT>
+  void UpdateRange(NodeT* node);
 
   std::optional<ValueNode*> TryGetConstantAlternative(ValueNode* node);
 

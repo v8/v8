@@ -5,27 +5,116 @@
 #ifndef V8_MAGLEV_MAGLEV_TRUNCATION_H_
 #define V8_MAGLEV_MAGLEV_TRUNCATION_H_
 
+#include <type_traits>
+
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
+#include "src/maglev/maglev-ir.h"
 
 namespace v8 {
 namespace internal {
 namespace maglev {
 
-// The MaglevTruncationProcessor is an optimization pass that replaces
-// floating-point operations with more efficient integer-based equivalents.
-// It inspects the inputs of bitwise operations, which implicitly truncate
-// their operands to 32-bit integers. If a floating-point input node (e.g.,
-// Float64Add) can be proven to produce an integer-representable value, this
-// pass replaces it with its integer counterpart (e.g., Int32Add), thus
-// avoiding expensive floating-point arithmetic and conversions.
-class MaglevTruncationProcessor {
- public:
-  explicit MaglevTruncationProcessor(Graph* graph) : graph_(graph) {}
+template <typename T>
+concept IsValueNodeT = std::is_base_of_v<ValueNode, T>;
 
-  constexpr static int kMaxInteger64Log2 = 64;
-  constexpr static int kMaxSafeIntegerLog2 = 53;
+// This pass propagates updates for the `CanTruncateToInt32` flag.
+// At the end of the pass, if a node has `CanTruncateToInt32` then all its uses
+// can handle the node's output being truncated to an int32. IMPORTANT: This is
+// a necessary, but not sufficient, condition. The actual truncation will only
+// occur if all of the node's inputs can be truncated.
+class PropagateTruncationProcessor {
+ public:
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessBasicBlock(BasicBlock* block) {}
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
+
+  template <IsValueNodeT NodeT>
+  ProcessResult Process(NodeT* node) {
+    // If the output is not a Float64, then it cannot (or doesn't need)
+    // to be truncated. Just propagate that all inputs should not be
+    // truncated.
+    if constexpr (NodeT::kProperties.value_representation() !=
+                  ValueRepresentation::kFloat64) {
+      UnsetCanTruncateToInt32Inputs(node);
+      return ProcessResult::kContinue;
+    }
+    // If the output node is a Float64 and cannot be truncated, then
+    // its inputs cannot be truncated.
+    if (!node->can_truncate_to_int32()) {
+      UnsetCanTruncateToInt32Inputs(node);
+    }
+    // Otherwise don't unset truncation...
+    return ProcessResult::kContinue;
+  }
+
+  // Non-value nodes.
+  template <typename NodeT>
+  ProcessResult Process(NodeT* node) {
+    // Non value nodes does not need to be truncated, but we should
+    // propagate that we do not want to truncate its inputs.
+    UnsetCanTruncateToInt32Inputs(node);
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult Process(Identity* node) { return ProcessResult::kContinue; }
+  ProcessResult Process(Dead* node) { return ProcessResult::kContinue; }
+
+  ProcessResult Process(CheckedTruncateFloat64ToInt32* node) {
+    // We can always truncate the input of this node.
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(TruncateFloat64ToInt32* node) {
+    // We can always truncate the input of this node.
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(UnsafeTruncateFloat64ToInt32* node) {
+    // We can always truncate the input of this node.
+    return ProcessResult::kContinue;
+  }
+
+  void PostProcessGraph(Graph* graph) {}
+
+ private:
+  template <typename NodeT, int I>
+  void UnsetCanTruncateToInt32ForFixedInputNodes(NodeT* node) {
+    if constexpr (I < static_cast<int>(NodeT::kInputCount)) {
+      if constexpr (NodeT::kInputTypes[I] == ValueRepresentation::kFloat64 ||
+                    NodeT::kInputTypes[I] ==
+                        ValueRepresentation::kHoleyFloat64) {
+        node->NodeBase::input(I).node()->set_can_truncate_to_int32(false);
+      }
+      UnsetCanTruncateToInt32ForFixedInputNodes<NodeT, I + 1>(node);
+    }
+  }
+
+  template <typename NodeT>
+  void UnsetCanTruncateToInt32Inputs(NodeT* node) {
+    if constexpr (IsFixedInputNode<NodeT>()) {
+      return UnsetCanTruncateToInt32ForFixedInputNodes<NodeT, 0>(node);
+    }
+#ifdef DEBUG
+    // Non-fixed input nodes don't expect float64 as inputs.
+    for (Input& input : *node) {
+      DCHECK_NE(input.node()->value_representation(),
+                ValueRepresentation::kFloat64);
+    }
+#endif  // DEBUG
+  }
+};
+
+// This pass performs the truncation optimization by replacing floating-point
+// operations with their more efficient integer-based equivalents.
+//
+// A node is truncated if, and only if, both of these conditions are met:
+//  1. It is marked with the `CanTruncateToInt32` flag.
+//  2. All of its inputs have already been converted/truncated to int32.
+class TruncationProcessor {
+ public:
+  explicit TruncationProcessor(Graph* graph) : graph_(graph) {}
 
   void PreProcessGraph(Graph* graph) {}
   void PostProcessBasicBlock(BasicBlock* block) {}
@@ -33,51 +122,49 @@ class MaglevTruncationProcessor {
     return BlockProcessResult::kContinue;
   }
   void PostPhiProcessing() {}
+  void PostProcessGraph(Graph* graph) {}
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
     return ProcessResult::kContinue;
   }
 
-#define BITWISE_BINOP_PROCESS(Name)                                 \
-  ProcessResult Process(Name* node, const ProcessingState& state) { \
-    TruncateInput(node, 0);                                         \
-    TruncateInput(node, 1);                                         \
-    return ProcessResult::kContinue;                                \
+#define PROCESS_BINOP(Op)                                                  \
+  ProcessResult Process(Float64##Op* node, const ProcessingState& state) { \
+    ProcessFloat64BinaryOp<Int32##Op>(node);                               \
+    return ProcessResult::kContinue;                                       \
   }
-  BITWISE_BINOP_PROCESS(Int32BitwiseAnd)
-  BITWISE_BINOP_PROCESS(Int32BitwiseOr)
-  BITWISE_BINOP_PROCESS(Int32BitwiseXor)
-  BITWISE_BINOP_PROCESS(Int32ShiftLeft)
-  BITWISE_BINOP_PROCESS(Int32ShiftRight)
-  BITWISE_BINOP_PROCESS(Int32ShiftRightLogical)
-#undef BITWISE_BINOP_PROCESS
+  PROCESS_BINOP(Add)
+  PROCESS_BINOP(Subtract)
+  PROCESS_BINOP(Multiply)
+  PROCESS_BINOP(Divide)
+#undef PROCESS_BINOP
 
-  ProcessResult Process(Int32BitwiseNot* node, const ProcessingState& state) {
-    TruncateInput(node, 0);
-    return ProcessResult::kContinue;
-  }
-
-  void PostProcessGraph(Graph* graph) {}
+  ProcessResult Process(CheckedTruncateFloat64ToInt32* node,
+                        const ProcessingState& state);
+  ProcessResult Process(TruncateFloat64ToInt32* node,
+                        const ProcessingState& state);
+  ProcessResult Process(UnsafeTruncateFloat64ToInt32* node,
+                        const ProcessingState& state);
 
  private:
   Graph* graph_;
 
-  void TruncateInput(ValueNode* node, int index);
-  void UnsafeTruncateInput(ValueNode* node, int index);
-
-  // TODO(victorgomes): CanTruncate could be calculated during graph building.
-  bool CanTruncate(ValueNode* node);
-  ValueNode* Truncate(ValueNode* node);
-
-  bool IsIntN(ValueNode* node, int nbits);
-  bool IsIntN(double value, int nbits);
+  bool AllInputsAreValid(ValueNode* node);
+  ValueNode* GetUnwrappedInput(ValueNode* node, int index);
+  void UnwrapInputs(ValueNode* node);
 
   template <typename NodeT>
-  ValueNode* OverwriteWith(ValueNode* node);
+  void ProcessFloat64BinaryOp(ValueNode* node) {
+    if (!node->can_truncate_to_int32() || !AllInputsAreValid(node)) return;
+    UnwrapInputs(node);
+    node->OverwriteWith<NodeT>();
+    node->InitializeRegisterData();
+  }
 
   ValueNode* GetTruncatedInt32Constant(double constant);
-  Tagged<Object> GetRootConstant(ValueNode* node);
+
+  bool is_tracing_enabled() { return graph_->is_tracing_enabled(); }
 };
 
 }  // namespace maglev

@@ -618,7 +618,6 @@ DEFINE_BOOL(maglev_pretenure_store_values, true,
             "allocation sites.")
 DEFINE_BOOL(maglev_poly_calls, true, "Support (inlining) polymorphic calls")
 DEFINE_EXPERIMENTAL_FEATURE(maglev_truncation, "Enable Maglev truncation pass")
-DEFINE_BOOL(trace_maglev_truncation, false, "Trace Maglev truncation pass")
 DEFINE_EXPERIMENTAL_FEATURE(maglev_licm, "loop invariant code motion")
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_speculative_hoist_phi_untagging)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inline_api_calls)
@@ -679,6 +678,7 @@ DEFINE_EXPERIMENTAL_FEATURE(maglev_non_eager_inlining,
 DEFINE_EXPERIMENTAL_FEATURE(turbolev_non_eager_inlining,
                             "enable Turbolev non-eager inlining")
 DEFINE_WEAK_IMPLICATION(turbolev_future, turbolev_non_eager_inlining)
+DEFINE_WEAK_IMPLICATION(turbolev_future, maglev_truncation)
 
 DEFINE_STRING(maglev_filter, "*", "optimization filter for the maglev compiler")
 DEFINE_STRING(maglev_print_filter, "*",
