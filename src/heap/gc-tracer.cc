@@ -1662,25 +1662,10 @@ void GCTracer::ReportFullCycleToRecorder() {
       current_.old_generation_consumed_limit;
   event.old_generation_consumed.bytes_current =
       current_.old_generation_consumed_current;
-  event.old_generation_consumed.growing_bytes =
-      current_.old_generation_consumed_current -
-      current_.old_generation_consumed_baseline;
-  event.old_generation_consumed.growing_factor =
-      current_.old_generation_consumed_baseline > 0
-          ? static_cast<double>(event.old_generation_consumed.growing_bytes) /
-                current_.old_generation_consumed_baseline
-          : 0.0;
   // Global Consumed Byes:
   event.global_consumed.bytes_baseline = current_.global_consumed_baseline;
   event.global_consumed.bytes_limit = current_.global_consumed_limit;
   event.global_consumed.bytes_current = current_.global_consumed_current;
-  event.global_consumed.growing_bytes =
-      current_.global_consumed_current - current_.global_consumed_baseline;
-  event.global_consumed.growing_factor =
-      current_.global_consumed_baseline > 0
-          ? static_cast<double>(event.global_consumed.growing_bytes) /
-                current_.global_consumed_baseline
-          : 0.0;
   // Collection Rate:
   if (event.objects.bytes_before == 0) {
     event.collection_rate_in_percent = 0;

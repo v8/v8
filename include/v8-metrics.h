@@ -41,8 +41,6 @@ struct GarbageCollectionLimits {
   int64_t bytes_baseline = -1;
   int64_t bytes_limit = -1;
   int64_t bytes_current = -1;
-  int64_t growing_bytes = -1;
-  double growing_factor = -1;
 };
 
 struct GarbageCollectionFullCycle {
