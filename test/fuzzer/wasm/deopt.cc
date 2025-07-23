@@ -402,6 +402,11 @@ int FuzzIt(base::Vector<const uint8_t> data) {
 
 }  // anonymous namespace
 
+V8_SYMBOL_USED extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
+  v8_fuzzer::FuzzerSupport::InitializeFuzzerSupport(argc, argv);
+  return 0;
+}
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   return FuzzIt({data, size});
 }

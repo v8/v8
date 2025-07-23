@@ -706,6 +706,17 @@ path. Add it with -I<path> to the command line
 #define V8_NODISCARD /* NOT SUPPORTED */
 #endif
 
+
+// Annotate a function to ensure the function is retained in the compiled binary
+// even if it appears to be unused to the compiler.
+#if V8_HAS_ATTRIBUTE_USED && V8_HAS_ATTRIBUTE_VISIBILITY
+#define V8_SYMBOL_USED \
+  __attribute__((used, visibility("default")))
+#else
+#define V8_SYMBOL_USED /* NOT SUPPORTED */
+#endif
+
+
 // The no_unique_address attribute allows tail padding in a non-static data
 // member to overlap other members of the enclosing class (and in the special
 // case when the type is empty, permits it to fully overlap other members). The

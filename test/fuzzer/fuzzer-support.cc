@@ -131,15 +131,3 @@ bool FuzzerSupport::PumpMessageLoop(
 }
 
 }  // namespace v8_fuzzer
-
-// Explicitly specify some attributes to avoid issues with the linker dead-
-// stripping the following function on macOS, as it is not called directly
-// by fuzz target. LibFuzzer runtime uses dlsym() to resolve that function.
-#if V8_OS_DARWIN
-__attribute__((used)) __attribute__((visibility("default")))
-#endif  // V8_OS_DARWIN
-extern "C" int
-LLVMFuzzerInitialize(int* argc, char*** argv) {
-  v8_fuzzer::FuzzerSupport::InitializeFuzzerSupport(argc, argv);
-  return 0;
-}
