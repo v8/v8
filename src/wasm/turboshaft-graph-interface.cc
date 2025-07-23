@@ -8718,6 +8718,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       struct_value = __ WasmAllocateStruct(rtt, imm.struct_type, shared);
     }
 
+    // TODO(jkummerow): If the struct is in new-space (i.e. it is not shared
+    // and not a descriptor), we could skip the write barrier.
     for (uint32_t i = 0; i < imm.struct_type->field_count(); ++i) {
       __ StructSet(struct_value, args[i], imm.struct_type, imm.index, i,
                    compiler::kWithoutNullCheck, {});

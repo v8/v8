@@ -7271,10 +7271,13 @@ class LiftoffCompiler {
       // Skipping the write barrier is safe as long as:
       // (1) {obj} is freshly allocated, and
       // (2) {obj} is in new-space (not pretenured).
+      // There currently is no shared new-space, and descriptors are allocated
+      // in old-space as an optimization.
+      auto write_barrier = type.is_shared || type.is_descriptor()
+                               ? LiftoffAssembler::kNoSkipWriteBarrier
+                               : LiftoffAssembler::kSkipWriteBarrier;
       StoreObjectField(decoder, obj.gp(), no_reg, offset, value, false, pinned,
-                       field_type.kind(),
-                       type.is_shared ? LiftoffAssembler::kNoSkipWriteBarrier
-                                      : LiftoffAssembler::kSkipWriteBarrier);
+                       field_type.kind(), write_barrier);
       pinned.clear(value);
     }
     // If this assert fails then initialization of padding field might be
