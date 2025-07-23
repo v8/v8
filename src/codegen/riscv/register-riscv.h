@@ -65,7 +65,7 @@ namespace internal {
 #define ALLOCATABLE_SIMD128_REGISTERS(V)            \
   V(v1)  V(v2)  V(v3)  V(v4)  V(v5)  V(v6)  V(v7)   \
   V(v10) V(v11) V(v12) V(v13) V(v14) V(v15) V(v16)  \
-  V(v17) V(v18) V(v19) V(v20) V(v21) V(v22) V(v26)  \
+  V(v17) V(v18) V(v19) V(v20) V(v21) V(v22) V(v23)  \
   V(v27) V(v28) V(v29) V(v30) V(v31)
 
 #define ALLOCATABLE_DOUBLE_REGISTERS(V)                              \
@@ -329,10 +329,14 @@ constexpr Register kMaglevFlagsRegister = t6;
 constexpr Register kMaglevExtraScratchRegister = t2;
 
 // kSimd128ScratchReg and kSimd128ScratchReg2 can be used as a register group.
+// kSimd128ScratchReg and kSimd128ScratchReg2 can be used as a register group.
 constexpr VRegister kSimd128ScratchReg = v24;
 constexpr VRegister kSimd128ScratchReg2 = v25;
+// kSimd128ScratchReg3 and kSimd128ScratchReg4 are on even indices and can
+// be used as a register group as long as v9 and v27 are not overwritten,
+// as is the case for some `vcompress` operations.
 constexpr VRegister kSimd128ScratchReg3 = v8;
-constexpr VRegister kSimd128ScratchReg4 = v23;
+constexpr VRegister kSimd128ScratchReg4 = v26;
 constexpr VRegister kSimd128RegZero = kSimd128ScratchReg4;
 
 #ifdef V8_COMPRESS_POINTERS

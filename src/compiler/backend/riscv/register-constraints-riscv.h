@@ -14,6 +14,17 @@ enum class RiscvRegisterConstraint {
   // Destination and source operands of vector operations are not allowed to
   // overlap.
   kNoDestinationSourceOverlap,
+  // Input 0 and 1 are a register group. That is, input 0 is in an even-numbered
+  // register and input 1 is in the next odd-numbered register.
+  kRegisterGroup,
+  // Same as kRegisterGroup, but the group and the destination register must not
+  // overlap.
+  // In theory we could split this entry into two:
+  // 1. a narrowing operation, where the destination would be allowed to be the
+  //   same as input 0, but not input 1.
+  // 2. a widening operation, where the destination would be allowed to be the
+  //   same as input 1, but not input 0.
+  kRegisterGroupNoOverlap,
 };
 
 }  // namespace compiler

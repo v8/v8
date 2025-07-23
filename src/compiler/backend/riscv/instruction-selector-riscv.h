@@ -46,7 +46,7 @@ static int EncodeElementWidth(VSew sew) {
 
 static int EncodeRegisterConstraint(RiscvRegisterConstraint constraint) {
   // The element width is encoded in 3 bits, which leaves us some bits
-  // for asserting that the register requirements are correct.
+  // for asserting that the register constraints are correct.
 #ifdef DEBUG
   static_assert(static_cast<int>(VSew::E64) <= 3);
   DCHECK(static_cast<int>(constraint) <= 0xF);
@@ -1402,28 +1402,32 @@ void InstructionSelector::VisitI16x8SConvertI32x4(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
+  InstructionCode opcode = kRiscvI16x8SConvertI32x4;
   // Request a register group (two adjacent registers starting at an even
   // index). There is nothing special about the registers, as long as they
   // are adjacent and start at an even index.
-  InstructionOperand temps[] = {g.TempFpRegister(v26), g.TempFpRegister(v27)};
-  size_t temp_count = arraysize(temps);
-  Emit(kRiscvI16x8SConvertI32x4, g.DefineAsRegister(node),
-       g.UseRegister(op.input(0)), g.UseRegister(op.input(1)), temp_count,
-       temps);
+  // Fixed registers also ensure that the inputs don't overlap with the output.
+  auto input0 = g.UseFixed(op.input(0), v26);
+  auto input1 = g.UseFixed(op.input(1), v27);
+  opcode |= EncodeRegisterConstraint(
+      RiscvRegisterConstraint::kRegisterGroupNoOverlap);
+  Emit(opcode, g.DefineAsRegister(node), input0, input1);
 }
 
 void InstructionSelector::VisitI16x8UConvertI32x4(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
+  InstructionCode opcode = kRiscvI16x8UConvertI32x4;
   // Request a register group (two adjacent registers starting at an even
   // index). There is nothing special about the registers, as long as they
   // are adjacent and start at an even index.
-  InstructionOperand temps[] = {g.TempFpRegister(v26), g.TempFpRegister(v27)};
-  size_t temp_count = arraysize(temps);
-  Emit(kRiscvI16x8UConvertI32x4, g.DefineAsRegister(node),
-       g.UseRegister(op.input(0)), g.UseRegister(op.input(1)), temp_count,
-       temps);
+  // Fixed registers also ensure that the inputs don't overlap with the output.
+  auto input0 = g.UseFixed(op.input(0), v26);
+  auto input1 = g.UseFixed(op.input(1), v27);
+  opcode |= EncodeRegisterConstraint(
+      RiscvRegisterConstraint::kRegisterGroupNoOverlap);
+  Emit(opcode, g.DefineAsRegister(node), input0, input1);
 }
 
 void InstructionSelector::VisitI8x16RoundingAverageU(OpIndex node) {
@@ -1438,64 +1442,56 @@ void InstructionSelector::VisitI8x16SConvertI16x8(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
+  InstructionCode opcode = kRiscvI8x16SConvertI16x8;
   // Request a register group (two adjacent registers starting at an even
   // index). There is nothing special about the registers, as long as they
   // are adjacent and start at an even index.
-  InstructionOperand temps[] = {g.TempFpRegister(v26), g.TempFpRegister(v27)};
-  size_t temp_count = arraysize(temps);
-  Emit(kRiscvI8x16SConvertI16x8, g.DefineAsRegister(node),
-       g.UseRegister(op.input(0)), g.UseRegister(op.input(1)), temp_count,
-       temps);
+  // Fixed registers also ensure that the inputs don't overlap with the output.
+  auto input0 = g.UseFixed(op.input(0), v26);
+  auto input1 = g.UseFixed(op.input(1), v27);
+  opcode |= EncodeRegisterConstraint(
+      RiscvRegisterConstraint::kRegisterGroupNoOverlap);
+  Emit(opcode, g.DefineAsRegister(node), input0, input1);
 }
 
 void InstructionSelector::VisitI8x16UConvertI16x8(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
+  InstructionCode opcode = kRiscvI8x16UConvertI16x8;
   // Request a register group (two adjacent registers starting at an even
   // index). There is nothing special about the registers, as long as they
   // are adjacent and start at an even index.
-  InstructionOperand temps[] = {g.TempFpRegister(v26), g.TempFpRegister(v27)};
-  size_t temp_count = arraysize(temps);
-  Emit(kRiscvI8x16UConvertI16x8, g.DefineAsRegister(node),
-       g.UseRegister(op.input(0)), g.UseRegister(op.input(1)), temp_count,
-       temps);
+  // Fixed registers also ensure that the inputs don't overlap with the output.
+  auto input0 = g.UseFixed(op.input(0), v26);
+  auto input1 = g.UseFixed(op.input(1), v27);
+  opcode |= EncodeRegisterConstraint(
+      RiscvRegisterConstraint::kRegisterGroupNoOverlap);
+  Emit(opcode, g.DefineAsRegister(node), input0, input1);
 }
 
 void InstructionSelector::VisitI16x8RoundingAverageU(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
-  InstructionOperand temp = g.TempFpRegister(v16);
-  InstructionOperand temps[] = {temp, temp, temp};
-  size_t temp_count = arraysize(temps);
   Emit(kRiscvI16x8RoundingAverageU, g.DefineAsRegister(node),
-       g.UseRegister(op.input(0)), g.UseRegister(op.input(1)), temp_count,
-       temps);
+       g.UseRegister(op.input(0)), g.UseRegister(op.input(1)));
 }
 
 void InstructionSelector::VisitI32x4DotI16x8S(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
-  InstructionOperand temps[] = {g.TempFpRegister(v16), g.TempFpRegister(v14),
-                                g.TempFpRegister(v30)};
-  size_t temp_count = arraysize(temps);
   Emit(kRiscvI32x4DotI16x8S, g.DefineAsRegister(node),
-       g.UseRegister(op.input(0)), g.UseRegister(op.input(1)), temp_count,
-       temps);
+       g.UseRegister(op.input(0)), g.UseRegister(op.input(1)));
 }
 
 void InstructionSelector::VisitI16x8DotI8x16I7x16S(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
-  InstructionOperand temps[] = {g.TempFpRegister(v16), g.TempFpRegister(v14),
-                                g.TempFpRegister(v30)};
-  size_t temp_count = arraysize(temps);
   Emit(kRiscvI16x8DotI8x16I7x16S, g.DefineAsRegister(node),
-       g.UseRegister(op.input(0)), g.UseRegister(op.input(1)), temp_count,
-       temps);
+       g.UseRegister(op.input(0)), g.UseRegister(op.input(1)));
 }
 
 void InstructionSelector::VisitI32x4DotI8x16I7x16AddS(OpIndex node) {
