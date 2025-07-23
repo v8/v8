@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-gc --expose-fast-api --allow-natives-syntax --turbofan --deopt-every-n-times=0 --no-always-turbofan --stress-compaction
+// Flags: --expose-gc --expose-fast-api --allow-natives-syntax --turbofan --deopt-every-n-times=0 --stress-compaction
 
 const my_object = {
     toString: function() {

@@ -608,11 +608,6 @@ class SourceProcessor(SourceFileProcessor):
           print("%s Flag --maglev or --turbofan should be set if " \
                 "assertOptimized() is used" % name)
           result = False
-        if ASSERT_UNOPTIMIZED_PATTERN.search(contents) and \
-            not FLAGS_NO_ALWAYS_OPT.search(contents):
-          print("%s Flag --no-always-turbofan should be set if " \
-                "assertUnoptimized() is used" % name)
-          result = False
 
       match = self.runtime_function_call_pattern.search(contents)
       if match:

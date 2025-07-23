@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --sparkplug
-// Flags: --no-always-sparkplug --no-always-turbofan --no-stress-maglev
+// Flags: --no-always-sparkplug --no-stress-maglev
 
 function allocateArray() {
   return [1, 2, 3];
