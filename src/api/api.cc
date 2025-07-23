@@ -10391,10 +10391,15 @@ size_t Isolate::NumberOfHeapSpaces() {
 bool Isolate::GetHeapSpaceStatistics(HeapSpaceStatistics* space_statistics,
                                      size_t index) {
   if (!space_statistics) return false;
+
+  // Embedder may call GetHeapSpaceStatistics() from any thread. Make sure to
+  // set the TLS variable to *this.
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  i::SetCurrentIsolateScope set_current_isolate(i_isolate);
+
   if (!i::Heap::IsValidAllocationSpace(static_cast<i::AllocationSpace>(index)))
     return false;
 
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i::Heap* heap = i_isolate->heap();
 
   heap->FreeMainThreadLinearAllocationAreas();
@@ -10432,6 +10437,10 @@ bool Isolate::GetHeapObjectStatisticsAtLastGC(
   if (V8_LIKELY(!i::TracingFlags::is_gc_stats_enabled())) return false;
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  // Embedder may call GetHeapObjectStatisticsAtLastGC() from any thread. Make
+  // sure to set the TLS variable to *this.
+  i::SetCurrentIsolateScope set_current_isolate(i_isolate);
+
   i::Heap* heap = i_isolate->heap();
   if (type_index >= heap->NumberOfTrackedHeapObjectTypes()) return false;
 
