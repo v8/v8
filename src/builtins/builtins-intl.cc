@@ -336,7 +336,8 @@ Tagged<Object> DisallowCallConstructor(BuiltinArguments args, Isolate* isolate,
   DirectHandle<Object> options = args.atOrUndefined(isolate, 2);
 
   // 3. Return New<T>(t, locales, options).
-  RETURN_RESULT_OR_FAILURE(isolate, T::New(isolate, map, locales, options));
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           T::New(isolate, map, locales, options, method_name));
 }
 
 /**

@@ -242,9 +242,8 @@ JSDurationFormat::Separator GetSeparator(const icu::Locale& l) {
 }  // namespace
 MaybeDirectHandle<JSDurationFormat> JSDurationFormat::New(
     Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
-    DirectHandle<Object> input_options) {
+    DirectHandle<Object> input_options, const char* method_name) {
   Factory* factory = isolate->factory();
-  const char* method_name = "Intl.DurationFormat";
 
   // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   std::vector<std::string> requested_locales;
@@ -999,12 +998,14 @@ MaybeDirectHandle<T> PartitionDurationFormatPattern(
   return Format(isolate, formatted, parts, df->separator());
 }
 
+#ifndef V8_TEMPORAL_SUPPORT
 // #sec-todurationrecord
 // ToDurationRecord is almost the same as temporal::ToPartialDuration
 // except:
 // 1) In the beginning it will throw RangeError if the type of input is String,
 // 2) In the end it will throw RangeError if IsValidDurationRecord return false.
-Maybe<DurationRecord> ToDurationRecord(Isolate* isolate, Handle<Object> input,
+Maybe<DurationRecord> ToDurationRecord(Isolate* isolate,
+                                       DirectHandle<Object> input,
                                        const DurationRecord& default_value) {
   // 1-a. If Type(input) is String, throw a RangeError exception.
   if (IsString(*input)) {
@@ -1016,13 +1017,6 @@ Maybe<DurationRecord> ToDurationRecord(Isolate* isolate, Handle<Object> input,
   DurationRecord record;
   // The Temporal spec patches this; we support both cases and normalize
   // to a DurationRecord
-#ifdef V8_TEMPORAL_SUPPORT
-  // 3. Let duration be ?ToTemporalDuration(durationLike).
-  DirectHandle<JSTemporalDuration> duration;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, record,
-      temporal::ToTemporalDurationAsRecord(isolate, input, "ToDurationRecord"));
-#else
   // Step 1-b - 23. Same as ToTemporalPartialDurationRecord.
   // 3. Let record be ?ToDurationRecord(durationLike).
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -1035,9 +1029,9 @@ Maybe<DurationRecord> ToDurationRecord(Isolate* isolate, Handle<Object> input,
                     NewRangeError(MessageTemplate::kInvalid,
                                   isolate->factory()->object_string(), input));
   }
-#endif
   return Just(record);
 }
+#endif  // V8_TEMPORAL_SUPPORT
 
 template <typename T, bool Details,
           MaybeDirectHandle<T> (*Format)(Isolate*, const icu::FormattedValue&,
@@ -1045,15 +1039,22 @@ template <typename T, bool Details,
                                          JSDurationFormat::Separator)>
 MaybeDirectHandle<T> FormatCommon(Isolate* isolate,
                                   DirectHandle<JSDurationFormat> df,
-                                  Handle<Object> duration,
+                                  DirectHandle<Object> duration,
                                   const char* method_name) {
   // 1. Let df be this value.
   // 2. Perform ? RequireInternalSlot(df, [[InitializedDurationFormat]]).
-  // 3. Let record be ? ToDurationRecord(duration).
   DurationRecord record;
+#ifdef V8_TEMPORAL_SUPPORT
+  // 3. Let duration be ?ToTemporalDuration(durationLike).
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, record,
+      temporal::ToTemporalDurationAsRecord(isolate, duration, method_name));
+#else
+  // 3. Let record be ? ToDurationRecord(duration).
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, record,
       ToDurationRecord(isolate, duration, {0, 0, 0, {0, 0, 0, 0, 0, 0, 0}}));
+#endif
   // 5. Let parts be ! PartitionDurationFormatPattern(df, record).
   return PartitionDurationFormatPattern<T, Details, Format>(isolate, df, record,
                                                             method_name);
@@ -1121,7 +1122,7 @@ MaybeDirectHandle<JSArray> FormattedListToJSArray(
 
 MaybeDirectHandle<String> JSDurationFormat::Format(
     Isolate* isolate, DirectHandle<JSDurationFormat> df,
-    Handle<Object> duration) {
+    DirectHandle<Object> duration) {
   const char* method_name = "Intl.DurationFormat.prototype.format";
   return FormatCommon<String, false, FormattedToString>(isolate, df, duration,
                                                         method_name);
@@ -1129,7 +1130,7 @@ MaybeDirectHandle<String> JSDurationFormat::Format(
 
 MaybeDirectHandle<JSArray> JSDurationFormat::FormatToParts(
     Isolate* isolate, DirectHandle<JSDurationFormat> df,
-    Handle<Object> duration) {
+    DirectHandle<Object> duration) {
   const char* method_name = "Intl.DurationFormat.prototype.formatToParts";
   return FormatCommon<JSArray, true, FormattedListToJSArray>(
       isolate, df, duration, method_name);
@@ -1139,5 +1140,25 @@ const std::set<std::string>& JSDurationFormat::GetAvailableLocales() {
   return JSNumberFormat::GetAvailableLocales();
 }
 
+MaybeDirectHandle<String> JSDurationFormat::TemporalToLocaleString(
+    Isolate* isolate, DirectHandle<JSReceiver> duration,
+    DirectHandle<Object> locales, DirectHandle<Object> options) {
+  const char* method_name = "Temporal.Duration.prototype.toLocaleString";
+  // 3. Let formatter be ? Construct(%Intl.DurationFormat%, « locales,
+  // options »).
+  DirectHandle<JSFunction> constructor(
+      isolate->context()->native_context()->intl_duration_format_function(),
+      isolate);
+  DirectHandle<Map> map =
+      JSFunction::GetDerivedMap(isolate, constructor, constructor)
+          .ToHandleChecked();
+  DirectHandle<JSDurationFormat> df;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, df,
+      JSDurationFormat::New(isolate, map, locales, options, method_name));
+
+  return FormatCommon<String, false, FormattedToString>(isolate, df, duration,
+                                                        method_name);
+}
 }  // namespace internal
 }  // namespace v8

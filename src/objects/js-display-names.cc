@@ -396,8 +396,7 @@ DisplayNamesInternal* CreateInternal(const icu::Locale& locale,
 // ecma402 #sec-Intl.DisplayNames
 MaybeDirectHandle<JSDisplayNames> JSDisplayNames::New(
     Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
-    DirectHandle<Object> input_options) {
-  const char* service = "Intl.DisplayNames";
+    DirectHandle<Object> input_options, const char* service) {
   Factory* factory = isolate->factory();
 
   DirectHandle<JSReceiver> options;

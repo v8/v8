@@ -48,7 +48,9 @@ class JSDateTimeFormat
   CreateDateTimeFormat(Isolate* isolate, DirectHandle<Map> map,
                        DirectHandle<Object> locales,
                        DirectHandle<Object> options, RequiredOption required,
-                       DefaultsOption defaults, const char* service);
+                       DefaultsOption defaults,
+                       MaybeDirectHandle<String> toLocaleStringTimeZone,
+                       const char* service);
 
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSObject> ResolvedOptions(
       Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format);
@@ -91,11 +93,20 @@ class JSDateTimeFormat
       DirectHandle<Object> options, RequiredOption required,
       DefaultsOption defaults, const char* method_name);
 
+#ifdef V8_TEMPORAL_SUPPORT
   // Function to support Temporal
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> TemporalToLocaleString(
       Isolate* isolate, DirectHandle<JSReceiver> temporal,
       DirectHandle<Object> locales, DirectHandle<Object> options,
+      RequiredOption required, DefaultsOption defaults,
       const char* method_name);
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String>
+  TemporalZonedDateTimeToLocaleString(Isolate* isolate,
+                                      DirectHandle<JSReceiver> temporal,
+                                      DirectHandle<Object> locales,
+                                      DirectHandle<Object> options,
+                                      const char* method_name);
+#endif  // V8_TEMPORAL_SUPPORT
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
@@ -125,6 +136,10 @@ class JSDateTimeFormat
   inline void set_time_style(DateTimeStyle time_style);
   inline DateTimeStyle time_style() const;
 
+  inline void set_explicit_components_in_options(
+      int32_t explicit_components_in_options);
+  inline int32_t explicit_components_in_options() const;
+
   // Bit positions in |flags|.
   DEFINE_TORQUE_GENERATED_JS_DATE_TIME_FORMAT_FLAGS()
 
@@ -150,6 +165,10 @@ class JSDateTimeFormat
   DECL_ACCESSORS(icu_simple_date_format, Tagged<Managed<icu::SimpleDateFormat>>)
   DECL_ACCESSORS(icu_date_interval_format,
                  Tagged<Managed<icu::DateIntervalFormat>>)
+
+  // [has_to_locale_string_time_zone]: true if the timezone is set from
+  // toLocaleStringTimeZone
+  DECL_BOOLEAN_ACCESSORS(has_to_locale_string_time_zone)
 
   DECL_PRINTER(JSDateTimeFormat)
 
