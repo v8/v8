@@ -3896,12 +3896,8 @@ void CheckTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
   } else {
     length = ToRegister(length_input());
   }
-  // The index must be a zero-extended Uint32 for this to work.
-#ifdef V8_TARGET_ARCH_RISCV64
-  // All Word32 values are been signed-extended in Register in RISCV.
-  __ ZeroExtendWord(index, index);
-#endif
-  __ AssertZeroExtended(index);
+  // This also handles negative indices.
+  __ SignExtend32To64Bits(index, index);
   __ CompareIntPtrAndJumpIf(
       index, length, kUnsignedGreaterThanEqual,
       __ GetDeoptLabel(this, DeoptimizeReason::kOutOfBounds));

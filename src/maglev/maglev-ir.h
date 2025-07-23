@@ -7770,7 +7770,7 @@ class CheckTypedArrayBounds : public FixedInputNodeT<2, CheckTypedArrayBounds> {
   explicit CheckTypedArrayBounds(uint64_t bitfield) : Base(bitfield) {}
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kUint32, ValueRepresentation::kIntPtr};
+      ValueRepresentation::kInt32, ValueRepresentation::kIntPtr};
 
   static constexpr int kIndexIndex = 0;
   static constexpr int kLengthIndex = 1;
@@ -9012,7 +9012,7 @@ class LoadDoubleDataViewElement
     static constexpr OpProperties kProperties =                        \
         OpProperties::CanRead() | properties;                          \
     static constexpr typename Base::InputTypes kInputTypes{            \
-        ValueRepresentation::kTagged, ValueRepresentation::kUint32};   \
+        ValueRepresentation::kTagged, ValueRepresentation::kInt32};    \
                                                                        \
     static constexpr int kObjectIndex = 0;                             \
     static constexpr int kIndexIndex = 1;                              \
@@ -9060,7 +9060,7 @@ LOAD_TYPED_ARRAY(LoadDoubleTypedArrayElement, OpProperties::Float64(),
     static constexpr OpProperties kProperties =                               \
         OpProperties::CanRead() | properties;                                 \
     static constexpr                                                          \
-        typename Base::InputTypes kInputTypes{ValueRepresentation::kUint32};  \
+        typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};   \
                                                                               \
     static constexpr int kIndexIndex = 0;                                     \
     Input& index_input() { return input(kIndexIndex); }                       \
@@ -9094,36 +9094,36 @@ LOAD_CONSTANT_TYPED_ARRAY(LoadDoubleConstantTypedArrayElement,
 
 #undef LOAD_CONSTANT_TYPED_ARRAY
 
-#define STORE_TYPED_ARRAY(name, properties, type, ...)                     \
-  class name : public FixedInputNodeT<3, name> {                           \
-    using Base = FixedInputNodeT<3, name>;                                 \
-                                                                           \
-   public:                                                                 \
-    explicit name(uint64_t bitfield, ElementsKind elements_kind)           \
-        : Base(bitfield), elements_kind_(elements_kind) {                  \
-      DCHECK(elements_kind ==                                              \
-             v8::internal::compiler::turboshaft::any_of(__VA_ARGS__));     \
-    }                                                                      \
-                                                                           \
-    static constexpr OpProperties kProperties = properties;                \
-    static constexpr typename Base::InputTypes kInputTypes{                \
-        ValueRepresentation::kTagged, ValueRepresentation::kUint32, type}; \
-                                                                           \
-    static constexpr int kObjectIndex = 0;                                 \
-    static constexpr int kIndexIndex = 1;                                  \
-    static constexpr int kValueIndex = 2;                                  \
-    Input& object_input() { return input(kObjectIndex); }                  \
-    Input& index_input() { return input(kIndexIndex); }                    \
-    Input& value_input() { return input(kValueIndex); }                    \
-                                                                           \
-    void SetValueLocationConstraints();                                    \
-    void GenerateCode(MaglevAssembler*, const ProcessingState&);           \
-    void PrintParams(std::ostream&) const {}                               \
-                                                                           \
-    ElementsKind elements_kind() const { return elements_kind_; }          \
-                                                                           \
-   private:                                                                \
-    ElementsKind elements_kind_;                                           \
+#define STORE_TYPED_ARRAY(name, properties, type, ...)                    \
+  class name : public FixedInputNodeT<3, name> {                          \
+    using Base = FixedInputNodeT<3, name>;                                \
+                                                                          \
+   public:                                                                \
+    explicit name(uint64_t bitfield, ElementsKind elements_kind)          \
+        : Base(bitfield), elements_kind_(elements_kind) {                 \
+      DCHECK(elements_kind ==                                             \
+             v8::internal::compiler::turboshaft::any_of(__VA_ARGS__));    \
+    }                                                                     \
+                                                                          \
+    static constexpr OpProperties kProperties = properties;               \
+    static constexpr typename Base::InputTypes kInputTypes{               \
+        ValueRepresentation::kTagged, ValueRepresentation::kInt32, type}; \
+                                                                          \
+    static constexpr int kObjectIndex = 0;                                \
+    static constexpr int kIndexIndex = 1;                                 \
+    static constexpr int kValueIndex = 2;                                 \
+    Input& object_input() { return input(kObjectIndex); }                 \
+    Input& index_input() { return input(kIndexIndex); }                   \
+    Input& value_input() { return input(kValueIndex); }                   \
+                                                                          \
+    void SetValueLocationConstraints();                                   \
+    void GenerateCode(MaglevAssembler*, const ProcessingState&);          \
+    void PrintParams(std::ostream&) const {}                              \
+                                                                          \
+    ElementsKind elements_kind() const { return elements_kind_; }         \
+                                                                          \
+   private:                                                               \
+    ElementsKind elements_kind_;                                          \
   };
 
 STORE_TYPED_ARRAY(StoreIntTypedArrayElement, OpProperties::CanWrite(),
@@ -9151,7 +9151,7 @@ STORE_TYPED_ARRAY(StoreDoubleTypedArrayElement, OpProperties::CanWrite(),
                                                                             \
     static constexpr OpProperties kProperties = properties;                 \
     static constexpr typename Base::InputTypes kInputTypes{                 \
-        ValueRepresentation::kUint32, type};                                \
+        ValueRepresentation::kInt32, type};                                 \
                                                                             \
     static constexpr int kIndexIndex = 0;                                   \
     static constexpr int kValueIndex = 1;                                   \
