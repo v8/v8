@@ -5127,25 +5127,21 @@ MaybeDirectHandle<String> JSTemporalPlainMonthDay::ToLocaleString(
 // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporalmonthday
 Maybe<int64_t> JSTemporalPlainMonthDay::GetEpochMillisecondsFor(
     Isolate* isolate, std::string_view time_zone) {
-  std::unique_ptr<temporal_rs::PlainDate> date;
+  std::unique_ptr<temporal_rs::TimeZone> tz;
+  MOVE_RETURN_ON_EXCEPTION(isolate, tz,
+                           temporal::ToRustTimeZone(isolate, time_zone));
 
-  auto partial_date = temporal::kNullPartialDate;
-  // TODO(manishearth, 432343766): We should ideally be using refYear here
-  // but it is not exposed yet.
-  //
-  // See: https://github.com/boa-dev/temporal/issues/410
-  //
-  // to_plain_date needs some year to be set. GetEpochMillisecondsFor is used
-  // in DateTimeFormat where the year should not be getting displayed anyway, so
-  // ideally it does not matter. Using iso year here may lead to errors in
-  // non-Gregorian calendars; but this should be fixed before we start caring
-  // about those.
-  partial_date.year = month_day()->raw()->iso_year();
-  MOVE_RETURN_ON_EXCEPTION(
-      isolate, date,
-      ExtractRustResult(isolate,
-                        month_day()->raw()->to_plain_date(partial_date)));
-  return temporal::GetEpochMillisecondsForDate(isolate, *date, time_zone);
+#ifdef TEMPORAL_CAPI_VERSION_0_0_11
+  int64_t microsecond;
+  // The API says get_epoch_ns_for but it's actually returning milliseconds
+  // https://github.com/boa-dev/temporal/pull/443
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, microsecond, ExtractRustResult(isolate,
+                           this->month_day()->raw()->epoch_ns_for(*tz)));
+  return Just(microsecond / 1000);
+#else
+  return ExtractRustResult(isolate,
+                           this->month_day()->raw()->epoch_ms_for(*tz));
+#endif
 }
 
 MaybeDirectHandle<JSTemporalPlainYearMonth>
@@ -5420,23 +5416,21 @@ MaybeDirectHandle<String> JSTemporalPlainYearMonth::ToLocaleString(
 // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporalyearmonth
 Maybe<int64_t> JSTemporalPlainYearMonth::GetEpochMillisecondsFor(
     Isolate* isolate, std::string_view time_zone) {
-  std::unique_ptr<temporal_rs::PlainDate> date;
+  std::unique_ptr<temporal_rs::TimeZone> tz;
+  MOVE_RETURN_ON_EXCEPTION(isolate, tz,
+                           temporal::ToRustTimeZone(isolate, time_zone));
 
-  auto partial_date = temporal::kNullPartialDate;
-  // TODO(manishearth): We should ideally be using refDay here
-  // but it is not exposed yet.
-  //
-  // See: https://github.com/boa-dev/temporal/issues/410
-  //
-  // to_plain_date needs some day to be set. GetEpochMillisecondsFor is used
-  // in DateTimeFormat where the day should not be getting displayed anyway, so
-  // ideally it does not matter.
-  partial_date.day = 1;
-  MOVE_RETURN_ON_EXCEPTION(
-      isolate, date,
-      ExtractRustResult(isolate,
-                        year_month()->raw()->to_plain_date(partial_date)));
-  return temporal::GetEpochMillisecondsForDate(isolate, *date, time_zone);
+#ifdef TEMPORAL_CAPI_VERSION_0_0_11
+  int64_t microsecond;
+  // The API says get_epoch_ns_for but it's actually returning milliseconds
+  // https://github.com/boa-dev/temporal/pull/443
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, microsecond, ExtractRustResult(isolate,
+                           this->year_month()->raw()->epoch_ns_for(*tz)));
+  return Just(microsecond / 1000);
+#else
+  return ExtractRustResult(isolate,
+                           this->year_month()->raw()->epoch_ms_for(*tz));
+#endif
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tojson

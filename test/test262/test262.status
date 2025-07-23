@@ -423,7 +423,6 @@
   'intl402/Temporal/PlainYearMonth/prototype/since/canonicalize-calendar': [FAIL],
   'intl402/Temporal/PlainYearMonth/prototype/subtract/options-undefined': [FAIL],
   'intl402/Temporal/PlainYearMonth/prototype/toLocaleString/calendar-mismatch': [FAIL],
-  'intl402/Temporal/PlainYearMonth/prototype/toLocaleString/dateStyle': [FAIL],
   'intl402/Temporal/PlainYearMonth/prototype/until/canonicalize-calendar': [FAIL],
   'intl402/Temporal/PlainYearMonth/prototype/with/minimum-valid-year-month': [FAIL],
   'intl402/Temporal/PlainYearMonth/prototype/with/non-iso-calendar-fields': [FAIL],
