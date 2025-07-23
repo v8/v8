@@ -84,6 +84,9 @@ extern runtime WasmLiftoffDeoptFinish(NoContext, WasmTrustedInstanceData):
 
 extern runtime PropagateException(NoContext): JSAny;
 extern runtime AllocateInSharedHeap(Context, Smi, Smi): HeapObject;
+
+extern runtime WasmConfigureAllPrototypesOpt(
+    Context, Object, JSAny, WasmTrustedInstanceData): Object;
 }
 
 extern operator '.wasm_exported_function_data' macro
@@ -498,6 +501,14 @@ builtin WasmTraceEnter(): JSAny {
 
 builtin WasmTraceExit(info: Smi): JSAny {
   tail runtime::WasmTraceExit(LoadContextFromFrame(), info);
+}
+
+builtin WasmConfigureAllPrototypesOpt(buffer: Object, constructors: JSAny):
+    Object {
+  const instance = LoadInstanceDataFromFrame();
+  const context = LoadContextFromInstanceData(instance);
+  tail runtime::WasmConfigureAllPrototypesOpt(
+      context, buffer, constructors, instance);
 }
 
 builtin WasmAllocateJSArray(implicit context: Context)(size: Smi): JSArray {

@@ -1525,6 +1525,66 @@ class PrototypesSetup_Arrays : public PrototypesSetup {
   uint32_t function_index_{0};
 };
 
+class PrototypesSetup_Sections : public PrototypesSetup {
+ public:
+  PrototypesSetup_Sections(
+      Isolate* isolate, const uint8_t* data_begin, const uint8_t* data_end,
+      DirectHandle<FixedArray> prototypes, uint32_t prototypes_start_index,
+      uint32_t prototypes_length, DirectHandle<FixedArray> functions,
+      uint32_t functions_start_index, uint32_t functions_length)
+      : PrototypesSetup(isolate, data_begin, data_end),
+        prototypes_(prototypes),
+        functions_(functions),
+        prototype_index_(prototypes_start_index),
+        prototypes_end_(prototypes_start_index + prototypes_length),
+        function_index_(functions_start_index),
+        functions_end_(functions_start_index + functions_length) {}
+
+ protected:
+  DirectHandle<Object> NextFunctionInternal() override {
+    if (function_index_ >= functions_end_) return {};
+    return direct_handle(functions_->get(function_index_++), isolate());
+  }
+
+  DirectHandle<Object> NextPrototypeInternal() override {
+    if (prototype_index_ >= prototypes_end_) return {};
+    return direct_handle(prototypes_->get(prototype_index_++), isolate());
+  }
+
+ private:
+  DirectHandle<FixedArray> prototypes_;
+  DirectHandle<FixedArray> functions_;
+  uint32_t prototype_index_;
+  uint32_t prototypes_end_;
+  uint32_t function_index_;
+  uint32_t functions_end_;
+};
+
+MaybeDirectHandle<FixedArray> GetElementSegment(
+    Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance,
+    uint32_t segment_index) {
+  Tagged<Object> segment_raw = instance->element_segments()->get(segment_index);
+  if (IsFixedArray(segment_raw)) {
+    return {Cast<FixedArray>(segment_raw), isolate};
+  }
+
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+  DirectHandle<WasmTrustedInstanceData> shared_instance =
+      instance->has_shared_part() ? DirectHandle<WasmTrustedInstanceData>(
+                                        instance->shared_part(), isolate)
+                                  : instance;
+  std::optional<MessageTemplate> opt_error =
+      wasm::InitializeElementSegment(&zone, isolate, instance, shared_instance,
+                                     segment_index, wasm::kPrecreateExternal);
+  if (opt_error.has_value()) {
+    ThrowWasmError(isolate, opt_error.value());
+    return {};
+  }
+  return {Cast<FixedArray>(instance->element_segments()->get(segment_index)),
+          isolate};
+}
+
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypes) {
@@ -1567,6 +1627,65 @@ RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypes) {
   PrototypesSetup_Arrays decoder(isolate, immovable_data.data(),
                                  immovable_data.data() + length, prototypes,
                                  functions);
+  return decoder.SetupPrototypes(constructors);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypesOpt) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+
+  uint32_t* stack_buffer = reinterpret_cast<uint32_t*>(args[0].ptr());
+  DirectHandle<JSObject> constructors(Cast<JSObject>(args[1]), isolate);
+  DirectHandle<WasmTrustedInstanceData> instance(
+      Cast<WasmTrustedInstanceData>(args[2]), isolate);
+
+  uint32_t prototypes_start = stack_buffer[0];
+  uint32_t prototypes_length = stack_buffer[1];
+  uint32_t prototypes_segment_index = stack_buffer[2];
+  uint32_t functions_start = stack_buffer[3];
+  uint32_t functions_length = stack_buffer[4];
+  uint32_t functions_segment_index = stack_buffer[5];
+  uint32_t data_start = stack_buffer[6];
+  uint32_t data_length = stack_buffer[7];
+  uint32_t data_segment_index = stack_buffer[8];
+
+  DirectHandle<FixedArray> prototypes_segment;
+  if (!GetElementSegment(isolate, instance, prototypes_segment_index)
+           .ToHandle(&prototypes_segment)) {
+    DCHECK(isolate->has_exception());
+    return ReadOnlyRoots(isolate).exception();
+  }
+  if (!base::IsInBounds<size_t>(prototypes_start, prototypes_length,
+                                prototypes_segment->length())) {
+    return ThrowWasmError(isolate,
+                          MessageTemplate::kWasmTrapElementSegmentOutOfBounds);
+  }
+
+  DirectHandle<FixedArray> functions_segment;
+  if (!GetElementSegment(isolate, instance, functions_segment_index)
+           .ToHandle(&functions_segment)) {
+    DCHECK(isolate->has_exception());
+    return ReadOnlyRoots(isolate).exception();
+  }
+  if (!base::IsInBounds<size_t>(functions_start, functions_length,
+                                functions_segment->length())) {
+    return ThrowWasmError(isolate,
+                          MessageTemplate::kWasmTrapElementSegmentOutOfBounds);
+  }
+
+  if (!base::IsInBounds<uint32_t>(
+          data_start, data_length,
+          instance->data_segment_sizes()->get(data_segment_index))) {
+    return ThrowWasmError(isolate,
+                          MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
+  }
+  Address data_start_address =
+      instance->data_segment_starts()->get(data_segment_index) + data_start;
+  PrototypesSetup_Sections decoder(
+      isolate, reinterpret_cast<const uint8_t*>(data_start_address),
+      reinterpret_cast<const uint8_t*>(data_start_address + data_length),
+      prototypes_segment, prototypes_start, prototypes_length,
+      functions_segment, functions_start, functions_length);
   return decoder.SetupPrototypes(constructors);
 }
 

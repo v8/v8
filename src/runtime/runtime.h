@@ -751,6 +751,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmStringHash, 1, 1)                     \
   F(WasmSubstring, 3, 1)                      \
   F(WasmConfigureAllPrototypes, 4, 1)         \
+  F(WasmConfigureAllPrototypesOpt, 3, 1)      \
   F(DebugCollectWasmCoverage, 0, 1)
 
 #define FOR_EACH_INTRINSIC_WASM_TEST(F, I)                      \

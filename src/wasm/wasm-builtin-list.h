@@ -103,6 +103,7 @@ namespace v8::internal::wasm {
   V(WasmAllocateStructWithRtt)                                                 \
   V(WasmAllocateDescriptorStruct)                                              \
   V(WasmAllocateSharedStructWithRtt)                                           \
+  V(WasmConfigureAllPrototypesOpt)                                             \
   V(WasmOnStackReplace)                                                        \
   V(WasmReject)                                                                \
   V(WasmStringNewWtf8)                                                         \
