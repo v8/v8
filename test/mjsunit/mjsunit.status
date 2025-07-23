@@ -2182,7 +2182,6 @@
   'regress/regress-1120': [SKIP],
   'regress/regress-2346': [SKIP],
   'regress/regress-489151': [SKIP],
-  'regress/regress-crbug-1002628': [SKIP],
   'regress/regress-crbug-454091': [SKIP],
   'regress/regress-crbug-663750': [SKIP],
   'regress/regress-freeze-setter': [SKIP],
