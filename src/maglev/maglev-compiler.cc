@@ -37,6 +37,12 @@
 #include "src/objects/code-inl.h"
 #include "src/objects/js-function.h"
 
+#ifdef ALWAYS_MAGLEV_GRAPH_LABELLER
+#define ALWAYS_MAGLEV_GRAPH_LABELLER_BOOL true
+#else
+#define ALWAYS_MAGLEV_GRAPH_LABELLER_BOOL false
+#endif
+
 namespace v8 {
 namespace internal {
 namespace maglev {
@@ -68,7 +74,8 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
   compiler::CurrentHeapBrokerScope current_broker(compilation_info->broker());
   Graph* graph = Graph::New(compilation_info);
 
-  if (V8_UNLIKELY(compilation_info->is_tracing_enabled())) {
+  if (V8_UNLIKELY(ALWAYS_MAGLEV_GRAPH_LABELLER_BOOL ||
+                  compilation_info->is_tracing_enabled())) {
     compilation_info->set_graph_labeller(new MaglevGraphLabeller());
     graph_labeller_scope.emplace(compilation_info->graph_labeller());
   }

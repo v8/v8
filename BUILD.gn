@@ -158,6 +158,9 @@ declare_args() {
   # Sets -DOBJECT_PRINT.
   v8_enable_object_print = ""
 
+  # Sets -DALWAYS_MAGLEV_GRAPH_LABELLER.
+  v8_always_enable_maglev_graph_labeller = ""
+
   # Sets -DV8_TRACE_MAPS.
   v8_enable_trace_maps = ""
 
@@ -507,6 +510,9 @@ if (v8_enable_verify_heap == "") {
 }
 if (v8_enable_object_print == "") {
   v8_enable_object_print = v8_enable_debugging_features
+}
+if (v8_always_enable_maglev_graph_labeller == "") {
+  v8_always_enable_maglev_graph_labeller = v8_enable_debugging_features
 }
 if (v8_enable_disassembler == "") {
   v8_enable_disassembler = v8_enable_debugging_features
@@ -1193,6 +1199,9 @@ config("features") {
   }
   if (v8_enable_object_print) {
     defines += [ "OBJECT_PRINT" ]
+  }
+  if (v8_always_enable_maglev_graph_labeller) {
+    defines += [ "ALWAYS_MAGLEV_GRAPH_LABELLER" ]
   }
   if (v8_enable_verify_heap) {
     defines += [ "VERIFY_HEAP" ]
