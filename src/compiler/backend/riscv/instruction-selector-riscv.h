@@ -14,6 +14,7 @@
 #include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/backend/instruction-selector.h"
+#include "src/compiler/backend/riscv/register-constraints-riscv.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/turboshaft/operation-matcher.h"
 #include "src/compiler/turboshaft/operations.h"
@@ -33,13 +34,25 @@ static int EncodeElementWidth(VSew sew) {
   // We currently encode the element size in 2 bits.
   // The lane size field has 8 free bits, so there is plenty of room.
   static_assert((0 <= static_cast<int>(VSew::E8)) &&
-                (static_cast<int>(VSew::E8) <= 3));
+                (static_cast<int>(VSew::E64) <= 3));
 #ifdef DEBUG
   // In debug mode, we mark one bit to indicate that the lane size is
   // populated.
   return LaneSizeField::encode(0x4 | sew);
 #else
   return LaneSizeField::encode(sew);
+#endif
+}
+
+static int EncodeRegisterConstraint(RiscvRegisterConstraint constraint) {
+  // The element width is encoded in 3 bits, which leaves us some bits
+  // for asserting that the register requirements are correct.
+#ifdef DEBUG
+  static_assert(static_cast<int>(VSew::E64) <= 3);
+  DCHECK(static_cast<int>(constraint) <= 0xF);
+  return LaneSizeField::encode(static_cast<int>(constraint) << 3);
+#else
+  return 0;
 #endif
 }
 
@@ -1634,8 +1647,11 @@ void InstructionSelector::VisitWord32Clz(OpIndex node) {
     const Operation& op = this->Get(node);                                    \
     DCHECK_EQ(op.input_count, 2);                                             \
     InstructionCode opcode = kRiscvExtMulLowS | EncodeElementWidth(E##TYPE);  \
-    Emit(opcode, g.DefineAsRegister(node), g.UseUniqueRegister(op.input(0)),  \
-         g.UseUniqueRegister(op.input(1)));                                   \
+    auto input0 = g.UseUniqueRegister(op.input(0));                           \
+    auto input1 = g.UseUniqueRegister(op.input(1));                           \
+    opcode |= EncodeRegisterConstraint(                                       \
+        RiscvRegisterConstraint::kNoDestinationSourceOverlap);                \
+    Emit(opcode, g.DefineAsRegister(node), input0, input1);                   \
   }                                                                           \
                                                                               \
   void InstructionSelector::Visit##OPCODE1##ExtMulHigh##OPCODE2##S(           \
@@ -1643,13 +1659,9 @@ void InstructionSelector::VisitWord32Clz(OpIndex node) {
     RiscvOperandGenerator g(this);                                            \
     const Operation& op = this->Get(node);                                    \
     DCHECK_EQ(op.input_count, 2);                                             \
-    InstructionOperand t1 = g.TempFpRegister(v16);                            \
-    InstructionOperand t2 = g.TempFpRegister(v17);                            \
-    InstructionOperand temps[] = {t1, t2};                                    \
-    size_t temp_count = arraysize(temps);                                     \
     InstructionCode opcode = kRiscvExtMulHighS | EncodeElementWidth(E##TYPE); \
-    Emit(opcode, g.DefineAsRegister(node), g.UseUniqueRegister(op.input(0)),  \
-         g.UseUniqueRegister(op.input(1)), temp_count, temps);                \
+    Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),        \
+         g.UseRegister(op.input(1)));                                         \
   }                                                                           \
                                                                               \
   void InstructionSelector::Visit##OPCODE1##ExtMulLow##OPCODE2##U(            \
@@ -1658,8 +1670,11 @@ void InstructionSelector::VisitWord32Clz(OpIndex node) {
     const Operation& op = this->Get(node);                                    \
     DCHECK_EQ(op.input_count, 2);                                             \
     InstructionCode opcode = kRiscvExtMulLowU | EncodeElementWidth(E##TYPE);  \
-    Emit(opcode, g.DefineAsRegister(node), g.UseUniqueRegister(op.input(0)),  \
-         g.UseUniqueRegister(op.input(1)));                                   \
+    auto input0 = g.UseUniqueRegister(op.input(0));                           \
+    auto input1 = g.UseUniqueRegister(op.input(1));                           \
+    opcode |= EncodeRegisterConstraint(                                       \
+        RiscvRegisterConstraint::kNoDestinationSourceOverlap);                \
+    Emit(opcode, g.DefineAsRegister(node), input0, input1);                   \
   }                                                                           \
                                                                               \
   void InstructionSelector::Visit##OPCODE1##ExtMulHigh##OPCODE2##U(           \
@@ -1667,13 +1682,9 @@ void InstructionSelector::VisitWord32Clz(OpIndex node) {
     RiscvOperandGenerator g(this);                                            \
     const Operation& op = this->Get(node);                                    \
     DCHECK_EQ(op.input_count, 2);                                             \
-    InstructionOperand t1 = g.TempFpRegister(v16);                            \
-    InstructionOperand t2 = g.TempFpRegister(v17);                            \
-    InstructionOperand temps[] = {t1, t2};                                    \
-    size_t temp_count = arraysize(temps);                                     \
     InstructionCode opcode = kRiscvExtMulHighU | EncodeElementWidth(E##TYPE); \
-    Emit(opcode, g.DefineAsRegister(node), g.UseUniqueRegister(op.input(0)),  \
-         g.UseUniqueRegister(op.input(1)), temp_count, temps);                \
+    Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),        \
+         g.UseRegister(op.input(1)));                                         \
   }
 
 VISIT_EXT_MUL(I64x2, I32x4, 32)

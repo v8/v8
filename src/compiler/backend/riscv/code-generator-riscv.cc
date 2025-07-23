@@ -11,6 +11,7 @@
 #include "src/compiler/backend/code-generator-impl.h"
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/gap-resolver.h"
+#include "src/compiler/backend/riscv/register-constraints-riscv.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/heap/mutable-page-metadata.h"
@@ -50,6 +51,15 @@ static VSew DecodeElementWidth(int opcode) {
   return static_cast<VSew>(LaneSizeField::decode(opcode) & 0x3);
 #else
   return static_cast<VSew>(LaneSizeField::decode(opcode));
+#endif
+}
+
+static void CheckRegisterConstraint(int opcode,
+                                    RiscvRegisterConstraint constraint) {
+#ifdef DEBUG
+  auto decoded =
+      static_cast<RiscvRegisterConstraint>(LaneSizeField::decode(opcode) >> 3);
+  DCHECK_EQ(constraint, decoded);
 #endif
 }
 
@@ -3750,6 +3760,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvExtMulLowS: {
       auto sew = DecodeElementWidth(opcode);
+      CheckRegisterConstraint(
+          opcode, RiscvRegisterConstraint::kNoDestinationSourceOverlap);
       __ VU.set(kScratchReg, sew, mf2);
       __ vwmul_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
@@ -3761,9 +3773,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       int shift_amount = kRvvVLEN / sew_bits / 2;
       DCHECK(sew == E8 || sew == E16 || sew == E32);
       __ VU.set(kScratchReg, sew, m1);
-      Simd128Register t1 = i.TempSimd128Register(0);
+      static_assert((kSimd128ScratchReg.code() & 1) == 0);
+      static_assert(kSimd128ScratchReg.code() + 1 ==
+                    kSimd128ScratchReg2.code());
+      Simd128Register t1 = kSimd128ScratchReg;
+      Simd128Register t2 = kSimd128ScratchReg2;
       __ vslidedown_vi(t1, i.InputSimd128Register(0), shift_amount);
-      Simd128Register t2 = i.TempSimd128Register(1);
       __ vslidedown_vi(t2, i.InputSimd128Register(1), shift_amount);
       __ VU.set(kScratchReg, sew, mf2);
       __ vwmul_vv(i.OutputSimd128Register(), t1, t2);
@@ -3771,6 +3786,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvExtMulLowU: {
       auto sew = DecodeElementWidth(opcode);
+      CheckRegisterConstraint(
+          opcode, RiscvRegisterConstraint::kNoDestinationSourceOverlap);
       __ VU.set(kScratchReg, sew, mf2);
       __ vwmulu_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputSimd128Register(1));
@@ -3782,9 +3799,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       int shift_amount = kRvvVLEN / sew_bits / 2;
       DCHECK(sew == E8 || sew == E16 || sew == E32);
       __ VU.set(kScratchReg, sew, m1);
-      Simd128Register t1 = i.TempSimd128Register(0);
+      static_assert((kSimd128ScratchReg.code() & 1) == 0);
+      static_assert(kSimd128ScratchReg.code() + 1 ==
+                    kSimd128ScratchReg2.code());
+      Simd128Register t1 = kSimd128ScratchReg;
+      Simd128Register t2 = kSimd128ScratchReg2;
       __ vslidedown_vi(t1, i.InputSimd128Register(0), shift_amount);
-      Simd128Register t2 = i.TempSimd128Register(1);
       __ vslidedown_vi(t2, i.InputSimd128Register(1), shift_amount);
       __ VU.set(kScratchReg, sew, mf2);
       __ vwmulu_vv(i.OutputSimd128Register(), t1, t2);

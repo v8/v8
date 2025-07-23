@@ -328,10 +328,12 @@ constexpr Register kSimulatorBreakArgument = t6;
 constexpr Register kMaglevFlagsRegister = t6;
 constexpr Register kMaglevExtraScratchRegister = t2;
 
+// kSimd128ScratchReg and kSimd128ScratchReg2 can be used as a register group.
 constexpr VRegister kSimd128ScratchReg = v24;
-constexpr VRegister kSimd128ScratchReg2 = v23;
+constexpr VRegister kSimd128ScratchReg2 = v25;
 constexpr VRegister kSimd128ScratchReg3 = v8;
-constexpr VRegister kSimd128RegZero = v25;
+constexpr VRegister kSimd128ScratchReg4 = v23;
+constexpr VRegister kSimd128RegZero = kSimd128ScratchReg4;
 
 #ifdef V8_COMPRESS_POINTERS
 constexpr Register kPtrComprCageBaseRegister = s11;  // callee save
