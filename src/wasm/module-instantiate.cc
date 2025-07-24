@@ -715,7 +715,10 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
   Isolate* isolate = Isolate::Current();
   if (IsWasmSuspendingObject(*callable_)) {
     suspend_ = kSuspend;
-    SetCallable(isolate, Cast<WasmSuspendingObject>(*callable_)->callable());
+    callable_ =
+        handle(Cast<WasmSuspendingObject>(*callable_)->callable(), isolate);
+    return IsJSFunction(*callable_) ? ImportCallKind::kJSFunction
+                                    : ImportCallKind::kUseCallBuiltin;
   }
   if (!trusted_function_data_.is_null() &&
       IsWasmExportedFunctionData(*trusted_function_data_)) {
@@ -785,7 +788,6 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
   // can be used instead of a compiled wrapper; but that requires adding
   // support for calling bound functions to the generic wrapper first.
 
-  // For JavaScript calls, determine whether the target has an arity match.
   if (IsJSFunction(*callable_)) {
     auto function = Cast<JSFunction>(callable_);
     DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate);
