@@ -709,7 +709,9 @@ inline constexpr bool IsSafeInteger(int64_t value) {
 inline constexpr bool IsSafeInteger(double value) {
   if (!std::isfinite(value)) return false;
   if (value != std::trunc(value)) return false;
-  return IsSafeInteger(static_cast<int64_t>(value));
+  double max = static_cast<double>(kMaxSafeInteger);
+  double min = static_cast<double>(kMinSafeInteger);
+  return value >= min && value <= max;
 }
 
 inline constexpr bool IsDoubleRepresentation(ValueRepresentation repr) {
