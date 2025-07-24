@@ -1625,8 +1625,6 @@ DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_simd_opt,
 DEFINE_BOOL(turbolev, false,
             "use Turbolev (≈ Maglev + Turboshaft combined) as the 4th tier "
             "compiler instead of Turbofan")
-// inline_api_calls are not supported by the Turboshaft->Maglev translation.
-DEFINE_NEG_IMPLICATION(turbolev, maglev_inline_api_calls)
 
 DEFINE_EXPERIMENTAL_FEATURE(
     turbolev_future,

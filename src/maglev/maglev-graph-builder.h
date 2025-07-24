@@ -289,6 +289,11 @@ class MaglevGraphBuilder {
     }
   }
 
+  bool is_inline_api_calls_enabled() const {
+    // TODO(victorgomes): Inline API calls are still not supported by Turbolev.
+    return !is_turbolev() && v8_flags.maglev_inline_api_calls;
+  }
+
   bool is_tracing_enabled() const {
     return compilation_unit_->info()->is_tracing_enabled();
   }
