@@ -1126,6 +1126,7 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       CONTRADICTION(disable_optimizing_compilers, stress_maglev),
       CONTRADICTION(disable_optimizing_compilers,
                     turboshaft_wasm_in_js_inlining),
+      CONTRADICTION(jit_fuzzing, max_lazy),
       CONTRADICTION(jitless, maglev_future),
       CONTRADICTION(jitless, stress_concurrent_inlining),
       CONTRADICTION(jitless, stress_concurrent_inlining_attach_code),
