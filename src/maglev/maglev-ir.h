@@ -702,6 +702,14 @@ enum class ValueRepresentation : uint8_t {
   kNone,
 };
 
+inline constexpr bool IsInt64Representable(double value) {
+  constexpr double min = -9223372036854775808.0;  // -2^63.
+  // INT64_MAX (2^63 - 1) is not representable to double, but 2^63 is, so we
+  // check if it is strictly below it.
+  constexpr double max_bound = 9223372036854775808.0;  // 2^63.
+  return value >= min && value < max_bound;
+}
+
 inline constexpr bool IsSafeInteger(int64_t value) {
   return value >= kMinSafeInteger && value <= kMaxSafeInteger;
 }
@@ -1161,6 +1169,7 @@ struct RangeType {
         op(static_cast<double>(left.max()), static_cast<double>(right.max()));
     double min = *std::min_element(std::begin(results), std::end(results));
     double max = *std::max_element(std::begin(results), std::end(results));
+    if (!IsInt64Representable(min) || !IsInt64Representable(max)) return {};
     return RangeType(static_cast<int64_t>(min), static_cast<int64_t>(max));
   }
 
