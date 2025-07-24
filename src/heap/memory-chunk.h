@@ -117,12 +117,6 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     // enabled, the trusted space is located outside of the sandbox and so its
     // content cannot be corrupted by an attacker.
     IS_TRUSTED = 1u << 22,
-
-    // A quarantined page that contains objects reachable from stack during a
-    // scavenge. Quarantined pages are not used for further allocations in new
-    // space (to make it easier to keep track of the intermediate generation).
-    // This flag should only ever be set during a scavenge cycle.
-    IS_QUARANTINED = 1u << 23,
   };
 
   using MainThreadFlags = base::Flags<Flag, uintptr_t>;
@@ -267,8 +261,6 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   bool IsOnlyOldOrMajorMarkingOn() const {
     return GetFlags() & kIsOnlyOldOrMajorGCInProgressMask;
   }
-
-  bool IsQuarantined() const { return IsFlagSet(IS_QUARANTINED); }
 
   V8_INLINE static constexpr bool IsAligned(Address address) {
     return (address & kAlignmentMask) == 0;

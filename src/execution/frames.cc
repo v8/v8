@@ -1546,9 +1546,9 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
         if (is_self_forwarded) {
           // The object might be in a self-forwarding state if it's located
           // in new large object space. GC will fix this at a later stage.
-          CHECK(
-              MemoryChunk::FromHeapObject(forwarded)->InNewLargeObjectSpace() ||
-              MemoryChunk::FromHeapObject(forwarded)->IsQuarantined());
+          const MemoryChunk* chunk = MemoryChunk::FromHeapObject(forwarded);
+          CHECK(chunk->InNewLargeObjectSpace() ||
+                chunk->Metadata(isolate)->is_quarantined());
         } else {
           Tagged<HeapObject> forwarded_map = forwarded->map(cage_base);
           // The map might be forwarded as well.

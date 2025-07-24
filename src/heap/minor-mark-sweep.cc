@@ -961,7 +961,6 @@ bool MinorMarkSweepCollector::StartSweepNewSpace() {
       p->set_will_be_promoted(true);
       heap_->new_space()->PromotePageToOldSpace(p,
                                                 FreeMode::kDoNotLinkCategory);
-      p->set_will_be_promoted(false);
       has_promoted_pages = true;
       sweeper()->AddPromotedPage(p);
     } else {

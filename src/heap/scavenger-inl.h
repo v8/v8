@@ -399,9 +399,12 @@ SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
     // addresses are set with relaxed atomics and before the object is actually
     // copied, it is unfortunately not safe to access `dest` to check whether it
     // is pinned or not.
+#ifdef DEBUG
+    const auto* metadata = MemoryChunkMetadata::FromHeapObject(dest);
     DCHECK_IMPLIES(HeapLayout::InYoungGeneration(dest),
-                   Heap::InToPage(dest) || Heap::IsLargeObject(dest) ||
-                       MemoryChunk::FromHeapObject(dest)->IsQuarantined());
+                   Heap::InToPage(dest) || metadata->is_large() ||
+                       metadata->is_quarantined());
+#endif  // DEBUG
 
     // This load forces us to have memory ordering for the map load above. We
     // need to have the page header properly initialized.

@@ -49,8 +49,8 @@ void MarkCompactCollector::MarkRootObject(
                                                  chunk);
     } else if (chunk->InYoungGeneration() && !chunk->IsLargePage()) {
       DCHECK(chunk->IsToPage());
-      if (!chunk->IsQuarantined()) {
-        metadata->SetFlagNonExecutable(MemoryChunk::IS_QUARANTINED);
+      if (!metadata->is_quarantined()) {
+        metadata->set_is_quarantined(true);
       }
     }
   }

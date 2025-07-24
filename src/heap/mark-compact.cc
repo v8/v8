@@ -1762,9 +1762,13 @@ class EvacuateNewToOldSpacePageVisitor final : public HeapObjectVisitor {
         local_pretenuring_feedback_(local_pretenuring_feedback) {}
 
   static void Move(PageMetadata* page) {
+    page->set_will_be_promoted(true);
     page->heap()->new_space()->PromotePageToOldSpace(
         page, v8_flags.minor_ms ? FreeMode::kDoNotLinkCategory
                                 : FreeMode::kLinkCategory);
+    // The flag is cleared on promoting the page but we need it to be set
+    // throughout the cycle.
+    page->set_will_be_promoted(true);
   }
 
   inline bool Visit(Tagged<HeapObject> object,
@@ -4837,17 +4841,19 @@ bool ShouldMovePage(PageMetadata* p, intptr_t live_bytes,
   Heap* heap = p->heap();
   DCHECK(!p->Chunk()->NeverEvacuate());
   const bool should_move_page =
-      v8_flags.page_promotion &&
-      (memory_reduction_mode == MemoryReductionMode::kNone) &&
-      (live_bytes > NewSpacePageEvacuationThreshold()) &&
-      heap->CanExpandOldGeneration(live_bytes);
+      (v8_flags.page_promotion &&
+       (memory_reduction_mode == MemoryReductionMode::kNone) &&
+       (live_bytes > NewSpacePageEvacuationThreshold()) &&
+       heap->CanExpandOldGeneration(live_bytes)) ||
+      p->is_quarantined();
   if (v8_flags.trace_page_promotions) {
     PrintIsolate(heap->isolate(),
-                 "[Page Promotion] %p: collector=mc, should move: %d"
+                 "[Page Promotion] %p: collector=mc, move: %d"
                  ", live bytes = %zu, promotion threshold = %zu"
-                 ", allocated labs size = %zu\n",
+                 ", allocated labs size = %zu, quarantined=%d\n",
                  p, should_move_page, live_bytes,
-                 NewSpacePageEvacuationThreshold(), p->AllocatedLabSize());
+                 NewSpacePageEvacuationThreshold(), p->AllocatedLabSize(),
+                 p->is_quarantined());
   }
   return should_move_page;
 }
@@ -4919,10 +4925,10 @@ class PrecisePagePinningVisitor final : public RootVisitor {
       // Young gen pages are not considered evacuation candidates. Pinning is
       // done by marking them as quarantined and promoting the page as is.
       DCHECK(v8_flags.minor_ms ? chunk->IsToPage() : chunk->IsFromPage());
-      if (chunk->IsQuarantined()) {
+      if (metadata->is_quarantined()) {
         return;
       }
-      metadata->SetFlagNonExecutable(MemoryChunk::IS_QUARANTINED);
+      metadata->set_is_quarantined(true);
       return;
     }
     if (!chunk->IsFlagSet(MemoryChunk::EVACUATION_CANDIDATE)) {
@@ -4979,8 +4985,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
         heap_->ShouldReduceMemory() ? MemoryReductionMode::kShouldReduceMemory
                                     : MemoryReductionMode::kNone;
     if (ShouldMovePage(page, live_bytes_on_page, memory_reduction_mode) ||
-        force_page_promotion || page->Chunk()->IsQuarantined()) {
-      page->set_will_be_promoted(true);
+        force_page_promotion) {
       EvacuateNewToOldSpacePageVisitor::Move(page);
       DCHECK_EQ(heap_->old_space(), page->owner());
       // The move added page->allocated_bytes to the old space, but we are

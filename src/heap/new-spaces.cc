@@ -312,7 +312,7 @@ void SemiSpace::VerifyPageMetadata() const {
     CHECK(!chunk->IsFlagSet(is_from_space ? MemoryChunk::TO_PAGE
                                           : MemoryChunk::FROM_PAGE));
     CHECK(chunk->IsFlagSet(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING));
-    CHECK(!chunk->IsQuarantined());
+    CHECK(!page->is_quarantined());
     if (!is_from_space) {
       // The pointers-from-here-are-interesting flag isn't updated dynamically
       // on from-space pages, so it might be out of sync with the marking state.
@@ -379,7 +379,7 @@ void SemiSpace::MoveQuarantinedPage(PageMetadata* metadata) {
   // have been swapped. Thus, the quarantined page originates from "from space"
   // and is moved to "to space" to keep pinned objects as live.
   DCHECK_EQ(kToSpace, id_);
-  DCHECK(chunk->IsQuarantined());
+  DCHECK(metadata->is_quarantined());
   DCHECK(!metadata->will_be_promoted());
   DCHECK(chunk->IsFromPage());
 #endif  // DEBUG
@@ -387,7 +387,7 @@ void SemiSpace::MoveQuarantinedPage(PageMetadata* metadata) {
   DCHECK_EQ(&from_space, metadata->owner());
   DCHECK_NE(&from_space, this);
   from_space.RemovePage(metadata);
-  metadata->ClearFlagNonExecutable(MemoryChunk::IS_QUARANTINED);
+  metadata->set_is_quarantined(false);
   metadata->ClearFlagNonExecutable(MemoryChunk::FROM_PAGE);
   metadata->SetFlagNonExecutable(MemoryChunk::TO_PAGE);
   metadata->set_owner(this);
@@ -406,6 +406,10 @@ NewSpace::NewSpace(Heap* heap)
 void NewSpace::PromotePageToOldSpace(PageMetadata* page, FreeMode free_mode) {
   DCHECK(page->will_be_promoted());
   DCHECK(page->Chunk()->InYoungGeneration());
+  if (page->is_quarantined()) {
+    page->set_is_quarantined(false);
+  }
+  page->set_will_be_promoted(false);
   RemovePage(page);
   PageMetadata* new_page = PageMetadata::ConvertNewToOld(page, free_mode);
   DCHECK(!new_page->Chunk()->InYoungGeneration());

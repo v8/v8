@@ -164,6 +164,14 @@ class MemoryChunkMetadata {
     flags_ = WillBePromotedField::update(flags_, value);
   }
 
+  bool is_quarantined() const { return IsQuarantinedField::decode(flags_); }
+  void set_is_quarantined(bool value) {
+    // Only support toggling the value as we should always know which state we
+    // are in.
+    DCHECK_EQ(value, !is_quarantined());
+    flags_ = IsQuarantinedField::update(flags_, value);
+  }
+
  protected:
 #ifdef THREAD_SANITIZER
   // Perform a dummy acquire load to tell TSAN that there is no data race in
@@ -229,6 +237,10 @@ class MemoryChunkMetadata {
   // generation during the final pause of a GC cycle. The flag is used for young
   // and old generation GCs.
   using WillBePromotedField = IsExecutableField::Next<bool, 1>;
+  // A quarantined memory chunk contains objects reachable from stack during a
+  // GC. Quarantined chunks are not used for further allocations in new
+  // space (to make it easier to keep track of the intermediate generation).
+  using IsQuarantinedField = WillBePromotedField::Next<bool, 1>;
 
   static constexpr intptr_t HeapOffset() {
     return offsetof(MemoryChunkMetadata, heap_);
