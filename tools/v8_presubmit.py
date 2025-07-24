@@ -79,7 +79,6 @@ ASSERT_OPTIMIZED_PATTERN = re.compile("assertOptimized")
 FLAGS_ENABLE_MAGLEV = re.compile("//\s*Flags:.*--maglev[^-].*\n")
 FLAGS_ENABLE_TURBOFAN = re.compile("//\s*Flags:.*--turbofan[^-].*\n")
 ASSERT_UNOPTIMIZED_PATTERN = re.compile("assertUnoptimized")
-FLAGS_NO_ALWAYS_OPT = re.compile("//\s*Flags:.*--no-?always-turbofan.*\n")
 
 TOOLS_PATH = dirname(abspath(__file__))
 DEPS_DEPOT_TOOLS_PATH = abspath(

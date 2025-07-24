@@ -168,8 +168,6 @@ void CompileOptimized(DirectHandle<JSFunction> function, ConcurrencyMode mode,
 
   if (mode == ConcurrencyMode::kConcurrent) {
     // No need to start another compile job.
-    // Also, various fuzzing flags like --always-turbofan might already compile
-    // this function in the above Compiler::Compile function.
     if (function->tiering_in_progress() ||
         function->GetActiveTier(isolate) >= target_kind) {
       static_assert(kTieringStateInProgressBlocksTierup);

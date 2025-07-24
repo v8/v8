@@ -206,7 +206,6 @@ DISALLOWED_FLAG_PREFIXES = [
 # No need to list other contradictions, they are omitted by the
 # --fuzzing flag).
 CONTRADICTORY_FLAGS = [
-  ('--always-turbofan', '--jitless'),
   ('--assert-types', '--stress-concurrent-inlining'),
   ('--assert-types', '--stress-concurrent-inlining-attach-code'),
   ('--jitless', '--stress-concurrent-inlining'),

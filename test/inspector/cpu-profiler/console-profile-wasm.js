@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(v8:10266): Figure out why this fails on tsan with --always-turbofan.
 // Flags: --no-turbo-inline-js-wasm-calls
 
 let {session, contextGroup, Protocol} = InspectorTest.start(

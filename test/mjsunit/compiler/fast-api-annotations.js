@@ -5,8 +5,6 @@
 // These tests exercise WebIDL annotations support in the fast API.
 
 // Flags: --turbo-fast-api-calls --expose-fast-api --allow-natives-syntax --turbofan
-// --always-turbofan is disabled because we rely on particular feedback for
-// optimizing to the fastest path.
 // The test relies on optimizing/deoptimizing at predictable moments, so
 // it's not suitable for deoptimization fuzzing.
 // Flags: --deopt-every-n-times=0

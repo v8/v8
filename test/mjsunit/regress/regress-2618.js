@@ -28,7 +28,6 @@
 // Flags: --use-osr --allow-natives-syntax --turbofan
 // Flags: --no-maglev-osr
 
-// Can't OSR with always-turbofan or in Lite mode.
 if (isNeverOptimizeLiteMode()) {
   print("Warning: skipping test that requires optimization in Lite mode.");
   quit(0);

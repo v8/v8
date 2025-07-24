@@ -126,8 +126,8 @@ ALL_VARIANT_FLAGS = {
 # disabled (i.e. not part of the binary), or when all codegen is disallowed (in
 # jitless mode).
 kIncompatibleFlagsForNoTurbofan = [
-    "--turbofan", "--always-turbofan", "--liftoff", "--validate-asm",
-    "--maglev", "--stress-concurrent-inlining"
+    "--turbofan", "--liftoff", "--validate-asm", "--maglev",
+    "--stress-concurrent-inlining"
 ]
 
 # Flags that lead to a contradiction with the flags provided by the respective
@@ -148,7 +148,6 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         ],
     "nooptimization": [
         "--turbofan",
-        "--always-turbofan",
         "--turboshaft",
         "--turboshaft-wasm-in-js-inlining",
         "--maglev",
@@ -195,7 +194,6 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--jitless",
         "--no-maglev",
         "--turbofan",
-        "--always-turbofan",
         "--stress-concurrent-inlining",
     ],
     "stress_maglev": ["--jitless"],
@@ -205,7 +203,6 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--jitless",
         "--no-maglev",
         "--turbofan",
-        "--always-turbofan",
         "--stress-concurrent-inlining",
     ],
     "stress_maglev_tests_with_turbofan": ["--jitless"],

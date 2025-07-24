@@ -243,27 +243,6 @@ class CompilerTracer : public AllStatic {
     PrintTraceSuffix(scope);
   }
 
-  static void TraceOptimizeForAlwaysOpt(Isolate* isolate,
-                                        DirectHandle<JSFunction> function,
-                                        CodeKind code_kind) {
-    if (!v8_flags.trace_opt) return;
-    CodeTracer::Scope scope(isolate->GetCodeTracer());
-    PrintTracePrefix(scope, "optimizing", function, code_kind);
-    PrintF(scope.file(), " because --always-turbofan");
-    PrintTraceSuffix(scope);
-  }
-
-  static void TraceMarkForAlwaysOpt(Isolate* isolate,
-                                    DirectHandle<JSFunction> function) {
-    if (!v8_flags.trace_opt) return;
-    CodeTracer::Scope scope(isolate->GetCodeTracer());
-    PrintF(scope.file(), "[marking ");
-    ShortPrint(*function, scope.file());
-    PrintF(scope.file(),
-           " for optimized recompilation because --always-turbofan");
-    PrintF(scope.file(), "]\n");
-  }
-
  private:
   static void PrintTracePrefix(const CodeTracer::Scope& scope,
                                const char* header,
