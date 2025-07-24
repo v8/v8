@@ -437,6 +437,161 @@ class ScopedTempRegister {
   TempRegisterScope* temp_scope_;
 };
 
+// The Custom Descriptors proposal provides a way to configure JS-side
+// prototypes by calling a compile-time import from the start function,
+// passing three large arrays to it.
+// To speed up that operation, we detect this pattern, and avoid materializing
+// the arrays by instead calling a runtime function that reads the respective
+// element/data segments directly. This class provides the pattern-matching
+// logic.
+class PrototypeSetupSequenceDetector : public Decoder {
+ public:
+  PrototypeSetupSequenceDetector(const uint8_t* start, const uint8_t* end,
+                                 uint32_t offset, const WasmModule* module)
+      : Decoder(start, end, offset), module_(module) {}
+
+  bool DetectSequence(LiftoffAssembler::CacheState* cache_state) {
+    // Look back: we must just have gotten two i32 constants (probably via
+    // i32.const, but as long as they're on the value stack we don't care
+    // how they got there).
+    DCHECK_LE(2, cache_state->stack_height());
+    const LiftoffVarState& start1 = cache_state->stack_state.end()[-2];
+    if (!start1.is_const()) return false;
+    if (start1.kind() != kI32) return false;
+    recorded_constants_[0] = start1.i32_const();
+
+    const LiftoffVarState& length1 = cache_state->stack_state.end()[-1];
+    if (!length1.is_const()) return false;
+    if (length1.kind() != kI32) return false;
+    recorded_constants_[1] = length1.i32_const();
+
+    // Look ahead to the rest of the sequence.
+    //
+    // array.new_elem $array-of-externref
+    if (!ExpectArrayNewSegment(kExprArrayNewElem, array_of_extern,
+                               recorded_constants_[0], recorded_constants_[1],
+                               recorded_constants_[2])) {
+      return false;
+    }
+    // i32.const start
+    // i32.const end
+    if (!ExpectI32Const(recorded_constants_[3])) return false;
+    if (!ExpectI32Const(recorded_constants_[4])) return false;
+    // array.new_elem $array-of-funcref
+    if (!ExpectArrayNewSegment(kExprArrayNewElem, array_of_func,
+                               recorded_constants_[3], recorded_constants_[4],
+                               recorded_constants_[5])) {
+      return false;
+    }
+    // i32.const start
+    // i32.const end
+    if (!ExpectI32Const(recorded_constants_[6])) return false;
+    if (!ExpectI32Const(recorded_constants_[7])) return false;
+    // array.new_data $array-of-i8
+    if (!ExpectArrayNewSegment(kExprArrayNewData, array_of_i8,
+                               recorded_constants_[6], recorded_constants_[7],
+                               recorded_constants_[8])) {
+      return false;
+    }
+    // global.get $constructors
+    if (!ExpectGlobalGetImportedImmutableExternref()) return false;
+    // call $configureAll
+    final_call_position_ = pc_offset();
+    final_call_pc_ = pc();
+    if (!ExpectCallWellKnownImport(WellKnownImport::kConfigureAllPrototypes)) {
+      return false;
+    }
+    return ok();
+  }
+
+  int function_index() const { return function_index_; }
+  int global_offset() const { return global_offset_; }
+  uint32_t final_call_position() const { return final_call_position_; }
+  const uint8_t* final_call_pc() const { return final_call_pc_; }
+  uint32_t recorded_constant(int i) const { return recorded_constants_[i]; }
+
+ private:
+  static constexpr char* kNoTrace = nullptr;
+  static constexpr CanonicalTypeIndex array_of_extern =
+      TypeCanonicalizer::kPredefinedArrayExternRefIndex;
+  static constexpr CanonicalTypeIndex array_of_func =
+      TypeCanonicalizer::kPredefinedArrayFuncRefIndex;
+  static constexpr CanonicalTypeIndex array_of_i8 =
+      TypeCanonicalizer::kPredefinedArrayI8Index;
+
+  static constexpr size_t kNumRecordedConstants = 9;
+
+  bool ExpectArrayNewSegment(WasmOpcode opcode, CanonicalTypeIndex type,
+                             uint32_t start, uint32_t length,
+                             uint32_t& recorded_segment_index) {
+    if (consume_u8() != kGCPrefix) return false;
+    if (consume_u8() != (opcode & 0xFF)) return false;
+    ModuleTypeIndex actual_type{consume_u32v(kNoTrace)};
+    if (!module_->has_array(actual_type)) return false;
+    if (module_->canonical_type_id(actual_type) != type) return false;
+    uint32_t segment_index = consume_u32v(kNoTrace);
+    uint32_t segment_length;
+    ValueType element_type = module_->array_type(actual_type)->element_type();
+    if (element_type.is_ref()) {
+      if (segment_index >= module_->elem_segments.size()) return false;
+      segment_length = module_->elem_segments[segment_index].element_count;
+    } else {
+      if (segment_index >= module_->data_segments.size()) return false;
+      segment_length = module_->data_segments[segment_index].source.length();
+    }
+    if (start > segment_length) return false;
+    if (length > segment_length - start) return false;
+    if (length > static_cast<uint32_t>(
+                     WasmArray::MaxLength(element_type.value_kind_size()))) {
+      return false;
+    }
+    recorded_segment_index = segment_index;
+    return true;
+  }
+
+  bool ExpectI32Const(uint32_t& record) {
+    if (consume_u8() != kExprI32Const) return false;
+    record = consume_i32v(kNoTrace);  // Constant value.
+    return true;
+  }
+
+  bool ExpectGlobalGetImportedImmutableExternref() {
+    if (consume_u8() != kExprGlobalGet) return false;
+    uint32_t global_index = consume_u32v(kNoTrace);
+    if (global_index >= module_->num_imported_globals) return false;
+    const WasmGlobal& global = module_->globals[global_index];
+    if (global.type != kWasmExternRef) return false;
+    if (global.mutability) return false;
+    global_offset_ = global.offset;
+    return true;
+  }
+
+  bool ExpectCallWellKnownImport(WellKnownImport wki) {
+    if (consume_u8() != kExprCallFunction) return false;
+    function_index_ = consume_u32v(kNoTrace);
+    if (function_index_ >= module_->num_imported_functions) return false;
+    // This isn't load bearing (due to code caching, we need to check at
+    // runtime), it's just an early bailout to not emit the fast path when
+    // the dynamic check can't possibly succeed.
+    WellKnownImport current_import_status =
+        module_->type_feedback.well_known_imports.get(function_index_);
+    if (current_import_status != WellKnownImport::kUninstantiated &&
+        current_import_status != wki) {
+      return false;
+    }
+    return true;
+  }
+
+  const WasmModule* module_;
+  uint32_t function_index_{~0u};
+  uint32_t global_offset_{~0u};
+  uint32_t final_call_position_{0};
+  const uint8_t* final_call_pc_{nullptr};
+  // Collects certain constants found while detecting the right sequence,
+  // to be emitted into the fast-path code.
+  std::array<uint32_t, kNumRecordedConstants> recorded_constants_;
+};
+
 class LiftoffCompiler {
  public:
   using ValidationTag = Decoder::NoValidationTag;
@@ -460,6 +615,13 @@ class LiftoffCompiler {
     explicit ElseState(Zone* zone) : label(zone), state(zone) {}
     MovableLabel label;
     LiftoffAssembler::CacheState state;
+  };
+
+  struct FastPathEndState {
+    explicit FastPathEndState(Zone* zone) : label(zone), state(zone) {}
+    MovableLabel label;
+    LiftoffAssembler::CacheState state;
+    const uint8_t* pc{nullptr};
   };
 
   struct TryInfo {
@@ -4275,6 +4437,19 @@ class LiftoffCompiler {
   void CallDirect(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[], Value[]) {
     CallDirect(decoder, imm, args, nullptr, CallJumpMode::kCall);
+
+    if (prototype_setup_end_ != nullptr) {
+      DCHECK_EQ(prototype_setup_end_->pc, decoder->pc());
+      DCHECK_EQ(0, imm.sig->return_count());
+
+      // Emit the end merge of the if/else split we materialized.
+      SCOPED_CODE_COMMENT("End merge of optimized prototype setup");
+      __ MergeFullStackWith(prototype_setup_end_->state);
+      __ cache_state() -> Steal(prototype_setup_end_->state);
+      __ bind(prototype_setup_end_->label.get());
+
+      prototype_setup_end_ = nullptr;  // Done with this sequence.
+    }
   }
 
   void CallIndirect(FullDecoder* decoder, const Value& index_val,
@@ -7689,6 +7864,97 @@ class LiftoffCompiler {
                        const Value& /* offset */, const Value& /* length */,
                        Value* /* result */) {
     FUZZER_HEAVY_INSTRUCTION;
+
+    if (prototype_setup_end_ == nullptr) {
+      PrototypeSetupSequenceDetector matcher(decoder->pc(), decoder->end(),
+                                             decoder->pc_offset(),
+                                             decoder->module_);
+      if (matcher.DetectSequence(__ cache_state())) {
+        // We will now materialize the following control-flow:
+        //
+        //   if (instance_data->well_known_imports()->get(call_target) ==
+        //       WKI::kConfigureAllPrototypes) {
+        //     /* fast-path sequence: call runtime with constant args */
+        //   } else {  // [1]
+        //     /* regular code we would normally generate */
+        //   }         // [2]
+        //
+        // So right now we'll emit everything up to [1], then resume the
+        // usual workflow, until the call instruction at
+        // {prototype_setup_end_->pc} emits the state merging required
+        // for [2].
+        LiftoffRegList pinned;
+        LiftoffRegister tmp1 = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+        LiftoffRegister tmp2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+        ElseState else_state(zone_);
+        prototype_setup_end_ = zone_->New<FastPathEndState>(zone_);
+        prototype_setup_end_->pc = matcher.final_call_pc();
+        {
+          SCOPED_CODE_COMMENT("Check for optimized prototype setup");
+          Register actual = tmp1.gp();
+          LiftoffRegister expected = tmp2;
+          LOAD_TAGGED_PTR_INSTANCE_FIELD(actual, WellKnownImports, pinned);
+          int field_offset =
+              wasm::ObjectAccess::ElementOffsetInTaggedFixedAddressArray(
+                  matcher.function_index());
+          __ LoadFullPointer(actual, actual, field_offset);
+          LoadSmi(expected,
+                  static_cast<int>(WellKnownImport::kConfigureAllPrototypes));
+
+          else_state.state.Split(*__ cache_state());
+          {
+            FREEZE_STATE(merges_managed_manually);
+            __ emit_cond_jump(kNotEqual, else_state.label.get(),
+                              ValueKind::kRef, actual, expected.gp(),
+                              merges_managed_manually);
+          }
+        }
+        {
+          // Now we're in the "if"-block for the fast path.
+          SCOPED_CODE_COMMENT("Optimized prototype setup");
+          LiftoffRegister buffer = tmp1;
+          static constexpr int kNumInts = 9;
+          static constexpr int kBufferSize = kNumInts * kInt32Size;
+          __ AllocateStackSlot(buffer.gp(), kBufferSize);
+          for (int i = 0; i < kNumInts; i++) {
+            LiftoffRegister temp = tmp2;
+            __ LoadConstant(temp, WasmValue(matcher.recorded_constant(i)));
+            __ Store(buffer.gp(), no_reg, i * kInt32Size, temp,
+                     StoreType::kI32Store, pinned);
+          }
+          // Get the "constructors" global.
+          LiftoffRegister global = tmp2;
+          LOAD_TAGGED_PTR_INSTANCE_FIELD(tmp2.gp(), TaggedGlobalsBuffer,
+                                         pinned);
+          __ LoadTaggedPointer(
+              tmp2.gp(), global.gp(), no_reg,
+              wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
+                  matcher.global_offset()));
+
+          CallBuiltin(
+              Builtin::kWasmConfigureAllPrototypesOpt,
+              MakeSig::Params(kIntPtrKind, kRef),
+              {VarState{kIntPtrKind, buffer, 0}, VarState{kRef, global, 0}},
+              matcher.final_call_position());
+          __ DeallocateStackSlot(kBufferSize);
+          static constexpr int kNumDroppedConstants = 2;
+          __ DropValues(kNumDroppedConstants);
+
+          uint32_t stack_depth = __ cache_state() -> stack_height();
+          // The decoder has already dropped start/length and pushed the array.
+          DCHECK_EQ(decoder->stack_size(), stack_depth + 1);
+          prototype_setup_end_->state =
+              __ MergeIntoNewState(__ num_locals(), 0, stack_depth);
+          __ emit_jump(prototype_setup_end_->label.get());
+
+          __ bind(else_state.label.get());
+          __ cache_state() -> Steal(else_state.state);
+          // Now we're in the "else"-block for the regular path. The {call}
+          // instruction at the end of the sequence will emit the final merge.
+        }
+      }
+    }
+
     LiftoffRegList pinned;
 
     LiftoffRegister rtt =
@@ -10390,6 +10656,9 @@ class LiftoffCompiler {
   // Used for merging code generation of subsequent operations (via look-ahead).
   // Set by the first opcode, reset by the second.
   WasmOpcode outstanding_op_ = kNoOutstandingOp;
+  // End of a longer optimized sequence identified via lookahead. Is nullptr
+  // when we're not currently in the middle of such a sequence.
+  FastPathEndState* prototype_setup_end_ = nullptr;
 
   // {supported_types_} is updated in {MaybeBailoutForUnsupportedType}.
   base::EnumSet<ValueKind> supported_types_ = kUnconditionallySupported;

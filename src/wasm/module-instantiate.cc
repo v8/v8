@@ -701,6 +701,15 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
                   ->shared()
                   ->internal_formal_parameter_count_without_receiver(),
               expected_sig->parameter_count());
+    if (preknown_import == WellKnownImport::kConfigureAllPrototypes) {
+      // Note: this relies on no other WKI storing the same Smi in the
+      // FixedArray. If that ever becomes a problem, we could switch to some
+      // unique symbol (in read-only space). As of this writing, there are only
+      // two other users of this array, and they both store HeapObjects.
+      trusted_instance_data->well_known_imports()->set(
+          func_index, Smi::FromInt(static_cast<int>(
+                          WellKnownImport::kConfigureAllPrototypes)));
+    }
     return ImportCallKind::kJSFunction;
   }
   Isolate* isolate = Isolate::Current();
