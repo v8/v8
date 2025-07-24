@@ -235,6 +235,13 @@ MaybeReduceResult MaglevInliner::BuildInlineFunction(
     graph_->add_inlined_bytecode_size(call_site->bytecode_length);
   }
 
+  // This can be invalidated by a previous inlining and it was not propagated to
+  // this node.
+  // TODO(victorgomes): Check if we should maintain this. We could also clear
+  // unstable maps here.
+  call_site->caller_details.known_node_aspects
+      ->any_map_for_any_node_is_unstable = true;
+
   // Create a new graph builder for the inlined function.
   LocalIsolate* local_isolate = broker()->local_isolate_or_isolate();
   MaglevGraphBuilder inner_graph_builder(local_isolate, inner_unit, graph_,

@@ -13477,8 +13477,16 @@ void MaglevGraphBuilder::AddDeoptUse(VirtualObject* vobject) {
       VirtualObject* nested_object =
           current_interpreter_frame_.virtual_objects().FindAllocatedWith(
               nested_allocation);
-      CHECK_NOT_NULL(nested_object);
-      AddDeoptUse(nested_object);
+      if (nested_object == nullptr) {
+        CHECK(is_non_eager_inlining_enabled());
+        // The nested object must have been created by a different inlining and
+        // we cannot see it here in the virtual object list.
+        // TODO(victorgomes): Propagate somehow virtual object lists? For now,
+        // we force the allocation to escape.
+        nested_allocation->ForceEscaping();
+      } else {
+        AddDeoptUse(nested_object);
+      }
     } else if (!IsConstantNode(value->opcode()) &&
                value->opcode() != Opcode::kArgumentsElements &&
                value->opcode() != Opcode::kArgumentsLength &&
