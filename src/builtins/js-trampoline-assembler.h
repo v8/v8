@@ -2,32 +2,33 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_BUILTINS_BUILTINS_LAZY_GEN_H_
-#define V8_BUILTINS_BUILTINS_LAZY_GEN_H_
+#ifndef V8_BUILTINS_JS_TRAMPOLINE_ASSEMBLER_H_
+#define V8_BUILTINS_JS_TRAMPOLINE_ASSEMBLER_H_
 
 #include "src/codegen/code-stub-assembler.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
-class LazyBuiltinsAssembler : public CodeStubAssembler {
+// Provides helpers which assume parameters according to the JavaScript calling
+// conventions (`JSTrampolineDescriptor`).
+class JSTrampolineAssembler : public CodeStubAssembler {
  public:
   using Descriptor = JSTrampolineDescriptor;
 
-  explicit LazyBuiltinsAssembler(compiler::CodeAssemblerState* state)
+  explicit JSTrampolineAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  void GenerateTailCallToJSFunction(TNode<JSFunction> function);
+  void TailCallJSFunction(TNode<JSFunction> function);
 
 #ifdef V8_ENABLE_LEAPTIERING
   template <typename Function>
   void TieringBuiltinImpl(const Function& Impl);
 
 #else
-  void GenerateTailCallToJSCode(TNode<Code> code, TNode<JSFunction> function);
+  void TailCallJSCode(TNode<Code> code, TNode<JSFunction> function);
 
-  void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id,
-                                      TNode<JSFunction> function);
+  void TailCallReturnedCode(Runtime::FunctionId function_id,
+                            TNode<JSFunction> function);
 
   void TailCallRuntimeIfStateEquals(TNode<Uint32T> state,
                                     TieringState expected_state,
@@ -41,7 +42,6 @@ class LazyBuiltinsAssembler : public CodeStubAssembler {
   void CompileLazy(TNode<JSFunction> function, TNode<Context> context);
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
-#endif  // V8_BUILTINS_BUILTINS_LAZY_GEN_H_
+#endif  // V8_BUILTINS_JS_TRAMPOLINE_ASSEMBLER_H_

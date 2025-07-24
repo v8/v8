@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins-lazy-gen.h"
+#include "src/builtins/js-trampoline-assembler.h"
 
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
@@ -16,8 +16,7 @@ namespace internal {
 
 #include "src/codegen/define-code-stub-assembler-macros.inc"
 
-void LazyBuiltinsAssembler::GenerateTailCallToJSFunction(
-    TNode<JSFunction> function) {
+void JSTrampolineAssembler::TailCallJSFunction(TNode<JSFunction> function) {
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto new_target = Parameter<Object>(Descriptor::kNewTarget);
@@ -44,8 +43,8 @@ void LazyBuiltinsAssembler::GenerateTailCallToJSFunction(
 
 #ifndef V8_ENABLE_LEAPTIERING
 
-void LazyBuiltinsAssembler::GenerateTailCallToJSCode(
-    TNode<Code> code, TNode<JSFunction> function) {
+void JSTrampolineAssembler::TailCallJSCode(TNode<Code> code,
+                                           TNode<JSFunction> function) {
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto new_target = Parameter<Object>(Descriptor::kNewTarget);
@@ -58,14 +57,14 @@ void LazyBuiltinsAssembler::GenerateTailCallToJSCode(
   TailCallJSCode(code, context, function, new_target, argc, dispatch_handle);
 }
 
-void LazyBuiltinsAssembler::GenerateTailCallToReturnedCode(
+void JSTrampolineAssembler::TailCallReturnedCode(
     Runtime::FunctionId function_id, TNode<JSFunction> function) {
   auto context = Parameter<Context>(Descriptor::kContext);
   TNode<Code> code = CAST(CallRuntime(function_id, context, function));
-  GenerateTailCallToJSCode(code, function);
+  TailCallJSCode(code, function);
 }
 
-void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
+void JSTrampolineAssembler::MaybeTailCallOptimizedCodeSlot(
     TNode<JSFunction> function, TNode<FeedbackVector> feedback_vector) {
   Label fallthrough(this), may_have_optimized_code(this),
       maybe_needs_logging(this);
@@ -82,14 +81,13 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
   GotoIfNot(
       IsSetWord32(flags, FeedbackVector::kFlagsTieringStateIsAnyRequested),
       &maybe_needs_logging);
-  GenerateTailCallToReturnedCode(Runtime::kCompileOptimized, function);
+  TailCallReturnedCode(Runtime::kCompileOptimized, function);
 
   BIND(&maybe_needs_logging);
   {
     GotoIfNot(IsSetWord32(flags, FeedbackVector::kFlagsLogNextExecution),
               &may_have_optimized_code);
-    GenerateTailCallToReturnedCode(Runtime::kFunctionLogNextExecution,
-                                   function);
+    TailCallReturnedCode(Runtime::kFunctionLogNextExecution, function);
   }
 
   BIND(&may_have_optimized_code);
@@ -112,14 +110,14 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
     // Optimized code is good, get it into the closure and link the closure into
     // the optimized functions list, then tail call the optimized code.
     StoreCodePointerField(function, JSFunction::kCodeOffset, optimized_code);
-    Comment("MaybeTailCallOptimizedCodeSlot:: GenerateTailCallToJSCode");
-    GenerateTailCallToJSCode(optimized_code, function);
+    Comment("MaybeTailCallOptimizedCodeSlot::TailCallJSCode");
+    TailCallJSCode(optimized_code, function);
 
     // Optimized code slot contains deoptimized code, or the code is cleared
     // and tiering state hasn't yet been updated. Evict the code, update the
     // state and re-enter the closure's code.
     BIND(&heal_optimized_code_slot);
-    GenerateTailCallToReturnedCode(Runtime::kHealOptimizedCodeSlot, function);
+    TailCallReturnedCode(Runtime::kHealOptimizedCodeSlot, function);
   }
 
   // Fall-through if the optimized code cell is clear and the tiering state is
@@ -129,7 +127,7 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
 
 #endif  // !V8_ENABLE_LEAPTIERING
 
-void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function,
+void JSTrampolineAssembler::CompileLazy(TNode<JSFunction> function,
                                         TNode<Context> context) {
   // First lookup code, maybe we don't need to compile!
   Label compile_function(this, Label::kDeferred);
@@ -182,7 +180,7 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function,
   // necessary as the dispatch table entry may still contain the CompileLazy
   // builtin at this point (we can only update dispatch table code from C++).
   CallRuntime(Runtime::kInstallSFICode, context, function);
-  GenerateTailCallToJSFunction(function);
+  TailCallJSFunction(function);
 #else
   Label tailcall_code(this), baseline(this);
   TVARIABLE(Code, code);
@@ -205,15 +203,15 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function,
   Goto(&tailcall_code);
 
   BIND(&tailcall_code);
-  GenerateTailCallToJSCode(code.value(), function);
+  TailCallJSCode(code.value(), function);
 #endif  // V8_ENABLE_LEAPTIERING
 
   BIND(&compile_function);
   CallRuntime(Runtime::kCompileLazy, context, function);
-  GenerateTailCallToJSFunction(function);
+  TailCallJSFunction(function);
 }
 
-TF_BUILTIN(CompileLazy, LazyBuiltinsAssembler) {
+TF_BUILTIN(CompileLazy, JSTrampolineAssembler) {
   auto function = Parameter<JSFunction>(Descriptor::kTarget);
   auto context = Parameter<Context>(Descriptor::kContext);
 
@@ -223,7 +221,7 @@ TF_BUILTIN(CompileLazy, LazyBuiltinsAssembler) {
 #ifdef V8_ENABLE_LEAPTIERING
 
 template <typename Function>
-void LazyBuiltinsAssembler::TieringBuiltinImpl(const Function& Impl) {
+void JSTrampolineAssembler::TieringBuiltinImpl(const Function& Impl) {
   auto function = Parameter<JSFunction>(Descriptor::kTarget);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
@@ -256,44 +254,44 @@ void LazyBuiltinsAssembler::TieringBuiltinImpl(const Function& Impl) {
   TailCallJSCode(code, context, function, new_target, argc, dispatch_handle);
 }
 
-TF_BUILTIN(FunctionLogNextExecution, LazyBuiltinsAssembler) {
+TF_BUILTIN(FunctionLogNextExecution, JSTrampolineAssembler) {
   TieringBuiltinImpl([&](TNode<Context> context, TNode<JSFunction> function) {
     CallRuntime(Runtime::kFunctionLogNextExecution, context, function);
   });
 }
 
-TF_BUILTIN(StartMaglevOptimizeJob, LazyBuiltinsAssembler) {
+TF_BUILTIN(StartMaglevOptimizeJob, JSTrampolineAssembler) {
   TieringBuiltinImpl([&](TNode<Context> context, TNode<JSFunction> function) {
     CallRuntime(Runtime::kStartMaglevOptimizeJob, context, function);
   });
 }
 
-TF_BUILTIN(StartTurbofanOptimizeJob, LazyBuiltinsAssembler) {
+TF_BUILTIN(StartTurbofanOptimizeJob, JSTrampolineAssembler) {
   TieringBuiltinImpl([&](TNode<Context> context, TNode<JSFunction> function) {
     CallRuntime(Runtime::kStartTurbofanOptimizeJob, context, function);
   });
 }
 
-TF_BUILTIN(OptimizeMaglevEager, LazyBuiltinsAssembler) {
+TF_BUILTIN(OptimizeMaglevEager, JSTrampolineAssembler) {
   TieringBuiltinImpl([&](TNode<Context> context, TNode<JSFunction> function) {
     CallRuntime(Runtime::kOptimizeMaglevEager, context, function);
   });
 }
 
-TF_BUILTIN(OptimizeTurbofanEager, LazyBuiltinsAssembler) {
+TF_BUILTIN(OptimizeTurbofanEager, JSTrampolineAssembler) {
   TieringBuiltinImpl([&](TNode<Context> context, TNode<JSFunction> function) {
     CallRuntime(Runtime::kOptimizeTurbofanEager, context, function);
   });
 }
 
-TF_BUILTIN(MarkLazyDeoptimized, LazyBuiltinsAssembler) {
+TF_BUILTIN(MarkLazyDeoptimized, JSTrampolineAssembler) {
   TieringBuiltinImpl([&](TNode<Context> context, TNode<JSFunction> function) {
     CallRuntime(Runtime::kMarkLazyDeoptimized, context, function,
                 /* reoptimize */ SmiConstant(false));
   });
 }
 
-TF_BUILTIN(MarkReoptimizeLazyDeoptimized, LazyBuiltinsAssembler) {
+TF_BUILTIN(MarkReoptimizeLazyDeoptimized, JSTrampolineAssembler) {
   TieringBuiltinImpl([&](TNode<Context> context, TNode<JSFunction> function) {
     CallRuntime(Runtime::kMarkLazyDeoptimized, context, function,
                 /* reoptimize */ SmiConstant(true));
@@ -302,13 +300,13 @@ TF_BUILTIN(MarkReoptimizeLazyDeoptimized, LazyBuiltinsAssembler) {
 
 #else
 
-TF_BUILTIN(CompileLazyDeoptimizedCode, LazyBuiltinsAssembler) {
+TF_BUILTIN(CompileLazyDeoptimizedCode, JSTrampolineAssembler) {
   auto function = Parameter<JSFunction>(Descriptor::kTarget);
 
   TNode<Code> code = HeapConstantNoHole(BUILTIN_CODE(isolate(), CompileLazy));
   // Set the code slot inside the JSFunction to CompileLazy.
   StoreCodePointerField(function, JSFunction::kCodeOffset, code);
-  GenerateTailCallToJSCode(code, function);
+  TailCallJSCode(code, function);
 }
 
 #endif  // V8_ENABLE_LEAPTIERING
