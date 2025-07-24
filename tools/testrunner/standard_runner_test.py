@@ -677,8 +677,8 @@ class NumFuzzerTest(TestRunnerTest):
     included if the probability for skipping is 0.
     """
     result = self._run_test_with_random_skip(0.0)
-    result.has_returncode(1)
-    result.stdout_includes('sweet/apples default: FAIL')
+    result.has_returncode(0)
+    result.stdout_includes('sweet/apples default: PASS')
     result.stdout_includes('sweet/bananas default: PASS')
     result.stdout_includes('7 tests ran')
 

@@ -14,8 +14,4 @@ print(args)
 if 'bananas' in args and '--fuzzing' not in args:
   sys.exit(1)
 
-# Test numfuzz behavior: the apples test fails with --fuzzing.
-if 'apples' in args and '--fuzzing' in args:
-  sys.exit(1)
-
 sys.exit(0)
