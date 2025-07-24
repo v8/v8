@@ -388,7 +388,6 @@
   # Calendars that don't care about eras should still return the correct era
   'staging/Intl402/Temporal/old/non-iso-calendars-buddhist': [FAIL],
   'staging/Intl402/Temporal/old/non-iso-calendars-coptic': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-dangi': [FAIL],
   'staging/Intl402/Temporal/old/non-iso-calendars-ethioaa': [FAIL],
   'staging/Intl402/Temporal/old/non-iso-calendars-ethiopic': [FAIL],
   'staging/Intl402/Temporal/old/non-iso-calendars-gregory': [FAIL],
@@ -550,8 +549,6 @@
   # Chinese year 2000 is not a leap year
   'intl402/Temporal/PlainDate/prototype/until/until-across-lunisolar-leap-months': [FAIL],
 
-  # Unknown Chinese calendar issue
-  'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [FAIL],
 
   # Unknown duration rounding issue
   'intl402/Temporal/Duration/prototype/round/adjust-rounded-duration-days': [FAIL],
@@ -576,6 +573,11 @@
   'staging/Intl402/Temporal/old/zdt-round': [FAIL],
   'staging/Intl402/Temporal/old/zdt-tostring': [FAIL],
   'staging/Intl402/Temporal/old/zdt-with': [FAIL],
+
+  # Unknown chinese calendar issue
+
+  'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars-dangi': [FAIL],
 
   # End Temporal test expectations
 
@@ -999,6 +1001,19 @@
   'staging/sm/String/string-code-point-upper-lower-mapping': [FAIL],
   'staging/sm/String/string-upper-lower-mapping': [FAIL],
 }],  # not i18n
+
+
+['system == android', {
+  # Fails on Android (b/433933898):
+  'intl402/Temporal/Instant/prototype/toLocaleString/dateStyle': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/toLocaleString/dateStyle': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/toLocaleString/dateStyle': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/dateStyle': [SKIP],
+
+  # Somehow passes on Android (b/433933898):
+  'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-dangi': [SKIP],
+}], # 'system == android'
 
 ['arch == arm or arch == arm64 or arch == mips64 or arch == mips64el', {
 
