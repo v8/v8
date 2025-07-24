@@ -180,7 +180,7 @@ class BaseCommand(object):
 
   def _abort(self, process, abort_called):
     abort_called[0] = True
-    started_as = self.to_string(relative=True)
+    started_as = self.to_string()
     process_text = 'process %d started as:\n  %s\n' % (process.pid, started_as)
     try:
       logging.warning('Attempting to kill %s', process_text)
@@ -191,7 +191,7 @@ class BaseCommand(object):
   def __str__(self):
     return self.to_string()
 
-  def to_string(self, relative=False):
+  def to_string(self):
     def escape(part):
       # Escape spaces. We may need to escape more characters for this to work
       # properly.
@@ -200,10 +200,7 @@ class BaseCommand(object):
       return part
 
     parts = map(escape, self._to_args_list())
-    cmd = ' '.join(parts)
-    if relative:
-      cmd = cmd.replace(os.getcwd() + os.sep, '')
-    return cmd
+    return ' '.join(parts)
 
   def _to_args_list(self):
     return list(map(str, self.cmd_prefix + [self.shell])) + self.args
