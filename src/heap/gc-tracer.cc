@@ -293,6 +293,7 @@ void GCTracer::StartCycle(GarbageCollector collector,
       DCHECK(!IsInObservablePause());
       break;
   }
+  current_.is_loading = heap_->IsLoading();
 
   if (collector == GarbageCollector::MARK_COMPACTOR) {
     current_.old_generation_consumed_baseline =
@@ -1512,6 +1513,8 @@ void GCTracer::ReportFullCycleToRecorder() {
   v8::metrics::GarbageCollectionFullCycle event;
   event.reason = static_cast<int>(current_.gc_reason);
   event.priority = current_.priority;
+  event.reduce_memory = current_.reduce_memory;
+  event.is_loading = current_.is_loading;
 
   // Managed C++ heap statistics:
   if (cpp_heap) {

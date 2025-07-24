@@ -1993,6 +1993,7 @@ class Heap final {
   void NotifyBackgrounded();
 
   V8_EXPORT_PRIVATE bool ShouldOptimizeForLoadTime() const;
+  V8_EXPORT_PRIVATE bool IsLoading() const;
   void NotifyLoadingStarted();
   void NotifyLoadingEnded();
 
@@ -2486,11 +2487,10 @@ class Heap final {
   // Time that the embedder started loading resources, or kLoadTimeNotLoading.
   std::atomic<double> load_start_time_ms_{kLoadTimeNotLoading};
 
-  bool update_allocation_limits_after_loading_ = false;
   // Full GC may trigger during loading due to overshooting allocation limits.
   // In such cases we may want to update the limits again once loading is
   // actually finished.
-  bool is_full_gc_during_loading_ = false;
+  bool update_allocation_limits_after_loading_ = false;
 
   // On-stack address used for selective consevative stack scanning. No value
   // means that selective conservative stack scanning is not enabled.

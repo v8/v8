@@ -203,6 +203,9 @@ class V8_EXPORT_PRIVATE GCTracer {
     // Memory reduction flag set.
     bool reduce_memory = false;
 
+    // Currently in loading state.
+    bool is_loading = false;
+
     // Size of objects in heap set in constructor.
     size_t start_object_size = 0;
 

@@ -1778,11 +1778,8 @@ void Heap::CollectGarbage(AllocationSpace space,
   });
 
   if ((collector == GarbageCollector::MARK_COMPACTOR) &&
-      is_full_gc_during_loading_) {
-    if (ShouldOptimizeForLoadTime()) {
-      update_allocation_limits_after_loading_ = true;
-    }
-    is_full_gc_during_loading_ = false;
+      ShouldOptimizeForLoadTime()) {
+    update_allocation_limits_after_loading_ = true;
   }
 
   // Epilogue callbacks. These callbacks may trigger GC themselves and thus
@@ -2000,7 +1997,6 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
 
   if (collector == GarbageCollector::MARK_COMPACTOR) {
     DCHECK(incremental_marking()->IsMajorMarking());
-    is_full_gc_during_loading_ = update_allocation_limits_after_loading_;
     RecomputeLimitsAfterLoadingIfNeeded();
     DCHECK(!update_allocation_limits_after_loading_);
   }
@@ -5557,9 +5553,12 @@ bool Heap::AllocationLimitOvershotByLargeMargin() const {
 }
 
 bool Heap::ShouldOptimizeForLoadTime() const {
+  return IsLoading() && !AllocationLimitOvershotByLargeMargin();
+}
+
+bool Heap::IsLoading() const {
   double load_start_time = load_start_time_ms_.load(std::memory_order_relaxed);
   return load_start_time != kLoadTimeNotLoading &&
-         !AllocationLimitOvershotByLargeMargin() &&
          MonotonicallyIncreasingTimeInMs() < load_start_time + kMaxLoadTimeMs;
 }
 

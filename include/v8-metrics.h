@@ -51,6 +51,8 @@ struct GarbageCollectionFullCycle {
   // mixed priority cycle, meaning the Isolate's priority was changed while the
   // cycle was in progress.
   std::optional<v8::Isolate::Priority> priority = std::nullopt;
+  bool reduce_memory = false;
+  bool is_loading = false;
   GarbageCollectionPhases total;
   GarbageCollectionPhases total_cpp;
   GarbageCollectionPhases main_thread;
