@@ -674,7 +674,8 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
 #endif  // V8_ENABLE_DRUMBRAKE
 
   static DirectHandle<WasmTrustedInstanceData> New(
-      Isolate*, DirectHandle<WasmModuleObject>, bool shared);
+      Isolate*, DirectHandle<WasmModuleObject>,
+      std::shared_ptr<wasm::NativeModule>, bool shared);
 
   WasmCodePointer GetCallTarget(uint32_t func_index);
 

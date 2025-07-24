@@ -1681,13 +1681,10 @@ DirectHandle<Tuple2> WasmTrustedInstanceData::GetInterpreterObject(
 
 DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     Isolate* isolate, DirectHandle<WasmModuleObject> module_object,
-    bool shared) {
-  // Read the link to the {std::shared_ptr<NativeModule>} once from the
-  // `module_object` and use it to initialize the fields of the
-  // `WasmTrustedInstanceData`. It will then be stored in a `TrustedManaged` in
-  // the `WasmTrustedInstanceData` where it is safe from manipulation.
-  std::shared_ptr<wasm::NativeModule> native_module =
-      module_object->shared_native_module();
+    std::shared_ptr<wasm::NativeModule> native_module, bool shared) {
+  // We don't read the NativeModule from the WasmModuleObject here to guard
+  // against swapping attacks.
+  DCHECK_EQ(native_module.get(), module_object->native_module());
 
   // Do first allocate all objects that will be stored in instance fields,
   // because otherwise we would have to allocate when the instance is not fully

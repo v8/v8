@@ -276,7 +276,9 @@ Handle<JSObject> CreateImportObjectInternal(
         const WasmGlobal& global =
             module_object->native_module()->module()->globals[import.index];
         DirectHandle<WasmTrustedInstanceData> trusted_data =
-            WasmTrustedInstanceData::New(isolate, module_object, false);
+            WasmTrustedInstanceData::New(isolate, module_object,
+                                         module_object->shared_native_module(),
+                                         false);
         MaybeDirectHandle<WasmGlobalObject> maybe_global_obj =
             WasmGlobalObject::New(isolate, trusted_data,
                                   MaybeHandle<JSArrayBuffer>(),
