@@ -3094,11 +3094,12 @@ void WasmImportData::WasmImportDataPrint(std::ostream& os) {
 
 void WasmInternalFunction::WasmInternalFunctionPrint(std::ostream& os) {
   PrintHeader(os, "WasmInternalFunction");
-  os << "\n - call target: "
-     << wasm::GetProcessWideWasmCodePointerTable()
-            ->GetEntrypointWithoutSignatureCheck(call_target());
   os << "\n - implicit arg: " << Brief(implicit_arg());
   os << "\n - external: " << Brief(external());
+  os << "\n - function_index: " << function_index();
+  os << "\n - call target: [" << call_target().value() << "] -> "
+     << AsHex::Address(wasm::GetProcessWideWasmCodePointerTable()
+                           ->GetEntrypointWithoutSignatureCheck(call_target()));
   os << "\n";
 }
 
