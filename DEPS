@@ -92,7 +92,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': 'd7ae27f0e2a0c03b9f80ca1195b04fedcdf1193c',
+  'partition_alloc_version': '1e3b00f0a40be8ea75dd4709821b71b2c079912b',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -130,9 +130,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '97d48fd099016d5a7f4cd527f04f8fe797f4ccbb',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e206633c1decff541370693f4d398f5bf04d25eb',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd0aec297d229d3a1163440d13c6808da85e33e67',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '3edd8d141828a1c42c91ec025fef6aa815afb60f',
   'buildtools/linux64': {
     'packages': [
       {
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '5ce80c825163a9545f9c7d3f5446d0795a0c25fe',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '9cf131bdaadf7fe5c6b536036be8b730a41f839c',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -304,7 +304,7 @@ deps = {
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'ac9e4860cadb33ec5185084ed7c6345eca5fa50c',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'b6f2833c99549e5725055f6e9c795ca6e226afc0',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '00a175050b73903b2f00e460dd2c9751c4a0fd88',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '84c5262b57147e9934c0a8f2302d989b44ec7093',
   'third_party/llvm-libc/src':
