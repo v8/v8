@@ -266,107 +266,44 @@
 
   # Fixed upstream
 
-  # Instant rounding (https://github.com/boa-dev/temporal/issues/383)
-  'built-ins/Temporal/Duration/compare/relativeto-string-limits': [FAIL],
-  'built-ins/Temporal/Duration/prototype/round/relativeto-string-limits': [FAIL],
-  'built-ins/Temporal/Instant/prototype/round/rounding-direction': [FAIL],
-  'built-ins/Temporal/Instant/prototype/toString/rounding-direction': [FAIL],
-  'built-ins/Temporal/PlainDate/prototype/toZonedDateTime/throws-if-combined-date-time-outside-valid-iso-range': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/compare/argument-string-limits': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/from/argument-string-limits': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/prototype/equals/argument-string-limits': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/prototype/since/argument-string-limits': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/prototype/until/argument-string-limits': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/prototype/toString/rounding-direction': [FAIL],
-
-  # Sub-minute offsets (https://github.com/boa-dev/temporal/issues/419)
-  'built-ins/Temporal/Duration/compare/relativeto-sub-minute-offset': [FAIL],
-  'built-ins/Temporal/Duration/prototype/round/relativeto-sub-minute-offset': [FAIL],
-  'built-ins/Temporal/Duration/prototype/total/relativeto-sub-minute-offset': [FAIL],
-  'built-ins/Temporal/Duration/prototype/subtract/result-out-of-range-3': [FAIL],
-  'built-ins/Temporal/Duration/prototype/total/relativeto-string-limits': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/compare/zoneddatetime-string-multiple-offsets': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/from/zoneddatetime-string-multiple-offsets': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/prototype/equals/zoneddatetime-string-multiple-offsets': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/prototype/since/zoneddatetime-string-multiple-offsets': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/prototype/until/zoneddatetime-string-multiple-offsets': [FAIL],
-  'intl402/Temporal/Duration/compare/relativeto-sub-minute-offset': [FAIL],
-  'intl402/Temporal/Duration/prototype/round/relativeto-sub-minute-offset': [FAIL],
-  'intl402/Temporal/Duration/prototype/total/relativeto-sub-minute-offset': [FAIL],
-  'intl402/Temporal/ZonedDateTime/compare/sub-minute-offset': [FAIL],
-  'intl402/Temporal/ZonedDateTime/from/zoneddatetime-sub-minute-offset': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/equals/sub-minute-offset': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/since/sub-minute-offset': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/until/sub-minute-offset': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/with/offset-property-sub-minute': [FAIL],
-
-  # Date arithmetic needs limits check (https://github.com/boa-dev/temporal/pull/435)
-  'built-ins/Temporal/PlainDateTime/prototype/add/limits': [FAIL],
-  'built-ins/Temporal/PlainDateTime/prototype/subtract/limits': [FAIL],
-
-  # YearMonth compare should include reference day (https://github.com/boa-dev/temporal/pull/433)
-  'built-ins/Temporal/PlainYearMonth/compare/compare-reference-day': [FAIL],
-  'built-ins/Temporal/PlainYearMonth/prototype/equals/compare-reference-day': [FAIL],
+  # +00:01.1 should fail to parse (https://github.com/unicode-org/icu4x/pull/6813)
+  'intl402/Temporal/ZonedDateTime/timezone-ids-basic': [FAIL],
 
   # Issue filed upstream
 
   # Float casting to integer (https://github.com/boa-dev/temporal/issues/189, https://github.com/boa-dev/temporal/issues/334)
-  'built-ins/Temporal/Duration/prototype/add/argument-duration-precision-exact-numerical-values': [FAIL],
-  'built-ins/Temporal/Duration/prototype/round/out-of-range-when-converting-from-normalized-duration': [FAIL],
-  'built-ins/Temporal/Duration/prototype/subtract/argument-duration-precision-exact-numerical-values': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-6': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-7': [FAIL],
 
-  # Parse ordering issues (https://github.com/boa-dev/temporal/issues/408)
-  'built-ins/Temporal/PlainDate/from/observable-get-overflow-argument-string-invalid': [FAIL],
-  'built-ins/Temporal/PlainDateTime/from/observable-get-overflow-argument-string-invalid': [FAIL],
-  'built-ins/Temporal/PlainMonthDay/from/observable-get-overflow-argument-string-invalid': [FAIL],
-  'built-ins/Temporal/PlainTime/from/observable-get-overflow-argument-string-invalid': [FAIL],
-  'built-ins/Temporal/PlainDate/from/options-wrong-type': [FAIL],
-  'built-ins/Temporal/PlainDateTime/from/options-wrong-type': [FAIL],
-  'built-ins/Temporal/PlainMonthDay/from/options-wrong-type': [FAIL],
-  'built-ins/Temporal/PlainTime/from/options-wrong-type': [FAIL],
-  'built-ins/Temporal/PlainYearMonth/from/options-wrong-type': [FAIL],
-  'built-ins/Temporal/PlainYearMonth/from/argument-plainyearmonth': [FAIL],
-  'built-ins/Temporal/PlainYearMonth/from/observable-get-overflow-argument-string-invalid': [FAIL],
-
-  # Epoch disambiguation panic: https://github.com/boa-dev/temporal/issues/445
-  'staging/Intl402/Temporal/old/datetime-toLocaleString': [FAIL],
-  'staging/Intl402/Temporal/old/tzdb-string-parsing': [FAIL],
-
-  # Debug panic: https://github.com/boa-dev/temporal/issues/438
-  'intl402/Temporal/ZonedDateTime/from/argument-valid': [SKIP],
-
-  # .with() should invalidate era/eraYear when year is provided (https://github.com/boa-dev/temporal/issues/447)
-  'staging/Intl402/Temporal/old/islamic-calendars-islamic-civil': [FAIL],
-  'staging/Intl402/Temporal/old/islamic-calendars-islamic-rgsa': [FAIL],
-  'staging/Intl402/Temporal/old/islamic-calendars-islamic-tbla': [FAIL],
-  'staging/Intl402/Temporal/old/islamic-calendars-islamic-umalqura': [FAIL],
-
   # Remapping out-of-range eras (https://github.com/boa-dev/temporal/issues/448)
   'intl402/Temporal/PlainDate/from/remapping-era': [FAIL],
-  'intl402/Temporal/PlainDate/prototype/with/cross-era-boundary': [FAIL],
   'staging/Intl402/Temporal/old/japanese-before-era': [FAIL],
+  'intl402/Temporal/PlainYearMonth/from/remapping-era': [FAIL],
 
-  # toPlainDate needs to use overflow: constrain (https://github.com/boa-dev/temporal/pull/430)
-  'built-ins/Temporal/PlainMonthDay/prototype/toPlainDate/default-overflow-behaviour': [FAIL],
-  'built-ins/Temporal/PlainYearMonth/prototype/toPlainDate/default-overflow-behaviour': [FAIL],
+  # We need a way to regulate non-ISO on construction (https://github.com/unicode-org/icu4x/issues/6790)
+  'staging/Intl402/Temporal/old/indian-calendar': [FAIL],
+  'intl402/Temporal/PlainDate/prototype/with/gregorian-mutually-exclusive-fields': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars-japanese': [FAIL],
+  'intl402/Temporal/PlainMonthDay/from/reference-year-1972': [FAIL],
 
-  # Potential outdated tests / spec issues
+  # We need to be able to construct from ordinal months (https://github.com/unicode-org/icu4x/issues/6790)
+  'staging/Intl402/Temporal/old/hebrew-leap-months': [FAIL],
 
-  # Spec issue: islamic normalization https://github.com/tc39/proposal-intl-era-monthcode/issues/29
+  # PlainMonthDay needs to support Chinese/Dangi (https://github.com/boa-dev/temporal/issues/450)
+  'intl402/Temporal/PlainMonthDay/from/constrain-to-leap-day': [FAIL],
+  'intl402/Temporal/PlainYearMonth/from/reference-day-chinese': [FAIL],
+
+  # Outdated tests / spec issues
+
+  # Spec discussion: islamic normalization https://github.com/tc39/proposal-intl-era-monthcode/issues/29
   'staging/Intl402/Temporal/old/islamic-calendars-islamic': [FAIL],
 
-  # Calendars that don't care about eras should ignore era/eraYear
+  # Test262 outdatedly believes certain single-era calendars to not have eras
   'intl402/Temporal/PlainDate/from/calendar-not-supporting-eras': [FAIL],
   'intl402/Temporal/PlainDateTime/from/calendar-not-supporting-eras': [FAIL],
-  'intl402/Temporal/PlainMonthDay/from/calendar-not-supporting-eras': [FAIL],
   'intl402/Temporal/PlainYearMonth/from/calendar-not-supporting-eras': [FAIL],
   'intl402/Temporal/PlainYearMonth/prototype/with/minimum-valid-year-month': [FAIL],
   'intl402/Temporal/ZonedDateTime/from/calendar-not-supporting-eras': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/with/non-iso-calendar-fields': [FAIL],
-
-  # Calendars that don't care about eras should still return the correct era
   'staging/Intl402/Temporal/old/non-iso-calendars-buddhist': [FAIL],
   'staging/Intl402/Temporal/old/non-iso-calendars-coptic': [FAIL],
   'staging/Intl402/Temporal/old/non-iso-calendars-ethioaa': [FAIL],
@@ -383,89 +320,25 @@
   'staging/Intl402/Temporal/old/non-iso-calendars-iso8601': [FAIL],
   'staging/Intl402/Temporal/old/non-iso-calendars-persian': [FAIL],
   'staging/Intl402/Temporal/old/non-iso-calendars-roc': [FAIL],
-
-  # .with() should handle mutually exclusive fields (https://github.com/boa-dev/temporal/issues/449)
-  'intl402/Temporal/PlainDate/prototype/with/gregorian-mutually-exclusive-fields': [FAIL],
-  'intl402/Temporal/PlainDate/prototype/with/japanese-mutually-exclusive-fields': [FAIL],
-  'intl402/Temporal/PlainDate/prototype/with/non-iso-calendar-fields': [FAIL],
-  'intl402/Temporal/PlainDateTime/prototype/with/non-iso-calendar-fields': [FAIL],
-  'intl402/Temporal/PlainMonthDay/prototype/with/non-iso-calendar-fields': [FAIL],
-  'intl402/Temporal/PlainYearMonth/prototype/with/non-iso-calendar-fields': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-japanese': [FAIL],
-  'staging/Intl402/Temporal/old/persian-calendar': [FAIL],
-
-
-  # PlainMonthDay needs to support non-ISO calendars (https://github.com/boa-dev/temporal/issues/450)
-  'intl402/Temporal/PlainMonthDay/from/canonicalize-calendar': [FAIL],
-  'intl402/Temporal/PlainMonthDay/from/constrain-to-leap-day': [FAIL],
-  'intl402/Temporal/PlainMonthDay/from/fields-missing-properties': [FAIL],
-  'intl402/Temporal/PlainMonthDay/from/fields-object': [FAIL],
-  'intl402/Temporal/PlainMonthDay/from/fields-underspecified': [FAIL],
-  'intl402/Temporal/PlainMonthDay/from/reference-date-noniso-calendar': [FAIL],
-  'intl402/Temporal/PlainMonthDay/from/reference-year-1972': [FAIL],
-  'intl402/Temporal/PlainMonthDay/prototype/equals/canonicalize-calendar': [FAIL],
-  'intl402/Temporal/PlainMonthDay/prototype/toLocaleString/calendar-mismatch': [FAIL],
-  'intl402/Temporal/PlainMonthDay/prototype/toLocaleString/dateStyle': [FAIL],
-  'intl402/Temporal/PlainMonthDay/prototype/with/fields-missing-properties': [FAIL],
-  'staging/Intl402/Temporal/old/monthday-toLocaleString': [FAIL],
-
-  # PlainYearMonth compare referenceDay (https://github.com/boa-dev/temporal/issues/450)
-  'intl402/Temporal/PlainYearMonth/compare/exhaustive': [FAIL],
-
-  # PlainYearMonth store/extract referenceDay (https://github.com/boa-dev/temporal/issues/450)
-  'intl402/Temporal/PlainYearMonth/from/argument-object': [FAIL],
-
-  # PlainYearMonth needs to support non-ISO calendars (https://github.com/boa-dev/temporal/issues/450)
-  'intl402/Temporal/PlainYearMonth/from/canonicalize-calendar': [FAIL],
-  'intl402/Temporal/PlainYearMonth/from/canonicalize-era-codes': [FAIL],
-  'intl402/Temporal/PlainYearMonth/from/reference-day-chinese': [FAIL],
-  'intl402/Temporal/PlainYearMonth/from/reference-day-gregory': [FAIL],
   'intl402/Temporal/PlainYearMonth/from/reference-day-hebrew': [FAIL],
-  'intl402/Temporal/PlainYearMonth/from/remapping-era': [FAIL],
-  'intl402/Temporal/PlainYearMonth/prototype/equals/canonicalize-calendar': [FAIL],
-  'intl402/Temporal/PlainYearMonth/prototype/since/canonicalize-calendar': [FAIL],
-  'intl402/Temporal/PlainYearMonth/prototype/toLocaleString/calendar-mismatch': [FAIL],
-  'intl402/Temporal/PlainYearMonth/prototype/until/canonicalize-calendar': [FAIL],
+  'intl402/Temporal/PlainMonthDay/from/calendar-not-supporting-eras': [FAIL],
 
-  # transitions not implemented (https://github.com/boa-dev/temporal/issues/406)
-  'built-ins/Temporal/ZonedDateTime/prototype/getTimeZoneTransition/utc-no-transitions': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/getTimeZoneTransition/nanoseconds-subtracted-or-added-at-dst-transition': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/getTimeZoneTransition/result-type': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/getTimeZoneTransition/rule-change-without-offset-transition': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/getTimeZoneTransition/specific-tzdb-values': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/getTimeZoneTransition/subtract-second-and-nanosecond-from-last-transition': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/getTimeZoneTransition/transition-at-instant-boundaries': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/getTimeZoneTransition/transitions-close-together': [FAIL],
+  # Test262 is using outdated canonical eras
+  'intl402/Temporal/ZonedDateTime/from/canonicalize-era-codes': [FAIL],
 
   # No issue filed
 
+  # Debug assertion failed
+  'intl402/Temporal/ZonedDateTime/prototype/getTimeZoneTransition/transition-at-instant-boundaries': [SKIP],
+
+  # ICU4C and ICU4X disagree on canonical timezones
+  'intl402/Temporal/ZonedDateTime/prototype/equals/canonical-not-equal': [FAIL],
+
   # Duration range issues
-  'built-ins/Temporal/Duration/prototype/add/result-out-of-range-3': [FAIL],
   'built-ins/Temporal/Duration/prototype/round/next-day-out-of-range': [FAIL],
 
-  # Leap second issue
-  'built-ins/Temporal/Duration/prototype/round/relativeto-leap-second': [FAIL],
-  'built-ins/Temporal/Duration/prototype/total/relativeto-leap-second': [FAIL],
-
-  # Should error outside of valid ISO range
-  'built-ins/Temporal/PlainYearMonth/prototype/since/throws-if-year-outside-valid-iso-range': [FAIL],
-  'built-ins/Temporal/PlainYearMonth/prototype/until/throws-if-year-outside-valid-iso-range': [FAIL],
-
   # 25 hour days
-  'intl402/Temporal/Duration/compare/twenty-five-hour-day': [FAIL],
-  'intl402/Temporal/Duration/compare/relativeto-hour': [FAIL],
-  'intl402/Temporal/Duration/prototype/round/dst-balancing-result': [FAIL],
-  'intl402/Temporal/Duration/prototype/total/dst-balancing-result': [FAIL],
-  'intl402/Temporal/Duration/prototype/total/dst-day-length': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/hoursInDay/dst-midnight': [FAIL],
   'intl402/Temporal/ZonedDateTime/prototype/hoursInDay/dst-skipped-cross-midnight': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/hoursInDay/same-date-starts-twice': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/offsetNanoseconds/nanoseconds-subtracted-or-added-at-dst-transition': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/round/dst-skipped-cross-midnight': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/since/dst-month-day-boundary': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/startOfDay/dst-skipped-cross-midnight': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/startOfDay/same-date-starts-twice': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/until/dst-month-day-boundary': [FAIL],
   'staging/Intl402/Temporal/old/zoneddatetime-dst-corner-cases': [FAIL],
 
   # Non-ISO datetime arithmetic
@@ -474,59 +347,19 @@
   'staging/Intl402/Temporal/old/addition-across-lunisolar-leap-months-chinese': [FAIL],
   'staging/Intl402/Temporal/old/addition-across-lunisolar-leap-months-hebrew': [FAIL],
 
-  # dayOfWeek for non-ISO
-  'intl402/Temporal/ZonedDateTime/construct-non-utc-non-iso': [FAIL],
+  # Difference rounding is DST-aware
+  'staging/Intl402/Temporal/old/dst-math': [FAIL],
 
-  # Era alias support
-  'intl402/Temporal/ZonedDateTime/from/canonicalize-era-codes': [FAIL],
-
-  # Fails to normalize time zones
-  'intl402/Temporal/ZonedDateTime/prototype/equals/argument-object': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/equals/argument-valid': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/equals/canonical-iana-names': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/equals/canonicalize-iana-identifiers-before-comparing': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/equals/canonicalize-timezone': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/equals/canonicalize-utc-timezone': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/since/canonicalize-iana-identifiers-before-comparing': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/until/canonicalize-iana-identifiers-before-comparing': [FAIL],
-
-  # Fails to canonicalize islamicc
-  'intl402/Temporal/ZonedDateTime/prototype/equals/canonicalize-calendar': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/since/canonicalize-calendar': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/until/canonicalize-calendar': [FAIL],
-
-  # +00:01.1 should fail to parse
-  'intl402/Temporal/ZonedDateTime/timezone-ids-basic': [FAIL],
-
-  # Invalid era in toPlainYearMonth
-  'staging/Intl402/Temporal/old/date-time-format': [FAIL],
-
-  # Hebrew leap months incorrect
-  'staging/Intl402/Temporal/old/hebrew-leap-months': [FAIL],
+  # Calculating incorrect offset for Europe/London
+  'intl402/Temporal/ZonedDateTime/prototype/toPlainDateTime/dst': [FAIL],
 
   # Unknown issue
-
-  # Unknown error in .with() with non-ISO calendars
-  'staging/Intl402/Temporal/old/indian-calendar': [FAIL],
 
   # Unknown balance issue
   'built-ins/Temporal/Duration/prototype/round/round-and-balance-calendar-units-with-increment-disallowed': [FAIL],
 
-  # Unknown timezone parsing issue
-  'built-ins/Temporal/Duration/prototype/round/relativeto-string-datetime': [FAIL],
-  'built-ins/Temporal/Duration/prototype/total/relativeto-string-datetime': [FAIL],
-
-  # Unknown DST issue(s)
-  'staging/Intl402/Temporal/old/dst-math': [FAIL],
-  'staging/Intl402/Temporal/old/duration-arithmetic-dst': [FAIL],
-  'staging/Intl402/Temporal/old/duration-round': [FAIL],
-
-  # Unknown local time issue
-  'intl402/Temporal/ZonedDateTime/prototype/toPlainDateTime/dst': [FAIL],
-
   # Chinese year 2000 is not a leap year
   'intl402/Temporal/PlainDate/prototype/until/until-across-lunisolar-leap-months': [FAIL],
-
 
   # Unknown duration rounding issue
   'intl402/Temporal/Duration/prototype/round/adjust-rounded-duration-days': [FAIL],
@@ -534,22 +367,6 @@
   # Unknown timezone parsing issue
   'intl402/Temporal/Duration/prototype/round/relativeto-string-datetime': [FAIL],
   'intl402/Temporal/Duration/prototype/total/relativeto-string-datetime': [FAIL],
-
-  # Unknown disambiguation issue
-  'intl402/Temporal/PlainDateTime/prototype/toZonedDateTime/disambiguation-undefined': [FAIL],
-  'intl402/Temporal/PlainDateTime/prototype/toZonedDateTime/dst-disambiguation': [FAIL],
-  'intl402/Temporal/PlainDateTime/prototype/toZonedDateTime/multiple-instants': [FAIL],
-  'intl402/Temporal/PlainDateTime/prototype/toZonedDateTime/options-undefined': [FAIL],
-  'intl402/Temporal/ZonedDateTime/from/disambiguation-undefined': [FAIL],
-  'intl402/Temporal/ZonedDateTime/from/dst-skipped-cross-midnight': [FAIL],
-  'intl402/Temporal/ZonedDateTime/from/options-undefined': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/with/disambiguation-undefined': [FAIL],
-  'staging/Intl402/Temporal/old/property-bags': [FAIL],
-
-  # Unknown ZDT rounding issue
-  'staging/Intl402/Temporal/old/zdt-round': [FAIL],
-  'staging/Intl402/Temporal/old/zdt-tostring': [FAIL],
-  'staging/Intl402/Temporal/old/zdt-with': [FAIL],
 
   # Unknown chinese calendar issue
 

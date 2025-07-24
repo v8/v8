@@ -2306,23 +2306,9 @@ Maybe<std::unique_ptr<temporal_rs::Duration>> ToTemporalDurationRust(
   // item.[[Minutes]], item.[[Seconds]], item.[[Milliseconds]],
   // item.[[Microseconds]], item.[[Nanoseconds]]).
   if (IsJSTemporalDuration(*item)) {
-    auto instant = Cast<JSTemporalDuration>(item);
-    auto raw = instant->duration()->raw();
-    auto years = raw->years();
-    auto months = raw->months();
-    auto weeks = raw->weeks();
-    auto days = raw->days();
-    auto hours = raw->hours();
-    auto minutes = raw->minutes();
-    auto seconds = raw->seconds();
-    auto milliseconds = raw->milliseconds();
-    auto microseconds = raw->microseconds();
-    auto nanoseconds = raw->nanoseconds();
+    auto duration = Cast<JSTemporalDuration>(item);
     // i. Return !CreateTemporalInstant(item.[[EpochNanoseconds]]).
-    return ExtractRustResult(
-        isolate, temporal_rs::Duration::create(
-                     years, months, weeks, days, hours, minutes, seconds,
-                     milliseconds, microseconds, nanoseconds));
+    return Just(duration->duration()->raw()->clone());
   }
 
   // 2. If item is not an Object, then
@@ -2403,10 +2389,9 @@ MaybeDirectHandle<JSTemporalInstant> ToTemporalInstant(
   //    [[InitializedTemporalZonedDateTime]] internal slot, then
   if (IsJSTemporalInstant(*item)) {
     auto instant = Cast<JSTemporalInstant>(item);
-    auto ns = instant->instant()->raw()->epoch_nanoseconds();
     // i. Return !CreateTemporalInstant(item.[[EpochNanoseconds]]).
     return ConstructRustWrappingType<JSTemporalInstant>(
-        isolate, temporal_rs::Instant::try_new(ns));
+        isolate, instant->instant()->raw()->clone());
     // ... or  [[InitializedTemporalZonedDateTime]] internal slot
   } else if (IsJSTemporalZonedDateTime(*item)) {
     auto zdt = Cast<JSTemporalZonedDateTime>(item);
@@ -2478,8 +2463,14 @@ MaybeDirectHandle<JSTemporalPlainTime> ToTemporalTime(
     auto partial = temporal::kNullPartialTime;
     // a. If item has an [[InitializedTemporalTime]] internal slot, then
     if (InstanceTypeChecker::IsJSTemporalPlainTime(instance_type)) {
+      auto cast = Cast<JSTemporalPlainTime>(item);
+
+      // ii. Perform ? GetTemporalOverflowOption(resolvedOptions).
+      READ_AND_DISCARD_OVERFLOW(options_obj);
+
       // iii. Return !CreateTemporalTime(item.[[Time]]).
-      partial = GetPartialTime(Cast<JSTemporalPlainTime>(item));
+      return ConstructRustWrappingType<JSTemporalPlainTime>(
+          isolate, cast->time()->raw()->clone());
       // b. If item has an [[InitializedTemporalDateTime]] internal slot, then
     } else if (InstanceTypeChecker::IsJSTemporalPlainDateTime(instance_type)) {
       // iii. Return ! CreateTemporalTime(item.[[ISODateTime]].[[Time]]).
@@ -2548,9 +2539,13 @@ MaybeDirectHandle<JSTemporalPlainTime> ToTemporalTime(
               return temporal_rs::PlainTime::from_utf16(view);
             });
 
+    std::unique_ptr<temporal_rs::PlainTime> time;
+    MOVE_RETURN_ON_EXCEPTION(
+        isolate, time, ExtractRustResult(isolate, std::move(rust_result)));
+
     READ_AND_DISCARD_OVERFLOW(options_obj);
-    return ConstructRustWrappingType<JSTemporalPlainTime>(
-        isolate, std::move(rust_result));
+    return ConstructRustWrappingType<JSTemporalPlainTime>(isolate,
+                                                          std::move(time));
   }
 }
 
@@ -2595,8 +2590,12 @@ MaybeDirectHandle<JSTemporalPlainDate> ToTemporalDate(
     auto partial = temporal::kNullPartialDate;
     // a. If item has an [[InitializedTemporalDate]] internal slot, then
     if (InstanceTypeChecker::IsJSTemporalPlainDate(instance_type)) {
+      auto cast = Cast<JSTemporalPlainDate>(item);
+      // ii. Perform ? GetTemporalOverflowOption(resolvedOptions).
+      READ_AND_DISCARD_OVERFLOW(options_obj);
       // iii. Return !CreateTemporalDate(item.[[Date]], item.[[Calendar]]).
-      partial = GetPartialDate(Cast<JSTemporalPlainDate>(item));
+      return ConstructRustWrappingType<JSTemporalPlainDate>(
+          isolate, cast->date()->raw()->clone());
       // b. If item has an [[InitializedTemporalZonedDateTime]] internal slot,
       // then
     } else if (InstanceTypeChecker::IsJSTemporalZonedDateTime(instance_type)) {
@@ -2660,23 +2659,26 @@ MaybeDirectHandle<JSTemporalPlainDate> ToTemporalDate(
 
     // Rest of the steps handled in Rust.
 
+    std::unique_ptr<temporal_rs::ParsedDate> date;
     auto rust_result =
-        HandleStringEncodings<TemporalAllocatedResult<temporal_rs::PlainDate>>(
+        HandleStringEncodings<TemporalAllocatedResult<temporal_rs::ParsedDate>>(
             isolate, str,
             [](std::string_view view)
-                -> TemporalAllocatedResult<temporal_rs::PlainDate> {
-              return temporal_rs::PlainDate::from_utf8(view);
+                -> TemporalAllocatedResult<temporal_rs::ParsedDate> {
+              return temporal_rs::ParsedDate::from_utf8(view);
             },
             [](std::u16string_view view)
-                -> TemporalAllocatedResult<temporal_rs::PlainDate> {
-              return temporal_rs::PlainDate::from_utf16(view);
+                -> TemporalAllocatedResult<temporal_rs::ParsedDate> {
+              return temporal_rs::ParsedDate::from_utf16(view);
             });
+    MOVE_RETURN_ON_EXCEPTION(
+        isolate, date, ExtractRustResult(isolate, std::move(rust_result)));
 
     // 9. Perform ? GetTemporalOverflowOption(resolvedOptions).
     READ_AND_DISCARD_OVERFLOW(options_obj);
 
     return ConstructRustWrappingType<JSTemporalPlainDate>(
-        isolate, std::move(rust_result));
+        isolate, temporal_rs::PlainDate::from_parsed(*date));
   }
 }
 
@@ -2703,8 +2705,12 @@ MaybeDirectHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
 
     // a. If item has an [[InitializedTemporalDateTime]] internal slot, then
     if (InstanceTypeChecker::IsJSTemporalPlainDateTime(instance_type)) {
+      auto cast = Cast<JSTemporalPlainDateTime>(item);
+      // ii. Perform ? GetTemporalOverflowOption(resolvedOptions).
+      READ_AND_DISCARD_OVERFLOW(options_obj);
       // iii. Return !CreateTemporalDate(item.[[Date]], item.[[Calendar]]).
-      partial = GetPartialDateTime(Cast<JSTemporalPlainDateTime>(item));
+      return ConstructRustWrappingType<JSTemporalPlainDateTime>(
+          isolate, cast->date_time()->raw()->clone());
       // b. If item has an [[InitializedTemporalZonedDateTime]] internal slot,
       // then
     } else if (InstanceTypeChecker::IsJSTemporalZonedDateTime(instance_type)) {
@@ -2774,23 +2780,26 @@ MaybeDirectHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
 
     // Rest of the steps handled in Rust
 
+    std::unique_ptr<temporal_rs::ParsedDateTime> date;
     auto rust_result = HandleStringEncodings<
-        TemporalAllocatedResult<temporal_rs::PlainDateTime>>(
+        TemporalAllocatedResult<temporal_rs::ParsedDateTime>>(
         isolate, str,
         [](std::string_view view)
-            -> TemporalAllocatedResult<temporal_rs::PlainDateTime> {
-          return temporal_rs::PlainDateTime::from_utf8(view);
+            -> TemporalAllocatedResult<temporal_rs::ParsedDateTime> {
+          return temporal_rs::ParsedDateTime::from_utf8(view);
         },
         [](std::u16string_view view)
-            -> TemporalAllocatedResult<temporal_rs::PlainDateTime> {
-          return temporal_rs::PlainDateTime::from_utf16(view);
+            -> TemporalAllocatedResult<temporal_rs::ParsedDateTime> {
+          return temporal_rs::ParsedDateTime::from_utf16(view);
         });
+    MOVE_RETURN_ON_EXCEPTION(
+        isolate, date, ExtractRustResult(isolate, std::move(rust_result)));
 
-    // 10. Perform ? GetTemporalOverflowOption(resolvedOptions).
+    // 9. Perform ? GetTemporalOverflowOption(resolvedOptions).
     READ_AND_DISCARD_OVERFLOW(options_obj);
 
     return ConstructRustWrappingType<JSTemporalPlainDateTime>(
-        isolate, std::move(rust_result));
+        isolate, temporal_rs::PlainDateTime::from_parsed(*date));
   }
 }
 
@@ -2815,18 +2824,13 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
     // a. If item has an [[InitializedTemporalYearMonth]] internal slot, then
     if (InstanceTypeChecker::IsJSTemporalPlainYearMonth(instance_type)) {
       auto cast = Cast<JSTemporalPlainYearMonth>(item);
-      auto rust_object = cast->year_month()->raw();
 
       // ii. Perform ? GetTemporalOverflowOption(resolvedOptions).
       READ_AND_DISCARD_OVERFLOW(options_obj);
       // iii. Return ! CreateTemporalYearMonth(item.[[ISODate]],
       // item.[[Calendar]]).
-      auto year = rust_object->iso_year();
-      auto month = rust_object->iso_month();
-      auto kind = rust_object->calendar().kind();
       return ConstructRustWrappingType<JSTemporalPlainYearMonth>(
-          isolate, temporal_rs::PlainYearMonth::try_new_with_overflow(
-                       year, month, std::nullopt, kind, {}));
+          isolate, cast->year_month()->raw()->clone());
     } else {
       // b. Let calendar be ?GetTemporalCalendarIdentifierWithISODefault(item).
       DirectHandle<JSReceiver> item_recvr = Cast<JSReceiver>(item);
@@ -2878,23 +2882,26 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
 
     // Rest of the steps handled in Rust
 
-    auto rust_result = HandleStringEncodings<
-        TemporalAllocatedResult<temporal_rs::PlainYearMonth>>(
-        isolate, str,
-        [](std::string_view view)
-            -> TemporalAllocatedResult<temporal_rs::PlainYearMonth> {
-          return temporal_rs::PlainYearMonth::from_utf8(view);
-        },
-        [](std::u16string_view view)
-            -> TemporalAllocatedResult<temporal_rs::PlainYearMonth> {
-          return temporal_rs::PlainYearMonth::from_utf16(view);
-        });
+    std::unique_ptr<temporal_rs::ParsedDate> date;
+    auto rust_result =
+        HandleStringEncodings<TemporalAllocatedResult<temporal_rs::ParsedDate>>(
+            isolate, str,
+            [](std::string_view view)
+                -> TemporalAllocatedResult<temporal_rs::ParsedDate> {
+              return temporal_rs::ParsedDate::year_month_from_utf8(view);
+            },
+            [](std::u16string_view view)
+                -> TemporalAllocatedResult<temporal_rs::ParsedDate> {
+              return temporal_rs::ParsedDate::year_month_from_utf16(view);
+            });
+    MOVE_RETURN_ON_EXCEPTION(
+        isolate, date, ExtractRustResult(isolate, std::move(rust_result)));
 
     // 9. Perform ? GetTemporalOverflowOption(resolvedOptions).
     READ_AND_DISCARD_OVERFLOW(options_obj);
 
     return ConstructRustWrappingType<JSTemporalPlainYearMonth>(
-        isolate, std::move(rust_result));
+        isolate, temporal_rs::PlainYearMonth::from_parsed(*date));
   }
 }
 
@@ -2972,7 +2979,6 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
     // then
     if (InstanceTypeChecker::IsJSTemporalZonedDateTime(instance_type)) {
       auto cast = Cast<JSTemporalZonedDateTime>(item);
-      auto rust_object = cast->zoned_date_time()->raw();
 
       // iii. Perform ? GetTemporalDisambiguationOption(resolvedOptions).
       // iv. Perform ? GetTemporalOffsetOption(resolvedOptions, reject).
@@ -2983,10 +2989,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
       // vi. Return !CreateTemporalZonedDateTime(item.[[EpochNanoseconds]],
       // item.[[TimeZone]], item.[[Calendar]]).
       return ConstructRustWrappingType<JSTemporalZonedDateTime>(
-          isolate,
-          temporal_rs::ZonedDateTime::try_new(rust_object->epoch_nanoseconds(),
-                                              rust_object->calendar().kind(),
-                                              rust_object->timezone()));
+          isolate, cast->zoned_date_time()->raw()->clone());
 
     } else {
       // b. Let calendar be ?GetTemporalCalendarIdentifierWithISODefault(item).
@@ -3038,41 +3041,6 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
     }
     DirectHandle<String> str = Cast<String>(item);
 
-#ifdef TEMPORAL_CAPI_VERSION_0_0_11
-    // b. Let result be ? ParseISODateTime(item, «
-    // TemporalDateTimeString[+Zoned] »).
-    //
-    // Steps b-l handled in Rust
-    std::unique_ptr<temporal_rs::OwnedPartialZonedDateTime> parsed;
-
-    auto rust_result = HandleStringEncodings<
-        TemporalAllocatedResult<temporal_rs::OwnedPartialZonedDateTime>>(
-        isolate, str,
-        [](std::string_view view)
-            -> TemporalAllocatedResult<temporal_rs::OwnedPartialZonedDateTime> {
-          return temporal_rs::OwnedPartialZonedDateTime::from_utf8(view);
-        },
-        [](std::u16string_view view)
-            -> TemporalAllocatedResult<temporal_rs::OwnedPartialZonedDateTime> {
-          return temporal_rs::OwnedPartialZonedDateTime::from_utf16(view);
-        });
-    MOVE_RETURN_ON_EXCEPTION(
-        isolate, parsed, ExtractRustResult(isolate, std::move(rust_result)));
-
-    // o. Perform ? GetTemporalDisambiguationOption(resolvedOptions).
-    // p. Perform ? GetTemporalOffsetOption(resolvedOptions, reject).
-    // q. Perform ? GetTemporalOverflowOption(resolvedOptions).
-    ZDTOptions options;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, options, GetZDTOptions(isolate, options_obj, method_name));
-
-    // Rest of the steps handled in Rust
-    return ConstructRustWrappingType<JSTemporalZonedDateTime>(
-        isolate, temporal_rs::ZonedDateTime::from_owned_partial(
-                     *parsed, options.overflow, options.disambiguation,
-                     options.offset_option));
-#else  // TEMPORAL_CAPI_VERSION_0_0_11
-
     // b. Let result be ? ParseISODateTime(item, «
     // TemporalDateTimeString[+Zoned] »).
     //
@@ -3103,9 +3071,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
     // Rest of the steps handled in Rust
     return ConstructRustWrappingType<JSTemporalZonedDateTime>(
         isolate, temporal_rs::ZonedDateTime::from_parsed(
-                     *parsed, options.disambiguation,
-                     options.offset_option));
-#endif  // TEMPORAL_CAPI_VERSION_0_0_11
+                     *parsed, options.disambiguation, options.offset_option));
   }
 }
 
@@ -3130,20 +3096,14 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
     // a. If item has an [[InitializedTemporalMonthDay]] internal slot, then
     if (InstanceTypeChecker::IsJSTemporalPlainMonthDay(instance_type)) {
       auto cast = Cast<JSTemporalPlainMonthDay>(item);
-      auto rust_object = cast->month_day()->raw();
 
       // ii. Perform ? GetTemporalOverflowOption(resolvedOptions).
       READ_AND_DISCARD_OVERFLOW(options_obj);
 
       // iii. Return ! CreateTemporalMonthDay(item.[[ISODate]],
       // item.[[Calendar]]).
-      auto year = rust_object->iso_year();
-      auto month = rust_object->iso_month();
-      auto day = rust_object->iso_day();
-      auto kind = rust_object->calendar().kind();
       return ConstructRustWrappingType<JSTemporalPlainMonthDay>(
-          isolate, temporal_rs::PlainMonthDay::try_new_with_overflow(
-                       month, day, kind, {}, year));
+          isolate, cast->month_day()->raw()->clone());
     } else {
       // b. Let calendar be ?GetTemporalCalendarIdentifierWithISODefault(item).
       DirectHandle<JSReceiver> item_recvr = Cast<JSReceiver>(item);
@@ -3198,23 +3158,26 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
 
     // Rest of the steps handled in Rust
 
-    auto rust_result = HandleStringEncodings<
-        TemporalAllocatedResult<temporal_rs::PlainMonthDay>>(
-        isolate, str,
-        [](std::string_view view)
-            -> TemporalAllocatedResult<temporal_rs::PlainMonthDay> {
-          return temporal_rs::PlainMonthDay::from_utf8(view);
-        },
-        [](std::u16string_view view)
-            -> TemporalAllocatedResult<temporal_rs::PlainMonthDay> {
-          return temporal_rs::PlainMonthDay::from_utf16(view);
-        });
+    std::unique_ptr<temporal_rs::ParsedDate> date;
+    auto rust_result =
+        HandleStringEncodings<TemporalAllocatedResult<temporal_rs::ParsedDate>>(
+            isolate, str,
+            [](std::string_view view)
+                -> TemporalAllocatedResult<temporal_rs::ParsedDate> {
+              return temporal_rs::ParsedDate::month_day_from_utf8(view);
+            },
+            [](std::u16string_view view)
+                -> TemporalAllocatedResult<temporal_rs::ParsedDate> {
+              return temporal_rs::ParsedDate::month_day_from_utf16(view);
+            });
+    MOVE_RETURN_ON_EXCEPTION(
+        isolate, date, ExtractRustResult(isolate, std::move(rust_result)));
 
     // 9. Perform ? GetTemporalOverflowOption(resolvedOptions).
     READ_AND_DISCARD_OVERFLOW(options_obj);
 
     return ConstructRustWrappingType<JSTemporalPlainMonthDay>(
-        isolate, std::move(rust_result));
+        isolate, temporal_rs::PlainMonthDay::from_parsed(*date));
   }
 }
 
@@ -5353,17 +5316,8 @@ Maybe<int64_t> JSTemporalPlainMonthDay::GetEpochMillisecondsFor(
   MOVE_RETURN_ON_EXCEPTION(isolate, tz,
                            temporal::ToRustTimeZone(isolate, time_zone));
 
-#ifdef TEMPORAL_CAPI_VERSION_0_0_11
-  int64_t microsecond;
-  // The API says get_epoch_ns_for but it's actually returning milliseconds
-  // https://github.com/boa-dev/temporal/pull/443
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, microsecond, ExtractRustResult(isolate,
-                           this->month_day()->raw()->epoch_ns_for(*tz)));
-  return Just(microsecond / 1000);
-#else
   return ExtractRustResult(isolate,
                            this->month_day()->raw()->epoch_ms_for(*tz));
-#endif
 }
 
 MaybeDirectHandle<JSTemporalPlainYearMonth>
@@ -5645,17 +5599,8 @@ Maybe<int64_t> JSTemporalPlainYearMonth::GetEpochMillisecondsFor(
   MOVE_RETURN_ON_EXCEPTION(isolate, tz,
                            temporal::ToRustTimeZone(isolate, time_zone));
 
-#ifdef TEMPORAL_CAPI_VERSION_0_0_11
-  int64_t microsecond;
-  // The API says get_epoch_ns_for but it's actually returning milliseconds
-  // https://github.com/boa-dev/temporal/pull/443
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, microsecond, ExtractRustResult(isolate,
-                           this->year_month()->raw()->epoch_ns_for(*tz)));
-  return Just(microsecond / 1000);
-#else
   return ExtractRustResult(isolate,
                            this->year_month()->raw()->epoch_ms_for(*tz));
-#endif
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tojson
