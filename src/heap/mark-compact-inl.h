@@ -61,10 +61,11 @@ template <typename THeapObjectSlot>
 void MarkCompactCollector::RecordSlot(Tagged<HeapObject> object,
                                       THeapObjectSlot slot,
                                       Tagged<HeapObject> target) {
-  MemoryChunk* source_page = MemoryChunk::FromHeapObject(object);
-  if (!source_page->ShouldSkipEvacuationSlotRecording()) {
-    RecordSlot(source_page, slot, target);
+  MemoryChunk* source_chunk = MemoryChunk::FromHeapObject(object);
+  if (source_chunk->ShouldSkipEvacuationSlotRecording()) {
+    return;
   }
+  RecordSlot(source_chunk, slot, target);
 }
 
 // static
@@ -72,36 +73,36 @@ template <typename THeapObjectSlot>
 void MarkCompactCollector::RecordSlot(MemoryChunk* source_chunk,
                                       THeapObjectSlot slot,
                                       Tagged<HeapObject> target) {
-  MemoryChunk* target_chunk = MemoryChunk::FromHeapObject(target);
-  if (target_chunk->IsEvacuationCandidate()) {
-    MutablePageMetadata* source_page =
-        MutablePageMetadata::cast(source_chunk->Metadata());
-    if (target_chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
-      // TODO(377724745): currently needed because flags are untrusted.
-      SBXCHECK(!InsideSandbox(target_chunk->address()));
-      RememberedSet<TRUSTED_TO_CODE>::Insert<AccessMode::ATOMIC>(
-          source_page, source_chunk->Offset(slot.address()));
-    } else if (source_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED) &&
-               target_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED)) {
-      // TODO(377724745): currently needed because flags are untrusted.
-      SBXCHECK(!InsideSandbox(target_chunk->address()));
-      RememberedSet<TRUSTED_TO_TRUSTED>::Insert<AccessMode::ATOMIC>(
-          source_page, source_chunk->Offset(slot.address()));
-    } else if (V8_LIKELY(!target_chunk->InWritableSharedSpace()) ||
-               source_page->heap()->isolate()->is_shared_space_isolate()) {
-      DCHECK_EQ(source_page->heap(), target_chunk->Metadata()->heap());
-      RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(
-          source_page, source_chunk->Offset(slot.address()));
-    } else {
-      // DCHECK here that we only don't record in case of local->shared
-      // references in a client GC.
-      DCHECK(!source_page->heap()->isolate()->is_shared_space_isolate());
-      DCHECK(target_chunk->Metadata()
-                 ->heap()
-                 ->isolate()
-                 ->is_shared_space_isolate());
-      DCHECK(target_chunk->InWritableSharedSpace());
-    }
+  const MemoryChunk* target_chunk = MemoryChunk::FromHeapObject(target);
+  if (!target_chunk->IsEvacuationCandidate()) {
+    return;
+  }
+  const auto* isolate = Isolate::Current();
+  MutablePageMetadata* source_page =
+      MutablePageMetadata::cast(source_chunk->Metadata(isolate));
+  const MutablePageMetadata* target_page =
+      MutablePageMetadata::cast(target_chunk->Metadata(isolate));
+  if (target_page->is_executable()) {
+    DCHECK(!InsideSandbox(target_chunk->address()));
+    RememberedSet<TRUSTED_TO_CODE>::Insert<AccessMode::ATOMIC>(
+        source_page, source_chunk->Offset(slot.address()));
+  } else if (source_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED) &&
+             target_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED)) {
+    // TODO(377724745): currently needed because flags are untrusted.
+    SBXCHECK(!InsideSandbox(target_chunk->address()));
+    RememberedSet<TRUSTED_TO_TRUSTED>::Insert<AccessMode::ATOMIC>(
+        source_page, source_chunk->Offset(slot.address()));
+  } else if (V8_LIKELY(!target_chunk->InWritableSharedSpace()) ||
+             source_page->heap()->isolate()->is_shared_space_isolate()) {
+    DCHECK_EQ(source_page->heap(), target_page->heap());
+    RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(
+        source_page, source_chunk->Offset(slot.address()));
+  } else {
+    // DCHECK here that we only don't record in case of local->shared
+    // references in a client GC.
+    DCHECK(!source_page->heap()->isolate()->is_shared_space_isolate());
+    DCHECK(target_page->heap()->isolate()->is_shared_space_isolate());
+    DCHECK(target_chunk->InWritableSharedSpace());
   }
 }
 
