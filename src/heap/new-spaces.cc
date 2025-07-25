@@ -410,6 +410,7 @@ void NewSpace::PromotePageToOldSpace(PageMetadata* page, FreeMode free_mode) {
     page->set_is_quarantined(false);
   }
   page->set_will_be_promoted(false);
+  page->set_never_allocate_on_chunk(false);
   RemovePage(page);
   PageMetadata* new_page = PageMetadata::ConvertNewToOld(page, free_mode);
   DCHECK(!new_page->Chunk()->InYoungGeneration());
