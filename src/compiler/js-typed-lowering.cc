@@ -157,7 +157,7 @@ class JSBinopReduction final {
   // minimum length.
   bool ShouldCreateConsString() {
     DCHECK_EQ(IrOpcode::kJSAdd, node_->opcode());
-    DCHECK(OneInputIs(Type::String()));
+    DCHECK(OneInputIs(Type::StringOrStringWrapper()));
     if (node_->InputAt(1)->opcode() == IrOpcode::kNewConsString) {
       // If the right hand side is a ConsString, then we can create a
       // ConsString. This doesn't work with the left hand side, since the right
@@ -166,7 +166,9 @@ class JSBinopReduction final {
       // that here.
       return true;
     }
-    if (BothInputsAre(Type::String()) ||
+    // We don't look inside JSStringWrappers, but if the other side is a long
+    // enough string, that's enough to trigger cons string creation.
+    if (BothInputsAre(Type::StringOrStringWrapper()) ||
         GetBinaryOperationHint(node_) == BinaryOperationHint::kString) {
       HeapObjectBinopMatcher m(node_);
       JSHeapBroker* broker = lowering_->broker();
@@ -809,7 +811,8 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
 
     // Generate the string addition.
     return GenerateStringAddition(node, left_string, right_string, context,
-                                  frame_state, &effect, &control, false);
+                                  frame_state, &effect, &control,
+                                  r.ShouldCreateConsString());
   }
 
   // We never get here when we had String feedback.
