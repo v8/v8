@@ -213,7 +213,7 @@ bool OptimizingCompileTaskExecutor::TryQueueForOptimization(
 
   if (input_queue_.Enqueue(job)) {
     if (job_handle_->UpdatePriorityEnabled()) {
-      job_handle_->UpdatePriority(isolate->EfficiencyModeEnabledForTiering()
+      job_handle_->UpdatePriority(isolate->EfficiencyModeEnabled()
                                       ? kEfficiencyTaskPriority
                                       : kTaskPriority);
     }
