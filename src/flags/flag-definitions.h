@@ -839,9 +839,14 @@ DEFINE_MAYBE_BOOL(
     "Memory saver tries to keep memory footprint low at the expense of extra "
     "cpu cycles.")
 
-DEFINE_INT(efficiency_mode_delay_turbofan_multiply, 3,
-           "Delay tier-up to turbofan to a certain invocation count multipier "
-           "while in efficiency mode.")
+// Flags to experiment with the new efficiency mode
+DEFINE_BOOL(efficiency_mode_for_tiering_heuristics, true,
+            "Use efficiency mode in tiering heuristics.")
+DEFINE_BOOL(efficiency_mode_disable_turbofan, false,
+            "Defer tier-up to turbofan while in efficiency mode.")
+DEFINE_INT(efficiency_mode_delay_turbofan, 15000,
+           "Delay tier-up to turbofan to a certain invocation count while in "
+           "efficiency mode.")
 
 // Flag to select wasm trace mark type
 DEFINE_STRING(
