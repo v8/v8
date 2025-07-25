@@ -293,6 +293,7 @@ int ExecuteAgainstReference(Isolate* isolate,
   if (is_wasm_jitless) {
     v8::internal::v8_flags.jitless = true;
     v8::internal::v8_flags.wasm_jitless = true;
+
     FlagList::EnforceFlagImplications();
     v8::internal::wasm::WasmInterpreterThread::Initialize();
     ClearJsToWasmWrappersForTesting(isolate);

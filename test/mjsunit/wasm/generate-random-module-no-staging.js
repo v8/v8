@@ -7,6 +7,7 @@
 // can be used by fuzzers.
 
 // Flags: --allow-natives-syntax --wasm-allow-mixed-eh-for-testing
+// Flags: --experimental-wasm-shared --shared-heap --shared-string-table
 
 (function TestGenerateRandomModule() {
   print(arguments.callee.name);
