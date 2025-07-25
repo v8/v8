@@ -2877,6 +2877,17 @@ DEFINE_IMPLICATION(allow_natives_for_differential_fuzzing, allow_natives_syntax)
 DEFINE_IMPLICATION(allow_natives_for_differential_fuzzing, fuzzing)
 DEFINE_BOOL(parse_only, false, "only parse the sources")
 
+DEFINE_BOOL(enable_parser_ablation, false, "Enable parser ablation")
+DEFINE_BOOL(enable_preparser_ablation, false, "Enable preparser ablation")
+DEFINE_BOOL(enable_bytecode_compiler_ablation, false,
+            "Enable bytecode compiler ablation")
+DEFINE_FLOAT(parser_ablation_amount, 0.8,
+             "Increase parse time by x for ablation studies")
+DEFINE_FLOAT(preparser_ablation_amount, 0.8,
+             "Increase parse time by x for ablation studies")
+DEFINE_FLOAT(bytecode_compiler_ablation_amount, 0.8,
+             "Increase BC compile time by x for ablation studies")
+
 // simulator-arm.cc and simulator-arm64.cc.
 #ifdef USE_SIMULATOR
 DEFINE_BOOL(trace_sim, false, "Trace simulator execution")
