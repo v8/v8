@@ -6300,11 +6300,25 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     ValueType target_type = ValueType::RefMaybeNull(
         target_imm.type, null_succeeds ? kNullable : kNonNullable);
 
-    if (!VALIDATE(IsSubtypeOf(target_type, src_type, this->module_))) {
-      this->DecodeError("invalid types for %s: %s is not a subtype of %s",
-                        WasmOpcodes::OpcodeName(opcode),
-                        target_type.name().c_str(), src_type.name().c_str());
-      return 0;
+    if (V8_UNLIKELY(this->enabled_.has_custom_descriptors())) {
+      // Custom descriptors relaxes the requirement that the target type be a
+      // subtype of the source type for all br_on_cast variants.
+      if (!VALIDATE(IsSameTypeHierarchy(target_imm.type, src_imm.type,
+                                        this->module_))) {
+        this->DecodeError(
+            "invalid types for %s: source type %s and target type %s must "
+            "be in the same reference type hierarchy",
+            WasmOpcodes::OpcodeName(opcode), src_type.name().c_str(),
+            target_type.name().c_str());
+        return 0;
+      }
+    } else {
+      if (!VALIDATE(IsSubtypeOf(target_type, src_type, this->module_))) {
+        this->DecodeError("invalid types for %s: %s is not a subtype of %s",
+                          WasmOpcodes::OpcodeName(opcode),
+                          target_type.name().c_str(), src_type.name().c_str());
+        return 0;
+      }
     }
 
     Value descriptor{nullptr, kWasmVoid};
@@ -6330,20 +6344,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     }
 
     Value obj = Pop(src_type);
-
-    if (!VALIDATE(
-            (obj.type.is_object_reference() &&
-             IsSameTypeHierarchy(obj.type.heap_type(), target_type.heap_type(),
-                                 this->module_)) ||
-            obj.type.is_bottom())) {
-      this->DecodeError(obj.pc(),
-                        "invalid types for %s: %s of type %s has to "
-                        "be in the same reference type hierarchy as %s",
-                        WasmOpcodes::OpcodeName(opcode),
-                        SafeOpcodeNameAt(obj.pc()), obj.type.name().c_str(),
-                        target_type.name().c_str());
-      return 0;
-    }
 
     Control* c = control_at(branch_depth.depth);
     if (c->br_merge()->arity == 0) {

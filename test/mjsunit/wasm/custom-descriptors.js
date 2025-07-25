@@ -23,8 +23,12 @@ let i64_field = makeField(kWasmI64, true);
 let sig_r_i = makeSig([kWasmI32], [kWasmAnyRef]);
 let sig_r_r = makeSig([kWasmAnyRef], [kWasmAnyRef]);
 let sig_v_r = makeSig([kWasmAnyRef], []);
-let sig_i_r = makeSig([kWasmAnyRef], [kWasmI32])
+let sig_i_r = makeSig([kWasmAnyRef], [kWasmI32]);
+let sig_i_v = makeSig([], [kWasmI32]);
+let sig_v_v = makeSig([], []);
 let anyref = wasmRefNullType(kWasmAnyRef);
+let funcref = wasmRefNullType(kWasmFuncRef);
+let nullref = wasmRefNullType(kWasmNullRef);
 
 builder.startRecGroup();
 const kNumStructs = 2;
@@ -146,6 +150,63 @@ builder.addFunction("br_on_cast_desc_fail_s" + type_index, sig_i_r)
     kExprDrop,
     kExprI32Const, 1, // If branch taken (cast failed), return 1.
   ]);
+
+  // Custom descriptors relaxes the requirement that the cast target be a
+  // subtype of the cast source. We can cast up from nullref.
+  builder.addFunction("br_on_cast_desc_from_null_s" + type_index, sig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprBlock, kAnyRefCode,
+        kExprRefNull, kNullRefCode,
+        kExprGlobalGet, global_index,
+        ...wasmBrOnCastDesc(0, nullref, wasmRefNullType(type_index)),
+        kExprI32Const, 0, // If branch not taken, return 0.
+        kExprReturn,
+      kExprEnd,
+      kExprDrop,
+      kExprI32Const, 1, // If branch taken, return 1.
+    ]);
+
+  builder.addFunction("br_on_cast_desc_fail_from_null_s" + type_index, sig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprBlock, kAnyRefCode,
+        kExprRefNull, kNullRefCode,
+        kExprGlobalGet, global_index,
+        ...wasmBrOnCastDescFail(0, nullref, wasmRefNullType(type_index)),
+        kExprI32Const, 0, // If branch not taken, return 0.
+        kExprReturn,
+      kExprEnd,
+      kExprDrop,
+      kExprI32Const, 1, // If branch taken, return 1.
+    ]);
+
+  // The relaxation applies to normal br_on_cast as well.
+  builder.addFunction("br_on_cast_from_null_s" + type_index, sig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprBlock, kAnyRefCode,
+        kExprRefNull, kNullRefCode,
+        ...wasmBrOnCast(0, nullref, wasmRefNullType(type_index)),
+        kExprI32Const, 0, // If branch not taken, return 0.
+        kExprReturn,
+      kExprEnd,
+      kExprDrop,
+      kExprI32Const, 1, // If branch taken, return 1.
+    ]);
+
+  builder.addFunction("br_on_cast_fail_from_null_s" + type_index, sig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprBlock, kAnyRefCode,
+        kExprRefNull, kNullRefCode,
+        ...wasmBrOnCastFail(0, nullref, wasmRefNullType(type_index)),
+        kExprI32Const, 0, // If branch not taken, return 0.
+        kExprReturn,
+      kExprEnd,
+      kExprDrop,
+      kExprI32Const, 1, // If branch taken, return 1.
+    ]);
 }
 
 MakeFunctions($s0);
@@ -216,3 +277,48 @@ assertEquals(1, wasm.br_on_cast_desc_fail_s0(null));
 assertEquals(1, wasm.br_on_cast_desc_fail_s1(s0));
 assertEquals(0, wasm.br_on_cast_desc_fail_s1(s1));
 assertEquals(1, wasm.br_on_cast_desc_fail_s1(null));
+
+assertEquals(1, wasm.br_on_cast_desc_from_null_s0());
+assertEquals(1, wasm.br_on_cast_desc_from_null_s1());
+assertEquals(0, wasm.br_on_cast_desc_fail_from_null_s0());
+assertEquals(0, wasm.br_on_cast_desc_fail_from_null_s1());
+assertEquals(1, wasm.br_on_cast_from_null_s0());
+assertEquals(1, wasm.br_on_cast_from_null_s1());
+assertEquals(0, wasm.br_on_cast_fail_from_null_s0());
+assertEquals(0, wasm.br_on_cast_fail_from_null_s1());
+
+// All br_on_cast variants trying to cast across hierarchies should still be
+// invalid.
+(() => {
+  for (let fail of [false, true]) {
+    for (let desc of [false, true]) {
+      let builder = new WasmModuleBuilder();
+      builder.startRecGroup();
+      let $desc0 = builder.nextTypeIndex() + 1;
+      let $s0 = builder.addStruct({fields: [], descriptor: $desc0});
+      builder.addStruct({fields: [], describes: $s0});
+      builder.endRecGroup();
+
+      let name = "br_on_cast" + (desc ? "_desc" : "") + (fail ? "_fail" : "");
+      let cast = fail ? (desc ? wasmBrOnCastDescFail : wasmBrOnCastFail) :
+                        (desc ? wasmBrOnCastDesc : wasmBrOnCast);
+
+      builder.addFunction(name, sig_v_v).addBody([
+        kExprBlock, kAnyRefCode,
+          kExprUnreachable,
+          ...cast(0, funcref, wasmRefNullType($s0)),
+          kExprUnreachable,
+        kExprEnd,
+        kExprDrop
+      ]);
+
+      let expected = new RegExp(
+          `.*\"${name}\" failed: invalid types for ${name}: source type ` +
+          'funcref and target type \\(ref null 0\\) must be in the same ' +
+          'reference type hierarchy.*');
+      let buffer = builder.toBuffer();
+      assertThrowsAsync(
+          WebAssembly.compile(buffer), WebAssembly.CompileError, expected);
+    }
+  }
+})();
