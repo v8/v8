@@ -252,8 +252,7 @@ BaselineBatchCompiler::~BaselineBatchCompiler() {
 }
 
 bool BaselineBatchCompiler::concurrent() const {
-  return v8_flags.concurrent_sparkplug &&
-         !isolate_->EfficiencyModeEnabledForTiering();
+  return v8_flags.concurrent_sparkplug && !isolate_->EfficiencyModeEnabled();
 }
 
 void BaselineBatchCompiler::EnqueueFunction(DirectHandle<JSFunction> function) {

@@ -2085,12 +2085,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return priority_ != v8::Isolate::Priority::kUserBlocking;
   }
 
-  // This is a temporary api until we use it by default.
-  bool EfficiencyModeEnabledForTiering() {
-    return v8_flags.efficiency_mode_for_tiering_heuristics &&
-           EfficiencyModeEnabled();
-  }
-
   // In battery saver mode we optimize to reduce total cpu cycles spent. Battery
   // saver mode is opt-in by the embedder. As with efficiency mode we must
   // expect that the mode is toggled off again and we should be able to ramp up
