@@ -3284,97 +3284,10 @@ IGNITION_HANDLER(ForOfNext, InterpreterAssembler) {
   TNode<Object> next = LoadRegisterAtOperandIndex(1);
   TNode<Context> context = GetContext();
 
-  Label slow_path(this), reach_end(this), dispatch(this);
+  auto [done_value, value] = ForOfNextHelper(context, object, next);
+  SetAccumulator(done_value);
+  StoreRegisterAtOperandIndex(value, 2);
 
-  // object has already been checked to be an JSReceiver when building
-  // the iterator record in bytecode generator (BuildGetIterator).
-  TNode<BoolT> is_array_iterator = IsJSArrayIterator(CAST(object));
-  GotoIfNot(is_array_iterator, &slow_path);
-
-  // Fast path for JSArrayIterator.
-  {
-    TNode<JSArrayIterator> array_iterator = CAST(object);
-    TNode<JSArray> iterated_array = CAST(LoadObjectField(
-        array_iterator, JSArrayIterator::kIteratedObjectOffset));
-
-    TNode<Map> map = LoadMap(iterated_array);
-    TNode<Int32T> elements_kind = LoadMapElementsKind(map);
-    GotoIfNot(IsFastElementsKind(elements_kind), &slow_path);
-
-    TNode<Smi> length = LoadFastJSArrayLength(iterated_array);
-    TNode<Number> current_index = LoadObjectField<Number>(
-        array_iterator, JSArrayIterator::kNextIndexOffset);
-    TNode<Smi> smi_index = CAST(current_index);
-    GotoIf(SmiGreaterThanOrEqual(smi_index, length), &reach_end);
-
-    TNode<Smi> iteration_kind =
-        LoadObjectField<Smi>(array_iterator, JSArrayIterator::kKindOffset);
-
-    TVARIABLE(Object, var_element_value);
-    TNode<FixedArrayBase> elements = LoadElements(iterated_array);
-
-    Label load_key(this), load_entry(this);
-    GotoIf(SmiEqual(iteration_kind, SmiConstant(IterationKind::kKeys)),
-           &load_key);
-
-    Label if_double(this), if_smi_or_object(this), done(this);
-    Branch(IsDoubleElementsKind(elements_kind), &if_double, &if_smi_or_object);
-    BIND(&if_smi_or_object);
-    {
-      var_element_value = LoadFixedArrayElement(CAST(elements), smi_index);
-      GotoIf(SmiEqual(iteration_kind, SmiConstant(IterationKind::kEntries)),
-             &load_entry);
-      Goto(&done);
-    }
-    BIND(&if_double);
-    {
-      TNode<Float64T> value = LoadFixedDoubleArrayElement(
-          CAST(elements), SmiToIntPtr(smi_index), &slow_path, &slow_path);
-      var_element_value = AllocateHeapNumberWithValue(value);
-      GotoIf(SmiEqual(iteration_kind, SmiConstant(IterationKind::kEntries)),
-             &load_entry);
-      Goto(&done);
-    }
-
-    BIND(&load_key);
-    {
-      var_element_value = smi_index;
-      Goto(&done);
-    }
-
-    BIND(&load_entry);
-    {
-      var_element_value = AllocateJSIteratorResultValueForEntry(
-          context, smi_index, var_element_value.value());
-      Goto(&done);
-    }
-
-    BIND(&done);
-    {
-      StoreObjectFieldNoWriteBarrier(array_iterator,
-                                     JSArrayIterator::kNextIndexOffset,
-                                     SmiAdd(smi_index, SmiConstant(1)));
-      SetAccumulator(FalseConstant());
-      StoreRegisterAtOperandIndex(var_element_value.value(), 2);
-      Goto(&dispatch);
-    }
-
-    BIND(&reach_end);
-    {
-      SetAccumulator(TrueConstant());
-      Goto(&dispatch);
-    }
-  }
-
-  BIND(&slow_path);
-  {
-    auto [value, done_value] = CallIteratorNext(object, next, context);
-    SetAccumulator(done_value);
-    StoreRegisterAtOperandIndex(value, 2);
-    Goto(&dispatch);
-  }
-
-  BIND(&dispatch);
   Dispatch();
 }
 

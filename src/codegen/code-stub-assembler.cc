@@ -17258,6 +17258,142 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResultForEntry(
   return CAST(result);
 }
 
+std::pair<TNode<Object>, TNode<Object>> CodeStubAssembler::CallIteratorNext(
+    TNode<Object> iterator, TNode<Object> next_method, TNode<Context> context) {
+  Label callable(this), not_callable(this, Label::kDeferred);
+  Branch(IsCallable(CAST(next_method)), &callable, &not_callable);
+  BIND(&not_callable);
+  {
+    CallRuntime(Runtime::kThrowCalledNonCallable, context, next_method);
+    Unreachable();
+  }
+
+  BIND(&callable);
+  TNode<JSAny> result =
+      Call(context, next_method, ConvertReceiverMode::kAny, CAST(iterator));
+
+  Label if_js_receiver(this), if_not_js_receiver(this, Label::kDeferred);
+  Branch(IsJSReceiver(CAST(result)), &if_js_receiver, &if_not_js_receiver);
+
+  BIND(&if_not_js_receiver);
+  {
+    CallRuntime(Runtime::kThrowIteratorResultNotAnObject, context, result);
+    Unreachable();
+  }
+
+  BIND(&if_js_receiver);
+  // TODO(rezvan): Add the fast path for JSIteratorResult.
+  TNode<JSReceiver> result_receiver = CAST(result);
+  TNode<Object> done =
+      GetProperty(context, result_receiver, factory()->done_string());
+  TNode<Object> value =
+      GetProperty(context, result_receiver, factory()->value_string());
+  return {value, done};
+}
+
+using ForOfNextResult = TorqueStructForOfNextResult_0;
+
+ForOfNextResult CodeStubAssembler::ForOfNextHelper(TNode<Context> context,
+                                                   TNode<Object> object,
+                                                   TNode<Object> next) {
+  TVARIABLE(Object, var_value);
+  TVARIABLE(Object, var_done);
+
+  Label slow_path(this), reach_end(this), return_result(this);
+
+  // object has already been checked to be an JSReceiver when building
+  // the iterator record in bytecode generator (BuildGetIterator).
+  TNode<BoolT> is_array_iterator = IsJSArrayIterator(CAST(object));
+  GotoIfNot(is_array_iterator, &slow_path);
+
+  // Fast path for JSArrayIterator.
+  {
+    TNode<JSArrayIterator> array_iterator = CAST(object);
+    TNode<JSArray> iterated_array = CAST(LoadObjectField(
+        array_iterator, JSArrayIterator::kIteratedObjectOffset));
+
+    TNode<Map> map = LoadMap(iterated_array);
+    TNode<Int32T> elements_kind = LoadMapElementsKind(map);
+    GotoIfNot(IsFastElementsKind(elements_kind), &slow_path);
+
+    TNode<Smi> length = LoadFastJSArrayLength(iterated_array);
+    TNode<Number> current_index = LoadObjectField<Number>(
+        array_iterator, JSArrayIterator::kNextIndexOffset);
+    TNode<Smi> smi_index = CAST(current_index);
+    GotoIf(SmiGreaterThanOrEqual(smi_index, length), &reach_end);
+
+    TNode<Smi> iteration_kind =
+        LoadObjectField<Smi>(array_iterator, JSArrayIterator::kKindOffset);
+
+    TVARIABLE(Object, var_element_value);
+    TNode<FixedArrayBase> elements = LoadElements(iterated_array);
+
+    Label load_key(this), load_entry(this), element_value_resolved(this);
+    GotoIf(SmiEqual(iteration_kind, SmiConstant(IterationKind::kKeys)),
+           &load_key);
+
+    Label if_double(this), if_smi_or_object(this);
+    Branch(IsDoubleElementsKind(elements_kind), &if_double, &if_smi_or_object);
+    BIND(&if_smi_or_object);
+    {
+      var_element_value = LoadFixedArrayElement(CAST(elements), smi_index);
+      GotoIf(SmiEqual(iteration_kind, SmiConstant(IterationKind::kEntries)),
+             &load_entry);
+      Goto(&element_value_resolved);
+    }
+    BIND(&if_double);
+    {
+      TNode<Float64T> value = LoadFixedDoubleArrayElement(
+          CAST(elements), SmiToIntPtr(smi_index), &slow_path, &slow_path);
+      var_element_value = AllocateHeapNumberWithValue(value);
+      GotoIf(SmiEqual(iteration_kind, SmiConstant(IterationKind::kEntries)),
+             &load_entry);
+      Goto(&element_value_resolved);
+    }
+
+    BIND(&load_key);
+    {
+      var_element_value = smi_index;
+      Goto(&element_value_resolved);
+    }
+
+    BIND(&load_entry);
+    {
+      var_element_value = AllocateJSIteratorResultValueForEntry(
+          context, smi_index, var_element_value.value());
+      Goto(&element_value_resolved);
+    }
+
+    BIND(&element_value_resolved);
+    {
+      StoreObjectFieldNoWriteBarrier(array_iterator,
+                                     JSArrayIterator::kNextIndexOffset,
+                                     SmiAdd(smi_index, SmiConstant(1)));
+      var_value = var_element_value;
+      var_done = FalseConstant();
+      Goto(&return_result);
+    }
+
+    BIND(&reach_end);
+    {
+      var_value = UndefinedConstant();
+      var_done = TrueConstant();
+      Goto(&return_result);
+    }
+  }
+
+  BIND(&slow_path);
+  {
+    auto [value, done] = CallIteratorNext(object, next, context);
+    var_value = value;
+    var_done = done;
+    Goto(&return_result);
+  }
+
+  BIND(&return_result);
+  return ForOfNextResult{var_done.value(), var_value.value()};
+}
+
 TNode<JSObject> CodeStubAssembler::AllocatePromiseWithResolversResult(
     TNode<Context> context, TNode<Object> promise, TNode<Object> resolve,
     TNode<Object> reject) {

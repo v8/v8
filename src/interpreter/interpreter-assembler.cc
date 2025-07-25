@@ -1063,39 +1063,6 @@ InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
                                    const RegListNodePair& args,
                                    int return_count);
 
-std::pair<TNode<Object>, TNode<Object>> InterpreterAssembler::CallIteratorNext(
-    TNode<Object> iterator, TNode<Object> next_method, TNode<Context> context) {
-  Label callable(this), not_callable(this, Label::kDeferred);
-  Branch(IsCallable(CAST(next_method)), &callable, &not_callable);
-  BIND(&not_callable);
-  {
-    CallRuntime(Runtime::kThrowCalledNonCallable, context, next_method);
-    Unreachable();
-  }
-
-  BIND(&callable);
-  TNode<JSAny> result =
-      Call(context, next_method, ConvertReceiverMode::kAny, CAST(iterator));
-
-  Label if_js_receiver(this), if_not_js_receiver(this, Label::kDeferred);
-  Branch(IsJSReceiver(CAST(result)), &if_js_receiver, &if_not_js_receiver);
-
-  BIND(&if_not_js_receiver);
-  {
-    CallRuntime(Runtime::kThrowIteratorResultNotAnObject, context, result);
-    Unreachable();
-  }
-
-  BIND(&if_js_receiver);
-  // TODO(rezvan): Add the fast path for JSIteratorResult.
-  TNode<JSReceiver> result_receiver = CAST(result);
-  TNode<Object> done =
-      GetProperty(context, result_receiver, factory()->done_string());
-  TNode<Object> value =
-      GetProperty(context, result_receiver, factory()->value_string());
-  return {value, done};
-}
-
 TNode<Int32T> InterpreterAssembler::UpdateInterruptBudget(
     TNode<Int32T> weight) {
   TNode<JSFunction> function = LoadFunctionClosure();
