@@ -210,8 +210,9 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
   }
 
   if (timer && timer->Elapsed().InNanoseconds() > 0) {
-    auto end =
-        timer->Elapsed() * (1.0 + v8_flags.bytecode_compiler_ablation_amount);
+    auto end = timer->Elapsed();
+    end += std::min(base::TimeDelta::FromSeconds(1),
+                    end * v8_flags.bytecode_compiler_ablation_amount);
     while (timer->Elapsed() < end) {
     }
   }

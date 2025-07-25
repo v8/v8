@@ -858,7 +858,9 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
   RecordFunctionLiteralSourceRange(result);
 
   if (timer && timer->Elapsed().InNanoseconds() > 0) {
-    auto end = timer->Elapsed() * (1.0 + v8_flags.parser_ablation_amount);
+    auto end = timer->Elapsed();
+    end += std::min(base::TimeDelta::FromSeconds(1),
+                    end * v8_flags.parser_ablation_amount);
     while (timer->Elapsed() < end) {
     }
   }
@@ -1223,7 +1225,9 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
   info->set_max_info_id(GetLastInfoId());
 
   if (timer && timer->Elapsed().InNanoseconds() > 0) {
-    auto end = timer->Elapsed() * (1.0 + v8_flags.parser_ablation_amount);
+    auto end = timer->Elapsed();
+    end += std::min(base::TimeDelta::FromSeconds(1),
+                    end * v8_flags.parser_ablation_amount);
     while (timer->Elapsed() < end) {
     }
   }
@@ -2996,7 +3000,9 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
       produced_preparse_data);
 
   if (timer && timer->Elapsed().InNanoseconds() > 0) {
-    auto end = timer->Elapsed() * (1.0 + v8_flags.preparser_ablation_amount);
+    auto end = timer->Elapsed();
+    end += std::min(base::TimeDelta::FromSeconds(1),
+                    end * v8_flags.preparser_ablation_amount);
     while (timer->Elapsed() < end) {
     }
   }
