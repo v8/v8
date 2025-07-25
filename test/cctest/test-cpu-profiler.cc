@@ -4196,9 +4196,7 @@ TEST(EmbedderStatePropagateNativeContextMove) {
 
     i::Address initial_address =
         CcTest::i_isolate()->current_embedder_state()->native_context_address();
-    CHECK(!PageMetadata::FromAddress(initial_address)
-               ->Chunk()
-               ->IsFlagSet(MemoryChunk::NEVER_EVACUATE));
+    CHECK(!PageMetadata::FromAddress(initial_address)->never_evacuate());
 
     // Install a function that triggers the native context to be moved.
     v8::Local<v8::FunctionTemplate> move_func_template =

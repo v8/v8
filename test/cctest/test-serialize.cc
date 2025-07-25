@@ -48,6 +48,7 @@
 #include "src/flags/flags.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-layout-inl.h"
+#include "src/heap/mark-compact-inl.h"
 #include "src/heap/parked-scope-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/read-only-promotion.h"

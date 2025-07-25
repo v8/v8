@@ -109,6 +109,11 @@ void MarkCompactCollector::AddTransitionArray(Tagged<TransitionArray> array) {
   local_weak_objects()->transition_arrays_local.Push(array);
 }
 
+// static
+bool MarkCompactCollector::IsOnEvacuationCandidate(Tagged<MaybeObject> obj) {
+  return MemoryChunk::FromAddress(obj.ptr())->IsEvacuationCandidate();
+}
+
 void RootMarkingVisitor::VisitRootPointer(Root root, const char* description,
                                           FullObjectSlot p) {
   DCHECK(!MapWord::IsPacked(p.Relaxed_Load().ptr()));

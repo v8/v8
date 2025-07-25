@@ -312,8 +312,6 @@ void MutablePageMetadata::ClearFlagMaybeExecutable(MemoryChunk::Flag flag) {
   }
 }
 
-void MutablePageMetadata::MarkNeverEvacuate() {
-  SetFlagMaybeExecutable(MemoryChunk::NEVER_EVACUATE);
-}
+void MutablePageMetadata::MarkNeverEvacuate() { set_never_evacuate(); }
 
 }  // namespace v8::internal

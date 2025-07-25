@@ -876,7 +876,7 @@ bool ShouldMovePage(PageMetadata* p, intptr_t live_bytes,
   DCHECK(v8_flags.page_promotion);
   DCHECK(!v8_flags.sticky_mark_bits);
   Heap* heap = p->heap();
-  DCHECK(!p->Chunk()->NeverEvacuate());
+  DCHECK(!p->never_evacuate());
   const bool should_move_page =
       ((live_bytes + wasted_bytes) > NewSpacePageEvacuationThreshold() ||
        (p->AllocatedLabSize() == 0)) &&
@@ -896,7 +896,7 @@ bool ShouldMovePage(PageMetadata* p, intptr_t live_bytes,
     // Don't allocate on old pages so that recently allocated objects on the
     // page get a chance to die young. The page will be force promoted on the
     // next GC because `AllocatedLabSize` will be 0.
-    p->SetFlagNonExecutable(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
+    p->set_never_allocate_on_chunk(true);
   }
   return should_move_page;
 }

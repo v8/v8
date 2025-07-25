@@ -81,9 +81,9 @@ size_t PageMetadata::AvailableInFreeList() {
 
 void PageMetadata::MarkNeverAllocateForTesting() {
   DCHECK(this->owner_identity() != NEW_SPACE);
-  DCHECK(!Chunk()->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE));
-  SetFlagMaybeExecutable(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
-  SetFlagMaybeExecutable(MemoryChunk::NEVER_EVACUATE);
+  DCHECK(!never_allocate_on_chunk());
+  set_never_allocate_on_chunk(true);
+  set_never_evacuate();
   reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
 }
 

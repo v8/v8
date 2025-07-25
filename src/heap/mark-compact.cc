@@ -305,7 +305,7 @@ void MarkCompactCollector::TearDown() {
 }
 
 void MarkCompactCollector::AddEvacuationCandidate(PageMetadata* p) {
-  DCHECK(!p->Chunk()->NeverEvacuate());
+  DCHECK(!p->never_evacuate());
   DCHECK(!p->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
 
   if (v8_flags.trace_evacuation_candidates) {
@@ -642,11 +642,11 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   DCHECK(!sweeper_->sweeping_in_progress());
   for (PageMetadata* p : *space) {
     MemoryChunk* chunk = p->Chunk();
-    if (chunk->NeverEvacuate() || !chunk->CanAllocate()) continue;
+    if (p->never_evacuate() || !p->CanAllocateOnChunk()) {
+      continue;
+    }
 
     if (p->is_pinned_for_testing()) {
-      DCHECK(!chunk->IsFlagSet(
-          MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING));
       continue;
     }
 
@@ -677,13 +677,10 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   if (v8_flags.manual_evacuation_candidates_selection) {
     for (size_t i = 0; i < pages.size(); i++) {
       PageMetadata* p = pages[i].second;
-      MemoryChunk* chunk = p->Chunk();
-      if (chunk->IsFlagSet(
-              MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING)) {
+      if (p->is_forced_evacuation_candidate_for_testing()) {
         candidate_count++;
         total_live_bytes += pages[i].first;
-        p->ClearFlagMaybeExecutable(
-            MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+        p->set_forced_evacuation_candidate_for_testing(false);
         AddEvacuationCandidate(p);
       }
     }
@@ -4839,7 +4836,7 @@ intptr_t NewSpacePageEvacuationThreshold() {
 bool ShouldMovePage(PageMetadata* p, intptr_t live_bytes,
                     MemoryReductionMode memory_reduction_mode) {
   Heap* heap = p->heap();
-  DCHECK(!p->Chunk()->NeverEvacuate());
+  DCHECK(!p->never_evacuate());
   const bool should_move_page =
       (v8_flags.page_promotion &&
        (memory_reduction_mode == MemoryReductionMode::kNone) &&

@@ -127,7 +127,9 @@ class MemoryChunkMetadata {
   }
 
   bool is_pinned_for_testing() const {
-    return IsPinnedForTestingField::decode(flags_);
+    const bool is_pinned = IsPinnedForTestingField::decode(flags_);
+    DCHECK_IMPLIES(is_pinned, !is_forced_evacuation_candidate_for_testing());
+    return is_pinned;
   }
   void set_is_pinned_for_testing(bool value) {
     flags_ = IsPinnedForTestingField::update(flags_, value);
@@ -172,6 +174,30 @@ class MemoryChunkMetadata {
     flags_ = IsQuarantinedField::update(flags_, value);
   }
 
+  bool is_evacuation_candidate() const {
+    return IsEvacuationCandidateField::decode(flags_);
+  }
+
+  bool never_evacuate() const { return NeverEvacuateField::decode(flags_); }
+
+  bool never_allocate_on_chunk() const {
+    return NeverAllocateOnChunk::decode(flags_);
+  }
+  void set_never_allocate_on_chunk(bool value) {
+    flags_ = NeverAllocateOnChunk::update(flags_, value);
+  }
+
+  bool CanAllocateOnChunk() const {
+    return !is_evacuation_candidate() && !never_allocate_on_chunk();
+  }
+
+  bool is_forced_evacuation_candidate_for_testing() const {
+    return ForceEvacuationCandidateForTestingField::decode(flags_);
+  }
+  void set_forced_evacuation_candidate_for_testing(bool value) {
+    flags_ = ForceEvacuationCandidateForTestingField::update(flags_, value);
+  }
+
  protected:
 #ifdef THREAD_SANITIZER
   // Perform a dummy acquire load to tell TSAN that there is no data race in
@@ -185,6 +211,14 @@ class MemoryChunkMetadata {
   MemoryChunkMetadata(Heap* heap, BaseSpace* space, size_t chunk_size,
                       Address area_start, Address area_end,
                       VirtualMemory reservation, Executability executability);
+
+  void set_is_evacuation_candidate(bool value) {
+    flags_ = IsEvacuationCandidateField::update(flags_, value);
+  }
+
+  void set_never_evacuate() {
+    flags_ = NeverEvacuateField::update(flags_, true);
+  }
 
   // If the chunk needs to remember its memory reservation, it is stored here.
   VirtualMemory reservation_;
@@ -241,6 +275,20 @@ class MemoryChunkMetadata {
   // GC. Quarantined chunks are not used for further allocations in new
   // space (to make it easier to keep track of the intermediate generation).
   using IsQuarantinedField = WillBePromotedField::Next<bool, 1>;
+  // The memory chunk is an evacuation candidate which means that it has been
+  // selected for compaction. Slots to such chunks are recorded by the write
+  // barrier.
+  using IsEvacuationCandidateField = IsQuarantinedField::Next<bool, 1>;
+  // Indicates whether the memory chunk should never be evacuated.
+  using NeverEvacuateField = IsEvacuationCandidateField::Next<bool, 1>;
+  // Indicates whether the memory chunk can be used for allocation.
+  using NeverAllocateOnChunk = NeverEvacuateField::Next<bool, 1>;
+  // This flag is intended to be used for testing. Works only when
+  // `v8_flags.manual_evacuation_candidates_selection` is set. It forces the
+  // page to become an evacuation candidate at next candidates selection
+  // cycle.
+  using ForceEvacuationCandidateForTestingField =
+      NeverAllocateOnChunk::Next<bool, 1>;
 
   static constexpr intptr_t HeapOffset() {
     return offsetof(MemoryChunkMetadata, heap_);

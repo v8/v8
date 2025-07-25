@@ -144,11 +144,11 @@ ReadOnlyPageMetadata::ReadOnlyPageMetadata(Heap* heap, BaseSpace* space,
                           std::move(reservation),
                           Executability::NOT_EXECUTABLE) {
   allocated_bytes_ = 0;
+  set_never_evacuate();
 }
 
 MemoryChunk::MainThreadFlags ReadOnlyPageMetadata::InitialFlags() const {
-  return MemoryChunk::NEVER_EVACUATE | MemoryChunk::READ_ONLY_HEAP |
-         MemoryChunk::CONTAINS_ONLY_OLD;
+  return MemoryChunk::READ_ONLY_HEAP | MemoryChunk::CONTAINS_ONLY_OLD;
 }
 
 void ReadOnlyPageMetadata::MakeHeaderRelocatable() {
@@ -501,7 +501,7 @@ void ReadOnlySpace::ShrinkPages() {
   heap()->CreateFillerObjectAt(top_, static_cast<int>(limit_ - top_));
 
   for (ReadOnlyPageMetadata* page : pages_) {
-    DCHECK(page->Chunk()->IsFlagSet(MemoryChunk::NEVER_EVACUATE));
+    DCHECK(page->never_evacuate());
     size_t unused = page->ShrinkToHighWaterMark();
     capacity_ -= unused;
     accounting_stats_.DecreaseCapacity(static_cast<intptr_t>(unused));

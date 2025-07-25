@@ -36,7 +36,7 @@ Tagged<FreeSpace> FreeListCategory::PickNodeFromList(size_t minimum_size,
                                                      size_t* node_size) {
   Tagged<FreeSpace> node = top();
   DCHECK(!node.is_null());
-  DCHECK(MemoryChunk::FromHeapObject(node)->CanAllocate());
+  DCHECK(MemoryChunkMetadata::FromHeapObject(node)->CanAllocateOnChunk());
   if (static_cast<size_t>(node->Size()) < minimum_size) {
     *node_size = 0;
     return Tagged<FreeSpace>();
@@ -53,7 +53,7 @@ Tagged<FreeSpace> FreeListCategory::SearchForNodeInList(const Heap* heap,
   Tagged<FreeSpace> prev_non_evac_node;
   for (Tagged<FreeSpace> cur_node = top(); !cur_node.is_null();
        cur_node = cur_node->next()) {
-    DCHECK(MemoryChunk::FromHeapObject(cur_node)->CanAllocate());
+    DCHECK(MemoryChunkMetadata::FromHeapObject(cur_node)->CanAllocateOnChunk());
     size_t size = cur_node->size(kRelaxedLoad);
     if (size >= minimum_size) {
       DCHECK_GE(available_, size);

@@ -92,17 +92,6 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 
     LARGE_PAGE = 1u << 10,
     EVACUATION_CANDIDATE = 1u << 11,
-    NEVER_EVACUATE = 1u << 12,
-
-    // This flag is intended to be used for testing. Works only when both
-    // v8_flags.stress_compaction and
-    // v8_flags.manual_evacuation_candidates_selection are set. It forces the
-    // page to become an evacuation candidate at next candidates selection
-    // cycle.
-    FORCE_EVACUATION_CANDIDATE_FOR_TESTING = 1u << 14,
-
-    // This flag is intended to be used for testing.
-    NEVER_ALLOCATE_ON_PAGE = 1u << 15,
 
     // |COMPACTION_WAS_ABORTED|: Indicates that the compaction in this page
     //   has been aborted and needs special handling by the sweeper.
@@ -224,16 +213,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 
   V8_INLINE bool InTrustedSpace() const { return IsFlagSet(IS_TRUSTED); }
 
-  bool NeverEvacuate() const { return IsFlagSet(NEVER_EVACUATE); }
-
-  bool CanAllocate() const {
-    return !IsEvacuationCandidate() && !IsFlagSet(NEVER_ALLOCATE_ON_PAGE);
-  }
-
-  bool IsEvacuationCandidate() const {
-    DCHECK(!(IsFlagSet(NEVER_EVACUATE) && IsFlagSet(EVACUATION_CANDIDATE)));
-    return IsFlagSet(EVACUATION_CANDIDATE);
-  }
+  V8_INLINE bool IsEvacuationCandidate() const;
 
   bool ShouldSkipEvacuationSlotRecording() const {
     MainThreadFlags flags = GetFlags();

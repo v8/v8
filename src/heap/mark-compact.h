@@ -117,9 +117,7 @@ class MarkCompactCollector final {
   void StartMarking(
       std::shared_ptr<::heap::base::IncrementalMarkingSchedule> schedule = {});
 
-  static inline bool IsOnEvacuationCandidate(Tagged<MaybeObject> obj) {
-    return MemoryChunk::FromAddress(obj.ptr())->IsEvacuationCandidate();
-  }
+  static inline bool IsOnEvacuationCandidate(Tagged<MaybeObject> obj);
 
   struct RecordRelocSlotInfo {
     MutablePageMetadata* page_metadata;

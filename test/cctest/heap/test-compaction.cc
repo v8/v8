@@ -73,8 +73,7 @@ HEAP_TEST(CompactionFullAbortedPage) {
           AllocationType::kOld, &compaction_page_handles);
       PageMetadata* to_be_aborted_page =
           PageMetadata::FromHeapObject(*compaction_page_handles.front());
-      to_be_aborted_page->SetFlagNonExecutable(
-          MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+      to_be_aborted_page->set_forced_evacuation_candidate_for_testing(true);
       CheckAllObjectsOnPage(compaction_page_handles, to_be_aborted_page);
 
       heap->set_force_oom(true);
@@ -146,8 +145,7 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
           AllocationType::kOld, &compaction_page_handles, object_size);
       PageMetadata* to_be_aborted_page =
           PageMetadata::FromHeapObject(*compaction_page_handles.front());
-      to_be_aborted_page->SetFlagNonExecutable(
-          MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+      to_be_aborted_page->set_forced_evacuation_candidate_for_testing(true);
       CheckAllObjectsOnPage(compaction_page_handles, to_be_aborted_page);
 
       {
@@ -237,8 +235,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
           AllocationType::kOld, &compaction_page_handles, object_size);
       to_be_aborted_page =
           PageMetadata::FromHeapObject(*compaction_page_handles.front());
-      to_be_aborted_page->SetFlagNonExecutable(
-          MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+      to_be_aborted_page->set_forced_evacuation_candidate_for_testing(true);
       for (size_t i = compaction_page_handles.size() - 1; i > 0; i--) {
         compaction_page_handles[i]->set(0, *compaction_page_handles[i - 1]);
       }
@@ -343,8 +340,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
       CHECK_GE(compaction_page_handles.front()->length(), 2);
       to_be_aborted_page =
           PageMetadata::FromHeapObject(*compaction_page_handles.front());
-      to_be_aborted_page->SetFlagNonExecutable(
-          MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+      to_be_aborted_page->set_forced_evacuation_candidate_for_testing(true);
 
       for (size_t i = compaction_page_handles.size() - 1; i > 0; i--) {
         compaction_page_handles[i]->set(0, *compaction_page_handles[i - 1]);

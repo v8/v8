@@ -370,7 +370,7 @@ bool Sweeper::LocalSweeper::ParallelSweepSpace(AllocationSpace identity,
   PageMetadata* page = nullptr;
   while ((page = sweeper_->GetSweepingPageSafe(identity)) != nullptr) {
     ParallelSweepPage(page, identity, sweeping_mode);
-    if (!page->Chunk()->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE)) {
+    if (!page->never_allocate_on_chunk()) {
       found_usable_pages = true;
 #if DEBUG
     } else {
@@ -379,11 +379,9 @@ bool Sweeper::LocalSweeper::ParallelSweepSpace(AllocationSpace identity,
       int space_index = GetSweepSpaceIndex(identity);
       Sweeper::SweepingList& sweeping_list =
           sweeper_->sweeping_list_[space_index];
-      DCHECK(std::all_of(sweeping_list.begin(), sweeping_list.end(),
-                         [](const PageMetadata* p) {
-                           return p->Chunk()->IsFlagSet(
-                               MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
-                         }));
+      DCHECK(std::all_of(
+          sweeping_list.begin(), sweeping_list.end(),
+          [](const PageMetadata* p) { return p->never_allocate_on_chunk(); }));
 #endif  // DEBUG
     }
     if (++pages_swept >= max_pages) break;
@@ -705,9 +703,9 @@ namespace {
 V8_INLINE bool ComparePagesForSweepingOrder(const PageMetadata* a,
                                             const PageMetadata* b) {
   // Prioritize pages that can be allocated on.
-  if (a->Chunk()->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE) !=
-      b->Chunk()->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE))
-    return a->Chunk()->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
+  if (a->never_allocate_on_chunk() != b->never_allocate_on_chunk()) {
+    return a->never_allocate_on_chunk();
+  }
   // We sort in descending order of live bytes, i.e., ascending order of
   // free bytes, because GetSweepingPageSafe returns pages in reverse order.
   // This works automatically for black allocated pages, since we set live bytes
@@ -1580,7 +1578,7 @@ void Sweeper::SweepEmptyNewSpacePage(PageMetadata* page) {
   page->ResetAllocationStatistics();
   page->ResetAgeInNewSpace();
   page->ReleaseSlotSet(SURVIVOR_TO_EXTERNAL_POINTER);
-  page->ClearFlagNonExecutable(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
+  page->set_never_allocate_on_chunk(false);
   paged_space->FreeDuringSweep(start, size);
   paged_space->IncreaseAllocatedBytes(0, page);
   paged_space->RelinkFreeListCategories(page);

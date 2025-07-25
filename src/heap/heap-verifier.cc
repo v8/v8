@@ -410,6 +410,8 @@ void HeapVerification::VerifyPage(const MemoryChunkMetadata* chunk_metadata) {
   CHECK(!chunk->IsFlagSet(MemoryChunk::FROM_PAGE));
   CHECK(!chunk_metadata->will_be_promoted());
   CHECK(!chunk_metadata->is_quarantined());
+  CHECK_EQ(chunk_metadata->is_evacuation_candidate(),
+           chunk->IsEvacuationCandidate());
   if (chunk->InReadOnlySpace()) {
     CHECK_NULL(chunk_metadata->owner());
   } else {

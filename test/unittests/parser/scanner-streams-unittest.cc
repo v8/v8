@@ -803,8 +803,7 @@ TEST_F(ScannerStreamsTest, RelocatingCharacterStream) {
     i::Handle<i::String> two_byte_string =
         v8::Utils::OpenHandle(*two_byte_string_global.Get(isolate()));
     i::MutablePageMetadata::FromHeapObject(*two_byte_string)
-        ->SetFlagNonExecutable(
-            i::MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+        ->set_forced_evacuation_candidate_for_testing(true);
   }
   InvokeMajorGC();
   {
@@ -867,8 +866,7 @@ TEST_F(ScannerStreamsTest, RelocatingUnbufferedCharacterStream) {
     i::Handle<i::String> two_byte_string =
         v8::Utils::OpenHandle(*two_byte_string_global.Get(isolate()));
     i::MutablePageMetadata::FromHeapObject(*two_byte_string)
-        ->SetFlagNonExecutable(
-            i::MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+        ->set_forced_evacuation_candidate_for_testing(true);
   }
   InvokeMajorGC();
   {

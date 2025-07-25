@@ -68,6 +68,16 @@ const MemoryChunkMetadata* MemoryChunk::MetadataNoIsolateCheck() const {
   return const_cast<MemoryChunk*>(this)->MetadataImpl<false>(nullptr);
 }
 
+bool MemoryChunk::IsEvacuationCandidate() const {
+#ifdef DEBUG
+  const auto* metadata = Metadata();
+  DCHECK((!metadata->never_evacuate() || !IsFlagSet(EVACUATION_CANDIDATE)));
+  DCHECK_EQ(metadata->is_evacuation_candidate(),
+            IsFlagSet(EVACUATION_CANDIDATE));
+#endif  // DEBUG
+  return IsFlagSet(EVACUATION_CANDIDATE);
+}
+
 }  // namespace v8::internal
 
 #endif  // V8_HEAP_MEMORY_CHUNK_INL_H_
