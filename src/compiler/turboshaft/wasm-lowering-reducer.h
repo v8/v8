@@ -875,7 +875,7 @@ class WasmLoweringReducer : public Next {
     // Instead of subtracting 1 from {supertypes_length}, subtract the size
     // of one entry from the offset.
     constexpr int kOffsetOfLastEntry =
-        WasmTypeInfo::kSupertypesLengthOffset - kTaggedSize;
+        WasmTypeInfo::kSupertypesOffset - kTaggedSize;
     return __ Load(type_info, __ ChangeInt32ToIntPtr(supertypes_length),
                    LoadOp::Kind::TaggedBase().Immutable(),
                    MemoryRepresentation::TaggedPointer(), kOffsetOfLastEntry,
