@@ -500,7 +500,7 @@ deps = {
   'tools/rust':
     Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '522bd21e55642822f16f17722fc89588086dde97',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '056ee3bca6a7484efca8e0435f938b1d1b0ee3a4',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '283b3095a9b09270e286ec4e2af45b77225c7346',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
