@@ -4,7 +4,7 @@
 
 // Flags: --fuzzing --allow-natives-syntax --wasm-staging
 // Flags: --wasm-allow-mixed-eh-for-testing
-// Flags: --experimental-wasm-shared --shared-heap --shared-string-table
+// Flags: --experimental-fuzzing
 
 const generated_module = %WasmGenerateRandomModule();
 if (typeof WebAssembly == "object") {

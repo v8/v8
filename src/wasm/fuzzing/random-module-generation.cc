@@ -1775,6 +1775,10 @@ class BodyGen {
   }
 
   bool array_atomic_get_helper(ValueType value_type, DataRange* data) {
+    if (!v8_flags.experimental_wasm_shared) {
+      return false;
+    }
+
     WasmModuleBuilder* builder = builder_->builder();
 
     std::optional<ModuleTypeIndex> matching_array =
@@ -1821,6 +1825,10 @@ class BodyGen {
 
   bool array_atomic_rmw_helper(WasmOpcode opcode, ValueType value_type,
                                DataRange* data) {
+    if (!v8_flags.experimental_wasm_shared) {
+      return false;
+    }
+
     std::optional<ModuleTypeIndex> matching_array =
         find_suitable_array(value_type, false, data);
     if (!matching_array) {
@@ -2013,6 +2021,10 @@ class BodyGen {
   }
 
   void array_atomic_set(DataRange* data) {
+    if (!v8_flags.experimental_wasm_shared) {
+      return;
+    }
+
     WasmModuleBuilder* builder = builder_->builder();
     ZoneVector<ModuleTypeIndex> array_indices(builder->zone());
     for (ModuleTypeIndex i : arrays_) {
@@ -2129,6 +2141,10 @@ class BodyGen {
   }
 
   bool struct_atomic_get_helper(ValueType value_type, DataRange* data) {
+    if (!v8_flags.experimental_wasm_shared) {
+      return false;
+    }
+
     WasmModuleBuilder* builder = builder_->builder();
 
     std::optional<std::pair<ModuleTypeIndex, uint32_t>> field =
@@ -2174,6 +2190,9 @@ class BodyGen {
 
   bool struct_atomic_rmw_helper(WasmOpcode opcode, ValueType value_type,
                                 DataRange* data) {
+    if (!v8_flags.experimental_wasm_shared) {
+      return false;
+    }
     std::optional<std::pair<ModuleTypeIndex, uint32_t>> field =
         find_suitable_struct_and_field(value_type, true, data);
 
@@ -2528,6 +2547,10 @@ class BodyGen {
   }
 
   void struct_atomic_set(DataRange* data) {
+    if (!v8_flags.experimental_wasm_shared) {
+      return;
+    }
+
     WasmModuleBuilder* builder = builder_->builder();
     DCHECK_NE(0, structs_.size());  // We always emit at least one struct type.
     ModuleTypeIndex struct_index =

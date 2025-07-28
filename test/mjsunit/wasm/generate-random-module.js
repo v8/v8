@@ -10,7 +10,6 @@
 // Enable mixed exception handling cases (legacy & exnref together) while
 // this isn't allowed in production (yet)
 // Flags: --wasm-allow-mixed-eh-for-testing
-// Flags: --experimental-wasm-shared --shared-heap --shared-string-table
 
 (function TestGenerateRandomModule() {
   print(arguments.callee.name);
