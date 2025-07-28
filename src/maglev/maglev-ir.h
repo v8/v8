@@ -3292,7 +3292,8 @@ class FixedInputNodeTMixin : public NodeTMixin<Base, Derived> {
 
  protected:
   using InputTypes = detail::ArrayWrapper<kInputCount>;
-  detail::YouNeedToDefineAnInputTypesArrayInYourDerivedClass kInputTypes;
+  static constexpr detail::YouNeedToDefineAnInputTypesArrayInYourDerivedClass
+      kInputTypes;
 
   template <typename... Args>
   explicit FixedInputNodeTMixin(uint64_t bitfield, Args&&... args)
