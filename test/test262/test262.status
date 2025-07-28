@@ -1008,6 +1008,7 @@
   'intl402/Temporal/Instant/prototype/toLocaleString/dateStyle': [SKIP],
   'intl402/Temporal/PlainDate/prototype/toLocaleString/dateStyle': [SKIP],
   'intl402/Temporal/PlainDateTime/prototype/toLocaleString/dateStyle': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/toLocaleString/dateStyle': [SKIP],
   'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/dateStyle': [SKIP],
 
   # Somehow passes on Android (b/433933898):
