@@ -541,11 +541,19 @@ ValueNode* MaglevReducer<BaseT>::GetTaggedValue(
           AddNewNodeNoInputConversion<Uint32ToNumber>({value}));
     }
     case ValueRepresentation::kFloat64: {
+      if (!IsEmptyNodeType(node_info->type()) && node_info->is_smi()) {
+        return alternative.set_tagged(
+            AddNewNodeNoInputConversion<CheckedSmiTagFloat64>({value}));
+      }
       return alternative.set_tagged(
           AddNewNodeNoInputConversion<Float64ToTagged>(
               {value}, Float64ToTagged::ConversionMode::kCanonicalizeSmi));
     }
     case ValueRepresentation::kHoleyFloat64: {
+      if (!IsEmptyNodeType(node_info->type()) && node_info->is_smi()) {
+        return alternative.set_tagged(
+            AddNewNodeNoInputConversion<CheckedSmiTagFloat64>({value}));
+      }
       return alternative.set_tagged(
           AddNewNodeNoInputConversion<HoleyFloat64ToTagged>(
               {value}, HoleyFloat64ToTagged::ConversionMode::kForceHeapNumber));
