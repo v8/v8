@@ -3951,7 +3951,7 @@ class Float64Sqrt : public FixedInputValueNodeT<1, Float64Sqrt> {
  public:
   explicit Float64Sqrt(uint64_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties = OpProperties::HoleyFloat64();
+  static constexpr OpProperties kProperties = OpProperties::Float64();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
 
