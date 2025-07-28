@@ -15,6 +15,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/hashing.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/numerics/safe_conversions.h"
@@ -690,7 +691,10 @@ class BytecodeOffset {
   bool operator!=(const BytecodeOffset& other) const {
     return id_ != other.id_;
   }
-  friend size_t hash_value(BytecodeOffset);
+  V8_INLINE friend size_t hash_value(BytecodeOffset id) {
+    base::hash<int> h;
+    return h(id.id_);
+  }
   V8_EXPORT_PRIVATE friend std::ostream& operator<<(std::ostream&,
                                                     BytecodeOffset);
 
