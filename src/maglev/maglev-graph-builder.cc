@@ -4933,12 +4933,8 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
                                      FixedArray::OffsetOfElementAt(index));
 }
 
-ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
-                                                          ValueNode* index) {
-  // We won't try to reason about the type of the elements array or the index
-  // and thus also cannot end up with an empty type for them.
-  DCHECK(!IsEmptyNodeType(GetType(elements)));
-  DCHECK(!IsEmptyNodeType(GetType(index)));
+ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
+                                                            ValueNode* index) {
   if (auto constant = TryGetInt32Constant(index)) {
     return BuildLoadFixedArrayElement(elements, constant.value());
   }
@@ -4947,11 +4943,6 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
 
 ReduceResult MaglevGraphBuilder::BuildStoreFixedArrayElement(
     ValueNode* elements, ValueNode* index, ValueNode* value) {
-  // We won't try to reason about the type of the elements array and thus also
-  // cannot end up with an empty type for it. The `value` might have an empty
-  // type though.
-  DCHECK(!IsEmptyNodeType(GetType(elements)));
-
   // TODO(victorgomes): Support storing element to a virtual object. If we
   // modify the elements array, we need to modify the original object to point
   // to the new elements array.
@@ -4987,12 +4978,8 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
       {elements, GetInt32Constant(index)});
 }
 
-ValueNode* MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
+ReduceResult MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
     ValueNode* elements, ValueNode* index) {
-  // We won't try to reason about the type of the elements array or the index
-  // and thus also cannot end up with an empty type for them.
-  DCHECK(!IsEmptyNodeType(GetType(elements)));
-  DCHECK(!IsEmptyNodeType(GetType(index)));
   if (auto constant = TryGetInt32Constant(index)) {
     return BuildLoadFixedDoubleArrayElement(elements, constant.value());
   }
@@ -5001,22 +4988,13 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
 
 ReduceResult MaglevGraphBuilder::BuildStoreFixedDoubleArrayElement(
     ValueNode* elements, ValueNode* index, ValueNode* value) {
-  // We won't try to reason about the type of the elements array or the index
-  // and thus also cannot end up with an empty type for them. The `value` might
-  // have an empty type though.
-  DCHECK(!IsEmptyNodeType(GetType(elements)));
-  DCHECK(!IsEmptyNodeType(GetType(index)));
   // TODO(victorgomes): Support storing double element to a virtual object.
   AddNewNode<StoreFixedDoubleArrayElement>({elements, index, value});
   return ReduceResult::Done();
 }
 
-ValueNode* MaglevGraphBuilder::BuildLoadHoleyFixedDoubleArrayElement(
+ReduceResult MaglevGraphBuilder::BuildLoadHoleyFixedDoubleArrayElement(
     ValueNode* elements, ValueNode* index, bool convert_hole) {
-  // We won't try to reason about the type of the elements array or the index
-  // and thus also cannot end up with an empty type for them.
-  DCHECK(!IsEmptyNodeType(GetType(elements)));
-  DCHECK(!IsEmptyNodeType(GetType(index)));
   if (convert_hole) {
     return AddNewNode<LoadHoleyFixedDoubleArrayElement>({elements, index});
   } else {
@@ -6216,14 +6194,17 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
   auto emit_load = [&]() -> ReduceResult {
     ValueNode* result;
     if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
-      result = BuildLoadHoleyFixedDoubleArrayElement(
-          elements_array, index,
-          CanTreatHoleAsUndefined(maps) && LoadModeHandlesHoles(load_mode));
+      GET_VALUE_OR_ABORT(result, BuildLoadHoleyFixedDoubleArrayElement(
+                                     elements_array, index,
+                                     CanTreatHoleAsUndefined(maps) &&
+                                         LoadModeHandlesHoles(load_mode)));
     } else if (elements_kind == PACKED_DOUBLE_ELEMENTS) {
-      result = BuildLoadFixedDoubleArrayElement(elements_array, index);
+      GET_VALUE_OR_ABORT(
+          result, BuildLoadFixedDoubleArrayElement(elements_array, index));
     } else {
       DCHECK(!IsDoubleElementsKind(elements_kind));
-      result = BuildLoadFixedArrayElement(elements_array, index);
+      GET_VALUE_OR_ABORT(result,
+                         BuildLoadFixedArrayElement(elements_array, index));
       if (IsHoleyElementsKind(elements_kind)) {
         if (CanTreatHoleAsUndefined(maps) && LoadModeHandlesHoles(load_mode)) {
           result = BuildConvertHoleToUndefined(result);
@@ -7297,8 +7278,10 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildGetKeyedPropertyWithEnumeratedKey(
       }
     }
     // TODO(leszeks): Cache the field index per iteration.
-    auto* field_index = BuildLoadFixedArrayElement(
-        current_for_in_state.enum_cache_indices, current_for_in_state.index);
+    ValueNode* field_index;
+    GET_VALUE_OR_ABORT(field_index, BuildLoadFixedArrayElement(
+                                        current_for_in_state.enum_cache_indices,
+                                        current_for_in_state.index));
     SetAccumulator(
         AddNewNode<LoadTaggedFieldByFieldIndex>({object, field_index}));
     return ReduceResult::Done();
@@ -8748,12 +8731,14 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
   ValueNode* elements = BuildLoadElements(receiver);
   ValueNode* element;
   if (elements_kind == PACKED_DOUBLE_ELEMENTS) {
-    element = BuildLoadFixedDoubleArrayElement(elements, index_int32);
+    GET_VALUE_OR_ABORT(element,
+                       BuildLoadFixedDoubleArrayElement(elements, index_int32));
   } else if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
-    element =
-        BuildLoadHoleyFixedDoubleArrayElement(elements, index_int32, true);
+    GET_VALUE_OR_ABORT(element, BuildLoadHoleyFixedDoubleArrayElement(
+                                    elements, index_int32, true));
   } else {
-    element = BuildLoadFixedArrayElement(elements, index_int32);
+    GET_VALUE_OR_ABORT(element,
+                       BuildLoadFixedArrayElement(elements, index_int32));
   }
 
   std::optional<MaglevSubGraphBuilder::Label> skip_call;
@@ -9074,27 +9059,29 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeAt(
 
   ValueNode* elements = BuildLoadElements(receiver);
 
-  ValueNode* result = Select(
-      [&](auto& builder) {
+  return SelectReduction(
+      [&](BranchBuilder& builder) {
         return BuildBranchIfInt32Compare(builder,
                                          Operation::kGreaterThanOrEqual, index,
                                          GetInt32Constant(0));
       },
       [&]() {
-        return Select(
-            [&](auto& builder) {
+        return SelectReduction(
+            [&](BranchBuilder& builder) {
               return BuildBranchIfInt32Compare(builder, Operation::kLessThan,
                                                index, length);
             },
-            [&]() -> ValueNode* {
+            [&]() -> ReduceResult {
               ValueNode* element;
               if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
                 element = AddNewNode<LoadHoleyFixedDoubleArrayElement>(
                     {elements, index});
               } else if (elements_kind == PACKED_DOUBLE_ELEMENTS) {
-                element = BuildLoadFixedDoubleArrayElement(elements, index);
+                GET_VALUE_OR_ABORT(
+                    element, BuildLoadFixedDoubleArrayElement(elements, index));
               } else {
-                element = BuildLoadFixedArrayElement(elements, index);
+                GET_VALUE_OR_ABORT(element,
+                                   BuildLoadFixedArrayElement(elements, index));
               }
               if (IsHoleyElementsKind(elements_kind)) {
                 element = AddNewNode<ConvertHoleToUndefined>({element});
@@ -9102,11 +9089,13 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeAt(
 
               return element;
             },
-            [&]() { return GetRootConstant(RootIndex::kUndefinedValue); });
+            [&]() -> ReduceResult {
+              return GetRootConstant(RootIndex::kUndefinedValue);
+            });
       },
-      [&]() { return GetRootConstant(RootIndex::kUndefinedValue); });
-
-  return result;
+      [&]() -> ReduceResult {
+        return GetRootConstant(RootIndex::kUndefinedValue);
+      });
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeEntries(
@@ -10154,15 +10143,15 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
     // Load the value and store the hole in it's place.
     ValueNode* value;
     if (IsDoubleElementsKind(kind)) {
-      value = BuildLoadFixedDoubleArrayElement(writable_elements_array,
-                                               new_array_length);
+      GET_VALUE_OR_ABORT(value, BuildLoadFixedDoubleArrayElement(
+                                    writable_elements_array, new_array_length));
       RETURN_IF_ABORT(BuildStoreFixedDoubleArrayElement(
           writable_elements_array, new_array_length,
           GetFloat64Constant(Float64::FromBits(kHoleNanInt64))));
     } else {
       DCHECK(IsSmiElementsKind(kind) || IsObjectElementsKind(kind));
-      value =
-          BuildLoadFixedArrayElement(writable_elements_array, new_array_length);
+      GET_VALUE_OR_ABORT(value, BuildLoadFixedArrayElement(
+                                    writable_elements_array, new_array_length));
       RETURN_IF_ABORT(BuildStoreFixedArrayElement(
           writable_elements_array, new_array_length,
           GetRootConstant(RootIndex::kTheHoleValue)));
@@ -15013,7 +15002,8 @@ ReduceResult MaglevGraphBuilder::VisitForInNext() {
           BuildLoadTaggedField(receiver, HeapObject::kMapOffset);
       AddNewNode<CheckDynamicValue>({receiver_map, cache_type},
                                     DeoptimizeReason::kWrongMapDynamic);
-      auto* key = BuildLoadFixedArrayElement(cache_array, index);
+      ValueNode* key;
+      GET_VALUE_OR_ABORT(key, BuildLoadFixedArrayElement(cache_array, index));
       EnsureType(key, NodeType::kInternalizedString);
       SetAccumulator(key);
 

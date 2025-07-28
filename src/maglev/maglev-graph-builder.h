@@ -1249,20 +1249,21 @@ class MaglevGraphBuilder {
                                              StoreTaggedMode store_mode);
 
   ValueNode* BuildLoadFixedArrayElement(ValueNode* elements, int index);
-  ValueNode* BuildLoadFixedArrayElement(ValueNode* elements, ValueNode* index);
+  ReduceResult BuildLoadFixedArrayElement(ValueNode* elements,
+                                          ValueNode* index);
   ReduceResult BuildStoreFixedArrayElement(ValueNode* elements,
                                            ValueNode* index, ValueNode* value);
 
   ValueNode* BuildLoadFixedDoubleArrayElement(ValueNode* elements, int index);
-  ValueNode* BuildLoadFixedDoubleArrayElement(ValueNode* elements,
-                                              ValueNode* index);
+  ReduceResult BuildLoadFixedDoubleArrayElement(ValueNode* elements,
+                                                ValueNode* index);
   ReduceResult BuildStoreFixedDoubleArrayElement(ValueNode* elements,
                                                  ValueNode* index,
                                                  ValueNode* value);
 
-  ValueNode* BuildLoadHoleyFixedDoubleArrayElement(ValueNode* elements,
-                                                   ValueNode* index,
-                                                   bool convert_hole);
+  ReduceResult BuildLoadHoleyFixedDoubleArrayElement(ValueNode* elements,
+                                                     ValueNode* index,
+                                                     bool convert_hole);
 
   ReduceResult GetInt32ElementIndex(interpreter::Register reg) {
     ValueNode* index_object = current_interpreter_frame_.get(reg);
