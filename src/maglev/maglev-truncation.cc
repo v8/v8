@@ -12,7 +12,7 @@ namespace v8::internal::maglev {
 bool TruncationProcessor::AllInputsAreValid(ValueNode* node) {
   for (Input& input : *node) {
     ValueNode* unwrapped = input.node()->UnwrapIdentities();
-    if (unwrapped->value_representation() != ValueRepresentation::kInt32) {
+    if (!unwrapped->is_int32()) {
       if (unwrapped->Is<Float64Constant>() &&
           unwrapped->GetRange().IsSafeIntegerRange()) {
         // We can truncate Float64 constants if they're in the safe integer

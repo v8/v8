@@ -2944,6 +2944,24 @@ class ValueNode : public Node {
     return (properties().value_representation() ==
             ValueRepresentation::kTagged);
   }
+  constexpr bool is_int32() const {
+    return (properties().value_representation() == ValueRepresentation::kInt32);
+  }
+  constexpr bool is_uint32() const {
+    return (properties().value_representation() ==
+            ValueRepresentation::kUint32);
+  }
+  constexpr bool is_float64() const {
+    return (properties().value_representation() ==
+            ValueRepresentation::kFloat64);
+  }
+  constexpr bool is_holey_float64() const {
+    return (properties().value_representation() ==
+            ValueRepresentation::kHoleyFloat64);
+  }
+  constexpr bool is_float64_or_holey_float64() const {
+    return is_float64() || is_holey_float64();
+  }
 
 #ifdef V8_COMPRESS_POINTERS
   constexpr bool decompresses_tagged_result() const {

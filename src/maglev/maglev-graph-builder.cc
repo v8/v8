@@ -1881,10 +1881,8 @@ ValueNode* MaglevGraphBuilder::GetHoleyFloat64ForToNumber(
     ValueNode* value, NodeType allowed_input_type,
     TaggedToFloat64ConversionType conversion_type) {
   value->MaybeRecordUseReprHint(UseRepresentation::kHoleyFloat64);
-  ValueRepresentation representation =
-      value->properties().value_representation();
   // Ignore the hint for
-  if (representation == ValueRepresentation::kHoleyFloat64) return value;
+  if (value->is_holey_float64()) return value;
   return GetFloat64ForToNumber(value, allowed_input_type, conversion_type);
 }
 
@@ -2742,11 +2740,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
   // against holey floats.
   if (maybe_constant->IsUndefined()) {
     ValueNode* holey_float = nullptr;
-    if (left->properties().value_representation() ==
-        ValueRepresentation::kHoleyFloat64) {
+    if (left->is_holey_float64()) {
       holey_float = left;
-    } else if (right->properties().value_representation() ==
-               ValueRepresentation::kHoleyFloat64) {
+    } else if (right->is_holey_float64()) {
       holey_float = right;
     }
     if (holey_float) {
@@ -2802,7 +2798,7 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
 
   auto TryConstantFoldUint32ComparedToZero = [&](ValueNode* left,
                                                  ValueNode* right) {
-    if (left->value_representation() == ValueRepresentation::kUint32) {
+    if (left->is_uint32()) {
       auto right_constant = TryGetInt32Constant(right);
       if ((right_constant && *right_constant <= 0)) {
         if (kOperation == Operation::kGreaterThanOrEqual) {
@@ -2903,8 +2899,7 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
     case CompareOperationHint::kNumber: {
       ValueNode* left = LoadRegister(0);
       ValueNode* right = GetAccumulator();
-      if (left->value_representation() == ValueRepresentation::kInt32 &&
-          right->value_representation() == ValueRepresentation::kInt32) {
+      if (left->is_int32() && right->is_int32()) {
         if (TryConstantFoldEqual(left, right)) return ReduceResult::Done();
         if (TryConstantFoldInt32(left, right)) return ReduceResult::Done();
         SortCommute(left, right);
@@ -8164,10 +8159,7 @@ bool MaglevGraphBuilder::IsFunctionSmall(compiler::SharedFunctionInfoRef shared,
       args.mode() == CallArguments::kDefault) {
     bool has_float_arg = false;
     for (size_t i = 1; i < args.count_with_receiver(); i++) {
-      if (args[i] &&
-          (args[i]->value_representation() == ValueRepresentation::kFloat64 ||
-           args[i]->value_representation() ==
-               ValueRepresentation::kHoleyFloat64)) {
+      if (args[i] && args[i]->is_float64_or_holey_float64()) {
         has_float_arg = true;
         break;
       }
@@ -10585,9 +10577,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathSqrt(
     return GetRootConstant(RootIndex::kNanValue);
   }
 
-  if (!CanSpeculateCall()) {
-    ValueRepresentation rep = args[0]->properties().value_representation();
-    if (rep == ValueRepresentation::kTagged) return {};
+  if (!CanSpeculateCall() && args[0]->is_tagged()) {
+    return {};
   }
 
   ValueNode* value =
@@ -14486,8 +14477,7 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfRootConstant(
   // swapped the accumulator isn't the original node anymore.
   BranchBuilder::PatchAccumulatorInBranchScope scope(builder, node, root_index);
 
-  if (node->properties().value_representation() ==
-      ValueRepresentation::kHoleyFloat64) {
+  if (node->is_holey_float64()) {
     if (root_index == RootIndex::kUndefinedValue) {
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
       return builder.Build<BranchIfFloat64IsUndefinedOrHole>({node});
@@ -14614,8 +14604,7 @@ MaglevGraphBuilder::BuildBranchIfUndefinedOrNull(BranchBuilder& builder,
     return builder.FromBool(maybe_constant->IsNullOrUndefined());
   }
   if (!node->is_tagged()) {
-    if (node->properties().value_representation() ==
-        ValueRepresentation::kHoleyFloat64) {
+    if (node->is_holey_float64()) {
       return BuildBranchIfFloat64IsHole(builder, node);
     }
     return builder.AlwaysFalse();
@@ -14811,8 +14800,7 @@ ReduceResult MaglevGraphBuilder::VisitJumpIfUndefinedOrNull() {
 
 MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfJSReceiver(
     BranchBuilder& builder, ValueNode* value) {
-  if (!value->is_tagged() && value->properties().value_representation() !=
-                                 ValueRepresentation::kHoleyFloat64) {
+  if (!value->is_tagged() && !value->is_holey_float64()) {
     return builder.AlwaysFalse();
   }
   if (CheckType(value, NodeType::kJSReceiver)) {
@@ -15140,7 +15128,7 @@ ReduceResult MaglevGraphBuilder::VisitThrowReferenceErrorIfHole() {
     }
   }
 
-  DCHECK(value->value_representation() == ValueRepresentation::kTagged);
+  DCHECK(value->is_tagged());
   AddNewNode<ThrowReferenceErrorIfHole>({value}, name);
   return ReduceResult::Done();
 }

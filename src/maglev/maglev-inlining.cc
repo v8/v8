@@ -49,9 +49,7 @@ bool MaglevInliner::IsSmallWithHeapNumberInputsOutputs(
 
   if (!has_heapnumber_input_output) {
     for (ValueNode* input : call_site->caller_details.arguments) {
-      input = input->UnwrapIdentities();
-      if (input->value_representation() == ValueRepresentation::kFloat64 ||
-          input->value_representation() == ValueRepresentation::kHoleyFloat64) {
+      if (input->UnwrapIdentities()->is_float64_or_holey_float64()) {
         has_heapnumber_input_output = true;
         break;
       }

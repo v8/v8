@@ -88,7 +88,7 @@ bool MaglevPhiRepresentationSelector::CanHoistUntaggingTo(BasicBlock* block) {
 
 MaglevPhiRepresentationSelector::ProcessPhiResult
 MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
-  if (node->value_representation() != ValueRepresentation::kTagged) {
+  if (!node->is_tagged()) {
     return ProcessPhiResult::kNone;
   }
 
@@ -129,13 +129,13 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
       DCHECK_EQ(input->input_count(), 1);
       // The graph builder tags all Phi inputs, so this conversion should
       // produce a tagged value.
-      DCHECK_EQ(input->value_representation(), ValueRepresentation::kTagged);
+      DCHECK(input->is_tagged());
       // If we want to untag {node}, then we'll drop the conversion and use its
       // input instead.
       input_reprs.Add(
           input->input(0).node()->properties().value_representation());
     } else if (Phi* input_phi = input->TryCast<Phi>()) {
-      if (input_phi->value_representation() != ValueRepresentation::kTagged) {
+      if (!input_phi->is_tagged()) {
         input_reprs.Add(input_phi->value_representation());
       } else {
         // An untagged phi is an input of the current phi.
