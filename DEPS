@@ -82,7 +82,7 @@ vars = {
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:33e71490533f445467879650036b6af7940455f3',
+  'siso_version': 'git_revision:e5fa67c5a456c1ab932f440ddfb195a8a33c235b',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -92,7 +92,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '0df75035937ddb4efd66639f25b08d53d7b4f8ec',
+  'partition_alloc_version': '828b52630e80e619f057deba245c83644a4066c6',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -132,7 +132,7 @@ deps = {
   'build':
     Var('chromium_url') + '/chromium/src/build.git' + '@' + '8fb290429be6fb3fcdbde2af922df764bb3cfc3b',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '32930ef3a1e39597109026d7612e1c57317daf4e',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '9c179c04d33f8a6efd026d25e2253f7cc40567cf',
   'buildtools/linux64': {
     'packages': [
       {
@@ -308,7 +308,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '84c5262b57147e9934c0a8f2302d989b44ec7093',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'dd12cc11284e7845727f333a4a0c5274c161c541',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'f24be5deb774fae412aae70877b47fa6fcf19d28',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
