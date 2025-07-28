@@ -12080,6 +12080,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
       break;
     }
     case Builtin::kStringConstructor: {
+      RETURN_IF_ABORT(BuildCheckValueByReference(
+          target, builtin, DeoptimizeReason::kWrongConstructor));
       ValueNode* value;
       if (args.count() == 0) {
         value = GetRootConstant(RootIndex::kempty_string);
