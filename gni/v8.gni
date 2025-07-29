@@ -116,20 +116,6 @@ declare_args() {
       !(is_win || is_linux || is_mac) || v8_current_cpu != "x64" || !is_clang ||
       is_component_build
 
-  # We use target_os == "ios" here because it isn't equivalent to is_ios
-  # (is_ios is based on host_os).
-  if (target_os == "ios") {
-    if (target_platform == "iphoneos") {
-      # iOS executable code pages is in 18.4 SDK which the iOS + Blink targets.
-      v8_enable_lite_mode = !use_blink
-    } else if (target_platform == "tvos") {
-      # tvOS runs in single process mode and is not allowed to use JIT.
-      # TODO(crbug.com/394710095): Enable the v8 lite mode to run v8 with the
-      # jitless mode on tvOS.
-      v8_enable_lite_mode = true
-    }
-  }
-
   # Enable the Turbofan compiler.
   # Sets -dV8_ENABLE_TURBOFAN.
   v8_enable_turbofan = ""
@@ -147,6 +133,26 @@ declare_args() {
 
   # Enable 256-bit long vector re-vectorization pass in WASM compilation pipeline.
   v8_enable_wasm_simd256_revec = false
+
+  # We use target_os == "ios" here because it isn't equivalent to is_ios
+  # (is_ios is based on host_os).
+  if (target_os == "ios") {
+    if (target_platform == "iphoneos") {
+      # iOS executable code pages is in 18.4 SDK which the iOS + Blink targets.
+      v8_enable_lite_mode = !use_blink
+    } else if (target_platform == "tvos") {
+      # tvOS runs in single process mode and is not allowed to use JIT.
+      v8_enable_lite_mode = true
+
+      # Since v8 has the Wasm interpreter mode with jitless, tvOS enables it
+      # to use WebAssembly.
+      v8_enable_drumbrake = true
+      v8_enable_webassembly = true
+
+      # tvOS doesn't use Turbofan.
+      v8_enable_turbofan = false
+    }
+  }
 
   # Enable runtime call stats.
   v8_enable_runtime_call_stats = !v8_is_on_release_branch
@@ -268,8 +274,9 @@ if (v8_enable_builtins_optimization == "") {
 if (v8_enable_webassembly == "") {
   v8_enable_webassembly = !v8_enable_lite_mode
 }
-assert(!(v8_enable_webassembly && v8_enable_lite_mode),
-       "Webassembly is not available in lite mode.")
+assert(
+    !(v8_enable_webassembly && v8_enable_lite_mode && !v8_enable_drumbrake),
+    "Webassembly is not available in lite mode without the Wasm interpreter mode.")
 
 if (v8_enable_pointer_compression == "") {
   v8_enable_pointer_compression =
@@ -278,18 +285,19 @@ if (v8_enable_pointer_compression == "") {
 }
 
 # The Wasm interpreter is currently supported only on arm64 and x64, on
-# Windows, Linux and MacOS.
+# Windows, Linux, MacOS and tvOS.
 is_drumbrake_supported =
     v8_enable_webassembly && v8_enable_pointer_compression &&
     (v8_current_cpu == "x64" || v8_current_cpu == "arm64") &&
-    (target_os == "win" || target_os == "linux" || target_os == "mac")
+    (target_os == "win" || target_os == "linux" || target_os == "mac" ||
+     target_os == "ios")
 
 # Turbofan is enabled by default, except in lite mode.
 if (v8_enable_turbofan == "") {
   v8_enable_turbofan = !v8_enable_lite_mode
 }
-assert(v8_enable_turbofan || !v8_enable_webassembly,
-       "Webassembly is not available when Turbofan is disabled.")
+assert(v8_enable_turbofan || !v8_enable_webassembly || v8_enable_drumbrake,
+       "WebAssembly requires Turbofan or Drumbrake.")
 
 if (v8_target_is_simulator == "") {
   # We compare target cpu with v8 target cpu to not affect simulator builds for

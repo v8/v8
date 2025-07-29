@@ -540,7 +540,12 @@ struct WasmEngine::NativeModuleInfo {
   std::unordered_set<Isolate*> isolates;
 };
 
-WasmEngine::WasmEngine() : call_descriptors_(&allocator_) {}
+WasmEngine::WasmEngine()
+#ifdef V8_ENABLE_TURBOFAN
+    : call_descriptors_(&allocator_)
+#endif
+{
+}
 
 WasmEngine::~WasmEngine() {
 #ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING

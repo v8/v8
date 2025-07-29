@@ -84,10 +84,12 @@ class WasmImportWrapperCache {
       Isolate* isolate, ImportCallKind kind, CanonicalTypeIndex type_index,
       int expected_arity, Suspend suspend, const wasm::CanonicalSig* sig);
 
+#ifdef V8_ENABLE_TURBOFAN
   V8_EXPORT_PRIVATE
   std::shared_ptr<WasmImportWrapperHandle> CompileWasmJsFastCallWrapper(
       Isolate* isolate, DirectHandle<JSReceiver> callable,
       const wasm::CanonicalSig* sig);
+#endif
 
   WasmCode* Lookup(Address pc) const;
 

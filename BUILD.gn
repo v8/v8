@@ -613,9 +613,14 @@ if (v8_enable_maglev == "") {
 assert(v8_enable_turbofan || !v8_enable_maglev,
        "Maglev is not available when Turbofan is disabled.")
 
-assert(!v8_jitless || (!v8_enable_sparkplug && !v8_enable_maglev &&
-                           !v8_enable_turbofan && !v8_enable_webassembly),
-       "Sparkplug, Maglev, Turbofan and Wasm are not available in jitless mode")
+is_wasm_interpreter_mode_enabled =
+    !v8_enable_sparkplug && !v8_enable_maglev && !v8_enable_turbofan &&
+    v8_enable_webassembly && v8_enable_drumbrake
+assert(
+    !v8_jitless || (!v8_enable_sparkplug && !v8_enable_maglev &&
+                        !v8_enable_turbofan && !v8_enable_webassembly) ||
+        is_wasm_interpreter_mode_enabled,
+    "Sparkplug, Maglev, Turbofan and Wasm are not available in jitless mode. But, if the Wasm interpreter mode is on, Wasm can work in jitless mode")
 
 if (v8_enable_single_generation == "") {
   v8_enable_single_generation = v8_disable_write_barriers
@@ -5093,7 +5098,6 @@ v8_compiler_sources = [
   "src/compiler/js-type-hint-lowering.cc",
   "src/compiler/js-typed-lowering.cc",
   "src/compiler/late-escape-analysis.cc",
-  "src/compiler/linkage.cc",
   "src/compiler/load-elimination.cc",
   "src/compiler/loop-analysis.cc",
   "src/compiler/loop-peeling.cc",
@@ -5292,6 +5296,7 @@ if (v8_enable_webassembly) {
   v8_compiler_sources += [
     "src/compiler/int64-lowering.cc",
     "src/compiler/turboshaft/int64-lowering-phase.cc",
+    "src/compiler/turboshaft/wasm-dead-code-elimination-phase.cc",
     "src/compiler/turboshaft/wasm-debug-memory-lowering-phase.cc",
     "src/compiler/turboshaft/wasm-gc-optimize-phase.cc",
     "src/compiler/turboshaft/wasm-gc-typed-optimization-reducer.cc",
@@ -5303,7 +5308,6 @@ if (v8_enable_webassembly) {
     "src/compiler/turboshaft/wasm-turboshaft-compiler.cc",
     "src/compiler/wasm-address-reassociation.cc",
     "src/compiler/wasm-call-descriptors.cc",
-    "src/compiler/wasm-compiler-definitions.cc",
     "src/compiler/wasm-compiler.cc",
     "src/compiler/wasm-escape-analysis.cc",
     "src/compiler/wasm-gc-lowering.cc",
@@ -5312,6 +5316,8 @@ if (v8_enable_webassembly) {
     "src/compiler/wasm-inlining-into-js.cc",
     "src/compiler/wasm-load-elimination.cc",
     "src/compiler/wasm-typer.cc",
+    "src/wasm/turboshaft-graph-interface.cc",
+    "src/wasm/wrappers.cc",
   ]
 }
 
@@ -5515,6 +5521,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/common/ptr-compr.cc",
     "src/compiler-dispatcher/lazy-compile-dispatcher.cc",
     "src/compiler-dispatcher/optimizing-compile-dispatcher.cc",
+    "src/compiler/linkage.cc",
     "src/date/date.cc",
     "src/date/dateparser.cc",
     "src/debug/debug-coverage.cc",
@@ -5995,7 +6002,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/asmjs/asm-parser.cc",
       "src/asmjs/asm-scanner.cc",
       "src/asmjs/asm-types.cc",
-      "src/compiler/turboshaft/wasm-dead-code-elimination-phase.cc",
+      "src/compiler/wasm-compiler-definitions.cc",
       "src/debug/debug-wasm-objects.cc",
       "src/runtime/runtime-test-wasm.cc",
       "src/runtime/runtime-wasm.cc",
@@ -6023,7 +6030,6 @@ v8_source_set("v8_base_without_compiler") {
       "src/wasm/stacks.cc",
       "src/wasm/streaming-decoder.cc",
       "src/wasm/sync-streaming-decoder.cc",
-      "src/wasm/turboshaft-graph-interface.cc",
       "src/wasm/value-type.cc",
       "src/wasm/wasm-code-manager.cc",
       "src/wasm/wasm-code-pointer-table.cc",
@@ -6045,7 +6051,6 @@ v8_source_set("v8_base_without_compiler") {
       "src/wasm/wasm-serialization.cc",
       "src/wasm/wasm-subtyping.cc",
       "src/wasm/well-known-imports.cc",
-      "src/wasm/wrappers.cc",
     ]
     if (v8_wasm_random_fuzzers) {
       sources += [
