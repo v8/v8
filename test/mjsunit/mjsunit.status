@@ -2046,6 +2046,7 @@
   # Other slow tests:
   'compiler/regress-crbug-1520697': [SKIP],
   'regress/regress-1449567': [SKIP],
+  'maglev/regress-432847895': [SKIP],
 }],  # variant in (nooptimization, jitless) and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
