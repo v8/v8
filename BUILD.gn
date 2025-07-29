@@ -479,11 +479,8 @@ declare_args() {
   # closely mimic in-browser behavior.
   #
   # Currently used in d8.
-  # TODO(399144247,400141120,392817524): Temporarily disabled again because of
-  # performance regressions in multi-threaded, Zone-allocation heavy workloads,
-  # e.g., JetStream startup or Wasm eager compilation.
   v8_enable_partition_alloc =
-      false && !build_with_v8_embedder &&
+      !build_with_v8_embedder &&
       !(defined(build_with_node) && build_with_node) &&
       (v8_target_cpu != "ppc64" && v8_target_cpu != "s390x")
 
