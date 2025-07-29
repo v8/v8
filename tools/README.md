@@ -1,4 +1,4 @@
-# TOOLS
+# V8 Tools Directory
 
 This directory contains debugging and investigation tools for V8.
 
