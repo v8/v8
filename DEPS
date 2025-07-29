@@ -75,7 +75,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:acfe5fde8c5475a9a83bd55f3f222a6dbbcbd0ae',
+  'gn_version': 'git_revision:3a4f5cea73eca32e9586e8145f97b04cbd4a1aee',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -130,7 +130,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6edfaae451114f981c900fd9f0b52bfa4c157f63',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7fa8b9a547bab950d7b8b1c58561dedb35e4326d',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'bbc0003050ac106fd0ad6303e00390e39bfb0e93',
   'buildtools/linux64': {
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '1b44e27e7d4c63dfe83d10ed01d23824536e9811',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6d019469b47bf20f564f6c1b2d7a1283a7d51efa',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -304,11 +304,11 @@ deps = {
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'c105b13e377d3fa5fdf033957f31abc1894a9968',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '00a175050b73903b2f00e460dd2c9751c4a0fd88',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'a6c815c69d55ec59d020abde636754d120b402ad',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '84c5262b57147e9934c0a8f2302d989b44ec7093',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'f24be5deb774fae412aae70877b47fa6fcf19d28',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '14ca6ad7d68c47a6b7c18d53a6c69d4fa3a27571',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -498,9 +498,9 @@ deps = {
       'condition': 'checkout_android',
   },
   'tools/rust':
-    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '522bd21e55642822f16f17722fc89588086dde97',
+    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '1195ae05a79eb34db45955610abbf95e4eef5bbf',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '4e1bb53d4c1f318d4881d312187dc785ef5fccce',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '498b55d69661448c5b9200f06b0af87524a5faa0',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
