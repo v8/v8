@@ -1814,13 +1814,20 @@ class ModuleDecoderImpl : public Decoder {
           inner.error("Compilation priority longer than declared hint length");
           break;
         }
-        uint32_t optimization_priority = 0;
+        int optimization_priority = kOptimizationPriorityNotSpecifiedSentinel;
 
         // If we exhausted the declared hint length, do not parse optimization
         // priority.
         if (static_cast<int64_t>(hint_length) >
             inner.pc() - pc_after_hint_length) {
-          optimization_priority = inner.consume_u32v("optimization priority");
+          uint32_t parsed_priority =
+              inner.consume_u32v("optimization priority");
+          if (static_cast<int>(parsed_priority) >
+              kOptimizationPriorityExecutedOnceSentinel) {
+            inner.error("Optimization priority too large");
+            break;
+          }
+          optimization_priority = static_cast<int>(parsed_priority);
           if (static_cast<int64_t>(hint_length) <
               inner.pc() - pc_after_hint_length) {
             inner.error("Optimization priority overflows declared hint length");

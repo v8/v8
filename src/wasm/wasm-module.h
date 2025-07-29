@@ -644,7 +644,7 @@ struct WasmTable {
 
 struct CompilationPriority {
   uint32_t compilation_priority;
-  uint32_t optimization_priority;
+  int optimization_priority;
 };
 using CompilationPriorities = std::unordered_map<uint32_t, CompilationPriority>;
 

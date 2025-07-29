@@ -219,6 +219,14 @@ constexpr int kMaxPolymorphism = 4;
 // access not guaranteed to behave properly).
 constexpr int kMaxStructFieldIndexForImplicitNullCheck = 4000;
 
+// Compilation-hints proposal: This optimization-priority value signifies that
+// the function is only executed once, thus we only compile it eagerly with the
+// baseline tier. Greater values are not supported.
+constexpr int kOptimizationPriorityExecutedOnceSentinel = 127;
+// Compilation-hints proposal: This value signifies that an optimization
+// priority was not specified.
+constexpr int kOptimizationPriorityNotSpecifiedSentinel = -1;
+
 #if V8_TARGET_ARCH_X64
 constexpr int32_t kOSRTargetOffset = 4 * kSystemPointerSize;
 #endif

@@ -2338,12 +2338,12 @@ TEST_F(WasmModuleVerifyTest, CompilationPriority) {
   CompilationPriorities& hints = result.value()->compilation_priorities;
   EXPECT_EQ(2U, hints.size());
   EXPECT_EQ(0U, hints[0].compilation_priority);
-  EXPECT_EQ(10U, hints[0].optimization_priority);
+  EXPECT_EQ(10, hints[0].optimization_priority);
   EXPECT_EQ(1U, hints[1].compilation_priority);
-  EXPECT_EQ(20U, hints[1].optimization_priority);
+  EXPECT_EQ(20, hints[1].optimization_priority);
 }
 
-TEST_F(WasmModuleVerifyTest, CompilationPriorityNooptimization_priority) {
+TEST_F(WasmModuleVerifyTest, CompilationPriorityNoOptimizationPriority) {
   WASM_FEATURE_SCOPE(compilation_hints);
   static const uint8_t data[] = {
       TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(2, 0, 0),
@@ -2360,13 +2360,14 @@ TEST_F(WasmModuleVerifyTest, CompilationPriorityNooptimization_priority) {
   CompilationPriorities& hints = result.value()->compilation_priorities;
   EXPECT_EQ(2U, hints.size());
   EXPECT_EQ(0U, hints[0].compilation_priority);
-  EXPECT_EQ(10U, hints[0].optimization_priority);
+  EXPECT_EQ(10, hints[0].optimization_priority);
   EXPECT_EQ(1U, hints[1].compilation_priority);
-  EXPECT_EQ(0U, hints[1].optimization_priority);
+  EXPECT_EQ(kOptimizationPriorityNotSpecifiedSentinel,
+            hints[1].optimization_priority);
 }
 
 TEST_F(WasmModuleVerifyTest,
-       CompilationPriorityAdditionalBytesAfteroptimization_priority) {
+       CompilationPriorityAdditionalBytesAfterOptimizationPriority) {
   WASM_FEATURE_SCOPE(compilation_hints);
   static const uint8_t data[] = {
       TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(2, 0, 0),
@@ -2385,9 +2386,9 @@ TEST_F(WasmModuleVerifyTest,
   CompilationPriorities& hints = result.value()->compilation_priorities;
   EXPECT_EQ(2U, hints.size());
   EXPECT_EQ(0U, hints[0].compilation_priority);
-  EXPECT_EQ(10U, hints[0].optimization_priority);
+  EXPECT_EQ(10, hints[0].optimization_priority);
   EXPECT_EQ(1U, hints[1].compilation_priority);
-  EXPECT_EQ(20U, hints[1].optimization_priority);
+  EXPECT_EQ(20, hints[1].optimization_priority);
 }
 
 // Failing compilation-priority tests. Compilation succeeds because this is just
@@ -2429,8 +2430,7 @@ TEST_F(WasmModuleVerifyTest, CompilationPriorityPriorityOverflows) {
   EXPECT_EQ(0U, hints.size());
 }
 
-TEST_F(WasmModuleVerifyTest,
-       CompilationPriorityoptimization_priorityOverflows) {
+TEST_F(WasmModuleVerifyTest, CompilationPriorityOptimizationPriorityOverflows) {
   WASM_FEATURE_SCOPE(compilation_hints);
   static const uint8_t data[] = {
       TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(1, 0),
@@ -2439,6 +2439,25 @@ TEST_F(WasmModuleVerifyTest,
                                    0 /* compilation_priority */,  // --
                                    0xFF, 0x00 /* optimization_priority */),
       SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(0, WASM_END))};
+  ModuleResult result = DecodeModule(base::ArrayVector(data));
+  EXPECT_OK(result);
+  CompilationPriorities& hints = result.value()->compilation_priorities;
+  EXPECT_EQ(0U, hints.size());
+}
+
+TEST_F(WasmModuleVerifyTest, CompilationPriorityOptimizationPriorityTooLarge) {
+  WASM_FEATURE_SCOPE(compilation_hints);
+  static const uint8_t data[] = {
+      TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(2, 0, 0),
+      SECTION_COMPILATION_PRIORITY(
+          ENTRY_COUNT(2), 0 /* func_index */, 0 /* byte_offset */,
+          ADD_COUNT(0 /* compilation_priority */,
+                    10 /* optimization_priority */),
+          1 /* func_index */, 0 /* byte_offset */,
+          ADD_COUNT(1 /* compilation_priority */,  // --
+                    0x80, 0x01 /* optimization_priority 128 */)),
+      SECTION(Code, ENTRY_COUNT(2), ADD_COUNT(0, WASM_END),
+              ADD_COUNT(0, WASM_END))};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_OK(result);
   CompilationPriorities& hints = result.value()->compilation_priorities;
