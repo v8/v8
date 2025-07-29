@@ -1,5 +1,7 @@
 # Gemini Workspace for V8
 
+> Developer workspace configuration and tooling for Google's [V8 JavaScript engine](https://v8.dev).
+
 This is the workspace configuration for V8 when using Gemini.
 
 Documentation can be found at https://v8.dev/docs.
