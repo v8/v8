@@ -2494,6 +2494,7 @@
   'regress/wasm/regress-369652650': [SKIP],
   'regress/wasm/regress-382816108': [SKIP],
   'regress/wasm/regress-388934347-a': [SKIP],
+  'regress/wasm/regress-434008619': [SKIP],
 }], # single_generation
 
 ################################################################################

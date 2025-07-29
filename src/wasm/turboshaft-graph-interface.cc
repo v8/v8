@@ -4866,7 +4866,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         default:
           UNREACHABLE();
       }
-      DCHECK(new_value.valid());
+      DCHECK(new_value.valid() || __ generating_unreachable_operations());
       __ StructSet(struct_object.op, new_value, struct_type,
                    field.struct_imm.index, field.field_imm.index,
                    compiler::kWithoutNullCheck, {});
@@ -5028,7 +5028,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         default:
           UNREACHABLE();
       }
-      DCHECK(new_value.valid());
+      DCHECK(new_value.valid() || __ generating_unreachable_operations());
       __ ArraySet(array_value, index.op, new_value,
                   imm.array_type->element_type(), {});
       return;
