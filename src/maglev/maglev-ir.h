@@ -333,6 +333,7 @@ class ExceptionHandlerInfo;
   V(UpdateJSArrayLength)                                              \
   V(VirtualObject)                                                    \
   V(GetContinuationPreservedEmbedderData)                             \
+  V(ReturnedValue)                                                    \
   CONSTANT_VALUE_NODE_LIST(V)                                         \
   INT32_OPERATIONS_NODE_LIST(V)                                       \
   FLOAT64_OPERATIONS_NODE_LIST(V)                                     \
@@ -2523,6 +2524,7 @@ class NodeBase : public ZoneObject {
   }
 
   inline void OverwriteWithIdentityTo(ValueNode* node);
+  inline void OverwriteWithReturnValue(ValueNode* node);
 
   auto options() const { return std::tuple{}; }
 
@@ -4513,6 +4515,10 @@ class Float64ToTagged : public FixedInputValueNodeT<1, Float64ToTagged> {
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const {}
+
+  void SetMode(ConversionMode mode) {
+    set_bitfield(ConversionModeBitField::update(bitfield(), mode));
+  }
 
   auto options() const { return std::tuple{conversion_mode()}; }
 
@@ -10992,7 +10998,10 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
       compiler::SharedFunctionInfoRef shared_function_info, ValueNode* closure,
       ValueNode* context, ValueNode* receiver, ValueNode* new_target);
 
-  static constexpr OpProperties kProperties = OpProperties::JSCall();
+  // This node might eventually be overwritten by conversion nodes that need
+  // to do a deferred call.
+  static constexpr OpProperties kProperties =
+      OpProperties::JSCall() | OpProperties::DeferredCall();
 
   Input& closure() { return input(kClosureIndex); }
   const Input& closure() const { return input(kClosureIndex); }
@@ -11044,6 +11053,31 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
 
   UseRepresentationSet uses_repr_hint_ = {};
 };
+
+// This node overwrites CallKnownJSFunction in-place after inlining.
+class ReturnedValue : public ValueNodeT<ReturnedValue> {
+  using Base = ValueNodeT<ReturnedValue>;
+
+ public:
+  static_assert(CallKnownJSFunction::kFixedInputCount > 1);
+  explicit ReturnedValue(uint64_t bitfield) : Base(bitfield) {}
+  static constexpr OpProperties kProperties =
+      OpProperties::CanAllocate() | OpProperties::DeferredCall();
+  void VerifyInputs() const {
+    // It doesn't make sense if the input is already tagged. Otherwise it can be
+    // anything.
+    DCHECK(!input(0).node()->is_tagged());
+    DCHECK_EQ(input_count(), 1);
+  }
+#ifdef V8_COMPRESS_POINTERS
+  void MarkTaggedInputsAsDecompressing() { UNREACHABLE(); }
+#endif
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints() { UNREACHABLE(); }
+  void GenerateCode(MaglevAssembler*, const ProcessingState&) { UNREACHABLE(); }
+  void PrintParams(std::ostream&) const {}
+};
+static_assert(sizeof(ReturnedValue) <= sizeof(CallKnownJSFunction));
 
 class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
   using Base = ValueNodeT<CallKnownApiFunction>;

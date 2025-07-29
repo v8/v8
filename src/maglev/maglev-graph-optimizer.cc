@@ -490,6 +490,11 @@ ProcessResult MaglevGraphOptimizer::VisitCallKnownJSFunction() {
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitReturnedValue() {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitCallSelf() {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
@@ -846,9 +851,16 @@ ProcessResult MaglevGraphOptimizer::VisitUnsafeSmiTagIntPtr() {
 
 ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag() {
   // TODO(b/424157317): Optimize.
-  auto cst = reducer_.TryGetInt32Constant(GetInputAt(0));
+  ValueNode* input = GetInputAt(0);
+  auto cst = reducer_.TryGetInt32Constant(input);
   if (cst.has_value()) {
     return ReplaceWith(reducer_.GetInt32Constant(cst.value()));
+  }
+  if (input->Is<ReturnedValue>()) {
+    ValueNode* value = input->input(0).node()->UnwrapIdentities();
+    if (value->is_int32()) {
+      return ReplaceWith(value);
+    }
   }
   return ProcessResult::kContinue;
 }

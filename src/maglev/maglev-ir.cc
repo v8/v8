@@ -544,6 +544,8 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
   switch (opcode()) {
     case Opcode::kPhi:
       return Cast<Phi>()->type();
+    case Opcode::kReturnedValue:
+      return input(0).node()->GetStaticType(broker);
     case Opcode::kCheckedSmiTagInt32:
     case Opcode::kCheckedSmiTagUint32:
     case Opcode::kCheckedSmiTagIntPtr:

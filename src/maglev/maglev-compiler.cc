@@ -169,7 +169,9 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
     if (graph->may_have_unreachable_blocks()) {
       graph->RemoveUnreachableBlocks();
     }
-    GraphProcessor<AnyUseMarkingProcessor> processor;
+    GraphMultiProcessor<ReturnedValueRepresentationSelector,
+                        AnyUseMarkingProcessor>
+        processor;
     processor.ProcessGraph(graph);
     PrintGraph(graph, v8_flags.print_maglev_graphs, "After use marking");
     VerifyGraph(graph);

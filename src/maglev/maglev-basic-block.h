@@ -77,17 +77,16 @@ class BasicBlock {
   }
 
   // Moves all nodes after |node| to the resulting ZoneVector, while keeping all
-  // nodes before |node| in the basic block. |node| itself is dropped.
+  // nodes before |node| (inclusive) in the basic block.
   ZoneVector<Node*> Split(Node* node, Zone* zone) {
     size_t split = 0;
     for (; split < nodes_.size(); split++) {
       if (nodes_[split] == node) break;
     }
     DCHECK_NE(split, nodes_.size());
-    size_t after_split = split + 1;
-    ZoneVector<Node*> result(nodes_.size() - after_split, zone);
+    ZoneVector<Node*> result(nodes_.size() - split, zone);
     for (size_t i = 0; i < result.size(); i++) {
-      result[i] = nodes_[i + after_split];
+      result[i] = nodes_[i + split];
     }
     nodes_.resize(split);
     return result;

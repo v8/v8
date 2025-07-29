@@ -15,6 +15,25 @@
 
 namespace v8::internal::maglev {
 
+// We assume that we have visited all the deopt infos at this point.
+// SweepIdentities would do that. That means that we don't have any uses of
+// ReturnedValue in deopt infos. If the node has an use > 0, we
+// must create a conversion to tagged.
+class ReturnedValueRepresentationSelector {
+ public:
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {}
+  void PostProcessBasicBlock(BasicBlock* block) {}
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
+  void PostPhiProcessing() {}
+  ProcessResult Process(NodeBase* node, const ProcessingState& state) {
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(ReturnedValue* node, const ProcessingState& state);
+};
+
 class MaglevInliner {
  public:
   explicit MaglevInliner(Graph* graph) : graph_(graph) {}
@@ -50,7 +69,6 @@ class MaglevInliner {
     }
   }
 
-  ValueNode* EnsureTagged(MaglevGraphBuilder& builder, ValueNode* node);
   static void UpdatePredecessorsOf(BasicBlock* block, BasicBlock* prev_pred,
                                    BasicBlock* new_pred);
   void RemovePredecessorFollowing(ControlNode* control, BasicBlock* call_block);

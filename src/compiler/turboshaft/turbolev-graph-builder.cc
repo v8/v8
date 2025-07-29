@@ -4938,6 +4938,11 @@ class GraphBuildingNodeProcessor {
     // VirtualObjects should never be part of the Maglev graph.
     UNREACHABLE();
   }
+  maglev::ProcessResult Process(maglev::ReturnedValue*,
+                                const maglev::ProcessingState&) {
+    // ReturnedValue should be removed before TS graph building.
+    UNREACHABLE();
+  }
 
   maglev::ProcessResult Process(maglev::GetSecondReturnedValue* node,
                                 const maglev::ProcessingState& state) {
@@ -6453,7 +6458,9 @@ void RunMaglevOptimizations(PipelineData* data,
 
   // Escape analysis.
   {
-    maglev::GraphMultiProcessor<maglev::AnyUseMarkingProcessor> processor;
+    maglev::GraphMultiProcessor<maglev::ReturnedValueRepresentationSelector,
+                                maglev::AnyUseMarkingProcessor>
+        processor;
     processor.ProcessGraph(maglev_graph);
   }
 
