@@ -6901,23 +6901,16 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoad() {
   interpreter::Register loaded_property_register =
       interpreter::Register::virtual_accumulator();
 
-  // We generate continuations for this pattern:
-  // GetNamedProperty ...
+  // For now, we only generate the continuation for this pattern:
+  // GeNamedProperty ...
   // Sta-REG
-  // <Allowed bytecodes>
   // CallProperty REG ...
-  // Where <allowed bytecodes> are:
-  // - not affecting control flow
-  // - not storing into REG
-  // and the continuation is limited in length.
 
-  // Skip GetnamedProperty.
   iterator_.Advance();
   if (IsOffsetAMergePointOrLoopHeapder(iterator_.current_offset())) {
     return {};
   }
 
-  // Handle Sta-REG and read REG into loaded_property_register.
   switch (iterator_.current_bytecode()) {
 #define CASE(Name, ...)                                                       \
   case interpreter::Bytecode::k##Name:                                        \
@@ -6931,16 +6924,13 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoad() {
       return {};
   }
 
-  // TODO(marja): Find out a good limit.
-  int limit = 20;
-  while (--limit > 0) {
-    iterator_.Advance();
-    if (IsOffsetAMergePointOrLoopHeapder(iterator_.current_offset())) {
-      return {};
-    }
+  iterator_.Advance();
+  if (IsOffsetAMergePointOrLoopHeapder(iterator_.current_offset())) {
+    return {};
+  }
 
-    switch (iterator_.current_bytecode()) {
-#define CALL_CASE(Name, ...)                                           \
+  switch (iterator_.current_bytecode()) {
+#define CASE(Name, ...)                                                \
   case interpreter::Bytecode::k##Name:                                 \
     if (iterator_.GetRegisterOperand(0) == loaded_property_register) { \
       return ContinuationOffsets{iterator_.current_offset(),           \
@@ -6948,42 +6938,11 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoad() {
     }                                                                  \
     break;
 
-      // Call bytecodes (if they call the loaded property) end the continuation.
-      CALL_PROPERTY_BYTECODES(CALL_CASE)
-#undef CALL_CASE
+    CALL_PROPERTY_BYTECODES(CASE)
+#undef CASE
 
-#define STA_CASE(Name, ...)                                                \
-  case interpreter::Bytecode::k##Name:                                     \
-    if (interpreter::Register::FromShortStar(                              \
-            interpreter::Bytecode::k##Name) == loaded_property_register) { \
-      return {};                                                           \
-    }                                                                      \
-    break;
-
-      // Sta bytecodes might clobber the register we loaded into.
-      SHORT_STAR_BYTECODE_LIST(STA_CASE)
-#undef STA_CASE
-
-      case interpreter::Bytecode::kStar:
-        if (iterator_.GetRegisterOperand(0) == loaded_property_register) {
-          return {};
-        }
-        break;
-
-#define CONTROL_NODE_CASE(Name, ...)   \
-  case interpreter::Bytecode::k##Name: \
-    return {};
-
-        // The continuation cannot extend beyond control flow altering
-        // bytecodes.
-        JUMP_BYTECODE_LIST(CONTROL_NODE_CASE)
-        RETURN_BYTECODE_LIST(CONTROL_NODE_CASE)
-        UNCONDITIONAL_THROW_BYTECODE_LIST(CONTROL_NODE_CASE)
-#undef CONTROL_NODE_CASE
-
-      default:
-        break;
-    }
+    default:
+      break;
   }
   return {};
 
