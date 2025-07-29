@@ -459,11 +459,12 @@ DirectHandle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   }
 
   DirectHandle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate_, std::move(native_module), script);
-  native_module_ = module_object->native_module();
+      WasmModuleObject::New(isolate_, native_module, script);
+  native_module_ = native_module.get();
 
   DirectHandle<WasmTrustedInstanceData> trusted_data =
-      WasmTrustedInstanceData::New(isolate_, module_object, false);
+      WasmTrustedInstanceData::New(isolate_, module_object,
+                                   std::move(native_module), false);
   // TODO(42204563): Avoid crashing if the instance object is not available.
   CHECK(trusted_data->has_instance_object());
   DirectHandle<WasmInstanceObject> instance_object(
