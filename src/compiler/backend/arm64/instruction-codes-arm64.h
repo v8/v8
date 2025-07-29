@@ -111,6 +111,9 @@ namespace compiler {
   V(Arm64S128UnzipRight)                \
   V(Arm64S128TransposeLeft)             \
   V(Arm64S128TransposeRight)            \
+  V(Arm64S128LowZipRight)               \
+  V(Arm64S128LowUnzipLeft)              \
+  V(Arm64S128LowUnzipRight)             \
   V(Arm64Ssra)                          \
   V(Arm64Usra)                          \
   V(Arm64S64x2Reverse)                  \

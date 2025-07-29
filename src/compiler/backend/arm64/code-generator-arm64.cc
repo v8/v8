@@ -2676,6 +2676,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              i.InputSimd128Register(1).Format(f));                     \
     break;                                                             \
   }
+#define SIMD_LOW_BINOP_LANE_SIZE_CASE(Op, Instr)       \
+  case Op: {                                           \
+    int lane_size = LaneSizeField::decode(opcode);     \
+    VectorFormat f = VectorFormatFillHalfQ(lane_size); \
+    __ Instr(i.OutputSimd128Register().Format(f),      \
+             i.InputSimd128Register(0).Format(f),      \
+             i.InputSimd128Register(1).Format(f));     \
+    break;                                             \
+  }
 #define SIMD_FCM_L_CASE(Op, ImmOp, RegOp)                              \
   case Op: {                                                           \
     VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode)); \
@@ -3390,6 +3399,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_LANE_SIZE_CASE(kArm64S128ZipRight, Zip2);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64S128TransposeLeft, Trn1);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64S128TransposeRight, Trn2);
+      SIMD_LOW_BINOP_LANE_SIZE_CASE(kArm64S128LowZipRight, Zip2);
+      SIMD_LOW_BINOP_LANE_SIZE_CASE(kArm64S128LowUnzipLeft, Uzp1);
+      SIMD_LOW_BINOP_LANE_SIZE_CASE(kArm64S128LowUnzipRight, Uzp2);
     case kArm64S8x16Concat: {
       __ Ext(i.OutputSimd128Register().V16B(), i.InputSimd128Register(0).V16B(),
              i.InputSimd128Register(1).V16B(), i.InputInt4(2));
@@ -3569,6 +3581,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef SIMD_UNOP_LANE_SIZE_CASE
 #undef SIMD_BINOP_CASE
 #undef SIMD_BINOP_LANE_SIZE_CASE
+#undef SIMD_LOW_BINOP_LANE_SIZE_CASE
 #undef SIMD_DESTRUCTIVE_BINOP_CASE
 #undef SIMD_DESTRUCTIVE_BINOP_LANE_SIZE_CASE
 #undef SIMD_DESTRUCTIVE_RELAXED_FUSED_CASE

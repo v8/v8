@@ -101,12 +101,16 @@ class V8_EXPORT_PRIVATE SimdShuffle {
   static bool TryMatchIdentity(const uint8_t* shuffle);
 
   // Tries to match a byte shuffle to a scalar splat operation. Returns the
-  // index of the lane if successful.
-  template <int LANES, int shuffle_size = kSimd128Size>
+  // index of the lane if successful. `LANES` is the number of lanes in the
+  // input SIMD vector.
+  template <int LANES, int simd_size = kSimd128Size,
+            int shuffle_size = simd_size>
   static bool TryMatchSplat(const uint8_t* shuffle, int* index)
-    requires(LANES > 0 && shuffle_size % LANES == 0)
+    requires(LANES > 0 && (simd_size % shuffle_size == 0) &&
+             (simd_size % LANES == 0))
   {
-    const int kBytesPerLane = shuffle_size / LANES;
+    const int kBytesPerLane = simd_size / LANES;
+    const int kShuffleLanes = LANES * shuffle_size / simd_size;
     // Get the first lane's worth of bytes and check that indices start at a
     // lane boundary and are consecutive.
     uint8_t lane0[kBytesPerLane];
@@ -117,7 +121,7 @@ class V8_EXPORT_PRIVATE SimdShuffle {
       if (lane0[i] != lane0[0] + i) return false;
     }
     // Now check that the other lanes are identical to lane0.
-    for (int i = 1; i < LANES; ++i) {
+    for (int i = 1; i < kShuffleLanes; ++i) {
       for (int j = 0; j < kBytesPerLane; ++j) {
         if (lane0[j] != shuffle[i * kBytesPerLane + j]) return false;
       }
@@ -253,6 +257,9 @@ class V8_EXPORT_PRIVATE SimdShuffle {
   // Packs 16 bytes of shuffle into an array of 4 uint32_t.
   static void Pack16Lanes(uint32_t* dst, const uint8_t* shuffle);
 
+  // For reverse canonical shuffles, the numeric 'size' prefix represents the
+  // chunk size being reversed, not the total size of the shuffle. The full
+  // 128-bit register is always shuffled.
   enum class CanonicalShuffle : uint8_t {
     kUnknown,
     kIdentity,
@@ -260,15 +267,12 @@ class V8_EXPORT_PRIVATE SimdShuffle {
     kS64x2Odd,
     kS64x2ReverseBytes,
     kS64x2Reverse,
-    kS64x1ReverseBytes,
     kS32x4Even,
     kS32x4Odd,
     kS32x4InterleaveLowHalves,
     kS32x4InterleaveHighHalves,
     kS32x4ReverseBytes,
     kS32x4Reverse,
-    kS32x2InterleaveLowHalves,
-    kS32x2InterleaveHighHalves,
     kS32x2Reverse,
     kS32x4TransposeEven,
     kS32x4TransposeOdd,
@@ -276,31 +280,23 @@ class V8_EXPORT_PRIVATE SimdShuffle {
     kS16x8Odd,
     kS16x8InterleaveLowHalves,
     kS16x8InterleaveHighHalves,
+    kS16x4InterleaveHighHalves,
     kS16x8ReverseBytes,
     kS16x8TransposeEven,
     kS16x8TransposeOdd,
-    kS16x4Even,
-    kS16x4Odd,
-    kS16x4InterleaveLowHalves,
-    kS16x4InterleaveHighHalves,
-    kS16x4TransposeEven,
-    kS16x4TransposeOdd,
     kS16x4Reverse,
     kS16x2Reverse,
+    kS16x4Even,
+    kS16x4Odd,
     kS8x16Even,
     kS8x16Odd,
     kS8x16InterleaveLowHalves,
     kS8x16InterleaveHighHalves,
+    kS8x8InterleaveHighHalves,
     kS8x16TransposeEven,
     kS8x16TransposeOdd,
     kS8x8Even,
     kS8x8Odd,
-    kS8x8InterleaveHighHalves,
-    kS8x8InterleaveLowHalves,
-    kS8x8TransposeEven,
-    kS8x8TransposeOdd,
-    kS8x4Reverse,
-    kS8x2Reverse,
   };
 
   template <size_t N = kSimd128Size>

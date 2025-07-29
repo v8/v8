@@ -284,6 +284,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64S128UnzipRight:
     case kArm64S128TransposeLeft:
     case kArm64S128TransposeRight:
+    case kArm64S128LowZipRight:
+    case kArm64S128LowUnzipLeft:
+    case kArm64S128LowUnzipRight:
     case kArm64Ssra:
     case kArm64Usra:
     case kArm64S64x2Reverse:

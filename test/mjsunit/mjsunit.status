@@ -762,6 +762,7 @@
   'wasm/simd-fp16': [SKIP],
 
   # --experimental-wasm-simd-opt
+  'wasm/half-shuffles': [SKIP],
   'wasm/redundant-shuffle-lanes': [SKIP],
 
   # --experimental-wasm-rab-integration
@@ -882,6 +883,7 @@
 ##############################################################################
 # --experimental-wasm-simd-opt, only supported on arm64
 ['arch != arm64', {
+  'wasm/half-shuffles': [SKIP],
   'wasm/redundant-shuffle-lanes': [SKIP],
 }],
 
@@ -2340,6 +2342,7 @@
   'wasm/multi-value-simd': [SKIP],
   'wasm/js-to-wasm-invalid-sig': [SKIP],
   'wasm/shuffles': [SKIP],
+  'wasm/half-shuffles': [SKIP],
   'wasm/redundant-shuffle-lanes': [SKIP],
   'wasm/simd-*': [SKIP],
   'wasm/turboshaft/array-new-unreachable': [SKIP],

@@ -5510,8 +5510,11 @@ std::optional<InstructionCode> TryMapCanonicalShuffleToInstr(
       CANONICAL_TO_INSTR(kS32x4TransposeOdd, kArm64S128TransposeRight, 32),
       CANONICAL_TO_INSTR(kS16x8Even, kArm64S128UnzipLeft, 16),
       CANONICAL_TO_INSTR(kS16x8Odd, kArm64S128UnzipRight, 16),
+      CANONICAL_TO_INSTR(kS16x4Even, kArm64S128LowUnzipLeft, 16),
+      CANONICAL_TO_INSTR(kS16x4Odd, kArm64S128LowUnzipRight, 16),
       CANONICAL_TO_INSTR(kS16x8InterleaveLowHalves, kArm64S128ZipLeft, 16),
       CANONICAL_TO_INSTR(kS16x8InterleaveHighHalves, kArm64S128ZipRight, 16),
+      CANONICAL_TO_INSTR(kS16x4InterleaveHighHalves, kArm64S128LowZipRight, 16),
       CANONICAL_TO_INSTR(kS16x2Reverse, kArm64S128Rev32, 16),
       CANONICAL_TO_INSTR(kS16x4Reverse, kArm64S128Rev64, 16),
       CANONICAL_TO_INSTR(kS16x8ReverseBytes, kArm64S128Rev16, 8),
@@ -5519,8 +5522,11 @@ std::optional<InstructionCode> TryMapCanonicalShuffleToInstr(
       CANONICAL_TO_INSTR(kS16x8TransposeOdd, kArm64S128TransposeRight, 16),
       CANONICAL_TO_INSTR(kS8x16Even, kArm64S128UnzipLeft, 8),
       CANONICAL_TO_INSTR(kS8x16Odd, kArm64S128UnzipRight, 8),
+      CANONICAL_TO_INSTR(kS8x8Even, kArm64S128LowUnzipLeft, 8),
+      CANONICAL_TO_INSTR(kS8x8Odd, kArm64S128LowUnzipRight, 8),
       CANONICAL_TO_INSTR(kS8x16InterleaveLowHalves, kArm64S128ZipLeft, 8),
       CANONICAL_TO_INSTR(kS8x16InterleaveHighHalves, kArm64S128ZipRight, 8),
+      CANONICAL_TO_INSTR(kS8x8InterleaveHighHalves, kArm64S128LowZipRight, 8),
       CANONICAL_TO_INSTR(kS8x16TransposeEven, kArm64S128TransposeLeft, 8),
       CANONICAL_TO_INSTR(kS8x16TransposeOdd, kArm64S128TransposeRight, 8),
   });
@@ -5584,32 +5590,85 @@ void InstructionSelector::VisitI8x4Shuffle(OpIndex node) {
 }
 
 void InstructionSelector::VisitI8x8Shuffle(OpIndex node) {
-  Arm64OperandGenerator g(this);
+  std::array<uint8_t, kSimd128HalfSize> shuffle;
+  bool is_swizzle;
   auto view = this->simd_shuffle_view(node);
+  CanonicalizeShuffle<kSimd128Size, kSimd128HalfSize>(view, shuffle.data(),
+                                                      &is_swizzle);
   OpIndex input0 = view.input(0);
   OpIndex input1 = view.input(1);
-  constexpr size_t shuffle_bytes = 8;
-  std::array<uint8_t, shuffle_bytes> shuffle;
-  std::copy(view.data(), view.data() + shuffle_bytes, shuffle.begin());
-  std::array<uint8_t, 2> shuffle32x2;
-  uint8_t shuffle64x1;
-  if (wasm::SimdShuffle::TryMatch64x1Shuffle(shuffle.data(), &shuffle64x1)) {
-    Emit(kArm64S64x1Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
-         g.UseRegister(input1), g.UseImmediate(shuffle64x1));
-  } else if (wasm::SimdShuffle::TryMatch32x2Shuffle(shuffle.data(),
-                                                    shuffle32x2.data())) {
-    Emit(kArm64S32x2Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
-         g.UseRegister(input1),
-         g.UseImmediate(wasm::SimdShuffle::Pack2Lanes(shuffle32x2)));
-  } else {
-    // Code generator uses vtbl, arrange sources to form a valid lookup table.
-    InstructionOperand src0, src1;
-    ArrangeShuffleTable(&g, input0, input1, &src0, &src1);
-    Emit(kArm64I8x16Shuffle, g.DefineAsRegister(node), src0, src1,
-         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(&shuffle[0])),
-         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(&shuffle[4])),
-         g.UseImmediate(0), g.UseImmediate(0));
+  Arm64OperandGenerator g(this);
+
+  const CanonicalShuffle canonical =
+      wasm::SimdShuffle::TryMatchCanonical(shuffle);
+
+  if (std::optional<InstructionCode> instr_opcode =
+          TryMapCanonicalShuffleToInstr(canonical)) {
+    Emit(instr_opcode.value(), g.DefineAsRegister(node), g.UseRegister(input0),
+         g.UseRegister(input1));
+    return;
   }
+
+  uint8_t shuffle64x1;
+  int index = 0;
+  if (wasm::SimdShuffle::TryMatch64x1Shuffle(shuffle.data(), &shuffle64x1)) {
+    if (wasm::SimdShuffle::TryMatchSplat<2, kSimd128Size, kSimd128HalfSize>(
+            shuffle.data(), &index)) {
+      DCHECK(is_swizzle);
+      Emit(kArm64S128Dup | LaneSizeField::encode(64), g.DefineAsRegister(node),
+           g.UseRegister(input0), g.UseImmediate(index));
+    } else {
+      Emit(kArm64S64x1Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
+           g.UseRegister(input1), g.UseImmediate(shuffle64x1));
+    }
+    return;
+  }
+  std::array<uint8_t, 2> shuffle32x2;
+  if (wasm::SimdShuffle::TryMatch32x2Shuffle(shuffle.data(),
+                                             shuffle32x2.data())) {
+    if (wasm::SimdShuffle::TryMatchSplat<4, kSimd128Size, kSimd128HalfSize>(
+            shuffle.data(), &index)) {
+      DCHECK(is_swizzle);
+      Emit(kArm64S128Dup | LaneSizeField::encode(32), g.DefineAsRegister(node),
+           g.UseRegister(input0), g.UseImmediate(index));
+    } else {
+      Emit(kArm64S32x2Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
+           g.UseRegister(input1),
+           g.UseImmediate(wasm::SimdShuffle::Pack2Lanes(shuffle32x2)));
+    }
+    return;
+  }
+  uint8_t shuffle16x4[4];
+  if (wasm::SimdShuffle::TryMatch16x4Shuffle(shuffle.data(), shuffle16x4)) {
+    if (wasm::SimdShuffle::TryMatchSplat<8, kSimd128Size, kSimd128HalfSize>(
+            shuffle.data(), &index)) {
+      DCHECK(is_swizzle);
+      Emit(kArm64S128Dup | LaneSizeField::encode(16), g.DefineAsRegister(node),
+           g.UseRegister(input0), g.UseImmediate(index));
+      return;
+    } else if (canonical == CanonicalShuffle::kIdentity) {
+      // Bypass normal shuffle code generation in this case.
+      // EmitIdentity
+      MarkAsUsed(input0);
+      MarkAsDefined(node);
+      SetRename(node, input0);
+      return;
+    }
+  }
+  if (wasm::SimdShuffle::TryMatchSplat<16, kSimd128Size, kSimd128HalfSize>(
+          shuffle.data(), &index)) {
+    DCHECK(is_swizzle);
+    Emit(kArm64S128Dup | LaneSizeField::encode(8), g.DefineAsRegister(node),
+         g.UseRegister(input0), g.UseImmediate(index));
+    return;
+  }
+
+  InstructionOperand src0, src1;
+  ArrangeShuffleTable(&g, input0, input1, &src0, &src1);
+  Emit(kArm64I8x16Shuffle, g.DefineAsRegister(node), src0, src1,
+       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(&shuffle[0])),
+       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(&shuffle[4])),
+       g.UseImmediate(0), g.UseImmediate(0));
 }
 
 void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {

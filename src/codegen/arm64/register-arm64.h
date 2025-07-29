@@ -330,6 +330,8 @@ VectorFormat ScalarFormatFromLaneSize(int lanesize);
 VectorFormat VectorFormatHalfWidthDoubleLanes(VectorFormat vform);
 VectorFormat VectorFormatFillQ(int laneSize);
 VectorFormat VectorFormatFillQ(VectorFormat vform);
+VectorFormat VectorFormatFillHalfQ(int laneSize);
+VectorFormat VectorFormatFillHalfQ(VectorFormat vform);
 VectorFormat ScalarFormatFromFormat(VectorFormat vform);
 V8_EXPORT_PRIVATE unsigned RegisterSizeInBitsFromFormat(VectorFormat vform);
 unsigned RegisterSizeInBytesFromFormat(VectorFormat vform);
