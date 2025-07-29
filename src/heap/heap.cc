@@ -2580,7 +2580,7 @@ void Heap::EnsureSweepingCompletedForObject(Tagged<HeapObject> object) {
 }
 
 // static
-Heap::LimitsCompuatationResult Heap::ComputeNewAllocationLimits(Heap* heap) {
+Heap::LimitsComputationResult Heap::ComputeNewAllocationLimits(Heap* heap) {
   DCHECK(!heap->using_initial_limit());
   heap->tracer()->RecordGCSizeCounters();
   const HeapGrowingMode mode = heap->CurrentHeapGrowingMode();
@@ -2600,7 +2600,7 @@ Heap::LimitsCompuatationResult Heap::ComputeNewAllocationLimits(Heap* heap) {
           ? MemoryController<GlobalMemoryTrait>::GrowingFactor(
                 heap, heap->max_global_memory_size_, embedder_gc_speed,
                 embedder_speed, mode)
-          : 0;
+          : BaseControllerTrait::kMinGrowingFactor;
 
   size_t new_space_capacity = heap->NewSpaceTargetCapacity();
 

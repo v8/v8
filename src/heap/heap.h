@@ -2055,11 +2055,11 @@ class Heap final {
 
   void RecomputeLimits(GarbageCollector collector, base::TimeTicks time);
   void RecomputeLimitsAfterLoadingIfNeeded();
-  struct LimitsCompuatationResult {
+  struct LimitsComputationResult {
     size_t old_generation_allocation_limit;
     size_t global_allocation_limit;
   };
-  static LimitsCompuatationResult ComputeNewAllocationLimits(Heap* heap);
+  static LimitsComputationResult ComputeNewAllocationLimits(Heap* heap);
   V8_EXPORT_PRIVATE void ComputeAndSetNewAllocationLimits();
 
   // ===========================================================================
