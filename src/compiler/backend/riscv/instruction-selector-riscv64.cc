@@ -1051,6 +1051,16 @@ void EmitSignExtendWord(InstructionSelector* selector, OpIndex node) {
   const Operation& op = selector->Get(node);
   DCHECK_EQ(op.input_count, 1);
   OpIndex value = op.input(0);
+  const Operation& input_op = selector->Get(value);
+  if (input_op.Is<Opmask::kTruncateWord64ToWord32>() &&
+      selector->CanCover(node, value)) {
+    // Match these patterns:
+    // Change(#395)[Truncate, NoAssumption, Word64, Word32]
+    // Change(#396)[SignExtend, NoAssumption, Word32, Word64]
+    RiscvOperandGenerator g(selector);
+    selector->Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+    return;
+  }
   selector->Emit(kRiscvSignExtendWord, g.DefineAsRegister(node),
                  g.UseRegister(value));
 }
@@ -1060,7 +1070,8 @@ bool IsSignExtendWord32ToWord64(const Operation& op) {
       op.Is<Opmask::kWord32ShiftLeft>() ||
       op.Is<Opmask::kWord32ShiftRightArithmetic>() ||
       op.Is<Opmask::kWord32ShiftRightArithmeticShiftOutZeros>() ||
-      op.Is<Opmask::kWord32ShiftRightLogical>()) {
+      op.Is<Opmask::kWord32ShiftRightLogical>() ||
+      op.Is<Opmask::kChangeInt32ToInt64>()) {
     return true;
   }
   return false;
@@ -1921,6 +1932,7 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
   if ((comparison &&
        comparison->rep.value() == RegisterRepresentation::Word64()) ||
       value_op.Is<Opmask::kWord32BitwiseAnd>() ||
+      value_op.Is<Opmask::kTruncateWord64ToWord32>() ||
       IsLoadWord32OrSmaller(this, value) ||
       IsSignExtendWord32ToWord64(value_op)) {
     // If the value_op is sign-extended or lw/lhu/lh/lbu/lb, we can use
