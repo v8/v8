@@ -27,15 +27,6 @@
 
 #ifdef V8_ENABLE_SANDBOX
 #include "src/base/region-allocator.h"
-
-#ifdef V8_ENABLE_PARTITION_ALLOC
-#include <partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc.h>
-
-#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
-#define V8_USE_PA_BACKED_SANDBOX_FOR_ARRAY_BUFFER_ALLOCATOR 1
-#endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
-
-#endif  // V8_ENABLE_PARTITION_ALLOC
 #endif  // V8_ENABLE_SANDBOX
 
 namespace v8 {
@@ -101,11 +92,12 @@ class SandboxedArrayBufferAllocator final
   base::Mutex mutex_;
 };
 
-#if defined(V8_USE_PA_BACKED_SANDBOX_FOR_ARRAY_BUFFER_ALLOCATOR)
+#ifdef V8_ENABLE_PARTITION_ALLOC
 class PABackedSandboxedArrayBufferAllocator
     : public SandboxedArrayBufferAllocatorBase {
  public:
   PABackedSandboxedArrayBufferAllocator() = default;
+  ~PABackedSandboxedArrayBufferAllocator();
 
   PABackedSandboxedArrayBufferAllocator(
       const PABackedSandboxedArrayBufferAllocator&) = delete;
@@ -121,13 +113,11 @@ class PABackedSandboxedArrayBufferAllocator
   void TearDown();
 
  private:
-  template <partition_alloc::AllocFlags flags>
-  void* AllocateInternal(size_t length);
+  class Impl;
 
-  std::optional<partition_alloc::PartitionAllocator> partition_;
-  base::OnceType partition_init_ = V8_ONCE_INIT;
+  std::unique_ptr<Impl> impl_;
 };
-#endif  // !defined(V8_USE_PA_BACKED_SANDBOX_FOR_ARRAY_BUFFER_ALLOCATOR)
+#endif  // V8_ENABLE_PARTITION_ALLOC
 #endif  // V8_ENABLE_SANDBOX
 
 class CodeRange;
@@ -417,7 +407,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   CodePointerTable code_pointer_table_;
   MemoryChunkMetadataTableEntry metadata_pointer_table_
       [MemoryChunkConstants::kMetadataPointerTableSize]{};
-#if defined(V8_USE_PA_BACKED_SANDBOX_FOR_ARRAY_BUFFER_ALLOCATOR)
+#ifdef V8_ENABLE_PARTITION_ALLOC
   PABackedSandboxedArrayBufferAllocator backend_allocator_;
 #else
   SandboxedArrayBufferAllocator backend_allocator_;

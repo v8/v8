@@ -43,6 +43,9 @@ class AllocationPlatform : public TestPlatform {
 
 AllocationPlatform* AllocationPlatform::current_platform = nullptr;
 
+// PartitionAlloc is configured to terminate on OOM, not returning nullptr.
+// These functions are not called in the tests that test nullptr return.
+#ifndef V8_ENABLE_PARTITION_ALLOC
 bool DidCallOnCriticalMemoryPressure() {
   return AllocationPlatform::current_platform &&
          AllocationPlatform::current_platform->oom_callback_called;
@@ -86,9 +89,12 @@ void OnAlignedAllocOOM(const char* location, const char* message) {
   CHECK_EQ(0, strcmp(location, "AlignedAlloc"));
   v8::base::OS::ExitProcess(0);
 }
+#endif  // V8_ENABLE_PARTITION_ALLOC
 
 }  // namespace
 
+// PartitionAlloc is configured to terminate on OOM.
+#ifndef V8_ENABLE_PARTITION_ALLOC
 TEST_WITH_PLATFORM(AccountingAllocatorOOM, AllocationPlatform) {
   v8::internal::AccountingAllocator allocator;
   CHECK(!platform.oom_callback_called);
@@ -97,6 +103,7 @@ TEST_WITH_PLATFORM(AccountingAllocatorOOM, AllocationPlatform) {
   // On a few systems, allocation somehow succeeds.
   CHECK_EQ(result == nullptr, platform.oom_callback_called);
 }
+#endif  // V8_ENABLE_PARTITION_ALLOC
 
 // We use |AllocateAtLeast| in the accounting allocator, so we check only that
 // we have _at least_ the expected amount of memory allocated.
@@ -127,6 +134,8 @@ TEST_WITH_PLATFORM(AccountingAllocatorCurrentAndMax, AllocationPlatform) {
   CHECK(!platform.oom_callback_called);
 }
 
+// PartitionAlloc is configured to terminate on OOM.
+#ifndef V8_ENABLE_PARTITION_ALLOC
 TEST_WITH_PLATFORM(MallocedOperatorNewOOM, AllocationPlatform) {
   CHECK(!platform.oom_callback_called);
   CcTest::isolate()->SetFatalErrorHandler(OnMallocedOperatorNewOOM);
@@ -171,6 +180,7 @@ TEST_WITH_PLATFORM(AlignedAllocVirtualMemoryOOM, AllocationPlatform) {
   // On a few systems, allocation somehow succeeds.
   CHECK_IMPLIES(!result.IsReserved(), platform.oom_callback_called);
 }
+#endif  // V8_ENABLE_PARTITION_ALLOC
 
 #endif  // !defined(V8_USE_ADDRESS_SANITIZER) && !defined(MEMORY_SANITIZER) &&
         // !defined(THREAD_SANITIZER)

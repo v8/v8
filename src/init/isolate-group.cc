@@ -23,6 +23,10 @@
 #include "src/utils/memcopy.h"
 #include "src/utils/utils.h"
 
+#ifdef V8_ENABLE_PARTITION_ALLOC
+#include <partition_alloc/partition_alloc.h>
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -517,9 +521,10 @@ void SandboxedArrayBufferAllocator::TearDown() {
   region_alloc_.reset(nullptr);
 }
 
-#if defined(V8_USE_PA_BACKED_SANDBOX_FOR_ARRAY_BUFFER_ALLOCATOR)
-void PABackedSandboxedArrayBufferAllocator::LazyInitialize(Sandbox* sandbox) {
-  base::CallOnce(&partition_init_, [sandbox] {
+#ifdef V8_ENABLE_PARTITION_ALLOC
+class PABackedSandboxedArrayBufferAllocator::Impl final {
+ public:
+  explicit Impl(Sandbox* sandbox) {
     const size_t max_pool_size = partition_alloc::internal::
         PartitionAddressSpace::ConfigurablePoolMaxSize();
     const size_t min_pool_size = partition_alloc::internal::
@@ -540,52 +545,79 @@ void PABackedSandboxedArrayBufferAllocator::LazyInitialize(Sandbox* sandbox) {
     CHECK(pool_base);
     partition_alloc::internal::PartitionAddressSpace::InitConfigurablePool(
         pool_base, pool_size);
-  });
 
-  partition_alloc::PartitionOptions opts;
-  opts.backup_ref_ptr = partition_alloc::PartitionOptions::kDisabled;
-  opts.use_configurable_pool = partition_alloc::PartitionOptions::kAllowed;
+    partition_alloc::PartitionOptions opts;
+    opts.backup_ref_ptr = partition_alloc::PartitionOptions::kDisabled;
+    opts.use_configurable_pool = partition_alloc::PartitionOptions::kAllowed;
+    partition_.init(std::move(opts));
+  }
 
-  partition_.emplace(std::move(opts));
+  Impl(const Impl&) = delete;
+  Impl& operator=(const Impl&) = delete;
+
+  void* Allocate(size_t length) {
+    constexpr partition_alloc::AllocFlags flags =
+        partition_alloc::AllocFlags::kZeroFill |
+        partition_alloc::AllocFlags::kReturnNull;
+    return AllocateInternal<flags>(length);
+  }
+
+  void* AllocateUninitialized(size_t length) {
+    constexpr partition_alloc::AllocFlags flags =
+        partition_alloc::AllocFlags::kReturnNull;
+    return AllocateInternal<flags>(length);
+  }
+
+  void Free(void* data) {
+    partition_.root()->Free<partition_alloc::FreeFlags::kNoMemoryToolOverride>(
+        data);
+  }
+
+ private:
+  template <partition_alloc::AllocFlags flags>
+  void* AllocateInternal(size_t length) {
+    // The V8 sandbox requires all ArrayBuffer backing stores to be allocated
+    // inside the sandbox address space. This isn't guaranteed if allocation
+    // override hooks (which are e.g. used by GWP-ASan) are enabled or if a
+    // memory tool (e.g. ASan) overrides malloc, so disable both.
+    constexpr auto new_flags =
+        flags | partition_alloc::AllocFlags::kNoOverrideHooks |
+        partition_alloc::AllocFlags::kNoMemoryToolOverride;
+    return partition_.root()->AllocInline<new_flags>(
+        length, "PABackedSandboxedArrayBufferAllocator");
+  }
+
+  partition_alloc::PartitionAllocator partition_;
+};
+
+PABackedSandboxedArrayBufferAllocator::
+    ~PABackedSandboxedArrayBufferAllocator() = default;
+
+void PABackedSandboxedArrayBufferAllocator::LazyInitialize(Sandbox* sandbox) {
+  if (impl_) {
+    return;
+  }
+  impl_ = std::make_unique<Impl>(sandbox);
 }
 
 void* PABackedSandboxedArrayBufferAllocator::Allocate(size_t length) {
-  constexpr partition_alloc::AllocFlags flags =
-      partition_alloc::AllocFlags::kZeroFill |
-      partition_alloc::AllocFlags::kReturnNull;
-  return AllocateInternal<flags>(length);
+  DCHECK(impl_);
+  return impl_->Allocate(length);
 }
 
 void* PABackedSandboxedArrayBufferAllocator::AllocateUninitialized(
     size_t length) {
-  constexpr partition_alloc::AllocFlags flags =
-      partition_alloc::AllocFlags::kReturnNull;
-  return AllocateInternal<flags>(length);
-}
-
-template <partition_alloc::AllocFlags flags>
-void* PABackedSandboxedArrayBufferAllocator::AllocateInternal(size_t length) {
-  // The V8 sandbox requires all ArrayBuffer backing stores to be allocated
-  // inside the sandbox address space. This isn't guaranteed if allocation
-  // override hooks (which are e.g. used by GWP-ASan) are enabled or if a
-  // memory tool (e.g. ASan) overrides malloc, so disable both.
-  constexpr auto new_flags = flags |
-                             partition_alloc::AllocFlags::kNoOverrideHooks |
-                             partition_alloc::AllocFlags::kNoMemoryToolOverride;
-  return partition_->root()->AllocInline<new_flags>(
-      length, "PABackedSandboxedArrayBufferAllocator");
+  DCHECK(impl_);
+  return impl_->AllocateUninitialized(length);
 }
 
 void PABackedSandboxedArrayBufferAllocator::Free(void* data) {
-  partition_->root()->Free<partition_alloc::FreeFlags::kNoMemoryToolOverride>(
-      data);
+  DCHECK(impl_);
+  return impl_->Free(data);
 }
 
-void PABackedSandboxedArrayBufferAllocator::TearDown() {
-  // No need for two-stage destruction - the regular dtor will destroy the
-  // partition.
-}
-#endif  // defined(V8_USE_PA_BACKED_SANDBOX_FOR_ARRAY_BUFFER_ALLOCATOR)
+void PABackedSandboxedArrayBufferAllocator::TearDown() { impl_.reset(); }
+#endif  // V8_ENABLE_PARTITION_ALLOC
 
 SandboxedArrayBufferAllocatorBase*
 IsolateGroup::GetSandboxedArrayBufferAllocator() {
