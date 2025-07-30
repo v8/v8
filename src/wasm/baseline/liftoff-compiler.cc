@@ -7914,7 +7914,8 @@ class LiftoffCompiler {
           SCOPED_CODE_COMMENT("Optimized prototype setup");
           LiftoffRegister buffer = tmp1;
           static constexpr int kNumInts = 9;
-          static constexpr int kBufferSize = kNumInts * kInt32Size;
+          static constexpr int kBufferSize =
+              RoundUp(kNumInts * kInt32Size, kSystemPointerSize);
           __ AllocateStackSlot(buffer.gp(), kBufferSize);
           for (int i = 0; i < kNumInts; i++) {
             LiftoffRegister temp = tmp2;
