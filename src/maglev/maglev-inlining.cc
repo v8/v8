@@ -115,7 +115,8 @@ void MaglevInliner::Run() {
 
     // Optimize current graph.
     {
-      GraphProcessor<MaglevGraphOptimizer> optimizer(graph_);
+      GraphProcessor<MaglevGraphOptimizer, /* visit_identity_nodes */ true>
+          optimizer(graph_);
       optimizer.ProcessGraph(graph_);
 
       if (V8_UNLIKELY(v8_flags.print_maglev_graphs && is_tracing_enabled())) {
@@ -135,7 +136,8 @@ void MaglevInliner::Run() {
     // via the sweeper or the optimizer), or support identities in the graph
     // builder.
     {
-      GraphProcessor<SweepIdentityNodes> sweeper;
+      GraphProcessor<SweepIdentityNodes, /* visit_identity_nodes */ true>
+          sweeper;
       sweeper.ProcessGraph(graph_);
     }
   }
