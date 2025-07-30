@@ -257,9 +257,8 @@ Tagged<Code> BuildAdaptor(Isolate* isolate, Builtin builtin,
 
 // Builder for builtins implemented in Turboshaft with JS linkage.
 V8_NOINLINE Tagged<Code> BuildWithTurboshaftAssemblerJS(
-    Isolate* isolate, Builtin builtin,
-    compiler::turboshaft::TurboshaftAssemblerGenerator generator, int argc,
-    const char* name) {
+    Isolate* isolate, Builtin builtin, TurboshaftAssemblerGenerator generator,
+    int argc, const char* name) {
   HandleScope scope(isolate);
   DirectHandle<Code> code =
       compiler::turboshaft::BuildWithTurboshaftAssemblerImpl(
@@ -290,8 +289,7 @@ void CompileJSLinkageCodeStubBuiltin(Isolate* isolate, Builtin builtin,
 
 // Builder for builtins implemented in Turboshaft with CallStub linkage.
 V8_NOINLINE Tagged<Code> BuildWithTurboshaftAssemblerCS(
-    Isolate* isolate, Builtin builtin,
-    compiler::turboshaft::TurboshaftAssemblerGenerator generator,
+    Isolate* isolate, Builtin builtin, TurboshaftAssemblerGenerator generator,
     CallDescriptors::Key interface_descriptor, const char* name) {
   HandleScope scope(isolate);
   DirectHandle<Code> code =
@@ -318,17 +316,40 @@ void CompileCSLinkageCodeStubBuiltin(Isolate* isolate, Builtin builtin,
                                      BuiltinCompilationScheduler& scheduler) {
   // TODO(nicohartmann): Remove this once `BuildWithTurboshaftAssemblerCS` has
   // an actual use.
+  USE(&BuildWithTurboshaftAssemblerCS);
 #if V8_ENABLE_GEARBOX
   std::optional<InstructionSetExtensionScope> isx_scope;
   if (Builtins::IsISXVariant(builtin)) {
     isx_scope.emplace();
   }
 #endif  // V8_ENABLE_GEARBOX
-  USE(&BuildWithTurboshaftAssemblerCS);
   std::unique_ptr<TurbofanCompilationJob> job(
       compiler::Pipeline::NewCSLinkageCodeStubBuiltinCompilationJob(
           isolate, builtin, generator, installer,
           BuiltinAssemblerOptions(isolate, builtin), interface_descriptor, name,
+          GetProfileForBuiltin(builtin, name), finalize_order));
+  scheduler.CompileCode(isolate, std::move(job));
+}
+
+void CompileBytecodeHandlerTSA(
+    Isolate* isolate, Builtin builtin, interpreter::OperandScale operand_scale,
+    interpreter::Bytecode bytecode,
+    compiler::Pipeline::TurboshaftAssemblerInstaller installer,
+    int finalize_order, BuiltinCompilationScheduler& scheduler) {
+  DCHECK(interpreter::Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
+  const char* name = Builtins::name(builtin);
+  auto generator = [bytecode, operand_scale](
+                       compiler::turboshaft::PipelineData* data,
+                       Isolate* isolate, compiler::turboshaft::Graph& graph,
+                       Zone* zone) {
+    interpreter::GenerateBytecodeHandlerTSA(data, isolate, graph, zone,
+                                            bytecode, operand_scale);
+  };
+  std::unique_ptr<TurbofanCompilationJob> job(
+      compiler::Pipeline::NewBytecodeHandlerCompilationJobTSA(
+          isolate, builtin, generator, installer,
+          BuiltinAssemblerOptions(isolate, builtin), name,
+          interpreter::BytecodeHandlerData(bytecode, operand_scale),
           GetProfileForBuiltin(builtin, name), finalize_order));
   scheduler.CompileCode(isolate, std::move(job));
 }
@@ -350,6 +371,9 @@ void CompileBytecodeHandler(
           BuiltinAssemblerOptions(isolate, builtin), name,
           GetProfileForBuiltin(builtin, name), finalize_order));
   scheduler.CompileCode(isolate, std::move(job));
+
+  // TODO(nicohartmann): Remove once it has an unconditional use.
+  USE(&CompileBytecodeHandlerTSA);
 }
 
 }  // anonymous namespace
@@ -470,10 +494,11 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(
       handle(code, isolate);                                 \
   builtins_built_without_job_count++;
 
-#define BUILD_TSJ_WITHOUT_JOB(Name, Argc, ...)                             \
+#define BUILD_TFJ_TSA_WITHOUT_JOB(Name, Argc, ...)                         \
   code = BuildWithTurboshaftAssemblerJS(                                   \
       isolate, Builtin::k##Name, &Builtins::Generate_##Name, Argc, #Name); \
-  AddBuiltin(builtins, Builtin::k##Name, code);                            \
+  generated_builtins[Builtins::ToInt(Builtin::k##Name)] =                  \
+      handle(code, isolate);                                               \
   builtins_built_without_job_count++;
 
 #define BUILD_TFJ_WITH_JOB(Name, Argc, ...)                               \
@@ -482,7 +507,7 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(
                                   install_generated_builtin, Argc, #Name, \
                                   job_creation_order++, scheduler);
 
-#define BUILD_TSC_WITHOUT_JOB(Name, InterfaceDescriptor)          \
+#define BUILD_TFC_TSA_WITHOUT_JOB(Name, InterfaceDescriptor)      \
   /* Return size is from the provided CallInterfaceDescriptor. */ \
   code = BuildWithTurboshaftAssemblerCS(                          \
       isolate, Builtin::k##Name, &Builtins::Generate_##Name,      \
@@ -517,6 +542,11 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(
                          install_generated_builtin, job_creation_order++,   \
                          scheduler);
 
+#define BUILD_BCH_TSA_WITH_JOB(Name, OperandScale, Bytecode)                   \
+  CompileBytecodeHandlerTSA(isolate, Builtin::k##Name, OperandScale, Bytecode, \
+                            install_generated_builtin, job_creation_order++,   \
+                            scheduler);
+
 #define BUILD_ASM_WITHOUT_JOB(Name, InterfaceDescriptor)            \
   code = BuildWithMacroAssembler(isolate, Builtin::k##Name,         \
                                  Builtins::Generate_##Name, #Name); \
@@ -529,19 +559,21 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(
   // Build all builtins without jobs first. When concurrent builtin generation
   // is enabled, allocations needs to be deterministic. Having main-thread
   // generated builtins in the middle of the list breaks determinism.
-  BUILTIN_LIST(BUILD_CPP_WITHOUT_JOB, BUILD_TSJ_WITHOUT_JOB, NOP,
-               BUILD_TSC_WITHOUT_JOB, NOP, NOP, NOP, NOP,
+  BUILTIN_LIST(BUILD_CPP_WITHOUT_JOB, BUILD_TFJ_TSA_WITHOUT_JOB, NOP,
+               BUILD_TFC_TSA_WITHOUT_JOB, NOP, NOP, NOP, NOP, NOP,
                BUILD_ASM_WITHOUT_JOB);
   BUILTIN_LIST(NOP, NOP, BUILD_TFJ_WITH_JOB, NOP, BUILD_TFC_WITH_JOB,
-               BUILD_TFS_WITH_JOB, BUILD_TFH_WITH_JOB, BUILD_BCH_WITH_JOB, NOP)
+               BUILD_TFS_WITH_JOB, BUILD_TFH_WITH_JOB, BUILD_BCH_TSA_WITH_JOB,
+               BUILD_BCH_WITH_JOB, NOP)
 
 #undef BUILD_CPP_WITHOUT_JOB
-#undef BUILD_TSJ_WITHOUT_JOB
+#undef BUILD_TFJ_TSA_WITHOUT_JOB
 #undef BUILD_TFJ_WITH_JOB
-#undef BUILD_TSC_WITHOUT_JOB
+#undef BUILD_TFC_TSA_WITHOUT_JOB
 #undef BUILD_TFC_WITH_JOB
 #undef BUILD_TFS_WITH_JOB
 #undef BUILD_TFH_WITH_JOB
+#undef BUILD_BCH_TSA_WITH_JOB
 #undef BUILD_BCH_WITH_JOB
 #undef BUILD_ASM_WITHOUT_JOB
 #undef NOP

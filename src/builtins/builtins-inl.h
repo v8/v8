@@ -268,7 +268,8 @@ int Builtins::GetFormalParameterCount(Builtin builtin) {
 
   // TODO(saelo): consider merging GetFormalParameterCount and
   // GetStackParameterCount into a single function.
-  if (Builtins::KindOf(builtin) == TSJ || Builtins::KindOf(builtin) == TFJ) {
+  if (Builtins::KindOf(builtin) == TFJ_TSA ||
+      Builtins::KindOf(builtin) == TFJ) {
     return Builtins::GetStackParameterCount(builtin);
   } else if (Builtins::KindOf(builtin) == ASM ||
              Builtins::KindOf(builtin) == TFC) {

@@ -66,6 +66,12 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
   }
 }
 
+bool BuiltinsConstantsTableBuilder::HasObject(Handle<Object> object) const {
+  base::MutexGuard guard(&mutex_);
+  auto find_result = map_.Find(object);
+  return find_result != nullptr;
+}
+
 namespace {
 void CheckPreconditionsForPatching(Isolate* isolate,
                                    Handle<Object> replacement_object) {

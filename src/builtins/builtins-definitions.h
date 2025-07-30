@@ -38,14 +38,9 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
 //      Args: name, formal parameter count
 // TFJ: Builtin in Turbofan, with JS linkage (callable as Javascript function).
 //      Args: name, formal parameter count, explicit argument names...
-// TSJ: Builtin in Turboshaft, with JS linkage (callable as Javascript
-//      function).
-//      Args: name, formal parameter count, explicit argument names...
 // TFS: Builtin in Turbofan, with CodeStub linkage.
 //      Args: name, needs context, explicit argument names...
 // TFC: Builtin in Turbofan, with CodeStub linkage and custom descriptor.
-//      Args: name, interface descriptor
-// TSC: Builtin in Turboshaft, with CodeStub linkage and custom descriptor.
 //      Args: name, interface descriptor
 // TFH: Handlers in Turbofan, with CodeStub linkage.
 //      Args: name, interface descriptor
@@ -53,6 +48,15 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
 //      Args: name, OperandScale, Bytecode
 // ASM: Builtin in platform-dependent assembly.
 //      Args: name, interface descriptor
+
+// Versions of the above builtins, but defined using Turboshaft Assembler.
+// TFJ_TSA: Builtin in Turboshaft, with JS linkage (callable as Javascript
+//          function).
+//          Args: name, formal parameter count, explicit argument names...
+// TFC_TSA: Builtin in Turboshaft, with CodeStub linkage and custom descriptor.
+//          Args: name, interface descriptor
+// BCH_TSA: Bytecode Handlers in Turboshaft, with bytecode dispatch linkage.
+//          Args: name, OperandScale, Bytecode
 
 // Builtins are additionally split into tiers, where the tier determines the
 // distance of the builtins table from the root register within IsolateData.
@@ -121,7 +125,8 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
 
 #endif
 
-#define BUILTIN_LIST_BASE_TIER1(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, ASM)        \
+#define BUILTIN_LIST_BASE_TIER1(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH,     \
+                                ASM)                                           \
   /* GC write barriers */                                                      \
   TFC(IndirectPointerBarrierSaveFP, IndirectPointerWriteBarrier)               \
   TFC(IndirectPointerBarrierIgnoreFP, IndirectPointerWriteBarrier)             \
@@ -245,7 +250,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   ASM(ResumeGeneratorTrampoline, ResumeGenerator)                              \
                                                                                \
   /* String helpers */                                                         \
-  IF_TSA(TSC, TFC, StringFromCodePointAt, StringAtAsString)                    \
+  IF_TSA(TFC_TSA, TFC, StringFromCodePointAt, StringAtAsString)                \
   TFC(StringEqual, StringEqual)                                                \
   IF_WASM(TFC, WasmJSStringEqual, StringEqual)                                 \
   TFC(StringGreaterThan, CompareNoContext)                                     \
@@ -948,7 +953,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFC(Decrement_Baseline, UnaryOp_Baseline)                                    \
   TFC(Increment_Baseline, UnaryOp_Baseline)                                    \
   TFC(Negate_Baseline, UnaryOp_Baseline)                                       \
-  IF_TSA(TSC, TFC, BitwiseNot_WithFeedback, UnaryOp_WithFeedback)              \
+  IF_TSA(TFC_TSA, TFC, BitwiseNot_WithFeedback, UnaryOp_WithFeedback)          \
   TFC(Decrement_WithFeedback, UnaryOp_WithFeedback)                            \
   TFC(Increment_WithFeedback, UnaryOp_WithFeedback)                            \
   TFC(Negate_WithFeedback, UnaryOp_WithFeedback)                               \
@@ -1097,7 +1102,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   /* ES #sec-string.fromcodepoint */                                           \
   CPP(StringFromCodePoint, kDontAdaptArgumentsSentinel)                        \
   /* ES6 #sec-string.fromcharcode */                                           \
-  IF_TSA(TSJ, TFJ, StringFromCharCode, kDontAdaptArgumentsSentinel)            \
+  IF_TSA(TFJ_TSA, TFJ, StringFromCharCode, kDontAdaptArgumentsSentinel)        \
   /* ES6 #sec-string.prototype.lastindexof */                                  \
   CPP(StringPrototypeLastIndexOf, kDontAdaptArgumentsSentinel)                 \
   /* ES #sec-string.prototype.matchAll */                                      \
@@ -1527,9 +1532,9 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(CallAsyncModuleFulfilled, JSParameterCount(0))                           \
   CPP(CallAsyncModuleRejected, JSParameterCount(0))
 
-#define BUILTIN_LIST_BASE(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, ASM) \
-  BUILTIN_LIST_BASE_TIER0(CPP, TFJ, TFC, TFS, TFH, ASM)           \
-  BUILTIN_LIST_BASE_TIER1(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, ASM)
+#define BUILTIN_LIST_BASE(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, ASM) \
+  BUILTIN_LIST_BASE_TIER0(CPP, TFJ, TFC, TFS, TFH, ASM)                   \
+  BUILTIN_LIST_BASE_TIER1(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, ASM)
 
 #ifdef V8_TEMPORAL_SUPPORT
 #define BUILTIN_LIST_TEMPORAL(CPP, TFJ)                                        \
@@ -2252,24 +2257,26 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(StringPrototypeToUpperCase, kDontAdaptArgumentsSentinel)
 #endif  // V8_INTL_SUPPORT
 
-#define BUILTIN_LIST(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, BCH, ASM) \
-  BUILTIN_LIST_BASE(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, ASM)       \
-  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC, TFS, TFH, ASM)          \
-  BUILTIN_LIST_INTL(CPP, TFJ, TFS)                                \
-  BUILTIN_LIST_TEMPORAL(CPP, TFJ)                                 \
-  BUILTIN_LIST_BYTECODE_HANDLERS(BCH)
+#define BUILTIN_LIST(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, BCH_TSA, BCH, \
+                     ASM)                                                     \
+  BUILTIN_LIST_BASE(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, ASM)           \
+  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC, TFS, TFH, ASM)                      \
+  BUILTIN_LIST_INTL(CPP, TFJ, TFS)                                            \
+  BUILTIN_LIST_TEMPORAL(CPP, TFJ)                                             \
+  BUILTIN_LIST_BYTECODE_HANDLERS(BCH_TSA, BCH)
 
 // See the comment on top of BUILTIN_LIST_BASE_TIER0 for an explanation of
 // tiers.
 #define BUILTIN_LIST_TIER0(CPP, TFJ, TFC, TFS, TFH, BCH, ASM) \
   BUILTIN_LIST_BASE_TIER0(CPP, TFJ, TFC, TFS, TFH, ASM)
 
-#define BUILTIN_LIST_TIER1(CPP, TSJ, TFJ, TFC, TFS, TFH, BCH, ASM) \
-  BUILTIN_LIST_BASE_TIER1(CPP, TSJ, TFJ, TFC, TFS, TFH, ASM)       \
-  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC, TFS, TFH, ASM)           \
-  BUILTIN_LIST_INTL(CPP, TFJ, TFS)                                 \
-  BUILTIN_LIST_TEMPORAL(CPP, TFJ)                                  \
-  BUILTIN_LIST_BYTECODE_HANDLERS(BCH)
+#define BUILTIN_LIST_TIER1(CPP, TFJ_TSA, TFJ, TFC, TFS, TFH, BCH_TSA, BCH, \
+                           ASM)                                            \
+  BUILTIN_LIST_BASE_TIER1(CPP, TFJ_TSA, TFJ, TFC, TFS, TFH, ASM)           \
+  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC, TFS, TFH, ASM)                   \
+  BUILTIN_LIST_INTL(CPP, TFJ, TFS)                                         \
+  BUILTIN_LIST_TEMPORAL(CPP, TFJ)                                          \
+  BUILTIN_LIST_BYTECODE_HANDLERS(BCH_TSA, BCH)
 
 // The exception thrown in the following builtins are caught
 // internally and result in a promise rejection.
@@ -2296,47 +2303,52 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
 #define BUILTIN_LIST_C(V)                                                      \
   BUILTIN_LIST(V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN,              \
                IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN)
+               IGNORE_BUILTIN, IGNORE_BUILTIN)
 
-#define BUILTIN_LIST_TSJ(V)                                                    \
+#define BUILTIN_LIST_TFJ_TSA(V)                                                \
   BUILTIN_LIST(IGNORE_BUILTIN, V, IGNORE_BUILTIN, IGNORE_BUILTIN,              \
                IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN)
+               IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 #define BUILTIN_LIST_TFJ(V)                                                    \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, V, IGNORE_BUILTIN,              \
                IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN)
+               IGNORE_BUILTIN, IGNORE_BUILTIN)
 
-#define BUILTIN_LIST_TSC(V)                                                    \
+#define BUILTIN_LIST_TFC_TSA(V)                                                \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V,              \
                IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN)
+               IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 #define BUILTIN_LIST_TFC(V)                                                    \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
                V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN,              \
-               IGNORE_BUILTIN)
+               IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 #define BUILTIN_LIST_TFS(V)                                                    \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
                IGNORE_BUILTIN, V, IGNORE_BUILTIN, IGNORE_BUILTIN,              \
-               IGNORE_BUILTIN)
+               IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 #define BUILTIN_LIST_TFH(V)                                                    \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
                IGNORE_BUILTIN, IGNORE_BUILTIN, V, IGNORE_BUILTIN,              \
-               IGNORE_BUILTIN)
+               IGNORE_BUILTIN, IGNORE_BUILTIN)
+
+#define BUILTIN_LIST_BCH_TSA(V)                                                \
+  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V,              \
+               IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 #define BUILTIN_LIST_BCH(V)                                                    \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V,              \
-               IGNORE_BUILTIN)
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               V, IGNORE_BUILTIN)
 
 #define BUILTIN_LIST_A(V)                                                      \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
                IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               V)
+               IGNORE_BUILTIN, V)
 
 }  // namespace internal
 }  // namespace v8

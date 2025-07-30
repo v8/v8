@@ -15,6 +15,11 @@
 
 #define V8_COMPILER_TURBOSHAFT_ASSEMBLER_MACROS_DEFINED 1
 
+#define NO_SHADOW                                    \
+  _Pragma("GCC diagnostic push")                     \
+      _Pragma("GCC diagnostic ignored \"-Wshadow\"")
+#define RE_SHADOW _Pragma("GCC diagnostic pop")
+
 #define TSA_DCHECK(assembler, condition) \
   (assembler)->Asm().Dcheck(condition, #condition, __FILE__, __LINE__ )
 #ifdef ENABLE_SLOW_DCHECKS
@@ -42,31 +47,32 @@
         Asm().ControlFlowHelper_EndLoop(loop_label),                           \
         CONCAT(run_loop_, __LINE__) = false)
 
-#define WHILE(...)                                                            \
-    for (auto [CONCAT(run_loop_, __LINE__), loop_header_xx, loop_exit_xx]     \
-              = Asm().ControlFlowHelper_While([&]() {                         \
-           return Asm().resolve(ConstOrV<Word32>(__VA_ARGS__));               \
-         });                                                                  \
-         CONCAT(run_loop_, __LINE__);                                         \
-         Asm().ControlFlowHelper_EndWhileLoop(loop_header_xx, loop_exit_xx),  \
+#define WHILE(...)                                                             \
+    for (NO_SHADOW auto [CONCAT(run_loop_, __LINE__), loop_header_xx,          \
+                         loop_exit_xx] = Asm().ControlFlowHelper_While([&]() { \
+           return Asm().resolve(ConstOrV<Word32>(__VA_ARGS__));                \
+         }) RE_SHADOW;                                                         \
+         CONCAT(run_loop_, __LINE__);                                          \
+         Asm().ControlFlowHelper_EndWhileLoop(loop_header_xx, loop_exit_xx),   \
               CONCAT(run_loop_, __LINE__) = false)
-#define FOREACH_IMPL_2(arg, iterable)                                    \
-  for (auto [CONCAT(run_loop_, __LINE__), iterable_xx, loop_header_yy,   \
-             loop_exit_xx, current_iterator_xx, arg] =                   \
-           Asm().ControlFlowHelper_Foreach(iterable);                    \
-       CONCAT(run_loop_, __LINE__);                                      \
-       Asm().ControlFlowHelper_EndForeachLoop(                           \
-           std::move(iterable_xx), loop_header_yy, loop_exit_xx,         \
-           current_iterator_xx),                                         \
+#define FOREACH_IMPL_2(arg, iterable)                                          \
+  for (NO_SHADOW auto [CONCAT(run_loop_, __LINE__), iterable_xx,               \
+                       loop_header_yy, loop_exit_xx, current_iterator_xx, arg] \
+          = Asm().ControlFlowHelper_Foreach(iterable) RE_SHADOW;               \
+       CONCAT(run_loop_, __LINE__);                                            \
+       Asm().ControlFlowHelper_EndForeachLoop(                                 \
+           std::move(iterable_xx), loop_header_yy, loop_exit_xx,               \
+           current_iterator_xx),                                               \
        CONCAT(run_loop_, __LINE__) = false)
-#define FOREACH_IMPL_3(arg0, arg1, iterable)                             \
-  for (auto [CONCAT(run_loop_, __LINE__), iterable_xx, loop_header_yy,   \
-             loop_exit_xx, current_iterator_xx, arg0, arg1] =            \
-           Asm().ControlFlowHelper_Foreach(iterable);                    \
-       CONCAT(run_loop_, __LINE__);                                      \
-       Asm().ControlFlowHelper_EndForeachLoop(                           \
-           std::move(iterable_xx), loop_header_yy, loop_exit_xx,         \
-           current_iterator_xx),                                         \
+#define FOREACH_IMPL_3(arg0, arg1, iterable)                              \
+  for (NO_SHADOW auto [CONCAT(run_loop_, __LINE__), iterable_xx,          \
+                       loop_header_yy, loop_exit_xx, current_iterator_xx, \
+                       arg0, arg1]                                        \
+          = Asm().ControlFlowHelper_Foreach(iterable) RE_SHADOW;          \
+       CONCAT(run_loop_, __LINE__);                                       \
+       Asm().ControlFlowHelper_EndForeachLoop(                            \
+           std::move(iterable_xx), loop_header_yy, loop_exit_xx,          \
+           current_iterator_xx),                                          \
        CONCAT(run_loop_, __LINE__) = false)
 // TODO(nicohartmann): Add more `FOREACH_IMPL_N` versions when we see need.
 #define FOREACH(...)                                                  \
@@ -108,11 +114,6 @@
 #define SUPPRESSED_DANGLING_ELSE_WARNING_IF(...) if (__VA_ARGS__)
 #define SUPPRESSED_DANGLING_ELSE_WARNING_ELSE else
 #endif
-
-#define NO_SHADOW                \
-  _Pragma("GCC diagnostic push") \
-      _Pragma("GCC diagnostic ignored \"-Wshadow\"")
-#define RE_SHADOW _Pragma("GCC diagnostic pop")
 
 // IF/ELSE macros. These expand to a real C++ if-else, so that we can get
 // similar block syntax behaviour (with an optional `ELSE`). Since C++ will only

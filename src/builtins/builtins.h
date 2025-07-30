@@ -51,12 +51,12 @@ enum class Builtin : int32_t {
   kNoBuiltinId = -1,
 #define DEF_ENUM(Name, ...) k##Name,
   BUILTIN_LIST(DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM,
-               DEF_ENUM, DEF_ENUM, DEF_ENUM)
+               DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM)
 #undef DEF_ENUM
 #define EXTRACT_NAME(Name, ...) k##Name,
   // Define kFirstBytecodeHandler,
-  kFirstBytecodeHandler =
-      FirstFromVarArgs(BUILTIN_LIST_BYTECODE_HANDLERS(EXTRACT_NAME) 0)
+  kFirstBytecodeHandler = FirstFromVarArgs(
+      BUILTIN_LIST_BYTECODE_HANDLERS(EXTRACT_NAME, EXTRACT_NAME) 0)
 #undef EXTRACT_NAME
 };
 enum class TieringBuiltin : int32_t {
@@ -137,7 +137,7 @@ class Builtins {
 #define ADD_ONE(Name, ...) +1
   static constexpr int kBuiltinCount =
       0 BUILTIN_LIST(ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE,
-                     ADD_ONE, ADD_ONE, ADD_ONE);
+                     ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE);
   static constexpr int kBuiltinTier0Count = 0 BUILTIN_LIST_TIER0(
       ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE);
 #undef ADD_ONE
@@ -173,7 +173,7 @@ class Builtins {
   case Builtin::k##Name: \
     return HasISXSuffix(#Name);
 
-      BUILTIN_LIST(CASE, CASE, CASE, CASE, CASE, CASE, CASE, CASE, CASE)
+      BUILTIN_LIST(CASE, CASE, CASE, CASE, CASE, CASE, CASE, CASE, CASE, CASE)
 #undef CASE
       default:
         return false;
@@ -186,7 +186,7 @@ class Builtins {
   case Builtin::k##Name: \
     return HasGenericSuffix(#Name);
 
-      BUILTIN_LIST(CASE, CASE, CASE, CASE, CASE, CASE, CASE, CASE, CASE)
+      BUILTIN_LIST(CASE, CASE, CASE, CASE, CASE, CASE, CASE, CASE, CASE, CASE)
 #undef CASE
       default:
         return false;
@@ -254,7 +254,7 @@ class Builtins {
   }
 
   // The different builtin kinds are documented in builtins-definitions.h.
-  enum Kind { CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, BCH, ASM };
+  enum Kind { CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, BCH_TSA, BCH, ASM };
 
   static BytecodeOffset GetContinuationBytecodeOffset(Builtin builtin);
   static Builtin GetBuiltinFromBytecodeOffset(BytecodeOffset);
@@ -528,7 +528,8 @@ class Builtins {
                               compiler::turboshaft::Graph& graph, Zone* zone);
 
   BUILTIN_LIST(IGNORE_BUILTIN, DECLARE_TS, DECLARE_TF, DECLARE_TS, DECLARE_TF,
-               DECLARE_TF, DECLARE_TF, IGNORE_BUILTIN, DECLARE_ASM)
+               DECLARE_TF, DECLARE_TF, IGNORE_BUILTIN, IGNORE_BUILTIN,
+               DECLARE_ASM)
 
 #undef DECLARE_ASM
 #undef DECLARE_TF

@@ -204,6 +204,11 @@ class FeedbackCollectorReducer : public Next {
                        __ SmiConstant(Smi::FromInt(checked_feedback)));
   }
 
+  V<Word32> FeedbackHas(int checked_feedback) {
+    V<Smi> mask = __ SmiConstant(Smi::FromInt(checked_feedback));
+    return __ SmiEqual(__ SmiBitwiseAnd(feedback_, mask), mask);
+  }
+
   V<FeedbackVectorOrUndefined> LoadFeedbackVector() {
     return V<FeedbackVectorOrUndefined>::Cast(
         __ LoadRegister(interpreter::Register::feedback_vector()));
@@ -326,12 +331,18 @@ class FeedbackCollectorReducer : public Next {
   }
 
   V<Smi> SmiBitwiseOr(V<Smi> a, V<Smi> b) {
-    return __ BitcastWord32ToSmi(
-        __ Word32BitwiseOr(__ BitcastSmiToWord32(a), __ BitcastSmiToWord32(b)));
+    return __ BitcastWordPtrToSmi(__ WordPtrBitwiseOr(
+        __ BitcastSmiToWordPtr(a), __ BitcastSmiToWordPtr(b)));
+  }
+
+  V<Smi> SmiBitwiseAnd(V<Smi> a, V<Smi> b) {
+    return __ BitcastWordPtrToSmi(__ WordPtrBitwiseAnd(
+        __ BitcastSmiToWordPtr(a), __ BitcastSmiToWordPtr(b)));
   }
 
   V<Word32> SmiEqual(V<Smi> a, V<Smi> b) {
-    return __ Word32Equal(__ BitcastSmiToWord32(a), __ BitcastSmiToWord32(b));
+    return __ WordPtrEqual(__ BitcastSmiToWordPtr(a),
+                           __ BitcastSmiToWordPtr(b));
   }
 
   V<WordPtr> ChangePositiveInt32ToIntPtr(V<Word32> input) {
@@ -375,6 +386,7 @@ class NoFeedbackCollectorReducer : public Next {
   void OverwriteFeedback(int new_feedback) {}
 
   V<Word32> FeedbackIs(int checked_feedback) { UNREACHABLE(); }
+  V<Word32> FeedbackHas(int checked_feedbac) { UNREACHABLE(); }
 
   void UpdateFeedback() {}
   void CombineExceptionFeedback() {}
@@ -400,7 +412,7 @@ class BuiltinsReducer : public Next {
     }
     // TODO(nicohartmann): CSA tracks some debug information here.
     // Emit stack check.
-    if (Builtins::KindOf(builtin_id) == Builtins::TSJ) {
+    if (Builtins::KindOf(builtin_id) == Builtins::TFJ_TSA) {
       __ PerformStackCheck(__ JSContextParameter());
     }
   }

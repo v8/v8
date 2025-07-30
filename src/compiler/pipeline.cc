@@ -88,6 +88,7 @@
 #include "src/compiler/turboshaft/pipelines.h"
 #include "src/compiler/turboshaft/simplify-tf-loops.h"
 #include "src/compiler/turboshaft/tracing.h"
+#include "src/compiler/turboshaft/zone-with-name.h"
 #include "src/compiler/type-narrowing-reducer.h"
 #include "src/compiler/typed-optimization.h"
 #include "src/compiler/value-numbering-reducer.h"
@@ -98,6 +99,7 @@
 #include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/local-heap.h"
+#include "src/heap/parked-scope.h"
 #include "src/logging/code-events.h"
 #include "src/logging/counters.h"
 #include "src/logging/runtime-call-stats-scope.h"
@@ -2371,6 +2373,202 @@ PipelineCompilationJob::Status CodeAssemblerCompilationJob::FinalizeJobImpl(
   return SUCCEEDED;
 }
 
+inline constexpr char kBuiltinCompilationZoneName[] =
+    "builtin-compilation-zone";
+
+class TurboshaftAssemblerBuiltinCompilationJob final
+    : public TurbofanCompilationJob {
+ public:
+  using CallDescriptorBuilder = std::function<compiler::CallDescriptor*(Zone*)>;
+  using Generator = Pipeline::TurboshaftAssemblerGenerator;
+  using Installer = Pipeline::TurboshaftAssemblerInstaller;
+
+  TurboshaftAssemblerBuiltinCompilationJob(
+      Isolate* isolate, Builtin builtin, Generator generator,
+      Installer installer, const AssemblerOptions& assembler_options,
+      CallDescriptorBuilder call_descriptor_builder, CodeKind code_kind,
+      const char* name, interpreter::BytecodeHandlerData bytecode_handler_data,
+      const ProfileDataFromFile* profile_data, int finalize_order);
+
+  Status PrepareJobImpl(Isolate* isolate) override;
+  Status ExecuteJobImpl(RuntimeCallStats* stats,
+                        LocalIsolate* local_isolate) override;
+  Status FinalizeJobImpl(Isolate* isolate) override;
+
+  Handle<Code> FinalizeCode(Isolate* isolate);
+  bool ShouldOptimizeJumps(Isolate* isolate);
+
+  static constexpr int kNoFinalizeOrder = -1;
+  int FinalizeOrder() const final {
+    DCHECK_NE(kNoFinalizeOrder, finalize_order_);
+    return finalize_order_;
+  }
+
+ private:
+  Generator generator_;
+  Installer installer_;
+  CallDescriptorBuilder call_descriptor_builder_;
+  interpreter::BytecodeHandlerData bytecode_handler_data_;
+  const char* name_;
+
+  ZoneStats zone_stats_;
+  turboshaft::ZoneWithName<kBuiltinCompilationZoneName> zone_;
+  OptimizedCompilationInfo compilation_info_;
+  turboshaft::PipelineData data_;
+  AssemblerOptions assembler_options_;
+  const ProfileDataFromFile* profile_data_ = nullptr;
+  int initial_graph_hash_ = 0;
+
+  // Conditionally allocated, depending on flags.
+  std::unique_ptr<JumpOptimizationInfo> jump_opt_;
+  std::unique_ptr<TurbofanPipelineStatistics> pipeline_statistics_;
+
+  // Used to deterministically order finalization.
+  int finalize_order_;
+};
+
+TurboshaftAssemblerBuiltinCompilationJob::
+    TurboshaftAssemblerBuiltinCompilationJob(
+        Isolate* isolate, Builtin builtin, Generator generator,
+        Installer installer, const AssemblerOptions& assembler_options,
+        CallDescriptorBuilder call_descriptor_builder, CodeKind code_kind,
+        const char* name,
+        interpreter::BytecodeHandlerData bytecode_handler_data,
+        const ProfileDataFromFile* profile_data, int finalize_order)
+    : TurbofanCompilationJob(isolate, &compilation_info_,
+                             State::kReadyToPrepare),
+      generator_(generator),
+      installer_(installer),
+      call_descriptor_builder_(call_descriptor_builder),
+      bytecode_handler_data_(std::move(bytecode_handler_data)),
+      name_(name),
+      zone_stats_(isolate->allocator()),
+      zone_(&zone_stats_, kBuiltinCompilationZoneName),
+      compilation_info_(base::CStrVector(name), zone_, code_kind),
+      data_(&zone_stats_, turboshaft::TurboshaftPipelineKind::kTSABuiltin,
+            isolate, &compilation_info_, assembler_options),
+      jump_opt_(ShouldOptimizeJumps(isolate) ? new JumpOptimizationInfo()
+                                             : nullptr),
+      finalize_order_(finalize_order) {
+  USE(finalize_order_);
+  DCHECK_EQ(code_kind, CodeKind::BYTECODE_HANDLER);
+  compilation_info_.set_builtin(builtin);
+}
+
+PipelineCompilationJob::Status
+TurboshaftAssemblerBuiltinCompilationJob::PrepareJobImpl(Isolate* isolate) {
+  using namespace compiler::turboshaft;
+  {
+    // Work around that the PersistentHandlesScope inside CompilationHandleScope
+    // requires there to be at least one handle.
+    HandleScope handle_scope(isolate);
+    DirectHandle<Object> dummy(ReadOnlyRoots(isolate->heap()).empty_string(),
+                               isolate);
+    CompilationHandleScope compilation_scope(isolate, &compilation_info_);
+
+    const CallDescriptor* call_descriptor = call_descriptor_builder_(zone_);
+    data_.InitializeBuiltinComponent(call_descriptor,
+                                     std::move(bytecode_handler_data_));
+    data_.InitializeGraphComponent(nullptr);
+
+    ZoneWithName<turboshaft::kTempZoneName> temp_zone(&zone_stats_,
+                                                      kTempZoneName);
+    generator_(&data_, isolate, data_.graph(), temp_zone);
+  }
+
+  PipelineJobScope pipeline_scope(&data_,
+                                  isolate->counters()->runtime_call_stats());
+  if (v8_flags.turbo_stats || v8_flags.turbo_stats_nvp) {
+    pipeline_statistics_.reset(new TurbofanPipelineStatistics(
+        &compilation_info_, isolate->GetTurboStatistics(), &zone_stats_));
+  }
+
+  turboshaft::BuiltinPipeline turboshaft_pipeline(&data_);
+  if (compilation_info_.trace_turbo_graph() ||
+      compilation_info_.trace_turbo_json()) {
+    CodeTracer::StreamScope tracing_scope(data_.GetCodeTracer());
+    tracing_scope.stream()
+        << "---------------------------------------------------\n"
+        << "Begin compiling method " << name_ << " using TurboFan" << std::endl;
+    if (compilation_info_.trace_turbo_json()) {
+      TurboJsonFile json_of(&compilation_info_, std::ios_base::trunc);
+      json_of << "{\"function\" : ";
+      JsonPrintFunctionSource(json_of, -1, compilation_info_.GetDebugName(),
+                              DirectHandle<Script>(), isolate,
+                              DirectHandle<SharedFunctionInfo>());
+      json_of << ",\n\"phases\":[";
+    }
+    turboshaft::ZoneWithName<turboshaft::kTempZoneName> print_zone(
+        &zone_stats_, turboshaft::kTempZoneName);
+    std::vector<char> name_buffer(strlen("TSA: ") + strlen(name_) + 1);
+    memcpy(name_buffer.data(), "TSA: ", 5);
+    memcpy(name_buffer.data() + 5, name_, strlen(name_));
+    turboshaft_pipeline.PrintGraph(print_zone, name_buffer.data());
+  }
+
+  // Validate pgo profile.
+  initial_graph_hash_ = ComputeInitialGraphHash(compilation_info_.builtin(),
+                                                profile_data_, &data_.graph());
+  profile_data_ =
+      ValidateProfileData(profile_data_, initial_graph_hash_, name_);
+
+  return Status::SUCCEEDED;
+}
+
+PipelineCompilationJob::Status
+TurboshaftAssemblerBuiltinCompilationJob::ExecuteJobImpl(
+    RuntimeCallStats* stats, LocalIsolate* local_isolate) {
+  turboshaft::BuiltinPipeline pipeline(&data_);
+
+  // TODO(nicohartmann): Get rid of const_cast<> once CallDescriptors apply
+  // proper const-correctness.
+  const CallDescriptor* call_descriptor = data_.builtin_call_descriptor();
+  Linkage linkage(const_cast<CallDescriptor*>(call_descriptor));
+
+  pipeline.OptimizeBuiltin();
+
+  CHECK(pipeline.GenerateCode(&linkage, nullptr, jump_opt_.get(), profile_data_,
+                              initial_graph_hash_));
+
+  return SUCCEEDED;
+}
+
+PipelineCompilationJob::Status
+TurboshaftAssemblerBuiltinCompilationJob::FinalizeJobImpl(Isolate* isolate) {
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeFinalizePipelineJob);
+
+  HandleScope scope(isolate);
+  Handle<Code> code = FinalizeCode(isolate);
+
+#ifdef ENABLE_DISASSEMBLER
+  if (v8_flags.trace_ignition_codegen &&
+      code->kind() == CodeKind::BYTECODE_HANDLER) {
+    StdoutStream os;
+    code->Disassemble(name_, os, isolate);
+    os << std::flush;
+  }
+#endif  // ENABLE_DISASSEMBLER
+
+  installer_(compilation_info_.builtin(), scope.CloseAndEscape(code));
+
+  return SUCCEEDED;
+}
+
+// static
+bool TurboshaftAssemblerBuiltinCompilationJob::ShouldOptimizeJumps(
+    Isolate* isolate) {
+  return isolate->serializer_enabled() && v8_flags.turbo_rewrite_far_jumps &&
+         !v8_flags.turbo_profiling && !v8_flags.dump_builtins_hashes_to_file;
+}
+
+Handle<Code> TurboshaftAssemblerBuiltinCompilationJob::FinalizeCode(
+    Isolate* isolate) {
+  PipelineJobScope scope(&data_, isolate->counters()->runtime_call_stats());
+  turboshaft::Pipeline turboshaft_pipeline(&data_);
+  turboshaft::Tracing::Scope tracing_scope(&compilation_info_);
+  return turboshaft_pipeline.FinalizeCode().ToHandleChecked();
+}
+
 class CodeAssemblerTurboshaftCompilationJob final
     : public CodeAssemblerCompilationJob {
  public:
@@ -2497,6 +2695,27 @@ Pipeline::NewBytecodeHandlerCompilationJob(
         isolate, builtin, generator, installer, assembler_options,
         get_call_descriptor, CodeKind::BYTECODE_HANDLER, name, profile_data,
         finalize_order);
+}
+
+// static
+std::unique_ptr<TurbofanCompilationJob>
+Pipeline::NewBytecodeHandlerCompilationJobTSA(
+    Isolate* isolate, Builtin builtin,
+    Pipeline::TurboshaftAssemblerGenerator generator,
+    Pipeline::TurboshaftAssemblerInstaller installer,
+    const AssemblerOptions& assembler_options, const char* name,
+    interpreter::BytecodeHandlerData bytecode_handler_data,
+    const ProfileDataFromFile* profile_data, int finalize_order) {
+  auto get_call_descriptor = [](Zone* zone) {
+    InterpreterDispatchDescriptor descriptor;
+    return Linkage::GetStubCallDescriptor(
+        zone, descriptor, descriptor.GetStackParameterCount(),
+        CallDescriptor::kNoFlags, Operator::kNoProperties);
+  };
+  return std::make_unique<TurboshaftAssemblerBuiltinCompilationJob>(
+      isolate, builtin, generator, installer, assembler_options,
+      get_call_descriptor, CodeKind::BYTECODE_HANDLER, name,
+      std::move(bytecode_handler_data), profile_data, finalize_order);
 }
 
 // static
