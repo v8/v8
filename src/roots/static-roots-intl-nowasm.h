@@ -999,58 +999,59 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t ktemplate_literal_function_literal_id_symbol =
       0x5a09;
   static constexpr Tagged_t ktemplate_literal_slot_id_symbol = 0x5a19;
-  static constexpr Tagged_t kwasm_cross_instance_call_symbol = 0x5a29;
-  static constexpr Tagged_t kwasm_exception_tag_symbol = 0x5a39;
-  static constexpr Tagged_t kwasm_exception_values_symbol = 0x5a49;
-  static constexpr Tagged_t kwasm_uncatchable_symbol = 0x5a59;
-  static constexpr Tagged_t kwasm_debug_proxy_cache_symbol = 0x5a69;
-  static constexpr Tagged_t kwasm_debug_proxy_names_symbol = 0x5a79;
-  static constexpr Tagged_t kasync_iterator_symbol = 0x5a89;
-  static constexpr Tagged_t kintl_fallback_symbol = 0x5ab9;
-  static constexpr Tagged_t kmatch_symbol = 0x5af1;
-  static constexpr Tagged_t ksearch_symbol = 0x5b19;
-  static constexpr Tagged_t kunscopables_symbol = 0x5b45;
-  static constexpr Tagged_t kdispose_symbol = 0x5b75;
-  static constexpr Tagged_t kasync_dispose_symbol = 0x5ba1;
-  static constexpr Tagged_t khas_instance_symbol = 0x5bd1;
-  static constexpr Tagged_t kto_string_tag_symbol = 0x5c01;
-  static constexpr Tagged_t kconstructor_string = 0x5c79;
-  static constexpr Tagged_t knext_string = 0x5c91;
-  static constexpr Tagged_t kresolve_string = 0x5ca1;
-  static constexpr Tagged_t kthen_string = 0x5cb5;
-  static constexpr Tagged_t kvalueOf_string = 0x5cc5;
-  static constexpr Tagged_t kiterator_symbol = 0x5cd9;
-  static constexpr Tagged_t kmatch_all_symbol = 0x5ce9;
-  static constexpr Tagged_t kreplace_symbol = 0x5cf9;
-  static constexpr Tagged_t kspecies_symbol = 0x5d09;
-  static constexpr Tagged_t ksplit_symbol = 0x5d19;
-  static constexpr Tagged_t kto_primitive_symbol = 0x5d29;
-  static constexpr Tagged_t kis_concat_spreadable_symbol = 0x5d39;
-  static constexpr Tagged_t kEmptySlowElementDictionary = 0x5d49;
-  static constexpr Tagged_t kEmptySymbolTable = 0x5d6d;
-  static constexpr Tagged_t kUndefinedContextCell = 0x5d89;
-  static constexpr Tagged_t kEmptyOrderedHashMap = 0x5da1;
-  static constexpr Tagged_t kEmptyOrderedHashSet = 0x5db5;
-  static constexpr Tagged_t kEmptyFeedbackMetadata = 0x5dc9;
-  static constexpr Tagged_t kGlobalThisBindingScopeInfo = 0x5dd5;
-  static constexpr Tagged_t kEmptyFunctionScopeInfo = 0x5df5;
-  static constexpr Tagged_t kNativeScopeInfo = 0x5e19;
-  static constexpr Tagged_t kShadowRealmScopeInfo = 0x5e31;
-  static constexpr Tagged_t kManyClosuresCell = 0x5e49;
-  static constexpr Tagged_t kPreallocatedNumberStringTable = 0x5e59;
-  static constexpr Tagged_t kJSMessageObjectMap = 0x6591;
-  static constexpr Tagged_t kExternalMap = 0x65b9;
-  static constexpr Tagged_t kCppHeapExternalMap = 0x65e1;
-  static constexpr Tagged_t kJSSharedArrayMap = 0x6609;
-  static constexpr Tagged_t kJSAtomicsMutexMap = 0x6651;
-  static constexpr Tagged_t kJSAtomicsConditionMap = 0x6679;
-  static constexpr Tagged_t kNoOpInterceptorInfo = 0x66a1;
+  static constexpr Tagged_t kwasm_asm_single_function_symbol = 0x5a29;
+  static constexpr Tagged_t kwasm_cross_instance_call_symbol = 0x5a39;
+  static constexpr Tagged_t kwasm_exception_tag_symbol = 0x5a49;
+  static constexpr Tagged_t kwasm_exception_values_symbol = 0x5a59;
+  static constexpr Tagged_t kwasm_uncatchable_symbol = 0x5a69;
+  static constexpr Tagged_t kwasm_debug_proxy_cache_symbol = 0x5a79;
+  static constexpr Tagged_t kwasm_debug_proxy_names_symbol = 0x5a89;
+  static constexpr Tagged_t kasync_iterator_symbol = 0x5a99;
+  static constexpr Tagged_t kintl_fallback_symbol = 0x5ac9;
+  static constexpr Tagged_t kmatch_symbol = 0x5b01;
+  static constexpr Tagged_t ksearch_symbol = 0x5b29;
+  static constexpr Tagged_t kunscopables_symbol = 0x5b55;
+  static constexpr Tagged_t kdispose_symbol = 0x5b85;
+  static constexpr Tagged_t kasync_dispose_symbol = 0x5bb1;
+  static constexpr Tagged_t khas_instance_symbol = 0x5be1;
+  static constexpr Tagged_t kto_string_tag_symbol = 0x5c11;
+  static constexpr Tagged_t kconstructor_string = 0x5c89;
+  static constexpr Tagged_t knext_string = 0x5ca1;
+  static constexpr Tagged_t kresolve_string = 0x5cb1;
+  static constexpr Tagged_t kthen_string = 0x5cc5;
+  static constexpr Tagged_t kvalueOf_string = 0x5cd5;
+  static constexpr Tagged_t kiterator_symbol = 0x5ce9;
+  static constexpr Tagged_t kmatch_all_symbol = 0x5cf9;
+  static constexpr Tagged_t kreplace_symbol = 0x5d09;
+  static constexpr Tagged_t kspecies_symbol = 0x5d19;
+  static constexpr Tagged_t ksplit_symbol = 0x5d29;
+  static constexpr Tagged_t kto_primitive_symbol = 0x5d39;
+  static constexpr Tagged_t kis_concat_spreadable_symbol = 0x5d49;
+  static constexpr Tagged_t kEmptySlowElementDictionary = 0x5d59;
+  static constexpr Tagged_t kEmptySymbolTable = 0x5d7d;
+  static constexpr Tagged_t kUndefinedContextCell = 0x5d99;
+  static constexpr Tagged_t kEmptyOrderedHashMap = 0x5db1;
+  static constexpr Tagged_t kEmptyOrderedHashSet = 0x5dc5;
+  static constexpr Tagged_t kEmptyFeedbackMetadata = 0x5dd9;
+  static constexpr Tagged_t kGlobalThisBindingScopeInfo = 0x5de5;
+  static constexpr Tagged_t kEmptyFunctionScopeInfo = 0x5e05;
+  static constexpr Tagged_t kNativeScopeInfo = 0x5e29;
+  static constexpr Tagged_t kShadowRealmScopeInfo = 0x5e41;
+  static constexpr Tagged_t kManyClosuresCell = 0x5e59;
+  static constexpr Tagged_t kPreallocatedNumberStringTable = 0x5e69;
+  static constexpr Tagged_t kJSMessageObjectMap = 0x65a1;
+  static constexpr Tagged_t kExternalMap = 0x65c9;
+  static constexpr Tagged_t kCppHeapExternalMap = 0x65f1;
+  static constexpr Tagged_t kJSSharedArrayMap = 0x6619;
+  static constexpr Tagged_t kJSAtomicsMutexMap = 0x6661;
+  static constexpr Tagged_t kJSAtomicsConditionMap = 0x6689;
+  static constexpr Tagged_t kNoOpInterceptorInfo = 0x66b1;
 
   static constexpr Tagged_t kFirstAllocatedRoot = 0x11;
-  static constexpr Tagged_t kLastAllocatedRoot = 0x66a1;
+  static constexpr Tagged_t kLastAllocatedRoot = 0x66b1;
 };
 
-static constexpr std::array<Tagged_t, 1022> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 1023> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kUndefinedValue,
     StaticReadOnlyRoot::kTheHoleValue,
     StaticReadOnlyRoot::kNullValue,
@@ -1968,6 +1969,7 @@ static constexpr std::array<Tagged_t, 1022> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kstrict_function_transition_symbol,
     StaticReadOnlyRoot::ktemplate_literal_function_literal_id_symbol,
     StaticReadOnlyRoot::ktemplate_literal_slot_id_symbol,
+    StaticReadOnlyRoot::kwasm_asm_single_function_symbol,
     StaticReadOnlyRoot::kwasm_cross_instance_call_symbol,
     StaticReadOnlyRoot::kwasm_exception_tag_symbol,
     StaticReadOnlyRoot::kwasm_exception_values_symbol,

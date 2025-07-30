@@ -2922,14 +2922,11 @@ void InstanceBuilder::ProcessExports() {
       trusted_data_->instance_object(), isolate_};
   DirectHandle<JSObject> exports_object =
       direct_handle(instance_object->exports_object(), isolate_);
-  MaybeDirectHandle<String> single_function_name;
   bool is_asm_js = is_asmjs_module(module_);
   if (is_asm_js) {
     DirectHandle<JSFunction> object_function = DirectHandle<JSFunction>(
         isolate_->native_context()->object_function(), isolate_);
     exports_object = isolate_->factory()->NewJSObject(object_function);
-    single_function_name =
-        isolate_->factory()->InternalizeUtf8String(AsmJs::kSingleFunctionName);
     instance_object->set_exports_object(*exports_object);
   }
 
@@ -2968,11 +2965,12 @@ void InstanceBuilder::ProcessExports() {
         value = wasm_external_function;
 
         if (is_asm_js &&
-            String::Equals(isolate_, name,
-                           single_function_name.ToHandleChecked())) {
+            name->IsEqualTo(base::CStrVector(AsmJs::kSingleFunctionName))) {
           desc.set_value(value);
-          CHECK(JSReceiver::DefineOwnProperty(isolate_, instance_object, name,
-                                              &desc, Just(kThrowOnError))
+          CHECK(JSReceiver::DefineOwnProperty(
+                    isolate_, instance_object,
+                    isolate_->factory()->wasm_asm_single_function_symbol(),
+                    &desc, Just(kThrowOnError))
                     .FromMaybe(false));
           continue;
         }
