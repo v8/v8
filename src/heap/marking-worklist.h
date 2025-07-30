@@ -80,7 +80,7 @@ class V8_EXPORT_PRIVATE MarkingWorklists final {
   // Worklists implicitly check for emptiness on destruction.
   ~MarkingWorklists() = default;
 
-  MarkingWorklist* shared() { return &shared_; }
+  MarkingWorklist* default_worklist() { return &default_; }
   MarkingWorklist* on_hold() { return &on_hold_; }
   MarkingWorklist* other() { return &other_; }
 
@@ -105,7 +105,7 @@ class V8_EXPORT_PRIVATE MarkingWorklists final {
  private:
   struct ContextHash {
     V8_INLINE size_t operator()(const Address context) const {
-      return std::hash<uint32_t>{}(static_cast<uint32_t>(context));
+      return std::hash<Address>{}(context);
     }
   };
   using ContextToIndexMap = std::unordered_map<Address, uint32_t, ContextHash>;
@@ -115,8 +115,7 @@ class V8_EXPORT_PRIVATE MarkingWorklists final {
                             MarkingWorklist* worklist);
 
   // Worklist used for most objects.
-  // TODO(mlippautz): Rename to "default".
-  MarkingWorklist shared_;
+  MarkingWorklist default_;
 
   // Concurrent marking uses this worklist to bail out of marking objects
   // in new space's linear allocation area. Used to avoid black allocation
@@ -128,7 +127,7 @@ class V8_EXPORT_PRIVATE MarkingWorklists final {
   // not being measured.
   MarkingWorklist other_;
 
-  // Per-context worklists. Objects are in the `shared_` worklist by default.
+  // Per-context worklists. Objects are in the `default_` worklist by default.
   std::vector<ContextWorklistPair> context_worklists_;
   ContextToIndexMap worklist_by_context_;
 };
@@ -138,7 +137,7 @@ class V8_EXPORT_PRIVATE MarkingWorklists final {
 // for per-context marking. In order to avoid additional indirections for
 // pushing and popping entries, the active_ worklist is not a pointer to
 // Local but an actual instance of Local with the following invariants:
-// - active_owner == worlist_by_context[active_context_].get()
+// - active_owner == worklist_by_context_[active_context_].get()
 // - *active_owner is empty (all fields are null) because its content has
 //   been moved to active_.
 class V8_EXPORT_PRIVATE MarkingWorklists::Local final {
@@ -194,9 +193,9 @@ class V8_EXPORT_PRIVATE MarkingWorklists::Local final {
   bool PopContext(Tagged<HeapObject>* object);
   Address SwitchToContextSlow(Address context);
 
-  // Points to either `shared_`, `other_` or to a per-context worklist.
+  // Points to either `default_`, `other_` or to a per-context worklist.
   MarkingWorklist::Local* active_;
-  MarkingWorklist::Local shared_;
+  MarkingWorklist::Local default_;
   MarkingWorklist::Local on_hold_;
   MarkingWorklist::Local other_;
   Address active_context_;

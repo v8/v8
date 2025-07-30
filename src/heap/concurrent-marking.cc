@@ -614,7 +614,7 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
 }
 
 size_t ConcurrentMarking::GetMajorMaxConcurrency(size_t worker_count) {
-  size_t marking_items = marking_worklists_->shared()->Size();
+  size_t marking_items = marking_worklists_->default_worklist()->Size();
   for (auto& worklist : marking_worklists_->context_worklists()) {
     marking_items += worklist.worklist->Size();
   }
@@ -629,7 +629,7 @@ size_t ConcurrentMarking::GetMajorMaxConcurrency(size_t worker_count) {
 }
 
 size_t ConcurrentMarking::GetMinorMaxConcurrency(size_t worker_count) {
-  const size_t marking_items = marking_worklists_->shared()->Size() +
+  const size_t marking_items = marking_worklists_->default_worklist()->Size() +
                                heap_->minor_mark_sweep_collector()
                                    ->remembered_sets_marking_handler()
                                    ->RemainingRememberedSetsMarkingIteams();
@@ -732,7 +732,7 @@ bool ConcurrentMarking::IsWorkLeft() const {
            !weak_objects_->current_ephemerons.IsEmpty();
   }
   DCHECK_EQ(GarbageCollector::MINOR_MARK_SWEEPER, garbage_collector_);
-  return !marking_worklists_->shared()->IsEmpty() ||
+  return !marking_worklists_->default_worklist()->IsEmpty() ||
          (heap_->minor_mark_sweep_collector()
               ->remembered_sets_marking_handler()
               ->RemainingRememberedSetsMarkingIteams() > 0);

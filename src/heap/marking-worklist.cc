@@ -23,7 +23,7 @@ namespace v8 {
 namespace internal {
 
 void MarkingWorklists::Clear() {
-  shared_.Clear();
+  default_.Clear();
   on_hold_.Clear();
   other_.Clear();
   for (auto& cw : context_worklists_) {
@@ -33,7 +33,7 @@ void MarkingWorklists::Clear() {
 }
 
 void MarkingWorklists::Print() {
-  PrintWorklist("shared", &shared_);
+  PrintWorklist("default", &default_);
   PrintWorklist("on_hold", &on_hold_);
   if (IsPerContextMode()) {
     PrintWorklist("other", &other_);
@@ -48,7 +48,7 @@ void MarkingWorklists::Print() {
 }
 
 bool MarkingWorklists::IsEmpty() const {
-  if (!shared_.IsEmpty()) {
+  if (!default_.IsEmpty()) {
     return false;
   }
   if (V8_LIKELY(!IsPerContextMode())) {
@@ -119,8 +119,8 @@ constexpr std::nullptr_t MarkingWorklists::Local::kNoCppMarkingState;
 MarkingWorklists::Local::Local(
     MarkingWorklists* global,
     std::unique_ptr<CppMarkingState> cpp_marking_state)
-    : active_(&shared_),
-      shared_(*global->shared()),
+    : active_(&default_),
+      default_(*global->default_worklist()),
       on_hold_(*global->on_hold()),
       other_(*global->other()),
       active_context_(kSharedContext),
@@ -141,7 +141,7 @@ MarkingWorklists::Local::Local(
 }
 
 void MarkingWorklists::Local::Publish() {
-  shared_.Publish();
+  default_.Publish();
   on_hold_.Publish();
   other_.Publish();
   if (is_per_context_mode_) {
@@ -162,8 +162,8 @@ bool MarkingWorklists::Local::IsEmpty() {
   if (!is_per_context_mode_) {
     return true;
   }
-  if (!shared_.IsLocalEmpty() || !other_.IsLocalEmpty() ||
-      !shared_.IsGlobalEmpty() || !other_.IsGlobalEmpty()) {
+  if (!default_.IsLocalEmpty() || !other_.IsLocalEmpty() ||
+      !default_.IsGlobalEmpty() || !other_.IsGlobalEmpty()) {
     return false;
   }
   for (const auto& entry : worklist_by_context_) {
@@ -182,11 +182,11 @@ bool MarkingWorklists::Local::IsWrapperEmpty() const {
 }
 
 void MarkingWorklists::Local::ShareWork() {
-  if (!shared_.IsLocalEmpty() && shared_.IsGlobalEmpty()) {
-    shared_.Publish();
+  if (!default_.IsLocalEmpty() && default_.IsGlobalEmpty()) {
+    default_.Publish();
   }
   if (V8_LIKELY(!is_per_context_mode_)) {
-    DCHECK_EQ(active_, &shared_);
+    DCHECK_EQ(active_, &default_);
     DCHECK(other_.IsLocalEmpty());
     return;
   }
@@ -203,11 +203,11 @@ void MarkingWorklists::Local::ShareWork() {
 
 void MarkingWorklists::Local::PublishWork() {
   DCHECK(!is_per_context_mode_);
-  DCHECK_EQ(active_, &shared_);
-  shared_.Publish();
+  DCHECK_EQ(active_, &default_);
+  default_.Publish();
 }
 
-void MarkingWorklists::Local::MergeOnHold() { shared_.Merge(on_hold_); }
+void MarkingWorklists::Local::MergeOnHold() { default_.Merge(on_hold_); }
 
 bool MarkingWorklists::Local::PopContext(Tagged<HeapObject>* object) {
   DCHECK(is_per_context_mode_);
@@ -222,7 +222,7 @@ bool MarkingWorklists::Local::PopContext(Tagged<HeapObject>* object) {
     }
     return false;
   };
-  if (check_worklist_local(kSharedContext, shared_) ||
+  if (check_worklist_local(kSharedContext, default_) ||
       check_worklist_local(kOtherContext, other_) ||
       std::any_of(worklist_by_context_.begin(), worklist_by_context_.end(),
                   [this, check_worklist_local](auto& entry) {
@@ -240,7 +240,7 @@ bool MarkingWorklists::Local::PopContext(Tagged<HeapObject>* object) {
         }
         return false;
       };
-  if (check_worklist_global(kSharedContext, shared_) ||
+  if (check_worklist_global(kSharedContext, default_) ||
       check_worklist_global(kOtherContext, other_) ||
       std::any_of(worklist_by_context_.begin(), worklist_by_context_.end(),
                   [this, check_worklist_global](auto& entry) {
@@ -264,7 +264,7 @@ Address MarkingWorklists::Local::SwitchToContextSlow(Address context) {
     // - This context was created during marking and should use the other
     // bucket.
     if (context == kSharedContext) {
-      SwitchToContextImpl(kSharedContext, &shared_);
+      SwitchToContextImpl(kSharedContext, &default_);
     } else {
       SwitchToContextImpl(kOtherContext, &other_);
     }
