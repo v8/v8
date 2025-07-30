@@ -644,8 +644,7 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeRefScope wasm_code_ref_scope;
 
-  for (const std::unique_ptr<wasm::StackMemory, wasm::StackMemoryDeleter>&
-           stack : wasm_stacks_) {
+  for (const std::unique_ptr<wasm::StackMemory>& stack : wasm_stacks_) {
     if (stack->IsActive()) {
       continue;
     }
@@ -2304,7 +2303,8 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       while (active_stack != iter.wasm_stack()) {
         parent = active_stack->jmpbuf()->parent;
         SBXCHECK_EQ(parent->jmpbuf()->state, wasm::JumpBuffer::Inactive);
-        SwitchStacks(active_stack, parent);
+        SwitchStacks<wasm::JumpBuffer::Retired, wasm::JumpBuffer::Inactive>(
+            active_stack, parent, kNullAddress, kNullAddress, kNullAddress);
         // Unconditionally update the active suspender as well. This assumes
         // that suspenders contain exactly one stack each.
         // Note: this is only needed for --stress-wasm-stack-switching.
@@ -2317,7 +2317,6 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         } else {
           maybe_suspender = Smi::zero();
         }
-        parent->jmpbuf()->state = wasm::JumpBuffer::Active;
         RetireWasmStack(active_stack);
         active_stack = parent;
       }
@@ -3931,7 +3930,10 @@ void Isolate::AddSharedWasmMemory(
   heap()->set_shared_wasm_memories(*shared_wasm_memories);
 }
 
-void Isolate::SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to) {
+template <wasm::JumpBuffer::StackState new_state_of_old_stack,
+          wasm::JumpBuffer::StackState expected_target_state>
+void Isolate::SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to,
+                           Address sp, Address fp, Address pc) {
   // Synchronize the stack limit with the active continuation for
   // stack-switching. This can be done before or after changing the stack
   // pointer itself, as long as we update both before the next stack check.
@@ -3939,23 +3941,22 @@ void Isolate::SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to) {
   // the jslimit if it contains a sentinel value, and it is also thread-safe. So
   // if an interrupt is requested before, during or after this call, it will be
   // preserved and handled at the next stack check.
-
-  DisallowGarbageCollection no_gc;
-  if (v8_flags.trace_wasm_stack_switching) {
-    if (to->jmpbuf()->state == wasm::JumpBuffer::Suspended) {
-      PrintF("Switch from stack %d to %d (resume/start)\n", from->id(),
-             to->id());
-    } else if (to->jmpbuf()->state == wasm::JumpBuffer::Inactive) {
-      PrintF("Switch from stack %d to %d (suspend/return)\n", from->id(),
-             to->id());
-    } else {
-      UNREACHABLE();
-    }
+  SBXCHECK_EQ(from->jmpbuf()->state, wasm::JumpBuffer::Active);
+  from->jmpbuf()->state = new_state_of_old_stack;
+  if constexpr (new_state_of_old_stack != wasm::JumpBuffer::Retired) {
+    from->jmpbuf()->sp = sp;
+    from->jmpbuf()->fp = fp;
+    from->jmpbuf()->pc = pc;
+    from->jmpbuf()->stack_limit =
+        reinterpret_cast<void*>(stack_guard()->real_jslimit());
   }
-  if (to->jmpbuf()->state == wasm::JumpBuffer::Suspended) {
+  SBXCHECK_EQ(to->jmpbuf()->state, expected_target_state);
+  to->jmpbuf()->state = wasm::JumpBuffer::Active;
+  DisallowGarbageCollection no_gc;
+  if constexpr (expected_target_state == wasm::JumpBuffer::Suspended) {
     to->jmpbuf()->parent = from;
   } else {
-    DCHECK_EQ(to->jmpbuf()->state, wasm::JumpBuffer::Inactive);
+    static_assert(expected_target_state == wasm::JumpBuffer::Inactive);
     // TODO(388533754): This check won't hold anymore with core stack-switching.
     // Instead, we will need to validate all the intermediate stacks and also
     // check that they don't hold central stack frames.
@@ -3964,7 +3965,7 @@ void Isolate::SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to) {
   uintptr_t limit = reinterpret_cast<uintptr_t>(to->jmpbuf()->stack_limit);
   stack_guard()->SetStackLimitForStackSwitching(limit);
   // Update the central stack info.
-  if (to->jmpbuf()->state == wasm::JumpBuffer::Inactive) {
+  if constexpr (expected_target_state == wasm::JumpBuffer::Inactive) {
     // When returning/suspending from a stack, the parent must be on
     // the central stack.
     // TODO(388533754): This assumption will not hold anymore with core
@@ -3983,12 +3984,24 @@ void Isolate::SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to) {
   }
 }
 
+template void
+Isolate::SwitchStacks<wasm::JumpBuffer::Suspended, wasm::JumpBuffer::Inactive>(
+    wasm::StackMemory* from, wasm::StackMemory* to, Address sp, Address fp,
+    Address pc);
+template void
+Isolate::SwitchStacks<wasm::JumpBuffer::Inactive, wasm::JumpBuffer::Suspended>(
+    wasm::StackMemory* from, wasm::StackMemory* to, Address sp, Address fp,
+    Address pc);
+template void
+Isolate::SwitchStacks<wasm::JumpBuffer::Retired, wasm::JumpBuffer::Inactive>(
+    wasm::StackMemory* from, wasm::StackMemory* to, Address sp, Address fp,
+    Address pc);
+
 void Isolate::RetireWasmStack(wasm::StackMemory* stack) {
-  stack->jmpbuf()->state = wasm::JumpBuffer::Retired;
   size_t index = stack->index();
   // We can only return from a stack that was still in the global list.
   DCHECK_LT(index, wasm_stacks().size());
-  std::unique_ptr<wasm::StackMemory, wasm::StackMemoryDeleter> stack_ptr =
+  std::unique_ptr<wasm::StackMemory> stack_ptr =
       std::move(wasm_stacks()[index]);
   DCHECK_EQ(stack_ptr.get(), stack);
   if (index != wasm_stacks().size() - 1) {

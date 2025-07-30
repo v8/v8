@@ -11,56 +11,10 @@
 
 namespace v8::internal::wasm {
 
-void StackMemoryDeleter::operator()(StackMemory* stack) const {
-#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-  // TODO(427946951): Currently we need to allocate WasmStack objects on full
-  // OS pages.
-  stack->~StackMemory();
-  VirtualAddressSpace* vas = GetPlatformVirtualAddressSpace();
-  vas->FreePages(reinterpret_cast<Address>(stack),
-                 vas->allocation_granularity());
-#else
-  delete stack;
-#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-}
-
-// static
-std::unique_ptr<StackMemory, StackMemoryDeleter> StackMemory::New() {
-#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-  // TODO(427946951): WasmStack objects must currently be accessible to
-  // sandboxed code (which is unsafe). As such we need to register them as
-  // sandbox extension memory, which requires allocating them on full OS pages.
-  VirtualAddressSpace* vas = GetPlatformVirtualAddressSpace();
-  CHECK_LT(sizeof(StackMemory), vas->allocation_granularity());
-  Address backing_memory = vas->AllocatePages(
-      VirtualAddressSpace::kNoHint, vas->allocation_granularity(),
-      vas->allocation_granularity(), PagePermissions::kReadWrite);
-  SandboxHardwareSupport::RegisterUnsafeSandboxExtensionMemory(
-      backing_memory, vas->allocation_granularity());
-  return std::unique_ptr<StackMemory, StackMemoryDeleter>(
-      new (reinterpret_cast<void*>(backing_memory)) StackMemory());
-#else
-  return std::unique_ptr<StackMemory, StackMemoryDeleter>(new StackMemory());
-#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-}
-
 // static
 StackMemory* StackMemory::GetCentralStackView(Isolate* isolate) {
   base::Vector<uint8_t> view = SimulatorStack::GetCentralStackView(isolate);
-#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-  // See StackMemory::New for an explanation of why this is required.
-  VirtualAddressSpace* vas = GetPlatformVirtualAddressSpace();
-  CHECK_LT(sizeof(StackMemory), vas->allocation_granularity());
-  Address backing_memory = vas->AllocatePages(
-      VirtualAddressSpace::kNoHint, vas->allocation_granularity(),
-      vas->allocation_granularity(), PagePermissions::kReadWrite);
-  SandboxHardwareSupport::RegisterUnsafeSandboxExtensionMemory(
-      backing_memory, vas->allocation_granularity());
-  return new (reinterpret_cast<void*>(backing_memory))
-      StackMemory(view.begin(), view.size());
-#else
   return new StackMemory(view.begin(), view.size());
-#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 }
 
 StackMemory::~StackMemory() {
@@ -238,12 +192,12 @@ bool StackMemory::IsValidContinuation(Tagged<WasmContinuationObject> cont) {
   return current_cont_ == cont;
 }
 
-std::unique_ptr<StackMemory, StackMemoryDeleter> StackPool::GetOrAllocate() {
+std::unique_ptr<StackMemory> StackPool::GetOrAllocate() {
   while (size_ > kMaxSize) {
     size_ -= freelist_.back()->allocated_size();
     freelist_.pop_back();
   }
-  std::unique_ptr<StackMemory, StackMemoryDeleter> stack;
+  std::unique_ptr<StackMemory> stack;
   if (freelist_.empty()) {
     stack = StackMemory::New();
   } else {
@@ -258,7 +212,7 @@ std::unique_ptr<StackMemory, StackMemoryDeleter> StackPool::GetOrAllocate() {
   return stack;
 }
 
-void StackPool::Add(std::unique_ptr<StackMemory, StackMemoryDeleter> stack) {
+void StackPool::Add(std::unique_ptr<StackMemory> stack) {
   // Add the stack to the pool regardless of kMaxSize, because the stack might
   // still be in use by the unwinder.
   // Shrink the freelist lazily when we get the next stack instead.

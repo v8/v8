@@ -191,8 +191,12 @@ double flat_string_to_f64(Address string_address);
 // Called from the stack switching builtins to handle some of the
 // platform-independent stack switching logic: updating the stack limit,
 // validating the switch, debug traces, managing the stack memory, etc.
-void start_or_suspend_stack(Isolate* isolate, wasm::StackMemory* from);
-void resume_stack(Isolate* isolate, wasm::StackMemory* from, Address suspender);
+void start_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
+                 Address fp, Address pc);
+void suspend_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
+                   Address fp, Address pc);
+void resume_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
+                  Address fp, Address pc, Address suspender);
 void return_stack(Isolate* isolate, wasm::StackMemory* from);
 
 intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t sp);

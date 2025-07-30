@@ -297,6 +297,18 @@ void WasmGraphBuilderBase::BuildSetNewStackLimit(V<WordPtr> old_limit,
 
 V<WordPtr> WasmGraphBuilderBase::BuildSwitchToTheCentralStack(
     V<WordPtr> old_limit) {
+  // The switch involves a write to the StackMemory object, so use the
+  // privileged external C call if the sandbox hardware support is enabled.
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  auto sig = FixedSizeSignature<MachineType>::Params(MachineType::Pointer(),
+                                                     MachineType::Pointer())
+                 .Returns(MachineType::Pointer());
+  OpIndex central_stack_sp =
+      CallC(&sig, ExternalReference::wasm_switch_to_the_central_stack_for_js(),
+            {__ ExternalConstant(ExternalReference::isolate_address()),
+             __ FramePointer()});
+
+#else
   // Set the is_on_central_stack flag.
   OpIndex isolate_root = __ LoadRootRegister();
   __ Store(isolate_root, __ Word32Constant(1), LoadOp::Kind::RawAligned(),
@@ -323,6 +335,7 @@ V<WordPtr> WasmGraphBuilderBase::BuildSwitchToTheCentralStack(
       isolate_root, LoadOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
       Isolate::central_stack_limit_offset());
   BuildSetNewStackLimit(old_limit, central_stack_limit);
+#endif
   OpIndex old_sp = __ LoadStackPointer();
   __ SetStackPointer(central_stack_sp);
   return old_sp;
@@ -350,6 +363,14 @@ WasmGraphBuilderBase::BuildSwitchToTheCentralStackIfNeeded() {
 
 void WasmGraphBuilderBase::BuildSwitchBackFromCentralStack(
     V<WordPtr> old_sp, V<WordPtr> old_limit) {
+  // The switch involves a write to the StackMemory object, so use the
+  // privileged external C call if the sandbox hardware support is enabled.
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  auto sig = FixedSizeSignature<MachineType>::Params(MachineType::Pointer());
+  IF_NOT (LIKELY(__ WordPtrEqual(old_sp, __ IntPtrConstant(0)))) {
+    CallC(&sig, ExternalReference::wasm_switch_from_the_central_stack_for_js(),
+          {__ ExternalConstant(ExternalReference::isolate_address())});
+#else
   IF_NOT (LIKELY(__ WordPtrEqual(old_sp, __ IntPtrConstant(0)))) {
     // Reset is_on_central_stack flag.
     V<WordPtr> isolate_root = __ LoadRootRegister();
@@ -371,6 +392,7 @@ void WasmGraphBuilderBase::BuildSwitchBackFromCentralStack(
                                       MemoryRepresentation::UintPtr(),
                                       IsolateData::real_jslimit_offset());
     BuildSetNewStackLimit(real_jslimit, old_limit);
+#endif
     __ SetStackPointer(old_sp);
   }
 }

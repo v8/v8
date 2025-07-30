@@ -943,12 +943,28 @@ double flat_string_to_f64(Address string_address) {
                             std::numeric_limits<double>::quiet_NaN());
 }
 
-void start_or_suspend_stack(Isolate* isolate, wasm::StackMemory* from) {
-  isolate->SwitchStacks(from, isolate->isolate_data()->active_stack());
+void start_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
+                 Address fp, Address pc) {
+  wasm::StackMemory* to = isolate->isolate_data()->active_stack();
+  if (v8_flags.trace_wasm_stack_switching) {
+    PrintF("Switch from stack %d to %d (start)\n", from->id(), to->id());
+  }
+  isolate->SwitchStacks<JumpBuffer::Inactive, JumpBuffer::Suspended>(
+      from, to, sp, fp, pc);
 }
 
-void resume_stack(Isolate* isolate, wasm::StackMemory* from,
-                  Address suspender_raw) {
+void suspend_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
+                   Address fp, Address pc) {
+  wasm::StackMemory* to = isolate->isolate_data()->active_stack();
+  if (v8_flags.trace_wasm_stack_switching) {
+    PrintF("Switch from stack %d to %d (suspend)\n", from->id(), to->id());
+  }
+  isolate->SwitchStacks<JumpBuffer::Suspended, JumpBuffer::Inactive>(
+      from, to, sp, fp, pc);
+}
+
+void resume_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
+                  Address fp, Address pc, Address suspender_raw) {
   Tagged<Object> suspender_obj(suspender_raw);
   auto suspender = Tagged<WasmSuspenderObject>::cast(suspender_obj);
   Tagged<Object> active_suspender = isolate->isolate_data()->active_suspender();
@@ -957,12 +973,22 @@ void resume_stack(Isolate* isolate, wasm::StackMemory* from,
   } else {
     suspender->set_parent(Tagged<WasmSuspenderObject>::cast(active_suspender));
   }
+  wasm::StackMemory* to = isolate->isolate_data()->active_stack();
+  if (v8_flags.trace_wasm_stack_switching) {
+    PrintF("Switch from stack %d to %d (resume)\n", from->id(), to->id());
+  }
   isolate->isolate_data()->set_active_suspender(suspender);
-  isolate->SwitchStacks(from, isolate->isolate_data()->active_stack());
+  isolate->SwitchStacks<JumpBuffer::Inactive, JumpBuffer::Suspended>(
+      from, to, sp, fp, pc);
 }
 
 void return_stack(Isolate* isolate, wasm::StackMemory* from) {
-  isolate->SwitchStacks(from, isolate->isolate_data()->active_stack());
+  wasm::StackMemory* to = isolate->isolate_data()->active_stack();
+  if (v8_flags.trace_wasm_stack_switching) {
+    PrintF("Switch from stack %d to %d (return)\n", from->id(), to->id());
+  }
+  isolate->SwitchStacks<JumpBuffer::Retired, JumpBuffer::Inactive>(
+      from, to, kNullAddress, kNullAddress, kNullAddress);
   isolate->RetireWasmStack(from);
 }
 

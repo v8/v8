@@ -3467,22 +3467,6 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
 }
 
 namespace {
-// Check that the stack was in the old state (if generated code assertions are
-// enabled), and switch to the new state.
-void SwitchStackState(MacroAssembler* masm, Register stack, Register tmp,
-                      wasm::JumpBuffer::StackState old_state,
-                      wasm::JumpBuffer::StackState new_state) {
-#if V8_ENABLE_SANDBOX
-  __ Ldr(tmp.W(), MemOperand(stack, wasm::kStackStateOffset));
-  __ Cmp(tmp.W(), old_state);
-  Label ok;
-  __ B(&ok, eq);
-  __ Trap();
-  __ bind(&ok);
-#endif
-  __ Mov(tmp.W(), new_state);
-  __ Str(tmp.W(), MemOperand(stack, wasm::kStackStateOffset));
-}
 
 // Switch the stack pointer. Also switch the simulator's stack limit when
 // running on the simulator. This needs to be done as close as possible to
@@ -3503,22 +3487,10 @@ void SwitchStackPointerAndSimulatorStackLimit(MacroAssembler* masm,
   }
 }
 
-void FillJumpBuffer(MacroAssembler* masm, Register stack, Label* pc,
-                    Register tmp) {
-  __ Mov(tmp, sp);
-  __ Str(tmp, MemOperand(stack, wasm::kStackSpOffset));
-  __ Str(fp, MemOperand(stack, wasm::kStackFpOffset));
-  __ LoadStackLimit(tmp, StackLimitKind::kRealStackLimit);
-  __ Str(tmp, MemOperand(stack, wasm::kStackLimitOffset));
-  __ Adr(tmp, pc);
-  __ Str(tmp, MemOperand(stack, wasm::kStackPcOffset));
-}
-
 void LoadJumpBuffer(MacroAssembler* masm, Register stack, bool load_pc,
                     Register tmp, wasm::JumpBuffer::StackState expected_state) {
   SwitchStackPointerAndSimulatorStackLimit(masm, stack, tmp);
   __ Ldr(fp, MemOperand(stack, wasm::kStackFpOffset));
-  SwitchStackState(masm, stack, tmp, expected_state, wasm::JumpBuffer::Active);
   if (load_pc) {
     __ Ldr(tmp, MemOperand(stack, wasm::kStackPcOffset));
     __ Br(tmp);
@@ -3538,7 +3510,7 @@ void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_stack,
 
 // Updates the stack limit and central stack info, and validates the switch.
 void SwitchStacks(MacroAssembler* masm, ExternalReference fn,
-                  Register old_stack, Register maybe_suspender,
+                  Register old_stack, Label* saved_pc, Register maybe_suspender,
                   const std::initializer_list<CPURegister> keep) {
   for (size_t i = 0; i < (keep.size() & ~0x1); i += 2) {
     __ Push(keep.begin()[i], keep.begin()[i + 1]);
@@ -3549,13 +3521,19 @@ void SwitchStacks(MacroAssembler* masm, ExternalReference fn,
   {
     FrameScope scope(masm, StackFrame::MANUAL);
     DCHECK(old_stack.is_valid());
-    int num_args = 2;
+    bool is_return = fn == ExternalReference::wasm_return_stack();
+    int num_args = is_return ? 2 : 5;
     if (maybe_suspender.is_valid()) {
       num_args++;
-      __ Mov(kCArgRegs[2], maybe_suspender);
-      DCHECK_NE(kCArgRegs[2], old_stack);
+      __ Mov(kCArgRegs[num_args - 1], maybe_suspender);
+      DCHECK_NE(kCArgRegs[num_args - 1], old_stack);
     }
     __ Mov(kCArgRegs[1], old_stack);
+    if (!is_return) {
+      __ Mov(kCArgRegs[2], sp);
+      __ Mov(kCArgRegs[3], fp);
+      __ Adr(kCArgRegs[4], saved_pc);
+    }
     __ Mov(kCArgRegs[0], ExternalReference::isolate_address());
     __ CallCFunction(fn, num_args);
   }
@@ -3576,12 +3554,6 @@ void ReloadParentStack(MacroAssembler* masm, Register return_reg,
   // Set a null pointer in the jump buffer's SP slot to indicate to the stack
   // frame iterator that this stack is empty.
   __ Str(xzr, MemOperand(active_stack, wasm::kStackSpOffset));
-  {
-    UseScratchRegisterScope temps(masm);
-    Register scratch = temps.AcquireX();
-    SwitchStackState(masm, active_stack, scratch, wasm::JumpBuffer::Active,
-                     wasm::JumpBuffer::Retired);
-  }
   Register parent = tmp2;
   __ Ldr(parent, MemOperand(active_stack, wasm::kStackParentOffset));
 
@@ -3590,7 +3562,7 @@ void ReloadParentStack(MacroAssembler* masm, Register return_reg,
 
   // Switch stack!
   SwitchStacks(masm, ExternalReference::wasm_return_stack(), active_stack,
-               no_reg, {return_reg, return_value, context, parent});
+               nullptr, no_reg, {return_reg, return_value, context, parent});
   LoadJumpBuffer(masm, parent, false, tmp3, wasm::JumpBuffer::Inactive);
 }
 
@@ -3801,9 +3773,6 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   DEFINE_REG(stack);
   __ LoadRootRelative(stack, IsolateData::active_stack_offset());
   DEFINE_REG(scratch);
-  FillJumpBuffer(masm, stack, &resume, scratch);
-  SwitchStackState(masm, stack, scratch, wasm::JumpBuffer::Active,
-                   wasm::JumpBuffer::Suspended);
   regs.ResetExcept(suspender, stack);
 
   DEFINE_REG(suspender_stack);
@@ -3839,7 +3808,7 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   // -------------------------------------------
   // Load jump buffer.
   // -------------------------------------------
-  SwitchStacks(masm, ExternalReference::wasm_start_or_suspend_stack(), stack,
+  SwitchStacks(masm, ExternalReference::wasm_suspend_stack(), stack, &resume,
                no_reg, {caller, suspender});
   FREE_REG(stack);
   __ LoadTaggedField(
@@ -3907,9 +3876,6 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   DEFINE_REG(active_stack);
   __ LoadRootRelative(active_stack, IsolateData::active_stack_offset());
   DEFINE_REG(scratch);
-  FillJumpBuffer(masm, active_stack, &suspend, scratch);
-  SwitchStackState(masm, active_stack, scratch, wasm::JumpBuffer::Active,
-                   wasm::JumpBuffer::Inactive);
 
   // -------------------------------------------
   // Call the C function.
@@ -3921,7 +3887,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
       kWasmStackMemoryTag);
   __ StoreRootRelative(IsolateData::active_stack_offset(), target_stack);
   SwitchStacks(masm, ExternalReference::wasm_resume_stack(), active_stack,
-               suspender, {target_stack});
+               &suspend, suspender, {target_stack});
   regs.ResetExcept(target_stack);
 
   // -------------------------------------------
@@ -3980,9 +3946,8 @@ void SwitchToAllocatedStack(MacroAssembler* masm, RegisterAllocator& regs,
   DEFINE_REG(parent_stack)
   __ LoadRootRelative(parent_stack, IsolateData::active_stack_offset());
   __ Ldr(parent_stack, MemOperand(parent_stack, wasm::kStackParentOffset));
-  FillJumpBuffer(masm, parent_stack, suspend, scratch);
-  SwitchStacks(masm, ExternalReference::wasm_start_or_suspend_stack(),
-               parent_stack, no_reg, {wasm_instance, wrapper_buffer});
+  SwitchStacks(masm, ExternalReference::wasm_start_stack(), parent_stack,
+               suspend, no_reg, {wasm_instance, wrapper_buffer});
   FREE_REG(parent_stack);
   // Save the old stack's fp in x9, and use it to access the parameters in
   // the parent frame.

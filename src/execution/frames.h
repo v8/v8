@@ -1842,8 +1842,7 @@ class StackFrameIteratorForProfiler : public StackFrameIteratorBase {
   ExternalCallbackScope* external_callback_scope_;
   Address top_link_register_;
 #if V8_ENABLE_WEBASSEMBLY
-  std::vector<std::unique_ptr<wasm::StackMemory, wasm::StackMemoryDeleter>>&
-      wasm_stacks_;
+  std::vector<std::unique_ptr<wasm::StackMemory>>& wasm_stacks_;
 #endif
 };
 

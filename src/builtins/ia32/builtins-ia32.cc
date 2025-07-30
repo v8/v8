@@ -3289,36 +3289,10 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
 }
 
 namespace {
-// Check that the stack was in the old state (if generated code assertions are
-// enabled), and switch to the new state.
-void SwitchStackState(MacroAssembler* masm, Register stack,
-                      wasm::JumpBuffer::StackState old_state,
-                      wasm::JumpBuffer::StackState new_state) {
-  __ cmp(MemOperand(stack, wasm::kStackStateOffset), Immediate(old_state));
-  Label ok;
-  __ j(equal, &ok, Label::kNear);
-  __ Trap();
-  __ bind(&ok);
-  __ mov(MemOperand(stack, wasm::kStackStateOffset), Immediate(new_state));
-}
-
-void FillJumpBuffer(MacroAssembler* masm, Register stack, Register scratch,
-                    Label* pc) {
-  DCHECK(!AreAliased(scratch, stack));
-
-  __ mov(MemOperand(stack, wasm::kStackSpOffset), esp);
-  __ mov(MemOperand(stack, wasm::kStackFpOffset), ebp);
-  __ mov(scratch, __ StackLimitAsOperand(StackLimitKind::kRealStackLimit));
-  __ mov(MemOperand(stack, wasm::kStackLimitOffset), scratch);
-  __ LoadLabelAddress(scratch, pc);
-  __ mov(MemOperand(stack, wasm::kStackPcOffset), scratch);
-}
-
 void LoadJumpBuffer(MacroAssembler* masm, Register stack, bool load_pc,
                     wasm::JumpBuffer::StackState expected_state) {
   __ mov(esp, MemOperand(stack, wasm::kStackSpOffset));
   __ mov(ebp, MemOperand(stack, wasm::kStackFpOffset));
-  SwitchStackState(masm, stack, expected_state, wasm::JumpBuffer::Active);
   if (load_pc) {
     __ jmp(MemOperand(stack, wasm::kStackPcOffset));
   }
@@ -3336,21 +3310,29 @@ void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_stack,
 
 // Updates the stack limit and central stack info, and validates the switch.
 void SwitchStacks(MacroAssembler* masm, ExternalReference fn,
-                  Register old_stack, Register maybe_suspender,
+                  Register old_stack, Label* saved_pc, Register maybe_suspender,
                   const std::initializer_list<Register> keep) {
   for (auto reg : keep) {
     __ Push(reg);
   }
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    int num_args = maybe_suspender.is_valid() ? 3 : 2;
+    bool is_return = fn == ExternalReference::wasm_return_stack();
+    int num_args = is_return ? 2 : maybe_suspender.is_valid() ? 6 : 5;
     DCHECK(!AreAliased(eax, old_stack, maybe_suspender));
     __ PrepareCallCFunction(num_args, eax);
     __ Move(Operand(esp, 0 * kSystemPointerSize),
             Immediate(ExternalReference::isolate_address()));
     __ mov(Operand(esp, 1 * kSystemPointerSize), old_stack);
+    if (!is_return) {
+      __ mov(MemOperand(esp, 2 * kSystemPointerSize), esp);
+      __ mov(MemOperand(esp, 3 * kSystemPointerSize), ebp);
+      Register scratch = old_stack;
+      __ LoadLabelAddress(scratch, saved_pc);
+      __ mov(MemOperand(esp, 4 * kSystemPointerSize), scratch);
+    }
     if (maybe_suspender.is_valid()) {
-      __ mov(Operand(esp, 2 * kSystemPointerSize), maybe_suspender);
+      __ mov(Operand(esp, 5 * kSystemPointerSize), maybe_suspender);
     }
     __ CallCFunction(fn, num_args);
   }
@@ -3369,11 +3351,6 @@ void ReloadParentStack(MacroAssembler* masm, Register promise,
 
   __ Push(promise);
 
-  // We don't need to save the full register state since we are switching out of
-  // this stack for the last time. Mark the stack as retired.
-  SwitchStackState(masm, active_stack, wasm::JumpBuffer::Active,
-                   wasm::JumpBuffer::Retired);
-
   Register parent = tmp2;
   __ mov(parent, Operand(active_stack, wasm::kStackParentOffset));
 
@@ -3383,7 +3360,7 @@ void ReloadParentStack(MacroAssembler* masm, Register promise,
   __ Pop(promise);
   // Switch stack!
   SwitchStacks(masm, ExternalReference::wasm_return_stack(), active_stack,
-               no_reg, {promise, return_value, context, parent});
+               nullptr, no_reg, {promise, return_value, context, parent});
   LoadJumpBuffer(masm, parent, false, wasm::JumpBuffer::Inactive);
 }
 
@@ -3427,9 +3404,8 @@ void SwitchToAllocatedStack(MacroAssembler* masm, Register wrapper_buffer,
   Register parent_stack = new_wrapper_buffer;
   __ LoadRootRelative(parent_stack, IsolateData::active_stack_offset());
   __ Move(parent_stack, Operand(parent_stack, wasm::kStackParentOffset));
-  FillJumpBuffer(masm, parent_stack, scratch, suspend);
-  SwitchStacks(masm, ExternalReference::wasm_start_or_suspend_stack(),
-               parent_stack, no_reg, {wrapper_buffer});
+  SwitchStacks(masm, ExternalReference::wasm_start_stack(), parent_stack,
+               suspend, no_reg, {wrapper_buffer});
   parent_stack = no_reg;
   Register target_stack = scratch;
   __ LoadRootRelative(target_stack, IsolateData::active_stack_offset());
@@ -3826,9 +3802,6 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   Label resume;
   Register stack = edx;
   __ LoadRootRelative(stack, IsolateData::active_stack_offset());
-  FillJumpBuffer(masm, stack, ecx, &resume);
-  SwitchStackState(masm, stack, wasm::JumpBuffer::Active,
-                   wasm::JumpBuffer::Suspended);
 
   Register suspender_stack = edi;
   __ Move(suspender_stack,
@@ -3861,7 +3834,7 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   // -------------------------------------------
   // Load jump buffer.
   // -------------------------------------------
-  SwitchStacks(masm, ExternalReference::wasm_start_or_suspend_stack(), stack,
+  SwitchStacks(masm, ExternalReference::wasm_suspend_stack(), stack, &resume,
                no_reg, {caller, suspender});
   __ Move(kReturnRegister0,
           FieldOperand(suspender, WasmSuspenderObject::kPromiseOffset));
@@ -3917,9 +3890,6 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   Label suspend;
   Register active_stack = ecx;
   __ LoadRootRelative(active_stack, IsolateData::active_stack_offset());
-  FillJumpBuffer(masm, active_stack, edx, &suspend);
-  SwitchStackState(masm, active_stack, wasm::JumpBuffer::Active,
-                   wasm::JumpBuffer::Inactive);
 
   // -------------------------------------------
   // Call the C function.
@@ -3929,7 +3899,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
           FieldOperand(suspender, WasmSuspenderObject::kStackOffset));
   __ StoreRootRelative(IsolateData::active_stack_offset(), target_stack);
   SwitchStacks(masm, ExternalReference::wasm_resume_stack(), active_stack,
-               suspender, {target_stack});
+               &suspend, suspender, {target_stack});
   suspender = no_reg;
 
   // -------------------------------------------

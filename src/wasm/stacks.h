@@ -53,17 +53,11 @@ struct JumpBuffer {
   StackState state;
 };
 
-// TODO(427946951): this custom deleter is only needed because we currently
-// need to allocate StackMemory objects on sandbox-accessible pages for our
-// hardware sandboxing prototype. Once we have a proper solution for
-// https://crbug.com/427946951, we can remove this custom deleter again.
-struct StackMemoryDeleter {
-  void operator()(StackMemory* p) const;
-};
-
 class StackMemory {
  public:
-  static std::unique_ptr<StackMemory, StackMemoryDeleter> New();
+  static std::unique_ptr<StackMemory> New() {
+    return std::unique_ptr<StackMemory>(new StackMemory());
+  }
 
   // Returns a non-owning view of the central stack. This may be
   // the simulator's stack when running on the simulator.
@@ -242,15 +236,15 @@ constexpr int kStackStateOffset =
 class StackPool {
  public:
   // Gets a stack from the free list if one exists, else allocates it.
-  std::unique_ptr<StackMemory, StackMemoryDeleter> GetOrAllocate();
+  std::unique_ptr<StackMemory> GetOrAllocate();
   // Adds a finished stack to the free list.
-  void Add(std::unique_ptr<StackMemory, StackMemoryDeleter> stack);
+  void Add(std::unique_ptr<StackMemory> stack);
   // Decommit the stack memories and empty the freelist.
   void ReleaseFinishedStacks();
   size_t Size() const;
 
  private:
-  std::vector<std::unique_ptr<StackMemory, StackMemoryDeleter>> freelist_;
+  std::vector<std::unique_ptr<StackMemory>> freelist_;
   size_t size_ = 0;
   // If the next finished stack would move the total size above this limit, the
   // stack is freed instead of being added to the free list.

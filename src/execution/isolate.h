@@ -2312,13 +2312,15 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
 #ifdef V8_ENABLE_WEBASSEMBLY
   bool IsOnCentralStack();
-  std::vector<std::unique_ptr<wasm::StackMemory, wasm::StackMemoryDeleter>>&
-  wasm_stacks() {
+  std::vector<std::unique_ptr<wasm::StackMemory>>& wasm_stacks() {
     return wasm_stacks_;
   }
 
   // Updates the stack limit, parent pointer and central stack info.
-  void SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to);
+  template <wasm::JumpBuffer::StackState new_state_of_old_stack,
+            wasm::JumpBuffer::StackState expected_target_state>
+  void SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to, Address sp,
+                    Address fp, Address pc);
 
   // Retires the stack owned by {continuation}, to be called when returning or
   // throwing from this continuation.
@@ -2893,8 +2895,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   size_t stack_size_;
 #ifdef V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeLookupCache* wasm_code_look_up_cache_ = nullptr;
-  std::vector<std::unique_ptr<wasm::StackMemory, wasm::StackMemoryDeleter>>
-      wasm_stacks_;
+  std::vector<std::unique_ptr<wasm::StackMemory>> wasm_stacks_;
 #if V8_ENABLE_DRUMBRAKE
   std::unique_ptr<wasm::WasmExecutionTimer> wasm_execution_timer_;
 #endif  // V8_ENABLE_DRUMBRAKE
