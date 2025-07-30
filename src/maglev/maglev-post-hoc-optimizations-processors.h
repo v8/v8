@@ -5,6 +5,8 @@
 #ifndef V8_MAGLEV_MAGLEV_POST_HOC_OPTIMIZATIONS_PROCESSORS_H_
 #define V8_MAGLEV_MAGLEV_POST_HOC_OPTIMIZATIONS_PROCESSORS_H_
 
+#include <type_traits>
+
 #include "src/compiler/heap-refs.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph-printer.h"
@@ -214,6 +216,9 @@ class AnyUseMarkingProcessor {
       if (!node->is_used()) {
         if (!node->unused_inputs_were_visited()) {
           DropInputUses(node);
+        }
+        if constexpr (std::is_same_v<NodeT, InitialValue>) {
+          node->mark_unused();
         }
         return ProcessResult::kRemove;
       }

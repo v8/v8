@@ -7,7 +7,6 @@
 #include <optional>
 #include <ostream>
 
-#include "maglev-graph-labeller.h"
 #include "src/base/logging.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
@@ -48,13 +47,14 @@ namespace internal {
 namespace maglev {
 
 namespace {
-void PrintGraph(Graph* graph, bool condition, const char* message) {
+void PrintGraph(Graph* graph, bool condition, const char* message,
+                bool has_regalloc_data = false) {
   if (V8_UNLIKELY(condition &&
                   graph->compilation_info()->is_tracing_enabled())) {
     UnparkedScopeIfOnBackground unparked_scope(
         graph->broker()->local_isolate()->heap());
     std::cout << "\n" << message << std::endl;
-    PrintGraph(std::cout, graph);
+    PrintGraph(std::cout, graph, has_regalloc_data);
   }
 }
 
@@ -178,7 +178,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
   }
 
   {
-    RegallocInfo regalloc_info;
+    RegallocBlockInfo regalloc_info;
     {
       // Preprocessing for register allocation and code gen:
       //   - Remove dead nodes
@@ -189,15 +189,16 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.Maglev.NodeProcessing");
       UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());
-      GraphMultiProcessor<DeadNodeSweepingProcessor,
-                          ValueLocationConstraintProcessor,
-                          MaxCallDepthProcessor, LiveRangeAndNextUseProcessor,
-                          DecompressedUseMarkingProcessor>
+      GraphMultiProcessor<
+          DeadNodeSweepingProcessor, RegallocNodeInfoAllocationProcessor,
+          ValueLocationConstraintProcessor, MaxCallDepthProcessor,
+          LiveRangeAndNextUseProcessor, DecompressedUseMarkingProcessor>
           processor(LiveRangeAndNextUseProcessor{compilation_info, graph,
                                                  &regalloc_info});
       processor.ProcessGraph(graph);
       PrintGraph(graph, v8_flags.print_maglev_graphs,
-                 "After register allocation pre-processing");
+                 "After register allocation pre-processing",
+                 /* has_regalloc_data */ true);
     }
 
     {
@@ -206,7 +207,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       StraightForwardRegisterAllocator allocator(compilation_info, graph,
                                                  &regalloc_info);
       PrintGraph(graph, v8_flags.print_maglev_graph,
-                 "After register allocation");
+                 "After register allocation", /* has_regalloc_data */ true);
     }
   }
 

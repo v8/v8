@@ -40,6 +40,7 @@
 #include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-compilation-unit.h"
+#include "src/maglev/maglev-regalloc-node-info.h"
 #include "src/objects/arguments.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/property-details.h"
@@ -1287,10 +1288,6 @@ inline bool HasNumberMap(base::Vector<const compiler::MapRef> maps) {
 NODE_BASE_LIST(DEF_FORWARD_DECLARATION)
 #undef DEF_FORWARD_DECLARATION
 
-using NodeIdT = uint32_t;
-static constexpr NodeIdT kInvalidNodeId = 0;
-static constexpr NodeIdT kFirstValidNodeId = 1;
-
 // Represents either a direct BasicBlock pointer, or an entry in a list of
 // unresolved BasicBlockRefs which will be mutated (in place) at some point into
 // direct BasicBlock pointers.
@@ -1624,70 +1621,6 @@ class OpProperties {
 };
 
 constexpr inline OpProperties StaticPropertiesForOpcode(Opcode opcode);
-
-class ValueLocation {
- public:
-  ValueLocation() = default;
-
-  template <typename... Args>
-  void SetUnallocated(Args&&... args) {
-    DCHECK(operand_.IsInvalid());
-    operand_ = compiler::UnallocatedOperand(args...);
-  }
-
-  template <typename... Args>
-  void SetAllocated(Args&&... args) {
-    DCHECK(operand_.IsUnallocated());
-    operand_ = compiler::AllocatedOperand(args...);
-  }
-
-  // Only to be used on inputs that inherit allocation.
-  void InjectLocation(compiler::InstructionOperand location) {
-    operand_ = location;
-  }
-
-  // We use USED_AT_START to indicate that the input will be clobbered.
-  bool Cloberred() {
-    DCHECK(operand_.IsUnallocated());
-    return compiler::UnallocatedOperand::cast(operand_).IsUsedAtStart();
-  }
-
-  template <typename... Args>
-  void SetConstant(Args&&... args) {
-    DCHECK(operand_.IsUnallocated());
-    operand_ = compiler::ConstantOperand(args...);
-  }
-
-  Register AssignedGeneralRegister() const {
-    DCHECK(!IsDoubleRegister());
-    return compiler::AllocatedOperand::cast(operand_).GetRegister();
-  }
-
-  DoubleRegister AssignedDoubleRegister() const {
-    DCHECK(IsDoubleRegister());
-    return compiler::AllocatedOperand::cast(operand_).GetDoubleRegister();
-  }
-
-  bool IsAnyRegister() const { return operand_.IsAnyRegister(); }
-  bool IsGeneralRegister() const { return operand_.IsRegister(); }
-  bool IsDoubleRegister() const { return operand_.IsDoubleRegister(); }
-
-  const compiler::InstructionOperand& operand() const { return operand_; }
-  const compiler::InstructionOperand& operand() { return operand_; }
-
- private:
-  compiler::InstructionOperand operand_;
-};
-
-class InputLocation : public ValueLocation {
- public:
-  NodeIdT next_use_id() const { return next_use_id_; }
-  // Used in ValueNode::mark_use
-  NodeIdT* get_next_use_id_address() { return &next_use_id_; }
-
- private:
-  NodeIdT next_use_id_ = kInvalidNodeId;
-};
 
 class Input : public InputLocation {
  public:
@@ -2299,6 +2232,7 @@ class NodeBase : public ZoneObject {
   using NumTemporariesNeededField = OpPropertiesField::Next<uint8_t, 2>;
   using NumDoubleTemporariesNeededField =
       NumTemporariesNeededField::Next<uint8_t, 1>;
+
  protected:
   // Reserved for intermediate superclasses such as ValueNode.
   using LastNodeBaseField = NumDoubleTemporariesNeededField;
@@ -2402,15 +2336,25 @@ class NodeBase : public ZoneObject {
     return std::make_reverse_iterator(&input(input_count() - 1));
   }
 
-  constexpr bool has_id() const { return id_ != kInvalidNodeId; }
-  constexpr NodeIdT id() const {
-    DCHECK_NE(id_, kInvalidNodeId);
-    return id_;
+  RegallocNodeInfo* regalloc_info() const {
+    DCHECK_EQ(state_, kRegallocInfo);
+    return regalloc_info_;
   }
-  void set_id(NodeIdT id) {
-    DCHECK_EQ(id_, kInvalidNodeId);
-    DCHECK_NE(id, kInvalidNodeId);
-    id_ = id;
+  void set_regalloc_info(RegallocNodeInfo* info) {
+    DCHECK(state_ == kNull || state_ == kOwner);
+#ifdef DEBUG
+    state_ = kRegallocInfo;
+#endif  // DEBUG
+    regalloc_info_ = info;
+  }
+
+  constexpr bool has_id() const {
+    DCHECK_EQ(state_, kRegallocInfo);
+    return regalloc_info_->id() != kInvalidNodeId;
+  }
+  constexpr NodeIdT id() const {
+    DCHECK_EQ(state_, kRegallocInfo);
+    return regalloc_info()->id();
   }
 
   template <typename RegisterT>
@@ -2420,18 +2364,6 @@ class NodeBase : public ZoneObject {
     } else {
       return NumDoubleTemporariesNeededField::decode(bitfield_);
     }
-  }
-
-  template <typename RegisterT>
-  RegListBase<RegisterT>& temporaries() {
-    return owner_or_temporaries_.temporaries<RegisterT>();
-  }
-  RegList& general_temporaries() { return temporaries<Register>(); }
-  DoubleRegList& double_temporaries() { return temporaries<DoubleRegister>(); }
-
-  template <typename RegisterT>
-  void assign_temporaries(RegListBase<RegisterT> list) {
-    owner_or_temporaries_.temporaries<RegisterT>() = list;
   }
 
   enum class InputAllocationPolicy { kFixedRegister, kArbitraryRegister, kAny };
@@ -2444,7 +2376,8 @@ class NodeBase : public ZoneObject {
   template <typename Function>
   void ForAllInputsInRegallocAssignmentOrder(Function&& f);
 
-  void Print(std::ostream& os, bool skip_targets = false) const;
+  void Print(std::ostream& os, bool has_regalloc_data = false,
+             bool skip_targets = false) const;
 
   // For GDB: Print any Node with `print node->Print()`.
   void Print() const;
@@ -2531,14 +2464,34 @@ class NodeBase : public ZoneObject {
   void ClearUnstableNodeAspects(bool is_tracing_enabled, KnownNodeAspects&);
   void ClearElementsProperties(bool is_tracing_enabled, KnownNodeAspects&);
 
-  void set_owner(BasicBlock* block) { owner_or_temporaries_ = block; }
-
-  BasicBlock* owner() const { return owner_or_temporaries_.owner(); }
-
-  void InitTemporaries() { owner_or_temporaries_.InitReglist(); }
+  void set_owner(BasicBlock* block) {
+    DCHECK(state_ == kNull || state_ == kOwner);
+#ifdef DEBUG
+    state_ = kOwner;
+#endif  // DEBUG
+    owner_ = block;
+  }
+  BasicBlock* owner() const {
+    DCHECK_EQ(state_, kOwner);
+    return owner_;
+  }
 
  protected:
   explicit NodeBase(uint64_t bitfield) : bitfield_(bitfield) {}
+
+  union {
+    BasicBlock* owner_ = nullptr;      // Valid in the frontend processors.
+    RegallocNodeInfo* regalloc_info_;  // Valid in the backend processors.
+  };
+
+#ifdef DEBUG
+  enum State {
+    kNull,
+    kOwner,
+    kRegallocInfo,
+  };
+  State state_ = kNull;
+#endif  // DEBUG
 
   // Allow updating bits above NextBitField from subclasses
   constexpr uint64_t bitfield() const { return bitfield_; }
@@ -2598,11 +2551,13 @@ class NodeBase : public ZoneObject {
   // Require that a specific register is free (and therefore clobberable) by the
   // entry into this node.
   void RequireSpecificTemporary(Register reg) {
-    general_temporaries().set(reg);
+    DCHECK_EQ(state_, kRegallocInfo);
+    regalloc_info()->general_temporaries().set(reg);
   }
 
   void RequireSpecificDoubleTemporary(DoubleRegister reg) {
-    double_temporaries().set(reg);
+    DCHECK_EQ(state_, kRegallocInfo);
+    regalloc_info()->double_temporaries().set(reg);
   }
 
  private:
@@ -2690,63 +2645,6 @@ class NodeBase : public ZoneObject {
   void CheckCanOverwriteWith(Opcode new_opcode, OpProperties new_properties);
 
   uint64_t bitfield_;
-  NodeIdT id_ = kInvalidNodeId;
-
-  struct OwnerOrTemporaries {
-    BasicBlock* owner() const {
-      DCHECK_EQ(state_, State::kOwner);
-      return store_.owner_;
-    }
-
-    template <typename RegisterT>
-    RegListBase<RegisterT>& temporaries() {
-      DCHECK_EQ(state_, State::kReglist);
-      if constexpr (std::is_same_v<RegisterT, Register>) {
-        return store_.regs_.temporaries_;
-      } else {
-        return store_.regs_.double_temporaries_;
-      }
-    }
-
-    BasicBlock* operator=(BasicBlock* owner) {
-#ifdef DEBUG
-      DCHECK(state_ == State::kNull || state_ == State::kOwner);
-      state_ = State::kOwner;
-#endif
-      return store_.owner_ = owner;
-    }
-
-    void InitReglist() {
-#ifdef DEBUG
-      DCHECK(state_ == State::kNull || state_ == State::kOwner);
-      state_ = State::kReglist;
-#endif
-      store_.regs_.temporaries_ = RegList();
-      store_.regs_.double_temporaries_ = DoubleRegList();
-    }
-
-   private:
-    struct Regs {
-      RegList temporaries_;
-      DoubleRegList double_temporaries_;
-    };
-    union Store {
-      Store() : owner_(nullptr) {}
-      BasicBlock* owner_;
-      Regs regs_;
-    };
-    Store store_;
-#ifdef DEBUG
-    enum class State{
-        kNull,
-        kOwner,
-        kReglist,
-    };
-    State state_ = State::kNull;
-#endif
-  };
-
-  OwnerOrTemporaries owner_or_temporaries_;
 
   NodeBase() = delete;
   NodeBase(const NodeBase&) = delete;
@@ -2811,7 +2709,7 @@ class Node : public NodeBase {
 };
 
 // All non-control nodes with a result.
-class ValueNode : public Node {
+class alignas(8) ValueNode : public Node {
  private:
   using TaggedResultNeedsDecompressField =
       NodeBase::LastNodeBaseField::Next<bool, 1>;
@@ -2826,12 +2724,8 @@ class ValueNode : public Node {
   using ReservedFields = void;
 
  public:
-  ValueLocation& result() { return result_; }
-  const ValueLocation& result() const { return result_; }
-
   int use_count() const {
-    // Invalid to check use_count externally once an id is allocated.
-    DCHECK(!has_id());
+    DCHECK(!unused_inputs_were_visited());
     return use_count_;
   }
   bool is_used() const { return use_count_ > 0; }
@@ -2849,36 +2743,8 @@ class ValueNode : public Node {
     use_count_ = -1;
   }
 
+  // Used by the register allocator. Only available at the backend.
   void SetHint(compiler::InstructionOperand hint);
-
-  void ClearHint() { hint_ = compiler::InstructionOperand(); }
-
-  bool has_hint() { return !hint_.IsInvalid(); }
-
-  template <typename RegisterT>
-  RegisterT GetRegisterHint() {
-    if (hint_.IsInvalid()) return RegisterT::no_reg();
-    return RegisterT::from_code(
-        compiler::UnallocatedOperand::cast(hint_).fixed_register_index());
-  }
-
-  const compiler::InstructionOperand& hint() const {
-    DCHECK(hint_.IsInvalid() || hint_.IsUnallocated());
-    return hint_;
-  }
-
-  bool is_loadable() const {
-    DCHECK_EQ(state_, kSpill);
-    return spill_.IsConstant() || spill_.IsAnyStackSlot();
-  }
-
-  bool is_spilled() const {
-    DCHECK_EQ(state_, kSpill);
-    return spill_.IsAnyStackSlot();
-  }
-
-  void SetNoSpill();
-  void SetConstantLocation();
 
   /* For constants only. */
   void LoadToRegister(MaglevAssembler*, Register);
@@ -2887,56 +2753,15 @@ class ValueNode : public Node {
   void DoLoadToRegister(MaglevAssembler*, DoubleRegister);
   DirectHandle<Object> Reify(LocalIsolate* isolate) const;
 
-  void Spill(compiler::AllocatedOperand operand) {
-#ifdef DEBUG
-    if (state_ == kLastUse) {
-      state_ = kSpill;
-    } else {
-      DCHECK(!is_loadable());
-    }
-#endif  // DEBUG
-    DCHECK(!IsConstantNode(opcode()));
-    DCHECK(operand.IsAnyStackSlot());
-    spill_ = operand;
-    DCHECK(spill_.IsAnyStackSlot());
+  bool has_valid_live_range() const {
+    DCHECK_EQ(state_, kRegallocInfo);
+    return regalloc_info()->has_valid_live_range();
   }
-
-  compiler::AllocatedOperand spill_slot() const {
-    DCHECK(is_spilled());
-    return compiler::AllocatedOperand::cast(loadable_slot());
+  LiveRange live_range() const {
+    DCHECK_EQ(state_, kRegallocInfo);
+    DCHECK(has_valid_live_range());
+    return regalloc_info()->live_range();
   }
-
-  compiler::InstructionOperand loadable_slot() const {
-    DCHECK_EQ(state_, kSpill);
-    DCHECK(is_loadable());
-    return spill_;
-  }
-
-  void record_next_use(NodeIdT id, InputLocation* input_location) {
-    DCHECK_EQ(state_, kLastUse);
-    DCHECK_NE(id, kInvalidNodeId);
-    DCHECK_LT(start_id(), id);
-    DCHECK_IMPLIES(has_valid_live_range(), id >= end_id_);
-    end_id_ = id;
-    *last_uses_next_use_id_ = id;
-    last_uses_next_use_id_ = input_location->get_next_use_id_address();
-    DCHECK_EQ(*last_uses_next_use_id_, kInvalidNodeId);
-  }
-
-  struct LiveRange {
-    NodeIdT start = kInvalidNodeId;
-    NodeIdT end = kInvalidNodeId;  // Inclusive.
-  };
-
-  bool has_valid_live_range() const { return end_id_ != 0; }
-  LiveRange live_range() const { return {start_id(), end_id_}; }
-  NodeIdT current_next_use() const { return next_use_; }
-
-  // The following methods should only be used during register allocation, to
-  // mark the _current_ state of this Node according to the register allocator.
-  void advance_next_use(NodeIdT use) { next_use_ = use; }
-
-  bool has_no_more_uses() const { return next_use_ == kInvalidNodeId; }
 
   constexpr bool use_double_register() const {
     return IsDoubleRepresentation(properties().value_representation());
@@ -3035,127 +2860,20 @@ class ValueNode : public Node {
   inline void MaybeRecordUseReprHint(UseRepresentationSet repr);
   inline void MaybeRecordUseReprHint(UseRepresentation repr);
 
-  void InitializeRegisterData() {
-    if (use_double_register()) {
-      double_registers_with_result_ = kEmptyDoubleRegList;
-    } else {
-      registers_with_result_ = kEmptyRegList;
-    }
-  }
-
-  void AddRegister(Register reg) {
-    DCHECK(!use_double_register());
-    registers_with_result_.set(reg);
-  }
-  void AddRegister(DoubleRegister reg) {
-    DCHECK(use_double_register());
-    double_registers_with_result_.set(reg);
-  }
-
-  void RemoveRegister(Register reg) {
-    DCHECK(!use_double_register());
-    registers_with_result_.clear(reg);
-  }
-  void RemoveRegister(DoubleRegister reg) {
-    DCHECK(use_double_register());
-    double_registers_with_result_.clear(reg);
-  }
-
-  template <typename T>
-  inline RegListBase<T> ClearRegisters();
-
-  int num_registers() const {
-    if (use_double_register()) {
-      return double_registers_with_result_.Count();
-    }
-    return registers_with_result_.Count();
-  }
-  bool has_register() const {
-    if (use_double_register()) {
-      return double_registers_with_result_ != kEmptyDoubleRegList;
-    }
-    return registers_with_result_ != kEmptyRegList;
-  }
-  bool is_in_register(Register reg) const {
-    DCHECK(!use_double_register());
-    return registers_with_result_.has(reg);
-  }
-  bool is_in_register(DoubleRegister reg) const {
-    DCHECK(use_double_register());
-    return double_registers_with_result_.has(reg);
-  }
-
-  template <typename T>
-  RegListBase<T> result_registers() {
-    if constexpr (std::is_same_v<T, DoubleRegister>) {
-      DCHECK(use_double_register());
-      return double_registers_with_result_;
-    } else {
-      DCHECK(!use_double_register());
-      return registers_with_result_;
-    }
-  }
-
-  compiler::InstructionOperand allocation() const {
-    if (has_register()) {
-      return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
-                                        GetMachineRepresentation(),
-                                        FirstRegisterCode());
-    }
-    CHECK(is_loadable());
-    return spill_;
-  }
-
   ValueNode* UnwrapIdentities();
   const ValueNode* UnwrapIdentities() const;
 
   // Unwrap identities and conversions.
   ValueNode* Unwrap();
 
+  RegallocValueNodeInfo* regalloc_info() const {
+    DCHECK_EQ(state_, kRegallocInfo);
+    return static_cast<RegallocValueNodeInfo*>(regalloc_info_);
+  }
+
  protected:
-  explicit ValueNode(uint64_t bitfield)
-      : Node(bitfield),
-        last_uses_next_use_id_(&next_use_),
-        hint_(compiler::InstructionOperand()),
-        use_count_(0)
-#ifdef DEBUG
-        ,
-        state_(kLastUse)
-#endif  // DEBUG
-  {
-    InitializeRegisterData();
-  }
-
-  int FirstRegisterCode() const {
-    if (use_double_register()) {
-      return double_registers_with_result_.first().code();
-    }
-    return registers_with_result_.first().code();
-  }
-
-  // Rename for better pairing with `end_id`.
-  NodeIdT start_id() const { return id(); }
-
-  NodeIdT end_id_ = kInvalidNodeId;
-  NodeIdT next_use_ = kInvalidNodeId;
-  ValueLocation result_;
-  union {
-    RegList registers_with_result_;
-    DoubleRegList double_registers_with_result_;
-  };
-  union {
-    // Pointer to the current last use's next_use_id field. Most of the time
-    // this will be a pointer to an Input's next_use_id_ field, but it's
-    // initialized to this node's next_use_ to track the first use.
-    NodeIdT* last_uses_next_use_id_;
-    compiler::InstructionOperand spill_;
-  };
-  compiler::InstructionOperand hint_;
-  // TODO(leszeks): Union this into another field.
+  explicit ValueNode(uint64_t bitfield) : Node(bitfield), use_count_(0) {}
   int use_count_;
-#ifdef DEBUG
-  enum {kLastUse, kSpill} state_;
-#endif  // DEBUG
 };
 
 inline void NodeBase::initialize_input_null(int index) {
@@ -3169,18 +2887,6 @@ inline void NodeBase::set_input(int index, ValueNode* node) {
   DCHECK_NULL(input(index).node());
   node->add_use();
   new (&input(index)) Input(node);
-}
-
-template <>
-inline RegList ValueNode::ClearRegisters() {
-  DCHECK(!use_double_register());
-  return std::exchange(registers_with_result_, kEmptyRegList);
-}
-
-template <>
-inline DoubleRegList ValueNode::ClearRegisters() {
-  DCHECK(use_double_register());
-  return std::exchange(double_registers_with_result_, kEmptyDoubleRegList);
 }
 
 void NodeBase::change_input(int index, ValueNode* node) {
@@ -3201,7 +2907,8 @@ void NodeBase::change_input(int index, ValueNode* node) {
 
 ValueLocation& Node::result() {
   DCHECK(Is<ValueNode>());
-  return Cast<ValueNode>()->result();
+  DCHECK_EQ(state_, kRegallocInfo);
+  return Cast<ValueNode>()->regalloc_info()->result();
 }
 
 inline ValueNode* ValueNode::UnwrapIdentities() {
@@ -5923,10 +5630,14 @@ class InitialValue : public FixedInputValueNodeT<0, InitialValue> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
 
+  bool is_unused() const { return UnusedField::decode(bitfield()); }
+  void mark_unused() { set_bitfield(UnusedField::update(bitfield(), true)); }
+
   auto options() const { return std::tuple{source()}; }
 
  private:
   const interpreter::Register source_;
+  using UnusedField = NextBitField<bool, 1>;
 };
 
 class RegisterInput : public FixedInputValueNodeT<0, RegisterInput> {

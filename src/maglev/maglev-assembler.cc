@@ -311,11 +311,11 @@ void MaglevAssembler::MaterialiseValueNode(Register dst, ValueNode* value) {
     default:
       break;
   }
-  DCHECK(!value->allocation().IsConstant());
-  DCHECK(value->allocation().IsAnyStackSlot());
+  DCHECK(!value->regalloc_info()->allocation().IsConstant());
+  DCHECK(value->regalloc_info()->allocation().IsAnyStackSlot());
   using D = NewHeapNumberDescriptor;
   DoubleRegister builtin_input_value = D::GetDoubleRegisterParameter(D::kValue);
-  MemOperand src = ToMemOperand(value->allocation());
+  MemOperand src = ToMemOperand(value->regalloc_info()->allocation());
   switch (value->properties().value_representation()) {
     case ValueRepresentation::kInt32: {
       Label done;

@@ -33,7 +33,8 @@ class ProcessingState;
 
 class MaglevPrintingVisitor {
  public:
-  explicit MaglevPrintingVisitor(std::ostream& os);
+  explicit MaglevPrintingVisitor(std::ostream& os,
+                                 bool has_regalloc_data = false);
 
   void PreProcessGraph(Graph* graph);
   void PostProcessGraph(Graph* graph) {}
@@ -53,9 +54,11 @@ class MaglevPrintingVisitor {
   std::vector<BasicBlock*> targets_;
   NodeIdT max_node_id_ = kInvalidNodeId;
   MaglevGraphLabeller::Provenance existing_provenance_;
+  bool has_regalloc_data_;
 };
 
-void PrintGraph(std::ostream& os, Graph* const graph);
+void PrintGraph(std::ostream& os, Graph* const graph,
+                bool has_regalloc_data = false);
 
 #else
 
@@ -87,8 +90,8 @@ class MaglevPrintingVisitor {
   std::ostream& os_;
 };
 
-inline void PrintGraph(std::ostream& os,
-                       Graph* const graph) {}
+inline void PrintGraph(std::ostream& os, Graph* const graph,
+                       bool has_regalloc_data = false) {}
 
 #endif  // V8_ENABLE_MAGLEV_GRAPH_PRINTER
 

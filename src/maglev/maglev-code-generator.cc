@@ -36,6 +36,7 @@
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-regalloc-data.h"
+#include "src/maglev/maglev-regalloc-node-info.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/deoptimization-data.h"
 #include "src/utils/identity-map.h"
@@ -619,7 +620,7 @@ class ExceptionHandlerTrampolineBuilder {
       // All registers must have been spilled due to the call.
       // TODO(jgruber): Which call? Because any throw requires at least a call
       // to Runtime::kThrowFoo?
-      DCHECK(!source->allocation().IsRegister());
+      DCHECK(!source->regalloc_info()->allocation().IsRegister());
 
       // The DeoptInfoVisitor should unwrap identity nodes in frame states.
       DCHECK(!source->Is<Identity>());
@@ -627,7 +628,7 @@ class ExceptionHandlerTrampolineBuilder {
       switch (source->properties().value_representation()) {
         case ValueRepresentation::kTagged:
           direct_moves->RecordMove(
-              source, source->allocation(),
+              source, source->regalloc_info()->allocation(),
               compiler::AllocatedOperand::cast(target.operand()),
               phi->decompresses_tagged_result() ? kNeedsDecompression
                                                 : kDoesNotNeedDecompression);
@@ -840,8 +841,8 @@ class MaglevCodeGeneratingNodeProcessor {
     }
 
     MaglevAssembler::TemporaryRegisterScope scratch_scope(masm());
-    scratch_scope.Include(node->general_temporaries());
-    scratch_scope.IncludeDouble(node->double_temporaries());
+    scratch_scope.Include(node->regalloc_info()->general_temporaries());
+    scratch_scope.IncludeDouble(node->regalloc_info()->double_temporaries());
 
 #ifdef DEBUG
     masm()->set_allow_allocate(node->properties().can_allocate());
@@ -859,23 +860,24 @@ class MaglevCodeGeneratingNodeProcessor {
 
     if (std::is_base_of_v<ValueNode, NodeT>) {
       ValueNode* value_node = node->template Cast<ValueNode>();
-      if (value_node->has_valid_live_range() && value_node->is_spilled()) {
+      RegallocValueNodeInfo* node_info = value_node->regalloc_info();
+      if (node_info->has_valid_live_range() && node_info->is_spilled()) {
         compiler::AllocatedOperand source =
-            compiler::AllocatedOperand::cast(value_node->result().operand());
+            compiler::AllocatedOperand::cast(node_info->result().operand());
         // We shouldn't spill nodes which already output to the stack.
         if (!source.IsAnyStackSlot()) {
           if (v8_flags.code_comments) __ RecordComment("--   Spill:");
           if (source.IsRegister()) {
-            __ Move(masm()->GetStackSlot(value_node->spill_slot()),
+            __ Move(masm()->GetStackSlot(node_info->spill_slot()),
                     ToRegister(source));
           } else {
-            __ StoreFloat64(masm()->GetStackSlot(value_node->spill_slot()),
+            __ StoreFloat64(masm()->GetStackSlot(node_info->spill_slot()),
                             ToDoubleRegister(source));
           }
         } else {
           // Otherwise, the result source stack slot should be equal to the
           // spill slot.
-          DCHECK_EQ(source.index(), value_node->spill_slot().index());
+          DCHECK_EQ(source.index(), node_info->spill_slot().index());
         }
       }
     }

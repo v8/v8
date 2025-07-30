@@ -202,30 +202,37 @@ bool IsStoreToNonEscapedObject(const NodeBase* node) {
   return false;
 }
 
-void PrintInputs(std::ostream& os, const NodeBase* node) {
+void PrintInputs(std::ostream& os, const NodeBase* node,
+                 bool has_regalloc_data) {
   if (!node->has_inputs()) return;
 
   os << " [";
   for (int i = 0; i < node->input_count(); i++) {
     if (i != 0) os << ", ";
-    GetCurrentGraphLabeller()->PrintInput(os, node->input(i));
+    GetCurrentGraphLabeller()->PrintInput(os, node->input(i),
+                                          has_regalloc_data);
   }
   os << "]";
 }
 
-void PrintResult(std::ostream& os, const NodeBase* node) {}
+void PrintResult(std::ostream& os, const NodeBase* node,
+                 bool has_regalloc_data) {}
 
-void PrintResult(std::ostream& os, const ValueNode* node) {
-  os << " → " << node->result().operand();
-  if (node->result().operand().IsAllocated() && node->is_spilled() &&
-      node->spill_slot() != node->result().operand()) {
-    os << " (spilled: " << node->spill_slot() << ")";
-  }
-  if (node->has_valid_live_range()) {
-    os << ", live range: [" << node->live_range().start << "-"
-       << node->live_range().end << "]";
-  }
-  if (!node->has_id()) {
+void PrintResult(std::ostream& os, const ValueNode* node,
+                 bool has_regalloc_data) {
+  if (has_regalloc_data) {
+    auto node_info = node->regalloc_info();
+    os << " → " << node_info->result().operand();
+    if (node_info->result().operand().IsAllocated() &&
+        node_info->is_spilled() &&
+        node_info->spill_slot() != node_info->result().operand()) {
+      os << " (spilled: " << node_info->spill_slot() << ")";
+    }
+    if (node_info->has_valid_live_range()) {
+      os << ", live range: [" << node_info->live_range().start << "-"
+         << node_info->live_range().end << "]";
+    }
+  } else {
     os << ", " << node->use_count() << " uses";
     if (const InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
       os << " (" << alloc->non_escaping_use_count() << " non escaping uses)";
@@ -291,12 +298,13 @@ class MaybeUnparkForPrint {
 };
 
 template <typename NodeT>
-void PrintImpl(std::ostream& os, const NodeT* node, bool skip_targets) {
+void PrintImpl(std::ostream& os, const NodeT* node, bool has_regalloc_data,
+               bool skip_targets) {
   MaybeUnparkForPrint unpark;
   os << node->opcode();
   node->PrintParams(os);
-  PrintInputs(os, node);
-  PrintResult(os, node);
+  PrintInputs(os, node, has_regalloc_data);
+  PrintResult(os, node, has_regalloc_data);
   if (IsStoreToNonEscapedObject(node)) {
     os << " 🪦";
   }
@@ -349,7 +357,7 @@ bool CheckToBooleanOnAllRoots(LocalIsolate* local_isolate) {
 void VirtualObjectList::Print(std::ostream& os, const char* prefix) const {
   os << prefix;
   for (const VirtualObject* vo : *this) {
-    GetCurrentGraphLabeller()->PrintNodeLabel(os, vo);
+    GetCurrentGraphLabeller()->PrintNodeLabel(os, vo, false);
     os << "; ";
   }
   os << std::endl;
@@ -463,11 +471,12 @@ const InterpretedDeoptFrame& LazyDeoptInfo::GetFrameForExceptionHandler(
   return target_frame->as_interpreted();
 }
 
-void NodeBase::Print(std::ostream& os, bool skip_targets) const {
+void NodeBase::Print(std::ostream& os, bool has_regalloc_data,
+                     bool skip_targets) const {
   switch (opcode()) {
 #define V(Name)         \
   case Opcode::k##Name: \
-    return PrintImpl(os, this->Cast<Name>(), skip_targets);
+    return PrintImpl(os, this->Cast<Name>(), has_regalloc_data, skip_targets);
     NODE_BASE_LIST(V)
 #undef V
   }
@@ -480,39 +489,26 @@ void NodeBase::Print() const {
 }
 
 void ValueNode::SetHint(compiler::InstructionOperand hint) {
-  if (!hint_.IsInvalid()) return;
-  hint_ = hint;
-  if (result_.operand().IsUnallocated()) {
-    auto operand = compiler::UnallocatedOperand::cast(result_.operand());
+  DCHECK_EQ(state_, kRegallocInfo);
+  auto node_info = regalloc_info();
+  if (node_info->has_hint()) return;
+  node_info->set_hint(hint);
+  auto result = node_info->result().operand();
+  if (node_info->result().operand().IsUnallocated()) {
+    auto operand = compiler::UnallocatedOperand::cast(result);
     if (operand.HasSameAsInputPolicy()) {
       input(operand.input_index()).node()->SetHint(hint);
     }
   }
   if (this->Is<Phi>()) {
-    for (Input& input : *this) {
-      if (input.node()->has_id() && input.node()->id() < this->id()) {
-        input.node()->SetHint(hint);
+    Phi* phi = Cast<Phi>();
+    for (int i = 0; i < input_count(); i++) {
+      if (phi->is_loop_phi() && phi->is_backedge_offset(i)) {
+        continue;
       }
+      input(i).node()->SetHint(hint);
     }
   }
-}
-
-void ValueNode::SetNoSpill() {
-  DCHECK(!IsConstantNode(opcode()));
-#ifdef DEBUG
-  state_ = kSpill;
-#endif  // DEBUG
-  spill_ = compiler::InstructionOperand();
-}
-
-void ValueNode::SetConstantLocation() {
-  DCHECK(IsConstantNode(opcode()));
-#ifdef DEBUG
-  state_ = kSpill;
-#endif  // DEBUG
-  spill_ = compiler::ConstantOperand(
-      compiler::UnallocatedOperand::cast(result().operand())
-          .virtual_register());
 }
 
 compiler::OptionalHeapObjectRef ValueNode::TryGetConstant(
@@ -1330,17 +1326,17 @@ void ValueNode::LoadToRegister(MaglevAssembler* masm, DoubleRegister reg) {
 }
 
 void ValueNode::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
-  DCHECK(is_spilled());
+  DCHECK(regalloc_info()->is_spilled());
   DCHECK(!use_double_register());
-  __ Move(reg,
-          masm->GetStackSlot(compiler::AllocatedOperand::cast(spill_slot())));
+  __ Move(reg, masm->GetStackSlot(compiler::AllocatedOperand::cast(
+                   regalloc_info()->spill_slot())));
 }
 
 void ValueNode::DoLoadToRegister(MaglevAssembler* masm, DoubleRegister reg) {
-  DCHECK(is_spilled());
+  DCHECK(regalloc_info()->is_spilled());
   DCHECK(use_double_register());
-  __ LoadFloat64(
-      reg, masm->GetStackSlot(compiler::AllocatedOperand::cast(spill_slot())));
+  __ LoadFloat64(reg, masm->GetStackSlot(compiler::AllocatedOperand::cast(
+                          regalloc_info()->spill_slot())));
 }
 
 void SmiConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
@@ -8247,14 +8243,12 @@ void TruncateNumberOrOddballToInt32::PrintParams(std::ostream& os) const {
 template <typename T>
 void AbstractLoadTaggedField<T>::PrintParams(std::ostream& os) const {
   os << "(0x" << std::hex << offset() << std::dec;
-  // Print compression status only after the result is allocated, since that's
-  // when we do decompression marking.
-  if (!result().operand().IsUnallocated()) {
-    if (decompresses_tagged_result()) {
-      os << ", decompressed";
-    } else {
-      os << ", compressed";
-    }
+  // TODO(victorgomes): Print compression status only after the result is
+  // allocated, since that's when we do decompression marking.
+  if (decompresses_tagged_result()) {
+    os << ", decompressed";
+  } else {
+    os << ", compressed";
   }
   os << ")";
 }
@@ -8276,14 +8270,12 @@ void LoadInt32::PrintParams(std::ostream& os) const {
 }
 
 void LoadFixedArrayElement::PrintParams(std::ostream& os) const {
-  // Print compression status only after the result is allocated, since that's
-  // when we do decompression marking.
-  if (!result().operand().IsUnallocated()) {
-    if (decompresses_tagged_result()) {
-      os << "(decompressed)";
-    } else {
-      os << "(compressed)";
-    }
+  // TODO(victorgomes): Print compression status only after the result is
+  // allocated, since that's when we do decompression marking.
+  if (decompresses_tagged_result()) {
+    os << "(decompressed)";
+  } else {
+    os << "(compressed)";
   }
 }
 
@@ -8357,7 +8349,7 @@ void GapMove::PrintParams(std::ostream& os) const {
 
 void ConstantGapMove::PrintParams(std::ostream& os) const {
   os << "(";
-  GetCurrentGraphLabeller()->PrintNodeLabel(os, node_);
+  GetCurrentGraphLabeller()->PrintNodeLabel(os, node_, false);
   os << " → " << target() << ")";
 }
 

@@ -21,7 +21,7 @@ class MaglevCompilationInfo;
 class MaglevPrintingVisitor;
 class MergePointRegisterState;
 
-struct RegallocInfo {
+struct RegallocBlockInfo {
   struct RegallocLoopInfo {
     // Hints about which nodes should be in registers or spilled when entering
     // a loop.
@@ -94,7 +94,7 @@ class RegisterFrameState {
   void AddToFree(RegTList list) { free_ |= list; }
 
   void FreeRegistersUsedBy(ValueNode* node) {
-    RegTList list = node->ClearRegisters<RegisterT>();
+    RegTList list = node->regalloc_info()->ClearRegisters<RegisterT>();
     DCHECK_EQ(free_ & list, kEmptyRegList);
     free_ |= list;
   }
@@ -104,13 +104,13 @@ class RegisterFrameState {
     DCHECK(!blocked_.has(reg));
     values_[reg.code()] = node;
     block(reg);
-    node->AddRegister(reg);
+    node->regalloc_info()->AddRegister(reg);
   }
   void SetValueWithoutBlocking(RegisterT reg, ValueNode* node) {
     DCHECK(!free_.has(reg));
     DCHECK(!blocked_.has(reg));
     values_[reg.code()] = node;
-    node->AddRegister(reg);
+    node->regalloc_info()->AddRegister(reg);
   }
   ValueNode* GetValue(RegisterT reg) const {
     DCHECK(!free_.has(reg));
@@ -154,7 +154,8 @@ class RegisterFrameState {
 class StraightForwardRegisterAllocator {
  public:
   StraightForwardRegisterAllocator(MaglevCompilationInfo* compilation_info,
-                                   Graph* graph, RegallocInfo* regalloc_info);
+                                   Graph* graph,
+                                   RegallocBlockInfo* regalloc_info);
   ~StraightForwardRegisterAllocator();
 
  private:
@@ -322,7 +323,7 @@ class StraightForwardRegisterAllocator {
   NodeIterator node_it_;
   // The current node, whether a Node in the body or the ControlNode.
   NodeBase* current_node_;
-  RegallocInfo* regalloc_info_;
+  RegallocBlockInfo* regalloc_info_;
 };
 
 }  // namespace maglev

@@ -163,7 +163,6 @@ class TruncationProcessor {
     if (!node->can_truncate_to_int32() || !AllInputsAreValid(node)) return;
     UnwrapInputs(node);
     node->OverwriteWith<NodeT>();
-    node->InitializeRegisterData();
   }
 
   ValueNode* GetTruncatedInt32Constant(double constant);

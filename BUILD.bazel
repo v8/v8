@@ -2908,6 +2908,7 @@ filegroup(
             "src/maglev/maglev-reducer-inl.h",
             "src/maglev/maglev-reducer.h",
             "src/maglev/maglev-regalloc-data.h",
+            "src/maglev/maglev-regalloc-node-info.h",
             "src/maglev/maglev-regalloc.h",
             "src/maglev/maglev-register-frame-array.h",
             "src/maglev/maglev.h",
