@@ -97,7 +97,11 @@ class PropagateTruncationProcessor {
       return UnsetCanTruncateToInt32ForFixedInputNodes<NodeT, 0>(node);
     }
 #ifdef DEBUG
-    // Non-fixed input nodes don't expect float64 as inputs.
+    // Non-fixed input nodes don't expect float64 as inputs, except
+    // ReturnedValue.
+    if constexpr (std::is_same_v<NodeT, ReturnedValue>) {
+      return;
+    }
     for (Input& input : *node) {
       DCHECK_NE(input.node()->value_representation(),
                 ValueRepresentation::kFloat64);

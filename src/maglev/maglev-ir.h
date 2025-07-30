@@ -11055,6 +11055,9 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
 };
 
 // This node overwrites CallKnownJSFunction in-place after inlining.
+// Although ReturnedValue has only a single input, it is not a
+// FixedInputValueNode, since it accepts any input type and it
+// cannot declare a kInputTypes.
 class ReturnedValue : public ValueNodeT<ReturnedValue> {
   using Base = ValueNodeT<ReturnedValue>;
 
