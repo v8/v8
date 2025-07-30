@@ -3902,7 +3902,14 @@ class MachineLoweringReducer : public Next {
       }
       case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
           kNumberOrUndefined:
-        UNREACHABLE();
+        IF_NOT (__ TaggedEqual(map,
+                               __ HeapConstant(factory_->heap_number_map()))) {
+          // TODO(nicohartmann@): Consider a separate DeoptimizeReason.
+          __ DeoptimizeIfNot(
+              __ TaggedEqual(map, __ HeapConstant(factory_->undefined_map())),
+              frame_state, DeoptimizeReason::kNotANumberOrOddball, feedback);
+        }
+        break;
       case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
           kNumberOrBoolean: {
 #if V8_STATIC_ROOTS_BOOL
