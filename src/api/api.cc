@@ -8682,6 +8682,9 @@ Maybe<bool> Promise::Resolver::Resolve(Local<Context> context,
     return Just(true);
   }
 
+  // TODO(434637746): Drop this CHECK when the bug is fixed.
+  CHECK(!value.IsEmpty());
+
   if (i::JSPromise::Resolve(promise, Utils::OpenDirectHandle(*value))
           .is_null()) {
     return {};
