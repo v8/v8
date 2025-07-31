@@ -2158,6 +2158,8 @@ DEFINE_BOOL_READONLY(wasm_code_coverage, false, "enable Wasm code coverage")
         // V8_TARGET_ARCH_IA32
 DEFINE_NEG_IMPLICATION(wasm_code_coverage, wasm_loop_unrolling)
 DEFINE_NEG_IMPLICATION(wasm_code_coverage, wasm_inlining)
+// Wasm code coverage is not supported by the Wasm interpreter.
+DEFINE_NEG_IMPLICATION(wasm_code_coverage, wasm_jitless)
 // --wasm-code-coverage relies on the WasmOptimizePhase phase (which only runs
 // when --wasm-opt is true) to lower the WasmIncCoverageCounter operations that
 // it introduces.

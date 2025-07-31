@@ -800,6 +800,7 @@
 
   # Other tests that require compilation.
   'compiler/fast-api-calls-wasm': [SKIP],
+  'regress/wasm/regress-366635354': [SKIP],
   'regress/wasm/regress-403308742': [SKIP],
   'wasm/async-compile': [SKIP],
   'wasm/log-code-after-post-message': [SKIP],

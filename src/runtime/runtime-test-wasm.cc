@@ -408,6 +408,11 @@ RUNTIME_FUNCTION(Runtime_IsWasmCode) {
 
 RUNTIME_FUNCTION(Runtime_IsWasmTrapHandlerEnabled) {
   DisallowGarbageCollection no_gc;
+#if defined(V8_ENABLE_DRUMBRAKE) && defined(V8_DRUMBRAKE_BOUNDS_CHECKS)
+  if (v8_flags.wasm_jitless) {
+    return *isolate->factory()->false_value();
+  }
+#endif  // defined(V8_ENABLE_DRUMBRAKE) && defined(V8_DRUMBRAKE_BOUNDS_CHECKS)
   return isolate->heap()->ToBoolean(trap_handler::IsTrapHandlerEnabled());
 }
 
