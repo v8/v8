@@ -3290,7 +3290,7 @@ std::optional<MessageTemplate> InitializeElementSegment(
     // FOR_WITH_HANDLE_SCOPE saves another 50ns per function.
     size_t elem_count = elem_segment.element_count;
     const uint8_t* pc = decoder.pc();
-    FOR_WITH_HANDLE_SCOPE(isolate, size_t, i = 0, i, i < elem_count, i++, {
+    FOR_WITH_HANDLE_SCOPE(isolate, size_t i = 0, i, i < elem_count, i++) {
       // Not using {consume_u32v} to avoid validation overhead. At this point
       // we already know that the segment is valid.
       auto [function_index, length] =
@@ -3305,7 +3305,7 @@ std::optional<MessageTemplate> InitializeElementSegment(
                                  : trusted_instance_data,
               function_index, precreate_external_functions);
       result->set(static_cast<int>(i), *value);
-    });
+    }
   } else {
     for (size_t i = 0; i < elem_segment.element_count; ++i) {
       ValueOrError value = ConsumeElementSegmentEntry(

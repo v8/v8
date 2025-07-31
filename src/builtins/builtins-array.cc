@@ -211,7 +211,7 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayFill(
     Isolate* isolate, DirectHandle<JSReceiver> receiver,
     DirectHandle<Object> value, double start, double end) {
   // 7. Repeat, while k < final.
-  FOR_WITH_HANDLE_SCOPE(isolate, double, k = start, k, k < end, k++, {
+  FOR_WITH_HANDLE_SCOPE(isolate, double k = start, k, k < end, k++) {
     // a. Let Pk be ! ToString(k).
     PropertyKey key(isolate, k);
 
@@ -224,7 +224,7 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayFill(
         ReadOnlyRoots(isolate).exception());
 
     // c. Increase k by 1.
-  });
+  }
 
   // 8. Return O.
   return *receiver;
@@ -640,7 +640,7 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayShift(
 
   // 5. Let k be 1.
   // 6. Repeat, while k < len.
-  FOR_WITH_HANDLE_SCOPE(isolate, double, k = 1, k, k < length, k++, {
+  FOR_WITH_HANDLE_SCOPE(isolate, double k = 1, k, k < length, k++) {
     // a. Let from be ! ToString(k).
     PropertyKey from(isolate, k);
 
@@ -674,7 +674,7 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayShift(
     }
 
     // f. Increase k by 1.
-  });
+  }
 
   // 7. Perform ? DeletePropertyOrThrow(O, ! ToString(len-1)).
   PropertyKey new_length_key(isolate, length - 1);
@@ -903,20 +903,20 @@ class ArrayConcatVisitor {
     DirectHandle<NumberDictionary> slow_storage(
         NumberDictionary::New(isolate_, current_storage->length()));
     uint32_t current_length = static_cast<uint32_t>(current_storage->length());
-    FOR_WITH_HANDLE_SCOPE(
-        isolate_, uint32_t, i = 0, i, i < current_length, i++, {
-          DirectHandle<Object> element(current_storage->get(i), isolate_);
-          if (!IsTheHole(*element, isolate_)) {
-            // The object holding this backing store has just been allocated, so
-            // it cannot yet be used as a prototype.
-            DirectHandle<JSObject> not_a_prototype_holder;
-            DirectHandle<NumberDictionary> new_storage = NumberDictionary::Set(
-                isolate_, slow_storage, i, element, not_a_prototype_holder);
-            if (!new_storage.is_identical_to(slow_storage)) {
-              slow_storage = loop_scope.CloseAndEscape(new_storage);
-            }
-          }
-        });
+    FOR_WITH_HANDLE_SCOPE(isolate_, uint32_t i = 0, i, i < current_length,
+                          i++) {
+      DirectHandle<Object> element(current_storage->get(i), isolate_);
+      if (!IsTheHole(*element, isolate_)) {
+        // The object holding this backing store has just been allocated, so
+        // it cannot yet be used as a prototype.
+        DirectHandle<JSObject> not_a_prototype_holder;
+        DirectHandle<NumberDictionary> new_storage = NumberDictionary::Set(
+            isolate_, slow_storage, i, element, not_a_prototype_holder);
+        if (!new_storage.is_identical_to(slow_storage)) {
+          slow_storage = loop_scope.CloseAndEscape(new_storage);
+        }
+      }
+    }
     clear_storage();
     set_storage(*slow_storage);
     set_fast_elements(false);
@@ -1083,7 +1083,7 @@ void CollectElementIndices(Isolate* isolate, DirectHandle<JSObject> object,
           Cast<NumberDictionary>(object->elements());
       uint32_t capacity = dict->Capacity();
       ReadOnlyRoots roots(isolate);
-      FOR_WITH_HANDLE_SCOPE(isolate, uint32_t, j = 0, j, j < capacity, j++, {
+      FOR_WITH_HANDLE_SCOPE(isolate, uint32_t j = 0, j, j < capacity, j++) {
         Tagged<Object> k = dict->KeyAt(InternalIndex(j));
         if (!dict->IsKey(roots, k)) continue;
         DCHECK(IsNumber(k));
@@ -1091,7 +1091,7 @@ void CollectElementIndices(Isolate* isolate, DirectHandle<JSObject> object,
         if (index < range) {
           indices->push_back(index);
         }
-      });
+      }
       break;
     }
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
@@ -1183,7 +1183,7 @@ void CollectElementIndices(Isolate* isolate, DirectHandle<JSObject> object,
 
 bool IterateElementsSlow(Isolate* isolate, DirectHandle<JSReceiver> receiver,
                          uint32_t length, ArrayConcatVisitor* visitor) {
-  FOR_WITH_HANDLE_SCOPE(isolate, uint32_t, i = 0, i, i < length, ++i, {
+  FOR_WITH_HANDLE_SCOPE(isolate, uint32_t i = 0, i, i < length, ++i) {
     Maybe<bool> maybe = JSReceiver::HasElement(isolate, receiver, i);
     if (maybe.IsNothing()) return false;
     if (maybe.FromJust()) {
@@ -1193,7 +1193,7 @@ bool IterateElementsSlow(Isolate* isolate, DirectHandle<JSReceiver> receiver,
           false);
       if (!visitor->visit(i, element_value)) return false;
     }
-  });
+  }
   visitor->increase_index_offset(length);
   return true;
 }
@@ -1257,7 +1257,7 @@ bool IterateElements(Isolate* isolate, DirectHandle<JSReceiver> receiver,
                                         isolate);
       int fast_length = static_cast<int>(length);
       DCHECK(fast_length <= elements->length());
-      FOR_WITH_HANDLE_SCOPE(isolate, int, j = 0, j, j < fast_length, j++, {
+      FOR_WITH_HANDLE_SCOPE(isolate, int j = 0, j, j < fast_length, j++) {
         DirectHandle<Object> element_value(elements->get(j), isolate);
         if (!IsTheHole(*element_value, isolate)) {
           if (!visitor->visit(j, element_value)) return false;
@@ -1273,7 +1273,7 @@ bool IterateElements(Isolate* isolate, DirectHandle<JSReceiver> receiver,
             if (!visitor->visit(j, element_value)) return false;
           }
         }
-      });
+      }
       break;
     }
     case HOLEY_DOUBLE_ELEMENTS:
@@ -1293,7 +1293,7 @@ bool IterateElements(Isolate* isolate, DirectHandle<JSReceiver> receiver,
           Cast<FixedDoubleArray>(array->elements()), isolate);
       int fast_length = static_cast<int>(length);
       DCHECK(fast_length <= elements->length());
-      FOR_WITH_HANDLE_SCOPE(isolate, int, j = 0, j, j < fast_length, j++, {
+      FOR_WITH_HANDLE_SCOPE(isolate, int j = 0, j, j < fast_length, j++) {
         if (elements->is_the_hole(j)) {
           Maybe<bool> maybe = JSReceiver::HasElement(isolate, array, j);
           if (maybe.IsNothing()) return false;
@@ -1318,7 +1318,7 @@ bool IterateElements(Isolate* isolate, DirectHandle<JSReceiver> receiver,
               isolate->factory()->NewNumber(double_value);
           if (!visitor->visit(j, element_value)) return false;
         }
-      });
+      }
       break;
     }
 
@@ -1335,7 +1335,7 @@ bool IterateElements(Isolate* isolate, DirectHandle<JSReceiver> receiver,
       CollectElementIndices(isolate, array, length, &indices);
       std::sort(indices.begin(), indices.end());
       size_t n = indices.size();
-      FOR_WITH_HANDLE_SCOPE(isolate, size_t, j = 0, j, j < n, (void)0, {
+      FOR_WITH_HANDLE_SCOPE(isolate, size_t j = 0, j, j < n, (void)0) {
         uint32_t index = indices[j];
         DirectHandle<Object> element;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -1346,19 +1346,19 @@ bool IterateElements(Isolate* isolate, DirectHandle<JSReceiver> receiver,
         do {
           j++;
         } while (j < n && indices[j] == index);
-      });
+      };
       break;
     }
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS: {
-      FOR_WITH_HANDLE_SCOPE(
-          isolate, uint32_t, index = 0, index, index < length, index++, {
-            DirectHandle<Object> element;
-            ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-                isolate, element, JSReceiver::GetElement(isolate, array, index),
-                false);
-            if (!visitor->visit(index, element)) return false;
-          });
+      FOR_WITH_HANDLE_SCOPE(isolate, uint32_t index = 0, index, index < length,
+                            index++) {
+        DirectHandle<Object> element;
+        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            isolate, element, JSReceiver::GetElement(isolate, array, index),
+            false);
+        if (!visitor->visit(index, element)) return false;
+      }
       break;
     }
     case WASM_ARRAY_ELEMENTS:
@@ -1415,7 +1415,7 @@ Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args,
 
   uint32_t estimate_result_length = 0;
   uint32_t estimate_nof = 0;
-  FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < argument_count, i++, {
+  FOR_WITH_HANDLE_SCOPE(isolate, int i = 0, i, i < argument_count, i++) {
     DirectHandle<Object> obj = args->at(i);
     uint32_t length_estimate;
     uint32_t element_estimate;
@@ -1451,7 +1451,7 @@ Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args,
     } else {
       estimate_nof += element_estimate;
     }
-  });
+  }
 
   // If estimated number of elements is more than half of length, a
   // fixed array (fast case) is more time and space-efficient than a

@@ -1307,7 +1307,7 @@ class PrototypesSetup : public wasm::Decoder {
       : Decoder(data_begin, data_end), isolate_(isolate) {}
 
   Tagged<Object> SetupPrototypes(DirectHandle<JSObject> constructors) {
-    WHILE_WITH_HANDLE_SCOPE(isolate(), more(), {
+    WHILE_WITH_HANDLE_SCOPE(isolate(), more()) {
       DirectHandle<JSObject> prototype = NextPrototype();
       if (prototype.is_null()) return ReadOnlyRoots(isolate()).exception();
       uint32_t num_methods = consume_u32v("number of methods");
@@ -1361,7 +1361,7 @@ class PrototypesSetup : public wasm::Decoder {
         }
       }
       if (!ok()) break;
-    });
+    }
     if (!ok()) {
       DirectHandle<String> message =
           isolate()

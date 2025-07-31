@@ -8283,7 +8283,7 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
       DCHECK_NE(length, 0);  // Cast to FixedDoubleArray would be invalid.
       DirectHandle<FixedDoubleArray> elements(
           Cast<FixedDoubleArray>(array->elements()), isolate);
-      FOR_WITH_HANDLE_SCOPE(isolate, uint32_t, i = 0, i, i < length, i++, {
+      FOR_WITH_HANDLE_SCOPE(isolate, uint32_t i = 0, i, i < length, i++) {
         DirectHandle<Object> value;
         if (elements->is_the_hole(i)) {
           value = Handle<Object>(isolate->factory()->undefined_value());
@@ -8299,7 +8299,7 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
           return static_cast<FastIterateResult>(result);
         }
         DCHECK(CanUseFastIteration(isolate, array));
-      });
+      }
       return FastIterateResult::kFinished;
     }
     case DICTIONARY_ELEMENTS: {

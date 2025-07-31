@@ -898,13 +898,13 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
     elements->set(0, *subject);
   } else {
     int part_start = 0;
-    FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < part_count, i++, {
+    FOR_WITH_HANDLE_SCOPE(isolate, int i = 0, i, i < part_count, i++) {
       int part_end = indices->at(i);
       DirectHandle<String> substring =
           isolate->factory()->NewProperSubString(subject, part_start, part_end);
       elements->set(i, *substring);
       part_start = part_end + pattern_length;
-    });
+    }
   }
 
   if (limit == 0xFFFFFFFFu) {
