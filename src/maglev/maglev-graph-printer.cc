@@ -980,8 +980,12 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
         if (phi->uses_require_31_bit_value()) {
           os_ << "ⁱ";
         }
-        os_ << " " << (phi->owner().is_valid() ? phi->owner().ToString() : "VO")
-            << " " << phi->result().operand() << "\n";
+        os_ << " "
+            << (phi->owner().is_valid() ? phi->owner().ToString() : "VO");
+        if (has_regalloc_data_) {
+          os_ << " " << phi->result().operand();
+        }
+        os_ << "\n";
       }
 #ifdef V8_ENABLE_MAGLEV
       if (target->state()->register_state().is_initialized()) {
