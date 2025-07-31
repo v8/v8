@@ -441,6 +441,12 @@ class NodeMultiProcessor<Processor, Processors...>
 template <typename... Processors>
 using GraphMultiProcessor = GraphProcessor<NodeMultiProcessor<Processors...>>;
 
+// TODO(victorgomes): Remove this visit_identity_nodes flag, ideally all
+// processors should visit it.
+template <typename... Processors>
+using GraphMultiProcessorWithIdentities =
+    GraphProcessor<NodeMultiProcessor<Processors...>, true>;
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

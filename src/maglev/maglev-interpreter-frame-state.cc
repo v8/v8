@@ -770,8 +770,7 @@ void MergePointInterpreterFrameState::MergeLoop(
   DCHECK(is_unmerged_loop());
   predecessors_[predecessor_count_ - 1] = loop_end_block;
 
-  backedge_deopt_frame_ =
-      builder->zone()->New<DeoptFrame>(builder->GetLatestCheckpointedFrame());
+  backedge_deopt_frame_ = builder->GetLatestCheckpointedFrame();
 
   if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
                   compilation_unit.is_tracing_enabled())) {
@@ -812,8 +811,7 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
   DCHECK_EQ(predecessors_so_far_, predecessor_count_ - 1);
   DCHECK(is_unmerged_loop());
 
-  backedge_deopt_frame_ =
-      builder->zone()->New<DeoptFrame>(builder->GetLatestCheckpointedFrame());
+  backedge_deopt_frame_ = builder->GetLatestCheckpointedFrame();
 
   auto& compilation_unit = *builder->compilation_unit();
 

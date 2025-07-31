@@ -168,8 +168,9 @@ class LoopOptimizationProcessor {
       if (auto j = current_block->predecessor_at(0)
                        ->control_node()
                        ->TryCast<CheckpointedJump>()) {
-        maps->SetEagerDeoptInfo(zone, j->eager_deopt_info()->top_frame(),
-                                maps->eager_deopt_info()->feedback_to_update());
+        maps->SetEagerDeoptInfo(
+            zone, zone->New<DeoptFrame>(j->eager_deopt_info()->top_frame()),
+            maps->eager_deopt_info()->feedback_to_update());
         return ProcessResult::kHoist;
       }
     }

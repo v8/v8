@@ -41,8 +41,8 @@ class MaglevGraphOptimizer {
 
   KnownNodeAspects& known_node_aspects() { return empty_known_node_aspects_; }
 
-  DeoptFrame GetDeoptFrameForEagerDeopt() {
-    return current_node()->eager_deopt_info()->top_frame();
+  DeoptFrame* GetDeoptFrameForEagerDeopt() {
+    return &current_node()->eager_deopt_info()->top_frame();
   }
 
  private:

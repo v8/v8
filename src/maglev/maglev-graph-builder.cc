@@ -441,7 +441,7 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScopeBase {
   ~DeoptFrameScopeBase() {
     // We might have cached a checkpointed frame which includes this scope;
     // reset it just in case.
-    builder_->latest_checkpointed_frame_.reset();
+    builder_->latest_checkpointed_frame_ = nullptr;
   }
 
   DeoptFrame::FrameData& data() { return data_; }
@@ -1409,9 +1409,9 @@ DeoptFrame* MaglevGraphBuilder::GetDeoptFrameForEagerCall(
       interpreter::Bytecodes::WritesAccumulator(iterator_.current_bytecode()) ||
       interpreter::Bytecodes::ClobbersAccumulator(
           iterator_.current_bytecode()));
-  DeoptFrame* deopt_frame = zone()->New<DeoptFrame>(
+  DeoptFrame* deopt_frame =
       GetDeoptFrameForLazyDeoptHelper(interpreter::Register::invalid_value(), 0,
-                                      current_lazy_deopt_scope_, true));
+                                      current_lazy_deopt_scope_, true);
   return AddInlinedArgumentsToDeoptFrame(deopt_frame, unit, closure, args);
 }
 
@@ -1434,18 +1434,18 @@ DeoptFrame* RecursivelyWrapDeoptFrameWithContinuations(
 }
 }  // namespace
 
-DeoptFrame MaglevGraphBuilder::GetLatestCheckpointedFrame() {
+DeoptFrame* MaglevGraphBuilder::GetLatestCheckpointedFrame() {
   if (in_prologue_) {
     return GetDeoptFrameForEntryStackCheck();
   }
   if (!latest_checkpointed_frame_) {
     current_interpreter_frame_.virtual_objects().Snapshot();
-    latest_checkpointed_frame_.emplace(InterpretedDeoptFrame(
+    latest_checkpointed_frame_ = zone()->New<InterpretedDeoptFrame>(
         *compilation_unit_,
         zone()->New<CompactInterpreterFrameState>(
             *compilation_unit_, GetInLiveness(), current_interpreter_frame_),
         GetClosure(), BytecodeOffset(iterator_.current_offset()),
-        GetCurrentSourcePosition(), GetCallerDeoptFrame()));
+        GetCurrentSourcePosition(), GetCallerDeoptFrame());
 
     latest_checkpointed_frame_->as_interpreted().frame_state()->ForEachValue(
         *compilation_unit_,
@@ -1454,16 +1454,16 @@ DeoptFrame MaglevGraphBuilder::GetLatestCheckpointedFrame() {
 
     const EagerDeoptFrameScope* deopt_scope = current_eager_deopt_scope_;
     if (deopt_scope != nullptr) {
-      latest_checkpointed_frame_.emplace(
+      latest_checkpointed_frame_ = zone()->New<DeoptFrame>(
           deopt_scope->data(),
           RecursivelyWrapDeoptFrameWithContinuations(
               zone(), *latest_checkpointed_frame_, deopt_scope->parent()));
     }
   }
-  return *latest_checkpointed_frame_;
+  return latest_checkpointed_frame_;
 }
 
-std::tuple<DeoptFrame, interpreter::Register, int>
+std::tuple<DeoptFrame*, interpreter::Register, int>
 MaglevGraphBuilder::GetDeoptFrameForLazyDeopt() {
   interpreter::Register result_location;
   int result_size;
@@ -1479,7 +1479,7 @@ MaglevGraphBuilder::GetDeoptFrameForLazyDeopt() {
       result_location, result_size);
 }
 
-DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
+DeoptFrame* MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
     interpreter::Register result_location, int result_size,
     LazyDeoptFrameScope* scope, bool mark_accumulator_dead) {
   if (scope == nullptr) {
@@ -1501,13 +1501,13 @@ DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
       liveness->MarkAccumulatorDead();
     }
     current_interpreter_frame_.virtual_objects().Snapshot();
-    InterpretedDeoptFrame ret(
+    InterpretedDeoptFrame* ret = zone()->New<InterpretedDeoptFrame>(
         *compilation_unit_,
         zone()->New<CompactInterpreterFrameState>(*compilation_unit_, liveness,
                                                   current_interpreter_frame_),
         GetClosure(), BytecodeOffset(iterator_.current_offset()),
         GetCurrentSourcePosition(), GetCallerDeoptFrame());
-    ret.frame_state()->ForEachValue(
+    ret->frame_state()->ForEachValue(
         *compilation_unit_, [this](ValueNode* node, interpreter::Register reg) {
           // Receiver and closure values have to be materialized, even if
           // they don't otherwise escape.
@@ -1518,7 +1518,7 @@ DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
             AddDeoptUse(node);
           }
         });
-    AddDeoptUse(ret.closure());
+    AddDeoptUse(ret->closure());
     return ret;
   }
 
@@ -1529,18 +1529,18 @@ DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
 
   // Mark the accumulator dead in parent frames since we know that the
   // continuation will write it.
-  return DeoptFrame(scope->data(),
-                    zone()->New<DeoptFrame>(GetDeoptFrameForLazyDeoptHelper(
-                        result_location, result_size, scope->parent(),
-                        scope->data().tag() ==
-                            DeoptFrame::FrameType::kBuiltinContinuationFrame)));
+  return zone()->New<DeoptFrame>(
+      scope->data(), GetDeoptFrameForLazyDeoptHelper(
+                         result_location, result_size, scope->parent(),
+                         scope->data().tag() ==
+                             DeoptFrame::FrameType::kBuiltinContinuationFrame));
 }
 
-InterpretedDeoptFrame MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
-  if (entry_stack_check_frame_) return *entry_stack_check_frame_;
+InterpretedDeoptFrame* MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
+  if (entry_stack_check_frame_) return entry_stack_check_frame_;
   DCHECK_EQ(iterator_.current_offset(), entrypoint_);
   DCHECK(!is_inline());
-  entry_stack_check_frame_.emplace(
+  entry_stack_check_frame_ = zone()->New<InterpretedDeoptFrame>(
       *compilation_unit_,
       zone()->New<CompactInterpreterFrameState>(
           *compilation_unit_,
@@ -1549,13 +1549,11 @@ InterpretedDeoptFrame MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
       GetClosure(), BytecodeOffset(bailout_for_entrypoint()),
       GetCurrentSourcePosition(), nullptr);
 
-  (*entry_stack_check_frame_)
-      .frame_state()
-      ->ForEachValue(
-          *compilation_unit_,
-          [&](ValueNode* node, interpreter::Register) { AddDeoptUse(node); });
-  AddDeoptUse((*entry_stack_check_frame_).closure());
-  return *entry_stack_check_frame_;
+  entry_stack_check_frame_->frame_state()->ForEachValue(
+      *compilation_unit_,
+      [&](ValueNode* node, interpreter::Register) { AddDeoptUse(node); });
+  AddDeoptUse(entry_stack_check_frame_->closure());
+  return entry_stack_check_frame_;
 }
 
 ReduceResult MaglevGraphBuilder::GetSmiValue(
@@ -8298,7 +8296,7 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
   // Prapagate back (or reset) builder state.
   unobserved_context_slot_stores_ =
       inner_graph_builder.unobserved_context_slot_stores_;
-  latest_checkpointed_frame_.reset();
+  latest_checkpointed_frame_ = nullptr;
   ClearCurrentAllocationBlock();
 
   if (result.IsDoneWithAbort()) {

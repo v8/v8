@@ -67,9 +67,9 @@ class MaglevPhiRepresentationSelector {
     return UpdateNodeInputs(node, &state);
   }
 
-  DeoptFrame GetDeoptFrameForEagerDeopt() {
+  DeoptFrame* GetDeoptFrameForEagerDeopt() {
     DCHECK_NOT_NULL(eager_deopt_frame_);
-    return *eager_deopt_frame_;
+    return eager_deopt_frame_;
   }
 
  private:

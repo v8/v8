@@ -1961,12 +1961,12 @@ inline compiler::BytecodeArrayRef DeoptFrame::GetBytecodeArray() const {
 
 class DeoptInfo {
  protected:
-  DeoptInfo(Zone* zone, const DeoptFrame top_frame,
+  DeoptInfo(Zone* zone, DeoptFrame* top_frame,
             compiler::FeedbackSource feedback_to_update);
 
  public:
-  DeoptFrame& top_frame() { return top_frame_; }
-  const DeoptFrame& top_frame() const { return top_frame_; }
+  DeoptFrame& top_frame() { return *top_frame_; }
+  const DeoptFrame& top_frame() const { return *top_frame_; }
   const compiler::FeedbackSource& feedback_to_update() const {
     return feedback_to_update_;
   }
@@ -1988,7 +1988,7 @@ class DeoptInfo {
 #endif  // DEBUG
 
  private:
-  DeoptFrame top_frame_;
+  DeoptFrame* top_frame_;
   const compiler::FeedbackSource feedback_to_update_;
   InputLocation* input_locations_ = nullptr;
 #ifdef DEBUG
@@ -2006,7 +2006,7 @@ struct RegisterSnapshot {
 
 class EagerDeoptInfo : public DeoptInfo {
  public:
-  EagerDeoptInfo(Zone* zone, const DeoptFrame top_frame,
+  EagerDeoptInfo(Zone* zone, DeoptFrame* top_frame,
                  compiler::FeedbackSource feedback_to_update)
       : DeoptInfo(zone, top_frame, feedback_to_update) {}
 
@@ -2024,7 +2024,7 @@ class EagerDeoptInfo : public DeoptInfo {
 
 class LazyDeoptInfo : public DeoptInfo {
  public:
-  LazyDeoptInfo(Zone* zone, const DeoptFrame top_frame,
+  LazyDeoptInfo(Zone* zone, DeoptFrame* top_frame,
                 interpreter::Register result_location, int result_size,
                 compiler::FeedbackSource feedback_to_update)
       : DeoptInfo(zone, top_frame, feedback_to_update),
@@ -2424,12 +2424,12 @@ class NodeBase : public ZoneObject {
   }
 
   void CopyEagerDeoptInfoOf(NodeBase* other, Zone* zone) {
-    new (eager_deopt_info())
-        EagerDeoptInfo(zone, other->eager_deopt_info()->top_frame(),
-                       other->eager_deopt_info()->feedback_to_update());
+    new (eager_deopt_info()) EagerDeoptInfo(
+        zone, zone->New<DeoptFrame>(other->eager_deopt_info()->top_frame()),
+        other->eager_deopt_info()->feedback_to_update());
   }
 
-  void SetEagerDeoptInfo(Zone* zone, DeoptFrame deopt_frame,
+  void SetEagerDeoptInfo(Zone* zone, DeoptFrame* deopt_frame,
                          compiler::FeedbackSource feedback_to_update =
                              compiler::FeedbackSource()) {
     DCHECK(properties().can_eager_deopt() ||

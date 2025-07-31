@@ -406,7 +406,7 @@ void Input::clear() {
   node_ = nullptr;
 }
 
-DeoptInfo::DeoptInfo(Zone* zone, const DeoptFrame top_frame,
+DeoptInfo::DeoptInfo(Zone* zone, DeoptFrame* top_frame,
                      compiler::FeedbackSource feedback_to_update)
     : top_frame_(top_frame), feedback_to_update_(feedback_to_update) {}
 
