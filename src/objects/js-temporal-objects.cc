@@ -634,7 +634,7 @@ GetTemporalDisambiguationOptionHandleUndefined(Isolate* isolate,
   // Default is "compatible"
   if (IsUndefined(*options)) {
     return Just(
-        temporal_rs::Disambiguation(temporal_rs::Disambiguation::Reject));
+        temporal_rs::Disambiguation(temporal_rs::Disambiguation::Compatible));
   }
   auto disambiguation_ident = isolate->factory()->disambiguation_string();
   if (!IsJSReceiver(*options)) {

@@ -566,7 +566,6 @@
   'intl402/Temporal/ZonedDateTime/from/dst-skipped-cross-midnight': [FAIL],
   'intl402/Temporal/ZonedDateTime/from/options-undefined': [FAIL],
   'intl402/Temporal/ZonedDateTime/prototype/with/disambiguation-undefined': [FAIL],
-  'staging/Intl402/Temporal/old/dst-properties': [FAIL],
   'staging/Intl402/Temporal/old/property-bags': [FAIL],
 
   # Unknown ZDT rounding issue
