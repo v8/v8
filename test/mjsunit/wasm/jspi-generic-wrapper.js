@@ -8,7 +8,7 @@
 // Test the stack-switching export wrapper in combination with the generic
 // import wrapper, in particular to test that the generic wrapper switches to
 // the central stack.
-d8.file.execute("test/mjsunit/wasm/stack-switching-export.js");
+d8.file.execute("test/mjsunit/wasm/jspi-export.js");
 
 // Throw an exception from JS, catch it in wasm and then overflow the stack.
 // This tests the implicit stack switch when the exception leaves JS (central
