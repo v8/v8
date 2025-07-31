@@ -233,18 +233,6 @@ class RegallocValueNodeInfo : public RegallocNodeInfo {
   template <typename T>
   inline RegListBase<T> ClearRegisters();
 
-  template <>
-  inline RegList ClearRegisters() {
-    DCHECK(!use_double_register());
-    return std::exchange(registers_with_result_, kEmptyRegList);
-  }
-
-  template <>
-  inline DoubleRegList ClearRegisters() {
-    DCHECK(use_double_register());
-    return std::exchange(double_registers_with_result_, kEmptyDoubleRegList);
-  }
-
   int num_registers() const {
     if (use_double_register()) {
       return double_registers_with_result_.Count();
@@ -341,6 +329,18 @@ class RegallocValueNodeInfo : public RegallocNodeInfo {
     return registers_with_result_.first().code();
   }
 };
+
+template <>
+inline RegList RegallocValueNodeInfo::ClearRegisters() {
+  DCHECK(!use_double_register());
+  return std::exchange(registers_with_result_, kEmptyRegList);
+}
+
+template <>
+inline DoubleRegList RegallocValueNodeInfo::ClearRegisters() {
+  DCHECK(use_double_register());
+  return std::exchange(double_registers_with_result_, kEmptyDoubleRegList);
+}
 
 }  // namespace maglev
 }  // namespace internal

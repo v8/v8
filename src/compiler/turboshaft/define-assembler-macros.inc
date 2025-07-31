@@ -15,10 +15,15 @@
 
 #define V8_COMPILER_TURBOSHAFT_ASSEMBLER_MACROS_DEFINED 1
 
+#if defined(__clang__) || !defined(V8_CC_GNU)
 #define NO_SHADOW                                    \
   _Pragma("GCC diagnostic push")                     \
       _Pragma("GCC diagnostic ignored \"-Wshadow\"")
 #define RE_SHADOW _Pragma("GCC diagnostic pop")
+#else
+#define NO_SHADOW
+#define RE_SHADOW
+#endif
 
 #define TSA_DCHECK(assembler, condition) \
   (assembler)->Asm().Dcheck(condition, #condition, __FILE__, __LINE__ )

@@ -2348,11 +2348,11 @@ class NodeBase : public ZoneObject {
     regalloc_info_ = info;
   }
 
-  constexpr bool has_id() const {
+  bool has_id() const {
     DCHECK_EQ(state_, kRegallocInfo);
     return regalloc_info_->id() != kInvalidNodeId;
   }
-  constexpr NodeIdT id() const {
+  NodeIdT id() const {
     DCHECK_EQ(state_, kRegallocInfo);
     return regalloc_info()->id();
   }
