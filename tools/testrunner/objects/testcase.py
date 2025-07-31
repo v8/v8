@@ -97,7 +97,7 @@ class TestCase(object):
     # Path (pathlib) with the relative test path, e.g. 'test-api/foo'.
     self.path = Path(path)
 
-    # String with a posix path to identify test in the status file and
+    # Sting with a posix path to identify test in the status file and
     # at the command line.
     self.name = name
 
@@ -390,14 +390,7 @@ class TestCase(object):
       - files [empty by default]
       - all flags
     """
-    files = self._get_files_params()
-    flags = self.get_flags()
-    cwd = Path.cwd()
-    is_cwd_relative = lambda f: f.is_absolute() and f.is_relative_to(cwd)
-    make_relative = lambda f: Path(f).relative_to(cwd) if is_cwd_relative(
-        Path(f)) else f
-    relative_files = [make_relative(f) for f in files]
-    return relative_files + flags
+    return (self._get_files_params() + self.get_flags())
 
   def get_flags(self):
     """Gets all flags and combines them in the following order:
@@ -507,9 +500,8 @@ class TestCase(object):
   def _create_cmd(self, ctx, params, env, timeout):
     return ctx.command(
         cmd_prefix=self.test_config.command_prefix,
-        shell=ctx.platform_shell(
-            self.get_shell(), params,
-            self.test_config.shell_dir.relative_to(Path.cwd())),
+        shell=ctx.platform_shell(self.get_shell(), params,
+                                 self.test_config.shell_dir),
         args=params,
         env=env,
         timeout=timeout,
