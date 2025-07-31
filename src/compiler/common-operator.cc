@@ -1304,15 +1304,17 @@ const Operator* CommonOperatorBuilder::Float32Constant(float value) {
       value);                                       // parameter
 }
 
-
 const Operator* CommonOperatorBuilder::Float64Constant(double value) {
-  return zone()->New<Operator1<double>>(            // --
+  return Float64Constant(Float64::FromBits(base::bit_cast<uint64_t>(value)));
+}
+
+const Operator* CommonOperatorBuilder::Float64Constant(Float64 value) {
+  return zone()->New<Operator1<Float64>>(           // --
       IrOpcode::kFloat64Constant, Operator::kPure,  // opcode
       "Float64Constant",                            // name
       0, 0, 0, 1, 0, 0,                             // counts
       value);                                       // parameter
 }
-
 
 const Operator* CommonOperatorBuilder::ExternalConstant(
     const ExternalReference& value) {

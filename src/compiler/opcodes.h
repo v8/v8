@@ -272,6 +272,7 @@
   V(ChangeTaggedToUint32)                     \
   V(ChangeTaggedToFloat64)                    \
   V(ChangeTaggedToTaggedSigned)               \
+  V(ChangeNumberOrHoleToFloat64)              \
   V(ChangeInt31ToTaggedSigned)                \
   V(ChangeInt32ToTagged)                      \
   V(ChangeInt64ToTagged)                      \
