@@ -1161,6 +1161,10 @@ bool Heap::CreateReadOnlyObjects() {
                       direct_handle(Smi::zero(), isolate()), "boolean",
                       Oddball::kFalse);
 
+  // Initialize the_hole_value.
+  Hole::Initialize(isolate(), factory->the_hole_value(),
+                   factory->hole_nan_value());
+
   set_property_cell_hole_value(*factory->NewHole());
   set_hash_table_hole_value(*factory->NewHole());
   set_promise_hole_value(*factory->NewHole());

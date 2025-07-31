@@ -98,9 +98,11 @@ FieldAccess AccessBuilder::ForContextCellFloat64Value() {
 }
 
 // static
-FieldAccess AccessBuilder::ForHeapNumberOrOddballValue() {
+FieldAccess AccessBuilder::ForHeapNumberOrOddballOrHoleValue() {
   STATIC_ASSERT_FIELD_OFFSETS_EQUAL(offsetof(HeapNumber, value_),
                                     offsetof(Oddball, to_number_raw_));
+  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(offsetof(HeapNumber, value_),
+                                    Hole::kRawNumericValueOffset);
   return ForHeapNumberValue();
 }
 

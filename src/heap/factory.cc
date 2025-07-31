@@ -412,6 +412,7 @@ DirectHandle<Tuple2> Factory::NewTuple2(DirectHandle<Object> value1,
 DirectHandle<Hole> Factory::NewHole() {
   DirectHandle<Hole> hole(
       Cast<Hole>(New(hole_map(), AllocationType::kReadOnly)), isolate());
+  Hole::Initialize(isolate(), hole, hole_nan_value());
   return hole;
 }
 

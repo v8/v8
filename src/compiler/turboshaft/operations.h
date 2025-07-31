@@ -5008,7 +5008,6 @@ struct ConvertJSPrimitiveToUntaggedOp
     kBoolean,
     kSmi,
     kNumberOrOddball,
-    kNumberOrHole,
     kPlainPrimitive,
   };
   UntaggedKind kind;

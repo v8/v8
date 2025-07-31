@@ -59,7 +59,7 @@ class AccessBuilderTS : public AllStatic {
   TF_FIELD_ACCESS(HeapNumber, Float64, ForHeapNumberValue)
   using HeapNumberOrOddballOrHole = Union<HeapNumber, Oddball, Hole>;
   TF_FIELD_ACCESS(HeapNumberOrOddballOrHole, Float64,
-                  ForHeapNumberOrOddballValue)
+                  ForHeapNumberOrOddballOrHoleValue)
 #undef TF_ACCESS
   static FieldAccessTS<Object, Map> ForMap(
       WriteBarrierKind write_barrier = kMapWriteBarrier) {

@@ -46,7 +46,7 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to HeapNumber::value() and Oddball::to_number_raw() fields.
   // This is the same as ForHeapNumberValue, except it documents (and static
   // asserts) that both inputs are valid.
-  static FieldAccess ForHeapNumberOrOddballValue();
+  static FieldAccess ForHeapNumberOrOddballOrHoleValue();
 
   // Provides access to BigInt's bit field.
   static FieldAccess ForBigIntBitfield();

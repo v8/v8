@@ -18,9 +18,19 @@ namespace internal {
 
 class Hole : public HeapObject {
  public:
+  inline void set_raw_numeric_value(uint64_t bits);
+
   DECL_VERIFIER(Hole)
 
-  static constexpr int kSize = kHeaderSize;
+  static inline void Initialize(Isolate* isolate, DirectHandle<Hole> hole,
+                                DirectHandle<HeapNumber> numeric_value);
+
+  // Currently, we allow optimized code to treat holes as HeapNumbers to avoid
+  // conditional branching. This works by making Hole::kRawNumericValueOffset
+  // the same as offsetof(HeapNumber, value_) and storing NaN at that offset in
+  // Holes. This way, a hole will look like a NaN HeapNumber to optimized code.
+  DECL_FIELD_OFFSET_TQ(RawNumericValue, HeapObject::kHeaderSize, "float64")
+  static constexpr int kSize = kRawNumericValueOffset + kDoubleSize;
 
   using BodyDescriptor = FixedBodyDescriptor<kSize, kSize, kSize>;
 

@@ -1447,15 +1447,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // CheckTypeIs(node, to));
       break;
     }
-    case IrOpcode::kChangeNumberOrHoleToFloat64: {
-      // NumberOrHole /\ Tagged -> Number /\ UntaggedFloat64
-      // TODO(neis): Activate once ChangeRepresentation works in typer.
-      // Type from = Type::Intersect(Type::NumberOrHole(), Type::Tagged());
-      // Type to = Type::Intersect(Type::Number(), Type::UntaggedFloat64());
-      // CheckValueInputIs(node, 0, from));
-      // CheckTypeIs(node, to));
-      break;
-    }
     case IrOpcode::kChangeTaggedToTaggedSigned:      // Fall through.
       break;
     case IrOpcode::kTruncateTaggedToFloat64PreserveUndefined:

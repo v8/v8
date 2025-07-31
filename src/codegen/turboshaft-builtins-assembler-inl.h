@@ -570,7 +570,7 @@ class BuiltinsReducer : public Next {
         __ OverwriteFeedback(BinaryOperationFeedback::kNumberOrOddball);
         V<Float64> oddball_value =
             __ LoadField(V<Oddball>::Cast(value_heap_object),
-                         AccessBuilderTS::ForHeapNumberOrOddballValue());
+                         AccessBuilderTS::ForHeapNumberOrOddballOrHoleValue());
         GOTO(if_number, __ JSTruncateFloat64ToWord32(oddball_value));
       }
 
