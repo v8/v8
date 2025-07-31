@@ -7870,6 +7870,14 @@ void CodeGenerator::AssembleConstructFrame() {
                     CommonFrameConstants::kFixedFrameSizeAboveFp)));
         __ near_call(static_cast<Address>(Builtin::kWasmHandleStackOverflow),
                      RelocInfo::WASM_STUB_CALL);
+        // If the call succesfully grew the stack, we don't expect it to have
+        // allocated any heap objects or otherwise triggered any GC.
+        // If it was not able to grow the stack, it may have triggered a GC when
+        // allocating the stack overflow exception object, but the call did not
+        // return in this case.
+        // So either way, we can just record an empty safepoint here.
+        ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
+        RecordSafepoint(reference_map);
         __ PopAll(fp_regs_to_save);
         __ PopAll(regs_to_save);
       } else {
