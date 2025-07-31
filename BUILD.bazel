@@ -2387,6 +2387,7 @@ filegroup(
         "src/regexp/regexp-bytecode-peephole.h",
         "src/regexp/regexp-bytecodes.cc",
         "src/regexp/regexp-bytecodes.h",
+        "src/regexp/regexp-bytecodes-inl.h",
         "src/regexp/regexp-compiler.cc",
         "src/regexp/regexp-compiler.h",
         "src/regexp/regexp-compiler-tonode.cc",
