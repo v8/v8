@@ -16,6 +16,11 @@ class ModuleGenerationTest
   ModuleGenerationTest() : zone_(&allocator_, "ModuleGenerationTest") {
     // Enable GC, required by `ResetTypeCanonicalizer`.
     v8_flags.expose_gc = true;
+    // Random module generation mixed the old and new EH proposal; allow that
+    // generally.
+    // Note that for libfuzzer fuzzers this is implied by `--fuzzing`, but for
+    // now we are more selective here and only enable this one flag.
+    v8_flags.wasm_allow_mixed_eh_for_testing = true;
     EnableExperimentalWasmFeatures(isolate());
   }
 
