@@ -92,7 +92,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': 'f5c8626fa2949908146d00fdc3a182b16e5c32b5',
+  'partition_alloc_version': 'ec5fa718c5470c1f4840f50f72b2815545ee09e8',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -130,9 +130,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '38265dc9620be22c42da758e534deca1a8af1fbd',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5aa72841882c9df27ba6fdfb92c4659e1c273396',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '05da82cda10201561dfb10b2cd400a7292dc46bf',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '40f96b0b4abe41bacb0838d723afdad715f89a8e',
   'buildtools/linux64': {
     'packages': [
       {
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ba3926011ba1bd617b6f368b59ec5e19647b96f6',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'd85491b0a1dcb82dd8e124a876ecd7e3d50dc5e8',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -548,7 +548,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '363a126ed293970f3df97ee5f760cba29a29e193',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '094a12c2b1338e4af17d3ebfae8c7206228a3630',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'ef1872e2e1012694ffbeeed668ff2c127517b7f0',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '3438d4183bfc7c0d6850e8b970204cc8189f0323',
   'third_party/abseil-cpp': {
