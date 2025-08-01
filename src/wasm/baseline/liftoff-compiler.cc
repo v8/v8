@@ -1998,19 +1998,21 @@ class LiftoffCompiler {
 
   void ContNew(FullDecoder* decoder, const ContIndexImmediate& imm,
                const Value& func_ref, Value* result) {
-    UNIMPLEMENTED();
+    unsupported(decoder, kWasmfx,
+                "unimplemented Liftoff instruction: cont.new");
   }
 
   void ContBind(FullDecoder* decoder, const ContIndexImmediate& orig_imm,
                 Value input_cont, const Value args[],
                 const ContIndexImmediate& new_imm, Value* result) {
-    UNIMPLEMENTED();
+    unsupported(decoder, kWasmfx,
+                "unimplemented Liftoff instruction: cont.bind");
   }
 
   void Resume(FullDecoder* decoder, const ContIndexImmediate& imm,
-              base::Vector<HandlerCase> handlers, const Value args[],
-              const Value returns[]) {
-    UNIMPLEMENTED();
+              base::Vector<HandlerCase> handlers, const Value& cont_ref,
+              const Value args[], const Value returns[]) {
+    unsupported(decoder, kWasmfx, "unimplemented Liftoff instruction: resume");
   }
 
   void ResumeThrow(FullDecoder* decoder,
@@ -2018,18 +2020,19 @@ class LiftoffCompiler {
                    const TagIndexImmediate& exc_imm,
                    base::Vector<wasm::HandlerCase> handlers, const Value args[],
                    const Value returns[]) {
-    UNIMPLEMENTED();
+    unsupported(decoder, kWasmfx,
+                "unimplemented Liftoff instruction: resume_throw");
   }
 
   void Switch(FullDecoder* decoder, const TagIndexImmediate& tag_imm,
               const ContIndexImmediate& con_imm, const Value& cont_ref,
               const Value args[], Value returns[]) {
-    UNIMPLEMENTED();
+    unsupported(decoder, kWasmfx, "unimplemented Liftoff instruction: switch");
   }
 
   void Suspend(FullDecoder* decoder, const TagIndexImmediate& imm,
                const Value args[], const Value returns[]) {
-    UNIMPLEMENTED();
+    unsupported(decoder, kWasmfx, "unimplemented Liftoff instruction: suspend");
   }
 
   // Before emitting the conditional branch, {will_freeze} will be initialized

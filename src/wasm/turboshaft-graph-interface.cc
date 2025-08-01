@@ -3987,8 +3987,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   void Resume(FullDecoder* decoder, const ContIndexImmediate& imm,
-              base::Vector<HandlerCase> handlers, const Value args[],
-              const Value returns[]) {
+              base::Vector<HandlerCase> handlers, const Value& cont_ref,
+              const Value args[], Value returns[]) {
     UNIMPLEMENTED();
   }
 

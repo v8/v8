@@ -1463,7 +1463,7 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
   F(ContBind, const ContIndexImmediate& orig_imm, Value input_cont,            \
     const Value args[], const ContIndexImmediate& new_imm, Value* result)      \
   F(Resume, const ContIndexImmediate& imm, base::Vector<HandlerCase> handlers, \
-    const Value args[], const Value returns[])                                 \
+    const Value& cont_ref, const Value args[], const Value returns[])          \
   F(ResumeThrow, const ContIndexImmediate& cont_imm,                           \
     const TagIndexImmediate& exc_imm, base::Vector<HandlerCase> handlers,      \
     const Value args[], const Value returns[])                                 \
@@ -4637,7 +4637,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     ContIndexImmediate imm(this, this->pc_ + 1, validate);
     if (!this->ValidateCont(this->pc_ + 1, imm)) return 0;
 
-    Pop(ValueType::RefNull(imm.heap_type()));
+    Value cont_ref = Pop(ValueType::RefNull(imm.heap_type()));
 
     EffectHandlerTableImmediate handler_table_imm(
         this, this->pc_ + 1 + imm.length, validate);
@@ -4657,8 +4657,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     PoppedArgVector args = PopArgs(contFunSig);
     Value* returns = PushReturns(contFunSig);
 
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(Resume, imm, handlers, args.data(),
-                                       returns);
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(Resume, imm, handlers, cont_ref,
+                                       args.data(), returns);
     return 1 + imm.length + table_length;
   }
 
