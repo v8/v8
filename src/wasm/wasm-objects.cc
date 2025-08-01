@@ -2038,6 +2038,11 @@ DirectHandle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
                               ->implicit_arg(function_index)),
                       isolate)
                 : trusted_instance_data;
+  // Imported Wasm functions should always have a cached func ref. Recreating
+  // the `WasmInternalFunction` below does not work because the `function_index`
+  // is an import index which cannot be interpreted in the context of the
+  // imported `WasmTrustedInstanceData`.
+  SBXCHECK(!is_import || Is<WasmImportData>(implicit_arg));
 
   // TODO(14034): Create funcref RTTs lazily?
   DirectHandle<Map> rtt{
