@@ -3196,6 +3196,27 @@ DirectHandle<Map> CreateFuncRefMap(Isolate* isolate,
   return map;
 }
 
+DirectHandle<Map> CreateContRefMap(Isolate* isolate,
+                                   wasm::CanonicalTypeIndex type) {
+  const int inobject_properties = 0;
+  const InstanceType instance_type = WASM_CONTINUATION_OBJECT_TYPE;
+  const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
+  const wasm::CanonicalValueType no_array_element = wasm::kWasmBottom;
+  wasm::CanonicalValueType heaptype =
+      wasm::CanonicalValueType::Ref(type, false, wasm::RefTypeKind::kCont);
+  DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
+      heaptype, no_array_element, {}, 0, false);
+  constexpr int kInstanceSize = WasmContinuationObject::kSize;
+  DCHECK_EQ(kInstanceSize,
+            Cast<Map>(isolate->root(RootIndex::kWasmContinuationObjectMap))
+                ->instance_size());
+  DirectHandle<Map> map = isolate->factory()->NewContextlessMap(
+      instance_type, kInstanceSize, elements_kind, inobject_properties,
+      AllocationType::kMap);
+  map->set_wasm_type_info(*type_info);
+  return map;
+}
+
 DirectHandle<WasmJSFunction> WasmJSFunction::New(
     Isolate* isolate, const wasm::FunctionSig* sig,
     DirectHandle<JSReceiver> callable, wasm::Suspend suspend) {

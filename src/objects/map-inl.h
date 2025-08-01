@@ -915,7 +915,8 @@ DEF_GETTER(Map, raw_native_context_or_null, Tagged<Object>) {
 ACCESSORS_CHECKED(Map, wasm_type_info, Tagged<WasmTypeInfo>,
                   kConstructorOrBackPointerOrNativeContextOffset,
                   IsWasmStructMap(*this) || IsWasmArrayMap(*this) ||
-                      IsWasmFuncRefMap(*this))
+                      IsWasmFuncRefMap(*this) ||
+                      IsWasmContinuationObjectMap(*this))
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 bool Map::IsPrototypeValidityCellValid() const {

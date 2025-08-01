@@ -105,7 +105,8 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
                              num_supertypes, type.is_shared);
       break;
     case TypeDefinition::kCont:
-      UNIMPLEMENTED();
+      map = CreateContRefMap(isolate, canonical_type_index);
+      break;
   }
   canonical_rtts->set(canonical_type_index.index, MakeWeak(*map));
   maybe_shared_maps->set(type_index.index, *map);

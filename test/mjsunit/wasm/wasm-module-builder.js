@@ -81,6 +81,7 @@ let kWasmSharedTypeForm = 0x65;
 let kWasmFunctionTypeForm = 0x60;
 let kWasmStructTypeForm = 0x5f;
 let kWasmArrayTypeForm = 0x5e;
+let kWasmContTypeForm = 0x5d;
 let kWasmSubtypeForm = 0x50;
 let kWasmSubtypeFinalForm = 0x4f;
 let kWasmRecursiveTypeGroupForm = 0x4e;
@@ -503,7 +504,13 @@ const kWasmOpcodes = {
   'RefEq': 0xd3,
   'RefAsNonNull': 0xd4,
   'BrOnNull': 0xd5,
-  'BrOnNonNull': 0xd6
+  'BrOnNonNull': 0xd6,
+  'ContNew': 0xe0,
+  'ContBind': 0xe1,
+  'Suspend': 0xe2,
+  'Resume': 0xe3,
+  'ResumeThrow': 0xe4,
+  'Switch': 0xe5
 };
 
 function defineWasmOpcode(name, value) {
@@ -1068,6 +1075,10 @@ let kCatchRef = 0x1;
 let kCatchAllNoRef = 0x2;
 let kCatchAllRef = 0x3;
 
+// Stack switching handler kinds.
+let kOnSuspend = 0x0;
+let kOnSwitch = 0x1;
+
 let kTrapMsgs = [
   'unreachable',                                    // --
   'memory access out of bounds',                    // --
@@ -1391,6 +1402,15 @@ class WasmArray {
   }
 }
 
+class WasmCont {
+  constructor(type_index) {
+    this.type_index = type_index;
+    this.supertype = kNoSuperType;
+    this.is_final = true;
+    this.is_shared = false;
+  }
+}
+
 class WasmElemSegment {
   constructor(table, offset, type, elements, is_decl, is_shared) {
     this.table = table;
@@ -1538,6 +1558,13 @@ class WasmModuleBuilder {
         new WasmArray(type, mutability, is_final, is_shared, supertype_idx));
     return this.types.length - 1;
   }
+
+  addCont(type) {
+    let type_index = (typeof type) == 'number' ? type : this.addType(type);
+    this.types.push(new WasmCont(type_index));
+    return this.types.length - 1;
+  }
+
 
   nextTypeIndex() { return this.types.length; }
 
@@ -1892,6 +1919,9 @@ class WasmModuleBuilder {
             section.emit_u8(kWasmArrayTypeForm);
             section.emit_type(type.type);
             section.emit_u8(type.mutability ? 1 : 0);
+          } else if (type instanceof WasmCont) {
+            section.emit_u8(kWasmContTypeForm);
+            section.emit_u32v(type.type_index);
           } else {
             section.emit_u8(kWasmFunctionTypeForm);
             section.emit_u32v(type.params.length);

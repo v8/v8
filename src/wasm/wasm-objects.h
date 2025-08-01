@@ -1619,6 +1619,9 @@ DirectHandle<Map> CreateFuncRefMap(Isolate* isolate,
                                    DirectHandle<Map> opt_rtt_parent,
                                    int num_supertypes, bool shared);
 
+DirectHandle<Map> CreateContRefMap(Isolate* isolate,
+                                   wasm::CanonicalTypeIndex type);
+
 namespace wasm {
 // Takes a {value} in the JS representation and typechecks it according to
 // {expected}. If the typecheck succeeds, returns the wasm representation of the
