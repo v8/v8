@@ -629,13 +629,14 @@ void AsmJsParser::ValidateModuleVarStdlib(VarInfo* info) {
 
 // 6.2 ValidateExport
 void AsmJsParser::ValidateExport() {
-  // clang-format off
   EXPECT_TOKEN(TOK(return));
-  // clang-format on
   if (Check('{')) {
     for (;;) {
       base::Vector<const char> name = CopyCurrentIdentifierString();
       if (!scanner_.IsGlobal() && !scanner_.IsLocal()) {
+        FAIL("Illegal export name");
+      }
+      if (name == base::CStrVector("__proto__")) {
         FAIL("Illegal export name");
       }
       Consume();
