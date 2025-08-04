@@ -3038,6 +3038,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
     }
     DirectHandle<String> str = Cast<String>(item);
 
+#ifdef TEMPORAL_CAPI_VERSION_0_0_11
     // b. Let result be ? ParseISODateTime(item, «
     // TemporalDateTimeString[+Zoned] »).
     //
@@ -3070,6 +3071,41 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
         isolate, temporal_rs::ZonedDateTime::from_owned_partial(
                      *parsed, options.overflow, options.disambiguation,
                      options.offset_option));
+#else  // TEMPORAL_CAPI_VERSION_0_0_11
+
+    // b. Let result be ? ParseISODateTime(item, «
+    // TemporalDateTimeString[+Zoned] »).
+    //
+    // Steps b-l handled in Rust
+    std::unique_ptr<temporal_rs::ParsedZonedDateTime> parsed;
+
+    auto rust_result = HandleStringEncodings<
+        TemporalAllocatedResult<temporal_rs::ParsedZonedDateTime>>(
+        isolate, str,
+        [](std::string_view view)
+            -> TemporalAllocatedResult<temporal_rs::ParsedZonedDateTime> {
+          return temporal_rs::ParsedZonedDateTime::from_utf8(view);
+        },
+        [](std::u16string_view view)
+            -> TemporalAllocatedResult<temporal_rs::ParsedZonedDateTime> {
+          return temporal_rs::ParsedZonedDateTime::from_utf16(view);
+        });
+    MOVE_RETURN_ON_EXCEPTION(
+        isolate, parsed, ExtractRustResult(isolate, std::move(rust_result)));
+
+    // o. Perform ? GetTemporalDisambiguationOption(resolvedOptions).
+    // p. Perform ? GetTemporalOffsetOption(resolvedOptions, reject).
+    // q. Perform ? GetTemporalOverflowOption(resolvedOptions).
+    ZDTOptions options;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, options, GetZDTOptions(isolate, options_obj, method_name));
+
+    // Rest of the steps handled in Rust
+    return ConstructRustWrappingType<JSTemporalZonedDateTime>(
+        isolate, temporal_rs::ZonedDateTime::from_parsed(
+                     *parsed, options.disambiguation,
+                     options.offset_option));
+#endif  // TEMPORAL_CAPI_VERSION_0_0_11
   }
 }
 
