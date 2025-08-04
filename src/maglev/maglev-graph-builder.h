@@ -329,6 +329,7 @@ class MaglevGraphBuilder {
    public:
     class Variable;
     class Label;
+    class LabelForTrackingInterpreterFrameState;
     class LoopLabel;
 
     MaglevSubGraphBuilder(MaglevGraphBuilder* builder, int variable_count);
@@ -361,9 +362,13 @@ class MaglevGraphBuilder {
     void TakeKnownNodeAspectsAndVOsFromParent();
     void MoveKnownNodeAspectsAndVOsToParent();
 
+    MaglevCompilationUnit* compilation_unit() const {
+      return builder_->compilation_unit();
+    }
+
     MaglevGraphBuilder* builder_;
-    MaglevCompilationUnit* compilation_unit_;
-    InterpreterFrameState pseudo_frame_;
+    MaglevCompilationUnit* variable_compilation_unit_;
+    InterpreterFrameState variable_frame_;
   };
 
   // TODO(olivf): Currently identifying dead code relies on the fact that loops
@@ -1200,7 +1205,8 @@ class MaglevGraphBuilder {
       ValueNode* heap_object, ValueNode* object_map,
       base::Vector<const compiler::MapRef> maps,
       MaglevSubGraphBuilder* sub_graph,
-      std::optional<MaglevSubGraphBuilder::Label>& if_not_matched);
+      std::optional<MaglevSubGraphBuilder::Label>& if_not_matched,
+      std::optional<int> future_bind_offset = std::nullopt);
   ReduceResult BuildTransitionElementsKindAndCompareMaps(
       ValueNode* heap_object, ValueNode* object_map,
       const ZoneVector<compiler::MapRef>& transition_sources,
@@ -1416,6 +1422,8 @@ class MaglevGraphBuilder {
   };
   std::optional<ContinuationOffsets>
   FindContinuationForPolymorphicPropertyLoad();
+  std::optional<ContinuationOffsets>
+  FindContinuationForPolymorphicPropertyLoadImpl();
   ReduceResult BuildContinuationForPolymorphicPropertyLoad(
       const ContinuationOffsets& offsets);
   void AdvanceThroughContinuationForPolymorphicPropertyLoad(
