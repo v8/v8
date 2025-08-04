@@ -3055,10 +3055,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // We could add a register constraint to avoid this, but in this
       // case it's simpler to just copy the source into a scratch register.
       __ vmv_vv(kSimd128ScratchReg, src);
-      __ vmv_vv(dst, kSimd128RegZero);
+      auto zero_reg = kSimd128ScratchReg4;
+      __ vmv_vi(zero_reg, 0);
+      __ vmv_vv(dst, zero_reg);
 
       __ bind(&t);
-      __ vmsne_vv(v0, kSimd128ScratchReg, kSimd128RegZero);
+      __ vmsne_vv(v0, kSimd128ScratchReg, zero_reg);
       __ vadd_vi(dst, dst, 1, Mask);
       __ vadd_vi(kSimd128ScratchReg2, kSimd128ScratchReg, -1, Mask);
       __ vand_vv(kSimd128ScratchReg, kSimd128ScratchReg, kSimd128ScratchReg2);
