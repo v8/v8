@@ -342,11 +342,6 @@
   'built-ins/Temporal/PlainYearMonth/from/argument-plainyearmonth': [FAIL],
   'built-ins/Temporal/PlainYearMonth/from/observable-get-overflow-argument-string-invalid': [FAIL],
 
-  # Integer out of range (https://github.com/boa-dev/temporal/issues/334)
-  'built-ins/Temporal/PlainDate/from/with-year-month-day-need-constrain': [FAIL],
-  'built-ins/Temporal/PlainMonthDay/from/overflow': [FAIL],
-  'built-ins/Temporal/PlainYearMonth/from/overflow-constrain': [FAIL],
-
   # Epoch disambiguation panic: https://github.com/boa-dev/temporal/issues/445
   'staging/Intl402/Temporal/old/datetime-toLocaleString': [FAIL],
   'staging/Intl402/Temporal/old/tzdb-string-parsing': [FAIL],
