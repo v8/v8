@@ -3008,6 +3008,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvI8x16Shuffle: {
+      CheckRegisterConstraints(
+          opcode, i, RiscvRegisterConstraint::kNoDestinationSourceOverlap);
       VRegister dst = i.OutputSimd128Register(),
                 src0 = i.InputSimd128Register(0),
                 src1 = i.InputSimd128Register(1);
@@ -3034,14 +3036,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vslideup_vi(kSimd128ScratchReg, kSimd128ScratchReg2, 2);
 #endif
 
+      DCHECK_NE(dst, src0);
+      DCHECK_NE(dst, src1);
       __ VU.set(kScratchReg, E8, m1);
-      if (dst == src0) {
-        __ vmv_vv(kSimd128ScratchReg2, src0);
-        src0 = kSimd128ScratchReg2;
-      } else if (dst == src1) {
-        __ vmv_vv(kSimd128ScratchReg2, src1);
-        src1 = kSimd128ScratchReg2;
-      }
       __ vrgather_vv(dst, src0, kSimd128ScratchReg);
       __ vadd_vi(kSimd128ScratchReg, kSimd128ScratchReg, -16);
       __ vrgather_vv(kSimd128ScratchReg3, src1, kSimd128ScratchReg);
@@ -3054,6 +3051,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Label t;
 
       __ VU.set(kScratchReg, E8, m1);
+      // The output and input register might be the same.
+      // We could add a register constraint to avoid this, but in this
+      // case it's simpler to just copy the source into a scratch register.
       __ vmv_vv(kSimd128ScratchReg, src);
       __ vmv_vv(dst, kSimd128RegZero);
 

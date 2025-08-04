@@ -1508,8 +1508,12 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
   //        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle32x4)));
   //   return;
   // }
-  Emit(kRiscvI8x16Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
-       g.UseRegister(input1),
+  InstructionCode opcode = kRiscvI8x16Shuffle;
+  auto input0_reg = g.UseUniqueRegister(input0);
+  auto input1_reg = g.UseUniqueRegister(input1);
+  opcode |= EncodeRegisterConstraint(
+      RiscvRegisterConstraint::kNoDestinationSourceOverlap);
+  Emit(opcode, g.DefineAsRegister(node), input0_reg, input1_reg,
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle)),
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 4)),
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 8)),
