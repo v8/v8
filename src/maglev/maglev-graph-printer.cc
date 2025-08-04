@@ -1033,8 +1033,7 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
 }
 
 void PrintGraph(std::ostream& os, Graph* const graph, bool has_regalloc_data) {
-  GraphProcessor<MaglevPrintingVisitor, /*visit_identity_nodes*/ true> printer(
-      os, has_regalloc_data);
+  GraphProcessor<MaglevPrintingVisitor> printer(os, has_regalloc_data);
   printer.ProcessGraph(graph);
 }
 

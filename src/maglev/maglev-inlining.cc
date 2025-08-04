@@ -115,8 +115,7 @@ void MaglevInliner::Run() {
 
     // Optimize current graph.
     {
-      GraphProcessor<MaglevGraphOptimizer, /* visit_identity_nodes */ true>
-          optimizer(graph_);
+      GraphProcessor<MaglevGraphOptimizer> optimizer(graph_);
       optimizer.ProcessGraph(graph_);
 
       if (V8_UNLIKELY(v8_flags.print_maglev_graphs && is_tracing_enabled())) {
@@ -136,8 +135,7 @@ void MaglevInliner::Run() {
     // via the sweeper or the optimizer), or support identities in the graph
     // builder.
     {
-      GraphProcessor<SweepIdentityNodes, /* visit_identity_nodes */ true>
-          sweeper;
+      GraphProcessor<SweepIdentityNodes> sweeper;
       sweeper.ProcessGraph(graph_);
     }
   }
@@ -281,6 +279,7 @@ MaybeReduceResult MaglevInliner::BuildInlineFunction(
     // Since the rest of the block is dead, these nodes don't belong
     // to any basic block anymore.
     for (auto node : rem_nodes_in_call_block) {
+      if (node == nullptr) continue;
       node->set_owner(nullptr);
     }
     // Restore the rest of the graph.

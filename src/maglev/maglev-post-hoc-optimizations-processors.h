@@ -43,6 +43,11 @@ class SweepIdentityNodes {
     }
     return ProcessResult::kContinue;
   }
+  ProcessResult Process(Identity* node, const ProcessingState& state) {
+    // Since we're bypassing all the identity node uses, we can remove them from
+    // the graph.
+    return ProcessResult::kRemove;
+  }
 };
 
 // Optimizations involving loops which cannot be done at graph building time.

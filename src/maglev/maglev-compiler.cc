@@ -60,8 +60,7 @@ void PrintGraph(Graph* graph, bool condition, const char* message,
 
 void VerifyGraph(Graph* graph) {
 #ifdef DEBUG
-  GraphProcessor<MaglevGraphVerifier, /* visit_identity_nodes */ true> verifier(
-      graph->compilation_info());
+  GraphProcessor<MaglevGraphVerifier> verifier(graph->compilation_info());
   verifier.ProcessGraph(graph);
 #endif  // DEBUG
 }
@@ -115,7 +114,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       // PhiRepresentationSelector. Since Identity has different semantics
       // there. Check if we can remove the identity nodes during
       // PhiRepresentationSelector instead.
-      GraphProcessor<SweepIdentityNodes, /* visit_identity_nodes */ true> sweep;
+      GraphProcessor<SweepIdentityNodes> sweep;
       sweep.ProcessGraph(graph);
       VerifyGraph(graph);
     }
@@ -169,8 +168,8 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
     if (graph->may_have_unreachable_blocks()) {
       graph->RemoveUnreachableBlocks();
     }
-    GraphMultiProcessorWithIdentities<ReturnedValueRepresentationSelector,
-                                      AnyUseMarkingProcessor>
+    GraphMultiProcessor<ReturnedValueRepresentationSelector,
+                        AnyUseMarkingProcessor>
         processor;
     processor.ProcessGraph(graph);
     PrintGraph(graph, v8_flags.print_maglev_graphs, "After use marking");

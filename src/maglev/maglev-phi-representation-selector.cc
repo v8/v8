@@ -711,24 +711,7 @@ ValueNode* MaglevPhiRepresentationSelector::GetReplacementForPhiInputConversion(
       phi->predecessor_at(input_index), {input->input(0).node()});
 }
 
-bool MaglevPhiRepresentationSelector::IsUntagging(Opcode op) {
-  switch (op) {
-    case Opcode::kCheckedSmiUntag:
-    case Opcode::kUnsafeSmiUntag:
-    case Opcode::kCheckedNumberToInt32:
-    case Opcode::kCheckedObjectToIndex:
-    case Opcode::kCheckedTruncateNumberOrOddballToInt32:
-    case Opcode::kTruncateNumberOrOddballToInt32:
-    case Opcode::kCheckedNumberOrOddballToFloat64:
-    case Opcode::kUncheckedNumberOrOddballToFloat64:
-    case Opcode::kCheckedNumberOrOddballToHoleyFloat64:
-      return true;
-    default:
-      return false;
-  }
-}
-
-void MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
+ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
     Phi* phi, ValueNode* old_untagging) {
   DCHECK_EQ(old_untagging->input_count(), 1);
   DCHECK(old_untagging->input(0).node()->Is<Phi>());
@@ -746,7 +729,7 @@ void MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
 
   if (from_repr == ValueRepresentation::kTagged) {
     // The Phi hasn't been untagged, so we leave the conversion as it is.
-    return;
+    return ProcessResult::kContinue;
   }
 
   if (from_repr == to_repr) {
@@ -754,11 +737,14 @@ void MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
       if (phi->uses_require_31_bit_value() &&
           old_untagging->Is<CheckedSmiUntag>()) {
         old_untagging->OverwriteWith<CheckedSmiSizedInt32>();
-        return;
+        return ProcessResult::kContinue;
       }
     }
     old_untagging->OverwriteWith<Identity>();
-    return;
+    // All uses (except deopt frame ones) of this identity node will by bypassed
+    // in UpdateNonUntaggingNodeInputs. The node does not need to be in the
+    // graph.
+    return ProcessResult::kRemove;
   }
 
   if (old_untagging->Is<UnsafeSmiUntag>()) {
@@ -774,8 +760,12 @@ void MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
     } else {
       DCHECK_EQ(from_repr, ValueRepresentation::kInt32);
       old_untagging->OverwriteWith<Identity>();
+      // All uses (except deopt frame ones) of this identity node will by
+      // bypassed in UpdateNonUntaggingNodeInputs. The node does not need to be
+      // in the graph.
+      return ProcessResult::kRemove;
     }
-    return;
+    return ProcessResult::kContinue;
   }
 
   // The graph builder inserts 3 kind of Tagged->Int32 conversions that can have
@@ -806,6 +796,7 @@ void MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
   if (needed_conversion != old_untagging->opcode()) {
     old_untagging->OverwriteWith(needed_conversion);
   }
+  return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(

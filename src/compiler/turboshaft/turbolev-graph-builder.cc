@@ -6423,9 +6423,7 @@ void RunMaglevOptimizations(PipelineData* data,
     maglev::MaglevInliner inliner(maglev_graph);
     inliner.Run();
 
-    maglev::GraphProcessor<maglev::SweepIdentityNodes,
-                           /* visit_identity_nodes */ true>
-        sweep;
+    maglev::GraphProcessor<maglev::SweepIdentityNodes> sweep;
     sweep.ProcessGraph(maglev_graph);
   }
 
@@ -6531,7 +6529,7 @@ std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(PipelineData* data,
   data->InitializeGraphComponent(nullptr);
 
   std::optional<BailoutReason> bailout;
-  maglev::GraphProcessor<NodeProcessorBase, true> builder(
+  maglev::GraphProcessor<NodeProcessorBase> builder(
       data, data->graph(), temp_zone,
       compilation_info->toplevel_compilation_unit(), &bailout);
   builder.ProcessGraph(maglev_graph);

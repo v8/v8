@@ -41,7 +41,7 @@ namespace maglev {
 //   // overloading as appropriate to group node processing.
 //   void Process(FooNode* node, const ProcessingState& state) {}
 //
-template <typename NodeProcessor, bool visit_identity_nodes = false>
+template <typename NodeProcessor>
 class GraphProcessor;
 template <typename NodeProcessor>
 class GraphBackwardProcessor;
@@ -87,7 +87,7 @@ class ProcessingState {
   BlockConstIterator block_it_;
 };
 
-template <typename NodeProcessor, bool visit_identity_nodes>
+template <typename NodeProcessor>
 class GraphProcessor {
  public:
   template <typename... Args>
@@ -229,10 +229,6 @@ class GraphProcessor {
     switch (node->opcode()) {
 #define CASE(OPCODE)                                        \
   case Opcode::k##OPCODE:                                   \
-    if constexpr (!visit_identity_nodes &&                  \
-                  Opcode::k##OPCODE == Opcode::kIdentity) { \
-      return ProcessResult::kContinue;                      \
-    }                                                       \
     PreProcess(node->Cast<OPCODE>(), state);                \
     return node_processor_.Process(node->Cast<OPCODE>(), state);
 
@@ -275,6 +271,7 @@ class GraphBackwardProcessor {
       }
 
       for (Node* node : base::Reversed(block->nodes())) {
+        if (node == nullptr) continue;
         ProcessResult result = ProcessNodeBase(node);
         switch (result) {
           [[likely]] case ProcessResult::kContinue:
@@ -440,12 +437,6 @@ class NodeMultiProcessor<Processor, Processors...>
 
 template <typename... Processors>
 using GraphMultiProcessor = GraphProcessor<NodeMultiProcessor<Processors...>>;
-
-// TODO(victorgomes): Remove this visit_identity_nodes flag, ideally all
-// processors should visit it.
-template <typename... Processors>
-using GraphMultiProcessorWithIdentities =
-    GraphProcessor<NodeMultiProcessor<Processors...>, true>;
 
 }  // namespace maglev
 }  // namespace internal

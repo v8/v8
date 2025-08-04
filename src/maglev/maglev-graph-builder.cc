@@ -14204,6 +14204,7 @@ BasicBlock* MaglevGraphBuilder::FinishInlinedBlockForCaller(
   reducer_.FlushNodesToBlock();
   set_current_block(nullptr);
   for (Node* n : rem_nodes_in_call_block) {
+    if (n == nullptr) continue;
     n->set_owner(result);
     result->nodes().push_back(n);
   }
