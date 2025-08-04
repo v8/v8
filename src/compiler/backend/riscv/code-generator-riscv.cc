@@ -2923,8 +2923,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvI8x16ReplaceLane: {
       Simd128Register src = i.InputSimd128Register(0);
       Simd128Register dst = i.OutputSimd128Register();
-      __ VU.set(kScratchReg, E64, m1);
-      __ li(kScratchReg, 0x1 << i.InputInt8(1));
+      if (i.InputInt8(1) > 7) {
+        __ VU.set(kScratchReg, E64, m1);
+      } else {
+        // Avoid switching the vector unit if E8 is big enough.
+        __ VU.set(kScratchReg, E8, m1);
+      }
+      __ li(kScratchReg, 1 << i.InputInt8(1));
       __ vmv_sx(v0, kScratchReg);
       __ VU.set(kScratchReg, E8, m1);
       __ vmerge_vx(dst, i.InputRegister(2), src);

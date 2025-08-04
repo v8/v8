@@ -197,7 +197,7 @@ static void VisitRRIR(InstructionSelector* selector, ArchOpcode opcode,
   const turboshaft::Simd128ReplaceLaneOp& op =
       selector->Get(node).template Cast<turboshaft::Simd128ReplaceLaneOp>();
   selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
-                 g.UseImmediate(op.lane), g.UseUniqueRegister(op.input(1)));
+                 g.UseImmediate(op.lane), g.UseRegister(op.input(1)));
 }
 
 void VisitRRR(InstructionSelector* selector, InstructionCode opcode,
