@@ -507,6 +507,12 @@ void Assembler::CodeTargetAlign() {
 #endif
 }
 
+void Assembler::SwitchTargetAlign() { CodeTargetAlign(); }
+
+void Assembler::BranchTargetAlign() { CodeTargetAlign(); }
+
+void Assembler::LoopHeaderAlign() { CodeTargetAlign(); }
+
 void Assembler::CheckLabelLinkChain(Label const* label) {
 #ifdef DEBUG
   if (label->is_linked()) {

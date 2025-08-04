@@ -285,8 +285,10 @@ void CodeGenerator::AssembleCode() {
     // Align loop headers on vendor recommended boundaries.
     if (block->ShouldAlignLoopHeader()) {
       masm()->LoopHeaderAlign();
-    } else if (block->ShouldAlignCodeTarget()) {
-      masm()->CodeTargetAlign();
+    } else if (block->ShouldAlignSwitchTarget()) {
+      masm()->SwitchTargetAlign();
+    } else if (block->ShouldAlignBranchTarget()) {
+      masm()->BranchTargetAlign();
     }
 
     if (info->trace_turbo_json()) {

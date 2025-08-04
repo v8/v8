@@ -1763,10 +1763,11 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   }
   inline bool IsLoopHeader() const { return loop_end_.IsValid(); }
   inline bool IsTableSwitchTarget() const { return table_switch_target_; }
-  inline bool ShouldAlignCodeTarget() const { return code_target_alignment_; }
-  inline bool ShouldAlignLoopHeader() const { return loop_header_alignment_; }
+  inline bool ShouldAlignSwitchTarget() const { return align_switch_targets_; }
+  inline bool ShouldAlignBranchTarget() const { return align_branch_targets_; }
+  inline bool ShouldAlignLoopHeader() const { return align_loop_headers_; }
   inline bool IsLoopHeaderInAssemblyOrder() const {
-    return loop_header_alignment_;
+    return align_loop_headers_;
   }
   bool omitted_by_jump_threading() const { return omitted_by_jump_threading_; }
   void set_omitted_by_jump_threading() { omitted_by_jump_threading_ = true; }
@@ -1792,8 +1793,9 @@ class V8_EXPORT_PRIVATE InstructionBlock final
 
   void set_ao_number(RpoNumber ao_number) { ao_number_ = ao_number; }
 
-  void set_code_target_alignment(bool val) { code_target_alignment_ = val; }
-  void set_loop_header_alignment(bool val) { loop_header_alignment_ = val; }
+  void set_align_switch_targets(bool val) { align_switch_targets_ = val; }
+  void set_align_branch_targets(bool val) { align_branch_targets_ = val; }
+  void set_align_loop_headers(bool val) { align_loop_headers_ = val; }
 
   void set_table_switch_target(bool val) { table_switch_target_ = val; }
 
@@ -1822,10 +1824,12 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   bool handler_ : 1;         // Block is a handler entry point.
   bool table_switch_target_ : 1;  // Block is a table switch target, implying an
                                   //  indirect jump.
-  bool code_target_alignment_ : 1;  // insert code target alignment before this
-                                    // block
-  bool loop_header_alignment_ : 1;  // insert loop header alignment before this
-                                    // block
+  bool align_switch_targets_ : 1;  // insert switch target alignment before
+                                   // this block
+  bool align_branch_targets_ : 1;  // insert branch target alignment before
+                                   // this block
+  bool align_loop_headers_ : 1;    // insert loop header alignment before this
+                                   // block
   bool needs_frame_ : 1;
   bool must_construct_frame_ : 1;
   bool must_deconstruct_frame_ : 1;
