@@ -211,16 +211,6 @@ void VisitRRR(InstructionSelector* selector, InstructionCode opcode,
                  g.UseRegister(op.input(1), kind));
 }
 
-static void VisitUniqueRRR(InstructionSelector* selector, ArchOpcode opcode,
-                           OpIndex node) {
-  RiscvOperandGenerator g(selector);
-  const Operation& op = selector->Get(node);
-  DCHECK_EQ(op.input_count, 2);
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseUniqueRegister(op.input(0)),
-                 g.UseUniqueRegister(op.input(1)));
-}
-
 void VisitRRRR(InstructionSelector* selector, ArchOpcode opcode, OpIndex node) {
   RiscvOperandGenerator g(selector);
   const Operation& op = selector->Get(node);
@@ -1685,19 +1675,19 @@ VISIT_EXT_MUL(I16x8, I8x16, 8)
 #undef VISIT_EXT_MUL
 
 void InstructionSelector::VisitF32x4Pmin(OpIndex node) {
-  VisitUniqueRRR(this, kRiscvF32x4Pmin, node);
+  VisitRRR(this, kRiscvF32x4Pmin, node);
 }
 
 void InstructionSelector::VisitF32x4Pmax(OpIndex node) {
-  VisitUniqueRRR(this, kRiscvF32x4Pmax, node);
+  VisitRRR(this, kRiscvF32x4Pmax, node);
 }
 
 void InstructionSelector::VisitF64x2Pmin(OpIndex node) {
-  VisitUniqueRRR(this, kRiscvF64x2Pmin, node);
+  VisitRRR(this, kRiscvF64x2Pmin, node);
 }
 
 void InstructionSelector::VisitF64x2Pmax(OpIndex node) {
-  VisitUniqueRRR(this, kRiscvF64x2Pmax, node);
+  VisitRRR(this, kRiscvF64x2Pmax, node);
 }
 
 void InstructionSelector::VisitTruncateFloat64ToFloat16RawBits(OpIndex node) {
