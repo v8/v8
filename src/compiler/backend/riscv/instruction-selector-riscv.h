@@ -872,54 +872,34 @@ void InstructionSelector::VisitWord32Sar(OpIndex node) {
 
 void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8S(OpIndex node) {
   RiscvOperandGenerator g(this);
-  InstructionOperand src1 = g.TempSimd128Register();
-  InstructionOperand src2 = g.TempSimd128Register();
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 1);
-  InstructionOperand src = g.UseUniqueRegister(op.input(0));
-  InstructionOperand temps[] = {src1, src2};
-  size_t temps_count = arraysize(temps);
   InstructionCode opcode = kRiscvExtAddPairwiseS | EncodeElementWidth(E16);
-  Emit(opcode, g.DefineAsRegister(node), src, temps_count, temps);
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
 }
 
 void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8U(OpIndex node) {
   RiscvOperandGenerator g(this);
-  InstructionOperand src1 = g.TempSimd128Register();
-  InstructionOperand src2 = g.TempSimd128Register();
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 1);
-  InstructionOperand src = g.UseUniqueRegister(op.input(0));
-  InstructionOperand temps[] = {src1, src2};
-  size_t temps_count = arraysize(temps);
   InstructionCode opcode = kRiscvExtAddPairwiseU | EncodeElementWidth(E16);
-  Emit(opcode, g.DefineAsRegister(node), src, temps_count, temps);
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
 }
 
 void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16S(OpIndex node) {
   RiscvOperandGenerator g(this);
-  InstructionOperand src1 = g.TempSimd128Register();
-  InstructionOperand src2 = g.TempSimd128Register();
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 1);
-  InstructionOperand src = g.UseUniqueRegister(op.input(0));
-  InstructionOperand temps[] = {src1, src2};
-  size_t temps_count = arraysize(temps);
   InstructionCode opcode = kRiscvExtAddPairwiseS | EncodeElementWidth(E8);
-  Emit(opcode, g.DefineAsRegister(node), src, temps_count, temps);
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
 }
 
 void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16U(OpIndex node) {
   RiscvOperandGenerator g(this);
-  InstructionOperand src1 = g.TempSimd128Register();
-  InstructionOperand src2 = g.TempSimd128Register();
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 1);
-  InstructionOperand src = g.UseUniqueRegister(op.input(0));
-  InstructionOperand temps[] = {src1, src2};
-  size_t temps_count = arraysize(temps);
   InstructionCode opcode = kRiscvExtAddPairwiseU | EncodeElementWidth(E8);
-  Emit(opcode, g.DefineAsRegister(node), src, temps_count, temps);
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
 }
 
 #define SIMD_INT_TYPE_LIST(V) \
