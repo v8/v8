@@ -491,7 +491,7 @@ V8_INLINE void PersistentBase<T>::SetWeak(
 #endif
 #if __clang__
 #pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wcast-function-type-mismatch"
+#pragma clang diagnostic ignored "-Wcast-function-type"
 #endif
   api_internal::MakeWeak(this->slot(), parameter,
                          reinterpret_cast<Callback>(callback), type);
