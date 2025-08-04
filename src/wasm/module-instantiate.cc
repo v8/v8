@@ -673,6 +673,16 @@ ResolvedWasmImport::ResolvedWasmImport(
   SetCallable(Isolate::Current(), callable);
   kind_ = ComputeKind(trusted_instance_data, func_index, expected_sig,
                       expected_sig_id, preknown_import);
+  // When the import is a WasmSuspendingObject, the inner callable should be a
+  // JS callable, which is checked by the constructor. But it can be corrupted
+  // later and replaced with a wasm function. This leads to an invalid state
+  // where we 1) have an import of kind kWasmToWasm but 2) we did not cache the
+  // original WasmFuncRef in the instance. This breaks the logic of
+  // {GetOrCreateFuncRef} and we end up with a function signature confusion if
+  // we try to re-export that function.
+  // This should also be caught by an SBXCHECK in {GetOrCreateFuncRef} which
+  // protects against a more general version of this issue.
+  CHECK(!(suspend_ == kSuspend && kind_ == ImportCallKind::kWasmToWasm));
 }
 
 void ResolvedWasmImport::SetCallable(Isolate* isolate,
@@ -718,8 +728,6 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
     suspend_ = kSuspend;
     callable_ =
         handle(Cast<WasmSuspendingObject>(*callable_)->callable(), isolate);
-    return IsJSFunction(*callable_) ? ImportCallKind::kJSFunction
-                                    : ImportCallKind::kUseCallBuiltin;
   }
   if (!trusted_function_data_.is_null() &&
       IsWasmExportedFunctionData(*trusted_function_data_)) {
