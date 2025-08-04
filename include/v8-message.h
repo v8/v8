@@ -111,7 +111,7 @@ class V8_EXPORT Message {
   /**
    * Return the isolate to which the Message belongs.
    */
-  V8_DEPRECATED(
+  V8_DEPRECATE_SOON(
       "Use Isolate::GetCurrent() instead, which is guaranteed to return the "
       "same isolate since https://crrev.com/c/6458560.")
   Isolate* GetIsolate() const;
