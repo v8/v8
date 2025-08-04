@@ -1643,14 +1643,13 @@ TEST(jump_tables1) {
     __ Align(4);
     {
       MacroAssembler::BlockTrampolinePoolScope block(
-          &assm, (kNumCases * 2 + 6) * kInstrSize);
+          &assm, (kNumCases + 5) * kInstrSize);
 
       __ auipc(ra, 0);
       __ slli(t3, a0, 2);
       __ add(t3, t3, ra);
-      __ Lw(t3, MemOperand(t3, 6 * kInstrSize));
+      __ Lw(t3, MemOperand(t3, 5 * kInstrSize));
       __ jr(t3);
-      __ nop();  // For 16-byte alignment
       for (int i = 0; i < kNumCases; ++i) {
         __ dd(&labels[i]);
       }
@@ -1703,14 +1702,13 @@ TEST(jump_tables2) {
 
     {
       MacroAssembler::BlockTrampolinePoolScope block(
-          &assm, (kNumCases * 2 + 6) * kInstrSize);
+          &assm, (kNumCases + 5) * kInstrSize);
 
       __ auipc(ra, 0);
       __ slli(t3, a0, 2);
       __ add(t3, t3, ra);
-      __ Lw(t3, MemOperand(t3, 6 * kInstrSize));
+      __ Lw(t3, MemOperand(t3, 5 * kInstrSize));
       __ jr(t3);
-      __ nop();  // For 16-byte alignment
       for (int i = 0; i < kNumCases; ++i) {
         __ dd(&labels[i]);
       }
@@ -1754,23 +1752,21 @@ TEST(jump_tables3) {
       __ bind(&labels[i]);
       obj = *values[i];
       imm32 = obj.ptr();
-      __ nop();  // For 8 byte alignment
       __ RV_li(a0, imm32);
-      __ nop();  // For 8 byte alignment
       __ j(&done);
     }
 
+    __ Align(4);
     __ bind(&dispatch);
+
     {
       MacroAssembler::BlockTrampolinePoolScope block(
-          &assm, (kNumCases * 2 + 6) * kInstrSize);
-      __ Align(4);
+          &assm, (kNumCases + 5) * kInstrSize);
       __ auipc(ra, 0);
       __ slli(t3, a0, 2);
       __ add(t3, t3, ra);
-      __ Lw(t3, MemOperand(t3, 6 * kInstrSize));
+      __ Lw(t3, MemOperand(t3, 5 * kInstrSize));
       __ jr(t3);
-      __ nop();  // For 16-byte alignment
       for (int i = 0; i < kNumCases; ++i) {
         __ dd(&labels[i]);
       }

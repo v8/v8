@@ -2001,7 +2001,11 @@ void MacroAssembler::GenerateSwitchTable(Register index, size_t case_count,
   Align(kSystemPointerSize);
   bind(&jump_table);
   for (size_t i = 0; i < case_count; ++i) {
+#if defined(V8_TARGET_ARCH_RISCV64)
+    dq(GetLabelFunction(i));
+#elif defined(V8_TARGET_ARCH_RISCV32)
     dd(GetLabelFunction(i));
+#endif
   }
   bind(&fallthrough);
 }

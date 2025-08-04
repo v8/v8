@@ -566,8 +566,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   void db(uint8_t data);
   void dd(uint32_t data);
   void dq(uint64_t data);
+
+#if defined(V8_TARGET_ARCH_RISCV64)
   void dp(uintptr_t data) { dq(data); }
+  void dq(Label* label);
+#elif defined(V8_TARGET_ARCH_RISCV32)
+  void dp(uintptr_t data) { dd(data); }
   void dd(Label* label);
+#endif
 
   Instruction* pc() const { return reinterpret_cast<Instruction*>(pc_); }
 

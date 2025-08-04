@@ -1428,7 +1428,11 @@ void Assembler::dq(uint64_t data) {
   EmitHelper(data);
 }
 
+#if defined(V8_TARGET_ARCH_RISCV64)
+void Assembler::dq(Label* label) {
+#elif defined(V8_TARGET_ARCH_RISCV32)
 void Assembler::dd(Label* label) {
+#endif
   uintptr_t data;
   if (!is_buffer_growth_blocked()) CheckBuffer();
   if (label->is_bound()) {

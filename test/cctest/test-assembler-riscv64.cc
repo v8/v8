@@ -2019,17 +2019,21 @@ TEST(jump_tables1) {
     __ Sd(ra, MemOperand(sp));
     __ Align(8);
     {
+      int pc_offset_before = assm.pc_offset();
       MacroAssembler::BlockTrampolinePoolScope block(
           &assm, (kNumCases * 2 + 6) * kInstrSize);
+      // Blocking the trampoline scope shouldn't generate code,
+      // because that may interfere with the alignment.
+      CHECK_EQ(pc_offset_before, assm.pc_offset());
 
       __ auipc(ra, 0);
       __ slli(t3, a0, 3);
       __ add(t3, t3, ra);
       __ Ld(t3, MemOperand(t3, 6 * kInstrSize));
       __ jr(t3);
-      __ nop();  // For 16-byte alignment
+      __ nop();  // For 8 byte alignment.
       for (int i = 0; i < kNumCases; ++i) {
-        __ dd(&labels[i]);
+        __ dq(&labels[i]);
       }
     }
 
@@ -2079,17 +2083,21 @@ TEST(jump_tables2) {
     __ bind(&dispatch);
 
     {
+      int pc_offset_before = assm.pc_offset();
       MacroAssembler::BlockTrampolinePoolScope block(
           &assm, (kNumCases * 2 + 6) * kInstrSize);
+      // Blocking the trampoline scope shouldn't generate code,
+      // because that may interfere with the alignment.
+      CHECK_EQ(pc_offset_before, assm.pc_offset());
 
       __ auipc(ra, 0);
       __ slli(t3, a0, 3);
       __ add(t3, t3, ra);
       __ Ld(t3, MemOperand(t3, 6 * kInstrSize));
       __ jr(t3);
-      __ nop();  // For 16-byte alignment
+      __ nop();  // For 8 byte alignment.
       for (int i = 0; i < kNumCases; ++i) {
-        __ dd(&labels[i]);
+        __ dq(&labels[i]);
       }
     }
     __ bind(&done);
@@ -2131,26 +2139,29 @@ TEST(jump_tables3) {
       __ bind(&labels[i]);
       obj = *values[i];
       imm64 = obj.ptr();
-      __ nop();  // For 8 byte alignment
       __ RV_li(a0, imm64);
-      __ nop();  // For 8 byte alignment
       __ j(&done);
     }
 
+    __ Align(8);
     __ bind(&dispatch);
+
     {
+      int pc_offset_before = assm.pc_offset();
       MacroAssembler::BlockTrampolinePoolScope block(
           &assm, (kNumCases * 2 + 6) * kInstrSize);
+      // Blocking the trampoline scope shouldn't generate code,
+      // because that may interfere with the alignment.
+      CHECK_EQ(pc_offset_before, assm.pc_offset());
 
-      __ Align(8);
       __ auipc(ra, 0);
       __ slli(t3, a0, 3);
       __ add(t3, t3, ra);
       __ Ld(t3, MemOperand(t3, 6 * kInstrSize));
       __ jr(t3);
-      __ nop();  // For 16-byte alignment
+      __ nop();  // For 8 byte alignment.
       for (int i = 0; i < kNumCases; ++i) {
-        __ dd(&labels[i]);
+        __ dq(&labels[i]);
       }
     }
 
