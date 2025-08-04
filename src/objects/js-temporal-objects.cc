@@ -243,8 +243,21 @@ namespace temporal {
 
 template <typename IntegerType>
 bool IsInNumericRange(double d) {
-  return d > static_cast<double>(std::numeric_limits<IntegerType>::min()) &&
-         d < static_cast<double>(std::numeric_limits<IntegerType>::max());
+  return d >= static_cast<double>(std::numeric_limits<IntegerType>::min()) &&
+         d <= static_cast<double>(std::numeric_limits<IntegerType>::max());
+}
+
+template <typename IntegerType>
+IntegerType CastDouble(double d) {
+  DCHECK(IsInNumericRange<IntegerType>(d));
+  return static_cast<IntegerType>(d);
+}
+
+template <typename IntegerType>
+IntegerType ClampDouble(double d, IntegerType min, IntegerType max) {
+  double clamped =
+      std::clamp(d, static_cast<double>(min), static_cast<double>(max));
+  return CastDouble<IntegerType>(clamped);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-tointegerifintegral
@@ -1274,8 +1287,86 @@ constexpr temporal_rs::PartialDateTime kNullPartialDateTime =
     temporal_rs::PartialDateTime{.date = kNullPartialDate,
                                  .time = kNullPartialTime};
 
+struct TimeRecord {
+  std::optional<double> hour = std::nullopt;
+  std::optional<double> minute = std::nullopt;
+  std::optional<double> second = std::nullopt;
+  std::optional<double> millisecond = std::nullopt;
+  std::optional<double> microsecond = std::nullopt;
+  std::optional<double> nanosecond = std::nullopt;
+  Maybe<temporal_rs::PartialTime> Regulate(
+      Isolate* isolate, temporal_rs::ArithmeticOverflow overflow);
+};
+
+// https://tc39.es/proposal-temporal/#sec-temporal-regulatetime
+//
+// N.B. The spec implicitly assumes all fields are set; however
+// we plan to call this in contexts where they are not (e.g. during
+// .with(). Fortunately, )
+Maybe<temporal_rs::PartialTime> TimeRecord::Regulate(
+    Isolate* isolate, temporal_rs::ArithmeticOverflow overflow) {
+  temporal_rs::PartialTime partial = kNullPartialTime;
+  // 1. If overflow is constrain, then
+  if (overflow == temporal_rs::ArithmeticOverflow::Constrain) {
+    // a. Set hour to the result of clamping hour between 0 and 23.
+    if (hour.has_value()) {
+      partial.hour = ClampDouble<uint8_t>(hour.value(), 0, 23);
+    }
+    // b. Set minute to the result of clamping minute between 0 and 59.
+    if (minute.has_value()) {
+      partial.minute = ClampDouble<uint8_t>(minute.value(), 0, 59);
+    }
+    // c. Set second to the result of clamping second between 0 and 59.
+    if (second.has_value()) {
+      partial.second = ClampDouble<uint8_t>(second.value(), 0, 59);
+    }
+    // d. Set millisecond to the result of clamping millisecond between 0 and
+    // 999.
+    if (millisecond.has_value()) {
+      partial.millisecond = ClampDouble<uint16_t>(millisecond.value(), 0, 999);
+    }
+    // e. Set microsecond to the result of clamping microsecond between 0 and
+    // 999.
+    if (microsecond.has_value()) {
+      partial.microsecond = ClampDouble<uint16_t>(microsecond.value(), 0, 999);
+    }
+    // f. Set nanosecond to the result of clamping nanosecond between 0 and 999.
+    if (nanosecond.has_value()) {
+      partial.nanosecond = ClampDouble<uint16_t>(nanosecond.value(), 0, 999);
+    }
+  } else {
+    // b. If IsValidTime(hour, minute, second, millisecond, microsecond,
+    // nanosecond) is false, throw a RangeError exception.
+    if (!IsValidTime(hour.value_or(0), minute.value_or(0), second.value_or(0),
+                     millisecond.value_or(0), microsecond.value_or(0),
+                     nanosecond.value_or(0))) {
+      THROW_NEW_ERROR(isolate,
+                      NEW_TEMPORAL_RANGE_ERROR("Invalid time provided"));
+    }
+    if (hour.has_value()) {
+      partial.hour = CastDouble<uint8_t>(hour.value());
+    }
+    if (minute.has_value()) {
+      partial.minute = CastDouble<uint8_t>(minute.value());
+    }
+    if (second.has_value()) {
+      partial.second = CastDouble<uint8_t>(second.value());
+    }
+    if (millisecond.has_value()) {
+      partial.millisecond = CastDouble<uint16_t>(millisecond.value());
+    }
+    if (microsecond.has_value()) {
+      partial.microsecond = CastDouble<uint16_t>(microsecond.value());
+    }
+    if (nanosecond.has_value()) {
+      partial.nanosecond = CastDouble<uint16_t>(nanosecond.value());
+    }
+  }
+  return Just(partial);
+}
+
 template <typename RustObject>
-temporal_rs::PartialTime GetTimeRecordFromRust(RustObject& rust_object) {
+temporal_rs::PartialTime GetPartialTimeFromRust(RustObject& rust_object) {
   return temporal_rs::PartialTime{
       .hour = rust_object->hour(),
       .minute = rust_object->minute(),
@@ -1286,24 +1377,24 @@ temporal_rs::PartialTime GetTimeRecordFromRust(RustObject& rust_object) {
   };
 }
 // These can eventually be replaced with methods upstream
-temporal_rs::PartialTime GetTimeRecord(
+temporal_rs::PartialTime GetPartialTime(
     DirectHandle<JSTemporalPlainTime> plain_time) {
   auto rust_object = plain_time->time()->raw();
-  return GetTimeRecordFromRust(rust_object);
+  return GetPartialTimeFromRust(rust_object);
 }
-temporal_rs::PartialTime GetTimeRecord(
+temporal_rs::PartialTime GetPartialTime(
     DirectHandle<JSTemporalPlainDateTime> date_time) {
   auto rust_object = date_time->date_time()->raw();
-  return GetTimeRecordFromRust(rust_object);
+  return GetPartialTimeFromRust(rust_object);
 }
-temporal_rs::PartialTime GetTimeRecord(
+temporal_rs::PartialTime GetPartialTime(
     DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   auto rust_object = zoned_date_time->zoned_date_time()->raw();
-  return GetTimeRecordFromRust(rust_object);
+  return GetPartialTimeFromRust(rust_object);
 }
 
 template <typename RustObject>
-temporal_rs::PartialDate GetDateRecordFromRust(RustObject& rust_object) {
+temporal_rs::PartialDate GetPartialDateFromRust(RustObject& rust_object) {
   return temporal_rs::PartialDate{
       .year = rust_object->year(),
       .month = rust_object->month(),
@@ -1314,44 +1405,44 @@ temporal_rs::PartialDate GetDateRecordFromRust(RustObject& rust_object) {
       .calendar = rust_object->calendar().kind(),
   };
 }
-temporal_rs::PartialDate GetDateRecord(
+temporal_rs::PartialDate GetPartialDate(
     DirectHandle<JSTemporalPlainDate> plain_date) {
   auto rust_object = plain_date->date()->raw();
-  return GetDateRecordFromRust(rust_object);
+  return GetPartialDateFromRust(rust_object);
 }
-temporal_rs::PartialDate GetDateRecord(
+temporal_rs::PartialDate GetPartialDate(
     DirectHandle<JSTemporalPlainDateTime> date_time) {
   auto rust_object = date_time->date_time()->raw();
-  return GetDateRecordFromRust(rust_object);
+  return GetPartialDateFromRust(rust_object);
 }
-temporal_rs::PartialDate GetDateRecord(
+temporal_rs::PartialDate GetPartialDate(
     DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   auto rust_object = zoned_date_time->zoned_date_time()->raw();
-  return GetDateRecordFromRust(rust_object);
+  return GetPartialDateFromRust(rust_object);
 }
 
-temporal_rs::PartialDateTime GetDateTimeRecord(
+temporal_rs::PartialDateTime GetPartialDateTime(
     DirectHandle<JSTemporalPlainDate> plain_date) {
   auto rust_object = plain_date->date()->raw();
   return temporal_rs::PartialDateTime{
-      .date = GetDateRecordFromRust(rust_object),
+      .date = GetPartialDateFromRust(rust_object),
       .time = kNullPartialTime,
   };
 }
-temporal_rs::PartialDateTime GetDateTimeRecord(
+temporal_rs::PartialDateTime GetPartialDateTime(
     DirectHandle<JSTemporalPlainDateTime> date_time) {
   auto rust_object = date_time->date_time()->raw();
   return temporal_rs::PartialDateTime{
-      .date = GetDateRecordFromRust(rust_object),
-      .time = GetTimeRecordFromRust(rust_object),
+      .date = GetPartialDateFromRust(rust_object),
+      .time = GetPartialTimeFromRust(rust_object),
   };
 }
-temporal_rs::PartialDateTime GetDateTimeRecord(
+temporal_rs::PartialDateTime GetPartialDateTime(
     DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   auto rust_object = zoned_date_time->zoned_date_time()->raw();
   return temporal_rs::PartialDateTime{
-      .date = GetDateRecordFromRust(rust_object),
-      .time = GetTimeRecordFromRust(rust_object),
+      .date = GetPartialDateFromRust(rust_object),
+      .time = GetPartialTimeFromRust(rust_object),
   };
 }
 
@@ -1560,8 +1651,7 @@ Maybe<temporal_rs::PartialDuration> ToTemporalPartialDurationRecord(
 // Helper for ToTemporalTimeRecord
 // Maybe<std::optional> since the Maybe handles errors and the optional handles
 // missing fields
-template <typename IntegerType>
-Maybe<std::optional<IntegerType>> GetSingleTimeRecordField(
+Maybe<std::optional<double>> GetSingleTimeRecordField(
     Isolate* isolate, DirectHandle<JSReceiver> time_like,
     DirectHandle<String> field_name, bool* any) {
   DirectHandle<Object> val;
@@ -1570,19 +1660,16 @@ Maybe<std::optional<IntegerType>> GetSingleTimeRecordField(
       isolate, val, JSReceiver::GetProperty(isolate, time_like, field_name));
   // If val is not undefined, then
   if (!IsUndefined(*val)) {
-    // TODO(manishearth) We should ideally be casting later, see
-    // https://github.com/boa-dev/temporal/issues/334
-    IntegerType field;
+    double field;
     // 5. a. Set result.[[Hour]] to ?ToIntegerWithTruncation(hour).
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, field,
-        temporal::ToIntegerTypeWithTruncation<IntegerType>(isolate, val));
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, field,
+                               temporal::ToIntegerWithTruncation(isolate, val));
     // b. Set any to true.
     *any = true;
 
     return Just(std::optional(field));
   } else {
-    return Just((std::optional<IntegerType>)std::nullopt);
+    return Just((std::optional<double>)std::nullopt);
   }
 }
 
@@ -1644,9 +1731,10 @@ Maybe<bool> IsPartialTemporalObject(Isolate* isolate,
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-totemporaltimerecord
-Maybe<temporal_rs::PartialTime> ToTemporalTimeRecord(
-    Isolate* isolate, DirectHandle<JSReceiver> time_like,
-    const char* method_name, Completeness completeness = kComplete) {
+Maybe<TimeRecord> ToTemporalTimeRecord(Isolate* isolate,
+                                       DirectHandle<JSReceiver> time_like,
+                                       const char* method_name,
+                                       Completeness completeness = kComplete) {
   Factory* factory = isolate->factory();
 
   // 2. If completeness is complete, then
@@ -1654,14 +1742,14 @@ Maybe<temporal_rs::PartialTime> ToTemporalTimeRecord(
   // 3. Else,
   // a. Let result be a new TemporalTimeLike Record with each field set to
   // unset.
-  auto result = completeness == kPartial ? temporal_rs::PartialTime {
+  auto result = completeness == kPartial ? TimeRecord {
     .hour = std::nullopt,
     .minute = std::nullopt,
     .second = std::nullopt,
     .millisecond = std::nullopt,
     .microsecond = std::nullopt,
     .nanosecond = std::nullopt,
-  } : temporal_rs::PartialTime {
+  } : TimeRecord {
     .hour = 0,
     .minute = 0,
     .second = 0,
@@ -1676,28 +1764,28 @@ Maybe<temporal_rs::PartialTime> ToTemporalTimeRecord(
 
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result.hour,
-      temporal::GetSingleTimeRecordField<uint8_t>(
-          isolate, time_like, factory->hour_string(), &any));
+      temporal::GetSingleTimeRecordField(isolate, time_like,
+                                         factory->hour_string(), &any));
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result.microsecond,
-      temporal::GetSingleTimeRecordField<uint16_t>(
-          isolate, time_like, factory->microsecond_string(), &any));
+      temporal::GetSingleTimeRecordField(isolate, time_like,
+                                         factory->microsecond_string(), &any));
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result.millisecond,
-      temporal::GetSingleTimeRecordField<uint16_t>(
-          isolate, time_like, factory->millisecond_string(), &any));
+      temporal::GetSingleTimeRecordField(isolate, time_like,
+                                         factory->millisecond_string(), &any));
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result.minute,
-      temporal::GetSingleTimeRecordField<uint8_t>(
-          isolate, time_like, factory->minute_string(), &any));
+      temporal::GetSingleTimeRecordField(isolate, time_like,
+                                         factory->minute_string(), &any));
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result.nanosecond,
-      temporal::GetSingleTimeRecordField<uint16_t>(
-          isolate, time_like, factory->nanosecond_string(), &any));
+      temporal::GetSingleTimeRecordField(isolate, time_like,
+                                         factory->nanosecond_string(), &any));
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result.second,
-      temporal::GetSingleTimeRecordField<uint8_t>(
-          isolate, time_like, factory->second_string(), &any));
+      temporal::GetSingleTimeRecordField(isolate, time_like,
+                                         factory->second_string(), &any));
 
   if (!any) {
     THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
@@ -2319,31 +2407,44 @@ MaybeDirectHandle<JSTemporalPlainTime> ToTemporalTime(
 
   // 2. If item is an Object, then
   if (InstanceTypeChecker::IsJSReceiver(instance_type)) {
-    auto record = kNullPartialTime;
+    auto partial = kNullPartialTime;
     // a. If item has an [[InitializedTemporalTime]] internal slot, then
     if (InstanceTypeChecker::IsJSTemporalPlainTime(instance_type)) {
       // iii. Return !CreateTemporalTime(item.[[Time]]).
-      record = GetTimeRecord(Cast<JSTemporalPlainTime>(item));
+      partial = GetPartialTime(Cast<JSTemporalPlainTime>(item));
       // b. If item has an [[InitializedTemporalDateTime]] internal slot, then
     } else if (InstanceTypeChecker::IsJSTemporalPlainDateTime(instance_type)) {
       // iii. Return ! CreateTemporalTime(item.[[ISODateTime]].[[Time]]).
-      record = GetTimeRecord(Cast<JSTemporalPlainDateTime>(item));
+      partial = GetPartialTime(Cast<JSTemporalPlainDateTime>(item));
       // c. If item has an [[InitializedTemporalZonedDateTime]] internal slot,
       // then
     } else if (InstanceTypeChecker::IsJSTemporalZonedDateTime(instance_type)) {
       // i. Let isoDateTime be GetISODateTimeFor(item.[[TimeZone]],
       // item.[[EpochNanoseconds]]).
-      record = GetTimeRecord(Cast<JSTemporalZonedDateTime>(item));
+      partial = GetPartialTime(Cast<JSTemporalZonedDateTime>(item));
       // iv. Return !CreateTemporalTime(isoDateTime.[[Time]]).
     } else {
       // d. Let result be ?ToTemporalTimeRecord(item).
       DirectHandle<JSReceiver> item_recvr = Cast<JSReceiver>(item);
+      temporal::TimeRecord record;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, record,
           temporal::ToTemporalTimeRecord(isolate, item_recvr, method_name));
 
-      // RegulateTime/etc is handled by temporal_rs
-      // caveat: https://github.com/boa-dev/temporal/issues/334
+      // e. Let resolvedOptions be ? GetOptionsObject(options).
+      // f. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+      temporal_rs::ArithmeticOverflow overflow;
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, overflow,
+                                 temporal::ToTemporalOverflowHandleUndefined(
+                                     isolate, options_obj, method_name));
+      // g. Set result to ? RegulateTime(result.[[Hour]], result.[[Minute]],
+      // result.[[Second]], result.[[Millisecond]], result.[[Microsecond]],
+      // result.[[Nanosecond]], overflow).
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, partial,
+                                 record.Regulate(isolate, overflow));
+
+      return ConstructRustWrappingType<JSTemporalPlainTime>(
+          isolate, temporal_rs::PlainTime::from_partial(partial, overflow));
     }
 
     // (found in each branch above)
@@ -2355,7 +2456,7 @@ MaybeDirectHandle<JSTemporalPlainTime> ToTemporalTime(
                                    isolate, options_obj, method_name));
 
     return ConstructRustWrappingType<JSTemporalPlainTime>(
-        isolate, temporal_rs::PlainTime::from_partial(record, overflow));
+        isolate, temporal_rs::PlainTime::from_partial(partial, overflow));
 
     // 3. Else,
   } else {
@@ -2427,7 +2528,7 @@ MaybeDirectHandle<JSTemporalPlainDate> ToTemporalDate(
     // a. If item has an [[InitializedTemporalDate]] internal slot, then
     if (InstanceTypeChecker::IsJSTemporalPlainDate(instance_type)) {
       // iii. Return !CreateTemporalDate(item.[[Date]], item.[[Calendar]]).
-      record = GetDateRecord(Cast<JSTemporalPlainDate>(item));
+      record = GetPartialDate(Cast<JSTemporalPlainDate>(item));
       // b. If item has an [[InitializedTemporalZonedDateTime]] internal slot,
       // then
     } else if (InstanceTypeChecker::IsJSTemporalZonedDateTime(instance_type)) {
@@ -2436,12 +2537,12 @@ MaybeDirectHandle<JSTemporalPlainDate> ToTemporalDate(
       //
       // iv. Return !CreateTemporalDate(isoDateTime.[[ISODate]],
       // item.[[Calendar]]).
-      record = GetDateRecord(Cast<JSTemporalZonedDateTime>(item));
+      record = GetPartialDate(Cast<JSTemporalZonedDateTime>(item));
       // c. If item has an [[InitializedTemporalDateTime]] internal slot, then
     } else if (InstanceTypeChecker::IsJSTemporalPlainDateTime(instance_type)) {
       // iii. Return !CreateTemporalDate(item.[[ISODateTime]].[[ISODate]],
       // item.[[Calendar]]).
-      record = GetDateRecord(Cast<JSTemporalPlainDateTime>(item));
+      record = GetPartialDate(Cast<JSTemporalPlainDateTime>(item));
     } else {
       // d. Let calendar be ?GetTemporalCalendarIdentifierWithISODefault(item).
       temporal_rs::AnyCalendarKind kind = temporal_rs::AnyCalendarKind::Iso;
@@ -2535,7 +2636,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
     // a. If item has an [[InitializedTemporalDateTime]] internal slot, then
     if (InstanceTypeChecker::IsJSTemporalPlainDateTime(instance_type)) {
       // iii. Return !CreateTemporalDate(item.[[Date]], item.[[Calendar]]).
-      record = GetDateTimeRecord(Cast<JSTemporalPlainDateTime>(item));
+      record = GetPartialDateTime(Cast<JSTemporalPlainDateTime>(item));
       // b. If item has an [[InitializedTemporalZonedDateTime]] internal slot,
       // then
     } else if (InstanceTypeChecker::IsJSTemporalZonedDateTime(instance_type)) {
@@ -2543,12 +2644,12 @@ MaybeDirectHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
       // item.[[EpochNanoseconds]]).
       //
       // iv. Return !CreateTemporalDateTime(isoDateTime, item.[[Calendar]]).
-      record = GetDateTimeRecord(Cast<JSTemporalZonedDateTime>(item));
+      record = GetPartialDateTime(Cast<JSTemporalZonedDateTime>(item));
       // c. If item has an [[InitializedTemporalDate]] internal slot, then
     } else if (InstanceTypeChecker::IsJSTemporalPlainDate(instance_type)) {
       // iii. Return !CreateTemporalDate(item.[[ISODateTime]].[[ISODate]],
       // item.[[Calendar]]).
-      record = GetDateTimeRecord(Cast<JSTemporalPlainDate>(item));
+      record = GetPartialDateTime(Cast<JSTemporalPlainDate>(item));
     } else {
       // d. Let calendar be ?GetTemporalCalendarIdentifierWithISODefault(item).
       temporal_rs::AnyCalendarKind kind = temporal_rs::AnyCalendarKind::Iso;
@@ -3163,7 +3264,7 @@ Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
       // i. Let plainDate be
       // !CreateTemporalDate(value.[[ISODateTime]].[[ISODate]],
       // value.[[Calendar]]).
-      auto date_record = GetDateRecord(Cast<JSTemporalPlainDateTime>(value));
+      auto date_record = GetPartialDate(Cast<JSTemporalPlainDateTime>(value));
       std::unique_ptr<temporal_rs::PlainDate> plain_date = nullptr;
 
       MOVE_RETURN_ON_EXCEPTION(
@@ -5660,7 +5761,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::With(
   }
 
   // 4. Let partialTime be ? ToTemporalTimeRecord(temporalTimeLike, partial).
-  temporal_rs::PartialTime partial_time = temporal::kNullPartialTime;
+  temporal::TimeRecord partial_time;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, partial_time,
       temporal::ToTemporalTimeRecord(isolate,
@@ -5677,9 +5778,18 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::With(
                              temporal::ToTemporalOverflowHandleUndefined(
                                  isolate, options_obj, method_name));
 
-  // Handled by Rust
+  // 19. Let result be ? RegulateTime(hour, minute, second, millisecond,
+  // microsecond, nanosecond, overflow).
+  // *technically* this wants to use a full TimeRecord object with
+  // all None fields filled from the PlainTime. However, we don't
+  // actually need to do this: RegulateTime will ignore the None
+  // fields and the Rust code below will handle the rest.
+  temporal_rs::PartialTime result;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
+                             partial_time.Regulate(isolate, overflow));
+  // 20. Return ! CreateTemporalTime(result).
   return ConstructRustWrappingType<JSTemporalPlainTime>(
-      isolate, temporal_time->time()->raw()->with(partial_time, overflow));
+      isolate, temporal_time->time()->raw()->with(result, overflow));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.now.plaintimeiso

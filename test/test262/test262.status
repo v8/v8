@@ -328,8 +328,6 @@
   'built-ins/Temporal/Duration/prototype/subtract/argument-duration-precision-exact-numerical-values': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-6': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-7': [FAIL],
-  'built-ins/Temporal/PlainDate/prototype/toZonedDateTime/order-of-operations': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/prototype/withPlainTime/order-of-operations': [FAIL],
 
   # Parse ordering issues (https://github.com/boa-dev/temporal/issues/408)
   'built-ins/Temporal/PlainDate/from/observable-get-overflow-argument-string-invalid': [FAIL],
