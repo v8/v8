@@ -275,7 +275,8 @@ void LargeObjectSpace::UpdateAccountingAfterResizingObject(
 }
 
 bool LargeObjectSpace::Contains(Tagged<HeapObject> object) const {
-  MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromHeapObject(object);
+  MemoryChunkMetadata* chunk =
+      MemoryChunkMetadata::FromHeapObject(heap()->isolate(), object);
 
   bool owned = (chunk->owner() == this);
 

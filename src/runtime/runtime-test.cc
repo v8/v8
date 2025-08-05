@@ -1642,7 +1642,8 @@ RUNTIME_FUNCTION(Runtime_InLargeObjectSpace) {
   }
   auto obj = Cast<HeapObject>(args[0]);
   return isolate->heap()->ToBoolean(
-      isolate->heap()->new_lo_space()->Contains(obj) ||
+      (isolate->heap()->new_lo_space() &&
+       isolate->heap()->new_lo_space()->Contains(obj)) ||
       isolate->heap()->code_lo_space()->Contains(obj) ||
       isolate->heap()->lo_space()->Contains(obj));
 }
@@ -1655,7 +1656,8 @@ RUNTIME_FUNCTION(Runtime_HasElementsInALargeObjectSpace) {
   auto array = Cast<JSArray>(args[0]);
   Tagged<FixedArrayBase> elements = array->elements();
   return isolate->heap()->ToBoolean(
-      isolate->heap()->new_lo_space()->Contains(elements) ||
+      (isolate->heap()->new_lo_space() &&
+       isolate->heap()->new_lo_space()->Contains(elements)) ||
       isolate->heap()->lo_space()->Contains(elements));
 }
 
