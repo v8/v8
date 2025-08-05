@@ -5358,35 +5358,26 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   // Note that this assumes the caller code (i.e. the InstructionStream object
   // currently being generated) is immovable or that the callee function cannot
   // trigger GC, since the callee function will return to it.
-  //
-  // Compute the return address in lr to return to after the jump below. The
-  // pc is already at '+ 8' from the current instruction; but return is after
-  // three instructions, so add another 4 to pc to get the return address.
-  //
-  Assembler::BlockTrampolinePoolScope block_trampoline_pool(this);
-  int kNumInstructionsToJump = 5;
-  if (v8_flags.riscv_c_extension) kNumInstructionsToJump = 4;
-  Label find_ra;
-  // Adjust the value in ra to point to the correct return location, one
-  // instruction past the real call into C code (the jalr(t6)), and push it.
-  // This is the return address of the exit frame.
-  auipc(ra, 0);  // Set ra the current PC
-  bind(&find_ra);
-  AddWord(ra, ra,
-          (kNumInstructionsToJump + 1) *
-              kInstrSize);  // Set ra to insn after the call
 
-  // This spot was reserved in EnterExitFrame.
-  StoreWord(ra, MemOperand(sp));
-  AddWord(sp, sp, -kCArgsSlotsSize);
-  // Stack is still aligned.
+  Assembler::BlockTrampolinePoolScope block_trampoline_pool(this);
+  int kNumInstructions = v8_flags.riscv_c_extension ? 5 : 6;
+  Label start;
+
+  // Make 'ra' point to the correct return location, just after the 'jalr t6'
+  // instruction that does the call, and store 'ra' at the top of the stack.
+  bind(&start);
+  auipc(ra, 0);  // Set 'ra' the current 'pc'.
+  AddWord(ra, ra, kNumInstructions * kInstrSize);
+  StoreWord(ra, MemOperand(sp));      // Reserved in EnterExitFrame.
+  AddWord(sp, sp, -kCArgsSlotsSize);  // Preserves stack alignment.
 
   // Call the C routine.
-  Mv(t6,
-     target);  // Function pointer to t6 to conform to ABI for PIC.
+  Mv(t6, target);  // Function pointer in 't6' to conform to ABI for PIC.
   jalr(t6);
-  // Make sure the stored 'ra' points to this position.
-  DCHECK_EQ(kNumInstructionsToJump, InstructionsGeneratedSince(&find_ra));
+
+  // Make sure the stored 'ra' points to this position. This way, the 'ra'
+  // value we stored on the stack matches the value of 'ra' during the call.
+  DCHECK_EQ(kNumInstructions, InstructionsGeneratedSince(&start));
 }
 
 void MacroAssembler::Ret(Condition cond, Register rs, const Operand& rt) {
