@@ -2727,11 +2727,12 @@ void MacroAssembler::SmiTag(Register reg) {
 }
 
 void MacroAssembler::SmiTag(Register dst, Register src) {
-  DCHECK(dst != src);
-  if (COMPRESS_POINTERS_BOOL) {
-    movl(dst, src);
-  } else {
-    movq(dst, src);
+  if (dst != src) {
+    if (COMPRESS_POINTERS_BOOL) {
+      movl(dst, src);
+    } else {
+      movq(dst, src);
+    }
   }
   SmiTag(dst);
 }

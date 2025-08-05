@@ -381,42 +381,49 @@ TEST_F(MacroAssemblerX64Test, SmiTag) {
   __ cmp_tagged(rcx, rdx);
   __ j(not_equal, &exit);
 
-  // Different target register.
+  // Different target registers. Make sure to check that using register rcx
+  // is okay even though that is also the src register in the calls to SmiTag.
+  Register targets[2] = {r8, rcx};
+  for (size_t i = 0; i < arraysize(targets); i++) {
+    Register target = targets[i];
+    CHECK_NE(rax, target);
+    CHECK_NE(rdx, target);
 
-  __ movq(rax, Immediate(6));  // Test number.
-  __ movq(rcx, Immediate(0));
-  __ SmiTag(r8, rcx);
-  __ Move(rdx, Smi::zero().ptr());
-  __ cmp_tagged(r8, rdx);
-  __ j(not_equal, &exit);
+    __ movq(rax, Immediate(6));  // Test number.
+    __ movq(rcx, Immediate(0));
+    __ SmiTag(target, rcx);
+    __ Move(rdx, Smi::zero().ptr());
+    __ cmp_tagged(target, rdx);
+    __ j(not_equal, &exit);
 
-  __ movq(rax, Immediate(7));  // Test number.
-  __ movq(rcx, Immediate(1024));
-  __ SmiTag(r8, rcx);
-  __ Move(rdx, Smi::FromInt(1024).ptr());
-  __ cmp_tagged(r8, rdx);
-  __ j(not_equal, &exit);
+    __ movq(rax, Immediate(7));  // Test number.
+    __ movq(rcx, Immediate(1024));
+    __ SmiTag(target, rcx);
+    __ Move(rdx, Smi::FromInt(1024).ptr());
+    __ cmp_tagged(target, rdx);
+    __ j(not_equal, &exit);
 
-  __ movq(rax, Immediate(8));  // Test number.
-  __ movq(rcx, Immediate(-1));
-  __ SmiTag(r8, rcx);
-  __ Move(rdx, Smi::FromInt(-1).ptr());
-  __ cmp_tagged(r8, rdx);
-  __ j(not_equal, &exit);
+    __ movq(rax, Immediate(8));  // Test number.
+    __ movq(rcx, Immediate(-1));
+    __ SmiTag(target, rcx);
+    __ Move(rdx, Smi::FromInt(-1).ptr());
+    __ cmp_tagged(target, rdx);
+    __ j(not_equal, &exit);
 
-  __ movq(rax, Immediate(9));  // Test number.
-  __ movq(rcx, Immediate(Smi::kMaxValue));
-  __ SmiTag(r8, rcx);
-  __ Move(rdx, Smi::FromInt(Smi::kMaxValue).ptr());
-  __ cmp_tagged(r8, rdx);
-  __ j(not_equal, &exit);
+    __ movq(rax, Immediate(9));  // Test number.
+    __ movq(rcx, Immediate(Smi::kMaxValue));
+    __ SmiTag(target, rcx);
+    __ Move(rdx, Smi::FromInt(Smi::kMaxValue).ptr());
+    __ cmp_tagged(target, rdx);
+    __ j(not_equal, &exit);
 
-  __ movq(rax, Immediate(10));  // Test number.
-  __ movq(rcx, Immediate(Smi::kMinValue));
-  __ SmiTag(r8, rcx);
-  __ Move(rdx, Smi::FromInt(Smi::kMinValue).ptr());
-  __ cmp_tagged(r8, rdx);
-  __ j(not_equal, &exit);
+    __ movq(rax, Immediate(10));  // Test number.
+    __ movq(rcx, Immediate(Smi::kMinValue));
+    __ SmiTag(target, rcx);
+    __ Move(rdx, Smi::FromInt(Smi::kMinValue).ptr());
+    __ cmp_tagged(target, rdx);
+    __ j(not_equal, &exit);
+  }
 
   __ xorq(rax, rax);  // Success.
   __ bind(&exit);

@@ -1245,7 +1245,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
       Add32(dst, src, src);
     }
 #elif V8_TARGET_ARCH_RISCV32
-
     DCHECK(SmiValuesAre31Bits());
     // Smi is shifted left by 1
     Sll32(dst, src, kSmiShift);
