@@ -1759,7 +1759,10 @@ config("strict_warnings") {
         v8_current_cpu == "mips64el" || v8_current_cpu == "riscv64") {
       cflags += [ "-Wshorten-64-to-32" ]
     }
-    cflags += [ "-Wmissing-field-initializers" ]
+    cflags += [
+      "-Wmissing-field-initializers",
+      "-Wunnecessary-virtual-specifier",
+    ]
   }
 }
 
