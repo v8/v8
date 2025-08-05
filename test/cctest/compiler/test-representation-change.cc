@@ -67,7 +67,7 @@ class RepresentationChangerTester : public HandleAndZoneScope,
   void CheckFloat64Constant(Node* n, double expected) {
     Float64Matcher m(n);
     CHECK(m.HasResolvedValue());
-    CHECK_DOUBLE_EQ(expected, m.ResolvedValue());
+    CHECK_DOUBLE_EQ(expected, m.ScalarValue());
   }
 
   void CheckFloat32Constant(Node* n, float expected) {
