@@ -304,18 +304,6 @@
   'built-ins/Temporal/PlainDateTime/prototype/add/limits': [FAIL],
   'built-ins/Temporal/PlainDateTime/prototype/subtract/limits': [FAIL],
 
-  # offset strings (https://github.com/boa-dev/temporal/issues/428)
-  'built-ins/Temporal/Duration/compare/relativeto-propertybag-invalid-offset-string': [FAIL],
-  'built-ins/Temporal/Duration/prototype/round/relativeto-propertybag-invalid-offset-string': [FAIL],
-  'built-ins/Temporal/Duration/prototype/total/relativeto-propertybag-invalid-offset-string': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/compare/argument-propertybag-invalid-offset-string': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/from/argument-propertybag-invalid-offset-string': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/from/offset-string-invalid': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/prototype/equals/argument-propertybag-invalid-offset-string': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/prototype/since/argument-propertybag-invalid-offset-string': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/prototype/until/argument-propertybag-invalid-offset-string': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/prototype/with/offset-property-invalid-string': [FAIL],
-
   # YearMonth compare should include reference day (https://github.com/boa-dev/temporal/pull/433)
   'built-ins/Temporal/PlainYearMonth/compare/compare-reference-day': [FAIL],
   'built-ins/Temporal/PlainYearMonth/prototype/equals/compare-reference-day': [FAIL],
@@ -491,9 +479,6 @@
 
   # Era alias support
   'intl402/Temporal/ZonedDateTime/from/canonicalize-era-codes': [FAIL],
-
-  # Fails to parse timezone `cet`
-  'intl402/Temporal/ZonedDateTime/from/timezone-case-insensitive': [FAIL],
 
   # Fails to normalize time zones
   'intl402/Temporal/ZonedDateTime/prototype/equals/argument-object': [FAIL],
