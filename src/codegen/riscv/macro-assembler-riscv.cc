@@ -760,20 +760,23 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
   // catch stores of smisand read-only objects, as well as stores into the
   // young generation.
   Label done;
-  // #if V8_STATIC_ROOTS_BOOL
-  //   if (ro_check == ReadOnlyCheck::kInline) {
-  //     // Quick check for Read-only and small Smi values.
-  //     static_assert(StaticReadOnlyRoot::kLastAllocatedRoot <
-  //     kRegularPageSize); JumpIfUnsignedLessThan(value, kRegularPageSize,
-  //     &done);
-  //   }
-  // #endif  // V8_STATIC_ROOTS_BOOL
+#if V8_STATIC_ROOTS_BOOL
+  if (ro_check == ReadOnlyCheck::kInline) {
+    // Quick check for read-only and small Smi values.
+    static_assert(StaticReadOnlyRoot::kLastAllocatedRoot < kRegularPageSize);
+    JumpIfUnsignedLessThan(value, kRegularPageSize, &done);
+  }
+#endif
 
   if (smi_check == SmiCheck::kInline) {
     DCHECK_EQ(0, kSmiTag);
     JumpIfSmi(value, &done);
   }
 
+  if (slot.contains_indirect_pointer()) {
+    // The indirect pointer write barrier is only enabled during marking.
+    JumpIfNotMarking(&done);
+  } else {
     CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask,
                   eq,  // In RISC-V, it uses cc for a comparison with 0, so if
                        // no bits are set, and cc is eq, it will branch to done
@@ -783,6 +786,8 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
                   eq,  // In RISC-V, it uses cc for a comparison with 0, so if
                        // no bits are set, and cc is eq, it will branch to done
                   &done);
+  }
+
   // Record the actual write.
   if (ra_status == kRAHasNotBeenSaved) {
     push(ra);
