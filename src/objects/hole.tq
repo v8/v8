@@ -3,4 +3,6 @@
 // found in the LICENSE file.
 
 @cppObjectDefinition
-extern class Hole extends HeapObject {}
+extern class Hole extends HeapObject {
+  raw_numeric_value: float64;
+}

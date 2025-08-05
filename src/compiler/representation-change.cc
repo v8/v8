@@ -7,7 +7,6 @@
 #include <sstream>
 
 #include "src/base/numerics/safe_conversions.h"
-#include "src/common/globals.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
@@ -699,7 +698,7 @@ Node* RepresentationChanger::GetFloat16RawBitsRepresentationFor(
   switch (node->opcode()) {
     case IrOpcode::kFloat64Constant:
       return jsgraph()->Uint32Constant(
-          DoubleToFloat16(OpParameter<Float64>(node->op()).get_scalar()));
+          DoubleToFloat16(OpParameter<double>(node->op())));
     case IrOpcode::kNumberConstant:
     case IrOpcode::kInt32Constant:
     case IrOpcode::kFloat32Constant:
@@ -813,10 +812,6 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
         break;
     }
   }
-  HeapObjectMatcher hm(node);
-  if (hm.Is(factory()->the_hole_value())) {
-    return jsgraph()->Float64Constant(Float64::FromBits(kHoleNanInt64));
-  }
 
   // Select the correct X -> Float64 operator.
   const Operator* op = nullptr;
@@ -882,8 +877,9 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
       op = machine()->ChangeInt32ToFloat64();
     } else if (output_type.Is(Type::Number())) {
       op = simplified()->ChangeTaggedToFloat64();
-    } else if (output_type.Is(Type::NumberOrOddball()) &&
-               use_info.truncation().TruncatesOddballAndBigIntToNumber()) {
+    } else if ((output_type.Is(Type::NumberOrOddball()) &&
+                use_info.truncation().TruncatesOddballAndBigIntToNumber()) ||
+               output_type.Is(Type::NumberOrHole())) {
       // JavaScript 'null' is an Oddball that results in +0 when truncated to
       // Number. In a context like -0 == null, which must evaluate to false,
       // this truncation must not happen. For this reason we restrict this
@@ -909,8 +905,6 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
     } else if (use_info.type_check() == TypeCheckKind::kNumberOrOddball) {
       op = simplified()->CheckedTaggedToFloat64(
           CheckTaggedInputMode::kNumberOrOddball, use_info.feedback());
-    } else if (output_type.Is(Type::NumberOrHole())) {
-      op = simplified()->ChangeNumberOrHoleToFloat64();
     }
   } else if (output_rep == MachineRepresentation::kFloat32) {
     op = machine()->ChangeFloat32ToFloat64();

@@ -431,7 +431,7 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kInt32Constant:
       return __ Word32Constant(static_cast<uint32_t>(OpParameter<int32_t>(op)));
     case IrOpcode::kFloat64Constant:
-      return __ Float64Constant(OpParameter<i::Float64>(op));
+      return __ Float64Constant(OpParameter<double>(op));
     case IrOpcode::kFloat32Constant:
       return __ Float32Constant(OpParameter<float>(op));
     case IrOpcode::kNumberConstant:
@@ -1065,8 +1065,6 @@ OpIndex GraphBuilder::Process(
                                        NumberOrOddball)
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeTaggedToFloat64, Float64,
                                        NumberOrOddball)
-      CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeNumberOrHoleToFloat64, Float64,
-                                       NumberOrHole)
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedToFloat64, Float64,
                                        NumberOrOddball)
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE

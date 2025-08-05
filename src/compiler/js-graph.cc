@@ -123,23 +123,16 @@ Node* JSGraph::ConstantMutableHeapNumber(HeapNumberRef ref,
 }
 
 Node* JSGraph::ConstantNoHole(double value) {
-  return ConstantNoHole(Float64::FromBits(base::bit_cast<uint64_t>(value)));
-}
-
-Node* JSGraph::ConstantNoHole(Float64 value) {
-  CHECK(!value.is_hole_nan());
+  CHECK_NE(base::bit_cast<uint64_t>(value), kHoleNanInt64);
   return ConstantMaybeHole(value);
 }
 
 Node* JSGraph::ConstantMaybeHole(double value) {
-  return ConstantMaybeHole(Float64::FromBits(base::bit_cast<uint64_t>(value)));
-}
-
-Node* JSGraph::ConstantMaybeHole(Float64 value) {
-  if (value == Float64(0.0)) return ZeroConstant();
-  if (value == Float64(1.0)) return OneConstant();
-  // TODO(leszeks): Make NumberConstant store Float64 too.
-  return NumberConstant(value.get_scalar());
+  if (base::bit_cast<int64_t>(value) == base::bit_cast<int64_t>(0.0))
+    return ZeroConstant();
+  if (base::bit_cast<int64_t>(value) == base::bit_cast<int64_t>(1.0))
+    return OneConstant();
+  return NumberConstant(value);
 }
 
 Node* JSGraph::NumberConstant(double value) {

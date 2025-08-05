@@ -849,7 +849,7 @@ class MachineLoweringReducer : public Next {
         GOTO_IF(LIKELY(__ ObjectIsSmi(input)), done, V<Smi>::Cast(input));
 
         V<Float64> value = __ template LoadField<Float64>(
-            input, AccessBuilder::ForHeapNumberOrOddballValue());
+            input, AccessBuilder::ForHeapNumberOrOddballOrHoleValue());
         GOTO(done, __ TagSmi(__ ReversibleFloat64ToInt32(value)));
 
         BIND(done, result);
@@ -1199,7 +1199,7 @@ class MachineLoweringReducer : public Next {
             GOTO(done, __ UntagSmi(V<Smi>::Cast(object)));
           } ELSE {
             V<Float64> value = __ template LoadField<Float64>(
-                object, AccessBuilder::ForHeapNumberOrOddballValue());
+                object, AccessBuilder::ForHeapNumberOrOddballOrHoleValue());
             GOTO(done, __ ReversibleFloat64ToInt32(value));
           }
 
@@ -1235,7 +1235,7 @@ class MachineLoweringReducer : public Next {
                  __ ChangeInt32ToInt64(__ UntagSmi(V<Smi>::Cast(object))));
           } ELSE {
             V<Float64> value = __ template LoadField<Float64>(
-                object, AccessBuilder::ForHeapNumberOrOddballValue());
+                object, AccessBuilder::ForHeapNumberOrOddballOrHoleValue());
             GOTO(done, __ ReversibleFloat64ToInt64(value));
           }
 
@@ -1253,7 +1253,7 @@ class MachineLoweringReducer : public Next {
           GOTO(done, __ UntagSmi(V<Smi>::Cast(object)));
         } ELSE {
           V<Float64> value = __ template LoadField<Float64>(
-              object, AccessBuilder::ForHeapNumberOrOddballValue());
+              object, AccessBuilder::ForHeapNumberOrOddballOrHoleValue());
           GOTO(done, __ ReversibleFloat64ToUint32(value));
         }
 
@@ -1274,25 +1274,9 @@ class MachineLoweringReducer : public Next {
                  __ ChangeInt32ToFloat64(__ UntagSmi(V<Smi>::Cast(object))));
           } ELSE {
             V<Float64> value = __ template LoadField<Float64>(
-                object, AccessBuilder::ForHeapNumberOrOddballValue());
+                object, AccessBuilder::ForHeapNumberOrOddballOrHoleValue());
             GOTO(done, value);
           }
-
-          BIND(done, result);
-          return result;
-        } else if (input_assumptions == ConvertJSPrimitiveToUntaggedOp::
-                                            InputAssumptions::kNumberOrHole) {
-          Label<Float64> done(this);
-          GOTO_IF(__ ObjectIsSmi(object), done,
-                  __ ChangeInt32ToFloat64(__ UntagSmi(V<Smi>::Cast(object))));
-          GOTO_IF(LIKELY(__ TaggedEqual(
-                      object, __ HeapConstant(factory_->the_hole_value()))),
-                  done,
-                  __ Float64Constant(i::Float64::FromBits(kHoleNanInt64)));
-
-          V<Float64> value = __ template LoadField<Float64>(
-              object, AccessBuilder::ForHeapNumberValue());
-          GOTO(done, value);
 
           BIND(done, result);
           return result;
@@ -1333,7 +1317,7 @@ class MachineLoweringReducer : public Next {
           }
 
           V<Float64> value = __ template LoadField<Float64>(
-              object, AccessBuilder::ForHeapNumberOrOddballValue());
+              object, AccessBuilder::ForHeapNumberOrOddballOrHoleValue());
           V<Float64> silenced_value = __ Float64SilenceNaN(value);
           GOTO(done, silenced_value);
         }
@@ -1586,7 +1570,7 @@ class MachineLoweringReducer : public Next {
           GOTO(done, __ UntagSmi(V<Smi>::Cast(object)));
         } ELSE {
           V<Float64> number_value = __ template LoadField<Float64>(
-              object, AccessBuilder::ForHeapNumberOrOddballValue());
+              object, AccessBuilder::ForHeapNumberOrOddballOrHoleValue());
           GOTO(done, __ JSTruncateFloat64ToWord32(number_value));
         }
 
@@ -1909,8 +1893,9 @@ class MachineLoweringReducer : public Next {
         access = {kTaggedBase, OFFSET_OF_DATA_START(FixedDoubleArray),
                   compiler::Type::NumberOrHole(), MachineType::Float64(),
                   kNoWriteBarrier};
-        the_hole_value =
-            __ Float64Constant(i::Float64::FromBits(kHoleNanInt64));
+        the_hole_value = __ template LoadField<Float64>(
+            __ HeapConstant(factory_->the_hole_value()),
+            AccessBuilder::ForHeapNumberOrOddballOrHoleValue());
         break;
       }
       case NewArrayOp::Kind::kObject: {
@@ -3984,7 +3969,7 @@ class MachineLoweringReducer : public Next {
       }
     }
     return __ template LoadField<Float64>(
-        heap_object, AccessBuilder::ForHeapNumberOrOddballValue());
+        heap_object, AccessBuilder::ForHeapNumberOrOddballOrHoleValue());
   }
 
   V<Word32> LoadFromSeqString(V<Object> receiver, V<WordPtr> position,

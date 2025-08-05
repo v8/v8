@@ -6,7 +6,6 @@
 #define V8_COMPILER_COMMON_NODE_CACHE_H_
 
 #include "src/compiler/node-cache.h"
-#include "src/utils/boxed-float.h"
 
 namespace v8 {
 namespace internal {
@@ -49,9 +48,9 @@ class CommonNodeCache final {
     return float32_constants_.Find(base::bit_cast<int32_t>(value));
   }
 
-  Node** FindFloat64Constant(Float64 value) {
+  Node** FindFloat64Constant(double value) {
     // We canonicalize double constants at the bit representation level.
-    return float64_constants_.Find(value.get_bits());
+    return float64_constants_.Find(base::bit_cast<int64_t>(value));
   }
 
   Node** FindExternalConstant(ExternalReference value);

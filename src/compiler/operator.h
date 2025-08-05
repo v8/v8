@@ -131,17 +131,6 @@ class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
 
   void PrintPropsTo(std::ostream& os) const;
 
-#ifdef DEBUG
-  // Tag for checking whether the subclass matches when downcasting. Each
-  // subclass (which are mostly template specializations of Operator1) can
-  // define a static ClassTag which will have a per-class pointer identity.
-  struct ClassTag_t {};
-  virtual const ClassTag_t* ClassTag() const {
-    static constexpr ClassTag_t kCanonicalClassTag = {};
-    return &kCanonicalClassTag;
-  }
-#endif
-
  protected:
   virtual void PrintToImpl(std::ostream& os, PrintVerbosity verbose) const;
 
@@ -177,11 +166,6 @@ struct OpHash : public base::hash<T> {};
 template <typename T, typename Pred = OpEqualTo<T>, typename Hash = OpHash<T>>
 class Operator1 : public Operator {
  public:
-  static const Operator1* Cast(const Operator* op) {
-    DCHECK_EQ(op->ClassTag(), &kCanonicalClassTag);
-    return static_cast<const Operator1*>(op);
-  }
-
   Operator1(Opcode opcode, Properties properties, const char* mnemonic,
             size_t value_in, size_t effect_in, size_t control_in,
             size_t value_out, size_t effect_out, size_t control_out,
@@ -218,15 +202,7 @@ class Operator1 : public Operator {
     PrintParameter(os, verbose);
   }
 
-#ifdef DEBUG
-  const ClassTag_t* ClassTag() const final { return &kCanonicalClassTag; }
-#endif
-
  private:
-#ifdef DEBUG
-  static constexpr ClassTag_t kCanonicalClassTag = {};
-#endif
-
   T const parameter_;
   Pred const pred_;
   Hash const hash_;
@@ -236,7 +212,8 @@ class Operator1 : public Operator {
 // Helper to extract parameters from Operator1<*> operator.
 template <typename T>
 inline T const& OpParameter(const Operator* op) {
-  return Operator1<T>::Cast(op)->parameter();
+  return reinterpret_cast<const Operator1<T, OpEqualTo<T>, OpHash<T>>*>(op)
+      ->parameter();
 }
 
 
