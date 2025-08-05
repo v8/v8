@@ -1361,7 +1361,7 @@ class MaglevGraphBuilder {
                                          ElementsKind elements_kind);
   ReduceResult BuildLoadTypedArrayElement(ValueNode* object, ValueNode* index,
                                           ElementsKind elements_kind);
-  ValueNode* BuildLoadConstantTypedArrayElement(
+  ReduceResult BuildLoadConstantTypedArrayElement(
       compiler::JSTypedArrayRef typed_array, ValueNode* index,
       ElementsKind elements_kind);
   ReduceResult BuildStoreTypedArrayElement(ValueNode* object, ValueNode* index,
@@ -1430,7 +1430,7 @@ class MaglevGraphBuilder {
                            compiler::AccessMode access_mode);
   MaybeReduceResult TryReuseKnownPropertyLoad(ValueNode* lookup_start_object,
                                               compiler::NameRef name);
-  ValueNode* BuildLoadStringLength(ValueNode* string);
+  ReduceResult BuildLoadStringLength(ValueNode* string);
 
   // Converts the input node to a representation that's valid to store into an
   // array with elements kind |kind|.

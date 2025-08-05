@@ -2410,8 +2410,10 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
     return MaybeReduceResult::Fail();
   }
 
-  ValueNode* left_length = BuildLoadStringLength(left);
-  ValueNode* right_length = BuildLoadStringLength(right);
+  ValueNode* left_length;
+  GET_VALUE_OR_ABORT(left_length, BuildLoadStringLength(left));
+  ValueNode* right_length;
+  GET_VALUE_OR_ABORT(right_length, BuildLoadStringLength(right));
 
   auto BuildConsString = [&]() -> ReduceResult {
     ValueNode* new_length;
@@ -5448,7 +5450,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
     }
     case compiler::PropertyAccessInfo::kStringLength: {
       DCHECK_EQ(receiver, lookup_start_object);
-      ValueNode* result = BuildLoadStringLength(receiver);
+      ValueNode* result;
+      GET_VALUE_OR_ABORT(result, BuildLoadStringLength(receiver));
       RecordKnownProperty(lookup_start_object, name, result,
                           AccessInfoGuaranteedConst(access_info),
                           compiler::AccessMode::kLoad);
@@ -5781,7 +5784,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnString(
     RETURN_IF_ABORT(BuildCheckString(object));
   }
 
-  ValueNode* length = BuildLoadStringLength(object);
+  ValueNode* length;
+  GET_VALUE_OR_ABORT(length, BuildLoadStringLength(object));
   ValueNode* index;
   GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(index_object));
   auto emit_load = [&]() -> ValueNode* {
@@ -5987,7 +5991,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadTypedArrayElement(
 #undef BUILD_AND_RETURN_LOAD_TYPED_ARRAY
 }
 
-ValueNode* MaglevGraphBuilder::BuildLoadConstantTypedArrayElement(
+ReduceResult MaglevGraphBuilder::BuildLoadConstantTypedArrayElement(
     compiler::JSTypedArrayRef typed_array, ValueNode* index,
     ElementsKind elements_kind) {
 #define BUILD_AND_RETURN_LOAD_CONSTANT_TYPED_ARRAY(Type)    \
@@ -7079,7 +7083,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReuseKnownPropertyLoad(
   return {};
 }
 
-ValueNode* MaglevGraphBuilder::BuildLoadStringLength(ValueNode* string) {
+ReduceResult MaglevGraphBuilder::BuildLoadStringLength(ValueNode* string) {
   DCHECK(NodeTypeIs(GetType(string), NodeType::kString));
   if (auto vo_string = string->TryCast<InlinedAllocation>()) {
     if (vo_string->object()->type() == VirtualObject::kConsString) {
@@ -9204,7 +9208,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharAt(
   // Ensure that {receiver} is actually a String.
   RETURN_IF_ABORT(BuildCheckString(receiver));
   // And index is below length.
-  ValueNode* length = BuildLoadStringLength(receiver);
+  ValueNode* length;
+  GET_VALUE_OR_ABORT(length, BuildLoadStringLength(receiver));
 
   auto GetCharAt = [&]() -> ValueNode* {
     bool is_seq_one_byte =
@@ -9271,7 +9276,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
   // Ensure that {receiver} is actually a String.
   RETURN_IF_ABORT(BuildCheckString(receiver));
   // And index is below length.
-  ValueNode* length = BuildLoadStringLength(receiver);
+  ValueNode* length;
+  GET_VALUE_OR_ABORT(length, BuildLoadStringLength(receiver));
   auto GetCharCodeAt = [&]() -> ValueNode* {
     bool is_seq_one_byte =
         v8_flags.specialize_code_for_one_byte_seq_strings &&
@@ -9325,7 +9331,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
   // Ensure that {receiver} is actually a String.
   RETURN_IF_ABORT(BuildCheckString(receiver));
   // And index is below length.
-  ValueNode* length = BuildLoadStringLength(receiver);
+  ValueNode* length;
+  GET_VALUE_OR_ABORT(length, BuildLoadStringLength(receiver));
 
   auto GetCodePointAt = [&]() -> ValueNode* {
     bool is_seq_one_byte =
