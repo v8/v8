@@ -2186,8 +2186,7 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ObjectField(
 
 TNode<Float64T> CodeStubAssembler::LoadHeapNumberValue(
     TNode<HeapObject> object) {
-  CSA_DCHECK(this, Word32Or(IsHeapNumber(object), IsTheHole(object)));
-  static_assert(offsetof(HeapNumber, value_) == Hole::kRawNumericValueOffset);
+  CSA_DCHECK(this, IsHeapNumber(object));
   return LoadObjectField<Float64T>(object, offsetof(HeapNumber, value_));
 }
 
@@ -5850,28 +5849,42 @@ void CodeStubAssembler::FillFixedArrayWithValue(ElementsKind kind,
   CSA_SLOW_DCHECK(this, IsFixedArrayWithKind(array, kind));
   DCHECK(value_root_index == RootIndex::kTheHoleValue ||
          value_root_index == RootIndex::kUndefinedValue);
+  static_assert(RootsTable::IsReadOnly(RootIndex::kTheHoleValue));
+  static_assert(RootsTable::IsReadOnly(RootIndex::kUndefinedValue));
 
-  // Determine the value to initialize the {array} based
-  // on the {value_root_index} and the elements {kind}.
-  TNode<Object> value = LoadRoot(value_root_index);
-  TNode<Float64T> float_value;
+  // Determine the value to initialize the {array} based on the
+  // {value_root_index} and the elements {kind}.
   if (IsDoubleElementsKind(kind)) {
-    float_value = LoadHeapNumberValue(CAST(value));
-  }
-
-  BuildFastArrayForEach(
-      array, kind, from_index, to_index,
-      [this, value, float_value, kind](TNode<HeapObject> array,
-                                       TNode<IntPtrT> offset) {
-        if (IsDoubleElementsKind(kind)) {
-          StoreNoWriteBarrier(MachineRepresentation::kFloat64, array, offset,
-                              float_value);
-        } else {
+    if (value_root_index == RootIndex::kTheHoleValue) {
+      BuildFastArrayForEach(
+          array, kind, from_index, to_index,
+          [this](TNode<HeapObject> array, TNode<IntPtrT> offset) {
+            StoreDoubleHole(array, offset);
+          },
+          LoopUnrollingMode::kYes);
+    } else {
+      DCHECK_EQ(value_root_index, RootIndex::kUndefinedValue);
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      BuildFastArrayForEach(
+          array, kind, from_index, to_index,
+          [this](TNode<HeapObject> array, TNode<IntPtrT> offset) {
+            StoreDoubleUndefined(array, offset);
+          },
+          LoopUnrollingMode::kYes);
+#else
+      UNREACHABLE();
+#endif
+    }
+  } else {
+    TNode<Object> value = LoadRoot(value_root_index);
+    BuildFastArrayForEach(
+        array, kind, from_index, to_index,
+        [this, value](TNode<HeapObject> array, TNode<IntPtrT> offset) {
           StoreNoWriteBarrier(MachineRepresentation::kTagged, array, offset,
                               value);
-        }
-      },
-      LoopUnrollingMode::kYes);
+        },
+        LoopUnrollingMode::kYes);
+  }
 }
 
 template V8_EXPORT_PRIVATE void
@@ -6239,7 +6252,7 @@ void CodeStubAssembler::CopyFixedArrayElements(
 
   const int first_element_offset =
       OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag;
-  Comment("[ CopyFixedArrayElements");
+  Comment("[ CopyFixedArrayElements ", from_kind, " -> ", to_kind);
 
   // Typed array elements are not supported.
   DCHECK(!IsTypedArrayElementsKind(from_kind));
@@ -6346,6 +6359,7 @@ void CodeStubAssembler::CopyFixedArrayElements(
 
     if (to_double_elements) {
       DCHECK(!needs_write_barrier);
+      DCHECK_NOT_NULL(if_hole);
       TNode<Float64T> value = LoadElementAndPrepareForStore<Float64T>(
           from_array, var_from_offset.value(), from_kind, to_kind, if_hole);
       StoreNoWriteBarrier(MachineRepresentation::kFloat64, to_array_adjusted,

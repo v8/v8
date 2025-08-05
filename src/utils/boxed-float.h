@@ -189,6 +189,11 @@ class Float64 {
 
 ASSERT_TRIVIALLY_COPYABLE(Float64);
 
+inline std::ostream& operator<<(std::ostream& os, const Float64& float64) {
+  return os << float64.get_scalar() << " ("
+            << AsHex(float64.get_bits(), 16, true) << ")";
+}
+
 }  // namespace internal
 }  // namespace v8
 

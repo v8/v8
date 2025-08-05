@@ -69,7 +69,7 @@ float ValueOfOperator<float>(const Operator* op) {
 template <>
 double ValueOfOperator<double>(const Operator* op) {
   CHECK_EQ(IrOpcode::kFloat64Constant, op->opcode());
-  return OpParameter<double>(op);
+  return OpParameter<Float64>(op).get_scalar();
 }
 
 

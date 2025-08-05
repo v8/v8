@@ -159,9 +159,9 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kCheckedFloat64ToInt32: {
       Float64Matcher m(node->InputAt(0));
-      if (m.HasResolvedValue() && IsInt32Double(m.ResolvedValue())) {
+      if (m.HasResolvedValue() && IsInt32Double(m.ScalarValue())) {
         Node* value =
-            jsgraph()->Int32Constant(static_cast<int32_t>(m.ResolvedValue()));
+            jsgraph()->Int32Constant(static_cast<int32_t>(m.ScalarValue()));
         ReplaceWithValue(node, value);
         return Replace(value);
       }
@@ -308,16 +308,21 @@ Reduction SimplifiedOperatorReducer::ReplaceFloat64(double value) {
   return Replace(jsgraph()->Float64Constant(value));
 }
 
+Reduction SimplifiedOperatorReducer::ReplaceFloat64(Float64 value) {
+  return Replace(jsgraph()->Float64Constant(value));
+}
 
 Reduction SimplifiedOperatorReducer::ReplaceInt32(int32_t value) {
   return Replace(jsgraph()->Int32Constant(value));
 }
 
-
 Reduction SimplifiedOperatorReducer::ReplaceNumber(double value) {
   return Replace(jsgraph()->ConstantNoHole(value));
 }
 
+Reduction SimplifiedOperatorReducer::ReplaceNumber(Float64 value) {
+  return Replace(jsgraph()->ConstantNoHole(value));
+}
 
 Reduction SimplifiedOperatorReducer::ReplaceNumber(int32_t value) {
   return Replace(jsgraph()->ConstantNoHole(value));
