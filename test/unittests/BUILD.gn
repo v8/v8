@@ -193,6 +193,10 @@ v8_source_set("cppgc_unittests_sources") {
       "../..:v8_tracing",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 v8_executable("v8_unittests") {
@@ -814,7 +818,7 @@ v8_source_set("v8_unittests_sources") {
 
     deps += [
       "//third_party/abseil-cpp:absl_full",
-      "//third_party/fuzztest:fuzztest",
+      "//third_party/fuzztest",
       "//third_party/fuzztest:init_fuzztest",
     ]
 
@@ -836,7 +840,7 @@ v8_source_set("v8_unittests_sources") {
         "json/json-unittest.cc",
         "profiler/heap-snapshot-unittest.cc",
       ]
-      deps += [ "//third_party/jsoncpp:jsoncpp" ]
+      deps += [ "//third_party/jsoncpp" ]
     }
   }
 
@@ -868,6 +872,10 @@ v8_source_set("v8_unittests_sources") {
       ]
     }
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 v8_source_set("inspector_unittests_sources") {
