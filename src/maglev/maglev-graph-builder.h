@@ -1593,6 +1593,11 @@ class MaglevGraphBuilder {
   ReduceResult VisitBinarySmiOperation();
 
   ReduceResult BuildUnwrapStringWrapper(ValueNode* input);
+  // Given two arbitrary inputs, this builds a string-concat operation if
+  // at least one operand is a String. If so, it appropriately converts the
+  // other operand if needed, and then emits the most specialized concat
+  // operation possible.
+  MaybeReduceResult TryBuildStringConcat(ValueNode* left, ValueNode* right);
   ReduceResult BuildStringConcat(ValueNode* left, ValueNode* right);
   ReduceResult BuildNewConsStringMap(ValueNode* left, ValueNode* right);
   size_t StringLengthStaticLowerBound(ValueNode* string, int max_depth = 2);

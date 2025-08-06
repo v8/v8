@@ -2473,6 +2473,46 @@ ReduceResult MaglevGraphBuilder::BuildUnwrapStringWrapper(ValueNode* input) {
   return AddNewNode<UnwrapStringWrapper>({input});
 }
 
+MaybeReduceResult MaglevGraphBuilder::TryBuildStringConcat(ValueNode* left,
+                                                           ValueNode* right) {
+  auto left_type = GetType(left);
+  auto right_type = GetType(right);
+  auto left_is_string = NodeTypeIs(left_type, NodeType::kString);
+  auto right_is_string = NodeTypeIs(right_type, NodeType::kString);
+
+  if (!left_is_string && !right_is_string) {
+    return MaybeReduceResult::Fail();
+  }
+
+  // Build the necessary ToString conversions.
+  //
+  // JSReceivers need special handling due to ToPrimitive in
+  // https://tc39.es/ecma262/#sec-applystringornumericbinaryoperator
+  // which uses preferredType NUMBER, unlike the same call in ToString, which
+  // uses STRING. For now, pass these on to StringAddConvertLeft/Right builtins.
+  // TODO(jgruber): consider inlining this instead, and properly converting
+  // operands using `ToString(ToPrimitive(op))`.
+  if (!left_is_string) {
+    if (NodeTypeCanBe(left_type, NodeType::kJSReceiver)) {
+      constexpr auto kTarget = Builtin::kStringAddConvertLeft;
+      auto result = BuildCallBuiltin<kTarget>({left, right});
+      SetAccumulator(result);
+      return result;
+    }
+    left = BuildToString(left, ToString::kThrowOnSymbol);
+  } else if (!right_is_string) {
+    if (NodeTypeCanBe(right_type, NodeType::kJSReceiver)) {
+      constexpr auto kTarget = Builtin::kStringAddConvertRight;
+      auto result = BuildCallBuiltin<kTarget>({left, right});
+      SetAccumulator(result);
+      return result;
+    }
+    right = BuildToString(right, ToString::kThrowOnSymbol);
+  }
+
+  return BuildStringConcat(left, right);
+}
+
 ReduceResult MaglevGraphBuilder::BuildStringConcat(ValueNode* left,
                                                    ValueNode* right) {
   if (RootConstant* root_constant = left->TryCast<RootConstant>()) {
@@ -2570,6 +2610,18 @@ ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
       // Fallback to generic node.
       break;
   }
+
+  if constexpr (kOperation == Operation::kAdd) {
+    // Since feedback describes both operands, it is only set to a value if
+    // both operands fulfill the condition (e.g. if both are strings).
+    // But we can do better for strings, since only one operand must be a
+    // string to result in a string-add operation.
+    DCHECK_NE(feedback_hint, BinaryOperationHint::kString);
+    ValueNode* left = LoadRegister(0);
+    ValueNode* right = GetAccumulator();
+    RETURN_IF_DONE(TryBuildStringConcat(left, right));
+  }
+
   return BuildGenericBinaryOperationNode<kOperation>();
 }
 

@@ -829,6 +829,8 @@ static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
   V(StringOrStringWrapper, kString | kStringWrapper)                      \
   V(StringOrOddball, kString | kOddball)                                  \
   V(Name, kString | kSymbol)                                              \
+  /* TODO(jgruber): Add kBigInt and kSymbol once they exist. */           \
+  V(JSPrimitive, kNumber | kString | kBoolean | kNullOrUndefined)         \
   V(JSReceiver, kJSArray | kCallable | kStringWrapper | kOtherJSReceiver) \
   V(JSReceiverOrNullOrUndefined, kJSReceiver | kNullOrUndefined)          \
   V(AnyHeapObject, kUnknown - kSmi)
@@ -887,6 +889,8 @@ inline constexpr bool NodeTypeCanBe(NodeType type, NodeType to_check) {
   NodeTypeInt right = static_cast<NodeTypeInt>(to_check);
   return (static_cast<NodeTypeInt>(type) & (right)) != 0;
 }
+
+static_assert(!NodeTypeCanBe(NodeType::kJSPrimitive, NodeType::kJSReceiver));
 
 inline constexpr bool NodeTypeIsUnstable(NodeType type) {
   DCHECK(!NodeTypeIsNeverStandalone(type));
