@@ -3977,7 +3977,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void ContNew(FullDecoder* decoder, const ContIndexImmediate& imm,
                const Value& func_ref, Value* result) {
-    UNIMPLEMENTED();
+    result->op =
+        __ WasmCallRuntime(decoder->zone(), Runtime::kWasmAllocateContinuation,
+                           {func_ref.op}, __ NoContextConstant());
   }
 
   void ContBind(FullDecoder* decoder, const ContIndexImmediate& orig_imm,
@@ -3989,7 +3991,20 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void Resume(FullDecoder* decoder, const ContIndexImmediate& imm,
               base::Vector<HandlerCase> handlers, const Value& cont_ref,
               const Value args[], Value returns[]) {
-    UNIMPLEMENTED();
+    const FunctionSig* sig =
+        decoder->module_->signature(imm.cont_type->contfun_typeindex());
+    if (sig->parameter_count() > 0 || sig->return_count() > 0) {
+      UNIMPLEMENTED();
+    }
+    V<WordPtr> stack = __ LoadExternalPointerFromObject(
+        cont_ref.op, WasmContinuationObject::kStackOffset, kWasmStackMemoryTag);
+    V<WasmFuncRef> func_ref = __ Load(stack, LoadOp::Kind::RawAligned(),
+                                      MemoryRepresentation::TaggedPointer(),
+                                      StackMemory::func_ref_offset());
+    auto [target, implicit_arg] =
+        BuildFunctionReferenceTargetAndImplicitArg(func_ref, kWasmFuncRef);
+    BuildWasmCall(decoder, sig, target, implicit_arg, args, {},
+                  compiler::kWasmIndirectFunction);
   }
 
   void ResumeThrow(FullDecoder* decoder,

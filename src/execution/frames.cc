@@ -291,7 +291,9 @@ void StackFrameIterator::Reset(ThreadLocalTop* top) {
 
 #if V8_ENABLE_WEBASSEMBLY
 void StackFrameIterator::Reset(ThreadLocalTop* top, wasm::StackMemory* stack) {
-  if (stack->jmpbuf()->state == wasm::JumpBuffer::Retired) {
+  if (stack->jmpbuf()->sp == stack->base() ||
+      stack->jmpbuf()->state == wasm::JumpBuffer::Retired) {
+    // The stack has not been started yet or has already retired.
     return;
   }
   StackFrame::State state;

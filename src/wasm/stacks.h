@@ -164,6 +164,9 @@ class StackMemory {
     stack_switch_info_.source_fp = kNullAddress;
   }
 
+  void set_func_ref(Tagged<WasmFuncRef> func_ref) { func_ref_ = func_ref; }
+  static int func_ref_offset() { return OFFSET_OF(StackMemory, func_ref_); }
+
   static int JSCentralStackLimitMarginKB() { return DEBUG_BOOL ? 80 : 40; }
 
   static int JSGrowableStackLimitMarginKB() {
@@ -216,6 +219,7 @@ class StackMemory {
   StackSegment* first_segment_ = nullptr;
   StackSegment* active_segment_ = nullptr;
   Tagged<WasmContinuationObject> current_cont_ = {};
+  Tagged<WasmFuncRef> func_ref_ = {};
 };
 
 constexpr int kStackSpOffset =

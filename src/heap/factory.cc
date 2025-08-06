@@ -1946,6 +1946,23 @@ DirectHandle<WasmSuspenderObject> Factory::NewWasmSuspenderObject() {
   return suspender;
 }
 
+DirectHandle<WasmContinuationObject> Factory::NewWasmContinuationObject() {
+  Tagged<Map> map = *wasm_continuation_object_map();
+  Tagged<WasmContinuationObject> obj =
+      Cast<WasmContinuationObject>(AllocateRawWithImmortalMap(
+          map->instance_size(), AllocationType::kYoung, map));
+  DirectHandle<WasmContinuationObject> cont = handle(obj, isolate());
+  cont->init_stack(IsolateForSandbox(isolate()), nullptr);
+  std::unique_ptr<wasm::StackMemory> stack = wasm::StackMemory::New();
+  stack->jmpbuf()->fp = stack->base();
+  stack->jmpbuf()->sp = stack->base();
+  stack->jmpbuf()->state = wasm::JumpBuffer::Suspended;
+  stack->set_index(isolate()->wasm_stacks().size());
+  cont->set_stack(isolate(), stack.get());
+  isolate()->wasm_stacks().emplace_back(std::move(stack));
+  return cont;
+}
+
 DirectHandle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
     DirectHandle<Code> export_wrapper,
     DirectHandle<WasmTrustedInstanceData> instance_data,

@@ -2324,4 +2324,14 @@ RUNTIME_FUNCTION(Runtime_WasmStringHash) {
   return Smi::FromInt(static_cast<int>(hash));
 }
 
+RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
+  DCHECK_EQ(1, args.length());
+  HandleScope scope(isolate);
+  DirectHandle<WasmFuncRef> func_ref(Cast<WasmFuncRef>(args[0]), isolate);
+  DirectHandle<WasmContinuationObject> cont =
+      isolate->factory()->NewWasmContinuationObject();
+  cont->stack()->set_func_ref(*func_ref);
+  return *cont;
+}
+
 }  // namespace v8::internal
