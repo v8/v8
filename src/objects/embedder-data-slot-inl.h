@@ -149,6 +149,35 @@ bool EmbedderDataSlot::store_aligned_pointer(IsolateForSandbox isolate,
 #endif  // V8_ENABLE_SANDBOX
 }
 
+#ifdef V8_ENABLE_SANDBOX
+bool EmbedderDataSlot::store_handle(IsolateForSandbox isolate,
+                                    Tagged<HeapObject> host,
+                                    ExternalPointerHandle handle) {
+  DCHECK_NE(handle, kNullExternalPointerHandle);
+  ExternalPointerTable& table =
+      isolate.GetExternalPointerTableFor(kEmbedderDataSlotPayloadTag);
+  ExternalPointerTable::Space* space = isolate.GetExternalPointerTableSpaceFor(
+      kEmbedderDataSlotPayloadTag, host.address());
+
+  ExternalPointerHandle new_handle = table.DuplicateEntry(space, handle);
+  if (new_handle == kNullExternalPointerHandle) return false;
+
+  auto location = reinterpret_cast<ExternalPointerHandle*>(
+      address() + kExternalPointerOffset);
+  DCHECK_EQ(base::AsAtomic32::Relaxed_Load(location),
+            kNullExternalPointerHandle);
+  base::AsAtomic32::Release_Store(location, new_handle);
+  size_t offset = address() - host.address() + kExternalPointerOffset;
+  // Use `offset` to avoid compilation issues for gn arg
+  // `v8_disable_write_barriers = true`.
+  USE(offset);
+  EXTERNAL_POINTER_WRITE_BARRIER(host, static_cast<int>(offset),
+                                 kEmbedderDataSlotPayloadTag);
+  ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi::zero());
+  return true;
+}
+#endif  // V8_ENABLE_SANDBOX
+
 EmbedderDataSlot::RawData EmbedderDataSlot::load_raw(
     IsolateForSandbox isolate, const DisallowGarbageCollection& no_gc) const {
   // We don't care about atomicity of access here because embedder slots

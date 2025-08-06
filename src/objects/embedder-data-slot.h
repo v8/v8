@@ -126,6 +126,12 @@ class EmbedderDataSlot
   V8_INLINE V8_WARN_UNUSED_RESULT bool store_aligned_pointer(
       IsolateForSandbox isolate, Tagged<HeapObject> host, void* ptr);
 
+#ifdef V8_ENABLE_SANDBOX
+  V8_INLINE V8_WARN_UNUSED_RESULT bool store_handle(IsolateForSandbox isolate,
+                                                    Tagged<HeapObject> host,
+                                                    ExternalPointerHandle handle);
+#endif  // V8_ENABLE_SANDBOX
+
   V8_INLINE bool MustClearDuringSerialization(
       const DisallowGarbageCollection& no_gc);
   V8_INLINE RawData load_raw(IsolateForSandbox isolate,
