@@ -62,23 +62,29 @@ bool NewSpace::Contains(Tagged<HeapObject> o) const {
 // SemiSpaceObjectIterator
 
 SemiSpaceObjectIterator::SemiSpaceObjectIterator(const SemiSpaceNewSpace* space)
-    : current_(space->first_allocatable_address()) {}
+    : current_page_(space->first_page()),
+      current_object_(current_page_ ? current_page_->area_start()
+                                    : kNullAddress) {}
 
 Tagged<HeapObject> SemiSpaceObjectIterator::Next() {
-  if (!current_) return {};
+  if (!current_page_) return {};
+
+  DCHECK(current_page_->ContainsLimit(current_object_));
 
   while (true) {
-    if (PageMetadata::IsAlignedToPageSize(current_)) {
-      PageMetadata* page = PageMetadata::FromAllocationAreaAddress(current_);
-      page = page->next_page();
-      if (page == nullptr) return {};
-      current_ = page->area_start();
+    while (current_object_ < current_page_->area_end()) {
+      Tagged<HeapObject> object = HeapObject::FromAddress(current_object_);
+      current_object_ += ALIGN_TO_ALLOCATION_ALIGNMENT(object->Size());
+      if (!IsFreeSpaceOrFiller(object)) return object;
     }
-    Tagged<HeapObject> object = HeapObject::FromAddress(current_);
-    current_ += ALIGN_TO_ALLOCATION_ALIGNMENT(object->Size());
-    if (!IsFreeSpaceOrFiller(object)) return object;
+    current_page_ = current_page_->next_page();
+    if (current_page_ == nullptr) return {};
+    current_object_ = current_page_->area_start();
   }
 }
+
+// -----------------------------------------------------------------------------
+// SemiSpaceNewSpace
 
 void SemiSpaceNewSpace::IncrementAllocationTop(Address new_top) {
   DCHECK_LE(allocation_top_, new_top);

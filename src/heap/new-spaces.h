@@ -183,8 +183,8 @@ class SemiSpaceObjectIterator : public ObjectIterator {
   inline Tagged<HeapObject> Next() final;
 
  private:
-  // The current iteration point.
-  Address current_;
+  const PageMetadata* current_page_;
+  Address current_object_;
 };
 
 class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
