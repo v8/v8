@@ -75,7 +75,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:19281424d4eeefb3c4342431703534c47d260bfb',
+  'gn_version': 'git_revision:cc7c61e105fb56183fd6c5c52bbe3c37ff724a0d',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -130,9 +130,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '35e795fa3bf9b3a4c86590e9e7470207d34b8a8d',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5f872b88fac8c0bfb0ee8e1ca384aa26270be070',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6155afa651b6544404544302dce843c1c7dda72c',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '16b1d7d539c0ea4a367bc4860f9002a0bb6c790e',
   'buildtools/linux64': {
     'packages': [
       {
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '1feab63934b3848fd38fe3a7df5c68d15bdeebb1',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'b66d188607bca258f277b7a4410c7302c48b8193',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -490,9 +490,9 @@ deps = {
   'third_party/perfetto':
     Var('android_url') + '/platform/external/perfetto.git' + '@' + '40b529923598b739b2892a536a7692eedbed5685',
   'third_party/protobuf':
-    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '17e748fa88a92644b8879ab76126ead5efbdff29',
+    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'abdd0b541c6d7864c3d763f7de30c27e3b5d0b54',
   'third_party/re2/src':
-    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + 'c2c6a2eb663fe21e0cd9f2b1886821bdecb1e988',
+    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '85c7c0fb1163b0bd83a7951f5a205ee7b489e33e',
   'third_party/requests': {
       'url': Var('chromium_url') + '/external/github.com/kennethreitz/requests.git' + '@' + 'c7e0fc087ceeadb8b4c84a0953a422c474093d6d',
       'condition': 'checkout_android',
@@ -548,7 +548,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '363a126ed293970f3df97ee5f760cba29a29e193',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'a47d5e4d2095cdac7afe0b0cb1c2d438f9841a4c',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'f34259841dce41f675f3626d5c68d8d78d40fdb9',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '3438d4183bfc7c0d6850e8b970204cc8189f0323',
   'third_party/abseil-cpp': {
