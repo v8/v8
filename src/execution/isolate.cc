@@ -1328,6 +1328,12 @@ MaybeDirectHandle<JSPromise> TryGetCurrentTaskPromise(Isolate* isolate) {
         return promise;
       }
     }
+  } else if (IsPromiseResolveThenableJobTask(*current_microtask)) {
+    auto promise_resolve_thenable_job_task =
+        Cast<PromiseResolveThenableJobTask>(current_microtask);
+    DirectHandle<JSPromise> promise(
+        promise_resolve_thenable_job_task->promise_to_resolve(), isolate);
+    return promise;
   }
   return MaybeDirectHandle<JSPromise>();
 }
