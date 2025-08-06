@@ -1809,7 +1809,6 @@ TEST(li_estimate) {
   }
 }
 
-#ifdef CAN_USE_RVV_INSTRUCTIONS
 #define UTEST_LOAD_STORE_RVV(ldname, stname, SEW, arry)                      \
   TEST(RISCV_UTEST_##stname##ldname##SEW) {                                  \
     if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                       \
@@ -3100,7 +3099,6 @@ TEST(RISCV_UTEST_WasmRvvS128const) {
 }
 
 #undef UTEST_VCPOP_M_WITH_WIDTH
-#endif  // CAN_USE_RVV_INSTRUCTIONS
 #undef __
 }  // namespace internal
 }  // namespace v8

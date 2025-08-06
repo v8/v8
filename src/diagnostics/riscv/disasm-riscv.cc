@@ -3294,11 +3294,9 @@ int Decoder::InstructionDecode(uint8_t* instr_ptr) {
     case Instruction::kCBType:
       DecodeCBType(instr);
       break;
-#ifdef CAN_USE_RVV_INSTRUCTIONS
     case Instruction::kVType:
       DecodeVType(instr);
       break;
-#endif
     default:
       Format(instr, "UNSUPPORTED");
       break;

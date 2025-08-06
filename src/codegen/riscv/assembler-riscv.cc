@@ -58,7 +58,7 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 
 #if (defined __riscv_vector) && (__riscv_v >= 1000000)
   answer |= 1u << RISCV_SIMD;
-#endif  // def CAN_USE_RVV_INSTRUCTIONS
+#endif  // def __riscv_vector && __riscv_v >= 1000000
 
 #if (defined __riscv_zba)
   answer |= 1u << ZBA;
