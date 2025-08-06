@@ -2965,7 +2965,7 @@ FastJsonStringifier<Char>::SerializeFixedArrayWithInterruptCheck(
                                     FixedDoubleArray, FixedArray>;
 
   StackLimitCheck interrupt_check(isolate_);
-  uint32_t limit = std::min(length, kArrayInterruptLength);
+  uint32_t limit = std::min(length, start_index + kArrayInterruptLength);
   constexpr uint32_t kMaxAllowedFastPackedLength =
       std::numeric_limits<uint32_t>::max() - kArrayInterruptLength;
   static_assert(FixedArray::kMaxLength < kMaxAllowedFastPackedLength);
