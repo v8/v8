@@ -524,8 +524,8 @@ UTEST_R2_FORM_WITH_RES(orn, int64_t, LARGE_INT_EXCEED_32_BIT,
 
 UTEST_R2_FORM_WITH_RES(xnor, int64_t, LARGE_INT_EXCEED_32_BIT,
                        LARGE_UINT_EXCEED_32_BIT,
-                       int64_t((~LARGE_INT_EXCEED_32_BIT) ^
-                               (~LARGE_UINT_EXCEED_32_BIT)))
+                       int64_t(~(LARGE_INT_EXCEED_32_BIT ^
+                                 LARGE_UINT_EXCEED_32_BIT)))
 
 UTEST_R1_FORM_WITH_RES(clz, int64_t, int64_t, 0b000011000100000000000, 47)
 UTEST_R1_FORM_WITH_RES(ctz, int64_t, int64_t, 0b000011000100000000000, 11)

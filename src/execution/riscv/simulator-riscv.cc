@@ -3743,7 +3743,7 @@ void Simulator::DecodeRVRType() {
       set_rd(rs1() | (~rs2()));
       break;
     case RO_XNOR:
-      set_rd((~rs1()) ^ (~rs2()));
+      set_rd(~(rs1() ^ rs2()));
       break;
 #ifdef V8_TARGET_ARCH_RISCV64
     case RO_ADDW: {
