@@ -6,6 +6,7 @@
 #define V8_COMPILER_OPERATOR_H_
 
 #include <ostream>
+#include <type_traits>
 
 #include "src/base/compiler-specific.h"
 #include "src/base/flags.h"
@@ -151,11 +152,11 @@ class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
   const char* mnemonic_;
   Opcode opcode_;
   Properties properties_;
+  uint8_t effect_out_;  // Stored out of order for better field packing.
   uint32_t value_in_;
   uint32_t effect_in_;
   uint32_t control_in_;
   uint32_t value_out_;
-  uint8_t effect_out_;
   uint32_t control_out_;
 };
 
@@ -176,6 +177,11 @@ struct OpHash : public base::hash<T> {};
 // type {T} with the proper default equality and hashing functions.
 template <typename T, typename Pred = OpEqualTo<T>, typename Hash = OpHash<T>>
 class Operator1 : public Operator {
+  // Expect Pred and Hash to be empty classes (stateless functors), so that we
+  // don't have to store values for them.
+  static_assert(std::is_empty_v<Pred>);
+  static_assert(std::is_empty_v<Hash>);
+
  public:
   static const Operator1* Cast(const Operator* op) {
 #if defined(DEBUG) && !defined(COMPONENT_BUILD)
@@ -187,23 +193,19 @@ class Operator1 : public Operator {
   Operator1(Opcode opcode, Properties properties, const char* mnemonic,
             size_t value_in, size_t effect_in, size_t control_in,
             size_t value_out, size_t effect_out, size_t control_out,
-            T parameter, Pred const& pred = Pred(), Hash const& hash = Hash())
+            T parameter)
       : Operator(opcode, properties, mnemonic, value_in, effect_in, control_in,
                  value_out, effect_out, control_out),
-        parameter_(parameter),
-        pred_(pred),
-        hash_(hash) {}
+        parameter_(parameter) {}
 
   T const& parameter() const { return parameter_; }
 
   bool Equals(const Operator* other) const final {
     if (opcode() != other->opcode()) return false;
-    const Operator1<T, Pred, Hash>* that =
-        reinterpret_cast<const Operator1<T, Pred, Hash>*>(other);
-    return this->pred_(this->parameter(), that->parameter());
+    return Pred{}(this->parameter(), Cast(other)->parameter());
   }
   size_t HashCode() const final {
-    return base::hash_combine(this->opcode(), this->hash_(this->parameter()));
+    return base::hash_combine(this->opcode(), Hash{}(this->parameter()));
   }
   // For most parameter types, we have only a verbose way to print them, namely
   // ostream << parameter. But for some types it is particularly useful to have
@@ -230,8 +232,6 @@ class Operator1 : public Operator {
 #endif
 
   T const parameter_;
-  Pred const pred_;
-  Hash const hash_;
 };
 
 
