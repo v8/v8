@@ -530,6 +530,45 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                                           MemoryRepresentation::TaggedPointer(),
                                           WasmImportData::kCallableOffset);
     auto [old_sp, old_limit] = BuildSwitchToTheCentralStackIfNeeded();
+    OpIndex suspender = OpIndex::Invalid();
+    if (suspend == kSuspend) {
+      suspender = __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned(),
+                          MemoryRepresentation::AnyUncompressedTagged(),
+                          IsolateData::active_suspender_offset());
+
+      IF (__ TaggedEqual(suspender, __ SmiConstant(Smi::zero()))) {
+        V<Smi> error = __ SmiConstant(Smi::FromInt(
+            static_cast<int32_t>(MessageTemplate::kWasmSuspendError)));
+        __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError,
+                           {error}, native_context);
+        __ Unreachable();
+      }
+      if (v8_flags.stress_wasm_stack_switching) {
+        V<Word32> for_stress_testing = __ TaggedEqual(
+            __ LoadTaggedField(suspender, WasmSuspenderObject::kResumeOffset),
+            LOAD_ROOT(UndefinedValue));
+        IF (for_stress_testing) {
+          V<Smi> error = __ SmiConstant(Smi::FromInt(
+              static_cast<int32_t>(MessageTemplate::kWasmSuspendJSFrames)));
+          __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError,
+                             {error}, native_context);
+          __ Unreachable();
+        }
+      }
+      // If {old_sp} is null, it must be that we were on the central stack
+      // before entering the wasm-to-js wrapper, which means that there are JS
+      // frames in the current suspender. JS frames cannot be suspended, so
+      // trap.
+      OpIndex has_js_frames = __ WordPtrEqual(__ IntPtrConstant(0), old_sp);
+      IF (has_js_frames) {
+        V<Smi> error = __ SmiConstant(Smi::FromInt(
+            static_cast<int32_t>(MessageTemplate::kWasmSuspendJSFrames)));
+        __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError,
+                           {error}, native_context);
+        __ Unreachable();
+      }
+    }
+
     OpIndex call = OpIndex::Invalid();
     switch (kind) {
       // =======================================================================
@@ -599,7 +638,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     DCHECK(call.valid());
 
     if (suspend == kSuspend) {
-      call = BuildSuspend(call, ref, &old_sp, old_limit);
+      DCHECK_IMPLIES(!suspender.valid(),
+                     __ generating_unreachable_operations());
+      call = BuildSuspend(call, ref, suspender, &old_sp, old_limit);
     }
 
     // Convert the return value(s) back.
@@ -1111,7 +1152,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   }
 
   V<Object> BuildSuspend(V<Object> value, V<Object> import_data,
-                         V<WordPtr>* old_sp, V<WordPtr> old_limit) {
+                         V<Object> suspender, V<WordPtr>* old_sp,
+                         V<WordPtr> old_limit) {
     // If value is a promise, suspend to the js-to-wasm prompt, and resume later
     // with the promise's resolved value.
     ScopedVar<Object> result(this, value);
@@ -1132,42 +1174,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     OpIndex promise = __ Call(promise_resolve, OpIndex::Invalid(),
                               base::VectorOf(resolve_args), resolve_call_desc);
 
-    OpIndex suspender =
-        __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned(),
-                MemoryRepresentation::AnyUncompressedTagged(),
-                IsolateData::active_suspender_offset());
-
-    IF (__ TaggedEqual(suspender, __ SmiConstant(Smi::zero()))) {
-      V<Smi> error = __ SmiConstant(Smi::FromInt(
-          static_cast<int32_t>(MessageTemplate::kWasmSuspendError)));
-      __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError,
-                         {error}, native_context);
-      __ Unreachable();
-    }
-    if (v8_flags.stress_wasm_stack_switching) {
-      V<Word32> for_stress_testing = __ TaggedEqual(
-          __ LoadTaggedField(suspender, WasmSuspenderObject::kResumeOffset),
-          LOAD_ROOT(UndefinedValue));
-      IF (for_stress_testing) {
-        V<Smi> error = __ SmiConstant(Smi::FromInt(
-            static_cast<int32_t>(MessageTemplate::kWasmSuspendJSFrames)));
-        __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError,
-                           {error}, native_context);
-        __ Unreachable();
-      }
-    }
-    // If {old_sp} is null, it must be that we were on the central stack
-    // before entering the wasm-to-js wrapper, which means that there are JS
-    // frames in the current suspender. JS frames cannot be suspended, so
-    // trap.
-    OpIndex has_js_frames = __ WordPtrEqual(__ IntPtrConstant(0), *old_sp);
-    IF (has_js_frames) {
-      V<Smi> error = __ SmiConstant(Smi::FromInt(
-          static_cast<int32_t>(MessageTemplate::kWasmSuspendJSFrames)));
-      __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError,
-                         {error}, native_context);
-      __ Unreachable();
-    }
     V<Object> on_fulfilled = __ Load(suspender, LoadOp::Kind::TaggedBase(),
                                      MemoryRepresentation::TaggedPointer(),
                                      WasmSuspenderObject::kResumeOffset);

@@ -35,8 +35,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     // import1 -> export2 (unwrapped)
     instance.exports.export2();
   }
+  let x = 0;
   function import2() {
-    return Promise.resolve(0);
+    // SuspendError should be raised before calling so we should never execute
+    // import2
+    x = 1;
+    assertUnreachable();
   }
   import2 = new WebAssembly.Suspending(import2);
   instance = builder.instantiate(
@@ -48,6 +52,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let wrapper = WebAssembly.promising(instance.exports.export1);
   assertThrowsAsync(wrapper(), WebAssembly.SuspendError,
       /trying to suspend JS frames/);
+  // we should not have executed the body of import2
+  assertEquals(x, 0);
 })();
 
 (function TestSwitchingToTheCentralStackForRuntime() {
