@@ -126,15 +126,13 @@ bool EmbedderDataSlot::ToAlignedPointer(
 bool EmbedderDataSlot::ToGenericAlignedPointer(IsolateForSandbox isolate,
                                                void** out_pointer) const {
   return ToAlignedPointer(
-      isolate, out_pointer,
-      {kEmbedderDataSlotPayloadTag, kEmbedderDataSlotPayloadTag});
+      isolate, out_pointer, {kFirstEmbedderDataTag, kLastEmbedderDataTag});
 }
 
 bool EmbedderDataSlot::DeprecatedToAlignedPointer(IsolateForSandbox isolate,
                                                   void** out_pointer) const {
   return ToAlignedPointer(
-      isolate, out_pointer,
-      {kEmbedderDataSlotPayloadTag, kEmbedderDataSlotPayloadTag});
+      isolate, out_pointer, {kFirstEmbedderDataTag, kLastEmbedderDataTag});
 }
 
 bool EmbedderDataSlot::store_aligned_pointer(IsolateForSandbox isolate,

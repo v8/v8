@@ -91,7 +91,7 @@ void BodyDescriptorBase::IterateJSObjectBodyImpl(Tagged<Map> map,
       v->VisitExternalPointer(
           obj, obj->RawExternalPointerField(
                    offset + EmbedderDataSlot::kExternalPointerOffset,
-                   kEmbedderDataSlotPayloadTag));
+                   {kFirstEmbedderDataTag, kLastEmbedderDataTag}));
     }
     // Proceed processing inobject properties.
     start_offset = inobject_fields_start_offset;
@@ -1464,7 +1464,7 @@ class EmbedderDataArray::BodyDescriptor final : public BodyDescriptorBase {
       v->VisitExternalPointer(
           obj, obj->RawExternalPointerField(
                    offset + EmbedderDataSlot::kExternalPointerOffset,
-                   kEmbedderDataSlotPayloadTag));
+                   {kFirstEmbedderDataTag, kLastEmbedderDataTag}));
     }
 
 #else
