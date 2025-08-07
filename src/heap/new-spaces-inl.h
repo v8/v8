@@ -11,6 +11,7 @@
 #include "src/base/sanitizer/msan.h"
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
+#include "src/heap/page-metadata.h"
 #include "src/heap/paged-spaces-inl.h"
 #include "src/heap/spaces-inl.h"
 #include "src/objects/objects-inl.h"
@@ -74,7 +75,12 @@ Tagged<HeapObject> SemiSpaceObjectIterator::Next() {
   while (true) {
     while (current_object_ < current_page_->area_end()) {
       Tagged<HeapObject> object = HeapObject::FromAddress(current_object_);
-      current_object_ += ALIGN_TO_ALLOCATION_ALIGNMENT(object->Size());
+      int object_size = object->Size();
+      DCHECK_LE(object_size, PageMetadata::kPageSize);
+      Address next_object =
+          current_object_ + ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
+      DCHECK_GT(next_object, current_object_);
+      current_object_ = next_object;
       if (!IsFreeSpaceOrFiller(object)) return object;
     }
     current_page_ = current_page_->next_page();
