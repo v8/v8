@@ -3758,6 +3758,35 @@ class BodyGen {
     }
 
     if (recursion_limit_reached() || data->size() == 0) {
+      // For defaultable types, prefer to emit *.new_default, because that
+      // makes functions more interesting to execute than ref.null.
+      if (type.is_index()) {
+        ModuleTypeIndex index = type.ref_index();
+        const TypeDefinition& type_def =
+            builder_->builder()->GetType_Unsafe(index);
+        if (type_def.kind == TypeDefinition::kStruct &&
+            !type_def.has_descriptor()) {
+          const StructType* struct_type = type_def.struct_type;
+          bool is_defaultable = std::all_of(
+              struct_type->fields().begin(), struct_type->fields().end(),
+              [](ValueType type) -> bool { return type.is_defaultable(); });
+          if (is_defaultable) {
+            builder_->EmitWithPrefix(kExprStructNewDefault);
+            builder_->EmitU32V(index);
+            return;
+          }
+        } else if (type.ref_type_kind() == RefTypeKind::kArray) {
+          if (type_def.kind == TypeDefinition::kArray) {
+            DCHECK(!type_def.has_descriptor());  // Spec doesn't allow this.
+            if (type_def.array_type->element_type().is_defaultable()) {
+              builder_->EmitI32Const(1);  // Array length.
+              builder_->EmitWithPrefix(kExprArrayNewDefault);
+              builder_->EmitU32V(index);
+              return;
+            }
+          }
+        }
+      }
       if (nullability == kNullable) {
         ref_null(type, data);
         return;

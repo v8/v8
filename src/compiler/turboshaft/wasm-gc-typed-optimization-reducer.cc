@@ -335,7 +335,12 @@ void WasmGCTypeAnalyzer::ProcessAllocateStruct(
     }
     const wasm::TypeDefinition& desc_typedef =
         module_->type(desc_type.ref_index());
-    DCHECK(desc_typedef.is_descriptor());
+    if (!desc_typedef.is_descriptor()) {
+      // This can only happen in unreachable code.
+      RefineTypeKnowledge(graph_.Index(allocate_struct), wasm::kWasmBottom,
+                          allocate_struct);
+      return;
+    }
     type_index = desc_typedef.describes;
   } else {
     // The graph builder only emits the two patterns above.
