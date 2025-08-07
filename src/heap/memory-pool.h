@@ -61,6 +61,9 @@ class MemoryPool final {
   // Releases large poold pages immediately.
   void ReleaseLargeImmediately();
 
+  // Releases all the pooled pages immediately.
+  void ReleaseAllImmediately();
+
   // Tear down this page pool. Frees all pooled pages immediately.
   void TearDown();
 

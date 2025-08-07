@@ -350,6 +350,14 @@ void MemoryPool::ReleaseImmediately(Isolate* isolate) {
 
 void MemoryPool::ReleaseLargeImmediately() { large_pool_.ReleaseAll(); }
 
+void MemoryPool::ReleaseAllImmediately() {
+  page_pool_.ReleaseLocal();
+  page_pool_.ReleaseShared();
+  zone_pool_.ReleaseLocal();
+  zone_pool_.ReleaseShared();
+  large_pool_.ReleaseAll();
+}
+
 void MemoryPool::TearDown() {
   page_pool_.TearDown();
   zone_pool_.TearDown();

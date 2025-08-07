@@ -17,6 +17,8 @@
 #include "src/base/sanitizer/lsan-virtual-address-space.h"
 #include "src/base/virtual-address-space.h"
 #include "src/flags/flags.h"
+#include "src/heap/memory-pool.h"
+#include "src/init/isolate-group.h"
 #include "src/init/v8.h"
 #include "src/sandbox/sandbox.h"
 #include "src/utils/memcopy.h"
@@ -205,6 +207,9 @@ bool SetPermissions(v8::PageAllocator* page_allocator, void* address,
 }
 
 void OnCriticalMemoryPressure() {
+  if (v8_flags.memory_pool_release_on_malloc_failures) {
+    IsolateGroup::current()->memory_pool()->ReleaseAllImmediately();
+  }
   V8::GetCurrentPlatform()->OnCriticalMemoryPressure();
 }
 
