@@ -414,7 +414,8 @@ void ExtractInternalFields(Tagged<JSObject> jsobject, void** embedder_fields,
   for (int i = 0; i < len; ++i) {
     if (field_count == i) break;
     void* pointer;
-    if (EmbedderDataSlot(jsobject, i).ToAlignedPointer(isolate, &pointer)) {
+    if (EmbedderDataSlot(jsobject, i)
+            .DeprecatedToAlignedPointer(isolate, &pointer)) {
       embedder_fields[i] = pointer;
     }
   }

@@ -733,7 +733,7 @@ void PrintEmbedderData(IsolateForSandbox isolate, std::ostream& os,
   Tagged<Object> value = slot.load_tagged();
   os << Brief(value);
   void* raw_pointer;
-  if (slot.ToAlignedPointer(isolate, &raw_pointer)) {
+  if (slot.ToGenericAlignedPointer(isolate, &raw_pointer)) {
     os << ", aligned pointer: " << raw_pointer;
   }
 }

@@ -95,17 +95,17 @@ void EmbedderDataSlot::store_tagged(Tagged<JSObject> object,
 #endif
 }
 
-bool EmbedderDataSlot::ToAlignedPointer(IsolateForSandbox isolate,
-                                        void** out_pointer) const {
+bool EmbedderDataSlot::ToAlignedPointer(
+    IsolateForSandbox isolate, void** out_pointer,
+    ExternalPointerTagRange tag_range) const {
   // We don't care about atomicity of access here because embedder slots
   // are accessed this way only from the main thread via API during "mutator"
   // phase which is propely synched with GC (concurrent marker may still look
   // at the tagged part of the embedder slot but read-only access is ok).
 #ifdef V8_ENABLE_SANDBOX
   // The raw part must always contain a valid external pointer table index.
-  *out_pointer = reinterpret_cast<void*>(
-      ReadExternalPointerField<kEmbedderDataSlotPayloadTag>(
-          address() + kExternalPointerOffset, isolate));
+  *out_pointer = reinterpret_cast<void*>(ReadExternalPointerField(
+      address() + kExternalPointerOffset, isolate, tag_range));
   return true;
 #else
   Address raw_value;
@@ -121,6 +121,20 @@ bool EmbedderDataSlot::ToAlignedPointer(IsolateForSandbox isolate,
   *out_pointer = reinterpret_cast<void*>(raw_value);
   return HAS_SMI_TAG(raw_value);
 #endif  // V8_ENABLE_SANDBOX
+}
+
+bool EmbedderDataSlot::ToGenericAlignedPointer(IsolateForSandbox isolate,
+                                               void** out_pointer) const {
+  return ToAlignedPointer(
+      isolate, out_pointer,
+      {kEmbedderDataSlotPayloadTag, kEmbedderDataSlotPayloadTag});
+}
+
+bool EmbedderDataSlot::DeprecatedToAlignedPointer(IsolateForSandbox isolate,
+                                                  void** out_pointer) const {
+  return ToAlignedPointer(
+      isolate, out_pointer,
+      {kEmbedderDataSlotPayloadTag, kEmbedderDataSlotPayloadTag});
 }
 
 bool EmbedderDataSlot::store_aligned_pointer(IsolateForSandbox isolate,

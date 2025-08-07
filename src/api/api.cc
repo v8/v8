@@ -964,9 +964,9 @@ void* Context::SlowGetAlignedPointerFromEmbedderData(int index) {
       EmbedderDataFor(this, index, false, location);
   if (data.is_null()) return nullptr;
   void* result;
-  Utils::ApiCheck(
-      i::EmbedderDataSlot(*data, index).ToAlignedPointer(i_isolate, &result),
-      location, "Pointer is not aligned");
+  Utils::ApiCheck(i::EmbedderDataSlot(*data, index)
+                      .DeprecatedToAlignedPointer(i_isolate, &result),
+                  location, "Pointer is not aligned");
   return result;
 }
 
@@ -5187,9 +5187,10 @@ V8_INLINE void* GetAlignedPointerFromEmbedderDataInCreationContextImpl(
   if (V8_LIKELY(static_cast<unsigned>(index) <
                 static_cast<unsigned>(data->length()))) {
     void* result;
-    Utils::ApiCheck(i::EmbedderDataSlot(data, index)
-                        .ToAlignedPointer(i_isolate_for_sandbox, &result),
-                    location, "Pointer is not aligned");
+    Utils::ApiCheck(
+        i::EmbedderDataSlot(data, index)
+            .DeprecatedToAlignedPointer(i_isolate_for_sandbox, &result),
+        location, "Pointer is not aligned");
     return result;
   }
   // Bad index, report an API error.
@@ -6244,10 +6245,10 @@ void* v8::Object::SlowGetAlignedPointerFromInternalField(v8::Isolate* isolate,
   const char* location = "v8::Object::GetAlignedPointerFromInternalField()";
   if (!InternalFieldOK(obj, index, location)) return nullptr;
   void* result;
-  Utils::ApiCheck(
-      i::EmbedderDataSlot(i::Cast<i::JSObject>(*obj), index)
-          .ToAlignedPointer(reinterpret_cast<i::Isolate*>(isolate), &result),
-      location, "Unaligned pointer");
+  Utils::ApiCheck(i::EmbedderDataSlot(i::Cast<i::JSObject>(*obj), index)
+                      .DeprecatedToAlignedPointer(
+                          reinterpret_cast<i::Isolate*>(isolate), &result),
+                  location, "Unaligned pointer");
   return result;
 }
 
@@ -6256,9 +6257,10 @@ void* v8::Object::SlowGetAlignedPointerFromInternalField(int index) {
   const char* location = "v8::Object::GetAlignedPointerFromInternalField()";
   if (!InternalFieldOK(obj, index, location)) return nullptr;
   void* result;
-  Utils::ApiCheck(i::EmbedderDataSlot(i::Cast<i::JSObject>(*obj), index)
-                      .ToAlignedPointer(i::Isolate::Current(), &result),
-                  location, "Unaligned pointer");
+  Utils::ApiCheck(
+      i::EmbedderDataSlot(i::Cast<i::JSObject>(*obj), index)
+          .DeprecatedToAlignedPointer(i::Isolate::Current(), &result),
+      location, "Unaligned pointer");
   return result;
 }
 
