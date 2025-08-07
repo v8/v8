@@ -217,6 +217,7 @@ inline void MaglevAssembler::BindBlock(BasicBlock* block) {
 }
 
 inline Condition MaglevAssembler::TrySmiTagInt32(Register dst, Register src) {
+  static_assert(!SmiValuesAre32Bits());
   add(dst, src, src, SetCC);
   return kNoOverflow;
 }
@@ -224,7 +225,6 @@ inline Condition MaglevAssembler::TrySmiTagInt32(Register dst, Register src) {
 inline void MaglevAssembler::CheckInt32IsSmi(Register obj, Label* fail,
                                              Register scratch) {
   static_assert(!SmiValuesAre32Bits());
-
   TemporaryRegisterScope temps(this);
   if (scratch == Register::no_reg()) {
     scratch = temps.AcquireScratch();

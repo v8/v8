@@ -340,7 +340,8 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void UncheckedSmiTagUint32(Register dst, Register src);
   inline void UncheckedSmiTagUint32(Register reg);
 
-  // Try to smi-tag {obj}. Result is thrown away.
+  // Try to smi-tag {obj}. Result is thrown away. Only use this when
+  // SmiValuesAre31Bits().
   inline void CheckInt32IsSmi(Register obj, Label* fail,
                               Register scratch = Register::no_reg());
 
@@ -855,7 +856,8 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
            index * kSystemPointerSize;
   }
 
-  // Returns the condition code satisfied if tagging is successful.
+  // Returns the condition code satisfied if tagging is successful. Only use
+  // this when SmiValuesAre31Bits(); otherwise use SmiTag(dst, src).
   inline Condition TrySmiTagInt32(Register dst, Register src);
 
   MaglevCodeGenState* const code_gen_state_;

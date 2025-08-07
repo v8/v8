@@ -340,40 +340,31 @@ inline void MaglevAssembler::AssertMap(Register object) {
 #endif
 
 inline Condition MaglevAssembler::TrySmiTagInt32(Register dst, Register src) {
-  // FIXME check callsites and subsequent calls to Assert!
-  ASM_CODE_COMMENT(this);
-  static_assert(kSmiTag == 0);
-  // NB: JumpIf expects the result in dedicated "flag" register
+  CHECK(!SmiValuesAre32Bits());
+  // NB: JumpIf expects the result in dedicated "flag" register.
   Register overflow_flag = MaglevAssembler::GetFlagsRegister();
-  if (SmiValuesAre31Bits()) {
-    // Smi is shifted left by 1, so double incoming integer using 64- and 32-bit
-    // addition operations and then compare the results to detect overflow. The
-    // order does matter cuz in common way dst != src is NOT guarantied
-    Add64(overflow_flag, src, src);
-    Add32(dst, src, src);
-    Sne(overflow_flag, overflow_flag, Operand(dst));
-  } else {
-    // Smi goes to upper 32
-    slli(dst, src, 32);
-    // no overflow happens (check!)
-    Move(overflow_flag, zero_reg);
-  }
+  // Smi is shifted left by 1, so double incoming integer using 64- and 32-bit
+  // addition operations and then compare the results to detect overflow. The
+  // order matters because the dst and src registers may be the same.
+  Add64(overflow_flag, src, src);
+  Add32(dst, src, src);
+  Sne(overflow_flag, overflow_flag, Operand(dst));
   return kNoOverflow;
 }
 
-inline void MaglevAssembler::CheckInt32IsSmi(Register maybeSmi, Label* fail,
+inline void MaglevAssembler::CheckInt32IsSmi(Register maybe_smi, Label* fail,
                                              Register scratch) {
-  DCHECK(!SmiValuesAre32Bits());
-  // Smi is shifted left by 1
+  CHECK(!SmiValuesAre32Bits());
+  // Smi is shifted left by 1.
   MaglevAssembler::TemporaryRegisterScope temps(this);
   if (scratch == Register::no_reg()) {
     scratch = temps.AcquireScratch();
   }
   Register sum32 = scratch;
   Register sum64 = temps.AcquireScratch();
-  Add32(sum32, maybeSmi, Operand(maybeSmi));
-  Add64(sum64, maybeSmi, Operand(maybeSmi));
-  // overflow happened if sum64 != sum32
+  Add32(sum32, maybe_smi, Operand(maybe_smi));
+  Add64(sum64, maybe_smi, Operand(maybe_smi));
+  // Overflow happened if sum64 != sum32.
   MacroAssembler::Branch(fail, ne, sum64, Operand(sum32));
 }
 
