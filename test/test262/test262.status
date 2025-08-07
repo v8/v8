@@ -269,6 +269,15 @@
   # +00:01.1 should fail to parse (https://github.com/unicode-org/icu4x/pull/6813)
   'intl402/Temporal/ZonedDateTime/timezone-ids-basic': [FAIL],
 
+  # Debug assertion failed (https://github.com/boa-dev/temporal/pull/499)
+  'intl402/Temporal/ZonedDateTime/prototype/getTimeZoneTransition/transition-at-instant-boundaries': [SKIP],
+
+  # Calculating incorrect offset for Europe/London (https://github.com/boa-dev/temporal/pull/499)
+  'intl402/Temporal/ZonedDateTime/prototype/toPlainDateTime/dst': [FAIL],
+
+  # beyondDaySpan bug (https://github.com/boa-dev/temporal/pull/501)
+  'staging/Intl402/Temporal/old/dst-math': [FAIL],
+
   # Issue filed upstream
 
   # Float casting to integer (https://github.com/boa-dev/temporal/issues/189, https://github.com/boa-dev/temporal/issues/334)
@@ -328,9 +337,6 @@
 
   # No issue filed
 
-  # Debug assertion failed
-  'intl402/Temporal/ZonedDateTime/prototype/getTimeZoneTransition/transition-at-instant-boundaries': [SKIP],
-
   # ICU4C and ICU4X disagree on canonical timezones
   'intl402/Temporal/ZonedDateTime/prototype/equals/canonical-not-equal': [FAIL],
 
@@ -346,12 +352,6 @@
   'intl402/Temporal/PlainYearMonth/prototype/subtract/options-undefined': [FAIL],
   'staging/Intl402/Temporal/old/addition-across-lunisolar-leap-months-chinese': [FAIL],
   'staging/Intl402/Temporal/old/addition-across-lunisolar-leap-months-hebrew': [FAIL],
-
-  # Difference rounding is DST-aware
-  'staging/Intl402/Temporal/old/dst-math': [FAIL],
-
-  # Calculating incorrect offset for Europe/London
-  'intl402/Temporal/ZonedDateTime/prototype/toPlainDateTime/dst': [FAIL],
 
   # Unknown issue
 

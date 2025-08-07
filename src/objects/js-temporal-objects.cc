@@ -2092,9 +2092,13 @@ Maybe<CombinedRecord> PrepareCalendarFields(Isolate* isolate,
   // All steps handled by RequiredFields/CalendarFieldsFlag being enums, and
   // CalendarExtraFields is handled by calendarUsesEras below.
 
-  // Currently all calendars have a "default" era, except for iso
-  // This may change: https://tc39.es/proposal-intl-era-monthcode/
-  bool calendarUsesEras = kind != temporal_rs::AnyCalendarKind::Iso;
+  // Currently all calendars except for iso, chinese, and dangi support eras.
+  // This may change, but is unlikely to.
+  //
+  // https://tc39.es/proposal-intl-era-monthcode/#sec-temporal-calendarsupportsera
+  bool calendarUsesEras = kind != temporal_rs::AnyCalendarKind::Iso &&
+                          kind != temporal_rs::AnyCalendarKind::Chinese &&
+                          kind != temporal_rs::AnyCalendarKind::Dangi;
 
   // 6. Let result be a Calendar Fields Record with all fields equal to unset.
   CombinedRecord result;
