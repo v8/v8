@@ -3998,7 +3998,7 @@ void MarkCompactCollector::ClearJSWeakRefs() {
       DCHECK(finalization_registry->scheduled_for_cleanup());
     } else {
       // The value of the WeakCell is alive.
-      ObjectSlot slot = weak_cell->RawField(WeakCell::kTargetOffset);
+      ObjectSlot slot(&weak_cell->target_);
       RecordSlot(weak_cell, slot, Cast<HeapObject>(*slot));
     }
 
@@ -4019,7 +4019,7 @@ void MarkCompactCollector::ClearJSWeakRefs() {
           gc_notify_updated_slot);
     } else {
       // The unregister_token is alive.
-      ObjectSlot slot = weak_cell->RawField(WeakCell::kUnregisterTokenOffset);
+      ObjectSlot slot(&weak_cell->unregister_token_);
       RecordSlot(weak_cell, slot, Cast<HeapObject>(*slot));
     }
   }

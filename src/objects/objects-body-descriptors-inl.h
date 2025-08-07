@@ -9,6 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include <algorithm>
+#include <cstddef>
 
 #include "include/v8-internal.h"
 #include "src/base/logging.h"
@@ -477,6 +478,11 @@ class RegExpDataWrapper::BodyDescriptor final : public BodyDescriptorBase {
 
 class WeakCell::BodyDescriptor final : public BodyDescriptorBase {
  public:
+  static constexpr int kTargetOffset = offsetof(WeakCell, target_);
+  static constexpr int kUnregisterTokenOffset =
+      offsetof(WeakCell, unregister_token_);
+  static_assert(kUnregisterTokenOffset == kTargetOffset + kTaggedSize);
+
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {

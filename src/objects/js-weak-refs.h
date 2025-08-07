@@ -6,6 +6,8 @@
 #define V8_OBJECTS_JS_WEAK_REFS_H_
 
 #include "src/objects/js-objects.h"
+#include "src/objects/tagged-field.h"
+#include "src/objects/union.h"
 #include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -82,9 +84,47 @@ class JSFinalizationRegistry
 };
 
 // Internal object for storing weak references in JSFinalizationRegistry.
-class WeakCell : public TorqueGeneratedWeakCell<WeakCell, HeapObject> {
+V8_OBJECT class WeakCell : public HeapObjectLayout {
  public:
+  inline Tagged<UnionOf<JSFinalizationRegistry, Undefined>>
+  finalization_registry() const;
+  inline void set_finalization_registry(
+      Tagged<UnionOf<JSFinalizationRegistry, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<Symbol, JSReceiver, Undefined>> target() const;
+  inline void set_target(Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<Symbol, JSReceiver, Undefined>> unregister_token()
+      const;
+  inline void set_unregister_token(
+      Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<JSAny> holdings() const;
+  inline void set_holdings(Tagged<JSAny> value,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<WeakCell, Undefined>> prev() const;
+  inline void set_prev(Tagged<UnionOf<WeakCell, Undefined>> value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<WeakCell, Undefined>> next() const;
+  inline void set_next(Tagged<UnionOf<WeakCell, Undefined>> value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<WeakCell, Undefined>> key_list_prev() const;
+  inline void set_key_list_prev(Tagged<UnionOf<WeakCell, Undefined>> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<WeakCell, Undefined>> key_list_next() const;
+  inline void set_key_list_next(Tagged<UnionOf<WeakCell, Undefined>> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   EXPORT_DECL_VERIFIER(WeakCell)
+
+  DECL_PRINTER(WeakCell)
 
   class BodyDescriptor;
 
@@ -104,8 +144,24 @@ class WeakCell : public TorqueGeneratedWeakCell<WeakCell, HeapObject> {
 
   inline void RemoveFromFinalizationRegistryCells(Isolate* isolate);
 
-  TQ_OBJECT_CONSTRUCTORS(WeakCell)
-};
+ private:
+  friend class JSFinalizationRegistry;
+  friend class MarkCompactCollector;
+  template <typename ConcreteVisitor>
+  friend class MarkingVisitorBase;
+  friend class TorqueGeneratedWeakCellAsserts;
+  friend class V8HeapExplorer;
+
+  TaggedMember<UnionOf<JSFinalizationRegistry, Undefined>>
+      finalization_registry_;
+  TaggedMember<UnionOf<Symbol, JSReceiver, Undefined>> target_;
+  TaggedMember<UnionOf<Symbol, JSReceiver, Undefined>> unregister_token_;
+  TaggedMember<JSAny> holdings_;
+  TaggedMember<UnionOf<WeakCell, Undefined>> prev_;
+  TaggedMember<UnionOf<WeakCell, Undefined>> next_;
+  TaggedMember<UnionOf<WeakCell, Undefined>> key_list_prev_;
+  TaggedMember<UnionOf<WeakCell, Undefined>> key_list_next_;
+} V8_OBJECT_END;
 
 class JSWeakRef : public TorqueGeneratedJSWeakRef<JSWeakRef, JSObject> {
  public:

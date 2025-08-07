@@ -1900,18 +1900,18 @@ void JSIteratorFlatMapHelper::JSIteratorFlatMapHelperVerify(Isolate* isolate) {
 }
 
 void WeakCell::WeakCellVerify(Isolate* isolate) {
-  CHECK(IsWeakCell(*this));
+  CHECK(IsWeakCell(this));
 
   CHECK(IsUndefined(target(), isolate) || Object::CanBeHeldWeakly(target()));
 
   CHECK(IsWeakCell(prev()) || IsUndefined(prev(), isolate));
   if (IsWeakCell(prev())) {
-    CHECK_EQ(Cast<WeakCell>(prev())->next(), *this);
+    CHECK_EQ(Cast<WeakCell>(prev())->next(), this);
   }
 
   CHECK(IsWeakCell(next()) || IsUndefined(next(), isolate));
   if (IsWeakCell(next())) {
-    CHECK_EQ(Cast<WeakCell>(next())->prev(), *this);
+    CHECK_EQ(Cast<WeakCell>(next())->prev(), this);
   }
 
   CHECK_IMPLIES(IsUndefined(unregister_token(), isolate),

@@ -733,9 +733,9 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitWeakCell(
           heap_, concrete_visitor()->marking_state(), unregister_token)) {
     // Record the slots inside the WeakCell, since its IterateBody doesn't visit
     // it.
-    ObjectSlot slot = weak_cell->RawField(WeakCell::kTargetOffset);
+    ObjectSlot slot(&weak_cell->target_);
     concrete_visitor()->RecordSlot(weak_cell, slot, target);
-    slot = weak_cell->RawField(WeakCell::kUnregisterTokenOffset);
+    slot = ObjectSlot(&weak_cell->unregister_token_);
     concrete_visitor()->RecordSlot(weak_cell, slot, unregister_token);
   } else {
     // WeakCell points to a potentially dead object or a dead unregister

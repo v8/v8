@@ -1920,9 +1920,9 @@ void V8HeapExplorer::ExtractJSWeakRefReferences(HeapEntry* entry,
 void V8HeapExplorer::ExtractWeakCellReferences(HeapEntry* entry,
                                                Tagged<WeakCell> weak_cell) {
   SetWeakReference(entry, "target", weak_cell->target(),
-                   WeakCell::kTargetOffset);
+                   offsetof(WeakCell, target_));
   SetWeakReference(entry, "unregister_token", weak_cell->unregister_token(),
-                   WeakCell::kUnregisterTokenOffset);
+                   offsetof(WeakCell, unregister_token_));
 }
 
 void V8HeapExplorer::TagBuiltinCodeObject(Tagged<Code> code, const char* name) {
