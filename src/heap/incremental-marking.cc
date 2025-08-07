@@ -785,11 +785,11 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
             AllowGarbageCollection allow_gc;
             safepoint_scope.emplace(isolate(), SafepointKind::kIsolate);
           });
-  DCHECK_IMPLIES(!isolate()->has_shared_space(), did_run);
+  CHECK_IMPLIES(!isolate()->has_shared_space(), did_run);
   if (!did_run) {
     // A safepoint was not established. Marking now may result in false
     // positives. Bailout instead.
-    DCHECK(!SafepointScope.has_value());
+    CHECK(!safepoint_scope.has_value());
     return;
   }
 #endif
