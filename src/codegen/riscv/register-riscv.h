@@ -329,7 +329,6 @@ constexpr Register kMaglevFlagsRegister = t6;
 constexpr Register kMaglevExtraScratchRegister = t2;
 
 // kSimd128ScratchReg and kSimd128ScratchReg2 can be used as a register group.
-// kSimd128ScratchReg and kSimd128ScratchReg2 can be used as a register group.
 constexpr VRegister kSimd128ScratchReg = v24;
 constexpr VRegister kSimd128ScratchReg2 = v25;
 // kSimd128ScratchReg3 and kSimd128ScratchReg4 are on even indices and can
