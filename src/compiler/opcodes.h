@@ -286,7 +286,8 @@
   V(ChangeInt64ToBigInt)                      \
   V(ChangeUint64ToBigInt)                     \
   V(TruncateBigIntToWord64)                   \
-  V(TruncateTaggedToWord32)                   \
+  V(TruncateNumberOrOddballToWord32)          \
+  V(TruncateNumberOrOddballOrHoleToWord32)    \
   V(TruncateTaggedToFloat64)                  \
   V(TruncateTaggedToFloat64PreserveUndefined) \
   V(TruncateTaggedToBit)                      \

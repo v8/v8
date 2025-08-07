@@ -1437,6 +1437,9 @@ std::ostream& operator<<(
       return os << "BigInt";
     case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball:
       return os << "NumberOrOddball";
+    case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::
+        kNumberOrOddballOrHole:
+      return os << "NumberOrOddballOrHole";
     case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kHeapObject:
       return os << "HeapObject";
     case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject:

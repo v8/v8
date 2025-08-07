@@ -1578,13 +1578,24 @@ class MachineLoweringReducer : public Next {
       TruncateJSPrimitiveToUntaggedOp::InputAssumptions input_assumptions) {
     switch (kind) {
       case TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kInt32: {
-        DCHECK_EQ(input_assumptions, TruncateJSPrimitiveToUntaggedOp::
-                                         InputAssumptions::kNumberOrOddball);
+        DCHECK_EQ(input_assumptions,
+                  any_of(TruncateJSPrimitiveToUntaggedOp::InputAssumptions::
+                             kNumberOrOddball,
+                         TruncateJSPrimitiveToUntaggedOp::InputAssumptions::
+                             kNumberOrOddballOrHole));
         Label<Word32> done(this);
 
         IF (LIKELY(__ ObjectIsSmi(object))) {
           GOTO(done, __ UntagSmi(V<Smi>::Cast(object)));
         } ELSE {
+          if (input_assumptions ==
+              TruncateJSPrimitiveToUntaggedOp::InputAssumptions::
+                  kNumberOrOddballOrHole) {
+            IF (LIKELY(__ IsTheHole(object))) {
+              // Hole -> undefined -> NaN -> truncates to zero.
+              GOTO(done, 0);
+            }
+          }
           V<Float64> number_value = __ template LoadField<Float64>(
               object, AccessBuilder::ForHeapNumberOrOddballValue());
           GOTO(done, __ JSTruncateFloat64ToWord32(number_value));

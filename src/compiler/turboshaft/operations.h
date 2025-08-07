@@ -5145,6 +5145,7 @@ struct TruncateJSPrimitiveToUntaggedOp
   enum class InputAssumptions : uint8_t {
     kBigInt,
     kNumberOrOddball,
+    kNumberOrOddballOrHole,
     kHeapObject,
     kObject,
   };

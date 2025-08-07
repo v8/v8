@@ -1008,7 +1008,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* TruncateBigIntToWord64();
   const Operator* ChangeInt64ToBigInt();
   const Operator* ChangeUint64ToBigInt();
-  const Operator* TruncateTaggedToWord32();
+  const Operator* TruncateNumberOrOddballToWord32();
+  const Operator* TruncateNumberOrOddballOrHoleToWord32();
   const Operator* TruncateTaggedToFloat64();
   const Operator* TruncateTaggedToFloat64PreserveUndefined();
   const Operator* TruncateTaggedToBit();

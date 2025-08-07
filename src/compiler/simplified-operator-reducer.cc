@@ -142,7 +142,7 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
         return ReplaceNumber(FastUI2D(m.ResolvedValue()));
       break;
     }
-    case IrOpcode::kTruncateTaggedToWord32: {
+    case IrOpcode::kTruncateNumberOrOddballToWord32: {
       NumberMatcher m(node->InputAt(0));
       if (m.HasResolvedValue())
         return ReplaceInt32(DoubleToInt32(m.ResolvedValue()));

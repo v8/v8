@@ -1082,8 +1082,10 @@ OpIndex GraphBuilder::Process(
         TruncateJSPrimitiveToUntaggedOp::UntaggedKind::k##kind,          \
         TruncateJSPrimitiveToUntaggedOp::InputAssumptions::              \
             k##input_assumptions);
-      TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedToWord32, Int32,
+      TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateNumberOrOddballToWord32, Int32,
                                         NumberOrOddball)
+      TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateNumberOrOddballOrHoleToWord32,
+                                        Int32, NumberOrOddballOrHole)
       TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateBigIntToWord64, Int64, BigInt)
       TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedToBit, Bit, Object)
       TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedPointerToBit, Bit,

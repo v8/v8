@@ -1084,13 +1084,15 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     } else if (use_info.truncation().IsUsedAsWord32()) {
       if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
         if (output_type.Is(cache_->kAdditiveSafeInteger)) {
-          op = simplified()->TruncateTaggedToWord32();
+          op = simplified()->TruncateNumberOrOddballToWord32();
         } else {
           op = simplified()->CheckedTruncateTaggedToWord32(
               CheckTaggedInputMode::kAdditiveSafeInteger, use_info.feedback());
         }
+      } else if (output_type.Is(Type::NumberOrOddball())) {
+        op = simplified()->TruncateNumberOrOddballToWord32();
       } else if (output_type.Is(Type::NumberOrOddballOrHole())) {
-        op = simplified()->TruncateTaggedToWord32();
+        op = simplified()->TruncateNumberOrOddballOrHoleToWord32();
       } else if (use_info.type_check() == TypeCheckKind::kNumber) {
         op = simplified()->CheckedTruncateTaggedToWord32(
             CheckTaggedInputMode::kNumber, use_info.feedback());
