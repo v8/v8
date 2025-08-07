@@ -150,9 +150,12 @@ void MaglevReducer<BaseT>::AddNewControlNode(
     RegisterNode(control_node);
     if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
                     is_tracing_enabled())) {
+      bool kHasRegallocData = false;
       bool kSkipTargets = true;
       std::cout << "  " << control_node << "  " << PrintNodeLabel(control_node)
-                << ": " << PrintNode(control_node, kSkipTargets) << std::endl;
+                << ": "
+                << PrintNode(control_node, kHasRegallocData, kSkipTargets)
+                << std::endl;
     }
   }
 }

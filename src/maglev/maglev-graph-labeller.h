@@ -135,7 +135,8 @@ class PrintNodeLabel {
 
 class PrintNode {
  public:
-  explicit PrintNode(const NodeBase* node, bool skip_targets = false) {}
+  explicit PrintNode(const NodeBase* node, bool has_regalloc_data = false,
+                     bool skip_targets = false) {}
   void Print(std::ostream& os) const {}
 };
 
