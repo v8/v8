@@ -210,8 +210,9 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
                                                                      \
     CcTest::InitializeVM();                                          \
     auto fn = [](MacroAssembler& assm) {                             \
-      __ csrwi(csr_frm, rounding_mode);                              \
+      __ csrrwi(t0, csr_frm, rounding_mode);                         \
       __ instr_name(a0, fa0, DYN);                                   \
+      __ csrw(csr_frm, t0);                                          \
     };                                                               \
     auto res = GenAndRunTest<output_type, input_type>(rs1_fval, fn); \
     CHECK_EQ(expected_res, res);                                     \
@@ -234,6 +235,7 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
     int64_t expected_res = 111;                                             \
     Label exit, error;                                                      \
     auto fn = [&exit, &error, expected_res](MacroAssembler& assm) {         \
+      __ csrr(t1, csr_reg);                                                 \
       /* test csr-write and csr-read */                                     \
       __ csrwi(csr_reg, csr_write_val);                                     \
       __ csrr(a0, csr_reg);                                                 \
@@ -258,6 +260,7 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
       __ RV_li(a0, 666);                                                    \
                                                                             \
       __ bind(&exit);                                                       \
+      __ csrw(csr_reg, t1);                                                 \
     };                                                                      \
     auto res = GenAndRunTest(fn);                                           \
     CHECK_EQ(expected_res, res);                                            \
@@ -268,6 +271,7 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
     Label exit, error;                                              \
     int64_t expected_res = 111;                                     \
     auto fn = [&exit, &error, expected_res](MacroAssembler& assm) { \
+      __ csrr(t1, csr_reg);                                         \
       /* test csr-write and csr-read */                             \
       __ RV_li(t0, csr_write_val);                                  \
       __ csrw(csr_reg, t0);                                         \
@@ -295,6 +299,7 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
       __ RV_li(a0, 666);                                            \
                                                                     \
       __ bind(&exit);                                               \
+      __ csrw(csr_reg, t1);                                         \
     };                                                              \
                                                                     \
     auto res = GenAndRunTest(fn);                                   \
