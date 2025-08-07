@@ -1175,6 +1175,11 @@ class Simulator : public SimulatorBase {
   __int128_t Vregister_[kNumVRegisters];
   static_assert(sizeof(__int128_t) == kRvvVLEN / 8, "unmatch vlen");
   uint64_t vstart_, vxsat_, vxrm_, vcsr_, vtype_, vl_, vlenb_;
+  // For simplicity, we only track whether the vector unit was enabled or not.
+  // The hardware's mstatus.VS status field can have 4 values: 'Off', 'Initial',
+  // 'Clean', or 'Dirty', but for the simulator we only need to know if it is
+  // enabled or not.
+  bool vu_enabled_ = false;
 #endif
   // Simulator support.
   // Allocate 1MB for stack.

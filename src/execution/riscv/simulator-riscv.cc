@@ -6055,6 +6055,7 @@ T sat_subu(T x, T y, bool& sat) {
 #ifdef CAN_USE_RVV_INSTRUCTIONS
 void Simulator::DecodeRvvIVV() {
   DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_IVV);
+  DCHECK(vu_enabled_);
   switch (instr_.InstructionBits() & kVTypeMask) {
     case RO_V_VADD_VV: {
       RVV_VI_VV_LOOP({ vd = vs1 + vs2; });
@@ -6358,6 +6359,7 @@ void Simulator::DecodeRvvIVV() {
 
 void Simulator::DecodeRvvIVI() {
   DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_IVI);
+  DCHECK(vu_enabled_);
   switch (instr_.InstructionBits() & kVTypeMask) {
     case RO_V_VADD_VI: {
       RVV_VI_VI_LOOP({ vd = simm5 + vs2; })
@@ -6542,6 +6544,7 @@ void Simulator::DecodeRvvIVI() {
 
 void Simulator::DecodeRvvIVX() {
   DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_IVX);
+  DCHECK(vu_enabled_);
   switch (instr_.InstructionBits() & kVTypeMask) {
     case RO_V_VADD_VX: {
       RVV_VI_VX_LOOP({ vd = rs1 + vs2; })
@@ -6806,6 +6809,7 @@ void Simulator::DecodeRvvIVX() {
 
 void Simulator::DecodeRvvMVV() {
   DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_MVV);
+  DCHECK(vu_enabled_);
   switch (instr_.InstructionBits() & kVTypeMask) {
     case RO_V_VMUNARY0: {
       if (instr_.Vs1Value() == VID_V) {
@@ -7030,6 +7034,7 @@ void Simulator::DecodeRvvMVV() {
 
 void Simulator::DecodeRvvMVX() {
   DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_MVX);
+  DCHECK(vu_enabled_);
   switch (instr_.InstructionBits() & kVTypeMask) {
     case RO_V_VRXUNARY0:
       // vmv.s.x
@@ -7138,6 +7143,7 @@ void Simulator::DecodeRvvMVX() {
 
 void Simulator::DecodeRvvFVV() {
   DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_FVV);
+  DCHECK(vu_enabled_);
   switch (instr_.InstructionBits() & kVTypeMask) {
     case RO_V_VFDIV_VV: {
       RVV_VI_VFP_VV_LOOP(
@@ -7789,6 +7795,7 @@ void Simulator::DecodeRvvFVV() {
 
 void Simulator::DecodeRvvFVF() {
   DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_FVF);
+  DCHECK(vu_enabled_);
   switch (instr_.InstructionBits() & kVTypeMask) {
     case RO_V_VFSGNJ_VF:
       RVV_VFSGNJ_VV_VF_LOOP(
@@ -8102,6 +8109,7 @@ void Simulator::DecodeVType() {
       set_rd(rvv_vl());
       set_rvv_vstart(0);
       rvv_trace_status();
+      vu_enabled_ = true;
       break;
     }
     case RO_V_VSETVL: {
@@ -8138,6 +8146,7 @@ void Simulator::DecodeVType() {
         rvv_trace_status();
         break;
       }
+      vu_enabled_ = true;
       break;
     }
     default:
