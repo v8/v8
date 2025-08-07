@@ -3448,6 +3448,34 @@ THREADED_TEST(EmbedderDataAlignedPointers) {
   }
 }
 
+THREADED_TEST(EmbedderDataAlignedPointersViaDetachedGlobal) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::Object> obj = env->Global();
+
+  CheckAlignedPointerInEmbedderData(&env, obj, 0, nullptr);
+  CHECK_EQ(1, (*env)->GetNumberOfEmbedderDataFields());
+
+  int stack_allocated[100];
+  CheckAlignedPointerInEmbedderData(&env, obj, 1, stack_allocated);
+  CHECK_EQ(2, (*env)->GetNumberOfEmbedderDataFields());
+
+  i::heap::InvokeMajorGC(CcTest::heap());
+
+  CHECK_EQ(stack_allocated,
+           obj->GetAlignedPointerFromEmbedderDataInCreationContext(isolate, 1));
+
+  env->DetachGlobal();
+
+  // In case the global object is detached the embedder data can be read
+  // directly from current native context as long as its global object IS the
+  // detached global object.
+  CHECK_EQ(stack_allocated,
+           obj->GetAlignedPointerFromEmbedderDataInCreationContext(isolate, 1));
+}
+
 static void CheckEmbedderData(LocalContext* env, int index,
                               v8::Local<Value> data) {
   (*env)->SetEmbedderData(index, data);
