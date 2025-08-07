@@ -74,6 +74,256 @@ void CompileAllFunctionsForReferenceExecution(NativeModule* native_module,
 
 }  // namespace
 
+bool ValuesEquivalent(const WasmValue& init_lhs, const WasmValue& init_rhs,
+                      bool expect_function_equality) {
+  DisallowGarbageCollection no_gc;
+  // Stack of elements to be checked.
+  std::vector<std::pair<WasmValue, WasmValue>> cmp = {{init_lhs, init_rhs}};
+  using TaggedT = decltype(Tagged<Object>().ptr());
+  // Map of lhs objects we have already seen to their rhs object on the first
+  // visit. This is needed to ensure a reasonable runtime for the check.
+  // Example:
+  //   (array.new $myArray 10 (array.new_default $myArray 10))
+  // This creates a nested array where each outer array element is the same
+  // inner array. Without memorizing the inner array, we'd end up performing
+  // 100+ comparisons.
+  std::unordered_map<TaggedT, TaggedT> lhs_map;
+
+  auto CheckArray = [&cmp, &lhs_map](Tagged<Object> lhs,
+                                     Tagged<Object> rhs) -> bool {
+    auto [iter, inserted] = lhs_map.insert({lhs.ptr(), rhs.ptr()});
+    if (!inserted) {
+      return iter->second == rhs.ptr();
+    }
+    Tagged<WasmArray> lhs_array = Cast<WasmArray>(lhs);
+    Tagged<WasmArray> rhs_array = Cast<WasmArray>(rhs);
+    if (lhs_array->map() != rhs_array->map()) {
+      return false;
+    }
+    if (lhs_array->length() != rhs_array->length()) {
+      return false;
+    }
+    cmp.reserve(cmp.size() + lhs_array->length());
+    for (uint32_t i = 0; i < lhs_array->length(); ++i) {
+      cmp.emplace_back(lhs_array->GetElement(i), rhs_array->GetElement(i));
+    }
+    return true;
+  };
+
+  auto CheckStruct = [&cmp, &lhs_map](Tagged<Object> lhs,
+                                      Tagged<Object> rhs) -> bool {
+    auto [iter, inserted] = lhs_map.insert({lhs.ptr(), rhs.ptr()});
+    if (!inserted) {
+      return iter->second == rhs.ptr();
+    }
+    Tagged<WasmStruct> lhs_struct = Cast<WasmStruct>(lhs);
+    Tagged<WasmStruct> rhs_struct = Cast<WasmStruct>(rhs);
+    if (lhs_struct->map() != rhs_struct->map()) {
+      return false;
+    }
+    const CanonicalStructType* type = GetTypeCanonicalizer()->LookupStruct(
+        lhs_struct->map()->wasm_type_info()->type_index());
+    uint32_t field_count = type->field_count();
+    for (uint32_t i = 0; i < field_count; ++i) {
+      cmp.emplace_back(lhs_struct->GetFieldValue(i),
+                       rhs_struct->GetFieldValue(i));
+    }
+    return true;
+  };
+
+  while (!cmp.empty()) {
+    const auto [lhs, rhs] = cmp.back();
+    cmp.pop_back();
+
+    if (lhs.type() != rhs.type()) {
+      return false;
+    }
+
+    switch (lhs.type().kind()) {
+      case ValueKind::kF32:
+      case ValueKind::kF64:
+      case ValueKind::kI8:
+      case ValueKind::kI16:
+      case ValueKind::kI32:
+      case ValueKind::kI64:
+      case ValueKind::kS128:
+        if (lhs != rhs) {
+          return false;
+        }
+        break;
+      case ValueKind::kRef:
+      case ValueKind::kRefNull: {
+        Tagged<Object> lhs_ref = *lhs.to_ref();
+        Tagged<Object> rhs_ref = *rhs.to_ref();
+
+        if (IsNull(lhs_ref) != IsNull(rhs_ref)) return false;
+        if (IsWasmNull(lhs_ref) != IsWasmNull(rhs_ref)) return false;
+
+        switch (lhs.type().heap_representation_non_shared()) {
+          case HeapType::kFunc:
+            // TODO(nikolaskaipel): Lookup the function index on the FuncRef and
+            // ensure their equality.
+            if (expect_function_equality) {
+              if (lhs_ref != rhs_ref) return false;
+            }
+            break;
+          case HeapType::kI31:
+            if (lhs_ref != rhs_ref) {
+              return false;
+            }
+            break;
+          case HeapType::kNoFunc:
+          case HeapType::kNone:
+          case HeapType::kNoExn:
+            CHECK(IsWasmNull(lhs_ref));
+            CHECK(IsWasmNull(rhs_ref));
+            break;
+          case HeapType::kNoExtern:
+            CHECK(IsNull(lhs_ref));
+            CHECK(IsNull(rhs_ref));
+            break;
+          case HeapType::kExtern:
+          case HeapType::kAny:
+          case HeapType::kEq:
+          case HeapType::kArray:
+          case HeapType::kStruct:
+            if (IsNull(lhs_ref) || IsWasmNull(lhs_ref)) break;
+            if (IsWasmStruct(lhs_ref)) {
+              if (!CheckStruct(lhs_ref, rhs_ref)) return false;
+            } else if (IsWasmArray(lhs_ref)) {
+              if (!CheckArray(lhs_ref, rhs_ref)) return false;
+            } else if (IsSmi(lhs_ref)) {
+              if (lhs_ref != rhs_ref) return false;
+            }
+            break;
+          default:
+            CHECK(lhs.type().has_index());
+            if (IsWasmNull(lhs_ref)) break;
+            CanonicalTypeIndex type_index = lhs.type().ref_index();
+            TypeCanonicalizer* types = GetTypeCanonicalizer();
+            if (types->IsFunctionSignature(type_index)) {
+              // TODO(nikolaskaipel): Lookup the function index on the FuncRef
+              // and ensure their equality.
+              if (expect_function_equality) {
+                if (lhs_ref != rhs_ref) return false;
+              }
+            } else if (types->IsStruct(type_index)) {
+              if (!CheckStruct(lhs_ref, rhs_ref)) return false;
+            } else if (types->IsArray(type_index)) {
+              if (!CheckArray(lhs_ref, rhs_ref)) return false;
+            } else {
+              UNIMPLEMENTED();
+            }
+        }
+        break;
+      }
+      default:
+        UNIMPLEMENTED();
+    }
+  }
+
+  return true;
+}
+
+void PrintValue(std::ostream& os, const WasmValue& value) {
+  enum class PrintSymbol {
+    kStructClose,
+    kArrayClose,
+    kComma,
+  };
+
+  using PrintTask = std::variant<WasmValue, PrintSymbol>;
+  using ObjectPtr = decltype(Tagged<Object>().ptr());
+
+  std::vector<PrintTask> print_stack = {value};
+  std::unordered_set<ObjectPtr> seen_objects;
+
+  while (!print_stack.empty()) {
+    PrintTask task = print_stack.back();
+    print_stack.pop_back();
+
+    if (PrintSymbol* symbol = std::get_if<PrintSymbol>(&task)) {
+      switch (*symbol) {
+        case PrintSymbol::kStructClose:
+          os << "}";
+          break;
+        case PrintSymbol::kArrayClose:
+          os << "]";
+          break;
+        case PrintSymbol::kComma:
+          os << ", ";
+          break;
+      }
+    } else {
+      WasmValue current_val = std::get<WasmValue>(task);
+      switch (current_val.type().kind()) {
+        case ValueKind::kI8:
+        case ValueKind::kI16:
+        case ValueKind::kI32:
+        case ValueKind::kI64:
+        case ValueKind::kF32:
+        case ValueKind::kF64:
+        case ValueKind::kS128:
+          os << current_val.to_string();
+          break;
+        case ValueKind::kRef:
+        case ValueKind::kRefNull: {
+          Tagged<Object> ref = *current_val.to_ref();
+          if (IsNull(ref) || IsWasmNull(ref)) {
+            os << "null";
+            break;
+          }
+
+          if (IsSmi(ref) || IsWasmFuncRef(ref)) {
+            os << "<" << current_val.to_string() << ">";
+            break;
+          }
+
+          if (seen_objects.count(ref.ptr())) {
+            os << "<cycle>";
+            break;
+          }
+          seen_objects.insert(ref.ptr());
+
+          if (IsWasmStruct(ref)) {
+            Tagged<WasmStruct> struct_ref = Cast<WasmStruct>(ref);
+            const auto* type = GetTypeCanonicalizer()->LookupStruct(
+                struct_ref->map()->wasm_type_info()->type_index());
+            uint32_t count = type->field_count();
+
+            print_stack.push_back(PrintSymbol::kStructClose);
+            for (uint32_t i = count; i-- > 0;) {
+              print_stack.push_back(struct_ref->GetFieldValue(i));
+              if (i > 0) {
+                print_stack.push_back(PrintSymbol::kComma);
+              }
+            }
+            os << '{';
+          } else if (IsWasmArray(ref)) {
+            Tagged<WasmArray> array_ref = Cast<WasmArray>(ref);
+            uint32_t len = array_ref->length();
+
+            print_stack.push_back(PrintSymbol::kArrayClose);
+            for (uint32_t i = len; i-- > 0;) {
+              print_stack.push_back(array_ref->GetElement(i));
+              if (i > 0) {
+                print_stack.push_back(PrintSymbol::kComma);
+              }
+            }
+            os << '[';
+          } else {
+            os << "<" << current_val.to_string() << ">";
+          }
+          break;
+        }
+        default:
+          os << "?";
+          break;
+      }
+    }
+  }
+}
+
 CompileTimeImports CompileTimeImportsForFuzzing() {
   CompileTimeImports result;
   result.Add(CompileTimeImport::kJsString);
@@ -143,6 +393,7 @@ struct ReferenceExecutionResult {
   int result = -1;
   std::unique_ptr<const char[]> exception;
   bool should_execute_non_reference = false;
+  DirectHandle<WasmInstanceObject> instance;
 };
 
 ReferenceExecutionResult ExecuteReferenceRun(
@@ -155,7 +406,6 @@ ReferenceExecutionResult ExecuteReferenceRun(
 
   int32_t max_steps = max_executed_instructions;
 
-  HandleScope handle_scope(isolate);  // Avoid leaking handles.
   Zone reference_module_zone(isolate->allocator(), "wasm reference module");
   DirectHandle<WasmModuleObject> module_ref =
       CompileReferenceModule(isolate, wire_bytes, &max_steps);
@@ -251,7 +501,7 @@ ReferenceExecutionResult ExecuteReferenceRun(
     return {};
   }
 
-  return {result_ref, std::move(exception), true};
+  return {result_ref, std::move(exception), true, instance_ref};
 }
 
 int FindExportedMainFunction(const WasmModule* module,
@@ -267,6 +517,116 @@ int FindExportedMainFunction(const WasmModule* module,
   return -1;
 }
 
+bool GlobalsMatch(Isolate* isolate, const WasmModule* module,
+                  Tagged<WasmTrustedInstanceData> instance_data,
+                  Tagged<WasmTrustedInstanceData> ref_instance_data) {
+  size_t globals_count = module->globals.size();
+
+  int global_mismatches = 0;
+  for (size_t i = 0; i < globals_count; ++i) {
+    const WasmGlobal& global = module->globals[i];
+    WasmValue value = instance_data->GetGlobalValue(isolate, global);
+    WasmValue ref_value = ref_instance_data->GetGlobalValue(isolate, global);
+
+    if (!ValuesEquivalent(value, ref_value, false)) {
+      std::cerr << "Error: Global variables at index " << i
+                << " have different values!\n";
+      std::cerr << "  - Reference: ";
+      PrintValue(std::cerr, ref_value);
+      std::cerr << "\n  - Actual: ";
+      PrintValue(std::cerr, value);
+      std::cerr << std::endl;
+
+      global_mismatches++;
+    }
+  }
+
+  return global_mismatches == 0;
+}
+
+bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
+                   Tagged<WasmTrustedInstanceData> instance_data,
+                   Tagged<WasmTrustedInstanceData> ref_instance_data) {
+  int memory_mismatches = 0;
+  size_t memories_count = module->memories.size();
+  for (size_t i = 0; i < memories_count; ++i) {
+    int memory_index = module->memories[i].index;
+    Tagged<WasmMemoryObject> memory =
+        instance_data->memory_object(memory_index);
+    Tagged<WasmMemoryObject> ref_memory =
+        ref_instance_data->memory_object(memory_index);
+
+    auto buffer = memory->array_buffer();
+    auto ref_buffer = ref_memory->array_buffer();
+
+    size_t memory_size = buffer->byte_length();
+    size_t ref_memory_size = ref_buffer->byte_length();
+
+    if (ref_memory_size != memory_size) {
+      std::cerr << "Error: Memories at index " << i
+                << " have different sizes!\n";
+      std::cerr << "  - Reference: " << ref_memory_size << " bytes\n;";
+      std::cerr << "  - Actual:    " << memory_size << " bytes" << std::endl;
+      continue;
+    }
+
+    uint8_t* data = static_cast<uint8_t*>(buffer->backing_store());
+    uint8_t* ref_data = static_cast<uint8_t*>(ref_buffer->backing_store());
+
+    if (memcmp(ref_data, data, memory_size) == 0) {
+      continue;
+    }
+
+    memory_mismatches++;
+
+    constexpr int block_size = 16;
+
+    auto print_mem_block = [](const uint8_t* buffer) {
+      for (size_t k = 0; k < block_size; ++k) {
+        std::cerr << std::setw(2) << std::setfill('0')
+                  << static_cast<uint32_t>(buffer[k]) << " ";
+        if ((k + 1) % 4 == 0) {
+          std::cerr << " ";
+        }
+      }
+    };
+
+    if (memory_size != 0) {
+      CHECK_NOT_NULL(data);
+      CHECK_NOT_NULL(ref_data);
+
+      for (size_t j = 0; j < memory_size; j += block_size) {
+        if (memcmp(ref_data + j, data + j, block_size) != 0) {
+          std::cerr << "Error: Memory difference found in range " << j << "-"
+                    << (j + block_size) << "!\n"
+                    << std::hex;
+
+          std::cerr << "  - Reference: ";
+          print_mem_block(ref_data + j);
+
+          std::cerr << "\n  - Actual:    ";
+          print_mem_block(data + j);
+
+          std::cerr << "\n               ";
+          for (size_t k = 0; k < block_size; ++k) {
+            if (ref_data[j + k] != data[j + k]) {
+              std::cerr << "^^ ";
+            } else {
+              std::cerr << "   ";
+            }
+            if ((k + 1) % 4 == 0) {
+              std::cerr << " ";
+            }
+          }
+          std::cerr << "\n" << std::dec;
+        }
+      }
+    }
+  }
+
+  return memory_mismatches == 0;
+}
+
 int ExecuteAgainstReference(Isolate* isolate,
                             DirectHandle<WasmModuleObject> module_object,
                             int32_t max_executed_instructions
@@ -275,6 +635,8 @@ int ExecuteAgainstReference(Isolate* isolate,
                             bool is_wasm_jitless
 #endif  // V8_ENABLE_DRUMBRAKE
 ) {
+  HandleScope handle_scope(isolate);
+
   NativeModule* native_module = module_object->native_module();
   const WasmModule* module = native_module->module();
   const base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
@@ -358,6 +720,22 @@ int ExecuteAgainstReference(Isolate* isolate,
 
   if (!exception) {
     CHECK_EQ(ref_result.result, result);
+  }
+
+  Tagged<WasmTrustedInstanceData> instance_data =
+      instance->trusted_data(isolate);
+  Tagged<WasmTrustedInstanceData> ref_instance_data =
+      ref_result.instance->trusted_data(isolate);
+
+  if (!GlobalsMatch(isolate, module, instance_data, ref_instance_data)) {
+    FATAL(
+        "Global value mismatch! The value of at least one global variable "
+        "differs between the reference and the actual run.");
+  }
+  if (!MemoriesMatch(isolate, module, instance_data, ref_instance_data)) {
+    FATAL(
+        "Memory mismatch! At least one byte of one linear memory differs "
+        "between the reference and the actual run.");
   }
 
   return 0;

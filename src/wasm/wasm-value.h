@@ -152,9 +152,9 @@ class WasmValue {
       case kS128: {
         std::stringstream stream;
         stream << "0x" << std::hex;
-        for (int8_t uint8_t : bit_pattern_) {
-          if (!(uint8_t & 0xf0)) stream << '0';
-          stream << uint8_t;
+        for (uint8_t byte : bit_pattern_) {
+          if (!(byte & 0xf0)) stream << '0';
+          stream << static_cast<uint32_t>(byte);
         }
         return stream.str();
       }

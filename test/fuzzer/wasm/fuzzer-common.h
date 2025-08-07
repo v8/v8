@@ -102,6 +102,10 @@ class WasmExecutionFuzzer {
                               ZoneBuffer* buffer) = 0;
 };
 
+bool ValuesEquivalent(const WasmValue& init_lhs, const WasmValue& init_rhs,
+                      bool expect_function_equality);
+void PrintValue(std::ostream& os, const WasmValue& value);
+
 int SyncCompileAndExecuteAgainstReference(
     v8::Isolate* isolate, base::Vector<const uint8_t> wire_bytes,
     bool require_valid);
