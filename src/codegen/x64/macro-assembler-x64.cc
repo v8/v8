@@ -914,9 +914,11 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
 void MacroAssembler::LoadEntrypointFromJSDispatchTable(
     Register destination, JSDispatchHandle dispatch_handle) {
   DCHECK(!AreAliased(destination, kScratchRegister));
-  CHECK(root_array_available());
-  movq(kScratchRegister,
-       ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
+
+  // The following is not isolate group independent and thus cannot be used in
+  // builtin code.
+  DCHECK_EQ(builtin(), Builtin::kNoBuiltinId);
+  Move(kScratchRegister, ExternalReference::js_dispatch_table_address());
   // WARNING: This offset calculation is only safe if we have already stored a
   // RelocInfo for the dispatch handle, e.g. in CallJSDispatchEntry, (thus
   // keeping the dispatch entry alive) _and_ because the entrypoints are not
