@@ -33,7 +33,9 @@ namespace internal {
                                                                              \
     Return(result);                                                          \
   }
+#ifndef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 DEF_BINOP(Add_WithFeedback, Generate_AddWithFeedback)
+#endif
 DEF_BINOP(Subtract_WithFeedback, Generate_SubtractWithFeedback)
 DEF_BINOP(Multiply_WithFeedback, Generate_MultiplyWithFeedback)
 DEF_BINOP(Divide_WithFeedback, Generate_DivideWithFeedback)

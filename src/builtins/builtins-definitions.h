@@ -913,7 +913,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFC(ShiftRightLogical_Baseline, BinaryOp_Baseline)                           \
   TFC(ShiftRightLogicalSmi_Baseline, BinarySmiOp_Baseline)                     \
                                                                                \
-  TFC(Add_WithFeedback, BinaryOp_WithFeedback)                                 \
+  IF_TSA(TFC_TSA, TFC, Add_WithFeedback, BinaryOp_WithFeedback)                \
   TFC(Subtract_WithFeedback, BinaryOp_WithFeedback)                            \
   TFC(Multiply_WithFeedback, BinaryOp_WithFeedback)                            \
   TFC(Divide_WithFeedback, BinaryOp_WithFeedback)                              \

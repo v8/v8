@@ -28,6 +28,8 @@
   using Label = compiler::turboshaft::Label<Ts...>;                            \
   template <typename... Ts>                                                    \
   using LoopLabel = compiler::turboshaft::LoopLabel<Ts...>;                    \
+  template <typename... Args>                                                  \
+  using Tuple = compiler::turboshaft::Tuple<Args...>;                          \
   using Block = compiler::turboshaft::Block;                                   \
   using OpIndex = compiler::turboshaft::OpIndex;                               \
   using Word32 = compiler::turboshaft::Word32;                                 \
@@ -618,6 +620,9 @@ class TurboshaftBuiltinsAssembler
       : Base(data, graph, graph, phase_zone) {}
 
   using Base::Asm;
+
+  Isolate* isolate() { return Base::data()->isolate(); }
+  Factory* factory() { return isolate()->factory(); }
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

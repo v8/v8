@@ -837,6 +837,9 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     return OpIndex::Invalid();
   }
   V8_INLINE OpIndex AssembleOutputGraphBranch(const BranchOp& op) {
+    // Did you forget to Bind/BIND a Block/Label that you are branching to?
+    DCHECK(op.if_true->index().valid());
+    DCHECK(op.if_false->index().valid());
     Block* if_true = MapToNewGraph(op.if_true);
     Block* if_false = MapToNewGraph(op.if_false);
     return Asm().ReduceBranch(MapToNewGraph(op.condition()), if_true, if_false,

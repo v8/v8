@@ -391,6 +391,7 @@ class LabelBase {
 
   LabelBase(const LabelBase&) = delete;
   LabelBase& operator=(const LabelBase&) = delete;
+  ~LabelBase() { data_.CheckLabelWasBound(); }
 
  public:
   static constexpr bool is_loop = loop;
@@ -439,9 +440,19 @@ class LabelBase {
   }
 
   template <typename A>
-  base::prepend_tuple_type<bool, values_t> Bind(A& assembler) {
-    DCHECK(!data_.block->IsBound());
-    if (!assembler.Bind(data_.block)) {
+  base::prepend_tuple_type<bool, values_t> Bind(
+      A& assembler,
+      const SourceLocation& bind_location = SourceLocation::Current()) {
+#ifdef DEBUG
+    if (data_.block->IsBound()) {
+      V8_Fatal(bind_location.FileName(), static_cast<int>(bind_location.Line()),
+               "TSA: Trying to BIND a Label that is already bound. The Label "
+               "is defined here: %s, line %d",
+               data_.def_location.FileName(),
+               static_cast<int>(data_.def_location.Line()));
+    }
+#endif
+    if (!assembler.Bind(data_.block, bind_location)) {
       return std::tuple_cat(std::tuple{false}, values_t{});
     }
     DCHECK_EQ(data_.block, assembler.current_block());
@@ -453,17 +464,63 @@ class LabelBase {
     Block* block;
     base::SmallVector<Block*, 4> predecessors;
     recorded_values_t recorded_values;
+    SourceLocation def_location;
 
-    explicit BlockData(Block* block) : block(block) {}
+    explicit BlockData(Block* block, const SourceLocation& def_location)
+        : block(block), def_location(def_location) {}
+#ifdef DEBUG
+    BlockData(BlockData&& other) V8_NOEXCEPT
+        : block(other.block),
+          predecessors(std::move(other.predecessors)),
+          recorded_values(std::move(other.recorded_values)),
+          def_location(std::move(other.def_location)) {
+      other.block = nullptr;
+    }
+    BlockData& operator=(BlockData&& other) V8_NOEXCEPT {
+      CheckLabelWasBound();
+
+      block = other.block;
+      other.block = nullptr;
+      predecessors = std::move(other.predecessors);
+      recorded_values = std::move(other.recorded_values);
+      def_location = std::move(other.def_location);
+      return *this;
+    }
+
+    void CheckLabelWasBound() {
+      if (block != nullptr) {
+        // TODO(nicohartmann, dmercadier): Somehow Label's has_incoming_jumps_
+        // and block->PredecessorCount() > 0 don't match. Shouldn't those be
+        // identical? Need to figure out if that's on purpose.
+
+        // Did you forget to BIND this Label?
+        if (block->PredecessorCount() > 0 && !block->IsBound()) {
+          V8_Fatal(
+              def_location.FileName(), static_cast<int>(def_location.Line()),
+              "TSA: Label defined here has incoming control flow but is never "
+              "bound.");
+        }
+      }
+    }
+
+#else
+
+    BlockData(BlockData&&) V8_NOEXCEPT = default;
+    BlockData& operator=(BlockData&&) V8_NOEXCEPT = default;
+    void CheckLabelWasBound() {}
+#endif  // DEBUG
   };
 
-  explicit LabelBase(Block* block) : data_(block) {
+  explicit LabelBase(Block* block, const SourceLocation& def_location)
+      : data_(block, def_location) {
     DCHECK_NOT_NULL(data_.block);
   }
 
   LabelBase(LabelBase&& other) V8_NOEXCEPT
       : data_(std::move(other.data_)),
-        has_incoming_jump_(other.has_incoming_jump_) {}
+        has_incoming_jump_(other.has_incoming_jump_) {
+    other.has_incoming_jump_ = false;
+  }
 
   static void RecordValues(Block* source, BlockData& data,
                            const values_t& values) {
@@ -537,7 +594,9 @@ class Label : public LabelBase<false, Ts...> {
 
  public:
   template <typename Reducer>
-  explicit Label(Reducer* reducer) : super(reducer->Asm().NewBlock()) {}
+  explicit Label(Reducer* reducer,
+                 const SourceLocation& l = SourceLocation::Current())
+      : super(reducer->Asm().NewBlock(), l) {}
 
   Label(Label&& other) V8_NOEXCEPT : super(std::move(other)) {}
 };
@@ -552,10 +611,12 @@ class LoopLabel : public LabelBase<true, Ts...> {
 
  public:
   using values_t = typename super::values_t;
+
   template <typename Reducer>
-  explicit LoopLabel(Reducer* reducer)
-      : super(reducer->Asm().NewBlock()),
-        loop_header_data_{reducer->Asm().NewLoopHeader()} {}
+  explicit LoopLabel(Reducer* reducer, const SourceLocation& def_location =
+                                           SourceLocation::Current())
+      : super(reducer->Asm().NewBlock(), def_location),
+        loop_header_data_{reducer->Asm().NewLoopHeader(), def_location} {}
 
   LoopLabel(LoopLabel&& other) V8_NOEXCEPT
       : super(std::move(other)),
@@ -626,14 +687,24 @@ class LoopLabel : public LabelBase<true, Ts...> {
 
   template <typename A>
   base::prepend_tuple_type<bool, values_t> Bind(A& assembler) {
-    // LoopLabels must not be bound  using `Bind`, but with `Loop`.
+    // LoopLabels must not be bound using `Bind`, but with `BindLoop`.
     UNREACHABLE();
   }
 
   template <typename A>
-  base::prepend_tuple_type<bool, values_t> BindLoop(A& assembler) {
-    DCHECK(!loop_header_data_.block->IsBound());
-    if (!assembler.Bind(loop_header_data_.block)) {
+  base::prepend_tuple_type<bool, values_t> BindLoop(
+      A& assembler,
+      const SourceLocation& bind_location = SourceLocation::Current()) {
+#ifdef DEBUG
+    if (loop_header_data_.block->IsBound()) {
+      V8_Fatal(bind_location.FileName(), static_cast<int>(bind_location.Line()),
+               "TSA: Trying to BIND a Label that is already bound. The Label "
+               "is defined here: %s, line %d",
+               loop_header_data_.def_location.FileName(),
+               static_cast<int>(loop_header_data_.def_location.Line()));
+    }
+#endif
+    if (!assembler.Bind(loop_header_data_.block, bind_location)) {
       return std::tuple_cat(std::tuple{false}, values_t{});
     }
     DCHECK_EQ(loop_header_data_.block, assembler.current_block());
@@ -764,6 +835,39 @@ class Uninitialized {
   }
 
   std::optional<V<T>> object_;
+};
+
+// FrameStateForCall is mostly just a wrapper around V<FrameState>, but when
+// compiling a builtin, we cannot lazy deopt and we can pass NoFrameState()
+// instead.
+// TODO(nicohartmann): This is a temporary solution to allow builtins calling
+// other builtins to be able to not pass a FrameState (because those calls
+// cannot lazy deopt). We should ideally remove `kNeedsFrameState` from the
+// `BuiltinCallDescriptor`s because that's not an inherent property of the
+// callee, but also depends on the caller.
+class FrameStateForCall {
+ public:
+  FrameStateForCall(
+      V<turboshaft::FrameState> framestate)  // NOLINT(runtime/explicit)
+      : framestate_(framestate) {
+    DCHECK(framestate_.valid());
+  }
+
+  template <typename Assembler>
+  static FrameStateForCall NoFrameState(const Assembler* assembler) {
+    // Use only for TSA builtins that cannot lazy deopt on calls.
+    DCHECK_EQ(assembler->data()->pipeline_kind(),
+              TurboshaftPipelineKind::kTSABuiltin);
+    return FrameStateForCall{};
+  }
+
+  OptionalV<turboshaft::FrameState> get() const { return framestate_; }
+  bool valid() const { return framestate_.valid(); }
+
+ private:
+  FrameStateForCall() : framestate_() {}
+
+  OptionalV<turboshaft::FrameState> framestate_;
 };
 
 // Forward declarations
@@ -1356,19 +1460,21 @@ class GenericAssemblerOpInterface {
   // These methods are used by the assembler macros (BIND, BIND_LOOP, GOTO,
   // GOTO_IF).
   template <typename L>
-  auto ControlFlowHelper_Bind(L& label)
+  auto ControlFlowHelper_Bind(
+      L& label, const SourceLocation& bind_location = SourceLocation::Current())
       -> base::prepend_tuple_type<bool, typename L::values_t> {
     // LoopLabels need to be bound with `BIND_LOOP` instead of `BIND`.
     static_assert(!L::is_loop);
-    return label.Bind(Asm());
+    return label.Bind(Asm(), bind_location);
   }
 
   template <typename L>
-  auto ControlFlowHelper_BindLoop(L& label)
+  auto ControlFlowHelper_BindLoop(
+      L& label, const SourceLocation& bind_location = SourceLocation::Current())
       -> base::prepend_tuple_type<bool, typename L::values_t> {
     // Only LoopLabels can be bound with `BIND_LOOP`. Otherwise use `BIND`.
     static_assert(L::is_loop);
-    return label.BindLoop(Asm());
+    return label.BindLoop(Asm(), bind_location);
   }
 
   template <typename L>
@@ -1707,6 +1813,8 @@ class TurboshaftAssemblerOpInterface
                                 SignedAdd, Word32)
   DECL_SINGLE_REP_CHECK_BINOP_V(Int64AddCheckOverflow, OverflowCheckedBinop,
                                 SignedAdd, Word64)
+  DECL_SINGLE_REP_CHECK_BINOP_V(IntPtrAddCheckOverflow, OverflowCheckedBinop,
+                                SignedAdd, WordPtr)
   DECL_MULTI_REP_CHECK_BINOP_V(IntSubCheckOverflow, OverflowCheckedBinop,
                                SignedSub, Word)
   DECL_SINGLE_REP_CHECK_BINOP_V(Int32SubCheckOverflow, OverflowCheckedBinop,
@@ -2121,6 +2229,11 @@ class TurboshaftAssemblerOpInterface
   DECL_OBJECT_IS(Undetectable)
 #undef DECL_OBJECT_IS
 
+  V<Word32> HeapObjectIsNumber(V<HeapObject> heap_object) {
+    return ObjectIs(heap_object, ObjectIsOp::Kind::kNumber,
+                    ObjectIsOp::InputAssumptions::kHeapObject);
+  }
+
   V<Word32> Float64Is(V<Float64> input, NumericKind kind) {
     return ReduceIfReachableFloat64Is(input, kind);
   }
@@ -2201,6 +2314,15 @@ class TurboshaftAssemblerOpInterface
         minus_zero_mode));
   }
 
+  V<BigInt> ConvertInt64ToBigInt(V<Word64> input) {
+    DCHECK(Is64());
+    return V<BigInt>::Cast(ConvertUntaggedToJSPrimitive(
+        input, ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kBigInt,
+        RegisterRepresentation::Word64(),
+        ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
+        CheckForMinusZeroMode::kCheckForMinusZero));
+  }
+
   V<JSPrimitive> ConvertUntaggedToJSPrimitiveOrDeopt(
       V<Untagged> input, V<turboshaft::FrameState> frame_state,
       ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind kind,
@@ -2249,6 +2371,13 @@ class TurboshaftAssemblerOpInterface
     return V<Word32>::Cast(TruncateJSPrimitiveToUntagged(
         value, TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kInt32,
         TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball));
+  }
+
+  V<Word64> TruncateBigIntToWord64(V<BigInt> bigint) {
+    DCHECK(Is64());
+    return V<Word64>::Cast(TruncateJSPrimitiveToUntagged(
+        bigint, TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kInt64,
+        TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kBigInt));
   }
 
   V<Word> TruncateJSPrimitiveToUntaggedOrDeopt(
@@ -2450,16 +2579,23 @@ class TurboshaftAssemblerOpInterface
     return HeapConstant(cached_centry_stub_constants_[index].ToHandleChecked());
   }
 
+  V<turboshaft::Tuple<Word, Word32>> TryChange(V<Float> input,
+                                               TryChangeOp::Kind kind,
+                                               FloatRepresentation from,
+                                               WordRepresentation to) {
+    return ReduceIfReachableTryChange(input, kind, from, to);
+  }
+
 #define DECL_CHANGE_V(name, kind, assumption, from, to)                  \
   V<to> name(ConstOrV<from> input) {                                     \
     return ReduceIfReachableChange(resolve(input), ChangeOp::Kind::kind, \
                                    ChangeOp::Assumption::assumption,     \
                                    V<from>::rep, V<to>::rep);            \
   }
-#define DECL_TRY_CHANGE_V(name, kind, from, to)                       \
-  V<turboshaft::Tuple<to, Word32>> name(V<from> input) {              \
-    return ReduceIfReachableTryChange(input, TryChangeOp::Kind::kind, \
-                                      V<from>::rep, V<to>::rep);      \
+#define DECL_TRY_CHANGE_V(name, kind, from, to)                               \
+  V<turboshaft::Tuple<to, Word32>> name(V<from> input) {                      \
+    return V<turboshaft::Tuple<to, Word32>>::Cast(                            \
+        TryChange(input, TryChangeOp::Kind::kind, V<from>::rep, V<to>::rep)); \
   }
 
   DECL_CHANGE_V(BitcastWord32ToWord64, kBitcast, kNoAssumption, Word32, Word64)
@@ -2901,6 +3037,22 @@ class TurboshaftAssemblerOpInterface
         ProtectedFixedArray::OffsetOfElementAt(index));
   }
 
+  V<Word32> DecodeWord32(V<Word32> word32, uint32_t shift, uint32_t mask) {
+    DCHECK_EQ((mask >> shift) << shift, mask);
+    if ((std::numeric_limits<uint32_t>::max() >> shift) ==
+        ((std::numeric_limits<uint32_t>::max() & mask) >> shift)) {
+      return Word32ShiftRightLogical(word32, shift);
+    } else {
+      return Word32BitwiseAnd(Word32ShiftRightLogical(word32, shift),
+                              mask >> shift);
+    }
+  }
+
+  template <typename BitField>
+  V<Word32> DecodeWord32(V<Word32> word32) {
+    return DecodeWord32(word32, BitField::kShift, BitField::kMask);
+  }
+
   void Store(
       OpIndex base, OptionalOpIndex index, OpIndex value, StoreOp::Kind kind,
       MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
@@ -3009,6 +3161,12 @@ class TurboshaftAssemblerOpInterface
 
   V<Word32> LoadInstanceTypeField(V<Map> map) {
     return LoadField<Word32>(map, AccessBuilder::ForMapInstanceType());
+  }
+
+  V<Word32> LoadElementsKind(V<Map> map) {
+    V<Word32> bit_field2 =
+        LoadField<Word32>(map, AccessBuilder::ForMapBitField2());
+    return DecodeWord32<Map::Bits2::ElementsKindBits>(bit_field2);
   }
 
   V<Word32> HasInstanceType(V<Object> object, InstanceType instance_type) {
@@ -3386,8 +3544,8 @@ class TurboshaftAssemblerOpInterface
 
   template <typename Descriptor>
   detail::index_type_for_t<typename Descriptor::results_t> CallBuiltin(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, const typename Descriptor::arguments_t& args,
+      Isolate* isolate, FrameStateForCall frame_state, V<Context> context,
+      const typename Descriptor::arguments_t& args,
       LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo)
     requires(Descriptor::kNeedsFrameState && Descriptor::kNeedsContext)
   {
@@ -3395,7 +3553,9 @@ class TurboshaftAssemblerOpInterface
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
     }
-    DCHECK(frame_state.valid());
+    bool compiling_builtins =
+        Asm().data()->pipeline_kind() == TurboshaftPipelineKind::kTSABuiltin;
+    DCHECK_IMPLIES(!compiling_builtins, frame_state.valid());
     DCHECK(context.valid());
     auto arguments = std::apply(
         [context](auto&&... as) {
@@ -3405,10 +3565,11 @@ class TurboshaftAssemblerOpInterface
         },
         args);
     return result_t::Cast(CallBuiltinImpl(
-        isolate, Descriptor::kFunction, frame_state, base::VectorOf(arguments),
+        isolate, Descriptor::kFunction, frame_state.get(),
+        base::VectorOf(arguments),
         Descriptor::Create(StubCallMode::kCallCodeObject,
                            Asm().output_graph().graph_zone(),
-                           lazy_deopt_on_throw),
+                           lazy_deopt_on_throw, compiling_builtins),
         Descriptor::kEffects));
   }
 
@@ -3439,7 +3600,7 @@ class TurboshaftAssemblerOpInterface
   }
   template <typename Descriptor>
   detail::index_type_for_t<typename Descriptor::results_t> CallBuiltin(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
+      Isolate* isolate, FrameStateForCall frame_state,
       const typename Descriptor::arguments_t& args,
       LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo)
     requires(Descriptor::kNeedsFrameState && !Descriptor::kNeedsContext)
@@ -3448,7 +3609,9 @@ class TurboshaftAssemblerOpInterface
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
     }
-    DCHECK(frame_state.valid());
+    bool compiling_builtins =
+        Asm().data()->pipeline_kind() == TurboshaftPipelineKind::kTSABuiltin;
+    DCHECK_IMPLIES(!compiling_builtins, frame_state.valid());
     auto arguments = std::apply(
         [](auto&&... as) {
           return base::SmallVector<
@@ -3457,10 +3620,11 @@ class TurboshaftAssemblerOpInterface
         },
         args);
     return result_t::Cast(CallBuiltinImpl(
-        isolate, Descriptor::kFunction, frame_state, base::VectorOf(arguments),
+        isolate, Descriptor::kFunction, frame_state.get(),
+        base::VectorOf(arguments),
         Descriptor::Create(StubCallMode::kCallCodeObject,
                            Asm().output_graph().graph_zone(),
-                           lazy_deopt_on_throw),
+                           lazy_deopt_on_throw, compiling_builtins),
         Descriptor::kEffects));
   }
   template <typename Descriptor>
@@ -3556,13 +3720,12 @@ class TurboshaftAssemblerOpInterface
                 effects);
   }
 
-#define DECL_GENERIC_BINOP_BUILTIN_CALL(Name)                            \
-  V<Object> CallBuiltin_##Name(                                          \
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,           \
-      V<Context> context, V<Object> lhs, V<Object> rhs,                  \
-      LazyDeoptOnThrow lazy_deopt_on_throw) {                            \
-    return CallBuiltin<typename BuiltinCallDescriptor::Name>(            \
-        isolate, frame_state, context, {lhs, rhs}, lazy_deopt_on_throw); \
+#define DECL_GENERIC_BINOP_BUILTIN_CALL(Name)                               \
+  V<Object> CallBuiltin_##Name(                                             \
+      Isolate* isolate, FrameStateForCall frame_state, V<Context> context,  \
+      V<Object> lhs, V<Object> rhs, LazyDeoptOnThrow lazy_deopt_on_throw) { \
+    return CallBuiltin<typename BuiltinCallDescriptor::Name>(               \
+        isolate, frame_state, context, {lhs, rhs}, lazy_deopt_on_throw);    \
   }
   GENERIC_BINOP_LIST(DECL_GENERIC_BINOP_BUILTIN_CALL)
 #undef DECL_GENERIC_BINOP_BUILTIN_CALL
@@ -3577,6 +3740,12 @@ class TurboshaftAssemblerOpInterface
   }
   GENERIC_UNOP_LIST(DECL_GENERIC_UNOP_BUILTIN_CALL)
 #undef DECL_GENERIC_UNOP_BUILTIN_CALL
+
+  V<BigInt> CallBuiltin_BigIntAdd(Isolate* isolate, V<Context> context,
+                                  V<Numeric> lhs, V<Numeric> rhs) {
+    return CallBuiltin<typename BuiltinCallDescriptor::BigIntAdd>(
+        isolate, context, {lhs, rhs});
+  }
 
   V<Number> CallBuiltin_ToNumber(Isolate* isolate,
                                  V<turboshaft::FrameState> frame_state,
@@ -4023,6 +4192,11 @@ class TurboshaftAssemblerOpInterface
     CallRuntime<typename RuntimeCallDescriptor::ThrowNotSuperConstructor>(
         isolate, frame_state, context, lazy_deopt_on_throw,
         {constructor, function});
+  }
+  void CallRuntime_ThrowRangeError(Isolate* isolate, V<Context> context,
+                                   V<Smi> template_index) {
+    CallRuntime<typename RuntimeCallDescriptor::ThrowRangeError>(
+        isolate, context, {template_index});
   }
   void CallRuntime_ThrowSuperAlreadyCalledError(
       Isolate* isolate, V<turboshaft::FrameState> frame_state,
@@ -5290,22 +5464,28 @@ class TurboshaftAssemblerOpInterface
 
  private:
 #ifdef DEBUG
-#define REDUCE_OP(Op)                                                    \
-  template <class... Args>                                               \
-  V8_INLINE OpIndex ReduceIfReachable##Op(Args... args) {                \
-    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {        \
-      DCHECK(Asm().conceptually_in_a_block());                           \
-      return OpIndex::Invalid();                                         \
-    }                                                                    \
-    OpIndex result = Asm().Reduce##Op(args...);                          \
-    if constexpr (!IsBlockTerminator(Opcode::k##Op)) {                   \
-      if (Asm().current_block() == nullptr) {                            \
-        /* The input operation was not a block terminator, but a reducer \
-         * lowered it into a block terminator. */                        \
-        Asm().set_conceptually_in_a_block(true);                         \
-      }                                                                  \
-    }                                                                    \
-    return result;                                                       \
+#define REDUCE_OP(Op)                                                        \
+  template <class... Args>                                                   \
+  V8_INLINE OpIndex ReduceIfReachable##Op(Args... args) {                    \
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {            \
+      if (V8_UNLIKELY(!Asm().conceptually_in_a_block())) {                   \
+        const auto location = SourceLocation::Current();                     \
+        V8_Fatal(location.FileName(), static_cast<int>(location.Line()),     \
+                 "TSA: Trying to emit an operation while no Block/Label is " \
+                 "bound. Most likely you are missing to Bind/BIND a new "    \
+                 "Block/Label after an unconditional jump.");                \
+      }                                                                      \
+      return OpIndex::Invalid();                                             \
+    }                                                                        \
+    OpIndex result = Asm().Reduce##Op(args...);                              \
+    if constexpr (!IsBlockTerminator(Opcode::k##Op)) {                       \
+      if (Asm().current_block() == nullptr) {                                \
+        /* The input operation was not a block terminator, but a reducer     \
+         * lowered it into a block terminator. */                            \
+        Asm().set_conceptually_in_a_block(true);                             \
+      }                                                                      \
+    }                                                                        \
+    return result;                                                           \
   }
 #else
 #define REDUCE_OP(Op)                                                        \
@@ -5452,7 +5632,8 @@ class Assembler : public AssemblerData,
 #if defined(__clang__) || !defined(V8_CC_GNU)
   V8_INLINE
 #endif
-  bool Bind(Block* block) {
+  bool Bind(Block* block,
+            const SourceLocation& bind_location = SourceLocation::Current()) {
 #ifdef DEBUG
     set_conceptually_in_a_block(true);
 #endif
@@ -5471,6 +5652,16 @@ class Assembler : public AssemblerData,
     if (!this->output_graph().Add(block)) {
       return false;
     }
+#ifdef DEBUG
+    // Did you forget to terminate the previous block?
+    if (V8_UNLIKELY(current_block_ != nullptr)) {
+      V8_Fatal(
+          bind_location.FileName(), static_cast<int>(bind_location.Line()),
+          "TSA: Cannot bind a new Block/Label without terminating the previous "
+          "block. Most likely you are missing an unconditional Goto/GOTO.");
+    }
+#endif
+
     DCHECK_NULL(current_block_);
     current_block_ = block;
     Stack::Bind(block);
