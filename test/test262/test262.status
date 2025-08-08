@@ -277,6 +277,14 @@
 
   # beyondDaySpan bug (https://github.com/boa-dev/temporal/pull/501)
   'staging/Intl402/Temporal/old/dst-math': [FAIL],
+  'intl402/Temporal/Duration/prototype/round/adjust-rounded-duration-days': [FAIL],
+
+  # Use correct unit categorization (https://github.com/boa-dev/temporal/pull/503)
+  'built-ins/Temporal/Duration/prototype/round/round-and-balance-calendar-units-with-increment-disallowed': [FAIL],
+
+  # Calculating incorrect offset for America/Vancouver (https://github.com/boa-dev/temporal/pull/504)
+  'intl402/Temporal/Duration/prototype/round/relativeto-string-datetime': [FAIL],
+  'intl402/Temporal/Duration/prototype/total/relativeto-string-datetime': [FAIL],
 
   # Issue filed upstream
 
@@ -301,6 +309,11 @@
   # PlainMonthDay needs to support Chinese/Dangi (https://github.com/boa-dev/temporal/issues/450)
   'intl402/Temporal/PlainMonthDay/from/constrain-to-leap-day': [FAIL],
   'intl402/Temporal/PlainYearMonth/from/reference-day-chinese': [FAIL],
+
+  # Chinese/Dangi need to use related_iso as their arithmetical year (https://github.com/unicode-org/icu4x/pull/6800)
+  'intl402/Temporal/PlainDate/prototype/until/until-across-lunisolar-leap-months': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars-dangi': [FAIL],
 
   # Outdated tests / spec issues
 
@@ -352,26 +365,6 @@
   'intl402/Temporal/PlainYearMonth/prototype/subtract/options-undefined': [FAIL],
   'staging/Intl402/Temporal/old/addition-across-lunisolar-leap-months-chinese': [FAIL],
   'staging/Intl402/Temporal/old/addition-across-lunisolar-leap-months-hebrew': [FAIL],
-
-  # Unknown issue
-
-  # Unknown balance issue
-  'built-ins/Temporal/Duration/prototype/round/round-and-balance-calendar-units-with-increment-disallowed': [FAIL],
-
-  # Chinese year 2000 is not a leap year
-  'intl402/Temporal/PlainDate/prototype/until/until-across-lunisolar-leap-months': [FAIL],
-
-  # Unknown duration rounding issue
-  'intl402/Temporal/Duration/prototype/round/adjust-rounded-duration-days': [FAIL],
-
-  # Unknown timezone parsing issue
-  'intl402/Temporal/Duration/prototype/round/relativeto-string-datetime': [FAIL],
-  'intl402/Temporal/Duration/prototype/total/relativeto-string-datetime': [FAIL],
-
-  # Unknown chinese calendar issue
-
-  'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-dangi': [FAIL],
 
   # End Temporal test expectations
 
