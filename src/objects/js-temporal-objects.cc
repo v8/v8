@@ -8,6 +8,7 @@
 #include <optional>
 #include <set>
 
+#include "src/base/numerics/safe_conversions.h"
 #include "src/common/globals.h"
 #include "src/date/date.h"
 #include "src/execution/isolate.h"
@@ -241,18 +242,12 @@ namespace temporal {
 
 // ====== Numeric conversions ======
 
-template <typename IntegerType>
-bool IsInNumericRange(double d) {
-  return d >= static_cast<double>(std::numeric_limits<IntegerType>::min()) &&
-         d <= static_cast<double>(std::numeric_limits<IntegerType>::max());
-}
-
 // Note: All of these IntegralDouble functions MUST
 // be given an integral number, typically obtained via
 // ToIntegerIfIntegral or ToIntegerWithTruncation.
 template <typename IntegerType>
 IntegerType CastIntegralDouble(double d) {
-  DCHECK(IsInNumericRange<IntegerType>(d));
+  DCHECK((base::IsValueInRangeForNumericType<IntegerType, double>(d)));
   DCHECK_EQ(nearbyint(d), d);
   return static_cast<IntegerType>(d);
 }
@@ -274,7 +269,7 @@ IntegerType ClampIntegralDoubleToRange(double d) {
 
 template <typename IntegerType>
 Maybe<IntegerType> CheckDoubleInRange(Isolate* isolate, double d) {
-  if (!IsInNumericRange<IntegerType>(d)) {
+  if (!base::IsValueInRangeForNumericType<IntegerType, double>(d)) {
     THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kIntegerOutOfRange));
   }
   return Just(CastIntegralDouble<IntegerType>(d));
@@ -309,7 +304,7 @@ Maybe<IntegerType> ToIntegerTypeIfIntegral(Isolate* isolate,
   double d;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, d,
                              ToIntegerIfIntegral(isolate, argument));
-  if (!IsInNumericRange<IntegerType>(d)) {
+  if (!base::IsValueInRangeForNumericType<IntegerType, double>(d)) {
     THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kIntegerOutOfRange));
   }
 
@@ -491,7 +486,7 @@ bool IsValidIsoDate(double year, double month, double day) {
   // This check is technically needed later when we check if things are in the
   // Temporal range, but we do it now to ensure we can safely cast to int32_t
   // before passing to Rust See https://github.com/boa-dev/temporal/issues/334.
-  if (!IsInNumericRange<int32_t>(year)) {
+  if (!base::IsValueInRangeForNumericType<int32_t, double>(year)) {
     return false;
   }
 
@@ -1481,7 +1476,7 @@ Maybe<std::optional<int64_t>> GetSingleDurationFieldInteger(
       GetSingleDurationField(isolate, duration_like, field_name));
   if (ret_opt.has_value()) {
     double ret = ret_opt.value();
-    if (!IsInNumericRange<int64_t>(ret)) {
+    if (!base::IsValueInRangeForNumericType<int64_t, double>(ret)) {
       THROW_NEW_ERROR(isolate,
                       NEW_TEMPORAL_RANGE_ERROR("Duration field out of range."));
     }
@@ -6746,7 +6741,8 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::FromEpochMilliseconds(
   //
   // (NumberToBigInt) 1. If number is not an integral Number, throw a RangeError
   // exception.
-  if (!std::isfinite(ms) || !temporal::IsInNumericRange<int64_t>(ms) ||
+  if (!std::isfinite(ms) ||
+      !base::IsValueInRangeForNumericType<int64_t, double>(ms) ||
       nearbyint(ms) != ms) {
     THROW_NEW_ERROR(isolate,
                     NEW_TEMPORAL_RANGE_ERROR("Expected finite integer."));
