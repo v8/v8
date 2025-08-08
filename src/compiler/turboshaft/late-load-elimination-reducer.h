@@ -439,6 +439,11 @@ class MemoryContentTable
     }
   }
 
+  void InvalidateAtMapOffset() {
+    TRACE(">>> InvalidateAtMapOffset");
+    InvalidateAtOffset(HeapObject::kMapOffset, OptionalOpIndex::Nullopt());
+  }
+
   OpIndex Find(const LoadOp& load) {
     OpIndex base = ResolveBase(load.base());
     OptionalOpIndex index = load.index();
@@ -569,8 +574,9 @@ class MemoryContentTable
     SetNoNotify(key, value);
   }
 
-  void InvalidateAtOffset(int32_t offset, OpIndex base) {
-    MapMaskAndOr base_maps = object_maps_.Get(base);
+  void InvalidateAtOffset(int32_t offset, OptionalOpIndex base) {
+    MapMaskAndOr base_maps{};
+    if (base.has_value()) base_maps = object_maps_.Get(base.value());
     auto offset_keys = offset_keys_.find(offset);
     if (offset_keys == offset_keys_.end()) return;
     for (auto it = offset_keys->second.begin();
@@ -740,6 +746,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
 
   void InvalidateAllNonAliasingInputs(const Operation& op);
   void InvalidateIfAlias(OpIndex op_idx);
+  void InvalidateAllMaps();
 
   PipelineData* data_;
   Graph& graph_;
