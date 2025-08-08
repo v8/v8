@@ -309,10 +309,6 @@ class V8_EXPORT_PRIVATE JSDispatchTable
 
   static constexpr bool kWriteBarrierSetsEntryMarkBit = true;
 
-  static bool MaybeValidJSDispatchHandle(uint32_t handle) {
-    return handle << kJSDispatchHandleShift >> kJSDispatchHandleShift == handle;
-  }
-
  private:
   static inline bool IsCompatibleCode(Tagged<Code> code,
                                       uint16_t parameter_count);
