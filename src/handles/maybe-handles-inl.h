@@ -26,7 +26,7 @@ MaybeHandle<T>::MaybeHandle(Tagged<T> object, LocalHeap* local_heap)
 
 template <typename To, typename From>
 inline MaybeIndirectHandle<To> UncheckedCast(MaybeIndirectHandle<From> value) {
-  return MaybeIndirectHandle<To>(value.location_);
+  return MaybeIndirectHandle<To>(value.location());
 }
 
 template <typename T>
@@ -162,7 +162,7 @@ MaybeDirectHandle<T>::MaybeDirectHandle(Tagged<T> object, LocalHeap* local_heap)
 
 template <typename To, typename From>
 inline MaybeDirectHandle<To> UncheckedCast(MaybeDirectHandle<From> value) {
-  return MaybeDirectHandle<To>(value.location_);
+  return MaybeDirectHandle<To>(value.address());
 }
 
 #else
