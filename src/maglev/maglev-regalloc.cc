@@ -617,7 +617,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
           // that they were used by this node.
           DCHECK(!node->properties().can_deopt());
           node->ForAllInputsInRegallocAssignmentOrder(
-              [&](NodeBase::InputAllocationPolicy, Input* input) {
+              [&](NodeBase::InputAllocationPolicy, Input input) {
                 UpdateUse(input);
               });
         }
@@ -879,7 +879,7 @@ void StraightForwardRegisterAllocator::AllocateNodeResult(ValueNode* node) {
       break;
 
     case compiler::UnallocatedOperand::SAME_AS_INPUT: {
-      Input& input = node->input(operand.input_index());
+      Input input = node->input(operand.input_index());
       node->result().SetAllocated(ForceAllocate(input, node));
       // Clear any hint that (probably) comes from this constraint.
       if (node->regalloc_info()->has_hint())
@@ -989,8 +989,9 @@ void StraightForwardRegisterAllocator::InitializeBranchTargetPhis(
       // them out now.
       phi_it = phis.RemoveAt(phi_it);
     } else {
-      Input& input = phi->input(predecessor_id);
-      input.InjectLocation(input.node()->regalloc_info()->allocation());
+      Input input = phi->input(predecessor_id);
+      input.location()->InjectLocation(
+          input.node()->regalloc_info()->allocation());
       ++phi_it;
     }
   }
@@ -1100,7 +1101,7 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
     MergeRegisterValues(unconditional, target, predecessor_id);
     if (target->has_phi()) {
       for (Phi* phi : *target->phis()) {
-        UpdateUse(&phi->input(predecessor_id));
+        UpdateUse(phi->input(predecessor_id));
       }
     }
 
@@ -1110,15 +1111,17 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
     // that value dropping in the phi initialisation doesn't think these
     // extended lifetime nodes are dead.
     if (auto jump_loop = node->TryCast<JumpLoop>()) {
-      for (Input& input : jump_loop->used_nodes()) {
-        if (!input.node()->regalloc_info()->has_register() &&
-            !input.node()->regalloc_info()->is_loadable()) {
+      for (auto input_pair : jump_loop->used_nodes()) {
+        ValueNode* input_node = input_pair.first;
+        InputLocation* input_location = &input_pair.second;
+        if (!input_node->regalloc_info()->has_register() &&
+            !input_node->regalloc_info()->is_loadable()) {
           // If the value isn't loadable by the end of a loop (this can happen
           // e.g. when a deferred throw doesn't spill it, and an exception
           // handler drops the value)
-          Spill(input.node());
+          Spill(input_node);
         }
-        UpdateUse(&input);
+        UpdateUse(input_node, input_location);
       }
     }
 
@@ -1180,7 +1183,7 @@ void StraightForwardRegisterAllocator::SetLoopPhiRegisterHint(Phi* phi,
           ? compiler::UnallocatedOperand::FIXED_REGISTER
           : compiler::UnallocatedOperand::FIXED_FP_REGISTER,
       reg.code(), kNoVreg);
-  for (Input& input : *phi) {
+  for (Input input : phi->inputs()) {
     if (input.node()->id() > phi->id()) {
       input.node()->SetHint(hint);
     }
@@ -1189,11 +1192,11 @@ void StraightForwardRegisterAllocator::SetLoopPhiRegisterHint(Phi* phi,
 
 void StraightForwardRegisterAllocator::TryAllocateToInput(Phi* phi) {
   // Try allocate phis to a register used by any of the inputs.
-  for (Input& input : *phi) {
+  for (Input input : phi->inputs()) {
     if (input.operand().IsRegister()) {
       // We assume Phi nodes only point to tagged values, and so they use a
       // general register.
-      Register reg = input.AssignedGeneralRegister();
+      Register reg = input.location()->AssignedGeneralRegister();
       if (general_registers_.unblocked_free().has(reg)) {
         phi->result().SetAllocated(ForceAllocate(reg, phi));
         SetLoopPhiRegisterHint(phi, reg);
@@ -1231,8 +1234,8 @@ void StraightForwardRegisterAllocator::AddMoveBeforeCurrentNode(
         Node::New<GapMove>(compilation_info_->zone(), 0,
                            compiler::AllocatedOperand::cast(source), target);
   }
-  gap_move->set_regalloc_info(
-      compilation_info_->zone()->New<RegallocNodeInfo>());
+  gap_move->set_regalloc_info(compilation_info_->zone()->New<RegallocNodeInfo>(
+      compilation_info_->zone(), gap_move->input_count()));
   if (compilation_info_->has_graph_labeller()) {
     graph_labeller()->RegisterNode(gap_move);
   }
@@ -1258,7 +1261,7 @@ void StraightForwardRegisterAllocator::Spill(ValueNode* node) {
   }
 }
 
-void StraightForwardRegisterAllocator::AssignFixedInput(Input& input) {
+void StraightForwardRegisterAllocator::AssignFixedInput(Input input) {
   compiler::UnallocatedOperand operand =
       compiler::UnallocatedOperand::cast(input.operand());
   ValueNode* node = input.node();
@@ -1283,14 +1286,14 @@ void StraightForwardRegisterAllocator::AssignFixedInput(Input& input) {
 
     case compiler::UnallocatedOperand::FIXED_REGISTER: {
       Register reg = Register::from_code(operand.fixed_register_index());
-      input.SetAllocated(ForceAllocate(reg, node));
+      input.location()->SetAllocated(ForceAllocate(reg, node));
       break;
     }
 
     case compiler::UnallocatedOperand::FIXED_FP_REGISTER: {
       DoubleRegister reg =
           DoubleRegister::from_code(operand.fixed_register_index());
-      input.SetAllocated(ForceAllocate(reg, node));
+      input.location()->SetAllocated(ForceAllocate(reg, node));
       break;
     }
 
@@ -1310,7 +1313,7 @@ void StraightForwardRegisterAllocator::AssignFixedInput(Input& input) {
   if (location != allocated) {
     AddMoveBeforeCurrentNode(node, location, allocated);
   }
-  UpdateUse(&input);
+  UpdateUse(input);
   // Clear any hint that (probably) comes from this fixed use.
   input.node()->regalloc_info()->clear_hint();
 }
@@ -1349,13 +1352,13 @@ bool IsInRegisterLocation(ValueNode* node,
 }
 #endif  // DEBUG
 
-bool SameAsInput(ValueNode* node, Input& input) {
+bool SameAsInput(ValueNode* node, Input input) {
   auto operand = compiler::UnallocatedOperand::cast(node->result().operand());
   return operand.HasSameAsInputPolicy() &&
-         &input == &node->input(operand.input_index());
+         input == node->input(operand.input_index());
 }
 
-compiler::InstructionOperand InputHint(NodeBase* node, Input& input) {
+compiler::InstructionOperand InputHint(NodeBase* node, Input input) {
   ValueNode* value_node = node->TryCast<ValueNode>();
   if (!value_node) return input.node()->regalloc_info()->hint();
   DCHECK(value_node->result().operand().IsUnallocated());
@@ -1369,7 +1372,7 @@ compiler::InstructionOperand InputHint(NodeBase* node, Input& input) {
 }  // namespace
 
 void StraightForwardRegisterAllocator::AssignArbitraryRegisterInput(
-    NodeBase* result_node, Input& input) {
+    NodeBase* result_node, Input input) {
   // Already assigned in AssignFixedInput
   if (!input.operand().IsUnallocated()) return;
 
@@ -1385,7 +1388,7 @@ void StraightForwardRegisterAllocator::AssignArbitraryRegisterInput(
             compiler::UnallocatedOperand::MUST_HAVE_REGISTER);
 
   ValueNode* node = input.node();
-  bool is_clobbered = input.Cloberred();
+  bool is_clobbered = input.location()->Cloberred();
 
   compiler::AllocatedOperand location = ([&] {
     compiler::InstructionOperand existing_register_location;
@@ -1436,9 +1439,9 @@ void StraightForwardRegisterAllocator::AssignArbitraryRegisterInput(
     return allocation;
   })();
 
-  input.SetAllocated(location);
+  input.location()->SetAllocated(location);
 
-  UpdateUse(&input);
+  UpdateUse(input);
   // Only need to mark the location as clobbered if the node wasn't already
   // killed by UpdateUse.
   if (is_clobbered && !node->regalloc_info()->has_no_more_uses()) {
@@ -1450,7 +1453,7 @@ void StraightForwardRegisterAllocator::AssignArbitraryRegisterInput(
   DCHECK_IMPLIES(is_clobbered, !IsInRegisterLocation(node, location));
 }
 
-void StraightForwardRegisterAllocator::AssignAnyInput(Input& input) {
+void StraightForwardRegisterAllocator::AssignAnyInput(Input input) {
   // Already assigned in AssignFixedInput or AssignArbitraryRegisterInput.
   if (!input.operand().IsUnallocated()) return;
 
@@ -1461,7 +1464,7 @@ void StraightForwardRegisterAllocator::AssignAnyInput(Input& input) {
   ValueNode* node = input.node();
   compiler::InstructionOperand location = node->regalloc_info()->allocation();
 
-  input.InjectLocation(location);
+  input.location()->InjectLocation(location);
   if (location.IsAnyRegister()) {
     compiler::AllocatedOperand allocation =
         compiler::AllocatedOperand::cast(location);
@@ -1475,7 +1478,7 @@ void StraightForwardRegisterAllocator::AssignAnyInput(Input& input) {
     printing_visitor_->os() << "- " << PrintNodeLabel(input.node())
                             << " in original " << location << "\n";
   }
-  UpdateUse(&input);
+  UpdateUse(input);
 }
 
 void StraightForwardRegisterAllocator::AssignInputs(NodeBase* node) {
@@ -1489,16 +1492,16 @@ void StraightForwardRegisterAllocator::AssignInputs(NodeBase* node) {
   // iterate the inputs. Since UseMarkingProcessor uses this helper to iterate
   // inputs, and it has to iterate them in the same order as this function,
   // using the iteration helper in both places would be better.
-  for (Input& input : *node) AssignFixedInput(input);
+  for (Input input : node->inputs()) AssignFixedInput(input);
   AssignFixedTemporaries(node);
-  for (Input& input : *node) AssignArbitraryRegisterInput(node, input);
+  for (Input input : node->inputs()) AssignArbitraryRegisterInput(node, input);
   AssignArbitraryTemporaries(node);
-  for (Input& input : *node) AssignAnyInput(input);
+  for (Input input : node->inputs()) AssignAnyInput(input);
 }
 
 void StraightForwardRegisterAllocator::VerifyInputs(NodeBase* node) {
 #ifdef DEBUG
-  for (Input& input : *node) {
+  for (Input input : node->inputs()) {
     if (input.operand().IsRegister()) {
       Register reg =
           compiler::AllocatedOperand::cast(input.operand()).GetRegister();
@@ -1887,13 +1890,13 @@ compiler::AllocatedOperand StraightForwardRegisterAllocator::ForceAllocate(
 }
 
 compiler::AllocatedOperand StraightForwardRegisterAllocator::ForceAllocate(
-    const Input& input, ValueNode* node) {
-  if (input.IsDoubleRegister()) {
-    DoubleRegister reg = input.AssignedDoubleRegister();
+    ConstInput input, ValueNode* node) {
+  if (input.location()->IsDoubleRegister()) {
+    DoubleRegister reg = input.location()->AssignedDoubleRegister();
     DropRegisterValueAtEnd(reg);
     return ForceAllocate(reg, node);
   } else {
-    Register reg = input.AssignedGeneralRegister();
+    Register reg = input.location()->AssignedGeneralRegister();
     DropRegisterValueAtEnd(reg);
     return ForceAllocate(reg, node);
   }

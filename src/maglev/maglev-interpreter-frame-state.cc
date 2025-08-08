@@ -1470,7 +1470,7 @@ void MergePointInterpreterFrameState::RemovePredecessorAt(int predecessor_id) {
     // Shift phi inputs by 1.
     for (int i = predecessor_id; i < phi->input_count() - 1; i++) {
       // Do not call change_input, since we don't want to update the use count.
-      phi->input(i) = std::move(phi->input(i + 1));
+      phi->move_input(i, i + 1);
     }
     phi->reduce_input_count(1);
   }

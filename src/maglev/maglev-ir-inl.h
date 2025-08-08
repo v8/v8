@@ -59,27 +59,29 @@ inline void DefineSameAsFirst(Node* node) {
   node->result().SetUnallocated(kNoVreg, 0);
 }
 
-inline void UseRegister(Input& input) {
-  input.SetUnallocated(compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
-                       compiler::UnallocatedOperand::USED_AT_END, kNoVreg);
+inline void UseRegister(Input input) {
+  input.location()->SetUnallocated(
+      compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
+      compiler::UnallocatedOperand::USED_AT_END, kNoVreg);
 }
-inline void UseAndClobberRegister(Input& input) {
-  input.SetUnallocated(compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
-                       compiler::UnallocatedOperand::USED_AT_START, kNoVreg);
+inline void UseAndClobberRegister(Input input) {
+  input.location()->SetUnallocated(
+      compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
+      compiler::UnallocatedOperand::USED_AT_START, kNoVreg);
 }
-inline void UseAny(Input& input) {
-  input.SetUnallocated(
+inline void UseAny(Input input) {
+  input.location()->SetUnallocated(
       compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT,
       compiler::UnallocatedOperand::USED_AT_END, kNoVreg);
 }
-inline void UseFixed(Input& input, Register reg) {
-  input.SetUnallocated(compiler::UnallocatedOperand::FIXED_REGISTER, reg.code(),
-                       kNoVreg);
+inline void UseFixed(Input input, Register reg) {
+  input.location()->SetUnallocated(compiler::UnallocatedOperand::FIXED_REGISTER,
+                                   reg.code(), kNoVreg);
   input.node()->SetHint(input.operand());
 }
-inline void UseFixed(Input& input, DoubleRegister reg) {
-  input.SetUnallocated(compiler::UnallocatedOperand::FIXED_FP_REGISTER,
-                       reg.code(), kNoVreg);
+inline void UseFixed(Input input, DoubleRegister reg) {
+  input.location()->SetUnallocated(
+      compiler::UnallocatedOperand::FIXED_FP_REGISTER, reg.code(), kNoVreg);
   input.node()->SetHint(input.operand());
 }
 
@@ -118,7 +120,7 @@ void NodeBase::OverwriteWithIdentityTo(ValueNode* node) {
   // closest to the input_base().
   DCHECK_GE(input_count(), 1);
   // Remove use of all inputs first.
-  for (Input& input : *this) {
+  for (Input input : inputs()) {
     input.clear();
   }
   // Unfortunately we cannot remove uses from deopt frames, since these could be
@@ -139,7 +141,7 @@ void NodeBase::OverwriteWithReturnValue(ValueNode* node) {
   }
   DCHECK_GE(input_count(), 1);
   // Remove use of all inputs first.
-  for (Input& input : *this) {
+  for (Input input : inputs()) {
     input.clear();
   }
   // Unfortunately we cannot remove uses from deopt frames, since these could be

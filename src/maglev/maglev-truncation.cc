@@ -10,7 +10,7 @@
 namespace v8::internal::maglev {
 
 bool TruncationProcessor::AllInputsAreValid(ValueNode* node) {
-  for (Input& input : *node) {
+  for (Input input : node->inputs()) {
     ValueNode* unwrapped = input.node()->UnwrapIdentities();
     if (!unwrapped->is_int32()) {
       if (unwrapped->Is<Float64Constant>() &&

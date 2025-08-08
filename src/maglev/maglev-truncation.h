@@ -122,7 +122,7 @@ class PropagateTruncationProcessor {
     if constexpr (std::is_same_v<NodeT, ReturnedValue>) {
       return;
     }
-    for (Input& input : *node) {
+    for (Input input : node->inputs()) {
       DCHECK_NE(input.node()->value_representation(),
                 ValueRepresentation::kFloat64);
     }

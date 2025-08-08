@@ -170,9 +170,13 @@ inline auto ToRegisterT(const compiler::InstructionOperand& operand) {
 inline Register ToRegister(const ValueLocation& location) {
   return ToRegister(location.operand());
 }
+inline Register ToRegister(Input input) { return ToRegister(input.operand()); }
 
 inline DoubleRegister ToDoubleRegister(const ValueLocation& location) {
   return ToDoubleRegister(location.operand());
+}
+inline DoubleRegister ToDoubleRegister(Input input) {
+  return ToDoubleRegister(input.operand());
 }
 
 }  // namespace maglev

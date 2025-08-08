@@ -194,7 +194,7 @@ namespace {
 bool IsStoreToNonEscapedObject(const NodeBase* node) {
   if (CanBeStoreToNonEscapedObject(node->opcode())) {
     DCHECK_GT(node->input_count(), 0);
-    if (InlinedAllocation* alloc =
+    if (const InlinedAllocation* alloc =
             node->input(0).node()->template TryCast<InlinedAllocation>()) {
       return alloc->HasBeenAnalysed() && alloc->HasBeenElided();
     }
@@ -400,12 +400,6 @@ bool FromConstantToBool(LocalIsolate* local_isolate, ValueNode* node) {
       UNREACHABLE();
   }
 }
-
-void Input::clear() {
-  node_->remove_use();
-  node_ = nullptr;
-}
-
 DeoptInfo::DeoptInfo(Zone* zone, DeoptFrame* top_frame,
                      compiler::FeedbackSource feedback_to_update)
     : top_frame_(top_frame), feedback_to_update_(feedback_to_update) {}
@@ -893,7 +887,7 @@ ValueRepresentation ToValueRepresentation(MachineType type) {
 
 void CheckValueInputIs(const NodeBase* node, int i,
                        ValueRepresentation expected) {
-  ValueNode* input = node->input(i).node();
+  const ValueNode* input = node->input(i).node();
   DCHECK(!input->Is<Identity>());
   ValueRepresentation got = input->properties().value_representation();
   bool valid = ValueRepresentationIs(got, expected);
@@ -910,7 +904,7 @@ void CheckValueInputIs(const NodeBase* node, int i,
 }
 
 void CheckValueInputIs(const NodeBase* node, int i, Opcode expected) {
-  ValueNode* input = node->input(i).node();
+  const ValueNode* input = node->input(i).node();
   Opcode got = input->opcode();
   if (got != expected) {
     std::ostringstream str;
@@ -1176,6 +1170,10 @@ AllocationBlock* InlinedAllocation::allocation_block() {
   return allocation_block_input().node()->Cast<AllocationBlock>();
 }
 
+const AllocationBlock* InlinedAllocation::allocation_block() const {
+  return allocation_block_input().node()->Cast<AllocationBlock>();
+}
+
 void AllocationBlock::TryPretenure() {
   if (allocation_type_ == AllocationType::kOld) {
     return;
@@ -1302,7 +1300,7 @@ void LoadToRegisterHelper(NodeT* node, MaglevAssembler* masm,
 }
 }  // namespace
 
-void ValueNode::LoadToRegister(MaglevAssembler* masm, Register reg) {
+void ValueNode::LoadToRegister(MaglevAssembler* masm, Register reg) const {
   switch (opcode()) {
 #define V(Name)         \
   case Opcode::k##Name: \
@@ -1313,7 +1311,8 @@ void ValueNode::LoadToRegister(MaglevAssembler* masm, Register reg) {
       UNREACHABLE();
   }
 }
-void ValueNode::LoadToRegister(MaglevAssembler* masm, DoubleRegister reg) {
+void ValueNode::LoadToRegister(MaglevAssembler* masm,
+                               DoubleRegister reg) const {
   switch (opcode()) {
 #define V(Name)         \
   case Opcode::k##Name: \
@@ -1325,55 +1324,60 @@ void ValueNode::LoadToRegister(MaglevAssembler* masm, DoubleRegister reg) {
   }
 }
 
-void ValueNode::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
+void ValueNode::DoLoadToRegister(MaglevAssembler* masm, Register reg) const {
   DCHECK(regalloc_info()->is_spilled());
   DCHECK(!use_double_register());
   __ Move(reg, masm->GetStackSlot(compiler::AllocatedOperand::cast(
                    regalloc_info()->spill_slot())));
 }
 
-void ValueNode::DoLoadToRegister(MaglevAssembler* masm, DoubleRegister reg) {
+void ValueNode::DoLoadToRegister(MaglevAssembler* masm,
+                                 DoubleRegister reg) const {
   DCHECK(regalloc_info()->is_spilled());
   DCHECK(use_double_register());
   __ LoadFloat64(reg, masm->GetStackSlot(compiler::AllocatedOperand::cast(
                           regalloc_info()->spill_slot())));
 }
 
-void SmiConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
+void SmiConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) const {
   __ Move(reg, value());
 }
 
 void TaggedIndexConstant::DoLoadToRegister(MaglevAssembler* masm,
-                                           Register reg) {
+                                           Register reg) const {
   __ Move(reg, value());
 }
 
-void Int32Constant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
+void Int32Constant::DoLoadToRegister(MaglevAssembler* masm,
+                                     Register reg) const {
   __ Move(reg, value());
 }
 
-void Uint32Constant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
+void Uint32Constant::DoLoadToRegister(MaglevAssembler* masm,
+                                      Register reg) const {
   __ Move(reg, value());
 }
 
-void IntPtrConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
+void IntPtrConstant::DoLoadToRegister(MaglevAssembler* masm,
+                                      Register reg) const {
   __ Move(reg, value());
 }
 
 void Float64Constant::DoLoadToRegister(MaglevAssembler* masm,
-                                       DoubleRegister reg) {
+                                       DoubleRegister reg) const {
   __ Move(reg, value());
 }
 
-void Constant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
+void Constant::DoLoadToRegister(MaglevAssembler* masm, Register reg) const {
   __ Move(reg, object_.object());
 }
 
-void RootConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
+void RootConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) const {
   __ LoadRoot(reg, index());
 }
 
-void TrustedConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
+void TrustedConstant::DoLoadToRegister(MaglevAssembler* masm,
+                                       Register reg) const {
   __ Move(reg, object_.object());
 }
 
@@ -1535,7 +1539,7 @@ void Deopt::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
 }
 
 void Phi::SetValueLocationConstraints() {
-  for (Input& input : *this) {
+  for (Input input : inputs()) {
     UseAny(input);
   }
 
@@ -1570,7 +1574,7 @@ void ArgumentsElements::SetValueLocationConstraints() {
 
 void ArgumentsElements::GenerateCode(MaglevAssembler* masm,
                                      const ProcessingState& state) {
-  Register arguments_count = ToRegister(arguments_count_input());
+  Register arguments_count = ToRegister(arguments_count_input().operand());
   switch (type()) {
     case CreateArgumentsType::kMappedArguments:
       __ CallBuiltin<Builtin::kNewSloppyArgumentsElements>(
@@ -5689,7 +5693,7 @@ void StringEqual::GenerateCode(MaglevAssembler* masm,
             // near jump.
             v8_flags.debug_code ? Label::kFar : Label::kNear);
 
-  if (inputs_ == StringEqualInputs::kStringsOrOddballs) {
+  if (input_mode() == StringEqualInputMode::kStringsOrOddballs) {
     // This code is only used for strict equality. If either left or right is
     // not a string, then they must be non-equal (they cannot be the same
     // oddball, since that was checked above).

@@ -186,7 +186,9 @@ class StraightForwardRegisterAllocator {
 
   void PrintLiveRegs() const;
 
-  void UpdateUse(Input* input) { return UpdateUse(input->node(), input); }
+  void UpdateUse(Input input) {
+    return UpdateUse(input.node(), input.location());
+  }
   void UpdateUse(ValueNode* node, InputLocation* input_location);
 
   void MarkAsClobbered(ValueNode* node,
@@ -197,9 +199,9 @@ class StraightForwardRegisterAllocator {
   void AllocateNodeResult(ValueNode* node);
   void AllocateEagerDeopt(const EagerDeoptInfo& deopt_info);
   void AllocateLazyDeopt(const LazyDeoptInfo& deopt_info);
-  void AssignFixedInput(Input& input);
-  void AssignArbitraryRegisterInput(NodeBase* result_node, Input& input);
-  void AssignAnyInput(Input& input);
+  void AssignFixedInput(Input input);
+  void AssignArbitraryRegisterInput(NodeBase* result_node, Input input);
+  void AssignAnyInput(Input input);
   void AssignInputs(NodeBase* node);
   template <typename RegisterT>
   void AssignFixedTemporaries(RegisterFrameState<RegisterT>& registers,
@@ -269,7 +271,7 @@ class StraightForwardRegisterAllocator {
       RegisterFrameState<RegisterT>& registers, RegisterT reg, ValueNode* node);
   compiler::AllocatedOperand ForceAllocate(Register reg, ValueNode* node);
   compiler::AllocatedOperand ForceAllocate(DoubleRegister reg, ValueNode* node);
-  compiler::AllocatedOperand ForceAllocate(const Input& input, ValueNode* node);
+  compiler::AllocatedOperand ForceAllocate(ConstInput input, ValueNode* node);
 
   template <typename Function>
   void ForEachMergePointRegisterState(

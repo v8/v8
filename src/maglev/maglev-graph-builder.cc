@@ -3025,7 +3025,7 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
         case Operation::kEqual:
         case Operation::kStrictEqual: {
           result = AddNewNodeNoInputConversion<StringEqual>(
-              {tagged_left, tagged_right}, StringEqualInputs::kOnlyStrings);
+              {tagged_left, tagged_right}, StringEqualInputMode::kOnlyStrings);
           break;
         }
         case Operation::kLessThan:
@@ -3064,7 +3064,8 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
         ValueNode* tagged_left = GetTaggedValue(left);
         ValueNode* tagged_right = GetTaggedValue(right);
         ValueNode* result = AddNewNodeNoInputConversion<StringEqual>(
-            {tagged_left, tagged_right}, StringEqualInputs::kStringsOrOddballs);
+            {tagged_left, tagged_right},
+            StringEqualInputMode::kStringsOrOddballs);
         SetAccumulator(result);
         return ReduceResult::Done();
       }

@@ -489,9 +489,10 @@ inline bool ClobberedBy(RegList written_registers, int32_t imm) {
 inline bool ClobberedBy(RegList written_registers, RootIndex index) {
   return false;
 }
-inline bool ClobberedBy(RegList written_registers, const Input& input) {
-  if (!input.IsGeneralRegister()) return false;
-  return ClobberedBy(written_registers, input.AssignedGeneralRegister());
+inline bool ClobberedBy(RegList written_registers, ConstInput input) {
+  if (!input.location()->IsGeneralRegister()) return false;
+  return ClobberedBy(written_registers,
+                     input.location()->AssignedGeneralRegister());
 }
 
 inline bool ClobberedBy(DoubleRegList written_registers, Register reg) {
@@ -517,9 +518,10 @@ inline bool ClobberedBy(DoubleRegList written_registers, int32_t imm) {
 inline bool ClobberedBy(DoubleRegList written_registers, RootIndex index) {
   return false;
 }
-inline bool ClobberedBy(DoubleRegList written_registers, const Input& input) {
-  if (!input.IsDoubleRegister()) return false;
-  return ClobberedBy(written_registers, input.AssignedDoubleRegister());
+inline bool ClobberedBy(DoubleRegList written_registers, ConstInput input) {
+  if (!input.location()->IsDoubleRegister()) return false;
+  return ClobberedBy(written_registers,
+                     input.location()->AssignedDoubleRegister());
 }
 
 // We don't know what's inside machine registers or operands, so assume they
@@ -554,7 +556,7 @@ inline bool MachineTypeMatches(MachineType type, int32_t imm) {
 inline bool MachineTypeMatches(MachineType type, RootIndex index) {
   return type.IsTagged() && !type.IsTaggedSigned();
 }
-inline bool MachineTypeMatches(MachineType type, const Input& input) {
+inline bool MachineTypeMatches(MachineType type, ConstInput input) {
   if (type.representation() == input.node()->GetMachineRepresentation()) {
     return true;
   }
@@ -564,6 +566,17 @@ inline bool MachineTypeMatches(MachineType type, const Input& input) {
   return false;
 }
 
+template <typename Descriptor, std::ranges::range T>
+// requires std::ranges::range<T>
+void CheckArg(MaglevAssembler* masm, T& range, int& i) {
+  for (auto it = range.begin(), end = range.end(); it != end; ++it, ++i) {
+    if (i >= Descriptor::GetParameterCount()) {
+      CHECK(Descriptor::AllowVarArgs());
+    }
+    CHECK(MachineTypeMatches(Descriptor::GetParameterType(i), *it));
+  }
+}
+
 template <typename Descriptor, typename Arg>
 void CheckArg(MaglevAssembler* masm, Arg& arg, int& i) {
   if (i >= Descriptor::GetParameterCount()) {
@@ -571,17 +584,6 @@ void CheckArg(MaglevAssembler* masm, Arg& arg, int& i) {
   }
   CHECK(MachineTypeMatches(Descriptor::GetParameterType(i), arg));
   ++i;
-}
-
-template <typename Descriptor, typename Iterator>
-void CheckArg(MaglevAssembler* masm,
-              const base::iterator_range<Iterator>& range, int& i) {
-  for (auto it = range.begin(), end = range.end(); it != end; ++it, ++i) {
-    if (i >= Descriptor::GetParameterCount()) {
-      CHECK(Descriptor::AllowVarArgs());
-    }
-    CHECK(MachineTypeMatches(Descriptor::GetParameterType(i), *it));
-  }
 }
 
 template <typename Descriptor, typename... Args>
@@ -715,7 +717,7 @@ void MoveArgumentsForBuiltin(MaglevAssembler* masm, Args&&... args) {
     } else {
       Register target = Descriptor::GetRegisterParameter(index);
       if constexpr (std::is_same_v<Input, std::decay_t<Arg>>) {
-        DCHECK_EQ(target, arg.AssignedGeneralRegister());
+        DCHECK_EQ(target, arg.location()->AssignedGeneralRegister());
         USE(target);
       } else {
         masm->Move(target, std::forward<Arg>(arg));
@@ -737,7 +739,7 @@ void MoveArgumentsForBuiltin(MaglevAssembler* masm, Args&&... args) {
 
     if constexpr (std::is_same_v<Input, std::decay_t<decltype(context)>>) {
       DCHECK_EQ(Descriptor::ContextRegister(),
-                context.AssignedGeneralRegister());
+                context.location()->AssignedGeneralRegister());
     } else {
       // Don't allow raw Register here, force materialisation from a constant.
       // This is because setting parameters could have clobbered the register.

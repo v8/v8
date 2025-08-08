@@ -13,6 +13,7 @@
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-regalloc-node-info.h"
 #include "src/maglev/maglev-regalloc.h"
 
 namespace v8::internal::maglev {
@@ -28,13 +29,14 @@ class RegallocNodeInfoAllocationProcessor {
   void PostPhiProcessing() {}
 
   ProcessResult Process(ValueNode* node, const ProcessingState& state) {
-    node->set_regalloc_info(
-        zone_->New<RegallocValueNodeInfo>(node->GetMachineRepresentation()));
+    node->set_regalloc_info(zone_->New<RegallocValueNodeInfo>(
+        zone_, node->input_count(), node->GetMachineRepresentation()));
     return ProcessResult::kContinue;
   }
 
   ProcessResult Process(NodeBase* node, const ProcessingState& state) {
-    node->set_regalloc_info(zone_->New<RegallocNodeInfo>());
+    node->set_regalloc_info(
+        zone_->New<RegallocNodeInfo>(zone_, node->input_count()));
     return ProcessResult::kContinue;
   }
 
@@ -213,8 +215,8 @@ class LiveRangeAndNextUseProcessor {
     // Mark input uses in the same order as inputs are assigned in the register
     // allocator (see StraightForwardRegisterAllocator::AssignInputs).
     node->ForAllInputsInRegallocAssignmentOrder(
-        [&](NodeBase::InputAllocationPolicy, Input* input) {
-          MarkUse(input->node(), node->id(), input, loop_used_nodes);
+        [&](NodeBase::InputAllocationPolicy, Input input) {
+          MarkUse(input.node(), node->id(), input.location(), loop_used_nodes);
         });
     if constexpr (NodeT::kProperties.can_eager_deopt()) {
       MarkCheckpointNodes(node, node->eager_deopt_info(), loop_used_nodes,
@@ -249,8 +251,8 @@ class LiveRangeAndNextUseProcessor {
     if (target->has_phi()) {
       for (Phi* phi : *target->phis()) {
         DCHECK(phi->is_used());
-        ValueNode* input = phi->input(predecessor_id).node();
-        MarkUse(input, use, &phi->input(predecessor_id), outer_loop_used_nodes);
+        Input input = phi->input(predecessor_id);
+        MarkUse(input.node(), use, input.location(), outer_loop_used_nodes);
       }
     }
 
@@ -285,13 +287,16 @@ class LiveRangeAndNextUseProcessor {
       // that they're lifetime is extended there too.
       // TODO(leszeks): We only need to extend the lifetime in one outermost
       // loop, allow nodes to be "moved" between lifetime extensions.
-      base::Vector<Input> used_node_inputs =
-          compilation_info_->zone()->AllocateVector<Input>(
-              loop_used_nodes.used_nodes.size());
+      base::Vector<std::pair<ValueNode*, InputLocation>> used_node_inputs =
+          compilation_info_->zone()
+              ->AllocateVector<std::pair<ValueNode*, InputLocation>>(
+                  loop_used_nodes.used_nodes.size());
       int i = 0;
       for (auto& [used_node, info] : loop_used_nodes.used_nodes) {
-        Input* input = new (&used_node_inputs[i++]) Input(used_node);
-        MarkUse(used_node, use, input, outer_loop_used_nodes);
+        auto& input_pair = used_node_inputs[i++];
+        input_pair.first = used_node;
+        new (&input_pair.second) InputLocation();
+        MarkUse(used_node, use, &input_pair.second, outer_loop_used_nodes);
       }
       node->set_used_nodes(used_node_inputs);
     }
@@ -317,8 +322,8 @@ class LiveRangeAndNextUseProcessor {
         // sweeping processor doesn't have to revisit them.
         it = phis.RemoveAt(it);
       } else {
-        ValueNode* input = phi->input(i).node();
-        MarkUse(input, use, &phi->input(i), loop_used_nodes);
+        Input input = phi->input(i);
+        MarkUse(input.node(), use, input.location(), loop_used_nodes);
         ++it;
       }
     }

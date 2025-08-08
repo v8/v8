@@ -2807,7 +2807,8 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::StringEqual* node,
                                 const maglev::ProcessingState& state) {
-    if (node->inputs() == maglev::StringEqualInputs::kStringsOrOddballs) {
+    if (node->input_mode() ==
+        maglev::StringEqualInputMode::kStringsOrOddballs) {
       // TODO(marja): Can we get rid of the StringOrOddballStrictEqual operator,
       // by handling the oddballs somewhere and delegating strings to
       // StringEqual?

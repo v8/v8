@@ -43,7 +43,7 @@ class MaglevGraphVerifier {
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
-    for (Input& input : *node) {
+    for (Input input : node->inputs()) {
       Opcode op = input.node()->opcode();
       CHECK_GE(op, kFirstOpcode);
       CHECK_LE(op, kLastOpcode);

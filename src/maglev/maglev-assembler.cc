@@ -39,7 +39,7 @@ void MaglevAssembler::AllocateTwoByteString(RegisterSnapshot register_snapshot,
   StoreInt32Field(result, offsetof(String, length_), length);
 }
 
-Register MaglevAssembler::FromAnyToRegister(const Input& input,
+Register MaglevAssembler::FromAnyToRegister(ConstInput input,
                                             Register scratch) {
   if (input.operand().IsConstant()) {
     input.node()->LoadToRegister(this, scratch);
@@ -48,10 +48,10 @@ Register MaglevAssembler::FromAnyToRegister(const Input& input,
   const compiler::AllocatedOperand& operand =
       compiler::AllocatedOperand::cast(input.operand());
   if (operand.IsRegister()) {
-    return ToRegister(input);
+    return ToRegister(input.operand());
   } else {
     DCHECK(operand.IsStackSlot());
-    Move(scratch, ToMemOperand(input));
+    Move(scratch, ToMemOperand(input.operand()));
     return scratch;
   }
 }

@@ -169,10 +169,12 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       graph->RemoveUnreachableBlocks();
     }
     GraphMultiProcessor<ReturnedValueRepresentationSelector,
-                        AnyUseMarkingProcessor>
+                        AnyUseMarkingProcessor,
+                        RegallocNodeInfoAllocationProcessor>
         processor;
     processor.ProcessGraph(graph);
-    PrintGraph(graph, v8_flags.print_maglev_graphs, "After use marking");
+    PrintGraph(graph, v8_flags.print_maglev_graphs, "After use marking",
+               /* has_regalloc_data */ true);
     VerifyGraph(graph);
   }
 
@@ -188,10 +190,10 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.Maglev.NodeProcessing");
       UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());
-      GraphMultiProcessor<
-          DeadNodeSweepingProcessor, RegallocNodeInfoAllocationProcessor,
-          ValueLocationConstraintProcessor, MaxCallDepthProcessor,
-          LiveRangeAndNextUseProcessor, DecompressedUseMarkingProcessor>
+      GraphMultiProcessor<DeadNodeSweepingProcessor,
+                          ValueLocationConstraintProcessor,
+                          MaxCallDepthProcessor, LiveRangeAndNextUseProcessor,
+                          DecompressedUseMarkingProcessor>
           processor(LiveRangeAndNextUseProcessor{compilation_info, graph,
                                                  &regalloc_info});
       processor.ProcessGraph(graph);

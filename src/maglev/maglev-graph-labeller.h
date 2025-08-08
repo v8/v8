@@ -80,10 +80,11 @@ class MaglevGraphLabeller {
     }
   }
 
-  void PrintInput(std::ostream& os, const Input& input,
-                  bool has_regalloc_data) {
+  void PrintInput(std::ostream& os, ConstInput input, bool has_regalloc_data) {
     PrintNodeLabel(os, input.node(), has_regalloc_data);
-    os << ":" << input.operand();
+    if (has_regalloc_data) {
+      os << ":" << input.operand();
+    }
   }
 
  private:

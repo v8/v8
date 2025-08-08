@@ -826,14 +826,14 @@ class MaglevCodeGeneratingNodeProcessor {
       // whose inputs aren't actual inputs but are injected on incoming
       // branches. There's thus nothing to verify for the inputs we see for the
       // phi.
-      for (Input& input : *node) {
+      for (Input input : node->inputs()) {
         ValueRepresentation rep =
             input.node()->properties().value_representation();
         if (IsZeroExtendedRepresentation(rep)) {
           // TODO(leszeks): Ideally we'd check non-register inputs too, but
           // AssertZeroExtended needs the scratch register, so we'd have to do
           // some manual push/pop here to free up another register.
-          if (input.IsGeneralRegister()) {
+          if (input.location()->IsGeneralRegister()) {
             __ AssertZeroExtended(ToRegister(input));
           }
         }
@@ -927,7 +927,7 @@ class MaglevCodeGeneratingNodeProcessor {
           }
           continue;
         }
-        Input& input = phi->input(state.block()->predecessor_id());
+        Input input = phi->input(state.block()->predecessor_id());
         ValueNode* input_node = input.node();
         compiler::InstructionOperand source = input.operand();
         compiler::AllocatedOperand target_operand =

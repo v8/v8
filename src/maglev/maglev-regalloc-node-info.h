@@ -89,9 +89,18 @@ class InputLocation : public ValueLocation {
 // RegallocNodeInfo holds information about a node during register allocation.
 // It stores an (ordered) id for live analysis and the temporary registers
 // needed for the node's codegen.
-// TODO(victorgomes): Add input_locations and remove it from the node inputs.
 class RegallocNodeInfo {
  public:
+  RegallocNodeInfo(Zone* zone, int input_count)
+      : input_locations_(zone->AllocateArray<InputLocation>(input_count)) {
+    for (int i = 0; i < input_count; i++) {
+      new (&input_locations_[i]) InputLocation();
+    }
+#ifdef DEBUG
+    input_count_ = input_count;
+#endif  // DEBUG
+  }
+
   constexpr NodeIdT id() const { return id_; }
   void set_id(NodeIdT id) {
     DCHECK_EQ(id_, kInvalidNodeId);
@@ -111,10 +120,21 @@ class RegallocNodeInfo {
   RegList& general_temporaries() { return temporaries<Register>(); }
   DoubleRegList& double_temporaries() { return temporaries<DoubleRegister>(); }
 
+  InputLocation* input_location(int index) {
+    DCHECK_GE(index, 0);
+    DCHECK_LT(index, input_count_);
+    return &input_locations_[index];
+  }
+
  protected:
   NodeIdT id_ = kInvalidNodeId;
   RegList temporaries_ = {};
   DoubleRegList double_temporaries_ = {};
+  InputLocation* input_locations_;
+
+#ifdef DEBUG
+  int input_count_ = 0;
+#endif  // DEBUG
 };
 
 // RegallocValueNodeInfo extends RegallocNodeInfo with information specific to
@@ -123,8 +143,9 @@ class RegallocNodeInfo {
 // the register allocator.
 class RegallocValueNodeInfo : public RegallocNodeInfo {
  public:
-  explicit RegallocValueNodeInfo(MachineRepresentation representation)
-      :  // range_(kInvalidNodeId, kInvalidNodeId),
+  explicit RegallocValueNodeInfo(Zone* zone, int input_count,
+                                 MachineRepresentation representation)
+      : RegallocNodeInfo(zone, input_count),
         representation_(representation),
         last_uses_next_use_id_(&next_use_),
         hint_(compiler::InstructionOperand())
