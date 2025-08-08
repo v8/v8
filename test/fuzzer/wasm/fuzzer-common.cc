@@ -4,6 +4,15 @@
 
 #include "test/fuzzer/wasm/fuzzer-common.h"
 
+#include <cstdint>
+#include <iomanip>
+#include <iostream>
+#include <memory>
+#include <unordered_map>
+#include <utility>
+#include <variant>
+#include <vector>
+
 #include "include/v8-context.h"
 #include "include/v8-exception.h"
 #include "include/v8-isolate.h"
