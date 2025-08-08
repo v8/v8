@@ -2215,6 +2215,7 @@ void IrRegExpData::IrRegExpDataVerify(Isolate* isolate) {
       CHECK_EQ(max_register_count(), JSRegExp::kUninitializedValue);
       CHECK_EQ(ticks_until_tier_up(), JSRegExp::kUninitializedValue);
       CHECK_EQ(backtrack_limit(), JSRegExp::kUninitializedValue);
+      CHECK_EQ(bit_field(), 0);
 
       break;
     }

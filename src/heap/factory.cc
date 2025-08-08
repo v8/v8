@@ -4228,9 +4228,10 @@ void Factory::SetRegExpAtomData(DirectHandle<JSRegExp> regexp,
 void Factory::SetRegExpIrregexpData(DirectHandle<JSRegExp> regexp,
                                     DirectHandle<String> source,
                                     JSRegExp::Flags flags, int capture_count,
-                                    uint32_t backtrack_limit) {
+                                    uint32_t backtrack_limit,
+                                    uint32_t bit_field) {
   DirectHandle<RegExpData> regexp_data =
-      NewIrRegExpData(source, flags, capture_count, backtrack_limit);
+      NewIrRegExpData(source, flags, capture_count, backtrack_limit, bit_field);
   regexp->set_data(*regexp_data);
 }
 
@@ -4266,7 +4267,8 @@ DirectHandle<RegExpData> Factory::NewAtomRegExpData(
 DirectHandle<RegExpData> Factory::NewIrRegExpData(DirectHandle<String> source,
                                                   JSRegExp::Flags flags,
                                                   int capture_count,
-                                                  uint32_t backtrack_limit) {
+                                                  uint32_t backtrack_limit,
+                                                  uint32_t bit_field) {
   DirectHandle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
   int size = IrRegExpData::kSize;
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
@@ -4289,6 +4291,7 @@ DirectHandle<RegExpData> Factory::NewIrRegExpData(DirectHandle<String> source,
                                 : JSRegExp::kUninitializedValue;
   instance->set_ticks_until_tier_up(ticks_until_tier_up);
   instance->set_backtrack_limit(backtrack_limit);
+  instance->set_bit_field(bit_field);
   Tagged<RegExpDataWrapper> raw_wrapper = *wrapper;
   instance->set_wrapper(raw_wrapper);
   raw_wrapper->set_data(instance);
@@ -4323,6 +4326,7 @@ DirectHandle<RegExpData> Factory::NewExperimentalRegExpData(
   instance->set_capture_count(capture_count);
   instance->set_ticks_until_tier_up(JSRegExp::kUninitializedValue);
   instance->set_backtrack_limit(JSRegExp::kUninitializedValue);
+  instance->set_bit_field(0);
   Tagged<RegExpDataWrapper> raw_wrapper = *wrapper;
   instance->set_wrapper(raw_wrapper);
   raw_wrapper->set_data(instance);

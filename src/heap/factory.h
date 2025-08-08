@@ -1070,7 +1070,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // irregexp regexp and stores it in the regexp.
   void SetRegExpIrregexpData(DirectHandle<JSRegExp> regexp,
                              DirectHandle<String> source, JSRegExp::Flags flags,
-                             int capture_count, uint32_t backtrack_limit);
+                             int capture_count, uint32_t backtrack_limit,
+                             uint32_t bit_field);
 
   // Creates a new FixedArray that holds the data associated with the
   // experimental regexp and stores it in the regexp.
@@ -1084,7 +1085,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<RegExpData> NewIrRegExpData(DirectHandle<String> source,
                                            JSRegExp::Flags flags,
                                            int capture_count,
-                                           uint32_t backtrack_limit);
+                                           uint32_t backtrack_limit,
+                                           uint32_t bit_field);
   DirectHandle<RegExpData> NewExperimentalRegExpData(
       DirectHandle<String> source, JSRegExp::Flags flags, int capture_count);
 

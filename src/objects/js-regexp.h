@@ -263,6 +263,13 @@ class IrRegExpData : public RegExpData {
   DECL_INT_ACCESSORS(ticks_until_tier_up)
   DECL_INT_ACCESSORS(backtrack_limit)
 
+  DECL_PRIMITIVE_ACCESSORS(bit_field, uint32_t)
+  DECL_BOOLEAN_ACCESSORS(can_be_zero_length)
+
+  struct Bits {
+    DEFINE_TORQUE_GENERATED_IR_REG_EXP_DATA_BIT_FIELD()
+  };
+
   bool CanTierUp();
   bool MarkedForTierUp();
   void ResetLastTierUpTick();
@@ -290,6 +297,7 @@ class IrRegExpData : public RegExpData {
   V(kCaptureCountOffset, kTaggedSize)             \
   V(kTicksUntilTierUpOffset, kTaggedSize)         \
   V(kBacktrackLimitOffset, kTaggedSize)           \
+  V(kBitFieldOffset, kTaggedSize)                 \
   V(kHeaderSize, 0)                               \
   V(kSize, 0)
 

@@ -1017,9 +1017,10 @@ void IrRegExpData::IrRegExpDataPrint(std::ostream& os) {
   }
   os << "\n - capture_name_map: " << Brief(capture_name_map());
   os << "\n - max_register_count: " << max_register_count();
-  os << "\n - capture_count: " << max_register_count();
-  os << "\n - ticks_until_tier_up: " << max_register_count();
-  os << "\n - backtrack_limit: " << max_register_count();
+  os << "\n - capture_count: " << capture_count();
+  os << "\n - ticks_until_tier_up: " << ticks_until_tier_up();
+  os << "\n - backtrack_limit: " << backtrack_limit();
+  if (can_be_zero_length()) os << "\n - can_be_zero_length";
   os << "\n";
 }
 

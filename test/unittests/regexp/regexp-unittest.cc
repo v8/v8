@@ -661,7 +661,7 @@ static DirectHandle<JSRegExp> CreateJSRegExp(DirectHandle<String> source,
   regexp->set_flags(Smi::FromInt(0));
 
   factory->SetRegExpIrregexpData(regexp, source, {}, 0,
-                                 JSRegExp::kNoBacktrackLimit);
+                                 JSRegExp::kNoBacktrackLimit, true);
   Tagged<IrRegExpData> data = Cast<IrRegExpData>(regexp->data(isolate));
   const bool is_latin1 = !is_unicode;
   data->set_code(is_latin1, *code);

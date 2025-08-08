@@ -40,7 +40,7 @@ class RegExpImpl final : public AllStatic {
   static void IrregexpInitialize(Isolate* isolate, DirectHandle<JSRegExp> re,
                                  DirectHandle<String> pattern,
                                  RegExpFlags flags, int capture_count,
-                                 uint32_t backtrack_limit);
+                                 uint32_t backtrack_limit, uint32_t bit_field);
 
   // Prepare a RegExp for being executed one or more times (using
   // IrregexpExecOnce) on the subject.
@@ -276,8 +276,12 @@ MaybeDirectHandle<Object> RegExp::Compile(Isolate* isolate,
     }
   }
   if (!has_been_compiled) {
+    const bool can_be_zero_length = parse_result.tree->min_match() == 0;
+    const int bit_field =
+        IrRegExpData::Bits::CanBeZeroLengthBit::encode(can_be_zero_length);
     RegExpImpl::IrregexpInitialize(isolate, re, pattern, flags,
-                                   parse_result.capture_count, backtrack_limit);
+                                   parse_result.capture_count, backtrack_limit,
+                                   bit_field);
   }
   // Compilation succeeded so the data is set on the regexp
   // and we can store it in the cache.
@@ -654,6 +658,8 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate,
                                      compile_data.error));
     return false;
   }
+  const bool can_be_zero_length = compile_data.tree->min_match() == 0;
+  re_data->set_can_be_zero_length(can_be_zero_length);
   // The compilation target is a kBytecode if we're interpreting all regexp
   // objects, or if we're using the tier-up strategy but the tier-up hasn't
   // happened yet. The compilation target is a kNative if we're using the
@@ -713,11 +719,12 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate,
 void RegExpImpl::IrregexpInitialize(Isolate* isolate, DirectHandle<JSRegExp> re,
                                     DirectHandle<String> pattern,
                                     RegExpFlags flags, int capture_count,
-                                    uint32_t backtrack_limit) {
+                                    uint32_t backtrack_limit,
+                                    uint32_t bit_field) {
   // Initialize compiled code entries to null.
-  isolate->factory()->SetRegExpIrregexpData(re, pattern,
-                                            JSRegExp::AsJSRegExpFlags(flags),
-                                            capture_count, backtrack_limit);
+  isolate->factory()->SetRegExpIrregexpData(
+      re, pattern, JSRegExp::AsJSRegExpFlags(flags), capture_count,
+      backtrack_limit, bit_field);
 }
 
 // static
