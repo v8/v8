@@ -132,8 +132,10 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
       DCHECK(input->is_tagged());
       // If we want to untag {node}, then we'll drop the conversion and use its
       // input instead.
+      ValueNode* unwrapped_conv_input =
+          input->input(0).node()->UnwrapIdentities();
       input_reprs.Add(
-          input->input(0).node()->properties().value_representation());
+          unwrapped_conv_input->properties().value_representation());
     } else if (Phi* input_phi = input->TryCast<Phi>()) {
       if (!input_phi->is_tagged()) {
         input_reprs.Add(input_phi->value_representation());
@@ -508,7 +510,7 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
       // Unwrapping the conversion.
       DCHECK_EQ(input->value_representation(), ValueRepresentation::kTagged);
       // Needs to insert a new conversion.
-      ValueNode* bypassed_input = input->input(0).node();
+      ValueNode* bypassed_input = input->input(0).node()->UnwrapIdentities();
       ValueRepresentation from_repr = bypassed_input->value_representation();
       ValueNode* new_input;
       if (from_repr == repr) {
