@@ -620,7 +620,7 @@ class WasmLoweringReducer : public Next {
     }
     {
       BIND(done, base, final_offset, charwidth_shift);
-      return __ Tuple({base, final_offset, charwidth_shift});
+      return __ MakeTuple({base, final_offset, charwidth_shift});
     }
   }
 

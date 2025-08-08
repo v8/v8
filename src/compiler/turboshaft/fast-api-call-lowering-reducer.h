@@ -137,7 +137,7 @@ class FastApiCallLoweringReducer : public Next {
     }
 
     BIND(done, state);
-    return __ Tuple(state, __ GetVariable(result));
+    return __ MakeTuple(state, __ GetVariable(result));
   }
 
  private:

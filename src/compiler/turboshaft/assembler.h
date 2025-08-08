@@ -960,7 +960,7 @@ class EmitProjectionReducer
       for (int i = 0; i < static_cast<int>(reps.size()); i++) {
         projections.push_back(Asm().Projection(idx, i, reps[i]));
       }
-      return Asm().Tuple(base::VectorOf(projections));
+      return Asm().MakeTuple(base::VectorOf(projections));
     }
     return idx;
   }
@@ -4216,22 +4216,22 @@ class TurboshaftAssemblerOpInterface
     return PendingLoopPhi(first, V<T>::rep);
   }
 
-  V<Any> Tuple(base::Vector<const V<Any>> indices) {
-    return ReduceIfReachableTuple(indices);
+  V<Any> MakeTuple(base::Vector<const V<Any>> indices) {
+    return ReduceIfReachableMakeTuple(indices);
   }
-  V<Any> Tuple(std::initializer_list<V<Any>> indices) {
-    return ReduceIfReachableTuple(base::VectorOf(indices));
+  V<Any> MakeTuple(std::initializer_list<V<Any>> indices) {
+    return ReduceIfReachableMakeTuple(base::VectorOf(indices));
   }
   template <typename... Ts>
-  V<turboshaft::Tuple<Ts...>> Tuple(V<Ts>... indices) {
+  V<turboshaft::Tuple<Ts...>> MakeTuple(V<Ts>... indices) {
     std::initializer_list<V<Any>> inputs{V<Any>::Cast(indices)...};
-    return V<turboshaft::Tuple<Ts...>>::Cast(Tuple(base::VectorOf(inputs)));
+    return V<turboshaft::Tuple<Ts...>>::Cast(MakeTuple(base::VectorOf(inputs)));
   }
   // TODO(chromium:331100916): Remove this overload once everything is properly
   // V<>ified.
-  V<turboshaft::Tuple<Any, Any>> Tuple(OpIndex left, OpIndex right) {
+  V<turboshaft::Tuple<Any, Any>> MakeTuple(OpIndex left, OpIndex right) {
     return V<turboshaft::Tuple<Any, Any>>::Cast(
-        Tuple(base::VectorOf({V<Any>::Cast(left), V<Any>::Cast(right)})));
+        MakeTuple(base::VectorOf({V<Any>::Cast(left), V<Any>::Cast(right)})));
   }
 
   V<Any> Projection(V<Any> tuple, uint16_t index, RegisterRepresentation rep) {
@@ -5533,7 +5533,7 @@ class Assembler : public AssemblerData,
   // this assumption of the ValueNumberingReducer will break.
   V<Any> ReduceProjection(V<Any> tuple, uint16_t index,
                           RegisterRepresentation rep) {
-    if (auto* tuple_op = Asm().matcher().template TryCast<TupleOp>(tuple)) {
+    if (auto* tuple_op = Asm().matcher().template TryCast<MakeTupleOp>(tuple)) {
       return tuple_op->input(index);
     }
     return Stack::ReduceProjection(tuple, index, rep);

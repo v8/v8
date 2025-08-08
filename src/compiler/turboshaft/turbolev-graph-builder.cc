@@ -6191,7 +6191,7 @@ class GraphBuildingNodeProcessor {
 
   void SetMapMaybeMultiReturn(maglev::NodeBase* node, V<Any> idx) {
     const Operation& op = __ output_graph().Get(idx);
-    if (const TupleOp* tuple = op.TryCast<TupleOp>()) {
+    if (const MakeTupleOp* tuple = op.TryCast<MakeTupleOp>()) {
       // If the call returned multiple values, then in Maglev, {node} is
       // used as the 1st returned value, and a GetSecondReturnedValue node is
       // used to access the 2nd value. We thus call `SetMap` with the 1st

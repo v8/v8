@@ -1312,7 +1312,8 @@ class MachineOptimizationReducer : public Next {
             overflow = base::bits::SignedSubOverflow32(k1, k2, &res);
             break;
         }
-        return __ Tuple(__ Word32Constant(res), __ Word32Constant(overflow));
+        return __ MakeTuple(__ Word32Constant(res),
+                            __ Word32Constant(overflow));
       }
     } else {
       DCHECK_EQ(rep, WordRepresentation::Word64());
@@ -1331,7 +1332,8 @@ class MachineOptimizationReducer : public Next {
             overflow = base::bits::SignedSubOverflow64(k1, k2, &res);
             break;
         }
-        return __ Tuple(__ Word64Constant(res), __ Word32Constant(overflow));
+        return __ MakeTuple(__ Word64Constant(res),
+                            __ Word32Constant(overflow));
       }
     }
 
@@ -1339,18 +1341,19 @@ class MachineOptimizationReducer : public Next {
     // left - 0  =>  (left, false)
     if (kind == any_of(Kind::kSignedAdd, Kind::kSignedSub) &&
         matcher_.MatchZero(right)) {
-      return __ Tuple(left, __ Word32Constant(0));
+      return __ MakeTuple(left, __ Word32Constant(0));
     }
 
     if (kind == Kind::kSignedMul) {
       if (int64_t k; matcher_.MatchIntegralWordConstant(right, rep, &k)) {
         // left * 0  =>  (0, false)
         if (k == 0) {
-          return __ Tuple(__ WordConstant(0, rep), __ Word32Constant(false));
+          return __ MakeTuple(__ WordConstant(0, rep),
+                              __ Word32Constant(false));
         }
         // left * 1  =>  (left, false)
         if (k == 1) {
-          return __ Tuple(left, __ Word32Constant(false));
+          return __ MakeTuple(left, __ Word32Constant(false));
         }
         // left * -1  =>  0 - left
         if (k == -1) {
@@ -1370,7 +1373,7 @@ class MachineOptimizationReducer : public Next {
       if (V<Word32> x; matcher_.MatchConstantShiftRightArithmeticShiftOutZeros(
                            left, &x, WordRepresentation::Word32(), &amount) &&
                        amount == 1) {
-        return __ Tuple(x, __ Word32Constant(0));
+        return __ MakeTuple(x, __ Word32Constant(0));
       }
 
       // t1 = UntagSmi(x)
@@ -1394,10 +1397,11 @@ class MachineOptimizationReducer : public Next {
                 // the smi could cause an overflow, so we do not optimize that
                 // here.
                 if (((k >> 31) & 0b1) == ((k >> 30) & 0b1)) {
-                  return __ Tuple(__ WordBinop(x, __ Word32Constant(k << 1),
-                                               bitwise_op_kind,
-                                               WordRepresentation::Word32()),
-                                  __ Word32Constant(0));
+                  return __ MakeTuple(
+                      __ WordBinop(x, __ Word32Constant(k << 1),
+                                   bitwise_op_kind,
+                                   WordRepresentation::Word32()),
+                      __ Word32Constant(0));
                 }
                 break;
               default:

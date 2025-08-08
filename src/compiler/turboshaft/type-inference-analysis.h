@@ -158,7 +158,7 @@ class TypeInferenceAnalysis {
         case Opcode::kRetain:
         case Opcode::kUnreachable:
         case Opcode::kSwitch:
-        case Opcode::kTuple:
+        case Opcode::kMakeTuple:
         case Opcode::kStaticAssert:
         case Opcode::kDebugBreak:
         case Opcode::kDebugPrint:

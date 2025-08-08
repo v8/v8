@@ -5567,8 +5567,8 @@ TEST(RunWasmTurbofan_TupleUseSimd128Revec) {
   t.Build({WASM_LOCAL_GET(0), WASM_SIMD_CONSTANT(one), WASM_LOCAL_GET(1)});
 
   // Load a F32x8 vector, calculate the Abs and store the result to memory.
-  // Call function t. The return values will be projected and used in TupleOp
-  // with drop.
+  // Call function t. The return values will be projected and used in
+  // MakeTupleOp with drop.
   TSSimd256VerifyScope ts_scope(r.zone());
   r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
            WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM_OFFSET(

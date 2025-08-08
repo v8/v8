@@ -329,7 +329,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Call)                                    \
   V(CatchBlockBegin)                         \
   V(DidntThrow)                              \
-  V(Tuple)                                   \
+  V(MakeTuple)                               \
   V(Projection)                              \
   V(DebugBreak)                              \
   V(AssumeMap)                               \
@@ -4601,8 +4601,8 @@ V8_EXPORT_PRIVATE base::SmallVector<Block*, 4> SuccessorBlocks(
     const Block& block, const Graph& graph);
 
 // Tuples are only used to lower operations with multiple outputs.
-// `TupleOp` should be folded away by subsequent `ProjectionOp`s.
-struct TupleOp : OperationT<TupleOp> {
+// `MakeTupleOp` should be folded away by subsequent `ProjectionOp`s.
+struct MakeTupleOp : OperationT<MakeTupleOp> {
   static constexpr OpEffects effects = OpEffects();
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
@@ -4611,7 +4611,7 @@ struct TupleOp : OperationT<TupleOp> {
     return {};
   }
 
-  explicit TupleOp(base::Vector<const V<Any>> inputs) : Base(inputs) {}
+  explicit MakeTupleOp(base::Vector<const V<Any>> inputs) : Base(inputs) {}
 
   template <typename Fn, typename Mapper>
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {

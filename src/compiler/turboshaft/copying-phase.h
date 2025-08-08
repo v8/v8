@@ -690,7 +690,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     if (V8_UNLIKELY(v8_flags.turboshaft_verify_reductions)) {
       if (new_index.valid()) {
         const Operation& new_op = Asm().output_graph().Get(new_index);
-        if (!new_op.Is<TupleOp>()) {
+        if (!new_op.Is<MakeTupleOp>()) {
           // Checking that the outputs_rep of the new operation are the same as
           // the old operation. (except for tuples, since they don't have
           // outputs_rep)
