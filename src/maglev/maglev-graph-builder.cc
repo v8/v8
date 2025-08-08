@@ -4510,6 +4510,14 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
       // TODO(leszeks): Insert an unconditional deopt if the constant map
       // doesn't match the required map.
     }
+  } else if (!object->is_tagged() && !object->is_holey_float64()) {
+    // TODO(victorgomes): Implement the holey float64 case.
+    auto heap_number_map =
+        MakeRef(broker(), local_isolate()->factory()->heap_number_map());
+    if (std::find(maps.begin(), maps.end(), heap_number_map) != maps.end()) {
+      return ReduceResult::Done();
+    }
+    return ReduceResult::DoneWithAbort();
   }
 
   NodeInfo* known_info = GetOrCreateInfoFor(object);
@@ -4522,7 +4530,6 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
   if (IsEmptyNodeType(IntersectType(merger.node_type(), GetType(object)))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
   }
-
   // If the known maps are the subset of the maps to check, we are done.
   if (merger.known_maps_are_subset_of_requested_maps()) {
     // The node type of known_info can get out of sync with the possible maps.
@@ -4604,14 +4611,24 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindOrCheckMap(
 }
 
 ReduceResult MaglevGraphBuilder::BuildCompareMaps(
-    ValueNode* heap_object, ValueNode* object_map,
+    ValueNode* object, ValueNode* object_map,
     base::Vector<const compiler::MapRef> maps, MaglevSubGraphBuilder* sub_graph,
     std::optional<MaglevSubGraphBuilder::Label>& if_not_matched) {
-  GetOrCreateInfoFor(heap_object);
+  GetOrCreateInfoFor(object);
   KnownMapsMerger merger(broker(), zone(), maps);
-  merger.IntersectWithKnownNodeAspects(heap_object, known_node_aspects());
+  merger.IntersectWithKnownNodeAspects(object, known_node_aspects());
 
   if (merger.intersect_set().is_empty()) {
+    return ReduceResult::DoneWithAbort();
+  }
+
+  if (!object->is_tagged() && !object->is_holey_float64()) {
+    // TODO(victorgomes): Implement the holey float64 case.
+    auto heap_number_map =
+        MakeRef(broker(), local_isolate()->factory()->heap_number_map());
+    if (std::find(maps.begin(), maps.end(), heap_number_map) != maps.end()) {
+      return ReduceResult::Done();
+    }
     return ReduceResult::DoneWithAbort();
   }
 
@@ -4636,7 +4653,7 @@ ReduceResult MaglevGraphBuilder::BuildCompareMaps(
     sub_graph->Goto(&*map_matched);
     sub_graph->Bind(&*map_matched);
   }
-  merger.UpdateKnownNodeAspects(heap_object, known_node_aspects());
+  merger.UpdateKnownNodeAspects(object, known_node_aspects());
   return ReduceResult::Done();
 }
 
@@ -6762,10 +6779,15 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
     is_number.emplace(&sub_graph, 2);
     sub_graph.GotoIfTrue<BranchIfSmi>(&*is_number, {lookup_start_object});
   } else {
+    // The lookup start object is a HeapNumber, but we haven't seen the
+    // HeapNumber map in the access infos.
+    if (!lookup_start_object->is_tagged() &&
+        !lookup_start_object->is_holey_float64()) {
+      return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
+    }
     RETURN_IF_ABORT(BuildCheckHeapObject(lookup_start_object));
   }
-  ValueNode* lookup_start_object_map =
-      BuildLoadTaggedField(lookup_start_object, HeapObject::kMapOffset);
+  ValueNode* lookup_start_object_map = BuildLoadMap(lookup_start_object);
 
   if (needs_migration) {
     // TODO(marja, v8:7700): Try migrating only if all comparisons failed.
@@ -16369,6 +16391,14 @@ void MaglevGraphBuilder::StartFallthroughBlock(int next_block_offset,
   } else {
     MergeIntoFrameState(predecessor, next_block_offset);
   }
+}
+
+ValueNode* MaglevGraphBuilder::BuildLoadMap(ValueNode* object) {
+  if (!object->is_tagged() && !object->is_holey_float64()) {
+    // TODO(victorgomes): Implement the holey float64 case.
+    return GetConstant(broker()->heap_number_map());
+  }
+  return BuildLoadTaggedField(object, HeapObject::kMapOffset);
 }
 
 template <typename Instruction, typename... Args>

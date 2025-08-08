@@ -1233,6 +1233,8 @@ class MaglevGraphBuilder {
   bool CanTrackObjectChanges(ValueNode* object, TrackObjectMode mode);
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
 
+  ValueNode* BuildLoadMap(ValueNode* object);
+
   void BuildInitializeStore(InlinedAllocation* alloc, ValueNode* value,
                             int offset);
   void TryBuildStoreTaggedFieldToAllocation(ValueNode* object, ValueNode* value,
