@@ -191,7 +191,8 @@ void LookupIterator::ReloadPropertyInformation() {
 // static
 void LookupIterator::InternalUpdateProtector(
     Isolate* isolate, DirectHandle<JSAny> receiver_generic,
-    DirectHandle<Name> name) {
+    DirectHandle<Name> name, MaybeDirectHandle<Object> value,
+    MaybeDirectHandle<Object> old_value) {
   if (isolate->bootstrapper()->IsActive()) return;
   if (!IsJSObject(*receiver_generic)) return;
   auto receiver = Cast<JSObject>(receiver_generic);
@@ -285,6 +286,20 @@ void LookupIterator::InternalUpdateProtector(
   } else if (*name == roots.iterator_symbol()) {
     if (IsJSArray(*receiver, isolate)) {
       if (!Protectors::IsArrayIteratorLookupChainIntact(isolate)) return;
+      // When the value of ArrayIterator is canonical, its behavior remains
+      // unchanged.
+      // Attributes:
+      // 1. `writable` and `configurable` are trivial.
+      // 2. `enumerable`: The default JSArray iterator only iterates over array
+      // elements in the range [0..length). Making ArrayIterator enumerable does
+      // not affect this behavior.
+      // See: https://tc39.es/ecma262/#sec-%arrayiteratorprototype%.next
+      DirectHandle<Object> the_old_value, the_value;
+      if (old_value.To(&the_old_value) && value.To(&the_value) &&
+          the_old_value.is_identical_to(the_value)) {
+        return;
+      }
+
       Protectors::InvalidateArrayIteratorLookupChain(isolate);
     } else if (IsJSSet(*receiver, isolate) || IsJSSetIterator(*receiver) ||
                IsJSSetIteratorPrototype(*receiver) ||

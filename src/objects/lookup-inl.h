@@ -329,7 +329,9 @@ bool LookupIterator::IsCacheableTransition() {
 // static
 void LookupIterator::UpdateProtector(Isolate* isolate,
                                      DirectHandle<JSAny> receiver,
-                                     DirectHandle<Name> name) {
+                                     DirectHandle<Name> name,
+                                     MaybeDirectHandle<Object> value,
+                                     MaybeDirectHandle<Object> old_value) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kUpdateProtector);
   DCHECK(IsInternalizedString(*name) || IsSymbol(*name));
 
@@ -351,13 +353,14 @@ void LookupIterator::UpdateProtector(Isolate* isolate,
 #endif  // DEBUG
 
   if (maybe_protector) {
-    InternalUpdateProtector(isolate, receiver, name);
+    InternalUpdateProtector(isolate, receiver, name, value, old_value);
   }
 }
 
-void LookupIterator::UpdateProtector() {
+void LookupIterator::UpdateProtector(MaybeDirectHandle<Object> value,
+                                     MaybeDirectHandle<Object> old_value) {
   if (IsElement()) return;
-  UpdateProtector(isolate_, receiver_, name_);
+  UpdateProtector(isolate_, receiver_, name_, value, old_value);
 }
 
 InternalIndex LookupIterator::descriptor_number() const {

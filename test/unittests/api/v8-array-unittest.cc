@@ -5,6 +5,7 @@
 #include "include/v8-container.h"
 #include "include/v8-primitive.h"
 #include "include/v8-value.h"
+#include "src/execution/protectors-inl.h"
 #include "test/unittests/interpreter/interpreter-tester.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -191,6 +192,53 @@ TEST_F(ArrayTest, IterateWithUndefined) {
     return CbResult::kContinue;
   };
   CHECK(array->Iterate(context(), callback, &data).IsJust());
+}
+
+TEST_F(ArrayTest,
+       IteratorAttributeChangeShouldNotInvalidateArrayIteratorProtectCell) {
+  HandleScope handle_scope(isolate());
+  const char source[] = R"(
+    ("use strict");
+    let threw = false;
+    try {
+      Object.defineProperty(Array.prototype, Symbol.iterator, {
+        writable: false,
+        configurable: false,
+        enumerable: true,
+      });
+    } catch (e) {
+      threw = e instanceof TypeError;
+    }
+    threw;
+  )";
+
+  Local<Value> result = internal::interpreter::CompileRun(source);
+  CHECK(result->IsBoolean() && !result.As<Boolean>()->Value());
+
+  CHECK(internal::Protectors::IsArrayIteratorLookupChainIntact(
+      internal::Isolate::Current()));
+}
+
+TEST_F(ArrayTest, IteratorValueChangeShouldInvalidateArrayIteratorProtectCell) {
+  HandleScope handle_scope(isolate());
+  const char source[] = R"(
+    ("use strict");
+    let threw = false;
+    try {
+      Object.defineProperty(Array.prototype, Symbol.iterator, {
+        value: 42,
+      });
+    } catch (e) {
+      threw = e instanceof TypeError;
+    }
+    threw;
+  )";
+
+  Local<Value> result = internal::interpreter::CompileRun(source);
+  CHECK(result->IsBoolean() && !result.As<Boolean>()->Value());
+
+  CHECK(!internal::Protectors::IsArrayIteratorLookupChainIntact(
+      internal::Isolate::Current()));
 }
 
 }  // namespace

@@ -261,10 +261,13 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   DirectHandle<Object> CompareAndSwapDataValue(DirectHandle<Object> expected,
                                                DirectHandle<Object> value,
                                                SeqCstAccessTag tag);
-  inline void UpdateProtector();
+  inline void UpdateProtector(MaybeDirectHandle<Object> value = {},
+                              MaybeDirectHandle<Object> old_value = {});
   static inline void UpdateProtector(Isolate* isolate,
                                      DirectHandle<JSAny> receiver,
-                                     DirectHandle<Name> name);
+                                     DirectHandle<Name> name,
+                                     MaybeDirectHandle<Object> value = {},
+                                     MaybeDirectHandle<Object> old_value = {});
 
   // Lookup a 'cached' private property for an accessor.
   // If not found returns false and leaves the LookupIterator unmodified.
@@ -295,7 +298,9 @@ class V8_EXPORT_PRIVATE LookupIterator final {
 
   static void InternalUpdateProtector(Isolate* isolate,
                                       DirectHandle<JSAny> receiver,
-                                      DirectHandle<Name> name);
+                                      DirectHandle<Name> name,
+                                      MaybeDirectHandle<Object> value = {},
+                                      MaybeDirectHandle<Object> old_value = {});
 
   enum class InterceptorState {
     kUninitialized,
