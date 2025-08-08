@@ -3104,6 +3104,7 @@ filegroup(
             "src/wasm/well-known-imports.cc",
             "src/wasm/well-known-imports.h",
             "src/wasm/wrappers.cc",
+            "src/wasm/wrappers.h",
             "third_party/utf8-decoder/generalized-utf8-decoder.h",
         ],
         "//conditions:default": [],

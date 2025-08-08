@@ -4586,6 +4586,7 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/wasm-tier.h",
       "src/wasm/wasm-value.h",
       "src/wasm/well-known-imports.h",
+      "src/wasm/wrappers.h",
       "third_party/utf8-decoder/generalized-utf8-decoder.h",
     ]
 
