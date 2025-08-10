@@ -6877,6 +6877,10 @@ v8_component("v8_libbase") {
       libs += [ "advapi32.lib" ]  # Needed for TraceLoggingProvider.h
     }
 
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+
     data_deps += [ "//build/win:runtime_libs" ]
   } else if (current_os == "zos") {
     sources += [
