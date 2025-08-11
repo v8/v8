@@ -38,8 +38,10 @@
 #define TSA_SLOW_DCHECK(assembler, ...) ((void)0)
 #endif
 
-#define LIKELY(...) ConditionWithHint(__VA_ARGS__, BranchHint::kTrue)
-#define UNLIKELY(...) ConditionWithHint(__VA_ARGS__, BranchHint::kFalse)
+#define LIKELY(...) \
+  compiler::turboshaft::ConditionWithHint(__VA_ARGS__, BranchHint::kTrue)
+#define UNLIKELY(...) \
+  compiler::turboshaft::ConditionWithHint(__VA_ARGS__, BranchHint::kFalse)
 
 #define BIND(label, ...)                                                  \
   auto [CONCAT(is_bound_, __LINE__), ##__VA_ARGS__] =                     \

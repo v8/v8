@@ -11,28 +11,37 @@
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/turboshaft/dataview-lowering-reducer.h"
 #include "src/compiler/turboshaft/index.h"
+#include "src/compiler/turboshaft/select-lowering-reducer.h"
+#include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/execution/isolate-data.h"
 #include "src/objects/object-list-macros.h"
+#include "src/wasm/turboshaft-graph-interface-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
+#include "src/wasm/wrappers-inl.h"
 #include "src/zone/zone.h"
 
 namespace v8::internal::wasm {
 
-const TSCallDescriptor* GetBuiltinCallDescriptor(Builtin name, Zone* zone) {
+const compiler::turboshaft::TSCallDescriptor* GetBuiltinCallDescriptor(
+    Builtin name, Zone* zone) {
   CallInterfaceDescriptor interface_descriptor =
       Builtins::CallInterfaceDescriptorFor(name);
-  CallDescriptor* call_desc = compiler::Linkage::GetStubCallDescriptor(
-      zone,                                           // zone
-      interface_descriptor,                           // descriptor
-      interface_descriptor.GetStackParameterCount(),  // stack parameter count
-      CallDescriptor::kNoFlags,                       // flags
-      compiler::Operator::kNoProperties,              // properties
-      StubCallMode::kCallBuiltinPointer);             // stub call mode
-  return TSCallDescriptor::Create(call_desc, compiler::CanThrow::kNo,
-                                  compiler::LazyDeoptOnThrow::kNo, zone);
+  compiler::CallDescriptor* call_desc =
+      compiler::Linkage::GetStubCallDescriptor(
+          zone,                  // zone
+          interface_descriptor,  // descriptor
+          interface_descriptor
+              .GetStackParameterCount(),       // stack parameter count
+          compiler::CallDescriptor::kNoFlags,  // flags
+          compiler::Operator::kNoProperties,   // properties
+          StubCallMode::kCallBuiltinPointer);  // stub call mode
+  return compiler::turboshaft::TSCallDescriptor::Create(
+      call_desc, compiler::CanThrow::kNo, compiler::LazyDeoptOnThrow::kNo,
+      zone);
 }
 
 void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,

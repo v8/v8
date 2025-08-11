@@ -13,7 +13,10 @@
 #include "src/builtins/data-view-ops.h"
 #include "src/common/globals.h"
 #include "src/compiler/turboshaft/builtin-call-descriptors.h"
+#include "src/compiler/turboshaft/dataview-lowering-reducer.h"
 #include "src/compiler/turboshaft/graph.h"
+#include "src/compiler/turboshaft/select-lowering-reducer.h"
+#include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/torque-defined-classes.h"
@@ -24,6 +27,7 @@
 #include "src/wasm/inlining-tree.h"
 #include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/memory-tracing.h"
+#include "src/wasm/turboshaft-graph-interface-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -4798,7 +4802,7 @@ class TurboshaftGraphBuildingInterface
       V<Any> old_value =
           __ ArrayGet(array_value, index.op, imm.array_type, true, {});
       result->op = old_value;
-      V<Word> new_value;
+      V<compiler::turboshaft::Word> new_value;
       V<Word64> old = V<Word64>::Cast(old_value);
       switch (opcode) {
         case kExprArrayAtomicAdd:
@@ -8188,9 +8192,9 @@ class TurboshaftGraphBuildingInterface
                                      {{arg0, arg_type}, {arg1, arg_type}});
   }
 
-  V<WordPtr> MemOrTableAddressToUintPtrOrOOBTrap(AddressType address_type,
-                                                 V<Word> index,
-                                                 TrapId trap_reason) {
+  V<WordPtr> MemOrTableAddressToUintPtrOrOOBTrap(
+      AddressType address_type, V<compiler::turboshaft::Word> index,
+      TrapId trap_reason) {
     // Note: this {ChangeUint32ToUintPtr} doesn't just satisfy the compiler's
     // consistency checks, it's also load-bearing to prevent escaping from a
     // compromised sandbox (where in-sandbox corruption can cause the high
@@ -8207,14 +8211,14 @@ class TurboshaftGraphBuildingInterface
     return V<WordPtr>::Cast(__ TruncateWord64ToWord32(V<Word64>::Cast(index)));
   }
 
-  V<WordPtr> MemoryAddressToUintPtrOrOOBTrap(AddressType address_type,
-                                             V<Word> index) {
+  V<WordPtr> MemoryAddressToUintPtrOrOOBTrap(
+      AddressType address_type, V<compiler::turboshaft::Word> index) {
     return MemOrTableAddressToUintPtrOrOOBTrap(address_type, index,
                                                TrapId::kTrapMemOutOfBounds);
   }
 
-  V<WordPtr> TableAddressToUintPtrOrOOBTrap(AddressType address_type,
-                                            V<Word> index) {
+  V<WordPtr> TableAddressToUintPtrOrOOBTrap(
+      AddressType address_type, V<compiler::turboshaft::Word> index) {
     return MemOrTableAddressToUintPtrOrOOBTrap(address_type, index,
                                                TrapId::kTrapTableOutOfBounds);
   }

@@ -4551,6 +4551,7 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/string-builder-multiline.h",
       "src/wasm/string-builder.h",
       "src/wasm/struct-types.h",
+      "src/wasm/turboshaft-graph-interface-inl.h",
       "src/wasm/turboshaft-graph-interface.h",
       "src/wasm/value-type.h",
       "src/wasm/wasm-arguments.h",
@@ -4585,6 +4586,7 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/wasm-tier.h",
       "src/wasm/wasm-value.h",
       "src/wasm/well-known-imports.h",
+      "src/wasm/wrappers-inl.h",
       "src/wasm/wrappers.h",
       "third_party/utf8-decoder/generalized-utf8-decoder.h",
     ]
