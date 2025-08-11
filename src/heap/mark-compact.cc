@@ -1501,7 +1501,8 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     DCHECK_NE(dest, LO_SPACE);
     DCHECK_NE(dest, CODE_LO_SPACE);
     DCHECK_NE(dest, TRUSTED_LO_SPACE);
-    if (dest == OLD_SPACE) {
+    DCHECK_NE(dest, NEW_SPACE);
+    if (V8_LIKELY(dest != CODE_SPACE)) {
       DCHECK_VALID_REGULAR_OBJECT_SIZE(size);
       DCHECK(IsAligned(size, kTaggedSize));
       base->heap_->CopyBlock(dst_addr, src_addr, size);
@@ -1511,25 +1512,9 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       // In case the object's map gets relocated during GC we load the old map
       // here. This is fine since they store the same content.
       base->record_visitor_->Visit(dst->map(cage_base), dst, size);
-    } else if (dest == SHARED_SPACE) {
-      DCHECK_VALID_REGULAR_OBJECT_SIZE(size);
-      DCHECK(IsAligned(size, kTaggedSize));
-      base->heap_->CopyBlock(dst_addr, src_addr, size);
-      if (mode != MigrationMode::kFast) {
-        base->ExecuteMigrationObservers(dest, src, dst, size);
-      }
-      base->record_visitor_->Visit(dst->map(cage_base), dst, size);
-    } else if (dest == TRUSTED_SPACE) {
-      DCHECK_VALID_REGULAR_OBJECT_SIZE(size);
-      DCHECK(IsAligned(size, kTaggedSize));
-      base->heap_->CopyBlock(dst_addr, src_addr, size);
-      if (mode != MigrationMode::kFast) {
-        base->ExecuteMigrationObservers(dest, src, dst, size);
-      }
-      // In case the object's map gets relocated during GC we load the old map
-      // here. This is fine since they store the same content.
-      base->record_visitor_->Visit(dst->map(cage_base), dst, size);
-    } else if (dest == CODE_SPACE) {
+      src->set_map_word_forwarded(dst, kRelaxedStore);
+    } else {
+      DCHECK_EQ(dest, CODE_SPACE);
       DCHECK_VALID_REGULAR_CODEOBJECT_SIZE(size);
       {
         WritableJitAllocation writable_allocation =
@@ -1552,23 +1537,11 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       // In case the object's map gets relocated during GC we load the old map
       // here. This is fine since they store the same content.
       base->record_visitor_->Visit(dst->map(cage_base), dst, size);
-    } else {
-      DCHECK_VALID_REGULAR_OBJECT_SIZE(size);
-      DCHECK(dest == NEW_SPACE);
-      base->heap_->CopyBlock(dst_addr, src_addr, size);
-      if (mode != MigrationMode::kFast) {
-        base->ExecuteMigrationObservers(dest, src, dst, size);
-      }
-    }
-
-    if (dest == CODE_SPACE) {
       WritableJitAllocation jit_allocation =
           WritableJitAllocation::ForInstructionStream(
               Cast<InstructionStream>(src));
       jit_allocation.WriteHeaderSlot<MapWord, HeapObject::kMapOffset>(
           MapWord::FromForwardingAddress(src, dst));
-    } else {
-      src->set_map_word_forwarded(dst, kRelaxedStore);
     }
   }
 
