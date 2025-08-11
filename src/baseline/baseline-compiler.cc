@@ -634,6 +634,7 @@ constexpr static bool BuiltinMayDeopt(Builtin id) {
     case Builtin::kStoreCurrentContextElementBaseline:
     // This one explicitly skips the construct if the debugger is enabled.
     case Builtin::kFindNonDefaultConstructorOrConstruct:
+    case Builtin::kForOfNextBaseline:
       return false;
     default:
       return true;
@@ -2444,10 +2445,10 @@ void BaselineCompiler::VisitResumeGenerator() {
 }
 
 void BaselineCompiler::VisitForOfNext() {
+  SaveAccumulatorScope accumulator_scope(this, &basm_);
   CallBuiltin<Builtin::kForOfNextBaseline>(RegisterOperand(0),   // object
                                            RegisterOperand(1));  // next
-
-  __ Move(__ RegisterFrameOperand(RegisterOperand(2)), kReturnRegister1);
+  StoreRegisterPair(2, kReturnRegister0, kReturnRegister1);
 }
 
 void BaselineCompiler::VisitGetIterator() {

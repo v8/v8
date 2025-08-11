@@ -495,7 +495,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& ForInStep(Register index);
 
   BytecodeArrayBuilder& ForOfNext(Register object, Register next,
-                                  Register value);
+                                  RegisterList value_done);
 
   // Generators.
   BytecodeArrayBuilder& SuspendGenerator(Register generator,

@@ -3154,7 +3154,9 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
   // exit, and the 'done' value in a dedicated register so that it can be
   // changed and accessed independently of the iteration result.
   IteratorRecord iterator = BuildGetIteratorRecord(stmt->type());
-  Register done = register_allocator()->NewRegister();
+  RegisterList output = register_allocator()->NewRegisterList(2);
+  Register next_result = output[0];
+  Register done = output[1];
   builder()->LoadFalse();
   builder()->StoreAccumulatorInRegister(done);
 
@@ -3172,7 +3174,6 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
 
         {
           RegisterAllocationScope allocation_scope(this);
-          Register next_result = register_allocator()->NewRegister();
 
           // Call the iterator's .next() method. Break from the loop if the
           // `done` property is truthy, otherwise load the value from the
@@ -3180,8 +3181,9 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
           builder()->SetExpressionAsStatementPosition(stmt->each(),
                                                       /* is_breakable */ false);
           if (v8_flags.for_of_optimization) {
-            builder()->ForOfNext(iterator.object(), iterator.next(),
-                                 next_result);
+            builder()
+                ->ForOfNext(iterator.object(), iterator.next(), output)
+                .LoadAccumulatorWithRegister(done);
             // TODO(rezvan): Perform ToBoolean conversion inside ForOfNext.
             loop_builder.BreakIfTrue(ToBooleanMode::kConvertToBoolean);
 

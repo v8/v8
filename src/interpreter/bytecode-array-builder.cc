@@ -943,8 +943,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::GetIterator(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ForOfNext(Register object,
                                                       Register next,
-                                                      Register value) {
-  OutputForOfNext(object, next, value);
+                                                      RegisterList value_done) {
+  DCHECK_EQ(2, value_done.register_count());
+  OutputForOfNext(object, next, value_done);
   return *this;
 }
 

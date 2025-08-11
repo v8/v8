@@ -1107,7 +1107,7 @@ void JSGenericLowering::LowerJSForInNext(Node* node) {
 }
 
 void JSGenericLowering::LowerJSForOfNext(Node* node) {
-  UNREACHABLE();  // Eliminated in typed lowering.
+  ReplaceWithBuiltinCall(node, Builtin::kForOfNextBaseline);
 }
 
 void JSGenericLowering::LowerJSLoadMessage(Node* node) {

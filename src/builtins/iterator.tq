@@ -105,8 +105,8 @@ transitioning builtin CreateAsyncFromSyncIteratorBaseline(syncIterator: JSAny):
 }
 
 struct ForOfNextResult {
-  done: Object;
   value: Object;
+  done: Object;
 }
 
 extern transitioning macro ForOfNextHelper(Context, Object, Object):

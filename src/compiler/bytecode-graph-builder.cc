@@ -3863,7 +3863,18 @@ void BytecodeGraphBuilder::VisitForInStep() {
   environment()->BindRegister(index_reg, index, Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::VisitForOfNext() { UNREACHABLE(); }
+void BytecodeGraphBuilder::VisitForOfNext() {
+  PrepareEagerCheckpoint();
+  Node* iterator =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* next_method =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
+  auto value_done = bytecode_iterator().GetRegisterPairOperand(2);
+
+  Node* result_pair = NewNode(javascript()->ForOfNext(), iterator, next_method);
+
+  environment()->BindRegistersToProjections(value_done.first, result_pair);
+}
 
 void BytecodeGraphBuilder::VisitGetIterator() {
   PrepareEagerCheckpoint();

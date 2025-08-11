@@ -17405,7 +17405,7 @@ ForOfNextResult CodeStubAssembler::ForOfNextHelper(TNode<Context> context,
   }
 
   BIND(&return_result);
-  return ForOfNextResult{var_done.value(), var_value.value()};
+  return ForOfNextResult{var_value.value(), var_done.value()};
 }
 
 TNode<JSObject> CodeStubAssembler::AllocatePromiseWithResolversResult(

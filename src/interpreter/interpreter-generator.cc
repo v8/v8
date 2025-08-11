@@ -3276,18 +3276,16 @@ IGNITION_HANDLER(ForInStep, InterpreterAssembler) {
   Dispatch();
 }
 
-// ForOfNext <object> <next> <value>
+// ForOfNext <object> <next> <value_done>
 //
-// Get the next value of the iterable and returns done in the accumulator.
+// Get the next value and done of the iterable.
 IGNITION_HANDLER(ForOfNext, InterpreterAssembler) {
   TNode<Object> object = LoadRegisterAtOperandIndex(0);
   TNode<Object> next = LoadRegisterAtOperandIndex(1);
   TNode<Context> context = GetContext();
 
-  auto [done_value, value] = ForOfNextHelper(context, object, next);
-  SetAccumulator(done_value);
-  StoreRegisterAtOperandIndex(value, 2);
-
+  auto [value, done_value] = ForOfNextHelper(context, object, next);
+  StoreRegisterPairAtOperandIndex(value, done_value, 2);
   Dispatch();
 }
 

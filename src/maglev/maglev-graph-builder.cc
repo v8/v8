@@ -15424,7 +15424,25 @@ ReduceResult MaglevGraphBuilder::VisitGetIterator() {
   return ReduceResult::Done();
 }
 
-ReduceResult MaglevGraphBuilder::VisitForOfNext() { UNREACHABLE(); }
+ReduceResult MaglevGraphBuilder::VisitForOfNext() {
+  // ForOfNext <iterator> <next> <value_done_out>
+
+  ValueNode* iterator = LoadRegister(0);
+  ValueNode* next_method = LoadRegister(1);
+
+  auto register_pair = iterator_.GetRegisterPairOperand(2);
+
+  CallBuiltin* result_struct =
+      BuildCallBuiltin<Builtin::kForOfNextBaseline>({iterator, next_method});
+
+  ValueNode* value = result_struct;
+  ValueNode* done = GetSecondValue(result_struct);
+
+  StoreRegister(register_pair.first, value);
+  StoreRegister(register_pair.second, done);
+
+  return ReduceResult::Done();
+}
 
 ReduceResult MaglevGraphBuilder::VisitDebugger() {
   return BuildCallRuntime(Runtime::kHandleDebuggerStatement, {});

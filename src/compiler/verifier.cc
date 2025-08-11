@@ -899,7 +899,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
 
     case IrOpcode::kJSForOfNext:
-      UNREACHABLE();
+      CheckTypeIs(node, Type::Tuple(Type::Any(), Type::Any(), zone));
+      break;
 
     case IrOpcode::kJSLoadMessage:
     case IrOpcode::kJSStoreMessage:
