@@ -191,7 +191,7 @@ inline Register ToRegister(MaglevAssembler* masm,
 }
 inline Register ToRegister(MaglevAssembler* masm,
                            MaglevAssembler::TemporaryRegisterScope* scratch,
-                           ConstInput input) {
+                           Input input) {
   if (input.operand().IsConstant()) {
     Register reg = scratch->AcquireScratch();
     input.node()->LoadToRegister(masm, reg);
@@ -204,7 +204,7 @@ inline Register ToRegister(MaglevAssembler* masm,
   } else {
     DCHECK(operand.IsStackSlot());
     Register reg = scratch->AcquireScratch();
-    masm->Move(reg, masm->ToMemOperand(input));
+    masm->Move(reg, masm->ToMemOperand(operand));
     return reg;
   }
 }
