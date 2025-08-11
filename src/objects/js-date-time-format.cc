@@ -951,7 +951,7 @@ bool CalendarEquals(temporal_rs::AnyCalendarKind kind,
     case HijriTabularTypeIIThursday:
       return other_kind == "islamic-tbla" || other_kind == "islamic";
     case HijriUmmAlQura:
-      return other_kind == "islamic-umalqura " || other_kind == "islamic";
+      return other_kind == "islamic-umalqura" || other_kind == "islamic";
     case Iso:
       return other_kind == "iso8601";
     case Japanese:

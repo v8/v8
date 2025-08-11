@@ -3508,7 +3508,7 @@ MaybeDirectHandle<JSTemporalDuration> GenericDifferenceTemporal(
     // false, throw a RangeError exception.
     if (this_rust.calendar().kind() != other_rust.calendar().kind()) {
       THROW_NEW_ERROR(isolate,
-                      NEW_TEMPORAL_RANGE_ERROR("Mismatched calendars."));
+                      NewRangeError(MessageTemplate::kMismatchedCalendars));
     }
   }
 
