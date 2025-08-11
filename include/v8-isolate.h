@@ -662,6 +662,7 @@ class V8_EXPORT Isolate {
     kInvalidatedNoDateTimeConfigurationChangeProtector = 174,
     kWasmNonTrappingFloatToInt = 175,
     kWasmSignExtensionOps = 176,
+    kRegExpCompile = 177,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
