@@ -1755,9 +1755,9 @@ bool IsI16Array(wasm::ValueType type, const WasmModule* module) {
 }
 
 bool IsI8Array(wasm::ValueType type, const WasmModule* module,
-               bool allow_nullable) {
+               Nullability nullability) {
   if (!type.has_index()) return false;
-  if (!allow_nullable && type.is_nullable()) return false;
+  if (type.nullability() != nullability) return false;
   return module->canonical_type_id(type.ref_index()) ==
          TypeCanonicalizer::kPredefinedArrayI8Index;
 }
@@ -1926,9 +1926,9 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
       } else if (name ==
                  base::StaticOneByteVector("encodeStringIntoUTF8Array")) {
         if (sig->parameter_count() != 3 || sig->return_count() != 1 ||
-            sig->GetParam(0) != kExternRef ||              // --
-            !IsI8Array(sig->GetParam(1), module, true) ||  // --
-            sig->GetParam(2) != kI32 ||                    // --
+            sig->GetParam(0) != kExternRef ||                   // --
+            !IsI8Array(sig->GetParam(1), module, kNullable) ||  // --
+            sig->GetParam(2) != kI32 ||                         // --
             sig->GetReturn() != kI32) {
           RETURN_ERROR("text-encoder", "encodeStringIntoUTF8Array");
         }
@@ -1937,7 +1937,7 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
       } else if (name == base::StaticOneByteVector("encodeStringToUTF8Array")) {
         if (sig->parameter_count() != 1 || sig->return_count() != 1 ||
             sig->GetParam(0) != kExternRef ||
-            !IsI8Array(sig->GetReturn(), module, false)) {
+            !IsI8Array(sig->GetReturn(), module, kNonNullable)) {
           RETURN_ERROR("text-encoder", "encodeStringToUTF8Array");
         }
         status = WellKnownImport::kStringToUtf8Array;
@@ -1947,9 +1947,9 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
                imports.contains(CompileTimeImport::kTextDecoder)) {
       if (name == base::StaticOneByteVector("decodeStringFromUTF8Array")) {
         if (sig->parameter_count() != 3 || sig->return_count() != 1 ||
-            !IsI8Array(sig->GetParam(0), module, true) ||  // --
-            sig->GetParam(1) != kI32 ||                    // --
-            sig->GetParam(2) != kI32 ||                    // --
+            !IsI8Array(sig->GetParam(0), module, kNullable) ||  // --
+            sig->GetParam(1) != kI32 ||                         // --
+            sig->GetParam(2) != kI32 ||                         // --
             sig->GetReturn() != kRefExtern) {
           RETURN_ERROR("text-decoder", "decodeStringFromUTF8Array");
         }
@@ -1962,7 +1962,7 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
         if (sig->parameter_count() != 4 || sig->return_count() != 0 ||
             !IsExternRefArray(sig->GetParam(0), module) ||
             !IsFuncRefArray(sig->GetParam(1), module) ||
-            !IsI8Array(sig->GetParam(2), module, false) ||
+            !IsI8Array(sig->GetParam(2), module, kNullable) ||
             sig->GetParam(3) != kWasmExternRef) {
           RETURN_ERROR("js-prototypes", "configureAll");
         }

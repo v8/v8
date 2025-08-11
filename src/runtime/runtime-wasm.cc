@@ -1307,7 +1307,9 @@ class PrototypesSetup : public wasm::Decoder {
       : Decoder(data_begin, data_end), isolate_(isolate) {}
 
   Tagged<Object> SetupPrototypes(DirectHandle<JSObject> constructors) {
-    WHILE_WITH_HANDLE_SCOPE(isolate(), more()) {
+    uint32_t num_prototypes = consume_u32v("number of prototypes");
+    FOR_WITH_HANDLE_SCOPE(isolate(), uint32_t proto_index = 0, proto_index,
+                          proto_index < num_prototypes && ok(), proto_index++) {
       DirectHandle<JSObject> prototype = NextPrototype();
       if (prototype.is_null()) return ReadOnlyRoots(isolate()).exception();
       uint32_t num_methods = consume_u32v("number of methods");
@@ -1325,42 +1327,64 @@ class PrototypesSetup : public wasm::Decoder {
       if (!ok()) break;
       uint32_t has_constructor = consume_u32v("constructor");
       if (!ok()) break;
-      if (has_constructor == 0) continue;
-      if (has_constructor > 1) {
-        errorf(pc_offset() - 1, "invalid constructor count: %d",
-               has_constructor);
-        break;
-      }
 
-      DirectHandle<WasmExportedFunction> constructor = NextFunction();
-      uint32_t ctor_name_length = consume_u32v("constructor name length");
-      if (!ok()) break;
-      const char* ctor_name_start = reinterpret_cast<const char*>(pc());
-      consume_bytes(ctor_name_length);
-      if (!ok()) break;
-      DirectHandle<String> ctor_name =
-          isolate()->factory()->InternalizeUtf8String(
-              {ctor_name_start, ctor_name_length});
-      if (!InstallConstructor(prototype, constructor, ctor_name,
-                              constructors)) {
-        DCHECK(isolate()->has_exception());
-        return ReadOnlyRoots(isolate()).exception();
-      }
-      uint32_t num_statics = consume_u32v("number of statics");
-      if (!ok()) break;
-      if (num_statics == 0) continue;
-      ToDictionaryMode(constructor, num_statics);
-      for (uint32_t i = 0; i < num_statics; i++) {
-        Method method = NextMethod(true);
+      if (has_constructor == 1) {
+        DirectHandle<WasmExportedFunction> constructor = NextFunction();
+        uint32_t ctor_name_length = consume_u32v("constructor name length");
         if (!ok()) break;
-        DirectHandle<WasmExportedFunction> function = NextFunction();
-        if (function.is_null() ||
-            !InstallMethod(constructor, method, function)) {
+        const char* ctor_name_start = reinterpret_cast<const char*>(pc());
+        consume_bytes(ctor_name_length);
+        if (!ok()) break;
+        DirectHandle<String> ctor_name =
+            isolate()->factory()->InternalizeUtf8String(
+                {ctor_name_start, ctor_name_length});
+        if (!InstallConstructor(prototype, constructor, ctor_name,
+                                constructors)) {
           DCHECK(isolate()->has_exception());
           return ReadOnlyRoots(isolate()).exception();
         }
+        uint32_t num_statics = consume_u32v("number of statics");
+        if (!ok()) break;
+        if (num_statics == 0) continue;
+        ToDictionaryMode(constructor, num_statics);
+        for (uint32_t i = 0; i < num_statics; i++) {
+          Method method = NextMethod(true);
+          if (!ok()) break;
+          DirectHandle<WasmExportedFunction> function = NextFunction();
+          if (function.is_null() ||
+              !InstallMethod(constructor, method, function)) {
+            DCHECK(isolate()->has_exception());
+            return ReadOnlyRoots(isolate()).exception();
+          }
+        }
+        if (!ok()) break;
+      } else if (has_constructor > 1) {
+        // Contrary to other uses of the Decoder, the built-in offset reporting
+        // is not usable here, so we have to hand-roll it.
+        errorf(0u, "invalid constructor count %d at data+%u", has_constructor,
+               pc_offset() - 1);
+        break;
       }
+
+      uint32_t parent_idx_offset = pc_offset();
+      int32_t parent_idx = consume_i32v("parentidx");
       if (!ok()) break;
+      if (parent_idx >= 0 && static_cast<uint32_t>(parent_idx) < proto_index) {
+        DirectHandle<JSObject> parent =
+            PrototypeByIndex(static_cast<uint32_t>(parent_idx));
+        if (!JSObject::SetPrototype(isolate(), prototype, parent, true,
+                                    ShouldThrow::kThrowOnError)
+                 .FromMaybe(false)) {
+          DCHECK(isolate()->has_exception());
+          return ReadOnlyRoots(isolate()).exception();
+        }
+      } else if (parent_idx == -1) {
+        // No parent requested.
+      } else {
+        errorf(0u, "invalid parentidx %d at data+%u", parent_idx,
+               parent_idx_offset);
+        break;
+      }
     }
     if (!ok()) {
       DirectHandle<String> message =
@@ -1379,7 +1403,7 @@ class PrototypesSetup : public wasm::Decoder {
   Method NextMethod(bool is_static) {
     uint8_t kind = consume_u8("kind");
     if (kind > 2) {
-      errorf(pc_offset() - 1, "invalid method kind %u", kind);
+      errorf(0u, "invalid method kind %u at data+%u", kind, pc_offset() - 1);
       return {};
     }
     uint32_t name_length = consume_u32v("name length");
@@ -1490,6 +1514,7 @@ class PrototypesSetup : public wasm::Decoder {
   Isolate* isolate() { return isolate_; }
   virtual DirectHandle<Object> NextFunctionInternal() = 0;
   virtual DirectHandle<Object> NextPrototypeInternal() = 0;
+  virtual DirectHandle<JSObject> PrototypeByIndex(uint32_t index) = 0;
 
  private:
   Isolate* isolate_;
@@ -1514,6 +1539,15 @@ class PrototypesSetup_Arrays : public PrototypesSetup {
   DirectHandle<Object> NextPrototypeInternal() override {
     if (prototype_index_ >= prototypes_->length()) return {};
     return WasmArray::GetElement(isolate(), prototypes_, prototype_index_++);
+  }
+
+  DirectHandle<JSObject> PrototypeByIndex(uint32_t index) override {
+    DCHECK_LT(index, prototypes_->length());
+    return Cast<JSObject>(
+        direct_handle(Cast<WasmDescriptorOptions>(
+                          WasmArray::GetElement(isolate(), prototypes_, index))
+                          ->prototype(),
+                      isolate()));
   }
 
  private:
@@ -1549,9 +1583,18 @@ class PrototypesSetup_Sections : public PrototypesSetup {
     return direct_handle(prototypes_->get(prototype_index_++), isolate());
   }
 
+  DirectHandle<JSObject> PrototypeByIndex(uint32_t index) override {
+    index += prototype_start_index_;
+    DCHECK_LT(index, prototypes_end_);
+    return Cast<JSObject>(direct_handle(
+        Cast<WasmDescriptorOptions>(prototypes_->get(index))->prototype(),
+        isolate()));
+  }
+
  private:
   DirectHandle<FixedArray> prototypes_;
   DirectHandle<FixedArray> functions_;
+  uint32_t prototype_start_index_;
   uint32_t prototype_index_;
   uint32_t prototypes_end_;
   uint32_t function_index_;

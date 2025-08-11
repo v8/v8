@@ -496,7 +496,7 @@ class PrototypeSetupSequenceDetector : public Decoder {
     // global.get $constructors
     if (!ExpectGlobalGetImportedImmutableExternref()) return false;
     // call $configureAll
-    final_call_position_ = pc_offset();
+    final_call_position_ = position();
     final_call_pc_ = pc();
     if (!ExpectCallWellKnownImport(WellKnownImport::kConfigureAllPrototypes)) {
       return false;
@@ -7935,11 +7935,16 @@ class LiftoffCompiler {
               wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
                   matcher.global_offset()));
 
+          // The {matcher} started at the current position, so the positions
+          // it reports are relative to that. Here we translate them to being
+          // relative to the start of the function.
+          uint32_t position =
+              decoder->position() + matcher.final_call_position();
           CallBuiltin(
               Builtin::kWasmConfigureAllPrototypesOpt,
               MakeSig::Params(kIntPtrKind, kRef),
               {VarState{kIntPtrKind, buffer, 0}, VarState{kRef, global, 0}},
-              matcher.final_call_position());
+              position);
           __ DeallocateStackSlot(kBufferSize);
           static constexpr int kNumDroppedConstants = 2;
           __ DropValues(kNumDroppedConstants);
