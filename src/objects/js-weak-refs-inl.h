@@ -21,7 +21,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-weak-refs-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSWeakRef)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSFinalizationRegistry)
 
 BIT_FIELD_ACCESSORS(JSFinalizationRegistry, flags, scheduled_for_cleanup,
@@ -301,6 +300,30 @@ void WeakCell::RemoveFromFinalizationRegistryCells(Isolate* isolate) {
   }
   set_prev(ReadOnlyRoots(isolate).undefined_value());
   set_next(ReadOnlyRoots(isolate).undefined_value());
+}
+
+DEF_GETTER(JSWeakRef, target, Tagged<Union<JSReceiver, Symbol, Undefined>>) {
+  Tagged<Union<JSReceiver, Symbol, Undefined>> value =
+      TaggedField<Tagged<Union<JSReceiver, Symbol, Undefined>>>::load(
+          cage_base, *this, kTargetOffset);
+  DCHECK(IsSymbol(value) || IsUndefined(value) || IsJSReceiver(value));
+  return value;
+}
+
+void JSWeakRef::set_target(Tagged<Union<JSReceiver, Symbol, Undefined>> value,
+                           WriteBarrierMode mode) {
+  SLOW_DCHECK(!IsolateGroup::current()
+                   ->shared_read_only_heap()
+                   ->roots_init_complete() ||
+              (IsSymbol(value) || IsUndefined(value) || IsJSReceiver(value)));
+  TaggedField<Object>::store(*this, kTargetOffset, value);
+#ifndef V8_DISABLE_WRITE_BARRIERS
+#if V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS
+  mode = UPDATE_WRITE_BARRIER;
+#endif  // V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS
+  DCHECK(HeapLayout::IsOwnedByAnyHeap(*this));
+  WriteBarrier::ForValue(*this, RawMaybeWeakField(kTargetOffset), value, mode);
+#endif  // !V8_DISABLE_WRITE_BARRIERS
 }
 
 }  // namespace internal
