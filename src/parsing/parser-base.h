@@ -6260,6 +6260,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWithStatement(
     ReportMessage(MessageTemplate::kStrictWith);
     return impl()->NullStatement();
   }
+  impl()->CountUsage(v8::Isolate::kWithStatement);
 
   Expect(Token::kLeftParen);
   ExpressionT expr = ParseExpression();
