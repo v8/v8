@@ -515,6 +515,10 @@ void CodeGenerator::AssemblePrepareTailCall() {
 
 namespace {
 
+bool HasImmediateInput(Instruction* instr, size_t index) {
+  return instr->InputAt(index)->IsImmediate();
+}
+
 void FlushPendingPushRegisters(MacroAssembler* masm,
                                FrameAccessState* frame_access_state,
                                ZoneVector<Register>* pending_pushes) {
@@ -751,18 +755,37 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchCallJSFunction: {
-      Register func = i.InputRegister(0);
-      if (v8_flags.debug_code) {
-        UseScratchRegisterScope temps(masm());
-        Register scratch = temps.Acquire();
-        // Check the function's context matches the context argument.
-        __ ldr(scratch, FieldMemOperand(func, JSFunction::kContextOffset));
-        __ cmp(cp, scratch);
-        __ Assert(eq, AbortReason::kWrongFunctionContext);
-      }
       uint32_t num_arguments =
           i.InputUint32(instr->JSCallArgumentCountInputIndex());
-      __ CallJSFunction(func, num_arguments);
+      if (HasImmediateInput(instr, 0)) {
+        Constant constant = i.ToConstant(instr->InputAt(0));
+        Handle<JSFunction> function = Cast<JSFunction>(constant.ToHeapObject());
+        __ Move(kJavaScriptCallTargetRegister, function);
+        if (function->shared()->HasBuiltinId()) {
+          Builtin builtin = function->shared()->builtin_id();
+          SBXCHECK_EQ(num_arguments,
+                      Builtins::GetFormalParameterCount(builtin));
+          __ CallBuiltin(builtin);
+        } else {
+          JSDispatchHandle dispatch_handle = function->dispatch_handle();
+          size_t expected =
+              IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
+                  dispatch_handle);
+          SBXCHECK_GE(num_arguments, expected);
+          __ CallJSDispatchEntry(dispatch_handle, expected);
+        }
+      } else {
+        Register func = i.InputRegister(0);
+        if (v8_flags.debug_code) {
+          UseScratchRegisterScope temps(masm());
+          Register scratch = temps.Acquire();
+          // Check the function's context matches the context argument.
+          __ ldr(scratch, FieldMemOperand(func, JSFunction::kContextOffset));
+          __ cmp(cp, scratch);
+          __ Assert(eq, AbortReason::kWrongFunctionContext);
+        }
+        __ CallJSFunction(func, num_arguments);
+      }
       RecordCallPosition(instr);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       frame_access_state()->ClearSPDelta();
