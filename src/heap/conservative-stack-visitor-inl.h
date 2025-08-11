@@ -35,7 +35,7 @@ ConservativeStackVisitorBase<ConcreteVisitor>::ConservativeStackVisitorBase(
       code_address_region_(isolate->heap()->code_region()),
 #endif
 #ifdef V8_ENABLE_SANDBOX
-      trusted_cage_base_(isolate->isolate_data()->trusted_cage_base_address()),
+      trusted_cage_base_(isolate->trusted_cage_base()),
 #endif
       root_visitor_(root_visitor),
       allocator_(isolate->heap()->memory_allocator()) {

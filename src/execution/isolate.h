@@ -1209,6 +1209,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #endif  // V8_EXTERNAL_CODE_SPACE
   }
 
+#ifdef V8_ENABLE_SANDBOX
+  Address trusted_cage_base() const {
+    return isolate_data()->trusted_cage_base_;
+  }
+#endif  // V8_ENABLE_SANDBOX
+
   IsolateGroup* isolate_group() const { return isolate_group_; }
 
 #ifdef V8_COMPRESS_POINTERS
