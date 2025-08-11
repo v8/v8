@@ -14,8 +14,15 @@ class ModuleGenerationTest
     : public fuzztest::PerFuzzTestFixtureAdapter<TestWithContext> {
  public:
   ModuleGenerationTest() : zone_(&allocator_, "ModuleGenerationTest") {
+    // Centipede has a default stack limit of 128kB. Thus also lower V8's stack
+    // limit so something even smaller, so we catch stack overflows before
+    // Centipede terminates the process.
+    static_assert(V8_DEFAULT_STACK_SIZE_KB > 100);
+    isolate()->SetStackLimit(base::Stack::GetStackStart() - 100 * KB);
+
     // Enable GC, required by `ResetTypeCanonicalizer`.
     v8_flags.expose_gc = true;
+
     // Random module generation mixed the old and new EH proposal; allow that
     // generally.
     // Note that for libfuzzer fuzzers this is implied by `--fuzzing`, but for
