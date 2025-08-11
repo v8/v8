@@ -390,132 +390,84 @@ class MachineOptimizationReducer : public Next {
     }
     if (float f32_k; rep == FloatRepresentation::Float32() &&
                      matcher_.MatchFloat32Constant(input, &f32_k)) {
-      if (std::isnan(f32_k) && !ensure_deterministic_nan) {
-        return __ Float32Constant(std::numeric_limits<float>::quiet_NaN());
-      }
+#define CONSTANT_F32_CASE(kind, op)                                     \
+  case FloatUnaryOp::Kind::kind: {                                      \
+    float result = op;                                                  \
+    DCHECK_IMPLIES(std::isnan(f32_k), std::isnan(result));              \
+    if (!std::isnan(result)) return __ Float32Constant(result);         \
+    if (ensure_deterministic_nan) break;                                \
+    return __ Float32Constant(std::numeric_limits<float>::quiet_NaN()); \
+  }
       switch (kind) {
-        case FloatUnaryOp::Kind::kAbs:
-          return __ Float32Constant(std::abs(f32_k));
-        case FloatUnaryOp::Kind::kNegate:
-          return __ Float32Constant(-f32_k);
-        case FloatUnaryOp::Kind::kSilenceNaN:
-          DCHECK(!std::isnan(f32_k));
-          return __ Float32Constant(f32_k);
-        case FloatUnaryOp::Kind::kRoundDown:
-          return __ Float32Constant(std::floor(f32_k));
-        case FloatUnaryOp::Kind::kRoundUp:
-          return __ Float32Constant(std::ceil(f32_k));
-        case FloatUnaryOp::Kind::kRoundToZero:
-          return __ Float32Constant(std::trunc(f32_k));
-        case FloatUnaryOp::Kind::kRoundTiesEven:
-          DCHECK_EQ(std::nearbyint(1.5), 2);
-          DCHECK_EQ(std::nearbyint(2.5), 2);
-          return __ Float32Constant(std::nearbyint(f32_k));
-        case FloatUnaryOp::Kind::kLog:
-          return __ Float32Constant(base::ieee754::log(f32_k));
-        case FloatUnaryOp::Kind::kSqrt:
-          return __ Float32Constant(std::sqrt(f32_k));
-        case FloatUnaryOp::Kind::kExp:
-          return __ Float32Constant(base::ieee754::exp(f32_k));
-        case FloatUnaryOp::Kind::kExpm1:
-          return __ Float32Constant(base::ieee754::expm1(f32_k));
-        case FloatUnaryOp::Kind::kSin:
-          return __ Float32Constant(SIN_IMPL(f32_k));
-        case FloatUnaryOp::Kind::kCos:
-          return __ Float32Constant(COS_IMPL(f32_k));
-        case FloatUnaryOp::Kind::kSinh:
-          return __ Float32Constant(base::ieee754::sinh(f32_k));
-        case FloatUnaryOp::Kind::kCosh:
-          return __ Float32Constant(base::ieee754::cosh(f32_k));
-        case FloatUnaryOp::Kind::kAcos:
-          return __ Float32Constant(base::ieee754::acos(f32_k));
-        case FloatUnaryOp::Kind::kAsin:
-          return __ Float32Constant(base::ieee754::asin(f32_k));
-        case FloatUnaryOp::Kind::kAsinh:
-          return __ Float32Constant(base::ieee754::asinh(f32_k));
-        case FloatUnaryOp::Kind::kAcosh:
-          return __ Float32Constant(base::ieee754::acosh(f32_k));
-        case FloatUnaryOp::Kind::kTan:
-          return __ Float32Constant(base::ieee754::tan(f32_k));
-        case FloatUnaryOp::Kind::kTanh:
-          return __ Float32Constant(base::ieee754::tanh(f32_k));
-        case FloatUnaryOp::Kind::kLog2:
-          return __ Float32Constant(base::ieee754::log2(f32_k));
-        case FloatUnaryOp::Kind::kLog10:
-          return __ Float32Constant(base::ieee754::log10(f32_k));
-        case FloatUnaryOp::Kind::kLog1p:
-          return __ Float32Constant(base::ieee754::log1p(f32_k));
-        case FloatUnaryOp::Kind::kCbrt:
-          return __ Float32Constant(base::ieee754::cbrt(f32_k));
-        case FloatUnaryOp::Kind::kAtan:
-          return __ Float32Constant(base::ieee754::atan(f32_k));
-        case FloatUnaryOp::Kind::kAtanh:
-          return __ Float32Constant(base::ieee754::atanh(f32_k));
+        CONSTANT_F32_CASE(kAbs, std::abs(f32_k))
+        CONSTANT_F32_CASE(kNegate, -f32_k)
+        CONSTANT_F32_CASE(kSilenceNaN, f32_k)
+        CONSTANT_F32_CASE(kRoundDown, std::floor(f32_k))
+        CONSTANT_F32_CASE(kRoundUp, std::ceil(f32_k))
+        CONSTANT_F32_CASE(kRoundToZero, std::trunc(f32_k))
+        CONSTANT_F32_CASE(kRoundTiesEven, std::nearbyint(f32_k))
+        CONSTANT_F32_CASE(kLog, base::ieee754::log(f32_k))
+        CONSTANT_F32_CASE(kSqrt, std::sqrt(f32_k))
+        CONSTANT_F32_CASE(kExp, base::ieee754::exp(f32_k))
+        CONSTANT_F32_CASE(kExpm1, base::ieee754::expm1(f32_k))
+        CONSTANT_F32_CASE(kSin, SIN_IMPL(f32_k))
+        CONSTANT_F32_CASE(kCos, COS_IMPL(f32_k))
+        CONSTANT_F32_CASE(kSinh, base::ieee754::sinh(f32_k))
+        CONSTANT_F32_CASE(kCosh, base::ieee754::cosh(f32_k))
+        CONSTANT_F32_CASE(kAcos, base::ieee754::acos(f32_k))
+        CONSTANT_F32_CASE(kAsin, base::ieee754::asin(f32_k))
+        CONSTANT_F32_CASE(kAsinh, base::ieee754::asinh(f32_k))
+        CONSTANT_F32_CASE(kAcosh, base::ieee754::acosh(f32_k))
+        CONSTANT_F32_CASE(kTan, base::ieee754::tan(f32_k))
+        CONSTANT_F32_CASE(kTanh, base::ieee754::tanh(f32_k))
+        CONSTANT_F32_CASE(kLog2, base::ieee754::log2(f32_k))
+        CONSTANT_F32_CASE(kLog10, base::ieee754::log10(f32_k))
+        CONSTANT_F32_CASE(kLog1p, base::ieee754::log1p(f32_k))
+        CONSTANT_F32_CASE(kCbrt, base::ieee754::cbrt(f32_k))
+        CONSTANT_F32_CASE(kAtan, base::ieee754::atan(f32_k))
+        CONSTANT_F32_CASE(kAtanh, base::ieee754::atanh(f32_k))
       }
+#undef CONSTANT_F32_CASE
     } else if (double f64_k; rep == FloatRepresentation::Float64() &&
                              matcher_.MatchFloat64Constant(input, &f64_k)) {
-      if (std::isnan(f64_k) && !ensure_deterministic_nan) {
-        return __ Float64Constant(std::numeric_limits<double>::quiet_NaN());
-      }
+#define CONSTANT_F64_CASE(kind, op)                                      \
+  case FloatUnaryOp::Kind::kind: {                                       \
+    double result = op;                                                  \
+    DCHECK_IMPLIES(std::isnan(f64_k), std::isnan(result));               \
+    if (!std::isnan(result)) return __ Float64Constant(result);          \
+    if (ensure_deterministic_nan) break;                                 \
+    return __ Float64Constant(std::numeric_limits<double>::quiet_NaN()); \
+  }
       switch (kind) {
-        case FloatUnaryOp::Kind::kAbs:
-          return __ Float64Constant(std::abs(f64_k));
-        case FloatUnaryOp::Kind::kNegate:
-          return __ Float64Constant(-f64_k);
-        case FloatUnaryOp::Kind::kSilenceNaN:
-          DCHECK(!std::isnan(f64_k));
-          return __ Float64Constant(f64_k);
-        case FloatUnaryOp::Kind::kRoundDown:
-          return __ Float64Constant(std::floor(f64_k));
-        case FloatUnaryOp::Kind::kRoundUp:
-          return __ Float64Constant(std::ceil(f64_k));
-        case FloatUnaryOp::Kind::kRoundToZero:
-          return __ Float64Constant(std::trunc(f64_k));
-        case FloatUnaryOp::Kind::kRoundTiesEven:
-          DCHECK_EQ(std::nearbyint(1.5), 2);
-          DCHECK_EQ(std::nearbyint(2.5), 2);
-          return __ Float64Constant(std::nearbyint(f64_k));
-        case FloatUnaryOp::Kind::kLog:
-          return __ Float64Constant(base::ieee754::log(f64_k));
-        case FloatUnaryOp::Kind::kSqrt:
-          return __ Float64Constant(std::sqrt(f64_k));
-        case FloatUnaryOp::Kind::kExp:
-          return __ Float64Constant(base::ieee754::exp(f64_k));
-        case FloatUnaryOp::Kind::kExpm1:
-          return __ Float64Constant(base::ieee754::expm1(f64_k));
-        case FloatUnaryOp::Kind::kSin:
-          return __ Float64Constant(SIN_IMPL(f64_k));
-        case FloatUnaryOp::Kind::kCos:
-          return __ Float64Constant(COS_IMPL(f64_k));
-        case FloatUnaryOp::Kind::kSinh:
-          return __ Float64Constant(base::ieee754::sinh(f64_k));
-        case FloatUnaryOp::Kind::kCosh:
-          return __ Float64Constant(base::ieee754::cosh(f64_k));
-        case FloatUnaryOp::Kind::kAcos:
-          return __ Float64Constant(base::ieee754::acos(f64_k));
-        case FloatUnaryOp::Kind::kAsin:
-          return __ Float64Constant(base::ieee754::asin(f64_k));
-        case FloatUnaryOp::Kind::kAsinh:
-          return __ Float64Constant(base::ieee754::asinh(f64_k));
-        case FloatUnaryOp::Kind::kAcosh:
-          return __ Float64Constant(base::ieee754::acosh(f64_k));
-        case FloatUnaryOp::Kind::kTan:
-          return __ Float64Constant(base::ieee754::tan(f64_k));
-        case FloatUnaryOp::Kind::kTanh:
-          return __ Float64Constant(base::ieee754::tanh(f64_k));
-        case FloatUnaryOp::Kind::kLog2:
-          return __ Float64Constant(base::ieee754::log2(f64_k));
-        case FloatUnaryOp::Kind::kLog10:
-          return __ Float64Constant(base::ieee754::log10(f64_k));
-        case FloatUnaryOp::Kind::kLog1p:
-          return __ Float64Constant(base::ieee754::log1p(f64_k));
-        case FloatUnaryOp::Kind::kCbrt:
-          return __ Float64Constant(base::ieee754::cbrt(f64_k));
-        case FloatUnaryOp::Kind::kAtan:
-          return __ Float64Constant(base::ieee754::atan(f64_k));
-        case FloatUnaryOp::Kind::kAtanh:
-          return __ Float64Constant(base::ieee754::atanh(f64_k));
+        CONSTANT_F64_CASE(kAbs, std::abs(f64_k))
+        CONSTANT_F64_CASE(kNegate, -f64_k)
+        CONSTANT_F64_CASE(kSilenceNaN, f64_k)
+        CONSTANT_F64_CASE(kRoundDown, std::floor(f64_k))
+        CONSTANT_F64_CASE(kRoundUp, std::ceil(f64_k))
+        CONSTANT_F64_CASE(kRoundToZero, std::trunc(f64_k))
+        CONSTANT_F64_CASE(kRoundTiesEven, std::nearbyint(f64_k))
+        CONSTANT_F64_CASE(kLog, base::ieee754::log(f64_k))
+        CONSTANT_F64_CASE(kSqrt, std::sqrt(f64_k))
+        CONSTANT_F64_CASE(kExp, base::ieee754::exp(f64_k))
+        CONSTANT_F64_CASE(kExpm1, base::ieee754::expm1(f64_k))
+        CONSTANT_F64_CASE(kSin, SIN_IMPL(f64_k))
+        CONSTANT_F64_CASE(kCos, COS_IMPL(f64_k))
+        CONSTANT_F64_CASE(kSinh, base::ieee754::sinh(f64_k))
+        CONSTANT_F64_CASE(kCosh, base::ieee754::cosh(f64_k))
+        CONSTANT_F64_CASE(kAcos, base::ieee754::acos(f64_k))
+        CONSTANT_F64_CASE(kAsin, base::ieee754::asin(f64_k))
+        CONSTANT_F64_CASE(kAsinh, base::ieee754::asinh(f64_k))
+        CONSTANT_F64_CASE(kAcosh, base::ieee754::acosh(f64_k))
+        CONSTANT_F64_CASE(kTan, base::ieee754::tan(f64_k))
+        CONSTANT_F64_CASE(kTanh, base::ieee754::tanh(f64_k))
+        CONSTANT_F64_CASE(kLog2, base::ieee754::log2(f64_k))
+        CONSTANT_F64_CASE(kLog10, base::ieee754::log10(f64_k))
+        CONSTANT_F64_CASE(kLog1p, base::ieee754::log1p(f64_k))
+        CONSTANT_F64_CASE(kCbrt, base::ieee754::cbrt(f64_k))
+        CONSTANT_F64_CASE(kAtan, base::ieee754::atan(f64_k))
+        CONSTANT_F64_CASE(kAtanh, base::ieee754::atanh(f64_k))
       }
+#undef CONSTANT_F64_CASE
     }
     return Next::ReduceFloatUnary(input, kind, rep);
   }
