@@ -6,9 +6,9 @@ Documentation can be found at https://v8.dev/docs.
 
 ## Key Commands
 
--   **Build (Debug):** `tools/dev/gm.py x64.debug >/dev/null`
--   **Build (Optimized Debug):** `tools/dev/gm.py x64.optdebug >/dev/null`
--   **Build (Release):** `tools/dev/gm.py x64.release >/dev/null`
+-   **Build (Debug):** `tools/dev/gm.py quiet x64.debug`
+-   **Build (Optimized Debug):** `tools/dev/gm.py quiet x64.optdebug`
+-   **Build (Release):** `tools/dev/gm.py quiet x64.release`
 -   **Run All Tests:** `tools/run-tests.py --progress dots --exit-after-n-failures=5 --outdir=out/x64.optdebug`
 -   **Run C++ Tests:** `tools/run-tests.py --progress dots --exit-after-n-failures=5 --outdir=out/x64.optdebug cctest unittests`
 -   **Run JavaScript Tests:** `tools/run-tests.py --progress dots --exit-after-n-failures=5 --outdir=out/x64.optdebug mjsunit`
@@ -72,20 +72,20 @@ Once the initial dependencies are installed, V8 can be built using `gm.py`, whic
 
 ```bash
 # List all available build configurations and targets
-tools/dev/gm.py >/dev/null
+tools/dev/gm.py
 
 # Build the d8 shell for x64 in release mode
-tools/dev/gm.py x64.release >/dev/null
+tools/dev/gm.py quiet x64.release
 
 # Build d8 for x64 in debug mode
-tools/dev/gm.py x64.debug >/dev/null
+tools/dev/gm.py quiet x64.debug
 ```
 
 - **release:** Optimized for performance, with debug information stripped. Use for benchmarking.
 - **debug:** Contains full debug information and enables assertions. Slower, but essential for debugging.
 - **optdebug:** A compromise with optimizations enabled and debug information included. Good for general development.
 
-Make sure to pipe stdout to `/dev/null`, so that you don't waste tokens on compilation progress. Errors will be reported to `stderr`.
+Make sure to pass the `quiet` keyword unless told to otherwise, so that you don't waste tokens on compilation progress. Errors will still be reported.
 
 ## Debugging
 
