@@ -280,7 +280,7 @@ deps = {
   'third_party/fuzztest':
     Var('chromium_url') + '/chromium/src/third_party/fuzztest.git' + '@' + 'aa6ba9074b8d66a2e2853a0a0992c25966022e13',
   'third_party/fuzztest/src':
-    Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + '1d2179150a05371160907225d9cc7c84af9c4855',
+    Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + 'd08c25063b8802e6c3779ab9c77b43315c144c91',
   'third_party/googletest/src':
     Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '373af2e3df71599b87a40ce0e37164523849166b',
   'third_party/highway/src':
