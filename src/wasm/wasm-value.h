@@ -152,7 +152,12 @@ class WasmValue {
       case kS128: {
         std::stringstream stream;
         stream << "0x" << std::hex;
-        for (uint8_t byte : bit_pattern_) {
+        std::vector<uint8_t> native_pattern(
+            bit_pattern_, bit_pattern_ + arraysize(bit_pattern_));
+#if V8_TARGET_LITTLE_ENDIAN
+        std::reverse(native_pattern.begin(), native_pattern.end());
+#endif
+        for (uint8_t byte : native_pattern) {
           if (!(byte & 0xf0)) stream << '0';
           stream << static_cast<uint32_t>(byte);
         }
