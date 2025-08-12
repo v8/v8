@@ -69,6 +69,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-verifier.h"
 #include "src/heap/local-heap-inl.h"
+#include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/safepoint.h"
@@ -4779,6 +4780,9 @@ void Isolate::Deinit() {
 void Isolate::SetIsolateThreadLocals(Isolate* isolate,
                                      PerIsolateThreadData* data) {
   Isolate::SetCurrent(isolate);
+  LocalHeap::SetCurrent(isolate && isolate->main_thread_local_isolate()
+                            ? isolate->main_thread_local_heap()
+                            : nullptr);
   g_current_per_isolate_thread_data_ = data;
 
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
@@ -5737,9 +5741,17 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     trusted_pointer_table().InitializeSpace(heap()->trusted_pointer_space());
 #endif  // V8_ENABLE_SANDBOX
   }
-  isolate_group()->SetupReadOnlyHeap(this, read_only_snapshot_data, can_rehash);
-  heap_.SetUpSpaces(isolate_data_.new_allocation_info_,
-                    isolate_data_.old_allocation_info_);
+
+  {
+    // LocalHeap initialization requires the TLS variable to be set already.
+    // However, we can't move SetIsolateThreadLocals here because the marking
+    // barrier isn't setup yet.
+    SetCurrentLocalHeapScope local_heap_scope(this);
+    isolate_group()->SetupReadOnlyHeap(this, read_only_snapshot_data,
+                                       can_rehash);
+    heap_.SetUpSpaces(isolate_data_.new_allocation_info_,
+                      isolate_data_.old_allocation_info_);
+  }
 
   DCHECK_EQ(this, Isolate::Current());
   PerIsolateThreadData* const current_data = CurrentPerIsolateThreadData();
@@ -7665,13 +7677,6 @@ void Isolate::RemoveContextIdCallback(const v8::WeakCallbackInfo<void>& data) {
 
 LocalHeap* Isolate::main_thread_local_heap() {
   return main_thread_local_isolate()->heap();
-}
-
-LocalHeap* Isolate::CurrentLocalHeap() {
-  LocalHeap* local_heap = LocalHeap::Current();
-  if (local_heap) return local_heap;
-  DCHECK_EQ(ThreadId::Current(), thread_id());
-  return main_thread_local_heap();
 }
 
 // |chunk| is either a Page or an executable LargePage.

@@ -284,10 +284,6 @@ class MaybeUnparkForPrint {
  public:
   MaybeUnparkForPrint() {
     LocalHeap* local_heap = LocalHeap::Current();
-    if (!local_heap) {
-      local_heap = Isolate::Current()->main_thread_local_heap();
-    }
-    DCHECK_NOT_NULL(local_heap);
     if (local_heap->IsParked()) {
       scope_.emplace(local_heap);
     }
