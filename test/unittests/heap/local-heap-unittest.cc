@@ -27,8 +27,25 @@ TEST_F(LocalHeapTest, Initialize) {
 }
 
 TEST_F(LocalHeapTest, Current) {
-  CHECK_EQ(LocalHeap::Current(), i_isolate()->main_thread_local_heap());
-  CHECK(LocalHeap::Current()->is_main_thread());
+  Heap* heap = i_isolate()->heap();
+
+  CHECK_NULL(LocalHeap::Current());
+
+  {
+    LocalHeap lh(heap, ThreadKind::kMain);
+    lh.SetUpMainThreadForTesting();
+    CHECK_NULL(LocalHeap::Current());
+  }
+
+  CHECK_NULL(LocalHeap::Current());
+
+  {
+    LocalHeap lh(heap, ThreadKind::kMain);
+    lh.SetUpMainThreadForTesting();
+    CHECK_NULL(LocalHeap::Current());
+  }
+
+  CHECK_NULL(LocalHeap::Current());
 }
 
 namespace {
@@ -39,12 +56,12 @@ class BackgroundThread final : public v8::base::Thread {
         heap_(heap) {}
 
   void Run() override {
-    CHECK_NULL(LocalHeap::TryGetCurrent());
+    CHECK_NULL(LocalHeap::Current());
     {
       LocalHeap lh(heap_, ThreadKind::kBackground);
       CHECK_EQ(&lh, LocalHeap::Current());
     }
-    CHECK_NULL(LocalHeap::TryGetCurrent());
+    CHECK_NULL(LocalHeap::Current());
   }
 
   Heap* heap_;
@@ -53,9 +70,17 @@ class BackgroundThread final : public v8::base::Thread {
 
 TEST_F(LocalHeapTest, CurrentBackground) {
   Heap* heap = i_isolate()->heap();
-  auto thread = std::make_unique<BackgroundThread>(heap);
-  CHECK(thread->Start());
-  thread->Join();
+  CHECK_NULL(LocalHeap::Current());
+  {
+    LocalHeap lh(heap, ThreadKind::kMain);
+    lh.SetUpMainThreadForTesting();
+    auto thread = std::make_unique<BackgroundThread>(heap);
+    CHECK(thread->Start());
+    CHECK_NULL(LocalHeap::Current());
+    thread->Join();
+    CHECK_NULL(LocalHeap::Current());
+  }
+  CHECK_NULL(LocalHeap::Current());
 }
 
 namespace {

@@ -2419,9 +2419,9 @@ OpIndex GraphBuilder::Process(
       CHECK(type.CanBeAsserted());
       V<TurbofanType> allocated_type;
       {
-        DCHECK(LocalHeap::Current()->is_main_thread());
+        DCHECK(isolate->CurrentLocalHeap()->is_main_thread());
         std::optional<UnparkedScope> unparked_scope;
-        if (LocalHeap::Current()->IsParked()) {
+        if (isolate->CurrentLocalHeap()->IsParked()) {
           unparked_scope.emplace(isolate->main_thread_local_isolate());
         }
         allocated_type =

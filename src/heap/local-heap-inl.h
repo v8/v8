@@ -113,19 +113,6 @@ V8_INLINE bool LocalHeap::is_in_trampoline() const {
   }
 }
 
-SetCurrentLocalHeapScope::SetCurrentLocalHeapScope(Isolate* isolate)
-    : SetCurrentLocalHeapScope(isolate->main_thread_local_heap()) {}
-
-SetCurrentLocalHeapScope::SetCurrentLocalHeapScope(LocalHeap* local_heap) {
-  saved_local_heap_ = LocalHeap::TryGetCurrent();
-  DCHECK_NOT_NULL(local_heap);
-  LocalHeap::SetCurrent(local_heap);
-}
-
-SetCurrentLocalHeapScope::~SetCurrentLocalHeapScope() {
-  LocalHeap::SetCurrent(saved_local_heap_);
-}
-
 }  // namespace internal
 }  // namespace v8
 

@@ -4258,7 +4258,7 @@ void Heap::NotifyObjectSizeChange(Tagged<HeapObject> object, int old_size,
   DCHECK(!IsLargeObject(object));
   if (new_size == old_size) return;
 
-  const bool is_main_thread = LocalHeap::Current()->is_main_thread();
+  const bool is_main_thread = LocalHeap::Current() == nullptr;
 
   DCHECK_IMPLIES(!is_main_thread,
                  clear_recorded_slots == ClearRecordedSlots::kNo);
@@ -6716,7 +6716,7 @@ int Heap::InsertIntoRememberedSetFromCode(MutablePageMetadata* chunk,
                                           size_t slot_offset) {
   // This is called during runtime by a builtin, therefore it is run in the main
   // thread.
-  DCHECK(LocalHeap::Current()->is_main_thread());
+  DCHECK_NULL(LocalHeap::Current());
   RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(chunk, slot_offset);
   return 0;
 }
@@ -7064,7 +7064,7 @@ StrongRootsEntry* Heap::RegisterStrongRoots(const char* label,
                                             FullObjectSlot end) {
   // We're either on the main thread, or in a background thread with an active
   // local heap.
-  DCHECK(LocalHeap::Current()->IsRunning());
+  DCHECK(isolate()->CurrentLocalHeap()->IsRunning());
 
   base::MutexGuard guard(&strong_roots_mutex_);
 
@@ -7092,7 +7092,7 @@ void Heap::UpdateStrongRoots(StrongRootsEntry* entry, FullObjectSlot start,
 void Heap::UnregisterStrongRoots(StrongRootsEntry* entry) {
   // We're either on the main thread, or in a background thread with an active
   // local heap.
-  DCHECK(LocalHeap::Current()->IsRunning());
+  DCHECK(isolate()->CurrentLocalHeap()->IsRunning());
 
   base::MutexGuard guard(&strong_roots_mutex_);
 

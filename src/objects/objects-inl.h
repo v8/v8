@@ -1518,7 +1518,7 @@ void HeapObject::set_map(IsolateT* isolate, Tagged<Map> value,
   // This method might change object layout and therefore can't be used on
   // background threads.
   DCHECK_IMPLIES(mode != VerificationMode::kSafeMapTransition,
-                 LocalHeap::Current()->is_main_thread());
+                 !LocalHeap::Current());
   if (v8_flags.verify_heap && !value.is_null()) {
     if (mode == VerificationMode::kSafeMapTransition) {
       HeapVerifier::VerifySafeMapTransition(isolate->heap()->AsHeap(), *this,

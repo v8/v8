@@ -30,7 +30,7 @@ IsolateSafepoint::IsolateSafepoint(Heap* heap) : heap_(heap) {}
 
 void IsolateSafepoint::EnterLocalSafepointScope() {
   // Safepoints need to be initiated on some main thread.
-  DCHECK(LocalHeap::Current()->is_main_thread());
+  DCHECK_NULL(LocalHeap::Current());
   DCHECK(AllowGarbageCollection::IsAllowed());
 
   LockMutex(isolate()->main_thread_local_heap());
@@ -367,7 +367,7 @@ void GlobalSafepoint::AssertNoClientsOnTearDown() {
 
 void GlobalSafepoint::EnterGlobalSafepointScope(Isolate* initiator) {
   // Safepoints need to be initiated on some main thread.
-  DCHECK(LocalHeap::Current()->is_main_thread());
+  DCHECK_NULL(LocalHeap::Current());
 
   if (!clients_mutex_.TryLock()) {
     IgnoreLocalGCRequests ignore_gc_requests(initiator->heap());

@@ -28,8 +28,14 @@ MarkingBarrier* WriteBarrier::CurrentMarkingBarrier(
   MarkingBarrier* marking_barrier = current_marking_barrier;
   DCHECK_NOT_NULL(marking_barrier);
 #if DEBUG
+  if (!verification_candidate.is_null() &&
+      !HeapLayout::InAnySharedSpace(verification_candidate)) {
+    Heap* host_heap =
+        MutablePageMetadata::FromHeapObject(verification_candidate)->heap();
     LocalHeap* local_heap = LocalHeap::Current();
+    if (!local_heap) local_heap = host_heap->main_thread_local_heap();
     DCHECK_EQ(marking_barrier, local_heap->marking_barrier());
+  }
 #endif  // DEBUG
   return marking_barrier;
 }
@@ -367,7 +373,7 @@ void WriteBarrier::GenerationalBarrierSlow(Tagged<HeapObject> object,
                                            Tagged<HeapObject> value) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   MutablePageMetadata* metadata = MutablePageMetadata::cast(chunk->Metadata());
-  if (LocalHeap::Current()->is_main_thread()) {
+  if (LocalHeap::Current() == nullptr) {
     RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(
         metadata, chunk->Offset(slot));
   } else {

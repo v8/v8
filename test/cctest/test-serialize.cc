@@ -6547,7 +6547,6 @@ UNINITIALIZED_TEST(NoStackFrameCacheSerialization) {
 namespace {
 void CheckObjectsAreInSharedHeap(Isolate* isolate) {
   Heap* heap = isolate->heap();
-  SetCurrentLocalHeapScope local_heap_scope(isolate);
   HeapObjectIterator iterator(heap);
   DisallowGarbageCollection no_gc;
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();

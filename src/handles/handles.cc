@@ -95,7 +95,7 @@ bool HandleBase::IsDereferenceAllowed() const {
   // epilogue callbacks in the safepoint after a GC.
   if (AllowHandleUsageOnAllThreads::IsAllowed()) return true;
 
-  LocalHeap* local_heap = LocalHeap::Current();
+  LocalHeap* local_heap = isolate->CurrentLocalHeap();
 
   // Local heap can't access handles when parked
   if (!local_heap->IsHandleDereferenceAllowed()) {
@@ -138,7 +138,7 @@ bool DirectHandleBase::IsDereferenceAllowed() const {
   // epilogue callbacks in the safepoint after a GC.
   if (AllowHandleUsageOnAllThreads::IsAllowed()) return true;
 
-  LocalHeap* local_heap = LocalHeap::Current();
+  LocalHeap* local_heap = isolate->CurrentLocalHeap();
 
   // Local heap can't access handles when parked
   if (!local_heap->IsHandleDereferenceAllowed()) {

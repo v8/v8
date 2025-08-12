@@ -60,13 +60,11 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
 }
 
 bool FunctionTemplateInfo::IsTemplateFor(Tagged<Map> map) const {
-#ifdef V8_RUNTIME_CALL_STATS
-  LocalHeap* local_heap = LocalHeap::Current();
-  RCS_SCOPE(local_heap->is_main_thread()
-                ? Isolate::Current()->counters()->runtime_call_stats()
-                : LocalIsolate::FromHeap(local_heap)->runtime_call_stats(),
-            RuntimeCallCounterId::kIsTemplateFor);
-#endif  // V8_RUNTIME_CALL_STATS
+  RCS_SCOPE(
+      LocalHeap::Current() == nullptr
+          ? Isolate::Current()->counters()->runtime_call_stats()
+          : LocalIsolate::FromHeap(LocalHeap::Current())->runtime_call_stats(),
+      RuntimeCallCounterId::kIsTemplateFor);
 
   // There is a constraint on the object; check.
   if (!IsJSObjectMap(map)) return false;

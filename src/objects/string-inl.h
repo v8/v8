@@ -84,7 +84,8 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
 
   static bool IsNeeded(Tagged<String> str, bool check_local_heap = true) {
     if (check_local_heap) {
-      if (LocalHeap::Current()->is_main_thread()) {
+      LocalHeap* local_heap = LocalHeap::Current();
+      if (!local_heap || local_heap->is_main_thread()) {
         // Don't acquire the lock for the main thread.
         return false;
       }
