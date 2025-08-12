@@ -2764,8 +2764,11 @@ void MacroAssembler::MultiPush(RegList regs) {
   SubWord(sp, sp, Operand(stack_offset));
 
   // Certain usage of MultiPush requires that registers are pushed onto the
-  // stack in a particular: ra, fp, sp, gp, .... (basically in the decreasing
-  // order of register numbers according to MIPS register numbers)
+  // stack in a particular order: ra, fp, sp, gp, ... etc.
+  // One example of a place where we rely on this is in the mapping from Wasm
+  // parameter indexes to fp-relative stack positions. This is the reason why
+  // the WasmLiftoffSetupFrameConstants::kParameterSpillsOffset mapping appears
+  // reversed.
   TEST_AND_PUSH_REG(ra);
   TEST_AND_PUSH_REG(fp);
   TEST_AND_PUSH_REG(sp);
