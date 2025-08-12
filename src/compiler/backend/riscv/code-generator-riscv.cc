@@ -660,7 +660,6 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
 }
 
 namespace {
-
 void AdjustStackPointerForTailCall(MacroAssembler* masm,
                                    FrameAccessState* state,
                                    int new_slot_above_sp,
@@ -849,17 +848,37 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchCallJSFunction: {
-      Register func = i.InputOrZeroRegister(0);
-      if (v8_flags.debug_code) {
-        // Check the function's context matches the context argument.
-        __ LoadTaggedField(kScratchReg,
-                           FieldMemOperand(func, JSFunction::kContextOffset));
-        __ Assert(eq, AbortReason::kWrongFunctionContext, cp,
-                  Operand(kScratchReg));
-      }
       uint32_t num_arguments =
           i.InputUint32(instr->JSCallArgumentCountInputIndex());
-      __ CallJSFunction(func, num_arguments);
+      if (instr->InputAt(0)->IsImmediate()) {
+        Constant constant = i.ToConstant(instr->InputAt(0));
+        Handle<JSFunction> function = Cast<JSFunction>(constant.ToHeapObject());
+        __ li(kJavaScriptCallTargetRegister, function);
+        if (function->shared()->HasBuiltinId()) {
+          Builtin builtin = function->shared()->builtin_id();
+          SBXCHECK_EQ(num_arguments,
+                      Builtins::GetFormalParameterCount(builtin));
+          __ CallBuiltin(builtin);
+        } else {
+          JSDispatchHandle dispatch_handle = function->dispatch_handle();
+          size_t expected =
+              IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
+                  dispatch_handle);
+          SBXCHECK_GE(num_arguments, expected);
+          __ CallJSDispatchEntry(dispatch_handle, expected);
+        }
+      } else {
+        Register func = i.InputRegister(0);
+        if (v8_flags.debug_code) {
+          // Check the function's context matches the context argument.
+          UseScratchRegisterScope scope(masm());
+          Register temp = scope.Acquire();
+          __ LoadTaggedField(temp,
+                             FieldMemOperand(func, JSFunction::kContextOffset));
+          __ Assert(eq, AbortReason::kWrongFunctionContext, cp, Operand(temp));
+        }
+        __ CallJSFunction(func, num_arguments);
+      }
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
