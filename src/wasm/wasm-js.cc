@@ -631,7 +631,8 @@ CompileTimeImports ArgumentToCompileOptions(
             continue;
           }
         }
-        if (enabled_features.has_custom_descriptors()) {
+        if (enabled_features.has_custom_descriptors() &&
+            i::v8_flags.experimental_wasm_js_interop) {
           if (builtin->IsEqualTo(base::CStrVector("js-prototypes"))) {
             result.Add(CompileTimeImport::kJsPrototypes);
             continue;
@@ -3718,7 +3719,8 @@ void WasmJs::Install(Isolate* isolate) {
     InstallMemoryControl(isolate, native_context, webassembly);
   }
 
-  if (enabled_features.has_custom_descriptors()) {
+  if (enabled_features.has_custom_descriptors() &&
+      i::v8_flags.experimental_wasm_js_interop) {
     InstallCustomDescriptors(isolate, native_context, webassembly);
   }
 

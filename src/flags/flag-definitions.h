@@ -1919,6 +1919,11 @@ DEFINE_BOOL(wasm_explicit_prototypes, true,
 DEFINE_BOOL(wasm_implicit_prototypes, true,
             "enable support for engine-created 'invisible' JS Prototypes "
             "(only with --experimental-wasm-custom-descriptors)")
+DEFINE_EXPERIMENTAL_FEATURE(
+    experimental_wasm_js_interop,
+    "enable JS Interop part of Custom Descriptors proposal")
+DEFINE_IMPLICATION(experimental_wasm_js_interop,
+                   experimental_wasm_custom_descriptors)
 
 #define WASM_PRE_STAGING_IMPLICATION(feat, desc, val) \
   DEFINE_IMPLICATION(experimental_fuzzing, experimental_wasm_##feat)
