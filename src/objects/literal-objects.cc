@@ -521,6 +521,7 @@ class ObjectDescriptor {
         element_count_ || computed_count_
             ? NumberDictionary::New(isolate, element_count_ + computed_count_,
                                     AllocationType::kOld)
+                  .ToHandleChecked()
             : factory->empty_slow_element_dictionary();
 
     computed_properties_ =

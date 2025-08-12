@@ -205,7 +205,8 @@ DirectHandle<Map> JSSharedStruct::CreateInstanceMap(
       DirectHandle<NumberDictionary> elements_template;
       num_elements = static_cast<int>(element_names.size());
       elements_template = NumberDictionary::New(isolate, num_elements,
-                                                AllocationType::kSharedOld);
+                                                AllocationType::kSharedOld)
+                              .ToHandleChecked();
       for (uint32_t index : element_names) {
         PropertyDetails details(PropertyKind::kData, SEALED,
                                 PropertyConstness::kMutable, 0);

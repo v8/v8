@@ -24,7 +24,7 @@ void ManualOptimizationTable::MarkFunctionForManualOptimization(
 
   Handle<ObjectHashTable> table =
       IsUndefined(isolate->heap()->functions_marked_for_manual_optimization())
-          ? ObjectHashTable::New(isolate, 1)
+          ? ObjectHashTable::New(isolate, 1).ToHandleChecked()
           : handle(Cast<ObjectHashTable>(
                        isolate->heap()
                            ->functions_marked_for_manual_optimization()),

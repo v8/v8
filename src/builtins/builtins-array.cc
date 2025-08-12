@@ -900,8 +900,9 @@ class ArrayConcatVisitor {
   void SetDictionaryMode() {
     DCHECK(fast_elements() && is_fixed_array());
     DirectHandle<FixedArray> current_storage = storage_fixed_array();
-    DirectHandle<NumberDictionary> slow_storage(
-        NumberDictionary::New(isolate_, current_storage->length()));
+    DirectHandle<NumberDictionary> slow_storage =
+        NumberDictionary::New(isolate_, current_storage->length())
+            .ToHandleChecked();
     uint32_t current_length = static_cast<uint32_t>(current_storage->length());
     FOR_WITH_HANDLE_SCOPE(isolate_, uint32_t i = 0, i, i < current_length,
                           i++) {
@@ -1588,12 +1589,18 @@ Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args,
 
   DirectHandle<UnionOf<JSReceiver, FixedArray, NumberDictionary>> storage;
   if (fast_case) {
+    if (estimate_result_length > FixedArray::kMaxLength) {
+      // TODO(ishell): eventually, this should be thrown by NewFixedArrayXXX.
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewRangeError(MessageTemplate::kInvalidArrayLength));
+    }
     // The backing storage array must have non-existing elements to preserve
     // holes across concat operations.
     storage =
         isolate->factory()->NewFixedArrayWithHoles(estimate_result_length);
   } else if (is_array_species) {
-    storage = NumberDictionary::New(isolate, estimate_nof);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, storage, NumberDictionary::New(isolate, estimate_nof));
   } else {
     DCHECK(IsConstructor(*species));
     DirectHandle<Object> length(Smi::zero(), isolate);

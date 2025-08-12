@@ -6000,7 +6000,8 @@ bool Genesis::InstallABunchOfRandomThings() {
       *fast_template_instantiations_cache);
 
   auto slow_template_instantiations_cache =
-      EphemeronHashTable::New(isolate(), ApiNatives::kInitialFunctionCacheSize);
+      EphemeronHashTable::New(isolate(), ApiNatives::kInitialFunctionCacheSize)
+          .ToHandleChecked();
   native_context()->set_slow_template_instantiations_cache(
       *slow_template_instantiations_cache);
 

@@ -111,7 +111,7 @@ DirectHandle<JSArray> TemplateObjectDescription::GetTemplateObject(
         native_context->template_weakmap();
     Handle<EphemeronHashTable> template_weakmap;
     if (IsUndefined(maybe_template_weakmap)) {
-      template_weakmap = EphemeronHashTable::New(isolate, 1);
+      template_weakmap = EphemeronHashTable::New(isolate, 1).ToHandleChecked();
     } else {
       template_weakmap =
           handle(Cast<EphemeronHashTable>(maybe_template_weakmap), isolate);

@@ -2104,7 +2104,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
     int capacity = object->GetFastElementsUsage();
     DirectHandle<NumberDictionary> dictionary =
-        NumberDictionary::New(isolate, capacity);
+        NumberDictionary::New(isolate, capacity).ToHandleChecked();
 
     PropertyDetails details = PropertyDetails::Empty();
     int j = 0;

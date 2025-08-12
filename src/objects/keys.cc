@@ -313,7 +313,7 @@ void KeyAccumulator::AddShadowingKey(Tagged<Object> key,
 void KeyAccumulator::AddShadowingKey(DirectHandle<Object> key) {
   if (mode_ == KeyCollectionMode::kOwnOnly) return;
   if (shadowing_keys_.is_null()) {
-    shadowing_keys_ = ObjectHashSet::New(isolate_, 16);
+    shadowing_keys_ = ObjectHashSet::New(isolate_, 16).ToHandleChecked();
   }
   shadowing_keys_ = ObjectHashSet::Add(isolate(), shadowing_keys_, key);
 }

@@ -284,6 +284,7 @@
   'regress/regress-430201': [SKIP],
   'regress/regress-430201b': [SKIP],
   'regress/regress-716044': [SKIP],
+  'regress/regress-41433527': [SKIP],
   'regress/regress-crbug-217858': [SKIP],
   'regress/regress-crbug-808192': [SKIP],
   'regress/regress-crbug-941743': [SKIP],

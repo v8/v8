@@ -1430,7 +1430,7 @@ Local<EphemeronTable> EphemeronTable::New(v8::Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   i::DirectHandle<i::EphemeronHashTable> table =
-      i::EphemeronHashTable::New(i_isolate, 0);
+      i::EphemeronHashTable::New(i_isolate, 0).ToHandleChecked();
   return ToApiHandle<EphemeronTable>(table);
 }
 

@@ -7760,7 +7760,7 @@ void Isolate::LocalsBlockListCacheSet(
   } else {
     CHECK(IsUndefined(heap()->locals_block_list_cache()));
     constexpr int kInitialCapacity = 8;
-    cache = EphemeronHashTable::New(this, kInitialCapacity);
+    cache = EphemeronHashTable::New(this, kInitialCapacity).ToHandleChecked();
   }
   DCHECK(IsEphemeronHashTable(*cache));
 

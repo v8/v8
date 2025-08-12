@@ -240,8 +240,10 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
   // Create hash table if local names are not inlined.
   Handle<NameToIndexHashTable> local_names_hashtable;
   if (!has_inlined_local_names) {
-    local_names_hashtable = NameToIndexHashTable::New(
-        isolate, context_local_count, AllocationType::kOld);
+    local_names_hashtable =
+        NameToIndexHashTable::New(isolate, context_local_count,
+                                  AllocationType::kOld)
+            .ToHandleChecked();
   }
 
   Handle<ScopeInfo> scope_info_handle =

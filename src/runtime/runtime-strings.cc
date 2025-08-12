@@ -219,7 +219,7 @@ Tagged<Object> StringAdd_StringConstant_Internalize(
                            isolate);
   Handle<SimpleNameDictionary> cache;
   if (*cache_obj == ReadOnlyRoots{isolate}.uninitialized_symbol()) {
-    cache = SimpleNameDictionary::New(isolate, 1);
+    cache = SimpleNameDictionary::New(isolate, 1).ToHandleChecked();
     feedback_vector->SynchronizedSet(cache_slot, *cache);
   } else {
     cache = Cast<SimpleNameDictionary>(cache_obj);

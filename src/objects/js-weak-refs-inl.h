@@ -31,7 +31,7 @@ void JSFinalizationRegistry::RegisterWeakCellWithUnregisterToken(
     DirectHandle<WeakCell> weak_cell, Isolate* isolate) {
   Handle<SimpleNumberDictionary> key_map;
   if (IsUndefined(finalization_registry->key_map(), isolate)) {
-    key_map = SimpleNumberDictionary::New(isolate, 1);
+    key_map = SimpleNumberDictionary::New(isolate, 1).ToHandleChecked();
   } else {
     key_map =
         handle(Cast<SimpleNumberDictionary>(finalization_registry->key_map()),

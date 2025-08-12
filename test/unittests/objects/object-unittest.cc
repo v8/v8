@@ -102,7 +102,8 @@ TEST(Object, StructListOrder) {
 using ObjectWithIsolate = TestWithIsolate;
 
 TEST_F(ObjectWithIsolate, DictionaryGrowth) {
-  Handle<NumberDictionary> dict = NumberDictionary::New(isolate(), 1);
+  Handle<NumberDictionary> dict =
+      NumberDictionary::New(isolate(), 1).ToHandleChecked();
   DirectHandle<Object> value = isolate()->factory()->null_value();
   PropertyDetails details = PropertyDetails::Empty();
 
@@ -148,11 +149,11 @@ TEST_F(ObjectWithIsolate, DictionaryGrowth) {
 
   // If we grow by larger chunks, the next (sufficiently big) power of 2 is
   // chosen as the capacity.
-  dict = NumberDictionary::New(isolate(), 1);
+  dict = NumberDictionary::New(isolate(), 1).ToHandleChecked();
   dict = NumberDictionary::EnsureCapacity(isolate(), dict, 65);
   CHECK_EQ(128, dict->Capacity());
 
-  dict = NumberDictionary::New(isolate(), 1);
+  dict = NumberDictionary::New(isolate(), 1).ToHandleChecked();
   dict = NumberDictionary::EnsureCapacity(isolate(), dict, 30);
   CHECK_EQ(64, dict->Capacity());
 }

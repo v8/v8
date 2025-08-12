@@ -7865,7 +7865,8 @@ void AddPropertiesAndElementsToObject(
       // dictionary elements backing store for {elements}.
       if (!IsNumberDictionary(*elements)) {
         elements =
-            i::NumberDictionary::New(i_isolate, static_cast<int>(length));
+            i::NumberDictionary::New(i_isolate, static_cast<uint32_t>(length))
+                .ToHandleChecked();
       }
       elements = i::NumberDictionary::Set(
           i_isolate, i::Cast<i::NumberDictionary>(elements), index, value);
