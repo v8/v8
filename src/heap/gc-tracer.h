@@ -187,7 +187,8 @@ class V8_EXPORT_PRIVATE GCTracer {
     State state;
 
     GarbageCollectionReason gc_reason;
-    GarbageCollectionReason incremental_marking_reason;
+    GarbageCollectionReason incremental_marking_reason{
+        GarbageCollectionReason::kUnknown};
     const char* collector_reason;
 
     // The Isolate's priority during the current GC cycle. The priority is set
