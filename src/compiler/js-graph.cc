@@ -92,7 +92,6 @@ Node* JSGraph::Constant(ObjectRef ref, JSHeapBroker* broker) {
     case HoleType::kArgumentsMarker:
     case HoleType::kSelfReferenceMarker:
     case HoleType::kBasicBlockCountersMarker:
-    case HoleType::kUndefinedContextCell:
       UNREACHABLE();
   }
 

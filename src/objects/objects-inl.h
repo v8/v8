@@ -132,7 +132,7 @@ bool IsAnyHole(Tagged<Object> obj, PtrComprCageBase cage_base) {
 
 bool IsAnyHole(Tagged<Object> obj) { return IsHole(obj); }
 
-#define IS_TYPE_FUNCTION_DEF(Type, Value, _)                     \
+#define IS_TYPE_FUNCTION_DEF(Type, ...)                          \
   bool Is##Type(Tagged<Object> obj, Isolate* isolate) {          \
     return Is##Type(obj, ReadOnlyRoots(isolate));                \
   }                                                              \
@@ -157,6 +157,7 @@ bool IsAnyHole(Tagged<Object> obj) { return IsHole(obj); }
   }
 ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 HOLE_LIST(IS_TYPE_FUNCTION_DEF)
+IS_TYPE_FUNCTION_DEF(UndefinedContextCell)
 #undef IS_TYPE_FUNCTION_DEF
 
 #if V8_STATIC_ROOTS_BOOL
@@ -174,6 +175,8 @@ HOLE_LIST(IS_TYPE_FUNCTION_DEF)
 #endif
 ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 HOLE_LIST(IS_TYPE_FUNCTION_DEF)
+IS_TYPE_FUNCTION_DEF(UndefinedContextCell, undefined_context_cell,
+                     UndefinedContextCell)
 #undef IS_TYPE_FUNCTION_DEF
 
 bool IsNullOrUndefined(Tagged<Object> obj, Isolate* isolate) {

@@ -706,14 +706,15 @@ V8_INLINE bool IsAnyHole(Tagged<Object> obj);
 
 // Oddball checks are faster when they are raw pointer comparisons, so the
 // isolate/read-only roots overloads should be preferred where possible.
-#define IS_TYPE_FUNCTION_DECL(Type, Value, _)                         \
+#define IS_TYPE_FUNCTION_DECL(Type, ...)                              \
   V8_INLINE bool Is##Type(Tagged<Object> obj, Isolate* isolate);      \
   V8_INLINE bool Is##Type(Tagged<Object> obj, LocalIsolate* isolate); \
   V8_INLINE bool Is##Type(Tagged<Object> obj, ReadOnlyRoots roots);   \
   V8_INLINE bool Is##Type(Tagged<Object> obj);
 ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
 HOLE_LIST(IS_TYPE_FUNCTION_DECL)
-IS_TYPE_FUNCTION_DECL(NullOrUndefined, , /* unused */)
+IS_TYPE_FUNCTION_DECL(UndefinedContextCell)
+IS_TYPE_FUNCTION_DECL(NullOrUndefined)
 #undef IS_TYPE_FUNCTION_DECL
 
 V8_INLINE bool IsZero(Tagged<Object> obj);
