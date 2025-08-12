@@ -219,7 +219,6 @@ namespace v8 {
 
 class Isolate;
 
-START_ALLOW_USE_DEPRECATED()
 class CTypeInfo {
  public:
   enum class Type : uint8_t {
@@ -253,14 +252,6 @@ class CTypeInfo {
   // than any valid Type enum.
   static constexpr Type kCallbackOptionsType = Type(255);
 
-  enum class V8_DEPRECATED(
-      "There is no special support in V8 anymore, there is no need to"
-      "use a SequenceType") SequenceType : uint8_t {
-    kScalar,
-    kIsSequence,    // sequence<T>
-    kIsArrayBuffer  // ArrayBuffer
-  };
-
   enum class Flags : uint8_t {
     kNone = 0,
     kAllowSharedBit = 1 << 0,   // Must be an ArrayBuffer or TypedArray
@@ -270,27 +261,18 @@ class CTypeInfo {
   };
 
   explicit constexpr CTypeInfo(Type type, Flags flags = Flags::kNone)
-      : type_(type), sequence_type_(SequenceType::kScalar), flags_(flags) {}
-
-  V8_DEPRECATED("Use CTypeInfo(Type, Flags) instead")
-  constexpr CTypeInfo(Type type, SequenceType sequence_type,
-                      Flags flags = Flags::kNone)
-      : type_(type), sequence_type_(sequence_type), flags_(flags) {}
+      : type_(type), flags_(flags) {}
 
   typedef uint32_t Identifier;
   explicit constexpr CTypeInfo(Identifier identifier)
-      : CTypeInfo(static_cast<Type>(identifier >> 16),
-                  static_cast<SequenceType>((identifier >> 8) & 255),
-                  static_cast<Flags>(identifier & 255)) {}
+      : type_(static_cast<Type>((identifier >> 8) & 255)),
+        flags_(static_cast<Flags>(identifier & 255)) {}
   constexpr Identifier GetId() const {
-    return static_cast<uint8_t>(type_) << 16 |
-           static_cast<uint8_t>(sequence_type_) << 8 |
+    return static_cast<uint8_t>(type_) << 8 |
            static_cast<uint8_t>(flags_);
   }
 
   constexpr Type GetType() const { return type_; }
-  V8_DEPRECATED("Use the constant SequenceType::kScalar instead")
-  constexpr SequenceType GetSequenceType() const { return sequence_type_; }
   constexpr Flags GetFlags() const { return flags_; }
 
   static constexpr bool IsIntegralType(Type type) {
@@ -310,10 +292,8 @@ class CTypeInfo {
 
  private:
   Type type_;
-  SequenceType sequence_type_;
   Flags flags_;
 };
-END_ALLOW_USE_DEPRECATED()
 
 struct FastOneByteString {
   const char* data;

@@ -2099,62 +2099,49 @@ class RepresentationSelector {
   UseInfo UseInfoForFastApiCallArgument(CTypeInfo type,
                                         CFunctionInfo::Int64Representation repr,
                                         FeedbackSource const& feedback) {
-    START_ALLOW_USE_DEPRECATED()
-    switch (type.GetSequenceType()) {
-      case CTypeInfo::SequenceType::kScalar: {
-        uint8_t flags = uint8_t(type.GetFlags());
-        if (flags & uint8_t(CTypeInfo::Flags::kEnforceRangeBit) ||
-            flags & uint8_t(CTypeInfo::Flags::kClampBit)) {
-          DCHECK(repr != CFunctionInfo::Int64Representation::kBigInt);
-          // If the parameter is marked as `kEnforceRange` or `kClampBit`, then
-          // special type conversion gets added explicitly to the generated
-          // code. Therefore it is sufficient here to only require here that the
-          // value is a Float64, even though the C++ signature actually asks for
-          // an `int32_t`.
-          return UseInfo::CheckedNumberAsFloat64(kIdentifyZeros, feedback);
-        }
-        switch (type.GetType()) {
-          case CTypeInfo::Type::kVoid:
-          case CTypeInfo::Type::kUint8:
-            UNREACHABLE();
-          case CTypeInfo::Type::kBool:
-            return UseInfo::Bool();
-          case CTypeInfo::Type::kInt32:
-          case CTypeInfo::Type::kUint32:
-            return UseInfo::CheckedNumberAsWord32(feedback);
-          // TODO(mslekova): We deopt for unsafe integers, but ultimately we
-          // want to make this less restrictive in order to stay on the fast
-          // path.
-          case CTypeInfo::Type::kInt64:
-          case CTypeInfo::Type::kUint64:
-            if (repr == CFunctionInfo::Int64Representation::kBigInt) {
-              return UseInfo::CheckedBigIntTruncatingWord64(feedback);
-            } else if (repr == CFunctionInfo::Int64Representation::kNumber) {
-              return UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, feedback);
-            } else {
-              UNREACHABLE();
-            }
-          case CTypeInfo::Type::kAny:
-            return UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, feedback);
-          case CTypeInfo::Type::kFloat32:
-          case CTypeInfo::Type::kFloat64:
-            return UseInfo::CheckedNumberAsFloat64(kDistinguishZeros, feedback);
-          case CTypeInfo::Type::kPointer:
-          case CTypeInfo::Type::kV8Value:
-          case CTypeInfo::Type::kSeqOneByteString:
-          case CTypeInfo::Type::kApiObject:
-            return UseInfo::AnyTagged();
-        }
-      }
-      case CTypeInfo::SequenceType::kIsSequence: {
-        CHECK_EQ(type.GetType(), CTypeInfo::Type::kVoid);
-        return UseInfo::AnyTagged();
-      }
-      default: {
-        UNREACHABLE();  // TODO(mslekova): Implement array buffers.
-      }
+    uint8_t flags = uint8_t(type.GetFlags());
+    if (flags & uint8_t(CTypeInfo::Flags::kEnforceRangeBit) ||
+        flags & uint8_t(CTypeInfo::Flags::kClampBit)) {
+      DCHECK(repr != CFunctionInfo::Int64Representation::kBigInt);
+      // If the parameter is marked as `kEnforceRange` or `kClampBit`, then
+      // special type conversion gets added explicitly to the generated
+      // code. Therefore it is sufficient here to only require here that the
+      // value is a Float64, even though the C++ signature actually asks for
+      // an `int32_t`.
+      return UseInfo::CheckedNumberAsFloat64(kIdentifyZeros, feedback);
     }
-    END_ALLOW_USE_DEPRECATED()
+    switch (type.GetType()) {
+      case CTypeInfo::Type::kVoid:
+      case CTypeInfo::Type::kUint8:
+        UNREACHABLE();
+      case CTypeInfo::Type::kBool:
+        return UseInfo::Bool();
+      case CTypeInfo::Type::kInt32:
+      case CTypeInfo::Type::kUint32:
+        return UseInfo::CheckedNumberAsWord32(feedback);
+      // TODO(mslekova): We deopt for unsafe integers, but ultimately we
+      // want to make this less restrictive in order to stay on the fast
+      // path.
+      case CTypeInfo::Type::kInt64:
+      case CTypeInfo::Type::kUint64:
+        if (repr == CFunctionInfo::Int64Representation::kBigInt) {
+          return UseInfo::CheckedBigIntTruncatingWord64(feedback);
+        } else if (repr == CFunctionInfo::Int64Representation::kNumber) {
+          return UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, feedback);
+        } else {
+          UNREACHABLE();
+        }
+      case CTypeInfo::Type::kAny:
+        return UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, feedback);
+      case CTypeInfo::Type::kFloat32:
+      case CTypeInfo::Type::kFloat64:
+        return UseInfo::CheckedNumberAsFloat64(kDistinguishZeros, feedback);
+      case CTypeInfo::Type::kPointer:
+      case CTypeInfo::Type::kV8Value:
+      case CTypeInfo::Type::kSeqOneByteString:
+      case CTypeInfo::Type::kApiObject:
+        return UseInfo::AnyTagged();
+    }
   }
 
   static constexpr int kInitialArgumentsCount = 10;
