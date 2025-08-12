@@ -390,14 +390,11 @@ class MachineOptimizationReducer : public Next {
     }
     if (float f32_k; rep == FloatRepresentation::Float32() &&
                      matcher_.MatchFloat32Constant(input, &f32_k)) {
-#define CONSTANT_F32_CASE(kind, op)                                     \
-  case FloatUnaryOp::Kind::kind: {                                      \
-    float result = op;                                                  \
-    DCHECK_IMPLIES(std::isnan(f32_k), std::isnan(result));              \
-    if (!std::isnan(result)) return __ Float32Constant(result);         \
-    if (ensure_deterministic_nan) break;                                \
-    return __ Float32Constant(std::numeric_limits<float>::quiet_NaN()); \
-  }
+      float result;
+#define CONSTANT_F32_CASE(kind, op) \
+  case FloatUnaryOp::Kind::kind:    \
+    result = op;                    \
+    break;
       switch (kind) {
         CONSTANT_F32_CASE(kAbs, std::abs(f32_k))
         CONSTANT_F32_CASE(kNegate, -f32_k)
@@ -428,16 +425,18 @@ class MachineOptimizationReducer : public Next {
         CONSTANT_F32_CASE(kAtanh, base::ieee754::atanh(f32_k))
       }
 #undef CONSTANT_F32_CASE
+      DCHECK_IMPLIES(std::isnan(f32_k), std::isnan(result));
+      if (!std::isnan(result)) return __ Float32Constant(result);
+      if (!ensure_deterministic_nan) {
+        return __ Float32Constant(std::numeric_limits<float>::quiet_NaN());
+      }
     } else if (double f64_k; rep == FloatRepresentation::Float64() &&
                              matcher_.MatchFloat64Constant(input, &f64_k)) {
-#define CONSTANT_F64_CASE(kind, op)                                      \
-  case FloatUnaryOp::Kind::kind: {                                       \
-    double result = op;                                                  \
-    DCHECK_IMPLIES(std::isnan(f64_k), std::isnan(result));               \
-    if (!std::isnan(result)) return __ Float64Constant(result);          \
-    if (ensure_deterministic_nan) break;                                 \
-    return __ Float64Constant(std::numeric_limits<double>::quiet_NaN()); \
-  }
+      double result;
+#define CONSTANT_F64_CASE(kind, op) \
+  case FloatUnaryOp::Kind::kind:    \
+    result = op;                    \
+    break;
       switch (kind) {
         CONSTANT_F64_CASE(kAbs, std::abs(f64_k))
         CONSTANT_F64_CASE(kNegate, -f64_k)
@@ -468,6 +467,11 @@ class MachineOptimizationReducer : public Next {
         CONSTANT_F64_CASE(kAtanh, base::ieee754::atanh(f64_k))
       }
 #undef CONSTANT_F64_CASE
+      DCHECK_IMPLIES(std::isnan(f64_k), std::isnan(result));
+      if (!std::isnan(result)) return __ Float64Constant(result);
+      if (!ensure_deterministic_nan) {
+        return __ Float64Constant(std::numeric_limits<double>::quiet_NaN());
+      }
     }
     return Next::ReduceFloatUnary(input, kind, rep);
   }
@@ -539,14 +543,11 @@ class MachineOptimizationReducer : public Next {
     if (float k1, k2; rep == FloatRepresentation::Float32() &&
                       matcher_.MatchFloat32Constant(lhs, &k1) &&
                       matcher_.MatchFloat32Constant(rhs, &k2)) {
-#define CONSTANT_F32_CASE(kind, op)                                       \
-  case Kind::kind: {                                                      \
-    float result = op;                                                    \
-    DCHECK_IMPLIES(std::isnan(k1) || std::isnan(k2), std::isnan(result)); \
-    if (!std::isnan(result)) return __ Float32Constant(result);           \
-    if (ensure_deterministic_nan) break;                                  \
-    return __ Float32Constant(std::numeric_limits<float>::quiet_NaN());   \
-  }
+      float result;
+#define CONSTANT_F32_CASE(kind, op) \
+  case Kind::kind:                  \
+    result = op;                    \
+    break;
       switch (kind) {
         CONSTANT_F32_CASE(kAdd, k1 + k2)
         CONSTANT_F32_CASE(kMul, k1 * k2)
@@ -560,21 +561,20 @@ class MachineOptimizationReducer : public Next {
           UNREACHABLE();
       }
 #undef CONSTANT_F32_CASE
+      DCHECK_IMPLIES(std::isnan(k1) || std::isnan(k2), std::isnan(result));
+      if (!std::isnan(result)) return __ Float32Constant(result);
+      if (!ensure_deterministic_nan) {
+        return __ Float32Constant(std::numeric_limits<float>::quiet_NaN());
+      }
     }
     if (double k1, k2; rep == FloatRepresentation::Float64() &&
                        matcher_.MatchFloat64Constant(lhs, &k1) &&
                        matcher_.MatchFloat64Constant(rhs, &k2)) {
-#define CONSTANT_F64_CASE(kind, op)                                      \
-  case Kind::kind: {                                                     \
-    double result = op;                                                  \
-    DCHECK_IMPLIES(                                                      \
-        std::isnan(k1) || std::isnan(k2),                                \
-        std::isnan(result) || (Kind::kind == Kind::kPower &&             \
-                               k2 == 0) /* Special case: NaN^0 == 1 */); \
-    if (!std::isnan(result)) return __ Float64Constant(result);          \
-    if (ensure_deterministic_nan) break;                                 \
-    return __ Float64Constant(std::numeric_limits<double>::quiet_NaN()); \
-  }
+      double result;
+#define CONSTANT_F64_CASE(kind, op) \
+  case Kind::kind:                  \
+    result = op;                    \
+    break;
       switch (kind) {
         CONSTANT_F64_CASE(kAdd, k1 + k2)
         CONSTANT_F64_CASE(kMul, k1 * k2)
@@ -587,6 +587,14 @@ class MachineOptimizationReducer : public Next {
         CONSTANT_F64_CASE(kAtan2, base::ieee754::atan2(k1, k2))
       }
 #undef CONSTANT_F64_CASE
+      DCHECK_IMPLIES(
+          std::isnan(k1) || std::isnan(k2),
+          std::isnan(result) ||
+              (kind == Kind::kPower && k2 == 0) /* Special case: NaN^0 == 1 */);
+      if (!std::isnan(result)) return __ Float64Constant(result);
+      if (!ensure_deterministic_nan) {
+        return __ Float64Constant(std::numeric_limits<double>::quiet_NaN());
+      }
     }
 
     // All NaN folding is disabled for Wasm; architectures disagree on which
@@ -806,8 +814,7 @@ class MachineOptimizationReducer : public Next {
       }
     }
 
-    if (kind == WordBinopOp::Kind::kBitwiseAnd &&
-        rep == WordRepresentation::Word32()) {
+    if (kind == Kind::kBitwiseAnd && rep == WordRepresentation::Word32()) {
       if (auto right_bitfield = detail::BitfieldCheck::Detect(
               matcher_, __ output_graph(), right)) {
         if (auto left_bitfield = detail::BitfieldCheck::Detect(
@@ -1031,11 +1038,11 @@ class MachineOptimizationReducer : public Next {
             }
           }
           break;
-        case WordBinopOp::Kind::kSignedDiv:
+        case Kind::kSignedDiv:
           return ReduceSignedDiv(left, right_value_signed, rep);
-        case WordBinopOp::Kind::kUnsignedDiv:
+        case Kind::kUnsignedDiv:
           return ReduceUnsignedDiv(left, right_value, rep);
-        case WordBinopOp::Kind::kSignedMod:
+        case Kind::kSignedMod:
           // left % 0  =>  0
           // left % 1  =>  0
           // left % -1  =>  0
@@ -1068,7 +1075,7 @@ class MachineOptimizationReducer : public Next {
           // multiplication, avoiding the expensive integer division.
           return __ WordSub(
               left, __ WordMul(__ IntDiv(left, right, rep), right, rep), rep);
-        case WordBinopOp::Kind::kUnsignedMod:
+        case Kind::kUnsignedMod:
           // left % 0  =>  0
           // left % 1  =>  0
           if (right_value == 0 || right_value == 1) {
@@ -1083,8 +1090,8 @@ class MachineOptimizationReducer : public Next {
           // multiplication, avoiding the expensive integer division.
           return __ WordSub(
               left, __ WordMul(right, __ UintDiv(left, right, rep), rep), rep);
-        case WordBinopOp::Kind::kSignedMulOverflownBits:
-        case WordBinopOp::Kind::kUnsignedMulOverflownBits:
+        case Kind::kSignedMulOverflownBits:
+        case Kind::kUnsignedMulOverflownBits:
           break;
       }
     }
@@ -1118,28 +1125,28 @@ class MachineOptimizationReducer : public Next {
       switch (kind) {
         // x & x  =>  x
         // x | x  =>  x
-        case WordBinopOp::Kind::kBitwiseAnd:
-        case WordBinopOp::Kind::kBitwiseOr:
+        case Kind::kBitwiseAnd:
+        case Kind::kBitwiseOr:
           return x;
         // x ^ x  =>  0
         // x - x  =>  0
         // x % x  =>  0
-        case WordBinopOp::Kind::kBitwiseXor:
-        case WordBinopOp::Kind::kSub:
-        case WordBinopOp::Kind::kSignedMod:
-        case WordBinopOp::Kind::kUnsignedMod:
+        case Kind::kBitwiseXor:
+        case Kind::kSub:
+        case Kind::kSignedMod:
+        case Kind::kUnsignedMod:
           return __ WordConstant(0, rep);
         // x / x  =>  x != 0
-        case WordBinopOp::Kind::kSignedDiv:
-        case WordBinopOp::Kind::kUnsignedDiv: {
+        case Kind::kSignedDiv:
+        case Kind::kUnsignedDiv: {
           V<Word> zero = __ WordConstant(0, rep);
           V<Word32> result = __ Word32Equal(__ Equal(left, zero, rep), 0);
           return __ ZeroExtendWord32ToRep(result, rep);
         }
-        case WordBinopOp::Kind::kAdd:
-        case WordBinopOp::Kind::kMul:
-        case WordBinopOp::Kind::kSignedMulOverflownBits:
-        case WordBinopOp::Kind::kUnsignedMulOverflownBits:
+        case Kind::kAdd:
+        case Kind::kMul:
+        case Kind::kSignedMulOverflownBits:
+        case Kind::kUnsignedMulOverflownBits:
           break;
       }
     }
