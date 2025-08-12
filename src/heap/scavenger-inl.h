@@ -80,6 +80,37 @@ bool Scavenger::MigrateObject(Tagged<Map> map, Tagged<HeapObject> source,
   return true;
 }
 
+template <typename THeapObjectSlot, typename OnSuccessCallback>
+bool Scavenger::TryMigrateObject(Tagged<Map> map, THeapObjectSlot slot,
+                                 Tagged<HeapObject> object,
+                                 SafeHeapObjectSize object_size,
+                                 AllocationSpace space,
+                                 PromotionHeapChoice promotion_heap_choice,
+                                 OnSuccessCallback on_success) {
+  AllocationAlignment alignment = HeapObject::RequiredAlignment(space, map);
+  AllocationResult allocation =
+      allocator_.Allocate(space, object_size, alignment);
+
+  Tagged<HeapObject> target;
+  if (allocation.To(&target)) {
+    DCHECK(heap()->marking_state()->IsUnmarked(target));
+    const bool self_success =
+        MigrateObject(map, object, target, object_size, promotion_heap_choice);
+    if (!self_success) {
+      allocator_.FreeLast(space, target, object_size);
+      MapWord map_word = object->map_word(kRelaxedLoad);
+      UpdateHeapObjectReferenceSlot(slot, map_word.ToForwardingAddress(object));
+      SynchronizePageAccess(*slot);
+      DCHECK(!Heap::InFromPage(*slot));
+      return true;
+    }
+    UpdateHeapObjectReferenceSlot(slot, target);
+    on_success(target);
+    return true;
+  }
+  return false;
+}
+
 template <typename THeapObjectSlot>
 CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
     Tagged<Map> map, THeapObjectSlot slot, Tagged<HeapObject> object,
@@ -88,30 +119,14 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
                     std::is_same_v<THeapObjectSlot, HeapObjectSlot>,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   DCHECK(heap()->AllowedToBeMigrated(map, object, NEW_SPACE));
-  AllocationAlignment alignment = HeapObject::RequiredAlignment(NEW_SPACE, map);
-  AllocationResult allocation =
-      allocator_.Allocate(NEW_SPACE, object_size, alignment);
-
-  Tagged<HeapObject> target;
-  if (allocation.To(&target)) {
-    DCHECK(heap()->marking_state()->IsUnmarked(target));
-    const bool self_success =
-        MigrateObject(map, object, target, object_size, kPromoteIntoLocalHeap);
-    if (!self_success) {
-      allocator_.FreeLast(NEW_SPACE, target, object_size);
-      MapWord map_word = object->map_word(kRelaxedLoad);
-      UpdateHeapObjectReferenceSlot(slot, map_word.ToForwardingAddress(object));
-      SynchronizePageAccess(*slot);
-      DCHECK(!Heap::InFromPage(*slot));
-      return Heap::InToPage(*slot)
-                 ? CopyAndForwardResult::SUCCESS_YOUNG_GENERATION
-                 : CopyAndForwardResult::SUCCESS_OLD_GENERATION;
-    }
-    UpdateHeapObjectReferenceSlot(slot, target);
-    if (object_fields == ObjectFields::kMaybePointers) {
-      local_copied_list_.Push(target);
-    }
-    copied_size_ += object_size.value();
+  if (TryMigrateObject(
+          map, slot, object, object_size, NEW_SPACE, kPromoteIntoLocalHeap,
+          [this, object_fields, object_size](Tagged<HeapObject> target) {
+            copied_size_ += object_size.value();
+            if (object_fields == ObjectFields::kMaybePointers) {
+              local_copied_list_.Push(target);
+            }
+          })) {
     return CopyAndForwardResult::SUCCESS_YOUNG_GENERATION;
   }
   return CopyAndForwardResult::FAILURE;
@@ -131,34 +146,17 @@ CopyAndForwardResult Scavenger::PromoteObject(Tagged<Map> map,
             Heap::kMinObjectSizeInTaggedWords * kTaggedSize);
   AllocationSpace target_space =
       promotion_heap_choice == kPromoteIntoLocalHeap ? OLD_SPACE : SHARED_SPACE;
-  AllocationAlignment alignment =
-      HeapObject::RequiredAlignment(target_space, map);
-  AllocationResult allocation =
-      allocator_.Allocate(target_space, object_size, alignment);
-
-  Tagged<HeapObject> target;
-  if (allocation.To(&target)) {
-    DCHECK(heap()->non_atomic_marking_state()->IsUnmarked(target));
-    const bool self_success =
-        MigrateObject(map, object, target, object_size, promotion_heap_choice);
-    if (!self_success) {
-      allocator_.FreeLast(target_space, target, object_size);
-
-      MapWord map_word = object->map_word(kRelaxedLoad);
-      UpdateHeapObjectReferenceSlot(slot, map_word.ToForwardingAddress(object));
-      SynchronizePageAccess(*slot);
-      DCHECK(!Heap::InFromPage(*slot));
-      return Heap::InToPage(*slot)
-                 ? CopyAndForwardResult::SUCCESS_YOUNG_GENERATION
-                 : CopyAndForwardResult::SUCCESS_OLD_GENERATION;
-    }
-    UpdateHeapObjectReferenceSlot(slot, target);
-
-    if (object_fields == ObjectFields::kMaybePointers) {
-      local_promoted_list_.Push({target, map, object_size});
-    }
-    promoted_size_ += object_size.value();
-    return CopyAndForwardResult::SUCCESS_OLD_GENERATION;
+  if (TryMigrateObject(
+          map, slot, object, object_size, target_space, promotion_heap_choice,
+          [this, map, object_fields, object_size](Tagged<HeapObject> target) {
+            promoted_size_ += object_size.value();
+            if (object_fields == ObjectFields::kMaybePointers) {
+              local_promoted_list_.Push({target, map, object_size});
+            }
+          })) {
+    return Heap::InToPage(*slot)
+               ? CopyAndForwardResult::SUCCESS_YOUNG_GENERATION
+               : CopyAndForwardResult::SUCCESS_OLD_GENERATION;
   }
   return CopyAndForwardResult::FAILURE;
 }

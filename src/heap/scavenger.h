@@ -134,6 +134,14 @@ class Scavenger {
   V8_INLINE SlotCallbackResult
   RememberedSetEntryNeeded(CopyAndForwardResult result);
 
+  template <typename THeapObjectSlot, typename OnSuccessCallback>
+  V8_INLINE bool TryMigrateObject(Tagged<Map> map, THeapObjectSlot slot,
+                                  Tagged<HeapObject> object,
+                                  SafeHeapObjectSize object_size,
+                                  AllocationSpace space,
+                                  PromotionHeapChoice promotion_heap_choice,
+                                  OnSuccessCallback on_success);
+
   template <typename THeapObjectSlot>
   V8_INLINE CopyAndForwardResult SemiSpaceCopyObject(
       Tagged<Map> map, THeapObjectSlot slot, Tagged<HeapObject> object,
