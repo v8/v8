@@ -17363,8 +17363,10 @@ ForOfNextResult CodeStubAssembler::ForOfNextHelper(TNode<Context> context,
   // Fast path for JSArrayIterator.
   {
     TNode<JSArrayIterator> array_iterator = CAST(object);
-    TNode<JSArray> iterated_array = CAST(LoadObjectField(
-        array_iterator, JSArrayIterator::kIteratedObjectOffset));
+    TNode<JSReceiver> iterated_object = LoadObjectField<JSReceiver>(
+        array_iterator, JSArrayIterator::kIteratedObjectOffset);
+    GotoIfNot(IsJSArray(iterated_object), &slow_path);
+    TNode<JSArray> iterated_array = CAST(iterated_object);
 
     TNode<Map> map = LoadMap(iterated_array);
     TNode<Int32T> elements_kind = LoadMapElementsKind(map);
