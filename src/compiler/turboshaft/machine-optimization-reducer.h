@@ -539,11 +539,13 @@ class MachineOptimizationReducer : public Next {
     if (float k1, k2; rep == FloatRepresentation::Float32() &&
                       matcher_.MatchFloat32Constant(lhs, &k1) &&
                       matcher_.MatchFloat32Constant(rhs, &k2)) {
-#define CONSTANT_F32_CASE(kind, op)                            \
-  case Kind::kind: {                                           \
-    float result = op;                                         \
-    if (ensure_deterministic_nan && std::isnan(result)) break; \
-    return __ Float32Constant(result);                         \
+#define CONSTANT_F32_CASE(kind, op)                                       \
+  case Kind::kind: {                                                      \
+    float result = op;                                                    \
+    DCHECK_IMPLIES(std::isnan(k1) || std::isnan(k2), std::isnan(result)); \
+    if (!std::isnan(result)) return __ Float32Constant(result);           \
+    if (ensure_deterministic_nan) break;                                  \
+    return __ Float32Constant(std::numeric_limits<float>::quiet_NaN());   \
   }
       switch (kind) {
         CONSTANT_F32_CASE(kAdd, k1 + k2)
@@ -562,11 +564,16 @@ class MachineOptimizationReducer : public Next {
     if (double k1, k2; rep == FloatRepresentation::Float64() &&
                        matcher_.MatchFloat64Constant(lhs, &k1) &&
                        matcher_.MatchFloat64Constant(rhs, &k2)) {
-#define CONSTANT_F64_CASE(kind, op)                            \
-  case Kind::kind: {                                           \
-    double result = op;                                        \
-    if (ensure_deterministic_nan && std::isnan(result)) break; \
-    return __ Float64Constant(result);                         \
+#define CONSTANT_F64_CASE(kind, op)                                      \
+  case Kind::kind: {                                                     \
+    double result = op;                                                  \
+    DCHECK_IMPLIES(                                                      \
+        std::isnan(k1) || std::isnan(k2),                                \
+        std::isnan(result) || (Kind::kind == Kind::kPower &&             \
+                               k2 == 0) /* Special case: NaN^0 == 1 */); \
+    if (!std::isnan(result)) return __ Float64Constant(result);          \
+    if (ensure_deterministic_nan) break;                                 \
+    return __ Float64Constant(std::numeric_limits<double>::quiet_NaN()); \
   }
       switch (kind) {
         CONSTANT_F64_CASE(kAdd, k1 + k2)
