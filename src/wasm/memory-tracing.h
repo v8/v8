@@ -12,6 +12,7 @@
 #include <cstdint>
 
 #include "src/codegen/machine-type.h"
+#include "src/wasm/value-type.h"
 #include "src/wasm/wasm-tier.h"
 
 namespace v8::internal::wasm {
@@ -32,6 +33,11 @@ struct MemoryTracingInfo {
         mem_index(mem_index),
         is_store(is_store),
         mem_rep(static_cast<uint8_t>(rep)) {}
+};
+
+struct GlobalTracingInfo {
+  uint32_t global_index;
+  uint8_t is_store;  // 0 or 1
 };
 
 }  // namespace v8::internal::wasm

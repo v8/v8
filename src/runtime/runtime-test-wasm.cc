@@ -600,6 +600,42 @@ void PrintRep(Address address, const char* str) {
 
 }  // namespace
 
+RUNTIME_FUNCTION(Runtime_WasmTraceGlobal) {
+  CHECK(v8_flags.trace_wasm_globals);
+
+  SealHandleScope scope(isolate);
+  if (args.length() != 1 || !IsSmi(args[0])) {
+    return CrashUnlessFuzzing(isolate);
+  }
+  DisallowGarbageCollection no_gc;
+  auto info_addr = Cast<Smi>(args[0]);
+
+  wasm::GlobalTracingInfo* info =
+      reinterpret_cast<wasm::GlobalTracingInfo*>(info_addr.ptr());
+
+  wasm::WasmCodeRefScope wasm_code_ref_scope;
+  DebuggableStackFrameIterator it(isolate);
+  DCHECK(!it.done());
+  DCHECK(it.is_wasm());
+  WasmFrame* frame = WasmFrame::cast(it.frame());
+  Tagged<WasmInstanceObject> instance = frame->wasm_instance();
+
+  const wasm::WasmGlobal& global =
+      instance->module()->globals[info->global_index];
+
+  const char* tier = wasm::ExecutionTierToString(frame->wasm_code()->tier());
+
+  wasm::WasmValue value =
+      instance->trusted_data(isolate)->GetGlobalValue(isolate, global);
+
+  PrintF("%-11s func:%6d:0x%-4x global.%s %d val: %s\n", tier,
+         frame->function_index(), frame->position(),
+         info->is_store ? "set" : "get", info->global_index,
+         value.to_string().c_str());
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   SealHandleScope scope(isolate);
   if (args.length() != 1 || !IsSmi(args[0])) {
@@ -621,10 +657,9 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
 #endif  // V8_ENABLE_DRUMBRAKE
   WasmFrame* frame = WasmFrame::cast(it.frame());
 
-  PrintF("%-11s func:%6d:0x%-4x mem:%d %s %016" PRIuPTR " val: ",
-         ExecutionTierToString(frame->wasm_code()->is_liftoff()
-                                   ? wasm::ExecutionTier::kLiftoff
-                                   : wasm::ExecutionTier::kTurbofan),
+  const char* tier = wasm::ExecutionTierToString(frame->wasm_code()->tier());
+
+  PrintF("%-11s func:%6d:0x%-4x mem:%d %s %016" PRIuPTR " val: ", tier,
          frame->function_index(), frame->position(), info->mem_index,
          // Note: The extra leading space makes " store to" the same width as
          // "load from".

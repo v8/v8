@@ -278,6 +278,7 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
     case Runtime::kWasmTraceEnter:
     case Runtime::kWasmTraceExit:
     case Runtime::kWasmTraceMemory:
+    case Runtime::kWasmTraceGlobal:
     case Runtime::kCheckIsOnCentralStack:
     case Runtime::kSetWasmInstantiateControls:
     case Runtime::kWasmNull:

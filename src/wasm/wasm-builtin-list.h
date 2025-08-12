@@ -60,6 +60,7 @@ namespace v8::internal::wasm {
   V(WasmTraceEnter)                                                            \
   V(WasmTraceExit)                                                             \
   V(WasmTraceMemory)                                                           \
+  V(WasmTraceGlobal)                                                           \
   V(BigIntToI32Pair)                                                           \
   V(BigIntToI64)                                                               \
   V(CallRefIC)                                                                 \

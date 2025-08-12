@@ -901,12 +901,20 @@ class TurboshaftGraphBuildingInterface
                  const GlobalIndexImmediate& imm) {
     bool shared = decoder->module_->globals[imm.index].shared;
     result->op = __ GlobalGet(trusted_instance_data(shared), imm.global);
+
+    if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
+      TraceGlobalOperation(decoder, imm.index, false);
+    }
   }
 
   void GlobalSet(FullDecoder* decoder, const Value& value,
                  const GlobalIndexImmediate& imm) {
     bool shared = decoder->module_->globals[imm.index].shared;
     __ GlobalSet(trusted_instance_data(shared), value.op, imm.global);
+
+    if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
+      TraceGlobalOperation(decoder, imm.index, true);
+    }
   }
 
   void Trap(FullDecoder* decoder, TrapReason reason) {
@@ -7640,6 +7648,29 @@ class TurboshaftGraphBuildingInterface
     return result.NotLoadEliminable();
   }
 
+  void TraceGlobalOperation(FullDecoder* decoder, uint32_t global_index,
+                            bool is_store) {
+    constexpr int kAlign = alignof(GlobalTracingInfo);
+    // A side benefit of the alignment is that the last bit is 0, so when we
+    // pass {info} to the runtime function in a stack slot, it looks like a
+    // tagged value (Smi), as runtime function parameters need to.
+    static_assert(kAlign >= 2 && ((kAlign & 1) == 0));
+
+    // TODO(nikolaskaipel): reuse stack slot so it doesn't grow lineraly with
+    // number of global operations
+    V<WordPtr> info = __ StackSlot(sizeof(GlobalTracingInfo), kAlign);
+
+    __ Store(info, __ Word32Constant(global_index), StoreOp::Kind::RawAligned(),
+             MemoryRepresentation::Uint32(), compiler::kNoWriteBarrier,
+             offsetof(GlobalTracingInfo, global_index));
+    __ Store(info, __ Word32Constant(is_store ? 1 : 0),
+             StoreOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
+             compiler::kNoWriteBarrier, offsetof(GlobalTracingInfo, is_store));
+
+    __ WasmCallRuntime(decoder->zone(), Runtime::kWasmTraceGlobal, {info},
+                       __ NoContextConstant());
+  }
+
   void TraceMemoryOperation(FullDecoder* decoder, bool is_store,
                             uint32_t mem_index, MemoryRepresentation repr,
                             V<WordPtr> index, uintptr_t offset) {
@@ -7648,6 +7679,9 @@ class TurboshaftGraphBuildingInterface
     // pass {info} to the runtime function in a stack slot, it looks like a
     // tagged value (Smi), as runtime function parameters need to.
     static_assert(kAlign >= 2 && ((kAlign & 1) == 0));
+
+    // TODO(nikolaskaipel): reuse stack slot so it doesn't grow lineraly with
+    // number of memory operations
     V<WordPtr> info = __ StackSlot(sizeof(MemoryTracingInfo), kAlign);
     V<WordPtr> effective_offset = __ WordPtrAdd(index, offset);
     __ Store(info, effective_offset, StoreOp::Kind::RawAligned(),

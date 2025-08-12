@@ -3273,6 +3273,10 @@ class LiftoffCompiler {
     LoadType type = LoadType::ForValueKind(kind);
     __ Load(value, addr, no_reg, offset, type, nullptr, false);
     __ PushRegister(kind, value);
+
+    if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
+      TraceGlobalOperation(imm.index, false, decoder->position());
+    }
   }
 
   void GlobalSet(FullDecoder* decoder, const Value&,
@@ -3313,6 +3317,10 @@ class LiftoffCompiler {
     LiftoffRegister reg = pinned.set(__ PopToRegister(pinned));
     StoreType type = StoreType::ForValueKind(kind);
     __ Store(addr, no_reg, offset, reg, type, {}, nullptr, false);
+
+    if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
+      TraceGlobalOperation(imm.index, true, decoder->position());
+    }
   }
 
   void TableGet(FullDecoder* decoder, const Value&, Value*,
@@ -3811,6 +3819,40 @@ class LiftoffCompiler {
       __ emit_cond_jump(kNotEqual, trap.label(), kI32, address, no_reg,
                         trap.frozen());
     }
+  }
+
+  void TraceGlobalOperation(uint32_t global_index, bool is_store,
+                            WasmCodePosition position) {
+    __ SpillAllRegisters();
+
+    LiftoffRegList pinned;
+
+    LiftoffRegister info = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    __ AllocateStackSlot(info.gp(), sizeof(GlobalTracingInfo));
+
+    LiftoffRegister data = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+
+    __ LoadConstant(data, WasmValue(global_index));
+    __ Store(info.gp(), no_reg, offsetof(GlobalTracingInfo, global_index), data,
+             StoreType::kI32Store, pinned);
+    __ LoadConstant(data, WasmValue(is_store ? 1 : 0));
+    __ Store(info.gp(), no_reg, offsetof(GlobalTracingInfo, is_store), data,
+             StoreType::kI32Store8, pinned);
+
+    WasmTraceGlobalDescriptor descriptor;
+    DCHECK_EQ(0, descriptor.GetStackParameterCount());
+    DCHECK_EQ(1, descriptor.GetRegisterParameterCount());
+    Register param_reg = descriptor.GetRegisterParameter(0);
+    if (info.gp() != param_reg) {
+      __ Move(param_reg, info.gp(), kIntPtrKind);
+    }
+
+    source_position_table_builder_.AddPosition(__ pc_offset(),
+                                               SourcePosition(position), false);
+    __ CallBuiltin(Builtin::kWasmTraceGlobal);
+    DefineSafepoint();
+
+    __ DeallocateStackSlot(sizeof(GlobalTracingInfo));
   }
 
   void TraceMemoryOperation(bool is_store, uint32_t mem_index,

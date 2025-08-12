@@ -34,7 +34,8 @@ extern runtime WasmReThrow(Context, Object): JSAny;
 extern runtime WasmTriggerTierUp(Context, WasmTrustedInstanceData): JSAny;
 extern runtime WasmStackGuard(Context, Smi): JSAny;
 extern runtime ThrowWasmStackOverflow(Context): JSAny;
-extern runtime WasmTraceMemory(Context, Smi): JSAny;
+extern runtime WasmTraceGlobal(NoContext, Smi): JSAny;
+extern runtime WasmTraceMemory(NoContext, Smi): JSAny;
 extern runtime WasmTraceEnter(Context): JSAny;
 extern runtime WasmTraceExit(Context, Smi): JSAny;
 extern runtime WasmI32AtomicWait(
@@ -491,8 +492,12 @@ builtin WasmStackOverflow(): JSAny {
   tail runtime::ThrowWasmStackOverflow(LoadContextFromFrame());
 }
 
+builtin WasmTraceGlobal(info: Smi): JSAny {
+  tail runtime::WasmTraceGlobal(kNoContext, info);
+}
+
 builtin WasmTraceMemory(info: Smi): JSAny {
-  tail runtime::WasmTraceMemory(LoadContextFromFrame(), info);
+  tail runtime::WasmTraceMemory(kNoContext, info);
 }
 
 builtin WasmTraceEnter(): JSAny {
