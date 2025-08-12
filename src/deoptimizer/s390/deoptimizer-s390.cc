@@ -4,6 +4,7 @@
 
 #include "src/codegen/flush-instruction-cache.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/common/code-memory-access-inl.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/isolate-data.h"
 
@@ -32,6 +33,7 @@ void Deoptimizer::ZapCode(Address start, Address end, RelocIterator& it) {
 
 // static
 void Deoptimizer::PatchToJump(Address pc, Address new_pc) {
+  RwxMemoryWriteScope rwx_write_scope("Patch jump to deopt trampoline");
   // Give enough space not to try to grow the buffer.
   constexpr int kSize = 64;
 
