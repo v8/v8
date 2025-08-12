@@ -4647,8 +4647,12 @@ TEST(FastApiCPUProfiler) {
 
   v8::Local<v8::Object> object =
       object_template->NewInstance(env.local()).ToLocalChecked();
+
+  constexpr v8::EmbedderDataTypeTag kFastApiReceiverTag = 1;
+
   object->SetAlignedPointerInInternalField(kV8WrapperObjectIndex,
-                                           reinterpret_cast<void*>(&receiver));
+                                           reinterpret_cast<void*>(&receiver),
+                                           kFastApiReceiverTag);
 
   int num_runs_arg = 100;
   env->Global()->Set(env.local(), v8_str("receiver"), object).Check();

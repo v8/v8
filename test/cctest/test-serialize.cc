@@ -78,6 +78,9 @@ namespace internal {
 
 namespace {
 
+constexpr EmbedderDataTypeTag kInternalFieldDataTag = 1;
+constexpr EmbedderDataTypeTag kRawDataTag = 2;
+
 // A convenience struct to simplify management of the blobs required to
 // deserialize an isolate.
 struct StartupBlobs {
@@ -984,13 +987,15 @@ std::vector<InternalFieldData*> deserialized_data;
 void DeserializeInternalFields(v8::Local<v8::Object> holder, int index,
                                v8::StartupData payload, void* data) {
   if (payload.raw_size == 0) {
-    holder->SetAlignedPointerInInternalField(index, nullptr);
+    holder->SetAlignedPointerInInternalField(index, nullptr,
+                                             kInternalFieldDataTag);
     return;
   }
   CHECK_EQ(reinterpret_cast<void*>(2017), data);
   InternalFieldData* embedder_field = new InternalFieldData{0};
   memcpy(embedder_field, payload.data, payload.raw_size);
-  holder->SetAlignedPointerInInternalField(index, embedder_field);
+  holder->SetAlignedPointerInInternalField(index, embedder_field,
+                                           kInternalFieldDataTag);
   deserialized_data.push_back(embedder_field);
 }
 
@@ -4073,9 +4078,9 @@ void TestSnapshotCreatorTemplates(bool promote_templates_to_read_only) {
       a->SetInternalField(0, b);
       b->SetInternalField(0, c);
 
-      a->SetAlignedPointerInInternalField(1, a1);
-      b->SetAlignedPointerInInternalField(1, b1);
-      c->SetAlignedPointerInInternalField(1, c1);
+      a->SetAlignedPointerInInternalField(1, a1, kInternalFieldDataTag);
+      b->SetAlignedPointerInInternalField(1, b1, kInternalFieldDataTag);
+      c->SetAlignedPointerInInternalField(1, c1, kInternalFieldDataTag);
 
       a->SetInternalField(2, resource_external);
       b->SetInternalField(2, field_external);
@@ -4283,7 +4288,7 @@ void DeserializeInternalFields(v8::Local<v8::Object> holder, int index,
   InternalFieldData* field = new InternalFieldData{0};
   memcpy(field, payload.data, payload.raw_size);
   CHECK_EQ(object_data.data, field->data);
-  holder->SetAlignedPointerInInternalField(index, field);
+  holder->SetAlignedPointerInInternalField(index, field, kInternalFieldDataTag);
 }
 
 void DeserializeContextData(v8::Local<v8::Context> context, int index,
@@ -4293,7 +4298,7 @@ void DeserializeContextData(v8::Local<v8::Context> context, int index,
   InternalFieldData* field = new InternalFieldData{0};
   memcpy(field, payload.data, payload.raw_size);
   CHECK_EQ(context_data.data, field->data);
-  context->SetAlignedPointerInEmbedderData(index, field);
+  context->SetAlignedPointerInEmbedderData(index, field, kInternalFieldDataTag);
 }
 
 }  // namespace context_data_test
@@ -4324,18 +4329,18 @@ UNINITIALIZED_TEST(SerializeContextData) {
         v8::HandleScope handle_scope(isolate);
         v8::Local<v8::Context> context = v8::Context::New(isolate);
         v8::Context::Scope context_scope(context);
-        context->SetAlignedPointerInEmbedderData(0, nullptr);
+        context->SetAlignedPointerInEmbedderData(0, nullptr, kRawDataTag);
         context->SetAlignedPointerInEmbedderData(
-            1, &context_data_test::context_data);
+            1, &context_data_test::context_data, kRawDataTag);
 
         v8::Local<v8::ObjectTemplate> object_template =
             v8::ObjectTemplate::New(isolate);
         object_template->SetInternalFieldCount(2);
         v8::Local<v8::Object> obj =
             object_template->NewInstance(context).ToLocalChecked();
-        obj->SetAlignedPointerInInternalField(0, nullptr);
-        obj->SetAlignedPointerInInternalField(1,
-                                              &context_data_test::object_data);
+        obj->SetAlignedPointerInInternalField(0, nullptr, kRawDataTag);
+        obj->SetAlignedPointerInInternalField(
+            1, &context_data_test::object_data, kRawDataTag);
 
         CHECK(context->Global()->Set(context, v8_str("obj"), obj).FromJust());
         creator.SetDefaultContext(context, serialize_internal_fields,
@@ -4362,7 +4367,7 @@ UNINITIALIZED_TEST(SerializeContextData) {
         InternalFieldData* data = static_cast<InternalFieldData*>(
             context->GetAlignedPointerFromEmbedderData(1));
         CHECK_EQ(context_data_test::context_data.data, data->data);
-        context->SetAlignedPointerInEmbedderData(1, nullptr);
+        context->SetAlignedPointerInEmbedderData(1, nullptr, kRawDataTag);
         delete data;
 
         v8::Local<v8::Value> obj_val =
@@ -4372,7 +4377,7 @@ UNINITIALIZED_TEST(SerializeContextData) {
         InternalFieldData* field = static_cast<InternalFieldData*>(
             obj->GetAlignedPointerFromInternalField(1));
         CHECK_EQ(context_data_test::object_data.data, field->data);
-        obj->SetAlignedPointerInInternalField(1, nullptr);
+        obj->SetAlignedPointerInInternalField(1, nullptr, kRawDataTag);
         delete field;
       }
       isolate->Dispose();
@@ -4393,18 +4398,18 @@ UNINITIALIZED_TEST(SerializeContextData) {
 
         v8::Local<v8::Context> context = v8::Context::New(isolate);
         v8::Context::Scope context_scope(context);
-        context->SetAlignedPointerInEmbedderData(0, nullptr);
+        context->SetAlignedPointerInEmbedderData(0, nullptr, kRawDataTag);
         context->SetAlignedPointerInEmbedderData(
-            1, &context_data_test::context_data);
+            1, &context_data_test::context_data, kRawDataTag);
 
         v8::Local<v8::ObjectTemplate> object_template =
             v8::ObjectTemplate::New(isolate);
         object_template->SetInternalFieldCount(2);
         v8::Local<v8::Object> obj =
             object_template->NewInstance(context).ToLocalChecked();
-        obj->SetAlignedPointerInInternalField(0, nullptr);
-        obj->SetAlignedPointerInInternalField(1,
-                                              &context_data_test::object_data);
+        obj->SetAlignedPointerInInternalField(0, nullptr, kRawDataTag);
+        obj->SetAlignedPointerInInternalField(
+            1, &context_data_test::object_data, kRawDataTag);
 
         CHECK(context->Global()->Set(context, v8_str("obj"), obj).FromJust());
         CHECK_EQ(0, creator.AddContext(context, serialize_internal_fields,
@@ -4433,7 +4438,7 @@ UNINITIALIZED_TEST(SerializeContextData) {
         InternalFieldData* data = static_cast<InternalFieldData*>(
             context->GetAlignedPointerFromEmbedderData(1));
         CHECK_EQ(context_data_test::context_data.data, data->data);
-        context->SetAlignedPointerInEmbedderData(1, nullptr);
+        context->SetAlignedPointerInEmbedderData(1, nullptr, kRawDataTag);
         delete data;
 
         v8::Local<v8::Value> obj_val =
@@ -4443,7 +4448,7 @@ UNINITIALIZED_TEST(SerializeContextData) {
         InternalFieldData* field = static_cast<InternalFieldData*>(
             obj->GetAlignedPointerFromInternalField(1));
         CHECK_EQ(context_data_test::object_data.data, field->data);
-        obj->SetAlignedPointerInInternalField(1, nullptr);
+        obj->SetAlignedPointerInInternalField(1, nullptr, kRawDataTag);
         delete field;
       }
       isolate->Dispose();
@@ -4468,8 +4473,8 @@ UNINITIALIZED_TEST(SerializeContextData) {
 
         v8::Local<v8::Context> context = v8::Context::New(isolate);
         v8::Context::Scope context_scope(context);
-        context->SetAlignedPointerInEmbedderData(0, nullptr);
-        context->SetAlignedPointerInEmbedderData(1, raw_data);
+        context->SetAlignedPointerInEmbedderData(0, nullptr, kRawDataTag);
+        context->SetAlignedPointerInEmbedderData(1, raw_data, kRawDataTag);
 
         v8::Local<v8::ObjectTemplate> object_template =
             v8::ObjectTemplate::New(isolate);

@@ -24,6 +24,9 @@ namespace internal {
 
 namespace {
 
+const v8::EmbedderDataTypeTag kInspectorIsolateDataTag = 1;
+const v8::EmbedderDataTypeTag kContextGroupIdTag = 2;
+
 const int kIsolateDataIndex = 2;
 const int kContextGroupIdIndex = 3;
 
@@ -131,10 +134,12 @@ bool InspectorIsolateData::CreateContext(int context_group_id,
   v8::Local<v8::Context> context =
       v8::Context::New(isolate_.get(), nullptr, global_template);
   if (context.IsEmpty()) return false;
-  context->SetAlignedPointerInEmbedderData(kIsolateDataIndex, this);
+  context->SetAlignedPointerInEmbedderData(kIsolateDataIndex, this,
+                                           kInspectorIsolateDataTag);
   // Should be 2-byte aligned.
   context->SetAlignedPointerInEmbedderData(
-      kContextGroupIdIndex, reinterpret_cast<void*>(context_group_id * 2));
+      kContextGroupIdIndex, reinterpret_cast<void*>(context_group_id * 2),
+      kContextGroupIdTag);
   contexts_[context_group_id].emplace_back(isolate_.get(), context);
   if (inspector_) FireContextCreated(context, context_group_id, name);
   return true;

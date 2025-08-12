@@ -1037,8 +1037,14 @@ bool HeapObject::IsLazilyInitializedExternalPointerFieldInitialized(
 template <ExternalPointerTag tag>
 void HeapObject::WriteLazilyInitializedExternalPointerField(
     size_t offset, IsolateForSandbox isolate, Address value) {
+  WriteLazilyInitializedExternalPointerField(offset, isolate, value, tag);
+}
+
+void HeapObject::WriteLazilyInitializedExternalPointerField(
+    size_t offset, IsolateForSandbox isolate, Address value,
+    ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
-  static_assert(tag != kExternalPointerNullTag);
+  DCHECK_NE(tag, kExternalPointerNullTag);
   ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag);
   auto location =
       reinterpret_cast<ExternalPointerHandle*>(field_address(offset));

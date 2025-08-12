@@ -133,7 +133,8 @@ class EmbedderDataSlot
   // Returns true if the pointer was successfully stored or false it the pointer
   // was improperly aligned.
   V8_INLINE V8_WARN_UNUSED_RESULT bool store_aligned_pointer(
-      IsolateForSandbox isolate, Tagged<HeapObject> host, void* ptr);
+      IsolateForSandbox isolate, Tagged<HeapObject> host, void* ptr,
+      ExternalPointerTag tag);
 
 #ifdef V8_ENABLE_SANDBOX
   V8_INLINE V8_WARN_UNUSED_RESULT bool store_handle(

@@ -31,6 +31,8 @@ using ::v8::Value;
 
 namespace {
 
+constexpr v8::EmbedderDataTypeTag kApiInterceptorTag = 1;
+
 void Returns42(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(42);
 }
@@ -5996,7 +5998,7 @@ Local<Object> BuildWrappedObject(v8::Isolate* isolate, T* data) {
   templ->SetInternalFieldCount(1);
   auto instance =
       templ->NewInstance(isolate->GetCurrentContext()).ToLocalChecked();
-  instance->SetAlignedPointerInInternalField(0, data);
+  instance->SetAlignedPointerInInternalField(0, data, kApiInterceptorTag);
   return instance;
 }
 

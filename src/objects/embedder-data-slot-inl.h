@@ -136,8 +136,8 @@ bool EmbedderDataSlot::DeprecatedToAlignedPointer(IsolateForSandbox isolate,
 }
 
 bool EmbedderDataSlot::store_aligned_pointer(IsolateForSandbox isolate,
-                                             Tagged<HeapObject> host,
-                                             void* ptr) {
+                                             Tagged<HeapObject> host, void* ptr,
+                                             ExternalPointerTag tag) {
   Address value = reinterpret_cast<Address>(ptr);
   if (!HAS_SMI_TAG(value)) return false;
 #ifdef V8_ENABLE_SANDBOX
@@ -151,8 +151,7 @@ bool EmbedderDataSlot::store_aligned_pointer(IsolateForSandbox isolate,
   // determine whether the slot needs to be initialized, in which case a write
   // barrier can be performed here.
   size_t offset = address() - host.address() + kExternalPointerOffset;
-  host->WriteLazilyInitializedExternalPointerField<kEmbedderDataSlotPayloadTag>(
-      offset, isolate, value);
+  host->WriteLazilyInitializedExternalPointerField(offset, isolate, value, tag);
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi::zero());
   return true;
 #else

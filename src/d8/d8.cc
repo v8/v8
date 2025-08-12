@@ -135,6 +135,8 @@ namespace {
 // Set on worker threads to the current Worker instance.
 thread_local Worker* current_worker_ = nullptr;
 
+constexpr v8::EmbedderDataTypeTag kInspectorClientTag = 1;
+
 #ifdef V8_FUZZILLI
 bool fuzzilli_reprl = true;
 #else
@@ -5153,7 +5155,8 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
         inspector_->connect(1, channel_.get(), v8_inspector::StringView(),
                             v8_inspector::V8Inspector::kFullyTrusted,
                             v8_inspector::V8Inspector::kNotWaitingForDebugger);
-    context->SetAlignedPointerInEmbedderData(kInspectorClientIndex, this);
+    context->SetAlignedPointerInEmbedderData(kInspectorClientIndex, this,
+                                             kInspectorClientTag);
     inspector_->contextCreated(v8_inspector::V8ContextInfo(
         context, kContextGroupId, v8_inspector::StringView()));
 

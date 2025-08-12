@@ -17,6 +17,8 @@
 
 namespace {
 
+constexpr v8::EmbedderDataTypeTag kPerContextDataTag = 1;
+
 v8::Local<v8::String> v8_str(const char* x) {
   return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), x).ToLocalChecked();
 }
@@ -213,7 +215,8 @@ class BindingsBenchmarkBase : public v8::benchmarking::BenchmarkWithIsolate {
 
     auto* per_context_data = new PerContextData{allocation_handle(), {}};
 
-    context->SetAlignedPointerInEmbedderData(0, per_context_data);
+    context->SetAlignedPointerInEmbedderData(0, per_context_data,
+                                             kPerContextDataTag);
 
     auto* global_wrappable =
         ConcreteBindings::CreateGlobalWrappable(per_context_data);
@@ -291,7 +294,9 @@ class UnmanagedBindings : public BindingsBenchmarkBase<UnmanagedBindings> {
     int indices[] = {v8::benchmarking::kTypeOffset,
                      v8::benchmarking::kInstanceOffset};
     void* values[] = {info, wrappable};
+    START_ALLOW_USE_DEPRECATED()
     v8_wrapper->SetAlignedPointerInInternalFields(2, indices, values);
+    END_ALLOW_USE_DEPRECATED()
     // Set C++ to V8 reference.
     wrappable->SetWrapper(isolate, v8_wrapper);
   }

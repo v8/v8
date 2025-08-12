@@ -26,6 +26,14 @@ template <typename T>
 class PropertyCallbackInfo;
 
 /**
+ * A tag for embedder data. Objects with different C++ types should use
+ * different values of EmbedderDataTypeTag when written to embedder data. The
+ * allowed range is 0..V8_EMBEDDER_DATA_TAG_COUNT - 1. If this is not
+ * sufficient, V8_EMBEDDER_DATA_TAG_COUNT can be increased.
+ */
+using EmbedderDataTypeTag = uint16_t;
+
+/**
  * A private symbol
  *
  * This is an experimental feature. Use at your own risk.
@@ -546,7 +554,17 @@ class V8_EXPORT Object : public Value {
    * a field, GetAlignedPointerFromInternalField must be used, everything else
    * leads to undefined behavior.
    */
+  V8_DEPRECATE_SOON(
+      "Use SetAlignedPointerInInternalField with EmbedderDataTypeTag parameter "
+      "instead.")
   void SetAlignedPointerInInternalField(int index, void* value);
+
+  void SetAlignedPointerInInternalField(int index, void* value,
+                                        EmbedderDataTypeTag tag);
+
+  V8_DEPRECATE_SOON(
+      "Use SetAlignedPointerInInternalField with EmbedderDataTypeTag "
+      "parameter instead.")
   void SetAlignedPointerInInternalFields(int argc, int indices[],
                                          void* values[]);
 

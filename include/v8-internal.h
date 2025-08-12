@@ -578,8 +578,7 @@ enum ExternalPointerTag : uint16_t {
 
   // Placeholders for embedder data.
   kFirstEmbedderDataTag,
-  kLastEmbedderDataTag =
-      kFirstEmbedderDataTag + V8_EMBEDDER_DATA_TAG_COUNT - 1,
+  kLastEmbedderDataTag = kFirstEmbedderDataTag + V8_EMBEDDER_DATA_TAG_COUNT - 1,
   kEmbedderDataSlotPayloadTag = kLastEmbedderDataTag,
   // This tag essentially stands for a `void*` pointer in the V8 API, and it is
   // the Embedder's responsibility to ensure type safety (against substitution)
@@ -723,7 +722,8 @@ V8_INLINE static constexpr bool IsManagedExternalPointerType(
 V8_INLINE static constexpr bool ExternalPointerCanBeEmpty(
     ExternalPointerTagRange tag_range) {
   return tag_range.Contains(kArrayBufferExtensionTag) ||
-         tag_range.Contains(kEmbedderDataSlotPayloadTag) ||
+         (tag_range.first <= kLastEmbedderDataTag &&
+          kFirstEmbedderDataTag <= tag_range.last) ||
          kAnyInterceptorInfoExternalPointerTagRange.Contains(tag_range);
 }
 

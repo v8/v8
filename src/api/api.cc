@@ -185,6 +185,26 @@
 
 namespace v8 {
 
+namespace {
+
+i::ExternalPointerTag ToExternalPointerTag(v8::EmbedderDataTypeTag api_tag) {
+  uint16_t tag_value = static_cast<uint16_t>(i::kFirstEmbedderDataTag) +
+                       static_cast<uint16_t>(api_tag);
+  Utils::ApiCheck(tag_value <= i::kLastEmbedderDataTag, "ToExternalPointerTag",
+                  "The provided tag is outside the allowed range");
+  return static_cast<i::ExternalPointerTag>(tag_value);
+}
+
+v8::EmbedderDataTypeTag ToApiEmbedderDataTypeTag(i::ExternalPointerTag tag) {
+  DCHECK_GE(tag, i::kFirstEmbedderDataTag);
+  DCHECK_LE(tag, i::kLastEmbedderDataTag);
+  uint16_t tag_value = static_cast<uint16_t>(tag) -
+                       static_cast<uint16_t>(i::kFirstEmbedderDataTag);
+  return static_cast<v8::EmbedderDataTypeTag>(tag_value);
+}
+
+}  // namespace
+
 static OOMErrorCallback g_oom_error_callback = nullptr;
 
 using RCCId = i::RuntimeCallCounterId;
@@ -971,12 +991,19 @@ void* Context::SlowGetAlignedPointerFromEmbedderData(int index) {
 }
 
 void Context::SetAlignedPointerInEmbedderData(int index, void* value) {
+  SetAlignedPointerInEmbedderData(
+      index, value, ToApiEmbedderDataTypeTag(i::kEmbedderDataSlotPayloadTag));
+}
+
+void Context::SetAlignedPointerInEmbedderData(int index, void* value,
+                                              EmbedderDataTypeTag tag) {
   const char* location = "v8::Context::SetAlignedPointerInEmbedderData()";
   i::Isolate* i_isolate = i::Isolate::Current();
   i::DirectHandle<i::EmbedderDataArray> data =
       EmbedderDataFor(this, index, true, location);
   bool ok = i::EmbedderDataSlot(*data, index)
-                .store_aligned_pointer(i_isolate, *data, value);
+                .store_aligned_pointer(i_isolate, *data, value,
+                                       ToExternalPointerTag(tag));
   Utils::ApiCheck(ok, location, "Pointer is not aligned");
   DCHECK_EQ(value, GetAlignedPointerFromEmbedderData(index));
 }
@@ -6265,20 +6292,29 @@ void* v8::Object::SlowGetAlignedPointerFromInternalField(int index) {
 }
 
 void v8::Object::SetAlignedPointerInInternalField(int index, void* value) {
+  SetAlignedPointerInInternalField(
+      index, value, ToApiEmbedderDataTypeTag(i::kEmbedderDataSlotPayloadTag));
+}
+
+void v8::Object::SetAlignedPointerInInternalField(int index, void* value,
+                                                  EmbedderDataTypeTag tag) {
   auto obj = Utils::OpenDirectHandle(this);
   const char* location = "v8::Object::SetAlignedPointerInInternalField()";
   if (!InternalFieldOK(obj, index, location)) return;
 
   i::DisallowGarbageCollection no_gc;
-  Utils::ApiCheck(
-      i::EmbedderDataSlot(i::Cast<i::JSObject>(*obj), index)
-          .store_aligned_pointer(i::Isolate::Current(), *obj, value),
-      location, "Unaligned pointer");
+  Utils::ApiCheck(i::EmbedderDataSlot(i::Cast<i::JSObject>(*obj), index)
+                      .store_aligned_pointer(i::Isolate::Current(), *obj, value,
+                                             ToExternalPointerTag(tag)),
+                  location, "Unaligned pointer");
   DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
 }
 
 void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
                                                    void* values[]) {
+  EmbedderDataTypeTag tag =
+      ToApiEmbedderDataTypeTag(i::kEmbedderDataSlotPayloadTag);
+
   auto obj = Utils::OpenDirectHandle(this);
   if (!IsJSObject(*obj)) return;
   i::DisallowGarbageCollection no_gc;
@@ -6294,7 +6330,8 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
     void* value = values[i];
     Utils::ApiCheck(
         i::EmbedderDataSlot(js_obj, index)
-            .store_aligned_pointer(i::Isolate::Current(), *obj, value),
+            .store_aligned_pointer(i::Isolate::Current(), *obj, value,
+                                   ToExternalPointerTag(tag)),
         location, "Unaligned pointer");
     DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
   }
