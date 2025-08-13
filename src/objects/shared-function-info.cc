@@ -385,22 +385,24 @@ void SharedFunctionInfo::DiscardCompiledMetadata(
       PrintF(scope.file(), "]\n");
     }
 
-    Tagged<HeapObject> outer_scope_info;
     if (scope_info()->HasOuterScopeInfo()) {
-      outer_scope_info = scope_info()->OuterScopeInfo();
-    } else {
-      outer_scope_info = ReadOnlyRoots(isolate).the_hole_value();
-    }
+      Tagged<ScopeInfo> outer_scope_info = scope_info()->OuterScopeInfo();
 
-    // Raw setter to avoid validity checks, since we're performing the unusual
-    // task of decompiling.
-    set_raw_outer_scope_info_or_feedback_metadata(outer_scope_info);
-    gc_notify_updated_slot(
-        *this,
-        RawField(SharedFunctionInfo::kOuterScopeInfoOrFeedbackMetadataOffset),
-        outer_scope_info);
+      // Raw setter to avoid validity checks, since we're performing the unusual
+      // task of decompiling.
+      set_raw_outer_scope_info_or_feedback_metadata(outer_scope_info);
+      gc_notify_updated_slot(
+          *this,
+          RawField(SharedFunctionInfo::kOuterScopeInfoOrFeedbackMetadataOffset),
+          outer_scope_info);
+    } else {
+      // Raw setter to avoid validity checks, since we're performing the unusual
+      // task of decompiling.
+      set_raw_outer_scope_info_or_feedback_metadata(
+          ReadOnlyRoots(isolate).the_hole_value());
+    }
   } else {
-    DCHECK(IsScopeInfo(outer_scope_info()) || IsTheHole(outer_scope_info()));
+    DCHECK(IsTheHole(outer_scope_info()) || IsScopeInfo(outer_scope_info()));
   }
 
   // TODO(rmcilroy): Possibly discard ScopeInfo here as well.

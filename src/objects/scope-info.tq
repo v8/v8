@@ -171,7 +171,7 @@ extern class ScopeInfo extends HeapObject {
 
   inferred_function_name?[flags.has_inferred_function_name]: String|Undefined;
 
-  outer_scope_info?[flags.has_outer_scope_info]: ScopeInfo|TheHole;
+  outer_scope_info?[flags.has_outer_scope_info]: ScopeInfo;
 
   // For a module scope, this part contains the SourceTextModuleInfo and the
   // metadata of module-allocated variables. For non-module scopes it is empty.

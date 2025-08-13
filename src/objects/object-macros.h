@@ -283,15 +283,15 @@
     CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);     \
   }
 
-#define RENAME_TORQUE_ACCESSORS(holder, name, torque_name, type)      \
-  inline type holder::name() const {                                  \
-    return TorqueGeneratedClass::torque_name();                       \
-  }                                                                   \
-  inline type holder::name(PtrComprCageBase cage_base) const {        \
-    return TorqueGeneratedClass::torque_name(cage_base);              \
-  }                                                                   \
-  inline void holder::set_##name(type value, WriteBarrierMode mode) { \
-    TorqueGeneratedClass::set_##torque_name(value, mode);             \
+#define RENAME_TORQUE_ACCESSORS(holder, name, torque_name, ...)              \
+  inline __VA_ARGS__ holder::name() const {                                  \
+    return TorqueGeneratedClass::torque_name();                              \
+  }                                                                          \
+  inline __VA_ARGS__ holder::name(PtrComprCageBase cage_base) const {        \
+    return TorqueGeneratedClass::torque_name(cage_base);                     \
+  }                                                                          \
+  inline void holder::set_##name(__VA_ARGS__ value, WriteBarrierMode mode) { \
+    TorqueGeneratedClass::set_##torque_name(value, mode);                    \
   }
 
 #define RENAME_PRIMITIVE_TORQUE_ACCESSORS(holder, name, torque_name, type)  \

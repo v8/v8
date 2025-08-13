@@ -217,14 +217,13 @@ bool SharedFunctionInfo::has_script(AcquireLoadTag tag) const {
 RENAME_TORQUE_ACCESSORS(SharedFunctionInfo,
                         raw_outer_scope_info_or_feedback_metadata,
                         outer_scope_info_or_feedback_metadata,
-                        Tagged<HeapObject>)
+                        Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>)
 DEF_ACQUIRE_GETTER(SharedFunctionInfo,
                    raw_outer_scope_info_or_feedback_metadata,
-                   Tagged<HeapObject>) {
-  Tagged<HeapObject> value =
-      TaggedField<HeapObject, kOuterScopeInfoOrFeedbackMetadataOffset>::
-          Acquire_Load(cage_base, *this);
-  return value;
+                   Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>) {
+  return TaggedField<
+      UnionOf<ScopeInfo, FeedbackMetadata, TheHole>,
+      kOuterScopeInfoOrFeedbackMetadataOffset>::Acquire_Load(cage_base, *this);
 }
 
 uint16_t SharedFunctionInfo::internal_formal_parameter_count_with_receiver()
@@ -614,10 +613,12 @@ void SharedFunctionInfo::set_raw_scope_info(Tagged<ScopeInfo> scope_info,
   CONDITIONAL_WRITE_BARRIER(*this, kNameOrScopeInfoOffset, scope_info, mode);
 }
 
-DEF_GETTER(SharedFunctionInfo, outer_scope_info, Tagged<HeapObject>) {
+DEF_GETTER(SharedFunctionInfo, outer_scope_info,
+           Tagged<UnionOf<ScopeInfo, TheHole>>) {
   DCHECK(!is_compiled());
   DCHECK(!HasFeedbackMetadata());
-  return raw_outer_scope_info_or_feedback_metadata(cage_base);
+  return Cast<UnionOf<ScopeInfo, TheHole>>(
+      raw_outer_scope_info_or_feedback_metadata(cage_base));
 }
 
 bool SharedFunctionInfo::HasOuterScopeInfo() const {
@@ -641,11 +642,11 @@ Tagged<ScopeInfo> SharedFunctionInfo::GetOuterScopeInfo() const {
   return info->OuterScopeInfo();
 }
 
-void SharedFunctionInfo::set_outer_scope_info(Tagged<HeapObject> value,
-                                              WriteBarrierMode mode) {
+void SharedFunctionInfo::set_outer_scope_info(
+    Tagged<UnionOf<ScopeInfo, TheHole>> value, WriteBarrierMode mode) {
   DCHECK(!is_compiled());
   DCHECK(IsTheHole(raw_outer_scope_info_or_feedback_metadata()));
-  DCHECK(IsScopeInfo(value) || IsTheHole(value));
+  DCHECK(IsTheHole(value) || IsScopeInfo(value));
   DCHECK(scope_info()->IsEmpty());
   set_raw_outer_scope_info_or_feedback_metadata(value, mode);
 }
