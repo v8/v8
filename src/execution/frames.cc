@@ -3989,7 +3989,8 @@ void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
     } else {
       int function_start_pos = shared->StartPosition();
       int line = script->GetLineNumber(function_start_pos) + 1;
-      accumulator->Add(":~%d] [pc=%p]", line, reinterpret_cast<void*>(pc()));
+      accumulator->Add(":~%d] [pc=%p]", line,
+                       reinterpret_cast<void*>(maybe_unauthenticated_pc()));
     }
   }
 
