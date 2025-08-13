@@ -4128,12 +4128,10 @@ void Relocatable::Iterate(RootVisitor* v, Relocatable* top) {
 namespace {
 
 template <typename sinkchar>
-void WriteFixedArrayToFlat(Tagged<FixedArray> fixed_array, int length,
-                           Tagged<String> separator, sinkchar* sink,
-                           int sink_length) {
+void WriteChunkListToFlat(Tagged<FixedArray> chunk_list_head,
+                          int last_chunk_length, Tagged<String> separator,
+                          sinkchar* sink, int sink_length) {
   DisallowGarbageCollection no_gc;
-  CHECK_GT(length, 0);
-  CHECK_LE(length, fixed_array->length());
 #ifdef DEBUG
   sinkchar* sink_end = sink + sink_length;
 #endif
@@ -4151,97 +4149,121 @@ void WriteFixedArrayToFlat(Tagged<FixedArray> fixed_array, int length,
 
   uint32_t num_separators = 0;
   uint32_t repeat_last = 0;
-  for (int i = 0; i < length; i++) {
-    Tagged<Object> element = fixed_array->get(i);
-    const bool element_is_special = IsSmi(element);
 
-    // If element is a positive Smi, it represents the number of separators to
-    // write. If it is a negative Smi, it represents the number of times the
-    // last string is repeated.
-    if (V8_UNLIKELY(element_is_special)) {
-      int count;
-      CHECK(Object::ToInt32(element, &count));
-      if (count > 0) {
-        num_separators = count;
-        //  Verify that Smis (number of separators) only occur when necessary:
-        //    1) at the beginning
-        //    2) at the end
-        //    3) when the number of separators > 1
-        //      - It is assumed that consecutive Strings will have one
-        //      separator,
-        //        so there is no need for a Smi.
-        DCHECK(i == 0 || i == length - 1 || num_separators > 1);
-      } else {
-        repeat_last = -count;
-        // Repeat is only possible when the previous element is not special.
-        DCHECK_GT(i, 0);
-        DCHECK(IsString(fixed_array->get(i - 1)));
-      }
-    }
+  Tagged<FixedArray> chunk = chunk_list_head;
+  Tagged<Object> last_element = Smi::zero();
+#ifdef DEBUG
+  Tagged<FixedArray> prev_chunk = GetReadOnlyRoots().empty_fixed_array();
+#endif
+  while (true) {
+    Tagged<Object> maybe_next_chunk = chunk->get(0);
+    bool is_last_chunk = IsUndefined(maybe_next_chunk);
+    int length = is_last_chunk ? last_chunk_length : chunk->length();
+    CHECK_GT(length, 0);
+    CHECK_LE(length, chunk->length());
 
-    // Write separator(s) if necessary.
-    if (num_separators > 0 && separator_length > 0) {
-      // TODO(pwong): Consider doubling strategy employed by runtime-strings.cc
-      //              WriteRepeatToFlat().
-      // Fast path for single character, single byte separators.
-      if (use_one_byte_separator_fast_path) {
-        DCHECK_LE(sink + num_separators, sink_end);
-        memset(sink, separator_one_char, num_separators);
-        DCHECK_EQ(separator_length, 1);
-        sink += num_separators;
-      } else {
-        for (uint32_t j = 0; j < num_separators; j++) {
-          DCHECK_LE(sink + separator_length, sink_end);
-          String::WriteToFlat(separator, sink, 0, separator_length);
-          sink += separator_length;
+    for (int i = 1; i < length; i++) {
+      Tagged<Object> element = chunk->get(i);
+      const bool element_is_special = IsSmi(element);
+
+      // If element is a positive Smi, it represents the number of separators to
+      // write. If it is a negative Smi, it represents the number of times the
+      // last string is repeated.
+      if (V8_UNLIKELY(element_is_special)) {
+        int count;
+        CHECK(Object::ToInt32(element, &count));
+        if (count > 0) {
+          num_separators = count;
+          //  Verify that Smis (number of separators) only occur when necessary:
+          //    1) at the beginning
+          //    2) at the end
+          //    3) when the number of separators > 1
+          //      - It is assumed that consecutive Strings will have one
+          //      separator,
+          //        so there is no need for a Smi.
+          DCHECK(i == 1 || i == length - 1 || num_separators > 1);
+        } else {
+          repeat_last = -count;
+          // Repeat is only possible when the previous element is not special.
+          DCHECK_GE(i, 1);
+          DCHECK(IsString(last_element));
+          DCHECK_IMPLIES(i == 1, prev_chunk->get(prev_chunk->length() - 1) ==
+                                     last_element);
+          DCHECK_IMPLIES(i > 1, chunk->get(i - 1) == last_element);
         }
       }
-      num_separators = 0;
-    }
 
-    // Repeat the last written string |repeat_last| times (including
-    // separators).
-    if (V8_UNLIKELY(repeat_last > 0)) {
-      Tagged<Object> last_element = fixed_array->get(i - 1);
-      int string_length = Cast<String>(last_element)->length();
-      // The implemented logic requires that string length is > 0. Empty strings
-      // are handled by repeating the separator (positive smi in the fixed
-      // array) already.
-      DCHECK_GT(string_length, 0);
-      int length_with_sep = string_length + separator_length;
-      // Only copy separators between elements, not at the start or beginning.
-      sinkchar* copy_end =
-          sink + (length_with_sep * repeat_last) - separator_length;
-      int copy_length = length_with_sep;
-      while (sink < copy_end - copy_length) {
-        DCHECK_LE(sink + copy_length, sink_end);
-        memcpy(sink, sink - copy_length, copy_length * sizeof(sinkchar));
-        sink += copy_length;
-        copy_length *= 2;
+      // Write separator(s) if necessary.
+      if (num_separators > 0 && separator_length > 0) {
+        // TODO(pwong): Consider doubling strategy employed by
+        // runtime-strings.cc
+        //              WriteRepeatToFlat().
+        // Fast path for single character, single byte separators.
+        if (use_one_byte_separator_fast_path) {
+          DCHECK_LE(sink + num_separators, sink_end);
+          memset(sink, separator_one_char, num_separators);
+          DCHECK_EQ(separator_length, 1);
+          sink += num_separators;
+        } else {
+          for (uint32_t j = 0; j < num_separators; j++) {
+            DCHECK_LE(sink + separator_length, sink_end);
+            String::WriteToFlat(separator, sink, 0, separator_length);
+            sink += separator_length;
+          }
+        }
+        num_separators = 0;
       }
-      int remaining = static_cast<int>(copy_end - sink);
-      if (remaining > 0) {
-        DCHECK_LE(sink + remaining, sink_end);
-        memcpy(sink, sink - remaining - separator_length,
-               remaining * sizeof(sinkchar));
-        sink += remaining;
+
+      // Repeat the last written string |repeat_last| times (including
+      // separators).
+      if (V8_UNLIKELY(repeat_last > 0)) {
+        int string_length = Cast<String>(last_element)->length();
+        // The implemented logic requires that string length is > 0. Empty
+        // strings are handled by repeating the separator (positive smi in the
+        // fixed array) already.
+        DCHECK_GT(string_length, 0);
+        int length_with_sep = string_length + separator_length;
+        // Only copy separators between elements, not at the start or beginning.
+        sinkchar* copy_end =
+            sink + (length_with_sep * repeat_last) - separator_length;
+        int copy_length = length_with_sep;
+        while (sink < copy_end - copy_length) {
+          DCHECK_LE(sink + copy_length, sink_end);
+          memcpy(sink, sink - copy_length, copy_length * sizeof(sinkchar));
+          sink += copy_length;
+          copy_length *= 2;
+        }
+        int remaining = static_cast<int>(copy_end - sink);
+        if (remaining > 0) {
+          DCHECK_LE(sink + remaining, sink_end);
+          memcpy(sink, sink - remaining - separator_length,
+                 remaining * sizeof(sinkchar));
+          sink += remaining;
+        }
+        repeat_last = 0;
+        num_separators = 1;
       }
-      repeat_last = 0;
-      num_separators = 1;
+
+      if (V8_LIKELY(!element_is_special)) {
+        DCHECK(IsString(element));
+        Tagged<String> string = Cast<String>(element);
+        const int string_length = string->length();
+
+        DCHECK(string_length == 0 || sink < sink_end);
+        String::WriteToFlat(string, sink, 0, string_length);
+        sink += string_length;
+
+        // Next string element, needs at least one separator preceding it.
+        num_separators = 1;
+      }
+      last_element = element;
     }
-
-    if (V8_LIKELY(!element_is_special)) {
-      DCHECK(IsString(element));
-      Tagged<String> string = Cast<String>(element);
-      const int string_length = string->length();
-
-      DCHECK(string_length == 0 || sink < sink_end);
-      String::WriteToFlat(string, sink, 0, string_length);
-      sink += string_length;
-
-      // Next string element, needs at least one separator preceding it.
-      num_separators = 1;
-    }
+    // Move on to the next chunk.
+    if (is_last_chunk) break;
+#ifdef DEBUG
+    prev_chunk = chunk;
+#endif
+    chunk = Cast<FixedArray>(maybe_next_chunk);
   }
 
   // Verify we have written to the end of the sink.
@@ -4252,29 +4274,29 @@ void WriteFixedArrayToFlat(Tagged<FixedArray> fixed_array, int length,
 
 // static
 Address JSArray::ArrayJoinConcatToSequentialString(Isolate* isolate,
-                                                   Address raw_fixed_array,
-                                                   intptr_t length,
+                                                   Address raw_chunk_list_head,
+                                                   intptr_t last_chunk_length,
                                                    Address raw_separator,
                                                    Address raw_dest) {
   DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate);
-  Tagged<FixedArray> fixed_array =
-      Cast<FixedArray>(Tagged<Object>(raw_fixed_array));
+  Tagged<FixedArray> chunk_list_head =
+      Cast<FixedArray>(Tagged<Object>(raw_chunk_list_head));
   Tagged<String> separator = Cast<String>(Tagged<Object>(raw_separator));
   Tagged<String> dest = Cast<String>(Tagged<Object>(raw_dest));
-  DCHECK(IsFixedArray(fixed_array));
+  DCHECK(IsFixedArray(chunk_list_head));
   DCHECK(StringShape(dest).IsSequentialOneByte() ||
          StringShape(dest).IsSequentialTwoByte());
 
   if (StringShape(dest).IsSequentialOneByte()) {
-    WriteFixedArrayToFlat(fixed_array, static_cast<int>(length), separator,
-                          Cast<SeqOneByteString>(dest)->GetChars(no_gc),
-                          dest->length());
+    WriteChunkListToFlat(
+        chunk_list_head, static_cast<int>(last_chunk_length), separator,
+        Cast<SeqOneByteString>(dest)->GetChars(no_gc), dest->length());
   } else {
     DCHECK(StringShape(dest).IsSequentialTwoByte());
-    WriteFixedArrayToFlat(fixed_array, static_cast<int>(length), separator,
-                          Cast<SeqTwoByteString>(dest)->GetChars(no_gc),
-                          dest->length());
+    WriteChunkListToFlat(
+        chunk_list_head, static_cast<int>(last_chunk_length), separator,
+        Cast<SeqTwoByteString>(dest)->GetChars(no_gc), dest->length());
   }
   return dest.ptr();
 }
