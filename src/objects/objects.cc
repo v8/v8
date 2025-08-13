@@ -217,7 +217,7 @@ Handle<UnionOf<JSAny, Hole>> Object::NewStorageFor(
     Representation representation) {
   if (!representation.IsDouble()) return object;
   Handle<HeapNumber> result = isolate->factory()->NewHeapNumberWithHoleNaN();
-  if (IsUninitialized(*object, isolate)) {
+  if (IsUninitializedHole(*object, isolate)) {
     result->set_value_as_bits(kHoleNanInt64);
   } else if (IsHeapNumber(*object)) {
     // Ensure that all bits of the double value are preserved.
@@ -231,7 +231,7 @@ Handle<UnionOf<JSAny, Hole>> Object::NewStorageFor(
 template <AllocationType allocation_type, typename IsolateT>
 Handle<JSAny> Object::WrapForRead(IsolateT* isolate, Handle<JSAny> object,
                                   Representation representation) {
-  DCHECK(!IsUninitialized(*object, isolate));
+  DCHECK(!IsUninitializedHole(*object, isolate));
   if (!representation.IsDouble()) {
     DCHECK(Object::FitsRepresentation(*object, representation));
     return object;

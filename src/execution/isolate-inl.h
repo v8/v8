@@ -103,17 +103,17 @@ bool Isolate::has_pending_message() {
 
 Tagged<Object> Isolate::exception() {
   CHECK(has_exception());
-  DCHECK(!IsException(thread_local_top()->exception_, this));
+  DCHECK(!IsExceptionHole(thread_local_top()->exception_, this));
   return thread_local_top()->exception_;
 }
 
 void Isolate::set_exception(Tagged<Object> exception_obj) {
-  DCHECK(!IsException(exception_obj, this));
+  DCHECK(!IsExceptionHole(exception_obj, this));
   thread_local_top()->exception_ = exception_obj;
 }
 
 void Isolate::clear_internal_exception() {
-  DCHECK(!IsException(thread_local_top()->exception_, this));
+  DCHECK(!IsExceptionHole(thread_local_top()->exception_, this));
   thread_local_top()->exception_ = ReadOnlyRoots(this).the_hole_value();
 }
 
@@ -124,7 +124,7 @@ void Isolate::clear_exception() {
 
 bool Isolate::has_exception() {
   ThreadLocalTop* top = thread_local_top();
-  DCHECK(!IsException(top->exception_, this));
+  DCHECK(!IsExceptionHole(top->exception_, this));
   return !IsTheHole(top->exception_, this);
 }
 

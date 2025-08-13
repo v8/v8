@@ -37,6 +37,7 @@ enum InstanceType : uint16_t;
   V(FeedbackMetadata)                \
   V(Filler)                          \
   V(HeapNumber)                      \
+  V(Hole)                            \
   V(SeqOneByteString)                \
   V(SeqTwoByteString)                \
   IF_WASM(V, WasmNull)
@@ -61,7 +62,6 @@ enum InstanceType : uint16_t;
   V(Foreign)                          \
   V(FreeSpace)                        \
   V(FunctionTemplateInfo)             \
-  V(Hole)                             \
   V(InterceptorInfo)                  \
   V(JSApiObject)                      \
   V(JSArrayBuffer)                    \

@@ -7758,14 +7758,14 @@ void CodeStubAssembler::TerminateExecution(TNode<Context> context) {
   Unreachable();
 }
 
-TNode<Union<Hole, JSMessageObject>> CodeStubAssembler::GetPendingMessage() {
+TNode<Union<TheHole, JSMessageObject>> CodeStubAssembler::GetPendingMessage() {
   TNode<ExternalReference> pending_message = ExternalConstant(
       ExternalReference::address_of_pending_message(isolate()));
-  return UncheckedCast<Union<Hole, JSMessageObject>>(
+  return UncheckedCast<Union<TheHole, JSMessageObject>>(
       LoadFullTagged(pending_message));
 }
 void CodeStubAssembler::SetPendingMessage(
-    TNode<Union<Hole, JSMessageObject>> message) {
+    TNode<Union<TheHole, JSMessageObject>> message) {
   CSA_DCHECK(this, Word32Or(IsTheHole(message),
                             InstanceTypeEqual(LoadInstanceType(message),
                                               JS_MESSAGE_OBJECT_TYPE)));
@@ -10977,7 +10977,7 @@ void CodeStubAssembler::NumberDictionaryLookup(
   TNode<IntPtrT> initial_entry = Signed(WordAnd(hash, mask));
 
   TNode<Undefined> undefined = UndefinedConstant();
-  TNode<Hole> the_hole = TheHoleConstant();
+  TNode<TheHole> the_hole = TheHoleConstant();
 
   TVARIABLE(IntPtrT, var_count, count);
   Label loop(this, {&var_count, var_entry});
@@ -12449,7 +12449,7 @@ CodeStubAssembler::AllocatePropertyDescriptorObject(TNode<Context> context) {
   TNode<Smi> zero = SmiConstant(0);
   StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kFlagsOffset,
                                  zero);
-  TNode<Hole> the_hole = TheHoleConstant();
+  TNode<TheHole> the_hole = TheHoleConstant();
   StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kValueOffset,
                                  the_hole);
   StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kGetOffset,
@@ -12655,7 +12655,7 @@ void CodeStubAssembler::TryLookupElement(
     GotoIfNot(UintPtrLessThan(intptr_index, length), &if_oob);
 
     TNode<Object> element = UnsafeLoadFixedArrayElement(elements, intptr_index);
-    TNode<Hole> the_hole = TheHoleConstant();
+    TNode<TheHole> the_hole = TheHoleConstant();
     Branch(TaggedEqual(element, the_hole), if_not_found, if_found);
   }
   BIND(&if_isdouble);

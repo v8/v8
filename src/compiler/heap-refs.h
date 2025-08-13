@@ -36,6 +36,10 @@ class ScriptContextTable;
 template <typename>
 class Signature;
 
+#define DECL_HOLE_TYPE(Name, name, Root) class Name;
+HOLE_LIST(DECL_HOLE_TYPE)
+#undef DECL_HOLE_TYPE
+
 namespace interpreter {
 class Register;
 }  // namespace interpreter
@@ -230,8 +234,16 @@ template <>
 struct ref_traits<True> : public ref_traits<HeapObject> {};
 template <>
 struct ref_traits<False> : public ref_traits<HeapObject> {};
+
 template <>
 struct ref_traits<Hole> : public ref_traits<HeapObject> {};
+
+#define DEFINE_HOLE_TYPE(Name, name, Root) \
+  template <>                              \
+  struct ref_traits<Name> : public ref_traits<HeapObject> {};
+HOLE_LIST(DEFINE_HOLE_TYPE)
+#undef DEFINE_HOLE_TYPE
+
 template <>
 struct ref_traits<EnumCache> : public ref_traits<HeapObject> {};
 template <>

@@ -72,7 +72,7 @@
 #include "src/objects/js-segmenter-inl.h"
 #include "src/objects/js-segments-inl.h"
 #endif  // V8_INTL_SUPPORT
-#include "src/objects/hole-inl.h"
+#include "src/objects/hole.h"
 #include "src/objects/js-raw-json-inl.h"
 #include "src/objects/js-shared-array-inl.h"
 #include "src/objects/js-struct-inl.h"
@@ -539,7 +539,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
         }
         Tagged<Object> value = RawFastPropertyAt(index);
         CHECK_IMPLIES(r.IsDouble(), IsHeapNumber(value));
-        if (IsUninitialized(value, isolate)) continue;
+        if (IsUninitializedHole(value, isolate)) continue;
         CHECK_IMPLIES(r.IsSmi(), IsSmi(value));
         CHECK_IMPLIES(r.IsHeapObject(), IsHeapObject(value));
         Tagged<FieldType> field_type = descriptors->GetFieldType(i);
@@ -1568,7 +1568,7 @@ void Hole::HoleVerify(Isolate* isolate) {
   CHECK_EQ(map(), roots.hole_map());
 
 #define COMPARE_ROOTS_VALUE(_, Value, __) \
-  if (*this == roots.Value()) {           \
+  if (this == roots.Value()) {            \
     return;                               \
   }
   HOLE_LIST(COMPARE_ROOTS_VALUE);

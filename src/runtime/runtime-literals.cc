@@ -419,7 +419,7 @@ Handle<JSObject> CreateObjectLiteral(
     uint32_t element_index = 0;
     if (Object::ToArrayIndex(*key, &element_index)) {
       // Array index (uint32).
-      if (IsUninitialized(*value, isolate)) {
+      if (IsUninitializedHole(*value, isolate)) {
         value = handle(Smi::zero(), isolate);
       }
       JSObject::SetOwnElementIgnoreAttributes(boilerplate, element_index, value,

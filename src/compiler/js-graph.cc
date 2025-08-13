@@ -85,9 +85,9 @@ Node* JSGraph::Constant(ObjectRef ref, JSHeapBroker* broker) {
       return OptimizedOutConstant();
     case HoleType::kStaleRegister:
       return StaleRegisterConstant();
-    case HoleType::kUninitialized:
+    case HoleType::kUninitializedHole:
       return UninitializedConstant();
-    case HoleType::kException:
+    case HoleType::kExceptionHole:
     case HoleType::kTerminationException:
     case HoleType::kArgumentsMarker:
     case HoleType::kSelfReferenceMarker:

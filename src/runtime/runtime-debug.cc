@@ -101,7 +101,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
                     Smi::FromInt(static_cast<uint8_t>(bytecode)));
   }
   Tagged<Object> interrupt_object = isolate->stack_guard()->HandleInterrupts();
-  if (IsException(interrupt_object, isolate)) {
+  if (IsExceptionHole(interrupt_object, isolate)) {
     return MakePair(interrupt_object,
                     Smi::FromInt(static_cast<uint8_t>(bytecode)));
   }

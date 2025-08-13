@@ -517,7 +517,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     ALLOCATE_PARTIAL_MAP(DESCRIPTOR_ARRAY_TYPE, kVariableSizeSentinel,
                          descriptor_array)
 
-    ALLOCATE_PARTIAL_MAP(HOLE_TYPE, Hole::kSize, hole);
+    ALLOCATE_PARTIAL_MAP(HOLE_TYPE, sizeof(Hole), hole);
 
     // Some struct maps which we need for later dependencies
     for (const StructInit& entry : kStructTable) {
@@ -566,10 +566,10 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
         Allocate(roots_table().hole_map(), AllocationType::kReadOnly);
     if (!allocation.To(&obj)) return false;
   }
-  set_the_hole_value(Cast<Hole>(obj));
+  set_the_hole_value(UncheckedCast<TheHole>(obj));
 
   // Set preliminary exception sentinel value before actually initializing it.
-  set_exception(Cast<Hole>(obj));
+  set_exception(UncheckedCast<ExceptionHole>(obj));
 
   // Allocate the empty enum cache.
   {
@@ -1161,19 +1161,24 @@ bool Heap::CreateReadOnlyObjects() {
                       direct_handle(Smi::zero(), isolate()), "boolean",
                       Oddball::kFalse);
 
-  set_property_cell_hole_value(*factory->NewHole());
-  set_hash_table_hole_value(*factory->NewHole());
-  set_promise_hole_value(*factory->NewHole());
-  set_uninitialized_value(*factory->NewHole());
-  set_arguments_marker(*factory->NewHole());
-  set_termination_exception(*factory->NewHole());
-  set_exception(*factory->NewHole());
-  set_optimized_out(*factory->NewHole());
-  set_stale_register(*factory->NewHole());
+  set_property_cell_hole_value(
+      UncheckedCast<PropertyCellHole>(*factory->NewHole()));
+  set_hash_table_hole_value(UncheckedCast<HashTableHole>(*factory->NewHole()));
+  set_promise_hole_value(UncheckedCast<PromiseHole>(*factory->NewHole()));
+  set_uninitialized_value(
+      UncheckedCast<UninitializedHole>(*factory->NewHole()));
+  set_arguments_marker(UncheckedCast<ArgumentsMarker>(*factory->NewHole()));
+  set_termination_exception(
+      UncheckedCast<TerminationException>(*factory->NewHole()));
+  set_exception(UncheckedCast<ExceptionHole>(*factory->NewHole()));
+  set_optimized_out(UncheckedCast<OptimizedOut>(*factory->NewHole()));
+  set_stale_register(UncheckedCast<StaleRegister>(*factory->NewHole()));
 
   // Initialize marker objects used during compilation.
-  set_self_reference_marker(*factory->NewHole());
-  set_basic_block_counters_marker(*factory->NewHole());
+  set_self_reference_marker(
+      UncheckedCast<SelfReferenceMarker>(*factory->NewHole()));
+  set_basic_block_counters_marker(
+      UncheckedCast<BasicBlockCountersMarker>(*factory->NewHole()));
 
   {
     HandleScope handle_scope(isolate());

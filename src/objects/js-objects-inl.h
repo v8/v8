@@ -510,7 +510,7 @@ void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
     uint64_t bits;
     if (IsSmi(value)) {
       bits = base::bit_cast<uint64_t>(static_cast<double>(Smi::ToInt(value)));
-    } else if (IsUninitialized(value)) {
+    } else if (IsUninitializedHole(value)) {
       bits = kHoleNanInt64;
     } else {
       DCHECK(IsHeapNumber(value));

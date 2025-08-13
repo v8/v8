@@ -696,7 +696,7 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
     // Note: This might trigger a GC, which invalidates the {args} object (see
     // https://crbug.com/v8/13036#2).
     Tagged<Object> result = isolate->stack_guard()->HandleInterrupts();
-    if (IsException(result)) return result;
+    if (IsExceptionHole(result)) return result;
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -1027,7 +1027,7 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
         isolate->stack_guard()->HandleInterrupts();
     // Interrupt handling can create an exception, including the
     // termination exception.
-    if (IsException(interrupt_object, isolate)) return interrupt_object;
+    if (IsExceptionHole(interrupt_object, isolate)) return interrupt_object;
     DCHECK(IsUndefined(interrupt_object, isolate));
   }
 

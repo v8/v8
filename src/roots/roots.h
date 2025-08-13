@@ -57,7 +57,7 @@ class RootVisitor;
   /* The first 32 entries are most often used in the startup snapshot and   */ \
   /* can use a shorter representation in the serialization format.          */ \
   V(Undefined, undefined_value, UndefinedValue)                                \
-  V(Hole, the_hole_value, TheHoleValue)                                        \
+  V(TheHole, the_hole_value, TheHoleValue)                                     \
   V(Null, null_value, NullValue)                                               \
   V(True, true_value, TrueValue)                                               \
   V(False, false_value, FalseValue)                                            \
@@ -87,15 +87,15 @@ class RootVisitor;
   V(FeedbackCell, many_closures_cell, ManyClosuresCell)                        \
   /* Entries beyond the first 32                                            */ \
   /* Holes */                                                                  \
-  V(Hole, arguments_marker, ArgumentsMarker)                                   \
-  V(Hole, exception, Exception)                                                \
-  V(Hole, hash_table_hole_value, HashTableHoleValue)                           \
-  V(Hole, optimized_out, OptimizedOut)                                         \
-  V(Hole, promise_hole_value, PromiseHoleValue)                                \
-  V(Hole, property_cell_hole_value, PropertyCellHoleValue)                     \
-  V(Hole, stale_register, StaleRegister)                                       \
-  V(Hole, termination_exception, TerminationException)                         \
-  V(Hole, uninitialized_value, UninitializedValue)                             \
+  V(ArgumentsMarker, arguments_marker, ArgumentsMarker)                        \
+  V(ExceptionHole, exception, Exception)                                       \
+  V(HashTableHole, hash_table_hole_value, HashTableHoleValue)                  \
+  V(OptimizedOut, optimized_out, OptimizedOut)                                 \
+  V(PromiseHole, promise_hole_value, PromiseHoleValue)                         \
+  V(PropertyCellHole, property_cell_hole_value, PropertyCellHoleValue)         \
+  V(StaleRegister, stale_register, StaleRegister)                              \
+  V(TerminationException, termination_exception, TerminationException)         \
+  V(UninitializedHole, uninitialized_value, UninitializedValue)                \
   /* Maps */                                                                   \
   V(Map, meta_map, MetaMap)                                                    \
   V(Map, free_space_map, FreeSpaceMap)                                         \
@@ -242,9 +242,10 @@ class RootVisitor;
   V(WeakFixedArray, empty_weak_fixed_array, EmptyWeakFixedArray)               \
   STRONG_READ_ONLY_HEAP_NUMBER_ROOT_LIST(V)                                    \
   /* Marker for self-references during code-generation */                      \
-  V(Hole, self_reference_marker, SelfReferenceMarker)                          \
+  V(SelfReferenceMarker, self_reference_marker, SelfReferenceMarker)           \
   /* Marker for basic-block usage counters array during code-generation */     \
-  V(Hole, basic_block_counters_marker, BasicBlockCountersMarker)               \
+  V(BasicBlockCountersMarker, basic_block_counters_marker,                     \
+    BasicBlockCountersMarker)                                                  \
   /* Canonical scope infos */                                                  \
   V(ScopeInfo, global_this_binding_scope_info, GlobalThisBindingScopeInfo)     \
   V(ScopeInfo, empty_function_scope_info, EmptyFunctionScopeInfo)              \

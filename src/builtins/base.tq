@@ -592,8 +592,6 @@ const kWasmArrayHeaderSize:
 const kHeapObjectHeaderSize:
     constexpr int32 generates 'HeapObject::kHeaderSize';
 
-type TheHole extends Hole;
-type PromiseHole extends Hole;
 type Exception extends Oddball;
 type EmptyString extends String;
 

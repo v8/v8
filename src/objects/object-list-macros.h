@@ -490,9 +490,9 @@ namespace internal {
   V(PropertyCellHole, property_cell_hole_value, PropertyCellHoleValue) \
   V(HashTableHole, hash_table_hole_value, HashTableHoleValue)          \
   V(PromiseHole, promise_hole_value, PromiseHoleValue)                 \
-  V(Exception, exception, Exception)                                   \
+  V(ExceptionHole, exception, Exception)                               \
   V(TerminationException, termination_exception, TerminationException) \
-  V(Uninitialized, uninitialized_value, UninitializedValue)            \
+  V(UninitializedHole, uninitialized_value, UninitializedValue)        \
   V(ArgumentsMarker, arguments_marker, ArgumentsMarker)                \
   V(OptimizedOut, optimized_out, OptimizedOut)                         \
   V(StaleRegister, stale_register, StaleRegister)                      \

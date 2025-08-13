@@ -275,7 +275,7 @@ void GlobalDictionary::SetEntry(InternalIndex entry, Tagged<Object> key,
 }
 
 void GlobalDictionary::ClearEntry(InternalIndex entry) {
-  Tagged<Hole> the_hole = GetReadOnlyRoots().the_hole_value();
+  Tagged<TheHole> the_hole = GetReadOnlyRoots().the_hole_value();
   set(EntryToIndex(entry) + kEntryKeyIndex, the_hole);
 }
 

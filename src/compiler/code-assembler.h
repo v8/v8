@@ -119,6 +119,11 @@ struct ObjectTypeOf {};
   struct ObjectTypeOf<Name> {                                 \
     static constexpr ObjectType value = ObjectType::kOddball; \
   };
+#define OBJECT_TYPE_HOLE_CASE(Name, ...)                   \
+  template <>                                              \
+  struct ObjectTypeOf<Name> {                              \
+    static constexpr ObjectType value = ObjectType::kHole; \
+  };
 OBJECT_TYPE_CASE(Object)
 OBJECT_TYPE_CASE(Smi)
 OBJECT_TYPE_CASE(TaggedIndex)
@@ -134,6 +139,7 @@ OBJECT_TYPE_ODDBALL_CASE(Null)
 OBJECT_TYPE_ODDBALL_CASE(Undefined)
 OBJECT_TYPE_ODDBALL_CASE(True)
 OBJECT_TYPE_ODDBALL_CASE(False)
+HOLE_LIST(OBJECT_TYPE_HOLE_CASE)
 #undef OBJECT_TYPE_CASE
 #undef OBJECT_TYPE_STRUCT_CASE
 #undef OBJECT_TYPE_TEMPLATE_CASE

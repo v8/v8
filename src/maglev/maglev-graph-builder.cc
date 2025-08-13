@@ -13106,7 +13106,7 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
       // it will get overwritten anyway.
       DCHECK_IMPLIES(property_details.representation().IsSmi() &&
                          !boilerplate_value.IsSmi(),
-                     IsUninitialized(*boilerplate_value.object()));
+                     IsUninitializedHole(*boilerplate_value.object()));
       fast_literal->set(offset, GetConstant(boilerplate_value));
     }
     index++;

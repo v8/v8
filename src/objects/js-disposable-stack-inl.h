@@ -191,7 +191,7 @@ inline void JSDisposableStackBase::HandleErrorInDisposal(
   DirectHandle<Object> maybe_error(disposable_stack->error(), isolate);
 
   //   i. If completion is a throw completion, then
-  if (!IsUninitialized(*maybe_error)) {
+  if (!IsUninitializedHole(*maybe_error)) {
     //    1. Set result to result.[[Value]].
     //    2. Let suppressed be completion.[[Value]].
     //    3. Let error be a newly created SuppressedError object.

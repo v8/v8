@@ -1161,6 +1161,7 @@ class Struct;
 class Symbol;
 template <typename T>
 class Tagged;
+class TheHole;
 template <typename... Ts>
 class Union;
 class Variable;

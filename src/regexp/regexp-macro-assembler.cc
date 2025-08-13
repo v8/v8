@@ -331,7 +331,7 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
     } else if (check.InterruptRequested()) {
       AllowGarbageCollection yes_gc;
       Tagged<Object> result = isolate->stack_guard()->HandleInterrupts();
-      if (IsException(result, isolate)) return_value = EXCEPTION;
+      if (IsExceptionHole(result, isolate)) return_value = EXCEPTION;
     }
 
     // We are not using operator == here because it does a slow DCHECK

@@ -4034,7 +4034,6 @@ v8_header_set("v8_internal_headers") {
     "src/objects/heap-number.h",
     "src/objects/heap-object-inl.h",
     "src/objects/heap-object.h",
-    "src/objects/hole-inl.h",
     "src/objects/hole.h",
     "src/objects/instance-type-checker.h",
     "src/objects/instance-type-inl.h",

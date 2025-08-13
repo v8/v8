@@ -33,7 +33,7 @@
 #include "src/objects/deoptimization-data.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object.h"
-#include "src/objects/hole-inl.h"
+#include "src/objects/hole.h"
 #include "src/objects/instance-type-checker.h"
 #include "src/objects/js-proxy-inl.h"  // TODO(jkummerow): Drop.
 #include "src/objects/keys.h"
@@ -228,6 +228,7 @@ bool IsNoSharedNameSentinel(Tagged<Object> obj) {
 HEAP_OBJECT_ORDINARY_TYPE_LIST(IS_HELPER_DEF)
 HEAP_OBJECT_TRUSTED_TYPE_LIST(IS_HELPER_DEF)
 VIRTUAL_OBJECT_TYPE_LIST(IS_HELPER_DEF)
+HOLE_LIST(IS_HELPER_DEF)
 ODDBALL_LIST(IS_HELPER_DEF)
 
 #define IS_HELPER_DEF_STRUCT(NAME, Name, name) IS_HELPER_DEF(Name)
@@ -762,7 +763,7 @@ Representation Object::OptimalRepresentation(Tagged<Object> obj,
   Tagged<HeapObject> heap_object = Cast<HeapObject>(obj);
   if (IsHeapNumber(heap_object, cage_base)) {
     return Representation::Double();
-  } else if (IsUninitialized(heap_object)) {
+  } else if (IsUninitializedHole(heap_object)) {
     return Representation::None();
   }
   return Representation::HeapObject();

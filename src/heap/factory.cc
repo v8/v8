@@ -580,7 +580,7 @@ DirectHandle<PropertyDescriptorObject> Factory::NewPropertyDescriptorObject() {
       PROPERTY_DESCRIPTOR_OBJECT_TYPE, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
   object->set_flags(0);
-  Tagged<Hole> the_hole = read_only_roots().the_hole_value();
+  Tagged<TheHole> the_hole = read_only_roots().the_hole_value();
   object->set_value(the_hole, SKIP_WRITE_BARRIER);
   object->set_get(the_hole, SKIP_WRITE_BARRIER);
   object->set_set(the_hole, SKIP_WRITE_BARRIER);

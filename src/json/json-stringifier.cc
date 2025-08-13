@@ -962,7 +962,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<JSAny> object,
                                                     Handle<Object> key) {
   StackLimitCheck interrupt_check(isolate_);
   if (interrupt_check.InterruptRequested() &&
-      IsException(isolate_->stack_guard()->HandleInterrupts(), isolate_)) {
+      IsExceptionHole(isolate_->stack_guard()->HandleInterrupts(), isolate_)) {
     return EXCEPTION;
   }
 
@@ -1238,7 +1238,8 @@ JsonStringifier::Result JsonStringifier::SerializeFixedArrayWithInterruptCheck(
     DCHECK_LT(limit, kMaxAllowedFastPackedLength);
     limit = std::min(length, limit + kInterruptLength);
     if (interrupt_check.InterruptRequested() &&
-        IsException(isolate_->stack_guard()->HandleInterrupts(), isolate_)) {
+        IsExceptionHole(isolate_->stack_guard()->HandleInterrupts(),
+                        isolate_)) {
       return EXCEPTION;
     }
   }
@@ -2992,9 +2993,9 @@ FastJsonStringifier<Char>::SerializeFixedArrayWithInterruptCheck(
       // encountered an exception, so this is fine.
       AllowGarbageCollection allow_gc;
       if (interrupt_check.InterruptRequested() &&
-          IsException(isolate_->stack_guard()->HandleInterrupts(
-                          StackGuard::InterruptLevel::kNoGC),
-                      isolate_)) {
+          IsExceptionHole(isolate_->stack_guard()->HandleInterrupts(
+                              StackGuard::InterruptLevel::kNoGC),
+                          isolate_)) {
         return EXCEPTION;
       }
     }
@@ -3271,9 +3272,9 @@ FastJsonStringifier<Char>::HandleInterruptAndCheckCycle() {
     // encountered an exception, so this is fine.
     AllowGarbageCollection allow_gc;
     if (V8_UNLIKELY(interrupt_check.InterruptRequested() &&
-                    IsException(isolate_->stack_guard()->HandleInterrupts(
-                                    StackGuard::InterruptLevel::kNoGC),
-                                isolate_))) {
+                    IsExceptionHole(isolate_->stack_guard()->HandleInterrupts(
+                                        StackGuard::InterruptLevel::kNoGC),
+                                    isolate_))) {
       return EXCEPTION;
     }
   }

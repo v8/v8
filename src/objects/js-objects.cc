@@ -3232,7 +3232,7 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
       value = handle(object->RawFastPropertyAt(isolate, index), isolate);
       if (!old_representation.IsDouble() && representation.IsDouble()) {
         DCHECK_IMPLIES(old_representation.IsNone(),
-                       IsUninitialized(*value, isolate));
+                       IsUninitializedHole(*value, isolate));
         value = Object::NewStorageFor(isolate, value, representation);
       } else if (old_representation.IsDouble() && !representation.IsDouble()) {
         value = Object::WrapForRead(isolate, Cast<JSAny>(value),

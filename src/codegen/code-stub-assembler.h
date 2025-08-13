@@ -2797,8 +2797,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void TerminateExecution(TNode<Context> context);
 
-  TNode<Union<Hole, JSMessageObject>> GetPendingMessage();
-  void SetPendingMessage(TNode<Union<Hole, JSMessageObject>> message);
+  TNode<Union<TheHole, JSMessageObject>> GetPendingMessage();
+  void SetPendingMessage(TNode<Union<TheHole, JSMessageObject>> message);
   TNode<BoolT> IsExecutionTerminating();
 
   TNode<Object> GetContinuationPreservedEmbedderData();

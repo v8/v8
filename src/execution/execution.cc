@@ -469,7 +469,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
 #endif
 
   // Update the pending exception flag and return the value.
-  bool has_exception = IsException(value, isolate);
+  bool has_exception = IsExceptionHole(value, isolate);
   DCHECK_EQ(has_exception, isolate->has_exception());
   if (has_exception) {
     isolate->ReportPendingMessages(params.message_handling ==

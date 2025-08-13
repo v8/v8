@@ -363,7 +363,7 @@ std::optional<Tagged<Object>> GetOwnFastConstantDataPropertyFromHeap(
     // TODO(leszeks): We could instead sleep/yield and spin the load, since the
     // timing on this is tight enough that we wouldn't delay the compiler thread
     // by much.
-    if (IsUninitialized(constant.value())) {
+    if (IsUninitializedHole(constant.value())) {
       TRACE_BROKER_MISSING(broker, "Read uninitialized property.");
       return {};
     }

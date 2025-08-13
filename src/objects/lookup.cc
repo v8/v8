@@ -978,7 +978,7 @@ bool LookupIterator::CanStayConst(Tagged<Object> value) const {
   DCHECK(holder_->HasFastProperties(isolate_));
   DCHECK_EQ(PropertyLocation::kField, property_details_.location());
   DCHECK_EQ(PropertyConstness::kConst, property_details_.constness());
-  if (IsUninitialized(value, isolate())) {
+  if (IsUninitializedHole(value, isolate())) {
     // Storing uninitialized value means that we are preparing for a computed
     // property value in an object literal. The initializing store will follow
     // and it will properly update constness based on the actual value.
@@ -1005,7 +1005,7 @@ bool LookupIterator::CanStayConst(Tagged<Object> value) const {
 
   Tagged<Object> current_value =
       holder->RawFastPropertyAt(isolate_, field_index);
-  return IsUninitialized(current_value, isolate());
+  return IsUninitializedHole(current_value, isolate());
 }
 
 bool LookupIterator::DictCanStayConst(Tagged<Object> value) const {
@@ -1018,7 +1018,7 @@ bool LookupIterator::DictCanStayConst(Tagged<Object> value) const {
 
   DisallowHeapAllocation no_gc;
 
-  if (IsUninitialized(value, isolate())) {
+  if (IsUninitializedHole(value, isolate())) {
     // Storing uninitialized value means that we are preparing for a computed
     // property value in an object literal. The initializing store will follow
     // and it will properly update constness based on the actual value.
@@ -1034,7 +1034,7 @@ bool LookupIterator::DictCanStayConst(Tagged<Object> value) const {
     current_value = dict->ValueAt(dictionary_entry());
   }
 
-  return IsUninitialized(current_value, isolate());
+  return IsUninitializedHole(current_value, isolate());
 }
 
 int LookupIterator::GetFieldDescriptorIndex() const {

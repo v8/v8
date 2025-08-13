@@ -5,7 +5,6 @@
 #ifndef V8_OBJECTS_HOLE_H_
 #define V8_OBJECTS_HOLE_H_
 
-#include "src/objects/heap-number.h"
 #include "src/objects/heap-object.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -14,20 +13,23 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/hole-tq.inc"
-
-class Hole : public HeapObject {
+V8_OBJECT class Hole : public HeapObjectLayout {
  public:
   DECL_VERIFIER(Hole)
-
-  static constexpr int kSize = kHeaderSize;
-
-  using BodyDescriptor = FixedBodyDescriptor<kSize, kSize, kSize>;
-
   DECL_PRINTER(Hole)
+} V8_OBJECT_END;
 
-  OBJECT_CONSTRUCTORS(Hole, HeapObject);
+template <>
+struct ObjectTraits<Hole> {
+  using BodyDescriptor = FixedBodyDescriptor<0, 0, sizeof(Hole)>;
 };
+
+#define DEFINE_HOLE_TYPE(Name, name, Root) \
+  V8_OBJECT class Name : public Hole {     \
+  } V8_OBJECT_END;
+
+HOLE_LIST(DEFINE_HOLE_TYPE)
+#undef DEFINE_HOLE_TYPE
 
 }  // namespace internal
 }  // namespace v8

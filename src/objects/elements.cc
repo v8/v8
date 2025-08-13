@@ -444,7 +444,7 @@ void CopyObjectToDoubleElements(Tagged<FixedArrayBase> from_base,
   if (copy_size == 0) return;
   Tagged<FixedArray> from = Cast<FixedArray>(from_base);
   Tagged<FixedDoubleArray> to = Cast<FixedDoubleArray>(to_base);
-  Tagged<Hole> the_hole = GetReadOnlyRoots().the_hole_value();
+  Tagged<TheHole> the_hole = GetReadOnlyRoots().the_hole_value();
   for (uint32_t from_end = from_start + copy_size; from_start < from_end;
        from_start++, to_start++) {
     Tagged<Object> hole_or_object = from->get(from_start);

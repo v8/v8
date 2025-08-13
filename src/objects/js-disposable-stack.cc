@@ -182,7 +182,7 @@ MaybeDirectHandle<Object> JSDisposableStackBase::DisposeResources(
       *(isolate->factory()->uninitialized_value()));
 
   // 7. Return ? completion.
-  if (!IsUninitialized(*existing_error_handle)) {
+  if (!IsUninitializedHole(*existing_error_handle)) {
     if (disposable_stack->suppressed_error_created() == true) {
       // Created SuppressedError is intentionally suppressed here for debug.
       SuppressDebug while_processing(isolate->debug());

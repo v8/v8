@@ -227,7 +227,7 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
     Tagged<Object> result =
         DeclareGlobal(isolate, global, name, value, attr, is_var,
                       RedeclarationType::kSyntaxError);
-    if (IsException(result)) return result;
+    if (IsExceptionHole(result)) return result;
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
