@@ -61,7 +61,7 @@ constexpr const char* kUnreachableCodeMessage = "unreachable code";
 }  // namespace v8::base
 
 #define UNIMPLEMENTED() FATAL(::v8::base::kUnimplementedCodeMessage)
-#define UNREACHABLE() FATAL(::v8::base::kUnreachableCodeMessage)
+#define UNREACHABLE() abort()
 // g++ versions <= 8 cannot use UNREACHABLE() in a constexpr function.
 // TODO(miladfarca): Remove once all compilers handle this properly.
 #if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ <= 8)
