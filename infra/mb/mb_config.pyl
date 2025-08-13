@@ -787,7 +787,7 @@
 
   'mixins': {
     'android': {
-      'gn_args': 'target_os="android" v8_android_log_stdout=true default_min_sdk_version=21',
+      'gn_args': 'target_os="android" v8_android_log_stdout=true default_min_sdk_version=23',
     },
 
     'android_strip_outputs': {
