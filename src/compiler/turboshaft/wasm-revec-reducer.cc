@@ -948,51 +948,57 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
       return nullptr;
     }
 
-    // Match intersect packnodes from current tree.
-    if (ZoneVector<PackNode*>* intersect_packnodes =
-            GetIntersectPackNodes(node0)) {
-      for (PackNode* intersect_pnode : *intersect_packnodes) {
-        if (intersect_pnode->IsSame(node_group)) {
-          TRACE("Perfect diamond merge at intersect pack node #%d,%s, #%d\n",
-                node0.id(), GetSimdOpcodeName(op0).c_str(), node1.id());
-          return intersect_pnode;
-        }
-      }
-    }
+    is_intersected = true;
+  }
 
-    // Match intersect packnodes from analyzer.
-    if (ZoneVector<PackNode*>* intersect_packnodes =
-            analyzer_->GetIntersectPackNodes(node0)) {
-      for (PackNode* intersect_pnode : *intersect_packnodes) {
-        if (intersect_pnode->IsSame(node_group)) {
-          TRACE("Perfect diamond merge at intersect pack node #%d,%s, #%d\n",
-                node0.id(), GetSimdOpcodeName(op0).c_str(), node1.id());
-          return intersect_pnode;
-        }
+  // Match intersect packnodes from current tree.
+  if (ZoneVector<PackNode*>* intersect_packnodes =
+          GetIntersectPackNodes(node0)) {
+    for (PackNode* intersect_pnode : *intersect_packnodes) {
+      if (intersect_pnode->IsSame(node_group)) {
+        TRACE("Perfect diamond merge at intersect pack node #%d,%s, #%d\n",
+              node0.id(), GetSimdOpcodeName(op0).c_str(), node1.id());
+        return intersect_pnode;
       }
     }
 
     is_intersected = true;
-    TRACE("Partial overlap at #%d,%s!\n", node0.id(),
-          GetSimdOpcodeName(op0).c_str());
   }
 
-  // Match overlapped PackNode on the second node.
-  if (!is_intersected) {
+  // Match intersect packnodes from analyzer.
+  if (ZoneVector<PackNode*>* intersect_packnodes =
+          analyzer_->GetIntersectPackNodes(node0)) {
+    for (PackNode* intersect_pnode : *intersect_packnodes) {
+      if (intersect_pnode->IsSame(node_group)) {
+        TRACE("Perfect diamond merge at intersect pack node #%d,%s, #%d\n",
+              node0.id(), GetSimdOpcodeName(op0).c_str(), node1.id());
+        return intersect_pnode;
+      }
+    }
+
+    is_intersected = true;
+  }
+
+  if (is_intersected) {
+    TRACE("Partial overlap at #%d,%s!\n", node0.id(),
+          GetSimdOpcodeName(op0).c_str());
+  } else {
+    // Match overlapped PackNode on the second node.
     if (PackNode* pnode = GetPackNode(node1)) {
       if (!pnode->IsForcePackNode()) {
         TRACE("Unsupported partial overlap at #%d,%s!\n", node1.id(),
               GetSimdOpcodeName(op1).c_str());
         return nullptr;
       }
-
-      // REVIEW: Why do we call {GetIntersectPackNodes(node0)} above only if
-      // {GetPackNode(node0)} returned something non-null, whereas here we call
-      // {GetIntersectPackNodes(node1)} only if {GetPackNode(node1)} returned
-      // nothing? Is that a bug?
+      is_intersected = true;
+      // Check elsewise as we've verified no matched IntersectPackNode
+      // from node0 for early return.
     } else if (GetIntersectPackNodes(node1) ||
                analyzer_->GetIntersectPackNodes(node1)) {
       is_intersected = true;
+    }
+
+    if (is_intersected) {
       TRACE("Partial overlap at #%d,%s!\n", node1.id(),
             GetSimdOpcodeName(op1).c_str());
     }
