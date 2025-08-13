@@ -852,14 +852,6 @@ hooks = [
                Var('rbe_instance'),
                ],
   },
-  {
-    'name': 'generate_libcxx_headers',
-    'pattern': '.',
-    'action': [
-      'python3',
-      'buildtools/third_party/libc++/generate_libcxx_headers.py',
-    ],
-  },
 ]
 
 recursedeps = [
