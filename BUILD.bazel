@@ -3987,6 +3987,7 @@ v8_library(
   hdrs = [
     "third_party/fp16/src/include/fp16/fp16.h",
     "third_party/fp16/src/include/fp16/bitcasts.h",
+    "third_party/fp16/src/include/fp16/macros.h",
   ],
   includes = [
     "third_party/fp16/src/include",
