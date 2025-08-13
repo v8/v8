@@ -914,6 +914,12 @@
   'compiler/regress-crbug-1201011': [SKIP],
   'compiler/regress-crbug-1201057': [SKIP],
   'compiler/regress-crbug-1201082': [SKIP],
+  'compiler/regress-331909453': [SKIP],
+  'compiler/regress-crbug-1457532': [SKIP],
+  'regress/regress-390675705': [SKIP],
+  'regress/regress-395028748': [SKIP],
+  'regress/regress-424627229': [SKIP],
+
   'wasm/fast-api-calls-with-wellknown-imports*': [SKIP],
   'regress/wasm/regress-368086282': [SKIP],
 
