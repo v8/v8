@@ -222,16 +222,12 @@ class BackgroundThread final : public v8::base::Thread {
 }  // anonymous namespace
 
 TEST_F(DirectHandlesTest, DirectHandleInBackgroundThread) {
-  i::LocalHeap lh(i_isolate()->heap(), i::ThreadKind::kMain);
-  lh.SetUpMainThreadForTesting();
   auto thread = std::make_unique<BackgroundThread>(i_isolate(), false);
   CHECK(thread->Start());
   thread->Join();
 }
 
 TEST_F(DirectHandlesTest, DirectHandleInParkedBackgroundThread) {
-  i::LocalHeap lh(i_isolate()->heap(), i::ThreadKind::kMain);
-  lh.SetUpMainThreadForTesting();
   auto thread = std::make_unique<BackgroundThread>(i_isolate(), true);
   CHECK(thread->Start());
   thread->Join();
@@ -248,6 +244,7 @@ class ClientThread final : public i::ParkingThread {
 
   void Run() override {
     IsolateWrapper isolate_wrapper(kNoCounters);
+    v8::Isolate::Scope isolate_scope(isolate_wrapper.isolate());
     // Direct handles can be used in the main thread of client isolates.
     i::DirectHandle<i::String> direct;
     i::MaybeDirectHandle<i::String> maybe_direct = direct;
@@ -274,9 +271,8 @@ class ClientMainThread final : public i::ParkingThread {
     IsolateWrapper isolate_wrapper(kNoCounters);
     i::Isolate* i_client_isolate =
         reinterpret_cast<i::Isolate*>(isolate_wrapper.isolate());
+    v8::Isolate::Scope isolate_scope(isolate_wrapper.isolate());
 
-    i::LocalHeap lh(i_client_isolate->heap(), i::ThreadKind::kMain);
-    lh.SetUpMainThreadForTesting();
     auto thread = std::make_unique<BackgroundThread>(i_client_isolate,
                                                      background_park_and_wait_);
     CHECK(thread->Start());

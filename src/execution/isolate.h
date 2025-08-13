@@ -2181,7 +2181,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Isolate* GetMainThreadIsolateUnsafe() { return this; }
 
   LocalHeap* main_thread_local_heap();
-  LocalHeap* CurrentLocalHeap();
 
 #ifdef V8_COMPRESS_POINTERS
   ExternalPointerTable& external_pointer_table() {
