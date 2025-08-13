@@ -991,10 +991,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                                     int offset,
                                                     IndirectPointerTag tag);
 
+  void LoadTrustedUnknownPointerFromObject(
+      TNode<HeapObject> object, int offset, TVariable<Object>* value_out,
+      Label* if_empty, Label* if_default,
+      const std::initializer_list<std::pair<InstanceType, Label*>>& cases);
+
   // Load a code pointer field.
   // These are special versions of trusted pointers that, when the sandbox is
   // enabled, reference code objects through the code pointer table.
   TNode<Code> LoadCodePointerFromObject(TNode<HeapObject> object, int offset);
+
+  void DispatchOnInstanceType(
+      TNode<Object> value, TVariable<Uint16T>* type_out, Label* if_default,
+      const std::initializer_list<std::pair<InstanceType, Label*>>& cases);
 
 #ifdef V8_ENABLE_SANDBOX
   // Load an indirect pointer field.
@@ -1010,6 +1019,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // which can either be a trusted pointer handle or a code pointer handle.
   TNode<TrustedObject> ResolveIndirectPointerHandle(
       TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag);
+
+  void ResolveIndirectUnknownPointerHandle(
+      TNode<IndirectPointerHandleT> handle, TVariable<Object>* value_out,
+      TVariable<Uint16T>* type_out, Label* if_default,
+      const std::initializer_list<std::pair<InstanceType, Label*>>& cases);
 
   // Retrieve the Code object referenced by the given trusted pointer handle.
   TNode<Code> ResolveCodePointerHandle(TNode<IndirectPointerHandleT> handle);
@@ -1714,12 +1728,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<HeapObject> LoadJSFunctionPrototype(TNode<JSFunction> function,
                                             Label* if_bailout);
 
-  TNode<Object> LoadSharedFunctionInfoTrustedData(
-      TNode<SharedFunctionInfo> sfi);
   TNode<Object> LoadSharedFunctionInfoUntrustedData(
       TNode<SharedFunctionInfo> sfi);
 
-  TNode<BoolT> SharedFunctionInfoHasBaselineCode(TNode<SharedFunctionInfo> sfi);
+  void GotoIfSharedFunctionInfoHasBaselineCode(TNode<SharedFunctionInfo> sfi,
+                                               Label* if_baseline);
 
   TNode<Smi> LoadSharedFunctionInfoBuiltinId(TNode<SharedFunctionInfo> sfi);
 
@@ -4294,6 +4307,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<SharedFunctionInfo> shared_info,
       TVariable<Uint16T>* data_type_out = nullptr,
       Label* if_compile_lazy = nullptr);
+
+  void LoadSharedFunctionInfoTrustedDataAndDispatch(
+      TNode<SharedFunctionInfo> shared_info, TVariable<Object>* sfi_data_out,
+      TVariable<Uint16T>* data_type_out, Label* if_empty, Label* if_default,
+      const std::initializer_list<std::pair<InstanceType, Label*>>& cases);
 
   TNode<JSFunction> AllocateRootFunctionWithContext(
       RootIndex function, TNode<Context> context,

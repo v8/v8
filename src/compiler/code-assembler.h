@@ -842,6 +842,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   void Switch(Node* index, Label* default_label, const int32_t* case_values,
               Label** case_labels, size_t case_count);
+  template <typename Value>
+  void Switch(Node* index, Label* default_label,
+              const std::initializer_list<std::pair<Value, Label*>>& cases);
 
   // Access to the frame pointer.
   TNode<RawPtrT> LoadFramePointer();
