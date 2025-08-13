@@ -178,8 +178,9 @@ DirectHandle<CodeWrapper> FactoryBase<Impl>::NewCodeWrapper() {
 
 template <typename Impl>
 Handle<FixedArray> FactoryBase<Impl>::NewFixedArray(int length,
-                                                    AllocationType allocation) {
-  return FixedArray::New(isolate(), length, allocation);
+                                                    AllocationType allocation,
+                                                    AllocationHint hint) {
+  return FixedArray::New(isolate(), length, allocation, hint);
 }
 
 template <typename Impl>
@@ -1319,8 +1320,9 @@ FactoryBase<Impl>::AllocateRawTwoByteInternalizedString(
 
 template <typename Impl>
 Tagged<HeapObject> FactoryBase<Impl>::AllocateRawArray(
-    int size, AllocationType allocation) {
-  Tagged<HeapObject> result = AllocateRaw(size, allocation);
+    int size, AllocationType allocation, AllocationHint hint) {
+  Tagged<HeapObject> result =
+      AllocateRaw(size, allocation, AllocationAlignment::kTaggedAligned, hint);
   if ((size >
        isolate()->heap()->AsHeap()->MaxRegularHeapObjectSize(allocation)) &&
       v8_flags.use_marking_progress_bar) {

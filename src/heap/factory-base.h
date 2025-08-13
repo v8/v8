@@ -146,7 +146,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   // Allocates a fixed array initialized with undefined values.
   Handle<FixedArray> NewFixedArray(
-      int length, AllocationType allocation = AllocationType::kYoung);
+      int length, AllocationType allocation = AllocationType::kYoung,
+      AllocationHint hint = AllocationHint());
 
   // Allocates a trusted fixed array in trusted space, initialized with zeros.
   Handle<TrustedFixedArray> NewTrustedFixedArray(
@@ -414,7 +415,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   static constexpr int kNumberToStringBufferSize = 32;
 
   // Allocate memory for an uninitialized array (e.g., a FixedArray or similar).
-  Tagged<HeapObject> AllocateRawArray(int size, AllocationType allocation);
+  Tagged<HeapObject> AllocateRawArray(int size, AllocationType allocation,
+                                      AllocationHint hint = AllocationHint());
   Tagged<HeapObject> AllocateRawFixedArray(int length,
                                            AllocationType allocation);
   Tagged<HeapObject> AllocateRawWeakArrayList(int length,

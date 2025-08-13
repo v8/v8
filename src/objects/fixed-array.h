@@ -197,7 +197,8 @@ class TaggedArrayBase : public detail::TaggedArrayHeader<ShapeT, Super> {
   static Handle<Derived> Allocate(
       IsolateT* isolate, int capacity,
       std::optional<DisallowGarbageCollection>* no_gc_out,
-      AllocationType allocation = AllocationType::kYoung);
+      AllocationType allocation = AllocationType::kYoung,
+      AllocationHint hint = AllocationHint());
 
   static constexpr int NewCapacityForIndex(int index, int old_capacity);
 
@@ -224,7 +225,8 @@ V8_OBJECT class FixedArray
   template <class IsolateT>
   static inline Handle<FixedArray> New(
       IsolateT* isolate, int capacity,
-      AllocationType allocation = AllocationType::kYoung);
+      AllocationType allocation = AllocationType::kYoung,
+      AllocationHint hint = AllocationHint());
 
   using Super::CopyElements;
   using Super::MoveElements;

@@ -289,7 +289,8 @@ TaggedArrayBase<D, S, P>::RawFieldOfElementAt(int index) const {
 // static
 template <class IsolateT>
 Handle<FixedArray> FixedArray::New(IsolateT* isolate, int capacity,
-                                   AllocationType allocation) {
+                                   AllocationType allocation,
+                                   AllocationHint hint) {
   if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
                   FixedArrayBase::kMaxLength)) {
     FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
@@ -300,7 +301,7 @@ Handle<FixedArray> FixedArray::New(IsolateT* isolate, int capacity,
 
   std::optional<DisallowGarbageCollection> no_gc;
   Handle<FixedArray> result =
-      Cast<FixedArray>(Allocate(isolate, capacity, &no_gc, allocation));
+      Cast<FixedArray>(Allocate(isolate, capacity, &no_gc, allocation, hint));
   ReadOnlyRoots roots{isolate};
   MemsetTagged((*result)->RawFieldOfFirstElement(), roots.undefined_value(),
                capacity);
@@ -357,15 +358,15 @@ template <class IsolateT>
 Handle<D> TaggedArrayBase<D, S, P>::Allocate(
     IsolateT* isolate, int capacity,
     std::optional<DisallowGarbageCollection>* no_gc_out,
-    AllocationType allocation) {
+    AllocationType allocation, AllocationHint hint) {
   // Note 0-capacity is explicitly allowed since not all subtypes can be
   // assumed to have canonical 0-capacity instances.
   DCHECK_GE(capacity, 0);
   DCHECK_LE(capacity, kMaxCapacity);
   DCHECK(!no_gc_out->has_value());
 
-  Tagged<D> xs = UncheckedCast<D>(
-      isolate->factory()->AllocateRawArray(SizeFor(capacity), allocation));
+  Tagged<D> xs = UncheckedCast<D>(isolate->factory()->AllocateRawArray(
+      SizeFor(capacity), allocation, hint));
 
   ReadOnlyRoots roots{isolate};
   if (DEBUG_BOOL) no_gc_out->emplace();
