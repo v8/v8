@@ -883,9 +883,7 @@ void ScavengerCollector::CollectGarbage() {
 
     const Heap::StackScanMode stack_scan_mode =
         heap_->ConservativeStackScanningModeForMinorGC();
-    DCHECK_IMPLIES(stack_scan_mode == Heap::StackScanMode::kSelective,
-                   heap_->IsGCWithStack());
-    if ((stack_scan_mode != Heap::StackScanMode::kNone) &&
+    if (stack_scan_mode != Heap::StackScanMode::kNone &&
         heap_->IsGCWithStack()) {
       // Pinning objects must be the first step and must happen before
       // scavenging any objects. Specifically we must all pin all objects

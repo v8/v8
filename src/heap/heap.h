@@ -387,6 +387,7 @@ class Heap final {
       return StackScanMode::kFull;
     }
     if (selective_stack_scan_start_address_.has_value()) {
+      DCHECK(IsGCWithStack());
       return StackScanMode::kSelective;
     }
     return StackScanMode::kNone;
@@ -396,6 +397,7 @@ class Heap final {
       return StackScanMode::kFull;
     }
     if (selective_stack_scan_start_address_.has_value()) {
+      DCHECK(IsGCWithStack());
       return StackScanMode::kSelective;
     }
     return StackScanMode::kNone;

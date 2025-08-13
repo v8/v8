@@ -5026,9 +5026,9 @@ void Heap::IterateConservativeStackRoots(RootVisitor* root_visitor,
                                          IterateRootsMode roots_mode) {
   const StackScanMode stack_scan_mode =
       ConservativeStackScanningModeForMajorGC();
-  DCHECK_IMPLIES(stack_scan_mode == Heap::StackScanMode::kSelective,
-                 IsGCWithStack());
-  if ((stack_scan_mode == StackScanMode::kNone) || !IsGCWithStack()) return;
+  if (stack_scan_mode == StackScanMode::kNone || !IsGCWithStack()) {
+    return;
+  }
 
   // In case of a shared GC, we're interested in the main isolate for CSS.
   Isolate* main_isolate = roots_mode == IterateRootsMode::kClientIsolate
