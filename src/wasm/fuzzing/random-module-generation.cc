@@ -4237,8 +4237,19 @@ class ModuleGen {
       static_assert(kV8MaxWasmMemory64Pages <= kMaxUInt32);
       uint32_t max_supported_pages =
           mem64 ? max_mem64_pages() : max_mem32_pages();
-      uint32_t min_pages =
-          module_range_->get<uint32_t>() % (max_supported_pages + 1);
+
+      uint32_t min_pages = static_cast<uint32_t>(module_range_->get<uint8_t>());
+      if (min_pages >= 128) {
+        // With a 50% chance, choose a very small number of pages.
+        // This allows the differential fuzzing to compare the entire memory
+        // ranges without decreasing the performance of the fuzzing too much.
+        min_pages = (min_pages % 10) + 1;
+      } else if (min_pages == 0) {
+        // With a 1/256 chance, choose a potentially very large number of pages.
+        min_pages = module_range_->getPseudoRandom<uint32_t>() %
+                    (max_supported_pages + 1);
+      }
+
       if (has_maximum) {
         uint32_t max_pages =
             std::max(min_pages, module_range_->get<uint32_t>() %
