@@ -2717,6 +2717,25 @@ IGNITION_HANDLER(CreateEmptyObjectLiteral, InterpreterAssembler) {
   Dispatch();
 }
 
+// SetPrototypeProperties <name_index>
+//
+// Merges the boilerpateObject at <name_index> into the prototype of the object
+// currently in accumulator
+IGNITION_HANDLER(SetPrototypeProperties, InterpreterLoadGlobalAssembler) {
+  TNode<Object> object = GetAccumulator();
+  TNode<Context> context = GetContext();
+
+  TNode<ObjectBoilerplateDescription> proto_boilerplate_description =
+      CAST(LoadConstantPoolEntryAtOperandIndex(0));
+
+  TNode<Object> result = CallRuntime(Runtime::kSetPrototypeProperties, context,
+                                     object, proto_boilerplate_description);
+
+  ClobberAccumulator(result);
+
+  Dispatch();
+}
+
 // CloneObject <source_idx> <flags> <feedback_slot>
 //
 // Allocates a new JSObject with each enumerable own property copied from

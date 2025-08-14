@@ -532,6 +532,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit debugger bytecode.
   builder.Debugger();
 
+  // Emit SetPrototypeProperties bytecode.
+  builder.SetPrototypeProperties(0);
+
   // Emit abort bytecode.
   BytecodeLabel after_abort;
   builder.JumpIfNull(&after_abort)

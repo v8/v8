@@ -1011,6 +1011,11 @@ void BaselineCompiler::VisitStaModuleVariable() {
   __ StaModuleVariable(scratch, value, cell_index, depth);
 }
 
+void BaselineCompiler::VisitSetPrototypeProperties() {
+  CallRuntime(Runtime::kSetPrototypeProperties, kInterpreterAccumulatorRegister,
+              Constant<ObjectBoilerplateDescription>(0));
+}
+
 void BaselineCompiler::VisitSetNamedProperty() {
   // StoreIC is currently a base class for multiple property store operations
   // and contains mixed logic for named and keyed, set and define operations,

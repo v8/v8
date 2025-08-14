@@ -109,6 +109,9 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // Fast binding requires length and name accessors.
   static const int kMinDescriptorsForFastBindAndWrap = 2;
 
+  static DirectHandle<Object> GetFunctionPrototype(
+      Isolate* isolate, DirectHandle<JSFunction> function);
+
   // [context]: The context for this function.
   inline Tagged<Context> context();
   DECL_RELAXED_GETTER(context, Tagged<Context>)

@@ -304,22 +304,6 @@ DirectHandle<AccessorInfo> Accessors::MakeStringLengthInfo(Isolate* isolate) {
 // Accessors::FunctionPrototype
 //
 
-static DirectHandle<Object> GetFunctionPrototype(
-    Isolate* isolate, DirectHandle<JSFunction> function) {
-  if (!function->has_prototype()) {
-    // We lazily allocate .prototype for functions, which confuses debug
-    // evaluate which assumes we can write to temporary objects we allocated
-    // during evaluation. We err on the side of caution here and prevent the
-    // newly allocated prototype from going into the temporary objects set,
-    // which means writes to it will be considered a side effect.
-    DisableTemporaryObjectTracking no_temp_tracking(isolate->debug());
-    DirectHandle<JSObject> proto =
-        isolate->factory()->NewFunctionPrototype(function);
-    JSFunction::SetPrototype(isolate, function, proto);
-  }
-  return DirectHandle<Object>(function->prototype(), isolate);
-}
-
 void Accessors::FunctionPrototypeGetter(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
@@ -328,7 +312,8 @@ void Accessors::FunctionPrototypeGetter(
   DirectHandle<JSFunction> function =
       Cast<JSFunction>(Utils::OpenDirectHandle(*info.Holder()));
   DCHECK(function->has_prototype_property());
-  DirectHandle<Object> result = GetFunctionPrototype(isolate, function);
+  DirectHandle<Object> result =
+      JSFunction::GetFunctionPrototype(isolate, function);
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 

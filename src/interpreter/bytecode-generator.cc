@@ -4,16 +4,23 @@
 
 #include "src/interpreter/bytecode-generator.h"
 
+#include <cstddef>
+#include <cstdio>
 #include <map>
+#include <memory>
 #include <optional>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 #include "include/v8-extension.h"
 #include "src/api/api-inl.h"
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
+#include "src/ast/variables.h"
+#include "src/base/logging.h"
+#include "src/base/small-vector.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/unoptimized-compilation-info.h"
@@ -1434,6 +1441,7 @@ BytecodeGenerator::BytecodeGenerator(
       template_objects_(0, zone()),
       vars_in_hole_check_bitmap_(0, zone()),
       eval_calls_(0, zone()),
+      proto_assign_seq_(0, zone()),
       execution_control_(nullptr),
       execution_context_(nullptr),
       execution_result_(nullptr),
@@ -1643,6 +1651,18 @@ void BytecodeGenerator::AllocateDeferredConstants(IsolateT* isolate,
     Handle<TemplateObjectDescription> description =
         get_template_object->GetOrBuildDescription(isolate);
     builder()->SetDeferredConstantPoolEntry(literal.second, description);
+  }
+
+  // Build sequence proto object literal constant properties
+  for (std::pair<ProtoAssignmentSeqBuilder*, size_t>& literal :
+       proto_assign_seq_) {
+    // If constant properties is an empty fixed array, we've already added it
+    // to the constant pool when visiting the object literal.
+    Handle<ObjectBoilerplateDescription> constant_properties =
+        literal.first->GetOrBuildBoilerplateDescription(isolate, script);
+
+    builder()->SetDeferredConstantPoolEntry(literal.second,
+                                            constant_properties);
   }
 }
 
@@ -2270,12 +2290,142 @@ void BytecodeGenerator::VisitDeclarations(Declaration::List* declarations) {
   }
 }
 
+// Helper to match a sequence of statements of the form:
+//   <Var>.prototype.<key> = <literal|function literal>
+// The first one in the sequence will assign <var>.
+// The subsequent ones must be about the same <var> to return true.
+
+bool BytecodeGenerator::IsPrototypeAssignment(
+    Statement* stmt, Variable** var,
+    base::SmallVector<std::pair<Property*, Expression*>, kInitialPropertyCount>&
+        properties) {
+  // The expression Statement is an assignment
+  // ========================================
+  ExpressionStatement* expr_stmt = stmt->AsExpressionStatement();
+  if (!expr_stmt) {
+    return false;
+  }
+  Assignment* assign = expr_stmt->expression()->AsAssignment();
+  if (!assign) {
+    return false;
+  }
+
+  AstNode* target = assign->target();
+  Expression* value = assign->value();
+  DCHECK_NOT_NULL(target);
+  DCHECK_NOT_NULL(value);
+
+  if (assign->op() != Token::kAssign) {
+    return false;
+  }
+
+  // The value (RHS) is something reasonable
+  // =======================================
+  if (!value->IsLiteral() && !value->IsFunctionLiteral()) {
+    return false;
+  }
+
+  // The target (LHS) is a property
+  // ==============================
+  if (!target->IsProperty()) {
+    return false;
+  }
+  Property* prop = nullptr;
+  prop = target->AsProperty();
+
+  if (!prop->key()->IsPropertyName()) {
+    return false;
+  }
+
+  // The target Object is the "prototype" property
+  // =============================================
+  if (!prop->obj()->IsProperty()) {
+    return false;
+  }
+  Property* proto_prop = prop->obj()->AsProperty();
+
+  if (!proto_prop->key()->IsStringLiteral() ||
+      (ast_string_constants()->prototype_string() !=
+       proto_prop->key()->AsLiteral()->AsRawString())) {
+    return false;
+  }
+
+  // Immediately on the left of "prototype" should be the leftmost object
+  // ====================================================================
+  if (!proto_prop->obj()->IsVariableProxy()) {
+    return false;
+  }
+
+  Variable* tmp_var = proto_prop->obj()->AsVariableProxy()->var();
+  VariableLocation loc = tmp_var->location();
+  if (loc != VariableLocation::PARAMETER && loc != VariableLocation::LOCAL &&
+      (loc != VariableLocation::CONTEXT &&
+       tmp_var->maybe_assigned() == kNotAssigned)) {
+    return false;
+  }
+
+  if (tmp_var == nullptr) {
+    // This is the first proto assignment in the sequence
+    *var = tmp_var;
+  } else if (*var != tmp_var) {
+    // This prototype assignment is about another var
+    return false;
+  }
+
+  // Success
+  properties.push_back(std::make_pair(
+      prop,
+      value));  // This will be reused as part of an ObjectLiteral
+
+  return true;
+}
+
+void BytecodeGenerator::VisitConsecutivePrototypeAssignments(
+    const base::SmallVector<std::pair<Property*, Expression*>,
+                            kInitialPropertyCount>& properties,
+    Variable* var) {
+  // Create a boiler plate object in the constant pool to be merged into the
+  // proto
+  size_t entry = builder()->AllocateDeferredConstantPoolEntry();
+  proto_assign_seq_.push_back(std::make_pair(
+      zone()->New<ProtoAssignmentSeqBuilder>(properties), entry));
+
+  // Load the variable whose prototype is to be set into the Accumulator
+  BuildVariableLoad(var, HoleCheckMode::kElided);
+  // Merge in-place proto-def boilerplate object into Accumulator
+  builder()->SetPrototypeProperties(entry);
+}
+
 void BytecodeGenerator::VisitStatements(
     const ZonePtrList<Statement>* statements, int start) {
-  for (int i = start; i < statements->length(); i++) {
+  for (int stmt_idx = start; stmt_idx < statements->length(); stmt_idx++) {
+    if (v8_flags.proto_assign_seq_opt) {
+      Variable* var = nullptr;
+      int proto_assign_idx = stmt_idx;
+      base::SmallVector<std::pair<Property*, Expression*>,
+                        kInitialPropertyCount>
+          properties;
+
+      while (proto_assign_idx < statements->length() &&
+             IsPrototypeAssignment(statements->at(proto_assign_idx), &var,
+                                   properties)) {
+        ++proto_assign_idx;
+      }
+
+      if (proto_assign_idx - stmt_idx > 1) {
+        DCHECK_EQ((size_t)(proto_assign_idx - stmt_idx), properties.size());
+        VisitConsecutivePrototypeAssignments(properties, var);
+        stmt_idx = proto_assign_idx;  // the outer loop should now ignore these
+                                      // statements
+        DCHECK(!builder()->RemainderOfBlockIsDead());
+        if (stmt_idx == statements->length()) break;
+      }
+    }
+
+    // Allocate an outer register allocations scope for the statement.
+    Statement* stmt = statements->at(stmt_idx);
     // Allocate an outer register allocations scope for the statement.
     RegisterAllocationScope allocation_scope(this);
-    Statement* stmt = statements->at(i);
     Visit(stmt);
     if (builder()->RemainderOfBlockIsDead()) break;
   }

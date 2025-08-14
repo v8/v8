@@ -7548,6 +7548,11 @@ ReduceResult MaglevGraphBuilder::VisitSetNamedProperty() {
   return build_generic_access();
 }
 
+ReduceResult MaglevGraphBuilder::VisitSetPrototypeProperties() {
+  // VisitSetPrototypeProperties <name_index>
+  UNREACHABLE();
+}
+
 ReduceResult MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
   // DefineNamedOwnProperty <object> <name_index> <slot>
   ValueNode* object = LoadRegister(0);

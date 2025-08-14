@@ -1963,6 +1963,8 @@ filegroup(
         "src/interpreter/interpreter-generator.h",
         "src/interpreter/interpreter-intrinsics.cc",
         "src/interpreter/interpreter-intrinsics.h",
+        "src/interpreter/prototype-assignment-sequence-builder.cc",
+        "src/interpreter/prototype-assignment-sequence-builder.h",
         "src/json/json-parser.cc",
         "src/json/json-parser.h",
         "src/json/json-stringifier.cc",

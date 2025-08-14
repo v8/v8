@@ -3,14 +3,22 @@
 // found in the LICENSE file.
 
 #include "src/ast/ast.h"
+#include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
+#include "src/handles/maybe-handles.h"
 #include "src/objects/allocation-site-scopes-inl.h"
+#include "src/objects/casting.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/lookup.h"
+#include "src/objects/property-descriptor-object.h"
+#include "src/objects/property-descriptor.h"
+#include "src/objects/property-details.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -577,6 +585,131 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   RETURN_RESULT_OR_FAILURE(
       isolate, CreateLiteral<ObjectLiteralHelper>(
                    isolate, maybe_vector, literals_index, description, flags));
+}
+
+static MaybeDirectHandle<Object> SetPrototypePropertiesSlow(
+    Isolate* isolate, DirectHandle<Context> context, DirectHandle<JSObject> obj,
+    Handle<ObjectBoilerplateDescription> object_boilerplate_description) {
+  MaybeHandle<Object> result;
+
+  int length = object_boilerplate_description->boilerplate_properties_count();
+  for (int index = 0; index < length; index++) {
+    DirectHandle<Object> proto;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, proto,
+        Runtime::GetObjectProperty(isolate, obj,
+                                   isolate->factory()->prototype_string()));
+
+    DirectHandle<Object> key(object_boilerplate_description->name(index),
+                             isolate);
+    Handle<Object> value(object_boilerplate_description->value(index), isolate);
+
+    if (Handle<SharedFunctionInfo> shared;
+        TryCast<SharedFunctionInfo>(value, &shared)) {
+      value = Factory::JSFunctionBuilder{isolate, shared, context}
+                  .set_allocation_type(AllocationType::kYoung)
+                  .Build();
+    }
+
+    RETURN_ON_EXCEPTION(
+        isolate, Runtime::SetObjectProperty(isolate, Cast<JSAny>(proto), key,
+                                            value, StoreOrigin::kNamed));
+
+    result = value;
+  }
+
+  return result.ToHandleChecked();
+}
+
+RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  DirectHandle<Context> context(isolate->context(), isolate);
+  DirectHandle<JSObject> obj = args.at<JSObject>(0);  // acc JS Object
+  Handle<ObjectBoilerplateDescription> object_boilerplate_description =
+      args.at<ObjectBoilerplateDescription>(1);
+
+  // Proxy and any non-function not welcome
+  if (!IsJSFunction(*obj)) {
+    RETURN_RESULT_OR_FAILURE(
+        isolate, SetPrototypePropertiesSlow(isolate, context, obj,
+                                            object_boilerplate_description));
+  }
+
+  DirectHandle<JSFunction> acc_fun = Cast<JSFunction>(obj);
+  if (!acc_fun->has_prototype_slot()) {
+    RETURN_RESULT_OR_FAILURE(
+        isolate, SetPrototypePropertiesSlow(isolate, context, obj,
+                                            object_boilerplate_description));
+  }
+
+  DirectHandle<Object> prototype =
+      JSFunction::GetFunctionPrototype(isolate, acc_fun);
+
+  DCHECK(
+      prototype.equals(Runtime::GetObjectProperty(
+                           isolate, obj, isolate->factory()->prototype_string())
+                           .ToHandleChecked()));
+
+  if (IsNull(*prototype)) {
+    RETURN_RESULT_OR_FAILURE(
+        isolate, SetPrototypePropertiesSlow(isolate, context, obj,
+                                            object_boilerplate_description));
+  }
+
+  DirectHandle<JSObject> js_proto;
+  if (!TryCast<JSObject>(prototype, &js_proto)) {
+    RETURN_RESULT_OR_FAILURE(
+        isolate, SetPrototypePropertiesSlow(isolate, context, obj,
+                                            object_boilerplate_description));
+  }
+
+  // Make sure None of the keys we are writing to are setters/getters
+  // TODO(rherouart): if prototype is empty we can skip these checks
+  int length = object_boilerplate_description->boilerplate_properties_count();
+  for (int index = 0; index < length; index++) {
+    PropertyDescriptor desc;
+    DirectHandle<Object> key(object_boilerplate_description->name(index),
+                             isolate);
+    PropertyKey lookup_key(isolate, key);
+
+    LookupIterator it(isolate, js_proto, lookup_key,
+                      LookupIterator::PROTOTYPE_CHAIN);
+
+    if (it.state() == LookupIterator::NOT_FOUND) {
+      continue;
+    }
+    if (it.state() != LookupIterator::DATA || it.IsReadOnly()) {
+      RETURN_RESULT_OR_FAILURE(
+          isolate, SetPrototypePropertiesSlow(isolate, context, obj,
+                                              object_boilerplate_description));
+    }
+  }
+
+  // It should now be safe to perform a fast merge
+  MaybeHandle<Object> result;
+  for (int index = 0; index < length; index++) {
+    DirectHandle<Object> key(object_boilerplate_description->name(index),
+                             isolate);
+    Handle<Object> value(object_boilerplate_description->value(index), isolate);
+
+    if (Handle<SharedFunctionInfo> shared;
+        TryCast<SharedFunctionInfo>(value, &shared)) {
+      // TODO(rherouart): Add a feedback cell to the JSFunction
+      value = Factory::JSFunctionBuilder{isolate, shared, context}
+                  .set_allocation_type(AllocationType::kYoung)
+                  .Build();
+    }
+
+    DirectHandle<String> name = Cast<String>(key);
+    DCHECK(!name->IsArrayIndex());
+    JSObject::SetOwnPropertyIgnoreAttributes(js_proto, name, value, NONE)
+        .Check();
+
+    result = value;
+  }
+
+  return *result.ToHandleChecked();
 }
 
 RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
