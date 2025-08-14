@@ -75,10 +75,10 @@ Tagged<HeapObject> SemiSpaceObjectIterator::Next() {
   while (true) {
     while (current_object_ < current_page_->area_end()) {
       Tagged<HeapObject> object = HeapObject::FromAddress(current_object_);
-      int object_size = object->Size();
-      DCHECK_LE(object_size, PageMetadata::kPageSize);
+      SafeHeapObjectSize object_size = object->SafeSize();
+      DCHECK_LE(object_size.value(), PageMetadata::kPageSize);
       Address next_object =
-          current_object_ + ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
+          current_object_ + ALIGN_TO_ALLOCATION_ALIGNMENT(object_size.value());
       DCHECK_GT(next_object, current_object_);
       current_object_ = next_object;
       if (!IsFreeSpaceOrFiller(object)) return object;

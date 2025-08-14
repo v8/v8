@@ -250,6 +250,7 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
   // Returns the heap object's size in bytes
   DECL_GETTER(Size, int)
+  DECL_GETTER(SafeSize, SafeHeapObjectSize)
 
   // Given a heap object's map pointer, returns the heap size in bytes
   // Useful when the map pointer field is used for other purposes.

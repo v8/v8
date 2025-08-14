@@ -1674,6 +1674,15 @@ int HeapObject::Size(PtrComprCageBase cage_base) const {
   return SizeFromMap(map(cage_base));
 }
 
+SafeHeapObjectSize HeapObject::SafeSize() const {
+  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !HeapLayout::InCodeSpace(*this));
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return HeapObject::SafeSize(cage_base);
+}
+SafeHeapObjectSize HeapObject::SafeSize(PtrComprCageBase cage_base) const {
+  return SafeSizeFromMap(map(cage_base));
+}
+
 inline bool IsSpecialReceiverInstanceType(InstanceType instance_type) {
   return instance_type <= LAST_SPECIAL_RECEIVER_TYPE;
 }
