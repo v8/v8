@@ -920,6 +920,7 @@
   'regress/regress-390675705': [SKIP],
   'regress/regress-395028748': [SKIP],
   'regress/regress-424627229': [SKIP],
+  'regress/regress-438321229': [SKIP],
 
   'wasm/fast-api-calls-with-wellknown-imports*': [SKIP],
   'regress/wasm/regress-368086282': [SKIP],
