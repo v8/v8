@@ -82,6 +82,12 @@ enum class UnitGroup {
   kDateTime,
 };
 
+// Default value as used by GetTemporalUnitValuedOption
+enum class DefaultValue {
+  kUnset,
+  kRequired,
+};
+
 // https://tc39.es/proposal-temporal/#sec-temporal-totemporaltimerecord
 enum Completeness {
   kComplete,
@@ -736,173 +742,108 @@ Maybe<temporal_rs::Precision> GetTemporalFractionalSecondDigitsOption(
       temporal_rs::Precision{.is_minute = false, .precision = digit_count});
 }
 
-// https://tc39.es/proposal-temporal/#sec-temporal-GetTemporalUnitvaluedoption
-//
-// Utility function for getting Unit options off of an object
-//
-// Temporal distinguishes between unset units and Auto, even when
-// "default_is_required=false", so we return a Maybe<optional>, with the outer
-// Maybe signaling error states, and the inner optional signaling absence, which
-// can directly be consumed by temporal_rs
-//
-// # extraValues
-// In the spec text, the extraValues is defined as an optional argument of
-// "a List of ECMAScript language values". Most of the caller does not pass in
-// value for extraValues, which is represented by the default
-// Unit::NotPresent. For the three places in the spec text calling
-// GetTemporalUnit with an extraValues argument:
-// << "day" >> is passed in as in the algorithm of
-//   Temporal.PlainDateTime.prototype.round() and
-//   Temporal.ZonedDateTime.prototype.round();
-// << "auto" >> is passed in as in the algorithm of
-// Temporal.Duration.prototype.round().
-// Therefore we can simply use a Unit of three possible value, the default
-// Unit::NotPresent, Unit::Day, and
-// Unit::Auto to cover all the possible value for extraValues.
-Maybe<std::optional<Unit>> GetTemporalUnit(
+// https://tc39.es/proposal-temporal/#sec-temporal-gettemporalunitvaluedoption
+Maybe<std::optional<Unit>> GetTemporalUnitValuedOption(
     Isolate* isolate, DirectHandle<JSReceiver> normalized_options,
-    DirectHandle<String> key, UnitGroup unit_group,
-    std::optional<Unit> default_value, bool default_is_required,
-    const char* method_name, std::optional<Unit> extra_values = std::nullopt) {
-  std::span<const std::string_view> str_values;
-  std::span<const std::optional<Unit::Value>> enum_values;
-  switch (unit_group) {
-    case UnitGroup::kDate:
-      if (default_value == Unit::Auto || extra_values == Unit::Auto) {
-        static auto strs = std::to_array<const std::string_view>(
-            {"year", "month", "week", "day", "auto", "years", "months", "weeks",
-             "days"});
-        static auto enums = std::to_array<const std::optional<Unit::Value>>(
-            {Unit::Year, Unit::Month, Unit::Week, Unit::Day, Unit::Auto,
-             Unit::Year, Unit::Month, Unit::Week, Unit::Day});
-        str_values = strs;
-        enum_values = enums;
-      } else {
-        DCHECK(default_value == std::nullopt || default_value == Unit::Year ||
-               default_value == Unit::Month || default_value == Unit::Week ||
-               default_value == Unit::Day);
-        static auto strs = std::to_array<const std::string_view>(
-            {"year", "month", "week", "day", "years", "months", "weeks",
-             "days"});
-        static auto enums = std::to_array<const std::optional<Unit::Value>>(
-            {Unit::Year, Unit::Month, Unit::Week, Unit::Day, Unit::Year,
-             Unit::Month, Unit::Week, Unit::Day});
-        str_values = strs;
-        enum_values = enums;
-      }
-      break;
-    case UnitGroup::kTime:
-      if (default_value == Unit::Auto || extra_values == Unit::Auto) {
-        static auto strs = std::to_array<const std::string_view>(
-            {"hour", "minute", "second", "millisecond", "microsecond",
-             "nanosecond", "auto", "hours", "minutes", "seconds",
-             "milliseconds", "microseconds", "nanoseconds"});
-        static auto enums = std::to_array<const std::optional<Unit::Value>>(
-            {Unit::Hour, Unit::Minute, Unit::Second, Unit::Millisecond,
-             Unit::Microsecond, Unit::Nanosecond, Unit::Auto, Unit::Hour,
-             Unit::Minute, Unit::Second, Unit::Millisecond, Unit::Microsecond,
-             Unit::Nanosecond});
-        str_values = strs;
-        enum_values = enums;
-      } else if (default_value == Unit::Day || extra_values == Unit::Day) {
-        static auto strs = std::to_array<const std::string_view>(
-            {"hour", "minute", "second", "millisecond", "microsecond",
-             "nanosecond", "day", "hours", "minutes", "seconds", "milliseconds",
-             "microseconds", "nanoseconds", "days"});
-        static auto enums = std::to_array<const std::optional<Unit::Value>>(
-            {Unit::Hour, Unit::Minute, Unit::Second, Unit::Millisecond,
-             Unit::Microsecond, Unit::Nanosecond, Unit::Day, Unit::Hour,
-             Unit::Minute, Unit::Second, Unit::Millisecond, Unit::Microsecond,
-             Unit::Nanosecond, Unit::Day});
-        str_values = strs;
-        enum_values = enums;
-      } else {
-        DCHECK(default_value == std::nullopt || default_value == Unit::Hour ||
-               default_value == Unit::Minute || default_value == Unit::Second ||
-               default_value == Unit::Millisecond ||
-               default_value == Unit::Microsecond ||
-               default_value == Unit::Nanosecond);
-        static auto strs = std::to_array<const std::string_view>(
-            {"hour", "minute", "second", "millisecond", "microsecond",
-             "nanosecond", "hours", "minutes", "seconds", "milliseconds",
-             "microseconds", "nanoseconds"});
-        static auto enums = std::to_array<const std::optional<Unit::Value>>(
-            {Unit::Hour, Unit::Minute, Unit::Second, Unit::Millisecond,
-             Unit::Microsecond, Unit::Nanosecond, Unit::Hour, Unit::Minute,
-             Unit::Second, Unit::Millisecond, Unit::Microsecond,
-             Unit::Nanosecond});
-        str_values = strs;
-        enum_values = enums;
-      }
-      break;
-    case UnitGroup::kDateTime:
-      if (default_value == Unit::Auto || extra_values == Unit::Auto) {
-        static auto strs = std::to_array<const std::string_view>(
-            {"year",        "month",      "week",         "day",
-             "hour",        "minute",     "second",       "millisecond",
-             "microsecond", "nanosecond", "auto",         "years",
-             "months",      "weeks",      "days",         "hours",
-             "minutes",     "seconds",    "milliseconds", "microseconds",
-             "nanoseconds"});
-        static auto enums = std::to_array<const std::optional<Unit::Value>>(
-            {Unit::Year,        Unit::Month,       Unit::Week,
-             Unit::Day,         Unit::Hour,        Unit::Minute,
-             Unit::Second,      Unit::Millisecond, Unit::Microsecond,
-             Unit::Nanosecond,  Unit::Auto,        Unit::Year,
-             Unit::Month,       Unit::Week,        Unit::Day,
-             Unit::Hour,        Unit::Minute,      Unit::Second,
-             Unit::Millisecond, Unit::Microsecond, Unit::Nanosecond});
-        str_values = strs;
-        enum_values = enums;
-      } else {
-        static auto strs = std::to_array<const std::string_view>(
-            {"year",        "month",        "week",         "day",
-             "hour",        "minute",       "second",       "millisecond",
-             "microsecond", "nanosecond",   "years",        "months",
-             "weeks",       "days",         "hours",        "minutes",
-             "seconds",     "milliseconds", "microseconds", "nanoseconds"});
-        static auto enums = std::to_array<const std::optional<Unit::Value>>(
-            {Unit::Year,        Unit::Month,       Unit::Week,
-             Unit::Day,         Unit::Hour,        Unit::Minute,
-             Unit::Second,      Unit::Millisecond, Unit::Microsecond,
-             Unit::Nanosecond,  Unit::Year,        Unit::Month,
-             Unit::Week,        Unit::Day,         Unit::Hour,
-             Unit::Minute,      Unit::Second,      Unit::Millisecond,
-             Unit::Microsecond, Unit::Nanosecond});
-        str_values = strs;
-        enum_values = enums;
-      }
-      break;
+    DirectHandle<String> key, DefaultValue default_value,
+    const char* method_name) {
+  // 1. Let allowedStrings be a List containing all values in the "Singular
+  // property name" and "Plural property name" columns of Table 21, except the
+  // header row.
+  // 2. Append "auto" to allowedStrings.
+  // 3. NOTE: For each singular Temporal unit name that is contained within
+  // allowedStrings, the corresponding plural name is also contained within it.
+
+  constexpr auto strs = std::to_array<const std::string_view>(
+      {"year",       "month",   "week",        "day",          "hour",
+       "minute",     "second",  "millisecond", "microsecond",  "nanosecond",
+       "auto",       "years",   "months",      "weeks",        "days",
+       "hours",      "minutes", "seconds",     "milliseconds", "microseconds",
+       "nanoseconds"});
+  constexpr auto enums = std::to_array<const std::optional<Unit::Value>>(
+      {Unit::Year,        Unit::Month,       Unit::Week,
+       Unit::Day,         Unit::Hour,        Unit::Minute,
+       Unit::Second,      Unit::Millisecond, Unit::Microsecond,
+       Unit::Nanosecond,  Unit::Auto,        Unit::Year,
+       Unit::Month,       Unit::Week,        Unit::Day,
+       Unit::Hour,        Unit::Minute,      Unit::Second,
+       Unit::Millisecond, Unit::Microsecond, Unit::Nanosecond});
+
+  // 4. If default is unset, then
+  // a. Let defaultValue be undefined.
+
+  std::optional<std::optional<Unit>> wrapped_default = std::nullopt;
+
+  if (default_value == DefaultValue::kUnset) {
+    // GetStringOption treats a null default as REQUIRED
+    // however, we also wish to handle undefined/UNSET here, which we
+    // represent as a None value in the inner optional
+    wrapped_default = std::make_optional(std::optional<Unit>(std::nullopt));
   }
 
-  // 4. If default is required, then
-  if (default_is_required) default_value = std::nullopt;
-  // a. Let defaultValue be undefined.
-  // 5. Else,
-  // a. Let defaultValue be default.
-  // b. If defaultValue is not undefined and singularNames does not contain
-  // defaultValue, then i. Append defaultValue to singularNames.
+  // 6. Let value be ? GetOption(options, key, string, allowedStrings,
+  // defaultValue).
 
-  // 9. Let value be ? GetOption(normalizedOptions, key, "string",
-  // allowedValues, defaultValue).
   std::optional<Unit::Value> value;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                              GetStringOption<std::optional<Unit::Value>>(
                                  isolate, normalized_options, key, method_name,
-                                 str_values, enum_values, default_value));
-
-  // 10. If value is undefined and default is required, throw a RangeError
-  // exception.
-  if (default_is_required && value == std::nullopt) {
-    THROW_NEW_ERROR(isolate,
-                    NEW_TEMPORAL_RANGE_ERROR("Unit must be specified."));
-  }
-  // 12. Return value.
+                                 strs, enums, wrapped_default));
+  // 7. If value is undefined, return unset.
+  // 8. If value is "auto", return auto.
+  // 9. Return the value in the "Value" column of Table 21 corresponding to the
+  // row with value in its "Singular property name" or "Plural property name"
+  // column.
   if (value.has_value()) {
     return Just<std::optional<Unit>>((Unit)value.value());
   } else {
     return Just<std::optional<Unit>>(std::nullopt);
   }
+}
+
+Maybe<void> ValidateTemporalUnitValue(
+    Isolate* isolate, std::optional<Unit> value_or_unset, UnitGroup unit_group,
+    std::optional<Unit> extra_values = std::nullopt) {
+  // 1. If value is unset, return unused.
+  if (!value_or_unset.has_value()) {
+    return JustVoid();
+  }
+  auto value = value_or_unset.value();
+  // 2. If extraValues is present and extraValues contains value, return unused.
+  if (extra_values == value) {
+    return JustVoid();
+  }
+
+  // 3. Let category be the value in the “Category” column of the row of Table
+  // 21 whose “Value” column contains value. If there is no such row, throw a
+  // RangeError exception.
+  // 4. If category is date and unitGroup is date or datetime, return unused.
+  // 5. If category is time and unitGroup is time or datetime, return unused.
+  switch (value) {
+    case Unit::Auto:
+      THROW_NEW_ERROR(isolate,
+                      NEW_TEMPORAL_RANGE_ERROR("Auto unit not allowed here"));
+    case Unit::Year:
+    case Unit::Month:
+    case Unit::Week:
+    case Unit::Day:
+      if (unit_group == UnitGroup::kDate ||
+          unit_group == UnitGroup::kDateTime) {
+        return JustVoid();
+      } else {
+        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(
+                                     "Found date unit, expect time unit"));
+      }
+    default:
+      if (unit_group == UnitGroup::kTime ||
+          unit_group == UnitGroup::kDateTime) {
+        return JustVoid();
+      }
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(
+                                   "Found date unit, expect time unit"));
+  }
+  // 6. Throw a RangeError exception.
+  // (done in branches above)
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-canonicalizecalendar
@@ -1020,19 +961,14 @@ Maybe<temporal_rs::DifferenceSettings> GetDifferenceSettingsWithoutChecks(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, options, GetOptionsObject(isolate, options_obj, method_name));
 
-  // 2. Let largestUnit be ?GetTemporalUnitValuedOption(options, "largestUnit",
-  // unitGroup, auto).
+  // 2. Let largestUnit be ? GetTemporalUnitValuedOption(options, "largestUnit",
+  // unset).
   std::optional<Unit> largest_unit;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, largest_unit,
-      GetTemporalUnit(isolate, options,
-                      isolate->factory()->largestUnit_string(), unit_group,
-                      Unit::Auto, false, method_name));
-
-  // 3. If disallowedUnits contains largestUnit, throw a RangeError exception.
-  // (skip, to be validated in Rust code)
-  // upstream spec issue on observability:
-  // https://github.com/tc39/proposal-temporal/issues/3116
+      temporal::GetTemporalUnitValuedOption(
+          isolate, options, isolate->factory()->largestUnit_string(),
+          DefaultValue::kUnset, method_name));
 
   // 4. Let roundingIncrement be ?GetRoundingIncrementOption(options).
   uint32_t rounding_increment;
@@ -1046,16 +982,14 @@ Maybe<temporal_rs::DifferenceSettings> GetDifferenceSettingsWithoutChecks(
       isolate, rounding_mode,
       temporal::GetRoundingModeOption(isolate, options, RoundingMode::Trunc,
                                       method_name));
-
-  // 7. Let smallestUnit be ?GetTemporalUnitValuedOption(options,
-  // "smallestUnit", unitGroup, fallbackSmallestUnit).
+  // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(options,
+  // "smallestUnit", unset).
   std::optional<Unit> smallest_unit;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, smallest_unit,
-      GetTemporalUnit(isolate, options,
-                      isolate->factory()->smallestUnit_string(), unit_group,
-                      fallback_smallest_unit,
-                      !fallback_smallest_unit.has_value(), method_name));
+      temporal::GetTemporalUnitValuedOption(
+          isolate, options, isolate->factory()->smallestUnit_string(),
+          DefaultValue::kUnset, method_name));
 
   // remaining steps are validation, to be performed later
 
@@ -3959,13 +3893,13 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Round(
   // 8. NOTE: (...)
 
   // 9. Let largestUnit be ? GetTemporalUnitValuedOption(roundTo, "largestUnit",
-  // datetime, unset, « auto »).
+  // unset).
   std::optional<Unit> largest_unit;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, largest_unit,
-      temporal::GetTemporalUnit(
-          isolate, round_to, factory->largestUnit_string(),
-          UnitGroup::kDateTime, std::nullopt, false, method_name, Unit::Auto));
+      temporal::GetTemporalUnitValuedOption(
+          isolate, round_to, isolate->factory()->largestUnit_string(),
+          DefaultValue::kUnset, method_name));
 
   // 10. Let relativeToRecord be ? GetTemporalRelativeToOption(roundTo).
   // 11. Let zonedRelativeTo be relativeToRecord.[[ZonedRelativeTo]].
@@ -3984,21 +3918,25 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Round(
       isolate, rounding_increment,
       temporal::GetRoundingIncrementOption(isolate, round_to));
 
-  // 8. Let roundingMode be ? GetRoundingModeOption(roundTo, half-expand).
+  // 14. Let roundingMode be ? GetRoundingModeOption(roundTo, half-expand).
   RoundingMode rounding_mode;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, rounding_mode,
       temporal::GetRoundingModeOption(isolate, round_to,
                                       RoundingMode::HalfExpand, method_name));
 
-  // 15. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo,
-  // "smallestUnit", datetime, unset).
+  // 15. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo,
+  // "smallestUnit", unset).
   std::optional<Unit> smallest_unit;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, smallest_unit,
-      temporal::GetTemporalUnit(
-          isolate, round_to, factory->smallestUnit_string(),
-          UnitGroup::kDateTime, std::nullopt, false, method_name));
+      temporal::GetTemporalUnitValuedOption(
+          isolate, round_to, isolate->factory()->smallestUnit_string(),
+          DefaultValue::kUnset, method_name));
+  // 16. Perform ? ValidateTemporalUnitValue(smallestUnit, datetime).
+  RETURN_ON_EXCEPTION(
+      isolate, temporal::ValidateTemporalUnitValue(isolate, smallest_unit,
+                                                   UnitGroup::kDateTime));
 
   // Rest of the steps handled in Rust
 
@@ -4069,14 +4007,17 @@ MaybeDirectHandle<Number> JSTemporalDuration::Total(
       isolate, relative_to,
       temporal::GetTemporalRelativeToOptionHandleUndefined(isolate, total_of));
 
-  // 10. Let unit be ? GetTemporalUnitValuedOption(totalOf, "unit", datetime,
-  // required).
+  // 10. Let unit be ? GetTemporalUnitValuedOption(totalOf, "unit", required).
   std::optional<Unit> unit;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, unit,
-      temporal::GetTemporalUnit(
+      temporal::GetTemporalUnitValuedOption(
           isolate, total_of, isolate->factory()->unit_string(),
-          UnitGroup::kDateTime, std::nullopt, true, method_name));
+          DefaultValue::kRequired, method_name));
+  // 11. Perform ? ValidateTemporalUnitValue(unit, datetime).
+  RETURN_ON_EXCEPTION(isolate, temporal::ValidateTemporalUnitValue(
+                                   isolate, unit, UnitGroup::kDateTime));
+
   // We set required to true.
   DCHECK(unit.has_value());
 
@@ -4224,14 +4165,17 @@ MaybeDirectHandle<String> JSTemporalDuration::ToString(
                                       method_name));
 
   // 7. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions,
-  // "smallestUnit", time, unset).
-
+  // "smallestUnit", unset).
   std::optional<Unit> smallest_unit;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, smallest_unit,
-      temporal::GetTemporalUnit(
+      temporal::GetTemporalUnitValuedOption(
           isolate, options, isolate->factory()->smallestUnit_string(),
-          UnitGroup::kTime, std::nullopt, false, method_name));
+          DefaultValue::kUnset, method_name));
+
+  // 8. Perform ? ValidateTemporalUnitValue(smallestUnit, time).
+  RETURN_ON_EXCEPTION(isolate, temporal::ValidateTemporalUnitValue(
+                                   isolate, smallest_unit, UnitGroup::kTime));
 
   // 8-17 performed by Rust
   auto rust_options = temporal_rs::ToStringRoundingOptions{
@@ -4886,27 +4830,31 @@ MaybeDirectHandle<String> JSTemporalPlainDateTime::ToString(
                              temporal::GetTemporalShowCalendarNameOption(
                                  isolate, options, method_name));
 
-  // 5. Let digits be ?GetTemporalFractionalSecondDigitsOption(resolvedOptions).
+  // 6. Let digits be ?GetTemporalFractionalSecondDigitsOption(resolvedOptions).
   temporal_rs::Precision digits;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, digits,
                              temporal::GetTemporalFractionalSecondDigitsOption(
                                  isolate, options, method_name));
 
-  // 6. Let roundingMode be ? GetRoundingModeOption(resolvedOptions, trunc).
+  // 7. Let roundingMode be ? GetRoundingModeOption(resolvedOptions, trunc).
   RoundingMode rounding_mode;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, rounding_mode,
       temporal::GetRoundingModeOption(isolate, options, RoundingMode::Trunc,
                                       method_name));
 
-  // 7. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions,
-  // "smallestUnit", time, unset).
+  // 8. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions,
+  // "smallestUnit", unset).
+
   std::optional<Unit> smallest_unit;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, smallest_unit,
-      temporal::GetTemporalUnit(
+      temporal::GetTemporalUnitValuedOption(
           isolate, options, isolate->factory()->smallestUnit_string(),
-          UnitGroup::kTime, std::nullopt, false, method_name));
+          DefaultValue::kUnset, method_name));
+  // 9. Perform ? ValidateTemporalUnitValue(smallestUnit, time).
+  RETURN_ON_EXCEPTION(isolate, temporal::ValidateTemporalUnitValue(
+                                   isolate, smallest_unit, UnitGroup::kTime));
 
   // Rest of the steps handled in Rust
   auto rust_options = temporal_rs::ToStringRoundingOptions{
@@ -5016,13 +4964,17 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Round(
                                       RoundingMode::HalfExpand, method_name));
 
   // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo,
-  // "smallestUnit", time, required, « day »).
+  // "smallestUnit", required).
   std::optional<Unit> smallest_unit;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, smallest_unit,
-      temporal::GetTemporalUnit(
-          isolate, round_to, factory->smallestUnit_string(),
-          UnitGroup::kDateTime, std::nullopt, true, method_name, Unit::Day));
+      temporal::GetTemporalUnitValuedOption(
+          isolate, round_to, isolate->factory()->smallestUnit_string(),
+          DefaultValue::kRequired, method_name));
+  // 10. Perform ? ValidateTemporalUnitValue(smallestUnit, time, « day »).
+  RETURN_ON_EXCEPTION(isolate,
+                      temporal::ValidateTemporalUnitValue(
+                          isolate, smallest_unit, UnitGroup::kTime, Unit::Day));
 
   // Rest of the steps handled in Rust
 
@@ -5794,13 +5746,16 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Round(
                                       RoundingMode::HalfExpand, method_name));
 
   // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo,
-  // "smallestUnit", time, required).
+  // "smallestUnit", required).
   std::optional<Unit> smallest_unit;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, smallest_unit,
-      temporal::GetTemporalUnit(
-          isolate, round_to, factory->smallestUnit_string(), UnitGroup::kTime,
-          std::nullopt, true, method_name));
+      temporal::GetTemporalUnitValuedOption(
+          isolate, round_to, factory->smallestUnit_string(),
+          DefaultValue::kRequired, method_name));
+  // 10. Perform ? ValidateTemporalUnitValue(smallestUnit, time).
+  RETURN_ON_EXCEPTION(isolate, temporal::ValidateTemporalUnitValue(
+                                   isolate, smallest_unit, UnitGroup::kTime));
 
   // Rest of the steps handled in Rust
 
@@ -5969,15 +5924,17 @@ MaybeDirectHandle<String> JSTemporalPlainTime::ToString(
       temporal::GetRoundingModeOption(isolate, options, RoundingMode::Trunc,
                                       method_name));
 
-  // 7. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions,
-  // "smallestUnit", time, unset).
-
+  // 8. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions,
+  // "smallestUnit", unset).
   std::optional<Unit> smallest_unit;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, smallest_unit,
-      temporal::GetTemporalUnit(
+      temporal::GetTemporalUnitValuedOption(
           isolate, options, isolate->factory()->smallestUnit_string(),
-          UnitGroup::kTime, std::nullopt, false, method_name));
+          DefaultValue::kUnset, method_name));
+  // 9. Perform ? ValidateTemporalUnitValue(smallestUnit, time).
+  RETURN_ON_EXCEPTION(isolate, temporal::ValidateTemporalUnitValue(
+                                   isolate, smallest_unit, UnitGroup::kTime));
 
   // 8-10 performed by Rust
   auto rust_options = temporal_rs::ToStringRoundingOptions{
@@ -6320,26 +6277,30 @@ MaybeDirectHandle<String> JSTemporalZonedDateTime::ToString(
                                       method_name));
 
   // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions,
-  // "smallestUnit", time, unset).
+  // "smallestUnit", unset).
   std::optional<Unit> smallest_unit;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, smallest_unit,
-      temporal::GetTemporalUnit(
+      temporal::GetTemporalUnitValuedOption(
           isolate, options, isolate->factory()->smallestUnit_string(),
-          UnitGroup::kTime, std::nullopt, false, method_name));
+          DefaultValue::kUnset, method_name));
 
-  // 10. If smallestUnit is hour, throw a RangeError exception.
-  if (smallest_unit == Unit::Hour) {
-    THROW_NEW_ERROR(isolate,
-                    NEW_TEMPORAL_RANGE_ERROR("smallestUnit cannot be Hour."));
-  }
-
-  // 11. Let showTimeZone be
+  // 10. Let showTimeZone be
   // ? GetTemporalShowTimeZoneNameOption(resolvedOptions).
   temporal_rs::DisplayTimeZone show_tz;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, show_tz,
                              temporal::GetTemporalShowTimeZoneNameOption(
                                  isolate, options, method_name));
+
+  // 11. Perform ? ValidateTemporalUnitValue(smallestUnit, time).
+  RETURN_ON_EXCEPTION(isolate, temporal::ValidateTemporalUnitValue(
+                                   isolate, smallest_unit, UnitGroup::kTime));
+
+  // 12. If smallestUnit is hour, throw a RangeError exception.
+  if (smallest_unit == Unit::Hour) {
+    THROW_NEW_ERROR(isolate,
+                    NEW_TEMPORAL_RANGE_ERROR("smallestUnit cannot be Hour."));
+  }
 
   // Rest of the steps handled in Rust
   auto rust_options = temporal_rs::ToStringRoundingOptions{
@@ -6448,14 +6409,19 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Round(
       temporal::GetRoundingModeOption(isolate, round_to,
                                       RoundingMode::HalfExpand, method_name));
 
-  // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo,
-  // "smallestUnit", time, required, « day »).
+  // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo,
+  // "smallestUnit", required).
   std::optional<Unit> smallest_unit;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, smallest_unit,
-      temporal::GetTemporalUnit(
-          isolate, round_to, factory->smallestUnit_string(), UnitGroup::kTime,
-          std::nullopt, true, method_name, Unit::Day));
+      temporal::GetTemporalUnitValuedOption(
+          isolate, round_to, isolate->factory()->smallestUnit_string(),
+          DefaultValue::kRequired, method_name));
+
+  // 10. Perform ? ValidateTemporalUnitValue(smallestUnit, time, « day »).
+  RETURN_ON_EXCEPTION(isolate,
+                      temporal::ValidateTemporalUnitValue(
+                          isolate, smallest_unit, UnitGroup::kTime, Unit::Day));
 
   // Rest of the steps handled in Rust
 
@@ -6864,13 +6830,16 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Round(
                                       RoundingMode::HalfExpand, method_name));
 
   // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo,
-  // "smallestUnit", time, required
+  // "smallestUnit", required).
   std::optional<Unit> smallest_unit;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, smallest_unit,
-      temporal::GetTemporalUnit(
+      temporal::GetTemporalUnitValuedOption(
           isolate, round_to, isolate->factory()->smallestUnit_string(),
-          UnitGroup::kTime, std::nullopt, true, method_name));
+          DefaultValue::kRequired, method_name));
+  // 10. Perform ? ValidateTemporalUnitValue(smallestUnit, time).
+  RETURN_ON_EXCEPTION(isolate, temporal::ValidateTemporalUnitValue(
+                                   isolate, smallest_unit, UnitGroup::kTime));
 
   auto options = temporal_rs::RoundingOptions{.largest_unit = std::nullopt,
                                               .smallest_unit = smallest_unit,
@@ -6941,30 +6910,35 @@ MaybeDirectHandle<String> JSTemporalInstant::ToString(
                                       method_name));
 
   // 7. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions,
-  // "smallestUnit", time, unset).
+  // "smallestUnit", unset).
   std::optional<Unit> smallest_unit;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, smallest_unit,
-      temporal::GetTemporalUnit(
+      temporal::GetTemporalUnitValuedOption(
           isolate, options, isolate->factory()->smallestUnit_string(),
-          UnitGroup::kTime, std::nullopt, false, method_name));
+          DefaultValue::kUnset, method_name));
 
-  // 8. If smallestUnit is hour, throw a RangeError exception.
-  if (smallest_unit == Unit::Hour) {
-    THROW_NEW_ERROR(isolate,
-                    NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
-                                  isolate->factory()->smallestUnit_string()));
-  }
-
-  // 9. Let timeZone be ? Get(resolvedOptions, "timeZone").
+  // 8. Let timeZone be ? Get(resolvedOptions, "timeZone").
   DirectHandle<Object> time_zone;
   //  Let val be ? Get(temporalDurationLike, fieldName).
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, time_zone,
       JSReceiver::GetProperty(isolate, options,
                               isolate->factory()->timeZone_string()));
+
+  // 9. Perform ? ValidateTemporalUnitValue(smallestUnit, time).
+  RETURN_ON_EXCEPTION(isolate, temporal::ValidateTemporalUnitValue(
+                                   isolate, smallest_unit, UnitGroup::kTime));
+
+  // 10. If smallestUnit is hour, throw a RangeError exception.
+  if (smallest_unit == Unit::Hour) {
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
+                                  isolate->factory()->smallestUnit_string()));
+  }
+
   std::unique_ptr<temporal_rs::TimeZone> rust_time_zone;
-  // 10. If timeZone is not undefined, then
+  // 11. If timeZone is not undefined, then
   if (!IsUndefined(*time_zone)) {
     // a. Set timeZone to ? ToTemporalTimeZoneIdentifier(timeZone).
     MOVE_RETURN_ON_EXCEPTION(

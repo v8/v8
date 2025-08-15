@@ -154,8 +154,10 @@ template <>
 class Maybe<void> {
  public:
   constexpr Maybe() = default;
+  constexpr Maybe(internal::NullMaybeType) {}
 
   V8_INLINE bool IsNothing() const { return !is_valid_; }
+  V8_INLINE bool IsEmpty() const { return IsNothing(); }
   V8_INLINE bool IsJust() const { return is_valid_; }
 
   V8_INLINE bool operator==(const Maybe& other) const {
