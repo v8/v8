@@ -130,7 +130,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'bcf370db406bf6467dbf355a6b897ce90d5cf2ef',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'cf767970ed99dcf7c7a2e11649bb52835ad32591',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '85089564eaf73d42f6d5777cbfd0c242cb9a2486',
   'buildtools/linux64': {
@@ -232,7 +232,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '108ecc5d49773c66d1a8c93999777bf23de06edb',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '8512c3479781fd8c0eae830922d8acb879cb3886',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
