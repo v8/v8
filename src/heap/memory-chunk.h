@@ -49,6 +49,9 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   // All possible flags that can be set on a page. While the value of flags
   // doesn't matter in principle, keep flags used in the write barrier together
   // in order to have dense page flag checks in the write barrier.
+  //
+  // TODO(429538831): Replace the flags in here with their trusted counterparts
+  // as much as performance allows.
   enum Flag : uintptr_t {
     NO_FLAGS = 0u,
 

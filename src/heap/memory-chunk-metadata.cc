@@ -26,9 +26,12 @@ MemoryChunkMetadata::MemoryChunkMetadata(Heap* heap, BaseSpace* space,
       area_end_(area_end),
       heap_(heap),
       area_start_(area_start),
-      owner_(space),
-      flags_(IsExecutableField::update(
-          0, executability == Executability::EXECUTABLE)) {}
+      owner_(space) {
+  flags_ = IsExecutableField::update(
+      flags_, executability == Executability::EXECUTABLE);
+  flags_ =
+      IsTrustedField::update(flags_, IsAnyTrustedSpace(owner()->identity()));
+}
 
 MemoryChunkMetadata::~MemoryChunkMetadata() {
 #ifdef V8_ENABLE_SANDBOX
@@ -41,7 +44,8 @@ bool MemoryChunkMetadata::InSharedSpace() const {
 }
 
 bool MemoryChunkMetadata::InTrustedSpace() const {
-  return IsAnyTrustedSpace(owner()->identity());
+  DCHECK_EQ(is_trusted(), IsAnyTrustedSpace(owner()->identity()));
+  return is_trusted();
 }
 
 #ifdef THREAD_SANITIZER

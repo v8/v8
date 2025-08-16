@@ -198,6 +198,8 @@ class MemoryChunkMetadata {
     flags_ = ForceEvacuationCandidateForTestingField::update(flags_, value);
   }
 
+  bool is_trusted() const { return IsTrustedField::decode(flags_); }
+
  protected:
 #ifdef THREAD_SANITIZER
   // Perform a dummy acquire load to tell TSAN that there is no data race in
@@ -289,6 +291,10 @@ class MemoryChunkMetadata {
   // cycle.
   using ForceEvacuationCandidateForTestingField =
       NeverAllocateOnChunk::Next<bool, 1>;
+  // The memory chunk belongs to the trusted space. When the sandbox is
+  // enabled, the trusted space is located outside of the sandbox and so its
+  // content cannot be corrupted by an attacker.
+  using IsTrustedField = ForceEvacuationCandidateForTestingField::Next<bool, 1>;
 
   static constexpr intptr_t HeapOffset() {
     return offsetof(MemoryChunkMetadata, heap_);
