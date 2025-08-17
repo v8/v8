@@ -616,7 +616,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
       caller_constant_pool_(0),
       actual_argument_count_(0),
       stack_fp_(0),
-      trace_scope_(v8_flags.trace_deopt || v8_flags.log_deopt
+      trace_scope_(v8_flags.trace_deopt
                        ? new CodeTracer::Scope(isolate->GetCodeTracer())
                        : nullptr) {
   if (isolate->deoptimizer_lazy_throw()) {
