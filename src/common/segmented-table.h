@@ -74,8 +74,7 @@ class V8_EXPORT_PRIVATE SegmentedTable {
   static constexpr uint32_t kSegmentPoolFreeEntry =
       std::numeric_limits<uint32_t>::max();
   static constexpr size_t kEntriesPerSegment = kSegmentSize / kEntrySize;
-  static constexpr size_t kAlignment =
-      kSegmentSize * (kUseSegmentPool ? kSegmentPoolSize : 1);
+  static constexpr size_t kAlignment = kSegmentSize;
   static constexpr size_t kNumReadOnlySegments = 64 * KB / kSegmentSize;
 
   // Struct representing a segment of the table.
