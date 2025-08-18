@@ -10,7 +10,6 @@
 #define V8_BASE_FUNCTIONAL_BIND_INTERNAL_H_
 
 #include <type_traits>
-#include <utility>
 
 // See Chromium's docs/callback.md for user documentation.
 //
