@@ -1333,7 +1333,7 @@ constexpr bool IsAnyTrustedSpace(AllocationSpace space) {
   return space == TRUSTED_SPACE || space == TRUSTED_LO_SPACE ||
          space == SHARED_TRUSTED_SPACE || space == SHARED_TRUSTED_LO_SPACE;
 }
-constexpr bool IsAnySharedSpace(AllocationSpace space) {
+constexpr bool IsAnyWritableSharedSpace(AllocationSpace space) {
   return space == SHARED_SPACE || space == SHARED_LO_SPACE ||
          space == SHARED_TRUSTED_SPACE || space == SHARED_TRUSTED_LO_SPACE;
 }

@@ -1754,7 +1754,8 @@ WriteBarrierMode HeapObject::GetWriteBarrierMode(
 AllocationAlignment HeapObject::RequiredAlignment(AllocationSpace space,
                                                   Tagged<Map> map) {
   return RequiredAlignment(
-      IsAnySharedSpace(space) ? kInSharedSpace : kNotInSharedSpace, map);
+      IsAnyWritableSharedSpace(space) ? kInSharedSpace : kNotInSharedSpace,
+      map);
 }
 
 // static

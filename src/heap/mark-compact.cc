@@ -1339,59 +1339,65 @@ class RecordMigratedSlotVisitor
  protected:
   inline void RecordMigratedSlot(Tagged<HeapObject> host,
                                  Tagged<MaybeObject> value, Address slot) {
-    if (value.IsStrongOrWeak()) {
-      MemoryChunk* value_chunk = MemoryChunk::FromAddress(value.ptr());
-      MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
-      if (HeapLayout::InYoungGeneration(value)) {
-        MutablePageMetadata* host_metadata =
-            MutablePageMetadata::cast(host_chunk->Metadata());
-        DCHECK_IMPLIES(
-            value_chunk->IsToPage(),
-            v8_flags.minor_ms || value_chunk->Metadata()->is_large());
-        DCHECK(host_metadata->SweepingDone());
-        RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(
-            host_metadata, host_chunk->Offset(slot));
-      } else if (value_chunk->IsEvacuationCandidate()) {
-        MutablePageMetadata* host_metadata =
-            MutablePageMetadata::cast(host_chunk->Metadata());
-        if (value_chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
-          // TODO(377724745): currently needed because flags are untrusted.
-          SBXCHECK(!InsideSandbox(value_chunk->address()));
-          RememberedSet<TRUSTED_TO_CODE>::Insert<AccessMode::NON_ATOMIC>(
-              host_metadata, host_chunk->Offset(slot));
-        } else if (value_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED) &&
-                   host_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED)) {
-          // When the sandbox is disabled, we use plain tagged pointers to
-          // reference trusted objects from untrusted ones. However, for these
-          // references we want to use the OLD_TO_OLD remembered set, so here
-          // we need to check that both the value chunk and the host chunk are
-          // trusted space chunks.
-          // TODO(377724745): currently needed because flags are untrusted.
-          SBXCHECK(!InsideSandbox(value_chunk->address()));
-          if (value_chunk->InWritableSharedSpace()) {
-            RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<
-                AccessMode::NON_ATOMIC>(host_metadata,
-                                        host_chunk->Offset(slot));
-          } else {
-            RememberedSet<TRUSTED_TO_TRUSTED>::Insert<AccessMode::NON_ATOMIC>(
-                host_metadata, host_chunk->Offset(slot));
-          }
-        } else {
-          RememberedSet<OLD_TO_OLD>::Insert<AccessMode::NON_ATOMIC>(
-              host_metadata, host_chunk->Offset(slot));
-        }
-      } else if (value_chunk->InWritableSharedSpace() &&
-                 !HeapLayout::InWritableSharedSpace(host)) {
-        MutablePageMetadata* host_metadata =
-            MutablePageMetadata::cast(host_chunk->Metadata());
-        if (value_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED) &&
-            host_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED)) {
+    if (!value.IsStrongOrWeak()) {
+      return;
+    }
+
+    MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
+    MemoryChunk* value_chunk = MemoryChunk::FromAddress(value.ptr());
+
+    if (HeapLayout::InYoungGeneration(value)) {
+      MutablePageMetadata* host_page =
+          MutablePageMetadata::cast(host_chunk->Metadata());
+      DCHECK_IMPLIES(value_chunk->IsToPage(),
+                     v8_flags.minor_ms || value_chunk->Metadata()->is_large());
+      DCHECK(host_page->SweepingDone());
+      RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(
+          host_page, host_chunk->Offset(slot));
+      return;
+    }
+
+    if (value_chunk->IsEvacuationCandidate()) {
+      MutablePageMetadata* host_page =
+          MutablePageMetadata::cast(host_chunk->Metadata(heap_->isolate()));
+      const MutablePageMetadata* value_page =
+          MutablePageMetadata::cast(value_chunk->Metadata(heap_->isolate()));
+      if (value_page->is_executable()) {
+        DCHECK(!InsideSandbox(value_chunk->address()));
+        RememberedSet<TRUSTED_TO_CODE>::Insert<AccessMode::NON_ATOMIC>(
+            host_page, host_chunk->Offset(slot));
+      } else if (value_page->is_trusted() && host_page->is_trusted()) {
+        // When the sandbox is disabled, we use plain tagged pointers to
+        // reference trusted objects from untrusted ones. However, for these
+        // references we want to use the OLD_TO_OLD remembered set, so here
+        // we need to check that both the value chunk and the host chunk are
+        // trusted space chunks.
+        DCHECK(!InsideSandbox(value_chunk->address()));
+        if (value_page->is_writable_shared()) {
           RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<
-              AccessMode::NON_ATOMIC>(host_metadata, host_chunk->Offset(slot));
+              AccessMode::NON_ATOMIC>(host_page, host_chunk->Offset(slot));
         } else {
-          RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
-              host_metadata, host_chunk->Offset(slot));
+          RememberedSet<TRUSTED_TO_TRUSTED>::Insert<AccessMode::NON_ATOMIC>(
+              host_page, host_chunk->Offset(slot));
         }
+      } else {
+        RememberedSet<OLD_TO_OLD>::Insert<AccessMode::NON_ATOMIC>(
+            host_page, host_chunk->Offset(slot));
+      }
+      return;
+    }
+
+    MemoryChunkMetadata* host_page = host_chunk->Metadata(heap_->isolate());
+    const MemoryChunkMetadata* value_page =
+        value_chunk->Metadata(heap_->isolate());
+    if (value_page->is_writable_shared() && !host_page->is_writable_shared()) {
+      if (value_page->is_trusted() && host_page->is_trusted()) {
+        RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<
+            AccessMode::NON_ATOMIC>(MutablePageMetadata::cast(host_page),
+                                    host_chunk->Offset(slot));
+      } else {
+        RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
+            MutablePageMetadata::cast(host_page), host_chunk->Offset(slot));
       }
     }
   }

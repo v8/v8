@@ -4168,7 +4168,7 @@ void Heap::NotifyObjectLayoutChange(
     int new_size) {
   if (invalidate_recorded_slots == InvalidateRecordedSlots::kYes) {
     const bool may_contain_recorded_slots = MayContainRecordedSlots(object);
-    MutablePageMetadata* const chunk =
+    MutablePageMetadata* const page =
         MutablePageMetadata::FromHeapObject(object);
     // Do not remove the recorded slot in the map word as this one can never be
     // invalidated.
@@ -4185,24 +4185,24 @@ void Heap::NotifyObjectLayoutChange(
       pending_layout_change_object_address = object.address();
       if (may_contain_recorded_slots && incremental_marking()->IsCompacting()) {
         RememberedSet<OLD_TO_OLD>::RemoveRange(
-            chunk, clear_range_start, clear_range_end,
+            page, clear_range_start, clear_range_end,
             SlotSet::EmptyBucketMode::KEEP_EMPTY_BUCKETS);
       }
     }
 
     if (may_contain_recorded_slots) {
       RememberedSet<OLD_TO_NEW>::RemoveRange(
-          chunk, clear_range_start, clear_range_end,
+          page, clear_range_start, clear_range_end,
           SlotSet::EmptyBucketMode::KEEP_EMPTY_BUCKETS);
       RememberedSet<OLD_TO_NEW_BACKGROUND>::RemoveRange(
-          chunk, clear_range_start, clear_range_end,
+          page, clear_range_start, clear_range_end,
           SlotSet::EmptyBucketMode::KEEP_EMPTY_BUCKETS);
       RememberedSet<OLD_TO_SHARED>::RemoveRange(
-          chunk, clear_range_start, clear_range_end,
+          page, clear_range_start, clear_range_end,
           SlotSet::EmptyBucketMode::KEEP_EMPTY_BUCKETS);
     }
 
-    DCHECK(!chunk->InTrustedSpace());
+    DCHECK(!page->is_trusted());
   }
 
   // During external pointer table compaction, the external pointer table

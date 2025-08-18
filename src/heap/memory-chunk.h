@@ -55,7 +55,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   enum Flag : uintptr_t {
     NO_FLAGS = 0u,
 
-    // This page belongs to a shared heap.
+    // The memory chunk belongs to the shared space.
     IN_WRITABLE_SHARED_SPACE = 1u << 0,
 
     // These two flags are used in the write barrier to catch "interesting"

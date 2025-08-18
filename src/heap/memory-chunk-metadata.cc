@@ -29,23 +29,17 @@ MemoryChunkMetadata::MemoryChunkMetadata(Heap* heap, BaseSpace* space,
       owner_(space) {
   flags_ = IsExecutableField::update(
       flags_, executability == Executability::EXECUTABLE);
-  flags_ =
-      IsTrustedField::update(flags_, IsAnyTrustedSpace(owner()->identity()));
+  flags_ = IsTrustedField::update(
+      flags_, IsAnyTrustedSpace(owner()->identity()) ||
+                  executability == Executability::EXECUTABLE);
+  flags_ = IsWritableSharedSpaceField::update(
+      flags_, IsAnyWritableSharedSpace(owner()->identity()));
 }
 
 MemoryChunkMetadata::~MemoryChunkMetadata() {
 #ifdef V8_ENABLE_SANDBOX
   MemoryChunk::ClearMetadataPointer(this);
 #endif
-}
-
-bool MemoryChunkMetadata::InSharedSpace() const {
-  return IsAnySharedSpace(owner()->identity());
-}
-
-bool MemoryChunkMetadata::InTrustedSpace() const {
-  DCHECK_EQ(is_trusted(), IsAnyTrustedSpace(owner()->identity()));
-  return is_trusted();
 }
 
 #ifdef THREAD_SANITIZER

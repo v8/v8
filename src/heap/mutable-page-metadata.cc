@@ -70,7 +70,7 @@ MemoryChunk::MainThreadFlags MutablePageMetadata::OldGenerationPageFlags(
                     MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING |
                     MemoryChunk::INCREMENTAL_MARKING |
                     MemoryChunk::IS_MAJOR_GC_IN_PROGRESS;
-  } else if (IsAnySharedSpace(space)) {
+  } else if (IsAnyWritableSharedSpace(space)) {
     // We need to track pointers into the SHARED_SPACE for OLD_TO_SHARED.
     flags_to_set |= MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
   } else {
@@ -117,7 +117,7 @@ MemoryChunk::MainThreadFlags MutablePageMetadata::ComputeInitialFlags(
       // since those are never considered for evacuation. However, we have to
       // keep the old->shared remembered set across multiple GCs, so those
       // pointers still need to be recorded.
-      if (!IsAnySharedSpace(space)) {
+      if (!IsAnyWritableSharedSpace(space)) {
         flags &= ~MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
       }
       // And mark the page as black allocated.
@@ -141,7 +141,7 @@ MemoryChunk::MainThreadFlags MutablePageMetadata::ComputeInitialFlags(
   }
 
   // All pages of a shared heap need to be marked with this flag.
-  if (IsAnySharedSpace(space)) {
+  if (IsAnyWritableSharedSpace(space)) {
     flags |= MemoryChunk::IN_WRITABLE_SHARED_SPACE;
   }
 
@@ -165,7 +165,7 @@ void MutablePageMetadata::SetOldGenerationPageFlags(MarkingMode marking_mode) {
   MemoryChunk::MainThreadFlags flags_to_clear = MemoryChunk::NO_FLAGS;
 
   if (marking_mode != MarkingMode::kMajorMarking) {
-    if (IsAnySharedSpace(owner)) {
+    if (IsAnyWritableSharedSpace(owner)) {
       // No need to track OLD_TO_NEW or OLD_TO_SHARED within the shared space.
       flags_to_clear |= MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING |
                         MemoryChunk::INCREMENTAL_MARKING;

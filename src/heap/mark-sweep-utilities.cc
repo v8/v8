@@ -180,7 +180,7 @@ void VerifyRememberedSetsAfterEvacuation(Heap* heap,
     // Old-to-shared slots may survive GC but there should never be any slots in
     // new or shared spaces.
     AllocationSpace id = chunk->owner_identity();
-    if (IsAnySharedSpace(id) || IsAnyNewSpace(id)) {
+    if (IsAnyWritableSharedSpace(id) || IsAnyNewSpace(id)) {
       DCHECK_NULL((chunk->slot_set<OLD_TO_SHARED, AccessMode::ATOMIC>()));
       DCHECK_NULL((chunk->typed_slot_set<OLD_TO_SHARED, AccessMode::ATOMIC>()));
       DCHECK_NULL(

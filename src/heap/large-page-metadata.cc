@@ -50,7 +50,7 @@ void LargePageMetadata::ClearOutOfLiveRangeSlots(Address free_start) {
   DCHECK_NULL(slot_set<OLD_TO_OLD>());
   DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
 
-  DCHECK(!Chunk()->InTrustedSpace());
+  DCHECK(!is_trusted());
   DCHECK_NULL(slot_set<TRUSTED_TO_TRUSTED>());
   DCHECK_NULL(typed_slot_set<TRUSTED_TO_TRUSTED>());
   DCHECK_NULL(slot_set<TRUSTED_TO_SHARED_TRUSTED>());

@@ -76,9 +76,6 @@ class MemoryChunkMetadata {
   BaseSpace* owner() const { return owner_; }
   void set_owner(BaseSpace* space) { owner_ = space; }
 
-  bool InSharedSpace() const;
-  bool InTrustedSpace() const;
-
   bool IsWritable() const {
     // If this is a read-only space chunk but heap_ is non-null, it has not yet
     // been sealed and can be written to.
@@ -200,6 +197,10 @@ class MemoryChunkMetadata {
 
   bool is_trusted() const { return IsTrustedField::decode(flags_); }
 
+  bool is_writable_shared() const {
+    return IsWritableSharedSpaceField::decode(flags_);
+  }
+
  protected:
 #ifdef THREAD_SANITIZER
   // Perform a dummy acquire load to tell TSAN that there is no data race in
@@ -295,6 +296,8 @@ class MemoryChunkMetadata {
   // enabled, the trusted space is located outside of the sandbox and so its
   // content cannot be corrupted by an attacker.
   using IsTrustedField = ForceEvacuationCandidateForTestingField::Next<bool, 1>;
+  // The memory chunk belongs to the shared space.
+  using IsWritableSharedSpaceField = IsTrustedField::Next<bool, 1>;
 
   static constexpr intptr_t HeapOffset() {
     return offsetof(MemoryChunkMetadata, heap_);
