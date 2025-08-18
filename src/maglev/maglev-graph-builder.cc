@@ -4518,7 +4518,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
     if (std::find(maps.begin(), maps.end(), heap_number_map) != maps.end()) {
       return ReduceResult::Done();
     }
-    return ReduceResult::DoneWithAbort();
+    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
   }
 
   NodeInfo* known_info = GetOrCreateInfoFor(object);
@@ -6709,6 +6709,15 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicElementAccess(
     }
     if (check_next_map.has_value()) {
       sub_graph.Bind(&*check_next_map);
+    } else if (i != access_info_count - 1) {
+      // The map check will always succeed, so we do not need to try other
+      // options.
+      DCHECK(map_check_result.IsDone());
+      DCHECK(!check_next_map.has_value());
+      // TODO(victorgomes): We should avoid calling the polymorphic builder in
+      // the first place. If we statically know one of the map comparison will
+      // always succeed, then we should call the non-polymorphic build access.
+      break;
     }
   }
   if (generic_access.has_value() &&
@@ -6916,6 +6925,15 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
 
     if (check_next_map.has_value()) {
       sub_graph.Bind(&*check_next_map);
+    } else if (i != access_info_count - 1) {
+      // The map check will always succeed, so we do not need to try other
+      // options.
+      DCHECK(map_check_result.IsDone());
+      DCHECK(!check_next_map.has_value());
+      // TODO(victorgomes): We should avoid calling the polymorphic builder in
+      // the first place. If we statically know one of the map comparison will
+      // always succeed, then we should call the non-polymorphic build access.
+      break;
     }
   }
 
