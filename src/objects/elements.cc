@@ -2103,8 +2103,9 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     }
 
     int capacity = object->GetFastElementsUsage();
+    // TODO(ishell): consider throwing RangeError instead of OOMing.
     DirectHandle<NumberDictionary> dictionary =
-        NumberDictionary::New(isolate, capacity).ToHandleChecked();
+        NumberDictionary::New(isolate, capacity);
 
     PropertyDetails details = PropertyDetails::Empty();
     int j = 0;

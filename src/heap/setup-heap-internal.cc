@@ -1256,15 +1256,13 @@ bool Heap::CreateReadOnlyObjects() {
 
   DirectHandle<NumberDictionary> slow_element_dictionary =
       NumberDictionary::New(isolate(), 1, AllocationType::kReadOnly,
-                            USE_CUSTOM_MINIMUM_CAPACITY)
-          .ToHandleChecked();
+                            USE_CUSTOM_MINIMUM_CAPACITY);
   DCHECK(!slow_element_dictionary->HasSufficientCapacityToAdd(1));
   set_empty_slow_element_dictionary(*slow_element_dictionary);
 
   DirectHandle<RegisteredSymbolTable> empty_symbol_table =
       RegisteredSymbolTable::New(isolate(), 1, AllocationType::kReadOnly,
-                                 USE_CUSTOM_MINIMUM_CAPACITY)
-          .ToHandleChecked();
+                                 USE_CUSTOM_MINIMUM_CAPACITY);
   DCHECK(!empty_symbol_table->HasSufficientCapacityToAdd(1));
   set_empty_symbol_table(*empty_symbol_table);
 

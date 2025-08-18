@@ -4827,7 +4827,21 @@ void HashTable<Derived, Shape>::IterateElements(ObjectVisitor* v) {
 
 template <typename Derived, typename Shape>
 template <typename IsolateT>
-MaybeHandle<Derived> HashTable<Derived, Shape>::New(
+Handle<Derived> HashTable<Derived, Shape>::New(
+    IsolateT* isolate, uint32_t at_least_space_for, AllocationType allocation,
+    MinimumCapacity capacity_option) {
+  Handle<Derived> result;
+  if (TryNew(isolate, at_least_space_for, allocation, capacity_option)
+          .To(&result)) {
+    return result;
+  }
+  isolate->FatalProcessOutOfHeapMemory("invalid table size");
+  UNREACHABLE();
+}
+
+template <typename Derived, typename Shape>
+template <typename IsolateT>
+MaybeHandle<Derived> HashTable<Derived, Shape>::TryNew(
     IsolateT* isolate, uint32_t at_least_space_for, AllocationType allocation,
     MinimumCapacity capacity_option) {
   DCHECK_LE(0, at_least_space_for);
@@ -4838,9 +4852,7 @@ MaybeHandle<Derived> HashTable<Derived, Shape>::New(
                           ? at_least_space_for
                           : ComputeCapacity(at_least_space_for);
   if (capacity > HashTable::kMaxCapacity) {
-    // Throw RangeError with a generic message.
-    THROW_NEW_ERROR(isolate,
-                    NewRangeError(MessageTemplate::kInvalidArrayLength));
+    return kNullMaybeHandle;
   }
   return NewInternal(isolate, capacity, allocation);
 }
@@ -4993,11 +5005,9 @@ HandleType<Derived> HashTable<Derived, Shape>::EnsureCapacity(
   bool should_pretenure = allocation == AllocationType::kOld ||
                           ((capacity > kMinCapacityForPretenure) &&
                            !HeapLayout::InYoungGeneration(*table));
-  HandleType<Derived> new_table =
-      HashTable::New(
-          isolate, new_nof,
-          should_pretenure ? AllocationType::kOld : AllocationType::kYoung)
-          .ToHandleChecked();
+  HandleType<Derived> new_table = HashTable::New(
+      isolate, new_nof,
+      should_pretenure ? AllocationType::kOld : AllocationType::kYoung);
 
   table->Rehash(isolate, *new_table);
   return new_table;
@@ -5060,8 +5070,7 @@ HandleType<Derived> HashTable<Derived, Shape>::Shrink(Isolate* isolate,
   HandleType<Derived> new_table =
       HashTable::New(isolate, new_capacity,
                      pretenure ? AllocationType::kOld : AllocationType::kYoung,
-                     USE_CUSTOM_MINIMUM_CAPACITY)
-          .ToHandleChecked();
+                     USE_CUSTOM_MINIMUM_CAPACITY);
 
   table->Rehash(isolate, *new_table);
   return new_table;
@@ -5110,7 +5119,7 @@ GlobalDictionary::TryFindPropertyCellForConcurrentLookupIterator(
 }
 
 Handle<StringSet> StringSet::New(Isolate* isolate) {
-  return HashTable::New(isolate, 0).ToHandleChecked();
+  return HashTable::New(isolate, 0);
 }
 
 Handle<StringSet> StringSet::Add(Isolate* isolate, Handle<StringSet> stringset,
@@ -5150,10 +5159,8 @@ Handle<Derived> BaseNameDictionary<Derived, Shape>::New(
     IsolateT* isolate, int at_least_space_for, AllocationType allocation,
     MinimumCapacity capacity_option) {
   DCHECK_LE(0, at_least_space_for);
-  Handle<Derived> dict =
-      Dictionary<Derived, Shape>::New(isolate, at_least_space_for, allocation,
-                                      capacity_option)
-          .ToHandleChecked();
+  Handle<Derived> dict = Dictionary<Derived, Shape>::New(
+      isolate, at_least_space_for, allocation, capacity_option);
   dict->SetHash(PropertyArray::kNoHashSentinel);
   dict->set_next_enumeration_index(PropertyDetails::kInitialIndex);
   return dict;
@@ -5812,8 +5819,7 @@ void JSMap::Rehash(Isolate* isolate) {
 
 void JSWeakCollection::Initialize(
     DirectHandle<JSWeakCollection> weak_collection, Isolate* isolate) {
-  DirectHandle<EphemeronHashTable> table =
-      EphemeronHashTable::New(isolate, 0).ToHandleChecked();
+  DirectHandle<EphemeronHashTable> table = EphemeronHashTable::New(isolate, 0);
   weak_collection->set_table(*table);
 }
 
@@ -6222,9 +6228,15 @@ bool MapWord::IsMapOrForwarded(Tagged<Map> map) {
       HashTable<DERIVED, SHAPE>;                                             \
                                                                              \
   template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) MaybeHandle<DERIVED>    \
+  HashTable<DERIVED, SHAPE>::TryNew(Isolate*, uint32_t, AllocationType,      \
+                                    MinimumCapacity);                        \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) MaybeHandle<DERIVED>    \
+  HashTable<DERIVED, SHAPE>::TryNew(LocalIsolate*, uint32_t, AllocationType, \
+                                    MinimumCapacity);                        \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>         \
   HashTable<DERIVED, SHAPE>::New(Isolate*, uint32_t, AllocationType,         \
                                  MinimumCapacity);                           \
-  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) MaybeHandle<DERIVED>    \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>         \
   HashTable<DERIVED, SHAPE>::New(LocalIsolate*, uint32_t, AllocationType,    \
                                  MinimumCapacity);                           \
                                                                              \

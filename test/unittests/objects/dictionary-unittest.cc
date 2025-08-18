@@ -221,11 +221,11 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
 };
 
 TEST_F(DictionaryTest, HashMap) {
-  TestHashMap(ObjectHashTable::New(isolate(), 23).ToHandleChecked());
+  TestHashMap(ObjectHashTable::New(isolate(), 23));
 }
 
 TEST_F(DictionaryTest, HashSet) {
-  TestHashSet(ObjectHashSet::New(isolate(), 23).ToHandleChecked());
+  TestHashSet(ObjectHashSet::New(isolate(), 23));
 }
 
 class ObjectHashTableTest {
@@ -258,8 +258,7 @@ class ObjectHashTableTest {
 TEST_F(DictionaryTest, HashTableRehash) {
   // Test almost filled table.
   {
-    DirectHandle<ObjectHashTable> table =
-        ObjectHashTable::New(isolate(), 100).ToHandleChecked();
+    DirectHandle<ObjectHashTable> table = ObjectHashTable::New(isolate(), 100);
     ObjectHashTableTest t(*table);
     int capacity = t->capacity();
     for (int i = 0; i < capacity - 1; i++) {
@@ -272,8 +271,7 @@ TEST_F(DictionaryTest, HashTableRehash) {
   }
   // Test half-filled table.
   {
-    DirectHandle<ObjectHashTable> table =
-        ObjectHashTable::New(isolate(), 100).ToHandleChecked();
+    DirectHandle<ObjectHashTable> table = ObjectHashTable::New(isolate(), 100);
     ObjectHashTableTest t(*table);
     int capacity = t->capacity();
     for (int i = 0; i < capacity / 2; i++) {
@@ -291,8 +289,7 @@ TEST_F(DictionaryTest, ObjectHashTableCausesGC) {
   i::v8_flags.stress_compaction = false;
   // For SimulateFullSpace in TestHashMapDoesNotCauseGC.
   i::v8_flags.stress_concurrent_allocation = false;
-  TestHashMapDoesNotCauseGC(
-      ObjectHashTable::New(isolate(), 1).ToHandleChecked());
+  TestHashMapDoesNotCauseGC(ObjectHashTable::New(isolate(), 1));
 }
 #endif
 

@@ -33,7 +33,7 @@ Handle<ScriptContextTable> ScriptContextTable::New(Isolate* isolate,
   DCHECK_GE(capacity, 0);
   DCHECK_LE(capacity, kMaxCapacity);
 
-  auto names = NameToIndexHashTable::New(isolate, 16).ToHandleChecked();
+  auto names = NameToIndexHashTable::New(isolate, 16);
 
   std::optional<DisallowGarbageCollection> no_gc;
   Handle<ScriptContextTable> result =

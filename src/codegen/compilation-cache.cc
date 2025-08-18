@@ -31,8 +31,7 @@ CompilationCache::CompilationCache(Isolate* isolate)
 
 Handle<CompilationCacheTable> CompilationCacheEvalOrScript::GetTable() {
   if (IsUndefined(table_, isolate())) {
-    return CompilationCacheTable::New(isolate(), kInitialCacheSize)
-        .ToHandleChecked();
+    return CompilationCacheTable::New(isolate(), kInitialCacheSize);
   }
   return handle(Cast<CompilationCacheTable>(table_), isolate());
 }
@@ -42,8 +41,7 @@ DirectHandle<CompilationCacheTable> CompilationCacheRegExp::GetTable(
   DCHECK_LT(generation, kGenerations);
   DirectHandle<CompilationCacheTable> result;
   if (IsUndefined(tables_[generation], isolate())) {
-    result = CompilationCacheTable::New(isolate(), kInitialCacheSize)
-                 .ToHandleChecked();
+    result = CompilationCacheTable::New(isolate(), kInitialCacheSize);
     tables_[generation] = *result;
   } else {
     Tagged<CompilationCacheTable> table =

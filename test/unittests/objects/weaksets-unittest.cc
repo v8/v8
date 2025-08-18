@@ -54,7 +54,7 @@ class WeakSetsTest : public TestWithHeapInternalsAndContext {
     {
       HandleScope scope(i_isolate());
       DirectHandle<EphemeronHashTable> table =
-          EphemeronHashTable::New(i_isolate(), 1).ToHandleChecked();
+          EphemeronHashTable::New(i_isolate(), 1);
       weakset->set_table(*table);
     }
     return weakset;

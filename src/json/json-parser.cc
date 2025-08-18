@@ -1315,7 +1315,7 @@ Handle<JSObject> JsonParser<Char>::BuildJsonObject(const JsonContinuation& cont,
     // Store as dictionary elements if that would use less memory.
     if (ShouldConvertToSlowElements(cont.elements, cont.max_index + 1)) {
       Handle<NumberDictionary> elms =
-          NumberDictionary::New(isolate_, cont.elements).ToHandleChecked();
+          NumberDictionary::New(isolate_, cont.elements);
       for (int i = 0; i < length; i++) {
         const JsonProperty& property = property_stack_[start + i];
         if (!property.string.is_index()) continue;
@@ -1934,7 +1934,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
             // TODO(verwaest): Directly use the map instead.
             value = factory()->NewJSObject(object_constructor_);
             if constexpr (should_track_json_source) {
-              val_node = ObjectTwoHashTable::New(isolate_, 0).ToHandleChecked();
+              val_node = ObjectTwoHashTable::New(isolate_, 0);
             }
             break;
           }
@@ -2087,8 +2087,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
             int num_properties =
                 static_cast<int>(property_stack_.size() - start);
             Handle<ObjectTwoHashTable> table =
-                ObjectTwoHashTable::New(isolate(), num_properties)
-                    .ToHandleChecked();
+                ObjectTwoHashTable::New(isolate(), num_properties);
             for (int i = 0; i < num_properties; i++) {
               const JsonProperty& property = property_stack_[start + i];
               DirectHandle<Object> property_val_node =

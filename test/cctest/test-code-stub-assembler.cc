@@ -1106,7 +1106,7 @@ TEST(NumberDictionaryLookup) {
 
   const int kKeysCount = 1000;
   Handle<NumberDictionary> dictionary =
-      NumberDictionary::New(isolate, kKeysCount).ToHandleChecked();
+      NumberDictionary::New(isolate, kKeysCount);
   uint32_t keys[kKeysCount];
 
   DirectHandle<Object> fake_value(Smi::FromInt(42), isolate);

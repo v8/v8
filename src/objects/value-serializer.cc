@@ -1577,7 +1577,7 @@ void ValueDeserializer::TransferArrayBuffer(
     uint32_t transfer_id, DirectHandle<JSArrayBuffer> array_buffer) {
   if (array_buffer_transfer_map_.is_null()) {
     array_buffer_transfer_map_ = isolate_->global_handles()->Create(
-        *SimpleNumberDictionary::New(isolate_, 0).ToHandleChecked());
+        *SimpleNumberDictionary::New(isolate_, 0));
   }
   IndirectHandle<SimpleNumberDictionary> dictionary =
       array_buffer_transfer_map_.ToHandleChecked();

@@ -167,7 +167,7 @@ void Module::Reset(Isolate* isolate, DirectHandle<Module> module) {
           ? Cast<SourceTextModule>(*module)->regular_exports()->length()
           : Cast<SyntheticModule>(*module)->export_names()->length();
   DirectHandle<ObjectHashTable> exports =
-      ObjectHashTable::New(isolate, export_count).ToHandleChecked();
+      ObjectHashTable::New(isolate, export_count);
 
   if (IsSourceTextModule(*module)) {
     SourceTextModule::Reset(isolate, Cast<SourceTextModule>(module));
