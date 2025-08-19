@@ -928,6 +928,13 @@ struct V8_EXPORT_PRIVATE WasmModule {
     return base::VectorOf(functions) + num_imported_functions;
   }
 
+  std::optional<CompilationPriority> GetCompilationPriority(
+      uint32_t func_index) const {
+    auto iterator = compilation_priorities.find(func_index);
+    if (iterator == compilation_priorities.end()) return {};
+    return iterator->second;
+  }
+
 #if V8_ENABLE_DRUMBRAKE
   void SetWasmInterpreter(
       std::shared_ptr<WasmInterpreterRuntime> interpreter) const {

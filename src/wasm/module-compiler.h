@@ -10,9 +10,7 @@
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
 #include <atomic>
-#include <functional>
 #include <memory>
-#include <optional>
 
 #include "include/v8-metrics.h"
 #include "src/base/platform/time.h"

@@ -1462,6 +1462,7 @@ class WasmModuleBuilder {
     this.data_segments = [];
     this.explicit = [];
     this.rec_groups = [];
+    this.compilation_priorities = new Map();
     this.num_imported_funcs = 0;
     this.num_imported_globals = 0;
     this.num_imported_tables = 0;
@@ -1860,6 +1861,13 @@ class WasmModuleBuilder {
   setName(name) {
     this.name = name;
     return this;
+  }
+
+  setCompilationPriority(
+      function_index, compilation_priority, optimization_priority) {
+    this.compilation_priorities.set(function_index, {
+      compilation_priority, optimization_priority
+    });
   }
 
   toBuffer(debug = false) {
@@ -2286,6 +2294,28 @@ class WasmModuleBuilder {
           });
         }
       });
+    }
+
+    // Add compilation priorities.
+    if (this.compilation_priorities.size > 0) {
+      binary.emit_section(kUnknownSectionCode, section => {
+        section.emit_string("metadata.code.compilation_priority");
+        section.emit_u32v(this.compilation_priorities.size);
+        this.compilation_priorities.forEach((priority, index) => {
+          section.emit_u32v(index);
+          section.emit_u8(0);  // Byte offset 0 for function level hint.
+          let compilation_priority =
+              wasmUnsignedLeb(priority.compilation_priority);
+          let optimization_priority =
+              priority.optimization_priority != undefined ?
+              wasmUnsignedLeb(priority.optimization_priority) :
+              [];
+          section.emit_u32v(compilation_priority.length +
+                            optimization_priority.length);
+          section.emit_bytes(compilation_priority);
+          section.emit_bytes(optimization_priority);
+        })
+      })
     }
 
     return binary.trunc_buffer();

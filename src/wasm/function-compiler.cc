@@ -59,8 +59,10 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
     // - eager compilation mode,
     // - with lazy validation,
     // - with PGO (which compiles some functions eagerly), or
+    // - with compilation hints (which compiles some functions eagerly).
     DCHECK(!v8_flags.wasm_lazy_compilation || v8_flags.wasm_lazy_validation ||
-           v8_flags.experimental_wasm_pgo_from_file);
+           v8_flags.experimental_wasm_pgo_from_file ||
+           v8_flags.experimental_wasm_compilation_hints);
     Zone validation_zone{GetWasmEngine()->allocator(), ZONE_NAME};
     if (ValidateFunctionBody(&validation_zone, env->enabled_features,
                              env->module, detected, func_body)

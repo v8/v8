@@ -65,6 +65,8 @@ const char* SectionName(SectionCode code) {
       return kInstTraceString;
     case kBranchHintsSectionCode:
       return kBranchHintsString;
+    case kCompilationPrioritySectionCode:
+      return kCompilationPriorityString;
     case kDescriptorsSectionCode:
       return kDescriptorsString;
     default:
