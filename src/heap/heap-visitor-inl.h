@@ -144,7 +144,7 @@ size_t HeapVisitor<ConcreteVisitor>::Visit(Tagged<Map> map,
      * might see trusted objects here before they've been migrated to trusted \
      * space, hence the second condition. */                                  \
     DCHECK(!InstanceTypeChecker::IsTrustedObject(map) ||                      \
-           !HeapLayout::InTrustedSpace(object));                              \
+           !HeapLayout::SafeInTrustedSpace(object));                          \
     return visitor->Visit##TypeName(                                          \
         map, ConcreteVisitor::template Cast<TypeName>(object, heap_),         \
         maybe_object_size);

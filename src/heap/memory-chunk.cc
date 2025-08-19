@@ -181,15 +181,6 @@ bool MemoryChunk::InReadOnlySpace() const {
 
 #ifdef DEBUG
 
-bool MemoryChunk::IsTrusted() const {
-  bool is_trusted = IsFlagSet(IS_TRUSTED);
-#if DEBUG
-  AllocationSpace id = Metadata()->owner()->identity();
-  DCHECK_EQ(is_trusted, IsAnyTrustedSpace(id) || IsAnyCodeSpace(id));
-#endif
-  return is_trusted;
-}
-
 size_t MemoryChunk::Offset(Address addr) const {
   DCHECK_GE(addr, Metadata()->area_start());
   DCHECK_LE(addr, address() + Metadata()->size());

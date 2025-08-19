@@ -69,7 +69,7 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
       // References to the shared trusted space may only originate from the
       // shared space.
       CHECK(HeapLayout::InWritableSharedSpace(host));
-      DCHECK(MemoryChunk::FromHeapObject(value)->IsTrusted());
+      DCHECK(MemoryChunk::FromHeapObject(value)->Metadata()->is_trusted());
       MarkValueShared(value);
     } else {
       MarkValueLocal(value);
