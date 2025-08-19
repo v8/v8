@@ -9,6 +9,8 @@ assertEarlyError('/(?<a>.)(?<a>.)/');
 assertEarlyError('/((?<a>.)(?<a>.))/');
 assertEarlyError('/(?<a>.)((?<a>.))/');
 assertEarlyError('/((?<a>.))(?<a>.)/');
+assertEarlyError('/(?<a>(?<a>.)|.)/');
+assertEarlyError('/(?<a>.|(?<b>.(?<b>.)|.))/');
 assertEarlyError('/(?<a>.)(?:.|(?<a>.)/');
 assertEarlyError('/(?<a>.)(?:.|(?<a>.)/');
 assertEarlyError('/(?<a>.)(?:(.)|(?<a>.)/');

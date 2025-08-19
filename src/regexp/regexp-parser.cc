@@ -1657,6 +1657,15 @@ bool RegExpParserImpl<CharT>::CreateNamedCaptureAtIndex(
       }
     }
   }
+  if (v8_flags.js_regexp_duplicate_named_groups) {
+    // Check for nested named captures. This is necessary to find duplicate
+    // named captures within the same disjunct.
+    RegExpParserState* parent_state = state->previous_state();
+    if (parent_state && parent_state->IsInsideCaptureGroup(name)) {
+      ReportError(RegExpError::kDuplicateCaptureGroupName);
+      return false;
+    }
+  }
 
   auto entry = named_captures_->try_emplace(
       capture, zone()->template New<ZoneList<int>>(1, zone()));
