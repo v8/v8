@@ -9721,6 +9721,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetField(
 
   int field_offset = JSDate::kYearOffset + field_index * kTaggedSize;
   ValueNode* field_value = BuildLoadTaggedField(receiver, field_offset);
+  // All cached JSDate fields are Smi|NaN.
+  RETURN_IF_ABORT(BuildCheckSmi(field_value));
+  // TODO(jgruber): Presumably NaN time values are rare, so we simply deopt when
+  // encountering such an object. Alternatively, to avoid the deopt we could
+  // fall back to Number: EnsureType(field_value, NodeType::kNumber);
   return field_value;
 }
 

@@ -491,13 +491,15 @@ TNode<String> StringBuiltinsAssembler::StringAdd(
       done(this, &result);
 
   TNode<Uint32T> left_length = LoadStringLengthAsWord32(left);
-  GotoIfNot(Word32Equal(left_length, Uint32Constant(0)), &check_right);
+  GotoIfNot(Word32Equal(left_length, Uint32Constant(0)), &check_right,
+            GotoHint::kLabel);
   result = right;
   Goto(&done);
 
   BIND(&check_right);
   TNode<Uint32T> right_length = LoadStringLengthAsWord32(right);
-  GotoIfNot(Word32Equal(right_length, Uint32Constant(0)), &cons);
+  GotoIfNot(Word32Equal(right_length, Uint32Constant(0)), &cons,
+            GotoHint::kLabel);
   result = left;
   Goto(&done);
 
@@ -509,7 +511,7 @@ TNode<String> StringBuiltinsAssembler::StringAdd(
     // throw. Note: we also need to invalidate the string length protector, so
     // can't just throw here directly.
     GotoIf(Uint32GreaterThan(new_length, Uint32Constant(String::kMaxLength)),
-           &runtime);
+           &runtime, GotoHint::kFallthrough);
 
     TVARIABLE(String, var_left, left);
     TVARIABLE(String, var_right, right);
@@ -535,7 +537,8 @@ TNode<String> StringBuiltinsAssembler::StringAdd(
         Word32Xor(left_instance_type, right_instance_type);
 
     // Check if both strings have the same encoding and both are sequential.
-    GotoIf(IsSetWord32(xored_instance_types, kStringEncodingMask), &runtime);
+    GotoIf(IsSetWord32(xored_instance_types, kStringEncodingMask), &runtime,
+           GotoHint::kFallthrough);
     GotoIf(IsSetWord32(ored_instance_types, kStringRepresentationMask), &slow);
 
     TNode<IntPtrT> word_left_length = Signed(ChangeUint32ToWord(left_length));

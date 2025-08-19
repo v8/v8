@@ -38,8 +38,9 @@ class MaglevGraphLabeller;
 class MaglevCodeGenerator;
 
 inline bool FlagsMightEnableMaglevTracing() {
-  return v8_flags.print_maglev_code || v8_flags.print_maglev_graph ||
-         v8_flags.print_maglev_graphs || v8_flags.trace_maglev_graph_building ||
+  return v8_flags.trace_maglev_inlining || v8_flags.print_maglev_code ||
+         v8_flags.print_maglev_graph || v8_flags.print_maglev_graphs ||
+         v8_flags.trace_maglev_graph_building ||
          v8_flags.trace_maglev_escape_analysis ||
          v8_flags.trace_maglev_phi_untagging ||
          v8_flags.trace_maglev_regalloc ||
