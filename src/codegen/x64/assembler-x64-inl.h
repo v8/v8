@@ -381,7 +381,7 @@ void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
     DCHECK_IMPLIES(V8_ENABLE_SANDBOX_BOOL,
                    !HeapLayout::SafeInTrustedSpace(target));
     DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                   !HeapLayout::InCodeSpace(target));
+                   !HeapLayout::SafeInCodeSpace(target));
     Tagged_t tagged = V8HeapCompressionScheme::CompressObject(target.ptr());
     jit_allocation_.WriteUnalignedValue(pc_, tagged);
   } else {
