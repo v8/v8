@@ -1395,14 +1395,14 @@ void CodeStubAssembler::CheckObjectComparisonAllowed(TNode<AnyTaggedT> a,
       MemoryChunkFromAddress(BitcastTaggedToWord(obj_a)));
   TNode<IntPtrT> metadata_b = MemoryChunkMetadataFromMemoryChunk(
       MemoryChunkFromAddress(BitcastTaggedToWord(obj_b)));
-  TNode<IntPtrT> metadata_flags_a = UncheckedCast<IntPtrT>(
-      Load(MachineType::Pointer(), metadata_a,
+  TNode<Uint32T> metadata_flags_a = UncheckedCast<Uint32T>(
+      Load(MachineType::Uint32(), metadata_a,
            IntPtrConstant(MemoryChunkMetadata::FlagsOffset())));
-  TNode<IntPtrT> metadata_flags_b = UncheckedCast<IntPtrT>(
-      Load(MachineType::Pointer(), metadata_b,
+  TNode<Uint32T> metadata_flags_b = UncheckedCast<Uint32T>(
+      Load(MachineType::Uint32(), metadata_b,
            IntPtrConstant(MemoryChunkMetadata::FlagsOffset())));
 
-  constexpr auto kExecutableAndTrustedMask =
+  constexpr uint32_t kExecutableAndTrustedMask =
       MemoryChunkMetadata::IsTrustedField::kMask |
       MemoryChunkMetadata::IsExecutableField::kMask;
   // This check might fail when we try to compare objects in different pointer
@@ -1410,11 +1410,12 @@ void CodeStubAssembler::CheckObjectComparisonAllowed(TNode<AnyTaggedT> a,
   // each other. The main legitimate case when such "mixed" comparison could
   // happen is comparing two AbstractCode objects. If that's the case one must
   // use SafeEqual().
-  CSA_CHECK_AT(this, loc,
-               WordEqual(WordAnd(metadata_flags_a,
-                                 IntPtrConstant(kExecutableAndTrustedMask)),
-                         WordAnd(metadata_flags_b,
-                                 IntPtrConstant(kExecutableAndTrustedMask))));
+  CSA_CHECK_AT(
+      this, loc,
+      Word32Equal(Word32And(metadata_flags_a,
+                            Uint32Constant(kExecutableAndTrustedMask)),
+                  Word32And(metadata_flags_b,
+                            Uint32Constant(kExecutableAndTrustedMask))));
   Goto(&done);
   Bind(&done);
   // LINT.ThenChange(src/objects/tagged-impl.cc:CheckObjectComparisonAllowed)

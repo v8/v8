@@ -258,10 +258,10 @@ class MemoryChunkMetadata {
   // The space owning this memory chunk.
   std::atomic<BaseSpace*> owner_;
 
-  size_t flags_ = 0;
+  using FlagsT = uint32_t;
+  FlagsT flags_ = 0;
 
  private:
-  using FlagsT = size_t;
   // The memory chunk is pinned in memory and can't be moved. Only used for
   // testing at this point.
   using IsPinnedForTestingField = v8::base::BitField<bool, 0, 1, FlagsT>;
