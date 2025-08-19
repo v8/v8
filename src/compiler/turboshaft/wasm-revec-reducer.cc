@@ -118,6 +118,10 @@ class StoreLoadInfo {
       index_ = &(graph->Get(op->index().value()));
     }
 
+    // Explicit bounds check is introduced in WasmGraphBuilder, the type of
+    // bounds-checked index is uintptr_t, index is converted to uintptr_t for
+    // memory32.
+    // Try to match memory32 with constant index: ChangeUint32ToUintPtr(const).
     if (const ChangeOp* change_op = index_->TryCast<ChangeOp>()) {
       if (change_op->kind != ChangeOp::Kind::kZeroExtend) {
         TRACE("ChangeOp kind not supported for revectorization\n");
@@ -138,9 +142,8 @@ class StoreLoadInfo {
         offset_ += const_op->word32();
         index_ = nullptr;
       }
+      // Try to match memory64 with constant index.
     } else if (const ConstantOp* const_op = index_->TryCast<ConstantOp>()) {
-      // memory64
-      // REVIEW: Please make sure that you also have a test for memory32.
       DCHECK_EQ(const_op->kind, ConstantOp::Kind::kWord64);
       // Exceed uint64 limits.
       if (offset_ > std::numeric_limits<uint64_t>::max() - const_op->word64()) {
