@@ -195,11 +195,7 @@ class MemoryChunkMetadata {
     flags_ = ForceEvacuationCandidateForTestingField::update(flags_, value);
   }
 
-#ifdef DEBUG
-  bool is_trusted() const;
-#else
   bool is_trusted() const { return IsTrustedField::decode(flags_); }
-#endif
 
   bool is_writable_shared() const {
     return IsWritableSharedSpaceField::decode(flags_);
@@ -261,10 +257,9 @@ class MemoryChunkMetadata {
   size_t flags_ = 0;
 
  private:
-  using FlagsT = size_t;
   // The memory chunk is pinned in memory and can't be moved. Only used for
   // testing at this point.
-  using IsPinnedForTestingField = v8::base::BitField<bool, 0, 1, FlagsT>;
+  using IsPinnedForTestingField = v8::base::BitField<bool, 0, 1, size_t>;
   // The memory chunk freeing bookkeeping has been performed but the chunk has
   // not yet been freed.
   using IsUnregisteredField = IsPinnedForTestingField::Next<bool, 1>;
@@ -312,13 +307,9 @@ class MemoryChunkMetadata {
     return offsetof(MemoryChunkMetadata, area_start_);
   }
 
-  static constexpr intptr_t FlagsOffset() {
-    return offsetof(MemoryChunkMetadata, flags_);
-  }
-
   // For HeapOffset().
   friend class debug_helper_internal::ReadStringVisitor;
-  // For AreaStartOffset(), FlagsOffset().
+  // For AreaStartOffset().
   friend class CodeStubAssembler;
   friend class MacroAssembler;
 };

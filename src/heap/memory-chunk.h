@@ -104,6 +104,11 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 
     // A Page with code objects.
     IS_EXECUTABLE = 1u << 21,
+
+    // The memory chunk belongs to the trusted space. When the sandbox is
+    // enabled, the trusted space is located outside of the sandbox and so its
+    // content cannot be corrupted by an attacker.
+    IS_TRUSTED = 1u << 22,
   };
 
   using MainThreadFlags = base::Flags<Flag, uintptr_t>;
@@ -209,6 +214,8 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 
   V8_INLINE bool InCodeSpace() const { return IsFlagSet(IS_EXECUTABLE); }
 
+  V8_INLINE bool InTrustedSpace() const { return IsFlagSet(IS_TRUSTED); }
+
   V8_INLINE bool IsEvacuationCandidate() const;
 
   bool ShouldSkipEvacuationSlotRecording() const {
@@ -241,6 +248,12 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   V8_INLINE static constexpr bool IsAligned(Address address) {
     return (address & kAlignmentMask) == 0;
   }
+
+#ifdef DEBUG
+  bool IsTrusted() const;
+#else
+  bool IsTrusted() const { return IsFlagSet(IS_TRUSTED); }
+#endif
 
   static intptr_t GetAlignmentForAllocation() { return kAlignment; }
   // The macro and code stub assemblers need access to the alignment mask to

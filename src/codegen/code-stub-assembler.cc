@@ -1391,30 +1391,19 @@ void CodeStubAssembler::CheckObjectComparisonAllowed(TNode<AnyTaggedT> a,
   GotoIf(TaggedIsNotStrongHeapObject(b), &done);
   TNode<HeapObject> obj_a = UncheckedCast<HeapObject>(a);
   TNode<HeapObject> obj_b = UncheckedCast<HeapObject>(b);
-  TNode<IntPtrT> metadata_a = MemoryChunkMetadataFromMemoryChunk(
-      MemoryChunkFromAddress(BitcastTaggedToWord(obj_a)));
-  TNode<IntPtrT> metadata_b = MemoryChunkMetadataFromMemoryChunk(
-      MemoryChunkFromAddress(BitcastTaggedToWord(obj_b)));
-  TNode<IntPtrT> metadata_flags_a = UncheckedCast<IntPtrT>(
-      Load(MachineType::Pointer(), metadata_a,
-           IntPtrConstant(MemoryChunkMetadata::FlagsOffset())));
-  TNode<IntPtrT> metadata_flags_b = UncheckedCast<IntPtrT>(
-      Load(MachineType::Pointer(), metadata_b,
-           IntPtrConstant(MemoryChunkMetadata::FlagsOffset())));
 
-  constexpr auto kExecutableAndTrustedMask =
-      MemoryChunkMetadata::IsTrustedField::kMask |
-      MemoryChunkMetadata::IsExecutableField::kMask;
   // This check might fail when we try to compare objects in different pointer
   // compression cages (e.g. the one used by code space or trusted space) with
   // each other. The main legitimate case when such "mixed" comparison could
   // happen is comparing two AbstractCode objects. If that's the case one must
   // use SafeEqual().
   CSA_CHECK_AT(this, loc,
-               WordEqual(WordAnd(metadata_flags_a,
-                                 IntPtrConstant(kExecutableAndTrustedMask)),
-                         WordAnd(metadata_flags_b,
-                                 IntPtrConstant(kExecutableAndTrustedMask))));
+               WordEqual(WordAnd(LoadMemoryChunkFlags(obj_a),
+                                 IntPtrConstant(MemoryChunk::IS_EXECUTABLE |
+                                                MemoryChunk::IS_TRUSTED)),
+                         WordAnd(LoadMemoryChunkFlags(obj_b),
+                                 IntPtrConstant(MemoryChunk::IS_EXECUTABLE |
+                                                MemoryChunk::IS_TRUSTED))));
   Goto(&done);
   Bind(&done);
   // LINT.ThenChange(src/objects/tagged-impl.cc:CheckObjectComparisonAllowed)
@@ -14437,7 +14426,7 @@ TNode<IntPtrT> CodeStubAssembler::MemoryChunkFromAddress(
                  IntPtrConstant(~MemoryChunk::GetAlignmentMaskForAssembler()));
 }
 
-TNode<IntPtrT> CodeStubAssembler::MemoryChunkMetadataFromMemoryChunk(
+TNode<IntPtrT> CodeStubAssembler::PageMetadataFromMemoryChunk(
     TNode<IntPtrT> address) {
 #ifdef V8_ENABLE_SANDBOX
   // The metadata entry consists of two system pointers.
@@ -14467,9 +14456,9 @@ TNode<IntPtrT> CodeStubAssembler::MemoryChunkMetadataFromMemoryChunk(
 #endif
 }
 
-TNode<IntPtrT> CodeStubAssembler::MemoryChunkMetadataFromAddress(
+TNode<IntPtrT> CodeStubAssembler::PageMetadataFromAddress(
     TNode<IntPtrT> address) {
-  return MemoryChunkMetadataFromMemoryChunk(MemoryChunkFromAddress(address));
+  return PageMetadataFromMemoryChunk(MemoryChunkFromAddress(address));
 }
 
 TNode<AllocationSite> CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
@@ -19828,7 +19817,7 @@ TNode<BoolT> CodeStubAssembler::IsMarked(TNode<Object> object) {
 
 void CodeStubAssembler::GetMarkBit(TNode<IntPtrT> object, TNode<IntPtrT>* cell,
                                    TNode<IntPtrT>* mask) {
-  TNode<IntPtrT> page = MemoryChunkMetadataFromAddress(object);
+  TNode<IntPtrT> page = PageMetadataFromAddress(object);
   TNode<IntPtrT> bitmap = IntPtrAdd(
       page, IntPtrConstant(MutablePageMetadata::MarkingBitmapOffset()));
 

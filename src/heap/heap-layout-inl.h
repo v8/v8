@@ -82,17 +82,8 @@ bool HeapLayout::InCodeSpace(Tagged<HeapObject> object) {
 }
 
 // static
-bool HeapLayout::SafeInCodeSpace(Tagged<HeapObject> object) {
-  return MemoryChunk::FromHeapObject(object)
-      ->MetadataNoIsolateCheck()
-      ->is_executable();
-}
-
-// static
-bool HeapLayout::SafeInTrustedSpace(Tagged<HeapObject> object) {
-  return MemoryChunk::FromHeapObject(object)
-      ->MetadataNoIsolateCheck()
-      ->is_trusted();
+bool HeapLayout::InTrustedSpace(Tagged<HeapObject> object) {
+  return MemoryChunk::FromHeapObject(object)->InTrustedSpace();
 }
 
 bool HeapLayout::InBlackAllocatedPage(Tagged<HeapObject> object) {

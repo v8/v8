@@ -41,11 +41,10 @@ class HeapLayout final : public AllStatic {
   // of different code spaces (regular, external, large object) which are all
   // covered by this check.
   static V8_INLINE bool InCodeSpace(Tagged<HeapObject> object);
-  static V8_INLINE bool SafeInCodeSpace(Tagged<HeapObject> object);
 
   // Returns whether `object` is allocated in trusted space. See
   // src/sandbox/GLOSSARY.md for details.
-  static V8_INLINE bool SafeInTrustedSpace(Tagged<HeapObject> object);
+  static V8_INLINE bool InTrustedSpace(Tagged<HeapObject> object);
 
   // Returns whether `object` is allocated on a black page (during
   // incremental/concurrent marking).

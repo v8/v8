@@ -3907,10 +3907,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Helpers to look up Page metadata for a given address.
   // Equivalent to MemoryChunk::FromAddress().
   TNode<IntPtrT> MemoryChunkFromAddress(TNode<IntPtrT> address);
-  // Equivalent to MemoryChunk::Metadata().
-  TNode<IntPtrT> MemoryChunkMetadataFromMemoryChunk(TNode<IntPtrT> address);
+  // Equivalent to MemoryChunk::MutablePageMetadata().
+  TNode<IntPtrT> PageMetadataFromMemoryChunk(TNode<IntPtrT> address);
   // Equivalent to MemoryChunkMetadata::FromAddress().
-  TNode<IntPtrT> MemoryChunkMetadataFromAddress(TNode<IntPtrT> address);
+  TNode<IntPtrT> PageMetadataFromAddress(TNode<IntPtrT> address);
 
   // Store a weak in-place reference into the FeedbackVector.
   TNode<MaybeObject> StoreWeakReferenceInFeedbackVector(

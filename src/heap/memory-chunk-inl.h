@@ -17,7 +17,7 @@ namespace v8::internal {
 template <bool check_isolate>
 MemoryChunkMetadata* MemoryChunk::MetadataImpl(const Isolate* isolate) {
   // If this changes, we also need to update
-  // CodeStubAssembler::MemoryChunkMetadataFromMemoryChunk
+  // CodeStubAssembler::PageMetadataFromMemoryChunk
 #ifdef V8_ENABLE_SANDBOX
   DCHECK_LT(metadata_index_,
             MemoryChunkConstants::kMetadataPointerTableSizeMask);

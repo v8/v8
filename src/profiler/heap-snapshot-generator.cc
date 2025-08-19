@@ -2652,7 +2652,7 @@ bool V8HeapExplorer::IsEssentialObject(Tagged<Object> object) {
   // Avoid comparing objects in other pointer compression cages to objects
   // inside the main cage as the comparison may only look at the lower 32 bits.
   if (HeapLayout::InCodeSpace(Cast<HeapObject>(object)) ||
-      HeapLayout::SafeInTrustedSpace(Cast<HeapObject>(object))) {
+      HeapLayout::InTrustedSpace(Cast<HeapObject>(object))) {
     return true;
   }
   Isolate* isolate = heap_->isolate();

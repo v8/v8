@@ -774,7 +774,7 @@ void HeapVerification::VerifyRememberedSetFor(Tagged<HeapObject> object) {
       &trusted_to_shared_trusted);
   old_to_shared_visitor.Visit(object);
 
-  if (!MemoryChunk::FromHeapObject(object)->Metadata()->is_trusted()) {
+  if (!MemoryChunk::FromHeapObject(object)->IsTrusted()) {
     CHECK_NULL(chunk->slot_set<TRUSTED_TO_TRUSTED>());
     CHECK_NULL(chunk->slot_set<TRUSTED_TO_SHARED_TRUSTED>());
   }
