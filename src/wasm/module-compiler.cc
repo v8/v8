@@ -657,7 +657,7 @@ class CompilationStateImpl {
 
   void SetError();
 
-  void WaitForCompilationEvent(CompilationEvent event);
+  void WaitForBaselineCompileJob();
 
   void TierUpAllFunctions();
 
@@ -2297,8 +2297,7 @@ void CompileNativeModule(Isolate* isolate,
   }
 
   if (!compilation_state->failed()) {
-    compilation_state->WaitForCompilationEvent(
-        CompilationEvent::kFinishedBaselineCompilation);
+    compilation_state->WaitForBaselineCompileJob();
   }
 
   if (compilation_state->failed()) {
@@ -3137,8 +3136,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       // compilation. We call {WaitForCompilationEvent} here so that the main
       // thread participates and finishes the compilation.
       if (v8_flags.wasm_num_compilation_tasks == 0 || v8_flags.wasm_jitless) {
-        compilation_state->WaitForCompilationEvent(
-            CompilationEvent::kFinishedBaselineCompilation);
+        compilation_state->WaitForBaselineCompileJob();
       }
     }
   }
@@ -3894,7 +3892,7 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
   auto builder = std::make_unique<CompilationUnitBuilder>(native_module_);
   InitializeCompilationUnits(std::move(builder));
   if (!v8_flags.wasm_lazy_compilation) {
-    WaitForCompilationEvent(CompilationEvent::kFinishedBaselineCompilation);
+    WaitForBaselineCompileJob();
   }
 }
 
@@ -4298,19 +4296,12 @@ void CompilationStateImpl::SetError() {
   callbacks_.clear();
 }
 
-void CompilationStateImpl::WaitForCompilationEvent(
-    CompilationEvent expect_event) {
-  switch (expect_event) {
-    case CompilationEvent::kFinishedBaselineCompilation:
-      if (baseline_compile_job_->IsValid()) baseline_compile_job_->Join();
-      break;
-    default:
-      // Waiting on other CompilationEvent doesn't make sense.
-      UNREACHABLE();
-  }
+void CompilationStateImpl::WaitForBaselineCompileJob() {
+  if (baseline_compile_job_->IsValid()) baseline_compile_job_->Join();
 #ifdef DEBUG
-  base::EnumSet<CompilationEvent> events{expect_event,
-                                         CompilationEvent::kFailedCompilation};
+  base::EnumSet<CompilationEvent> events{
+      CompilationEvent::kFinishedBaselineCompilation,
+      CompilationEvent::kFailedCompilation};
   base::MutexGuard guard(&callbacks_mutex_);
   DCHECK(finished_events_.contains_any(events));
 #endif
