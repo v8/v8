@@ -127,33 +127,12 @@ MemoryChunk::MainThreadFlags MutablePageMetadata::ComputeInitialFlags(
 
   if (executable == EXECUTABLE) {
     flags |= MemoryChunk::IS_EXECUTABLE;
-    // Executable chunks are also trusted as they contain machine code and live
-    // outside the sandbox (when it is enabled). While mostly symbolic, this is
-    // needed for two reasons:
-    // 1. We have the invariant that IsTrustedObject(obj) implies
-    //    IsTrustedSpaceObject(obj), where IsTrustedSpaceObject checks the
-    //   MemoryChunk::IS_TRUSTED flag on the host chunk. As InstructionStream
-    //   objects are trusted, their host chunks must also be marked as such.
-    // 2. References between trusted objects must use the TRUSTED_TO_TRUSTED
-    //    remembered set. However, that will only be used if both the host
-    //    and the value chunk are marked as IS_TRUSTED.
-    flags |= MemoryChunk::IS_TRUSTED;
   }
 
   // All pages of a shared heap need to be marked with this flag.
   if (IsAnyWritableSharedSpace(space)) {
     flags |= MemoryChunk::IN_WRITABLE_SHARED_SPACE;
   }
-
-  // All pages belonging to a trusted space need to be marked with this flag.
-  if (IsAnyTrustedSpace(space)) {
-    flags |= MemoryChunk::IS_TRUSTED;
-  }
-
-  // "Trusted" chunks should never be located inside the sandbox as they
-  // couldn't be trusted in that case.
-  DCHECK_IMPLIES(flags & MemoryChunk::IS_TRUSTED,
-                 !InsideSandbox(ChunkAddress()));
 
   return flags;
 }
