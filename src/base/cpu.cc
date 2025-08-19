@@ -956,7 +956,9 @@ CPU::CPU()
 
   part_ = -1;
   if (auxv_cpu_type) {
-    if (strcmp(auxv_cpu_type, "power10") == 0) {
+    if (strcmp(auxv_cpu_type, "power11") == 0) {
+      part_ = kPPCPower11;
+    } else if (strcmp(auxv_cpu_type, "power10") == 0) {
       part_ = kPPCPower10;
     } else if (strcmp(auxv_cpu_type, "power9") == 0) {
       part_ = kPPCPower9;

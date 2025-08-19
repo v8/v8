@@ -75,10 +75,12 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 // Probe for additional features at runtime.
 #ifdef USE_SIMULATOR
   // Simulator
-  supported_ |= (1u << PPC_10_PLUS);
+  supported_ |= (1u << PPC_11_PLUS);
 #else
   base::CPU cpu;
-  if (cpu.part() == base::CPU::kPPCPower10) {
+  if (cpu.part() == base::CPU::kPPCPower11) {
+    supported_ |= (1u << PPC_11_PLUS);
+  } else if (cpu.part() == base::CPU::kPPCPower10) {
 #if defined(__PASE__)
     // Some P10 features such as prefixed isns will only be supported in future
     // ibmi versions. We only enable full power 10 features if version>7.4
@@ -106,6 +108,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   }
 #endif
 #endif
+  if (supported_ & (1u << PPC_11_PLUS)) supported_ |= (1u << PPC_10_PLUS);
   if (supported_ & (1u << PPC_10_PLUS)) supported_ |= (1u << PPC_9_PLUS);
   if (supported_ & (1u << PPC_9_PLUS)) supported_ |= (1u << PPC_8_PLUS);
 
@@ -126,6 +129,7 @@ void CpuFeatures::PrintFeatures() {
   printf("PPC_8_PLUS=%d\n", CpuFeatures::IsSupported(PPC_8_PLUS));
   printf("PPC_9_PLUS=%d\n", CpuFeatures::IsSupported(PPC_9_PLUS));
   printf("PPC_10_PLUS=%d\n", CpuFeatures::IsSupported(PPC_10_PLUS));
+  printf("PPC_11_PLUS=%d\n", CpuFeatures::IsSupported(PPC_11_PLUS));
 }
 
 Register ToRegister(int num) {
