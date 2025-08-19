@@ -6899,6 +6899,46 @@ TEST(RunWasmTurbofan_ForcePackIdenticalLoad) {
   }
 }
 
+TEST(RunWasmTurbofan_ForcePackedNodesNoExtract) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(17);
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimdPack128To256>);
+    // Load from [0:15] and [4:19] which are inconsecutive and will be
+    // force-packed. Use first load in temp1 in another store that is not
+    // revectorized. Revectorization succeeds without getting extract node.
+    r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_ZERO)),
+             WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM_OFFSET(4, WASM_ZERO)),
+             WASM_LOCAL_SET(
+                 temp1, WASM_SIMD_UNOP(kExprI32x4Abs,
+                                       WASM_SIMD_UNOP(kExprS128Not,
+                                                      WASM_LOCAL_GET(temp1)))),
+             WASM_LOCAL_SET(
+                 temp2, WASM_SIMD_UNOP(kExprI32x4Abs,
+                                       WASM_SIMD_UNOP(kExprS128Not,
+                                                      WASM_LOCAL_GET(temp2)))),
+
+             WASM_SIMD_STORE_MEM_OFFSET(20, WASM_ZERO, WASM_LOCAL_GET(temp1)),
+             WASM_SIMD_STORE_MEM_OFFSET(36, WASM_ZERO, WASM_LOCAL_GET(temp2)),
+             WASM_SIMD_STORE_MEM_OFFSET(52, WASM_ZERO, WASM_LOCAL_GET(temp1)),
+             WASM_ONE});
+  }
+  FOR_INT32_INPUTS(x) {
+    r.builder().WriteMemory(&memory[1], x);
+    r.Call();
+    int32_t expected = std::abs(~x);
+    CHECK_EQ(expected, memory[6]);
+    CHECK_EQ(expected, memory[9]);
+    CHECK_EQ(expected, memory[14]);
+  }
+}
+
 TEST(RunWasmTurbofan_ForcePackLoadsAtSameAddr) {
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
@@ -7953,6 +7993,62 @@ TEST(RunWasmTurbofan_TwoForcePackExpectFail) {
                                     WASM_LOCAL_GET(temp2)),
          WASM_ONE});
   }
+}
+
+TEST(RunWasmTurbofan_ForcePackInputsRevisited) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+
+  WasmRunner<int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  int16_t* memory = r.builder().AddMemoryElems<int16_t>(16);
+  uint8_t param1 = 0;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  uint8_t temp4 = r.AllocateLocal(kWasmS128);
+  uint8_t temp5 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimdPack128To256>);
+
+    // Force-pack two I32x4ConvertI16x8Low nodes, the one with bigger OpIndex
+    // has an input tree from temp4 that will be reduced earlier. Input temp3
+    // will be revisited in ReduceInputsOfOp.
+    r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_SPLAT(WASM_I32V(10))),
+             WASM_LOCAL_SET(
+                 temp2,
+                 WASM_SIMD_UNOP(
+                     kExprI16x8Neg,
+                     WASM_SIMD_UNOP(kExprI16x8Abs,
+                                    WASM_SIMD_UNOP(kExprI16x8SConvertI8x16Low,
+                                                   WASM_LOCAL_GET(temp1))))),
+             WASM_LOCAL_SET(temp3, WASM_SIMD_I8x16_REPLACE_LANE(
+                                       2, WASM_LOCAL_GET(temp1), WASM_I32V(1))),
+             WASM_LOCAL_SET(
+                 temp4, WASM_SIMD_BINOP(kExprI8x16Add, WASM_LOCAL_GET(temp3),
+                                        WASM_SIMD_UNOP(kExprI8x16Abs,
+                                                       WASM_LOCAL_GET(temp3)))),
+             WASM_LOCAL_SET(
+                 temp5,
+                 WASM_SIMD_UNOP(
+                     kExprI16x8Neg,
+                     WASM_SIMD_UNOP(kExprI16x8Abs,
+                                    WASM_SIMD_UNOP(kExprI16x8SConvertI8x16Low,
+                                                   WASM_LOCAL_GET(temp4))))),
+             WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param1), WASM_LOCAL_GET(temp5)),
+             WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param1),
+                                        WASM_LOCAL_GET(temp2)),
+             WASM_ONE});
+  }
+
+  r.Call(0);
+  auto func = [](int16_t a) { return -std::abs(a); };
+  CHECK_EQ(func(10), memory[8]);
+  CHECK_EQ(func(10 + 10), memory[0]);
+  CHECK_EQ(func(1 + 1), memory[2]);
 }
 
 template <bool inputs_swapped = false>

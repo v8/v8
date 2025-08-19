@@ -304,19 +304,18 @@ bool SLPTree::HasInputDependencies(const NodeGroup& node_group) {
     end = node_group[0];
   }
   // Do BFS from the end node and see if there is a path to the start node.
-  // REVIEW: Allocating this queue spends some Zone memory every time this
-  // function is called. Would it make sense to store this queue as a member
-  // of SLPTree so that it can be reused (similar to {inputs_set})?
-  ZoneQueue<OpIndex> to_visit(phase_zone_);
+  // Use a shared deque, as queue is an adaptor and does not support a clear()
+  // function.
+  ZoneDeque<OpIndex>& to_visit = analyzer_->GetSharedOpIndexDeque();
   ZoneUnorderedSet<OpIndex>& inputs_set = analyzer_->GetSharedOpIndexSet();
-  DCHECK(inputs_set.empty());
-  to_visit.push(end);
+  DCHECK(to_visit.empty() && inputs_set.empty());
+  to_visit.push_back(end);
 
   bool result = false;
   while (!to_visit.empty()) {
     OpIndex to_visit_node = to_visit.front();
     Operation& op = graph_.Get(to_visit_node);
-    to_visit.pop();
+    to_visit.pop_front();
     for (OpIndex input : op.inputs()) {
       if (input == start) {
         result = true;
@@ -333,13 +332,17 @@ bool SLPTree::HasInputDependencies(const NodeGroup& node_group) {
 
         // We should ensure that there is no back edge.
         DCHECK_LT(input, to_visit_node);
-        to_visit.push(input);
+        to_visit.push_back(input);
         inputs_set.insert(input);
       }
     }
+
+    if (result) break;
   }
 
-  if (!result) {
+  if (result) {
+    to_visit.clear();
+  } else {
     reorder_inputs_.merge(inputs_set);
   }
 
@@ -361,9 +364,15 @@ PackNode* SLPTree::NewPackNode(const NodeGroup& node_group) {
 
 ForcePackNode* SLPTree::NewForcePackNode(const NodeGroup& node_group,
                                          ForcePackNode::ForcePackType type,
-                                         const Graph& graph) {
+                                         unsigned recursion_depth) {
   // Currently we only support force packing two nodes.
   DCHECK_EQ(node_group.size(), 2);
+
+  if (recursion_depth < 1) {
+    TRACE("Do not force pack at root #%d:%s\n", node_group[0].id(),
+          GetSimdOpcodeName(graph_.Get(node_group[0])).c_str());
+    return nullptr;
+  }
 
   // We should guarantee that the one node in the NodeGroup does not rely on the
   // result of the other. Because it is costly to force pack such candidates.
@@ -942,7 +951,7 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
     }
 
     // TODO(yolanda): Support other intersect PackNode e.g. overlapped loads.
-    if (!pnode->IsForcePackNode() || recursion_depth < 1) {
+    if (!pnode->IsForcePackNode()) {
       TRACE("Unsupported partial overlap at #%d,%s!\n", node0.id(),
             GetSimdOpcodeName(op0).c_str());
       return nullptr;
@@ -1005,6 +1014,12 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
   }
 
   if (is_intersected) {
+    if (recursion_depth < 1) {
+      TRACE("Do not intersect at root #%d:%s\n", node0.id(),
+            GetSimdOpcodeName(graph_.Get(node0)).c_str());
+      return nullptr;
+    }
+
     TRACE("Create IntersectPackNode due to partial overlap!\n");
     PackNode* pnode = NewIntersectPackNode(node_group);
     return pnode;
@@ -1026,7 +1041,8 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
       StoreLoadInfo<Simd128LoadTransformOp> info0(&graph_, &transform_op0);
       StoreLoadInfo<Simd128LoadTransformOp> info1(&graph_, &transform_op1);
       if (!info0.is_valid() || !info1.is_valid()) {
-        return NewForcePackNode(node_group, ForcePackNode::kGeneral, graph_);
+        return NewForcePackNode(node_group, ForcePackNode::kGeneral,
+                                recursion_depth);
       }
       std::optional<OffsetDiff> stride = info1 - info0;
       switch (transform_op0.transform_kind) {
@@ -1043,10 +1059,11 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
               return NewPackNode(node_group);
             } else if (value == 0) {
               return NewForcePackNode(node_group, ForcePackNode::kSplat,
-                                      graph_);
+                                      recursion_depth);
             }
           }
-          return NewForcePackNode(node_group, ForcePackNode::kGeneral, graph_);
+          return NewForcePackNode(node_group, ForcePackNode::kGeneral,
+                                  recursion_depth);
         }
         case Simd128LoadTransformOp::TransformKind::k8Splat:
         case Simd128LoadTransformOp::TransformKind::k16Splat:
@@ -1057,15 +1074,18 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
               (stride.has_value() && stride.value() == 0)) {
             return NewPackNode(node_group);
           }
-          return NewForcePackNode(node_group, ForcePackNode::kGeneral, graph_);
+          return NewForcePackNode(node_group, ForcePackNode::kGeneral,
+                                  recursion_depth);
         }
         case Simd128LoadTransformOp::TransformKind::k32Zero:
         case Simd128LoadTransformOp::TransformKind::k64Zero: {
           TRACE("Simd128LoadTransform: k64Zero/k32Zero\n");
           if (stride.has_value() && stride.value() == 0) {
-            return NewForcePackNode(node_group, ForcePackNode::kSplat, graph_);
+            return NewForcePackNode(node_group, ForcePackNode::kSplat,
+                                    recursion_depth);
           }
-          return NewForcePackNode(node_group, ForcePackNode::kGeneral, graph_);
+          return NewForcePackNode(node_group, ForcePackNode::kGeneral,
+                                  recursion_depth);
         }
       }
       UNREACHABLE();  // Exhaustive switch.
@@ -1091,11 +1111,13 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
             // by swapping the two ops in {node_group}.
             return NewPackNode(node_group);
           } else if (value == 0) {
-            return NewForcePackNode(node_group, ForcePackNode::kSplat, graph_);
+            return NewForcePackNode(node_group, ForcePackNode::kSplat,
+                                    recursion_depth);
           }
         }
       }
-      return NewForcePackNode(node_group, ForcePackNode::kGeneral, graph_);
+      return NewForcePackNode(node_group, ForcePackNode::kGeneral,
+                              recursion_depth);
     }
 
     case Opcode::kStore: {
@@ -1135,7 +1157,7 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
     if (op1.Cast<Simd128UnaryOp>().kind == op0.Cast<Simd128UnaryOp>().kind) { \
       auto force_pack_type =                                                  \
           node0 == node1 ? ForcePackNode::kSplat : ForcePackNode::kGeneral;   \
-      return NewForcePackNode(node_group, force_pack_type, graph_);           \
+      return NewForcePackNode(node_group, force_pack_type, recursion_depth);  \
     } else {                                                                  \
       return nullptr;                                                         \
     }                                                                         \
@@ -1161,23 +1183,23 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
     case Opcode::kSimd128Binop: {
       const Simd128BinopOp& binop0 = op0.Cast<Simd128BinopOp>();
       switch (binop0.kind) {
-#define BINOP_SIGN_EXTENSION_CASE(op_low, _, op_high)                       \
-  case Simd128BinopOp::Kind::k##op_low: {                                   \
-    if (const Simd128BinopOp* binop1 =                                      \
-            op1.TryCast<Opmask::kSimd128##op_high>();                       \
-        binop1 && binop0.left() == binop1->left() &&                        \
-        binop0.right() == binop1->right()) {                                \
-      return NewPackNode(node_group);                                       \
-    }                                                                       \
-    [[fallthrough]];                                                        \
-  }                                                                         \
-  case Simd128BinopOp::Kind::k##op_high: {                                  \
-    if (op1.Cast<Simd128BinopOp>().kind == binop0.kind) {                   \
-      auto force_pack_type =                                                \
-          node0 == node1 ? ForcePackNode::kSplat : ForcePackNode::kGeneral; \
-      return NewForcePackNode(node_group, force_pack_type, graph_);         \
-    }                                                                       \
-    return nullptr;                                                         \
+#define BINOP_SIGN_EXTENSION_CASE(op_low, _, op_high)                        \
+  case Simd128BinopOp::Kind::k##op_low: {                                    \
+    if (const Simd128BinopOp* binop1 =                                       \
+            op1.TryCast<Opmask::kSimd128##op_high>();                        \
+        binop1 && binop0.left() == binop1->left() &&                         \
+        binop0.right() == binop1->right()) {                                 \
+      return NewPackNode(node_group);                                        \
+    }                                                                        \
+    [[fallthrough]];                                                         \
+  }                                                                          \
+  case Simd128BinopOp::Kind::k##op_high: {                                   \
+    if (op1.Cast<Simd128BinopOp>().kind == binop0.kind) {                    \
+      auto force_pack_type =                                                 \
+          node0 == node1 ? ForcePackNode::kSplat : ForcePackNode::kGeneral;  \
+      return NewForcePackNode(node_group, force_pack_type, recursion_depth); \
+    }                                                                        \
+    return nullptr;                                                          \
   }
         SIMD256_BINOP_SIGN_EXTENSION_OP(BINOP_SIGN_EXTENSION_CASE)
 #undef BINOP_SIGN_EXTENSION_CASE
@@ -1340,15 +1362,10 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
             info.is_sign_extract, info.is_sign_convert);
         return p;
       }
-      if (recursion_depth < 1) {
-        TRACE("Do not force pack at root #%d:%s\n", node0.id(),
-              GetSimdOpcodeName(op0).c_str());
-        return nullptr;
-      }
       return NewForcePackNode(
           node_group,
           node0 == node1 ? ForcePackNode::kSplat : ForcePackNode::kGeneral,
-          graph_);
+          recursion_depth);
     }
 
     default:

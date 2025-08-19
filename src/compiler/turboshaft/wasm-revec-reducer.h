@@ -512,7 +512,7 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
 
   ForcePackNode* NewForcePackNode(const NodeGroup& node_group,
                                   ForcePackNode::ForcePackType type,
-                                  const Graph& graph);
+                                  unsigned recursion_depth);
   BundlePackNode* NewBundlePackNode(const NodeGroup& node_group, OpIndex base,
                                     int8_t offset, uint8_t lane_size,
                                     bool is_sign_extract, bool is_sign_convert);
@@ -632,6 +632,7 @@ class WasmRevecAnalyzer {
   bool HasReorderInput(OpIndex node) { return reorder_inputs_.contains(node); }
 
   ZoneUnorderedSet<OpIndex>& GetSharedOpIndexSet() { return shared_set_; }
+  ZoneDeque<OpIndex>& GetSharedOpIndexDeque() { return shared_deque_; }
 
  private:
   bool IsSupportedReduceSeed(const Operation& op);
@@ -653,6 +654,8 @@ class WasmRevecAnalyzer {
   ZoneUnorderedSet<OpIndex> reorder_inputs_{phase_zone_};
   // Used as a local hash-set, always clear after use.
   ZoneUnorderedSet<OpIndex> shared_set_{phase_zone_};
+  // Used as a local deque, always clear after use.
+  ZoneDeque<OpIndex> shared_deque_{phase_zone_};
 };
 
 template <class Next>
@@ -671,13 +674,8 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
         std::find(pnode->nodes().begin(), pnode->nodes().end(), ig_index) -
         pnode->nodes().begin());
 
-    // ForcePackNode has a dedicated use in SimdPack128To256Op.
-    if (pnode->is_force_packing()) {
-      SimdPack128To256Op& op = __ output_graph()
-                                   .Get(pnode -> RevectorizedNode())
-                                   .template Cast<SimdPack128To256Op>();
-      return lane == 0 ? op.left() : op.right();
-    }
+    // We dont need to extract node for ForcePackNode.
+    DCHECK(!pnode->is_force_packing());
 
     for (OpIndex use : analyzer_.uses(ig_index)) {
       // Extract128 is needed for the additional Simd128 store before
