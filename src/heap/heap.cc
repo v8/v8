@@ -2634,15 +2634,6 @@ Heap::LimitsComputationResult Heap::ComputeNewAllocationLimits(Heap* heap) {
   return {new_old_generation_allocation_limit, new_global_allocation_limit};
 }
 
-void Heap::ComputeAndSetNewAllocationLimits() {
-  if (using_initial_limit()) return;
-
-  const auto new_limits = ComputeNewAllocationLimits(this);
-  SetOldGenerationAndGlobalAllocationLimit(
-      new_limits.old_generation_allocation_limit,
-      new_limits.global_allocation_limit);
-}
-
 void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
   if (IsYoungGenerationCollector(collector) &&
       !HasLowYoungGenerationAllocationRate()) {
@@ -7622,7 +7613,12 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
       !tracer()->IsSweepingInProgress());
 
   if (v8_flags.external_memory_accounted_in_global_limit) {
-    ComputeAndSetNewAllocationLimits();
+    if (!using_initial_limit()) {
+      auto new_limits = ComputeNewAllocationLimits(this);
+      SetOldGenerationAndGlobalAllocationLimit(
+          new_limits.old_generation_allocation_limit,
+          new_limits.global_allocation_limit);
+    }
   }
 }
 
@@ -7651,18 +7647,6 @@ void Heap::EnsureYoungSweepingCompleted() {
   paged_new_space()->paged_space()->RefillFreeList();
 
   tracer()->NotifyYoungSweepingCompletedAndStopCycleIfFinished();
-}
-
-void Heap::NotifyBackgrounded() {
-  // TODO(b/430536195): Integrate this properly with MemoryReducer if we decide
-  // to launch.
-  ActivateMemoryReducerIfNeeded();
-  if (v8_flags.gc_on_background_notification) {
-    ComputeAndSetNewAllocationLimits();
-    StartIncrementalMarkingIfAllocationLimitIsReached(
-        main_thread_local_heap(), GCFlagsForIncrementalMarking(),
-        kGCCallbackScheduleIdleGarbageCollection);
-  }
 }
 
 void Heap::NotifyLoadingStarted() {
