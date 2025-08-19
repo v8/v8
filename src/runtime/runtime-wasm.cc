@@ -1338,26 +1338,28 @@ class PrototypesSetup : public wasm::Decoder {
         DirectHandle<String> ctor_name =
             isolate()->factory()->InternalizeUtf8String(
                 {ctor_name_start, ctor_name_length});
-        if (!InstallConstructor(prototype, constructor, ctor_name,
-                                constructors)) {
+        DirectHandle<JSFunction> wrapped_constructor =
+            InstallConstructor(prototype, constructor, ctor_name, constructors);
+        if (wrapped_constructor.is_null()) {
           DCHECK(isolate()->has_exception());
           return ReadOnlyRoots(isolate()).exception();
         }
         uint32_t num_statics = consume_u32v("number of statics");
         if (!ok()) break;
-        if (num_statics == 0) continue;
-        ToDictionaryMode(constructor, num_statics);
-        for (uint32_t i = 0; i < num_statics; i++) {
-          Method method = NextMethod(true);
-          if (!ok()) break;
-          DirectHandle<WasmExportedFunction> function = NextFunction();
-          if (function.is_null() ||
-              !InstallMethod(constructor, method, function)) {
-            DCHECK(isolate()->has_exception());
-            return ReadOnlyRoots(isolate()).exception();
+        if (num_statics != 0) {
+          ToDictionaryMode(wrapped_constructor, num_statics);
+          for (uint32_t i = 0; i < num_statics; i++) {
+            Method method = NextMethod(true);
+            if (!ok()) break;
+            DirectHandle<WasmExportedFunction> function = NextFunction();
+            if (function.is_null() ||
+                !InstallMethod(wrapped_constructor, method, function)) {
+              DCHECK(isolate()->has_exception());
+              return ReadOnlyRoots(isolate()).exception();
+            }
           }
+          if (!ok()) break;
         }
-        if (!ok()) break;
       } else if (has_constructor > 1) {
         // Contrary to other uses of the Decoder, the built-in offset reporting
         // is not usable here, so we have to hand-roll it.
@@ -1478,10 +1480,11 @@ class PrototypesSetup : public wasm::Decoder {
         .FromMaybe(false);
   }
 
-  bool InstallConstructor(DirectHandle<JSReceiver> prototype,
-                          DirectHandle<WasmExportedFunction> wasm_function,
-                          DirectHandle<String> name,
-                          DirectHandle<JSObject> all_constructors) {
+  // Returns the wrapped constructor on success.
+  DirectHandle<JSFunction> InstallConstructor(
+      DirectHandle<JSReceiver> prototype,
+      DirectHandle<WasmExportedFunction> wasm_function,
+      DirectHandle<String> name, DirectHandle<JSObject> all_constructors) {
     DirectHandle<Context> context = isolate_->factory()->NewBuiltinContext(
         isolate_->native_context(), wasm::kConstructorFunctionContextLength);
     context->SetNoCell(wasm::kConstructorFunctionContextSlot, *wasm_function);
@@ -1499,15 +1502,30 @@ class PrototypesSetup : public wasm::Decoder {
     constructor->set_prototype_or_initial_map(*prototype, kReleaseStore);
     prototype->map()->SetConstructor(*constructor);
 
+    // TODO(403372470): Do we want a userspace ".constructor" property?
+    PropertyDescriptor constructor_prop;
+    constructor_prop.set_enumerable(false);
+    constructor_prop.set_configurable(true);
+    constructor_prop.set_writable(true);
+    constructor_prop.set_value(constructor);
+    if (!JSReceiver::DefineOwnProperty(
+             isolate_, prototype, isolate_->factory()->constructor_string(),
+             &constructor_prop, Just(ShouldThrow::kThrowOnError))
+             .FromMaybe(false)) {
+      return {};
+    }
+
     PropertyDescriptor prop;
     prop.set_enumerable(true);
     prop.set_configurable(true);
     prop.set_writable(true);
     prop.set_value(constructor);
-    return JSReceiver::DefineOwnProperty(isolate_, all_constructors, name,
-                                         &prop,
-                                         Just(ShouldThrow::kThrowOnError))
-        .FromMaybe(false);
+    if (!JSReceiver::DefineOwnProperty(isolate_, all_constructors, name, &prop,
+                                       Just(ShouldThrow::kThrowOnError))
+             .FromMaybe(false)) {
+      return {};
+    }
+    return constructor;
   }
 
  protected:
@@ -1567,6 +1585,7 @@ class PrototypesSetup_Sections : public PrototypesSetup {
       : PrototypesSetup(isolate, data_begin, data_end),
         prototypes_(prototypes),
         functions_(functions),
+        prototype_start_index_(prototypes_start_index),
         prototype_index_(prototypes_start_index),
         prototypes_end_(prototypes_start_index + prototypes_length),
         function_index_(functions_start_index),
