@@ -71,11 +71,6 @@
 
   # Test uses fancy signal handling. Needs investigation.
   'MemoryAllocationPermissionsTest.DoTest': [SKIP],
-
-  # Time tick resolution appears to be ~42 microseconds. Tests expect 1 us.
-  'TimeTicks.NowResolution': [FAIL],
-  'RuntimeCallStatsTest.BasicJavaScript': [SKIP],
-  'RuntimeCallStatsTest.FunctionLengthGetter': [SKIP],
 }],  # system == macos and arch == arm64 and not simulator_run
 
 # TODO(v8:12824): Enable this test once this is resolved.
