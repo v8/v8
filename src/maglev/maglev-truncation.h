@@ -83,10 +83,9 @@ class PropagateTruncationProcessor {
   ProcessResult Process(Identity* node) { return ProcessResult::kContinue; }
   ProcessResult Process(Dead* node) { return ProcessResult::kContinue; }
 
-  ProcessResult Process(CheckedTruncateFloat64ToInt32* node) {
-    // We can always truncate the input of this node.
-    return ProcessResult::kContinue;
-  }
+  // TODO(victorgomes): We can only truncate CheckedTruncateFloat64ToInt32
+  // inputs if we statically know they are in Int32 range.
+
   ProcessResult Process(TruncateFloat64ToInt32* node) {
     // We can always truncate the input of this node.
     return ProcessResult::kContinue;
@@ -172,8 +171,6 @@ class TruncationProcessor {
   PROCESS_BINOP(Divide)
 #undef PROCESS_BINOP
 
-  ProcessResult Process(CheckedTruncateFloat64ToInt32* node,
-                        const ProcessingState& state);
   ProcessResult Process(TruncateFloat64ToInt32* node,
                         const ProcessingState& state);
   ProcessResult Process(UnsafeTruncateFloat64ToInt32* node,

@@ -47,15 +47,6 @@ void TruncationProcessor::UnwrapInputs(ValueNode* node) {
   }
 }
 
-ProcessResult TruncationProcessor::Process(CheckedTruncateFloat64ToInt32* node,
-                                           const ProcessingState& state) {
-  if (AllInputsAreValid(node)) {
-    node->OverwriteWithIdentityTo(GetUnwrappedInput(node, 0));
-    return ProcessResult::kRemove;
-  }
-  return ProcessResult::kContinue;
-}
-
 ProcessResult TruncationProcessor::Process(TruncateFloat64ToInt32* node,
                                            const ProcessingState& state) {
   if (AllInputsAreValid(node)) {
