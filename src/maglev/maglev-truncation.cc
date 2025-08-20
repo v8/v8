@@ -6,10 +6,53 @@
 
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-reducer-inl.h"
 
 namespace v8::internal::maglev {
 
-bool TruncationProcessor::AllInputsAreValid(ValueNode* node) {
+BlockProcessResult TruncationProcessor::PreProcessBasicBlock(
+    BasicBlock* block) {
+  reducer_.set_current_block(block);
+  current_node_index_ = 0;
+  return BlockProcessResult::kContinue;
+}
+
+void TruncationProcessor::PostProcessBasicBlock(BasicBlock* block) {
+  reducer_.FlushNodesToBlock();
+}
+
+void TruncationProcessor::PreProcessNode(Node* node) {
+#ifdef DEBUG
+  reducer_.StartNewPeriod();
+#endif  // DEBUG
+  if (reducer_.has_graph_labeller()) {
+    reducer_.SetCurrentProvenance(
+        reducer_.graph_labeller()->GetNodeProvenance(node));
+  }
+  reducer_.SetNewNodePosition(BasicBlockPosition::At(current_node_index_));
+}
+
+void TruncationProcessor::PostProcessNode(Node*) {
+#ifdef DEBUG
+  reducer_.SetCurrentProvenance(MaglevGraphLabeller::Provenance{});
+  reducer_.SetNewNodePosition(BasicBlockPosition::End());
+#endif  // DEBUG
+  current_node_index_++;
+}
+
+void TruncationProcessor::PreProcessNode(Phi*) {}
+void TruncationProcessor::PostProcessNode(Phi*) {
+  // We should not incremeent current_node_index_ since Phis are not stored in
+  // the basic block.
+}
+
+void TruncationProcessor::PreProcessNode(ControlNode*) {
+  reducer_.SetNewNodePosition(BasicBlockPosition::End());
+}
+void TruncationProcessor::PostProcessNode(ControlNode*) {}
+
+int TruncationProcessor::NonInt32InputCount(ValueNode* node) {
+  int non_int32_input_count = 0;
   for (Input input : node->inputs()) {
     ValueNode* unwrapped = input.node()->UnwrapIdentities();
     if (!unwrapped->is_int32()) {
@@ -23,10 +66,21 @@ bool TruncationProcessor::AllInputsAreValid(ValueNode* node) {
         // We can always truncate this safe conversion.
         continue;
       }
-      return false;
+      non_int32_input_count++;
     }
   }
-  return true;
+  return non_int32_input_count;
+}
+
+void TruncationProcessor::ConvertInputsToFloat64(ValueNode* node) {
+  for (int i = 0; i < node->input_count(); i++) {
+    ValueNode* unwrapped = GetUnwrappedInput(node, i);
+    if (unwrapped->is_int32()) {
+      node->change_input(
+          i, reducer_.AddNewNodeNoInputConversion<ChangeInt32ToFloat64>(
+                 {unwrapped}));
+    }
+  }
 }
 
 ValueNode* TruncationProcessor::GetUnwrappedInput(ValueNode* node, int index) {
@@ -47,18 +101,8 @@ void TruncationProcessor::UnwrapInputs(ValueNode* node) {
   }
 }
 
-ProcessResult TruncationProcessor::Process(TruncateFloat64ToInt32* node,
-                                           const ProcessingState& state) {
-  if (AllInputsAreValid(node)) {
-    node->OverwriteWithIdentityTo(GetUnwrappedInput(node, 0));
-    return ProcessResult::kRemove;
-  }
-  return ProcessResult::kContinue;
-}
-
-ProcessResult TruncationProcessor::Process(UnsafeTruncateFloat64ToInt32* node,
-                                           const ProcessingState& state) {
-  if (AllInputsAreValid(node)) {
+ProcessResult TruncationProcessor::ProcessTruncatedConversion(ValueNode* node) {
+  if (NonInt32InputCount(node) == 0) {
     node->OverwriteWithIdentityTo(GetUnwrappedInput(node, 0));
     return ProcessResult::kRemove;
   }
@@ -66,7 +110,11 @@ ProcessResult TruncationProcessor::Process(UnsafeTruncateFloat64ToInt32* node,
 }
 
 ValueNode* TruncationProcessor::GetTruncatedInt32Constant(double constant) {
-  return graph_->GetInt32Constant(DoubleToInt32(constant));
+  return reducer_.GetInt32Constant(DoubleToInt32(constant));
+}
+
+bool TruncationProcessor::is_tracing_enabled() {
+  return reducer_.is_tracing_enabled();
 }
 
 }  // namespace v8::internal::maglev
