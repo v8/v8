@@ -944,6 +944,13 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
           }
         }
       }
+    } else if (value_op.Is<StackPointerGreaterThanOp>()) {
+      cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
+      return VisitStackPointerGreaterThan(value, cont);
+    } else if (value_op.Is<Opmask::kWord32BitwiseAnd>() ||
+               value_op.Is<Opmask::kWord64BitwiseAnd>()) {
+      VisitWordCompare(this, value, kRiscvTst32, cont, true);
+      return;
     }
   }
 

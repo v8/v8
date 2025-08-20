@@ -1947,6 +1947,20 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
           }
         }
       }
+    } else if (value_op.Is<StackPointerGreaterThanOp>()) {
+      // Matching these IR:
+      // StackPointerGreaterThan(#6)[CodeStubAssembler]
+      // Branch(#7)[B2, B1, True]
+      cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
+      VisitStackPointerGreaterThan(value, cont);
+      return;
+    } else if (value_op.Is<Opmask::kWord32BitwiseAnd>() ||
+               value_op.Is<Opmask::kWord64BitwiseAnd>()) {
+      // Matching IR:
+      // 7: Word64And
+      // 8: Word64Equal(#7)
+      VisitWordCompare(this, value, kRiscvTst64, cont, true);
+      return;
     }
   }
 
