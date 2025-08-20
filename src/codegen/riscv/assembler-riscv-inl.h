@@ -330,7 +330,7 @@ Handle<Code> Assembler::relative_code_target_object_handle_at(
   DCHECK(IsAuipc(instr1));
   DCHECK(IsJalr(instr2));
   int32_t code_target_index = BranchLongOffset(instr1, instr2);
-  return Cast<Code>(GetEmbeddedObject(code_target_index));
+  return TrustedCast<Code>(GetEmbeddedObject(code_target_index));
 }
 
 Builtin Assembler::target_builtin_at(Address pc) {
