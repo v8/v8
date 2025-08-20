@@ -531,6 +531,9 @@ Expression* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
 Expression* Parser::NewV8Intrinsic(const AstRawString* name,
                                    const ScopedPtrList<Expression>& args,
                                    int pos) {
+  // Natives syntax is not allowed in extensions code but it might be useful
+  // for debugging purposes provided that --allow-natives-syntax flag is
+  // enabled.
   if (ParsingExtension()) {
     // The extension structures are only accessible while parsing the
     // very first time, not when reparsing because of lazy compilation.

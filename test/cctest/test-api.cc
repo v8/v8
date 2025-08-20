@@ -7918,21 +7918,28 @@ static const char* kNativeCallInExtensionSource =
     "  return %StringLastIndexOf(x, 'bob');"
     "}";
 
-static const char* kNativeCallTest =
-    "call_runtime_last_index_of('bobbobboellebobboellebobbob');";
-
-// Test that a native runtime calls are supported in extensions.
+// Test that natives syntax is not allowed in extensions.
 TEST(NativeCallInExtensions) {
+  i::v8_flags.allow_natives_syntax = false;
   v8::HandleScope handle_scope(CcTest::isolate());
   v8::RegisterExtension(
       std::make_unique<Extension>("nativecall", kNativeCallInExtensionSource));
   const char* extension_names[] = {"nativecall"};
   v8::ExtensionConfiguration extensions(1, extension_names);
-  v8::Local<Context> context = Context::New(CcTest::isolate(), &extensions);
-  Context::Scope lock(context);
-  v8::Local<Value> result = CompileRun(kNativeCallTest);
-  CHECK(result->Equals(context, v8::Integer::New(CcTest::isolate(), 24))
-            .FromJust());
+  v8::Local<Context> context = Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+  {
+    TryCatch try_catch(CcTest::isolate());
+
+    v8::Local<Context> ext_context =
+        Context::New(CcTest::isolate(), &extensions);
+    CHECK(ext_context.IsEmpty());
+    CHECK(try_catch.HasCaught());
+
+    v8::String::Utf8Value str(CcTest::isolate(), try_catch.Exception());
+    CHECK_NOT_NULL(*str);
+    CHECK_EQ(0, strcmp(*str, "SyntaxError: Unexpected token '%'"));
+  }
 }
 
 
