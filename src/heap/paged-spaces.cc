@@ -119,10 +119,6 @@ void PagedSpaceBase::MergeCompactionSpace(CompactionSpace* other) {
   for (auto it = other->begin(); it != other->end();) {
     PageMetadata* p = *(it++);
 
-    // Ensure that pages are initialized before objects on it are discovered by
-    // concurrent markers.
-    p->Chunk()->InitializationMemoryFence();
-
     // Relinking requires the category to be unlinked.
     other->RemovePage(p);
     AddPage(p);
