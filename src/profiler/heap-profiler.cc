@@ -60,7 +60,7 @@ std::vector<v8::Local<v8::Value>> HeapProfiler::GetDetachedJSWrapperObjects() {
   HeapObjectIterator iterator(heap());
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (HeapLayout::InCodeSpace(obj)) continue;
+    if (HeapLayout::SafeInCodeSpace(obj)) continue;
     if (!IsJSApiWrapperObject(obj)) continue;
     // Ensure object is wrappable, otherwise GetDetachedness() can crash
     CppHeapObjectWrapper wrapper = CppHeapObjectWrapper(Cast<JSObject>(obj));

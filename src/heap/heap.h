@@ -469,7 +469,8 @@ class Heap final {
   V8_EXPORT_PRIVATE void CreateFillerObjectAt(
       Address addr, int size,
       ClearFreedMemoryMode clear_memory_mode =
-          ClearFreedMemoryMode::kDontClearFreedMemory);
+          ClearFreedMemoryMode::kDontClearFreedMemory,
+      std::optional<AllocationType> allocation_type = {});
 
   // Initialize a filler object at a specific address. Unlike
   // `CreateFillerObjectAt` this method will not perform slot verification since

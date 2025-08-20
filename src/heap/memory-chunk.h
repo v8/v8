@@ -101,9 +101,6 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     COMPACTION_WAS_ABORTED = 1u << 17,
 
     NEW_SPACE_BELOW_AGE_MARK = 1u << 18,
-
-    // A Page with code objects.
-    IS_EXECUTABLE = 1u << 21,
   };
 
   using MainThreadFlags = base::Flags<Flag, uintptr_t>;
@@ -207,18 +204,12 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   bool SandboxSafeInReadOnlySpace() const;
 #endif
 
-  V8_INLINE bool InCodeSpace() const { return IsFlagSet(IS_EXECUTABLE); }
-
   V8_INLINE bool IsEvacuationCandidate() const;
 
   bool ShouldSkipEvacuationSlotRecording() const {
     MainThreadFlags flags = GetFlags();
     return ((flags & kSkipEvacuationSlotsRecordingMask) != 0) &&
            ((flags & COMPACTION_WAS_ABORTED) == 0);
-  }
-
-  Executability executable() const {
-    return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
   }
 
   bool IsFromPage() const {
