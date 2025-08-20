@@ -2500,10 +2500,9 @@ TurboshaftAssemblerBuiltinCompilationJob::PrepareJobImpl(Isolate* isolate) {
     }
     turboshaft::ZoneWithName<turboshaft::kTempZoneName> print_zone(
         &zone_stats_, turboshaft::kTempZoneName);
-    std::vector<char> name_buffer(strlen("TSA: ") + strlen(name_) + 1);
-    memcpy(name_buffer.data(), "TSA: ", 5);
-    memcpy(name_buffer.data() + 5, name_, strlen(name_));
-    turboshaft_pipeline.PrintGraph(print_zone, name_buffer.data());
+    std::string name_buffer = "TSA: ";
+    name_buffer += name_;
+    turboshaft_pipeline.PrintGraph(print_zone, name_buffer.c_str());
   }
 
   // Validate pgo profile.
@@ -2768,10 +2767,9 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTurboshaftBuiltin(
   if (info->trace_turbo_graph() || info->trace_turbo_json()) {
     turboshaft::ZoneWithName<turboshaft::kTempZoneName> print_zone(
         turboshaft_data->zone_stats(), turboshaft::kTempZoneName);
-    std::vector<char> name_buffer(strlen("TSA: ") + strlen(debug_name) + 1);
-    memcpy(name_buffer.data(), "TSA: ", 5);
-    memcpy(name_buffer.data() + 5, debug_name, strlen(debug_name));
-    turboshaft_pipeline.PrintGraph(print_zone, name_buffer.data());
+    std::string name_buffer = "TSA: ";
+    name_buffer += debug_name;
+    turboshaft_pipeline.PrintGraph(print_zone, name_buffer.c_str());
   }
 
   // Validate pgo profile.
