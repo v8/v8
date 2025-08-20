@@ -418,8 +418,8 @@ class MergeDeserializedCodeTest : public DeserializeTest {
     // BytecodeArrays live in trusted space and so cannot be referenced through
     // tagged/compressed pointers from e.g. a FixedArray. Instead, we need to
     // use their in-sandbox wrapper object for that purpose.
-    if (i::IsBytecodeArray(data)) {
-      data = i::Cast<i::BytecodeArray>(data)->wrapper();
+    if (i::Tagged<i::BytecodeArray> bytes; TryCast(data, &bytes)) {
+      data = bytes->wrapper();
     }
     return data;
   }

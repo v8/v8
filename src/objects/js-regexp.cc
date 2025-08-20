@@ -388,7 +388,7 @@ MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(Isolate* isolate,
 
 bool RegExpData::HasCompiledCode() const {
   if (type_tag() != Type::IRREGEXP) return false;
-  Tagged<IrRegExpData> re_data = Cast<IrRegExpData>(*this);
+  Tagged<IrRegExpData> re_data = TrustedCast<IrRegExpData>(*this);
   return re_data->has_latin1_code() || re_data->has_uc16_code();
 }
 

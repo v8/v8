@@ -844,7 +844,9 @@ MaybeDirectHandle<WasmSuspenderObject> TryGetWasmSuspender(
     Tagged<SharedFunctionInfo> shared = Cast<JSFunction>(handler)->shared();
     if (shared->HasWasmResumeData()) {
       return direct_handle(
-          shared->wasm_resume_data()->trusted_suspender(isolate), isolate);
+          TrustedCast<WasmSuspenderObject>(
+              shared->wasm_resume_data()->trusted_suspender(isolate)),
+          isolate);
     }
   }
   return MaybeDirectHandle<WasmSuspenderObject>();
@@ -2318,7 +2320,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         // Otherwise the exception should have been caught by the JSPI builtin.
         // TODO(388533754): Revisit this for core stack-switching when the
         // suspender can encapsulate multiple stacks.
-        auto suspender = Tagged<WasmSuspenderObject>::cast(maybe_suspender);
+        auto suspender = TrustedCast<WasmSuspenderObject>(maybe_suspender);
         if (suspender->has_parent()) {
           maybe_suspender = suspender->parent();
         } else {
@@ -3564,9 +3566,9 @@ bool CallsCatchMethod(const StackFrameSummaryIterator& iterator) {
   }
   if (iterator.frame_summary().IsJavaScript()) {
     auto& js_summary = iterator.frame_summary().AsJavaScript();
-    if (IsBytecodeArray(*js_summary.abstract_code())) {
-      if (CallsCatchMethod(iterator.isolate(),
-                           Cast<BytecodeArray>(js_summary.abstract_code()),
+    if (Handle<BytecodeArray> bytecode_array;
+        TryCast(js_summary.abstract_code(), &bytecode_array)) {
+      if (CallsCatchMethod(iterator.isolate(), bytecode_array,
                            js_summary.code_offset())) {
         return true;
       }

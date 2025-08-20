@@ -84,7 +84,7 @@ void SetEntry(Tagged<ProtectedWeakFixedArray> uses, int slot_index,
 Tagged<WasmTrustedInstanceData> GetInstance(
     Tagged<ProtectedWeakFixedArray> uses, int slot_index) {
   DCHECK(slot_index & 1);
-  return Cast<WasmTrustedInstanceData>(
+  return TrustedCast<WasmTrustedInstanceData>(
       uses->get(slot_index).GetHeapObjectAssumeWeak());
 }
 int GetTableIndex(Tagged<ProtectedWeakFixedArray> uses, int slot_index) {
@@ -544,7 +544,7 @@ void WasmTableObject::UpdateDispatchTable(
       func->imported
           // The function in the target instance was imported. Use its imports
           // table to look up the ref.
-          ? direct_handle(Cast<TrustedObject>(
+          ? direct_handle(TrustedCast<TrustedObject>(
                               target_instance_data->dispatch_table_for_imports()
                                   ->implicit_arg(func->func_index)),
                           isolate)
@@ -568,7 +568,7 @@ void WasmTableObject::UpdateDispatchTable(
   SBXCHECK(FunctionSigMatchesTable(sig_id, dispatch_table->table_type()));
 
   if (v8_flags.wasm_generic_wrapper && IsWasmImportData(*implicit_arg)) {
-    auto import_data = Cast<WasmImportData>(implicit_arg);
+    auto import_data = TrustedCast<WasmImportData>(implicit_arg);
     constexpr bool kShared = false;
     DirectHandle<WasmImportData> new_import_data =
         isolate->factory()->NewWasmImportData(import_data, kShared);
@@ -581,9 +581,8 @@ void WasmTableObject::UpdateDispatchTable(
       target_instance_data->dispatch_table_for_imports()->MaybeGetWrapperHandle(
           func->func_index);
   if (maybe_wrapper) {
-    CHECK(IsWasmImportData(*implicit_arg));
     dispatch_table->SetForWrapper(entry_index,
-                                  Cast<WasmImportData>(*implicit_arg),
+                                  CheckedCast<WasmImportData>(*implicit_arg),
                                   *maybe_wrapper, sig_id,
 #if V8_ENABLE_DRUMBRAKE
                                   target_func_index,
@@ -616,9 +615,8 @@ void WasmTableObject::UpdateDispatchTable(
     }
 #endif  // V8_ENABLE_DRUMBRAKE
   } else {
-    CHECK(IsWasmTrustedInstanceData(*implicit_arg));
     dispatch_table->SetForNonWrapper(
-        entry_index, Cast<WasmTrustedInstanceData>(*implicit_arg),
+        entry_index, CheckedCast<WasmTrustedInstanceData>(*implicit_arg),
         target_instance_data->GetCallTarget(func->func_index), sig_id,
 #if V8_ENABLE_DRUMBRAKE
         target_func_index,
@@ -643,7 +641,8 @@ void WasmTableObject::UpdateDispatchTable(
       function_data->offheap_data()->wrapper_handle();
 
   DirectHandle<WasmImportData> import_data(
-      Cast<WasmImportData>(function_data->internal()->implicit_arg()), isolate);
+      TrustedCast<WasmImportData>(function_data->internal()->implicit_arg()),
+      isolate);
 #ifdef DEBUG
   Address call_target =
       wasm::GetProcessWideWasmCodePointerTable()
@@ -702,7 +701,7 @@ void WasmTableObject::UpdateDispatchTable(
                          wasm::kNoSuspend, sig);
 
   Tagged<WasmImportData> implicit_arg =
-      Cast<WasmImportData>(func_data->internal()->implicit_arg());
+      TrustedCast<WasmImportData>(func_data->internal()->implicit_arg());
   Tagged<WasmDispatchTable> dispatch_table =
       table->trusted_dispatch_table(isolate);
   SBXCHECK(FunctionSigMatchesTable(sig_index, dispatch_table->table_type()));
@@ -788,8 +787,7 @@ void WasmTableObject::GetFunctionTableEntry(
   }
   if (WasmExportedFunction::IsWasmExportedFunction(*element)) {
     auto target_func = Cast<WasmExportedFunction>(element);
-    auto func_data = Cast<WasmExportedFunctionData>(
-        target_func->shared()->wasm_exported_function_data());
+    auto func_data = target_func->shared()->wasm_exported_function_data();
     *instance_data = direct_handle(func_data->instance_data(), isolate);
     *function_index = func_data->function_index();
     *maybe_js_function = MaybeDirectHandle<WasmJSFunction>();
@@ -1490,7 +1488,7 @@ FunctionTargetAndImplicitArg::FunctionTargetAndImplicitArg(
     // The function in the target instance was imported. Load the ref from the
     // dispatch table for imports.
     implicit_arg_ = direct_handle(
-        Cast<TrustedObject>(
+        TrustedCast<TrustedObject>(
             target_instance_data->dispatch_table_for_imports()->implicit_arg(
                 target_func_index)),
         isolate);
@@ -1600,12 +1598,14 @@ void ImportedFunctionEntry::SetWasmToWasm(
 // otherwise.
 Tagged<Object> ImportedFunctionEntry::maybe_callable() {
   Tagged<Object> data = implicit_arg();
-  if (!IsWasmImportData(data)) return Tagged<Object>();
-  return Cast<JSReceiver>(Cast<WasmImportData>(data)->callable());
+  Tagged<WasmImportData> import_data;
+  if (!TryCast(data, &import_data)) return Tagged<Object>();
+  return import_data->callable();
 }
 
 Tagged<JSReceiver> ImportedFunctionEntry::callable() {
-  return Cast<JSReceiver>(Cast<WasmImportData>(implicit_arg())->callable());
+  return TrustedCast<JSReceiver>(
+      TrustedCast<WasmImportData>(implicit_arg())->callable());
 }
 
 Tagged<Object> ImportedFunctionEntry::implicit_arg() {
@@ -2033,7 +2033,7 @@ DirectHandle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
   wasm::ModuleTypeIndex sig_index = module->functions[function_index].sig_index;
   DirectHandle<TrustedObject> implicit_arg =
       is_import ? direct_handle(
-                      Cast<TrustedObject>(
+                      TrustedCast<TrustedObject>(
                           trusted_instance_data->dispatch_table_for_imports()
                               ->implicit_arg(function_index)),
                       isolate)
@@ -2094,9 +2094,10 @@ DirectHandle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
   DirectHandle<TrustedObject> implicit_arg{internal->implicit_arg(), isolate};
   DirectHandle<WasmTrustedInstanceData> instance_data =
       IsWasmTrustedInstanceData(*implicit_arg)
-          ? Cast<WasmTrustedInstanceData>(implicit_arg)
-          : direct_handle(Cast<WasmImportData>(*implicit_arg)->instance_data(),
-                          isolate);
+          ? TrustedCast<WasmTrustedInstanceData>(implicit_arg)
+          : direct_handle(
+                TrustedCast<WasmImportData>(*implicit_arg)->instance_data(),
+                isolate);
   const WasmModule* module = instance_data->module();
   int function_index = internal->function_index();
   wasm::ModuleTypeIndex sig_index = module->functions[function_index].sig_index;
@@ -2498,7 +2499,7 @@ void WasmDispatchTable::SetForNonWrapper(
 #endif  // V8_ENABLE_DRUMBRAKE
   }
   WriteProtectedPointerField(offset + kImplicitArgBias,
-                             Cast<TrustedObject>(implicit_arg));
+                             TrustedCast<TrustedObject>(implicit_arg));
   CONDITIONAL_WRITE_BARRIER(*this, offset + kImplicitArgBias, implicit_arg,
                             UPDATE_WRITE_BARRIER);
   WriteField<uint32_t>(offset + kSigBias, sig_id.index);
@@ -2519,7 +2520,7 @@ void WasmDispatchTable::SetForWrapper(
   DCHECK(sig_id.valid());
   const int offset = OffsetOf(index);
   WriteProtectedPointerField(offset + kImplicitArgBias,
-                             Cast<TrustedObject>(implicit_arg));
+                             TrustedCast<TrustedObject>(implicit_arg));
   CONDITIONAL_WRITE_BARRIER(*this, offset + kImplicitArgBias, implicit_arg,
                             UPDATE_WRITE_BARRIER);
   if (!v8_flags.wasm_jitless) {
@@ -2693,8 +2694,8 @@ DirectHandle<WasmDispatchTable> WasmDispatchTable::Grow(
     // Update any stored call origins, so that future compiled wrappers
     // get installed into the new dispatch table.
     Tagged<Object> implicit_arg = old_table->implicit_arg(i);
-    if (IsWasmImportData(implicit_arg)) {
-      Tagged<WasmImportData> import_data = Cast<WasmImportData>(implicit_arg);
+    if (Tagged<WasmImportData> import_data;
+        TryCast(implicit_arg, &import_data)) {
       // After installing a compiled wrapper, we don't set or update
       // call origins any more.
       if (import_data->has_call_origin()) {
@@ -2724,8 +2725,8 @@ DirectHandle<WasmDispatchTable> WasmDispatchTable::Grow(
                                  old_table->function_index(i));
 #endif  // V8_ENABLE_DRUMBRAKE
     }
-    new_table->WriteProtectedPointerField(offset + kImplicitArgBias,
-                                          Cast<TrustedObject>(implicit_arg));
+    new_table->WriteProtectedPointerField(
+        offset + kImplicitArgBias, TrustedCast<TrustedObject>(implicit_arg));
     CONDITIONAL_WRITE_BARRIER(*new_table, offset + kImplicitArgBias,
                               implicit_arg, UPDATE_WRITE_BARRIER);
     new_table->WriteField<uint32_t>(offset + kSigBias, old_table->sig(i).index);
@@ -3292,7 +3293,7 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
   // Some later DCHECKs assume that we don't have a {call_origin} when
   // the function already uses a compiled wrapper.
   if (should_clear_call_origin) {
-    Cast<WasmImportData>(internal_function->implicit_arg())
+    TrustedCast<WasmImportData>(internal_function->implicit_arg())
         ->clear_call_origin();
   }
 
@@ -3315,11 +3316,11 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
 
 Tagged<JSReceiver> WasmJSFunctionData::GetCallable() const {
   return Cast<JSReceiver>(
-      Cast<WasmImportData>(internal()->implicit_arg())->callable());
+      TrustedCast<WasmImportData>(internal()->implicit_arg())->callable());
 }
 
 wasm::Suspend WasmJSFunctionData::GetSuspend() const {
-  return Cast<WasmImportData>(internal()->implicit_arg())->suspend();
+  return TrustedCast<WasmImportData>(internal()->implicit_arg())->suspend();
 }
 
 const wasm::CanonicalSig* WasmJSFunctionData::GetSignature() const {

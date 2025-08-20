@@ -4236,8 +4236,8 @@ void CppClassGenerator::GenerateClass() {
     impl_ << "\ntemplate <>\n";
     impl_ << "void " << gen_name_I_ << "::" << name_
           << "Verify(Isolate* isolate) {\n";
-    impl_ << "  TorqueGeneratedClassVerifiers::" << name_ << "Verify(Cast<"
-          << name_
+    impl_ << "  TorqueGeneratedClassVerifiers::" << name_
+          << "Verify(TrustedCast<" << name_
           << ">(*this), "
              "isolate);\n";
     impl_ << "}\n\n";

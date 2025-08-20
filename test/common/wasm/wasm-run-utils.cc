@@ -307,7 +307,8 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
 
       if (maybe_wrapper) {
         trusted_instance_data_->dispatch_table(table_index)
-            ->SetForWrapper(i, Cast<WasmImportData>(*entry.implicit_arg()),
+            ->SetForWrapper(i,
+                            TrustedCast<WasmImportData>(*entry.implicit_arg()),
                             std::move(*maybe_wrapper), sig_id,
 #if V8_ENABLE_DRUMBRAKE
                             function.func_index,
@@ -316,7 +317,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
       } else {
         trusted_instance_data_->dispatch_table(table_index)
             ->SetForNonWrapper(
-                i, Cast<WasmTrustedInstanceData>(*entry.implicit_arg()),
+                i, TrustedCast<WasmTrustedInstanceData>(*entry.implicit_arg()),
                 entry.call_target(), sig_id,
 #if V8_ENABLE_DRUMBRAKE
                 function.func_index,

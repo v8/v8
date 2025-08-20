@@ -24,6 +24,7 @@
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/managed.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/oddball-inl.h"
 #include "src/objects/script-inl.h"
 #include "src/roots/roots.h"
@@ -288,8 +289,7 @@ size_t WasmTrustedInstanceData::memory_size(int memory_index) const {
 Tagged<WasmDispatchTable> WasmTrustedInstanceData::dispatch_table(
     uint32_t table_index) {
   Tagged<Object> table = dispatch_tables()->get(table_index);
-  DCHECK(IsWasmDispatchTable(table));
-  return Cast<WasmDispatchTable>(table);
+  return TrustedCast<WasmDispatchTable>(table);
 }
 
 bool WasmTrustedInstanceData::has_dispatch_table(uint32_t table_index) {

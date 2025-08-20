@@ -76,7 +76,7 @@ Tagged<InstructionStream> InstructionStream::Initialize(
                                    TrailingPaddingSizeFor(body_size));
   }
 
-  Tagged<InstructionStream> istream = Cast<InstructionStream>(self);
+  Tagged<InstructionStream> istream = TrustedCast<InstructionStream>(self);
 
   // We want to keep the code minimal that runs with write access to a JIT
   // allocation, so trigger the write barriers after the WritableJitAllocation
@@ -182,15 +182,14 @@ Tagged<Object> InstructionStream::raw_code(AcquireLoadTag tag) const {
 }
 
 Tagged<Code> InstructionStream::code(AcquireLoadTag tag) const {
-  return Cast<Code>(raw_code(tag));
+  return TrustedCast<Code>(raw_code(tag));
 }
 
 bool InstructionStream::TryGetCode(Tagged<Code>* code_out,
                                    AcquireLoadTag tag) const {
   Tagged<Object> maybe_code = raw_code(tag);
   if (maybe_code == Smi::zero()) return false;
-  *code_out = Cast<Code>(maybe_code);
-  return true;
+  return TryCast(maybe_code, code_out);
 }
 
 bool InstructionStream::TryGetCodeUnchecked(Tagged<Code>* code_out,
@@ -202,8 +201,7 @@ bool InstructionStream::TryGetCodeUnchecked(Tagged<Code>* code_out,
 }
 
 Tagged<TrustedByteArray> InstructionStream::relocation_info() const {
-  return Cast<TrustedByteArray>(
-      ReadProtectedPointerField(kRelocationInfoOffset));
+  return ReadProtectedPointerField<TrustedByteArray>(kRelocationInfoOffset);
 }
 
 Address InstructionStream::instruction_start() const {

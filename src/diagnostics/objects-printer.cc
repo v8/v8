@@ -334,10 +334,11 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
       break;
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_TRUSTED_INSTANCE_DATA_TYPE:
-      Cast<WasmTrustedInstanceData>(*this)->WasmTrustedInstanceDataPrint(os);
+      TrustedCast<WasmTrustedInstanceData>(*this)->WasmTrustedInstanceDataPrint(
+          os);
       break;
     case WASM_DISPATCH_TABLE_TYPE:
-      Cast<WasmDispatchTable>(*this)->WasmDispatchTablePrint(os);
+      TrustedCast<WasmDispatchTable>(*this)->WasmDispatchTablePrint(os);
       break;
     case WASM_VALUE_OBJECT_TYPE:
       Cast<WasmValueObject>(*this)->WasmValueObjectPrint(os);
@@ -347,10 +348,10 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     case INSTRUCTION_STREAM_TYPE:
-      Cast<InstructionStream>(*this)->InstructionStreamPrint(os);
+      TrustedCast<InstructionStream>(*this)->InstructionStreamPrint(os);
       break;
     case CODE_TYPE:
-      Cast<Code>(*this)->CodePrint(os);
+      TrustedCast<Code>(*this)->CodePrint(os);
       break;
     case CODE_WRAPPER_TYPE:
       Cast<CodeWrapper>(*this)->CodeWrapperPrint(os);
@@ -364,9 +365,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case JS_MAP_VALUE_ITERATOR_TYPE:
       Cast<JSMapIterator>(*this)->JSMapIteratorPrint(os);
       break;
-#define MAKE_TORQUE_CASE(Name, TYPE)    \
-  case TYPE:                            \
-    Cast<Name>(*this)->Name##Print(os); \
+#define MAKE_TORQUE_CASE(Name, TYPE)           \
+  case TYPE:                                   \
+    TrustedCast<Name>(*this)->Name##Print(os); \
     break;
       // Every class that has its fields defined in a .tq file and corresponds
       // to exactly one InstanceType value is included in the following list.
@@ -3746,7 +3747,8 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       os << "<ByteArray[" << Cast<ByteArray>(*this)->length() << "]>";
       break;
     case BYTECODE_ARRAY_TYPE:
-      os << "<BytecodeArray[" << Cast<BytecodeArray>(*this)->length() << "]>";
+      os << "<BytecodeArray[" << TrustedCast<BytecodeArray>(*this)->length()
+         << "]>";
       break;
     case DESCRIPTOR_ARRAY_TYPE:
       os << "<DescriptorArray["
@@ -3756,20 +3758,20 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       os << "<WeakFixedArray[" << Cast<WeakFixedArray>(*this)->length() << "]>";
       break;
     case TRUSTED_FIXED_ARRAY_TYPE:
-      os << "<TrustedFixedArray[" << Cast<TrustedFixedArray>(*this)->length()
-         << "]>";
+      os << "<TrustedFixedArray["
+         << TrustedCast<TrustedFixedArray>(*this)->length() << "]>";
       break;
     case TRUSTED_WEAK_FIXED_ARRAY_TYPE:
       os << "<TrustedWeakFixedArray["
-         << Cast<TrustedWeakFixedArray>(*this)->length() << "]>";
+         << TrustedCast<TrustedWeakFixedArray>(*this)->length() << "]>";
       break;
     case PROTECTED_FIXED_ARRAY_TYPE:
       os << "<ProtectedFixedArray["
-         << Cast<ProtectedFixedArray>(*this)->length() << "]>";
+         << TrustedCast<ProtectedFixedArray>(*this)->length() << "]>";
       break;
     case PROTECTED_WEAK_FIXED_ARRAY_TYPE:
       os << "<ProtectedWeakFixedArray["
-         << Cast<ProtectedWeakFixedArray>(*this)->length() << "]>";
+         << TrustedCast<ProtectedWeakFixedArray>(*this)->length() << "]>";
       break;
     case TRANSITION_ARRAY_TYPE:
       os << "<TransitionArray[" << Cast<TransitionArray>(*this)->length()
@@ -3835,7 +3837,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
 
     case UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE: {
       Tagged<UncompiledDataWithoutPreparseData> data =
-          Cast<UncompiledDataWithoutPreparseData>(*this);
+          TrustedCast<UncompiledDataWithoutPreparseData>(*this);
       os << "<UncompiledDataWithoutPreparseData (" << data->start_position()
          << ", " << data->end_position() << ")]>";
       break;
@@ -3843,7 +3845,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
 
     case UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE: {
       Tagged<UncompiledDataWithPreparseData> data =
-          Cast<UncompiledDataWithPreparseData>(*this);
+          TrustedCast<UncompiledDataWithPreparseData>(*this);
       os << "<UncompiledDataWithPreparseData (" << data->start_position()
          << ", " << data->end_position()
          << ") preparsed=" << Brief(data->preparse_data()) << ">";
@@ -3883,7 +3885,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     }
     case CODE_TYPE: {
-      Tagged<Code> code = Cast<Code>(*this);
+      Tagged<Code> code = TrustedCast<Code>(*this);
       os << "<Code " << CodeKindToString(code->kind());
       if (code->is_builtin()) {
         os << " " << Builtins::name(code->builtin_id());
@@ -3902,7 +3904,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       UNREACHABLE();
     }
     case INSTRUCTION_STREAM_TYPE: {
-      Tagged<InstructionStream> istream = Cast<InstructionStream>(*this);
+      Tagged<InstructionStream> istream = TrustedCast<InstructionStream>(*this);
       Tagged<Code> code = istream->code(kAcquireLoad);
       os << "<InstructionStream " << CodeKindToString(code->kind());
       if (code->is_builtin()) {
@@ -3999,8 +4001,8 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
     }
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_DISPATCH_TABLE_TYPE:
-      os << "<WasmDispatchTable[" << Cast<WasmDispatchTable>(*this)->length()
-         << "]>";
+      os << "<WasmDispatchTable["
+         << TrustedCast<WasmDispatchTable>(*this)->length() << "]>";
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:

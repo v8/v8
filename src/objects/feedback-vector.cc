@@ -1342,7 +1342,7 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
         if (!StoreModeIsInBounds(mode)) return mode;
         continue;
       } else {
-        Tagged<Code> code = Cast<Code>(data_handler->smi_handler());
+        Tagged<Code> code = TrustedCast<Code>(data_handler->smi_handler());
         builtin_handler = code->builtin_id();
       }
 
@@ -1361,7 +1361,7 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
       continue;
     } else {
       // Element store without prototype chain check.
-      Tagged<Code> code = Cast<Code>(*maybe_code_handler.object());
+      Tagged<Code> code = TrustedCast<Code>(*maybe_code_handler.object());
       builtin_handler = code->builtin_id();
     }
 

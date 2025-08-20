@@ -133,7 +133,7 @@ class Code : public ExposedTrustedObject {
   DECL_PRIMITIVE_ACCESSORS(unwinding_info_offset, int32_t)
   // [deoptimization_data]: Array containing data for deopt for non-baseline
   // code.
-  DECL_ACCESSORS(deoptimization_data, Tagged<ProtectedFixedArray>)
+  DECL_ACCESSORS(deoptimization_data, Tagged<DeoptimizationData>)
   // [parameter_count]: The number of formal parameters, including the
   // receiver. Currently only available for optimized functions.
   // TODO(saelo): make this always available. This is just a matter of figuring

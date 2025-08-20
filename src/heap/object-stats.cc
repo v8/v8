@@ -802,10 +802,12 @@ void ObjectStatsCollectorImpl::CollectStatistics(
         RecordVirtualFeedbackVectorDetails(Cast<FeedbackVector>(obj));
       } else if (InstanceTypeChecker::IsMap(instance_type)) {
         RecordVirtualMapDetails(Cast<Map>(obj));
-      } else if (InstanceTypeChecker::IsBytecodeArray(instance_type)) {
-        RecordVirtualBytecodeArrayDetails(Cast<BytecodeArray>(obj));
-      } else if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
-        RecordVirtualCodeDetails(Cast<InstructionStream>(obj));
+      } else if (Tagged<BytecodeArray> bytecode_array;
+                 TryCast(obj, &bytecode_array)) {
+        RecordVirtualBytecodeArrayDetails(bytecode_array);
+      } else if (Tagged<InstructionStream> instruction_stream;
+                 TryCast(obj, &instruction_stream)) {
+        RecordVirtualCodeDetails(instruction_stream);
       } else if (InstanceTypeChecker::IsFunctionTemplateInfo(instance_type)) {
         RecordVirtualFunctionTemplateInfoDetails(
             Cast<FunctionTemplateInfo>(obj));
@@ -1069,8 +1071,7 @@ void ObjectStatsCollectorImpl::RecordVirtualBytecodeArrayDetails(
                                  StatsEnum::BYTECODE_ARRAY_CONSTANT_POOL_TYPE);
   // FixedArrays on constant pool are used for holding descriptor information.
   // They are shared with optimized code.
-  Tagged<TrustedFixedArray> constant_pool =
-      Cast<TrustedFixedArray>(bytecode->constant_pool());
+  Tagged<TrustedFixedArray> constant_pool = bytecode->constant_pool();
   for (int i = 0; i < constant_pool->length(); i++) {
     Tagged<Object> entry = constant_pool->get(i);
     if (IsFixedArrayExact(entry)) {
@@ -1119,8 +1120,7 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(
     }
     RecordSimpleVirtualObjectStats(istream, code->deoptimization_data(),
                                    StatsEnum::DEOPTIMIZATION_DATA_TYPE);
-    Tagged<DeoptimizationData> input_data =
-        Cast<DeoptimizationData>(code->deoptimization_data());
+    Tagged<DeoptimizationData> input_data = code->deoptimization_data();
     if (input_data->length() > 0) {
       RecordSimpleVirtualObjectStats(code->deoptimization_data(),
                                      input_data->LiteralArray(),

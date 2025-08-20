@@ -556,13 +556,13 @@ bool JSFunction::NeedsResetDueToFlushedBytecode(Isolate* isolate) {
   // with CHECKs.
   Tagged<Object> maybe_shared =
       ACQUIRE_READ_FIELD(*this, kSharedFunctionInfoOffset);
-  if (!IsSharedFunctionInfo(maybe_shared)) return false;
+  Tagged<SharedFunctionInfo> shared;
+  if (!TryCast(maybe_shared, &shared)) return false;
 
   Tagged<Object> maybe_code = raw_code(isolate, kAcquireLoad);
-  if (!IsCode(maybe_code)) return false;
-  Tagged<Code> code = Cast<Code>(maybe_code);
+  Tagged<Code> code;
+  if (!TryCast(maybe_code, &code)) return false;
 
-  Tagged<SharedFunctionInfo> shared = Cast<SharedFunctionInfo>(maybe_shared);
   return !shared->is_compiled() &&
          (code->builtin_id() != Builtin::kCompileLazy ||
           // With leaptiering we can have CompileLazy as the code object but

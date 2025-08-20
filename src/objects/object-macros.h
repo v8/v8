@@ -572,7 +572,7 @@
   }                                                                            \
   Tagged<type> holder::name(IsolateForSandbox isolate, AcquireLoadTag) const { \
     DCHECK(has_##name());                                                      \
-    return Cast<type>(ReadTrustedPointerField<tag>(offset, isolate));          \
+    return ReadTrustedPointerField<tag>(offset, isolate);                      \
   }                                                                            \
   void holder::set_##name(Tagged<type> value, WriteBarrierMode mode) {         \
     set_##name(value, kReleaseStore, mode);                                    \
@@ -610,7 +610,7 @@
   static_assert(std::is_base_of_v<TrustedObject, holder>);                   \
   Tagged<type> holder::name() const {                                        \
     DCHECK(has_##name());                                                    \
-    return Cast<type>(ReadProtectedPointerField(offset));                    \
+    return ReadProtectedPointerField<type>(offset);                          \
   }                                                                          \
   void holder::set_##name(Tagged<type> value, WriteBarrierMode mode) {       \
     WriteProtectedPointerField(offset, value);                               \
@@ -633,7 +633,7 @@
   static_assert(std::is_base_of_v<TrustedObject, holder>);                   \
   Tagged<type> holder::name(AcquireLoadTag tag) const {                      \
     DCHECK(has_##name(tag));                                                 \
-    return Cast<type>(ReadProtectedPointerField(offset, tag));               \
+    return ReadProtectedPointerField<type>(offset, tag);                     \
   }                                                                          \
   void holder::set_##name(Tagged<type> value, ReleaseStoreTag tag,           \
                           WriteBarrierMode mode) {                           \
@@ -957,7 +957,7 @@ static_assert(sizeof(unsigned) == sizeof(uint32_t),
 
 #define DEFINE_DEOPT_ELEMENT_ACCESSORS(name, type)         \
   auto DeoptimizationData::name() const -> Tagged<type> {  \
-    return Cast<type>(get(k##name##Index));                \
+    return TrustedCast<type>(get(k##name##Index));         \
   }                                                        \
   void DeoptimizationData::Set##name(Tagged<type> value) { \
     set(k##name##Index, value);                            \

@@ -152,7 +152,7 @@ void Builtins::set_code(Builtin builtin, Tagged<Code> code) {
 
 Tagged<Code> Builtins::code(Builtin builtin) {
   Address ptr = isolate_->builtin_table()[Builtins::ToInt(builtin)];
-  return Cast<Code>(Tagged<Object>(ptr));
+  return TrustedCast<Code>(Tagged<Object>(ptr));
 }
 
 Handle<Code> Builtins::code_handle(Builtin builtin) {

@@ -60,7 +60,7 @@ Address JSDispatchEntry::GetCodePointer() const {
 }
 
 Tagged<Code> JSDispatchEntry::GetCode() const {
-  return Cast<Code>(Tagged<Object>(GetCodePointer()));
+  return TrustedCast<Code>(Tagged<Object>(GetCodePointer()));
 }
 
 uint16_t JSDispatchEntry::GetParameterCount() const {

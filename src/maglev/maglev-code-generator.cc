@@ -2063,7 +2063,8 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
     IdentityMap<int, base::DefaultAllocationPolicy>::IteratableScope iterate(
         &protected_deopt_literals_);
     for (auto it = iterate.begin(); it != iterate.end(); ++it) {
-      raw_protected_literals->set(*it.entry(), Cast<TrustedObject>(it.key()));
+      raw_protected_literals->set(*it.entry(),
+                                  TrustedCast<TrustedObject>(it.key()));
     }
   }
 

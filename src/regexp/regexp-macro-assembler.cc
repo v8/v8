@@ -419,9 +419,8 @@ int NativeRegExpMacroAssembler::ExecuteForTesting(
     const uint8_t* input_end, int* output, int output_size, Isolate* isolate,
     Tagged<JSRegExp> regexp) {
   Tagged<RegExpData> data = regexp->data(isolate);
-  SBXCHECK(Is<IrRegExpData>(data));
   return Execute(input, start_offset, input_start, input_end, output,
-                 output_size, isolate, Cast<IrRegExpData>(data));
+                 output_size, isolate, SbxCast<IrRegExpData>(data));
 }
 
 // Returns a {Result} sentinel, or the number of successful matches.

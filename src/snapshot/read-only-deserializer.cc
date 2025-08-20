@@ -226,7 +226,7 @@ class ObjectPostProcessor final {
     DCHECK_EQ(o->map(isolate_)->instance_type(), instance_type);
 #define V(TYPE)                                       \
   if (InstanceTypeChecker::Is##TYPE(instance_type)) { \
-    return PostProcess##TYPE(Cast<TYPE>(o));          \
+    return PostProcess##TYPE(TrustedCast<TYPE>(o));   \
   }
     POST_PROCESS_TYPE_LIST(V)
 #undef V

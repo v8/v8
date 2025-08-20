@@ -257,7 +257,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       break;
 
     case INSTRUCTION_STREAM_TYPE:
-      Cast<InstructionStream>(*this)->InstructionStreamVerify(isolate);
+      TrustedCast<InstructionStream>(*this)->InstructionStreamVerify(isolate);
       break;
     case JS_API_OBJECT_TYPE:
     case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:
@@ -277,11 +277,11 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       break;
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_TRUSTED_INSTANCE_DATA_TYPE:
-      Cast<WasmTrustedInstanceData>(*this)->WasmTrustedInstanceDataVerify(
-          isolate);
+      TrustedCast<WasmTrustedInstanceData>(*this)
+          ->WasmTrustedInstanceDataVerify(isolate);
       break;
     case WASM_DISPATCH_TABLE_TYPE:
-      Cast<WasmDispatchTable>(*this)->WasmDispatchTableVerify(isolate);
+      TrustedCast<WasmDispatchTable>(*this)->WasmDispatchTableVerify(isolate);
       break;
     case WASM_VALUE_OBJECT_TYPE:
       Cast<WasmValueObject>(*this)->WasmValueObjectVerify(isolate);
@@ -302,7 +302,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case FILLER_TYPE:
       break;
     case CODE_TYPE:
-      Cast<Code>(*this)->CodeVerify(isolate);
+      TrustedCast<Code>(*this)->CodeVerify(isolate);
       break;
     case CODE_WRAPPER_TYPE:
       Cast<CodeWrapper>(*this)->CodeWrapperVerify(isolate);
@@ -311,9 +311,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       Cast<DoubleStringCache>(*this)->DoubleStringCacheVerify(isolate);
       break;
 
-#define MAKE_TORQUE_CASE(Name, TYPE)          \
-  case TYPE:                                  \
-    Cast<Name>(*this)->Name##Verify(isolate); \
+#define MAKE_TORQUE_CASE(Name, TYPE)                 \
+  case TYPE:                                         \
+    TrustedCast<Name>(*this)->Name##Verify(isolate); \
     break;
       // Every class that has its fields defined in a .tq file and corresponds
       // to exactly one InstanceType value is included in the following list.

@@ -87,10 +87,10 @@ Tagged<Code> SharedFunctionInfo::GetCode(Isolate* isolate) const {
       DCHECK(HasBytecodeArray());
       return isolate->builtins()->code(Builtin::kInterpreterEntryTrampoline);
     }
-    if (IsCode(data)) {
+    if (Tagged<Code> code; TryCast(data, &code)) {
       // Having baseline Code means we are a compiled, baseline function.
       DCHECK(HasBaselineCode());
-      return Cast<Code>(data);
+      return code;
     }
     if (IsInterpreterData(data)) {
       Tagged<Code> code = InterpreterTrampoline(isolate);
@@ -233,7 +233,8 @@ void SharedFunctionInfo::SetScript(IsolateForSandbox isolate,
 void SharedFunctionInfo::CopyFrom(Tagged<SharedFunctionInfo> other,
                                   IsolateForSandbox isolate) {
   if (other->HasTrustedData()) {
-    SetTrustedData(Cast<ExposedTrustedObject>(other->GetTrustedData(isolate)));
+    SetTrustedData(
+        TrustedCast<ExposedTrustedObject>(other->GetTrustedData(isolate)));
   } else {
     SetUntrustedData(other->GetUntrustedData());
   }

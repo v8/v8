@@ -32,9 +32,9 @@ class ObjectPreProcessor final {
 
   void PreProcessIfNeeded(Tagged<HeapObject> o) {
     const InstanceType itype = o->map(isolate_)->instance_type();
-#define V(TYPE)                               \
-  if (InstanceTypeChecker::Is##TYPE(itype)) { \
-    return PreProcess##TYPE(Cast<TYPE>(o));   \
+#define V(TYPE)                                    \
+  if (InstanceTypeChecker::Is##TYPE(itype)) {      \
+    return PreProcess##TYPE(TrustedCast<TYPE>(o)); \
   }
     PRE_PROCESS_TYPE_LIST(V)
 #undef V

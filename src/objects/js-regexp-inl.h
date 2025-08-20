@@ -91,7 +91,7 @@ int RegExpData::capture_count() const {
       return 0;
     case Type::EXPERIMENTAL:
     case Type::IRREGEXP:
-      return Cast<IrRegExpData>(*this)->capture_count();
+      return TrustedCast<IrRegExpData>(*this)->capture_count();
   }
 }
 

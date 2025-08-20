@@ -526,14 +526,14 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsJSSegmentDataObjectWithIsWordLike) {
 #endif  // V8_INTL_SUPPORT
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsDeoptimizationData) {
-  // Must be a (protected) fixed array.
-  if (!IsProtectedFixedArray(obj, cage_base)) return false;
+  Tagged<ProtectedFixedArray> array;
+  if (!TryCast(obj, &array)) return false;
 
   // There's no sure way to detect the difference between a fixed array and
   // a deoptimization data array.  Since this is used for asserts we can
   // check that the length is zero or else the fixed size plus a multiple of
   // the entry size.
-  int length = Cast<ProtectedFixedArray>(obj)->length();
+  int length = array->length();
   if (length == 0) return true;
 
   length -= DeoptimizationData::kFirstDeoptEntryIndex;
@@ -1115,24 +1115,6 @@ void HeapObjectLayout::InitSelfIndirectPointerField(
 #endif  // V8_ENABLE_SANDBOX
 
 template <IndirectPointerTag tag>
-Tagged<ExposedTrustedObject> HeapObject::ReadTrustedPointerField(
-    size_t offset, IsolateForSandbox isolate) const {
-  // Currently, trusted pointer loads always use acquire semantics as the
-  // under-the-hood indirect pointer loads use acquire loads anyway.
-  return ReadTrustedPointerField<tag>(offset, isolate, kAcquireLoad);
-}
-
-template <IndirectPointerTag tag>
-Tagged<ExposedTrustedObject> HeapObject::ReadTrustedPointerField(
-    size_t offset, IsolateForSandbox isolate,
-    AcquireLoadTag acquire_load) const {
-  Tagged<Object> object =
-      ReadMaybeEmptyTrustedPointerField<tag>(offset, isolate, acquire_load);
-  DCHECK(IsExposedTrustedObject(object));
-  return Cast<ExposedTrustedObject>(object);
-}
-
-template <IndirectPointerTag tag>
 Tagged<Object> HeapObject::ReadMaybeEmptyTrustedPointerField(
     size_t offset, IsolateForSandbox isolate,
     AcquireLoadTag acquire_load) const {
@@ -1194,8 +1176,7 @@ void HeapObject::ClearTrustedPointerField(size_t offset, ReleaseStoreTag) {
 
 Tagged<Code> HeapObject::ReadCodePointerField(size_t offset,
                                               IsolateForSandbox isolate) const {
-  return Cast<Code>(
-      ReadTrustedPointerField<kCodeIndirectPointerTag>(offset, isolate));
+  return ReadTrustedPointerField<kCodeIndirectPointerTag>(offset, isolate);
 }
 
 void HeapObject::WriteCodePointerField(size_t offset, Tagged<Code> value) {

@@ -48,8 +48,7 @@ std::optional<Builtin> TryGetBuiltin(V<Any> node, Graph& graph) {
   if (const ConstantOp* target_obj_cst =
           graph.Get(node).TryCast<Opmask::kHeapConstant>()) {
     IndirectHandle<HeapObject> target_obj = target_obj_cst->handle();
-    if (IsCode(*target_obj)) {
-      IndirectHandle<Code> target_code = Cast<Code>(target_obj);
+    if (IndirectHandle<Code> target_code; TryCast(target_obj, &target_code)) {
       if (target_code->is_builtin()) {
         return target_code->builtin_id();
       }

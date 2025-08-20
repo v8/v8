@@ -1680,7 +1680,7 @@ Factory::NewPromiseResolveThenableJobTask(
 DirectHandle<WasmTrustedInstanceData> Factory::NewWasmTrustedInstanceData(
     bool shared) {
   Tagged<WasmTrustedInstanceData> result =
-      Cast<WasmTrustedInstanceData>(AllocateRawWithImmortalMap(
+      TrustedCast<WasmTrustedInstanceData>(AllocateRawWithImmortalMap(
           WasmTrustedInstanceData::kSize,
           shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted,
           read_only_roots().wasm_trusted_instance_data_map()));
@@ -1776,7 +1776,7 @@ DirectHandle<WasmImportData> Factory::NewWasmImportData(
   DirectHandle<Cell> wrapper_budget_cell =
       NewCell(Smi::FromInt(v8_flags.wasm_wrapper_tiering_budget));
   Tagged<Map> map = *wasm_import_data_map();
-  auto result = Cast<WasmImportData>(AllocateRawWithImmortalMap(
+  auto result = TrustedCast<WasmImportData>(AllocateRawWithImmortalMap(
       map->instance_size(),
       shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
@@ -1820,7 +1820,7 @@ DirectHandle<WasmInternalFunction> Factory::NewWasmInternalFunction(
     DirectHandle<TrustedObject> implicit_arg, int function_index, bool shared,
     WasmCodePointer call_target) {
   Tagged<WasmInternalFunction> internal =
-      Cast<WasmInternalFunction>(AllocateRawWithImmortalMap(
+      TrustedCast<WasmInternalFunction>(AllocateRawWithImmortalMap(
           WasmInternalFunction::kSize,
           shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted,
           *wasm_internal_function_map()));
@@ -1883,7 +1883,7 @@ DirectHandle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
 
   Tagged<Map> map = *wasm_js_function_data_map();
   Tagged<WasmJSFunctionData> result =
-      Cast<WasmJSFunctionData>(AllocateRawWithImmortalMap(
+      TrustedCast<WasmJSFunctionData>(AllocateRawWithImmortalMap(
           map->instance_size(), AllocationType::kTrusted, map));
   result->init_self_indirect_pointer(isolate());
   DisallowGarbageCollection no_gc;
@@ -1913,7 +1913,7 @@ DirectHandle<WasmSuspenderObject> Factory::NewWasmSuspenderObject() {
   DirectHandle<JSPromise> promise = NewJSPromise();
   Tagged<Map> map = *wasm_suspender_object_map();
   Tagged<WasmSuspenderObject> obj =
-      Cast<WasmSuspenderObject>(AllocateRawWithImmortalMap(
+      TrustedCast<WasmSuspenderObject>(AllocateRawWithImmortalMap(
           map->instance_size(), AllocationType::kTrusted, map));
   auto suspender = handle(obj, isolate());
   // Ensure that all properties are initialized before the allocation below.
@@ -1974,7 +1974,7 @@ DirectHandle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
       NewCell(Smi::FromInt(wrapper_budget));
   Tagged<Map> map = *wasm_exported_function_data_map();
   Tagged<WasmExportedFunctionData> result =
-      Cast<WasmExportedFunctionData>(AllocateRawWithImmortalMap(
+      TrustedCast<WasmExportedFunctionData>(AllocateRawWithImmortalMap(
           map->instance_size(), AllocationType::kTrusted, map));
   result->init_self_indirect_pointer(isolate());
   DisallowGarbageCollection no_gc;
@@ -2014,7 +2014,7 @@ DirectHandle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
   // set any call origin on {import_data}.
   Tagged<Map> map = *wasm_capi_function_data_map();
   Tagged<WasmCapiFunctionData> result =
-      Cast<WasmCapiFunctionData>(AllocateRawWithImmortalMap(
+      TrustedCast<WasmCapiFunctionData>(AllocateRawWithImmortalMap(
           map->instance_size(), AllocationType::kTrusted, map));
   result->init_self_indirect_pointer(isolate());
   DisallowGarbageCollection no_gc;
@@ -3018,8 +3018,9 @@ DirectHandle<BytecodeArray> Factory::CopyBytecodeArray(
     DirectHandle<BytecodeArray> source) {
   DirectHandle<BytecodeWrapper> wrapper = NewBytecodeWrapper();
   int size = BytecodeArray::SizeFor(source->length());
-  Tagged<BytecodeArray> copy = Cast<BytecodeArray>(AllocateRawWithImmortalMap(
-      size, AllocationType::kTrusted, *bytecode_array_map()));
+  Tagged<BytecodeArray> copy =
+      TrustedCast<BytecodeArray>(AllocateRawWithImmortalMap(
+          size, AllocationType::kTrusted, *bytecode_array_map()));
   DisallowGarbageCollection no_gc;
   Tagged<BytecodeArray> raw_source = *source;
   copy->init_self_indirect_pointer(isolate());
@@ -3978,7 +3979,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForBuiltin(
 DirectHandle<InterpreterData> Factory::NewInterpreterData(
     DirectHandle<BytecodeArray> bytecode_array, DirectHandle<Code> code) {
   Tagged<Map> map = *interpreter_data_map();
-  Tagged<InterpreterData> interpreter_data = Cast<InterpreterData>(
+  Tagged<InterpreterData> interpreter_data = TrustedCast<InterpreterData>(
       AllocateRawWithImmortalMap(map->instance_size(), AllocationType::kTrusted,
                                  *interpreter_data_map()));
   DisallowGarbageCollection no_gc;
@@ -4252,7 +4253,7 @@ DirectHandle<RegExpData> Factory::NewAtomRegExpData(
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
       size, AllocationType::kTrusted, read_only_roots().atom_regexp_data_map());
   DisallowGarbageCollection no_gc;
-  Tagged<AtomRegExpData> instance = Cast<AtomRegExpData>(result);
+  Tagged<AtomRegExpData> instance = TrustedCast<AtomRegExpData>(result);
   instance->init_self_indirect_pointer(isolate());
   instance->set_type_tag(RegExpData::Type::ATOM);
   instance->set_source(*source);
@@ -4274,7 +4275,7 @@ DirectHandle<RegExpData> Factory::NewIrRegExpData(DirectHandle<String> source,
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
       size, AllocationType::kTrusted, read_only_roots().ir_regexp_data_map());
   DisallowGarbageCollection no_gc;
-  Tagged<IrRegExpData> instance = Cast<IrRegExpData>(result);
+  Tagged<IrRegExpData> instance = TrustedCast<IrRegExpData>(result);
   instance->init_self_indirect_pointer(isolate());
   instance->set_type_tag(RegExpData::Type::IRREGEXP);
   instance->set_source(*source);
@@ -4305,7 +4306,7 @@ DirectHandle<RegExpData> Factory::NewExperimentalRegExpData(
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
       size, AllocationType::kTrusted, read_only_roots().ir_regexp_data_map());
   DisallowGarbageCollection no_gc;
-  Tagged<IrRegExpData> instance = Cast<IrRegExpData>(result);
+  Tagged<IrRegExpData> instance = TrustedCast<IrRegExpData>(result);
   // TODO(mbid,v8:10765): At the moment the ExperimentalRegExpData is just an
   // alias of IrRegExpData, with most fields set to some default/uninitialized
   // value. This is because EXPERIMENTAL and IRREGEXP regexps take the same code
@@ -4785,7 +4786,7 @@ Handle<TrustedForeign> Factory::NewTrustedForeign(Address addr, bool shared) {
   static_assert(TrustedForeign::kSize <= kMaxRegularHeapObjectSize);
   Tagged<Map> map = *trusted_foreign_map();
   Tagged<TrustedForeign> foreign =
-      Cast<TrustedForeign>(AllocateRawWithImmortalMap(
+      TrustedCast<TrustedForeign>(AllocateRawWithImmortalMap(
           map->instance_size(),
           shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted,
           map));

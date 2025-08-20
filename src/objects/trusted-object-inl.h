@@ -20,17 +20,16 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(TrustedObject, HeapObject)
 
-Tagged<TrustedObject> TrustedObject::ReadProtectedPointerField(
-    int offset) const {
-  return TaggedField<TrustedObject, 0, TrustedSpaceCompressionScheme>::load(
-      *this, offset);
+template <typename T>
+Tagged<T> TrustedObject::ReadProtectedPointerField(int offset) const {
+  return TaggedField<T, 0, TrustedSpaceCompressionScheme>::load(*this, offset);
 }
 
-Tagged<TrustedObject> TrustedObject::ReadProtectedPointerField(
-    int offset, AcquireLoadTag) const {
-  return TaggedField<TrustedObject, 0,
-                     TrustedSpaceCompressionScheme>::Acquire_Load(*this,
-                                                                  offset);
+template <typename T>
+Tagged<T> TrustedObject::ReadProtectedPointerField(int offset,
+                                                   AcquireLoadTag) const {
+  return TaggedField<T, 0, TrustedSpaceCompressionScheme>::Acquire_Load(*this,
+                                                                        offset);
 }
 
 void TrustedObject::WriteProtectedPointerField(int offset,

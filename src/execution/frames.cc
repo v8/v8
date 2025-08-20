@@ -3203,13 +3203,13 @@ Tagged<DeoptimizationData> OptimizedJSFrame::GetDeoptimizationData(
         code->GetMaglevSafepointEntry(isolate(), pc);
     if (safepoint_entry.has_deoptimization_index()) {
       *deopt_index = safepoint_entry.deoptimization_index();
-      return Cast<DeoptimizationData>(code->deoptimization_data());
+      return code->deoptimization_data();
     }
   } else {
     SafepointEntry safepoint_entry = code->GetSafepointEntry(isolate(), pc);
     if (safepoint_entry.has_deoptimization_index()) {
       *deopt_index = safepoint_entry.deoptimization_index();
-      return Cast<DeoptimizationData>(code->deoptimization_data());
+      return code->deoptimization_data();
     }
   }
   *deopt_index = SafepointEntry::kNoDeoptIndex;
@@ -3285,7 +3285,7 @@ Tagged<BytecodeArray> UnoptimizedJSFrame::GetBytecodeArray() const {
   DCHECK_EQ(UnoptimizedFrameConstants::kBytecodeArrayFromFp,
             UnoptimizedFrameConstants::kExpressionsOffset -
                 index * kSystemPointerSize);
-  return Cast<BytecodeArray>(GetExpression(index));
+  return TrustedCast<BytecodeArray>(GetExpression(index));
 }
 
 Tagged<Object> UnoptimizedJSFrame::ReadInterpreterRegister(
@@ -3417,7 +3417,7 @@ Tagged<WasmInstanceObject> WasmFrame::wasm_instance() const {
 Tagged<WasmTrustedInstanceData> WasmFrame::trusted_instance_data() const {
   Tagged<Object> trusted_data(
       Memory<Address>(fp() + WasmFrameConstants::kWasmInstanceDataOffset));
-  return Cast<WasmTrustedInstanceData>(trusted_data);
+  return TrustedCast<WasmTrustedInstanceData>(trusted_data);
 }
 
 wasm::NativeModule* WasmFrame::native_module() const {
@@ -3568,8 +3568,9 @@ void WasmDebugBreakFrame::Print(StringStream* accumulator, PrintMode mode,
 Tagged<WasmInstanceObject> WasmToJsFrame::wasm_instance() const {
   // WasmToJsFrames hold the {WasmImportData} object in the instance slot.
   // Load the instance from there.
-  Tagged<WasmImportData> import_data = Cast<WasmImportData>(Tagged<Object>{
-      Memory<Address>(fp() + WasmFrameConstants::kWasmInstanceDataOffset)});
+  Tagged<WasmImportData> import_data =
+      TrustedCast<WasmImportData>(Tagged<Object>{
+          Memory<Address>(fp() + WasmFrameConstants::kWasmInstanceDataOffset)});
   // TODO(42204563): Avoid crashing if the instance object is not available.
   CHECK(import_data->instance_data()->has_instance_object());
   return import_data->instance_data()->instance_object();

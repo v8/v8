@@ -70,10 +70,12 @@ uint64_t Heap::external_memory() const { return external_memory_.total(); }
 
 RootsTable& Heap::roots_table() { return isolate()->roots_table(); }
 
-#define ROOT_ACCESSOR(Type, name, CamelName)                                   \
-  Tagged<Type> Heap::name() {                                                  \
-    return Cast<Type>(Tagged<Object>(roots_table()[RootIndex::k##CamelName])); \
+#define ROOT_ACCESSOR(Type, name, CamelName)                     \
+  Tagged<Type> Heap::name() {                                    \
+    return TrustedCast<Type>(                                    \
+        Tagged<Object>(roots_table()[RootIndex::k##CamelName])); \
   }
+
 MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 

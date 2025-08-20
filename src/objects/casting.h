@@ -10,6 +10,7 @@
 #include "include/v8-source-location.h"
 #include "src/base/logging.h"
 #include "src/objects/tagged.h"
+#include "src/sandbox/check.h"
 
 namespace v8::internal {
 
@@ -151,16 +152,71 @@ concept HasCastImplementation = requires(Holder<From> value) {
   { UncheckedCast<To>(value) } -> std::same_as<Holder<To>>;
 };
 
+// `TrustedCast<T>(value)` casts `value` to a tagged object of type `T`, only
+// doing a debug check that `value` is a tagged object of type `T`. Down-casts
+// to trusted objects are allowed for callers which already ensured their
+// correctness. Null-valued holders are allowed.
+template <typename To, typename From, template <typename> class Holder>
+  requires HasCastImplementation<Holder, To, From>
+inline Holder<To> TrustedCast(
+    Holder<From> value,
+    const v8::SourceLocation& loc = INIT_SOURCE_LOCATION_IN_DEBUG) {
+  DCHECK_WITH_MSG_AND_LOC(NullOrIs<To>(value),
+                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
+  return UncheckedCast<To>(value);
+}
+
+// `SbxCast<T>(value)` casts `value` to a tagged object of trusted type `T`,
+// with a sandbox-only dynamic type check ensuring that `value` is a tagged
+// object of type `T`. Null-valued holders are allowed.
+template <typename To, typename From, template <typename> class Holder>
+  requires HasCastImplementation<Holder, To, From>
+inline Holder<To> SbxCast(
+    Holder<From> value,
+    const v8::SourceLocation& loc = INIT_SOURCE_LOCATION_IN_DEBUG) {
+  // Under the attacker model of the sandbox we cannot trust the type of
+  // in-sandbox objects for sandbox checks as these objects can be arbitrarily
+  // tampered with.
+  static_assert(is_subtype_v<To, TrustedObject>,
+                "Type of untrusted objects cannot be checked reliably");
+  DCHECK_WITH_MSG_AND_LOC(NullOrIs<To>(value),
+                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
+  SBXCHECK(NullOrIs<To>(value));
+  return UncheckedCast<To>(value);
+}
+
+// `CheckedCast<T>(value)` casts `value` to a tagged object of type `T`,
+// with a always-on dynamic type check ensuring that `value` is a tagged object
+// of type `T`. Null-valued holders are allowed.
+template <typename To, typename From, template <typename> class Holder>
+  requires HasCastImplementation<Holder, To, From>
+inline Holder<To> CheckedCast(
+    Holder<From> value,
+    const v8::SourceLocation& loc = INIT_SOURCE_LOCATION_IN_DEBUG) {
+  DCHECK_WITH_MSG_AND_LOC(NullOrIs<To>(value),
+                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
+  CHECK(NullOrIs<To>(value));
+  return UncheckedCast<To>(value);
+}
+
 // `Cast<T>(value)` casts `value` to a tagged object of type `T`, with a debug
 // check that `value` is a tagged object of type `T`. Null-valued holders are
-// allowed.
+// allowed. Down-casts to trusted objects are not allowed to prevent mistakes.
 template <typename To, typename From, template <typename> class Holder>
   requires HasCastImplementation<Holder, To, From>
 inline Holder<To> Cast(Holder<From> value, const v8::SourceLocation& loc =
                                                INIT_SOURCE_LOCATION_IN_DEBUG) {
-  DCHECK_WITH_MSG_AND_LOC(NullOrIs<To>(value),
-                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
-  return UncheckedCast<To>(value);
+  static_assert(
+      !is_subtype_v<To, TrustedObject> || is_subtype_v<From, To>,
+      "Down-casting to trusted objects is verboten. Pick one of:\n"
+      "* TryCast if the use is guarded by a test\n"
+      "      if (Trusted t; TryCast(obj, &t)) { t->foo(); }\n"
+      "* (Checked|Sbx)Cast if the object is expected to be of a certain type\n"
+      "      Tagged<Trusted> t = SbxCast<Trusted>(obj);\n"
+      "* TrustedCast if correct by construction (or other deprecated usage)\n"
+      "      Tagged<Trusted> t = "
+      "TrustedCast<Trusted>(obj->ReadTrustedPointerField<kTrustedTag>(...);\n");
+  return TrustedCast<To>(value, loc);
 }
 
 // TODO(leszeks): Figure out a way to make these cast to actual pointers rather
@@ -172,6 +228,21 @@ inline Tagged<To> UncheckedCast(const From* value) {
 }
 template <typename To, typename From>
   requires std::is_base_of_v<HeapObjectLayout, From>
+inline Tagged<To> TrustedCast(const From* value) {
+  return TrustedCast<To>(Tagged(value));
+}
+template <typename To, typename From>
+  requires std::is_base_of_v<HeapObjectLayout, From>
+inline Tagged<To> CheckedCast(const From* value) {
+  return CheckedCast<To>(Tagged(value));
+}
+template <typename To, typename From>
+  requires std::is_base_of_v<HeapObjectLayout, From>
+inline Tagged<To> SbxCast(const From* value) {
+  return SbxCast<To>(Tagged(value));
+}
+template <typename To, typename From>
+  requires std::is_base_of_v<HeapObjectLayout, From>
 inline Tagged<To> Cast(const From* value, const v8::SourceLocation& loc =
                                               INIT_SOURCE_LOCATION_IN_DEBUG) {
   return Cast<To>(Tagged(value), loc);
@@ -180,6 +251,21 @@ template <typename To, typename From>
   requires(std::is_base_of_v<HeapObject, From>)
 inline Tagged<To> UncheckedCast(From value) {
   return UncheckedCast<To>(Tagged(value));
+}
+template <typename To, typename From>
+  requires(std::is_base_of_v<HeapObject, From>)
+inline Tagged<To> TrustedCast(From value) {
+  return TrustedCast<To>(Tagged(value));
+}
+template <typename To, typename From>
+  requires(std::is_base_of_v<HeapObject, From>)
+inline Tagged<To> CheckedCast(From value) {
+  return CheckedCast<To>(Tagged(value));
+}
+template <typename To, typename From>
+  requires(std::is_base_of_v<HeapObject, From>)
+inline Tagged<To> SbxCast(From value) {
+  return SbxCast<To>(Tagged(value));
 }
 template <typename To, typename From>
   requires(std::is_base_of_v<HeapObject, From>)

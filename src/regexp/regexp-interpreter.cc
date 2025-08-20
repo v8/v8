@@ -1199,7 +1199,7 @@ int IrregexpInterpreter::MatchForCallFromJs(
 
   Tagged<String> subject_string = Cast<String>(Tagged<Object>(subject));
   Tagged<IrRegExpData> regexp_data_obj =
-      Cast<IrRegExpData>(Tagged<Object>(regexp_data));
+      SbxCast<IrRegExpData>(Tagged<Object>(regexp_data));
 
   if (regexp_data_obj->MarkedForTierUp()) {
     // Returning RETRY will re-enter through runtime, where actual recompilation

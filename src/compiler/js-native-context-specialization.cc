@@ -3344,7 +3344,7 @@ JSNativeContextSpecialization::BuildPrototypeProxyElementAccess(
   Node* feedback = jsgraph()->UndefinedConstant();
   // We can use a dummy receiver so long as we only support Wasm functions
   // that disregard the call's receiver anyway.
-  DCHECK(!Cast<WasmExportedFunctionData>(
+  DCHECK(!TrustedCast<WasmExportedFunctionData>(
               Cast<JSFunction>(access_info.accessor().value().object())
                   ->shared()
                   ->GetTrustedData(isolate()))

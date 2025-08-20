@@ -102,7 +102,7 @@ Tagged<Code> DeoptimizableCodeIterator::Next() {
           return Code();
       }
     }
-    Tagged<InstructionStream> istream = Cast<InstructionStream>(object);
+    Tagged<InstructionStream> istream = SbxCast<InstructionStream>(object);
     Tagged<Code> code;
     if (!istream->TryGetCode(&code, kAcquireLoad)) continue;
     if (!CodeKindCanDeoptimize(code->kind())) continue;
@@ -710,8 +710,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
   // Calculate the deopt exit index from return address.
   DCHECK_GT(kEagerDeoptExitSize, 0);
   DCHECK_GT(kLazyDeoptExitSize, 0);
-  Tagged<DeoptimizationData> deopt_data =
-      Cast<DeoptimizationData>(compiled_code_->deoptimization_data());
+  Tagged<DeoptimizationData> deopt_data = compiled_code_->deoptimization_data();
   Address deopt_start = compiled_code_->instruction_start() +
                         deopt_data->DeoptExitStart().value();
   int eager_deopt_count = deopt_data->EagerDeoptCount().value();
@@ -869,8 +868,7 @@ void Deoptimizer::TraceMarkForDeoptimization(Isolate* isolate,
   if (!v8_flags.trace_deopt && !v8_flags.log_deopt) return;
 
   DisallowGarbageCollection no_gc;
-  Tagged<DeoptimizationData> deopt_data =
-      Cast<DeoptimizationData>(code->deoptimization_data());
+  Tagged<DeoptimizationData> deopt_data = code->deoptimization_data();
   CodeTracer::Scope scope(isolate->GetCodeTracer());
   if (v8_flags.trace_deopt) {
     PrintF(scope.file(), "[marking dependent code ");
@@ -1379,7 +1377,7 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
 
   // Read the trusted instance data from the input frame.
   Tagged<WasmTrustedInstanceData> wasm_trusted_instance =
-      Cast<WasmTrustedInstanceData>((Tagged<Object>(input_->GetFrameSlot(
+      TrustedCast<WasmTrustedInstanceData>((Tagged<Object>(input_->GetFrameSlot(
           input_->GetFrameSize() -
           (2 + input_->parameter_count()) * kSystemPointerSize -
           WasmLiftoffFrameConstants::kInstanceDataOffset))));
@@ -1517,8 +1515,7 @@ void Deoptimizer::DoComputeOutputFrames() {
 
   // Determine basic deoptimization information.  The optimized frame is
   // described by the input data.
-  Tagged<DeoptimizationData> input_data =
-      Cast<DeoptimizationData>(compiled_code_->deoptimization_data());
+  Tagged<DeoptimizationData> input_data = compiled_code_->deoptimization_data();
 
   {
     // Read caller's PC, caller's FP and caller's constant pool values
@@ -3004,8 +3001,7 @@ namespace {
 Address GetDeoptCallPCFromReturnPC(Address return_pc, Tagged<Code> code) {
   DCHECK_GT(Deoptimizer::kEagerDeoptExitSize, 0);
   DCHECK_GT(Deoptimizer::kLazyDeoptExitSize, 0);
-  Tagged<DeoptimizationData> deopt_data =
-      Cast<DeoptimizationData>(code->deoptimization_data());
+  Tagged<DeoptimizationData> deopt_data = code->deoptimization_data();
   Address deopt_start =
       code->instruction_start() + deopt_data->DeoptExitStart().value();
   int eager_deopt_count = deopt_data->EagerDeoptCount().value();

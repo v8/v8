@@ -1738,7 +1738,7 @@ RUNTIME_FUNCTION(Runtime_RegexpHasBytecode) {
   if (regexp->has_data()) {
     Tagged<RegExpData> data = regexp->data(isolate);
     if (data->type_tag() == RegExpData::Type::IRREGEXP) {
-      result = Cast<IrRegExpData>(data)->has_bytecode(is_latin1);
+      result = TrustedCast<IrRegExpData>(data)->has_bytecode(is_latin1);
     }
   }
   return isolate->heap()->ToBoolean(result);
@@ -1755,7 +1755,7 @@ RUNTIME_FUNCTION(Runtime_RegexpHasNativeCode) {
   if (regexp->has_data()) {
     Tagged<RegExpData> data = regexp->data(isolate);
     if (data->type_tag() == RegExpData::Type::IRREGEXP) {
-      result = Cast<IrRegExpData>(data)->has_code(is_latin1);
+      result = TrustedCast<IrRegExpData>(data)->has_code(is_latin1);
     }
   }
   return isolate->heap()->ToBoolean(result);

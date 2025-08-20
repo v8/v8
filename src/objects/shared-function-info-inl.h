@@ -199,8 +199,9 @@ Tagged<Object> SharedFunctionInfo::GetTrustedData(
 template <typename T, IndirectPointerTag tag>
 Tagged<T> SharedFunctionInfo::GetTrustedData(IsolateForSandbox isolate) const {
   static_assert(tag != kUnknownIndirectPointerTag);
-  return Cast<T>(ReadMaybeEmptyTrustedPointerField<tag>(
-      kTrustedFunctionDataOffset, isolate, kAcquireLoad));
+  return HeapObject::CastExposedTrustedObjectByTag<tag>(
+      ReadMaybeEmptyTrustedPointerField<tag>(kTrustedFunctionDataOffset,
+                                             isolate, kAcquireLoad));
 }
 
 Tagged<Object> SharedFunctionInfo::GetUntrustedData() const {
@@ -685,29 +686,23 @@ IsCompiledScope SharedFunctionInfo::is_compiled_scope(IsolateT* isolate) const {
 IsCompiledScope::IsCompiledScope(const Tagged<SharedFunctionInfo> shared,
                                  Isolate* isolate) {
   Tagged<Object> data_obj = shared->GetTrustedData(isolate);
-  if (Tagged<HeapObject> data; TryCast<HeapObject>(data_obj, &data)) {
-    if (Tagged<Code> code; TryCast<Code>(data, &code)) {
-      DCHECK_EQ(code->kind(), CodeKind::BASELINE);
-      data = code->bytecode_or_interpreter_data();
-    }
-    // Unlike GetBytecodeArray, we don't bother checking for DebugInfo here. If
-    // there is DebugInfo, then it will hold both the debug and original
-    // BytecodeArray strongly, so it doesn't matter which of those we hold.
-    if (Tagged<BytecodeArray> bytecode;
-        TryCast<BytecodeArray>(data, &bytecode)) {
-      retain_code_ = handle(bytecode, isolate);
-      is_compiled_ = true;
-    } else if (Tagged<InterpreterData> interpreter_data;
-               TryCast<InterpreterData>(data, &interpreter_data)) {
-      retain_code_ = handle(interpreter_data->bytecode_array(), isolate);
-      is_compiled_ = true;
-    } else if (Is<UncompiledData>(data)) {
-      retain_code_ = {};
-      is_compiled_ = false;
-    } else {
-      retain_code_ = {};
-      is_compiled_ = shared->is_compiled();
-    }
+  if (Tagged<Code> code; TryCast(data_obj, &code)) {
+    DCHECK_EQ(code->kind(), CodeKind::BASELINE);
+    data_obj = code->bytecode_or_interpreter_data();
+  }
+  // Unlike GetBytecodeArray, we don't bother checking for DebugInfo here. If
+  // there is DebugInfo, then it will hold both the debug and original
+  // BytecodeArray strongly, so it doesn't matter which of those we hold.
+  if (Tagged<BytecodeArray> bytecode; TryCast(data_obj, &bytecode)) {
+    retain_code_ = handle(bytecode, isolate);
+    is_compiled_ = true;
+  } else if (Tagged<InterpreterData> interpreter_data;
+             TryCast(data_obj, &interpreter_data)) {
+    retain_code_ = handle(interpreter_data->bytecode_array(), isolate);
+    is_compiled_ = true;
+  } else if (IsUncompiledData(data_obj)) {
+    retain_code_ = {};
+    is_compiled_ = false;
   } else {
     retain_code_ = {};
     is_compiled_ = shared->is_compiled();
@@ -720,20 +715,24 @@ IsCompiledScope::IsCompiledScope(const Tagged<SharedFunctionInfo> shared,
 IsCompiledScope::IsCompiledScope(const Tagged<SharedFunctionInfo> shared,
                                  LocalIsolate* isolate) {
   Tagged<Object> data_obj = shared->GetTrustedData(isolate);
+  auto Default = [&]() {
+    retain_code_ = {};
+    is_compiled_ = shared->is_compiled();
+  };
+
   if (Tagged<HeapObject> data; TryCast<HeapObject>(data_obj, &data)) {
-    if (Tagged<Code> code; TryCast<Code>(data, &code)) {
+    if (Tagged<Code> code; TryCast(data, &code)) {
       DCHECK(code->kind() == CodeKind::BASELINE);
-      data = code->bytecode_or_interpreter_data();
+      data_obj = code->bytecode_or_interpreter_data();
     }
     // Unlike GetBytecodeArray, we don't bother checking for DebugInfo here. If
     // there is DebugInfo, then it will hold both the debug and original
     // BytecodeArray strongly, so it doesn't matter which of those we hold.
-    if (Tagged<BytecodeArray> bytecode;
-        TryCast<BytecodeArray>(data, &bytecode)) {
+    if (Tagged<BytecodeArray> bytecode; TryCast(data, &bytecode)) {
       retain_code_ = isolate->heap()->NewPersistentHandle(bytecode);
       is_compiled_ = true;
     } else if (Tagged<InterpreterData> interpreter_data;
-               TryCast<InterpreterData>(data, &interpreter_data)) {
+               TryCast(data, &interpreter_data)) {
       retain_code_ = isolate->heap()->NewPersistentHandle(
           interpreter_data->bytecode_array());
       is_compiled_ = true;
@@ -741,12 +740,10 @@ IsCompiledScope::IsCompiledScope(const Tagged<SharedFunctionInfo> shared,
       retain_code_ = {};
       is_compiled_ = false;
     } else {
-      retain_code_ = {};
-      is_compiled_ = shared->is_compiled();
+      Default();
     }
   } else {
-    retain_code_ = {};
-    is_compiled_ = shared->is_compiled();
+    Default();
   }
 
   DCHECK_IMPLIES(!retain_code_.is_null(), is_compiled());
@@ -756,8 +753,7 @@ IsCompiledScope::IsCompiledScope(const Tagged<SharedFunctionInfo> shared,
 IsBaselineCompiledScope::IsBaselineCompiledScope(
     const Tagged<SharedFunctionInfo> shared, Isolate* isolate) {
   Tagged<Object> data_obj = shared->GetTrustedData(isolate);
-  if (IsCode(data_obj)) {
-    Tagged<Code> code = Cast<Code>(data_obj);
+  if (Tagged<Code> code; TryCast(data_obj, &code)) {
     DCHECK_EQ(code->kind(), CodeKind::BASELINE);
     retain_code_ = handle(code, isolate);
     is_compiled_ = true;
@@ -814,18 +810,13 @@ Tagged<BytecodeArray> SharedFunctionInfo::GetBytecodeArray(
 Tagged<BytecodeArray> SharedFunctionInfo::GetActiveBytecodeArray(
     IsolateForSandbox isolate) const {
   Tagged<Object> data = GetTrustedData(isolate);
-  if (IsCode(data)) {
-    Tagged<Code> baseline_code = Cast<Code>(data);
+  if (Tagged<Code> baseline_code; TryCast(data, &baseline_code)) {
     data = baseline_code->bytecode_or_interpreter_data();
   }
-  if (IsBytecodeArray(data)) {
-    return Cast<BytecodeArray>(data);
-  } else {
-    // We need an explicit check here since we use the
-    // kUnknownIndirectPointerTag above and so don't have any type guarantees.
-    SBXCHECK(IsInterpreterData(data));
-    return Cast<InterpreterData>(data)->bytecode_array();
+  if (Tagged<BytecodeArray> bytecode_array; TryCast(data, &bytecode_array)) {
+    return bytecode_array;
   }
+  return SbxCast<InterpreterData>(data)->bytecode_array();
 }
 
 void SharedFunctionInfo::SetActiveBytecodeArray(Tagged<BytecodeArray> bytecode,
@@ -862,8 +853,7 @@ Tagged<Code> SharedFunctionInfo::InterpreterTrampoline(
 
 bool SharedFunctionInfo::HasInterpreterData(IsolateForSandbox isolate) const {
   Tagged<Object> data = GetTrustedData(isolate);
-  if (IsCode(data)) {
-    Tagged<Code> baseline_code = Cast<Code>(data);
+  if (Tagged<Code> baseline_code; TryCast(data, &baseline_code)) {
     DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);
     data = baseline_code->bytecode_or_interpreter_data();
   }
@@ -874,13 +864,11 @@ Tagged<InterpreterData> SharedFunctionInfo::interpreter_data(
     IsolateForSandbox isolate) const {
   DCHECK(HasInterpreterData(isolate));
   Tagged<Object> data = GetTrustedData(isolate);
-  if (IsCode(data)) {
-    Tagged<Code> baseline_code = Cast<Code>(data);
+  if (Tagged<Code> baseline_code; TryCast(data, &baseline_code)) {
     DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);
     data = baseline_code->bytecode_or_interpreter_data();
   }
-  SBXCHECK(IsInterpreterData(data));
-  return Cast<InterpreterData>(data);
+  return SbxCast<InterpreterData>(data);
 }
 
 void SharedFunctionInfo::set_interpreter_data(
@@ -893,8 +881,8 @@ void SharedFunctionInfo::set_interpreter_data(
 
 DEF_GETTER(SharedFunctionInfo, HasBaselineCode, bool) {
   Tagged<Object> data = GetTrustedData(GetCurrentIsolateForSandbox());
-  if (IsCode(data, cage_base)) {
-    DCHECK_EQ(Cast<Code>(data)->kind(), CodeKind::BASELINE);
+  if (Tagged<Code> code; TryCast(data, &code)) {
+    DCHECK_EQ(code->kind(), CodeKind::BASELINE);
     return true;
   }
   return false;
@@ -918,7 +906,7 @@ void SharedFunctionInfo::FlushBaselineCode() {
   Tagged<TrustedObject> new_data =
       baseline_code(kAcquireLoad)->bytecode_or_interpreter_data();
   DCHECK(IsBytecodeArray(new_data) || IsInterpreterData(new_data));
-  SetTrustedData(Cast<ExposedTrustedObject>(new_data));
+  SetTrustedData(TrustedCast<ExposedTrustedObject>(new_data));
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -976,24 +964,21 @@ DEF_GETTER(SharedFunctionInfo, wasm_exported_function_data,
   Tagged<WasmFunctionData> data = wasm_function_data();
   // TODO(saelo): the SBXCHECKs here and below are only needed because our type
   // tags don't currently support type hierarchies.
-  SBXCHECK(IsWasmExportedFunctionData(data));
-  return Cast<WasmExportedFunctionData>(data);
+  return SbxCast<WasmExportedFunctionData>(data);
 }
 
 DEF_GETTER(SharedFunctionInfo, wasm_js_function_data,
            Tagged<WasmJSFunctionData>) {
   DCHECK(HasWasmJSFunctionData(GetCurrentIsolateForSandbox()));
   Tagged<WasmFunctionData> data = wasm_function_data();
-  SBXCHECK(IsWasmJSFunctionData(data));
-  return Cast<WasmJSFunctionData>(data);
+  return SbxCast<WasmJSFunctionData>(data);
 }
 
 DEF_GETTER(SharedFunctionInfo, wasm_capi_function_data,
            Tagged<WasmCapiFunctionData>) {
   DCHECK(HasWasmCapiFunctionData(GetCurrentIsolateForSandbox()));
   Tagged<WasmFunctionData> data = wasm_function_data();
-  SBXCHECK(IsWasmCapiFunctionData(data));
-  return Cast<WasmCapiFunctionData>(data);
+  return SbxCast<WasmCapiFunctionData>(data);
 }
 
 DEF_GETTER(SharedFunctionInfo, wasm_resume_data, Tagged<WasmResumeData>) {
@@ -1052,8 +1037,7 @@ SharedFunctionInfo::uncompiled_data_with_preparse_data(
   Tagged<UncompiledData> data = uncompiled_data(isolate);
   // TODO(saelo): this SBXCHECK is needed because our type tags don't currently
   // support type hierarchies.
-  SBXCHECK(IsUncompiledDataWithPreparseData(data));
-  return Cast<UncompiledDataWithPreparseData>(data);
+  return SbxCast<UncompiledDataWithPreparseData>(data);
 }
 
 void SharedFunctionInfo::set_uncompiled_data_with_preparse_data(
@@ -1072,12 +1056,12 @@ bool SharedFunctionInfo::HasUncompiledDataWithoutPreparseData(
 void SharedFunctionInfo::ClearUncompiledDataJobPointer(
     IsolateForSandbox isolate) {
   Tagged<UncompiledData> uncompiled_data = this->uncompiled_data(isolate);
-  if (IsUncompiledDataWithPreparseDataAndJob(uncompiled_data)) {
-    Cast<UncompiledDataWithPreparseDataAndJob>(uncompiled_data)
-        ->set_job(kNullAddress);
-  } else if (IsUncompiledDataWithoutPreparseDataWithJob(uncompiled_data)) {
-    Cast<UncompiledDataWithoutPreparseDataWithJob>(uncompiled_data)
-        ->set_job(kNullAddress);
+  if (Tagged<UncompiledDataWithPreparseDataAndJob> data;
+      TryCast(uncompiled_data, &data)) {
+    data->set_job(kNullAddress);
+  } else if (Tagged<UncompiledDataWithoutPreparseDataWithJob> data_with_job;
+             TryCast(uncompiled_data, &data_with_job)) {
+    data_with_job->set_job(kNullAddress);
   }
 }
 

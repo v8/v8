@@ -724,7 +724,7 @@ int32_t memory_init_wrapper(Address trusted_data_addr, uint32_t mem_index,
                             uint32_t size) {
   DisallowGarbageCollection no_gc;
   Tagged<WasmTrustedInstanceData> trusted_data =
-      Cast<WasmTrustedInstanceData>(Tagged<Object>{trusted_data_addr});
+      TrustedCast<WasmTrustedInstanceData>(Tagged<Object>{trusted_data_addr});
 
   uint64_t mem_size = trusted_data->memory_size(mem_index);
   if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
@@ -744,7 +744,7 @@ int32_t memory_copy_wrapper(Address trusted_data_addr, uint32_t dst_mem_index,
                             uintptr_t src, uintptr_t size) {
   DisallowGarbageCollection no_gc;
   Tagged<WasmTrustedInstanceData> trusted_data =
-      Cast<WasmTrustedInstanceData>(Tagged<Object>{trusted_data_addr});
+      TrustedCast<WasmTrustedInstanceData>(Tagged<Object>{trusted_data_addr});
 
   size_t dst_mem_size = trusted_data->memory_size(dst_mem_index);
   size_t src_mem_size = trusted_data->memory_size(src_mem_index);
@@ -763,7 +763,7 @@ int32_t memory_fill_wrapper(Address trusted_data_addr, uint32_t mem_index,
   DisallowGarbageCollection no_gc;
 
   Tagged<WasmTrustedInstanceData> trusted_data =
-      Cast<WasmTrustedInstanceData>(Tagged<Object>{trusted_data_addr});
+      TrustedCast<WasmTrustedInstanceData>(Tagged<Object>{trusted_data_addr});
 
   uint64_t mem_size = trusted_data->memory_size(mem_index);
   if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
@@ -966,12 +966,12 @@ void suspend_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
 void resume_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
                   Address fp, Address pc, Address suspender_raw) {
   Tagged<Object> suspender_obj(suspender_raw);
-  auto suspender = Tagged<WasmSuspenderObject>::cast(suspender_obj);
+  auto suspender = TrustedCast<WasmSuspenderObject>(suspender_obj);
   Tagged<Object> active_suspender = isolate->isolate_data()->active_suspender();
   if (active_suspender == Smi::zero()) {
     suspender->clear_parent();
   } else {
-    suspender->set_parent(Tagged<WasmSuspenderObject>::cast(active_suspender));
+    suspender->set_parent(TrustedCast<WasmSuspenderObject>(active_suspender));
   }
   wasm::StackMemory* to = isolate->isolate_data()->active_stack();
   if (v8_flags.trace_wasm_stack_switching) {

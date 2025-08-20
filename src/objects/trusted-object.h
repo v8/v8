@@ -42,9 +42,10 @@ class TrustedObject : public HeapObject {
   // outside of the sandbox, where they are protected from an attacker. As
   // such, the slot accessors for these slots only exist on TrustedObjects but
   // not on other HeapObjects.
-  inline Tagged<TrustedObject> ReadProtectedPointerField(int offset) const;
-  inline Tagged<TrustedObject> ReadProtectedPointerField(int offset,
-                                                         AcquireLoadTag) const;
+  template <typename T = TrustedObject>
+  inline Tagged<T> ReadProtectedPointerField(int offset) const;
+  template <typename T = TrustedObject>
+  inline Tagged<T> ReadProtectedPointerField(int offset, AcquireLoadTag) const;
   inline void WriteProtectedPointerField(int offset,
                                          Tagged<TrustedObject> value);
   inline void WriteProtectedPointerField(int offset,

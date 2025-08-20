@@ -166,8 +166,7 @@ bool Code::Inlines(Tagged<SharedFunctionInfo> sfi) {
   // We can only check for inlining for optimized code.
   DCHECK(is_optimized_code());
   DisallowGarbageCollection no_gc;
-  Tagged<DeoptimizationData> const data =
-      Cast<DeoptimizationData>(deoptimization_data());
+  Tagged<DeoptimizationData> const data = deoptimization_data();
   if (data->length() == 0) return false;
   if (data->GetSharedFunctionInfo() == sfi) return true;
   Tagged<DeoptimizationLiteralArray> const literals = data->LiteralArray();
@@ -243,9 +242,7 @@ void Code::SetMarkedForDeoptimization(Isolate* isolate,
   // fixed.
   if (tmp->length() > 0 && !v8_flags.maglev_inline_api_calls) {
     Address start = instruction_start();
-    Address end = start + Cast<DeoptimizationData>(deoptimization_data())
-                              ->DeoptExitStart()
-                              .value();
+    Address end = start + deoptimization_data()->DeoptExitStart().value();
     RelocIterator it(instruction_stream(), RelocIterator::kAllModesMask);
     Deoptimizer::ZapCode(start, end, it);
   }
@@ -348,8 +345,7 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   }
 
   if (code->uses_deoptimization_data()) {
-    Tagged<DeoptimizationData> data =
-        Cast<DeoptimizationData>(code->deoptimization_data());
+    Tagged<DeoptimizationData> data = code->deoptimization_data();
     data->PrintDeoptimizationData(os);
   }
   os << "\n";

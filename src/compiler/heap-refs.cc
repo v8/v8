@@ -1089,7 +1089,7 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(IndirectHandle<Object> object,
   if (i::InstanceTypeChecker::Is##Name(instance_type)) {              \
     entry = refs_->LookupOrInsert(object.address());                  \
     object_data = zone()->New<ref_traits<Name>::data_type>(           \
-        this, &entry->value, Cast<Name>(object),                      \
+        this, &entry->value, TrustedCast<Name>(object),               \
         ObjectDataKindFor(ref_traits<Name>::ref_serialization_kind)); \
     /* NOLINTNEXTLINE(readability/braces) */                          \
   } else

@@ -558,9 +558,8 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
         SharedFunctionInfoRef sfi = trap_value.AsJSFunction().shared(broker());
         Tagged<Object> trusted_data =
             sfi.object()->GetTrustedData(broker()->local_isolate_or_isolate());
-        if (!IsWasmExportedFunctionData(trusted_data)) return {};
-        Tagged<WasmExportedFunctionData> wasm_data =
-            Cast<WasmExportedFunctionData>(trusted_data);
+        Tagged<WasmExportedFunctionData> wasm_data;
+        if (!TryCast(trusted_data, &wasm_data)) return {};
         // Supporting receiver-is-first-param mode would require passing
         // the Proxy's handler to the eventual building of the Call node.
         if (wasm_data->receiver_is_first_param()) return {};

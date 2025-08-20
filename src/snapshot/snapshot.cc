@@ -246,8 +246,8 @@ void Snapshot::ClearReconstructableDataForSerialization(
           if (regexp->has_data()) {
             i::Tagged<i::RegExpData> data = regexp->data(isolate);
             if (data->HasCompiledCode()) {
-              DCHECK(Is<IrRegExpData>(regexp->data(isolate)));
-              Cast<IrRegExpData>(data)->DiscardCompiledCodeForSerialization();
+              TrustedCast<IrRegExpData>(data)
+                  ->DiscardCompiledCodeForSerialization();
             }
           }
         }

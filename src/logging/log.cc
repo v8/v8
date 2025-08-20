@@ -1452,8 +1452,7 @@ void V8FileLogger::LogSourceCodeInformation(
   int maxInlinedId = -1;
   if (hasInlined) {
     Tagged<TrustedPodArray<InliningPosition>> inlining_positions =
-        Cast<DeoptimizationData>(Cast<Code>(code)->deoptimization_data())
-            ->InliningPositions();
+        CheckedCast<Code>(*code)->deoptimization_data()->InliningPositions();
     for (int i = 0; i < inlining_positions->length(); i++) {
       InliningPosition inlining_pos = inlining_positions->get(i);
       msg << "F";
@@ -1473,7 +1472,7 @@ void V8FileLogger::LogSourceCodeInformation(
   msg << V8FileLogger::kNext;
   if (hasInlined) {
     Tagged<DeoptimizationData> deopt_data =
-        Cast<DeoptimizationData>(Cast<Code>(code)->deoptimization_data());
+        CheckedCast<Code>(*code)->deoptimization_data();
     msg << std::hex;
     for (int i = 0; i <= maxInlinedId; i++) {
       msg << "S"
@@ -1496,12 +1495,12 @@ void V8FileLogger::LogCodeDisassemble(DirectHandle<AbstractCode> code) {
       << V8FileLogger::kNext;
   {
     std::ostringstream stream;
-    if (IsCode(*code, cage_base)) {
+    if (Tagged<Code> code_as_code; TryCast(*code, &code_as_code)) {
 #ifdef ENABLE_DISASSEMBLER
-      Cast<Code>(*code)->Disassemble(nullptr, stream, isolate_);
+      code_as_code->Disassemble(nullptr, stream, isolate_);
 #endif
     } else {
-      Cast<BytecodeArray>(*code)->Disassemble(stream);
+      CheckedCast<BytecodeArray>(*code)->Disassemble(stream);
     }
     std::string string = stream.str();
     msg.AppendString(string.c_str(), string.length());

@@ -101,17 +101,17 @@ inline uint16_t Code::parameter_count_without_receiver() const {
   return parameter_count() - 1;
 }
 
-inline Tagged<ProtectedFixedArray> Code::deoptimization_data() const {
+inline Tagged<DeoptimizationData> Code::deoptimization_data() const {
   // It's important to CHECK that the Code object uses deoptimization data. We
   // trust optimized code to have deoptimization data here, but the reference to
   // this code might be corrupted, such that we get type confusion on this field
   // in cases where we assume that it must be optimized code.
   SBXCHECK(uses_deoptimization_data());
-  return Cast<ProtectedFixedArray>(
+  return TrustedCast<DeoptimizationData>(
       ReadProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset));
 }
 
-inline void Code::set_deoptimization_data(Tagged<ProtectedFixedArray> value,
+inline void Code::set_deoptimization_data(Tagged<DeoptimizationData> value,
                                           WriteBarrierMode mode) {
   DCHECK(uses_deoptimization_data());
   DCHECK(!HeapLayout::InYoungGeneration(value));
@@ -154,8 +154,7 @@ void Code::set_bytecode_or_interpreter_data(Tagged<TrustedObject> value,
 
 inline Tagged<TrustedByteArray> Code::source_position_table() const {
   DCHECK(has_source_position_table());
-  return Cast<TrustedByteArray>(
-      ReadProtectedPointerField(kPositionTableOffset));
+  return ReadProtectedPointerField<TrustedByteArray>(kPositionTableOffset);
 }
 
 inline void Code::set_source_position_table(Tagged<TrustedByteArray> value,
@@ -169,8 +168,7 @@ inline void Code::set_source_position_table(Tagged<TrustedByteArray> value,
 
 inline Tagged<TrustedByteArray> Code::bytecode_offset_table() const {
   DCHECK(has_bytecode_offset_table());
-  return Cast<TrustedByteArray>(
-      ReadProtectedPointerField(kPositionTableOffset));
+  return ReadProtectedPointerField<TrustedByteArray>(kPositionTableOffset);
 }
 
 inline void Code::set_bytecode_offset_table(Tagged<TrustedByteArray> value,
@@ -347,8 +345,8 @@ int Code::GetBytecodeOffsetForBaselinePC(Address baseline_pc,
   CHECK(!is_baseline_trampoline_builtin());
   if (is_baseline_leave_frame_builtin()) return kFunctionExitBytecodeOffset;
   CHECK_EQ(kind(), CodeKind::BASELINE);
-  baseline::BytecodeOffsetIterator offset_iterator(
-      Cast<TrustedByteArray>(bytecode_offset_table()), bytecodes);
+  baseline::BytecodeOffsetIterator offset_iterator(bytecode_offset_table(),
+                                                   bytecodes);
   Address pc = baseline_pc - instruction_start();
   offset_iterator.AdvanceToPCOffset(pc);
   return offset_iterator.current_bytecode_offset();
@@ -368,11 +366,11 @@ uintptr_t Code::GetBaselinePCForBytecodeOffset(
     SBXCHECK_EQ(maybe_bytecodes, bytecodes);
   } else {
     CHECK(IsInterpreterData(maybe_bytecodes));
-    SBXCHECK_EQ(Cast<InterpreterData>(maybe_bytecodes)->bytecode_array(),
+    SBXCHECK_EQ(TrustedCast<InterpreterData>(maybe_bytecodes)->bytecode_array(),
                 bytecodes);
   }
-  baseline::BytecodeOffsetIterator offset_iterator(
-      Cast<TrustedByteArray>(bytecode_offset_table()), bytecodes);
+  baseline::BytecodeOffsetIterator offset_iterator(bytecode_offset_table(),
+                                                   bytecodes);
   offset_iterator.AdvanceToBytecodeOffset(bytecode_offset);
   uintptr_t pc = 0;
   if (position == kPcAtStartOfBytecode) {
@@ -400,8 +398,8 @@ uintptr_t Code::GetBaselinePCForNextExecutedBytecode(
     int bytecode_offset, Tagged<BytecodeArray> bytecodes) {
   DisallowGarbageCollection no_gc;
   CHECK_EQ(kind(), CodeKind::BASELINE);
-  baseline::BytecodeOffsetIterator offset_iterator(
-      Cast<TrustedByteArray>(bytecode_offset_table()), bytecodes);
+  baseline::BytecodeOffsetIterator offset_iterator(bytecode_offset_table(),
+                                                   bytecodes);
   Handle<BytecodeArray> bytecodes_handle(
       reinterpret_cast<Address*>(&bytecodes));
   interpreter::BytecodeArrayIterator bytecode_iterator(bytecodes_handle,
@@ -667,7 +665,7 @@ void Code::IterateDeoptimizationLiterals(RootVisitor* v) {
     return;
   }
 
-  auto deopt_data = Cast<DeoptimizationData>(deoptimization_data());
+  auto deopt_data = deoptimization_data();
   if (deopt_data->length() == 0) return;
 
   Tagged<DeoptimizationLiteralArray> literals = deopt_data->LiteralArray();

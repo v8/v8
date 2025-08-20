@@ -1416,10 +1416,10 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry,
     ExtractAccessorInfoReferences(entry, Cast<AccessorInfo>(obj));
   } else if (IsAccessorPair(obj)) {
     ExtractAccessorPairReferences(entry, Cast<AccessorPair>(obj));
-  } else if (IsCode(obj)) {
-    ExtractCodeReferences(entry, Cast<Code>(obj));
-  } else if (IsInstructionStream(obj)) {
-    ExtractInstructionStreamReferences(entry, Cast<InstructionStream>(obj));
+  } else if (Tagged<Code> code; TryCast(obj, &code)) {
+    ExtractCodeReferences(entry, code);
+  } else if (Tagged<InstructionStream> istream; TryCast(obj, &istream)) {
+    ExtractInstructionStreamReferences(entry, istream);
   } else if (IsCell(obj)) {
     ExtractCellReferences(entry, Cast<Cell>(obj));
   } else if (IsFeedbackCell(obj)) {
@@ -1462,8 +1462,9 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry,
     if (snapshot_->capture_numeric_value()) {
       ExtractNumberReference(entry, obj);
     }
-  } else if (IsBytecodeArray(obj)) {
-    ExtractBytecodeArrayReferences(entry, Cast<BytecodeArray>(obj));
+  } else if (Tagged<BytecodeArray> bytecode_array;
+             TryCast(obj, &bytecode_array)) {
+    ExtractBytecodeArrayReferences(entry, bytecode_array);
   } else if (IsScopeInfo(obj)) {
     ExtractScopeInfoReferences(entry, Cast<ScopeInfo>(obj));
   } else if (IsCppHeapExternalObject(obj)) {
@@ -1473,9 +1474,9 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry,
     ExtractWasmStructReferences(Cast<WasmStruct>(obj), entry);
   } else if (IsWasmArray(obj)) {
     ExtractWasmArrayReferences(Cast<WasmArray>(obj), entry);
-  } else if (IsWasmTrustedInstanceData(obj)) {
-    ExtractWasmTrustedInstanceDataReferences(Cast<WasmTrustedInstanceData>(obj),
-                                             entry);
+  } else if (Tagged<WasmTrustedInstanceData> instance_data;
+             TryCast(obj, &instance_data)) {
+    ExtractWasmTrustedInstanceDataReferences(instance_data, entry);
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
 }
@@ -1952,7 +1953,7 @@ void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry,
                          Code::kPositionTableOffset);
   } else if (code->uses_deoptimization_data()) {
     Tagged<DeoptimizationData> deoptimization_data =
-        Cast<DeoptimizationData>(code->deoptimization_data());
+        code->deoptimization_data();
     TagObject(deoptimization_data, "(code deopt data)", HeapEntry::kCode);
     SetInternalReference(entry, "deoptimization_data", deoptimization_data,
                          Code::kDeoptimizationDataOrInterpreterDataOffset);
@@ -2525,7 +2526,7 @@ class RootsReferencesExtractor : public RootVisitor {
     if (object.ptr() == kTaggedNullAddress) return;
 #endif
     if (root == Root::kBuiltins) {
-      explorer_->TagBuiltinCodeObject(Cast<Code>(object), description);
+      explorer_->TagBuiltinCodeObject(CheckedCast<Code>(object), description);
     }
     explorer_->SetGcSubrootReference(root, description, visiting_weak_roots_,
                                      object);
@@ -2556,7 +2557,7 @@ class RootsReferencesExtractor : public RootVisitor {
                         FullObjectSlot istream_or_smi_zero_slot) final {
     Tagged<Object> istream_or_smi_zero = *istream_or_smi_zero_slot;
     if (istream_or_smi_zero != Smi::zero()) {
-      Tagged<Code> code = Cast<Code>(*code_slot);
+      Tagged<Code> code = CheckedCast<Code>(*code_slot);
       code->IterateDeoptimizationLiterals(this);
       VisitRootPointer(Root::kStackRoots, nullptr, istream_or_smi_zero_slot);
     }
@@ -2931,8 +2932,7 @@ void V8HeapExplorer::RecursivelyTagConstantPool(Tagged<Object> obj,
     for (int i = 0; i < arr->length(); ++i) {
       RecursivelyTagConstantPool(arr->get(i), tag, type, recursion_limit);
     }
-  } else if (IsTrustedFixedArray(obj, isolate())) {
-    Tagged<TrustedFixedArray> arr = Cast<TrustedFixedArray>(obj);
+  } else if (Tagged<TrustedFixedArray> arr; TryCast(obj, &arr)) {
     TagObject(arr, tag, type, /*overwrite_existing_name=*/true);
     if (recursion_limit <= 0) return;
     for (int i = 0; i < arr->length(); ++i) {

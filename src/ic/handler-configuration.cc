@@ -634,9 +634,8 @@ void LoadHandler::PrintHandler(Tagged<Object> handler, std::ostream& os) {
     os << "LoadHandler(Smi)(";
     PrintSmiLoadHandler(raw_handler, os);
     os << ")";
-  } else if (IsCode(handler)) {
-    os << "LoadHandler(Code)("
-       << Builtins::name(Cast<Code>(handler)->builtin_id()) << ")";
+  } else if (Tagged<Code> code; TryCast(handler, &code)) {
+    os << "LoadHandler(Code)(" << Builtins::name(code->builtin_id()) << ")";
   } else if (IsSymbol(handler)) {
     os << "LoadHandler(Symbol)(" << Brief(Cast<Symbol>(handler)) << ")";
   } else if (IsLoadHandler(handler)) {
@@ -677,8 +676,7 @@ void StoreHandler::PrintHandler(Tagged<Object> handler, std::ostream& os) {
   } else if (IsStoreHandler(handler)) {
     os << "StoreHandler(";
     Tagged<StoreHandler> store_handler = Cast<StoreHandler>(handler);
-    if (IsCode(store_handler->smi_handler())) {
-      Tagged<Code> code = Cast<Code>(store_handler->smi_handler());
+    if (Tagged<Code> code; TryCast(store_handler->smi_handler(), &code)) {
       os << "builtin = ";
       ShortPrint(code, os);
     } else {
@@ -707,8 +705,7 @@ void StoreHandler::PrintHandler(Tagged<Object> handler, std::ostream& os) {
   } else if (IsMap(handler)) {
     os << "StoreHandler(field transition to " << Brief(handler) << ")"
        << std::endl;
-  } else if (IsCode(handler)) {
-    Tagged<Code> code = Cast<Code>(handler);
+  } else if (Tagged<Code> code; TryCast(handler, &code)) {
     os << "StoreHandler(builtin = ";
     ShortPrint(code, os);
     os << ")" << std::endl;

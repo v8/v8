@@ -1427,14 +1427,18 @@ class ProfilingMigrationObserver final : public MigrationObserver {
     // (src and dst) is somewhat safe to access without precautions, but other
     // objects may be subject to concurrent modification.
     if (dest == CODE_SPACE) {
-      PROFILE(heap_->isolate(), CodeMoveEvent(Cast<InstructionStream>(src),
-                                              Cast<InstructionStream>(dst)));
-    } else if ((dest == OLD_SPACE || dest == TRUSTED_SPACE) &&
-               IsBytecodeArray(dst)) {
-      // TODO(saelo): remove `dest == OLD_SPACE` once BytecodeArrays are
-      // allocated in trusted space.
-      PROFILE(heap_->isolate(), BytecodeMoveEvent(Cast<BytecodeArray>(src),
-                                                  Cast<BytecodeArray>(dst)));
+      PROFILE(heap_->isolate(),
+              CodeMoveEvent(TrustedCast<InstructionStream>(src),
+                            TrustedCast<InstructionStream>(dst)));
+    } else if ((dest == OLD_SPACE || dest == TRUSTED_SPACE)) {
+      Tagged<BytecodeArray> bytecode_array;
+      if (TryCast(dst, &bytecode_array)) {
+        // TODO(saelo): remove `dest == OLD_SPACE` once BytecodeArrays are
+        // allocated in trusted space.
+        PROFILE(
+            heap_->isolate(),
+            BytecodeMoveEvent(TrustedCast<BytecodeArray>(src), bytecode_array));
+      }
     }
     heap_->OnMoveEvent(src, dst, size);
   }
@@ -1534,7 +1538,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
             reinterpret_cast<uint8_t*>(src_addr +
                                        InstructionStream::kHeaderSize),
             size - InstructionStream::kHeaderSize);
-        Tagged<InstructionStream> istream = Cast<InstructionStream>(dst);
+        Tagged<InstructionStream> istream = TrustedCast<InstructionStream>(dst);
         istream->Relocate(writable_allocation, dst_addr - src_addr);
       }
       if (mode != MigrationMode::kFast) {
@@ -1545,7 +1549,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       base->record_visitor_->Visit(dst->map(cage_base), dst, size);
       WritableJitAllocation jit_allocation =
           WritableJitAllocation::ForInstructionStream(
-              Cast<InstructionStream>(src));
+              TrustedCast<InstructionStream>(src));
       jit_allocation.WriteHeaderSlot<MapWord, HeapObject::kMapOffset>(
           MapWord::FromForwardingAddress(src, dst));
     }
@@ -3373,7 +3377,8 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   }
 
   // Initialize the uncompiled data.
-  Tagged<UncompiledData> uncompiled_data = Cast<UncompiledData>(compiled_data);
+  Tagged<UncompiledData> uncompiled_data =
+      TrustedCast<UncompiledData>(compiled_data);
 
   uncompiled_data->InitAfterBytecodeFlush(
       heap_->isolate(), inferred_name, start_position, end_position,
@@ -4297,7 +4302,7 @@ static inline void UpdateStrongCodeSlot(IsolateForSandbox isolate,
   if (obj.GetHeapObject(&heap_obj)) {
     UpdateSlot<HeapObjectReferenceType::STRONG>(cage_base, slot, heap_obj);
 
-    Tagged<Code> code = Cast<Code>(HeapObject::FromAddress(
+    Tagged<Code> code = TrustedCast<Code>(HeapObject::FromAddress(
         slot.address() - Code::kInstructionStreamOffset));
     Tagged<InstructionStream> instruction_stream =
         code->instruction_stream(code_cage_base);
@@ -5786,8 +5791,7 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
     if (!map_word.IsForwardingAddress()) return {};
     Tagged<HeapObject> relocated_object =
         map_word.ToForwardingAddress(heap_obj);
-    DCHECK(IsExposedTrustedObject(relocated_object));
-    return Cast<ExposedTrustedObject>(relocated_object);
+    return TrustedCast<ExposedTrustedObject>(relocated_object);
   };
 #endif  // defined(V8_ENABLE_SANDBOX) || defined(V8_ENABLE_LEAPTIERING)
 
@@ -5843,9 +5847,9 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
         Address entrypoint_address = jdt->GetEntrypoint(handle);
         Tagged<TrustedObject> relocated_code = process_entry(code_address);
         bool code_object_was_relocated = !relocated_code.is_null();
-        Tagged<Code> code = Cast<Code>(code_object_was_relocated
-                                           ? relocated_code
-                                           : Tagged<Object>(code_address));
+        Tagged<Code> code = TrustedCast<Code>(
+            code_object_was_relocated ? relocated_code
+                                      : Tagged<Object>(code_address));
         bool instruction_stream_was_relocated =
             code->instruction_start() != entrypoint_address;
         if (code_object_was_relocated || instruction_stream_was_relocated) {
@@ -6236,7 +6240,7 @@ void RootMarkingVisitor::VisitRunningCode(
   Tagged<Object> istream_or_smi_zero = *istream_or_smi_zero_slot;
   DCHECK(istream_or_smi_zero == Smi::zero() ||
          IsInstructionStream(istream_or_smi_zero));
-  Tagged<Code> code = Cast<Code>(*code_slot);
+  Tagged<Code> code = TrustedCast<Code>(*code_slot);
   DCHECK_EQ(code->raw_instruction_stream(PtrComprCageBase{
                 collector_->heap()->isolate()->code_cage_base()}),
             istream_or_smi_zero);
@@ -6247,7 +6251,7 @@ void RootMarkingVisitor::VisitRunningCode(
 
   if (istream_or_smi_zero != Smi::zero()) {
     Tagged<InstructionStream> istream =
-        Cast<InstructionStream>(istream_or_smi_zero);
+        TrustedCast<InstructionStream>(istream_or_smi_zero);
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(istream);
     if (chunk->IsFlagSet(MemoryChunk::EVACUATION_CANDIDATE)) {
       PageMetadata* page = PageMetadata::cast(chunk->Metadata());

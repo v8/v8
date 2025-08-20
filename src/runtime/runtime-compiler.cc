@@ -649,8 +649,7 @@ Tagged<Object> CompileOptimizedOSR(Isolate* isolate,
   DCHECK(CodeKindIsOptimizedJSFunction(result->kind()));
 
 #ifdef DEBUG
-  Tagged<DeoptimizationData> data =
-      Cast<DeoptimizationData>(result->deoptimization_data());
+  Tagged<DeoptimizationData> data = result->deoptimization_data();
   DCHECK_EQ(BytecodeOffset(data->OsrBytecodeOffset().value()), osr_offset);
   DCHECK_GE(data->OsrPcOffset().value(), 0);
 #endif  // DEBUG

@@ -1048,7 +1048,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       BytecodeOffset bytecode_offset = BytecodeOffset(iterator->NextOperand());
       Tagged<SharedFunctionInfo> shared_info = Cast<SharedFunctionInfo>(
           literal_array.get_on_heap_literals()->get(iterator->NextOperand()));
-      Tagged<BytecodeArray> bytecode_array = Cast<BytecodeArray>(
+      Tagged<BytecodeArray> bytecode_array = SbxCast<BytecodeArray>(
           protected_literal_array->get(iterator->NextOperand()));
       uint32_t height = iterator->NextOperandUnsigned();
       int return_value_offset = 0;
@@ -2583,8 +2583,7 @@ void TranslatedState::InitializeJSObjectAt(
       if (Is<RegExpDataWrapper>(*field_value)) {
         value = Cast<RegExpDataWrapper>(*field_value)->data(isolate());
       } else {
-        CHECK(IsRegExpData(*field_value));
-        value = Cast<RegExpData>(*field_value);
+        value = CheckedCast<RegExpData>(*field_value);
       }
       object_storage
           ->RawIndirectPointerField(offset, kRegExpDataIndirectPointerTag)
