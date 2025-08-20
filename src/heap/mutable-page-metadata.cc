@@ -125,6 +125,10 @@ MemoryChunk::MainThreadFlags MutablePageMetadata::ComputeInitialFlags(
     }
   }
 
+  if (executable == EXECUTABLE) {
+    flags |= MemoryChunk::IS_EXECUTABLE;
+  }
+
   // All pages of a shared heap need to be marked with this flag.
   if (IsAnyWritableSharedSpace(space)) {
     flags |= MemoryChunk::IN_WRITABLE_SHARED_SPACE;

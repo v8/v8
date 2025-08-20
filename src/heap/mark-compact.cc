@@ -1756,7 +1756,7 @@ class EvacuateNewToOldSpacePageVisitor final : public HeapObjectVisitor {
     PretenuringHandler::UpdateAllocationSite(heap_, object->map(), object,
                                              size.value(),
                                              local_pretenuring_feedback_);
-    DCHECK(!HeapLayout::SafeInCodeSpace(object));
+    DCHECK(!HeapLayout::InCodeSpace(object));
     record_visitor_->Visit(object->map(), object, size.value());
     return true;
   }

@@ -263,7 +263,7 @@ void WriteBarrier::Marking(Tagged<HeapObject> host, MaybeObjectSlot slot,
   // There must be no stores of InstructionStream values from generated code and
   // all stores of InstructionStream values in C++ must be handled by
   // CombinedWriteBarrierInternal().
-  DCHECK(!HeapLayout::SafeInCodeSpace(value_heap_object));
+  DCHECK(!HeapLayout::InCodeSpace(value_heap_object));
   Marking(host, HeapObjectSlot(slot), value_heap_object);
 }
 

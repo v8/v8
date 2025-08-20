@@ -30,11 +30,8 @@ MemoryChunkMetadata* MemoryChunk::MetadataImpl(const Isolate* isolate) {
   }
   MemoryChunkMetadata* metadata = metadata_entry.metadata();
   // Check that the Metadata belongs to this Chunk, since an attacker with write
-  // inside the sandbox could've swapped the index. This should be a
-  // `SBXCHECK_EQ()` which doesn't currently work as we don't allow nesting of
-  // DisallowSandboxAccess in AllowSandboxAccess scopes. There's no sandbox
-  // access in the condition so this replacement is fine.
-  CHECK_EQ(metadata->Chunk(), this);
+  // inside the sandbox could've swapped the index.
+  SBXCHECK_EQ(metadata->Chunk(), this);
   return metadata;
 #else
   return metadata_;

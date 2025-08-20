@@ -62,9 +62,7 @@ Tagged<FreeSpace> FreeListCategory::SearchForNodeInList(const Heap* heap,
         set_top(cur_node->next());
       }
       if (!prev_non_evac_node.is_null()) {
-        if (MemoryChunk::FromHeapObject(prev_non_evac_node)
-                ->Metadata()
-                ->is_executable()) {
+        if (MemoryChunk::FromHeapObject(prev_non_evac_node)->executable()) {
           WritableJitPage jit_page(prev_non_evac_node->address(),
                                    prev_non_evac_node->Size());
           WritableFreeSpace free_space = jit_page.FreeRange(
