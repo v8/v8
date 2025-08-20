@@ -115,7 +115,10 @@ class NodeInfo {
     };
 
 #define API(name, Name)                                      \
-  ValueNode* name() const { return store_[Kind::k##Name]; }  \
+  ValueNode* name() const {                                  \
+    if (!store_[Kind::k##Name]) return nullptr;              \
+    return store_[Kind::k##Name]->UnwrapIdentities();        \
+  }                                                          \
   ValueNode* set_##name(ValueNode* val) {                    \
     return store_[Kind::k##Name] = val;                      \
   }                                                          \
