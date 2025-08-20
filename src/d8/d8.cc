@@ -1717,7 +1717,7 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
                                  ? module_data->origin
                                  : ToSTLString(isolate, referrer.As<String>());
     std::string dir_name =
-        DirName(NormalizePath(source_url, GetWorkingDirectory()));
+        DirName(NormalizeModuleSpecifier(source_url, GetWorkingDirectory()));
     std::string absolute_path = NormalizeModuleSpecifier(specifier, dir_name);
 
     switch (phase) {
