@@ -195,9 +195,9 @@ GET_FIRST_ARGUMENT_AS(Tag)
 
 #undef GET_FIRST_ARGUMENT_AS
 
-base::Vector<const uint8_t> GetFirstArgumentAsBytes(
+base::OwnedVector<const uint8_t> GetAndCopyFirstArgumentAsBytes(
     const v8::FunctionCallbackInfo<v8::Value>& info, size_t max_length,
-    ErrorThrower* thrower, bool* is_shared) {
+    ErrorThrower* thrower) {
   const uint8_t* start = nullptr;
   size_t length = 0;
   v8::Local<v8::Value> source = info[0];
@@ -208,7 +208,6 @@ base::Vector<const uint8_t> GetFirstArgumentAsBytes(
 
     start = reinterpret_cast<const uint8_t*>(backing_store->Data());
     length = backing_store->ByteLength();
-    *is_shared = buffer->IsSharedArrayBuffer();
   } else if (source->IsTypedArray()) {
     // A TypedArray was passed.
     Local<TypedArray> array = Local<TypedArray>::Cast(source);
@@ -219,7 +218,6 @@ base::Vector<const uint8_t> GetFirstArgumentAsBytes(
     start = reinterpret_cast<const uint8_t*>(backing_store->Data()) +
             array->ByteOffset();
     length = array->ByteLength();
-    *is_shared = buffer->IsSharedArrayBuffer();
   } else {
     thrower->TypeError("Argument 0 must be a buffer source");
     return {};
@@ -237,25 +235,11 @@ base::Vector<const uint8_t> GetFirstArgumentAsBytes(
     return {};
   }
 
-  return base::VectorOf(start, length);
-}
-
-base::OwnedVector<const uint8_t> GetAndCopyFirstArgumentAsBytes(
-    const v8::FunctionCallbackInfo<v8::Value>& info, size_t max_length,
-    ErrorThrower* thrower) {
-  bool is_shared = false;
-  base::Vector<const uint8_t> bytes =
-      GetFirstArgumentAsBytes(info, max_length, thrower, &is_shared);
-  if (bytes.empty()) {
-    return {};
-  }
-
   // Use relaxed reads (and writes, which is unnecessary here) to avoid TSan
   // reports in case the buffer is shared and is being modified concurrently.
-  auto result = base::OwnedVector<uint8_t>::NewForOverwrite(bytes.size());
+  auto result = base::OwnedVector<uint8_t>::NewForOverwrite(length);
   base::Relaxed_Memcpy(reinterpret_cast<base::Atomic8*>(result.begin()),
-                       reinterpret_cast<const base::Atomic8*>(bytes.data()),
-                       bytes.size());
+                       reinterpret_cast<const base::Atomic8*>(start), length);
   return result;
 }
 
@@ -892,9 +876,10 @@ void WebAssemblyValidateImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
 
-  bool bytes_are_shared = false;
-  base::Vector<const uint8_t> bytes = GetFirstArgumentAsBytes(
-      info, i::wasm::max_module_size(), &thrower, &bytes_are_shared);
+  // Always copy. Even if the buffer isn't shared, {ArgumentToCompileOptions}
+  // could detach it.
+  base::OwnedVector<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
+      info, i::wasm::max_module_size(), &thrower);
   if (bytes.empty()) {
     js_api_scope.AssertException();
     // Propagate anything except wasm exceptions.
@@ -915,23 +900,9 @@ void WebAssemblyValidateImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  bool validated = false;
-  if (bytes_are_shared) {
-    // Make a copy of the wire bytes to avoid concurrent modification.
-    // Use relaxed reads (and writes, which is unnecessary here) to avoid TSan
-    // reports in case the buffer is shared and is being modified concurrently.
-    auto bytes_copy = base::OwnedVector<uint8_t>::NewForOverwrite(bytes.size());
-    base::Relaxed_Memcpy(reinterpret_cast<base::Atomic8*>(bytes_copy.begin()),
-                         reinterpret_cast<const base::Atomic8*>(bytes.data()),
-                         bytes.size());
-    validated = i::wasm::GetWasmEngine()->SyncValidate(
-        i_isolate, enabled_features, std::move(compile_imports),
-        bytes_copy.as_vector());
-  } else {
-    // The wire bytes are not shared, OK to use them directly.
-    validated = i::wasm::GetWasmEngine()->SyncValidate(
-        i_isolate, enabled_features, std::move(compile_imports), bytes);
-  }
+  bool validated = i::wasm::GetWasmEngine()->SyncValidate(
+      i_isolate, enabled_features, std::move(compile_imports),
+      bytes.as_vector());
 
   return_value.Set(validated);
 }
