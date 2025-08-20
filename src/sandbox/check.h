@@ -62,15 +62,15 @@
 #define SBXCHECK_BOUNDS(index, limit) SBXCHECK_WRAPPED(BOUNDS, index, limit)
 #define SBXCHECK_IMPLIES(when, then) SBXCHECK_WRAPPED(IMPLIES, when, then)
 #else  // V8_ENABLE_SANDBOX
-#define SBXCHECK(condition) DCHECK(condition)
-#define SBXCHECK_EQ(lhs, rhs) DCHECK_EQ(lhs, rhs)
-#define SBXCHECK_NE(lhs, rhs) DCHECK_NE(lhs, rhs)
-#define SBXCHECK_GT(lhs, rhs) DCHECK_GT(lhs, rhs)
-#define SBXCHECK_GE(lhs, rhs) DCHECK_GE(lhs, rhs)
-#define SBXCHECK_LT(lhs, rhs) DCHECK_LT(lhs, rhs)
-#define SBXCHECK_LE(lhs, rhs) DCHECK_LE(lhs, rhs)
-#define SBXCHECK_BOUNDS(index, limit) DCHECK_BOUNDS(index, limit)
-#define SBXCHECK_IMPLIES(when, then) DCHECK_IMPLIES(when, then)
+#define SBXCHECK(condition) CHECK(condition)
+#define SBXCHECK_EQ(lhs, rhs) CHECK_EQ(lhs, rhs)
+#define SBXCHECK_NE(lhs, rhs) CHECK_NE(lhs, rhs)
+#define SBXCHECK_GT(lhs, rhs) CHECK_GT(lhs, rhs)
+#define SBXCHECK_GE(lhs, rhs) CHECK_GE(lhs, rhs)
+#define SBXCHECK_LT(lhs, rhs) CHECK_LT(lhs, rhs)
+#define SBXCHECK_LE(lhs, rhs) CHECK_LE(lhs, rhs)
+#define SBXCHECK_BOUNDS(index, limit) CHECK_BOUNDS(index, limit)
+#define SBXCHECK_IMPLIES(when, then) CHECK_IMPLIES(when, then)
 #endif  // V8_ENABLE_SANDBOX
 
 #endif  // V8_SANDBOX_CHECK_H_
