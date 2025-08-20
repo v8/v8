@@ -77,6 +77,11 @@ bool HeapLayout::InAnySharedSpace(Tagged<HeapObject> object) {
 }
 
 // static
+bool HeapLayout::InCodeSpace(Tagged<HeapObject> object) {
+  return MemoryChunk::FromHeapObject(object)->InCodeSpace();
+}
+
+// static
 bool HeapLayout::SafeInCodeSpace(Tagged<HeapObject> object) {
   return MemoryChunk::FromHeapObject(object)
       ->MetadataNoIsolateCheck()

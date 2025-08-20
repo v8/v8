@@ -147,7 +147,7 @@ void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
     DCHECK_IMPLIES(V8_ENABLE_SANDBOX_BOOL,
                    !HeapLayout::SafeInTrustedSpace(target));
     DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                   !HeapLayout::SafeInCodeSpace(target));
+                   !HeapLayout::InCodeSpace(target));
     Assembler::set_target_compressed_address_at(
         pc_, constant_pool_,
         V8HeapCompressionScheme::CompressObject(target.ptr()), &jit_allocation_,

@@ -3370,27 +3370,21 @@ void Heap::CreateFillerObjectAtBackground(const WritableFreeSpace& free_space) {
 }
 
 void Heap::CreateFillerObjectAt(Address addr, int size,
-                                ClearFreedMemoryMode clear_memory_mode,
-                                std::optional<AllocationType> allocation_type) {
-  if (size == 0) {
-    return;
-  }
-  const bool non_code_space =
-      (allocation_type.has_value() &&
-       allocation_type.value() != AllocationType::kCode) ||
-      !MemoryChunk::FromAddress(addr)->Metadata(isolate())->is_executable();
-  if (V8_LIKELY(non_code_space)) {
+                                ClearFreedMemoryMode clear_memory_mode) {
+  if (size == 0) return;
+  if (MemoryChunk::FromAddress(addr)->executable()) {
+    WritableJitPage jit_page(addr, size);
+    WritableFreeSpace free_space = jit_page.FreeRange(addr, size);
+    CreateFillerObjectAtRaw(free_space, clear_memory_mode,
+                            ClearRecordedSlots::kNo,
+                            VerifyNoSlotsRecorded::kYes);
+  } else {
     WritableFreeSpace free_space =
         WritableFreeSpace::ForNonExecutableMemory(addr, size);
     CreateFillerObjectAtRaw(free_space, clear_memory_mode,
                             ClearRecordedSlots::kNo,
                             VerifyNoSlotsRecorded::kYes);
-    return;
   }
-  WritableJitPage jit_page(addr, size);
-  WritableFreeSpace free_space = jit_page.FreeRange(addr, size);
-  CreateFillerObjectAtRaw(free_space, clear_memory_mode,
-                          ClearRecordedSlots::kNo, VerifyNoSlotsRecorded::kYes);
 }
 
 void Heap::CreateFillerObjectAtRaw(

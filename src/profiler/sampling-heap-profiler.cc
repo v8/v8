@@ -85,11 +85,11 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
 
   // Since soon_object can be in code space or trusted space we can't use
   // v8::Utils::ToLocal.
-  DCHECK(obj.is_null() ||
-         (IsSmi(*obj) ||
-          (V8_EXTERNAL_CODE_SPACE_BOOL &&
-           HeapLayout::SafeInCodeSpace(heap_object)) ||
-          HeapLayout::SafeInTrustedSpace(heap_object) || !IsTheHole(*obj)));
+  DCHECK(
+      obj.is_null() ||
+      (IsSmi(*obj) ||
+       (V8_EXTERNAL_CODE_SPACE_BOOL && HeapLayout::InCodeSpace(heap_object)) ||
+       HeapLayout::SafeInTrustedSpace(heap_object) || !IsTheHole(*obj)));
   auto loc = Local<v8::Value>::FromSlot(obj.location());
 
   AllocationNode* node = AddStack();
