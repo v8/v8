@@ -49,6 +49,22 @@
 }],
 
 ##############################################################################
+['system == macos', {
+  # Throwing C++ exceptions doesn't work; probably because the unittests
+  # binary on macOS is built with -fno-exceptions?
+  'LanguageServerJson.LexerError': [SKIP],
+  'LanguageServerJson.ParserError': [SKIP],
+  'Torque.DoubleUnderScorePrefixIllegalForIdentifiers': [SKIP],
+  'Torque.Enums': [SKIP],
+  'Torque.ImportNonExistentFile': [SKIP],
+}],  # system == macos
+
+['system == macos and target_cpu == arm64', {
+  # The read-write-execute handling in the test hasn't been updated to
+  # support the later macOS versions that run on ARM64.
+  'MemoryAllocationPermissionsTest.DoTest': [FAIL],
+}],  # system == macos and target_cpu == arm64
+
 ['system == macos and asan', {
   # BUG(820416).
   'BitsDeathTest*': [SKIP],
@@ -61,17 +77,6 @@
   'RandomNumberGenerator.NextSampleSlowInvalidParam1': [SKIP],
   'RandomNumberGenerator.NextSampleSlowInvalidParam2': [SKIP],
 }],  # system == macos and asan
-
-['system == macos and arch == arm64 and not simulator_run', {
-  # Throwing C++ exceptions doesn't work; probably because the unittests
-  # binary is built with -fno-exceptions?
-  'LanguageServerJson.*': [SKIP],
-  'LanguageServer.*': [SKIP],
-  'Torque.*': [SKIP],
-
-  # Test uses fancy signal handling. Needs investigation.
-  'MemoryAllocationPermissionsTest.DoTest': [SKIP],
-}],  # system == macos and arch == arm64 and not simulator_run
 
 # TODO(v8:12824): Enable this test once this is resolved.
 ['arch == arm64 and msan', {
