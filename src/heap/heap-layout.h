@@ -40,7 +40,6 @@ class HeapLayout final : public AllStatic {
   // Returns whether `object` is in code space. Note that there's various kinds
   // of different code spaces (regular, external, large object) which are all
   // covered by this check.
-  static V8_INLINE bool InCodeSpace(Tagged<HeapObject> object);
   static V8_INLINE bool SafeInCodeSpace(Tagged<HeapObject> object);
 
   // Returns whether `object` is allocated in trusted space. See

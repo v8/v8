@@ -360,7 +360,9 @@ DirectHandle<HeapObject> Factory::NewFillerObject(int size,
   Tagged<HeapObject> result =
       allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
           size, allocation, origin, alignment);
-  heap->CreateFillerObjectAt(result.address(), size);
+  heap->CreateFillerObjectAt(result.address(), size,
+                             ClearFreedMemoryMode::kDontClearFreedMemory,
+                             allocation);
   return DirectHandle<HeapObject>(result, isolate());
 }
 

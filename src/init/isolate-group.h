@@ -159,7 +159,11 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
           reinterpret_cast<Isolate*>(kReadOnlyOrSharedEntryIsolateSentinel)) {
         return;
       }
-      SBXCHECK_EQ(isolate_, isolate);
+      // This should be a `SBXCHECK_EQ()` which doesn't currently work as we
+      // don't allow nesting of DisallowSandboxAccess in AllowSandboxAccess
+      // scopes. There's no sandbox access in the condition so this replacement
+      // is fine.
+      CHECK_EQ(isolate_, isolate);
     }
 
     void SetMetadata(MemoryChunkMetadata* metadata, Isolate* isolate);
