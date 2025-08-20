@@ -5896,7 +5896,7 @@ MaybeReduceResult TryFindLoadedProperty(
   auto it = props_for_name->second.find(lookup_start_object);
   if (it == props_for_name->second.end()) return {};
 
-  return it->second;
+  return it->second->UnwrapIdentities();
 }
 
 bool CheckConditionIn32(int32_t lhs, int32_t rhs, AssertCondition condition) {
