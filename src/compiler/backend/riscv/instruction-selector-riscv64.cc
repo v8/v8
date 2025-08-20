@@ -1061,6 +1061,19 @@ void EmitSignExtendWord(InstructionSelector* selector, OpIndex node) {
     selector->Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
     return;
   }
+  if ((input_op.Is<Opmask::kWord64Add>() ||
+       input_op.Is<Opmask::kWord64Sub>())) {
+    if (selector->CanCover(node, value)) {
+      const WordBinopOp& binop = input_op.Cast<WordBinopOp>();
+      OpIndex left = binop.left();
+      OpIndex right = binop.right();
+      InstructionCode opcode =
+          input_op.Is<Opmask::kWord64Add>() ? kRiscvAdd32 : kRiscvSub32;
+      selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(left),
+                     g.UseOperand(right, opcode));
+      return;
+    }
+  }
   selector->Emit(kRiscvSignExtendWord, g.DefineAsRegister(node),
                  g.UseRegister(value));
 }
@@ -1157,9 +1170,10 @@ void InstructionSelector::VisitTruncateInt64ToInt32(OpIndex node) {
   DCHECK_EQ(op.input_count, 1);
   auto value = op.input(0);
   if (CanCover(node, value)) {
-    if (Get(value).Is<Opmask::kWord64ShiftRightArithmetic>()) {
-      auto shift_value = Get(value).input(1);
-      if (CanCover(value, Get(value).input(0)) &&
+    const Operation& input_op = Get(value);
+    if (input_op.Is<Opmask::kWord64ShiftRightArithmetic>()) {
+      auto shift_value = input_op.input(1);
+      if (CanCover(value, input_op.input(0)) &&
           TryEmitExtendingLoad(this, value, node)) {
         return;
       } else if (int64_t constant;
@@ -1167,10 +1181,21 @@ void InstructionSelector::VisitTruncateInt64ToInt32(OpIndex node) {
         if (constant <= 63 && constant >= 32) {
           // After smi untagging no need for truncate. Combine sequence.
           Emit(kRiscvSar64, g.DefineSameAsFirst(node),
-               g.UseRegister(Get(value).input(0)), g.UseImmediate64(constant));
+               g.UseRegister(input_op.input(0)), g.UseImmediate64(constant));
           return;
         }
       }
+    }
+    if ((input_op.Is<Opmask::kWord64Add>() ||
+         input_op.Is<Opmask::kWord64Sub>())) {
+      const WordBinopOp& binop = input_op.Cast<WordBinopOp>();
+      OpIndex left = binop.left();
+      OpIndex right = binop.right();
+      InstructionCode opcode =
+          input_op.Is<Opmask::kWord64Add>() ? kRiscvAdd32 : kRiscvSub32;
+      Emit(opcode, g.DefineAsRegister(node), g.UseRegister(left),
+           g.UseOperand(right, opcode));
+      return;
     }
   }
   // Semantics of this machine IR is not clear. For example, x86 zero-extend
