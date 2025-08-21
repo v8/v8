@@ -1153,6 +1153,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Dynamically allocates a buffer of size `size` in C++ on the cppgc heap.
   TNode<RawPtrT> AllocateBuffer(TNode<IntPtrT> size);
+  TNode<Symbol> ArrayBufferWasmMemorySymbol();
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   TNode<RawPtrT> LoadJSTypedArrayExternalPointerPtr(

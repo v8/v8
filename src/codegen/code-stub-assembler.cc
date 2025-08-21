@@ -13876,6 +13876,11 @@ TNode<RawPtrT> CodeStubAssembler::AllocateBuffer(TNode<IntPtrT> size) {
                      IsolateField(IsolateFieldId::kIsolateAddress)),
       std::make_pair(MachineType::IntPtr(), size)));
 }
+
+TNode<Symbol> CodeStubAssembler::ArrayBufferWasmMemorySymbol() {
+  return UncheckedCast<Symbol>(
+      LoadRoot(RootIndex::karray_buffer_wasm_memory_symbol));
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void CodeStubAssembler::BigIntToRawBytes(TNode<BigInt> bigint,

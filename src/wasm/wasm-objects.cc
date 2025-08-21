@@ -1049,8 +1049,13 @@ void WasmMemoryObject::FixUpResizableArrayBuffer(
     // UINT32_MAX+1. BackingStores, ArrayBuffers, and TypedArrays represent byte
     // lengths as uintptr_t, and UINT32_MAX+1 is not representable on 32bit.
     //
-    // As a willful violation and gross hack, if we're exposing a Wasm memory
-    // with an unrepresentable maximum, subtract one page size.
+    // To work around this, the ArrayBuffer's {maxByteLength} getter ignores
+    // the {max_byte_length} field and recomputes the expected value.
+    // This field is also referenced from other places in the code, so store the
+    // expected value if possible, and in the exceptional case where it is not
+    // representable, subtract one page size from it. We don't expect this hack
+    // to be observable in practice, the memory would fail to grow before we
+    // reach the limit.
     uint64_t max_byte_length64 =
         static_cast<uint64_t>(maximum_pages()) * wasm::kWasmPageSize;
     if (max_byte_length64 > std::numeric_limits<uintptr_t>::max()) {
