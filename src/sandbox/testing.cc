@@ -6,6 +6,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
+#include "src/builtins/builtins.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
@@ -388,7 +389,7 @@ void SandboxGetFieldOffset(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Local<v8::Context> context = isolate->GetCurrentContext();
 
   if (!info[0]->IsInt32()) {
-    isolate->ThrowError("Second argument must be an integer");
+    isolate->ThrowError("First argument must be an integer");
     return;
   }
 
@@ -423,6 +424,65 @@ void SandboxGetFieldOffset(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   int offset = obj_fields[*field_name];
   info.GetReturnValue().Set(offset);
+}
+
+// Returns an array of all builtin names, index of the name is the bulitin id.
+//
+// This can be used to determine the id of a specific builtin for use with
+// Sandbox.setFunctionCodeToBuiltin().
+//
+// Sandbox.getBuiltinNames() -> Array[String]
+void SandboxGetBuiltinNames(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
+  Local<v8::Context> context = isolate->GetCurrentContext();
+
+  Local<v8::Array> result = v8::Array::New(isolate, Builtins::kBuiltinCount);
+
+  // Find a builtin with matching name.
+  for (Builtin i = Builtins::kFirst; i <= Builtins::kLast; ++i) {
+    Local<v8::String> name =
+        v8::String::NewFromUtf8(isolate, Builtins::name(i)).ToLocalChecked();
+    CHECK(result->Set(context, static_cast<uint32_t>(i), name).FromJust());
+  }
+
+  info.GetReturnValue().Set(result);
+}
+
+// Sets given function's code value to a given builtin's code object.
+//
+// This can be used to shortcut overwriting JSFunction's code in testcases.
+//
+// Sandbox.setFunctionCodeToBuiltin(Function, Number) -> Bool
+void SandboxSetFunctionCodeToBuiltin(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
+  Local<v8::Context> context = isolate->GetCurrentContext();
+
+  if (!IsJSFunction(*v8::Utils::OpenHandle(*info[0]))) {
+    isolate->ThrowError("First argument must be an function");
+    return;
+  }
+
+  if (!info[1]->IsInt32()) {
+    isolate->ThrowError("Second argument must be an integer");
+    return;
+  }
+
+  int raw_builtin_id = info[1]->Int32Value(context).FromMaybe(-1);
+  if (!Builtins::IsBuiltinId(raw_builtin_id)) {
+    isolate->ThrowError("Invalid builtin id");
+    return;
+  }
+  Builtin builtin = static_cast<Builtin>(raw_builtin_id);
+
+  auto function = Cast<JSFunction>(v8::Utils::OpenDirectHandle(*info[0]));
+
+  Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  function->UpdateCode(i_isolate, i_isolate->builtins()->code(builtin));
+
+  info.GetReturnValue().Set(true);
 }
 
 Handle<FunctionTemplateInfo> NewFunctionTemplate(
@@ -518,6 +578,11 @@ void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
   InstallFunction(isolate, sandbox, SandboxGetInstanceTypeIdFor,
                   "getInstanceTypeIdFor", 1);
   InstallFunction(isolate, sandbox, SandboxGetFieldOffset, "getFieldOffset", 2);
+
+  InstallFunction(isolate, sandbox, SandboxGetBuiltinNames, "getBuiltinNames",
+                  0);
+  InstallFunction(isolate, sandbox, SandboxSetFunctionCodeToBuiltin,
+                  "setFunctionCodeToBuiltin", 2);
 
   // Install the Sandbox object as property on the global object.
   Handle<JSGlobalObject> global = isolate->global_object();
@@ -894,6 +959,10 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         SharedFunctionInfo::kLengthOffset;
     fields[SHARED_FUNCTION_INFO_TYPE]["formal_parameter_count"] =
         SharedFunctionInfo::kFormalParameterCountOffset;
+    fields[SHARED_FUNCTION_INFO_TYPE]["function_data"] =
+        SharedFunctionInfo::kUntrustedFunctionDataOffset;
+    fields[SHARED_FUNCTION_INFO_TYPE]["script"] =
+        SharedFunctionInfo::kScriptOffset;
     fields[SCRIPT_TYPE]["wasm_managed_native_module"] =
         Script::kEvalFromPositionOffset;
     fields[JS_PROMISE_TYPE]["reactions_or_result"] =
@@ -902,8 +971,6 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         PromiseReaction::kFulfillHandlerOffset;
     fields[JS_FUNCTION_TYPE]["shared_function_info"] =
         JSFunction::kSharedFunctionInfoOffset;
-    fields[SHARED_FUNCTION_INFO_TYPE]["function_data"] =
-        SharedFunctionInfo::kUntrustedFunctionDataOffset;
 #ifdef V8_ENABLE_WEBASSEMBLY
     fields[WASM_MODULE_OBJECT_TYPE]["managed_native_module"] =
         WasmModuleObject::kManagedNativeModuleOffset;
