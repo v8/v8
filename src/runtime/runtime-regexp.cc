@@ -2236,7 +2236,8 @@ inline void RegExpMatchGlobalAtom_OneCharPattern(
   // last_match_block already contains the last match position, so use a special
   // vector with lane 0 set to extract the last_match_index later.
   const auto scalar_last_match_vec = hw::FirstN(tag, 1);
-  for (SChar c = *block; block < end; c = *(++block)) {
+  for (; block < end; ++block) {
+    SChar c = *block;
     if (c != static_cast<const SChar>(pattern)) continue;
     matches++;
     last_match_block = block;
