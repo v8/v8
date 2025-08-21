@@ -34,8 +34,9 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
   // Should compile both 'add' and 'sub' with Liftoff, but not 'mul'.
   let wasm = builder.instantiate().exports;
-
-  assertTrue(%IsLiftoffFunction(wasm.add));
+  if (%IsWasmTieringPredictable()) {
+    assertTrue(%IsLiftoffFunction(wasm.add));
+  }
   assertTrue(%IsLiftoffFunction(wasm.sub));
   assertTrue(%IsUncompiledWasmFunction(wasm.mul));
   assertTrue(%IsTurboFanFunction(wasm.div));
