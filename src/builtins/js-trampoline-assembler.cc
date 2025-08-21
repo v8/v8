@@ -32,13 +32,13 @@ void JSTrampolineAssembler::TailCallJSFunction(TNode<JSFunction> function) {
              Word32Equal(dispatch_handle,
                          LoadObjectField<JSDispatchHandleT>(
                              function, JSFunction::kDispatchHandleOffset)));
-  TNode<Code> code = LoadCodeObjectFromJSDispatchTable(dispatch_handle);
 #else  // V8_ENABLE_LEAPTIERING
   auto dispatch_handle = InvalidDispatchHandleConstant();
-  TNode<Code> code =
-      LoadCodePointerFromObject(function, JSFunction::kCodeOffset);
-#endif
-  TailCallJSCode(code, context, function, new_target, argc, dispatch_handle);
+#endif  // V8_ENABLE_LEAPTIERING
+
+  // TailCallJSCode will load the code from the dispatch table or function
+  // according to V8_ENABLE_LEAPTIERING state.
+  TailCallJSCode(context, function, new_target, argc, dispatch_handle);
 }
 
 #ifndef V8_ENABLE_LEAPTIERING
@@ -245,13 +245,10 @@ void JSTrampolineAssembler::TieringBuiltinImpl(const Function& Impl) {
                          LoadObjectField<JSDispatchHandleT>(
                              function, JSFunction::kDispatchHandleOffset)));
 
-  // Load the code directly from the dispatch table to guarantee the signature
-  // of the code matches with the number of arguments passed when calling into
-  // this trampoline.
-  // TODO(saelo): consider removing the {code} parameter from TailCallJSCode
-  // entirely and only passing the dispatch_handle.
-  TNode<Code> code = LoadCodeObjectFromJSDispatchTable(dispatch_handle);
-  TailCallJSCode(code, context, function, new_target, argc, dispatch_handle);
+  // TailCallJSCode will load the code from the dispatch table to guarantee
+  // that the signature of the code matches with the number of arguments
+  // passed when calling into this trampoline.
+  TailCallJSCode(context, function, new_target, argc, dispatch_handle);
 }
 
 TF_BUILTIN(FunctionLogNextExecution, JSTrampolineAssembler) {

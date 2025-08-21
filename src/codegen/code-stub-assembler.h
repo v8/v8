@@ -1753,6 +1753,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Code> LoadInterpreterDataInterpreterTrampoline(
       TNode<InterpreterData> data);
 
+  TNode<Int32T> LoadCodeParameterCount(TNode<Code> code);
+
   TNode<Int32T> LoadBytecodeArrayParameterCount(
       TNode<BytecodeArray> bytecode_array);
   TNode<Int32T> LoadBytecodeArrayParameterCountWithoutReceiver(
@@ -4276,7 +4278,27 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<UintPtrT> ComputeJSDispatchTableEntryOffset(
       TNode<JSDispatchHandleT> handle);
-#endif
+#endif  // V8_ENABLE_LEAPTIERING
+
+  // Tailcalls to the given code object with JSCall linkage. The JS arguments
+  // (including receiver) are supposed to be already on the stack.
+  // This is a building block for implementing trampoline stubs that are
+  // installed instead of code objects with JSCall linkage.
+  // Note that no arguments adaption is going on here - all the JavaScript
+  // arguments are left on the stack unmodified. Therefore, this tail call can
+  // only be used after arguments adaptation has been performed already.
+  // When Sandbox is enabled it also checks that the code's parameter count
+  // and dispatch handle's parameter counts match.
+  void TailCallJSCode(TNode<Code> code, TNode<Context> context,
+                      TNode<JSFunction> function, TNode<Object> new_target,
+                      TNode<Int32T> arg_count,
+                      TNode<JSDispatchHandleT> dispatch_handle);
+  // Same as above, but the code object is loaded from the dispatch table
+  // entry or from the function according to V8_ENABLE_LEAPTIERING state and
+  // thus the parameter count check is not necessary.
+  void TailCallJSCode(TNode<Context> context, TNode<JSFunction> function,
+                      TNode<Object> new_target, TNode<Int32T> arg_count,
+                      TNode<JSDispatchHandleT> dispatch_handle);
 
   // Indicate that this code must support a dynamic parameter count.
   //

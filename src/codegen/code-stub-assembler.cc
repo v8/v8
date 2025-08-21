@@ -2077,6 +2077,39 @@ TNode<Uint16T> CodeStubAssembler::LoadParameterCountFromJSDispatchTable(
 
 #endif  // V8_ENABLE_LEAPTIERING
 
+void CodeStubAssembler::TailCallJSCode(
+    TNode<Code> code, TNode<Context> context, TNode<JSFunction> function,
+    TNode<Object> new_target, TNode<Int32T> arg_count,
+    TNode<JSDispatchHandleT> dispatch_handle) {
+#ifdef V8_ENABLE_SANDBOX
+  // Check that the code has a matching parameter count. This ensures that
+  // the target code will correctly tear down parameters when leaving.
+  static_assert(V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL);
+  CSA_SBXCHECK(
+      this,
+      Word32Equal(LoadCodeParameterCount(code),
+                  LoadParameterCountFromJSDispatchTable(dispatch_handle)));
+#endif  // V8_ENABLE_SANDBOX
+
+  CodeAssembler::TailCallJSCode(code, context, function, new_target, arg_count,
+                                dispatch_handle);
+}
+
+void CodeStubAssembler::TailCallJSCode(
+    TNode<Context> context, TNode<JSFunction> function,
+    TNode<Object> new_target, TNode<Int32T> arg_count,
+    TNode<JSDispatchHandleT> dispatch_handle) {
+#ifdef V8_ENABLE_LEAPTIERING
+  TNode<Code> code = LoadCodeObjectFromJSDispatchTable(dispatch_handle);
+#else
+  TNode<Code> code =
+      LoadCodePointerFromObject(function, JSFunction::kCodeOffset);
+#endif  // V8_ENABLE_LEAPTIERING
+
+  CodeAssembler::TailCallJSCode(code, context, function, new_target, arg_count,
+                                dispatch_handle);
+}
+
 #ifdef V8_ENABLE_SANDBOX
 
 TNode<TrustedObject> CodeStubAssembler::LoadIndirectPointerFromObject(
@@ -3894,6 +3927,10 @@ TNode<Code> CodeStubAssembler::LoadInterpreterDataInterpreterTrampoline(
     TNode<InterpreterData> data) {
   return CAST(LoadProtectedPointerField(
       data, offsetof(InterpreterData, interpreter_trampoline_)));
+}
+
+TNode<Int32T> CodeStubAssembler::LoadCodeParameterCount(TNode<Code> code) {
+  return LoadObjectField<Uint16T>(code, Code::kParameterCountOffset);
 }
 
 TNode<Int32T> CodeStubAssembler::LoadBytecodeArrayParameterCount(
