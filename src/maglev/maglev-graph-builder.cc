@@ -702,7 +702,7 @@ MaglevGraphBuilder::MaglevSubGraphBuilder::MaglevSubGraphBuilder(
     : builder_(builder),
       compilation_unit_(MaglevCompilationUnit::NewDummy(
           builder->zone(), builder->compilation_unit(), variable_count, 0, 0)),
-      pseudo_frame_(*compilation_unit_, nullptr, VirtualObjectList()) {
+      pseudo_frame_(*compilation_unit_, nullptr) {
   // We need to set a context, since this is unconditional in the frame state,
   // so set it to the real context.
   pseudo_frame_.set(interpreter::Register::current_context(),
@@ -975,11 +975,8 @@ ReduceResult MaglevGraphBuilder::SelectReduction(
 void MaglevGraphBuilder::MaglevSubGraphBuilder::
     TakeKnownNodeAspectsAndVOsFromParent() {
   DCHECK_NULL(pseudo_frame_.known_node_aspects());
-  DCHECK(pseudo_frame_.virtual_objects().is_empty());
   pseudo_frame_.set_known_node_aspects(
       builder_->current_interpreter_frame_.known_node_aspects());
-  pseudo_frame_.set_virtual_objects(
-      builder_->current_interpreter_frame_.virtual_objects());
 }
 
 void MaglevGraphBuilder::MaglevSubGraphBuilder::
@@ -988,9 +985,6 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::
   builder_->current_interpreter_frame_.set_known_node_aspects(
       pseudo_frame_.known_node_aspects());
   pseudo_frame_.clear_known_node_aspects();
-  builder_->current_interpreter_frame_.set_virtual_objects(
-      pseudo_frame_.virtual_objects());
-  pseudo_frame_.set_virtual_objects(VirtualObjectList());
 }
 
 void MaglevGraphBuilder::MaglevSubGraphBuilder::MergeIntoLabel(
@@ -1038,9 +1032,7 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
           *compilation_unit_,
           is_inline() ? caller_details->known_node_aspects
                       : compilation_unit_->zone()->New<KnownNodeAspects>(
-                            compilation_unit_->zone()),
-          is_inline() ? caller_details->deopt_frame->GetVirtualObjects()
-                      : VirtualObjectList()),
+                            compilation_unit_->zone())),
       is_turbolev_(compilation_unit->info()->is_turbolev()),
       entrypoint_(compilation_unit->is_osr()
                       ? bytecode_analysis_.osr_entry_point()
@@ -1444,8 +1436,9 @@ DeoptFrame* MaglevGraphBuilder::GetLatestCheckpointedFrame() {
         *compilation_unit_,
         zone()->New<CompactInterpreterFrameState>(
             *compilation_unit_, GetInLiveness(), current_interpreter_frame_),
-        GetClosure(), BytecodeOffset(iterator_.current_offset()),
-        GetCurrentSourcePosition(), GetCallerDeoptFrame());
+        GetClosure(), current_interpreter_frame_.virtual_objects().head(),
+        BytecodeOffset(iterator_.current_offset()), GetCurrentSourcePosition(),
+        GetCallerDeoptFrame());
 
     latest_checkpointed_frame_->as_interpreted().frame_state()->ForEachValue(
         *compilation_unit_,
@@ -1505,8 +1498,9 @@ DeoptFrame* MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
         *compilation_unit_,
         zone()->New<CompactInterpreterFrameState>(*compilation_unit_, liveness,
                                                   current_interpreter_frame_),
-        GetClosure(), BytecodeOffset(iterator_.current_offset()),
-        GetCurrentSourcePosition(), GetCallerDeoptFrame());
+        GetClosure(), current_interpreter_frame_.virtual_objects().head(),
+        BytecodeOffset(iterator_.current_offset()), GetCurrentSourcePosition(),
+        GetCallerDeoptFrame());
     ret->frame_state()->ForEachValue(
         *compilation_unit_, [this](ValueNode* node, interpreter::Register reg) {
           // Receiver and closure values have to be materialized, even if
@@ -1546,8 +1540,9 @@ InterpretedDeoptFrame* MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
           *compilation_unit_,
           GetInLivenessFor(graph_->is_osr() ? bailout_for_entrypoint() : 0),
           current_interpreter_frame_),
-      GetClosure(), BytecodeOffset(bailout_for_entrypoint()),
-      GetCurrentSourcePosition(), nullptr);
+      GetClosure(), current_interpreter_frame_.virtual_objects().head(),
+      BytecodeOffset(bailout_for_entrypoint()), GetCurrentSourcePosition(),
+      nullptr);
 
   entry_stack_check_frame_->frame_state()->ForEachValue(
       *compilation_unit_,
@@ -8363,8 +8358,7 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
       // Merge the current state into the handler state.
       GetCatchBlockFrameState()->MergeThrow(
           this, compilation_unit_,
-          *current_interpreter_frame_.known_node_aspects(),
-          current_interpreter_frame_.virtual_objects());
+          *current_interpreter_frame_.known_node_aspects());
     }
     catch_block_details.deopt_frame_distance++;
   }
@@ -8410,8 +8404,6 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
   // Propagate frame information back to the caller.
   current_interpreter_frame_.set_known_node_aspects(
       inner_graph_builder.current_interpreter_frame_.known_node_aspects());
-  current_interpreter_frame_.set_virtual_objects(
-      inner_graph_builder.current_interpreter_frame_.virtual_objects());
   current_for_in_state.receiver_needs_map_check =
       inner_graph_builder.current_for_in_state.receiver_needs_map_check;
 
@@ -16360,8 +16352,7 @@ void MaglevGraphBuilder::AttachExceptionHandlerInfo(Node* node) {
       auto state = GetCatchBlockFrameState();
       DCHECK_NOT_NULL(state);
       state->MergeThrow(this, compilation_unit_,
-                        *current_interpreter_frame_.known_node_aspects(),
-                        current_interpreter_frame_.virtual_objects());
+                        *current_interpreter_frame_.known_node_aspects());
     }
   } else {
     // Patch no exception handler marker.
@@ -16410,6 +16401,7 @@ BasicBlock* MaglevGraphBuilder::FinishBlock(
 
   // TODO(olivf): Support allocation folding across control flow.
   ClearCurrentAllocationBlock();
+  current_interpreter_frame_.virtual_objects().Snapshot();
 
   BasicBlock* block = current_block();
   reducer_.FlushNodesToBlock();

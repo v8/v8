@@ -1687,6 +1687,7 @@ class DeoptFrame {
     const MaglevCompilationUnit& unit;
     const CompactInterpreterFrameState* frame_state;
     ValueNode* closure;
+    VirtualObject* last_virtual_object;
     const BytecodeOffset bytecode_position;
     const SourcePosition source_position;
   };
@@ -1761,9 +1762,10 @@ class InterpretedDeoptFrame : public DeoptFrame {
  public:
   InterpretedDeoptFrame(const MaglevCompilationUnit& unit,
                         const CompactInterpreterFrameState* frame_state,
-                        ValueNode* closure, BytecodeOffset bytecode_position,
+                        ValueNode* closure, VirtualObject* last_vo,
+                        BytecodeOffset bytecode_position,
                         SourcePosition source_position, DeoptFrame* parent)
-      : DeoptFrame(InterpretedFrameData{unit, frame_state, closure,
+      : DeoptFrame(InterpretedFrameData{unit, frame_state, closure, last_vo,
                                         bytecode_position, source_position},
                    parent) {}
 
@@ -1775,6 +1777,9 @@ class InterpretedDeoptFrame : public DeoptFrame {
   ValueNode* closure() const { return data().closure; }
   BytecodeOffset bytecode_position() const { return data().bytecode_position; }
   SourcePosition source_position() const { return data().source_position; }
+  VirtualObject* last_virtual_object() const {
+    return data().last_virtual_object;
+  }
 
   int ComputeReturnOffset(interpreter::Register result_location,
                           int result_size) const;
@@ -6359,6 +6364,8 @@ class VirtualObjectList {
  public:
   VirtualObjectList() : head_(nullptr) {}
 
+  explicit VirtualObjectList(VirtualObject* head) : head_(head) {}
+
   class Iterator final {
    public:
     explicit Iterator(VirtualObject* entry) : entry_(entry) {}
@@ -6445,6 +6452,8 @@ class VirtualObjectList {
     }
     return true;
   }
+
+  VirtualObject* head() const { return head_; }
 
   Iterator begin() const { return Iterator(head_); }
   Iterator end() const { return Iterator(nullptr); }

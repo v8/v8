@@ -176,7 +176,8 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
       may_have_aliasing_contexts_(
           KnownNodeAspects::ContextSlotLoadsAlias::kNone),
       effect_epoch_(other.effect_epoch_),
-      node_infos(zone) {
+      node_infos(zone),
+      virtual_objects_(other.virtual_objects_) {
   if (!other.any_map_for_any_node_is_unstable) {
     node_infos = other.node_infos;
 #ifdef DEBUG
@@ -249,6 +250,8 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
       available_expressions.emplace(e);
     }
   }
+
+  virtual_objects_.Snapshot();
 }
 
 namespace {
@@ -418,8 +421,6 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::New(
   merge_state->predecessors_[0] = predecessor;
   merge_state->known_node_aspects_ =
       state.known_node_aspects()->Clone(info.zone());
-  state.virtual_objects().Snapshot();
-  merge_state->set_virtual_objects(state.virtual_objects());
   return merge_state;
 }
 
@@ -626,17 +627,18 @@ void MergePointInterpreterFrameState::MergeVirtualObject(
   result->set_allocation(unmerged->allocation());
   result->Snapshot();
   unmerged->allocation()->UpdateObject(result);
-  frame_state_.virtual_objects().Add(result);
+  known_node_aspects_->virtual_objects().Add(result);
 }
 
 void MergePointInterpreterFrameState::MergeVirtualObjects(
     MaglevGraphBuilder* builder, MaglevCompilationUnit& compilation_unit,
-    const VirtualObjectList unmerged_vos,
     const KnownNodeAspects& unmerged_aspects) {
-  if (frame_state_.virtual_objects().is_empty()) return;
+  if (known_node_aspects_->virtual_objects().is_empty()) return;
+
+  const VirtualObjectList unmerged_vos = unmerged_aspects.virtual_objects();
   if (unmerged_vos.is_empty()) return;
 
-  frame_state_.virtual_objects().Snapshot();
+  known_node_aspects_->virtual_objects().Snapshot();
 
   PrintVirtualObjects(compilation_unit, unmerged_vos, "VOs before merge:");
 
@@ -648,7 +650,7 @@ void MergePointInterpreterFrameState::MergeVirtualObjects(
   // We iterate both list in reversed order of ids collecting the umerged
   // objects into the map, until we find a common virtual object.
   VirtualObjectList::WalkUntilCommon(
-      frame_state_.virtual_objects(), unmerged_vos,
+      known_node_aspects_->virtual_objects(), unmerged_vos,
       [&](VirtualObject* vo, VirtualObjectList vos) {
         // If we have a version in the map, it should be the most up-to-date,
         // since the list is in reverse order.
@@ -681,7 +683,7 @@ void MergePointInterpreterFrameState::MergeVirtualObjects(
     if (it != merged_map.end()) {
       merged = it->second;
     } else {
-      merged = frame_state_.virtual_objects().FindAllocatedWith(
+      merged = known_node_aspects_->virtual_objects().FindAllocatedWith(
           unmerged->allocation());
     }
     if (merged != nullptr) {
@@ -709,7 +711,6 @@ void MergePointInterpreterFrameState::InitializeLoop(
   known_node_aspects_ = unmerged.known_node_aspects()->CloneForLoopHeader(
       optimistic_initial_state, loop_effects, builder->zone());
   unmerged.virtual_objects().Snapshot();
-  frame_state_.set_virtual_objects(unmerged.virtual_objects());
   if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
                   builder->is_tracing_enabled())) {
     std::cout << "Initializing "
@@ -747,7 +748,7 @@ void MergePointInterpreterFrameState::Merge(
     std::cout << "Merging..." << std::endl;
   }
 
-  MergeVirtualObjects(builder, compilation_unit, unmerged.virtual_objects(),
+  MergeVirtualObjects(builder, compilation_unit,
                       *unmerged.known_node_aspects());
   MergePhis(builder, compilation_unit, unmerged, predecessor, false);
 
@@ -893,8 +894,7 @@ const LoopEffects* MergePointInterpreterFrameState::loop_effects() {
 
 void MergePointInterpreterFrameState::MergeThrow(
     MaglevGraphBuilder* builder, const MaglevCompilationUnit* handler_unit,
-    const KnownNodeAspects& known_node_aspects,
-    const VirtualObjectList virtual_objects) {
+    const KnownNodeAspects& known_node_aspects) {
   // We don't count total predecessors on exception handlers, but we do want to
   // special case the first predecessor so we do count predecessors_so_far
   DCHECK_EQ(predecessor_count_, 0);
@@ -908,17 +908,15 @@ void MergePointInterpreterFrameState::MergeThrow(
   if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
                   handler_unit->is_tracing_enabled())) {
     std::cout << "- Merging into exception handler @" << this << std::endl;
-    PrintVirtualObjects(*handler_unit, virtual_objects);
+    PrintVirtualObjects(*handler_unit, known_node_aspects.virtual_objects());
   }
 
   if (known_node_aspects_ == nullptr) {
     DCHECK_EQ(predecessors_so_far_, 0);
     known_node_aspects_ = known_node_aspects.Clone(builder->zone());
-    virtual_objects.Snapshot();
-    frame_state_.set_virtual_objects(virtual_objects);
   } else {
     known_node_aspects_->Merge(known_node_aspects, builder->zone());
-    MergeVirtualObjects(builder, *builder->compilation_unit(), virtual_objects,
+    MergeVirtualObjects(builder, *builder->compilation_unit(),
                         known_node_aspects);
   }
 
