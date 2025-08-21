@@ -460,11 +460,11 @@ TEST(SerializationFailsOnChangedFeatures) {
   {
     HandleScope scope(CcTest::i_isolate());
 
-    CcTest::isolate()->SetWasmImportedStringsEnabledCallback(
+    CcTest::isolate()->SetWasmCustomDescriptorsEnabledCallback(
         [](auto) { return true; });
     CHECK(test.Deserialize().is_null());
 
-    CcTest::isolate()->SetWasmImportedStringsEnabledCallback(
+    CcTest::isolate()->SetWasmCustomDescriptorsEnabledCallback(
         [](auto) { return false; });
     CHECK(!test.Deserialize().is_null());
   }

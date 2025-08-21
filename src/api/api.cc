@@ -10894,6 +10894,10 @@ CALLBACK_SETTER(WasmImportedStringsEnabledCallback,
                 WasmImportedStringsEnabledCallback,
                 wasm_imported_strings_enabled_callback)
 
+CALLBACK_SETTER(WasmCustomDescriptorsEnabledCallback,
+                WasmCustomDescriptorsEnabledCallback,
+                wasm_custom_descriptors_enabled_callback)
+
 CALLBACK_SETTER(WasmJSPIEnabledCallback, WasmJSPIEnabledCallback,
                 wasm_jspi_enabled_callback)
 

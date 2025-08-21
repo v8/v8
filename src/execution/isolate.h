@@ -505,6 +505,8 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(WasmLoadSourceMapCallback, wasm_load_source_map_callback, nullptr)      \
   V(WasmImportedStringsEnabledCallback,                                     \
     wasm_imported_strings_enabled_callback, nullptr)                        \
+  V(WasmCustomDescriptorsEnabledCallback,                                   \
+    wasm_custom_descriptors_enabled_callback, nullptr)                      \
   V(WasmJSPIEnabledCallback, wasm_jspi_enabled_callback, nullptr)           \
   V(IsJSApiWrapperNativeErrorCallback,                                      \
     is_js_api_wrapper_native_error_callback, nullptr)                       \
@@ -817,6 +819,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool IsWasmJSPIRequested(DirectHandle<NativeContext> context);
   // Has JSPI been enabled successfully?
   bool IsWasmJSPIEnabled(DirectHandle<NativeContext> context);
+  bool IsWasmCustomDescriptorsEnabled(DirectHandle<NativeContext> context);
   bool IsCompileHintsMagicEnabled(Handle<NativeContext> context);
 
   THREAD_LOCAL_TOP_ADDRESS(Tagged<Context>, pending_handler_context)

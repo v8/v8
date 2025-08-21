@@ -3805,6 +3805,21 @@ bool Isolate::IsWasmImportedStringsEnabled(
 #endif
 }
 
+bool Isolate::IsWasmCustomDescriptorsEnabled(
+    DirectHandle<NativeContext> context) {
+#ifdef V8_ENABLE_WEBASSEMBLY
+  v8::WasmCustomDescriptorsEnabledCallback callback =
+      wasm_custom_descriptors_enabled_callback();
+  if (callback) {
+    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
+    if (callback(api_context)) return true;
+  }
+  return v8_flags.experimental_wasm_custom_descriptors;
+#else
+  return false;
+#endif
+}
+
 DirectHandle<NativeContext> Isolate::GetIncumbentContextSlow() {
   JavaScriptStackFrameIterator it(this);
 

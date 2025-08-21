@@ -667,6 +667,7 @@ class V8_EXPORT Isolate {
     kRegExpStaticPropertiesWithLastMatch = 179,
     kWithStatement = 180,
     kHtmlWrapperMethods = 181,
+    kWasmCustomDescriptors = 182,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
@@ -1709,6 +1710,9 @@ class V8_EXPORT Isolate {
 
   void SetWasmImportedStringsEnabledCallback(
       WasmImportedStringsEnabledCallback callback);
+
+  void SetWasmCustomDescriptorsEnabledCallback(
+      WasmCustomDescriptorsEnabledCallback callback);
 
   void SetSharedArrayBufferConstructorEnabledCallback(
       SharedArrayBufferConstructorEnabledCallback callback);
