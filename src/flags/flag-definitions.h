@@ -273,7 +273,6 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 //
 // TODO(v8:14214): Remove --harmony flags once transition is complete.
 #define HARMONY_INPROGRESS_BASE(V)                                             \
-  V(harmony_temporal, "Temporal")                                              \
   V(harmony_shadow_realm, "harmony ShadowRealm")                               \
   V(harmony_struct, "harmony structs, shared structs, and shared arrays")
 
@@ -292,7 +291,8 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 #endif
 
 // Features that are complete (but still behind the --harmony flag).
-#define HARMONY_STAGED_BASE(V)
+#define HARMONY_STAGED_BASE(V) V(harmony_temporal, "Temporal")
+
 #define JAVASCRIPT_STAGED_FEATURES_BASE(V)
 
 #ifdef V8_INTL_SUPPORT
