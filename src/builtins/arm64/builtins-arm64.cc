@@ -398,52 +398,31 @@ static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
 static void GetSharedFunctionInfoBytecodeOrBaseline(
     MacroAssembler* masm, Register sfi, Register bytecode, Register scratch1,
     Label* is_baseline, Label* is_unavailable) {
-  DCHECK(!AreAliased(bytecode, scratch1));
   ASM_CODE_COMMENT(masm);
-  Label done;
+  DCHECK(!AreAliased(bytecode, scratch1));
+  Label is_interpreter_data, is_bytecode_array;
 
   Register data = bytecode;
-  __ LoadTrustedPointerField(
+  __ LoadTrustedUnknownPointerField(
       data,
       FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset),
-      kUnknownIndirectPointerTag);
+      scratch1,
+      {
+          {INTERPRETER_DATA_TYPE, &is_interpreter_data},
+          {BYTECODE_ARRAY_TYPE, &is_bytecode_array},
+#if !V8_JITLESS_BOOL
+          {CODE_TYPE, is_baseline},
+#endif
+      });
+  // Fallthrough means none of the types matched. The destination register is
+  // zeroed.
+  __ B(is_unavailable);
 
-  if (V8_JITLESS_BOOL) {
-    __ IsObjectType(data, scratch1, scratch1, INTERPRETER_DATA_TYPE);
-    __ B(ne, &done);
-  } else {
-#if V8_STATIC_ROOTS_BOOL
-    __ IsObjectTypeFast(data, scratch1, CODE_TYPE);
-#else
-    __ CompareObjectType(data, scratch1, scratch1, CODE_TYPE);
-#endif  // V8_STATIC_ROOTS_BOOL
-
-    if (v8_flags.debug_code) {
-      Label not_baseline;
-      __ B(ne, &not_baseline);
-      AssertCodeIsBaseline(masm, data, scratch1);
-      __ B(eq, is_baseline);
-      __ Bind(&not_baseline);
-    } else {
-      __ B(eq, is_baseline);
-    }
-
-#if V8_STATIC_ROOTS_BOOL
-    // scratch already contains the compressed map.
-    __ CompareInstanceTypeWithUniqueCompressedMap(scratch1, Register::no_reg(),
-                                                  INTERPRETER_DATA_TYPE);
-#else
-    // scratch already contains the instance type.
-    __ Cmp(scratch1, INTERPRETER_DATA_TYPE);
-#endif  // V8_STATIC_ROOTS_BOOL
-    __ B(ne, &done);
-  }
-
+  __ bind(&is_interpreter_data);
   __ LoadInterpreterDataBytecodeArray(bytecode, data);
 
-  __ Bind(&done);
-  __ IsObjectType(bytecode, scratch1, scratch1, BYTECODE_ARRAY_TYPE);
-  __ B(ne, is_unavailable);
+  __ bind(&is_bytecode_array);
+  // In this case, the bytecode register already contains the bytecode array.
 }
 
 // static
@@ -2041,13 +2020,14 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ Ldr(x1, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
   __ LoadTaggedField(
       x1, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadTrustedPointerField(
+  Label is_interpreter_data;
+  __ LoadTrustedUnknownPointerField(
       x1, FieldMemOperand(x1, SharedFunctionInfo::kTrustedFunctionDataOffset),
-      kUnknownIndirectPointerTag);
-  __ IsObjectType(x1, kInterpreterDispatchTableRegister,
-                  kInterpreterDispatchTableRegister, INTERPRETER_DATA_TYPE);
-  __ B(ne, &builtin_trampoline);
+      kInterpreterDispatchTableRegister,
+      {{INTERPRETER_DATA_TYPE, &is_interpreter_data}});
+  __ B(&builtin_trampoline);
 
+  __ bind(&is_interpreter_data);
   __ LoadInterpreterDataInterpreterTrampoline(x1, x1);
   __ LoadCodeInstructionStart(x1, x1, kJSEntrypointTag);
   __ B(&trampoline_loaded);
