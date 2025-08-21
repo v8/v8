@@ -241,6 +241,23 @@ BIT_FIELD_ACCESSORS(JSArrayBufferView, bit_field, is_length_tracking,
 BIT_FIELD_ACCESSORS(JSArrayBufferView, bit_field, is_backed_by_rab,
                     JSArrayBufferView::IsBackedByRabBit)
 
+// static
+constexpr std::pair<ExternalArrayType, size_t>
+JSTypedArray::TypeAndElementSizeFor(ElementsKind kind) {
+  switch (kind) {
+#define ELEMENTS_KIND_TO_ARRAY_TYPE(Type, type, TYPE, ctype) \
+  case TYPE##_ELEMENTS:                                      \
+    return {kExternal##Type##Array, sizeof(ctype)};
+
+    TYPED_ARRAYS(ELEMENTS_KIND_TO_ARRAY_TYPE)
+    RAB_GSAB_TYPED_ARRAYS_WITH_TYPED_ARRAY_TYPE(ELEMENTS_KIND_TO_ARRAY_TYPE)
+#undef ELEMENTS_KIND_TO_ARRAY_TYPE
+
+    default:
+      UNREACHABLE();
+  }
+}
+
 bool JSArrayBufferView::IsVariableLength() const {
   return is_length_tracking() || is_backed_by_rab();
 }

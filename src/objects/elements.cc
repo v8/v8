@@ -19,6 +19,7 @@
 #include "src/objects/elements-kind.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-array-buffer.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-shared-array-inl.h"
 #include "src/objects/keys.h"
@@ -179,6 +180,21 @@ class ElementsKindTraits {
   constexpr ElementsKind ElementsKindTraits<KindParam>::Kind;
 ELEMENTS_LIST(ELEMENTS_TRAITS)
 #undef ELEMENTS_TRAITS
+
+template <ElementsKind>
+struct TypedArrayCTypeHelper;
+
+#define DEFINE_CTYPE(Type, type_, TYPE, ctype)    \
+  template <>                                     \
+  struct TypedArrayCTypeHelper<TYPE##_ELEMENTS> { \
+    using type = ctype;                           \
+  };
+TYPED_ARRAYS(DEFINE_CTYPE)
+RAB_GSAB_TYPED_ARRAYS(DEFINE_CTYPE)
+#undef DEFINE_CTYPE
+
+template <ElementsKind kind>
+using TypedArrayCType = typename TypedArrayCTypeHelper<kind>::type;
 
 V8_WARN_UNUSED_RESULT
 MaybeDirectHandle<Object> ThrowArrayLengthRangeError(Isolate* isolate) {
@@ -3193,8 +3209,7 @@ class FastHoleyObjectElementsAccessor
 
 // Helper templates to statically determine if our destination type can contain
 // the source type.
-template <ElementsKind Kind, typename ElementType, ElementsKind SourceKind,
-          typename SourceElementType>
+template <ElementsKind Kind, ElementsKind SourceKind>
 struct CopyBetweenBackingStoresImpl;
 
 template <typename Subclass, typename KindTraits>
@@ -3373,13 +3388,14 @@ constexpr bool IsFloat16RawBitsZero(uint16_t x) {
 }
 
 // Super class for all external element arrays.
-template <ElementsKind Kind, typename ElementType>
+template <ElementsKind Kind>
 class TypedElementsAccessor
-    : public ElementsAccessorBase<TypedElementsAccessor<Kind, ElementType>,
+    : public ElementsAccessorBase<TypedElementsAccessor<Kind>,
                                   ElementsKindTraits<Kind>> {
  public:
+  using ElementType = TypedArrayCType<Kind>;
   using BackingStore = typename ElementsKindTraits<Kind>::BackingStore;
-  using AccessorClass = TypedElementsAccessor<Kind, ElementType>;
+  using AccessorClass = TypedElementsAccessor<Kind>;
 
   // Conversions from (other) scalar values.
   static ElementType FromScalar(int value) {
@@ -3963,8 +3979,8 @@ class TypedElementsAccessor
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                             \
   case TYPE##_ELEMENTS: {                                                     \
     ctype* source_data = reinterpret_cast<ctype*>(source->DataPtr()) + start; \
-    CopyBetweenBackingStores<TYPE##_ELEMENTS, ctype>(source_data, dest_data,  \
-                                                     count, is_shared);       \
+    CopyBetweenBackingStores<TYPE##_ELEMENTS>(source_data, dest_data, count,  \
+                                              is_shared);                     \
     break;                                                                    \
   }
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
@@ -3973,7 +3989,7 @@ class TypedElementsAccessor
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, NON_RAB_GSAB_TYPE)          \
   case TYPE##_ELEMENTS: {                                                     \
     ctype* source_data = reinterpret_cast<ctype*>(source->DataPtr()) + start; \
-    CopyBetweenBackingStores<NON_RAB_GSAB_TYPE##_ELEMENTS, ctype>(            \
+    CopyBetweenBackingStores<NON_RAB_GSAB_TYPE##_ELEMENTS>(                   \
         source_data, dest_data, count, is_shared);                            \
     break;                                                                    \
   }
@@ -3992,15 +4008,12 @@ class TypedElementsAccessor
              type == kExternalFloat16Array);
   }
 
-  template <ElementsKind SourceKind, typename SourceElementType>
-  static void CopyBetweenBackingStores(SourceElementType* source_data_ptr,
-                                       ElementType* dest_data_ptr,
-                                       size_t length,
-                                       IsSharedBuffer is_shared) {
-    CopyBetweenBackingStoresImpl<Kind, ElementType, SourceKind,
-                                 SourceElementType>::Copy(source_data_ptr,
-                                                          dest_data_ptr, length,
-                                                          is_shared);
+  template <ElementsKind SourceKind>
+  static void CopyBetweenBackingStores(
+      TypedArrayCType<SourceKind>* source_data_ptr, ElementType* dest_data_ptr,
+      size_t length, IsSharedBuffer is_shared) {
+    CopyBetweenBackingStoresImpl<Kind, SourceKind>::Copy(
+        source_data_ptr, dest_data_ptr, length, is_shared);
   }
 
   static void CopyElementsFromTypedArray(Tagged<JSTypedArray> source,
@@ -4017,44 +4030,61 @@ class TypedElementsAccessor
     DCHECK_LE(length, destination->GetLength() - offset);
     DCHECK_LE(length, source->GetLength());
 
-    ExternalArrayType source_type = source->type();
-    ExternalArrayType destination_type = destination->type();
+    ElementsKind source_kind = source->GetElementsKind();
+    // Make sure that we are in the right specialization for this destination.
+    DCHECK_EQ(Kind, destination->GetElementsKind());
 
-    bool same_type = source_type == destination_type;
-    bool same_size = source->element_size() == destination->element_size();
-    bool both_are_simple = HasSimpleRepresentation(source_type) &&
-                           HasSimpleRepresentation(destination_type);
+    auto source_type_and_size =
+        JSTypedArray::TypeAndElementSizeFor(source_kind);
+    constexpr auto destination_type_and_size =
+        JSTypedArray::TypeAndElementSizeFor(Kind);
+
+    ExternalArrayType source_type = source_type_and_size.first;
+    constexpr ExternalArrayType destination_type =
+        destination_type_and_size.first;
+
+    size_t source_size = source_type_and_size.second;
+    constexpr size_t destination_size = destination_type_and_size.second;
+    static_assert(sizeof(ElementType) == destination_size);
 
     uint8_t* source_data = static_cast<uint8_t*>(source->DataPtr());
-    uint8_t* dest_data = static_cast<uint8_t*>(destination->DataPtr());
-    size_t source_byte_length = source->GetByteLength();
-    size_t dest_byte_length = destination->GetByteLength();
+    uint8_t* dest_data = static_cast<uint8_t*>(destination->DataPtr()) +
+                         offset * destination_size;
 
     bool source_shared = source->buffer()->is_shared();
     bool destination_shared = destination->buffer()->is_shared();
+
+    // Don't read source or destination after reading the fields.
+    source = {};
+    destination = {};
+
+    bool same_type = source_type == destination_type;
+    bool same_size = source_size == destination_size;
+    bool both_are_simple = HasSimpleRepresentation(source_type) &&
+                           HasSimpleRepresentation(destination_type);
 
     // We can simply copy the backing store if the types are the same, or if
     // we are converting e.g. Uint8 <-> Int8, as the binary representation
     // will be the same. This is not the case for floats or clamped Uint8,
     // which have special conversion operations.
     if (same_type || (same_size && both_are_simple)) {
-      size_t element_size = source->element_size();
       if (source_shared || destination_shared) {
-        base::Relaxed_Memcpy(
-            reinterpret_cast<base::Atomic8*>(dest_data + offset * element_size),
-            reinterpret_cast<base::Atomic8*>(source_data),
-            length * element_size);
+        base::Relaxed_Memcpy(reinterpret_cast<base::Atomic8*>(dest_data),
+                             reinterpret_cast<base::Atomic8*>(source_data),
+                             length * source_size);
       } else {
-        std::memmove(dest_data + offset * element_size, source_data,
-                     length * element_size);
+        std::memmove(dest_data, source_data, length * source_size);
       }
     } else {
       std::unique_ptr<uint8_t[]> cloned_source_elements;
+      size_t source_byte_length = length * source_size;
+      size_t dest_byte_length = length * destination_size;
 
       // If the typedarrays are overlapped, clone the source.
       if (dest_data + dest_byte_length > source_data &&
           source_data + source_byte_length > dest_data) {
-        cloned_source_elements.reset(new uint8_t[source_byte_length]);
+        cloned_source_elements =
+            std::make_unique<uint8_t[]>(source_byte_length);
         if (source_shared) {
           base::Relaxed_Memcpy(
               reinterpret_cast<base::Atomic8*>(cloned_source_elements.get()),
@@ -4067,12 +4097,12 @@ class TypedElementsAccessor
         source_data = cloned_source_elements.get();
       }
 
-      switch (source->GetElementsKind()) {
+      switch (source_kind) {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                   \
   case TYPE##_ELEMENTS:                                             \
-    CopyBetweenBackingStores<TYPE##_ELEMENTS, ctype>(               \
+    CopyBetweenBackingStores<TYPE##_ELEMENTS>(                      \
         reinterpret_cast<ctype*>(source_data),                      \
-        reinterpret_cast<ElementType*>(dest_data) + offset, length, \
+        reinterpret_cast<ElementType*>(dest_data), length,          \
         source_shared || destination_shared ? kShared : kUnshared); \
     break;
         TYPED_ARRAYS(TYPED_ARRAY_CASE)
@@ -4318,39 +4348,34 @@ class TypedElementsAccessor
   }
 };
 
-template <ElementsKind Kind, typename ElementType, ElementsKind SourceKind,
-          typename SourceElementType>
+template <ElementsKind Kind, ElementsKind SourceKind>
 struct CopyBetweenBackingStoresImpl {
-  static void Copy(SourceElementType* source_data_ptr,
-                   ElementType* dest_data_ptr, size_t length,
+  static void Copy(TypedArrayCType<SourceKind>* source_data_ptr,
+                   TypedArrayCType<Kind>* dest_data_ptr, size_t length,
                    IsSharedBuffer is_shared) {
     for (; length > 0; --length, ++source_data_ptr, ++dest_data_ptr) {
       // We use scalar accessors to avoid boxing/unboxing, so there are no
       // allocations.
-      SourceElementType source_elem =
-          TypedElementsAccessor<SourceKind, SourceElementType>::GetImpl(
-              source_data_ptr, is_shared);
-      ElementType dest_elem =
-          TypedElementsAccessor<Kind, ElementType>::FromScalar(source_elem);
+      auto source_elem = TypedElementsAccessor<SourceKind>::GetImpl(
+          source_data_ptr, is_shared);
+      auto dest_elem = TypedElementsAccessor<Kind>::FromScalar(source_elem);
 
-      TypedElementsAccessor<Kind, ElementType>::SetImpl(dest_data_ptr,
-                                                        dest_elem, is_shared);
+      TypedElementsAccessor<Kind>::SetImpl(dest_data_ptr, dest_elem, is_shared);
     }
   }
 };
 
 namespace {
-template <ElementsKind DestKind, typename DestElementType,
-          ElementsKind SourceKind>
+template <ElementsKind DestKind, ElementsKind SourceKind>
 void CopyFromFloat16BackingStore(uint16_t* source_data_ptr,
-                                 DestElementType* dest_data_ptr, size_t length,
-                                 IsSharedBuffer is_shared) {
+                                 TypedArrayCType<DestKind>* dest_data_ptr,
+                                 size_t length, IsSharedBuffer is_shared) {
   for (; length > 0; --length, ++source_data_ptr, ++dest_data_ptr) {
     // We use scalar accessors to avoid boxing/unboxing, so there are no
     // allocations.
-    uint16_t source_elem = TypedElementsAccessor<SourceKind, uint16_t>::GetImpl(
-        source_data_ptr, is_shared);
-    DestElementType dest_elem;
+    uint16_t source_elem =
+        TypedElementsAccessor<SourceKind>::GetImpl(source_data_ptr, is_shared);
+    TypedArrayCType<DestKind> dest_elem;
     if constexpr (IsFloat16TypedArrayElementsKind(DestKind)) {
       // There is the reasonable expectations that copying to the same kind of
       // TypedArray does not change the bit pattern of the data. For float16,
@@ -4358,137 +4383,132 @@ void CopyFromFloat16BackingStore(uint16_t* source_data_ptr,
       // NaN patterns.
       dest_elem = source_elem;
     } else {
-      dest_elem = TypedElementsAccessor<DestKind, DestElementType>::FromScalar(
+      dest_elem = TypedElementsAccessor<DestKind>::FromScalar(
           fp16_ieee_to_fp32_value(source_elem));
     }
 
-    TypedElementsAccessor<DestKind, DestElementType>::SetImpl(
-        dest_data_ptr, dest_elem, is_shared);
+    TypedElementsAccessor<DestKind>::SetImpl(dest_data_ptr, dest_elem,
+                                             is_shared);
   }
 }
 }  // namespace
 
-template <ElementsKind Kind, typename ElementType>
-struct CopyBetweenBackingStoresImpl<Kind, ElementType, FLOAT16_ELEMENTS,
-                                    uint16_t> {
-  static void Copy(uint16_t* source_data_ptr, ElementType* dest_data_ptr,
-                   size_t length, IsSharedBuffer is_shared) {
-    CopyFromFloat16BackingStore<Kind, ElementType, FLOAT16_ELEMENTS>(
+template <ElementsKind DestKind>
+struct CopyBetweenBackingStoresImpl<DestKind, FLOAT16_ELEMENTS> {
+  static void Copy(uint16_t* source_data_ptr,
+                   TypedArrayCType<DestKind>* dest_data_ptr, size_t length,
+                   IsSharedBuffer is_shared) {
+    CopyFromFloat16BackingStore<DestKind, FLOAT16_ELEMENTS>(
         source_data_ptr, dest_data_ptr, length, is_shared);
   }
 };
 
-template <ElementsKind Kind, typename ElementType>
-struct CopyBetweenBackingStoresImpl<Kind, ElementType,
-                                    RAB_GSAB_FLOAT16_ELEMENTS, uint16_t> {
-  static void Copy(uint16_t* source_data_ptr, ElementType* dest_data_ptr,
-                   size_t length, IsSharedBuffer is_shared) {
-    CopyFromFloat16BackingStore<Kind, ElementType, RAB_GSAB_FLOAT16_ELEMENTS>(
+template <ElementsKind DestKind>
+struct CopyBetweenBackingStoresImpl<DestKind, RAB_GSAB_FLOAT16_ELEMENTS> {
+  static void Copy(uint16_t* source_data_ptr,
+                   TypedArrayCType<DestKind>* dest_data_ptr, size_t length,
+                   IsSharedBuffer is_shared) {
+    CopyFromFloat16BackingStore<DestKind, RAB_GSAB_FLOAT16_ELEMENTS>(
         source_data_ptr, dest_data_ptr, length, is_shared);
   }
 };
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<INT8_ELEMENTS, int8_t>::ToHandle(
-    Isolate* isolate, int8_t value) {
+Handle<Object> TypedElementsAccessor<INT8_ELEMENTS>::ToHandle(Isolate* isolate,
+                                                              int8_t value) {
   return handle(Smi::FromInt(value), isolate);
 }
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<UINT8_ELEMENTS, uint8_t>::ToHandle(
-    Isolate* isolate, uint8_t value) {
+Handle<Object> TypedElementsAccessor<UINT8_ELEMENTS>::ToHandle(Isolate* isolate,
+                                                               uint8_t value) {
   return handle(Smi::FromInt(value), isolate);
 }
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<INT16_ELEMENTS, int16_t>::ToHandle(
-    Isolate* isolate, int16_t value) {
+Handle<Object> TypedElementsAccessor<INT16_ELEMENTS>::ToHandle(Isolate* isolate,
+                                                               int16_t value) {
   return handle(Smi::FromInt(value), isolate);
 }
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<UINT16_ELEMENTS, uint16_t>::ToHandle(
+Handle<Object> TypedElementsAccessor<UINT16_ELEMENTS>::ToHandle(
     Isolate* isolate, uint16_t value) {
   return handle(Smi::FromInt(value), isolate);
 }
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<INT32_ELEMENTS, int32_t>::ToHandle(
-    Isolate* isolate, int32_t value) {
+Handle<Object> TypedElementsAccessor<INT32_ELEMENTS>::ToHandle(Isolate* isolate,
+                                                               int32_t value) {
   return isolate->factory()->NewNumberFromInt(value);
 }
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<UINT32_ELEMENTS, uint32_t>::ToHandle(
+Handle<Object> TypedElementsAccessor<UINT32_ELEMENTS>::ToHandle(
     Isolate* isolate, uint32_t value) {
   return isolate->factory()->NewNumberFromUint(value);
 }
 
 // static
 template <>
-uint16_t TypedElementsAccessor<FLOAT16_ELEMENTS, uint16_t>::FromScalar(
-    double value) {
+uint16_t TypedElementsAccessor<FLOAT16_ELEMENTS>::FromScalar(double value) {
   return DoubleToFloat16(value);
 }
 
 // static
 template <>
-float TypedElementsAccessor<FLOAT32_ELEMENTS, float>::FromScalar(double value) {
+float TypedElementsAccessor<FLOAT32_ELEMENTS>::FromScalar(double value) {
   return DoubleToFloat32(value);
 }
 
 // static
 template <>
-uint16_t TypedElementsAccessor<FLOAT16_ELEMENTS, uint16_t>::FromScalar(
-    int value) {
+uint16_t TypedElementsAccessor<FLOAT16_ELEMENTS>::FromScalar(int value) {
   return fp16_ieee_from_fp32_value(value);
 }
 
 // static
 template <>
-uint16_t TypedElementsAccessor<FLOAT16_ELEMENTS, uint16_t>::FromScalar(
-    uint32_t value) {
+uint16_t TypedElementsAccessor<FLOAT16_ELEMENTS>::FromScalar(uint32_t value) {
   return fp16_ieee_from_fp32_value(value);
 }
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<FLOAT16_ELEMENTS, uint16_t>::ToHandle(
+Handle<Object> TypedElementsAccessor<FLOAT16_ELEMENTS>::ToHandle(
     Isolate* isolate, uint16_t value) {
   return isolate->factory()->NewNumber(fp16_ieee_to_fp32_value(value));
 }
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<FLOAT32_ELEMENTS, float>::ToHandle(
+Handle<Object> TypedElementsAccessor<FLOAT32_ELEMENTS>::ToHandle(
     Isolate* isolate, float value) {
   return isolate->factory()->NewNumber(value);
 }
 
 // static
 template <>
-double TypedElementsAccessor<FLOAT64_ELEMENTS, double>::FromScalar(
-    double value) {
+double TypedElementsAccessor<FLOAT64_ELEMENTS>::FromScalar(double value) {
   return value;
 }
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<FLOAT64_ELEMENTS, double>::ToHandle(
+Handle<Object> TypedElementsAccessor<FLOAT64_ELEMENTS>::ToHandle(
     Isolate* isolate, double value) {
   return isolate->factory()->NewNumber(value);
 }
 
 // static
 template <>
-uint8_t TypedElementsAccessor<UINT8_CLAMPED_ELEMENTS, uint8_t>::FromScalar(
-    int value) {
+uint8_t TypedElementsAccessor<UINT8_CLAMPED_ELEMENTS>::FromScalar(int value) {
   if (value < 0x00) return 0x00;
   if (value > 0xFF) return 0xFF;
   return static_cast<uint8_t>(value);
@@ -4496,7 +4516,7 @@ uint8_t TypedElementsAccessor<UINT8_CLAMPED_ELEMENTS, uint8_t>::FromScalar(
 
 // static
 template <>
-uint8_t TypedElementsAccessor<UINT8_CLAMPED_ELEMENTS, uint8_t>::FromScalar(
+uint8_t TypedElementsAccessor<UINT8_CLAMPED_ELEMENTS>::FromScalar(
     uint32_t value) {
   // We need this special case for Uint32 -> Uint8Clamped, because the highest
   // Uint32 values will be negative as an int, clamping to 0, rather than 255.
@@ -4506,7 +4526,7 @@ uint8_t TypedElementsAccessor<UINT8_CLAMPED_ELEMENTS, uint8_t>::FromScalar(
 
 // static
 template <>
-uint8_t TypedElementsAccessor<UINT8_CLAMPED_ELEMENTS, uint8_t>::FromScalar(
+uint8_t TypedElementsAccessor<UINT8_CLAMPED_ELEMENTS>::FromScalar(
     double value) {
   // Handle NaNs and less than zero values which clamp to zero.
   if (!(value > 0)) return 0;
@@ -4516,219 +4536,201 @@ uint8_t TypedElementsAccessor<UINT8_CLAMPED_ELEMENTS, uint8_t>::FromScalar(
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<UINT8_CLAMPED_ELEMENTS, uint8_t>::ToHandle(
+Handle<Object> TypedElementsAccessor<UINT8_CLAMPED_ELEMENTS>::ToHandle(
     Isolate* isolate, uint8_t value) {
   return handle(Smi::FromInt(value), isolate);
 }
 
 // static
 template <>
-int64_t TypedElementsAccessor<BIGINT64_ELEMENTS, int64_t>::FromScalar(
-    int value) {
+int64_t TypedElementsAccessor<BIGINT64_ELEMENTS>::FromScalar(int value) {
   UNREACHABLE();
 }
 
 // static
 template <>
-int64_t TypedElementsAccessor<BIGINT64_ELEMENTS, int64_t>::FromScalar(
-    uint32_t value) {
+int64_t TypedElementsAccessor<BIGINT64_ELEMENTS>::FromScalar(uint32_t value) {
   UNREACHABLE();
 }
 
 // static
 template <>
-int64_t TypedElementsAccessor<BIGINT64_ELEMENTS, int64_t>::FromScalar(
-    double value) {
+int64_t TypedElementsAccessor<BIGINT64_ELEMENTS>::FromScalar(double value) {
   UNREACHABLE();
 }
 
 // static
 template <>
-int64_t TypedElementsAccessor<BIGINT64_ELEMENTS, int64_t>::FromScalar(
-    int64_t value) {
+int64_t TypedElementsAccessor<BIGINT64_ELEMENTS>::FromScalar(int64_t value) {
   return value;
 }
 
 // static
 template <>
-int64_t TypedElementsAccessor<BIGINT64_ELEMENTS, int64_t>::FromScalar(
-    uint64_t value) {
+int64_t TypedElementsAccessor<BIGINT64_ELEMENTS>::FromScalar(uint64_t value) {
   return static_cast<int64_t>(value);
 }
 
 // static
 template <>
-int64_t TypedElementsAccessor<BIGINT64_ELEMENTS, int64_t>::FromObject(
+int64_t TypedElementsAccessor<BIGINT64_ELEMENTS>::FromObject(
     Tagged<Object> value, bool* lossless) {
   return Cast<BigInt>(value)->AsInt64(lossless);
 }
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<BIGINT64_ELEMENTS, int64_t>::ToHandle(
+Handle<Object> TypedElementsAccessor<BIGINT64_ELEMENTS>::ToHandle(
     Isolate* isolate, int64_t value) {
   return BigInt::FromInt64(isolate, value);
 }
 
 // static
 template <>
-uint64_t TypedElementsAccessor<BIGUINT64_ELEMENTS, uint64_t>::FromScalar(
-    int value) {
+uint64_t TypedElementsAccessor<BIGUINT64_ELEMENTS>::FromScalar(int value) {
   UNREACHABLE();
 }
 
 // static
 template <>
-uint64_t TypedElementsAccessor<BIGUINT64_ELEMENTS, uint64_t>::FromScalar(
-    uint32_t value) {
+uint64_t TypedElementsAccessor<BIGUINT64_ELEMENTS>::FromScalar(uint32_t value) {
   UNREACHABLE();
 }
 
 // static
 template <>
-uint64_t TypedElementsAccessor<BIGUINT64_ELEMENTS, uint64_t>::FromScalar(
-    double value) {
+uint64_t TypedElementsAccessor<BIGUINT64_ELEMENTS>::FromScalar(double value) {
   UNREACHABLE();
 }
 
 // static
 template <>
-uint64_t TypedElementsAccessor<BIGUINT64_ELEMENTS, uint64_t>::FromScalar(
-    int64_t value) {
+uint64_t TypedElementsAccessor<BIGUINT64_ELEMENTS>::FromScalar(int64_t value) {
   return static_cast<uint64_t>(value);
 }
 
 // static
 template <>
-uint64_t TypedElementsAccessor<BIGUINT64_ELEMENTS, uint64_t>::FromScalar(
-    uint64_t value) {
+uint64_t TypedElementsAccessor<BIGUINT64_ELEMENTS>::FromScalar(uint64_t value) {
   return value;
 }
 
 // static
 template <>
-uint64_t TypedElementsAccessor<BIGUINT64_ELEMENTS, uint64_t>::FromObject(
+uint64_t TypedElementsAccessor<BIGUINT64_ELEMENTS>::FromObject(
     Tagged<Object> value, bool* lossless) {
   return Cast<BigInt>(value)->AsUint64(lossless);
 }
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<BIGUINT64_ELEMENTS, uint64_t>::ToHandle(
+Handle<Object> TypedElementsAccessor<BIGUINT64_ELEMENTS>::ToHandle(
     Isolate* isolate, uint64_t value) {
   return BigInt::FromUint64(isolate, value);
 }
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<RAB_GSAB_INT8_ELEMENTS, int8_t>::ToHandle(
+Handle<Object> TypedElementsAccessor<RAB_GSAB_INT8_ELEMENTS>::ToHandle(
     Isolate* isolate, int8_t value) {
   return handle(Smi::FromInt(value), isolate);
 }
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<RAB_GSAB_UINT8_ELEMENTS,
-                                     uint8_t>::ToHandle(Isolate* isolate,
-                                                        uint8_t value) {
+Handle<Object> TypedElementsAccessor<RAB_GSAB_UINT8_ELEMENTS>::ToHandle(
+    Isolate* isolate, uint8_t value) {
   return handle(Smi::FromInt(value), isolate);
 }
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<RAB_GSAB_INT16_ELEMENTS,
-                                     int16_t>::ToHandle(Isolate* isolate,
-                                                        int16_t value) {
+Handle<Object> TypedElementsAccessor<RAB_GSAB_INT16_ELEMENTS>::ToHandle(
+    Isolate* isolate, int16_t value) {
   return handle(Smi::FromInt(value), isolate);
 }
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<RAB_GSAB_UINT16_ELEMENTS,
-                                     uint16_t>::ToHandle(Isolate* isolate,
-                                                         uint16_t value) {
+Handle<Object> TypedElementsAccessor<RAB_GSAB_UINT16_ELEMENTS>::ToHandle(
+    Isolate* isolate, uint16_t value) {
   return handle(Smi::FromInt(value), isolate);
 }
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<RAB_GSAB_INT32_ELEMENTS,
-                                     int32_t>::ToHandle(Isolate* isolate,
-                                                        int32_t value) {
+Handle<Object> TypedElementsAccessor<RAB_GSAB_INT32_ELEMENTS>::ToHandle(
+    Isolate* isolate, int32_t value) {
   return isolate->factory()->NewNumberFromInt(value);
 }
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<RAB_GSAB_UINT32_ELEMENTS,
-                                     uint32_t>::ToHandle(Isolate* isolate,
-                                                         uint32_t value) {
+Handle<Object> TypedElementsAccessor<RAB_GSAB_UINT32_ELEMENTS>::ToHandle(
+    Isolate* isolate, uint32_t value) {
   return isolate->factory()->NewNumberFromUint(value);
 }
 
 // static
 template <>
-uint16_t TypedElementsAccessor<RAB_GSAB_FLOAT16_ELEMENTS, uint16_t>::FromScalar(
+uint16_t TypedElementsAccessor<RAB_GSAB_FLOAT16_ELEMENTS>::FromScalar(
     double value) {
   return DoubleToFloat16(value);
 }
 
 // static
 template <>
-uint16_t TypedElementsAccessor<RAB_GSAB_FLOAT16_ELEMENTS, uint16_t>::FromScalar(
+uint16_t TypedElementsAccessor<RAB_GSAB_FLOAT16_ELEMENTS>::FromScalar(
     int value) {
   return fp16_ieee_from_fp32_value(value);
 }
 
 // static
 template <>
-uint16_t TypedElementsAccessor<RAB_GSAB_FLOAT16_ELEMENTS, uint16_t>::FromScalar(
+uint16_t TypedElementsAccessor<RAB_GSAB_FLOAT16_ELEMENTS>::FromScalar(
     uint32_t value) {
   return fp16_ieee_from_fp32_value(value);
 }
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<RAB_GSAB_FLOAT16_ELEMENTS,
-                                     uint16_t>::ToHandle(Isolate* isolate,
-                                                         uint16_t value) {
+Handle<Object> TypedElementsAccessor<RAB_GSAB_FLOAT16_ELEMENTS>::ToHandle(
+    Isolate* isolate, uint16_t value) {
   return isolate->factory()->NewHeapNumber(fp16_ieee_to_fp32_value(value));
 }
 
 // static
 template <>
-float TypedElementsAccessor<RAB_GSAB_FLOAT32_ELEMENTS, float>::FromScalar(
+float TypedElementsAccessor<RAB_GSAB_FLOAT32_ELEMENTS>::FromScalar(
     double value) {
   return DoubleToFloat32(value);
 }
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<RAB_GSAB_FLOAT32_ELEMENTS,
-                                     float>::ToHandle(Isolate* isolate,
-                                                      float value) {
+Handle<Object> TypedElementsAccessor<RAB_GSAB_FLOAT32_ELEMENTS>::ToHandle(
+    Isolate* isolate, float value) {
   return isolate->factory()->NewNumber(value);
 }
 
 // static
 template <>
-double TypedElementsAccessor<RAB_GSAB_FLOAT64_ELEMENTS, double>::FromScalar(
+double TypedElementsAccessor<RAB_GSAB_FLOAT64_ELEMENTS>::FromScalar(
     double value) {
   return value;
 }
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<RAB_GSAB_FLOAT64_ELEMENTS,
-                                     double>::ToHandle(Isolate* isolate,
-                                                       double value) {
+Handle<Object> TypedElementsAccessor<RAB_GSAB_FLOAT64_ELEMENTS>::ToHandle(
+    Isolate* isolate, double value) {
   return isolate->factory()->NewNumber(value);
 }
 
 // static
 template <>
-uint8_t TypedElementsAccessor<RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
-                              uint8_t>::FromScalar(int value) {
+uint8_t TypedElementsAccessor<RAB_GSAB_UINT8_CLAMPED_ELEMENTS>::FromScalar(
+    int value) {
   if (value < 0x00) return 0x00;
   if (value > 0xFF) return 0xFF;
   return static_cast<uint8_t>(value);
@@ -4736,8 +4738,8 @@ uint8_t TypedElementsAccessor<RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
 
 // static
 template <>
-uint8_t TypedElementsAccessor<RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
-                              uint8_t>::FromScalar(uint32_t value) {
+uint8_t TypedElementsAccessor<RAB_GSAB_UINT8_CLAMPED_ELEMENTS>::FromScalar(
+    uint32_t value) {
   // We need this special case for Uint32 -> Uint8Clamped, because the highest
   // Uint32 values will be negative as an int, clamping to 0, rather than 255.
   if (value > 0xFF) return 0xFF;
@@ -4746,8 +4748,8 @@ uint8_t TypedElementsAccessor<RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
 
 // static
 template <>
-uint8_t TypedElementsAccessor<RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
-                              uint8_t>::FromScalar(double value) {
+uint8_t TypedElementsAccessor<RAB_GSAB_UINT8_CLAMPED_ELEMENTS>::FromScalar(
+    double value) {
   // Handle NaNs and less than zero values which clamp to zero.
   if (!(value > 0)) return 0;
   if (value > 0xFF) return 0xFF;
@@ -4756,115 +4758,111 @@ uint8_t TypedElementsAccessor<RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
-                                     uint8_t>::ToHandle(Isolate* isolate,
-                                                        uint8_t value) {
+Handle<Object> TypedElementsAccessor<RAB_GSAB_UINT8_CLAMPED_ELEMENTS>::ToHandle(
+    Isolate* isolate, uint8_t value) {
   return handle(Smi::FromInt(value), isolate);
 }
 
 // static
 template <>
-int64_t TypedElementsAccessor<RAB_GSAB_BIGINT64_ELEMENTS, int64_t>::FromScalar(
+int64_t TypedElementsAccessor<RAB_GSAB_BIGINT64_ELEMENTS>::FromScalar(
     int value) {
   UNREACHABLE();
 }
 
 // static
 template <>
-int64_t TypedElementsAccessor<RAB_GSAB_BIGINT64_ELEMENTS, int64_t>::FromScalar(
+int64_t TypedElementsAccessor<RAB_GSAB_BIGINT64_ELEMENTS>::FromScalar(
     uint32_t value) {
   UNREACHABLE();
 }
 
 // static
 template <>
-int64_t TypedElementsAccessor<RAB_GSAB_BIGINT64_ELEMENTS, int64_t>::FromScalar(
+int64_t TypedElementsAccessor<RAB_GSAB_BIGINT64_ELEMENTS>::FromScalar(
     double value) {
   UNREACHABLE();
 }
 
 // static
 template <>
-int64_t TypedElementsAccessor<RAB_GSAB_BIGINT64_ELEMENTS, int64_t>::FromScalar(
+int64_t TypedElementsAccessor<RAB_GSAB_BIGINT64_ELEMENTS>::FromScalar(
     int64_t value) {
   return value;
 }
 
 // static
 template <>
-int64_t TypedElementsAccessor<RAB_GSAB_BIGINT64_ELEMENTS, int64_t>::FromScalar(
+int64_t TypedElementsAccessor<RAB_GSAB_BIGINT64_ELEMENTS>::FromScalar(
     uint64_t value) {
   return static_cast<int64_t>(value);
 }
 
 // static
 template <>
-int64_t TypedElementsAccessor<RAB_GSAB_BIGINT64_ELEMENTS, int64_t>::FromObject(
+int64_t TypedElementsAccessor<RAB_GSAB_BIGINT64_ELEMENTS>::FromObject(
     Tagged<Object> value, bool* lossless) {
   return Cast<BigInt>(value)->AsInt64(lossless);
 }
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<RAB_GSAB_BIGINT64_ELEMENTS,
-                                     int64_t>::ToHandle(Isolate* isolate,
-                                                        int64_t value) {
+Handle<Object> TypedElementsAccessor<RAB_GSAB_BIGINT64_ELEMENTS>::ToHandle(
+    Isolate* isolate, int64_t value) {
   return BigInt::FromInt64(isolate, value);
 }
 
 // static
 template <>
-uint64_t TypedElementsAccessor<RAB_GSAB_BIGUINT64_ELEMENTS,
-                               uint64_t>::FromScalar(int value) {
+uint64_t TypedElementsAccessor<RAB_GSAB_BIGUINT64_ELEMENTS>::FromScalar(
+    int value) {
   UNREACHABLE();
 }
 
 // static
 template <>
-uint64_t TypedElementsAccessor<RAB_GSAB_BIGUINT64_ELEMENTS,
-                               uint64_t>::FromScalar(uint32_t value) {
+uint64_t TypedElementsAccessor<RAB_GSAB_BIGUINT64_ELEMENTS>::FromScalar(
+    uint32_t value) {
   UNREACHABLE();
 }
 
 // static
 template <>
-uint64_t TypedElementsAccessor<RAB_GSAB_BIGUINT64_ELEMENTS,
-                               uint64_t>::FromScalar(double value) {
+uint64_t TypedElementsAccessor<RAB_GSAB_BIGUINT64_ELEMENTS>::FromScalar(
+    double value) {
   UNREACHABLE();
 }
 
 // static
 template <>
-uint64_t TypedElementsAccessor<RAB_GSAB_BIGUINT64_ELEMENTS,
-                               uint64_t>::FromScalar(int64_t value) {
+uint64_t TypedElementsAccessor<RAB_GSAB_BIGUINT64_ELEMENTS>::FromScalar(
+    int64_t value) {
   return static_cast<uint64_t>(value);
 }
 
 // static
 template <>
-uint64_t TypedElementsAccessor<RAB_GSAB_BIGUINT64_ELEMENTS,
-                               uint64_t>::FromScalar(uint64_t value) {
+uint64_t TypedElementsAccessor<RAB_GSAB_BIGUINT64_ELEMENTS>::FromScalar(
+    uint64_t value) {
   return value;
 }
 
 // static
 template <>
-uint64_t TypedElementsAccessor<RAB_GSAB_BIGUINT64_ELEMENTS,
-                               uint64_t>::FromObject(Tagged<Object> value,
-                                                     bool* lossless) {
+uint64_t TypedElementsAccessor<RAB_GSAB_BIGUINT64_ELEMENTS>::FromObject(
+    Tagged<Object> value, bool* lossless) {
   return Cast<BigInt>(value)->AsUint64(lossless);
 }
 
 // static
 template <>
-Handle<Object> TypedElementsAccessor<RAB_GSAB_BIGUINT64_ELEMENTS,
-                                     uint64_t>::ToHandle(Isolate* isolate,
-                                                         uint64_t value) {
+Handle<Object> TypedElementsAccessor<RAB_GSAB_BIGUINT64_ELEMENTS>::ToHandle(
+    Isolate* isolate, uint64_t value) {
   return BigInt::FromUint64(isolate, value);
 }
 
 #define FIXED_ELEMENTS_ACCESSOR(Type, type, TYPE, ctype) \
-  using Type##ElementsAccessor = TypedElementsAccessor<TYPE##_ELEMENTS, ctype>;
+  using Type##ElementsAccessor = TypedElementsAccessor<TYPE##_ELEMENTS>;
 TYPED_ARRAYS(FIXED_ELEMENTS_ACCESSOR)
 RAB_GSAB_TYPED_ARRAYS(FIXED_ELEMENTS_ACCESSOR)
 #undef FIXED_ELEMENTS_ACCESSOR
