@@ -267,7 +267,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       // blocklist.
       DirectHandle<ScopeInfo> function_scope_info(
           frame_inspector_.GetFunction()->shared()->scope_info(), isolate_);
-      DirectHandle<Object> block_list(
+      DirectHandle<UnionOf<TheHole, StringSet>> block_list(
           isolate_->LocalsBlockListCacheGet(function_scope_info), isolate_);
       CHECK(IsStringSet(*block_list));
       isolate_->LocalsBlockListCacheSet(scope_info, Handle<ScopeInfo>::null(),

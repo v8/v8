@@ -2354,7 +2354,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
                                DirectHandle<ScopeInfo> outer_scope_info,
                                DirectHandle<StringSet> locals_blocklist);
   // Returns either `TheHole` or `StringSet`.
-  Tagged<Object> LocalsBlockListCacheGet(DirectHandle<ScopeInfo> scope_info);
+  Tagged<UnionOf<TheHole, StringSet>> LocalsBlockListCacheGet(
+      DirectHandle<ScopeInfo> scope_info);
 
   void VerifyStaticRoots();
 

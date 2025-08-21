@@ -246,7 +246,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
   }
 
   if (strategy == ReparseStrategy::kScriptIfNeeded) {
-    Tagged<Object> maybe_block_list =
+    Tagged<UnionOf<TheHole, StringSet>> maybe_block_list =
         isolate_->LocalsBlockListCacheGet(scope_info);
     calculate_blocklists_ = IsTheHole(maybe_block_list);
     strategy = calculate_blocklists_ ? ReparseStrategy::kScriptIfNeeded

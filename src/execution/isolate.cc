@@ -7799,7 +7799,7 @@ void Isolate::LocalsBlockListCacheSet(
   heap()->set_locals_block_list_cache(*cache);
 }
 
-Tagged<Object> Isolate::LocalsBlockListCacheGet(
+Tagged<UnionOf<TheHole, StringSet>> Isolate::LocalsBlockListCacheGet(
     DirectHandle<ScopeInfo> scope_info) {
   DisallowGarbageCollection no_gc;
 
@@ -7810,10 +7810,13 @@ Tagged<Object> Isolate::LocalsBlockListCacheGet(
   Tagged<Object> maybe_value =
       Cast<EphemeronHashTable>(heap()->locals_block_list_cache())
           ->Lookup(scope_info);
-  if (IsTuple2(maybe_value)) return Cast<Tuple2>(maybe_value)->value2();
+  if (IsTheHole(maybe_value)) return Cast<TheHole>(maybe_value);
+  if (Tagged<Tuple2> tuple; TryCast<Tuple2>(maybe_value, &tuple)) {
+    return Cast<StringSet>(tuple->value2());
+  }
 
-  CHECK(IsStringSet(maybe_value) || IsTheHole(maybe_value));
-  return maybe_value;
+  CHECK(IsStringSet(maybe_value));
+  return Cast<StringSet>(maybe_value);
 }
 
 std::list<std::unique_ptr<detail::WaiterQueueNode>>&

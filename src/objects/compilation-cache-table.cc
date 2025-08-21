@@ -18,11 +18,12 @@ Tagged<JSFunction> SearchLiteralsMap(Tagged<CompilationCacheTable> cache,
                                      Tagged<Context> native_context) {
   DisallowGarbageCollection no_gc;
   DCHECK(IsNativeContext(native_context));
-  Tagged<Object> obj = cache->EvalJSFunctionsValueAt(cache_entry);
+  Tagged<UnionOf<TheHole, WeakFixedArray>> obj =
+      cache->EvalJSFunctionsValueAt(cache_entry);
 
   // Check that there's no confusion between FixedArray and WeakFixedArray (the
   // object used to be a FixedArray here).
-  DCHECK(!IsFixedArray(obj));
+  DCHECK(IsTheHole(obj) || IsWeakFixedArray(obj));
   if (IsWeakFixedArray(obj)) {
     Tagged<WeakFixedArray> literals_map = Cast<WeakFixedArray>(obj);
     int length = literals_map->length();
@@ -49,8 +50,8 @@ void AddToJSFunctionMap(DirectHandle<CompilationCacheTable> cache,
 
   // Check that there's no confusion between FixedArray and WeakFixedArray (the
   // object used to be a FixedArray here).
-  DCHECK(!IsFixedArray(obj));
-  if (!IsWeakFixedArray(obj) || Cast<WeakFixedArray>(obj)->length() == 0) {
+  DCHECK(IsTheHole(obj) || IsWeakFixedArray(obj));
+  if (IsTheHole(obj) || Cast<WeakFixedArray>(obj)->length() == 0) {
     new_js_functions =
         isolate->factory()->NewWeakFixedArray(1, AllocationType::kOld);
     entry = 0;
