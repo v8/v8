@@ -3750,11 +3750,13 @@ TNode<HeapObject> CodeStubAssembler::LoadJSFunctionPrototype(
   CSA_DCHECK(this, IsFunctionWithPrototypeSlotMap(LoadMap(function)));
   CSA_DCHECK(this, IsClearWord32<Map::Bits1::HasNonInstancePrototypeBit>(
                        LoadMapBitField(LoadMap(function))));
-  TNode<HeapObject> proto_or_map = LoadObjectField<HeapObject>(
-      function, JSFunction::kPrototypeOrInitialMapOffset);
-  GotoIf(IsTheHole(proto_or_map), if_bailout);
+  TNode<UnionOf<JSPrototype, Map, TheHole>> proto_or_map_or_hole =
+      LoadObjectField<UnionOf<JSPrototype, Map, TheHole>>(
+          function, JSFunction::kPrototypeOrInitialMapOffset);
+  GotoIf(IsTheHole(proto_or_map_or_hole), if_bailout);
+  TNode<UnionOf<JSPrototype, Map>> proto_or_map = CAST(proto_or_map_or_hole);
 
-  TVARIABLE(HeapObject, var_result, proto_or_map);
+  TVARIABLE((UnionOf<JSPrototype, Map>), var_result, proto_or_map);
   Label done(this, &var_result);
   GotoIfNot(IsMap(proto_or_map), &done);
 
@@ -12971,27 +12973,22 @@ TNode<Boolean> CodeStubAssembler::OrdinaryHasInstance(
                                          &return_runtime);
 
     // Get the "prototype" (or initial map) of the {callable}.
-    TNode<HeapObject> callable_prototype = LoadObjectField<HeapObject>(
-        callable, JSFunction::kPrototypeOrInitialMapOffset);
-    {
-      Label no_initial_map(this), walk_prototype_chain(this);
-      TVARIABLE(HeapObject, var_callable_prototype, callable_prototype);
+    TNode<UnionOf<JSPrototype, Map, TheHole>> maybe_callable_prototype =
+        LoadObjectField<UnionOf<JSPrototype, Map, TheHole>>(
+            callable, JSFunction::kPrototypeOrInitialMapOffset);
+    // {maybe_callable_prototype} is TheHole if the "prototype" property
+    // hasn't been requested so far.
+    GotoIf(IsTheHole(maybe_callable_prototype), &return_runtime);
 
-      // Resolve the "prototype" if the {callable} has an initial map.
-      GotoIfNot(IsMap(callable_prototype), &no_initial_map);
-      var_callable_prototype = LoadObjectField<HeapObject>(
-          callable_prototype, Map::kPrototypeOffset);
-      Goto(&walk_prototype_chain);
-
-      BIND(&no_initial_map);
-      // {callable_prototype} is the hole if the "prototype" property hasn't
-      // been requested so far.
-      Branch(TaggedEqual(callable_prototype, TheHoleConstant()),
-             &return_runtime, &walk_prototype_chain);
-
-      BIND(&walk_prototype_chain);
-      callable_prototype = var_callable_prototype.value();
-    }
+    TNode<UnionOf<JSPrototype, Map>> callable_prototype_or_map =
+        CAST(maybe_callable_prototype);
+    TNode<JSPrototype> callable_prototype = Select<JSPrototype>(
+        IsMap(callable_prototype_or_map),
+        [&] {
+          return LoadObjectField<JSPrototype>(callable_prototype_or_map,
+                                              Map::kPrototypeOffset);
+        },
+        [&] { return CAST(callable_prototype_or_map); });
 
     // Loop through the prototype chain looking for the {callable} prototype.
     var_result = HasInPrototypeChain(context, object, callable_prototype);

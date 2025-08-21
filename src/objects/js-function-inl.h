@@ -481,7 +481,7 @@ Tagged<NativeContext> JSFunction::native_context() {
 }
 
 RELEASE_ACQUIRE_ACCESSORS_CHECKED(JSFunction, prototype_or_initial_map,
-                                  (Tagged<UnionOf<JSPrototype, Map, Hole>>),
+                                  (Tagged<UnionOf<JSPrototype, Map, TheHole>>),
                                   kPrototypeOrInitialMapOffset,
                                   map()->has_prototype_slot())
 
@@ -500,8 +500,7 @@ DEF_GETTER(JSFunction, has_initial_map, bool) {
 
 DEF_GETTER(JSFunction, has_instance_prototype, bool) {
   DCHECK(has_prototype_slot(cage_base));
-  return has_initial_map(cage_base) ||
-         !IsTheHole(prototype_or_initial_map(cage_base, kAcquireLoad));
+  return !IsTheHole(prototype_or_initial_map(cage_base, kAcquireLoad));
 }
 
 DEF_GETTER(JSFunction, has_prototype, bool) {

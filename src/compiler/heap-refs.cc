@@ -652,36 +652,37 @@ void JSFunctionData::Cache(JSHeapBroker* broker) {
   if (function->has_prototype_slot()) {
     prototype_or_initial_map_ = broker->GetOrCreateData(
         function->prototype_or_initial_map(kAcquireLoad), kAssumeMemoryFence);
+    has_instance_prototype_ =
+        (prototype_or_initial_map_ != broker->the_hole_value().data());
 
-    has_initial_map_ = prototype_or_initial_map_->IsMap();
-    if (has_initial_map_) {
-      // MapData is not used for initial_map_ because some
-      // AlwaysSharedSpaceJSObject subclass constructors (e.g. SharedArray) have
-      // initial maps in RO space, which can be accessed directly.
-      initial_map_ = prototype_or_initial_map_;
+    if (has_instance_prototype_) {
+      has_initial_map_ = prototype_or_initial_map_->IsMap();
+      if (has_initial_map_) {
+        // MapData is not used for initial_map_ because some
+        // AlwaysSharedSpaceJSObject subclass constructors (e.g. SharedArray)
+        // have initial maps in RO space, which can be accessed directly.
+        initial_map_ = prototype_or_initial_map_;
 
-      MapRef initial_map_ref = TryMakeRef<Map>(broker, initial_map_).value();
-      if (initial_map_ref.IsInobjectSlackTrackingInProgress()) {
-        initial_map_instance_size_with_min_slack_ =
-            InstanceSizeWithMinSlack(broker, initial_map_ref);
+        MapRef initial_map_ref = TryMakeRef<Map>(broker, initial_map_).value();
+        if (initial_map_ref.IsInobjectSlackTrackingInProgress()) {
+          initial_map_instance_size_with_min_slack_ =
+              InstanceSizeWithMinSlack(broker, initial_map_ref);
+        } else {
+          initial_map_instance_size_with_min_slack_ =
+              initial_map_ref.instance_size();
+        }
+        CHECK_GT(initial_map_instance_size_with_min_slack_, 0);
+
+        instance_prototype_ =
+            MakeRefAssumeMemoryFence(
+                broker, Cast<Map>(initial_map_->object())->prototype())
+                .data();
       } else {
-        initial_map_instance_size_with_min_slack_ =
-            initial_map_ref.instance_size();
+        static_assert(std::is_same_v<JSPrototype, UnionOf<JSReceiver, Null>>);
+        DCHECK(prototype_or_initial_map_->IsJSReceiver() ||
+               prototype_or_initial_map_->IsNull());
+        instance_prototype_ = prototype_or_initial_map_;
       }
-      CHECK_GT(initial_map_instance_size_with_min_slack_, 0);
-    }
-
-    if (has_initial_map_) {
-      has_instance_prototype_ = true;
-      instance_prototype_ =
-          MakeRefAssumeMemoryFence(
-              broker, Cast<Map>(initial_map_->object())->prototype())
-              .data();
-    } else if (prototype_or_initial_map_->IsHeapObject() &&
-               !IsTheHole(
-                   *Cast<HeapObject>(prototype_or_initial_map_->object()))) {
-      has_instance_prototype_ = true;
-      instance_prototype_ = prototype_or_initial_map_;
     }
   }
 

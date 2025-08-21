@@ -355,11 +355,9 @@ TNode<JSObject> ConstructorBuiltinsAssembler::FastNewObject(
   // Fast path.
 
   // Load the initial map and verify that it's in fact a map.
-  TNode<Object> initial_map_or_proto =
+  TNode<Union<JSReceiver, Map, TheHole>> initial_map_or_proto =
       LoadJSFunctionPrototypeOrInitialMap(new_target_func);
-  GotoIf(TaggedIsSmi(initial_map_or_proto), call_runtime);
-  GotoIf(DoesntHaveInstanceType(CAST(initial_map_or_proto), MAP_TYPE),
-         call_runtime);
+  GotoIf(DoesntHaveInstanceType(initial_map_or_proto, MAP_TYPE), call_runtime);
   TNode<Map> initial_map = CAST(initial_map_or_proto);
 
   // Fall back to runtime if the target differs from the new target's

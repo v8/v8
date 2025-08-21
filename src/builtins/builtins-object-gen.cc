@@ -1405,8 +1405,9 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   Label done(this), runtime(this);
   GotoIfForceSlowPath(&runtime);
   GotoIfNot(IsFunctionWithPrototypeSlotMap(LoadMap(closure)), &runtime);
-  TNode<HeapObject> maybe_map = LoadObjectField<HeapObject>(
-      closure, JSFunction::kPrototypeOrInitialMapOffset);
+  TNode<UnionOf<JSPrototype, Map, TheHole>> maybe_map =
+      LoadObjectField<UnionOf<JSPrototype, Map, TheHole>>(
+          closure, JSFunction::kPrototypeOrInitialMapOffset);
   GotoIf(DoesntHaveInstanceType(maybe_map, MAP_TYPE), &runtime);
   TNode<Map> map = CAST(maybe_map);
 

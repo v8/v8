@@ -97,7 +97,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
  public:
   // [prototype_or_initial_map]:
   DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_or_initial_map,
-                                 Tagged<UnionOf<JSPrototype, Map, Hole>>)
+                                 Tagged<UnionOf<JSPrototype, Map, TheHole>>)
 
   void TraceOptimizationStatus(const char* reason, ...);
 
