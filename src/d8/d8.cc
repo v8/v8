@@ -3147,7 +3147,7 @@ void Shell::CreateWasmMemoryMapDescriptor(
 }
 #endif  // V8_TARGET_OS_LINUX
 
-Local<String> Shell::ReadFromStdin(Isolate* isolate) {
+MaybeLocal<String> Shell::ReadFromStdin(Isolate* isolate) {
   static const int kBufferSize = 256;
   char buffer[kBufferSize];
   Local<String> accumulator = String::NewFromUtf8Literal(isolate, "");
@@ -3161,7 +3161,10 @@ Local<String> Shell::ReadFromStdin(Isolate* isolate) {
     // If fgets gets an error, just give up.
     char* input = nullptr;
     input = fgets(buffer, kBufferSize, stdin);
-    if (input == nullptr) return Local<String>();
+    if (input == nullptr) {
+      ThrowError(isolate, "Error while reading from stdin");
+      return {};
+    }
     length = static_cast<int>(strlen(buffer));
     if (length == 0) {
       return accumulator;
@@ -3183,6 +3186,10 @@ Local<String> Shell::ReadFromStdin(Isolate* isolate) {
           String::NewFromUtf8(isolate, buffer, NewStringType::kNormal,
                               length - 1)
               .ToLocalChecked());
+    }
+    if (accumulator.IsEmpty()) {
+      ThrowError(isolate, "String limit exceeded");
+      return {};
     }
   }
 }
@@ -3320,8 +3327,16 @@ bool Shell::FunctionAndArgumentsToString(Local<Function> function,
   }
   *source = String::NewFromUtf8Literal(isolate, "(");
   *source = String::Concat(isolate, *source, function_string);
+  if (source->IsEmpty()) {
+    ThrowError(isolate, "String limit exceeded");
+    return false;
+  }
   Local<String> middle = String::NewFromUtf8Literal(isolate, ")(");
   *source = String::Concat(isolate, *source, middle);
+  if (source->IsEmpty()) {
+    ThrowError(isolate, "String limit exceeded");
+    return false;
+  }
   if (!arguments.IsEmpty() && !arguments->IsUndefined()) {
     if (!arguments->IsArray()) {
       ThrowError(isolate, "'arguments' must be an array");
@@ -3332,6 +3347,10 @@ bool Shell::FunctionAndArgumentsToString(Local<Function> function,
     for (uint32_t i = 0; i < array->Length(); ++i) {
       if (i > 0) {
         *source = String::Concat(isolate, *source, comma);
+        if (source->IsEmpty()) {
+          ThrowError(isolate, "String limit exceeded");
+          return false;
+        }
       }
       MaybeLocal<Value> maybe_argument = array->Get(context, i);
       Local<Value> argument;
@@ -3345,10 +3364,18 @@ bool Shell::FunctionAndArgumentsToString(Local<Function> function,
         return false;
       }
       *source = String::Concat(isolate, *source, argument_string);
+      if (source->IsEmpty()) {
+        ThrowError(isolate, "String limit exceeded");
+        return false;
+      }
     }
   }
   Local<String> suffix = String::NewFromUtf8Literal(isolate, ")");
   *source = String::Concat(isolate, *source, suffix);
+  if (source->IsEmpty()) {
+    ThrowError(isolate, "String limit exceeded");
+    return false;
+  }
   return true;
 }
 
@@ -4989,7 +5016,12 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void Shell::ReadLine(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
-  info.GetReturnValue().Set(ReadFromStdin(info.GetIsolate()));
+  Local<v8::String> input;
+  if (!ReadFromStdin(info.GetIsolate()).ToLocal(&input)) {
+    // In case of an error, the empty handle will set the default return value.
+    CHECK(input.IsEmpty());
+  }
+  info.GetReturnValue().Set(input);
 }
 
 // Reads a file into a memory blob.
@@ -5048,8 +5080,8 @@ void Shell::RunShell(Isolate* isolate) {
       HandleScope scope(isolate);
       Context::Scope context_scope(context.Get(isolate));
       printf("d8> ");
-      Local<String> input = Shell::ReadFromStdin(isolate);
-      if (input.IsEmpty()) break;
+      Local<String> input;
+      if (!Shell::ReadFromStdin(isolate).ToLocal(&input)) break;
       Local<String> name = String::NewFromUtf8Literal(isolate, "(d8)");
       success = ExecuteString(isolate, input, name, kReportExceptions,
                               &global_result);

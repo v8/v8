@@ -323,6 +323,9 @@ static Local<Value> GetStdout(Isolate* isolate, int child_fd,
           String::NewFromUtf8(isolate, buffer, NewStringType::kNormal, length)
               .ToLocalChecked();
       accumulator = String::Concat(isolate, accumulator, addition);
+      if (accumulator.IsEmpty()) {
+        return isolate->ThrowError("String limit exceeded");
+      }
       fullness = bytes_read + fullness - length;
       memcpy(buffer, buffer + length, fullness);
     }
