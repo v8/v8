@@ -2250,7 +2250,7 @@ constexpr const T* ObjectPtrBeforeAddress(const void* address) {
     return ReasonField::decode(bitfield());                                 \
   }
 
-struct KnownNodeAspects;
+class KnownNodeAspects;
 class NodeBase : public ZoneObject {
  private:
   // Bitfield specification.

@@ -8517,10 +8517,8 @@ void NodeBase::ClearElementsProperties(bool is_tracing_enabled,
                                        KnownNodeAspects& known_node_aspects) {
   DCHECK(IsElementsArrayWrite(opcode()));
   // Clear Elements cache.
-  auto elements_properties = known_node_aspects.loaded_properties.find(
-      KnownNodeAspects::LoadedPropertyMapKey::Elements());
-  if (elements_properties != known_node_aspects.loaded_properties.end()) {
-    elements_properties->second.clear();
+  if (known_node_aspects.ClearLoadedPropertiesForKey(
+          KnownNodeAspects::LoadedPropertyMapKey::Elements())) {
     if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
                     is_tracing_enabled)) {
       std::cout << "  * Removing non-constant cached [Elements]";

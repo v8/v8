@@ -25,7 +25,7 @@ namespace maglev {
 
 void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
   bool any_merged_map_is_unstable = false;
-  DestructivelyIntersect(node_infos, other.node_infos,
+  DestructivelyIntersect(node_infos_, other.node_infos_,
                          [&](NodeInfo& lhs, const NodeInfo& rhs) {
                            lhs.MergeWith(rhs, zone, any_merged_map_is_unstable);
                            return !lhs.no_info_available();
@@ -35,7 +35,7 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
     effect_epoch_ = std::max(effect_epoch_, other.effect_epoch_) + 1;
   }
   DestructivelyIntersect(
-      available_expressions, other.available_expressions,
+      available_expressions_, other.available_expressions_,
       [&](const AvailableExpression& lhs, const AvailableExpression& rhs) {
         DCHECK_IMPLIES(lhs.node == rhs.node,
                        lhs.effect_epoch == rhs.effect_epoch);
@@ -46,7 +46,7 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
         return lhs.node == rhs.node && lhs.effect_epoch >= effect_epoch_;
       });
 
-  this->any_map_for_any_node_is_unstable = any_merged_map_is_unstable;
+  this->any_map_for_any_node_is_unstable_ = any_merged_map_is_unstable;
 
   auto merge_loaded_properties =
       [](ZoneMap<ValueNode*, ValueNode*>& lhs,
@@ -56,16 +56,16 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
         DestructivelyIntersect(lhs, rhs);
         return !lhs.empty();
       };
-  DestructivelyIntersect(loaded_constant_properties,
-                         other.loaded_constant_properties,
+  DestructivelyIntersect(loaded_constant_properties_,
+                         other.loaded_constant_properties_,
                          merge_loaded_properties);
-  DestructivelyIntersect(loaded_properties, other.loaded_properties,
+  DestructivelyIntersect(loaded_properties_, other.loaded_properties_,
                          merge_loaded_properties);
-  DestructivelyIntersect(loaded_context_constants,
-                         other.loaded_context_constants);
+  DestructivelyIntersect(loaded_context_constants_,
+                         other.loaded_context_constants_);
   may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
       may_have_aliasing_contexts_, other.may_have_aliasing_contexts());
-  DestructivelyIntersect(loaded_context_slots, other.loaded_context_slots);
+  DestructivelyIntersect(loaded_context_slots_, other.loaded_context_slots_);
 }
 
 namespace {
@@ -154,8 +154,8 @@ void KnownNodeAspects::ClearUnstableNodeAspects(bool is_tracing_enabled) {
   // our known loaded properties -- however, constant properties are known
   // to not change (and we added a dependency on this), so we don't have to
   // clear those.
-  loaded_properties.clear();
-  loaded_context_slots.clear();
+  loaded_properties_.clear();
+  loaded_context_slots_.clear();
   may_have_aliasing_contexts_ = KnownNodeAspects::ContextSlotLoadsAlias::kNone;
 }
 
@@ -167,32 +167,32 @@ KnownNodeAspects* KnownNodeAspects::CloneForLoopHeader(
 KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
                                    bool optimistic_initial_state,
                                    LoopEffects* loop_effects, Zone* zone)
-    : any_map_for_any_node_is_unstable(false),
-      loaded_constant_properties(other.loaded_constant_properties),
-      loaded_properties(zone),
-      loaded_context_constants(other.loaded_context_constants),
-      loaded_context_slots(zone),
-      available_expressions(zone),
+    : loaded_constant_properties_(other.loaded_constant_properties_),
+      loaded_properties_(zone),
+      loaded_context_constants_(other.loaded_context_constants_),
+      loaded_context_slots_(zone),
+      available_expressions_(zone),
+      any_map_for_any_node_is_unstable_(false),
       may_have_aliasing_contexts_(
           KnownNodeAspects::ContextSlotLoadsAlias::kNone),
       effect_epoch_(other.effect_epoch_),
-      node_infos(zone),
+      node_infos_(zone),
       virtual_objects_(other.virtual_objects_) {
-  if (!other.any_map_for_any_node_is_unstable) {
-    node_infos = other.node_infos;
+  if (!other.any_map_for_any_node_is_unstable_) {
+    node_infos_ = other.node_infos_;
 #ifdef DEBUG
-    for (const auto& it : node_infos) {
+    for (const auto& it : node_infos_) {
       DCHECK(!it.second.any_map_is_unstable());
     }
 #endif
   } else if (optimistic_initial_state &&
              !loop_effects->unstable_aspects_cleared) {
-    node_infos = other.node_infos;
-    any_map_for_any_node_is_unstable = other.any_map_for_any_node_is_unstable;
+    node_infos_ = other.node_infos_;
+    any_map_for_any_node_is_unstable_ = other.any_map_for_any_node_is_unstable_;
   } else {
-    for (const auto& it : other.node_infos) {
-      node_infos.emplace(it.first,
-                         NodeInfo::ClearUnstableMapsOnCopy{it.second});
+    for (const auto& it : other.node_infos_) {
+      node_infos_.emplace(it.first,
+                          NodeInfo::ClearUnstableMapsOnCopy{it.second});
     }
   }
   if (optimistic_initial_state && !loop_effects->unstable_aspects_cleared) {
@@ -200,18 +200,19 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
     // in when we try to terminate the loop in `IsCompatibleWithLoopHeader`.
     if (loop_effects->objects_written.empty() &&
         loop_effects->keys_cleared.empty()) {
-      loaded_properties = other.loaded_properties;
+      loaded_properties_ = other.loaded_properties_;
     } else {
       auto cleared_key = loop_effects->keys_cleared.begin();
       auto cleared_keys_end = loop_effects->keys_cleared.end();
       auto cleared_obj = loop_effects->objects_written.begin();
       auto cleared_objs_end = loop_effects->objects_written.end();
-      for (auto loaded_key : other.loaded_properties) {
+      for (auto loaded_key : other.loaded_properties_) {
         if (NextInIgnoreList(cleared_key, cleared_keys_end, loaded_key.first)) {
           continue;
         }
         auto& props_for_key =
-            loaded_properties.try_emplace(loaded_key.first, zone).first->second;
+            loaded_properties_.try_emplace(loaded_key.first, zone)
+                .first->second;
         for (auto loaded_obj : loaded_key.second) {
           if (!NextInIgnoreList(cleared_obj, cleared_objs_end,
                                 loaded_obj.first)) {
@@ -221,17 +222,17 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
       }
     }
     if (loop_effects->context_slot_written.empty()) {
-      loaded_context_slots = other.loaded_context_slots;
+      loaded_context_slots_ = other.loaded_context_slots_;
     } else {
       auto slot_written = loop_effects->context_slot_written.begin();
       auto slot_written_end = loop_effects->context_slot_written.end();
-      for (auto loaded : other.loaded_context_slots) {
+      for (auto loaded : other.loaded_context_slots_) {
         if (!NextInIgnoreList(slot_written, slot_written_end, loaded.first)) {
-          loaded_context_slots.emplace(loaded);
+          loaded_context_slots_.emplace(loaded);
         }
       }
     }
-    if (!loaded_context_slots.empty()) {
+    if (!loaded_context_slots_.empty()) {
       if (loop_effects->may_have_aliasing_contexts) {
         may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
       } else {
@@ -245,9 +246,9 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
   // across loop headers.
   // TODO(olivf): Only do this if the loop contains write effects.
   increment_effect_epoch();
-  for (const auto& e : other.available_expressions) {
-    if (e.second.effect_epoch >= effect_epoch()) {
-      available_expressions.emplace(e);
+  for (const auto& e : other.available_expressions_) {
+    if (e.second.effect_epoch >= effect_epoch_) {
+      available_expressions_.emplace(e);
     }
   }
 
@@ -335,7 +336,7 @@ bool KnownNodeAspects::IsCompatibleWithLoopHeader(
   // Needs to be in sync with `CloneForLoopHeader(zone, true)`.
 
   // Analysis state can change with loads.
-  if (!loop_header.loaded_context_slots.empty() &&
+  if (!loop_header.loaded_context_slots_.empty() &&
       loop_header.may_have_aliasing_contexts() != ContextSlotLoadsAlias::kYes &&
       loop_header.may_have_aliasing_contexts() !=
           may_have_aliasing_contexts() &&
@@ -347,10 +348,10 @@ bool KnownNodeAspects::IsCompatibleWithLoopHeader(
     return false;
   }
 
-  bool had_effects = effect_epoch() != loop_header.effect_epoch();
+  bool had_effects = effect_epoch_ != loop_header.effect_epoch_;
 
   if (!had_effects) {
-    if (!AspectIncludes(loop_header.node_infos, node_infos, NodeInfoTypeIs,
+    if (!AspectIncludes(loop_header.node_infos_, node_infos_, NodeInfoTypeIs,
                         NodeInfoIsEmpty)) {
       if (V8_UNLIKELY(v8_flags.trace_maglev_loop_speeling)) {
         std::cout << "KNA after effectless loop has incompatible node_infos\n";
@@ -364,7 +365,7 @@ bool KnownNodeAspects::IsCompatibleWithLoopHeader(
 #endif
   }
 
-  if (!AspectIncludes(loop_header.node_infos, node_infos, NodeInfoIncludes,
+  if (!AspectIncludes(loop_header.node_infos_, node_infos_, NodeInfoIncludes,
                       NodeInfoIsEmpty)) {
     if (V8_UNLIKELY(v8_flags.trace_maglev_loop_speeling)) {
       std::cout << "KNA after loop has incompatible node_infos\n";
@@ -374,7 +375,7 @@ bool KnownNodeAspects::IsCompatibleWithLoopHeader(
   }
 
   if (!MaybeEmptyAspectIncludes(
-          loop_header.loaded_properties, loaded_properties,
+          loop_header.loaded_properties_, loaded_properties_,
           [](auto a, auto b) { return AspectIncludes(a, b, SameValue); })) {
     if (V8_UNLIKELY(v8_flags.trace_maglev_loop_speeling)) {
       std::cout << "KNA after loop has incompatible loaded_properties\n";
@@ -383,8 +384,8 @@ bool KnownNodeAspects::IsCompatibleWithLoopHeader(
     return false;
   }
 
-  if (!MaybeNullAspectIncludes(loop_header.loaded_context_slots,
-                               loaded_context_slots, SameValue)) {
+  if (!MaybeNullAspectIncludes(loop_header.loaded_context_slots_,
+                               loaded_context_slots_, SameValue)) {
     if (V8_UNLIKELY(v8_flags.trace_maglev_loop_speeling)) {
       std::cout << "KNA after loop has incompatible loaded_context_slots\n";
     }

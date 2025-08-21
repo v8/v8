@@ -489,7 +489,6 @@ class MaglevGraphBuilder {
 
   bool ContextMayAlias(ValueNode* context,
                        compiler::OptionalScopeInfoRef scope_info);
-  enum ContextSlotMutability { kImmutable, kMutable };
   bool TrySpecializeLoadContextSlotToFunctionContext(
       ValueNode* context, int slot_index,
       ContextSlotMutability slot_mutability);

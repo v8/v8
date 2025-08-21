@@ -69,6 +69,24 @@ static inline size_t gvn_hash_value(const v8::internal::ZoneVector<T>& vector) {
   }
   return hash;
 }
+
+template <typename... Args>
+static inline size_t fast_hash_combine(size_t seed, Args&&... args) {
+  size_t hash = seed;
+  ([&] { hash = cse::fast_hash_combine(hash, cse::gvn_hash_value(args)); }(),
+   ...);
+  return hash;
+}
+
+template <size_t kInputCount, typename... Args>
+static inline size_t fast_hash_combine(
+    size_t seed, std::array<ValueNode*, kInputCount>& inputs) {
+  size_t hash = seed;
+  for (const auto& inp : inputs) {
+    hash = cse::fast_hash_combine(hash, base::hash_value(inp));
+  }
+  return hash;
+}
 }  // namespace cse
 
 template <typename BaseT>
@@ -203,63 +221,18 @@ NodeT* MaglevReducer<BaseT>::AddNewNodeOrGetEquivalent(
     }
   }
 
-  uint32_t value_number;
-  {
-    size_t tmp_value_number = base::hash_value(op);
-    (
-        [&] {
-          tmp_value_number = cse::fast_hash_combine(tmp_value_number,
-                                                    cse::gvn_hash_value(args));
-        }(),
-        ...);
-    for (const auto& inp : inputs) {
-      tmp_value_number =
-          cse::fast_hash_combine(tmp_value_number, base::hash_value(inp));
-    }
-    value_number = static_cast<uint32_t>(tmp_value_number);
-  }
+  uint32_t hash = static_cast<uint32_t>(cse::fast_hash_combine(
+      cse::fast_hash_combine(base::hash_value(op), std::forward<Args>(args)...),
+      inputs));
+  NodeT* node = known_node_aspects().template FindExpression<NodeT>(
+      hash, inputs, std::forward<Args>(args)...);
+  if (node) return node;
 
-  auto exists = known_node_aspects().available_expressions.find(value_number);
-  if (exists != known_node_aspects().available_expressions.end()) {
-    auto candidate = exists->second.node;
-    const bool sanity_check =
-        candidate->template Is<NodeT>() &&
-        static_cast<size_t>(candidate->input_count()) == inputs.size();
-    DCHECK_IMPLIES(sanity_check,
-                   (StaticPropertiesForOpcode(op) & candidate->properties()) ==
-                       candidate->properties());
-    const bool epoch_check =
-        !Node::needs_epoch_check(op) ||
-        known_node_aspects().effect_epoch() <= exists->second.effect_epoch;
-    if (sanity_check && epoch_check) {
-      if (static_cast<NodeT*>(candidate)->options() ==
-          std::tuple{std::forward<Args>(args)...}) {
-        int i = 0;
-        for (const auto& inp : inputs) {
-          if (inp != candidate->input(i).node()) {
-            break;
-          }
-          i++;
-        }
-        if (static_cast<size_t>(i) == inputs.size()) {
-          return static_cast<NodeT*>(candidate);
-        }
-      }
-    }
-    if (!epoch_check) {
-      known_node_aspects().available_expressions.erase(exists);
-    }
-  }
-  NodeT* node =
+  node =
       NodeBase::New<NodeT>(zone(), inputs.size(), std::forward<Args>(args)...);
   SetNodeInputsNoConversion(node, inputs);
   DCHECK_EQ(node->options(), std::tuple{std::forward<Args>(args)...});
-  uint32_t epoch = Node::needs_epoch_check(op)
-                       ? known_node_aspects().effect_epoch()
-                       : KnownNodeAspects::kEffectEpochForPureInstructions;
-  if (epoch != KnownNodeAspects::kEffectEpochOverflow) {
-    known_node_aspects().available_expressions[value_number] = {node, epoch};
-  }
+  known_node_aspects().AddExpression(hash, node);
   return AttachExtraInfoAndAddToGraph(node);
 }
 

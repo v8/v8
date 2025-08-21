@@ -29,6 +29,8 @@ class Graph;
 class MaglevGraphBuilder;
 class MergePointInterpreterFrameState;
 
+enum ContextSlotMutability { kImmutable, kMutable };
+
 // Destructively intersects the right map into the left map, such that the
 // left map is mutated to become the result of the intersection. Values that
 // are in both maps are passed to the merging function to be merged with each
@@ -269,7 +271,8 @@ class NodeInfo {
 
 struct LoopEffects;
 
-struct KnownNodeAspects {
+class KnownNodeAspects {
+ public:
   // Permanently valid if checked in a dominator.
   using NodeInfos = ZoneMap<ValueNode*, NodeInfo>;
 
@@ -300,32 +303,32 @@ struct KnownNodeAspects {
     // we can no longer assume that objects with unstable maps still have the
     // same map. Unstable maps can also transition to stable ones, so we have to
     // clear _all_ maps for a node if it had _any_ unstable map.
-    if (!any_map_for_any_node_is_unstable) return;
-    for (auto& it : node_infos) {
+    if (!any_map_for_any_node_is_unstable_) return;
+    for (auto& it : node_infos_) {
       it.second.ClearUnstableMaps();
     }
-    any_map_for_any_node_is_unstable = false;
+    any_map_for_any_node_is_unstable_ = false;
   }
 
   template <typename Function>
   void ClearUnstableMapsIfAny(const Function& condition) {
-    if (!any_map_for_any_node_is_unstable) return;
-    for (auto& it : node_infos) {
+    if (!any_map_for_any_node_is_unstable_) return;
+    for (auto& it : node_infos_) {
       it.second.ClearUnstableMapsIfAny(condition);
     }
   }
 
-  void ClearAvailableExpressions() { available_expressions.clear(); }
+  void ClearAvailableExpressions() { available_expressions_.clear(); }
 
   NodeInfos::iterator FindInfo(ValueNode* node) {
-    return node_infos.find(node);
+    return node_infos_.find(node);
   }
   NodeInfos::const_iterator FindInfo(ValueNode* node) const {
-    return node_infos.find(node);
+    return node_infos_.find(node);
   }
-  bool IsValid(NodeInfos::iterator& it) { return it != node_infos.end(); }
+  bool IsValid(NodeInfos::iterator& it) { return it != node_infos_.end(); }
   bool IsValid(NodeInfos::const_iterator& it) const {
-    return it != node_infos.end();
+    return it != node_infos_.end();
   }
 
   const NodeInfo* TryGetInfoFor(ValueNode* node) const {
@@ -342,7 +345,7 @@ struct KnownNodeAspects {
                                ValueNode* node) {
     auto info_it = FindInfo(node);
     if (IsValid(info_it)) return &info_it->second;
-    auto res = &node_infos.emplace(node, NodeInfo()).first->second;
+    auto res = &node_infos_.emplace(node, NodeInfo()).first->second;
     res->IntersectType(node->GetStaticType(broker));
     if (auto alloc = node->TryCast<InlinedAllocation>()) {
       if (alloc->object()->has_static_map()) {
@@ -453,7 +456,7 @@ struct KnownNodeAspects {
     }
     if (NodeTypeIsUnstable(type)) {
       known_info->set_node_type_is_unstable();
-      any_map_for_any_node_is_unstable = true;
+      any_map_for_any_node_is_unstable_ = true;
     }
     return false;
   }
@@ -468,7 +471,7 @@ struct KnownNodeAspects {
     known_info->IntersectType(type);
     if (NodeTypeIsUnstable(type)) {
       known_info->set_node_type_is_unstable();
-      any_map_for_any_node_is_unstable = true;
+      any_map_for_any_node_is_unstable_ = true;
     }
     return false;
   }
@@ -495,7 +498,9 @@ struct KnownNodeAspects {
   // particular, clear out entries that are no longer reachable, perhaps also
   // allow lookup by interpreter register rather than by node pointer.
 
-  bool any_map_for_any_node_is_unstable;
+  void MarkAnyMapForAnyNodeIsUnstable() {
+    any_map_for_any_node_is_unstable_ = true;
+  }
 
   VirtualObjectList& virtual_objects() { return virtual_objects_; }
   const VirtualObjectList& virtual_objects() const { return virtual_objects_; }
@@ -568,13 +573,90 @@ struct KnownNodeAspects {
   using LoadedPropertyMap =
       ZoneMap<LoadedPropertyMapKey, ZoneMap<ValueNode*, ValueNode*>>;
 
-  // Valid across side-effecting calls, as long as we install a dependency.
-  LoadedPropertyMap loaded_constant_properties;
-  // Flushed after side-effecting calls.
-  LoadedPropertyMap loaded_properties;
+  using LoadedContextSlotsKey = std::tuple<ValueNode*, int>;
+  using LoadedContextSlots = ZoneMap<LoadedContextSlotsKey, ValueNode*>;
 
-  // Unconditionally valid across side-effecting calls.
-  ZoneMap<std::tuple<ValueNode*, int>, ValueNode*> loaded_context_constants;
+  ValueNode* TryFindLoadedProperty(ValueNode* lookup_start_object,
+                                   LoadedPropertyMapKey name) {
+    return TryFindLoadedProperty(loaded_properties_, lookup_start_object, name);
+  }
+  ValueNode* TryFindLoadedConstantProperty(ValueNode* lookup_start_object,
+                                           LoadedPropertyMapKey name) {
+    return TryFindLoadedProperty(loaded_constant_properties_,
+                                 lookup_start_object, name);
+  }
+
+  ZoneMap<ValueNode*, ValueNode*>& GetLoadedPropertiesForKey(
+      Zone* zone, bool is_const, KnownNodeAspects::LoadedPropertyMapKey key) {
+    LoadedPropertyMap& properties =
+        is_const ? loaded_constant_properties_ : loaded_properties_;
+    // Try to get loaded_properties[key] if it already exists, otherwise
+    // construct loaded_properties[key] = ZoneMap{zone()}.
+    return properties.try_emplace(key, zone).first->second;
+  }
+
+  bool ClearLoadedPropertiesForKey(KnownNodeAspects::LoadedPropertyMapKey key) {
+    auto it = loaded_properties_.find(
+        KnownNodeAspects::LoadedPropertyMapKey::Elements());
+    if (it != loaded_properties_.end()) {
+      it->second.clear();
+      return true;
+    }
+    return false;
+  }
+
+  void increment_effect_epoch() {
+    if (effect_epoch_ < kEffectEpochOverflow) effect_epoch_++;
+  }
+
+  template <typename NodeT, typename... Args>
+  NodeT* FindExpression(uint32_t hash,
+                        std::array<ValueNode*, NodeT::kInputCount>& inputs,
+                        Args&&... args) {
+    auto it = available_expressions_.find(hash);
+    if (it == available_expressions_.end()) return nullptr;
+
+    static constexpr Opcode op = Node::opcode_of<NodeT>;
+    auto candidate = it->second.node;
+    const bool sanity_check =
+        candidate->template Is<NodeT>() &&
+        static_cast<size_t>(candidate->input_count()) == inputs.size();
+    DCHECK_IMPLIES(sanity_check,
+                   (StaticPropertiesForOpcode(op) & candidate->properties()) ==
+                       candidate->properties());
+    const bool epoch_check = !Node::needs_epoch_check(op) ||
+                             effect_epoch_ <= it->second.effect_epoch;
+    if (sanity_check && epoch_check) {
+      if (static_cast<NodeT*>(candidate)->options() ==
+          std::forward_as_tuple(std::forward<Args>(args)...)) {
+        int i = 0;
+        for (const auto& inp : inputs) {
+          if (inp != candidate->input(i).node()) {
+            break;
+          }
+          i++;
+        }
+        if (static_cast<size_t>(i) == inputs.size()) {
+          return static_cast<NodeT*>(candidate);
+        }
+      }
+    }
+    if (!epoch_check) {
+      available_expressions_.erase(it);
+    }
+    return nullptr;
+  }
+
+  template <typename NodeT>
+  void AddExpression(uint32_t hash, NodeT* node) {
+    static constexpr Opcode op = Node::opcode_of<NodeT>;
+    uint32_t epoch = Node::needs_epoch_check(op)
+                         ? effect_epoch_
+                         : KnownNodeAspects::kEffectEpochForPureInstructions;
+    if (epoch == kEffectEpochOverflow) return;
+    available_expressions_.emplace(hash, AvailableExpression{node, epoch});
+  }
+
   enum class ContextSlotLoadsAlias : uint8_t {
     kNone,
     kOnlyLoadsRelativeToCurrentContext,
@@ -595,44 +677,65 @@ struct KnownNodeAspects {
                                      LocalIsolate* local_isolate,
                                      ValueNode* context);
 
-  // Flushed after side-effecting calls.
-  using LoadedContextSlotsKey = std::tuple<ValueNode*, int>;
-  using LoadedContextSlots = ZoneMap<LoadedContextSlotsKey, ValueNode*>;
-  LoadedContextSlots loaded_context_slots;
+  LoadedContextSlots& loaded_context_slots() { return loaded_context_slots_; }
+
+  ValueNode*& GetContextCachedValue(ValueNode* context, int offset,
+                                    ContextSlotMutability slot_mutability) {
+    return slot_mutability == kMutable
+               ? loaded_context_slots_[{context, offset}]
+               : loaded_context_constants_[{context, offset}];
+  }
+  bool HasContextCacheValue(ValueNode* context, int offset,
+                            ContextSlotMutability slot_mutability) {
+    return slot_mutability == kMutable
+               ? loaded_context_slots_.contains({context, offset})
+               : loaded_context_constants_.contains({context, offset});
+  }
+  bool IsContextCacheEmpty(ContextSlotMutability slot_mutability) {
+    return slot_mutability == kMutable ? loaded_context_slots_.empty()
+                                       : loaded_context_constants_.empty();
+  }
+
+  explicit KnownNodeAspects(Zone* zone)
+      : loaded_constant_properties_(zone),
+        loaded_properties_(zone),
+        loaded_context_constants_(zone),
+        loaded_context_slots_(zone),
+        available_expressions_(zone),
+        any_map_for_any_node_is_unstable_(false),
+        may_have_aliasing_contexts_(ContextSlotLoadsAlias::kNone),
+        effect_epoch_(0),
+        node_infos_(zone),
+        virtual_objects_() {}
+
+ private:
+  static constexpr uint32_t kEffectEpochForPureInstructions =
+      std::numeric_limits<uint32_t>::max();
+  static constexpr uint32_t kEffectEpochOverflow =
+      kEffectEpochForPureInstructions - 1;
 
   struct AvailableExpression {
     NodeBase* node;
     uint32_t effect_epoch;
   };
-  ZoneMap<uint32_t, AvailableExpression> available_expressions;
-  uint32_t effect_epoch() const { return effect_epoch_; }
-  static constexpr uint32_t kEffectEpochForPureInstructions =
-      std::numeric_limits<uint32_t>::max();
-  static constexpr uint32_t kEffectEpochOverflow =
-      kEffectEpochForPureInstructions - 1;
-  void increment_effect_epoch() {
-    if (effect_epoch_ < kEffectEpochOverflow) effect_epoch_++;
-  }
 
-  explicit KnownNodeAspects(Zone* zone)
-      : any_map_for_any_node_is_unstable(false),
-        loaded_constant_properties(zone),
-        loaded_properties(zone),
-        loaded_context_constants(zone),
-        loaded_context_slots(zone),
-        available_expressions(zone),
-        may_have_aliasing_contexts_(ContextSlotLoadsAlias::kNone),
-        effect_epoch_(0),
-        node_infos(zone),
-        virtual_objects_() {}
-
- private:
+  // Valid across side-effecting calls, as long as we install a dependency.
+  LoadedPropertyMap loaded_constant_properties_;
+  // Flushed after side-effecting calls.
+  LoadedPropertyMap loaded_properties_;
+  // Unconditionally valid across side-effecting calls.
+  ZoneMap<std::tuple<ValueNode*, int>, ValueNode*> loaded_context_constants_;
+  // Flushed after side-effecting calls.
+  LoadedContextSlots loaded_context_slots_;
+  // For CSE.
+  ZoneMap<uint32_t, AvailableExpression> available_expressions_;
+  bool any_map_for_any_node_is_unstable_;
   // This field indicates if the current state of loaded_context_slots might
   // contain contexts aliases. If that is the case, then we need to be more
   // conservative about updating the state on stores.
   ContextSlotLoadsAlias may_have_aliasing_contexts_;
   uint32_t effect_epoch_;
-  NodeInfos node_infos;
+  NodeInfos node_infos_;
   VirtualObjectList virtual_objects_;
 
   friend KnownNodeAspects* Zone::New<KnownNodeAspects, const KnownNodeAspects&>(
@@ -644,6 +747,18 @@ struct KnownNodeAspects {
       const KnownNodeAspects&, bool&, maglev::LoopEffects*&, Zone*&);
   KnownNodeAspects(const KnownNodeAspects& other, bool optimistic_initial_state,
                    LoopEffects* loop_effects, Zone* zone);
+
+  ValueNode* TryFindLoadedProperty(const LoadedPropertyMap& properties,
+                                   ValueNode* lookup_start_object,
+                                   LoadedPropertyMapKey name) {
+    auto props_for_name = properties.find(name);
+    if (props_for_name == properties.end()) return nullptr;
+
+    auto it = props_for_name->second.find(lookup_start_object);
+    if (it == props_for_name->second.end()) return nullptr;
+
+    return it->second->UnwrapIdentities();
+  }
 };
 
 class InterpreterFrameState {

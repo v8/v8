@@ -3233,10 +3233,8 @@ ValueNode* MaglevGraphBuilder::LoadAndCacheContextSlot(
     ValueNode* context, int index, ContextSlotMutability slot_mutability,
     ContextMode context_mode) {
   int offset = Context::OffsetOfElementAt(index);
-  ValueNode*& cached_value =
-      slot_mutability == kMutable
-          ? known_node_aspects().loaded_context_slots[{context, offset}]
-          : known_node_aspects().loaded_context_constants[{context, offset}];
+  ValueNode*& cached_value = known_node_aspects().GetContextCachedValue(
+      context, offset, slot_mutability);
   if (cached_value) {
     TRACE("  * Reusing cached context slot "
           << PrintNodeLabel(context) << "[" << offset
@@ -3244,7 +3242,7 @@ ValueNode* MaglevGraphBuilder::LoadAndCacheContextSlot(
     return cached_value;
   }
   if (slot_mutability == kMutable &&
-      !known_node_aspects().loaded_context_slots.empty()) {
+      !known_node_aspects().IsContextCacheEmpty(slot_mutability)) {
     known_node_aspects().UpdateMayHaveAliasingContexts(
         broker(), local_isolate(), context);
   }
@@ -3353,9 +3351,8 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
 ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
     ValueNode* context, int index, ValueNode* value, ContextMode context_mode) {
   int offset = Context::OffsetOfElementAt(index);
-  DCHECK_EQ(
-      known_node_aspects().loaded_context_constants.count({context, offset}),
-      0);
+  DCHECK(!known_node_aspects().HasContextCacheValue(
+      context, offset, ContextSlotMutability::kImmutable));
 
   Node* store = nullptr;
   if ((v8_flags.script_context_cells || v8_flags.function_context_cells) &&
@@ -3378,7 +3375,7 @@ ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
                                             << offset
                                             << "]: " << PrintNode(value));
   KnownNodeAspects::LoadedContextSlots& loaded_context_slots =
-      known_node_aspects().loaded_context_slots;
+      known_node_aspects().loaded_context_slots();
   if (!loaded_context_slots.empty()) {
     known_node_aspects().UpdateMayHaveAliasingContexts(
         broker(), local_isolate(), context);
@@ -4418,7 +4415,7 @@ class KnownMapsMerger {
     // happen if this was an intersection with the universal set which added new
     // possible unstable maps.
     if (any_map_is_unstable_) {
-      known_node_aspects.any_map_for_any_node_is_unstable = true;
+      known_node_aspects.MarkAnyMapForAnyNodeIsUnstable();
     }
     // At this point, known_node_aspects.any_map_for_any_node_is_unstable may be
     // true despite there no longer being any unstable maps for any nodes (if
@@ -4599,7 +4596,7 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindOrCheckMap(
       StaticTypeForMap(transition_target, broker()), broker());
   DCHECK(transition_target.IsJSReceiverMap());
   if (!transition_target.is_stable()) {
-    known_node_aspects().any_map_for_any_node_is_unstable = true;
+    known_node_aspects().MarkAnyMapForAnyNodeIsUnstable();
   } else {
     broker()->dependencies()->DependOnStableMap(transition_target);
   }
@@ -4679,7 +4676,7 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindAndCompareMaps(
       PossibleMaps{transition_target}, !transition_target.is_stable(),
       StaticTypeForMap(transition_target, broker()), broker());
   if (!transition_target.is_stable()) {
-    known_node_aspects().any_map_for_any_node_is_unstable = true;
+    known_node_aspects().MarkAnyMapForAnyNodeIsUnstable();
   } else {
     broker()->dependencies()->DependOnStableMap(transition_target);
   }
@@ -5334,7 +5331,7 @@ ReduceResult MaglevGraphBuilder::BuildStoreMap(ValueNode* object,
     broker()->dependencies()->DependOnStableMap(map);
   } else {
     node_info->SetPossibleMaps(PossibleMaps{map}, true, object_type, broker());
-    known_node_aspects().any_map_for_any_node_is_unstable = true;
+    known_node_aspects().MarkAnyMapForAnyNodeIsUnstable();
   }
   return ReduceResult::Done();
 }
@@ -5881,19 +5878,6 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnString(
 }
 
 namespace {
-MaybeReduceResult TryFindLoadedProperty(
-    const KnownNodeAspects::LoadedPropertyMap& loaded_properties,
-    ValueNode* lookup_start_object,
-    KnownNodeAspects::LoadedPropertyMapKey name) {
-  auto props_for_name = loaded_properties.find(name);
-  if (props_for_name == loaded_properties.end()) return {};
-
-  auto it = props_for_name->second.find(lookup_start_object);
-  if (it == props_for_name->second.end()) return {};
-
-  return it->second->UnwrapIdentities();
-}
-
 bool CheckConditionIn32(int32_t lhs, int32_t rhs, AssertCondition condition) {
   switch (condition) {
     case AssertCondition::kEqual:
@@ -5975,15 +5959,13 @@ ReduceResult MaglevGraphBuilder::TryBuildCheckInt32Condition(
 }
 
 ValueNode* MaglevGraphBuilder::BuildLoadElements(ValueNode* object) {
-  MaybeReduceResult known_elements =
-      TryFindLoadedProperty(known_node_aspects().loaded_properties, object,
-                            KnownNodeAspects::LoadedPropertyMapKey::Elements());
-  if (known_elements.IsDone()) {
-    DCHECK(known_elements.IsDoneWithValue());
+  ValueNode* known_elements = known_node_aspects().TryFindLoadedProperty(
+      object, KnownNodeAspects::LoadedPropertyMapKey::Elements());
+  if (known_elements) {
     TRACE("  * Reusing non-constant [Elements] "
-          << PrintNodeLabel(known_elements.value()) << ": "
-          << PrintNode(known_elements.value()));
-    return known_elements.value();
+          << PrintNodeLabel(known_elements) << ": "
+          << PrintNode(known_elements));
+    return known_elements;
   }
 
   DCHECK_EQ(JSObject::kElementsOffset, JSArray::kElementsOffset);
@@ -6017,9 +5999,12 @@ ReduceResult MaglevGraphBuilder::BuildLoadTypedArrayLength(
 
     // Note: We can't use broker()->length_string() here, because it could
     // conflict with redefinitions of the TypedArray length property.
-    RETURN_IF_DONE(TryFindLoadedProperty(
-        known_node_aspects().loaded_constant_properties, object,
-        KnownNodeAspects::LoadedPropertyMapKey::TypedArrayLength()));
+
+    if (ValueNode* length = known_node_aspects().TryFindLoadedConstantProperty(
+            object,
+            KnownNodeAspects::LoadedPropertyMapKey::TypedArrayLength())) {
+      return length;
+    }
   }
 
   ValueNode* result = AddNewNode<LoadTypedArrayLength>({object}, elements_kind);
@@ -7069,14 +7054,8 @@ void MaglevGraphBuilder::RecordKnownProperty(
     ValueNode* lookup_start_object, KnownNodeAspects::LoadedPropertyMapKey key,
     ValueNode* value, bool is_const, compiler::AccessMode access_mode) {
   DCHECK(!value->properties().is_conversion());
-  KnownNodeAspects::LoadedPropertyMap& loaded_properties =
-      is_const ? known_node_aspects().loaded_constant_properties
-               : known_node_aspects().loaded_properties;
-  // Try to get loaded_properties[key] if it already exists, otherwise
-  // construct loaded_properties[key] = ZoneMap{zone()}.
   auto& props_for_key =
-      loaded_properties.try_emplace(key, zone()).first->second;
-
+      known_node_aspects().GetLoadedPropertiesForKey(zone(), is_const, key);
   if (!is_const && IsAnyStore(access_mode)) {
     if (is_loop_effect_tracking()) {
       loop_effects_->keys_cleared.insert(key);
@@ -7147,26 +7126,17 @@ void MaglevGraphBuilder::RecordKnownProperty(
 
 MaybeReduceResult MaglevGraphBuilder::TryReuseKnownPropertyLoad(
     ValueNode* lookup_start_object, compiler::NameRef name) {
-  if (MaybeReduceResult result = TryFindLoadedProperty(
-          known_node_aspects().loaded_properties, lookup_start_object, name);
-      result.IsDone()) {
-    if (result.IsDoneWithValue()) {
-      TRACE("  * Reusing non-constant loaded property "
-            << PrintNodeLabel(result.value()) << ": "
-            << PrintNode(result.value()));
-    }
-    return result;
+  if (ValueNode* property = known_node_aspects().TryFindLoadedProperty(
+          lookup_start_object, name)) {
+    TRACE("  * Reusing non-constant loaded property "
+          << PrintNodeLabel(property) << ": " << PrintNode(property));
+    return property;
   }
-  if (MaybeReduceResult result =
-          TryFindLoadedProperty(known_node_aspects().loaded_constant_properties,
-                                lookup_start_object, name);
-      result.IsDone()) {
-    if (result.IsDoneWithValue()) {
-      TRACE("  * Reusing constant loaded property "
-            << PrintNodeLabel(result.value()) << ": "
-            << PrintNode(result.value()));
-    }
-    return result;
+  if (ValueNode* property = known_node_aspects().TryFindLoadedConstantProperty(
+          lookup_start_object, name)) {
+    TRACE("  * Reusing constant loaded property "
+          << PrintNodeLabel(property) << ": " << PrintNode(property));
+    return property;
   }
   return {};
 }
@@ -7183,16 +7153,12 @@ ReduceResult MaglevGraphBuilder::BuildLoadStringLength(ValueNode* string) {
       return GetInt32Constant(const_string->AsString().length());
     }
   }
-  if (MaybeReduceResult result = TryFindLoadedProperty(
-          known_node_aspects().loaded_constant_properties, string,
-          KnownNodeAspects::LoadedPropertyMapKey::StringLength());
-      result.IsDone()) {
-    if (result.IsDoneWithValue()) {
-      TRACE("  * Reusing constant [String length]"
-            << PrintNodeLabel(result.value()) << ": "
-            << PrintNode(result.value()));
-    }
-    return result.value();
+  if (ValueNode* const_length =
+          known_node_aspects().TryFindLoadedConstantProperty(
+              string, KnownNodeAspects::LoadedPropertyMapKey::StringLength())) {
+    TRACE("  * Reusing constant [String length]"
+          << PrintNodeLabel(const_length) << ": " << PrintNode(const_length));
+    return const_length;
   }
   ValueNode* result = AddNewNode<StringLength>({string});
   RecordKnownProperty(string,
@@ -8726,7 +8692,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
                                receiver_maps_were_unstable,
                                // Node type is monotonic, no need to reset it.
                                NodeType::kUnknown, broker());
-    known_node_aspects().any_map_for_any_node_is_unstable = true;
+    known_node_aspects().MarkAnyMapForAnyNodeIsUnstable();
   } else {
     if (node_info) {
       DCHECK_EQ(node_info->possible_maps().size(),

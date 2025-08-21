@@ -238,7 +238,7 @@ MaybeReduceResult MaglevInliner::BuildInlineFunction(
   // TODO(victorgomes): Check if we should maintain this. We could also clear
   // unstable maps here.
   call_site->caller_details.known_node_aspects
-      ->any_map_for_any_node_is_unstable = true;
+      ->MarkAnyMapForAnyNodeIsUnstable();
 
   // Create a new graph builder for the inlined function.
   LocalIsolate* local_isolate = broker()->local_isolate_or_isolate();
