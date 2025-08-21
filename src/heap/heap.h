@@ -481,8 +481,6 @@ class Heap final {
 
   bool IsImmovable(Tagged<HeapObject> object);
 
-  V8_EXPORT_PRIVATE static bool IsLargeObject(Tagged<HeapObject> object);
-
   // Trim the given array from the left. Note that this relocates the object
   // start and hence is only valid if there is only a single reference to it.
   V8_EXPORT_PRIVATE Tagged<FixedArrayBase> LeftTrimFixedArray(

@@ -55,6 +55,10 @@ class HeapLayout final : public AllStatic {
   // serialization.
   static V8_INLINE bool IsOwnedByAnyHeap(Tagged<HeapObject> object);
 
+  // Returns whether `object` is allocated in a large space which could be
+  // either young or old generation large space.
+  static V8_INLINE bool InAnyLargeSpace(Tagged<HeapObject> object);
+
   // Returns whether the map word of `object` is a self forwarding address.
   // This represents pinned objects and live large objects in Scavenger.
   static bool IsSelfForwarded(Tagged<HeapObject> object);

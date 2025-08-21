@@ -7419,7 +7419,7 @@ HEAP_TEST(CodeLargeObjectSpace) {
     heap->CreateFillerObjectAt(obj.address(), size_in_bytes);
   }
 
-  CHECK(Heap::IsLargeObject(obj));
+  CHECK(HeapLayout::InAnyLargeSpace(obj));
   heap->RemoveHeapObjectAllocationTracker(&allocation_tracker);
 }
 
@@ -7455,7 +7455,7 @@ UNINITIALIZED_HEAP_TEST(CodeLargeObjectSpace64k) {
       heap->CreateFillerObjectAt(obj.address(), size_in_bytes);
     }
 
-    CHECK(!Heap::IsLargeObject(obj));
+    CHECK(!HeapLayout::InAnyLargeSpace(obj));
     heap->RemoveHeapObjectAllocationTracker(&allocation_tracker);
   }
 
@@ -7479,7 +7479,7 @@ UNINITIALIZED_HEAP_TEST(CodeLargeObjectSpace64k) {
       heap->CreateFillerObjectAt(obj.address(), size_in_bytes);
     }
 
-    CHECK(Heap::IsLargeObject(obj));
+    CHECK(HeapLayout::InAnyLargeSpace(obj));
     heap->RemoveHeapObjectAllocationTracker(&allocation_tracker);
   }
 

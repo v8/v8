@@ -343,17 +343,18 @@ class GlobalHandlesWeakRootsUpdatingVisitor final : public RootVisitor {
     Tagged<HeapObject> dest = first_word.ToForwardingAddress(heap_object);
     if (heap_object == dest) {
       DCHECK(
-          Heap::IsLargeObject(heap_object) ||
+          HeapLayout::InAnyLargeSpace(heap_object) ||
           MemoryChunkMetadata::FromHeapObject(heap_object)->is_quarantined());
       return;
     }
     UpdateHeapObjectReferenceSlot(FullHeapObjectSlot(p), dest);
     // The destination object should be in the "to" space. However, it could
     // also be a large string if the original object was a shortcut candidate.
-    DCHECK_IMPLIES(HeapLayout::InYoungGeneration(dest),
-                   Heap::InToPage(dest) ||
-                       (Heap::IsLargeObject(dest) && Heap::InFromPage(dest) &&
-                        dest->map_word(kRelaxedLoad).IsForwardingAddress()));
+    DCHECK_IMPLIES(
+        HeapLayout::InYoungGeneration(dest),
+        Heap::InToPage(dest) ||
+            (HeapLayout::InAnyLargeSpace(dest) && Heap::InFromPage(dest) &&
+             dest->map_word(kRelaxedLoad).IsForwardingAddress()));
   }
 };
 

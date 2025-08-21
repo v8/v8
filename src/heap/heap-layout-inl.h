@@ -101,6 +101,11 @@ bool HeapLayout::IsOwnedByAnyHeap(Tagged<HeapObject> object) {
   return MemoryChunk::FromHeapObject(object)->Metadata()->heap();
 }
 
+// static
+bool HeapLayout::InAnyLargeSpace(Tagged<HeapObject> object) {
+  return MemoryChunk::FromHeapObject(object)->IsLargePage();
+}
+
 }  // namespace v8::internal
 
 #endif  // V8_HEAP_HEAP_LAYOUT_INL_H_

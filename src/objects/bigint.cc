@@ -303,7 +303,7 @@ void MutableBigInt::Canonicalize(Tagged<MutableBigInt> result) {
   uint32_t to_trim = old_length - new_length;
   if (to_trim != 0) {
     Heap* heap = Isolate::Current()->heap();
-    if (!heap->IsLargeObject(result)) {
+    if (!HeapLayout::InAnyLargeSpace(result)) {
       uint32_t old_size =
           ALIGN_TO_ALLOCATION_ALIGNMENT(BigInt::SizeFor(old_length));
       uint32_t new_size =
@@ -820,7 +820,7 @@ void RightTrimString(Isolate* isolate, DirectHandle<SeqOneByteString> string,
       ALIGN_TO_ALLOCATION_ALIGNMENT(SeqOneByteString::SizeFor(chars_allocated));
   int needed_size =
       ALIGN_TO_ALLOCATION_ALIGNMENT(SeqOneByteString::SizeFor(chars_written));
-  if (needed_size < string_size && !isolate->heap()->IsLargeObject(*string)) {
+  if (needed_size < string_size && !HeapLayout::InAnyLargeSpace(*string)) {
     isolate->heap()->NotifyObjectSizeChange(*string, string_size, needed_size,
                                             ClearRecordedSlots::kNo);
   }

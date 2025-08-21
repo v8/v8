@@ -5496,10 +5496,8 @@ bool JSObject::UpdateAllocationSite(Isolate* isolate,
                                     DirectHandle<JSObject> object,
                                     ElementsKind to_kind) {
   if (!IsJSArray(*object)) return false;
-
   if (!HeapLayout::InYoungGeneration(*object)) return false;
-
-  if (Heap::IsLargeObject(*object)) return false;
+  if (HeapLayout::InAnyLargeSpace(*object)) return false;
 
   DirectHandle<AllocationSite> site;
   {

@@ -180,13 +180,13 @@ void String::MakeThin(IsolateT* isolate, Tagged<String> internalized) {
   DCHECK_GE(old_size, sizeof(ThinString));
   int size_delta = old_size - sizeof(ThinString);
   if (size_delta != 0) {
-    if (!Heap::IsLargeObject(thin)) {
+    if (!HeapLayout::InAnyLargeSpace(thin)) {
       isolate->heap()->NotifyObjectSizeChange(
           thin, old_size, sizeof(ThinString),
           may_contain_recorded_slots ? ClearRecordedSlots::kYes
                                      : ClearRecordedSlots::kNo);
     } else {
-      // We don't need special handling for the combination IsLargeObject &&
+      // We don't need special handling for the combination InAnyLargeSpace &&
       // may_contain_recorded_slots, because indirect strings never get that
       // large.
       DCHECK(!may_contain_recorded_slots);
@@ -311,7 +311,7 @@ void String::MakeExternalDuringGC(Isolate* isolate, T* resource) {
   // Shared strings are never indirect.
   DCHECK(!StringShape(this).IsIndirect());
 
-  if (!isolate->heap()->IsLargeObject(this)) {
+  if (!HeapLayout::InAnyLargeSpace(this)) {
     isolate->heap()->NotifyObjectSizeChange(this, size, new_size,
                                             ClearRecordedSlots::kNo);
   }
@@ -403,12 +403,12 @@ bool String::MakeExternal(Isolate* isolate,
         InvalidateExternalPointerSlots::kNo, new_size);
   }
 
-  if (!isolate->heap()->IsLargeObject(this)) {
+  if (!HeapLayout::InAnyLargeSpace(this)) {
     isolate->heap()->NotifyObjectSizeChange(
         this, size, new_size,
         has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
   } else {
-    // We don't need special handling for the combination IsLargeObject &&
+    // We don't need special handling for the combination InAnyLargeSpace &&
     // has_pointers, because indirect strings never get that large.
     DCHECK(!has_pointers);
   }
@@ -488,7 +488,7 @@ bool String::MakeExternal(Isolate* isolate,
   Tagged<Map> new_map =
       ComputeExternalStringMap<is_one_byte>(isolate, this, size);
 
-  if (!isolate->heap()->IsLargeObject(this)) {
+  if (!HeapLayout::InAnyLargeSpace(this)) {
     // Byte size of the external String object.
     int new_size = this->SizeFromMap(new_map);
 
@@ -502,7 +502,7 @@ bool String::MakeExternal(Isolate* isolate,
         this, size, new_size,
         has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
   } else {
-    // We don't need special handling for the combination IsLargeObject &&
+    // We don't need special handling for the combination InAnyLargeSpace &&
     // has_pointers, because indirect strings never get that large.
     DCHECK(!has_pointers);
   }
@@ -1940,7 +1940,7 @@ Handle<String> SeqString::Truncate(Isolate* isolate, Handle<SeqString> string,
 #endif
 
   Heap* heap = isolate->heap();
-  if (!heap->IsLargeObject(*string)) {
+  if (!HeapLayout::InAnyLargeSpace(*string)) {
     // Sizes are pointer size aligned, so that we can use filler objects
     // that are a multiple of pointer size.
     // No slot invalidation needed since this method is only used on freshly

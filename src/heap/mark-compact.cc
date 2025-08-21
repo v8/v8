@@ -3369,7 +3369,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
       SKIP_WRITE_BARRIER);
 
   // Create a filler object for any left over space in the bytecode array.
-  if (!heap_->IsLargeObject(compiled_data)) {
+  if (!HeapLayout::InAnyLargeSpace(compiled_data)) {
     const int aligned_filler_offset = ALIGN_TO_ALLOCATION_ALIGNMENT(
         sizeof(UncompiledDataWithoutPreparseData));
     heap_->CreateFillerObjectAt(compiled_data.address() + aligned_filler_offset,
@@ -5284,10 +5284,12 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     if (!HeapLayout::InYoungGeneration(heap_object)) return;
 
     if (!v8_flags.sticky_mark_bits) {
-      DCHECK_IMPLIES(v8_flags.minor_ms && !Heap::IsLargeObject(heap_object),
-                     Heap::InToPage(heap_object));
-      DCHECK_IMPLIES(!v8_flags.minor_ms || Heap::IsLargeObject(heap_object),
-                     Heap::InFromPage(heap_object));
+      DCHECK_IMPLIES(
+          v8_flags.minor_ms && !HeapLayout::InAnyLargeSpace(heap_object),
+          Heap::InToPage(heap_object));
+      DCHECK_IMPLIES(
+          !v8_flags.minor_ms || HeapLayout::InAnyLargeSpace(heap_object),
+          Heap::InFromPage(heap_object));
     }
 
     // OLD_TO_NEW slots are recorded in dead memory, so they might point to

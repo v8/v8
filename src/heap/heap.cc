@@ -3421,7 +3421,7 @@ bool Heap::CanMoveObjectStart(Tagged<HeapObject> object) {
     return false;
   }
 
-  if (IsLargeObject(object)) {
+  if (HeapLayout::InAnyLargeSpace(object)) {
     return false;
   }
 
@@ -3453,10 +3453,6 @@ bool Heap::IsImmovable(Tagged<HeapObject> object) {
   const MemoryChunkMetadata* metadata =
       MemoryChunk::FromHeapObject(object)->Metadata(isolate());
   return metadata->never_evacuate() || metadata->is_large();
-}
-
-bool Heap::IsLargeObject(Tagged<HeapObject> object) {
-  return MemoryChunk::FromHeapObject(object)->IsLargePage();
 }
 
 #ifdef ENABLE_SLOW_DCHECKS
@@ -3554,7 +3550,7 @@ Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
   // For now this trick is only applied to fixed arrays which may be in new
   // space or old space. In a large object space the object's start must
   // coincide with chunk and thus the trick is just not applicable.
-  DCHECK(!IsLargeObject(object));
+  DCHECK(!HeapLayout::InAnyLargeSpace(object));
   DCHECK(object->map() != ReadOnlyRoots(this).fixed_cow_array_map());
 
   static_assert(offsetof(FixedArrayBase, map_) == 0);
@@ -3646,7 +3642,7 @@ void Heap::RightTrimArray(Tagged<Array> object, int new_capacity,
   // Technically in new space this write might be omitted (except for debug
   // mode which iterates through the heap), but to play safer we still do it.
   // We do not create a filler for objects in a large object space.
-  if (!IsLargeObject(object)) {
+  if (!HeapLayout::InAnyLargeSpace(object)) {
     NotifyObjectSizeChange(
         object, old_size, old_size - bytes_to_trim,
         clear_slots ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
@@ -4252,7 +4248,7 @@ void Heap::NotifyObjectSizeChange(Tagged<HeapObject> object, int old_size,
   old_size = ALIGN_TO_ALLOCATION_ALIGNMENT(old_size);
   new_size = ALIGN_TO_ALLOCATION_ALIGNMENT(new_size);
   DCHECK_LE(new_size, old_size);
-  DCHECK(!IsLargeObject(object));
+  DCHECK(!HeapLayout::InAnyLargeSpace(object));
   if (new_size == old_size) return;
 
   const bool is_main_thread = LocalHeap::Current()->is_main_thread();

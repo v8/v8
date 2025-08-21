@@ -831,7 +831,7 @@ StringReplaceGlobalRegExpWithEmptyString(
   // needed.
   // TODO(hpayer): We should shrink the large object page if the size
   // of the object changed significantly.
-  if (!heap->IsLargeObject(*answer)) {
+  if (!HeapLayout::InAnyLargeSpace(*answer)) {
     heap->CreateFillerObjectAt(end_of_string, delta);
   }
   return *answer;
