@@ -526,12 +526,6 @@ bool is_inbounds(float_t v) {
 #define IF_WASM_DRUMBRAKE_INSTR_HANDLER(V, ...)
 #endif  // V8_ENABLE_DRUMBRAKE && !V8_DRUMBRAKE_BOUNDS_CHECKS
 
-#if OFFICIAL_BUILD
-#define IF_NOT_OFFICIAL_BUILD(V, ...)
-#else
-#define IF_NOT_OFFICIAL_BUILD(V, ...) EXPAND(V(__VA_ARGS__))
-#endif  // OFFICIAL_BUILD
-
 // Defines IF_TSAN, to be used in macro lists for elements that should only be
 // there if TSAN is enabled.
 #ifdef V8_IS_TSAN

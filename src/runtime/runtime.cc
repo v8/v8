@@ -184,11 +184,9 @@ bool Runtime::IsNonReturning(FunctionId id) {
 
 bool Runtime::MayAllocate(FunctionId id) {
   switch (id) {
+    case Runtime::kCompleteInobjectSlackTracking:
     case Runtime::kCompleteInobjectSlackTrackingForMap:
     case Runtime::kGlobalPrint:
-#if !OFFICIAL_BUILD
-    case Runtime::kCompleteInobjectSlackTracking:
-#endif  // !OFFICIAL_BUILD
       return false;
     default:
       return true;
@@ -218,16 +216,12 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
   if (is_differential_fuzzing) {
     switch (id) {
       case Runtime::kArrayBufferDetach:
-#if !OFFICIAL_BUILD
-      case Runtime::kBaselineOsr:
-      case Runtime::kCompileBaseline:
       case Runtime::kDeoptimizeFunction:
       case Runtime::kDeoptimizeNow:
       case Runtime::kDisableOptimizationFinalization:
       case Runtime::kEnableCodeLoggingForTesting:
       case Runtime::kFinalizeOptimization:
       case Runtime::kGetUndetectable:
-      case Runtime::kIsEfficiencyModeEnabled:
       case Runtime::kNeverOptimizeFunction:
       case Runtime::kOptimizeFunctionOnNextCall:
       case Runtime::kOptimizeMaglevOnNextCall:
@@ -235,23 +229,25 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
       case Runtime::kPrepareFunctionForOptimization:
       case Runtime::kPretenureAllocationSite:
       case Runtime::kSetAllocationTimeout:
-      case Runtime::kSetBatterySaverMode:
       case Runtime::kSetForceSlowPath:
-      case Runtime::kSetPriorityBestEffort:
-      case Runtime::kSetPriorityUserBlocking:
-      case Runtime::kSetPriorityUserVisible:
       case Runtime::kSimulateNewspaceFull:
       case Runtime::kWaitForBackgroundOptimization:
+      case Runtime::kSetBatterySaverMode:
+      case Runtime::kSetPriorityBestEffort:
+      case Runtime::kSetPriorityUserVisible:
+      case Runtime::kSetPriorityUserBlocking:
+      case Runtime::kIsEfficiencyModeEnabled:
+      case Runtime::kBaselineOsr:
+      case Runtime::kCompileBaseline:
+#if V8_ENABLE_WEBASSEMBLY && V8_WASM_RANDOM_FUZZERS
+      case Runtime::kWasmGenerateRandomModule:
+#endif  // V8_ENABLE_WEBASSEMBLY && V8_WASM_RANDOM_FUZZERS
 #if V8_ENABLE_WEBASSEMBLY
       case Runtime::kWasmArray:
       case Runtime::kWasmStruct:
       case Runtime::kWasmTierUpFunction:
       case Runtime::kWasmTriggerTierUpForTesting:
-#if V8_WASM_RANDOM_FUZZERS
-      case Runtime::kWasmGenerateRandomModule:
-#endif  // V8_WASM_RANDOM_FUZZERS
 #endif  // V8_ENABLE_WEBASSEMBLY
-#endif  // !OFFICIAL_BUILD
         return true;
 
       default:
@@ -266,27 +262,28 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
     case Runtime::kAbort:
     case Runtime::kAbortCSADcheck:
     case Runtime::kAbortJS:
-    case Runtime::kDebugPrintPtr:
-      return false;
-
-#if !OFFICIAL_BUILD
+    case Runtime::kSystemBreak:
     case Runtime::kBenchMaglev:
     case Runtime::kBenchTurbofan:
-    case Runtime::kClearFunctionFeedback:
+    case Runtime::kDebugPrintPtr:
     case Runtime::kDisassembleFunction:
-    case Runtime::kGetAbstractModuleSource:
-    case Runtime::kGetCallable:
     case Runtime::kGetFunctionForCurrentFrame:
-    case Runtime::kGetInitializerFunction:
-    case Runtime::kStringIsFlat:
-    case Runtime::kSystemBreak:
+    case Runtime::kGetCallable:
+    case Runtime::kGetAbstractModuleSource:
     case Runtime::kTurbofanStaticAssert:
+    case Runtime::kClearFunctionFeedback:
+    case Runtime::kStringIsFlat:
+    case Runtime::kGetInitializerFunction:
 #ifdef V8_ENABLE_WEBASSEMBLY
+    case Runtime::kWasmTraceEnter:
+    case Runtime::kWasmTraceExit:
+    case Runtime::kWasmTraceMemory:
+    case Runtime::kWasmTraceGlobal:
     case Runtime::kCheckIsOnCentralStack:
-    case Runtime::kDeserializeWasmModule:
-    case Runtime::kFreezeWasmLazyCompilation:
     case Runtime::kSetWasmInstantiateControls:
     case Runtime::kWasmNull:
+    case Runtime::kFreezeWasmLazyCompilation:
+    case Runtime::kDeserializeWasmModule:
 #endif  // V8_ENABLE_WEBASSEMBLY
     // TODO(353685107): investigate whether these should be exposed to fuzzers.
     case Runtime::kConstructDouble:
@@ -306,22 +303,12 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
 
     case Runtime::kLeakHole:
       return v8_flags.hole_fuzzing;
-#endif  // !OFFICIAL_BUILD
-
-#ifdef V8_ENABLE_WEBASSEMBLY
-    case Runtime::kWasmTraceEnter:
-    case Runtime::kWasmTraceExit:
-    case Runtime::kWasmTraceGlobal:
-    case Runtime::kWasmTraceMemory:
-      return false;
-#endif  // V8_ENABLE_WEBASSEMBLY
 
     default:
       break;
   }
 
   // The default case: test functions are exposed, everything else is not.
-#if !OFFICIAL_BUILD
   switch (id) {
 #define F(name, nargs, ressize, ...) case k##name:
 #define I(name, nargs, ressize, ...) case kInline##name:
@@ -333,9 +320,6 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
     default:
       return false;
   }
-#else
-  return false;
-#endif  // !OFFICIAL_BUILD
 }
 
 const Runtime::Function* Runtime::FunctionForName(const unsigned char* name,

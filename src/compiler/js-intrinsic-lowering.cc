@@ -29,12 +29,10 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
   const Runtime::Function* const f =
       Runtime::FunctionForId(CallRuntimeParametersOf(node->op()).id());
   switch (f->function_id) {
-#if !OFFICIAL_BUILD
     case Runtime::kIsBeingInterpreted:
       return ReduceIsBeingInterpreted(node);
     case Runtime::kTurbofanStaticAssert:
       return ReduceTurbofanStaticAssert(node);
-#endif  // !OFFICIAL_BUILD
     case Runtime::kVerifyType:
       return ReduceVerifyType(node);
     case Runtime::kCheckTurboshaftTypeOf:
@@ -50,10 +48,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceCopyDataPropertiesWithExcludedPropertiesOnStack(node);
     case Runtime::kInlineCreateIterResultObject:
       return ReduceCreateIterResultObject(node);
-#if !OFFICIAL_BUILD
     case Runtime::kInlineDeoptimizeNow:
       return ReduceDeoptimizeNow(node);
-#endif  // !OFFICIAL_BUILD
     case Runtime::kInlineGeneratorClose:
       return ReduceGeneratorClose(node);
     case Runtime::kInlineCreateJSGeneratorObject:

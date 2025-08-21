@@ -2705,6 +2705,7 @@ DEFINE_INT(stress_lazy_compilation, 0,
 DEFINE_VALUE_IMPLICATION(correctness_fuzzer_suppressions,
                          stress_lazy_compilation, 0)
 
+// codegen-ia32.cc / codegen-arm.cc
 DEFINE_BOOL(trace, false, "trace javascript function calls")
 
 // codegen.cc

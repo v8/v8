@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <iomanip>
 #include <memory>
 
 #include "src/api/api-inl.h"
@@ -24,245 +23,6 @@
 
 namespace v8 {
 namespace internal {
-
-namespace {
-// This function is mostly used instead of (D)CHECKs for functions exposed to
-// fuzzers. TODO(353685107): consider being more permissive in functions using
-// this. For example, for fuzzing we could probably allow excess arguments,
-V8_WARN_UNUSED_RESULT Tagged<Object> CrashUnlessFuzzing(Isolate* isolate) {
-  CHECK(v8_flags.fuzzing);
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-}  // namespace
-
-RUNTIME_FUNCTION(Runtime_Abort) {
-  SealHandleScope shs(isolate);
-  if (args.length() != 1) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  int message_id = args.smi_value_at(0);
-  const char* message = GetAbortReason(static_cast<AbortReason>(message_id));
-  base::OS::PrintError("abort: %s\n", message);
-  isolate->PrintStack(stderr);
-  base::OS::Abort();
-  UNREACHABLE();
-}
-
-RUNTIME_FUNCTION(Runtime_AbortJS) {
-  HandleScope scope(isolate);
-  if (args.length() != 1) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  DirectHandle<String> message = args.at<String>(0);
-  if (v8_flags.disable_abortjs) {
-    base::OS::PrintError("[disabled] abort: %s\n", message->ToCString().get());
-    return Tagged<Object>();
-  }
-  base::OS::PrintError("abort: %s\n", message->ToCString().get());
-  isolate->PrintStack(stderr);
-  base::OS::Abort();
-  UNREACHABLE();
-}
-
-RUNTIME_FUNCTION(Runtime_AbortCSADcheck) {
-  HandleScope scope(isolate);
-  if (args.length() != 1) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  DirectHandle<String> message = args.at<String>(0);
-  if (base::ControlledCrashesAreHarmless()) {
-    base::OS::PrintError(
-        "Safely terminating process due to CSA check failure\n");
-    // Also prefix the error message (printed below). This has two purposes:
-    // (1) it makes it clear that this error is deemed "safe" (2) it causes
-    // fuzzers that pattern-match on stderr output to ignore these failures.
-    base::OS::PrintError("The following harmless failure was encountered: %s\n",
-                         message->ToCString().get());
-  } else {
-    std::unique_ptr<char[]> message_str = message->ToCString();
-    base::OS::PrintError("abort: CSA_DCHECK failed: %s\n\n", message_str.get());
-
-    isolate->PushStackTraceAndDie(reinterpret_cast<void*>(message->ptr()),
-                                  message_str.get());
-  }
-  base::OS::Abort();
-  UNREACHABLE();
-}
-
-// This will not allocate (flatten the string), but it may run
-// very slowly for very deeply nested ConsStrings.  For debugging use only.
-RUNTIME_FUNCTION(Runtime_GlobalPrint) {
-  SealHandleScope shs(isolate);
-
-  // This is exposed to tests / fuzzers; handle variable arguments gracefully.
-  FILE* output_stream = stdout;
-  if (args.length() >= 2) {
-    // Args: object, stream.
-    if (IsSmi(args[1])) {
-      int output_int = Cast<Smi>(args[1]).value();
-      if (output_int == fileno(stderr)) {
-        output_stream = stderr;
-      }
-    }
-  }
-
-  if (!IsString(args[0])) {
-    return args[0];
-  }
-
-  auto string = Cast<String>(args[0]);
-  StringCharacterStream stream(string);
-  while (stream.HasMore()) {
-    uint16_t character = stream.GetNext();
-    PrintF(output_stream, "%c", character);
-  }
-  fflush(output_stream);
-  return string;
-}
-
-namespace {
-
-void DebugPrintImpl(Tagged<MaybeObject> maybe_object, std::ostream& os) {
-  if (maybe_object.IsCleared()) {
-    os << "[weak cleared]";
-  } else {
-    Tagged<Object> object = maybe_object.GetHeapObjectOrSmi();
-    bool weak = maybe_object.IsWeak();
-
-#ifdef OBJECT_PRINT
-    os << "DebugPrint: ";
-    if (weak) os << "[weak] ";
-    Print(object, os);
-    if (IsHeapObject(object)) {
-      Print(Cast<HeapObject>(object)->map(), os);
-    }
-#else
-    if (weak) os << "[weak] ";
-    // ShortPrint is available in release mode. Print is not.
-    os << Brief(object);
-#endif
-  }
-  os << std::endl;
-}
-
-}  // namespace
-
-RUNTIME_FUNCTION(Runtime_DebugPrint) {
-  SealHandleScope shs(isolate);
-
-  if (args.length() == 0) {
-    // This runtime method has variable number of arguments, but if there is no
-    // argument, undefined behavior may happen.
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
-
-  // This is exposed to tests / fuzzers; handle variable arguments gracefully.
-  std::unique_ptr<std::ostream> output_stream(new StdoutStream());
-  if (args.length() >= 2) {
-    // Args: object, stream.
-    if (IsSmi(args[1])) {
-      int output_int = Cast<Smi>(args[1]).value();
-      if (output_int == fileno(stderr)) {
-        output_stream.reset(new StderrStream());
-      }
-    }
-  }
-
-  Tagged<MaybeObject> maybe_object(*args.address_of_arg_at(0));
-  DebugPrintImpl(maybe_object, *output_stream);
-  return args[0];
-}
-
-RUNTIME_FUNCTION(Runtime_DebugPrintPtr) {
-  SealHandleScope shs(isolate);
-  // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
-  DCHECK_EQ(args.length(), 1);
-
-  StdoutStream os;
-  Tagged<MaybeObject> maybe_object(*args.address_of_arg_at(0));
-  if (!maybe_object.IsCleared()) {
-    Tagged<Object> object = maybe_object.GetHeapObjectOrSmi();
-    size_t pointer;
-    if (Object::ToIntegerIndex(object, &pointer)) {
-      Tagged<MaybeObject> from_pointer(static_cast<Address>(pointer));
-      DebugPrintImpl(from_pointer, os);
-    }
-  }
-  // We don't allow the converted pointer to leak out to JavaScript.
-  return args[0];
-}
-
-RUNTIME_FUNCTION(Runtime_DebugPrintWord) {
-  static constexpr int kNum16BitChunks = 4;
-  SealHandleScope shs(isolate);
-
-  // Args are: <bits 63-48>, <bits 47-32>, <bits 31-16>, <bits 15-0>, stream.
-  if (args.length() != kNum16BitChunks + 1) {
-    return CrashUnlessFuzzing(isolate);
-  }
-
-  uint64_t value = 0;
-  for (int i = 0; i < kNum16BitChunks; ++i) {
-    value <<= 16;
-    CHECK(IsSmi(args[i]));
-    uint32_t chunk = Cast<Smi>(args[i]).value();
-    // We encode 16 bit per chunk only!
-    CHECK_EQ(chunk & 0xFFFF0000, 0);
-    value |= chunk;
-  }
-
-  if (!IsSmi(args[4]) || (Cast<Smi>(args[4]).value() == fileno(stderr))) {
-    StderrStream os;
-    os << "0x" << std::hex << value << std::dec << std::endl;
-  } else {
-    StdoutStream os;
-    os << "0x" << std::hex << value << std::dec << std::endl;
-  }
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_DebugPrintFloat) {
-  static constexpr int kNum16BitChunks = 4;
-  SealHandleScope shs(isolate);
-
-  // Args are: <bits 63-48>, <bits 47-32>, <bits 31-16>, <bits 15-0>, stream.
-  if (args.length() != kNum16BitChunks + 1) {
-    return CrashUnlessFuzzing(isolate);
-  }
-
-  uint64_t value = 0;
-  for (int i = 0; i < kNum16BitChunks; ++i) {
-    value <<= 16;
-    CHECK(IsSmi(args[i]));
-    uint32_t chunk = Cast<Smi>(args[i]).value();
-    // We encode 16 bit per chunk only!
-    CHECK_EQ(chunk & 0xFFFF0000, 0);
-    value |= chunk;
-  }
-
-  if (!IsSmi(args[4]) || (Cast<Smi>(args[4]).value() == fileno(stderr))) {
-    StderrStream os;
-    std::streamsize precision = os.precision();
-    const double d = base::bit_cast<double>(value);
-    os << std::setprecision(20) << d;
-    if (std::isnan(d)) {
-      os << " (0x" << std::hex << value << std::dec << ")";
-    }
-    os << std::endl;
-    os.precision(precision);
-  } else {
-    StdoutStream os;
-    std::streamsize precision = os.precision();
-    const double d = base::bit_cast<double>(value);
-    os << std::setprecision(20) << d;
-    if (std::isnan(d)) {
-      os << " (0x" << std::hex << value << std::dec << ")";
-    }
-    os << std::endl;
-    os.precision(precision);
-  }
-  return ReadOnlyRoots(isolate).undefined_value();
-}
 
 RUNTIME_FUNCTION(Runtime_AccessCheck) {
   HandleScope scope(isolate);
@@ -966,6 +726,17 @@ RUNTIME_FUNCTION(Runtime_ReportMessageFromMicrotask) {
   MessageHandler::ReportMessage(isolate, no_location, message);
   isolate->clear_exception();
   return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_GetInitializerFunction) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+
+  DirectHandle<JSReceiver> constructor = args.at<JSReceiver>(0);
+  DirectHandle<Symbol> key = isolate->factory()->class_fields_symbol();
+  DirectHandle<Object> initializer =
+      JSReceiver::GetDataProperty(isolate, constructor, key);
+  return *initializer;
 }
 
 RUNTIME_FUNCTION(Runtime_DoubleToStringWithRadix) {
