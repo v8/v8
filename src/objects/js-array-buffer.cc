@@ -404,34 +404,12 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
   return OrdinaryDefineOwnProperty(isolate, o, lookup_key, desc, should_throw);
 }
 
-ExternalArrayType JSTypedArray::type() {
-  switch (map()->elements_kind()) {
-#define ELEMENTS_KIND_TO_ARRAY_TYPE(Type, type, TYPE, ctype) \
-  case TYPE##_ELEMENTS:                                      \
-    return kExternal##Type##Array;
-
-    TYPED_ARRAYS(ELEMENTS_KIND_TO_ARRAY_TYPE)
-    RAB_GSAB_TYPED_ARRAYS_WITH_TYPED_ARRAY_TYPE(ELEMENTS_KIND_TO_ARRAY_TYPE)
-#undef ELEMENTS_KIND_TO_ARRAY_TYPE
-
-    default:
-      UNREACHABLE();
-  }
+ExternalArrayType JSTypedArray::type() const {
+  return TypeAndElementSizeFor(map()->elements_kind()).first;
 }
 
 size_t JSTypedArray::element_size() const {
-  switch (map()->elements_kind()) {
-#define ELEMENTS_KIND_TO_ELEMENT_SIZE(Type, type, TYPE, ctype) \
-  case TYPE##_ELEMENTS:                                        \
-    return sizeof(ctype);
-
-    TYPED_ARRAYS(ELEMENTS_KIND_TO_ELEMENT_SIZE)
-    RAB_GSAB_TYPED_ARRAYS(ELEMENTS_KIND_TO_ELEMENT_SIZE)
-#undef ELEMENTS_KIND_TO_ELEMENT_SIZE
-
-    default:
-      UNREACHABLE();
-  }
+  return TypeAndElementSizeFor(map()->elements_kind()).second;
 }
 
 size_t JSTypedArray::LengthTrackingGsabBackedTypedArrayLength(

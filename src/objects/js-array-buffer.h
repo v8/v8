@@ -332,6 +332,9 @@ class JSTypedArray
   static constexpr size_t kMaxByteLength = JSArrayBuffer::kMaxByteLength;
   static_assert(kMaxByteLength == v8::TypedArray::kMaxByteLength);
 
+  static constexpr std::pair<ExternalArrayType, size_t> TypeAndElementSizeFor(
+      ElementsKind);
+
   DECL_GETTER(base_pointer, Tagged<Object>)
   DECL_ACQUIRE_GETTER(base_pointer, Tagged<Object>)
 
@@ -340,7 +343,7 @@ class JSTypedArray
       Isolate* isolate, DirectHandle<JSTypedArray> o, DirectHandle<Object> key,
       PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw);
 
-  ExternalArrayType type();
+  ExternalArrayType type() const;
   V8_EXPORT_PRIVATE size_t element_size() const;
 
   V8_EXPORT_PRIVATE Handle<JSArrayBuffer> GetBuffer(Isolate* isolate);
