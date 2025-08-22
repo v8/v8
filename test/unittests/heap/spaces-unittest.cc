@@ -426,7 +426,7 @@ TEST_F(SpacesTest, TrustedSpaceNullPage) {
   v8::Context::New(v8_isolate())->Enter();
 
   Address trusted_space_base =
-      TrustedRange::GetProcessWideTrustedRange()->base();
+      i_isolate()->isolate_group()->GetTrustedPtrComprCageBase();
   const size_t size_of_reserved_area = 1 * MB;
 
   // Test that no objects are allocated in the reserved area.

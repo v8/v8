@@ -5873,7 +5873,7 @@ void Heap::SetUp(LocalHeap* main_thread_local_heap) {
   v8::PageAllocator* trusted_page_allocator;
 #ifdef V8_ENABLE_SANDBOX
   trusted_page_allocator =
-      TrustedRange::GetProcessWideTrustedRange()->page_allocator();
+      isolate_->isolate_group()->GetTrustedPtrComprCage()->page_allocator();
 #else
   trusted_page_allocator = isolate_->page_allocator();
 #endif

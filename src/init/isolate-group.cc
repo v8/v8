@@ -17,7 +17,6 @@
 #include "src/heap/memory-pool.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/read-only-spaces.h"
-#include "src/heap/trusted-range.h"
 #include "src/sandbox/code-pointer-table-inl.h"
 #include "src/sandbox/sandbox.h"
 #include "src/utils/memcopy.h"
@@ -140,6 +139,7 @@ IsolateGroup::~IsolateGroup() {
 
 #ifdef V8_ENABLE_SANDBOX
   code_pointer_table_.TearDown();
+  trusted_range_.Free();
 #endif  // V8_ENABLE_SANDBOX
 
   // Reset before `reservation_` for pointer compression but disabled external
@@ -180,8 +180,12 @@ void IsolateGroup::Initialize(bool process_wide, Sandbox* sandbox) {
   }
   page_allocator_ = reservation_.page_allocator();
   pointer_compression_cage_ = &reservation_;
-  trusted_pointer_compression_cage_ =
-      TrustedRange::EnsureProcessWideTrustedRange(kMaximalTrustedRangeSize);
+
+  if (!trusted_range_.InitReservation(kMaximalTrustedRangeSize)) {
+    V8::FatalProcessOutOfMemory(
+        nullptr, "Failed to reserve virtual memory for TrustedRange");
+  }
+  trusted_pointer_compression_cage_ = &trusted_range_;
   sandbox_ = sandbox;
 
   code_pointer_table()->Initialize();
@@ -247,6 +251,9 @@ void IsolateGroup::InitializeOncePerProcess() {
 #ifdef V8_COMPRESS_POINTERS
   V8HeapCompressionScheme::InitBase(group->GetPtrComprCageBase());
 #endif  // V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
+  TrustedSpaceCompressionScheme::InitBase(group->GetTrustedPtrComprCageBase());
+#endif
 #ifdef V8_EXTERNAL_CODE_SPACE
   // Speculatively set the code cage base to the same value in case jitless
   // mode will be used. Once the process-wide CodeRange instance is created

@@ -70,9 +70,8 @@ TEST_F(SandboxHardwareSupportTest, SandboxedCodeNoWriteAccessToTrustedSpace) {
   CHECK_IMPLIES(v8_flags.force_memory_protection_keys,
                 SandboxHardwareSupport::IsActive());
   if (!SandboxHardwareSupport::IsActive()) return;
-
-  auto trusted_range = TrustedRange::GetProcessWideTrustedRange();
-  auto trusted_space_allocator = trusted_range->page_allocator();
+  auto trusted_space_allocator =
+      IsolateGroup::current()->GetTrustedPtrComprCage()->page_allocator();
   size_t size = trusted_space_allocator->AllocatePageSize();
   void* page_in_trusted_space = trusted_space_allocator->AllocatePages(
       nullptr, size, size, PageAllocator::kReadWrite);

@@ -97,8 +97,10 @@ uint32_t MemoryChunk::MetadataTableIndex(Address chunk_address) {
     DCHECK_LT(offset >> kPageSizeBits, MemoryChunkConstants::kPagesInMainCage);
     index = MemoryChunkConstants::kMainCageMetadataOffset +
             (offset >> kPageSizeBits);
-  } else if (TrustedRange::GetProcessWideTrustedRange()->region().contains(
-                 chunk_address)) {
+  } else if (IsolateGroup::current()
+                 ->GetTrustedPtrComprCage()
+                 ->region()
+                 .contains(chunk_address)) {
     Tagged_t offset = TrustedSpaceCompressionScheme::CompressAny(chunk_address);
     DCHECK_LT(offset >> kPageSizeBits,
               MemoryChunkConstants::kPagesInTrustedCage);

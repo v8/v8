@@ -347,6 +347,7 @@ PtrComprCageAccessScope::PtrComprCageAccessScope(Isolate* isolate)
       saved_current_isolate_group_(IsolateGroup::current())
 #ifdef V8_ENABLE_SANDBOX
       ,
+      saved_trusted_cage_base_(TrustedSpaceCompressionScheme::base()),
       saved_current_sandbox_(Sandbox::current())
 #endif  // V8_ENABLE_SANDBOX
 {
@@ -356,6 +357,8 @@ PtrComprCageAccessScope::PtrComprCageAccessScope(Isolate* isolate)
 #endif  // V8_EXTERNAL_CODE_SPACE
   IsolateGroup::set_current(isolate->isolate_group());
 #ifdef V8_ENABLE_SANDBOX
+  TrustedSpaceCompressionScheme::InitBase(
+      isolate->isolate_group()->GetTrustedPtrComprCageBase());
   Sandbox::set_current(isolate->isolate_group()->sandbox());
 #endif  // V8_ENABLE_SANDBOX
 }
@@ -367,6 +370,7 @@ PtrComprCageAccessScope::~PtrComprCageAccessScope() {
 #endif  // V8_EXTERNAL_CODE_SPACE
   IsolateGroup::set_current(saved_current_isolate_group_);
 #ifdef V8_ENABLE_SANDBOX
+  TrustedSpaceCompressionScheme::InitBase(saved_trusted_cage_base_);
   Sandbox::set_current(saved_current_sandbox_);
 #endif  // V8_ENABLE_SANDBOX
 }

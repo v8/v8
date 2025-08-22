@@ -223,7 +223,7 @@ TEST_F(HeapTest, HeapLayout) {
 
 #if V8_ENABLE_SANDBOX
   Address trusted_space_base =
-      TrustedRange::GetProcessWideTrustedRange()->base();
+      i_isolate()->isolate_group()->GetTrustedPtrComprCageBase();
   EXPECT_TRUE(IsAligned(trusted_space_base, size_t{4} * GB));
   base::AddressRegion trusted_reservation(trusted_space_base, size_t{4} * GB);
 #endif

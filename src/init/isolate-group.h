@@ -27,6 +27,7 @@
 
 #ifdef V8_ENABLE_SANDBOX
 #include "src/base/region-allocator.h"
+#include "src/heap/trusted-range.h"
 #endif  // V8_ENABLE_SANDBOX
 
 namespace v8 {
@@ -416,6 +417,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 #else
   SandboxedArrayBufferAllocator backend_allocator_;
 #endif
+  TrustedRange trusted_range_;
 #endif  // V8_ENABLE_SANDBOX
 
 #ifdef V8_ENABLE_LEAPTIERING
