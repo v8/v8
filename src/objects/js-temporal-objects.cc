@@ -730,7 +730,7 @@ Maybe<temporal_rs::Precision> GetTemporalFractionalSecondDigitsOption(
                                   factory->fractionalSecondDigits_string()));
   }
   // 5. Let digitCount be floor(ℝ(digitsValue)).
-  int64_t digit_count = std::floor(Object::NumberValue(digits_num));
+  double digit_count = std::floor(digits_float);
   // 6. If digitCount < 0 or digitCount > 9, throw a RangeError exception.
   if (digit_count < 0 || digit_count > 9) {
     THROW_NEW_ERROR(isolate,
@@ -738,8 +738,10 @@ Maybe<temporal_rs::Precision> GetTemporalFractionalSecondDigitsOption(
                                   factory->fractionalSecondDigits_string()));
   }
 
+  uint8_t clamped = CastIntegralDouble<uint8_t>(digit_count);
+
   return Just(
-      temporal_rs::Precision{.is_minute = false, .precision = digit_count});
+      temporal_rs::Precision{.is_minute = false, .precision = clamped});
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-gettemporalunitvaluedoption
