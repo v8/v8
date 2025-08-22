@@ -1433,19 +1433,32 @@ void V8FileLogger::LogSourceCodeInformation(
       << V8FileLogger::kNext << script->id() << V8FileLogger::kNext
       << shared->StartPosition() << V8FileLogger::kNext << shared->EndPosition()
       << V8FileLogger::kNext;
-  // TODO(v8:11429): Clean-up baseline-replated code in source position
-  // iteration.
   bool hasInlined = false;
-  if (code->kind(cage_base) != CodeKind::BASELINE) {
-    SourcePositionTableIterator iterator(
-        code->SourcePositionTable(isolate_, *shared));
-    for (; !iterator.done(); iterator.Advance()) {
-      SourcePosition pos = iterator.source_position();
-      msg << "C" << iterator.code_offset() << "O" << pos.ScriptOffset();
-      if (pos.isInlined()) {
-        msg << "I" << pos.InliningId();
-        hasInlined = true;
-      }
+  bool isBaseline = code->kind(cage_base) == CodeKind::BASELINE;
+  std::optional<baseline::BytecodeOffsetIterator> baseline_iterator;
+  if (isBaseline) {
+    Handle<BytecodeArray> bytecodes(shared->GetBytecodeArray(isolate_),
+                                    isolate_);
+    Handle<TrustedByteArray> bytecode_offsets(
+        code->GetCode()->bytecode_offset_table(), isolate_);
+    baseline_iterator.emplace(bytecode_offsets, bytecodes);
+  }
+  Handle<TrustedByteArray> source_position_table(
+      code->SourcePositionTable(isolate_, *shared), isolate_);
+  SourcePositionTableIterator iterator(source_position_table);
+  for (; !iterator.done(); iterator.Advance()) {
+    SourcePosition pos = iterator.source_position();
+    int code_offset = iterator.code_offset();
+    if (isBaseline) {
+      // Use the bytecode offset to calculate pc offset for baseline code.
+      baseline_iterator->AdvanceToBytecodeOffset(code_offset);
+      code_offset =
+          static_cast<int>(baseline_iterator->current_pc_start_offset());
+    }
+    msg << "C" << code_offset << "O" << pos.ScriptOffset();
+    if (pos.isInlined()) {
+      msg << "I" << pos.InliningId();
+      hasInlined = true;
     }
   }
   msg << V8FileLogger::kNext;
