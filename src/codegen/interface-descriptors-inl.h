@@ -315,7 +315,7 @@ constexpr RegList WriteBarrierDescriptor::ComputeSavedRegisters(
     saved_registers.set(SlotAddressRegister());
   }
 #elif V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_LOONG64 || \
-    V8_TARGET_ARCH_MIPS64
+    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
   if (object != ObjectRegister()) saved_registers.set(ObjectRegister());
   // The slot address is always clobbered.
   saved_registers.set(SlotAddressRegister());
