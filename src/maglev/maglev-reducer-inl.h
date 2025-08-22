@@ -741,6 +741,14 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
 }
 
 template <typename BaseT>
+ValueNode* MaglevReducer<BaseT>::GetHoleyFloat64ForToNumber(
+    ValueNode* value, NodeType allowed_input_type) {
+  value->MaybeRecordUseReprHint(UseRepresentation::kHoleyFloat64);
+  if (value->is_holey_float64()) return value;
+  return GetFloat64ForToNumber(value, allowed_input_type);
+}
+
+template <typename BaseT>
 void MaglevReducer<BaseT>::EnsureInt32(ValueNode* value,
                                        bool can_be_heap_number) {
   // Either the value is Int32 already, or we force a conversion to Int32 and

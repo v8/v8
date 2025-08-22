@@ -1869,14 +1869,6 @@ ValueNode* MaglevGraphBuilder::GetHoleyFloat64(
 }
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
-ValueNode* MaglevGraphBuilder::GetHoleyFloat64ForToNumber(
-    ValueNode* value, NodeType allowed_input_type) {
-  value->MaybeRecordUseReprHint(UseRepresentation::kHoleyFloat64);
-  // Ignore the hint for
-  if (value->is_holey_float64()) return value;
-  return GetFloat64ForToNumber(value, allowed_input_type);
-}
-
 namespace {
 int32_t ClampToUint8(int32_t value) {
   if (value < 0) return 0;
@@ -16000,6 +15992,11 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(
     interpreter::Register reg, NodeType allowed_input_type) {
   return GetFloat64ForToNumber(current_interpreter_frame_.get(reg),
                                allowed_input_type);
+}
+
+ValueNode* MaglevGraphBuilder::GetHoleyFloat64ForToNumber(
+    ValueNode* value, NodeType allowed_input_type) {
+  return reducer_.GetHoleyFloat64ForToNumber(value, allowed_input_type);
 }
 
 std::optional<int32_t> MaglevGraphBuilder::TryGetInt32Constant(

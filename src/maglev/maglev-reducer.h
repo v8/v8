@@ -264,6 +264,9 @@ class MaglevReducer {
   ValueNode* GetFloat64ForToNumber(ValueNode* value,
                                    NodeType allowed_input_type);
 
+  ValueNode* GetHoleyFloat64ForToNumber(ValueNode* value,
+                                        NodeType allowed_input_type);
+
   void EnsureInt32(ValueNode* value, bool can_be_heap_number = false);
 
   BasicBlock* current_block() const { return current_block_; }

@@ -59,6 +59,19 @@ class MaglevGraphOptimizer {
     return current_node_;
   }
 
+  // Iterates the deopt frames unwrapping its inputs, ie, removing Identity or
+  // ReturnedValue nodes.
+  void UnwrapDeoptFrames();
+
+  ValueNode* GetConstantWithRepresentation(ValueNode* node,
+                                           ValueRepresentation repr);
+
+  // Returns a variant of the node with the value representation given. It
+  // returns nullptr if we need to emit a tagged conversion.
+  ValueNode* GetUntaggedValueWithRepresentation(ValueNode* node,
+                                                ValueRepresentation repr,
+                                                NodeType allowed_type);
+
   void PreProcessNode(Node*);
   void PostProcessNode(Node*);
 

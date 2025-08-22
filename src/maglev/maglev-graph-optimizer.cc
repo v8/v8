@@ -4,6 +4,8 @@
 
 #include "src/maglev/maglev-graph-optimizer.h"
 
+#include <optional>
+
 #include "src/base/logging.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-graph-processor.h"
@@ -71,13 +73,75 @@ ValueNode* MaglevGraphOptimizer::GetInputAt(int index) const {
 ProcessResult MaglevGraphOptimizer::ReplaceWith(ValueNode* node) {
   // If current node is not a value node, we shouldn't try to replace it.
   CHECK(current_node()->Cast<ValueNode>());
-  // TODO(victorgomes): Support identity nodes != Tagged.
   DCHECK(!node->Is<Identity>());
   ValueNode* current_value = current_node()->Cast<ValueNode>();
+  // We need to remove the uses of ReturnedValue in the current node,
+  // since this might be the only reference to this DeoptFrame.
+  UnwrapDeoptFrames();
   // Automatically convert node to the same representation of current_node.
   current_value->OverwriteWithIdentityTo(reducer_.ConvertInputTo(
       node, current_value->properties().value_representation()));
   return ProcessResult::kContinue;
+}
+
+void MaglevGraphOptimizer::UnwrapDeoptFrames() {
+  // Unwrap (and remove uses of its inputs) of Identity and ReturnedValue.
+  if (current_node_->properties().can_eager_deopt() ||
+      current_node_->properties().is_deopt_checkpoint()) {
+    current_node_->eager_deopt_info()->ForEachInput([](ValueNode* node) {});
+  }
+  if (current_node_->properties().can_lazy_deopt()) {
+    current_node_->lazy_deopt_info()->ForEachInput([](ValueNode* node) {});
+  }
+}
+
+ValueNode* MaglevGraphOptimizer::GetConstantWithRepresentation(
+    ValueNode* node, ValueRepresentation repr) {
+  switch (repr) {
+    case ValueRepresentation::kInt32: {
+      auto cst = reducer_.TryGetInt32Constant(node);
+      if (cst.has_value()) {
+        return reducer_.GetInt32Constant(cst.value());
+      }
+      return nullptr;
+    }
+    case ValueRepresentation::kFloat64:
+    case ValueRepresentation::kHoleyFloat64: {
+      auto cst = reducer_.TryGetFloat64Constant(
+          node, TaggedToFloat64ConversionType::kNumberOrOddball);
+      if (cst.has_value()) {
+        return reducer_.GetFloat64Constant(cst.value());
+      }
+      return nullptr;
+    }
+    default:
+      return nullptr;
+  }
+}
+
+ValueNode* MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
+    ValueNode* node, ValueRepresentation repr, NodeType allowed_type) {
+  DCHECK_NE(repr, ValueRepresentation::kTagged);
+  if (node->value_representation() == repr) return node;
+  if (node->Is<ReturnedValue>()) {
+    ValueNode* input = node->input_node(0)->UnwrapIdentities();
+    return GetUntaggedValueWithRepresentation(input, repr, allowed_type);
+  }
+  // We try getting constant before bailing out and/or calling the reducer,
+  // since it does not emit a conversion node.
+  if (auto cst = GetConstantWithRepresentation(node, repr)) return cst;
+  if (node->is_tagged()) return nullptr;
+  switch (repr) {
+    case ValueRepresentation::kInt32:
+      return reducer_.GetInt32(node);
+    case ValueRepresentation::kFloat64:
+      return reducer_.GetFloat64ForToNumber(node, allowed_type);
+    case ValueRepresentation::kHoleyFloat64:
+      return reducer_.GetHoleyFloat64ForToNumber(node, allowed_type);
+    default:
+      return nullptr;
+  }
+  UNREACHABLE();
 }
 
 ProcessResult MaglevGraphOptimizer::VisitAssertInt32() {
@@ -849,39 +913,12 @@ ProcessResult MaglevGraphOptimizer::VisitUnsafeSmiTagIntPtr() {
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag() {
-  // TODO(b/424157317): Optimize.
-  ValueNode* input = GetInputAt(0);
-  auto cst = reducer_.TryGetInt32Constant(input);
-  if (cst.has_value()) {
-    return ReplaceWith(reducer_.GetInt32Constant(cst.value()));
-  }
-  if (input->Is<ReturnedValue>()) {
-    ValueNode* value = input->input(0).node()->UnwrapIdentities();
-    if (value->is_int32()) {
-      return ReplaceWith(value);
-    }
-  }
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitUnsafeSmiUntag() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
 ProcessResult MaglevGraphOptimizer::VisitCheckedInternalizedString() {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitCheckedObjectToIndex() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult
-MaglevGraphOptimizer::VisitCheckedTruncateNumberOrOddballToInt32() {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -1040,26 +1077,23 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedSmiTagFloat64() {
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedNumberToInt32() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitCheckedNumberOrOddballToFloat64() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitUncheckedNumberOrOddballToFloat64() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult
-MaglevGraphOptimizer::VisitCheckedNumberOrOddballToHoleyFloat64() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
+#define UNTAGGING_CASE(Node, Repr, Type)                                       \
+  ProcessResult MaglevGraphOptimizer::Visit##Node() {                          \
+    if (ValueNode* input = GetUntaggedValueWithRepresentation(                 \
+            GetInputAt(0), ValueRepresentation::k##Repr, NodeType::k##Type)) { \
+      return ReplaceWith(input);                                               \
+    }                                                                          \
+    return ProcessResult::kContinue;                                           \
+  }
+UNTAGGING_CASE(CheckedSmiUntag, Int32, Number)
+UNTAGGING_CASE(UnsafeSmiUntag, Int32, Number)
+UNTAGGING_CASE(CheckedNumberToInt32, Int32, Number)
+UNTAGGING_CASE(CheckedTruncateNumberOrOddballToInt32, Int32, NumberOrOddball)
+UNTAGGING_CASE(CheckedNumberOrOddballToFloat64, Float64, NumberOrOddball)
+UNTAGGING_CASE(UncheckedNumberOrOddballToFloat64, Float64, NumberOrOddball)
+UNTAGGING_CASE(CheckedNumberOrOddballToHoleyFloat64, HoleyFloat64,
+               NumberOrOddball)
+#undef UNTAGGING_CASE
 
 ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToFloat64() {
   // TODO(b/424157317): Optimize.
@@ -1234,50 +1268,12 @@ MaglevGraphOptimizer::VisitGetContinuationPreservedEmbedderData() {
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitConstant() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitFloat64Constant() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitInt32Constant() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitUint32Constant() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitIntPtrConstant() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitRootConstant() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitSmiConstant() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitTaggedIndexConstant() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitTrustedConstant() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
+#define CONSTANT_CASE(Node)                           \
+  ProcessResult MaglevGraphOptimizer::Visit##Node() { \
+    return ProcessResult::kContinue;                  \
+  }
+CONSTANT_VALUE_NODE_LIST(CONSTANT_CASE)
+#undef CONSTANT_CASE
 
 ProcessResult MaglevGraphOptimizer::VisitInt32AbsWithOverflow() {
   // TODO(b/424157317): Optimize.
