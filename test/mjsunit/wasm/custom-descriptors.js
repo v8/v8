@@ -53,6 +53,13 @@ let $g_desc1 = builder.addGlobal(wasmRefType($desc1).exact(), false, false,
 assertEquals($g_desc0.index, $s0);
 assertEquals($g_desc1.index, $s1);
 
+let $g_s0 = builder.addGlobal(wasmRefType($s0), false, false, [
+  kExprGlobalGet, $g_desc0.index,
+  kGCPrefix, kExprStructNewDefault, $s0,
+]);
+
+let $sideeffect = builder.addImport("m", "sideeffect", kSig_v_v);
+
 function MakeFunctions(type_index) {
   let desc_index = type_index + kNumStructs;  // By type section construction.
   let global_index = type_index;
@@ -212,7 +219,49 @@ builder.addFunction("br_on_cast_desc_fail_s" + type_index, sig_i_r)
 MakeFunctions($s0);
 MakeFunctions($s1);
 
-let instance = builder.instantiate();
+// Put a `ref.get_desc` instruction into a loop to exercise compiler
+// optimizations more than simple functions do.
+builder.addFunction("get_desc_in_loop", kSig_i_ii).exportFunc()
+  .addLocals(kWasmI32, 1)
+  .addBody([
+    kExprLoop, kWasmVoid,
+      // desc := var_cond ? get_desc(global.get $struct) : global.get $desc;
+      kExprLocalGet, 1,
+      kExprIf, kAnyRefCode,
+        kExprGlobalGet, $g_s0.index,
+        kGCPrefix, kExprRefGetDesc, $s0,
+      kExprElse,
+        kExprGlobalGet, $g_desc0.index,
+      kExprEnd,
+
+      // var_sum += struct.get(cast(desc))
+      kGCPrefix, kExprRefCast, $desc0,
+      kGCPrefix, kExprStructGet, $desc0, 0,
+      kExprI32ConvertI64,
+      kExprLocalGet, 2,  // sum
+      kExprI32Add,
+      kExprLocalSet, 2,
+
+      // LateLoadElimination needs to forget everything here; type-aware
+      // WasmLoadElimination can keep the descriptor cached.
+      kExprCallFunction, $sideeffect,
+
+      // while (var_loop > 0)
+      kExprLocalGet, 0,
+      kExprI32Const, 1,
+      kExprI32Sub,
+      kExprLocalTee, 0,
+      kExprBrIf, 0,
+    kExprEnd,
+
+    // return var_sum
+    kExprLocalGet, 2,
+]);
+
+// Doesn't actually have side effects, but the Wasm compiler doesn't know that.
+function sideeffect() {}
+
+let instance = builder.instantiate({m: {sideeffect}});
 let wasm = instance.exports;
 
 let s0 = wasm.make_s0(11);
@@ -248,7 +297,13 @@ assertThrows(
 let s0_other = wasm.make_s0(33);
 assertEquals(1, wasm.inc_desc_field_s0(s0));
 assertEquals(2, wasm.inc_desc_field_s0(s0_other));
-assertEquals(3, wasm.inc_desc_field_s0(s0));
+let final_desc0_field = 3;
+assertEquals(final_desc0_field, wasm.inc_desc_field_s0(s0));
+
+let loop_count = 20;
+assertEquals(final_desc0_field * loop_count,
+             wasm.get_desc_in_loop(loop_count, 1));
+
 
 let s1_other = wasm.make_s1(44);
 assertEquals(1, wasm.inc_desc_field_s1(s1));

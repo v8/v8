@@ -239,6 +239,17 @@ class WasmLoweringReducer : public Next {
                            wasm::ModuleTypeIndex type_index, int field_index,
                            bool is_signed, CheckForNull null_check,
                            std::optional<AtomicMemoryOrder> memory_order) {
+    if (field_index == StructGetOp::kDescFieldIndex) {
+      if (null_check == kWithNullCheck) {
+        __ TrapIf(__ IsNull(object, wasm::kWasmAnyRef),
+                  TrapId::kTrapNullDereference);
+      }
+      V<Map> map = __ LoadMapField(object);
+      return __ Load(map, LoadOp::Kind::TaggedBase().Immutable(),
+                     MemoryRepresentation::TaggedPointer(),
+                     Map::kInstanceDescriptorsOffset);
+    }
+
     // TODO(mliedtke): Get rid of the requires_aligned_access by aligning
     // WasmNull to 8 bytes.
     bool requires_aligned_access =

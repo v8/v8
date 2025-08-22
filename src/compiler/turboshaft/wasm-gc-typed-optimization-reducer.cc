@@ -263,9 +263,17 @@ void WasmGCTypeAnalyzer::ProcessStructGet(const StructGetOp& struct_get) {
   wasm::ValueType type =
       RefineTypeKnowledgeNotNull(struct_get.object(), struct_get);
   input_type_map_[graph_.Index(struct_get)] = type;
-  RefineTypeKnowledge(graph_.Index(struct_get),
-                      struct_get.type->field(struct_get.field_index).Unpacked(),
-                      struct_get);
+  wasm::ValueType new_type;
+  if (struct_get.is_get_desc()) {
+    // Descriptor load.
+    const wasm::TypeDefinition& type_def = module_->type(struct_get.type_index);
+    DCHECK(type_def.has_descriptor());
+    new_type = wasm::ValueType::Ref(module_->heap_type(type_def.descriptor));
+  } else {
+    // Regular field load.
+    new_type = struct_get.type->field(struct_get.field_index).Unpacked();
+  }
+  RefineTypeKnowledge(graph_.Index(struct_get), new_type, struct_get);
 }
 
 void WasmGCTypeAnalyzer::ProcessStructSet(const StructSetOp& struct_set) {

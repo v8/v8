@@ -69,6 +69,7 @@ using compiler::turboshaft::RegisterRepresentation;
 using compiler::turboshaft::Simd128ConstantOp;
 using compiler::turboshaft::StoreOp;
 using compiler::turboshaft::StringOrNull;
+using compiler::turboshaft::StructGetOp;
 using compiler::turboshaft::SupportedOperations;
 using compiler::turboshaft::Tuple;
 using compiler::turboshaft::V;
@@ -5123,12 +5124,15 @@ class TurboshaftGraphBuildingInterface
   }
 
   void RefGetDesc(FullDecoder* decoder, const Value& ref_val, Value* result) {
-    // Implicit null checks don't cover the map load.
-    V<Object> ref = NullCheck(ref_val);
-    V<Map> map = __ LoadMapField(ref);
-    result->op = __ Load(map, LoadOp::Kind::TaggedBase().Immutable(),
-                         MemoryRepresentation::TaggedPointer(),
-                         Map::kInstanceDescriptorsOffset);
+    const ValueType type = ref_val.type;
+    const StructType* struct_type =
+        decoder->module_->struct_type(type.ref_index());
+    result->op = __ StructGet(
+        V<WasmStructNullable>::Cast(ref_val.op), struct_type, type.ref_index(),
+        StructGetOp::kDescFieldIndex, true /* "signed" is default */,
+        type.is_nullable() ? compiler::kWithNullCheck
+                           : compiler::kWithoutNullCheck,
+        {});
   }
 
   using SubtypeCheckExactness = compiler::SubtypeCheckExactness;

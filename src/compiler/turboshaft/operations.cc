@@ -2009,8 +2009,13 @@ void WasmAllocateArrayOp::PrintOptions(std::ostream& os) const {
 }
 
 void StructGetOp::PrintOptions(std::ostream& os) const {
-  os << '[' << type << ", " << type_index << ", " << field_index << ", "
-     << (is_signed ? "signed, " : "") << null_check << ", ";
+  os << '[' << type << ", " << type_index << ", ";
+  if (is_get_desc()) {
+    os << "get_desc, ";
+  } else {
+    os << field_index << ", ";
+  }
+  os << (is_signed ? "signed, " : "") << null_check << ", ";
   if (memory_order.has_value()) {
     os << *memory_order;
   } else {

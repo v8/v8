@@ -7205,6 +7205,10 @@ struct ExternConvertAnyOp : FixedArityOperationT<1, ExternConvertAnyOp> {
 };
 
 struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
+  // We represent `ref.get_desc` as a special form of StructGetOp, because
+  // the concept is so similar: have an object, load a value from it.
+  static constexpr int kDescFieldIndex = -1;
+
   bool is_signed;  // `false` only for unsigned packed type accesses.
   CheckForNull null_check;
   const wasm::StructType* type;
@@ -7244,8 +7248,12 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
   V<WasmStructNullable> object() const { return input<WasmStructNullable>(0); }
 
   bool is_atomic() const { return memory_order.has_value(); }
+  bool is_get_desc() const { return field_index == kDescFieldIndex; }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
+    if (is_get_desc()) {
+      return base::VectorOf({RegisterRepresentation::Tagged()});
+    }
     return base::VectorOf(&RepresentationFor(type->field(field_index)), 1);
   }
 
@@ -7255,6 +7263,11 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
   }
 
   void Validate(const Graph& graph) const {
+    if (is_get_desc()) {
+      DCHECK(is_signed);
+      return;
+    }
+    DCHECK_LE(0, field_index);
     DCHECK_LT(field_index, type->field_count());
     DCHECK_IMPLIES(!is_signed, type->field(field_index).is_packed());
   }
