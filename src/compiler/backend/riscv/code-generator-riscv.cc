@@ -1712,8 +1712,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ fcvt_d_s(i.OutputDoubleRegister(), i.InputSingleRegister(0));
       __ Branch(&done, ne, kScratchReg, Operand(zero_reg));
 #if V8_TARGET_ARCH_RISCV64
-      __ And(kScratchReg2, kScratchReg2, Operand(0x80000000));
-      __ slli(kScratchReg2, kScratchReg2, 32);
+      if (CpuFeatures::IsSupported(ZBS)) {
+        __ bexti(kScratchReg2, kScratchReg2, 31);
+        __ slli(kScratchReg2, kScratchReg2, 63);
+      } else {
+        __ And(kScratchReg2, kScratchReg2, Operand(0x80000000));
+        __ slli(kScratchReg2, kScratchReg2, 32);
+      }
       __ fmv_d_x(kScratchDoubleReg, kScratchReg2);
 #elif V8_TARGET_ARCH_RISCV32
       __ Lw(kScratchReg2, MemOperand(sp, -kFloatSize));
