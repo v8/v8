@@ -4569,7 +4569,9 @@ void MacroAssembler::CompareTaggedAndBranch(Label* label, Condition cond,
         SignExtendWord(scratch1, r2.rm());
       } else {
         li(scratch1, r2);
-        SignExtendWord(scratch1, scratch1);
+        if (!base::IsInRange(r2.immediate(), 0, 0x7FFFFFFF)) {
+          SignExtendWord(scratch1, scratch1);
+        }
       }
       Branch(label, cond, scratch0, Operand(scratch1));
     }
