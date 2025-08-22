@@ -2022,7 +2022,11 @@ void WasmEngine::DecodeAllNameSections(CanonicalTypeNamesProvider* target) {
 }
 
 size_t WasmEngine::EstimateCurrentMemoryConsumption() const {
+#ifdef V8_ENABLE_TURBOFAN
   UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 8392);
+#else
+  UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 8368);
+#endif
   UPDATE_WHEN_CLASS_CHANGES(IsolateInfo, 168);
   UPDATE_WHEN_CLASS_CHANGES(NativeModuleInfo, 56);
   UPDATE_WHEN_CLASS_CHANGES(CurrentGCInfo, 96);
