@@ -21,7 +21,7 @@ var prettyPrinted = function prettyPrinted(msg) { return msg; };
   }
 })();
 
-// Mock Date.
+// Mock Date and Temporal.Now
 (function() {
   let index = 0;
   let mockDate = 1477662728696;
@@ -68,6 +68,30 @@ var prettyPrinted = function prettyPrinted(msg) { return msg; };
   }
 
   Date = new Proxy(Date, handler);
+
+  // Temporal.Now also accesses local time; but it is just a bag of functions
+  // we can replace without needing a proxy
+  if (typeof Temporal != "undefined") {
+    const mockZDTNow = function(tz) {
+      return new Temporal.ZonedDateTime(BigInt(mockDateNow()) * 1_000_000n, tz || "utc");
+    }
+
+    Temporal.Now.instant = function(tz) {
+      return mockZDTNow(tz).toInstant();
+    }
+    Temporal.Now.plainDateISO = function(tz) {
+      return mockZDTNow(tz).toPlainDate();
+    }
+    Temporal.Now.plainTimeISO = function(tz) {
+      return mockZDTNow(tz).toPlainTime();
+    }
+    Temporal.Now.plainDateTimeISO = function(tz) {
+      return mockZDTNow(tz).toPlainDateTime();
+    }
+    Temporal.Now.zonedDateTimeISO = function(tz) {
+      return mockZDTNow(tz);
+    }
+  }
 })();
 
 // Mock readline so that test cases don't hang.
