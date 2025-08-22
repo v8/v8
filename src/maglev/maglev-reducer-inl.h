@@ -645,20 +645,19 @@ std::optional<int32_t> MaglevReducer<BaseT>::TryGetInt32Constant(
 template <typename BaseT>
 ValueNode* MaglevReducer<BaseT>::GetFloat64(ValueNode* value) {
   value->MaybeRecordUseReprHint(UseRepresentation::kFloat64);
-  return GetFloat64ForToNumber(value, NodeType::kNumber,
-                               TaggedToFloat64ConversionType::kOnlyNumber);
+  return GetFloat64ForToNumber(value, NodeType::kNumber);
 }
 
 template <typename BaseT>
 ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
-    ValueNode* value, NodeType allowed_input_type,
-    TaggedToFloat64ConversionType conversion_type) {
+    ValueNode* value, NodeType allowed_input_type) {
   ValueRepresentation representation =
       value->properties().value_representation();
   if (representation == ValueRepresentation::kFloat64) return value;
 
   // Process constants first to avoid allocating NodeInfo for them.
-  if (auto cst = TryGetFloat64Constant(value, conversion_type)) {
+  if (auto cst = TryGetFloat64Constant(
+          value, GetTaggedToFloat64ConversionType(allowed_input_type))) {
     return graph()->GetFloat64Constant(cst.value());
   }
   // We could emit unconditional eager deopts for other kinds of constant, but
@@ -689,9 +688,8 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
           NodeTypeIs(combined_type, NodeType::kNumber)) {
         // Number->Float64 conversions are exact alternatives, so they can
         // also become the canonical float64_alternative.
-        return alternative.set_float64(BuildNumberOrOddballToFloat64(
-            value, NodeType::kNumber,
-            TaggedToFloat64ConversionType::kOnlyNumber));
+        return alternative.set_float64(
+            BuildNumberOrOddballToFloat64(value, NodeType::kNumber));
       }
       if (!IsEmptyNodeType(node_info->type()) &&
           NodeTypeIs(combined_type, NodeType::kNumberOrOddball)) {
@@ -699,14 +697,12 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
         // since they lose the information that this is an oddball, so they
         // can only become the canonical float64_alternative if they are a
         // known number (and therefore not oddball).
-        return BuildNumberOrOddballToFloat64(value, combined_type,
-                                             conversion_type);
+        return BuildNumberOrOddballToFloat64(value, combined_type);
       }
       // The type is impossible. We could generate an unconditional deopt here,
       // but it's too invasive. So we just generate a check which will always
       // deopt.
-      return BuildNumberOrOddballToFloat64(value, allowed_input_type,
-                                           conversion_type);
+      return BuildNumberOrOddballToFloat64(value, allowed_input_type);
     }
     case ValueRepresentation::kInt32:
       return alternative.set_float64(AddNewNode<ChangeInt32ToFloat64>({value}));
@@ -873,9 +869,9 @@ ValueNode* MaglevReducer<BaseT>::BuildSmiUntag(ValueNode* node) {
 
 template <typename BaseT>
 ValueNode* MaglevReducer<BaseT>::BuildNumberOrOddballToFloat64(
-    ValueNode* node, NodeType allowed_input_type,
-    TaggedToFloat64ConversionType conversion_type) {
+    ValueNode* node, NodeType allowed_input_type) {
   NodeType old_type;
+  auto conversion_type = GetTaggedToFloat64ConversionType(allowed_input_type);
   if (EnsureType(node, allowed_input_type, &old_type)) {
     if (old_type == NodeType::kSmi) {
       ValueNode* untagged_smi = BuildSmiUntag(node);

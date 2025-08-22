@@ -240,9 +240,8 @@ class MaglevReducer {
 
   ValueNode* BuildSmiUntag(ValueNode* node);
 
-  ValueNode* BuildNumberOrOddballToFloat64(
-      ValueNode* node, NodeType allowed_input_type,
-      TaggedToFloat64ConversionType conversion_type);
+  ValueNode* BuildNumberOrOddballToFloat64(ValueNode* node,
+                                           NodeType allowed_input_type);
 
   // Get a tagged representation node whose value is equivalent to the given
   // node.
@@ -262,9 +261,8 @@ class MaglevReducer {
   // Deopts if the value is not exactly representable as a Float64.
   ValueNode* GetFloat64(ValueNode* value);
 
-  ValueNode* GetFloat64ForToNumber(
-      ValueNode* value, NodeType allowed_input_type,
-      TaggedToFloat64ConversionType conversion_type);
+  ValueNode* GetFloat64ForToNumber(ValueNode* value,
+                                   NodeType allowed_input_type);
 
   void EnsureInt32(ValueNode* value, bool can_be_heap_number = false);
 

@@ -1207,6 +1207,18 @@ enum class TaggedToFloat64ConversionType : uint8_t {
   kNumberOrOddball,
 };
 
+constexpr TaggedToFloat64ConversionType GetTaggedToFloat64ConversionType(
+    NodeType type) {
+  if (NodeTypeIs(type, NodeType::kNumber)) {
+    return TaggedToFloat64ConversionType::kOnlyNumber;
+  }
+  if (NodeTypeIs(type, NodeType::kNumberOrBoolean)) {
+    return TaggedToFloat64ConversionType::kNumberOrBoolean;
+  }
+  DCHECK(NodeTypeIs(type, NodeType::kNumberOrOddball));
+  return TaggedToFloat64ConversionType::kNumberOrOddball;
+}
+
 constexpr Condition ConditionFor(Operation cond);
 constexpr Condition ConditionForNaN();
 
