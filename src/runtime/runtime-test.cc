@@ -2169,7 +2169,7 @@ RUNTIME_FUNCTION(Runtime_SharedGC) {
 
 RUNTIME_FUNCTION(Runtime_AtomicsSynchronizationPrimitiveNumWaitersForTesting) {
   HandleScope scope(isolate);
-  if (args.length() != 1) {
+  if (args.length() != 1 || !IsJSSynchronizationPrimitive(*args.at(0))) {
     return CrashUnlessFuzzing(isolate);
   }
   DirectHandle<JSSynchronizationPrimitive> primitive =
