@@ -7013,13 +7013,19 @@ int Shell::Main(int argc, char* argv[]) {
   Isolate* isolate = Isolate::New(create_params);
 
 #ifdef V8_FUZZILLI
-  // Let the parent process (Fuzzilli) know we are ready.
+
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  sanitizer_cov_prepare_for_hardware_sandbox();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
   if (options.fuzzilli_enable_builtins_coverage) {
     cov_init_builtins_edges(static_cast<uint32_t>(
         i::BasicBlockProfiler::Get()
             ->GetCoverageBitmap(reinterpret_cast<i::Isolate*>(isolate))
             .size()));
   }
+
+  // Let the parent process (Fuzzilli) know we are ready.
   char helo[] = "HELO";
   if (write(REPRL_CWFD, helo, 4) != 4 || read(REPRL_CRFD, helo, 4) != 4) {
     fuzzilli_reprl = false;
