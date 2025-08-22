@@ -480,68 +480,6 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
   return *isolate->factory()->NewJSArrayWithElements(externalized_values);
 }
 
-RUNTIME_FUNCTION(Runtime_SerializeWasmModule) {
-  HandleScope scope(isolate);
-  if (args.length() != 1 || !IsWasmModuleObject(args[0])) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  DirectHandle<WasmModuleObject> module_obj = args.at<WasmModuleObject>(0);
-
-  wasm::NativeModule* native_module = module_obj->native_module();
-  DCHECK(!native_module->compilation_state()->failed());
-
-  wasm::WasmSerializer wasm_serializer(native_module);
-  size_t byte_length = wasm_serializer.GetSerializedNativeModuleSize();
-
-  DirectHandle<JSArrayBuffer> array_buffer =
-      isolate->factory()
-          ->NewJSArrayBufferAndBackingStore(byte_length,
-                                            InitializedFlag::kUninitialized)
-          .ToHandleChecked();
-
-  bool serialized_successfully = wasm_serializer.SerializeNativeModule(
-      {static_cast<uint8_t*>(array_buffer->backing_store()), byte_length});
-  CHECK(serialized_successfully || v8_flags.fuzzing);
-  return *array_buffer;
-}
-
-// Take an array buffer and attempt to reconstruct a compiled wasm module.
-// Return undefined if unsuccessful.
-RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
-  HandleScope scope(isolate);
-  // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
-  CHECK_EQ(2, args.length());
-  CHECK(IsJSArrayBuffer(args[0]));
-  CHECK(IsJSTypedArray(args[1]));
-
-  DirectHandle<JSArrayBuffer> buffer = args.at<JSArrayBuffer>(0);
-  DirectHandle<JSTypedArray> wire_bytes = args.at<JSTypedArray>(1);
-  CHECK(!buffer->was_detached());
-  CHECK(!wire_bytes->WasDetached());
-
-  DirectHandle<JSArrayBuffer> wire_bytes_buffer =
-      wire_bytes->GetBuffer(isolate);
-  base::Vector<const uint8_t> wire_bytes_vec{
-      reinterpret_cast<const uint8_t*>(wire_bytes_buffer->backing_store()) +
-          wire_bytes->byte_offset(),
-      wire_bytes->byte_length()};
-  base::Vector<uint8_t> buffer_vec{
-      reinterpret_cast<uint8_t*>(buffer->backing_store()),
-      buffer->byte_length()};
-
-  // Note that {wasm::DeserializeNativeModule} will allocate. We assume the
-  // JSArrayBuffer backing store doesn't get relocated.
-  wasm::CompileTimeImports compile_imports{};
-  MaybeDirectHandle<WasmModuleObject> maybe_module_object =
-      wasm::DeserializeNativeModule(isolate, buffer_vec, wire_bytes_vec,
-                                    compile_imports, {});
-  DirectHandle<WasmModuleObject> module_object;
-  if (!maybe_module_object.ToHandle(&module_object)) {
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
-  return *module_object;
-}
-
 RUNTIME_FUNCTION(Runtime_WasmGetNumberOfInstances) {
   SealHandleScope shs(isolate);
   if (args.length() != 1 || !IsWasmModuleObject(args[0])) {
@@ -780,12 +718,6 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUpForTesting) {
   }
   wasm::TriggerTierUp(isolate, trusted_data, func_index);
   return ReadOnlyRoots(isolate).undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_WasmNull) {
-  // This isn't exposed to fuzzers. (Wasm nulls may not appear in JS.)
-  HandleScope scope(isolate);
-  return ReadOnlyRoots(isolate).wasm_null();
 }
 
 static Tagged<Object> CreateWasmObject(Isolate* isolate,

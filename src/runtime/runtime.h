@@ -760,7 +760,6 @@ constexpr bool CanTriggerGC(T... properties) {
   F(BuildRefTypeBitfield, 2, 1)                                 \
   F(CheckIsOnCentralStack, 0, 1)                                \
   F(CountUnoptimizedWasmToJSWrapper, 1, 1)                      \
-  F(DeserializeWasmModule, 2, 1)                                \
   F(DisallowWasmCodegen, 1, 1)                                  \
   F(FlushLiftoffCode, 0, 1)                                     \
   F(WasmTriggerCodeGC, 0, 1)                                    \
@@ -779,7 +778,6 @@ constexpr bool CanTriggerGC(T... properties) {
   F(IsWasmDebugFunction, 1, 1)                                  \
   F(IsWasmPartialOOBWriteNoop, 0, 1)                            \
   F(IsWasmTrapHandlerEnabled, 0, 1)                             \
-  F(SerializeWasmModule, 1, 1)                                  \
   F(SetWasmCompileControls, 2, 1)                               \
   F(SetWasmImportedStringsEnabled, 1, 1)                        \
   F(SetWasmInstantiateControls, 0, 1)                           \
@@ -791,7 +789,6 @@ constexpr bool CanTriggerGC(T... properties) {
   IF_V8_WASM_RANDOM_FUZZERS(F, WasmGenerateRandomModule, -1, 1) \
   F(WasmGetNumberOfInstances, 1, 1)                             \
   F(WasmLeaveDebugging, 0, 1)                                   \
-  F(WasmNull, 0, 1)                                             \
   F(WasmNumCodeSpaces, 1, 1)                                    \
   F(WasmStruct, 0, 1)                                           \
   F(WasmSwitchToTheCentralStackCount, 0, 1)                     \

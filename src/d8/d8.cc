@@ -118,6 +118,7 @@
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-serialization.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifndef DCHECK
@@ -2940,6 +2941,80 @@ void Shell::SerializerDeserialize(
   info.GetReturnValue().Set(result);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+
+void Shell::WasmSerializeModule(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  HandleScope handle_scope(isolate);
+  if (!info[0]->IsWasmModuleObject()) {
+    ThrowError(isolate, "First argument must be a WasmModuleObject");
+    return;
+  }
+  i::DirectHandle<i::WasmModuleObject> module_obj =
+      i::Cast<i::WasmModuleObject>(Utils::OpenHandle(*info[0]));
+
+  i::wasm::NativeModule* native_module = module_obj->native_module();
+  DCHECK(!native_module->compilation_state()->failed());
+
+  i::wasm::WasmSerializer wasm_serializer(native_module);
+  size_t byte_length = wasm_serializer.GetSerializedNativeModuleSize();
+
+  Local<ArrayBuffer> array_buffer = ArrayBuffer::New(isolate, byte_length);
+
+  bool serialized_successfully = wasm_serializer.SerializeNativeModule(
+      {static_cast<uint8_t*>(array_buffer->GetBackingStore()->Data()),
+       byte_length});
+  CHECK(serialized_successfully || i::v8_flags.fuzzing);
+  info.GetReturnValue().Set(array_buffer);
+}
+
+void Shell::WasmDeserializeModule(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  HandleScope handle_scope(isolate);
+  if (!info[0]->IsArrayBuffer()) {
+    ThrowError(isolate, "First argument must be an ArrayBuffer");
+    return;
+  }
+  if (!info[1]->IsTypedArray()) {
+    ThrowError(isolate, "Second argument must be a TypedArray");
+    return;
+  }
+  i::DirectHandle<i::JSArrayBuffer> buffer =
+      i::Cast<i::JSArrayBuffer>(Utils::OpenHandle(*info[0]));
+  i::DirectHandle<i::JSTypedArray> wire_bytes =
+      i::Cast<i::JSTypedArray>(Utils::OpenHandle(*info[1]));
+  CHECK(!buffer->was_detached());
+  CHECK(!wire_bytes->WasDetached());
+
+  i::DirectHandle<i::JSArrayBuffer> wire_bytes_buffer =
+      wire_bytes->GetBuffer(i_isolate);
+  base::Vector<const uint8_t> wire_bytes_vec{
+      reinterpret_cast<const uint8_t*>(wire_bytes_buffer->backing_store()) +
+          wire_bytes->byte_offset(),
+      wire_bytes->byte_length()};
+  base::Vector<uint8_t> buffer_vec{
+      reinterpret_cast<uint8_t*>(buffer->backing_store()),
+      buffer->byte_length()};
+
+  // Note that {wasm::DeserializeNativeModule} will allocate. We assume the
+  // JSArrayBuffer backing store doesn't get relocated.
+  i::wasm::CompileTimeImports compile_imports{};
+  i::MaybeDirectHandle<i::WasmModuleObject> maybe_module_object =
+      i::wasm::DeserializeNativeModule(i_isolate, buffer_vec, wire_bytes_vec,
+                                       compile_imports, {});
+  i::DirectHandle<i::WasmModuleObject> module_object;
+  if (!maybe_module_object.ToHandle(&module_object)) {
+    info.GetReturnValue().Set(Undefined(isolate));
+    return;
+  }
+  info.GetReturnValue().Set(Utils::ToLocal(module_object));
+}
+
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 void Shell::ProfilerSetOnProfileEndListener(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
@@ -4311,6 +4386,16 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
                               Local<Signature>(), 1));
     d8_template->Set(isolate, "serializer", serializer_template);
   }
+#if V8_ENABLE_WEBASSEMBLY
+  {
+    Local<ObjectTemplate> wasm_template = ObjectTemplate::New(isolate);
+    wasm_template->Set(isolate, "serializeModule",
+                       FunctionTemplate::New(isolate, WasmSerializeModule));
+    wasm_template->Set(isolate, "deserializeModule",
+                       FunctionTemplate::New(isolate, WasmDeserializeModule));
+    d8_template->Set(isolate, "wasm", wasm_template);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
   {
     Local<ObjectTemplate> profiler_template = ObjectTemplate::New(isolate);
     profiler_template->Set(

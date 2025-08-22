@@ -634,6 +634,13 @@ class Shell : public i::AllStatic {
   static void SerializerDeserialize(
       const v8::FunctionCallbackInfo<v8::Value>& info);
 
+#if V8_ENABLE_WEBASSEMBLY
+  static void WasmSerializeModule(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void WasmDeserializeModule(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   static void ProfilerSetOnProfileEndListener(
       const v8::FunctionCallbackInfo<v8::Value>& info);
   static void ProfilerTriggerSample(
