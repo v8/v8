@@ -645,6 +645,7 @@
   'wasm/generate-random-module*': [SKIP],
   'wasm/js-api': [SKIP],
   'wasm/memory-copy-inline': [SKIP],
+  'wasm/memory-copy-outline': [SKIP],
   'wasm/memory-fill-inline': [SKIP],
   'wasm/memory-fill-outline': [SKIP],
   'wasm/memory-huge-constant-index': [SKIP],
@@ -654,6 +655,9 @@
   'regress/wasm/regress-v8-14471': [SKIP],
   'wasm/jspi*': [SKIP],
   'wasm/growable-stacks': [SKIP],
+
+  # --experimental-wasm-wasmfx
+  'wasm/stack-switching': [SKIP],
 
   # --experimental-wasm-growable-stacks
   'regress/wasm/regress-421055121': [SKIP],
@@ -775,11 +779,13 @@
   'wasm/grow-memory-resizable-buffer': [SKIP],
   'wasm/grow-shared-memory-resizable-buffer': [SKIP],
   'wasm/memory-resizable-buffer*': [SKIP],
+  'wasm/memory-toresizable-max-byte-length': [SKIP],
   'wasm/memory-toresizable-tofixedlength': [SKIP],
   'wasm/shared-memory-resizable-buffer-array*': [SKIP],
   'wasm/shared-memory-resizable-buffer-errors': [SKIP],
 
   # --experimental-wasm-custom-descriptors
+  'regress/wasm/regress-433984397': [SKIP],
   'wasm/custom-descriptors*': [SKIP],
   'wasm/exact-types': [SKIP],
 
@@ -801,7 +807,6 @@
 
   # Other tests that require compilation.
   'compiler/fast-api-calls-wasm': [SKIP],
-  'regress/wasm/regress-366635354': [SKIP],
   'regress/wasm/regress-403308742': [SKIP],
   'wasm/async-compile': [SKIP],
   'wasm/log-code-after-post-message': [SKIP],
@@ -861,6 +866,10 @@
 
   # --turboshaft-wasm-in-js-inlining
   'regress/wasm/regress-422639603': [SKIP],
+
+  # The interpreter call stack contains an additional top frame if we throw a
+  # type-mismatch exception before executing the Wasm function.
+  'regress/wasm/regress-366635354': [SKIP],
 
   # asm.js tests
   'asm/*': [SKIP],

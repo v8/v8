@@ -589,14 +589,15 @@ void WasmTableObject::UpdateDispatchTable(
 #if V8_ENABLE_DRUMBRAKE
   } else if (v8_flags.wasm_jitless) {
     DCHECK(v8_flags.wasm_jitless);
-    if (IsWasmImportData(*implicit_arg)) {
-      dispatch_table->SetForWrapper(
-          entry_index, Cast<WasmImportData>(*implicit_arg), {}, sig_id,
-          target_func_index, WasmDispatchTable::kExistingEntry);
+    if (Tagged<WasmImportData> import_data;
+        TryCast(*implicit_arg, &import_data)) {
+      dispatch_table->SetForWrapper(entry_index, import_data, {}, sig_id,
+                                    target_func_index,
+                                    WasmDispatchTable::kExistingEntry);
     } else {
       dispatch_table->SetForNonWrapper(
-          entry_index, Cast<WasmTrustedInstanceData>(*implicit_arg), {}, sig_id,
-          target_func_index, WasmDispatchTable::kExistingEntry);
+          entry_index, TrustedCast<WasmTrustedInstanceData>(*implicit_arg), {},
+          sig_id, target_func_index, WasmDispatchTable::kExistingEntry);
     }
 
     Tagged<ProtectedWeakFixedArray> uses = dispatch_table->protected_uses();

@@ -40,9 +40,9 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return kSystemPointerSize;
       default:
         UNREACHABLE();
-    }
-  }
-};
+    }  // namespace wasm
+  }  // namespace internal
+};  // namespace v8
 
 }  // namespace wasm
 
@@ -242,7 +242,7 @@ V8_EXPORT_PRIVATE InterpreterHandle* GetInterpreterHandle(
       WasmInterpreterObject::get_interpreter_handle(*interpreter_object),
       isolate);
   CHECK(!IsUndefined(*handle, isolate));
-  return Cast<Managed<InterpreterHandle>>(handle)->raw();
+  return TrustedCast<Managed<InterpreterHandle>>(handle)->raw();
 }
 
 V8_EXPORT_PRIVATE InterpreterHandle* GetOrCreateInterpreterHandle(
@@ -263,7 +263,7 @@ V8_EXPORT_PRIVATE InterpreterHandle* GetOrCreateInterpreterHandle(
     WasmInterpreterObject::set_interpreter_handle(*interpreter_object, *handle);
   }
 
-  return Cast<Managed<InterpreterHandle>>(handle)->raw();
+  return TrustedCast<Managed<InterpreterHandle>>(handle)->raw();
 }
 
 // A helper for an entry in an indirect function table (IFT).
@@ -297,12 +297,12 @@ class IndirectFunctionTableEntry {
 IndirectFunctionTableEntry::IndirectFunctionTableEntry(
     DirectHandle<WasmInstanceObject> instance, int table_index, int entry_index)
     : table_(table_index != 0
-                 ? direct_handle(Cast<WasmDispatchTable>(
+                 ? direct_handle(TrustedCast<WasmDispatchTable>(
                                      instance->trusted_data(Isolate::Current())
                                          ->dispatch_tables()
                                          ->get(table_index)),
                                  Isolate::Current())
-                 : direct_handle(Cast<WasmDispatchTable>(
+                 : direct_handle(TrustedCast<WasmDispatchTable>(
                                      instance->trusted_data(Isolate::Current())
                                          ->dispatch_table0()),
                                  Isolate::Current())),
@@ -1700,7 +1700,7 @@ void WasmInterpreterRuntime::PurgeIndirectCallCache(uint32_t table_index) {
   const WasmTable& table = module_->tables[table_index];
   if (IsSubtypeOf(table.type, kWasmFuncRef, module_)) {
     size_t length =
-        Tagged<WasmDispatchTable>::cast(
+        TrustedCast<WasmDispatchTable>(
             wasm_trusted_instance_data()->dispatch_tables()->get(table_index))
             ->length();
     indirect_call_tables_[table_index].resize(length);
@@ -1793,7 +1793,7 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
   // Bounds check against table size.
   DCHECK_GE(
       table.size(),
-      Tagged<WasmDispatchTable>::cast(
+      TrustedCast<WasmDispatchTable>(
           wasm_trusted_instance_data()->dispatch_tables()->get(table_index))
           ->length());
   if (entry_index >= table.size()) {
@@ -1809,9 +1809,8 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
     const FunctionSig* signature = module_->signature({sig_index});
 
     DirectHandle<Object> object_implicit_arg(entry.implicit_arg(), isolate_);
-    if (IsWasmTrustedInstanceData(*object_implicit_arg)) {
-      Tagged<WasmTrustedInstanceData> trusted_instance_object =
-          Cast<WasmTrustedInstanceData>(*object_implicit_arg);
+    if (Tagged<WasmTrustedInstanceData> trusted_instance_object;
+        TryCast(*object_implicit_arg, &trusted_instance_object)) {
       DirectHandle<WasmInstanceObject> instance_object(
           Cast<WasmInstanceObject>(trusted_instance_object->instance_object()),
           isolate_);
@@ -1881,8 +1880,8 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
       // cross-instance calls in the interpreter without recursively adding C++
       // stack frames.
       DirectHandle<WasmInstanceObject> target_instance(
-          Cast<WasmInstanceObject>(
-              Cast<WasmTrustedInstanceData>(*object_implicit_arg)
+          TrustedCast<WasmInstanceObject>(
+              TrustedCast<WasmTrustedInstanceData>(*object_implicit_arg)
                   ->instance_object()),
           isolate_);
 
@@ -1975,9 +1974,8 @@ void WasmInterpreterRuntime::ExecuteCallRef(
     func_ref = direct_handle(Cast<WasmFuncRef>(*func_ref)->internal(isolate_),
                              isolate_);
   }
-  if (IsWasmInternalFunction(*func_ref)) {
-    Tagged<WasmInternalFunction> wasm_internal_function =
-        Cast<WasmInternalFunction>(*func_ref);
+  if (Tagged<WasmInternalFunction> wasm_internal_function;
+      TryCast(*func_ref, &wasm_internal_function)) {
     Tagged<Object> implicit_arg = wasm_internal_function->implicit_arg();
     if (IsWasmImportData(implicit_arg)) {
       func_ref = direct_handle(implicit_arg, isolate_);
@@ -2049,8 +2047,8 @@ ExternalCallResult WasmInterpreterRuntime::CallImportedFunction(
     // WasmToWasm call.
     DCHECK(IsWasmTrustedInstanceData(entry.implicit_arg()));
     DirectHandle<WasmInstanceObject> target_instance(
-        Cast<WasmInstanceObject>(
-            Cast<WasmTrustedInstanceData>(entry.implicit_arg())
+        TrustedCast<WasmInstanceObject>(
+            TrustedCast<WasmTrustedInstanceData>(entry.implicit_arg())
                 ->instance_object()),
         isolate_);
 
@@ -2144,9 +2142,8 @@ void WasmInterpreterRuntime::CallWasmToJSBuiltin(
     const FunctionSig* sig) {
   DCHECK(!WasmBytecode::ContainsSimd(sig));
   DirectHandle<Object> callable;
-  if (IsWasmImportData(*object_ref)) {
-    callable =
-        direct_handle(Cast<WasmImportData>(*object_ref)->callable(), isolate);
+  if (Tagged<WasmImportData> import_data; TryCast(*object_ref, &import_data)) {
+    callable = direct_handle(import_data->callable(), isolate);
   } else {
     callable = object_ref;
     DCHECK(!IsUndefined(*callable));
@@ -2504,8 +2501,8 @@ WasmRef WasmInterpreterRuntime::WasmJSToWasmObject(
   //    first_arg_addr -> |      extern_ref      |
   //
   constexpr size_t kArgsLength = 2;
-  Address args[kArgsLength] = {
-      IntToSmi(value_type.raw_bit_field()), (*extern_ref).ptr()};
+  Address args[kArgsLength] = {IntToSmi(value_type.raw_bit_field()),
+                               (*extern_ref).ptr()};
   Address* first_arg_addr = &args[kArgsLength - 1];
 
   // A runtime function can throw, therefore we need to make sure that the
@@ -2545,7 +2542,7 @@ WasmRef WasmInterpreterRuntime::WasmToJSObject(WasmRef value) const {
   }
   if (IsWasmInternalFunction(*value)) {
     DirectHandle<WasmInternalFunction> internal =
-        Cast<WasmInternalFunction>(value);
+        TrustedCast<WasmInternalFunction>(value);
     return WasmInternalFunction::GetOrCreateExternal(internal);
   }
   if (IsWasmNull(*value)) {

@@ -4358,7 +4358,7 @@ Isolate::Isolate(IsolateGroup* isolate_group)
   // TODO(ahaas): The code of the landing pad does not have to be a builtin,
   // we could also just move it to the trap handler, and implement it e.g. with
   // inline assembly. It's not clear if that's worth it.
-  if (Isolate::CurrentEmbeddedBlobCodeSize()) {
+  if (Isolate::CurrentEmbeddedBlobCodeSize() && !v8_flags.wasm_jitless) {
     Address landing_pad =
         Builtins::EmbeddedEntryOf(Builtin::kWasmTrapHandlerLandingPad);
     i::trap_handler::SetLandingPad(landing_pad);

@@ -196,7 +196,8 @@ void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
       function_data,
       FieldOperand(shared_function_info,
                    SharedFunctionInfo::kTrustedFunctionDataOffset),
-      kUnknownIndirectPointerTag, kScratchRegister);
+      kWasmFunctionDataIndirectPointerTag, kScratchRegister);
+
   shared_function_info = no_reg;
 
   Register trusted_instance_data = wasm_instance;
