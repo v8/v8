@@ -940,6 +940,7 @@ class MaglevGraphBuilder {
   V(StringPrototypeCharAt)                     \
   V(StringPrototypeCharCodeAt)                 \
   V(StringPrototypeCodePointAt)                \
+  V(StringPrototypeStartsWith)                 \
   V(StringPrototypeIterator)                   \
   IF_INTL(V, StringPrototypeLocaleCompareIntl) \
   CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V) \
@@ -1161,6 +1162,7 @@ class MaglevGraphBuilder {
       std::pair<interpreter::Register, interpreter::Register> result);
 
   ValueNode* BuildSmiUntag(ValueNode* node);
+  ValueNode* BuildGetCharCodeAt(ValueNode* string, ValueNode* index);
 
   ReduceResult BuildCheckSmi(ValueNode* object, bool elidable = true);
   ReduceResult BuildCheckNumber(ValueNode* object);
@@ -1790,6 +1792,9 @@ class MaglevGraphBuilder {
 
   template <typename FCond, typename FTrue, typename FFalse>
   ValueNode* Select(FCond cond, FTrue if_true, FFalse if_false);
+
+  ValueNode* BuildInt32Max(ValueNode* a, ValueNode* b);
+  ValueNode* BuildInt32Min(ValueNode* a, ValueNode* b);
 
   ReduceResult SelectReduction(
       base::FunctionRef<BranchResult(BranchBuilder&)> cond,

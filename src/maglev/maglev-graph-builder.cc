@@ -929,6 +929,22 @@ ValueNode* MaglevGraphBuilder::Select(FCond cond, FTrue if_true,
   return subgraph.get(ret_val);
 }
 
+ValueNode* MaglevGraphBuilder::BuildInt32Max(ValueNode* a, ValueNode* b) {
+  return Select(
+      [&](BranchBuilder& builder) {
+        return BuildBranchIfInt32Compare(builder, Operation::kLessThan, a, b);
+      },
+      [&]() -> ValueNode* { return b; }, [&]() -> ValueNode* { return a; });
+}
+
+ValueNode* MaglevGraphBuilder::BuildInt32Min(ValueNode* a, ValueNode* b) {
+  return Select(
+      [&](BranchBuilder& builder) {
+        return BuildBranchIfInt32Compare(builder, Operation::kLessThan, a, b);
+      },
+      [&]() -> ValueNode* { return a; }, [&]() -> ValueNode* { return b; });
+}
+
 ReduceResult MaglevGraphBuilder::SelectReduction(
     base::FunctionRef<BranchResult(BranchBuilder&)> cond,
     base::FunctionRef<ReduceResult()> if_true,
@@ -9191,18 +9207,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
   // And index is below length.
   ValueNode* length;
   GET_VALUE_OR_ABORT(length, BuildLoadStringLength(receiver));
-  auto GetCharCodeAt = [&]() -> ValueNode* {
-    bool is_seq_one_byte =
-        v8_flags.specialize_code_for_one_byte_seq_strings &&
-        NodeTypeIs(GetType(receiver), NodeType::kSeqOneByteString);
-    if (is_seq_one_byte) {
-      return AddNewNode<BuiltinSeqOneByteStringCharCodeAt>({receiver, index});
-    } else {
-      return AddNewNode<BuiltinStringPrototypeCharCodeOrCodePointAt>(
-          {receiver, index},
-          BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt);
-    }
-  };
 
   if (current_speculation_mode_ ==
       SpeculationMode::kDisallowBoundsCheckSpeculation) {
@@ -9217,14 +9221,14 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
               AddNewNode<UnsafeInt32ToUint32>({index}),
               AddNewNode<UnsafeInt32ToUint32>({length}));
         },
-        [&]() -> ValueNode* { return GetCharCodeAt(); },
+        [&]() -> ValueNode* { return BuildGetCharCodeAt(receiver, index); },
         [&]() { return GetRootConstant(RootIndex::kNanValue); });
   }
 
   RETURN_IF_ABORT(TryBuildCheckInt32Condition(
       index, length, AssertCondition::kUnsignedLessThan,
       DeoptimizeReason::kOutOfBounds));
-  return GetCharCodeAt();
+  return BuildGetCharCodeAt(receiver, index);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
@@ -9283,6 +9287,82 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
       index, length, AssertCondition::kUnsignedLessThan,
       DeoptimizeReason::kOutOfBounds));
   return GetCodePointAt();
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeStartsWith(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (!CanSpeculateCall()) return {};
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+  ValueNode* search_element =
+      BuildToString(GetValueOrUndefined(args[0]), ToString::kThrowOnSymbol);
+  ValueNode* start_arg = GetValueOrUndefined(args[1]);
+  ValueNode* start =
+      IsUndefinedValue(start_arg) ? GetInt32Constant(0) : start_arg;
+
+  RETURN_IF_ABORT(BuildCheckString(receiver));
+  RETURN_IF_ABORT(BuildCheckSmi(start));
+
+  ValueNode* receiver_length;
+  GET_VALUE_OR_ABORT(receiver_length, BuildLoadStringLength(receiver));
+
+  // min(max(start, 0), receiver_length)
+  ValueNode* clamped_start = GetInt32(BuildInt32Min(
+      BuildInt32Max(start, GetInt32Constant(0)), receiver_length));
+
+  ValueNode* search_length;
+  GET_VALUE_OR_ABORT(search_length, BuildLoadStringLength(search_element));
+
+  // TODO: Introduce a ForInt32 helper.
+  MaglevSubGraphBuilder sub_graph(this, 2);
+  MaglevSubGraphBuilder::Variable ret_val(0);
+  MaglevSubGraphBuilder::Variable var_i(1);
+  MaglevSubGraphBuilder::Label done(&sub_graph, 2, {&ret_val});
+  MaglevSubGraphBuilder::Label return_false(&sub_graph, 2);
+
+  // receiver_length - clamped_start < search_length
+  ValueNode* remaining =
+      AddNewNode<Int32Subtract>({receiver_length, clamped_start});
+  sub_graph.GotoIfTrue<BranchIfInt32Compare>(
+      &return_false, {remaining, search_length}, Operation::kLessThan);
+
+  // i = 0
+  sub_graph.set(var_i, GetInt32Constant(0));
+  MaglevSubGraphBuilder::LoopLabel loop_header = sub_graph.BeginLoop({&var_i});
+  MaglevSubGraphBuilder::Label return_true(&sub_graph, 1);
+
+  ValueNode* index_int32 = sub_graph.get(var_i);
+
+  // if (i < search_length) continue; else exit loop
+  sub_graph.GotoIfFalse<BranchIfInt32Compare>(
+      &return_true, {index_int32, search_length}, Operation::kLessThan);
+
+  // pos = clamped_start + i
+  ValueNode* pos = AddNewNode<Int32Add>({clamped_start, index_int32});
+
+  ValueNode* lhs_ch = BuildGetCharCodeAt(receiver, pos);
+  ValueNode* rhs_ch = BuildGetCharCodeAt(search_element, index_int32);
+  ValueNode* is_equal = BuildTaggedEqual(lhs_ch, rhs_ch);
+
+  // If chars are not equal, return false.
+  sub_graph.GotoIfFalse<BranchIfRootConstant>(&return_false, {is_equal},
+                                              RootIndex::kTrueValue);
+
+  // i++; goto loop_header
+  ValueNode* next_index_int32 =
+      AddNewNode<Int32Add>({sub_graph.get(var_i), GetInt32Constant(1)});
+  sub_graph.set(var_i, next_index_int32);
+  sub_graph.EndLoop(&loop_header);
+
+  sub_graph.Bind(&return_true);
+  sub_graph.set(ret_val, GetRootConstant(RootIndex::kTrueValue));
+  sub_graph.Goto(&done);
+
+  sub_graph.Bind(&return_false);
+  sub_graph.set(ret_val, GetRootConstant(RootIndex::kFalseValue));
+  sub_graph.Goto(&done);
+
+  sub_graph.Bind(&done);
+  return sub_graph.get(ret_val);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeIterator(
@@ -16404,6 +16484,20 @@ bool MaglevGraphBuilder::IsInsideLoop() const {
 
 ValueNode* MaglevGraphBuilder::BuildSmiUntag(ValueNode* node) {
   return reducer_.BuildSmiUntag(node);
+}
+
+ValueNode* MaglevGraphBuilder::BuildGetCharCodeAt(ValueNode* string,
+                                                  ValueNode* index) {
+  bool is_seq_one_byte =
+      v8_flags.specialize_code_for_one_byte_seq_strings &&
+      NodeTypeIs(GetType(string), NodeType::kSeqOneByteString);
+  if (is_seq_one_byte) {
+    return AddNewNode<BuiltinSeqOneByteStringCharCodeAt>({string, index});
+  } else {
+    return AddNewNode<BuiltinStringPrototypeCharCodeOrCodePointAt>(
+        {string, index},
+        BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt);
+  }
 }
 
 }  // namespace v8::internal::maglev
