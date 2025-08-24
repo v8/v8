@@ -1417,4 +1417,20 @@
 }],
 # End roll-watcher patch
 ####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/Iterator/concat/get-value-after-done': [SKIP],
+  'built-ins/Temporal/Duration/prototype/round/bubble-time-unit': [SKIP],
+  'built-ins/Temporal/PlainDateTime/prototype/since/bubble-time-unit': [SKIP],
+  'built-ins/Temporal/PlainDateTime/prototype/until/bubble-time-unit': [SKIP],
+  'intl402/Temporal/ZonedDateTime/from/calendar-not-supporting-eras': [SKIP],
+  'intl402/Temporal/ZonedDateTime/from/canonicalize-era-codes': [SKIP],
+  'staging/Intl402/Temporal/old/islamic-calendars-islamic-rgsa': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-islamic': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-rgsa': [SKIP],
+}],
+# End roll-watcher patch
+####
 ]
