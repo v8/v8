@@ -87,7 +87,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:29.20250815.6.1',
+  'fuchsia_version': 'version:29.20250824.3.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
@@ -130,7 +130,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '28fc2a8926a053943647b94d5a314ace0d2fbea8',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '77e3784d7769ca3195f5221871c2f2010fee0f4f',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'e10f12d548b18285ad3578cc7641dcb253ad7acf',
   'buildtools/linux64': {
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '380bbf9e373c35da4b18a0bd8f9c70f36197446f',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '5b7fcc4bb71bbbf952a5283fbd621256905be31b',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -308,7 +308,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'c948b3c916ac5c2369a3f9891342970d4dc252b9',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '2b79b2b486cfd9e1982a619026f4e4266b79c77f',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '1765f1df01e03ab623d473183b37d2065805a4de',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -498,11 +498,11 @@ deps = {
       'condition': 'checkout_android',
   },
   'tools/rust':
-    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '7074a194d019d19ed6fa2a313921d9876b54e8b2',
+    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '44e180c753738b6a242448bd839a0084a5a134bf',
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + '89d58ebe78f02706d414154f923f759a05a887b6',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '35c9a25cd088275d93eb80b12109b5d83217d957',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '46631abac7f183487ce2cf3dd87699f4debc94a5',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
