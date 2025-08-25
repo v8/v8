@@ -1495,6 +1495,14 @@ bool JsonParser<Char>::FastKeyMatch(const uint8_t* key_chars,
 }
 
 template <typename Char>
+bool JsonParser<Char>::FastKeyMatch(const uint8_t* key_chars,
+                                    uint32_t key_length,
+                                    JsonString scanned_key) {
+  return key_length == scanned_key.length() &&
+         CompareCharsEqual(key_chars, chars_ + scanned_key.start(), key_length);
+}
+
+template <typename Char>
 bool JsonParser<Char>::ParseJsonPropertyValue(const JsonString& key) {
   ExpectNext(JsonToken::COLON,
              MessageTemplate::kJsonParseExpectedColonAfterPropertyName);
@@ -1628,7 +1636,7 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
             const uint8_t* expected_chars =
                 GetFastKeyChars(isolate_, expected_key, key_map, no_gc);
             const uint32_t key_length = expected_key->length();
-            key_match = FastKeyMatch(expected_chars, key_length);
+            key_match = FastKeyMatch(expected_chars, key_length, key);
           }
         }
 

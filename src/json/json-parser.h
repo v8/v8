@@ -346,6 +346,8 @@ class JsonParser final {
                                            Handle<DescriptorArray> descriptors);
   V8_INLINE bool ParseJsonPropertyValue(const JsonString& key);
   V8_INLINE bool FastKeyMatch(const uint8_t* key_chars, uint32_t key_length);
+  V8_INLINE bool FastKeyMatch(const uint8_t* key_chars, uint32_t key_length,
+                              JsonString scanned_key);
 
   template <bool should_track_json_source>
   Handle<JSObject> BuildJsonObject(const JsonContinuation& cont,
