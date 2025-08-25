@@ -1922,6 +1922,63 @@ TEST(Inlining) {
   profile->Delete();
 }
 
+static const char* inlining_top_level_test_source =
+    "function action(n = 100) {\n"
+    "  var s = 0;\n"
+    "  for (var i = 0; i < n; ++i) s += i*i*i;\n"
+    "  return s;\n"
+    "}\n"
+    "function proxy() { return action(100); }\n"
+    "function start() {\n"
+    "  var n = 100;\n"
+    "  while (--n)\n"
+    "    proxy();\n"
+    "}"
+    "%PrepareFunctionForOptimization(action);\n"
+    "%PrepareFunctionForOptimization(proxy);\n"
+    "%PrepareFunctionForOptimization(start);\n"
+    "start();\n"
+    "%OptimizeFunctionOnNextCall(action);\n"
+    "%OptimizeFunctionOnNextCall(proxy);\n"
+    "%OptimizeFunctionOnNextCall(start);\n";
+
+// https://issues.chromium.org/issues/436562902
+// The test checks that the inlined stack for an optimized frame (start)
+// at the top of the stack is restored correctly
+//
+// [Top down]:
+//     0  (root):0:0 3 0 #1
+//     0    start:7:15 0 4 #4
+//     0      proxy:6:15 0 4 #5
+//    10        action:1:16 0 4 #6
+//    23    (program):0:0 3 0 #3
+//     0    (idle):0:0 3 0 #2
+TEST(InliningTopLevel) {
+  if (!v8_flags.turbofan) return;
+  if (v8_flags.optimize_on_next_call_optimizes_to_maglev) return;
+
+  i::v8_flags.allow_natives_syntax = true;
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
+  v8::Context::Scope context_scope(env);
+  ProfilerHelper helper(env);
+  // Ensure that source positions are collected everywhere.
+  CcTest::i_isolate()->SetIsProfiling(true);
+
+  CompileRun(inlining_top_level_test_source);
+  v8::Local<v8::Function> function = GetFunction(env, "start");
+
+  static const unsigned min_samples = 10;
+  v8::CpuProfile* profile = helper.Run(function, nullptr, 0, min_samples);
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* start_node = GetChild(env, root, "start");
+  const v8::CpuProfileNode* proxy_node = GetChild(env, start_node, "proxy");
+  GetChild(env, proxy_node, "action");
+
+  profile->Delete();
+}
+
 static const char* inlining_test_source2 = R"(
     function action(n) {
       var s = 0;

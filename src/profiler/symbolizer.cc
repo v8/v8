@@ -44,6 +44,40 @@ CodeEntry* EntryForVMState(StateTag tag) {
   }
 }
 
+void UnwindInlineStack(CodeEntry* entry, int pc_offset,
+                       ProfileStackTrace& stack_trace,
+                       CodeEntryAndPosition& first_js_frame) {
+  LineAndColumn entry_pos = entry->GetSourcePosition(pc_offset);
+  const std::vector<CodeEntryAndPosition>* inline_stack =
+      entry->GetInlineStack(pc_offset);
+
+  // Update the first JS frame if we haven't recorded a JS entry yet.
+  if (first_js_frame.code_entry == nullptr) {
+    first_js_frame.code_entry = entry;
+    first_js_frame.line_and_column = entry_pos;
+  }
+
+  if (inline_stack) {
+    DCHECK(!inline_stack->empty());
+    size_t topmost_frame_index = stack_trace.size();
+
+    for (auto inline_stack_entry : *inline_stack) {
+      stack_trace.push_back(inline_stack_entry);
+    }
+
+    // This is a bit of a messy hack. The position for the most-inlined
+    // frame (the function at the end of the chain of function calls) has
+    // the wrong position in inline_stack. The actual position in
+    // this function is stored in the SourcePositionTable in entry. We fix
+    // up the position for the most-inlined frame here.
+    // TODO(petermarshall): Remove this and use a tree with a node per
+    // inlining_id.
+    stack_trace[topmost_frame_index].line_and_column = entry_pos;
+  } else {
+    stack_trace.push_back({entry, entry_pos});
+  }
+}
+
 }  // namespace
 
 Symbolizer::SymbolizedSample Symbolizer::SymbolizeTickSample(
@@ -58,8 +92,7 @@ Symbolizer::SymbolizedSample Symbolizer::SymbolizeTickSample(
   // the latest version of generated code is used to find a source position
   // for a JS function. Then, the detected source position is passed to
   // ProfileNode to increase the tick count for this source position.
-  LineAndColumn src_pos = {};
-  bool src_pos_not_found = true;
+  CodeEntryAndPosition first_js_frame{nullptr, {}};
 
   if (sample.pc != nullptr) {
     if (sample.has_external_callback && IsExternal(sample.state)) {
@@ -89,12 +122,7 @@ Symbolizer::SymbolizedSample Symbolizer::SymbolizeTickSample(
         int pc_offset =
             static_cast<int>(attributed_pc - pc_entry_instruction_start);
         // TODO(petermarshall): pc_offset can still be negative in some cases.
-        src_pos = pc_entry->GetSourcePosition(pc_offset);
-        if (src_pos.line == v8::CpuProfileNode::kNoLineNumberInfo) {
-          src_pos = pc_entry->line_and_column();
-        }
-        src_pos_not_found = false;
-        stack_trace.push_back({pc_entry, src_pos});
+        UnwindInlineStack(pc_entry, pc_offset, stack_trace, first_js_frame);
 
         if (pc_entry->builtin() == Builtin::kFunctionPrototypeApply ||
             pc_entry->builtin() == Builtin::kFunctionPrototypeCall) {
@@ -118,49 +146,13 @@ Symbolizer::SymbolizedSample Symbolizer::SymbolizeTickSample(
       Address stack_pos = reinterpret_cast<Address>(sample.stack[i]);
       Address instruction_start = kNullAddress;
       CodeEntry* entry = FindEntry(stack_pos, &instruction_start);
-      LineAndColumn position = {};
       if (entry) {
-        // Find out if the entry has an inlining stack associated.
         int pc_offset = static_cast<int>(stack_pos - instruction_start);
         // TODO(petermarshall): pc_offset can still be negative in some cases.
-        const std::vector<CodeEntryAndPosition>* inline_stack =
-            entry->GetInlineStack(pc_offset);
-        if (inline_stack) {
-          LineAndColumn most_inlined_frame_pos =
-              entry->GetSourcePosition(pc_offset);
-          for (auto inline_stack_entry : *inline_stack) {
-            stack_trace.push_back(inline_stack_entry);
-          }
-
-          // This is a bit of a messy hack. The position for the most-inlined
-          // frame (the function at the end of the chain of function calls) has
-          // the wrong position in inline_stack. The actual position in
-          // this function is stored in the SourcePositionTable in entry. We fix
-          // up the position for the most-inlined frame here.
-          // TODO(petermarshall): Remove this and use a tree with a node per
-          // inlining_id.
-          DCHECK(!inline_stack->empty());
-          size_t index = stack_trace.size() - inline_stack->size();
-          stack_trace[index].line_and_column = most_inlined_frame_pos;
-        }
-        // Skip unresolved frames (e.g. internal frame) and get source position
-        // of the first JS caller.
-        if (src_pos_not_found) {
-          src_pos = entry->GetSourcePosition(pc_offset);
-          if (src_pos.line == v8::CpuProfileNode::kNoLineNumberInfo) {
-            src_pos = entry->line_and_column();
-          }
-          src_pos_not_found = false;
-        }
-        position = entry->GetSourcePosition(pc_offset);
-
-        // The inline stack contains the top-level function i.e. the same
-        // function as entry. We don't want to add it twice. The one from the
-        // inline stack has the correct position for this particular inlining
-        // so we use it instead of pushing entry to stack_trace.
-        if (inline_stack) continue;
+        UnwindInlineStack(entry, pc_offset, stack_trace, first_js_frame);
+      } else {
+        stack_trace.push_back({entry, {}});
       }
-      stack_trace.push_back({entry, position});
     }
   }
 
@@ -182,6 +174,13 @@ Symbolizer::SymbolizedSample Symbolizer::SymbolizeTickSample(
       }
       stack_trace.push_back({EntryForVMState(sample.state), LineAndColumn{}});
     }
+  }
+
+  // Resolve the source position for the first JS frame.
+  LineAndColumn src_pos = first_js_frame.line_and_column;
+  if (first_js_frame.code_entry != nullptr &&
+      src_pos.line == v8::CpuProfileNode::kNoLineNumberInfo) {
+    src_pos = first_js_frame.code_entry->line_and_column();
   }
 
   return SymbolizedSample{stack_trace, src_pos};
