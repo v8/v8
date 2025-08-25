@@ -143,6 +143,11 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   V8_WARN_UNUSED_RESULT V8_INLINE auto CustomAllocateWithRetryOrFail(
       AllocateFunction&& Allocate, AllocationType allocation);
 
+#if V8_VERIFY_WRITE_BARRIERS
+  bool IsMostRecentYoungAllocation(Address object_address);
+  void ResetMostRecentYoungAllocation();
+#endif  // V8_VERIFY_WRITE_BARRIERS
+
  private:
   V8_INLINE PagedSpace* code_space() const;
   V8_INLINE CodeLargeObjectSpace* code_lo_space() const;
@@ -220,6 +225,10 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   std::optional<MainAllocator> shared_trusted_space_allocator_;
   OldLargeObjectSpace* shared_lo_space_;
   SharedTrustedLargeObjectSpace* shared_trusted_lo_space_;
+
+#if V8_VERIFY_WRITE_BARRIERS
+  Address last_young_allocation_ = kNullAddress;
+#endif  // V8_VERIFY_WRITE_BARRIERS
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   // Specifies how many allocations should be performed until returning

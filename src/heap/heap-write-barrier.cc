@@ -586,4 +586,14 @@ WriteBarrierModeScope::~WriteBarrierModeScope() {
 #endif
 }
 
+#if V8_VERIFY_WRITE_BARRIERS
+
+// static
+bool WriteBarrier::IsMostRecentYoungAllocation(Address object) {
+  LocalHeap* local_heap = LocalHeap::Current();
+  return local_heap->allocator()->IsMostRecentYoungAllocation(object);
+}
+
+#endif  // V8_VERIFY_WRITE_BARRIERS
+
 }  // namespace v8::internal

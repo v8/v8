@@ -159,6 +159,14 @@ HeapAllocator::AllocateRaw(int size_in_bytes, AllocationOrigin origin,
     }
   }
 
+#if V8_VERIFY_WRITE_BARRIERS
+  if (type == AllocationType::kYoung && !allocation.IsFailure()) {
+    last_young_allocation_ = allocation.ToAddress();
+  } else {
+    last_young_allocation_ = kNullAddress;
+  }
+#endif  // V8_VERIFY_WRITE_BARRIERS
+
   if (allocation.To(&object)) {
     if (heap::ShouldZapGarbage() && AllocationType::kCode == type) {
       heap::ZapCodeBlock(object.address(), size_in_bytes);

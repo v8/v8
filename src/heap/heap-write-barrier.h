@@ -150,9 +150,14 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
                                      WriteBarrierMode mode);
 #endif  // V8_VERIFY_WRITE_BARRIERS
 
-  static bool PageFlagsAreConsistent(Tagged<HeapObject> object);
+#if V8_VERIFY_WRITE_BARRIERS
+  static bool IsMostRecentYoungAllocation(Address object);
 
-  static inline bool IsImmortalImmovableHeapObject(Tagged<HeapObject> object);
+  template <typename HostType, typename ValueType>
+  static inline bool IsRequiredCommon(HostType host, ValueType value);
+#endif
+
+  static bool PageFlagsAreConsistent(Tagged<HeapObject> object);
 
   static inline bool IsMarking(Tagged<HeapObject> object);
 

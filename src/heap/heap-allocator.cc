@@ -434,5 +434,25 @@ Heap* HeapAllocator::heap_for_allocation(AllocationType allocation) {
   }
 }
 
+#if V8_VERIFY_WRITE_BARRIERS
+
+bool HeapAllocator::IsMostRecentYoungAllocation(Address object_address) {
+  if (!new_space_allocator_.has_value()) return false;
+
+  if (last_young_allocation_ == object_address) {
+    return true;
+  }
+
+  const Address start = new_space_allocator_->start();
+  const Address top = new_space_allocator_->top();
+  return start <= object_address && object_address < top;
+}
+
+void HeapAllocator::ResetMostRecentYoungAllocation() {
+  last_young_allocation_ = kNullAddress;
+}
+
+#endif  // V8_VERIFY_WRITE_BARRIERS
+
 }  // namespace internal
 }  // namespace v8

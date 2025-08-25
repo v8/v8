@@ -60,11 +60,13 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // from the main thread.
   void Safepoint() {
     DCHECK(AllowSafepoints::IsAllowed());
-    ThreadState current = state_.load_relaxed();
 
 #if V8_VERIFY_WRITE_BARRIERS
+    heap_allocator_.ResetMostRecentYoungAllocation();
     AssertNoWriteBarrierModeScope();
-#endif  // DEBUG
+#endif  // V8_VERIFY_WRITE_BARRIERS
+
+    ThreadState current = state_.load_relaxed();
 
     if (V8_UNLIKELY(current.IsRunningWithSlowPathFlag())) {
       SafepointSlowPath();

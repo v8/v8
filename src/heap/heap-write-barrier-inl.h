@@ -8,6 +8,8 @@
 #include "src/heap/heap-write-barrier.h"
 // Include the non-inl header before the rest of the headers.
 
+#include <type_traits>
+
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
 
@@ -17,6 +19,7 @@
 #include "src/objects/compressed-slots-inl.h"
 #include "src/objects/cpp-heap-object-wrapper.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/maybe-object-inl.h"
 
 namespace v8::internal {
@@ -80,12 +83,6 @@ inline WriteBarrierModeScope WriteBarrier::GetWriteBarrierModeForObject(
     Tagged<HeapObject> object, const DisallowGarbageCollection& promise) {
   WriteBarrierMode mode = ComputeWriteBarrierModeForObject(object, promise);
   return WriteBarrierModeScope(object, mode);
-}
-
-// static
-bool WriteBarrier::IsImmortalImmovableHeapObject(Tagged<HeapObject> object) {
-  // All objects in readonly space are immortal and immovable.
-  return HeapLayout::InReadOnlySpace(object);
 }
 
 // static
@@ -436,32 +433,22 @@ void WriteBarrier::GenerationalBarrierForCppHeapPointer(
       host, value);
 }
 
-#if V8_VERIFY_WRITE_BARRIERS
+#ifdef V8_VERIFY_WRITE_BARRIERS
 // static
 template <typename T>
-bool WriteBarrier::IsRequired(Tagged<HeapObject> host, T value) {
-  if (HeapLayout::InYoungGeneration(host)) {
-    return false;
-  }
-  if (IsSmi(value)) {
-    return false;
-  }
-  if (value.IsCleared()) {
-    return false;
-  }
-  Tagged<HeapObject> target = value.GetHeapObject();
-  if (ReadOnlyHeap::Contains(target)) {
-    return false;
-  }
-  return !IsImmortalImmovableHeapObject(target);
+bool WriteBarrier::IsRequired(const HeapObjectLayout* host, T value) {
+  return IsRequiredCommon(host, value);
 }
 
 // static
 template <typename T>
-bool WriteBarrier::IsRequired(const HeapObjectLayout* host, T value) {
-  if (HeapLayout::InYoungGeneration(host)) {
-    return false;
-  }
+bool WriteBarrier::IsRequired(Tagged<HeapObject> host, T value) {
+  return IsRequiredCommon(host, value);
+}
+
+// static
+template <typename HostType, typename ValueType>
+bool WriteBarrier::IsRequiredCommon(HostType host, ValueType value) {
   if (IsSmi(value)) {
     return false;
   }
@@ -472,7 +459,11 @@ bool WriteBarrier::IsRequired(const HeapObjectLayout* host, T value) {
   if (ReadOnlyHeap::Contains(target)) {
     return false;
   }
-  return !IsImmortalImmovableHeapObject(target);
+  if constexpr (std::is_same_v<HostType, const HeapObjectLayout*>) {
+    return !IsMostRecentYoungAllocation(host->address());
+  } else {
+    return !IsMostRecentYoungAllocation(host.address());
+  }
 }
 #endif  // V8_VERIFY_WRITE_BARRIERS
 
