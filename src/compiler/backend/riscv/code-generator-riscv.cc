@@ -2028,11 +2028,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         LocationOperand* op = LocationOperand::cast(instr->OutputAt(0));
         if (op->representation() == MachineRepresentation::kFloat64) {
           __ LoadDouble(i.OutputDoubleRegister(), MemOperand(fp, offset));
-        } else {
-          DCHECK_EQ(op->representation(), MachineRepresentation::kFloat32);
+        } else if (op->representation() == MachineRepresentation::kFloat32) {
           __ LoadFloat(
               i.OutputSingleRegister(0),
               MemOperand(fp, offset + kLessSignificantWordInDoublewordOffset));
+        } else {
+          DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
+          __ VU.set(kScratchReg, E8, m1);
+          Register src = fp;
+          if (offset != 0) {
+            src = kScratchReg;
+            __ AddWord(src, fp, offset);
+          }
+          __ vl(i.OutputSimd128Register(), src, 0, E8);
         }
       } else {
         __ LoadWord(i.OutputRegister(0), MemOperand(fp, offset));
@@ -2525,7 +2533,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
 #endif
     case kRiscvRvvSt: {
-      (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
+      __ VU.set(kScratchReg, VSew::E8, Vlmul::m1);
       auto memOperand = i.MemoryOperand(1);
       Register dst = memOperand.offset() == 0 ? memOperand.rm() : kScratchReg;
       if (memOperand.offset() != 0) {
@@ -2536,7 +2544,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvRvvLd: {
-      (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
+      __ VU.set(kScratchReg, VSew::E8, Vlmul::m1);
       Register src = i.MemoryOperand().offset() == 0 ? i.MemoryOperand().rm()
                                                      : kScratchReg;
       if (i.MemoryOperand().offset() != 0) {
@@ -2661,7 +2669,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvVnot: {
-      (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
+      __ VU.set(kScratchReg, VSew::E8, Vlmul::m1);
       __ vnot_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
