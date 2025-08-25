@@ -125,6 +125,10 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
 
 bool FeedbackVector::is_empty() const { return length() == 0; }
 
+DEF_GETTER(FeedbackVector, has_metadata, bool) {
+  return shared_function_info()->HasFeedbackMetadata();
+}
+
 DEF_GETTER(FeedbackVector, metadata, Tagged<FeedbackMetadata>) {
   return shared_function_info(cage_base)->feedback_metadata(cage_base);
 }

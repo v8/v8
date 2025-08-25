@@ -333,6 +333,8 @@ class FeedbackVector
 
   inline bool is_empty() const;
 
+  DECL_GETTER(has_metadata, bool)
+
   DECL_GETTER(metadata, Tagged<FeedbackMetadata>)
   DECL_ACQUIRE_GETTER(metadata, Tagged<FeedbackMetadata>)
 

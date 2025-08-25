@@ -1814,23 +1814,27 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {
   os << "\n - closure feedback cell array: ";
   closure_feedback_cell_array()->ClosureFeedbackCellArrayPrint(os);
 
-  DisallowGarbageCollection no_gc;
-  FeedbackMetadataIterator iter(metadata(), no_gc);
-  while (iter.HasNext()) {
-    FeedbackSlot slot = iter.Next();
-    FeedbackSlotKind kind = iter.kind();
+  if (has_metadata()) {
+    DisallowGarbageCollection no_gc;
+    FeedbackMetadataIterator iter(metadata(), no_gc);
+    while (iter.HasNext()) {
+      FeedbackSlot slot = iter.Next();
+      FeedbackSlotKind kind = iter.kind();
 
-    os << "\n - slot " << slot << " " << kind << " ";
-    FeedbackSlotPrint(os, slot);
+      os << "\n - slot " << slot << " " << kind << " ";
+      FeedbackSlotPrint(os, slot);
 
-    int entry_size = iter.entry_size();
-    if (entry_size > 0) os << " {";
-    for (int i = 0; i < entry_size; i++) {
-      FeedbackSlot slot_with_offset = slot.WithOffset(i);
-      os << "\n     [" << slot_with_offset.ToInt()
-         << "]: " << Brief(Get(slot_with_offset));
+      int entry_size = iter.entry_size();
+      if (entry_size > 0) os << " {";
+      for (int i = 0; i < entry_size; i++) {
+        FeedbackSlot slot_with_offset = slot.WithOffset(i);
+        os << "\n     [" << slot_with_offset.ToInt()
+           << "]: " << Brief(Get(slot_with_offset));
+      }
+      if (entry_size > 0) os << "\n  }";
     }
-    if (entry_size > 0) os << "\n  }";
+  } else {
+    os << " - metadata: not available in SFI";
   }
   os << "\n";
 }

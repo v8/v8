@@ -2272,6 +2272,14 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
   DirectHandle<FeedbackVector> feedback_vector =
       direct_handle(function->feedback_vector(), isolate);
 
+  if (!feedback_vector->has_metadata()) {
+    return CrashUnlessFuzzing(isolate);
+  }
+  // Make sure the function stays compiled across the following allocations.
+  IsCompiledScope is_compiled_scope(
+      function->shared()->is_compiled_scope(isolate));
+  USE(is_compiled_scope);
+
   DirectHandle<FixedArray> result =
       isolate->factory()->NewFixedArray(feedback_vector->length());
   int result_ix = 0;
