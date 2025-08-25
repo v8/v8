@@ -3099,6 +3099,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // FP register type.
   inline static Instr FPType(VRegister fd);
 
+  // Clear any internal state to avoid check failures if we drop
+  // the assembly code.
+  void ClearInternalState() { constpool_.Clear(); }
+
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
 

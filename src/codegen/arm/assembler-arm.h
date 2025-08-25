@@ -1077,6 +1077,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockConstPoolScope);
   };
 
+  // Clear any internal state to avoid check failures if we drop
+  // the assembly code.
+  void ClearInternalState() { pending_32_bit_constants_.clear(); }
+
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
 

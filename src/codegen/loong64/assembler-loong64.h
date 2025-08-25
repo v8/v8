@@ -144,6 +144,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
+  void ClearInternalState() {}
 
   // Loong64 uses BlockTrampolinePool to prevent generating trampoline inside a
   // continuous instruction block. In the destructor of BlockTrampolinePool, it

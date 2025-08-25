@@ -1731,10 +1731,7 @@ MaglevCodeGenerator::MaglevCodeGenerator(
 
 bool MaglevCodeGenerator::Assemble() {
   if (!EmitCode()) {
-#ifdef V8_TARGET_ARCH_ARM
-    // Even if we fail, we force emit the constant pool, so that it is empty.
-    __ CheckConstPool(true, false);
-#endif
+    __ ClearInternalState();
     return false;
   }
 

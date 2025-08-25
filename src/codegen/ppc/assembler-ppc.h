@@ -202,6 +202,9 @@ class Assembler : public AssemblerBase {
 
   void MaybeEmitOutOfLineConstantPool() { EmitConstantPool(); }
 
+  // Unused on this architecture.
+  void ClearInternalState() {}
+
   inline void CheckTrampolinePoolQuick(int extra_space = 0) {
     if (pc_offset() >= next_trampoline_check_ - extra_space) {
       CheckTrampolinePool();

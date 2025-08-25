@@ -231,6 +231,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
+  void ClearInternalState() {}
 
   // Label operations & relative jumps (PPUM Appendix D)
   //

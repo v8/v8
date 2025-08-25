@@ -173,6 +173,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
+  void ClearInternalState() {}
 
   // Mips uses BlockTrampolinePool to prevent generating trampoline inside a
   // continuous instruction block. For Call instruction, it prevents generating

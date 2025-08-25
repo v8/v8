@@ -232,6 +232,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
 
+  // Clear any internal state to avoid check failures if we drop
+  // the assembly code.
+  void ClearInternalState() { constpool_.Clear(); }
+
   // Label operations & relative jumps (PPUM Appendix D).
   //
   // Takes a branch opcode (cc) and a label (L) and generates
