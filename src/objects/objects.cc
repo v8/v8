@@ -5923,7 +5923,7 @@ Handle<PropertyCell> PropertyCell::InvalidateAndReplaceEntry(
   DirectHandle<PropertyCell> cell(dictionary->CellAt(entry), isolate);
   DirectHandle<Name> name(cell->name(), isolate);
   DCHECK(cell->property_details().IsConfigurable());
-  DCHECK(!IsAnyHole(cell->value(), isolate));
+  DCHECK(!IsAnyHole(cell->value()));
 
   // Swap with a new property cell.
   Handle<PropertyCell> new_cell =
@@ -5960,8 +5960,8 @@ PropertyCellType PropertyCell::UpdatedType(Isolate* isolate,
                                            Tagged<Object> value,
                                            PropertyDetails details) {
   DisallowGarbageCollection no_gc;
-  DCHECK(!IsAnyHole(value, isolate));
-  DCHECK(!IsAnyHole(cell->value(), isolate));
+  DCHECK(!IsAnyHole(value));
+  DCHECK(!IsAnyHole(cell->value()));
   switch (details.cell_type()) {
     case PropertyCellType::kUndefined:
       return PropertyCellType::kConstant;
@@ -5984,9 +5984,9 @@ PropertyCellType PropertyCell::UpdatedType(Isolate* isolate,
 Handle<PropertyCell> PropertyCell::PrepareForAndSetValue(
     Isolate* isolate, DirectHandle<GlobalDictionary> dictionary,
     InternalIndex entry, DirectHandle<Object> value, PropertyDetails details) {
-  DCHECK(!IsAnyHole(*value, isolate));
+  DCHECK(!IsAnyHole(*value));
   Tagged<PropertyCell> raw_cell = dictionary->CellAt(entry);
-  CHECK(!IsAnyHole(raw_cell->value(), isolate));
+  CHECK(!IsAnyHole(raw_cell->value()));
   const PropertyDetails original_details = raw_cell->property_details();
   // Data accesses could be cached in ics or optimized code.
   bool invalidate = original_details.kind() == PropertyKind::kData &&

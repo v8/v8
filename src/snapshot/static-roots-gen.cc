@@ -81,6 +81,8 @@ void StaticRootsTableGen::write(Isolate* isolate, const char* file) {
       << "#ifndef V8_ROOTS_" << defname << "_\n"
       << "#define V8_ROOTS_" << defname << "_\n"
       << "\n"
+      << "// IWYU pragma: private \"src/roots/static-roots.h\"\n"
+      << "\n"
       << "#include \"src/common/globals.h\"\n"
       << "\n"
       << "#if V8_STATIC_ROOTS_BOOL\n"

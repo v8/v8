@@ -9,6 +9,8 @@
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/codegen/register.h"
 // For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/register-configuration.h"
@@ -2742,25 +2744,28 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     Register scratch = x13;
     __ Add(src, arguments_list,
            OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
-#if !V8_STATIC_ROOTS_BOOL
-    // We do not use the CompareRoot macro without static roots as it would do a
-    // LoadRoot behind the scenes and we want to avoid that in a loop.
+    // We do not use the CompareRoot macro as it would do either a load of the
+    // static root value into a register or a LoadRoot behind the scenes, and we
+    // want to avoid that in a loop.
+#if V8_STATIC_ROOTS_BOOL
+    // If TheHoleValue became small enough for an ImmAddSub, we should use an
+    // immediate compare in the loop.
+    static_assert(!Assembler::IsImmAddSub(StaticReadOnlyRoot::kTheHoleValue));
+#endif
     Register the_hole_value = x11;
     __ LoadTaggedRoot(the_hole_value, RootIndex::kTheHoleValue);
-#endif  // !V8_STATIC_ROOTS_BOOL
     __ LoadRoot(undefined_value, RootIndex::kUndefinedValue);
     // TODO(all): Consider using Ldp and Stp.
-    Register dst = x16;
+    Register dst = x15;
+    // None of the temp registers should be clobbered by a temporary.
+    DCHECK(!masm->TmpList()->IncludesAliasOf(src, undefined_value, scratch,
+                                             the_hole_value, dst));
     __ SlotAddress(dst, argc);
     __ Add(argc, argc, len);  // Update new argc.
     __ Bind(&loop);
     __ Sub(len, len, 1);
     __ LoadTaggedField(scratch, MemOperand(src, kTaggedSize, PostIndex));
-#if V8_STATIC_ROOTS_BOOL
-    __ CompareRoot(scratch, RootIndex::kTheHoleValue);
-#else
     __ CmpTagged(scratch, the_hole_value);
-#endif
     __ Csel(scratch, scratch, undefined_value, ne);
     __ Str(scratch, MemOperand(dst, kSystemPointerSize, PostIndex));
     __ Cbnz(len, &loop);

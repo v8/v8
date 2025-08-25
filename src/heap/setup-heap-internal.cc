@@ -561,15 +561,6 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
   set_empty_weak_array_list(Cast<WeakArrayList>(obj));
 
   DCHECK(!HeapLayout::InYoungGeneration(roots.undefined_value()));
-  {
-    AllocationResult allocation =
-        Allocate(roots_table().hole_map(), AllocationType::kReadOnly);
-    if (!allocation.To(&obj)) return false;
-  }
-  set_the_hole_value(UncheckedCast<TheHole>(obj));
-
-  // Set preliminary exception sentinel value before actually initializing it.
-  set_exception(UncheckedCast<ExceptionHole>(obj));
 
   // Allocate the empty enum cache.
   {
@@ -1161,25 +1152,6 @@ bool Heap::CreateReadOnlyObjects() {
                       direct_handle(Smi::zero(), isolate()), "boolean",
                       Oddball::kFalse);
 
-  set_property_cell_hole_value(
-      UncheckedCast<PropertyCellHole>(*factory->NewHole()));
-  set_hash_table_hole_value(UncheckedCast<HashTableHole>(*factory->NewHole()));
-  set_promise_hole_value(UncheckedCast<PromiseHole>(*factory->NewHole()));
-  set_uninitialized_value(
-      UncheckedCast<UninitializedHole>(*factory->NewHole()));
-  set_arguments_marker(UncheckedCast<ArgumentsMarker>(*factory->NewHole()));
-  set_termination_exception(
-      UncheckedCast<TerminationException>(*factory->NewHole()));
-  set_exception(UncheckedCast<ExceptionHole>(*factory->NewHole()));
-  set_optimized_out(UncheckedCast<OptimizedOut>(*factory->NewHole()));
-  set_stale_register(UncheckedCast<StaleRegister>(*factory->NewHole()));
-
-  // Initialize marker objects used during compilation.
-  set_self_reference_marker(
-      UncheckedCast<SelfReferenceMarker>(*factory->NewHole()));
-  set_basic_block_counters_marker(
-      UncheckedCast<BasicBlockCountersMarker>(*factory->NewHole()));
-
   {
     HandleScope handle_scope(isolate());
     NOT_IMPORTANT_PRIVATE_SYMBOL_LIST_GENERATOR(SYMBOL_INIT, /* not used */)
@@ -1338,6 +1310,29 @@ bool Heap::CreateReadOnlyObjects() {
     }
     set_preallocated_number_string_table(*preallocated_number_string_table);
   }
+
+  // Set up the hole values in one range
+  set_the_hole_value(UncheckedCast<TheHole>(*factory->NewHole()));
+
+  set_property_cell_hole_value(
+      UncheckedCast<PropertyCellHole>(*factory->NewHole()));
+  set_hash_table_hole_value(UncheckedCast<HashTableHole>(*factory->NewHole()));
+  set_promise_hole_value(UncheckedCast<PromiseHole>(*factory->NewHole()));
+  set_uninitialized_value(
+      UncheckedCast<UninitializedHole>(*factory->NewHole()));
+  set_arguments_marker(UncheckedCast<ArgumentsMarker>(*factory->NewHole()));
+  set_termination_exception(
+      UncheckedCast<TerminationException>(*factory->NewHole()));
+  set_exception(UncheckedCast<ExceptionHole>(*factory->NewHole()));
+  set_optimized_out(UncheckedCast<OptimizedOut>(*factory->NewHole()));
+  set_stale_register(UncheckedCast<StaleRegister>(*factory->NewHole()));
+
+  // Initialize marker objects used during compilation.
+  set_self_reference_marker(
+      UncheckedCast<SelfReferenceMarker>(*factory->NewHole()));
+  set_basic_block_counters_marker(
+      UncheckedCast<BasicBlockCountersMarker>(*factory->NewHole()));
+
   // Initialize the wasm null_value.
 
 #ifdef V8_ENABLE_WEBASSEMBLY

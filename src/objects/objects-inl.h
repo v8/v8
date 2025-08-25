@@ -16,6 +16,7 @@
 
 #include "include/v8-internal.h"
 #include "src/base/bits.h"
+#include "src/base/bounds.h"
 #include "src/base/memory.h"
 #include "src/base/numbers/double.h"
 #include "src/builtins/builtins.h"
@@ -124,13 +125,8 @@ HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
 IS_TYPE_FUNCTION_DEF(HashTableBase)
 IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
 IS_TYPE_FUNCTION_DEF(PropertyDictionary)
+IS_TYPE_FUNCTION_DEF(AnyHole)
 #undef IS_TYPE_FUNCTION_DEF
-
-bool IsAnyHole(Tagged<Object> obj, PtrComprCageBase cage_base) {
-  return IsHole(obj, cage_base);
-}
-
-bool IsAnyHole(Tagged<Object> obj) { return IsHole(obj); }
 
 #define IS_TYPE_FUNCTION_DEF(Type, ...)                          \
   bool Is##Type(Tagged<Object> obj, Isolate* isolate) {          \
@@ -178,6 +174,35 @@ HOLE_LIST(IS_TYPE_FUNCTION_DEF)
 IS_TYPE_FUNCTION_DEF(UndefinedContextCell, undefined_context_cell,
                      UndefinedContextCell)
 #undef IS_TYPE_FUNCTION_DEF
+
+bool IsAnyHole(Tagged<HeapObject> obj) {
+#if V8_STATIC_ROOTS_BOOL
+#define GET_HOLE_ROOT(Type, Value, CamelName) StaticReadOnlyRoot::k##CamelName,
+  constexpr Tagged_t kMinHole = std::min({HOLE_LIST(GET_HOLE_ROOT)});
+  constexpr Tagged_t kMaxHole = std::max({HOLE_LIST(GET_HOLE_ROOT)});
+#undef GET_HOLE_ROOT
+  // Compressed object tests need to be done on a matching compression scheme.
+  DCHECK(!HeapLayout::SafeInCodeSpace(obj));
+  // We allow trusted space comparisons, because the first 1MB is unmapped there
+  // anyway, so no trusted object can alias a hole.
+  DCHECK_IMPLIES(
+      HeapLayout::SafeInTrustedSpace(obj),
+      TrustedSpaceCompressionScheme::CompressObject(obj.ptr()) >= kMaxHole);
+  // Use a direct cast to Tagged_t rather than CompressObject to allow
+  // TrustedSpace comparisons in here.
+  return base::IsInRange(static_cast<Tagged_t>(obj.ptr()), kMinHole, kMaxHole);
+#else
+  return obj->map()->instance_type() == HOLE_TYPE;
+#endif
+}
+
+bool IsAnyHole(Tagged<HeapObject> obj, PtrComprCageBase) {
+  return IsAnyHole(obj);
+}
+
+bool IsHole(Tagged<HeapObject> obj) { return IsAnyHole(obj); }
+
+bool IsHole(Tagged<HeapObject> obj, PtrComprCageBase) { return IsAnyHole(obj); }
 
 bool IsNullOrUndefined(Tagged<Object> obj, Isolate* isolate) {
   return IsNullOrUndefined(obj, ReadOnlyRoots(isolate));
@@ -1938,7 +1963,7 @@ Tagged<Object> Object::GetSimpleHash(Tagged<Object> object) {
     return Smi::FromInt(hash);
   }
 
-  DCHECK(!InstanceTypeChecker::IsHole(instance_type));
+  DCHECK_NE(instance_type, HOLE_TYPE);
   DCHECK(IsJSReceiver(object));
   return object;
 }

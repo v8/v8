@@ -576,8 +576,10 @@ void SwissNameDictionary::Initialize(IsolateT* isolate,
 
   memset(CtrlTable(), Ctrl::kEmpty, CtrlTableSize(capacity));
 
-  MemsetTagged(RawField(DataTableStartOffset()), roots.the_hole_value(),
-               capacity * kDataTableEntryCount);
+  if (capacity > 0) {
+    MemsetTagged(RawField(DataTableStartOffset()), roots.the_hole_value(),
+                 capacity * kDataTableEntryCount);
+  }
 
   set_meta_table(meta_table);
 

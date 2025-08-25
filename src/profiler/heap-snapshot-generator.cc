@@ -1129,6 +1129,9 @@ const char* V8HeapExplorer::GetSystemEntryName(Tagged<HeapObject> object) {
     UNREACHABLE();
     STRING_TYPE_LIST(MAKE_STRING_CASE)
 #undef MAKE_STRING_CASE
+
+    case HOLE_TYPE:
+      return "system / Hole";
   }
 
   // Avoid undefined behavior for enum values not handled by the exhaustive

@@ -321,6 +321,10 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
 #undef MAKE_TORQUE_CASE
 
+    case HOLE_TYPE:
+      Cast<Hole>(*this)->HoleVerify(isolate);
+      break;
+
     case TUPLE2_TYPE:
       Cast<Tuple2>(*this)->Tuple2Verify(isolate);
       break;

@@ -375,6 +375,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
       TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
 #undef MAKE_TORQUE_CASE
 
+    case HOLE_TYPE:
+      Cast<Hole>(*this)->HolePrint(os);
+      break;
     case TUPLE2_TYPE:
       Cast<Tuple2>(*this)->Tuple2Print(os);
       break;

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 @cppObjectLayoutDefinition
+@doNotGenerateInstanceTypeCheck
 extern class Hole extends HeapObject {}
 
 @cppObjectLayoutDefinition

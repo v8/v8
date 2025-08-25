@@ -704,13 +704,12 @@ HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 IS_TYPE_FUNCTION_DECL(HashTableBase)
 IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
 IS_TYPE_FUNCTION_DECL(PropertyDictionary)
-#undef IS_TYPE_FUNCTION_DECL
-V8_INLINE bool IsNumber(Tagged<Object> obj, ReadOnlyRoots roots);
-
 // A wrapper around IsHole to make it easier to distinguish from specific hole
 // checks (e.g. IsTheHole).
-V8_INLINE bool IsAnyHole(Tagged<Object> obj, PtrComprCageBase cage_base);
-V8_INLINE bool IsAnyHole(Tagged<Object> obj);
+IS_TYPE_FUNCTION_DECL(AnyHole)
+#undef IS_TYPE_FUNCTION_DECL
+
+V8_INLINE bool IsNumber(Tagged<Object> obj, ReadOnlyRoots roots);
 
 // Oddball checks are faster when they are raw pointer comparisons, so the
 // isolate/read-only roots overloads should be preferred where possible.
