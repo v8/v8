@@ -27,6 +27,7 @@ class IndirectPointerSlot;
 class ExposedTrustedObject;
 class ObjectVisitor;
 class WritableFreeSpace;
+class WriteBarrierModeScope;
 
 // A safe HeapObject size is a uint32_t that's guaranteed to yield in OOB within
 // the sandbox. The alias exists to force appropriate conversions at the
@@ -106,7 +107,7 @@ V8_OBJECT class HeapObjectLayout {
   // object as a sign that they are not going to use this function
   // from code that allocates and thus invalidates the returned write
   // barrier mode.
-  inline WriteBarrierMode GetWriteBarrierMode(
+  inline WriteBarrierModeScope GetWriteBarrierMode(
       const DisallowGarbageCollection& promise);
 
 #if V8_ENABLE_SANDBOX
@@ -521,7 +522,7 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // object as a sign that they are not going to use this function
   // from code that allocates and thus invalidates the returned write
   // barrier mode.
-  inline WriteBarrierMode GetWriteBarrierMode(
+  inline WriteBarrierModeScope GetWriteBarrierMode(
       const DisallowGarbageCollection& promise);
 
   // Dispatched behavior.

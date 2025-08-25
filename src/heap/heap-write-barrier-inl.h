@@ -59,7 +59,7 @@ void WriteBarrier::CombinedWriteBarrierInternal(Tagged<HeapObject> host,
 }
 
 // static
-inline WriteBarrierMode WriteBarrier::GetWriteBarrierModeForObject(
+inline WriteBarrierMode WriteBarrier::ComputeWriteBarrierModeForObject(
     Tagged<HeapObject> object, const DisallowGarbageCollection& promise) {
   if (v8_flags.disable_write_barriers) {
     return SKIP_WRITE_BARRIER;
@@ -70,9 +70,16 @@ inline WriteBarrierMode WriteBarrier::GetWriteBarrierModeForObject(
     return UPDATE_WRITE_BARRIER;
   }
   if (HeapLayout::InYoungGeneration(chunk, object)) {
-    return SKIP_WRITE_BARRIER;
+    return SKIP_WRITE_BARRIER_SCOPE;
   }
   return UPDATE_WRITE_BARRIER;
+}
+
+// static
+inline WriteBarrierModeScope WriteBarrier::GetWriteBarrierModeForObject(
+    Tagged<HeapObject> object, const DisallowGarbageCollection& promise) {
+  WriteBarrierMode mode = ComputeWriteBarrierModeForObject(object, promise);
+  return WriteBarrierModeScope(object, mode);
 }
 
 // static
@@ -107,8 +114,8 @@ void WriteBarrier::ForRelocInfo(Tagged<InstructionStream> host,
 template <typename T>
 void WriteBarrier::ForValue(Tagged<HeapObject> host, MaybeObjectSlot slot,
                             Tagged<T> value, WriteBarrierMode mode) {
-  if (mode == SKIP_WRITE_BARRIER) {
-    SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
+  if (IsSkipWriteBarrierMode(mode)) {
+    VerifySkipWriteBarrier(host, value, mode);
     return;
   }
   Tagged<HeapObject> value_object;
@@ -122,8 +129,8 @@ void WriteBarrier::ForValue(Tagged<HeapObject> host, MaybeObjectSlot slot,
 template <typename T>
 void WriteBarrier::ForValue(HeapObjectLayout* host, TaggedMemberBase* slot,
                             Tagged<T> value, WriteBarrierMode mode) {
-  if (mode == SKIP_WRITE_BARRIER) {
-    SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
+  if (IsSkipWriteBarrierMode(mode)) {
+    VerifySkipWriteBarrier(host, value, mode);
     return;
   }
   Tagged<HeapObject> value_object;
@@ -134,12 +141,26 @@ void WriteBarrier::ForValue(HeapObjectLayout* host, TaggedMemberBase* slot,
                                value_object, mode);
 }
 
+// static
+template <typename T>
+void WriteBarrier::VerifySkipWriteBarrier(Tagged<HeapObject> host,
+                                          Tagged<T> value,
+                                          WriteBarrierMode mode) {
+  if (mode == SKIP_WRITE_BARRIER) {
+    SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
+  } else {
+    DCHECK_EQ(mode, SKIP_WRITE_BARRIER_SCOPE);
+    SLOW_DCHECK(LocalHeap::Current()->CurrentObjectForWriteBarrierMode() ==
+                host.address());
+  }
+}
+
 //   static
 void WriteBarrier::ForEphemeronHashTable(Tagged<EphemeronHashTable> host,
                                          ObjectSlot slot, Tagged<Object> value,
                                          WriteBarrierMode mode) {
-  if (mode == SKIP_WRITE_BARRIER) {
-    SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
+  if (IsSkipWriteBarrierMode(mode)) {
+    VerifySkipWriteBarrier(host, value, mode);
     return;
   }
 

@@ -83,6 +83,7 @@ HeapAllocator::AllocateRaw(int size_in_bytes, AllocationOrigin origin,
   DCHECK_EQ(heap_->isolate(), Isolate::TryGetCurrent());
 #if DEBUG
   local_heap_->VerifyCurrent();
+  local_heap_->AssertNoWriteBarrierModeScope();
 #endif
 
   if (v8_flags.single_generation.value() && type == AllocationType::kYoung) {

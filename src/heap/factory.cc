@@ -2658,8 +2658,8 @@ Handle<T> Factory::CopyArrayWithMap(DirectHandle<T> src, DirectHandle<Map> map,
   Tagged<T> result = Cast<T>(new_object);
   initialize_length(result, len);
   // Copy the content.
-  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
-  T::CopyElements(isolate(), result, 0, *src, 0, len, mode);
+  WriteBarrierModeScope mode = result->GetWriteBarrierMode(no_gc);
+  T::CopyElements(isolate(), result, 0, *src, 0, len, *mode);
   return handle(result, isolate());
 }
 
@@ -2678,8 +2678,8 @@ Handle<T> Factory::CopyArrayAndGrow(DirectHandle<T> src, int grow_by,
   Tagged<T> result = Cast<T>(new_object);
   initialize_length(result, new_len);
   // Copy the content.
-  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
-  T::CopyElements(isolate(), result, 0, *src, 0, old_len, mode);
+  WriteBarrierModeScope mode = result->GetWriteBarrierMode(no_gc);
+  T::CopyElements(isolate(), result, 0, *src, 0, old_len, *mode);
   // TODO(jgruber,v8:14345): Enable the static assert once all T's support it:
   // static_assert(T::kElementSize == kTaggedSize);
   MemsetTagged(ObjectSlot(result->RawFieldOfElementAt(old_len)),
@@ -2747,8 +2747,8 @@ Handle<WeakArrayList> Factory::CopyWeakArrayListAndGrow(
   int old_len = src->length();
   raw->set_length(old_len);
   // Copy the content.
-  WriteBarrierMode mode = raw->GetWriteBarrierMode(no_gc);
-  raw->CopyElements(isolate(), 0, *src, 0, old_len, mode);
+  WriteBarrierModeScope mode = raw->GetWriteBarrierMode(no_gc);
+  raw->CopyElements(isolate(), 0, *src, 0, old_len, *mode);
   MemsetTagged(ObjectSlot(raw->data_start() + old_len),
                read_only_roots().undefined_value(), new_capacity - old_len);
   return result;
@@ -2764,12 +2764,12 @@ DirectHandle<WeakArrayList> Factory::CompactWeakArrayList(
   DisallowGarbageCollection no_gc;
   Tagged<WeakArrayList> raw_src = *src;
   Tagged<WeakArrayList> raw_result = *result;
-  WriteBarrierMode mode = raw_result->GetWriteBarrierMode(no_gc);
+  WriteBarrierModeScope mode = raw_result->GetWriteBarrierMode(no_gc);
   int copy_to = 0, length = raw_src->length();
   for (int i = 0; i < length; i++) {
     Tagged<MaybeObject> element = raw_src->Get(i);
     if (element.IsCleared()) continue;
-    raw_result->Set(copy_to++, element, mode);
+    raw_result->Set(copy_to++, element, *mode);
   }
   raw_result->set_length(copy_to);
 
@@ -2796,8 +2796,8 @@ Handle<FixedArray> Factory::CopyFixedArrayUpTo(DirectHandle<FixedArray> array,
   Tagged<FixedArray> result = Cast<FixedArray>(heap_object);
   result->set_length(new_len);
   // Copy the content.
-  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
-  result->CopyElements(isolate(), 0, *array, 0, new_len, mode);
+  WriteBarrierModeScope mode = result->GetWriteBarrierMode(no_gc);
+  result->CopyElements(isolate(), 0, *array, 0, new_len, *mode);
   return handle(result, isolate());
 }
 

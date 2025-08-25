@@ -668,9 +668,9 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
     DirectHandle<FixedArray> array =
         isolate->factory()->NewFixedArray(argument_count);
     DisallowGarbageCollection no_gc;
-    WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
+    WriteBarrierModeScope mode = array->GetWriteBarrierMode(no_gc);
     for (int i = 0; i < argument_count; i++) {
-      array->set(i, *arguments[i], mode);
+      array->set(i, *arguments[i], *mode);
     }
     result->set_elements(*array);
   }
@@ -695,9 +695,9 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
   {
     DisallowGarbageCollection no_gc;
     Tagged<FixedArray> elements = Cast<FixedArray>(result->elements());
-    WriteBarrierMode mode = elements->GetWriteBarrierMode(no_gc);
+    WriteBarrierModeScope mode = elements->GetWriteBarrierMode(no_gc);
     for (int i = 0; i < num_elements; i++) {
-      elements->set(i, *arguments[i + start_index], mode);
+      elements->set(i, *arguments[i + start_index], *mode);
     }
   }
   return *result;

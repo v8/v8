@@ -44,14 +44,22 @@ class ReadOnlyRoots;
 class RootVisitor;
 class PropertyKey;
 
-// UNSAFE_SKIP_WRITE_BARRIER skips the write barrier.
-// SKIP_WRITE_BARRIER skips the write barrier and asserts that this is safe in
-// the MemoryOptimizer
-// UPDATE_WRITE_BARRIER is doing the full barrier, marking and generational.
 enum WriteBarrierMode {
+  // Skips write barrier. Used for static write barrier removal. Usually used
+  // for avoiding write barriers on newly allocated objects. This is verified
+  // using WriteBarrier::IsRequired.
   SKIP_WRITE_BARRIER,
+  // Skips the write barrier but is used for runtime write barrier removal. Only
+  // use this through GetWriteBarrierMode() which checks at runtime whether the
+  // object resides in the young generation. This allows to remove barriers in
+  // scenarios where static write barrier removal wouldn't be allowed.
+  SKIP_WRITE_BARRIER_SCOPE,
+  // Skips the write barrier in CSA/Turbofan. Used to skip Turbofan's
+  // verification in the MemoryOptimizer.
   UNSAFE_SKIP_WRITE_BARRIER,
+  // Performs the special ephemeron key write barrier.
   UPDATE_EPHEMERON_KEY_WRITE_BARRIER,
+  // Performs regular write barrier.
   UPDATE_WRITE_BARRIER
 };
 

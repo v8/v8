@@ -27,6 +27,22 @@ class MarkCompactCollector;
 class MarkingBarrier;
 class RelocInfo;
 
+// A scoped object that determines the write barrier mode for a given object.
+// The mode is only valid for the lifetime of this object.
+class V8_EXPORT_PRIVATE V8_NODISCARD WriteBarrierModeScope final {
+ public:
+  explicit WriteBarrierModeScope(WriteBarrierMode mode);
+  explicit WriteBarrierModeScope(Tagged<HeapObject> object,
+                                 WriteBarrierMode mode);
+
+  ~WriteBarrierModeScope();
+
+  WriteBarrierMode operator*() { return mode_; }
+
+ private:
+  const WriteBarrierMode mode_;
+};
+
 // Write barrier interface. It's preferred to use the macros defined in
 // `object-macros.h`.
 //
@@ -45,7 +61,7 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   static int SharedMarkingFromCode(Address raw_host, Address raw_slot);
   static int SharedFromCode(Address raw_host, Address raw_slot);
 
-  static inline WriteBarrierMode GetWriteBarrierModeForObject(
+  static inline WriteBarrierModeScope GetWriteBarrierModeForObject(
       Tagged<HeapObject> object, const DisallowGarbageCollection& promise);
 
   template <typename T>
@@ -122,6 +138,18 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   static constexpr bool kUninterestingPagesCanBeSkipped = true;
 
  private:
+  static inline bool IsSkipWriteBarrierMode(WriteBarrierMode mode) {
+    static_assert(SKIP_WRITE_BARRIER == 0 && SKIP_WRITE_BARRIER_SCOPE == 1);
+    return mode <= SKIP_WRITE_BARRIER_SCOPE;
+  }
+
+  static inline WriteBarrierMode ComputeWriteBarrierModeForObject(
+      Tagged<HeapObject> object, const DisallowGarbageCollection& promise);
+
+  template <typename T>
+  static void VerifySkipWriteBarrier(Tagged<HeapObject> host, Tagged<T> value,
+                                     WriteBarrierMode mode);
+
   static bool PageFlagsAreConsistent(Tagged<HeapObject> object);
 
   static inline bool IsImmortalImmovableHeapObject(Tagged<HeapObject> object);

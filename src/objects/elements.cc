@@ -201,11 +201,12 @@ MaybeDirectHandle<Object> ThrowArrayLengthRangeError(Isolate* isolate) {
   THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidArrayLength));
 }
 
-WriteBarrierMode GetWriteBarrierMode(Tagged<FixedArrayBase> elements,
-                                     ElementsKind kind,
-                                     const DisallowGarbageCollection& promise) {
-  if (IsSmiElementsKind(kind)) return SKIP_WRITE_BARRIER;
-  if (IsDoubleElementsKind(kind)) return SKIP_WRITE_BARRIER;
+WriteBarrierModeScope GetWriteBarrierMode(
+    Tagged<FixedArrayBase> elements, ElementsKind kind,
+    const DisallowGarbageCollection& promise) {
+  if (IsSmiElementsKind(kind)) return WriteBarrierModeScope(SKIP_WRITE_BARRIER);
+  if (IsDoubleElementsKind(kind))
+    return WriteBarrierModeScope(SKIP_WRITE_BARRIER);
   return elements->GetWriteBarrierMode(promise);
 }
 
@@ -244,12 +245,11 @@ void CopyObjectToObjectElements(Isolate* isolate,
   DCHECK(IsSmiOrObjectElementsKind(from_kind));
   DCHECK(IsSmiOrObjectElementsKind(to_kind));
 
-  WriteBarrierMode write_barrier_mode =
+  WriteBarrierMode mode =
       (IsObjectElementsKind(from_kind) && IsObjectElementsKind(to_kind))
           ? UPDATE_WRITE_BARRIER
           : SKIP_WRITE_BARRIER;
-  to->CopyElements(isolate, to_start, from, from_start, copy_size,
-                   write_barrier_mode);
+  to->CopyElements(isolate, to_start, from, from_start, copy_size, mode);
 }
 
 void CopyDictionaryToObjectElements(Isolate* isolate,
@@ -279,13 +279,13 @@ void CopyDictionaryToObjectElements(Isolate* isolate,
   if (to_start + copy_size > to_length) {
     copy_size = to_length - to_start;
   }
-  WriteBarrierMode write_barrier_mode = GetWriteBarrierMode(to, to_kind, no_gc);
+  WriteBarrierModeScope mode = GetWriteBarrierMode(to, to_kind, no_gc);
   for (int i = 0; i < copy_size; i++) {
     InternalIndex entry = from->FindEntry(isolate, i + from_start);
     if (entry.is_found()) {
       Tagged<Object> value = from->ValueAt(entry);
       DCHECK(!IsTheHole(value, isolate));
-      to->set(i + to_start, value, write_barrier_mode);
+      to->set(i + to_start, value, *mode);
     } else {
       to->set_the_hole(isolate, i + to_start);
     }
@@ -2711,12 +2711,12 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     // Add the provided values.
     DisallowGarbageCollection no_gc;
     Tagged<FixedArrayBase> raw_backing_store = *dst_store;
-    WriteBarrierMode mode = raw_backing_store->GetWriteBarrierMode(no_gc);
+    WriteBarrierModeScope mode = raw_backing_store->GetWriteBarrierMode(no_gc);
     for (uint32_t i = 0; i < copy_size; i++) {
       Tagged<Object> argument = (*args)[src_index + i];
       DCHECK(!IsTheHole(argument));
       Subclass::SetImpl(raw_backing_store, InternalIndex(dst_index + i),
-                        argument, mode);
+                        argument, *mode);
     }
   }
 };
@@ -5733,10 +5733,10 @@ MaybeDirectHandle<Object> ArrayConstructInitializeElements(
     case HOLEY_ELEMENTS:
     case PACKED_ELEMENTS: {
       DisallowGarbageCollection no_gc;
-      WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
+      WriteBarrierModeScope mode = elms->GetWriteBarrierMode(no_gc);
       auto object_elms = Cast<FixedArray>(elms);
       for (int entry = 0; entry < number_of_elements; entry++) {
-        object_elms->set(entry, (*args)[entry], mode);
+        object_elms->set(entry, (*args)[entry], *mode);
       }
       break;
     }

@@ -4878,13 +4878,13 @@ template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::Rehash(PtrComprCageBase cage_base,
                                        Tagged<Derived> new_table) {
   DisallowGarbageCollection no_gc;
-  WriteBarrierMode mode = new_table->GetWriteBarrierMode(no_gc);
+  WriteBarrierModeScope mode = new_table->GetWriteBarrierMode(no_gc);
 
   DCHECK_LT(NumberOfElements(), new_table->Capacity());
 
   // Copy prefix to new array.
   for (int i = kPrefixStartIndex; i < kElementsStartIndex; i++) {
-    new_table->set(i, get(i), mode);
+    new_table->set(i, get(i), *mode);
   }
 
   // Rehash the elements.
@@ -4896,9 +4896,9 @@ void HashTable<Derived, Shape>::Rehash(PtrComprCageBase cage_base,
     uint32_t hash = TodoShape::HashForObject(roots, k);
     uint32_t insertion_index =
         EntryToIndex(new_table->FindInsertionEntry(cage_base, roots, hash));
-    new_table->set_key(insertion_index, get(from_index), mode);
+    new_table->set_key(insertion_index, get(from_index), *mode);
     for (int j = 1; j < TodoShape::kEntrySize; j++) {
-      new_table->set(insertion_index + j, get(from_index + j), mode);
+      new_table->set(insertion_index + j, get(from_index + j), *mode);
     }
   }
   new_table->SetNumberOfElements(NumberOfElements());
@@ -4943,7 +4943,7 @@ void HashTable<Derived, Shape>::Swap(InternalIndex entry1, InternalIndex entry2,
 template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::Rehash(PtrComprCageBase cage_base) {
   DisallowGarbageCollection no_gc;
-  WriteBarrierMode mode = GetWriteBarrierMode(no_gc);
+  WriteBarrierModeScope mode = GetWriteBarrierMode(no_gc);
   ReadOnlyRoots roots = EarlyGetReadOnlyRoots();
   uint32_t capacity = Capacity();
   bool done = false;
@@ -4967,7 +4967,7 @@ void HashTable<Derived, Shape>::Rehash(PtrComprCageBase cage_base) {
       if (!IsKey(roots, target_key) ||
           EntryForProbe(roots, target_key, probe, target) != target) {
         // Put the current element into the correct position.
-        Swap(current, target, mode);
+        Swap(current, target, *mode);
         // The other element will be processed on the next iteration,
         // so don't advance {current} here!
       } else {
@@ -5427,11 +5427,11 @@ void NumberDictionary::CopyValuesTo(Tagged<FixedArray> elements) {
   ReadOnlyRoots roots = GetReadOnlyRoots();
   int pos = 0;
   DisallowGarbageCollection no_gc;
-  WriteBarrierMode mode = elements->GetWriteBarrierMode(no_gc);
+  WriteBarrierModeScope mode = elements->GetWriteBarrierMode(no_gc);
   for (InternalIndex i : this->IterateEntries()) {
     Tagged<Object> k;
     if (this->ToKey(roots, i, &k)) {
-      elements->set(pos++, this->ValueAt(i), mode);
+      elements->set(pos++, this->ValueAt(i), *mode);
     }
   }
   DCHECK_EQ(pos, elements->length());

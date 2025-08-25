@@ -1726,12 +1726,12 @@ bool Object::ToIntegerIndex(Tagged<Object> obj, size_t* index) {
   return false;
 }
 
-WriteBarrierMode HeapObjectLayout::GetWriteBarrierMode(
+WriteBarrierModeScope HeapObjectLayout::GetWriteBarrierMode(
     const DisallowGarbageCollection& promise) {
-  return WriteBarrier::GetWriteBarrierModeForObject(this, promise);
+  return WriteBarrier::GetWriteBarrierModeForObject(Tagged(this), promise);
 }
 
-WriteBarrierMode HeapObject::GetWriteBarrierMode(
+WriteBarrierModeScope HeapObject::GetWriteBarrierMode(
     const DisallowGarbageCollection& promise) {
   return WriteBarrier::GetWriteBarrierModeForObject(*this, promise);
 }

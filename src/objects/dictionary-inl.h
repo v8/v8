@@ -171,9 +171,9 @@ void Dictionary<Derived, Shape>::SetEntry(InternalIndex entry,
   DCHECK(!IsName(key) || details.dictionary_index() > 0 || !Shape::kHasDetails);
   int index = DerivedHashTable::EntryToIndex(entry);
   DisallowGarbageCollection no_gc;
-  WriteBarrierMode mode = this->GetWriteBarrierMode(no_gc);
-  this->set(index + Derived::kEntryKeyIndex, key, mode);
-  this->set(index + Derived::kEntryValueIndex, value, mode);
+  WriteBarrierModeScope mode = this->GetWriteBarrierMode(no_gc);
+  this->set(index + Derived::kEntryKeyIndex, key, *mode);
+  this->set(index + Derived::kEntryValueIndex, value, *mode);
   if (Shape::kHasDetails) DetailsAtPut(entry, details);
 }
 

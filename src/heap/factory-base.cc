@@ -1007,11 +1007,11 @@ Handle<String> FactoryBase<Impl>::NewConsString(DirectHandle<String> left,
                      read_only_roots().cons_two_byte_string_map(), allocation));
 
   DisallowGarbageCollection no_gc;
-  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
+  WriteBarrierModeScope mode = result->GetWriteBarrierMode(no_gc);
   result->set_raw_hash_field(String::kEmptyHashField);
   result->set_length(length);
-  result->set_first(*left, mode);
-  result->set_second(*right, mode);
+  result->set_first(*left, *mode);
+  result->set_second(*right, *mode);
   return handle(result, isolate());
 }
 

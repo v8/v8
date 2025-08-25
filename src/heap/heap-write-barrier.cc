@@ -568,4 +568,26 @@ bool WriteBarrier::VerifyDispatchHandleMarkingState(Tagged<HeapObject> host,
 
 #endif  // ENABLE_SLOW_DCHECKS
 
+WriteBarrierModeScope::WriteBarrierModeScope(WriteBarrierMode mode)
+    : mode_(mode) {
+  DCHECK_NE(SKIP_WRITE_BARRIER_SCOPE, mode_);
+  DCHECK_EQ(LocalHeap::Current()->write_barrier_mode_for_object_, kNullAddress);
+}
+
+WriteBarrierModeScope::WriteBarrierModeScope(Tagged<HeapObject> object,
+                                             WriteBarrierMode mode)
+    : mode_(mode) {
+#if DEBUG
+  LocalHeap* local_heap = LocalHeap::Current();
+  DCHECK_EQ(local_heap->write_barrier_mode_for_object_, kNullAddress);
+  local_heap->write_barrier_mode_for_object_ = object.address();
+#endif
+}
+
+WriteBarrierModeScope::~WriteBarrierModeScope() {
+#if DEBUG
+  LocalHeap::Current()->write_barrier_mode_for_object_ = kNullAddress;
+#endif
+}
+
 }  // namespace v8::internal

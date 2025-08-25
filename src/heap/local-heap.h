@@ -62,6 +62,10 @@ class V8_EXPORT_PRIVATE LocalHeap {
     DCHECK(AllowSafepoints::IsAllowed());
     ThreadState current = state_.load_relaxed();
 
+#if DEBUG
+    AssertNoWriteBarrierModeScope();
+#endif  // DEBUG
+
     if (V8_UNLIKELY(current.IsRunningWithSlowPathFlag())) {
       SafepointSlowPath();
     }
@@ -134,6 +138,12 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
 #if DEBUG
   void VerifyLinearAllocationAreas() const;
+  void AssertNoWriteBarrierModeScope() const {
+    DCHECK_EQ(write_barrier_mode_for_object_, kNullAddress);
+  }
+  Address CurrentObjectForWriteBarrierMode() const {
+    return write_barrier_mode_for_object_;
+  }
 #endif  // DEBUG
 
   // Make all LABs iterable.
@@ -416,6 +426,10 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // Stack information for the thread using this local heap.
   ::heap::base::Stack stack_;
 
+#if DEBUG
+  Address write_barrier_mode_for_object_ = kNullAddress;
+#endif  // DEBUG
+
   friend class CollectionBarrier;
   friend class GlobalSafepoint;
   friend class Heap;
@@ -425,6 +439,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   friend class ParkedScope;
   friend class UnparkedScope;
   friend class GCRootsProviderScope;
+  friend class WriteBarrierModeScope;
 };
 
 class V8_NODISCARD SetCurrentLocalHeapScope final {

@@ -250,7 +250,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
   {
     DisallowGarbageCollection no_gc;
     Tagged<ScopeInfo> scope_info = *scope_info_handle;
-    WriteBarrierMode mode = scope_info->GetWriteBarrierMode(no_gc);
+    WriteBarrierModeScope mode = scope_info->GetWriteBarrierMode(no_gc);
 
     bool has_simple_parameters = false;
     bool is_asm_module = false;
@@ -327,7 +327,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
               IsStaticFlagBit::encode(var->is_static_flag());
           if (has_inlined_local_names) {
             scope_info->set(context_local_base + local_index, *var->name(),
-                            mode);
+                            *mode);
           } else {
             Handle<NameToIndexHashTable> new_table = NameToIndexHashTable::Add(
                 isolate, local_names_hashtable, var->name(), local_index);
@@ -343,7 +343,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
               module_var_entry +
                   TorqueGeneratedModuleVariableOffsets::kNameOffset /
                       kTaggedSize,
-              *var->name(), mode);
+              *var->name(), *mode);
           scope_info->set(
               module_var_entry +
                   TorqueGeneratedModuleVariableOffsets::kIndexOffset /
@@ -413,7 +413,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         var_index = var->index();
         name = *var->name();
       }
-      scope_info->set(index++, name, mode);
+      scope_info->set(index++, name, *mode);
       scope_info->set(index++, Smi::FromInt(var_index));
       DCHECK(function_name_info != VariableAllocationInfo::CONTEXT ||
              var_index == scope_info->ContextLength() - 1);
@@ -428,7 +428,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
     // If present, add the outer scope info.
     DCHECK_EQ(index, scope_info->OuterScopeInfoIndex());
     if (has_outer_scope_info) {
-      scope_info->set(index++, *outer_scope.ToHandleChecked(), mode);
+      scope_info->set(index++, *outer_scope.ToHandleChecked(), *mode);
     }
 
     // Module-specific information (only for module scopes).

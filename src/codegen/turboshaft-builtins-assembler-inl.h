@@ -260,6 +260,7 @@ class FeedbackCollectorReducer : public Next {
                  compiler::WriteBarrierKind::kNoWriteBarrier);
         return;
       }
+      case SKIP_WRITE_BARRIER_SCOPE:
       case UNSAFE_SKIP_WRITE_BARRIER:
         UNIMPLEMENTED();
       case UPDATE_WRITE_BARRIER:
