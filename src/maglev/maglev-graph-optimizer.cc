@@ -24,7 +24,6 @@ MaglevGraphOptimizer::MaglevGraphOptimizer(Graph* graph)
 BlockProcessResult MaglevGraphOptimizer::PreProcessBasicBlock(
     BasicBlock* block) {
   reducer_.set_current_block(block);
-  current_node_index_ = 0;
   return BlockProcessResult::kContinue;
 }
 
@@ -32,7 +31,7 @@ void MaglevGraphOptimizer::PostProcessBasicBlock(BasicBlock* block) {
   reducer_.FlushNodesToBlock();
 }
 
-void MaglevGraphOptimizer::PreProcessNode(Node*) {
+void MaglevGraphOptimizer::PreProcessNode(Node*, const ProcessingState& state) {
 #ifdef DEBUG
   reducer_.StartNewPeriod();
 #endif  // DEBUG
@@ -40,7 +39,7 @@ void MaglevGraphOptimizer::PreProcessNode(Node*) {
     reducer_.SetCurrentProvenance(
         reducer_.graph_labeller()->GetNodeProvenance(current_node()));
   }
-  reducer_.SetNewNodePosition(BasicBlockPosition::At(current_node_index_));
+  reducer_.SetNewNodePosition(BasicBlockPosition::At(state.node_index()));
 }
 
 void MaglevGraphOptimizer::PostProcessNode(Node*) {
@@ -48,16 +47,13 @@ void MaglevGraphOptimizer::PostProcessNode(Node*) {
   reducer_.SetCurrentProvenance(MaglevGraphLabeller::Provenance{});
   reducer_.SetNewNodePosition(BasicBlockPosition::End());
 #endif  // DEBUG
-  current_node_index_++;
 }
 
-void MaglevGraphOptimizer::PreProcessNode(Phi*) {}
-void MaglevGraphOptimizer::PostProcessNode(Phi*) {
-  // We should not incremeent current_node_index_ since Phis are not stored in
-  // the basic block.
-}
+void MaglevGraphOptimizer::PreProcessNode(Phi*, const ProcessingState&) {}
+void MaglevGraphOptimizer::PostProcessNode(Phi*) {}
 
-void MaglevGraphOptimizer::PreProcessNode(ControlNode*) {
+void MaglevGraphOptimizer::PreProcessNode(ControlNode*,
+                                          const ProcessingState&) {
   reducer_.SetNewNodePosition(BasicBlockPosition::End());
 }
 void MaglevGraphOptimizer::PostProcessNode(ControlNode*) {}

@@ -67,9 +67,14 @@ enum class ProcessResult {
 
 class ProcessingState {
  public:
+  static constexpr int kNoNodeIndex = -1;
+
   explicit ProcessingState(BlockConstIterator block_end,
-                           BlockConstIterator block_it)
-      : block_end_(block_end), block_it_(block_it) {}
+                           BlockConstIterator block_it,
+                           int node_index = kNoNodeIndex)
+      : block_end_(block_end), block_it_(block_it), node_index_(node_index) {
+    DCHECK_IMPLIES(node_index != kNoNodeIndex, node_index >= 0);
+  }
 
   // Disallow copies, since the underlying frame states stay mutable.
   ProcessingState(const ProcessingState&) = delete;
@@ -82,9 +87,15 @@ class ProcessingState {
     return *next_block_it;
   }
 
+  int node_index() const {
+    DCHECK_GE(node_index_, 0);
+    return node_index_;
+  }
+
  private:
   BlockConstIterator block_end_;
   BlockConstIterator block_it_;
+  const int node_index_;  // Index inside the basic block.
 };
 
 template <typename NodeProcessor>
@@ -102,7 +113,7 @@ class GraphProcessor {
     auto process_constants = [&](auto& map) {
       for (auto it = map.begin(); it != map.end();) {
         ProcessResult result =
-            node_processor_.Process(it->second, GetCurrentState());
+            node_processor_.Process(it->second, GetCurrentState(0));
         switch (result) {
           [[likely]] case ProcessResult::kContinue:
             ++it;
@@ -169,7 +180,8 @@ class GraphProcessor {
            ++node_it_) {
         Node* node = *node_it_;
         if (node == nullptr) continue;
-        ProcessResult result = ProcessNodeBase(node, GetCurrentState());
+        ProcessResult result = ProcessNodeBase(
+            node, GetCurrentState(node_it_ - block->nodes().begin()));
         switch (result) {
           [[likely]] case ProcessResult::kContinue:
             break;
@@ -221,8 +233,10 @@ class GraphProcessor {
   const NodeProcessor& node_processor() const { return node_processor_; }
 
  private:
-  ProcessingState GetCurrentState() {
-    return ProcessingState(graph_->end(), block_it_);
+  ProcessingState GetCurrentState(
+      size_t node_index = ProcessingState::kNoNodeIndex) {
+    return ProcessingState(graph_->end(), block_it_,
+                           static_cast<int>(node_index));
   }
 
   ProcessResult ProcessNodeBase(NodeBase* node, const ProcessingState& state) {

@@ -21,7 +21,8 @@ void TruncationProcessor::PostProcessBasicBlock(BasicBlock* block) {
   reducer_.FlushNodesToBlock();
 }
 
-void TruncationProcessor::PreProcessNode(Node* node) {
+void TruncationProcessor::PreProcessNode(Node* node,
+                                         const ProcessingState& state) {
 #ifdef DEBUG
   reducer_.StartNewPeriod();
 #endif  // DEBUG
@@ -29,7 +30,7 @@ void TruncationProcessor::PreProcessNode(Node* node) {
     reducer_.SetCurrentProvenance(
         reducer_.graph_labeller()->GetNodeProvenance(node));
   }
-  reducer_.SetNewNodePosition(BasicBlockPosition::At(current_node_index_));
+  reducer_.SetNewNodePosition(BasicBlockPosition::At(state.node_index()));
 }
 
 void TruncationProcessor::PostProcessNode(Node*) {
@@ -37,16 +38,14 @@ void TruncationProcessor::PostProcessNode(Node*) {
   reducer_.SetCurrentProvenance(MaglevGraphLabeller::Provenance{});
   reducer_.SetNewNodePosition(BasicBlockPosition::End());
 #endif  // DEBUG
-  current_node_index_++;
 }
 
-void TruncationProcessor::PreProcessNode(Phi*) {}
+void TruncationProcessor::PreProcessNode(Phi*, const ProcessingState& state) {}
 void TruncationProcessor::PostProcessNode(Phi*) {
-  // We should not incremeent current_node_index_ since Phis are not stored in
-  // the basic block.
 }
 
-void TruncationProcessor::PreProcessNode(ControlNode*) {
+void TruncationProcessor::PreProcessNode(ControlNode*,
+                                         const ProcessingState& state) {
   reducer_.SetNewNodePosition(BasicBlockPosition::End());
 }
 void TruncationProcessor::PostProcessNode(ControlNode*) {}

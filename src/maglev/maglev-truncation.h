@@ -157,14 +157,14 @@ class TruncationProcessor {
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
-    PreProcessNode(node);
+    PreProcessNode(node, state);
     PostProcessNode(node);
     return ProcessResult::kContinue;
   }
 
 #define PROCESS_BINOP(Op)                                                  \
   ProcessResult Process(Float64##Op* node, const ProcessingState& state) { \
-    PreProcessNode(node);                                                  \
+    PreProcessNode(node, state);                                           \
     ProcessFloat64BinaryOp<Int32##Op>(node);                               \
     PostProcessNode(node);                                                 \
     return ProcessResult::kContinue;                                       \
@@ -177,7 +177,7 @@ class TruncationProcessor {
 
 #define PROCESS_TRUNC_CONV(Node)                                    \
   ProcessResult Process(Node* node, const ProcessingState& state) { \
-    PreProcessNode(node);                                           \
+    PreProcessNode(node, state);                                    \
     ProcessResult result = ProcessTruncatedConversion(node);        \
     PostProcessNode(node);                                          \
     return result;                                                  \
@@ -190,16 +190,16 @@ class TruncationProcessor {
   MaglevReducer<TruncationProcessor> reducer_;
   int current_node_index_ = 0;
 
-  void PreProcessNode(Node*);
+  void PreProcessNode(Node*, const ProcessingState& state);
   void PostProcessNode(Node*);
 
   // Phis are treated differently since they are not stored directly in the
   // basic block.
-  void PreProcessNode(Phi*);
+  void PreProcessNode(Phi*, const ProcessingState& state);
   void PostProcessNode(Phi*);
 
   // Control nodes are singletons in the basic block.
-  void PreProcessNode(ControlNode*);
+  void PreProcessNode(ControlNode*, const ProcessingState& state);
   void PostProcessNode(ControlNode*);
 
   int NonInt32InputCount(ValueNode* node);
