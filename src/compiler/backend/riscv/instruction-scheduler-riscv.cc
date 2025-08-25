@@ -30,7 +30,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvMulHigh64:
     case kRiscvMulHighU64:
     case kRiscvAdd64:
-    case kRiscvAddOvf32:
     case kRiscvClz64:
     case kRiscvDiv64:
     case kRiscvDivU64:
@@ -45,7 +44,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvShl64:
     case kRiscvShr64:
     case kRiscvSub64:
-    case kRiscvSubOvf32:
     case kRiscvFloat64RoundDown:
     case kRiscvFloat64RoundTiesEven:
     case kRiscvFloat64RoundTruncate:

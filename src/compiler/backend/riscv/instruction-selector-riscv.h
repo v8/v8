@@ -259,7 +259,15 @@ static void VisitBinop(InstructionSelector* selector, OpIndex node,
 
   if (TryMatchImmediate(selector, &opcode, right_node, &input_count,
                         &inputs[1])) {
-    inputs[0] = g.UseRegisterOrImmediateZero(left_node);
+    // If right node is an immediate, we will use left to check overflow
+    // so we hope left isn't overlapped by output.
+    if (!cont->IsNone() &&
+        (cont->condition() == FlagsCondition::kOverflow ||
+         cont->condition() == FlagsCondition::kNotOverflow)) {
+      inputs[0] = g.UseUniqueRegister(left_node);
+    } else {
+      inputs[0] = g.UseRegisterOrImmediateZero(left_node);
+    }
     input_count++;
   } else if (has_reverse_opcode &&
              TryMatchImmediate(selector, &reverse_opcode, left_node,
@@ -272,14 +280,7 @@ static void VisitBinop(InstructionSelector* selector, OpIndex node,
     inputs[input_count++] = g.UseOperand(right_node, opcode);
   }
 
-  if (cont->IsDeoptimize()) {
-    // If we can deoptimize as a result of the binop, we need to make sure that
-    // the deopt inputs are not overwritten by the binop result. One way
-    // to achieve that is to declare the output register as same-as-first.
-    outputs[output_count++] = g.DefineSameAsFirst(node);
-  } else {
-    outputs[output_count++] = g.DefineAsRegister(node);
-  }
+  outputs[output_count++] = g.DefineAsRegister(node);
 
   DCHECK_NE(0u, input_count);
   DCHECK_EQ(1u, output_count);

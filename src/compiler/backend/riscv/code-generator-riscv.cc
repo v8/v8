@@ -1231,16 +1231,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ AddWord(i.OutputRegister(), i.InputOrZeroRegister(0),
                  i.InputOperand(1));
       break;
-    case kRiscvAddOvf32:
-      __ AddOverflow32(i.OutputRegister(), i.InputOrZeroRegister(0),
-                       i.InputOperand(1), kScratchReg);
-      break;
     case kRiscvSub64:
       __ Sub64(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
-      break;
-    case kRiscvSubOvf32:
-      __ SubOverflow32(i.OutputRegister(), i.InputOrZeroRegister(0),
-                       i.InputOperand(1), kScratchReg);
       break;
     case kRiscvMulHigh32:
       __ Mulh32(i.OutputRegister(), i.InputOrZeroRegister(0),
@@ -4206,20 +4198,43 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
     Condition cc = FlagsConditionToConditionTst(condition);
     __ Branch(tlabel, cc, kScratchReg, Operand(zero_reg));
 #if V8_TARGET_ARCH_RISCV64
+  } else if (instr->arch_opcode() == kRiscvAdd32 ||
+             instr->arch_opcode() == kRiscvSub32) {
+    if (instr->InputAt(1)->IsImmediate()) {
+      DCHECK_NE(i.OutputRegister(), i.InputRegister(0));
+      int64_t imm = i.ToConstant(instr->InputAt(1)).ToInt64();
+      bool is_add = (instr->arch_opcode() == kRiscvAdd32);
+      // Define mapping from {is_add, imm < 0, is_overflow} to branch condition.
+      static const Condition cond_map[2][2][2] = {
+          {
+              /* kRiscvAdd64 */
+              {lt, ge},  // imm>=0: [kOverflow, !kOverflow]
+              {gt, le}   // imm<0:  [kOverflow, !kOverflow]
+          },
+          {
+              /* kRiscvSub64 */
+              {gt, le},  // imm>=0: [kOverflow, !kOverflow]
+              {lt, ge}   // imm<0:  [kOverflow, !kOverflow]
+          }};
+      bool is_overflow = (condition == kOverflow);
+      if (imm != 0) {
+        Condition cc = cond_map[is_add][imm < 0][is_overflow];
+        __ Branch(tlabel, cc, i.OutputRegister(), Operand(i.InputRegister(0)));
+      } else if (!is_overflow) {
+        __ Branch(tlabel);
+      }
+      return;
+    }
+    UNREACHABLE();
   } else if (instr->arch_opcode() == kRiscvAdd64 ||
              instr->arch_opcode() == kRiscvSub64) {
     Condition cc = FlagsConditionToConditionOvf(condition);
     __ Sra64(kScratchReg, i.OutputRegister(), 32);
     __ Sra32(kScratchReg2, i.OutputRegister(), 31);
     __ Branch(tlabel, cc, kScratchReg2, Operand(kScratchReg));
-  } else if (instr->arch_opcode() == kRiscvAddOvf32 ||
-             instr->arch_opcode() == kRiscvSubOvf32 ||
-             instr->arch_opcode() == kRiscvAddOvfWord ||
-             instr->arch_opcode() == kRiscvSubOvfWord) {
-#elif V8_TARGET_ARCH_RISCV32
+#endif
   } else if (instr->arch_opcode() == kRiscvAddOvfWord ||
              instr->arch_opcode() == kRiscvSubOvfWord) {
-#endif
     switch (condition) {
       // Overflow occurs if overflow register is negative
       case kOverflow:
@@ -4404,24 +4419,66 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     }
     return;
 #if V8_TARGET_ARCH_RISCV64
+  } else if (instr->arch_opcode() == kRiscvAdd32 ||
+             instr->arch_opcode() == kRiscvSub32) {
+    if (instr->InputAt(1)->IsImmediate()) {
+      DCHECK_NE(i.OutputRegister(), i.InputRegister(0));
+      int64_t imm = i.ToConstant(instr->InputAt(1)).ToInt64();
+      bool is_add = (instr->arch_opcode() == kRiscvAdd32);
+      if (imm != 0) {
+        if (is_add) {
+          if (imm > 0) {
+            if (condition != kNotOverflow) {
+              __ Slt(result, i.OutputRegister(), Operand(i.InputRegister(0)));
+            } else {
+              __ Sge(result, i.OutputRegister(), Operand(i.InputRegister(0)));
+            }
+          } else {
+            if (condition != kNotOverflow) {
+              __ Sgt(result, i.OutputRegister(), Operand(i.InputRegister(0)));
+            } else {
+              __ Sle(result, i.OutputRegister(), Operand(i.InputRegister(0)));
+            }
+          }
+        } else {
+          if (imm > 0) {
+            if (condition != kNotOverflow) {
+              __ Sgt(result, i.OutputRegister(), Operand(i.InputRegister(0)));
+            } else {
+              __ Sle(result, i.OutputRegister(), Operand(i.InputRegister(0)));
+            }
+          } else {
+            if (condition != kNotOverflow) {
+              __ Slt(result, i.OutputRegister(), Operand(i.InputRegister(0)));
+            } else {
+              __ Sge(result, i.OutputRegister(), Operand(i.InputRegister(0)));
+            }
+          }
+        }
+      } else {
+        if (condition == kNotOverflow) {
+          __ li(result, 1);
+        } else {
+          __ mv(result, zero_reg);
+        }
+      }
+      return;
+    }
+    UNREACHABLE();
   } else if (instr->arch_opcode() == kRiscvAdd64 ||
              instr->arch_opcode() == kRiscvSub64) {
-    Condition cc = FlagsConditionToConditionOvf(condition);
     // Check for overflow creates 1 or 0 for result.
     __ Srl64(kScratchReg, i.OutputRegister(), 63);
     __ Srl32(kScratchReg2, i.OutputRegister(), 31);
     __ Xor(result, kScratchReg, kScratchReg2);
-    if (cc == eq)  // Toggle result for not overflow.
+    // Toggle result for not overflow.
+    if (condition == kNotOverflow) {
       __ Xor(result, result, 1);
+    }
     return;
-  } else if (instr->arch_opcode() == kRiscvAddOvf32 ||
-             instr->arch_opcode() == kRiscvSubOvf32 ||
-             instr->arch_opcode() == kRiscvAddOvfWord ||
-             instr->arch_opcode() == kRiscvSubOvfWord) {
-#elif V8_TARGET_ARCH_RISCV32
+#endif
   } else if (instr->arch_opcode() == kRiscvAddOvfWord ||
              instr->arch_opcode() == kRiscvSubOvfWord) {
-#endif
     // Overflow occurs if overflow register is negative
     __ Slt(result, kScratchReg, zero_reg);
 #if V8_TARGET_ARCH_RISCV64

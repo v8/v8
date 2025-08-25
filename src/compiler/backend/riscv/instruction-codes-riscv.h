@@ -47,9 +47,7 @@ namespace compiler {
 #define TARGET_ARCH_OPCODE_LIST_SPECIAL(V)           \
   TARGET_ARCH_OPCODE_WITH_MEMORY_ACCESS_MODE_LIST(V) \
   V(RiscvAdd64)                                      \
-  V(RiscvAddOvf32)                                   \
   V(RiscvSub64)                                      \
-  V(RiscvSubOvf32)                                   \
   V(RiscvMulHigh64)                                  \
   V(RiscvMulHighU64)                                 \
   V(RiscvMul64)                                      \
