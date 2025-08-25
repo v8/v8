@@ -276,7 +276,15 @@ ProcessResult MaglevGraphOptimizer::VisitCheckSymbol() {
 }
 
 ProcessResult MaglevGraphOptimizer::VisitCheckValue() {
-  // TODO(b/424157317): Optimize.
+  CheckValue* node = current_node()->Cast<CheckValue>();
+  ValueNode* input = GetInputAt(0);
+  if (Constant* constant = input->TryCast<Constant>()) {
+    if (constant->object() == node->value()) {
+      return ProcessResult::kRemove;
+    }
+    // TODO(victorgomes): Support soft deopting and killing the rest of the
+    // block.
+  }
   return ProcessResult::kContinue;
 }
 
@@ -297,6 +305,15 @@ ProcessResult MaglevGraphOptimizer::VisitCheckValueEqualsString() {
 
 ProcessResult MaglevGraphOptimizer::VisitCheckInstanceType() {
   // TODO(b/424157317): Optimize.
+  CheckInstanceType* node = current_node()->Cast<CheckInstanceType>();
+  ValueNode* input = GetInputAt(0);
+  if (input->Is<FastCreateClosure>()) {
+    if (node->first_instance_type() == FIRST_JS_FUNCTION_TYPE &&
+        node->last_instance_type() == LAST_JS_FUNCTION_TYPE) {
+      // Don't need to emit this check, we know it is a closure.
+      return ProcessResult::kRemove;
+    }
+  }
   return ProcessResult::kContinue;
 }
 
@@ -692,6 +709,12 @@ ProcessResult MaglevGraphOptimizer::VisitInitialValue() {
 
 ProcessResult MaglevGraphOptimizer::VisitLoadTaggedField() {
   // TODO(b/424157317): Optimize.
+  LoadTaggedField* node = current_node()->Cast<LoadTaggedField>();
+  if (node->offset() == JSFunction::kFeedbackCellOffset) {
+    if (auto input = GetInputAt(0)->TryCast<FastCreateClosure>()) {
+      return ReplaceWith(reducer_.GetConstant(input->feedback_cell()));
+    }
+  }
   return ProcessResult::kContinue;
 }
 
