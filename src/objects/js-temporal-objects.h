@@ -768,7 +768,7 @@ class JSTemporalZonedDateTime
                DirectHandle<Object> time_zone_like);
 
   // #sec-get-temporal.zoneddatetime.prototype.hoursinday
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Smi> HoursInDay(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Number> HoursInDay(
       Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time);
 
   // #sec-temporal.zoneddatetime.prototype.round

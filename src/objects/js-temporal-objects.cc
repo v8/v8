@@ -6083,15 +6083,18 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
 }
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.hoursinday
-MaybeDirectHandle<Smi> JSTemporalZonedDateTime::HoursInDay(
+MaybeDirectHandle<Number> JSTemporalZonedDateTime::HoursInDay(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-
+#ifdef TEMPORAL_CAPI_VERSION_0_0_12
   uint8_t hours;
+#else
+  double hours;
+#endif
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, hours,
       ExtractRustResult(
           isolate, zoned_date_time->zoned_date_time()->raw()->hours_in_day()));
-  return direct_handle(Smi::FromInt(hours), isolate);
+  return isolate->factory()->NewNumber(hours);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.from
