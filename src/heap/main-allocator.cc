@@ -729,7 +729,7 @@ bool PagedSpaceAllocatorPolicy::RefillLab(int size_in_bytes,
     if (page != nullptr) {
       // Make sure we don't evacuate into a black allocated page.
       DCHECK_IMPLIES(v8_flags.black_allocated_pages,
-                     !page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+                     !page->Chunk()->IsBlackAllocatedPage());
       space_->AddPage(page);
       if (TryAllocationFromFreeList(static_cast<size_t>(size_in_bytes), origin))
         return true;

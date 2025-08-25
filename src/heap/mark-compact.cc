@@ -306,7 +306,7 @@ void MarkCompactCollector::TearDown() {
 
 void MarkCompactCollector::AddEvacuationCandidate(PageMetadata* p) {
   DCHECK(!p->never_evacuate());
-  DCHECK(!p->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+  DCHECK(!p->Chunk()->IsBlackAllocatedPage());
 
   if (v8_flags.trace_evacuation_candidates) {
     PrintIsolate(
@@ -4210,10 +4210,10 @@ static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot,
       "or WriteProtectedSlot are expected here");
   MapWord map_word = heap_obj->map_word(cage_base, kRelaxedLoad);
   if (!map_word.IsForwardingAddress()) return;
-  DCHECK_IMPLIES((!v8_flags.minor_ms && !Heap::InFromPage(heap_obj)),
-                 MarkCompactCollector::IsOnEvacuationCandidate(heap_obj) ||
-                     MemoryChunk::FromHeapObject(heap_obj)->IsFlagSet(
-                         MemoryChunk::COMPACTION_WAS_ABORTED));
+  DCHECK_IMPLIES(
+      (!v8_flags.minor_ms && !Heap::InFromPage(heap_obj)),
+      MarkCompactCollector::IsOnEvacuationCandidate(heap_obj) ||
+          MemoryChunk::FromHeapObject(heap_obj)->CompactionWasAborted());
   typename TSlot::TObject target = MakeSlotValue<TSlot, reference_type>(
       map_word.ToForwardingAddress(heap_obj));
   // Needs to be atomic for map space compaction: This slot could be a map
@@ -4912,7 +4912,7 @@ class PrecisePagePinningVisitor final : public RootVisitor {
       metadata->set_is_quarantined(true);
       return;
     }
-    if (!chunk->IsFlagSet(MemoryChunk::EVACUATION_CANDIDATE)) {
+    if (!chunk->IsEvacuationCandidate()) {
       return;
     }
     collector_->ReportAbortedEvacuationCandidateDueToFlags(
@@ -5006,7 +5006,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
 
   for (PageMetadata* page : old_space_evacuation_pages_) {
     MemoryChunk* chunk = page->Chunk();
-    if (chunk->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED)) continue;
+    if (chunk->CompactionWasAborted()) continue;
 
     live_bytes += page->live_bytes();
     evacuation_items.emplace_back(ParallelWorkItem{}, page);
@@ -5116,7 +5116,7 @@ void MarkCompactCollector::Evacuate() {
     promoted_large_pages_.clear();
 
     for (PageMetadata* p : old_space_evacuation_pages_) {
-      if (p->Chunk()->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED)) {
+      if (p->Chunk()->CompactionWasAborted()) {
         sweeper_->AddPage(p->owner_identity(), p);
         p->ClearFlagMaybeExecutable(MemoryChunk::COMPACTION_WAS_ABORTED);
       }
@@ -5882,7 +5882,7 @@ void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToOOM(
 void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToFlags(
     PageMetadata* page, MemoryChunk* chunk) {
   DCHECK_EQ(page->Chunk(), chunk);
-  if (chunk->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED)) {
+  if (chunk->CompactionWasAborted()) {
     return;
   }
   page->SetFlagMaybeExecutable(MemoryChunk::COMPACTION_WAS_ABORTED);
@@ -5897,7 +5897,7 @@ void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToRunningCode(
 namespace {
 
 void ReRecordPage(Heap* heap, Address failed_start, PageMetadata* page) {
-  DCHECK(page->Chunk()->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED));
+  DCHECK(page->Chunk()->CompactionWasAborted());
 
   // Aborted compaction page. We have to record slots here, since we
   // might not have recorded them in first place.
@@ -5934,7 +5934,7 @@ void ReRecordPage(Heap* heap, Address failed_start, PageMetadata* page) {
 size_t MarkCompactCollector::PostProcessAbortedEvacuationCandidates() {
   for (auto start_and_page : aborted_evacuation_candidates_due_to_oom_) {
     PageMetadata* page = start_and_page.second;
-    DCHECK(!page->Chunk()->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED));
+    DCHECK(!page->Chunk()->CompactionWasAborted());
     page->SetFlagMaybeExecutable(MemoryChunk::COMPACTION_WAS_ABORTED);
   }
   for (auto start_and_page : aborted_evacuation_candidates_due_to_oom_) {
@@ -5949,7 +5949,7 @@ size_t MarkCompactCollector::PostProcessAbortedEvacuationCandidates() {
   size_t aborted_pages_verified = 0;
   for (PageMetadata* p : old_space_evacuation_pages_) {
     MemoryChunk* chunk = p->Chunk();
-    if (chunk->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED)) {
+    if (chunk->CompactionWasAborted()) {
       // Only clear EVACUATION_CANDIDATE flag after all slots were re-recorded
       // on all aborted pages. Necessary since repopulating
       // OLD_TO_OLD still requires the EVACUATION_CANDIDATE flag. After clearing
@@ -6017,7 +6017,7 @@ void MarkCompactCollector::StartSweepNewSpace() {
   for (auto it = paged_space->begin(); it != paged_space->end();) {
     PageMetadata* p = *(it++);
     DCHECK(p->SweepingDone());
-    DCHECK(!p->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+    DCHECK(!p->Chunk()->IsBlackAllocatedPage());
 
     if (p->live_bytes() > 0) {
       // Non-empty pages will be evacuated/promoted.
@@ -6041,7 +6041,7 @@ void MarkCompactCollector::StartSweepNewSpace() {
 
 void MarkCompactCollector::ResetAndRelinkBlackAllocatedPage(
     PagedSpace* space, PageMetadata* page) {
-  DCHECK(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+  DCHECK(page->Chunk()->IsBlackAllocatedPage());
   DCHECK_EQ(page->live_bytes(), 0);
   DCHECK_GE(page->allocated_bytes(), 0);
   DCHECK(page->marking_bitmap()->IsClean());
@@ -6069,7 +6069,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
     DCHECK(p->SweepingDone());
 
     if (p->Chunk()->IsEvacuationCandidate()) {
-      DCHECK(!p->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+      DCHECK(!p->Chunk()->IsBlackAllocatedPage());
       DCHECK_NE(NEW_SPACE, space->identity());
       // Will be processed in Evacuate.
       continue;
@@ -6077,7 +6077,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
 
     // If the page is black, just reset the flag and don't add the page to the
     // sweeper.
-    if (p->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED)) {
+    if (p->Chunk()->IsBlackAllocatedPage()) {
       ResetAndRelinkBlackAllocatedPage(space, p);
       continue;
     }
@@ -6143,7 +6143,7 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
   }
   for (auto it = space->begin(); it != space->end();) {
     LargePageMetadata* current = *(it++);
-    DCHECK(!current->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+    DCHECK(!current->Chunk()->IsBlackAllocatedPage());
     Tagged<HeapObject> object = current->GetObject();
     if (!marking_state_->IsMarked(object)) {
       // Object is dead and page can be released.
@@ -6253,7 +6253,7 @@ void RootMarkingVisitor::VisitRunningCode(
     Tagged<InstructionStream> istream =
         TrustedCast<InstructionStream>(istream_or_smi_zero);
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(istream);
-    if (chunk->IsFlagSet(MemoryChunk::EVACUATION_CANDIDATE)) {
+    if (chunk->IsEvacuationCandidate()) {
       PageMetadata* page = PageMetadata::cast(chunk->Metadata());
       collector_->ReportAbortedEvacuationCandidateDueToRunningCode(page);
     }

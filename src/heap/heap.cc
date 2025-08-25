@@ -2106,7 +2106,7 @@ void CopyOrMoveRangeImpl(Heap* heap, Tagged<HeapObject> dst_object,
   MemoryChunk* dst_chunk = MemoryChunk::FromHeapObject(dst_object);
   // Young generation object with marking being off, we can use plain memcopy
   // without write barriers.
-  if (!dst_chunk->IsFlagSet(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING)) {
+  if (!dst_chunk->PointersFromHereAreInteresting()) {
     non_atomic_op(dst_slot, src_slot, len);
     return;
   }

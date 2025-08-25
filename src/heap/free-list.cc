@@ -465,7 +465,7 @@ void FreeList::ResetForNonBlackAllocatedPages() {
   ForAllFreeListCategories([this](FreeListCategory* category) {
     if (!category->is_empty()) {
       auto* chunk = MemoryChunk::FromHeapObject(category->top());
-      if (chunk->IsFlagSet(MemoryChunk::BLACK_ALLOCATED)) {
+      if (chunk->IsBlackAllocatedPage()) {
         category->Unlink(this);
         return;
       }

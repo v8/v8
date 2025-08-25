@@ -120,7 +120,7 @@ bool SemiSpaceNewSpace::IsAddressBelowAgeMark(Address address) const {
   DCHECK(!metadata->is_large());
 #endif  // DEBUG
 
-  if (!chunk->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)) {
+  if (!chunk->InNewSpaceBelowAgeMark()) {
     return false;
   }
 

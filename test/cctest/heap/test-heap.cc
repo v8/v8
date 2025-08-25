@@ -6295,7 +6295,7 @@ TEST(RightTrimFixedArrayWithBlackAllocatedPages) {
   Address start_address = array->address();
   Address end_address = start_address + array->Size();
   PageMetadata* page = PageMetadata::FromHeapObject(*array);
-  CHECK(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+  CHECK(page->Chunk()->IsBlackAllocatedPage());
   CHECK(heap->old_space()->Contains(*array));
 
   // Trim it once by one word, which shouldn't affect the BLACK_ALLOCATED flag.
@@ -6304,11 +6304,10 @@ TEST(RightTrimFixedArrayWithBlackAllocatedPages) {
 
   Tagged<HeapObject> filler = HeapObject::FromAddress(previous);
   CHECK(IsFreeSpaceOrFiller(filler));
-  CHECK(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+  CHECK(page->Chunk()->IsBlackAllocatedPage());
 
   heap::InvokeAtomicMajorGC(heap);
-  CHECK(!PageMetadata::FromHeapObject(*array)->Chunk()->IsFlagSet(
-      MemoryChunk::BLACK_ALLOCATED));
+  CHECK(!PageMetadata::FromHeapObject(*array)->Chunk()->IsBlackAllocatedPage());
 
   heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
                                 i::GarbageCollectionReason::kTesting);
@@ -6316,12 +6315,10 @@ TEST(RightTrimFixedArrayWithBlackAllocatedPages) {
   // Allocate the large fixed array that will be trimmed later.
   array = isolate->factory()->NewFixedArray(200000, AllocationType::kOld);
   CHECK(heap->lo_space()->Contains(*array));
-  CHECK(!PageMetadata::FromHeapObject(*array)->Chunk()->IsFlagSet(
-      MemoryChunk::BLACK_ALLOCATED));
+  CHECK(!PageMetadata::FromHeapObject(*array)->Chunk()->IsBlackAllocatedPage());
 
   heap::InvokeAtomicMajorGC(heap);
-  CHECK(!PageMetadata::FromHeapObject(*array)->Chunk()->IsFlagSet(
-      MemoryChunk::BLACK_ALLOCATED));
+  CHECK(!PageMetadata::FromHeapObject(*array)->Chunk()->IsBlackAllocatedPage());
 }
 
 TEST(Regress618958) {
@@ -6361,7 +6358,7 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
   MemoryChunkMetadata* metadata = chunk->Metadata(isolate);
   CHECK_EQ(NEW_LO_SPACE, MutablePageMetadata::cast(metadata)->owner_identity());
   CHECK(metadata->is_large());
-  CHECK(chunk->IsFlagSet(MemoryChunk::TO_PAGE));
+  CHECK(chunk->IsToPage());
 
   DirectHandle<Object> number = isolate->factory()->NewHeapNumber(123.456);
   array_small->set(0, *number);
@@ -6394,7 +6391,7 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
   MemoryChunkMetadata* metadata = chunk->Metadata(isolate);
   CHECK_EQ(NEW_LO_SPACE, MutablePageMetadata::cast(metadata)->owner_identity());
   CHECK(metadata->is_large());
-  CHECK(chunk->IsFlagSet(MemoryChunk::TO_PAGE));
+  CHECK(chunk->IsToPage());
 
   DirectHandle<Object> number = isolate->factory()->NewHeapNumber(123.456);
   array_small->set(0, *number);
@@ -6427,7 +6424,7 @@ TEST(YoungGenerationLargeObjectAllocationReleaseScavenger) {
       MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
       CHECK_EQ(NEW_LO_SPACE,
                MutablePageMetadata::cast(chunk->Metadata())->owner_identity());
-      CHECK(chunk->IsFlagSet(MemoryChunk::TO_PAGE));
+      CHECK(chunk->IsToPage());
     }
   }
 

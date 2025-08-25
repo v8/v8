@@ -56,7 +56,7 @@ void PageMetadata::MarkEvacuationCandidate() {
 
 void PageMetadata::ClearEvacuationCandidate() {
   MemoryChunk* chunk = Chunk();
-  if (!chunk->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED)) {
+  if (!chunk->CompactionWasAborted()) {
     DCHECK_NULL(slot_set<OLD_TO_OLD>());
     DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
   }

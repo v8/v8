@@ -27,7 +27,7 @@ void CheckInvariantsOfAbortedPage(PageMetadata* page) {
   // 3) The page is not marked as aborted compaction anymore.
   CHECK(page->marking_bitmap()->IsClean());
   CHECK(!page->Chunk()->IsEvacuationCandidate());
-  CHECK(!page->Chunk()->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED));
+  CHECK(!page->Chunk()->CompactionWasAborted());
 }
 
 void CheckAllObjectsOnPage(const DirectHandleVector<FixedArray>& handles,

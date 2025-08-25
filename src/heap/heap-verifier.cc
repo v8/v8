@@ -407,7 +407,9 @@ void HeapVerification::VerifyPage(const MemoryChunkMetadata* chunk_metadata) {
   const MemoryChunk* chunk = chunk_metadata->Chunk();
 
   CHECK(!current_chunk_.has_value());
-  CHECK(!chunk->IsFlagSet(MemoryChunk::FROM_PAGE));
+#ifndef V8_ENABLE_STICKY_MARK_BITS_BOOL
+  CHECK(!chunk->IsFromPage());
+#endif
   CHECK(!chunk_metadata->will_be_promoted());
   CHECK(!chunk_metadata->is_quarantined());
   CHECK_EQ(chunk_metadata->is_evacuation_candidate(),

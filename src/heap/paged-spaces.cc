@@ -227,10 +227,10 @@ void PagedSpaceBase::AddPageImpl(PageMetadata* page) {
   DCHECK_NOT_NULL(page);
   CHECK(page->SweepingDone());
   page->set_owner(this);
-  DCHECK_IMPLIES(identity() == NEW_SPACE,
-                 page->Chunk()->IsFlagSet(MemoryChunk::TO_PAGE));
-  DCHECK_IMPLIES(identity() != NEW_SPACE,
-                 !page->Chunk()->IsFlagSet(MemoryChunk::TO_PAGE));
+#ifndef V8_ENABLE_STICKY_MARK_BITS_BOOL
+  DCHECK_IMPLIES(identity() == NEW_SPACE, page->Chunk()->IsToPage());
+  DCHECK_IMPLIES(identity() != NEW_SPACE, !page->Chunk()->IsToPage());
+#endif
   memory_chunk_list_.PushBack(page);
   AccountCommitted(page->size());
   IncreaseCapacity(page->area_size());
@@ -250,8 +250,9 @@ size_t PagedSpaceBase::AddPage(PageMetadata* page) {
 
 void PagedSpaceBase::RemovePage(PageMetadata* page) {
   CHECK(page->SweepingDone());
-  DCHECK_IMPLIES(identity() == NEW_SPACE,
-                 page->Chunk()->IsFlagSet(MemoryChunk::TO_PAGE));
+#ifndef V8_ENABLE_STICKY_MARK_BITS_BOOL
+  DCHECK_IMPLIES(identity() == NEW_SPACE, page->Chunk()->IsToPage());
+#endif
   memory_chunk_list_.Remove(page);
   UnlinkFreeListCategories(page);
   // Pages are only removed from new space when they are promoted to old space
@@ -334,8 +335,7 @@ void PagedSpaceBase::RemovePageFromSpaceImpl(PageMetadata* page) {
   DCHECK_EQ(0, page->live_bytes());
   DCHECK_EQ(page->owner(), this);
 
-  DCHECK_IMPLIES(identity() == NEW_SPACE,
-                 page->Chunk()->IsFlagSet(MemoryChunk::TO_PAGE));
+  DCHECK_IMPLIES(identity() == NEW_SPACE, page->Chunk()->IsToPage());
 
   memory_chunk_list_.Remove(page);
 
@@ -571,7 +571,7 @@ void CompactionSpace::NotifyNewPage(PageMetadata* page) {
   // isolate until it's merged.
   DCHECK_IMPLIES(identity() != SHARED_SPACE ||
                      destination_heap() != DestinationHeap::kSharedSpaceHeap,
-                 !page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+                 !page->Chunk()->IsBlackAllocatedPage());
   new_pages_.push_back(page);
 }
 

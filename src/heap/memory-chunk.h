@@ -46,16 +46,17 @@ class TestDebugHelper;
 // metadata object that can be retrieved via `Metadata()` and its friends.
 class V8_EXPORT_PRIVATE MemoryChunk final {
  public:
-  // All possible flags that can be set on a page. While the value of flags
-  // doesn't matter in principle, keep flags used in the write barrier together
-  // in order to have dense page flag checks in the write barrier.
+  // Memory chunk flags that for sandbox builds can be corrupted. Users of these
+  // flags need to assume that the flags are inconsistent. In practice, only
+  // flags that are required for fast paths should be kept here. All other flags
+  // should be placed on the trusted counterparts, e.g. `MemoryChunkMetadata`.
   //
   // TODO(429538831): Replace the flags in here with their trusted counterparts
   // as much as performance allows.
   enum Flag : uintptr_t {
     NO_FLAGS = 0u,
 
-    // The memory chunk belongs to the shared space.
+    // Chunk belongs to the writeable shared space.
     IN_WRITABLE_SHARED_SPACE = 1u << 0,
 
     // These two flags are used in the write barrier to catch "interesting"
@@ -63,19 +64,20 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     POINTERS_TO_HERE_ARE_INTERESTING = 1u << 1,
     POINTERS_FROM_HERE_ARE_INTERESTING = 1u << 2,
 
-    // A page in the from-space or a young large page that was not scavenged
+    // Chunk in the from-space or a young large page that was not scavenged
     // yet.
     FROM_PAGE = 1u << 3,
-    // A page in the to-space or a young large page that was scavenged.
+    // Chunk in the to-space or a young large page that was scavenged.
     TO_PAGE = 1u << 4,
 
-    // |INCREMENTAL_MARKING|: Indicates whether incremental marking is currently
-    // enabled.
+    // Indicates whether incremental marking is currently enabled.
     INCREMENTAL_MARKING = 1u << 5,
 
-    // The memory chunk belongs to the read-only heap and does not participate
-    // in garbage collection. This is used instead of owner for identity
-    // checking since read-only chunks have no owner once they are detached.
+    // Chunk belongs to the read-only heap and does not participate in garbage
+    // collection.
+    //
+    // Note that read-only chunks have no owner so this is required for checking
+    // space identity for these chunks.
     READ_ONLY_HEAP = 1u << 6,
 
     // Used in young generation checks. When sticky mark-bits are enabled and
@@ -86,21 +88,24 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     // allocations. Such chunks can never contain any young objects.
     CONTAINS_ONLY_OLD = 1u << 8,
 
-    // Page was allocated during major incremental marking. May only contain old
+    // Chunk was allocated during major incremental marking. Only contains old
     // objects.
     BLACK_ALLOCATED = 1u << 9,
 
-    // ----------------------------------------------------------------
-    // Values below here are not critical for the heap write barrier.
-
+    // The chunk represents a large chunk of non-uniform size.
     LARGE_PAGE = 1u << 10,
+
+    // The chunk was selected as evacuation candidate, meaning that objects on
+    // this chunk are being relocated.
     EVACUATION_CANDIDATE = 1u << 11,
 
-    // |COMPACTION_WAS_ABORTED|: Indicates that the compaction in this page
-    //   has been aborted and needs special handling by the sweeper.
-    COMPACTION_WAS_ABORTED = 1u << 17,
+    // Indicates that the compaction on this chunk has been aborted and needs
+    // special handling by the sweeper.
+    COMPACTION_WAS_ABORTED = 1u << 12,
 
-    NEW_SPACE_BELOW_AGE_MARK = 1u << 18,
+    // The chunk is in the the new space of the young generation and already
+    // survived at least one garbage collection cycle.
+    NEW_SPACE_BELOW_AGE_MARK = 1u << 13,
   };
 
   using MainThreadFlags = base::Flags<Flag, uintptr_t>;
@@ -159,14 +164,22 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   V8_INLINE MemoryChunkMetadata* MetadataNoIsolateCheck();
   V8_INLINE const MemoryChunkMetadata* MetadataNoIsolateCheck() const;
 
-  V8_INLINE bool IsFlagSet(Flag flag) const {
-    return untrusted_main_thread_flags_ & flag;
-  }
-
   V8_INLINE bool IsMarking() const { return IsFlagSet(INCREMENTAL_MARKING); }
 
   V8_INLINE bool InWritableSharedSpace() const {
     return IsFlagSet(IN_WRITABLE_SHARED_SPACE);
+  }
+
+  V8_INLINE bool IsBlackAllocatedPage() const {
+    return IsFlagSet(BLACK_ALLOCATED);
+  }
+
+  V8_INLINE bool CompactionWasAborted() const {
+    return IsFlagSet(COMPACTION_WAS_ABORTED);
+  }
+
+  V8_INLINE bool ContainsOnlyOldObjects() const {
+    return IsFlagSet(CONTAINS_ONLY_OLD);
   }
 
   V8_INLINE bool InYoungGeneration() const {
@@ -222,11 +235,20 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   }
   bool IsLargePage() const { return IsFlagSet(LARGE_PAGE); }
   bool InNewSpace() const { return InYoungGeneration() && !IsLargePage(); }
+  bool InNewSpaceBelowAgeMark() const {
+    return IsFlagSet(NEW_SPACE_BELOW_AGE_MARK);
+  }
   bool InNewLargeObjectSpace() const {
     return InYoungGeneration() && IsLargePage();
   }
   bool IsOnlyOldOrMajorMarkingOn() const {
     return GetFlags() & kIsOnlyOldOrMajorGCInProgressMask;
+  }
+  bool PointersToHereAreInteresting() const {
+    return IsFlagSet(POINTERS_TO_HERE_ARE_INTERESTING);
+  }
+  bool PointersFromHereAreInteresting() const {
+    return IsFlagSet(POINTERS_FROM_HERE_ARE_INTERESTING);
   }
 
   V8_INLINE static constexpr bool IsAligned(Address address) {
@@ -263,6 +285,10 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 #endif
 
  private:
+  V8_INLINE bool IsFlagSet(Flag flag) const {
+    return untrusted_main_thread_flags_ & flag;
+  }
+
   // Keep offsets and masks private to only expose them with matching friend
   // declarations.
   static constexpr intptr_t FlagsOffset() {
@@ -330,6 +356,9 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   friend class MacroAssembler;
   template <typename Next>
   friend class compiler::turboshaft::TurboshaftAssemblerOpInterface;
+  // For IsFlagSet().
+  friend class IsolateGroup;
+  friend class MemoryChunkMetadata;
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(MemoryChunk::MainThreadFlags)

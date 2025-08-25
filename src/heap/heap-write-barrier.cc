@@ -284,10 +284,6 @@ bool WriteBarrier::PageFlagsAreConsistent(Tagged<HeapObject> object) {
   MemoryChunkMetadata* metadata = MemoryChunkMetadata::FromHeapObject(object);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
 
-  // Slim chunk flags consistency.
-  CHECK_EQ(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING),
-           chunk->IsMarking());
-
   if (!v8_flags.sticky_mark_bits) {
     AllocationSpace identity = metadata->owner()->identity();
 

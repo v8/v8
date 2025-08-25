@@ -676,9 +676,8 @@ class MinorMSConservativeStackVisitor
   static constexpr bool kOnlyVisitMainV8Cage [[maybe_unused]] = true;
 
   static bool FilterPage(const MemoryChunk* chunk) {
-    return v8_flags.sticky_mark_bits
-               ? !chunk->IsFlagSet(MemoryChunk::CONTAINS_ONLY_OLD)
-               : chunk->IsToPage();
+    return v8_flags.sticky_mark_bits ? !chunk->ContainsOnlyOldObjects()
+                                     : chunk->IsToPage();
   }
   static bool FilterLargeObject(Tagged<HeapObject>, MapWord) { return true; }
   static bool FilterNormalObject(Tagged<HeapObject>, MapWord, MarkingBitmap*) {
