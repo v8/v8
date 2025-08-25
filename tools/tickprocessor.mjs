@@ -718,8 +718,8 @@ export class TickProcessor extends LogReader {
     EXTERNAL: 6,
     ATOMICS_WAIT: 7,
     IDLE: 8,
-    IDLE_EXTERNAL: 9,
-    LOGGING: 10,
+    LOGGING: 9,
+    IDLE_EXTERNAL: 10,
   };
 
   static CodeTypes = {

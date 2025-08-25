@@ -33,6 +33,8 @@ struct V8_EXPORT RegisterState {
 };
 
 // A StateTag represents a possible state of the VM.
+// This enum is append-only to preserve compatibility with historical logs.
+// Add new states only at the end and do not reorder or remove existing values.
 // LINT.IfChange
 enum StateTag : uint16_t {
   JS,
@@ -44,8 +46,8 @@ enum StateTag : uint16_t {
   EXTERNAL,
   ATOMICS_WAIT,
   IDLE,
-  IDLE_EXTERNAL,
   LOGGING,
+  IDLE_EXTERNAL,
 };
 // LINT.ThenChange(../tools/profile.mjs, ../tools/tickprocessor.mjs)
 
