@@ -221,10 +221,6 @@ class MutablePageMetadata : public MemoryChunkMetadata {
     return reinterpret_cast<Space*>(MemoryChunkMetadata::owner());
   }
 
-  // Gets the chunk's allocation space, potentially dealing with a null owner_
-  // (like read-only chunks have).
-  inline AllocationSpace owner_identity() const;
-
   heap::ListNode<MutablePageMetadata>& list_node() { return list_node_; }
   const heap::ListNode<MutablePageMetadata>& list_node() const {
     return list_node_;

@@ -5,17 +5,9 @@
 #ifndef V8_HEAP_MEMORY_CHUNK_METADATA_H_
 #define V8_HEAP_MEMORY_CHUNK_METADATA_H_
 
-#include <bit>
-#include <type_traits>
-#include <unordered_map>
-
-#include "src/base/atomic-utils.h"
-#include "src/base/flags.h"
+#include "src/base/bit-field.h"
 #include "src/base/hashing.h"
 #include "src/common/globals.h"
-#include "src/flags/flags.h"
-#include "src/heap/marking.h"
-#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
 #include "src/objects/heap-object.h"
 #include "src/utils/allocation.h"
@@ -36,12 +28,11 @@ class MemoryChunkMetadata {
   V8_INLINE static MemoryChunkMetadata* FromAddress(const Isolate* isolate,
                                                     Address a);
 
-  // Only works if the object is in the first kPageSize of the MemoryChunk.
+  // Objects pointers always point within the first kPageSize, so these calls
+  // always succeed.
   V8_INLINE static MemoryChunkMetadata* FromHeapObject(Tagged<HeapObject> o);
   V8_INLINE static MemoryChunkMetadata* FromHeapObject(const Isolate* i,
                                                        Tagged<HeapObject> o);
-
-  // Only works if the object is in the first kPageSize of the MemoryChunk.
   V8_INLINE static MemoryChunkMetadata* FromHeapObject(
       const HeapObjectLayout* o);
 
@@ -75,11 +66,18 @@ class MemoryChunkMetadata {
   // Gets the chunk's owner or null if the space has been detached.
   BaseSpace* owner() const { return owner_; }
   void set_owner(BaseSpace* space) { owner_ = space; }
+  // Gets the chunk's allocation space, potentially dealing with a null owner_
+  // (like read-only chunks have).
+  inline AllocationSpace owner_identity() const;
 
   bool IsWritable() const {
-    // If this is a read-only space chunk but heap_ is non-null, it has not yet
-    // been sealed and can be written to.
-    return !Chunk()->InReadOnlySpace() || heap_ != nullptr;
+    const bool is_sealed_ro = IsSealedReadOnlySpaceField::decode(flags_);
+#ifdef DEBUG
+    DCHECK_IMPLIES(is_sealed_ro, Chunk()->InReadOnlySpace());
+    DCHECK_IMPLIES(is_sealed_ro, heap_ == nullptr);
+    DCHECK_IMPLIES(is_sealed_ro, owner_ == nullptr);
+#endif  // DEBUG
+    return !is_sealed_ro;
   }
 
   bool IsMutablePageMetadata() const { return owner() != nullptr; }
@@ -227,6 +225,11 @@ class MemoryChunkMetadata {
     flags_ = NeverEvacuateField::update(flags_, true);
   }
 
+  void set_is_sealed_ro_space() {
+    DCHECK(!IsSealedReadOnlySpaceField::decode(flags_));
+    flags_ = IsSealedReadOnlySpaceField::update(flags_, true);
+  }
+
   // If the chunk needs to remember its memory reservation, it is stored here.
   VirtualMemory reservation_;
 
@@ -303,6 +306,8 @@ class MemoryChunkMetadata {
   using IsTrustedField = ForceEvacuationCandidateForTestingField::Next<bool, 1>;
   // The memory chunk belongs to the shared space.
   using IsWritableSharedSpaceField = IsTrustedField::Next<bool, 1>;
+  // The memory chunk belongs to a sealed read-only space.
+  using IsSealedReadOnlySpaceField = IsWritableSharedSpaceField::Next<bool, 1>;
 
   static constexpr intptr_t HeapOffset() {
     return offsetof(MemoryChunkMetadata, heap_);

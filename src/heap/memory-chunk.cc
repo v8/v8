@@ -118,6 +118,21 @@ uint32_t MemoryChunk::MetadataTableIndex(Address chunk_address) {
   return index;
 }
 
+bool MemoryChunk::SandboxSafeInReadOnlySpace() const {
+  // For the sandbox only flags from writable pages can be corrupted so we can
+  // use the flag check as a fast path in this case.
+  // It also helps making TSAN happy, since it doesn't like the way we
+  // initialize the MemoryChunks.
+  // (See MemoryChunkMetadata::SynchronizedHeapLoad).
+  if (!InReadOnlySpace()) {
+    return false;
+  }
+  SBXCHECK_EQ(
+      static_cast<const ReadOnlyPageMetadata*>(Metadata())->ChunkAddress(),
+      address());
+  return true;
+}
+
 #endif  // V8_ENABLE_SANDBOX
 
 void MemoryChunk::InitializationMemoryFence() {
@@ -195,36 +210,6 @@ size_t MemoryChunk::OffsetMaybeOutOfRange(Address addr) const {
 }
 
 #endif  // DEBUG
-
-#ifdef V8_ENABLE_SANDBOX
-bool MemoryChunk::SandboxSafeInReadOnlySpace() const {
-  // For the sandbox only flags from writable pages can be corrupted so we can
-  // use the flag check as a fast path in this case.
-  // It also helps making TSAN happy, since it doesn't like the way we
-  // initialize the MemoryChunks.
-  // (See MemoryChunkMetadata::SynchronizedHeapLoad).
-  if (!InReadOnlySpace()) {
-    return false;
-  }
-
-  // When the sandbox is enabled, only the ReadOnlyPageMetadata are stored
-  // inline in the MemoryChunk.
-  // ReadOnlyPageMetadata::ChunkAddress() is a special version that boils down
-  // to `metadata_address - kMemoryChunkHeaderSize`.
-  IsolateGroup::MemoryChunkMetadataTableEntry* metadata_pointer_table =
-      MetadataTableAddress();
-  MemoryChunkMetadata* metadata =
-      metadata_pointer_table
-          [metadata_index_ &
-           MemoryChunkConstants::kMetadataPointerTableSizeMask]
-              .metadata();
-  SBXCHECK_EQ(
-      static_cast<const ReadOnlyPageMetadata*>(metadata)->ChunkAddress(),
-      address());
-
-  return true;
-}
-#endif
 
 }  // namespace internal
 }  // namespace v8

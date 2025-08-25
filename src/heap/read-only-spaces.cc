@@ -151,10 +151,11 @@ MemoryChunk::MainThreadFlags ReadOnlyPageMetadata::InitialFlags() const {
   return MemoryChunk::READ_ONLY_HEAP | MemoryChunk::CONTAINS_ONLY_OLD;
 }
 
-void ReadOnlyPageMetadata::MakeHeaderRelocatable() {
+void ReadOnlyPageMetadata::MakeHeaderRelocatableAndMarkAsSealed() {
   heap_ = nullptr;
   owner_ = nullptr;
   reservation_.Reset();
+  set_is_sealed_ro_space();
 }
 
 void ReadOnlySpace::SetPermissionsForPages(MemoryAllocator* memory_allocator,
@@ -198,11 +199,11 @@ void ReadOnlySpace::Seal(SealMode ro_mode) {
 
   if (ro_mode != SealMode::kDoNotDetachFromHeap) {
     heap_ = nullptr;
-    for (ReadOnlyPageMetadata* p : pages_) {
+    for (ReadOnlyPageMetadata* ro_page : pages_) {
       if (ro_mode == SealMode::kDetachFromHeapAndUnregisterMemory) {
-        memory_allocator->UnregisterReadOnlyPage(p);
+        memory_allocator->UnregisterReadOnlyPage(ro_page);
       }
-      p->MakeHeaderRelocatable();
+      ro_page->MakeHeaderRelocatableAndMarkAsSealed();
     }
   }
 

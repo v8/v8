@@ -64,15 +64,6 @@ void MutablePageMetadata::MoveExternalBackingStoreBytes(
                                        amount);
 }
 
-AllocationSpace MutablePageMetadata::owner_identity() const {
-  {
-    AllowSandboxAccess temporary_sandbox_access;
-    DCHECK_EQ(owner() == nullptr, Chunk()->InReadOnlySpace());
-  }
-  if (!owner()) return RO_SPACE;
-  return owner()->identity();
-}
-
 template <AccessMode mode>
 void MutablePageMetadata::ClearLiveness() {
   marking_bitmap()->Clear<mode>();

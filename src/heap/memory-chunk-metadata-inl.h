@@ -43,7 +43,9 @@ MemoryChunkMetadata* MemoryChunkMetadata::FromHeapObject(
 
 // static
 void MemoryChunkMetadata::UpdateHighWaterMark(Address mark) {
-  if (mark == kNullAddress) return;
+  if (mark == kNullAddress) {
+    return;
+  }
   // Need to subtract one from the mark because when a chunk is full the
   // top points to the next address after the chunk, which effectively belongs
   // to another chunk. See the comment to
@@ -55,6 +57,17 @@ void MemoryChunkMetadata::UpdateHighWaterMark(Address mark) {
          !chunk->high_water_mark_.compare_exchange_weak(
              old_mark, new_mark, std::memory_order_acq_rel)) {
   }
+}
+
+AllocationSpace MemoryChunkMetadata::owner_identity() const {
+  {
+    AllowSandboxAccess temporary_sandbox_access;
+    DCHECK_EQ(owner() == nullptr, Chunk()->InReadOnlySpace());
+  }
+  if (!owner()) {
+    return RO_SPACE;
+  }
+  return owner()->identity();
 }
 
 }  // namespace internal
