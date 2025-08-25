@@ -62,7 +62,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
     DCHECK(AllowSafepoints::IsAllowed());
     ThreadState current = state_.load_relaxed();
 
-#if DEBUG
+#if V8_VERIFY_WRITE_BARRIERS
     AssertNoWriteBarrierModeScope();
 #endif  // DEBUG
 
@@ -138,6 +138,9 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
 #if DEBUG
   void VerifyLinearAllocationAreas() const;
+#endif  // DEBUG
+
+#if V8_VERIFY_WRITE_BARRIERS
   void AssertNoWriteBarrierModeScope() const {
     DCHECK_EQ(write_barrier_mode_for_object_, kNullAddress);
   }

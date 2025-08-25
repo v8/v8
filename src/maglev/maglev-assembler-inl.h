@@ -1129,8 +1129,8 @@ inline void SaveRegisterStateForCall::DefineSafepointWithLazyDeopt(
 
 inline void MaglevAssembler::AssertElidedWriteBarrier(
     Register object, Register value, RegisterSnapshot snapshot) {
-#if defined(V8_ENABLE_DEBUG_CODE) && !V8_DISABLE_WRITE_BARRIERS_BOOL
-  if (!v8_flags.slow_debug_code) return;
+#if V8_VERIFY_WRITE_BARRIERS
+  if (!v8_flags.verify_write_barriers) return;
 
   ZoneLabelRef ok(this);
   Label* deferred_write_barrier_check = MakeDeferredCode(
@@ -1154,7 +1154,7 @@ inline void MaglevAssembler::AssertElidedWriteBarrier(
 
   JumpIfNotSmi(value, deferred_write_barrier_check);
   bind(*ok);
-#endif  // V8_ENABLE_DEBUG_CODE && !V8_DISABLE_WRITE_BARRIERS
+#endif  // V8_VERIFY_WRITE_BARRIERS
 }
 
 }  // namespace maglev

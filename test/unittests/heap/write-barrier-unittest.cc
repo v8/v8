@@ -11,7 +11,8 @@ namespace v8::internal {
 
 using HeapWriteBarrierTest = TestWithIsolate;
 
-#if DEBUG
+#if V8_VERIFY_WRITE_BARRIERS
+
 TEST_F(HeapWriteBarrierTest, NoSafepointInWriteBarrierModeScope) {
   LocalHeap* local_heap = isolate()->main_thread_local_heap();
   EXPECT_DEATH_IF_SUPPORTED(
@@ -36,6 +37,6 @@ TEST_F(HeapWriteBarrierTest, NoAllocationInWriteBarrierModeScope) {
       "");
 }
 
-#endif
+#endif  // V8_VERIFY_WRITE_BARRIERS
 
 }  // namespace v8::internal

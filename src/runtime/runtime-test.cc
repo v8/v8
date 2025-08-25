@@ -2312,7 +2312,7 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
 }
 
 RUNTIME_FUNCTION(Runtime_CheckNoWriteBarrierNeeded) {
-#if defined(V8_ENABLE_DEBUG_CODE) && !V8_DISABLE_WRITE_BARRIERS_BOOL
+#if V8_VERIFY_WRITE_BARRIERS
   DisallowGarbageCollection no_gc;
   if (args.length() != 2) {
     return CrashUnlessFuzzing(isolate);

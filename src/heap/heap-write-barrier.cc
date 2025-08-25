@@ -526,7 +526,7 @@ void WriteBarrier::ForRange(Heap* heap, Tagged<HeapObject> object,
   }
 }
 
-#ifdef ENABLE_SLOW_DCHECKS
+#if V8_VERIFY_WRITE_BARRIERS
 
 // static
 bool WriteBarrier::VerifyDispatchHandleMarkingState(Tagged<HeapObject> host,
@@ -562,7 +562,7 @@ bool WriteBarrier::VerifyDispatchHandleMarkingState(Tagged<HeapObject> host,
 #endif  // V8_ENABLE_LEAPTIERING
 }
 
-#endif  // ENABLE_SLOW_DCHECKS
+#endif  // V8_VERIFY_WRITE_BARRIERS
 
 WriteBarrierModeScope::WriteBarrierModeScope(WriteBarrierMode mode)
     : mode_(mode) {

@@ -81,7 +81,11 @@ Tagged<InstructionStream> InstructionStream::Initialize(
   // We want to keep the code minimal that runs with write access to a JIT
   // allocation, so trigger the write barriers after the WritableJitAllocation
   // went out of scope.
-  SLOW_DCHECK(!WriteBarrier::IsRequired(istream, map));
+#if V8_VERIFY_WRITE_BARRIERS
+  if (v8_flags.verify_write_barriers) {
+    CHECK(!WriteBarrier::IsRequired(istream, map));
+  }
+#endif
   CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*istream, kRelocationInfoOffset,
                                               reloc_info, UPDATE_WRITE_BARRIER);
 

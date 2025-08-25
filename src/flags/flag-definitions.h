@@ -2371,6 +2371,16 @@ DEFINE_BOOL(verify_heap_skip_remembered_set, false,
 DEFINE_BOOL_READONLY(verify_heap, false,
                      "verify heap pointers before and after GC")
 #endif
+#if V8_VERIFY_WRITE_BARRIERS
+#ifdef ENABLE_SLOW_DCHECKS
+DEFINE_BOOL(verify_write_barriers, true, "verify skipped write barriers")
+#else
+DEFINE_BOOL(verify_write_barriers, false, "verify skipped write barriers")
+#endif  // ENABLE_SLOW_DCHECKS
+#else   // V8_VERIFY_WRITE_BARRIERS
+DEFINE_BOOL_READONLY(verify_write_barriers, false,
+                     "verify skipped write barriers")
+#endif  // V8_VERIFY_WRITE_BARRIERS
 #if V8_OS_DARWIN
 DEFINE_BOOL(safepoint_bump_qos_class, true,
             "Bump QOS class for running threads to reach safepoint")
