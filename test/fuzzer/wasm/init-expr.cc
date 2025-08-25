@@ -218,7 +218,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
                 instance->trusted_data(i_isolate)->GetGlobalValue(
                     i_isolate, instance->module()->globals[i]);
             WasmValue func_value(function_result, global_value.type());
-            if (!ValuesEquivalent(global_value, func_value, true)) {
+            if (!ValuesEquivalent(global_value, func_value, i_isolate)) {
               std::stringstream str;
               str << "Equality check failed for global #" << i
                   << ". Global value: ";

@@ -103,7 +103,7 @@ class WasmExecutionFuzzer {
 };
 
 bool ValuesEquivalent(const WasmValue& init_lhs, const WasmValue& init_rhs,
-                      bool expect_function_equality);
+                      Isolate* isolate);
 void PrintValue(std::ostream& os, const WasmValue& value);
 
 int SyncCompileAndExecuteAgainstReference(

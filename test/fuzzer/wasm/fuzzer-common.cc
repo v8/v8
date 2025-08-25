@@ -84,7 +84,7 @@ void CompileAllFunctionsForReferenceExecution(NativeModule* native_module,
 }  // namespace
 
 bool ValuesEquivalent(const WasmValue& init_lhs, const WasmValue& init_rhs,
-                      bool expect_function_equality) {
+                      Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   // Stack of elements to be checked.
   std::vector<std::pair<WasmValue, WasmValue>> cmp = {{init_lhs, init_rhs}};
@@ -106,7 +106,8 @@ bool ValuesEquivalent(const WasmValue& init_lhs, const WasmValue& init_rhs,
     }
     Tagged<WasmArray> lhs_array = Cast<WasmArray>(lhs);
     Tagged<WasmArray> rhs_array = Cast<WasmArray>(rhs);
-    if (lhs_array->map() != rhs_array->map()) {
+    if (lhs_array->map()->wasm_type_info()->type() !=
+        rhs_array->map()->wasm_type_info()->type()) {
       return false;
     }
     if (lhs_array->length() != rhs_array->length()) {
@@ -127,7 +128,8 @@ bool ValuesEquivalent(const WasmValue& init_lhs, const WasmValue& init_rhs,
     }
     Tagged<WasmStruct> lhs_struct = Cast<WasmStruct>(lhs);
     Tagged<WasmStruct> rhs_struct = Cast<WasmStruct>(rhs);
-    if (lhs_struct->map() != rhs_struct->map()) {
+    if (lhs_struct->map()->wasm_type_info()->type() !=
+        rhs_struct->map()->wasm_type_info()->type()) {
       return false;
     }
     const CanonicalStructType* type = GetTypeCanonicalizer()->LookupStruct(
@@ -169,13 +171,15 @@ bool ValuesEquivalent(const WasmValue& init_lhs, const WasmValue& init_rhs,
         if (IsWasmNull(lhs_ref) != IsWasmNull(rhs_ref)) return false;
 
         switch (lhs.type().heap_representation_non_shared()) {
-          case HeapType::kFunc:
-            // TODO(nikolaskaipel): Lookup the function index on the FuncRef and
-            // ensure their equality.
-            if (expect_function_equality) {
-              if (lhs_ref != rhs_ref) return false;
+          case HeapType::kFunc: {
+            auto lhs_func = Cast<WasmFuncRef>(lhs_ref);
+            auto rhs_func = Cast<WasmFuncRef>(rhs_ref);
+            if (lhs_func->internal(isolate)->function_index() !=
+                rhs_func->internal(isolate)->function_index()) {
+              return false;
             }
             break;
+          }
           case HeapType::kI31:
             if (lhs_ref != rhs_ref) {
               return false;
@@ -211,10 +215,11 @@ bool ValuesEquivalent(const WasmValue& init_lhs, const WasmValue& init_rhs,
             CanonicalTypeIndex type_index = lhs.type().ref_index();
             TypeCanonicalizer* types = GetTypeCanonicalizer();
             if (types->IsFunctionSignature(type_index)) {
-              // TODO(nikolaskaipel): Lookup the function index on the FuncRef
-              // and ensure their equality.
-              if (expect_function_equality) {
-                if (lhs_ref != rhs_ref) return false;
+              auto lhs_func = Cast<WasmFuncRef>(lhs_ref);
+              auto rhs_func = Cast<WasmFuncRef>(rhs_ref);
+              if (lhs_func->internal(isolate)->function_index() !=
+                  rhs_func->internal(isolate)->function_index()) {
+                return false;
               }
             } else if (types->IsStruct(type_index)) {
               if (!CheckStruct(lhs_ref, rhs_ref)) return false;
@@ -289,7 +294,7 @@ void PrintValue(std::ostream& os, const WasmValue& value) {
           }
 
           if (seen_objects.count(ref.ptr())) {
-            os << "<cycle>";
+            os << "<repeat>";
             break;
           }
           seen_objects.insert(ref.ptr());
@@ -537,7 +542,7 @@ bool GlobalsMatch(Isolate* isolate, const WasmModule* module,
     WasmValue value = instance_data->GetGlobalValue(isolate, global);
     WasmValue ref_value = ref_instance_data->GetGlobalValue(isolate, global);
 
-    if (!ValuesEquivalent(value, ref_value, false)) {
+    if (!ValuesEquivalent(value, ref_value, isolate)) {
       std::cerr << "Error: Global variables at index " << i
                 << " have different values!\n";
       std::cerr << "  - Reference: ";
