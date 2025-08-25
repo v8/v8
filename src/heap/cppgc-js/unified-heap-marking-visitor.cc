@@ -119,7 +119,8 @@ ConcurrentUnifiedHeapMarkingVisitor::ConcurrentUnifiedHeapMarkingVisitor(
                                     concurrent_unified_heap_marking_state_),
       local_marking_worklist_(GetV8MarkingWorklists(v8_heap, collection_type)),
       concurrent_unified_heap_marking_state_(
-          v8_heap, local_marking_worklist_.get(), collection_type) {
+          v8_heap, local_marking_worklist_.get(), collection_type),
+      current_isolate_scope_(v8_heap->isolate()) {
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   // This method might be called on a thread that's not bound to any Isolate
   // and thus IsolateGroup::current could be unset.

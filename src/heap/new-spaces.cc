@@ -66,6 +66,15 @@ SemiSpace::~SemiSpace() {
   }
 }
 
+bool SemiSpace::ContainsSlow(Address address) const {
+  for (const PageMetadata* page : *this) {
+    if (page == MemoryChunkMetadata::FromAddress(address)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void SemiSpace::ShrinkCapacityTo(size_t capacity) {
   DCHECK_IMPLIES(!IsCommitted(), CommittedMemory() == 0);
   // Only the to-space is allowed to have quarantined pages.
@@ -668,6 +677,12 @@ std::unique_ptr<ObjectIterator> SemiSpaceNewSpace::GetObjectIterator(
   return std::unique_ptr<ObjectIterator>(new SemiSpaceObjectIterator(this));
 }
 
+bool SemiSpaceNewSpace::Contains(Tagged<HeapObject> object) const {
+  // Don't delegate to SemiSpace to avoid the repeated metadata lookup.
+  const auto* owner = MemoryChunkMetadata::FromHeapObject(object)->owner();
+  return owner == &to_space_ || owner == &from_space_;
+}
+
 bool SemiSpaceNewSpace::ContainsSlow(Address a) const {
   return from_space_.ContainsSlow(a) || to_space_.ContainsSlow(a);
 }
@@ -984,6 +999,10 @@ PagedNewSpace::~PagedNewSpace() {
 AllocatorPolicy* PagedNewSpace::CreateAllocatorPolicy(
     MainAllocator* allocator) {
   return new PagedNewSpaceAllocatorPolicy(this, allocator);
+}
+
+bool PagedNewSpace::Contains(Tagged<HeapObject> object) const {
+  return paged_space_.Contains(object);
 }
 
 }  // namespace internal
