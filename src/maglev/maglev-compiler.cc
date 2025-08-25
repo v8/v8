@@ -110,12 +110,6 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                    "V8.Maglev.Inlining");
       MaglevInliner inliner(graph);
       inliner.Run();
-      // TODO(victorgomes): We need to remove all identity nodes before
-      // PhiRepresentationSelector. Since Identity has different semantics
-      // there. Check if we can remove the identity nodes during
-      // PhiRepresentationSelector instead.
-      GraphProcessor<SweepIdentityNodes> sweep;
-      sweep.ProcessGraph(graph);
       VerifyGraph(graph);
     }
 
@@ -126,12 +120,8 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       propagate.ProcessGraph(graph);
       PrintGraph(graph, v8_flags.print_maglev_graphs,
                  "After propagating truncation");
-
-      // TODO(victorgomes): Support identities to flow to next passes?
-      GraphMultiProcessor<TruncationProcessor, SweepIdentityNodes> truncate(
-          TruncationProcessor{graph});
+      GraphProcessor<TruncationProcessor> truncate(graph);
       truncate.ProcessGraph(graph);
-
       PrintGraph(graph, v8_flags.print_maglev_graphs, "After truncation");
       VerifyGraph(graph);
     }

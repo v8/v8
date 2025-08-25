@@ -6423,9 +6423,6 @@ void RunMaglevOptimizations(PipelineData* data,
   if (v8_flags.turbolev_non_eager_inlining) {
     maglev::MaglevInliner inliner(maglev_graph);
     inliner.Run();
-
-    maglev::GraphProcessor<maglev::SweepIdentityNodes> sweep;
-    sweep.ProcessGraph(maglev_graph);
   }
 
   // Truncation pass.
@@ -6434,9 +6431,8 @@ void RunMaglevOptimizations(PipelineData* data,
         propagate;
     propagate.ProcessGraph(maglev_graph);
     // TODO(victorgomes): Support identities to flow to next passes?
-    maglev::GraphMultiProcessor<maglev::TruncationProcessor,
-                                maglev::SweepIdentityNodes>
-        truncate(maglev::TruncationProcessor{maglev_graph});
+    maglev::GraphProcessor<maglev::TruncationProcessor> truncate(
+        maglev::TruncationProcessor{maglev_graph});
     truncate.ProcessGraph(maglev_graph);
   }
 

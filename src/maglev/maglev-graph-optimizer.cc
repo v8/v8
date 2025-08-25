@@ -62,7 +62,6 @@ ValueNode* MaglevGraphOptimizer::GetInputAt(int index) const {
   CHECK_NOT_NULL(current_node_);
   DCHECK_LT(index, current_node()->input_count());
   ValueNode* input = current_node()->input(index).node();
-  input = input->UnwrapIdentities();
   return input;
 }
 
@@ -77,7 +76,7 @@ ProcessResult MaglevGraphOptimizer::ReplaceWith(ValueNode* node) {
   // Automatically convert node to the same representation of current_node.
   current_value->OverwriteWithIdentityTo(reducer_.ConvertInputTo(
       node, current_value->properties().value_representation()));
-  return ProcessResult::kContinue;
+  return ProcessResult::kRemove;
 }
 
 void MaglevGraphOptimizer::UnwrapDeoptFrames() {
@@ -88,6 +87,14 @@ void MaglevGraphOptimizer::UnwrapDeoptFrames() {
   }
   if (current_node_->properties().can_lazy_deopt()) {
     current_node_->lazy_deopt_info()->ForEachInput([](ValueNode* node) {});
+  }
+}
+
+void MaglevGraphOptimizer::UnwrapInputs() {
+  for (int i = 0; i < current_node()->input_count(); i++) {
+    ValueNode* input = current_node()->input(i).node();
+    if (!input) continue;
+    current_node()->change_input(i, input->UnwrapIdentities());
   }
 }
 
@@ -120,7 +127,7 @@ ValueNode* MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
   DCHECK_NE(repr, ValueRepresentation::kTagged);
   if (node->value_representation() == repr) return node;
   if (node->Is<ReturnedValue>()) {
-    ValueNode* input = node->input_node(0)->UnwrapIdentities();
+    ValueNode* input = node->input_node(0);
     return GetUntaggedValueWithRepresentation(input, repr, allowed_type);
   }
   // We try getting constant before bailing out and/or calling the reducer,
@@ -498,8 +505,10 @@ ProcessResult MaglevGraphOptimizer::VisitGapMove() {
 }
 
 ProcessResult MaglevGraphOptimizer::VisitIdentity() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
+  // If a non-eager inlined function returns a tagged value, we substitute the
+  // call with an Identity. The node is then removed from the graph here. All
+  // references to it will be removed in this graph optimizer pass.
+  return ProcessResult::kRemove;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitAllocationBlock() {
@@ -1331,8 +1340,7 @@ ProcessResult MaglevGraphOptimizer::VisitInt32AddWithOverflow() {
                                                                 GetInputAt(1));
       result.IsDone()) {
     DCHECK(result.IsDoneWithValue());
-    // TODO(victorgomes): Should GetInt32 style function support identities?
-    return ReplaceWith(reducer_.GetInt32(result.value()->UnwrapIdentities()));
+    return ReplaceWith(reducer_.GetInt32(result.value()));
   }
   return ProcessResult::kContinue;
 }

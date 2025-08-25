@@ -31,6 +31,11 @@ void TruncationProcessor::PreProcessNode(Node* node,
         reducer_.graph_labeller()->GetNodeProvenance(node));
   }
   reducer_.SetNewNodePosition(BasicBlockPosition::At(state.node_index()));
+  for (int i = 0; i < node->input_count(); i++) {
+    ValueNode* input = node->input(i).node();
+    if (!input) continue;
+    node->change_input(i, input->UnwrapIdentities());
+  }
 }
 
 void TruncationProcessor::PostProcessNode(Node*) {
@@ -53,15 +58,15 @@ void TruncationProcessor::PostProcessNode(ControlNode*) {}
 int TruncationProcessor::NonInt32InputCount(ValueNode* node) {
   int non_int32_input_count = 0;
   for (Input input : node->inputs()) {
-    ValueNode* unwrapped = input.node()->UnwrapIdentities();
-    if (!unwrapped->is_int32()) {
-      if (unwrapped->Is<Float64Constant>() &&
-          unwrapped->GetRange().IsSafeIntegerRange()) {
+    ValueNode* input_node = input.node();
+    if (!input_node->is_int32()) {
+      if (input_node->Is<Float64Constant>() &&
+          input_node->GetRange().IsSafeIntegerRange()) {
         // We can truncate Float64 constants if they're in the safe integer
         // range.
         continue;
       }
-      if (unwrapped->Is<ChangeInt32ToFloat64>()) {
+      if (input_node->Is<ChangeInt32ToFloat64>()) {
         // We can always truncate this safe conversion.
         continue;
       }
@@ -83,13 +88,13 @@ void TruncationProcessor::ConvertInputsToFloat64(ValueNode* node) {
 }
 
 ValueNode* TruncationProcessor::GetUnwrappedInput(ValueNode* node, int index) {
-  ValueNode* input = node->NodeBase::input(index).node()->UnwrapIdentities();
+  ValueNode* input = node->NodeBase::input(index).node();
   if (input->Is<Float64Constant>()) {
     DCHECK(input->GetRange().IsSafeIntegerRange());
     input = GetTruncatedInt32Constant(
         input->Cast<Float64Constant>()->value().get_scalar());
   } else if (input->Is<ChangeInt32ToFloat64>()) {
-    input = input->input(0).node()->UnwrapIdentities();
+    input = input->input(0).node();
   }
   return input;
 }
