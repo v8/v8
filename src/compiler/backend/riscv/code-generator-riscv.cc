@@ -5093,24 +5093,28 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     // We must pop all arguments from the stack (including the receiver). This
     // number of arguments is given by max(1 + argc_reg, parameter_slots).
     if (parameter_slots > 1) {
-      Label done;
       __ li(kScratchReg, parameter_slots);
-      __ BranchShort(&done, ge, t0, Operand(kScratchReg));
-      __ Move(t0, kScratchReg);
-      __ bind(&done);
+      if (CpuFeatures::IsSupported(ZBB)) {
+        __ max(t0, t0, kScratchReg);
+      } else {
+        Label done;
+        __ BranchShort(&done, ge, t0, Operand(kScratchReg));
+        __ Move(t0, kScratchReg);
+        __ bind(&done);
+      }
     }
-    __ SllWord(t0, t0, kSystemPointerSizeLog2);
-    __ AddWord(sp, sp, t0);
+    __ CalcScaledAddress(sp, sp, t0, kSystemPointerSizeLog2);
   } else if (additional_pop_count->IsImmediate()) {
     // it should be a kInt32 or a kInt64
     DCHECK_LE(g.ToConstant(additional_pop_count).type(), Constant::kInt64);
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();
     __ Drop(parameter_slots + additional_count);
   } else {
+    // TODO(kasperl): Maybe {additional_pop_count} is guaranteed to be zero if
+    // {parameter_slots != 0}. Need to verify that.
     Register pop_reg = g.ToRegister(additional_pop_count);
     __ Drop(parameter_slots);
-    __ SllWord(pop_reg, pop_reg, kSystemPointerSizeLog2);
-    __ AddWord(sp, sp, pop_reg);
+    __ CalcScaledAddress(sp, sp, pop_reg, kSystemPointerSizeLog2);
   }
   __ Ret();
 }
