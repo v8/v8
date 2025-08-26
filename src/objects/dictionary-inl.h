@@ -57,6 +57,9 @@ std::optional<Tagged<Object>> Dictionary<Derived, Shape>::TryValueAt(
   Isolate* isolate;
   GetIsolateFromHeapObject(this, &isolate);
   DCHECK_NE(isolate, nullptr);
+  // TODO(431584880): Replace `GetIsolateFromHeapObject` by
+  // `Isolate::Current()`.
+  DCHECK_EQ(isolate, Isolate::TryGetCurrent());
   SLOW_DCHECK(!isolate->heap()->IsPendingAllocation(Tagged(this)));
 #endif  // DEBUG
   // We can read length() in a non-atomic way since we are reading an

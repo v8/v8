@@ -3734,14 +3734,8 @@ MaybeLocal<String> Value::ToString(Local<Context> context) const {
 
 MaybeLocal<String> Value::ToDetailString(Local<Context> context) const {
   i::DirectHandle<i::Object> obj = Utils::OpenDirectHandle(this);
-  i::Isolate* i_isolate;
-  if (!context.IsEmpty()) {
-    i_isolate = i::Isolate::Current();
-  } else if (IsSmi(*obj) || !i::GetIsolateFromHeapObject(
-                                i::Cast<i::HeapObject>(*obj), &i_isolate)) {
-    i_isolate = i::Isolate::Current();
-  }
   if (i::IsString(*obj)) return ToApiHandle<String>(obj);
+  i::Isolate* i_isolate = i::Isolate::Current();
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   return Utils::ToLocal(i::Object::NoSideEffectsToString(i_isolate, obj));
 }

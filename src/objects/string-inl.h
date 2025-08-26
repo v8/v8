@@ -122,6 +122,9 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
       DCHECK(ReadOnlyHeap::Contains(str));
       return nullptr;
     }
+    // TODO(431584880): Replace `GetIsolateFromHeapObject` by
+    // `Isolate::Current()`.
+    DCHECK_EQ(isolate, Isolate::TryGetCurrent());
     return isolate;
   }
 
