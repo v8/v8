@@ -52,51 +52,38 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
     MacroAssembler* masm, Register sfi, Register bytecode, Register scratch1,
     Label* is_baseline, Label* is_unavailable) {
   USE(GetSharedFunctionInfoBytecodeOrBaseline);
-  DCHECK(!AreAliased(bytecode, scratch1));
   ASM_CODE_COMMENT(masm);
   Label done;
+
   Register data = bytecode;
-  __ LoadTrustedPointerField(
+  __ LoadTaggedField(
       data,
-      FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset),
-      kUnknownIndirectPointerTag, r0);
+      FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
 
-  if (V8_JITLESS_BOOL) {
-    __ IsObjectType(data, scratch1, scratch1, INTERPRETER_DATA_TYPE);
-    __ b(ne, &done);
+  __ LoadMap(scratch1, data);
+  __ LoadU16(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
+
+#ifndef V8_JITLESS
+  __ CmpS32(scratch1, Operand(CODE_TYPE), r0);
+  if (v8_flags.debug_code) {
+    Label not_baseline;
+    __ b(ne, &not_baseline);
+    AssertCodeIsBaseline(masm, data, scratch1);
+    __ beq(is_baseline);
+    __ bind(&not_baseline);
   } else {
-    DCHECK(!AreAliased(r0, scratch1));
-#if V8_STATIC_ROOTS_BOOL
-    __ IsObjectTypeFast(data, scratch1, CODE_TYPE, r0);
-#else
-    __ CompareObjectType(data, scratch1, scratch1, CODE_TYPE);
-#endif  // V8_STATIC_ROOTS_BOOL
-    if (v8_flags.debug_code) {
-      Label not_baseline;
-      __ b(ne, &not_baseline);
-      AssertCodeIsBaseline(masm, data, scratch1);
-      __ b(eq, is_baseline);
-      __ bind(&not_baseline);
-    } else {
-      __ b(eq, is_baseline);
-    }
-
-#if V8_STATIC_ROOTS_BOOL
-    // scratch1 already contains the compressed map.
-    __ CompareInstanceTypeWithUniqueCompressedMap(scratch1, Register::no_reg(),
-                                                  INTERPRETER_DATA_TYPE);
-#else
-    // scratch1 already contains the instance type.
-    __ CmpU64(scratch1, Operand(INTERPRETER_DATA_TYPE), r0);
-#endif  // V8_STATIC_ROOTS_BOOL
-    __ b(ne, &done);
+    __ beq(is_baseline);
   }
+#endif  // !V8_JITLESS
 
-  __ LoadInterpreterDataBytecodeArray(bytecode, data);
+  __ CmpS32(scratch1, Operand(BYTECODE_ARRAY_TYPE), r0);
+  __ b(eq, &done);
+
+  __ CmpS32(scratch1, Operand(INTERPRETER_DATA_TYPE), r0);
+  __ b(ne, is_unavailable);
+  __ LoadInterpreterDataBytecodeArray(data, data);
 
   __ bind(&done);
-  __ IsObjectType(bytecode, scratch1, scratch1, BYTECODE_ARRAY_TYPE);
-  __ b(ne, is_unavailable);
 }
 
 void Generate_OSREntry(MacroAssembler* masm, Register entry_address,
@@ -214,14 +201,14 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
 
   ResetSharedFunctionInfoAge(masm, code_obj, r6);
 
-  __ LoadTrustedPointerField(
+  __ LoadTaggedField(
       code_obj,
       FieldMemOperand(code_obj, SharedFunctionInfo::kTrustedFunctionDataOffset),
-      kCodeIndirectPointerTag, r0);
+      r0);
 
   // For OSR entry it is safe to assume we always have baseline code.
   if (v8_flags.debug_code) {
-    __ IsObjectType(code_obj, r6, r6, CODE_TYPE);
+    __ CompareObjectType(code_obj, r6, r6, CODE_TYPE);
     __ Assert(eq, AbortReason::kExpectedBaselineData);
     AssertCodeIsBaseline(masm, code_obj, r6);
   }
@@ -239,7 +226,7 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
   Label install_baseline_code;
   // Check if feedback vector is valid. If not, call prepare for baseline to
   // allocate it.
-  __ IsObjectType(feedback_vector, r6, r6, FEEDBACK_VECTOR_TYPE);
+  __ CompareObjectType(feedback_vector, r6, r6, FEEDBACK_VECTOR_TYPE);
   __ b(ne, &install_baseline_code);
 
   // Save BytecodeOffset from the stack frame.
@@ -750,20 +737,18 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Underlying function needs to have bytecode available.
   if (v8_flags.debug_code) {
-    Label ok, is_baseline, is_unavailable;
-    Register sfi = r6;
-    Register bytecode = r6;
+    Label is_baseline, is_unavailable, ok;
     __ LoadTaggedField(
-        sfi, FieldMemOperand(r7, JSFunction::kSharedFunctionInfoOffset), r0);
-    GetSharedFunctionInfoBytecodeOrBaseline(masm, sfi, bytecode, ip,
-                                            &is_baseline, &is_unavailable);
+        r6, FieldMemOperand(r7, JSFunction::kSharedFunctionInfoOffset), r0);
+    GetSharedFunctionInfoBytecodeOrBaseline(masm, r6, r6, ip, &is_baseline,
+                                            &is_unavailable);
     __ b(&ok);
 
     __ bind(&is_unavailable);
     __ Abort(AbortReason::kMissingBytecodeArray);
 
     __ bind(&is_baseline);
-    __ IsObjectType(bytecode, ip, ip, CODE_TYPE);
+    __ CompareObjectType(r6, r6, r6, CODE_TYPE);
     __ Assert(eq, AbortReason::kMissingBytecodeArray);
 
     __ bind(&ok);
@@ -1415,15 +1400,14 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   // Get the bytecode array from the function object and load it into
   // kInterpreterBytecodeArrayRegister.
-  Register sfi = r7;
   __ LoadTaggedField(
-      sfi, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset), r0);
-  ResetSharedFunctionInfoAge(masm, sfi, ip);
+      r7, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset), r0);
+  ResetSharedFunctionInfoAge(masm, r7, ip);
 
   // The bytecode array could have been flushed from the shared function info,
   // if so, call into CompileLazy.
   Label is_baseline, compile_lazy;
-  GetSharedFunctionInfoBytecodeOrBaseline(masm, sfi,
+  GetSharedFunctionInfoBytecodeOrBaseline(masm, r7,
                                           kInterpreterBytecodeArrayRegister, ip,
                                           &is_baseline, &compile_lazy);
 
@@ -2025,11 +2009,12 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ LoadU64(r5, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
   __ LoadTaggedField(
       r5, FieldMemOperand(r5, JSFunction::kSharedFunctionInfoOffset), r0);
-  __ LoadTrustedPointerField(
+  __ LoadTaggedField(
       r5, FieldMemOperand(r5, SharedFunctionInfo::kTrustedFunctionDataOffset),
-      kUnknownIndirectPointerTag, r0);
-  __ IsObjectType(r5, kInterpreterDispatchTableRegister,
-                  kInterpreterDispatchTableRegister, INTERPRETER_DATA_TYPE);
+      r0);
+  __ CompareObjectType(r5, kInterpreterDispatchTableRegister,
+                       kInterpreterDispatchTableRegister,
+                       INTERPRETER_DATA_TYPE);
   __ bne(&builtin_trampoline);
 
   __ LoadInterpreterDataInterpreterTrampoline(r5, r5);
@@ -2061,8 +2046,8 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
     __ Assert(ne,
               AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry,
               cr0);
-    __ IsObjectType(kInterpreterBytecodeArrayRegister, r4, r0,
-                    BYTECODE_ARRAY_TYPE);
+    __ CompareObjectType(kInterpreterBytecodeArrayRegister, r4, no_reg,
+                         BYTECODE_ARRAY_TYPE);
     __ Assert(
         eq, AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
   }
@@ -4576,11 +4561,11 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   if (mode == CallApiCallbackMode::kGeneric) {
-    __ LoadExternalPointerField(
+    __ LoadU64(
         api_function_address,
         FieldMemOperand(func_templ,
                         FunctionTemplateInfo::kMaybeRedirectedCallbackOffset),
-        kFunctionTemplateInfoCallbackTag, no_reg, scratch);
+        r0);
   }
   __ EnterExitFrame(scratch, FC::getExtraSlotsCountFrom<ExitFrameConstants>(),
                     StackFrame::API_CALLBACK_EXIT);
@@ -4684,10 +4669,10 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ Push(smi_zero, name_arg);  // should_throw_on_error -> kDontThrow, name
 
   __ RecordComment("Load api_function_address");
-  __ LoadExternalPointerField(
+  __ LoadU64(
       api_function_address,
       FieldMemOperand(callback, AccessorInfo::kMaybeRedirectedGetterOffset),
-      kAccessorInfoGetterTag, no_reg, scratch);
+      r0);
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(scratch, FC::getExtraSlotsCountFrom<ExitFrameConstants>(),

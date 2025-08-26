@@ -8,7 +8,6 @@
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/turboshaft/opmasks.h"
 #include "src/execution/ppc/frame-constants-ppc.h"
-#include "src/roots/roots-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -41,26 +40,6 @@ class PPCOperandGenerator final : public OperandGenerator {
   }
 
   bool CanBeImmediate(OpIndex node, ImmediateMode mode) {
-    const ConstantOp* constant = selector()->Get(node).TryCast<ConstantOp>();
-    if (!constant) return false;
-    if (constant->kind == ConstantOp::Kind::kCompressedHeapObject) {
-      if (!COMPRESS_POINTERS_BOOL) return false;
-      // For builtin code we need static roots
-      if (selector()->isolate()->bootstrapper() && !V8_STATIC_ROOTS_BOOL) {
-        return false;
-      }
-      const RootsTable& roots_table = selector()->isolate()->roots_table();
-      RootIndex root_index;
-      Handle<HeapObject> value = constant->handle();
-      if (roots_table.IsRootHandle(value, &root_index)) {
-        if (!RootsTable::IsReadOnly(root_index)) return false;
-        return CanBeImmediate(MacroAssemblerBase::ReadOnlyRootPtr(
-                                  root_index, selector()->isolate()),
-                              mode);
-      }
-      return false;
-    }
-
     int64_t value;
     if (!selector()->MatchSignedIntegralConstant(node, &value)) return false;
     return CanBeImmediate(value, mode);
@@ -262,8 +241,6 @@ ArchOpcode SelectLoadOpcode(MemoryRepresentation loaded_rep,
       DCHECK_EQ(result_rep, RegisterRepresentation::Tagged());
       if (*mode != kInt34Imm) *mode = kInt16Imm_4ByteAligned;
       return kPPC_LoadWord64;
-    case MemoryRepresentation::SandboxedPointer():
-      return kPPC_LoadDecodeSandboxedPointer;
     case MemoryRepresentation::Simd128():
       DCHECK_EQ(result_rep, RegisterRepresentation::Simd128());
       // Vectors do not support MRI mode, only MRR is available.
@@ -271,6 +248,7 @@ ArchOpcode SelectLoadOpcode(MemoryRepresentation loaded_rep,
       return kPPC_LoadSimd128;
     case MemoryRepresentation::ProtectedPointer():
     case MemoryRepresentation::IndirectPointer():
+    case MemoryRepresentation::SandboxedPointer():
     case MemoryRepresentation::Simd256():
       UNREACHABLE();
   }
@@ -296,16 +274,14 @@ ArchOpcode SelectLoadOpcode(LoadRepresentation load_rep, ImmediateMode* mode) {
       return kPPC_LoadWordU32;
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:
+    case MachineRepresentation::kIndirectPointer:   // Fall through.
+    case MachineRepresentation::kSandboxedPointer:  // Fall through.
 #ifdef V8_COMPRESS_POINTERS
       if (*mode != kInt34Imm) *mode = kInt16Imm_4ByteAligned;
       return kPPC_LoadWordS32;
 #else
       UNREACHABLE();
 #endif
-      case MachineRepresentation::kIndirectPointer:
-        UNREACHABLE();
-      case MachineRepresentation::kSandboxedPointer:
-        return kPPC_LoadDecodeSandboxedPointer;
 #ifdef V8_COMPRESS_POINTERS
       case MachineRepresentation::kTaggedSigned:
         return kPPC_LoadDecompressTaggedSigned;
@@ -395,13 +371,13 @@ void VisitStoreCommon(InstructionSelector* selector, OpIndex node,
   }
 
   if (v8_flags.enable_unconditional_write_barriers &&
-      CanBeTaggedOrCompressedOrIndirectPointer(rep)) {
+      CanBeTaggedOrCompressedPointer(rep)) {
     write_barrier_kind = kFullWriteBarrier;
   }
 
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
-    DCHECK(CanBeTaggedOrCompressedOrIndirectPointer(rep));
+    DCHECK(CanBeTaggedOrCompressedPointer(rep));
     // Uncompressed stores should not happen if we need a write barrier.
     CHECK((store.ts_stored_rep() !=
            MemoryRepresentation::AnyUncompressedTagged()) &&
@@ -410,7 +386,7 @@ void VisitStoreCommon(InstructionSelector* selector, OpIndex node,
           (store.ts_stored_rep() !=
            MemoryRepresentation::UncompressedTaggedPointer()));
     AddressingMode addressing_mode;
-    InstructionOperand inputs[4];
+    InstructionOperand inputs[3];
     size_t input_count = 0;
     inputs[input_count++] = g.UseUniqueRegister(base);
     // OutOfLineRecordWrite uses the offset in an 'add' instruction as well as
@@ -429,16 +405,7 @@ void VisitStoreCommon(InstructionSelector* selector, OpIndex node,
         WriteBarrierKindToRecordWriteMode(write_barrier_kind);
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
     size_t const temp_count = arraysize(temps);
-    InstructionCode code;
-    if (rep == MachineRepresentation::kIndirectPointer) {
-      DCHECK_EQ(write_barrier_kind, kIndirectPointerWriteBarrier);
-      // In this case we need to add the IndirectPointerTag as additional input.
-      code = kArchStoreIndirectWithWriteBarrier;
-      IndirectPointerTag tag = store.indirect_pointer_tag();
-      inputs[input_count++] = g.UseImmediate(static_cast<int64_t>(tag));
-    } else {
-      code = kArchStoreWithWriteBarrier;
-    }
+    InstructionCode code = kArchStoreWithWriteBarrier;
     code |= AddressingModeField::encode(addressing_mode);
     code |= RecordWriteModeField::encode(record_write_mode);
     CHECK_EQ(is_atomic, false);
@@ -506,19 +473,13 @@ void VisitStoreCommon(InstructionSelector* selector, OpIndex node,
       case MemoryRepresentation::ProtectedPointer():
         // We never store directly to protected pointers from generated code.
         UNREACHABLE();
-      case MemoryRepresentation::IndirectPointer():
-        if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
-        opcode = kPPC_StoreIndirectPointer;
-        break;
-      case MemoryRepresentation::SandboxedPointer():
-        if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
-        opcode = kPPC_StoreEncodeSandboxedPointer;
-        break;
       case MemoryRepresentation::Simd128():
         opcode = kPPC_StoreSimd128;
         // Vectors do not support MRI mode, only MRR is available.
         mode = kNoImmediate;
         break;
+      case MemoryRepresentation::IndirectPointer():
+      case MemoryRepresentation::SandboxedPointer():
       case MemoryRepresentation::Simd256():
         UNREACHABLE();
     }
@@ -1872,31 +1833,7 @@ void InstructionSelector::VisitSwitch(OpIndex node, const SwitchInfo& sw) {
 }
 
 void InstructionSelector::VisitWord32Equal(OpIndex const node) {
-  const Operation& equal = Get(node);
-  DCHECK(equal.Is<ComparisonOp>());
-  OpIndex left = equal.input(0);
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
-  if (isolate() && (V8_STATIC_ROOTS_BOOL ||
-                    (COMPRESS_POINTERS_BOOL && !isolate()->bootstrapper()))) {
-    PPCOperandGenerator g(this);
-    const RootsTable& roots_table = isolate()->roots_table();
-    RootIndex root_index;
-    Handle<HeapObject> right;
-    // HeapConstants and CompressedHeapConstants can be treated the same when
-    // using them as an input to a 32-bit comparison. Check whether either is
-    // present.
-    if (MatchHeapConstant(node, &right) && !right.is_null() &&
-        roots_table.IsRootHandle(right, &root_index)) {
-      if (RootsTable::IsReadOnly(root_index)) {
-        Tagged_t ptr =
-            MacroAssemblerBase::ReadOnlyRootPtr(root_index, isolate());
-        if (g.CanBeImmediate(ptr, kInt16Imm)) {
-          return VisitCompare(this, kPPC_Cmp32, g.UseRegister(left),
-                              g.TempImmediate(ptr), &cont);
-        }
-      }
-    }
-  }
   VisitWord32Compare(this, node, &cont);
 }
 

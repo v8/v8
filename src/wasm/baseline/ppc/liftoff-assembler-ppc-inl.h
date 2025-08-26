@@ -416,8 +416,7 @@ void LiftoffAssembler::LoadInstanceDataFromFrame(Register dst) {
 
 void LiftoffAssembler::LoadTrustedPointer(Register dst, Register src_addr,
                                           int offset, IndirectPointerTag tag) {
-  MemOperand src{src_addr, offset};
-  LoadTrustedPointerField(dst, src, tag, r0);
+  LoadTaggedField(dst, MemOperand{src_addr, offset}, r0);
 }
 
 void LiftoffAssembler::LoadFromInstance(Register dst, Register instance,
@@ -496,18 +495,6 @@ void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
                                        int32_t offset_imm) {
   LoadU64(dst, MemOperand(src_addr, offset_imm), r0);
 }
-
-#ifdef V8_ENABLE_SANDBOX
-void LiftoffAssembler::LoadCodeEntrypointViaCodePointer(Register dst,
-                                                        Register src_addr,
-                                                        int32_t offset_imm) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  MemOperand src_op =
-      liftoff::GetMemOp(this, src_addr, no_reg, offset_imm, scratch);
-  MacroAssembler::LoadCodeEntrypointViaCodePointer(dst, src_op, scratch);
-}
-#endif
 
 void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
