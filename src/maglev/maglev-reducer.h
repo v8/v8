@@ -255,6 +255,15 @@ class MaglevReducer {
   // Deopts if the value is not exactly representable as an Int32.
   ValueNode* GetInt32(ValueNode* value, bool can_be_heap_number = false);
 
+  // Get an Int32 representation node whose value is equivalent to the ToInt32
+  // truncation of the given node (including a ToNumber call). Only trivial
+  // ToNumber is allowed -- values that are already numeric, and optionally
+  // oddballs.
+  //
+  // Deopts if the ToNumber is non-trivial.
+  ValueNode* GetTruncatedInt32ForToNumber(ValueNode* value,
+                                          NodeType allowed_input_type);
+
   // Get a Float64 representation node whose value is equivalent to the given
   // node.
   //
@@ -496,6 +505,7 @@ class MaglevReducer {
   Zone* zone() const { return zone_; }
   Graph* graph() const { return graph_; }
   compiler::JSHeapBroker* broker() const { return broker_; }
+  LocalIsolate* local_isolate() const { return broker()->local_isolate(); }
 
  private:
   BaseT* base_;

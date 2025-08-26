@@ -643,6 +643,114 @@ std::optional<int32_t> MaglevReducer<BaseT>::TryGetInt32Constant(
 }
 
 template <typename BaseT>
+ValueNode* MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
+    ValueNode* value, NodeType allowed_input_type) {
+  value->MaybeRecordUseReprHint(UseRepresentation::kTruncatedInt32);
+
+  ValueRepresentation representation =
+      value->properties().value_representation();
+  if (representation == ValueRepresentation::kInt32) return value;
+  if (representation == ValueRepresentation::kUint32) {
+    // This node is cheap (no code gen, just a bitcast), so don't cache it.
+    return AddNewNodeNoInputConversion<TruncateUint32ToInt32>({value});
+  }
+
+  // Process constants first to avoid allocating NodeInfo for them.
+  switch (value->opcode()) {
+    case Opcode::kConstant: {
+      compiler::ObjectRef object = value->Cast<Constant>()->object();
+      if (!object.IsHeapNumber()) break;
+      int32_t truncated_value = DoubleToInt32(object.AsHeapNumber().value());
+      if (!Smi::IsValid(truncated_value)) break;
+      return GetInt32Constant(truncated_value);
+    }
+    case Opcode::kSmiConstant:
+      return GetInt32Constant(value->Cast<SmiConstant>()->value().value());
+    case Opcode::kRootConstant: {
+      Tagged<Object> root_object =
+          local_isolate()->root(value->Cast<RootConstant>()->index());
+      if (!IsOddball(root_object, local_isolate())) break;
+      int32_t truncated_value =
+          DoubleToInt32(Cast<Oddball>(root_object)->to_number_raw());
+      // All oddball ToNumber truncations are valid Smis.
+      DCHECK(Smi::IsValid(truncated_value));
+      return GetInt32Constant(truncated_value);
+    }
+    case Opcode::kFloat64Constant: {
+      int32_t truncated_value =
+          DoubleToInt32(value->Cast<Float64Constant>()->value().get_scalar());
+      if (!Smi::IsValid(truncated_value)) break;
+      return GetInt32Constant(truncated_value);
+    }
+
+    // We could emit unconditional eager deopts for other kinds of constant, but
+    // it's not necessary, the appropriate checking conversion nodes will deopt.
+    default:
+      break;
+  }
+
+  NodeInfo* node_info = GetOrCreateInfoFor(value);
+  auto& alternative = node_info->alternative();
+
+  // If there is an int32_alternative, then that works as a truncated value
+  // too.
+  if (ValueNode* alt = alternative.int32()) {
+    return alt;
+  }
+  if (ValueNode* alt = alternative.truncated_int32_to_number()) {
+    return alt;
+  }
+
+  switch (representation) {
+    case ValueRepresentation::kTagged: {
+      NodeType old_type;
+      EnsureType(value, allowed_input_type, &old_type);
+      if (NodeTypeIsSmi(old_type)) {
+        // Smi untagging can be cached as an int32 alternative, not just a
+        // truncated alternative.
+        return alternative.set_int32(BuildSmiUntag(value));
+      }
+      if (allowed_input_type == NodeType::kSmi) {
+        return alternative.set_int32(
+            AddNewNodeNoInputConversion<CheckedSmiUntag>({value}));
+      }
+      if (NodeTypeIs(old_type, allowed_input_type)) {
+        return alternative.set_truncated_int32_to_number(
+            AddNewNodeNoInputConversion<TruncateUnsafeNumberOrOddballToInt32>(
+                {value}, GetTaggedToFloat64ConversionType(allowed_input_type)));
+      }
+      return alternative.set_truncated_int32_to_number(
+          AddNewNodeNoInputConversion<TruncateCheckedNumberOrOddballToInt32>(
+              {value}, GetTaggedToFloat64ConversionType(allowed_input_type)));
+    }
+    case ValueRepresentation::kFloat64:
+    // Ignore conversion_type for HoleyFloat64, and treat them like Float64.
+    // ToNumber of undefined is anyway a NaN, so we'll simply truncate away
+    // the NaN-ness of the hole, and don't need to do extra oddball checks so
+    // we can ignore the hint (though we'll miss updating the feedback).
+    case ValueRepresentation::kHoleyFloat64: {
+      return alternative.set_truncated_int32_to_number(
+          AddNewNodeNoInputConversion<TruncateHoleyFloat64ToInt32>({value}));
+    }
+
+    case ValueRepresentation::kIntPtr: {
+      // This is not an efficient implementation, but this only happens in
+      // corner cases.
+      ValueNode* value_to_number =
+          AddNewNodeNoInputConversion<IntPtrToNumber>({value});
+      return alternative.set_truncated_int32_to_number(
+          AddNewNodeNoInputConversion<TruncateUnsafeNumberOrOddballToInt32>(
+              {value_to_number}, TaggedToFloat64ConversionType::kOnlyNumber));
+    }
+    case ValueRepresentation::kInt32:
+    case ValueRepresentation::kUint32:
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
+}
+
+template <typename BaseT>
 ValueNode* MaglevReducer<BaseT>::GetFloat64(ValueNode* value) {
   value->MaybeRecordUseReprHint(UseRepresentation::kFloat64);
   return GetFloat64ForToNumber(value, NodeType::kNumber);

@@ -65,12 +65,12 @@ class MaglevGraphOptimizer {
   void UnwrapInputs();
 
   ValueNode* GetConstantWithRepresentation(ValueNode* node,
-                                           ValueRepresentation repr);
+                                           UseRepresentation repr);
 
   // Returns a variant of the node with the value representation given. It
   // returns nullptr if we need to emit a tagged conversion.
   ValueNode* GetUntaggedValueWithRepresentation(ValueNode* node,
-                                                ValueRepresentation repr,
+                                                UseRepresentation repr,
                                                 NodeType allowed_type);
 
   void PreProcessNode(Node*, const ProcessingState& state);
