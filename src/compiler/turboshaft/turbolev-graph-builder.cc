@@ -4608,7 +4608,7 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
-  maglev::ProcessResult Process(maglev::CheckedTruncateFloat64ToInt32* node,
+  maglev::ProcessResult Process(maglev::CheckedHoleyFloat64ToInt32* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     SetMap(node, __ ChangeFloat64ToInt32OrDeopt(
@@ -4617,7 +4617,7 @@ class GraphBuildingNodeProcessor {
                      node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::CheckedTruncateFloat64ToUint32* node,
+  maglev::ProcessResult Process(maglev::CheckedHoleyFloat64ToUint32* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     SetMap(node, __ ChangeFloat64ToUint32OrDeopt(
@@ -4627,7 +4627,7 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(
-      maglev::CheckedTruncateNumberOrOddballToInt32* node,
+      maglev::TruncateCheckedNumberOrOddballToInt32* node,
       const maglev::ProcessingState& state) {
     TruncateJSPrimitiveToUntaggedOrDeoptOp::InputRequirement input_requirement;
     switch (node->conversion_type()) {
@@ -4655,10 +4655,11 @@ class GraphBuildingNodeProcessor {
             input_requirement, node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::TruncateNumberOrOddballToInt32* node,
-                                const maglev::ProcessingState& state) {
-    // In Maglev, TruncateNumberOrOddballToInt32 does the same thing for both
-    // NumberOrOddball and Number; except when debug_code is enabled: then,
+  maglev::ProcessResult Process(
+      maglev::TruncateUnsafeNumberOrOddballToInt32* node,
+      const maglev::ProcessingState& state) {
+    // In Maglev, TruncateUnsafeNumberOrOddballToInt32 does the same thing for
+    // both NumberOrOddball and Number; except when debug_code is enabled: then,
     // Maglev inserts runtime checks ensuring that the input is indeed a Number
     // or NumberOrOddball. Turboshaft doesn't typically introduce such runtime
     // checks, so we instead just lower both Number and NumberOrOddball to the
@@ -4670,7 +4671,7 @@ class GraphBuildingNodeProcessor {
                          kNumberOrOddball));
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::TruncateFloat64ToInt32* node,
+  maglev::ProcessResult Process(maglev::TruncateHoleyFloat64ToInt32* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ JSTruncateFloat64ToWord32(Map(node->input())));
     return maglev::ProcessResult::kContinue;
@@ -5033,11 +5034,11 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState&) {
     UNREACHABLE();
   }
-  maglev::ProcessResult Process(maglev::UnsafeTruncateUint32ToInt32*,
+  maglev::ProcessResult Process(maglev::UnsafeUint32ToInt32*,
                                 const maglev::ProcessingState&) {
     UNREACHABLE();
   }
-  maglev::ProcessResult Process(maglev::UnsafeTruncateFloat64ToInt32*,
+  maglev::ProcessResult Process(maglev::UnsafeHoleyFloat64ToInt32*,
                                 const maglev::ProcessingState&) {
     UNREACHABLE();
   }

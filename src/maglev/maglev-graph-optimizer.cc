@@ -991,17 +991,18 @@ ProcessResult MaglevGraphOptimizer::VisitChangeIntPtrToFloat64() {
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedTruncateFloat64ToInt32() {
+ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToInt32() {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedTruncateFloat64ToUint32() {
+ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToUint32() {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitTruncateNumberOrOddballToInt32() {
+ProcessResult
+MaglevGraphOptimizer::VisitTruncateUnsafeNumberOrOddballToInt32() {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -1011,17 +1012,17 @@ ProcessResult MaglevGraphOptimizer::VisitTruncateUint32ToInt32() {
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitTruncateFloat64ToInt32() {
+ProcessResult MaglevGraphOptimizer::VisitTruncateHoleyFloat64ToInt32() {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitUnsafeTruncateUint32ToInt32() {
+ProcessResult MaglevGraphOptimizer::VisitUnsafeUint32ToInt32() {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitUnsafeTruncateFloat64ToInt32() {
+ProcessResult MaglevGraphOptimizer::VisitUnsafeHoleyFloat64ToInt32() {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -1116,7 +1117,7 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedSmiTagFloat64() {
 UNTAGGING_CASE(CheckedSmiUntag, Int32, Number)
 UNTAGGING_CASE(UnsafeSmiUntag, Int32, Number)
 UNTAGGING_CASE(CheckedNumberToInt32, Int32, Number)
-UNTAGGING_CASE(CheckedTruncateNumberOrOddballToInt32, Int32, NumberOrOddball)
+UNTAGGING_CASE(TruncateCheckedNumberOrOddballToInt32, Int32, NumberOrOddball)
 UNTAGGING_CASE(CheckedNumberOrOddballToFloat64, Float64, NumberOrOddball)
 UNTAGGING_CASE(UncheckedNumberOrOddballToFloat64, Float64, NumberOrOddball)
 UNTAGGING_CASE(CheckedNumberOrOddballToHoleyFloat64, HoleyFloat64,

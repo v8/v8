@@ -27,8 +27,8 @@ constexpr bool IsUntagging(Opcode op) {
     case Opcode::kUnsafeSmiUntag:
     case Opcode::kCheckedNumberToInt32:
     case Opcode::kCheckedObjectToIndex:
-    case Opcode::kCheckedTruncateNumberOrOddballToInt32:
-    case Opcode::kTruncateNumberOrOddballToInt32:
+    case Opcode::kTruncateCheckedNumberOrOddballToInt32:
+    case Opcode::kTruncateUnsafeNumberOrOddballToInt32:
     case Opcode::kCheckedNumberOrOddballToFloat64:
     case Opcode::kUncheckedNumberOrOddballToFloat64:
     case Opcode::kCheckedNumberOrOddballToHoleyFloat64:

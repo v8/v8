@@ -407,9 +407,9 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
       switch (to) {
         case ValueRepresentation::kInt32:
           if (truncating) {
-            return Opcode::kTruncateFloat64ToInt32;
+            return Opcode::kTruncateHoleyFloat64ToInt32;
           }
-          return Opcode::kCheckedTruncateFloat64ToInt32;
+          return Opcode::kCheckedHoleyFloat64ToInt32;
         case ValueRepresentation::kUint32:
           // The graph builder never inserts Tagged->Uint32 conversions, so we
           // don't have to handle this case.
@@ -436,9 +436,9 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
         case ValueRepresentation::kInt32:
           // Holes are NaNs, so we can truncate them to int32 same as real NaNs.
           if (truncating) {
-            return Opcode::kTruncateFloat64ToInt32;
+            return Opcode::kTruncateHoleyFloat64ToInt32;
           }
-          return Opcode::kCheckedTruncateFloat64ToInt32;
+          return Opcode::kCheckedHoleyFloat64ToInt32;
         case ValueRepresentation::kUint32:
           // The graph builder never inserts Tagged->Uint32 conversions, so we
           // don't have to handle this case.
@@ -664,7 +664,7 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
                 CheckedNumberOrOddballToFloat64>(
                 block, {input}, TaggedToFloat64ConversionType::kOnlyNumber);
             untagged = AddNewNodeNoInputConversionAtBlockEnd<
-                CheckedTruncateFloat64ToInt32>(block, {untagged});
+                CheckedHoleyFloat64ToInt32>(block, {untagged});
           }
           break;
         case ValueRepresentation::kFloat64:
@@ -756,9 +756,9 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
     // Smi, and therefore in an Int32.
     if (from_repr == ValueRepresentation::kFloat64 ||
         from_repr == ValueRepresentation::kHoleyFloat64) {
-      old_untagging->OverwriteWith<UnsafeTruncateFloat64ToInt32>();
+      old_untagging->OverwriteWith<UnsafeHoleyFloat64ToInt32>();
     } else if (from_repr == ValueRepresentation::kUint32) {
-      old_untagging->OverwriteWith<UnsafeTruncateUint32ToInt32>();
+      old_untagging->OverwriteWith<UnsafeUint32ToInt32>();
     } else {
       DCHECK_EQ(from_repr, ValueRepresentation::kInt32);
       old_untagging->OverwriteWith<Identity>();
@@ -778,8 +778,8 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
   // we have Float64 phi and will happily truncate it, but the 3rd one should
   // deopt if it cannot be converted without loss of precision.
   bool conversion_is_truncating_float64 =
-      old_untagging->Is<CheckedTruncateNumberOrOddballToInt32>() ||
-      old_untagging->Is<TruncateNumberOrOddballToInt32>();
+      old_untagging->Is<TruncateCheckedNumberOrOddballToInt32>() ||
+      old_untagging->Is<TruncateUnsafeNumberOrOddballToInt32>();
 
   Opcode needed_conversion = GetOpcodeForConversion(
       from_repr, to_repr, conversion_is_truncating_float64);

@@ -598,7 +598,7 @@ ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
     // HoleyFloat64 as Float64.
     case ValueRepresentation::kHoleyFloat64: {
       return alternative.set_int32(
-          AddNewNode<CheckedTruncateFloat64ToInt32>({value}));
+          AddNewNode<CheckedHoleyFloat64ToInt32>({value}));
     }
 
     case ValueRepresentation::kIntPtr:

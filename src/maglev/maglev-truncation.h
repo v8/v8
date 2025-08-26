@@ -85,14 +85,14 @@ class PropagateTruncationProcessor {
   ProcessResult Process(Identity* node) { return ProcessResult::kContinue; }
   ProcessResult Process(Dead* node) { return ProcessResult::kContinue; }
 
-  // TODO(victorgomes): We can only truncate CheckedTruncateFloat64ToInt32
+  // TODO(victorgomes): We can only truncate CheckedHoleyFloat64ToInt32
   // inputs if we statically know they are in Int32 range.
 
-  ProcessResult Process(TruncateFloat64ToInt32* node) {
+  ProcessResult Process(TruncateHoleyFloat64ToInt32* node) {
     // We can always truncate the input of this node.
     return ProcessResult::kContinue;
   }
-  ProcessResult Process(UnsafeTruncateFloat64ToInt32* node) {
+  ProcessResult Process(UnsafeHoleyFloat64ToInt32* node) {
     // We can always truncate the input of this node.
     return ProcessResult::kContinue;
   }
@@ -182,8 +182,8 @@ class TruncationProcessor {
     PostProcessNode(node);                                          \
     return result;                                                  \
   }
-  PROCESS_TRUNC_CONV(TruncateFloat64ToInt32)
-  PROCESS_TRUNC_CONV(UnsafeTruncateFloat64ToInt32)
+  PROCESS_TRUNC_CONV(TruncateHoleyFloat64ToInt32)
+  PROCESS_TRUNC_CONV(UnsafeHoleyFloat64ToInt32)
 #undef PROCESS_BINOP
 
  private:

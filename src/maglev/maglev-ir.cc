@@ -732,7 +732,7 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kCheckedSmiUntag:
     case Opcode::kUnsafeSmiUntag:
     case Opcode::kCheckedObjectToIndex:
-    case Opcode::kCheckedTruncateNumberOrOddballToInt32:
+    case Opcode::kTruncateCheckedNumberOrOddballToInt32:
     case Opcode::kCheckedInt32ToUint32:
     case Opcode::kCheckedIntPtrToUint32:
     case Opcode::kUnsafeInt32ToUint32:
@@ -741,14 +741,14 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kChangeInt32ToFloat64:
     case Opcode::kChangeUint32ToFloat64:
     case Opcode::kChangeIntPtrToFloat64:
-    case Opcode::kCheckedTruncateFloat64ToInt32:
-    case Opcode::kCheckedTruncateFloat64ToUint32:
-    case Opcode::kTruncateNumberOrOddballToInt32:
+    case Opcode::kCheckedHoleyFloat64ToInt32:
+    case Opcode::kCheckedHoleyFloat64ToUint32:
+    case Opcode::kTruncateUnsafeNumberOrOddballToInt32:
     case Opcode::kCheckedNumberToInt32:
     case Opcode::kTruncateUint32ToInt32:
-    case Opcode::kTruncateFloat64ToInt32:
-    case Opcode::kUnsafeTruncateUint32ToInt32:
-    case Opcode::kUnsafeTruncateFloat64ToInt32:
+    case Opcode::kTruncateHoleyFloat64ToInt32:
+    case Opcode::kUnsafeUint32ToInt32:
+    case Opcode::kUnsafeHoleyFloat64ToInt32:
     case Opcode::kInt32ToUint8Clamped:
     case Opcode::kUint32ToUint8Clamped:
     case Opcode::kFloat64ToUint8Clamped:
@@ -2283,11 +2283,11 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
-void CheckedTruncateNumberOrOddballToInt32::SetValueLocationConstraints() {
+void TruncateCheckedNumberOrOddballToInt32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
 }
-void CheckedTruncateNumberOrOddballToInt32::GenerateCode(
+void TruncateCheckedNumberOrOddballToInt32::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   Register value = ToRegister(input());
   Register result_reg = ToRegister(result());
@@ -2298,11 +2298,11 @@ void CheckedTruncateNumberOrOddballToInt32::GenerateCode(
                                      deopt_label);
 }
 
-void TruncateNumberOrOddballToInt32::SetValueLocationConstraints() {
+void TruncateUnsafeNumberOrOddballToInt32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
 }
-void TruncateNumberOrOddballToInt32::GenerateCode(
+void TruncateUnsafeNumberOrOddballToInt32::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   Register value = ToRegister(input());
   Register result_reg = ToRegister(result());
@@ -6097,43 +6097,43 @@ void TruncateUint32ToInt32::GenerateCode(MaglevAssembler* masm,
   DCHECK_EQ(ToRegister(input()), ToRegister(result()));
 }
 
-void TruncateFloat64ToInt32::SetValueLocationConstraints() {
+void TruncateHoleyFloat64ToInt32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
 }
-void TruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
-                                          const ProcessingState& state) {
+void TruncateHoleyFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
+                                               const ProcessingState& state) {
   __ TruncateDoubleToInt32(ToRegister(result()), ToDoubleRegister(input()));
 }
 
-void CheckedTruncateFloat64ToInt32::SetValueLocationConstraints() {
+void CheckedHoleyFloat64ToInt32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
 }
-void CheckedTruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
-                                                 const ProcessingState& state) {
+void CheckedHoleyFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
+                                              const ProcessingState& state) {
   __ TryTruncateDoubleToInt32(
       ToRegister(result()), ToDoubleRegister(input()),
       __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32));
 }
 
-void CheckedTruncateFloat64ToUint32::SetValueLocationConstraints() {
+void CheckedHoleyFloat64ToUint32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
 }
-void CheckedTruncateFloat64ToUint32::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
+void CheckedHoleyFloat64ToUint32::GenerateCode(MaglevAssembler* masm,
+                                               const ProcessingState& state) {
   __ TryTruncateDoubleToUint32(
       ToRegister(result()), ToDoubleRegister(input()),
       __ GetDeoptLabel(this, DeoptimizeReason::kNotUint32));
 }
 
-void UnsafeTruncateFloat64ToInt32::SetValueLocationConstraints() {
+void UnsafeHoleyFloat64ToInt32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
 }
-void UnsafeTruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
-                                                const ProcessingState& state) {
+void UnsafeHoleyFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
+                                             const ProcessingState& state) {
 #ifdef DEBUG
   Label fail, start;
   __ Jump(&start);
@@ -6146,7 +6146,7 @@ void UnsafeTruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
 #else
   // TODO(dmercadier): TruncateDoubleToInt32 does additional work when the
   // double doesn't fit in a 32-bit integer. This is not necessary for
-  // UnsafeTruncateFloat64ToInt32 (since we statically know that it the double
+  // UnsafeHoleyFloat64ToInt32 (since we statically know that it the double
   // fits in a 32-bit int) and could be instead just a Cvttsd2si (x64) or Fcvtzs
   // (arm64).
   __ TruncateDoubleToInt32(ToRegister(result()), ToDoubleRegister(input()));
@@ -6164,12 +6164,12 @@ void CheckedUint32ToInt32::GenerateCode(MaglevAssembler* masm,
   __ CompareInt32AndJumpIf(input_reg, 0, kLessThan, fail);
 }
 
-void UnsafeTruncateUint32ToInt32::SetValueLocationConstraints() {
+void UnsafeUint32ToInt32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
 }
-void UnsafeTruncateUint32ToInt32::GenerateCode(MaglevAssembler* masm,
-                                               const ProcessingState& state) {
+void UnsafeUint32ToInt32::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
 #ifdef DEBUG
   Register input_reg = ToRegister(input());
   __ CompareInt32AndAssert(input_reg, 0, kGreaterThanEqual,
@@ -8231,12 +8231,12 @@ void UncheckedNumberOrOddballToFloat64::PrintParams(std::ostream& os) const {
   os << "(" << conversion_type() << ")";
 }
 
-void CheckedTruncateNumberOrOddballToInt32::PrintParams(
+void TruncateCheckedNumberOrOddballToInt32::PrintParams(
     std::ostream& os) const {
   os << "(" << conversion_type() << ")";
 }
 
-void TruncateNumberOrOddballToInt32::PrintParams(std::ostream& os) const {
+void TruncateUnsafeNumberOrOddballToInt32::PrintParams(std::ostream& os) const {
   os << "(" << conversion_type() << ")";
 }
 

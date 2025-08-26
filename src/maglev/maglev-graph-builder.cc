@@ -1729,11 +1729,11 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(
       }
       if (NodeTypeIs(old_type, allowed_input_type)) {
         return alternative.set_truncated_int32_to_number(
-            AddNewNodeNoInputConversion<TruncateNumberOrOddballToInt32>(
+            AddNewNodeNoInputConversion<TruncateUnsafeNumberOrOddballToInt32>(
                 {value}, GetTaggedToFloat64ConversionType(allowed_input_type)));
       }
       return alternative.set_truncated_int32_to_number(
-          AddNewNodeNoInputConversion<CheckedTruncateNumberOrOddballToInt32>(
+          AddNewNodeNoInputConversion<TruncateCheckedNumberOrOddballToInt32>(
               {value}, GetTaggedToFloat64ConversionType(allowed_input_type)));
     }
     case ValueRepresentation::kFloat64:
@@ -1743,7 +1743,7 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(
     // we can ignore the hint (though we'll miss updating the feedback).
     case ValueRepresentation::kHoleyFloat64: {
       return alternative.set_truncated_int32_to_number(
-          AddNewNodeNoInputConversion<TruncateFloat64ToInt32>({value}));
+          AddNewNodeNoInputConversion<TruncateHoleyFloat64ToInt32>({value}));
     }
 
     case ValueRepresentation::kIntPtr: {
@@ -1752,7 +1752,7 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(
       ValueNode* value_to_number =
           AddNewNodeNoInputConversion<IntPtrToNumber>({value});
       return alternative.set_truncated_int32_to_number(
-          AddNewNodeNoInputConversion<TruncateNumberOrOddballToInt32>(
+          AddNewNodeNoInputConversion<TruncateUnsafeNumberOrOddballToInt32>(
               {value_to_number}, TaggedToFloat64ConversionType::kOnlyNumber));
     }
     case ValueRepresentation::kInt32:
@@ -5778,9 +5778,8 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
       }
       [[fallthrough]];
     case ValueRepresentation::kHoleyFloat64: {
-      // CheckedTruncateFloat64ToUint32 will gracefully deopt on holes.
-      return AddNewNodeNoInputConversion<CheckedTruncateFloat64ToUint32>(
-          {object});
+      // CheckedHoleyFloat64ToUint32 will gracefully deopt on holes.
+      return AddNewNodeNoInputConversion<CheckedHoleyFloat64ToUint32>({object});
       case ValueRepresentation::kNone:
         UNREACHABLE();
     }
