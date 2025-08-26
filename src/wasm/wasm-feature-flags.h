@@ -70,7 +70,7 @@
                                                                                \
   /* Resizable buffer integration */                                           \
   /* https://github.com/WebAssembly/spec/issues/1292 */                        \
-  /* V8 side owner: syg */                                                     \
+  /* V8 side owner: gdeepti */                                                 \
   V(rab_integration, "resizable buffers integration", false)                   \
                                                                                \
   /* Compilation hints */                                                      \
