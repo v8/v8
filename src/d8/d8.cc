@@ -3226,21 +3226,24 @@ MaybeLocal<String> Shell::ReadFromStdin(Isolate* isolate) {
   static const int kBufferSize = 256;
   char buffer[kBufferSize];
   Local<String> accumulator = String::NewFromUtf8Literal(isolate, "");
-  int length;
   // Flush stdout before reading stdin, as stdout isn't guaranteed to be flushed
   // automatically.
   fflush(stdout);
   while (true) {
     // Continue reading if the line ends with an escape '\\' or the line has
     // not been fully read into the buffer yet (does not end with '\n').
-    // If fgets gets an error, just give up.
+    // If fgets gets an error, throw and give up.
     char* input = nullptr;
     input = fgets(buffer, kBufferSize, stdin);
-    if (input == nullptr) {
+    if (ferror(stdin)) {
       ThrowError(isolate, "Error while reading from stdin");
       return {};
     }
-    length = static_cast<int>(strlen(buffer));
+    if (input == nullptr) {
+      if (accumulator->Length() == 0) return {};
+      return accumulator;
+    }
+    int length = static_cast<int>(strlen(buffer));
     if (length == 0) {
       return accumulator;
     } else if (buffer[length - 1] != '\n') {
@@ -5103,7 +5106,8 @@ void Shell::ReadLine(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   Local<v8::String> input;
   if (!ReadFromStdin(info.GetIsolate()).ToLocal(&input)) {
-    // In case of an error, the empty handle will set the default return value.
+    // In case of an error or EOF, the empty handle will set the default return
+    // value.
     CHECK(input.IsEmpty());
   }
   info.GetReturnValue().Set(input);
