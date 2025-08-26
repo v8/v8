@@ -342,10 +342,10 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   // characters of the string are uninitialized. Currently used in regexp code
   // only, where they are pretenured.
   V8_WARN_UNUSED_RESULT MaybeHandle<SeqOneByteString> NewRawOneByteString(
-      int length, AllocationType allocation = AllocationType::kYoung,
+      uint32_t length, AllocationType allocation = AllocationType::kYoung,
       AllocationHint hint = AllocationHint());
   V8_WARN_UNUSED_RESULT MaybeHandle<SeqTwoByteString> NewRawTwoByteString(
-      int length, AllocationType allocation = AllocationType::kYoung,
+      uint32_t length, AllocationType allocation = AllocationType::kYoung,
       AllocationHint hint = AllocationHint());
   // Create a new cons string object which consists of a pair of strings.
   template <template <typename> typename HandleType>

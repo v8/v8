@@ -589,4 +589,17 @@ bool is_inbounds(float_t v) {
 #define FRIEND_TEST(test_case_name, test_name)
 #endif
 
+// Enable/disable -Wsign-* warnings in code.
+// See http://crbug.com/441221573 for detail.
+#if defined(__clang__)
+#define START_PROHIBIT_SIGN_CONVERSION()                      \
+  _Pragma("clang diagnostic push")                            \
+      _Pragma("clang diagnostic error \"-Wsign-conversion\"") \
+          _Pragma("clang diagnostic error \"-Wsign-compare\"")
+#define END_PROHIBIT_SIGN_CONVERSION() _Pragma("clang diagnostic pop")
+#else
+#define START_PROHIBIT_SIGN_CONVERSION()
+#define END_PROHIBIT_SIGN_CONVERSION()
+#endif  // defined(__clang__)
+
 #endif  // V8_BASE_MACROS_H_

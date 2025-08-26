@@ -254,7 +254,7 @@ class Intl {
   // A helper function to implement formatToParts which add element to array as
   // $array[$index] = { type: $field_type_string, value: $value }
   static void AddElement(Isolate* isolate, DirectHandle<JSArray> array,
-                         int index, DirectHandle<String> field_type_string,
+                         uint32_t index, DirectHandle<String> field_type_string,
                          DirectHandle<String> value);
 
   // A helper function to implement formatToParts which add element to array as
@@ -263,7 +263,7 @@ class Intl {
   //   $additional_property_name: $additional_property_value
   // }
   static void AddElement(Isolate* isolate, DirectHandle<JSArray> array,
-                         int index, DirectHandle<String> field_type_string,
+                         uint32_t index, DirectHandle<String> field_type_string,
                          DirectHandle<String> value,
                          DirectHandle<String> additional_property_name,
                          DirectHandle<String> additional_property_value);
@@ -386,7 +386,7 @@ class Intl {
   // Convert a Handle<String> to icu::UnicodeString
   static icu::UnicodeString ToICUUnicodeString(Isolate* isolate,
                                                DirectHandle<String> string,
-                                               int offset = 0);
+                                               uint32_t offset = 0);
 
   static const uint8_t* ToLatin1LowerTable();
 
