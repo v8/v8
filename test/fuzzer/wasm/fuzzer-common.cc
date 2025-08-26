@@ -172,6 +172,10 @@ bool ValuesEquivalent(const WasmValue& init_lhs, const WasmValue& init_rhs,
 
         switch (lhs.type().heap_representation_non_shared()) {
           case HeapType::kFunc: {
+            if (IsWasmNull(lhs_ref) || IsWasmNull(rhs_ref)) {
+              break;
+            }
+
             auto lhs_func = Cast<WasmFuncRef>(lhs_ref);
             auto rhs_func = Cast<WasmFuncRef>(rhs_ref);
             if (lhs_func->internal(isolate)->function_index() !=
