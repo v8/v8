@@ -274,8 +274,6 @@ ArchOpcode SelectLoadOpcode(LoadRepresentation load_rep, ImmediateMode* mode) {
       return kPPC_LoadWordU32;
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:
-    case MachineRepresentation::kIndirectPointer:   // Fall through.
-    case MachineRepresentation::kSandboxedPointer:  // Fall through.
 #ifdef V8_COMPRESS_POINTERS
       if (*mode != kInt34Imm) *mode = kInt16Imm_4ByteAligned;
       return kPPC_LoadWordS32;
@@ -304,6 +302,8 @@ ArchOpcode SelectLoadOpcode(LoadRepresentation load_rep, ImmediateMode* mode) {
       case MachineRepresentation::kFloat16:
         UNIMPLEMENTED();
       case MachineRepresentation::kProtectedPointer:  // Fall through.
+      case MachineRepresentation::kIndirectPointer:   // Fall through.
+      case MachineRepresentation::kSandboxedPointer:  // Fall through.
       case MachineRepresentation::kSimd256:  // Fall through.
       case MachineRepresentation::kMapWord:  // Fall through.
       case MachineRepresentation::kFloat16RawBits:  // Fall through.

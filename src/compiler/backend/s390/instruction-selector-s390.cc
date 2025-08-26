@@ -434,8 +434,6 @@ ArchOpcode SelectLoadOpcode(LoadRepresentation load_rep) {
       break;
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:
-    case MachineRepresentation::kIndirectPointer:  // Fall through.
-    case MachineRepresentation::kSandboxedPointer:  // Fall through.
 #ifdef V8_COMPRESS_POINTERS
       opcode = kS390_LoadWordS32;
       break;
@@ -466,6 +464,8 @@ ArchOpcode SelectLoadOpcode(LoadRepresentation load_rep) {
     case MachineRepresentation::kFloat16:
       UNIMPLEMENTED();
     case MachineRepresentation::kProtectedPointer:  // Fall through.
+    case MachineRepresentation::kIndirectPointer:   // Fall through.
+    case MachineRepresentation::kSandboxedPointer:  // Fall through.
     case MachineRepresentation::kSimd256:  // Fall through.
     case MachineRepresentation::kMapWord:  // Fall through.
     case MachineRepresentation::kFloat16RawBits:  // Fall through.
