@@ -183,9 +183,15 @@
 }],
 
 ################################################################################
-['not clang and (arch == riscv64 or arch == riscv32)',{
-  'LoggingTest.SourceLocation':[SKIP]  # issue-174
-}],
+['arch == riscv64 or arch == riscv32', {
+  # TODO(kasperl@rivosinc.com): Temporarily allow the test to fail as we
+  # investigate what sometimes gives unexpected values for f32.{min,max}.
+  'CrossCompilerDeterminismTest.TestFloat32Binop': [PASS, FAIL],
+}],  # arch == riscv64 or arch == riscv32
+
+['(arch == riscv64 or arch == riscv32) and not clang', {
+  'LoggingTest.SourceLocation': [SKIP]  # issue-174
+}],  # (arch == riscv64 or arch == riscv32) and not clang
 
 ##############################################################################
 ['lite_mode', {
