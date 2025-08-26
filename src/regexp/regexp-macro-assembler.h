@@ -228,21 +228,21 @@ class RegExpMacroAssembler {
                                           Address raw_byte_array);
 
   // Controls the generation of large inlined constants in the code.
-  void set_slow_safe(bool ssc) { slow_safe_compiler_ = ssc; }
+  virtual void set_slow_safe(bool ssc) { slow_safe_compiler_ = ssc; }
   bool slow_safe() const { return slow_safe_compiler_; }
 
   // Controls after how many backtracks irregexp should abort execution.  If it
   // can fall back to the experimental engine (see `set_can_fallback`), it will
   // return the appropriate error code, otherwise it will return the number of
   // matches found so far (perhaps none).
-  void set_backtrack_limit(uint32_t backtrack_limit) {
+  virtual void set_backtrack_limit(uint32_t backtrack_limit) {
     backtrack_limit_ = backtrack_limit;
   }
 
   // Set whether or not irregexp can fall back to the experimental engine on
   // excessive backtracking.  The number of backtracks considered excessive can
   // be controlled with set_backtrack_limit.
-  void set_can_fallback(bool val) { can_fallback_ = val; }
+  virtual void set_can_fallback(bool val) { can_fallback_ = val; }
 
   enum GlobalMode {
     NOT_GLOBAL,
@@ -252,7 +252,7 @@ class RegExpMacroAssembler {
   };
   // Set whether the regular expression has the global flag.  Exiting due to
   // a failure in a global regexp may still mean success overall.
-  inline void set_global_mode(GlobalMode mode) { global_mode_ = mode; }
+  inline virtual void set_global_mode(GlobalMode mode) { global_mode_ = mode; }
   inline bool global() const { return global_mode_ != NOT_GLOBAL; }
   inline bool global_with_zero_length_check() const {
     return global_mode_ == GLOBAL || global_mode_ == GLOBAL_UNICODE;

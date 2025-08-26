@@ -2389,6 +2389,8 @@ filegroup(
         "src/regexp/regexp-bytecodes.cc",
         "src/regexp/regexp-bytecodes.h",
         "src/regexp/regexp-bytecodes-inl.h",
+        "src/regexp/regexp-code-generator.cc",
+        "src/regexp/regexp-code-generator.h",
         "src/regexp/regexp-compiler.cc",
         "src/regexp/regexp-compiler.h",
         "src/regexp/regexp-compiler-tonode.cc",

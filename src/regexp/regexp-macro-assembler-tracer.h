@@ -14,7 +14,8 @@ namespace internal {
 // Decorator on a RegExpMacroAssembler that write all calls.
 class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
  public:
-  explicit RegExpMacroAssemblerTracer(RegExpMacroAssembler* assembler);
+  explicit RegExpMacroAssemblerTracer(
+      std::unique_ptr<RegExpMacroAssembler>&& assembler);
   ~RegExpMacroAssemblerTracer() override;
   void AbortedCodeGeneration() override;
   int stack_limit_slack_slot_count() override {
@@ -90,8 +91,13 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   void ClearRegisters(int reg_from, int reg_to) override;
   void WriteStackPointerToRegister(int reg) override;
 
+  void set_global_mode(GlobalMode mode) override;
+  void set_slow_safe(bool ssc) override;
+  void set_backtrack_limit(uint32_t backtrack_limit) override;
+  void set_can_fallback(bool val) override;
+
  private:
-  RegExpMacroAssembler* assembler_;
+  std::unique_ptr<RegExpMacroAssembler> assembler_;
 };
 
 }  // namespace internal

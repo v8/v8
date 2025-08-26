@@ -13,6 +13,7 @@
 #include "src/regexp/experimental/experimental.h"
 #include "src/regexp/regexp-bytecode-generator.h"
 #include "src/regexp/regexp-bytecodes.h"
+#include "src/regexp/regexp-code-generator.h"
 #include "src/regexp/regexp-compiler.h"
 #include "src/regexp/regexp-dotprinter.h"
 #include "src/regexp/regexp-interpreter.h"
@@ -92,10 +93,14 @@ class RegExpImpl final : public AllStatic {
       DirectHandle<String> subject, int index, int32_t* result_offsets_vector,
       uint32_t result_offsets_vector_length);
 
-  static bool CompileIrregexp(Isolate* isolate,
-                              DirectHandle<IrRegExpData> re_data,
-                              DirectHandle<String> sample_subject,
-                              bool is_one_byte);
+  static bool CompileIrregexpFromSource(Isolate* isolate,
+                                        DirectHandle<IrRegExpData> re_data,
+                                        DirectHandle<String> sample_subject,
+                                        bool is_one_byte);
+  static bool CompileIrregexpFromBytecode(Isolate* isolate,
+                                          DirectHandle<IrRegExpData> re_data,
+                                          DirectHandle<String> sample_subject,
+                                          bool is_one_byte);
   static inline bool EnsureCompiledIrregexp(Isolate* isolate,
                                             DirectHandle<IrRegExpData> re_data,
                                             DirectHandle<String> sample_subject,
@@ -555,7 +560,24 @@ bool RegExpImpl::EnsureCompiledIrregexp(Isolate* isolate,
 
   DCHECK_IMPLIES(needs_tier_up_compilation, has_bytecode);
 
-  return CompileIrregexp(isolate, re_data, sample_subject, is_one_byte);
+  const bool is_tier_up_requested =
+      v8_flags.regexp_tier_up_ticks > 0 && re_data->MarkedForTierUp();
+  if (v8_flags.regexp_assemble_from_bytecode && is_tier_up_requested) {
+    if (CompileIrregexpFromBytecode(isolate, re_data, sample_subject,
+                                    is_one_byte)) {
+      return true;
+    }
+    // If Assembling from bytecode wasn't successful, we fall-through to the
+    // old pipeline compiling everything from scratch.
+    if (v8_flags.trace_regexp_tier_up) {
+      PrintF(
+          "JSRegExp object (data: %p) has unsupported bytecodes for assembling "
+          "from bytecode. Falling back to re-compilation.\n",
+          reinterpret_cast<void*>(re_data->ptr()));
+    }
+  }
+  return CompileIrregexpFromSource(isolate, re_data, sample_subject,
+                                   is_one_byte);
 }
 
 namespace {
@@ -621,10 +643,10 @@ DirectHandle<FixedArray> RegExp::CreateCaptureNameMap(
   return array;
 }
 
-bool RegExpImpl::CompileIrregexp(Isolate* isolate,
-                                 DirectHandle<IrRegExpData> re_data,
-                                 DirectHandle<String> sample_subject,
-                                 bool is_one_byte) {
+bool RegExpImpl::CompileIrregexpFromSource(Isolate* isolate,
+                                           DirectHandle<IrRegExpData> re_data,
+                                           DirectHandle<String> sample_subject,
+                                           bool is_one_byte) {
   // Since we can't abort gracefully during compilation, check for sufficient
   // stack space (including the additional gap as used for Turbofan
   // compilation) here in advance.
@@ -711,6 +733,140 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate,
                ? re_data->bytecode(is_one_byte)->AllocatedSize()
                : re_data->code(isolate, is_one_byte)->Size());
   }
+
+  return true;
+}
+
+namespace {
+
+// Create the correct assembler for the architecture.
+std::unique_ptr<RegExpMacroAssembler> CreateNativeMacroAssembler(
+    Isolate* isolate, Zone* zone, bool is_one_byte, int output_register_count) {
+  std::unique_ptr<RegExpMacroAssembler> macro_assembler;
+  NativeRegExpMacroAssembler::Mode mode =
+      is_one_byte ? NativeRegExpMacroAssembler::LATIN1
+                  : NativeRegExpMacroAssembler::UC16;
+
+#if V8_TARGET_ARCH_IA32
+  macro_assembler.reset(
+      new RegExpMacroAssemblerIA32(isolate, zone, mode, output_register_count));
+#elif V8_TARGET_ARCH_X64
+  macro_assembler.reset(
+      new RegExpMacroAssemblerX64(isolate, zone, mode, output_register_count));
+#elif V8_TARGET_ARCH_ARM
+  macro_assembler.reset(
+      new RegExpMacroAssemblerARM(isolate, zone, mode, output_register_count));
+#elif V8_TARGET_ARCH_ARM64
+  macro_assembler.reset(new RegExpMacroAssemblerARM64(isolate, zone, mode,
+                                                      output_register_count));
+#elif V8_TARGET_ARCH_S390X
+  macro_assembler.reset(
+      new RegExpMacroAssemblerS390(isolate, zone, mode, output_register_count));
+#elif V8_TARGET_ARCH_PPC64
+  macro_assembler.reset(
+      new RegExpMacroAssemblerPPC(isolate, zone, mode, output_register_count));
+#elif V8_TARGET_ARCH_MIPS64
+  macro_assembler.reset(
+      new RegExpMacroAssemblerMIPS(isolate, zone, mode, output_register_count));
+#elif V8_TARGET_ARCH_RISCV64
+  macro_assembler.reset(new RegExpMacroAssemblerRISCV(isolate, zone, mode,
+                                                      output_register_count));
+#elif V8_TARGET_ARCH_RISCV32
+  macro_assembler.reset(new RegExpMacroAssemblerRISCV(isolate, zone, mode,
+                                                      output_register_count));
+#elif V8_TARGET_ARCH_LOONG64
+  macro_assembler.reset(new RegExpMacroAssemblerLOONG64(isolate, zone, mode,
+                                                        output_register_count));
+#else
+#error "Unsupported architecture"
+#endif
+
+#ifdef DEBUG
+  if (v8_flags.trace_regexp_assembler) {
+    return std::make_unique<RegExpMacroAssemblerTracer>(
+        std::move(macro_assembler));
+  }
+#endif
+
+  return macro_assembler;
+}
+
+}  // namespace
+
+bool RegExpImpl::CompileIrregexpFromBytecode(
+    Isolate* isolate, DirectHandle<IrRegExpData> re_data,
+    DirectHandle<String> sample_subject, bool is_one_byte) {
+  DCHECK(v8_flags.regexp_assemble_from_bytecode);
+
+  if (!re_data->has_bytecode(is_one_byte)) {
+    // This can only happen if we decided to immediately tier-up for long
+    // subject strings or global mode. For this case we create bytecode and
+    // immediately assemble JIT code from it.
+    DCHECK(!re_data->has_code(is_one_byte));
+    re_data->ResetLastTierUpTick();
+    DCHECK(re_data->ShouldProduceBytecode());
+    if (V8_UNLIKELY(!CompileIrregexpFromSource(isolate, re_data, sample_subject,
+                                               is_one_byte))) {
+      return false;
+    }
+    re_data->MarkTierUpForNextExec();
+  }
+
+  DCHECK(re_data->has_bytecode(is_one_byte));
+  DCHECK(re_data->MarkedForTierUp());
+
+  Zone zone(isolate->allocator(), ZONE_NAME);
+
+  DirectHandle<TrustedByteArray> bytecode{re_data->bytecode(is_one_byte),
+                                          isolate};
+  RegExpFlags flags = JSRegExp::AsRegExpFlags(re_data->flags());
+  const int output_register_count =
+      JSRegExp::RegistersForCaptureCount(re_data->capture_count());
+
+  std::unique_ptr<RegExpMacroAssembler> macro_assembler =
+      CreateNativeMacroAssembler(isolate, &zone, is_one_byte,
+                                 output_register_count);
+  if (IsGlobal(flags)) {
+    RegExpMacroAssembler::GlobalMode mode = RegExpMacroAssembler::GLOBAL;
+    if (!re_data->can_be_zero_length()) {
+      mode = RegExpMacroAssembler::GLOBAL_NO_ZERO_LENGTH_CHECK;
+    } else if (IsEitherUnicode(flags)) {
+      mode = RegExpMacroAssembler::GLOBAL_UNICODE;
+    }
+    macro_assembler->set_global_mode(mode);
+  }
+
+  RegExpCodeGenerator code_gen{isolate, macro_assembler.get()};
+  auto result = code_gen.Assemble(bytecode);
+  if (!result.Succeeded()) {
+    // We only expect unsupported bytecodes here if assembling failed.
+    // This is an internal error, so we won't raise an exception.
+    DCHECK_EQ(result.error(), RegExpError::kUnsupportedBytecode);
+    return false;
+  }
+  re_data->set_code(is_one_byte, *result.code());
+
+  // Reset bytecode to uninitialized. In case we use tier-up we know that
+  // tier-up has happened this way.
+  re_data->clear_bytecode(is_one_byte);
+
+  if (v8_flags.trace_regexp_tier_up) {
+    PrintF("JSRegExp data object %p native code size: %d\n",
+           reinterpret_cast<void*>(re_data->ptr()),
+           re_data->code(isolate, is_one_byte)->Size());
+  }
+
+  // Code printing.
+#ifdef ENABLE_DISASSEMBLER
+  if (v8_flags.print_regexp_code) {
+    CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
+    OFStream os(trace_scope.file());
+    auto code = Cast<Code>(result.code());
+    DirectHandle<String> pattern{re_data->source(), isolate};
+    std::unique_ptr<char[]> pattern_cstring = pattern->ToCString();
+    code->Disassemble(pattern_cstring.get(), os, isolate);
+  }
+#endif
 
   return true;
 }
@@ -1009,55 +1165,27 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
 
   if (v8_flags.trace_regexp_graph) DotPrinter::DotPrint("Start", data->node);
 
-  // Create the correct assembler for the architecture.
   std::unique_ptr<RegExpMacroAssembler> macro_assembler;
   if (data->compilation_target == RegExpCompilationTarget::kNative) {
     // Native regexp implementation.
     DCHECK(!v8_flags.jitless);
 
-    NativeRegExpMacroAssembler::Mode mode =
-        is_one_byte ? NativeRegExpMacroAssembler::LATIN1
-                    : NativeRegExpMacroAssembler::UC16;
-
     const int output_register_count =
         JSRegExp::RegistersForCaptureCount(data->capture_count);
-#if V8_TARGET_ARCH_IA32
-    macro_assembler.reset(new RegExpMacroAssemblerIA32(isolate, zone, mode,
-                                                       output_register_count));
-#elif V8_TARGET_ARCH_X64
-    macro_assembler.reset(new RegExpMacroAssemblerX64(isolate, zone, mode,
-                                                      output_register_count));
-#elif V8_TARGET_ARCH_ARM
-    macro_assembler.reset(new RegExpMacroAssemblerARM(isolate, zone, mode,
-                                                      output_register_count));
-#elif V8_TARGET_ARCH_ARM64
-    macro_assembler.reset(new RegExpMacroAssemblerARM64(isolate, zone, mode,
-                                                        output_register_count));
-#elif V8_TARGET_ARCH_S390X
-    macro_assembler.reset(new RegExpMacroAssemblerS390(isolate, zone, mode,
-                                                       output_register_count));
-#elif V8_TARGET_ARCH_PPC64
-    macro_assembler.reset(new RegExpMacroAssemblerPPC(isolate, zone, mode,
-                                                      output_register_count));
-#elif V8_TARGET_ARCH_MIPS64
-    macro_assembler.reset(new RegExpMacroAssemblerMIPS(isolate, zone, mode,
-                                                       output_register_count));
-#elif V8_TARGET_ARCH_RISCV64
-    macro_assembler.reset(new RegExpMacroAssemblerRISCV(isolate, zone, mode,
-                                                        output_register_count));
-#elif V8_TARGET_ARCH_RISCV32
-    macro_assembler.reset(new RegExpMacroAssemblerRISCV(isolate, zone, mode,
-                                                        output_register_count));
-#elif V8_TARGET_ARCH_LOONG64
-    macro_assembler.reset(new RegExpMacroAssemblerLOONG64(
-        isolate, zone, mode, output_register_count));
-#else
-#error "Unsupported architecture"
-#endif
+    macro_assembler = CreateNativeMacroAssembler(isolate, zone, is_one_byte,
+                                                 output_register_count);
   } else {
     DCHECK_EQ(data->compilation_target, RegExpCompilationTarget::kBytecode);
     // Interpreted regexp implementation.
     macro_assembler.reset(new RegExpBytecodeGenerator(isolate, zone));
+#ifdef DEBUG
+    if (v8_flags.trace_regexp_assembler) {
+      std::unique_ptr<RegExpMacroAssembler> tracer_macro_assembler =
+          std::make_unique<RegExpMacroAssemblerTracer>(
+              std::move(macro_assembler));
+      macro_assembler = std::move(tracer_macro_assembler);
+    }
+#endif
   }
 
   macro_assembler->set_slow_safe(TooMuchRegExpCode(isolate, pattern));
@@ -1098,18 +1226,8 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
     macro_assembler->set_global_mode(mode);
   }
 
-  RegExpMacroAssembler* macro_assembler_ptr = macro_assembler.get();
-#ifdef DEBUG
-  std::unique_ptr<RegExpMacroAssembler> tracer_macro_assembler;
-  if (v8_flags.trace_regexp_assembler) {
-    tracer_macro_assembler.reset(
-        new RegExpMacroAssemblerTracer(macro_assembler_ptr));
-    macro_assembler_ptr = tracer_macro_assembler.get();
-  }
-#endif
-
   RegExpCompiler::CompilationResult result = compiler.Assemble(
-      isolate, macro_assembler_ptr, data->node, data->capture_count, pattern);
+      isolate, macro_assembler.get(), data->node, data->capture_count, pattern);
 
   // Code / bytecode printing.
   {
