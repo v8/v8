@@ -407,16 +407,17 @@ void ClearJsToWasmWrappersForTesting(Isolate* isolate) {
 }
 #endif  // V8_ENABLE_DRUMBRAKE
 
-struct ReferenceExecutionResult {
-  int result = -1;
-  std::unique_ptr<const char[]> exception;
-  bool should_execute_non_reference = false;
+struct ExecutionResult {
   DirectHandle<WasmInstanceObject> instance;
+  std::unique_ptr<const char[]> exception;
+  int32_t result = -1;
+  bool should_execute_non_reference = false;
 };
 
-ReferenceExecutionResult ExecuteReferenceRun(
-    Isolate* isolate, base::Vector<const uint8_t> wire_bytes,
-    int exported_main_function_index, int32_t max_executed_instructions) {
+ExecutionResult ExecuteReferenceRun(Isolate* isolate,
+                                    base::Vector<const uint8_t> wire_bytes,
+                                    int exported_main_function_index,
+                                    int32_t max_executed_instructions) {
   // The reference module uses a special compilation mode of Liftoff for
   // termination and nondeterminism detected, and that would be undone by
   // flushing that code.
@@ -519,7 +520,43 @@ ReferenceExecutionResult ExecuteReferenceRun(
     return {};
   }
 
-  return {result_ref, std::move(exception), true, instance_ref};
+  return {instance_ref, std::move(exception), result_ref, true};
+}
+
+// This function instantiates and runs the module for the actual, non-reference
+// run.
+static std::optional<ExecutionResult> ExecuteNonReferenceRun(
+    Isolate* isolate, const WasmModule* module,
+    DirectHandle<WasmModuleObject> module_object, int exported_main) {
+  DirectHandle<WasmInstanceObject> instance;
+  {
+    ErrorThrower thrower(isolate, "ExecuteNonReferenceRun");
+    if (!GetWasmEngine()
+             ->SyncInstantiate(isolate, &thrower, module_object, {},
+                               {})  // no imports & memory
+             .ToHandle(&instance)) {
+      CHECK(thrower.error());
+      // The only reason to fail this instantiation should be OOM, because
+      // there is a previous instantiation in the reference run.
+      if (strstr(thrower.error_msg(), "Out of memory")) {
+        // The initial memory size might be too large for instantiation
+        // (especially on 32 bit systems), therefore do not treat it as a fuzzer
+        // failure.
+        return {};
+      }
+      FATAL("Instantiation failed unexpectedly: %s", thrower.error_msg());
+    }
+    CHECK(!thrower.error());
+  }
+
+  std::unique_ptr<const char[]> exception;
+  const FunctionSig* sig = module->functions[exported_main].sig;
+  DirectHandleVector<Object> compiled_args =
+      testing::MakeDefaultArguments(isolate, sig);
+  int32_t result = testing::CallWasmFunctionForTesting(
+      isolate, instance, "main", base::VectorOf(compiled_args), &exception);
+
+  return {{instance, std::move(exception), result, false}};
 }
 
 int FindExportedMainFunction(const WasmModule* module,
@@ -547,13 +584,14 @@ bool GlobalsMatch(Isolate* isolate, const WasmModule* module,
     WasmValue ref_value = ref_instance_data->GetGlobalValue(isolate, global);
 
     if (!ValuesEquivalent(value, ref_value, isolate)) {
-      std::cerr << "Error: Global variables at index " << i
-                << " have different values!\n";
-      std::cerr << "  - Reference: ";
-      PrintValue(std::cerr, ref_value);
-      std::cerr << "\n  - Actual: ";
-      PrintValue(std::cerr, value);
-      std::cerr << std::endl;
+      std::ostringstream ss;
+      ss << "Error: Global variables at index " << i
+         << " have different values!\n";
+      ss << "  - Reference: ";
+      PrintValue(ss, ref_value);
+      ss << "\n  - Actual: ";
+      PrintValue(ss, value);
+      base::OS::PrintError("%s\n", ss.str().c_str());
 
       global_mismatches++;
     }
@@ -581,10 +619,11 @@ bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
     size_t ref_memory_size = ref_buffer->byte_length();
 
     if (ref_memory_size != memory_size) {
-      std::cerr << "Error: Memories at index " << i
-                << " have different sizes!\n";
-      std::cerr << "  - Reference: " << ref_memory_size << " bytes\n;";
-      std::cerr << "  - Actual:    " << memory_size << " bytes" << std::endl;
+      std::ostringstream ss;
+      ss << "Error: Memories at index " << i << " have different sizes!\n";
+      ss << "  - Reference: " << ref_memory_size << " bytes\n;";
+      ss << "  - Actual:    " << memory_size << " bytes" << std::endl;
+      base::OS::PrintError("%s", ss.str().c_str());
       continue;
     }
 
@@ -599,12 +638,12 @@ bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
 
     constexpr int block_size = 16;
 
-    auto print_mem_block = [](const uint8_t* buffer) {
+    auto print_mem_block = [](std::ostream& os, const uint8_t* buffer) {
       for (size_t k = 0; k < block_size; ++k) {
-        std::cerr << std::setw(2) << std::setfill('0')
-                  << static_cast<uint32_t>(buffer[k]) << " ";
+        os << std::setw(2) << std::setfill('0')
+           << static_cast<uint32_t>(buffer[k]) << " ";
         if ((k + 1) % 4 == 0) {
-          std::cerr << " ";
+          os << " ";
         }
       }
     };
@@ -615,28 +654,29 @@ bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
 
       for (size_t j = 0; j < memory_size; j += block_size) {
         if (memcmp(ref_data + j, data + j, block_size) != 0) {
-          std::cerr << "Error: Memory difference found in range " << j << "-"
-                    << (j + block_size) << "!\n"
-                    << std::hex;
+          std::ostringstream ss;
+          ss << "Error: Memory difference found in range " << j << "-"
+             << (j + block_size) << "!\n"
+             << std::hex;
 
-          std::cerr << "  - Reference: ";
-          print_mem_block(ref_data + j);
+          ss << "  - Reference: ";
+          print_mem_block(ss, ref_data + j);
 
-          std::cerr << "\n  - Actual:    ";
-          print_mem_block(data + j);
+          ss << "\n  - Actual:    ";
+          print_mem_block(ss, data + j);
 
-          std::cerr << "\n               ";
+          ss << "\n               ";
           for (size_t k = 0; k < block_size; ++k) {
             if (ref_data[j + k] != data[j + k]) {
-              std::cerr << "^^ ";
+              ss << "^^ ";
             } else {
-              std::cerr << "   ";
+              ss << "   ";
             }
             if ((k + 1) % 4 == 0) {
-              std::cerr << " ";
+              ss << " ";
             }
           }
-          std::cerr << "\n" << std::dec;
+          base::OS::PrintError("%s\n", ss.str().c_str());
         }
       }
     }
@@ -665,7 +705,7 @@ int ExecuteAgainstReference(Isolate* isolate,
   // start function can contain an infinite loop which we cannot handle.
   if (module->start_function_index >= 0) return -1;
 
-  ReferenceExecutionResult ref_result = ExecuteReferenceRun(
+  ExecutionResult ref_result = ExecuteReferenceRun(
       isolate, wire_bytes, exported_main, max_executed_instructions);
   if (!ref_result.should_execute_non_reference) return -1;
 
@@ -694,35 +734,14 @@ int ExecuteAgainstReference(Isolate* isolate,
   }
 #endif  // V8_ENABLE_DRUMBRAKE
 
-  // Instantiate a fresh instance for the actual (non-ref) execution.
-  DirectHandle<WasmInstanceObject> instance;
-  {
-    ErrorThrower thrower(isolate, "ExecuteAgainstReference (second)");
-    // We instantiated before, so the second instantiation must also succeed.
-    if (!GetWasmEngine()
-             ->SyncInstantiate(isolate, &thrower, module_object, {},
-                               {})  // no imports & memory
-             .ToHandle(&instance)) {
-      DCHECK(thrower.error());
-      // The only reason to fail the second instantiation should be OOM.
-      if (strstr(thrower.error_msg(), "Out of memory")) {
-        // The initial memory size might be too large for instantiation
-        // (especially on 32 bit systems), therefore do not treat it as a fuzzer
-        // failure.
-        return -1;
-      }
-      FATAL("Second instantiation failed unexpectedly: %s",
-            thrower.error_msg());
-    }
-    DCHECK(!thrower.error());
+  std::optional<ExecutionResult> result_opt =
+      ExecuteNonReferenceRun(isolate, module, module_object, exported_main);
+  if (!result_opt) {
+    // The execution of non-reference run can fail if it runs OOM during
+    // instantiation.
+    return -1;
   }
-
-  std::unique_ptr<const char[]> exception;
-  const FunctionSig* sig = module->functions[exported_main].sig;
-  DirectHandleVector<Object> compiled_args =
-      testing::MakeDefaultArguments(isolate, sig);
-  int32_t result = testing::CallWasmFunctionForTesting(
-      isolate, instance, "main", base::VectorOf(compiled_args), &exception);
+  const ExecutionResult& result = *result_opt;
 
   // Also the second run can hit nondeterminism which was not hit before (when
   // growing memory). In that case, do not compare results.
@@ -730,33 +749,90 @@ int ExecuteAgainstReference(Isolate* isolate,
   // terminate. If this happens often enough we should do something about this.
   if (WasmEngine::clear_nondeterminism()) return -1;
 
-  if ((ref_result.exception != nullptr) != (exception != nullptr)) {
+  if ((ref_result.exception != nullptr) != (result.exception != nullptr) ||
+      (ref_result.exception &&
+       strcmp(ref_result.exception.get(), result.exception.get()) != 0)) {
     FATAL("Exception mismatch! Expected: <%s>; got: <%s>",
           ref_result.exception ? ref_result.exception.get() : "<no exception>",
-          exception ? exception.get() : "<no exception>");
+          result.exception ? result.exception.get() : "<no exception>");
   }
 
-  if (!exception) {
-    CHECK_EQ(ref_result.result, result);
+  if (!result.exception) {
+    CHECK_EQ(ref_result.result, result.result);
   }
 
   Tagged<WasmTrustedInstanceData> instance_data =
-      instance->trusted_data(isolate);
+      result.instance->trusted_data(isolate);
   Tagged<WasmTrustedInstanceData> ref_instance_data =
       ref_result.instance->trusted_data(isolate);
 
-  if (!GlobalsMatch(isolate, module, instance_data, ref_instance_data)) {
-    FATAL(
-        "Global value mismatch! The value of at least one global variable "
-        "differs between the reference and the actual run.");
-  }
-  if (!MemoriesMatch(isolate, module, instance_data, ref_instance_data)) {
-    FATAL(
-        "Memory mismatch! At least one byte of one linear memory differs "
-        "between the reference and the actual run.");
+  bool globals_match =
+      GlobalsMatch(isolate, module, instance_data, ref_instance_data);
+  bool memories_match =
+      MemoriesMatch(isolate, module, instance_data, ref_instance_data);
+  if (globals_match && memories_match) {
+    return 0;
   }
 
-  return 0;
+  base::OS::PrintError(
+      "Mismatch detected in global variables or memory - rerunning with "
+      "tracing enabled.\n");
+
+  bool should_trace_globals = !globals_match;
+  bool should_trace_memory = !memories_match;
+
+  // Disable module cache so that the module is actually recompiled and the
+  // runtime calls for tracing are generated.
+  FlagScope<bool> no_native_module_cache(&v8_flags.wasm_native_module_cache,
+                                         false);
+  FlagScope<bool> trace_globals_scope(&v8_flags.trace_wasm_globals,
+                                      should_trace_globals);
+  FlagScope<bool> trace_memory_scope(&v8_flags.trace_wasm_memory,
+                                     should_trace_memory);
+
+  if (isolate->has_exception()) isolate->clear_exception();
+  if (WasmEngine::clear_nondeterminism()) return -1;
+
+  base::OS::PrintError("\nReference run trace\n");
+  ExecutionResult ref_result_traced = ExecuteReferenceRun(
+      isolate, wire_bytes, exported_main, max_executed_instructions);
+  CHECK(ref_result_traced.should_execute_non_reference);
+
+  DirectHandle<WasmModuleObject> module_object_traced;
+
+  {
+    ErrorThrower thrower(isolate, "ExecuteAgainstReference (traced compile)");
+    auto enabled_features = WasmEnabledFeatures::FromIsolate(isolate);
+    MaybeDirectHandle<WasmModuleObject> maybe_module =
+        GetWasmEngine()->SyncCompile(isolate, enabled_features,
+                                     CompileTimeImportsForFuzzing(), &thrower,
+                                     base::OwnedCopyOf(wire_bytes));
+    module_object_traced = maybe_module.ToHandleChecked();
+    CHECK(!thrower.error());
+  }
+
+  std::optional<ExecutionResult> result_traced_opt = ExecuteNonReferenceRun(
+      isolate, module, module_object_traced, exported_main);
+  CHECK(result_traced_opt);
+  const ExecutionResult& result_traced = *result_traced_opt;
+
+  base::OS::PrintError("\n");
+
+  Tagged<WasmTrustedInstanceData> instance_data_traced =
+      result_traced.instance->trusted_data(isolate);
+  Tagged<WasmTrustedInstanceData> ref_instance_data_traced =
+      ref_result_traced.instance->trusted_data(isolate);
+
+  bool globals_match_traced = GlobalsMatch(
+      isolate, module, instance_data_traced, ref_instance_data_traced);
+  bool memories_match_traced = MemoriesMatch(
+      isolate, module, instance_data_traced, ref_instance_data_traced);
+
+  if (globals_match_traced && memories_match_traced) {
+    FATAL("Mismatch disappeared when re-running with tracing enabled.");
+  }
+
+  FATAL("Execution mismatch. Tracing has been printed.");
 }
 
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
