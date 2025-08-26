@@ -70,6 +70,7 @@ ALL_VARIANT_FLAGS = {
     ]],
     "stress_maglev_non_eager_inlining": [[
         "--maglev", "--stress-maglev", "--maglev-non-eager-inlining",
+        "--max-maglev-inlined-bytecode-size-small=0",
         "--optimize-on-next-call-optimizes-to-maglev"
     ]],
     "conservative_stack_scanning": [[
