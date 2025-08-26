@@ -611,12 +611,7 @@ class V8_EXPORT_PRIVATE V8_NODISCARD CpuFeatureScope {
 };
 
 #ifdef V8_CODE_COMMENTS
-#if V8_SUPPORTS_SOURCE_LOCATION
-// We'll get the function name from the source location, no need to pass it in.
 #define ASM_CODE_COMMENT(asm) ASM_CODE_COMMENT_STRING(asm, "")
-#else
-#define ASM_CODE_COMMENT(asm) ASM_CODE_COMMENT_STRING(asm, __func__)
-#endif
 #define ASM_CODE_COMMENT_STRING(asm, comment) \
   AssemblerBase::CodeComment UNIQUE_IDENTIFIER(asm_code_comment)(asm, comment)
 #else

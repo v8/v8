@@ -816,7 +816,6 @@ TEST_F(PersistentTest, ClearOnHeapDestruction) {
   EXPECT_EQ(kSentinelPointer, weak_persistent_sentinel);
 }
 
-#if V8_SUPPORTS_SOURCE_LOCATION
 TEST_F(PersistentTest, LocalizedPersistent) {
   GCed* gced = MakeGarbageCollected<GCed>(GetAllocationHandle());
   {
@@ -923,8 +922,6 @@ TEST_F(PersistentTest, LocalizedPersistent) {
   }
 }
 
-#endif
-
 namespace {
 
 class ExpectingLocationVisitor final : public RootVisitorBase {
@@ -949,16 +946,12 @@ class ExpectingLocationVisitor final : public RootVisitorBase {
 TEST_F(PersistentTest, PersistentTraceLocation) {
   GCed* gced = MakeGarbageCollected<GCed>(GetAllocationHandle());
   {
-#if V8_SUPPORTS_SOURCE_LOCATION
-    // Baseline for creating expected location which has a different line
-    // number.
-    const auto loc = SourceLocation::Current();
-    const auto expected_loc =
-        SourceLocation::Current(loc.Function(), loc.FileName(), loc.Line() + 6);
-#else   // !V8_SUPPORTS_SOURCE_LOCATION
-    const SourceLocation expected_loc;
-#endif  // !V8_SUPPORTS_SOURCE_LOCATION
-    LocalizedPersistent<GCed> p = gced;
+    // Make sure that the source location is on the same line as the persistent,
+    // by disabling formatting.
+    // clang-format off
+    // NOLINTNEXTLINE
+    LocalizedPersistent<GCed> p = gced; auto expected_loc = SourceLocation::Current();
+    // clang-format on
     ExpectingLocationVisitor visitor(expected_loc);
     visitor.Trace(p);
   }
