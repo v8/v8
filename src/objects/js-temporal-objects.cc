@@ -2202,16 +2202,11 @@ Maybe<std::unique_ptr<temporal_rs::ZonedDateTime>> GenericTemporalNowISO(
       isolate, instant,
       ExtractRustResult(isolate,
                         temporal_rs::Instant::from_epoch_milliseconds(ms)));
-#ifdef TEMPORAL_CAPI_VERSION_0_0_12
-  std::unique_ptr<temporal_rs::ZonedDateTime> zdt =
-      instant->to_zoned_date_time_iso(*time_zone);
-#else
   std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
   MOVE_RETURN_ON_EXCEPTION(
       isolate, zdt,
       ExtractRustResult(isolate, instant->to_zoned_date_time_iso(*time_zone)));
 
-#endif
   return Just(std::move(zdt));
 }
 
@@ -6085,11 +6080,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.hoursinday
 MaybeDirectHandle<Number> JSTemporalZonedDateTime::HoursInDay(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-#ifdef TEMPORAL_CAPI_VERSION_0_0_12
-  uint8_t hours;
-#else
   double hours;
-#endif
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, hours,
       ExtractRustResult(
@@ -6503,17 +6494,8 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Now(Isolate* isolate) {
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.offsetnanoseconds
 MaybeDirectHandle<Object> JSTemporalZonedDateTime::OffsetNanoseconds(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-#ifdef TEMPORAL_CAPI_VERSION_0_0_12
-  int64_t offset_ns;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, offset_ns,
-      ExtractRustResult(
-          isolate,
-          zoned_date_time->zoned_date_time()->raw()->offset_nanoseconds()));
-#else
   int64_t offset_ns =
       zoned_date_time->zoned_date_time()->raw()->offset_nanoseconds();
-#endif
   return isolate->factory()->NewNumberFromInt64(offset_ns);
 }
 

@@ -266,35 +266,6 @@
 
   # Fixed upstream
 
-  # BubbleTimeUnit needs to handle inverted range issues (https://github.com/boa-dev/temporal/pull/516)
-  'built-ins/Temporal/Duration/prototype/round/bubble-time-unit': [SKIP],
-  'built-ins/Temporal/PlainDateTime/prototype/since/bubble-time-unit': [SKIP],
-  'built-ins/Temporal/PlainDateTime/prototype/until/bubble-time-unit': [SKIP],
-
-  # Debug assertion failed (https://github.com/boa-dev/temporal/pull/499)
-  'intl402/Temporal/ZonedDateTime/prototype/getTimeZoneTransition/transition-at-instant-boundaries': [SKIP],
-
-  # Calculating incorrect offset for Europe/London (https://github.com/boa-dev/temporal/pull/499)
-  'intl402/Temporal/ZonedDateTime/prototype/toPlainDateTime/dst': [FAIL],
-
-  # beyondDaySpan bug (https://github.com/boa-dev/temporal/pull/501)
-  'staging/Intl402/Temporal/old/dst-math': [FAIL],
-  'intl402/Temporal/Duration/prototype/round/adjust-rounded-duration-days': [FAIL],
-
-  # Use correct unit categorization (https://github.com/boa-dev/temporal/pull/503)
-  'built-ins/Temporal/Duration/prototype/round/round-and-balance-calendar-units-with-increment-disallowed': [FAIL],
-
-  # Calculating incorrect offset for America/Vancouver (https://github.com/boa-dev/temporal/pull/504)
-  'intl402/Temporal/Duration/prototype/round/relativeto-string-datetime': [FAIL],
-  'intl402/Temporal/Duration/prototype/total/relativeto-string-datetime': [FAIL],
-
-  # Fractional hoursInDay (https://github.com/boa-dev/temporal/pull/515)
-  'intl402/Temporal/ZonedDateTime/prototype/hoursInDay/dst-skipped-cross-midnight': [FAIL],
-  'staging/Intl402/Temporal/old/zoneddatetime-dst-corner-cases': [FAIL],
-
-  # Duration range issues (https://github.com/boa-dev/temporal/pull/514)
-  'built-ins/Temporal/Duration/prototype/round/next-day-out-of-range': [FAIL],
-
   # Issue filed upstream
 
   # Float casting to integer (https://github.com/boa-dev/temporal/issues/189, https://github.com/boa-dev/temporal/issues/334)
@@ -343,6 +314,10 @@
   'staging/Intl402/Temporal/old/non-iso-calendars-iso8601': [FAIL],
   'staging/Intl402/Temporal/old/non-iso-calendars-persian': [FAIL],
   'staging/Intl402/Temporal/old/non-iso-calendars-roc': [FAIL],
+  'staging/Intl402/Temporal/old/islamic-calendars-islamic-civil': [FAIL],
+  'staging/Intl402/Temporal/old/islamic-calendars-islamic-tbla': [FAIL],
+  'staging/Intl402/Temporal/old/islamic-calendars-islamic-umalqura': [FAIL],
+  'staging/Intl402/Temporal/old/persian-calendar': [FAIL],
   'intl402/Temporal/PlainYearMonth/from/reference-day-hebrew': [FAIL],
   'intl402/Temporal/PlainMonthDay/from/calendar-not-supporting-eras': [FAIL],
   'intl402/Temporal/PlainYearMonth/prototype/add/options-undefined': [FAIL],
