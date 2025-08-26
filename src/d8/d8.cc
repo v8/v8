@@ -2986,8 +2986,14 @@ void Shell::WasmDeserializeModule(
       i::Cast<i::JSArrayBuffer>(Utils::OpenHandle(*info[0]));
   i::DirectHandle<i::JSTypedArray> wire_bytes =
       i::Cast<i::JSTypedArray>(Utils::OpenHandle(*info[1]));
-  CHECK(!buffer->was_detached());
-  CHECK(!wire_bytes->WasDetached());
+  if (buffer->was_detached()) {
+    ThrowError(isolate, "First argument is detached");
+    return;
+  }
+  if (wire_bytes->WasDetached()) {
+    ThrowError(isolate, "Second argument's buffer is detached");
+    return;
+  }
 
   i::DirectHandle<i::JSArrayBuffer> wire_bytes_buffer =
       wire_bytes->GetBuffer(i_isolate);
