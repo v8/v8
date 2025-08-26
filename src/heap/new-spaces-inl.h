@@ -21,47 +21,6 @@
 namespace v8 {
 namespace internal {
 
-// -----------------------------------------------------------------------------
-// SemiSpace
-
-bool SemiSpace::Contains(Tagged<HeapObject> o) const {
-  MemoryChunk* memory_chunk = MemoryChunk::FromHeapObject(o);
-  if (memory_chunk->IsLargePage()) return false;
-  return id_ == kToSpace ? memory_chunk->IsToPage()
-                         : memory_chunk->IsFromPage();
-}
-
-bool SemiSpace::Contains(Tagged<Object> o) const {
-  return IsHeapObject(o) && Contains(Cast<HeapObject>(o));
-}
-
-template <typename T>
-inline bool SemiSpace::Contains(Tagged<T> o) const {
-  static_assert(kTaggedCanConvertToRawObjects);
-  return Contains(*o);
-}
-
-bool SemiSpace::ContainsSlow(Address a) const {
-  for (const PageMetadata* p : *this) {
-    if (p == MemoryChunkMetadata::FromAddress(a)) return true;
-  }
-  return false;
-}
-
-// --------------------------------------------------------------------------
-// NewSpace
-
-bool NewSpace::Contains(Tagged<Object> o) const {
-  return IsHeapObject(o) && Contains(Cast<HeapObject>(o));
-}
-
-bool NewSpace::Contains(Tagged<HeapObject> o) const {
-  return MemoryChunk::FromHeapObject(o)->InNewSpace();
-}
-
-// -----------------------------------------------------------------------------
-// SemiSpaceObjectIterator
-
 SemiSpaceObjectIterator::SemiSpaceObjectIterator(const SemiSpaceNewSpace* space)
     : current_page_(space->first_page()),
       current_object_(current_page_ ? current_page_->area_start()
