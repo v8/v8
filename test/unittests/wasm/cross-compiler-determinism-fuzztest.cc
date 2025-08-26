@@ -213,8 +213,15 @@ void CrossCompilerDeterminismTest::TestFloat32Binop(WasmOpcode opcode,
 
 void CrossCompilerDeterminismTest::TestFloat32Unop(WasmOpcode opcode,
                                                    Float32 input) {
-  // Remember all values from all configurations.
-  Float32 results[] = {
+  // Some unops (neg and abs) do preserve the bit pattern, including the
+  // signalling bit.
+  // Those tests cannot run in the configurations that pass the input as
+  // floating point numbers.
+  bool preserve_signalling_nan =
+      input.is_nan() && !input.is_quiet_nan() &&
+      (opcode == kExprF32Neg || opcode == kExprF32Abs);
+
+  base::SmallVector<Float32, 5> results = {
       // Liftoff does not special-handle float32 constants, so we only test this
       // one Liftoff mode.
       GetFloat32UnopResult<ConstantInputs<IntRepresentation>>(
@@ -224,13 +231,15 @@ void CrossCompilerDeterminismTest::TestFloat32Unop(WasmOpcode opcode,
       GetFloat32UnopResult<ConstantInputs<IntRepresentation>>(
           TestExecutionTier::kTurbofan, opcode, input),
       GetFloat32UnopResult<OneParamInput<IntRepresentation>>(
-          TestExecutionTier::kTurbofan, opcode, input),
-
-      // Turbofan, inputs as f32.
-      GetFloat32UnopResult<ConstantInputs<FloatRepresentation>>(
-          TestExecutionTier::kTurbofan, opcode, input),
-      GetFloat32UnopResult<OneParamInput<FloatRepresentation>>(
-          TestExecutionTier::kTurbofan, opcode, input),
+          TestExecutionTier::kTurbofan, opcode, input)};
+  if (preserve_signalling_nan) {
+    ASSERT_TRUE(results[0].is_nan() && !results[0].is_quiet_nan());
+  } else {
+    // Turbofan, inputs as f32.
+    results.push_back(GetFloat32UnopResult<ConstantInputs<FloatRepresentation>>(
+        TestExecutionTier::kTurbofan, opcode, input));
+    results.push_back(GetFloat32UnopResult<OneParamInput<FloatRepresentation>>(
+        TestExecutionTier::kTurbofan, opcode, input));
   };
 
   ASSERT_TRUE(AllResultsEqual(base::VectorOf(results)))
@@ -274,6 +283,8 @@ constexpr std::tuple<WasmOpcode, Float32, Float32> kFloat32BinopSeeds[]{
 constexpr std::tuple<WasmOpcode, Float32> kFloat32UnopSeeds[]{
     // sqrt(NaN)
     {kExprF32Sqrt, Float32::quiet_nan()},
+    // neg(signalling NaN)
+    {kExprF32Neg, Float32::FromBits(0x7fbefebe)},
 };
 
 V8_FUZZ_TEST_F(CrossCompilerDeterminismTest, TestFloat32Binop)
@@ -293,7 +304,7 @@ V8_FUZZ_TEST_F(CrossCompilerDeterminismTest, TestFloat32Unop)
     .WithDomains(
         // opcode
         // TODO(431593798): Extend to more opcodes.
-        fuzztest::ElementOf<WasmOpcode>({kExprF32Sqrt}),
+        fuzztest::ElementOf<WasmOpcode>({kExprF32Neg, kExprF32Sqrt}),
         // input
         ArbitraryFloat32())
     .WithSeeds(kFloat32UnopSeeds);
