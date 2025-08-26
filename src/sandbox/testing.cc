@@ -870,6 +870,9 @@ void SandboxTesting::Enable(Mode mode) {
   fprintf(stderr,
           "Sandbox testing mode is enabled. Only sandbox violations will be "
           "reported, all other crashes will be ignored.\n");
+  fprintf(stderr, "Sandbox bounds: [%p,%p)\n",
+          reinterpret_cast<void*>(Sandbox::current()->base()),
+          reinterpret_cast<void*>(Sandbox::current()->end()));
 
 #ifdef V8_OS_LINUX
   InstallCrashFilter();
