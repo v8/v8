@@ -7337,9 +7337,9 @@ class TurboshaftGraphBuildingInterface
       case kExprF32Ge:
         return __ Float32LessThanOrEqual(rhs, lhs);
       case kExprF32Min:
-        return __ Float32Min(rhs, lhs);
+        return __ Float32Min(lhs, rhs);
       case kExprF32Max:
-        return __ Float32Max(rhs, lhs);
+        return __ Float32Max(lhs, rhs);
       case kExprF64CopySign: {
         V<Word64> lhs_without_sign = __ Word64BitwiseAnd(
             __ BitcastFloat64ToWord64(lhs), 0x7fffffffffffffff);

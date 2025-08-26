@@ -267,6 +267,8 @@ constexpr std::tuple<WasmOpcode, Float32, Float32> kFloat32BinopSeeds[]{
     {kExprF32Div, -Float32::quiet_nan(), -Float32::FromBits(0)},
     // -inf / inf
     {kExprF32Div, -Float32::infinity(), Float32::infinity()},
+    // min(NaN, -NaN)
+    {kExprF32Min, Float32::quiet_nan(), -Float32::quiet_nan()},
 };
 
 constexpr std::tuple<WasmOpcode, Float32> kFloat32UnopSeeds[]{
@@ -279,7 +281,8 @@ V8_FUZZ_TEST_F(CrossCompilerDeterminismTest, TestFloat32Binop)
         // opcode
         // TODO(431593798): Extend to more opcodes.
         fuzztest::ElementOf<WasmOpcode>({kExprF32Add, kExprF32Sub, kExprF32Mul,
-                                         kExprF32Div}),
+                                         kExprF32Div, kExprF32Min,
+                                         kExprF32Max}),
         // lhs
         ArbitraryFloat32(),
         // rhs
