@@ -16,6 +16,7 @@ using HeapWriteBarrierTest = TestWithIsolate;
 #if V8_VERIFY_WRITE_BARRIERS
 
 TEST_F(HeapWriteBarrierTest, NoSafepointInWriteBarrierModeScope) {
+  v8_flags.verify_write_barriers = true;
   LocalHeap* local_heap = isolate()->main_thread_local_heap();
   EXPECT_DEATH_IF_SUPPORTED(
       {
@@ -28,6 +29,7 @@ TEST_F(HeapWriteBarrierTest, NoSafepointInWriteBarrierModeScope) {
 }
 
 TEST_F(HeapWriteBarrierTest, NoAllocationInWriteBarrierModeScope) {
+  v8_flags.verify_write_barriers = true;
   HandleScope handle_scope(isolate());
   EXPECT_DEATH_IF_SUPPORTED(
       {

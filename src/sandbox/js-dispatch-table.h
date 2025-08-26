@@ -295,9 +295,9 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   // The base address of this table, for use in JIT compilers.
   Address base_address() const { return base(); }
 
-#ifdef DEBUG
+#if V8_VERIFY_WRITE_BARRIERS
   bool IsMarked(JSDispatchHandle handle);
-#endif  // DEBUG
+#endif  // V8_VERIFY_WRITE_BARRIERS
 #if defined(DEBUG) || defined(VERIFY_HEAP)
   inline void VerifyEntry(JSDispatchHandle handle, Space* space,
                           Space* ro_space);

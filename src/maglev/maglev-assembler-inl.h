@@ -1136,7 +1136,9 @@ inline void MaglevAssembler::AssertElidedWriteBarrier(
   Label* deferred_write_barrier_check = MakeDeferredCode(
       [](MaglevAssembler* masm, ZoneLabelRef ok, Register object,
          Register value, RegisterSnapshot snapshot) {
+#if DEBUG
         masm->set_allow_call(true);
+#endif  // DEBUG
         {
           SaveRegisterStateForCall save_register_state(masm, snapshot);
 #ifdef V8_COMPRESS_POINTERS
@@ -1147,7 +1149,9 @@ inline void MaglevAssembler::AssertElidedWriteBarrier(
           masm->Move(kContextRegister, masm->native_context().object());
           masm->CallRuntime(Runtime::kCheckNoWriteBarrierNeeded, 2);
         }
+#if DEBUG
         masm->set_allow_call(false);
+#endif  // DEBUG
         masm->Jump(*ok);
       },
       ok, object, value, snapshot);

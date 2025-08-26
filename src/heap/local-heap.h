@@ -144,12 +144,12 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
 #if V8_VERIFY_WRITE_BARRIERS
   void AssertNoWriteBarrierModeScope() const {
-    DCHECK_EQ(write_barrier_mode_for_object_, kNullAddress);
+    CHECK_EQ(write_barrier_mode_for_object_, kNullAddress);
   }
   Address CurrentObjectForWriteBarrierMode() const {
     return write_barrier_mode_for_object_;
   }
-#endif  // DEBUG
+#endif  // V8_VERIFY_WRITE_BARRIERS
 
   // Make all LABs iterable.
   void MakeLinearAllocationAreasIterable();
@@ -431,9 +431,9 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // Stack information for the thread using this local heap.
   ::heap::base::Stack stack_;
 
-#if DEBUG
+#if V8_VERIFY_WRITE_BARRIERS
   Address write_barrier_mode_for_object_ = kNullAddress;
-#endif  // DEBUG
+#endif  // V8_VERIFY_WRITE_BARRIERS
 
   friend class CollectionBarrier;
   friend class GlobalSafepoint;

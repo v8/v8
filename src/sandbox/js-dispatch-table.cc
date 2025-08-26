@@ -85,11 +85,11 @@ void JSDispatchTable::InitializePreAllocatedEntry(Space* space,
                                 parameter_count, space->allocate_black());
 }
 
-#ifdef DEBUG
+#if V8_VERIFY_WRITE_BARRIERS
 bool JSDispatchTable::IsMarked(JSDispatchHandle handle) {
   return at(HandleToIndex(handle)).IsMarked();
 }
-#endif  // DEBUG
+#endif  // V8_VERIFY_WRITE_BARRIERS
 
 void JSDispatchTable::PrintEntry(JSDispatchHandle handle) {
   uint32_t index = HandleToIndex(handle);

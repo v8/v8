@@ -567,23 +567,32 @@ bool WriteBarrier::VerifyDispatchHandleMarkingState(Tagged<HeapObject> host,
 WriteBarrierModeScope::WriteBarrierModeScope(WriteBarrierMode mode)
     : mode_(mode) {
   DCHECK_NE(SKIP_WRITE_BARRIER_SCOPE, mode_);
-  DCHECK_EQ(LocalHeap::Current()->write_barrier_mode_for_object_, kNullAddress);
+#if V8_VERIFY_WRITE_BARRIERS
+  if (v8_flags.verify_write_barriers) {
+    CHECK_EQ(LocalHeap::Current()->write_barrier_mode_for_object_,
+             kNullAddress);
+  }
+#endif  // V8_VERIFY_WRITE_BARRIERS
 }
 
 WriteBarrierModeScope::WriteBarrierModeScope(Tagged<HeapObject> object,
                                              WriteBarrierMode mode)
     : mode_(mode) {
-#if DEBUG
-  LocalHeap* local_heap = LocalHeap::Current();
-  DCHECK_EQ(local_heap->write_barrier_mode_for_object_, kNullAddress);
-  local_heap->write_barrier_mode_for_object_ = object.address();
-#endif
+#if V8_VERIFY_WRITE_BARRIERS
+  if (v8_flags.verify_write_barriers) {
+    LocalHeap* local_heap = LocalHeap::Current();
+    CHECK_EQ(local_heap->write_barrier_mode_for_object_, kNullAddress);
+    local_heap->write_barrier_mode_for_object_ = object.address();
+  }
+#endif  // V8_VERIFY_WRITE_BARRIERS
 }
 
 WriteBarrierModeScope::~WriteBarrierModeScope() {
-#if DEBUG
-  LocalHeap::Current()->write_barrier_mode_for_object_ = kNullAddress;
-#endif
+#if V8_VERIFY_WRITE_BARRIERS
+  if (v8_flags.verify_write_barriers) {
+    LocalHeap::Current()->write_barrier_mode_for_object_ = kNullAddress;
+  }
+#endif  // V8_VERIFY_WRITE_BARRIERS
 }
 
 #if V8_VERIFY_WRITE_BARRIERS
