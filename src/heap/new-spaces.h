@@ -50,7 +50,11 @@ class SemiSpace final : public Space {
   SemiSpace(Heap* heap, SemiSpaceId semispace);
   V8_EXPORT_PRIVATE ~SemiSpace();
 
-  bool ContainsSlow(Address address) const;
+  inline bool Contains(Tagged<HeapObject> o) const;
+  inline bool Contains(Tagged<Object> o) const;
+  template <typename T>
+  inline bool Contains(Tagged<T> o) const;
+  inline bool ContainsSlow(Address a) const;
 
   void Uncommit();
   bool IsCommitted() const { return !memory_chunk_list_.Empty(); }
@@ -192,7 +196,8 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   base::Mutex* mutex() { return &mutex_; }
 
-  virtual bool Contains(Tagged<HeapObject> object) const = 0;
+  inline bool Contains(Tagged<Object> o) const;
+  inline bool Contains(Tagged<HeapObject> o) const;
   virtual bool ContainsSlow(Address a) const = 0;
 
   size_t ExternalBackingStoreOverallBytes() const {
@@ -266,7 +271,6 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   ~SemiSpaceNewSpace() final = default;
 
-  bool Contains(Tagged<HeapObject> object) const final;
   bool ContainsSlow(Address a) const final;
 
   // Grow the capacity of the semispaces.  Assumes that they are not at
@@ -605,7 +609,6 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
 
   ~PagedNewSpace() final;
 
-  bool Contains(Tagged<HeapObject> object) const final;
   bool ContainsSlow(Address a) const final {
     return paged_space_.ContainsSlow(a);
   }
