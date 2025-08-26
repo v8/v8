@@ -259,6 +259,17 @@ fuzztest::Domain<Float32> ArbitraryFloat32() {
       fuzztest::Arbitrary<uint32_t>());
 }
 
+constexpr std::array kFloat32Binops = {
+    kExprF32Add, kExprF32Sub, kExprF32Mul,     kExprF32Div,
+    kExprF32Min, kExprF32Max, kExprF32CopySign};
+// Check that we covered all float32 binops.
+#define CHECK_FLOAT32_BINOP(name, opcode, sig, ...) \
+  static_assert(                                    \
+      (std::string_view(#sig) == "f_ff") ==         \
+      std::count(kFloat32Binops.begin(), kFloat32Binops.end(), kExpr##name));
+FOREACH_SIMPLE_OPCODE(CHECK_FLOAT32_BINOP)
+#undef CHECK_FLOAT32_BINOP
+
 constexpr std::tuple<WasmOpcode, Float32, Float32> kFloat32BinopSeeds[]{
     // NaN + NaN
     {kExprF32Add, Float32::quiet_nan(), Float32::quiet_nan()},
@@ -280,6 +291,18 @@ constexpr std::tuple<WasmOpcode, Float32, Float32> kFloat32BinopSeeds[]{
     {kExprF32Min, Float32::quiet_nan(), -Float32::quiet_nan()},
 };
 
+constexpr std::array kFloat32Unops = {
+    kExprF32Abs,   kExprF32Neg,        kExprF32Ceil, kExprF32Floor,
+    kExprF32Trunc, kExprF32NearestInt, kExprF32Sqrt};
+
+// Check that we covered all float32 unops.
+#define CHECK_FLOAT32_UNOP(name, opcode, sig, ...) \
+  static_assert(                                   \
+      (std::string_view(#sig) == "f_f") ==         \
+      std::count(kFloat32Unops.begin(), kFloat32Unops.end(), kExpr##name));
+FOREACH_SIMPLE_OPCODE(CHECK_FLOAT32_UNOP)
+#undef CHECK_FLOAT32_UNOP
+
 constexpr std::tuple<WasmOpcode, Float32> kFloat32UnopSeeds[]{
     // sqrt(NaN)
     {kExprF32Sqrt, Float32::quiet_nan()},
@@ -290,10 +313,7 @@ constexpr std::tuple<WasmOpcode, Float32> kFloat32UnopSeeds[]{
 V8_FUZZ_TEST_F(CrossCompilerDeterminismTest, TestFloat32Binop)
     .WithDomains(
         // opcode
-        // TODO(431593798): Extend to more opcodes.
-        fuzztest::ElementOf<WasmOpcode>({kExprF32Add, kExprF32Sub, kExprF32Mul,
-                                         kExprF32Div, kExprF32Min,
-                                         kExprF32Max}),
+        fuzztest::ElementOf<WasmOpcode>(kFloat32Binops),
         // lhs
         ArbitraryFloat32(),
         // rhs
@@ -303,8 +323,7 @@ V8_FUZZ_TEST_F(CrossCompilerDeterminismTest, TestFloat32Binop)
 V8_FUZZ_TEST_F(CrossCompilerDeterminismTest, TestFloat32Unop)
     .WithDomains(
         // opcode
-        // TODO(431593798): Extend to more opcodes.
-        fuzztest::ElementOf<WasmOpcode>({kExprF32Neg, kExprF32Sqrt}),
+        fuzztest::ElementOf<WasmOpcode>(kFloat32Unops),
         // input
         ArbitraryFloat32())
     .WithSeeds(kFloat32UnopSeeds);
