@@ -437,15 +437,15 @@ Heap* HeapAllocator::heap_for_allocation(AllocationType allocation) {
 #if V8_VERIFY_WRITE_BARRIERS
 
 bool HeapAllocator::IsMostRecentYoungAllocation(Address object_address) {
-  if (last_young_allocation_ == kNullAddress) {
-    return false;
+  if (!new_space_allocator_.has_value()) return false;
+
+  if (last_young_allocation_ == object_address) {
+    return true;
   }
 
-  DCHECK(new_space_allocator_.has_value());
-  CHECK_LE(new_space_allocator_->start(), last_young_allocation_);
-  CHECK_LT(last_young_allocation_, new_space_allocator_->top());
-  return last_young_allocation_ <= object_address &&
-         object_address < new_space_allocator_->top();
+  const Address start = new_space_allocator_->start();
+  const Address top = new_space_allocator_->top();
+  return start <= object_address && object_address < top;
 }
 
 void HeapAllocator::ResetMostRecentYoungAllocation() {
