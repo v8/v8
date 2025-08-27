@@ -4244,7 +4244,7 @@ class ModuleGen {
         // This allows the differential fuzzing to compare the entire memory
         // ranges without decreasing the performance of the fuzzing too much.
         min_pages = (min_pages % 10) + 1;
-      } else if (min_pages == 0) {
+      } else if (min_pages == 127) {
         // With a 1/256 chance, choose a potentially very large number of pages.
         min_pages = module_range_->getPseudoRandom<uint32_t>() %
                     (max_supported_pages + 1);
