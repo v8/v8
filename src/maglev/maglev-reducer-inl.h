@@ -484,6 +484,16 @@ ValueNode* MaglevReducer<BaseT>::GetTaggedValue(
       return graph()->GetSmiConstant(*as_int32_constant);
     }
   }
+  if (auto as_float64_constant = TryGetFloat64Constant(
+          value, TaggedToFloat64ConversionType::kOnlyNumber)) {
+    if (std::isnan(*as_float64_constant)) {
+      return graph()->GetRootConstant(RootIndex::kNanValue);
+    }
+    if (*as_float64_constant == kMaxUInt32) {
+      return graph()->GetRootConstant(RootIndex::kMaxUInt32);
+    }
+    return graph()->GetHeapNumberConstant(*as_float64_constant);
+  }
 
   NodeInfo* node_info =
       known_node_aspects().GetOrCreateInfoFor(broker(), value);
@@ -525,10 +535,7 @@ ValueNode* MaglevReducer<BaseT>::GetTaggedValue(
       // TODO(victorgomes): Do not tag Float64Constant on runtime.
       return alternative.set_tagged(
           AddNewNodeNoInputConversion<Float64ToTagged>(
-              {value},
-              IsConstantNode(value->opcode())
-                  ? Float64ToTagged::ConversionMode::kForceHeapNumber
-                  : Float64ToTagged::ConversionMode::kCanonicalizeSmi));
+              {value}, Float64ToTagged::ConversionMode::kCanonicalizeSmi));
     }
     case ValueRepresentation::kHoleyFloat64: {
       if (!IsEmptyNodeType(node_info->type()) && node_info->is_smi()) {

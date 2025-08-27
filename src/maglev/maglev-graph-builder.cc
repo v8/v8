@@ -8868,9 +8868,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
           // This is not necessary for JSTypedArray's, since the length of those
           // cannot change later and so if we were ever out of bounds for them
           // we will stay out-of-bounds forever.
-          return BuildStoreTaggedField(receiver, GetFloat64Constant(kMaxUInt32),
-                                       JSArrayIterator::kNextIndexOffset,
-                                       StoreTaggedMode::kDefault);
+          return BuildStoreTaggedField(
+              receiver, GetRootConstant(RootIndex::kMaxUInt32),
+              JSArrayIterator::kNextIndexOffset, StoreTaggedMode::kDefault);
         }
         return ReduceResult::Done();
       }));

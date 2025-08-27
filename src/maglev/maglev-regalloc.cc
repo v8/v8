@@ -410,6 +410,10 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     constant->regalloc_info()->SetConstantLocation();
     USE(value);
   }
+  for (const auto& [value, constant] : graph_->heap_number()) {
+    constant->regalloc_info()->SetConstantLocation();
+    USE(value);
+  }
   for (const auto& [ref, constant] : graph_->trusted_constants()) {
     constant->regalloc_info()->SetConstantLocation();
     USE(ref);

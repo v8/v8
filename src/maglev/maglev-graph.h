@@ -45,6 +45,7 @@ class Graph final : public ZoneObject {
         uint32_constants_(zone()),
         intptr_constants_(zone()),
         float64_constants_(zone()),
+        heap_number_constants_(zone()),
         parameters_(zone()),
         inlineable_calls_(zone()),
         allocations_escape_map_(zone()),
@@ -53,8 +54,7 @@ class Graph final : public ZoneObject {
         constants_(zone()),
         trusted_constants_(zone()),
         inlined_functions_(zone()),
-        scope_infos_(zone()) {
-  }
+        scope_infos_(zone()) {}
 
   BasicBlock* operator[](int i) { return blocks_[i]; }
   const BasicBlock* operator[](int i) const { return blocks_[i]; }
@@ -140,6 +140,7 @@ class Graph final : public ZoneObject {
   ZoneMap<uint32_t, Uint32Constant*>& uint32() { return uint32_constants_; }
   ZoneMap<intptr_t, IntPtrConstant*>& intptr() { return intptr_constants_; }
   ZoneMap<uint64_t, Float64Constant*>& float64() { return float64_constants_; }
+  ZoneMap<uint64_t, Constant*>& heap_number() { return heap_number_constants_; }
   compiler::ZoneRefMap<compiler::HeapObjectRef, TrustedConstant*>&
   trusted_constants() {
     return trusted_constants_;
@@ -240,6 +241,8 @@ class Graph final : public ZoneObject {
     return GetOrAddNewConstantNode(float64_constants_, constant.get_bits());
   }
 
+  Constant* GetHeapNumberConstant(double constant);
+
   RootConstant* GetRootConstant(RootIndex index) {
     return GetOrAddNewConstantNode(root_constants_, index);
   }
@@ -288,6 +291,7 @@ class Graph final : public ZoneObject {
   ZoneMap<intptr_t, IntPtrConstant*> intptr_constants_;
   // Use the bits of the float as the key.
   ZoneMap<uint64_t, Float64Constant*> float64_constants_;
+  ZoneMap<uint64_t, Constant*> heap_number_constants_;
   ZoneVector<InitialValue*> parameters_;
   MaglevCallSiteCandidates inlineable_calls_;
   ZoneMap<InlinedAllocation*, SmallAllocationVector> allocations_escape_map_;
