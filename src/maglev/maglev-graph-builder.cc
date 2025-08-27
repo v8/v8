@@ -1803,8 +1803,8 @@ ValueNode* MaglevGraphBuilder::GetUint8ClampedForToNumber(ValueNode* value) {
       // rounding for clamping.
       return AddNewNodeNoInputConversion<Float64ToUint8Clamped>({value});
     case ValueRepresentation::kInt32:
-      if (Int32Constant* constant = value->TryCast<Int32Constant>()) {
-        return GetInt32Constant(ClampToUint8(constant->value()));
+      if (auto constant = TryGetInt32Constant(value)) {
+        return GetInt32Constant(ClampToUint8(*constant));
       }
       return AddNewNodeNoInputConversion<Int32ToUint8Clamped>({value});
     case ValueRepresentation::kUint32:
@@ -5653,21 +5653,20 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
       return AddNewNodeNoInputConversion<CheckedInt32ToUint32>({index});
     }
     case ValueRepresentation::kInt32:
-      if (Int32Constant* constant = object->TryCast<Int32Constant>()) {
-        int32_t value = constant->value();
-        if (value < 0) {
+      if (auto constant = TryGetInt32Constant(object)) {
+        if (*constant < 0) {
           return EmitUnconditionalDeopt(DeoptimizeReason::kNotUint32);
         }
-        return GetUint32Constant(value);
+        return GetUint32Constant(*constant);
       }
       return AddNewNodeNoInputConversion<CheckedInt32ToUint32>({object});
     case ValueRepresentation::kUint32:
       return object;
     case ValueRepresentation::kFloat64:
-      if (Float64Constant* constant = object->TryCast<Float64Constant>()) {
-        double value = constant->value().get_scalar();
+      if (auto constant = TryGetFloat64Constant(
+              object, TaggedToFloat64ConversionType::kOnlyNumber)) {
         uint32_t uint32_value;
-        if (!DoubleToUint32IfEqualToSelf(value, &uint32_value)) {
+        if (!DoubleToUint32IfEqualToSelf(*constant, &uint32_value)) {
           return EmitUnconditionalDeopt(DeoptimizeReason::kNotUint32);
         }
         if (Smi::IsValid(uint32_value)) {
