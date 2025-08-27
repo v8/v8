@@ -1260,16 +1260,30 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // AssembleArchBinarySearchSwitchRange Use JumpIfEqual and JumpIfLessThan.
   // In V8_COMPRESS_POINTERS, the compare is done with the lower 32 bits of the
   // input.
-  void JumpIfEqual(Register a, int32_t b, Label* dest) {
+  // The sign extension has been moved to AssembleArchBinarySearchSwitch. When
+  // called from AssembleArchBinarySearchSwitchRange, the flag
+  // signext_if_compress_pointer is set to false, indicating that sign extension
+  // has already been handled upstream.
+  void JumpIfEqual(Register a, int32_t b, Label* dest,
+                   bool signext_if_compress_pointer = true) {
 #ifdef V8_COMPRESS_POINTERS
-    SignExtendWord(a, a);
+    if (signext_if_compress_pointer) {
+      SignExtendWord(a, a);
+    } else {
+      AssertSignExtended(a);
+    }
 #endif
     Branch(dest, eq, a, Operand(b));
   }
 
-  void JumpIfLessThan(Register a, int32_t b, Label* dest) {
+  void JumpIfLessThan(Register a, int32_t b, Label* dest,
+                      bool signext_if_compress_pointer = true) {
 #ifdef V8_COMPRESS_POINTERS
-    SignExtendWord(a, a);
+    if (signext_if_compress_pointer) {
+      SignExtendWord(a, a);
+    } else {
+      AssertSignExtended(a);
+    }
 #endif
     Branch(dest, lt, a, Operand(b));
   }

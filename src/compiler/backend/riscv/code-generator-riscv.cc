@@ -4762,6 +4762,27 @@ void CodeGenerator::AssembleArchConditionalBranch(Instruction* instr,
   UNREACHABLE();
 }
 
+#ifdef V8_TARGET_ARCH_RISCV64
+void CodeGenerator::AssembleArchBinarySearchSwitchRange(
+    Register input, RpoNumber def_block, std::pair<int32_t, Label*>* begin,
+    std::pair<int32_t, Label*>* end) {
+  if (end - begin < kBinarySearchSwitchMinimalCases) {
+    while (begin != end) {
+      masm()->JumpIfEqual(input, begin->first, begin->second, false);
+      ++begin;
+    }
+    AssembleArchJumpRegardlessOfAssemblyOrder(def_block);
+    return;
+  }
+  auto middle = begin + (end - begin) / 2;
+  Label less_label;
+  masm()->JumpIfLessThan(input, middle->first, &less_label, false);
+  AssembleArchBinarySearchSwitchRange(input, def_block, middle, end);
+  masm()->bind(&less_label);
+  AssembleArchBinarySearchSwitchRange(input, def_block, begin, middle);
+}
+#endif
+
 void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
   RiscvOperandConverter i(this, instr);
   Register input = i.InputRegister(0);
@@ -4769,6 +4790,17 @@ void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
   for (size_t index = 2; index < instr->InputCount(); index += 2) {
     cases.push_back({i.InputInt32(index + 0), GetLabel(i.InputRpo(index + 1))});
   }
+#ifdef V8_COMPRESS_POINTERS
+  // AssembleArchBinarySearchSwitchRange use JumpIfEqual and JumpIfLessThan to
+  // compare the input value with the case values.
+  // In V8_COMPRESS_POINTERS, the compare is done with the lower 32 bits of the
+  // input, requiring a sign extension.
+  // Since the input value remains unchanged throughout
+  // AssembleArchBinarySearchSwitch, we perform the sign extension once here,
+  // rather than repeatedly in JumpIfEqual and JumpIfLessThan. This reduces the
+  // total number of sign extension operations and improves efficiency.
+  __ SignExtendWord(input, input);
+#endif
   AssembleArchBinarySearchSwitchRange(input, i.InputRpo(1), cases.data(),
                                       cases.data() + cases.size());
 }
