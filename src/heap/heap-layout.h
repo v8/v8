@@ -37,23 +37,9 @@ class HeapLayout final : public AllStatic {
   // Returns whether `object` is in a shared space.
   static V8_INLINE bool InAnySharedSpace(Tagged<HeapObject> object);
 
-  // Returns whether `object` is in code space. Note that there's various kinds
-  // of different code spaces (regular, external, large object) which are all
-  // covered by this check.
-  static V8_INLINE bool SafeInCodeSpace(Tagged<HeapObject> object);
-
-  // Returns whether `object` is allocated in trusted space. See
-  // src/sandbox/GLOSSARY.md for details.
-  static V8_INLINE bool SafeInTrustedSpace(Tagged<HeapObject> object);
-
   // Returns whether `object` is allocated on a black page (during
   // incremental/concurrent marking).
   static V8_INLINE bool InBlackAllocatedPage(Tagged<HeapObject> object);
-
-  // Returns whether `object` is allocated on a page which is owned by some Heap
-  // instance. This is equivalent to !InReadOnlySpace except during
-  // serialization.
-  static V8_INLINE bool IsOwnedByAnyHeap(Tagged<HeapObject> object);
 
   // Returns whether `object` is allocated in a large space which could be
   // either young or old generation large space.
@@ -72,6 +58,25 @@ class HeapLayout final : public AllStatic {
 
   V8_EXPORT static void CheckYoungGenerationConsistency(
       const MemoryChunk* chunk);
+};
+
+// Similar to `HeapLayout` except only using trusted metadata in case of V8
+// sandbox builds.
+class TrustedHeapLayout final : public AllStatic {
+ public:
+  // Returns whether `object` is in code space. Note that there's various kinds
+  // of different code spaces (regular, external, large object) which are all
+  // covered by this check.
+  static V8_INLINE bool InCodeSpace(Tagged<HeapObject> object);
+
+  // Returns whether `object` is allocated in trusted space. See
+  // src/sandbox/GLOSSARY.md for details.
+  static V8_INLINE bool InTrustedSpace(Tagged<HeapObject> object);
+
+  // Returns whether `object` is allocated on a page which is owned by some Heap
+  // instance. This is equivalent to !InReadOnlySpace except during
+  // serialization.
+  static V8_INLINE bool IsOwnedByAnyHeap(Tagged<HeapObject> object);
 };
 
 }  // namespace v8::internal

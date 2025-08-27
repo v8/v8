@@ -182,11 +182,11 @@ bool IsAnyHole(Tagged<HeapObject> obj) {
   constexpr Tagged_t kMaxHole = std::max({HOLE_LIST(GET_HOLE_ROOT)});
 #undef GET_HOLE_ROOT
   // Compressed object tests need to be done on a matching compression scheme.
-  DCHECK(!HeapLayout::SafeInCodeSpace(obj));
+  DCHECK(!TrustedHeapLayout::InCodeSpace(obj));
   // We allow trusted space comparisons, because the first 1MB is unmapped there
   // anyway, so no trusted object can alias a hole.
   DCHECK_IMPLIES(
-      HeapLayout::SafeInTrustedSpace(obj),
+      TrustedHeapLayout::InTrustedSpace(obj),
       TrustedSpaceCompressionScheme::CompressObject(obj.ptr()) >= kMaxHole);
   // Use a direct cast to Tagged_t rather than CompressObject to allow
   // TrustedSpace comparisons in here.
@@ -1402,7 +1402,7 @@ Tagged<Map> HeapObject::map() const {
   // (InstructionStream and free space fillers) and thus it is fine to use
   // auto-computed cage base value.
   DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                 !HeapLayout::SafeInCodeSpace(*this));
+                 !TrustedHeapLayout::InCodeSpace(*this));
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::map(cage_base);
 }
@@ -1600,7 +1600,7 @@ MapWord HeapObject::map_word(RelaxedLoadTag tag) const {
   // (InstructionStream and free space fillers) and thus it is fine to use
   // auto-computed cage base value.
   DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                 !HeapLayout::SafeInCodeSpace(*this));
+                 !TrustedHeapLayout::InCodeSpace(*this));
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::map_word(cage_base, tag);
 }
@@ -1624,7 +1624,7 @@ MapWord HeapObject::map_word(AcquireLoadTag tag) const {
   // (InstructionStream and free space fillers) and thus it is fine to use
   // auto-computed cage base value.
   DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                 !HeapLayout::SafeInCodeSpace(*this));
+                 !TrustedHeapLayout::InCodeSpace(*this));
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::map_word(cage_base, tag);
 }
@@ -1676,7 +1676,7 @@ int HeapObjectLayout::Size() const { return Tagged<HeapObject>(this)->Size(); }
 // TODO(v8:11880): consider dropping parameterless version.
 int HeapObject::Size() const {
   DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                 !HeapLayout::SafeInCodeSpace(*this));
+                 !TrustedHeapLayout::InCodeSpace(*this));
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::Size(cage_base);
 }
@@ -1686,7 +1686,7 @@ int HeapObject::Size(PtrComprCageBase cage_base) const {
 
 SafeHeapObjectSize HeapObject::SafeSize() const {
   DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                 !HeapLayout::SafeInCodeSpace(*this));
+                 !TrustedHeapLayout::InCodeSpace(*this));
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::SafeSize(cage_base);
 }

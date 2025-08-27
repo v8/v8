@@ -321,7 +321,7 @@ void JSWeakRef::set_target(Tagged<Union<JSReceiver, Symbol, Undefined>> value,
 #if V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS
   mode = UPDATE_WRITE_BARRIER;
 #endif  // V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS
-  DCHECK(HeapLayout::IsOwnedByAnyHeap(*this));
+  DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(*this));
   WriteBarrier::ForValue(*this, RawMaybeWeakField(kTargetOffset), value, mode);
 #endif  // !V8_DISABLE_WRITE_BARRIERS
 }

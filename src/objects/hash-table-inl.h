@@ -28,7 +28,7 @@ void EphemeronHashTable::set_key(int index, Tagged<Object> value) {
   DCHECK_LT(index, this->length());
   objects()[index].Relaxed_Store_no_write_barrier(value);
 #ifndef V8_DISABLE_WRITE_BARRIERS
-  DCHECK(HeapLayout::IsOwnedByAnyHeap(this));
+  DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(this));
   WriteBarrier::ForEphemeronHashTable(
       Tagged(this), ObjectSlot(&objects()[index]), value, UPDATE_WRITE_BARRIER);
 #endif
@@ -45,7 +45,7 @@ void EphemeronHashTable::set_key(int index, Tagged<Object> value,
 #if V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS
   mode = UPDATE_WRITE_BARRIER;
 #endif
-  DCHECK(HeapLayout::IsOwnedByAnyHeap(this));
+  DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(this));
   WriteBarrier::ForEphemeronHashTable(
       Tagged(this), ObjectSlot(&objects()[index]), value, mode);
 #endif

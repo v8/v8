@@ -706,7 +706,7 @@
 #else
 #define WRITE_BARRIER(object, offset, value)                                   \
   do {                                                                         \
-    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                              \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                       \
     static_assert(kTaggedCanConvertToRawObjects);                              \
     /* For write barriers, it doesn't matter if the slot is strong or weak, */ \
     /* so use the most generic slot (a maybe weak one). */                     \
@@ -720,7 +720,7 @@
 #else
 #define EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag)           \
   do {                                                                \
-    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                     \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));              \
     WriteBarrier::ForExternalPointer(                                 \
         object, Tagged(object)->RawExternalPointerField(offset, tag), \
         UPDATE_WRITE_BARRIER);                                        \
@@ -732,7 +732,7 @@
 #else
 #define INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value)           \
   do {                                                                       \
-    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                            \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                     \
     WriteBarrier::ForIndirectPointer(                                        \
         object, Tagged(object)->RawIndirectPointerField(offset, tag), value, \
         UPDATE_WRITE_BARRIER);                                               \
@@ -744,7 +744,7 @@
 #else
 #define JS_DISPATCH_HANDLE_WRITE_BARRIER(object, handle)                     \
   do {                                                                       \
-    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                            \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                     \
     WriteBarrier::ForJSDispatchHandle(object, handle, UPDATE_WRITE_BARRIER); \
   } while (false)
 #endif
@@ -757,7 +757,7 @@
 #else
 #define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode)                 \
   do {                                                                         \
-    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                              \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                       \
     /* For write barriers, it doesn't matter if the slot is strong or weak, */ \
     /* so use the most generic slot (a maybe weak one). */                     \
     WriteBarrier::ForValue(object, (object)->RawMaybeWeakField(offset), value, \
@@ -770,7 +770,7 @@
 #else
 #define CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag, mode) \
   do {                                                                        \
-    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                             \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                      \
     WriteBarrier::ForExternalPointer(                                         \
         object, Tagged(object)->RawExternalPointerField(offset, tag), mode);  \
   } while (false)
@@ -782,7 +782,7 @@
 #define CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value, \
                                                    mode)                       \
   do {                                                                         \
-    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                              \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                       \
     WriteBarrier::ForIndirectPointer(                                          \
         object, (object).RawIndirectPointerField(offset, tag), value, mode);   \
   } while (false)
@@ -804,7 +804,7 @@
 #define CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(object, offset, value, \
                                                     mode)                  \
   do {                                                                     \
-    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                          \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                   \
     WriteBarrier::ForProtectedPointer(                                     \
         object, (object).RawProtectedPointerField(offset), value, mode);   \
   } while (false)
@@ -814,7 +814,7 @@
 #else
 #define CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(object, handle, mode) \
   do {                                                                     \
-    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                          \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                   \
     WriteBarrier::ForJSDispatchHandle(object, handle, mode);               \
   } while (false)
 #endif

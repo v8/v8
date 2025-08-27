@@ -181,7 +181,7 @@ Tagged<Object> InstructionStream::raw_code(AcquireLoadTag tag) const {
   Tagged<Object> value = RawProtectedPointerField(kCodeOffset).Acquire_Load();
   DCHECK(!HeapLayout::InYoungGeneration(value));
   DCHECK(IsSmi(value) ||
-         HeapLayout::SafeInTrustedSpace(Cast<HeapObject>(value)));
+         TrustedHeapLayout::InTrustedSpace(Cast<HeapObject>(value)));
   return value;
 }
 

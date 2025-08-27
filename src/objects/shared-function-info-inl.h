@@ -112,7 +112,7 @@ Tagged<BytecodeArray> InterpreterData::bytecode_array() const {
 }
 void InterpreterData::set_bytecode_array(Tagged<BytecodeArray> value,
                                          WriteBarrierMode mode) {
-  DCHECK(HeapLayout::IsOwnedByAnyHeap(this));
+  DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(this));
   bytecode_array_.store(this, value, mode);
 }
 bool InterpreterData::has_bytecode_array() const {
@@ -128,7 +128,7 @@ Tagged<Code> InterpreterData::interpreter_trampoline() const {
 }
 void InterpreterData::set_interpreter_trampoline(Tagged<Code> value,
                                                  WriteBarrierMode mode) {
-  DCHECK(HeapLayout::IsOwnedByAnyHeap(this));
+  DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(this));
   interpreter_trampoline_.store(this, value, mode);
 }
 bool InterpreterData::has_interpreter_trampoline() const {
