@@ -61,15 +61,21 @@ MemoryChunk::MainThreadFlags MutablePageMetadata::OldGenerationPageFlags(
     MarkingMode marking_mode, AllocationSpace space) {
   MemoryChunk::MainThreadFlags flags_to_set = MemoryChunk::NO_FLAGS;
 
-  if (!v8_flags.sticky_mark_bits || (space != OLD_SPACE)) {
-    flags_to_set |= MemoryChunk::CONTAINS_ONLY_OLD;
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
+  if constexpr (v8_flags.sticky_mark_bits.value()) {
+    if (space != OLD_SPACE) {
+      flags_to_set |= MemoryChunk::STICKY_MARK_BIT_CONTAINS_ONLY_OLD;
+    }
   }
+#endif  // V8_ENABLE_STICKY_MARK_BITS_BOOL
 
   if (marking_mode == MarkingMode::kMajorMarking) {
     flags_to_set |= MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING |
                     MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING |
-                    MemoryChunk::INCREMENTAL_MARKING |
-                    MemoryChunk::IS_MAJOR_GC_IN_PROGRESS;
+                    MemoryChunk::INCREMENTAL_MARKING;
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
+    flags_to_set |= MemoryChunk::STICKY_MARK_BIT_IS_MAJOR_GC_IN_PROGRESS;
+#endif
   } else if (IsAnyWritableSharedSpace(space)) {
     // We need to track pointers into the SHARED_SPACE for OLD_TO_SHARED.
     flags_to_set |= MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
@@ -91,9 +97,11 @@ MemoryChunk::MainThreadFlags MutablePageMetadata::YoungGenerationPageFlags(
   if (marking_mode != MarkingMode::kNoMarking) {
     flags |= MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING;
     flags |= MemoryChunk::INCREMENTAL_MARKING;
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
     if (marking_mode == MarkingMode::kMajorMarking) {
-      flags |= MemoryChunk::IS_MAJOR_GC_IN_PROGRESS;
+      flags |= MemoryChunk::STICKY_MARK_BIT_IS_MAJOR_GC_IN_PROGRESS;
     }
+#endif
   }
   return flags;
 }

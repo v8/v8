@@ -382,7 +382,8 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
 
   void InYoungGeneration(TNode<IntPtrT> object, Label* true_label,
                          Label* false_label) {
-    if (v8_flags.sticky_mark_bits) {
+    if constexpr (v8_flags.sticky_mark_bits.value()) {
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
       // This method is currently only used when marking is disabled. Checking
       // markbits while marking is active may result in unexpected results.
       CSA_DCHECK(this, Word32Equal(IsMarking(), BoolConstant(false)));
@@ -395,6 +396,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
 
       BIND(&not_read_only);
       Branch(IsUnmarked(object), true_label, false_label);
+#endif
     } else {
       TNode<BoolT> object_is_young =
           IsPageFlagSet(object, MemoryChunk::kIsInYoungGenerationMask);

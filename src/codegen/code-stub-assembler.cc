@@ -14407,13 +14407,17 @@ void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
   {
     TNode<IntPtrT> page_flags = Load<IntPtrT>(
         object_page_header, IntPtrConstant(MemoryChunk::FlagsOffset()));
-    if (v8_flags.sticky_mark_bits) {
+    if constexpr (v8_flags.sticky_mark_bits.value()) {
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
       // Pages with only old objects contain no mementos.
       GotoIfNot(
-          WordEqual(WordAnd(page_flags,
-                            IntPtrConstant(MemoryChunk::CONTAINS_ONLY_OLD)),
-                    IntPtrConstant(0)),
+          WordEqual(
+              WordAnd(page_flags,
+                      IntPtrConstant(
+                          MemoryChunk::STICKY_MARK_BIT_CONTAINS_ONLY_OLD)),
+              IntPtrConstant(0)),
           &no_memento_found);
+#endif
     } else {
       GotoIf(WordEqual(
                  WordAnd(page_flags,

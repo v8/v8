@@ -148,7 +148,13 @@ ReadOnlyPageMetadata::ReadOnlyPageMetadata(Heap* heap, BaseSpace* space,
 }
 
 MemoryChunk::MainThreadFlags ReadOnlyPageMetadata::InitialFlags() const {
-  return MemoryChunk::READ_ONLY_HEAP | MemoryChunk::CONTAINS_ONLY_OLD;
+  MemoryChunk::MainThreadFlags flags = MemoryChunk::READ_ONLY_HEAP;
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
+  if constexpr (v8_flags.sticky_mark_bits.value()) {
+    flags |= MemoryChunk::STICKY_MARK_BIT_CONTAINS_ONLY_OLD;
+  }
+#endif  // V8_ENABLE_STICKY_MARK_BITS_BOOL
+  return flags;
 }
 
 void ReadOnlyPageMetadata::MakeHeaderRelocatableAndMarkAsSealed() {

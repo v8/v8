@@ -71,11 +71,21 @@ void MutablePageMetadata::ClearLiveness() {
 }
 
 void MutablePageMetadata::SetMajorGCInProgress() {
-  SetFlagUnlocked(MemoryChunk::IS_MAJOR_GC_IN_PROGRESS);
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
+  DCHECK(v8_flags.sticky_mark_bits);
+  SetFlagUnlocked(MemoryChunk::STICKY_MARK_BIT_IS_MAJOR_GC_IN_PROGRESS);
+#else
+  UNREACHABLE();
+#endif
 }
 
 void MutablePageMetadata::ResetMajorGCInProgress() {
-  ClearFlagUnlocked(MemoryChunk::IS_MAJOR_GC_IN_PROGRESS);
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
+  DCHECK(v8_flags.sticky_mark_bits);
+  ClearFlagUnlocked(MemoryChunk::STICKY_MARK_BIT_IS_MAJOR_GC_IN_PROGRESS);
+#else
+  UNREACHABLE();
+#endif
 }
 
 void MutablePageMetadata::ClearFlagsNonExecutable(
