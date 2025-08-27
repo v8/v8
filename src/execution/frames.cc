@@ -182,21 +182,20 @@ void StackFrameIterator::Advance() {
   StackFrame::State state;
   StackFrame::Type type;
 #if V8_ENABLE_WEBASSEMBLY
-  if (frame_->type() == StackFrame::STACK_SWITCH &&
-      Memory<Address>(frame_->fp() +
-                      StackSwitchFrameConstants::kCallerFPOffset) ==
+  if (frame_->type() == StackFrame::WASM_JSPI &&
+      Memory<Address>(frame_->fp() + WasmJspiFrameConstants::kCallerFPOffset) ==
           kNullAddress &&
       !first_stack_only_) {
     // Handle stack switches here.
     // Note: both the "callee" frame (outermost frame of the child stack) and
     // the "caller" frame (top frame of the parent stack) have frame type
-    // STACK_SWITCH. We use the caller FP to distinguish them: the callee frame
+    // WASM_JSPI. We use the caller FP to distinguish them: the callee frame
     // does not have a caller fp.
     wasm_stack_ = wasm_stack()->jmpbuf()->parent;
     CHECK_NOT_NULL(wasm_stack_);
     CHECK_EQ(wasm_stack_->jmpbuf()->state, wasm::JumpBuffer::Inactive);
-    StackSwitchFrame::GetStateForJumpBuffer(wasm_stack_->jmpbuf(), &state);
-    SetNewFrame(StackFrame::STACK_SWITCH, &state);
+    WasmJspiFrame::GetStateForJumpBuffer(wasm_stack_->jmpbuf(), &state);
+    SetNewFrame(StackFrame::WASM_JSPI, &state);
     return;
   }
 #endif
@@ -297,10 +296,10 @@ void StackFrameIterator::Reset(ThreadLocalTop* top, wasm::StackMemory* stack) {
     return;
   }
   StackFrame::State state;
-  StackSwitchFrame::GetStateForJumpBuffer(stack->jmpbuf(), &state);
+  WasmJspiFrame::GetStateForJumpBuffer(stack->jmpbuf(), &state);
   handler_ = StackHandler::FromAddress(Isolate::handler(top));
   wasm_stack_ = stack;
-  SetNewFrame(StackFrame::STACK_SWITCH, &state);
+  SetNewFrame(StackFrame::WASM_JSPI, &state);
 }
 #endif
 
@@ -850,7 +849,7 @@ StackFrame::Type SafeStackFrameType(StackFrame::Type candidate) {
 
 #if V8_ENABLE_WEBASSEMBLY
     case StackFrame::JS_TO_WASM:
-    case StackFrame::STACK_SWITCH:
+    case StackFrame::WASM_JSPI:
     case StackFrame::WASM:
     case StackFrame::WASM_DEBUG_BREAK:
     case StackFrame::WASM_EXIT:
@@ -1166,7 +1165,7 @@ StackFrame::Type ExitFrame::ComputeFrameType(Address fp) {
     case API_CALLBACK_EXIT:
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_EXIT:
-    case STACK_SWITCH:
+    case WASM_JSPI:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return frame_type;
     default:
@@ -3728,14 +3727,14 @@ void WasmToJsFrame::Iterate(RootVisitor* v) const {
 }
 #endif  // V8_ENABLE_DRUMBRAKE
 
-void StackSwitchFrame::Iterate(RootVisitor* v) const {
+void WasmJspiFrame::Iterate(RootVisitor* v) const {
   //  See JsToWasmFrame layout.
   //  We cannot DCHECK that the pc matches the expected builtin code here,
   //  because the return address is on a different stack.
   // The [fp + BuiltinFrameConstants::kGCScanSlotCountOffset] on the stack is a
   // value indicating how many values should be scanned from the top.
-  intptr_t scan_count = Memory<intptr_t>(
-      fp() + StackSwitchFrameConstants::kGCScanSlotCountOffset);
+  intptr_t scan_count =
+      Memory<intptr_t>(fp() + WasmJspiFrameConstants::kGCScanSlotCountOffset);
 
   FullObjectSlot spill_slot_base(&Memory<Address>(sp()));
   FullObjectSlot spill_slot_limit(
@@ -3744,10 +3743,10 @@ void StackSwitchFrame::Iterate(RootVisitor* v) const {
                        spill_slot_limit);
   // Also visit fixed spill slots that contain references.
   FullObjectSlot instance_slot(
-      &Memory<Address>(fp() + StackSwitchFrameConstants::kImplicitArgOffset));
+      &Memory<Address>(fp() + WasmJspiFrameConstants::kImplicitArgOffset));
   v->VisitRootPointer(Root::kStackRoots, nullptr, instance_slot);
   FullObjectSlot result_array_slot(
-      &Memory<Address>(fp() + StackSwitchFrameConstants::kResultArrayOffset));
+      &Memory<Address>(fp() + WasmJspiFrameConstants::kResultArrayOffset));
   v->VisitRootPointer(Root::kStackRoots, nullptr, result_array_slot);
 }
 
@@ -3844,10 +3843,10 @@ Address WasmInterpreterEntryFrame::GetCallerStackPointer() const {
 #endif  // V8_ENABLE_DRUMBRAKE
 
 // static
-void StackSwitchFrame::GetStateForJumpBuffer(wasm::JumpBuffer* jmpbuf,
-                                             State* state) {
+void WasmJspiFrame::GetStateForJumpBuffer(wasm::JumpBuffer* jmpbuf,
+                                          State* state) {
   DCHECK_NE(jmpbuf->fp, kNullAddress);
-  DCHECK_EQ(ComputeFrameType(jmpbuf->fp), STACK_SWITCH);
+  DCHECK_EQ(ComputeFrameType(jmpbuf->fp), WASM_JSPI);
   FillState(jmpbuf->fp, jmpbuf->sp, state);
   state->pc_address = &jmpbuf->pc;
   state->is_stack_exit_frame = true;

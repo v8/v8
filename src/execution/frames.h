@@ -119,7 +119,7 @@ class StackHandler {
   IF_WASM(V, WASM, WasmFrame)                                             \
   IF_WASM(V, WASM_TO_JS, WasmToJsFrame)                                   \
   IF_WASM(V, JS_TO_WASM, JsToWasmFrame)                                   \
-  IF_WASM(V, STACK_SWITCH, StackSwitchFrame)                              \
+  IF_WASM(V, WASM_JSPI, WasmJspiFrame)                                    \
   IF_WASM_DRUMBRAKE(V, WASM_INTERPRETER_ENTRY, WasmInterpreterEntryFrame) \
   IF_WASM(V, WASM_DEBUG_BREAK, WasmDebugBreakFrame)                       \
   IF_WASM(V, C_WASM_ENTRY, CWasmEntryFrame)                               \
@@ -1433,14 +1433,14 @@ class JsToWasmFrame : public StubFrame {
   friend class StackFrameIteratorBase;
 };
 
-class StackSwitchFrame : public ExitFrame {
+class WasmJspiFrame : public ExitFrame {
  public:
-  Type type() const override { return STACK_SWITCH; }
+  Type type() const override { return WASM_JSPI; }
   void Iterate(RootVisitor* v) const override;
   static void GetStateForJumpBuffer(wasm::JumpBuffer* jmpbuf, State* state);
 
  protected:
-  inline explicit StackSwitchFrame(StackFrameIteratorBase* iterator);
+  inline explicit WasmJspiFrame(StackFrameIteratorBase* iterator);
 
  private:
   friend class StackFrameIteratorBase;

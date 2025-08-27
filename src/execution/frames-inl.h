@@ -348,7 +348,7 @@ inline WasmToJsFrame::WasmToJsFrame(StackFrameIteratorBase* iterator)
 inline JsToWasmFrame::JsToWasmFrame(StackFrameIteratorBase* iterator)
     : StubFrame(iterator) {}
 
-inline StackSwitchFrame::StackSwitchFrame(StackFrameIteratorBase* iterator)
+inline WasmJspiFrame::WasmJspiFrame(StackFrameIteratorBase* iterator)
     : ExitFrame(iterator) {}
 
 inline WasmStackEntryFrame::WasmStackEntryFrame(

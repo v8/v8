@@ -2386,7 +2386,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       continue;
     }
 #if V8_ENABLE_WEBASSEMBLY
-    if (iter.frame()->type() == StackFrame::STACK_SWITCH) {
+    if (iter.frame()->type() == StackFrame::WASM_JSPI) {
       if (catchable_by_js && iter.frame()->LookupCode()->builtin_id() !=
                                  Builtin::kJSToWasmStressSwitchStacksAsm) {
         Tagged<Code> code =
