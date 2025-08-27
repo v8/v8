@@ -59,6 +59,19 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
                       size_in_bytes, done);
   // Store new top and tag object.
   __ movq(__ ExternalReferenceAsOperand(top), new_top);
+#if V8_VERIFY_WRITE_BARRIERS
+  if (v8_flags.verify_write_barriers) {
+    ExternalReference last_young_allocation =
+        ExternalReference::last_young_allocation_address(isolate);
+
+    if (alloc_type == AllocationType::kYoung) {
+      __ movq(__ ExternalReferenceAsOperand(last_young_allocation), object);
+    } else {
+      __ movq(__ ExternalReferenceAsOperand(last_young_allocation),
+              Immediate(0));
+    }
+  }
+#endif  // V8_VERIFY_WRITE_BARRIERS
   __ addq(object, Immediate(kHeapObjectTag));
   __ bind(*done);
 }

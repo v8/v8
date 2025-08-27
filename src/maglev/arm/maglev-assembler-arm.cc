@@ -59,6 +59,21 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
                       size_in_bytes, done);
   // Store new top and tag object.
   __ Move(__ ExternalReferenceAsOperand(top, scratch), new_top);
+#if V8_VERIFY_WRITE_BARRIERS
+  if (v8_flags.verify_write_barriers) {
+    ExternalReference last_young_allocation =
+        ExternalReference::last_young_allocation_address(isolate);
+    Register last = temps.AcquireScratch();
+
+    if (alloc_type == AllocationType::kYoung) {
+      __ sub(last, object, Operand(size_in_bytes), LeaveCC);
+    } else {
+      __ Move(last, 0);
+    }
+
+    __ str(last, __ ExternalReferenceAsOperand(last_young_allocation, scratch));
+  }
+#endif  // V8_VERIFY_WRITE_BARRIERS
   SubSizeAndTagObject(masm, object, size_in_bytes);
   __ bind(*done);
 }
