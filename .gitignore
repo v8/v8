@@ -119,6 +119,7 @@
 /tools/v8heapconst.py
 /tools/visual_studio/Debug
 /tools/visual_studio/Release
+/tools/win
 /v8.log.ll
 /xcodebuild
 GPATH
