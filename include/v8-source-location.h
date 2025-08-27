@@ -29,6 +29,14 @@ class V8_EXPORT SourceLocation final {
       const std::source_location& loc = std::source_location::current()) {
     return SourceLocation(loc);
   }
+#ifdef DEBUG
+  static constexpr SourceLocation CurrentIfDebug(
+      const std::source_location& loc = std::source_location::current()) {
+    return SourceLocation(loc);
+  }
+#else
+  static constexpr SourceLocation CurrentIfDebug() { return {}; }
+#endif
 
   /**
    * Constructs unspecified source location information.

@@ -354,7 +354,7 @@ int Assembler::WriteCodeComments() {
 #ifdef V8_CODE_COMMENTS
 int Assembler::CodeComment::depth() const { return assembler_->comment_depth_; }
 void Assembler::CodeComment::Open(const std::string& comment,
-                                  const SourceLocation& loc) {
+                                  SourceLocation loc) {
   std::stringstream sstream;
   sstream << std::setfill(' ') << std::setw(depth() * kIndentWidth + 2);
   sstream << "[ " << comment;

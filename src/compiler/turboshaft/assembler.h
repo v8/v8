@@ -442,14 +442,15 @@ class LabelBase {
   template <typename A>
   base::prepend_tuple_type<bool, values_t> Bind(
       A& assembler,
-      const SourceLocation& bind_location = SourceLocation::Current()) {
+      SourceLocation bind_location = SourceLocation::CurrentIfDebug()) {
 #ifdef DEBUG
     if (data_.block->IsBound()) {
-      V8_Fatal(bind_location.FileName(), static_cast<int>(bind_location.Line()),
-               "TSA: Trying to BIND a Label that is already bound. The Label "
-               "is defined here: %s, line %d",
-               data_.def_location.FileName(),
-               static_cast<int>(data_.def_location.Line()));
+      FATAL_WITH_LOC(
+          bind_location,
+          "TSA: Trying to BIND a Label that is already bound. The Label "
+          "is defined here: %s, line %d",
+          data_.def_location.FileName(),
+          static_cast<int>(data_.def_location.Line()));
     }
 #endif
     if (!assembler.Bind(data_.block, bind_location)) {
@@ -466,7 +467,7 @@ class LabelBase {
     recorded_values_t recorded_values;
     SourceLocation def_location;
 
-    explicit BlockData(Block* block, const SourceLocation& def_location)
+    explicit BlockData(Block* block, SourceLocation def_location)
         : block(block), def_location(def_location) {}
 #ifdef DEBUG
     BlockData(BlockData&& other) V8_NOEXCEPT
@@ -495,8 +496,8 @@ class LabelBase {
 
         // Did you forget to BIND this Label?
         if (block->PredecessorCount() > 0 && !block->IsBound()) {
-          V8_Fatal(
-              def_location.FileName(), static_cast<int>(def_location.Line()),
+          FATAL_WITH_LOC(
+              def_location,
               "TSA: Label defined here has incoming control flow but is never "
               "bound.");
         }
@@ -511,7 +512,7 @@ class LabelBase {
 #endif  // DEBUG
   };
 
-  explicit LabelBase(Block* block, const SourceLocation& def_location)
+  explicit LabelBase(Block* block, SourceLocation def_location)
       : data_(block, def_location) {
     DCHECK_NOT_NULL(data_.block);
   }
@@ -595,7 +596,7 @@ class Label : public LabelBase<false, Ts...> {
  public:
   template <typename Reducer>
   explicit Label(Reducer* reducer,
-                 const SourceLocation& l = SourceLocation::Current())
+                 SourceLocation l = SourceLocation::CurrentIfDebug())
       : super(reducer->Asm().NewBlock(), l) {}
 
   Label(Label&& other) V8_NOEXCEPT : super(std::move(other)) {}
@@ -613,8 +614,8 @@ class LoopLabel : public LabelBase<true, Ts...> {
   using values_t = typename super::values_t;
 
   template <typename Reducer>
-  explicit LoopLabel(Reducer* reducer, const SourceLocation& def_location =
-                                           SourceLocation::Current())
+  explicit LoopLabel(Reducer* reducer, SourceLocation def_location =
+                                           SourceLocation::CurrentIfDebug())
       : super(reducer->Asm().NewBlock(), def_location),
         loop_header_data_{reducer->Asm().NewLoopHeader(), def_location} {}
 
@@ -694,7 +695,7 @@ class LoopLabel : public LabelBase<true, Ts...> {
   template <typename A>
   base::prepend_tuple_type<bool, values_t> BindLoop(
       A& assembler,
-      const SourceLocation& bind_location = SourceLocation::Current()) {
+      SourceLocation bind_location = SourceLocation::CurrentIfDebug()) {
 #ifdef DEBUG
     if (loop_header_data_.block->IsBound()) {
       V8_Fatal(bind_location.FileName(), static_cast<int>(bind_location.Line()),
@@ -1461,7 +1462,7 @@ class GenericAssemblerOpInterface {
   // GOTO_IF).
   template <typename L>
   auto ControlFlowHelper_Bind(
-      L& label, const SourceLocation& bind_location = SourceLocation::Current())
+      L& label, SourceLocation bind_location = SourceLocation::CurrentIfDebug())
       -> base::prepend_tuple_type<bool, typename L::values_t> {
     // LoopLabels need to be bound with `BIND_LOOP` instead of `BIND`.
     static_assert(!L::is_loop);
@@ -1470,7 +1471,7 @@ class GenericAssemblerOpInterface {
 
   template <typename L>
   auto ControlFlowHelper_BindLoop(
-      L& label, const SourceLocation& bind_location = SourceLocation::Current())
+      L& label, SourceLocation bind_location = SourceLocation::CurrentIfDebug())
       -> base::prepend_tuple_type<bool, typename L::values_t> {
     // Only LoopLabels can be bound with `BIND_LOOP`. Otherwise use `BIND`.
     static_assert(L::is_loop);
@@ -4435,7 +4436,7 @@ class TurboshaftAssemblerOpInterface
 
   // This is currently only usable during graph building on the main thread.
   void Dcheck(V<Word32> condition, const char* message, const char* file,
-              int line, const SourceLocation& loc = SourceLocation::Current()) {
+              int line, SourceLocation loc = SourceLocation::CurrentIfDebug()) {
     Isolate* isolate = Asm().data()->isolate();
     USE(isolate);
     DCHECK_NOT_NULL(isolate);
@@ -4449,7 +4450,7 @@ class TurboshaftAssemblerOpInterface
 
   // This is currently only usable during graph building on the main thread.
   void Check(V<Word32> condition, const char* message, const char* file,
-             int line, const SourceLocation& loc = SourceLocation::Current()) {
+             int line, SourceLocation loc = SourceLocation::CurrentIfDebug()) {
     Isolate* isolate = Asm().data()->isolate();
     USE(isolate);
     DCHECK_NOT_NULL(isolate);
@@ -4473,7 +4474,7 @@ class TurboshaftAssemblerOpInterface
 
   void FailAssert(const char* message,
                   const std::vector<FileAndLine>& files_and_lines,
-                  const SourceLocation& loc) {
+                  SourceLocation loc) {
     std::stringstream stream;
     if (message) stream << message;
     for (auto it = files_and_lines.rbegin(); it != files_and_lines.rend();
@@ -5633,7 +5634,7 @@ class Assembler : public AssemblerData,
   V8_INLINE
 #endif
   bool Bind(Block* block,
-            const SourceLocation& bind_location = SourceLocation::Current()) {
+            SourceLocation bind_location = SourceLocation::CurrentIfDebug()) {
 #ifdef DEBUG
     set_conceptually_in_a_block(true);
 #endif

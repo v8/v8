@@ -99,12 +99,11 @@ class TestRootVisitor final : public RootVisitorBase {
   }
 
  protected:
-  void VisitRoot(const void* t, TraceDescriptor desc,
-                 const SourceLocation&) final {
+  void VisitRoot(const void* t, TraceDescriptor desc, SourceLocation) final {
     desc.callback(nullptr, desc.base_object_payload);
   }
   void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback callback,
-                     const void* object, const SourceLocation&) final {
+                     const void* object, SourceLocation) final {
     weak_callbacks_.emplace_back(callback, object);
   }
 
@@ -926,19 +925,19 @@ namespace {
 
 class ExpectingLocationVisitor final : public RootVisitorBase {
  public:
-  explicit ExpectingLocationVisitor(const SourceLocation& expected_location)
+  explicit ExpectingLocationVisitor(SourceLocation expected_location)
       : expected_loc_(expected_location) {}
 
  protected:
   void VisitRoot(const void* t, TraceDescriptor desc,
-                 const SourceLocation& loc) final {
+                 SourceLocation loc) final {
     EXPECT_STREQ(expected_loc_.Function(), loc.Function());
     EXPECT_STREQ(expected_loc_.FileName(), loc.FileName());
     EXPECT_EQ(expected_loc_.Line(), loc.Line());
   }
 
  private:
-  const SourceLocation& expected_loc_;
+  SourceLocation expected_loc_;
 };
 
 }  // namespace

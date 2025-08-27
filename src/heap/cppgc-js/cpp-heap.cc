@@ -226,8 +226,8 @@ UnifiedHeapConcurrentMarker::CreateConcurrentMarkingVisitor(
       heap(), v8_heap_, marking_state, collection_type_);
 }
 
-void FatalOutOfMemoryHandlerImpl(const std::string& reason,
-                                 const SourceLocation&, HeapBase* heap) {
+void FatalOutOfMemoryHandlerImpl(const std::string& reason, SourceLocation,
+                                 HeapBase* heap) {
   auto* cpp_heap = static_cast<v8::internal::CppHeap*>(heap);
   auto* isolate = cpp_heap->isolate();
   DCHECK_NOT_NULL(isolate);
@@ -241,7 +241,7 @@ void FatalOutOfMemoryHandlerImpl(const std::string& reason,
 }
 
 void GlobalFatalOutOfMemoryHandlerImpl(const std::string& reason,
-                                       const SourceLocation&, HeapBase* heap) {
+                                       SourceLocation, HeapBase* heap) {
   V8::FatalProcessOutOfMemory(nullptr, reason.c_str());
 }
 

@@ -29,6 +29,8 @@ V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
 [[noreturn]] PRINTF_FORMAT(3, 4) V8_BASE_EXPORT V8_NOINLINE
     void V8_Fatal(const char* file, int line, const char* format, ...);
 #define FATAL(...) V8_Fatal(__FILE__, __LINE__, __VA_ARGS__)
+#define FATAL_WITH_LOC(loc, ...) \
+  V8_Fatal((loc).FileName(), static_cast<int>((loc).Line()), __VA_ARGS__)
 
 // The following can be used instead of FATAL() to prevent calling
 // IMMEDIATE_CRASH in official mode. Please only use if needed for testing.
@@ -45,6 +47,7 @@ V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
 // numbers. It saves binary size to drop the |file| & |line| as opposed to just
 // passing in "", 0 for them.
 #define FATAL(...) V8_Fatal(__VA_ARGS__)
+#define FATAL_WITH_LOC(loc, ...) FATAL(__VA_ARGS__)
 #else
 // FATAL(msg) -> IMMEDIATE_CRASH()
 // FATAL(msg, ...) -> V8_Fatal(msg, ...)
@@ -54,6 +57,7 @@ V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
   FATAL_HELPER(__VA_ARGS__, V8_Fatal, V8_Fatal, V8_Fatal, V8_Fatal, V8_Fatal, \
                V8_Fatal, FATAL_DISCARD_ARG)                                   \
   (__VA_ARGS__)
+#define FATAL_WITH_LOC(loc, ...) FATAL(__VA_ARGS__)
 #endif  // !defined(OFFICIAL_BUILD)
 #endif  // DEBUG
 
@@ -125,11 +129,11 @@ enum class OOMType {
 
 #ifdef DEBUG
 
-#define DCHECK_WITH_MSG_AND_LOC(condition, message, loc)                \
-  do {                                                                  \
-    if (V8_UNLIKELY(!(condition))) {                                    \
-      V8_Dcheck(loc.FileName(), static_cast<int>(loc.Line()), message); \
-    }                                                                   \
+#define DCHECK_WITH_MSG_AND_LOC(condition, message, loc)                    \
+  do {                                                                      \
+    if (V8_UNLIKELY(!(condition))) {                                        \
+      V8_Dcheck((loc).FileName(), static_cast<int>((loc).Line()), message); \
+    }                                                                       \
   } while (false)
 #define DCHECK_WITH_MSG(condition, message)   \
   do {                                        \

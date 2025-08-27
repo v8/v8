@@ -92,13 +92,6 @@ inline bool TryCast(Holder<From> value, Holder<To>* out) {
   return true;
 }
 
-// Only initialise the SourceLocation in debug mode.
-#ifdef DEBUG
-#define INIT_SOURCE_LOCATION_IN_DEBUG v8::SourceLocation::Current()
-#else
-#define INIT_SOURCE_LOCATION_IN_DEBUG v8::SourceLocation()
-#endif
-
 #ifdef DEBUG
 template <typename T>
 bool GCAwareObjectTypeCheck(Tagged<Object> object, const Heap* heap);
@@ -159,8 +152,7 @@ concept HasCastImplementation = requires(Holder<From> value) {
 template <typename To, typename From, template <typename> class Holder>
   requires HasCastImplementation<Holder, To, From>
 inline Holder<To> TrustedCast(
-    Holder<From> value,
-    const v8::SourceLocation& loc = INIT_SOURCE_LOCATION_IN_DEBUG) {
+    Holder<From> value, SourceLocation loc = SourceLocation::CurrentIfDebug()) {
   DCHECK_WITH_MSG_AND_LOC(NullOrIs<To>(value),
                           V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
   return UncheckedCast<To>(value);
@@ -172,8 +164,7 @@ inline Holder<To> TrustedCast(
 template <typename To, typename From, template <typename> class Holder>
   requires HasCastImplementation<Holder, To, From>
 inline Holder<To> SbxCast(
-    Holder<From> value,
-    const v8::SourceLocation& loc = INIT_SOURCE_LOCATION_IN_DEBUG) {
+    Holder<From> value, SourceLocation loc = SourceLocation::CurrentIfDebug()) {
   // Under the attacker model of the sandbox we cannot trust the type of
   // in-sandbox objects for sandbox checks as these objects can be arbitrarily
   // tampered with.
@@ -191,8 +182,7 @@ inline Holder<To> SbxCast(
 template <typename To, typename From, template <typename> class Holder>
   requires HasCastImplementation<Holder, To, From>
 inline Holder<To> CheckedCast(
-    Holder<From> value,
-    const v8::SourceLocation& loc = INIT_SOURCE_LOCATION_IN_DEBUG) {
+    Holder<From> value, SourceLocation loc = SourceLocation::CurrentIfDebug()) {
   DCHECK_WITH_MSG_AND_LOC(NullOrIs<To>(value),
                           V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
   CHECK(NullOrIs<To>(value));
@@ -204,8 +194,8 @@ inline Holder<To> CheckedCast(
 // allowed. Down-casts to trusted objects are not allowed to prevent mistakes.
 template <typename To, typename From, template <typename> class Holder>
   requires HasCastImplementation<Holder, To, From>
-inline Holder<To> Cast(Holder<From> value, const v8::SourceLocation& loc =
-                                               INIT_SOURCE_LOCATION_IN_DEBUG) {
+inline Holder<To> Cast(Holder<From> value,
+                       SourceLocation loc = SourceLocation::CurrentIfDebug()) {
   static_assert(
       !is_subtype_v<To, TrustedObject> || is_subtype_v<From, To>,
       "Down-casting to trusted objects is verboten. Pick one of:\n"
@@ -243,8 +233,8 @@ inline Tagged<To> SbxCast(const From* value) {
 }
 template <typename To, typename From>
   requires std::is_base_of_v<HeapObjectLayout, From>
-inline Tagged<To> Cast(const From* value, const v8::SourceLocation& loc =
-                                              INIT_SOURCE_LOCATION_IN_DEBUG) {
+inline Tagged<To> Cast(const From* value,
+                       SourceLocation loc = SourceLocation::CurrentIfDebug()) {
   return Cast<To>(Tagged(value), loc);
 }
 template <typename To, typename From>
@@ -269,8 +259,8 @@ inline Tagged<To> SbxCast(From value) {
 }
 template <typename To, typename From>
   requires(std::is_base_of_v<HeapObject, From>)
-inline Tagged<To> Cast(
-    From value, const v8::SourceLocation& loc = INIT_SOURCE_LOCATION_IN_DEBUG) {
+inline Tagged<To> Cast(From value,
+                       SourceLocation loc = SourceLocation::CurrentIfDebug()) {
   return Cast<To>(Tagged(value), loc);
 }
 
@@ -342,7 +332,5 @@ struct CastTraits<HeapObject> {
 };
 
 }  // namespace v8::internal
-
-#undef INIT_SOURCE_LOCATION_IN_DEBUG
 
 #endif  // V8_OBJECTS_CASTING_H_

@@ -81,7 +81,7 @@ class TaskRunner {
    * Embedders should override PostTaskImpl instead of this.
    */
   void PostTask(std::unique_ptr<Task> task,
-                const SourceLocation& location = SourceLocation::Current()) {
+                SourceLocation location = SourceLocation::Current()) {
     PostTaskImpl(std::move(task), location);
   }
 
@@ -104,7 +104,7 @@ class TaskRunner {
    */
   void PostNonNestableTask(
       std::unique_ptr<Task> task,
-      const SourceLocation& location = SourceLocation::Current()) {
+      SourceLocation location = SourceLocation::Current()) {
     PostNonNestableTaskImpl(std::move(task), location);
   }
 
@@ -115,9 +115,8 @@ class TaskRunner {
    *
    * Embedders should override PostDelayedTaskImpl instead of this.
    */
-  void PostDelayedTask(
-      std::unique_ptr<Task> task, double delay_in_seconds,
-      const SourceLocation& location = SourceLocation::Current()) {
+  void PostDelayedTask(std::unique_ptr<Task> task, double delay_in_seconds,
+                       SourceLocation location = SourceLocation::Current()) {
     PostDelayedTaskImpl(std::move(task), delay_in_seconds, location);
   }
 
@@ -141,7 +140,7 @@ class TaskRunner {
    */
   void PostNonNestableDelayedTask(
       std::unique_ptr<Task> task, double delay_in_seconds,
-      const SourceLocation& location = SourceLocation::Current()) {
+      SourceLocation location = SourceLocation::Current()) {
     PostNonNestableDelayedTaskImpl(std::move(task), delay_in_seconds, location);
   }
 
@@ -155,9 +154,8 @@ class TaskRunner {
    *
    * Embedders should override PostIdleTaskImpl instead of this.
    */
-  void PostIdleTask(
-      std::unique_ptr<IdleTask> task,
-      const SourceLocation& location = SourceLocation::Current()) {
+  void PostIdleTask(std::unique_ptr<IdleTask> task,
+                    SourceLocation location = SourceLocation::Current()) {
     PostIdleTaskImpl(std::move(task), location);
   }
 
@@ -1184,9 +1182,8 @@ class Platform {
    * CallOnWorkerThread().
    */
   V8_DEPRECATE_SOON("Use PostTaskOnWorkerThread instead.")
-  void CallOnWorkerThread(
-      std::unique_ptr<Task> task,
-      const SourceLocation& location = SourceLocation::Current()) {
+  void CallOnWorkerThread(std::unique_ptr<Task> task,
+                          SourceLocation location = SourceLocation::Current()) {
     PostTaskOnWorkerThreadImpl(TaskPriority::kUserVisible, std::move(task),
                                location);
   }
@@ -1200,7 +1197,7 @@ class Platform {
   V8_DEPRECATE_SOON("Use PostTaskOnWorkerThread instead.")
   void CallBlockingTaskOnWorkerThread(
       std::unique_ptr<Task> task,
-      const SourceLocation& location = SourceLocation::Current()) {
+      SourceLocation location = SourceLocation::Current()) {
     // Embedders may optionally override this to process these tasks in a high
     // priority pool.
     PostTaskOnWorkerThreadImpl(TaskPriority::kUserBlocking, std::move(task),
@@ -1215,7 +1212,7 @@ class Platform {
   V8_DEPRECATE_SOON("Use PostTaskOnWorkerThread instead.")
   void CallLowPriorityTaskOnWorkerThread(
       std::unique_ptr<Task> task,
-      const SourceLocation& location = SourceLocation::Current()) {
+      SourceLocation location = SourceLocation::Current()) {
     // Embedders may optionally override this to process these tasks in a low
     // priority pool.
     PostTaskOnWorkerThreadImpl(TaskPriority::kBestEffort, std::move(task),
@@ -1231,7 +1228,7 @@ class Platform {
   V8_DEPRECATE_SOON("Use PostDelayedTaskOnWorkerThread instead.")
   void CallDelayedOnWorkerThread(
       std::unique_ptr<Task> task, double delay_in_seconds,
-      const SourceLocation& location = SourceLocation::Current()) {
+      SourceLocation location = SourceLocation::Current()) {
     PostDelayedTaskOnWorkerThreadImpl(TaskPriority::kUserVisible,
                                       std::move(task), delay_in_seconds,
                                       location);
@@ -1244,7 +1241,7 @@ class Platform {
    */
   void PostTaskOnWorkerThread(
       TaskPriority priority, std::unique_ptr<Task> task,
-      const SourceLocation& location = SourceLocation::Current()) {
+      SourceLocation location = SourceLocation::Current()) {
     PostTaskOnWorkerThreadImpl(priority, std::move(task), location);
   }
 
@@ -1257,7 +1254,7 @@ class Platform {
   void PostDelayedTaskOnWorkerThread(
       TaskPriority priority, std::unique_ptr<Task> task,
       double delay_in_seconds,
-      const SourceLocation& location = SourceLocation::Current()) {
+      SourceLocation location = SourceLocation::Current()) {
     PostDelayedTaskOnWorkerThreadImpl(priority, std::move(task),
                                       delay_in_seconds, location);
   }
@@ -1314,7 +1311,7 @@ class Platform {
    */
   std::unique_ptr<JobHandle> PostJob(
       TaskPriority priority, std::unique_ptr<JobTask> job_task,
-      const SourceLocation& location = SourceLocation::Current()) {
+      SourceLocation location = SourceLocation::Current()) {
     auto handle = CreateJob(priority, std::move(job_task), location);
     handle->NotifyConcurrencyIncrease();
     return handle;
@@ -1337,7 +1334,7 @@ class Platform {
    */
   std::unique_ptr<JobHandle> CreateJob(
       TaskPriority priority, std::unique_ptr<JobTask> job_task,
-      const SourceLocation& location = SourceLocation::Current()) {
+      SourceLocation location = SourceLocation::Current()) {
     return CreateJobImpl(priority, std::move(job_task), location);
   }
 

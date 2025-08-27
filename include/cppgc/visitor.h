@@ -502,9 +502,9 @@ class V8_EXPORT RootVisitor {
   }
 
  protected:
-  virtual void VisitRoot(const void*, TraceDescriptor, const SourceLocation&) {}
+  virtual void VisitRoot(const void*, TraceDescriptor, SourceLocation) {}
   virtual void VisitWeakRoot(const void* self, TraceDescriptor, WeakCallback,
-                             const void* weak_root, const SourceLocation&) {}
+                             const void* weak_root, SourceLocation) {}
 
  private:
   template <typename AnyPersistentType>

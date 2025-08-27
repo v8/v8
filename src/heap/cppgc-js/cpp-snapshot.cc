@@ -459,7 +459,7 @@ class CppGraphBuilderImpl final {
       cppgc::TraceDescriptor value_desc);
   void VisitWeakContainerForVisibility(const HeapObjectHeader&);
   void VisitRootForGraphBuilding(RootState&, const HeapObjectHeader&,
-                                 const cppgc::SourceLocation&);
+                                 cppgc::SourceLocation);
   void ProcessPendingObjects();
 
   void RecordEphemeronKey(const HeapObjectHeader&, const HeapObjectHeader&);
@@ -742,7 +742,7 @@ class GraphBuildingRootVisitor final : public cppgc::internal::RootVisitorBase {
       : graph_builder_(graph_builder), parent_scope_(parent_scope) {}
 
   void VisitRoot(const void*, cppgc::TraceDescriptor desc,
-                 const cppgc::SourceLocation& loc) final {
+                 cppgc::SourceLocation loc) final {
     graph_builder_.VisitRootForGraphBuilding(
         parent_scope_.ParentAsRootState(),
         HeapObjectHeader::FromObject(desc.base_object_payload), loc);
@@ -944,7 +944,7 @@ void CppGraphBuilderImpl::VisitForVisibility(State& parent,
 
 void CppGraphBuilderImpl::VisitRootForGraphBuilding(
     RootState& root, const HeapObjectHeader& header,
-    const cppgc::SourceLocation& loc) {
+    cppgc::SourceLocation loc) {
   State& current = states_.GetExistingState(header);
   if (!current.IsVisibleNotDependent()) return;
 
