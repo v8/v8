@@ -54,14 +54,12 @@ void ModuleGenerationTest::TestMVP(int tier_mask, int debug_mask,
 
 void ModuleGenerationTest::TestSimd(int tier_mask, int debug_mask,
                                     const std::vector<uint8_t>& input) {
-  Test({{WasmModuleGenerationOption::kGenerateSIMD}}, tier_mask, debug_mask,
-       input);
+  Test(WasmModuleGenerationOptions::Simd(), tier_mask, debug_mask, input);
 }
 
 void ModuleGenerationTest::TestGC(int tier_mask, int debug_mask,
                                   const std::vector<uint8_t>& input) {
-  Test({{WasmModuleGenerationOption::kGenerateWasmGC}}, tier_mask, debug_mask,
-       input);
+  Test(WasmModuleGenerationOptions::WasmGC(), tier_mask, debug_mask, input);
 }
 
 void ModuleGenerationTest::TestAll(int tier_mask, int debug_mask,

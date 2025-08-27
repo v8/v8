@@ -47,6 +47,12 @@ struct WasmModuleGenerationOptions
   bool generate_wasm_gc() const { return contains(kGenerateWasmGC); }
 
   static constexpr WasmModuleGenerationOptions MVP() { return {{}}; }
+  static constexpr WasmModuleGenerationOptions Simd() {
+    return {{kGenerateSIMD}};
+  }
+  static constexpr WasmModuleGenerationOptions WasmGC() {
+    return {{kGenerateWasmGC}};
+  }
   static constexpr WasmModuleGenerationOptions All() {
     return {{kGenerateSIMD, kGenerateWasmGC}};
   }
