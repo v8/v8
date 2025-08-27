@@ -106,7 +106,7 @@ void MaglevInliner::Run() {
     if (result.IsFail()) continue;
     // If --trace-maglev-inlining-verbose, we print the graph after each
     // inlining step/call.
-    if (V8_UNLIKELY(v8_flags.print_maglev_graphs && is_tracing_enabled())) {
+    if (V8_UNLIKELY(ShouldPrintMaglevGraph())) {
       std::cout << "\nAfter inlining "
                 << call_site->generic_call_node->shared_function_info()
                 << std::endl;
@@ -118,7 +118,7 @@ void MaglevInliner::Run() {
       GraphProcessor<MaglevGraphOptimizer> optimizer(graph_);
       optimizer.ProcessGraph(graph_);
 
-      if (V8_UNLIKELY(v8_flags.print_maglev_graphs && is_tracing_enabled())) {
+      if (V8_UNLIKELY(ShouldPrintMaglevGraph())) {
         std::cout << "\nAfter optimization "
                   << call_site->generic_call_node->shared_function_info()
                   << std::endl;
@@ -132,7 +132,7 @@ void MaglevInliner::Run() {
   clear_returned_value_uses.ProcessGraph(graph_);
 
   // Otherwise we print just once at the end.
-  if (V8_UNLIKELY(v8_flags.print_maglev_graphs && is_tracing_enabled())) {
+  if (V8_UNLIKELY(ShouldPrintMaglevGraph())) {
     std::cout << "\nAfter inlining" << std::endl;
     PrintGraph(std::cout, graph_);
   }

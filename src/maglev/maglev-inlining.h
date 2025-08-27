@@ -69,6 +69,13 @@ class MaglevInliner {
     }
   }
 
+  bool ShouldPrintMaglevGraph() const {
+    if (graph_->compilation_info()->is_turbolev()) {
+      return v8_flags.trace_turbo_graph || v8_flags.print_turbolev_frontend;
+    }
+    return v8_flags.print_maglev_graphs && is_tracing_enabled();
+  }
+
   static void UpdatePredecessorsOf(BasicBlock* block, BasicBlock* prev_pred,
                                    BasicBlock* new_pred);
   void RemovePredecessorFollowing(ControlNode* control, BasicBlock* call_block);

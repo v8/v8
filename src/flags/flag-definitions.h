@@ -1624,6 +1624,9 @@ DEFINE_BOOL(turbolev, false,
             "use Turbolev (≈ Maglev + Turboshaft combined) as the 4th tier "
             "compiler instead of Turbofan")
 
+DEFINE_BOOL(print_turbolev_frontend, false,
+            "print Turbolev frontend (Maglev graphs)")
+
 DEFINE_EXPERIMENTAL_FEATURE(
     turbolev_future,
     "enable Turbolev features that we want to ship in the not-too-far future")

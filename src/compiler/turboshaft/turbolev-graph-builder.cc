@@ -6386,7 +6386,7 @@ class NodeProcessorBase : public GraphBuildingNodeProcessor {
 
 void PrintBytecode(PipelineData& data,
                    maglev::MaglevCompilationInfo* compilation_info) {
-  DCHECK(data.info()->trace_turbo_graph());
+  DCHECK(data.info()->trace_turbo_graph() || v8_flags.print_turbolev_frontend);
   maglev::MaglevCompilationUnit* top_level_unit =
       compilation_info->toplevel_compilation_unit();
   CodeTracer* code_tracer = data.GetCodeTracer();
@@ -6409,6 +6409,10 @@ void PrintMaglevGraph(PipelineData& data,
   tracing_scope.stream() << "\n----- " << msg << " -----" << std::endl;
 
   maglev::PrintGraph(tracing_scope.stream(), maglev_graph);
+}
+
+bool ShouldPrintMaglevGraph(PipelineData* data) {
+  return data->info()->trace_turbo_graph() || v8_flags.print_turbolev_frontend;
 }
 
 // TODO(dmercadier, nicohartmann): consider doing some of these optimizations on
@@ -6437,7 +6441,7 @@ void RunMaglevOptimizations(PipelineData* data,
     truncate.ProcessGraph(maglev_graph);
   }
 
-  if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
+  if (V8_UNLIKELY(ShouldPrintMaglevGraph(data))) {
     PrintMaglevGraph(*data, maglev_graph, "After truncation");
   }
 
@@ -6448,7 +6452,7 @@ void RunMaglevOptimizations(PipelineData* data,
     processor.ProcessGraph(maglev_graph);
   }
 
-  if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
+  if (V8_UNLIKELY(ShouldPrintMaglevGraph(data))) {
     PrintMaglevGraph(*data, maglev_graph, "After phi untagging");
   }
 
@@ -6473,7 +6477,7 @@ void RunMaglevOptimizations(PipelineData* data,
     processor.ProcessGraph(maglev_graph);
   }
 
-  if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
+  if (V8_UNLIKELY(ShouldPrintMaglevGraph(data))) {
     PrintMaglevGraph(*data, maglev_graph,
                      "After escape analysis and dead node sweeping");
   }
@@ -6498,7 +6502,7 @@ std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(PipelineData* data,
   SBXCHECK_EQ(compilation_info->toplevel_compilation_unit()->parameter_count(),
               linkage->GetIncomingDescriptor()->ParameterSlotCount());
 
-  if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
+  if (V8_UNLIKELY(ShouldPrintMaglevGraph(data))) {
     PrintBytecode(*data, compilation_info.get());
   }
 
@@ -6517,7 +6521,7 @@ std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(PipelineData* data,
       maglev_graph);
   maglev_graph_builder.Build();
 
-  if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
+  if (V8_UNLIKELY(ShouldPrintMaglevGraph(data))) {
     PrintMaglevGraph(*data, maglev_graph, "After graph building");
   }
 
