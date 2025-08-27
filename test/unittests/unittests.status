@@ -156,6 +156,9 @@
   'LogMapsCodeTest.LogMapsDetailsCode': [SKIP],
   'LogMapsTest.LogMapsDetailsStartup': [SKIP],
   'LogMapsTest.LogMapsDetailsContexts': [SKIP],
+
+  # These tests need a lot of memory on TSan.
+  'ModuleGenerationTest.*': [PASS, HEAVY],
 }],  # tsan == True
 
 ##############################################################################
