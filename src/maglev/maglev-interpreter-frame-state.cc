@@ -40,10 +40,12 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
         DCHECK_IMPLIES(lhs.node == rhs.node,
                        lhs.effect_epoch == rhs.effect_epoch);
         DCHECK_NE(lhs.effect_epoch, kEffectEpochOverflow);
-        DCHECK_EQ(Node::needs_epoch_check(lhs.node->opcode()),
-                  lhs.effect_epoch != kEffectEpochForPureInstructions);
-
-        return lhs.node == rhs.node && lhs.effect_epoch >= effect_epoch_;
+        DCHECK_IMPLIES(
+            !lhs.node->Is<Identity>(),
+            Node::needs_epoch_check(lhs.node->opcode()) ==
+                (lhs.effect_epoch != kEffectEpochForPureInstructions));
+        return !lhs.node->Is<Identity>() && lhs.node == rhs.node &&
+               lhs.effect_epoch >= effect_epoch_;
       });
 
   this->any_map_for_any_node_is_unstable_ = any_merged_map_is_unstable;

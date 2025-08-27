@@ -618,6 +618,13 @@ class KnownNodeAspects {
 
     static constexpr Opcode op = Node::opcode_of<NodeT>;
     auto candidate = it->second.node;
+
+    if (candidate->Is<Identity>()) {
+      // This expression was removed from the graph. Do not reuse it.
+      available_expressions_.erase(it);
+      return nullptr;
+    }
+
     const bool sanity_check =
         candidate->template Is<NodeT>() &&
         static_cast<size_t>(candidate->input_count()) == inputs.size();
