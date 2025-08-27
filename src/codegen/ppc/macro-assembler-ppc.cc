@@ -1064,6 +1064,7 @@ void MacroAssembler::RestoreFrameStateForTailCall() {
 void MacroAssembler::CanonicalizeNaN(const DoubleRegister dst,
                                      const DoubleRegister src) {
   // Turn potential sNaN into qNaN.
+  LoadDoubleLiteral(kDoubleRegZero, base::Double(0.0), r0);
   fsub(dst, src, kDoubleRegZero);
 }
 
