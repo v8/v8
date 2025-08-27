@@ -64,6 +64,8 @@ void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,
                                  wrapper_info.suspend);
   } else if (wrapper_info.code_kind == CodeKind::WASM_TO_CAPI_FUNCTION) {
     builder.BuildCapiCallWrapper();
+  } else if (wrapper_info.code_kind == CodeKind::WASM_STACK_ENTRY) {
+    builder.BuildWasmStackEntryWrapper();
   } else {
     // TODO(thibaudm): Port remaining wrappers.
     UNREACHABLE();

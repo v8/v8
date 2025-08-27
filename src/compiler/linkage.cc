@@ -62,6 +62,9 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k) {
     case CallDescriptor::kCallWasmImportWrapper:
       os << "WasmImportWrapper";
       break;
+    case CallDescriptor::kResumeWasmContinuation:
+      os << "WasmResumeContinuation";
+      break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     case CallDescriptor::kCallBuiltinPointer:
       os << "BuiltinPointer";
@@ -220,6 +223,7 @@ int CallDescriptor::CalculateFixedFrameSize(CodeKind code_kind) const {
     case kCallWasmFunction:
     case kCallWasmFunctionIndirect:
     case kCallWasmImportWrapper:
+    case kResumeWasmContinuation:
       return WasmFrameConstants::kFixedSlotCount;
     case kCallWasmCapiFunction:
       return WasmExitFrameConstants::kFixedSlotCount;

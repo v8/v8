@@ -2587,6 +2587,10 @@ void ExistingCodeLogger::LogCodeObject(Tagged<AbstractCode> object) {
       description = "A Wasm to JavaScript adapter";
       tag = CodeTag::kStub;
       break;
+    case CodeKind::WASM_STACK_ENTRY:
+      description = "A Wasm continuation adapter";
+      tag = CodeTag::kStub;
+      break;
     case CodeKind::C_WASM_ENTRY:
       description = "A C to Wasm entry stub";
       tag = CodeTag::kStub;

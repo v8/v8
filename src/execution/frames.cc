@@ -857,6 +857,7 @@ StackFrame::Type SafeStackFrameType(StackFrame::Type candidate) {
     case StackFrame::WASM_LIFTOFF_SETUP:
     case StackFrame::WASM_TO_JS:
     case StackFrame::WASM_SEGMENT_START:
+    case StackFrame::WASM_STACK_ENTRY:
 #if V8_ENABLE_DRUMBRAKE
     case StackFrame::C_WASM_ENTRY:
     case StackFrame::WASM_INTERPRETER_ENTRY:
@@ -914,6 +915,8 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
         return StackFrame::WASM_EXIT;
       case wasm::WasmCode::kWasmToJsWrapper:
         return StackFrame::WASM_TO_JS;
+      case wasm::WasmCode::kWasmStackEntryWrapper:
+        return StackFrame::WASM_STACK_ENTRY;
 #if V8_ENABLE_DRUMBRAKE
       case wasm::WasmCode::kInterpreterEntry:
         return StackFrame::WASM_INTERPRETER_ENTRY;
@@ -972,6 +975,7 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
     case CodeKind::C_WASM_ENTRY:
       return StackFrame::C_WASM_ENTRY;
     case CodeKind::WASM_TO_JS_FUNCTION:
+    case CodeKind::WASM_STACK_ENTRY:
       // Should have been found by the WasmCode lookup above.
       UNREACHABLE();
     case CodeKind::WASM_FUNCTION:
@@ -984,6 +988,7 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
     case CodeKind::WASM_FUNCTION:
     case CodeKind::WASM_TO_CAPI_FUNCTION:
     case CodeKind::WASM_TO_JS_FUNCTION:
+    case CodeKind::WASM_STACK_ENTRY:
       UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
     case CodeKind::BYTECODE_HANDLER:

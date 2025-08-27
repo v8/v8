@@ -134,6 +134,7 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(ArchCallJSFunction)                                                    \
   IF_WASM(V, ArchCallWasmFunction)                                         \
   IF_WASM(V, ArchCallWasmFunctionIndirect)                                 \
+  IF_WASM(V, ArchResumeWasmContinuation)                                   \
   V(ArchCallCFunction)                                                     \
   V(ArchCallBuiltinPointer)                                                \
   /* Update IsCallWithDescriptorFlags if further Call opcodes are added */ \

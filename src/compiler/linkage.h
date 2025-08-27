@@ -54,6 +54,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     kCallWasmFunctionIndirect,  // target is a wasm function that will be called
                                 // indirectly
     kCallWasmImportWrapper,     // target is a wasm import wrapper
+    kResumeWasmContinuation,    // target is a wasm continuation
 #endif                       // ↑ WebAssembly only
     kCallBuiltinPointer,     // target is a builtin pointer
   };

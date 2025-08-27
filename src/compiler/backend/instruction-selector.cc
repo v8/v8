@@ -1224,6 +1224,10 @@ void InstructionSelector::InitializeCallBuffer(
               ? g.UseFixed(callee, kJavaScriptCallCodeStartRegister)
               : g.UseRegister(callee));
       break;
+    case CallDescriptor::kResumeWasmContinuation:
+      DCHECK(!call_use_fixed_target_reg);
+      buffer->instruction_args.push_back(g.UseRegister(callee));
+      break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     case CallDescriptor::kCallBuiltinPointer: {
       // The common case for builtin pointers is to have the target in a
@@ -2275,6 +2279,9 @@ void InstructionSelector::VisitCall(OpIndex node, Block* handler) {
     case CallDescriptor::kCallWasmFunctionIndirect:
       DCHECK(!this->IsRelocatableWasmConstant(call_op.callee()));
       opcode = EncodeCallDescriptorFlags(kArchCallWasmFunctionIndirect, flags);
+      break;
+    case CallDescriptor::kResumeWasmContinuation:
+      opcode = EncodeCallDescriptorFlags(kArchResumeWasmContinuation, flags);
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     case CallDescriptor::kCallBuiltinPointer:

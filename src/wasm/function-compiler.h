@@ -66,6 +66,7 @@ struct WasmCompilationResult {
   enum Kind : int8_t {
     kFunction,
     kWasmToJsWrapper,
+    kStackEntryWrapper,
 #if V8_ENABLE_DRUMBRAKE
     kInterpreterEntry,
 #endif  // V8_ENABLE_DRUMBRAKE

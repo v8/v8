@@ -6,12 +6,26 @@
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
-(function TestContNew() {
+(function TestContNewAndInitialResume() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let cont_index = builder.addCont(kSig_v_v);
   let gc_index = builder.addImport('m', 'gc', kSig_v_v);
-  let callee = builder.addFunction('callee', kSig_v_v).addBody([]).exportFunc();
+  let callee = builder.addFunction('callee', kSig_v_v).addBody([
+      kExprCallFunction, gc_index,
+  ]).exportFunc();
+  builder.addFunction("cont_new_null", kSig_v_v)
+      .addBody([
+          kExprRefNull, kNullFuncRefCode,
+          kExprContNew, cont_index,
+          kExprUnreachable,
+      ]).exportFunc();
+  builder.addFunction("resume_null", kSig_v_v)
+      .addBody([
+          kExprRefNull, kNullContRefCode,
+          kExprResume, cont_index,
+          kExprUnreachable,
+      ]).exportFunc();
   builder.addFunction("main", kSig_v_v)
       .addBody([
           kExprRefFunc, callee.index,
@@ -20,6 +34,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
           kExprResume, cont_index, 0,
       ]).exportFunc();
   let instance = builder.instantiate({m: {gc}});
+  assertThrows(instance.exports.cont_new_null, WebAssembly.RuntimeError);
+  assertThrows(instance.exports.resume_null, WebAssembly.RuntimeError);
   instance.exports.main();
 })();
 

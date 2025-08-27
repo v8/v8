@@ -716,7 +716,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
 #if V8_ENABLE_WEBASSEMBLY
     case kArchCallWasmFunction:
-    case kArchCallWasmFunctionIndirect: {
+    case kArchCallWasmFunctionIndirect:
+    case kArchResumeWasmContinuation: {
       if (arch_opcode == kArchCallWasmFunction) {
         // This should always use immediate inputs since we don't have a
         // constant pool on this arch.
@@ -728,9 +729,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         } else {
           __ call(wasm_code, constant.rmode());
         }
-      } else {
+      } else if (arch_opcode == kArchCallWasmFunctionIndirect) {
         DCHECK(!HasImmediateInput(instr, 0));
         __ CallWasmCodePointer(i.InputRegister(0));
+      } else {
+        CHECK_EQ(arch_opcode, kArchResumeWasmContinuation);
+        __ Call(i.InputRegister(0));
       }
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();

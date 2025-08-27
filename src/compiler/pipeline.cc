@@ -2805,6 +2805,8 @@ wasm::WasmCompilationResult WrapperCompilationResult(
   result.result_tier = wasm::ExecutionTier::kTurbofan;
   if (kind == CodeKind::WASM_TO_JS_FUNCTION) {
     result.kind = wasm::WasmCompilationResult::kWasmToJsWrapper;
+  } else if (kind == CodeKind::WASM_STACK_ENTRY) {
+    result.kind = wasm::WasmCompilationResult::kStackEntryWrapper;
   }
   return result;
 }
@@ -2904,14 +2906,23 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
 wasm::WasmCompilationResult
 Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
     const wasm::CanonicalSig* sig, wasm::WrapperCompilationInfo wrapper_info,
-    const char* debug_name, const AssemblerOptions& options,
-    SourcePositionTable* source_positions) {
+    const char* debug_name, const AssemblerOptions& options) {
   wasm::WasmEngine* wasm_engine = wasm::GetWasmEngine();
   Zone zone(wasm_engine->allocator(), ZONE_NAME);
-  WasmCallKind call_kind =
-      wrapper_info.code_kind == CodeKind::WASM_TO_JS_FUNCTION
-          ? WasmCallKind::kWasmImportWrapper
-          : WasmCallKind::kWasmCapiFunction;
+  WasmCallKind call_kind;
+  switch (wrapper_info.code_kind) {
+    case CodeKind::WASM_TO_JS_FUNCTION:
+      call_kind = kWasmImportWrapper;
+      break;
+    case CodeKind::WASM_TO_CAPI_FUNCTION:
+      call_kind = kWasmCapiFunction;
+      break;
+    case CodeKind::WASM_STACK_ENTRY:
+      call_kind = kWasmContinuation;
+      break;
+    default:
+      UNREACHABLE();
+  }
   CallDescriptor* call_descriptor =
       GetWasmCallDescriptor(&zone, sig, call_kind);
   if (!Is64()) {
@@ -2940,7 +2951,7 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
         options);
     turboshaft_data.SetIsWasmWrapper(sig);
     AccountingAllocator allocator;
-    turboshaft_data.InitializeGraphComponent(source_positions);
+    turboshaft_data.InitializeGraphComponent(nullptr);
     BuildWasmWrapper(&turboshaft_data, &allocator, turboshaft_data.graph(), sig,
                      wrapper_info);
     CodeTracer* code_tracer = nullptr;

@@ -95,6 +95,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
     kWasmFunction,
     kWasmToCapiWrapper,
     kWasmToJsWrapper,
+    kWasmStackEntryWrapper,
 #if V8_ENABLE_DRUMBRAKE
     kInterpreterEntry,
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -492,12 +493,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   const uint8_t flags_;  // Bit field, see below.
   // Bits encoded in {flags_}:
-#if !V8_ENABLE_DRUMBRAKE
-  using KindField = base::BitField8<Kind, 0, 2>;
-#else   // !V8_ENABLE_DRUMBRAKE
-  // We have an additional kind: Wasm interpreter.
   using KindField = base::BitField8<Kind, 0, 3>;
-#endif  // !V8_ENABLE_DRUMBRAKE
   using ExecutionTierField = KindField::Next<ExecutionTier, 2>;
   using ForDebuggingField = ExecutionTierField::Next<ForDebugging, 2>;
   using FrameHasFeedbackSlotField = ForDebuggingField::Next<bool, 1>;
@@ -964,6 +960,15 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return coverage_data_;
   }
 
+  void set_continuation_wrapper(WasmCode* wrapper) {
+    continuation_wrapper_ = wrapper;
+  }
+
+  WasmCode* continuation_wrapper() {
+    DCHECK_NOT_NULL(continuation_wrapper_);
+    return continuation_wrapper_;
+  }
+
  private:
   friend class WasmCode;
   friend class WasmCodeAllocator;
@@ -1173,6 +1178,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::unique_ptr<std::atomic<const MachineSignature*>[]> fast_api_signatures_;
 
   std::shared_ptr<WasmModuleCoverageData> coverage_data_;
+  // TODO(thibaudm): Share the wrappers across modules, and cache them per
+  // signature once we support arguments and return values.
+  WasmCode* continuation_wrapper_{nullptr};
 };
 
 class V8_EXPORT_PRIVATE WasmCodeManager final {

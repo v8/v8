@@ -123,6 +123,8 @@ class StackHandler {
   IF_WASM_DRUMBRAKE(V, WASM_INTERPRETER_ENTRY, WasmInterpreterEntryFrame) \
   IF_WASM(V, WASM_DEBUG_BREAK, WasmDebugBreakFrame)                       \
   IF_WASM(V, C_WASM_ENTRY, CWasmEntryFrame)                               \
+  /* Can only appear as the first frame of a wasm stack: */               \
+  IF_WASM(V, WASM_STACK_ENTRY, WasmStackEntryFrame)                       \
   IF_WASM(V, WASM_EXIT, WasmExitFrame)                                    \
   IF_WASM(V, WASM_LIFTOFF_SETUP, WasmLiftoffSetupFrame)                   \
   IF_WASM(V, WASM_SEGMENT_START, WasmSegmentStartFrame)                   \
@@ -1439,6 +1441,18 @@ class StackSwitchFrame : public ExitFrame {
 
  protected:
   inline explicit StackSwitchFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
+};
+
+class WasmStackEntryFrame : public TypedFrame {
+ public:
+  Type type() const override { return WASM_STACK_ENTRY; }
+  void Iterate(RootVisitor* v) const override {}
+
+ protected:
+  inline explicit WasmStackEntryFrame(StackFrameIteratorBase* iterator);
 
  private:
   friend class StackFrameIteratorBase;

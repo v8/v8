@@ -138,7 +138,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
 
   void BuildCallWasmFromWrapper(Zone* zone, const CanonicalSig* sig,
                                 V<Word32> callee,
-                                V<HeapObject> implicit_first_arg,
                                 const base::Vector<OpIndex> args,
                                 base::Vector<OpIndex> returns);
 
@@ -149,6 +148,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
 
   void BuildWasmToJSWrapper(ImportCallKind kind, int expected_arity,
                             Suspend suspend);
+
+  void BuildWasmStackEntryWrapper();
 
   void BuildCapiCallWrapper();
 

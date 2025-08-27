@@ -119,6 +119,7 @@ void OptimizedCompilationInfo::ConfigureFlags() {
     case CodeKind::C_WASM_ENTRY:
     case CodeKind::JS_TO_WASM_FUNCTION:
     case CodeKind::WASM_TO_JS_FUNCTION:
+    case CodeKind::WASM_STACK_ENTRY:
       break;
     case CodeKind::BASELINE:
     case CodeKind::MAGLEV:
@@ -194,6 +195,8 @@ StackFrame::Type OptimizedCompilationInfo::GetOutputStackFrameType() const {
       return StackFrame::WASM_TO_JS;
     case CodeKind::C_WASM_ENTRY:
       return StackFrame::C_WASM_ENTRY;
+    case CodeKind::WASM_STACK_ENTRY:
+      return StackFrame::WASM_STACK_ENTRY;
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:
       UNIMPLEMENTED();

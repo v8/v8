@@ -257,6 +257,8 @@ std::string WasmCode::DebugName() const {
       return "jump-table";
     case kWasmToJsWrapper:
       return "wasm-to-js";
+    case kWasmStackEntryWrapper:
+      return "wasm-stack-entry";
 #if V8_ENABLE_DRUMBRAKE
     case kInterpreterEntry:
       return "interpreter entry";
@@ -552,6 +554,8 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind kind) {
       return "wasm-to-capi";
     case WasmCode::kWasmToJsWrapper:
       return "wasm-to-js";
+    case WasmCode::kWasmStackEntryWrapper:
+      return "wasm-stack-entry";
 #if V8_ENABLE_DRUMBRAKE
     case WasmCode::kInterpreterEntry:
       return "interpreter entry";
@@ -1482,6 +1486,8 @@ WasmCode::Kind GetCodeKind(const WasmCompilationResult& result) {
 #endif  // V8_ENABLE_DRUMBRAKE
     case WasmCompilationResult::kFunction:
       return WasmCode::Kind::kWasmFunction;
+    case WasmCompilationResult::kStackEntryWrapper:
+      return WasmCode::Kind::kWasmStackEntryWrapper;
     default:
       UNREACHABLE();
   }
@@ -2870,7 +2876,7 @@ NamesProvider* NativeModule::GetNamesProvider() {
 }
 
 size_t NativeModule::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(NativeModule, 472);
+  UPDATE_WHEN_CLASS_CHANGES(NativeModule, 480);
   size_t result = sizeof(NativeModule);
   result += module_->EstimateCurrentMemoryConsumption();
 

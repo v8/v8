@@ -3739,9 +3739,12 @@ class TurboshaftGraphBuildingInterface
 
   void ContNew(FullDecoder* decoder, const ContIndexImmediate& imm,
                const Value& func_ref, Value* result) {
+    __ TrapIf(__ IsNull(func_ref.op, func_ref.type),
+              TrapId::kTrapNullDereference);
     result->op =
         __ WasmCallRuntime(decoder->zone(), Runtime::kWasmAllocateContinuation,
-                           {func_ref.op}, __ NoContextConstant());
+                           {trusted_instance_data(kNotShared), func_ref.op},
+                           __ NoContextConstant());
   }
 
   void ContBind(FullDecoder* decoder, const ContIndexImmediate& orig_imm,
@@ -3753,20 +3756,21 @@ class TurboshaftGraphBuildingInterface
   void Resume(FullDecoder* decoder, const ContIndexImmediate& imm,
               base::Vector<HandlerCase> handlers, const Value& cont_ref,
               const Value args[], Value returns[]) {
+    __ TrapIf(__ IsNull(cont_ref.op, cont_ref.type),
+              TrapId::kTrapNullDereference);
     const FunctionSig* sig =
         decoder->module_->signature(imm.cont_type->contfun_typeindex());
-    if (sig->parameter_count() > 0 || sig->return_count() > 0) {
-      UNIMPLEMENTED();
-    }
     V<WordPtr> stack = __ LoadExternalPointerFromObject(
         cont_ref.op, WasmContinuationObject::kStackOffset, kWasmStackMemoryTag);
-    V<WasmFuncRef> func_ref = __ Load(stack, LoadOp::Kind::RawAligned(),
-                                      MemoryRepresentation::TaggedPointer(),
-                                      StackMemory::func_ref_offset());
-    auto [target, implicit_arg] =
-        BuildFunctionReferenceTargetAndImplicitArg(func_ref, kWasmFuncRef);
-    BuildWasmCall(decoder, sig, target, implicit_arg, args, {},
-                  compiler::kWasmIndirectFunction);
+    // TODO(thibaudm): Switch to the target stack here.
+    V<WordPtr> pc = __ Load(stack, LoadOp::Kind::RawAligned(),
+                            MemoryRepresentation::UintPtr(), kStackPcOffset);
+    const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
+        compiler::GetWasmCallDescriptor(
+            __ graph_zone(), sig, compiler::WasmCallKind::kWasmContinuation),
+        compiler::CanThrow::kYes, compiler::LazyDeoptOnThrow::kNo,
+        __ graph_zone());
+    __ Call(pc, {stack}, descriptor);
   }
 
   void ResumeThrow(FullDecoder* decoder,

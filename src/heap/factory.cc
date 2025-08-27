@@ -1952,7 +1952,7 @@ DirectHandle<WasmContinuationObject> Factory::NewWasmContinuationObject() {
   Tagged<WasmContinuationObject> obj =
       Cast<WasmContinuationObject>(AllocateRawWithImmortalMap(
           map->instance_size(), AllocationType::kYoung, map));
-  DirectHandle<WasmContinuationObject> cont = handle(obj, isolate());
+  DirectHandle<WasmContinuationObject> cont(obj, isolate());
   cont->init_stack(IsolateForSandbox(isolate()), nullptr);
   std::unique_ptr<wasm::StackMemory> stack = wasm::StackMemory::New();
   stack->jmpbuf()->fp = stack->base();

@@ -194,15 +194,13 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
 template <typename Assembler>
 void WasmWrapperTSGraphBuilder<Assembler>::BuildCallWasmFromWrapper(
     Zone* zone, const CanonicalSig* sig, V<Word32> callee,
-    V<HeapObject> implicit_first_arg, const base::Vector<OpIndex> args,
-    base::Vector<OpIndex> returns) {
+    const base::Vector<OpIndex> args, base::Vector<OpIndex> returns) {
   const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
       compiler::GetWasmCallDescriptor(
           __ graph_zone(), sig, compiler::WasmCallKind::kWasmIndirectFunction),
       compiler::CanThrow::kYes, compiler::LazyDeoptOnThrow::kNo,
       __ graph_zone());
 
-  args[0] = implicit_first_arg;
   OpIndex call = __ Call(callee, OpIndex::Invalid(), base::VectorOf(args),
                          descriptor, OpEffects().CanCallAnything());
 
@@ -229,7 +227,8 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildCallAndReturn(
           WasmExportedFunctionData::kProtectedInternalOffset));
   auto [target, implicit_arg] =
       this->BuildFunctionTargetAndImplicitArg(internal);
-  BuildCallWasmFromWrapper(__ phase_zone(), sig_, target, implicit_arg, args,
+  args[0] = implicit_arg;
+  BuildCallWasmFromWrapper(__ phase_zone(), sig_, target, args,
                            base::VectorOf(rets));
 
   V<Object> jsval;
@@ -554,6 +553,29 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
   } else {
     __ Return(__ Word32Constant(0), base::VectorOf(wasm_values));
   }
+}
+
+template <typename Assembler>
+void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmStackEntryWrapper() {
+  __ Bind(__ NewBlock());
+  V<WordPtr> stack_metadata =
+      __ Parameter(0, RegisterRepresentation::WordPtr());
+  V<WasmFuncRef> func_ref = __ Load(stack_metadata, LoadOp::Kind::RawAligned(),
+                                    MemoryRepresentation::TaggedPointer(),
+                                    StackMemory::func_ref_offset());
+  AbortIfNot(__ HasInstanceType(func_ref, WASM_FUNC_REF_TYPE),
+             AbortReason::kUnexpectedInstanceType);
+  V<WasmInternalFunction> internal_function =
+      V<WasmInternalFunction>::Cast(__ LoadTrustedPointerField(
+          func_ref, LoadOp::Kind::TaggedBase().Immutable(),
+          kWasmInternalFunctionIndirectPointerTag,
+          WasmFuncRef::kTrustedInternalOffset));
+  auto [target, instance] =
+      this->BuildFunctionTargetAndImplicitArg(internal_function);
+  OpIndex arg = instance;
+  BuildCallWasmFromWrapper(__ phase_zone(), sig_, target,
+                           base::VectorOf(&arg, 1), {});
+  __ Return(__ Word32Constant(0));
 }
 
 template <typename Assembler>

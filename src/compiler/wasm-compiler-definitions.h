@@ -98,7 +98,8 @@ enum WasmCallKind {
   kWasmFunction,
   kWasmIndirectFunction,
   kWasmImportWrapper,
-  kWasmCapiFunction
+  kWasmCapiFunction,
+  kWasmContinuation
 };
 
 template <typename T>

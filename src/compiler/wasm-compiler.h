@@ -72,6 +72,8 @@ V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmImportCallWrapper(
     wasm::ImportCallKind, const wasm::CanonicalSig*, int expected_arity,
     wasm::Suspend);
 
+V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmStackEntryWrapper();
+
 // Compiles a host call wrapper, which allows Wasm to call host functions.
 wasm::WasmCompilationResult CompileWasmCapiCallWrapper(
     const wasm::CanonicalSig*);

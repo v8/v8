@@ -2389,11 +2389,18 @@ RUNTIME_FUNCTION(Runtime_WasmStringHash) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
-  DCHECK_EQ(1, args.length());
+  DCHECK_EQ(2, args.length());
   HandleScope scope(isolate);
-  DirectHandle<WasmFuncRef> func_ref(Cast<WasmFuncRef>(args[0]), isolate);
+  DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
+      TrustedCast<WasmTrustedInstanceData>(args[0]), isolate);
+  DirectHandle<WasmFuncRef> func_ref =
+      handle(Cast<WasmFuncRef>(args[1]), isolate);
   DirectHandle<WasmContinuationObject> cont =
       isolate->factory()->NewWasmContinuationObject();
+  // TODO(thibaudm): Store the WasmCodePointer instead.
+  cont->stack()->jmpbuf()->pc = trusted_instance_data->native_module()
+                                    ->continuation_wrapper()
+                                    ->instruction_start();
   cont->stack()->set_func_ref(*func_ref);
   return *cont;
 }
