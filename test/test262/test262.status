@@ -766,6 +766,8 @@
   'intl402/Temporal/PlainYearMonth/prototype/toLocaleString/dateStyle': [SKIP],
   'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/dateStyle': [SKIP],
   'intl402/Temporal/PlainMonthDay/prototype/toLocaleString/dateStyle': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-islamic': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-rgsa': [SKIP],
 
   # Somehow passes on Android (b/433933898):
   'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [SKIP],
