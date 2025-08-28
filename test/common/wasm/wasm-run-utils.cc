@@ -101,8 +101,8 @@ TestingModuleBuilder::TestingModuleBuilder(
     DirectHandle<JSReceiver> callable = resolved.callable();
     std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
         GetWasmImportWrapperCache()->GetCompiled(
-            isolate, kind, sig_index, static_cast<int>(sig->parameter_count()),
-            kNoSuspend, sig);
+            isolate, kind, static_cast<int>(sig->parameter_count()), kNoSuspend,
+            sig);
 
     ImportedFunctionEntry(trusted_instance_data_, maybe_import_index)
         .SetWasmToWrapper(isolate_, callable, std::move(wrapper_handle),

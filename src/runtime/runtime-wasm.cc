@@ -611,8 +611,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
     wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
     wasm::Suspend suspend = import_data->suspend();
     std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
-        cache->GetCompiled(isolate, kind, sig->index(), expected_arity, suspend,
-                           sig);
+        cache->GetCompiled(isolate, kind, expected_arity, suspend, sig);
     DCHECK_EQ(TrustedCast<WasmInternalFunction>(*origin)->call_target(),
               wrapper_handle->code_pointer());
     return ReadOnlyRoots(isolate).undefined_value();
@@ -644,8 +643,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
 
   wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
   std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
-      cache->GetCompiled(isolate, kind, sig_index, expected_arity, suspend,
-                         sig);
+      cache->GetCompiled(isolate, kind, expected_arity, suspend, sig);
 
   DCHECK_EQ(dispatch_table->target(table_slot), wrapper_handle->code_pointer());
 

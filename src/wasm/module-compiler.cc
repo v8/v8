@@ -4372,13 +4372,13 @@ void CompilationStateImpl::TierUpAllFunctions() {
 
 std::shared_ptr<wasm::WasmImportWrapperHandle> CompileImportWrapperForTest(
     Isolate* isolate, ImportCallKind kind, const CanonicalSig* sig,
-    CanonicalTypeIndex type_index, int expected_arity, Suspend suspend) {
+    int expected_arity, Suspend suspend) {
   if (v8_flags.wasm_jitless) {
     return nullptr;
   }
 
-  return GetWasmImportWrapperCache()->GetCompiled(isolate, kind, type_index,
-                                                  expected_arity, suspend, sig);
+  return GetWasmImportWrapperCache()->GetCompiled(isolate, kind, expected_arity,
+                                                  suspend, sig);
 }
 
 }  // namespace v8::internal::wasm

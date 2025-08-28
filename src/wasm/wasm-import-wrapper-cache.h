@@ -76,14 +76,13 @@ class WasmImportWrapperCache {
   void Free(std::vector<WasmCode*>& wrappers);
 
   V8_EXPORT_PRIVATE std::shared_ptr<WasmImportWrapperHandle> Get(
-      Isolate* isolate, ImportCallKind kind, CanonicalTypeIndex type_index,
-      int expected_arity, Suspend suspend, const wasm::CanonicalSig* sig);
+      Isolate* isolate, ImportCallKind kind, int expected_arity,
+      Suspend suspend, const wasm::CanonicalSig* sig);
 
-  // TODO(clemensb): Drop `type_index`.
   V8_EXPORT_PRIVATE
   std::shared_ptr<WasmImportWrapperHandle> GetCompiled(
-      Isolate* isolate, ImportCallKind kind, CanonicalTypeIndex type_index,
-      int expected_arity, Suspend suspend, const wasm::CanonicalSig* sig);
+      Isolate* isolate, ImportCallKind kind, int expected_arity,
+      Suspend suspend, const wasm::CanonicalSig* sig);
 
 #ifdef V8_ENABLE_TURBOFAN
   V8_EXPORT_PRIVATE

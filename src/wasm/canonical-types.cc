@@ -196,6 +196,7 @@ const CanonicalSig* TypeCanonicalizer::LookupFunctionSignature(
     CanonicalTypeIndex index) const {
   const CanonicalType* type = canonical_types_[index];
   SBXCHECK_EQ(type->kind, CanonicalType::kFunction);
+  DCHECK_EQ(index, type->function_sig->index());
   return type->function_sig;
 }
 
