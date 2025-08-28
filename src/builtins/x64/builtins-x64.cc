@@ -3415,8 +3415,7 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
 }
 
 namespace {
-void LoadJumpBuffer(MacroAssembler* masm, Register stack, bool load_pc,
-                    wasm::JumpBuffer::StackState expected_state) {
+void LoadJumpBuffer(MacroAssembler* masm, Register stack, bool load_pc) {
   __ movq(rsp, MemOperand(stack, wasm::kStackSpOffset));
   __ movq(rbp, MemOperand(stack, wasm::kStackFpOffset));
   if (load_pc) {
@@ -3425,13 +3424,12 @@ void LoadJumpBuffer(MacroAssembler* masm, Register stack, bool load_pc,
   // The stack limit is set separately under the ExecutionAccess lock.
 }
 
-void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_stack,
-                          wasm::JumpBuffer::StackState expected_state) {
+void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_stack) {
   MemOperand GCScanSlotPlace =
       MemOperand(rbp, WasmJspiFrameConstants::kGCScanSlotCountOffset);
   __ Move(GCScanSlotPlace, 0);
   // Switch stack!
-  LoadJumpBuffer(masm, target_stack, false, expected_state);
+  LoadJumpBuffer(masm, target_stack, false);
 }
 
 // Updates the stack limit and central stack info, and validates the switch.
@@ -3487,7 +3485,7 @@ void ReloadParentStack(MacroAssembler* masm, Register promise,
   // Switch stack!
   SwitchStacks(masm, ExternalReference::wasm_return_stack(), active_stack,
                nullptr, no_reg, {promise, return_value, context, parent});
-  LoadJumpBuffer(masm, parent, false, wasm::JumpBuffer::Inactive);
+  LoadJumpBuffer(masm, parent, false);
 }
 
 // Loads the context field of the WasmTrustedInstanceData or WasmImportData
@@ -3540,7 +3538,7 @@ void SwitchToAllocatedStack(MacroAssembler* masm, Register wasm_instance,
   // Save the old stack's rbp in r9, and use it to access the parameters in
   // the parent frame.
   __ movq(original_fp, rbp);
-  LoadTargetJumpBuffer(masm, target_stack, wasm::JumpBuffer::Suspended);
+  LoadTargetJumpBuffer(masm, target_stack);
   // Return address slot. The builtin itself returns by switching to the parent
   // jump buffer and does not actually use this slot, but it is read by the
   // profiler.
@@ -3942,7 +3940,7 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   MemOperand GCScanSlotPlace =
       MemOperand(rbp, WasmJspiFrameConstants::kGCScanSlotCountOffset);
   __ Move(GCScanSlotPlace, 0);
-  LoadJumpBuffer(masm, caller, true, wasm::JumpBuffer::Inactive);
+  LoadJumpBuffer(masm, caller, true);
   __ Trap();
   __ bind(&resume);
   __ endbr64();
@@ -4019,7 +4017,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   __ Move(MemOperand(rbp, WasmJspiFrameConstants::kGCScanSlotCountOffset), 0);
   if (on_resume == wasm::OnResume::kThrow) {
     // Switch to the target stack without restoring the PC.
-    LoadJumpBuffer(masm, target_stack, false, wasm::JumpBuffer::Suspended);
+    LoadJumpBuffer(masm, target_stack, false);
     // Pop this frame now. The unwinder expects that the first WASM_JSPI
     // frame is the outermost one.
     __ LeaveFrame(StackFrame::WASM_JSPI);
@@ -4029,7 +4027,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
     __ CallRuntime(Runtime::kThrow);
   } else {
     // Resume the stack normally.
-    LoadJumpBuffer(masm, target_stack, true, wasm::JumpBuffer::Suspended);
+    LoadJumpBuffer(masm, target_stack, true);
   }
   __ Trap();
   __ bind(&suspend);
