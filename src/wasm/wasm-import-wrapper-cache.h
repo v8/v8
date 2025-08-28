@@ -79,6 +79,7 @@ class WasmImportWrapperCache {
       Isolate* isolate, ImportCallKind kind, CanonicalTypeIndex type_index,
       int expected_arity, Suspend suspend, const wasm::CanonicalSig* sig);
 
+  // TODO(clemensb): Drop `type_index`.
   V8_EXPORT_PRIVATE
   std::shared_ptr<WasmImportWrapperHandle> GetCompiled(
       Isolate* isolate, ImportCallKind kind, CanonicalTypeIndex type_index,

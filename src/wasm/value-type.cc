@@ -236,12 +236,13 @@ const wasm::FunctionSig* GetI32Sig(Zone* zone, const wasm::FunctionSig* sig) {
   return ReplaceTypeInSig(zone, sig, wasm::kWasmI64, wasm::kWasmI32, 2);
 }
 
-CanonicalSig* CanonicalSig::Builder::Get() const {
+const CanonicalSig* CanonicalSig::Builder::Get(CanonicalTypeIndex index) const {
   CanonicalSig* sig =
-      reinterpret_cast<
-          const SignatureBuilder<CanonicalSig, CanonicalValueType>*>(this)
+      static_cast<const SignatureBuilder<CanonicalSig, CanonicalValueType>*>(
+          this)
           ->Get();
   sig->signature_hash_ = wasm::SignatureHasher::Hash(sig);
+  sig->index_ = index;
   return sig;
 }
 

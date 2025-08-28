@@ -1321,13 +1321,20 @@ class CanonicalSig : public Signature<CanonicalValueType> {
     Builder(Zone* zone, size_t return_count, size_t parameter_count)
         : SignatureBuilder<CanonicalSig, CanonicalValueType>(zone, return_count,
                                                              parameter_count) {}
-    CanonicalSig* Get() const;
+    const CanonicalSig* Get(CanonicalTypeIndex index) const;
   };
 
   uint64_t signature_hash() const { return signature_hash_; }
 
+  CanonicalTypeIndex index() const { return index_; }
+
  private:
+  // These fields are initialized by `Builder::Get()` and never modified
+  // afterwards. We cannot make them `const` for technical reasons (this would
+  // require a `const_cast` which would be UB).
   uint64_t signature_hash_;
+
+  CanonicalTypeIndex index_;
 };
 
 // This is the special case where comparing module-specific to canonical

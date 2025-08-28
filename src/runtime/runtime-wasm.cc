@@ -609,12 +609,10 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
       kind = wasm::ImportCallKind::kUseCallBuiltin;
     }
     wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
-    wasm::CanonicalTypeIndex canonical_sig_index =
-        wasm::GetTypeCanonicalizer()->FindIndex_Slow(sig);
     wasm::Suspend suspend = import_data->suspend();
     std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
-        cache->GetCompiled(isolate, kind, canonical_sig_index, expected_arity,
-                           suspend, sig);
+        cache->GetCompiled(isolate, kind, sig->index(), expected_arity, suspend,
+                           sig);
     DCHECK_EQ(TrustedCast<WasmInternalFunction>(*origin)->call_target(),
               wrapper_handle->code_pointer());
     return ReadOnlyRoots(isolate).undefined_value();
