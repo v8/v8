@@ -78,6 +78,11 @@ void ModuleGenerationTest::Test(WasmModuleGenerationOptions options,
   FlagScope<int> debug_mask_scope(&v8_flags.wasm_debug_mask_for_testing,
                                   debug_mask);
 
+  // Do not generate SIMD if the CPU does not support SIMD.
+  if (options.generate_simd() && !CpuFeatures::SupportsWasmSimd128()) {
+    options = options - WasmModuleGenerationOption::kGenerateSIMD;
+  }
+
   zone_.Reset();
   base::Vector<const uint8_t> wire_bytes =
       GenerateRandomWasmModule(&zone_, options, base::VectorOf(input));
