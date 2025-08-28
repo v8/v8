@@ -238,10 +238,6 @@ void HeapObject::PrintHeader(std::ostream& os, const char* id) {
 
 void HeapObject::HeapObjectPrint(std::ostream& os) {
   PtrComprCageBase cage_base = GetPtrComprCageBase();
-  if (IsAnyHole(Tagged(*this))) {
-    Cast<Hole>(*this)->HolePrint(os);
-    return;
-  }
 
   InstanceType instance_type = map(cage_base)->instance_type();
 
@@ -1436,7 +1432,7 @@ void PrintTableContentsGeneric(std::ostream& os, T* dict,
     Tagged<Object> k;
     if (!dict->ToKey(roots, i, &k)) continue;
     os << "\n   " << std::setw(12) << i.as_int() << ": ";
-    if (!IsAnyHole(k) && IsString(k)) {
+    if (IsString(k)) {
       Cast<String>(k)->PrintUC16(os);
     } else {
       os << Brief(k);
@@ -3627,17 +3623,6 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
   PtrComprCageBase cage_base = GetPtrComprCageBase();
   os << AsHex::Address(this->ptr()) << " ";
 
-  if (SafeIsAnyHole(Tagged(*this))) {
-#define PRINT_HOLE(Type, Value, _) \
-  if (Is##Type(*this)) {           \
-    os << "<" #Value ">";          \
-    return;                        \
-  }
-    HOLE_LIST(PRINT_HOLE)
-#undef PRINT_HOLE
-    UNREACHABLE();
-  }
-
   if (IsString(*this, cage_base)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
@@ -3916,6 +3901,13 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     }
     case HOLE_TYPE: {
+#define PRINT_HOLE(Type, Value, _) \
+  if (Is##Type(*this)) {           \
+    os << "<" #Value ">";          \
+    break;                         \
+  }
+      HOLE_LIST(PRINT_HOLE)
+#undef PRINT_HOLE
       UNREACHABLE();
     }
     case INSTRUCTION_STREAM_TYPE: {

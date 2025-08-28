@@ -2978,36 +2978,34 @@ class GraphBuildingNodeProcessor {
     V<Object> value = __ LoadTaggedField(script_context, node->offset());
     ScopedVar<Object, AssemblerT> result(this, value);
     IF_NOT (__ IsSmi(value)) {
-      IF_NOT (__ IsTheHole(value)) {
-        V<i::Map> value_map = __ LoadMapField(value);
-        IF (UNLIKELY(__ TaggedEqual(
-                value_map,
-                __ HeapConstant(local_factory_->context_cell_map())))) {
-          V<ContextCell> slot = V<ContextCell>::Cast(value);
-          V<Word32> slot_state =
-              __ LoadField<Word32>(slot, AccessBuilder::ForContextCellState());
-          static_assert(ContextCell::State::kConst == 0);
-          static_assert(ContextCell::State::kSmi == 1);
-          IF (__ Int32LessThanOrEqual(slot_state,
-                                      __ Word32Constant(ContextCell::kSmi))) {
-            result = __ LoadField<Object>(
-                slot, AccessBuilder::ForContextCellTaggedValue());
+      V<i::Map> value_map = __ LoadMapField(value);
+      IF (UNLIKELY(__ TaggedEqual(
+              value_map,
+              __ HeapConstant(local_factory_->context_cell_map())))) {
+        V<ContextCell> slot = V<ContextCell>::Cast(value);
+        V<Word32> slot_state =
+            __ LoadField<Word32>(slot, AccessBuilder::ForContextCellState());
+        static_assert(ContextCell::State::kConst == 0);
+        static_assert(ContextCell::State::kSmi == 1);
+        IF (__ Int32LessThanOrEqual(slot_state,
+                                    __ Word32Constant(ContextCell::kSmi))) {
+          result = __ LoadField<Object>(
+              slot, AccessBuilder::ForContextCellTaggedValue());
+        } ELSE {
+          IF (__ Word32Equal(slot_state,
+                             __ Word32Constant(ContextCell::kInt32))) {
+            result = V<Number>::Cast(__ ConvertUntaggedToJSPrimitive(
+                __ LoadField<Word32>(slot,
+                                     AccessBuilder::ForContextCellInt32Value()),
+                ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kNumber,
+                RegisterRepresentation::Word32(),
+                ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
+                CheckForMinusZeroMode::kDontCheckForMinusZero));
           } ELSE {
-            IF (__ Word32Equal(slot_state,
-                               __ Word32Constant(ContextCell::kInt32))) {
-              result = V<Number>::Cast(__ ConvertUntaggedToJSPrimitive(
-                  __ LoadField<Word32>(
-                      slot, AccessBuilder::ForContextCellInt32Value()),
-                  ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kNumber,
-                  RegisterRepresentation::Word32(),
-                  ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
-                  CheckForMinusZeroMode::kDontCheckForMinusZero));
-            } ELSE {
-              result = __ AllocateHeapNumberWithValue(
-                  __ LoadField<Float64>(
-                      slot, AccessBuilder::ForContextCellFloat64Value()),
-                  isolate_->factory());
-            }
+            result = __ AllocateHeapNumberWithValue(
+                __ LoadField<Float64>(
+                    slot, AccessBuilder::ForContextCellFloat64Value()),
+                isolate_->factory());
           }
         }
       }
@@ -3106,10 +3104,6 @@ class GraphBuildingNodeProcessor {
     V<Object> new_value = Map(node->new_value_input());
     V<Object> old_value = __ LoadTaggedField(context, node->offset());
     IF (__ IsSmi(old_value)) {
-      __ Store(context, new_value, StoreOp::Kind::TaggedBase(),
-               MemoryRepresentation::AnyTagged(),
-               WriteBarrierKind::kFullWriteBarrier, node->offset(), false);
-    } ELSE IF (__ IsTheHole(old_value)) {
       __ Store(context, new_value, StoreOp::Kind::TaggedBase(),
                MemoryRepresentation::AnyTagged(),
                WriteBarrierKind::kFullWriteBarrier, node->offset(), false);

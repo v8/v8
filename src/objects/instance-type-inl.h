@@ -539,10 +539,6 @@ V8_INLINE bool IsFreeSpaceOrFiller(Tagged<Map> map) {
 #endif  // !V8_STATIC_ROOTS_BOOL
 }
 
-V8_INLINE bool IsHole(InstanceType instance_type) {
-  return instance_type == HOLE_TYPE;
-}
-
 // These JSObject types are wrappers around a set of primitive values
 // and exist only for the purpose of passing the data across V8 Api.
 // They are not supposed to be ever leaked to user JS code and their maps

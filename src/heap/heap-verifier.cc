@@ -146,13 +146,6 @@ void VerifyPointersVisitor::VisitMapPointer(Tagged<HeapObject> host) {
 void VerifyPointersVisitor::VerifyHeapObjectImpl(
     Tagged<HeapObject> heap_object) {
   CHECK(IsValidHeapObject(heap_, heap_object));
-#if V8_STATIC_ROOTS_BOOL
-  // In static roots builds, holes are unmapped in RO space -- skip verifying
-  // them.
-  if (HeapLayout::InReadOnlySpace(heap_object) && IsAnyHole(heap_object)) {
-    return;
-  }
-#endif
   CHECK(IsMap(heap_object->map(cage_base())));
   // Heap::InToPage() is not available with sticky mark-bits.
   CHECK_IMPLIES(
@@ -500,7 +493,7 @@ void HeapVerification::VerifyObjectMap(Tagged<HeapObject> object) {
     // The object should not be code or a map.
     CHECK(!IsMap(object, cage_base_));
     CHECK(!IsAbstractCode(object, cage_base_));
-  } else if (current_space_identity() == RO_SPACE && !IsAnyHole(object)) {
+  } else if (current_space_identity() == RO_SPACE) {
     CHECK(!IsExternalString(object));
     CHECK(!IsJSArrayBuffer(object));
   }

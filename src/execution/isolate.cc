@@ -91,7 +91,6 @@
 #include "src/objects/call-site-info.h"
 #include "src/objects/elements.h"
 #include "src/objects/feedback-vector.h"
-#include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
@@ -3019,7 +3018,6 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
 
 bool Isolate::ComputeLocationFromException(MessageLocation* target,
                                            DirectHandle<Object> exception) {
-  if (IsAnyHole(*exception)) return false;
   if (!IsJSObject(*exception)) return false;
 
   DirectHandle<Name> start_pos_symbol = factory()->error_start_pos_symbol();
@@ -3046,7 +3044,6 @@ bool Isolate::ComputeLocationFromException(MessageLocation* target,
 
 bool Isolate::ComputeLocationFromSimpleStackTrace(
     MessageLocation* target, DirectHandle<Object> exception) {
-  if (IsAnyHole(*exception)) return false;
   if (!IsJSReceiver(*exception)) {
     return false;
   }
@@ -3064,7 +3061,6 @@ bool Isolate::ComputeLocationFromSimpleStackTrace(
 
 bool Isolate::ComputeLocationFromDetailedStackTrace(
     MessageLocation* target, DirectHandle<Object> exception) {
-  if (IsAnyHole(*exception)) return false;
   if (!IsJSReceiver(*exception)) return false;
 
   DirectHandle<StackTraceInfo> stack_trace =
@@ -3083,7 +3079,7 @@ Handle<JSMessageObject> Isolate::CreateMessage(DirectHandle<Object> exception,
                                                MessageLocation* location) {
   DirectHandle<StackTraceInfo> stack_trace;
   if (capture_stack_trace_for_uncaught_exceptions_) {
-    if (!IsAnyHole(*exception) && IsJSObject(*exception)) {
+    if (IsJSObject(*exception)) {
       // First, check whether a stack trace is already present on this object.
       // It maybe an Error, or the embedder may have stored a stack trace using
       // Exception::CaptureStackTrace().
@@ -3114,7 +3110,7 @@ Handle<JSMessageObject> Isolate::CreateMessage(DirectHandle<Object> exception,
 Handle<JSMessageObject> Isolate::CreateMessageFromException(
     DirectHandle<Object> exception) {
   DirectHandle<StackTraceInfo> stack_trace;
-  if (!IsAnyHole(*exception) && IsJSError(*exception)) {
+  if (IsJSError(*exception)) {
     stack_trace = GetDetailedStackTrace(Cast<JSObject>(exception));
   }
 
@@ -4949,8 +4945,8 @@ bool Isolate::PropagateExceptionToExternalTryCatch(
     SetTerminationOnExternalTryCatch();
   } else {
     v8::TryCatch* handler = try_catch_handler();
-    DCHECK(IsAnyHole(pending_message()) ||
-           IsJSMessageObject(pending_message()));
+    DCHECK(IsJSMessageObject(pending_message()) ||
+           IsTheHole(pending_message(), this));
     handler->can_continue_ = true;
     handler->exception_ = reinterpret_cast<void*>(exception.ptr());
     // Propagate to the external try-catch only if we got an actual message.
@@ -5132,10 +5128,8 @@ void Isolate::ReportExceptionFunctionCallback(
   DCHECK_NOT_NULL(exception_propagation_callback_);
 
   // Ignore exceptions that we can't extend.
-  if (IsAnyHole(this->exception())) return;
-  Tagged<JSReceiver> raw_exception;
-  if (!TryCast<JSReceiver>(this->exception(), &raw_exception)) return;
-  DirectHandle<JSReceiver> exception(raw_exception, this);
+  if (!IsJSReceiver(this->exception())) return;
+  DirectHandle<JSReceiver> exception(Cast<JSReceiver>(this->exception()), this);
 
   DirectHandle<Object> maybe_message(pending_message(), this);
 
@@ -5532,7 +5526,6 @@ void Isolate::VerifyStaticRoots() {
   // sorted list of addresses) or remove the offending entry from the list.
   for (idx = RootIndex::kFirstRoot; idx <= RootIndex::kLastRoot; ++idx) {
     Tagged<Object> obj = roots_table().slot(idx).load(this);
-    if (RootsTable::IsReadOnly(idx) && IsAnyHole(obj)) continue;
     if (obj.ptr() == kNullAddress || !IsMap(obj)) continue;
     Tagged<Map> map = Cast<Map>(obj);
 

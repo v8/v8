@@ -8,7 +8,6 @@
 #include <functional>
 #include <optional>
 
-#include "src/base/functional/function-ref.h"
 #include "src/base/macros.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/heap-object-list.h"
@@ -636,9 +635,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                           Operation bitwise_op);
   TNode<Number> BitwiseSmiOp(TNode<Smi> left32, TNode<Smi> right32,
                              Operation bitwise_op);
-
-  TNode<BoolT> LogicalOr(TNode<BoolT> lhs,
-                         base::FunctionRef<TNode<BoolT>()> rhs);
 
   // Align the value to kObjectAlignment8GbHeap if V8_COMPRESS_POINTERS_8GB is
   // defined.

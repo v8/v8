@@ -55,8 +55,6 @@ class FieldStatsCollector : public ObjectVisitorWithCageBases {
         raw_fields_count_(raw_fields_count) {}
 
   void RecordStats(Tagged<HeapObject> host) {
-    if (SafeIsAnyHole(host)) return;
-
     size_t old_pointer_fields_count = *tagged_fields_count_;
     VisitObject(heap_->isolate(), host, this);
     size_t tagged_fields_count_in_object =

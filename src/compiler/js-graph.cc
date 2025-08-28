@@ -51,7 +51,9 @@ Node* JSGraph::CEntryStubConstant(int result_size, ArgvMode argv_mode,
 Node* JSGraph::ConstantNoHole(ObjectRef ref, JSHeapBroker* broker) {
   // This CHECK is security critical, we should never observe a hole
   // here.  Please do not remove this! (crbug.com/1486789)
-  CHECK(ref.IsSmi() || ref.IsHeapNumber() || ref.HoleType() == HoleType::kNone);
+  CHECK(ref.IsSmi() || ref.IsHeapNumber() ||
+        ref.AsHeapObject().GetHeapObjectType(broker).hole_type() ==
+            HoleType::kNone);
   if (ref.IsString()) {
     ref = ref.AsString().UnpackIfThin(broker);
   }
@@ -64,8 +66,11 @@ Node* JSGraph::ConstantMaybeHole(ObjectRef ref, JSHeapBroker* broker) {
 
 Node* JSGraph::Constant(ObjectRef ref, JSHeapBroker* broker) {
   if (ref.IsSmi()) return ConstantMaybeHole(ref.AsSmi());
+  if (ref.IsHeapNumber()) {
+    return ConstantMaybeHole(ref.AsHeapNumber().value());
+  }
 
-  switch (ref.HoleType()) {
+  switch (ref.AsHeapObject().GetHeapObjectType(broker).hole_type()) {
     case HoleType::kNone:
       break;
     case HoleType::kGeneric:
@@ -88,10 +93,6 @@ Node* JSGraph::Constant(ObjectRef ref, JSHeapBroker* broker) {
     case HoleType::kSelfReferenceMarker:
     case HoleType::kBasicBlockCountersMarker:
       UNREACHABLE();
-  }
-
-  if (ref.IsHeapNumber()) {
-    return ConstantMaybeHole(ref.AsHeapNumber().value());
   }
 
   OddballType oddball_type =

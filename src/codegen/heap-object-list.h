@@ -153,7 +153,6 @@
   V(TrueValue, true_value, True)                                             \
   V(undefined_to_string, undefined_to_string, UndefinedToString)             \
   V(UndefinedValue, undefined_value, Undefined)                              \
-  V(UninitializedValue, uninitialized_value, Uninitialized)                  \
   V(uninitialized_symbol, uninitialized_symbol, UninitializedSymbol)         \
   V(UndefinedContextCell, undefined_context_cell, UndefinedContextCell)      \
   V(valueOf_string, valueOf_string, ValueOfString)                           \

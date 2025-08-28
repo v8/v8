@@ -25,7 +25,6 @@
 #include "src/objects/cell-inl.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/hash-table-inl.h"
-#include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
@@ -37,7 +36,6 @@
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/objects.h"
 #include "src/objects/prototype.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/struct-inl.h"
@@ -853,8 +851,6 @@ Tagged<JSFunction> V8HeapExplorer::GetLocationFunction(
     Tagged<HeapObject> object) {
   DisallowHeapAllocation no_gc;
 
-  if (SafeIsAnyHole(object)) return {};
-
   if (IsJSFunction(object)) {
     return Cast<JSFunction>(object);
   } else if (IsJSGeneratorObject(object)) {
@@ -868,7 +864,7 @@ Tagged<JSFunction> V8HeapExplorer::GetLocationFunction(
     return maybe_constructor;
   }
 
-  return {};
+  return JSFunction();
 }
 
 void V8HeapExplorer::ExtractLocation(HeapEntry* entry,
@@ -898,9 +894,6 @@ void V8HeapExplorer::ExtractLocationForJSFunction(HeapEntry* entry,
 
 HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
   PtrComprCageBase cage_base(isolate());
-  if (SafeIsAnyHole(object)) {
-    return AddEntry(object, HeapEntry::kHidden, "system / Hole");
-  }
   InstanceType instance_type = object->map(cage_base)->instance_type();
   if (InstanceTypeChecker::IsJSObject(instance_type)) {
     if (InstanceTypeChecker::IsJSFunction(instance_type)) {
@@ -1138,7 +1131,7 @@ const char* V8HeapExplorer::GetSystemEntryName(Tagged<HeapObject> object) {
 #undef MAKE_STRING_CASE
 
     case HOLE_TYPE:
-      UNREACHABLE();
+      return "system / Hole";
   }
 
   // Avoid undefined behavior for enum values not handled by the exhaustive
@@ -1382,8 +1375,6 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
 
 void V8HeapExplorer::ExtractReferences(HeapEntry* entry,
                                        Tagged<HeapObject> obj) {
-  if (SafeIsAnyHole(obj)) return;
-
   if (IsJSGlobalProxy(obj)) {
     ExtractJSGlobalProxyReferences(entry, Cast<JSGlobalProxy>(obj));
   } else if (IsJSArrayBuffer(obj)) {
@@ -2670,7 +2661,7 @@ bool V8HeapExplorer::IsEssentialObject(Tagged<Object> object) {
   }
   Isolate* isolate = heap_->isolate();
   ReadOnlyRoots roots(isolate);
-  return !IsAnyHole(object) && !IsOddball(object, isolate) &&
+  return !IsOddball(object, isolate) && object != roots.the_hole_value() &&
          object != roots.empty_byte_array() &&
          object != roots.empty_fixed_array() &&
          object != roots.empty_weak_fixed_array() &&
@@ -2891,13 +2882,7 @@ void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
   // Add a shortcut to JS global object reference at snapshot root.
   // That allows the user to easily find global objects. They are
   // also used as starting points in distance calculations.
-  if (is_weak) return;
-  if (SafeIsAnyHole(child_heap_obj)) {
-    return;
-  }
-  if (!IsNativeContext(child_heap_obj)) {
-    return;
-  }
+  if (is_weak || !IsNativeContext(child_heap_obj)) return;
 
   Tagged<JSGlobalObject> global =
       Cast<Context>(child_heap_obj)->global_object();

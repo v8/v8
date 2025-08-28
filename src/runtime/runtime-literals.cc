@@ -16,7 +16,6 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/lookup.h"
-#include "src/objects/objects.h"
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/property-details.h"
@@ -121,7 +120,6 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
             copy->map(isolate), details.field_index(),
             details.representation());
         Tagged<Object> raw = copy->RawFastPropertyAt(isolate, index);
-        if (IsUninitializedHole(raw)) continue;
         if (IsJSObject(raw, isolate)) {
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
@@ -139,7 +137,6 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
             copy->property_dictionary_swiss(isolate), isolate);
         for (InternalIndex i : dict->IterateEntries()) {
           Tagged<Object> raw = dict->ValueAt(i);
-          if (IsUninitializedHole(raw)) continue;
           if (!IsJSObject(raw, isolate)) continue;
           DCHECK(IsName(dict->KeyAt(i)));
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);
@@ -152,7 +149,6 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
                                           isolate);
         for (InternalIndex i : dict->IterateEntries()) {
           Tagged<Object> raw = dict->ValueAt(isolate, i);
-          if (IsUninitializedHole(raw)) continue;
           if (!IsJSObject(raw, isolate)) continue;
           DCHECK(IsName(dict->KeyAt(isolate, i)));
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);
@@ -183,13 +179,12 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       if (elements->map() == ReadOnlyRoots(isolate).fixed_cow_array_map()) {
 #ifdef DEBUG
         for (int i = 0; i < elements->length(); i++) {
-          DCHECK(IsTheHole(elements->get(i)) || !IsJSObject(elements->get(i)));
+          DCHECK(!IsJSObject(elements->get(i)));
         }
 #endif
       } else {
         for (int i = 0; i < elements->length(); i++) {
           Tagged<Object> raw = elements->get(i);
-          if (IsTheHole(raw)) continue;
           if (!IsJSObject(raw, isolate)) continue;
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
@@ -204,7 +199,6 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           copy->element_dictionary(isolate), isolate);
       for (InternalIndex i : element_dictionary->IterateEntries()) {
         Tagged<Object> raw = element_dictionary->ValueAt(isolate, i);
-        if (IsTheHole(raw)) continue;
         if (!IsJSObject(raw, isolate)) continue;
         Handle<JSObject> value(Cast<JSObject>(raw), isolate);
         ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
@@ -417,7 +411,7 @@ Handle<JSObject> CreateObjectLiteral(
                              isolate);
     Handle<Object> value(object_boilerplate_description->value(index), isolate);
 
-    if (IsHeapObject(*value) && !IsUninitializedHole(*value, isolate)) {
+    if (IsHeapObject(*value)) {
       if (IsArrayBoilerplateDescription(Cast<HeapObject>(*value), isolate)) {
         auto array_boilerplate = Cast<ArrayBoilerplateDescription>(value);
         value = CreateArrayLiteral(isolate, array_boilerplate, allocation);
@@ -473,8 +467,7 @@ Handle<JSObject> CreateArrayLiteral(
       if (DEBUG_BOOL) {
         auto fixed_array_values = Cast<FixedArray>(copied_elements_values);
         for (int i = 0; i < fixed_array_values->length(); i++) {
-          DCHECK_IMPLIES(!IsAnyHole(fixed_array_values->get(i)),
-                         !IsFixedArray(fixed_array_values->get(i)));
+          DCHECK(!IsFixedArray(fixed_array_values->get(i)));
         }
       }
     } else {
@@ -486,24 +479,24 @@ Handle<JSObject> CreateArrayLiteral(
       for (int i = 0; i < fixed_array_values->length(); i++) {
         Tagged<Object> value = fixed_array_values_copy->get(i);
         Tagged<HeapObject> value_heap_object;
-        if (!value.GetHeapObject(isolate, &value_heap_object)) continue;
-        if (IsAnyHole(value_heap_object)) continue;
+        if (value.GetHeapObject(isolate, &value_heap_object)) {
+          if (IsArrayBoilerplateDescription(value_heap_object, isolate)) {
+            HandleScope sub_scope(isolate);
+            DirectHandle<ArrayBoilerplateDescription> boilerplate(
+                Cast<ArrayBoilerplateDescription>(value_heap_object), isolate);
+            DirectHandle<JSObject> result =
+                CreateArrayLiteral(isolate, boilerplate, allocation);
+            fixed_array_values_copy->set(i, *result);
 
-        if (IsArrayBoilerplateDescription(value_heap_object, isolate)) {
-          HandleScope sub_scope(isolate);
-          DirectHandle<ArrayBoilerplateDescription> boilerplate(
-              Cast<ArrayBoilerplateDescription>(value_heap_object), isolate);
-          DirectHandle<JSObject> result =
-              CreateArrayLiteral(isolate, boilerplate, allocation);
-          fixed_array_values_copy->set(i, *result);
-
-        } else if (IsObjectBoilerplateDescription(value_heap_object, isolate)) {
-          HandleScope sub_scope(isolate);
-          DirectHandle<ObjectBoilerplateDescription> boilerplate(
-              Cast<ObjectBoilerplateDescription>(value_heap_object), isolate);
-          DirectHandle<JSObject> result = CreateObjectLiteral(
-              isolate, boilerplate, boilerplate->flags(), allocation);
-          fixed_array_values_copy->set(i, *result);
+          } else if (IsObjectBoilerplateDescription(value_heap_object,
+                                                    isolate)) {
+            HandleScope sub_scope(isolate);
+            DirectHandle<ObjectBoilerplateDescription> boilerplate(
+                Cast<ObjectBoilerplateDescription>(value_heap_object), isolate);
+            DirectHandle<JSObject> result = CreateObjectLiteral(
+                isolate, boilerplate, boilerplate->flags(), allocation);
+            fixed_array_values_copy->set(i, *result);
+          }
         }
       }
     }

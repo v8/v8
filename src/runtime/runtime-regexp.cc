@@ -568,7 +568,7 @@ void TruncateRegexpIndicesList(Isolate* isolate) {
 }  // namespace
 
 template <typename ResultSeqString>
-V8_WARN_UNUSED_RESULT static Tagged<UnionOf<ExceptionHole, String>>
+V8_WARN_UNUSED_RESULT static Tagged<Object>
 StringReplaceGlobalAtomRegExpWithString(
     Isolate* isolate, DirectHandle<String> subject,
     DirectHandle<JSRegExp> pattern_regexp, DirectHandle<String> replacement,
@@ -649,8 +649,7 @@ StringReplaceGlobalAtomRegExpWithString(
   return *result;
 }
 
-V8_WARN_UNUSED_RESULT static Tagged<UnionOf<ExceptionHole, String>>
-StringReplaceGlobalRegExpWithString(
+V8_WARN_UNUSED_RESULT static Tagged<Object> StringReplaceGlobalRegExpWithString(
     Isolate* isolate, DirectHandle<String> subject,
     DirectHandle<JSRegExp> regexp, DirectHandle<RegExpData> regexp_data,
     DirectHandle<String> replacement,
@@ -735,7 +734,7 @@ StringReplaceGlobalRegExpWithString(
 }
 
 template <typename ResultSeqString>
-V8_WARN_UNUSED_RESULT static Tagged<UnionOf<ExceptionHole, String>>
+V8_WARN_UNUSED_RESULT static Tagged<Object>
 StringReplaceGlobalRegExpWithEmptyString(
     Isolate* isolate, DirectHandle<String> subject,
     DirectHandle<JSRegExp> regexp, DirectHandle<RegExpData> regexp_data,
@@ -1254,7 +1253,7 @@ DirectHandle<JSObject> ConstructNamedCaptureGroupsObject(
 // Only called from Runtime_RegExpExecMultiple so it doesn't need to maintain
 // separate last match info.  See comment on that function.
 template <bool has_capture>
-static Tagged<UnionOf<ExceptionHole, Null, FixedArray>> SearchRegExpMultiple(
+static Tagged<Object> SearchRegExpMultiple(
     Isolate* isolate, DirectHandle<String> subject,
     DirectHandle<JSRegExp> regexp, DirectHandle<RegExpData> regexp_data,
     DirectHandle<RegExpMatchInfo> last_match_array) {
@@ -1527,25 +1526,24 @@ V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> RegExpReplace(
 
     if (replace->length() == 0) {
       if (string->IsOneByteRepresentation()) {
-        Tagged<UnionOf<ExceptionHole, String>> result =
+        Tagged<Object> result =
             StringReplaceGlobalRegExpWithEmptyString<SeqOneByteString>(
                 isolate, string, regexp, data, last_match_info);
         return direct_handle(Cast<String>(result), isolate);
       } else {
-        Tagged<UnionOf<ExceptionHole, String>> result =
+        Tagged<Object> result =
             StringReplaceGlobalRegExpWithEmptyString<SeqTwoByteString>(
                 isolate, string, regexp, data, last_match_info);
         return direct_handle(Cast<String>(result), isolate);
       }
     }
 
-    Tagged<UnionOf<ExceptionHole, String>> result =
-        StringReplaceGlobalRegExpWithString(isolate, string, regexp, data,
-                                            replace, last_match_info);
-    if (IsExceptionHole(result)) {
-      return MaybeDirectHandle<String>();
-    } else {
+    Tagged<Object> result = StringReplaceGlobalRegExpWithString(
+        isolate, string, regexp, data, replace, last_match_info);
+    if (IsString(result)) {
       return direct_handle(Cast<String>(result), isolate);
+    } else {
+      return MaybeDirectHandle<String>();
     }
   }
 
@@ -1569,7 +1567,7 @@ RUNTIME_FUNCTION(Runtime_RegExpExecMultiple) {
   subject = String::Flatten(isolate, subject);
   CHECK(regexp->flags() & JSRegExp::kGlobal);
 
-  Tagged<UnionOf<ExceptionHole, Null, FixedArray>> result;
+  Tagged<Object> result;
   if (regexp_data->capture_count() == 0) {
     result = SearchRegExpMultiple<false>(isolate, subject, regexp, regexp_data,
                                          last_match_info);

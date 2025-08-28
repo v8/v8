@@ -647,10 +647,10 @@ constexpr HeapObject Tagged<HeapObject>::ToRawPtr() const {
 #define IS_TYPE_FUNCTION_DECL(Type)                                            \
   V8_INLINE bool Is##Type(Tagged<HeapObject> obj);                             \
   V8_INLINE bool Is##Type(Tagged<HeapObject> obj, PtrComprCageBase cage_base); \
-  V8_INLINE bool Is##Type(HeapObject);                                         \
+  V8_INLINE bool Is##Type(HeapObject obj);                                     \
   V8_INLINE bool Is##Type(HeapObject obj, PtrComprCageBase cage_base);         \
   V8_INLINE bool Is##Type(const HeapObjectLayout* obj);                        \
-  V8_INLINE bool Is##Type(const HeapObjectLayout* ob,                          \
+  V8_INLINE bool Is##Type(const HeapObjectLayout* obj,                         \
                           PtrComprCageBase cage_base);
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 IS_TYPE_FUNCTION_DECL(HashTableBase)
@@ -658,10 +658,6 @@ IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
 IS_TYPE_FUNCTION_DECL(PropertyDictionary)
 IS_TYPE_FUNCTION_DECL(AnyHole)
 #undef IS_TYPE_FUNCTION_DECL
-
-// Predicate for IsAnyHole which can be used on any object type -- the standard
-// IsAnyHole check cannot be used for Code space objects.
-V8_INLINE bool SafeIsAnyHole(Tagged<HeapObject> obj);
 
 // Most calls to Is<Oddball> should go via the Tagged<Object> overloads, withst
 // an Isolate/LocalIsolate/ReadOnlyRoots parameter.
@@ -679,7 +675,7 @@ IS_TYPE_FUNCTION_DECL(NullOrUndefined)
 #define DECL_STRUCT_PREDICATE(NAME, Name, name)                                \
   V8_INLINE bool Is##Name(Tagged<HeapObject> obj);                             \
   V8_INLINE bool Is##Name(Tagged<HeapObject> obj, PtrComprCageBase cage_base); \
-  V8_INLINE bool Is##Name(HeapObject);                                         \
+  V8_INLINE bool Is##Name(HeapObject obj);                                     \
   V8_INLINE bool Is##Name(HeapObject obj, PtrComprCageBase cage_base);         \
   V8_INLINE bool Is##Name(const HeapObjectLayout* obj);                        \
   V8_INLINE bool Is##Name(const HeapObjectLayout* obj,                         \

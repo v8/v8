@@ -1461,7 +1461,6 @@ MaybeLocal<Message> GetMessageFromPromise(Local<Promise> p) {
   i::DirectHandle<i::Object> maybeMessage =
       i::JSReceiver::GetDataProperty(isolate, promise, key);
 
-  if (IsAnyHole(*maybeMessage)) return MaybeLocal<Message>();
   if (!IsJSMessageObject(*maybeMessage, isolate)) return MaybeLocal<Message>();
   return ToApiHandle<Message>(i::Cast<i::JSMessageObject>(maybeMessage));
 }

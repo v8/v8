@@ -27,7 +27,6 @@
 #include "src/objects/objects.h"
 #include "src/objects/tagged.h"
 #include "src/roots/roots.h"
-#include "src/roots/static-roots.h"
 #include "src/utils/address-map.h"
 #include "src/utils/identity-map.h"
 #include "src/utils/ostreams.h"
@@ -272,7 +271,15 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
                                       : isolate()->AsLocalIsolate();
   }
 
-  inline std::optional<RootIndex> FindRootIndex(HeapObjectRef object);
+  std::optional<RootIndex> FindRootIndex(HeapObjectRef object) {
+    // No root constant is a JSReceiver.
+    if (object.IsJSReceiver()) return {};
+    RootIndex root_index;
+    if (root_index_map_.Lookup(*object.object(), &root_index)) {
+      return root_index;
+    }
+    return {};
+  }
 
   // Return the corresponding canonical persistent handle for {object}. Create
   // one if it does not exist.

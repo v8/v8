@@ -2277,7 +2277,7 @@ void V8FileLogger::LogAllMaps() {
   CombinedHeapObjectIterator iterator(heap);
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (IsAnyHole(obj) || !IsMap(obj)) continue;
+    if (!IsMap(obj)) continue;
     Tagged<Map> map = Cast<Map>(obj);
     MapCreate(map);
     MapDetails(map);

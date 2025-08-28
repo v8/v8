@@ -1543,31 +1543,27 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
         // Ensure that the spill slot contains correct heap object.
         Tagged<HeapObject> raw =
             Cast<HeapObject>(Tagged<Object>(*spill_slot.location()));
-        // Don't check holes, since the page can be unmapped.
-        if (!IsAnyHole(raw)) {
-          MapWord map_word = raw->map_word(cage_base, kRelaxedLoad);
-          Tagged<HeapObject> forwarded = map_word.IsForwardingAddress()
-                                             ? map_word.ToForwardingAddress(raw)
-                                             : raw;
-          bool is_self_forwarded =
-              HeapLayout::IsSelfForwarded(forwarded, cage_base);
-          if (is_self_forwarded) {
-            // The object might be in a self-forwarding state if it's located
-            // in new large object space. GC will fix this at a later stage.
-            const MemoryChunk* chunk = MemoryChunk::FromHeapObject(forwarded);
-            CHECK(chunk->InNewLargeObjectSpace() ||
-                  chunk->Metadata(isolate)->is_quarantined());
-          } else {
-            Tagged<HeapObject> forwarded_map = forwarded->map(cage_base);
-            // The map might be forwarded as well.
-            MapWord fwd_map_map_word =
-                forwarded_map->map_word(cage_base, kRelaxedLoad);
-            if (fwd_map_map_word.IsForwardingAddress()) {
-              forwarded_map =
-                  fwd_map_map_word.ToForwardingAddress(forwarded_map);
-            }
-            CHECK(IsMap(forwarded_map, cage_base));
+        MapWord map_word = raw->map_word(cage_base, kRelaxedLoad);
+        Tagged<HeapObject> forwarded = map_word.IsForwardingAddress()
+                                           ? map_word.ToForwardingAddress(raw)
+                                           : raw;
+        bool is_self_forwarded =
+            HeapLayout::IsSelfForwarded(forwarded, cage_base);
+        if (is_self_forwarded) {
+          // The object might be in a self-forwarding state if it's located
+          // in new large object space. GC will fix this at a later stage.
+          const MemoryChunk* chunk = MemoryChunk::FromHeapObject(forwarded);
+          CHECK(chunk->InNewLargeObjectSpace() ||
+                chunk->Metadata(isolate)->is_quarantined());
+        } else {
+          Tagged<HeapObject> forwarded_map = forwarded->map(cage_base);
+          // The map might be forwarded as well.
+          MapWord fwd_map_map_word =
+              forwarded_map->map_word(cage_base, kRelaxedLoad);
+          if (fwd_map_map_word.IsForwardingAddress()) {
+            forwarded_map = fwd_map_map_word.ToForwardingAddress(forwarded_map);
           }
+          CHECK(IsMap(forwarded_map, cage_base));
         }
       }
     }

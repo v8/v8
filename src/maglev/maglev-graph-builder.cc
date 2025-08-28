@@ -5476,7 +5476,6 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
 
   bool has_deprecated_map_without_migration_target = false;
   if (compiler::OptionalHeapObjectRef c = TryGetConstant(lookup_start_object)) {
-    if (c.value().IsTheHole()) return {};
     compiler::MapRef constant_map = c.value().map(broker());
     if (c.value().IsJSFunction() &&
         feedback.name().equals(broker()->prototype_string())) {
@@ -12917,11 +12916,7 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
     // via the boilerplate_migration_access lock.
     compiler::ObjectRef boilerplate_value = maybe_boilerplate_value.value();
 
-    if (IsUninitializedHole(*boilerplate_value.object())) {
-      // It's fine to store the 'uninitialized' Hole into a Smi field since
-      // it will get overwritten anyway.
-      fast_literal->set(offset, GetConstant(boilerplate_value));
-    } else if (boilerplate_value.IsJSObject()) {
+    if (boilerplate_value.IsJSObject()) {
       compiler::JSObjectRef boilerplate_object = boilerplate_value.AsJSObject();
       std::optional<VirtualObject*> maybe_object_value =
           TryReadBoilerplateForFastLiteral(boilerplate_object, allocation,
@@ -12933,6 +12928,11 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
                         CreateHeapNumber(Float64::FromBits(
                             boilerplate_value.AsHeapNumber().value_as_bits())));
     } else {
+      // It's fine to store the 'uninitialized' Oddball into a Smi field since
+      // it will get overwritten anyway.
+      DCHECK_IMPLIES(property_details.representation().IsSmi() &&
+                         !boilerplate_value.IsSmi(),
+                     IsUninitializedHole(*boilerplate_value.object()));
       fast_literal->set(offset, GetConstant(boilerplate_value));
     }
     index++;
@@ -12983,10 +12983,7 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
         compiler::OptionalObjectRef element_value =
             boilerplate_elements_as_fixed_array.TryGet(broker(), i);
         if (!element_value.has_value()) return {};
-        if (element_value->IsTheHole()) {
-          elements->set(FixedArray::OffsetOfElementAt(i),
-                        GetConstant(*element_value));
-        } else if (element_value->IsJSObject()) {
+        if (element_value->IsJSObject()) {
           std::optional<VirtualObject*> object =
               TryReadBoilerplateForFastLiteral(element_value->AsJSObject(),
                                                allocation, max_depth - 1,

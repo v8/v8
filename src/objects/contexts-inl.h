@@ -78,8 +78,7 @@ Tagged<Object> Context::GetNoCell(int index) {
 template <typename MemoryTag>
 void Context::SetNoCell(int index, Tagged<Object> value, MemoryTag tag,
                         WriteBarrierMode mode) {
-  DCHECK(IsAnyHole(get(index, kRelaxedLoad)) ||
-         !Is<ContextCell>(get(index, kRelaxedLoad)));
+  DCHECK(!Is<ContextCell>(get(index, kRelaxedLoad)));
   set(index, value, mode, tag);
 }
 

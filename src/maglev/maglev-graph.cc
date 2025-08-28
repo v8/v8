@@ -6,7 +6,6 @@
 
 #include <vector>
 
-#include "src/compiler/js-heap-broker-inl.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/objects/objects-inl.h"
 
@@ -167,17 +166,13 @@ ValueNode* Graph::GetConstant(compiler::ObjectRef ref) {
   }
   compiler::HeapObjectRef constant = ref.AsHeapObject();
 
+  if (constant.IsString()) {
+    constant = constant.AsString().UnpackIfThin(broker());
+  }
+
   auto root_index = broker()->FindRootIndex(constant);
   if (root_index.has_value()) {
     return GetRootConstant(*root_index);
-  }
-
-  if (constant.IsString()) {
-    constant = constant.AsString().UnpackIfThin(broker());
-    root_index = broker()->FindRootIndex(constant);
-    if (root_index.has_value()) {
-      return GetRootConstant(*root_index);
-    }
   }
 
   return GetOrAddNewConstantNode(constants_, ref.AsHeapObject());
