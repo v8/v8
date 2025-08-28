@@ -2390,7 +2390,7 @@ bool InstanceBuilder::ProcessImportedFunction(
 
       imported_entry.SetWasmToWrapper(isolate_, callable,
                                       std::move(wrapper_handle), kNoSuspend,
-                                      expected_sig, sig_index);
+                                      expected_sig);
       return true;
 #else
       UNREACHABLE();
@@ -2406,7 +2406,7 @@ bool InstanceBuilder::ProcessImportedFunction(
 
   if (v8_flags.wasm_jitless) {
     imported_entry.SetWasmToWrapper(isolate_, callable, {}, kNoSuspend,
-                                    expected_sig, sig_index);
+                                    expected_sig);
     return true;
   }
 
@@ -2422,7 +2422,7 @@ bool InstanceBuilder::ProcessImportedFunction(
       isolate_, kind, expected_arity, resolved.suspend(), expected_sig);
 
   imported_entry.SetWasmToWrapper(isolate_, callable, std::move(wrapper_handle),
-                                  resolved.suspend(), expected_sig, sig_index);
+                                  resolved.suspend(), expected_sig);
 
   return true;
 }

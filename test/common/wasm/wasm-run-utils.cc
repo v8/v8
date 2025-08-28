@@ -106,7 +106,7 @@ TestingModuleBuilder::TestingModuleBuilder(
 
     ImportedFunctionEntry(trusted_instance_data_, maybe_import_index)
         .SetWasmToWrapper(isolate_, callable, std::move(wrapper_handle),
-                          resolved.suspend(), sig, sig_index);
+                          resolved.suspend(), sig);
   }
 }
 

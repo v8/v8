@@ -141,8 +141,7 @@ class ImportedFunctionEntry {
   V8_EXPORT_PRIVATE void SetWasmToWrapper(
       Isolate*, DirectHandle<JSReceiver> callable,
       std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle,
-      wasm::Suspend suspend, const wasm::CanonicalSig* sig,
-      wasm::CanonicalTypeIndex sig_id);
+      wasm::Suspend suspend, const wasm::CanonicalSig* sig);
 
   Tagged<JSReceiver> callable();
   Tagged<Object> maybe_callable();

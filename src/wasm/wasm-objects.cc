@@ -1513,10 +1513,7 @@ FunctionTargetAndImplicitArg::FunctionTargetAndImplicitArg(
 void ImportedFunctionEntry::SetWasmToWrapper(
     Isolate* isolate, DirectHandle<JSReceiver> callable,
     std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle,
-    wasm::Suspend suspend, const wasm::CanonicalSig* sig,
-    wasm::CanonicalTypeIndex sig_id) {
-  // TODO(clemensb): Remove sig_id.
-  DCHECK_EQ(sig_id, sig->index());
+    wasm::Suspend suspend, const wasm::CanonicalSig* sig) {
 #if V8_ENABLE_DRUMBRAKE
   if (v8_flags.wasm_jitless) {
     // Ignores wrapper_handle.
@@ -1526,7 +1523,7 @@ void ImportedFunctionEntry::SetWasmToWrapper(
     {
       DisallowGarbageCollection no_gc;
       instance_data_->dispatch_table_for_imports()->SetForWrapper(
-          index_, *import_data, {}, sig_id, -1,
+          index_, *import_data, {}, sig->index(), -1,
           WasmDispatchTable::kExistingEntry);
     }
     instance_data_->imported_function_indices()->set(index_, -1);
@@ -1565,7 +1562,7 @@ void ImportedFunctionEntry::SetWasmToWrapper(
       instance_data_->dispatch_table_for_imports();
 
   dispatch_table->SetForWrapper(index_, *import_data, std::move(wrapper_handle),
-                                sig_id,
+                                sig->index(),
 #if V8_ENABLE_DRUMBRAKE
                                 WasmDispatchTable::kInvalidFunctionIndex,
 #endif  // V8_ENABLE_DRUMBRAKE
