@@ -66,8 +66,9 @@ class PageMetadata : public MutablePageMetadata {
                                        FreeMode free_mode);
 
   V8_EXPORT_PRIVATE void MarkNeverAllocateForTesting();
-  inline void MarkEvacuationCandidate();
-  inline void ClearEvacuationCandidate();
+  void MarkEvacuationCandidate();
+  void ClearEvacuationCandidate();
+  void AbortEvacuation();
 
   PageMetadata* next_page() {
     return static_cast<PageMetadata*>(list_node_.next());

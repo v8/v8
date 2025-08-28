@@ -45,26 +45,6 @@ void PageMetadata::ForAllFreeListCategories(Callback callback) {
   }
 }
 
-void PageMetadata::MarkEvacuationCandidate() {
-  DCHECK(!never_evacuate());
-  DCHECK_NULL(slot_set<OLD_TO_OLD>());
-  DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
-  set_is_evacuation_candidate(true);
-  SetFlagMaybeExecutable(MemoryChunk::EVACUATION_CANDIDATE);
-  reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
-}
-
-void PageMetadata::ClearEvacuationCandidate() {
-  MemoryChunk* chunk = Chunk();
-  if (!chunk->CompactionWasAborted()) {
-    DCHECK_NULL(slot_set<OLD_TO_OLD>());
-    DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
-  }
-  ClearFlagMaybeExecutable(MemoryChunk::EVACUATION_CANDIDATE);
-  set_is_evacuation_candidate(false);
-  InitializeFreeListCategories();
-}
-
 }  // namespace internal
 }  // namespace v8
 

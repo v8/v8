@@ -173,6 +173,13 @@ class MemoryChunkMetadata {
     return IsEvacuationCandidateField::decode(flags_);
   }
 
+  bool evacuation_was_aborted() const {
+    const bool value = EvacuationWasAbortedField::decode(flags_);
+    // Aborted evacuation candidates are still evacuation candidates.
+    DCHECK_IMPLIES(value, is_evacuation_candidate());
+    return value;
+  }
+
   bool never_evacuate() const { return NeverEvacuateField::decode(flags_); }
 
   bool never_allocate_on_chunk() const {
@@ -217,7 +224,17 @@ class MemoryChunkMetadata {
                       Address area_start, Address area_end,
                       VirtualMemory reservation, Executability executability);
 
+  void set_evacuation_was_aborted(bool value) {
+    // Only support toggling the value as we should always know which state we
+    // are in.
+    DCHECK_EQ(value, !evacuation_was_aborted());
+    flags_ = EvacuationWasAbortedField::update(flags_, value);
+  }
+
   void set_is_evacuation_candidate(bool value) {
+    // Only support toggling the value as we should always know which state we
+    // are in.
+    DCHECK_EQ(value, !is_evacuation_candidate());
     flags_ = IsEvacuationCandidateField::update(flags_, value);
   }
 
@@ -290,8 +307,11 @@ class MemoryChunkMetadata {
   // selected for compaction. Slots to such chunks are recorded by the write
   // barrier.
   using IsEvacuationCandidateField = IsQuarantinedField::Next<bool, 1>;
+  // Evacuation was aborted on the chunk. These chunks are still evacuation
+  // candidates.
+  using EvacuationWasAbortedField = IsEvacuationCandidateField::Next<bool, 1>;
   // Indicates whether the memory chunk should never be evacuated.
-  using NeverEvacuateField = IsEvacuationCandidateField::Next<bool, 1>;
+  using NeverEvacuateField = EvacuationWasAbortedField::Next<bool, 1>;
   // Indicates whether the memory chunk can be used for allocation.
   using NeverAllocateOnChunk = NeverEvacuateField::Next<bool, 1>;
   // This flag is intended to be used for testing. Works only when

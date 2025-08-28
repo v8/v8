@@ -117,4 +117,26 @@ void PageMetadata::DestroyBlackArea(Address start, Address end) {
   owner()->NotifyBlackAreaDestroyed(end - start);
 }
 
+void PageMetadata::MarkEvacuationCandidate() {
+  DCHECK(!never_evacuate());
+  DCHECK_NULL(slot_set<OLD_TO_OLD>());
+  DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
+  set_is_evacuation_candidate(true);
+  SetFlagMaybeExecutable(MemoryChunk::EVACUATION_CANDIDATE);
+  reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
+}
+
+void PageMetadata::ClearEvacuationCandidate() {
+  CHECK(evacuation_was_aborted());
+  set_evacuation_was_aborted(false);
+  set_is_evacuation_candidate(false);
+  ClearFlagMaybeExecutable(MemoryChunk::EVACUATION_CANDIDATE);
+  InitializeFreeListCategories();
+}
+
+void PageMetadata::AbortEvacuation() {
+  DCHECK(!evacuation_was_aborted());
+  set_evacuation_was_aborted(true);
+}
+
 }  // namespace v8::internal

@@ -370,15 +370,13 @@ class MarkCompactCollector final {
   void EvacuatePagesInParallel();
   void UpdatePointersAfterEvacuation();
 
-  void ReleaseEvacuationCandidates();
   void ReleasePage(PagedSpaceBase* space, PageMetadata* page);
 
   // Returns number of aborted pages.
   size_t PostProcessAbortedEvacuationCandidates();
   void ReportAbortedEvacuationCandidateDueToOOM(Address failed_start,
                                                 PageMetadata* page);
-  void ReportAbortedEvacuationCandidateDueToFlags(PageMetadata* page,
-                                                  MemoryChunk* chunk);
+  void ReportAbortedEvacuationCandidateDueToFlags(PageMetadata* page);
   void ReportAbortedEvacuationCandidateDueToRunningCode(PageMetadata* page);
 
   static const int kEphemeronChunkSize = 8 * KB;

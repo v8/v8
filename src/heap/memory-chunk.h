@@ -82,31 +82,27 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 
     // Chunk was allocated during major incremental marking. Only contains old
     // objects.
-    BLACK_ALLOCATED = 1u << 9,
+    BLACK_ALLOCATED = 1u << 7,
 
     // The chunk represents a large chunk of non-uniform size.
-    LARGE_PAGE = 1u << 10,
+    LARGE_PAGE = 1u << 8,
 
     // The chunk was selected as evacuation candidate, meaning that objects on
     // this chunk are being relocated.
-    EVACUATION_CANDIDATE = 1u << 11,
-
-    // Indicates that the compaction on this chunk has been aborted and needs
-    // special handling by the sweeper.
-    COMPACTION_WAS_ABORTED = 1u << 12,
+    EVACUATION_CANDIDATE = 1u << 9,
 
     // The chunk is in the the new space of the young generation and already
     // survived at least one garbage collection cycle.
-    NEW_SPACE_BELOW_AGE_MARK = 1u << 13,
+    NEW_SPACE_BELOW_AGE_MARK = 1u << 10,
 
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
     // Sticky markbits only: Used to mark chunks belonging to spaces that do not
     // support young generation objects.
-    STICKY_MARK_BIT_CONTAINS_ONLY_OLD = 1u << 14,
+    STICKY_MARK_BIT_CONTAINS_ONLY_OLD = 1u << 11,
 
     // Sticky markbits only: Used in young generation checks. When sticky
     // mark-bits are enabled and major GC in progress, treat all objects as old.
-    STICKY_MARK_BIT_IS_MAJOR_GC_IN_PROGRESS = 1u << 15,
+    STICKY_MARK_BIT_IS_MAJOR_GC_IN_PROGRESS = 1u << 12,
 #endif
   };
 
@@ -179,10 +175,6 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     return IsFlagSet(BLACK_ALLOCATED);
   }
 
-  V8_INLINE bool CompactionWasAborted() const {
-    return IsFlagSet(COMPACTION_WAS_ABORTED);
-  }
-
   V8_INLINE bool ContainsOnlyOldObjects() const {
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
     DCHECK(v8_flags.sticky_mark_bits);
@@ -230,9 +222,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   V8_INLINE bool IsEvacuationCandidate() const;
 
   bool ShouldSkipEvacuationSlotRecording() const {
-    MainThreadFlags flags = GetFlags();
-    return ((flags & kSkipEvacuationSlotsRecordingMask) != 0) &&
-           ((flags & COMPACTION_WAS_ABORTED) == 0);
+    return ((GetFlags() & kSkipEvacuationSlotsRecordingMask) != 0);
   }
 
   bool IsFromPage() const {

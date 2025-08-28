@@ -45,8 +45,7 @@ void MarkCompactCollector::MarkRootObject(
     auto* metadata = MutablePageMetadata::cast(chunk->Metadata());
     if (chunk->IsEvacuationCandidate()) {
       DCHECK(!chunk->InYoungGeneration());
-      ReportAbortedEvacuationCandidateDueToFlags(PageMetadata::cast(metadata),
-                                                 chunk);
+      ReportAbortedEvacuationCandidateDueToFlags(PageMetadata::cast(metadata));
     } else if (chunk->InYoungGeneration() && !chunk->IsLargePage()) {
       DCHECK(chunk->IsToPage());
       if (!metadata->is_quarantined()) {
