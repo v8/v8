@@ -836,8 +836,10 @@ bool RegExpImpl::CompileIrregexpFromBytecode(
     macro_assembler->set_global_mode(mode);
   }
 
-  RegExpCodeGenerator code_gen{isolate, macro_assembler.get()};
-  auto result = code_gen.Assemble(bytecode);
+  RegExpCodeGenerator code_gen{isolate, macro_assembler.get(), bytecode};
+  DirectHandle<String> pattern(re_data->source(), isolate);
+  pattern = String::Flatten(isolate, pattern);
+  auto result = code_gen.Assemble(pattern, flags);
   if (!result.Succeeded()) {
     // We only expect unsupported bytecodes here if assembling failed.
     // This is an internal error, so we won't raise an exception.
@@ -862,7 +864,6 @@ bool RegExpImpl::CompileIrregexpFromBytecode(
     CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
     OFStream os(trace_scope.file());
     auto code = Cast<Code>(result.code());
-    DirectHandle<String> pattern{re_data->source(), isolate};
     std::unique_ptr<char[]> pattern_cstring = pattern->ToCString();
     code->Disassemble(pattern_cstring.get(), os, isolate);
   }

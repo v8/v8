@@ -8,6 +8,7 @@
 #include "src/regexp/regexp-bytecodes.h"
 // Include the non-inl header before the rest of the headers.
 
+#include <array>
 #include <limits>
 #include <type_traits>
 
@@ -124,6 +125,32 @@ class RegExpBytecodeOperandsBase {
   }
   static consteval RegExpBytecodeOperandType Type(Operand op) {
     return Traits::kOperandTypes[Index(op)];
+  }
+
+  // Calls |f| templatized by Operand for each Operand in the Operands list.
+  // Example:
+  // using Operands = RegExpBytecodeOperands<RegExpBytecode::...>;
+  // size_t op_sizes = 0;
+  // Operands::ForEachOperand([]<auto op>() {
+  //   op_sizes += Operands::Size(op);
+  // });
+  // Note that this gets evaluated at compile time, so op_sizes in the example
+  // above is essentially a constant.
+  template <typename Func>
+  static constexpr void ForEachOperand(Func&& f) {
+    [&]<size_t... I>(std::index_sequence<I...>) {
+      (..., f.template operator()<static_cast<Operand>(I)>());
+    }(std::make_index_sequence<kCount>{});
+  }
+
+  // Similar to above, but calls |f| only for operands of a given type.
+  template <RegExpBytecodeOperandType OpType, typename Func>
+  static constexpr void ForEachOperandOfType(Func&& f) {
+    ForEachOperand([&]<auto operand>() {
+      if constexpr (Type(operand) == OpType) {
+        f.template operator()<operand>();
+      }
+    });
   }
 
  private:

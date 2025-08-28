@@ -30,13 +30,14 @@ static_assert(1 << BYTECODE_SHIFT > BYTECODE_MASK);
 // Basic operand types that have a direct mapping to a C-type.
 // Getters/Setters for these are fully auto-generated.
 // Format: V(Name, C type)
-#define BASIC_BYTECODE_OPERAND_TYPE_LIST(V) \
-  V(Int16, int16_t)                         \
-  V(Int32, int32_t)                         \
-  V(Uint32, uint32_t)                       \
-  V(Char, base::uc16)                       \
-  V(Label, uint32_t)                        \
-  V(Offset, int16_t)                        \
+#define BASIC_BYTECODE_OPERAND_TYPE_LIST(V)                 \
+  V(Int16, int16_t)                                         \
+  V(Int32, int32_t)                                         \
+  V(Uint32, uint32_t)                                       \
+  V(Char, base::uc16)                                       \
+  /* TODO(pthier): Consider renaming Label to JumpTarget */ \
+  V(Label, uint32_t)                                        \
+  V(Offset, int16_t)                                        \
   V(Register, uint16_t)
 
 // Special operand types that don't have a direct mapping to a C-type.
