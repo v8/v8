@@ -1841,7 +1841,12 @@ std::optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
     }
 
     Node* value;
-    if (boilerplate_value.IsJSObject()) {
+    if (boilerplate_value.equals(uninitialized_marker)) {
+      // It's fine to store the 'uninitialized' marker into a Smi field since
+      // it will get overwritten anyways and the store's MachineType (AnyTagged)
+      // is compatible with it.
+      value = jsgraph()->ConstantMaybeHole(boilerplate_value, broker());
+    } else if (boilerplate_value.IsJSObject()) {
       JSObjectRef boilerplate_object = boilerplate_value.AsJSObject();
       std::optional<Node*> maybe_value =
           TryAllocateFastLiteral(effect, control, boilerplate_object,
@@ -1858,12 +1863,6 @@ std::optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
                     jsgraph()->ConstantMaybeHole(number));
       value = effect = builder.Finish();
     } else {
-      // It's fine to store the 'uninitialized' marker into a Smi field since
-      // it will get overwritten anyways and the store's MachineType (AnyTagged)
-      // is compatible with it.
-      DCHECK_IMPLIES(property_details.representation().IsSmi() &&
-                         !boilerplate_value.IsSmi(),
-                     boilerplate_value.equals(uninitialized_marker));
       value = jsgraph()->ConstantMaybeHole(boilerplate_value, broker());
     }
     inobject_fields.push_back(std::make_pair(access, value));
@@ -1961,7 +1960,10 @@ std::optional<Node*> JSCreateLowering::TryAllocateFastLiteralElements(
       if ((*max_properties)-- == 0) return {};
       OptionalObjectRef element_value = elements.TryGet(broker(), i);
       if (!element_value.has_value()) return {};
-      if (element_value->IsJSObject()) {
+      if (element_value->HoleType() != HoleType::kNone) {
+        elements_values[i] =
+            jsgraph()->ConstantMaybeHole(*element_value, broker());
+      } else if (element_value->IsJSObject()) {
         std::optional<Node*> object =
             TryAllocateFastLiteral(effect, control, element_value->AsJSObject(),
                                    allocation, max_depth - 1, max_properties);
@@ -1969,7 +1971,7 @@ std::optional<Node*> JSCreateLowering::TryAllocateFastLiteralElements(
         elements_values[i] = effect = *object;
       } else {
         elements_values[i] =
-            jsgraph()->ConstantMaybeHole(*element_value, broker());
+            jsgraph()->ConstantNoHole(*element_value, broker());
       }
     }
   }

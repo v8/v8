@@ -159,12 +159,7 @@ class TaggedImpl {
 #ifdef V8_COMPRESS_POINTERS
   // Returns true if this tagged value is a pointer to an object in the given
   // cage base.
-  constexpr inline bool IsInMainCageBase() {
-    DCHECK(!IsSmi());
-    using S = V8HeapCompressionScheme;
-    return S::GetPtrComprCageBaseAddress(ptr_) ==
-           S::GetPtrComprCageBaseAddress(S::base());
-  }
+  constexpr inline bool IsInMainCageBase();
 #endif  // V8_COMPRESS_POINTERS
 
   //

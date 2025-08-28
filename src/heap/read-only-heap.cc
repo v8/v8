@@ -236,8 +236,16 @@ ReadOnlyHeapObjectIterator::ReadOnlyHeapObjectIterator(
 
 Tagged<HeapObject> ReadOnlyHeapObjectIterator::Next() {
   while (current_page_ != ro_space_->pages().end()) {
-    Tagged<HeapObject> obj = page_iterator_.Next();
-    if (!obj.is_null()) return obj;
+    while (true) {
+      Tagged<HeapObject> obj = page_iterator_.Next();
+      if (obj.is_null()) break;
+
+      // Skip over the holes in the iterator, for uniform behaviour between
+      // configs where holes are and aren't unmapped.
+      if (IsAnyHole(obj)) continue;
+
+      return obj;
+    }
 
     ++current_page_;
     if (current_page_ == ro_space_->pages().end()) return Tagged<HeapObject>();
@@ -278,7 +286,7 @@ Tagged<HeapObject> ReadOnlyPageObjectIterator::Next() {
     current_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
 
     if (skip_free_space_or_filler_ == SkipFreeSpaceOrFiller::kYes &&
-        IsFreeSpaceOrFiller(object)) {
+        !IsAnyHole(object) && IsFreeSpaceOrFiller(object)) {
       continue;
     }
 

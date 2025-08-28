@@ -1992,19 +1992,19 @@ bool ObjectRef::IsUndefined() const { return i::IsUndefined(*object()); }
 
 bool ObjectRef::IsTheHole() const {
   if (i::IsTheHole(*object())) return true;
-  DCHECK(!i::IsHole(*object()));
+  DCHECK(!i::IsAnyHole(*object()));
   return false;
 }
 
 bool ObjectRef::IsPropertyCellHole() const {
   if (i::IsPropertyCellHole(*object())) return true;
-  DCHECK(!i::IsHole(*object()));
+  DCHECK(!i::IsAnyHole(*object()));
   return false;
 }
 
 bool ObjectRef::IsHashTableHole() const {
   if (i::IsHashTableHole(*object())) return true;
-  DCHECK(!i::IsHole(*object()));
+  DCHECK(!i::IsAnyHole(*object()));
   return false;
 }
 

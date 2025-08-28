@@ -4462,7 +4462,13 @@ std::string GenerateRuntimeTypeCheck(const Type* type,
     type_check << value << ".IsCleared()";
     at_start = false;
   }
-  for (const TypeChecker& runtime_type : type->GetTypeCheckers()) {
+  std::vector<TypeChecker> type_checkers = type->GetTypeCheckers();
+  std::partition(type_checkers.begin(), type_checkers.end(),
+                 [](const TypeChecker& runtime_type) {
+                   return runtime_type.type == "Hole" ||
+                          runtime_type.type == "TheHole";
+                 });
+  for (const TypeChecker& runtime_type : type_checkers) {
     if (!at_start) type_check << " || ";
     at_start = false;
     if (maybe_object) {

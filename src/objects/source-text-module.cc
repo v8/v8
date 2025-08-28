@@ -184,7 +184,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
     DirectHandle<String> module_specifier, Handle<String> export_name,
     MessageLocation loc, bool must_resolve, Module::ResolveSet* resolve_set) {
   Handle<Object> object(module->exports()->Lookup(export_name), isolate);
-  if (IsCell(*object)) {
+  if (!IsTheHole(*object) && IsCell(*object)) {
     // Already resolved (e.g. because it's a local export).
     return Cast<Cell>(object);
   }
@@ -212,35 +212,35 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
     name_set->insert(export_name);
   }
 
-  if (IsSourceTextModuleInfoEntry(*object)) {
-    // Not yet resolved indirect export.
-    auto entry = Cast<SourceTextModuleInfoEntry>(object);
-    Handle<String> import_name(Cast<String>(entry->import_name()), isolate);
-    Handle<Script> script(module->GetScript(), isolate);
-    MessageLocation new_loc(script, entry->beg_pos(), entry->end_pos());
-
-    Handle<Cell> cell;
-    if (!ResolveImport(isolate, module, import_name, entry->module_request(),
-                       new_loc, true, resolve_set)
-             .ToHandle(&cell)) {
-      DCHECK(isolate->has_exception());
-      return MaybeHandle<Cell>();
-    }
-
-    // The export table may have changed but the entry in question should be
-    // unchanged.
-    Handle<ObjectHashTable> exports(module->exports(), isolate);
-    DCHECK(IsSourceTextModuleInfoEntry(exports->Lookup(export_name)));
-
-    exports = ObjectHashTable::Put(exports, export_name, cell);
-    module->set_exports(*exports);
-    return cell;
+  if (IsTheHole(*object)) {
+    return SourceTextModule::ResolveExportUsingStarExports(
+        isolate, module, module_specifier, export_name, loc, must_resolve,
+        resolve_set);
   }
 
-  DCHECK(IsTheHole(*object, isolate));
-  return SourceTextModule::ResolveExportUsingStarExports(
-      isolate, module, module_specifier, export_name, loc, must_resolve,
-      resolve_set);
+  DCHECK(IsSourceTextModuleInfoEntry(*object));
+  // Not yet resolved indirect export.
+  auto entry = Cast<SourceTextModuleInfoEntry>(object);
+  Handle<String> import_name(Cast<String>(entry->import_name()), isolate);
+  Handle<Script> script(module->GetScript(), isolate);
+  MessageLocation new_loc(script, entry->beg_pos(), entry->end_pos());
+
+  Handle<Cell> cell;
+  if (!ResolveImport(isolate, module, import_name, entry->module_request(),
+                     new_loc, true, resolve_set)
+           .ToHandle(&cell)) {
+    DCHECK(isolate->has_exception());
+    return MaybeHandle<Cell>();
+  }
+
+  // The export table may have changed but the entry in question should be
+  // unchanged.
+  Handle<ObjectHashTable> exports(module->exports(), isolate);
+  DCHECK(IsSourceTextModuleInfoEntry(exports->Lookup(export_name)));
+
+  exports = ObjectHashTable::Put(exports, export_name, cell);
+  module->set_exports(*exports);
+  return cell;
 }
 
 MaybeHandle<Cell> SourceTextModule::ResolveImport(

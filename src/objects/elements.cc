@@ -2542,6 +2542,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
           for (size_t k = start_from; k < length; ++k) {
             Tagged<Object> element_k = elements->get(static_cast<int>(k));
+            if (element_k == the_hole) continue;
             if (IsNumber(element_k) &&
                 Object::NumberValue(element_k) == search_number) {
               return Just(true);
@@ -2580,7 +2581,9 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
           Tagged<FixedArray> elements = Cast<FixedArray>(receiver->elements());
 
           for (size_t k = start_from; k < length; ++k) {
-            if (IsNaN(elements->get(static_cast<int>(k)))) return Just(true);
+            Tagged<Object> element_k = elements->get(static_cast<int>(k));
+            if (element_k == the_hole) continue;
+            if (IsNaN(element_k)) return Just(true);
           }
           return Just(false);
         }
@@ -2864,8 +2867,9 @@ class FastSmiOrObjectElementsAccessor
     static_assert(FixedArray::kMaxLength <=
                   std::numeric_limits<uint32_t>::max());
     for (size_t k = start_from; k < length; ++k) {
-      if (Object::StrictEquals(value,
-                               elements->get(static_cast<uint32_t>(k)))) {
+      auto element = elements->get(static_cast<uint32_t>(k));
+      if (IsAnyHole(element)) continue;
+      if (Object::StrictEquals(value, element)) {
         return Just<int64_t>(k);
       }
     }

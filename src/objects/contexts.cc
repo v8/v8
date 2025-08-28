@@ -462,7 +462,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
           direct_handle(context->scope_info(), isolate);
       Tagged<UnionOf<TheHole, StringSet>> maybe_outer_block_list =
           isolate->LocalsBlockListCacheGet(scope_info);
-      if (IsStringSet(maybe_outer_block_list) &&
+      if (!IsTheHole(maybe_outer_block_list) &&
           Cast<StringSet>(maybe_outer_block_list)->Has(isolate, name)) {
         if (v8_flags.trace_contexts) {
           PrintF(" - name is blocklisted. Aborting.\n");
@@ -525,7 +525,7 @@ DirectHandle<Object> Context::Get(DirectHandle<Context> context, int index,
                                   Isolate* isolate) {
   DirectHandle<Object> value =
       handle(context->get(index, kRelaxedLoad), isolate);
-  if (!Is<ContextCell>(value)) {
+  if (IsTheHole(*value) || !Is<ContextCell>(value)) {
     return value;
   }
   DCHECK(context->HasContextCells());

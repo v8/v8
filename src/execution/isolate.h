@@ -256,7 +256,7 @@ class WaiterQueueNode;
  */
 #define RETURN_RESULT_OR_FAILURE(isolate, call)      \
   do {                                               \
-    DirectHandle<Object> __result__;                 \
+    decltype((call).ToHandleChecked()) __result__;   \
     Isolate* __isolate__ = (isolate);                \
     if (!(call).To(&__result__)) {                   \
       DCHECK(__isolate__->has_exception());          \

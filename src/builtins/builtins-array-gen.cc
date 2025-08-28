@@ -22,6 +22,7 @@
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/elements-kind.h"
+#include "src/objects/objects.h"
 #include "src/objects/property-cell.h"
 
 namespace v8 {
@@ -945,8 +946,8 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
               &return_not_found);
     TNode<Object> element_k =
         UnsafeLoadFixedArrayElement(elements, index_var.value());
-    GotoIf(IsUndefined(element_k), &return_found);
     GotoIf(IsTheHole(element_k), &return_found);
+    GotoIf(IsUndefined(element_k), &return_found);
 
     Increment(&index_var);
     Goto(&undef_loop);
@@ -998,6 +999,7 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
              &return_found, &continue_loop);
 
       BIND(&element_k_not_smi);
+      GotoIf(IsTheHole(element_k), &continue_loop);
       GotoIfNot(IsHeapNumber(CAST(element_k)), &continue_loop);
       Branch(Float64Equal(search_num.value(),
                           LoadHeapNumberValue(CAST(element_k))),
@@ -1017,6 +1019,7 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
       TNode<Object> element_k =
           UnsafeLoadFixedArrayElement(elements, index_var.value());
       GotoIf(TaggedIsSmi(element_k), &continue_loop);
+      GotoIf(IsTheHole(element_k), &continue_loop);
       GotoIfNot(IsHeapNumber(CAST(element_k)), &continue_loop);
       BranchIfFloat64IsNaN(LoadHeapNumberValue(CAST(element_k)), &return_found,
                            &continue_loop);
@@ -1042,6 +1045,7 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
         UnsafeLoadFixedArrayElement(elements, index_var.value());
     GotoIf(TaggedIsSmi(element_k), &continue_loop);
     GotoIf(TaggedEqual(search_element_string, element_k), &return_found);
+    GotoIf(IsTheHole(element_k), &continue_loop);
     TNode<Uint16T> element_k_type = LoadInstanceType(CAST(element_k));
     GotoIfNot(IsStringInstanceType(element_k_type), &continue_loop);
     Branch(IntPtrEqual(search_length, LoadStringLengthAsWord(CAST(element_k))),
@@ -1071,6 +1075,7 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
         UnsafeLoadFixedArrayElement(elements, index_var.value());
     Label continue_loop(this);
     GotoIf(TaggedIsSmi(element_k), &continue_loop);
+    GotoIf(IsTheHole(element_k), &continue_loop);
     GotoIfNot(IsBigInt(CAST(element_k)), &continue_loop);
     TNode<Object> result = CallRuntime(Runtime::kBigIntEqualToBigInt, context,
                                        search_element, element_k);
@@ -2013,6 +2018,8 @@ class SlowBoilerplateCloneAssembler : public CodeStubAssembler {
         is_array(this, &current_allocation_site);
 
     GotoIf(TaggedIsSmi(item), not_cloned);
+    GotoIf(IsUninitialized(item), not_cloned);
+    GotoIf(IsTheHole(item), not_cloned);
     GotoIf(IsJSArray(CAST(item)), &is_array);
     GotoIf(IsJSObject(CAST(item)), &is_object);
     Goto(not_cloned);
