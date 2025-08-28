@@ -476,6 +476,15 @@ class RegExpBytecodes final : public AllStatic {
     DCHECK_LT(byte, kCount);
     return static_cast<RegExpBytecode>(byte);
   }
+
+  // Calls |f| templatized by RegExpBytecode. This allows the usage of the
+  // functions template argument in other templates.
+  // Example:
+  // RegExpBytecode bc = <runtime value>;
+  // DispatchOnBytecode(bc, []<RegExpBytecode bc>() { DoFancyStuff<bc>(); });
+  template <typename Func>
+  static decltype(auto) DispatchOnBytecode(RegExpBytecode bytecode, Func&& f);
+
   static constexpr const char* Name(RegExpBytecode bytecode);
   static constexpr const char* Name(uint8_t bytecode);
 

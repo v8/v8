@@ -211,6 +211,20 @@ static constexpr uint8_t kBytecodeSizes[] = {
 }  // namespace detail
 
 // static
+template <typename Func>
+decltype(auto) RegExpBytecodes::DispatchOnBytecode(RegExpBytecode bytecode,
+                                                   Func&& f) {
+  switch (bytecode) {
+#define CASE(CamelName, ...)         \
+  case RegExpBytecode::k##CamelName: \
+    return f.template operator()<RegExpBytecode::k##CamelName>();
+    REGEXP_BYTECODE_LIST(CASE)
+#undef CASE
+  }
+  UNREACHABLE();
+}
+
+// static
 constexpr const char* RegExpBytecodes::Name(RegExpBytecode bytecode) {
   return Name(ToByte(bytecode));
 }
