@@ -59,6 +59,12 @@ TEST_F(HeapWriteBarrierTest, NoSkipWriteBarrierOnPreviousYoungAllocation) {
   DirectHandle<HeapNumber> number = i_isolate()->factory()->NewHeapNumber(10.0);
   DirectHandle<FixedArray> previous =
       i_isolate()->factory()->NewFixedArray(1, AllocationType::kYoung);
+  // TODO(437096305): Remove once we do not allow-list all allocations in the
+  // current LAB anymore.
+  i_isolate()
+      ->main_thread_local_heap()
+      ->allocator()
+      ->FreeLinearAllocationAreas();
   DirectHandle<FixedArray> latest =
       i_isolate()->factory()->NewFixedArray(1, AllocationType::kYoung);
   latest->set(0, *number, SKIP_WRITE_BARRIER);
@@ -74,6 +80,12 @@ TEST_F(HeapWriteBarrierTest,
   DirectHandle<HeapNumber> number = i_isolate()->factory()->NewHeapNumber(10.0);
   DirectHandle<FixedArray> latest =
       i_isolate()->factory()->NewFixedArray(1, AllocationType::kYoung);
+  // TODO(437096305): Remove once we do not allow-list all allocations in the
+  // current LAB anymore.
+  i_isolate()
+      ->main_thread_local_heap()
+      ->allocator()
+      ->FreeLinearAllocationAreas();
   i_isolate()->main_thread_local_heap()->Safepoint();
   EXPECT_DEATH_IF_SUPPORTED(
       { latest->set(0, *number, SKIP_WRITE_BARRIER); }, "");

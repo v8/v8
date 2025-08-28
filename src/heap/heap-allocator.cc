@@ -12,7 +12,6 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/large-page-metadata.h"
 #include "src/heap/large-spaces.h"
-#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/page-metadata.h"
 #include "src/logging/counters.h"
 #include "src/objects/heap-object.h"
@@ -438,28 +437,15 @@ Heap* HeapAllocator::heap_for_allocation(AllocationType allocation) {
 #if V8_VERIFY_WRITE_BARRIERS
 
 bool HeapAllocator::IsMostRecentYoungAllocation(Address object_address) {
-  if (last_young_allocation_ == kNullAddress) {
-    return false;
+  if (!new_space_allocator_.has_value()) return false;
+
+  if (last_young_allocation_ == object_address) {
+    return true;
   }
 
-  DCHECK(new_space_allocator_.has_value());
-
-  if (new_space_allocator_->start() <= last_young_allocation_ &&
-      last_young_allocation_ < new_space_allocator_->top()) {
-    // last_young_allocation_ was allocated from LAB. Because of allocation
-    // folding we have to allow values between [last_young_allocation; LAB top[.
-    return last_young_allocation_ <= object_address &&
-           object_address < new_space_allocator_->top();
-  } else {
-    // last_young_allocation_ has to be large object.
-    MemoryChunkMetadata* chunk =
-        MemoryChunkMetadata::FromAddress(last_young_allocation_);
-    CHECK(chunk->is_large());
-    CHECK_EQ(chunk->owner_identity(), NEW_LO_SPACE);
-    // No allocation folding with large objects, so object_address has to match
-    // last_young_allocation_.
-    return last_young_allocation_ == object_address;
-  }
+  const Address start = new_space_allocator_->start();
+  const Address top = new_space_allocator_->top();
+  return start <= object_address && object_address < top;
 }
 
 void HeapAllocator::ResetMostRecentYoungAllocation() {
