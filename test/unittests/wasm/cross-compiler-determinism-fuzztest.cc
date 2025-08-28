@@ -176,8 +176,15 @@ bool AllResultsEqual(base::Vector<const Float32> results) {
 
 void CrossCompilerDeterminismTest::TestFloat32Binop(WasmOpcode opcode,
                                                     Float32 lhs, Float32 rhs) {
+  // For some binops, the bit pattern of one of the inputs is preserved,
+  // including the signalling bit.
+  // Those tests cannot run in the configurations that pass the input as
+  // floating point numbers.
+  bool preserve_signalling_nan =
+      lhs.is_nan() && !lhs.is_quiet_nan() && opcode == kExprF32CopySign;
+
   // Remember all values from all configurations.
-  Float32 results[] = {
+  base::SmallVector<Float32, 9> results = {
       // Liftoff does not special-handle float32 constants, so we only test this
       // one Liftoff mode.
       GetFloat32BinopResult<ConstantInputs<IntRepresentation>>(
@@ -192,17 +199,25 @@ void CrossCompilerDeterminismTest::TestFloat32Binop(WasmOpcode opcode,
           TestExecutionTier::kTurbofan, opcode, lhs, rhs),
       GetFloat32BinopResult<TwoParamInputs<IntRepresentation>>(
           TestExecutionTier::kTurbofan, opcode, lhs, rhs),
-
-      // Turbofan, inputs as f32.
-      GetFloat32BinopResult<ConstantInputs<FloatRepresentation>>(
-          TestExecutionTier::kTurbofan, opcode, lhs, rhs),
-      GetFloat32BinopResult<ParamAndConstantInput<FloatRepresentation, 0>>(
-          TestExecutionTier::kTurbofan, opcode, lhs, rhs),
-      GetFloat32BinopResult<ParamAndConstantInput<FloatRepresentation, 1>>(
-          TestExecutionTier::kTurbofan, opcode, lhs, rhs),
-      GetFloat32BinopResult<TwoParamInputs<FloatRepresentation>>(
-          TestExecutionTier::kTurbofan, opcode, lhs, rhs),
   };
+
+  if (preserve_signalling_nan) {
+    ASSERT_TRUE(results[0].is_nan() && !results[0].is_quiet_nan());
+  } else {
+    // Turbofan, inputs as f32.
+    results.push_back(
+        GetFloat32BinopResult<ConstantInputs<FloatRepresentation>>(
+            TestExecutionTier::kTurbofan, opcode, lhs, rhs));
+    results.push_back(
+        GetFloat32BinopResult<ParamAndConstantInput<FloatRepresentation, 0>>(
+            TestExecutionTier::kTurbofan, opcode, lhs, rhs));
+    results.push_back(
+        GetFloat32BinopResult<ParamAndConstantInput<FloatRepresentation, 1>>(
+            TestExecutionTier::kTurbofan, opcode, lhs, rhs));
+    results.push_back(
+        GetFloat32BinopResult<TwoParamInputs<FloatRepresentation>>(
+            TestExecutionTier::kTurbofan, opcode, lhs, rhs));
+  }
 
   ASSERT_TRUE(AllResultsEqual(base::VectorOf(results)))
       << absl::StrFormat("Operation %s on inputs %v and %v\n",
@@ -289,6 +304,9 @@ constexpr std::tuple<WasmOpcode, Float32, Float32> kFloat32BinopSeeds[]{
     {kExprF32Div, -Float32::infinity(), Float32::infinity()},
     // min(NaN, -NaN)
     {kExprF32Min, Float32::quiet_nan(), -Float32::quiet_nan()},
+    // copysign(-signalling NaN, epsilon)
+    {kExprF32CopySign, Float32::FromBits(0xff97750d),
+     Float32::FromBits(0x0a004929)},
 };
 
 constexpr std::array kFloat32Unops = {
