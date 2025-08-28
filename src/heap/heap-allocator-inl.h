@@ -161,9 +161,9 @@ HeapAllocator::AllocateRaw(int size_in_bytes, AllocationOrigin origin,
 
 #if V8_VERIFY_WRITE_BARRIERS
   if (type == AllocationType::kYoung && !allocation.IsFailure()) {
-    last_young_allocation_ = allocation.ToAddress();
+    set_last_young_allocation(allocation.ToAddress());
   } else {
-    last_young_allocation_ = kNullAddress;
+    set_last_young_allocation(kNullAddress);
   }
 #endif  // V8_VERIFY_WRITE_BARRIERS
 

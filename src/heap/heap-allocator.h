@@ -37,8 +37,7 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   explicit HeapAllocator(LocalHeap*);
 
   // Set up all LABs for this LocalHeap.
-  void Setup(LinearAllocationArea* new_allocation_info = nullptr,
-             LinearAllocationArea* old_allocation_info = nullptr);
+  void Setup();
 
   void SetReadOnlySpace(ReadOnlySpace*);
 
@@ -148,6 +147,12 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   void ResetMostRecentYoungAllocation();
 #endif  // V8_VERIFY_WRITE_BARRIERS
 
+  void set_last_young_allocation(Address value) {
+    *last_young_allocation_pointer_ = value;
+  }
+
+  Address last_young_allocation() { return *last_young_allocation_pointer_; }
+
  private:
   V8_INLINE PagedSpace* code_space() const;
   V8_INLINE CodeLargeObjectSpace* code_lo_space() const;
@@ -226,9 +231,8 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   OldLargeObjectSpace* shared_lo_space_;
   SharedTrustedLargeObjectSpace* shared_trusted_lo_space_;
 
-#if V8_VERIFY_WRITE_BARRIERS
-  Address last_young_allocation_ = kNullAddress;
-#endif  // V8_VERIFY_WRITE_BARRIERS
+  std::optional<Address> last_young_allocation_;
+  Address* last_young_allocation_pointer_ = nullptr;
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   // Specifies how many allocations should be performed until returning

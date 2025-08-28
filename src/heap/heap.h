@@ -736,8 +736,7 @@ class Heap final {
   void ReplaceReadOnlySpace(SharedReadOnlySpace* shared_ro_space);
 
   // Sets up the heap memory without creating any objects.
-  void SetUpSpaces(LinearAllocationArea& new_allocation_info,
-                   LinearAllocationArea& old_allocation_info);
+  void SetUpSpaces();
 
   // Prepares the heap, setting up for deserialization.
   void InitializeMainThreadLocalHeap(LocalHeap* main_thread_local_heap);

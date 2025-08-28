@@ -129,6 +129,7 @@ struct JSBuiltinDispatchHandleRoot {
   /* Misc. fields. */                                                          \
   V(NewAllocationInfo, LinearAllocationArea::kSize, new_allocation_info)       \
   V(OldAllocationInfo, LinearAllocationArea::kSize, old_allocation_info)       \
+  V(Address, kSystemPointerSize, last_young_allocation)                        \
   ISOLATE_DATA_FAST_C_CALL_PADDING(V)                                          \
   V(FastCCallCallerPC, kSystemPointerSize, fast_c_call_caller_pc)              \
   V(FastCCallCallerFP, kSystemPointerSize, fast_c_call_caller_fp)              \
@@ -301,6 +302,9 @@ class IsolateData final {
   Address name##_address() const { return reinterpret_cast<Address>(&name##_); }
   ISOLATE_DATA_FIELDS(V)
 #undef V
+
+  LinearAllocationArea& new_allocation_info() { return new_allocation_info_; }
+  LinearAllocationArea& old_allocation_info() { return old_allocation_info_; }
 
   Address fast_c_call_caller_fp() const { return fast_c_call_caller_fp_; }
   Address fast_c_call_caller_pc() const { return fast_c_call_caller_pc_; }
@@ -480,6 +484,8 @@ class IsolateData final {
 
   LinearAllocationArea new_allocation_info_;
   LinearAllocationArea old_allocation_info_;
+
+  Address last_young_allocation_;
 
   // Aligns fast_c_call_XXX fields so that they stay in the same CPU cache line.
   Address fast_c_call_alignment_padding_[kFastCCallAlignmentPaddingCount];

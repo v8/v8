@@ -6036,8 +6036,7 @@ size_t ReturnNull() { return 0; }
 
 }  // namespace
 
-void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
-                       LinearAllocationArea& old_allocation_info) {
+void Heap::SetUpSpaces() {
   // Ensure SetUpFromReadOnlySpace has been ran.
   DCHECK_NOT_NULL(read_only_space_);
 
@@ -6115,8 +6114,7 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
     shared_trusted_lo_allocation_space_ = heap->shared_trusted_lo_space_;
   }
 
-  main_thread_local_heap()->SetUpMainThread(new_allocation_info,
-                                            old_allocation_info);
+  main_thread_local_heap()->SetUpMainThread();
 
   base::TimeTicks startup_time = base::TimeTicks::Now();
 

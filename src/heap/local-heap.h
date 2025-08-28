@@ -392,8 +392,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
       GCCallbacksInSafepoint::GCType gc_type);
 
   // Set up this LocalHeap as main thread.
-  void SetUpMainThread(LinearAllocationArea& new_allocation_info,
-                       LinearAllocationArea& old_allocation_info);
+  void SetUpMainThread();
 
   void SetUpMarkingBarrier();
   void SetUpSharedMarking();

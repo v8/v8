@@ -129,11 +129,10 @@ void LocalHeap::SetUpMainThreadForTesting() {
   SetUpSharedMarking();
 }
 
-void LocalHeap::SetUpMainThread(LinearAllocationArea& new_allocation_info,
-                                LinearAllocationArea& old_allocation_info) {
+void LocalHeap::SetUpMainThread() {
   DCHECK(is_main_thread());
   DCHECK(IsRunning());
-  heap_allocator_.Setup(&new_allocation_info, &old_allocation_info);
+  heap_allocator_.Setup();
   SetUpMarkingBarrier();
   SetUpSharedMarking();
 }

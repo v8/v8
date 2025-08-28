@@ -960,12 +960,14 @@ class Internals {
       kBuiltinTier0TableOffset + kBuiltinTier0TableSize;
   static const int kOldAllocationInfoOffset =
       kNewAllocationInfoOffset + kLinearAllocationAreaSize;
+  static const int kLastYoungAllocationOffset =
+      kOldAllocationInfoOffset + kApiSystemPointerSize;
 
   static const int kFastCCallAlignmentPaddingSize =
       kApiSystemPointerSize == 8 ? 5 * kApiSystemPointerSize
                                  : 1 * kApiSystemPointerSize;
   static const int kIsolateFastCCallCallerPcOffset =
-      kOldAllocationInfoOffset + kLinearAllocationAreaSize +
+      kLastYoungAllocationOffset + kLinearAllocationAreaSize +
       kFastCCallAlignmentPaddingSize;
   static const int kIsolateFastCCallCallerFpOffset =
       kIsolateFastCCallCallerPcOffset + kApiSystemPointerSize;

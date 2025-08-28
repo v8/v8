@@ -845,6 +845,12 @@ ExternalReference ExternalReference::old_space_allocation_limit_address(
   return ExternalReference(isolate->heap()->OldSpaceAllocationLimitAddress());
 }
 
+ExternalReference ExternalReference::last_young_allocation_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->isolate_data()->last_young_allocation_address());
+}
+
 ExternalReference ExternalReference::array_buffer_max_allocation_address(
     Isolate* isolate) {
   return ExternalReference(isolate->array_buffer_max_size_address());

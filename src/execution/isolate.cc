@@ -5769,8 +5769,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     SetCurrentLocalHeapScope local_heap_scope(this);
     isolate_group()->SetupReadOnlyHeap(this, read_only_snapshot_data,
                                        can_rehash);
-    heap_.SetUpSpaces(isolate_data_.new_allocation_info_,
-                      isolate_data_.old_allocation_info_);
+    heap_.SetUpSpaces();
   }
 
   DCHECK_EQ(this, Isolate::Current());

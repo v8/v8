@@ -12,6 +12,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/large-page-metadata.h"
 #include "src/heap/large-spaces.h"
+#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/page-metadata.h"
 #include "src/logging/counters.h"
 #include "src/objects/heap-object.h"
@@ -25,14 +26,15 @@ class Heap;
 HeapAllocator::HeapAllocator(LocalHeap* local_heap)
     : local_heap_(local_heap), heap_(local_heap->heap()) {}
 
-void HeapAllocator::Setup(LinearAllocationArea* new_allocation_info,
-                          LinearAllocationArea* old_allocation_info) {
+void HeapAllocator::Setup() {
   for (int i = FIRST_SPACE; i <= LAST_SPACE; ++i) {
     spaces_[i] = heap_->space(i);
   }
 
   if ((heap_->new_space() || v8_flags.sticky_mark_bits) &&
       local_heap_->is_main_thread()) {
+    LinearAllocationArea* const new_allocation_info =
+        &heap_->isolate()->isolate_data()->new_allocation_info();
     new_space_allocator_.emplace(
         local_heap_,
         v8_flags.sticky_mark_bits
@@ -41,6 +43,18 @@ void HeapAllocator::Setup(LinearAllocationArea* new_allocation_info,
         MainAllocator::IsNewGeneration::kYes, new_allocation_info);
   }
 
+  if (local_heap_->is_main_thread()) {
+    last_young_allocation_pointer_ = reinterpret_cast<Address*>(
+        heap_->isolate()->isolate_data()->last_young_allocation_address());
+  } else {
+    last_young_allocation_.emplace(kNullAddress);
+    last_young_allocation_pointer_ = &last_young_allocation_.value();
+  }
+
+  LinearAllocationArea* const old_allocation_info =
+      local_heap_->is_main_thread()
+          ? &heap_->isolate()->isolate_data()->old_allocation_info()
+          : nullptr;
   old_space_allocator_.emplace(local_heap_, heap_->old_space(),
                                MainAllocator::IsNewGeneration::kNo,
                                old_allocation_info);
@@ -437,19 +451,33 @@ Heap* HeapAllocator::heap_for_allocation(AllocationType allocation) {
 #if V8_VERIFY_WRITE_BARRIERS
 
 bool HeapAllocator::IsMostRecentYoungAllocation(Address object_address) {
-  if (!new_space_allocator_.has_value()) return false;
+  const Address last = last_young_allocation();
 
-  if (last_young_allocation_ == object_address) {
-    return true;
+  if (last == kNullAddress) {
+    return false;
   }
 
-  const Address start = new_space_allocator_->start();
-  const Address top = new_space_allocator_->top();
-  return start <= object_address && object_address < top;
+  DCHECK(new_space_allocator_.has_value());
+
+  if (new_space_allocator_->start() <= last &&
+      last < new_space_allocator_->top()) {
+    // The last young allocation was allocated from LAB. Because of allocation
+    // folding we have to allow values between [last_young_allocation; LAB top[.
+    return last <= object_address &&
+           object_address < new_space_allocator_->top();
+  } else {
+    // Otherwise the last young allocation has to be a large object.
+    MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromAddress(last);
+    CHECK(chunk->is_large());
+    CHECK_EQ(chunk->owner_identity(), NEW_LO_SPACE);
+    // No allocation folding with large objects, so object_address has to match
+    // the last young allocation exactly.
+    return last == object_address;
+  }
 }
 
 void HeapAllocator::ResetMostRecentYoungAllocation() {
-  last_young_allocation_ = kNullAddress;
+  set_last_young_allocation(kNullAddress);
 }
 
 #endif  // V8_VERIFY_WRITE_BARRIERS
