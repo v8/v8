@@ -2015,6 +2015,8 @@ class Heap final {
     return max_old_generation_size_.load(std::memory_order_relaxed);
   }
 
+  size_t max_global_memory_size() const { return max_global_memory_size_; }
+
   size_t min_old_generation_size() const { return min_old_generation_size_; }
 
   // Sets max_old_generation_size_ and computes the new global heap limit from

@@ -306,9 +306,12 @@ void GCTracer::StartCycle(GarbageCollector collector,
         heap_->OldGenerationConsumedBytes();
     current_.old_generation_consumed_limit =
         heap_->old_generation_allocation_limit();
+    current_.max_old_generation_memory = heap_->max_old_generation_size();
     current_.global_consumed_baseline = heap_->GlobalConsumedBytesAtLastGC();
     current_.global_consumed_current = heap_->GlobalConsumedBytes();
     current_.global_consumed_limit = heap_->global_allocation_limit();
+    current_.max_global_memory = heap_->max_global_memory_size();
+    current_.external_memory_bytes = heap_->external_memory();
   }
 
   if (Heap::IsYoungGenerationCollector(collector)) {
@@ -1655,17 +1658,21 @@ void GCTracer::ReportFullCycleToRecorder() {
       current_.start_memory_size > current_.end_memory_size
           ? current_.start_memory_size - current_.end_memory_size
           : 0U;
-  // Old generation Consumed Byes:
+  // Old generation Consumed Bytes:
   event.old_generation_consumed.bytes_baseline =
       current_.old_generation_consumed_baseline;
   event.old_generation_consumed.bytes_limit =
       current_.old_generation_consumed_limit;
   event.old_generation_consumed.bytes_current =
       current_.old_generation_consumed_current;
-  // Global Consumed Byes:
+  event.global_consumed.bytes_max = current_.max_old_generation_memory;
+  // Global Consumed Bytes:
   event.global_consumed.bytes_baseline = current_.global_consumed_baseline;
   event.global_consumed.bytes_limit = current_.global_consumed_limit;
   event.global_consumed.bytes_current = current_.global_consumed_current;
+  event.global_consumed.bytes_max = current_.max_global_memory;
+  // External memory Bytes
+  event.external_memory_bytes = current_.external_memory_bytes;
   // Collection Rate:
   if (event.objects.bytes_before == 0) {
     event.collection_rate_in_percent = 0;

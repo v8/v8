@@ -41,6 +41,7 @@ struct GarbageCollectionLimits {
   int64_t bytes_baseline = -1;
   int64_t bytes_limit = -1;
   int64_t bytes_current = -1;
+  int64_t bytes_max = -1;
 };
 
 struct GarbageCollectionFullCycle {
@@ -66,6 +67,7 @@ struct GarbageCollectionFullCycle {
   GarbageCollectionSizes memory_cpp;
   GarbageCollectionLimits old_generation_consumed;
   GarbageCollectionLimits global_consumed;
+  int64_t external_memory_bytes = -1;
   double collection_rate_in_percent = -1.0;
   double collection_rate_cpp_in_percent = -1.0;
   double efficiency_in_bytes_per_us = -1.0;

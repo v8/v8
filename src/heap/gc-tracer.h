@@ -224,11 +224,16 @@ class V8_EXPORT_PRIVATE GCTracer {
     size_t old_generation_consumed_baseline = 0;
     size_t old_generation_consumed_limit = 0;
     size_t old_generation_consumed_current = 0;
+    size_t max_old_generation_memory = 0;
 
     // Consumed bytes used to evaluate global allocation limits.
     size_t global_consumed_baseline = 0;
     size_t global_consumed_limit = 0;
     size_t global_consumed_current = 0;
+    size_t max_global_memory = 0;
+
+    // External memory at the start of GC.
+    size_t external_memory_bytes = 0;
 
     // Total amount of space either wasted or contained in one of free lists
     // before the current GC.
