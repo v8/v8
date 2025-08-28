@@ -42,9 +42,17 @@ class RegExpCodeGenerator final {
   V8_NODISCARD Result Assemble(DirectHandle<String> source, RegExpFlags flags);
 
  private:
+  // Returns the value for |operand_id| of bytecode at |pc| in the format
+  // expected by the macro assembler.
+  // E.g. converts an uint32_t bytecode offset to a Label*.
+  template <typename Operands, typename Operands::Operand operand_id>
+  auto GetArgumentValue(const uint8_t* pc);
   // Visit all bytecodes before any code is emmited.
   // Allocates labels for all jump targets to support forward jumps.
   void PreVisitBytecodes();
+  void VisitBytecodes();
+  template <RegExpBytecode bc>
+  void Visit();
 
   Isolate* isolate_;
   Zone zone_;
@@ -52,11 +60,12 @@ class RegExpCodeGenerator final {
   DirectHandle<TrustedByteArray> bytecode_;
   RegExpBytecodeIterator iter_;
   // Zone allocated Array of Labels for each offset. Access is only valid for
-  // offsets that are jump targets (indicated by labels_used_).
+  // offsets that are jump targets (indicated by jump_targets_).
   Label* labels_;
-  // BitVector indicating if a label for a specific offset is allocated.
+  // BitVector indicating if a specific offset is a valid jump target.
   // Labels are allocated for all offsets that are jump targets.
-  BitVector labels_used_;
+  BitVector jump_targets_;
+  bool has_unsupported_bytecode_;
 };
 
 }  // namespace internal

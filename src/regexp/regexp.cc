@@ -569,7 +569,7 @@ bool RegExpImpl::EnsureCompiledIrregexp(Isolate* isolate,
     }
     // If Assembling from bytecode wasn't successful, we fall-through to the
     // old pipeline compiling everything from scratch.
-    if (v8_flags.trace_regexp_tier_up) {
+    if (v8_flags.trace_regexp_assembler) {
       PrintF(
           "JSRegExp object (data: %p) has unsupported bytecodes for assembling "
           "from bytecode. Falling back to re-compilation.\n",
