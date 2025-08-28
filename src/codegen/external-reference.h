@@ -49,6 +49,7 @@ enum class IsolateFieldId : uint8_t;
   V(new_space_allocation_limit_address,                                        \
     "Heap::NewSpaceAllocationLimitAddress()")                                  \
   V(old_space_allocation_top_address, "Heap::OldSpaceAllocationTopAddress")    \
+  V(last_young_allocation_address, "last_young_allocation_address")            \
   V(old_space_allocation_limit_address,                                        \
     "Heap::OldSpaceAllocationLimitAddress")                                    \
   V(array_buffer_max_allocation_address,                                       \
