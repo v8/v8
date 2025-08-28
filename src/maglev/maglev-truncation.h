@@ -193,6 +193,8 @@ class TruncationProcessor {
   void PreProcessNode(Node*, const ProcessingState& state);
   void PostProcessNode(Node*);
 
+  void UnwrapInputs(NodeBase*);
+
   // Phis are treated differently since they are not stored directly in the
   // basic block.
   void PreProcessNode(Phi*, const ProcessingState& state);

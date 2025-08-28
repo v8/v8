@@ -10,6 +10,14 @@
 
 namespace v8::internal::maglev {
 
+void TruncationProcessor::UnwrapInputs(NodeBase* node) {
+  for (int i = 0; i < node->input_count(); i++) {
+    ValueNode* input = node->input(i).node();
+    if (!input) continue;
+    node->change_input(i, input->UnwrapIdentities());
+  }
+}
+
 BlockProcessResult TruncationProcessor::PreProcessBasicBlock(
     BasicBlock* block) {
   reducer_.set_current_block(block);
@@ -31,11 +39,7 @@ void TruncationProcessor::PreProcessNode(Node* node,
         reducer_.graph_labeller()->GetNodeProvenance(node));
   }
   reducer_.SetNewNodePosition(BasicBlockPosition::At(state.node_index()));
-  for (int i = 0; i < node->input_count(); i++) {
-    ValueNode* input = node->input(i).node();
-    if (!input) continue;
-    node->change_input(i, input->UnwrapIdentities());
-  }
+  UnwrapInputs(node);
 }
 
 void TruncationProcessor::PostProcessNode(Node*) {
@@ -45,12 +49,15 @@ void TruncationProcessor::PostProcessNode(Node*) {
 #endif  // DEBUG
 }
 
-void TruncationProcessor::PreProcessNode(Phi*, const ProcessingState& state) {}
-void TruncationProcessor::PostProcessNode(Phi*) {
-}
-
-void TruncationProcessor::PreProcessNode(ControlNode*,
+void TruncationProcessor::PreProcessNode(Phi* node,
                                          const ProcessingState& state) {
+  UnwrapInputs(node);
+}
+void TruncationProcessor::PostProcessNode(Phi*) {}
+
+void TruncationProcessor::PreProcessNode(ControlNode* node,
+                                         const ProcessingState& state) {
+  UnwrapInputs(node);
   reducer_.SetNewNodePosition(BasicBlockPosition::End());
 }
 void TruncationProcessor::PostProcessNode(ControlNode*) {}
