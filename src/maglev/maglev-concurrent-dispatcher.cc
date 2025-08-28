@@ -288,6 +288,9 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
         if (status == CompilationJob::SUCCEEDED) {
           outgoing_queue()->Enqueue(std::move(job));
           isolate()->stack_guard()->RequestInstallMaglevCode();
+        } else {
+          UnparkedScope unparked_scope(&local_isolate);
+          job.reset();
         }
       } else if (destruction_queue()->Dequeue(&job)) {
         // Maglev jobs aren't cheap to destruct, so destroy them here in the
