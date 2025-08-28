@@ -6578,7 +6578,6 @@ void CallKnownApiFunction::SetValueLocationConstraints() {
   for (int i = 0; i < num_args(); i++) {
     UseAny(arg(i));
   }
-  UseFixed(context(), kContextRegister);
 
   DefineAsFixed(this, kReturnRegister0);
 
@@ -6589,8 +6588,44 @@ void CallKnownApiFunction::SetValueLocationConstraints() {
 
 void CallKnownApiFunction::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
-  MaglevAssembler::TemporaryRegisterScope temps(masm);
   __ PushReverse(receiver(), args());
+
+  if (inline_builtin()) {
+    GenerateCallApiCallbackOptimizedInline(masm, state);
+    return;
+  }
+
+  compiler::JSHeapBroker* broker = masm->compilation_info()->broker();
+  ApiFunction function(function_template_info_.callback(broker));
+  ExternalReference reference =
+      ExternalReference::Create(&function, ExternalReference::DIRECT_API_CALL);
+
+  switch (mode()) {
+    case kNoProfiling:
+      __ CallBuiltin<Builtin::kCallApiCallbackOptimizedNoProfiling>(
+          masm->native_context().object(),  // context
+          reference,                        // Api function address
+          num_args(),  // actual arguments count not including receiver
+          function_template_info_.object()  // function template info
+      );
+      break;
+    case kNoProfilingInlined:
+      UNREACHABLE();
+    case kGeneric:
+      __ CallBuiltin<Builtin::kCallApiCallbackOptimized>(
+          masm->native_context().object(),  // context
+          reference,                        // Api function address
+          num_args(),  // actual arguments count not including receiver
+          function_template_info_.object()  // function template info
+      );
+      break;
+  }
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+}
+
+void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
 
   // From here on, we're going to do a call, so all registers are valid temps,
   // except for the ones we're going to write. This is needed in case one of the
@@ -6604,42 +6639,7 @@ void CallKnownApiFunction::GenerateCode(MaglevAssembler* masm,
           CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister(),
           CallApiCallbackOptimizedDescriptor::FunctionTemplateInfoRegister(),
           CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister()});
-  DCHECK_EQ(kContextRegister, ToRegister(context()));
 
-  if (inline_builtin()) {
-    GenerateCallApiCallbackOptimizedInline(masm, state);
-    return;
-  }
-
-  __ Move(CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister(),
-          num_args());  // not including receiver
-
-  __ Move(CallApiCallbackOptimizedDescriptor::FunctionTemplateInfoRegister(),
-          i::Cast<HeapObject>(function_template_info_.object()));
-
-  compiler::JSHeapBroker* broker = masm->compilation_info()->broker();
-  ApiFunction function(function_template_info_.callback(broker));
-  ExternalReference reference =
-      ExternalReference::Create(&function, ExternalReference::DIRECT_API_CALL);
-  __ Move(CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister(),
-          reference);
-
-  switch (mode()) {
-    case kNoProfiling:
-      __ CallBuiltin(Builtin::kCallApiCallbackOptimizedNoProfiling);
-      break;
-    case kNoProfilingInlined:
-      UNREACHABLE();
-    case kGeneric:
-      __ CallBuiltin(Builtin::kCallApiCallbackOptimized);
-      break;
-  }
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-}
-
-void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register scratch = temps.Acquire();
   Register scratch2 = temps.Acquire();
 
@@ -6667,6 +6667,9 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
   // Existing state:
   //   sp[6 * kSystemPointerSize]:          <= FCA:::values_
 
+  // We do not inline Api calls cross native context, so native_context()
+  // is the context here.
+  __ Move(kContextRegister, masm->native_context().object());
   __ StoreRootRelative(IsolateData::topmost_script_having_context_offset(),
                        kContextRegister);
 

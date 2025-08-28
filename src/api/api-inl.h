@@ -166,10 +166,6 @@ class V8_NODISCARD CallDepthScope {
     if (do_callback) isolate_->FireBeforeCallEnteredCallback();
   }
   ~CallDepthScope() {
-    i::MicrotaskQueue* microtask_queue =
-        i::Cast<i::NativeContext>(isolate_->context())
-            ->microtask_queue(isolate_);
-
     isolate_->thread_local_top()->DecrementCallDepth(this);
     // Clear the exception when exiting V8 to avoid memory leaks.
     // Also clear termination exceptions iff there's no TryCatch handler.
@@ -180,17 +176,21 @@ class V8_NODISCARD CallDepthScope {
          !isolate_->is_execution_terminating())) {
       isolate_->clear_internal_exception();
     }
-    if (do_callback) isolate_->FireCallCompletedCallback(microtask_queue);
-#ifdef DEBUG
+
     if (do_callback) {
+      i::MicrotaskQueue* microtask_queue =
+          isolate_->native_context()->microtask_queue(isolate_);
+      isolate_->FireCallCompletedCallback(microtask_queue);
+#ifdef DEBUG
       if (microtask_queue && microtask_queue->microtasks_policy() ==
                                  v8::MicrotasksPolicy::kScoped) {
         DCHECK(microtask_queue->GetMicrotasksScopeDepth() ||
                !microtask_queue->DebugMicrotasksScopeDepthIsZero());
       }
-    }
-    DCHECK(CheckKeptObjectsClearedAfterMicrotaskCheckpoint(microtask_queue));
 #endif
+    }
+    DCHECK(CheckKeptObjectsClearedAfterMicrotaskCheckpoint(
+        isolate_->native_context()->microtask_queue(isolate_)));
 
     if (!saved_context_.is_null()) isolate_->set_context(*saved_context_);
   }

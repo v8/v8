@@ -1408,7 +1408,7 @@ class GraphBuildingNodeProcessor {
     for (maglev::Input arg : node->args()) {
       arguments.push_back(Map(arg));
     }
-    arguments.push_back(Map(node->context()));
+    arguments.push_back(native_context());
 
     Builtin builtin;
     switch (node->mode()) {

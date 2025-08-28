@@ -10630,8 +10630,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCallForApiFunction(
           call->set_arg(i, GetTaggedValue(args[i]));
         }
       },
-      mode, api_callback, GetTaggedValue(GetContext()),
-      GetTaggedValue(receiver));
+      mode, api_callback, GetTaggedValue(receiver));
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownApiFunction(

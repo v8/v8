@@ -10918,9 +10918,8 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
     kGeneric,
   };
 
-  static constexpr int kContextIndex = 0;
-  static constexpr int kReceiverIndex = 1;
-  static constexpr int kFixedInputCount = 2;
+  static constexpr int kReceiverIndex = 0;
+  static constexpr int kFixedInputCount = 1;
 
   // We need enough inputs to have these fixed inputs plus the maximum arguments
   // to a function call.
@@ -10930,10 +10929,9 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
   // Inputs must be initialized manually.
   CallKnownApiFunction(uint64_t bitfield, Mode mode,
                        compiler::FunctionTemplateInfoRef function_template_info,
-                       ValueNode* context, ValueNode* receiver)
+                       ValueNode* receiver)
       : Base(bitfield | ModeField::encode(mode)),
         function_template_info_(function_template_info) {
-    set_input(kContextIndex, context);
     set_input(kReceiverIndex, receiver);
   }
 
@@ -10941,10 +10939,6 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
   // when deciding which registers to splill.
   static constexpr OpProperties kProperties = OpProperties::JSCall();
 
-  // Input closure() { return input(kClosureIndex); }
-  // ConstInput closure() const { return input(kClosureIndex); }
-  Input context() { return input(kContextIndex); }
-  ConstInput context() const { return input(kContextIndex); }
   Input receiver() { return input(kReceiverIndex); }
   ConstInput receiver() const { return input(kReceiverIndex); }
   int num_args() const { return input_count() - kFixedInputCount; }

@@ -486,6 +486,9 @@ inline bool ClobberedBy(RegList written_registers, Tagged<TaggedIndex> index) {
 inline bool ClobberedBy(RegList written_registers, int32_t imm) {
   return false;
 }
+inline bool ClobberedBy(RegList written_registers, ExternalReference ref) {
+  return false;
+}
 inline bool ClobberedBy(RegList written_registers, RootIndex index) {
   return false;
 }
@@ -513,6 +516,10 @@ inline bool ClobberedBy(DoubleRegList written_registers,
   return false;
 }
 inline bool ClobberedBy(DoubleRegList written_registers, int32_t imm) {
+  return false;
+}
+inline bool ClobberedBy(DoubleRegList written_registers,
+                        ExternalReference ref) {
   return false;
 }
 inline bool ClobberedBy(DoubleRegList written_registers, RootIndex index) {
@@ -552,6 +559,9 @@ inline bool MachineTypeMatches(MachineType type, int32_t imm) {
   // zero-extended.
   return type.representation() == MachineRepresentation::kWord32 ||
          type.representation() == MachineRepresentation::kWord64;
+}
+inline bool MachineTypeMatches(MachineType type, ExternalReference ref) {
+  return type.representation() == MachineType::PointerRepresentation();
 }
 inline bool MachineTypeMatches(MachineType type, RootIndex index) {
   return type.IsTagged() && !type.IsTaggedSigned();
