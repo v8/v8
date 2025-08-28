@@ -157,7 +157,7 @@ RECLIENT_CERT_CACHE = V8_DIR / ".#gm_reclient_cert_cache"
 
 out_dir_override = os.getenv("V8_GM_OUTDIR")
 if out_dir_override and Path(out_dir_override).is_dir:
-  OUTDIR = Path(out_dir_override)
+  OUTDIR = Path(out_dir_override).absolute()
   OUTDIR_BASENAME = OUTDIR.parts[-1]
 else:
   OUTDIR_BASENAME = "out"
