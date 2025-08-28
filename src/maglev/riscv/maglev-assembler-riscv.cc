@@ -66,6 +66,22 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
 
   // Store new top and tag object.
   __ Move(__ ExternalReferenceAsOperand(top, scratch), new_top);
+#if V8_VERIFY_WRITE_BARRIERS
+  if (v8_flags.verify_write_barriers) {
+    ExternalReference last_young_allocation =
+        ExternalReference::last_young_allocation_address(isolate);
+
+    if (alloc_type == AllocationType::kYoung) {
+      __ SubWord(object, object, size_in_bytes);
+      __ StoreWord(object, __ ExternalReferenceAsOperand(last_young_allocation,
+                                                         scratch));
+      __ AddWord(object, object, size_in_bytes);
+    } else {
+      __ StoreWord(zero_reg, __ ExternalReferenceAsOperand(
+                                 last_young_allocation, scratch));
+    }
+  }
+#endif  // V8_VERIFY_WRITE_BARRIERS
   SubSizeAndTagObject(masm, object, size_in_bytes);
   __ bind(*done);
 }
