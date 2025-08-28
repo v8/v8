@@ -1782,7 +1782,7 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
 
   {
     // This method is invoked from a microtask, where in general we may have
-    // an non-trivial stack. Emptying the message queue below may trigger the
+    // a non-trivial stack. Emptying the message queue below may trigger the
     // execution of a stackless GC. We need to override the embedder stack
     // state, to force scanning the stack, if this happens.
     i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
@@ -6467,8 +6467,7 @@ bool ProcessMessages(
   try_catch.SetVerbose(true);
 
   while (true) {
-    bool ran_a_task;
-    ran_a_task =
+    bool ran_a_task =
         v8::platform::PumpMessageLoop(g_default_platform, isolate, behavior());
     if (isolate->IsExecutionTerminating()) return true;
     if (try_catch.HasCaught()) return false;

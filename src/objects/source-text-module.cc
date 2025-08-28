@@ -741,7 +741,15 @@ void SourceTextModule::GatherAvailableAncestors(
 
       // a. If execList does not contain m and
       //    m.[[CycleRoot]].[[EvaluationError]] is empty, then
-      if (m->GetCycleRoot(isolate)->status() != kErrored &&
+      // There may be a bug in the spec here. If an async parent module depends
+      // on an async child but also fails synchronously, it is not getting its
+      // cycle_root property set. If the child module later completes, this
+      // function will be called. The first condition (missing from the spec)
+      // prevents a type confusion here. See https://crbug.com/439986081.
+      DCHECK_IMPLIES(IsTheHole(m->cycle_root(), isolate),
+                     m->status() == kErrored);
+      if (!IsTheHole(m->cycle_root(), isolate) &&
+          m->GetCycleRoot(isolate)->status() != kErrored &&
           exec_list->find(m) == exec_list->end()) {
         // i. Assert: m.[[Status]] is EVALUATING-ASYNC.
         // ii. Assert: m.[[EvaluationError]] is empty.
