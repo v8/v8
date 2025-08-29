@@ -14,6 +14,10 @@ ALL_VARIANT_FLAGS = {
     "interpreted_regexp": [["--regexp-interpret-all"]],
     "stress_regexp_jit": [["--regexp-tier-up-ticks=0"]],
     "experimental_regexp": [["--default-to-experimental-regexp-engine"]],
+    # TODO(437003349): Remove once the project is complete.
+    "regexp_assemble_from_bc": [[
+        "--regexp-assemble-from-bytecode", "--no-regexp-peephole-optimization"
+    ]],
     "jitless": [["--jitless", "--wasm-jitless-if-available-for-testing"]],
     # Jit-fuzzing variants pass --no-fail as most test conditions are violated.
     # We only look for dchecks and crashes. As a result, negative tests like
@@ -31,6 +35,13 @@ ALL_VARIANT_FLAGS = {
     "maglev_no_turbofan": [[
         "--maglev", "--no-turbofan",
         "--optimize-on-next-call-optimizes-to-maglev"
+    ]],
+    # combination for maglev_no_turbofan and regexp_assemble_from_bc
+    # TODO(437003349): Remove once the project is complete.
+    "maglev_no_turbofan_regexp_from_bc": [[
+        "--maglev", "--no-turbofan",
+        "--optimize-on-next-call-optimizes-to-maglev",
+        "--regexp-assemble-from-bytecode", "--no-regexp-peephole-optimization"
     ]],
     "stress_maglev": [[
         "--maglev", "--stress-maglev",
@@ -196,6 +207,14 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--turbofan",
         "--stress-concurrent-inlining",
     ],
+    "maglev_no_turbofan_regexp_from_bc": [
+        "--jitless",
+        "--no-maglev",
+        "--turbofan",
+        "--stress-concurrent-inlining",
+        "--no-regexp-tier-up",
+        "--regexp-interpret-all",
+    ],
     "stress_maglev": ["--jitless"],
     "stress_maglev_non_eager_inlining": ["--jitless"],
     "stress_maglev_future": ["--jitless", "--no-maglev", "--no-maglev-future"],
@@ -214,6 +233,9 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
     "interpreted_regexp": ["--regexp-tier-up"],
     "stress_regexp_jit": ["--regexp-interpret-all"],
     "experimental_regexp": ["--no-enable-experimental-regexp-engine"],
+    "regexp_assemble_from_bc": [
+        "--no-regexp-tier-up", "--regexp-interpret-all", "--jitless"
+    ],
     "assert_types": [
         "--concurrent-recompilation", "--stress_concurrent_inlining",
         "--no-assert-types"
