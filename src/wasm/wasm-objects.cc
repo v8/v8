@@ -3284,9 +3284,9 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
           : isolate->builtins()->code_handle(Builtin::kJSToJSWrapperInvalidSig);
 
   DirectHandle<WasmJSFunctionData> function_data =
-      factory->NewWasmJSFunctionData(sig_id, callable, js_to_js_wrapper_code,
-                                     rtt, suspend, wasm::kNoPromise,
-                                     wrapper_handle);
+      factory->NewWasmJSFunctionData(canonical_sig, callable,
+                                     js_to_js_wrapper_code, rtt, suspend,
+                                     wasm::kNoPromise, wrapper_handle);
   DirectHandle<WasmInternalFunction> internal_function{
       function_data->internal(), isolate};
 

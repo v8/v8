@@ -1857,13 +1857,10 @@ DirectHandle<WasmFuncRef> Factory::NewWasmFuncRef(
 }
 
 DirectHandle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
-    wasm::CanonicalTypeIndex sig_index, DirectHandle<JSReceiver> callable,
+    const wasm::CanonicalSig* sig, DirectHandle<JSReceiver> callable,
     DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
     wasm::Suspend suspend, wasm::Promise promise,
     std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle) {
-  // TODO(clemensb): Should this be passed instead of looked up here?
-  const wasm::CanonicalSig* sig =
-      wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_index);
   constexpr bool kShared = false;
   DirectHandle<WasmImportData> import_data = NewWasmImportData(
       callable, suspend, DirectHandle<WasmTrustedInstanceData>(), sig, kShared);
@@ -1892,7 +1889,7 @@ DirectHandle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   result->set_func_ref(*func_ref);
   result->set_internal(*internal);
   result->set_wrapper_code(*wrapper_code);
-  result->set_canonical_sig_index(sig_index.index);
+  result->set_canonical_sig_index(sig->index().index);
   result->set_js_promise_flags(WasmFunctionData::SuspendField::encode(suspend) |
                                WasmFunctionData::PromiseField::encode(promise));
   result->set_protected_offheap_data(*offheap_data);

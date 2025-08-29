@@ -781,7 +781,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // {opt_call_target} is kNullAddress for JavaScript functions, and
   // non-null for exported Wasm functions.
   DirectHandle<WasmJSFunctionData> NewWasmJSFunctionData(
-      wasm::CanonicalTypeIndex sig_index, DirectHandle<JSReceiver> callable,
+      const wasm::CanonicalSig* sig, DirectHandle<JSReceiver> callable,
       DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
       wasm::Suspend suspend, wasm::Promise promise,
       std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle);
