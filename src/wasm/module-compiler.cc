@@ -2372,6 +2372,7 @@ std::shared_ptr<NativeModule> GetOrCompileNewNativeModule(
       module, code_size_estimate);
   native_module->SetWireBytes(std::move(wire_bytes));
   native_module->compilation_state()->set_compilation_id(compilation_id);
+#if V8_ENABLE_TURBOFAN
   if (v8_flags.experimental_wasm_wasmfx) {
     // TODO(thibaudm): 1) Cache the wrappers per signature, 2) share them across
     // modules, 3) compile them lazily.
@@ -2383,6 +2384,7 @@ std::shared_ptr<NativeModule> GetOrCompileNewNativeModule(
         native_module->PublishCode(std::move(unpublished_wrapper));
     native_module->set_continuation_wrapper(continuation_wrapper);
   }
+#endif
 
   if (!v8_flags.wasm_jitless) {
     // Compile / validate the new module.
@@ -2689,6 +2691,7 @@ void AsyncCompileJob::CreateNativeModule(
       std::move(compile_imports_), std::move(module), code_size_estimate);
   native_module_->SetWireBytes(std::move(bytes_copy_));
   native_module_->compilation_state()->set_compilation_id(compilation_id_);
+#if V8_ENABLE_TURBOFAN
   if (v8_flags.experimental_wasm_wasmfx) {
     // TODO(thibaudm): 1) Cache the wrappers per signature, 2) share them across
     // modules, 3) compile them lazily.
@@ -2700,6 +2703,7 @@ void AsyncCompileJob::CreateNativeModule(
         native_module_->PublishCode(std::move(unpublished_wrapper));
     native_module_->set_continuation_wrapper(continuation_wrapper);
   }
+#endif
 }
 
 bool AsyncCompileJob::GetOrCreateNativeModule(
