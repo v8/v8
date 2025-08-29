@@ -27,6 +27,12 @@ constexpr bool TaggedImpl<kRefType, StorageType>::IsInMainCageBase() {
   using S = V8HeapCompressionScheme;
   return S::GetPtrComprCageBaseAddress(ptr_) == S::base();
 }
+template <HeapObjectReferenceType kRefType, typename StorageType>
+constexpr bool TaggedImpl<kRefType, StorageType>::IsInTrustedCageBase() {
+  DCHECK(!IsSmi());
+  using S = TrustedSpaceCompressionScheme;
+  return S::GetPtrComprCageBaseAddress(ptr_) == S::base();
+}
 #endif  // V8_COMPRESS_POINTERS
 
 template <HeapObjectReferenceType kRefType, typename StorageType>

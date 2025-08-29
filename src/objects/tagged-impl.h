@@ -160,6 +160,7 @@ class TaggedImpl {
   // Returns true if this tagged value is a pointer to an object in the given
   // cage base.
   constexpr inline bool IsInMainCageBase();
+  constexpr inline bool IsInTrustedCageBase();
 #endif  // V8_COMPRESS_POINTERS
 
   //

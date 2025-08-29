@@ -181,13 +181,16 @@ bool IsAnyHole(Tagged<HeapObject> obj) {
   constexpr Tagged_t kMinHole = std::min({HOLE_LIST(GET_HOLE_ROOT)});
   constexpr Tagged_t kMaxHole = std::max({HOLE_LIST(GET_HOLE_ROOT)});
 #undef GET_HOLE_ROOT
+#ifdef DEBUG
   // Compressed object tests need to be done on a matching compression scheme.
-  DCHECK(!TrustedHeapLayout::InCodeSpace(obj));
   // We allow trusted space comparisons, because the first 1MB is unmapped there
   // anyway, so no trusted object can alias a hole.
-  DCHECK_IMPLIES(
-      TrustedHeapLayout::InTrustedSpace(obj),
-      TrustedSpaceCompressionScheme::CompressObject(obj.ptr()) >= kMaxHole);
+  if (!obj.IsInMainCageBase()) {
+    DCHECK(obj.IsInTrustedCageBase());
+    DCHECK_GT(TrustedSpaceCompressionScheme::CompressObject(obj.ptr()),
+              kMaxHole);
+  }
+#endif
   // Use a direct cast to Tagged_t rather than CompressObject to allow
   // TrustedSpace comparisons in here.
   return base::IsInRange(static_cast<Tagged_t>(obj.ptr()), kMinHole, kMaxHole);
