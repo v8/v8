@@ -12,6 +12,7 @@
 #include "src/heap/heap.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/heap-object-inl.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/objects-inl.h"
 #include "src/roots/roots-inl.h"
 
@@ -140,8 +141,15 @@ InternalIndex HashTable<Derived, Shape>::FindEntry(PtrComprCageBase cage_base,
   DisallowGarbageCollection no_gc;
   uint32_t capacity = Capacity();
   uint32_t count = 1;
+#if V8_STATIC_ROOTS_BOOL
+#define IS_UNDEFINED(x) IsUndefined(x)
+#define IS_THE_HOLE(x) IsTheHole(x)
+#else
   Tagged<Object> undefined = roots.undefined_value();
   Tagged<Object> the_hole = roots.the_hole_value();
+#define IS_UNDEFINED(x) (x) == undefined
+#define IS_THE_HOLE(x) (x) == the_hole
+#endif
   DCHECK_EQ(TodoShape::Hash(roots, key), static_cast<uint32_t>(hash));
   // EnsureCapacity will guarantee the hash table is never full.
   for (InternalIndex entry = FirstProbe(hash, capacity);;
@@ -149,10 +157,12 @@ InternalIndex HashTable<Derived, Shape>::FindEntry(PtrComprCageBase cage_base,
     Tagged<Object> element = KeyAt(cage_base, entry);
     // Empty entry. Uses raw unchecked accessors because it is called by the
     // string table during bootstrapping.
-    if (element == undefined) return InternalIndex::NotFound();
-    if (TodoShape::kMatchNeedsHoleCheck && element == the_hole) continue;
+    if (IS_UNDEFINED(element)) return InternalIndex::NotFound();
+    if (TodoShape::kMatchNeedsHoleCheck && IS_THE_HOLE(element)) continue;
     if (TodoShape::IsMatch(key, element)) return entry;
   }
+#undef IS_UNDEFINED
+#undef IS_THE_HOLE
 }
 
 template <typename Derived, typename Shape>
@@ -166,8 +176,7 @@ InternalIndex HashTable<Derived, Shape>::FindInsertionEntry(IsolateT* isolate,
 template <typename Derived, typename Shape>
 bool HashTable<Derived, Shape>::IsKey(ReadOnlyRoots roots, Tagged<Object> k) {
   // TODO(leszeks): Dictionaries that don't delete could skip the hole check.
-  return k != roots.unchecked_undefined_value() &&
-         k != roots.unchecked_the_hole_value();
+  return !IsUndefined(k, roots) && !IsTheHole(k, roots);
 }
 
 template <typename Derived, typename Shape>

@@ -842,9 +842,13 @@ Representation Object::OptimalRepresentation(Tagged<Object> obj,
 ElementsKind Object::OptimalElementsKind(Tagged<Object> obj,
                                          PtrComprCageBase cage_base) {
   if (IsSmi(obj)) return PACKED_SMI_ELEMENTS;
-  if (IsHeapNumber(obj, cage_base)) return PACKED_DOUBLE_ELEMENTS;
+  Tagged<HeapObject> heap_object = Cast<HeapObject>(obj);
+  if (IsHeapNumber(heap_object, cage_base)) return PACKED_DOUBLE_ELEMENTS;
+  // if (IsUninitializedHole(heap_object)) {
+  //   return PACKED_SMI_ELEMENTS;
+  // }
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-  if (IsUndefined(obj, GetReadOnlyRoots())) {
+  if (IsUndefined(heap_object, GetReadOnlyRoots())) {
     return HOLEY_DOUBLE_ELEMENTS;
   }
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE

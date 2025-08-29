@@ -23,6 +23,7 @@
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/heap/pretenuring-handler-inl.h"
+#include "src/heap/read-only-heap.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
@@ -5421,7 +5422,8 @@ static ElementsKind BestFittingFastElementsKind(Tagged<JSObject> object) {
   Tagged<NumberDictionary> dictionary = object->element_dictionary();
   ElementsKind kind = HOLEY_SMI_ELEMENTS;
   for (InternalIndex i : dictionary->IterateEntries()) {
-    Tagged<Object> key = dictionary->KeyAt(i);
+    Tagged<Object> key;
+    if (!dictionary->ToKey(GetReadOnlyRoots(), i, &key)) continue;
     if (IsNumber(key)) {
       Tagged<Object> value = dictionary->ValueAt(i);
       if (!IsNumber(value)) return HOLEY_ELEMENTS;
