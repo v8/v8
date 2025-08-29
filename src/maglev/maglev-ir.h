@@ -2063,6 +2063,8 @@ class EagerDeoptInfo : public DeoptInfo {
   template <typename Function>
   void ForEachInput(Function&& f) const;
 
+  inline void UnwrapIdentities();
+
  private:
   DeoptimizeReason reason_ = DeoptimizeReason::kUnknown;
 };
@@ -2115,6 +2117,8 @@ class LazyDeoptInfo : public DeoptInfo {
   void ForEachInput(Function&& f);
   template <typename Function>
   void ForEachInput(Function&& f) const;
+
+  inline void UnwrapIdentities();
 
  private:
 #ifdef DEBUG
@@ -2506,6 +2510,7 @@ class NodeBase : public ZoneObject {
     set_properties(new_properties);
   }
 
+  inline void UnwrapDeoptFrames();
   inline void OverwriteWithIdentityTo(ValueNode* node);
   inline void OverwriteWithReturnValue(ValueNode* node);
 

@@ -138,6 +138,16 @@ void LazyDeoptInfo::ForEachInput(Function&& f) const {
   DeoptInfoVisitor<const LazyDeoptInfo>::ForLazy(this, f);
 }
 
+inline void EagerDeoptInfo::UnwrapIdentities() {
+  // The visitor automatically unwrap identities.
+  ForEachInput([&](ValueNode*) {});
+}
+
+inline void LazyDeoptInfo::UnwrapIdentities() {
+  // The visitor automatically unwrap identities.
+  ForEachInput([](ValueNode*) {});
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

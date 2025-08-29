@@ -28,8 +28,7 @@ class ClearReturnedValueUsesFromDeoptFrames {
     if (block->is_loop()) {
       DeoptFrame* deopt_frame = block->state()->backedge_deopt_frame();
       if (deopt_frame && !visited_.contains(deopt_frame)) {
-        EagerDeoptInfo dummy(nullptr, deopt_frame, {});
-        dummy.ForEachInput([&](ValueNode* node) {});
+        EagerDeoptInfo(nullptr, deopt_frame, {}).UnwrapIdentities();
         visited_.insert(deopt_frame);
       }
     }
@@ -42,12 +41,12 @@ class ClearReturnedValueUsesFromDeoptFrames {
     // automatically.
     if (node->properties().can_lazy_deopt() &&
         !visited_.contains(&node->lazy_deopt_info()->top_frame())) {
-      node->lazy_deopt_info()->ForEachInput([&](ValueNode* node) {});
+      node->lazy_deopt_info()->UnwrapIdentities();
       visited_.insert(&node->lazy_deopt_info()->top_frame());
     }
     if (node->properties().can_eager_deopt() &&
         !visited_.contains(&node->eager_deopt_info()->top_frame())) {
-      node->eager_deopt_info()->ForEachInput([&](ValueNode* node) {});
+      node->eager_deopt_info()->UnwrapIdentities();
       visited_.insert(&node->eager_deopt_info()->top_frame());
     }
     return ProcessResult::kContinue;

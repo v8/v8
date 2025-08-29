@@ -90,24 +90,10 @@ ProcessResult MaglevGraphOptimizer::ReplaceWith(ValueNode* node) {
   CHECK(current_node()->Cast<ValueNode>());
   DCHECK(!node->Is<Identity>());
   ValueNode* current_value = current_node()->Cast<ValueNode>();
-  // We need to remove the uses of ReturnedValue in the current node,
-  // since this might be the only reference to this DeoptFrame.
-  UnwrapDeoptFrames();
   // Automatically convert node to the same representation of current_node.
   current_value->OverwriteWithIdentityTo(reducer_.ConvertInputTo(
       node, current_value->properties().value_representation()));
   return ProcessResult::kRemove;
-}
-
-void MaglevGraphOptimizer::UnwrapDeoptFrames() {
-  // Unwrap (and remove uses of its inputs) of Identity and ReturnedValue.
-  if (current_node_->properties().can_eager_deopt() ||
-      current_node_->properties().is_deopt_checkpoint()) {
-    current_node_->eager_deopt_info()->ForEachInput([](ValueNode* node) {});
-  }
-  if (current_node_->properties().can_lazy_deopt()) {
-    current_node_->lazy_deopt_info()->ForEachInput([](ValueNode* node) {});
-  }
 }
 
 void MaglevGraphOptimizer::UnwrapInputs() {

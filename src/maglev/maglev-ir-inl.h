@@ -112,6 +112,16 @@ CallKnownJSFunction::CallKnownJSFunction(
   set_input(kNewTargetIndex, new_target);
 }
 
+void NodeBase::UnwrapDeoptFrames() {
+  // Unwrap (and remove uses of its inputs) of Identity and ReturnedValue.
+  if (properties().can_eager_deopt() || properties().is_deopt_checkpoint()) {
+    eager_deopt_info()->UnwrapIdentities();
+  }
+  if (properties().can_lazy_deopt()) {
+    lazy_deopt_info()->UnwrapIdentities();
+  }
+}
+
 void NodeBase::OverwriteWithIdentityTo(ValueNode* node) {
   // OverwriteWith() checks if the node we're overwriting to has the same
   // input count and the same properties. Here we don't need to do that, since
@@ -124,7 +134,10 @@ void NodeBase::OverwriteWithIdentityTo(ValueNode* node) {
     input.clear();
   }
   // Unfortunately we cannot remove uses from deopt frames, since these could be
-  // shared with other nodes.
+  // shared with other nodes. But we can remove uses from Identity and
+  // ReturnedValue nodes.
+  UnwrapDeoptFrames();
+
   set_opcode(Opcode::kIdentity);
   set_properties(StaticPropertiesForOpcode(Opcode::kIdentity));
   bitfield_ = InputCountField::update(bitfield_, 1);
@@ -139,13 +152,17 @@ void NodeBase::OverwriteWithReturnValue(ValueNode* node) {
   if (node->is_tagged()) {
     return OverwriteWithIdentityTo(node);
   }
+
   DCHECK_GE(input_count(), 1);
   // Remove use of all inputs first.
   for (Input input : inputs()) {
     input.clear();
   }
   // Unfortunately we cannot remove uses from deopt frames, since these could be
-  // shared with other nodes.
+  // shared with other nodes. But we can remove uses from Identity and
+  // ReturnedValue nodes.
+  UnwrapDeoptFrames();
+
   RegisterSnapshot registers = register_snapshot();
   set_opcode(Opcode::kReturnedValue);
   set_properties(StaticPropertiesForOpcode(Opcode::kReturnedValue));
