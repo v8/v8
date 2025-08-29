@@ -135,8 +135,11 @@ std::vector<ExecutionResult> PerformReferenceRun(
   // with the kForDebugging liftoff option.
   EnterDebuggingScope debugging_scope(isolate);
 
-  DirectHandle<WasmModuleObject> module_object =
-      CompileReferenceModule(isolate, wire_bytes.module_bytes(), &max_steps);
+  DirectHandle<WasmModuleObject> module_object;
+  if (!CompileReferenceModule(isolate, wire_bytes.module_bytes(), &max_steps)
+           .ToHandle(&module_object)) {
+    return {};
+  }
 
   thrower.Reset();
   CHECK(!isolate->has_exception());

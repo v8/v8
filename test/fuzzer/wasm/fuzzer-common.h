@@ -54,7 +54,7 @@ int ExecuteAgainstReference(Isolate* isolate,
 void ClearJsToWasmWrappersForTesting(Isolate* isolate);
 #endif  // V8_ENABLE_DRUMBRAKE
 
-DirectHandle<WasmModuleObject> CompileReferenceModule(
+MaybeDirectHandle<WasmModuleObject> CompileReferenceModule(
     Isolate* isolate, base::Vector<const uint8_t> wire_bytes,
     int32_t* max_steps);
 

@@ -49,7 +49,8 @@ namespace v8::internal::wasm::fuzzing {
 
 namespace {
 
-void CompileAllFunctionsForReferenceExecution(NativeModule* native_module,
+V8_WARN_UNUSED_RESULT
+bool CompileAllFunctionsForReferenceExecution(NativeModule* native_module,
                                               int32_t* max_steps) {
   const WasmModule* module = native_module->module();
   WasmCodeRefScope code_ref_scope;
@@ -73,12 +74,17 @@ void CompileAllFunctionsForReferenceExecution(NativeModule* native_module,
                                       // nondeterminism detection.
                                       .set_detect_nondeterminism(false));
     if (!result.succeeded()) {
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+      // Liftoff compilation can bailout on x64 / ia32 if SSE4.1 is unavailable.
+      if (!CpuFeatures::IsSupported(SSE4_1)) return false;
+#endif
       FATAL(
           "Liftoff compilation failed on a valid module. Run with "
           "--trace-wasm-decoder (in a debug build) to see why.");
     }
     native_module->PublishCode(native_module->AddCompiledCode(result));
   }
+  return true;
 }
 
 }  // namespace
@@ -352,7 +358,7 @@ CompileTimeImports CompileTimeImportsForFuzzing() {
 
 // Compile a baseline module. We pass a pointer to a max step counter and a
 // nondeterminsm flag that are updated during execution by Liftoff.
-DirectHandle<WasmModuleObject> CompileReferenceModule(
+MaybeDirectHandle<WasmModuleObject> CompileReferenceModule(
     Isolate* isolate, base::Vector<const uint8_t> wire_bytes,
     int32_t* max_steps) {
   // Create the native module.
@@ -389,7 +395,11 @@ DirectHandle<WasmModuleObject> CompileReferenceModule(
   InitializeCompilationForTesting(native_module.get());
 
   // Compile all functions with Liftoff.
-  CompileAllFunctionsForReferenceExecution(native_module.get(), max_steps);
+  // This can fail on missing CPU features.
+  if (!CompileAllFunctionsForReferenceExecution(native_module.get(),
+                                                max_steps)) {
+    return {};
+  }
 
   // Create the module object.
   constexpr base::Vector<const char> kNoSourceUrl;
@@ -426,8 +436,11 @@ ExecutionResult ExecuteReferenceRun(Isolate* isolate,
   int32_t max_steps = max_executed_instructions;
 
   Zone reference_module_zone(isolate->allocator(), "wasm reference module");
-  DirectHandle<WasmModuleObject> module_ref =
-      CompileReferenceModule(isolate, wire_bytes, &max_steps);
+  DirectHandle<WasmModuleObject> module_ref;
+  if (!CompileReferenceModule(isolate, wire_bytes, &max_steps)
+           .ToHandle(&module_ref)) {
+    return {};
+  }
   DirectHandle<WasmInstanceObject> instance_ref;
 
   // Before execution, there should be no dangling nondeterminism registered on
