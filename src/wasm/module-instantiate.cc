@@ -663,14 +663,10 @@ WellKnownImport CheckForWellKnownImport(
 ResolvedWasmImport::ResolvedWasmImport(
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
     DirectHandle<JSReceiver> callable, const wasm::CanonicalSig* expected_sig,
-    CanonicalTypeIndex expected_sig_id, WellKnownImport preknown_import) {
-  // TODO(clemensb): Remove expected_sig_id.
-  DCHECK_EQ(expected_sig_id, expected_sig->index());
-  DCHECK_EQ(expected_sig, wasm::GetTypeCanonicalizer()->LookupFunctionSignature(
-                              expected_sig_id));
+    WellKnownImport preknown_import) {
   SetCallable(Isolate::Current(), callable);
   kind_ = ComputeKind(trusted_instance_data, func_index, expected_sig,
-                      expected_sig_id, preknown_import);
+                      preknown_import);
   // When the import is a WasmSuspendingObject, the inner callable should be a
   // JS callable, which is checked by the constructor. But it can be corrupted
   // later and replaced with a wasm function. This leads to an invalid state
@@ -700,8 +696,7 @@ void ResolvedWasmImport::SetCallable(Isolate* isolate,
 
 ImportCallKind ResolvedWasmImport::ComputeKind(
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
-    const wasm::CanonicalSig* expected_sig, CanonicalTypeIndex expected_sig_id,
-    WellKnownImport preknown_import) {
+    const wasm::CanonicalSig* expected_sig, WellKnownImport preknown_import) {
   // If we already have a compile-time import, simply pass that through.
   if (IsCompileTimeImport(preknown_import)) {
     well_known_status_ = preknown_import;
@@ -730,7 +725,7 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
   if (!trusted_function_data_.is_null()) {
     if (Tagged<WasmExportedFunctionData> data;
         TryCast(*trusted_function_data_, &data)) {
-      if (!data->MatchesSignature(expected_sig_id)) {
+      if (!data->MatchesSignature(expected_sig->index())) {
         return ImportCallKind::kLinkError;
       }
       uint32_t function_index = static_cast<uint32_t>(data->function_index());
@@ -749,7 +744,7 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
     if (Tagged<WasmJSFunctionData> js_function_data;
         TryCast(*trusted_function_data_, &js_function_data)) {
       suspend_ = js_function_data->GetSuspend();
-      if (!js_function_data->MatchesSignature(expected_sig_id)) {
+      if (!js_function_data->MatchesSignature(expected_sig->index())) {
         return ImportCallKind::kLinkError;
       }
       if (IsJSFunction(js_function_data->GetCallable())) {
@@ -771,7 +766,7 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
     // TODO(jkummerow): Update this to follow the style of the other kinds of
     // functions.
     auto capi_function = Cast<WasmCapiFunction>(callable_);
-    if (!capi_function->MatchesSignature(expected_sig_id)) {
+    if (!capi_function->MatchesSignature(expected_sig->index())) {
       return ImportCallKind::kLinkError;
     }
     return ImportCallKind::kWasmToCapi;
@@ -2341,7 +2336,7 @@ bool InstanceBuilder::ProcessImportedFunction(
   const CanonicalSig* expected_sig =
       GetTypeCanonicalizer()->LookupFunctionSignature(sig_index);
   ResolvedWasmImport resolved(trusted_instance_data, func_index, callable,
-                              expected_sig, sig_index, preknown_import);
+                              expected_sig, preknown_import);
   if (resolved.well_known_status() != WellKnownImport::kGeneric &&
       v8_flags.trace_wasm_inlining) {
     PrintF("[import %d is well-known built-in %s]\n", import_index,
