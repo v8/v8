@@ -1020,7 +1020,6 @@ class WasmExportedFunction : public JSFunction {
   // a freshly-compiled wrapper.
   static DirectHandle<Code> GetWrapper(Isolate* isolate,
                                        const wasm::CanonicalSig* sig,
-                                       wasm::CanonicalTypeIndex sig_id,
                                        bool receiver_is_first_param,
                                        const wasm::WasmModule* module);
 

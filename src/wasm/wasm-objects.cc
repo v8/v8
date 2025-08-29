@@ -2002,7 +2002,7 @@ V8_INLINE DirectHandle<WasmExportedFunction> CreateExportedFunction(
   // we'll have to reset any existing compiled wrapper.
   bool receiver_is_first_param = false;
   DirectHandle<Code> wrapper_code = WasmExportedFunction::GetWrapper(
-      isolate, canon_sig, canon_sig_id, receiver_is_first_param, module);
+      isolate, canon_sig, receiver_is_first_param, module);
   int arity = static_cast<int>(canon_sig->parameter_count());
   DirectHandle<WasmExportedFunction> external = WasmExportedFunction::New(
       isolate, trusted_instance_data, func_ref, internal_function, arity,
@@ -2114,8 +2114,7 @@ DirectHandle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
 // static
 DirectHandle<Code> WasmExportedFunction::GetWrapper(
     Isolate* isolate, const wasm::CanonicalSig* sig,
-    wasm::CanonicalTypeIndex sig_id, bool receiver_is_first_param,
-    const WasmModule* module) {
+    bool receiver_is_first_param, const WasmModule* module) {
 #if V8_ENABLE_DRUMBRAKE
   if (v8_flags.wasm_jitless) {
     return isolate->builtins()->code_handle(
@@ -2123,7 +2122,7 @@ DirectHandle<Code> WasmExportedFunction::GetWrapper(
   }
 #endif  // V8_ENABLE_DRUMBRAKE
   Tagged<CodeWrapper> entry = wasm::WasmExportWrapperCache::Get(
-      isolate, sig_id, receiver_is_first_param);
+      isolate, sig->index(), receiver_is_first_param);
   if (!entry.is_null()) {
     return direct_handle(entry->code(isolate), isolate);
   }
@@ -2136,10 +2135,11 @@ DirectHandle<Code> WasmExportedFunction::GetWrapper(
   // Otherwise compile a wrapper.
   DirectHandle<Code> compiled =
       wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-          isolate, sig, sig_id, receiver_is_first_param);
+          isolate, sig, receiver_is_first_param);
   // This should have added an entry in the per-isolate cache.
-  DCHECK_EQ(compiled->wrapper(), wasm::WasmExportWrapperCache::Get(
-                                     isolate, sig_id, receiver_is_first_param));
+  DCHECK_EQ(compiled->wrapper(),
+            wasm::WasmExportWrapperCache::Get(isolate, sig->index(),
+                                              receiver_is_first_param));
   return compiled;
 }
 
@@ -2154,8 +2154,7 @@ void WasmExportedFunction::MarkAsReceiverIsFirstParam(
   // Reset the wrapper code. If that's a compiled wrapper, it baked in the
   // bit we just flipped.
   DirectHandle<Code> wrapper =
-      GetWrapper(isolate, data->sig(), data->sig_index(), true,
-                 data->instance_data()->module());
+      GetWrapper(isolate, data->sig(), true, data->instance_data()->module());
   data = {};  // Might be stale due to GC.
   data_handle->set_wrapper_code(*wrapper);
   exported_function->UpdateCode(isolate, *wrapper);

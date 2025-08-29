@@ -539,7 +539,7 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
                                                               isolate};
     DirectHandle<Code> new_wrapper_code =
         wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-            isolate, sig, sig_id, receiver_is_first_param);
+            isolate, sig, receiver_is_first_param);
 
     // Compilation must have installed the wrapper into the cache.
     DCHECK_EQ(new_wrapper_code->wrapper(),
