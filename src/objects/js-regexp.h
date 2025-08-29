@@ -265,6 +265,7 @@ class IrRegExpData : public RegExpData {
 
   DECL_PRIMITIVE_ACCESSORS(bit_field, uint32_t)
   DECL_BOOLEAN_ACCESSORS(can_be_zero_length)
+  DECL_BOOLEAN_ACCESSORS(is_linear_executable)
 
   struct Bits {
     DEFINE_TORQUE_GENERATED_IR_REG_EXP_DATA_BIT_FIELD()

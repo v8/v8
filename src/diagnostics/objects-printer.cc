@@ -1029,6 +1029,7 @@ void IrRegExpData::IrRegExpDataPrint(std::ostream& os) {
   os << "\n - ticks_until_tier_up: " << ticks_until_tier_up();
   os << "\n - backtrack_limit: " << backtrack_limit();
   if (can_be_zero_length()) os << "\n - can_be_zero_length";
+  if (is_linear_executable()) os << "\n - linear_executable";
   os << "\n";
 }
 

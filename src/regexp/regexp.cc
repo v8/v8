@@ -109,8 +109,8 @@ class RegExpImpl final : public AllStatic {
   // Returns true on success, false on failure.
   static bool Compile(Isolate* isolate, Zone* zone, RegExpCompileData* input,
                       RegExpFlags flags, DirectHandle<String> pattern,
-                      DirectHandle<String> sample_subject, bool is_one_byte,
-                      uint32_t& backtrack_limit);
+                      DirectHandle<String> sample_subject,
+                      DirectHandle<IrRegExpData> re_data, bool is_one_byte);
 };
 
 // static
@@ -240,18 +240,21 @@ MaybeDirectHandle<Object> RegExp::Compile(Isolate* isolate,
   }
 
   bool has_been_compiled = false;
+  bool is_linear_executable = false;
 
-  if (v8_flags.default_to_experimental_regexp_engine &&
-      ExperimentalRegExp::CanBeHandled(parse_result.tree, pattern, flags,
-                                       parse_result.capture_count)) {
+  if (v8_flags.enable_experimental_regexp_engine ||
+      v8_flags.enable_experimental_regexp_engine_on_excessive_backtracks) {
+    is_linear_executable = ExperimentalRegExp::CanBeHandled(
+        parse_result.tree, pattern, flags, parse_result.capture_count);
+  }
+  if (v8_flags.default_to_experimental_regexp_engine && is_linear_executable) {
     DCHECK(v8_flags.enable_experimental_regexp_engine);
     ExperimentalRegExp::Initialize(isolate, re, pattern, flags,
                                    parse_result.capture_count);
     has_been_compiled = true;
   } else if (flags & JSRegExp::kLinear) {
     DCHECK(v8_flags.enable_experimental_regexp_engine);
-    if (!ExperimentalRegExp::CanBeHandled(parse_result.tree, pattern, flags,
-                                          parse_result.capture_count)) {
+    if (!is_linear_executable) {
       // TODO(mbid): The error could provide a reason for why the regexp can't
       // be executed in linear time (e.g. due to back references).
       return RegExp::ThrowRegExpException(isolate, flags, pattern,
@@ -282,8 +285,10 @@ MaybeDirectHandle<Object> RegExp::Compile(Isolate* isolate,
   }
   if (!has_been_compiled) {
     const bool can_be_zero_length = parse_result.tree->min_match() == 0;
-    const int bit_field =
-        IrRegExpData::Bits::CanBeZeroLengthBit::encode(can_be_zero_length);
+    using Bits = IrRegExpData::Bits;
+    const uint32_t bit_field =
+        Bits::CanBeZeroLengthBit::encode(can_be_zero_length) |
+        Bits::IsLinearExecutableBit::encode(is_linear_executable);
     RegExpImpl::IrregexpInitialize(isolate, re, pattern, flags,
                                    parse_result.capture_count, backtrack_limit,
                                    bit_field);
@@ -695,10 +700,9 @@ bool RegExpImpl::CompileIrregexpFromSource(Isolate* isolate,
   compile_data.compilation_target = re_data->ShouldProduceBytecode()
                                         ? RegExpCompilationTarget::kBytecode
                                         : RegExpCompilationTarget::kNative;
-  uint32_t backtrack_limit = re_data->backtrack_limit();
   const bool compilation_succeeded =
       Compile(isolate, &zone, &compile_data, flags, pattern, sample_subject,
-              is_one_byte, backtrack_limit);
+              re_data, is_one_byte);
   if (!compilation_succeeded) {
     DCHECK(compile_data.error != RegExpError::kNone);
     RegExp::ThrowRegExpException(isolate, re_data, compile_data.error);
@@ -729,7 +733,6 @@ bool RegExpImpl::CompileIrregexpFromSource(Isolate* isolate,
   if (compile_data.register_count > register_max) {
     re_data->set_max_register_count(compile_data.register_count);
   }
-  re_data->set_backtrack_limit(backtrack_limit);
 
   if (v8_flags.trace_regexp_tier_up) {
     PrintF("JSRegExp data object %p %s size: %d\n",
@@ -797,6 +800,26 @@ std::unique_ptr<RegExpMacroAssembler> CreateNativeMacroAssembler(
   return macro_assembler;
 }
 
+void SetBacktrackAndExperimentalFallback(RegExpMacroAssembler* macro_assembler,
+                                         DirectHandle<IrRegExpData> re_data) {
+  uint32_t backtrack_limit = re_data->backtrack_limit();
+  if (v8_flags.enable_experimental_regexp_engine_on_excessive_backtracks &&
+      re_data->is_linear_executable()) {
+    if (backtrack_limit == JSRegExp::kNoBacktrackLimit) {
+      backtrack_limit = v8_flags.regexp_backtracks_before_fallback;
+    } else {
+      backtrack_limit = std::min(
+          backtrack_limit, v8_flags.regexp_backtracks_before_fallback.value());
+    }
+    re_data->set_backtrack_limit(backtrack_limit);
+    macro_assembler->set_backtrack_limit(backtrack_limit);
+    macro_assembler->set_can_fallback(true);
+  } else {
+    macro_assembler->set_backtrack_limit(backtrack_limit);
+    macro_assembler->set_can_fallback(false);
+  }
+}
+
 }  // namespace
 
 bool RegExpImpl::CompileIrregexpFromBytecode(
@@ -841,8 +864,7 @@ bool RegExpImpl::CompileIrregexpFromBytecode(
     }
     macro_assembler->set_global_mode(mode);
   }
-  uint32_t backtrack_limit = re_data->backtrack_limit();
-  macro_assembler->set_backtrack_limit(backtrack_limit);
+  SetBacktrackAndExperimentalFallback(macro_assembler.get(), re_data);
 
   RegExpCodeGenerator code_gen{isolate, macro_assembler.get(), bytecode};
   DirectHandle<String> pattern(re_data->source(), isolate);
@@ -1124,16 +1146,16 @@ bool RegExp::CompileForTesting(Isolate* isolate, Zone* zone,
                                RegExpCompileData* data, RegExpFlags flags,
                                DirectHandle<String> pattern,
                                DirectHandle<String> sample_subject,
+                               DirectHandle<IrRegExpData> re_data,
                                bool is_one_byte) {
-  uint32_t backtrack_limit = JSRegExp::kNoBacktrackLimit;
   return RegExpImpl::Compile(isolate, zone, data, flags, pattern,
-                             sample_subject, is_one_byte, backtrack_limit);
+                             sample_subject, re_data, is_one_byte);
 }
 
 bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
                          RegExpFlags flags, DirectHandle<String> pattern,
-                         DirectHandle<String> sample_subject, bool is_one_byte,
-                         uint32_t& backtrack_limit) {
+                         DirectHandle<String> sample_subject,
+                         DirectHandle<IrRegExpData> re_data, bool is_one_byte) {
   if (JSRegExp::RegistersForCaptureCount(data->capture_count) >
       RegExpMacroAssembler::kMaxRegisterCount) {
     data->error = RegExpError::kTooLarge;
@@ -1198,21 +1220,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
   }
 
   macro_assembler->set_slow_safe(TooMuchRegExpCode(isolate, pattern));
-  if (v8_flags.enable_experimental_regexp_engine_on_excessive_backtracks &&
-      ExperimentalRegExp::CanBeHandled(data->tree, pattern, flags,
-                                       data->capture_count)) {
-    if (backtrack_limit == JSRegExp::kNoBacktrackLimit) {
-      backtrack_limit = v8_flags.regexp_backtracks_before_fallback;
-    } else {
-      backtrack_limit = std::min(
-          backtrack_limit, v8_flags.regexp_backtracks_before_fallback.value());
-    }
-    macro_assembler->set_backtrack_limit(backtrack_limit);
-    macro_assembler->set_can_fallback(true);
-  } else {
-    macro_assembler->set_backtrack_limit(backtrack_limit);
-    macro_assembler->set_can_fallback(false);
-  }
+  SetBacktrackAndExperimentalFallback(macro_assembler.get(), re_data);
 
   // Inserted here, instead of in Assembler, because it depends on information
   // in the AST that isn't replicated in the Node structure.

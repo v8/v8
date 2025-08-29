@@ -29,6 +29,7 @@ extern class AtomRegExpData extends RegExpData {
 
 bitfield struct IrRegExpDataBitField extends uint31 {
   can_be_zero_length: bool: 1 bit;
+  is_linear_executable: bool: 1 bit;
 }
 
 @cppObjectDefinition

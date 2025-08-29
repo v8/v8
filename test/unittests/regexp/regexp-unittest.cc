@@ -562,8 +562,13 @@ static RegExpNode* Compile(const char* input, bool multiline, bool unicode,
       isolate->factory()
           ->NewStringFromUtf8(base::CStrVector(""))
           .ToHandleChecked();
+  DirectHandle<IrRegExpData> re_data =
+      TrustedCast<IrRegExpData>(isolate->factory()->NewIrRegExpData(
+          pattern, JSRegExp::AsJSRegExpFlags(flags), compile_data.capture_count,
+          JSRegExp::kNoBacktrackLimit, 0));
+
   RegExp::CompileForTesting(isolate, zone, &compile_data, flags, pattern,
-                            sample_subject, is_one_byte);
+                            sample_subject, re_data, is_one_byte);
   return compile_data.node;
 }
 
