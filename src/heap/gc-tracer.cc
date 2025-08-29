@@ -1665,7 +1665,7 @@ void GCTracer::ReportFullCycleToRecorder() {
       current_.old_generation_consumed_limit;
   event.old_generation_consumed.bytes_current =
       current_.old_generation_consumed_current;
-  event.global_consumed.bytes_max = current_.max_old_generation_memory;
+  event.old_generation_consumed.bytes_max = current_.max_old_generation_memory;
   // Global Consumed Bytes:
   event.global_consumed.bytes_baseline = current_.global_consumed_baseline;
   event.global_consumed.bytes_limit = current_.global_consumed_limit;
