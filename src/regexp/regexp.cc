@@ -835,6 +835,8 @@ bool RegExpImpl::CompileIrregexpFromBytecode(
     }
     macro_assembler->set_global_mode(mode);
   }
+  uint32_t backtrack_limit = re_data->backtrack_limit();
+  macro_assembler->set_backtrack_limit(backtrack_limit);
 
   RegExpCodeGenerator code_gen{isolate, macro_assembler.get(), bytecode};
   DirectHandle<String> pattern(re_data->source(), isolate);
