@@ -54,6 +54,7 @@ class RegExpCodeGenerator final {
   template <RegExpBytecode bc>
   void Visit();
   Label* GetLabel(uint32_t offset) const;
+  MacroAssembler* NativeMasm();
 
   Isolate* isolate_;
   Zone zone_;

@@ -96,6 +96,8 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   void IfRegisterLT(int register_index, int comparand, Label* if_lt) override;
   void IfRegisterGE(int register_index, int comparand, Label* if_ge) override;
   void IfRegisterEqPos(int register_index, Label* if_eq) override;
+  void RecordComment(std::string_view comment) override {}
+  MacroAssembler* masm() override { return nullptr; }
 
   IrregexpImplementation Implementation() override;
   DirectHandle<HeapObject> GetCode(DirectHandle<String> source,

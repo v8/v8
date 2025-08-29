@@ -91,6 +91,12 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
 #ifdef RISCV_HAS_NO_UNALIGNED
   bool CanReadUnaligned() const override;
 #endif
+
+  void RecordComment(std::string_view comment) override {
+    masm_->RecordComment(comment);
+  }
+  MacroAssembler* masm() override { return masm_.get(); }
+
   // Called from RegExp if the stack-guard is triggered.
   // If the code object is relocated, the return address is fixed before
   // returning.

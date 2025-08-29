@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "src/codegen/label.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/objects/fixed-array-inl.h"
@@ -81,11 +82,22 @@ void DispatchByOperand(Func&& func) {
              filtered_ops);
 }
 
+#ifdef V8_CODE_COMMENTS
+#define VISIT_COMMENT(bc)                                                  \
+  std::stringstream comment_stream;                                        \
+  comment_stream << std::hex << iter_.current_offset() << std::dec << ": " \
+                 << bc;                                                    \
+  ASM_CODE_COMMENT_STRING(NativeMasm(), comment_stream.str())
+#else
+#define VISIT_COMMENT(bc)
+#endif
+
 #define GENERATE_VISIT_METHOD(Name, Enum, OperandsTuple, Types)       \
   template <>                                                         \
   void RegExpCodeGenerator::Visit<RegExpBytecode::k##Name>() {        \
     using Operands = RegExpBytecodeOperands<RegExpBytecode::k##Name>; \
     const uint8_t* pc = iter_.current_address();                      \
+    VISIT_COMMENT(#Name);                                             \
                                                                       \
     DispatchByOperand<Operands>([&]<auto... operand_ids>() {          \
       __ Name(GetArgumentValue<Operands, operand_ids>(pc)...);        \
@@ -98,6 +110,7 @@ BASIC_BYTECODE_LIST(GENERATE_VISIT_METHOD)
 
 template <>
 void RegExpCodeGenerator::Visit<RegExpBytecode::kBacktrack>() {
+  VISIT_COMMENT("Backtrack");
   using Operands = RegExpBytecodeOperands<RegExpBytecode::kBacktrack>;
   // Operand |return_code| is ignored intentionally. It is only used in the
   // interpreter.
@@ -128,6 +141,7 @@ Handle<ByteArray> CreateBitTableByteArray(Isolate* isolate,
 
 template <>
 void RegExpCodeGenerator::Visit<RegExpBytecode::kCheckBitInTable>() {
+  VISIT_COMMENT("CheckBitInTable");
   using Operands = RegExpBytecodeOperands<RegExpBytecode::kCheckBitInTable>;
   const uint8_t* pc = iter_.current_address();
   auto on_bit_set = GetArgumentValue<Operands, Operands::on_bit_set>(pc);
@@ -140,6 +154,7 @@ void RegExpCodeGenerator::Visit<RegExpBytecode::kCheckBitInTable>() {
 template <>
 void RegExpCodeGenerator::Visit<
     RegExpBytecode::kLoadCurrentCharacterUnchecked>() {
+  VISIT_COMMENT("LoadCurrentCharacterUnchecked");
   using Operands =
       RegExpBytecodeOperands<RegExpBytecode::kLoadCurrentCharacterUnchecked>;
   const uint8_t* pc = iter_.current_address();
@@ -151,6 +166,7 @@ void RegExpCodeGenerator::Visit<
 
 template <>
 void RegExpCodeGenerator::Visit<RegExpBytecode::kLoad2CurrentChars>() {
+  VISIT_COMMENT("Load2CurrentChars");
   using Operands = RegExpBytecodeOperands<RegExpBytecode::kLoad2CurrentChars>;
   const uint8_t* pc = iter_.current_address();
   auto cp_offset = GetArgumentValue<Operands, Operands::cp_offset>(pc);
@@ -162,6 +178,7 @@ void RegExpCodeGenerator::Visit<RegExpBytecode::kLoad2CurrentChars>() {
 
 template <>
 void RegExpCodeGenerator::Visit<RegExpBytecode::kLoad2CurrentCharsUnchecked>() {
+  VISIT_COMMENT("Load2CurrentCharsUnchecked");
   using Operands =
       RegExpBytecodeOperands<RegExpBytecode::kLoad2CurrentCharsUnchecked>;
   const uint8_t* pc = iter_.current_address();
@@ -173,6 +190,7 @@ void RegExpCodeGenerator::Visit<RegExpBytecode::kLoad2CurrentCharsUnchecked>() {
 
 template <>
 void RegExpCodeGenerator::Visit<RegExpBytecode::kLoad4CurrentChars>() {
+  VISIT_COMMENT("Load4CurrentChars");
   using Operands = RegExpBytecodeOperands<RegExpBytecode::kLoad4CurrentChars>;
   const uint8_t* pc = iter_.current_address();
   auto cp_offset = GetArgumentValue<Operands, Operands::cp_offset>(pc);
@@ -184,6 +202,7 @@ void RegExpCodeGenerator::Visit<RegExpBytecode::kLoad4CurrentChars>() {
 
 template <>
 void RegExpCodeGenerator::Visit<RegExpBytecode::kLoad4CurrentCharsUnchecked>() {
+  VISIT_COMMENT("Load4CurrentCharsUnchecked");
   using Operands =
       RegExpBytecodeOperands<RegExpBytecode::kLoad4CurrentCharsUnchecked>;
   const uint8_t* pc = iter_.current_address();
@@ -195,6 +214,7 @@ void RegExpCodeGenerator::Visit<RegExpBytecode::kLoad4CurrentCharsUnchecked>() {
 
 template <>
 void RegExpCodeGenerator::Visit<RegExpBytecode::kCheck4Chars>() {
+  VISIT_COMMENT("Check4Chars");
   using Operands = RegExpBytecodeOperands<RegExpBytecode::kCheck4Chars>;
   const uint8_t* pc = iter_.current_address();
   auto characters = GetArgumentValue<Operands, Operands::characters>(pc);
@@ -205,6 +225,7 @@ void RegExpCodeGenerator::Visit<RegExpBytecode::kCheck4Chars>() {
 
 template <>
 void RegExpCodeGenerator::Visit<RegExpBytecode::kCheckNot4Chars>() {
+  VISIT_COMMENT("CheckNot4Chars");
   using Operands = RegExpBytecodeOperands<RegExpBytecode::kCheckNot4Chars>;
   const uint8_t* pc = iter_.current_address();
   auto characters = GetArgumentValue<Operands, Operands::characters>(pc);
@@ -215,6 +236,7 @@ void RegExpCodeGenerator::Visit<RegExpBytecode::kCheckNot4Chars>() {
 
 template <>
 void RegExpCodeGenerator::Visit<RegExpBytecode::kAndCheck4Chars>() {
+  VISIT_COMMENT("AndCheck4Chars");
   using Operands = RegExpBytecodeOperands<RegExpBytecode::kAndCheck4Chars>;
   const uint8_t* pc = iter_.current_address();
   auto characters = GetArgumentValue<Operands, Operands::characters>(pc);
@@ -226,6 +248,7 @@ void RegExpCodeGenerator::Visit<RegExpBytecode::kAndCheck4Chars>() {
 
 template <>
 void RegExpCodeGenerator::Visit<RegExpBytecode::kAndCheckNot4Chars>() {
+  VISIT_COMMENT("AndCheckNot4Chars");
   using Operands = RegExpBytecodeOperands<RegExpBytecode::kAndCheckNot4Chars>;
   const uint8_t* pc = iter_.current_address();
   auto characters = GetArgumentValue<Operands, Operands::characters>(pc);
@@ -237,6 +260,7 @@ void RegExpCodeGenerator::Visit<RegExpBytecode::kAndCheckNot4Chars>() {
 
 template <>
 void RegExpCodeGenerator::Visit<RegExpBytecode::kAdvanceCpAndGoto>() {
+  VISIT_COMMENT("AdvanceCpAndGoto");
   using Operands = RegExpBytecodeOperands<RegExpBytecode::kAdvanceCpAndGoto>;
   const uint8_t* pc = iter_.current_address();
   auto by = GetArgumentValue<Operands, Operands::by>(pc);
@@ -248,6 +272,7 @@ void RegExpCodeGenerator::Visit<RegExpBytecode::kAdvanceCpAndGoto>() {
 
 template <>
 void RegExpCodeGenerator::Visit<RegExpBytecode::kCheckNotBackRef>() {
+  VISIT_COMMENT("CheckNotBackRef");
   using Operands = RegExpBytecodeOperands<RegExpBytecode::kCheckNotBackRef>;
   const uint8_t* pc = iter_.current_address();
   auto start_reg = GetArgumentValue<Operands, Operands::start_reg>(pc);
@@ -258,6 +283,7 @@ void RegExpCodeGenerator::Visit<RegExpBytecode::kCheckNotBackRef>() {
 
 template <>
 void RegExpCodeGenerator::Visit<RegExpBytecode::kCheckNotBackRefNoCase>() {
+  VISIT_COMMENT("CheckNotBackRefNoCase");
   using Operands =
       RegExpBytecodeOperands<RegExpBytecode::kCheckNotBackRefNoCase>;
   const uint8_t* pc = iter_.current_address();
@@ -270,6 +296,7 @@ void RegExpCodeGenerator::Visit<RegExpBytecode::kCheckNotBackRefNoCase>() {
 template <>
 void RegExpCodeGenerator::Visit<
     RegExpBytecode::kCheckNotBackRefNoCaseUnicode>() {
+  VISIT_COMMENT("CheckNotBackRefNoCaseUnicode");
   using Operands =
       RegExpBytecodeOperands<RegExpBytecode::kCheckNotBackRefNoCaseUnicode>;
   const uint8_t* pc = iter_.current_address();
@@ -281,6 +308,7 @@ void RegExpCodeGenerator::Visit<
 
 template <>
 void RegExpCodeGenerator::Visit<RegExpBytecode::kCheckNotBackRefBackward>() {
+  VISIT_COMMENT("CheckNotBackRefBackward");
   using Operands =
       RegExpBytecodeOperands<RegExpBytecode::kCheckNotBackRefBackward>;
   const uint8_t* pc = iter_.current_address();
@@ -293,6 +321,7 @@ void RegExpCodeGenerator::Visit<RegExpBytecode::kCheckNotBackRefBackward>() {
 template <>
 void RegExpCodeGenerator::Visit<
     RegExpBytecode::kCheckNotBackRefNoCaseBackward>() {
+  VISIT_COMMENT("CheckNotBackRefNoCaseBackward");
   using Operands =
       RegExpBytecodeOperands<RegExpBytecode::kCheckNotBackRefNoCaseBackward>;
   const uint8_t* pc = iter_.current_address();
@@ -305,6 +334,7 @@ void RegExpCodeGenerator::Visit<
 template <>
 void RegExpCodeGenerator::Visit<
     RegExpBytecode::kCheckNotBackRefNoCaseUnicodeBackward>() {
+  VISIT_COMMENT("CheckNotBackRefNoCaseUnicodeBackward");
   using Operands = RegExpBytecodeOperands<
       RegExpBytecode::kCheckNotBackRefNoCaseUnicodeBackward>;
   const uint8_t* pc = iter_.current_address();
@@ -359,6 +389,12 @@ void RegExpCodeGenerator::VisitBytecodes() {
 Label* RegExpCodeGenerator::GetLabel(uint32_t offset) const {
   DCHECK(jump_targets_.Contains(offset));
   return &labels_[offset];
+}
+
+MacroAssembler* RegExpCodeGenerator::NativeMasm() {
+  MacroAssembler* masm = masm_->masm();
+  DCHECK_NOT_NULL(masm);
+  return masm;
 }
 
 }  // namespace internal

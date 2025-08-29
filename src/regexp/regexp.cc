@@ -854,12 +854,6 @@ bool RegExpImpl::CompileIrregexpFromBytecode(
   // tier-up has happened this way.
   re_data->clear_bytecode(is_one_byte);
 
-  if (v8_flags.trace_regexp_tier_up) {
-    PrintF("JSRegExp data object %p native code size: %d\n",
-           reinterpret_cast<void*>(re_data->ptr()),
-           re_data->code(isolate, is_one_byte)->Size());
-  }
-
   // Code printing.
 #ifdef ENABLE_DISASSEMBLER
   if (v8_flags.print_regexp_code) {
@@ -870,6 +864,12 @@ bool RegExpImpl::CompileIrregexpFromBytecode(
     code->Disassemble(pattern_cstring.get(), os, isolate);
   }
 #endif
+
+  if (v8_flags.trace_regexp_tier_up) {
+    PrintF("JSRegExp data object %p native code size: %d\n",
+           reinterpret_cast<void*>(re_data->ptr()),
+           re_data->code(isolate, is_one_byte)->Size());
+  }
 
   return true;
 }

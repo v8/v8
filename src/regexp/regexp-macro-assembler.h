@@ -5,6 +5,8 @@
 #ifndef V8_REGEXP_REGEXP_MACRO_ASSEMBLER_H_
 #define V8_REGEXP_REGEXP_MACRO_ASSEMBLER_H_
 
+#include <string_view>
+
 #include "src/base/strings.h"
 #include "src/execution/frame-constants.h"
 #include "src/objects/fixed-array.h"
@@ -171,6 +173,8 @@ class RegExpMacroAssembler {
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset) = 0;
   virtual void ClearRegisters(int reg_from, int reg_to) = 0;
   virtual void WriteStackPointerToRegister(int reg) = 0;
+  virtual void RecordComment(std::string_view comment) = 0;
+  virtual MacroAssembler* masm() = 0;
 
   // Check that we are not in the middle of a surrogate pair.
   void CheckNotInSurrogatePair(int cp_offset, Label* on_failure);

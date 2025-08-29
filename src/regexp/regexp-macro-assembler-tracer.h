@@ -91,6 +91,11 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   void ClearRegisters(int reg_from, int reg_to) override;
   void WriteStackPointerToRegister(int reg) override;
 
+  void RecordComment(std::string_view comment) override {
+    assembler_->RecordComment(comment);
+  }
+  MacroAssembler* masm() override { return assembler_->masm(); }
+
   void set_global_mode(GlobalMode mode) override;
   void set_slow_safe(bool ssc) override;
   void set_backtrack_limit(uint32_t backtrack_limit) override;
