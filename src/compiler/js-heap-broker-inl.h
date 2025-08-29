@@ -15,7 +15,7 @@ namespace v8::internal::compiler {
 std::optional<RootIndex> JSHeapBroker::FindRootIndex(HeapObjectRef object) {
   Tagged<HeapObject> raw_obj = *object.object();
 
-#if defined(V8_STATIC_ROOTS_BOOL) && defined(V8_COMPRESS_POINTERS)
+#if V8_STATIC_ROOTS_BOOL
   bool known_in_ro_space =
       raw_obj.IsInMainCageBase() && static_cast<Tagged_t>(raw_obj.ptr()) <=
                                         StaticReadOnlyRoot::kLastAllocatedRoot;
