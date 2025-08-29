@@ -339,6 +339,14 @@ class Simulator : public SimulatorBase {
     return op_for_non_nan(fp_lhs, fp_rhs);
   }
 
+  template <typename T1, typename T2, typename T3>
+  T1 FPProcessNaNUnop(T1 fp_input, int m3,
+                      const std::function<T1(T1, int)>& op_for_non_nan) {
+    T2 input = T2::FromBits(base::bit_cast<T3>(fp_input));
+    if (input.is_nan()) return input.to_quiet_nan().get_scalar();
+    return op_for_non_nan(fp_input, m3);
+  }
+
   // Set the condition code for bitwise operations
   // CC0 is set if value == 0.
   // CC1 is set if value != 0.

@@ -7675,7 +7675,9 @@ EVALUATE(FIEBRA) {
   DCHECK_EQ(m4, 0);
   USE(m4);
   float a = get_fpr<float>(r2);
-  float n = ComputeRounding<float>(a, m3);
+  float n = FPProcessNaNUnop<float, Float32, uint32_t>(
+      a, m3,
+      [](float input, int m3) { return ComputeRounding<float>(input, m3); });
   set_fpr(r1, n);
   return length;
 }
