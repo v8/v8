@@ -46,13 +46,14 @@ class RegExpCodeGenerator final {
   // expected by the macro assembler.
   // E.g. converts an uint32_t bytecode offset to a Label*.
   template <typename Operands, typename Operands::Operand operand_id>
-  auto GetArgumentValue(const uint8_t* pc);
+  auto GetArgumentValue(const uint8_t* pc) const;
   // Visit all bytecodes before any code is emmited.
   // Allocates labels for all jump targets to support forward jumps.
   void PreVisitBytecodes();
   void VisitBytecodes();
   template <RegExpBytecode bc>
   void Visit();
+  Label* GetLabel(uint32_t offset) const;
 
   Isolate* isolate_;
   Zone zone_;

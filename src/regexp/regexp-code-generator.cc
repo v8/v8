@@ -46,14 +46,14 @@ RegExpCodeGenerator::Result RegExpCodeGenerator::Assemble(
 }
 
 template <typename Operands, typename Operands::Operand Operand>
-auto RegExpCodeGenerator::GetArgumentValue(const uint8_t* pc) {
+auto RegExpCodeGenerator::GetArgumentValue(const uint8_t* pc) const {
   constexpr RegExpBytecodeOperandType op_type = Operands::Type(Operand);
   auto value = Operands::template Get<Operand>(pc);
 
   // If the operand is a Label, we return the Label created during the first
   // pass instead of an offset to the bytecode.
   if constexpr (op_type == ReBcOpType::kLabel) {
-    return &labels_[value];
+    return GetLabel(value);
   } else {
     return value;
   }
@@ -96,6 +96,230 @@ BASIC_BYTECODE_LIST(GENERATE_VISIT_METHOD)
 
 #undef GENERATE_VISIT_METHOD
 
+template <>
+void RegExpCodeGenerator::Visit<RegExpBytecode::kBacktrack>() {
+  using Operands = RegExpBytecodeOperands<RegExpBytecode::kBacktrack>;
+  // Operand |return_code| is ignored intentionally. It is only used in the
+  // interpreter.
+  static_assert(Operands::kCount == 1);
+  __ Backtrack();
+}
+
+namespace {
+
+// Convert the 16-byte (128 bit) |table_data| to a 128-byte ByteArray. Every bit
+// in |table_data| is translated to its own byte (set to 0 or 1) in the
+// ByteArray .
+Handle<ByteArray> CreateBitTableByteArray(Isolate* isolate,
+                                          const uint8_t* table_data) {
+  Handle<ByteArray> table =
+      isolate->factory()->NewByteArray(RegExpMacroAssembler::kTableSize);
+  for (int i = 0; i < RegExpMacroAssembler::kTableSize / kBitsPerByte; i++) {
+    uint8_t byte = table_data[i];
+    for (int j = 0; j < kBitsPerByte; j++) {
+      bool bit_set = (byte & (1 << j)) != 0;
+      table->set(i * kBitsPerByte + j, bit_set);
+    }
+  }
+  return table;
+}
+
+}  // namespace
+
+template <>
+void RegExpCodeGenerator::Visit<RegExpBytecode::kCheckBitInTable>() {
+  using Operands = RegExpBytecodeOperands<RegExpBytecode::kCheckBitInTable>;
+  const uint8_t* pc = iter_.current_address();
+  auto on_bit_set = GetArgumentValue<Operands, Operands::on_bit_set>(pc);
+  const uint8_t* table_data = GetArgumentValue<Operands, Operands::table>(pc);
+  static_assert(Operands::kCount == 2);
+  Handle<ByteArray> table = CreateBitTableByteArray(isolate_, table_data);
+  __ CheckBitInTable(table, on_bit_set);
+}
+
+template <>
+void RegExpCodeGenerator::Visit<
+    RegExpBytecode::kLoadCurrentCharacterUnchecked>() {
+  using Operands =
+      RegExpBytecodeOperands<RegExpBytecode::kLoadCurrentCharacterUnchecked>;
+  const uint8_t* pc = iter_.current_address();
+  auto cp_offset = GetArgumentValue<Operands, Operands::cp_offset>(pc);
+  static_assert(Operands::kCount == 1);
+  static constexpr int kChars = 1;
+  __ LoadCurrentCharacterImpl(cp_offset, nullptr, false, kChars, kChars);
+}
+
+template <>
+void RegExpCodeGenerator::Visit<RegExpBytecode::kLoad2CurrentChars>() {
+  using Operands = RegExpBytecodeOperands<RegExpBytecode::kLoad2CurrentChars>;
+  const uint8_t* pc = iter_.current_address();
+  auto cp_offset = GetArgumentValue<Operands, Operands::cp_offset>(pc);
+  auto on_failure = GetArgumentValue<Operands, Operands::on_failure>(pc);
+  static_assert(Operands::kCount == 2);
+  static constexpr int kChars = 2;
+  __ LoadCurrentCharacterImpl(cp_offset, on_failure, true, kChars, kChars);
+}
+
+template <>
+void RegExpCodeGenerator::Visit<RegExpBytecode::kLoad2CurrentCharsUnchecked>() {
+  using Operands =
+      RegExpBytecodeOperands<RegExpBytecode::kLoad2CurrentCharsUnchecked>;
+  const uint8_t* pc = iter_.current_address();
+  auto cp_offset = GetArgumentValue<Operands, Operands::cp_offset>(pc);
+  static_assert(Operands::kCount == 1);
+  static constexpr int kChars = 2;
+  __ LoadCurrentCharacterImpl(cp_offset, nullptr, false, kChars, kChars);
+}
+
+template <>
+void RegExpCodeGenerator::Visit<RegExpBytecode::kLoad4CurrentChars>() {
+  using Operands = RegExpBytecodeOperands<RegExpBytecode::kLoad4CurrentChars>;
+  const uint8_t* pc = iter_.current_address();
+  auto cp_offset = GetArgumentValue<Operands, Operands::cp_offset>(pc);
+  auto on_failure = GetArgumentValue<Operands, Operands::on_failure>(pc);
+  static_assert(Operands::kCount == 2);
+  static constexpr int kChars = 4;
+  __ LoadCurrentCharacterImpl(cp_offset, on_failure, true, kChars, kChars);
+}
+
+template <>
+void RegExpCodeGenerator::Visit<RegExpBytecode::kLoad4CurrentCharsUnchecked>() {
+  using Operands =
+      RegExpBytecodeOperands<RegExpBytecode::kLoad4CurrentCharsUnchecked>;
+  const uint8_t* pc = iter_.current_address();
+  auto cp_offset = GetArgumentValue<Operands, Operands::cp_offset>(pc);
+  static_assert(Operands::kCount == 1);
+  static constexpr int kChars = 4;
+  __ LoadCurrentCharacterImpl(cp_offset, nullptr, false, kChars, kChars);
+}
+
+template <>
+void RegExpCodeGenerator::Visit<RegExpBytecode::kCheck4Chars>() {
+  using Operands = RegExpBytecodeOperands<RegExpBytecode::kCheck4Chars>;
+  const uint8_t* pc = iter_.current_address();
+  auto characters = GetArgumentValue<Operands, Operands::characters>(pc);
+  auto on_equal = GetArgumentValue<Operands, Operands::on_equal>(pc);
+  static_assert(Operands::kCount == 2);
+  __ CheckCharacter(characters, on_equal);
+}
+
+template <>
+void RegExpCodeGenerator::Visit<RegExpBytecode::kCheckNot4Chars>() {
+  using Operands = RegExpBytecodeOperands<RegExpBytecode::kCheckNot4Chars>;
+  const uint8_t* pc = iter_.current_address();
+  auto characters = GetArgumentValue<Operands, Operands::characters>(pc);
+  auto on_not_equal = GetArgumentValue<Operands, Operands::on_not_equal>(pc);
+  static_assert(Operands::kCount == 2);
+  __ CheckNotCharacter(characters, on_not_equal);
+}
+
+template <>
+void RegExpCodeGenerator::Visit<RegExpBytecode::kAndCheck4Chars>() {
+  using Operands = RegExpBytecodeOperands<RegExpBytecode::kAndCheck4Chars>;
+  const uint8_t* pc = iter_.current_address();
+  auto characters = GetArgumentValue<Operands, Operands::characters>(pc);
+  auto mask = GetArgumentValue<Operands, Operands::mask>(pc);
+  auto on_equal = GetArgumentValue<Operands, Operands::on_equal>(pc);
+  static_assert(Operands::kCount == 3);
+  __ CheckCharacterAfterAnd(characters, mask, on_equal);
+}
+
+template <>
+void RegExpCodeGenerator::Visit<RegExpBytecode::kAndCheckNot4Chars>() {
+  using Operands = RegExpBytecodeOperands<RegExpBytecode::kAndCheckNot4Chars>;
+  const uint8_t* pc = iter_.current_address();
+  auto characters = GetArgumentValue<Operands, Operands::characters>(pc);
+  auto mask = GetArgumentValue<Operands, Operands::mask>(pc);
+  auto on_not_equal = GetArgumentValue<Operands, Operands::on_not_equal>(pc);
+  static_assert(Operands::kCount == 3);
+  __ CheckNotCharacterAfterAnd(characters, mask, on_not_equal);
+}
+
+template <>
+void RegExpCodeGenerator::Visit<RegExpBytecode::kAdvanceCpAndGoto>() {
+  using Operands = RegExpBytecodeOperands<RegExpBytecode::kAdvanceCpAndGoto>;
+  const uint8_t* pc = iter_.current_address();
+  auto by = GetArgumentValue<Operands, Operands::by>(pc);
+  auto on_goto = GetArgumentValue<Operands, Operands::on_goto>(pc);
+  static_assert(Operands::kCount == 2);
+  __ AdvanceCurrentPosition(by);
+  __ GoTo(on_goto);
+}
+
+template <>
+void RegExpCodeGenerator::Visit<RegExpBytecode::kCheckNotBackRef>() {
+  using Operands = RegExpBytecodeOperands<RegExpBytecode::kCheckNotBackRef>;
+  const uint8_t* pc = iter_.current_address();
+  auto start_reg = GetArgumentValue<Operands, Operands::start_reg>(pc);
+  auto on_not_equal = GetArgumentValue<Operands, Operands::on_not_equal>(pc);
+  static_assert(Operands::kCount == 2);
+  __ CheckNotBackReference(start_reg, false, on_not_equal);
+}
+
+template <>
+void RegExpCodeGenerator::Visit<RegExpBytecode::kCheckNotBackRefNoCase>() {
+  using Operands =
+      RegExpBytecodeOperands<RegExpBytecode::kCheckNotBackRefNoCase>;
+  const uint8_t* pc = iter_.current_address();
+  auto start_reg = GetArgumentValue<Operands, Operands::start_reg>(pc);
+  auto on_not_equal = GetArgumentValue<Operands, Operands::on_not_equal>(pc);
+  static_assert(Operands::kCount == 2);
+  __ CheckNotBackReferenceIgnoreCase(start_reg, false, false, on_not_equal);
+}
+
+template <>
+void RegExpCodeGenerator::Visit<
+    RegExpBytecode::kCheckNotBackRefNoCaseUnicode>() {
+  using Operands =
+      RegExpBytecodeOperands<RegExpBytecode::kCheckNotBackRefNoCaseUnicode>;
+  const uint8_t* pc = iter_.current_address();
+  auto start_reg = GetArgumentValue<Operands, Operands::start_reg>(pc);
+  auto on_not_equal = GetArgumentValue<Operands, Operands::on_not_equal>(pc);
+  static_assert(Operands::kCount == 2);
+  __ CheckNotBackReferenceIgnoreCase(start_reg, false, true, on_not_equal);
+}
+
+template <>
+void RegExpCodeGenerator::Visit<RegExpBytecode::kCheckNotBackRefBackward>() {
+  using Operands =
+      RegExpBytecodeOperands<RegExpBytecode::kCheckNotBackRefBackward>;
+  const uint8_t* pc = iter_.current_address();
+  auto start_reg = GetArgumentValue<Operands, Operands::start_reg>(pc);
+  auto on_not_equal = GetArgumentValue<Operands, Operands::on_not_equal>(pc);
+  static_assert(Operands::kCount == 2);
+  __ CheckNotBackReference(start_reg, true, on_not_equal);
+}
+
+template <>
+void RegExpCodeGenerator::Visit<
+    RegExpBytecode::kCheckNotBackRefNoCaseBackward>() {
+  using Operands =
+      RegExpBytecodeOperands<RegExpBytecode::kCheckNotBackRefNoCaseBackward>;
+  const uint8_t* pc = iter_.current_address();
+  auto start_reg = GetArgumentValue<Operands, Operands::start_reg>(pc);
+  auto on_not_equal = GetArgumentValue<Operands, Operands::on_not_equal>(pc);
+  static_assert(Operands::kCount == 2);
+  __ CheckNotBackReferenceIgnoreCase(start_reg, true, false, on_not_equal);
+}
+
+template <>
+void RegExpCodeGenerator::Visit<
+    RegExpBytecode::kCheckNotBackRefNoCaseUnicodeBackward>() {
+  using Operands = RegExpBytecodeOperands<
+      RegExpBytecode::kCheckNotBackRefNoCaseUnicodeBackward>;
+  const uint8_t* pc = iter_.current_address();
+  auto start_reg = GetArgumentValue<Operands, Operands::start_reg>(pc);
+  auto on_not_equal = GetArgumentValue<Operands, Operands::on_not_equal>(pc);
+  static_assert(Operands::kCount == 2);
+  __ CheckNotBackReferenceIgnoreCase(start_reg, true, true, on_not_equal);
+}
+
+template <>
+void RegExpCodeGenerator::Visit<RegExpBytecode::kCheckNotRegsEqual>() {
+  // Unused bytecode.
+  UNREACHABLE();
+}
+
 template <RegExpBytecode bc>
 void RegExpCodeGenerator::Visit() {
   if (v8_flags.trace_regexp_assembler) {
@@ -130,6 +354,11 @@ void RegExpCodeGenerator::VisitBytecodes() {
     RegExpBytecodes::DispatchOnBytecode(
         iter_.current_bytecode(), [this]<RegExpBytecode bc>() { Visit<bc>(); });
   }
+}
+
+Label* RegExpCodeGenerator::GetLabel(uint32_t offset) const {
+  DCHECK(jump_targets_.Contains(offset));
+  return &labels_[offset];
 }
 
 }  // namespace internal
