@@ -4,6 +4,8 @@
 
 #include "src/regexp/regexp-bytecode-generator.h"
 
+#include <limits>
+
 #include "src/ast/ast.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/regexp/regexp-bytecode-generator-inl.h"
@@ -84,10 +86,13 @@ void RegExpBytecodeGenerator::WriteCurrentPositionToRegister(int register_index,
 }
 
 void RegExpBytecodeGenerator::ClearRegisters(int reg_from, int reg_to) {
-  DCHECK(reg_from <= reg_to);
-  for (int reg = reg_from; reg <= reg_to; reg++) {
-    SetRegister(reg, -1);
-  }
+  DCHECK_LE(reg_from, reg_to);
+  DCHECK_LE(reg_from, kMaxRegister);
+  DCHECK_LE(reg_to, kMaxRegister);
+  static_assert(kMaxRegister <= std::numeric_limits<uint16_t>::max());
+  Emit(BC_CLEAR_REGISTERS, 0);
+  Emit16(reg_from);
+  Emit16(reg_to);
 }
 
 void RegExpBytecodeGenerator::ReadCurrentPositionFromRegister(

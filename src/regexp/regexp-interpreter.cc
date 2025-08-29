@@ -172,6 +172,7 @@ class BacktrackStack {
 class InterpreterRegisters {
  public:
   using RegisterT = int;
+  static constexpr int kNoMatchValue = -1;
 
   InterpreterRegisters(int total_register_count, RegisterT* output_registers,
                        int output_register_count)
@@ -188,7 +189,7 @@ class InterpreterRegisters {
     DCHECK_NOT_NULL(output_registers);
 
     // Initialize the output register region to -1 signifying 'no match'.
-    std::memset(registers_.data(), -1,
+    std::memset(registers_.data(), kNoMatchValue,
                 output_register_count * sizeof(RegisterT));
     USE(total_register_count_);
   }
@@ -417,13 +418,12 @@ IrregexpInterpreter::Result RawMatch(
 // Fill dispatch table from last defined bytecode up to the next power of two
 // with BREAK (invalid operation).
 // TODO(pthier): Find a way to fill up automatically (at compile time)
-// 59 real bytecodes -> 5 fillers
+// 60 real bytecodes -> 4 fillers
 #define BYTECODE_FILLER_ITERATOR(V) \
   V(BREAK) /* 1 */                  \
   V(BREAK) /* 2 */                  \
   V(BREAK) /* 3 */                  \
-  V(BREAK) /* 4 */                  \
-  V(BREAK) /* 5 */
+  V(BREAK) /* 4 */
 
 #define COUNT(...) +1
   static constexpr int kRegExpBytecodeFillerCount =
@@ -501,6 +501,16 @@ IrregexpInterpreter::Result RawMatch(
     BYTECODE(SET_REGISTER) {
       ADVANCE(SET_REGISTER);
       registers[LoadPacked24Unsigned(insn)] = Load32Aligned(pc + 4);
+      DISPATCH();
+    }
+    BYTECODE(CLEAR_REGISTERS) {
+      ADVANCE(CLEAR_REGISTERS);
+      uint16_t from_reg = Load16AlignedUnsigned(pc + 4);
+      uint16_t to_reg = Load16AlignedUnsigned(pc + 6);
+      SBXCHECK_LE(from_reg, to_reg);
+      for (uint16_t i = from_reg; i <= to_reg; ++i) {
+        registers[i] = InterpreterRegisters::kNoMatchValue;
+      }
       DISPATCH();
     }
     BYTECODE(ADVANCE_REGISTER) {
