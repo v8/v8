@@ -2524,6 +2524,9 @@
   # These tests are known to timeout with CSS, especially with variants that
   # stress the GC.
   'regress/regress-crbug-820312': [SKIP],
+  # These tests need to disable conservative stack scanning and are thus not
+  # compatible with direct handles.
+  'wasm/compiled-module-management': [SKIP],
 }], # direct_handle
 
 ##############################################################################
