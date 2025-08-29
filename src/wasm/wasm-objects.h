@@ -1010,8 +1010,7 @@ class WasmExportedFunction : public JSFunction {
       DirectHandle<WasmFuncRef> func_ref,
       DirectHandle<WasmInternalFunction> internal_function, int arity,
       DirectHandle<Code> export_wrapper, const wasm::WasmModule* module,
-      int func_index, wasm::CanonicalTypeIndex sig_id,
-      const wasm::CanonicalSig* sig, wasm::Promise promise);
+      int func_index, const wasm::CanonicalSig* sig, wasm::Promise promise);
 
   static void MarkAsReceiverIsFirstParam(
       Isolate* isolate, DirectHandle<WasmExportedFunction> exported_function);
@@ -1108,11 +1107,6 @@ class WasmExportedFunctionData
  public:
   DECL_PROTECTED_POINTER_ACCESSORS(instance_data, WasmTrustedInstanceData)
   DECL_CODE_POINTER_ACCESSORS(c_wrapper_code)
-
-  DECL_PRIMITIVE_ACCESSORS(sig, const wasm::CanonicalSig*)
-  // Prefer to use this convenience wrapper of the Torque-generated
-  // {canonical_type_index()}.
-  inline wasm::CanonicalTypeIndex sig_index() const;
 
   inline bool is_promising() const;
 

@@ -459,14 +459,6 @@ PROTECTED_POINTER_ACCESSORS(WasmExportedFunctionData, instance_data,
 CODE_POINTER_ACCESSORS(WasmExportedFunctionData, c_wrapper_code,
                        kCWrapperCodeOffset)
 
-PRIMITIVE_ACCESSORS(WasmExportedFunctionData, sig, const wasm::CanonicalSig*,
-                    kSigOffset)
-
-wasm::CanonicalTypeIndex WasmExportedFunctionData::sig_index() const {
-  return wasm::CanonicalTypeIndex{
-      static_cast<uint32_t>(canonical_type_index())};
-}
-
 bool WasmExportedFunctionData::is_promising() const {
   return WasmFunctionData::PromiseField::decode(js_promise_flags()) ==
          wasm::kPromise;

@@ -2006,8 +2006,7 @@ V8_INLINE DirectHandle<WasmExportedFunction> CreateExportedFunction(
   int arity = static_cast<int>(canon_sig->parameter_count());
   DirectHandle<WasmExportedFunction> external = WasmExportedFunction::New(
       isolate, trusted_instance_data, func_ref, internal_function, arity,
-      wrapper_code, module, function_index, canon_sig_id, canon_sig,
-      wasm::kNoPromise);
+      wrapper_code, module, function_index, canon_sig, wasm::kNoPromise);
   internal_function->set_external(*external);
   return external;
 }
@@ -2999,7 +2998,7 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
   const wasm::CanonicalSig* sig =
       wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_id);
   return New(isolate, instance_data, func_ref, internal_function, arity,
-             export_wrapper, module, func_index, sig_id, sig, promise);
+             export_wrapper, module, func_index, sig, promise);
 }
 
 DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
@@ -3007,13 +3006,12 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
     DirectHandle<WasmFuncRef> func_ref,
     DirectHandle<WasmInternalFunction> internal_function, int arity,
     DirectHandle<Code> export_wrapper, const wasm::WasmModule* module,
-    int func_index, wasm::CanonicalTypeIndex sig_id,
-    const wasm::CanonicalSig* sig, wasm::Promise promise) {
+    int func_index, const wasm::CanonicalSig* sig, wasm::Promise promise) {
   Factory* factory = isolate->factory();
   DirectHandle<WasmExportedFunctionData> function_data =
       factory->NewWasmExportedFunctionData(
           export_wrapper, instance_data, func_ref, internal_function, sig,
-          sig_id, v8_flags.wasm_wrapper_tiering_budget, promise);
+          v8_flags.wasm_wrapper_tiering_budget, promise);
 
 #if V8_ENABLE_DRUMBRAKE
   if (v8_flags.wasm_jitless) {
@@ -3080,7 +3078,7 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
 bool WasmExportedFunctionData::MatchesSignature(
     wasm::CanonicalTypeIndex other_canonical_type_index) {
   return wasm::GetTypeCanonicalizer()->IsCanonicalSubtype(
-      sig_index(), other_canonical_type_index);
+      sig()->index(), other_canonical_type_index);
 }
 
 // static
@@ -3612,7 +3610,7 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
         Tagged<WasmExportedFunction> function =
             Cast<WasmExportedFunction>(*value);
         CanonicalTypeIndex real_type_index =
-            function->shared()->wasm_exported_function_data()->sig_index();
+            function->shared()->wasm_exported_function_data()->sig()->index();
         if (!type_canonicalizer->IsCanonicalSubtype(real_type_index,
                                                     canonical_index)) {
           *error_message =
