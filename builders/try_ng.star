@@ -510,8 +510,8 @@ trybot_pair(
 trybot_pair(
     name = "v8_mac_arm64_rel",
     total_timeout = 7200,
-    cq_properties = CQ.BLOCK,
-    cq_branch_properties = CQ.BLOCK,
+    cq_properties = CQ.EXP_100_PERCENT,
+    cq_branch_properties = CQ.EXP_100_PERCENT,
     dimensions = {"os": "Mac", "cpu": "arm64"},
 )
 
