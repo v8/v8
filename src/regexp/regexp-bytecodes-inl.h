@@ -12,6 +12,8 @@
 #include <limits>
 #include <type_traits>
 
+#include "src/regexp/regexp-macro-assembler.h"  // For StackCheckFlag
+
 namespace v8 {
 namespace internal {
 

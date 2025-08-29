@@ -100,9 +100,10 @@ void RegExpMacroAssemblerTracer::PopRegister(int register_index) {
 void RegExpMacroAssemblerTracer::PushRegister(
     int register_index,
     StackCheckFlag check_stack_limit) {
-  PrintF(" PushRegister(register=%d, %s);\n",
-         register_index,
-         check_stack_limit ? "check stack limit" : "");
+  PrintF(" PushRegister(register=%d, %s);\n", register_index,
+         check_stack_limit == StackCheckFlag::kCheckStackLimit
+             ? "check stack limit"
+             : "");
   assembler_->PushRegister(register_index, check_stack_limit);
 }
 

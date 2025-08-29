@@ -482,10 +482,10 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
     if (undo_action == RESTORE) {
       pushes++;
       RegExpMacroAssembler::StackCheckFlag stack_check =
-          RegExpMacroAssembler::kNoStackLimitCheck;
+          RegExpMacroAssembler::StackCheckFlag::kNoStackLimitCheck;
       DCHECK_GT(assembler->stack_limit_slack_slot_count(), 0);
       if (pushes == assembler->stack_limit_slack_slot_count()) {
-        stack_check = RegExpMacroAssembler::kCheckStackLimit;
+        stack_check = RegExpMacroAssembler::StackCheckFlag::kCheckStackLimit;
         pushes = 0;
       }
 

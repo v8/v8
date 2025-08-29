@@ -72,6 +72,7 @@ void RegExpBytecodeGenerator::PushRegister(int register_index,
   DCHECK_LE(0, register_index);
   DCHECK_GE(kMaxRegister, register_index);
   Emit(BC_PUSH_REGISTER, register_index);
+  Emit32(static_cast<uint32_t>(check_stack_limit));
 }
 
 void RegExpBytecodeGenerator::WriteCurrentPositionToRegister(int register_index,

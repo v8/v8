@@ -68,7 +68,8 @@ void DispatchByOperand(Func&& func) {
     return std::tuple_cat([]<std::size_t I>() {
       using Operand = typename Operands::Operand;
       constexpr auto id = static_cast<Operand>(I);
-      if constexpr (Operands::Type(id) == ReBcOpType::kPadding) {
+      if constexpr (Operands::Type(id) == ReBcOpType::kPadding1 ||
+                    Operands::Type(id) == ReBcOpType::kPadding2) {
         return std::tuple<>();
       } else {
         return std::tuple(std::integral_constant<Operand, id>{});

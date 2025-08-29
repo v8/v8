@@ -156,7 +156,10 @@ class RegExpMacroAssembler {
   // will go to this label. Always checks the backtrack stack limit.
   virtual void PushBacktrack(Label* label) = 0;
   virtual void PushCurrentPosition() = 0;
-  enum StackCheckFlag { kNoStackLimitCheck = false, kCheckStackLimit = true };
+  enum class StackCheckFlag : uint8_t {
+    kNoStackLimitCheck = false,
+    kCheckStackLimit = true
+  };
   virtual void PushRegister(int register_index,
                             StackCheckFlag check_stack_limit) = 0;
   virtual void ReadCurrentPositionFromRegister(int reg) = 0;
