@@ -567,6 +567,12 @@ bool RegExpImpl::EnsureCompiledIrregexp(Isolate* isolate,
                                     is_one_byte)) {
       return true;
     }
+    // CompileIrregexpFromBytecode() itself doesn't throw exceptions, but in
+    // case of eager tier-ups we call CompileIrregexpFromSource() which might
+    // throw.
+    if (V8_UNLIKELY(isolate->has_exception())) {
+      return false;
+    }
     // If Assembling from bytecode wasn't successful, we fall-through to the
     // old pipeline compiling everything from scratch.
     if (v8_flags.trace_regexp_assembler) {
