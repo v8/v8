@@ -1641,44 +1641,52 @@ Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
       gasm.SelectIf<Object>(gasm.ObjectIsSmi(value))
           .Then([&] { return value; })
           .Else([&] {
-            TNode<Map> value_map =
-                gasm.LoadMap(TNode<HeapObject>::UncheckedCast(value));
-            return gasm.SelectIf<Object>(gasm.IsContextCellMap(value_map))
-                .Then([&] {
-                  TNode<HeapObject> heap_value =
-                      TNode<HeapObject>::UncheckedCast(value);
-                  TNode<Int32T> state = gasm.LoadField<Int32T>(
-                      AccessBuilder::ForContextCellState(), heap_value);
-                  static_assert(ContextCell::State::kConst == 0);
-                  static_assert(ContextCell::State::kSmi == 1);
-                  return gasm
-                      .MachineSelectIf<Object>(gasm.Int32LessThanOrEqual(
-                          state, gasm.Int32Constant(ContextCell::kSmi)))
+            return gasm.SelectIf<Object>(gasm.IsTheHole(value))
+                .Then([&] { return value; })
+                .Else([&] {
+                  TNode<Map> value_map =
+                      gasm.LoadMap(TNode<HeapObject>::UncheckedCast(value));
+                  return gasm.SelectIf<Object>(gasm.IsContextCellMap(value_map))
                       .Then([&] {
-                        return gasm.LoadField<Object>(
-                            AccessBuilder::ForContextCellTaggedValue(),
-                            heap_value);
-                      })
-                      .Else([&] {
+                        TNode<HeapObject> heap_value =
+                            TNode<HeapObject>::UncheckedCast(value);
+                        TNode<Int32T> state = gasm.LoadField<Int32T>(
+                            AccessBuilder::ForContextCellState(), heap_value);
+                        static_assert(ContextCell::State::kConst == 0);
+                        static_assert(ContextCell::State::kSmi == 1);
                         return gasm
-                            .MachineSelectIf<Object>(gasm.Word32Equal(
-                                state, gasm.Int32Constant(ContextCell::kInt32)))
+                            .MachineSelectIf<Object>(gasm.Int32LessThanOrEqual(
+                                state, gasm.Int32Constant(ContextCell::kSmi)))
                             .Then([&] {
-                              return gasm.LoadField<Number>(
-                                  AccessBuilder::ForContextCellInt32Value(),
+                              return gasm.LoadField<Object>(
+                                  AccessBuilder::ForContextCellTaggedValue(),
                                   heap_value);
                             })
                             .Else([&] {
-                              return gasm.LoadField<Number>(
-                                  AccessBuilder::ForContextCellFloat64Value(),
-                                  heap_value);
+                              return gasm
+                                  .MachineSelectIf<Object>(gasm.Word32Equal(
+                                      state,
+                                      gasm.Int32Constant(ContextCell::kInt32)))
+                                  .Then([&] {
+                                    return gasm.LoadField<Number>(
+                                        AccessBuilder::
+                                            ForContextCellInt32Value(),
+                                        heap_value);
+                                  })
+                                  .Else([&] {
+                                    return gasm.LoadField<Number>(
+                                        AccessBuilder::
+                                            ForContextCellFloat64Value(),
+                                        heap_value);
+                                  })
+                                  .Value();
                             })
                             .Value();
                       })
+                      .Else([&] { return value; })
+                      .ExpectFalse()
                       .Value();
                 })
-                .Else([&] { return value; })
-                .ExpectFalse()
                 .Value();
           })
           .Value();
@@ -1738,19 +1746,27 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
                         new_value);
       })
       .Else([&] {
-        TNode<Map> old_value_map =
-            gasm.LoadMap(TNode<HeapObject>::UncheckedCast(old_value));
-        gasm.If(gasm.IsContextCellMap(old_value_map))
+        gasm.If(gasm.IsTheHole(old_value))
             .Then([&] {
-              gasm.DetachContextCell(context, new_value,
-                                     static_cast<int>(access.index()),
-                                     frame_state);
-            })
-            .Else([&] {
               gasm.StoreField(AccessBuilder::ForContextSlot(access.index()),
                               context, new_value);
             })
-            .ExpectFalse();
+            .Else([&] {
+              TNode<Map> old_value_map =
+                  gasm.LoadMap(TNode<HeapObject>::UncheckedCast(old_value));
+              gasm.If(gasm.IsContextCellMap(old_value_map))
+                  .Then([&] {
+                    gasm.DetachContextCell(context, new_value,
+                                           static_cast<int>(access.index()),
+                                           frame_state);
+                  })
+                  .Else([&] {
+                    gasm.StoreField(
+                        AccessBuilder::ForContextSlot(access.index()), context,
+                        new_value);
+                  })
+                  .ExpectFalse();
+            });
       });
 
   ReplaceWithValue(node, gasm.effect(), gasm.effect(), gasm.control());

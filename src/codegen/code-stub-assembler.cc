@@ -151,7 +151,7 @@ void CodeStubAssembler::Check(const BranchGenerator& branch,
   branch(&ok, &not_ok);
 
   BIND(&not_ok);
-  std::vector<FileAndLine> file_and_line;
+  std::vector<FileAndLine> file_and_line = GetMacroSourcePositionStack();
   if (loc.FileName()) {
     file_and_line.push_back({loc.FileName(), static_cast<size_t>(loc.Line())});
   }
@@ -2294,6 +2294,8 @@ TNode<Map> CodeStubAssembler::GetInstanceTypeMap(InstanceType instance_type) {
 }
 
 TNode<Map> CodeStubAssembler::LoadMap(TNode<HeapObject> object) {
+  // TODO(leszeks): Enable
+  // CSA_DCHECK(this, IsNotAnyHole(object), object);
   TNode<Map> map = LoadObjectField<Map>(object, HeapObject::kMapOffset);
 #ifdef V8_MAP_PACKING
   // Check the loaded map is unpacked. i.e. the lowest two bits != 0b10
@@ -7817,9 +7819,10 @@ TNode<Union<TheHole, JSMessageObject>> CodeStubAssembler::GetPendingMessage() {
 }
 void CodeStubAssembler::SetPendingMessage(
     TNode<Union<TheHole, JSMessageObject>> message) {
-  CSA_DCHECK(this, Word32Or(IsTheHole(message),
-                            InstanceTypeEqual(LoadInstanceType(message),
-                                              JS_MESSAGE_OBJECT_TYPE)));
+  CSA_DCHECK(this, LogicalOr(IsTheHole(message), [&] {
+               return InstanceTypeEqual(LoadInstanceType(message),
+                                        JS_MESSAGE_OBJECT_TYPE);
+             }));
   TNode<ExternalReference> pending_message = ExternalConstant(
       ExternalReference::address_of_pending_message(isolate()));
   StoreFullTaggedNoWriteBarrier(pending_message, message);
@@ -8548,8 +8551,18 @@ TNode<BoolT> CodeStubAssembler::IsNotAnyHole(TNode<Object> object) {
   return Select<BoolT>(
       TaggedIsSmi(object), [=, this] { return Int32TrueConstant(); },
       [=, this] {
+#if V8_STATIC_ROOTS_BOOL
+        TNode<Word32T> object_as_word32 =
+            TruncateIntPtrToInt32(BitcastTaggedToWord(object));
+#define GET_HOLE_ROOT(Type, Value, CamelName) StaticReadOnlyRoot::k##CamelName,
+        constexpr Tagged_t kMinHole = std::min({HOLE_LIST(GET_HOLE_ROOT)});
+        constexpr Tagged_t kMaxHole = std::max({HOLE_LIST(GET_HOLE_ROOT)});
+#undef GET_HOLE_ROOT
+        return Word32BinaryNot(IsInRange(object_as_word32, kMinHole, kMaxHole));
+#else
         return Word32BinaryNot(IsHoleInstanceType(
             LoadInstanceType(UncheckedCast<HeapObject>(object))));
+#endif
       });
 }
 
@@ -10782,10 +10795,15 @@ TNode<UintPtrT> CodeStubAssembler::UintPtrMin(TNode<UintPtrT> left,
                                   right);
 }
 
+TNode<BoolT> CodeStubAssembler::LogicalOr(
+    TNode<BoolT> lhs, base::FunctionRef<TNode<BoolT>()> rhs) {
+  return Select<BoolT>(lhs, [&] { return Int32TrueConstant(); }, rhs);
+}
+
 template <>
 TNode<HeapObject> CodeStubAssembler::LoadName<NameDictionary>(
     TNode<HeapObject> key) {
-  CSA_DCHECK(this, Word32Or(IsTheHole(key), IsName(key)));
+  CSA_DCHECK(this, LogicalOr(IsTheHole(key), [&] { return IsName(key); }));
   return key;
 }
 

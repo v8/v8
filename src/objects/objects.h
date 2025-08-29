@@ -709,6 +709,10 @@ IS_TYPE_FUNCTION_DECL(PropertyDictionary)
 IS_TYPE_FUNCTION_DECL(AnyHole)
 #undef IS_TYPE_FUNCTION_DECL
 
+// Predicate for IsAnyHole which can be used on any object type -- the standard
+// IsAnyHole check cannot be used for Code space objects.
+V8_INLINE bool SafeIsAnyHole(Tagged<Object> obj);
+
 V8_INLINE bool IsNumber(Tagged<Object> obj, ReadOnlyRoots roots);
 
 // Oddball checks are faster when they are raw pointer comparisons, so the

@@ -59,7 +59,9 @@ TEST_F(MaglevTest, NodeTypeMissingEntriesExist) {
 TEST_F(MaglevTest, ConstantNodeTypeApproximationIsConsistent) {
   for (auto idx = RootIndex::kFirstRoot; idx <= RootIndex::kLastRoot; ++idx) {
     Tagged<Object> obj = isolate()->roots_table().slot(idx).load(isolate());
-    if (obj.ptr() == kNullAddress || !obj.IsHeapObject()) continue;
+    if (obj.ptr() == kNullAddress || !obj.IsHeapObject() || IsAnyHole(obj)) {
+      continue;
+    }
     compiler::HeapObjectRef ref = MakeRef(broker(), Cast<HeapObject>(obj));
     NodeType t = StaticTypeForConstant(broker(), ref);
     CHECK(!IsEmptyNodeType(t));
@@ -77,7 +79,7 @@ TEST_F(MaglevTest, ConstantNodeTypeApproximationIsConsistent) {
 TEST_F(MaglevTest, NodeTypeApproximationIsConsistent) {
   for (auto idx = RootIndex::kFirstRoot; idx <= RootIndex::kLastRoot; ++idx) {
     Tagged<Object> obj = isolate()->roots_table().slot(idx).load(isolate());
-    if (obj.ptr() == kNullAddress || !IsMap(obj)) continue;
+    if (obj.ptr() == kNullAddress || IsAnyHole(obj) || !IsMap(obj)) continue;
     Tagged<Map> map = Cast<Map>(obj);
     compiler::MapRef map_ref = MakeRef(broker(), map);
 
@@ -95,7 +97,7 @@ TEST_F(MaglevTest, NodeTypeApproximationIsConsistent) {
 TEST_F(MaglevTest, NodeTypeIntersectIsConsistent) {
   for (auto idx = RootIndex::kFirstRoot; idx <= RootIndex::kLastRoot; ++idx) {
     Tagged<Object> obj = isolate()->roots_table().slot(idx).load(isolate());
-    if (obj.ptr() == kNullAddress || !IsMap(obj)) continue;
+    if (obj.ptr() == kNullAddress || IsAnyHole(obj) || !IsMap(obj)) continue;
     Tagged<Map> map = Cast<Map>(obj);
     compiler::MapRef map_ref = MakeRef(broker(), map);
 
@@ -120,7 +122,7 @@ TEST_F(MaglevTest, NodeTypeIntersectIsConsistent) {
 TEST_F(MaglevTest, NodeTypeUnionIsConsistent) {
   for (auto idx = RootIndex::kFirstRoot; idx <= RootIndex::kLastRoot; ++idx) {
     Tagged<Object> obj = isolate()->roots_table().slot(idx).load(isolate());
-    if (obj.ptr() == kNullAddress || !IsMap(obj)) continue;
+    if (obj.ptr() == kNullAddress || IsAnyHole(obj) || !IsMap(obj)) continue;
     Tagged<Map> map = Cast<Map>(obj);
     compiler::MapRef map_ref = MakeRef(broker(), map);
 

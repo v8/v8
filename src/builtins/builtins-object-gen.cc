@@ -1408,6 +1408,7 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   TNode<UnionOf<JSPrototype, Map, TheHole>> maybe_map =
       LoadObjectField<UnionOf<JSPrototype, Map, TheHole>>(
           closure, JSFunction::kPrototypeOrInitialMapOffset);
+  GotoIf(IsTheHole(maybe_map), &runtime);
   GotoIf(DoesntHaveInstanceType(maybe_map, MAP_TYPE), &runtime);
   TNode<Map> map = CAST(maybe_map);
 

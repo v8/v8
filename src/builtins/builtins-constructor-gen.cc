@@ -357,6 +357,7 @@ TNode<JSObject> ConstructorBuiltinsAssembler::FastNewObject(
   // Load the initial map and verify that it's in fact a map.
   TNode<Union<JSReceiver, Map, TheHole>> initial_map_or_proto =
       LoadJSFunctionPrototypeOrInitialMap(new_target_func);
+  GotoIf(IsTheHole(initial_map_or_proto), call_runtime);
   GotoIf(DoesntHaveInstanceType(initial_map_or_proto, MAP_TYPE), call_runtime);
   TNode<Map> initial_map = CAST(initial_map_or_proto);
 
@@ -738,6 +739,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
       TNode<Object> field = LoadObjectField(boilerplate, offset.value());
       Label store_field(this);
       GotoIf(TaggedIsSmi(field), &store_field);
+      GotoIf(IsUninitialized(field), &store_field);
       // TODO(leszeks): Read the field descriptor to decide if this heap
       // number is mutable or not.
       GotoIf(IsHeapNumber(CAST(field)), &continue_with_write_barrier);
@@ -800,6 +802,7 @@ void ConstructorBuiltinsAssembler::CopyMutableHeapNumbersInObject(
         Label copy_heap_number(this, Label::kDeferred), continue_loop(this);
         // We only have to clone complex field values.
         GotoIf(TaggedIsSmi(field), &continue_loop);
+        GotoIf(IsUninitialized(field), &continue_loop);
         // TODO(leszeks): Read the field descriptor to decide if this heap
         // number is mutable or not.
         Branch(IsHeapNumber(CAST(field)), &copy_heap_number, &continue_loop);

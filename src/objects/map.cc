@@ -25,6 +25,7 @@
 #include "src/objects/js-objects.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/maybe-object.h"
+#include "src/objects/objects.h"
 #include "src/objects/oddball.h"
 #include "src/objects/property.h"
 #include "src/objects/transitions-inl.h"
@@ -1938,8 +1939,9 @@ bool CanHoldValue(Tagged<DescriptorArray> descriptors, InternalIndex descriptor,
   PropertyDetails details = descriptors->GetDetails(descriptor);
   if (details.location() == PropertyLocation::kField) {
     if (details.kind() == PropertyKind::kData) {
-      return IsGeneralizableTo(constness, details.constness()) &&
-             Object::FitsRepresentation(value, details.representation()) &&
+      if (!IsGeneralizableTo(constness, details.constness())) return false;
+      if (IsUninitializedHole(value)) return true;
+      return Object::FitsRepresentation(value, details.representation()) &&
              FieldType::NowContains(descriptors->GetFieldType(descriptor),
                                     value);
     } else {

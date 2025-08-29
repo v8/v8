@@ -1019,6 +1019,8 @@ inline constexpr bool IsEmptyNodeType(NodeType type) {
 inline NodeType StaticTypeForConstant(compiler::JSHeapBroker* broker,
                                       compiler::ObjectRef ref) {
   if (ref.IsSmi()) return NodeType::kSmi;
+  if (ref.HoleType() != compiler::HoleType::kNone)
+    return NodeType::kOtherHeapObject;
   NodeType type = StaticTypeForMap(ref.AsHeapObject().map(broker), broker);
   DCHECK(!IsEmptyNodeType(type));
   if (type == NodeType::kInternalizedString && ref.is_read_only()) {

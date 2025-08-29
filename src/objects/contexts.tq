@@ -281,12 +281,12 @@ macro StoreContextElement(c: Context, i: constexpr int32, o: Object): void {
 
 macro LoadContextElementNoCellImpl(c: Context, i: intptr): Object {
   const val = c.elements[i];
-  dcheck(!Is<ContextCell>(val));
+  dcheck(Is<TheHole>(val) || !Is<ContextCell>(val));
   return val;
 }
 
 macro StoreContextElementNoCellImpl(c: Context, i: intptr, o: Object): void {
-  dcheck(!Is<ContextCell>(c.elements[i]));
+  dcheck(Is<TheHole>(c.elements[i]) || !Is<ContextCell>(c.elements[i]));
   c.elements[i] = o;
 }
 
@@ -477,6 +477,7 @@ macro StoreScriptContextElementImpl(
 
 macro LoadContextElementImpl(c: Context, i: intptr): Object {
   const val = c.elements[i];
+  if (val == TheHole) return val;
   const cell = Cast<ContextCell>(val) otherwise return val;
   dcheck(HasContextCells(c));
   dcheck(kContextCellConst == 0);

@@ -925,6 +925,10 @@ DEFINE_BOOL(trace_compilation_dependencies, false, "trace code dependencies")
 // Depend on --trace-deopt-verbose for reporting dependency invalidations.
 DEFINE_IMPLICATION(trace_compilation_dependencies, trace_deopt_verbose)
 
+DEFINE_EXPERIMENTAL_FEATURE(assert_hole_checked_by_value,
+                            "assert that we always check for holes by value, "
+                            "never dereferencing their map.")
+
 #ifdef V8_ALLOCATION_SITE_TRACKING
 #define V8_ALLOCATION_SITE_TRACKING_BOOL true
 #else

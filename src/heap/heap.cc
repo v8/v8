@@ -4771,8 +4771,14 @@ void ClearStaleLeftTrimmedPointerVisitor::ClearLeftTrimmedOrForward(
 }
 
 bool ClearStaleLeftTrimmedPointerVisitor::IsLeftTrimmed(FullObjectSlot p) {
-  if (!IsHeapObject(*p)) return false;
-  Tagged<HeapObject> current = Cast<HeapObject>(*p);
+  Tagged<HeapObject> current;
+  if (!TryCast<HeapObject>(*p, &current)) return false;
+#if V8_STATIC_ROOTS_BOOL
+  // Check for holes before trying to read the map word, but only for static
+  // root builds where this is a value check (since an instance type check may
+  // see a forwarding address instead of a map).
+  if (SafeIsAnyHole(current)) return false;
+#endif
   if (!current->map_word(cage_base(), kRelaxedLoad).IsForwardingAddress() &&
       IsFreeSpaceOrFiller(current, cage_base())) {
 #ifdef DEBUG
@@ -6851,6 +6857,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
       while (!marking_stack_.empty()) {
         Tagged<HeapObject> obj = marking_stack_.back();
         marking_stack_.pop_back();
+        if (SafeIsAnyHole(obj)) continue;
         VisitObject(filter_->heap_->isolate(), obj, this);
       }
     }

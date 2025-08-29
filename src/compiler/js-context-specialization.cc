@@ -544,12 +544,12 @@ Reduction JSContextSpecialization::ReduceJSGetImportMeta(Node* node) {
   OptionalObjectRef import_meta =
       module->AsSourceTextModule().import_meta(broker());
   if (!import_meta.has_value()) return NoChange();
-  if (!import_meta->IsJSObject()) {
-    DCHECK(import_meta->IsTheHole());
+  if (import_meta->IsTheHole()) {
     // The import.meta object has not yet been created. Let JSGenericLowering
     // replace the operator with a runtime call.
     return NoChange();
   }
+  DCHECK(import_meta->IsJSObject());
 
   Node* import_meta_const = jsgraph()->ConstantNoHole(*import_meta, broker());
   ReplaceWithValue(node, import_meta_const);

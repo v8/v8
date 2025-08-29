@@ -4245,6 +4245,7 @@ static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot,
       "Only [Full|OffHeap]ObjectSlot, [Full]MaybeObjectSlot, "
       "InstructionStreamSlot, Protected[Pointer|MaybeObject]Slot, "
       "or WriteProtectedSlot are expected here");
+  if (HeapLayout::InReadOnlySpace(heap_obj)) return;
   MapWord map_word = heap_obj->map_word(cage_base, kRelaxedLoad);
   if (!map_word.IsForwardingAddress()) return;
   DCHECK_IMPLIES((!v8_flags.minor_ms && !Heap::InFromPage(heap_obj)),

@@ -2861,7 +2861,7 @@ MaybeLocal<Value> v8::TryCatch::StackTrace(Local<Context> context) const {
 
 v8::Local<v8::Message> v8::TryCatch::Message() const {
   i::Tagged<i::Object> message = ToObject(message_obj_);
-  DCHECK(IsJSMessageObject(message) || IsTheHole(message, i_isolate_));
+  DCHECK(IsAnyHole(message) || IsJSMessageObject(message));
   if (HasCaught() && !IsTheHole(message, i_isolate_)) {
     return v8::Utils::MessageToLocal(i::direct_handle(message, i_isolate_));
   } else {
@@ -2943,7 +2943,7 @@ v8::Local<v8::StackTrace> Message::GetStackTrace() const {
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   InternalEscapableScope scope(i_isolate);
   i::DirectHandle<i::Object> stack_trace(self->stack_trace(), i_isolate);
-  if (!IsStackTraceInfo(*stack_trace)) return {};
+  if (IsAnyHole(*stack_trace) || !IsStackTraceInfo(*stack_trace)) return {};
   return scope.Escape(
       Utils::StackTraceToLocal(i::Cast<i::StackTraceInfo>(stack_trace)));
 }
@@ -7067,6 +7067,8 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
     if (error_.has_value()) {
       return false;
     }
+
+    if (IsAnyHole(obj)) return true;
 
     i::DisallowGarbageCollection no_gc;
     i::InstanceType obj_type = obj->map()->instance_type();

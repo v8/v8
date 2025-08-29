@@ -1830,6 +1830,7 @@ class MergeAssumptionChecker final : public ObjectVisitor {
       Tagged<HeapObject> obj;
       bool is_weak = maybe_obj.IsWeak();
       if (maybe_obj.GetHeapObject(&obj)) {
+        if (SafeIsAnyHole(obj)) continue;
         if (IsSharedFunctionInfo(obj)) {
           CHECK((current_object_kind_ == kConstantPool && !is_weak) ||
                 (current_object_kind_ == kScriptInfosList && is_weak) ||

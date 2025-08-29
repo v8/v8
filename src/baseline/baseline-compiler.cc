@@ -782,6 +782,8 @@ void BaselineCompiler::VisitLdaContextSlot() {
       context, index, depth,
       BaselineAssembler::CompressionMode::kForceDecompression);
   __ JumpIfSmi(kInterpreterAccumulatorRegister, &done);
+  __ JumpIfRoot(kInterpreterAccumulatorRegister, RootIndex::kTheHoleValue,
+                &done);
   __ JumpIfObjectTypeFast(kNotEqual, kInterpreterAccumulatorRegister,
                           CONTEXT_CELL_TYPE, &done, Label::kNear);
   // TODO(victorgomes): inline trivial constant value read from context cell.
@@ -813,6 +815,8 @@ void BaselineCompiler::VisitLdaCurrentContextSlot() {
   __ LoadTaggedField(kInterpreterAccumulatorRegister, context,
                      Context::OffsetOfElementAt(index));
   __ JumpIfSmi(kInterpreterAccumulatorRegister, &done);
+  __ JumpIfRoot(kInterpreterAccumulatorRegister, RootIndex::kTheHoleValue,
+                &done);
   __ JumpIfObjectTypeFast(kNotEqual, kInterpreterAccumulatorRegister,
                           CONTEXT_CELL_TYPE, &done, Label::kNear);
   // TODO(victorgomes): inline trivial constant value read from context cell.
