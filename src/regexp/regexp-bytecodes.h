@@ -111,6 +111,7 @@ using ReBcOpType = RegExpBytecodeOperandType;
   V(LoadCurrentCharacter, LOAD_CURRENT_CHAR, (cp_offset, on_failure),          \
     (ReBcOpType::kOffset, ReBcOpType::kLabel))                                 \
   /* Checks if current position + given offset is in range.                 */ \
+  /* I.e. jumps to |on_failure| if current pos + |cp_offset| >= subject len */ \
   V(CheckPosition, CHECK_CURRENT_POSITION, (cp_offset, on_failure),            \
     (ReBcOpType::kOffset, ReBcOpType::kLabel))                                 \
   /* Check if current character is equal to a given character               */ \
