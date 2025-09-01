@@ -8,6 +8,8 @@ This module contains helper functions to compile V8.
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 
 FlagInfo = provider("The value of an option.",
 fields = ["value"])
