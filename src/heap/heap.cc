@@ -4506,26 +4506,49 @@ void Heap::ReportCodeStatistics(const char* title) {
 #endif  // DEBUG
 
 bool Heap::Contains(Tagged<HeapObject> value) const {
-  if (ReadOnlyHeap::Contains(value)) {
+  if (HeapLayout::InReadOnlySpace(value)) {
     return false;
   }
-  if (memory_allocator()->IsOutsideAllocatedSpace(value.address())) {
+  if (HeapLayout::InWritableSharedSpace(value) &&
+      !isolate()->is_shared_space_isolate()) {
     return false;
   }
 
-  if (!HasBeenSetUp()) return false;
+  CHECK(HasBeenSetUp());
+  // Must be somewhere on the heap.
+  CHECK(!memory_allocator()->IsOutsideAllocatedSpace(value.address()));
 
-  return (new_space_ && new_space_->Contains(value)) ||
-         old_space_->Contains(value) || code_space_->Contains(value) ||
-         (shared_space_ && shared_space_->Contains(value)) ||
-         (shared_trusted_space_ && shared_trusted_space_->Contains(value)) ||
-         lo_space_->Contains(value) || code_lo_space_->Contains(value) ||
-         (new_lo_space_ && new_lo_space_->Contains(value)) ||
-         trusted_space_->Contains(value) ||
-         trusted_lo_space_->Contains(value) ||
-         (shared_lo_space_ && shared_lo_space_->Contains(value)) ||
-         (shared_trusted_lo_space_ &&
-          shared_trusted_lo_space_->Contains(value));
+  const auto space =
+      MemoryChunk::FromHeapObject(value)->Metadata(isolate())->owner_identity();
+  switch (space) {
+    case NEW_SPACE:
+      return new_space_->Contains(value);
+    case OLD_SPACE:
+      return old_space_->Contains(value);
+    case CODE_SPACE:
+      return code_space_->Contains(value);
+    case SHARED_SPACE:
+      return shared_space_->Contains(value);
+    case TRUSTED_SPACE:
+      return trusted_space_->Contains(value);
+    case SHARED_TRUSTED_SPACE:
+      return shared_trusted_space_->Contains(value);
+    case LO_SPACE:
+      return lo_space_->Contains(value);
+    case CODE_LO_SPACE:
+      return code_lo_space_->Contains(value);
+    case NEW_LO_SPACE:
+      return new_lo_space_->Contains(value);
+    case SHARED_LO_SPACE:
+      return shared_lo_space_->Contains(value);
+    case SHARED_TRUSTED_LO_SPACE:
+      return shared_trusted_lo_space_->Contains(value);
+    case TRUSTED_LO_SPACE:
+      return trusted_lo_space_->Contains(value);
+    case RO_SPACE:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
 }
 
 bool Heap::ContainsCode(Tagged<HeapObject> value) const {
