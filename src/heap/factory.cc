@@ -275,12 +275,19 @@ Tagged<HeapObject> Factory::CodeBuilder::AllocateUninitializedInstructionStream(
         heap->heap()->allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
             object_size, AllocationType::kCode, AllocationOrigin::kRuntime);
     CHECK(!result.is_null());
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+    CHECK((result.ptr() & kContiguousReadOnlySpaceMask) != 0);
+#endif
     return result;
-  } else {
-    // Return null if we cannot allocate the code object.
-    return heap->AllocateRawWith<HeapAllocator::kLightRetry>(
-        object_size, AllocationType::kCode);
   }
+  // Return null if we cannot allocate the code object.
+  result = heap->AllocateRawWith<HeapAllocator::kLightRetry>(
+      object_size, AllocationType::kCode);
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  CHECK_IMPLIES(!result.is_null(),
+                (result.ptr() & kContiguousReadOnlySpaceMask) != 0);
+#endif
+  return result;
 }
 
 MaybeHandle<Code> Factory::CodeBuilder::TryBuild() {
