@@ -67,8 +67,11 @@ class Corpus extends sourceHelpers.BaseCorpus {
   // Input corpus.
   constructor(inputDir, corpusName, extraStrict=false) {
     super(inputDir);
+    this.corpusName = corpusName;
     this.extraStrict = extraStrict;
+  }
 
+  create() {
     // Filter for permitted JS files.
     function isPermittedJSFile(absPath) {
       return (absPath.endsWith('.js') &&
@@ -79,7 +82,7 @@ class Corpus extends sourceHelpers.BaseCorpus {
     this.skippedFiles = [];
     this.softSkippedFiles = [];
     this.permittedFiles = [];
-    const directory = path.join(inputDir, corpusName);
+    const directory = path.join(this.inputDir, this.corpusName);
     for (const absPath of walkDirectory(directory, isPermittedJSFile)) {
       const relPath = path.relative(this.inputDir, absPath);
       if (exceptions.isTestSkippedRel(relPath) ||
@@ -94,6 +97,7 @@ class Corpus extends sourceHelpers.BaseCorpus {
     }
     random.shuffle(this.softSkippedFiles);
     random.shuffle(this.permittedFiles);
+    return this;
   }
 
   /**
@@ -177,7 +181,9 @@ class Corpus extends sourceHelpers.BaseCorpus {
 }
 
 class FuzzilliCorpus extends Corpus {
-  constructor(inputDir, corpusName, extraStrict=false, v8Corpus=undefined) {
+  constructor(inputDir, corpusName, extraStrict=false, v8Corpus=undefined,
+              forDiffFuzz=false) {
+    // This loads only the corpora optimized for differential fuzzing.
     super(inputDir, 'fuzzilli', extraStrict);
     this.flagMap = new Map();
 
@@ -187,13 +193,25 @@ class FuzzilliCorpus extends Corpus {
       this.v8Corpus = create(inputDir, 'v8');
     }
     assert(this.v8Corpus);
+    this.forDiffFuzz = forDiffFuzz;
+  }
+
+  isTestSkippedInCorpus(relPath) {
+    const pathComponents = relPath.split(path.sep);
+    assert(pathComponents.length >= 2);
+    assert(pathComponents[0] == 'fuzzilli');
+
+    // Skip diff-fuzz files when we don't want them, or skip other files
+    // when we want the diff-fuzz files.
+    return pathComponents[1].includes('diff-fuzz') ^ this.forDiffFuzz;
   }
 
   get diffFuzzLabel() {
-    // Sources from Fuzzilli use the same universal label for differential
+    // Sources from Fuzzilli use the same universal labels for differential
     // fuzzing because the input file path is random and volatile. It can't
-    // be used to map to particular content.
-    return "fuzzilli_source";
+    // be used to map to particular content. Use a separate label for diff-fuzz
+    // optimized files.
+    return this.forDiffFuzz ? "fuzzilli_diff_fuzz_source" : "fuzzilli_source";
   }
 
   loadFlags(relPath, data) {
@@ -233,6 +251,7 @@ class FuzzilliCorpus extends Corpus {
 // As above, but skipping files from the crashes directories.
 class FuzzilliNoCrashCorpus extends FuzzilliCorpus {
   isTestSkippedInCorpus(relPath) {
+    if (super.isTestSkippedInCorpus(relPath)) return true;
     const pathComponents = relPath.split(path.sep);
     if (pathComponents.length < 3) {
       return false;
@@ -246,7 +265,7 @@ class FuzzilliNoCrashCorpus extends FuzzilliCorpus {
 // wasm-module-builder.
 class FuzzilliWasmCorpus extends FuzzilliCorpus {
   isTestSkippedInCorpus(relPath) {
-    return !needsWasmModuleBuilder(
+    return super.isTestSkippedInCorpus(relPath) || !needsWasmModuleBuilder(
         path.resolve(path.join(this.inputDir, relPath)));
   }
 }
@@ -296,7 +315,7 @@ const CORPUS_CLASSES = {
 
 function create(inputDir, corpusName, ...args) {
   const cls = CORPUS_CLASSES[corpusName] || Corpus;
-  return new cls(inputDir, corpusName, ...args);
+  return new cls(inputDir, corpusName, ...args).create();
 }
 
 module.exports = {
