@@ -9339,6 +9339,14 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeStartsWith(
   // pos = clamped_start + i
   ValueNode* pos = AddNewNode<Int32Add>({clamped_start, index_int32});
 
+  // TODO(dmercadier): without static knowledge about maps shapes (which we
+  // probably don't have), BuildGetCharCodeAt generates fairly expensive code
+  // since it needs to handle all string shapes. It would be more efficient to
+  // have a pre-processing before the loop that computes a single linear buffer
+  // for each string (+ maybe an index, for SlicedString in particular), that's
+  // then accessed directly in the loop (cf StringPrepareForGetCodeUnit in
+  // Turboshaft). Here in particular, the loop doesn't contain anything that can
+  // trigger a GC, so this should be safe.
   ValueNode* lhs_ch = BuildGetCharCodeAt(receiver, pos);
   ValueNode* rhs_ch = BuildGetCharCodeAt(search_element, index_int32);
   ValueNode* is_equal = BuildTaggedEqual(lhs_ch, rhs_ch);
