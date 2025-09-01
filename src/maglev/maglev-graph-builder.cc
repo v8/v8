@@ -19,6 +19,7 @@
 #include "src/base/vector.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins.h"
+#include "src/codegen/bailout-reason.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/assert-scope.h"
@@ -7922,6 +7923,11 @@ ReduceResult MaglevGraphBuilder::BuildInlineFunction(
   }
   inlining_id_ = static_cast<int>(graph()->inlined_functions().size() - 1);
 
+  if (should_abort_compilation_) {
+    // We will abort the compilation at the end.
+    return BuildAbort(AbortReason::kMaglevGraphBuildingFailed);
+  }
+
   DCHECK_NE(inlining_id_, SourcePosition::kNotInlined);
   reducer_.SetBytecodeOffset(entrypoint_);
   reducer_.SetStartSourcePosition(inlining_id_);
@@ -8229,7 +8235,7 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
   ReduceResult result = inner_graph_builder.BuildInlineFunction(
       GetCurrentSourcePosition(), context, function, new_target);
 
-  // Prapagate back (or reset) builder state.
+  // Propagate back (or reset) builder state.
   unobserved_context_slot_stores_ =
       inner_graph_builder.unobserved_context_slot_stores_;
   latest_checkpointed_frame_ = nullptr;
@@ -15386,8 +15392,9 @@ DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK)
 #undef DEBUG_BREAK
 ReduceResult MaglevGraphBuilder::VisitIllegal() { UNREACHABLE(); }
 
-void MaglevGraphBuilder::Build() {
+bool MaglevGraphBuilder::Build() {
   DCHECK(!is_inline());
+  if (should_abort_compilation_) return false;
 
   DCHECK_EQ(inlining_id_, SourcePosition::kNotInlined);
   reducer_.SetBytecodeOffset(entrypoint_);
@@ -15442,6 +15449,7 @@ void MaglevGraphBuilder::Build() {
   }
 
   BuildBody();
+  return !should_abort_compilation_;
 }
 
 void MaglevGraphBuilder::BuildBody() {
