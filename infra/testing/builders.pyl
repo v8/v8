@@ -420,7 +420,7 @@
       {'name': 'test262', 'variant': 'default', 'shards': 3},
       {'name': 'test262', 'variant': 'future', 'shards': 3},
       {'name': 'test262', 'variant': 'extra', 'shards': 14},
-      {'name': 'v8testing', 'shards': 5},
+      {'name': 'v8testing', 'shards': 8},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 5},
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
@@ -484,7 +484,7 @@
     },
     'tests': [
       # Infra staging.
-      {'name': 'v8testing', 'variant': 'infra_staging', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'infra_staging', 'shards': 4},
       # Stress sampling.
       {'name': 'mjsunit', 'variant': 'stress_sampling'},
       {'name': 'webkit', 'variant': 'stress_sampling'},
@@ -642,7 +642,7 @@
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'v8testing', 'shards': 5},
+      {'name': 'v8testing', 'shards': 8},
     ],
   },
   'v8_linux64_no_pointer_compression_rel': {
@@ -1572,9 +1572,9 @@
       {'name': 'mozilla'},
       {'name': 'mozilla', 'variant': 'extra'},
       {'name': 'optimize_for_size'},
-      {'name': 'test262', 'shards': 9},
-      {'name': 'test262', 'variant': 'extra', 'shards': 7},
-      {'name': 'v8testing', 'shards': 3},
+      {'name': 'test262', 'shards': 12},
+      {'name': 'test262', 'variant': 'extra', 'shards': 12},
+      {'name': 'v8testing', 'shards': 5},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 4},
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
@@ -1609,7 +1609,7 @@
         'name': 'v8testing',
         'suffix': 'noavx',
         'test_args': ['--extra-flags', '--noenable-avx'],
-        'shards': 3
+        'shards': 5
       },
       # Code serializer.
       {'name': 'benchmarks', 'variant': 'code_serializer', 'shards': 1},
@@ -1647,7 +1647,7 @@
     },
     'tests': [
       # Infra staging.
-      {'name': 'v8testing', 'variant': 'infra_staging', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'infra_staging', 'shards': 3},
       # Stress sampling.
       {'name': 'mjsunit', 'variant': 'stress_sampling'},
       {'name': 'webkit', 'variant': 'stress_sampling'},
@@ -1829,7 +1829,7 @@
       'priority': 35,
     },
     'tests': [
-      {'name': 'v8testing', 'shards': 2},
+      {'name': 'v8testing', 'shards': 4},
     ],
   },
   'V8 Linux64 - no pointer compression': {
@@ -1900,7 +1900,7 @@
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
     ],
   },
   'V8 Linux64 ASAN': {
