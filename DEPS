@@ -87,7 +87,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:29.20250824.3.1',
+  'fuchsia_version': 'version:29.20250901.2.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
@@ -130,7 +130,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd964efc5f27dcb8690921b9dc4a7780dce83695c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '71f8022b66936bfe33b3e795de29a38ade96816b',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '2ca9a5b96fbf0a4947d626454781e333b28e275a',
   'buildtools/linux64': {
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6b19831e3cfb16884a36b8045383594955712892',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '3f41e54ae17d53d4a39feecad64c3d3e6871b219',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -308,7 +308,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '92fb77dfd4d86aa120730359f5e4d6bb47f1c129',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '11725050a2e117625867ec45d70746bb78b170fd',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '46f8689c0b3999bd4b3a60adef01ceb3d8c0071f',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
