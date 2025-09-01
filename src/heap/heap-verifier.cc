@@ -148,8 +148,9 @@ void VerifyPointersVisitor::VerifyHeapObjectImpl(
   CHECK(IsValidHeapObject(heap_, heap_object));
 #if V8_STATIC_ROOTS_BOOL
   // In static roots builds, holes are unmapped in RO space -- skip verifying
-  // them.
-  if (HeapLayout::InReadOnlySpace(heap_object) && IsAnyHole(heap_object)) {
+  // them beyond the RO space check.
+  if (SafeIsAnyHole(heap_object)) {
+    CHECK(HeapLayout::InReadOnlySpace(heap_object));
     return;
   }
 #endif
