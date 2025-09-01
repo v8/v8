@@ -1053,7 +1053,6 @@ class WasmCapiFunction : public JSFunction {
   static DirectHandle<WasmCapiFunction> New(Isolate* isolate,
                                             Address call_target,
                                             DirectHandle<Foreign> embedder_data,
-                                            wasm::CanonicalTypeIndex sig_index,
                                             const wasm::CanonicalSig* sig);
 
   const wasm::CanonicalSig* sig() const;
@@ -1264,10 +1263,6 @@ class WasmCapiFunctionData
     : public TorqueGeneratedWasmCapiFunctionData<WasmCapiFunctionData,
                                                  WasmFunctionData> {
  public:
-  // Prefer to use this convenience wrapper of the Torque-generated
-  // {canonical_sig_index()}.
-  inline wasm::CanonicalTypeIndex sig_index() const;
-
   DECL_PRINTER(WasmCapiFunctionData)
 
   using BodyDescriptor =

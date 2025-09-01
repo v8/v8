@@ -159,8 +159,6 @@ extern class WasmJSFunctionData extends WasmFunctionData {
 }
 
 extern class WasmCapiFunctionData extends WasmFunctionData {
-  // TODO(jkummerow): Move {canonical_sig_index} into {WasmFunctionData}.
-  canonical_sig_index: Smi;
   embedder_data: Foreign;  // Managed<wasm::FuncData>
   sig: RawFunctionSigPtr;
 }

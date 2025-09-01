@@ -506,11 +506,6 @@ struct CastTraits<WasmJSFunction> {
   }
 };
 
-// WasmCapiFunctionData
-wasm::CanonicalTypeIndex WasmCapiFunctionData::sig_index() const {
-  return wasm::CanonicalTypeIndex{static_cast<uint32_t>(canonical_sig_index())};
-}
-
 // WasmCapiFunction
 WasmCapiFunction::WasmCapiFunction(Address ptr) : JSFunction(ptr) {
   SLOW_DCHECK(IsWasmCapiFunction(*this));
