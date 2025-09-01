@@ -2909,6 +2909,9 @@
   'regress/regress-12657': [SKIP],
   'regress/regress-678917': [SKIP],
   'maglev/regress-1407606': [SKIP],
+
+  # Slow tests.
+  'ignition/regress-672027': [PASS, SLOW],
 }],  # variant == conservative_stack_scanning
 
 ##############################################################################
