@@ -3542,6 +3542,71 @@ INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorS128HalfShuffleTest,
                          ::testing::ValuesIn(kHalfShuffles));
 
+namespace {
+
+struct I8x4ShuffleInst {
+  const char* constructor_name;
+  ArchOpcode first_arch_opcode;
+  ArchOpcode second_arch_opcode;
+  int lane_size;
+  const std::array<uint8_t, 4> shuffle;
+};
+
+std::ostream& operator<<(std::ostream& os, const I8x4ShuffleInst& inst) {
+  return os << inst.constructor_name
+            << (inst.lane_size > 0 ? "." + std::to_string(inst.lane_size) : "");
+}
+
+const I8x4ShuffleInst kDeinterleaveShuffles[] = {
+    {"Even, Even",
+     kArm64S128UnzipLeft,
+     kArm64S128UnzipLeft,
+     8,
+     {{0, 4, 8, 12}}},
+    {"Odd, Even",
+     kArm64S128UnzipRight,
+     kArm64S128UnzipLeft,
+     8,
+     {{1, 5, 9, 13}}},
+    {"Even, Odd",
+     kArm64S128UnzipLeft,
+     kArm64S128UnzipRight,
+     8,
+     {{2, 6, 10, 14}}},
+    {"Odd, Odd",
+     kArm64S128UnzipRight,
+     kArm64S128UnzipRight,
+     8,
+     {{3, 7, 11, 15}}},
+};
+
+}  // namespace
+
+using TurboshaftInstructionSelectorI8x4ShuffleTest =
+    TurboshaftInstructionSelectorTestWithParam<I8x4ShuffleInst>;
+
+TEST_P(TurboshaftInstructionSelectorI8x4ShuffleTest, S128Deinterleave4) {
+  const I8x4ShuffleInst inst = GetParam();
+  const MachineType type = MachineType::Simd128();
+  StreamBuilder m(this, type, type, type, type);
+  m.Return(m.Simd128Shuffle(m.Parameter(0), m.Parameter(1),
+                            Simd128ShuffleOp::Kind::kI8x4,
+                            inst.shuffle.data()));
+  Stream s = m.Build();
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(inst.first_arch_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(inst.lane_size, LaneSizeField::decode(s[0]->opcode()));
+  EXPECT_EQ(inst.second_arch_opcode, s[1]->arch_opcode());
+  EXPECT_EQ(inst.lane_size, LaneSizeField::decode(s[1]->opcode()));
+  EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[1]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[1]->InputAt(1)));
+  EXPECT_EQ(1U, s[0]->OutputCount());
+}
+
+INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
+                         TurboshaftInstructionSelectorI8x4ShuffleTest,
+                         ::testing::ValuesIn(kDeinterleaveShuffles));
+
 TEST_F(TurboshaftInstructionSelectorTest, ReverseShuffle32x4Test) {
   const MachineType type = MachineType::Simd128();
   {
