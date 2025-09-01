@@ -9298,9 +9298,14 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeStartsWith(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall()) return {};
-  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+
   ValueNode* search_element =
-      BuildToString(GetValueOrUndefined(args[0]), ToString::kThrowOnSymbol);
+      args[0] ? args[0] : GetRootConstant(RootIndex::kundefined_string);
+
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+
+  if (!NodeTypeIs(GetType(search_element), NodeType::kString)) return {};
+
   ValueNode* start_arg = GetValueOrUndefined(args[1]);
   ValueNode* start =
       IsUndefinedValue(start_arg) ? GetInt32Constant(0) : start_arg;
