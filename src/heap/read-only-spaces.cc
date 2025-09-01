@@ -43,7 +43,7 @@ ReadOnlyArtifacts::~ReadOnlyArtifacts() {
 void ReadOnlyArtifacts::Initialize(Isolate* isolate,
                                    std::vector<ReadOnlyPageMetadata*>&& pages,
                                    const AllocationStats& stats) {
-  page_allocator_ = isolate->isolate_group()->read_only_page_allocator();
+  page_allocator_ = isolate->isolate_group()->page_allocator();
   pages_ = std::move(pages);
   stats_ = stats;
   shared_read_only_space_ =

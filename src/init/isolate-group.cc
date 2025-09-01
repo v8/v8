@@ -181,20 +181,6 @@ void IsolateGroup::Initialize(bool process_wide, Sandbox* sandbox) {
   page_allocator_ = reservation_.page_allocator();
   pointer_compression_cage_ = &reservation_;
 
-#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
-  void* cage_base = reinterpret_cast<void*>(reservation_.base());
-  const void* read_only_reservation_start = page_allocator_->AllocatePages(
-      cage_base, kContiguousReadOnlyReservationSize,
-      MemoryChunk::GetAlignmentForAllocation(),
-      PageAllocator::Permission::kNoAccess);
-  CHECK_EQ(read_only_reservation_start, cage_base);
-  read_only_page_allocator_ = std::make_unique<v8::base::BoundedPageAllocator>(
-      page_allocator_, reinterpret_cast<Address>(read_only_reservation_start),
-      kContiguousReadOnlyReservationSize, kRegularPageSize,
-      base::PageInitializationMode::kAllocatedPagesCanBeUninitialized,
-      base::PageFreeingMode::kMakeInaccessible);
-#endif  // CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
-
   if (!trusted_range_.InitReservation(kMaximalTrustedRangeSize)) {
     V8::FatalProcessOutOfMemory(
         nullptr, "Failed to reserve virtual memory for TrustedRange");
@@ -226,21 +212,6 @@ void IsolateGroup::Initialize(bool process_wide) {
         "pointer compression cage");
   }
   page_allocator_ = reservation_.page_allocator();
-
-#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
-  void* cage_base = reinterpret_cast<void*>(reservation_.base());
-  const void* read_only_reservation_start = page_allocator_->AllocatePages(
-      cage_base, kContiguousReadOnlyReservationSize,
-      MemoryChunk::GetAlignmentForAllocation(),
-      PageAllocator::Permission::kNoAccess);
-  CHECK_EQ(read_only_reservation_start, cage_base);
-  read_only_page_allocator_ = std::make_unique<v8::base::BoundedPageAllocator>(
-      page_allocator_, reinterpret_cast<Address>(read_only_reservation_start),
-      kContiguousReadOnlyReservationSize, kRegularPageSize,
-      base::PageInitializationMode::kAllocatedPagesCanBeUninitialized,
-      base::PageFreeingMode::kMakeInaccessible);
-#endif  // CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
-
   pointer_compression_cage_ = &reservation_;
   trusted_pointer_compression_cage_ = &reservation_;
   optimizing_compile_task_executor_ =
