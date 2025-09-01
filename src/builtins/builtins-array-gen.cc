@@ -887,16 +887,19 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
       return_found(this), return_not_found(this);
 
   GotoIfNot(TaggedIsSmi(search_element), &not_smi);
-  search_num = SmiToFloat64(CAST(search_element));
+  search_num = SmiToFloat64(UncheckedCast<Smi>(search_element));
   Goto(&heap_num_loop);
 
   BIND(&not_smi);
+  TNode<HeapObject> ho_search_element =
+      UncheckedCast<HeapObject>(search_element);
   if (variant == kIncludes) {
-    GotoIf(IsUndefined(search_element), &undef_loop);
+    GotoIf(IsUndefined(ho_search_element), &undef_loop);
   }
-  TNode<Map> map = LoadMap(CAST(search_element));
+  TNode<Map> map = LoadMap(ho_search_element);
   GotoIfNot(IsHeapNumberMap(map), &not_heap_num);
-  search_num = LoadHeapNumberValue(CAST(search_element));
+  search_num =
+      LoadHeapNumberValue(UncheckedCast<HeapNumber>(ho_search_element));
   Goto(&heap_num_loop);
 
   BIND(&not_heap_num);
@@ -999,11 +1002,12 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
              &return_found, &continue_loop);
 
       BIND(&element_k_not_smi);
-      GotoIf(IsTheHole(element_k), &continue_loop);
-      GotoIfNot(IsHeapNumber(CAST(element_k)), &continue_loop);
-      Branch(Float64Equal(search_num.value(),
-                          LoadHeapNumberValue(CAST(element_k))),
-             &return_found, &continue_loop);
+      TNode<HeapObject> ho_element_k = UncheckedCast<HeapObject>(element_k);
+      GotoIf(IsTheHole(ho_element_k), &continue_loop);
+      GotoIfNot(IsHeapNumber(ho_element_k), &continue_loop);
+      Branch(
+          Float64Equal(search_num.value(), LoadHeapNumberValue(ho_element_k)),
+          &return_found, &continue_loop);
 
       BIND(&continue_loop);
       Increment(&index_var);
@@ -1019,9 +1023,10 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
       TNode<Object> element_k =
           UnsafeLoadFixedArrayElement(elements, index_var.value());
       GotoIf(TaggedIsSmi(element_k), &continue_loop);
-      GotoIf(IsTheHole(element_k), &continue_loop);
-      GotoIfNot(IsHeapNumber(CAST(element_k)), &continue_loop);
-      BranchIfFloat64IsNaN(LoadHeapNumberValue(CAST(element_k)), &return_found,
+      TNode<HeapObject> ho_element_k = UncheckedCast<HeapObject>(element_k);
+      GotoIf(IsTheHole(ho_element_k), &continue_loop);
+      GotoIfNot(IsHeapNumber(ho_element_k), &continue_loop);
+      BranchIfFloat64IsNaN(LoadHeapNumberValue(ho_element_k), &return_found,
                            &continue_loop);
 
       BIND(&continue_loop);
@@ -1044,17 +1049,19 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
     TNode<Object> element_k =
         UnsafeLoadFixedArrayElement(elements, index_var.value());
     GotoIf(TaggedIsSmi(element_k), &continue_loop);
-    GotoIf(TaggedEqual(search_element_string, element_k), &return_found);
-    GotoIf(IsTheHole(element_k), &continue_loop);
-    TNode<Uint16T> element_k_type = LoadInstanceType(CAST(element_k));
+    TNode<HeapObject> ho_element_k = UncheckedCast<HeapObject>(element_k);
+    GotoIf(TaggedEqual(search_element_string, ho_element_k), &return_found);
+    GotoIf(IsTheHole(ho_element_k), &continue_loop);
+    TNode<Uint16T> element_k_type = LoadInstanceType(ho_element_k);
     GotoIfNot(IsStringInstanceType(element_k_type), &continue_loop);
-    Branch(IntPtrEqual(search_length, LoadStringLengthAsWord(CAST(element_k))),
+    TNode<String> string_element_k = UncheckedCast<String>(ho_element_k);
+    Branch(IntPtrEqual(search_length, LoadStringLengthAsWord(string_element_k)),
            &slow_compare, &continue_loop);
 
     BIND(&slow_compare);
     StringBuiltinsAssembler string_asm(state());
     string_asm.StringEqual_Core(search_element_string, search_type,
-                                CAST(element_k), element_k_type, search_length,
+                                string_element_k, element_k_type, search_length,
                                 &return_found, &continue_loop, &runtime);
     BIND(&runtime);
     TNode<Object> result = CallRuntime(Runtime::kStringEqual, context,
@@ -1075,8 +1082,9 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
         UnsafeLoadFixedArrayElement(elements, index_var.value());
     Label continue_loop(this);
     GotoIf(TaggedIsSmi(element_k), &continue_loop);
-    GotoIf(IsTheHole(element_k), &continue_loop);
-    GotoIfNot(IsBigInt(CAST(element_k)), &continue_loop);
+    TNode<HeapObject> ho_element_k = UncheckedCast<HeapObject>(element_k);
+    GotoIf(IsTheHole(ho_element_k), &continue_loop);
+    GotoIfNot(IsBigInt(ho_element_k), &continue_loop);
     TNode<Object> result = CallRuntime(Runtime::kBigIntEqualToBigInt, context,
                                        search_element, element_k);
     Branch(TaggedEqual(result, TrueConstant()), &return_found, &continue_loop);
