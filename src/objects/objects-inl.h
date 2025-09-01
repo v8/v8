@@ -175,28 +175,47 @@ IS_TYPE_FUNCTION_DEF(UndefinedContextCell, undefined_context_cell,
                      UndefinedContextCell)
 #undef IS_TYPE_FUNCTION_DEF
 
-bool IsAnyHole(Tagged<HeapObject> obj) {
+namespace detail {
 #if V8_STATIC_ROOTS_BOOL
 #define GET_HOLE_ROOT(Type, Value, CamelName) StaticReadOnlyRoot::k##CamelName,
-  constexpr Tagged_t kMinHole = std::min({HOLE_LIST(GET_HOLE_ROOT)});
-  constexpr Tagged_t kMaxHole = std::max({HOLE_LIST(GET_HOLE_ROOT)});
+constexpr Tagged_t kMinStaticHoleValue = std::min({HOLE_LIST(GET_HOLE_ROOT)});
+constexpr Tagged_t kMaxStaticHoleValue = std::max({HOLE_LIST(GET_HOLE_ROOT)});
 #undef GET_HOLE_ROOT
-#ifdef DEBUG
-  // Compressed object tests need to be done on a matching compression scheme.
-  // We allow trusted space comparisons, because the first 1MB is unmapped there
-  // anyway, so no trusted object can alias a hole.
-  if (!obj.IsInMainCageBase()) {
-    DCHECK(obj.IsInTrustedCageBase());
-    DCHECK_GT(TrustedSpaceCompressionScheme::CompressObject(obj.ptr()),
-              kMaxHole);
-  }
 #endif
+
+// Helper for IsAnyHole and SafeIsAnyHole which doesn't check whether we're
+// doing a sane comparison for the space of the object -- callers are expected
+// to verify the space of the object, either before or after this call.
+inline bool IsAnyHoleNoSpaceCheck(Tagged<HeapObject> obj) {
+#if V8_STATIC_ROOTS_BOOL
   // Use a direct cast to Tagged_t rather than CompressObject to allow
-  // TrustedSpace comparisons in here.
-  return base::IsInRange(static_cast<Tagged_t>(obj.ptr()), kMinHole, kMaxHole);
+  // space-indepenedent comparisons in here.
+  return base::IsInRange(static_cast<Tagged_t>(obj.ptr()), kMinStaticHoleValue,
+                         kMaxStaticHoleValue);
 #else
   return obj->map()->instance_type() == HOLE_TYPE;
 #endif
+}
+}  // namespace detail
+
+bool IsAnyHole(Tagged<HeapObject> obj) {
+  if (detail::IsAnyHoleNoSpaceCheck(obj)) {
+#if defined(DEBUG) && V8_STATIC_ROOTS_BOOL
+    // Compressed object tests need to be done on a matching compression scheme.
+    // We allow trusted space comparisons, because the first 1MB is unmapped
+    // there anyway, so no trusted object can alias a hole.
+    //
+    // Only check this after the hole check succeeds, to make it cheaper in the
+    // common case that things aren't holes.
+    if (V8_UNLIKELY(!obj.IsInMainCageBase())) {
+      DCHECK(obj.IsInTrustedCageBase());
+      DCHECK_GT(TrustedSpaceCompressionScheme::CompressObject(obj.ptr()),
+                detail::kMaxStaticHoleValue);
+    }
+#endif
+    return true;
+  }
+  return false;
 }
 
 bool IsAnyHole(Tagged<HeapObject> obj, PtrComprCageBase) {
@@ -204,10 +223,15 @@ bool IsAnyHole(Tagged<HeapObject> obj, PtrComprCageBase) {
 }
 
 bool SafeIsAnyHole(Tagged<HeapObject> obj) {
+  if (detail::IsAnyHoleNoSpaceCheck(obj)) {
 #if V8_STATIC_ROOTS_BOOL
-  if (!obj.IsInMainCageBase()) return false;
+    // Only check this after the hole check succeeds, to make it cheaper in the
+    // common case that things aren't holes.
+    if (!obj.IsInMainCageBase()) return false;
 #endif
-  return IsAnyHole(obj);
+    return true;
+  }
+  return false;
 }
 
 bool SafeIsAnyHole(Tagged<Object> obj) {
