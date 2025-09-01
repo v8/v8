@@ -5,6 +5,7 @@
 #include "src/maglev/maglev-assembler.h"
 
 #include "src/builtins/builtins-inl.h"
+#include "src/codegen/external-reference.h"
 #include "src/codegen/reglist.h"
 #include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-code-generator.h"
@@ -710,6 +711,13 @@ void MaglevAssembler::TryMigrateInstanceAndMarkMapAsMigrationTarget(
   Move(kContextRegister, native_context().object());
   CallRuntime(Runtime::kTryMigrateInstanceAndMarkMapAsMigrationTarget);
   save_register_state.DefineSafepoint();
+}
+
+void MaglevAssembler::ResetLastYoungAllocation() {
+  DCHECK(v8_flags.verify_write_barriers);
+  ExternalReference last_young_allocation_address =
+      ExternalReference::last_young_allocation_address(isolate_);
+  Move(last_young_allocation_address, 0);
 }
 
 }  // namespace maglev

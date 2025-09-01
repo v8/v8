@@ -639,6 +639,12 @@ void MaglevAssembler::MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
                                                  size_t lazy_deopt_count,
                                                  Label* lazy_deopt_entry) {}
 
+void MaglevAssembler::Move(ExternalReference dst, int32_t imm) {
+  TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  movq(ExternalReferenceAsOperand(dst, scratch), Immediate(imm));
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

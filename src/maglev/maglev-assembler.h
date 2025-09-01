@@ -460,6 +460,8 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void Move(DoubleRegister dst, Float64 n);
   inline void Move(Register dst, Handle<HeapObject> obj);
 
+  void Move(ExternalReference dst, int32_t imm);
+
   inline void MoveTagged(Register dst, Handle<HeapObject> obj);
 
   inline void LoadMapForCompare(Register dst, Register obj);
@@ -818,6 +820,8 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
 
   void TryMigrateInstanceAndMarkMapAsMigrationTarget(
       Register object, RegisterSnapshot& register_snapshot);
+
+  void ResetLastYoungAllocation();
 
   compiler::NativeContextRef native_context() const {
     return code_gen_state()->broker()->target_native_context();

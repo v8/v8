@@ -7981,6 +7981,11 @@ void HandleNoHeapWritesInterrupt::GenerateCode(MaglevAssembler* masm,
       },
       done, this);
 
+  // The safepoint/interrupt might trigger GC.
+  if (v8_flags.verify_write_barriers) {
+    __ ResetLastYoungAllocation();
+  }
+
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register scratch = temps.AcquireScratch();
   MemOperand check = __ ExternalReferenceAsOperand(
