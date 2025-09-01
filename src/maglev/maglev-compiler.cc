@@ -101,7 +101,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                    "V8.Maglev.GraphBuilding");
       MaglevGraphBuilder graph_builder(
           local_isolate, compilation_info->toplevel_compilation_unit(), graph);
-      graph_builder.Build();
+      if (!graph_builder.Build()) return false;
       PrintGraph(graph, v8_flags.print_maglev_graphs, "After graph building");
       VerifyGraph(graph);
     }
@@ -110,7 +110,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.Maglev.Inlining");
       MaglevInliner inliner(graph);
-      inliner.Run();
+      if (!inliner.Run()) return false;
       // TODO(victorgomes): We need to remove all identity nodes before
       // PhiRepresentationSelector. Since Identity has different semantics
       // there. Check if we can remove the identity nodes during

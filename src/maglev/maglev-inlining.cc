@@ -66,8 +66,8 @@ bool MaglevInliner::IsSmallWithHeapNumberInputsOutputs(
          max_inlined_bytecode_size_small_with_heapnum_in_out();
 }
 
-void MaglevInliner::Run() {
-  if (graph_->inlineable_calls().empty()) return;
+bool MaglevInliner::Run() {
+  if (graph_->inlineable_calls().empty()) return true;
 
   while (!graph_->inlineable_calls().empty()) {
     MaglevCallSiteInfo* call_site = ChooseNextCallSite();
@@ -100,10 +100,12 @@ void MaglevInliner::Run() {
       }
     }
 
-    TRACE("> Inlining!");
-    MaybeReduceResult result =
+    InliningResult result =
         BuildInlineFunction(call_site, is_small_with_heapnum_input_outputs);
-    if (result.IsFail()) continue;
+    if (result == InliningResult::kAbort) return false;
+    if (result == InliningResult::kFail) continue;
+    DCHECK_EQ(result, InliningResult::kDone);
+
     // If --trace-maglev-inlining-verbose, we print the graph after each
     // inlining step/call.
     if (V8_UNLIKELY(v8_flags.print_maglev_graphs && is_tracing_enabled())) {
@@ -147,6 +149,8 @@ void MaglevInliner::Run() {
     std::cout << "\nAfter inlining" << std::endl;
     PrintGraph(std::cout, graph_);
   }
+
+  return true;
 }
 
 int MaglevInliner::max_inlined_bytecode_size_cumulative() const {
@@ -177,7 +181,7 @@ MaglevCallSiteInfo* MaglevInliner::ChooseNextCallSite() {
   return call_site;
 }
 
-MaybeReduceResult MaglevInliner::BuildInlineFunction(
+MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
     MaglevCallSiteInfo* call_site, bool is_small) {
   CallKnownJSFunction* call_node = call_site->generic_call_node;
   BasicBlock* call_block = call_node->owner();
@@ -190,7 +194,7 @@ MaybeReduceResult MaglevInliner::BuildInlineFunction(
   if (!call_block || call_block->is_dead()) {
     // The block containing the call is unreachable, and it was previously
     // removed. Do not try to inline the call.
-    return ReduceResult::Fail();
+    return InliningResult::kFail;
   }
 
   if (V8_UNLIKELY(v8_flags.trace_maglev_inlining && is_tracing_enabled())) {
@@ -278,6 +282,10 @@ MaybeReduceResult MaglevInliner::BuildInlineFunction(
       call_node->new_target().node()->Unwrap());
 
   if (result.IsDoneWithAbort()) {
+    if (inner_graph_builder.should_abort_compilation()) {
+      return InliningResult::kAbort;
+    }
+
     // Since the rest of the block is dead, these nodes don't belong
     // to any basic block anymore.
     for (auto node : rem_nodes_in_call_block) {
@@ -292,7 +300,7 @@ MaybeReduceResult MaglevInliner::BuildInlineFunction(
     // remove unreachable blocks, but only the successors of control_node in
     // saved_bbs.
     RemoveUnreachableBlocks();
-    return result;
+    return InliningResult::kDone;
   }
 
   DCHECK(result.IsDoneWithValue());
@@ -336,7 +344,7 @@ MaybeReduceResult MaglevInliner::BuildInlineFunction(
     RemoveUnreachableBlocks();
   }
 
-  return ReduceResult::Done();
+  return InliningResult::kDone;
 }
 
 std::vector<BasicBlock*> MaglevInliner::TruncateGraphAt(BasicBlock* block) {

@@ -101,7 +101,7 @@ class MaglevGraphBuilder {
                               Graph* graph,
                               MaglevCallerDetails* caller_details = nullptr);
 
-  void Build();
+  bool Build();
 
   ReduceResult BuildInlineFunction(SourcePosition call_site_position,
                                    ValueNode* context, ValueNode* function,
@@ -215,6 +215,8 @@ class MaglevGraphBuilder {
   uint32_t NewObjectId() { return graph_->NewObjectId(); }
 
   bool is_turbolev() const { return is_turbolev_; }
+
+  bool should_abort_compilation() const { return should_abort_compilation_; }
 
   bool is_non_eager_inlining_enabled() const {
     if (is_turbolev()) {
@@ -1897,7 +1899,12 @@ class MaglevGraphBuilder {
     DCHECK_IMPLIES(merge_states_[offset],
                    merge_states_[offset]->predecessor_count() ==
                        predecessor_count_[offset] + diff);
-    predecessor_count_[offset] += diff;
+    uint32_t updated_pred_count = predecessor_count_[offset] + diff;
+    if (updated_pred_count > NodeBase::kMaxInputs) {
+      should_abort_compilation_ = true;
+      return;
+    }
+    predecessor_count_[offset] = updated_pred_count;
   }
   uint32_t predecessor_count(uint32_t offset) {
     DCHECK_LE(offset, bytecode().length());
@@ -1973,6 +1980,7 @@ class MaglevGraphBuilder {
   ValueNode* inlined_new_target_ = nullptr;
 
   bool is_turbolev_ = false;
+  bool should_abort_compilation_ = false;
 
   // Bytecode offset at which compilation should start.
   int entrypoint_;

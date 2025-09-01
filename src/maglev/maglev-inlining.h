@@ -38,16 +38,16 @@ class MaglevInliner {
  public:
   explicit MaglevInliner(Graph* graph) : graph_(graph) {}
 
-  void Run();
+  bool Run();
 
  private:
+  Graph* graph_;
+
   int max_inlined_bytecode_size_cumulative() const;
   int max_inlined_bytecode_size_small_total() const;
   int max_inlined_bytecode_size_small_with_heapnum_in_out() const;
 
   bool IsSmallWithHeapNumberInputsOutputs(MaglevCallSiteInfo* call_site) const;
-
-  Graph* graph_;
 
   compiler::JSHeapBroker* broker() const { return graph_->broker(); }
   Zone* zone() const { return graph_->zone(); }
@@ -55,8 +55,14 @@ class MaglevInliner {
   bool is_tracing_enabled() const { return graph_->is_tracing_enabled(); }
 
   MaglevCallSiteInfo* ChooseNextCallSite();
-  MaybeReduceResult BuildInlineFunction(MaglevCallSiteInfo* call_site,
-                                        bool is_small);
+
+  enum class InliningResult {
+    kDone,
+    kFail,
+    kAbort,
+  };
+  InliningResult BuildInlineFunction(MaglevCallSiteInfo* call_site,
+                                     bool is_small);
 
   // Truncates the graph at the given basic block `block`.  All blocks
   // following `block` (exclusive) are removed from the graph and returned.

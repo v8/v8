@@ -6415,13 +6415,13 @@ void PrintMaglevGraph(PipelineData& data,
 // SimplifiedLowering, but is much less powerful (doesn't take truncations into
 // account, doesn't do proper range analysis, doesn't run a fixpoint
 // analysis...).
-void RunMaglevOptimizations(PipelineData* data,
+bool RunMaglevOptimizations(PipelineData* data,
                             maglev::MaglevCompilationInfo* compilation_info,
                             maglev::Graph* maglev_graph) {
   // Non-eager inlining.
   if (v8_flags.turbolev_non_eager_inlining) {
     maglev::MaglevInliner inliner(maglev_graph);
-    inliner.Run();
+    if (inliner.Run()) return false;
 
     maglev::GraphProcessor<maglev::SweepIdentityNodes,
                            /* visit_identity_nodes */ true>
@@ -6481,6 +6481,8 @@ void RunMaglevOptimizations(PipelineData* data,
     PrintMaglevGraph(*data, maglev_graph,
                      "After escape analysis and dead node sweeping");
   }
+
+  return true;
 }
 
 std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(PipelineData* data,
@@ -6519,13 +6521,17 @@ std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(PipelineData* data,
   maglev::MaglevGraphBuilder maglev_graph_builder(
       local_isolate, compilation_info->toplevel_compilation_unit(),
       maglev_graph);
-  maglev_graph_builder.Build();
+  if (!maglev_graph_builder.Build()) {
+    return BailoutReason::kMaglevGraphBuildingFailed;
+  }
 
   if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
     PrintMaglevGraph(*data, maglev_graph, "After graph building");
   }
 
-  RunMaglevOptimizations(data, compilation_info.get(), maglev_graph);
+  if (!RunMaglevOptimizations(data, compilation_info.get(), maglev_graph)) {
+    return BailoutReason::kMaglevGraphBuildingFailed;
+  }
 
   // TODO(nicohartmann): Should we have source positions here?
   data->InitializeGraphComponent(nullptr);
