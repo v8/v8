@@ -738,7 +738,6 @@ OpIndex GraphBuilder::Process(
       CHECK_EQ(
           convert_op->input_assumptions,
           ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball);
-      CHECK_EQ(node->InputAt(0)->UseCount(), 1);
       return input;
     }
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
