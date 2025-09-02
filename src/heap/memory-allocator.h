@@ -388,7 +388,7 @@ class MemoryAllocator final {
   //
   // Set of regular pages that are delayed then pool. Delayed pages can be
   // immediately reused for allocations.
-  std::vector<MutablePageMetadata*> delayed_then_pooled_pages_;
+  std::vector<PageMetadata*> delayed_then_pooled_pages_;
   // Set of large delayed then pooled pages. Delayed pages cannot be reused (not
   // implemented).
   std::vector<LargePageMetadata*> delayed_then_pooled_large_pages_;

@@ -52,7 +52,7 @@ MemoryChunkMetadata::MemoryChunkMetadata(Heap* heap, BaseSpace* space,
 MemoryChunkMetadata::~MemoryChunkMetadata() {
 #ifdef V8_ENABLE_SANDBOX
   MemoryChunk::ClearMetadataPointer(this);
-#endif
+#endif  // V8_ENABLE_SANDBOX
 }
 
 #ifdef THREAD_SANITIZER

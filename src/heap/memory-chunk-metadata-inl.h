@@ -10,8 +10,7 @@
 
 #include "src/heap/memory-chunk-inl.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 // static
 MemoryChunkMetadata* MemoryChunkMetadata::FromAddress(const Isolate* i,
@@ -44,18 +43,6 @@ void MemoryChunkMetadata::UpdateHighWaterMark(Address mark) {
   }
 }
 
-AllocationSpace MemoryChunkMetadata::owner_identity() const {
-  {
-    AllowSandboxAccess temporary_sandbox_access;
-    DCHECK_EQ(owner() == nullptr, Chunk()->InReadOnlySpace());
-  }
-  if (!owner()) {
-    return RO_SPACE;
-  }
-  return owner()->identity();
-}
-
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_HEAP_MEMORY_CHUNK_METADATA_INL_H_
