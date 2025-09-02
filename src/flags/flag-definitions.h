@@ -1683,6 +1683,10 @@ DEFINE_BOOL(turboshaft_trace_load_elimination, false,
             "trace Turboshaft's late load elimination")
 DEFINE_BOOL(turboshaft_trace_if_else_to_switch, false,
             "trace Turboshaft's if-else to switch reducer")
+
+DEFINE_BOOL(trace_turbolev_graph_building, false,
+            "trace the translation from Maglev to Turboshaft in Turbolev")
+DEFINE_IMPLICATION(trace_turbolev_graph_building, turboshaft_trace_emitted)
 #else
 DEFINE_BOOL_READONLY(turboshaft_trace_reduction, false,
                      "trace individual Turboshaft reduction steps")

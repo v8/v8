@@ -10,6 +10,7 @@
 #include <type_traits>
 
 #include "src/base/logging.h"
+#include "src/base/macros.h"
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
 #include "src/codegen/bailout-reason.h"
@@ -64,6 +65,17 @@
 #include "src/zone/zone-containers.h"
 
 namespace v8::internal::compiler::turboshaft {
+
+#ifdef DEBUG
+#define TRACE(x)                                               \
+  do {                                                         \
+    if (V8_UNLIKELY(v8_flags.trace_turbolev_graph_building)) { \
+      StdoutStream() << x << std::endl;                        \
+    }                                                          \
+  } while (false)
+#else
+#define TRACE(x)
+#endif
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
@@ -579,6 +591,8 @@ class GraphBuildingNodeProcessor {
   void PostProcessBasicBlock(maglev::BasicBlock* maglev_block) {}
   maglev::BlockProcessResult PreProcessBasicBlock(
       maglev::BasicBlock* maglev_block) {
+    TRACE("\nMaglev block: b" << maglev_block->id());
+
     // Note that it's important to call SetMaglevInputBlock before calling Bind,
     // so that BlockOriginTrackingReducer::Bind records the correct predecessor
     // for the current block.
@@ -6358,11 +6372,15 @@ class NodeProcessorBase : public GraphBuildingNodeProcessor {
   template <typename NodeT>
   maglev::ProcessResult Process(NodeT* node,
                                 const maglev::ProcessingState& state) {
+    TRACE("> " << maglev::PrintNodeLabel(node) << " : "
+               << maglev::PrintNode(node));
+
     if (GraphBuildingNodeProcessor::Asm().generating_unreachable_operations()) {
       // It doesn't matter much whether we return kRemove or kContinue here,
       // since we'll be done with the Maglev graph anyway once this phase is
       // over. Maglev currently doesn't support kRemove for control nodes, so we
       // just return kContinue for simplicity.
+      TRACE("skipped (unreachable)");
       return maglev::ProcessResult::kContinue;
     }
 
