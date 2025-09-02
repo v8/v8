@@ -188,6 +188,7 @@
   'wasm/compare-exchange64-stress': [PASS, SLOW, NO_VARIANTS],
   'wasm/code-space-overflow': [PASS, SLOW, NO_VARIANTS, ['gc_stress == True or (simulator_run and mode == debug)', SKIP]],
   'wasm/max-wasm-functions': [PASS, SLOW, ['mode != release or dcheck_always_on or simulator_run or verify_predictable', SKIP], ['tsan', SKIP]],
+  'wasm/wasm-interpreter': [PASS, SLOW],
 
   # Very slow on ARM, MIPS, RISCV and LOONG, contains no architecture dependent code.
   'unicode-case-overoptimization0': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mips64el, mips64, riscv64, riscv32, loong64)', SKIP]],
@@ -455,7 +456,6 @@
   'regress/asm/regress-775710': [PASS, SLOW],
   'regress/regress-crbug-820312': [PASS, SLOW],
   'regress/regress-904275': [PASS, SLOW],
-  'wasm/wasm-interpreter': [PASS, SLOW],
 
   # BUG(v8:7880): Slow tests.
   'regress/regress-707066': [SKIP],
@@ -2069,8 +2069,12 @@
 
   # Other slow tests:
   'compiler/regress-crbug-1520697': [SKIP],
-  'regress/regress-1449567': [SKIP],
   'maglev/regress-432847895': [SKIP],
+  'regress/regress-1449567': [SKIP],
+  'regress/regress-crbug-1209152': [SKIP],
+  'regress/regress-crbug-1191886': [SKIP],
+  'wasm/multi-memory': [SKIP],
+  'wasm/wasm-interpreter': [SKIP],
 }],  # variant in (nooptimization, jitless) and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################

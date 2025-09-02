@@ -56,29 +56,28 @@
       {'name': 'benchmarks', 'variant': 'extra'},
       {'name': 'mozilla'},
       {'name': 'mozilla', 'variant': 'extra'},
-      {'name': 'test262', 'variant': 'default', 'shards': 2},
-      {'name': 'test262', 'variant': 'future', 'shards': 2},
-      {'name': 'test262', 'variant': 'extra', 'shards': 7},
-      {'name': 'v8testing', 'shards': 4},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 4},
+      {'name': 'test262', 'variant': 'default', 'shards': 4},
+      {'name': 'test262', 'variant': 'future', 'shards': 4},
+      {'name': 'v8testing', 'shards': 6},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
       # Noavx.
       {
         'name': 'mozilla',
         'suffix': 'noavx',
-        'test_args': ['--extra-flags', '--noenable-avx']
+        'test_args': ['--extra-flags', '--noenable-avx'],
       },
       {
         'name': 'test262',
         'suffix': 'noavx',
         'variant': 'default',
         'test_args': ['--extra-flags', '--noenable-avx'],
-        'shards': 2
+        'shards': 4,
       },
       {
         'name': 'v8testing',
         'suffix': 'noavx',
         'test_args': ['--extra-flags', '--noenable-avx'],
-        'shards': 4
+        'shards': 6,
       },
       # Nosse3.
       {
@@ -88,7 +87,7 @@
           '--extra-flags',
           '--noenable-sse3 --noenable-ssse3 --noenable-sse4-1 --noenable-avx',
         ],
-        'shards': 4,
+        'shards': 6,
       },
     ],
   },
@@ -156,7 +155,6 @@
       {'name': 'mozilla', 'variant': 'extra'},
       {'name': 'optimize_for_size'},
       {'name': 'test262', 'shards': 4},
-      {'name': 'test262', 'variant': 'extra', 'shards': 6},
       {'name': 'v8testing', 'shards': 4},
       {'name': 'v8testing', 'suffix': 'isolates', 'test_args': ['--isolates'], 'shards': 4},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 4},
@@ -417,11 +415,10 @@
       {'name': 'benchmarks', 'variant': 'extra', 'shards': 2},
       {'name': 'mozilla'},
       {'name': 'mozilla', 'variant': 'extra'},
-      {'name': 'test262', 'variant': 'default', 'shards': 3},
-      {'name': 'test262', 'variant': 'future', 'shards': 3},
-      {'name': 'test262', 'variant': 'extra', 'shards': 16},
+      {'name': 'test262', 'variant': 'default', 'shards': 4},
+      {'name': 'test262', 'variant': 'future', 'shards': 4},
       {'name': 'v8testing', 'shards': 8},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 5},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 7},
       {'name': 'v8testing', 'variant': 'minor_ms', 'shards': 2},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning', 'shards': 2},
       {'name': 'v8testing', 'variant': 'precise_pinning', 'shards': 2},
@@ -439,9 +436,9 @@
       {'name': 'v8testing', 'variant': 'turbolev', 'shards': 2},
       # Code serializer.
       {'name': 'benchmarks', 'variant': 'code_serializer', 'shards': 1},
-      {'name': 'd8testing', 'variant': 'code_serializer', 'shards': 1},
+      {'name': 'd8testing', 'variant': 'code_serializer', 'shards': 2},
       {'name': 'mozilla', 'variant': 'code_serializer', 'shards': 1},
-      {'name': 'test262', 'variant': 'code_serializer', 'shards': 5},
+      {'name': 'test262', 'variant': 'code_serializer', 'shards': 6},
       # GC stress
       {
         'name': 'd8testing',
@@ -713,7 +710,7 @@
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'v8testing', 'shards': 5},
+      {'name': 'v8testing', 'shards': 7},
     ],
   },
   'v8_linux64_sticky_mark_bits_dbg': {
@@ -735,7 +732,6 @@
       {'name': 'mozilla', 'shards': 1},
       {'name': 'optimize_for_size'},
       {'name': 'test262', 'shards': 6},
-      {'name': 'test262', 'variant': 'extra', 'shards': 6},
       {'name': 'v8initializers'},
       {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
@@ -1075,9 +1071,9 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262', 'variant': 'default', 'shards': 4},
-      {'name': 'v8testing', 'shards': 6},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
+      {'name': 'test262', 'variant': 'default', 'shards': 6},
+      {'name': 'v8testing', 'shards': 8},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 8},
       {'name': 'v8testing', 'variant': 'minor_ms', 'shards': 2},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning', 'shards': 2},
       {'name': 'v8testing', 'variant': 'precise_pinning', 'shards': 2},
@@ -1144,7 +1140,7 @@
       'pool': 'chromium.tests',
     },
     'tests': [
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
       {'name': 'mjsunit', 'variant': 'stress_maglev_tests_with_turbofan'},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'v8testing', 'variant': 'maglev'},
@@ -1292,7 +1288,7 @@
         'name': 'v8testing',
         'suffix': 'isolates',
         'test_args': ['--isolates'],
-        'shards': 4
+        'shards': 6,
       },
       {'name': 'v8testing', 'variant': 'extra', 'shards': 4},
       # Nosse3.
@@ -1603,7 +1599,7 @@
         'suffix': 'noavx',
         'variant': 'default',
         'test_args': ['--extra-flags', '--noenable-avx'],
-        'shards': 2
+        'shards': 3
       },
       {
         'name': 'v8testing',
@@ -1615,7 +1611,7 @@
       {'name': 'benchmarks', 'variant': 'code_serializer', 'shards': 1},
       {'name': 'd8testing', 'variant': 'code_serializer', 'shards': 1},
       {'name': 'mozilla', 'variant': 'code_serializer', 'shards': 1},
-      {'name': 'test262', 'variant': 'code_serializer', 'shards': 3},
+      {'name': 'test262', 'variant': 'code_serializer', 'shards': 4},
       # Jit fuzzing.
       {'name': 'mjsunit', 'variant': 'jit_fuzzing'},
       {'name': 'mjsunit', 'variant': 'jit_fuzzing_maglev'},
@@ -1630,7 +1626,7 @@
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'benchmarks', 'variant': 'minor_ms'},
       {'name': 'mozilla', 'variant': 'minor_ms'},
-      {'name': 'test262', 'variant': 'minor_ms', 'shards': 2},
+      {'name': 'test262', 'variant': 'minor_ms', 'shards': 3},
     ],
   },
   'V8 Linux64 - disable runtime call stats': {
@@ -2156,7 +2152,7 @@
       'pool': 'chromium.tests',
     },
     'tests': [
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
     ],
   },
   'V8 Win32': {
@@ -2423,7 +2419,7 @@
     },
     'tests': [
       {'name': 'mozilla', 'shards': 2},
-      {'name': 'test262', 'variant': 'default', 'shards': 2},
+      {'name': 'test262', 'variant': 'default', 'shards': 3},
       {'name': 'v8testing', 'shards': 12},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 14},
       {
@@ -2448,7 +2444,7 @@
       {
         'name': 'd8testing',
         'test_args': ['--gc-stress', '--extra-flags=--verify-heap-skip-remembered-set'],
-        'shards': 7
+        'shards': 12
       },
     ],
   },
@@ -2584,7 +2580,7 @@
       'priority': 35,
     },
     'tests': [
-      {'name': 'v8testing', 'shards': 7},
+      {'name': 'v8testing', 'shards': 8},
     ],
   },
   ##############################################################################
