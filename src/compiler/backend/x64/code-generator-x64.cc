@@ -1619,35 +1619,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchCallJSFunction: {
+      Register func = i.InputRegister(0);
+      if (v8_flags.debug_code) {
+        // Check the function's context matches the context argument.
+        __ cmp_tagged(rsi, FieldOperand(func, JSFunction::kContextOffset));
+        __ Assert(equal, AbortReason::kWrongFunctionContext);
+      }
       static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
       uint32_t num_arguments =
           i.InputUint32(instr->JSCallArgumentCountInputIndex());
-      if (HasImmediateInput(instr, 0)) {
-        Constant constant = i.ToConstant(instr->InputAt(0));
-        Handle<JSFunction> function = Cast<JSFunction>(constant.ToHeapObject());
-        __ Move(kJavaScriptCallTargetRegister, function);
-        if (function->shared()->HasBuiltinId()) {
-          Builtin builtin = function->shared()->builtin_id();
-          SBXCHECK_EQ(num_arguments,
-                      Builtins::GetFormalParameterCount(builtin));
-          __ CallBuiltin(builtin);
-        } else {
-          JSDispatchHandle dispatch_handle = function->dispatch_handle();
-          size_t expected =
-              IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
-                  dispatch_handle);
-          SBXCHECK_GE(num_arguments, expected);
-          __ CallJSDispatchEntry(dispatch_handle, expected);
-        }
-      } else {
-        Register func = i.InputRegister(0);
-        if (v8_flags.debug_code) {
-          // Check the function's context matches the context argument.
-          __ cmp_tagged(rsi, FieldOperand(func, JSFunction::kContextOffset));
-          __ Assert(equal, AbortReason::kWrongFunctionContext);
-        }
-        __ CallJSFunction(func, num_arguments);
-      }
+      __ CallJSFunction(func, num_arguments);
       frame_access_state()->ClearSPDelta();
       RecordCallPosition(instr);
       AssemblePlaceHolderForLazyDeopt(instr);
