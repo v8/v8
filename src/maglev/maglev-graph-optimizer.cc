@@ -49,6 +49,8 @@ BlockProcessResult MaglevGraphOptimizer::PreProcessBasicBlock(
 
 void MaglevGraphOptimizer::PostProcessBasicBlock(BasicBlock* block) {
   reducer_.FlushNodesToBlock();
+  // TODO(victorgomes): Support merging KNAs.
+  empty_known_node_aspects_.ClearAll();
 }
 
 void MaglevGraphOptimizer::PreProcessNode(Node*, const ProcessingState& state) {

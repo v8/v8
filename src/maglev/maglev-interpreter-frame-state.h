@@ -320,6 +320,18 @@ class KnownNodeAspects {
 
   void ClearAvailableExpressions() { available_expressions_.clear(); }
 
+  void ClearAll() {
+    loaded_constant_properties_.clear();
+    loaded_properties_.clear();
+    loaded_context_constants_.clear();
+    loaded_context_slots_.clear();
+    available_expressions_.clear();
+    any_map_for_any_node_is_unstable_ = false;
+    may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kNone;
+    node_infos_.clear();
+    virtual_objects_ = {};
+  }
+
   NodeInfos::iterator FindInfo(ValueNode* node) {
     return node_infos_.find(node);
   }
