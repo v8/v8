@@ -24,12 +24,7 @@
 #include "src/sandbox/hardware-support.h"
 #include "src/utils/allocation.h"
 
-namespace v8 {
-namespace internal {
-
-// -----------------------------------------------------------------------------
-// MemoryAllocator
-//
+namespace v8::internal {
 
 size_t MemoryAllocator::commit_page_size_ = 0;
 size_t MemoryAllocator::commit_page_size_bits_ = 0;
@@ -40,11 +35,14 @@ MemoryAllocator::MemoryAllocator(Isolate* isolate,
                                  MemoryPool* page_pool, size_t capacity)
     : isolate_(isolate),
       data_page_allocator_(isolate->page_allocator()),
+      read_only_page_allocator_(
+          IsolateGroup::current()->read_only_page_allocator()),
       code_page_allocator_(code_page_allocator),
       trusted_page_allocator_(trusted_page_allocator),
       capacity_(RoundUp(capacity, PageMetadata::kPageSize)),
       pool_(page_pool) {
   DCHECK_NOT_NULL(data_page_allocator_);
+  DCHECK_NOT_NULL(read_only_page_allocator_);
   DCHECK_NOT_NULL(code_page_allocator_);
   DCHECK_NOT_NULL(trusted_page_allocator_);
 }
@@ -67,6 +65,7 @@ void MemoryAllocator::TearDown() {
 
   code_page_allocator_ = nullptr;
   data_page_allocator_ = nullptr;
+  read_only_page_allocator_ = nullptr;
   trusted_page_allocator_ = nullptr;
 }
 
@@ -829,5 +828,4 @@ void MemoryAllocator::UnregisterExecutableMemoryChunk(
 }
 #endif  // DEBUG
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
