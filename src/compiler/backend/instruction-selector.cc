@@ -1250,23 +1250,6 @@ void InstructionSelector::InitializeCallBuffer(
       break;
     }
     case CallDescriptor::kCallJSFunction:
-      // TODO(olivf): Implement the required kArchCallJSFunction with
-      // immediate argument on all architectures.
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM) ||     \
-    defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_PPC64) || \
-    defined(V8_TARGET_ARCH_S390X)
-      if (this->IsHeapConstant(callee)) {
-        const turboshaft::ConstantOp* constant =
-            TryCast<turboshaft::ConstantOp>(callee);
-        HeapObjectRef ref = MakeRef(broker_, constant->handle());
-        // TODO(olivf): We really should be able to dead-code eliminate this
-        // case, however currently we are not for `CheckClosure(const)`.
-        if (ref.IsJSFunction()) {
-          buffer->instruction_args.push_back(g.UseImmediate(callee));
-          break;
-        }
-      }
-#endif
       buffer->instruction_args.push_back(
           g.UseLocation(callee, buffer->descriptor->GetInputLocation(0)));
       break;

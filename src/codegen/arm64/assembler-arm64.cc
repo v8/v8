@@ -253,14 +253,9 @@ bool RelocInfo::IsCodedSpecially() {
 
 bool RelocInfo::IsInConstantPool() {
   Instruction* instr = reinterpret_cast<Instruction*>(pc_);
-  if (instr->IsLdrLiteralX()) return true;
-  if (!instr->IsLdrLiteralW()) return false;
-#ifdef DEBUG
-  uint32_t value = *reinterpret_cast<uint32_t*>(instr->ImmPCOffsetTarget());
-  DCHECK(COMPRESS_POINTERS_BOOL ||
-         JSDispatchTable::MaybeValidJSDispatchHandle(value));
-#endif  // DEBUG
-  return true;
+  DCHECK_IMPLIES(instr->IsLdrLiteralW(), COMPRESS_POINTERS_BOOL);
+  return instr->IsLdrLiteralX() ||
+         (COMPRESS_POINTERS_BOOL && instr->IsLdrLiteralW());
 }
 
 uint32_t RelocInfo::wasm_call_tag() const {
