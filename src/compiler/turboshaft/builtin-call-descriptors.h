@@ -1431,6 +1431,17 @@ struct BuiltinCallDescriptor {
     static constexpr OpEffects kEffects = base_effects.CanCallAnything();
   };
 
+  struct WasmFXResume : public Descriptor<WasmFXResume> {
+    static constexpr auto kFunction = Builtin::kWasmFXResume;
+    using arguments_t = std::tuple<V<WordPtr>>;  // StackMemory to be resumed.
+    using results_t = std::tuple<>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
+  };
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 };
 

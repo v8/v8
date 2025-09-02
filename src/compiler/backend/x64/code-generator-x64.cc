@@ -1532,8 +1532,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
 #if V8_ENABLE_WEBASSEMBLY
     case kArchCallWasmFunction:
-    case kArchCallWasmFunctionIndirect:
-    case kArchResumeWasmContinuation: {
+    case kArchCallWasmFunctionIndirect: {
       if (arch_opcode == kArchCallWasmFunction) {
         // This should always use immediate inputs since we don't have a
         // constant pool on this arch.
@@ -1545,17 +1544,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         } else {
           __ Call(wasm_code, constant.rmode());
         }
-      } else if (arch_opcode == kArchCallWasmFunctionIndirect) {
+      } else {
         DCHECK(!HasImmediateInput(instr, 0));
 
         __ CallWasmCodePointer(
             i.InputRegister(0),
             i.InputInt64(instr->WasmSignatureHashInputIndex()));
-      } else {
-        CHECK_EQ(arch_opcode, kArchResumeWasmContinuation);
-        // TODO(thibaudm): Use a WasmCodePointer instead. Can this be merged
-        // with kArchCallWasmFunctionIndirect?
-        __ Call(i.InputRegister(0));
       }
       RecordCallPosition(instr);
       AssemblePlaceHolderForLazyDeopt(instr);

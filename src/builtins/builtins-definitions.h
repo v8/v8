@@ -1383,6 +1383,8 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   IF_WASM(TFC, WasmToJsWrapperInvalidSig, WasmToJSWrapper)                     \
   IF_WASM(ASM, WasmSuspend, WasmSuspend)                                       \
   IF_WASM(ASM, WasmResume, JSTrampoline)                                       \
+  IF_WASM(ASM, WasmFXResume, WasmFXResume)                                     \
+  IF_WASM(ASM, WasmFXReturn, WasmFXReturn)                                     \
   IF_WASM(ASM, WasmReject, JSTrampoline)                                       \
   IF_WASM(ASM, WasmTrapHandlerLandingPad, WasmDummy)                           \
   IF_WASM(ASM, WasmCompileLazy, WasmDummy)                                     \

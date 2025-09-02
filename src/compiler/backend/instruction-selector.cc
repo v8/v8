@@ -2281,8 +2281,8 @@ void InstructionSelector::VisitCall(OpIndex node, Block* handler) {
       opcode = EncodeCallDescriptorFlags(kArchCallWasmFunctionIndirect, flags);
       break;
     case CallDescriptor::kResumeWasmContinuation:
-      opcode = EncodeCallDescriptorFlags(kArchResumeWasmContinuation, flags);
-      break;
+      // Should be called via Builtin::kWasmFXResume.
+      UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
     case CallDescriptor::kCallBuiltinPointer:
       opcode = EncodeCallDescriptorFlags(kArchCallBuiltinPointer, flags);

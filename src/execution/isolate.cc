@@ -2313,19 +2313,21 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       while (active_stack != iter.wasm_stack()) {
         parent = active_stack->jmpbuf()->parent;
         SBXCHECK_EQ(parent->jmpbuf()->state, wasm::JumpBuffer::Inactive);
+        if (v8_flags.trace_wasm_stack_switching) {
+          PrintF("Switch from stack %d to %d (throw)\n", active_stack->id(),
+                 parent->id());
+        }
         SwitchStacks<wasm::JumpBuffer::Retired, wasm::JumpBuffer::Inactive>(
             active_stack, parent, kNullAddress, kNullAddress, kNullAddress);
-        // Unconditionally update the active suspender as well. This assumes
-        // that suspenders contain exactly one stack each.
-        // Note: this is only needed for --stress-wasm-stack-switching.
-        // Otherwise the exception should have been caught by the JSPI builtin.
-        // TODO(388533754): Revisit this for core stack-switching when the
-        // suspender can encapsulate multiple stacks.
-        auto suspender = TrustedCast<WasmSuspenderObject>(maybe_suspender);
-        if (suspender->has_parent()) {
-          maybe_suspender = suspender->parent();
-        } else {
-          maybe_suspender = Smi::zero();
+        if (!IsSmi(maybe_suspender)) {
+          auto suspender = TrustedCast<WasmSuspenderObject>(maybe_suspender);
+          if (suspender->has_parent()) {
+            if (parent == suspender->parent()->stack()) {
+              maybe_suspender = suspender->parent();
+            }
+          } else {
+            maybe_suspender = Smi::zero();
+          }
         }
         RetireWasmStack(active_stack);
         active_stack = parent;
@@ -3977,6 +3979,9 @@ void Isolate::SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to,
     from->jmpbuf()->pc = pc;
     from->jmpbuf()->stack_limit =
         reinterpret_cast<void*>(stack_guard()->real_jslimit());
+
+    from->jmpbuf()->is_on_central_stack =
+        thread_local_top()->is_on_central_stack_flag_;
   }
   SBXCHECK_EQ(to->jmpbuf()->state, expected_target_state);
   to->jmpbuf()->state = wasm::JumpBuffer::Active;
@@ -3985,27 +3990,30 @@ void Isolate::SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to,
     to->jmpbuf()->parent = from;
   } else {
     static_assert(expected_target_state == wasm::JumpBuffer::Inactive);
-    // TODO(388533754): This check won't hold anymore with core stack-switching.
-    // Instead, we will need to validate all the intermediate stacks and also
-    // check that they don't hold central stack frames.
-    SBXCHECK_EQ(from->jmpbuf()->parent, to);
+    if (from->jmpbuf()->parent != to) {
+      // Suspending multiple stacks at once is not implemented yet for WasmFX,
+      // and not possible with JSPI alone.
+      CHECK(v8_flags.experimental_wasm_wasmfx);
+      UNIMPLEMENTED();
+    }
   }
   uintptr_t limit = reinterpret_cast<uintptr_t>(to->jmpbuf()->stack_limit);
   stack_guard()->SetStackLimitForStackSwitching(limit);
   // Update the central stack info.
-  if constexpr (expected_target_state == wasm::JumpBuffer::Inactive) {
-    // When returning/suspending from a stack, the parent must be on
-    // the central stack.
-    // TODO(388533754): This assumption will not hold anymore with core
-    // stack-switching, so we will need to revisit this.
-    DCHECK(IsOnCentralStack(to->jmpbuf()->sp));
+  if (!thread_local_top()->is_on_central_stack_flag_ &&
+      to->jmpbuf()->is_on_central_stack) {
+    DCHECK_EQ(expected_target_state, wasm::JumpBuffer::Inactive);
     thread_local_top()->is_on_central_stack_flag_ = true;
-    thread_local_top()->central_stack_sp_ = to->jmpbuf()->sp;
     thread_local_top()->central_stack_limit_ =
         reinterpret_cast<Address>(to->jmpbuf()->stack_limit);
-  } else {
+  } else if (thread_local_top()->is_on_central_stack_flag_ &&
+             !to->jmpbuf()->is_on_central_stack) {
+    DCHECK(expected_target_state == wasm::JumpBuffer::Suspended ||
+           new_state_of_old_stack == wasm::JumpBuffer::Retired);
     // A suspended stack cannot hold central stack frames.
     thread_local_top()->is_on_central_stack_flag_ = false;
+    // Record the current central stack SP, we will switch back to it for
+    // non-wasm calls.
     thread_local_top()->central_stack_sp_ = from->jmpbuf()->sp;
     thread_local_top()->central_stack_limit_ =
         reinterpret_cast<Address>(from->jmpbuf()->stack_limit);

@@ -3894,7 +3894,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   __ Move(target_stack,
           FieldOperand(suspender, WasmSuspenderObject::kStackOffset));
   __ StoreRootRelative(IsolateData::active_stack_offset(), target_stack);
-  SwitchStacks(masm, ExternalReference::wasm_resume_stack(), active_stack,
+  SwitchStacks(masm, ExternalReference::wasm_resume_jspi_stack(), active_stack,
                &suspend, suspender, {target_stack});
   suspender = no_reg;
 
@@ -3933,6 +3933,34 @@ void Builtins::Generate_WasmResume(MacroAssembler* masm) {
 
 void Builtins::Generate_WasmReject(MacroAssembler* masm) {
   Generate_WasmResumeHelper(masm, wasm::OnResume::kThrow);
+}
+
+void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
+  __ EnterFrame(StackFrame::WASM_STACK_EXIT);
+  Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
+  Label suspend;
+  Register active_stack = ecx;
+  __ LoadRootRelative(active_stack, IsolateData::active_stack_offset());
+  __ StoreRootRelative(IsolateData::active_stack_offset(), target_stack);
+  SwitchStacks(masm, ExternalReference::wasm_resume_wasmfx_stack(),
+               active_stack, &suspend, no_reg, {target_stack});
+  LoadJumpBuffer(masm, target_stack, true);
+  __ Trap();
+  __ bind(&suspend);
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ ret(0);
+}
+
+void Builtins::Generate_WasmFXReturn(MacroAssembler* masm) {
+  Register active_stack = ecx;
+  __ LoadRootRelative(active_stack, IsolateData::active_stack_offset());
+  Register parent = esi;
+  __ Move(parent, MemOperand(active_stack, wasm::kStackParentOffset));
+  __ StoreRootRelative(IsolateData::active_stack_offset(), parent);
+  SwitchStacks(masm, ExternalReference::wasm_return_stack(), active_stack,
+               nullptr, no_reg, {parent});
+  LoadJumpBuffer(masm, parent, true);
+  __ Trap();
 }
 
 void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {

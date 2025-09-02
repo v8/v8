@@ -1256,6 +1256,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   target_stack->jmpbuf()->sp = target_stack->base();
   target_stack->jmpbuf()->fp = kNullAddress;
   target_stack->jmpbuf()->state = wasm::JumpBuffer::Suspended;
+  target_stack->jmpbuf()->is_on_central_stack = false;
   isolate->isolate_data()->set_active_stack(target_stack.get());
 
   // Update the suspender state.

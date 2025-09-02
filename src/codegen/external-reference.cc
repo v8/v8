@@ -612,7 +612,8 @@ FUNCTION_REFERENCE(ensure_valid_return_address,
 #ifdef V8_ENABLE_WEBASSEMBLY
 FUNCTION_REFERENCE(wasm_start_stack, wasm::start_stack)
 FUNCTION_REFERENCE(wasm_suspend_stack, wasm::suspend_stack)
-FUNCTION_REFERENCE(wasm_resume_stack, wasm::resume_stack)
+FUNCTION_REFERENCE(wasm_resume_jspi_stack, wasm::resume_jspi_stack)
+FUNCTION_REFERENCE(wasm_resume_wasmfx_stack, wasm::resume_wasmfx_stack)
 FUNCTION_REFERENCE(wasm_return_stack, wasm::return_stack)
 FUNCTION_REFERENCE(wasm_switch_to_the_central_stack,
                    wasm::switch_to_the_central_stack)

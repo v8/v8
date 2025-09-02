@@ -31,6 +31,7 @@ struct JumpBuffer {
   Address pc;
   void* stack_limit;
   StackMemory* parent = nullptr;
+  bool is_on_central_stack;
 
   // We track the state below to prevent stack corruptions under the sandbox
   // security model.

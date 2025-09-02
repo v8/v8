@@ -3461,6 +3461,7 @@ void SwitchStackPointerAndSimulatorStackLimit(MacroAssembler* masm,
                                               Register stack, Register tmp) {
   if (masm->options().enable_simulator_code) {
     UseScratchRegisterScope temps(masm);
+    DCHECK_NE(x16, tmp);
     temps.Exclude(x16);
     __ Ldr(tmp, MemOperand(stack, wasm::kStackSpOffset));
     __ Ldr(x16, MemOperand(stack, wasm::kStackLimitOffset));
@@ -3869,7 +3870,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
       FieldMemOperand(suspender, WasmSuspenderObject::kStackOffset),
       kWasmStackMemoryTag);
   __ StoreRootRelative(IsolateData::active_stack_offset(), target_stack);
-  SwitchStacks(masm, ExternalReference::wasm_resume_stack(), active_stack,
+  SwitchStacks(masm, ExternalReference::wasm_resume_jspi_stack(), active_stack,
                &suspend, suspender, {target_stack});
   regs.ResetExcept(target_stack);
 
@@ -3911,6 +3912,42 @@ void Builtins::Generate_WasmResume(MacroAssembler* masm) {
 
 void Builtins::Generate_WasmReject(MacroAssembler* masm) {
   Generate_WasmResumeHelper(masm, wasm::OnResume::kThrow);
+}
+
+void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
+  __ EnterFrame(StackFrame::WASM_STACK_EXIT);
+  Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
+  Label suspend;
+  Register active_stack = x0;
+  __ LoadRootRelative(active_stack, IsolateData::active_stack_offset());
+  __ StoreRootRelative(IsolateData::active_stack_offset(), target_stack);
+  SwitchStacks(masm, ExternalReference::wasm_resume_wasmfx_stack(),
+               active_stack, &suspend, no_reg, {target_stack});
+  // When we resume the stack for the first time, we enter the wrapper. However
+  // the wrapper starts with bti c, not bti j, so we cannot jump to it with an
+  // arbitrary register. We have to use ip0 or ip1 as the target register here
+  // (but ip0=x16 is already used as a fixed register inside LoadJumpBuffer in
+  // simulator builds).
+  // Alternatively we would have to change {CodeGenerator::AssembleCode} to
+  // exceptionally emit bti j instead of bti c at the start of the code for code
+  // kind WASM_STACK_ENTRY.
+  LoadJumpBuffer(masm, target_stack, true, ip1);
+  __ Trap();
+  __ Bind(&suspend, BranchTargetIdentifier::kBtiJump);
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ Ret(lr);
+}
+
+void Builtins::Generate_WasmFXReturn(MacroAssembler* masm) {
+  Register active_stack = x0;
+  __ LoadRootRelative(active_stack, IsolateData::active_stack_offset());
+  Register parent = x1;
+  __ Move(parent, MemOperand(active_stack, wasm::kStackParentOffset));
+  __ StoreRootRelative(IsolateData::active_stack_offset(), parent);
+  SwitchStacks(masm, ExternalReference::wasm_return_stack(), active_stack,
+               nullptr, no_reg, {parent});
+  LoadJumpBuffer(masm, parent, true, x2);
+  __ Trap();
 }
 
 void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {

@@ -9,11 +9,16 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestContNewAndInitialResume() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let cont_index = builder.addCont(kSig_v_v);
+  let sig_v_v = builder.addType(kSig_v_v);
+  let cont_index = builder.addCont(sig_v_v);
   let gc_index = builder.addImport('m', 'gc', kSig_v_v);
-  let callee = builder.addFunction('callee', kSig_v_v).addBody([
-      kExprCallFunction, gc_index,
-  ]).exportFunc();
+  builder.addExport('gc', gc_index);
+  let get_next_sig = builder.addType(makeSig([], [wasmRefNullType(sig_v_v)]));
+  let get_next_index = builder.addImport('m', 'get_next', get_next_sig);
+  let tag_index = builder.addTag(kSig_v_v);
+  // A list of wasm functions where each function is expected to pop and call
+  // the next one in the list, to easily create specific call stacks.
+  let call_stack = builder.addGlobal(kWasmAnyRef, true).exportAs('call_stack');
   builder.addFunction("cont_new_null", kSig_v_v)
       .addBody([
           kExprRefNull, kNullFuncRefCode,
@@ -26,17 +31,48 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
           kExprResume, cont_index,
           kExprUnreachable,
       ]).exportFunc();
-  builder.addFunction("main", kSig_v_v)
+  builder.addFunction("throw_error", kSig_v_v)
+      .addBody([kExprThrow, tag_index]).exportFunc();
+  builder.addFunction("call_next_as_cont", kSig_v_v)
       .addBody([
-          kExprRefFunc, callee.index,
+          kExprCallFunction, get_next_index,
           kExprContNew, cont_index,
-          kExprCallFunction, gc_index,
           kExprResume, cont_index, 0,
       ]).exportFunc();
-  let instance = builder.instantiate({m: {gc}});
+  builder.addFunction("call_next", kSig_v_v)
+      .addBody([
+          kExprCallFunction, get_next_index,
+          kExprCallRef, sig_v_v,
+      ]).exportFunc();
+  let instance;
+  instance = builder.instantiate( {m: {
+    gc,
+    get_next: () => instance.exports.call_stack.value.shift()
+  }});
   assertThrows(instance.exports.cont_new_null, WebAssembly.RuntimeError);
   assertThrows(instance.exports.resume_null, WebAssembly.RuntimeError);
-  instance.exports.main();
+
+  instance.exports.call_stack.value = [
+      instance.exports.call_next_as_cont,
+      instance.exports.gc
+  ];
+  instance.exports.call_next();
+
+  instance.exports.call_stack.value = [
+      instance.exports.call_next_as_cont,
+      instance.exports.call_next_as_cont,
+      instance.exports.call_next_as_cont,
+      instance.exports.gc,
+  ];
+  instance.exports.call_next();
+
+  instance.exports.call_stack.value = [
+      instance.exports.call_next_as_cont,
+      instance.exports.call_next_as_cont,
+      instance.exports.call_next_as_cont,
+      instance.exports.throw_error,
+  ];
+  assertThrows(instance.exports.call_next, WebAssembly.Exception);
 })();
 
 (function TestResumeSuspendReturn() {

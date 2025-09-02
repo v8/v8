@@ -3758,19 +3758,10 @@ class TurboshaftGraphBuildingInterface
               const Value args[], Value returns[]) {
     __ TrapIf(__ IsNull(cont_ref.op, cont_ref.type),
               TrapId::kTrapNullDereference);
-    const FunctionSig* sig =
-        decoder->module_->signature(imm.cont_type->contfun_typeindex());
     V<WordPtr> stack = __ LoadExternalPointerFromObject(
         cont_ref.op, WasmContinuationObject::kStackOffset, kWasmStackMemoryTag);
-    // TODO(thibaudm): Switch to the target stack here.
-    V<WordPtr> pc = __ Load(stack, LoadOp::Kind::RawAligned(),
-                            MemoryRepresentation::UintPtr(), kStackPcOffset);
-    const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
-        compiler::GetWasmCallDescriptor(
-            __ graph_zone(), sig, compiler::WasmCallKind::kWasmContinuation),
-        compiler::CanThrow::kYes, compiler::LazyDeoptOnThrow::kNo,
-        __ graph_zone());
-    __ Call(pc, {stack}, descriptor);
+    CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResume>(decoder,
+                                                                     {stack});
   }
 
   void ResumeThrow(FullDecoder* decoder,

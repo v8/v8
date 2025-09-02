@@ -261,7 +261,8 @@ enum class IsolateFieldId : uint8_t;
     "simple_name_dictionary_find_insertion_entry_forwarded_string")            \
   IF_WASM(V, wasm_start_stack, "wasm_start_stack")                             \
   IF_WASM(V, wasm_suspend_stack, "wasm_suspend_stack")                         \
-  IF_WASM(V, wasm_resume_stack, "wasm_resume_stack")                           \
+  IF_WASM(V, wasm_resume_jspi_stack, "wasm_resume_jspi_stack")                 \
+  IF_WASM(V, wasm_resume_wasmfx_stack, "wasm_resume_wasmfx_stack")             \
   IF_WASM(V, wasm_return_stack, "wasm_return_stack")                           \
   IF_WASM(V, wasm_switch_to_the_central_stack,                                 \
           "wasm::switch_to_the_central_stack")                                 \

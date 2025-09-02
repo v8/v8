@@ -1959,9 +1959,11 @@ DirectHandle<WasmContinuationObject> Factory::NewWasmContinuationObject() {
   DirectHandle<WasmContinuationObject> cont(obj, isolate());
   cont->init_stack(IsolateForSandbox(isolate()), nullptr);
   std::unique_ptr<wasm::StackMemory> stack = wasm::StackMemory::New();
-  stack->jmpbuf()->fp = stack->base();
+  stack->jmpbuf()->fp = kNullAddress;
   stack->jmpbuf()->sp = stack->base();
   stack->jmpbuf()->state = wasm::JumpBuffer::Suspended;
+  stack->jmpbuf()->stack_limit = stack->jslimit();
+  stack->jmpbuf()->is_on_central_stack = false;
   stack->set_index(isolate()->wasm_stacks().size());
   cont->set_stack(isolate(), stack.get());
   isolate()->wasm_stacks().emplace_back(std::move(stack));

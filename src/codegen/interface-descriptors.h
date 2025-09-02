@@ -150,6 +150,7 @@ namespace internal {
   V(UnaryOp_WithFeedback)                            \
   V(Void)                                            \
   IF_WASM(V, WasmAllocateShared)                     \
+  IF_WASM(V, WasmFXResume)                           \
   V(WasmDummy)                                       \
   V(WasmFloat32ToNumber)                             \
   V(WasmFloat64ToTagged)                             \
@@ -904,6 +905,19 @@ class WasmAllocateSharedDescriptor
                                     MachineType::TaggedSigned())  // kAlignment
   DECLARE_DESCRIPTOR(WasmAllocateSharedDescriptor)
 };
+
+class WasmFXResumeDescriptor final
+    : public StaticCallInterfaceDescriptor<WasmFXResumeDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(0, kTargetStack)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::IntPtr())
+  DECLARE_DESCRIPTOR(WasmFXResumeDescriptor)
+
+  static constexpr int kMaxRegisterParams = 1;
+  static constexpr inline auto registers();
+};
 #endif
 
 class NewHeapNumberDescriptor
@@ -984,6 +998,10 @@ class NoContextDescriptor
 
   static constexpr auto registers();
 };
+
+#if V8_ENABLE_WEBASSEMBLY
+using WasmFXReturnDescriptor = NoContextDescriptor;
+#endif
 
 // LoadDescriptor is used by all stubs that implement Load ICs.
 class LoadDescriptor : public StaticCallInterfaceDescriptor<LoadDescriptor> {

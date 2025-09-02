@@ -195,8 +195,10 @@ void start_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
                  Address fp, Address pc);
 void suspend_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
                    Address fp, Address pc);
-void resume_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
-                  Address fp, Address pc, Address suspender);
+void resume_jspi_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
+                       Address fp, Address pc, Address suspender);
+void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
+                         Address fp, Address pc);
 void return_stack(Isolate* isolate, wasm::StackMemory* from);
 
 intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t sp);

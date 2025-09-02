@@ -147,6 +147,7 @@ namespace v8::internal::wasm {
   V(DebugPrintFloat64)                                                         \
   V(DebugPrintWordPtr)                                                         \
   V(WasmFastApiCallTypeCheckAndUpdateIC)                                       \
+  V(WasmFXResume)                                                              \
   V(DeoptimizationEntry_Eager)                                                 \
   V(WasmLiftoffDeoptFinish)                                                    \
   V(WasmPropagateException)                                                    \

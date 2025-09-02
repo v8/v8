@@ -575,7 +575,9 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmStackEntryWrapper() {
   OpIndex arg = instance;
   BuildCallWasmFromWrapper(__ phase_zone(), sig_, target,
                            base::VectorOf(&arg, 1), {});
-  __ Return(__ Word32Constant(0));
+  CallBuiltin<WasmFXReturnDescriptor>(Builtin::kWasmFXReturn,
+                                      Operator::kNoProperties);
+  __ Unreachable();
 }
 
 template <typename Assembler>
