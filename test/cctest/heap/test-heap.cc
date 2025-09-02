@@ -5976,7 +5976,8 @@ TEST(Regress598319) {
 
   CHECK_EQ(arr.get()->length(), kNumberOfObjects);
   CHECK(heap->lo_space()->Contains(arr.get()));
-  LargePageMetadata* page = LargePageMetadata::FromHeapObject(arr.get());
+  LargePageMetadata* page =
+      LargePageMetadata::FromHeapObject(isolate, arr.get());
   CHECK_NOT_NULL(page);
 
   // GC to cleanup state
@@ -6470,7 +6471,7 @@ TEST(UncommitUnusedLargeObjectMemory) {
 template <RememberedSetType direction>
 static size_t GetRememberedSetSize(Tagged<HeapObject> obj) {
   size_t count = 0;
-  auto chunk = MutablePageMetadata::FromHeapObject(obj);
+  auto chunk = MutablePageMetadata::FromHeapObject(CcTest::i_isolate(), obj);
   RememberedSet<direction>::Iterate(
       chunk,
       [&count](MaybeObjectSlot slot) {
@@ -6638,7 +6639,8 @@ TEST(RememberedSetRemoveRange) {
 
   DirectHandle<FixedArray> array = isolate->factory()->NewFixedArray(
       PageMetadata::kPageSize / kTaggedSize, AllocationType::kOld);
-  MutablePageMetadata* chunk = MutablePageMetadata::FromHeapObject(*array);
+  MutablePageMetadata* chunk =
+      MutablePageMetadata::FromHeapObject(isolate, *array);
   CHECK_EQ(chunk->owner_identity(), LO_SPACE);
   Address start = array->address();
   // Maps slot to boolean indicator of whether the slot should be in the set.
@@ -7273,18 +7275,18 @@ TEST(CodeObjectRegistry) {
     DirectHandle<InstructionStream> code2 = DummyOptimizedCode(isolate);
     code2_address = code2->address();
 
-    CHECK_EQ(MutablePageMetadata::FromHeapObject(*code1),
-             MutablePageMetadata::FromHeapObject(*code2));
-    CHECK(MutablePageMetadata::FromHeapObject(*code1)->Contains(
-        code1->address()));
-    CHECK(MutablePageMetadata::FromHeapObject(*code2)->Contains(
-        code2->address()));
+    CHECK_EQ(MutablePageMetadata::FromHeapObject(isolate, *code1),
+             MutablePageMetadata::FromHeapObject(isolate, *code2));
+    CHECK(MutablePageMetadata::FromHeapObject(isolate, *code1)
+              ->Contains(code1->address()));
+    CHECK(MutablePageMetadata::FromHeapObject(isolate, *code2)
+              ->Contains(code2->address()));
   }
   heap::InvokeMemoryReducingMajorGCs(heap);
-  CHECK(
-      MutablePageMetadata::FromHeapObject(*code1)->Contains(code1->address()));
-  CHECK(
-      MutablePageMetadata::FromAddress(code2_address)->Contains(code2_address));
+  CHECK(MutablePageMetadata::FromHeapObject(isolate, *code1)
+            ->Contains(code1->address()));
+  CHECK(MutablePageMetadata::FromAddress(isolate, code2_address)
+            ->Contains(code2_address));
 }
 
 TEST(Regress9701) {

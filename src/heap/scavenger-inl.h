@@ -186,7 +186,8 @@ bool Scavenger::HandleLargeObject(Tagged<Map> map, Tagged<HeapObject> object,
   }
 
   DCHECK_EQ(NEW_LO_SPACE,
-            MutablePageMetadata::FromHeapObject(object)->owner_identity());
+            MutablePageMetadata::FromHeapObject(heap_->isolate(), object)
+                ->owner_identity());
   if (object->relaxed_compare_and_swap_map_word_forwarded(MapWord::FromMap(map),
                                                           object)) {
     local_surviving_new_large_objects_.insert({object, map});
@@ -398,7 +399,8 @@ SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
     // copied, it is unfortunately not safe to access `dest` to check whether it
     // is pinned or not.
 #ifdef DEBUG
-    const auto* metadata = MemoryChunkMetadata::FromHeapObject(dest);
+    const auto* metadata =
+        MemoryChunkMetadata::FromHeapObject(heap()->isolate(), dest);
     DCHECK_IMPLIES(HeapLayout::InYoungGeneration(dest),
                    Heap::InToPage(dest) || metadata->is_large() ||
                        metadata->is_quarantined());
@@ -431,13 +433,13 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap, TSlot slot) {
 
     SlotCallbackResult result =
         ScavengeObject(THeapObjectSlot(slot), heap_object);
-    DCHECK_IMPLIES(
-        result == REMOVE_SLOT,
-        !HeapLayout::InYoungGeneration((*slot).GetHeapObject()) ||
-            MemoryChunk::FromHeapObject((*slot).GetHeapObject())
-                ->IsLargePage() ||
-            MemoryChunkMetadata::FromHeapObject((*slot).GetHeapObject())
-                ->will_be_promoted());
+    DCHECK_IMPLIES(result == REMOVE_SLOT,
+                   !HeapLayout::InYoungGeneration((*slot).GetHeapObject()) ||
+                       MemoryChunk::FromHeapObject((*slot).GetHeapObject())
+                           ->IsLargePage() ||
+                       MemoryChunkMetadata::FromHeapObject(
+                           heap->isolate(), (*slot).GetHeapObject())
+                           ->will_be_promoted());
     return result;
   } else if (Heap::InToPage(object)) {
     // Already updated slot. This can happen when processing of the work list

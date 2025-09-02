@@ -344,7 +344,8 @@ class GlobalHandlesWeakRootsUpdatingVisitor final : public RootVisitor {
     if (heap_object == dest) {
       DCHECK(
           HeapLayout::InAnyLargeSpace(heap_object) ||
-          MemoryChunkMetadata::FromHeapObject(heap_object)->is_quarantined());
+          MemoryChunkMetadata::FromHeapObject(Isolate::Current(), heap_object)
+              ->is_quarantined());
       return;
     }
     UpdateHeapObjectReferenceSlot(FullHeapObjectSlot(p), dest);
@@ -1086,7 +1087,8 @@ void ScavengerCollector::HandleSurvivingNewLargeObjects() {
     // to meta-data like size during page promotion.
     object->set_map_word(map, kRelaxedStore);
 
-    LargePageMetadata* page = LargePageMetadata::FromHeapObject(object);
+    LargePageMetadata* page =
+        LargePageMetadata::FromHeapObject(heap_->isolate(), object);
     SBXCHECK(page->is_large());
     SBXCHECK_EQ(page->owner_identity(), NEW_LO_SPACE);
     heap_->lo_space()->PromoteNewLargeObject(page);
@@ -1169,7 +1171,8 @@ void Scavenger::IterateAndScavengePromotedObject(
   visitor.Visit(map, target, object_size);
 
   if (IsJSArrayBufferMap(map)) {
-    DCHECK(!MemoryChunkMetadata::FromHeapObject(target)->is_large());
+    DCHECK(!MemoryChunkMetadata::FromHeapObject(heap_->isolate(), target)
+                ->is_large());
     GCSafeCast<JSArrayBuffer>(target, heap_)->YoungMarkExtensionPromoted();
   }
 }
@@ -1457,7 +1460,8 @@ void Scavenger::PinAndPushObject(MutablePageMetadata* metadata,
 void Scavenger::PushPinnedObject(Tagged<HeapObject> object, Tagged<Map> map,
                                  SafeHeapObjectSize object_size) {
   DCHECK(HeapLayout::IsSelfForwarded(object));
-  DCHECK(!MemoryChunkMetadata::FromHeapObject(object)->will_be_promoted());
+  DCHECK(!MemoryChunkMetadata::FromHeapObject(heap_->isolate(), object)
+              ->will_be_promoted());
   DCHECK_EQ(object_size.value(), object->SafeSizeFromMap(map).value());
   local_pinned_list_.Push(ObjectAndMap(object, map));
   copied_size_ += object_size.value();
@@ -1467,7 +1471,8 @@ void Scavenger::PushPinnedPromotedObject(Tagged<HeapObject> object,
                                          Tagged<Map> map,
                                          SafeHeapObjectSize object_size) {
   DCHECK(HeapLayout::IsSelfForwarded(object));
-  DCHECK(MemoryChunkMetadata::FromHeapObject(object)->will_be_promoted());
+  DCHECK(MemoryChunkMetadata::FromHeapObject(heap_->isolate(), object)
+             ->will_be_promoted());
   DCHECK_EQ(object_size.value(), object->SafeSizeFromMap(map).value());
   local_promoted_list_.Push({object, map, object_size});
   promoted_size_ += object_size.value();

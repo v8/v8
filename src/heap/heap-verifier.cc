@@ -437,7 +437,8 @@ void HeapVerification::VerifyPageDone(const MemoryChunkMetadata* chunk) {
 }
 
 void HeapVerification::VerifyObject(Tagged<HeapObject> object) {
-  CHECK_EQ(MemoryChunkMetadata::FromHeapObject(object), *current_chunk_);
+  CHECK_EQ(MemoryChunkMetadata::FromHeapObject(isolate(), object),
+           *current_chunk_);
 
   // Verify object map.
   VerifyObjectMap(object);
@@ -756,7 +757,8 @@ void HeapVerification::VerifyRememberedSetFor(Tagged<HeapObject> object) {
     return;
   }
 
-  MutablePageMetadata* chunk = MutablePageMetadata::FromHeapObject(object);
+  MutablePageMetadata* chunk =
+      MutablePageMetadata::FromHeapObject(isolate(), object);
 
   Address start = object.address();
   Address end = start + object->Size(cage_base_);

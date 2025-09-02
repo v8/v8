@@ -4649,8 +4649,8 @@ V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_TransitionTree(
 V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_Object_MarkBit(
     void* object) {
 #ifdef OBJECT_PRINT
-  const auto mark_bit =
-      v8::internal::MarkBit::From(reinterpret_cast<i::Address>(object));
+  const auto mark_bit = v8::internal::MarkBit::From(
+      i::Isolate::Current(), reinterpret_cast<i::Address>(object));
   i::StdoutStream os;
   os << "Object " << object << " is "
      << (mark_bit.Get() ? "marked" : "unmarked") << std::endl;

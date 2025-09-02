@@ -109,7 +109,7 @@ void IncrementalMarking::MarkBlackBackground(Tagged<HeapObject> obj,
                                              int object_size) {
   CHECK(marking_state()->TryMark(obj));
   base::MutexGuard guard(&background_live_bytes_mutex_);
-  background_live_bytes_[MutablePageMetadata::FromHeapObject(obj)] +=
+  background_live_bytes_[MutablePageMetadata::FromHeapObject(isolate(), obj)] +=
       static_cast<intptr_t>(object_size);
 }
 

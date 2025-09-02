@@ -76,9 +76,10 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessStrongHeapObject(
         reinterpret_cast<void*>(host->map().ptr()),
         reinterpret_cast<void*>(host->address()),
         reinterpret_cast<void*>(slot.address()),
-        reinterpret_cast<void*>(MemoryChunkMetadata::FromHeapObject(heap_object)
-                                    ->owner()
-                                    ->identity()));
+        reinterpret_cast<void*>(
+            MemoryChunkMetadata::FromHeapObject(heap_->isolate(), heap_object)
+                ->owner()
+                ->identity()));
   }
   MarkObject(host, heap_object, target_worklist.value());
   concrete_visitor()->RecordSlot(host, slot, heap_object);
@@ -614,7 +615,8 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitFixedArray(
     Tagged<Map> map, Tagged<FixedArray> object,
     MaybeObjectSize maybe_object_size) {
   MarkingProgressTracker& progress_tracker =
-      MutablePageMetadata::FromHeapObject(object)->marking_progress_tracker();
+      MutablePageMetadata::FromHeapObject(heap_->isolate(), object)
+          ->marking_progress_tracker();
   return concrete_visitor()->CanUpdateValuesInHeap() &&
                  progress_tracker.IsEnabled()
              ? VisitFixedArrayWithProgressTracker(map, object, progress_tracker)

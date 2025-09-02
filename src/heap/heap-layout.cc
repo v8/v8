@@ -17,7 +17,8 @@ bool HeapLayout::InYoungGenerationForStickyMarkbits(const MemoryChunk* chunk,
                                                     Tagged<HeapObject> object) {
   CHECK(v8_flags.sticky_mark_bits.value());
   return !chunk->IsOnlyOldOrMajorMarkingOn() &&
-         !MarkingBitmap::MarkBitFromAddress(object.address())
+         !MarkingBitmap::MarkBitFromAddress(Isolate::Current(),
+                                            object.address())
               .template Get<AccessMode::ATOMIC>();
 }
 

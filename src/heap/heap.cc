@@ -2911,7 +2911,8 @@ void Heap::ExternalStringTable::VerifyYoung() {
   ExternalBackingStoreType type = ExternalBackingStoreType::kExternalString;
   for (size_t i = 0; i < young_strings_.size(); ++i) {
     Tagged<String> obj = Cast<String>(Tagged<Object>(young_strings_[i]));
-    MutablePageMetadata* mc = MutablePageMetadata::FromHeapObject(obj);
+    MutablePageMetadata* mc =
+        MutablePageMetadata::FromHeapObject(heap_->isolate(), obj);
     DCHECK_IMPLIES(!v8_flags.sticky_mark_bits,
                    mc->Chunk()->InYoungGeneration());
     DCHECK(HeapLayout::InYoungGeneration(obj));
@@ -2936,7 +2937,8 @@ void Heap::ExternalStringTable::Verify() {
   VerifyYoung();
   for (size_t i = 0; i < old_strings_.size(); ++i) {
     Tagged<String> obj = Cast<String>(Tagged<Object>(old_strings_[i]));
-    MutablePageMetadata* mc = MutablePageMetadata::FromHeapObject(obj);
+    MutablePageMetadata* mc =
+        MutablePageMetadata::FromHeapObject(heap_->isolate(), obj);
     DCHECK_IMPLIES(!v8_flags.sticky_mark_bits,
                    !mc->Chunk()->InYoungGeneration());
     DCHECK(!HeapLayout::InYoungGeneration(obj));
@@ -3442,7 +3444,7 @@ bool Heap::CanMoveObjectStart(Tagged<HeapObject> object) {
 
   // Concurrent sweeper does not support moving object starts. It assumes that
   // markbits (black regions) and object starts are matching up.
-  if (!MutablePageMetadata::FromHeapObject(object)->SweepingDone()) {
+  if (!MutablePageMetadata::FromHeapObject(isolate(), object)->SweepingDone()) {
     return false;
   }
 
@@ -4162,7 +4164,7 @@ void Heap::NotifyObjectLayoutChange(
   if (invalidate_recorded_slots == InvalidateRecordedSlots::kYes) {
     const bool may_contain_recorded_slots = MayContainRecordedSlots(object);
     MutablePageMetadata* const page =
-        MutablePageMetadata::FromHeapObject(object);
+        MutablePageMetadata::FromHeapObject(isolate(), object);
     // Do not remove the recorded slot in the map word as this one can never be
     // invalidated.
     const Address clear_range_start = object.address() + kTaggedSize;
@@ -4173,7 +4175,7 @@ void Heap::NotifyObjectLayoutChange(
     const Address clear_range_end = object.address() + new_size;
 
     if (incremental_marking()->IsMarking()) {
-      ObjectLock::Lock(object);
+      ObjectLock::Lock(isolate(), object);
       DCHECK_EQ(pending_layout_change_object_address, kNullAddress);
       pending_layout_change_object_address = object.address();
       if (may_contain_recorded_slots && incremental_marking()->IsCompacting()) {
@@ -4237,7 +4239,7 @@ void Heap::NotifyObjectLayoutChange(
 void Heap::NotifyObjectLayoutChangeDone(Tagged<HeapObject> object) {
   if (pending_layout_change_object_address != kNullAddress) {
     DCHECK_EQ(pending_layout_change_object_address, object.address());
-    ObjectLock::Unlock(object);
+    ObjectLock::Unlock(Isolate::Current(), object);
     pending_layout_change_object_address = kNullAddress;
   }
 }
@@ -6807,7 +6809,8 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     DCHECK(!IsFreeSpaceOrFiller(object));
     // If the bucket corresponding to the object's chunk does not exist, or the
     // object is not found in the bucket, return true.
-    MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromHeapObject(object);
+    MemoryChunkMetadata* chunk =
+        MemoryChunkMetadata::FromHeapObject(heap_->isolate(), object);
     if (reachable_.count(chunk) == 0) return true;
     return reachable_[chunk]->count(object) == 0;
   }
@@ -6818,7 +6821,8 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
   bool MarkAsReachable(Tagged<HeapObject> object) {
     // If the bucket corresponding to the object's chunk does not exist, then
     // create an empty bucket.
-    MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromHeapObject(object);
+    MemoryChunkMetadata* chunk =
+        MemoryChunkMetadata::FromHeapObject(heap_->isolate(), object);
     if (reachable_.count(chunk) == 0) {
       reachable_[chunk] = std::make_unique<BucketType>();
     }
@@ -7352,7 +7356,8 @@ bool Heap::AllowedToBeMigrated(Tagged<Map> map, Tagged<HeapObject> object,
     return false;
   }
   InstanceType type = map->instance_type();
-  MutablePageMetadata* chunk = MutablePageMetadata::FromHeapObject(object);
+  MutablePageMetadata* chunk =
+      MutablePageMetadata::FromHeapObject(isolate(), object);
   AllocationSpace src = chunk->owner_identity();
   switch (src) {
     case NEW_SPACE:

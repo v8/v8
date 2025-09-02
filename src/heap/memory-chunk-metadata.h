@@ -23,18 +23,16 @@ class BaseSpace;
 
 class MemoryChunkMetadata {
  public:
-  // Only works if the pointer is in the first kPageSize of the MemoryChunk.
-  V8_INLINE static MemoryChunkMetadata* FromAddress(Address a);
+  // Only works if the pointer is in the first kPageSize of the MemoryChunk.k
   V8_INLINE static MemoryChunkMetadata* FromAddress(const Isolate* isolate,
                                                     Address a);
 
   // Objects pointers always point within the first kPageSize, so these calls
   // always succeed.
-  V8_INLINE static MemoryChunkMetadata* FromHeapObject(Tagged<HeapObject> o);
   V8_INLINE static MemoryChunkMetadata* FromHeapObject(const Isolate* i,
                                                        Tagged<HeapObject> o);
   V8_INLINE static MemoryChunkMetadata* FromHeapObject(
-      const HeapObjectLayout* o);
+      const Isolate* i, const HeapObjectLayout* o);
 
   V8_INLINE static void UpdateHighWaterMark(Address mark);
 

@@ -1329,7 +1329,8 @@ Tagged<HeapObject> FactoryBase<Impl>::AllocateRawArray(
   if ((size >
        isolate()->heap()->AsHeap()->MaxRegularHeapObjectSize(allocation)) &&
       v8_flags.use_marking_progress_bar) {
-    LargePageMetadata::FromHeapObject(result)
+    LargePageMetadata::FromHeapObject(isolate()->GetMainThreadIsolateUnsafe(),
+                                      result)
         ->marking_progress_tracker()
         .Enable(size);
   }

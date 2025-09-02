@@ -112,7 +112,7 @@ void WriteBarrier::SharedSlow(Tagged<TrustedObject> host,
   DCHECK(MemoryChunk::FromHeapObject(value)->InWritableSharedSpace());
   if (!MemoryChunk::FromHeapObject(host)->InWritableSharedSpace()) {
     MutablePageMetadata* host_chunk_metadata =
-        MutablePageMetadata::FromHeapObject(host);
+        MutablePageMetadata::FromHeapObject(Isolate::Current(), host);
     RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<AccessMode::NON_ATOMIC>(
         host_chunk_metadata, host_chunk_metadata->Offset(slot.address()));
   }
@@ -203,7 +203,10 @@ int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {
 #endif
 
 #if DEBUG
-  Heap* heap = MutablePageMetadata::FromHeapObject(host)->heap();
+  // TODO(leszeks): Decide whether we want to read metadata without the Isolate,
+  // or just use the TLS Isolate for the Heap.
+  Heap* heap =
+      MutablePageMetadata::FromHeapObject(Isolate::Current(), host)->heap();
   DCHECK(heap->incremental_marking()->IsMarking());
 
   // We will only reach local objects here while incremental marking in the
@@ -250,7 +253,10 @@ int WriteBarrier::SharedMarkingFromCode(Address raw_host, Address raw_slot) {
   DCHECK(HeapLayout::InWritableSharedSpace(host));
 
 #if DEBUG
-  Heap* heap = MutablePageMetadata::FromHeapObject(host)->heap();
+  // TODO(leszeks): Decide whether we want to read metadata without the Isolate,
+  // or just use the TLS Isolate for the Heap.
+  Heap* heap =
+      MutablePageMetadata::FromHeapObject(Isolate::Current(), host)->heap();
   DCHECK(heap->incremental_marking()->IsMajorMarking());
   Isolate* isolate = heap->isolate();
   DCHECK(isolate->is_shared_space_isolate());
@@ -281,7 +287,8 @@ int WriteBarrier::SharedFromCode(Address raw_host, Address raw_slot) {
 
 // static
 bool WriteBarrier::PageFlagsAreConsistent(Tagged<HeapObject> object) {
-  MemoryChunkMetadata* metadata = MemoryChunkMetadata::FromHeapObject(object);
+  MemoryChunkMetadata* metadata =
+      MemoryChunkMetadata::FromHeapObject(Isolate::Current(), object);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
 
   if (!v8_flags.sticky_mark_bits) {
@@ -334,7 +341,7 @@ void WriteBarrier::CombinedGenerationalAndSharedEphemeronBarrierSlow(
                           MemoryChunk::kPointersFromHereAreInterestingMask);
   if (HeapLayout::InYoungGeneration(value)) {
     MutablePageMetadata* table_chunk =
-        MutablePageMetadata::FromHeapObject(table);
+        MutablePageMetadata::FromHeapObject(Isolate::Current(), table);
     table_chunk->heap()->ephemeron_remembered_set()->RecordEphemeronKeyWrite(
         table, slot);
   } else {

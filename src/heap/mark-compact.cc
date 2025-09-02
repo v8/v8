@@ -540,7 +540,8 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(LargeObjectSpace* space) {
   LargeObjectSpaceObjectIterator it(space);
   for (Tagged<HeapObject> obj = it.Next(); !obj.is_null(); obj = it.Next()) {
     CHECK(non_atomic_marking_state_->IsUnmarked(obj));
-    CHECK_EQ(0, MutablePageMetadata::FromHeapObject(obj)->live_bytes());
+    CHECK_EQ(0, MutablePageMetadata::FromHeapObject(heap_->isolate(), obj)
+                    ->live_bytes());
   }
 }
 
@@ -1348,7 +1349,7 @@ class RecordMigratedSlotVisitor
     // - moving objects from OLD to OLD where host may or may not be an
     // evacuation candidate;
     DCHECK(!host_chunk->ShouldSkipEvacuationSlotRecording() ||
-           host_chunk->Metadata()->evacuation_was_aborted());
+           host_chunk->Metadata(heap_->isolate())->evacuation_was_aborted());
   }
 
   inline void RecordRelocSlot(Tagged<InstructionStream> host, RelocInfo* rinfo,
@@ -1611,9 +1612,11 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
                                 Tagged<HeapObject>* target_object) {
 #if DEBUG
     DCHECK_LE(abort_evacuation_at_address_,
-              MutablePageMetadata::FromHeapObject(object)->area_end());
+              MutablePageMetadata::FromHeapObject(heap_->isolate(), object)
+                  ->area_end());
     DCHECK_GE(abort_evacuation_at_address_,
-              MutablePageMetadata::FromHeapObject(object)->area_start());
+              MutablePageMetadata::FromHeapObject(heap_->isolate(), object)
+                  ->area_start());
 
     if (V8_UNLIKELY(object.address() >= abort_evacuation_at_address_)) {
       return false;
@@ -2286,8 +2289,9 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
     }
     const auto visited_size = marking_visitor_->Visit(map, object);
     if (visited_size) {
-      MutablePageMetadata::FromHeapObject(object)->IncrementLiveBytesAtomically(
-          ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
+      MutablePageMetadata::FromHeapObject(heap_->isolate(), object)
+          ->IncrementLiveBytesAtomically(
+              ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
     }
     if (is_per_context_mode) {
       native_context_stats_.IncrementSize(local_marking_worklists_->Context(),
@@ -3379,7 +3383,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   Address compiled_data_start = compiled_data.address();
   int compiled_data_size = ALIGN_TO_ALLOCATION_ALIGNMENT(compiled_data->Size());
   MutablePageMetadata* chunk =
-      MutablePageMetadata::FromAddress(compiled_data_start);
+      MutablePageMetadata::FromAddress(heap_->isolate(), compiled_data_start);
 
   // Clear any recorded slots for the compiled data as being invalid.
   RememberedSet<OLD_TO_NEW>::RemoveRange(
@@ -3758,7 +3762,8 @@ void MarkCompactCollector::RightTrimDescriptorArray(
   DCHECK_LE(0, new_nof_all_descriptors);
   Address start = array->GetDescriptorSlot(new_nof_all_descriptors).address();
   Address end = array->GetDescriptorSlot(old_nof_all_descriptors).address();
-  MutablePageMetadata* chunk = MutablePageMetadata::FromHeapObject(array);
+  MutablePageMetadata* chunk =
+      MutablePageMetadata::FromHeapObject(heap_->isolate(), array);
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start, end,
                                          SlotSet::FREE_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_NEW_BACKGROUND>::RemoveRange(
@@ -5163,7 +5168,7 @@ void MarkCompactCollector::Evacuate() {
       p->set_will_be_promoted(false);
       Tagged<HeapObject> object = p->GetObject();
       if (!v8_flags.sticky_mark_bits) {
-        MarkBit::From(object).Clear();
+        MarkBit::From(heap_->isolate(), object).Clear();
         p->SetLiveBytes(0);
       }
       p->marking_progress_tracker().ResetIfEnabled();
@@ -6195,7 +6200,7 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
       continue;
     }
     if (!v8_flags.sticky_mark_bits) {
-      MarkBit::From(object).Clear();
+      MarkBit::From(heap_->isolate(), object).Clear();
       current->SetLiveBytes(0);
     }
     current->marking_progress_tracker().ResetIfEnabled();

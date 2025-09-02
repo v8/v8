@@ -437,9 +437,9 @@ TEST_F(HeapTest, OptimizedAllocationAlwaysInNewSpace) {
 
 namespace {
 template <RememberedSetType direction>
-static size_t GetRememberedSetSize(Tagged<HeapObject> obj) {
+static size_t GetRememberedSetSize(Isolate* isolate, Tagged<HeapObject> obj) {
   size_t count = 0;
-  auto chunk = MutablePageMetadata::FromHeapObject(obj);
+  auto chunk = MutablePageMetadata::FromHeapObject(isolate, obj);
   RememberedSet<direction>::Iterate(
       chunk,
       [&count](MaybeObjectSlot slot) {
@@ -495,9 +495,9 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
   CHECK(heap->InOldSpace(*arr));
   CHECK(HeapLayout::InYoungGeneration(arr->get(0)));
   if (v8_flags.minor_ms) {
-    CHECK_EQ(1, GetRememberedSetSize<OLD_TO_NEW_BACKGROUND>(*arr));
+    CHECK_EQ(1, GetRememberedSetSize<OLD_TO_NEW_BACKGROUND>(isolate(), *arr));
   } else {
-    CHECK_EQ(1, GetRememberedSetSize<OLD_TO_NEW>(*arr));
+    CHECK_EQ(1, GetRememberedSetSize<OLD_TO_NEW>(isolate(), *arr));
   }
 }
 
@@ -520,7 +520,8 @@ TEST_F(HeapTest, Regress978156) {
   heap->RightTrimArray(*last, last->length() - 1, last->length());
   // 4. Get the last filler on the page.
   Tagged<HeapObject> filler = HeapObject::FromAddress(
-      MutablePageMetadata::FromHeapObject(*last)->area_end() - kTaggedSize);
+      MutablePageMetadata::FromHeapObject(isolate(), *last)->area_end() -
+      kTaggedSize);
   HeapObject::FromAddress(last->address() + last->Size());
   CHECK(IsFiller(filler));
   // 5. Start incremental marking.
@@ -897,7 +898,7 @@ TEST_F(HeapTest, PrecisePinningFullGCDoesntMoveOldObjectReachableFromHandles) {
 
   Address number_address = number->address();
 
-  i::MutablePageMetadata::FromHeapObject(*number)
+  i::MutablePageMetadata::FromHeapObject(isolate(), *number)
       ->set_forced_evacuation_candidate_for_testing(true);
 
   InvokeMajorGC();
@@ -982,7 +983,7 @@ TEST_F(HeapTest,
   Address number_address = number->address();
 
   for (int i = 0; i < 10; i++) {
-    i::MutablePageMetadata::FromHeapObject(*number)
+    i::MutablePageMetadata::FromHeapObject(isolate(), *number)
         ->set_forced_evacuation_candidate_for_testing(true);
     InvokeMajorGC();
     CHECK_EQ(number_address, number->address());
