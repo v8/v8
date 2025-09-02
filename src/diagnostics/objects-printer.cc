@@ -238,7 +238,7 @@ void HeapObject::PrintHeader(std::ostream& os, const char* id) {
 
 void HeapObject::HeapObjectPrint(std::ostream& os) {
   PtrComprCageBase cage_base = GetPtrComprCageBase();
-  if (IsAnyHole(Tagged(*this))) {
+  if (SafeIsAnyHole(Tagged(*this))) {
     Cast<Hole>(*this)->HolePrint(os);
     return;
   }
