@@ -67,16 +67,8 @@ ALL_VARIANT_FLAGS = {
     "precise_pinning": [[
         "--precise-object-pinning", "--scavenger-precise-object-pinning"
     ]],
-    # We test both the JS and Wasm Turboshaft pipelines under the same variant.
-    # For extended Wasm Turboshaft coverage, we add --no-liftoff to the options.
-    "turboshaft": [[
-        "--turboshaft",
-        "--no-wasm-generic-wrapper",
-        "--no-liftoff",
-    ]],
     # Turboshaft with Maglev as a frontend
     "turbolev": [[
-        "--turboshaft",
         "--turbolev",
     ]],
     "concurrent_sparkplug": [["--concurrent-sparkplug", "--sparkplug"]],
@@ -192,12 +184,6 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--wasm-dynamic-tiering"
     ],
     "sparkplug": ["--jitless", "--no-sparkplug"],
-    "turboshaft": [
-        # 'turboshaft' disables Liftoff, which conflicts with flags that require
-        # Liftoff support.
-        "--liftoff-only",
-        "--wasm-dynamic-tiering"
-    ],
     "concurrent_sparkplug": ["--jitless"],
     "maglev": ["--jitless", "--no-maglev"],
     "maglev_future": ["--jitless", "--no-maglev", "--no-maglev-future"],

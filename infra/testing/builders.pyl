@@ -59,7 +59,7 @@
       {'name': 'test262', 'variant': 'default', 'shards': 4},
       {'name': 'test262', 'variant': 'future', 'shards': 4},
       {'name': 'v8testing', 'shards': 6},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 5},
       # Noavx.
       {
         'name': 'mozilla',
@@ -418,7 +418,7 @@
       {'name': 'test262', 'variant': 'default', 'shards': 4},
       {'name': 'test262', 'variant': 'future', 'shards': 4},
       {'name': 'v8testing', 'shards': 8},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 7},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
       {'name': 'v8testing', 'variant': 'minor_ms', 'shards': 2},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning', 'shards': 2},
       {'name': 'v8testing', 'variant': 'precise_pinning', 'shards': 2},
@@ -802,7 +802,7 @@
       {'name': 'mozilla', 'shards': 2},
       {'name': 'test262', 'variant': 'default', 'shards': 5},
       {'name': 'v8testing', 'shards': 6},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 5},
       {'name': 'v8testing', 'variant': 'slow_path', 'shards': 2},
       {'name': 'v8testing', 'variant': 'stress_concurrent_allocation', 'shards': 2},
       {'name': 'v8testing', 'variant': 'minor_ms', 'shards': 2},
@@ -819,7 +819,7 @@
       {'name': 'mozilla', 'shards': 4},
       {'name': 'test262', 'variant': 'default', 'shards': 5},
       {'name': 'v8testing', 'shards': 12},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 10},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 9},
     ],
   },
   'v8_linux64_tsan_no_cm_rel': {
@@ -877,7 +877,7 @@
       {'name': 'mozilla', 'shards': 4},
       {'name': 'test262', 'variant': 'default', 'shards': 4},
       {'name': 'v8testing', 'shards': 14},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 14},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 12},
       {
         'name': 'v8testing',
         'suffix': 'all_features',
@@ -904,7 +904,7 @@
       {'name': 'mozilla', 'shards': 4},
       {'name': 'test262', 'variant': 'default', 'shards': 4},
       {'name': 'v8testing', 'shards': 14},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 14},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 12},
       {
         'name': 'v8testing',
         'suffix': 'all_features',
@@ -1076,7 +1076,7 @@
       {'name': 'mozilla'},
       {'name': 'test262', 'variant': 'default', 'shards': 6},
       {'name': 'v8testing', 'shards': 8},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 8},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 7},
       {'name': 'v8testing', 'variant': 'minor_ms', 'shards': 2},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning', 'shards': 2},
       {'name': 'v8testing', 'variant': 'precise_pinning', 'shards': 2},
@@ -1285,7 +1285,7 @@
       {'name': 'mozilla', 'variant': 'extra'},
       {'name': 'optimize_for_size'},
       {'name': 'test262', 'shards': 10},
-      {'name': 'test262', 'variant': 'extra', 'shards': 12},
+      {'name': 'test262', 'variant': 'extra', 'shards': 10},
       {'name': 'v8testing', 'shards': 3},
       {
         'name': 'v8testing',
@@ -1572,7 +1572,7 @@
       {'name': 'mozilla', 'variant': 'extra'},
       {'name': 'optimize_for_size'},
       {'name': 'test262', 'shards': 12},
-      {'name': 'test262', 'variant': 'extra', 'shards': 12},
+      {'name': 'test262', 'variant': 'extra', 'shards': 10},
       {'name': 'v8testing', 'shards': 5},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 4},
       {'name': 'v8testing', 'variant': 'minor_ms'},
@@ -1976,7 +1976,7 @@
       {'name': 'mozilla', 'shards': 4},
       {'name': 'test262', 'variant': 'default', 'shards': 6},
       {'name': 'v8testing', 'shards': 12},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 12},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 10},
     ],
   },
   'V8 Linux64 TSAN - stress-incremental-marking': {
@@ -2064,7 +2064,7 @@
       {'name': 'mozilla'},
       {'name': 'test262', 'variant': 'default', 'shards': 4},
       {'name': 'v8testing', 'shards': 6},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 5},
       {'name': 'v8testing', 'variant': 'minor_ms', 'shards': 2},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning', 'shards': 2},
       {'name': 'v8testing', 'variant': 'precise_pinning', 'shards': 2},
@@ -2338,7 +2338,7 @@
       {'name': 'mozilla', 'shards': 3},
       {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 10},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 10},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 9},
       {'name': 'v8testing', 'variant': 'turbolev'},
       # Armv8-a.
       {
@@ -2430,7 +2430,7 @@
       {'name': 'mozilla', 'shards': 2},
       {'name': 'test262', 'variant': 'default', 'shards': 3},
       {'name': 'v8testing', 'shards': 12},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 14},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 12},
       {
         'name': 'v8testing',
         'suffix': 'all_features',
