@@ -235,19 +235,20 @@ RUNTIME_FUNCTION(Runtime_TrapHandlerThrowWasmError) {
   if (op == wasm::kGCPrefix || op == wasm::kExprRefAsNonNull ||
       op == wasm::kExprCallRef || op == wasm::kExprReturnCallRef ||
       // Calling imported string function with null can trigger a signal.
-      op == wasm::kExprCallFunction || op == wasm::kExprReturnCall ||
-      // shared-everything atomic instructions.
-      (op == wasm::kAtomicPrefix && wire_bytes.at(pos + 1) >= 0x4F)) {
+      op == wasm::kExprCallFunction || op == wasm::kExprReturnCall) {
     message = MessageTemplate::kWasmTrapNullDereference;
-#if DEBUG
-  } else {
-    if (wasm::WasmOpcodes::IsPrefixOpcode(op)) {
-      op = wasm::Decoder{wire_bytes}
-               .read_prefixed_opcode<wasm::Decoder::NoValidationTag>(
-                   &wire_bytes.begin()[pos])
-               .first;
+  } else if (op == wasm::kAtomicPrefix) {
+    op = wasm::Decoder{wire_bytes}
+             .read_prefixed_opcode<wasm::Decoder::NoValidationTag>(
+                 &wire_bytes.begin()[pos])
+             .first;
+    // shared-everything atomic instructions.
+    if (op >= 0xFE4F) {
+      message = MessageTemplate::kWasmTrapNullDereference;
     }
-#endif  // DEBUG
+#define CASE(name, ...) || op == wasm::kExpr##name
+    DCHECK_EQ(op >= 0xFE4F, false FOREACH_ATOMIC_GC_OPCODE(CASE));
+#undef CASE
   }
   return ThrowWasmError(isolate, message);
 }
