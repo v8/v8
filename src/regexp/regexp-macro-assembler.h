@@ -116,7 +116,8 @@ class RegExpMacroAssembler {
 
   virtual void SkipUntilBitInTable(int cp_offset, Handle<ByteArray> table,
                                    Handle<ByteArray> nibble_table,
-                                   int advance_by) = 0;
+                                   int advance_by, Label* on_match,
+                                   Label* on_no_match) = 0;
   virtual bool SkipUntilBitInTableUseSimd(int advance_by) { return false; }
 
   // Checks whether the given offset from the current position is before

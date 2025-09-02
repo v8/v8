@@ -60,8 +60,8 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
     return assembler_->SkipUntilBitInTableUseSimd(advance_by);
   }
   void SkipUntilBitInTable(int cp_offset, Handle<ByteArray> table,
-                           Handle<ByteArray> nibble_table,
-                           int advance_by) override;
+                           Handle<ByteArray> nibble_table, int advance_by,
+                           Label* on_match, Label* on_no_match) override;
   void CheckPosition(int cp_offset, Label* on_outside_input) override;
   bool CheckSpecialClassRanges(StandardCharacterSet type,
                                Label* on_no_match) override;

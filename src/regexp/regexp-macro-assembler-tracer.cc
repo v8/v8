@@ -372,9 +372,12 @@ void RegExpMacroAssemblerTracer::CheckBitInTable(
 
 void RegExpMacroAssemblerTracer::SkipUntilBitInTable(
     int cp_offset, Handle<ByteArray> table, Handle<ByteArray> nibble_table,
-    int advance_by) {
-  PrintF("SkipUntilBitInTable(cp_offset=%d, advance_by=%d\n  ", cp_offset,
-         advance_by);
+    int advance_by, Label* on_match, Label* on_no_match) {
+  PrintF(
+      "SkipUntilBitInTable(cp_offset=%d, advance_by=%d, on_match=label[%08x], "
+      "on_no_match=label[%08x]\n  ",
+      cp_offset, advance_by, LabelToInt(on_match), LabelToInt(on_no_match));
+
   for (int i = 0; i < kTableSize; i++) {
     PrintF("%c", table->get(i) != 0 ? 'X' : '.');
     if (i % 32 == 31 && i != kTableMask) {
@@ -401,7 +404,8 @@ void RegExpMacroAssemblerTracer::SkipUntilBitInTable(
     }
   }
   PrintF(");\n");
-  assembler_->SkipUntilBitInTable(cp_offset, table, nibble_table, advance_by);
+  assembler_->SkipUntilBitInTable(cp_offset, table, nibble_table, advance_by,
+                                  on_match, on_no_match);
 }
 
 void RegExpMacroAssemblerTracer::CheckNotBackReference(int start_reg,

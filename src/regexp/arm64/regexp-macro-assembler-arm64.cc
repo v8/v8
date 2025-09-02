@@ -640,8 +640,9 @@ void RegExpMacroAssemblerARM64::CheckBitInTable(
 
 void RegExpMacroAssemblerARM64::SkipUntilBitInTable(
     int cp_offset, Handle<ByteArray> table,
-    Handle<ByteArray> nibble_table_array, int advance_by) {
-  Label cont, scalar_repeat;
+    Handle<ByteArray> nibble_table_array, int advance_by, Label* on_match,
+    Label* on_no_match) {
+  Label scalar_repeat;
 
   const bool use_simd = SkipUntilBitInTableUseSimd(advance_by);
   if (use_simd) {
@@ -730,7 +731,7 @@ void RegExpMacroAssemblerARM64::SkipUntilBitInTable(
       __ And(x8, x8, Immediate(0xfffe));
     }
     __ Add(current_input_offset(), current_input_offset(), w8);
-    __ B(&cont);
+    __ B(on_match);
     Bind(&scalar);
   }
 
@@ -739,7 +740,7 @@ void RegExpMacroAssemblerARM64::SkipUntilBitInTable(
   __ Mov(table_reg, Operand(table));
 
   Bind(&scalar_repeat);
-  CheckPosition(cp_offset, &cont);
+  CheckPosition(cp_offset, on_no_match);
   LoadCurrentCharacterUnchecked(cp_offset, 1);
   Register index = w10;
   if ((mode_ != LATIN1) || (kTableMask != String::kMaxOneByteCharCode)) {
@@ -751,11 +752,9 @@ void RegExpMacroAssemblerARM64::SkipUntilBitInTable(
   }
   Register found_in_table = w11;
   __ Ldrb(found_in_table, MemOperand(table_reg, index, UXTW));
-  __ Cbnz(found_in_table, &cont);
+  __ Cbnz(found_in_table, on_match);
   AdvanceCurrentPosition(advance_by);
   __ B(&scalar_repeat);
-
-  Bind(&cont);
 }
 
 bool RegExpMacroAssemblerARM64::SkipUntilBitInTableUseSimd(int advance_by) {

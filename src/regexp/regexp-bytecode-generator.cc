@@ -339,14 +339,12 @@ void RegExpBytecodeGenerator::CheckBitInTable(Handle<ByteArray> table,
 
 void RegExpBytecodeGenerator::SkipUntilBitInTable(
     int cp_offset, Handle<ByteArray> table, Handle<ByteArray> nibble_table,
-    int advance_by) {
-  Label cont;
+    int advance_by, Label* on_match, Label* on_no_match) {
   Emit(BC_SKIP_UNTIL_BIT_IN_TABLE, cp_offset);
   Emit32(advance_by);
   EmitSkipTable(table);
-  EmitOrLink(&cont);  // goto_when_match
-  EmitOrLink(&cont);  // goto_on_failure
-  Bind(&cont);
+  EmitOrLink(on_match);
+  EmitOrLink(on_no_match);
 }
 
 void RegExpBytecodeGenerator::CheckNotBackReference(int start_reg,
