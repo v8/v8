@@ -15930,17 +15930,10 @@ CatchBlockDetails MaglevGraphBuilder::GetCurrentTryCatchBlock() {
 
 CatchBlockDetails MaglevGraphBuilder::GetTryCatchBlockForNonEagerInlining(
     ExceptionHandlerInfo* info) {
-  if (IsInsideTryBlock()) {
-    return {info->catch_block_ref_address(), !info->ShouldLazyDeopt(), true, 0};
-  }
-  if (!is_inline()) {
-    return CatchBlockDetails{};
-  }
+  if (!info->HasExceptionHandler()) return CatchBlockDetails{};
   // Since this CatchBlockDetails is stored in a non-eager call site,
   // the catch block will already exist by the time inlining is attempted.
-  CatchBlockDetails catch_details = caller_details_->catch_block;
-  catch_details.block_already_exists = true;
-  return catch_details;
+  return {info->catch_block_ref_address(), !info->ShouldLazyDeopt(), true, 0};
 }
 
 ValueNode* MaglevGraphBuilder::GetTaggedValue(

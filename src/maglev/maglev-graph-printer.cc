@@ -636,7 +636,7 @@ void PrintExceptionHandlerPoint(std::ostream& os,
     PrintVerticalArrows(os, targets);
     PrintPadding(os, max_node_id, 0);
 
-    os << "  ↳ throw @ b" << block->id() << "\n";
+    os << "  ↳ throw (b" << block->id() << ")\n";
     return;
   }
 
@@ -664,7 +664,7 @@ void PrintExceptionHandlerPoint(std::ostream& os,
   PrintVerticalArrows(os, targets);
   PrintPadding(os, max_node_id, 0);
 
-  os << "  ↳ throw @" << handler_offset << " : {";
+  os << "  ↳ throw @" << handler_offset << " (b" << block->id() << ") : {";
   bool first = true;
   lazy_frame->as_interpreted().frame_state()->ForEachValue(
       lazy_frame->as_interpreted().unit(),
