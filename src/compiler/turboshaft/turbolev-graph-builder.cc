@@ -6433,7 +6433,7 @@ bool RunMaglevOptimizations(PipelineData* data,
   // Non-eager inlining.
   if (v8_flags.turbolev_non_eager_inlining) {
     maglev::MaglevInliner inliner(maglev_graph);
-    if (inliner.Run()) return false;
+    if (!inliner.Run()) return false;
   }
 
   // Truncation pass.
