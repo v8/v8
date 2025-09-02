@@ -119,12 +119,6 @@ namespace internal {
 #define COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL false
 #endif
 
-#ifdef V8_CONTIGUOUS_COMPRESSED_RO_SPACE
-#define CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL true
-#else
-#define CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL false
-#endif
-
 #if COMPRESS_POINTERS_BOOL && !COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
 #define COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL true
 #else
@@ -481,16 +475,17 @@ constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // OS page.
 constexpr size_t kMaximalCodeRangeSize = 128 * MB;
 constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // OS page.
 #endif
-constexpr size_t kMinimumCodeRangeSize = 64 * MB;
 #if V8_OS_WIN
+constexpr size_t kMinimumCodeRangeSize = 4 * MB;
 constexpr size_t kReservedCodeRangePages = 1;
 #else
+constexpr size_t kMinimumCodeRangeSize = 3 * MB;
 constexpr size_t kReservedCodeRangePages = 0;
 #endif
 
 // These constants define the total trusted space memory per process.
 constexpr size_t kMaximalTrustedRangeSize = 1 * GB;
-constexpr size_t kMinimumTrustedRangeSize = 512 * MB;
+constexpr size_t kMinimumTrustedRangeSize = 32 * MB;
 
 #else  // V8_HOST_ARCH_64_BIT
 
@@ -746,36 +741,6 @@ constexpr bool StaticStringsEqual(const char* s1, const char* s2) {
     if (*s1 == '\0') return true;
   }
 }
-
-#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
-constexpr size_t kContiguousReadOnlyReservationSize =
-    V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB * MB;
-// In this configuration we only allocate RO objects in the first
-// `kContiguousReadOnlyReservationSize` of the shared data cage. We also create
-// red zones in all cages and reservations that can be used to allocate
-// `HeapObject`s. within this range, i.e., trusted cage and code range.
-//
-// We want the reservation size to be a power-of-2 to allow cheap containment
-// checks.
-static_assert(base::bits::IsPowerOfTwo(kContiguousReadOnlyReservationSize));
-// The mask here can be used to check whether any Tagged<T> (cage doesn't matter
-// here) is contained in RO space as follows:
-//   ((address & kContiguousReadOnlySpaceMask) == 0) => "object in RO space"
-// See `HeapLayout::InReadOnlySpace()` for usage.
-//
-// E.g., for a 8MiB contiguous region:
-// ```
-//   0x00000000ffffffff  // (kPtrComprCageBaseAlignment-1)
-// ^ 0x00000000007fffff  // (kContiguousReadOnlyReservationSize - 1)
-// = 0x00000000ff800000  // kContiguousReadOnlySpaceMask
-// ```
-constexpr Address kContiguousReadOnlySpaceMask =
-    (kPtrComprCageBaseAlignment - 1) ^ (kContiguousReadOnlyReservationSize - 1);
-// Bound the worst case consumption of contiguous RO space across the various
-// cages/regions.
-static_assert(kMinimumTrustedRangeSize >= 512 * MB);
-static_assert(!kPlatformRequiresCodeRange || kMinimumCodeRangeSize >= 64 * MB);
-#endif  // CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 
 // -----------------------------------------------------------------------------
 // Declarations for use in both the preparser and the rest of V8.

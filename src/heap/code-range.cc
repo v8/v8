@@ -238,38 +238,6 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
 #endif  // V8_OS_WIN64
   }
 
-#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
-  // Contiguous RO space supports checking for RO space objects via raw full
-  // addresses. In case we cross a `kPtrComprCageBaseAlignment` boundary we need
-  // to add a red zone.
-  //
-  // The ranges may overlap in some ways, e.g.,
-  //
-  //                                  |---- code range ----|
-  //                                  ^ base()             ^ base() + size()
-  //
-  //        |-- No objects must be allocated here --|
-  //        ^ data_cage_ro_start                    ^ data_cage_ro_end
-
-  // The checks below only work when the code range is not fully contained
-  // within the aligned region.
-  CHECK_GE(size(), kContiguousReadOnlyReservationSize);
-  const Address data_cage_ro_start =
-      RoundDown<kPtrComprCageBaseAlignment>(base());
-  const Address data_cage_ro_end =
-      data_cage_ro_start + kContiguousReadOnlyReservationSize;
-  if (page_allocator_->contains(data_cage_ro_start) ||
-      page_allocator_->contains(data_cage_ro_end)) {
-    // The red zone starts either at base, or a larger address of
-    // `kPtrComprCageBaseAlignment`.
-    const Address red_zone_start = std::max(base(), data_cage_ro_start);
-    const Address red_zone_end = std::min(base() + size(), data_cage_ro_end);
-    const size_t red_zone_size = red_zone_end - red_zone_start;
-    CHECK(page_allocator_->AllocatePagesAt(red_zone_start, red_zone_size,
-                                           PageAllocator::kNoAccess));
-  }
-#endif  // CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
-
 // Don't pre-commit the code cage on Windows since it uses memory and it's not
 // required for recommit.
 // iOS cannot adjust page permissions for MAP_JIT'd pages, they are set as RWX
