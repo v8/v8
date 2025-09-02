@@ -207,7 +207,8 @@ NamedAccessFeedback const& ElementAccessFeedback::Refine(JSHeapBroker* broker,
   // key is know to be a known name.
   CHECK(transition_groups_.empty());
   ZoneVector<MapRef> maps(broker->zone());
-  return *broker->zone()->New<NamedAccessFeedback>(name, maps, slot_kind());
+  return *broker->zone()->New<NamedAccessFeedback>(name.UnpackIfThin(broker),
+                                                   maps, slot_kind());
 }
 
 ElementAccessFeedback const& ElementAccessFeedback::Refine(
@@ -531,7 +532,8 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
     DCHECK_IMPLIES(maps.empty(),
                    nexus.ic_state() == InlineCacheState::MEGAMORPHIC);
     return *zone()->New<NamedAccessFeedback>(
-        *name, maps, kind, has_deprecated_map_without_migration_target);
+        name->UnpackIfThin(this), maps, kind,
+        has_deprecated_map_without_migration_target);
   } else if (nexus.GetKeyType() == IcCheckType::kElement && !maps.empty()) {
     return ProcessFeedbackMapsForElementAccess(
         maps, KeyedAccessMode::FromNexus(nexus), kind);

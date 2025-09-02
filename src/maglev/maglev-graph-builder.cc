@@ -7243,7 +7243,7 @@ ReduceResult MaglevGraphBuilder::VisitGetKeyedProperty() {
       processed_feedback->AsElementAccess().transition_groups().empty()) {
     if (auto constant = TryGetConstant(GetAccumulator());
         constant.has_value() && constant->IsName()) {
-      compiler::NameRef name = constant->AsName();
+      compiler::NameRef name = constant->AsName().UnpackIfThin(broker());
       if (name.IsUniqueName() && !name.object()->IsArrayIndex()) {
         processed_feedback =
             &processed_feedback->AsElementAccess().Refine(broker(), name);
@@ -10259,7 +10259,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceObjectPrototypeHasOwnProperty(
       receiver_map.instance_descriptors(broker());
   for (InternalIndex key_index : InternalIndex::Range(nof)) {
     compiler::NameRef receiver_key =
-        descriptor_array.GetPropertyKey(broker(), key_index);
+        descriptor_array.GetPropertyKey(broker(), key_index)
+            .UnpackIfThin(broker());
     ValueNode* lhs = GetConstant(receiver_key);
     sub_graph.set(var_result, GetRootConstant(RootIndex::kTrueValue));
     sub_graph.GotoIfTrue<BranchIfReferenceEqual>(&done, {lhs, args[0]});
