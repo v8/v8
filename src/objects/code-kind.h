@@ -8,6 +8,7 @@
 #include "src/base/bounds.h"
 #include "src/base/flags.h"
 #include "src/flags/flags.h"
+#include "src/utils/utils.h"  // For BytecodeOffset.
 
 namespace v8 {
 namespace internal {
@@ -47,7 +48,9 @@ static_assert(kCodeKindCount <= std::numeric_limits<uint8_t>::max());
 
 const char* CodeKindToString(CodeKind kind);
 
-const char* CodeKindToMarker(CodeKind kind, bool context_specialized);
+// The marker is used to distinguish code variants for profiling.
+const char* CodeKindToMarker(CodeKind kind, bool context_specialized,
+                             BytecodeOffset osr_offset);
 
 inline constexpr bool CodeKindIsInterpretedJSFunction(CodeKind kind) {
   return kind == CodeKind::INTERPRETED_FUNCTION;

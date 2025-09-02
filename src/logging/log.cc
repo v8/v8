@@ -141,8 +141,8 @@ const char* ComputeMarker(Tagged<SharedFunctionInfo> shared,
       kind == CodeKind::INTERPRETED_FUNCTION) {
     return "";
   }
-  return CodeKindToMarker(
-      kind, IsCode(code) && code->GetCode()->is_context_specialized());
+  return CodeKindToMarker(kind, code->is_context_specialized(cage_base),
+                          code->osr_offset(cage_base));
 }
 
 #if V8_ENABLE_WEBASSEMBLY
