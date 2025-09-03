@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "src/base/logging.h"
 #include "src/base/threaded-list.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/bytecode-liveness-map.h"
@@ -1183,8 +1184,10 @@ class MergePointInterpreterFrameState {
       std::cout << prelude << std::endl;
     }
     from_ifs.Print(std::cout, "* VOs (Interpreter Frame State): ");
-    known_node_aspects_->virtual_objects().Print(std::cout,
-                                                 "* VOs (Merge Frame State): ");
+    if (known_node_aspects_) {
+      known_node_aspects_->virtual_objects().Print(
+          std::cout, "* VOs (Merge Frame State): ");
+    }
   }
 
   bool is_loop() const {

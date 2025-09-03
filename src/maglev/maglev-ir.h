@@ -884,6 +884,13 @@ inline constexpr bool NodeTypeIs(NodeType type, NodeType to_check) {
   NodeTypeInt right = static_cast<NodeTypeInt>(to_check);
   return (static_cast<NodeTypeInt>(type) & (~right)) == 0;
 }
+inline constexpr bool NodeTypeIsForPrinting(NodeType type, NodeType to_check) {
+  // Like NodeTypeIs, but without the DCHECKs, since non-standalone types can be
+  // part of larger types and we still need to print them individually, which
+  // will trigger the DCHECKs of NodeTypeIs.
+  NodeTypeInt right = static_cast<NodeTypeInt>(to_check);
+  return (static_cast<NodeTypeInt>(type) & (~right)) == 0;
+}
 inline constexpr bool NodeTypeCanBe(NodeType type, NodeType to_check) {
   DCHECK(!NodeTypeIsNeverStandalone(type));
   DCHECK(!NodeTypeIsNeverStandalone(to_check));
@@ -1123,7 +1130,7 @@ inline std::ostream& operator<<(std::ostream& out, const NodeType& type) {
 #undef CASE
     default:
 #define CASE(Name, _)                                        \
-  if (NodeTypeIs(NodeType::k##Name, type)) {                 \
+  if (NodeTypeIsForPrinting(NodeType::k##Name, type)) {      \
     if constexpr (NodeType::k##Name != NodeType::kUnknown) { \
       out << #Name "|";                                      \
     }                                                        \
