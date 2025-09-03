@@ -154,14 +154,21 @@ bool JSFinalizationRegistry::NeedsCleanup() const {
   return IsWeakCell(cleared_cells());
 }
 
-Tagged<UnionOf<JSFinalizationRegistry, Undefined>>
-WeakCell::finalization_registry() const {
+Tagged<JSFinalizationRegistry> WeakCell::finalization_registry() const {
   return finalization_registry_.load();
 }
-void WeakCell::set_finalization_registry(
-    Tagged<UnionOf<JSFinalizationRegistry, Undefined>> value,
-    WriteBarrierMode mode) {
+void WeakCell::set_finalization_registry(Tagged<JSFinalizationRegistry> value,
+                                         WriteBarrierMode mode) {
+  // `finalization_registry_` is never updated after it is initialized.
+  DCHECK_EQ(finalization_registry_.ptr(), kNullAddress);
   finalization_registry_.store(this, value, mode);
+}
+
+Tagged<JSAny> WeakCell::holdings() const { return holdings_.load(); }
+void WeakCell::set_holdings(Tagged<JSAny> value, WriteBarrierMode mode) {
+  // `holdings_` is never updated after it is initialized.
+  DCHECK_EQ(holdings_.ptr(), kNullAddress);
+  holdings_.store(this, value, mode);
 }
 
 Tagged<UnionOf<Symbol, JSReceiver, Undefined>> WeakCell::target() const {
@@ -169,6 +176,10 @@ Tagged<UnionOf<Symbol, JSReceiver, Undefined>> WeakCell::target() const {
 }
 void WeakCell::set_target(Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value,
                           WriteBarrierMode mode) {
+  // `target_` is set once during initialization to a non-undefined object.
+  // After that, `target_` can only transition to undefined.
+  DCHECK_IMPLIES(!IsUndefined(value), target_.ptr() == kNullAddress);
+  DCHECK_IMPLIES(target_.ptr() != kNullAddress, IsUndefined(value));
   target_.store(this, value, mode);
 }
 
@@ -179,12 +190,11 @@ Tagged<UnionOf<Symbol, JSReceiver, Undefined>> WeakCell::unregister_token()
 void WeakCell::set_unregister_token(
     Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value,
     WriteBarrierMode mode) {
+  // `unregister_token_` is set once during initialization to a non-undefined
+  // object. After that, `unregister_token_` can only transition to undefined.
+  DCHECK_IMPLIES(!IsUndefined(value), unregister_token_.ptr() == kNullAddress);
+  DCHECK_IMPLIES(unregister_token_.ptr() != kNullAddress, IsUndefined(value));
   unregister_token_.store(this, value, mode);
-}
-
-Tagged<JSAny> WeakCell::holdings() const { return holdings_.load(); }
-void WeakCell::set_holdings(Tagged<JSAny> value, WriteBarrierMode mode) {
-  holdings_.store(this, value, mode);
 }
 
 Tagged<UnionOf<WeakCell, Undefined>> WeakCell::prev() const {

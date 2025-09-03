@@ -86,11 +86,14 @@ class JSFinalizationRegistry
 // Internal object for storing weak references in JSFinalizationRegistry.
 V8_OBJECT class WeakCell : public HeapObjectLayout {
  public:
-  inline Tagged<UnionOf<JSFinalizationRegistry, Undefined>>
-  finalization_registry() const;
+  inline Tagged<JSFinalizationRegistry> finalization_registry() const;
   inline void set_finalization_registry(
-      Tagged<UnionOf<JSFinalizationRegistry, Undefined>> value,
+      Tagged<JSFinalizationRegistry> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<JSAny> holdings() const;
+  inline void set_holdings(Tagged<JSAny> value,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<UnionOf<Symbol, JSReceiver, Undefined>> target() const;
   inline void set_target(Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value,
@@ -101,10 +104,6 @@ V8_OBJECT class WeakCell : public HeapObjectLayout {
   inline void set_unregister_token(
       Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
-  inline Tagged<JSAny> holdings() const;
-  inline void set_holdings(Tagged<JSAny> value,
-                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<UnionOf<WeakCell, Undefined>> prev() const;
   inline void set_prev(Tagged<UnionOf<WeakCell, Undefined>> value,
@@ -152,11 +151,10 @@ V8_OBJECT class WeakCell : public HeapObjectLayout {
   friend class TorqueGeneratedWeakCellAsserts;
   friend class V8HeapExplorer;
 
-  TaggedMember<UnionOf<JSFinalizationRegistry, Undefined>>
-      finalization_registry_;
+  TaggedMember<JSFinalizationRegistry> finalization_registry_;
+  TaggedMember<JSAny> holdings_;
   TaggedMember<UnionOf<Symbol, JSReceiver, Undefined>> target_;
   TaggedMember<UnionOf<Symbol, JSReceiver, Undefined>> unregister_token_;
-  TaggedMember<JSAny> holdings_;
   TaggedMember<UnionOf<WeakCell, Undefined>> prev_;
   TaggedMember<UnionOf<WeakCell, Undefined>> next_;
   TaggedMember<UnionOf<WeakCell, Undefined>> key_list_prev_;

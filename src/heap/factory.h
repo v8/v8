@@ -82,7 +82,6 @@ class TemplateObjectDescription;
 class WasmCapiFunctionData;
 class WasmExportedFunctionData;
 class WasmJSFunctionData;
-class WeakCell;
 
 #if V8_ENABLE_WEBASSEMBLY
 namespace wasm {
