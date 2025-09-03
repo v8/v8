@@ -2359,12 +2359,12 @@ bool BytecodeGenerator::IsPrototypeAssignment(
   Variable* tmp_var = proto_prop->obj()->AsVariableProxy()->var();
   VariableLocation loc = tmp_var->location();
   if (loc != VariableLocation::PARAMETER && loc != VariableLocation::LOCAL &&
-      (loc != VariableLocation::CONTEXT &&
-       tmp_var->maybe_assigned() == kNotAssigned)) {
+      !(loc == VariableLocation::CONTEXT &&
+        tmp_var->maybe_assigned() == kNotAssigned)) {
     return false;
   }
 
-  if (tmp_var == nullptr) {
+  if (*var == nullptr) {
     // This is the first proto assignment in the sequence
     *var = tmp_var;
   } else if (*var != tmp_var) {
