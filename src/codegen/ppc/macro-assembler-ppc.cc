@@ -948,6 +948,26 @@ void MacroAssembler::CallRecordWriteStub(Register object, Register slot_address,
   }
 }
 
+void MacroAssembler::CallVerifySkippedWriteBarrierStubSaveRegisters(
+    Register object, Register value, SaveFPRegsMode fp_mode) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, value));
+  PushCallerSaved(fp_mode, ip, r0);
+  CallVerifySkippedWriteBarrierStub(object, value);
+  PopCallerSaved(fp_mode, ip, r0);
+}
+
+void MacroAssembler::CallVerifySkippedWriteBarrierStub(Register object,
+                                                       Register value) {
+  ASM_CODE_COMMENT(this);
+  push(value);
+  push(object);
+  pop(kCArgRegs[0]);
+  pop(kCArgRegs[1]);
+  PrepareCallCFunction(2, r0);
+  CallCFunction(ExternalReference::verify_skipped_write_barrier(), 2);
+}
+
 // Will clobber 4 registers: object, address, scratch, ip.  The
 // register 'object' contains a heap object pointer.  The heap object
 // tag is shifted away.
