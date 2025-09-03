@@ -692,8 +692,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
 #if V8_ENABLE_WEBASSEMBLY
     case kArchCallWasmFunction:
-    case kArchCallWasmFunctionIndirect:
-    case kArchResumeWasmContinuation: {
+    case kArchCallWasmFunctionIndirect: {
       if (instr->InputAt(0)->IsImmediate()) {
         DCHECK_EQ(arch_opcode, kArchCallWasmFunction);
         Constant constant = i.ToConstant(instr->InputAt(0));
@@ -704,9 +703,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             i.InputRegister(0),
             i.InputInt64(instr->WasmSignatureHashInputIndex()));
       } else {
-        // TODO(thibaudm): Use a WasmCodePointer for
-        // kArchResumeWasmContinuation. Can this be merged with
-        // kArchCallWasmFunctionIndirect?
         __ Call(i.InputRegister(0));
       }
       RecordCallPosition(instr);

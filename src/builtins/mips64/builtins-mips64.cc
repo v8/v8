@@ -3052,6 +3052,10 @@ void Builtins::Generate_WasmReject(MacroAssembler* masm) {
   __ Trap();
 }
 
+void Builtins::Generate_WasmFXResume(MacroAssembler* masm) { __ Trap(); }
+
+void Builtins::Generate_WasmFXReturn(MacroAssembler* masm) { __ Trap(); }
+
 void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {
   // Only needed on x64.
   __ Trap();

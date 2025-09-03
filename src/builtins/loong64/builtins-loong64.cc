@@ -3090,7 +3090,7 @@ void SwitchStackPointer(MacroAssembler* masm, Register stack) {
 }
 
 void LoadJumpBuffer(MacroAssembler* masm, Register stack, bool load_pc,
-                    Register tmp, wasm::JumpBuffer::StackState expected_state) {
+                    Register tmp) {
   SwitchStackPointer(masm, stack);
   __ Ld_d(fp, MemOperand(stack, wasm::kStackFpOffset));
   if (load_pc) {
@@ -3102,12 +3102,11 @@ void LoadJumpBuffer(MacroAssembler* masm, Register stack, bool load_pc,
 }
 
 void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_stack,
-                          Register tmp,
-                          wasm::JumpBuffer::StackState expected_state) {
+                          Register tmp) {
   __ St_d(zero_reg,
           MemOperand(fp, StackSwitchFrameConstants::kGCScanSlotCountOffset));
   // Switch stack!
-  LoadJumpBuffer(masm, target_stack, false, tmp, expected_state);
+  LoadJumpBuffer(masm, target_stack, false, tmp);
 }
 
 // Updates the stack limit and central stack info, and validates the switch.
@@ -3171,7 +3170,7 @@ void ReloadParentStack(MacroAssembler* masm, Register return_reg,
   // Switch stack!
   SwitchStacks(masm, ExternalReference::wasm_return_stack(), active_stack,
                nullptr, no_reg, {return_reg, return_value, context, parent});
-  LoadJumpBuffer(masm, parent, false, tmp3, wasm::JumpBuffer::Inactive);
+  LoadJumpBuffer(masm, parent, false, tmp3);
 }
 
 void RestoreParentSuspender(MacroAssembler* masm, Register tmp1) {
@@ -3456,7 +3455,7 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
       MemOperand(fp, StackSwitchFrameConstants::kGCScanSlotCountOffset);
   __ St_d(zero_reg, GCScanSlotPlace);
   DEFINE_REG(scratch)
-  LoadJumpBuffer(masm, caller, true, scratch, wasm::JumpBuffer::Inactive);
+  LoadJumpBuffer(masm, caller, true, scratch);
   __ Trap();
   __ bind(&resume);
   __ LeaveFrame(StackFrame::STACK_SWITCH);
@@ -3522,7 +3521,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
       kWasmStackMemoryTag);
 
   __ StoreRootRelative(IsolateData::active_stack_offset(), target_stack);
-  SwitchStacks(masm, ExternalReference::wasm_resume_stack(), active_stack,
+  SwitchStacks(masm, ExternalReference::wasm_resume_jspi_stack(), active_stack,
                &suspend, suspender, {target_stack});
 
   regs.ResetExcept(target_stack);
@@ -3539,8 +3538,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   __ St_d(zero_reg, GCScanSlotPlace);
   if (on_resume == wasm::OnResume::kThrow) {
     // Switch without restoring the PC.
-    LoadJumpBuffer(masm, target_stack, false, scratch,
-                   wasm::JumpBuffer::Suspended);
+    LoadJumpBuffer(masm, target_stack, false, scratch);
     // Pop this frame now. The unwinder expects that the first STACK_SWITCH
     // frame is the outermost one.
     __ LeaveFrame(StackFrame::STACK_SWITCH);
@@ -3549,8 +3547,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
     __ CallRuntime(Runtime::kThrow);
   } else {
     // Resume the stack normally.
-    LoadJumpBuffer(masm, target_stack, true, scratch,
-                   wasm::JumpBuffer::Suspended);
+    LoadJumpBuffer(masm, target_stack, true, scratch);
   }
   __ Trap();
   __ bind(&suspend);
@@ -3567,6 +3564,34 @@ void Builtins::Generate_WasmResume(MacroAssembler* masm) {
 
 void Builtins::Generate_WasmReject(MacroAssembler* masm) {
   Generate_WasmResumeHelper(masm, wasm::OnResume::kThrow);
+}
+
+void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
+  __ EnterFrame(StackFrame::WASM_STACK_EXIT);
+  Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
+  Label suspend;
+  Register active_stack = a0;
+  __ LoadRootRelative(active_stack, IsolateData::active_stack_offset());
+  __ StoreRootRelative(IsolateData::active_stack_offset(), target_stack);
+  SwitchStacks(masm, ExternalReference::wasm_resume_wasmfx_stack(),
+               active_stack, &suspend, no_reg, {target_stack});
+  LoadJumpBuffer(masm, target_stack, true, a1);
+  __ Trap();
+  __ bind(&suspend);
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ Ret();
+}
+
+void Builtins::Generate_WasmFXReturn(MacroAssembler* masm) {
+  Register active_stack = a0;
+  __ LoadRootRelative(active_stack, IsolateData::active_stack_offset());
+  Register parent = a1;
+  __ Move(parent, MemOperand(active_stack, wasm::kStackParentOffset));
+  __ StoreRootRelative(IsolateData::active_stack_offset(), parent);
+  SwitchStacks(masm, ExternalReference::wasm_return_stack(), active_stack,
+               nullptr, no_reg, {parent});
+  LoadJumpBuffer(masm, parent, true, a2);
+  __ Trap();
 }
 
 void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {
@@ -3595,8 +3620,7 @@ void SwitchToAllocatedStack(MacroAssembler* masm, RegisterAllocator& regs,
   __ mov(original_fp, fp);
   DEFINE_REG(target_stack);
   __ LoadRootRelative(target_stack, IsolateData::active_stack_offset());
-  LoadTargetJumpBuffer(masm, target_stack, scratch,
-                       wasm::JumpBuffer::Suspended);
+  LoadTargetJumpBuffer(masm, target_stack, scratch);
   FREE_REG(target_stack);
 
   // Push the loaded fp. We know it is null, because there is no frame yet,
