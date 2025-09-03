@@ -1121,6 +1121,22 @@ void MacroAssembler::CallRecordWriteStub(Register object, Register slot_address,
   }
 }
 
+void MacroAssembler::CallVerifySkippedWriteBarrierStubSaveRegisters(
+    Register object, Register value, SaveFPRegsMode fp_mode) {
+  ASM_CODE_COMMENT(this);
+  PushCallerSaved(fp_mode);
+  CallVerifySkippedWriteBarrierStub(object, value);
+  PopCallerSaved(fp_mode);
+}
+
+void MacroAssembler::CallVerifySkippedWriteBarrierStub(Register object,
+                                                       Register value) {
+  ASM_CODE_COMMENT(this);
+  MovePair(kCArgRegs[0], object, kCArgRegs[1], value);
+  PrepareCallCFunction(2);
+  CallCFunction(ExternalReference::verify_skipped_write_barrier(), 2);
+}
+
 #ifdef V8_IS_TSAN
 void MacroAssembler::CallTSANStoreStub(Register address, Register value,
                                        SaveFPRegsMode fp_mode, int size,

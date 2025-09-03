@@ -518,6 +518,9 @@ FUNCTION_REFERENCE(shared_barrier_from_code_function,
 FUNCTION_REFERENCE(insert_remembered_set_function,
                    Heap::InsertIntoRememberedSetFromCode)
 
+FUNCTION_REFERENCE(verify_skipped_write_barrier,
+                   Heap::VerifySkippedWriteBarrier)
+
 namespace {
 
 intptr_t DebugBreakAtEntry(Isolate* isolate, Address raw_sfi) {

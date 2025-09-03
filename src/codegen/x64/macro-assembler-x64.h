@@ -687,6 +687,11 @@ class V8_EXPORT_PRIVATE MacroAssembler
       Register object, Register slot_address, SaveFPRegsMode fp_mode,
       StubCallMode mode = StubCallMode::kCallBuiltinPointer);
 
+  void CallVerifySkippedWriteBarrierStubSaveRegisters(Register object,
+                                                      Register value,
+                                                      SaveFPRegsMode fp_mode);
+  void CallVerifySkippedWriteBarrierStub(Register object, Register value);
+
 #ifdef V8_IS_TSAN
   void CallTSANStoreStub(Register address, Register value,
                          SaveFPRegsMode fp_mode, int size, StubCallMode mode,

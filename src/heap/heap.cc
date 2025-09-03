@@ -6754,6 +6754,18 @@ void Heap::VerifySlotRangeHasNoRecordedSlots(Address start, Address end) {
 }
 #endif
 
+// static
+void Heap::VerifySkippedWriteBarrier(Address object, Address value) {
+#if V8_VERIFY_WRITE_BARRIERS
+  DCHECK(v8_flags.verify_write_barriers);
+  Tagged<Object> tagged(object);
+  CHECK(!WriteBarrier::IsRequired(tagged.GetHeapObjectAssumeStrong(),
+                                  Tagged<Object>(value)));
+#else
+  UNREACHABLE();
+#endif  // V8_VERIFY_WRITE_BARRIERS
+}
+
 void Heap::ClearRecordedSlotRange(Address start, Address end) {
 #ifndef V8_DISABLE_WRITE_BARRIERS
   MemoryChunk* chunk = MemoryChunk::FromAddress(start);

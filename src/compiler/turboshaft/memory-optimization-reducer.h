@@ -353,6 +353,9 @@ class MemoryOptimizationReducer : public Next {
         __ GotoIfNot(LIKELY(__ UintPtrLessThan(
                          size, __ IntPtrConstant(kMaxRegularHeapObjectSize))),
                      call_runtime);
+        if (v8_flags.verify_write_barriers) {
+          SetLastYoungAllocation(type, top_value);
+        }
         __ SetVariable(top(type), new_top);
         __ StoreOffHeap(top_address, new_top, MemoryRepresentation::UintPtr());
         __ Goto(done);
@@ -402,6 +405,11 @@ class MemoryOptimizationReducer : public Next {
     __ BindReachable(done);
     // Compute the new top and write it back.
     V<WordPtr> obj_addr = __ GetVariable(top(type));
+
+    if (v8_flags.verify_write_barriers) {
+      SetLastYoungAllocation(type, obj_addr);
+    }
+
     __ SetVariable(top(type), __ WordPtrAdd(__ GetVariable(top(type)), size));
     __ StoreOffHeap(top_address, __ GetVariable(top(type)),
                     MemoryRepresentation::UintPtr());
@@ -531,6 +539,16 @@ class MemoryOptimizationReducer : public Next {
     return allocate_wasm_shared_builtin_descriptor_;
   }
 #endif
+
+  void SetLastYoungAllocation(AllocationType type, V<WordPtr> obj) {
+    DCHECK(v8_flags.verify_write_barriers);
+    V<WordPtr> last_value =
+        type == AllocationType::kYoung ? obj : __ IntPtrConstant(0);
+
+    __ StoreOffHeap(__ LoadRootRegister(), last_value,
+                    MemoryRepresentation::UintPtr(),
+                    IsolateData::last_young_allocation_offset());
+  }
 
   V<WordPtr> GetLimitAddress(AllocationType type) {
     V<WordPtr> limit_address;

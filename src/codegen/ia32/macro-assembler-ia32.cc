@@ -553,6 +553,26 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
   }
 }
 
+void MacroAssembler::CallVerifySkippedWriteBarrierStubSaveRegisters(
+    Register object, Register value, SaveFPRegsMode fp_mode) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, value));
+  PushCallerSaved(fp_mode);
+  CallVerifySkippedWriteBarrierStub(object, value);
+  PopCallerSaved(fp_mode);
+}
+
+void MacroAssembler::CallVerifySkippedWriteBarrierStub(Register object,
+                                                       Register value) {
+  ASM_CODE_COMMENT(this);
+  movd(kScratchDoubleReg, eax);
+  PrepareCallCFunction(2, eax);
+  movd(eax, kScratchDoubleReg);
+  mov(Operand(esp, 0 * kSystemPointerSize), object);
+  mov(Operand(esp, 1 * kSystemPointerSize), value);
+  CallCFunction(ExternalReference::verify_skipped_write_barrier(), 2);
+}
+
 void MacroAssembler::Cvtsi2ss(XMMRegister dst, Operand src) {
   xorps(dst, dst);
   cvtsi2ss(dst, src);

@@ -1595,6 +1595,20 @@ TNode<HeapObject> CodeStubAssembler::AllocateRaw(TNode<IntPtrT> size_in_bytes,
   if (v8_flags.sticky_mark_bits && (flags & AllocationFlag::kPretenured)) {
     CSA_DCHECK(this, IsMarked(result.value()));
   }
+  if (v8_flags.verify_write_barriers) {
+    TNode<ExternalReference> last_young_allocation_address = ExternalConstant(
+        ExternalReference::last_young_allocation_address(isolate()));
+
+    if (flags & AllocationFlag::kPretenured) {
+      StoreNoWriteBarrier(MachineType::PointerRepresentation(),
+                          last_young_allocation_address, IntPtrConstant(0));
+    } else {
+      StoreNoWriteBarrier(MachineType::PointerRepresentation(),
+                          last_young_allocation_address,
+                          IntPtrSub(BitcastTaggedToWord(result.value()),
+                                    IntPtrConstant(kHeapObjectTag)));
+    }
+  }
   return UncheckedCast<HeapObject>(result.value());
 }
 
