@@ -91,6 +91,7 @@
 
   # https://crbug.com/350694471 Currently too flaky.
   'shared-memory/async-synchronization-workers-terminated': [SKIP],
+  'shared-memory/condition-async-wait-realm-disposed': [SKIP],
 
   ##############################################################################
   # Tests where variants make no sense.
