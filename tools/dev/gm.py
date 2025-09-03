@@ -155,13 +155,22 @@ V8_DIR = Path(__file__).resolve().parent.parent.parent
 GCLIENT_FILE_PATH = V8_DIR.parent / ".gclient"
 RECLIENT_CERT_CACHE = V8_DIR / ".#gm_reclient_cert_cache"
 
+if (V8_DIR.parent / "chrome").exists():
+  CHROMIUM_DIR = V8_DIR.parent
+  GCLIENT_FILE_PATH = CHROMIUM_DIR / ".gclient"
+else:
+  CHROMIUM_DIR = None
+
 out_dir_override = os.getenv("V8_GM_OUTDIR")
 if out_dir_override and Path(out_dir_override).is_dir:
   OUTDIR = Path(out_dir_override).absolute()
   OUTDIR_BASENAME = OUTDIR.parts[-1]
 else:
   OUTDIR_BASENAME = "out"
-  OUTDIR = Path(V8_DIR / OUTDIR_BASENAME)
+  if CHROMIUM_DIR:
+    OUTDIR = Path(CHROMIUM_DIR / OUTDIR_BASENAME)
+  else:
+    OUTDIR = Path(V8_DIR / OUTDIR_BASENAME)
 
 BUILD_DISTRIBUTION_RE = re.compile(r"\nuse_(remoteexec|goma) = (false|true)")
 GOMA_DIR_LINE = re.compile(r"\ngoma_dir = \"[^\"]+\"")
@@ -448,7 +457,10 @@ class RawConfig:
     # When printing, print a relative path for conciseness.
     cwd = Path.cwd()
     if cwd == V8_DIR:
-      printable_path = self.path.relative_to(cwd)
+      try:
+        printable_path = self.path.relative_to(cwd)
+      except:
+        printable_path = self.path
     else:
       printable_path = self.path
     build_ninja = self.path / "build.ninja"
@@ -671,6 +683,7 @@ class ArgumentParser(object):
     # "out/foo.d8" -> path="out/foo", targets=["d8"]
     # "out/d8.cctest" -> path="out/d8", targets=["cctest"]
     # "out/x.y.d8.cctest" -> path="out/x.y", targets=["d8", "cctest"]
+    argstring = argstring.replace(outdir_prefix, "")
     words = argstring.split('.')
     path_end = len(words)
     targets = []
@@ -690,7 +703,7 @@ class ArgumentParser(object):
         break
       path_end -= 1
     targets = targets or DEFAULT_TARGETS
-    path = V8_DIR / Path('.'.join(words[:path_end]))
+    path = OUTDIR / Path('.'.join(words[:path_end]))
     args_gn = path / "args.gn"
     # Only accept existing build output directories, otherwise fall back
     # to regular parsing.
