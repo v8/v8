@@ -2357,10 +2357,15 @@ ReduceResult MaglevGraphBuilder::BuildUnwrapStringWrapper(ValueNode* input) {
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildStringConcat(ValueNode* left,
                                                            ValueNode* right) {
-  auto left_type = GetType(left);
-  auto right_type = GetType(right);
-  auto left_is_string = NodeTypeIs(left_type, NodeType::kString);
-  auto right_is_string = NodeTypeIs(right_type, NodeType::kString);
+  NodeType left_type = GetType(left);
+  NodeType right_type = GetType(right);
+  bool left_is_string = NodeTypeIs(left_type, NodeType::kString);
+  bool right_is_string = NodeTypeIs(right_type, NodeType::kString);
+
+  if (IsEmptyNodeType(left_type) || IsEmptyNodeType(right_type)) {
+    // We must be in unreachable code.
+    return BuildAbort(AbortReason::kUnreachable);
+  }
 
   if (!left_is_string && !right_is_string) {
     return MaybeReduceResult::Fail();
@@ -2376,16 +2381,16 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStringConcat(ValueNode* left,
   // operands using `ToString(ToPrimitive(op))`.
   if (!left_is_string) {
     if (NodeTypeCanBe(left_type, NodeType::kJSReceiver)) {
-      constexpr auto kTarget = Builtin::kStringAddConvertLeft;
-      auto result = BuildCallBuiltin<kTarget>({left, right});
+      constexpr Builtin kTarget = Builtin::kStringAddConvertLeft;
+      CallBuiltin* result = BuildCallBuiltin<kTarget>({left, right});
       SetAccumulator(result);
       return result;
     }
     left = BuildToString(left, ToString::kThrowOnSymbol);
   } else if (!right_is_string) {
     if (NodeTypeCanBe(right_type, NodeType::kJSReceiver)) {
-      constexpr auto kTarget = Builtin::kStringAddConvertRight;
-      auto result = BuildCallBuiltin<kTarget>({left, right});
+      constexpr Builtin kTarget = Builtin::kStringAddConvertRight;
+      CallBuiltin* result = BuildCallBuiltin<kTarget>({left, right});
       SetAccumulator(result);
       return result;
     }

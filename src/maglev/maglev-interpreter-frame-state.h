@@ -842,6 +842,7 @@ class InterpreterFrameState {
     known_node_aspects_->virtual_objects().Add(vobject);
   }
   const VirtualObjectList& virtual_objects() const {
+    DCHECK_NOT_NULL(known_node_aspects_);
     return known_node_aspects_->virtual_objects();
   }
 
@@ -1411,7 +1412,9 @@ void InterpreterFrameState::CopyFrom(const MaglevCompilationUnit& unit,
   if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
                   unit.is_tracing_enabled())) {
     std::cout << "- Copying frame state from merge @" << &state << std::endl;
-    state.PrintVirtualObjects(unit, virtual_objects());
+    if (known_node_aspects_) {
+      state.PrintVirtualObjects(unit, virtual_objects());
+    }
   }
   if (known_node_aspects_) {
     known_node_aspects_->virtual_objects().Snapshot();
