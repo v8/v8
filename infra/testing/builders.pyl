@@ -2696,7 +2696,7 @@
       'priority': 35,
     },
     'tests': [
-      {'name': 'd8testing_random_gc'},
+      {'name': 'd8testing_random_gc', 'shards': 2},
       {
         'name': 'numfuzz',
         'suffix': 'allocation',
