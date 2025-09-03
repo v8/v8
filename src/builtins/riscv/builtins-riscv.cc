@@ -2968,7 +2968,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 #if V8_ENABLE_WEBASSEMBLY
 // Compute register lists for parameters to be saved. We save all parameter
 // registers (see wasm-linkage.h). They might be overwritten in the runtime
-// call below. We don't have any callee-saved registers in wasm, so no need to
+// call below. We don't have any callee-saved registers in Wasm, so no need to
 // store anything else.
 constexpr RegList kSavedGpRegs = ([]() constexpr {
   static_assert(WasmLiftoffSetupFrameConstants::kNumberOfSavedGpParamRegs ==
@@ -3002,6 +3002,19 @@ constexpr DoubleRegList kSavedFpRegs = ([]() constexpr {
            saved_fp_regs.Count());
   return saved_fp_regs;
 })();
+
+static void SaveWasmParams(MacroAssembler* masm) {
+  // Save all parameter registers (see wasm-linkage.h). They might be
+  // overwritten in the subsequent runtime call. We don't have any
+  // callee-saved registers in Wasm, so no need to store anything else.
+  __ MultiPush(kSavedGpRegs);
+  __ MultiPushFPU(kSavedFpRegs);
+}
+
+static void RestoreWasmParams(MacroAssembler* masm) {
+  __ MultiPopFPU(kSavedFpRegs);
+  __ MultiPop(kSavedGpRegs);
+}
 
 // When entering this builtin, we have just created a Wasm stack frame:
 //
@@ -3039,9 +3052,7 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ li(scratch, StackFrame::TypeToMarker(StackFrame::WASM_LIFTOFF_SETUP));
   __ StoreWord(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
 
-  // Save registers.
-  __ MultiPush(kSavedGpRegs);
-  __ MultiPushFPU(kSavedFpRegs);
+  SaveWasmParams(masm);
   __ Push(ra);
 
   // Arguments to the runtime function: instance data, func_index, and an
@@ -3054,8 +3065,7 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
 
   // Restore registers and frame type.
   __ Pop(ra);
-  __ MultiPopFPU(kSavedFpRegs);
-  __ MultiPop(kSavedGpRegs);
+  RestoreWasmParams(masm);
   __ LoadWord(kWasmImplicitArgRegister,
               MemOperand(fp, WasmFrameConstants::kWasmInstanceDataOffset));
   __ li(scratch, StackFrame::TypeToMarker(StackFrame::WASM));
@@ -3074,8 +3084,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
 
     // Save registers that we need to keep alive across the runtime call.
     __ Push(kWasmImplicitArgRegister);
-    __ MultiPush(kSavedGpRegs);
-    __ MultiPushFPU(kSavedFpRegs);
+    SaveWasmParams(masm);
 
     __ Push(kWasmImplicitArgRegister, kWasmCompileLazyFuncIndexRegister);
     // Initialize the JavaScript context with 0. CEntry will use it to
@@ -3087,9 +3096,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
                           // to the value before the call
     CHECK(!kSavedGpRegs.has(s1));
 
-    // Restore registers.
-    __ MultiPopFPU(kSavedFpRegs);
-    __ MultiPop(kSavedGpRegs);
+    RestoreWasmParams(masm);
     __ Pop(kWasmImplicitArgRegister);
   }
 
