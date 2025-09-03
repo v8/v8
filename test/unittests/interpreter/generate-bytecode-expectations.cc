@@ -16,6 +16,7 @@
 #include "include/v8-local-handle.h"
 #include "include/v8-message.h"
 #include "src/base/logging.h"
+#include "src/flags/save-flags.h"
 #include "src/interpreter/interpreter.h"
 #include "test/unittests/interpreter/bytecode-expectations-printer.h"
 
@@ -49,8 +50,8 @@ class ProgramOptions final {
         module_(false),
         top_level_(false),
         print_callee_(false),
-        elide_redundant_tdz_checks_(false),
-        verbose_(false) {}
+        verbose_(false),
+        extra_flags_("") {}
 
   bool Validate() const;
   void UpdateFromHeader(std::istream* stream);
@@ -70,10 +71,8 @@ class ProgramOptions final {
   bool module() const { return module_; }
   bool top_level() const { return top_level_; }
   bool print_callee() const { return print_callee_; }
-  bool elide_redundant_tdz_checks() const {
-    return elide_redundant_tdz_checks_;
-  }
   bool verbose() const { return verbose_; }
+  std::string extra_flags() const { return extra_flags_; }
   bool suppress_runtime_errors() const { return baseline() && !verbose_; }
   std::vector<std::string> input_filenames() const { return input_filenames_; }
   std::string output_filename() const { return output_filename_; }
@@ -90,8 +89,8 @@ class ProgramOptions final {
   bool module_;
   bool top_level_;
   bool print_callee_;
-  bool elide_redundant_tdz_checks_;
   bool verbose_;
+  std::string extra_flags_;
   std::vector<std::string> input_filenames_;
   std::string output_filename_;
   std::string test_function_name_;
@@ -191,8 +190,6 @@ ProgramOptions ProgramOptions::FromCommandLine(int argc, char** argv) {
       options.top_level_ = true;
     } else if (strcmp(argv[i], "--print-callee") == 0) {
       options.print_callee_ = true;
-    } else if (strcmp(argv[i], "--elide-redundant-tdz-checks") == 0) {
-      options.elide_redundant_tdz_checks_ = true;
     } else if (strcmp(argv[i], "--verbose") == 0) {
       options.verbose_ = true;
     } else if (strncmp(argv[i], "--output=", 9) == 0) {
@@ -288,9 +285,17 @@ bool ProgramOptions::Validate() const {
   return true;
 }
 
+namespace {
+const char* GetHeaderParam(std::string_view line, const char* key) {
+  if (!line.starts_with(key)) return nullptr;
+  std::string_view post_key = line.substr(strlen(key));
+  if (!post_key.starts_with(": ")) return nullptr;
+  return post_key.substr(2).data();
+}
+}  // namespace
+
 void ProgramOptions::UpdateFromHeader(std::istream* stream) {
   std::string line;
-  const char* kPrintCallee = "print callee: ";
 
   // Skip to the beginning of the options header
   while (std::getline(*stream, line)) {
@@ -298,24 +303,25 @@ void ProgramOptions::UpdateFromHeader(std::istream* stream) {
   }
 
   while (std::getline(*stream, line)) {
-    if (line.compare(0, 8, "module: ") == 0) {
-      module_ = ParseBoolean(line.c_str() + 8);
-    } else if (line.compare(0, 6, "wrap: ") == 0) {
-      wrap_ = ParseBoolean(line.c_str() + 6);
-    } else if (line.compare(0, 20, "test function name: ") == 0) {
-      test_function_name_ = line.c_str() + 20;
-    } else if (line.compare(0, 11, "top level: ") == 0) {
-      top_level_ = ParseBoolean(line.c_str() + 11);
-    } else if (line.compare(0, strlen(kPrintCallee), kPrintCallee) == 0) {
-      print_callee_ = ParseBoolean(line.c_str() + strlen(kPrintCallee));
-    } else if (line.compare(0, 28, "elide redundant tdz checks: ") == 0) {
-      elide_redundant_tdz_checks_ = ParseBoolean(line.c_str() + 28);
+    const char* v;
+    if ((v = GetHeaderParam(line, "module"))) {
+      module_ = ParseBoolean(v);
+    } else if ((v = GetHeaderParam(line, "wrap"))) {
+      wrap_ = ParseBoolean(v);
+    } else if ((v = GetHeaderParam(line, "test function name"))) {
+      test_function_name_ = std::string(v);
+    } else if ((v = GetHeaderParam(line, "top level"))) {
+      top_level_ = ParseBoolean(v);
+    } else if ((v = GetHeaderParam(line, "print callee"))) {
+      print_callee_ = ParseBoolean(v);
+    } else if ((v = GetHeaderParam(line, "extra flags"))) {
+      extra_flags_ = std::string(v);
     } else if (line == "---") {
       break;
     } else if (line.empty()) {
       continue;
     } else {
-      UNREACHABLE();
+      FATAL("Unrecognised option: %s", line.c_str());
     }
   }
 }
@@ -331,8 +337,8 @@ void ProgramOptions::PrintHeader(std::ostream* stream) const {
   if (module_) *stream << "\nmodule: yes";
   if (top_level_) *stream << "\ntop level: yes";
   if (print_callee_) *stream << "\nprint callee: yes";
-  if (elide_redundant_tdz_checks_) {
-    *stream << "\nelide redundant tdz checks: yes";
+  if (!extra_flags_.empty()) {
+    *stream << "\nextra flags: " << extra_flags_;
   }
 
   *stream << "\n\n";
@@ -431,10 +437,16 @@ void GenerateExpectationsFile(std::ostream* stream,
                               const std::vector<std::string>& snippet_list,
                               const V8InitializationScope& platform,
                               const ProgramOptions& options) {
+  v8::internal::SaveFlags save_flags;
   v8::Isolate::Scope isolate_scope(platform.isolate());
   v8::HandleScope handle_scope(platform.isolate());
   v8::Local<v8::Context> context = v8::Context::New(platform.isolate());
   v8::Context::Scope context_scope(context);
+
+  if (!options.extra_flags().empty()) {
+    v8::V8::SetFlagsFromString(options.extra_flags().c_str(),
+                               options.extra_flags().length());
+  }
 
   BytecodeExpectationsPrinter printer(platform.isolate());
   printer.set_wrap(options.wrap());
@@ -444,20 +456,12 @@ void GenerateExpectationsFile(std::ostream* stream,
   if (!options.test_function_name().empty()) {
     printer.set_test_function_name(options.test_function_name());
   }
-  bool old_elide_redundant_tdz_checks =
-      i::v8_flags.ignition_elide_redundant_tdz_checks;
-  if (options.elide_redundant_tdz_checks()) {
-    i::v8_flags.ignition_elide_redundant_tdz_checks = true;
-  }
 
   *stream << "#\n# Autogenerated by generate-bytecode-expectations.\n#\n\n";
   options.PrintHeader(stream);
   for (const std::string& snippet : snippet_list) {
     printer.PrintExpectation(stream, snippet);
   }
-
-  i::v8_flags.ignition_elide_redundant_tdz_checks =
-      old_elide_redundant_tdz_checks;
 }
 
 bool WriteExpectationsFile(const std::vector<std::string>& snippet_list,

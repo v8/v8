@@ -1671,6 +1671,8 @@ filegroup(
         "src/flags/flags-impl.h",
         "src/flags/flags.cc",
         "src/flags/flags.h",
+        "src/flags/save-flags.h",
+        "src/flags/save-flags.cc",
         "src/handles/global-handles.cc",
         "src/handles/global-handles.h",
         "src/handles/global-handles-inl.h",

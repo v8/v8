@@ -3243,6 +3243,7 @@ TEST_F(BytecodeGeneratorTest, ElideRedundantLoadOperationOfImmutableContext) {
 TEST_F(BytecodeGeneratorTest, ElideRedundantHoleChecks) {
   printer().set_wrap(false);
   printer().set_test_function_name("f");
+  v8::V8::SetFlagsFromString("--ignition-elide-redundant-tdz-checks");
 
   // clang-format off
   std::string snippets[] = {
