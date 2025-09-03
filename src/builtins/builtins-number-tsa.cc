@@ -369,6 +369,7 @@ class NumberBuiltinsAssemblerTS
       CombineFeedbackOnException(BinaryOperationFeedback::kAny);
       V<BigInt> result = CallBuiltin_BigIntAdd(
           isolate(), context, V<BigInt>::Cast(lhs), V<BigInt>::Cast(rhs));
+      CombineFeedback(BinaryOperationFeedback::kBigInt);
       GOTO(done, result);
     }
 

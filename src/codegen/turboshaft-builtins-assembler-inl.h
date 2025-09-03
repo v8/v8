@@ -32,6 +32,7 @@
   using Tuple = compiler::turboshaft::Tuple<Args...>;                          \
   using Block = compiler::turboshaft::Block;                                   \
   using OpIndex = compiler::turboshaft::OpIndex;                               \
+  using None = compiler::turboshaft::None;                                     \
   using Word32 = compiler::turboshaft::Word32;                                 \
   using Word64 = compiler::turboshaft::Word64;                                 \
   using WordPtr = compiler::turboshaft::WordPtr;                               \
@@ -193,6 +194,8 @@ class FeedbackCollectorReducer : public Next {
     feedback_ = __ SmiConstant(Smi::FromInt(new_feedback));
   }
 
+  // TODO(nicohartmann): Generalize this to allow nested scopes to set this
+  // feedback.
   void CombineFeedbackOnException(int additional_feedback) {
     feedback_on_exception_ = __ SmiConstant(Smi::FromInt(additional_feedback));
   }
@@ -367,6 +370,18 @@ class FeedbackCollectorReducer : public Next {
     V<WordPtr> last_offset =
         __ ElementOffsetFromIndex(length, kind, correction);
     return __ IntPtrLessThanOrEqual(offset, last_offset);
+  }
+
+  using ReturnOp = compiler::turboshaft::ReturnOp;
+  using OperationStorageSlot = compiler::turboshaft::OperationStorageSlot;
+
+  V<None> REDUCE(Return)(V<Word32> pop_count,
+                         base::Vector<const OpIndex> return_values,
+                         bool spill_caller_frame_slots) {
+    // Store feedback first, before we return from the function.
+    UpdateFeedback();
+    return Next::ReduceReturn(pop_count, return_values,
+                              spill_caller_frame_slots);
   }
 
  private:
