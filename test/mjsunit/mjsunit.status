@@ -456,9 +456,11 @@
   'json': [PASS, SLOW],
   'regress/asm/regress-775710': [PASS, SLOW],
   'regress/regress-crbug-820312': [PASS, SLOW],
+  'regress/regress-524': [PASS, ['tsan', SLOW]],
   'regress/regress-904275': [PASS, SLOW],
 
   # BUG(v8:7880): Slow tests.
+  'regress/regress-390568195': [PASS, ['tsan', SKIP]],
   'regress/regress-707066': [SKIP],
   'regress/regress-446389': [SKIP],
   'regress/regress-458987': [SKIP],
