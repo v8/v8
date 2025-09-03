@@ -3339,6 +3339,18 @@ class TurboshaftAssemblerOpInterface
     StoreNonArrayBufferElement(object.object(), access, index, value);
   }
 
+#if V8_STATIC_ROOTS_BOOL
+  // Note that we don't provide this helper when STATIC_ROOTS is false, because
+  // it requires loading the InstanceType of {obj}, which requires knowing that
+  // it's actually a Map (which we don't always know from the callsite of this
+  // helper).
+  V<Word32> IsStringMap(V<HeapObject> obj) {
+    return __ Uint32LessThanOrEqual(
+        __ TruncateWordPtrToWord32(__ BitcastHeapObjectToWordPtr(obj)),
+        __ Word32Constant(InstanceTypeChecker::kStringMapUpperBound));
+  }
+#endif  // V8_STATIC_ROOTS_BOOL
+
   V<Word32> ArrayBufferIsDetached(V<JSArrayBufferView> object) {
     V<HeapObject> buffer = __ template LoadField<HeapObject>(
         object, compiler::AccessBuilder::ForJSArrayBufferViewBuffer());

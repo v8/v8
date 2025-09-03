@@ -524,10 +524,7 @@ class MachineLoweringReducer : public Next {
         GOTO_IF(__ Word32Equal(instance_type, ODDBALL_TYPE), done, 1);
 
 #if V8_STATIC_ROOTS_BOOL
-        GOTO(done,
-             __ Uint32LessThanOrEqual(
-                 __ TruncateWordPtrToWord32(__ BitcastHeapObjectToWordPtr(map)),
-                 __ Word32Constant(InstanceTypeChecker::kStringMapUpperBound)));
+        GOTO(done, __ IsStringMap(map));
 #else
         GOTO(done, __ Uint32LessThan(instance_type, FIRST_NONSTRING_TYPE));
 #endif  // V8_STATIC_ROOTS_BOOL
@@ -546,10 +543,7 @@ class MachineLoweringReducer : public Next {
         }
 
         V<Map> map = __ LoadMapField(input);
-        GOTO(done,
-             __ Uint32LessThanOrEqual(
-                 __ TruncateWordPtrToWord32(__ BitcastHeapObjectToWordPtr(map)),
-                 __ Word32Constant(InstanceTypeChecker::kStringMapUpperBound)));
+        GOTO(done, __ IsStringMap(map));
 
         BIND(done, result);
         return result;
@@ -1535,9 +1529,7 @@ class MachineLoweringReducer : public Next {
             }
           } ELSE {
 #if V8_STATIC_ROOTS_BOOL
-            V<Word32> is_string_map = __ Uint32LessThanOrEqual(
-                __ TruncateWordPtrToWord32(__ BitcastHeapObjectToWordPtr(map)),
-                __ Word32Constant(InstanceTypeChecker::kStringMapUpperBound));
+            V<Word32> is_string_map = __ IsStringMap(map);
 #else
             V<Word32> instance_type = __ LoadInstanceTypeField(map);
             V<Word32> is_string_map =
