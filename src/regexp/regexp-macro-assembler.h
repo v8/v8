@@ -59,7 +59,7 @@ class RegExpMacroAssembler {
   // kCheckStackLimit flag to push operations (instead of kNoStackLimitCheck)
   // at least once for every stack_limit() pushes that are executed.
   virtual int stack_limit_slack_slot_count() = 0;
-  virtual bool CanReadUnaligned() const = 0;
+  bool CanReadUnaligned() const;
 
   virtual void AdvanceCurrentPosition(int by) = 0;  // Signed cp change.
   virtual void AdvanceRegister(int reg, int by) = 0;  // r[reg] += by.
@@ -340,8 +340,6 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
       Tagged<String> input, int start_offset, const uint8_t* input_start,
       const uint8_t* input_end, int* output, int output_size, Isolate* isolate,
       Tagged<JSRegExp> regexp);
-
-  bool CanReadUnaligned() const override;
 
   void LoadCurrentCharacterImpl(int cp_offset, Label* on_end_of_input,
                                 bool check_bounds, int characters,

@@ -1164,9 +1164,7 @@ void RegExpMacroAssemblerRISCV::ClearRegisters(int reg_from, int reg_to) {
     __ StoreWord(a0, register_location(reg));
   }
 }
-#ifdef RISCV_HAS_NO_UNALIGNED
-bool RegExpMacroAssemblerRISCV::CanReadUnaligned() const { return false; }
-#endif
+
 // Private methods:
 
 void RegExpMacroAssemblerRISCV::CallCheckStackGuardState(Register scratch,

@@ -1196,8 +1196,6 @@ void RegExpMacroAssemblerMIPS::ClearRegisters(int reg_from, int reg_to) {
   }
 }
 
-bool RegExpMacroAssemblerMIPS::CanReadUnaligned() const { return false; }
-
 // Private methods:
 
 void RegExpMacroAssemblerMIPS::CallCheckStackGuardState(Register scratch,

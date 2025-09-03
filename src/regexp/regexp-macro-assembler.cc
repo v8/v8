@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/regexp/regexp-macro-assembler.h"
-
 #include "src/codegen/assembler.h"
 #include "src/codegen/label.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/pointer-authentication.h"
 #include "src/execution/simulator.h"
+#include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/regexp/special-case.h"
 #include "src/strings/unicode-inl.h"
@@ -30,6 +29,11 @@ RegExpMacroAssembler::RegExpMacroAssembler(Isolate* isolate, Zone* zone)
 
 bool RegExpMacroAssembler::has_backtrack_limit() const {
   return backtrack_limit_ != JSRegExp::kNoBacktrackLimit;
+}
+
+bool RegExpMacroAssembler::CanReadUnaligned() const {
+  return kUnalignedReadSupported && v8_flags.enable_regexp_unaligned_accesses &&
+         !slow_safe();
 }
 
 // static
@@ -334,10 +338,6 @@ void RegExpMacroAssembler::SkipUntilGtOrNotBitInTable(
   Bind(&advance_and_continue);
   AdvanceCurrentPosition(advance_by);
   GoTo(&loop);
-}
-
-bool NativeRegExpMacroAssembler::CanReadUnaligned() const {
-  return v8_flags.enable_regexp_unaligned_accesses && !slow_safe();
 }
 
 #ifndef COMPILING_IRREGEXP_FOR_EXTERNAL_EMBEDDER

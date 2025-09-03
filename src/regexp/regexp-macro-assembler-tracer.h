@@ -21,9 +21,6 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   int stack_limit_slack_slot_count() override {
     return assembler_->stack_limit_slack_slot_count();
   }
-  bool CanReadUnaligned() const override {
-    return assembler_->CanReadUnaligned();
-  }
   void AdvanceCurrentPosition(int by) override;    // Signed cp change.
   void AdvanceRegister(int reg, int by) override;  // r[reg] += by.
   void Backtrack() override;

@@ -85,7 +85,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
   void WriteCurrentPositionToRegister(int reg, int cp_offset) override;
   void ClearRegisters(int reg_from, int reg_to) override;
   void WriteStackPointerToRegister(int reg) override;
-  bool CanReadUnaligned() const override;
 
   void RecordComment(std::string_view comment) override {
     masm_->RecordComment(comment);

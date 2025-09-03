@@ -20,10 +20,9 @@ namespace internal {
 // BYTECODE_MASK guarantees no OOB access to the dispatch table.
 constexpr int kRegExpPaddedBytecodeCount = 1 << 6;
 constexpr int BYTECODE_MASK = kRegExpPaddedBytecodeCount - 1;
-// The first argument is packed in with the byte code in one word, but so it
-// has 24 bits, but it can be positive and negative so only use 23 bits for
-// positive values.
-const unsigned int MAX_FIRST_ARG = 0x7fffffu;
+// The first argument is packed in with the byte code in one word.
+// We only support packing of up to 2 bytes.
+const unsigned int MAX_FIRST_ARG = 0xffffu;
 const int BYTECODE_SHIFT = 8;
 static_assert(1 << BYTECODE_SHIFT > BYTECODE_MASK);
 

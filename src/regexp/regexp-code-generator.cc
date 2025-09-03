@@ -373,6 +373,11 @@ VISIT(AndCheck4Chars) {
   __ CheckCharacterAfterAnd(characters, mask, on_equal);
 }
 
+VISIT(AndCheckNot4Chars) {
+  INIT(AndCheckNot4Chars, characters, mask, on_not_equal);
+  __ CheckNotCharacterAfterAnd(characters, mask, on_not_equal);
+}
+
 VISIT(AdvanceCpAndGoto) {
   INIT(AdvanceCpAndGoto, by, on_goto);
   __ AdvanceCurrentPosition(by);
