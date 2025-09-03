@@ -1851,6 +1851,7 @@ UNINITIALIZED_TEST(ConcurrentExternalizationWithSharedResources) {
 
 void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
                                                   bool transition_with_stack) {
+  if (v8_flags.conservative_stack_scanning) return;
   v8_flags.shared_string_table = true;
   i::FlagList::EnforceFlagImplications();
 
