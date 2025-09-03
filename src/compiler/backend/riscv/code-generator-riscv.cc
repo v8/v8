@@ -1324,6 +1324,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvClz32:
       __ Clz32(i.OutputRegister(), i.InputOrZeroRegister(0));
       break;
+    case kRiscvSh1add:
+      __ sh1add(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      break;
+    case kRiscvSh2add:
+      __ sh2add(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      break;
+    case kRiscvSh3add:
+      __ sh3add(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      break;
 #if V8_TARGET_ARCH_RISCV64
     case kRiscvClz64:
       __ Clz64(i.OutputRegister(), i.InputOrZeroRegister(0));
