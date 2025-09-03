@@ -20,7 +20,10 @@ namespace v8::internal::maglev {
 
 class ClearReturnedValueUsesFromDeoptFrames {
  public:
-  explicit ClearReturnedValueUsesFromDeoptFrames(Zone* zone) : visited_(zone) {}
+  explicit ClearReturnedValueUsesFromDeoptFrames(Zone* zone) : visited_(zone) {
+    DCHECK(v8_flags.maglev_non_eager_inlining ||
+           v8_flags.turbolev_non_eager_inlining);
+  }
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
   void PostProcessBasicBlock(BasicBlock* block) {}
@@ -36,7 +39,6 @@ class ClearReturnedValueUsesFromDeoptFrames {
   }
   void PostPhiProcessing() {}
   ProcessResult Process(NodeBase* node, const ProcessingState& state) {
-    if (!v8_flags.maglev_non_eager_inlining) return ProcessResult::kContinue;
     // While visiting the deopt info, the iterator will clear the identity nodes
     // automatically.
     if (node->properties().can_lazy_deopt() &&
