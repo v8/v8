@@ -243,53 +243,35 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   // addresses. In case we cross a `kPtrComprCageBaseAlignment` boundary we need
   // to add a red zone.
   //
-  // Cases:
-  // - CR: code range
-  // - RZ: red zone aligned at 4G of size kContiguousReadOnlyReservationSize
-  //                       |--------- CR ---------|
-  //                |--- RZ ---|
-  //                             |--- RZ ---|
-  //                                           |--- RZ ---|
+  // The ranges may overlap in some ways, e.g.,
+  //
+  //                                  |---- code range ----|
+  //                                  ^ base()             ^ base() + size()
+  //
+  //        |-- No objects must be allocated here --|
+  //        ^ data_cage_ro_start                    ^ data_cage_ro_end
 
   // The checks below only work when the code range is not fully contained
   // within the aligned region.
   CHECK_GE(size(), kContiguousReadOnlyReservationSize);
-  // There's at most one kPtrComprCageBaseAlignment region that overlaps with
-  // the code range. The code below can deal with multiple overlaps though.
-  CHECK_GE(kPtrComprCageBaseAlignment - kContiguousReadOnlyReservationSize,
-           size());
-  // To keep it simple and avoid computing various cases, we just loop over with
-  // a window of kPtrComprCageBaseAlignment-aligned possible starts and commit
-  // those that are contained in the code range.
-  const Address window_begin =
-      RoundDown<kPtrComprCageBaseAlignment>(region().begin());
-  const Address window_end =
-      RoundUp<kPtrComprCageBaseAlignment>(region().end());
-  int number_of_red_zones = 0;
-  for (Address current = window_begin; current <= window_end;
-       current += kPtrComprCageBaseAlignment) {
-    const Address red_zone_start = std::max(current, region().begin());
-    const Address red_zone_end =
-        std::min(current + kContiguousReadOnlyReservationSize, region().end());
-    if (red_zone_start < red_zone_end) {
-      number_of_red_zones++;
-      const size_t red_zone_size = red_zone_end - red_zone_start;
-      // We only allocate multiples of `allocate_page_size` and thus can only
-      // see overlaps of this size.
-      CHECK_EQ(0, kContiguousReadOnlyReservationSize % allocate_page_size);
-      CHECK_EQ(0, red_zone_size % allocate_page_size);
-      // Sanity check.
-      CHECK_EQ(red_zone_size,
-               region()
-                   .GetOverlap(base::AddressRegion(
-                       current, current + kContiguousReadOnlyReservationSize))
-                   .size());
-      // TODO(429538831): Once better understood, turn this into a regular OOM.
-      CHECK(page_allocator_->AllocatePagesAt(red_zone_start, red_zone_size,
-                                             PageAllocator::kNoAccess));
-    }
+  const Address data_cage_ro_start =
+      RoundDown<kPtrComprCageBaseAlignment>(base());
+  const Address data_cage_ro_end =
+      data_cage_ro_start + kContiguousReadOnlyReservationSize;
+  if (page_allocator_->contains(data_cage_ro_start) ||
+      page_allocator_->contains(data_cage_ro_end - 1)) {
+    // The red zone starts either at base, or a larger address of
+    // `kPtrComprCageBaseAlignment`.
+    const Address red_zone_start = std::max(base(), data_cage_ro_start);
+    const Address red_zone_end = std::min(base() + size(), data_cage_ro_end);
+    const size_t red_zone_size = red_zone_end - red_zone_start;
+    // We only allocate multiples of `allocate_page_size` and thus can only see
+    // overlaps of this size.
+    CHECK_EQ(0, kContiguousReadOnlyReservationSize % allocate_page_size);
+    CHECK_GE(red_zone_size, allocate_page_size);
+    CHECK(page_allocator_->AllocatePagesAt(red_zone_start, red_zone_size,
+                                           PageAllocator::kNoAccess));
   }
-  CHECK_LE(number_of_red_zones, 1);
 #endif  // CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 
 // Don't pre-commit the code cage on Windows since it uses memory and it's not
