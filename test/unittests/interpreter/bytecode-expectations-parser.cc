@@ -34,7 +34,7 @@ std::string UnescapeString(const std::string& escaped_string) {
   bool previous_was_backslash = false;
   for (char c : escaped_string) {
     if (previous_was_backslash) {
-      // If it was not an escape sequence, emit the previous backslash
+      // If it was not an escape sequence, emit the previous backslash.
       if (c != '\\' && c != '"') unescaped_string += '\\';
       unescaped_string += c;
       previous_was_backslash = false;
@@ -47,6 +47,10 @@ std::string UnescapeString(const std::string& escaped_string) {
       }
     }
   }
+  if (previous_was_backslash) {
+    // Emit the previous backslash if it wasn't emitted.
+    unescaped_string += '\\';
+  }
   return unescaped_string;
 }
 
@@ -56,7 +60,7 @@ BytecodeExpectationsHeaderOptions BytecodeExpectationsParser::ParseHeader() {
   BytecodeExpectationsHeaderOptions options;
   std::string line;
 
-  // Skip to the beginning of the options header
+  // Skip to the beginning of the options header.
   while (std::getline(*is_, line)) {
     if (line == "---") break;
   }
@@ -98,10 +102,10 @@ bool BytecodeExpectationsParser::ReadNextSnippet(std::string* string_out) {
     if (!found_begin_snippet) continue;
     if (line == "\"") return true;
     if (line.size() == 0) {
-      string_out->append("\n");  // consume empty line
+      string_out->append("\n");  // consume empty line.
       continue;
     }
-    CHECK_GE(line.size(), 2u);  // We should have the indent
+    CHECK_GE(line.size(), 2u);  // We should have the indent.
     line = UnescapeString(line);
     string_out->append(line.begin() + 2, line.end());
     *string_out += '\n';
