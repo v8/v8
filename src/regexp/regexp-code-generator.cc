@@ -102,7 +102,7 @@ auto RegExpCodeGenerator::GetArgumentValuesAsTuple(const uint8_t* pc) const {
   static_assert((IS_VA_EMPTY(__VA_ARGS__) == 1) ==                           \
                     (Operands::kCountWithoutPadding == 0),                   \
                 "Number of arguments to VISIT doesn't match the bytecodes "  \
-                "operands count");
+                "operands count")
 
 // Basic Bytecodes
 
@@ -288,16 +288,33 @@ namespace {
 
 // Convert the 16-byte (128 bit) |table_data| to a 128-byte ByteArray. Every bit
 // in |table_data| is translated to its own byte (set to 0 or 1) in the
-// ByteArray .
-Handle<ByteArray> CreateBitTableByteArray(Isolate* isolate,
-                                          const uint8_t* table_data) {
+// ByteArray. Optionally also populates a nibble_table used for SIMD variants
+// (see BoyerMooreLookahead::GetSkipTable).
+Handle<ByteArray> CreateBitTableByteArray(
+    Isolate* isolate, const uint8_t* table_data,
+    Handle<ByteArray> nibble_table = Handle<ByteArray>::null()) {
   Handle<ByteArray> table =
       isolate->factory()->NewByteArray(RegExpMacroAssembler::kTableSize);
+  const bool fill_nibble_table = !nibble_table.is_null();
+  if (fill_nibble_table) {
+    DCHECK_EQ(nibble_table->length(),
+              RegExpMacroAssembler::kTableSize / kBitsPerByte);
+    std::memset(nibble_table->begin(), 0, nibble_table->length());
+  }
   for (int i = 0; i < RegExpMacroAssembler::kTableSize / kBitsPerByte; i++) {
     uint8_t byte = table_data[i];
     for (int j = 0; j < kBitsPerByte; j++) {
       bool bit_set = (byte & (1 << j)) != 0;
-      table->set(i * kBitsPerByte + j, bit_set);
+      // bit_index is the ASCII char code that we want to check against.
+      const int bit_index = i * kBitsPerByte + j;
+      table->set(bit_index, bit_set);
+      if (fill_nibble_table && bit_set) {
+        int lo_nibble = bit_index & 0x0f;
+        int hi_nibble = (bit_index >> 4) & 0x07;
+        int row = nibble_table->get(lo_nibble);
+        row |= 1 << hi_nibble;
+        nibble_table->set(lo_nibble, row);
+      }
     }
   }
   return table;
@@ -306,94 +323,94 @@ Handle<ByteArray> CreateBitTableByteArray(Isolate* isolate,
 }  // namespace
 
 VISIT(CheckBitInTable) {
-  INIT(CheckBitInTable, on_bit_set, table_data)
+  INIT(CheckBitInTable, on_bit_set, table_data);
   Handle<ByteArray> table = CreateBitTableByteArray(isolate_, table_data);
   __ CheckBitInTable(table, on_bit_set);
 }
 
 VISIT(LoadCurrentCharacterUnchecked) {
-  INIT(LoadCurrentCharacterUnchecked, cp_offset)
+  INIT(LoadCurrentCharacterUnchecked, cp_offset);
   static constexpr int kChars = 1;
   __ LoadCurrentCharacterImpl(cp_offset, nullptr, false, kChars, kChars);
 }
 
 VISIT(Load2CurrentChars) {
-  INIT(Load2CurrentChars, cp_offset, on_failure)
+  INIT(Load2CurrentChars, cp_offset, on_failure);
   static constexpr int kChars = 2;
   __ LoadCurrentCharacterImpl(cp_offset, on_failure, true, kChars, kChars);
 }
 
 VISIT(Load2CurrentCharsUnchecked) {
-  INIT(Load2CurrentCharsUnchecked, cp_offset)
+  INIT(Load2CurrentCharsUnchecked, cp_offset);
   static constexpr int kChars = 2;
   __ LoadCurrentCharacterImpl(cp_offset, nullptr, false, kChars, kChars);
 }
 
 VISIT(Load4CurrentChars) {
-  INIT(Load4CurrentChars, cp_offset, on_failure)
+  INIT(Load4CurrentChars, cp_offset, on_failure);
   static constexpr int kChars = 4;
   __ LoadCurrentCharacterImpl(cp_offset, on_failure, true, kChars, kChars);
 }
 
 VISIT(Load4CurrentCharsUnchecked) {
-  INIT(Load4CurrentCharsUnchecked, cp_offset)
+  INIT(Load4CurrentCharsUnchecked, cp_offset);
   static constexpr int kChars = 4;
   __ LoadCurrentCharacterImpl(cp_offset, nullptr, false, kChars, kChars);
 }
 
 VISIT(Check4Chars) {
-  INIT(Check4Chars, characters, on_equal)
+  INIT(Check4Chars, characters, on_equal);
   __ CheckCharacter(characters, on_equal);
 }
 
 VISIT(CheckNot4Chars) {
-  INIT(CheckNot4Chars, characters, on_not_equal)
+  INIT(CheckNot4Chars, characters, on_not_equal);
   __ CheckNotCharacter(characters, on_not_equal);
 }
 
 VISIT(AndCheck4Chars) {
-  INIT(AndCheck4Chars, characters, mask, on_equal)
+  INIT(AndCheck4Chars, characters, mask, on_equal);
   __ CheckCharacterAfterAnd(characters, mask, on_equal);
 }
 
 VISIT(AdvanceCpAndGoto) {
-  INIT(AdvanceCpAndGoto, by, on_goto)
+  INIT(AdvanceCpAndGoto, by, on_goto);
   __ AdvanceCurrentPosition(by);
   __ GoTo(on_goto);
 }
 
 VISIT(CheckNotBackRef) {
-  INIT(CheckNotBackRef, start_reg, on_not_equal)
+  INIT(CheckNotBackRef, start_reg, on_not_equal);
   __ CheckNotBackReference(start_reg, false, on_not_equal);
 }
 
 VISIT(CheckNotBackRefNoCase) {
-  INIT(CheckNotBackRefNoCase, start_reg, on_not_equal)
+  INIT(CheckNotBackRefNoCase, start_reg, on_not_equal);
   __ CheckNotBackReferenceIgnoreCase(start_reg, false, false, on_not_equal);
 }
 
 VISIT(CheckNotBackRefNoCaseUnicode) {
-  INIT(CheckNotBackRefNoCaseUnicode, start_reg, on_not_equal)
+  INIT(CheckNotBackRefNoCaseUnicode, start_reg, on_not_equal);
   __ CheckNotBackReferenceIgnoreCase(start_reg, false, true, on_not_equal);
 }
 
 VISIT(CheckNotBackRefBackward) {
-  INIT(CheckNotBackRefBackward, start_reg, on_not_equal)
+  INIT(CheckNotBackRefBackward, start_reg, on_not_equal);
   __ CheckNotBackReference(start_reg, true, on_not_equal);
 }
 
 VISIT(CheckNotBackRefNoCaseBackward) {
-  INIT(CheckNotBackRefNoCaseBackward, start_reg, on_not_equal)
+  INIT(CheckNotBackRefNoCaseBackward, start_reg, on_not_equal);
   __ CheckNotBackReferenceIgnoreCase(start_reg, true, false, on_not_equal);
 }
 
 VISIT(CheckNotBackRefNoCaseUnicodeBackward) {
-  INIT(CheckNotBackRefNoCaseUnicodeBackward, start_reg, on_not_equal)
+  INIT(CheckNotBackRefNoCaseUnicodeBackward, start_reg, on_not_equal);
   __ CheckNotBackReferenceIgnoreCase(start_reg, true, true, on_not_equal);
 }
 
 VISIT(CheckNotRegsEqual) {
-  INIT(CheckNotRegsEqual, reg1, reg2, on_not_equal)
+  INIT(CheckNotRegsEqual, reg1, reg2, on_not_equal);
   // Unused bytecode.
   UNREACHABLE();
   // Make the compiler happy.
@@ -402,13 +419,68 @@ VISIT(CheckNotRegsEqual) {
   USE(on_not_equal);
 }
 
+// Bytecodes generated by peephole optimization.
+
+VISIT(SkipUntilBitInTable) {
+  INIT(SkipUntilBitInTable, cp_offset, advance_by, table_data, on_match,
+       on_no_match);
+  // Nibble table is optionally constructed if we use SIMD.
+  Handle<ByteArray> nibble_table;
+  if (masm_->SkipUntilBitInTableUseSimd(advance_by)) {
+    static_assert(RegExpMacroAssembler::kTableSize == 128);
+    nibble_table = isolate_->factory()->NewByteArray(
+        RegExpMacroAssembler::kTableSize / kBitsPerByte, AllocationType::kOld);
+  }
+  Handle<ByteArray> table =
+      CreateBitTableByteArray(isolate_, table_data, nibble_table);
+  __ SkipUntilBitInTable(cp_offset, table, nibble_table, advance_by, on_match,
+                         on_no_match);
+}
+
+VISIT(SkipUntilCharAnd) {
+  INIT(SkipUntilCharAnd, cp_offset, advance_by, character, mask, eats_at_least,
+       on_match, on_no_match);
+  __ SkipUntilCharAnd(cp_offset, advance_by, character, mask, eats_at_least,
+                      on_match, on_no_match);
+}
+
+VISIT(SkipUntilChar) {
+  INIT(SkipUntilChar, cp_offset, advance_by, character, on_match, on_no_match);
+  __ SkipUntilChar(cp_offset, advance_by, character, on_match, on_no_match);
+}
+
+VISIT(SkipUntilCharPosChecked) {
+  INIT(SkipUntilCharPosChecked, cp_offset, advance_by, character, eats_at_least,
+       on_match, on_no_match);
+  __ SkipUntilCharPosChecked(cp_offset, advance_by, character, eats_at_least,
+                             on_match, on_no_match);
+}
+
+VISIT(SkipUntilCharOrChar) {
+  INIT(SkipUntilCharOrChar, cp_offset, advance_by, char1, char2, on_match,
+       on_no_match);
+  __ SkipUntilCharOrChar(cp_offset, advance_by, char1, char2, on_match,
+                         on_no_match);
+}
+
+VISIT(SkipUntilGtOrNotBitInTable) {
+  INIT(SkipUntilGtOrNotBitInTable, cp_offset, advance_by, character, table_data,
+       on_match, on_no_match);
+  Handle<ByteArray> table = CreateBitTableByteArray(isolate_, table_data);
+  __ SkipUntilGtOrNotBitInTable(cp_offset, advance_by, character, table,
+                                on_match, on_no_match);
+}
+
 template <RegExpBytecode bc>
 void RegExpCodeGenerator::Visit() {
+  // TODO(437003349): Remove fallback. All bytecodes need to be implemented
+  // from now on.
   if (v8_flags.trace_regexp_assembler) {
     std::cout << "RegExp Code Generator: Unsupported Bytecode "
               << RegExpBytecodes::Name(bc) << std::endl;
   }
   has_unsupported_bytecode_ = true;
+  UNREACHABLE();
 }
 
 void RegExpCodeGenerator::PreVisitBytecodes() {

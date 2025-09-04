@@ -273,6 +273,69 @@ void NativeRegExpMacroAssembler::LoadCurrentCharacterImpl(
   LoadCurrentCharacterUnchecked(cp_offset, characters);
 }
 
+void RegExpMacroAssembler::SkipUntilCharAnd(int cp_offset, int advance_by,
+                                            unsigned character, unsigned mask,
+                                            int eats_at_least, Label* on_match,
+                                            Label* on_no_match) {
+  Label loop;
+  Bind(&loop);
+  LoadCurrentCharacter(cp_offset, on_no_match, true, 1, eats_at_least);
+  CheckCharacterAfterAnd(character, mask, on_match);
+  AdvanceCurrentPosition(advance_by);
+  GoTo(&loop);
+}
+
+void RegExpMacroAssembler::SkipUntilChar(int cp_offset, int advance_by,
+                                         unsigned character, Label* on_match,
+                                         Label* on_no_match) {
+  Label loop;
+  Bind(&loop);
+  LoadCurrentCharacter(cp_offset, on_no_match, true);
+  CheckCharacter(character, on_match);
+  AdvanceCurrentPosition(advance_by);
+  GoTo(&loop);
+}
+
+void RegExpMacroAssembler::SkipUntilCharPosChecked(
+    int cp_offset, int advance_by, unsigned character, int eats_at_least,
+    Label* on_match, Label* on_no_match) {
+  Label loop;
+  Bind(&loop);
+  LoadCurrentCharacter(cp_offset, on_no_match, true, 1, eats_at_least);
+  CheckCharacter(character, on_match);
+  AdvanceCurrentPosition(advance_by);
+  GoTo(&loop);
+}
+
+void RegExpMacroAssembler::SkipUntilCharOrChar(int cp_offset, int advance_by,
+                                               unsigned char1, unsigned char2,
+                                               Label* on_match,
+                                               Label* on_no_match) {
+  Label loop;
+  Bind(&loop);
+  LoadCurrentCharacter(cp_offset, on_no_match, true);
+  CheckCharacter(char1, on_match);
+  CheckCharacter(char2, on_match);
+  AdvanceCurrentPosition(advance_by);
+  GoTo(&loop);
+}
+
+void RegExpMacroAssembler::SkipUntilGtOrNotBitInTable(
+    int cp_offset, int advance_by, unsigned character, Handle<ByteArray> table,
+    Label* on_match, Label* on_no_match) {
+  DCHECK(base::IsInRange(character, std::numeric_limits<base::uc16>::min(),
+                         std::numeric_limits<base::uc16>::max()));
+  Label loop, advance_and_continue;
+  Bind(&loop);
+  LoadCurrentCharacter(cp_offset, on_no_match, true);
+  CheckCharacterGT(character, on_match);
+  CheckBitInTable(table, &advance_and_continue);
+  GoTo(on_match);
+  Bind(&advance_and_continue);
+  AdvanceCurrentPosition(advance_by);
+  GoTo(&loop);
+}
+
 bool NativeRegExpMacroAssembler::CanReadUnaligned() const {
   return v8_flags.enable_regexp_unaligned_accesses && !slow_safe();
 }

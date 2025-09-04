@@ -88,6 +88,20 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   void SkipUntilBitInTable(int cp_offset, Handle<ByteArray> table,
                            Handle<ByteArray> nibble_table, int advance_by,
                            Label* on_match, Label* on_no_match) override;
+  void SkipUntilCharAnd(int cp_offset, int advance_by, unsigned character,
+                        unsigned mask, int eats_at_least, Label* on_match,
+                        Label* on_no_match) override;
+  void SkipUntilChar(int cp_offset, int advance_by, unsigned character,
+                     Label* on_match, Label* on_no_match) override;
+  void SkipUntilCharPosChecked(int cp_offset, int advance_by,
+                               unsigned character, int eats_at_least,
+                               Label* on_match, Label* on_no_match) override;
+  void SkipUntilCharOrChar(int cp_offset, int advance_by, unsigned char1,
+                           unsigned char2, Label* on_match,
+                           Label* on_no_match) override;
+  void SkipUntilGtOrNotBitInTable(int cp_offset, int advance_by,
+                                  unsigned character, Handle<ByteArray> table,
+                                  Label* on_match, Label* on_no_match) override;
   void CheckNotBackReference(int start_reg, bool read_backward,
                              Label* on_no_match) override;
   void CheckNotBackReferenceIgnoreCase(int start_reg, bool read_backward,

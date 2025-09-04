@@ -120,6 +120,22 @@ class RegExpMacroAssembler {
                                    Label* on_no_match) = 0;
   virtual bool SkipUntilBitInTableUseSimd(int advance_by) { return false; }
 
+  virtual void SkipUntilCharAnd(int cp_offset, int advance_by,
+                                unsigned character, unsigned mask,
+                                int eats_at_least, Label* on_match,
+                                Label* on_no_match);
+  virtual void SkipUntilChar(int cp_offset, int advance_by, unsigned character,
+                             Label* on_match, Label* on_no_match);
+  virtual void SkipUntilCharPosChecked(int cp_offset, int advance_by,
+                                       unsigned character, int eats_at_least,
+                                       Label* on_match, Label* on_no_match);
+  virtual void SkipUntilCharOrChar(int cp_offset, int advance_by,
+                                   unsigned char1, unsigned char2,
+                                   Label* on_match, Label* on_no_match);
+  virtual void SkipUntilGtOrNotBitInTable(int cp_offset, int advance_by,
+                                          unsigned character,
+                                          Handle<ByteArray> table,
+                                          Label* on_match, Label* on_no_match);
   // Checks whether the given offset from the current position is before
   // the end of the string.  May overwrite the current character.
   virtual void CheckPosition(int cp_offset, Label* on_outside_input);

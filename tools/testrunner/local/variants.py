@@ -15,9 +15,7 @@ ALL_VARIANT_FLAGS = {
     "stress_regexp_jit": [["--regexp-tier-up-ticks=0"]],
     "experimental_regexp": [["--default-to-experimental-regexp-engine"]],
     # TODO(437003349): Remove once the project is complete.
-    "regexp_assemble_from_bc": [[
-        "--regexp-assemble-from-bytecode", "--no-regexp-peephole-optimization"
-    ]],
+    "regexp_assemble_from_bc": [["--regexp-assemble-from-bytecode"]],
     "jitless": [["--jitless", "--wasm-jitless-if-available-for-testing"]],
     # Jit-fuzzing variants pass --no-fail as most test conditions are violated.
     # We only look for dchecks and crashes. As a result, negative tests like
@@ -41,7 +39,7 @@ ALL_VARIANT_FLAGS = {
     "maglev_no_turbofan_regexp_from_bc": [[
         "--maglev", "--no-turbofan",
         "--optimize-on-next-call-optimizes-to-maglev",
-        "--regexp-assemble-from-bytecode", "--no-regexp-peephole-optimization"
+        "--regexp-assemble-from-bytecode"
     ]],
     "stress_maglev": [[
         "--maglev", "--stress-maglev",
