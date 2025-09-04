@@ -344,6 +344,30 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Zone* zone_;
 };
 
+class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
+ public:
+  OutOfLineVerifySkippedWriteBarrier(CodeGenerator* gen, Register object,
+                                     Register value)
+      : OutOfLineCode(gen),
+        object_(object),
+        value_(value),
+        zone_(gen->zone()) {}
+
+  void Generate() final {
+    SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
+
+    __ CallVerifySkippedWriteBarrierStubSaveRegisters(object_, value_,
+                                                      save_fp_mode);
+  }
+
+ private:
+  Register const object_;
+  Register const value_;
+  Zone* zone_;
+};
+
 }  // namespace
 
 #define ASSEMBLE_COMPARE(asm_instr)                              \
@@ -1020,6 +1044,38 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(ool->exit());
       break;
     }
+    case kArchStoreSkippedWriteBarrier:  // Fall thrugh.
+    case kArchAtomicStoreSkippedWriteBarrier: {
+      Register object = i.InputRegister(0);
+      size_t index = 0;
+      Operand operand = i.MemoryOperand(&index);
+      Register value = i.InputRegister(index);
+      Register scratch = i.TempRegister(0);
+
+      if (v8_flags.debug_code) {
+        // Checking that |value| is not a cleared weakref: our write barrier
+        // does not support that for now.
+        __ cmp(value, Immediate(kClearedWeakHeapObjectLower32));
+        __ Check(not_equal, AbortReason::kOperandIsCleared);
+      }
+
+      if (v8_flags.verify_write_barriers) {
+        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object,
+                                                                   value);
+        __ JumpIfNotSmi(value, ool->entry());
+        __ bind(ool->exit());
+      }
+
+      if (arch_opcode == kArchStoreSkippedWriteBarrier) {
+        __ mov(operand, value);
+      } else {
+        DCHECK_EQ(arch_opcode, kArchAtomicStoreSkippedWriteBarrier);
+        __ mov(scratch, value);
+        __ xchg(scratch, operand);
+      }
+      break;
+    }
+    case kArchStoreIndirectSkippedWriteBarrier:
     case kArchStoreIndirectWithWriteBarrier:
       UNREACHABLE();
     case kArchStackSlot: {

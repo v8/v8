@@ -6677,8 +6677,15 @@ void Heap::VerifySkippedWriteBarrier(Address object, Address value) {
 #if V8_VERIFY_WRITE_BARRIERS
   DCHECK(v8_flags.verify_write_barriers);
   Tagged<Object> tagged(object);
-  CHECK(!WriteBarrier::IsRequired(tagged.GetHeapObjectAssumeStrong(),
-                                  Tagged<Object>(value)));
+  Tagged<HeapObject> heap_object;
+  HeapObjectReferenceType reference_type;
+
+  if (tagged.GetHeapObject(&heap_object, &reference_type)) {
+    CHECK_EQ(reference_type, HeapObjectReferenceType::STRONG);
+    CHECK(!WriteBarrier::IsRequired(heap_object, Tagged<Object>(value)));
+  } else {
+    CHECK(tagged.IsSmi());
+  }
 #else
   UNREACHABLE();
 #endif  // V8_VERIFY_WRITE_BARRIERS

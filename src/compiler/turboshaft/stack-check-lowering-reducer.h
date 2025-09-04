@@ -26,6 +26,14 @@ class StackCheckLoweringReducer : public Next {
   V<None> REDUCE(JSStackCheck)(V<Context> context,
                                OptionalV<FrameState> frame_state,
                                JSStackCheckOp::Kind kind) {
+    if (v8_flags.verify_write_barriers) {
+      // The stack check/safepoint might trigger GC, so write barriers cannot be
+      // eliminated across it.
+      __ StoreOffHeap(__ LoadRootRegister(), __ IntPtrConstant(0),
+                      MemoryRepresentation::UintPtr(),
+                      IsolateData::last_young_allocation_offset());
+    }
+
     switch (kind) {
       case JSStackCheckOp::Kind::kFunctionEntry: {
         // Loads of the stack limit should not be load-eliminated as it can be

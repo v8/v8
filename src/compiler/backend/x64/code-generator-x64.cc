@@ -471,6 +471,34 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 #endif  // V8_ENABLE_STICKY_MARK_BITS_BOOL
 };
 
+class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
+ public:
+  OutOfLineVerifySkippedWriteBarrier(CodeGenerator* gen, Register object,
+                                     Register value)
+      : OutOfLineCode(gen),
+        object_(object),
+        value_(value),
+        zone_(gen->zone()) {}
+
+  void Generate() final {
+    if (COMPRESS_POINTERS_BOOL) {
+      __ DecompressTagged(value_, value_);
+    }
+
+    SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
+
+    __ CallVerifySkippedWriteBarrierStubSaveRegisters(object_, value_,
+                                                      save_fp_mode);
+  }
+
+ private:
+  Register const object_;
+  Register const value_;
+  Zone* zone_;
+};
+
 template <std::memory_order order>
 int EmitStore(MacroAssembler* masm, Operand operand, Register value,
               MachineRepresentation rep) {
@@ -1884,6 +1912,34 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(ool->exit());
       break;
     }
+    case kArchStoreSkippedWriteBarrier:  // Fall through.
+    case kArchAtomicStoreSkippedWriteBarrier: {
+      // {EmitTSANAwareStore} calls RecordTrapInfoIfNeeded. No need to do it
+      // here.
+      Register object = i.InputRegister(0);
+      size_t index = 0;
+      Operand operand = i.MemoryOperand(&index);
+      Register value = i.InputRegister(index);
+
+      if (v8_flags.verify_write_barriers) {
+        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object,
+                                                                   value);
+        __ JumpIfNotSmi(value, ool->entry());
+        __ bind(ool->exit());
+      }
+
+      if (arch_opcode == kArchStoreSkippedWriteBarrier) {
+        EmitTSANAwareStore<std::memory_order_relaxed>(
+            zone(), this, masm(), operand, value, i, DetermineStubCallMode(),
+            MachineRepresentation::kTagged, instr);
+      } else {
+        DCHECK_EQ(arch_opcode, kArchAtomicStoreSkippedWriteBarrier);
+        EmitTSANAwareStore<std::memory_order_seq_cst>(
+            zone(), this, masm(), operand, value, i, DetermineStubCallMode(),
+            MachineRepresentation::kTagged, instr);
+      }
+      break;
+    }
     case kArchStoreIndirectWithWriteBarrier: {
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
       DCHECK_EQ(mode, RecordWriteMode::kValueIsIndirectPointer);
@@ -1905,6 +1961,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           MachineRepresentation::kIndirectPointer, instr);
       __ JumpIfMarking(ool->entry());
       __ bind(ool->exit());
+      break;
+    }
+    case kArchStoreIndirectSkippedWriteBarrier: {
+      size_t index = 0;
+      Operand operand = i.MemoryOperand(&index);
+      Register value = i.InputRegister(index++);
+#if DEBUG
+      IndirectPointerTag tag =
+          static_cast<IndirectPointerTag>(i.InputInt64(index));
+      DCHECK(IsValidIndirectPointerTag(tag));
+#endif  // DEBUG
+
+      EmitTSANAwareStore<std::memory_order_relaxed>(
+          zone(), this, masm(), operand, value, i, DetermineStubCallMode(),
+          MachineRepresentation::kIndirectPointer, instr);
       break;
     }
     case kX64MFence:

@@ -906,7 +906,6 @@ void MacroAssembler::CallRecordWriteStub(Register object, Register slot_address,
 void MacroAssembler::CallVerifySkippedWriteBarrierStubSaveRegisters(
     Register object, Register value, SaveFPRegsMode fp_mode) {
   ASM_CODE_COMMENT(this);
-  DCHECK(!AreAliased(object, value));
   DCHECK(kCallerSaved.has(kCArgRegs[0]));
   DCHECK(kCallerSaved.has(kCArgRegs[1]));
   PushCallerSaved(fp_mode);

@@ -142,6 +142,7 @@ struct MemoryAnalyzer {
     const Operation& value = input_graph.Get(store.value());
 
     WriteBarrierKind write_barrier_kind = store.write_barrier;
+    if (write_barrier_kind == WriteBarrierKind::kNoWriteBarrier) return false;
     if (write_barrier_kind != WriteBarrierKind::kAssertNoWriteBarrier) {
       // If we have {kAssertNoWriteBarrier}, we cannot skip elimination
       // checks.
@@ -218,7 +219,7 @@ class MemoryOptimizationReducer : public Next {
     if (analyzer_->skipped_write_barriers.count(ig_index)) {
       __ Store(__ MapToNewGraph(store.base()), __ MapToNewGraph(store.index()),
                __ MapToNewGraph(store.value()), store.kind, store.stored_rep,
-               WriteBarrierKind::kNoWriteBarrier, store.offset,
+               skipped_write_barrier_kind_, store.offset,
                store.element_size_log2,
                store.maybe_initializing_or_transitioning,
                store.indirect_pointer_tag());
@@ -510,6 +511,8 @@ class MemoryOptimizationReducer : public Next {
   const TSCallDescriptor* allocate_wasm_shared_builtin_descriptor_ = nullptr;
 #endif
   std::optional<Variable> top_[2];
+  const WriteBarrierKind skipped_write_barrier_kind_ =
+      v8_flags.verify_write_barriers ? kSkippedWriteBarrier : kNoWriteBarrier;
 
   static_assert(static_cast<int>(AllocationType::kYoung) == 0);
   static_assert(static_cast<int>(AllocationType::kOld) == 1);

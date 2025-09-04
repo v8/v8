@@ -109,6 +109,9 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(ArchStoreWithWriteBarrier)                             \
   V(ArchAtomicStoreWithWriteBarrier)                       \
   V(ArchStoreIndirectWithWriteBarrier)                     \
+  V(ArchStoreSkippedWriteBarrier)                          \
+  V(ArchAtomicStoreSkippedWriteBarrier)                    \
+  V(ArchStoreIndirectSkippedWriteBarrier)                  \
   V(AtomicLoadInt8)                                        \
   V(AtomicLoadUint8)                                       \
   V(AtomicLoadInt16)                                       \
