@@ -92,7 +92,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '51d0a558ecdf5cac58509d08263c36764c270ca6',
+  'partition_alloc_version': '7e1a38e21c908deac07090d1a8e7e49bbd0f862a',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -130,9 +130,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e89cc079bc34a495d346d4e73efda79a8167b400',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4e91a24ea015ce18cf5e72bcf8f3f311d4f04de0',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '4d04ea36c079a5ee6302365704e011801f2d9bae',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd091c4baaf9d9c473805131a3b6a292060930d92',
   'buildtools/linux64': {
     'packages': [
       {
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'fa63ec7437108dcb3a611c6a6c5f3d96771e9581',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '0f565fa8583d599d4e96736e36e397dc6e671382',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -254,7 +254,7 @@ deps = {
   'third_party/fast_float/src':
     Var('chromium_url') + '/external/github.com/fastfloat/fast_float.git' + '@' + 'cb1d42aaa1e14b09e1452cfdef373d051b8c02a4',
   'third_party/fuchsia-gn-sdk': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '7e28b752c19443ee31cb47a7195add4131a1cc09',
+    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '276f015664245312a045bbe355ce8b65fd82ace5',
     'condition': 'checkout_fuchsia',
   },
   'third_party/simdutf':
@@ -302,7 +302,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '23b5bc93867b93b73f7be97cf2e8a71e95770e07',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '0527c18b4b71f06599e9c413fdc3b7b1908a6458',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'f7f5a32b3e9582092d8a4511acec036a09ae8524',
   'third_party/libunwind/src':
@@ -498,7 +498,7 @@ deps = {
       'condition': 'checkout_android',
   },
   'tools/rust':
-    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '339022b502410135c1fea03236caf505310b705f',
+    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '0cba35198912769b9538efd85bda4e4cbc18d090',
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + '89d58ebe78f02706d414154f923f759a05a887b6',
   'third_party/rust':
@@ -550,11 +550,11 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'caf4afa1afc92e16fef429f182444bed98a46a6c',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '49737a61bcc7fa007d0509b6b17496f825c93d61',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'e1641c1aa6f070aedc1368202105273982dc61ea',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '3438d4183bfc7c0d6850e8b970204cc8189f0323',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '5141e83267542f8869adf18b5bd6440440d6801e',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '04fe3ac35a94bbeeb04f859f84254df6a43590c5',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
