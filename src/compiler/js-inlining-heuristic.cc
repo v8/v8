@@ -904,7 +904,9 @@ bool JSInliningHeuristic::CandidateCompare::operator()(
 
 void JSInliningHeuristic::PrintCandidates() {
   StdoutStream os;
-  os << candidates_.size() << " candidate(s) for inlining:" << std::endl;
+  os << "Budget used: " << total_inlined_bytecode_size_ << "/"
+     << max_inlined_bytecode_size_cumulative_ << " -- " << candidates_.size()
+     << " candidate(s) for inlining:" << std::endl;
   for (const Candidate& candidate : candidates_) {
     os << "- candidate: " << candidate.node->op()->mnemonic() << " node #"
        << candidate.node->id() << " with frequency " << candidate.frequency

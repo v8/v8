@@ -82,12 +82,17 @@ bool MaglevInliner::Run() {
 
     if (graph_->total_inlined_bytecode_size() >
         max_inlined_bytecode_size_cumulative()) {
+      TRACE("> Main budget exhausted ("
+            << graph_->total_inlined_bytecode_size() << " > "
+            << max_inlined_bytecode_size_cumulative() << ")");
       // We ran out of budget. Checking if this is a small-ish function that we
       // can still inline.
       if (graph_->total_inlined_bytecode_size_small() >
           max_inlined_bytecode_size_small_total()) {
         graph_->compilation_info()->set_could_not_inline_all_candidates();
-        TRACE("> Budget exhausted, stopping");
+        TRACE(">> Small budget exhausted ("
+              << graph_->total_inlined_bytecode_size_small() << " > "
+              << max_inlined_bytecode_size_small_total() << "), stopping.");
         break;
       }
 
@@ -95,7 +100,7 @@ bool MaglevInliner::Run() {
         graph_->compilation_info()->set_could_not_inline_all_candidates();
         // Not that we don't break just rather just continue: next candidates
         // might be inlineable.
-        TRACE("> !has_heapnumber_input_output or not enough budget, skipping");
+        TRACE(">> !is_small_with_heapnum_input_outputs, skipping");
         continue;
       }
     }
@@ -223,9 +228,16 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
       zone(), caller_unit, shared, call_site->feedback_cell);
 
   if (is_small) {
+    TRACE("> Adding to small budget: " << call_site->bytecode_length
+                                       << " bytes");
     graph_->add_inlined_bytecode_size_small(call_site->bytecode_length);
+    TRACE(">> used small budget: "
+          << graph_->total_inlined_bytecode_size_small());
   } else {
+    TRACE("> Adding to regular budget: " << call_site->bytecode_length
+                                         << " bytes");
     graph_->add_inlined_bytecode_size(call_site->bytecode_length);
+    TRACE(">> used regular budget: " << graph_->total_inlined_bytecode_size());
   }
 
   // This can be invalidated by a previous inlining and it was not propagated to

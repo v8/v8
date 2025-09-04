@@ -22,11 +22,12 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-#define TRACE_UNTAGGING(...)                                \
-  do {                                                      \
-    if (V8_UNLIKELY(v8_flags.trace_maglev_phi_untagging)) { \
-      StdoutStream{} << __VA_ARGS__ << std::endl;           \
-    }                                                       \
+#define TRACE_UNTAGGING(...)                               \
+  do {                                                     \
+    if (V8_UNLIKELY(v8_flags.trace_maglev_phi_untagging && \
+                    graph_->is_tracing_enabled())) {       \
+      StdoutStream{} << __VA_ARGS__ << std::endl;          \
+    }                                                      \
   } while (false)
 
 MaglevPhiRepresentationSelector::MaglevPhiRepresentationSelector(Graph* graph)
