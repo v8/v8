@@ -5,6 +5,7 @@
 #include "src/interpreter/bytecode-generator.h"
 
 #include <fstream>
+#include <string>
 
 #include "src/init/v8.h"
 #include "src/interpreter/bytecode-array-iterator.h"
@@ -20,7 +21,8 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-class BytecodeGeneratorTest : public TestWithContext {
+class BytecodeGeneratorTest : public TestWithContext,
+                              public testing::WithParamInterface<std::string> {
  public:
   BytecodeGeneratorTest() : printer_(isolate()) {}
   static void SetUpTestSuite() {
@@ -42,6 +44,7 @@ static const char* kGoldenFileDirectory =
 struct GoldenCase {
   std::string snippet;
   std::string expectation;
+  int line;
 };
 
 struct GoldenFile {
@@ -58,47 +61,27 @@ GoldenFile LoadGoldenFile(const std::string& golden_filename) {
   ret.header = parser.ParseHeader();
 
   std::string snippet;
-  while (parser.ReadNextSnippet(&snippet)) {
+  int line;
+  while (parser.ReadNextSnippet(&snippet, &line)) {
     std::string expected = parser.ReadToNextSeparator();
-    ret.cases.emplace_back(snippet, expected);
+    ret.cases.emplace_back(snippet, expected, line);
   }
 
   return ret;
 }
 
-template <size_t N>
 std::string BuildActual(const BytecodeExpectationsPrinter& printer,
-                        std::string (&snippet_list)[N],
-                        const char* prologue = nullptr,
-                        const char* epilogue = nullptr) {
+                        const GoldenCase& golden_case) {
   std::ostringstream actual_stream;
-  for (std::string snippet : snippet_list) {
-    std::string source_code;
-    if (prologue) source_code += prologue;
-    source_code += snippet;
-    if (epilogue) source_code += epilogue;
-    printer.PrintExpectation(&actual_stream, source_code);
-  }
-  return actual_stream.str();
-}
-
-std::string BuildActual(const BytecodeExpectationsPrinter& printer,
-                        const GoldenFile& golden) {
-  std::ostringstream actual_stream;
-  for (const GoldenCase& golden_case : golden.cases) {
-    printer.PrintExpectation(&actual_stream, golden_case.snippet);
-  }
+  printer.PrintExpectation(&actual_stream, golden_case.snippet);
   return actual_stream.str();
 }
 
 std::string BuildExpected(const BytecodeExpectationsPrinter& printer,
-                          const GoldenFile& golden) {
+                          const GoldenCase& golden_case) {
   std::ostringstream expected_stream;
-  for (const GoldenCase& golden_case : golden.cases) {
-    expected_stream << "---" << std::endl;
-    printer.PrintCodeSnippet(&expected_stream, golden_case.snippet);
-    expected_stream << golden_case.expectation;
-  }
+  printer.PrintCodeSnippet(&expected_stream, golden_case.snippet);
+  expected_stream << golden_case.expectation;
   return expected_stream.str();
 }
 
@@ -123,721 +106,70 @@ static inline std::string trim(std::string* str) {
   return *str;
 }
 
-bool CompareTexts(const std::string& generated, const std::string& expected) {
+void CompareTexts(const std::string& generated, const std::string& expected,
+                  std::string golden_file, int start_line) {
   std::istringstream generated_stream(generated);
   std::istringstream expected_stream(expected);
   std::string generated_line;
   std::string expected_line;
-  // Line number does not include golden file header.
-  int line_number = 0;
-  bool strings_match = true;
+  int line_number = start_line;
 
   do {
     std::getline(generated_stream, generated_line);
     std::getline(expected_stream, expected_line);
 
     if (!generated_stream.good() && !expected_stream.good()) {
-      return strings_match;
+      return;
     }
 
-    if (!generated_stream.good()) {
-      std::cerr << "Expected has extra lines after line " << line_number
-                << "\n";
-      std::cerr << "  Expected: '" << expected_line << "'\n";
-      return false;
-    } else if (!expected_stream.good()) {
-      std::cerr << "Generated has extra lines after line " << line_number
-                << "\n";
-      std::cerr << "  Generated: '" << generated_line << "'\n";
-      return false;
-    }
+    ASSERT_TRUE(generated_stream.good())
+        << "Expected has extra lines after line " << line_number << "\n"
+        << "  Expected: '" << expected_line << "'\n";
+    ASSERT_TRUE(expected_stream.good())
+        << "Generated has extra lines after line " << line_number << "\n"
+        << "  Generated: '" << generated_line << "'\n";
 
-    if (trim(&generated_line) != trim(&expected_line)) {
-      std::cerr << "Inputs differ at line " << line_number << "\n";
-      std::cerr << "  Generated: '" << generated_line << "'\n";
-      std::cerr << "  Expected:  '" << expected_line << "'\n";
-      strings_match = false;
-    }
+    trim(&generated_line);
+    trim(&expected_line);
+    EXPECT_EQ(expected_line, generated_line)
+        << "Inputs differ at " << kGoldenFileDirectory << golden_file << ":"
+        << line_number << "\n";
+
     line_number++;
   } while (true);
 }
 
-TEST_F(BytecodeGeneratorTest, PrimitiveReturnStatements) {
-  GoldenFile golden = LoadGoldenFile("PrimitiveReturnStatements.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, PrimitiveExpressions) {
-  GoldenFile golden = LoadGoldenFile("PrimitiveExpressions.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, LogicalExpressions) {
-  GoldenFile golden = LoadGoldenFile("LogicalExpressions.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, Parameters) {
-  GoldenFile golden = LoadGoldenFile("Parameters.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, IntegerConstants) {
-  GoldenFile golden = LoadGoldenFile("IntegerConstants.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, HeapNumberConstants) {
-  GoldenFile golden = LoadGoldenFile("HeapNumberConstants.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, StringConstants) {
-  GoldenFile golden = LoadGoldenFile("StringConstants.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, PropertyLoads) {
-  GoldenFile golden = LoadGoldenFile("PropertyLoads.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, PropertyLoadStore) {
-  GoldenFile golden = LoadGoldenFile("PropertyLoadStore.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, IIFE) {
-  GoldenFile golden = LoadGoldenFile("IIFE.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, PropertyStores) {
-  GoldenFile golden = LoadGoldenFile("PropertyStores.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, PropertyCall) {
-  GoldenFile golden = LoadGoldenFile("PropertyCall.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, LoadGlobal) {
-  GoldenFile golden = LoadGoldenFile("LoadGlobal.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, StoreGlobal) {
-  GoldenFile golden = LoadGoldenFile("StoreGlobal.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, CallGlobal) {
-  GoldenFile golden = LoadGoldenFile("CallGlobal.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, CallRuntime) {
-  GoldenFile golden = LoadGoldenFile("CallRuntime.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, IfConditions) {
-  GoldenFile golden = LoadGoldenFile("IfConditions.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, DeclareGlobals) {
-  GoldenFile golden = LoadGoldenFile("DeclareGlobals.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, BreakableBlocks) {
-  GoldenFile golden = LoadGoldenFile("BreakableBlocks.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, BasicLoops) {
-  GoldenFile golden = LoadGoldenFile("BasicLoops.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, UnaryOperators) {
-  GoldenFile golden = LoadGoldenFile("UnaryOperators.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, Typeof) {
-  GoldenFile golden = LoadGoldenFile("Typeof.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, CompareTypeOf) {
-  GoldenFile golden = LoadGoldenFile("CompareTypeOf.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, VariableWithHint) {
-  GoldenFile golden = LoadGoldenFile("VariableWithHint.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, CompareBoolean) {
-  GoldenFile golden = LoadGoldenFile("CompareBoolean.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, CompareNil) {
-  GoldenFile golden = LoadGoldenFile("CompareNil.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, Delete) {
-  GoldenFile golden = LoadGoldenFile("Delete.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, GlobalDelete) {
-  GoldenFile golden = LoadGoldenFile("GlobalDelete.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, FunctionLiterals) {
-  GoldenFile golden = LoadGoldenFile("FunctionLiterals.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, RegExpLiterals) {
-  GoldenFile golden = LoadGoldenFile("RegExpLiterals.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, ArrayLiterals) {
-  GoldenFile golden = LoadGoldenFile("ArrayLiterals.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, ObjectLiterals) {
-  GoldenFile golden = LoadGoldenFile("ObjectLiterals.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, TopLevelObjectLiterals) {
-  GoldenFile golden = LoadGoldenFile("TopLevelObjectLiterals.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, TryCatch) {
-  GoldenFile golden = LoadGoldenFile("TryCatch.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, TryFinally) {
-  GoldenFile golden = LoadGoldenFile("TryFinally.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, Throw) {
-  GoldenFile golden = LoadGoldenFile("Throw.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, CallNew) {
-  GoldenFile golden = LoadGoldenFile("CallNew.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, ContextVariables) {
-  GoldenFile golden = LoadGoldenFile("ContextVariables.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, ContextParameters) {
-  GoldenFile golden = LoadGoldenFile("ContextParameters.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, OuterContextVariables) {
-  GoldenFile golden = LoadGoldenFile("OuterContextVariables.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, CountOperators) {
-  GoldenFile golden = LoadGoldenFile("CountOperators.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, GlobalCountOperators) {
-  GoldenFile golden = LoadGoldenFile("GlobalCountOperators.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, CompoundExpressions) {
-  GoldenFile golden = LoadGoldenFile("CompoundExpressions.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, GlobalCompoundExpressions) {
-  GoldenFile golden = LoadGoldenFile("GlobalCompoundExpressions.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, CreateArguments) {
-  GoldenFile golden = LoadGoldenFile("CreateArguments.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, CreateRestParameter) {
-  GoldenFile golden = LoadGoldenFile("CreateRestParameter.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, ForIn) {
-  GoldenFile golden = LoadGoldenFile("ForIn.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, ForOf) {
-  GoldenFile golden = LoadGoldenFile("ForOf.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, Conditional) {
-  GoldenFile golden = LoadGoldenFile("Conditional.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, Switch) {
-  GoldenFile golden = LoadGoldenFile("Switch.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, BasicBlockToBoolean) {
-  GoldenFile golden = LoadGoldenFile("BasicBlockToBoolean.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, DeadCodeRemoval) {
-  GoldenFile golden = LoadGoldenFile("DeadCodeRemoval.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, ThisFunction) {
-  GoldenFile golden = LoadGoldenFile("ThisFunction.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, NewTarget) {
-  GoldenFile golden = LoadGoldenFile("NewTarget.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, RemoveRedundantLdar) {
-  GoldenFile golden = LoadGoldenFile("RemoveRedundantLdar.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, GenerateTestUndetectable) {
-  GoldenFile golden = LoadGoldenFile("GenerateTestUndetectable.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, AssignmentsInBinaryExpression) {
-  GoldenFile golden = LoadGoldenFile("AssignmentsInBinaryExpression.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, DestructuringAssignment) {
-  GoldenFile golden = LoadGoldenFile("DestructuringAssignment.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, Eval) {
-  GoldenFile golden = LoadGoldenFile("Eval.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, LookupSlot) {
-  GoldenFile golden = LoadGoldenFile("LookupSlot.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, CallLookupSlot) {
-  GoldenFile golden = LoadGoldenFile("CallLookupSlot.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-// TODO(mythria): tests for variable/function declaration in lookup slots.
-
-TEST_F(BytecodeGeneratorTest, LookupSlotInEval) {
-  GoldenFile golden = LoadGoldenFile("LookupSlotInEval.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, DeleteLookupSlotInEval) {
-  GoldenFile golden = LoadGoldenFile("DeleteLookupSlotInEval.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, WideRegisters) {
-  GoldenFile golden = LoadGoldenFile("WideRegisters.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, ConstVariable) {
-  GoldenFile golden = LoadGoldenFile("ConstVariable.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, LetVariable) {
-  GoldenFile golden = LoadGoldenFile("LetVariable.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, ConstVariableContextSlot) {
-  // TODO(mythria): Add tests for initialization of this via super calls.
-  // TODO(mythria): Add tests that walk the context chain.
-  GoldenFile golden = LoadGoldenFile("ConstVariableContextSlot.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, LetVariableContextSlot) {
-  GoldenFile golden = LoadGoldenFile("LetVariableContextSlot.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, WithStatement) {
-  GoldenFile golden = LoadGoldenFile("WithStatement.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, DoDebugger) {
-  GoldenFile golden = LoadGoldenFile("DoDebugger.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, ClassDeclarations) {
-  GoldenFile golden = LoadGoldenFile("ClassDeclarations.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, ClassAndSuperClass) {
-  GoldenFile golden = LoadGoldenFile("ClassAndSuperClass.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, PublicClassFields) {
-  GoldenFile golden = LoadGoldenFile("PublicClassFields.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, PrivateClassFields) {
-  GoldenFile golden = LoadGoldenFile("PrivateClassFields.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, PrivateClassFieldAccess) {
-  GoldenFile golden = LoadGoldenFile("PrivateClassFieldAccess.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, PrivateMethodDeclaration) {
-  GoldenFile golden = LoadGoldenFile("PrivateMethodDeclaration.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, PrivateMethodAccess) {
-  GoldenFile golden = LoadGoldenFile("PrivateMethodAccess.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, PrivateAccessorAccess) {
-  GoldenFile golden = LoadGoldenFile("PrivateAccessorAccess.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, StaticPrivateMethodDeclaration) {
-  GoldenFile golden = LoadGoldenFile("StaticPrivateMethodDeclaration.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, StaticPrivateMethodAccess) {
-  GoldenFile golden = LoadGoldenFile("StaticPrivateMethodAccess.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, PrivateAccessorDeclaration) {
-  GoldenFile golden = LoadGoldenFile("PrivateAccessorDeclaration.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, StaticClassFields) {
-  GoldenFile golden = LoadGoldenFile("StaticClassFields.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, Generators) {
-  GoldenFile golden = LoadGoldenFile("Generators.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, AsyncGenerators) {
-  GoldenFile golden = LoadGoldenFile("AsyncGenerators.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, Modules) {
-  GoldenFile golden = LoadGoldenFile("Modules.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, AsyncModules) {
-  GoldenFile golden = LoadGoldenFile("AsyncModules.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, SuperCallAndSpread) {
-  GoldenFile golden = LoadGoldenFile("SuperCallAndSpread.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, CallAndSpread) {
-  GoldenFile golden = LoadGoldenFile("CallAndSpread.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, NewAndSpread) {
-  GoldenFile golden = LoadGoldenFile("NewAndSpread.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, ForAwaitOf) {
-  GoldenFile golden = LoadGoldenFile("ForAwaitOf.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, StandardForLoop) {
-  GoldenFile golden = LoadGoldenFile("StandardForLoop.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, ForOfLoop) {
-  GoldenFile golden = LoadGoldenFile("ForOfLoop.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, StringConcat) {
-  GoldenFile golden = LoadGoldenFile("StringConcat.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, TemplateLiterals) {
-  GoldenFile golden = LoadGoldenFile("TemplateLiterals.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, ElideRedundantLoadOperationOfImmutableContext) {
-  GoldenFile golden =
-      LoadGoldenFile("ElideRedundantLoadOperationOfImmutableContext.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
-
-TEST_F(BytecodeGeneratorTest, ElideRedundantHoleChecks) {
-  GoldenFile golden = LoadGoldenFile("ElideRedundantHoleChecks.golden");
-  printer().set_options(golden.header);
-  CHECK(CompareTexts(BuildActual(printer(), golden),
-                     BuildExpected(printer(), golden)));
-}
+TEST_P(BytecodeGeneratorTest, ExpectationNonEmpty) {
+  GoldenFile golden = LoadGoldenFile(GetParam());
+  for (const GoldenCase& golden_case : golden.cases) {
+    std::string expectation = golden_case.expectation;
+    trim(&expectation);
+    CHECK(!expectation.empty());
+  }
+}
+
+TEST_P(BytecodeGeneratorTest, CompilationMatchesExpectation) {
+  GoldenFile golden = LoadGoldenFile(GetParam());
+  printer().set_options(golden.header);
+  for (const GoldenCase& golden_case : golden.cases) {
+    CompareTexts(BuildActual(printer(), golden_case),
+                 BuildExpected(printer(), golden_case), GetParam(),
+                 golden_case.line);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    AllGolden, BytecodeGeneratorTest,
+    // Run the BytecodeGeneratorTest for each golden file
+    // in the golden file directory.
+    testing::ValuesIn(CollectGoldenFiles(kGoldenFileDirectory)),
+    // Print the golden file's filename, without the
+    // extension, as the test value.
+    [](const testing::TestParamInfo<std::string>& info) {
+      std::string file = info.param;
+      CHECK(file.ends_with(".golden"));
+      return file.substr(0, file.length() - strlen(".golden"));
+    });
 
 }  // namespace interpreter
 }  // namespace internal

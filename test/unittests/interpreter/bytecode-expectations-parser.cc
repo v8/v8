@@ -4,6 +4,9 @@
 
 #include "test/unittests/interpreter/bytecode-expectations-parser.h"
 
+// <filesystem> is generally banned in Chromium/V8, but we allow it for
+// unittests since they are not linked into the shipping binary.
+#include <filesystem>
 #include <string>
 
 #include "src/base/logging.h"
@@ -56,16 +59,21 @@ std::string UnescapeString(const std::string& escaped_string) {
 
 }  // namespace
 
+bool BytecodeExpectationsParser::GetLine(std::string& line) {
+  current_line_++;
+  return static_cast<bool>(std::getline(*is_, line));
+}
+
 BytecodeExpectationsHeaderOptions BytecodeExpectationsParser::ParseHeader() {
   BytecodeExpectationsHeaderOptions options;
   std::string line;
 
   // Skip to the beginning of the options header.
-  while (std::getline(*is_, line)) {
+  while (GetLine(line)) {
     if (line == "---") break;
   }
 
-  while (std::getline(*is_, line)) {
+  while (GetLine(line)) {
     const char* v;
     if ((v = GetHeaderParam(line, "module"))) {
       options.module = ParseBoolean(v);
@@ -90,13 +98,15 @@ BytecodeExpectationsHeaderOptions BytecodeExpectationsParser::ParseHeader() {
   return options;
 }
 
-bool BytecodeExpectationsParser::ReadNextSnippet(std::string* string_out) {
+bool BytecodeExpectationsParser::ReadNextSnippet(std::string* string_out,
+                                                 int* line_out) {
   std::string line;
   bool found_begin_snippet = false;
   string_out->clear();
-  while (std::getline(*is_, line)) {
+  while (GetLine(line)) {
     if (line == "snippet: \"") {
       found_begin_snippet = true;
+      *line_out = current_line_;
       continue;
     }
     if (!found_begin_snippet) continue;
@@ -116,11 +126,26 @@ bool BytecodeExpectationsParser::ReadNextSnippet(std::string* string_out) {
 std::string BytecodeExpectationsParser::ReadToNextSeparator() {
   std::string out;
   std::string line;
-  while (std::getline(*is_, line)) {
+  while (GetLine(line)) {
     if (line == "---") break;
     out += line + "\n";
   }
   return out;
+}
+
+std::vector<std::string> CollectGoldenFiles(const char* directory_path) {
+  CHECK(std::filesystem::exists(directory_path));
+  CHECK(std::filesystem::is_directory(directory_path));
+
+  std::vector<std::string> ret;
+  for (const auto& entry :
+       std::filesystem::directory_iterator(directory_path)) {
+    if (!entry.is_regular_file()) continue;
+    if (entry.path().extension() == ".golden") {
+      ret.push_back(entry.path().filename().string());
+    }
+  }
+  return ret;
 }
 
 }  // namespace v8::internal::interpreter

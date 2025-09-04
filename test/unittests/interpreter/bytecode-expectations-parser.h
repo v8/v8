@@ -7,6 +7,7 @@
 
 #include <iosfwd>
 #include <string>
+#include <vector>
 
 namespace v8::internal::interpreter {
 
@@ -24,12 +25,19 @@ class BytecodeExpectationsParser {
   explicit BytecodeExpectationsParser(std::istream* is) : is_(is) {}
 
   BytecodeExpectationsHeaderOptions ParseHeader();
-  bool ReadNextSnippet(std::string* string_out);
+  bool ReadNextSnippet(std::string* string_out, int* line_out);
   std::string ReadToNextSeparator();
 
+  int CurrentLine() const { return current_line_; }
+
  private:
+  bool GetLine(std::string& line);
+
   std::istream* is_;
+  int current_line_ = 0;
 };
+
+std::vector<std::string> CollectGoldenFiles(const char* directory_path);
 
 }  // namespace v8::internal::interpreter
 

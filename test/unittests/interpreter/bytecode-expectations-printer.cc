@@ -418,7 +418,6 @@ void BytecodeExpectationsPrinter::PrintExpectation(
     }
   }
 
-  *stream << "---" << std::endl;
   PrintCodeSnippet(stream, snippet);
   PrintBytecodeArray(stream, bytecode_array);
   *stream << std::endl;
