@@ -8167,6 +8167,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
 
   TRACE_INLINING("  considering " << shared << " for inlining");
   auto arguments = GetArgumentsAsArrayOfValueNodes(shared, args);
+
+  // Creating the CallKnownJSFUnction node will conservatively clear the
+  // unstable maps from the KNA. So, we save them before doing this, since this
+  // could clear maps that don't need to be cleared.
+  KnownNodeAspects* call_aspects = known_node_aspects().Clone(zone());
+
   auto generic_call = BuildCallKnownJSFunction(context, function, new_target,
 #ifdef V8_ENABLE_LEAPTIERING
                                                dispatch_handle,
@@ -8186,8 +8192,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
   MaglevCallSiteInfo* call_site = zone()->New<MaglevCallSiteInfo>(
       MaglevCallerDetails{
           arguments, &generic_call->lazy_deopt_info()->top_frame(),
-          known_node_aspects().Clone(zone()), loop_effects_,
-          unobserved_context_slot_stores_, catch_details, IsInsideLoop(),
+          call_aspects, loop_effects_, unobserved_context_slot_stores_,
+          catch_details, IsInsideLoop(),
           /* is_eager_inline */ false, call_frequency},
       generic_call, feedback_cell, score, bytecode.length());
   graph()->inlineable_calls().push(call_site);
