@@ -252,28 +252,11 @@ class MemoryOptimizationReducer : public Next {
       type = AllocationType::kOld;
     }
 
-    V<WordPtr> top_address;
-    if (isolate_ != nullptr) {
-      top_address = __ ExternalConstant(
-          type == AllocationType::kYoung
-              ? ExternalReference::new_space_allocation_top_address(isolate_)
-              : ExternalReference::old_space_allocation_top_address(isolate_));
-    } else {
-      // Wasm mode: producing isolate-independent code, loading the isolate
-      // address at runtime.
-#if V8_ENABLE_WEBASSEMBLY
-      V<WasmTrustedInstanceData> instance_data = __ WasmInstanceDataParameter();
-      int top_address_offset =
-          type == AllocationType::kYoung
-              ? WasmTrustedInstanceData::kNewAllocationTopAddressOffset
-              : WasmTrustedInstanceData::kOldAllocationTopAddressOffset;
-      top_address =
-          __ Load(instance_data, LoadOp::Kind::TaggedBase().Immutable(),
-                  MemoryRepresentation::UintPtr(), top_address_offset);
-#else
-      UNREACHABLE();
-#endif  // V8_ENABLE_WEBASSEMBLY
-    }
+    V<WordPtr> allocation_space = __ IsolateField(
+        type == AllocationType::kYoung ? IsolateFieldId::kNewAllocationInfo
+                                       : IsolateFieldId::kOldAllocationInfo);
+    V<WordPtr> top_address =
+        __ WordPtrAdd(allocation_space, LinearAllocationArea::TopOffset());
 
     if (analyzer_->IsFoldedAllocation(__ current_operation_origin())) {
       DCHECK_NE(__ GetVariable(top(type)), V<WordPtr>::Invalid());
@@ -554,29 +537,11 @@ class MemoryOptimizationReducer : public Next {
   }
 
   V<WordPtr> GetLimitAddress(AllocationType type) {
-    V<WordPtr> limit_address;
-    if (isolate_ != nullptr) {
-      limit_address = __ ExternalConstant(
-          type == AllocationType::kYoung
-              ? ExternalReference::new_space_allocation_limit_address(isolate_)
-              : ExternalReference::old_space_allocation_limit_address(
-                    isolate_));
-    } else {
-      // Wasm mode: producing isolate-independent code, loading the isolate
-      // address at runtime.
-#if V8_ENABLE_WEBASSEMBLY
-      V<WasmTrustedInstanceData> instance_node = __ WasmInstanceDataParameter();
-      int limit_address_offset =
-          type == AllocationType::kYoung
-              ? WasmTrustedInstanceData::kNewAllocationLimitAddressOffset
-              : WasmTrustedInstanceData::kOldAllocationLimitAddressOffset;
-      limit_address =
-          __ Load(instance_node, LoadOp::Kind::TaggedBase(),
-                  MemoryRepresentation::UintPtr(), limit_address_offset);
-#else
-      UNREACHABLE();
-#endif  // V8_ENABLE_WEBASSEMBLY
-    }
+    V<WordPtr> allocation_space = __ IsolateField(
+        type == AllocationType::kYoung ? IsolateFieldId::kNewAllocationInfo
+                                       : IsolateFieldId::kOldAllocationInfo);
+    V<WordPtr> limit_address =
+        __ WordPtrAdd(allocation_space, LinearAllocationArea::LimitOffset());
     return limit_address;
   }
 };

@@ -502,10 +502,6 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   DECL_PRIMITIVE_ACCESSORS(memory0_size, size_t)
   DECL_PROTECTED_POINTER_ACCESSORS(managed_native_module,
                                    TrustedManaged<wasm::NativeModule>)
-  DECL_PRIMITIVE_ACCESSORS(new_allocation_limit_address, Address*)
-  DECL_PRIMITIVE_ACCESSORS(new_allocation_top_address, Address*)
-  DECL_PRIMITIVE_ACCESSORS(old_allocation_limit_address, Address*)
-  DECL_PRIMITIVE_ACCESSORS(old_allocation_top_address, Address*)
   DECL_PRIMITIVE_ACCESSORS(globals_start, uint8_t*)
   DECL_PRIMITIVE_ACCESSORS(jump_table_start, Address)
   DECL_PRIMITIVE_ACCESSORS(hook_on_function_call_address, Address)
@@ -551,10 +547,6 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kJumpTableStartOffset, kSystemPointerSize)                            \
   /* End of often-accessed fields. */                                     \
   /* Continue with system pointer size fields to maintain alignment. */   \
-  V(kNewAllocationLimitAddressOffset, kSystemPointerSize)                 \
-  V(kNewAllocationTopAddressOffset, kSystemPointerSize)                   \
-  V(kOldAllocationLimitAddressOffset, kSystemPointerSize)                 \
-  V(kOldAllocationTopAddressOffset, kSystemPointerSize)                   \
   V(kHookOnFunctionCallAddressOffset, kSystemPointerSize)                 \
   V(kTieringBudgetArrayOffset, kSystemPointerSize)                        \
   V(kStressDeoptCounterOffset, kSystemPointerSize)                        \

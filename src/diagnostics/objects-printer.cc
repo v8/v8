@@ -3007,10 +3007,6 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(well_known_imports, Brief);
   PRINT_WASM_INSTANCE_FIELD(memory0_start, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(memory0_size, +);
-  PRINT_WASM_INSTANCE_FIELD(new_allocation_limit_address, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(new_allocation_top_address, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(old_allocation_limit_address, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(old_allocation_top_address, to_void_ptr);
 #if V8_ENABLE_DRUMBRAKE
   PRINT_WASM_INSTANCE_FIELD(imported_function_indices, Brief);
 #endif  // V8_ENABLE_DRUMBRAKE

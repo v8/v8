@@ -187,14 +187,6 @@ PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, memory0_size, size_t,
 PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, managed_native_module,
                             TrustedManaged<wasm::NativeModule>,
                             kProtectedManagedNativeModuleOffset)
-PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, new_allocation_limit_address,
-                    Address*, kNewAllocationLimitAddressOffset)
-PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, new_allocation_top_address,
-                    Address*, kNewAllocationTopAddressOffset)
-PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, old_allocation_limit_address,
-                    Address*, kOldAllocationLimitAddressOffset)
-PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, old_allocation_top_address,
-                    Address*, kOldAllocationTopAddressOffset)
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, globals_start, uint8_t*,
                     kGlobalsStartOffset)
 ACCESSORS(WasmTrustedInstanceData, imported_mutable_globals,
