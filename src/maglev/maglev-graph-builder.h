@@ -603,21 +603,6 @@ class MaglevGraphBuilder {
                           operand_index, local_isolate()))));
   }
 
-  // For Name refs, we always want to unpack thin strings so that following
-  // calls to IsUniqueName don't unnecessarily return false, blocking
-  // optimizations such as feedback refining (kElementAccess -> kNamedAccess).
-  template <>
-  typename compiler::ref_traits<Name>::ref_type GetRefOperand<Name>(
-      int operand_index) {
-    // The BytecodeArray itself was fetched by using a barrier so all reads
-    // from the constant pool are safe.
-    return MakeRefAssumeMemoryFence(
-               broker(), broker()->CanonicalPersistentHandle(
-                             Cast<Name>(iterator_.GetConstantForIndexOperand(
-                                 operand_index, local_isolate()))))
-        .UnpackIfThin(broker());
-  }
-
   MaybeReduceResult GetConstantSingleCharacterStringFromCode(uint16_t);
 
   ValueNode* GetRegisterInput(Register reg);
