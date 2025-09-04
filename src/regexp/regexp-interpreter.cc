@@ -961,8 +961,7 @@ IrregexpInterpreter::Result RawMatch(
       uint16_t c = Load16AlignedUnsigned(pc + 6);
       uint32_t mask = Load32Aligned(pc + 8);
       int32_t maximum_offset = Load32Aligned(pc + 12);
-      while (static_cast<uintptr_t>(current + maximum_offset) <=
-             static_cast<uintptr_t>(subject.length())) {
+      while (IndexIsInBounds(current + maximum_offset, subject.length())) {
         current_char = subject[current + load_offset];
         if (c == (current_char & mask)) {
           SET_PC_FROM_OFFSET(Load32Aligned(pc + 16));
@@ -978,8 +977,7 @@ IrregexpInterpreter::Result RawMatch(
       int32_t advance = Load16AlignedSigned(pc + 4);
       uint16_t c = Load16AlignedUnsigned(pc + 6);
       int32_t maximum_offset = Load32Aligned(pc + 8);
-      while (static_cast<uintptr_t>(current + maximum_offset) <=
-             static_cast<uintptr_t>(subject.length())) {
+      while (IndexIsInBounds(current + maximum_offset, subject.length())) {
         current_char = subject[current + load_offset];
         if (c == current_char) {
           SET_PC_FROM_OFFSET(Load32Aligned(pc + 12));
