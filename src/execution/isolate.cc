@@ -3964,14 +3964,16 @@ template <wasm::JumpBuffer::StackState new_state_of_old_stack,
           wasm::JumpBuffer::StackState expected_target_state>
 void Isolate::SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to,
                            Address sp, Address fp, Address pc) {
-  // Synchronize the stack limit with the active continuation for
-  // stack-switching. This can be done before or after changing the stack
-  // pointer itself, as long as we update both before the next stack check.
-  // {StackGuard::SetStackLimitForStackSwitching} doesn't update the value of
-  // the jslimit if it contains a sentinel value, and it is also thread-safe. So
-  // if an interrupt is requested before, during or after this call, it will be
-  // preserved and handled at the next stack check.
   SBXCHECK_EQ(from->jmpbuf()->state, wasm::JumpBuffer::Active);
+  constexpr bool is_resume =
+      expected_target_state == wasm::JumpBuffer::Suspended;
+#if DEBUG
+  constexpr bool is_return =
+      new_state_of_old_stack == wasm::JumpBuffer::Retired;
+  constexpr bool is_suspend =
+      new_state_of_old_stack == wasm::JumpBuffer::Suspended;
+#endif
+
   from->jmpbuf()->state = new_state_of_old_stack;
   if constexpr (new_state_of_old_stack != wasm::JumpBuffer::Retired) {
     from->jmpbuf()->sp = sp;
@@ -3986,9 +3988,10 @@ void Isolate::SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to,
   SBXCHECK_EQ(to->jmpbuf()->state, expected_target_state);
   to->jmpbuf()->state = wasm::JumpBuffer::Active;
   DisallowGarbageCollection no_gc;
-  if constexpr (expected_target_state == wasm::JumpBuffer::Suspended) {
+  if constexpr (is_resume) {
     to->jmpbuf()->parent = from;
   } else {
+    // Return or suspend.
     static_assert(expected_target_state == wasm::JumpBuffer::Inactive);
     if (from->jmpbuf()->parent != to) {
       // Suspending multiple stacks at once is not implemented yet for WasmFX,
@@ -3998,25 +4001,39 @@ void Isolate::SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to,
     }
   }
   uintptr_t limit = reinterpret_cast<uintptr_t>(to->jmpbuf()->stack_limit);
+  // Synchronize the stack limit with the active continuation for
+  // stack-switching. This can be done before or after changing the stack
+  // pointer itself, as long as we update both before the next stack check.
+  // {StackGuard::SetStackLimitForStackSwitching} doesn't update the value of
+  // the jslimit if it contains a sentinel value, and it is also thread-safe. So
+  // if an interrupt is requested before, during or after this call, it will be
+  // preserved and handled at the next stack check.
   stack_guard()->SetStackLimitForStackSwitching(limit);
+
   // Update the central stack info.
   if (!thread_local_top()->is_on_central_stack_flag_ &&
       to->jmpbuf()->is_on_central_stack) {
+    DCHECK(is_suspend || is_return);
     DCHECK_EQ(expected_target_state, wasm::JumpBuffer::Inactive);
     thread_local_top()->is_on_central_stack_flag_ = true;
+    thread_local_top()->central_stack_sp_ = to->central_stack_sp();
+#if DEBUG
+    from->set_central_stack_sp(kNullAddress);
+#endif
     thread_local_top()->central_stack_limit_ =
         reinterpret_cast<Address>(to->jmpbuf()->stack_limit);
   } else if (thread_local_top()->is_on_central_stack_flag_ &&
              !to->jmpbuf()->is_on_central_stack) {
-    DCHECK(expected_target_state == wasm::JumpBuffer::Suspended ||
-           new_state_of_old_stack == wasm::JumpBuffer::Retired);
-    // A suspended stack cannot hold central stack frames.
     thread_local_top()->is_on_central_stack_flag_ = false;
-    // Record the current central stack SP, we will switch back to it for
-    // non-wasm calls.
-    thread_local_top()->central_stack_sp_ = from->jmpbuf()->sp;
-    thread_local_top()->central_stack_limit_ =
-        reinterpret_cast<Address>(from->jmpbuf()->stack_limit);
+    if (is_resume) {
+      // Record the current central stack SP, we will switch back to it for
+      // non-wasm calls. Save the previous value to restore it when we return to
+      // this stack.
+      from->set_central_stack_sp(thread_local_top()->central_stack_sp_);
+      thread_local_top()->central_stack_sp_ = from->jmpbuf()->sp;
+      thread_local_top()->central_stack_limit_ =
+          reinterpret_cast<Address>(from->jmpbuf()->stack_limit);
+    }
   }
 }
 

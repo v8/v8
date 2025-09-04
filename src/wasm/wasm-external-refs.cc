@@ -1018,6 +1018,7 @@ intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t current_sp) {
   auto counter = isolate->wasm_switch_to_the_central_stack_counter();
   isolate->set_wasm_switch_to_the_central_stack_counter(counter + 1);
 
+  DCHECK_NE(thread_local_top->central_stack_sp_, kNullAddress);
   return thread_local_top->central_stack_sp_;
 }
 
@@ -1040,6 +1041,7 @@ intptr_t switch_to_the_central_stack_for_js(Isolate* isolate, Address fp) {
   StackGuard* stack_guard = isolate->stack_guard();
   wasm::StackMemory* stack = isolate->isolate_data()->active_stack();
   Address central_stack_sp = thread_local_top->central_stack_sp_;
+  DCHECK_NE(central_stack_sp, kNullAddress);
   stack->set_stack_switch_info(fp, central_stack_sp);
   stack_guard->SetStackLimitForStackSwitching(
       thread_local_top->central_stack_limit_);
