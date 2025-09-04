@@ -20,22 +20,20 @@ namespace maglev {
 class Graph;
 class MaglevAssembler;
 
-inline ExternalReference SpaceAllocationTopAddress(Isolate* isolate,
-                                                   AllocationType alloc_type) {
+inline IsolateFieldId SpaceAllocationTopAddress(AllocationType alloc_type) {
   if (alloc_type == AllocationType::kYoung) {
-    return ExternalReference::new_space_allocation_top_address(isolate);
+    return IsolateFieldId::kNewAllocationInfoTop;
   }
   DCHECK_EQ(alloc_type, AllocationType::kOld);
-  return ExternalReference::old_space_allocation_top_address(isolate);
+  return IsolateFieldId::kOldAllocationInfoTop;
 }
 
-inline ExternalReference SpaceAllocationLimitAddress(
-    Isolate* isolate, AllocationType alloc_type) {
+inline IsolateFieldId SpaceAllocationLimitAddress(AllocationType alloc_type) {
   if (alloc_type == AllocationType::kYoung) {
-    return ExternalReference::new_space_allocation_limit_address(isolate);
+    return IsolateFieldId::kNewAllocationInfoLimit;
   }
   DCHECK_EQ(alloc_type, AllocationType::kOld);
-  return ExternalReference::old_space_allocation_limit_address(isolate);
+  return IsolateFieldId::kOldAllocationInfoLimit;
 }
 
 inline Builtin AllocateBuiltin(AllocationType alloc_type) {

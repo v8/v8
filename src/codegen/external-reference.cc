@@ -829,26 +829,6 @@ ExternalReference ExternalReference::is_shared_space_isolate_flag_address(
       isolate->isolate_data()->is_shared_space_isolate_flag_address());
 }
 
-ExternalReference ExternalReference::new_space_allocation_top_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->heap()->NewSpaceAllocationTopAddress());
-}
-
-ExternalReference ExternalReference::new_space_allocation_limit_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->heap()->NewSpaceAllocationLimitAddress());
-}
-
-ExternalReference ExternalReference::old_space_allocation_top_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->heap()->OldSpaceAllocationTopAddress());
-}
-
-ExternalReference ExternalReference::old_space_allocation_limit_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->heap()->OldSpaceAllocationLimitAddress());
-}
-
 ExternalReference ExternalReference::last_young_allocation_address(
     Isolate* isolate) {
   return ExternalReference(

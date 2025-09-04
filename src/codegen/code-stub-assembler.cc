@@ -14400,8 +14400,8 @@ void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
   Label no_memento_found(this);
   Label top_check(this), map_check(this);
 
-  TNode<ExternalReference> new_space_top_address = ExternalConstant(
-      ExternalReference::new_space_allocation_top_address(isolate()));
+  TNode<ExternalReference> new_space_top_address =
+      IsolateField(IsolateFieldId::kNewAllocationInfoTop);
   const int kMementoMapOffset =
       ALIGN_TO_ALLOCATION_ALIGNMENT(JSArray::kHeaderSize);
   const int kMementoLastWordOffset =
