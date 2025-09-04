@@ -3449,6 +3449,9 @@ class TypedElementsAccessor
 
   static void SetImpl(ElementType* data_ptr, ElementType value,
                       IsSharedBuffer is_shared) {
+#ifdef V8_ENABLE_SANDBOX
+    SBXCHECK(InsideSandbox(reinterpret_cast<Address>(data_ptr)));
+#endif
     // TODO(ishell, v8:8875): Independent of pointer compression, 8-byte size
     // fields (external pointers, doubles and BigInt data) are not always 8-byte
     // aligned. This is relying on undefined behaviour in C++, since {data_ptr}
@@ -4103,13 +4106,21 @@ class TypedElementsAccessor
       }
 
       switch (source_kind) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                   \
-  case TYPE##_ELEMENTS:                                             \
-    CopyBetweenBackingStores<TYPE##_ELEMENTS>(                      \
-        reinterpret_cast<ctype*>(source_data),                      \
-        reinterpret_cast<ElementType*>(dest_data), length,          \
-        source_shared || destination_shared ? kShared : kUnshared); \
-    break;
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                              \
+  case TYPE##_ELEMENTS: {                                                      \
+    ctype* source_data_ptr = reinterpret_cast<ctype*>(source_data);            \
+    ElementType* dest_data_ptr = reinterpret_cast<ElementType*>(dest_data);    \
+    SBXCHECK(!V8_ENABLE_SANDBOX_BOOL || cloned_source_elements ||              \
+             InsideSandbox(                                                    \
+                 reinterpret_cast<Address>(source_data_ptr + length - 1)));    \
+    SBXCHECK(                                                                  \
+        !V8_ENABLE_SANDBOX_BOOL ||                                             \
+        InsideSandbox(reinterpret_cast<Address>(dest_data_ptr + length - 1))); \
+    CopyBetweenBackingStores<TYPE##_ELEMENTS>(                                 \
+        source_data_ptr, dest_data_ptr, length,                                \
+        source_shared || destination_shared ? kShared : kUnshared);            \
+    break;                                                                     \
+  }
         TYPED_ARRAYS(TYPED_ARRAY_CASE)
         RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
         default:
