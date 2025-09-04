@@ -413,6 +413,72 @@ void MacroAssembler::LoadTrustedPointerField(Register destination,
 #endif
 }
 
+void MacroAssembler::LoadTrustedUnknownPointerField(
+    Register destination, MemOperand field_operand, Register scratch1,
+    Register scratch2,
+    const std::initializer_list<std::tuple<InstanceType, Label*>>& cases) {
+  DCHECK(!AreAliased(destination, scratch1, scratch2));
+  Label done;
+
+#ifdef V8_ENABLE_SANDBOX
+  {
+    Register handle = scratch1;
+    Lw(handle, field_operand);
+
+    bool handles_code_case = false;
+    constexpr int kCodePointerHandleMarkerBit = 0;
+    static_assert((1 << kCodePointerHandleMarkerBit) ==
+                  kCodePointerHandleMarker);
+    And(scratch2, handle, Operand(kCodePointerHandleMarker));
+    for (auto& [type, label] : cases) {
+      if (type == CODE_TYPE) {
+        handles_code_case = true;
+
+        Label not_code_handle;
+        Branch(&not_code_handle, eq, scratch2, Operand(zero_reg));
+
+        ResolveCodePointerHandle(destination, handle);
+        Branch(label);
+
+        bind(&not_code_handle);
+        break;
+      }
+    }
+    if (!handles_code_case) {
+      Branch(&done, ne, scratch2, Operand(zero_reg));
+    }
+
+    ResolveTrustedPointerHandle(destination, handle,
+                                kUnknownIndirectPointerTag);
+  }
+#else
+  LoadTaggedField(destination, field_operand);
+#endif  // V8_ENABLE_SANDBOX
+
+#if V8_STATIC_ROOTS_BOOL
+  LoadCompressedMap(scratch1, destination);
+  for (auto& [type, label] : cases) {
+    if (V8_ENABLE_SANDBOX_BOOL && type == CODE_TYPE) {
+      continue;
+    }
+    BranchInstanceTypeWithUniqueCompressedMap(label, eq, scratch1, scratch2,
+                                              type);
+  }
+#else
+  LoadMap(scratch1, destination);
+  Lh(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
+  for (auto& [type, label] : cases) {
+    if (V8_ENABLE_SANDBOX_BOOL && type == CODE_TYPE) {
+      continue;
+    }
+    Branch(label, eq, scratch1, Operand(type));
+  }
+#endif  // V8_STATIC_ROOTS_BOOL
+
+  bind(&done);
+  mv(destination, zero_reg);
+}
+
 void MacroAssembler::StoreTrustedPointerField(Register value,
                                               MemOperand dst_field_operand) {
 #ifdef V8_ENABLE_SANDBOX
@@ -5168,9 +5234,6 @@ void MacroAssembler::BranchInstanceTypeWithUniqueCompressedMap(
   Tagged_t expected_ptr = ReadOnlyRootPtr(*expected);
   UseScratchRegisterScope temps(this);
   if (scratch == Register::no_reg()) {
-    // TODO(tpearson): Figure out why ScratchRegisterScope returns a
-    // register that is aliased with one of our other in-use registers
-    // For now, use r11 (kScratchReg in the code generator)
     scratch = temps.Acquire();
   }
   DCHECK_NE(map, scratch);
