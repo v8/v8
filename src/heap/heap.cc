@@ -1289,64 +1289,6 @@ void Heap::CollectAllGarbage(GCFlags gc_flags,
 
 namespace {
 
-intptr_t CompareWords(int size, Tagged<HeapObject> a, Tagged<HeapObject> b) {
-  int slots = size / kTaggedSize;
-  DCHECK_EQ(a->Size(), size);
-  DCHECK_EQ(b->Size(), size);
-  Tagged_t* slot_a = reinterpret_cast<Tagged_t*>(a.address());
-  Tagged_t* slot_b = reinterpret_cast<Tagged_t*>(b.address());
-  for (int i = 0; i < slots; i++) {
-    if (*slot_a != *slot_b) {
-      return *slot_a - *slot_b;
-    }
-    slot_a++;
-    slot_b++;
-  }
-  return 0;
-}
-
-void ReportDuplicates(int size, std::vector<Tagged<HeapObject>>* objects) {
-  if (objects->empty()) return;
-
-  sort(objects->begin(), objects->end(),
-       [size](Tagged<HeapObject> a, Tagged<HeapObject> b) {
-         intptr_t c = CompareWords(size, a, b);
-         if (c != 0) return c < 0;
-         return a < b;
-       });
-
-  std::vector<std::pair<int, Tagged<HeapObject>>> duplicates;
-  Tagged<HeapObject> current = (*objects)[0];
-  int count = 1;
-  for (size_t i = 1; i < objects->size(); i++) {
-    if (CompareWords(size, current, (*objects)[i]) == 0) {
-      count++;
-    } else {
-      if (count > 1) {
-        duplicates.push_back(std::make_pair(count - 1, current));
-      }
-      count = 1;
-      current = (*objects)[i];
-    }
-  }
-  if (count > 1) {
-    duplicates.push_back(std::make_pair(count - 1, current));
-  }
-
-  int threshold = v8_flags.trace_duplicate_threshold_kb * KB;
-
-  sort(duplicates.begin(), duplicates.end());
-  for (auto it = duplicates.rbegin(); it != duplicates.rend(); ++it) {
-    int duplicate_bytes = it->first * size;
-    if (duplicate_bytes < threshold) break;
-    PrintF("%d duplicates of size %d each (%dKB)\n", it->first, size,
-           duplicate_bytes / KB);
-    PrintF("Sample object: ");
-    Print(it->second);
-    PrintF("============================\n");
-  }
-}
-
 // Frees caches when under memory pressure. The method assumes that callsites
 // are close to crashing and will very aggressively free memory.
 void FreeCachesOnMemoryPressure(Isolate* isolate) {
@@ -1429,30 +1371,6 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   CheckHeapLimitReached();
 
   EagerlyFreeExternalMemoryAndWasmCode();
-
-  if (v8_flags.trace_duplicate_threshold_kb) {
-    std::map<int, std::vector<Tagged<HeapObject>>> objects_by_size;
-    PagedSpaceIterator spaces(this);
-    for (PagedSpace* space = spaces.Next(); space != nullptr;
-         space = spaces.Next()) {
-      PagedSpaceObjectIterator it(this, space);
-      for (Tagged<HeapObject> obj = it.Next(); !obj.is_null();
-           obj = it.Next()) {
-        objects_by_size[obj->Size()].push_back(obj);
-      }
-    }
-    {
-      LargeObjectSpaceObjectIterator it(lo_space());
-      for (Tagged<HeapObject> obj = it.Next(); !obj.is_null();
-           obj = it.Next()) {
-        objects_by_size[obj->Size()].push_back(obj);
-      }
-    }
-    for (auto it = objects_by_size.rbegin(); it != objects_by_size.rend();
-         ++it) {
-      ReportDuplicates(it->first, &it->second);
-    }
-  }
 
   if (gc_reason == GarbageCollectionReason::kLastResort &&
       v8_flags.heap_snapshot_on_oom) {
