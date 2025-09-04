@@ -1418,6 +1418,12 @@ DEFINE_INT(max_inlined_bytecode_size, 460,
 // and use {max_inlined_bytecode_size_small_total} instead.
 DEFINE_INT(max_inlined_bytecode_size_cumulative, 920,
            "maximum cumulative size of bytecode considered for inlining")
+// Turbolev (currently) is different enough from Turbofan wrt inlining that
+// it needs a separate budget. For example: TF inlines before peeling; whereas
+// TL inlines after peeling, duplicating calls inside the loop. Due to this,
+// we use double the TF budget by default.
+DEFINE_INT(max_turbolev_inlined_bytecode_size_cumulative, 1840,
+           "maximum cumulative size of bytecode considered for inlining")
 DEFINE_INT(max_inlined_bytecode_size_absolute, 4600,
            "maximum absolute size of bytecode considered for inlining")
 DEFINE_INT(max_inlined_bytecode_size_small_total, 30000,
