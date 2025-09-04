@@ -5573,8 +5573,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
       return {};
     }
 
+    // GetPropertyAccessInfo requires IsUniqueName, i.e. thin strings must be
+    // unpacked.
+    compiler::NameRef unpacked_name = feedback.name().UnpackIfThin(broker());
     compiler::PropertyAccessInfo access_info =
-        broker()->GetPropertyAccessInfo(map, feedback.name(), access_mode);
+        broker()->GetPropertyAccessInfo(map, unpacked_name, access_mode);
     access_infos_for_feedback.push_back(access_info);
   }
 
@@ -7249,7 +7252,11 @@ ReduceResult MaglevGraphBuilder::VisitGetKeyedProperty() {
     if (auto constant = TryGetConstant(GetAccumulator());
         constant.has_value() && constant->IsName()) {
       compiler::NameRef name = constant->AsName();
-      if (name.IsUniqueName() && !name.object()->IsArrayIndex()) {
+      // IsArrayIndex requires IsUniqueName, i.e. thin strings must be
+      // unpacked.
+      compiler::NameRef unpacked_name = name.UnpackIfThin(broker());
+      if (unpacked_name.IsUniqueName() &&
+          !unpacked_name.object()->IsArrayIndex()) {
         processed_feedback =
             &processed_feedback->AsElementAccess().Refine(broker(), name);
       }
