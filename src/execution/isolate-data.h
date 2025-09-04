@@ -207,9 +207,15 @@ struct JSBuiltinDispatchHandleRoot {
 
 #endif  // V8_ENABLE_LEAPTIERING_BOOL && !V8_STATIC_DISPATCH_HANDLES_BOOL
 
-#define EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(V)       \
-  V(isolate_address, "isolate address", IsolateAddress) \
-  V(jslimit_address, "jslimit address", JsLimitAddress)
+// Isolate fields referenceable as ExternalReference.
+// V(CamelName, hacker_name)
+#define EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(V)      \
+  V(IsolateAddress, isolate_address)                   \
+  V(JsLimitAddress, jslimit_address)                   \
+  V(NewAllocationInfoTop, new_allocation_info_top)     \
+  V(NewAllocationInfoLimit, new_allocation_info_limit) \
+  V(OldAllocationInfoTop, old_allocation_info_top)     \
+  V(OldAllocationInfoLimit, old_allocation_info_limit)
 
 constexpr uint8_t kNumIsolateFieldIds = 0
 #define PLUS_1(...) +1
@@ -218,7 +224,7 @@ constexpr uint8_t kNumIsolateFieldIds = 0
 
 enum class IsolateFieldId : uint8_t {
   kUnknown = 0,
-#define ENUM(name, comment, CamelName) k##CamelName,
+#define ENUM(CamelName, name) k##CamelName,
   EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(ENUM)
 #undef ENUM
 #define ENUM(CamelName, ...) k##CamelName,
@@ -404,9 +410,19 @@ class IsolateData final {
         return -kIsolateRootBias;
       case IsolateFieldId::kJsLimitAddress:
         return IsolateData::jslimit_offset();
+      case IsolateFieldId::kNewAllocationInfoTop:
+        return new_allocation_info_offset() + LinearAllocationArea::TopOffset();
+      case IsolateFieldId::kNewAllocationInfoLimit:
+        return new_allocation_info_offset() +
+               LinearAllocationArea::LimitOffset();
+      case IsolateFieldId::kOldAllocationInfoTop:
+        return old_allocation_info_offset() + LinearAllocationArea::TopOffset();
+      case IsolateFieldId::kOldAllocationInfoLimit:
+        return old_allocation_info_offset() +
+               LinearAllocationArea::LimitOffset();
 #define CASE(CamelName, size, name)  \
   case IsolateFieldId::k##CamelName: \
-    return IsolateData::name##_offset();
+    return name##_offset();
         ISOLATE_DATA_FIELDS(CASE)
 #undef CASE
       default:

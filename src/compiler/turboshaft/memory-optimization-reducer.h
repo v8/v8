@@ -252,11 +252,9 @@ class MemoryOptimizationReducer : public Next {
       type = AllocationType::kOld;
     }
 
-    V<WordPtr> allocation_space = __ IsolateField(
-        type == AllocationType::kYoung ? IsolateFieldId::kNewAllocationInfo
-                                       : IsolateFieldId::kOldAllocationInfo);
-    V<WordPtr> top_address =
-        __ WordPtrAdd(allocation_space, LinearAllocationArea::TopOffset());
+    V<WordPtr> top_address = __ IsolateField(
+        type == AllocationType::kYoung ? IsolateFieldId::kNewAllocationInfoTop
+                                       : IsolateFieldId::kOldAllocationInfoTop);
 
     if (analyzer_->IsFoldedAllocation(__ current_operation_origin())) {
       DCHECK_NE(__ GetVariable(top(type)), V<WordPtr>::Invalid());
@@ -537,12 +535,9 @@ class MemoryOptimizationReducer : public Next {
   }
 
   V<WordPtr> GetLimitAddress(AllocationType type) {
-    V<WordPtr> allocation_space = __ IsolateField(
-        type == AllocationType::kYoung ? IsolateFieldId::kNewAllocationInfo
-                                       : IsolateFieldId::kOldAllocationInfo);
-    V<WordPtr> limit_address =
-        __ WordPtrAdd(allocation_space, LinearAllocationArea::LimitOffset());
-    return limit_address;
+    return __ IsolateField(type == AllocationType::kYoung
+                               ? IsolateFieldId::kNewAllocationInfoLimit
+                               : IsolateFieldId::kOldAllocationInfoLimit);
   }
 };
 

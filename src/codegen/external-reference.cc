@@ -1951,9 +1951,9 @@ size_t hash_value(ExternalReference reference) {
 namespace {
 static constexpr const char* GetNameOfIsolateFieldId(IsolateFieldId id) {
   switch (id) {
-#define CASE(id, name, camel)    \
-  case IsolateFieldId::k##camel: \
-    return name;
+#define CASE(CamelName, name)        \
+  case IsolateFieldId::k##CamelName: \
+    return #name;
     EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(CASE)
 #undef CASE
 #define CASE(camel, size, name)  \

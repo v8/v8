@@ -1662,36 +1662,12 @@ TNode<HeapObject> CodeStubAssembler::Allocate(TNode<IntPtrT> size_in_bytes,
     }
     return heap_object;
   }
-  TNode<ExternalReference> top_address = ExternalConstant(
-      new_space
-          ? ExternalReference::new_space_allocation_top_address(isolate())
-          : ExternalReference::old_space_allocation_top_address(isolate()));
-
-#ifdef DEBUG
-  // New space is optional and if disabled both top and limit return
-  // kNullAddress.
-  if (ExternalReference::new_space_allocation_top_address(isolate())
-          .address() != kNullAddress) {
-    Address raw_top_address =
-        ExternalReference::new_space_allocation_top_address(isolate())
-            .address();
-    Address raw_limit_address =
-        ExternalReference::new_space_allocation_limit_address(isolate())
-            .address();
-
-    CHECK_EQ(kSystemPointerSize, raw_limit_address - raw_top_address);
-  }
-
-  DCHECK_EQ(kSystemPointerSize,
-            ExternalReference::old_space_allocation_limit_address(isolate())
-                    .address() -
-                ExternalReference::old_space_allocation_top_address(isolate())
-                    .address());
-#endif
-
-  TNode<IntPtrT> limit_address =
-      IntPtrAdd(ReinterpretCast<IntPtrT>(top_address),
-                IntPtrConstant(kSystemPointerSize));
+  TNode<ExternalReference> top_address =
+      IsolateField(new_space ? IsolateFieldId::kNewAllocationInfoTop
+                             : IsolateFieldId::kOldAllocationInfoTop);
+  TNode<ExternalReference> limit_address =
+      IsolateField(new_space ? IsolateFieldId::kNewAllocationInfoLimit
+                             : IsolateFieldId::kOldAllocationInfoLimit);
 
   if (flags & AllocationFlag::kDoubleAlignment) {
     return AllocateRawDoubleAligned(size_in_bytes, flags,

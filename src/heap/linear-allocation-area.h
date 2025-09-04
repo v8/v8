@@ -12,15 +12,6 @@
 
 namespace v8::internal {
 
-namespace compiler {
-class MemoryLowering;
-}  // namespace compiler
-
-namespace compiler::turboshaft {
-template <class Next>
-class MemoryOptimizationReducer;
-}  // namespace compiler::turboshaft
-
 // A linear allocation area to allocate objects from.
 //
 // Invariant that must hold at all times:
@@ -104,9 +95,6 @@ class LinearAllocationArea final {
  private:
   // Private offset accessors. Friend classes are allowed to access them.
   friend class IsolateData;
-  friend class compiler::MemoryLowering;
-  template <class Next>
-  friend class compiler::turboshaft::MemoryOptimizationReducer;
 
   static constexpr int StartOffset() {
     return offsetof(LinearAllocationArea, start_);

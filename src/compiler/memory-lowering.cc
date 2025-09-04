@@ -215,14 +215,14 @@ Reduction MemoryLowering::ReduceAllocateRaw(Node* node,
   }
 
   // Determine the top/limit addresses.
-  Node* allocation_space =
+  Node* top_address =
       __ IsolateField(allocation_type == AllocationType::kYoung
-                          ? IsolateFieldId::kNewAllocationInfo
-                          : IsolateFieldId::kOldAllocationInfo);
-  Node* top_address = __ IntPtrAdd(
-      allocation_space, __ IntPtrConstant(LinearAllocationArea::TopOffset()));
-  Node* limit_address = __ IntPtrAdd(
-      allocation_space, __ IntPtrConstant(LinearAllocationArea::LimitOffset()));
+                          ? IsolateFieldId::kNewAllocationInfoTop
+                          : IsolateFieldId::kOldAllocationInfoTop);
+  Node* limit_address =
+      __ IsolateField(allocation_type == AllocationType::kYoung
+                          ? IsolateFieldId::kNewAllocationInfoLimit
+                          : IsolateFieldId::kOldAllocationInfoLimit);
 
   // Check if we can fold this allocation into a previous allocation represented
   // by the incoming {state}.
