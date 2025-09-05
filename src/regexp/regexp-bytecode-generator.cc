@@ -194,7 +194,7 @@ void RegExpBytecodeGenerator::LoadCurrentCharacterImpl(int cp_offset,
   DCHECK_GE(eats_at_least, characters);
   if (eats_at_least > characters && check_bounds) {
     DCHECK(is_int24(cp_offset + eats_at_least));
-    Emit(BC_CHECK_CURRENT_POSITION, cp_offset + eats_at_least - 1);
+    Emit(BC_CHECK_CURRENT_POSITION, cp_offset + eats_at_least);
     EmitOrLink(on_failure);
     check_bounds = false;  // Load below doesn't need to check.
   }

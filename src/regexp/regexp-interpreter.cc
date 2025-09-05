@@ -933,7 +933,7 @@ IrregexpInterpreter::Result RawMatch(
     }
     BYTECODE(CHECK_CURRENT_POSITION) {
       int pos = current + LoadPacked24Signed(insn);
-      if (pos >= subject.length() || pos < 0) {
+      if (pos > subject.length() || pos < 0) {
         SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
       } else {
         ADVANCE(CHECK_CURRENT_POSITION);
