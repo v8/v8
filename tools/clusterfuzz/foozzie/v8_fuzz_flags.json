@@ -13,7 +13,7 @@
   [0.01, "--thread-pool-size=4"],
   [0.01, "--thread-pool-size=8"],
   [0.25, "--jit-fuzzing"],
-  [0.5, "--future"],
+  [0.25, "--future"],
   [0.1, "--regexp-interpret-all"],
   [0.1, "--regexp-tier-up-ticks=0"],
   [0.1, "--regexp-tier-up-ticks=10"],
@@ -50,6 +50,5 @@
   [0.1, "--ephemeron-fixpoint-iterations=0"],
   [0.25, "--experimental-wasm-revectorize"],
   [0.5, "--additive-safe-int-feedback"],
-  [0.1, "--hashes-collide"],
-  [0.5, "--experimental-fuzzing"]
+  [0.1, "--hashes-collide"]
 ]
