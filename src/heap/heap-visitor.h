@@ -394,9 +394,6 @@ class NewSpaceVisitor : public ConcurrentHeapVisitor<ConcreteVisitor> {
                                  MaybeObjectSize) {
     UNREACHABLE();
   }
-  size_t VisitWeakCell(Tagged<Map>, Tagged<WeakCell>, MaybeObjectSize) {
-    UNREACHABLE();
-  }
 
   friend class HeapVisitor<ConcreteVisitor>;
 };

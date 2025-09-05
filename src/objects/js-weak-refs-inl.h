@@ -103,7 +103,6 @@ bool JSFinalizationRegistry::RemoveUnregisterToken(
   // identity hashes, and identity hashes may collide.
   while (!IsUndefined(value, isolate)) {
     Tagged<WeakCell> weak_cell = Cast<WeakCell>(value);
-    DCHECK(!HeapLayout::InYoungGeneration(weak_cell));
     value = weak_cell->key_list_next();
     if (weak_cell->unregister_token() == unregister_token) {
       // weak_cell has the same unregister token; remove it from the key list.

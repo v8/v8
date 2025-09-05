@@ -102,13 +102,7 @@ transitioning javascript builtin FinalizationRegistryRegister(
 
   // 6. Let cell be the Record { [[WeakRefTarget]] : target, [[HeldValue]]:
   //    heldValue, [[UnregisterToken]]: unregisterToken }.
-  // Allocate the WeakCell object in the old space, because 1) WeakCell weakness
-  // handling is only implemented in the old space 2) they're supposedly
-  // long-living. TODO(marja, gsathya): Support WeakCells in Scavenger.
-  //
-  // TODO(340777103): Make WeakCell initialization use the right write barriers
-  // (e.g. by using the c++ setters).
-  const cell = new (Pretenured) WeakCell{
+  const cell = new WeakCell{
     map: GetWeakCellMap(),
     finalization_registry: finalizationRegistry,
     holdings: heldValue,
