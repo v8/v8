@@ -9607,10 +9607,8 @@ bool AllOfInstanceTypesAre(const PossibleMaps& maps, InstanceType type) {
 }
 }  // namespace
 
-MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetField(
-    compiler::JSFunctionRef target, CallArguments& args,
-    JSDate::FieldIndex field_index) {
-  DCHECK_LT(field_index, JSDate::kFirstUncachedField);
+MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetFieldPrologue(
+    compiler::JSFunctionRef target, CallArguments& args) {
   if (!v8_flags.maglev_inline_date_accessors) return {};
   if (!CanSpeculateCall()) return {};
 
@@ -9649,6 +9647,18 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetField(
         "NoDateTimeConfigurationChangeProtector invalidated");
   }
 
+  return ReduceResult::Done();
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetField(
+    compiler::JSFunctionRef target, CallArguments& args,
+    JSDate::FieldIndex field_index) {
+  DCHECK_LT(field_index, JSDate::kFirstUncachedField);
+  auto prologue_result = TryReduceDatePrototypeGetFieldPrologue(target, args);
+  if (!prologue_result.IsDoneWithoutValue()) return prologue_result;
+
+  ValueNode* receiver = args.receiver();
+  DCHECK_NOT_NULL(receiver);
   int field_offset = JSDate::kYearOffset + field_index * kTaggedSize;
   ValueNode* field_value = BuildLoadTaggedField(receiver, field_offset);
   // All cached JSDate fields are Smi|NaN.
@@ -9657,6 +9667,16 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetField(
   // encountering such an object. Alternatively, to avoid the deopt we could
   // fall back to Number: EnsureType(field_value, NodeType::kNumber);
   return field_value;
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetTime(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  auto prologue_result = TryReduceDatePrototypeGetFieldPrologue(target, args);
+  if (!prologue_result.IsDoneWithoutValue()) return prologue_result;
+
+  ValueNode* receiver = args.receiver();
+  DCHECK_NOT_NULL(receiver);
+  return AddNewNode<LoadFloat64>({receiver}, JSDate::kValueOffset);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetFullYear(

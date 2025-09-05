@@ -881,6 +881,9 @@ class MaglevGraphBuilder {
                                           ExternalArrayType type,
                                           Function&& getValue);
 
+  // Returns kDoneWithoutValue if checks passed successfully.
+  MaybeReduceResult TryReduceDatePrototypeGetFieldPrologue(
+      compiler::JSFunctionRef target, CallArguments& args);
   MaybeReduceResult TryReduceDatePrototypeGetField(
       compiler::JSFunctionRef target, CallArguments& args,
       JSDate::FieldIndex field);
@@ -921,6 +924,7 @@ class MaglevGraphBuilder {
   V(DatePrototypeGetHours)                     \
   V(DatePrototypeGetMinutes)                   \
   V(DatePrototypeGetSeconds)                   \
+  V(DatePrototypeGetTime)                      \
   V(FunctionPrototypeApply)                    \
   V(FunctionPrototypeCall)                     \
   V(FunctionPrototypeHasInstance)              \
