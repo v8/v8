@@ -1968,7 +1968,7 @@ TEST(InliningTopLevel) {
   CompileRun(inlining_top_level_test_source);
   v8::Local<v8::Function> function = GetFunction(env, "start");
 
-  static const unsigned min_samples = 10;
+  static const unsigned min_samples = 100;
   v8::CpuProfile* profile = helper.Run(function, nullptr, 0, min_samples);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
