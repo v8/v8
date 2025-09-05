@@ -57,6 +57,17 @@ class RecomputePhiUseHintsProcessor {
     if (!loop_header->has_phi()) return ProcessResult::kContinue;
     Phi::List& phis = *loop_header->phis();
     for (auto it = phis.begin(); it != phis.end(); ++it) {
+      for (Input input : it->inputs()) {
+        if (!input.node()) continue;
+        if (Phi* input_phi = input.node()->TryCast<Phi>()) {
+          input_phi->RecordUseReprHint((*it)->get_uses_repr_hints());
+          TRACE_PHI_USE_HINTS("updating use hints for "
+                              << PrintNodeLabel(input_phi) << ": use_reprs="
+                              << input_phi->get_uses_repr_hints()
+                              << " and same_loop_uses_reprs="
+                              << input_phi->get_same_loop_uses_repr_hints());
+        }
+      }
       DCHECK(live_loop_phis_.contains(*it));
       live_loop_phis_.erase(*it);
     }
