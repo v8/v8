@@ -1824,7 +1824,9 @@ TEST(SET_TARGET_ADDR) {
   uintptr_t addr = reinterpret_cast<uintptr_t>(&buffer[0]);
   __ set_target_value_at(static_cast<Address>(addr), 0x00304abfe961L, nullptr,
                          FLUSH_ICACHE_IF_NEEDED);
-  Address res = __ target_address_at(static_cast<Address>(addr));
+  uintptr_t constant_pool = 0;
+  Address res = __ target_address_at(static_cast<Address>(addr),
+                                     static_cast<Address>(constant_pool));
   CHECK_EQ(0x00304abfe961L, res);
 #else
   // This is the series of instructions to load 48 bit address 0xba9876543210
