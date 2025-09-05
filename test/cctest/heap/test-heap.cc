@@ -2245,13 +2245,14 @@ static Tagged<HeapObject> OldSpaceAllocateAligned(
 
 // Get old space allocation into the desired alignment.
 static Address AlignOldSpace(AllocationAlignment alignment, int offset) {
-  Address* top_addr = CcTest::heap()->OldSpaceAllocationTopAddress();
-  int fill = Heap::GetFillToAlign(*top_addr, alignment);
+  LinearAllocationArea* old_space =
+      &CcTest::i_isolate()->isolate_data()->old_allocation_info();
+  int fill = Heap::GetFillToAlign(old_space->top(), alignment);
   int allocation = fill + offset;
   if (allocation) {
     OldSpaceAllocateAligned(allocation, kTaggedAligned);
   }
-  Address top = *top_addr;
+  Address top = old_space->top();
   // Now force the remaining allocation onto the free list.
   CcTest::heap()->FreeMainThreadLinearAllocationAreas();
   return top;

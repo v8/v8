@@ -440,11 +440,6 @@ class Heap final {
       OldGenerationExpansionNotificationOrigin =
           OldGenerationExpansionNotificationOrigin::kFromSameHeap);
 
-  inline Address* NewSpaceAllocationTopAddress();
-  inline Address* NewSpaceAllocationLimitAddress();
-  inline Address* OldSpaceAllocationTopAddress();
-  inline Address* OldSpaceAllocationLimitAddress();
-
   size_t NewSpaceSize();
   size_t NewSpaceCapacity() const;
   size_t NewSpaceTargetCapacity() const;
