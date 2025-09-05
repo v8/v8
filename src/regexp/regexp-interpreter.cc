@@ -80,7 +80,11 @@ void MaybeTraceInterpreter(const uint8_t* code_base, const uint8_t* pc,
                            uint32_t current_char, int bytecode_length,
                            const char* bytecode_name) {
   if (v8_flags.trace_regexp_bytecodes) {
-    const bool printable = std::isprint(current_char);
+    // The behaviour of std::isprint is undefined if the value isn't
+    // representable as unsigned char.
+    const bool is_single_char =
+        current_char <= std::numeric_limits<unsigned char>::max();
+    const bool printable = is_single_char ? std::isprint(current_char) : false;
     const char* format =
         printable
             ? "pc = %02x, sp = %d, curpos = %d, curchar = %08x (%c), bc = "
