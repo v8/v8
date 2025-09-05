@@ -161,27 +161,14 @@ V8_OBJECT class WeakCell : public HeapObjectLayout {
   TaggedMember<UnionOf<WeakCell, Undefined>> key_list_next_;
 } V8_OBJECT_END;
 
-// TODO(42202654): Revise `JSWeakRef` to use `TaggedMember`s once `JSObject`
-// inherits from `HeapObjectLayout`.
-class JSWeakRef : public JSObject {
+class JSWeakRef : public TorqueGeneratedJSWeakRef<JSWeakRef, JSObject> {
  public:
-  constexpr JSWeakRef() : JSObject() {}
-
-  static constexpr int kTargetOffset = JSObject::kHeaderSize;
-  static constexpr int kTargetOffsetEnd = kTargetOffset + kTaggedSize - 1;
-  static constexpr int kHeaderSize = kTargetOffsetEnd + 1;
-
-  DECL_ACCESSORS(target, Tagged<Union<JSReceiver, Symbol, Undefined>>)
   DECL_PRINTER(JSWeakRef)
   EXPORT_DECL_VERIFIER(JSWeakRef)
 
   class BodyDescriptor;
 
- protected:
-  constexpr V8_INLINE JSWeakRef(Address ptr, SkipTypeCheckTag)
-      : JSObject(ptr, SkipTypeCheckTag()) {}
-
-  friend class Tagged<JSWeakRef>;
+  TQ_OBJECT_CONSTRUCTORS(JSWeakRef)
 };
 
 }  // namespace internal

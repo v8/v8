@@ -40,7 +40,6 @@ extern class WeakCell extends HeapObject {
   key_list_next: Undefined|WeakCell;
 }
 
-@cppObjectDefinition
 extern class JSWeakRef extends JSObject {
   target: Undefined|JSReceiver|Symbol;
 }
