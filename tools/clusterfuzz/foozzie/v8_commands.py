@@ -20,7 +20,6 @@ DEFAULT_FLAGS = [
     '--invoke-weak-callbacks',
     '--omit-quit',
     '--harmony',
-    '--experimental-fuzzing',
     '--js-staging',
     '--wasm-staging',
     '--no-wasm-async-compilation',
