@@ -92,7 +92,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': 'c001374914bffb3db6ed024a521f3a38f11d0911',
+  'partition_alloc_version': '3926658b1b5124b0c85bc9f2bac450214d3bf7a4',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -308,7 +308,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'cf32009cc6080d61a09027c194f04be46d6aa236',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'f1a53902f8a0c43c2f27ccd6f8d8799b119a4aca',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '4e07ac808643d5eee8eec80eafd1a6761e530bd5',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -500,7 +500,7 @@ deps = {
   'tools/rust':
     Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '7ae3c976ebcd1467ce64e51a9217471bf4eb5c39',
   'tools/win':
-    Var('chromium_url') + '/chromium/src/tools/win' + '@' + '89d58ebe78f02706d414154f923f759a05a887b6',
+    Var('chromium_url') + '/chromium/src/tools/win' + '@' + '2cbfc8d2e5ef4a6afd9774e9a9eaebd921a9f248',
   'third_party/rust':
     Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '64187100b282454a6b6be803a4b80db15b5f8795',
   'third_party/rust-toolchain': {
@@ -550,7 +550,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'caf4afa1afc92e16fef429f182444bed98a46a6c',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '91cadbf605d66657e61dcf54f0fe23ac75159eae',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '063d3766486a820c708e888d737b004d11543410',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '3438d4183bfc7c0d6850e8b970204cc8189f0323',
   'third_party/abseil-cpp': {
