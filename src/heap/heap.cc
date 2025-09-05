@@ -5326,6 +5326,21 @@ void Heap::ConfigureHeapDefault() {
   ConfigureHeap(constraints, nullptr);
 }
 
+namespace {
+
+void RecordStatsForCage(VirtualMemoryCage* cage, CodeCageStats* stats) {
+  stats->start = cage->base();
+  stats->size = cage->size();
+  base::BoundedPageAllocator::Stats allocator_stats =
+      cage->page_allocator()->RecordStats();
+  stats->free_size = allocator_stats.free_size;
+  stats->largest_free_region = allocator_stats.largest_free_region;
+  stats->last_allocation_status =
+      static_cast<size_t>(allocator_stats.allocation_status);
+}
+
+}  // anonymous namespace
+
 void Heap::RecordStats(HeapStats* stats) {
   stats->start_marker = HeapStats::kStartMarker;
   stats->end_marker = HeapStats::kEndMarker;
@@ -5348,6 +5363,16 @@ void Heap::RecordStats(HeapStats* stats) {
   stats->os_error = base::OS::GetLastError();
   stats->malloced_memory = isolate_->allocator()->GetCurrentMemoryUsage() +
                            isolate_->string_table()->GetCurrentMemoryUsage();
+#if V8_COMPRESS_POINTERS
+  RecordStatsForCage(isolate_->isolate_group()->GetPtrComprCage(),
+                     &stats->main_cage);
+  RecordStatsForCage(isolate_->isolate_group()->GetTrustedPtrComprCage(),
+                     &stats->trusted_cage);
+#endif
+  if (CodeRange* code_cage = isolate_->isolate_group()->GetCodeRange()) {
+    RecordStatsForCage(code_cage, &stats->code_cage);
+  }
+
 #if V8_ENABLE_WEBASSEMBLY
   stats->malloced_memory +=
       i::wasm::GetWasmEngine()->allocator()->GetCurrentMemoryUsage();
