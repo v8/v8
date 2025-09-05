@@ -5654,6 +5654,7 @@ class EphemeronTableUpdatingItem : public UpdatingItem {
         Tagged<Object> key_object = key_slot.Relaxed_Load();
         Tagged<HeapObject> key;
         CHECK(key_object.GetHeapObject(&key));
+        if (IsTheHole(key)) continue;
         MapWord map_word = key->map_word(cage_base, kRelaxedLoad);
         if (map_word.IsForwardingAddress()) {
           key = map_word.ToForwardingAddress(key);
