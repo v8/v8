@@ -1938,14 +1938,12 @@ void LiftoffAssembler::emit_i32x4_uconvert_f32x4(LiftoffRegister dst,
 void LiftoffAssembler::emit_f32x4_sconvert_i32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
   VU.set(kScratchReg, E32, m1);
-  VU.set(FPURoundingMode::RTZ);
   vfcvt_f_x_v(dst.fp().toV(), src.fp().toV());
 }
 
 void LiftoffAssembler::emit_f32x4_uconvert_i32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
   VU.set(kScratchReg, E32, m1);
-  VU.set(FPURoundingMode::RTZ);
   vfcvt_f_xu_v(dst.fp().toV(), src.fp().toV());
 }
 
