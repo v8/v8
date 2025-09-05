@@ -127,8 +127,8 @@ ALL_VARIANT_FLAGS = {
 # disabled (i.e. not part of the binary), or when all codegen is disallowed (in
 # jitless mode).
 kIncompatibleFlagsForNoTurbofan = [
-    "--turbofan", "--liftoff", "--validate-asm", "--maglev",
-    "--stress-concurrent-inlining"
+    "--turbofan", "--liftoff", "--validate-asm", "--maglev", "--turbolev",
+    "--turbolev-future", "--stress-concurrent-inlining"
 ]
 
 # Flags that lead to a contradiction with the flags provided by the respective

@@ -1615,6 +1615,10 @@ DEFINE_EXPERIMENTAL_FEATURE(
 DEFINE_IMPLICATION(turboshaft_wasm_in_js_inlining, turboshaft)
 DEFINE_IMPLICATION(turboshaft_wasm_in_js_inlining, turbo_inline_js_wasm_calls)
 
+DEFINE_EXPERIMENTAL_FEATURE(
+    turbolev_inline_js_wasm_wrappers,
+    "inline JS-to-Wasm wrappers via Turboshaft/Turbolev.")
+
 DEFINE_BOOL(turboshaft_load_elimination, true,
             "enable Turboshaft's low-level load elimination for JS")
 DEFINE_BOOL(turboshaft_loop_unrolling, true,
@@ -2166,6 +2170,7 @@ DEFINE_NEG_IMPLICATION(wasm_enable_exec_time_histograms, wasm_generic_wrapper)
 DEFINE_BOOL_READONLY(wasm_jitless, false,
                      "execute all Wasm code in the Wasm interpreter")
 DEFINE_BOOL(wasm_jitless_if_available_for_testing, false, "")
+DEFINE_NEG_IMPLICATION(wasm_jitless_if_available_for_testing, turbolev)
 #endif  // V8_ENABLE_DRUMBRAKE
 
 DEFINE_BOOL(wasm_allow_mixed_eh_for_testing, false,
