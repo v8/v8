@@ -5126,7 +5126,10 @@ ReduceResult MaglevGraphBuilder::BuildLoadField(
 
   // Do the load.
   if (field_index.is_double()) {
-    return AddNewNode<LoadDoubleField>({load_source}, field_index.offset());
+    ValueNode* heap_number =
+        AddNewNode<LoadTaggedField>({load_source}, field_index.offset());
+    return AddNewNode<LoadFloat64>(
+        {heap_number}, static_cast<int>(offsetof(HeapNumber, value_)));
   }
   ValueNode* value = BuildLoadTaggedField<LoadTaggedFieldForProperty>(
       load_source, field_index.offset(), name);
@@ -5310,7 +5313,10 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
                                     access_info.transition_map().value(),
                                     StoreMap::Kind::kTransitioning));
     } else {
-      AddNewNode<StoreDoubleField>({store_target, value}, field_index.offset());
+      ValueNode* heap_number =
+          AddNewNode<LoadTaggedField>({store_target}, field_index.offset());
+      AddNewNode<StoreFloat64>({heap_number, value},
+                               static_cast<int>(offsetof(HeapNumber, value_)));
     }
     return ReduceResult::Done();
   }

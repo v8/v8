@@ -366,11 +366,6 @@ ProcessResult MaglevGraphOptimizer::VisitStoreMap() {
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitStoreDoubleField() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
 ProcessResult
 MaglevGraphOptimizer::VisitStoreFixedArrayElementWithWriteBarrier() {
   // TODO(b/424157317): Optimize.
@@ -751,11 +746,6 @@ MaglevGraphOptimizer::VisitLoadTaggedFieldForContextSlotNoCells() {
 }
 
 ProcessResult MaglevGraphOptimizer::VisitLoadTaggedFieldForContextSlot() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitLoadDoubleField() {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }

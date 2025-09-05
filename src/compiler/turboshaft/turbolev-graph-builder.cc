@@ -3029,13 +3029,6 @@ class GraphBuildingNodeProcessor {
     SetMap(node, result);
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::LoadDoubleField* node,
-                                const maglev::ProcessingState& state) {
-    V<HeapNumber> field = __ LoadTaggedField<HeapNumber>(
-        Map(node->object_input()), node->offset());
-    SetMap(node, __ LoadHeapNumberValue(field));
-    return maglev::ProcessResult::kContinue;
-  }
   maglev::ProcessResult Process(maglev::LoadFloat64* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ Load(Map(node->object_input()), LoadOp::Kind::TaggedBase(),
@@ -3142,14 +3135,6 @@ class GraphBuildingNodeProcessor {
                  WriteBarrierKind::kFullWriteBarrier, node->offset(), false);
       }
     }
-    return maglev::ProcessResult::kContinue;
-  }
-  maglev::ProcessResult Process(maglev::StoreDoubleField* node,
-                                const maglev::ProcessingState& state) {
-    V<HeapNumber> field = __ LoadTaggedField<HeapNumber>(
-        Map(node->object_input()), node->offset());
-    __ StoreField(field, AccessBuilder::ForHeapNumberValue(),
-                  Map(node->value_input()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(

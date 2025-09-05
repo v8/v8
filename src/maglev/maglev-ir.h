@@ -223,7 +223,6 @@ class ExceptionHandlerInfo;
   V(LoadTaggedFieldForProperty)                                       \
   V(LoadTaggedFieldForContextSlotNoCells)                             \
   V(LoadTaggedFieldForContextSlot)                                    \
-  V(LoadDoubleField)                                                  \
   V(LoadFloat64)                                                      \
   V(LoadInt32)                                                        \
   V(LoadTaggedFieldByFieldIndex)                                      \
@@ -386,7 +385,6 @@ class ExceptionHandlerInfo;
   V(GeneratorStore)                           \
   V(TryOnStackReplacement)                    \
   V(StoreMap)                                 \
-  V(StoreDoubleField)                         \
   V(StoreFixedArrayElementWithWriteBarrier)   \
   V(StoreFixedArrayElementNoWriteBarrier)     \
   V(StoreFixedDoubleArrayElement)             \
@@ -583,7 +581,6 @@ constexpr bool IsTerminalControlNode(Opcode opcode) {
 constexpr bool IsSimpleFieldStore(Opcode opcode) {
   return opcode == Opcode::kStoreTaggedFieldWithWriteBarrier ||
          opcode == Opcode::kStoreTaggedFieldNoWriteBarrier ||
-         opcode == Opcode::kStoreDoubleField ||
          opcode == Opcode::kStoreFloat64 || opcode == Opcode::kStoreInt32 ||
          opcode == Opcode::kUpdateJSArrayLength ||
          opcode == Opcode::kStoreFixedArrayElementWithWriteBarrier ||
@@ -8502,33 +8499,6 @@ class LoadTaggedFieldForContextSlot
   const int offset_;
 };
 
-class LoadDoubleField : public FixedInputValueNodeT<1, LoadDoubleField> {
-  using Base = FixedInputValueNodeT<1, LoadDoubleField>;
-
- public:
-  explicit LoadDoubleField(uint64_t bitfield, int offset)
-      : Base(bitfield), offset_(offset) {}
-
-  static constexpr OpProperties kProperties =
-      OpProperties::CanRead() | OpProperties::Float64();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
-
-  int offset() const { return offset_; }
-
-  static constexpr int kObjectIndex = 0;
-  Input object_input() { return input(kObjectIndex); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const;
-
-  auto options() const { return std::tuple{offset()}; }
-
- private:
-  const int offset_;
-};
-
 class LoadFloat64 : public FixedInputValueNodeT<1, LoadFloat64> {
   using Base = FixedInputValueNodeT<1, LoadFloat64>;
 
@@ -9249,32 +9219,6 @@ class StoreDoubleDataViewElement
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const {}
-};
-
-class StoreDoubleField : public FixedInputNodeT<2, StoreDoubleField> {
-  using Base = FixedInputNodeT<2, StoreDoubleField>;
-
- public:
-  explicit StoreDoubleField(uint64_t bitfield, int offset)
-      : Base(bitfield), offset_(offset) {}
-
-  static constexpr OpProperties kProperties = OpProperties::CanWrite();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kFloat64};
-
-  int offset() const { return offset_; }
-
-  static constexpr int kObjectIndex = 0;
-  static constexpr int kValueIndex = 1;
-  Input object_input() { return input(kObjectIndex); }
-  Input value_input() { return input(kValueIndex); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const;
-
- private:
-  const int offset_;
 };
 
 class StoreInt32 : public FixedInputNodeT<2, StoreInt32> {
