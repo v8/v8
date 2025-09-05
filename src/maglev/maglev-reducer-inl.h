@@ -12,6 +12,7 @@
 #include "src/base/division-by-constant.h"
 #include "src/common/scoped-modification.h"
 #include "src/maglev/maglev-ir-inl.h"
+#include "src/numbers/conversions.h"
 #include "src/numbers/ieee754.h"
 #include "src/objects/heap-number-inl.h"
 
@@ -630,6 +631,14 @@ template <typename BaseT>
 std::optional<int32_t> MaglevReducer<BaseT>::TryGetInt32Constant(
     ValueNode* value) {
   switch (value->opcode()) {
+    case Opcode::kConstant: {
+      compiler::ObjectRef object = value->Cast<Constant>()->object();
+      if (object.IsHeapNumber() &&
+          IsInt32Double(object.AsHeapNumber().value())) {
+        return static_cast<int32_t>(object.AsHeapNumber().value());
+      }
+      return {};
+    }
     case Opcode::kInt32Constant:
       return value->Cast<Int32Constant>()->value();
     case Opcode::kUint32Constant: {

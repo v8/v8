@@ -1003,12 +1003,6 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToUint32() {
   return ProcessResult::kContinue;
 }
 
-ProcessResult
-MaglevGraphOptimizer::VisitTruncateUnsafeNumberOrOddballToInt32() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
 ProcessResult MaglevGraphOptimizer::VisitTruncateUint32ToInt32() {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
@@ -1120,6 +1114,8 @@ UNTAGGING_CASE(CheckedSmiUntag, Int32, Number)
 UNTAGGING_CASE(UnsafeSmiUntag, Int32, Number)
 UNTAGGING_CASE(CheckedNumberToInt32, Int32, Number)
 UNTAGGING_CASE(TruncateCheckedNumberOrOddballToInt32, TruncatedInt32,
+               NumberOrOddball)
+UNTAGGING_CASE(TruncateUnsafeNumberOrOddballToInt32, TruncatedInt32,
                NumberOrOddball)
 UNTAGGING_CASE(CheckedNumberOrOddballToFloat64, Float64, NumberOrOddball)
 UNTAGGING_CASE(UncheckedNumberOrOddballToFloat64, Float64, NumberOrOddball)
@@ -1371,6 +1367,14 @@ ProcessResult MaglevGraphOptimizer::VisitInt32ModulusWithOverflow() {
 
 ProcessResult MaglevGraphOptimizer::VisitInt32BitwiseAnd() {
   // TODO(b/424157317): Optimize.
+  // TODO(victorgomes): Constant unfold all Int32 operators.
+  if (MaybeReduceResult result =
+          reducer_.TryFoldInt32BinaryOperation<Operation::kBitwiseAnd>(
+              GetInputAt(0), GetInputAt(1));
+      result.IsDone()) {
+    DCHECK(result.IsDoneWithValue());
+    return ReplaceWith(reducer_.GetInt32(result.value()));
+  }
   return ProcessResult::kContinue;
 }
 
