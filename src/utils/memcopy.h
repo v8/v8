@@ -265,14 +265,12 @@ inline void CopyBytes(T* dst, const T* src, size_t num_bytes) {
 }
 
 inline void MemsetUint32(uint32_t* dest, uint32_t value, size_t counter) {
+#if !defined(MEMORY_SANITIZER)
+// MemorySanitizer does not understand inline assembly.
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
 #define STOS "stosl"
 #endif
-
-#if defined(MEMORY_SANITIZER)
-  // MemorySanitizer does not understand inline assembly.
-#undef STOS
-#endif
+#endif  // !defined(MEMORY_SANITIZER)
 
 #if defined(__GNUC__) && defined(STOS)
   asm volatile(
@@ -291,16 +289,14 @@ inline void MemsetUint32(uint32_t* dest, uint32_t value, size_t counter) {
 }
 
 inline void MemsetPointer(Address* dest, Address value, size_t counter) {
+#if !defined(MEMORY_SANITIZER)
+// MemorySanitizer does not understand inline assembly.
 #if V8_HOST_ARCH_IA32
 #define STOS "stosl"
 #elif V8_HOST_ARCH_X64
 #define STOS "stosq"
 #endif
-
-#if defined(MEMORY_SANITIZER)
-  // MemorySanitizer does not understand inline assembly.
-#undef STOS
-#endif
+#endif  // !defined(MEMORY_SANITIZER)
 
 #if defined(__GNUC__) && defined(STOS)
   asm volatile(

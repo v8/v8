@@ -587,57 +587,60 @@ Tagged<Object> JSObject::InObjectPropertyAtPut(int index, Tagged<Object> value,
 
 void JSObject::InitializeBody(Tagged<Map> map, int start_offset,
                               bool is_slack_tracking_in_progress,
-                              MapWord filler_map,
-                              Tagged<Object> undefined_filler) {
-  int size = map->instance_size();
-  int offset = start_offset;
+                              NewJSObjectType new_js_object_type) {
+  const uint32_t size = map->instance_size();
+  uint32_t current_offset = start_offset;
 
-  // embedder data slots need to be initialized separately
-  if (MayHaveEmbedderFields(map)) {
-    int embedder_field_start = GetEmbedderFieldsStartOffset(map);
-    int embedder_field_count = GetEmbedderFieldCount(map);
+  // Fills memory at current offset and moves forward the offset.
+  const auto FillMemoryTaggedUntil = [this, &current_offset, size](
+                                         int end_offset, Tagged_t filler) {
+    DCHECK_LE(kHeaderSize, current_offset);
+    DCHECK_LE(current_offset, end_offset);
+    DCHECK_LE(end_offset, size);
+    USE(size);
+    const uint32_t fill_size = end_offset - current_offset;
+    MemsetTagged(RawField(current_offset), filler, fill_size / kTaggedSize);
+    current_offset += fill_size;
+    DCHECK_LE(current_offset, size);
+  };
 
-    // fill start with references to the undefined value object
-    DCHECK_LE(offset, embedder_field_start);
-    while (offset < embedder_field_start) {
-      WRITE_FIELD(*this, offset, undefined_filler);
-      offset += kTaggedSize;
-    }
+#if V8_STATIC_ROOTS_BOOL
+  Tagged_t undefined_filler = StaticReadOnlyRoot::kUndefinedValue;
+  Tagged_t filler_map = StaticReadOnlyRoot::kOnePointerFillerMap;
+#else   // !STATIC_ROOTS_BOOL
+  Tagged_t undefined_filler = GetReadOnlyRoots().undefined_value().ptr();
+  Tagged_t filler_map = GetReadOnlyRoots().one_pointer_filler_map().ptr();
+#endif  // !STATIC_ROOTS_BOOL
 
-    // initialize embedder data slots
-    DCHECK_EQ(offset, embedder_field_start);
-    for (int i = 0; i < embedder_field_count; i++) {
+  DCHECK_IMPLIES(
+      new_js_object_type == NewJSObjectType::kNoEmbedderFieldsAndNoApiWrapper,
+      !MayHaveEmbedderFields(map));
+  DCHECK_IMPLIES(!MayHaveEmbedderFields(map), GetEmbedderFieldCount(map) == 0);
+  if (new_js_object_type != NewJSObjectType::kNoEmbedderFieldsAndNoApiWrapper &&
+      MayHaveEmbedderFields(map)) {
+    const uint32_t embedder_field_start = GetEmbedderFieldsStartOffset(map);
+    // Fill start with references to the undefined value object.
+    FillMemoryTaggedUntil(embedder_field_start, undefined_filler);
+
+    // Initialize embedder data slots.
+    DCHECK_EQ(current_offset, embedder_field_start);
+    for (int i = 0; i < GetEmbedderFieldCount(map); i++) {
       // TODO(v8): consider initializing embedded data slots with Smi::zero().
-      EmbedderDataSlot(Tagged<JSObject>(*this), i).Initialize(undefined_filler);
-      offset += kEmbedderDataSlotSize;
+      EmbedderDataSlot(Tagged<JSObject>(*this), i)
+          .Initialize(GetReadOnlyRoots().undefined_value());
+      current_offset += kEmbedderDataSlotSize;
     }
-  } else {
-    DCHECK_EQ(0, GetEmbedderFieldCount(map));
   }
 
-  DCHECK_LE(offset, size);
   if (is_slack_tracking_in_progress) {
-    int end_of_pre_allocated_offset =
+    const uint32_t end_of_pre_allocated_offset =
         size - (map->UnusedPropertyFields() * kTaggedSize);
-    DCHECK_LE(kHeaderSize, end_of_pre_allocated_offset);
-    DCHECK_LE(offset, end_of_pre_allocated_offset);
-    // fill pre allocated slots with references to the undefined value object
-    while (offset < end_of_pre_allocated_offset) {
-      WRITE_FIELD(*this, offset, undefined_filler);
-      offset += kTaggedSize;
-    }
-    // fill the remainder with one word filler objects (ie just a map word)
-    while (offset < size) {
-      Tagged<Object> fm = Tagged<Object>(filler_map.ptr());
-      WRITE_FIELD(*this, offset, fm);
-      offset += kTaggedSize;
-    }
+    // Fill pre allocated slots with references to the undefined value object.
+    FillMemoryTaggedUntil(end_of_pre_allocated_offset, undefined_filler);
+    // Fill the remainder with one word filler objects (ie just a map word)
+    FillMemoryTaggedUntil(size, filler_map);
   } else {
-    while (offset < size) {
-      // fill everything with references to the undefined value object
-      WRITE_FIELD(*this, offset, undefined_filler);
-      offset += kTaggedSize;
-    }
+    FillMemoryTaggedUntil(size, undefined_filler);
   }
 }
 
