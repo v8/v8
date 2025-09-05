@@ -1853,7 +1853,7 @@ constexpr int kIeeeDoubleExponentWordOffset = 0;
 #ifdef V8_COMPRESS_POINTERS_8GB
 #define ALIGN_TO_ALLOCATION_ALIGNMENT(value)      \
   (((value) + ::i::kObjectAlignment8GbHeapMask) & \
-   ~::i::kObjectAlignment8GbHeapMask)
+   ~::i::kObjectAlignment8GbHeapMask)  // NOLINT(whitespace/indent)
 #else
 #define ALIGN_TO_ALLOCATION_ALIGNMENT(value) (value)
 #endif
