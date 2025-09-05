@@ -130,9 +130,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6f98ce87d0e03a8a137eb7816e03e0d2c6ab0c21',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7bea1d158c8efdafef8dcd2348f9b7a8563e8d49',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd091c4baaf9d9c473805131a3b6a292060930d92',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '076678f3fb2eadbd818e366788de68d5d3b6bb85',
   'buildtools/linux64': {
     'packages': [
       {
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '20ce2373ddbe7240a6558065f03d6d7629995c94',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e46459f0d34e5bcac368b079dafb252d7bfbe0c6',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -302,7 +302,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '0527c18b4b71f06599e9c413fdc3b7b1908a6458',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'c6b0f024910f13f6455e49e3087d67071c6e3334',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'f7f5a32b3e9582092d8a4511acec036a09ae8524',
   'third_party/libunwind/src':
@@ -498,7 +498,7 @@ deps = {
       'condition': 'checkout_android',
   },
   'tools/rust':
-    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '0cba35198912769b9538efd85bda4e4cbc18d090',
+    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '7ae3c976ebcd1467ce64e51a9217471bf4eb5c39',
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + '89d58ebe78f02706d414154f923f759a05a887b6',
   'third_party/rust':
