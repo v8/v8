@@ -165,6 +165,30 @@ static inline bool HasStackSlotInput(Instruction* instr, size_t index) {
 
 namespace {
 
+class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
+ public:
+  OutOfLineVerifySkippedWriteBarrier(CodeGenerator* gen, Register object,
+                                     Register value)
+      : OutOfLineCode(gen),
+        object_(object),
+        value_(value),
+        zone_(gen->zone()) {}
+
+  void Generate() final {
+    SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
+
+    __ CallVerifySkippedWriteBarrierStubSaveRegisters(object_, value_,
+                                                      save_fp_mode);
+  }
+
+ private:
+  Register const object_;
+  Register const value_;
+  Zone* zone_;
+};
+
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, MemOperand operand,
@@ -1448,7 +1472,34 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(ool->exit());
       break;
     }
+    case kArchStoreSkippedWriteBarrier:  // Fall through.
+    case kArchAtomicStoreSkippedWriteBarrier: {
+      Register object = i.InputRegister(0);
+      Register value = i.InputRegister(2);
+      AddressingMode addressing_mode =
+          AddressingModeField::decode(instr->opcode());
+      size_t index = 0;
+      MemOperand operand = i.MemoryOperand(&addressing_mode, &index);
+
+      if (v8_flags.debug_code) {
+        // Checking that |value| is not a cleared weakref: our write barrier
+        // does not support that for now.
+        __ CmpU64(value, Operand(kClearedWeakHeapObjectLower32));
+        __ Check(ne, AbortReason::kOperandIsCleared);
+      }
+
+      if (v8_flags.verify_write_barriers) {
+        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object,
+                                                                   value);
+        __ JumpIfNotSmi(value, ool->entry());
+        __ bind(ool->exit());
+      }
+
+      __ StoreTaggedField(value, operand, r0);
+      break;
+    }
     case kArchStoreIndirectWithWriteBarrier:
+    case kArchStoreIndirectSkippedWriteBarrier:
       UNREACHABLE();
     case kArchStackSlot: {
       FrameOffset offset =
