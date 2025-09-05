@@ -129,7 +129,7 @@ struct JSBuiltinDispatchHandleRoot {
   /* Misc. fields. */                                                          \
   V(NewAllocationInfo, LinearAllocationArea::Size(), new_allocation_info)      \
   V(OldAllocationInfo, LinearAllocationArea::Size(), old_allocation_info)      \
-  V(Address, kSystemPointerSize, last_young_allocation)                        \
+  V(LastYoungAllocation, kSystemPointerSize, last_young_allocation)            \
   ISOLATE_DATA_FAST_C_CALL_PADDING(V)                                          \
   V(FastCCallCallerPC, kSystemPointerSize, fast_c_call_caller_pc)              \
   V(FastCCallCallerFP, kSystemPointerSize, fast_c_call_caller_fp)              \

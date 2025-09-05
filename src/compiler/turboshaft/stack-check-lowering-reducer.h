@@ -29,9 +29,8 @@ class StackCheckLoweringReducer : public Next {
     if (v8_flags.verify_write_barriers) {
       // The stack check/safepoint might trigger GC, so write barriers cannot be
       // eliminated across it.
-      __ StoreOffHeap(__ LoadRootRegister(), __ IntPtrConstant(0),
-                      MemoryRepresentation::UintPtr(),
-                      IsolateData::last_young_allocation_offset());
+      __ StoreOffHeap(__ IsolateField(IsolateFieldId::kLastYoungAllocation),
+                      __ IntPtrConstant(0), MemoryRepresentation::UintPtr());
     }
 
     switch (kind) {

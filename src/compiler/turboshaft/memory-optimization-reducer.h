@@ -529,9 +529,8 @@ class MemoryOptimizationReducer : public Next {
     V<WordPtr> last_value =
         type == AllocationType::kYoung ? obj : __ IntPtrConstant(0);
 
-    __ StoreOffHeap(__ LoadRootRegister(), last_value,
-                    MemoryRepresentation::UintPtr(),
-                    IsolateData::last_young_allocation_offset());
+    __ StoreOffHeap(__ IsolateField(IsolateFieldId::kLastYoungAllocation),
+                    last_value, MemoryRepresentation::UintPtr());
   }
 
   V<WordPtr> GetLimitAddress(AllocationType type) {
