@@ -3123,16 +3123,67 @@ constexpr DoubleRegList kSavedFpRegs = ([]() constexpr {
   return saved_fp_regs;
 })();
 
+constexpr VRegList kSavedVectorRegs = ([]() constexpr {
+  // The JIT aliases FPU and vector registers. As such, we need to save the
+  // vectors that have the same code as argument FPU registers.
+  VRegList saved_vector_regs;
+  for (DoubleRegister fp_param_reg : wasm::kFpParamRegisters) {
+    saved_vector_regs.set(VRegister::from_code(fp_param_reg.code()));
+  }
+
+  CHECK_EQ(saved_vector_regs.Count(), kSavedFpRegs.Count());
+  return saved_vector_regs;
+})();
+
+static void SaveVectorRegisters(MacroAssembler* masm,
+                                const VRegList& reg_list) {
+  // Check if the machine has simd128 support. Otherwise, the
+  // vector registers might not exist and accessing them would SIGILL.
+  Label done;
+  __ li(kScratchReg, ExternalReference::supports_wasm_simd_128_address());
+  // If != 0, then simd is available.
+  __ Branch(&done, eq, kScratchReg, Operand(zero_reg), Label::Distance::kNear);
+
+  __ VU.set(kScratchReg, E8, m1);
+  for (VRegister vector_reg : reg_list) {
+    __ SubWord(sp, sp, Operand(kSimd128Size));
+    __ vs(vector_reg, sp, 0, E8);
+  }
+
+  __ bind(&done);
+}
+
+static void RestoreVectorRegisters(MacroAssembler* masm,
+                                   const VRegList& reg_list) {
+  // Check if the machine has simd128 support. Otherwise, the
+  // vector registers might not exist and accessing them would SIGILL.
+  Label done;
+  __ li(kScratchReg, ExternalReference::supports_wasm_simd_128_address());
+  // If != 0, then simd is available.
+  __ Branch(&done, eq, kScratchReg, Operand(zero_reg), Label::Distance::kNear);
+
+  __ VU.set(kScratchReg, E8, m1);
+  for (auto it = reg_list.rbegin(); it != reg_list.rend(); ++it) {
+    VRegister vector_reg = *it;
+    __ vl(vector_reg, sp, 0, E8);
+    __ AddWord(sp, sp, Operand(kSimd128Size));
+  }
+
+  __ bind(&done);
+}
+
 static void SaveWasmParams(MacroAssembler* masm) {
   // Save all parameter registers (see wasm-linkage.h). They might be
   // overwritten in the subsequent runtime call. We don't have any
   // callee-saved registers in Wasm, so no need to store anything else.
   __ MultiPush(kSavedGpRegs);
+  SaveVectorRegisters(masm, kSavedVectorRegs);
   __ MultiPushFPU(kSavedFpRegs);
 }
 
 static void RestoreWasmParams(MacroAssembler* masm) {
   __ MultiPopFPU(kSavedFpRegs);
+  RestoreVectorRegisters(masm, kSavedVectorRegs);
   __ MultiPop(kSavedGpRegs);
 }
 
