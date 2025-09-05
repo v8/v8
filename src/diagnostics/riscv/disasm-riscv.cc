@@ -1982,16 +1982,12 @@ void Decoder::DecodeIType(Instruction* instr) {
       Format(instr, "fld       'fd, 'imm12('rs1)");
       break;
     default:
-#ifdef CAN_USE_RVV_INSTRUCTIONS
       if (instr->vl_vs_width() != -1) {
         DecodeRvvVL(instr);
       } else {
         UNSUPPORTED_RISCV();
       }
       break;
-#else
-      UNSUPPORTED_RISCV();
-#endif
   }
 }
 
@@ -2023,16 +2019,12 @@ void Decoder::DecodeSType(Instruction* instr) {
       Format(instr, "fsd       'fs2, 'offS('rs1)");
       break;
     default:
-#ifdef CAN_USE_RVV_INSTRUCTIONS
       if (instr->vl_vs_width() != -1) {
         DecodeRvvVS(instr);
       } else {
         UNSUPPORTED_RISCV();
       }
       break;
-#else
-      UNSUPPORTED_RISCV();
-#endif
   }
 }
 
