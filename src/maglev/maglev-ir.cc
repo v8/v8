@@ -148,8 +148,9 @@ bool Phi::is_unmerged_loop_phi() const {
   return merge_state()->is_unmerged_loop();
 }
 
-void Phi::RecordUseReprHint(UseRepresentationSet repr_mask) {
-  if (is_loop_phi() && is_unmerged_loop_phi()) {
+void Phi::RecordUseReprHint(UseRepresentationSet repr_mask,
+                            bool force_same_loop) {
+  if (is_loop_phi() && (is_unmerged_loop_phi() || force_same_loop)) {
     same_loop_uses_repr_hint_.Add(repr_mask);
   }
 

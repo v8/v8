@@ -10128,11 +10128,17 @@ class Phi : public ValueNodeT<Phi> {
 
   BasicBlock* predecessor_at(int i);
 
-  void RecordUseReprHint(UseRepresentationSet repr_mask);
+  void RecordUseReprHint(UseRepresentationSet repr_mask,
+                         bool force_same_loop = false);
 
   UseRepresentationSet get_uses_repr_hints() { return uses_repr_hint_; }
   UseRepresentationSet get_same_loop_uses_repr_hints() {
     return same_loop_uses_repr_hint_;
+  }
+
+  void ClearUseHints() {
+    uses_repr_hint_ = {};
+    same_loop_uses_repr_hint_ = {};
   }
 
   NodeType post_loop_type() const { return post_loop_type_; }

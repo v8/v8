@@ -144,6 +144,12 @@ bool MaglevInliner::Run() {
         .Unwrap();
   }
 
+  {
+    GraphProcessor<RecomputePhiUseHintsProcessor> recompute_phi_use_hints(
+        graph_->zone());
+    recompute_phi_use_hints.ProcessGraph(graph_);
+  }
+
   // Otherwise we print just once at the end.
   if (V8_UNLIKELY(ShouldPrintMaglevGraph())) {
     std::cout << "\nAfter inlining" << std::endl;
