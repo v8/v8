@@ -1668,11 +1668,13 @@ Maybe<bool> ChainDynamicImportPromise(Isolate* isolate, Local<Context> realm,
 }
 }  // namespace
 
-void Shell::DoHostImportModuleDynamically(void* import_data) {
-  DynamicImportData* import_data_ =
-      static_cast<DynamicImportData*>(import_data);
+void Shell::DoHostImportModuleDynamically(void* data) {
+  Isolate* current_isolate = reinterpret_cast<Isolate*>(i::Isolate::Current());
+  DynamicImportData* import_data =
+      PerIsolateData::Get(current_isolate)->LookupImportData(data);
+  CHECK_EQ(current_isolate, import_data->isolate);
 
-  Isolate* isolate(import_data_->isolate);
+  Isolate* isolate(import_data->isolate);
   Global<Context> global_realm;
   Global<Promise::Resolver> global_resolver;
   Global<Promise> global_result_promise;
@@ -1683,19 +1685,18 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
 
   {
     HandleScope handle_scope(isolate);
-    Local<Context> realm = import_data_->context.Get(isolate);
-    Local<Value> referrer = import_data_->referrer.Get(isolate);
-    Local<String> v8_specifier = import_data_->specifier.Get(isolate);
-    ModuleImportPhase phase = import_data_->phase;
+    Local<Context> realm = import_data->context.Get(isolate);
+    Local<Value> referrer = import_data->referrer.Get(isolate);
+    Local<String> v8_specifier = import_data->specifier.Get(isolate);
+    ModuleImportPhase phase = import_data->phase;
     Local<FixedArray> import_attributes =
-        import_data_->import_attributes.Get(isolate);
-    Local<Promise::Resolver> resolver = import_data_->resolver.Get(isolate);
+        import_data->import_attributes.Get(isolate);
+    Local<Promise::Resolver> resolver = import_data->resolver.Get(isolate);
 
     global_realm.Reset(isolate, realm);
     global_resolver.Reset(isolate, resolver);
 
-    PerIsolateData* data = PerIsolateData::Get(isolate);
-    data->DeleteDynamicImportData(import_data_);
+    PerIsolateData::Get(isolate)->DeleteDynamicImportData(import_data);
 
     Context::Scope context_scope(realm);
     std::string specifier = ToSTLString(isolate, v8_specifier);
@@ -1960,11 +1961,9 @@ PerIsolateData::~PerIsolateData() {
   if (i::v8_flags.expose_async_hooks) {
     delete async_hooks_wrapper_;  // This uses the isolate
   }
-#if defined(LEAK_SANITIZER)
   for (DynamicImportData* data : import_data_) {
     delete data;
   }
-#endif
 }
 
 void PerIsolateData::RemoveUnhandledPromise(Local<Promise> promise) {
@@ -2010,15 +2009,18 @@ int PerIsolateData::HandleUnhandledPromiseRejections() {
 }
 
 void PerIsolateData::AddDynamicImportData(DynamicImportData* data) {
-#if defined(LEAK_SANITIZER)
+  SBXCHECK_EQ(import_data_.end(), import_data_.find(data));
   import_data_.insert(data);
-#endif
 }
 void PerIsolateData::DeleteDynamicImportData(DynamicImportData* data) {
-#if defined(LEAK_SANITIZER)
+  SBXCHECK_NE(import_data_.end(), import_data_.find(data));
   import_data_.erase(data);
-#endif
   delete data;
+}
+DynamicImportData* PerIsolateData::LookupImportData(void* data) {
+  auto* result = static_cast<DynamicImportData*>(data);
+  SBXCHECK_NE(import_data_.end(), import_data_.find(result));
+  return result;
 }
 
 Local<FunctionTemplate> PerIsolateData::GetTestApiObjectCtor() const {
