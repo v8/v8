@@ -1466,11 +1466,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         return NoChange();
       }
 
-      // GetPropertyAccessInfo requires IsUniqueName, i.e. thin strings must be
-      // unpacked.
-      NameRef unpacked_name = feedback.name().UnpackIfThin(broker());
       PropertyAccessInfo access_info =
-          broker()->GetPropertyAccessInfo(map, unpacked_name, access_mode);
+          broker()->GetPropertyAccessInfo(map, feedback.name(), access_mode);
       access_infos_for_feedback.push_back(access_info);
     }
 
@@ -2525,11 +2522,7 @@ Reduction JSNativeContextSpecialization::ReducePropertyAccess(
     HeapObjectMatcher m_key(key);
     if (m_key.HasResolvedValue() && m_key.Ref(broker()).IsName()) {
       NameRef name_key = m_key.Ref(broker()).AsName();
-      // IsArrayIndex requires IsUniqueName, i.e. thin strings must be
-      // unpacked.
-      NameRef name_key_unpacked = name_key.UnpackIfThin(broker());
-      if (name_key_unpacked.IsUniqueName() &&
-          !name_key_unpacked.object()->IsArrayIndex()) {
+      if (name_key.IsUniqueName() && !name_key.object()->IsArrayIndex()) {
         feedback = &feedback->AsElementAccess().Refine(
             broker(), m_key.Ref(broker()).AsName());
       }
