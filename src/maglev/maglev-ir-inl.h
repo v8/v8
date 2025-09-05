@@ -115,10 +115,10 @@ CallKnownJSFunction::CallKnownJSFunction(
 void NodeBase::UnwrapDeoptFrames() {
   // Unwrap (and remove uses of its inputs) of Identity and ReturnedValue.
   if (properties().can_eager_deopt() || properties().is_deopt_checkpoint()) {
-    eager_deopt_info()->UnwrapIdentities();
+    eager_deopt_info()->Unwrap();
   }
   if (properties().can_lazy_deopt()) {
-    lazy_deopt_info()->UnwrapIdentities();
+    lazy_deopt_info()->Unwrap();
   }
 }
 

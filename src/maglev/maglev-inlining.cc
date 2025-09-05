@@ -134,9 +134,15 @@ bool MaglevInliner::Run() {
     }
   }
 
-  GraphProcessor<ClearReturnedValueUsesFromDeoptFrames>
-      clear_returned_value_uses(zone());
-  clear_returned_value_uses.ProcessGraph(graph_);
+  // Clear conversion, identities and ReturnedValues uses from deopt frames.
+  for (DeoptFrame* top_frame : graph_->eager_deopt_top_frames()) {
+    EagerDeoptInfo(zone(), top_frame, {}).Unwrap();
+  }
+  for (auto [top_frame, result_location] : graph_->lazy_deopt_top_frames()) {
+    LazyDeoptInfo(zone(), top_frame, result_location.first,
+                  result_location.second, {})
+        .Unwrap();
+  }
 
   // Otherwise we print just once at the end.
   if (V8_UNLIKELY(ShouldPrintMaglevGraph())) {

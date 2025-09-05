@@ -366,8 +366,9 @@ template <typename NodeT>
 void MaglevReducer<BaseT>::AttachEagerDeoptInfo(NodeT* node) {
   if constexpr (NodeT::kProperties.can_eager_deopt()) {
     static_assert(ReducerBaseWithEagerDeopt<BaseT>);
-    node->SetEagerDeoptInfo(zone(), base_->GetDeoptFrameForEagerDeopt(),
-                            current_speculation_feedback_);
+    DeoptFrame* top_frame = base_->GetDeoptFrameForEagerDeopt();
+    graph_->AddEagerTopFrame(top_frame);
+    node->SetEagerDeoptInfo(zone(), top_frame, current_speculation_feedback_);
   }
 }
 
@@ -376,10 +377,11 @@ template <typename NodeT>
 void MaglevReducer<BaseT>::AttachLazyDeoptInfo(NodeT* node) {
   if constexpr (NodeT::kProperties.can_lazy_deopt()) {
     static_assert(ReducerBaseWithLazyDeopt<BaseT>);
-    auto [deopt_frame, result_location, result_size] =
+    auto [top_frame, result_location, result_size] =
         base_->GetDeoptFrameForLazyDeopt();
+    graph_->AddLazyTopFrame(top_frame, result_location, result_size);
     new (node->lazy_deopt_info())
-        LazyDeoptInfo(zone(), deopt_frame, result_location, result_size,
+        LazyDeoptInfo(zone(), top_frame, result_location, result_size,
                       current_speculation_feedback_);
   }
 }

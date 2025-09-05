@@ -16,7 +16,6 @@
 namespace v8::internal::maglev {
 
 // We assume that we have visited all the deopt infos at this point.
-// ClearReturnedValueUsesFromDeoptFrames would do that.
 // That means that we don't have any uses of ReturnedValue in deopt infos.
 // If the node has an use > 0, we must create a conversion to tagged.
 class ReturnedValueRepresentationSelector {

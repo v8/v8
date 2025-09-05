@@ -61,7 +61,8 @@ class DeoptInfoVisitor {
       if (std::is_same_v<ValueNodeT, ValueNode*&>) {
         // We modify the deopt frame to bypass the Identity node, we update the
         // use_count for consistency.
-        while (node->template Is<Identity>() ||
+        while (node->properties().is_conversion() ||
+               node->template Is<Identity>() ||
                node->template Is<ReturnedValue>()) {
           node->remove_use();
           node = node->input(0).node();
@@ -138,13 +139,13 @@ void LazyDeoptInfo::ForEachInput(Function&& f) const {
   DeoptInfoVisitor<const LazyDeoptInfo>::ForLazy(this, f);
 }
 
-inline void EagerDeoptInfo::UnwrapIdentities() {
-  // The visitor automatically unwrap identities.
+inline void EagerDeoptInfo::Unwrap() {
+  // The visitor automatically unwrap conversion, identities and ReturnedValues.
   ForEachInput([&](ValueNode*) {});
 }
 
-inline void LazyDeoptInfo::UnwrapIdentities() {
-  // The visitor automatically unwrap identities.
+inline void LazyDeoptInfo::Unwrap() {
+  // The visitor automatically unwrap conversion, identities and ReturnedValues.
   ForEachInput([](ValueNode*) {});
 }
 

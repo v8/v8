@@ -2070,7 +2070,7 @@ class EagerDeoptInfo : public DeoptInfo {
   template <typename Function>
   void ForEachInput(Function&& f) const;
 
-  inline void UnwrapIdentities();
+  inline void Unwrap();
 
  private:
   DeoptimizeReason reason_ = DeoptimizeReason::kUnknown;
@@ -2125,7 +2125,7 @@ class LazyDeoptInfo : public DeoptInfo {
   template <typename Function>
   void ForEachInput(Function&& f) const;
 
-  inline void UnwrapIdentities();
+  inline void Unwrap();
 
  private:
 #ifdef DEBUG
