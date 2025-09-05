@@ -288,6 +288,36 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   IndirectPointerTag indirect_pointer_tag_;
 };
 
+class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
+ public:
+  OutOfLineVerifySkippedWriteBarrier(CodeGenerator* gen, Register object,
+                                     Register value)
+      : OutOfLineCode(gen),
+        object_(object),
+        value_(value),
+        zone_(gen->zone()) {}
+
+  void Generate() final {
+#ifdef V8_TARGET_ARCH_RISCV64
+    if (COMPRESS_POINTERS_BOOL) {
+      __ DecompressTagged(value_, value_);
+    }
+#endif
+
+    SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
+
+    __ CallVerifySkippedWriteBarrierStubSaveRegisters(object_, value_,
+                                                      save_fp_mode);
+  }
+
+ private:
+  Register const object_;
+  Register const value_;
+  Zone* zone_;
+};
+
 Condition FlagsConditionToConditionCmp(FlagsCondition condition) {
   switch (condition) {
     case kEqual:
@@ -1065,6 +1095,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(ool->exit());
       break;
     }
+    case kArchStoreSkippedWriteBarrier: {
+      Register object = i.InputRegister(0);
+      Register offset = i.InputRegister(1);
+      Register value = i.InputRegister(2);
+
+      if (v8_flags.debug_code) {
+        // Checking that |value| is not a cleared weakref: our write barrier
+        // does not support that for now.
+        Label done;
+        __ CompareTaggedAndBranch(&done, ne, value,
+                                  Operand(kClearedWeakHeapObjectLower32));
+        __ Abort(AbortReason::kOperandIsCleared);
+        __ bind(&done);
+      }
+
+      if (v8_flags.verify_write_barriers) {
+        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object,
+                                                                   value);
+        __ JumpIfNotSmi(value, ool->entry());
+        __ bind(ool->exit());
+      }
+
+      __ AddWord(kScratchReg, object, offset);
+      __ StoreTaggedField(value, MemOperand(kScratchReg, 0), trapper);
+      break;
+    }
     case kArchAtomicStoreWithWriteBarrier: {
 #ifdef V8_TARGET_ARCH_RISCV64
       MacroAssembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
@@ -1094,6 +1150,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       UNREACHABLE();
 #endif
     }
+    case kArchAtomicStoreSkippedWriteBarrier: {
+#ifdef V8_TARGET_ARCH_RISCV64
+      Register object = i.InputRegister(0);
+      Register offset = i.InputRegister(1);
+      Register value = i.InputRegister(2);
+
+      if (v8_flags.verify_write_barriers) {
+        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object,
+                                                                   value);
+        __ JumpIfNotSmi(value, ool->entry());
+        __ bind(ool->exit());
+      }
+
+      __ AddWord(kScratchReg, object, offset);
+      __ AtomicStoreTaggedField(value, MemOperand(kScratchReg, 0), trapper);
+      break;
+#else
+      UNREACHABLE();
+#endif
+    }
     case kArchStoreIndirectWithWriteBarrier: {
 #ifdef V8_TARGET_ARCH_RISCV64
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
@@ -1111,6 +1187,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
                        ne, ool->entry());
       __ bind(ool->exit());
+      break;
+#else
+      UNREACHABLE();
+#endif
+    }
+    case kArchStoreIndirectSkippedWriteBarrier: {
+#ifdef V8_TARGET_ARCH_RISCV64
+      Register object = i.InputRegister(0);
+      Register offset = i.InputRegister(1);
+      Register value = i.InputRegister(2);
+
+#if DEBUG
+      IndirectPointerTag tag = static_cast<IndirectPointerTag>(i.InputInt64(3));
+      DCHECK(IsValidIndirectPointerTag(tag));
+#endif  // DEBUG
+
+      __ AddWord(kScratchReg, object, offset);
+      __ StoreIndirectPointerField(value, MemOperand(kScratchReg, 0), trapper);
       break;
 #else
       UNREACHABLE();

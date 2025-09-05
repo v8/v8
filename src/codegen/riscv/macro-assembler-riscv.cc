@@ -726,7 +726,6 @@ void MacroAssembler::MoveObjectAndSlot(Register dst_object, Register dst_slot,
 void MacroAssembler::CallVerifySkippedWriteBarrierStubSaveRegisters(
     Register object, Register value, SaveFPRegsMode fp_mode) {
   ASM_CODE_COMMENT(this);
-  DCHECK(!AreAliased(object, value));
   PushCallerSaved(fp_mode);
   CallVerifySkippedWriteBarrierStub(object, value);
   PopCallerSaved(fp_mode);
@@ -736,8 +735,16 @@ void MacroAssembler::CallVerifySkippedWriteBarrierStub(Register object,
                                                        Register value) {
   ASM_CODE_COMMENT(this);
   PrepareCallCFunction(2, a0);
-  mv(kCArgRegs[0], object);
-  mv(kCArgRegs[1], value);
+  // TODO(kasperl@rivosinc.com): Consider introducing a MovePair helper for
+  // this like on other platforms.
+  if (value == kCArgRegs[0]) {
+    mv(kScratchReg, value);
+    mv(kCArgRegs[0], object);
+    mv(kCArgRegs[1], kScratchReg);
+  } else {
+    mv(kCArgRegs[0], object);
+    mv(kCArgRegs[1], value);
+  }
   CallCFunction(ExternalReference::verify_skipped_write_barrier(), 2,
                 SetIsolateDataSlots::kNo);
 }
@@ -4604,8 +4611,12 @@ void MacroAssembler::CompareTaggedAndBranch(Label* label, Condition cond,
 
 void MacroAssembler::BranchShortHelper(int32_t offset, Label* L) {
   DCHECK(L == nullptr || offset == 0);
-  offset = GetOffset(offset, L, OffsetSize::kOffset21);
-  j(offset);
+  {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    offset = GetOffset(offset, L, OffsetSize::kOffset21);
+    j(offset);
+  }
+  EmitConstPoolWithoutJumpIfNeeded();
 }
 
 void MacroAssembler::BranchShort(int32_t offset) {
@@ -4668,126 +4679,129 @@ bool MacroAssembler::BranchShortHelper(int32_t offset, Label* L, Condition cond,
   } else {
     scratch = rt.rm();
   }
-  {
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    switch (cond) {
-      case cc_always:
+
+  switch (cond) {
+    case cc_always:
+      if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
+      j(offset);
+      // TODO(kasperl@rivosinc.com): This probably has no effect, because the
+      // trampoline pool is blocked and that effectively blocks the constant
+      // pool too.
+      EmitConstPoolWithoutJumpIfNeeded();
+      break;
+    case eq:
+      // rs == rt
+      if (rt.is_reg() && rs == rt.rm()) {
         if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
         j(offset);
-        EmitConstPoolWithoutJumpIfNeeded();
-        break;
-      case eq:
-        // rs == rt
-        if (rt.is_reg() && rs == rt.rm()) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
-          j(offset);
-        } else {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
-          beq(rs, scratch, offset);
-        }
-        break;
-      case ne:
-        // rs != rt
-        if (rt.is_reg() && rs == rt.rm()) {
-          break;  // No code needs to be emitted
-        } else {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
-          bne(rs, scratch, offset);
-        }
-        break;
-
-      // Signed comparison.
-      case greater:
-        // rs > rt
-        if (rt.is_reg() && rs == rt.rm()) {
-          break;  // No code needs to be emitted.
-        } else {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
-          bgt(rs, scratch, offset);
-        }
-        break;
-      case greater_equal:
-        // rs >= rt
-        if (rt.is_reg() && rs == rt.rm()) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
-          j(offset);
-        } else {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
-          bge(rs, scratch, offset);
-        }
-        break;
-      case less:
-        // rs < rt
-        if (rt.is_reg() && rs == rt.rm()) {
-          break;  // No code needs to be emitted.
-        } else {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
-          blt(rs, scratch, offset);
-        }
-        break;
-      case less_equal:
-        // rs <= rt
-        if (rt.is_reg() && rs == rt.rm()) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
-          j(offset);
-        } else {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
-          ble(rs, scratch, offset);
-        }
-        break;
-
-      // Unsigned comparison.
-      case Ugreater:
-        // rs > rt
-        if (rt.is_reg() && rs == rt.rm()) {
-          break;  // No code needs to be emitted.
-        } else {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
-          bgtu(rs, scratch, offset);
-        }
-        break;
-      case Ugreater_equal:
-        // rs >= rt
-        if (rt.is_reg() && rs == rt.rm()) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
-          j(offset);
-        } else {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
-          bgeu(rs, scratch, offset);
-        }
-        break;
-      case Uless:
-        // rs < rt
-        if (rt.is_reg() && rs == rt.rm()) {
-          break;  // No code needs to be emitted.
-        } else {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
-          bltu(rs, scratch, offset);
-        }
-        break;
-      case Uless_equal:
-        // rs <= rt
-        if (rt.is_reg() && rs == rt.rm()) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
-          j(offset);
-        } else {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
-          bleu(rs, scratch, offset);
-        }
-        break;
-      case Condition::overflow:
+      } else {
         if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
-        bnez(rs, offset);
-        break;
-      case Condition::no_overflow:
+        beq(rs, scratch, offset);
+      }
+      break;
+    case ne:
+      // rs != rt
+      if (rt.is_reg() && rs == rt.rm()) {
+        break;  // No code needs to be emitted
+      } else {
         if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
-        beqz(rs, offset);
-        break;
-      default:
-        UNREACHABLE();
-    }
+        bne(rs, scratch, offset);
+      }
+      break;
+
+    // Signed comparison.
+    case greater:
+      // rs > rt
+      if (rt.is_reg() && rs == rt.rm()) {
+        break;  // No code needs to be emitted.
+      } else {
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
+        bgt(rs, scratch, offset);
+      }
+      break;
+    case greater_equal:
+      // rs >= rt
+      if (rt.is_reg() && rs == rt.rm()) {
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
+        j(offset);
+      } else {
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
+        bge(rs, scratch, offset);
+      }
+      break;
+    case less:
+      // rs < rt
+      if (rt.is_reg() && rs == rt.rm()) {
+        break;  // No code needs to be emitted.
+      } else {
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
+        blt(rs, scratch, offset);
+      }
+      break;
+    case less_equal:
+      // rs <= rt
+      if (rt.is_reg() && rs == rt.rm()) {
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
+        j(offset);
+      } else {
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
+        ble(rs, scratch, offset);
+      }
+      break;
+
+    // Unsigned comparison.
+    case Ugreater:
+      // rs > rt
+      if (rt.is_reg() && rs == rt.rm()) {
+        break;  // No code needs to be emitted.
+      } else {
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
+        bgtu(rs, scratch, offset);
+      }
+      break;
+    case Ugreater_equal:
+      // rs >= rt
+      if (rt.is_reg() && rs == rt.rm()) {
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
+        j(offset);
+      } else {
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
+        bgeu(rs, scratch, offset);
+      }
+      break;
+    case Uless:
+      // rs < rt
+      if (rt.is_reg() && rs == rt.rm()) {
+        break;  // No code needs to be emitted.
+      } else {
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
+        bltu(rs, scratch, offset);
+      }
+      break;
+    case Uless_equal:
+      // rs <= rt
+      if (rt.is_reg() && rs == rt.rm()) {
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
+        j(offset);
+      } else {
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
+        bleu(rs, scratch, offset);
+      }
+      break;
+    case Condition::overflow:
+      if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
+      bnez(rs, offset);
+      break;
+    case Condition::no_overflow:
+      if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
+      beqz(rs, offset);
+      break;
+    default:
+      UNREACHABLE();
   }
 
+  // TODO(kasperl@rivosinc.com): We're always blocking the trampoline pool
+  // here so is it really necessary to check?
   CheckTrampolinePoolQuick(1 * kInstrSize);
   return true;
 }
@@ -5415,16 +5429,16 @@ void MacroAssembler::Ret(Condition cond, Register rs, const Operand& rt) {
 
 void MacroAssembler::BranchLong(Label* L) {
   // Generate position independent long branch.
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  int32_t imm;
-  imm = branch_long_offset(L);
-  if (L->is_bound() && is_intn(imm, Assembler::kJumpOffsetBits) &&
-      (imm & 1) == 0) {
-    j(imm);
-    EmitConstPoolWithoutJumpIfNeeded();
-    return;
+  {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    int32_t imm = branch_long_offset(L);
+    if (L->is_bound() && is_intn(imm, Assembler::kJumpOffsetBits) &&
+        (imm & 1) == 0) {
+      j(imm);
+    } else {
+      GenPCRelativeJump(t6, imm);
+    }
   }
-  GenPCRelativeJump(t6, imm);
   EmitConstPoolWithoutJumpIfNeeded();
 }
 
