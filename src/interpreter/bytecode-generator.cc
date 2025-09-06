@@ -3330,7 +3330,8 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
           // iterator result and append the argument.
           builder()->SetExpressionAsStatementPosition(stmt->each(),
                                                       /* is_breakable */ false);
-          if (v8_flags.for_of_optimization) {
+          if (v8_flags.for_of_optimization &&
+              iterator.type() != IteratorType::kAsync) {
             builder()
                 ->ForOfNext(iterator.object(), iterator.next(), output)
                 .LoadAccumulatorWithRegister(done);
@@ -7936,6 +7937,9 @@ void BytecodeGenerator::BuildIteratorNext(const IteratorRecord& iterator,
   builder()->CallProperty(iterator.next(), RegisterList(iterator.object()),
                           feedback_index(feedback_spec()->AddCallICSlot()));
 
+  // TODO(408061015): Optimize AsyncArrayIterators by splitting the optimized
+  // bytecode to get the next result, await the result, and then get value and
+  // done.
   if (iterator.type() == IteratorType::kAsync) {
     BuildAwait();
   }
