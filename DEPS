@@ -130,9 +130,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7bea1d158c8efdafef8dcd2348f9b7a8563e8d49',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '396bde5914280531dd0e9e5662ae730992484a11',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '076678f3fb2eadbd818e366788de68d5d3b6bb85',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '10b037a661ecbc8b2e8c4f85c653d36d1d82cc36',
   'buildtools/linux64': {
     'packages': [
       {
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e46459f0d34e5bcac368b079dafb252d7bfbe0c6',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '9c3171ffea55413e3e9666ccdb0317db50a7b974',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -302,7 +302,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'c6b0f024910f13f6455e49e3087d67071c6e3334',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '954086abf1216d110534fb3e21d8e86d6703cefb',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'f7f5a32b3e9582092d8a4511acec036a09ae8524',
   'third_party/libunwind/src':
@@ -502,7 +502,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + '2cbfc8d2e5ef4a6afd9774e9a9eaebd921a9f248',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '64187100b282454a6b6be803a4b80db15b5f8795',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '0e03294673c2d60fa3ecbc01a0f5409e2c456518',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
