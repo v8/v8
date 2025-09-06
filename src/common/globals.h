@@ -1671,14 +1671,8 @@ enum class ExternalBackingStoreType {
 };
 
 enum class NewJSObjectType : uint8_t {
-  // JS objects that may require embedder fields depending on their instance
-  // type. They are not API wrappers.
-  kMaybeEmbedderFieldsAndNoApiWrapper,
-  // JS objects that don't require any embedder fields and are not API wrappers.
-  kNoEmbedderFieldsAndNoApiWrapper,
-  // JS objects that may require embedder fields depending on their instance
-  // type and also are API wrappers.
-  kMaybeEmbedderFieldsAndApiWrapper,
+  kNoAPIWrapper,
+  kAPIWrapper,
 };
 
 bool inline IsBaselineCodeFlushingEnabled(base::EnumSet<CodeFlushMode> mode) {

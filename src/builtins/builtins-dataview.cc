@@ -111,15 +111,13 @@ BUILTIN(DataViewConstructor) {
         JSFunction::GetDerivedRabGsabDataViewMap(isolate, new_target));
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result,
-        JSObject::NewWithMap(
-            isolate, initial_map, {},
-            NewJSObjectType::kMaybeEmbedderFieldsAndApiWrapper));
+        JSObject::NewWithMap(isolate, initial_map, {},
+                             NewJSObjectType::kAPIWrapper));
   } else {
     // Create a JSDataView.
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result,
-        JSObject::New(target, new_target, {},
-                      NewJSObjectType::kMaybeEmbedderFieldsAndApiWrapper));
+        JSObject::New(target, new_target, {}, NewJSObjectType::kAPIWrapper));
   }
   auto data_view = Cast<JSDataViewOrRabGsabDataView>(result);
   {

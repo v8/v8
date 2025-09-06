@@ -581,30 +581,18 @@ class WriteProtectedSlot : public SlotT {
   WritableJitAllocation& jit_allocation_;
 };
 
-// Copies `count` `Tagged_t` from `src` to `dst`. The data spans must not
-// overlap. `src` to `dst` must be kTaggedSize-aligned.
-inline void CopyTagged(Address dst, const Address src, size_t count);
+// Copies tagged words from |src| to |dst|. The data spans must not overlap.
+// |src| and |dst| must be kTaggedSize-aligned.
+inline void CopyTagged(Address dst, const Address src, size_t num_tagged);
 
-// Sets `count` kTaggedSize-sized `value`s starting at `start`.
+// Sets |counter| number of kTaggedSize-sized values starting at |start| slot.
 inline void MemsetTagged(Tagged_t* start, Tagged<MaybeObject> value,
-                         size_t count);
+                         size_t counter);
 
-// Sets `count` kTaggedSize-sized `raw_value`s starting at `start`.
-inline void MemsetTagged(Tagged_t* start, Tagged_t raw_value, size_t count);
-
-// Sets `count` kTaggedSize-sized `value`s starting at `start`.
+// Sets |counter| number of kTaggedSize-sized values starting at |start| slot.
 template <typename T>
 inline void MemsetTagged(SlotBase<T, Tagged_t> start, Tagged<MaybeObject> value,
-                         size_t count);
-
-// Sets `count` kTaggedSize-sized `raw_value`s starting at `start`.
-template <typename T>
-inline void MemsetTagged(SlotBase<T, Tagged_t> start, Tagged_t raw_value,
-                         size_t count);
-
-// Sets `count` pointer-sized `value`s starting at `start`.
-inline void MemsetPointer(FullObjectSlot start, Tagged<Object> value,
-                          size_t count);
+                         size_t counter);
 
 }  // namespace v8::internal
 

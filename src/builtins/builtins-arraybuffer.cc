@@ -121,8 +121,7 @@ Tagged<Object> ConstructBuffer(Isolate* isolate,
   DirectHandle<JSObject> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      JSObject::New(target, new_target, {},
-                    NewJSObjectType::kMaybeEmbedderFieldsAndApiWrapper));
+      JSObject::New(target, new_target, {}, NewJSObjectType::kAPIWrapper));
   auto array_buffer = Cast<JSArrayBuffer>(result);
   const bool backing_store_creation_failed = !backing_store;
   array_buffer->Setup(shared, resizable, std::move(backing_store), isolate);

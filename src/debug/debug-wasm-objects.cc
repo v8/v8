@@ -104,8 +104,7 @@ struct IndexedDebugProxy {
                                                make_map_non_extensible);
     auto object = isolate->factory()->NewFastOrSlowJSObjectFromMap(
         object_map, 0, AllocationType::kYoung,
-        DirectHandle<AllocationSite>::null(),
-        NewJSObjectType::kMaybeEmbedderFieldsAndApiWrapper);
+        DirectHandle<AllocationSite>::null(), NewJSObjectType::kAPIWrapper);
     object->SetEmbedderField(kProviderField, *provider);
     return object;
   }
@@ -564,8 +563,7 @@ class ContextProxyPrototype {
         GetOrCreateDebugProxyMap(isolate, kContextProxy, &CreateTemplate);
     return isolate->factory()->NewJSObjectFromMap(
         object_map, AllocationType::kYoung,
-        DirectHandle<AllocationSite>::null(),
-        NewJSObjectType::kMaybeEmbedderFieldsAndApiWrapper);
+        DirectHandle<AllocationSite>::null(), NewJSObjectType::kAPIWrapper);
   }
 
  private:

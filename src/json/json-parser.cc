@@ -939,9 +939,7 @@ class JSDataObjectBuilder {
 
     // Allocate the object then immediately start a no_gc scope -- again, this
     // is so the verifier doesn't see invalid double field state.
-    Handle<JSObject> object = isolate_->factory()->NewJSObjectFromMap(
-        map_, AllocationType::kYoung, DirectHandle<AllocationSite>::null(),
-        NewJSObjectType::kNoEmbedderFieldsAndNoApiWrapper);
+    Handle<JSObject> object = isolate_->factory()->NewJSObjectFromMap(map_);
     DisallowGarbageCollection no_gc;
     Tagged<JSObject> raw_object = *object;
 

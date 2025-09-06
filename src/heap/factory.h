@@ -637,7 +637,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<JSObject> NewJSObject(
       DirectHandle<JSFunction> constructor,
       AllocationType allocation = AllocationType::kYoung,
-      NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
+      NewJSObjectType = NewJSObjectType::kNoAPIWrapper);
   // JSObject without a prototype.
   Handle<JSObject> NewJSObjectWithNullProto();
   // JSObject without a prototype, in dictionary mode.
@@ -656,14 +656,14 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<Map> map, AllocationType allocation = AllocationType::kYoung,
       DirectHandle<AllocationSite> allocation_site =
           DirectHandle<AllocationSite>::null(),
-      NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
+      NewJSObjectType = NewJSObjectType::kNoAPIWrapper);
   // Like NewJSObjectFromMap, but includes allocating a properties dictionary.);
   Handle<JSObject> NewSlowJSObjectFromMap(
       DirectHandle<Map> map, int number_of_slow_properties,
       AllocationType allocation = AllocationType::kYoung,
       DirectHandle<AllocationSite> allocation_site =
           DirectHandle<AllocationSite>::null(),
-      NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
+      NewJSObjectType = NewJSObjectType::kNoAPIWrapper);
   Handle<JSObject> NewSlowJSObjectFromMap(DirectHandle<Map> map);
   // Calls NewJSObjectFromMap or NewSlowJSObjectFromMap depending on whether the
   // map is a dictionary map.
@@ -672,7 +672,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       AllocationType allocation = AllocationType::kYoung,
       DirectHandle<AllocationSite> allocation_site =
           DirectHandle<AllocationSite>::null(),
-      NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
+      NewJSObjectType = NewJSObjectType::kNoAPIWrapper);
   inline Handle<JSObject> NewFastOrSlowJSObjectFromMap(DirectHandle<Map> map);
   // Allocates and initializes a new JavaScript object with the given
   // {prototype} and {properties}. The newly created object will be
@@ -1386,13 +1386,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Initializes a JSObject based on its map.
   void InitializeJSObjectFromMap(
-      Tagged<Map> map, Tagged<JSObject> obj,
-      std::optional<Tagged<Object>> maybe_properties,
-      NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
+      Tagged<JSObject> obj, Tagged<Object> properties, Tagged<Map> map,
+      NewJSObjectType = NewJSObjectType::kNoAPIWrapper);
   // Initializes JSObject body starting at given offset.
-  void InitializeJSObjectBody(
-      Tagged<JSObject> obj, Tagged<Map> map, int start_offset,
-      NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
+  void InitializeJSObjectBody(Tagged<JSObject> obj, Tagged<Map> map,
+                              int start_offset);
 
   Handle<WeakArrayList> NewUninitializedWeakArrayList(
       int capacity, AllocationType allocation = AllocationType::kYoung);
