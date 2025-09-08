@@ -382,9 +382,10 @@ class V8_BASE_EXPORT OS {
 
   static void* GetRandomMmapAddr();
 
-  V8_WARN_UNUSED_RESULT static void* Allocate(void* address, size_t size,
-                                              size_t alignment,
-                                              MemoryPermission access);
+  V8_WARN_UNUSED_RESULT static void* Allocate(
+      void* address, size_t size, size_t alignment, MemoryPermission access,
+      PlatformSharedMemoryHandle handle = kInvalidSharedMemoryHandle,
+      bool is_shared = false);
 
   V8_WARN_UNUSED_RESULT static void* AllocateShared(size_t size,
                                                     MemoryPermission access);
@@ -419,8 +420,11 @@ class V8_BASE_EXPORT OS {
   V8_WARN_UNUSED_RESULT static bool CanReserveAddressSpace();
 
   V8_WARN_UNUSED_RESULT static std::optional<AddressSpaceReservation>
-  CreateAddressSpaceReservation(void* hint, size_t size, size_t alignment,
-                                MemoryPermission max_permission);
+  CreateAddressSpaceReservation(
+      void* hint, size_t size, size_t alignment,
+      MemoryPermission max_permission,
+      PlatformSharedMemoryHandle handle = kInvalidSharedMemoryHandle,
+      bool is_shared = false);
 
   static void FreeAddressSpaceReservation(AddressSpaceReservation reservation);
 

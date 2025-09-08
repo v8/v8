@@ -995,7 +995,8 @@ void CheckIsOOMError(int error) {
 
 // static
 void* OS::Allocate(void* hint, size_t size, size_t alignment,
-                   MemoryPermission access) {
+                   MemoryPermission access, PlatformSharedMemoryHandle handle,
+                   bool is_shared) {
   size_t page_size = AllocatePageSize();
   DCHECK_EQ(0, size % page_size);
   DCHECK_EQ(0, alignment % page_size);
@@ -1138,8 +1139,8 @@ bool OS::CanReserveAddressSpace() {
 
 // static
 std::optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
-    void* hint, size_t size, size_t alignment,
-    MemoryPermission max_permission) {
+    void* hint, size_t size, size_t alignment, MemoryPermission max_permission,
+    PlatformSharedMemoryHandle handle, bool is_shared) {
   CHECK(CanReserveAddressSpace());
 
   size_t page_size = AllocatePageSize();

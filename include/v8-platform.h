@@ -1038,12 +1038,21 @@ class VirtualAddressSpace {
    * \param key Optional memory protection key for the subspace. If used, the
    * returned subspace will use this key for all its memory pages.
    *
+   * \param handle Optional file descriptor for the subspace. If used, the
+   * returned subspace will use this file description with 0 offset as the
+   * space's underlying file.
+   *
+   * \param is_shared If true the reservation for the subspace will be
+   * allocated with shared mappings.
+   *
    * \returns a new subspace or nullptr on failure.
    */
   virtual std::unique_ptr<VirtualAddressSpace> AllocateSubspace(
       Address hint, size_t size, size_t alignment,
       PagePermissions max_page_permissions,
-      std::optional<MemoryProtectionKeyId> key = std::nullopt) = 0;
+      std::optional<MemoryProtectionKeyId> key = std::nullopt,
+      PlatformSharedMemoryHandle handle = kInvalidSharedMemoryHandle,
+      bool is_shared = false) = 0;
 
   //
   // TODO(v8) maybe refactor the methods below before stabilizing the API. For
