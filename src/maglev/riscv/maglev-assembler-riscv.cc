@@ -35,8 +35,8 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
   if (v8_flags.single_generation) {
     alloc_type = AllocationType::kOld;
   }
-  ExternalReference top = SpaceAllocationTopAddress(isolate, alloc_type);
-  ExternalReference limit = SpaceAllocationLimitAddress(isolate, alloc_type);
+  IsolateFieldId top = SpaceAllocationTopAddress(alloc_type);
+  IsolateFieldId limit = SpaceAllocationLimitAddress(alloc_type);
 
   ZoneLabelRef done(masm);
   MaglevAssembler::TemporaryRegisterScope temps(masm);
@@ -48,9 +48,9 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
   // {size_in_bytes}.
   Register new_top = object;
   // Check if there is enough space.
-  __ LoadWord(object, __ ExternalReferenceAsOperand(top, scratch));
+  __ LoadWord(object, __ ExternalReferenceAsOperand(top));
   __ AddWord(new_top, object, Operand(size_in_bytes));
-  __ LoadWord(scratch, __ ExternalReferenceAsOperand(limit, scratch));
+  __ LoadWord(scratch, __ ExternalReferenceAsOperand(limit));
 
   // Call runtime if new_top >= limit.
   __ MacroAssembler::Branch(
@@ -65,7 +65,7 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
       ge, new_top, Operand(scratch));
 
   // Store new top and tag object.
-  __ Move(__ ExternalReferenceAsOperand(top, scratch), new_top);
+  __ Move(__ ExternalReferenceAsOperand(top), new_top);
 #if V8_VERIFY_WRITE_BARRIERS
   if (v8_flags.verify_write_barriers) {
     ExternalReference last_young_allocation =
