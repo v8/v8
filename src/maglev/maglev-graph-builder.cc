@@ -7398,10 +7398,11 @@ ReduceResult MaglevGraphBuilder::BuildGetKeyedProperty(
 
     case compiler::ProcessedFeedback::kNamedAccess: {
       ValueNode* key = GetAccumulator();
-      compiler::NameRef name = processed_feedback.AsNamedAccess().name();
       RETURN_IF_ABORT(BuildCheckInternalizedStringValueOrByReference(
-          key, name, DeoptimizeReason::kKeyedAccessChanged));
+          key, processed_feedback.AsNamedAccess().original_name_maybe_thin(),
+          DeoptimizeReason::kKeyedAccessChanged));
 
+      compiler::NameRef name = processed_feedback.AsNamedAccess().name();
       MaybeReduceResult result = TryReuseKnownPropertyLoad(object, name);
       PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
 
@@ -7438,7 +7439,11 @@ ReduceResult MaglevGraphBuilder::VisitGetKeyedProperty() {
     if (auto constant = TryGetConstant(GetAccumulator());
         constant.has_value() && constant->IsName()) {
       compiler::NameRef name = constant->AsName();
-      if (name.IsUniqueName() && !name.object()->IsArrayIndex()) {
+      // IsArrayIndex requires IsUniqueName, i.e. thin strings must be
+      // unpacked. Subtle: Refine() still takes the original `name`.
+      compiler::NameRef unpacked_name = name.UnpackIfThin(broker());
+      if (unpacked_name.IsUniqueName() &&
+          !unpacked_name.object()->IsArrayIndex()) {
         processed_feedback =
             &processed_feedback->AsElementAccess().Refine(broker(), name);
       }
