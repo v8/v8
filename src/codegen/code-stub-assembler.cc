@@ -17376,6 +17376,12 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResultForEntry(
   return CAST(result);
 }
 
+TNode<Object> CodeStubAssembler::GetResultValueForHole(TNode<Object> value) {
+  return Select<Object>(
+      IsTheHole(value), [this] { return UndefinedConstant(); },
+      [&] { return value; });
+}
+
 std::pair<TNode<Object>, TNode<Object>> CodeStubAssembler::CallIteratorNext(
     TNode<Object> iterator, TNode<Object> next_method, TNode<Context> context) {
   Label callable(this), not_callable(this, Label::kDeferred);
@@ -17480,7 +17486,7 @@ ForOfNextResult CodeStubAssembler::ForOfNextHelper(TNode<Context> context,
     BIND(&load_entry);
     {
       var_element_value = AllocateJSIteratorResultValueForEntry(
-          context, smi_index, var_element_value.value());
+          context, smi_index, GetResultValueForHole(var_element_value.value()));
       Goto(&element_value_resolved);
     }
 
@@ -17489,7 +17495,7 @@ ForOfNextResult CodeStubAssembler::ForOfNextHelper(TNode<Context> context,
       StoreObjectFieldNoWriteBarrier(array_iterator,
                                      JSArrayIterator::kNextIndexOffset,
                                      SmiAdd(smi_index, SmiConstant(1)));
-      var_value = var_element_value;
+      var_value = GetResultValueForHole(var_element_value.value());
       var_done = FalseConstant();
       Goto(&return_result);
     }

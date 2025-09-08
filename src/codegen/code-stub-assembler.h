@@ -2307,7 +2307,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<JSObject> AllocateJSIteratorResultForEntry(TNode<Context> context,
                                                    TNode<Object> key,
                                                    TNode<Object> value);
-
+  TNode<Object> GetResultValueForHole(TNode<Object> value);
   // Calls the next method of an iterator and returns the pair of
   // {value, done} properties of the result.
   std::pair<TNode<Object>, TNode<Object>> CallIteratorNext(
