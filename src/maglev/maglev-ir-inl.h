@@ -91,8 +91,7 @@ CallKnownJSFunction::CallKnownJSFunction(
     JSDispatchHandle dispatch_handle,
 #endif
     compiler::SharedFunctionInfoRef shared_function_info, ValueNode* closure,
-    ValueNode* context, ValueNode* receiver, ValueNode* new_target,
-    const compiler::FeedbackSource& feedback_source)
+    ValueNode* context, ValueNode* receiver, ValueNode* new_target)
     : Base(bitfield),
 #ifdef V8_ENABLE_LEAPTIERING
       dispatch_handle_(dispatch_handle),
@@ -106,8 +105,7 @@ CallKnownJSFunction::CallKnownJSFunction(
           shared_function_info
               .internal_formal_parameter_count_with_receiver_deprecated()
 #endif
-              ),
-      feedback_source_(feedback_source) {
+      ) {
   set_input(kClosureIndex, closure);
   set_input(kContextIndex, context);
   set_input(kReceiverIndex, receiver);

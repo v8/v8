@@ -194,18 +194,15 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
 template <typename Assembler>
 void WasmWrapperTSGraphBuilder<Assembler>::BuildCallWasmFromWrapper(
     Zone* zone, const CanonicalSig* sig, V<Word32> callee,
-    const base::Vector<OpIndex> args, base::Vector<OpIndex> returns,
-    OptionalV<FrameState> frame_state) {
-  const bool needs_frame_state = frame_state.valid();
+    const base::Vector<OpIndex> args, base::Vector<OpIndex> returns) {
   const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
       compiler::GetWasmCallDescriptor(
-          __ graph_zone(), sig, compiler::WasmCallKind::kWasmIndirectFunction,
-          needs_frame_state),
+          __ graph_zone(), sig, compiler::WasmCallKind::kWasmIndirectFunction),
       compiler::CanThrow::kYes, compiler::LazyDeoptOnThrow::kNo,
       __ graph_zone());
 
-  OpIndex call = __ Call(callee, frame_state, base::VectorOf(args), descriptor,
-                         OpEffects().CanCallAnything());
+  OpIndex call = __ Call(callee, OpIndex::Invalid(), base::VectorOf(args),
+                         descriptor, OpEffects().CanCallAnything());
 
   if (sig->return_count() == 1) {
     returns[0] = call;
@@ -220,8 +217,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCallWasmFromWrapper(
 template <typename Assembler>
 auto WasmWrapperTSGraphBuilder<Assembler>::BuildCallAndReturn(
     V<Context> js_context, V<HeapObject> function_data,
-    base::Vector<OpIndex> args, bool do_conversion,
-    OptionalV<FrameState> frame_state) -> OpIndex {
+    base::Vector<OpIndex> args, bool do_conversion) -> OpIndex {
   const int rets_count = static_cast<int>(sig_->return_count());
   base::SmallVector<OpIndex, 1> rets(rets_count);
 
@@ -233,7 +229,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildCallAndReturn(
       this->BuildFunctionTargetAndImplicitArg(internal);
   args[0] = implicit_arg;
   BuildCallWasmFromWrapper(__ phase_zone(), sig_, target, args,
-                           base::VectorOf(rets), frame_state);
+                           base::VectorOf(rets));
 
   V<Object> jsval;
   if (sig_->return_count() == 0) {
@@ -261,87 +257,22 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildCallAndReturn(
 }
 
 template <typename Assembler>
-auto WasmWrapperTSGraphBuilder<Assembler>::InlineWasmFunctionInsideWrapper(
-    V<Context> js_context, V<WasmFunctionData> function_data,
-    base::Vector<OpIndex> inlined_args, bool do_conversion,
-    OptionalV<FrameState> frame_state) -> V<Object> {
-  if constexpr (requires(const Assembler& assembler) {
-                  assembler.has_wasm_in_js_inlining_reducer;
-                }) {
-    if (inlined_function_data_.has_value()) {
-      CHECK(v8_flags.turboshaft_wasm_in_js_inlining);
-      OptionalV<Any> wasmval =
-          static_cast<Assembler*>(&Asm())->TryInlineWasmCall(
-              inlined_function_data_->native_module,
-              inlined_function_data_->function_index, inlined_args);
-      if (wasmval.has_value()) {
-        DCHECK_LE(sig_->return_count(), 1);
-        if (sig_->return_count() == 0) {
-          return LOAD_ROOT(UndefinedValue);
-        } else {  // sig_->return_count() == 1.
-          return ToJS(wasmval.value(), sig_->GetReturn(), js_context);
-        }
-      }
-    }
-  }
-
-  // If the wasm function was not inlined, we need to call it.
-  return BuildCallAndReturn(js_context, function_data, inlined_args,
-                            do_conversion, frame_state);
-}
-
-template <typename Assembler>
-auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
-    bool receiver_is_first_param, V<JSFunction> js_closure,
-    V<Context> js_context, base::Vector<const OpIndex> arguments,
-    OptionalV<FrameState> frame_state) -> V<Any> {
+void WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
+    bool receiver_is_first_param) {
   const bool do_conversion = true;
+  const compiler::turboshaft::OptionalOpIndex frame_state =
+      compiler::turboshaft::OptionalOpIndex::Nullopt();
   const int wasm_param_count = static_cast<int>(sig_->parameter_count());
-  const int args_count = wasm_param_count + 1;  // +1 for wasm_code.
 
   __ Bind(__ NewBlock());
 
-  base::SmallVector<OpIndex, 16> params(args_count);
-  const int param_offset = receiver_is_first_param ? 0 : 1;
-  if (js_closure.valid()) {
-    DCHECK(js_context.valid());
-
-    // Prepare Param() nodes. Param() nodes can only be created once, so we
-    // need to use the same nodes along all possible transformation paths.
-    for (int i = 0; i < wasm_param_count; ++i) {
-      params[i] = arguments[i + param_offset];
-    }
-  } else {
-    // Create the js_closure and js_context parameters.
-    js_closure = __ Parameter(compiler::Linkage::kJSCallClosureParamIndex,
-                              RegisterRepresentation::Tagged());
-    js_context = __ Parameter(
-        compiler::Linkage::GetJSCallContextParamIndex(wasm_param_count + 1),
-        RegisterRepresentation::Tagged());
-
-    // Prepare Param() nodes.
-    for (int i = 0; i < wasm_param_count; ++i) {
-      params[i] =
-          __ Parameter(i + param_offset, RegisterRepresentation::Tagged());
-    }
-  }
-
-  if (!IsJSCompatibleSignature(sig_)) {
-    // Throw a TypeError. Use the js_context of the calling javascript
-    // function (passed as a parameter), such that the generated code is
-    // js_context independent.
-    __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmThrowJSTypeError, {},
-                       js_context);
-    __ Unreachable();
-    return OpIndex::Invalid();
-  }
-
-  // Check whether the signature of the function allows for a fast
-  // transformation (if any params exist that need transformation).
-  // Create a fast transformation path, only if it does.
-  bool include_fast_path =
-      do_conversion && wasm_param_count > 0 && QualifiesForFastTransform();
-
+  // Create the js_closure and js_context parameters.
+  V<JSFunction> js_closure =
+      __ Parameter(compiler::Linkage::kJSCallClosureParamIndex,
+                   RegisterRepresentation::Tagged());
+  V<Context> js_context = __ Parameter(
+      compiler::Linkage::GetJSCallContextParamIndex(wasm_param_count + 1),
+      RegisterRepresentation::Tagged());
   V<SharedFunctionInfo> shared = __ Load(js_closure, LoadOp::Kind::TaggedBase(),
                                          MemoryRepresentation::TaggedPointer(),
                                          JSFunction::kSharedFunctionInfoOffset);
@@ -350,13 +281,33 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
           shared, LoadOp::Kind::TaggedBase(),
           kWasmFunctionDataIndirectPointerTag,
           SharedFunctionInfo::kTrustedFunctionDataOffset));
-  // If we are not inlining, we don't need the wasm instance.
-  V<WasmTrustedInstanceData> instance_data =
-      inlined_function_data_.has_value()
-          ? V<WasmTrustedInstanceData>::Cast(__ LoadProtectedPointerField(
-                function_data, LoadOp::Kind::TaggedBase(),
-                WasmExportedFunctionData::kProtectedInstanceDataOffset))
-          : OpIndex::Invalid();
+
+  if (!IsJSCompatibleSignature(sig_)) {
+    // Throw a TypeError. Use the js_context of the calling javascript
+    // function (passed as a parameter), such that the generated code is
+    // js_context independent.
+    __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmThrowJSTypeError, {},
+                       js_context);
+    __ Unreachable();
+    return;
+  }
+
+  const int args_count = wasm_param_count + 1;  // +1 for wasm_code.
+
+  // Check whether the signature of the function allows for a fast
+  // transformation (if any params exist that need transformation).
+  // Create a fast transformation path, only if it does.
+  bool include_fast_path =
+      do_conversion && wasm_param_count > 0 && QualifiesForFastTransform();
+
+  // Prepare Param() nodes. Param() nodes can only be created once,
+  // so we need to use the same nodes along all possible transformation paths.
+  base::SmallVector<OpIndex, 16> params(args_count);
+  const int param_offset = receiver_is_first_param ? 0 : 1;
+  for (int i = 0; i < wasm_param_count; ++i) {
+    params[i] =
+        __ Parameter(i + param_offset, RegisterRepresentation::Tagged());
+  }
 
   Label<Object> done(&Asm());
   V<Object> jsval;
@@ -372,24 +323,18 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
     // Convert JS parameters to wasm numbers using the fast transformation
     // and build the call.
     base::SmallVector<OpIndex, 16> args(args_count);
-    args[0] = instance_data;
     for (int i = 0; i < wasm_param_count; ++i) {
       OpIndex wasm_param = FromJSFast(params[i], sig_->GetParam(i));
       args[i + 1] = wasm_param;
     }
-
-    // Inline the wasm function, if possible.
-    jsval = InlineWasmFunctionInsideWrapper(
-        js_context, function_data, VectorOf(args), do_conversion, frame_state);
-
+    jsval = BuildCallAndReturn(js_context, function_data, base::VectorOf(args),
+                               do_conversion);
     GOTO(done, jsval);
     __ Bind(slow_path);
   }
-
   // Convert JS parameters to wasm numbers using the default transformation
   // and build the call.
   base::SmallVector<OpIndex, 16> args(args_count);
-  args[0] = instance_data;
   for (int i = 0; i < wasm_param_count; ++i) {
     if (do_conversion) {
       args[i + 1] =
@@ -408,28 +353,16 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
     }
   }
 
-  // Inline the wasm function, if possible.
-  jsval = InlineWasmFunctionInsideWrapper(
-      js_context, function_data, VectorOf(args), do_conversion, frame_state);
-
+  jsval = BuildCallAndReturn(js_context, function_data, base::VectorOf(args),
+                             do_conversion);
   // If both the default and a fast transformation paths are present,
   // get the return value based on the path used.
   if (include_fast_path) {
     GOTO(done, jsval);
     BIND(done, result);
-    return result;
-  } else {
-    return jsval;
-  }
-}
-
-template <typename Assembler>
-void WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
-    bool receiver_is_first_param) {
-  V<Any> result = BuildJSToWasmWrapperImpl(
-      receiver_is_first_param, OpIndex::Invalid(), OpIndex::Invalid(), {}, {});
-  if (result != OpIndex::Invalid()) {  // Invalid signature.
     __ Return(result);
+  } else {
+    __ Return(jsval);
   }
 }
 
@@ -641,7 +574,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmStackEntryWrapper() {
       this->BuildFunctionTargetAndImplicitArg(internal_function);
   OpIndex arg = instance;
   BuildCallWasmFromWrapper(__ phase_zone(), sig_, target,
-                           base::VectorOf(&arg, 1), {}, {});
+                           base::VectorOf(&arg, 1), {});
   CallBuiltin<WasmFXReturnDescriptor>(Builtin::kWasmFXReturn,
                                       Operator::kNoProperties);
   __ Unreachable();

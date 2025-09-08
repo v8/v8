@@ -704,13 +704,11 @@ ForInParameters const& ForInParametersOf(const Operator* op) {
 #if V8_ENABLE_WEBASSEMBLY
 JSWasmCallParameters::JSWasmCallParameters(
     wasm::NativeModule* native_module, int function_index,
-    SharedFunctionInfoRef shared_fct_info, FeedbackSource const& feedback,
-    bool receiver_is_first_param)
+    SharedFunctionInfoRef shared_fct_info, FeedbackSource const& feedback)
     : native_module_(native_module),
       function_index_(function_index),
       shared_fct_info_(shared_fct_info),
-      feedback_(feedback),
-      receiver_is_first_param_(receiver_is_first_param) {}
+      feedback_(feedback) {}
 
 JSWasmCallParameters const& JSWasmCallParametersOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kJSWasmCall, op->opcode());

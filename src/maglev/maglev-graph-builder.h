@@ -319,9 +319,6 @@ class MaglevGraphBuilder {
   template <bool is_possible_map_change = true>
   void ResetBuilderCachedState();
 
-  static SpeculationMode GetSpeculationMode(
-      compiler::JSHeapBroker* broker, compiler::FeedbackSource feedback_source);
-
  private:
   class DeoptFrameScopeBase;
 

@@ -22,7 +22,6 @@
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/compiler/frame-states.h"
 #include "src/compiler/globals.h"
-#include "src/compiler/js-call-reducer.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/access-builder.h"
 #include "src/compiler/turboshaft/assembler.h"
@@ -1322,43 +1321,6 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::CallKnownJSFunction* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
-
-    JSWasmCallParameters* wasm_call_params = nullptr;
-#if V8_ENABLE_WEBASSEMBLY
-    SharedFunctionInfoRef shared = node->shared_function_info();
-    Tagged<Code> code = shared.object()->GetCode(isolate_);
-    Tagged<Object> data = shared.object()->GetTrustedData(isolate_);
-    // If the code is a JS-to-Wasm wrapper (either the generic builtin or a
-    // compiled wrapper), we might be able to inline it.
-    bool is_calling_js_to_wasm_wrapper_builtin =
-        (code->builtin_id() == Builtin::kJSToWasmWrapper) ||
-        (code->kind() == CodeKind::JS_TO_WASM_FUNCTION);
-    if (v8_flags.turbolev_inline_js_wasm_wrappers &&
-        is_calling_js_to_wasm_wrapper_builtin &&
-        IsWasmExportedFunctionData(data)) {
-      FeedbackSource feedback = node->feedback_source();
-      SpeculationMode speculation_mode =
-          maglev::MaglevGraphBuilder::GetSpeculationMode(broker_, feedback);
-      // Avoid deoptimization loops if feedback says we should be conservative.
-      if (speculation_mode == SpeculationMode::kAllowSpeculation) {
-        Tagged<WasmExportedFunctionData> function_data =
-            TrustedCast<WasmExportedFunctionData>(data);
-        const wasm::CanonicalSig* wasm_signature = function_data->sig();
-        if (CanInlineJSToWasmCall(wasm_signature)) {
-          Tagged<WasmTrustedInstanceData> instance_data =
-              function_data->instance_data();
-          wasm::NativeModule* native_module = instance_data->native_module();
-          int wasm_function_index = function_data->function_index();
-          bool receiver_is_first_param =
-              function_data->receiver_is_first_param();
-          wasm_call_params = graph_zone()->New<JSWasmCallParameters>(
-              native_module, wasm_function_index, shared, feedback,
-              receiver_is_first_param);
-        }
-      }
-    }
-#endif  // V8_ENABLE_WEBASSEMBLY
-
     V<Object> callee = Map(node->closure());
     int actual_parameter_count = JSParameterCount(node->num_args());
 
@@ -1423,9 +1385,9 @@ class GraphBuildingNodeProcessor {
       BAILOUT_IF_TOO_MANY_ARGUMENTS_FOR_CALL(arguments.size());
       SetMap(node, __ Call(V<CallTarget>::Cast(callee), frame_state,
                            base::VectorOf(arguments),
-                           TSCallDescriptor::Create(
-                               descriptor, CanThrow::kYes, lazy_deopt_on_throw,
-                               graph_zone(), wasm_call_params)));
+                           TSCallDescriptor::Create(descriptor, CanThrow::kYes,
+                                                    lazy_deopt_on_throw,
+                                                    graph_zone())));
     }
 
     return maglev::ProcessResult::kContinue;

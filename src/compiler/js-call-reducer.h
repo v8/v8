@@ -36,10 +36,6 @@ class MapInference;
 class NodeProperties;
 class SimplifiedOperatorBuilder;
 
-#if V8_ENABLE_WEBASSEMBLY
-bool CanInlineJSToWasmCall(const wasm::CanonicalSig* wasm_signature);
-#endif  // V8_ENABLE_WEBASSEMBLY
-
 // Performs strength reduction on {JSConstruct} and {JSCall} nodes,
 // which might allow inlining or other optimizations to be performed afterwards.
 class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {

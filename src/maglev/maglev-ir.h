@@ -10787,8 +10787,7 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
       JSDispatchHandle dispatch_handle,
 #endif
       compiler::SharedFunctionInfoRef shared_function_info, ValueNode* closure,
-      ValueNode* context, ValueNode* receiver, ValueNode* new_target,
-      const compiler::FeedbackSource& feedback_source);
+      ValueNode* context, ValueNode* receiver, ValueNode* new_target);
 
   // This node might eventually be overwritten by conversion nodes that need
   // to do a deferred call.
@@ -10817,10 +10816,6 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
     return shared_function_info_;
   }
 
-  const compiler::FeedbackSource& feedback_source() const {
-    return feedback_source_;
-  }
-
   void VerifyInputs() const;
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing();
@@ -10847,7 +10842,6 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   int expected_parameter_count_;
 
   UseRepresentationSet uses_repr_hint_ = {};
-  compiler::FeedbackSource feedback_source_;
 };
 
 // This node overwrites CallKnownJSFunction in-place after inlining.

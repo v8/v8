@@ -847,8 +847,7 @@ class JSWasmCallParameters {
   explicit JSWasmCallParameters(wasm::NativeModule* native_module,
                                 int function_index,
                                 SharedFunctionInfoRef shared_fct_info,
-                                FeedbackSource const& feedback,
-                                bool receiver_is_first_param = false);
+                                FeedbackSource const& feedback);
 
   wasm::NativeModule* native_module() const { return native_module_; }
   int function_index() const { return function_index_; }
@@ -856,14 +855,12 @@ class JSWasmCallParameters {
   FeedbackSource const& feedback() const { return feedback_; }
   int input_count() const;
   int arity_without_implicit_args() const;
-  bool receiver_is_first_param() const { return receiver_is_first_param_; }
 
  private:
   wasm::NativeModule* native_module_;
   int function_index_;
   SharedFunctionInfoRef shared_fct_info_;
   const FeedbackSource feedback_;
-  bool receiver_is_first_param_;
 };
 
 JSWasmCallParameters const& JSWasmCallParametersOf(const Operator* op)
