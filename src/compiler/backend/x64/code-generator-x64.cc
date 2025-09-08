@@ -499,6 +499,30 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
   Zone* zone_;
 };
 
+class OutOfLineVerifySkippedIndirectWriteBarrier final : public OutOfLineCode {
+ public:
+  OutOfLineVerifySkippedIndirectWriteBarrier(CodeGenerator* gen,
+                                             Register object, Register value)
+      : OutOfLineCode(gen),
+        object_(object),
+        value_(value),
+        zone_(gen->zone()) {}
+
+  void Generate() final {
+    SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
+
+    __ CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(object_, value_,
+                                                              save_fp_mode);
+  }
+
+ private:
+  Register const object_;
+  Register const value_;
+  Zone* zone_;
+};
+
 template <std::memory_order order>
 int EmitStore(MacroAssembler* masm, Operand operand, Register value,
               MachineRepresentation rep) {
@@ -1921,12 +1945,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Operand operand = i.MemoryOperand(&index);
       Register value = i.InputRegister(index);
 
-      if (v8_flags.verify_write_barriers) {
-        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object,
-                                                                   value);
-        __ JumpIfNotSmi(value, ool->entry());
-        __ bind(ool->exit());
-      }
+      DCHECK(v8_flags.verify_write_barriers);
+      auto ool =
+          zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object, value);
+      __ JumpIfNotSmi(value, ool->entry());
+      __ bind(ool->exit());
 
       if (arch_opcode == kArchStoreSkippedWriteBarrier) {
         EmitTSANAwareStore<std::memory_order_relaxed>(
@@ -1964,6 +1987,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchStoreIndirectSkippedWriteBarrier: {
+      Register object = i.InputRegister(0);
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       Register value = i.InputRegister(index++);
@@ -1972,6 +1996,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           static_cast<IndirectPointerTag>(i.InputInt64(index));
       DCHECK(IsValidIndirectPointerTag(tag));
 #endif  // DEBUG
+
+      DCHECK(v8_flags.verify_write_barriers);
+      auto ool = zone()->New<OutOfLineVerifySkippedIndirectWriteBarrier>(
+          this, object, value);
+      __ jmp(ool->entry());
+      __ bind(ool->exit());
 
       EmitTSANAwareStore<std::memory_order_relaxed>(
           zone(), this, masm(), operand, value, i, DetermineStubCallMode(),

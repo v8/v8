@@ -960,6 +960,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                                       SaveFPRegsMode fp_mode);
   void CallVerifySkippedWriteBarrierStub(Register object, Register value);
 
+  void CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(
+      Register object, Register value, SaveFPRegsMode fp_mode);
+  void CallVerifySkippedIndirectWriteBarrierStub(Register object,
+                                                 Register value);
+
   // For a given |object| and |offset|:
   //   - Move |object| to |dst_object|.
   //   - Compute the address of the slot pointed to by |offset| in |object| and

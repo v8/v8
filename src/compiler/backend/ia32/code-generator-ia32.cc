@@ -1059,12 +1059,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Check(not_equal, AbortReason::kOperandIsCleared);
       }
 
-      if (v8_flags.verify_write_barriers) {
-        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object,
-                                                                   value);
-        __ JumpIfNotSmi(value, ool->entry());
-        __ bind(ool->exit());
-      }
+      DCHECK(v8_flags.verify_write_barriers);
+      auto ool =
+          zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object, value);
+      __ JumpIfNotSmi(value, ool->entry());
+      __ bind(ool->exit());
 
       if (arch_opcode == kArchStoreSkippedWriteBarrier) {
         __ mov(operand, value);

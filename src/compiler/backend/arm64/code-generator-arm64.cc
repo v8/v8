@@ -411,6 +411,30 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
   Zone* zone_;
 };
 
+class OutOfLineVerifySkippedIndirectWriteBarrier final : public OutOfLineCode {
+ public:
+  OutOfLineVerifySkippedIndirectWriteBarrier(CodeGenerator* gen,
+                                             Register object, Register value)
+      : OutOfLineCode(gen),
+        object_(object),
+        value_(value),
+        zone_(gen->zone()) {}
+
+  void Generate() final {
+    SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
+
+    __ CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(object_, value_,
+                                                              save_fp_mode);
+  }
+
+ private:
+  Register const object_;
+  Register const value_;
+  Zone* zone_;
+};
+
 Condition FlagsConditionToCondition(FlagsCondition condition) {
   switch (condition) {
     case kEqual:
@@ -1305,12 +1329,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Check(ne, AbortReason::kOperandIsCleared);
       }
 
-      if (v8_flags.verify_write_barriers) {
-        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object,
-                                                                   value);
-        __ JumpIfNotSmi(value, ool->entry());
-        __ bind(ool->exit());
-      }
+      DCHECK(v8_flags.verify_write_barriers);
+      auto ool =
+          zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object, value);
+      __ JumpIfNotSmi(value, ool->entry());
+      __ bind(ool->exit());
 
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ StoreTaggedField(value, MemOperand(object, offset));
@@ -1355,12 +1378,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register temp = i.TempRegister(0);
       __ Add(temp, object, offset);
 
-      if (v8_flags.verify_write_barriers) {
-        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object,
-                                                                   value);
-        __ JumpIfNotSmi(value, ool->entry());
-        __ bind(ool->exit());
-      }
+      DCHECK(v8_flags.verify_write_barriers);
+      auto ool =
+          zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object, value);
+      __ JumpIfNotSmi(value, ool->entry());
+      __ bind(ool->exit());
 
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       if (COMPRESS_POINTERS_BOOL) {
@@ -1413,6 +1435,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       IndirectPointerTag tag = static_cast<IndirectPointerTag>(i.InputInt64(3));
       DCHECK(IsValidIndirectPointerTag(tag));
 #endif  // DEBUG
+
+      DCHECK(v8_flags.verify_write_barriers);
+      auto ool = zone()->New<OutOfLineVerifySkippedIndirectWriteBarrier>(
+          this, object, value);
+      __ jmp(ool->entry());
+      __ bind(ool->exit());
 
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ StoreIndirectPointerField(value, MemOperand(object, offset));

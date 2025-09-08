@@ -6708,6 +6708,18 @@ void Heap::VerifySkippedWriteBarrier(Address object, Address value) {
 #endif  // V8_VERIFY_WRITE_BARRIERS
 }
 
+// static
+void Heap::VerifySkippedIndirectWriteBarrier(Address object) {
+#if V8_VERIFY_WRITE_BARRIERS
+  DCHECK(v8_flags.verify_write_barriers);
+  LocalHeap* local_heap = LocalHeap::Current();
+  HeapAllocator* allocator = local_heap->allocator();
+  CHECK(allocator->IsMostRecentYoungAllocation(object));
+#else
+  UNREACHABLE();
+#endif  // V8_VERIFY_WRITE_BARRIERS
+}
+
 void Heap::ClearRecordedSlotRange(Address start, Address end) {
 #ifndef V8_DISABLE_WRITE_BARRIERS
   MemoryChunk* chunk = MemoryChunk::FromAddress(start);

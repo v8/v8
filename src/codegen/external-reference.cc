@@ -521,6 +521,9 @@ FUNCTION_REFERENCE(insert_remembered_set_function,
 FUNCTION_REFERENCE(verify_skipped_write_barrier,
                    Heap::VerifySkippedWriteBarrier)
 
+FUNCTION_REFERENCE(verify_skipped_indirect_write_barrier,
+                   Heap::VerifySkippedIndirectWriteBarrier)
+
 namespace {
 
 intptr_t DebugBreakAtEntry(Isolate* isolate, Address raw_sfi) {

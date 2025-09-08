@@ -253,6 +253,8 @@ enum class IsolateFieldId : uint8_t;
     "simple_name_dictionary_lookup_forwarded_string")                          \
   V(simple_name_dictionary_find_insertion_entry_forwarded_string,              \
     "simple_name_dictionary_find_insertion_entry_forwarded_string")            \
+  V(verify_skipped_indirect_write_barrier,                                     \
+    "Heap::VerifySkippedIndirectWriteBarrier")                                 \
   V(verify_skipped_write_barrier, "Heap::VerifySkippedWriteBarrier")           \
   IF_WASM(V, wasm_start_stack, "wasm_start_stack")                             \
   IF_WASM(V, wasm_suspend_stack, "wasm_suspend_stack")                         \

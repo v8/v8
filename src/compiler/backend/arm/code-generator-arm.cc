@@ -1056,12 +1056,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ dmb(ISH);
       }
 
-      if (v8_flags.verify_write_barriers) {
-        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object,
-                                                                   value);
-        __ JumpIfNotSmi(value, ool->entry());
-        __ bind(ool->exit());
-      }
+      DCHECK(v8_flags.verify_write_barriers);
+      auto ool =
+          zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object, value);
+      __ JumpIfNotSmi(value, ool->entry());
+      __ bind(ool->exit());
 
       if (addressing_mode == kMode_Offset_RI) {
         int32_t immediate = i.InputInt32(1);

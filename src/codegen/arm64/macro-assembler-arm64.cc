@@ -4414,6 +4414,22 @@ void MacroAssembler::CallVerifySkippedWriteBarrierStub(Register object,
                 SetIsolateDataSlots::kNo);
 }
 
+void MacroAssembler::CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(
+    Register object, Register value, SaveFPRegsMode fp_mode) {
+  ASM_CODE_COMMENT(this);
+  PushCallerSaved(fp_mode);
+  CallVerifySkippedIndirectWriteBarrierStub(object, value);
+  PopCallerSaved(fp_mode);
+}
+
+void MacroAssembler::CallVerifySkippedIndirectWriteBarrierStub(Register object,
+                                                               Register value) {
+  ASM_CODE_COMMENT(this);
+  MovePair(kCArgRegs[0], object, kCArgRegs[1], value);
+  CallCFunction(ExternalReference::verify_skipped_indirect_write_barrier(), 2,
+                SetIsolateDataSlots::kNo);
+}
+
 void MacroAssembler::MoveObjectAndSlot(Register dst_object, Register dst_slot,
                                        Register object, Operand offset) {
   ASM_CODE_COMMENT(this);

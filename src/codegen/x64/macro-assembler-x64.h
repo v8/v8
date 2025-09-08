@@ -692,6 +692,11 @@ class V8_EXPORT_PRIVATE MacroAssembler
                                                       SaveFPRegsMode fp_mode);
   void CallVerifySkippedWriteBarrierStub(Register object, Register value);
 
+  void CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(
+      Register object, Register value, SaveFPRegsMode fp_mode);
+  void CallVerifySkippedIndirectWriteBarrierStub(Register object,
+                                                 Register value);
+
 #ifdef V8_IS_TSAN
   void CallTSANStoreStub(Register address, Register value,
                          SaveFPRegsMode fp_mode, int size, StubCallMode mode,
