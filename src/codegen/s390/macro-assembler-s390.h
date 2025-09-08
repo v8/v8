@@ -320,6 +320,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Subtract (Register - Immediate)
   void SubS32(Register dst, const Operand& imm);
   void SubS64(Register dst, const Operand& imm);
+  void SubS64(Register dst, int imm) { SubS64(dst, Operand(imm)); }
   void SubS32(Register dst, Register src, const Operand& imm);
   void SubS64(Register dst, Register src, const Operand& imm);
   void SubS32(Register dst, Register src, int32_t imm);
