@@ -18,6 +18,14 @@
 
 namespace v8::internal::maglev {
 
+// Recomputes the use hints for all Phi nodes in the graph. This is
+// necessary after inlining, as the original use hints may be out of date.
+// For example, a Phi node in the caller's graph might now be used by a node
+// from the inlined function, and this new use needs to be recorded.
+//
+// This processor first clears all existing use hints on all Phi nodes. Then,
+// it iterates through all nodes in the graph and re-calculates the use hints
+// for any Phi nodes that are used as inputs.
 class RecomputePhiUseHintsProcessor {
  public:
 #define TRACE_PHI_USE_HINTS(x)                                \

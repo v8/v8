@@ -150,6 +150,9 @@ bool Phi::is_unmerged_loop_phi() const {
 
 void Phi::RecordUseReprHint(UseRepresentationSet repr_mask,
                             bool force_same_loop) {
+  // {force_same_loop} is used when recomputing hints after the initial graph
+  // build, as {is_unmerged_loop_phi()} is no longer a reliable indicator of
+  // whether a use is inside the same loop.
   if (is_loop_phi() && (is_unmerged_loop_phi() || force_same_loop)) {
     same_loop_uses_repr_hint_.Add(repr_mask);
   }

@@ -10128,6 +10128,9 @@ class Phi : public ValueNodeT<Phi> {
 
   BasicBlock* predecessor_at(int i);
 
+  // Records a use hint for this Phi. If {force_same_loop} is true, the hint
+  // is recorded as a same-loop use, which is important for loop-related
+  // optimizations like Phi untagging.
   void RecordUseReprHint(UseRepresentationSet repr_mask,
                          bool force_same_loop = false);
 
