@@ -479,6 +479,8 @@ void NodeBase::Print(std::ostream& os, bool has_regalloc_data,
 }
 
 void NodeBase::Print() const {
+  GetCurrentGraphLabeller()->PrintNodeLabel(std::cout, this, false);
+  std::cout << " : ";
   Print(std::cout);
   std::cout << std::endl;
 }
