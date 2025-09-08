@@ -58,13 +58,10 @@ class RegisterAllocator {
     allocated_registers_.push_back(reg);
   }
 
-  bool registerIsAvailable(const Register& reg) { return available_.has(reg); }
+  bool RegisterIsAvailable(const Register& reg) { return available_.has(reg); }
 
   void Pinned(const Register& requested, Register* reg) {
-    if (!registerIsAvailable(requested)) {
-      printf("%s register is ocupied!", RegisterName(requested));
-    }
-    DCHECK(registerIsAvailable(requested));
+    DCHECK(RegisterIsAvailable(requested));
     *reg = requested;
     Reserve(requested);
     allocated_registers_.push_back(reg);
@@ -82,7 +79,7 @@ class RegisterAllocator {
     if (reg == no_reg) {
       return;
     }
-    DCHECK(registerIsAvailable(reg));
+    DCHECK(RegisterIsAvailable(reg));
     available_.clear(reg);
   }
 
@@ -98,7 +95,7 @@ class RegisterAllocator {
   }
 
   bool IsUsed(const Register& reg) {
-    return initial_.has(reg) && !registerIsAvailable(reg);
+    return initial_.has(reg) && !RegisterIsAvailable(reg);
   }
 
   void ResetExcept(const Register& reg1 = no_reg, const Register& reg2 = no_reg,
@@ -115,7 +112,7 @@ class RegisterAllocator {
 
     auto it = allocated_registers_.begin();
     while (it != allocated_registers_.end()) {
-      if (registerIsAvailable(**it)) {
+      if (RegisterIsAvailable(**it)) {
         **it = no_reg;
         allocated_registers_.erase(it);
       } else {
@@ -1278,9 +1275,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   auto regs = RegisterAllocator::WithAllocatableGeneralRegisters();
   DEFINE_PINNED(args_count, kInterpreterAccumulatorRegister);  // a0
   DEFINE_PINNED(target, a3);
+#ifdef V8_TARGET_ARCH_RISCV64
   DEFINE_PINNED(dispatch_handle, kJavaScriptCallDispatchHandleRegister);  // a4
+#endif
   DEFINE_PINNED(closure, a1);
-  DEFINE_PINNED(dispatch_table, kInterpreterDispatchTableRegister)     // t2;
+  DEFINE_PINNED(dispatch_table, kInterpreterDispatchTableRegister)     // t2
   DEFINE_PINNED(bytecode_array, kInterpreterBytecodeArrayRegister);    // t1
   DEFINE_PINNED(bytecode_offset, kInterpreterBytecodeOffsetRegister);  // s2
   // Get the bytecode array from the function object and load it into
