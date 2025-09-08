@@ -747,9 +747,14 @@ constexpr bool StaticStringsEqual(const char* s1, const char* s2) {
   }
 }
 
-#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+#if COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
 constexpr size_t kContiguousReadOnlyReservationSize =
     V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB * MB;
+// Bound the worst case consumption of contiguous RO space across the various
+// cages/regions.
+static_assert(kMinimumTrustedRangeSize >= 512 * MB);
+static_assert(!kPlatformRequiresCodeRange || kMinimumCodeRangeSize >= 64 * MB);
+
 // In this configuration we only allocate RO objects in the first
 // `kContiguousReadOnlyReservationSize` of the shared data cage. We also create
 // red zones in all cages and reservations that can be used to allocate
@@ -771,11 +776,8 @@ static_assert(base::bits::IsPowerOfTwo(kContiguousReadOnlyReservationSize));
 // ```
 constexpr Address kContiguousReadOnlySpaceMask =
     (kPtrComprCageBaseAlignment - 1) ^ (kContiguousReadOnlyReservationSize - 1);
-// Bound the worst case consumption of contiguous RO space across the various
-// cages/regions.
-static_assert(kMinimumTrustedRangeSize >= 512 * MB);
-static_assert(!kPlatformRequiresCodeRange || kMinimumCodeRangeSize >= 64 * MB);
-#endif  // CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+
+#endif  // COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
 
 // -----------------------------------------------------------------------------
 // Declarations for use in both the preparser and the rest of V8.

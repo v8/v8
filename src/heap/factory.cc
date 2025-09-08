@@ -275,18 +275,20 @@ Tagged<HeapObject> Factory::CodeBuilder::AllocateUninitializedInstructionStream(
         heap->heap()->allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
             object_size, AllocationType::kCode, AllocationOrigin::kRuntime);
     CHECK(!result.is_null());
-#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
-    CHECK((result.ptr() & kContiguousReadOnlySpaceMask) != 0);
-#endif
+#if COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
+    CHECK_IMPLIES(v8_flags.reserve_contiguous_compressed_read_only_space,
+                  (result.ptr() & kContiguousReadOnlySpaceMask) != 0);
+#endif  //  COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
     return result;
   }
   // Return null if we cannot allocate the code object.
   result = heap->AllocateRawWith<HeapAllocator::kLightRetry>(
       object_size, AllocationType::kCode);
-#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
-  CHECK_IMPLIES(!result.is_null(),
+#if COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
+  CHECK_IMPLIES(v8_flags.reserve_contiguous_compressed_read_only_space &&
+                    !result.is_null(),
                 (result.ptr() & kContiguousReadOnlySpaceMask) != 0);
-#endif
+#endif  //  COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
   return result;
 }
 

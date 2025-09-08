@@ -220,12 +220,10 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
   v8::PageAllocator* page_allocator() const { return page_allocator_; }
   v8::PageAllocator* read_only_page_allocator() const {
-#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
-    DCHECK(read_only_page_allocator_);
-    return read_only_page_allocator_.get();
-#else
+    if (read_only_page_allocator_) {
+      return read_only_page_allocator_.get();
+    }
     return page_allocator_;
-#endif
   }
 
 #ifdef V8_COMPRESS_POINTERS
@@ -378,10 +376,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
   std::atomic<int> reference_count_{1};
   v8::PageAllocator* page_allocator_ = nullptr;
-
-#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
   std::unique_ptr<v8::PageAllocator> read_only_page_allocator_;
-#endif
 
 #ifdef V8_COMPRESS_POINTERS
   VirtualMemoryCage* trusted_pointer_compression_cage_ = nullptr;

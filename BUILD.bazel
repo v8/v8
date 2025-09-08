@@ -577,6 +577,7 @@ v8_config(
     }) + select({
         ":enable_pointer_compression_shared_cage": [
             "V8_COMPRESS_POINTERS_IN_SHARED_CAGE",
+            "V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB=8",
         ],
         ":enable_pointer_compression_multiple_cages": [
             "V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES",

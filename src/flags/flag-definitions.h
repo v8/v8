@@ -2552,6 +2552,13 @@ DEFINE_FLOAT(memory_balancer_c_value, 3e-10,
 DEFINE_NEG_IMPLICATION(memory_balancer, memory_reducer)
 DEFINE_BOOL(trace_memory_balancer, false, "print memory balancer behavior.")
 
+#if COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
+DEFINE_BOOL(reserve_contiguous_compressed_read_only_space,
+            CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL,
+            "reserves a contiguous compressed read-only space in all pointer "
+            "compression cages")
+#endif
+
 // assembler-ia32.cc / assembler-arm.cc / assembler-arm64.cc / assembler-x64.cc
 #ifdef V8_ENABLE_DEBUG_CODE
 DEFINE_BOOL(debug_code, DEBUG_BOOL,
