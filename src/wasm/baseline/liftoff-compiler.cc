@@ -8131,7 +8131,8 @@ class LiftoffCompiler {
     __ PushRegister(kI32, dst);
   }
 
-  void RefGetDesc(FullDecoder* decoder, const Value& ref_val, Value* desc_val) {
+  void RefGetDesc(FullDecoder* decoder, ModuleTypeIndex struct_index,
+                  const Value& ref_val, Value* desc_val) {
     LiftoffRegList pinned;
     LiftoffRegister ref = pinned.set(__ PopToRegister());
 

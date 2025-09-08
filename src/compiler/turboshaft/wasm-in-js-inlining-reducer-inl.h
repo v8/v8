@@ -885,7 +885,8 @@ class WasmInJsInliningInterface {
     Bailout(decoder);
   }
 
-  void RefGetDesc(FullDecoder* decoder, const Value& ref, Value* desc) {
+  void RefGetDesc(FullDecoder* decoder, wasm::ModuleTypeIndex struct_index,
+                  const Value& ref, Value* desc) {
     Bailout(decoder);
   }
 

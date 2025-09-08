@@ -5118,15 +5118,16 @@ class TurboshaftGraphBuildingInterface
     }
   }
 
-  void RefGetDesc(FullDecoder* decoder, const Value& ref_val, Value* result) {
-    const ValueType type = ref_val.type;
-    const StructType* struct_type =
-        decoder->module_->struct_type(type.ref_index());
+  void RefGetDesc(FullDecoder* decoder, ModuleTypeIndex struct_index,
+                  const Value& ref_val, Value* result) {
+    // We need {struct_index} because it's guaranteed to be a valid index of
+    // a type that has a descriptor, whereas {ref_val.type} could be "null".
+    const StructType* struct_type = decoder->module_->struct_type(struct_index);
     result->op = __ StructGet(
-        V<WasmStructNullable>::Cast(ref_val.op), struct_type, type.ref_index(),
+        V<WasmStructNullable>::Cast(ref_val.op), struct_type, struct_index,
         StructGetOp::kDescFieldIndex, true /* "signed" is default */,
-        type.is_nullable() ? compiler::kWithNullCheck
-                           : compiler::kWithoutNullCheck,
+        ref_val.type.is_nullable() ? compiler::kWithNullCheck
+                                   : compiler::kWithoutNullCheck,
         {});
   }
 
