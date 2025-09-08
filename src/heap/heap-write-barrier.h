@@ -25,6 +25,7 @@ class JSArrayBuffer;
 class Map;
 class MarkCompactCollector;
 class MarkingBarrier;
+class MemoryChunk;
 class RelocInfo;
 
 // A scoped object that determines the write barrier mode for a given object.
@@ -206,7 +207,16 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
                                                   HeapObjectSlot slot,
                                                   Tagged<HeapObject> value,
                                                   WriteBarrierMode mode);
-
+  static inline void CombinedWriteBarrierInternalForStickyMarkbits(
+      Tagged<HeapObject> host, HeapObjectSlot slot, Tagged<HeapObject> value,
+      WriteBarrierMode mode);
+  // Either marking is on, or we are dealing with an old (non-shared) to
+  // young/shared write.
+  static void CombinedWriteBarrierInternalSlow(Tagged<HeapObject> host,
+                                               MemoryChunk* host_chunk,
+                                               HeapObjectSlot slot,
+                                               Tagged<HeapObject> value,
+                                               MemoryChunk* value_chunk);
   static void CombinedGenerationalAndSharedBarrierSlow(
       Tagged<HeapObject> object, Address slot, Tagged<HeapObject> value);
   static void CombinedGenerationalAndSharedEphemeronBarrierSlow(

@@ -25,40 +25,58 @@
 namespace v8::internal {
 
 // static
-void WriteBarrier::CombinedWriteBarrierInternal(Tagged<HeapObject> host,
-                                                HeapObjectSlot slot,
-                                                Tagged<HeapObject> value,
-                                                WriteBarrierMode mode) {
-  DCHECK_EQ(mode, UPDATE_WRITE_BARRIER);
+void WriteBarrier::CombinedWriteBarrierInternalForStickyMarkbits(
+    Tagged<HeapObject> host, HeapObjectSlot slot, Tagged<HeapObject> value,
+    WriteBarrierMode mode) {
+  DCHECK(v8_flags.sticky_mark_bits.value());
 
   MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
   MemoryChunk* value_chunk = MemoryChunk::FromHeapObject(value);
 
   const bool is_marking = host_chunk->IsMarking();
 
-  if (v8_flags.sticky_mark_bits) {
-    // TODO(333906585): Support shared barrier.
-    if (!HeapLayout::InYoungGeneration(host_chunk, host) &&
-        HeapLayout::InYoungGeneration(value_chunk, value)) {
-      // Generational or shared heap write barrier (old-to-new or
-      // old-to-shared).
-      CombinedGenerationalAndSharedBarrierSlow(host, slot.address(), value);
-    }
-  } else {
-    const bool pointers_from_here_are_interesting =
-        !host_chunk->IsYoungOrSharedChunk();
-    if (pointers_from_here_are_interesting &&
-        value_chunk->IsYoungOrSharedChunk()) {
-      // Generational or shared heap write barrier (old-to-new or
-      // old-to-shared).
-      CombinedGenerationalAndSharedBarrierSlow(host, slot.address(), value);
-    }
+  // TODO(333906585): Support shared barrier.
+  if (!HeapLayout::InYoungGeneration(host_chunk, host) &&
+      HeapLayout::InYoungGeneration(value_chunk, value)) {
+    // Generational or shared heap write barrier (old-to-new or
+    // old-to-shared).
+    CombinedGenerationalAndSharedBarrierSlow(host, slot.address(), value);
   }
-
   // Marking barrier: mark value & record slots when marking is on.
   if (V8_UNLIKELY(is_marking)) {
     MarkingSlow(host, HeapObjectSlot(slot), value);
   }
+}
+
+// static
+void WriteBarrier::CombinedWriteBarrierInternal(Tagged<HeapObject> host,
+                                                HeapObjectSlot slot,
+                                                Tagged<HeapObject> value,
+                                                WriteBarrierMode mode) {
+  DCHECK_EQ(mode, UPDATE_WRITE_BARRIER);
+
+  if constexpr (v8_flags.sticky_mark_bits.value()) {
+    CombinedWriteBarrierInternalForStickyMarkbits(host, slot, value, mode);
+    return;
+  }
+
+  MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
+  // Fast path: Marking is off and the host objects is either in the young
+  // generation or shared space, for which we don't require remembered sets.
+  if (V8_LIKELY(!host_chunk->PointersFromHereAreInteresting())) {
+    return;
+  }
+
+  // Either marking is on, or the host objects is in the old (non-shared)
+  // generation for which we record remembered sets.
+
+  MemoryChunk* value_chunk = MemoryChunk::FromHeapObject(value);
+  // Old to old writes can bail out when marking is off.
+  if (!value_chunk->PointersToHereAreInteresting()) {
+    return;
+  }
+
+  CombinedWriteBarrierInternalSlow(host, host_chunk, slot, value, value_chunk);
 }
 
 // static

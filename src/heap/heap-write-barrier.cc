@@ -354,9 +354,8 @@ void WriteBarrier::CombinedGenerationalAndSharedEphemeronBarrierSlow(
 // static
 void WriteBarrier::CombinedGenerationalAndSharedBarrierSlow(
     Tagged<HeapObject> object, Address slot, Tagged<HeapObject> value) {
-  if (HeapLayout::InYoungGeneration(value)) {
+  if (V8_LIKELY(HeapLayout::InYoungGeneration(value))) {
     GenerationalBarrierSlow(object, slot, value);
-
   } else {
     DCHECK(MemoryChunk::FromHeapObject(value)->InWritableSharedSpace());
     DCHECK(!HeapLayout::InWritableSharedSpace(object));
@@ -364,18 +363,42 @@ void WriteBarrier::CombinedGenerationalAndSharedBarrierSlow(
   }
 }
 
+// static
+void WriteBarrier::CombinedWriteBarrierInternalSlow(Tagged<HeapObject> host,
+                                                    MemoryChunk* host_chunk,
+                                                    HeapObjectSlot slot,
+                                                    Tagged<HeapObject> value,
+                                                    MemoryChunk* value_chunk) {
+  DCHECK(host_chunk->PointersFromHereAreInteresting() ||
+         value_chunk->PointersFromHereAreInteresting());
+  // Generational or shared heap write barrier (old-to-new or
+  // old-to-shared).
+  const bool pointers_from_here_are_interesting =
+      !host_chunk->IsYoungOrSharedChunk();
+  if (V8_LIKELY(pointers_from_here_are_interesting &&
+                value_chunk->IsYoungOrSharedChunk())) {
+    CombinedGenerationalAndSharedBarrierSlow(host, slot.address(), value);
+  }
+
+  // Marking barrier: mark value & record slots when marking is on.
+  if (V8_UNLIKELY(host_chunk->IsMarking())) {
+    MarkingSlow(host, HeapObjectSlot(slot), value);
+  }
+}
+
 //  static
-void WriteBarrier::GenerationalBarrierSlow(Tagged<HeapObject> object,
+void WriteBarrier::GenerationalBarrierSlow(Tagged<HeapObject> host,
                                            Address slot,
                                            Tagged<HeapObject> value) {
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-  MutablePageMetadata* metadata = MutablePageMetadata::cast(chunk->Metadata());
+  MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
+  MutablePageMetadata* host_page =
+      MutablePageMetadata::cast(host_chunk->Metadata());
   if (LocalHeap::Current()->is_main_thread()) {
     RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(
-        metadata, chunk->Offset(slot));
+        host_page, host_chunk->Offset(slot));
   } else {
     RememberedSet<OLD_TO_NEW_BACKGROUND>::Insert<AccessMode::ATOMIC>(
-        metadata, chunk->Offset(slot));
+        host_page, host_chunk->Offset(slot));
   }
 }
 
