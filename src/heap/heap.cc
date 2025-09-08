@@ -1345,15 +1345,11 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
     gc_flags |= GCFlag::kForced;
   }
 
-  const auto perform_heap_limit_check = v8_flags.late_heap_limit_check
-                                            ? PerformHeapLimitCheck::kNo
-                                            : PerformHeapLimitCheck::kYes;
-
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
     const size_t roots_before = num_roots();
     current_gc_flags_ = gc_flags;
     CollectGarbage(OLD_SPACE, gc_reason, kNoGCCallbackFlags,
-                   perform_heap_limit_check);
+                   PerformHeapLimitCheck::kNo);
     DCHECK_EQ(GCFlags(GCFlag::kNoFlags), current_gc_flags_);
 
     // As long as we are at or above the heap limit, we need another GC to
@@ -2134,16 +2130,12 @@ bool Heap::CollectionRequested() {
 void Heap::CollectGarbageWithRetry(AllocationSpace space, GCFlags gc_flags,
                                    GarbageCollectionReason gc_reason,
                                    const GCCallbackFlags gc_callback_flags) {
-  const auto perform_heap_limit_check = v8_flags.late_heap_limit_check
-                                            ? PerformHeapLimitCheck::kNo
-                                            : PerformHeapLimitCheck::kYes;
-
   if (space == NEW_SPACE) {
     DCHECK_EQ(GCFlags(), gc_flags);
 
     for (int i = 0; i < 2; i++) {
       CollectGarbage(NEW_SPACE, gc_reason, gc_callback_flags,
-                     perform_heap_limit_check);
+                     PerformHeapLimitCheck::kNo);
 
       if (!ReachedHeapLimit()) {
         return;
@@ -2154,7 +2146,7 @@ void Heap::CollectGarbageWithRetry(AllocationSpace space, GCFlags gc_flags,
   for (int i = 0; i < 2; i++) {
     current_gc_flags_ = gc_flags;
     CollectGarbage(OLD_SPACE, gc_reason, gc_callback_flags,
-                   perform_heap_limit_check);
+                   PerformHeapLimitCheck::kNo);
     DCHECK_EQ(GCFlags(), current_gc_flags_);
 
     if (!ReachedHeapLimit()) {
