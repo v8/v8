@@ -2366,13 +2366,6 @@ SharedFunctionInfoRef FeedbackVectorRef::shared_function_info(
   return MakeRefAssumeMemoryFence(broker, object()->shared_function_info());
 }
 
-NameRef NameRef::UnpackIfThin(JSHeapBroker* broker) {
-  if (IsString()) {
-    return AsString().UnpackIfThin(broker);
-  }
-  return *this;
-}
-
 bool NameRef::IsUniqueName() const {
   // Must match Name::IsUniqueName.
   return IsInternalizedString() || IsSymbol();
