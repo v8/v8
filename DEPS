@@ -82,7 +82,7 @@ vars = {
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:8863265a67843154872be2be1fc0c37339691405',
+  'siso_version': 'git_revision:39f570f121d63078bca79de500f4f2a50cb37456',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -92,7 +92,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '3926658b1b5124b0c85bc9f2bac450214d3bf7a4',
+  'partition_alloc_version': '09c9e8d5f0d23bd46bfb1f7bc10a294ea7a60774',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -254,7 +254,7 @@ deps = {
   'third_party/fast_float/src':
     Var('chromium_url') + '/external/github.com/fastfloat/fast_float.git' + '@' + 'cb1d42aaa1e14b09e1452cfdef373d051b8c02a4',
   'third_party/fuchsia-gn-sdk': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '276f015664245312a045bbe355ce8b65fd82ace5',
+    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '99294ee55f28f8ae5a3552f4c435528e4c1686b6',
     'condition': 'checkout_fuchsia',
   },
   'third_party/simdutf':
