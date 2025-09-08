@@ -1474,12 +1474,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchStoreSkippedWriteBarrier:  // Fall through.
     case kArchAtomicStoreSkippedWriteBarrier: {
-      Register object = i.InputRegister(0);
-      Register value = i.InputRegister(2);
-      AddressingMode addressing_mode =
-          AddressingModeField::decode(instr->opcode());
+      AddressingMode addressing_mode;
       size_t index = 0;
       MemOperand operand = i.MemoryOperand(&addressing_mode, &index);
+      Register value = i.InputRegister(index);
+      Register object = i.InputRegister(0);
 
       if (v8_flags.debug_code) {
         // Checking that |value| is not a cleared weakref: our write barrier
