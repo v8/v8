@@ -856,14 +856,11 @@ static inline bool is_wasm_on_be(OptimizedCompilationInfo* info) {
     __ load_and_op(result, value, MemOperand(addr));      \
   } while (false)
 
-#define ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end,             \
-                      maybe_reverse_bytes)                                    \
+#define ATOMIC_BIN_OP_HALFWORD_IMPLEMENTATION(bin_inst, offset, shift_amount, \
+                                              start, end)                     \
   do {                                                                        \
-    /* At the moment this is only true when dealing with 2-byte values.*/     \
     bool is_on_heap = MiscField::decode(instr->opcode());                     \
-    bool reverse_bytes =                                                      \
-        maybe_reverse_bytes && is_wasm_on_be(info()) && !is_on_heap;          \
-    USE(reverse_bytes);                                                       \
+    bool reverse_bytes = is_wasm_on_be(info()) && !is_on_heap;                \
     Label do_cs;                                                              \
     __ LoadU32(prev, MemOperand(addr, offset));                               \
     __ bind(&do_cs);                                                          \
@@ -871,18 +868,24 @@ static inline bool is_wasm_on_be(OptimizedCompilationInfo* info) {
       Register temp2 = GetRegisterThatIsNotOneOf(value, result, prev);        \
       __ Push(temp2);                                                         \
       __ lrvr(temp2, prev);                                                   \
-      __ RotateInsertSelectBits(temp2, temp2, Operand(start), Operand(end),   \
-                                Operand(static_cast<intptr_t>(shift_amount)), \
-                                true);                                        \
+      if (!offset) {                                                          \
+        __ ShiftLeftU32(temp2, temp2, Operand(16));                           \
+      } else {                                                                \
+        __ ShiftRightU32(temp2, temp2, Operand(16));                          \
+      }                                                                       \
       __ RotateInsertSelectBits(temp, value, Operand(start), Operand(end),    \
                                 Operand(static_cast<intptr_t>(shift_amount)), \
                                 true);                                        \
       __ bin_inst(new_val, temp2, temp);                                      \
       __ lrvr(temp2, new_val);                                                \
+      if (!offset) {                                                          \
+        __ ShiftLeftU32(temp2, temp2, Operand(16));                           \
+      } else {                                                                \
+        __ ShiftRightU32(temp2, temp2, Operand(16));                          \
+      }                                                                       \
       __ lr(temp, prev);                                                      \
       __ RotateInsertSelectBits(temp, temp2, Operand(start), Operand(end),    \
-                                Operand(static_cast<intptr_t>(shift_amount)), \
-                                false);                                       \
+                                Operand(Operand::Zero()), false);             \
       __ Pop(temp2);                                                          \
     } else {                                                                  \
       __ RotateInsertSelectBits(temp, value, Operand(start), Operand(end),    \
@@ -897,43 +900,64 @@ static inline bool is_wasm_on_be(OptimizedCompilationInfo* info) {
     __ bne(&do_cs, Label::kNear);                                             \
   } while (false)
 
+#define ATOMIC_BIN_OP_BYTE_IMPLEMENTATION(bin_inst, offset, shift_amount,   \
+                                          start, end)                       \
+  do {                                                                      \
+    Label do_cs;                                                            \
+    __ LoadU32(prev, MemOperand(addr, offset));                             \
+    __ bind(&do_cs);                                                        \
+    __ RotateInsertSelectBits(temp, value, Operand(start), Operand(end),    \
+                              Operand(static_cast<intptr_t>(shift_amount)), \
+                              true);                                        \
+    __ bin_inst(new_val, prev, temp);                                       \
+    __ lr(temp, prev);                                                      \
+    __ RotateInsertSelectBits(temp, new_val, Operand(start), Operand(end),  \
+                              Operand::Zero(), false);                      \
+    __ CmpAndSwap(prev, temp, MemOperand(addr, offset));                    \
+    __ bne(&do_cs, Label::kNear);                                           \
+  } while (false)
+
 #ifdef V8_TARGET_BIG_ENDIAN
-#define ATOMIC_BIN_OP_HALFWORD(bin_inst, index, extract_result)      \
-  {                                                                  \
-    constexpr int offset = -(2 * index);                             \
-    constexpr int shift_amount = 16 - (index * 16);                  \
-    constexpr int start = 48 - shift_amount;                         \
-    constexpr int end = start + 15;                                  \
-    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end, true); \
-    extract_result();                                                \
+#define ATOMIC_BIN_OP_HALFWORD(bin_inst, index, extract_result)           \
+  {                                                                       \
+    constexpr int offset = -(2 * index);                                  \
+    constexpr int shift_amount = 16 - (index * 16);                       \
+    constexpr int start = 48 - shift_amount;                              \
+    constexpr int end = start + 15;                                       \
+    ATOMIC_BIN_OP_HALFWORD_IMPLEMENTATION(bin_inst, offset, shift_amount, \
+                                          start, end);                    \
+    extract_result();                                                     \
   }
-#define ATOMIC_BIN_OP_BYTE(bin_inst, index, extract_result)           \
-  {                                                                   \
-    constexpr int offset = -(index);                                  \
-    constexpr int shift_amount = 24 - (index * 8);                    \
-    constexpr int start = 56 - shift_amount;                          \
-    constexpr int end = start + 7;                                    \
-    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end, false); \
-    extract_result();                                                 \
+#define ATOMIC_BIN_OP_BYTE(bin_inst, index, extract_result)                  \
+  {                                                                          \
+    constexpr int offset = -(index);                                         \
+    constexpr int shift_amount = 24 - (index * 8);                           \
+    constexpr int start = 56 - shift_amount;                                 \
+    constexpr int end = start + 7;                                           \
+    ATOMIC_BIN_OP_BYTE_IMPLEMENTATION(bin_inst, offset, shift_amount, start, \
+                                      end);                                  \
+    extract_result();                                                        \
   }
 #else
-#define ATOMIC_BIN_OP_HALFWORD(bin_inst, index, extract_result)       \
-  {                                                                   \
-    constexpr int offset = -(2 * index);                              \
-    constexpr int shift_amount = index * 16;                          \
-    constexpr int start = 48 - shift_amount;                          \
-    constexpr int end = start + 15;                                   \
-    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end, false); \
-    extract_result();                                                 \
+#define ATOMIC_BIN_OP_HALFWORD(bin_inst, index, extract_result)           \
+  {                                                                       \
+    constexpr int offset = -(2 * index);                                  \
+    constexpr int shift_amount = index * 16;                              \
+    constexpr int start = 48 - shift_amount;                              \
+    constexpr int end = start + 15;                                       \
+    ATOMIC_BIN_OP_HALFWORD_IMPLEMENTATION(bin_inst, offset, shift_amount, \
+                                          start, end);                    \
+    extract_result();                                                     \
   }
-#define ATOMIC_BIN_OP_BYTE(bin_inst, index, extract_result)           \
-  {                                                                   \
-    constexpr int offset = -(index);                                  \
-    constexpr int shift_amount = index * 8;                           \
-    constexpr int start = 56 - shift_amount;                          \
-    constexpr int end = start + 7;                                    \
-    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end, false); \
-    extract_result();                                                 \
+#define ATOMIC_BIN_OP_BYTE(bin_inst, index, extract_result)                  \
+  {                                                                          \
+    constexpr int offset = -(index);                                         \
+    constexpr int shift_amount = index * 8;                                  \
+    constexpr int start = 56 - shift_amount;                                 \
+    constexpr int end = start + 7;                                           \
+    ATOMIC_BIN_OP_BYTE_IMPLEMENTATION(bin_inst, offset, shift_amount, start, \
+                                      end);                                  \
+    extract_result();                                                        \
   }
 #endif  // V8_TARGET_BIG_ENDIAN
 
