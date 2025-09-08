@@ -2948,6 +2948,15 @@ void Shell::SerializerDeserialize(
 void Shell::WasmSerializeModule(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
+  if (i::v8_flags.fuzzing) {
+    // Serializing modules is "safe", but differential fuzzing will observe
+    // differences in the serialized bytes depending on compiler flags.
+    // Strictly speaking, guarding this block on
+    // v8_flags.correctness_fuzzer_suppressions would be enough; for symmetry
+    // with deserialization we use the more general --fuzzing flag.
+    info.GetReturnValue().Set(Undefined(isolate));
+    return;
+  }
   HandleScope handle_scope(isolate);
   if (!info[0]->IsWasmModuleObject()) {
     ThrowError(isolate, "First argument must be a WasmModuleObject");
@@ -2974,6 +2983,13 @@ void Shell::WasmSerializeModule(
 void Shell::WasmDeserializeModule(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
+  i::PrintF("NOTE: d8.wasm.deserializeModule() is not VRP eligible.\n");
+  if (i::v8_flags.fuzzing) {
+    // Deserializing random bytes could violate arbitrary invariants. This
+    // function is not fuzzer-safe, so just do nothing.
+    info.GetReturnValue().Set(Undefined(isolate));
+    return;
+  }
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope handle_scope(isolate);
   if (!info[0]->IsArrayBuffer()) {
