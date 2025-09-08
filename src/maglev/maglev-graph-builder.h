@@ -473,8 +473,9 @@ class MaglevGraphBuilder {
   // `post_create_input_initializer` function before the node is added to the
   // graph.
   template <typename NodeT, typename Function, typename... Args>
-  NodeT* AddNewNode(size_t input_count,
-                    Function&& post_create_input_initializer, Args&&... args);
+  NodeT* AddNewNodeNoInputConversion(size_t input_count,
+                                     Function&& post_create_input_initializer,
+                                     Args&&... args);
   // Add a new node with a static set of inputs.
   template <typename NodeT, typename... Args>
   NodeT* AddNewNode(std::initializer_list<ValueNode*> inputs, Args&&... args);

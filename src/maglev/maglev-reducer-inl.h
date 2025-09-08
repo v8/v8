@@ -92,7 +92,7 @@ static inline size_t fast_hash_combine(
 
 template <typename BaseT>
 template <typename NodeT, typename Function, typename... Args>
-NodeT* MaglevReducer<BaseT>::AddNewNode(
+NodeT* MaglevReducer<BaseT>::AddNewNodeNoInputConversion(
     size_t input_count, Function&& post_create_input_initializer,
     Args&&... args) {
   NodeT* node =
