@@ -427,16 +427,6 @@
   'test-run-wasm-64/*': [SKIP],
 }],  # 'arch == riscv32'
 
-['arch == riscv32 and mode == debug and simulator_run', {
-  # Fails in debug mode, because the vector unit isn't properly set up and
-  # the simulator catches it:
-  #   Fatal error in ../../src/execution/riscv/simulator-riscv.cc, line ????
-  #   Debug check failed: vu_enabled_.
-  'test-run-wasm-simd/RunWasmLiftoff_F64x2PromoteLowF32x4WithS128Load64Zero': [FAIL],
-  'test-run-wasm-simd/RunWasmLiftoff_S128Load32Zero': [FAIL],
-  'test-run-wasm-simd/RunWasmLiftoff_S128Load64Zero': [FAIL],
-}],  # 'arch == riscv32 and mode == debug and simulator_run'
-
 ##############################################################################
 ['((arch == riscv64) or (arch == riscv32)) and simulator_run', {
 

@@ -2028,14 +2028,15 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
       vzext_vf2(dst_v, kSimd128ScratchReg);
     }
   } else if (transform == LoadTransformationKind::kZeroExtend) {
-    vxor_vv(dst_v, dst_v, dst_v);
     if (memtype == MachineType::Int32()) {
       VU.set(kScratchReg, E32, m1);
+      vxor_vv(dst_v, dst_v, dst_v);
       Lw(scratch, src_op);
       vmv_sx(dst_v, scratch);
     } else {
       DCHECK_EQ(MachineType::Int64(), memtype);
       VU.set(kScratchReg, E64, m1);
+      vxor_vv(dst_v, dst_v, dst_v);
       LoadDouble(kScratchDoubleReg, src_op);
       vfmv_sf(dst_v, kScratchDoubleReg);
     }

@@ -8144,7 +8144,6 @@ void Simulator::DecodeVType() {
         set_rvv_vl(avl);
         set_rd(rvv_vl());
         rvv_trace_status();
-        break;
       }
       vu_enabled_ = true;
       break;
