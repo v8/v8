@@ -37,6 +37,7 @@
   'wasm/exceptions-utils': [SKIP],
   'wasm/gc-js-interop-helpers': [SKIP],
   'wasm/gc-js-interop-export': [SKIP],
+  'wasm/prototype-setup-builder': [SKIP],
   'wasm/wasm-module-builder': [SKIP],
   'sandbox/wasm-jspi': [SKIP],
   'compiler/fast-api-helpers': [SKIP],
