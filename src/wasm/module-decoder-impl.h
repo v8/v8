@@ -10,7 +10,6 @@
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
 #include "src/base/platform/wrappers.h"
-#include "src/logging/counters.h"
 #include "src/strings/unicode.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/canonical-types.h"
@@ -38,6 +37,7 @@ __attribute__((used))
 #endif
 constexpr char kCompilationPriorityString[] =
     "metadata.code.compilation_priority";
+constexpr char kInstructionFrequenciesString[] = "metadata.code.instr_freq";
 constexpr char kDebugInfoString[] = ".debug_info";
 constexpr char kExternalDebugInfoString[] = "external_debug_info";
 constexpr char kBuildIdString[] = "build_id";
@@ -148,6 +148,8 @@ inline SectionCode IdentifyUnknownSectionInternal(Decoder* decoder,
       {base::StaticCharVector(kBranchHintsString), kBranchHintsSectionCode},
       {base::StaticCharVector(kCompilationPriorityString),
        kCompilationPrioritySectionCode},
+      {base::StaticCharVector(kInstructionFrequenciesString),
+       kInstFrequenciesSectionCode},
       {base::StaticCharVector(kDebugInfoString), kDebugInfoSectionCode},
       {base::StaticCharVector(kExternalDebugInfoString),
        kExternalDebugInfoSectionCode},
@@ -509,6 +511,15 @@ class ModuleDecoderImpl : public Decoder {
       case kCompilationPrioritySectionCode:
         if (enabled_features_.has_compilation_hints()) {
           DecodeCompilationPrioritySection();
+        } else {
+          // Ignore this section when feature was disabled. It is an optional
+          // custom section anyways.
+          consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
+        }
+        break;
+      case kInstFrequenciesSectionCode:
+        if (enabled_features_.has_compilation_hints()) {
+          DecodeInstructionFrequenciesSection();
         } else {
           // Ignore this section when feature was disabled. It is an optional
           // custom section anyways.
@@ -1861,7 +1872,76 @@ class ModuleDecoderImpl : public Decoder {
               inner.error().message().c_str());
       }
     }
-    // Skip the whole branch hints section in the outer decoder.
+    // Skip the whole compilation priority section in the outer decoder.
+    consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
+  }
+
+  void DecodeInstructionFrequenciesSection() {
+    TRACE("DecodeInstructionFrequencies module+%d\n",
+          static_cast<int>(pc_ - start_));
+    detected_features_->add_compilation_hints();
+    if (!has_seen_unordered_section(kInstFrequenciesSectionCode)) {
+      set_seen_unordered_section(kInstFrequenciesSectionCode);
+      // Use an inner decoder so that errors don't fail the outer decoder.
+      Decoder inner(start_, pc_, end_, buffer_offset_);
+
+      InstructionFrequencies frequencies;
+
+      uint32_t func_count = inner.consume_u32v("number of functions");
+
+      int64_t last_func_index = -1;
+
+      for (uint32_t i = 0; i < func_count; i++) {
+        uint32_t func_index = inner.consume_u32v("function index");
+        if (static_cast<int64_t>(func_index) <= last_func_index) {
+          inner.error("out of order functions");
+          break;
+        }
+        last_func_index = func_index;
+
+        int64_t last_byte_offset = -1;
+        uint32_t hints_count = inner.consume_u32v("hints count");
+
+        for (uint32_t hint = 0; hint < hints_count; hint++) {
+          uint32_t byte_offset = inner.consume_u32v("byte offset");
+          if (static_cast<int64_t>(byte_offset) <= last_byte_offset) {
+            inner.error("out of order hints");
+            break;
+          }
+          last_byte_offset = byte_offset;
+
+          uint32_t hint_length = inner.consume_u32v("hint length");
+          if (hint_length == 0) {
+            inner.error("hint length must be larger than 0");
+            break;
+          }
+
+          uint8_t frequency = inner.consume_u8("frequency");
+
+          // Skip remaining hint bytes.
+          if (hint_length > 1) {
+            inner.consume_bytes(hint_length - 1);
+          }
+
+          frequencies.emplace(std::pair{func_index, byte_offset}, frequency);
+        }
+      }
+
+      // Extra unexpected bytes are an error.
+      if (inner.more()) {
+        inner.errorf("Unexpected extra bytes: %d\n",
+                     static_cast<int>(inner.pc() - inner.start()));
+      }
+      // If everything went well, accept the compilation priority hints for the
+      // module.
+      if (inner.ok()) {
+        module_->instruction_frequencies = std::move(frequencies);
+      } else {
+        TRACE("DecodeInstructionFrequencies error: %s",
+              inner.error().message().c_str());
+      }
+    }
+    // Skip the whole instruction frequencies section in the outer decoder.
     consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
   }
 

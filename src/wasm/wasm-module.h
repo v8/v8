@@ -647,6 +647,14 @@ struct CompilationPriority {
   int optimization_priority;
 };
 using CompilationPriorities = std::unordered_map<uint32_t, CompilationPriority>;
+// Maps from function index and byte offset in the function to frequency.
+struct Uint32PairHash {
+  size_t operator()(const std::pair<uint32_t, uint32_t> pair) const {
+    return base::hash_value(pair);
+  }
+};
+using InstructionFrequencies =
+    std::unordered_map<std::pair<uint32_t, uint32_t>, uint8_t, Uint32PairHash>;
 
 // Static representation of a module.
 struct V8_EXPORT_PRIVATE WasmModule {
@@ -709,6 +717,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<WasmElemSegment> elem_segments;
   BranchHintInfo branch_hints;
   CompilationPriorities compilation_priorities;
+  InstructionFrequencies instruction_frequencies;
   // Pairs of module offsets and mark id.
   std::vector<std::pair<uint32_t, uint32_t>> inst_traces;
 
