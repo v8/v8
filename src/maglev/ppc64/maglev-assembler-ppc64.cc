@@ -67,7 +67,7 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
     __ push(object);
 
     if (alloc_type == AllocationType::kYoung) {
-      __ SubS64(object, object, Operand(size_in_bytes));
+      __ SubS64(object, object, size_in_bytes);
     } else {
       __ Move(object, 0);
     }
