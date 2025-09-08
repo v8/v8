@@ -1253,6 +1253,12 @@ int64_t V8FileLogger::Time() {
   }
   return timer_.Elapsed().InMicroseconds();
 }
+int64_t V8FileLogger::Time(base::TimeTicks timestamp) {
+  if (v8_flags.verify_predictable) {
+    return isolate_->heap()->MonotonicallyIncreasingTimeInMs() * 1000;
+  }
+  return timer_.Elapsed(timestamp).InMicroseconds();
+}
 
 // These logger can be called concurrently, so only update the VMState if
 // the call is from the main thread.
@@ -2003,7 +2009,7 @@ void V8FileLogger::TickEvent(TickSample* sample, bool overflow) {
   }
   MSG_BUILDER();
   msg << Event::kTick << kNext << reinterpret_cast<void*>(sample->pc) << kNext
-      << Time();
+      << Time(sample->timestamp);
   if (sample->has_external_callback) {
     msg << kNext << 1 << kNext
         << reinterpret_cast<void*>(sample->external_callback_entry);
