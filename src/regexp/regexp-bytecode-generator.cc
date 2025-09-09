@@ -186,6 +186,11 @@ void RegExpBytecodeGenerator::CheckFixedLengthLoop(
   EmitOrLink(on_tos_equals_current_position);
 }
 
+void RegExpBytecodeGenerator::CheckPosition(int cp_offset,
+                                            Label* on_outside_input) {
+  LoadCurrentCharacter(cp_offset, on_outside_input, true);
+}
+
 void RegExpBytecodeGenerator::LoadCurrentCharacterImpl(int cp_offset,
                                                        Label* on_failure,
                                                        bool check_bounds,

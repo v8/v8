@@ -136,9 +136,9 @@ class RegExpMacroAssembler {
                                           unsigned character,
                                           Handle<ByteArray> table,
                                           Label* on_match, Label* on_no_match);
-  // Checks whether the given offset from the current position is before
-  // the end of the string.  May overwrite the current character.
-  virtual void CheckPosition(int cp_offset, Label* on_outside_input);
+  // Checks whether the given offset from the current position is is in-bounds.
+  // May overwrite the current character.
+  virtual void CheckPosition(int cp_offset, Label* on_outside_input) = 0;
   // Check whether a standard/default character class matches the current
   // character. Returns false if the type of special character class does
   // not have custom support.

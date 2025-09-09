@@ -240,11 +240,6 @@ void RegExpMacroAssembler::CheckNotInSurrogatePair(int cp_offset,
   Bind(&ok);
 }
 
-void RegExpMacroAssembler::CheckPosition(int cp_offset,
-                                         Label* on_outside_input) {
-  LoadCurrentCharacter(cp_offset, on_outside_input, true);
-}
-
 void RegExpMacroAssembler::LoadCurrentCharacter(int cp_offset,
                                                 Label* on_end_of_input,
                                                 bool check_bounds,
