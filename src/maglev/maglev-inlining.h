@@ -53,7 +53,10 @@ class MaglevInliner {
 
   bool is_tracing_enabled() const { return graph_->is_tracing_enabled(); }
 
+  bool CanInlineCall();
   MaglevCallSiteInfo* ChooseNextCallSite();
+  bool InlineCallSites();
+  void RunOptimizer();
 
   enum class InliningResult {
     kDone,

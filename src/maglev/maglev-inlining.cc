@@ -66,9 +66,16 @@ bool MaglevInliner::IsSmallWithHeapNumberInputsOutputs(
          max_inlined_bytecode_size_small_with_heapnum_in_out();
 }
 
-bool MaglevInliner::Run() {
-  if (graph_->inlineable_calls().empty()) return true;
+bool MaglevInliner::CanInlineCall() {
+  return !graph_->inlineable_calls().empty() &&
+         (graph_->total_inlined_bytecode_size() <
+              max_inlined_bytecode_size_cumulative() ||
+          graph_->total_inlined_bytecode_size_small() <
+              max_inlined_bytecode_size_small_total());
+}
 
+bool MaglevInliner::InlineCallSites() {
+  DCHECK(CanInlineCall());
   while (!graph_->inlineable_calls().empty()) {
     MaglevCallSiteInfo* call_site = ChooseNextCallSite();
 
@@ -111,6 +118,11 @@ bool MaglevInliner::Run() {
     if (result == InliningResult::kFail) continue;
     DCHECK_EQ(result, InliningResult::kDone);
 
+    // Remove unreachable blocks if we have any.
+    if (graph_->may_have_unreachable_blocks()) {
+      graph_->RemoveUnreachableBlocks();
+    }
+
     // If --trace-maglev-inlining-verbose, we print the graph after each
     // inlining step/call.
     if (V8_UNLIKELY(ShouldPrintMaglevGraph())) {
@@ -119,24 +131,28 @@ bool MaglevInliner::Run() {
                 << std::endl;
       PrintGraph(std::cout, graph_);
     }
+  }
+  return true;
+}
 
-    // Remove unreachable blocks if we have any.
-    if (graph_->may_have_unreachable_blocks()) {
-      graph_->RemoveUnreachableBlocks();
-    }
+void MaglevInliner::RunOptimizer() {
+  MaglevGraphOptimizer optimizer_(graph_);
+  GraphMultiProcessor<MaglevGraphOptimizer&, RecomputePhiUseHintsProcessor>
+      optimization_pass(optimizer_,
+                        RecomputePhiUseHintsProcessor{graph_->zone()});
+  optimization_pass.ProcessGraph(graph_);
+  if (V8_UNLIKELY(ShouldPrintMaglevGraph())) {
+    std::cout << "\nAfter optimization " << std::endl;
+    PrintGraph(std::cout, graph_);
+  }
+}
 
-    // Optimize current graph.
-    {
-      GraphProcessor<MaglevGraphOptimizer> optimizer(graph_);
-      optimizer.ProcessGraph(graph_);
+bool MaglevInliner::Run() {
+  if (graph_->inlineable_calls().empty()) return true;
 
-      if (V8_UNLIKELY(ShouldPrintMaglevGraph())) {
-        std::cout << "\nAfter optimization "
-                  << call_site->generic_call_node->shared_function_info()
-                  << std::endl;
-        PrintGraph(std::cout, graph_);
-      }
-    }
+  while (!graph_->inlineable_calls().empty()) {
+    if (!InlineCallSites()) return false;
+    RunOptimizer();
   }
 
   // Clear conversion, identities and ReturnedValues uses from deopt frames.
@@ -148,19 +164,6 @@ bool MaglevInliner::Run() {
                   result_location.second, {})
         .Unwrap();
   }
-
-  {
-    GraphProcessor<RecomputePhiUseHintsProcessor> recompute_phi_use_hints(
-        graph_->zone());
-    recompute_phi_use_hints.ProcessGraph(graph_);
-  }
-
-  // Otherwise we print just once at the end.
-  if (V8_UNLIKELY(ShouldPrintMaglevGraph())) {
-    std::cout << "\nAfter inlining" << std::endl;
-    PrintGraph(std::cout, graph_);
-  }
-
   return true;
 }
 
