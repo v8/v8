@@ -1110,7 +1110,6 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedSmiTagFloat64() {
     }                                                                        \
     return ProcessResult::kContinue;                                         \
   }
-UNTAGGING_CASE(CheckedSmiUntag, Int32, Number)
 UNTAGGING_CASE(UnsafeSmiUntag, Int32, Number)
 UNTAGGING_CASE(CheckedNumberToInt32, Int32, Number)
 UNTAGGING_CASE(TruncateCheckedNumberOrOddballToInt32, TruncatedInt32,
@@ -1122,6 +1121,24 @@ UNTAGGING_CASE(UncheckedNumberOrOddballToFloat64, Float64, NumberOrOddball)
 UNTAGGING_CASE(CheckedNumberOrOddballToHoleyFloat64, HoleyFloat64,
                NumberOrOddball)
 #undef UNTAGGING_CASE
+ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag() {
+  if (ValueNode* input = GetUntaggedValueWithRepresentation(
+          GetInputAt(0), UseRepresentation::kInt32, NodeType::kNumber)) {
+    if (SmiValuesAre31Bits()) {
+      // When the graph builder introduced the CheckedSmiUntag, it also recorded
+      // in the alternatives that its input was a known Smi from this point on.
+      // This information could have been later used to avoid Smi checks when
+      // using this input in contexts that require Smis (like storing the length
+      // of an array for instance). We can thus bypass the CheckedSmiUntag, but
+      // still need to keep a CheckSmi.
+      // TODO(dmercadier): during graph building, record whether the "CheckSmi"
+      // part of CheckSmiUntag is useful or not.
+      reducer_.AddNewNode<CheckedSmiSizedInt32>({input});
+    }
+    return ReplaceWith(input);
+  }
+  return ProcessResult::kContinue;
+}
 
 ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToFloat64() {
   // TODO(b/424157317): Optimize.

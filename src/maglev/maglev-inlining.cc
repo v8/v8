@@ -432,13 +432,21 @@ ProcessResult ReturnedValueRepresentationSelector::Process(
       break;
     case ValueRepresentation::kFloat64:
       node->OverwriteWith<Float64ToTagged>();
+      // Note: it's important to use kCanonicalizeSmi here so that CheckSmis can
+      // be replaced by CheckSmiSizedInt32 while having the guarantee that
+      // re-tagged version of this node will indeed be Smis (and not Smi-sized
+      // HeapNumbers).
       node->Cast<Float64ToTagged>()->SetMode(
-          Float64ToTagged::ConversionMode::kForceHeapNumber);
+          Float64ToTagged::ConversionMode::kCanonicalizeSmi);
       break;
     case ValueRepresentation::kHoleyFloat64:
       node->OverwriteWith<HoleyFloat64ToTagged>();
+      // Note: it's important to use kCanonicalizeSmi here so that CheckSmis can
+      // be replaced by CheckSmiSizedInt32 while having the guarantee that
+      // re-tagged version of this node will indeed be Smis (and not Smi-sized
+      // HeapNumbers).
       node->Cast<HoleyFloat64ToTagged>()->SetMode(
-          HoleyFloat64ToTagged::ConversionMode::kForceHeapNumber);
+          HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi);
       break;
     case ValueRepresentation::kIntPtr:
       node->OverwriteWith<IntPtrToNumber>();

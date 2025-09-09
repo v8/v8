@@ -701,9 +701,14 @@ class KnownNodeAspects {
 
   ValueNode*& GetContextCachedValue(ValueNode* context, int offset,
                                     ContextSlotMutability slot_mutability) {
-    return slot_mutability == kMutable
-               ? loaded_context_slots_[{context, offset}]
-               : loaded_context_constants_[{context, offset}];
+    ValueNode*& cached_value =
+        slot_mutability == kMutable
+            ? loaded_context_slots_[{context, offset}]
+            : loaded_context_constants_[{context, offset}];
+    if (cached_value) {
+      cached_value = cached_value->UnwrapIdentities();
+    }
+    return cached_value;
   }
   bool HasContextCacheValue(ValueNode* context, int offset,
                             ContextSlotMutability slot_mutability) {
