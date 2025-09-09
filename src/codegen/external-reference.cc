@@ -264,11 +264,6 @@ ExternalReference ExternalReference::Create(Runtime::FunctionId id) {
 }
 
 // static
-ExternalReference ExternalReference::Create(IsolateFieldId id) {
-  return ExternalReference(id);
-}
-
-// static
 ExternalReference ExternalReference::Create(const Runtime::Function* f) {
   return ExternalReference(
       Redirect(f->entry, BuiltinCallTypeForResultSize(f->result_size)));
@@ -595,10 +590,6 @@ Address ExternalReference::UnwrapRedirection(Address redirection_trampoline) {
 #else
   return redirection_trampoline;
 #endif
-}
-
-ExternalReference ExternalReference::stress_deopt_count(Isolate* isolate) {
-  return ExternalReference(isolate->stress_deopt_count_address());
 }
 
 ExternalReference ExternalReference::force_slow_path(Isolate* isolate) {

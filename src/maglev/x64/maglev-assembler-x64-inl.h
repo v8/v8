@@ -957,30 +957,23 @@ inline void MaglevAssembler::EmitEagerDeoptStress(Label* target) {
     return;
   }
 
-  ExternalReference counter = ExternalReference::stress_deopt_count(isolate());
-  // The following code assumes that `Isolate::stress_deopt_count_` is 8 bytes
-  // wide.
-  static constexpr size_t kSizeofRAX = 8;
-  static_assert(sizeof(decltype(*isolate()->stress_deopt_count_address())) ==
-                kSizeofRAX);
+  ExternalReference counter =
+      ExternalReference::Create(IsolateFieldId::kStressDeoptCount);
 
   Label fallthrough;
+  // pushfq / popfq to avoid modifying flags.
   pushfq();
-  pushq(rax);
-  load_rax(counter);
-  decl(rax);
+  decl(ExternalReferenceAsOperand(counter));
   JumpIf(not_zero, &fallthrough, Label::kNear);
 
-  RecordComment("-- deopt_every_n_times hit, jump to eager deopt");
-  Move(rax, v8_flags.deopt_every_n_times);
-  store_rax(counter);
-  popq(rax);
+  RecordComment("--deopt-every-n-times hit, jump to eager deopt");
+  // mov and jmp do not modify flags.
   popfq();
+  movl(ExternalReferenceAsOperand(counter),
+       Immediate(v8_flags.deopt_every_n_times.value()));
   JumpToDeopt(target);
 
   bind(&fallthrough);
-  store_rax(counter);
-  popq(rax);
   popfq();
 }
 

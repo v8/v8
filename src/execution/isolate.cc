@@ -4628,7 +4628,7 @@ void Isolate::Deinit() {
 
   if (v8_flags.print_deopt_stress) {
     PrintF(stdout, "=== Stress deopt counter: %" PRIu64 "\n",
-           stress_deopt_count_);
+           isolate_data_.stress_deopt_count_);
   }
 
   // We must stop the logger before we tear down other components.
@@ -5653,7 +5653,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   CHECK_IMPLIES(is_shared_space_isolate(), V8_CAN_CREATE_SHARED_HEAP_BOOL);
 
-  stress_deopt_count_ = v8_flags.deopt_every_n_times;
   force_slow_path_ = v8_flags.force_slow_path;
 
   flush_denormals_ = base::FPU::GetFlushDenormals();
@@ -5684,7 +5683,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   define_own_stub_cache_ = new StubCache(this);
   materialized_object_store_ = new MaterializedObjectStore(this);
   regexp_stack_ = RegExpStack::New();
-  isolate_data()->set_regexp_static_result_offsets_vector(
+  isolate_data_.set_regexp_static_result_offsets_vector(
       jsregexp_static_offsets_vector());
   date_cache_ = new DateCache();
   interpreter_ = new interpreter::Interpreter(this);
@@ -5751,6 +5750,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   isolate_data_.is_shared_space_isolate_flag_ = is_shared_space_isolate();
   isolate_data_.uses_shared_heap_flag_ = has_shared_space();
+
+  isolate_data_.stress_deopt_count_ = v8_flags.deopt_every_n_times;
 
   if (use_shared_space_isolate && !is_shared_space_isolate() &&
       use_shared_space_isolate->heap()

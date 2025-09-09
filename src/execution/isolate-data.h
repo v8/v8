@@ -167,6 +167,7 @@ struct JSBuiltinDispatchHandleRoot {
   /* This padding aligns next field to kDoubleSize bytes. */                   \
   PADDING_FIELD(kDoubleSize, V, RawArgumentsPadding, raw_arguments_padding)    \
   V(RawArguments, 2 * kDoubleSize, raw_arguments)                              \
+  V(StressDeoptCount, kUInt64Size, stress_deopt_count)                         \
   ISOLATE_DATA_FIELDS_LEAPTIERING(V)
 
 #ifdef V8_COMPRESS_POINTERS
@@ -595,6 +596,9 @@ class IsolateData final {
   struct RawArgument {
     uint8_t storage_[kDoubleSize];
   } raw_arguments_[2] = {};
+
+  // Counts deopt points if deopt_every_n_times is enabled.
+  uint64_t stress_deopt_count_ = 0;
 
 #if V8_ENABLE_LEAPTIERING_BOOL && !V8_STATIC_DISPATCH_HANDLES_BOOL
   // The entries in this array are dispatch handles for builtins with SFI's.
