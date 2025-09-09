@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <memory>
 #include <sstream>
@@ -63,7 +64,9 @@ class ProgramOptions final {
   bool verbose() const { return verbose_; }
   std::string extra_flags() const { return header_options_.extra_flags; }
   bool suppress_runtime_errors() const { return baseline() && !verbose_; }
-  std::vector<std::string> input_filenames() const { return input_filenames_; }
+  std::vector<std::filesystem::path> input_filenames() const {
+    return input_filenames_;
+  }
   std::string output_filename() const { return output_filename_; }
   std::string test_function_name() const {
     return header_options_.test_function_name;
@@ -81,7 +84,7 @@ class ProgramOptions final {
   bool check_baseline_ = false;
   bool verbose_ = false;
   BytecodeExpectationsHeaderOptions header_options_;
-  std::vector<std::string> input_filenames_;
+  std::vector<std::filesystem::path> input_filenames_;
   std::string output_filename_;
 };
 
@@ -290,10 +293,10 @@ void GenerateExpectationsFile(std::ostream* stream,
 bool WriteExpectationsFile(const std::vector<std::string>& snippet_list,
                            const V8InitializationScope& platform,
                            const ProgramOptions& options,
-                           const std::string& output_filename) {
+                           const std::filesystem::path& output_filename) {
   std::ofstream output_file_handle;
   if (!options.write_to_stdout()) {
-    output_file_handle.open(output_filename.c_str(), std::ios::binary);
+    output_file_handle.open(output_filename, std::ios::binary);
     if (!output_file_handle.is_open()) {
       FATAL("Could not open %s for writing.", output_filename.c_str());
     }
@@ -360,14 +363,14 @@ void PrintUsage(const char* exec_path) {
 
 }  // namespace
 
-bool CheckBaselineExpectations(const std::string& input_filename,
+bool CheckBaselineExpectations(const std::filesystem::path& input_filename,
                                const std::vector<std::string>& snippet_list,
                                const V8InitializationScope& platform,
                                const ProgramOptions& options) {
   std::string actual =
       WriteExpectationsToString(snippet_list, platform, options);
 
-  std::ifstream input_stream(kGoldenFilesPath + input_filename);
+  std::ifstream input_stream(input_filename);
   if (!input_stream.is_open()) {
     FATAL("Could not open %s for reading.", input_filename.c_str());
   }
@@ -443,12 +446,13 @@ int main(int argc, char** argv) {
     }
   } else {
     bool check_failed = false;
-    for (const std::string& input_filename : options.input_filenames()) {
+    for (const std::filesystem::path& input_filename :
+         options.input_filenames()) {
       if (options.verbose()) {
         std::cerr << "Processing " << input_filename << '\n';
       }
 
-      std::ifstream input_stream((kGoldenFilesPath + input_filename).c_str());
+      std::ifstream input_stream(input_filename);
       if (!input_stream.is_open()) {
         FATAL("Could not open %s for reading.", input_filename.c_str());
       }
@@ -470,7 +474,7 @@ int main(int argc, char** argv) {
 
       if (options.rebaseline()) {
         if (!WriteExpectationsFile(snippet_list, platform, updated_options,
-                                   (kGoldenFilesPath + input_filename))) {
+                                   input_filename)) {
           return 3;
         }
       } else if (options.check_baseline()) {

@@ -133,16 +133,26 @@ std::string BytecodeExpectationsParser::ReadToNextSeparator() {
   return out;
 }
 
-std::vector<std::string> CollectGoldenFiles(const char* directory_path) {
-  CHECK(std::filesystem::exists(directory_path));
-  CHECK(std::filesystem::is_directory(directory_path));
+std::vector<std::filesystem::path> CollectGoldenFiles(
+    const char* raw_directory_path) {
+  std::filesystem::path directory_path(raw_directory_path);
+  if (!std::filesystem::exists(directory_path)) {
+    if (directory_path.is_relative()) {
+      // The directory path is likely to be relative to the V8 source -- if the
+      // CWD is an output directory, then the V8 source is likely to be two
+      // levels up from that.
+      directory_path = "../.." / directory_path;
+    }
+  }
+  if (!std::filesystem::exists(directory_path)) return {};
+  if (!std::filesystem::is_directory(directory_path)) return {};
 
-  std::vector<std::string> ret;
+  std::vector<std::filesystem::path> ret;
   for (const auto& entry :
        std::filesystem::directory_iterator(directory_path)) {
     if (!entry.is_regular_file()) continue;
     if (entry.path().extension() == ".golden") {
-      ret.push_back(entry.path().filename().string());
+      ret.push_back(entry.path());
     }
   }
   return ret;
