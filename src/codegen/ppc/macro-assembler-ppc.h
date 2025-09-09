@@ -191,7 +191,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void SubS64(Register dst, Register src, const Operand& value,
               Register scratch = r0, OEBit s = LeaveOE, RCBit r = LeaveRC);
-  void SubS64(Register dst, Register src, int32_t value, Register scratch = r0,
+  void SubS64(Register dst, Register src, int32_t imm, Register scratch = r0,
               OEBit s = LeaveOE, RCBit r = LeaveRC) {
     SubS64(dst, src, Operand(imm), scratch, s, r);
   }
