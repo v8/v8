@@ -4411,12 +4411,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Support for printf-style debugging
   void Print(const char* s);
+  void Print(TNode<String>, TNode<Object> value);
   void Print(const char* prefix, TNode<MaybeObject> tagged_value);
   void Print(TNode<MaybeObject> tagged_value) {
     return Print(nullptr, tagged_value);
   }
+  void Print(TNode<String> prefix, TNode<Uint32T> value);
   void Print(const char* prefix, TNode<Uint32T> value);
+  void Print(TNode<String> prefix, TNode<Uint64T> value);
+  void Print(const char* prefix, TNode<Uint64T> value);
   void Print(const char* prefix, TNode<UintPtrT> value);
+  void Print(TNode<String> prefix, TNode<Float32T> value);
+  void Print(const char* prefix, TNode<Float32T> value);
+  void Print(TNode<String> prefix, TNode<Float64T> value);
   void Print(const char* prefix, TNode<Float64T> value);
   void PrintErr(const char* s);
   void PrintErr(const char* prefix, TNode<MaybeObject> tagged_value);
@@ -4429,6 +4436,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void PrintToStream(const char* prefix, TNode<Uint32T> value, int stream);
   void PrintToStream(const char* prefix, TNode<UintPtrT> value, int stream);
   void PrintToStream(const char* prefix, TNode<Float64T> value, int stream);
+  std::array<TNode<Object>, 4> EncodeValueForDebugPrint(TNode<Word32T> value);
+  std::array<TNode<Object>, 4> EncodeValueForDebugPrint(TNode<Word64T> value);
+  std::array<TNode<Object>, 4> EncodeValueForDebugPrint(TNode<Float32T> value);
+  std::array<TNode<Object>, 4> EncodeValueForDebugPrint(TNode<Float64T> value);
+  void PrintToStream(const char* prefix, DebugPrintValueType value_type,
+                     const std::array<TNode<Object>, 4>& chunks, int stream);
+  void PrintToStream(TNode<String> prefix, DebugPrintValueType value_type,
+                     const std::array<TNode<Object>, 4>& chunks, int stream);
+  void PrintStringSimple(TNode<String> string);
 
   template <class... TArgs>
   TNode<HeapObject> MakeTypeError(MessageTemplate message,

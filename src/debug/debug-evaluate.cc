@@ -1054,8 +1054,11 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
       return DebugInfo::kRequiresRuntimeChecks;
 
     // Debugging builtins.
+    case Builtin::kDebugPrintWord32:
+    case Builtin::kDebugPrintWord64:
+    case Builtin::kDebugPrintFloat32:
     case Builtin::kDebugPrintFloat64:
-    case Builtin::kDebugPrintWordPtr:
+    case Builtin::kDebugPrintObject:
       return DebugInfo::kHasNoSideEffect;
 
     default:

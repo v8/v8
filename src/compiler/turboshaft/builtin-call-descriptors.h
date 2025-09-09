@@ -230,7 +230,9 @@ struct BuiltinCallDescriptor {
   template <Builtin B, typename Input>
   struct DebugPrint : public Descriptor<DebugPrint<B, Input>> {
     static constexpr auto kFunction = B;
-    using arguments_t = std::tuple<V<Input>>;
+    using StringOrSmi = Union<String, Smi>;
+    // We use smi:0 for an empty label.
+    using arguments_t = std::tuple<V<StringOrSmi>, V<Input>>;
     using results_t = std::tuple<V<Object>>;
 
     static constexpr bool kNeedsFrameState = false;
@@ -240,8 +242,11 @@ struct BuiltinCallDescriptor {
     static constexpr OpEffects kEffects =
         base_effects.RequiredWhenUnused().CanAllocate();
   };
+  using DebugPrintObject = DebugPrint<Builtin::kDebugPrintObject, Object>;
+  using DebugPrintWord32 = DebugPrint<Builtin::kDebugPrintWord32, Word32>;
+  using DebugPrintWord64 = DebugPrint<Builtin::kDebugPrintWord64, Word64>;
+  using DebugPrintFloat32 = DebugPrint<Builtin::kDebugPrintFloat32, Float32>;
   using DebugPrintFloat64 = DebugPrint<Builtin::kDebugPrintFloat64, Float64>;
-  using DebugPrintWordPtr = DebugPrint<Builtin::kDebugPrintWordPtr, WordPtr>;
 
   template <Builtin B>
   struct FindOrderedHashEntry : public Descriptor<FindOrderedHashEntry<B>> {

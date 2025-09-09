@@ -2927,27 +2927,22 @@ class CheckTurboshaftFloat64TypeDescriptor
   DECLARE_DEFAULT_DESCRIPTOR(CheckTurboshaftFloat64TypeDescriptor)
 };
 
-class DebugPrintWordPtrDescriptor
-    : public StaticCallInterfaceDescriptor<DebugPrintWordPtrDescriptor> {
- public:
-  INTERNAL_DESCRIPTOR()
-  SANDBOXING_MODE(kSandboxed)
-  DEFINE_RESULT_AND_PARAMETERS(1, kValue)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
-                                    MachineType::UintPtr())
-  DECLARE_DEFAULT_DESCRIPTOR(DebugPrintWordPtrDescriptor)
-};
-
-class DebugPrintFloat64Descriptor
-    : public StaticCallInterfaceDescriptor<DebugPrintFloat64Descriptor> {
- public:
-  INTERNAL_DESCRIPTOR()
-  SANDBOXING_MODE(kSandboxed)
-  DEFINE_RESULT_AND_PARAMETERS(1, kValue)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
-                                    MachineType::Float64())
-  DECLARE_DEFAULT_DESCRIPTOR(DebugPrintFloat64Descriptor)
-};
+#define DEFINE_DEBUG_PRINT_BUILTIN_DESCRIPTOR(Name, Type)                    \
+  class DebugPrint##Name##Descriptor                                         \
+      : public StaticCallInterfaceDescriptor<DebugPrint##Name##Descriptor> { \
+   public:                                                                   \
+    INTERNAL_DESCRIPTOR()                                                    \
+    SANDBOXING_MODE(kSandboxed)                                              \
+    DEFINE_RESULT_AND_PARAMETERS(1, kPrefix, kValue)                         \
+    DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),              \
+                                      MachineType::TaggedPointer(), Type())  \
+    DECLARE_DEFAULT_DESCRIPTOR(DebugPrint##Name##Descriptor)                 \
+  };
+DEFINE_DEBUG_PRINT_BUILTIN_DESCRIPTOR(Word32, MachineType::Uint32)
+DEFINE_DEBUG_PRINT_BUILTIN_DESCRIPTOR(Word64, MachineType::Uint64)
+DEFINE_DEBUG_PRINT_BUILTIN_DESCRIPTOR(Float32, MachineType::Float32)
+DEFINE_DEBUG_PRINT_BUILTIN_DESCRIPTOR(Float64, MachineType::Float64)
+#undef DEFINE_DEBUG_PRINT_BUILTIN_DESCRIPTOR
 
 #define DEFINE_TFS_BUILTIN_DESCRIPTOR(Name, DoesNeedContext, ...)            \
   class Name##Descriptor                                                     \

@@ -3788,15 +3788,35 @@ class TurboshaftAssemblerOpInterface
         typename BuiltinCallDescriptor::CopyFastSmiOrObjectElements>(isolate,
                                                                      {object});
   }
+  void CallBuiltin_DebugPrintFloat32(Isolate* isolate, V<Context> context,
+                                     V<Union<String, Smi>> label_or_0,
+                                     V<Float32> value) {
+    CallBuiltin<typename BuiltinCallDescriptor::DebugPrintFloat32>(
+        isolate, context, {label_or_0, value});
+  }
   void CallBuiltin_DebugPrintFloat64(Isolate* isolate, V<Context> context,
+                                     V<Union<String, Smi>> label_or_0,
                                      V<Float64> value) {
     CallBuiltin<typename BuiltinCallDescriptor::DebugPrintFloat64>(
-        isolate, context, {value});
+        isolate, context, {label_or_0, value});
   }
-  void CallBuiltin_DebugPrintWordPtr(Isolate* isolate, V<Context> context,
-                                     V<WordPtr> value) {
-    CallBuiltin<typename BuiltinCallDescriptor::DebugPrintWordPtr>(
-        isolate, context, {value});
+  void CallBuiltin_DebugPrintWord32(Isolate* isolate, V<Context> context,
+                                    V<Union<String, Smi>> label_or_0,
+                                    V<Word32> value) {
+    CallBuiltin<typename BuiltinCallDescriptor::DebugPrintWord32>(
+        isolate, context, {label_or_0, value});
+  }
+  void CallBuiltin_DebugPrintWord64(Isolate* isolate, V<Context> context,
+                                    V<Union<String, Smi>> label_or_0,
+                                    V<Word64> value) {
+    CallBuiltin<typename BuiltinCallDescriptor::DebugPrintWord64>(
+        isolate, context, {label_or_0, value});
+  }
+  void CallBuiltin_DebugPrintObject(Isolate* isolate, V<Context> context,
+                                    V<Union<String, Smi>> label_or_0,
+                                    V<Object> value) {
+    CallBuiltin<typename BuiltinCallDescriptor::DebugPrintObject>(
+        isolate, context, {label_or_0, value});
   }
   V<Smi> CallBuiltin_FindOrderedHashMapEntry(Isolate* isolate,
                                              V<Context> context,
@@ -4723,18 +4743,90 @@ class TurboshaftAssemblerOpInterface
 #endif
   }
 
-  void DebugPrint(OpIndex input, RegisterRepresentation rep) {
+  void DebugPrint(const std::string& label, OpIndex input,
+                  RegisterRepresentation rep) {
     CHECK(v8_flags.turboshaft_enable_debug_features);
-    ReduceIfReachableDebugPrint(input, rep);
+    CHECK(!__ data()->is_wasm());
+    OptionalV<String> label_string;
+    if (!label.empty()) {
+      JSHeapBroker* broker = Asm().data()->broker();
+      Handle<String> internalized_string;
+      if (broker) {
+        UnparkedScopeIfNeeded scope(broker);
+        LocalIsolate* isolate = broker->local_isolate_or_isolate();
+        internalized_string = isolate->factory()->InternalizeString(
+            base::OneByteVector(label.c_str(), label.length()));
+        internalized_string =
+            broker->CanonicalPersistentHandle(internalized_string);
+      } else {
+        Isolate* isolate = Asm().data()->isolate();
+        // If we don't have a broker, we can only allocate the string on the
+        // main thread.
+        DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+        internalized_string = isolate->factory()->InternalizeString(
+            base::OneByteVector(label.c_str(), label.length()));
+        CanonicalizeEmbeddedBuiltinsConstantIfNeeded(internalized_string);
+      }
+      label_string = __ HeapConstantNoHole(internalized_string);
+    }
+    ReduceIfReachableDebugPrint(input, label_string, rep);
   }
-  void DebugPrint(V<Object> input) {
-    DebugPrint(input, RegisterRepresentation::Tagged());
+  void DebugPrint(OpIndex value, RegisterRepresentation rep) {
+    DebugPrint({}, value, rep);
   }
-  void DebugPrint(V<WordPtr> input) {
-    DebugPrint(input, RegisterRepresentation::WordPtr());
+  void DebugPrint(const std::string& str) {
+    CHECK(v8_flags.turboshaft_enable_debug_features);
+    CHECK(!__ data()->is_wasm());
+    JSHeapBroker* broker = Asm().data()->broker();
+    Handle<String> internalized_string;
+    if (broker) {
+      UnparkedScopeIfNeeded scope(broker);
+      LocalIsolate* isolate = broker->local_isolate_or_isolate();
+      internalized_string = isolate->factory()->InternalizeString(
+          base::OneByteVector(str.c_str(), str.length()));
+      internalized_string =
+          broker->CanonicalPersistentHandle(internalized_string);
+    } else {
+      Isolate* isolate = Asm().data()->isolate();
+      // If we don't have a broker, we can only allocate the string on the main
+      // thread.
+      DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+      internalized_string = isolate->factory()->InternalizeString(
+          base::OneByteVector(str.c_str(), str.length()));
+      CanonicalizeEmbeddedBuiltinsConstantIfNeeded(internalized_string);
+    }
+    V<String> string_constant = __ HeapConstantNoHole(internalized_string);
+    DebugPrint({}, string_constant, RegisterRepresentation::Tagged());
   }
-  void DebugPrint(V<Float64> input) {
-    DebugPrint(input, RegisterRepresentation::Float64());
+  void DebugPrint(const std::string& label, V<Object> value) {
+    DebugPrint(label, value, RegisterRepresentation::Tagged());
+  }
+  void DebugPrint(V<Object> value) {
+    DebugPrint({}, value, RegisterRepresentation::Tagged());
+  }
+  void DebugPrint(V<Word32> value) {
+    DebugPrint({}, value, RegisterRepresentation::Word32());
+  }
+  void DebugPrint(const std::string& label, V<Word32> value) {
+    DebugPrint(label, value, RegisterRepresentation::Word32());
+  }
+  void DebugPrint(V<Word64> value) {
+    DebugPrint({}, value, RegisterRepresentation::Word64());
+  }
+  void DebugPrint(const std::string& label, V<Word64> value) {
+    DebugPrint(label, value, RegisterRepresentation::Word64());
+  }
+  void DebugPrint(const std::string& label, V<Float32> value) {
+    DebugPrint(label, value, RegisterRepresentation::Float32());
+  }
+  void DebugPrint(V<Float32> value) {
+    DebugPrint({}, value, RegisterRepresentation::Float32());
+  }
+  void DebugPrint(const std::string& label, V<Float64> value) {
+    DebugPrint(label, value, RegisterRepresentation::Float64());
+  }
+  void DebugPrint(V<Float64> value) {
+    DebugPrint({}, value, RegisterRepresentation::Float64());
   }
 
   void Comment(const char* message) { ReduceIfReachableComment(message); }

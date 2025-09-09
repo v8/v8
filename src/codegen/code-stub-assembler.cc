@@ -38,6 +38,7 @@
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/tagged-field.h"
 #include "src/roots/roots.h"
+#include "src/runtime/runtime.h"
 #include "third_party/v8/codegen/fp16-inl.h"
 
 namespace v8 {
@@ -18580,17 +18581,54 @@ void CodeStubAssembler::PrintToStream(const char* s, int stream) {
               StringConstant(formatted.c_str()), SmiConstant(stream));
 }
 
+void CodeStubAssembler::Print(TNode<String> prefix, TNode<Object> value) {
+  std::array<TNode<Object>, 4> chunks{value, SmiConstant(0), SmiConstant(0),
+                                      SmiConstant(0)};
+  PrintToStream(prefix, DebugPrintValueType::kTagged, chunks, fileno(stdout));
+}
+
 void CodeStubAssembler::Print(const char* prefix,
                               TNode<MaybeObject> tagged_value) {
   PrintToStream(prefix, tagged_value, fileno(stdout));
 }
 
+void CodeStubAssembler::Print(TNode<String> prefix, TNode<Uint32T> value) {
+  auto chunks = EncodeValueForDebugPrint(value);
+  PrintToStream(prefix, DebugPrintValueType::kWord32, chunks, fileno(stdout));
+}
+
 void CodeStubAssembler::Print(const char* prefix, TNode<Uint32T> value) {
-  PrintToStream(prefix, value, fileno(stdout));
+  auto chunks = EncodeValueForDebugPrint(value);
+  PrintToStream(prefix, DebugPrintValueType::kWord32, chunks, fileno(stdout));
+}
+
+void CodeStubAssembler::Print(TNode<String> prefix, TNode<Uint64T> value) {
+  auto chunks = EncodeValueForDebugPrint(value);
+  PrintToStream(prefix, DebugPrintValueType::kWord64, chunks, fileno(stdout));
+}
+
+void CodeStubAssembler::Print(const char* prefix, TNode<Uint64T> value) {
+  auto chunks = EncodeValueForDebugPrint(value);
+  PrintToStream(prefix, DebugPrintValueType::kWord64, chunks, fileno(stdout));
 }
 
 void CodeStubAssembler::Print(const char* prefix, TNode<UintPtrT> value) {
   PrintToStream(prefix, value, fileno(stdout));
+}
+
+void CodeStubAssembler::Print(TNode<String> prefix, TNode<Float32T> value) {
+  auto chunks = EncodeValueForDebugPrint(value);
+  PrintToStream(prefix, DebugPrintValueType::kFloat32, chunks, fileno(stdout));
+}
+
+void CodeStubAssembler::Print(const char* prefix, TNode<Float32T> value) {
+  auto chunks = EncodeValueForDebugPrint(value);
+  PrintToStream(prefix, DebugPrintValueType::kFloat32, chunks, fileno(stdout));
+}
+
+void CodeStubAssembler::Print(TNode<String> prefix, TNode<Float64T> value) {
+  auto chunks = EncodeValueForDebugPrint(value);
+  PrintToStream(prefix, DebugPrintValueType::kFloat64, chunks, fileno(stdout));
 }
 
 void CodeStubAssembler::Print(const char* prefix, TNode<Float64T> value) {
@@ -18669,6 +18707,93 @@ void CodeStubAssembler::PrintToStream(const char* prefix, TNode<UintPtrT> value,
               chunks[2], chunks[1], chunks[0], SmiConstant(stream));
 }
 
+std::array<TNode<Object>, 4> CodeStubAssembler::EncodeValueForDebugPrint(
+    TNode<Word64T> value) {
+  std::array<TNode<Object>, 4> result;
+
+  // We use 16 bit per chunk.
+  for (int i = 0; i < 4; ++i) {
+    result[i] = SmiFromUint32(ReinterpretCast<Uint32T>(
+        Word64And(ReinterpretCast<Uint64T>(value), Int64Constant(0xFFFF))));
+    value = Word64Shr(value, Int64Constant(16));
+  }
+
+  return result;
+}
+
+std::array<TNode<Object>, 4> CodeStubAssembler::EncodeValueForDebugPrint(
+    TNode<Word32T> value) {
+  std::array<TNode<Object>, 4> result;
+
+  // We use 16 bit per chunk.
+  result[0] = SmiFromUint32(ReinterpretCast<Uint32T>(Word32And(value, 0xFFFF)));
+  result[1] = SmiFromUint32(ReinterpretCast<Uint32T>(
+      Word32And(Word32Shr(value, Int32Constant(16)), 0xFFFF)));
+  result[2] = SmiConstant(0);
+  result[3] = SmiConstant(0);
+
+  return result;
+}
+
+std::array<TNode<Object>, 4> CodeStubAssembler::EncodeValueForDebugPrint(
+    TNode<Float32T> value) {
+  std::array<TNode<Object>, 4> result;
+
+  TNode<Uint32T> low = BitcastFloat32ToInt32(value);
+
+  // We use 16 bit per chunk.
+  result[0] = SmiFromUint32(ReinterpretCast<Uint32T>(Word32And(low, 0xFFFF)));
+  result[1] = SmiFromUint32(ReinterpretCast<Uint32T>(
+      Word32And(Word32Shr(low, Int32Constant(16)), 0xFFFF)));
+  result[2] = SmiConstant(0);
+  result[3] = SmiConstant(0);
+
+  return result;
+}
+
+std::array<TNode<Object>, 4> CodeStubAssembler::EncodeValueForDebugPrint(
+    TNode<Float64T> value) {
+  std::array<TNode<Object>, 4> result;
+
+  // We use word32 extraction instead of `BitcastFloat64ToInt64` to support 32
+  // bit architectures, too.
+  TNode<Uint32T> high = Float64ExtractHighWord32(value);
+  TNode<Uint32T> low = Float64ExtractLowWord32(value);
+
+  // We use 16 bit per chunk.
+  result[0] = SmiFromUint32(ReinterpretCast<Uint32T>(Word32And(low, 0xFFFF)));
+  result[1] = SmiFromUint32(ReinterpretCast<Uint32T>(
+      Word32And(Word32Shr(low, Int32Constant(16)), 0xFFFF)));
+  result[2] = SmiFromUint32(ReinterpretCast<Uint32T>(Word32And(high, 0xFFFF)));
+  result[3] = SmiFromUint32(ReinterpretCast<Uint32T>(
+      Word32And(Word32Shr(high, Int32Constant(16)), 0xFFFF)));
+
+  return result;
+}
+
+void CodeStubAssembler::PrintToStream(
+    const char* prefix, DebugPrintValueType value_type,
+    const std::array<TNode<Object>, 4>& chunks, int stream) {
+  TNode<Object> prefix_string = UndefinedConstant();
+  if (prefix != nullptr) {
+    std::string formatted(prefix);
+    formatted += ": ";
+    prefix_string = HeapConstantNoHole(
+        isolate()->factory()->InternalizeString(formatted.c_str()));
+  }
+  CallRuntime(Runtime::kDebugPrintGeneric, NoContextConstant(), prefix_string,
+              SmiConstant(Smi::FromEnum(value_type)), chunks[3], chunks[2],
+              chunks[1], chunks[0], SmiConstant(stream));
+}
+
+void CodeStubAssembler::PrintToStream(
+    TNode<String> prefix, DebugPrintValueType value_type,
+    const std::array<TNode<Object>, 4>& chunks, int stream) {
+  CallRuntime(Runtime::kDebugPrintGeneric, NoContextConstant(), prefix,
+              SmiConstant(Smi::FromEnum(value_type)), chunks[3], chunks[2],
+              chunks[1], chunks[0], SmiConstant(stream));
+}
+
 void CodeStubAssembler::PrintToStream(const char* prefix, TNode<Float64T> value,
                                       int stream) {
   if (prefix != nullptr) {
@@ -18680,23 +18805,17 @@ void CodeStubAssembler::PrintToStream(const char* prefix, TNode<Float64T> value,
                 HeapConstantNoHole(string), SmiConstant(stream));
   }
 
-  // We use word32 extraction instead of `BitcastFloat64ToInt64` to support 32
-  // bit architectures, too.
-  TNode<Uint32T> high = Float64ExtractHighWord32(value);
-  TNode<Uint32T> low = Float64ExtractLowWord32(value);
-
-  // We use 16 bit per chunk.
-  TNode<Smi> chunks[4];
-  chunks[0] = SmiFromUint32(ReinterpretCast<Uint32T>(Word32And(low, 0xFFFF)));
-  chunks[1] = SmiFromUint32(ReinterpretCast<Uint32T>(
-      Word32And(Word32Shr(low, Int32Constant(16)), 0xFFFF)));
-  chunks[2] = SmiFromUint32(ReinterpretCast<Uint32T>(Word32And(high, 0xFFFF)));
-  chunks[3] = SmiFromUint32(ReinterpretCast<Uint32T>(
-      Word32And(Word32Shr(high, Int32Constant(16)), 0xFFFF)));
+  std::array<TNode<Object>, 4> chunks = EncodeValueForDebugPrint(value);
 
   // Args are: <bits 63-48>, <bits 47-32>, <bits 31-16>, <bits 15-0>, stream.
   CallRuntime(Runtime::kDebugPrintFloat, NoContextConstant(), chunks[3],
               chunks[2], chunks[1], chunks[0], SmiConstant(stream));
+}
+
+void CodeStubAssembler::PrintStringSimple(TNode<String> s) {
+  std::array<TNode<Object>, 4> chunks{s, SmiConstant(0), SmiConstant(0),
+                                      SmiConstant(0)};
+  PrintToStream(nullptr, DebugPrintValueType::kTagged, chunks, fileno(stdout));
 }
 
 IntegerLiteral CodeStubAssembler::ConstexprIntegerLiteralAdd(

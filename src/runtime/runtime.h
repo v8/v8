@@ -562,6 +562,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ConstructThinString, 1, 1)                                           \
   F(CurrentFrameIsTurbofan, 0, 1)                                        \
   F(DebugPrint, -1, 1, RuntimeCallProperty::kCannotTriggerGC)            \
+  F(DebugPrintGeneric, -1, 1)                                            \
   F(DebugPrintFloat, 5, 1)                                               \
   F(DebugPrintPtr, 1, 1)                                                 \
   F(DebugPrintWord, 5, 1)                                                \
@@ -1122,6 +1123,14 @@ enum class OptimizationStatus {
 
 // The number of isolates used for testing in d8.
 V8_EXPORT_PRIVATE extern int g_num_isolates_for_testing;
+
+enum class DebugPrintValueType : uint16_t {
+  kWord32,
+  kWord64,
+  kFloat32,
+  kFloat64,
+  kTagged,
+};
 
 }  // namespace internal
 }  // namespace v8

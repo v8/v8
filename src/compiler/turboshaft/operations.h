@@ -5411,7 +5411,7 @@ struct DebugBreakOp : FixedArityOperationT<0, DebugBreakOp> {
   auto options() const { return std::tuple{}; }
 };
 
-struct DebugPrintOp : FixedArityOperationT<1, DebugPrintOp> {
+struct DebugPrintOp : OperationT<DebugPrintOp> {
   RegisterRepresentation rep;
 
   // We just need to ensure that the debug print stays in the same block and
@@ -5431,12 +5431,32 @@ struct DebugPrintOp : FixedArityOperationT<1, DebugPrintOp> {
     return InputsRepFactory::SingleRep(rep);
   }
 
-  OpIndex input() const { return Base::input(0); }
+  OpIndex value() const { return Base::input(0); }
+  OptionalV<String> label() const {
+    return input_count >= 2 ? Base::input<String>(1)
+                            : OptionalV<String>::Nullopt();
+  }
 
-  DebugPrintOp(OpIndex input, RegisterRepresentation rep)
-      : Base(input), rep(rep) {}
+  DebugPrintOp(OpIndex value, OptionalV<String> label,
+               RegisterRepresentation rep)
+      : Base(1 + label.has_value()), rep(rep) {
+    input(0) = value;
+    if (label.has_value()) {
+      input(1) = label.value();
+    }
+  }
 
   auto options() const { return std::tuple{rep}; }
+
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    return fn(mapper.Map(value()), mapper.Map(label()), rep);
+  }
+
+  static DebugPrintOp& New(Graph* graph, OpIndex value, OptionalV<String> label,
+                           RegisterRepresentation rep) {
+    return Base::New(graph, 1 + label.has_value(), value, label, rep);
+  }
 };
 
 struct BigIntBinopOp : FixedArityOperationT<3, BigIntBinopOp> {

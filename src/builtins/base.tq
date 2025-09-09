@@ -710,16 +710,27 @@ extern macro Is64(): constexpr bool;
 
 extern macro SelectBooleanConstant(bool): Boolean;
 
+const kCStringNull: constexpr string generates '((const char*)nullptr)';
 extern macro Print(constexpr string): void;
+extern macro Print(String, Object): void;
 extern macro Print(constexpr string, Object): void;
 extern macro Print(Object): void;
+extern macro Print(String, uintptr): void;
 extern macro Print(constexpr string, uintptr): void;
+extern macro Print(String, uint32): void;
+extern macro Print(constexpr string, uint32): void;
+extern macro Print(String, uint64): void;
+extern macro Print(constexpr string, uint64): void;
+extern macro Print(String, float32): void;
+extern macro Print(constexpr string, float32): void;
+extern macro Print(String, float64): void;
 extern macro Print(constexpr string, float64): void;
 extern macro PrintErr(constexpr string): void;
 extern macro PrintErr(constexpr string, Object): void;
 extern macro PrintErr(Object): void;
 extern macro Comment(constexpr string): void;
 extern macro DebugBreak(): void;
+extern macro PrintStringSimple(String): void;
 
 extern macro SetSupportsDynamicParameterCount(
     JSFunction, DispatchHandle): void;
