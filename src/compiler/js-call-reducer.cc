@@ -3900,8 +3900,6 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
 
 #if V8_ENABLE_WEBASSEMBLY
 
-namespace {
-
 bool CanInlineJSToWasmCall(const wasm::CanonicalSig* wasm_signature) {
   if (wasm_signature->return_count() > 1) {
     return false;
@@ -3920,8 +3918,6 @@ bool CanInlineJSToWasmCall(const wasm::CanonicalSig* wasm_signature) {
 
   return true;
 }
-
-}  // namespace
 
 Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
                                                 SharedFunctionInfoRef shared) {

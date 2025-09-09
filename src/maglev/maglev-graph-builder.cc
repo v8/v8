@@ -343,8 +343,8 @@ class V8_NODISCARD MaglevGraphBuilder::SaveCallSpeculationScope {
       : builder_(builder) {
     saved_ = builder_->current_speculation_feedback();
     // Only set the current speculation feedback if speculation is allowed.
-    SpeculationMode mode =
-        GetSpeculationMode(builder_->broker(), feedback_source);
+    SpeculationMode mode = MaglevGraphBuilder::GetSpeculationMode(
+        builder_->broker(), feedback_source);
     if (mode != SpeculationMode::kDisallowSpeculation) {
       builder_->reducer_.set_current_speculation_feedback(feedback_source);
       builder_->current_speculation_mode_ = mode;
@@ -366,19 +366,18 @@ class V8_NODISCARD MaglevGraphBuilder::SaveCallSpeculationScope {
   MaglevGraphBuilder* builder_;
   compiler::FeedbackSource saved_;
   SpeculationMode saved_mode_;
-
-  static SpeculationMode GetSpeculationMode(
-      compiler::JSHeapBroker* broker,
-      compiler::FeedbackSource feedback_source) {
-    if (!feedback_source.IsValid())
-      return SpeculationMode::kDisallowSpeculation;
-    compiler::ProcessedFeedback const& processed_feedback =
-        broker->GetFeedbackForCall(feedback_source);
-    if (processed_feedback.IsInsufficient())
-      return SpeculationMode::kDisallowSpeculation;
-    return processed_feedback.AsCall().speculation_mode();
-  }
 };
+
+// static
+SpeculationMode MaglevGraphBuilder::GetSpeculationMode(
+    compiler::JSHeapBroker* broker, compiler::FeedbackSource feedback_source) {
+  if (!feedback_source.IsValid()) return SpeculationMode::kDisallowSpeculation;
+  compiler::ProcessedFeedback const& processed_feedback =
+      broker->GetFeedbackForCall(feedback_source);
+  if (processed_feedback.IsInsufficient())
+    return SpeculationMode::kDisallowSpeculation;
+  return processed_feedback.AsCall().speculation_mode();
+}
 
 MaglevGraphBuilder::LazyDeoptResultLocationScope::LazyDeoptResultLocationScope(
     MaglevGraphBuilder* builder, interpreter::Register result_location,
@@ -10973,7 +10972,7 @@ CallKnownJSFunction* MaglevGraphBuilder::BuildCallKnownJSFunction(
       dispatch_handle,
 #endif
       shared, GetTaggedValue(function), GetTaggedValue(context),
-      GetTaggedValue(receiver), GetTaggedValue(new_target));
+      GetTaggedValue(receiver), GetTaggedValue(new_target), feedback_source);
 }
 
 CallKnownJSFunction* MaglevGraphBuilder::BuildCallKnownJSFunction(
@@ -11000,7 +10999,8 @@ CallKnownJSFunction* MaglevGraphBuilder::BuildCallKnownJSFunction(
       dispatch_handle,
 #endif
       shared, GetTaggedValue(function), GetTaggedValue(context),
-      GetTaggedValue(arguments[0]), GetTaggedValue(new_target));
+      GetTaggedValue(arguments[0]), GetTaggedValue(new_target),
+      compiler::FeedbackSource{});
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(

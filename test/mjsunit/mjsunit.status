@@ -2837,6 +2837,10 @@
   # --maglev-inline-api-calls is currently not supported by the translation.
   'regress/regress-crbug-1496606': [SKIP],
 
+  # --jitless tests not supported
+  'regress/regress-992389': [SKIP],
+  'regress/regress-crbug-419454582': [SKIP],
+
 }], # variant == turbolev
 
 ##############################################################################
