@@ -1495,19 +1495,6 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
   TQ_OBJECT_CONSTRUCTORS(WasmArray)
 };
 
-class WasmDescriptorOptions
-    : public TorqueGeneratedWasmDescriptorOptions<WasmDescriptorOptions,
-                                                  JSObject> {
- public:
-  static DirectHandle<WasmDescriptorOptions> New(
-      Isolate* isolate, DirectHandle<Object> prototype);
-  DECL_PRINTER(WasmDescriptorOptions)
-
-  class BodyDescriptor;
-
-  TQ_OBJECT_CONSTRUCTORS(WasmDescriptorOptions)
-};
-
 // The suspender object provides an API to suspend and resume wasm code using
 // promises. See: https://github.com/WebAssembly/js-promise-integration.
 class WasmSuspenderObject

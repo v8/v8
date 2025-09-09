@@ -111,8 +111,8 @@ proto_config.build();
 let constructors = {};
 let imports = {
   p: {
-    pSuper: new WebAssembly.DescriptorOptions({prototype: {}}),
-    pSub: new WebAssembly.DescriptorOptions({prototype: {}}),
+    pSuper: {},
+    pSub: {},
   },
   c: {constructors},
 }

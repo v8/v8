@@ -2286,11 +2286,9 @@ DirectHandle<WasmStruct> WasmStruct::AllocateDescriptorUninitialized(
                                           num_supertypes, context);
 
   if (v8_flags.wasm_explicit_prototypes && !IsSmi(*first_field) &&
-      IsWasmDescriptorOptions(Cast<HeapObject>(*first_field))) {
-    DirectHandle<JSPrototype> prototype = direct_handle(
-        Cast<JSReceiver>(
-            Cast<WasmDescriptorOptions>(*first_field)->prototype()),
-        isolate);
+      IsJSObject(Cast<HeapObject>(*first_field))) {
+    DirectHandle<JSPrototype> prototype =
+        direct_handle(Cast<JSReceiver>(*first_field), isolate);
     Map::SetPrototype(isolate, rtt, prototype);
   }
 
@@ -2405,17 +2403,6 @@ DirectHandle<WasmTagObject> WasmTagObject::New(
   }
 
   return tag_wrapper;
-}
-
-DirectHandle<WasmDescriptorOptions> WasmDescriptorOptions::New(
-    Isolate* isolate, DirectHandle<Object> prototype) {
-  DirectHandle<JSFunction> ctor(
-      isolate->native_context()->wasm_descriptor_options_constructor(),
-      isolate);
-  DirectHandle<WasmDescriptorOptions> desc =
-      Cast<WasmDescriptorOptions>(isolate->factory()->NewJSObject(ctor));
-  desc->set_prototype(*prototype);
-  return desc;
 }
 
 bool WasmTagObject::MatchesSignature(wasm::CanonicalTypeIndex expected_index) {

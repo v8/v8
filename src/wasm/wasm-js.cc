@@ -2436,38 +2436,6 @@ void WebAssemblySuspendingImpl(
   info.GetReturnValue().Set(Utils::ToLocal(i::Cast<i::JSObject>(result)));
 }
 
-// WebAssembly.DescriptorOptions({options}) -> DescriptorOptions
-void WebAssemblyDescriptorOptionsImpl(
-    const FunctionCallbackInfo<v8::Value>& info) {
-  WasmJSApiScope js_api_scope{info, "WebAssembly.DescriptorOptions()"};
-  auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
-
-  if (!info.IsConstructCall()) {
-    thrower.TypeError(
-        "WebAssembly.DescriptorOptions must be invoked with 'new'");
-    return;
-  }
-  if (!info[0]->IsObject()) {
-    thrower.TypeError("Argument 0 must be an object");
-    return;
-  }
-
-  i::DirectHandle<i::JSReceiver> options =
-      Utils::OpenDirectHandle(*Local<v8::Object>::Cast(info[0]));
-  i::DirectHandle<i::Object> prototype;
-  if (!i::JSReceiver::GetProperty(i_isolate, options, "prototype")
-           .ToHandle(&prototype)) {
-    return js_api_scope.AssertException();
-  }
-  if (!i::IsJSReceiver(*prototype)) {
-    thrower.TypeError("Prototype must be an object");
-    return;
-  }
-  i::DirectHandle<i::WasmDescriptorOptions> result =
-      i::WasmDescriptorOptions::New(i_isolate, prototype);
-  info.GetReturnValue().Set(Utils::ToLocal(i::Cast<i::JSObject>(result)));
-}
-
 // WebAssembly.Function.prototype.type() -> FunctionType
 void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& info) {
   WasmJSApiScope js_api_scope{info, "WebAssembly.Function.type()"};
@@ -3690,11 +3658,6 @@ void WasmJs::Install(Isolate* isolate) {
     InstallMemoryControl(isolate, native_context, webassembly);
   }
 
-  if (enabled_features.has_custom_descriptors() &&
-      i::v8_flags.experimental_wasm_js_interop) {
-    InstallCustomDescriptors(isolate, native_context, webassembly);
-  }
-
   // Initialize and install JSPI feature.
   if (enabled_features.has_jspi()) {
     CHECK(native_context->is_wasm_jspi_installed() == Smi::zero());
@@ -3774,27 +3737,6 @@ bool WasmJs::InstallJSPromiseIntegration(Isolate* isolate,
   InstallFunc(isolate, webassembly, "promising", WebAssemblyPromising, 1);
   InstallError(isolate, webassembly, isolate->factory()->SuspendError_string(),
                Context::WASM_SUSPEND_ERROR_FUNCTION_INDEX);
-  return true;
-}
-
-bool WasmJs::InstallCustomDescriptors(Isolate* isolate,
-                                      DirectHandle<NativeContext> context,
-                                      DirectHandle<JSObject> webassembly) {
-  DirectHandle<String> descriptor_options_string =
-      v8_str(isolate, "DescriptorOptions");
-  if (JSObject::HasRealNamedProperty(isolate, webassembly,
-                                     descriptor_options_string)
-          .FromMaybe(true)) {
-    return false;
-  }
-  DirectHandle<JSFunction> descriptor_options_constructor =
-      InstallConstructorFunc(isolate, webassembly, "DescriptorOptions",
-                             WebAssemblyDescriptorOptionsImpl);
-  context->set_wasm_descriptor_options_constructor(
-      *descriptor_options_constructor);
-  SetupConstructor(
-      isolate, descriptor_options_constructor, WASM_DESCRIPTOR_OPTIONS_TYPE,
-      WasmDescriptorOptions::kHeaderSize, "WebAssembly.DescriptorOptions");
   return true;
 }
 

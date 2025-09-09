@@ -36,9 +36,8 @@ const constructor_funcs = new Array(kNumDescriptors);
 
 for (let i = 0; i < kNumDescriptors; i++) {
   let name = `p${i}`;
-  let prototype = {};
   proto_globals[i] = builder.addImportedGlobal("p", name, kWasmExternRef);
-  proto_imports[name] = new WebAssembly.DescriptorOptions({prototype});
+  proto_imports[name] = {};
 }
 for (let i = 0; i < kNumDescriptors; i++) {
   let global =

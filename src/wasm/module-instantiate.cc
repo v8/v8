@@ -830,10 +830,10 @@ class JSPrototypesSetup {
     shared_instance_data_ = shared_instance_data;
   }
 
-  void MaterializeDescriptorOptions(MaybeDirectHandle<JSReceiver> ffi) {
+  void MaterializePrototypes(MaybeDirectHandle<JSReceiver> ffi) {
     if (!v8_flags.wasm_explicit_prototypes) return;
     if (!it_.ok()) return;
-    MaterializeDescriptorOptionsImpl(ffi);
+    MaterializePrototypesImpl(ffi);
     if (!it_.ok()) thrower_->CompileFailed(it_.error());
   }
 
@@ -867,7 +867,7 @@ class JSPrototypesSetup {
 
   ///////////////// Implementation of the public interface. ////////////////////
 
-  void MaterializeDescriptorOptionsImpl(MaybeDirectHandle<JSReceiver> ffi) {
+  void MaterializePrototypesImpl(MaybeDirectHandle<JSReceiver> ffi) {
     WireBytesRef module_name_ref = it_.module_name();
     DirectHandle<String> module_name = GetString(module_name_ref);
     size_t num_entries = it_.NumImportAndDeclEntries();
@@ -897,13 +897,11 @@ class JSPrototypesSetup {
         if (!GetImportedObject(module, import_name, "import", &prototype)) {
           return;
         }
-        DirectHandle<WasmDescriptorOptions> descriptor_options =
-            WasmDescriptorOptions::New(isolate_, prototype);
         entries[current_entry_index++] = prototype;
         while (import_entry.has_export()) {
           uint32_t export_index = import_entry.NextExport(max_import_index_);
           if (!import_entry.ok()) return;
-          sanitized_imports_[export_index] = descriptor_options;
+          sanitized_imports_[export_index] = prototype;
         }
       } while (it_.ok() && it_.has_import_entry());
     }
@@ -920,13 +918,11 @@ class JSPrototypesSetup {
       }
       DirectHandle<JSObject> prototype =
           WasmStruct::AllocatePrototype(isolate_, parent);
-      DirectHandle<WasmDescriptorOptions> descriptor_options =
-          WasmDescriptorOptions::New(isolate_, prototype);
-      entries[current_entry_index++] = descriptor_options;
+      entries[current_entry_index++] = prototype;
       while (decl_entry.has_export()) {
         uint32_t export_index = decl_entry.NextExport(max_import_index_);
         if (!decl_entry.ok()) return;
-        sanitized_imports_[export_index] = descriptor_options;
+        sanitized_imports_[export_index] = prototype;
       }
     }
   }
@@ -938,14 +934,12 @@ class JSPrototypesSetup {
       ProtoConfig proto_config = it_.NextProtoConfig(max_import_index_);
       if (!it_.ok()) return;
       uint32_t import_index = proto_config.import_index();
-      if (!IsWasmDescriptorOptions(*sanitized_imports_[import_index])) {
-        thrower_->LinkError("import %u must be a descriptor", import_index);
+      if (!IsJSObject(*sanitized_imports_[import_index])) {
+        thrower_->LinkError("import %u must be a prototype", import_index);
         return;
       }
-      DirectHandle<WasmDescriptorOptions> desc =
-          Cast<WasmDescriptorOptions>(sanitized_imports_[import_index]);
-      DirectHandle<JSReceiver> prototype(Cast<JSReceiver>(desc->prototype()),
-                                         isolate_);
+      DirectHandle<JSReceiver> prototype(
+          Cast<JSReceiver>(sanitized_imports_[import_index]));
 
       if (proto_config.has_method()) {
         ToDictionaryMode(prototype, proto_config.estimated_number_of_methods());
@@ -2254,7 +2248,7 @@ void InstanceBuilder::SanitizeImports() {
       !module_->descriptors_section.is_empty()) {
     js_prototypes_setup_.emplace(isolate_, wire_bytes_, module_, thrower_,
                                  sanitized_imports_);
-    js_prototypes_setup_->MaterializeDescriptorOptions(ffi_);
+    js_prototypes_setup_->MaterializePrototypes(ffi_);
     if (thrower_->error()) return;
   }
 

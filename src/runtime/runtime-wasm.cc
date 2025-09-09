@@ -1440,12 +1440,11 @@ class PrototypesSetup : public wasm::Decoder {
       ThrowWasmError(isolate_, MessageTemplate::kWasmTrapArrayOutOfBounds);
       return {};
     }
-    if (!IsWasmDescriptorOptions(*maybe_proto)) {
+    if (!IsJSObject(*maybe_proto)) {
       ThrowWasmError(isolate_, MessageTemplate::kWasmTrapIllegalCast);
       return {};
     }
-    return Cast<JSObject>(direct_handle(
-        Cast<WasmDescriptorOptions>(maybe_proto)->prototype(), isolate_));
+    return Cast<JSObject>(maybe_proto);
   }
 
   // Adding multiple properties is more efficient when the prototype
@@ -1564,11 +1563,7 @@ class PrototypesSetup_Arrays : public PrototypesSetup {
 
   DirectHandle<JSObject> PrototypeByIndex(uint32_t index) override {
     DCHECK_LT(index, prototypes_->length());
-    return Cast<JSObject>(
-        direct_handle(Cast<WasmDescriptorOptions>(
-                          WasmArray::GetElement(isolate(), prototypes_, index))
-                          ->prototype(),
-                      isolate()));
+    return Cast<JSObject>(WasmArray::GetElement(isolate(), prototypes_, index));
   }
 
  private:
@@ -1608,9 +1603,7 @@ class PrototypesSetup_Sections : public PrototypesSetup {
   DirectHandle<JSObject> PrototypeByIndex(uint32_t index) override {
     index += prototype_start_index_;
     DCHECK_LT(index, prototypes_end_);
-    return Cast<JSObject>(direct_handle(
-        Cast<WasmDescriptorOptions>(prototypes_->get(index))->prototype(),
-        isolate()));
+    return Cast<JSObject>(direct_handle(prototypes_->get(index), isolate()));
   }
 
  private:

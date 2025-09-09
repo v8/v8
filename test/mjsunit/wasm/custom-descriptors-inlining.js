@@ -67,7 +67,7 @@ proto_config.build();
 
 let constructors = {};
 let imports = {
-  p: {p0: new WebAssembly.DescriptorOptions({prototype: {}})},
+  p: {p0: {}},
   c: {constructors},
 };
 let instance = builder.instantiate(imports, {builtins: ["js-prototypes"]});

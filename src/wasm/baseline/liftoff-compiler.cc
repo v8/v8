@@ -7434,9 +7434,8 @@ class LiftoffCompiler {
   VarState GetFirstFieldIfPrototype(const StructType* struct_type,
                                     bool initial_values_on_stack,
                                     LiftoffRegList pinned) {
-    // If the first field might be a DescriptorOptions containing a
-    // JS prototype, we must pass it along. Otherwise, to satisfy the
-    // parameter count, we pass Smi(0).
+    // If the first field might be a JS prototype, we must pass it along.
+    // Otherwise, to satisfy the parameter count, we pass Smi(0).
     if (initial_values_on_stack &&
         struct_type->first_field_can_be_prototype()) {
       int slot = -struct_type->field_count();

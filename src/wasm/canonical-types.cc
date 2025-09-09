@@ -37,7 +37,7 @@ void TypeCanonicalizer::AddRecursiveGroup(WasmModule* module, uint32_t size) {
   base::MutexGuard mutex_guard(&mutex_);
   // Compute the first canonical index in the recgroup in the case that it does
   // not already exist.
-  if (V8_UNLIKELY(canonical_supertypes_.size() > kMaxCanonicalTypes - size)) {
+  if (V8_UNLIKELY(size > kMaxCanonicalTypes - canonical_supertypes_.size())) {
     V8::FatalProcessOutOfMemory(nullptr, "too many canonicalized types");
   }
   CanonicalTypeIndex first_new_canonical_index{

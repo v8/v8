@@ -3134,12 +3134,6 @@ void WasmExceptionPackage::WasmExceptionPackagePrint(std::ostream& os) {
   os << "\n";
 }
 
-void WasmDescriptorOptions::WasmDescriptorOptionsPrint(std::ostream& os) {
-  PrintHeader(os, "WasmDescriptorOptions");
-  os << "\n - prototype: " << Brief(prototype());
-  os << "\n";
-}
-
 void WasmModuleObject::WasmModuleObjectPrint(std::ostream& os) {
   PrintHeader(os, "WasmModuleObject");
   os << "\n - module: " << native_module()->module();
