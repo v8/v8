@@ -17397,7 +17397,7 @@ std::pair<TNode<Object>, TNode<Object>> CodeStubAssembler::CallIteratorNext(
       Call(context, next_method, ConvertReceiverMode::kAny, CAST(iterator));
 
   Label if_js_receiver(this), if_not_js_receiver(this, Label::kDeferred);
-  Branch(IsJSReceiver(CAST(result)), &if_js_receiver, &if_not_js_receiver);
+  BranchIfJSReceiver(result, &if_js_receiver, &if_not_js_receiver);
 
   BIND(&if_not_js_receiver);
   {
