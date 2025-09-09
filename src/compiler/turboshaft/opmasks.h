@@ -234,6 +234,12 @@ using kWord64ShiftRightLogical =
                    WordRepresentation::Word64()>;
 using kShiftLeft = ShiftKindMask::For<ShiftOp::Kind::kShiftLeft>;
 
+using WordBinopDeoptOnOverflowMask =
+    MaskBuilder<WordBinopDeoptOnOverflowOp,
+                FIELD(WordBinopDeoptOnOverflowOp, kind)>;
+using kWordSignedAddDeoptOnOverflow = WordBinopDeoptOnOverflowMask::For<
+    WordBinopDeoptOnOverflowOp::Kind::kSignedAdd>;
+
 using PhiMask = MaskBuilder<PhiOp, FIELD(PhiOp, rep)>;
 using kTaggedPhi = PhiMask::For<RegisterRepresentation::Tagged()>;
 

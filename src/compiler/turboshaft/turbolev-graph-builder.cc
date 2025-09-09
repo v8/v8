@@ -34,6 +34,7 @@
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
 #include "src/compiler/turboshaft/sidetable.h"
+#include "src/compiler/turboshaft/simplified-optimization-reducer.h"
 #include "src/compiler/turboshaft/turbolev-early-lowering-reducer-inl.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
@@ -493,8 +494,9 @@ class GraphBuildingNodeProcessor {
  public:
   using AssemblerT =
       TSAssembler<BlockOriginTrackingReducer, TurbolevEarlyLoweringReducer,
-                  MachineOptimizationReducer, VariableReducer,
-                  RequiredOptimizationReducer, ValueNumberingReducer>;
+                  SimplifiedOptimizationReducer, MachineOptimizationReducer,
+                  VariableReducer, RequiredOptimizationReducer,
+                  ValueNumberingReducer>;
 
   GraphBuildingNodeProcessor(
       PipelineData* data, Graph& graph, Zone* temp_zone,

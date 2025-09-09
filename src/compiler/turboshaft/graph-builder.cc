@@ -39,6 +39,7 @@
 #include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
+#include "src/compiler/turboshaft/simplified-optimization-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/flags/flags.h"
 #include "src/heap/factory-inl.h"
@@ -67,7 +68,9 @@ struct GraphBuilder {
   Isolate* isolate;
   JSHeapBroker* broker;
   Zone* graph_zone;
-  using AssemblerT = TSAssembler<ExplicitTruncationReducer, VariableReducer>;
+  using AssemblerT =
+      TSAssembler<ExplicitTruncationReducer, SimplifiedOptimizationReducer,
+                  VariableReducer>;
   AssemblerT assembler;
   SourcePositionTable* source_positions;
   NodeOriginTable* origins;

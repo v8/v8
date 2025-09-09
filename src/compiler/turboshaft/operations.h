@@ -1794,6 +1794,20 @@ struct WordBinopDeoptOnOverflowOp
   FeedbackSource feedback;
   CheckForMinusZeroMode mode;
 
+  static bool IsCommutative(Kind kind) {
+    switch (kind) {
+      case Kind::kSignedAdd:
+      case Kind::kSignedMul:
+        return true;
+      case Kind::kSignedSub:
+      case Kind::kSignedDiv:
+      case Kind::kSignedMod:
+      case Kind::kUnsignedDiv:
+      case Kind::kUnsignedMod:
+        return false;
+    }
+  }
+
   static constexpr OpEffects effects = OpEffects().CanDeopt();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return base::VectorOf(static_cast<const RegisterRepresentation*>(&rep), 1);
@@ -1804,8 +1818,14 @@ struct WordBinopDeoptOnOverflowOp
     return InputsRepFactory::PairOf(rep);
   }
 
-  V<Word> left() const { return input<Word>(0); }
-  V<Word> right() const { return input<Word>(1); }
+  template <IsWordT WordType = Word>
+  V<WordType> left() const {
+    return input<WordType>(0);
+  }
+  template <IsWordT WordType = Word>
+  V<WordType> right() const {
+    return input<WordType>(1);
+  }
   V<FrameState> frame_state() const { return input<FrameState>(2); }
 
   WordBinopDeoptOnOverflowOp(V<Word> left, V<Word> right,
@@ -2026,8 +2046,7 @@ struct ShiftOp : FixedArityOperationT<2, ShiftOp> {
                          RegisterRepresentation::Word32()});
   }
 
-  template <typename WordT = Word>
-    requires(IsWord<WordT>())
+  template <IsWordT WordT = Word>
   V<WordT> left() const {
     DCHECK(IsValidTypeFor<WordT>(rep));
     return input<WordT>(0);
@@ -5186,6 +5205,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(
 V8_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os,
     TruncateJSPrimitiveToUntaggedOp::InputAssumptions input_assumptions);
+
+DEFINE_MULTI_SWITCH_INTEGRAL(TruncateJSPrimitiveToUntaggedOp::UntaggedKind, 4)
 
 struct TruncateJSPrimitiveToUntaggedOrDeoptOp
     : FixedArityOperationT<2, TruncateJSPrimitiveToUntaggedOrDeoptOp> {
