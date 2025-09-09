@@ -509,13 +509,46 @@ void RegExpMacroAssemblerRISCV::CheckBitInTable(Handle<ByteArray> table,
 void RegExpMacroAssemblerRISCV::SkipUntilBitInTable(
     int cp_offset, Handle<ByteArray> table, Handle<ByteArray> nibble_table,
     int advance_by, Label* on_match, Label* on_no_match) {
-  // TODO(pthier): Optimize. Table can be loaded outside of the loop.
-  Label again;
-  Bind(&again);
-  LoadCurrentCharacter(cp_offset, on_no_match, true);
-  CheckBitInTable(table, on_match);
+  const bool use_simd = SkipUntilBitInTableUseSimd(advance_by);
+  if (use_simd) {
+    DCHECK(!nibble_table.is_null());
+    Label scalar;
+    // TODO(kasperl@rivosinc.com): Look into adding a vectorized variant.
+    Bind(&scalar);
+  }
+
+  // Scalar version.
+  Register table_reg = a0;
+  __ li(table_reg, Operand(table));
+
+  Label scalar_repeat;
+  Bind(&scalar_repeat);
+  CheckPosition(cp_offset, on_no_match);
+  LoadCurrentCharacterUnchecked(cp_offset, 1);
+
+  // We use `a1` as a temporary for the table lookup.
+  DCHECK_NE(a1, table_reg);
+
+  // This is the `CheckBitInTable` code, but with the table already loaded
+  // in the `table_reg` register.
+  if (mode_ != LATIN1 || kTableMask != String::kMaxOneByteCharCode) {
+    __ And(a1, current_character(), Operand(kTableMask));
+    __ AddWord(a1, table_reg, a1);
+  } else {
+    __ AddWord(a1, table_reg, current_character());
+  }
+  __ Lbu(a1, FieldMemOperand(a1, OFFSET_OF_DATA_START(ByteArray)));
+  BranchOrBacktrack(on_match, ne, a1, Operand(zero_reg));
+
   AdvanceCurrentPosition(advance_by);
-  GoTo(&again);
+  __ jmp(&scalar_repeat);
+}
+
+bool RegExpMacroAssemblerRISCV::SkipUntilBitInTableUseSimd(int advance_by) {
+  // We only use SIMD instead of the scalar version if we advance by 1 byte
+  // in each iteration. For higher values the scalar version performs better.
+  return v8_flags.regexp_simd && advance_by * char_size() == 1 &&
+         CpuFeatures::IsSupported(RISCV_SIMD);
 }
 
 bool RegExpMacroAssemblerRISCV::CheckSpecialClassRanges(

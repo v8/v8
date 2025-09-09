@@ -3095,13 +3095,15 @@ DEFINE_UINT(regexp_backtracks_before_fallback, 50000,
             "to experimental engine if "
             "enable_experimental_regexp_engine_on_excessive_backtracks is set")
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_RISCV32 || \
+    V8_TARGET_ARCH_RISCV64
 DEFINE_BOOL(regexp_simd, true, "enable SIMD for regexp jit code")
 #else
 DEFINE_BOOL_READONLY(
     regexp_simd, false,
     "enable SIMD for regexp jit code (not supported for this architecture)")
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_RISCV32
+        // || V8_TARGET_ARCH_RISCV64
 
 DEFINE_BOOL(trace_read_only_promotion, false,
             "trace the read-only promotion pass")
