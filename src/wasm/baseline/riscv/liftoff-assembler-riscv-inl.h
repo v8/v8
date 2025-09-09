@@ -2409,12 +2409,12 @@ void LiftoffAssembler::CallBuiltin(Builtin builtin) {
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
-  AddWord(sp, sp, Operand(-size));
+  AddWord(sp, sp, Operand(-static_cast<int64_t>(size)));
   MacroAssembler::Move(addr, sp);
 }
 
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
-  AddWord(sp, sp, Operand(size));
+  AddWord(sp, sp, Operand(static_cast<int64_t>(size)));
 }
 
 void LiftoffAssembler::MaybeOSR() {}
