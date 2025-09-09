@@ -120,6 +120,11 @@ bool MaglevInliner::Run() {
       PrintGraph(std::cout, graph_);
     }
 
+    // Remove unreachable blocks if we have any.
+    if (graph_->may_have_unreachable_blocks()) {
+      graph_->RemoveUnreachableBlocks();
+    }
+
     // Optimize current graph.
     {
       GraphProcessor<MaglevGraphOptimizer> optimizer(graph_);
@@ -224,6 +229,13 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
       }
     }
   }
+  // Remove unreachable catch block if no throwable nodes were added during
+  // inlining.
+  // TODO(victorgomes): Improve this: track if we didnt indeed add a throwable
+  // node.
+  if (catch_block_might_be_unreachable) {
+    graph_->set_may_have_unreachable_blocks(true);
+  }
 
   // Remove exception handler info from call block.
   ExceptionHandlerInfo::List rem_handlers_in_call_block;
@@ -313,7 +325,7 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
     // TODO(victorgomes): We probably don't need to iterate all the graph to
     // remove unreachable blocks, but only the successors of control_node in
     // saved_bbs.
-    RemoveUnreachableBlocks();
+    graph_->set_may_have_unreachable_blocks(true);
     return InliningResult::kDone;
   }
 
@@ -349,14 +361,6 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
 #endif  // DEBUG
   }
   call_node->OverwriteWithReturnValue(returned_value);
-
-  // Remove unreachable catch block if no throwable nodes were added during
-  // inlining.
-  // TODO(victorgomes): Improve this: track if we didnt indeed add a throwable
-  // node.
-  if (catch_block_might_be_unreachable) {
-    RemoveUnreachableBlocks();
-  }
 
   return InliningResult::kDone;
 }
