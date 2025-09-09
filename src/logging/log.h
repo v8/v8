@@ -347,7 +347,6 @@ class V8FileLogger : public LogEventListener {
   void WriteApiEntryCall(const char* name);
 
   int64_t Time();
-  int64_t Time(base::TimeTicks timestamp);
 
   Isolate* isolate_;
 
