@@ -5119,6 +5119,7 @@ TEST(AddInstructionChangesNewSpacePromotion) {
   v8_flags.allow_natives_syntax = true;
   v8_flags.expose_gc = true;
   v8_flags.stress_compaction = true;
+  FlagList::EnforceFlagImplications();
   HeapAllocator::SetAllocationGcInterval(1000);
   CcTest::InitializeVM();
   if (!v8_flags.allocation_site_pretenuring) return;

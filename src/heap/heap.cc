@@ -508,7 +508,8 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
     return GarbageCollector::MARK_COMPACTOR;
   }
 
-  if (v8_flags.gc_global || ShouldStressCompaction() || !use_new_space()) {
+  DCHECK_IMPLIES(ShouldStressCompaction(), v8_flags.gc_global);
+  if (v8_flags.gc_global || !use_new_space()) {
     *reason = "GC in old space forced by flags";
     return GarbageCollector::MARK_COMPACTOR;
   }
