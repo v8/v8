@@ -29,6 +29,8 @@ static const char allocationTrackingEnabled[] = "allocationTrackingEnabled";
 static const char samplingHeapProfilerEnabled[] = "samplingHeapProfilerEnabled";
 static const char samplingHeapProfilerInterval[] =
     "samplingHeapProfilerInterval";
+static const char samplingHeapProfilerStackDepth[] =
+    "samplingHeapProfilerStackDepth";
 static const char samplingHeapProfilerFlags[] = "samplingHeapProfilerFlags";
 }  // namespace HeapProfilerAgentState
 
@@ -283,10 +285,13 @@ void V8HeapProfilerAgentImpl::restore() {
     double samplingInterval = m_state->doubleProperty(
         HeapProfilerAgentState::samplingHeapProfilerInterval, -1);
     DCHECK_GE(samplingInterval, 0);
+    double stackDepth = m_state->doubleProperty(
+        HeapProfilerAgentState::samplingHeapProfilerStackDepth, -1);
+    DCHECK_GE(stackDepth, 0);
     int flags = m_state->integerProperty(
         HeapProfilerAgentState::samplingHeapProfilerFlags, 0);
     startSampling(
-        samplingInterval,
+        samplingInterval, stackDepth,
         flags & v8::HeapProfiler::kSamplingIncludeObjectsCollectedByMajorGC,
         flags & v8::HeapProfiler::kSamplingIncludeObjectsCollectedByMinorGC);
   }
@@ -548,7 +553,7 @@ void V8HeapProfilerAgentImpl::stopTrackingHeapObjectsInternal() {
 }
 
 Response V8HeapProfilerAgentImpl::startSampling(
-    std::optional<double> samplingInterval,
+    std::optional<double> samplingInterval, std::optional<double> stackDepth,
     std::optional<bool> includeObjectsCollectedByMajorGC,
     std::optional<bool> includeObjectsCollectedByMinorGC) {
   v8::HeapProfiler* profiler = m_isolate->GetHeapProfiler();
@@ -561,6 +566,13 @@ Response V8HeapProfilerAgentImpl::startSampling(
   }
   m_state->setDouble(HeapProfilerAgentState::samplingHeapProfilerInterval,
                      samplingIntervalValue);
+  const unsigned defaultStackDepth = 128;
+  double stackDepthValue = stackDepth.value_or(defaultStackDepth);
+  if (stackDepthValue <= 0.0) {
+    return Response::ServerError("Invalid stack depth");
+  }
+  m_state->setDouble(HeapProfilerAgentState::samplingHeapProfilerStackDepth,
+                     stackDepthValue);
   m_state->setBoolean(HeapProfilerAgentState::samplingHeapProfilerEnabled,
                       true);
   int flags = v8::HeapProfiler::kSamplingForceGC;
@@ -572,7 +584,8 @@ Response V8HeapProfilerAgentImpl::startSampling(
   }
   m_state->setInteger(HeapProfilerAgentState::samplingHeapProfilerFlags, flags);
   profiler->StartSamplingHeapProfiler(
-      static_cast<uint64_t>(samplingIntervalValue), 128,
+      static_cast<uint64_t>(samplingIntervalValue),
+      static_cast<int>(stackDepthValue),
       static_cast<v8::HeapProfiler::SamplingFlags>(flags));
   return Response::Success();
 }
