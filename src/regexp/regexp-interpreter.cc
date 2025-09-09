@@ -422,12 +422,11 @@ IrregexpInterpreter::Result RawMatch(
 // Fill dispatch table from last defined bytecode up to the next power of two
 // with BREAK (invalid operation).
 // TODO(pthier): Find a way to fill up automatically (at compile time)
-// 60 real bytecodes -> 4 fillers
+// 61 real bytecodes -> 3 fillers
 #define BYTECODE_FILLER_ITERATOR(V) \
   V(BREAK) /* 1 */                  \
   V(BREAK) /* 2 */                  \
-  V(BREAK) /* 3 */                  \
-  V(BREAK) /* 4 */
+  V(BREAK) /* 3 */
 
 #define COUNT(...) +1
   static constexpr int kRegExpBytecodeFillerCount =
@@ -1048,6 +1047,45 @@ IrregexpInterpreter::Result RawMatch(
         ADVANCE_CURRENT_POSITION(advance);
       }
       SET_PC_FROM_OFFSET(Load32Aligned(pc + 16));
+      DISPATCH();
+    }
+    BYTECODE(SKIP_UNTIL_ONE_OF_MASKED) {
+      int32_t cp_offset = LoadPacked24Signed(insn);
+      int32_t advance_by = Load32Aligned(pc + 4);
+      uint32_t both_chars = Load32Aligned(pc + 8);
+      uint32_t both_mask = Load32Aligned(pc + 12);
+      int32_t max_offset = Load32Aligned(pc + 16);
+      uint32_t chars1 = Load32Aligned(pc + 20);
+      uint32_t mask1 = Load32Aligned(pc + 24);
+      uint32_t chars2 = Load32Aligned(pc + 28);
+      uint32_t mask2 = Load32Aligned(pc + 32);
+      uint32_t on_match1 = Load32Aligned(pc + 36);
+      uint32_t on_match2 = Load32Aligned(pc + 40);
+      uint32_t on_failure = Load32Aligned(pc + 44);
+      DCHECK_GE(cp_offset, 0);
+      DCHECK_GE(max_offset, cp_offset);
+      // We should only get here in 1-byte mode.
+      DCHECK_EQ(1, sizeof(Char));
+      while (IndexIsInBounds(current + max_offset, subject.length())) {
+        int pos = current + cp_offset;
+        Char next1 = subject[pos + 1];
+        Char next2 = subject[pos + 2];
+        Char next3 = subject[pos + 3];
+        current_char =
+            (subject[pos] | (next1 << 8) | (next2 << 16) | (next3 << 24));
+        if (both_chars == (current_char & both_mask)) {
+          if (chars1 == (current_char & mask1)) {
+            SET_PC_FROM_OFFSET(on_match1);
+            DISPATCH();
+          }
+          if (chars2 == (current_char & mask2)) {
+            SET_PC_FROM_OFFSET(on_match2);
+            DISPATCH();
+          }
+        }
+        ADVANCE_CURRENT_POSITION(advance_by);
+      }
+      SET_PC_FROM_OFFSET(on_failure);
       DISPATCH();
     }
 #if V8_USE_COMPUTED_GOTO

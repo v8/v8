@@ -335,6 +335,23 @@ void RegExpMacroAssembler::SkipUntilGtOrNotBitInTable(
   GoTo(&loop);
 }
 
+void RegExpMacroAssembler::SkipUntilOneOfMasked(
+    int cp_offset, int advance_by, unsigned both_chars, unsigned both_mask,
+    int max_offset, unsigned chars1, unsigned mask1, unsigned chars2,
+    unsigned mask2, Label* on_match1, Label* on_match2, Label* on_failure) {
+  Label loop, found;
+  Bind(&loop);
+  CheckPosition(max_offset, on_failure);
+  LoadCurrentCharacter(cp_offset, on_failure, false, 4);
+  CheckCharacterAfterAnd(both_chars, both_mask, &found);
+  AdvanceCurrentPosition(advance_by);
+  GoTo(&loop);
+  Bind(&found);
+  CheckCharacterAfterAnd(chars1, mask1, on_match1);
+  CheckCharacterAfterAnd(chars2, mask2, on_match2);
+  AdvanceCurrentPosition(advance_by);
+  GoTo(&loop);
+}
 #ifndef COMPILING_IRREGEXP_FOR_EXTERNAL_EMBEDDER
 
 // This method may only be called after an interrupt.

@@ -73,6 +73,11 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   void SkipUntilGtOrNotBitInTable(int cp_offset, int advance_by,
                                   unsigned character, Handle<ByteArray> table,
                                   Label* on_match, Label* on_no_match) override;
+  void SkipUntilOneOfMasked(int cp_offset, int advance_by, unsigned both_chars,
+                            unsigned both_mask, int max_offset, unsigned chars1,
+                            unsigned mask1, unsigned chars2, unsigned mask2,
+                            Label* on_match1, Label* on_match2,
+                            Label* on_failure) override;
   void CheckPosition(int cp_offset, Label* on_outside_input) override;
   bool CheckSpecialClassRanges(StandardCharacterSet type,
                                Label* on_no_match) override;

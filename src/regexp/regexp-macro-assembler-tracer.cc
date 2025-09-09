@@ -414,7 +414,7 @@ void RegExpMacroAssemblerTracer::SkipUntilCharAnd(
   PrintF(
       "SkipUntilCharAnd(cp_offset=%d, advance_by=%d, character=0x%04x%s, "
       "mask=0x%04x, eats_at_least=%d, on_match=label[%08x], "
-      "on_no_match=label[%08x]\n  ",
+      "on_no_match=label[%08x]\n",
       cp_offset, advance_by, character, *printable, mask, eats_at_least,
       LabelToInt(on_match), LabelToInt(on_no_match));
   assembler_->SkipUntilCharAnd(cp_offset, advance_by, character, mask,
@@ -429,7 +429,7 @@ void RegExpMacroAssemblerTracer::SkipUntilChar(int cp_offset, int advance_by,
   PrintF(
       "SkipUntilChar(cp_offset=%d, advance_by=%d, character=0x%04x%s, "
       "on_match=label[%08x], "
-      "on_no_match=label[%08x]\n  ",
+      "on_no_match=label[%08x]\n",
       cp_offset, advance_by, character, *printable, LabelToInt(on_match),
       LabelToInt(on_no_match));
   assembler_->SkipUntilChar(cp_offset, advance_by, character, on_match,
@@ -443,7 +443,7 @@ void RegExpMacroAssemblerTracer::SkipUntilCharPosChecked(
   PrintF(
       "SkipUntilCharPosChecked(cp_offset=%d, advance_by=%d, "
       "character=0x%04x%s, eats_at_least=%d, on_match=label[%08x], "
-      "on_no_match=label[%08x]\n  ",
+      "on_no_match=label[%08x]\n",
       cp_offset, advance_by, character, *printable, eats_at_least,
       LabelToInt(on_match), LabelToInt(on_no_match));
   assembler_->SkipUntilCharPosChecked(cp_offset, advance_by, character,
@@ -458,7 +458,7 @@ void RegExpMacroAssemblerTracer::SkipUntilCharOrChar(
   PrintF(
       "SkipUntilCharOrChar(cp_offset=%d, advance_by=%d, char1=0x%04x%s, "
       "char2=0x%04x%s, on_match=label[%08x], "
-      "on_no_match=label[%08x]\n  ",
+      "on_no_match=label[%08x]\n",
       cp_offset, advance_by, char1, *printable1, char2, *printable2,
       LabelToInt(on_match), LabelToInt(on_no_match));
   assembler_->SkipUntilCharOrChar(cp_offset, advance_by, char1, char2, on_match,
@@ -484,6 +484,26 @@ void RegExpMacroAssemblerTracer::SkipUntilGtOrNotBitInTable(
   PrintF(");\n");
   assembler_->SkipUntilGtOrNotBitInTable(cp_offset, advance_by, character,
                                          table, on_match, on_no_match);
+}
+
+void RegExpMacroAssemblerTracer::SkipUntilOneOfMasked(
+    int cp_offset, int advance_by, unsigned both_chars, unsigned both_mask,
+    int max_offset, unsigned chars1, unsigned mask1, unsigned chars2,
+    unsigned mask2, Label* on_match1, Label* on_match2, Label* on_failure) {
+  PrintablePrinter printable_both(both_chars);
+  PrintablePrinter printable_chars1(chars1);
+  PrintablePrinter printable_chars2(chars2);
+  PrintF(
+      "SkipUntilOneOfMasked(cp_offset=%d, advance_by=%d, both_chars=0x%04x%s, "
+      "both_mask=0x%04x, max_offset=%d, chars1=0x%04x%s, "
+      "mask1=0x%04x, chars2=0x%04x%s, mask2=0x%04x, on_match1=label[%08x], "
+      "on_no_match2=label[%08x], on_failure=label[%08x]\n",
+      cp_offset, advance_by, both_chars, *printable_both, both_mask, max_offset,
+      chars1, *printable_chars1, mask1, chars2, *printable_chars2, mask2,
+      LabelToInt(on_match1), LabelToInt(on_match2), LabelToInt(on_failure));
+  assembler_->SkipUntilOneOfMasked(cp_offset, advance_by, both_chars, both_mask,
+                                   max_offset, chars1, mask1, chars2, mask2,
+                                   on_match1, on_match2, on_failure);
 }
 
 void RegExpMacroAssemblerTracer::CheckNotBackReference(int start_reg,

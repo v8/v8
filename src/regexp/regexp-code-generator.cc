@@ -476,6 +476,15 @@ VISIT(SkipUntilGtOrNotBitInTable) {
                                 on_match, on_no_match);
 }
 
+VISIT(SkipUntilOneOfMasked) {
+  INIT(SkipUntilOneOfMasked, cp_offset, advance_by, both_chars, both_mask,
+       max_offset, chars1, mask1, chars2, mask2, on_match1, on_match2,
+       on_failure);
+  __ SkipUntilOneOfMasked(cp_offset, advance_by, both_chars, both_mask,
+                          max_offset, chars1, mask1, chars2, mask2, on_match1,
+                          on_match2, on_failure);
+}
+
 template <RegExpBytecode bc>
 void RegExpCodeGenerator::Visit() {
   // TODO(437003349): Remove fallback. All bytecodes need to be implemented
