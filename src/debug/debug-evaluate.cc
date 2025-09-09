@@ -1079,6 +1079,7 @@ bool BytecodeRequiresRuntimeCheck(interpreter::Bytecode bytecode) {
     case Bytecode::kStaInArrayLiteral:
     case Bytecode::kDefineKeyedOwnPropertyInLiteral:
     case Bytecode::kStaCurrentContextSlotNoCell:
+    case Bytecode::kForOfNext:
       return true;
     default:
       return interpreter::Bytecodes::IsCallRuntime(bytecode);
