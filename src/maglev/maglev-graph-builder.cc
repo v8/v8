@@ -16630,8 +16630,8 @@ void MaglevGraphBuilder::CalculatePredecessorCounts() {
   // after the last bytecode.
   uint32_t array_length = bytecode().length() + 1;
   predecessor_count_ = zone()->AllocateArray<uint32_t>(array_length);
-  MemsetUint32(predecessor_count_, 0, entrypoint_);
-  MemsetUint32(predecessor_count_ + entrypoint_, 1, array_length - entrypoint_);
+  Memset(predecessor_count_, 0, entrypoint_);
+  Memset(predecessor_count_ + entrypoint_, 1, array_length - entrypoint_);
 
   const int max_peelings = v8_flags.maglev_optimistic_peeled_loops ? 2 : 1;
   // We count jumps from peeled loops to outside of the loop twice.

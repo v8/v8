@@ -11,13 +11,13 @@
 
 #include <algorithm>
 
+#include "include/v8config.h"
 #include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/utils/utils.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 using Address = uintptr_t;
 
@@ -264,77 +264,6 @@ inline void CopyBytes(T* dst, const T* src, size_t num_bytes) {
   CopyImpl<kMinComplexMemCopy>(dst, src, num_bytes);
 }
 
-inline void MemsetUint32(uint32_t* dest, uint32_t value, size_t counter) {
-#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
-#define STOS "stosl"
-#endif
-
-#if defined(MEMORY_SANITIZER)
-  // MemorySanitizer does not understand inline assembly.
-#undef STOS
-#endif
-
-#if defined(__GNUC__) && defined(STOS)
-  asm volatile(
-      "cld;"
-      "rep ; " STOS
-      : "+&c"(counter), "+&D"(dest)
-      : "a"(value)
-      : "memory", "cc");
-#else
-  for (size_t i = 0; i < counter; i++) {
-    dest[i] = value;
-  }
-#endif
-
-#undef STOS
-}
-
-inline void MemsetPointer(Address* dest, Address value, size_t counter) {
-#if V8_HOST_ARCH_IA32
-#define STOS "stosl"
-#elif V8_HOST_ARCH_X64
-#define STOS "stosq"
-#endif
-
-#if defined(MEMORY_SANITIZER)
-  // MemorySanitizer does not understand inline assembly.
-#undef STOS
-#endif
-
-#if defined(__GNUC__) && defined(STOS)
-  asm volatile(
-      "cld;"
-      "rep ; " STOS
-      : "+&c"(counter), "+&D"(dest)
-      : "a"(value)
-      : "memory", "cc");
-#else
-  for (size_t i = 0; i < counter; i++) {
-    dest[i] = value;
-  }
-#endif
-
-#undef STOS
-}
-
-template <typename T, typename U>
-inline void MemsetPointer(T** dest, U* value, size_t counter) {
-#ifdef DEBUG
-  T* a = nullptr;
-  U* b = nullptr;
-  a = b;  // Fake assignment to check assignability.
-  USE(a);
-#endif  // DEBUG
-  MemsetPointer(reinterpret_cast<Address*>(dest),
-                reinterpret_cast<Address>(value), counter);
-}
-
-template <typename T>
-inline void MemsetPointer(T** dest, std::nullptr_t, size_t counter) {
-  MemsetPointer(reinterpret_cast<Address*>(dest), Address{0}, counter);
-}
-
 // Copy from 8bit/16bit chars to 8bit/16bit chars. Values are zero-extended if
 // needed. Ranges are not allowed to overlap.
 // The separate declaration is needed for the V8_NONNULL, which is not allowed
@@ -400,7 +329,26 @@ void CopyChars(DstType* dst, const SrcType* src, size_t count) {
   }
 }
 
-}  // namespace internal
-}  // namespace v8
+// Fills `destination` with `count` `value`s.
+template <typename T, typename U>
+constexpr void Memset(T* destination, U value, size_t count)
+  requires std::is_trivially_assignable_v<T&, U>
+{
+  for (size_t i = 0; i < count; i++) {
+    destination[i] = value;
+  }
+}
+
+// Fills `destination` with `count` `value`s.
+template <typename T>
+inline void Relaxed_Memset(T* destination, T value, size_t count)
+  requires std::is_integral_v<T>
+{
+  for (size_t i = 0; i < count; i++) {
+    std::atomic_ref<T>(destination[i]).store(value, std::memory_order_relaxed);
+  }
+}
+
+}  // namespace v8::internal
 
 #endif  // V8_UTILS_MEMCOPY_H_

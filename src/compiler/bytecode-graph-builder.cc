@@ -4573,7 +4573,7 @@ Node* BytecodeGraphBuilder::MakeNode(const Operator* op, int value_input_count,
 Node* BytecodeGraphBuilder::NewPhi(int count, Node* input, Node* control) {
   const Operator* phi_op = common()->Phi(MachineRepresentation::kTagged, count);
   Node** buffer = EnsureInputBufferSize(count + 1);
-  MemsetPointer(buffer, input, count);
+  Memset(buffer, input, count);
   buffer[count] = control;
   return graph()->NewNode(phi_op, count + 1, buffer, true);
 }
@@ -4582,7 +4582,7 @@ Node* BytecodeGraphBuilder::NewEffectPhi(int count, Node* input,
                                          Node* control) {
   const Operator* phi_op = common()->EffectPhi(count);
   Node** buffer = EnsureInputBufferSize(count + 1);
-  MemsetPointer(buffer, input, count);
+  Memset(buffer, input, count);
   buffer[count] = control;
   return graph()->NewNode(phi_op, count + 1, buffer, true);
 }

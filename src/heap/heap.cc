@@ -3573,8 +3573,9 @@ void Heap::RightTrimArray(Tagged<Array> object, int new_capacity,
   } else if (clear_slots) {
     // Large objects are not swept, so it is not necessary to clear the
     // recorded slot.
-    MemsetTagged(ObjectSlot(new_end), Tagged<Object>(kClearedFreeMemoryValue),
-                 (old_end - new_end) / kTaggedSize);
+    Relaxed_MemsetTagged(ObjectSlot(new_end),
+                         Tagged<Object>(kClearedFreeMemoryValue),
+                         (old_end - new_end) / kTaggedSize);
   }
 
   // Initialize header of the trimmed array. We are storing the new capacity
