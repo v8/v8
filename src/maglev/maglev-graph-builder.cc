@@ -282,15 +282,6 @@ class CallArguments {
     return args_[i];
   }
 
-  void set_arg(size_t i, ValueNode* node) {
-    if (receiver_mode_ != ConvertReceiverMode::kNullOrUndefined) {
-      i++;
-    }
-    DCHECK_LT(i, args_.size());
-    DCHECK(!node->properties().is_conversion());
-    args_[i] = node;
-  }
-
   Mode mode() const { return mode_; }
 
   ConvertReceiverMode receiver_mode() const { return receiver_mode_; }
@@ -1942,7 +1933,7 @@ using GenericNodeForOperation =
 // Bitwise operations reinterprets the numeric input as Int32 bits for a
 // bitwise operation, which means we want to do slightly different conversions.
 template <Operation kOperation>
-constexpr bool BinaryOperationIsBitwiseInt32() {
+consteval bool BinaryOperationIsBitwiseInt32() {
   switch (kOperation) {
     case Operation::kBitwiseNot:
     case Operation::kBitwiseAnd:
