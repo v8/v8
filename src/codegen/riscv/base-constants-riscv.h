@@ -66,7 +66,7 @@ constexpr int kRootRegisterBias = 256;
   V(m2)             \
   V(m4)             \
   V(m8)             \
-  V(RESERVERD)      \
+  V(RESERVED)       \
   V(mf8)            \
   V(mf4)            \
   V(mf2)
@@ -341,7 +341,6 @@ static_assert(
 #else
 constexpr int kRvvVLEN = 128;
 #endif
-constexpr int kRvvSLEN = kRvvVLEN;
 
 const int kRvvFunct6Shift = 26;
 const int kRvvFunct6Bits = 6;
