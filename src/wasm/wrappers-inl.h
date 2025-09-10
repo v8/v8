@@ -491,36 +491,41 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
                         MemoryRepresentation::AnyUncompressedTagged(),
                         IsolateData::active_suspender_offset());
 
-    IF (__ TaggedEqual(suspender, __ SmiConstant(Smi::zero()))) {
-      V<Smi> error = __ SmiConstant(Smi::FromInt(
-          static_cast<int32_t>(MessageTemplate::kWasmSuspendError)));
-      __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError,
-                         {error}, native_context);
-      __ Unreachable();
-    }
     if (v8_flags.stress_wasm_stack_switching) {
       V<Word32> for_stress_testing = __ TaggedEqual(
           __ LoadTaggedField(suspender, WasmSuspenderObject::kResumeOffset),
           LOAD_ROOT(UndefinedValue));
       IF (for_stress_testing) {
-        V<Smi> error = __ SmiConstant(Smi::FromInt(
-            static_cast<int32_t>(MessageTemplate::kWasmSuspendJSFrames)));
-        __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError,
-                           {error}, native_context);
+        __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError, {},
+                           native_context);
         __ Unreachable();
       }
     }
+
     // If {old_sp} is null, it must be that we were on the central stack
     // before entering the wasm-to-js wrapper, which means that there are JS
     // frames in the current suspender. JS frames cannot be suspended, so
     // trap.
-    OpIndex has_js_frames = __ WordPtrEqual(__ IntPtrConstant(0), old_sp);
-    IF (has_js_frames) {
-      V<Smi> error = __ SmiConstant(Smi::FromInt(
-          static_cast<int32_t>(MessageTemplate::kWasmSuspendJSFrames)));
-      __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError,
-                         {error}, native_context);
+    OpIndex active_stack_has_js_frames =
+        __ WordPtrEqual(__ IntPtrConstant(0), old_sp);
+    IF (active_stack_has_js_frames) {
+      __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError, {},
+                         native_context);
       __ Unreachable();
+    }
+    if (v8_flags.experimental_wasm_wasmfx) {
+      // Also check that potential inactive WasmFX stacks don't contain host
+      // frames.
+      OpIndex isolate = __ IsolateField(IsolateFieldId::kIsolateAddress);
+      auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
+                     .Params(MachineType::Pointer());
+      OpIndex has_js_frames = this->CallC(
+          &sig, ExternalReference::wasm_suspender_has_js_frames(), {isolate});
+      IF (has_js_frames) {
+        __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError, {},
+                           native_context);
+        __ Unreachable();
+      }
     }
   }
 

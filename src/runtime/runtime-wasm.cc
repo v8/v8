@@ -122,13 +122,6 @@ Tagged<Object> ThrowWasmError(
                         isolate->factory()->true_value(), NONE);
   return isolate->Throw(*error_obj);
 }
-
-Tagged<Object> ThrowWasmSuspendError(Isolate* isolate,
-                                     MessageTemplate message) {
-  DirectHandle<JSObject> error_obj =
-      isolate->factory()->NewWasmSuspendError(message);
-  return isolate->Throw(*error_obj);
-}
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmGenericWasmToJSObject) {
@@ -276,11 +269,20 @@ RUNTIME_FUNCTION(Runtime_WasmThrowJSTypeError) {
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmSuspendError) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-
-  MessageTemplate message_id = MessageTemplateFromInt(args.smi_value_at(0));
-
-  return ThrowWasmSuspendError(isolate, message_id);
+  DCHECK_EQ(0, args.length());
+  MessageTemplate message = MessageTemplate::kWasmSuspendJSFrames;
+  Tagged<WasmSuspenderObject> suspender =
+      isolate->isolate_data()->active_suspender();
+  if (IsUndefined(suspender->resume())) {
+    // We are not within a valid "WebAssembly.promising" scope. This is either a
+    // suspender created for a non-promising export call under the stress mode,
+    // or the sentinel suspender representing the initial stack.
+    // Throw with a more precise error message.
+    message = MessageTemplate::kWasmSuspendError;
+  }
+  DirectHandle<JSObject> error_obj =
+      isolate->factory()->NewWasmSuspendError(message);
+  return isolate->Throw(*error_obj);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrowRangeError) {
@@ -1246,7 +1248,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
 RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   HandleScope scope(isolate);
   DirectHandle<WasmSuspenderObject> suspender =
-      isolate->factory()->NewWasmSuspenderObject();
+      isolate->factory()->NewWasmSuspenderObjectInitialized();
 
   // Update the stack state.
   wasm::StackMemory* active_stack = isolate->isolate_data()->active_stack();
@@ -1261,10 +1263,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   isolate->isolate_data()->set_active_stack(target_stack.get());
 
   // Update the suspender state.
-  if (!isolate->isolate_data()->active_suspender().IsSmi()) {
-    suspender->set_parent(TrustedCast<WasmSuspenderObject>(
-        isolate->isolate_data()->active_suspender()));
-  }
+  suspender->set_parent(isolate->isolate_data()->active_suspender());
   suspender->set_stack(isolate, target_stack.get());
   isolate->isolate_data()->set_active_suspender(*suspender);
 

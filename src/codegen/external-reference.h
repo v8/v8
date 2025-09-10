@@ -256,6 +256,7 @@ enum class IsolateFieldId : uint8_t;
     "Heap::VerifySkippedIndirectWriteBarrier")                                 \
   V(verify_skipped_write_barrier, "Heap::VerifySkippedWriteBarrier")           \
   IF_WASM(V, wasm_start_stack, "wasm_start_stack")                             \
+  IF_WASM(V, wasm_suspender_has_js_frames, "wasm_suspender_has_js_frames")     \
   IF_WASM(V, wasm_suspend_stack, "wasm_suspend_stack")                         \
   IF_WASM(V, wasm_resume_jspi_stack, "wasm_resume_jspi_stack")                 \
   IF_WASM(V, wasm_resume_wasmfx_stack, "wasm_resume_wasmfx_stack")             \

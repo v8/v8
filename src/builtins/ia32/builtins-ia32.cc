@@ -3792,52 +3792,29 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   // Set a sentinel value for the spill slots visited by the GC.
   ResetWasmJspiFrameStackSlots(masm);
 
-  // -------------------------------------------
-  // Save current state in active jump buffer.
-  // -------------------------------------------
   Label resume;
   Register stack = edx;
   __ LoadRootRelative(stack, IsolateData::active_stack_offset());
 
-  Register suspender_stack = edi;
-  __ Move(suspender_stack,
-          FieldOperand(suspender, WasmSuspenderObject::kStackOffset));
-#ifdef DEBUG
-  // -------------------------------------------
-  // Check that the suspender's stack is the active stack.
-  // -------------------------------------------
-  // TODO(thibaudm): Once we add core stack-switching instructions, this check
-  // will not hold anymore: it's possible that the active stack changed
-  // (due to an internal switch), so we have to update the suspender.
-  __ cmp(suspender_stack, stack);
-  Label ok;
-  __ j(equal, &ok);
-  __ Trap();
-  __ bind(&ok);
-#endif
-
-  // -------------------------------------------
-  // Update roots.
-  // -------------------------------------------
-  Register caller = ecx;
-  __ Move(caller, Operand(suspender_stack, wasm::kStackParentOffset));
-  __ StoreRootRelative(IsolateData::active_stack_offset(), caller);
+  // Update active stack.
   Register parent = edi;
   __ Move(parent, FieldOperand(suspender, WasmSuspenderObject::kParentOffset));
+  Register target_stack = ecx;
+  __ Move(target_stack,
+          FieldOperand(parent, WasmSuspenderObject::kStackOffset));
+  __ StoreRootRelative(IsolateData::active_stack_offset(), target_stack);
+
+  // Switch stacks.
+  SwitchStacks(masm, ExternalReference::wasm_suspend_stack(), stack, &resume,
+               no_reg, {target_stack, suspender, parent});
   __ StoreRootRelative(IsolateData::active_suspender_offset(), parent);
   parent = no_reg;
-
-  // -------------------------------------------
-  // Load jump buffer.
-  // -------------------------------------------
-  SwitchStacks(masm, ExternalReference::wasm_suspend_stack(), stack, &resume,
-               no_reg, {caller, suspender});
   __ Move(kReturnRegister0,
           FieldOperand(suspender, WasmSuspenderObject::kPromiseOffset));
   MemOperand GCScanSlotPlace =
       MemOperand(ebp, WasmJspiFrameConstants::kGCScanSlotCountOffset);
   __ Move(GCScanSlotPlace, Immediate(0));
-  LoadJumpBuffer(masm, caller, true);
+  LoadJumpBuffer(masm, target_stack, true);
   __ Trap();
   __ bind(&resume);
   __ LeaveFrame(StackFrame::WASM_JSPI);

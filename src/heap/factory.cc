@@ -1918,7 +1918,6 @@ DirectHandle<WasmResumeData> Factory::NewWasmResumeData(
 }
 
 DirectHandle<WasmSuspenderObject> Factory::NewWasmSuspenderObject() {
-  DirectHandle<JSPromise> promise = NewJSPromise();
   Tagged<Map> map = *wasm_suspender_object_map();
   Tagged<WasmSuspenderObject> obj =
       TrustedCast<WasmSuspenderObject>(AllocateRawWithImmortalMap(
@@ -1928,9 +1927,16 @@ DirectHandle<WasmSuspenderObject> Factory::NewWasmSuspenderObject() {
   suspender->init_self_indirect_pointer(isolate());
   suspender->init_stack(IsolateForSandbox(isolate()), nullptr);
   suspender->clear_parent();
-  suspender->set_promise(*promise);
+  suspender->set_promise(*undefined_value());
   suspender->set_resume(*undefined_value());
   suspender->set_reject(*undefined_value());
+  return suspender;
+}
+
+DirectHandle<WasmSuspenderObject> Factory::NewWasmSuspenderObjectInitialized() {
+  DirectHandle<JSPromise> promise = NewJSPromise();
+  DirectHandle<WasmSuspenderObject> suspender = NewWasmSuspenderObject();
+  suspender->set_promise(*promise);
   // Instantiate the callable object which resumes this Suspender. This will be
   // used implicitly as the onFulfilled callback of the returned JS promise.
   DirectHandle<WasmResumeData> resume_data =
@@ -1966,6 +1972,7 @@ DirectHandle<WasmContinuationObject> Factory::NewWasmContinuationObject() {
   stack->jmpbuf()->state = wasm::JumpBuffer::Suspended;
   stack->jmpbuf()->stack_limit = stack->jslimit();
   stack->jmpbuf()->is_on_central_stack = false;
+  stack->jmpbuf()->parent = nullptr;
   stack->set_index(isolate()->wasm_stacks().size());
   cont->set_stack(isolate(), stack.get());
   isolate()->wasm_stacks().emplace_back(std::move(stack));
