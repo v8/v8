@@ -103,6 +103,9 @@ OUTPUT_T GenAndRunTest(INPUT_T input0, INPUT_T input1, Func test_generator) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  if (v8_flags.print_code) {
+    Print(*code);
+  }
 
   using OINT_T = std::conditional_t<
       std::is_integral_v<OUTPUT_T>, OUTPUT_T,
