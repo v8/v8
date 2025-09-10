@@ -1796,7 +1796,20 @@ ProcessResult MaglevGraphOptimizer::VisitCheckpointedJump() {
 }
 
 ProcessResult MaglevGraphOptimizer::VisitJumpLoop() {
-  // TODO(b/424157317): Optimize.
+  // We need to unwrap backedges of loop phis (since it's possible that they
+  // weren't identities when the loop header was visited initially, but they
+  // later became Identities while visiting the loop's body).
+  BasicBlock* loop_header = current_node()->Cast<JumpLoop>()->target();
+  if (!loop_header->has_phi()) return ProcessResult::kContinue;
+
+  for (Phi* phi : *loop_header->phis()) {
+    for (int i = 0; i < phi->input_count(); i++) {
+      ValueNode* input = phi->input(i).node();
+      if (!input) continue;
+      phi->change_input(i, input->UnwrapIdentities());
+    }
+  }
+
   return ProcessResult::kContinue;
 }
 
