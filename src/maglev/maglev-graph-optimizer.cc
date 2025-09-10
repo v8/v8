@@ -461,17 +461,80 @@ ProcessResult MaglevGraphOptimizer::VisitReduceInterruptBudgetForReturn() {
 }
 
 ProcessResult MaglevGraphOptimizer::VisitThrowReferenceErrorIfHole() {
-  // TODO(b/424157317): Optimize.
+  ThrowReferenceErrorIfHole* node =
+      current_node()->Cast<ThrowReferenceErrorIfHole>();
+
+  // Avoid the check if we know it is not the hole.
+  ValueNode* value = node->value().node();
+  if (IsConstantNode(value->opcode())) {
+    if (value->IsTheHoleValue()) {
+      ValueNode* input = reducer_.GetConstant(node->name());
+
+      node->OverwriteWith<Throw>();
+      node->Cast<Throw>()->UpdateBitfield(
+          Throw::kThrowAccessedUninitializedVariable,
+          /*has_input*/ true);
+      node->change_input(0, input);
+
+      // TODO(dmercadier): insert an Abort and cut the current basic block.
+      return ProcessResult::kContinue;
+    }
+
+    // Not the hole; removing.
+    return ProcessResult::kRemove;
+  }
+
+  // TODO(b/424157317): Optimize further.
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitThrowSuperNotCalledIfHole() {
-  // TODO(b/424157317): Optimize.
+  ThrowSuperNotCalledIfHole* node =
+      current_node()->Cast<ThrowSuperNotCalledIfHole>();
+
+  // Avoid the check if we know it is not the hole.
+  ValueNode* value = node->value().node();
+  if (IsConstantNode(value->opcode())) {
+    if (value->IsTheHoleValue()) {
+      node->OverwriteWith<Throw>();
+      node->Cast<Throw>()->UpdateBitfield(Throw::kThrowSuperNotCalled,
+                                          /*has_input*/ false);
+      node->change_input(0, reducer_.GetSmiConstant(0));
+
+      // TODO(dmercadier): insert an Abort and cut the current basic block.
+      return ProcessResult::kContinue;
+    }
+
+    // Not the hole; removing.
+    return ProcessResult::kRemove;
+  }
+
+  // TODO(b/424157317): Optimize further.
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitThrowSuperAlreadyCalledIfNotHole() {
-  // TODO(b/424157317): Optimize.
+  ThrowSuperAlreadyCalledIfNotHole* node =
+      current_node()->Cast<ThrowSuperAlreadyCalledIfNotHole>();
+
+  // Avoid the check if we know it is not the hole.
+  ValueNode* value = node->value().node();
+  if (IsConstantNode(value->opcode())) {
+    if (!value->IsTheHoleValue()) {
+      node->OverwriteWith<Throw>();
+      node->Cast<Throw>()->UpdateBitfield(Throw::kThrowSuperAlreadyCalledError,
+                                          /*has_input*/ false);
+      node->change_input(0, reducer_.GetSmiConstant(0));
+
+      // TODO(dmercadier): insert an Abort and cut the current basic block.
+      return ProcessResult::kContinue;
+    }
+
+    // Value is the hole; removing.
+    return ProcessResult::kRemove;
+  }
+
+  // TODO(b/424157317): Optimize further.
   return ProcessResult::kContinue;
 }
 
@@ -1692,6 +1755,11 @@ ProcessResult MaglevGraphOptimizer::VisitReturn() {
 }
 
 ProcessResult MaglevGraphOptimizer::VisitDeopt() {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitThrow() {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }

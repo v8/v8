@@ -3701,10 +3701,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceTypeOf(
       break;
   }
 
-  if (IsNullValue(value)) {
+  if (value->IsNullValue()) {
     return GetResult(TypeOfLiteralFlag::kObject, RootIndex::kobject_string);
   }
-  if (IsUndefinedValue(value)) {
+  if (value->IsUndefinedValue()) {
     return GetResult(TypeOfLiteralFlag::kUndefined,
                      RootIndex::kundefined_string);
   }
@@ -9085,11 +9085,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSlice(
 
   if (auto start_value = TryGetInt32Constant(start)) {
     if (*start_value != 0) return {};
-  } else if (!IsUndefinedValue(start)) {
+  } else if (!start->IsUndefinedValue()) {
     return {};
   }
 
-  if (!IsUndefinedValue(end)) {
+  if (!end->IsUndefinedValue()) {
     return {};
   }
 
@@ -9386,7 +9386,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeStartsWith(
 
   ValueNode* start_arg = GetValueOrUndefined(args[1]);
   ValueNode* start =
-      IsUndefinedValue(start_arg) ? GetInt32Constant(0) : start_arg;
+      start_arg->IsUndefinedValue() ? GetInt32Constant(0) : start_arg;
 
   RETURN_IF_ABORT(BuildCheckString(receiver));
   RETURN_IF_ABORT(BuildCheckSmi(start));
@@ -11159,8 +11159,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCallForConstant(
   if (!shared.HasBreakInfo(broker())) {
     if (IsClassConstructor(shared.kind())) {
       // If we have a class constructor, we should raise an exception.
-      return BuildCallRuntime(Runtime::kThrowConstructorNonCallableError,
-                              {target_node});
+      return BuildThrow(Throw::kThrowConstructorNonCallableError, target_node);
     }
     DCHECK(IsCallable(*target.object()));
     RETURN_IF_DONE(TryReduceBuiltin(target, shared, args, feedback_source));
@@ -11255,8 +11254,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCallForNewClosure(
   if (!shared.HasBreakInfo(broker())) {
     if (IsClassConstructor(shared.kind())) {
       // If we have a class constructor, we should raise an exception.
-      return BuildCallRuntime(Runtime::kThrowConstructorNonCallableError,
-                              {target_node});
+      return BuildThrow(Throw::kThrowConstructorNonCallableError, target_node);
     }
     RETURN_IF_DONE(TryBuildCallKnownJSFunction(
         target_context, target_node,
@@ -11291,7 +11289,8 @@ MaglevGraphBuilder::TryReduceFunctionPrototypeApplyCallWithReceiver(
     CallArguments new_args(ConvertReceiverMode::kAny, {args[0]});
     return ReduceCall(function, new_args, feedback_source);
   };
-  if (args.count() == 1 || IsNullValue(args[1]) || IsUndefinedValue(args[1])) {
+  if (args.count() == 1 || args[1]->IsNullValue() ||
+      args[1]->IsUndefinedValue()) {
     return build_call_only_with_new_receiver();
   }
   auto build_call_with_array_like = [&] {
@@ -11359,8 +11358,8 @@ ReduceResult MaglevGraphBuilder::BuildCallWithFeedback(
                                        DeoptimizeReason::kWrongFeedbackCell));
         if (IsClassConstructor(shared->kind())) {
           // If we have a class constructor, we should raise an exception.
-          return BuildCallRuntime(Runtime::kThrowConstructorNonCallableError,
-                                  {target_node});
+          return BuildThrow(Throw::kThrowConstructorNonCallableError,
+                            target_node);
         }
         ValueNode* context = BuildLoadJSFunctionContext(target_node);
         compiler::ScopeInfoRef scope_info = shared->scope_info(broker());
@@ -11661,7 +11660,7 @@ ReduceResult MaglevGraphBuilder::VisitCallRuntime() {
       function_id, context);
   SetAccumulator(call_runtime);
 
-  if (RuntimeFunctionCanThrow(function_id)) {
+  if (RuntimeFunctionWillThrow(function_id)) {
     return BuildAbort(AbortReason::kUnexpectedReturnFromThrow);
   }
   return ReduceResult::Done();
@@ -12092,7 +12091,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
         [&] {
           ValueNode* error = GetSmiConstant(
               static_cast<int>(MessageTemplate::kInvalidArrayLength));
-          return BuildCallRuntime(Runtime::kThrowRangeError, {error});
+          return BuildThrow(Throw::kThrowRangeError, error);
         });
   }
 
@@ -12179,7 +12178,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructGeneric(
       if (constant.IsJSReceiver()) return constant_node;
     }
     if (!call_result->properties().is_tagged()) {
-      return BuildCallRuntime(Runtime::kThrowConstructorReturnedNonObject, {});
+      return BuildThrow(Throw::kThrowConstructorReturnedNonObject);
     }
     return AddNewNode<CheckDerivedConstructResult>({call_result});
   }
@@ -15117,11 +15116,11 @@ ReduceResult MaglevGraphBuilder::VisitSetPendingMessage() {
 
 ReduceResult MaglevGraphBuilder::VisitThrow() {
   ValueNode* exception = GetAccumulator();
-  return BuildCallRuntime(Runtime::kThrow, {exception});
+  return BuildThrow(Throw::kThrow, exception);
 }
 ReduceResult MaglevGraphBuilder::VisitReThrow() {
   ValueNode* exception = GetAccumulator();
-  return BuildCallRuntime(Runtime::kReThrow, {exception});
+  return BuildThrow(Throw::kReThrow, exception);
 }
 
 ReduceResult MaglevGraphBuilder::VisitReturn() {
@@ -15160,10 +15159,9 @@ ReduceResult MaglevGraphBuilder::VisitThrowReferenceErrorIfHole() {
 
   // Avoid the check if we know it is not the hole.
   if (IsConstantNode(value->opcode())) {
-    if (IsTheHoleValue(value)) {
+    if (value->IsTheHoleValue()) {
       ValueNode* constant = GetConstant(name);
-      return BuildCallRuntime(Runtime::kThrowAccessedUninitializedVariable,
-                              {constant});
+      return BuildThrow(Throw::kThrowAccessedUninitializedVariable, constant);
     }
     return ReduceResult::Done();
   }
@@ -15207,8 +15205,8 @@ ReduceResult MaglevGraphBuilder::VisitThrowSuperNotCalledIfHole() {
   if (CheckType(value, NodeType::kJSReceiver)) return ReduceResult::Done();
   // Avoid the check if we know it is not the hole.
   if (IsConstantNode(value->opcode())) {
-    if (IsTheHoleValue(value)) {
-      return BuildCallRuntime(Runtime::kThrowSuperNotCalled, {});
+    if (value->IsTheHoleValue()) {
+      return BuildThrow(Throw::kThrowSuperNotCalled);
     }
     return ReduceResult::Done();
   }
@@ -15220,8 +15218,8 @@ ReduceResult MaglevGraphBuilder::VisitThrowSuperAlreadyCalledIfNotHole() {
   ValueNode* value = GetAccumulator();
   // Avoid the check if we know it is the hole.
   if (IsConstantNode(value->opcode())) {
-    if (!IsTheHoleValue(value)) {
-      return BuildCallRuntime(Runtime::kThrowSuperAlreadyCalledError, {});
+    if (!value->IsTheHoleValue()) {
+      return BuildThrow(Throw::kThrowSuperAlreadyCalledError);
     }
     return ReduceResult::Done();
   }
@@ -15394,13 +15392,13 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGetIterator(
     iterator_method = result_load.value();
   }
   auto throw_iterator_error = [&] {
-    return BuildCallRuntime(Runtime::kThrowIteratorError, {receiver});
+    return BuildThrow(Throw::kThrowIteratorError, receiver);
   };
   if (!iterator_method->is_tagged()) {
     return throw_iterator_error();
   }
   auto throw_symbol_iterator_invalid = [&] {
-    return BuildCallRuntime(Runtime::kThrowSymbolIteratorInvalid, {});
+    return BuildThrow(Throw::kThrowSymbolIteratorInvalid);
   };
   auto call_iterator_method = [&] {
     // If the call eager deopts (e.g. because of incorrect speculation of the
@@ -16192,10 +16190,25 @@ ReduceResult MaglevGraphBuilder::BuildCallRuntime(
       },
       function_id, GetContext());
 
-  if (RuntimeFunctionCanThrow(function_id)) {
+  if (RuntimeFunctionWillThrow(function_id)) {
     return BuildAbort(AbortReason::kUnexpectedReturnFromThrow);
   }
   return result;
+}
+
+ReduceResult MaglevGraphBuilder::BuildThrow(Throw::Function function,
+                                            ValueNode* input) {
+  bool has_input;
+  if (input == nullptr) {
+    has_input = false;
+    // To avoid a nullptr input, we use Smi(0) as dummy input.
+    input = GetSmiConstant(0);
+  } else {
+    has_input = true;
+  }
+  AddNewNode<Throw>({input}, function, has_input);
+  FinishBlock<Abort>({}, AbortReason::kUnexpectedReturnFromThrow);
+  return ReduceResult::DoneWithAbort();
 }
 
 ReduceResult MaglevGraphBuilder::BuildAbort(AbortReason reason) {

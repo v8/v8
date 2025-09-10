@@ -549,7 +549,7 @@ class MaglevGraphBuilder {
 
   ValueNode* BuildToString(ValueNode* value, ToString::ConversionMode mode);
 
-  constexpr bool RuntimeFunctionCanThrow(Runtime::FunctionId function_id) {
+  constexpr bool RuntimeFunctionWillThrow(Runtime::FunctionId function_id) {
 #define BAILOUT(name, ...)               \
   if (function_id == Runtime::k##name) { \
     return true;                         \
@@ -561,6 +561,8 @@ class MaglevGraphBuilder {
 
   ReduceResult BuildCallRuntime(Runtime::FunctionId function_id,
                                 std::initializer_list<ValueNode*> inputs);
+
+  ReduceResult BuildThrow(Throw::Function function, ValueNode* input = nullptr);
 
   ReduceResult BuildAbort(AbortReason reason);
 
@@ -615,16 +617,6 @@ class MaglevGraphBuilder {
   MaybeReduceResult GetConstantSingleCharacterStringFromCode(uint16_t);
 
   ValueNode* GetRegisterInput(Register reg);
-
-#define DEFINE_IS_ROOT_OBJECT(type, name, CamelName)               \
-  bool Is##CamelName(ValueNode* value) const {                     \
-    if (RootConstant* constant = value->TryCast<RootConstant>()) { \
-      return constant->index() == RootIndex::k##CamelName;         \
-    }                                                              \
-    return false;                                                  \
-  }
-  ROOT_LIST(DEFINE_IS_ROOT_OBJECT)
-#undef DEFINE_IS_ROOT_OBJECT
 
   // Move an existing ValueNode between two registers. You can pass
   // virtual_accumulator as the src or dst to move in or out of the accumulator.

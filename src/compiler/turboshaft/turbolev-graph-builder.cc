@@ -1602,6 +1602,43 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::Throw* node,
+                                const maglev::ProcessingState&) {
+    ThrowingScope throwing_scope(this, node);
+    LazyDeoptOnThrow lazy_deopt_on_throw = ShouldLazyDeoptOnThrow(node);
+
+    auto c_entry_stub = __ CEntryStubConstant(isolate_, 1);
+
+    CallDescriptor* call_descriptor = Linkage::GetRuntimeCallDescriptor(
+        graph_zone(), node->runtime_function(), node->has_input() ? 1 : 0,
+        Operator::kNoProperties, CallDescriptor::kNeedsFrameState,
+        lazy_deopt_on_throw);
+
+    OptionalV<FrameState> frame_state = OptionalV<FrameState>::Nullopt();
+    if (call_descriptor->NeedsFrameState()) {
+      GET_FRAME_STATE_MAYBE_ABORT(frame_state_value, node->lazy_deopt_info());
+      frame_state = frame_state_value;
+    }
+    DCHECK_IMPLIES(lazy_deopt_on_throw == LazyDeoptOnThrow::kYes,
+                   frame_state.has_value());
+
+    base::SmallVector<OpIndex, 4> arguments;
+    if (node->has_input()) {
+      arguments.push_back(Map(node->value_input()));
+    }
+
+    arguments.push_back(__ ExternalConstant(
+        ExternalReference::Create(node->runtime_function())));
+    arguments.push_back(__ Word32Constant(node->has_input() ? 1 : 0));
+
+    arguments.push_back(native_context());
+    __ Call(c_entry_stub, frame_state, base::VectorOf(arguments),
+            TSCallDescriptor::Create(call_descriptor, CanThrow::kYes,
+                                     lazy_deopt_on_throw, graph_zone()));
+
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::ThrowReferenceErrorIfHole* node,
                                 const maglev::ProcessingState& state) {
     ThrowingScope throwing_scope(this, node);
