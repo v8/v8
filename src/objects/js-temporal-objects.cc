@@ -18,6 +18,7 @@
 #include "src/objects/js-objects.h"
 #include "src/objects/js-temporal-helpers.h"
 #include "src/objects/js-temporal-objects-inl.h"
+#include "src/objects/js-temporal-zoneinfo64.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/option-utils.h"
@@ -93,6 +94,11 @@ enum Completeness {
   kComplete,
   kPartial,
 };
+
+// Convenience method for getting the timezone provider
+temporal_rs::Provider& TimeZoneProvider() {
+  return ZoneInfo64Provider::Singleton().Provider();
+}
 
 // Common error strings
 static constexpr char kInvalidIsoDate[] = "Invalid ISO date.";
@@ -1482,7 +1488,8 @@ Maybe<std::unique_ptr<temporal_rs::TimeZone>> ToTemporalTimeZoneIdentifier(
   auto std_str = str->ToStdString();
 
   return ExtractRustResult(isolate,
-                           temporal_rs::TimeZone::try_from_str(std_str));
+                           temporal_rs::TimeZone::try_from_str_with_provider(
+                               std_str, TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-totemporalpartialdurationrecord
@@ -2129,15 +2136,29 @@ Maybe<CombinedRecord> PrepareCalendarFields(Isolate* isolate,
 // ====== System time ======
 
 // https://tc39.es/proposal-temporal/#sec-systemtimezoneidentifier
+std::unique_ptr<temporal_rs::TimeZone> UTCTimeZoneInner() {
+  auto result = temporal_rs::TimeZone::utc_with_provider(TimeZoneProvider());
+  if (result.is_ok()) {
+    return std::move(result).ok().value();
+  }
+  // TODO(Manishearth) use https://github.com/boa-dev/temporal/pull/554 instead
+  // when we can
+  return temporal_rs::TimeZone::zero();
+}
+
+// https://tc39.es/proposal-temporal/#sec-systemtimezoneidentifier
 std::unique_ptr<temporal_rs::TimeZone> UTCTimeZone() {
-  return temporal_rs::TimeZone::utc();
+  static temporal_rs::TimeZone* UTC_TZ = UTCTimeZoneInner().release();
+  return UTC_TZ->clone();
 }
 
 // https://tc39.es/proposal-temporal/#sec-systemtimezoneidentifier
 #ifdef V8_INTL_SUPPORT
 std::unique_ptr<temporal_rs::TimeZone> SystemTimeZoneIdentifier() {
   auto tz_str = Intl::DefaultTimeZone();
-  auto tz = temporal_rs::TimeZone::try_from_identifier_str(tz_str).ok();
+  auto tz = temporal_rs::TimeZone::try_from_identifier_str_with_provider(
+                tz_str, TimeZoneProvider())
+                .ok();
   if (tz.has_value()) {
     return std::move(tz).value();
   }
@@ -2205,7 +2226,8 @@ Maybe<std::unique_ptr<temporal_rs::ZonedDateTime>> GenericTemporalNowISO(
   std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
   MOVE_RETURN_ON_EXCEPTION(
       isolate, zdt,
-      ExtractRustResult(isolate, instant->to_zoned_date_time_iso(*time_zone)));
+      ExtractRustResult(isolate, instant->to_zoned_date_time_iso_with_provider(
+                                     *time_zone, TimeZoneProvider())));
 
   return Just(std::move(zdt));
 }
@@ -2967,9 +2989,9 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
                                                              options.overflow));
 
       return ConstructRustWrappingType<JSTemporalZonedDateTime>(
-          isolate, temporal_rs::ZonedDateTime::from_partial(
+          isolate, temporal_rs::ZonedDateTime::from_partial_with_provider(
                        partial, options.overflow, options.disambiguation,
-                       options.offset_option));
+                       options.offset_option, TimeZoneProvider()));
     }
 
   } else {
@@ -2992,11 +3014,13 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
         isolate, str,
         [](std::string_view view)
             -> TemporalAllocatedResult<temporal_rs::ParsedZonedDateTime> {
-          return temporal_rs::ParsedZonedDateTime::from_utf8(view);
+          return temporal_rs::ParsedZonedDateTime::from_utf8_with_provider(
+              view, TimeZoneProvider());
         },
         [](std::u16string_view view)
             -> TemporalAllocatedResult<temporal_rs::ParsedZonedDateTime> {
-          return temporal_rs::ParsedZonedDateTime::from_utf16(view);
+          return temporal_rs::ParsedZonedDateTime::from_utf16_with_provider(
+              view, TimeZoneProvider());
         });
     MOVE_RETURN_ON_EXCEPTION(
         isolate, parsed, ExtractRustResult(isolate, std::move(rust_result)));
@@ -3010,8 +3034,9 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
 
     // Rest of the steps handled in Rust
     return ConstructRustWrappingType<JSTemporalZonedDateTime>(
-        isolate, temporal_rs::ZonedDateTime::from_parsed(
-                     *parsed, options.disambiguation, options.offset_option));
+        isolate, temporal_rs::ZonedDateTime::from_parsed_with_provider(
+                     *parsed, options.disambiguation, options.offset_option,
+                     TimeZoneProvider()));
   }
 }
 
@@ -3370,9 +3395,10 @@ Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
         isolate, zoned_relative_to,
         ExtractRustResult(
             isolate,
-            temporal_rs::ZonedDateTime::from_partial(
+            temporal_rs::ZonedDateTime::from_partial_with_provider(
                 partial, overflow, temporal_rs::Disambiguation::Compatible,
-                temporal_rs::OffsetDisambiguation::Reject)));
+                temporal_rs::OffsetDisambiguation::Reject,
+                TimeZoneProvider())));
     // 12. Return the Record { [[PlainRelativeTo]]: undefined,
     // [[ZonedRelativeTo]]: zonedRelativeTo }.
     return Just(RelativeTo::Owned(std::move(zoned_relative_to)));
@@ -3397,11 +3423,13 @@ Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
             isolate, str,
             [](std::string_view view)
                 -> TemporalResult<temporal_rs::OwnedRelativeTo> {
-              return temporal_rs::OwnedRelativeTo::from_utf8(view);
+              return temporal_rs::OwnedRelativeTo::from_utf8_with_provider(
+                  view, TimeZoneProvider());
             },
             [](std::u16string_view view)
                 -> TemporalResult<temporal_rs::OwnedRelativeTo> {
-              return temporal_rs::OwnedRelativeTo::from_utf16(view);
+              return temporal_rs::OwnedRelativeTo::from_utf16_with_provider(
+                  view, TimeZoneProvider());
             });
     MOVE_RETURN_ON_EXCEPTION(
         isolate, relative_to,
@@ -3415,9 +3443,11 @@ Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
 
 // ====== Difference operations ======
 
-template <typename RustType>
+// ProviderArg is only for wrapping temporal_rs::Provider&
+template <typename RustType, typename... ProviderArg>
 using DifferenceOperation = TemporalAllocatedResult<temporal_rs::Duration> (
-    RustType::*)(const RustType&, temporal_rs::DifferenceSettings) const;
+    RustType::*)(const RustType&, temporal_rs::DifferenceSettings,
+                 const ProviderArg&...) const;
 
 // Generic function for all DifferenceTemporalFoo operations
 //
@@ -3426,12 +3456,13 @@ using DifferenceOperation = TemporalAllocatedResult<temporal_rs::Duration> (
 // https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplaindatetime
 // https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplainyearmonth
 // https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalzoneddatetime
-template <typename JSType>
+template <typename JSType, typename... ProviderArg>
 MaybeDirectHandle<JSTemporalDuration> GenericDifferenceTemporal(
-    Isolate* isolate, DifferenceOperation<typename JSType::RustType> operation,
+    Isolate* isolate,
+    DifferenceOperation<typename JSType::RustType, ProviderArg...> operation,
     UnitGroup group, Unit fallback_smallest_unit, DirectHandle<JSType> handle,
     DirectHandle<Object> other_obj, DirectHandle<Object> options,
-    const char* method_name) {
+    const char* method_name, const ProviderArg&... provider) {
   // Steps are written for PlainDate, but are similar for other types
 
   // 1. Set other to ?ToTemporalDate(other).
@@ -3471,7 +3502,7 @@ MaybeDirectHandle<JSTemporalDuration> GenericDifferenceTemporal(
   // operation negation (step 6) is also handled in temporal_rs, we should not
   // negate again here.
 
-  auto diff = (this_rust.*operation)(other_rust, settings);
+  auto diff = (this_rust.*operation)(other_rust, settings, provider...);
 
   return ConstructRustWrappingType<JSTemporalDuration>(isolate,
                                                        std::move(diff));
@@ -3482,22 +3513,29 @@ MaybeDirectHandle<JSTemporalDuration> GenericDifferenceTemporal(
 // Wrapping Rust-side ::add and ::subtract methods
 // OverflowArgument is generic since some of these
 // methods take std::optional.
-template <typename RustType, typename OverflowArgument>
+//
+// ProviderArg is only for wrapping temporal_rs::Provider&
+template <typename RustType, typename OverflowArgument, typename... ProviderArg>
 using BinaryOperation = TemporalAllocatedResult<RustType> (RustType::*)(
-    const temporal_rs::Duration&, OverflowArgument) const;
+    const temporal_rs::Duration&, OverflowArgument,
+    const ProviderArg&...) const;
 
 // https://tc39.es/proposal-temporal/#sec-temporal-adddurationtodate
 // https://tc39.es/proposal-temporal/#sec-temporal-adddurationtodatetime
 // https://tc39.es/proposal-temporal/#sec-temporal-adddurationtoyearmonth
 // https://tc39.es/proposal-temporal/#sec-temporal-adddurationtozoneddatetime
-template <typename JSType, typename OverflowArgument =
-                               std::optional<temporal_rs::ArithmeticOverflow>>
+template <
+    typename JSType,
+    typename OverflowArgument = std::optional<temporal_rs::ArithmeticOverflow>,
+    typename... ProviderArg>
 MaybeDirectHandle<JSType> AddDurationToGeneric(
     Isolate* isolate,
-    BinaryOperation<typename JSType::RustType, OverflowArgument> operation,
+    BinaryOperation<typename JSType::RustType, OverflowArgument, ProviderArg...>
+        operation,
     DirectHandle<JSType> temporal_js_type,
     DirectHandle<Object> temporal_duration_like,
-    DirectHandle<Object> options_obj, const char* method_name) {
+    DirectHandle<Object> options_obj, const char* method_name,
+    const ProviderArg&... provider) {
   // 1. Let duration be ? ToTemporalDuration(temporalDurationLike).
   DirectHandle<JSTemporalDuration> other_duration;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, other_duration,
@@ -3519,7 +3557,7 @@ MaybeDirectHandle<JSType> AddDurationToGeneric(
 
   // Remaining steps handled in Rust.
   auto added = (temporal_js_type->wrapped_rust().*operation)(
-      *other_duration->duration()->raw(), overflow);
+      *other_duration->duration()->raw(), overflow, provider...);
 
   return ConstructRustWrappingType<JSType>(isolate, std::move(added));
 }
@@ -3592,7 +3630,8 @@ GenericWithHelper<JSTemporalZonedDateTime, temporal_rs::PartialZonedDateTime>(
   // Rest handled by Rust.
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
       isolate,
-      rust_object.with(partial, disambiguation, offset_option, overflow));
+      rust_object.with_with_provider(partial, disambiguation, offset_option,
+                                     overflow, TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.with
@@ -3661,7 +3700,9 @@ MaybeDirectHandle<JSType> GenericWith(Isolate* isolate,
 
 V8_WARN_UNUSED_RESULT Maybe<std::unique_ptr<temporal_rs::TimeZone>>
 ToRustTimeZone(Isolate* isolate, std::string_view tz) {
-  return ExtractRustResult(isolate, temporal_rs::TimeZone::try_from_str(tz));
+  return ExtractRustResult(isolate,
+                           temporal_rs::TimeZone::try_from_str_with_provider(
+                               tz, TimeZoneProvider()));
 }
 
 // Partial implementation:
@@ -3679,8 +3720,9 @@ Maybe<int64_t> GetEpochMillisecondsForDateTime(Isolate* isolate,
   MOVE_RETURN_ON_EXCEPTION(
       isolate, zdt,
       ExtractRustResult(isolate,
-                        date.to_zoned_date_time(
-                            *tz, temporal_rs::Disambiguation::Compatible)));
+                        date.to_zoned_date_time_with_provider(
+                            *tz, temporal_rs::Disambiguation::Compatible,
+                            TimeZoneProvider())));
   return Just(zdt->epoch_milliseconds());
 }
 
@@ -3703,7 +3745,8 @@ Maybe<int64_t> GetEpochMillisecondsForDate(
   std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
   MOVE_RETURN_ON_EXCEPTION(
       isolate, zdt,
-      ExtractRustResult(isolate, date.to_zoned_date_time(*tz, time)));
+      ExtractRustResult(isolate, date.to_zoned_date_time_with_provider(
+                                     *tz, time, TimeZoneProvider())));
   return Just(zdt->epoch_milliseconds());
 }
 
@@ -3841,8 +3884,9 @@ MaybeDirectHandle<Smi> JSTemporalDuration::Compare(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, comparison,
       ExtractRustResult(isolate,
-                        one->duration()->raw()->compare(*two->duration()->raw(),
-                                                        relative_to.ToRust())));
+                        one->duration()->raw()->compare_with_provider(
+                            *two->duration()->raw(), relative_to.ToRust(),
+                            TimeZoneProvider())));
 
   return direct_handle(Smi::FromInt(comparison), isolate);
 }
@@ -3958,8 +4002,8 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Round(
                                               .rounding_mode = rounding_mode,
                                               .increment = rounding_increment};
 
-  auto rounded =
-      duration->duration()->raw()->round(options, relative_to.ToRust());
+  auto rounded = duration->duration()->raw()->round_with_provider(
+      options, relative_to.ToRust(), TimeZoneProvider());
   return ConstructRustWrappingType<JSTemporalDuration>(isolate,
                                                        std::move(rounded));
 }
@@ -4038,8 +4082,10 @@ MaybeDirectHandle<Number> JSTemporalDuration::Total(
   double ret;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, ret,
-      ExtractRustResult(isolate, duration->duration()->raw()->total(
-                                     unit.value(), relative_to.ToRust())));
+      ExtractRustResult(
+          isolate,
+          duration->duration()->raw()->total_with_provider(
+              unit.value(), relative_to.ToRust(), TimeZoneProvider())));
 
   return factory->NewNumber(ret);
 }
@@ -4449,8 +4495,8 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalPlainDate::ToZonedDateTime(
   }
 
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
-      isolate, temporal_date->date()->raw()->to_zoned_date_time(
-                   *time_zone, temporal_time_rust));
+      isolate, temporal_date->date()->raw()->to_zoned_date_time_with_provider(
+                   *time_zone, temporal_time_rust, TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.add
@@ -4822,8 +4868,8 @@ JSTemporalPlainDateTime::ToZonedDateTime(
   // Rest of the steps handled in Rust.
 
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
-      isolate, date_time->date_time()->raw()->to_zoned_date_time(
-                   *time_zone, disambiguation));
+      isolate, date_time->date_time()->raw()->to_zoned_date_time_with_provider(
+                   *time_zone, disambiguation, TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tostring
@@ -5281,7 +5327,8 @@ Maybe<int64_t> JSTemporalPlainMonthDay::GetEpochMillisecondsFor(
                            temporal::ToRustTimeZone(isolate, time_zone));
 
   return ExtractRustResult(isolate,
-                           this->month_day()->raw()->epoch_ms_for(*tz));
+                           this->month_day()->raw()->epoch_ms_for_with_provider(
+                               *tz, TimeZoneProvider()));
 }
 
 MaybeDirectHandle<JSTemporalPlainYearMonth>
@@ -5563,8 +5610,9 @@ Maybe<int64_t> JSTemporalPlainYearMonth::GetEpochMillisecondsFor(
   MOVE_RETURN_ON_EXCEPTION(isolate, tz,
                            temporal::ToRustTimeZone(isolate, time_zone));
 
-  return ExtractRustResult(isolate,
-                           this->year_month()->raw()->epoch_ms_for(*tz));
+  return ExtractRustResult(
+      isolate, this->year_month()->raw()->epoch_ms_for_with_provider(
+                   *tz, TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tojson
@@ -6057,7 +6105,8 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
   MOVE_RETURN_ON_EXCEPTION(
       isolate, time_zone,
       ExtractRustResult(
-          isolate, temporal_rs::TimeZone::try_from_identifier_str(tz_stdstr)));
+          isolate, temporal_rs::TimeZone::try_from_identifier_str_with_provider(
+                       tz_stdstr, TimeZoneProvider())));
 
   // 8. If calendar is undefined, set calendar to "iso8601".
   temporal_rs::AnyCalendarKind calendar = temporal_rs::AnyCalendarKind::Iso;
@@ -6080,7 +6129,8 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
   // calendar, NewTarget).
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
       isolate, target, new_target,
-      temporal_rs::ZonedDateTime::try_new(ns, calendar, *time_zone));
+      temporal_rs::ZonedDateTime::try_new_with_provider(
+          ns, calendar, *time_zone, TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.hoursinday
@@ -6090,7 +6140,9 @@ MaybeDirectHandle<Number> JSTemporalZonedDateTime::HoursInDay(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, hours,
       ExtractRustResult(
-          isolate, zoned_date_time->zoned_date_time()->raw()->hours_in_day()));
+          isolate,
+          zoned_date_time->zoned_date_time()->raw()->hours_in_day_with_provider(
+              TimeZoneProvider())));
   return isolate->factory()->NewNumber(hours);
 }
 
@@ -6138,8 +6190,11 @@ MaybeDirectHandle<Oddball> JSTemporalZonedDateTime::Equals(
       temporal::ToTemporalZonedDateTime(isolate, other_obj, {}, method_name));
 
   // Rest of the steps handled in Rust.
-  auto equals = zoned_date_time->zoned_date_time()->raw()->equals(
-      *other->zoned_date_time()->raw());
+  auto result = zoned_date_time->zoned_date_time()->raw()->equals_with_provider(
+      *other->zoned_date_time()->raw(), TimeZoneProvider());
+  bool equals;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, equals,
+                             ExtractRustResult(isolate, std::move(result)));
 
   return isolate->factory()->ToBoolean(equals);
 }
@@ -6231,7 +6286,8 @@ JSTemporalZonedDateTime::WithPlainTime(
 
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
       isolate,
-      zoned_date_time->zoned_date_time()->raw()->with_plain_time(plain_time));
+      zoned_date_time->zoned_date_time()->raw()->with_plain_time_and_provider(
+          plain_time, TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.withtimezone
@@ -6249,7 +6305,8 @@ JSTemporalZonedDateTime::WithTimeZone(
   // timeZone, zonedDateTime.[[Calendar]]).
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
       isolate,
-      zoned_date_time->zoned_date_time()->raw()->with_timezone(*time_zone));
+      zoned_date_time->zoned_date_time()->raw()->with_timezone_with_provider(
+          *time_zone, TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tostring
@@ -6321,17 +6378,21 @@ MaybeDirectHandle<String> JSTemporalZonedDateTime::ToString(
       .rounding_mode = rounding_mode,
   };
   return temporal::GenericTemporalToString(
-      isolate, zoned_date_time, &temporal_rs::ZonedDateTime::to_ixdtf_string,
-      show_offset, show_tz, show_calendar, std::move(rust_options));
+      isolate, zoned_date_time,
+      &temporal_rs::ZonedDateTime::to_ixdtf_string_with_provider, show_offset,
+      show_tz, show_calendar, std::move(rust_options),
+      std::ref(TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tojson
 MaybeDirectHandle<String> JSTemporalZonedDateTime::ToJSON(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   return temporal::GenericTemporalToString(
-      isolate, zoned_date_time, &temporal_rs::ZonedDateTime::to_ixdtf_string,
+      isolate, zoned_date_time,
+      &temporal_rs::ZonedDateTime::to_ixdtf_string_with_provider,
       temporal_rs::DisplayOffset::Auto, temporal_rs::DisplayTimeZone::Auto,
-      temporal_rs::DisplayCalendar::Auto, std::move(temporal::kToStringAuto));
+      temporal_rs::DisplayCalendar::Auto, std::move(temporal::kToStringAuto),
+      std::ref(TimeZoneProvider()));
 }
 
 MaybeDirectHandle<String> JSTemporalZonedDateTime::ToLocaleString(
@@ -6345,9 +6406,11 @@ MaybeDirectHandle<String> JSTemporalZonedDateTime::ToLocaleString(
 #else   // V8_INTL_SUPPORT
   // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tolocalestring
   return temporal::GenericTemporalToString(
-      isolate, zoned_date_time, &temporal_rs::ZonedDateTime::to_ixdtf_string,
+      isolate, zoned_date_time,
+      &temporal_rs::ZonedDateTime::to_ixdtf_string_with_provider,
       temporal_rs::DisplayOffset::Auto, temporal_rs::DisplayTimeZone::Auto,
-      temporal_rs::DisplayCalendar::Auto, std::move(temporal::kToStringAuto));
+      temporal_rs::DisplayCalendar::Auto, std::move(temporal::kToStringAuto),
+      std::ref(TimeZoneProvider()));
 #endif  // V8_INTL_SUPPORT
 }
 
@@ -6442,7 +6505,8 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Round(
                                               .rounding_mode = rounding_mode,
                                               .increment = rounding_increment};
 
-  auto rounded = zoned_date_time->zoned_date_time()->raw()->round(options);
+  auto rounded = zoned_date_time->zoned_date_time()->raw()->round_with_provider(
+      options, TimeZoneProvider());
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(isolate,
                                                             std::move(rounded));
 }
@@ -6455,8 +6519,8 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Add(
   // 3. Return ? AddDurationToZonedDateTime(add, temporalDate,
   // temporalDurationLike, options).
   return temporal::AddDurationToGeneric(
-      isolate, &temporal_rs::ZonedDateTime::add, zoned_date_time,
-      temporal_duration_like, options, method_name);
+      isolate, &temporal_rs::ZonedDateTime::add_with_provider, zoned_date_time,
+      temporal_duration_like, options, method_name, TimeZoneProvider());
 }
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.subtract
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Subtract(
@@ -6466,8 +6530,9 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Subtract(
   // 3. Return ? AddDurationToZonedDateTime(subtract, temporalDate,
   // temporalDurationLike, options).
   return temporal::AddDurationToGeneric(
-      isolate, &temporal_rs::ZonedDateTime::subtract, zoned_date_time,
-      temporal_duration_like, options, method_name);
+      isolate, &temporal_rs::ZonedDateTime::subtract_with_provider,
+      zoned_date_time, temporal_duration_like, options, method_name,
+      TimeZoneProvider());
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.until
@@ -6476,8 +6541,9 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalZonedDateTime::Until(
     DirectHandle<Object> other, DirectHandle<Object> options) {
   static const char method_name[] = "Temporal.ZonedDateTime.prototype.since";
   return temporal::GenericDifferenceTemporal(
-      isolate, &temporal_rs::ZonedDateTime::until, UnitGroup::kDateTime,
-      Unit::Nanosecond, handle, other, options, method_name);
+      isolate, &temporal_rs::ZonedDateTime::until_with_provider,
+      UnitGroup::kDateTime, Unit::Nanosecond, handle, other, options,
+      method_name, TimeZoneProvider());
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.since
@@ -6486,8 +6552,9 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalZonedDateTime::Since(
     DirectHandle<Object> other, DirectHandle<Object> options) {
   static const char method_name[] = "Temporal.ZonedDateTime.prototype.since";
   return temporal::GenericDifferenceTemporal(
-      isolate, &temporal_rs::ZonedDateTime::since, UnitGroup::kDateTime,
-      Unit::Nanosecond, handle, other, options, method_name);
+      isolate, &temporal_rs::ZonedDateTime::since_with_provider,
+      UnitGroup::kDateTime, Unit::Nanosecond, handle, other, options,
+      method_name, TimeZoneProvider());
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.now.instant
@@ -6515,7 +6582,14 @@ MaybeDirectHandle<BigInt> JSTemporalZonedDateTime::EpochNanoseconds(
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.timezoneid
 MaybeDirectHandle<String> JSTemporalZonedDateTime::TimeZoneId(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  auto id = zoned_date_time->zoned_date_time()->raw()->timezone().identifier();
+  std::string id;
+  MOVE_RETURN_ON_EXCEPTION(
+      isolate, id,
+      ExtractRustResult(isolate,
+                        zoned_date_time->zoned_date_time()
+                            ->raw()
+                            ->timezone()
+                            .identifier_with_provider(TimeZoneProvider())));
 
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(id);
@@ -6542,7 +6616,9 @@ MaybeDirectHandle<String> JSTemporalZonedDateTime::Offset(
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::StartOfDay(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
-      isolate, zoned_date_time->zoned_date_time()->raw()->start_of_day());
+      isolate,
+      zoned_date_time->zoned_date_time()->raw()->start_of_day_with_provider(
+          TimeZoneProvider()));
 }
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.gettimezonetransition
 MaybeDirectHandle<UnionOf<JSTemporalZonedDateTime, Null>>
@@ -6599,10 +6675,10 @@ JSTemporalZonedDateTime::GetTimeZoneTransition(
   std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
   MOVE_RETURN_ON_EXCEPTION(
       isolate, zdt,
-      ExtractRustResult(
-          isolate,
-          zoned_date_time->zoned_date_time()->raw()->get_time_zone_transition(
-              dir)));
+      ExtractRustResult(isolate, zoned_date_time->zoned_date_time()
+                                     ->raw()
+                                     ->get_time_zone_transition_with_provider(
+                                         dir, TimeZoneProvider())));
 
   // 11. If transition is null, return null.
   if (!zdt) {
@@ -6887,7 +6963,8 @@ JSTemporalInstant::ToZonedDateTimeISO(Isolate* isolate,
       temporal::ToTemporalTimeZoneIdentifier(isolate, time_zone_obj));
 
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
-      isolate, instant->instant()->raw()->to_zoned_date_time_iso(*time_zone));
+      isolate, instant->instant()->raw()->to_zoned_date_time_iso_with_provider(
+                   *time_zone, TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tostring
@@ -6961,19 +7038,18 @@ MaybeDirectHandle<String> JSTemporalInstant::ToString(
   };
 
   return temporal::GenericTemporalToString(
-      isolate, instant,
-      &temporal_rs::Instant::to_ixdtf_string_with_compiled_data,
-      rust_time_zone.get(), std::move(rust_options));
+      isolate, instant, &temporal_rs::Instant::to_ixdtf_string_with_provider,
+      rust_time_zone.get(), std::move(rust_options),
+      std::ref(TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tojson
 MaybeDirectHandle<String> JSTemporalInstant::ToJSON(
     Isolate* isolate, DirectHandle<JSTemporalInstant> instant) {
-
   return temporal::GenericTemporalToString(
-      isolate, instant,
-      &temporal_rs::Instant::to_ixdtf_string_with_compiled_data, nullptr,
-      std::move(temporal::kToStringAuto));
+      isolate, instant, &temporal_rs::Instant::to_ixdtf_string_with_provider,
+      nullptr, std::move(temporal::kToStringAuto),
+      std::ref(TimeZoneProvider()));
 }
 
 MaybeDirectHandle<String> JSTemporalInstant::ToLocaleString(
@@ -6989,9 +7065,9 @@ MaybeDirectHandle<String> JSTemporalInstant::ToLocaleString(
 #else   // V8_INTL_SUPPORT
   // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tolocalestring
   return temporal::GenericTemporalToString(
-      isolate, instant,
-      &temporal_rs::Instant::to_ixdtf_string_with_compiled_data, nullptr,
-      std::move(temporal::kToStringAuto));
+      isolate, instant, &temporal_rs::Instant::to_ixdtf_string_with_provider,
+      nullptr, std::move(temporal::kToStringAuto),
+      std::ref(TimeZoneProvider()));
 #endif  // V8_INTL_SUPPORT
 }
 
