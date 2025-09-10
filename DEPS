@@ -130,7 +130,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4b52c84dc658529c558b4f41634b9e9e7cbe7d7f',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '361d91951de5c18a19de6e3c4b8b4dcfa4b6f45a',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd20625351b59ae23cd8d2dead19ff75f82a2790b',
   'buildtools/linux64': {
@@ -232,7 +232,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '3c5077921dbacc75db5768cf4fc0b1d9ca05d2e0',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'f4f8f90786d94d93273ef387772f24a2c6bdb829',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '3ca8f4784d58c6a6d9958b71c191390a8854fb55',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '958e89cc4131478e1770d4b7f5a1521048fdfd8a',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -308,7 +308,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'cf32009cc6080d61a09027c194f04be46d6aa236',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '2d2b9785f9e5c4a758af44a2092bd652982f02d8',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'e07e71553cb95120fd1cd8fb4747fff521bba9ec',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
