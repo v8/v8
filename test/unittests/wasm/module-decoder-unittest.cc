@@ -87,6 +87,13 @@ namespace module_decoder_unittest {
                 'e', '.', 'i', 'n', 's', 't', 'r', '_', 'f', 'r', 'e', 'q'), \
       __VA_ARGS__)
 
+#define SECTION_CALL_TARGETS(...)                                          \
+  SECTION(Unknown,                                                         \
+          ADD_COUNT('m', 'e', 't', 'a', 'd', 'a', 't', 'a', '.', 'c', 'o', \
+                    'd', 'e', '.', 'c', 'a', 'l', 'l', '_', 't', 'a', 'r', \
+                    'g', 'e', 't', 's'),                                   \
+          __VA_ARGS__)
+
 #define X1(...) __VA_ARGS__
 #define X2(...) __VA_ARGS__, __VA_ARGS__
 #define X3(...) __VA_ARGS__, __VA_ARGS__, __VA_ARGS__
@@ -2692,6 +2699,148 @@ TEST_F(WasmModuleVerifyTest, InstructionFrequenciesUnexpectedExtraBytes) {
   EXPECT_OK(result);
   InstructionFrequencies& frequencies = result.value()->instruction_frequencies;
   EXPECT_EQ(0U, frequencies.size());
+}
+
+TEST_F(WasmModuleVerifyTest, CallTargets) {
+  WASM_FEATURE_SCOPE(compilation_hints);
+  static const uint8_t data[] = {SECTION_CALL_TARGETS(
+      2,  // Functions count
+      0,  // Function index
+      2,  // Hints count
+
+      10,  // Byte offset
+      2,   // Hint length
+      0,   // Function index
+      99,  // Call frequency
+
+      20,                // Byte offset
+      7,                 // Hint length
+      0x80, 0x01,        // Function index 128
+      50,                // Call frequency
+      0xa0, 0xc2, 0x1e,  // Function index 500'000
+      40,                // Call frequency
+
+      1,  // Function index
+      1,  // Hints count
+
+      30,  // Byte offset
+      6,   // Hint length
+      0,   // Function index
+      10,  // Call frequency
+      1,   // Function index
+      20,  // Call frequency
+      2,   // Function index
+      30   // Call frequency
+      )};
+
+  ModuleResult result = DecodeModule(base::ArrayVector(data));
+  EXPECT_OK(result);
+  CallTargets& targets = result.value()->call_targets;
+  EXPECT_EQ(3U, targets.size());
+
+  CallTargetVector& elements0 = targets.at({0, 10});
+  EXPECT_EQ(1U, elements0.size());
+  EXPECT_EQ((CallTarget{0, 99}), elements0[0]);
+
+  CallTargetVector& elements1 = targets.at({0, 20});
+  EXPECT_EQ(2U, elements1.size());
+  EXPECT_EQ((CallTarget{128, 50}), elements1[0]);
+  EXPECT_EQ((CallTarget{500'000, 40}), elements1[1]);
+
+  CallTargetVector& elements2 = targets.at({1, 30});
+  EXPECT_EQ(3U, elements2.size());
+  EXPECT_EQ((CallTarget{0, 10}), elements2[0]);
+  EXPECT_EQ((CallTarget{1, 20}), elements2[1]);
+  EXPECT_EQ((CallTarget{2, 30}), elements2[2]);
+}
+
+TEST_F(WasmModuleVerifyTest, CallTargetsFunctionIndexOverflows) {
+  WASM_FEATURE_SCOPE(compilation_hints);
+  static const uint8_t data[] = {SECTION_CALL_TARGETS(
+      1,           // Functions count
+      0,           // Function index
+      1,           // Hints count
+      10,          // Byte offset
+      1,           // Hint length
+      0x80, 0x01,  // Function index 128
+      99           // Call frequency
+      )};
+
+  ModuleResult result = DecodeModule(base::ArrayVector(data));
+  EXPECT_OK(result);
+  CallTargets& targets = result.value()->call_targets;
+  EXPECT_EQ(0U, targets.size());
+}
+
+TEST_F(WasmModuleVerifyTest, CallTargetsCallFrequencyOverflows) {
+  WASM_FEATURE_SCOPE(compilation_hints);
+  static const uint8_t data[] = {SECTION_CALL_TARGETS(
+      1,           // Functions count
+      0,           // Function index
+      1,           // Hints count
+      10,          // Byte offset
+      2,           // Hint length
+      0x80, 0x01,  // Function index 128
+      99           // Call frequency
+      )};
+
+  ModuleResult result = DecodeModule(base::ArrayVector(data));
+  EXPECT_OK(result);
+  CallTargets& targets = result.value()->call_targets;
+  EXPECT_EQ(0U, targets.size());
+}
+
+TEST_F(WasmModuleVerifyTest, CallTargetsReadFunctionIndexFails) {
+  WASM_FEATURE_SCOPE(compilation_hints);
+  static const uint8_t data[] = {SECTION_CALL_TARGETS(
+      1,    // Functions count
+      0,    // Function index
+      1,    // Hints count
+      10,   // Byte offset
+      2,    // Hint length
+      0x80  // Function index -- bytes missing
+      )};
+
+  ModuleResult result = DecodeModule(base::ArrayVector(data));
+  EXPECT_OK(result);
+  CallTargets& targets = result.value()->call_targets;
+  EXPECT_EQ(0U, targets.size());
+}
+
+TEST_F(WasmModuleVerifyTest, CallTargetsPercentageOver100) {
+  WASM_FEATURE_SCOPE(compilation_hints);
+  static const uint8_t data[] = {SECTION_CALL_TARGETS(1,   // Functions count
+                                                      0,   // Function index
+                                                      1,   // Hints count
+                                                      10,  // Byte offset
+                                                      2,   // Hint length
+                                                      0,   // Function index
+                                                      101  // Call frequency
+                                                      )};
+
+  ModuleResult result = DecodeModule(base::ArrayVector(data));
+  EXPECT_OK(result);
+  CallTargets& targets = result.value()->call_targets;
+  EXPECT_EQ(0U, targets.size());
+}
+
+TEST_F(WasmModuleVerifyTest, CallTargetsSumOfPercentagesOver100) {
+  WASM_FEATURE_SCOPE(compilation_hints);
+  static const uint8_t data[] = {SECTION_CALL_TARGETS(1,   // Functions count
+                                                      0,   // Function index
+                                                      1,   // Hints count
+                                                      10,  // Byte offset
+                                                      4,   // Hint length
+                                                      0,   // Function index
+                                                      60,  // Call frequency
+                                                      1,   // Function index
+                                                      41   // Call frequency
+                                                      )};
+
+  ModuleResult result = DecodeModule(base::ArrayVector(data));
+  EXPECT_OK(result);
+  CallTargets& targets = result.value()->call_targets;
+  EXPECT_EQ(0U, targets.size());
 }
 
 class WasmSignatureDecodeTest : public TestWithZone {

@@ -722,9 +722,9 @@ int GetSourcePosition(const WasmModule* module, uint32_t func_index,
 size_t WasmModule::EstimateStoredSize() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmModule,
 #if V8_ENABLE_DRUMBRAKE
-                            864
+                            904
 #else   // V8_ENABLE_DRUMBRAKE
-                            832
+                            872
 #endif  // V8_ENABLE_DRUMBRAKE
   );
   return sizeof(WasmModule) +                            // --
@@ -744,6 +744,7 @@ size_t WasmModule::EstimateStoredSize() const {
          ContentSize(branch_hints) +                     // --
          ContentSize(compilation_priorities) +           // --
          ContentSize(instruction_frequencies) +          // --
+         ContentSize(call_targets) +                     // --
          ContentSize(inst_traces) +                      // --
          (num_declared_functions + 7) / 8;               // validated_functions
 }
@@ -802,9 +803,9 @@ size_t TypeFeedbackStorage::EstimateCurrentMemoryConsumption() const {
 size_t WasmModule::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmModule,
 #if V8_ENABLE_DRUMBRAKE
-                            864
+                            904
 #else   // V8_ENABLE_DRUMBRAKE
-                            832
+                            872
 #endif  // V8_ENABLE_DRUMBRAKE
   );
   size_t result = EstimateStoredSize();

@@ -38,6 +38,7 @@ __attribute__((used))
 constexpr char kCompilationPriorityString[] =
     "metadata.code.compilation_priority";
 constexpr char kInstructionFrequenciesString[] = "metadata.code.instr_freq";
+constexpr char kCallTargetsString[] = "metadata.code.call_targets";
 constexpr char kDebugInfoString[] = ".debug_info";
 constexpr char kExternalDebugInfoString[] = "external_debug_info";
 constexpr char kBuildIdString[] = "build_id";
@@ -150,6 +151,7 @@ inline SectionCode IdentifyUnknownSectionInternal(Decoder* decoder,
        kCompilationPrioritySectionCode},
       {base::StaticCharVector(kInstructionFrequenciesString),
        kInstFrequenciesSectionCode},
+      {base::StaticCharVector(kCallTargetsString), kCallTargetsSectionCode},
       {base::StaticCharVector(kDebugInfoString), kDebugInfoSectionCode},
       {base::StaticCharVector(kExternalDebugInfoString),
        kExternalDebugInfoSectionCode},
@@ -520,6 +522,15 @@ class ModuleDecoderImpl : public Decoder {
       case kInstFrequenciesSectionCode:
         if (enabled_features_.has_compilation_hints()) {
           DecodeInstructionFrequenciesSection();
+        } else {
+          // Ignore this section when feature was disabled. It is an optional
+          // custom section anyways.
+          consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
+        }
+        break;
+      case kCallTargetsSectionCode:
+        if (enabled_features_.has_compilation_hints()) {
+          DecodeCallTargetsSection();
         } else {
           // Ignore this section when feature was disabled. It is an optional
           // custom section anyways.
@@ -1932,7 +1943,7 @@ class ModuleDecoderImpl : public Decoder {
         inner.errorf("Unexpected extra bytes: %d\n",
                      static_cast<int>(inner.pc() - inner.start()));
       }
-      // If everything went well, accept the compilation priority hints for the
+      // If everything went well, accept the instruction-frequency hints for the
       // module.
       if (inner.ok()) {
         module_->instruction_frequencies = std::move(frequencies);
@@ -1942,6 +1953,110 @@ class ModuleDecoderImpl : public Decoder {
       }
     }
     // Skip the whole instruction frequencies section in the outer decoder.
+    consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
+  }
+
+  void DecodeCallTargetsSection() {
+    TRACE("DecodeCallTargets module+%d\n", static_cast<int>(pc_ - start_));
+    detected_features_->add_compilation_hints();
+    if (!has_seen_unordered_section(kCallTargetsSectionCode)) {
+      set_seen_unordered_section(kCallTargetsSectionCode);
+      // Use an inner decoder so that errors don't fail the outer decoder.
+      Decoder inner(start_, pc_, end_, buffer_offset_);
+
+      CallTargets call_targets;
+
+      uint32_t func_count = inner.consume_u32v("number of functions");
+
+      int64_t last_func_index = -1;
+
+      for (uint32_t i = 0; i < func_count; i++) {
+        uint32_t func_index = inner.consume_u32v("function index");
+        if (static_cast<int64_t>(func_index) <= last_func_index) {
+          inner.error("out of order functions");
+          break;
+        }
+        last_func_index = func_index;
+
+        int64_t last_byte_offset = -1;
+        uint32_t hints_count = inner.consume_u32v("hints count");
+
+        for (uint32_t hint = 0; hint < hints_count; hint++) {
+          uint32_t byte_offset = inner.consume_u32v("byte offset");
+          if (static_cast<int64_t>(byte_offset) <= last_byte_offset) {
+            inner.error("out of order hints");
+            break;
+          }
+          last_byte_offset = byte_offset;
+          uint32_t hint_length = inner.consume_u32v("hint length");
+          if (hint_length == 0) {
+            inner.error("hint length must be greater than 0");
+            break;
+          }
+          CallTargetVector call_targets_for_offset;
+          while (hint_length > 0) {
+            auto [function_index, function_index_length] =
+                inner.read_u32v<FullValidationTag>(inner.pc(),
+                                                   "function index");
+            if (inner.failed()) break;
+            if (function_index_length > hint_length) {
+              inner.error("function length overflows declared hint length");
+              break;
+            }
+            hint_length -= function_index_length;
+            inner.consume_bytes(function_index_length);
+
+            auto [call_frequency, call_frequency_length] =
+                inner.read_u32v<FullValidationTag>(inner.pc(),
+                                                   "call frequency");
+            if (inner.failed()) break;
+            if (call_frequency_length > hint_length) {
+              inner.error("call frequency overflows declared hint length");
+              break;
+            }
+            if (call_frequency > 100U) {
+              inner.error("invalid call frequency percentage");
+              break;
+            }
+            hint_length -= call_frequency_length;
+            inner.consume_bytes(call_frequency_length);
+
+            call_targets_for_offset.emplace_back(function_index,
+                                                 call_frequency);
+          }
+          if (inner.failed()) break;
+
+          DCHECK_EQ(hint_length, 0);
+
+          uint32_t sum_of_percentages = 0;
+          for (CallTarget& call_target : call_targets_for_offset) {
+            sum_of_percentages += call_target.call_frequency_percent;
+          }
+
+          if (sum_of_percentages > 100U) {
+            inner.error("percentages must sum to at most 100");
+            break;
+          }
+
+          call_targets.emplace(std::pair{func_index, byte_offset},
+                               call_targets_for_offset);
+        }
+        if (inner.failed()) break;
+      }
+
+      // Extra unexpected bytes are an error.
+      if (inner.more()) {
+        inner.errorf("Unexpected extra bytes: %d\n",
+                     static_cast<int>(inner.pc() - inner.start()));
+      }
+      // If everything went well, accept the call-target hints for the module.
+      if (inner.ok()) {
+        module_->call_targets = std::move(call_targets);
+      } else {
+        TRACE("DecodeCallTargets error: %s", inner.error().message().c_str());
+      }
+    }
+    // Skip the whole call-targets section in the outer decoder.
     consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
   }
 
